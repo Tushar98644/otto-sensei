@@ -1,0 +1,153 @@
+import { describe, expect, it } from "vitest";
+import { applyDesign } from "@/components/pdf/design";
+import { TEMPLATE_THEMES, themeFor } from "@/components/pdf/themes";
+import { emptyResume, type Resume } from "@/lib/resume/schema";
+import { ACCENT_COLORS, designKey, designOf, sameDesign, withDesign } from "./design";
+import { visibleResume } from "./visible";
+
+const resume = (design?: unknown): Resume =>
+  ({ ...emptyResume(0), ...(design === undefined ? {} : { design }) }) as Resume;
+
+describe("look settings on the resume", () => {
+  it("reads only known values, since saved copies are never re-parsed", () => {
+    expect(designOf(resume())).toEqual({});
+    expect(designOf(resume("navy"))).toEqual({});
+    expect(designOf(resume({ accent: "pink", font: "serif", density: "airy" }))).toEqual({
+      font: "serif",
+    });
+  });
+
+  it("sets and clears values, dropping design once nothing is set", () => {
+    const styled = withDesign(resume(), { accent: "navy", density: "compact" });
+    expect(styled.design).toEqual({ accent: "navy", density: "compact" });
+    const plain = withDesign(withDesign(styled, { accent: undefined }), { density: undefined });
+    expect("design" in plain).toBe(false);
+    expect(designKey(styled)).toBe("navy/-/compact");
+    expect(designKey(plain)).toBe("-/-/-");
+    expect(sameDesign({ font: "sans" }, { font: "sans" })).toBe(true);
+  });
+
+  it("uses dark print colors for every accent", () => {
+    expect(ACCENT_COLORS).toEqual({
+      ink: "#1b1b1b",
+      forest: "#0e3b2e",
+      navy: "#1d3557",
+      burgundy: "#6b1d2a",
+      slate: "#3b4a5a",
+    });
+  });
+});
+
+describe("applyDesign", () => {
+  it("leaves every format as it was without settings", () => {
+    for (const theme of Object.values(TEMPLATE_THEMES)) expect(applyDesign(theme, {})).toBe(theme);
+  });
+
+  it("colors headings and drawn rules, and adds no rule a format doesn't draw", () => {
+    const color = ACCENT_COLORS.burgundy;
+    const classic = applyDesign(TEMPLATE_THEMES.classic, { accent: "burgundy" }).styles;
+    expect(classic.sectionTitle).toMatchObject({ color, borderBottomColor: color });
+    const minimal = applyDesign(TEMPLATE_THEMES.minimal, { accent: "burgundy" }).styles;
+    expect(minimal.sectionTitle.color).toBe(color);
+    expect(minimal.sectionTitle.borderBottomColor).toBe(
+      TEMPLATE_THEMES.minimal.styles.sectionTitle.borderBottomColor,
+    );
+    const modern = applyDesign(TEMPLATE_THEMES.modern, { accent: "burgundy" }).styles;
+    expect(modern.sectionTitleRule.borderBottomColor).toBe(color);
+    const executive = applyDesign(TEMPLATE_THEMES.executive, { accent: "burgundy" }).styles;
+    expect(executive.headerRule.borderBottomColor).toBe(color);
+    // Body text stays ink.
+    expect(classic.page.color).toBe(TEMPLATE_THEMES.classic.styles.page.color);
+  });
+
+  it("swaps the body family but keeps Developer's code-style Courier", () => {
+    const serif = applyDesign(TEMPLATE_THEMES.developer, { font: "serif" }).styles;
+    expect(serif.page.fontFamily).toBe("Times-Roman");
+    expect(serif.sectionTitle.fontFamily).toBe("Courier");
+    expect(serif.skillItems.fontFamily).toBe("Courier");
+    const sans = applyDesign(TEMPLATE_THEMES.executive, { font: "sans" }).styles;
+    expect(sans.page.fontFamily).toBe("Helvetica");
+  });
+
+  it("takes about 10% off the spacing with compact, never the type size", () => {
+    const base = TEMPLATE_THEMES.classic.styles;
+    const compact = applyDesign(TEMPLATE_THEMES.classic, { density: "compact" }).styles;
+    expect(compact.page.paddingTop).toBeCloseTo((base.page.paddingTop as number) * 0.9, 1);
+    expect(compact.section.marginTop).toBeCloseTo((base.section.marginTop as number) * 0.9, 1);
+    expect(compact.entry.marginTop).toBeCloseTo((base.entry.marginTop as number) * 0.9, 1);
+    expect(compact.page.lineHeight as number).toBeLessThan(base.page.lineHeight as number);
+    expect(compact.page.lineHeight as number).toBeGreaterThanOrEqual(1.15);
+    expect(compact.page.fontSize).toBe(base.page.fontSize);
+    expect(compact.name.fontSize).toBe(base.name.fontSize);
+  });
+
+  it("is what themeFor prints", () => {
+    const styled = resume({ accent: "slate", font: "serif" });
+    expect(themeFor({ ...styled, template: "modern" }).styles.page.fontFamily).toBe("Times-Roman");
+    expect(themeFor(styled, "classic").styles.sectionTitle.color).toBe(ACCENT_COLORS.slate);
+  });
+});
+
+describe("visibleResume", () => {
+  it("drops hidden sections, entries, lines, groups and extras", () => {
+    const source: Resume = {
+      ...emptyResume(0),
+      summary: "Hello",
+      experience: [
+        {
+          id: "e1",
+          company: "A",
+          title: "B",
+          location: "",
+          startDate: "",
+          endDate: "",
+          bullets: [
+            { id: "b1", text: "Shown" },
+            { id: "b2", text: "Hidden", hidden: true },
+          ],
+        },
+        {
+          id: "e2",
+          company: "C",
+          title: "D",
+          location: "",
+          startDate: "",
+          endDate: "",
+          bullets: [],
+          hidden: true,
+        },
+      ],
+      skills: [{ id: "k1", label: "", items: ["Go"], hidden: true }],
+      extras: [
+        { id: "x1", kind: "awards", title: "Awards", items: [], hidden: true },
+        {
+          id: "x2",
+          kind: "languages",
+          title: "Languages",
+          items: [
+            { id: "i1", title: "Spanish", subtitle: "", date: "", detail: "", bullets: [] },
+            {
+              id: "i2",
+              title: "French",
+              subtitle: "",
+              date: "",
+              detail: "",
+              bullets: [],
+              hidden: true,
+            },
+          ],
+        },
+      ],
+      hiddenSections: ["summary"],
+    };
+    const shown = visibleResume(source);
+    expect(shown.summary).toBe("");
+    expect(shown.sectionOrder).not.toContain("summary");
+    expect(shown.experience.map((job) => job.id)).toEqual(["e1"]);
+    expect(shown.experience[0]!.bullets.map((b) => b.id)).toEqual(["b1"]);
+    expect(shown.skills).toEqual([]);
+    expect(shown.extras?.map((x) => [x.id, x.items.map((i) => i.id)])).toEqual([["x2", ["i1"]]]);
+    // The source keeps everything.
+    expect(source.experience[0]!.bullets).toHaveLength(2);
+  });
+});

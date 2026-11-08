@@ -1,0 +1,130 @@
+"use client";
+
+import { ArrowRight } from "lucide-react";
+import Link from "next/link";
+import { useMemo } from "react";
+import { ROUTES } from "@/components/site/routes";
+import { Button } from "@/components/ui/button";
+import { FolderCard } from "@/components/ui/folder-card";
+import { gapLine, gapNudge, MIN_SHORT_JOBS, skillGaps, type SkillGapReport } from "@/lib/insights/skill-gaps";
+import { useResumeList, useStudioHydrated } from "@/lib/store/resume-store";
+import { useStudioActions } from "../use-studio-actions";
+
+const PANEL_GAPS = 6;
+
+function useSkillGaps(limit: number): SkillGapReport | null {
+  const hydrated = useStudioHydrated();
+  const resumes = useResumeList();
+  const report = useMemo(() => skillGaps(resumes, limit), [resumes, limit]);
+  return hydrated ? report : null;
+}
+
+// The Applications page's panel: every skill that keeps coming up short, with what to do about it
+// and a way into the newest copy that's missing it.
+export function SkillGapsPanel() {
+  const report = useSkillGaps(PANEL_GAPS);
+  const actions = useStudioActions();
+  const resumes = useResumeList();
+  // The newest resume of the person's own (not a copy), the one a new job is tailored from.
+  const base = resumes.find((resume) => resume.tailor === null) ?? resumes[0] ?? null;
+  if (!report) return null;
+
+  return (
+    <section aria-labelledby="skill-gaps-heading" className="flex flex-col gap-4">
+      <h2 id="skill-gaps-heading" className="font-sans text-lg/7 font-medium text-ink">
+        What your jobs keep asking for
+      </h2>
+      <FolderCard
+        tab="Skill gaps"
+        tabEnd={
+          report.jobs > 0 ? (
+            <span className="text-xs text-subtle tabular-nums">
+              From {report.jobs} tailored {report.jobs === 1 ? "job" : "jobs"}
+            </span>
+          ) : null
+        }
+        bodyClassName="px-4 py-0 sm:px-6"
+      >
+        {report.gaps.length > 0 ? (
+          <ul className="divide-y divide-border">
+            {report.gaps.map((gap) => {
+              const nudge = gapNudge(gap);
+              const copyId = gap.copyIds[0];
+              return (
+                <li key={gap.term} className="flex flex-col gap-3 py-4 md:flex-row md:items-center md:gap-6">
+                  <div className="min-w-0 flex-1">
+                    <p className="text-base/6 font-medium text-ink">{gapLine(gap, report.jobs)}</p>
+                    <p className="mt-1 text-sm/6 text-pretty text-muted">{nudge.text}</p>
+                    {gap.jobs.length > 0 ? (
+                      <p className="mt-1 truncate text-xs/5 text-subtle">Short in {gap.jobs.join(" · ")}</p>
+                    ) : null}
+                  </div>
+                  {copyId ? (
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      className="self-start md:self-auto"
+                      onClick={() => actions.open(copyId, "fix")}
+                      aria-label={`Add a line about ${gap.term} to your newest copy that's missing it`}
+                    >
+                      Add a line
+                    </Button>
+                  ) : null}
+                </li>
+              );
+            })}
+          </ul>
+        ) : (
+          <div className="flex flex-col gap-3 py-5 sm:flex-row sm:items-center sm:justify-between">
+            <p className="text-sm/6 text-pretty text-muted">
+              {report.jobs < MIN_SHORT_JOBS
+                ? `Tailor to ${MIN_SHORT_JOBS} or more jobs and Otto shows the skills they keep asking for that your resume doesn't show.`
+                : `Every skill that came up in ${MIN_SHORT_JOBS} or more of your jobs shows in your copies.`}
+            </p>
+            {report.jobs < MIN_SHORT_JOBS ? (
+              <Button
+                variant="secondary"
+                size="sm"
+                className="shrink-0 self-start sm:self-auto"
+                onClick={() => (base ? actions.open(base.id, "tailor") : actions.upload())}
+              >
+                {base ? "Tailor to a job" : "Upload a resume"}
+              </Button>
+            ) : null}
+          </div>
+        )}
+      </FolderCard>
+    </section>
+  );
+}
+
+// The dashboard home's compact version: the top gap and a way to the full list. Hidden until there
+// is a gap, so the home page never shows an empty card for it.
+export function SkillGapCard() {
+  const report = useSkillGaps(3);
+  const top = report?.gaps[0];
+  if (!report || !top) return null;
+  const more = report.gaps.length - 1;
+
+  return (
+    <FolderCard
+      tab="Skill gaps"
+      tabEnd={
+        <Link
+          href={ROUTES.dashboardApplications}
+          className="group inline-flex items-center gap-1 text-sm font-medium text-ink"
+        >
+          {more > 0 ? `${more} more` : "Applications"}
+          <ArrowRight
+            aria-hidden
+            className="size-4 text-muted transition-transform group-hover:translate-x-0.5"
+          />
+        </Link>
+      }
+      bodyClassName="p-5 sm:p-6"
+    >
+      <p className="text-base/6 font-medium text-ink">{gapLine(top, report.jobs)}</p>
+      <p className="mt-1 max-w-prose text-sm/6 text-pretty text-muted">{gapNudge(top).text}</p>
+    </FolderCard>
+  );
+}

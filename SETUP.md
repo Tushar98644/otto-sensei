@@ -1,0 +1,567 @@
+# Setup: put Otto Sensei online
+
+Step by step, from nothing to a live app. Do the steps in order. About an hour, most of it waiting
+for DNS and Google.
+
+You will end up with:
+
+```
+Browser → Vercel (app, US East iad1) → Supabase (database + sign-in, US East)
+                                     → Resend (sign-in emails, through Supabase)
+                                     → Google (sign-in), OpenRouter (AI), Dodo (payments)
+```
+
+What you need: accounts at vercel.com, supabase.com, resend.com (plus a domain you can add DNS
+records to), console.cloud.google.com, openrouter.ai and dodopayments.com. On your laptop: `bun`
+and the Vercel CLI (`bun add -g vercel`).
+
+All commands run in this folder (`projects/resume-app/web`).
+
+---
+
+## 0. Local development (no setup)
+
+```bash
+bun install
+bun dev            # http://localhost:3000
+```
+
+Sign in with any email address: no email is sent, the sign-in form shows
+"Dev mode: your code is 123456". Type it and you're in. Plans, usage, resume backups, applications
+and the "Upgrade" button (mock billing) all work.
+
+- Everything is stored in the `.pglite/` folder, a real Postgres in a folder, created and migrated
+  on the first request. Delete the folder to start over.
+- New migration files are applied when `bun dev` starts, not while it runs. After pulling new
+  files into `supabase/migrations/`, stop `bun dev` and start it again.
+- `bun dev` stays local even after step 5 puts Supabase values in `.env.local`, so test accounts
+  never land in the real database.
+- To try real email codes and Google sign-in on your laptop (after steps 2 to 8), run
+  `DEV_AUTH=supabase bun dev`. That uses the Supabase keys and `DATABASE_URL` from `.env.local`.
+- Production never uses dev codes or `.pglite/`, whatever variables are set.
+
+---
+
+## 1. Link the folder to Vercel
+
+```bash
+vercel login
+vercel link
+```
+
+`vercel link` asks a few questions. Answer: set up the project **yes**, your own team, link to an
+existing project **no**, name **otto-resume**, code directory **./** (this folder).
+
+The functions region is already set to **iad1** (US East, Washington DC) in `vercel.json`, next to
+the Supabase database. Nothing to click.
+
+> Deploying from GitHub instead of the CLI? In Vercel's project settings set **Root Directory** to
+> `projects/resume-app/web`.
+
+---
+
+## 2. Create the Supabase project
+
+1. Go to supabase.com/dashboard, click **New project**.
+2. **Name:** `otto-resume`. **Database password:** click **Generate a password** and save it in your
+   password manager. **Region:** **East US (North Virginia)**. Click **Create new project**.
+3. Wait about two minutes until the project says it's ready.
+
+> Free projects pause after a week with no visitors. Upgrade to Pro before launch, or open the
+> dashboard and click **Restore** if it pauses.
+
+---
+
+## 3. Copy five values from Supabase
+
+| Variable | Where to find it in the Supabase dashboard |
+|---|---|
+| `DATABASE_URL` | **Connect** (top of the page) → **Connection String** → Method **Transaction pooler** (port **6543**). Copy it and replace `[YOUR-PASSWORD]` with the database password. |
+| `DIRECT_DATABASE_URL` | Same dialog, Method **Session pooler** (port **5432**). Replace `[YOUR-PASSWORD]` again. |
+| `NEXT_PUBLIC_SUPABASE_URL` | **Connect** → **App Frameworks** (pick Next.js) → the `..._SUPABASE_URL` line. Looks like `https://abcdefgh.supabase.co`. |
+| `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | **Project Settings** → **API Keys** → **Publishable key** (`sb_publishable_...`). |
+| `SUPABASE_SECRET_KEY` | **Project Settings** → **API Keys** → **Secret keys**. Click **Create new secret key** if there is none, then reveal and copy it (`sb_secret_...`). |
+
+- Use the **Session pooler**, not "Direct connection", for `DIRECT_DATABASE_URL`: the direct one
+  only works over IPv6, which many home networks don't have.
+- If your password has `@ : / ? #` in it, URL-encode those characters, or generate one with
+  letters and digits only.
+- The secret key can delete any account. It only ever goes in `SUPABASE_SECRET_KEY`, never in a
+  variable that starts with `NEXT_PUBLIC_`.
+- Older projects show **anon** and **service_role** keys instead. They work too: use the names
+  `NEXT_PUBLIC_SUPABASE_ANON_KEY` and `SUPABASE_SERVICE_ROLE_KEY`.
+
+---
+
+## 4. Put the values into Vercel
+
+Each command asks you to paste the value. Production first:
+
+```bash
+vercel env add DATABASE_URL production
+vercel env add NEXT_PUBLIC_SUPABASE_URL production
+vercel env add NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY production
+vercel env add SUPABASE_SECRET_KEY production
+vercel env add NEXT_PUBLIC_APP_URL production      # https://otto-resume.vercel.app, or your domain
+```
+
+Then the same five for **development**, plus the migration URL, so step 5 can bring them to your
+laptop (`DIRECT_DATABASE_URL` is only used there, never by the live app):
+
+```bash
+vercel env add DATABASE_URL development
+vercel env add NEXT_PUBLIC_SUPABASE_URL development
+vercel env add NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY development
+vercel env add SUPABASE_SECRET_KEY development
+vercel env add NEXT_PUBLIC_APP_URL development     # http://localhost:3000
+vercel env add DIRECT_DATABASE_URL development
+```
+
+Want preview deployments to sign in too? Repeat the first list with `preview`.
+
+**Optional, instead of typing them:** Supabase can push its values into Vercel for you. In the
+Supabase dashboard: **Project Settings** → **Integrations** → **Vercel** → connect your Vercel
+account and pick the `otto-resume` project. It sets the Marketplace names (`POSTGRES_URL`,
+`POSTGRES_URL_NON_POOLING`, `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`,
+`SUPABASE_SECRET_KEY`, ...). The app accepts those names too, so pick one way, not both. You still
+add `NEXT_PUBLIC_APP_URL` yourself.
+
+---
+
+## 5. Pull the values to your laptop and create the tables
+
+`vercel env pull` replaces `.env.local`, which holds your OpenRouter key today. Back it up first:
+
+```bash
+cp .env.local .env.local.backup
+vercel env pull .env.local
+```
+
+If `OPENROUTER_API_KEY` isn't in Vercel yet (step 9), copy its line from `.env.local.backup` back
+into `.env.local`. (`bun dev` keeps using the local `.pglite/` database; see step 0.)
+
+Now create the tables (Bun reads `.env.local` on its own):
+
+```bash
+bun scripts/migrate.ts --status   # shows what it would do, changes nothing
+bun scripts/migrate.ts
+```
+
+On a new database you should see one `done ...` line per file in `supabase/migrations/` (nine
+today: `init`, `share_links`, `feedback_referrals`, `notifications`, `work_profile`,
+`application_prep`, `follow_up_dates`, `max_plan`, `plan_interval`) and `Applied 9 migrations.` Running it again prints `Up to date.` It records
+what ran in `supabase_migrations.schema_migrations`, the same table the Supabase CLI uses. Run it again whenever a new file appears in `supabase/migrations/`, before
+deploying the code that needs it.
+
+Every table has Row Level Security on with no policies. That is on purpose: the app talks to the
+database only from its server, so the public Supabase API (the publishable key) can't read or
+write any of it.
+
+---
+
+## 6. Sign-in emails: Resend through Supabase
+
+Supabase sends the 6-digit codes. Its built-in mailer only reaches your own team and a few emails
+an hour, so it must send through Resend.
+
+**6a. Resend**
+
+1. resend.com → **Domains** → **Add Domain** → your domain (for example `ottoresume.com`). Add the
+   DNS records it shows at your domain registrar, then click **Verify**. Wait until it says
+   **Verified**.
+2. **API Keys** → **Create API Key** → name `supabase-smtp`, permission **Sending access**, your
+   domain. Copy the key (`re_...`). You only see it once.
+
+**6b. Supabase SMTP** (Supabase dashboard → **Authentication** → **Emails** → **SMTP Settings**)
+
+1. Turn on **Enable custom SMTP**.
+2. **Sender email:** `login@yourdomain.com`. **Sender name:** `Otto Sensei`.
+3. **Host:** `smtp.resend.com`. **Port:** `465`. **Username:** `resend`. **Password:** the Resend
+   API key from 6a.
+4. Click **Save changes**.
+
+**6c. Sending limit** (**Authentication** → **Rate Limits**): set **Rate limit for sending emails**
+to `100` emails per hour, then **Save**. The app also limits each address to 5 codes an hour and
+each IP to 10.
+
+**6d. The email sign-in itself** (**Authentication** → **Sign In / Providers**)
+
+1. **User Signups:** **Allow new users to sign up** on.
+2. Open **Email**: **Enable Email provider** on. **Email OTP Expiration:** `600` (seconds; the app
+   tells people codes last 10 minutes). **Email OTP Length:** `6`. **Save**.
+
+**6e. The email text** (**Authentication** → **Emails** → **Templates**)
+
+New people get the **Confirm signup** email, returning people the **Magic Link** email, so change
+**both** to send the code instead of a link. Paste exactly this into each:
+
+Subject:
+
+```
+Your Otto Sensei code: {{ .Token }}
+```
+
+Body (Source / HTML):
+
+```html
+<div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:16px;line-height:1.5;color:#12241d;max-width:480px">
+<img src="{{ .SiteURL }}/email/otto-head.png" width="48" height="48" alt="Otto" style="display:block;margin:0 0 16px;border:0">
+<p style="margin:0 0 8px">Your Otto Sensei code is</p>
+<p style="margin:0 0 16px;font-size:32px;font-weight:700;letter-spacing:6px">{{ .Token }}</p>
+<p style="margin:0 0 16px">It expires in 10 minutes.</p>
+<p style="margin:0;color:#475850;font-size:14px">If you didn't ask for this, you can ignore this email.</p>
+</div>
+```
+
+Click **Save** on each. The template must contain `{{ .Token }}` and no `{{ .ConfirmationURL }}`:
+the app has no page for email links. `{{ .SiteURL }}` is the Site URL from step 7, so Otto's head
+(`public/email/otto-head.png`, a PNG because email apps don't show SVG) loads from the live app.
+Already pasted the older template? Paste this one again to add his head.
+
+---
+
+## 7. Where sign-in may send people back
+
+Supabase dashboard → **Authentication** → **URL Configuration**:
+
+1. **Site URL:** your live address, for example `https://otto-resume.vercel.app`. **Save**.
+2. **Redirect URLs** → **Add URL**, add both:
+   - `https://otto-resume.vercel.app/**` (your live address followed by `/**`)
+   - `http://localhost:3000/**`
+
+Google sign-in comes back to `/auth/callback?next=...`. An address that isn't on this list makes
+Supabase send people to the Site URL instead, signed out.
+
+> Google sign-in always returns to `NEXT_PUBLIC_APP_URL` (the live address), so on a preview
+> deployment use the email code. It works everywhere.
+
+---
+
+## 8. Google sign-in
+
+**8a. Google Cloud** (console.cloud.google.com)
+
+1. Project picker (top left) → **New project** → name `Otto Sensei` → **Create**, then select it.
+2. Search for **Google Auth Platform** and open it. Click **Get started** if asked.
+3. **Branding:** App name `Otto Sensei`, your support email, App home page
+   `https://otto-resume.vercel.app`, Privacy policy `https://otto-resume.vercel.app/privacy`,
+   Terms of service `https://otto-resume.vercel.app/terms`. **Authorized domains:** add your app's
+   domain (for example `vercel.app` or `ottoresume.com`) and `supabase.co`. Developer contact: your
+   email. **Save**.
+4. **Audience:** User type **External**. Click **Publish app** so anyone can sign in (in "Testing"
+   only listed test users can).
+5. **Data Access** → **Add or remove scopes:** tick `.../auth/userinfo.email`,
+   `.../auth/userinfo.profile` and `openid`. **Update**, then **Save**. These are basic scopes, so
+   no Google review is needed.
+6. **Clients** → **Create client**:
+   - **Application type:** Web application. **Name:** `Otto Sensei web`.
+   - **Authorized JavaScript origins:** `https://otto-resume.vercel.app` and `http://localhost:3000`.
+   - **Authorized redirect URIs:** `https://<project-ref>.supabase.co/auth/v1/callback`. Copy the
+     exact value from Supabase: **Authentication** → **Sign In / Providers** → **Google** →
+     **Callback URL (for OAuth)**.
+   - **Create**. Copy the **Client ID** and **Client secret**.
+
+**8b. Supabase** (**Authentication** → **Sign In / Providers** → **Google**)
+
+1. Turn on **Enable Sign in with Google**.
+2. **Client IDs:** paste the Client ID. **Client Secret (for OAuth):** paste the secret.
+3. **Save**.
+
+Someone who first used an email code and later uses Google with the same address lands in the
+same account: Supabase links them because Google has verified the address.
+
+---
+
+## 9. AI: OpenRouter
+
+1. openrouter.ai → **Credits** → add $10 to start.
+2. openrouter.ai/keys → **Create Key** → name `otto-resume`, **Credit limit** `$20` (the most this
+   key can ever spend; raise it later). Copy the key.
+3. Add it to Vercel:
+
+   ```bash
+   vercel env add OPENROUTER_API_KEY production
+   vercel env add OPENROUTER_API_KEY development
+   ```
+
+`AI_MODEL` and `AI_STRUCTURE_MODEL` are optional; both default to `z-ai/glm-5.3-flash`. After
+changing one, check quality and cost with `bun scripts/ai-smoke.ts` (a few cents).
+
+---
+
+## 10. Payments: Dodo
+
+In the Dodo dashboard (start in **Test mode**):
+
+1. **Products** → create a **Subscription** product, "Pro", $15 per month. Copy its id
+   → `DODO_PAYMENTS_PRODUCT_ID`.
+2. **Developer** → **API Keys** → create one → `DODO_PAYMENTS_API_KEY`.
+3. **Developer** → **Webhooks** → **Add endpoint**: URL `https://otto-resume.vercel.app/api/billing/webhook`,
+   events: every `subscription.*` event. Copy the signing secret (`whsec_...`)
+   → `DODO_PAYMENTS_WEBHOOK_KEY`.
+
+```bash
+vercel env add DODO_PAYMENTS_PRODUCT_ID production
+vercel env add DODO_PAYMENTS_API_KEY production
+vercel env add DODO_PAYMENTS_WEBHOOK_KEY production
+vercel env add DODO_PAYMENTS_ENVIRONMENT production   # test_mode now, live_mode for real money
+```
+
+Checkout turns on only when all three Dodo values are set. Until then the app shows "email us".
+
+**All six products.** Each plan has a monthly, a yearly and a weekly product. Create them all as
+**Subscription** products in Dodo (the monthly Pro one is step 1):
+
+| Product | Price | Variable |
+|---|---|---|
+| Pro, monthly | $15 per month | `DODO_PAYMENTS_PRODUCT_ID` (required) |
+| Pro, yearly | $120 per year | `DODO_PAYMENTS_PRODUCT_ID_YEARLY` |
+| Pro, weekly | $6 per week | `DODO_PAYMENTS_PRODUCT_ID_WEEKLY` |
+| Max, monthly | $29 per month | `DODO_PAYMENTS_MAX_PRODUCT_ID` |
+| Max, yearly | $232 per year | `DODO_PAYMENTS_MAX_PRODUCT_ID_YEARLY` |
+| Max, weekly | $12 per week | `DODO_PAYMENTS_MAX_PRODUCT_ID_WEEKLY` |
+
+Each option shows on the pricing page, the upgrade dialog and the account page only while its id
+is set; leave one out and it simply isn't offered (Max needs at least one of its three). The
+webhook maps every product id to its plan and how often it bills, and ignores products that aren't
+one of these. That billing period sets the allowance (weekly products get the smaller weekly limits
+per billing week), so each variable must hold a product with exactly that period, and no two
+variables the same id. To change
+a price, change the Dodo product and `PRICES_USD` in `src/config/plans.ts` together: the app shows
+that number, Dodo charges its own. Redeploy after adding them (the pricing page is built with them).
+
+```bash
+vercel env add DODO_PAYMENTS_PRODUCT_ID_YEARLY production
+vercel env add DODO_PAYMENTS_PRODUCT_ID_WEEKLY production
+vercel env add DODO_PAYMENTS_MAX_PRODUCT_ID production
+vercel env add DODO_PAYMENTS_MAX_PRODUCT_ID_YEARLY production
+vercel env add DODO_PAYMENTS_MAX_PRODUCT_ID_WEEKLY production
+```
+
+**Pro to Max and back.** Someone already paying who picks the other plan has their subscription
+moved to the new product in place (Dodo's change-plan API, prorated right away), so nobody is ever
+billed twice. In the Dodo dashboard, make sure plan changes between these products are allowed.
+
+In `bun dev` (mock billing) any value works, for example `DODO_PAYMENTS_MAX_PRODUCT_ID=test`, to
+see the options and click through them; the plan switches at once.
+
+**Feedback and invites need no setup.** "Send feedback" notes land in the `feedback` table: read
+them in Supabase → **Table Editor** → `feedback` (newest first by `created_at`). Invite links work
+as soon as the `20261108000200_feedback_referrals.sql` migration has run (step 5).
+
+---
+
+## Optional services at a glance
+
+Everything below step 10 is optional. Leave a variable out and that one feature switches off
+quietly; the rest of the app runs the same.
+
+| Variable | Turns on | Step |
+|---|---|---|
+| `DODO_PAYMENTS_PRODUCT_ID_YEARLY`, `DODO_PAYMENTS_PRODUCT_ID_WEEKLY` | Yearly ($120) and weekly ($6) Pro | 10 |
+| `DODO_PAYMENTS_MAX_PRODUCT_ID`, `_MAX_PRODUCT_ID_YEARLY`, `_MAX_PRODUCT_ID_WEEKLY` | The Max plan ($29/month, $232/year, $12/week) | 10 |
+| `NEXT_PUBLIC_SENTRY_DSN` (+ `SENTRY_AUTH_TOKEN`, `SENTRY_ORG`, `SENTRY_PROJECT`) | Error reports (+ readable stack traces) | 10b |
+| `NEXT_PUBLIC_POSTHOG_KEY` (+ `NEXT_PUBLIC_POSTHOG_HOST` for EU) | Funnel events | 10c |
+| `GITHUB_TOKEN` | Higher GitHub limits for Import from GitHub | 10d |
+| `CRON_SECRET` | Daily cleanup and follow-up reminders (bell) | 10e |
+| `RESEND_API_KEY`, `EMAIL_FROM` | Reminder emails (needs `CRON_SECRET`) | 10e |
+
+---
+
+## 10b. Error reports: Sentry (optional)
+
+Skip this and the app runs the same, it just doesn't report crashes anywhere.
+
+1. sentry.io → **Create project** → platform **Next.js** → name `otto-resume`. Copy the **DSN**
+   (`https://...@o123.ingest.sentry.io/456`).
+2. **Project Settings** → **Security & Privacy**: turn on **Prevent Storing of IP Addresses** and
+   **Data Scrubber**. The app already removes emails, phone numbers, resume text, request bodies,
+   cookies and sign-in headers before anything is sent (`src/lib/observability/scrub.ts`); this
+   is the second lock.
+3. Readable stack traces (optional): **Settings** → **Auth Tokens** → **Create New Token** (scope
+   `project:releases`). Note your organization slug and the project slug.
+
+```bash
+vercel env add NEXT_PUBLIC_SENTRY_DSN production   # the DSN from 1 (it's safe in the browser)
+vercel env add SENTRY_AUTH_TOKEN production         # optional, from 3: uploads source maps
+vercel env add SENTRY_ORG production                # optional, with the token
+vercel env add SENTRY_PROJECT production            # optional, with the token: otto-resume
+```
+
+- Errors only: no performance tracing, no session replay. Each release is the Git commit.
+- `bun dev` sends nothing, even with a DSN in `.env.local`. To test reporting on your laptop, add
+  `NEXT_PUBLIC_SENTRY_DEV=1` too.
+- Landing and policy pages don't load Sentry until the visitor moves into the app.
+
+---
+
+## 10c. Product analytics: PostHog (optional)
+
+Skip this and the app runs the same, it just doesn't count funnel steps anywhere.
+
+1. posthog.com → create a project (US or EU cloud). Copy the **Project API key** (`phc_...`).
+2. **Project settings** → turn on **Discard client IP data**. The app already sends only named
+   events with counts and flags (never resume text, job posts, names or emails), strips query
+   strings and share links from URLs, and skips anyone whose browser sends Do Not Track or Global
+   Privacy Control (`src/lib/analytics/`); this is the second lock.
+
+```bash
+vercel env add NEXT_PUBLIC_POSTHOG_KEY production    # the project key (safe in the browser)
+vercel env add NEXT_PUBLIC_POSTHOG_HOST production   # only for EU: https://eu.i.posthog.com
+```
+
+- No autocapture, no page views, no session recording, no surveys, no cookies: a random id in
+  local storage until sign-in, then the user id (never the email).
+- Funnel: `landing_viewed` → `resume_imported` → `recruiter_view_seen` → `signed_in` →
+  `line_fixed` → `tailor_run` → `screener_viewed` → `letter_written` → `pdf_downloaded` /
+  `docx_downloaded` → `upgrade_clicked` → `checkout_completed`, plus `application_logged`.
+  From the server: `signed_up`, `checkout_completed`, `line_fixed`, `tailor_run`,
+  `letter_written`, `application_logged` and `ai_call` (task, model, latency, outcome).
+- `bun dev` sends events when the key is in `.env.local`; leave it out locally unless you're
+  testing analytics.
+
+---
+
+## 10d. GitHub import: a read-only token (optional)
+
+"Import from GitHub" (a resume card's menu) reads public repos and merged pull requests without
+anyone's GitHub login. Without a token GitHub allows the whole server 60 calls an hour (a lookup
+uses 2, a draft up to 10, repeats within 10 minutes are free), so add one before launch:
+
+1. github.com → **Settings** → **Developer settings** → **Fine-grained tokens** → **Generate new
+   token**. Repository access: **Public repositories (read-only)**. No other permissions.
+2. Set an expiry date and a reminder to renew it; when it lapses the import falls back to the
+   60-call limit instead of breaking.
+
+```bash
+vercel env add GITHUB_TOKEN production
+```
+
+- The server only ever calls `api.github.com`, at most 10 times per request, with a 10-minute cache.
+- Each device can look up 20 names an hour and draft 12 times a day (60 and 40 per network).
+- Drafting sends the picked repos' README and pull request text to OpenRouter, with the name on
+  the resume and every email, phone and link swapped for placeholders. Nothing is added until the
+  person confirms.
+
+---
+
+## 10e. Scheduled jobs and reminder emails (optional)
+
+```
+Vercel Cron → /api/cron/cleanup     04:17 UTC daily → old rate-limit windows, tombstones, notifications
+            → /api/cron/follow-ups  14:00 UTC daily → bell notification (+ email) per account
+```
+
+The schedules are already in `vercel.json`. They only run on the production deployment, and only
+once `CRON_SECRET` is set: without it every call answers 401 and nothing happens.
+
+1. Make a secret and add it (Vercel sends it to the jobs as `Authorization: Bearer <secret>`):
+
+   ```bash
+   openssl rand -hex 32
+   vercel env add CRON_SECRET production
+   ```
+
+2. Reminder emails (optional; without them reminders stay in the dashboard bell). In Resend, the
+   domain from step 6a is already verified: **API Keys** → **Create API Key** → name
+   `otto-reminders`, permission **Sending access**. Then:
+
+   ```bash
+   vercel env add RESEND_API_KEY production
+   vercel env add EMAIL_FROM production   # Otto Sensei <otto@yourdomain.com>
+   ```
+
+3. Redeploy (`vercel --prod`). Vercel → project → **Settings** → **Cron Jobs** lists both jobs,
+   with **Run** buttons and their logs.
+
+- Marking a job applied sets its follow-up date by itself: 7 days after it was sent (each account
+  can pick another number on the Account page), never sooner than a day after it was logged. When
+  the date comes, the job adds one bell note. Each account gets at most one notification and one
+  email per run, covering all its newly due applications. Snooze moves the date 3 days on; Done or
+  any other status clears it.
+- Reminder emails are opt-in: nobody gets one until they turn **Email me too** on in **Reminders**
+  on the Account page. Each email has one-click **Done** and **Snooze 3 days** per application and
+  a one-click **Unsubscribe**, all signed with `CRON_SECRET` (a new secret retires old links), plus
+  the mail app's own one-click unsubscribe header. The bell keeps working either way.
+- Both jobs stop after about 45 seconds and pick up the rest the next day. Running one twice does
+  no harm. Run one by hand with
+  `curl -X POST -H "Authorization: Bearer $CRON_SECRET" https://<your-domain>/api/cron/cleanup`.
+- Cleanup keeps: rate-limit windows 2 days, deleted-resume markers 180 days, read notifications
+  90 days (unread ones a year), billing webhook ids 400 days.
+
+---
+
+## 11. Deploy
+
+```bash
+vercel --prod
+```
+
+Added or changed an environment variable later? Run `vercel --prod` again: a deployment only sees
+the values that existed when it was built.
+
+**Custom domain** (optional): `vercel domains add ottoresume.com`, follow the DNS instructions, then
+update the same address everywhere it was typed: `NEXT_PUBLIC_APP_URL` in Vercel, **Site URL** and
+**Redirect URLs** in Supabase (step 7), **Authorized JavaScript origins** in Google (step 8a), and
+the Dodo webhook URL (step 10). Redeploy.
+
+---
+
+## 12. Final checklist
+
+- [ ] `https://<your-domain>/api/health` shows `{"ok":true,"db":"up"}`.
+- [ ] `bun scripts/migrate.ts --status` says every file is `applied`.
+- [ ] Sign in with an email code: the email arrives from your domain, within a minute, with a
+      6-digit code, and the code signs you in.
+- [ ] Sign out, then **Continue with Google**: you come back signed in, to the same account.
+- [ ] Fix one line with Otto (proves OpenRouter and the usage counter).
+- [ ] Run a test-mode checkout; the account shows Pro within a few seconds (proves the webhook).
+- [ ] Delete that test account from the account page; it disappears from Supabase
+      **Authentication** → **Users**, and its Dodo test subscription shows cancelled.
+- [ ] Supabase **Project Settings** → **API Keys**: the secret key exists only in Vercel and your
+      `.env.local`.
+- [ ] Vercel **Settings** → **Cron Jobs**: press **Run** on both jobs; each log line ends in
+      `cron.<job>.done` (not `cron.unauthorized`, which means `CRON_SECRET` is missing).
+- [ ] Share a resume from its card menu and open the link in a private window: the page loads,
+      and **Download PDF** works.
+- [ ] If PostHog is set: upload a resume; PostHog **Activity** shows `resume_imported` within a
+      minute.
+
+Delete accounts from the app's account page, not from the Supabase dashboard. Both remove the
+user's data, but only the app cancels their subscription first.
+
+---
+
+## Alternative: Supabase through the Vercel Marketplace
+
+If you'd rather let Vercel create and bill the Supabase project:
+
+```bash
+vercel integration add supabase
+```
+
+Pick region **US East** and a plan, and connect it to the `otto-resume` project. Vercel then sets
+the variables itself (`POSTGRES_URL`, `POSTGRES_URL_NON_POOLING`, `NEXT_PUBLIC_SUPABASE_URL`,
+`NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` or `..._ANON_KEY`, `SUPABASE_SECRET_KEY` or
+`SUPABASE_SERVICE_ROLE_KEY`, and a few the app doesn't use). The app reads those names as they are.
+
+So skip steps 2 to 4 (still add `NEXT_PUBLIC_APP_URL`), run step 5 (`vercel env pull`, then
+`bun scripts/migrate.ts`, which uses `POSTGRES_URL_NON_POOLING`), and continue from step 6. To open
+the Supabase dashboard: Vercel project → **Storage** → your database → **Open in Supabase**.
+
+---
+
+## When something doesn't work
+
+| What you see | What it means |
+|---|---|
+| "Sign-in isn't set up yet" | That deployment has no `NEXT_PUBLIC_SUPABASE_URL` or publishable key. Add them and redeploy. (Never in `bun dev`: it signs in with on-screen codes.) |
+| `bun dev` won't start the database, or acts strangely after a crash | Stop `bun dev`, delete the `.pglite/` folder, start again. |
+| "We couldn't send the email" | Supabase couldn't mail the code: custom SMTP is off or wrong (step 6b), or the Resend domain isn't verified. Supabase → **Logs** → **Auth** shows the reason. |
+| The email has a link, not a code | The template still uses `{{ .ConfirmationURL }}` (step 6e). Fix both templates. |
+| Google sends you to the home page, signed out | The return address isn't in **Redirect URLs** (step 7). |
+| Google says `redirect_uri_mismatch` | The Google client's redirect URI isn't exactly the Supabase callback URL (step 8a.6). |
+| "Account deletion isn't available right now" | `SUPABASE_SECRET_KEY` (or `SUPABASE_SERVICE_ROLE_KEY`) is missing in Vercel. |
+| `/api/health` answers 503 | `DATABASE_URL` is missing or wrong, or the project is paused. |
+| `migrate.ts`: `password authentication failed` | Wrong password in the URL, or special characters not URL-encoded. |
+| `migrate.ts`: `getaddrinfo ENOTFOUND db.<ref>.supabase.co` | That's the IPv6-only direct URL. Use the **Session pooler** string (step 3). |

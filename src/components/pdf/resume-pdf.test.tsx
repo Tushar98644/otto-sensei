@@ -1,0 +1,132 @@
+import { describe, expect, it } from "vitest";
+import { runRecruiterChecks } from "@/lib/checks/recruiter";
+import { extractDocument } from "@/lib/parse";
+import { SECTION_LABELS, type Resume } from "@/lib/resume/schema";
+import {
+  expectInOrder,
+  flatten,
+  longResume,
+  open,
+  readPages,
+  readText,
+  render,
+  sampleResume,
+} from "./test-fixtures";
+
+// Proof the export is readable by hiring software: render real PDF bytes, pull the text back out
+// with pdf.js, and run the same recruiter checks the "Check my new PDF" button runs.
+
+describe("ResumePdf", () => {
+  it("reads back top to bottom in the resume's section order", async () => {
+    const text = flatten(await readText(await render(sampleResume())));
+    expectInOrder(text, [
+      "Maya Lindqvist",
+      "Senior Backend Engineer",
+      "maya.lindqvist@example.com | +1 415 555 0142 | Toronto, Canada",
+      "linkedin.com/in/mayalindqvist | github.com/mayal",
+      "SUMMARY",
+      "Backend engineer with 7 years",
+      "EXPERIENCE",
+      "Senior Backend Engineer, Northwind Payments · Toronto, Canada",
+      "Jan 2021 – Present",
+      "Cut checkout latency 38%",
+      "Led the migration of 40 services",
+      "Built an internal Kubernetes deployment tool",
+      "Software Engineer, Bluefin Analytics · Berlin, Germany",
+      "Jun 2017 – Dec 2020",
+      "Mentored 4 junior engineers",
+      "PROJECTS",
+      "Ledger Lint · github.com/mayal/ledger-lint",
+      "EDUCATION",
+      "BSc, Computer Science, University of Edinburgh · Edinburgh, UK",
+      "2013 – 2017",
+      "SKILLS",
+      "Languages: TypeScript, Go, SQL, Python",
+      "Infrastructure: Kubernetes, AWS, Terraform, Kafka, PostgreSQL",
+      "CERTIFICATIONS",
+      "AWS Certified Solutions Architect, Amazon Web Services",
+      "2022",
+    ]);
+  });
+
+  it("follows a custom section order and leaves out empty sections", async () => {
+    const resume = { ...sampleResume(), projects: [], sectionOrder: ["skills", "experience", "projects", "education"] as Resume["sectionOrder"] };
+    const text = flatten(await readText(await render(resume)));
+    expectInOrder(text, ["SKILLS", "EXPERIENCE", "EDUCATION"]);
+    expect(text).not.toContain("PROJECTS");
+    expect(text).not.toContain("SUMMARY");
+    expect(text).not.toContain("CERTIFICATIONS");
+  });
+
+  it("never hyphenates a word across lines", async () => {
+    const resume = sampleResume();
+    const long = "Kubernetes infrastructure orchestration observability ".repeat(12).trim();
+    resume.experience[0]!.bullets[0] = { id: "b1", text: long };
+    // Long mixed-style lines too: the bold title, the company and the muted location all wrap.
+    resume.experience[1] = {
+      ...resume.experience[1]!,
+      title: "Principal Software Engineer, Payments Infrastructure and Developer Platform",
+      company: "Bluefin Analytics International Holdings",
+      location: "Berlin, Germany",
+    };
+    resume.basics.location = "Toronto, Ontario, Canada (open to relocation anywhere in Europe)";
+    const text = await readText(await render(resume));
+    expect(text).not.toMatch(/\p{L}-\n/u);
+    expect(flatten(text)).toContain(long);
+    expect(flatten(text)).toContain(
+      "Principal Software Engineer, Payments Infrastructure and Developer Platform, Bluefin Analytics International Holdings · Berlin, Germany",
+    );
+  });
+
+  it("wraps a URL too long for one line instead of cutting it off", async () => {
+    const resume = sampleResume();
+    const url = `https://example.com/${"portfolio/case-studies/".repeat(6)}payments-platform-rebuild`;
+    resume.basics.links = [{ id: "l1", label: "Portfolio", url }];
+    const text = await readText(await render(resume));
+    // A break inside a token adds a hyphen at the end of the line; nothing may go missing.
+    expect(text.replace(/-\n/g, "")).toContain(url.replace("https://", ""));
+  });
+
+  it("swaps characters Helvetica can't draw instead of printing junk", async () => {
+    const resume = sampleResume();
+    resume.basics.name = "Łukasz Wójcik";
+    resume.summary = "Shipped 3 launches → 2x revenue 🚀 in São Paulo and Kraków.";
+    const text = flatten(await readText(await render(resume)));
+    expect(text).toContain("Lukasz Wójcik");
+    expect(text).toContain("Shipped 3 launches -> 2x revenue in São Paulo and Kraków.");
+  });
+
+  it("sets the title and author and uses the requested page size", async () => {
+    const pdf = await open(await render(sampleResume(), "A4"));
+    try {
+      const { info } = await pdf.getMetadata();
+      expect(info).toMatchObject({ Title: "Maya Lindqvist - Resume", Author: "Maya Lindqvist" });
+      const page = await pdf.getPage(1);
+      expect(page.view.map(Math.round)).toEqual([0, 0, 595, 842]);
+    } finally {
+      await pdf.loadingTask.destroy();
+    }
+  });
+
+  it("never ends a page on a heading", async () => {
+    const headings = new Set(Object.values(SECTION_LABELS).map((label) => label.toUpperCase()));
+    for (let padding = 0; padding < 8; padding++) {
+      const pages = await readPages(await render(longResume(padding)));
+      expect(pages.length).toBeGreaterThan(1);
+      for (const page of pages.slice(0, -1)) {
+        const last = page.trim().split("\n").at(-1)?.trim() ?? "";
+        expect(headings.has(last), `page ends on the "${last}" heading`).toBe(false);
+        expect(last, "page ends on a job heading").not.toMatch(/Role \d+, Company \d+/);
+      }
+    }
+  });
+
+  it("passes every recruiter check it gets re-checked with", async () => {
+    const bytes = await render(sampleResume());
+    const report = runRecruiterChecks(await extractDocument(bytes, "Maya-Lindqvist-Resume.pdf"));
+    const notPassing = report.checks.filter((check) => check.status !== "pass").map((check) => `${check.id}: ${check.detail}`);
+    expect(notPassing).toEqual([]);
+    expect(report.pageCount).toBe(1);
+    expect(report.sectionsFound).toEqual(["summary", "experience", "projects", "education", "skills", "certifications"]);
+  });
+});

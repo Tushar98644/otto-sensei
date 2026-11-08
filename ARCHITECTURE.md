@@ -1,0 +1,226 @@
+# Otto Sensei: architecture and build spec
+
+Single source of truth for everyone building this app. Read it fully before writing code.
+
+## Product in one paragraph
+
+A resume app with a friendly otter mascot, **Otto**, who guides the user. The user uploads an old resume (PDF or DOCX) and immediately sees the **recruiter view**: the exact text that hiring software (ATS) pulls out of the file, plus plain pass/warn/fail checks such as columns, icons, contact info in the header, and scanned PDFs. There is deliberately **no made-up 0-100 score**. Then Otto helps **fix weak lines**, asking for facts instead of inventing them ("How many users?"). Next the user can **tailor** the resume to one job from its link (or pasted text when the link can't be read): missing keywords they really have get added, and bullets are reordered. Finally they **download a clean PDF, free, always**, and we re-check our own PDF to show "before: 4 problems, after: 0". Editing and downloads are free on every plan. AI help has real limits per plan (`src/config/plans.ts`), per calendar month: Free 3 tailored versions, 5 letters/answers/prep, 20 line fixes, 3 AI reads of uploads, 2 Build with Otto drafts, 2 GitHub drafts; Pro ($15/month, or yearly) 60/100/300/30/20/20; Max ($29/month, or yearly) 200/300/1000/100/60/60. Weekly plans get a quarter of that, rounded up, per billing week: Pro weekly ($6/week) 15/25/75/8/5/5, Max weekly ($12/week) 50/75/250/25/15/15. Uploads are never blocked: past the AI reads the rule-based reader takes over.
+
+Around that core flow: undo/redo, saved versions and a trash; extra sections (languages, awards, volunteering, publications, custom); a look panel, fit-to-one-page, Word export and a send check; Otto-written summaries; "Build with Otto", LinkedIn and JSON Resume import; Import from GitHub; share links; an applications tracker with follow-up reminders, interview prep and skill gaps; a work profile with a job post eligibility check; invites, feedback and yearly/weekly Pro; first-run tours; Sentry and PostHog. `../FEATURES.md` lists every feature with its plan and status. There is deliberately **no admin page**: the owner reads users, payments and feedback in the Supabase and Dodo dashboards.
+
+Audience: job seekers worldwide. Use English, USD, and global examples (not India-specific). Tone: plain everyday words, short sentences, warm and a little playful, never cheesy. Otto speaks in short lines.
+
+## User flow
+
+```
+Landing (/) → Studio (/studio)
+  1 Upload    drop PDF/DOCX · or "Start from scratch" · or "Try a sample"
+  2 Review    recruiter view: checks list + "what hiring software reads" text (only for uploads)
+  3 Fix       edit every section; lint badges on each line; "Fix with Otto" (AI, sign-in)
+  4 Tailor    paste a job link (job text as backup) → keywords have/missing, questions, reorder, summary → tailored copy (AI, sign-in)
+  5 Download  preview + free PDF download + "check my new PDF" (before vs after)
+Sign-in: "Continue with Google", or email → 6-digit code (dialog inside the studio, or /login). Account: /account.
+
+Dashboard (/dashboard, signed in): Home · Resumes (+ shared links) · Applications (+ /[id]/prep) · Formats · Recently deleted · Account
+Public: /s/[slug] (a shared resume, server-rendered, PDF button)
+```
+
+AI actions need a free account (to control cost). Import, the recruiter view, editing, lint and PDF download need no account.
+
+## Stack (installed, do not add packages)
+
+Next.js 16.4.5 (App Router, `src/`, Turbopack), React 19.3, TypeScript 6.0.3 (strict, `noUncheckedIndexedAccess`), Tailwind CSS 4.3 (`@theme` tokens in `src/app/globals.css`, no tailwind.config), zod 4.6 (`z.email()`, not `z.string().email()`), zustand 5.1, drizzle-orm 0.45 (pg-core) + postgres 3.4.9 (postgres.js, Supabase Postgres in production) + @electric-sql/pglite 0.5.15 (dev dependency: the local `.pglite/` database in `bun dev` and the in-memory database in tests), @supabase/supabase-js 2.119 + @supabase/ssr 0.12.7 (Supabase Auth: email codes, Google, cookie sessions), unpdf 2.1 (pdf.js text and positions), mammoth 1.13 + jszip 3.10 (DOCX), @react-pdf/renderer 4.9 (client-side PDF export), OpenRouter Chat Completions over `fetch` (strict JSON-schema structured output, `provider.require_parameters` + `data_collection: "deny"`; no SDK), dodopayments 2.61 + standardwebhooks 1.1, lucide-react 1.70 (icons), clsx + tailwind-merge (`cn()` in `src/lib/utils.ts`), @sentry/nextjs 11.11 (error reports), posthog-js 1.447 + posthog-node 5.63 (product events), resend 6.37 (reminder emails), driver.js 1.10 (installed, no longer used: first-run tips are our own non-modal popover in `src/components/onboarding/run-tour.tsx`), vitest 5 (node environment), pdf-lib (tests only: building fixture PDFs). Package manager: **bun** (`bun.lock`). Node 24.
+
+If a library API is unclear, read its type definitions in `node_modules/<pkg>/` (`.d.ts`) instead of guessing.
+
+## Demo modes (the app must fully work locally with zero keys)
+
+| Missing env | Behavior |
+|---|---|
+| `OPENROUTER_API_KEY` | Import uses `heuristicParse()`. Fix and tailor return deterministic demo results. The UI shows a small "Demo mode" note. |
+| Supabase (any env) | Development: dev sign-in (`src/lib/auth/dev.ts`): request-code returns the code as `devCode` and the form shows it; verify sets a signed, revocable `otto_dev_session` cookie; Google is disabled. `DEV_AUTH=supabase` switches development to real Supabase. Production: request-code and Google answer 503 `auth_unavailable` ("Sign-in isn't set up yet"); everything signed-out still works. |
+| `DATABASE_URL` / `POSTGRES_URL` | Development: the local `.pglite/` folder (PGlite, migrated on first use), which is also used whenever dev sign-in is on, so test accounts never reach a real database. Production: `getDb()` throws. Tests: an in-memory PGlite per file (`vitest.setup.ts`). |
+| Dodo keys | `billingMode()` is `"mock"` in development (upgrade flips the plan locally, Pro or Max) and `"disabled"` in production. Pro yearly/weekly and each Max option show only while their product id is set (`DODO_PAYMENTS_PRODUCT_ID_YEARLY` / `_WEEKLY`, `DODO_PAYMENTS_MAX_PRODUCT_ID` / `_MAX_PRODUCT_ID_YEARLY` / `_MAX_PRODUCT_ID_WEEKLY`). |
+| `GITHUB_TOKEN` | Import from GitHub still works, at GitHub's shared 60 calls an hour for the server. |
+| `CRON_SECRET` | `/api/cron/*` answer 401, so no cleanup and no follow-up reminders run. Unsubscribe links can't be signed. |
+| `RESEND_API_KEY` / `EMAIL_FROM` | Follow-up reminders stay in the dashboard bell; the Account page's reminder card shows no email switch. |
+| `NEXT_PUBLIC_SENTRY_DSN` | Sentry isn't loaded or wrapped into the build; nothing is reported. Dev reports only with `NEXT_PUBLIC_SENTRY_DEV=1`. |
+| `NEXT_PUBLIC_POSTHOG_KEY` | No analytics code loads and no event is sent (also off in tests and under Do Not Track / GPC). |
+
+## Contracts (already written, keep signatures stable)
+
+| File | What |
+|---|---|
+| `src/config/brand.ts`, `src/config/plans.ts` | Names, prices, limits, `Feature`, `UsageSnapshot` |
+| `src/lib/env.ts` | `env()`, `aiEnabled()`, `appUrl()`, `isProduction()`, `supabaseConfig()`, `supabaseSecretKey()`. Server-only |
+| `src/lib/resume/schema.ts` | `ResumeSchema` and types, `newId()`, `emptyResume()`, `new*()` factories |
+| `src/lib/resume/ops.ts` | Pure helpers: `listBullets`, `setBulletText`, `cloneResume`, `reorderBullets`, `addSkills`, `resumeToText`, `suggestedFileName` |
+| `src/lib/parse/types.ts`, `index.ts` | `Extraction`, `ParseError`, `detectKind()`, `extractDocument()` (stub) |
+| `src/lib/checks/types.ts`, `recruiter.ts` | `RecruiterReport`, `RecruiterCheck`, `runRecruiterChecks()` (stub) |
+| `src/lib/resume/sections.ts`, `heuristic-parse.ts` | Heading detection, rule-based parser (stubs) |
+| `src/lib/lint/types.ts`, `bullets.ts` | `LintIssue`, `lintBullet()`, `lintResume()` (stubs) |
+| `src/lib/tailor/keywords.ts` | `normalizeTerm`, `findTerm`, `keywordCoverage` (stubs) |
+| `src/lib/ai/types.ts`, `structure.ts`, `fix.ts`, `tailor.ts` | `FixResult`, `TailorResult`, `AIError`; `structureResume`, `fixBullet`, `tailorResume` (stubs) |
+| `src/db/schema.ts`, `client.ts`, `connection.ts`, `locks.ts` | Drizzle pg tables (mirror `supabase/migrations/*.sql`, the real DDL), `getDb()` and the driver-neutral `Db`/`Tx` types, which env var holds which URL, `lockUser()` for capped writes |
+| `supabase/migrations/*.sql`, `scripts/migrate.ts` | Schema history (Supabase CLI file names); the runner records applied files in `supabase_migrations.schema_migrations` |
+| `src/lib/supabase/*` | `createSupabaseServerClient()` (request cookies), `createSupabaseAdminClient()` (secret key), `updateSession()` for the proxy, auth cookie options |
+| `src/lib/http.ts` | `clientIp()`, `readJson(req, schema)`, `getDeviceId()` |
+| `src/lib/api/types.ts`, `respond.ts`, `client.ts` | Request schemas, response types, `ok()`/`fail()`, browser `api` client + `ApiClientError` |
+| `src/lib/auth/*` | `SessionUser`, `AuthMode`, `getCurrentUser`/`clearSession`/`authMode`, `requestLoginCode`/`verifyLoginCode` (Supabase email OTP, or dev codes), `googleSignInUrl`/`finishOAuthSignIn`, `deleteAuthUser`, `AuthError`, route guards |
+| `src/lib/usage.ts`, `src/lib/rate-limit.ts` | `getUsage`/`getUsageState`/`consumeUsage`/`refundUsage`, `resolvePeriod`, `rateLimit` (stubs) |
+| `src/lib/billing/*` | `billingMode()`, `createCheckoutUrl`, `createPortalUrl`, `handleWebhook`, `BillingError` (stubs) |
+| `src/lib/store/resume-store.ts` | zustand studio store: `useStudioStore`, `useStudioHydrated`, `useActiveResume`, `useActiveReport`, `useResumeList`, `STUDIO_STEPS`, `STEP_LABELS` |
+| `src/components/account/use-me.ts` | `useMe()`, `refreshMe()`, `patchMe()` (`me.auth.mode` tells the sign-in form whether Google is available) |
+| `src/components/account/account-gate.tsx`, `sign-in-dialog.tsx`, `upgrade-dialog.tsx` | `useAccountGate()`, `SignInDialog`, `UpgradeDialog` (stubs) |
+| `src/components/studio/steps/{fix,tailor,download}-step.tsx` | `FixStep`, `TailorStep`, `DownloadStep` (stubs) |
+| `src/lib/log.ts` | Structured server logger `log.info/warn/error(event, ...)`, `maskEmail()`. Use it instead of raw `console.*` in server code. `log.error` also reports to Sentry |
+| `src/app/api/health/route.ts` | `GET /api/health`: 200 when the DB answers (done) |
+
+Added after v1 (all live; signatures stable the same way):
+
+| File | What |
+|---|---|
+| `src/lib/resume/schema.ts` | Optional `extras` (`ExtraSection[]`, kinds `languages/awards/volunteering/publications/custom`), `sectionTitles`, `hiddenSections`, `design` (accent, font, density) and `hidden?` on every item. Read with `extrasOf()`, `sectionTitleOf()`, `isSectionHidden()` |
+| `src/lib/resume/ops.ts` | `listBullets(resume, { includeHidden? })`, `visibleResume()` (also re-exported by `src/lib/pdf/visible.ts`, which everything that prints reads), `isHidden()`, `extraSectionTitle()`; `BulletSection` includes `"extras"` |
+| `src/lib/store/resume-store.ts` | `updateResume(id, updater, { label? })` (a label makes a named undo step: `EDIT_LABELS`), `undo`/`redo`, `saveVersion`/`restoreVersion`/`deleteVersion`, `trashResume`/`restoreFromTrash`/`deleteFromTrash`/`emptyTrash`; hooks `useHistoryStatus`, `useVersions`, `useTrash` |
+| `src/lib/ai/redact.ts` | `createRedactor()`, `redactorFor(resume)`, `redactResume()`: every AI prompt builder sends `[NAME]`, `[EMAIL_n]`, `[PHONE_n]`, `[LINK_n]` and restores them before its guards run |
+| `src/lib/ai/{summary,interview,draft}.ts`, `src/lib/github/draft.ts` | `writeSummary`, `prepareInterview`, `draftResume`, GitHub project drafting |
+| `src/lib/pdf/{design,fit}.ts`, `src/lib/docx/*`, `src/lib/sendcheck/*` | Look settings, fit to one page, Word export, send check (`SendCheckTarget` includes `{ kind: "extra"; sectionId }`) |
+| `src/lib/eligibility/*` | `WorkProfile`, `checkEligibility()` (browser-only rules, verdicts OK / Check / Likely blocked) |
+| `src/lib/insights/*` | `InterviewPrep`, `StarStory`, skill gaps across tailored jobs |
+| `src/lib/share/*` | `SharedLink`, snapshot (only what the PDF prints), visit counting |
+| `src/lib/referrals/*`, `src/lib/feedback/*` | Invite codes, cookie and rewards (`usage.bonus`); feedback notes |
+| `src/lib/notifications/*`, `src/lib/cron/*` | Bell notifications, reminder settings, Resend email + signed unsubscribe; `runCronRoute`, cleanup, follow-ups |
+| `src/lib/analytics/*`, `src/lib/observability/*` | PostHog `track()` (browser), `captureServerEvent()` and `trackAICall()` (server), with scrubbing; Sentry config and scrubber |
+| `src/config/plans.ts` | `PlanId = "free" \| "pro" \| "max"`, `PaidPlanId`, `Feature` (`tailor`, `letter`, `fix`, `import`, `draft`, `github`), `PLANS` (real limits per plan: `limits` per month, `weeklyLimits` per billing week, null on Free), `PLAN_ORDER`, `nextPlan()`, `BillingInterval`, `PRICES_USD[plan][interval]`, `AllowancePeriod` + `allowancePeriodFor(plan, interval)` + `planLimits(plan, period)`, `ANON_LIMITS`/`IP_LIMITS` for signed-out use; `UsageSnapshot[f].limit` includes invite bonuses; `UsagePeriod` (`{ kind, resetsAt }`) |
+| `src/lib/applications/follow-up.ts` | Follow-up dates: `FOLLOW_UP_DAYS` (default 7), `SNOOZE_DAYS` (3), `firstFollowUpAt()`, `followUpState()`; `Application.followUpAt` |
+| `src/components/ui/undo-toast.ts`, `trash-with-undo.ts` | Undo instead of confirms: `undoToast({ onUndo, onCommit })` holds server deletes until the toast goes (or the page closes, with `keepalive`) |
+| `src/lib/resume/schema.ts` (`TailorMetaSchema`) | Tailored copies also keep `jobText`, `jobUrl` and `requirements` (`{ text, importance, terms }`); read with `src/lib/insights/saved-job.ts` |
+| `src/lib/api/types.ts`, `client.ts` | Schemas and `api.*` methods for every route below |
+
+Stubs throw `Not implemented: <name>` (or render `null`). The owning task replaces the body and keeps the exported signature. If a contract truly must change, make the smallest compatible change, such as adding an optional field, and say so in your final report.
+
+## API routes
+
+All route handlers: `export const runtime = "nodejs"`; respond only via `ok()`/`fail()`; validate bodies with the schemas in `src/lib/api/types.ts` via `readJson()`; never leak stack traces (log with `console.error` and return `server_error`). Status codes: 400 bad_request, 401 unauthorized, 403 forbidden (sent from another website's page), 404 not_found, 413 too_large, 415 unsupported_type, 422 parse_failed, 429 rate_limited / limit_reached, 502 ai_unavailable, 503 billing_unavailable, 500 server_error. Set `Retry-After` on 429 when known. AI routes: `export const maxDuration = 60`.
+
+| Route | What | Access |
+|---|---|---|
+| `POST /api/import`, `POST /api/check` | Parse an upload (AI structuring, heuristic fallback); recruiter checks | Anyone; per device and IP |
+| `POST /api/draft` | "Build with Otto" first draft | Anyone; per device and IP |
+| `POST /api/job` | Read a job post from its link | Anyone |
+| `POST /api/fix`, `POST /api/summary` | Fix a line; write or tighten the summary | Sign-in; "fix" allowance |
+| `POST /api/tailor` | Tailor to a job post | Sign-in; "tailor" allowance |
+| `POST /api/letter`, `POST /api/answer`, `POST /api/interview` | Cover letter, application answer, interview prep pack (saved on the application) | Sign-in; "letter" allowance |
+| `GET /api/interview/[id]` | An application's job details and saved prep pack | Sign-in, own rows |
+| `GET /api/resumes`, `PUT/DELETE /api/resumes/[id]` | Cloud backup | Sign-in |
+| `GET/POST/PATCH /api/applications`, `PATCH/DELETE /api/applications/[id]` | Applications tracker | Sign-in |
+| `GET/PUT /api/profile` | Work profile | Sign-in |
+| `POST /api/github/lookup`, `POST /api/github/draft` | Public repos and merged PRs by username; drafted project lines | Anyone; per device and IP |
+| `GET/POST /api/share`, `PATCH/DELETE /api/share/[id]` | Share links (one live link per resume) | Sign-in |
+| `GET/PATCH /api/notifications`, `GET/PUT /api/notifications/settings` | Bell notifications; reminder email switch | Sign-in |
+| `GET/POST /api/notifications/unsubscribe` | One-click unsubscribe from a reminder email (signed token) | Token |
+| `POST /api/notifications/follow-up` | Done or Snooze 3 days from a reminder email's signed link (sent by the `/reminder` page, which every email button opens) | Token |
+| `POST /api/feedback` | "Send feedback" | Anyone; per device, IP and account |
+| `GET /api/referrals`, `POST /api/referrals/claim` | Invite link and counts; credit the `otto_ref` cookie's invite | Sign-in |
+| `GET/POST /api/cron/cleanup`, `GET/POST /api/cron/follow-ups` | Daily jobs (`vercel.json` crons); skipped by `src/proxy.ts` | `Authorization: Bearer <CRON_SECRET>` |
+| `POST /api/auth/request-code`, `POST /api/auth/verify`, `POST /api/auth/google`, `GET /auth/callback`, `POST /api/auth/logout`, `GET /api/auth/expired`, `GET /api/me`, `DELETE /api/account` | Sign-in, session, account | Mixed |
+| `POST /api/billing/checkout` (body `{ plan, interval }`, default Pro monthly; Pro to Max or back changes the live subscription in place; mock checkout stores the interval picked), `POST /api/billing/portal`, `POST /api/billing/webhook` (maps each product id to its plan and billing interval, stored in `users.plan_interval`) | Dodo billing | Sign-in; webhook signed |
+| `GET /api/health` | DB check | Anyone |
+
+Pages beyond the core flow: `/dashboard`, `/dashboard/resumes`, `/dashboard/applications`, `/dashboard/applications/[id]/prep`, `/dashboard/formats`, `/dashboard/trash`, `/dashboard/account` (signed in), and `/s/[slug]` (public, `noindex` unless the owner allows it). There is no `/admin` route.
+
+## Database tables
+
+All in `public`, RLS on with no policies (only our server connects), every per-user table cascades from `users`. Timestamps are epoch ms (`bigint`).
+
+| Table | What | Migration |
+|---|---|---|
+| `users`, `usage`, `rate_limits`, `resumes`, `resume_tombstones`, `billing_events`, `applications` | Core: accounts, usage counters per period, rate-limit windows, backups, delete markers, webhook ids, applications | `20261107120000_init.sql` |
+| `shares` | Share links: frozen snapshot, options, view count; one live link per resume | `20261108000100_share_links.sql` |
+| `feedback`, `referral_codes`, `referrals`, `usage.bonus` | Feedback notes, invite codes and claims, invite bonus units | `20261108000200_feedback_referrals.sql` |
+| `notifications`, `notification_settings`, `applications.reminded_at` | Bell notifications, reminder email switch (no row = on), follow-up stamp; cleanup indexes | `20261108000300_notifications.sql` |
+| `work_profiles` | One work profile per account | `20261108000500_work_profile.sql` |
+| `applications.prep` | Interview prep pack (jsonb) | `20261108000600_application_prep.sql` |
+| `applications.follow_up_at`, `notification_settings.follow_up_days`, emails opt-in | Follow-up dates; the account's default delay; `email_reminders` defaults to off | `20261108000700_follow_up_dates.sql` |
+| `users.plan` check allows `max` | The Max plan | `20261108000800_max_plan.sql` |
+| `users.plan_interval` (`month` / `year` / `week`, null on Free) | How often the paid plan bills; sets the allowance period | `20261108000900_plan_interval.sql` |
+
+`src/db/schema.ts` mirrors these. Migrations apply in file order on a fresh database; a database that already ran 000500/000600 picks up 000100-000300 afterwards (the runner applies whatever is missing, and none of them touch the same objects).
+
+## Scheduled jobs
+
+`vercel.json` runs `/api/cron/cleanup` at 04:17 UTC and `/api/cron/follow-ups` at 14:00 UTC (production only). Both stop after about 45 s and resume the next day; running one twice is harmless. Cleanup deletes by age in batches of 1,000 (rate-limit windows 2 days, tombstones 180 days, read notifications 90 days, unread 1 year, webhook ids 400 days). Follow-ups: applications still "applied" whose `follow_up_at` has come and isn't reminded yet get one bell notification per account per run, plus one Resend email only for accounts that turned reminder emails on (opt-in). Each email has signed one-click Done, Snooze 3 days and Unsubscribe links.
+
+## File ownership
+
+This table is the v1 build split. Features added later live in their own folders (`src/lib/<feature>/`, `src/components/<feature>/`, `src/app/api/<feature>/`); `../FEATURES.md` maps them.
+
+Each task writes only inside its own paths (plus its own `*.test.ts` files next to them). Reading anything is fine.
+
+| Task | Owns |
+|---|---|
+| ui-kit | `src/app/layout.tsx`, `src/app/globals.css`, `src/components/ui/**` |
+| mascot | `src/components/mascot/**`, `src/app/icon.svg`, `src/app/opengraph-image.tsx` |
+| parse-checks | `src/lib/parse/**` (except `types.ts`), `src/lib/checks/recruiter.ts`, `src/lib/resume/sections.ts`, `src/lib/resume/heuristic-parse.ts` |
+| lint-keywords | `src/lib/lint/bullets.ts`, `src/lib/tailor/**`, tests for `src/lib/resume/ops.ts` |
+| ai | `src/lib/ai/**` (except `types.ts`) |
+| auth | `src/lib/auth/**` (except `types.ts`), `src/lib/supabase/**`, `src/db/**`, `supabase/**`, `scripts/migrate.ts`, `src/proxy.ts`, `src/lib/usage.ts`, `src/lib/rate-limit.ts`, `src/lib/users.ts`, `src/app/api/auth/**`, `src/app/auth/**`, `src/app/api/me/**`, `src/app/api/account/**` |
+| billing | `src/lib/billing/**` (except `types.ts`), `src/app/api/billing/**` |
+| api-routes | `src/app/api/import/**`, `src/app/api/check/**`, `src/app/api/fix/**`, `src/app/api/tailor/**`, `src/app/api/resumes/**` |
+| marketing | `src/app/(marketing)/layout.tsx`, `src/app/(marketing)/page.tsx`, `src/app/(marketing)/_components/**`, `src/app/(marketing)/pricing/**`, `src/app/(marketing)/privacy/**`, `src/app/(marketing)/terms/**`, `src/app/(marketing)/refunds/**`, `src/components/site/**`, `src/app/sitemap.ts`, `src/app/robots.ts`, `src/app/not-found.tsx` |
+| account-ui | `src/app/(marketing)/login/**`, `src/app/(marketing)/account/**`, `src/components/account/**` (except `use-me.ts`) |
+| studio-core | `src/app/studio/**`, `src/components/studio/**` except the three step files below and `editor/`, `tailor/`, `download/`; `src/lib/sync/**`, `src/lib/resume/sample.ts` |
+| studio-editor | `src/components/studio/steps/fix-step.tsx`, `src/components/studio/editor/**` |
+| studio-tailor-export | `src/components/studio/steps/tailor-step.tsx`, `src/components/studio/steps/download-step.tsx`, `src/components/studio/tailor/**`, `src/components/studio/download/**`, `src/components/pdf/**`, `src/lib/pdf/**` |
+
+## Design direction
+
+`DESIGN.md` is the design language and overrides anything here: paper, ink and Otto's orange pencil. In short: depth from surface shade (cream paper, stone panels, white cards on stone) instead of borders or shadows; ink for text, every main button (black pills) and the focus ring; the orange accent only as a pencil mark, at most two per screen; EB Garamond for h1/h2 at regular weight, Inter for everything else. Status colors stay pass = green, warn = amber, fail = red, always with an icon and a word. Mobile-first: everything must work at 360px wide. Light theme only for v1.
+
+Otto is an otter with small reading glasses, drawn in thin sepia lines with flat fills. Poses: `wave`, `read`, `think`, `point`, `cheer`, `worried`, `peek`. He speaks through `OttoNote` (a small line-drawn head, a gray meta line, a first-person message) in the studio and in dialogs; the full body is for empty states, success moments, the 404, the final call to action and the share images. Blinking is his only idle motion. Respect `prefers-reduced-motion`.
+
+## Code conventions
+
+- Comments: production style, explaining *why*, never *what*. No commented-out code. No banner comments.
+- Tailwind 4: built-in utilities over arbitrary values (`size-8`, not `h-[32px] w-[32px]`; `gap-3`, not `gap-[12px]`). Arbitrary values only when no utility exists. Use theme tokens from `globals.css` (e.g. `bg-ink`, `text-muted`), not raw hex colors in components.
+- Components: one component per file when it's over ~100 lines; files under ~300 lines; colocate page-only sections in `_components/`.
+- Client components start with `"use client"`. Never import server-only modules (`src/lib/env.ts`, `src/db/**`, `src/lib/auth/session.ts`, `codes.ts`, `src/lib/usage.ts`, `src/lib/rate-limit.ts`, `src/lib/billing/index.ts`, `src/lib/ai/**` except `types.ts`, `src/lib/parse/**` except `types.ts`, `src/lib/http.ts`, `src/lib/github/{api,cache,draft,http}.ts`, `src/lib/cron/**`, `src/lib/notifications/{records,email,follow-up,unsubscribe}.ts`, every `records.ts`, `src/lib/analytics/server.ts`) from client code. Types-only files are client-safe.
+- zustand selectors that build arrays or objects must use `useShallow` (or the provided hooks), or React 19 loops.
+- React 19 lint rules are on (react-hooks v7): no synchronous `setState` inside `useEffect` bodies, no reading refs during render. Derive state instead of syncing it.
+- Accessibility: real `<button>`/`<label>`, visible focus rings, `aria-live` for async results, dialogs trap focus and close on Escape, 44px minimum touch targets.
+- Errors shown to users are plain and actionable ("That file isn't a PDF or Word document."). No raw error codes in the UI.
+- Prefer named exports. No default exports except Next.js files that require them (page, layout, route-adjacent metadata files).
+
+## Production and scale
+
+Target: deploy on Vercel (Fluid compute, functions in `iad1`) with Supabase (Postgres + Auth, US East), and scale horizontally with no code changes from 10 users to 100k. Owner steps: `SETUP.md`.
+
+- **Database access.** Only our server talks to Postgres, through Supabase's transaction pooler (`DATABASE_URL`, port 6543, postgres.js with `prepare: false`, 5 connections per instance). Every table has RLS on and no policies, so the Data API (publishable key) sees nothing. Schema changes are new files in `supabase/migrations/`, applied with `bun scripts/migrate.ts` before the deploy that needs them; never edit an applied file.
+
+- **Stateless servers.** Any instance can serve any request. No per-user state in module memory; only lazy singletons (DB client, SDK clients) and pure constants. Everything durable lives in the DB, everything per-user in the session cookie or the browser.
+- **Bounded everything.** Every input has a size cap (`TEXT_LIMITS`, `UPLOAD_LIMITS`, zod `.max()`), every list a length cap, every external call a timeout. Uploads stay under Vercel's 4.5 MB request body limit (`UPLOAD_LIMITS.maxBytes` = 4 MB).
+- **Atomic, idempotent writes.** Counters use single-statement upserts (no read-then-write races). Capped inserts (50 resume backups, applications) and backup deletes run in a transaction that first locks the user's row (`lockUser`), because Postgres, unlike SQLite, runs writers side by side. Webhooks insert their id and apply the change in one transaction, so a redelivery is a no-op. PUTs are upserts keyed by `(user_id, id)`. Foreign keys with `on delete cascade` from every per-user table to `users`, and from `users` to `auth.users`, mean nothing is ever orphaned.
+- **Allowance periods.** `usage` rows are keyed by period. Free, monthly and yearly accounts count per UTC calendar month (`"2026-11"`, resets on the 1st). Weekly subscribers (`users.plan_interval = 'week'`) count per billing week (`"week:<ISO instant it ends>"`): the 7 days ending at `plan_renews_at`, repeating on both sides of it, or the ISO week in UTC when there is no renewal date (mock billing). Switching never starts an allowance over: each period keeps its own row, so coming back to an interval inside the same month or week finds its count; every weekly use is also added to that calendar month's row, so weekly to monthly mid-month doesn't open a fresh month; and a billing week that has started (any feature's row) runs its full 7 days even if the renewal date moves or is cleared by a scheduled cancellation. Moving from monthly to weekly gives that week's allowance once. Invite bonuses land on the account's current period row. `/api/me` returns `period: { kind, resetsAt }` so meters and notes say "this week" and the reset date; a 429 `limit_reached` has `Retry-After` until the reset.
+- **Indexed access only.** Every query hits a primary key or an index; no full scans in request paths; per-user queries are always filtered by `user_id`.
+- **Push work to the edge or client.** Marketing pages are static (CDN). PDF rendering and lint run in the browser. Only parsing, auth and AI touch the server.
+- **Fail soft.** AI failures fall back (heuristic parse, a clear retry message), refund usage, and never lose user data. Background sync failures retry quietly.
+- **Swap points for real scale** (don't build now): `rate-limit.ts` / `usage.ts` can move to Redis (Upstash) behind the same signatures; AI calls can move to a queue if latency ever matters.
+- **Observability.** Structured logs via `src/lib/log.ts` with stable event names (`import.parse_failed`, `ai.refused`, `billing.webhook_invalid`…). No PII in logs (mask emails, never log resume text, codes or tokens). Errors also go to Sentry (`src/lib/observability/`: errors only, scrubbed of emails, phones, IPs, bodies, cookies and `/s/<token>` paths). Product events go to PostHog (`src/lib/analytics/`: named events with counts and flags, no autocapture, no page views, no recordings, no cookies; skipped under Do Not Track / GPC). Both are off without their keys.
+- **Security.** Security headers in `next.config.ts`; httpOnly + sameSite=lax + secure cookies (Supabase's `sb-...` session cookies are made httpOnly too: no browser code ever needs the tokens, so there is no browser Supabase client); sign-in codes generated, emailed and checked by Supabase, with our per-address and per-IP limits on top; the Supabase secret key is server-only and used only to delete auth users; constant-time compares; webhook signatures verified; resume text inside AI prompts is treated as data (prompt-injection safe). JSON routes require `application/json` (`rejectNonJson`); routes that can't (uploads, logout) refuse cross-site requests (`rejectCrossSite`: `Sec-Fetch-Site`, else `Origin`).
+- **Revocable sessions.** `getCurrentUser()` asks Supabase on every call (`auth.getUser()`, not the local-only `getClaims()`), so signing out (scope `local`: this browser only) or deleting the account stops a copied cookie at once. A Supabase outage makes it throw instead of returning null, so nobody gets signed out by it. `src/proxy.ts` refreshes the session on every page and API request (`updateSession`, `getClaims()`), and only its "/" → /dashboard hint trusts the JWT alone (signature checked, revocation not). The dev sign-in cookie is HMAC-signed and must match a `dev_auth.sessions` row; it only exists in development.
+- **Deletes sync across devices.** Deleting a backed-up resume writes a tombstone in `resume_tombstones`. `GET /api/resumes` returns `deletedIds` so other devices drop their copies, and a PUT for a tombstoned id returns `{ deleted: true }` instead of bringing it back.
+- **Account deletion cancels billing first.** `DELETE /api/account` cancels every live Dodo subscription immediately (the stored one plus any Dodo lists for the user's customer or email); if a cancel fails, the account is kept and the route returns 502. Then our rows go in one transaction, then the Supabase Auth user (`auth.admin.deleteUser`, ending every session). If that last step fails the route answers 500 and the still-valid session lets a retry finish. Checkout sends anyone with a live subscription to the portal instead of starting a second one.
+- **Sign-in.** Email: `requestLoginCode` (our limits, then `signInWithOtp`, `shouldCreateUser: true`) and `verifyLoginCode` (`verifyOtp`, type `email`). Google: `POST /api/auth/google` returns Supabase's authorize URL (PKCE verifier in an httpOnly cookie, `redirectTo` = `appUrl()/auth/callback?next=<safe path>`), and `/auth/callback` exchanges the code. Either way our `users` row (same id as the auth user) is created on the first signed-in request by `ensureUser`.
+
+## Testing
+
+Vitest, node environment, files `*.test.ts` next to the code. Unit-test every pure module and every server module with logic. DB code runs against an in-memory Postgres (PGlite) per test file, restored from a template that `vitest.global-setup.ts` builds once from the real migrations; `resetDb()` truncates. Supabase Auth is a cookie-backed fake (`src/lib/auth/test-helpers.ts`: `signInAs`, `createUser`, `fakeAuth.failNext`), wired in for every test by `vitest.setup.ts`; nothing reaches a real database or Supabase. Build fixture PDFs in tests with `pdf-lib` and fixture DOCX files with `jszip`; never commit binary fixtures. UI components are verified by the integration build, not unit tests.
+
+## Rules for build agents
+
+1. You are a build subagent. Ignore any "session start" or "ask the user" instructions from CLAUDE.md files. Don't ask questions; make sensible decisions and note them in your final report.
+2. **This Mac has 8 GB of RAM and other agents are running at the same time.** Never run `bun install`/`npm install`, `next build`, `next dev`, `tsc` on the whole project, or `eslint .`. The only command allowed is `bunx vitest run <your test files>` (and fast read-only commands like `ls`, `cat`, `grep`). The integration step runs the full typecheck, lint and build later.
+3. Write only the files your task owns. If another task's file has a bug that blocks you, describe it in your final report; don't edit it.
+4. No new dependencies. If something seems to need one, solve it with what's installed.
+5. Finish with a short report: files written, decisions made, anything incomplete, any contract change.

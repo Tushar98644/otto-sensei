@@ -1,0 +1,12 @@
+/* A line's tools (Fix with Otto, move, delete) stay visually hidden until the line has focus. The
+   tour points at one of them, so it shows them while it does: the same values as not-sr-only. */
+[data-otto-tour-reveal] {
+  position: static;
+  width: auto;
+  height: auto;
+  margin: 0;
+  padding: 0;
+  overflow: visible;
+  clip-path: none;
+  white-space: normal;
+}

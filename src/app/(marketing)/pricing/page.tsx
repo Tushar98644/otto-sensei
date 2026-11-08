@@ -1,0 +1,124 @@
+import type { Metadata } from "next";
+import { OTTO } from "@/components/mascot/lines";
+import { Otto } from "@/components/mascot/otto";
+import { OttoNote } from "@/components/mascot/otto-note";
+import { pageMetadata } from "@/components/site/page-metadata";
+import { ROUTES } from "@/components/site/routes";
+import { TextLink } from "@/components/site/text-link";
+import { FEATURE_LABELS, FEATURES, PAID_PLANS, PLANS } from "@/config/plans";
+import { billingOffer } from "@/lib/billing/intervals";
+import { renewalPeriods } from "@/lib/billing/prices";
+import { type FaqItem, FaqList } from "../_components/faq-list";
+import { formatUsd } from "../_components/plan-features";
+import { PricingPlans } from "../_components/pricing-plans";
+
+export const metadata: Metadata = pageMetadata({
+  title: "Pricing",
+  description: `Checking, editing and PDF downloads are free. Pro is ${formatUsd(PLANS.pro.priceUsd)} a month for ${PLANS.pro.limits.tailor} tailored versions and ${PLANS.pro.limits.fix} line fixes; Max is ${formatUsd(PLANS.max.priceUsd)} for more. Cancel anytime.`,
+  path: ROUTES.pricing,
+});
+
+const count = new Intl.NumberFormat("en-US");
+const monthlyLimits = `Every month, from the 1st: ${FEATURES.map(
+  (feature) =>
+    `${FEATURE_LABELS[feature]}: ${PLANS.free.limits[feature]} on Free, ${count.format(PLANS.pro.limits[feature])} on Pro, ${count.format(PLANS.max.limits[feature])} on Max`,
+).join("; ")}.`;
+const weeklyLimits = `Weekly plans count each billing week instead: ${FEATURES.map(
+  (feature) =>
+    `${FEATURE_LABELS[feature]}: ${count.format(PLANS.pro.weeklyLimits[feature])} on Pro, ${count.format(PLANS.max.weeklyLimits[feature])} on Max`,
+).join("; ")}.`;
+const uploadsNote = "Uploads past the AI reads still work: the basic reader reads them instead.";
+
+// The weekly numbers only while a weekly option is on sale.
+function limitsAnswer(weeklyOnSale: boolean): string {
+  return [monthlyLimits, ...(weeklyOnSale ? [weeklyLimits] : []), uploadsNote].join(" ");
+}
+
+const billingFaq = (weeklyOnSale: boolean): readonly FaqItem[] => [
+  {
+    question: "Who handles payments?",
+    answer:
+      "Dodo Payments, our merchant of record. They process your payment, send your receipts and handle sales tax or VAT. We never see your full card number.",
+  },
+  {
+    question: "Will I pay tax on top?",
+    answer:
+      "Depending on where you live, sales tax or VAT may be added at checkout. Prices are in US dollars, and your bank may convert them to your currency.",
+  },
+  {
+    question: "How do I cancel?",
+    answer:
+      "From your account page, anytime. You keep your plan until the end of the period you paid for, and you won't be charged again.",
+  },
+  {
+    question: "Can I get a refund?",
+    answer: (
+      <>
+        Yes. If a paid plan isn&apos;t right for you, ask within 7 days of your first payment for a full
+        refund. See the <TextLink href={ROUTES.refunds}>refund policy</TextLink>.
+      </>
+    ),
+  },
+  {
+    question: "What are the limits?",
+    answer: limitsAnswer(weeklyOnSale),
+  },
+  {
+    question: "Can I switch between Pro and Max?",
+    answer:
+      "Yes, from your account page. Your subscription changes in place and you pay or get credit for the difference, so you're never billed twice.",
+  },
+  {
+    question: "What happens to my resumes if I cancel?",
+    answer: "Nothing. They stay yours, and you can keep editing and downloading them for free.",
+  },
+];
+
+export default function PricingPage() {
+  // Read when the page is built, like the rest of its config: a new product id needs a redeploy.
+  const offer = billingOffer();
+  const renewals = [...new Set(PAID_PLANS.flatMap((plan) => offer[plan]))];
+  return (
+    <div className="container-page pt-16 pb-24 sm:pt-24 sm:pb-32">
+      <div className="mx-auto flex max-w-3xl flex-col items-center text-center">
+        <h1 className="font-display text-5xl/none font-normal tracking-tight text-ink sm:text-7xl/none">
+          Free for the basics. <em className="block">More when the hunt gets busy.</em>
+        </h1>
+        <p className="mt-6 max-w-xl text-lg/7 text-muted sm:text-xl/8">
+          Checking, editing and PDF downloads are free. Pro and Max add more help from Otto each
+          month, with the numbers written down.
+        </p>
+      </div>
+
+      <PricingPlans
+        offer={offer}
+        headingAs="h2"
+        otto={<Otto pose="point" size={96} />}
+        className="mx-auto mt-16 max-w-6xl"
+      />
+      <OttoNote
+        size="sm"
+        live={false}
+        message={OTTO.pricing.samePrinciples}
+        className="mx-auto mt-8 w-fit max-w-xl"
+      />
+      <p className="mt-6 text-center text-sm text-subtle">
+        Prices in US dollars. Taxes may apply. Paid plans renew each {renewalPeriods(renewals)}{" "}
+        until you cancel.
+      </p>
+
+      <section
+        aria-labelledby="billing-faq-title"
+        className="mt-24 grid gap-12 sm:mt-32 lg:grid-cols-3"
+      >
+        <h2
+          id="billing-faq-title"
+          className="font-display text-4xl/10 font-normal tracking-tight text-ink sm:text-5xl/13"
+        >
+          Billing questions
+        </h2>
+        <FaqList items={billingFaq(renewals.includes("week"))} className="lg:col-span-2" />
+      </section>
+    </div>
+  );
+}

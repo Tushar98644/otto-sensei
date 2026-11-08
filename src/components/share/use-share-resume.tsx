@@ -1,0 +1,64 @@
+"use client";
+
+import { useCallback, useRef, useState, type ReactNode } from "react";
+import { useAccountGate } from "@/components/account/account-gate";
+import { currentUserId, useMe } from "@/components/account/use-me";
+import type { Resume } from "@/lib/resume/schema";
+import { shareAndCopy } from "./share-actions";
+import { ShareDialog } from "./share-dialog";
+
+export type ShareResume = {
+  // One click: makes the link (or points it at this version) and copies it. For a menu item.
+  share: () => void;
+  // The link's settings: what it shows, and turning it off.
+  open: () => void;
+  // Render once inside the component that calls the hook.
+  dialog: ReactNode;
+};
+
+// "Copy share link" for one resume card. The settings dialog mounts on first use, so a page full of
+// cards doesn't carry a closed dialog for each one, and stays mounted after, so closing it hands
+// focus back.
+export function useShareResume(resume: Resume): ShareResume {
+  const gate = useAccountGate();
+  const { user } = useMe();
+  const [used, setUsed] = useState(false);
+  const [isOpen, setOpen] = useState(false);
+  // The sign-in dialog mounts only once someone signed out tries to share, like the settings one.
+  const [gateUsed, setGateUsed] = useState(false);
+  // One link per resume, but two quick clicks would still copy twice and toast twice.
+  const busy = useRef(false);
+
+  const open = useCallback(() => {
+    setUsed(true);
+    setOpen(true);
+  }, []);
+
+  async function share() {
+    if (busy.current) return;
+    busy.current = true;
+    try {
+      let owner = user?.id ?? null;
+      if (!owner) {
+        setGateUsed(true);
+        if (!(await gate.requireUser("Sign in to share a link to your resume. It's free."))) return;
+        owner = await currentUserId();
+        if (!owner) return;
+      }
+      await shareAndCopy(resume, owner, open);
+    } finally {
+      busy.current = false;
+    }
+  }
+
+  return {
+    share: () => void share(),
+    open,
+    dialog: (
+      <>
+        {used ? <ShareDialog resume={resume} open={isOpen} onOpenChange={setOpen} /> : null}
+        {gateUsed ? gate.dialogs : null}
+      </>
+    ),
+  };
+}

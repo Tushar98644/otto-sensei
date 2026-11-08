@@ -1,0 +1,91 @@
+import { Resend } from "resend";
+import { env } from "@/lib/env";
+import { log } from "@/lib/log";
+
+// Server-only. Reminder emails through Resend's batch API (up to 100 emails in one call, so a
+// daily run stays far under its per-second request limit). Sign-in codes don't come through here:
+// Supabase sends those over Resend's SMTP.
+
+export type EmailMessage = {
+  to: string;
+  subject: string;
+  html: string;
+  text: string;
+  headers?: Record<string, string>;
+  // Resend tags: ASCII letters, digits, "_" and "-" only.
+  tags?: { name: string; value: string }[];
+};
+
+export type BatchResult = { sent: number; failed: number };
+
+export type EmailSender = {
+  /**
+   * Sends up to EMAIL_BATCH_MAX messages. The same idempotency key within 24 hours never sends
+   * twice, so a retry after a timeout is safe.
+   */
+  sendBatch(messages: EmailMessage[], idempotencyKey: string): Promise<BatchResult>;
+};
+
+export const EMAIL_BATCH_MAX = 100;
+const TIMEOUT_MS = 15_000;
+const RETRY_DELAY_MS = 1_500;
+
+type EmailConfig = { apiKey: string; from: string };
+
+function emailConfig(): EmailConfig | null {
+  const { RESEND_API_KEY, EMAIL_FROM } = env();
+  return RESEND_API_KEY && EMAIL_FROM ? { apiKey: RESEND_API_KEY, from: EMAIL_FROM } : null;
+}
+
+/** Whether this deployment can send reminder emails at all. */
+export function emailConfigured(): boolean {
+  return emailConfig() !== null;
+}
+
+type Attempt = { ok: true; result: BatchResult } | { ok: false; retry: boolean; reason: string };
+
+/** A Resend-backed sender, or null when RESEND_API_KEY or EMAIL_FROM is missing. */
+export function emailSender(): EmailSender | null {
+  const config = emailConfig();
+  if (!config) return null;
+  const { apiKey, from } = config;
+  const resend = new Resend(apiKey);
+
+  async function attempt(messages: EmailMessage[], idempotencyKey: string): Promise<Attempt> {
+    try {
+      const { data, error } = await resend.batch.send(
+        messages.map((message) => ({ from, ...message })),
+        { idempotencyKey, batchValidation: "permissive", signal: AbortSignal.timeout(TIMEOUT_MS) },
+      );
+      if (error) {
+        const status = error.statusCode ?? 0;
+        return { ok: false, retry: status === 0 || status === 429 || status >= 500, reason: error.name };
+      }
+      // Typed as always present, but don't bet a whole run on the API including an empty list.
+      const errors = data.errors ?? [];
+      // Not the messages themselves: they can quote the address they rejected.
+      if (errors.length > 0) log.warn("email.batch_rejected_some", { failed: errors.length });
+      const failed = errors.length;
+      return { ok: true, result: { sent: data.data.length, failed } };
+    } catch (error) {
+      // A timeout or a dropped connection: Resend may or may not have it, and the key settles it.
+      log.warn("email.batch_request_failed", {}, error);
+      return { ok: false, retry: true, reason: "network" };
+    }
+  }
+
+  return {
+    async sendBatch(messages, idempotencyKey) {
+      if (messages.length === 0) return { sent: 0, failed: 0 };
+      if (messages.length > EMAIL_BATCH_MAX) throw new RangeError("sendBatch: too many messages");
+      let outcome = await attempt(messages, idempotencyKey);
+      if (!outcome.ok && outcome.retry) {
+        await new Promise((resolve) => setTimeout(resolve, RETRY_DELAY_MS));
+        outcome = await attempt(messages, idempotencyKey);
+      }
+      if (outcome.ok) return outcome.result;
+      log.warn("email.batch_failed", { reason: outcome.reason, messages: messages.length });
+      return { sent: 0, failed: messages.length };
+    },
+  };
+}

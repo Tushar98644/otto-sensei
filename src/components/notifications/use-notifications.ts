@@ -1,0 +1,148 @@
+"use client";
+
+import { useEffect, useSyncExternalStore } from "react";
+import { useMe } from "@/components/account/use-me";
+import { api } from "@/lib/api/client";
+import type { Notification } from "@/lib/notifications/types";
+
+// One shared GET /api/notifications per signed-in account, for the sidebar bell and the phone
+// bar's bell alike (both are mounted; CSS shows one). Kept per user id, so signing in as someone
+// else never shows the last person's notifications. Reminders come from a daily job, so a refresh
+// when the tab comes back after a few minutes is plenty; nothing polls.
+
+type State = {
+  userId: string | null;
+  status: "idle" | "loading" | "ready" | "error";
+  items: Notification[];
+  unread: number;
+  loadedAt: number;
+  // Unread when the bell was last opened. They keep their "new" mark until it closes.
+  fresh: ReadonlySet<string>;
+};
+
+const NONE: ReadonlySet<string> = new Set();
+const IDLE: State = { userId: null, status: "idle", items: [], unread: 0, loadedAt: 0, fresh: NONE };
+const STALE_AFTER_MS = 5 * 60 * 1_000;
+
+let state: State = IDLE;
+let inflight: { userId: string; promise: Promise<void> } | null = null;
+const listeners = new Set<() => void>();
+
+function setState(next: State) {
+  state = next;
+  for (const listener of listeners) listener();
+}
+
+function subscribe(listener: () => void) {
+  listeners.add(listener);
+  return () => {
+    listeners.delete(listener);
+  };
+}
+
+export function loadNotifications(userId: string): Promise<void> {
+  if (inflight?.userId === userId) return inflight.promise;
+  const keep = state.userId === userId;
+  // A refresh keeps showing the current list; only a first load (or a retry) shows the skeleton.
+  setState(
+    keep
+      ? { ...state, status: state.status === "ready" ? "ready" : "loading" }
+      : { ...IDLE, userId, status: "loading" },
+  );
+  const promise = api
+    .notifications()
+    .then((res) => {
+      if (state.userId !== userId) return;
+      setState({
+        ...state,
+        status: "ready",
+        items: res.notifications,
+        unread: res.unread,
+        loadedAt: Date.now(),
+      });
+    })
+    .catch(() => {
+      // A refresh that fails keeps what was already shown.
+      if (state.userId === userId && state.status !== "ready") setState({ ...state, status: "error" });
+    })
+    .finally(() => {
+      if (inflight?.promise === promise) inflight = null;
+    });
+  inflight = { userId, promise };
+  return promise;
+}
+
+function refreshIfStale(userId: string) {
+  const stale = state.userId !== userId || state.status === "idle" || state.status === "error";
+  if (stale || Date.now() - state.loadedAt > STALE_AFTER_MS) void loadNotifications(userId);
+}
+
+/**
+ * Opening the bell counts as seeing everything: the badge clears at once and the server marks all
+ * of them read. The ones that were unread stay marked "new" until the bell closes.
+ */
+export function markAllSeen(userId: string) {
+  if (state.userId !== userId || state.unread === 0) return;
+  const now = Date.now();
+  const fresh = new Set(state.fresh);
+  for (const item of state.items) if (item.readAt === null) fresh.add(item.id);
+  setState({
+    ...state,
+    unread: 0,
+    fresh,
+    items: state.items.map((item) => (item.readAt === null ? { ...item, readAt: now } : item)),
+  });
+  // A failed mark only means the count comes back on the next refresh; no need to interrupt.
+  api.markNotificationsRead({ all: true }).catch(() => undefined);
+}
+
+export function forgetFresh() {
+  if (state.fresh.size > 0) setState({ ...state, fresh: NONE });
+}
+
+export type NotificationsState =
+  | { status: "signed_out" }
+  | { status: "loading" }
+  | { status: "error"; retry: () => void }
+  | {
+      status: "ready";
+      userId: string;
+      items: Notification[];
+      unread: number;
+      fresh: ReadonlySet<string>;
+    };
+
+export function useNotifications(): NotificationsState {
+  const { user } = useMe();
+  const userId = user?.id ?? null;
+  const snapshot = useSyncExternalStore(
+    subscribe,
+    () => state,
+    () => IDLE,
+  );
+
+  useEffect(() => {
+    if (!userId) return;
+    refreshIfStale(userId);
+    const onVisible = () => {
+      if (document.visibilityState === "visible") refreshIfStale(userId);
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => document.removeEventListener("visibilitychange", onVisible);
+  }, [userId]);
+
+  if (!userId) return { status: "signed_out" };
+  if (snapshot.userId !== userId || snapshot.status === "idle" || snapshot.status === "loading") {
+    return { status: "loading" };
+  }
+  if (snapshot.status === "error") {
+    return { status: "error", retry: () => void loadNotifications(userId) };
+  }
+  return {
+    status: "ready",
+    userId,
+    items: snapshot.items,
+    unread: snapshot.unread,
+    fresh: snapshot.fresh,
+  };
+}

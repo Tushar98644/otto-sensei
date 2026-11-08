@@ -1,0 +1,30 @@
+import { formatRelativeTime } from "@/components/studio/relative-time";
+import type { SharedLink } from "@/lib/share/types";
+
+// Pure. The facts line under a share link: "14 views · Last opened 2 hours ago · Shared 3 days ago".
+
+const COUNT = new Intl.NumberFormat("en-US");
+
+export function viewFacts(
+  link: Pick<SharedLink, "views" | "lastViewedAt" | "createdAt">,
+  now: number,
+): string {
+  const parts = [
+    link.views === 0
+      ? "No views yet"
+      : `${COUNT.format(link.views)} ${link.views === 1 ? "view" : "views"}`,
+  ];
+  if (link.lastViewedAt !== null && link.views > 0) {
+    parts.push(`Last opened ${formatRelativeTime(link.lastViewedAt, now)}`);
+  }
+  parts.push(`Shared ${formatRelativeTime(link.createdAt, now)}`);
+  return parts.join(" · ");
+}
+
+/** The resume changed after this version was shared, so the link shows an older one. */
+export function isBehind(
+  link: Pick<SharedLink, "versionAt">,
+  resume: { updatedAt: number },
+): boolean {
+  return link.versionAt !== resume.updatedAt;
+}
