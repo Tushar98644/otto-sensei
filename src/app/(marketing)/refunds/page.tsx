@@ -35,6 +35,11 @@ export default function RefundsPage() {
         your plan until the end of the period you&apos;ve paid for, then your account moves to the Free
         plan. Your resumes stay yours either way.
       </p>
+      <p>
+        On the free Pro trial nothing is charged. Cancel before the trial ends and you won&apos;t pay
+        anything; otherwise your first Pro payment is taken when it ends, and the 7 days above start
+        from that payment.
+      </p>
 
       <h2>How to ask for a refund</h2>
       <ol>
@@ -42,7 +47,7 @@ export default function RefundsPage() {
           Email <a href={mailto}>{BRAND.supportEmail}</a> from the address you sign in with, within
           7 days of your first payment.
         </li>
-        <li>We refund the payment through Dodo Payments, our merchant of record.</li>
+        <li>We refund the payment through Creem, our merchant of record.</li>
         <li>
           The money goes back to your original payment method. It can take a few business days to
           show up, depending on your bank.

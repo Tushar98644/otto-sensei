@@ -109,7 +109,9 @@ export function DashboardHome() {
             value={hydrated ? count.format(tailoredCount) : null}
             note={
               tailors
-                ? `${count.format(tailors.used)} of ${count.format(tailors.limit)} made ${thisPeriod(me?.period)}`
+                ? tailors.limit === 0
+                  ? "Tailoring comes with Pro"
+                  : `${count.format(tailors.used)} of ${count.format(tailors.limit)} made ${thisPeriod(me?.period)}`
                 : null
             }
           />
@@ -129,7 +131,15 @@ export function DashboardHome() {
           <Stat
             label="Line fixes left"
             value={fixes ? count.format(Math.max(0, fixes.limit - fixes.used)) : null}
-            note={fixes ? `of ${count.format(fixes.limit)} · resets on ${resetDay(me?.period)}` : null}
+            note={
+              fixes
+                ? fixes.limit === 0
+                  ? "Line fixes come with Pro"
+                  : me?.period?.kind === "trial"
+                    ? `of ${count.format(fixes.limit)} · trial ends ${resetDay(me.period)}`
+                    : `of ${count.format(fixes.limit)} · resets on ${resetDay(me?.period)}`
+                : null
+            }
           />
         </dl>
       </FolderCard>
@@ -167,7 +177,7 @@ export function DashboardHome() {
           <FolderCard tab="Start here" tone="lavender" bodyClassName="p-5 sm:p-6">
             <p className="text-base/6 font-medium text-ink">Your first resume goes here</p>
             <p className="mt-1 text-sm/6 text-muted">
-              Checking and PDF downloads are free. Otto helps with the lines.
+              Checking and PDF downloads are free. Otto&apos;s AI help comes with Pro.
             </p>
             <div className="mt-4">
               <StartOptions actions={actions} />

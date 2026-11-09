@@ -33,7 +33,8 @@ export type AICallOutcome =
 
 export type ServerEventProps = {
   signed_up: NoProps;
-  checkout_completed: { plan: "pro" | "max" };
+  // trial: the checkout started the free Pro trial instead of a payment.
+  checkout_completed: { plan: "pro" | "max"; trial?: boolean };
   ai_call: { task: string; model: string; latency_ms: number; outcome: AICallOutcome };
   // demo: no AI key, so Otto answered with sample output.
   line_fixed: { demo: boolean };

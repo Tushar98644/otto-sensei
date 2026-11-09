@@ -5,13 +5,13 @@ import { rejectCrossSite, rejectNonJson } from "@/lib/auth/route-guards";
 import { getCurrentUser } from "@/lib/auth/session";
 import { readJson } from "@/lib/http";
 import { log } from "@/lib/log";
-import { takeAccountUnit } from "../metered-free";
-import { limitDrafts } from "./limits";
+import { takeAccountUnit, upgradeRequired } from "../metered-free";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
 
-// "Build with Otto": the guided form's answers → a first resume draft.
+// "Build with Otto": the guided form's answers → a first resume draft. Pro and Max (and the trial)
+// only: Free and signed-out visitors get 402 upgrade_required, and the form keeps their answers.
 export async function POST(req: Request): Promise<Response> {
   try {
     const rejected = rejectCrossSite(req) ?? rejectNonJson(req);
@@ -21,19 +21,19 @@ export async function POST(req: Request): Promise<Response> {
 
     const user = await getCurrentUser();
     const startedAt = Date.now();
-    const unit = user ? await takeAccountUnit(user, "draft", startedAt) : await limitDrafts(req);
+    const unit = user ? await takeAccountUnit(user, "draft", startedAt) : upgradeRequired(null, "draft");
     if (unit instanceof Response) return unit;
 
     let drafted: Awaited<ReturnType<typeof draftResume>>;
     try {
       drafted = await draftResume(body.data, startedAt);
     } catch (error) {
-      await unit?.giveBack();
+      await unit.giveBack();
       throw error;
     }
     const { resume, usedAI } = drafted;
     // The person's own lines, as typed: nothing ran on the model worth counting.
-    if (!usedAI) await unit?.giveBack();
+    if (!usedAI) await unit.giveBack();
     log.info("draft.completed", {
       jobs: body.data.jobs.length,
       notes: body.data.jobs.reduce((sum, job) => sum + job.notes.length, 0),

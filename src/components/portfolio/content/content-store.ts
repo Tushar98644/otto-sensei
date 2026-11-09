@@ -1,0 +1,148 @@
+"use client";
+
+import { create } from "zustand";
+import { toast } from "@/components/ui/toast";
+import { undoToast } from "@/components/ui/undo-toast";
+import { api, isApiError } from "@/lib/api/client";
+import {
+  emptyContent,
+  saveableContent,
+  type GitHubStats,
+  type MediaUsage,
+  type PortfolioContent,
+} from "@/lib/portfolio/content";
+
+// The portfolio's content document in the editor. Every change shows at once and is saved a
+// moment after typing stops (the whole document, last change wins). Removing things gives an
+// Undo toast instead of asking first; removed pictures stay on the server long enough for it.
+
+const SAVE_AFTER_MS = 900;
+
+type Status = "idle" | "loading" | "ready" | "error";
+
+type ContentState = {
+  status: Status;
+  owner: string | null;
+  content: PortfolioContent;
+  github: GitHubStats | null;
+  media: MediaUsage | null;
+  // Where uploads are served from (Portfolio.mediaBase).
+  mediaBase: string;
+  // Local changes not yet confirmed by the server.
+  dirty: boolean;
+  saving: boolean;
+  error: string | null;
+};
+
+export const useContentStore = create<ContentState>()(() => ({
+  status: "idle",
+  owner: null,
+  content: emptyContent(),
+  github: null,
+  media: null,
+  mediaBase: "",
+  dirty: false,
+  saving: false,
+  error: null,
+}));
+
+let timer: ReturnType<typeof setTimeout> | null = null;
+// Each edit bumps it; a save's answer only replaces what's shown if nothing changed since it left.
+let revision = 0;
+
+export async function loadContent(owner: string, { force = false } = {}): Promise<void> {
+  const state = useContentStore.getState();
+  if (state.owner === owner && (state.status === "loading" || (state.status === "ready" && !force)))
+    return;
+  useContentStore.setState({ status: "loading", owner, error: null });
+  try {
+    const { content, github, media } = await api.portfolioContent();
+    if (useContentStore.getState().owner !== owner) return;
+    revision += 1;
+    useContentStore.setState({ status: "ready", content, github, media, dirty: false });
+  } catch (error) {
+    if (useContentStore.getState().owner !== owner) return;
+    useContentStore.setState({ status: "error", error: isApiError(error) ? error.message : null });
+  }
+}
+
+async function save({ keepalive = false } = {}): Promise<void> {
+  if (timer) clearTimeout(timer);
+  timer = null;
+  const { content, dirty } = useContentStore.getState();
+  if (!dirty) return;
+  const sent = revision;
+  useContentStore.setState({ saving: true });
+  try {
+    // What's on screen stays as typed (half-filled rows included); the server gets the finished part.
+    const answer = await api.savePortfolioContent(
+      { content: saveableContent(content) },
+      { keepalive },
+    );
+    useContentStore.setState({
+      github: answer.github,
+      media: answer.media,
+      ...(sent === revision ? { dirty: false } : {}),
+    });
+  } catch (error) {
+    toast({
+      title: "Couldn't save that",
+      description: isApiError(error)
+        ? error.message
+        : "Check your connection. Your change is kept here.",
+      variant: "error",
+    });
+  } finally {
+    useContentStore.setState({ saving: false });
+  }
+}
+
+/** Sends any change still waiting, at once (the page is closing, or something needs it saved first). */
+export async function flushContent({ keepalive = false } = {}): Promise<void> {
+  if (useContentStore.getState().dirty) await save({ keepalive });
+}
+
+/** Changes the document. `undo` names what was removed and offers to put it back. */
+export function editContent(
+  change: (content: PortfolioContent) => PortfolioContent,
+  undo?: string,
+): void {
+  const before = useContentStore.getState().content;
+  const next = change(before);
+  if (next === before) return;
+  revision += 1;
+  useContentStore.setState({ content: next, dirty: true });
+  if (timer) clearTimeout(timer);
+  timer = setTimeout(() => void save(), SAVE_AFTER_MS);
+  if (undo) {
+    undoToast({
+      title: undo,
+      onUndo: () => editContent(() => before),
+    });
+  }
+}
+
+export function setGitHub(github: GitHubStats | null): void {
+  useContentStore.setState({ github });
+}
+
+export function setMediaBase(mediaBase: string): void {
+  if (useContentStore.getState().mediaBase !== mediaBase) useContentStore.setState({ mediaBase });
+}
+
+export function setMediaUsage(media: MediaUsage): void {
+  useContentStore.setState({ media });
+}
+
+export function resetContentStore(): void {
+  if (timer) clearTimeout(timer);
+  timer = null;
+  useContentStore.setState({
+    status: "idle",
+    owner: null,
+    content: emptyContent(),
+    github: null,
+    media: null,
+    dirty: false,
+  });
+}

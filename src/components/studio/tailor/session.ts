@@ -22,7 +22,8 @@ export type TailorDraft = {
   paste?: boolean;
 };
 
-export type SavedWriting = { text: string; warnings: string[]; demo: boolean };
+// savedId: the row it's kept under on the Cover letters page (/api/writings), once saved.
+export type SavedWriting = { text: string; warnings: string[]; demo: boolean; savedId?: string };
 export type SavedAnswer = SavedWriting & { id: string; question: string };
 
 export type SavedResult = {
@@ -169,6 +170,7 @@ function toWriting(value: unknown): SavedWriting | undefined {
     text: value.text,
     warnings: value.warnings.filter(isString),
     demo: value.demo === true,
+    ...(isString(value.savedId) ? { savedId: value.savedId } : {}),
   };
 }
 
@@ -234,6 +236,71 @@ function read(): Saved | null {
     return { version: 1, draft, last: valid ? toSavedResult(last) : null };
   } catch {
     return null;
+  }
+}
+
+// A job picked on the Jobs tab, waiting for the Tailor step: the step opens with its link and
+// reads it at once. `text` is the post as the job list stored it, the backup when the link can't
+// be read; readLink false (the feeds) skips reading and uses it straight away.
+export type QueuedJob = {
+  link: string;
+  title: string;
+  company: string;
+  location: string;
+  text: string;
+  postedAt: number | null;
+  readLink: boolean;
+};
+
+const QUEUE_KEY = "otto-tailor-queued-v1";
+
+export function queueJobForTailor(job: QueuedJob): void {
+  try {
+    window.sessionStorage.setItem(
+      QUEUE_KEY,
+      JSON.stringify({ ...job, text: job.text.slice(0, TEXT_LIMITS.jobPostChars) }),
+    );
+  } catch {
+    // Storage blocked: the step opens empty and the person pastes the link themselves.
+  }
+}
+
+/** The queued job, left in place: the step takes it once it has mounted (see takeQueuedJob). */
+export function peekQueuedJob(): QueuedJob | null {
+  try {
+    const raw = window.sessionStorage.getItem(QUEUE_KEY);
+    if (!raw) return null;
+    const job = JSON.parse(raw) as Partial<QueuedJob> | null;
+    if (
+      !job ||
+      !isString(job.link) ||
+      !isString(job.title) ||
+      !isString(job.company) ||
+      !isString(job.location) ||
+      !isString(job.text) ||
+      typeof job.readLink !== "boolean"
+    ) {
+      return null;
+    }
+    return {
+      link: job.link,
+      title: job.title,
+      company: job.company,
+      location: job.location,
+      text: job.text,
+      postedAt: typeof job.postedAt === "number" ? job.postedAt : null,
+      readLink: job.readLink,
+    };
+  } catch {
+    return null;
+  }
+}
+
+export function clearQueuedJob(): void {
+  try {
+    window.sessionStorage.removeItem(QUEUE_KEY);
+  } catch {
+    // Nothing to clear.
   }
 }
 

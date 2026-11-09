@@ -4,6 +4,8 @@
 //
 //   bun scripts/migrate.ts            apply what's pending
 //   bun scripts/migrate.ts --status   list applied and pending files, change nothing
+//   bun scripts/migrate.ts --deploy   the Vercel build step (vercel.json): production builds
+//                                     migrate, any other build or one without a database skips
 //
 // Bun loads .env.local, so after `vercel env pull .env.local` it uses DIRECT_DATABASE_URL, else
 // POSTGRES_URL_NON_POOLING (Vercel Marketplace), else the pooled URL.
@@ -23,8 +25,19 @@ function hostOf(url: string): string {
 
 async function main() {
   const statusOnly = process.argv.includes("--status");
+  const onDeploy = process.argv.includes("--deploy");
+  // Previews must never change the production database, even if they are given its URL later.
+  const vercelEnv = process.env.VERCEL_ENV;
+  if (onDeploy && vercelEnv && vercelEnv !== "production") {
+    console.log(`Migrations skipped: this is a ${vercelEnv} build.`);
+    return;
+  }
   const rawUrl = directDatabaseUrl();
   if (!rawUrl) {
+    if (onDeploy) {
+      console.log("Migrations skipped: no database URL on this build.");
+      return;
+    }
     console.error(`No database URL. Set one of: ${DIRECT_URL_VARS.join(", ")} (see SETUP.md).`);
     process.exit(1);
   }
@@ -37,7 +50,9 @@ async function main() {
     await sql`select pg_advisory_lock(${LOCK_ID})`;
     await sql.unsafe(MIGRATION_HISTORY_DDL);
 
-    const rows = await sql<{ version: string }[]>`select version from supabase_migrations.schema_migrations`;
+    const rows = await sql<
+      { version: string }[]
+    >`select version from supabase_migrations.schema_migrations`;
     const applied = new Set(rows.map((row) => row.version));
     const all = readMigrations(MIGRATIONS_DIR);
     const pending = all.filter((migration) => !applied.has(migration.version));

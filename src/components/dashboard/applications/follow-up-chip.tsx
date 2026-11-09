@@ -35,13 +35,21 @@ export function FollowUpChip({
           description: name,
           onUndo: () => {
             changeApplication(saved, { followUpAt: previous }).catch((error: unknown) =>
-              toast({ title: "Couldn't undo that", description: errorMessage(error), variant: "error" }),
+              toast({
+                title: "Couldn't undo that",
+                description: errorMessage(error),
+                variant: "error",
+              }),
             );
           },
         });
       })
       .catch((error: unknown) =>
-        toast({ title: "Couldn't change the reminder", description: errorMessage(error), variant: "error" }),
+        toast({
+          title: "Couldn't change the reminder",
+          description: errorMessage(error),
+          variant: "error",
+        }),
       );
   }
 

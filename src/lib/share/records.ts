@@ -2,8 +2,9 @@ import { createHash } from "node:crypto";
 import { and, count, desc, eq, isNotNull, isNull, notInArray, sql } from "drizzle-orm";
 import { getDb } from "@/db/client";
 import { lockUser } from "@/db/locks";
-import { shares } from "@/db/schema";
+import { shares, users } from "@/db/schema";
 import { log } from "@/lib/log";
+import { forPlan } from "@/lib/pdf/templates";
 import { rateLimit } from "@/lib/rate-limit";
 import { ResumeSchema, type Resume } from "@/lib/resume/schema";
 import { publicResume, shareSnapshot } from "./snapshot";
@@ -224,11 +225,13 @@ export async function findPublicShare(slug: string): Promise<PublicShare | null>
     .select({
       id: shares.id,
       ownerId: shares.userId,
+      ownerPlan: users.plan,
       snapshot: shares.snapshot,
       showContact: shares.showContact,
       allowIndexing: shares.allowIndexing,
     })
     .from(shares)
+    .innerJoin(users, eq(users.id, shares.userId))
     .where(and(eq(shares.slug, slug), isNull(shares.revokedAt)))
     .limit(1);
   if (!row?.snapshot) return null;
@@ -240,7 +243,9 @@ export async function findPublicShare(slug: string): Promise<PublicShare | null>
   return {
     id: row.id,
     ownerId: row.ownerId,
-    resume: publicResume(parsed.data, row.showContact),
+    // The reader's PDF follows the owner's plan, like the owner's own download: a Pro format
+    // shared before a paid plan ended comes out in Classic.
+    resume: publicResume(forPlan(parsed.data, row.ownerPlan), row.showContact),
     allowIndexing: row.allowIndexing,
   };
 }

@@ -1,10 +1,13 @@
+import { resumeLimit } from "@/config/plans";
 import { fail, ok } from "@/lib/api/respond";
 import { PutResumeSchema, type EmptyOk, type PutResumeResponse } from "@/lib/api/types";
 import { rejectNonJson } from "@/lib/auth/route-guards";
 import { getCurrentUser } from "@/lib/auth/session";
 import { readJson } from "@/lib/http";
 import { log } from "@/lib/log";
+import { syncPortfolioWith } from "@/lib/portfolio/sync";
 import { ResumeSchema } from "@/lib/resume/schema";
+import { proToolRequired } from "../../pro-tools";
 import { deleteBackup, MAX_RESUMES_PER_USER, saveBackup } from "../backups";
 
 export const runtime = "nodejs";
@@ -41,7 +44,8 @@ export async function PUT(req: Request, { params }: Context): Promise<Response> 
       return fail("bad_request", "The resume doesn't match the address it was sent to.", 400);
     }
 
-    const { status, bytes } = await saveBackup(user.id, body.data);
+    const planLimit = resumeLimit(user.plan);
+    const { status, bytes } = await saveBackup(user.id, body.data, Date.now(), planLimit);
     if (status === "no_user") {
       log.info("resumes.write_after_account_deleted");
       return fail("unauthorized", SIGN_IN, 401);
@@ -58,11 +62,14 @@ export async function PUT(req: Request, { params }: Context): Promise<Response> 
         400,
       );
     }
+    // The resume stays in the browser; the client offers the trial before making a new one.
+    if (status === "plan_limit") return proToolRequired(user, "resumes");
     if (status === "deleted") {
       log.info("resumes.write_after_delete");
       return ok(DELETED);
     }
     if (status === "stale") log.info("resumes.stale_write");
+    else await syncPortfolioWith(user.id, body.data);
     return ok(SAVED);
   } catch (error) {
     log.error("resumes.save_failed", error);

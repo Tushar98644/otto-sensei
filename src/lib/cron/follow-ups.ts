@@ -31,6 +31,10 @@ import type { CronContext, CronOutcome } from "./run";
 // written in the same transaction. Email goes after commit, at most once: a failed send is
 // logged, never retried on a later day, because the bell already has the reminder. A snooze sets
 // a later date, which the stamp is behind, so that date is reminded once in its turn.
+//
+// Every plan gets reminders: Free for its one tracked application (FREE_APPLICATIONS), paid plans
+// for all of them. An account kept past Free's limit after a paid plan ended is reminded too, since
+// the dates were set while it paid.
 
 export const FOLLOW_UP = {
   usersPerBatch: EMAIL_BATCH_MAX,
@@ -67,6 +71,12 @@ async function claimForUser(userId: string, now: number): Promise<Claimed | null
   return db.transaction(async (tx) => {
     // Queues behind an account deletion, so the insert below can't hit a vanished user.
     if (!(await lockUser(tx, userId))) return null;
+    const [owner] = await tx
+      .select({ email: users.email })
+      .from(users)
+      .where(eq(users.id, userId))
+      .limit(1);
+    if (!owner) return null;
     const claimed = await tx
       .update(applications)
       .set({ remindedAt: now })
@@ -78,12 +88,6 @@ async function claimForUser(userId: string, now: number): Promise<Claimed | null
         appliedAt: applications.appliedAt,
       });
     if (claimed.length === 0) return null;
-    const [owner] = await tx
-      .select({ email: users.email })
-      .from(users)
-      .where(eq(users.id, userId))
-      .limit(1);
-    if (!owner) return null;
     const emailReminders = await emailRemindersOn(tx, userId);
     const notice = followUpNotice(claimed, now);
     const notificationId = await insertNotification(
@@ -97,7 +101,10 @@ async function claimForUser(userId: string, now: number): Promise<Claimed | null
 
 // Same batch, same key: a retried run inside Resend's 24-hour window can't send it twice.
 function batchKey(claimed: readonly Claimed[]): string {
-  const ids = claimed.map((item) => item.notificationId).sort().join(",");
+  const ids = claimed
+    .map((item) => item.notificationId)
+    .sort()
+    .join(",");
   return `follow-up-${createHash("sha256").update(ids).digest("hex").slice(0, 40)}`;
 }
 
@@ -144,9 +151,7 @@ export async function runFollowUps(
       .selectDistinct({ userId: applications.userId })
       .from(applications)
       .where(
-        skipped.length > 0
-          ? and(dueFor(now), notInArray(applications.userId, skipped))
-          : dueFor(now),
+        and(dueFor(now), skipped.length > 0 ? notInArray(applications.userId, skipped) : undefined),
       )
       .orderBy(asc(applications.userId))
       .limit(FOLLOW_UP.usersPerBatch);

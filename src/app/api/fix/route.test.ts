@@ -1,12 +1,12 @@
 import { eq } from "drizzle-orm";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { PLANS } from "@/config/plans";
+import { PLANS, PRO_TRIAL } from "@/config/plans";
 import { getDb } from "@/db/client";
 import { usage, users } from "@/db/schema";
 import { fixBullet } from "@/lib/ai/fix";
 import { AIError, type FixResult } from "@/lib/ai/types";
 import type { ApiErrorBody, FixRequestBody, FixResponse } from "@/lib/api/types";
-import { cookieJar, jsonRequest, resetDb, signInAs } from "@/lib/auth/test-helpers";
+import { cookieJar, jsonRequest, resetDb, signInAs, signInOnTrial } from "@/lib/auth/test-helpers";
 import type { SessionUser } from "@/lib/auth/types";
 import { resetEnvForTests } from "@/lib/env";
 import { consumeUsage, getUsage, monthKey, weekKey } from "@/lib/usage";
@@ -21,7 +21,8 @@ vi.mock("@/lib/ai/fix", async (importOriginal) => {
 
 // 23.5 days before the December allowance reset.
 const NOW = Date.UTC(2026, 10, 7, 12, 0, 0, 7);
-const UNTIL_RESET_SECONDS = (Date.UTC(2026, 11, 1) - Date.UTC(2026, 10, 7, 12)) / 1000;
+// Most tests run on the free trial (the smallest real allowance), ending two days from now.
+const TRIAL_END = Date.UTC(2026, 10, 9, 12);
 
 const BODY: FixRequestBody = {
   bullet: "Responsible for managing the company blog",
@@ -31,14 +32,13 @@ const BODY: FixRequestBody = {
 const fix = (body: unknown = BODY) => POST(jsonRequest("/api/fix", body));
 
 async function signIn(email = "ada@example.com"): Promise<SessionUser> {
-  const user = await signInAs(email);
-  return user;
+  return signInOnTrial(email, TRIAL_END);
 }
 
 async function makePro(user: SessionUser): Promise<SessionUser> {
   const db = await getDb();
-  await db.update(users).set({ plan: "pro" }).where(eq(users.id, user.id));
-  return { ...user, plan: "pro" };
+  await db.update(users).set({ plan: "pro", trialEndsAt: null }).where(eq(users.id, user.id));
+  return { ...user, plan: "pro", trialEndsAt: null };
 }
 
 async function errorOf(res: Response): Promise<ApiErrorBody["error"]> {
@@ -70,6 +70,19 @@ describe("POST /api/fix", () => {
     expect(res.status).toBe(415);
   });
 
+  it("answers Free with 402 upgrade_required, the trial's prompt, without spending anything", async () => {
+    const user = await signInAs("free@example.com");
+    const calls = vi.mocked(fixBullet).mock.calls.length;
+    const res = await fix();
+    expect(res.status).toBe(402);
+    expect(await errorOf(res)).toEqual({
+      code: "upgrade_required",
+      message: "Line fixes and summaries come with Pro. Try Pro free for 3 days.",
+    });
+    expect(vi.mocked(fixBullet).mock.calls).toHaveLength(calls);
+    expect((await getUsage(user)).fix).toEqual({ used: 0, limit: 0 });
+  });
+
   it("returns Otto's demo fix and the allowance after counting it", async () => {
     const user = await signIn();
     const first = await fix();
@@ -81,7 +94,7 @@ describe("POST /api/fix", () => {
     expect(Array.isArray(body.result.issues)).toBe(true);
     expect(Array.isArray(body.result.questions)).toBe(true);
     expect(typeof body.result.needsAnswers).toBe("boolean");
-    expect(body.usage.fix).toEqual({ used: 1, limit: PLANS.free.limits.fix });
+    expect(body.usage.fix).toEqual({ used: 1, limit: PRO_TRIAL.limits.fix });
     expect(body.demo).toBe(true);
 
     const second = (await (await fix()).json()) as FixResponse;
@@ -114,18 +127,18 @@ describe("POST /api/fix", () => {
     expect((await getUsage(user)).fix.used).toBe(0);
   });
 
-  it("answers 429 limit_reached once the month's fixes are used", async () => {
+  it("answers 429 limit_reached once the trial's fixes are used, until the trial ends", async () => {
     const user = await signIn();
-    for (let i = 0; i < PLANS.free.limits.fix; i++) await consumeUsage(user, "fix");
+    for (let i = 0; i < PRO_TRIAL.limits.fix; i++) await consumeUsage(user, "fix");
 
     const res = await fix();
     expect(res.status).toBe(429);
-    expect(res.headers.get("Retry-After")).toBe(String(UNTIL_RESET_SECONDS));
+    expect(res.headers.get("Retry-After")).toBe(String((TRIAL_END - Date.UTC(2026, 10, 7, 12)) / 1000));
     expect(await errorOf(res)).toEqual({
       code: "limit_reached",
-      message: `You've used this month's ${PLANS.free.limits.fix} line fixes. Pro has ${PLANS.pro.limits.fix} a month.`,
+      message: `You've used this trial's ${PRO_TRIAL.limits.fix} line fixes. Pro has ${PLANS.pro.limits.fix} a month. Your full allowance starts on Nov 9.`,
     });
-    expect((await getUsage(user)).fix.used).toBe(PLANS.free.limits.fix);
+    expect((await getUsage(user)).fix.used).toBe(PRO_TRIAL.limits.fix);
   });
 
   it("gives the fix back when the AI call fails", async () => {
@@ -214,12 +227,12 @@ describe("POST /api/fix", () => {
   });
 
   it("stops weekly Pro at the weekly limit, quoting weekly Max, until the billing week ends", async () => {
-    const user = await signIn();
+    const user = await signInAs();
     const renewsAt = Date.UTC(2026, 10, 10, 9, 30);
     const db = await getDb();
     await db
       .update(users)
-      .set({ plan: "pro", planInterval: "week", planRenewsAt: renewsAt })
+      .set({ plan: "pro", planInterval: "week", planRenewsAt: renewsAt, trialEndsAt: null })
       .where(eq(users.id, user.id));
     await db
       .insert(usage)

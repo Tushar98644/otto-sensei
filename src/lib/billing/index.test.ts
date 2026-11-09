@@ -1,91 +1,49 @@
-import { APIConnectionTimeoutError, APIError, type DodoPayments } from "dodopayments";
 import { eq } from "drizzle-orm";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { getDb } from "@/db/client";
-import { users, type UserRow } from "@/db/schema";
-import type { SessionUser } from "@/lib/auth/types";
+import { trialHistory, users } from "@/db/schema";
 import { insertUserRow, resetDb } from "@/lib/auth/test-helpers";
+import type { SessionUser } from "@/lib/auth/types";
 import { resetEnvForTests } from "@/lib/env";
 import { toSessionUser } from "@/lib/users";
 import {
-  BillingError,
   billingMode,
   cancelSubscriptionForDeletion,
   createCheckoutUrl,
   createPortalUrl,
+  trialAvailableFor,
 } from "./index";
-
-// Only the fields the code under test reads.
-type SubscriptionStub = Pick<DodoPayments.Subscription, "subscription_id" | "status">;
-type CustomerStub = Pick<DodoPayments.Customer, "customer_id" | "email">;
-type ListedSubscription = Pick<DodoPayments.SubscriptionListResponse, "subscription_id" | "status" | "product_id"> & {
-  customer: Pick<DodoPayments.CustomerLimitedDetails, "customer_id">;
-};
-
-// The real API is never called: the client is swapped for one whose methods are spies.
-const sdk = vi.hoisted(() => ({
-  checkoutCreate:
-    vi.fn<(params: DodoPayments.CheckoutSessionCreateParams) => Promise<DodoPayments.CheckoutSessionResponse>>(),
-  portalCreate:
-    vi.fn<(customerId: string, params?: { return_url?: string }) => Promise<DodoPayments.CustomerPortalSession>>(),
-  subscriptionUpdate:
-    vi.fn<(id: string, params: DodoPayments.SubscriptionUpdateParams) => Promise<SubscriptionStub>>(),
-  subscriptionRetrieve: vi.fn<(id: string) => Promise<SubscriptionStub>>(),
-  customersList: vi.fn<(params: DodoPayments.CustomerListParams) => Promise<{ items: CustomerStub[] }>>(),
-  subscriptionsList:
-    vi.fn<(params: DodoPayments.SubscriptionListParams) => Promise<{ items: ListedSubscription[] }>>(),
-  changePlan: vi.fn<(id: string, params: DodoPayments.SubscriptionChangePlanParams) => Promise<unknown>>(),
-  options: [] as unknown[],
-}));
-
-vi.mock("dodopayments", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("dodopayments")>();
-  class FakeDodoPayments {
-    checkoutSessions = { create: sdk.checkoutCreate };
-    customers = { customerPortal: { create: sdk.portalCreate }, list: sdk.customersList };
-    subscriptions = {
-      update: sdk.subscriptionUpdate,
-      retrieve: sdk.subscriptionRetrieve,
-      list: sdk.subscriptionsList,
-      changePlan: sdk.changePlan,
-    };
-
-    constructor(options: unknown) {
-      sdk.options.push(options);
-    }
-  }
-  return { ...actual, DodoPayments: FakeDodoPayments };
-});
+import { installFakeCreem, type FakeCreem } from "./testing";
+import { recordTrialHistory } from "./trial";
 
 const APP_URL = "https://otto.example";
-const DODO_KEYS = {
-  DODO_PAYMENTS_API_KEY: "sk_test_123",
-  DODO_PAYMENTS_PRODUCT_ID: "pdt_otto_pro",
-  DODO_PAYMENTS_WEBHOOK_KEY: `whsec_${Buffer.from("otto-test-key").toString("base64")}`,
+const CREEM = {
+  CREEM_API_KEY: "creem_test_123",
+  CREEM_WEBHOOK_SECRET: "whsec_test",
+  CREEM_PRO_MONTHLY_PRODUCT_ID: "prod_pro_month",
+  CREEM_PRO_TRIAL_PRODUCT_ID: "prod_pro_trial",
 } as const;
+const DAY_MS = 86_400_000;
 
+type Row = typeof users.$inferSelect;
 let sequence = 0;
+let creem: FakeCreem;
 
-async function createUser(overrides: Partial<UserRow> = {}): Promise<SessionUser> {
+async function createUser(overrides: Partial<typeof users.$inferInsert> = {}): Promise<SessionUser> {
   sequence += 1;
-  const row: UserRow = {
+  const row = {
     id: crypto.randomUUID(),
     email: `person${sequence}@example.com`,
-    plan: "free",
-    planStatus: null,
-    planRenewsAt: null,
-    planInterval: null,
-    billingCustomerId: null,
-    billingSubscriptionId: null,
+    plan: "free" as const,
     createdAt: 1,
     updatedAt: 1,
     ...overrides,
   };
   await insertUserRow(row);
-  return toSessionUser(row);
+  return toSessionUser((await reload(row.id))!);
 }
 
-async function reload(id: string): Promise<UserRow | undefined> {
+async function reload(id: string): Promise<Row | undefined> {
   const db = await getDb();
   const [row] = await db.select().from(users).where(eq(users.id, id));
   return row;
@@ -96,556 +54,297 @@ function useEnv(values: Record<string, string | undefined>) {
   resetEnvForTests();
 }
 
-const useDodo = () => useEnv({ ...DODO_KEYS, DODO_PAYMENTS_ENVIRONMENT: "test_mode" });
+const useCreem = (extra: Record<string, string | undefined> = {}) => useEnv({ ...CREEM, ...extra });
 
-function listed(
-  subscriptionId: string,
-  status: DodoPayments.SubscriptionStatus,
-  customerId = "cus_1",
-  productId: string = DODO_KEYS.DODO_PAYMENTS_PRODUCT_ID,
-): ListedSubscription {
-  return { subscription_id: subscriptionId, status, product_id: productId, customer: { customer_id: customerId } };
-}
+const requestedUrls = () =>
+  vi.mocked(fetch).mock.calls.map(([input]) => (input instanceof Request ? input.url : String(input)));
 
-// What Dodo lists for each customer id.
-function dodoHas(byCustomer: Record<string, ListedSubscription[]>, customers: CustomerStub[] = []) {
-  sdk.customersList.mockResolvedValue({ items: customers });
-  sdk.subscriptionsList.mockImplementation(async ({ customer_id }) => ({
-    items: (customer_id && byCustomer[customer_id]) || [],
-  }));
-}
+const checkoutBody = () => creem.callsTo("POST /v1/checkouts").at(-1)?.body as Record<string, unknown>;
 
 beforeEach(async () => {
   useEnv({
     NEXT_PUBLIC_APP_URL: APP_URL,
-    DODO_PAYMENTS_API_KEY: undefined,
-    DODO_PAYMENTS_PRODUCT_ID: undefined,
-    DODO_PAYMENTS_WEBHOOK_KEY: undefined,
-    DODO_PAYMENTS_ENVIRONMENT: undefined,
+    CREEM_API_KEY: undefined,
+    CREEM_WEBHOOK_SECRET: undefined,
+    CREEM_PRO_MONTHLY_PRODUCT_ID: undefined,
+    CREEM_PRO_TRIAL_PRODUCT_ID: undefined,
+    CREEM_TEST_MODE: undefined,
   });
-  sdk.checkoutCreate.mockReset();
-  sdk.portalCreate.mockReset();
-  sdk.subscriptionUpdate.mockReset();
-  sdk.subscriptionRetrieve.mockReset();
-  // Dodo knows nothing beyond what the stored ids say, unless a test says otherwise.
-  sdk.customersList.mockReset().mockResolvedValue({ items: [] });
-  sdk.subscriptionsList.mockReset().mockResolvedValue({ items: [] });
-  sdk.options.length = 0;
+  creem = installFakeCreem();
   await resetDb();
 });
 
 afterEach(() => {
   vi.restoreAllMocks();
+  vi.unstubAllGlobals();
   vi.unstubAllEnvs();
   resetEnvForTests();
 });
 
 describe("billingMode", () => {
-  it("is mock in development without keys", () => {
+  it("is mock in development without keys, and creem once the key, secret and Pro product are set", () => {
     expect(billingMode()).toBe("mock");
-  });
-
-  it("is dodo once all three keys are set", () => {
-    useDodo();
-    expect(billingMode()).toBe("dodo");
+    useCreem();
+    expect(billingMode()).toBe("creem");
   });
 
   it("is disabled in production unless every key is set", () => {
-    useEnv({ NODE_ENV: "production" });
-    expect(billingMode()).toBe("disabled");
-    useEnv({ DODO_PAYMENTS_API_KEY: DODO_KEYS.DODO_PAYMENTS_API_KEY });
+    useEnv({ NODE_ENV: "production", CREEM_API_KEY: CREEM.CREEM_API_KEY });
     expect(billingMode()).toBe("disabled");
   });
 });
 
 describe("mock mode", () => {
-  it("checkout upgrades the user on the spot", async () => {
+  it("starts a new account on the trial: Pro, trialing, ending in 3 days, written down once", async () => {
     const user = await createUser();
-
-    expect(await createCheckoutUrl(user)).toBe("/account?checkout=success&plan=pro");
-    expect(await reload(user.id)).toMatchObject({
-      plan: "pro",
-      planInterval: "month",
-      planStatus: "mock_active",
-    });
+    const before = Date.now();
+    expect(await createCheckoutUrl(user, "pro", "month")).toBe("/account?checkout=success&plan=pro&trial=1");
+    const row = await reload(user.id);
+    expect(row).toMatchObject({ plan: "pro", planInterval: "month", planStatus: "mock_trialing" });
+    expect(row?.trialEndsAt).toBeGreaterThanOrEqual(before + 3 * DAY_MS);
+    expect(await (await getDb()).select().from(trialHistory)).toHaveLength(1);
+    expect(creem.calls).toEqual([]);
   });
 
-  it("checkout stores the billing interval picked, and a plan change replaces it", async () => {
-    const user = await createUser();
-    await createCheckoutUrl(user, "pro", "week");
-    expect(await reload(user.id)).toMatchObject({ plan: "pro", planInterval: "week", planRenewsAt: null });
+  it("gives someone who already had a trial the plain plan, and Max or yearly never trial", async () => {
+    const returning = await createUser({ planStatus: "mock_cancelled" });
+    expect(await createCheckoutUrl(returning, "pro", "month")).toBe("/account?checkout=success&plan=pro");
+    expect(await reload(returning.id)).toMatchObject({ plan: "pro", planStatus: "mock_active", trialEndsAt: null });
 
-    await createCheckoutUrl({ ...user, plan: "pro", planInterval: "week" }, "max", "year");
-    expect(await reload(user.id)).toMatchObject({ plan: "max", planInterval: "year" });
+    const fresh = await createUser();
+    expect(await createCheckoutUrl(fresh, "max", "year")).toBe("/account?checkout=success&plan=max");
+    expect(await reload(fresh.id)).toMatchObject({ plan: "max", planInterval: "year", trialEndsAt: null });
   });
 
-  it("portal downgrades a subscribed user", async () => {
+  it("portal downgrades a subscribed user and ends the trial; it refuses someone who never subscribed", async () => {
     const user = await createUser();
-    await createCheckoutUrl(user, "pro", "week");
+    await createCheckoutUrl(user, "pro", "month");
+    expect(await createPortalUrl(user)).toBe("/account?portal=mock");
+    expect(await reload(user.id)).toMatchObject({ plan: "free", trialEndsAt: null, planStatus: "mock_cancelled" });
+    // Cancelled during the trial: the next checkout is the plain plan.
+    expect(await trialAvailableFor(toSessionUser((await reload(user.id))!))).toBe(false);
 
-    expect(await createPortalUrl({ ...user, plan: "pro" })).toBe("/account?portal=mock");
-    expect(await reload(user.id)).toMatchObject({
-      plan: "free",
-      planInterval: null,
-      planStatus: "mock_cancelled",
-    });
+    const never = await createUser();
+    await expect(createPortalUrl(never)).rejects.toMatchObject({ code: "no_subscription" });
   });
 
-  it("portal refuses users who never subscribed", async () => {
-    const user = await createUser();
-    await expect(createPortalUrl(user)).rejects.toMatchObject({ code: "no_subscription" });
-    expect((await reload(user.id))?.planStatus).toBeNull();
-  });
-
-  it("checkout refuses users who are already on Pro", async () => {
+  it("refuses a second checkout for the plan the user is on", async () => {
     const user = await createUser({ plan: "pro", planStatus: "mock_active" });
-    await expect(createCheckoutUrl(user)).rejects.toMatchObject({ code: "already_subscribed" });
+    await expect(createCheckoutUrl(user, "pro")).rejects.toMatchObject({ code: "already_subscribed" });
   });
 });
 
 describe("disabled mode", () => {
   it("throws unavailable for checkout and portal", async () => {
     useEnv({ NODE_ENV: "production" });
-    const user = await createUser({ billingCustomerId: "cus_1" });
-
-    await expect(createCheckoutUrl(user)).rejects.toBeInstanceOf(BillingError);
+    const user = await createUser();
     await expect(createCheckoutUrl(user)).rejects.toMatchObject({ code: "unavailable" });
     await expect(createPortalUrl(user)).rejects.toMatchObject({ code: "unavailable" });
-    expect((await reload(user.id))?.plan).toBe("free");
   });
 });
 
-describe("dodo mode", () => {
-  it("creates a checkout session tied to the user", async () => {
-    useDodo();
-    const user = await createUser();
-    sdk.checkoutCreate.mockResolvedValue({
-      session_id: "cks_1",
-      checkout_url: "https://test.checkout.dodopayments.com/session/cks_1",
-    });
+describe("trial eligibility", () => {
+  it("is one per person: a trial or a payment under the email, any billing history, or a paid plan", async () => {
+    useCreem();
+    const fresh = await createUser();
+    expect(await trialAvailableFor(fresh)).toBe(true);
 
-    expect(await createCheckoutUrl(user)).toBe("https://test.checkout.dodopayments.com/session/cks_1");
-    expect(sdk.checkoutCreate).toHaveBeenCalledWith({
-      product_cart: [{ product_id: DODO_KEYS.DODO_PAYMENTS_PRODUCT_ID, quantity: 1 }],
+    const trialed = await createUser();
+    await recordTrialHistory(await getDb(), trialed.email, "trial");
+    expect(await trialAvailableFor(trialed)).toBe(false);
+
+    // Deleted and signed up again: same email, new account, still no second trial.
+    const again = await createUser({ email: `  ${trialed.email.toUpperCase()} ` });
+    expect(await trialAvailableFor({ ...again, email: trialed.email.toUpperCase() })).toBe(false);
+
+    const paidBefore = await createUser({ planStatus: "canceled", billingSubscriptionId: "sub_old" });
+    expect(await trialAvailableFor(paidBefore)).toBe(false);
+
+    const paying = await createUser({ plan: "pro", planStatus: "active" });
+    expect(await trialAvailableFor(paying)).toBe(false);
+  });
+
+  it("isn't offered without a trial product", async () => {
+    useCreem({ CREEM_PRO_TRIAL_PRODUCT_ID: undefined });
+    expect(await trialAvailableFor(await createUser())).toBe(false);
+  });
+});
+
+describe("creem mode", () => {
+  it("checks a new account out on the trial product, tied to the user, back to the account page", async () => {
+    useCreem();
+    const user = await createUser();
+    const url = await createCheckoutUrl(user, "pro", "month");
+    expect(url).toBe("https://checkout.creem.test/ch_1");
+    expect(checkoutBody()).toEqual({
+      product_id: CREEM.CREEM_PRO_TRIAL_PRODUCT_ID,
       customer: { email: user.email },
       metadata: { user_id: user.id },
-      feature_flags: { allow_customer_editing_email: false },
-      customization: { theme: "light" },
-      return_url: `${APP_URL}/account?checkout=success&plan=pro`,
-      cancel_url: `${APP_URL}/account?checkout=cancelled`,
+      success_url: `${APP_URL}/account?checkout=success&plan=pro&trial=1`,
     });
-    expect(sdk.options[0]).toMatchObject({
-      bearerToken: DODO_KEYS.DODO_PAYMENTS_API_KEY,
-      environment: "test_mode",
-      baseURL: null,
+    // Test mode by default: the sandbox API, never real money.
+    expect(requestedUrls()).toContain("https://test-api.creem.io/v1/checkouts");
+  });
+
+  it("checks someone who has trialed or paid before out on the normal Pro product", async () => {
+    useCreem();
+    const user = await createUser();
+    await recordTrialHistory(await getDb(), user.email, "paid");
+    await createCheckoutUrl(user, "pro", "month");
+    expect(checkoutBody()).toMatchObject({
+      product_id: CREEM.CREEM_PRO_MONTHLY_PRODUCT_ID,
+      success_url: `${APP_URL}/account?checkout=success&plan=pro`,
     });
   });
 
-  it("uses the live API when DODO_PAYMENTS_ENVIRONMENT says so", async () => {
-    useDodo();
-    useEnv({ DODO_PAYMENTS_ENVIRONMENT: "live_mode" });
-    sdk.checkoutCreate.mockResolvedValue({ session_id: "cks_2", checkout_url: "https://checkout.example/2" });
-
-    await createCheckoutUrl(await createUser());
-    expect(sdk.options[0]).toMatchObject({ environment: "live_mode" });
+  it("uses the live API when CREEM_TEST_MODE is false", async () => {
+    useCreem({ CREEM_TEST_MODE: "false" });
+    await createCheckoutUrl(await createUser(), "pro", "month");
+    expect(requestedUrls()).toContain("https://api.creem.io/v1/checkouts");
   });
 
-  it("checks out the yearly or weekly product when it's set", async () => {
-    useDodo();
-    useEnv({ DODO_PAYMENTS_PRODUCT_ID_YEARLY: "pdt_otto_pro_yearly" });
+  it("checks out the yearly or Max product only once it's set, never on the trial", async () => {
+    useCreem();
     const user = await createUser();
-    sdk.checkoutCreate.mockResolvedValue({ session_id: "cks_y", checkout_url: "https://checkout.example/y" });
-
-    expect(await createCheckoutUrl(user, "pro", "year")).toBe("https://checkout.example/y");
-    expect(sdk.checkoutCreate).toHaveBeenCalledWith(
-      expect.objectContaining({ product_cart: [{ product_id: "pdt_otto_pro_yearly", quantity: 1 }] }),
-    );
-    await expect(createCheckoutUrl(user, "pro", "week")).rejects.toMatchObject({ code: "unavailable" });
-    expect(sdk.checkoutCreate).toHaveBeenCalledTimes(1);
-  });
-
-  it("checks out Max only once its product is set", async () => {
-    useDodo();
-    const user = await createUser();
+    await expect(createCheckoutUrl(user, "pro", "year")).rejects.toMatchObject({ code: "unavailable" });
     await expect(createCheckoutUrl(user, "max", "month")).rejects.toMatchObject({ code: "unavailable" });
-    useEnv({ DODO_PAYMENTS_MAX_PRODUCT_ID: "pdt_otto_max" });
-    sdk.checkoutCreate.mockResolvedValue({ session_id: "cks_m", checkout_url: "https://checkout.example/m" });
-    dodoHas({});
-    expect(await createCheckoutUrl(user, "max", "month")).toBe("https://checkout.example/m");
-    expect(sdk.checkoutCreate).toHaveBeenCalledWith(
-      expect.objectContaining({
-        product_cart: [{ product_id: "pdt_otto_max", quantity: 1 }],
-        return_url: `${APP_URL}/account?checkout=success&plan=max`,
-      }),
-    );
+    useCreem({ CREEM_PRO_YEARLY_PRODUCT_ID: "prod_pro_year", CREEM_MAX_MONTHLY_PRODUCT_ID: "prod_max_month" });
+    await createCheckoutUrl(user, "pro", "year");
+    expect(checkoutBody()?.product_id).toBe("prod_pro_year");
+    await createCheckoutUrl(user, "max", "month");
+    expect(checkoutBody()?.product_id).toBe("prod_max_month");
   });
 
-  it("moves a Pro subscription to Max in place instead of a second checkout", async () => {
-    useDodo();
-    useEnv({ DODO_PAYMENTS_MAX_PRODUCT_ID: "pdt_otto_max" });
+  it("moves a Pro subscription (or a trial) to Max in place, through the upgrade endpoint", async () => {
+    useCreem({ CREEM_MAX_MONTHLY_PRODUCT_ID: "prod_max_month" });
     const user = await createUser({
       plan: "pro",
-      planStatus: "active",
-      billingCustomerId: "cus_1",
-      billingSubscriptionId: "sub_pro",
-    });
-    dodoHas({ cus_1: [listed("sub_pro", "active", "cus_1")] });
-    sdk.changePlan.mockResolvedValue({});
-
-    expect(await createCheckoutUrl(user, "max", "month")).toBe("/account?checkout=success&plan=max");
-    expect(sdk.changePlan).toHaveBeenCalledWith("sub_pro", {
-      product_id: "pdt_otto_max",
-      quantity: 1,
-      proration_billing_mode: "prorated_immediately",
-    });
-    expect(sdk.checkoutCreate).not.toHaveBeenCalled();
-    await expect(createCheckoutUrl({ ...user, plan: "max" }, "max", "month")).rejects.toMatchObject({
-      code: "already_subscribed",
-    });
-  });
-
-  it("switches the plan at once in test mode", async () => {
-    const user = await createUser();
-    expect(await createCheckoutUrl(user, "pro", "month")).toBe("/account?checkout=success&plan=pro");
-    expect((await reload(user.id))?.plan).toBe("pro");
-  });
-
-  it("counts a live yearly subscription as one already paid for", async () => {
-    useDodo();
-    useEnv({ DODO_PAYMENTS_PRODUCT_ID_YEARLY: "pdt_otto_pro_yearly" });
-    const user = await createUser({ billingCustomerId: "cus_1" });
-    dodoHas({ cus_1: [listed("sub_y", "active", "cus_1", "pdt_otto_pro_yearly")] });
-    sdk.portalCreate.mockResolvedValue({ link: "https://customer.dodopayments.com/portal/y" });
-
-    expect(await createCheckoutUrl(user, "pro", "month")).toBe("https://customer.dodopayments.com/portal/y");
-    expect(sdk.checkoutCreate).not.toHaveBeenCalled();
-  });
-
-  it("reports a provider error when Dodo times out or returns no URL", async () => {
-    useDodo();
-    const user = await createUser();
-
-    sdk.checkoutCreate.mockRejectedValueOnce(new APIConnectionTimeoutError());
-    await expect(createCheckoutUrl(user)).rejects.toMatchObject({ code: "provider_error" });
-
-    sdk.checkoutCreate.mockResolvedValueOnce({ session_id: "cks_3", checkout_url: null });
-    await expect(createCheckoutUrl(user)).rejects.toMatchObject({ code: "provider_error" });
-  });
-
-  it("never opens a second checkout for a Pro user", async () => {
-    useDodo();
-    const user = await createUser({ plan: "pro", billingSubscriptionId: "sub_1" });
-
-    await expect(createCheckoutUrl(user)).rejects.toMatchObject({ code: "already_subscribed" });
-    expect(sdk.checkoutCreate).not.toHaveBeenCalled();
-  });
-
-  it("sends someone whose renewal is on hold to manage it instead of buying again", async () => {
-    useDodo();
-    const user = await createUser({
-      plan: "free",
-      planStatus: "on_hold",
-      billingCustomerId: "cus_1",
+      planInterval: "month",
+      planStatus: "trialing",
+      trialEndsAt: Date.now() + DAY_MS,
+      billingCustomerId: "cust_1",
       billingSubscriptionId: "sub_1",
     });
-    dodoHas({ cus_1: [listed("sub_1", "on_hold")] });
-    sdk.portalCreate.mockResolvedValue({ link: "https://customer.dodopayments.com/portal/hold" });
-
-    expect(await createCheckoutUrl(user)).toBe("https://customer.dodopayments.com/portal/hold");
-    expect(sdk.portalCreate).toHaveBeenCalledWith("cus_1", { return_url: `${APP_URL}/account` });
-    expect(sdk.checkoutCreate).not.toHaveBeenCalled();
+    creem.subscriptions.push({ id: "sub_1", customer: "cust_1", product: "prod_pro_trial", status: "trialing" });
+    expect(await createCheckoutUrl(user, "max", "month")).toBe("/account?checkout=success&plan=max");
+    expect(creem.callsTo("POST /v1/subscriptions/sub_1/upgrade")[0]?.body).toEqual({
+      product_id: "prod_max_month",
+      update_behavior: "proration-charge-immediately",
+    });
+    expect(creem.callsTo("POST /v1/checkouts")).toEqual([]);
   });
 
-  it("finds a payment whose webhook hasn't landed yet, by email", async () => {
-    useDodo();
-    const user = await createUser();
-    dodoHas({ cus_9: [listed("sub_9", "active", "cus_9")] }, [{ customer_id: "cus_9", email: user.email.toUpperCase() }]);
-    sdk.portalCreate.mockResolvedValue({ link: "https://customer.dodopayments.com/portal/paid" });
-
-    expect(await createCheckoutUrl(user)).toBe("https://customer.dodopayments.com/portal/paid");
-    expect(sdk.customersList).toHaveBeenCalledWith(expect.objectContaining({ email: user.email }));
-    expect(sdk.portalCreate).toHaveBeenCalledWith("cus_9", expect.anything());
-    expect(sdk.checkoutCreate).not.toHaveBeenCalled();
+  it("sends someone with a paused or unpaid subscription to the portal instead of a second one", async () => {
+    useCreem();
+    const user = await createUser({ email: "maya@example.com" });
+    creem.customers.push({ id: "cust_9", email: "maya@example.com" });
+    creem.subscriptions.push({ id: "sub_9", customer: "cust_9", product: "prod_pro_month", status: "unpaid" });
+    expect(await createCheckoutUrl(user, "pro", "month")).toBe("https://creem.test/portal/cust_9");
+    expect(creem.callsTo("POST /v1/checkouts")).toEqual([]);
   });
 
-  it("still opens checkout past pending, ended, other-product and other people's subscriptions", async () => {
-    useDodo();
-    const user = await createUser({ planStatus: "cancelled", billingCustomerId: "cus_1", billingSubscriptionId: "sub_old" });
-    dodoHas(
-      {
-        cus_1: [listed("sub_old", "cancelled"), listed("sub_open", "pending"), listed("sub_x", "active", "cus_1", "pdt_other")],
-        cus_near: [listed("sub_near", "active", "cus_near")],
-      },
-      [{ customer_id: "cus_near", email: `x${user.email}` }],
+  it("opens checkout past ended and other products' subscriptions", async () => {
+    useCreem();
+    const user = await createUser({ email: "maya@example.com" });
+    creem.customers.push({ id: "cust_9", email: "maya@example.com" });
+    creem.subscriptions.push(
+      { id: "sub_a", customer: "cust_9", product: "prod_pro_month", status: "canceled" },
+      { id: "sub_b", customer: "cust_9", product: "prod_ebook", status: "active" },
     );
-    sdk.checkoutCreate.mockResolvedValue({ session_id: "cks_4", checkout_url: "https://checkout.example/4" });
-
-    expect(await createCheckoutUrl(user)).toBe("https://checkout.example/4");
-    expect(sdk.portalCreate).not.toHaveBeenCalled();
-    expect(sdk.subscriptionsList).not.toHaveBeenCalledWith(expect.objectContaining({ customer_id: "cus_near" }));
+    expect(await createCheckoutUrl(user, "pro", "month")).toBe("https://checkout.creem.test/ch_1");
   });
 
-  it("falls back to the stored subscription when Dodo can't list them", async () => {
-    useDodo();
-    vi.spyOn(console, "error").mockImplementation(() => undefined);
-    sdk.customersList.mockRejectedValue(new APIConnectionTimeoutError());
-    const onHold = await createUser({ planStatus: "on_hold", billingCustomerId: "cus_1", billingSubscriptionId: "sub_1" });
-    sdk.portalCreate.mockResolvedValue({ link: "https://customer.dodopayments.com/portal/fallback" });
-    expect(await createCheckoutUrl(onHold)).toBe("https://customer.dodopayments.com/portal/fallback");
+  it("falls back to the stored subscription when Creem can't list them, and reports provider errors", async () => {
+    useCreem();
+    const user = await createUser({ planStatus: "paused", billingCustomerId: "cust_1", billingSubscriptionId: "sub_1" });
+    // Reads are retried once or twice, so Creem stays down for all of them.
+    creem.failNext("GET /v1/customers", 500, 10);
+    expect(await createCheckoutUrl(user, "pro", "month")).toBe("https://creem.test/portal/cust_1");
 
     const fresh = await createUser();
-    sdk.checkoutCreate.mockResolvedValue({ session_id: "cks_5", checkout_url: "https://checkout.example/5" });
-    expect(await createCheckoutUrl(fresh)).toBe("https://checkout.example/5");
+    creem.failNext("POST /v1/checkouts", 500);
+    await expect(createCheckoutUrl(fresh, "pro", "month")).rejects.toMatchObject({ code: "provider_error" });
   });
 
-  it("opens the customer portal for the stored customer", async () => {
-    useDodo();
-    const user = await createUser({ plan: "pro", billingCustomerId: "cus_42" });
-    sdk.portalCreate.mockResolvedValue({ link: "https://customer.dodopayments.com/portal/abc" });
-
-    expect(await createPortalUrl(user)).toBe("https://customer.dodopayments.com/portal/abc");
-    expect(sdk.portalCreate).toHaveBeenCalledWith("cus_42", { return_url: `${APP_URL}/account` });
-  });
-
-  it("has no portal for users who never subscribed", async () => {
-    useDodo();
-    const user = await createUser();
-
-    await expect(createPortalUrl(user)).rejects.toMatchObject({ code: "no_subscription" });
-    expect(sdk.portalCreate).not.toHaveBeenCalled();
+  it("opens the customer portal for the stored customer, and has none for someone who never paid", async () => {
+    useCreem();
+    const user = await createUser({ plan: "pro", billingCustomerId: "cust_7", billingSubscriptionId: "sub_7" });
+    expect(await createPortalUrl(user)).toBe("https://creem.test/portal/cust_7");
+    await expect(createPortalUrl(await createUser())).rejects.toMatchObject({ code: "no_subscription" });
   });
 });
 
 describe("cancelSubscriptionForDeletion", () => {
-  const subscriber = (overrides: Partial<UserRow> = {}) =>
+  const subscriber = (overrides: Partial<typeof users.$inferInsert> = {}) =>
     createUser({
       plan: "pro",
+      planInterval: "month",
       planStatus: "active",
-      planRenewsAt: Date.UTC(2026, 11, 6),
-      billingCustomerId: "cus_1",
+      billingCustomerId: "cust_1",
       billingSubscriptionId: "sub_1",
       ...overrides,
     });
 
-  const refused = (status: number) =>
-    APIError.generate(status, { code: "INVALID_REQUEST" }, "already cancelled", new Headers());
-
-  it("cancels an active subscription right away in dodo mode", async () => {
-    useDodo();
-    const user = await subscriber();
-    sdk.subscriptionUpdate.mockResolvedValue({ subscription_id: "sub_1", status: "cancelled" });
-
-    expect(await cancelSubscriptionForDeletion(user, 5)).toBe("cancelled");
-    expect(sdk.subscriptionUpdate).toHaveBeenCalledTimes(1);
-    const [id, params] = sdk.subscriptionUpdate.mock.calls[0] ?? [];
-    expect(id).toBe("sub_1");
-    expect(params).toMatchObject({ status: "cancelled", cancel_reason: "cancelled_by_customer" });
-    // Scheduling it for the period end would leave the deleted user with one more charge.
-    expect(params?.cancel_at_next_billing_date).toBeUndefined();
-    expect(await reload(user.id)).toMatchObject({
-      plan: "free",
-      planStatus: "cancelled",
-      planRenewsAt: null,
-      billingSubscriptionId: "sub_1",
-      updatedAt: 5,
-    });
-  });
-
-  it.each(["past_due", "on_hold", "paused"])("also cancels a %s subscription", async (status) => {
-    useDodo();
-    const user = await subscriber({ plan: status === "past_due" ? "pro" : "free", planStatus: status });
-    sdk.subscriptionUpdate.mockResolvedValue({ subscription_id: "sub_1", status: "cancelled" });
-
-    expect(await cancelSubscriptionForDeletion(user)).toBe("cancelled");
-    expect(sdk.subscriptionUpdate).toHaveBeenCalledWith(
-      "sub_1",
-      expect.objectContaining({ status: "cancelled" }),
+  it("cancels the stored subscription right away and every other live one for the person", async () => {
+    useCreem();
+    const user = await subscriber({ email: "ada@example.com" });
+    creem.customers.push({ id: "cust_2", email: "ada@example.com" });
+    creem.subscriptions.push(
+      { id: "sub_1", customer: "cust_1", product: "prod_pro_month", status: "active" },
+      { id: "sub_2", customer: "cust_2", product: "prod_pro_trial", status: "trialing" },
     );
-  });
-
-  it.each(["cancelled", "expired", "failed"])("leaves a %s subscription alone", async (status) => {
-    useDodo();
-    const user = await subscriber({ plan: "free", planStatus: status, planRenewsAt: null });
-
-    expect(await cancelSubscriptionForDeletion(user)).toBe("none");
-    expect(sdk.subscriptionUpdate).not.toHaveBeenCalled();
-  });
-
-  it("does nothing for a user who never subscribed", async () => {
-    useDodo();
-    const user = await createUser();
-
-    expect(await cancelSubscriptionForDeletion(user)).toBe("none");
-    expect(sdk.subscriptionUpdate).not.toHaveBeenCalled();
-    // Their deletion doesn't wait on Dodo at all.
-    expect(sdk.customersList).not.toHaveBeenCalled();
-  });
-
-  it("does nothing for an account that is already gone", async () => {
-    useDodo();
-    const ghost: SessionUser = {
-      id: crypto.randomUUID(),
-      email: "gone@example.com",
-      plan: "pro",
-      planInterval: "month",
-      planRenewsAt: null,
-    };
-
-    expect(await cancelSubscriptionForDeletion(ghost)).toBe("none");
-    expect(sdk.subscriptionUpdate).not.toHaveBeenCalled();
-  });
-
-  it("treats a refused cancel as done when Dodo says the subscription already ended", async () => {
-    useDodo();
-    const user = await subscriber();
-    sdk.subscriptionUpdate.mockRejectedValue(refused(422));
-    sdk.subscriptionRetrieve.mockResolvedValue({ subscription_id: "sub_1", status: "cancelled" });
-
-    expect(await cancelSubscriptionForDeletion(user)).toBe("already_ended");
-    expect(sdk.subscriptionRetrieve).toHaveBeenCalledWith("sub_1");
-    expect((await reload(user.id))?.plan).toBe("free");
-  });
-
-  it("fails when Dodo refuses to cancel a subscription that is still live", async () => {
-    useDodo();
-    vi.spyOn(console, "error").mockImplementation(() => undefined);
-    const user = await subscriber();
-    sdk.subscriptionUpdate.mockRejectedValue(refused(409));
-    sdk.subscriptionRetrieve.mockResolvedValue({ subscription_id: "sub_1", status: "active" });
-
-    await expect(cancelSubscriptionForDeletion(user)).rejects.toMatchObject({ code: "provider_error" });
-    expect(await reload(user.id)).toMatchObject({ plan: "pro", planStatus: "active" });
-  });
-
-  it("fails without touching the account when Dodo can't be reached", async () => {
-    useDodo();
-    vi.spyOn(console, "error").mockImplementation(() => undefined);
-    const user = await subscriber();
-    sdk.subscriptionUpdate.mockRejectedValue(new APIConnectionTimeoutError());
-
-    await expect(cancelSubscriptionForDeletion(user)).rejects.toBeInstanceOf(BillingError);
-    await expect(cancelSubscriptionForDeletion(user)).rejects.toMatchObject({ code: "provider_error" });
-    expect(sdk.subscriptionRetrieve).not.toHaveBeenCalled();
-    expect(await reload(user.id)).toMatchObject({ plan: "pro", planStatus: "active" });
-  });
-
-  it("fails on a server error instead of guessing", async () => {
-    useDodo();
-    vi.spyOn(console, "error").mockImplementation(() => undefined);
-    const user = await subscriber();
-    sdk.subscriptionUpdate.mockRejectedValue(refused(500));
-
-    await expect(cancelSubscriptionForDeletion(user)).rejects.toMatchObject({ code: "provider_error" });
-    expect(sdk.subscriptionRetrieve).not.toHaveBeenCalled();
-  });
-
-  it("still cancels while checkout is switched off, as long as the API key is set", async () => {
-    useEnv({ NODE_ENV: "production", DODO_PAYMENTS_API_KEY: DODO_KEYS.DODO_PAYMENTS_API_KEY });
-    expect(billingMode()).toBe("disabled");
-    const user = await subscriber();
-    sdk.subscriptionUpdate.mockResolvedValue({ subscription_id: "sub_1", status: "cancelled" });
-
     expect(await cancelSubscriptionForDeletion(user)).toBe("cancelled");
-    expect(sdk.subscriptionUpdate).toHaveBeenCalledTimes(1);
+    expect(creem.callsTo("POST /v1/subscriptions/sub_1/cancel")[0]?.body).toEqual({ mode: "immediate" });
+    expect(creem.callsTo("POST /v1/subscriptions/sub_2/cancel")).toHaveLength(1);
+    expect(await reload(user.id)).toMatchObject({ plan: "free", planStatus: "canceled", trialEndsAt: null });
+  });
+
+  it("does nothing for someone who never subscribed", async () => {
+    useCreem();
+    expect(await cancelSubscriptionForDeletion(await createUser())).toBe("none");
+    expect(creem.calls).toEqual([]);
+  });
+
+  it("treats a refused cancel as done when Creem says it already ended", async () => {
+    useCreem();
+    const user = await subscriber();
+    creem.subscriptions.push({ id: "sub_1", customer: "cust_1", product: "prod_pro_month", status: "canceled" });
+    creem.failNext("POST /v1/subscriptions/sub_1/cancel", 400);
+    expect(await cancelSubscriptionForDeletion(user)).toBe("already_ended");
+  });
+
+  it("fails, keeping the account, when Creem refuses to cancel a live one or can't be reached", async () => {
+    useCreem();
+    const user = await subscriber();
+    creem.subscriptions.push({ id: "sub_1", customer: "cust_1", product: "prod_pro_month", status: "active" });
+    creem.failNext("POST /v1/subscriptions/sub_1/cancel", 400);
+    await expect(cancelSubscriptionForDeletion(user)).rejects.toMatchObject({ code: "provider_error" });
+    creem.failNext("POST /v1/subscriptions/sub_1/cancel", 503);
+    await expect(cancelSubscriptionForDeletion(user)).rejects.toMatchObject({ code: "provider_error" });
+    expect((await reload(user.id))?.plan).toBe("pro");
   });
 
   it("warns and carries on when there is no API key to cancel with", async () => {
-    useEnv({ NODE_ENV: "production" });
-    const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
-    const user = await subscriber();
-
-    expect(await cancelSubscriptionForDeletion(user)).toBe("not_configured");
-    expect(sdk.subscriptionUpdate).not.toHaveBeenCalled();
-    expect(JSON.stringify(warn.mock.calls)).toContain("billing.cancel_skipped");
-  });
-
-  // Only one subscription fits in the row, so a second checkout's webhook replaces the first.
-  // Cancelling just the stored one would leave the other charging a deleted account.
-  it("cancels every live Pro subscription the person has, not just the stored one", async () => {
-    useDodo();
-    const user = await subscriber({ billingSubscriptionId: "sub_2" });
-    dodoHas(
-      {
-        cus_1: [
-          listed("sub_1", "active"),
-          listed("sub_2", "active"),
-          listed("sub_3", "cancelled"),
-          listed("sub_4", "active", "cus_1", "pdt_other"),
-        ],
-        cus_2: [listed("sub_5", "on_hold", "cus_2"), listed("sub_6", "pending", "cus_2")],
-      },
-      [{ customer_id: "cus_2", email: user.email }],
-    );
-    sdk.subscriptionUpdate.mockImplementation(async (id) => ({ subscription_id: id, status: "cancelled" }));
-
-    expect(await cancelSubscriptionForDeletion(user)).toBe("cancelled");
-    expect(sdk.subscriptionUpdate.mock.calls.map(([id]) => id).sort()).toEqual(["sub_1", "sub_2", "sub_5"]);
-    expect(await reload(user.id)).toMatchObject({ plan: "free", planStatus: "cancelled" });
-  });
-
-  it("cancels a new payment whose webhook hasn't landed yet", async () => {
-    useDodo();
-    const user = await createUser({ planStatus: "cancelled", billingCustomerId: "cus_1", billingSubscriptionId: "sub_old" });
-    dodoHas({ cus_9: [listed("sub_9", "active", "cus_9")] }, [{ customer_id: "cus_9", email: user.email }]);
-    sdk.subscriptionUpdate.mockResolvedValue({ subscription_id: "sub_9", status: "cancelled" });
-
-    expect(await cancelSubscriptionForDeletion(user)).toBe("cancelled");
-    expect(sdk.subscriptionUpdate).toHaveBeenCalledWith("sub_9", expect.objectContaining({ status: "cancelled" }));
-  });
-
-  it("still cancels the stored subscription when Dodo can't list the others", async () => {
-    useDodo();
-    const error = vi.spyOn(console, "error").mockImplementation(() => undefined);
-    const user = await subscriber();
-    sdk.customersList.mockRejectedValue(new APIConnectionTimeoutError());
-    sdk.subscriptionUpdate.mockResolvedValue({ subscription_id: "sub_1", status: "cancelled" });
-
-    expect(await cancelSubscriptionForDeletion(user)).toBe("cancelled");
-    expect(sdk.subscriptionUpdate).toHaveBeenCalledTimes(1);
-    expect(JSON.stringify(error.mock.calls)).toContain("billing.lookup_failed");
-  });
-
-  it("keeps the account when one of several cancels fails", async () => {
-    useDodo();
-    vi.spyOn(console, "error").mockImplementation(() => undefined);
-    const user = await subscriber();
-    dodoHas({ cus_1: [listed("sub_1", "active"), listed("sub_0", "active")] });
-    sdk.subscriptionUpdate.mockImplementation(async (id) => {
-      if (id === "sub_0") throw new APIConnectionTimeoutError();
-      return { subscription_id: id, status: "cancelled" };
-    });
-
-    await expect(cancelSubscriptionForDeletion(user)).rejects.toMatchObject({ code: "provider_error" });
+    useCreem({ NODE_ENV: "production", CREEM_API_KEY: undefined });
+    expect(await cancelSubscriptionForDeletion(await subscriber())).toBe("not_configured");
   });
 
   it("downgrades locally in mock mode", async () => {
-    const user = await createUser({ plan: "pro", planStatus: "mock_active" });
-
+    const user = await subscriber({ planStatus: "mock_trialing", billingCustomerId: null, billingSubscriptionId: null });
     expect(await cancelSubscriptionForDeletion(user)).toBe("cancelled");
     expect(await reload(user.id)).toMatchObject({ plan: "free", planStatus: "mock_cancelled" });
-    expect(sdk.subscriptionUpdate).not.toHaveBeenCalled();
-  });
-
-  it("does nothing in mock mode for a free user", async () => {
-    const user = await createUser({ planStatus: "mock_cancelled" });
-
-    expect(await cancelSubscriptionForDeletion(user)).toBe("none");
-    expect((await reload(user.id))?.planStatus).toBe("mock_cancelled");
   });
 
   it("never logs the customer's email", async () => {
-    useDodo();
+    useCreem();
     const sinks = (["info", "warn", "error"] as const).map((level) =>
       vi.spyOn(console, level).mockImplementation(() => undefined),
     );
     const user = await subscriber();
-    sdk.subscriptionUpdate.mockRejectedValueOnce(
-      APIError.generate(502, { message: `upstream error for ${user.email}` }, user.email, new Headers()),
-    );
+    creem.subscriptions.push({ id: "sub_1", customer: "cust_1", product: "prod_pro_month", status: "active" });
+    creem.failNext("POST /v1/subscriptions/sub_1/cancel", 502);
     await expect(cancelSubscriptionForDeletion(user)).rejects.toMatchObject({ code: "provider_error" });
-    sdk.subscriptionUpdate.mockResolvedValueOnce({ subscription_id: "sub_1", status: "cancelled" });
     await cancelSubscriptionForDeletion(user);
-
     const output = JSON.stringify(sinks.flatMap((sink) => sink.mock.calls));
     expect(output).toContain("billing.subscription_cancelled");
     expect(output).not.toContain(user.email);

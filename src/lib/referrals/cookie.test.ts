@@ -43,7 +43,7 @@ describe("noteReferralCheck", () => {
     const maya = await signInAs("maya@example.com");
     expect(await claimFromCookie(maya, { checked: false })).toBe("rewarded");
     expect(cookieJar.get(REF_COOKIE)).toMatchObject({ value: "", maxAge: 0 });
-    expect((await getUsage(owner)).fix.limit).toBe(PLANS.free.limits.fix + REFERRAL_BONUS.fix);
+    expect((await getUsage({ ...owner, plan: "pro" })).fix.limit).toBe(PLANS.pro.limits.fix + REFERRAL_BONUS.fix);
   });
 
   it("waits for the first check after sign-up, then pays once", async () => {
@@ -55,8 +55,9 @@ describe("noteReferralCheck", () => {
     await noteReferralCheck();
     expect(await linked(maya.id)).toBe("rewarded");
     expect(cookieJar.get(REF_COOKIE)?.value).toBe("");
-    expect((await getUsage(maya)).tailor.limit).toBe(
-      PLANS.free.limits.tailor + REFERRAL_BONUS.tailor,
+    // Read as Pro sees it: Free has no AI to spend the extras on.
+    expect((await getUsage({ ...maya, plan: "pro" })).tailor.limit).toBe(
+      PLANS.pro.limits.tailor + REFERRAL_BONUS.tailor,
     );
   });
 

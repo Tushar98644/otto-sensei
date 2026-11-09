@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useProTools } from "@/components/account/pro-tools";
 import { OTTO } from "@/components/mascot/lines";
 import { Otto } from "@/components/mascot/otto";
 import { OttoCheer } from "@/components/mascot/otto-cheer";
@@ -16,6 +17,7 @@ import { useResumePdf, type ResumePdf } from "@/components/studio/download/use-r
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { buildPdfModel } from "@/lib/pdf/model";
+import { forPlan, isProTemplate, templateOf } from "@/lib/pdf/templates";
 import { suggestedFileName } from "@/lib/resume/ops";
 import type { Resume } from "@/lib/resume/schema";
 import { useActiveResume, useStudioStore } from "@/lib/store/resume-store";
@@ -37,9 +39,15 @@ function ottoLine(pdf: ResumePdf, check: ExportCheck): string {
 
 function DownloadWorkspace({ resume }: { resume: Resume }) {
   const pageSize = usePageSize();
-  const pdf = useResumePdf(resume, pageSize);
+  const pro = useProTools();
+  // What the PDF prints: on Free a Pro format comes out in Classic. Until the plan is known the
+  // resume's own format renders, so a paying user's preview doesn't flash Classic, but a Pro
+  // format can't be downloaded yet.
+  const printed = useMemo(() => (pro === false ? forPlan(resume, "free") : resume), [resume, pro]);
+  const formatPending = pro === null && isProTemplate(templateOf(resume));
+  const pdf = useResumePdf(printed, pageSize);
   const fileName = suggestedFileName(resume);
-  const check = useExportCheck(resume, pdf.isCurrent ? pdf.file : null, fileName);
+  const check = useExportCheck(printed, pdf.isCurrent ? pdf.file : null, fileName);
   const inline = useInlinePdfPreview();
   // The model is cheap to build and never loads the PDF renderer.
   const changedCharacters = useMemo(() => buildPdfModel(resume).changedCharacters, [resume]);
@@ -65,6 +73,8 @@ function DownloadWorkspace({ resume }: { resume: Resume }) {
         >
           <DownloadActions
             resume={resume}
+            printed={printed}
+            formatPending={formatPending}
             pdf={pdf}
             check={check}
             pageSize={pageSize}
@@ -75,7 +85,7 @@ function DownloadWorkspace({ resume }: { resume: Resume }) {
           {check.report ? (
             <ExportCheckResult report={check.report} original={check.original} />
           ) : null}
-          <LetterCard resume={resume} pageSize={pageSize} />
+          <LetterCard resume={printed} pageSize={pageSize} />
         </div>
         {inline ? (
           <section aria-label="PDF preview" className="lg:col-span-3 lg:col-start-1 lg:row-start-1">

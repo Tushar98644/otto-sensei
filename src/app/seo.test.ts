@@ -9,7 +9,7 @@ describe("sitemap", () => {
 
   it("lists every public page as an absolute URL on the app's domain", () => {
     expect(entries.map((entry) => entry.url)).toEqual(
-      ["/", "/studio", "/pricing", "/privacy", "/terms", "/refunds"].map((p) => `${appUrl()}${p}`),
+      ["/", "/studio", "/jobs", "/pricing", "/privacy", "/terms", "/refunds"].map((p) => `${appUrl()}${p}`),
     );
   });
 

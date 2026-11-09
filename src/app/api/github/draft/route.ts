@@ -6,8 +6,8 @@ import { GitHubError, newGitHubSession } from "@/lib/github/http";
 import { GitHubDraftRequestSchema, type GitHubDraftResponse } from "@/lib/github/types";
 import { readJson } from "@/lib/http";
 import { log } from "@/lib/log";
-import { takeAccountUnit } from "../../metered-free";
-import { gitHubFailure, limitGitHub } from "../limits";
+import { takeAccountUnit, upgradeRequired } from "../../metered-free";
+import { gitHubFailure } from "../limits";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -25,14 +25,15 @@ export async function POST(req: Request): Promise<Response> {
 
     const user = await getCurrentUser();
     const startedAt = Date.now();
-    const unit = user ? await takeAccountUnit(user, "github", startedAt) : await limitGitHub(req, "draft");
+    // Drafting is an AI call, so Pro and Max (and the trial) only; looking repos up stays free.
+    const unit = user ? await takeAccountUnit(user, "github", startedAt) : upgradeRequired(null, "github");
     if (unit instanceof Response) return unit;
 
     const session = newGitHubSession(GITHUB_BUDGET_MS, startedAt);
     try {
       const result = await draftGitHubProjects(session, body.data);
       // GitHub's own words, lightly arranged: no model call to count.
-      if (!result.usedAI || result.entries.length === 0) await unit?.giveBack();
+      if (!result.usedAI || result.entries.length === 0) await unit.giveBack();
       log.info("github.drafted", {
         repos: body.data.repos.length,
         pulls: body.data.pulls.length,
@@ -48,7 +49,7 @@ export async function POST(req: Request): Promise<Response> {
       const response: Omit<GitHubDraftResponse, "ok"> = result;
       return ok(response);
     } catch (error) {
-      await unit?.giveBack();
+      await unit.giveBack();
       if (!(error instanceof GitHubError)) throw error;
       log.info("github.draft_failed", { reason: error.reason, calls: session.calls });
       return gitHubFailure(error, body.data.username);

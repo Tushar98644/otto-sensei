@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronDown, ScanSearch, TriangleExclamationPoint } from "lucide-react";
+import { ChevronDown, ScanSearch, TriangleExclamationPoint, type LucideIcon } from "lucide-react";
 import { useId, useState, type FormEvent, type RefObject } from "react";
 import { EligibilityCard } from "@/components/eligibility/eligibility-card";
 import { OTTO } from "@/components/mascot/lines";
@@ -15,7 +15,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { TEXT_LIMITS } from "@/config/plans";
 import { cn } from "@/lib/utils";
 import { HiringSystemNotes } from "./hiring-system-notes";
-import type { ReadJob, TailorDraft } from "./session";
+import type { QueuedJob, ReadJob, TailorDraft } from "./session";
 import { MIN_POST_CHARS, useJobLink } from "./use-tailor";
 
 export { MIN_POST_CHARS };
@@ -32,7 +32,15 @@ export type JobFormProps = {
   busy: boolean;
   // e.g. "2 of 3 free tailored versions left this month."
   note?: string | null;
+  // A job picked on the Jobs tab, read as soon as the form is on screen.
+  queued?: QueuedJob | null;
+  // What the submit button does, when it isn't comparing the job with the resume.
+  action?: { label: string; icon: LucideIcon };
+  // The work-rights and hiring-system notes, which only matter while tailoring. On by default.
+  checks?: boolean;
 };
+
+const COMPARE = { label: "Compare with my resume", icon: ScanSearch };
 
 function postProblem(text: string): string | null {
   const length = text.trim().length;
@@ -74,9 +82,9 @@ export function postedLine(postedAt: number, now: number): string {
   return days > 1 ? `First posted ${date} (${days} days ago)` : `First posted ${date}`;
 }
 
-type JobCardProps = { job: ReadJob; link: string; onPasteInstead: () => void };
+type JobCardProps = { job: ReadJob; link: string; onPasteInstead: () => void; checks: boolean };
 
-function JobCard({ job, link, onPasteInstead }: JobCardProps) {
+function JobCard({ job, link, onPasteInstead, checks }: JobCardProps) {
   const now = useNow();
   const titleId = useId();
   const meta = [job.company, job.location].filter(Boolean).join(" · ");
@@ -105,15 +113,23 @@ function JobCard({ job, link, onPasteInstead }: JobCardProps) {
       <Button variant="link" onClick={onPasteInstead} className={cn("mt-1", QUIET_LINK)}>
         Not right? Paste the text instead
       </Button>
-      <HiringSystemNotes posting={job} link={link} className="mt-2 border-t border-border pt-1" />
+      {checks ? (
+        <HiringSystemNotes posting={job} link={link} className="mt-2 border-t border-border pt-1" />
+      ) : null}
     </section>
   );
 }
 
 // form: the id of the form it submits when it sits outside it.
-type SubmitRowProps = { busy: boolean; note?: string | null; onClick?: () => void; form?: string };
+type SubmitRowProps = {
+  busy: boolean;
+  note?: string | null;
+  onClick?: () => void;
+  form?: string;
+  action: { label: string; icon: LucideIcon };
+};
 
-function SubmitRow({ busy, note, onClick, form }: SubmitRowProps) {
+function SubmitRow({ busy, note, onClick, form, action }: SubmitRowProps) {
   return (
     <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
       <Button
@@ -124,8 +140,8 @@ function SubmitRow({ busy, note, onClick, form }: SubmitRowProps) {
         onClick={onClick}
         className="w-full sm:w-auto"
       >
-        <ScanSearch />
-        Compare with my resume
+        <action.icon />
+        {action.label}
       </Button>
       {note ? <p className="text-sm text-muted">{note}</p> : null}
     </div>
@@ -148,6 +164,8 @@ function PasteFields({
   note,
   postRef,
   readNote,
+  action = COMPARE,
+  checks = true,
 }: PasteFieldsProps) {
   const [submitted, setSubmitted] = useState(false);
   // Read once: the browser owns the open state after that, so clearing both fields while typing
@@ -175,11 +193,13 @@ function PasteFields({
         {/* The form's live status already announces it. */}
         {readNote ? <Alert role="note">{readNote}</Alert> : null}
         {/* A link that couldn't be read can still name the hiring system in its address. */}
-        <HiringSystemNotes
-          posting={null}
-          link={draft.link}
-          className="rounded-2xl bg-surface-muted px-4 py-1 sm:px-6"
-        />
+        {checks ? (
+          <HiringSystemNotes
+            posting={null}
+            link={draft.link}
+            className="rounded-2xl bg-surface-muted px-4 py-1 sm:px-6"
+          />
+        ) : null}
         {/* Otto reads the title and company from the post; these only override it. */}
         <details open={openOptions} className="group">
           <summary className="flex min-h-11 w-fit cursor-pointer list-none items-center gap-1 text-sm text-muted hover:text-ink">
@@ -235,8 +255,8 @@ function PasteFields({
           />
         </Field>
       </form>
-      {problem ? null : <EligibilityCard location="" text={draft.text} />}
-      <SubmitRow busy={busy} note={note} form={formId} />
+      {problem || !checks ? null : <EligibilityCard location="" text={draft.text} />}
+      <SubmitRow busy={busy} note={note} form={formId} action={action} />
     </div>
   );
 }
@@ -244,7 +264,7 @@ function PasteFields({
 // One link field: Otto reads the job and goes straight on to comparing. The title, company and
 // text fields only open as the backup, or when the person asks for them.
 export function JobForm(props: JobFormProps) {
-  const { onSubmit, busy, note } = props;
+  const { onSubmit, busy, note, action = COMPARE, checks = true } = props;
   // Refs come out first: the React lint rules treat every field of an object holding refs as a
   // ref, and the rest of `job` is read during render.
   const { linkRef, postRef, ...job } = useJobLink(props);
@@ -310,9 +330,14 @@ export function JobForm(props: JobFormProps) {
       </p>
       {job.posting ? (
         <>
-          <JobCard job={job.posting} link={job.link} onPasteInstead={job.pasteInstead} />
-          <EligibilityCard location={job.posting.location} text={props.draft.text} />
-          <SubmitRow busy={busy} note={note} onClick={onSubmit} />
+          <JobCard
+            job={job.posting}
+            link={job.link}
+            onPasteInstead={job.pasteInstead}
+            checks={checks}
+          />
+          {checks ? <EligibilityCard location={job.posting.location} text={props.draft.text} /> : null}
+          <SubmitRow busy={busy} note={note} onClick={onSubmit} action={action} />
         </>
       ) : null}
       {job.pasting ? <PasteFields {...props} postRef={postRef} readNote={job.readNote} /> : null}

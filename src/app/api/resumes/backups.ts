@@ -1,4 +1,5 @@
 import { and, asc, count, desc, eq, inArray, lt, sql } from "drizzle-orm";
+import { RESUME_LIMITS } from "@/config/plans";
 import { getDb } from "@/db/client";
 import { lockUser } from "@/db/locks";
 import { resumes, resumeTombstones } from "@/db/schema";
@@ -13,7 +14,7 @@ import { ResumeSchema, type Resume } from "@/lib/resume/schema";
 // Deleting a backup leaves a tombstone. Without one, another device that still holds the resume
 // would see it missing from the cloud and upload it again.
 
-export const MAX_RESUMES_PER_USER = 50;
+export const MAX_RESUMES_PER_USER = RESUME_LIMITS.paid;
 // 50 x 80 KiB keeps GET /api/resumes under Vercel's 4.5 MB response limit. A long real CV is
 // around 30 KiB of JSON.
 export const MAX_RESUME_BYTES = 80 * 1024;
@@ -27,7 +28,15 @@ export const TOMBSTONE_MAX_AGE_MS = 180 * 24 * 60 * 60 * 1_000;
 const PRUNE_LIMIT = 100;
 
 // no_user: the account was deleted after the request was signed in, so nothing may be written.
-export type SaveStatus = "saved" | "stale" | "deleted" | "too_large" | "limit_reached" | "no_user";
+// plan_limit: a new resume past the plan's own limit (Free keeps RESUME_LIMITS.free).
+export type SaveStatus =
+  | "saved"
+  | "stale"
+  | "deleted"
+  | "too_large"
+  | "limit_reached"
+  | "plan_limit"
+  | "no_user";
 
 export type BackupList = { resumes: Resume[]; deletedIds: string[] };
 
@@ -70,7 +79,9 @@ export async function listBackups(userId: string): Promise<BackupList> {
 
 /**
  * Inserts or updates one backup. Runs under the account's row lock, so concurrent saves can't
- * push it past MAX_RESUMES_PER_USER, and a save can't slip past a concurrent delete. An existing
+ * push it past MAX_RESUMES_PER_USER or the plan's `planLimit`, and a save can't slip past a
+ * concurrent delete. Both limits only stop new resumes: an account already past `planLimit` (a
+ * paid plan that ended) keeps saving edits to the ones it has. An existing
  * row only changes when the incoming copy is at least as new, so a late retry of an older version
  * is a no-op ("stale"). A resume deleted from the account is never written again ("deleted"), and
  * nothing is written once the account itself is gone ("no_user").
@@ -79,6 +90,7 @@ export async function saveBackup(
   userId: string,
   resume: Resume,
   now = Date.now(),
+  planLimit: number = MAX_RESUMES_PER_USER,
 ): Promise<{ status: SaveStatus; bytes: number }> {
   const data = JSON.stringify(resume, storableText);
   const bytes = Buffer.byteLength(data, "utf8");
@@ -97,7 +109,9 @@ export async function saveBackup(
     const [existing] = await tx.select({ id: resumes.id }).from(resumes).where(own).limit(1);
     if (!existing) {
       const [stored] = await tx.select({ n: count() }).from(resumes).where(eq(resumes.userId, userId));
-      if ((stored?.n ?? 0) >= MAX_RESUMES_PER_USER) return "limit_reached";
+      const total = stored?.n ?? 0;
+      if (total >= MAX_RESUMES_PER_USER) return "limit_reached";
+      if (total >= planLimit) return "plan_limit";
     }
     const written = await tx
       .insert(resumes)

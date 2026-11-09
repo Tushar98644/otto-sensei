@@ -35,9 +35,13 @@ export async function execSql(statement: string, params: unknown[] = []): Promis
 }
 
 export async function resetDb(): Promise<void> {
-  await (await instance()).client.exec(
+  await (
+    await instance()
+  ).client.exec(
     `truncate table public.applications, public.resume_tombstones, public.resumes, public.usage,
-       public.rate_limits, public.billing_events, public.users, auth.users, dev_auth.login_codes,
+       public.rate_limits, public.billing_events, public.trial_history, public.users, public.jobs,
+       public.job_boards, public.job_skills,
+       auth.users, dev_auth.login_codes,
        dev_auth.sessions cascade`,
   );
 }

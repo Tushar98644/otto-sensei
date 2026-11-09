@@ -15,7 +15,7 @@ import type { AuthMode, SessionUser } from "@/lib/auth/types";
 import type { BillingMode } from "@/lib/billing/types";
 import type { ReferralClaimOutcome, ReferralSummary } from "@/lib/referrals/referrals";
 import type { RecruiterReport } from "@/lib/checks/types";
-import type { InterviewPrep, InterviewResult, PrepTarget } from "@/lib/insights/prep";
+import type { InterviewPrep, InterviewResult, PrepSummary, PrepTarget } from "@/lib/insights/prep";
 import { ResumeSchema, type Resume } from "@/lib/resume/schema";
 
 // Client-safe contract for every API route. Routes validate bodies with these schemas; the client
@@ -29,6 +29,9 @@ export type ApiErrorCode =
   | "not_found"
   | "rate_limited"
   | "limit_reached"
+  // 402: the plan doesn't include this at all (Free has no AI help and no portfolio). The client
+  // answers with the trial or upgrade prompt, never an error.
+  | "upgrade_required"
   | "too_large"
   | "unsupported_type"
   | "parse_failed"
@@ -80,7 +83,12 @@ export const TailorRequestSchema = z.object({
 });
 export type TailorRequestBody = z.input<typeof TailorRequestSchema>;
 // demo: as in FixResponse.
-export type TailorResponse = { ok: true; result: TailorResult; usage: UsageSnapshot; demo: boolean };
+export type TailorResponse = {
+  ok: true;
+  result: TailorResult;
+  usage: UsageSnapshot;
+  demo: boolean;
+};
 
 // POST /api/letter. Requires sign-in; counts against the "letter" allowance.
 export const LetterRequestSchema = TailorRequestSchema;
@@ -97,7 +105,12 @@ export const AnswerRequestSchema = TailorRequestSchema.extend({
   question: z.string().trim().min(8).max(500),
 });
 export type AnswerRequestBody = z.input<typeof AnswerRequestSchema>;
-export type AnswerResponse = { ok: true; result: AnswerResult; usage: UsageSnapshot; demo: boolean };
+export type AnswerResponse = {
+  ok: true;
+  result: AnswerResult;
+  usage: UsageSnapshot;
+  demo: boolean;
+};
 
 // POST /api/interview: an interview prep pack for one application, saved on it. Requires sign-in;
 // shares the "letter" allowance. GET /api/interview/:applicationId: its job details and saved pack.
@@ -107,6 +120,7 @@ export type {
   InterviewRequestBody,
   InterviewResult,
   PrepQuestion,
+  PrepSummary,
   PrepTarget,
   StarStory,
 } from "@/lib/insights/prep";
@@ -117,6 +131,7 @@ export type InterviewResponse = {
   demo: boolean;
 };
 export type InterviewPrepResponse = { ok: true; target: PrepTarget; prep: InterviewPrep | null };
+export type InterviewPacksResponse = { ok: true; packs: PrepSummary[] };
 
 // POST /api/summary. Requires sign-in; counts against the "fix" allowance. "write" drafts two
 // summaries from the resume's facts; "improve" tightens the person's own summary and sees nothing
@@ -142,7 +157,12 @@ export type SummaryOption = {
 };
 // write: 1-2 options (one may be dropped by the guards); improve: exactly 1.
 export type SummaryResult = { options: SummaryOption[] };
-export type SummaryResponse = { ok: true; result: SummaryResult; usage: UsageSnapshot; demo: boolean };
+export type SummaryResponse = {
+  ok: true;
+  result: SummaryResult;
+  usage: UsageSnapshot;
+  demo: boolean;
+};
 
 // POST /api/job. Reads a job post from its link, as input for POST /api/tailor. No account needed.
 export const JobRequestSchema = z.object({ url: z.string().max(2048) });
@@ -190,10 +210,12 @@ export type MeResponse = {
   ok: true;
   user: SessionUser | null;
   usage: UsageSnapshot | null;
-  // The period usage counts in: the calendar month, or a weekly subscriber's billing week.
+  // The period usage counts in: the calendar month, a weekly subscriber's billing week, or a trial.
   period: UsagePeriod | null;
   // offer: how often each paid plan can bill here, "month" first; a plan with none isn't on sale.
-  billing: { mode: BillingMode; offer: Record<PaidPlanId, BillingInterval[]> };
+  // trial: Pro monthly would start with the free trial (signed out: a new account would). Optional
+  // for servers from before trials.
+  billing: { mode: BillingMode; offer: Record<PaidPlanId, BillingInterval[]>; trial?: boolean };
   auth: { mode: AuthMode };
 };
 
@@ -220,7 +242,11 @@ export type {
   CreateApplicationBody,
   UpdateApplicationBody,
 } from "@/lib/applications/schema";
-export type ApplicationsResponse = { ok: true; applications: Application[]; nextCursor: string | null };
+export type ApplicationsResponse = {
+  ok: true;
+  applications: Application[];
+  nextCursor: string | null;
+};
 export type ApplicationResponse = { ok: true; application: Application };
 // The applications that changed; ones already on that status are left out.
 export type BulkApplicationsResponse = { ok: true; applications: Application[] };
@@ -281,15 +307,41 @@ export type {
   UpdateShareBody,
 } from "@/lib/share/types";
 
-// GET /api/profile, PUT /api/profile (body: the whole work profile). Requires sign-in.
+// GET/POST/PATCH /api/portfolio, GET /api/portfolio/slug, POST /api/portfolio/views. Sign-in,
+// except views (sent by the public page /p/:slug).
+export {
+  CreatePortfolioSchema,
+  PortfolioViewSchema,
+  UpdatePortfolioSchema,
+} from "@/lib/portfolio/types";
+export type {
+  CreatePortfolioBody,
+  Portfolio,
+  PortfolioResponse,
+  PortfolioSaveResponse,
+  PortfolioSlugResponse,
+  UpdatePortfolioBody,
+} from "@/lib/portfolio/types";
+
+// GET /api/profile, PUT /api/profile (body: the whole work profile). Requires sign-in; PUT is Pro.
 export { WorkProfileSchema } from "@/lib/eligibility/profile";
 export type { WorkProfile, WorkProfileBody, WorkProfileResponse } from "@/lib/eligibility/profile";
 
+// POST /api/jobs/matches (jobs ranked for one resume, or the saved ones), PUT/DELETE
+// /api/jobs/saved/:id, POST /api/jobs/events (what was done with a match). Requires sign-in.
+// Free sees its closest few matches; filters, paging, saving and the full list are Pro.
+export { JobMatchesRequestSchema, MatchActionSchema } from "@/lib/job-feed/types";
+export type {
+  JobMatchesRequestBody,
+  JobMatchesResponse,
+  JobPostResponse,
+  MatchActionInput,
+  MatchedJob,
+  SavedJobResponse,
+} from "@/lib/job-feed/types";
+
 // GET/PATCH /api/notifications, GET/PUT /api/notifications/settings. Requires sign-in.
-export {
-  MarkNotificationsReadSchema,
-  ReminderSettingsSchema,
-} from "@/lib/notifications/types";
+export { MarkNotificationsReadSchema, ReminderSettingsSchema } from "@/lib/notifications/types";
 export type {
   MarkNotificationsReadBody,
   MarkNotificationsReadResponse,

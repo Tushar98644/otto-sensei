@@ -161,7 +161,7 @@ function FixDialog({ flow, resumeId }: { flow: FixFlow; resumeId: string }) {
           limit={limit}
           period={period}
           signedIn={user !== null}
-          allowance={fixAllowanceText(state.usage.fix, user?.plan, period)}
+          allowance={fixAllowanceText(state.usage.fix, user?.plan, period, me?.billing.trial !== false)}
         />
       );
       footer = <ReadyFooter flow={flow} state={state} baseId={baseId} keep={keep} />;

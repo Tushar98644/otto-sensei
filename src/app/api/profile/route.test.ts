@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { getDb } from "@/db/client";
 import { workProfiles } from "@/db/schema";
 import type { ApiErrorBody } from "@/lib/api/types";
-import { cookieJar, resetDb, signInAs } from "@/lib/auth/test-helpers";
+import { cookieJar, resetDb, setPlan, signInAs as signInFree } from "@/lib/auth/test-helpers";
 import type { WorkProfileBody, WorkProfileResponse } from "@/lib/eligibility/profile";
 import { saveWorkProfile } from "@/lib/eligibility/records";
 import { deleteUserData } from "@/lib/users";
@@ -17,6 +17,7 @@ const PROFILE: WorkProfileBody = {
   rights: { us: "sponsorship", uk: null, eu: "authorized", ca: null },
   fullTime: true,
   contract: false,
+  remoteOnly: false,
 };
 
 function put(
@@ -35,6 +36,24 @@ function put(
 async function errorCode(res: Response): Promise<string> {
   return ((await res.json()) as ApiErrorBody).error.code;
 }
+
+// The work profile feeds Pro tools only; "the work profile on Free" below covers Free.
+const signInAs = async (email: string) => setPlan(await signInFree(email), "pro");
+
+describe("the work profile on Free", () => {
+  beforeEach(async () => {
+    await resetDb();
+    cookieJar.clear();
+  });
+
+  it("reads it, but offers the trial instead of saving", async () => {
+    await signInFree("ines@example.com");
+    expect((await GET()).status).toBe(200);
+    const res = await put(PROFILE);
+    expect(res.status).toBe(402);
+    expect(await errorCode(res)).toBe("upgrade_required");
+  });
+});
 
 describe("/api/profile", () => {
   beforeEach(async () => {
@@ -59,6 +78,7 @@ describe("/api/profile", () => {
       rights: { us: null, uk: null, eu: null, ca: null },
       fullTime: true,
       contract: true,
+      remoteOnly: false,
     });
   });
 
@@ -74,6 +94,15 @@ describe("/api/profile", () => {
     expect(read.profile).toEqual(changed);
     const rows = await (await getDb()).select().from(workProfiles);
     expect(rows).toHaveLength(1);
+  });
+
+  it("keeps the remote-only choice when an older page leaves it out", async () => {
+    await signInAs("ines@example.com");
+    await put({ ...PROFILE, remoteOnly: true });
+    const { remoteOnly: _left, ...older } = PROFILE;
+    void _left;
+    const saved = (await (await put(older)).json()) as WorkProfileResponse;
+    expect(saved.profile.remoteOnly).toBe(true);
   });
 
   it("keeps each account's profile to itself", async () => {

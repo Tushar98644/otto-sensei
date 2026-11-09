@@ -27,6 +27,7 @@ describe("getCurrentUser", () => {
       plan: "free",
       planInterval: null,
       planRenewsAt: null,
+      trialEndsAt: null,
     });
   });
 

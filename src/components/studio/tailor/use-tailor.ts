@@ -7,7 +7,14 @@ import { OTTO } from "@/components/mascot/lines";
 import type { UsagePeriod } from "@/config/plans";
 import { api, isApiError } from "@/lib/api/client";
 import { newId, type Resume } from "@/lib/resume/schema";
-import { loadResult, type ReadJob, type SavedResult, type TailorDraft } from "./session";
+import {
+  clearQueuedJob,
+  loadResult,
+  type QueuedJob,
+  type ReadJob,
+  type SavedResult,
+  type TailorDraft,
+} from "./session";
 
 // Same bound POST /api/tailor enforces, checked here first so the user hears about it before sending.
 export const MIN_POST_CHARS = 80;
@@ -152,6 +159,8 @@ type JobLinkOptions = {
   // Sends the draft the step last rendered, which is why a read job waits for its render.
   onSubmit: () => void;
   busy: boolean;
+  // A job picked on the Jobs tab: read (or used) once, as if its link had just been pasted.
+  queued?: QueuedJob | null;
 };
 
 /**
@@ -159,7 +168,7 @@ type JobLinkOptions = {
  * Pasting the link is enough to start; Enter reads a typed one. When the link can't be read, opens
  * the paste fields with the reason.
  */
-export function useJobLink({ draft, onChange, onSubmit, busy }: JobLinkOptions): JobLink {
+export function useJobLink({ draft, onChange, onSubmit, busy, queued = null }: JobLinkOptions): JobLink {
   const linkRef = useRef<HTMLInputElement>(null);
   const postRef = useRef<HTMLTextAreaElement>(null);
   const [reading, setReading] = useState(false);
@@ -192,7 +201,8 @@ export function useJobLink({ draft, onChange, onSubmit, busy }: JobLinkOptions):
   }
 
   // `typed`: the field's value when it hasn't reached the draft yet (a paste being handled).
-  async function read(typed?: string) {
+  // `backup`: the post as the Jobs tab stored it, for the paste fields if the link can't be read.
+  async function read(typed?: string, backup?: QueuedJob) {
     if (reading || busy) return;
     const raw = typed ?? link;
     const value = raw.trim();
@@ -230,16 +240,58 @@ export function useJobLink({ draft, onChange, onSubmit, busy }: JobLinkOptions):
         return;
       }
       // Fields typed by hand stay. Text read from an earlier link is another job's, so it goes.
-      openPasteFields(
-        pasting
-          ? { ...draft, link: value, posting: null }
-          : { link: value, posting: null, paste: true, title: "", company: "", text: "" },
-        { link: value, message: failure.message, on: "paste" },
-      );
+      let next: TailorDraft = pasting
+        ? { ...draft, link: value, posting: null }
+        : { link: value, posting: null, paste: true, title: "", company: "", text: "" };
+      if (backup) {
+        next = { link: value, posting: null, paste: true, title: backup.title, company: backup.company, text: backup.text };
+      }
+      openPasteFields(next, { link: value, message: failure.message, on: "paste" });
     } finally {
       setReading(false);
     }
   }
+
+  // The job arrives from the Jobs tab after the first render, like a paste, so the step's own
+  // state is in place before the read starts. Taken out of storage then, so a reload or the
+  // Strict Mode re-run doesn't read it twice.
+  const queuedJob = useRef(queued);
+  useEffect(() => {
+    const job = queuedJob.current;
+    if (!job) return;
+    const timer = window.setTimeout(() => {
+      queuedJob.current = null;
+      clearQueuedJob();
+      if (job.readLink) {
+        onChange({ ...draft, link: job.link, posting: null, paste: false });
+        void read(job.link, job);
+        return;
+      }
+      // The feeds' own pages are theirs to show, so the stored post is used as read.
+      const next: TailorDraft = {
+        link: job.link,
+        posting: {
+          url: job.link,
+          source: "page",
+          title: job.title,
+          company: job.company,
+          location: job.location,
+          firstPostedAt: job.postedAt,
+          updatedAt: null,
+          closesAt: null,
+        },
+        paste: false,
+        title: job.title,
+        company: job.company,
+        text: job.text,
+      };
+      sendAfterRender.current = next;
+      onChange(next);
+    }, 0);
+    return () => window.clearTimeout(timer);
+    // Once, on mount: later renders must not start another read.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // While reading, the working Otto under the field says so.
   let status = reading ? "" : (shown?.message ?? "");

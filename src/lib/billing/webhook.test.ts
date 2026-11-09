@@ -1,91 +1,58 @@
-import type { DodoPayments } from "dodopayments";
 import { eq } from "drizzle-orm";
-import { Webhook } from "standardwebhooks";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { getDb } from "@/db/client";
-import { execSql } from "@/db/testing";
-import { billingEvents, users, type UserRow } from "@/db/schema";
+import { billingEvents, trialHistory, users } from "@/db/schema";
 import { insertUserRow, resetDb } from "@/lib/auth/test-helpers";
 import { resetEnvForTests } from "@/lib/env";
 import { handleWebhook } from "./index";
+import { creemSignature, subscriptionEvent, type WebhookSubscription } from "./testing";
+import { emailFingerprint } from "./trial";
 
-// "whsec_" + base64 key, the format Dodo shows in its dashboard.
-const SECRET = `whsec_${Buffer.from("otto-resume-test-webhook-signing-key").toString("base64")}`;
-const OTHER_SECRET = `whsec_${Buffer.from("some-other-signing-key-entirely").toString("base64")}`;
-const PRODUCT_ID = "pdt_otto_pro";
-const NEXT_BILLING = "2026-12-06T12:00:00Z";
+const SECRET = "whsec_otto_resume_test_secret";
+const PRO_MONTH = "prod_pro_month";
+const PRO_TRIAL = "prod_pro_trial";
+const MAX_WEEK = "prod_max_week";
+const TRIAL_END = "2026-11-11T10:00:00.000Z";
+const NEXT_MONTH = "2026-12-11T10:00:00.000Z";
 
-let sequence = 0;
-const next = (prefix: string) => `${prefix}_${++sequence}`;
+type Row = typeof users.$inferSelect;
 
-type EventData = {
-  subscription_id: string;
-  product_id: string;
-  status: string;
-  next_billing_date: string;
-  cancel_at_next_billing_date: boolean;
-  customer: { customer_id: string; email: string; name: string };
-  metadata: Record<string, string>;
-};
-
-function eventBody(type: DodoPayments.WebhookEventType, data: Partial<EventData> = {}): string {
-  const base: EventData = {
-    subscription_id: "sub_1",
-    product_id: PRODUCT_ID,
-    status: "active",
-    next_billing_date: NEXT_BILLING,
-    cancel_at_next_billing_date: false,
-    customer: { customer_id: "cus_1", email: "ada@example.com", name: "Ada" },
-    metadata: {},
-  };
-  return JSON.stringify({
-    business_id: "bus_test",
-    type,
-    timestamp: new Date().toISOString(),
-    data: { payload_type: "Subscription", ...base, ...data },
-  });
+function signed(body: string, secret = SECRET): Headers {
+  return new Headers({ "creem-signature": creemSignature(body, secret) });
 }
 
-function signed(
-  body: string,
-  options: { id?: string; secret?: string; at?: Date } = {},
-): Headers {
-  const id = options.id ?? next("msg");
-  const at = options.at ?? new Date();
-  return new Headers({
-    "webhook-id": id,
-    "webhook-timestamp": String(Math.floor(at.getTime() / 1000)),
-    "webhook-signature": new Webhook(options.secret ?? SECRET).sign(id, at, body),
-  });
+async function deliver(body: string, headers = signed(body)) {
+  return handleWebhook(body, headers);
 }
 
-async function createUser(overrides: Partial<UserRow> = {}): Promise<UserRow> {
-  const row: UserRow = {
+async function createUser(overrides: Partial<typeof users.$inferInsert> = {}): Promise<Row> {
+  const row = {
     id: crypto.randomUUID(),
     email: "ada@example.com",
-    plan: "free",
-    planStatus: null,
-    planRenewsAt: null,
-    planInterval: null,
-    billingCustomerId: null,
-    billingSubscriptionId: null,
+    plan: "free" as const,
     createdAt: 1,
     updatedAt: 1,
     ...overrides,
   };
   await insertUserRow(row);
-  return row;
+  return (await reload(row.id))!;
 }
 
-async function reload(id: string): Promise<UserRow | undefined> {
+async function reload(id: string): Promise<Row | undefined> {
   const db = await getDb();
   const [row] = await db.select().from(users).where(eq(users.id, id));
   return row;
 }
 
+function event(eventType: string, subscription: WebhookSubscription = {}, at?: number) {
+  return subscriptionEvent(eventType, subscription, at === undefined ? {} : { createdAt: at });
+}
+
 beforeEach(async () => {
-  vi.stubEnv("DODO_PAYMENTS_WEBHOOK_KEY", SECRET);
-  vi.stubEnv("DODO_PAYMENTS_PRODUCT_ID", PRODUCT_ID);
+  vi.stubEnv("CREEM_WEBHOOK_SECRET", SECRET);
+  vi.stubEnv("CREEM_PRO_MONTHLY_PRODUCT_ID", PRO_MONTH);
+  vi.stubEnv("CREEM_PRO_TRIAL_PRODUCT_ID", PRO_TRIAL);
+  vi.stubEnv("CREEM_MAX_WEEKLY_PRODUCT_ID", MAX_WEEK);
   resetEnvForTests();
   await resetDb();
 });
@@ -96,301 +63,225 @@ afterEach(() => {
   resetEnvForTests();
 });
 
-describe("plans", () => {
-  it("gives Max for a Max product, and follows a plan change back to Pro", async () => {
-    vi.stubEnv("DODO_PAYMENTS_MAX_PRODUCT_ID_YEARLY", "pdt_otto_max_year");
-    resetEnvForTests();
-    const user = await createUser();
-    const bought = eventBody("subscription.active", {
-      product_id: "pdt_otto_max_year",
-      metadata: { user_id: user.id },
-    });
-    expect(await handleWebhook(bought, signed(bought))).toEqual({ status: 200, message: "applied" });
-    expect(await reload(user.id)).toMatchObject({ plan: "max", planInterval: "year" });
-
-    const changed = eventBody("subscription.plan_changed", { product_id: PRODUCT_ID });
-    expect(await handleWebhook(changed, signed(changed))).toEqual({ status: 200, message: "applied" });
-    expect(await reload(user.id)).toMatchObject({ plan: "pro", planInterval: "month" });
-  });
-
-  it("stores how often the product bills, follows a plan change, and clears it on Free", async () => {
-    vi.stubEnv("DODO_PAYMENTS_PRODUCT_ID_WEEKLY", "pdt_otto_pro_week");
-    vi.stubEnv("DODO_PAYMENTS_MAX_PRODUCT_ID_WEEKLY", "pdt_otto_max_week");
-    resetEnvForTests();
-    const user = await createUser();
-    const bought = eventBody("subscription.active", {
-      product_id: "pdt_otto_pro_week",
-      next_billing_date: "2026-11-19T09:30:00Z",
-      metadata: { user_id: user.id },
-    });
-    expect(await handleWebhook(bought, signed(bought))).toEqual({ status: 200, message: "applied" });
-    expect(await reload(user.id)).toMatchObject({
-      plan: "pro",
-      planInterval: "week",
-      planRenewsAt: Date.parse("2026-11-19T09:30:00Z"),
-    });
-
-    const upgraded = eventBody("subscription.plan_changed", { product_id: "pdt_otto_max_week" });
-    expect(await handleWebhook(upgraded, signed(upgraded))).toEqual({ status: 200, message: "applied" });
-    expect(await reload(user.id)).toMatchObject({ plan: "max", planInterval: "week" });
-
-    const monthly = eventBody("subscription.plan_changed", { product_id: PRODUCT_ID });
-    expect(await handleWebhook(monthly, signed(monthly))).toEqual({ status: 200, message: "applied" });
-    expect(await reload(user.id)).toMatchObject({ plan: "pro", planInterval: "month" });
-
-    const ended = eventBody("subscription.cancelled", { status: "cancelled" });
-    expect(await handleWebhook(ended, signed(ended))).toEqual({ status: 200, message: "applied" });
-    expect(await reload(user.id)).toMatchObject({ plan: "free", planInterval: null });
-  });
-
-  it("ignores a product that is neither plan", async () => {
-    const user = await createUser();
-    const body = eventBody("subscription.active", {
-      subscription_id: "sub_other",
-      product_id: "pdt_ebook",
-      metadata: { user_id: user.id },
-    });
-    expect(await handleWebhook(body, signed(body))).toEqual({ status: 200, message: "ignored" });
-    expect((await reload(user.id))?.plan).toBe("free");
-  });
-});
-
 describe("signature", () => {
-  it("accepts a correctly signed event and upgrades the user", async () => {
+  it("accepts a body signed with the webhook secret", async () => {
     const user = await createUser();
-    const body = eventBody("subscription.active", { metadata: { user_id: user.id } });
-
-    expect(await handleWebhook(body, signed(body))).toEqual({ status: 200, message: "applied" });
-    expect(await reload(user.id)).toMatchObject({
-      plan: "pro",
-      planStatus: "active",
-      planRenewsAt: Date.parse(NEXT_BILLING),
-      billingCustomerId: "cus_1",
-      billingSubscriptionId: "sub_1",
-    });
+    const body = event("subscription.active", { metadata: { user_id: user.id } });
+    expect(await deliver(body)).toEqual({ status: 200, message: "applied" });
   });
 
-  it("rejects an event signed with another key", async () => {
+  it("answers 401 for a wrong secret, a changed body or no signature, and changes nothing", async () => {
     const user = await createUser();
-    const body = eventBody("subscription.active", { metadata: { user_id: user.id } });
-
-    expect(await handleWebhook(body, signed(body, { secret: OTHER_SECRET }))).toEqual({
+    const body = event("subscription.active", { metadata: { user_id: user.id } });
+    expect(await deliver(body, signed(body, "whsec_someone_else"))).toEqual({
       status: 401,
       message: "invalid_signature",
     });
+    expect(await deliver(body.replace("active", "trialing"), signed(body))).toMatchObject({ status: 401 });
+    expect(await deliver(body, new Headers())).toMatchObject({ status: 401 });
     expect((await reload(user.id))?.plan).toBe("free");
+    expect(await (await getDb()).select().from(billingEvents)).toEqual([]);
   });
 
-  it("rejects a body changed after signing", async () => {
-    const user = await createUser();
-    const original = eventBody("subscription.cancelled", { status: "cancelled" });
-    const tampered = eventBody("subscription.active", { metadata: { user_id: user.id } });
-
-    expect((await handleWebhook(tampered, signed(original))).status).toBe(401);
-    expect((await reload(user.id))?.plan).toBe("free");
-  });
-
-  it("rejects missing signature headers", async () => {
-    const body = eventBody("subscription.active");
-    expect((await handleWebhook(body, new Headers())).status).toBe(401);
-  });
-
-  it("rejects a replay of an old delivery", async () => {
-    const body = eventBody("subscription.active");
-    const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000);
-    expect((await handleWebhook(body, signed(body, { at: tenMinutesAgo }))).status).toBe(401);
-  });
-
-  it("answers 503 while no webhook key is configured", async () => {
-    vi.stubEnv("DODO_PAYMENTS_WEBHOOK_KEY", "");
+  it("answers 503 without a secret, and 413 for an oversized body before checking it", async () => {
+    vi.stubEnv("CREEM_WEBHOOK_SECRET", "");
     resetEnvForTests();
-    const body = eventBody("subscription.active");
-    expect(await handleWebhook(body, signed(body))).toEqual({ status: 503, message: "not_configured" });
+    const body = event("subscription.active");
+    expect(await deliver(body)).toEqual({ status: 503, message: "not_configured" });
+    vi.stubEnv("CREEM_WEBHOOK_SECRET", SECRET);
+    resetEnvForTests();
+    const huge = "x".repeat(300 * 1024);
+    expect(await deliver(huge, signed(huge))).toEqual({ status: 413, message: "too_large" });
   });
 
-  it("refuses oversized bodies before checking the signature", async () => {
-    const body = "x".repeat(300 * 1024);
-    expect(await handleWebhook(body, signed(body))).toEqual({ status: 413, message: "too_large" });
+  it("asks for a retry when a signed body can't be read", async () => {
+    const body = JSON.stringify({ id: "evt_1", eventType: "subscription.active", object: { id: 7 } });
+    expect(await deliver(body)).toEqual({ status: 500, message: "malformed" });
   });
 });
 
 describe("idempotency", () => {
-  it("treats a repeated webhook id as a duplicate and applies it once", async () => {
-    const db = await getDb();
+  it("applies an event once: a redelivery with the same id is a duplicate", async () => {
     const user = await createUser();
-    const body = eventBody("subscription.active", { metadata: { user_id: user.id } });
-    const headers = signed(body);
-
-    expect(await handleWebhook(body, headers)).toEqual({ status: 200, message: "applied" });
-    await db.update(users).set({ plan: "free" }).where(eq(users.id, user.id));
-
-    expect(await handleWebhook(body, headers)).toEqual({ status: 200, message: "duplicate" });
-    expect((await reload(user.id))?.plan).toBe("free");
-    expect(await db.select().from(billingEvents)).toHaveLength(1);
+    const body = subscriptionEvent(
+      "subscription.trialing",
+      { status: "trialing", product: PRO_TRIAL, metadata: { user_id: user.id }, current_period_end_date: TRIAL_END },
+      { id: "evt_trial_1" },
+    );
+    expect(await deliver(body)).toEqual({ status: 200, message: "applied" });
+    expect(await deliver(body)).toEqual({ status: 200, message: "duplicate" });
+    const events = await (await getDb()).select().from(billingEvents);
+    expect(events.map((row) => row.id)).toEqual(["evt_trial_1"]);
   });
 
-  it("answers 500 when the database fails, records nothing, and the retry then goes through", async () => {
-    vi.spyOn(console, "error").mockImplementation(() => {});
-    const db = await getDb();
+  it("ignores an older event for the same subscription that arrives late", async () => {
     const user = await createUser();
-    const body = eventBody("subscription.active", { metadata: { user_id: user.id } });
-    const headers = signed(body);
-    // Fails the plan update after the event id was already inserted in the same transaction.
-    await execSql(`create function fail_update() returns trigger language plpgsql as
-      $$ begin raise exception 'disk full'; end $$`);
-    await execSql("create trigger fail_update before update on users for each row execute function fail_update()");
-
-    expect(await handleWebhook(body, headers)).toEqual({ status: 500, message: "retry" });
-    expect(await db.select().from(billingEvents)).toEqual([]);
-    await execSql("drop trigger fail_update on users");
-    await execSql("drop function fail_update");
-
-    expect(await handleWebhook(body, headers)).toEqual({ status: 200, message: "applied" });
-    expect((await reload(user.id))?.plan).toBe("pro");
+    const paid = event(
+      "subscription.paid",
+      { status: "active", product: PRO_TRIAL, metadata: { user_id: user.id }, next_transaction_date: NEXT_MONTH },
+      2_000,
+    );
+    expect(await deliver(paid)).toMatchObject({ message: "applied" });
+    // Creem retried the trial's start after the first payment had already landed.
+    const late = event(
+      "subscription.trialing",
+      { status: "trialing", product: PRO_TRIAL, metadata: { user_id: user.id }, current_period_end_date: TRIAL_END },
+      1_000,
+    );
+    expect(await deliver(late)).toEqual({ status: 200, message: "ignored" });
+    expect(await reload(user.id)).toMatchObject({ plan: "pro", planStatus: "active", trialEndsAt: null });
   });
 });
 
-describe("subscription lifecycle", () => {
-  async function subscriber() {
-    return createUser({
+describe("statuses", () => {
+  it("trialing: Pro with the trial's end date, and the person is written down as having trialed", async () => {
+    const user = await createUser();
+    const body = event("subscription.trialing", {
+      status: "trialing",
+      product: PRO_TRIAL,
+      metadata: { user_id: user.id },
+      current_period_end_date: TRIAL_END,
+    });
+    expect(await deliver(body)).toEqual({ status: 200, message: "applied" });
+    expect(await reload(user.id)).toMatchObject({
       plan: "pro",
-      planStatus: "active",
-      billingCustomerId: "cus_1",
+      planInterval: "month",
+      planStatus: "trialing",
+      trialEndsAt: Date.parse(TRIAL_END),
+      planRenewsAt: Date.parse(TRIAL_END),
+      billingCustomerId: "cust_1",
       billingSubscriptionId: "sub_1",
     });
-  }
+    const [seen] = await (await getDb()).select().from(trialHistory);
+    expect(seen).toMatchObject({ emailHash: emailFingerprint("ada@example.com"), kind: "trial" });
+  });
+
+  it("active: the first regular payment ends the trial", async () => {
+    const user = await createUser({ plan: "pro", planInterval: "month", trialEndsAt: 5, billingSubscriptionId: "sub_1" });
+    const body = event("subscription.paid", {
+      status: "active",
+      product: PRO_TRIAL,
+      next_transaction_date: NEXT_MONTH,
+    });
+    expect(await deliver(body)).toMatchObject({ message: "applied" });
+    expect(await reload(user.id)).toMatchObject({
+      plan: "pro",
+      planStatus: "active",
+      trialEndsAt: null,
+      planRenewsAt: Date.parse(NEXT_MONTH),
+    });
+  });
+
+  it("past_due keeps the plan, and a failed first payment keeps the trial's allowance", async () => {
+    const user = await createUser({ plan: "pro", planInterval: "month", trialEndsAt: 5, billingSubscriptionId: "sub_1" });
+    expect(await deliver(event("subscription.past_due", { status: "past_due", product: PRO_TRIAL }))).toMatchObject({
+      message: "applied",
+    });
+    expect(await reload(user.id)).toMatchObject({ plan: "pro", planStatus: "past_due", trialEndsAt: 5 });
+  });
+
+  it("scheduled_cancel keeps the plan until the period ends, with nothing renewing", async () => {
+    const user = await createUser({ plan: "pro", planInterval: "month", billingSubscriptionId: "sub_1" });
+    const body = event("subscription.scheduled_cancel", { status: "scheduled_cancel", next_transaction_date: NEXT_MONTH });
+    expect(await deliver(body)).toMatchObject({ message: "applied" });
+    expect(await reload(user.id)).toMatchObject({ plan: "pro", planStatus: "scheduled_cancel", planRenewsAt: null });
+  });
 
   it.each([
-    ["subscription.cancelled", "cancelled"],
-    ["subscription.expired", "expired"],
-    ["subscription.on_hold", "on_hold"],
-    ["subscription.failed", "failed"],
-  ] satisfies Array<[DodoPayments.WebhookEventType, string]>)(
-    "%s moves the user to free",
-    async (type, status) => {
-      const user = await subscriber();
-      const body = eventBody(type, { status });
-
-      expect(await handleWebhook(body, signed(body))).toEqual({ status: 200, message: "applied" });
-      expect(await reload(user.id)).toMatchObject({ plan: "free", planStatus: status, planRenewsAt: null });
-    },
-  );
-
-  it("keeps Pro until the period ends when a cancellation is only scheduled", async () => {
-    const user = await subscriber();
-    const body = eventBody("subscription.updated", { cancel_at_next_billing_date: true });
-
-    expect(await handleWebhook(body, signed(body))).toEqual({ status: 200, message: "applied" });
-    expect(await reload(user.id)).toMatchObject({ plan: "pro", planRenewsAt: null });
-  });
-
-  it("restores Pro when a renewal goes through", async () => {
-    const user = await createUser({ planStatus: "on_hold", billingSubscriptionId: "sub_1" });
-    const body = eventBody("subscription.renewed");
-
-    expect(await handleWebhook(body, signed(body))).toEqual({ status: 200, message: "applied" });
-    expect((await reload(user.id))?.plan).toBe("pro");
-  });
-
-  it("ignores events it doesn't handle", async () => {
-    const db = await getDb();
-    await subscriber();
-    const body = JSON.stringify({ type: "payment.succeeded", data: { payment_id: "pay_1" } });
-
-    expect(await handleWebhook(body, signed(body))).toEqual({ status: 200, message: "ignored" });
-    expect(await db.select().from(billingEvents)).toHaveLength(0);
-  });
-
-  it("ignores statuses it doesn't know", async () => {
-    const user = await subscriber();
-    const body = eventBody("subscription.updated", { status: "brand_new_status" });
-
-    expect(await handleWebhook(body, signed(body))).toEqual({ status: 200, message: "ignored" });
-    expect((await reload(user.id))?.plan).toBe("pro");
-  });
-
-  it("ignores subscriptions to other products", async () => {
-    const user = await createUser();
-    const body = eventBody("subscription.active", {
-      product_id: "pdt_something_else",
-      metadata: { user_id: user.id },
+    ["subscription.canceled", "canceled"],
+    ["subscription.unpaid", "unpaid"],
+    ["subscription.paused", "paused"],
+    // Creem leaves the old status in an expired event's payload; the event itself ends access.
+    ["subscription.expired", "active"],
+  ])("%s drops the plan to Free", async (eventType, status) => {
+    const user = await createUser({
+      plan: "pro",
+      planInterval: "month",
+      trialEndsAt: 5,
+      planRenewsAt: 9,
+      billingSubscriptionId: "sub_1",
     });
+    expect(await deliver(event(eventType, { status }))).toMatchObject({ message: "applied" });
+    expect(await reload(user.id)).toMatchObject({
+      plan: "free",
+      planInterval: null,
+      planRenewsAt: null,
+      trialEndsAt: null,
+    });
+  });
 
-    expect(await handleWebhook(body, signed(body))).toEqual({ status: 200, message: "ignored" });
+  it("ignores an unfinished checkout and a status Creem may add later", async () => {
+    const user = await createUser();
+    for (const status of ["incomplete", "something_new"]) {
+      const body = event("subscription.update", { status, metadata: { user_id: user.id } });
+      expect(await deliver(body)).toEqual({ status: 200, message: "ignored" });
+    }
     expect((await reload(user.id))?.plan).toBe("free");
   });
 
-  it("gives Pro for the yearly and weekly products once they're set", async () => {
-    vi.stubEnv("DODO_PAYMENTS_PRODUCT_ID_YEARLY", "pdt_otto_pro_yearly");
-    vi.stubEnv("DODO_PAYMENTS_PRODUCT_ID_WEEKLY", "pdt_otto_pro_weekly");
-    resetEnvForTests();
-    for (const [productId, interval] of [
-      ["pdt_otto_pro_yearly", "year"],
-      ["pdt_otto_pro_weekly", "week"],
-    ] as const) {
-      const user = await createUser({ id: crypto.randomUUID(), email: `${productId}@example.com` });
-      const body = eventBody("subscription.active", {
-        subscription_id: next("sub"),
-        customer: { customer_id: next("cus"), email: user.email, name: "Ada" },
-        product_id: productId,
-        metadata: { user_id: user.id },
-      });
-      expect(await handleWebhook(body, signed(body))).toEqual({ status: 200, message: "applied" });
-      expect(await reload(user.id)).toMatchObject({ plan: "pro", planInterval: interval });
-    }
-  });
-
-  it("answers 500 for a signed subscription event it can't read, so Dodo keeps it", async () => {
-    const body = JSON.stringify({ type: "subscription.active", data: { status: "active" } });
-    expect(await handleWebhook(body, signed(body))).toEqual({ status: 500, message: "malformed" });
-  });
-});
-
-describe("after the account was deleted", () => {
-  it("answers 200 to the cancellation, so Dodo doesn't retry it, and only logs it as info", async () => {
-    const db = await getDb();
-    const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
-    const info = vi.spyOn(console, "info").mockImplementation(() => undefined);
-    const user = await createUser({ plan: "pro", planStatus: "active", billingSubscriptionId: "sub_1" });
-    await db.delete(users).where(eq(users.id, user.id));
-    const body = eventBody("subscription.cancelled", { status: "cancelled", metadata: { user_id: user.id } });
-    const headers = signed(body);
-
-    expect(await handleWebhook(body, headers)).toEqual({ status: 200, message: "ignored" });
-    expect(await handleWebhook(body, headers)).toEqual({ status: 200, message: "ignored" });
-    expect(await db.select().from(users)).toHaveLength(0);
-    expect(JSON.stringify(info.mock.calls)).toContain("no_user");
-    expect(warn).not.toHaveBeenCalled();
-  });
-
-  it("still warns when a paying subscription has no account", async () => {
-    const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
-    const body = eventBody("subscription.renewed", { metadata: { user_id: "user_deleted" } });
-
-    expect(await handleWebhook(body, signed(body))).toEqual({ status: 200, message: "ignored" });
-    expect(JSON.stringify(warn.mock.calls)).toContain("no_user");
-  });
-});
-
-describe("logs", () => {
-  it("never include the customer's email", async () => {
-    const sinks = (["info", "warn", "error"] as const).map((level) =>
-      vi.spyOn(console, level).mockImplementation(() => undefined),
-    );
+  it("follows a plan change from Pro to Max weekly and writes down a payment", async () => {
     const user = await createUser();
-    const matched = eventBody("subscription.active", { metadata: { user_id: user.id } });
-    const unmatched = eventBody("subscription.active", {
-      subscription_id: "sub_9",
-      customer: { customer_id: "cus_9", email: "grace@example.com", name: "Grace" },
+    const bought = event("subscription.active", { metadata: { user_id: user.id } }, 1_000);
+    expect(await deliver(bought)).toMatchObject({ message: "applied" });
+    const upgraded = event("subscription.update", { product: MAX_WEEK }, 2_000);
+    expect(await deliver(upgraded)).toMatchObject({ message: "applied" });
+    expect(await reload(user.id)).toMatchObject({ plan: "max", planInterval: "week" });
+    const [seen] = await (await getDb()).select().from(trialHistory);
+    expect(seen?.kind).toBe("paid");
+  });
+
+  it("never lets another product, or someone else's subscription, take a paid plan away", async () => {
+    const user = await createUser({ plan: "pro", planInterval: "month", billingSubscriptionId: "sub_1" });
+    const other = event("subscription.active", { id: "sub_ebook", product: "prod_ebook" });
+    expect(await deliver(other)).toEqual({ status: 200, message: "ignored" });
+    const stale = event("subscription.canceled", { id: "sub_old", status: "canceled" });
+    expect(await deliver(stale)).toEqual({ status: 200, message: "ignored" });
+    expect((await reload(user.id))?.plan).toBe("pro");
+  });
+});
+
+describe("checkout.completed", () => {
+  it("applies the subscription it carries, found by the checkout's metadata", async () => {
+    const user = await createUser({ email: "maya@example.com" });
+    const body = JSON.stringify({
+      id: "evt_checkout_1",
+      eventType: "checkout.completed",
+      created_at: 1_000,
+      object: {
+        id: "ch_1",
+        object: "checkout",
+        product: { id: PRO_TRIAL, object: "product" },
+        customer: { id: "cust_9", object: "customer", email: "maya@example.com" },
+        subscription: {
+          id: "sub_9",
+          object: "subscription",
+          product: PRO_TRIAL,
+          customer: "cust_9",
+          status: "trialing",
+          current_period_end_date: TRIAL_END,
+          metadata: { user_id: user.id },
+        },
+        status: "completed",
+        metadata: { user_id: user.id },
+      },
     });
+    expect(await deliver(body)).toEqual({ status: 200, message: "applied" });
+    expect(await reload(user.id)).toMatchObject({
+      plan: "pro",
+      trialEndsAt: Date.parse(TRIAL_END),
+      billingCustomerId: "cust_9",
+      billingSubscriptionId: "sub_9",
+    });
+  });
 
-    await handleWebhook(matched, signed(matched));
-    await handleWebhook(unmatched, signed(unmatched));
-    await handleWebhook(matched, signed(matched, { secret: OTHER_SECRET }));
-
-    const output = JSON.stringify(sinks.flatMap((sink) => sink.mock.calls));
-    expect(output).toContain("billing.plan_updated");
-    expect(output).not.toContain("ada@example.com");
-    expect(output).not.toContain("grace@example.com");
+  it("ignores a one-time purchase and events it doesn't use", async () => {
+    const oneTime = JSON.stringify({
+      id: "evt_2",
+      eventType: "checkout.completed",
+      object: { id: "ch_2", product: "prod_ebook", status: "completed" },
+    });
+    expect(await deliver(oneTime)).toEqual({ status: 200, message: "ignored" });
+    const refund = JSON.stringify({ id: "evt_3", eventType: "refund.created", object: { id: "ref_1" } });
+    expect(await deliver(refund)).toEqual({ status: 200, message: "ignored" });
   });
 });

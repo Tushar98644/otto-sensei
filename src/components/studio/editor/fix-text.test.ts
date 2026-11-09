@@ -90,14 +90,20 @@ describe("messages", () => {
     expect(problemMessage({ kind: "limit" }, 20, true)).toBe(OTTO.limit.reached("fix", 20));
   });
 
-  it("shows what's left on every plan", () => {
-    expect(fixAllowanceText({ used: 3, limit: 20 }, "free")).toBe(
-      "17 of 20 free fixes left this month",
+  it("shows what's left on paid plans and the trial, and what Pro adds on Free", () => {
+    expect(fixAllowanceText({ used: 0, limit: 0 }, "free")).toBe(
+      "Line fixes come with Pro. Try it free for 3 days.",
     );
-    expect(fixAllowanceText({ used: 25, limit: 20 }, "free")).toBe(
-      "No free fixes left this month. They reset on the 1st.",
+    expect(fixAllowanceText({ used: 0, limit: 0 }, "free", null, false)).toBe(
+      "Line fixes come with Pro.",
     );
     expect(fixAllowanceText({ used: 3, limit: 300 }, "pro")).toBe("297 of 300 fixes left this month");
+    expect(fixAllowanceText({ used: 300, limit: 300 }, "pro")).toBe(
+      "No fixes left this month. They reset on the 1st.",
+    );
+    expect(fixAllowanceText({ used: 3, limit: 50 }, "pro", { kind: "trial", resetsAt: Date.UTC(2026, 10, 11, 12) })).toBe(
+      "47 of 50 fixes left this trial",
+    );
     expect(fixAllowanceText(null, "free")).toBeNull();
   });
 });

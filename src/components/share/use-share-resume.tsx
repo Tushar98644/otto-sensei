@@ -2,6 +2,7 @@
 
 import { useCallback, useRef, useState, type ReactNode } from "react";
 import { useAccountGate } from "@/components/account/account-gate";
+import { unlockProTool } from "@/components/account/pro-tools";
 import { currentUserId, useMe } from "@/components/account/use-me";
 import type { Resume } from "@/lib/resume/schema";
 import { shareAndCopy } from "./share-actions";
@@ -41,10 +42,12 @@ export function useShareResume(resume: Resume): ShareResume {
       let owner = user?.id ?? null;
       if (!owner) {
         setGateUsed(true);
-        if (!(await gate.requireUser("Sign in to share a link to your resume. It's free."))) return;
+        if (!(await gate.requireUser("Sign in to share a link to your resume."))) return;
         owner = await currentUserId();
         if (!owner) return;
       }
+      // Share links are Pro. A link made before stays live, and its settings stay open on Free.
+      if (!(await unlockProTool("share"))) return;
       await shareAndCopy(resume, owner, open);
     } finally {
       busy.current = false;

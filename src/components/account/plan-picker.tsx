@@ -1,22 +1,31 @@
 "use client";
 
 import { useId } from "react";
-import { PLANS, type PaidPlanId } from "@/config/plans";
+import { PLANS, type BillingInterval, type PaidPlanId } from "@/config/plans";
 import { planPriceLabel } from "@/lib/billing/prices";
 import { cn } from "@/lib/utils";
+import { ReferencePrice } from "./reference-price";
 
 export type PlanPickerProps = {
   // The paid plans on sale, in order. With one there is nothing to pick.
   plans: readonly PaidPlanId[];
   value: PaidPlanId;
   onChange: (plan: PaidPlanId) => void;
+  // The billing option picked below: each plan shows its price for it.
+  interval: BillingInterval;
+  // How often each plan can bill here. A plan not sold at `interval` shows its monthly price, the
+  // option a switch to it falls back to.
+  offer?: Partial<Record<PaidPlanId, readonly BillingInterval[]>>;
   className?: string;
 };
 
-// Pro or Max, as a segmented toggle of native radios showing each one's monthly price.
-export function PlanPicker({ plans, value, onChange, className }: PlanPickerProps) {
+// Pro or Max, as a segmented toggle of native radios showing each one's price for the picked
+// billing option, never a fixed monthly one.
+export function PlanPicker({ plans, value, onChange, interval, offer, className }: PlanPickerProps) {
   const name = useId();
   if (plans.length < 2) return null;
+  const shownFor = (plan: PaidPlanId): BillingInterval =>
+    !offer || offer[plan]?.includes(interval) ? interval : "month";
   return (
     <fieldset className={cn("flex flex-col gap-2", className)}>
       <legend className="mb-2 text-sm font-medium text-ink">Plan</legend>
@@ -33,7 +42,10 @@ export function PlanPicker({ plans, value, onChange, className }: PlanPickerProp
             />
             <span className="flex h-11 cursor-pointer items-center justify-center gap-1.5 rounded-lg px-3 text-sm font-medium text-muted transition-colors peer-checked:bg-surface peer-checked:text-ink peer-checked:shadow-control peer-checked:ring-1 peer-checked:ring-ink/5 peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-ink hover:text-ink">
               {PLANS[plan].name}
-              <span className="font-normal text-subtle tabular-nums">{planPriceLabel(plan, "month")}</span>
+              <ReferencePrice plan={plan} interval={shownFor(plan)} />
+              <span className="font-normal text-subtle tabular-nums">
+                {planPriceLabel(plan, shownFor(plan))}
+              </span>
             </span>
           </label>
         ))}

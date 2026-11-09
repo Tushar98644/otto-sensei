@@ -12,6 +12,7 @@ import { buildScreener } from "@/components/studio/tailor/screener";
 import {
   EMPTY_DRAFT,
   loadDraft,
+  peekQueuedJob,
   saveTailorSession,
   type TailorDraft,
 } from "@/components/studio/tailor/session";
@@ -21,7 +22,6 @@ import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
-import { PLANS } from "@/config/plans";
 import { TrackView } from "@/lib/analytics/track-view";
 import { preloadPdfRenderer } from "@/lib/pdf/render";
 import type { Resume } from "@/lib/resume/schema";
@@ -34,16 +34,21 @@ const PRELOAD_DELAY_MS = 2_000;
 function useUsageNote(): string | null {
   const { user, me, loading } = useMe();
   if (loading) return null;
-  if (!user)
-    return `Needs a free account, with ${PLANS.free.limits.tailor} tailored versions a month.`;
+  const trial = me?.billing.trial !== false;
+  if (!user) return OTTO.limit.none("tailor", trial);
   const usage = me?.usage?.tailor;
   if (!usage) return null;
+  if (usage.limit === 0) return OTTO.limit.none("tailor", trial);
   const left = Math.max(0, usage.limit - usage.used);
-  return `${left} of ${usage.limit} ${user.plan === "free" ? "free " : ""}tailored versions left ${thisPeriod(me?.period)}.`;
+  return `${left} of ${usage.limit} tailored versions left ${thisPeriod(me?.period)}.`;
 }
 
 function TailorWorkspace({ source, baseTitle }: { source: Resume; baseTitle: string | null }) {
-  const [draft, setDraft] = useState<TailorDraft>(loadDraft);
+  // A job sent from the Jobs tab replaces whatever post this tab had open.
+  const [queued] = useState(peekQueuedJob);
+  const [draft, setDraft] = useState<TailorDraft>(() =>
+    queued ? { ...EMPTY_DRAFT, link: queued.link } : loadDraft(),
+  );
   const run = useTailorRun(source);
   const usageNote = useUsageNote();
   const last = run.last;
@@ -87,6 +92,7 @@ function TailorWorkspace({ source, baseTitle }: { source: Resume; baseTitle: str
           onSubmit={() => void run.start(draft)}
           busy={run.loading}
           note={usageNote}
+          queued={queued}
         />
       </Card>
       {run.loading ? <OttoWorking task="tailor" /> : null}

@@ -4,6 +4,9 @@ import { canDeleteAuthUsers, deleteAuthUser } from "@/lib/auth/admin";
 import { clearSession, getCurrentUser } from "@/lib/auth/session";
 import { BillingError, cancelSubscriptionForDeletion, type DeletionCancelResult } from "@/lib/billing";
 import { log } from "@/lib/log";
+import { refreshPortfolioPages } from "@/lib/portfolio/cache";
+import { deleteAllMedia } from "@/lib/portfolio/media-records";
+import { portfolioSlugsOf } from "@/lib/portfolio/records";
 import { deleteUserData } from "@/lib/users";
 
 export const runtime = "nodejs";
@@ -35,7 +38,13 @@ export async function DELETE(): Promise<Response> {
       return fail("billing_unavailable", CANCEL_FAILED_MESSAGE, 502);
     }
 
+    // The public page is cached; it must stop showing once the rows are gone.
+    const portfolioAddresses = await portfolioSlugsOf(user.id);
+    // Uploaded portfolio pictures sit in storage, outside the rows; they go first, and a store that
+    // can't delete them stops the deletion here, while their keys are still known.
+    await deleteAllMedia(user.id);
     await deleteUserData(user.id);
+    refreshPortfolioPages(portfolioAddresses);
     try {
       await deleteAuthUser(user.id);
     } catch (error) {

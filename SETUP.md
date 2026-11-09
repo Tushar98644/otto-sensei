@@ -8,11 +8,11 @@ You will end up with:
 ```
 Browser → Vercel (app, US East iad1) → Supabase (database + sign-in, US East)
                                      → Resend (sign-in emails, through Supabase)
-                                     → Google (sign-in), OpenRouter (AI), Dodo (payments)
+                                     → Google (sign-in), OpenRouter (AI), Creem (payments)
 ```
 
 What you need: accounts at vercel.com, supabase.com, resend.com (plus a domain you can add DNS
-records to), console.cloud.google.com, openrouter.ai and dodopayments.com. On your laptop: `bun`
+records to), console.cloud.google.com, openrouter.ai and creem.io. On your laptop: `bun`
 and the Vercel CLI (`bun add -g vercel`).
 
 All commands run in this folder (`projects/resume-app/web`).
@@ -39,6 +39,21 @@ and the "Upgrade" button (mock billing) all work.
 - To try real email codes and Google sign-in on your laptop (after steps 2 to 8), run
   `DEV_AUTH=supabase bun dev`. That uses the Supabase keys and `DATABASE_URL` from `.env.local`.
 - Production never uses dev codes or `.pglite/`, whatever variables are set.
+- Portfolio pictures you upload while developing go to `web/.uploads/` (gitignored) and are served
+  by `/api/portfolio/media/dev/...`. Delete the folder to start over. If `.env.local` has the
+  Supabase secret key, uploads go to the real bucket instead; set `PORTFOLIO_MEDIA_STORE=local`
+  to keep them on your laptop.
+- **Jobs tab with real jobs locally.** The daily cron doesn't run on your laptop, so fill
+  `.pglite/` with a sample once (it reads the same public job APIs, at the same polite pace):
+
+  ```bash
+  # stop bun dev first: only one process may open .pglite/
+  bun scripts/jobs-ingest.ts              # 10 company boards + Himalayas + Remote OK, about 30 s
+  bun scripts/jobs-ingest.ts --limit 40   # more boards
+  bun dev                                 # then open /dashboard/jobs and /jobs
+  ```
+
+  Running it again the same day only reads boards it hasn't read in 20 hours.
 
 ---
 
@@ -50,7 +65,7 @@ vercel link
 ```
 
 `vercel link` asks a few questions. Answer: set up the project **yes**, your own team, link to an
-existing project **no**, name **otto-resume**, code directory **./** (this folder).
+existing project **no**, name **otto-sensei**, code directory **./** (this folder).
 
 The functions region is already set to **iad1** (US East, Washington DC) in `vercel.json`, next to
 the Supabase database. Nothing to click.
@@ -63,7 +78,7 @@ the Supabase database. Nothing to click.
 ## 2. Create the Supabase project
 
 1. Go to supabase.com/dashboard, click **New project**.
-2. **Name:** `otto-resume`. **Database password:** click **Generate a password** and save it in your
+2. **Name:** `otto-sensei`. **Database password:** click **Generate a password** and save it in your
    password manager. **Region:** **East US (North Virginia)**. Click **Create new project**.
 3. Wait about two minutes until the project says it's ready.
 
@@ -102,7 +117,7 @@ vercel env add DATABASE_URL production
 vercel env add NEXT_PUBLIC_SUPABASE_URL production
 vercel env add NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY production
 vercel env add SUPABASE_SECRET_KEY production
-vercel env add NEXT_PUBLIC_APP_URL production      # https://otto-resume.vercel.app, or your domain
+vercel env add NEXT_PUBLIC_APP_URL production      # https://otto-sensei.vercel.app, or your domain
 ```
 
 Then the same five for **development**, plus the migration URL, so step 5 can bring them to your
@@ -121,7 +136,7 @@ Want preview deployments to sign in too? Repeat the first list with `preview`.
 
 **Optional, instead of typing them:** Supabase can push its values into Vercel for you. In the
 Supabase dashboard: **Project Settings** → **Integrations** → **Vercel** → connect your Vercel
-account and pick the `otto-resume` project. It sets the Marketplace names (`POSTGRES_URL`,
+account and pick the `otto-sensei` project. It sets the Marketplace names (`POSTGRES_URL`,
 `POSTGRES_URL_NON_POOLING`, `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`,
 `SUPABASE_SECRET_KEY`, ...). The app accepts those names too, so pick one way, not both. You still
 add `NEXT_PUBLIC_APP_URL` yourself.
@@ -129,6 +144,11 @@ add `NEXT_PUBLIC_APP_URL` yourself.
 ---
 
 ## 5. Pull the values to your laptop and create the tables
+
+> **Usually nothing to do here (owner's choice, 2026-11-08):** every production deploy creates and
+> updates the tables itself. vercel.json's build command runs `bun scripts/migrate.ts --deploy`
+> before `next build`, using the database URL the Supabase integration put in Vercel. Preview
+> builds and builds without a database skip it. The steps below are only for running it by hand.
 
 `vercel env pull` replaces `.env.local`, which holds your OpenRouter key today. Back it up first:
 
@@ -147,9 +167,10 @@ bun scripts/migrate.ts --status   # shows what it would do, changes nothing
 bun scripts/migrate.ts
 ```
 
-On a new database you should see one `done ...` line per file in `supabase/migrations/` (nine
+On a new database you should see one `done ...` line per file in `supabase/migrations/` (twelve
 today: `init`, `share_links`, `feedback_referrals`, `notifications`, `work_profile`,
-`application_prep`, `follow_up_dates`, `max_plan`, `plan_interval`) and `Applied 9 migrations.` Running it again prints `Up to date.` It records
+`application_prep`, `follow_up_dates`, `max_plan`, `plan_interval`, `jobs`, `portfolios`,
+`portfolio_templates`) and `Applied 12 migrations.` Running it again prints `Up to date.` It records
 what ran in `supabase_migrations.schema_migrations`, the same table the Supabase CLI uses. Run it again whenever a new file appears in `supabase/migrations/`, before
 deploying the code that needs it.
 
@@ -166,7 +187,7 @@ an hour, so it must send through Resend.
 
 **6a. Resend**
 
-1. resend.com → **Domains** → **Add Domain** → your domain (for example `ottoresume.com`). Add the
+1. resend.com → **Domains** → **Add Domain** → your domain (for example `ottosensei.com`). Add the
    DNS records it shows at your domain registrar, then click **Verify**. Wait until it says
    **Verified**.
 2. **API Keys** → **Create API Key** → name `supabase-smtp`, permission **Sending access**, your
@@ -224,9 +245,9 @@ Already pasted the older template? Paste this one again to add his head.
 
 Supabase dashboard → **Authentication** → **URL Configuration**:
 
-1. **Site URL:** your live address, for example `https://otto-resume.vercel.app`. **Save**.
+1. **Site URL:** your live address, for example `https://otto-sensei.vercel.app`. **Save**.
 2. **Redirect URLs** → **Add URL**, add both:
-   - `https://otto-resume.vercel.app/**` (your live address followed by `/**`)
+   - `https://otto-sensei.vercel.app/**` (your live address followed by `/**`)
    - `http://localhost:3000/**`
 
 Google sign-in comes back to `/auth/callback?next=...`. An address that isn't on this list makes
@@ -244,9 +265,9 @@ Supabase send people to the Site URL instead, signed out.
 1. Project picker (top left) → **New project** → name `Otto Sensei` → **Create**, then select it.
 2. Search for **Google Auth Platform** and open it. Click **Get started** if asked.
 3. **Branding:** App name `Otto Sensei`, your support email, App home page
-   `https://otto-resume.vercel.app`, Privacy policy `https://otto-resume.vercel.app/privacy`,
-   Terms of service `https://otto-resume.vercel.app/terms`. **Authorized domains:** add your app's
-   domain (for example `vercel.app` or `ottoresume.com`) and `supabase.co`. Developer contact: your
+   `https://otto-sensei.vercel.app`, Privacy policy `https://otto-sensei.vercel.app/privacy`,
+   Terms of service `https://otto-sensei.vercel.app/terms`. **Authorized domains:** add your app's
+   domain (for example `vercel.app` or `ottosensei.com`) and `supabase.co`. Developer contact: your
    email. **Save**.
 4. **Audience:** User type **External**. Click **Publish app** so anyone can sign in (in "Testing"
    only listed test users can).
@@ -255,7 +276,7 @@ Supabase send people to the Site URL instead, signed out.
    no Google review is needed.
 6. **Clients** → **Create client**:
    - **Application type:** Web application. **Name:** `Otto Sensei web`.
-   - **Authorized JavaScript origins:** `https://otto-resume.vercel.app` and `http://localhost:3000`.
+   - **Authorized JavaScript origins:** `https://otto-sensei.vercel.app` and `http://localhost:3000`.
    - **Authorized redirect URIs:** `https://<project-ref>.supabase.co/auth/v1/callback`. Copy the
      exact value from Supabase: **Authentication** → **Sign In / Providers** → **Google** →
      **Callback URL (for OAuth)**.
@@ -275,7 +296,7 @@ same account: Supabase links them because Google has verified the address.
 ## 9. AI: OpenRouter
 
 1. openrouter.ai → **Credits** → add $10 to start.
-2. openrouter.ai/keys → **Create Key** → name `otto-resume`, **Credit limit** `$20` (the most this
+2. openrouter.ai/keys → **Create Key** → name `otto-sensei`, **Credit limit** `$20` (the most this
    key can ever spend; raise it later). Copy the key.
 3. Add it to Vercel:
 
@@ -289,61 +310,98 @@ changing one, check quality and cost with `bun scripts/ai-smoke.ts` (a few cents
 
 ---
 
-## 10. Payments: Dodo
+## 10. Payments: Creem
 
-In the Dodo dashboard (start in **Test mode**):
+Creem is the merchant of record: it runs checkout, charges the card, adds sales tax or VAT, sends
+receipts and hosts the billing portal. The app only stores the plan its webhooks report.
 
-1. **Products** → create a **Subscription** product, "Pro", $15 per month. Copy its id
-   → `DODO_PAYMENTS_PRODUCT_ID`.
-2. **Developer** → **API Keys** → create one → `DODO_PAYMENTS_API_KEY`.
-3. **Developer** → **Webhooks** → **Add endpoint**: URL `https://otto-resume.vercel.app/api/billing/webhook`,
-   events: every `subscription.*` event. Copy the signing secret (`whsec_...`)
-   → `DODO_PAYMENTS_WEBHOOK_KEY`.
+**What's free and what's paid.** Free (no card, no time limit) has everything that costs no AI
+call: uploads read by the basic reader, the recruiter view, editing, formats, PDF downloads, the
+Jobs tab and its matching, and the application tracker. Every AI feature (line fixes, summaries,
+tailoring, letters, answers, interview prep, Build with Otto, GitHub drafts, AI reading of uploads)
+and the portfolio need Pro or Max. New accounts start Pro with a **free 3-day trial, card
+required**, then $15/month; one trial per person (by email, kept even after the account is
+deleted). A trial has its own small allowance (`PRO_TRIAL` in `src/config/plans.ts`) and can build
+a portfolio but not publish it until the first payment.
+
+Work in **Test Mode** first (toggle at the bottom of Creem's left sidebar). Test and live are
+separate: their own API key, webhook secret and products. Do every step below once in test mode,
+and again in live mode when you switch.
+
+**1. Create the 7 products.** **Products** → **Create product**, each one **Subscription**
+(recurring), currency **USD**, tax category **SaaS**:
+
+| # | Name | Price | Billing period | Trial | Variable |
+|---|---|---|---|---|---|
+| 1 | Pro | $15 | Monthly | none | `CREEM_PRO_MONTHLY_PRODUCT_ID` (required) |
+| 2 | Pro (3-day free trial) | $15 | Monthly | **Trial period on, 3 days, Free** | `CREEM_PRO_TRIAL_PRODUCT_ID` |
+| 3 | Pro yearly | $120 | Yearly | none | `CREEM_PRO_YEARLY_PRODUCT_ID` |
+| 4 | Pro weekly | $6 | Custom: every 1 week | none | `CREEM_PRO_WEEKLY_PRODUCT_ID` |
+| 5 | Max | $29 | Monthly | none | `CREEM_MAX_MONTHLY_PRODUCT_ID` |
+| 6 | Max yearly | $232 | Yearly | none | `CREEM_MAX_YEARLY_PRODUCT_ID` |
+| 7 | Max weekly | $12 | Custom: every 1 week | none | `CREEM_MAX_WEEKLY_PRODUCT_ID` |
+
+- Product 2 is the one new accounts check out on: **Trial period** on, length **3** days, type
+  **Free** (no trial price). Creem saves the card at checkout and charges $15 when the 3 days end,
+  unless the person cancels first. Everyone who has trialed or paid before is sent to product 1
+  instead, so the trial is once per person. Without product 2 there is simply no trial.
+- Weekly: in the API this is `billing_period: "custom"`, `recurring_interval: "week"`,
+  `recurring_interval_count: 1`.
+- Copy each product id (`prod_...`) from its page. Each option shows on the pricing page, the
+  upgrade dialog and the account page only while its id is set (Pro monthly is required; Max needs
+  at least one of its three). The webhook maps each id to its plan and billing period, which sets
+  the allowance (weekly products get the weekly limits), so every variable must hold a product with
+  exactly that period, and no two variables the same id.
+- The app shows `PRICES_USD` from `src/config/plans.ts`; Creem charges what the product says.
+  Change both together, then redeploy (the pricing page is built with them).
+- **Settings** → billing: set the default cancellation to **at the end of the billing period**, so
+  someone who cancels keeps what they paid for (the terms say so). The app itself cancels right
+  away only when an account is deleted.
+
+**2. API key.** **Developers** → **API keys** → copy the key → `CREEM_API_KEY`.
+
+**3. Webhook.** **Developers** → **Webhooks** → add an endpoint:
+
+- URL: `https://otto-sensei.vercel.app/api/billing/webhook` (your domain, if you have one).
+- Events: `checkout.completed`, `subscription.active`, `subscription.trialing`,
+  `subscription.paid`, `subscription.update`, `subscription.scheduled_cancel`,
+  `subscription.past_due`, `subscription.unpaid`, `subscription.paused`, `subscription.canceled`,
+  `subscription.expired`. (Others are answered 200 and ignored.)
+- Copy the signing secret → `CREEM_WEBHOOK_SECRET`. Every delivery is checked against it (the
+  `creem-signature` header, an HMAC-SHA256 of the body); a wrong one gets 401.
+
+**4. Put them into Vercel.**
 
 ```bash
-vercel env add DODO_PAYMENTS_PRODUCT_ID production
-vercel env add DODO_PAYMENTS_API_KEY production
-vercel env add DODO_PAYMENTS_WEBHOOK_KEY production
-vercel env add DODO_PAYMENTS_ENVIRONMENT production   # test_mode now, live_mode for real money
+vercel env add CREEM_API_KEY production
+vercel env add CREEM_WEBHOOK_SECRET production
+vercel env add CREEM_TEST_MODE production              # true now (test-api.creem.io); false with live keys
+vercel env add CREEM_PRO_MONTHLY_PRODUCT_ID production
+vercel env add CREEM_PRO_TRIAL_PRODUCT_ID production
+vercel env add CREEM_PRO_YEARLY_PRODUCT_ID production
+vercel env add CREEM_PRO_WEEKLY_PRODUCT_ID production
+vercel env add CREEM_MAX_MONTHLY_PRODUCT_ID production
+vercel env add CREEM_MAX_YEARLY_PRODUCT_ID production
+vercel env add CREEM_MAX_WEEKLY_PRODUCT_ID production
 ```
 
-Checkout turns on only when all three Dodo values are set. Until then the app shows "email us".
+Checkout turns on only when the key, the webhook secret and Pro monthly are all set. Until then
+production shows "email us". `CREEM_TEST_MODE` defaults to `true`: a missing value can never take
+real money. Going live: live key, live webhook secret, live product ids, `CREEM_TEST_MODE=false`,
+redeploy.
 
-**All six products.** Each plan has a monthly, a yearly and a weekly product. Create them all as
-**Subscription** products in Dodo (the monthly Pro one is step 1):
+**5. Test it** (test mode, card `4111 1111 1111 1111`, any future date and CVC):
 
-| Product | Price | Variable |
-|---|---|---|
-| Pro, monthly | $15 per month | `DODO_PAYMENTS_PRODUCT_ID` (required) |
-| Pro, yearly | $120 per year | `DODO_PAYMENTS_PRODUCT_ID_YEARLY` |
-| Pro, weekly | $6 per week | `DODO_PAYMENTS_PRODUCT_ID_WEEKLY` |
-| Max, monthly | $29 per month | `DODO_PAYMENTS_MAX_PRODUCT_ID` |
-| Max, yearly | $232 per year | `DODO_PAYMENTS_MAX_PRODUCT_ID_YEARLY` |
-| Max, weekly | $12 per week | `DODO_PAYMENTS_MAX_PRODUCT_ID_WEEKLY` |
+- A new account → **Try Pro free for 3 days** → checkout says nothing is due today. Back on the
+  account page it shows "Free trial until <date>" within a few seconds (`subscription.trialing`).
+- Cancel it from **Manage billing**: the account drops to Free. Checking out again now shows the
+  normal $15/month, no trial.
+- Pro to Max: the subscription moves in place (`POST /v1/subscriptions/{id}/upgrade`, prorated and
+  charged right away), so nobody is billed twice.
 
-Each option shows on the pricing page, the upgrade dialog and the account page only while its id
-is set; leave one out and it simply isn't offered (Max needs at least one of its three). The
-webhook maps every product id to its plan and how often it bills, and ignores products that aren't
-one of these. That billing period sets the allowance (weekly products get the smaller weekly limits
-per billing week), so each variable must hold a product with exactly that period, and no two
-variables the same id. To change
-a price, change the Dodo product and `PRICES_USD` in `src/config/plans.ts` together: the app shows
-that number, Dodo charges its own. Redeploy after adding them (the pricing page is built with them).
-
-```bash
-vercel env add DODO_PAYMENTS_PRODUCT_ID_YEARLY production
-vercel env add DODO_PAYMENTS_PRODUCT_ID_WEEKLY production
-vercel env add DODO_PAYMENTS_MAX_PRODUCT_ID production
-vercel env add DODO_PAYMENTS_MAX_PRODUCT_ID_YEARLY production
-vercel env add DODO_PAYMENTS_MAX_PRODUCT_ID_WEEKLY production
-```
-
-**Pro to Max and back.** Someone already paying who picks the other plan has their subscription
-moved to the new product in place (Dodo's change-plan API, prorated right away), so nobody is ever
-billed twice. In the Dodo dashboard, make sure plan changes between these products are allowed.
-
-In `bun dev` (mock billing) any value works, for example `DODO_PAYMENTS_MAX_PRODUCT_ID=test`, to
-see the options and click through them; the plan switches at once.
+**Mock billing.** In `bun dev` with no Creem key every option is offered and nothing is charged:
+a new account's first Pro monthly checkout starts a local 3-day trial, anything else switches the
+plan at once, and **Manage billing** switches back to Free.
 
 **Feedback and invites need no setup.** "Send feedback" notes land in the `feedback` table: read
 them in Supabase → **Table Editor** → `feedback` (newest first by `created_at`). Invite links work
@@ -358,12 +416,14 @@ quietly; the rest of the app runs the same.
 
 | Variable | Turns on | Step |
 |---|---|---|
-| `DODO_PAYMENTS_PRODUCT_ID_YEARLY`, `DODO_PAYMENTS_PRODUCT_ID_WEEKLY` | Yearly ($120) and weekly ($6) Pro | 10 |
-| `DODO_PAYMENTS_MAX_PRODUCT_ID`, `_MAX_PRODUCT_ID_YEARLY`, `_MAX_PRODUCT_ID_WEEKLY` | The Max plan ($29/month, $232/year, $12/week) | 10 |
+| `CREEM_PRO_TRIAL_PRODUCT_ID` | The free 3-day Pro trial for new accounts | 10 |
+| `CREEM_PRO_YEARLY_PRODUCT_ID`, `CREEM_PRO_WEEKLY_PRODUCT_ID` | Yearly ($120) and weekly ($6) Pro | 10 |
+| `CREEM_MAX_MONTHLY_PRODUCT_ID`, `_MAX_YEARLY_`, `_MAX_WEEKLY_PRODUCT_ID` | The Max plan ($29/month, $232/year, $12/week) | 10 |
 | `NEXT_PUBLIC_SENTRY_DSN` (+ `SENTRY_AUTH_TOKEN`, `SENTRY_ORG`, `SENTRY_PROJECT`) | Error reports (+ readable stack traces) | 10b |
 | `NEXT_PUBLIC_POSTHOG_KEY` (+ `NEXT_PUBLIC_POSTHOG_HOST` for EU) | Funnel events | 10c |
-| `GITHUB_TOKEN` | Higher GitHub limits for Import from GitHub | 10d |
-| `CRON_SECRET` | Daily cleanup and follow-up reminders (bell) | 10e |
+| `GITHUB_TOKEN` | Higher GitHub limits for Import from GitHub and portfolio GitHub numbers | 10d |
+| (none: the Supabase secret key from step 3) | Portfolio picture uploads in the `portfolio-media` Storage bucket | 10f |
+| `CRON_SECRET` | Daily cleanup, follow-up reminders (bell) and the Jobs tab's daily job read | 10e |
 | `RESEND_API_KEY`, `EMAIL_FROM` | Reminder emails (needs `CRON_SECRET`) | 10e |
 
 ---
@@ -372,7 +432,7 @@ quietly; the rest of the app runs the same.
 
 Skip this and the app runs the same, it just doesn't report crashes anywhere.
 
-1. sentry.io → **Create project** → platform **Next.js** → name `otto-resume`. Copy the **DSN**
+1. sentry.io → **Create project** → platform **Next.js** → name `otto-sensei`. Copy the **DSN**
    (`https://...@o123.ingest.sentry.io/456`).
 2. **Project Settings** → **Security & Privacy**: turn on **Prevent Storing of IP Addresses** and
    **Data Scrubber**. The app already removes emails, phone numbers, resume text, request bodies,
@@ -385,7 +445,7 @@ Skip this and the app runs the same, it just doesn't report crashes anywhere.
 vercel env add NEXT_PUBLIC_SENTRY_DSN production   # the DSN from 1 (it's safe in the browser)
 vercel env add SENTRY_AUTH_TOKEN production         # optional, from 3: uploads source maps
 vercel env add SENTRY_ORG production                # optional, with the token
-vercel env add SENTRY_PROJECT production            # optional, with the token: otto-resume
+vercel env add SENTRY_PROJECT production            # optional, with the token: otto-sensei
 ```
 
 - Errors only: no performance tracing, no session replay. Each release is the Git commit.
@@ -438,6 +498,9 @@ vercel env add GITHUB_TOKEN production
 ```
 
 - The server only ever calls `api.github.com`, at most 10 times per request, with a 10-minute cache.
+- Portfolios show the owner's GitHub numbers (stars, repos, languages, recent activity) with 3
+  calls, refreshed at most every 6 hours per page and stored with it, so page views never call
+  GitHub.
 - Each device can look up 20 names an hour and draft 12 times a day (60 and 40 per network).
 - Drafting sends the picked repos' README and pull request text to OpenRouter, with the name on
   the resume and every email, phone and link swapped for placeholders. Nothing is added until the
@@ -449,6 +512,7 @@ vercel env add GITHUB_TOKEN production
 
 ```
 Vercel Cron → /api/cron/cleanup     04:17 UTC daily → old rate-limit windows, tombstones, notifications
+            → /api/cron/jobs        05:40 UTC daily → reads 323 company job boards + 2 remote job sites
             → /api/cron/follow-ups  14:00 UTC daily → bell notification (+ email) per account
 ```
 
@@ -471,8 +535,8 @@ once `CRON_SECRET` is set: without it every call answers 401 and nothing happens
    vercel env add EMAIL_FROM production   # Otto Sensei <otto@yourdomain.com>
    ```
 
-3. Redeploy (`vercel --prod`). Vercel → project → **Settings** → **Cron Jobs** lists both jobs,
-   with **Run** buttons and their logs.
+3. Redeploy (`vercel --prod`). Vercel → project → **Settings** → **Cron Jobs** lists all three
+   jobs, with **Run** buttons and their logs.
 
 - Marking a job applied sets its follow-up date by itself: 7 days after it was sent (each account
   can pick another number on the Account page), never sooner than a day after it was logged. When
@@ -483,11 +547,56 @@ once `CRON_SECRET` is set: without it every call answers 401 and nothing happens
   on the Account page. Each email has one-click **Done** and **Snooze 3 days** per application and
   a one-click **Unsubscribe**, all signed with `CRON_SECRET` (a new secret retires old links), plus
   the mail app's own one-click unsubscribe header. The bell keeps working either way.
-- Both jobs stop after about 45 seconds and pick up the rest the next day. Running one twice does
-  no harm. Run one by hand with
+- Cleanup and follow-ups stop after about 45 seconds and pick up the rest the next day. Running one
+  twice does no harm. Run one by hand with
   `curl -X POST -H "Authorization: Bearer $CRON_SECRET" https://<your-domain>/api/cron/cleanup`.
+- **Jobs** (`/api/cron/jobs`) needs no keys or new variables: every source is a public API
+  (JOB-SOURCES.md). It runs up to 300 seconds (`maxDuration`), which Vercel allows on every plan with
+  Fluid compute, the default for new projects (**Settings** → **Functions**). With a shorter limit it
+  still works: it saves board by board, and the next run starts with the boards it didn't reach.
+  The first run fills the table (about 15,000-20,000 jobs over a day or two; the table is capped at
+  20,000 rows, roughly 100 MB). Its migration, `20261108001000_jobs.sql`, is applied by the deploy's
+  build command like every other one. A run that answers 500 names the feed that failed (Himalayas
+  or Remote OK); company boards that fail are only counted (`boardsFailed`) and retried tomorrow.
+- **Portfolios** (`/p/<slug>`) need no keys, crons or new variables. Their migrations,
+  `20261108002000_portfolios.sql`, `20261108003000_portfolio_templates.sql` (round-1 templates;
+  adds project pictures) and `20261108006000_reference_templates.sql` (the eight reference
+  templates; moves pages margin→dock, broadsheet→paper, ledger→cv, showcase→folio, shell→bento,
+  signal→navy; new pages start on navy), are applied by the deploy's build command like every other one; locally, restart
+  `bun dev` once so `.pglite/` picks them up. The templates' fonts are self-hosted by next/font,
+  fetched from Google Fonts once at build time.
 - Cleanup keeps: rate-limit windows 2 days, deleted-resume markers 180 days, read notifications
   90 days (unread ones a year), billing webhook ids 400 days.
+
+---
+
+## 10f. Portfolio pictures: Supabase Storage
+
+Portfolio photos, project screenshots, logos and personal photos are kept in a public Supabase
+Storage bucket called `portfolio-media`. The pages are public, so anyone may read a file; only our
+server writes or deletes, with the secret key from step 3 (`SUPABASE_SECRET_KEY`). Nothing new to
+set in Vercel.
+
+The server creates the bucket on the first upload if it is missing. To create it yourself (or to
+check it):
+
+1. Supabase → **Storage** → **New bucket**. Name `portfolio-media`, **Public bucket** on.
+2. Under **Additional configuration**: file size limit **4 MB**, allowed MIME types `image/webp`
+   (every upload is re-encoded to WebP before it is stored).
+3. Leave the bucket's policies empty: no policies means the browser can't write to it, and public
+   reads don't need one.
+
+- Files live at `<user id>/<id>.webp`, one folder per account. Uploads are 4 MB in, shrunk to at
+  most 2,400px (screenshots), 1,600px (personal photos), 1,024px (photo) or 256px (logos), with
+  location data stripped. An account may keep 60 pictures and 60 MB.
+- Removed pictures are deleted 15 minutes later (so Undo works); deleting the portfolio or the
+  account deletes all of them at once.
+- `PORTFOLIO_MEDIA_STORE=supabase` forces the bucket, `local` forces `web/.uploads` (never in
+  production). Unset is right for almost everyone.
+- Without the secret key in production, uploads answer "Picture uploads aren't set up on this
+  server yet" and the rest of the portfolio works.
+- Logos fetched from a company's website come through Google's favicon service; the server never
+  connects to the address the person typed.
 
 ---
 
@@ -500,10 +609,10 @@ vercel --prod
 Added or changed an environment variable later? Run `vercel --prod` again: a deployment only sees
 the values that existed when it was built.
 
-**Custom domain** (optional): `vercel domains add ottoresume.com`, follow the DNS instructions, then
+**Custom domain** (optional): `vercel domains add ottosensei.com`, follow the DNS instructions, then
 update the same address everywhere it was typed: `NEXT_PUBLIC_APP_URL` in Vercel, **Site URL** and
 **Redirect URLs** in Supabase (step 7), **Authorized JavaScript origins** in Google (step 8a), and
-the Dodo webhook URL (step 10). Redeploy.
+the Creem webhook URL (step 10). Redeploy.
 
 ---
 
@@ -515,15 +624,20 @@ the Dodo webhook URL (step 10). Redeploy.
       6-digit code, and the code signs you in.
 - [ ] Sign out, then **Continue with Google**: you come back signed in, to the same account.
 - [ ] Fix one line with Otto (proves OpenRouter and the usage counter).
-- [ ] Run a test-mode checkout; the account shows Pro within a few seconds (proves the webhook).
+- [ ] Run a test-mode trial checkout; the account shows the Pro trial and its end date within a
+      few seconds (proves the webhook). A second checkout from the same email shows $15, no trial.
 - [ ] Delete that test account from the account page; it disappears from Supabase
-      **Authentication** → **Users**, and its Dodo test subscription shows cancelled.
+      **Authentication** → **Users**, and its Creem test subscription shows canceled.
 - [ ] Supabase **Project Settings** → **API Keys**: the secret key exists only in Vercel and your
       `.env.local`.
-- [ ] Vercel **Settings** → **Cron Jobs**: press **Run** on both jobs; each log line ends in
-      `cron.<job>.done` (not `cron.unauthorized`, which means `CRON_SECRET` is missing).
+- [ ] Vercel **Settings** → **Cron Jobs**: press **Run** on all three jobs; each log line ends in
+      `cron.<job>.done` (not `cron.unauthorized`, which means `CRON_SECRET` is missing). After the
+      jobs run, `/jobs` lists openings and `/dashboard/jobs` ranks them for your resume.
 - [ ] Share a resume from its card menu and open the link in a private window: the page loads,
       and **Download PDF** works.
+- [ ] On a Pro test account, drop a photo into **Portfolio** → **Photo and intro**: it shows in
+      the preview, and Supabase **Storage** → `portfolio-media` has a `.webp` under the account's
+      id. Deleting the test account empties that folder.
 - [ ] If PostHog is set: upload a resume; PostHog **Activity** shows `resume_imported` within a
       minute.
 
@@ -540,7 +654,7 @@ If you'd rather let Vercel create and bill the Supabase project:
 vercel integration add supabase
 ```
 
-Pick region **US East** and a plan, and connect it to the `otto-resume` project. Vercel then sets
+Pick region **US East** and a plan, and connect it to the `otto-sensei` project. Vercel then sets
 the variables itself (`POSTGRES_URL`, `POSTGRES_URL_NON_POOLING`, `NEXT_PUBLIC_SUPABASE_URL`,
 `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` or `..._ANON_KEY`, `SUPABASE_SECRET_KEY` or
 `SUPABASE_SERVICE_ROLE_KEY`, and a few the app doesn't use). The app reads those names as they are.

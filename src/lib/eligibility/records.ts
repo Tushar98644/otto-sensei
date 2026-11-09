@@ -24,6 +24,7 @@ function toStored(row: Row): StoredWorkProfile {
       rights: { us: row.workUs, uk: row.workUk, eu: row.workEu, ca: row.workCa },
       fullTime: row.fullTime,
       contract: row.contract,
+      remoteOnly: row.remoteOnly,
     },
     updatedAt: row.updatedAt,
   };
@@ -61,6 +62,7 @@ export async function saveWorkProfile(
       workCa: profile.rights.ca,
       fullTime: profile.fullTime,
       contract: profile.contract,
+      ...(profile.remoteOnly === undefined ? {} : { remoteOnly: profile.remoteOnly }),
       updatedAt: now,
     };
     const [row] = await tx

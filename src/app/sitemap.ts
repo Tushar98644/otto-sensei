@@ -9,7 +9,7 @@ import { appUrl } from "@/lib/env";
 // lastmod: a build date on every page would change with each deploy and teach crawlers to ignore it.
 export default function sitemap(): MetadataRoute.Sitemap {
   const base = appUrl();
-  const pages = [ROUTES.home, ROUTES.studio, ROUTES.pricing].map((path) => ({
+  const pages = [ROUTES.home, ROUTES.studio, ROUTES.jobs, ROUTES.pricing].map((path) => ({
     url: `${base}${path}`,
   }));
   const legal = [ROUTES.privacy, ROUTES.terms, ROUTES.refunds].map((path) => ({

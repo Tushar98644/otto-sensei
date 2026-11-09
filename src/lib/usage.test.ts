@@ -1,6 +1,6 @@
 import { and, eq } from "drizzle-orm";
 import { beforeEach, describe, expect, it } from "vitest";
-import { FEATURES, PLANS, type Feature } from "@/config/plans";
+import { FEATURES, PLANS, PRO_TRIAL, type Feature } from "@/config/plans";
 import { getDb } from "@/db/client";
 import { usage } from "@/db/schema";
 import { createUser, resetDb } from "@/lib/auth/test-helpers";
@@ -13,6 +13,7 @@ import {
   isoWeekEnd,
   monthKey,
   refundUsage,
+  TRIAL_PERIOD_KEY,
   WEEK_MS,
   weekKey,
 } from "./usage";
@@ -25,10 +26,14 @@ const RENEWS_AT = Date.UTC(2026, 10, 19, 9, 30, 15, 123);
 const WEEK_END = Date.UTC(2026, 10, 19, 9, 30);
 const MINUTE = 60_000;
 const HOUR = 60 * MINUTE;
+// A trial that started Nov 14 and ends three days later, across the turn of no month.
+const TRIAL_END = Date.UTC(2026, 10, 17, 12);
 
-// Counters belong to real accounts (a foreign key), so both are created fresh for every test.
+// Counters belong to real accounts (a foreign key), so they're created fresh for every test. The
+// trial has the smallest real limits, so the limit tests run on it.
 let free: SessionUser;
 let pro: SessionUser;
+let trial: SessionUser;
 
 async function storedCount(
   user: SessionUser,
@@ -45,6 +50,8 @@ async function storedCount(
   return row?.count ?? null;
 }
 
+const trialCount = (feature: Feature) => storedCount(trial, feature, NOV, TRIAL_PERIOD_KEY);
+
 async function consumeTimes(user: SessionUser, feature: Feature, times: number, now = NOV) {
   for (let i = 0; i < times; i++) await consumeUsage(user, feature, now);
 }
@@ -53,6 +60,13 @@ beforeEach(async () => {
   await resetDb();
   free = await createUser("free@example.com");
   pro = { ...(await createUser("pro@example.com")), plan: "pro" };
+  trial = {
+    ...(await createUser("trial@example.com")),
+    plan: "pro",
+    planInterval: "month",
+    planRenewsAt: TRIAL_END,
+    trialEndsAt: TRIAL_END,
+  };
 });
 
 describe("periods", () => {
@@ -86,92 +100,125 @@ describe("periods", () => {
 });
 
 describe("getUsage", () => {
-  it("starts at zero with the plan's limits", async () => {
-    const zero = (plan: "free" | "pro") =>
-      Object.fromEntries(
-        FEATURES.map((feature) => [feature, { used: 0, limit: PLANS[plan].limits[feature] }]),
-      );
-    expect(await getUsage(free, NOV)).toEqual(zero("free"));
-    expect(await getUsage(pro, NOV)).toEqual(zero("pro"));
-    expect(await getUsage(pro, NOV)).toMatchObject({
-      fix: { used: 0, limit: PLANS.pro.limits.fix },
-    });
+  it("starts at zero with the plan's limits: none at all on Free", async () => {
+    const zero = (limits: Record<Feature, number>) =>
+      Object.fromEntries(FEATURES.map((feature) => [feature, { used: 0, limit: limits[feature] }]));
+    expect(await getUsage(free, NOV)).toEqual(zero(PLANS.free.limits));
+    expect(Object.values(PLANS.free.limits).every((limit) => limit === 0)).toBe(true);
+    expect(await getUsage(pro, NOV)).toEqual(zero(PLANS.pro.limits));
+    expect(await getUsage(trial, NOV)).toEqual(zero(PRO_TRIAL.limits));
+  });
+});
+
+describe("Free", () => {
+  it("never takes a unit, and an invite bonus doesn't open AI on it", async () => {
+    for (const feature of FEATURES) {
+      expect((await consumeUsage(free, feature, NOV)).allowed).toBe(false);
+    }
+    const db = await getDb();
+    await db.insert(usage).values({ subject: free.id, feature: "fix", period: monthKey(NOV), bonus: 10 });
+    const result = await consumeUsage(free, "fix", NOV);
+    expect(result.allowed).toBe(false);
+    expect(result.usage.fix).toEqual({ used: 0, limit: 0 });
+  });
+});
+
+describe("the trial", () => {
+  it("counts in its own fixed period, which ends with the trial", async () => {
+    const state = await getUsageState(trial, NOV);
+    expect(state.period).toEqual({ kind: "trial", resetsAt: TRIAL_END });
+    expect(PRO_TRIAL.limits).toEqual({ tailor: 10, letter: 15, fix: 50, import: 5, draft: 3, github: 3 });
+  });
+
+  it("never opens a second allowance: not when the month turns, nor when the end date moves", async () => {
+    await consumeTimes(trial, "tailor", PRO_TRIAL.limits.tailor);
+    expect((await consumeUsage(trial, "tailor", DEC)).allowed).toBe(false);
+    const moved = { ...trial, trialEndsAt: TRIAL_END + 2 * HOUR };
+    expect((await consumeUsage(moved, "tailor", NOV)).allowed).toBe(false);
+    expect(await trialCount("tailor")).toBe(PRO_TRIAL.limits.tailor);
+    // Nothing spills into the month the trial ran in.
+    expect(await storedCount(trial, "tailor")).toBeNull();
+  });
+
+  it("gives way to the full Pro allowance once the first payment ends it", async () => {
+    await consumeTimes(trial, "tailor", PRO_TRIAL.limits.tailor);
+    const paid: SessionUser = { ...trial, trialEndsAt: null };
+    const result = await consumeUsage(paid, "tailor", NOV);
+    expect(result.allowed).toBe(true);
+    expect(result.usage.tailor).toEqual({ used: 1, limit: PLANS.pro.limits.tailor });
+    expect(result.period.kind).toBe("month");
   });
 });
 
 describe("consumeUsage", () => {
   it("takes one unit and returns the fresh snapshot", async () => {
-    const result = await consumeUsage(free, "fix", NOV);
+    const result = await consumeUsage(pro, "fix", NOV);
     expect(result.allowed).toBe(true);
-    expect(result.usage.fix).toEqual({ used: 1, limit: PLANS.free.limits.fix });
+    expect(result.usage.fix).toEqual({ used: 1, limit: PLANS.pro.limits.fix });
     expect(result.usage.tailor.used).toBe(0);
   });
 
   it("lets exactly `limit` of many parallel calls through", async () => {
     for (const feature of ["fix", "tailor", "letter"] as const) {
-      const limit = PLANS.free.limits[feature];
+      const limit = PRO_TRIAL.limits[feature];
       const results = await Promise.all(
-        Array.from({ length: limit + 5 }, () => consumeUsage(free, feature, NOV)),
+        Array.from({ length: limit + 5 }, () => consumeUsage(trial, feature, NOV)),
       );
       expect(results.filter((result) => result.allowed)).toHaveLength(limit);
-      expect(await storedCount(free, feature)).toBe(limit);
+      expect(await trialCount(feature)).toBe(limit);
     }
   });
 
   it("leaves the count unchanged once the limit is reached", async () => {
-    await consumeTimes(free, "tailor", PLANS.free.limits.tailor);
-    const blocked = await consumeUsage(free, "tailor", NOV);
+    await consumeTimes(trial, "tailor", PRO_TRIAL.limits.tailor);
+    const blocked = await consumeUsage(trial, "tailor", NOV);
     expect(blocked.allowed).toBe(false);
-    expect(blocked.usage.tailor).toEqual({ used: 3, limit: 3 });
-    expect(await storedCount(free, "tailor")).toBe(3);
+    expect(blocked.usage.tailor).toEqual({ used: 10, limit: 10 });
+    expect(await trialCount("tailor")).toBe(10);
   });
 
   it("keeps features and months apart", async () => {
-    await consumeTimes(free, "tailor", PLANS.free.limits.tailor);
-    expect((await consumeUsage(free, "fix", NOV)).allowed).toBe(true);
-    const nextMonth = await consumeUsage(free, "tailor", DEC);
+    await consumeTimes(pro, "tailor", 3);
+    expect((await consumeUsage(pro, "fix", NOV)).allowed).toBe(true);
+    const nextMonth = await consumeUsage(pro, "tailor", DEC);
     expect(nextMonth.allowed).toBe(true);
     expect(nextMonth.usage.tailor.used).toBe(1);
   });
 
   it("meters cover letters and answers on their own allowance", async () => {
-    await consumeTimes(free, "letter", PLANS.free.limits.letter);
-    const blocked = await consumeUsage(free, "letter", NOV);
+    await consumeTimes(trial, "letter", PRO_TRIAL.limits.letter);
+    const blocked = await consumeUsage(trial, "letter", NOV);
     expect(blocked.allowed).toBe(false);
-    expect(blocked.usage.letter).toEqual({ used: 5, limit: 5 });
+    expect(blocked.usage.letter).toEqual({ used: 15, limit: 15 });
     expect(blocked.usage.tailor.used).toBe(0);
-    expect((await consumeUsage(free, "tailor", NOV)).allowed).toBe(true);
-    expect((await consumeUsage(pro, "letter", NOV)).usage.letter).toEqual({
-      used: 1,
-      limit: PLANS.pro.limits.letter,
-    });
+    expect((await consumeUsage(trial, "tailor", NOV)).allowed).toBe(true);
   });
 
-  it("applies the plan the user has now, and clamps a count left over from Pro", async () => {
+  it("applies the plan the user has now: a drop to Free stops AI and keeps the old count", async () => {
     await consumeTimes(pro, "tailor", 5);
     const downgraded: SessionUser = { ...pro, plan: "free" };
-    expect((await getUsage(downgraded, NOV)).tailor).toEqual({ used: 3, limit: 3 });
+    expect((await getUsage(downgraded, NOV)).tailor).toEqual({ used: 0, limit: 0 });
     expect((await consumeUsage(downgraded, "tailor", NOV)).allowed).toBe(false);
     expect(await storedCount(pro, "tailor")).toBe(5);
   });
 });
 
 describe("refundUsage", () => {
-  it("gives a unit back so the next call is allowed again", async () => {
-    await consumeTimes(free, "tailor", PLANS.free.limits.tailor);
-    await refundUsage(free, "tailor", NOV);
-    expect((await getUsage(free, NOV)).tailor.used).toBe(2);
-    expect((await consumeUsage(free, "tailor", NOV)).allowed).toBe(true);
+  it("gives a unit back so the next call is allowed again, on the trial too", async () => {
+    await consumeTimes(trial, "tailor", PRO_TRIAL.limits.tailor);
+    await refundUsage(trial, "tailor", NOV);
+    expect((await getUsage(trial, NOV)).tailor.used).toBe(9);
+    expect((await consumeUsage(trial, "tailor", NOV)).allowed).toBe(true);
   });
 
   it("never goes below zero", async () => {
-    await refundUsage(free, "fix", NOV);
-    expect(await storedCount(free, "fix")).toBeNull();
+    await refundUsage(pro, "fix", NOV);
+    expect(await storedCount(pro, "fix")).toBeNull();
 
-    await consumeUsage(free, "fix", NOV);
-    await Promise.all([1, 2, 3].map(() => refundUsage(free, "fix", NOV)));
-    expect(await storedCount(free, "fix")).toBe(0);
-    expect((await getUsage(free, NOV)).fix.used).toBe(0);
+    await consumeUsage(pro, "fix", NOV);
+    await Promise.all([1, 2, 3].map(() => refundUsage(pro, "fix", NOV)));
+    expect(await storedCount(pro, "fix")).toBe(0);
+    expect((await getUsage(pro, NOV)).fix.used).toBe(0);
   });
 });
 
@@ -210,7 +257,7 @@ describe("weekly subscribers", () => {
     // A stale interval on a Free row never makes it weekly.
     const state = await getUsageState({ ...free, planInterval: "week" }, NOV);
     expect(state.period.kind).toBe("month");
-    expect(state.usage.tailor.limit).toBe(PLANS.free.limits.tailor);
+    expect(state.usage.tailor.limit).toBe(0);
   });
 
   it("use ISO weeks when there is no renewal date (mock billing)", async () => {

@@ -79,7 +79,10 @@ export function PrepForm({ target, resumes, onDone, onCancel }: PrepFormProps) {
       void refreshMe();
       onDone(result.prep, result.saved);
     } catch (caught) {
-      setError({ message: errorMessage(caught), upgrade: isApiError(caught, "limit_reached") });
+      setError({
+        message: errorMessage(caught),
+        upgrade: isApiError(caught, "limit_reached") || isApiError(caught, "upgrade_required"),
+      });
     } finally {
       setBusy(false);
     }

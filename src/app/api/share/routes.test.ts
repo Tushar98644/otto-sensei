@@ -1,6 +1,15 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { ApiErrorBody } from "@/lib/api/types";
-import { cookieJar, jsonRequest, resetDb, signInAs } from "@/lib/auth/test-helpers";
+import { eq } from "drizzle-orm";
+import { getDb } from "@/db/client";
+import { users } from "@/db/schema";
+import {
+  cookieJar,
+  jsonRequest,
+  resetDb,
+  setPlan,
+  signInAs as signInFree,
+} from "@/lib/auth/test-helpers";
 import { emptyResume, type Resume } from "@/lib/resume/schema";
 import { findPublicShare } from "@/lib/share/records";
 import { SHARE_LIMITS, type ShareResponse, type SharesResponse } from "@/lib/share/types";
@@ -8,6 +17,9 @@ import { DELETE, PATCH } from "./[id]/route";
 import { GET, POST } from "./route";
 
 vi.mock("next/headers", async () => (await import("@/lib/auth/test-helpers")).nextHeadersMock);
+
+// Share links are Pro; "share links on Free" below covers Free.
+const signInAs = async (email: string) => setPlan(await signInFree(email), "pro");
 
 function resume(id = "resume-1", updatedAt = 5_000): Resume {
   return {
@@ -48,6 +60,39 @@ function remove(id: string, headers: Record<string, string> = {}) {
 async function errorCode(res: Response): Promise<string> {
   return ((await res.json()) as ApiErrorBody).error.code;
 }
+
+describe("share links on Free", () => {
+  beforeEach(async () => {
+    await resetDb();
+    cookieJar.clear();
+  });
+
+  it("offers the trial instead of a new link", async () => {
+    await signInFree("maya@example.com");
+    const res = await create({ resume: resume() });
+    expect(res.status).toBe(402);
+    expect(((await res.json()) as ApiErrorBody).error).toEqual({
+      code: "upgrade_required",
+      message: "Share links come with Pro. Try Pro free for 3 days.",
+    });
+    expect(((await (await GET()).json()) as SharesResponse).links).toEqual([]);
+  });
+
+  it("keeps a link made on Pro live after the plan ends, in Classic, with its settings open", async () => {
+    const maya = await signInAs("maya@example.com");
+    const made = await create({ resume: { ...resume(), template: "modern" } });
+    const { link } = (await made.json()) as ShareResponse;
+    expect((await findPublicShare(link.slug))?.resume.template).toBe("modern");
+
+    await (await getDb()).update(users).set({ plan: "free", planStatus: "canceled" }).where(eq(users.id, maya.id));
+    // A reader's PDF follows the owner's plan, like the owner's own download.
+    expect((await findPublicShare(link.slug))?.resume.template).toBe("classic");
+    expect((await patch(link.id, { showContact: true })).status).toBe(200);
+    expect((await create({ resume: { ...resume(), updatedAt: 9_000 } })).status).toBe(402);
+    expect((await remove(link.id)).status).toBe(200);
+    expect(await findPublicShare(link.slug)).toBeNull();
+  });
+});
 
 describe("/api/share", () => {
   beforeEach(async () => {

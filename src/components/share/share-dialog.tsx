@@ -2,6 +2,7 @@
 
 import { Link2 } from "lucide-react";
 import { useEffect, useId, useRef, useState, type RefObject } from "react";
+import { unlockProTool } from "@/components/account/pro-tools";
 import { useMe } from "@/components/account/use-me";
 import { useNow } from "@/components/studio/use-now";
 import { Alert } from "@/components/ui/alert";
@@ -78,6 +79,12 @@ export function ShareDialog({ resume, open, onOpenChange }: ShareDialogProps) {
   }
 
   async function save() {
+    // Making or updating a link is Pro; the settings of one made before stay open on Free. The
+    // trial prompt takes this dialog's place rather than stacking on it.
+    if (!(await unlockProTool("share"))) {
+      close();
+      return;
+    }
     setBusy("save");
     setError(null);
     setNotice("");

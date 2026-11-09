@@ -24,7 +24,7 @@ export async function POST(req: Request): Promise<Response> {
     const { extraction, report, bytes, startedAt } = upload;
     const user = await getCurrentUser();
     const read = extraction.signals.hasTextLayer
-      ? await claimAiRead(req, user, startedAt)
+      ? await claimAiRead(user, startedAt)
       : { useAI: false, limited: false, giveBack: async () => {} };
 
     let structured: StructureResult;

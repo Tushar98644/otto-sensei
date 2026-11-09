@@ -1,11 +1,11 @@
 import { eq } from "drizzle-orm";
-import { Webhook } from "standardwebhooks";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { getDb } from "@/db/client";
-import { users, type UserRow } from "@/db/schema";
+import { users } from "@/db/schema";
 import { getCurrentUser } from "@/lib/auth/session";
 import type { SessionUser } from "@/lib/auth/types";
 import { insertUserRow, resetDb } from "@/lib/auth/test-helpers";
+import { creemSignature } from "@/lib/billing/testing";
 import { resetEnvForTests } from "@/lib/env";
 import { rateLimit } from "@/lib/rate-limit";
 import { toSessionUser } from "@/lib/users";
@@ -22,29 +22,26 @@ vi.mock("@/lib/rate-limit", async (importOriginal) => ({
 const currentUser = vi.mocked(getCurrentUser);
 const limiter = vi.mocked(rateLimit);
 
-const SECRET = `whsec_${Buffer.from("otto-route-test-signing-key").toString("base64")}`;
-const OTHER_SECRET = `whsec_${Buffer.from("not-the-configured-key").toString("base64")}`;
-const PRODUCT_ID = "pdt_otto_pro";
+const SECRET = "whsec_otto_route_test_secret";
+const OTHER_SECRET = "whsec_not_the_configured_one";
+const PRODUCT_ID = "prod_otto_pro";
+
+type UserRow = typeof users.$inferSelect;
 
 let sequence = 0;
 
-async function signIn(overrides: Partial<UserRow> = {}): Promise<SessionUser> {
+async function signIn(overrides: Partial<typeof users.$inferInsert> = {}): Promise<SessionUser> {
   sequence += 1;
-  const row: UserRow = {
+  const row = {
     id: crypto.randomUUID(),
     email: `person${sequence}@example.com`,
-    plan: "free",
-    planStatus: null,
-    planRenewsAt: null,
-    planInterval: null,
-    billingCustomerId: null,
-    billingSubscriptionId: null,
+    plan: "free" as const,
     createdAt: 1,
     updatedAt: 1,
     ...overrides,
   };
   await insertUserRow(row);
-  const user: SessionUser = toSessionUser(row);
+  const user: SessionUser = toSessionUser((await reload(row.id))!);
   currentUser.mockResolvedValue(user);
   return user;
 }
@@ -66,10 +63,10 @@ async function reload(id: string): Promise<UserRow | undefined> {
 }
 
 beforeEach(async () => {
-  // Mock billing: no API key, but a webhook key so the webhook route can verify signatures.
-  vi.stubEnv("DODO_PAYMENTS_API_KEY", undefined);
-  vi.stubEnv("DODO_PAYMENTS_PRODUCT_ID", PRODUCT_ID);
-  vi.stubEnv("DODO_PAYMENTS_WEBHOOK_KEY", SECRET);
+  // Mock billing: no API key, but a webhook secret so the webhook route can verify signatures.
+  vi.stubEnv("CREEM_API_KEY", undefined);
+  vi.stubEnv("CREEM_PRO_MONTHLY_PRODUCT_ID", PRODUCT_ID);
+  vi.stubEnv("CREEM_WEBHOOK_SECRET", SECRET);
   resetEnvForTests();
   currentUser.mockReset();
   currentUser.mockResolvedValue(null);
@@ -96,14 +93,21 @@ describe("POST /api/billing/checkout", () => {
     expect(limiter).not.toHaveBeenCalled();
   });
 
-  it("returns where to send the browser", async () => {
+  it("returns where to send the browser: a new account starts on the free trial", async () => {
     const user = await signIn();
     const res = await checkout(checkoutRequest());
 
     expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({ ok: true, url: "/account?checkout=success&plan=pro" });
+    expect(await res.json()).toEqual({ ok: true, url: "/account?checkout=success&plan=pro&trial=1" });
     expect(limiter).toHaveBeenCalledWith(`billing:user:${user.id}`, 20, 60 * 60 * 1000);
-    expect((await reload(user.id))?.plan).toBe("pro");
+    expect(await reload(user.id)).toMatchObject({ plan: "pro", planStatus: "mock_trialing" });
+  });
+
+  it("gives someone who has had a plan before the plain checkout, with no trial", async () => {
+    const user = await signIn({ planStatus: "mock_cancelled" });
+    const res = await checkout(checkoutRequest());
+    expect(await res.json()).toEqual({ ok: true, url: "/account?checkout=success&plan=pro" });
+    expect(await reload(user.id)).toMatchObject({ plan: "pro", trialEndsAt: null });
   });
 
   it("tells a Pro user they're already subscribed", async () => {
@@ -119,7 +123,7 @@ describe("POST /api/billing/checkout", () => {
 
   it("answers 503 when payments are switched off", async () => {
     vi.stubEnv("NODE_ENV", "production");
-    vi.stubEnv("DODO_PAYMENTS_WEBHOOK_KEY", undefined);
+    vi.stubEnv("CREEM_WEBHOOK_SECRET", undefined);
     resetEnvForTests();
     const user = await signIn();
     const res = await checkout(checkoutRequest());
@@ -202,18 +206,10 @@ describe("POST /api/billing/portal", () => {
 
 describe("POST /api/billing/webhook", () => {
   function deliver(payload: string, secret = SECRET): Promise<Response> {
-    sequence += 1;
-    const id = `msg_${sequence}`;
-    const at = new Date();
     return webhook(
       new Request("https://otto.example/api/billing/webhook", {
         method: "POST",
-        headers: {
-          "content-type": "application/json",
-          "webhook-id": id,
-          "webhook-timestamp": String(Math.floor(at.getTime() / 1000)),
-          "webhook-signature": new Webhook(secret).sign(id, at, payload),
-        },
+        headers: { "content-type": "application/json", "creem-signature": creemSignature(payload, secret) },
         body: payload,
       }),
     );
@@ -232,12 +228,15 @@ describe("POST /api/billing/webhook", () => {
     // Pretty-printed on purpose: the signature covers the exact bytes, whitespace included.
     const payload = JSON.stringify(
       {
-        type: "subscription.active",
-        data: {
-          subscription_id: "sub_1",
-          product_id: PRODUCT_ID,
+        id: `evt_${sequence}`,
+        eventType: "subscription.paid",
+        created_at: Date.now(),
+        object: {
+          id: "sub_1",
+          object: "subscription",
+          product: { id: PRODUCT_ID, object: "product" },
+          customer: { id: "cust_1", object: "customer", email: `buyer${sequence}@example.com` },
           status: "active",
-          customer: { customer_id: "cus_1", email: `buyer${sequence}@example.com` },
           metadata: { user_id: id },
         },
       },

@@ -3,7 +3,10 @@ import { TEMPLATE_IDS, emptyResume, type Resume, type SectionKey } from "@/lib/r
 import {
   TEMPLATE_INFO,
   TEMPLATE_LIST,
+  canUseTemplate,
   followsHint,
+  forPlan,
+  isProTemplate,
   isTemplateId,
   orderByHint,
   templateOf,
@@ -79,5 +82,26 @@ describe("withTemplate", () => {
     const next = withTemplate(resume, "compact");
     expect(next).toEqual({ ...resume, template: "compact" });
     expect(resume.template).toBe("classic");
+  });
+});
+
+describe("formats by plan", () => {
+  it("keeps Classic and Compact on Free and the other four on Pro", () => {
+    expect(TEMPLATE_IDS.filter((id) => !isProTemplate(id))).toEqual(["classic", "compact"]);
+    expect(TEMPLATE_IDS.filter(isProTemplate)).toEqual(["modern", "executive", "developer", "minimal"]);
+    for (const id of TEMPLATE_IDS) {
+      expect(canUseTemplate("pro", id)).toBe(true);
+      expect(canUseTemplate("max", id)).toBe(true);
+      expect(canUseTemplate("free", id)).toBe(!isProTemplate(id));
+    }
+  });
+
+  it("downloads a Pro format in Classic on Free, and leaves everything else alone", () => {
+    const modern = withTemplate(emptyResume(1_000), "modern");
+    expect(forPlan(modern, "free")).toEqual({ ...modern, template: "classic" });
+    expect(modern.template).toBe("modern");
+    expect(forPlan(modern, "pro")).toBe(modern);
+    const compact = withTemplate(emptyResume(1_000), "compact");
+    expect(forPlan(compact, "free")).toBe(compact);
   });
 });

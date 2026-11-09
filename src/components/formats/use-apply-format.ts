@@ -2,8 +2,9 @@
 
 import { useRouter } from "next/navigation";
 import { useCallback } from "react";
+import { unlockProTool } from "@/components/account/pro-tools";
 import { ROUTES } from "@/components/site/routes";
-import { templateOf, withTemplate } from "@/lib/pdf/templates";
+import { isProTemplate, templateOf, withTemplate } from "@/lib/pdf/templates";
 import type { Resume, TemplateId } from "@/lib/resume/schema";
 import { useStudioHydrated, useStudioStore } from "@/lib/store/resume-store";
 import { formatTarget, sampleWithFormat } from "./apply-format";
@@ -12,18 +13,20 @@ export type ApplyFormat = {
   // False until the browser's saved resumes are loaded; before that "no resumes" isn't known yet.
   ready: boolean;
   target: Resume | null;
-  apply: (id: TemplateId) => void;
+  apply: (id: TemplateId) => Promise<void>;
 };
 
 // Puts the format on the resume and opens the studio's download step, where the preview, the
-// download and "Check my new PDF" all use it. With no resume yet, a sample stands in.
+// download and "Check my new PDF" all use it. With no resume yet, a sample stands in. A Pro format
+// on Free offers the trial instead; its preview in the gallery stays open to everyone.
 export function useApplyFormat(): ApplyFormat {
   const router = useRouter();
   const ready = useStudioHydrated();
   const target = useStudioStore(formatTarget);
 
   const apply = useCallback(
-    (id: TemplateId) => {
+    async (id: TemplateId) => {
+      if (isProTemplate(id) && !(await unlockProTool("formats"))) return;
       // Read at click time: cloud sync may have changed the list since the last render.
       const store = useStudioStore.getState();
       const resume = formatTarget(store);

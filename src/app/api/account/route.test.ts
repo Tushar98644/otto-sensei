@@ -1,11 +1,9 @@
 import { AuthRetryableFetchError } from "@supabase/supabase-js";
-import { APIConnectionTimeoutError, type DodoPayments } from "dodopayments";
 import { eq } from "drizzle-orm";
-import { Webhook } from "standardwebhooks";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { POST as webhook } from "@/app/api/billing/webhook/route";
 import { getDb } from "@/db/client";
-import { resumes, usage, users, type UserRow } from "@/db/schema";
+import { resumes, usage, users } from "@/db/schema";
 import { getCurrentUser } from "@/lib/auth/session";
 import type { SessionUser } from "@/lib/auth/types";
 import {
@@ -16,6 +14,7 @@ import {
   resetDb,
   signInAs as signInFake,
 } from "@/lib/auth/test-helpers";
+import { creemSignature, installFakeCreem, subscriptionEvent, type FakeCreem } from "@/lib/billing/testing";
 import { resetEnvForTests } from "@/lib/env";
 import type { Resume } from "@/lib/resume/schema";
 import { consumeUsage } from "@/lib/usage";
@@ -24,48 +23,25 @@ import { DELETE } from "./route";
 
 vi.mock("next/headers", async () => (await import("@/lib/auth/test-helpers")).nextHeadersMock);
 
-// The real Dodo API is never called: the client is swapped for one whose methods are spies.
-type SubscriptionStub = Pick<DodoPayments.Subscription, "status">;
-
-const sdk = vi.hoisted(() => ({
-  subscriptionUpdate:
-    vi.fn<(id: string, params: DodoPayments.SubscriptionUpdateParams) => Promise<SubscriptionStub>>(),
-  subscriptionRetrieve: vi.fn<(id: string) => Promise<SubscriptionStub>>(),
-  // Lookups of other live subscriptions find none unless a test says otherwise.
-  customersList: vi.fn(async () => ({ items: [] as Pick<DodoPayments.Customer, "customer_id" | "email">[] })),
-  subscriptionsList: vi.fn(async () => ({
-    items: [] as (Pick<DodoPayments.SubscriptionListResponse, "subscription_id" | "status" | "product_id"> & {
-      customer: { customer_id: string };
-    })[],
-  })),
-}));
-
-vi.mock("dodopayments", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("dodopayments")>();
-  class FakeDodoPayments {
-    customers = { list: sdk.customersList };
-    subscriptions = {
-      update: sdk.subscriptionUpdate,
-      retrieve: sdk.subscriptionRetrieve,
-      list: sdk.subscriptionsList,
-    };
-  }
-  return { ...actual, DodoPayments: FakeDodoPayments };
-});
+// The real Creem API is never called: fetch is swapped for a fake of it (src/lib/billing/testing.ts).
+let creem: FakeCreem;
 
 const NOW = Date.UTC(2026, 10, 6, 12);
-const WEBHOOK_KEY = `whsec_${Buffer.from("otto-account-test-signing-key").toString("base64")}`;
+const WEBHOOK_SECRET = "whsec_otto_account_test_secret";
 const CANCEL_FAILED =
   "We couldn't cancel your subscription, so your account wasn't deleted. Try again, or email us.";
 
-function useBilling(mode: "dodo" | "mock") {
-  vi.stubEnv("DODO_PAYMENTS_API_KEY", mode === "dodo" ? "sk_test_123" : undefined);
-  vi.stubEnv("DODO_PAYMENTS_PRODUCT_ID", "pdt_otto_pro");
-  vi.stubEnv("DODO_PAYMENTS_WEBHOOK_KEY", WEBHOOK_KEY);
+function useBilling(mode: "creem" | "mock") {
+  vi.stubEnv("CREEM_API_KEY", mode === "creem" ? "creem_test_123" : undefined);
+  vi.stubEnv("CREEM_PRO_MONTHLY_PRODUCT_ID", "prod_otto_pro");
+  vi.stubEnv("CREEM_WEBHOOK_SECRET", WEBHOOK_SECRET);
   resetEnvForTests();
 }
 
-async function signInAs(email: string, billing: Partial<UserRow> = {}): Promise<SessionUser> {
+async function signInAs(
+  email: string,
+  billing: Partial<typeof users.$inferInsert> = {},
+): Promise<SessionUser> {
   const created = await signInFake(email);
   const db = await getDb();
   const [row] = await db
@@ -82,9 +58,14 @@ const DATA = { id: "r1" } as unknown as Resume;
 const PRO = {
   plan: "pro",
   planStatus: "active",
-  billingCustomerId: "cus_1",
+  billingCustomerId: "cust_1",
   billingSubscriptionId: "sub_1",
-} satisfies Partial<UserRow>;
+} satisfies Partial<typeof users.$inferInsert>;
+
+const cancels = () =>
+  creem.calls
+    .filter((call) => call.method === "POST" && call.path.endsWith("/cancel"))
+    .map((call) => call.path.split("/")[3]);
 
 async function userExists(id: string): Promise<boolean> {
   const db = await getDb();
@@ -93,16 +74,14 @@ async function userExists(id: string): Promise<boolean> {
 
 beforeEach(async () => {
   useBilling("mock");
-  sdk.subscriptionUpdate.mockReset();
-  sdk.subscriptionRetrieve.mockReset();
-  sdk.customersList.mockClear();
-  sdk.subscriptionsList.mockClear();
+  creem = installFakeCreem();
   await resetDb();
   cookieJar.clear();
 });
 
 afterEach(() => {
   vi.restoreAllMocks();
+  vi.unstubAllGlobals();
   vi.unstubAllEnvs();
   resetEnvForTests();
 });
@@ -120,7 +99,8 @@ describe("DELETE /api/account", () => {
     const db = await getDb();
     for (const user of [ada, grace]) {
       await db.insert(resumes).values({ userId: user.id, id: "r1", data: DATA, createdAt: NOW, updatedAt: NOW });
-      await consumeUsage(user, "fix");
+      // Free has no AI allowance, so the count is written as a paid plan would.
+      await consumeUsage({ ...user, plan: "pro" }, "fix");
     }
 
     const res = await DELETE();
@@ -170,37 +150,30 @@ describe("DELETE /api/account", () => {
 });
 
 describe("DELETE /api/account with a subscription", () => {
-  it("cancels the Dodo subscription first, then deletes the account", async () => {
-    useBilling("dodo");
+  it("cancels the Creem subscription right away first, then deletes the account", async () => {
+    useBilling("creem");
     const user = await signInAs("ada@example.com", PRO);
-    let existedDuringCancel = false;
-    sdk.subscriptionUpdate.mockImplementation(async () => {
-      existedDuringCancel = await userExists(user.id);
-      return { status: "cancelled" };
-    });
+    creem.subscriptions.push({ id: "sub_1", customer: "cust_1", product: "prod_otto_pro", status: "active" });
 
     const res = await DELETE();
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ ok: true });
-    expect(sdk.subscriptionUpdate).toHaveBeenCalledWith(
-      "sub_1",
-      expect.objectContaining({ status: "cancelled", cancel_reason: "cancelled_by_customer" }),
-    );
-    expect(existedDuringCancel).toBe(true);
+    expect(creem.callsTo("POST /v1/subscriptions/sub_1/cancel")[0]?.body).toEqual({ mode: "immediate" });
     expect(await userExists(user.id)).toBe(false);
     await expect(getCurrentUser()).resolves.toBeNull();
   });
 
   it("keeps the account and the session when the cancel fails", async () => {
-    useBilling("dodo");
+    useBilling("creem");
     const sinks = (["info", "warn", "error"] as const).map((level) =>
       vi.spyOn(console, level).mockImplementation(() => undefined),
     );
     const user = await signInAs("ada@example.com", PRO);
+    creem.subscriptions.push({ id: "sub_1", customer: "cust_1", product: "prod_otto_pro", status: "active" });
     const db = await getDb();
     const resume = { userId: user.id, id: "r1", data: DATA, createdAt: NOW, updatedAt: NOW };
     await db.insert(resumes).values(resume);
-    sdk.subscriptionUpdate.mockRejectedValue(new APIConnectionTimeoutError());
+    creem.failNext("POST /v1/subscriptions/sub_1/cancel", 503);
 
     const res = await DELETE();
     expect(res.status).toBe(502);
@@ -220,79 +193,71 @@ describe("DELETE /api/account with a subscription", () => {
   });
 
   it("deletes the account on a retry once the cancel goes through", async () => {
-    useBilling("dodo");
+    useBilling("creem");
     vi.spyOn(console, "error").mockImplementation(() => undefined);
     const user = await signInAs("ada@example.com", PRO);
-    sdk.subscriptionUpdate.mockRejectedValueOnce(new APIConnectionTimeoutError());
-    sdk.subscriptionUpdate.mockResolvedValueOnce({ status: "cancelled" });
+    creem.subscriptions.push({ id: "sub_1", customer: "cust_1", product: "prod_otto_pro", status: "active" });
+    creem.failNext("POST /v1/subscriptions/sub_1/cancel", 503);
 
     expect((await DELETE()).status).toBe(502);
     expect((await DELETE()).status).toBe(200);
     expect(await userExists(user.id)).toBe(false);
   });
 
-  it("downgrades and deletes in mock mode", async () => {
-    const user = await signInAs("ada@example.com", { plan: "pro", planStatus: "mock_active" });
+  it("downgrades and deletes in mock mode, a trial included", async () => {
+    const user = await signInAs("ada@example.com", {
+      plan: "pro",
+      planStatus: "mock_trialing",
+      trialEndsAt: NOW + 86_400_000,
+    });
 
     expect((await DELETE()).status).toBe(200);
     expect(await userExists(user.id)).toBe(false);
-    expect(sdk.subscriptionUpdate).not.toHaveBeenCalled();
+    expect(creem.calls).toEqual([]);
   });
 
-  it("never calls Dodo for a free user", async () => {
-    useBilling("dodo");
+  it("never calls Creem for a free user", async () => {
+    useBilling("creem");
     const user = await signInAs("ada@example.com");
 
     expect((await DELETE()).status).toBe(200);
     expect(await userExists(user.id)).toBe(false);
-    expect(sdk.subscriptionUpdate).not.toHaveBeenCalled();
-    expect(sdk.customersList).not.toHaveBeenCalled();
-    expect(sdk.subscriptionsList).not.toHaveBeenCalled();
+    expect(creem.calls).toEqual([]);
   });
 
   // A second checkout's webhook replaces the stored id, so the first subscription is only found
-  // by asking Dodo. Left alone, it would keep charging an account that no longer exists.
+  // by asking Creem. Left alone, it would keep charging an account that no longer exists.
   it("also cancels a subscription the stored ids no longer point to", async () => {
-    useBilling("dodo");
+    useBilling("creem");
     const user = await signInAs("ada@example.com", { ...PRO, billingSubscriptionId: "sub_2" });
-    sdk.subscriptionsList.mockResolvedValueOnce({
-      items: [
-        { subscription_id: "sub_1", status: "active", product_id: "pdt_otto_pro", customer: { customer_id: "cus_1" } },
-        { subscription_id: "sub_2", status: "active", product_id: "pdt_otto_pro", customer: { customer_id: "cus_1" } },
-      ],
-    });
-    sdk.subscriptionUpdate.mockResolvedValue({ status: "cancelled" });
+    creem.subscriptions.push(
+      { id: "sub_1", customer: "cust_1", product: "prod_otto_pro", status: "active" },
+      { id: "sub_2", customer: "cust_1", product: "prod_otto_pro", status: "active" },
+    );
 
     expect((await DELETE()).status).toBe(200);
-    expect(sdk.subscriptionUpdate.mock.calls.map(([id]) => id).sort()).toEqual(["sub_1", "sub_2"]);
+    expect(cancels().sort()).toEqual(["sub_1", "sub_2"]);
     expect(await userExists(user.id)).toBe(false);
   });
 
-  it("answers Dodo's later cancellation webhook with 200, so it isn't retried", async () => {
-    useBilling("dodo");
+  it("answers Creem's later cancellation webhook with 200, so it isn't retried", async () => {
+    useBilling("creem");
     const user = await signInAs("ada@example.com", PRO);
-    sdk.subscriptionUpdate.mockResolvedValue({ status: "cancelled" });
+    creem.subscriptions.push({ id: "sub_1", customer: "cust_1", product: "prod_otto_pro", status: "active" });
     expect((await DELETE()).status).toBe(200);
 
-    const payload = JSON.stringify({
-      type: "subscription.cancelled",
-      data: {
-        subscription_id: "sub_1",
-        product_id: "pdt_otto_pro",
-        status: "cancelled",
-        customer: { customer_id: "cus_1", email: "ada@example.com" },
-        metadata: { user_id: user.id },
-      },
+    const payload = subscriptionEvent("subscription.canceled", {
+      id: "sub_1",
+      status: "canceled",
+      product: "prod_otto_pro",
+      metadata: { user_id: user.id },
     });
-    const at = new Date();
     const res = await webhook(
       new Request("https://otto.example/api/billing/webhook", {
         method: "POST",
         headers: {
           "content-type": "application/json",
-          "webhook-id": "msg_after_delete",
-          "webhook-timestamp": String(Math.floor(at.getTime() / 1000)),
-          "webhook-signature": new Webhook(WEBHOOK_KEY).sign("msg_after_delete", at, payload),
+          "creem-signature": creemSignature(payload, WEBHOOK_SECRET),
         },
         body: payload,
       }),

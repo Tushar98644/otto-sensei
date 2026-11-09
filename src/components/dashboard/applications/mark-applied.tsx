@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { errorMessage } from "@/components/account/errors";
+import { roomForApplication } from "@/components/account/pro-tools";
 import { ROUTES } from "@/components/site/routes";
 import { Button, buttonClasses } from "@/components/ui/button";
 import { toast } from "@/components/ui/toast";
@@ -35,7 +36,11 @@ function subscribeCheer(listener: () => void) {
 }
 
 export function useJustApplied(resumeId: string): boolean {
-  return useSyncExternalStore(subscribeCheer, () => cheering === resumeId, () => false);
+  return useSyncExternalStore(
+    subscribeCheer,
+    () => cheering === resumeId,
+    () => false,
+  );
 }
 
 // The shortcut on a tailored copy's card: one click logs it as sent today, filled in from the job
@@ -50,6 +55,7 @@ export function MarkApplied({ resume, describedBy }: { resume: Resume; described
   const latest = useMemo(() => latestFor(items, resume.id), [items, resume.id]);
 
   async function markApplied() {
+    if (!(await roomForApplication(items.length))) return;
     const known = prefillFor(resume, null);
     if (!known.company) {
       opened.current += 1;
@@ -76,7 +82,11 @@ export function MarkApplied({ resume, describedBy }: { resume: Resume; described
           if (cheering === resume.id) setCheering(null);
           hideApplication(application);
           commitDelete(application, { keepalive: false }).catch((error: unknown) =>
-            toast({ title: "Couldn't undo that", description: errorMessage(error), variant: "error" }),
+            toast({
+              title: "Couldn't undo that",
+              description: errorMessage(error),
+              variant: "error",
+            }),
           );
         },
       });

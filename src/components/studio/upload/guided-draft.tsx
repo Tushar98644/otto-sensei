@@ -116,8 +116,9 @@ export function GuidedDraft({ onDrafted, onCancel }: GuidedDraftProps) {
       const named = name.trim() ? { ...resume, basics: { ...resume.basics, name: name.trim() } } : resume;
       onDrafted(named, usedAI);
     } catch (error) {
-      setStatus({ kind: "failed", message: describeError(error) });
-      gate.handleApiError(error, "draft");
+      // The sign-in or trial prompt opens instead; the form keeps every answer for the retry.
+      if (gate.handleApiError(error, "draft")) setStatus({ kind: "editing" });
+      else setStatus({ kind: "failed", message: describeError(error) });
     }
   }
 
@@ -269,7 +270,13 @@ function JobFields({ job, errors, onChange }: JobFieldsProps) {
 }
 
 function describeError(error: unknown): string {
-  if (isApiError(error, "rate_limited") || isApiError(error, "limit_reached")) return error.message;
+  if (
+    isApiError(error, "rate_limited") ||
+    isApiError(error, "limit_reached") ||
+    isApiError(error, "upgrade_required")
+  ) {
+    return error.message;
+  }
   if (isApiError(error, "network_error")) return "I can't reach the server. Check your connection and try again.";
   if (isApiError(error, "bad_request")) return "Something in the form didn't come through. Check each job and try again.";
   return OTTO.errors.generic;

@@ -2,6 +2,7 @@
 
 import { useEffect, useSyncExternalStore } from "react";
 import { api } from "@/lib/api/client";
+import type { PlanId } from "@/config/plans";
 import type { MeResponse } from "@/lib/api/types";
 
 // One shared /api/me fetch for the whole page. Call refreshMe() after sign-in, sign-out, upgrade,
@@ -52,6 +53,16 @@ export function refreshMe(): Promise<void> {
 export async function currentUserId(): Promise<string | null> {
   if (!state.me?.user) await refreshMe();
   return state.me?.user?.id ?? null;
+}
+
+/**
+ * The plan as last loaded, loading it first if needed. Signed out is "free"; null only when
+ * /api/me can't be reached, so callers can let the server decide.
+ */
+export async function currentPlan(): Promise<PlanId | null> {
+  if (!state.me) await refreshMe();
+  if (!state.me) return null;
+  return state.me.user?.plan ?? "free";
 }
 
 // Optimistic local update, e.g. after an AI call returns a fresh usage snapshot.

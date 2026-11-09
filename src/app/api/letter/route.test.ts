@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { PLANS } from "@/config/plans";
+import { PRO_TRIAL } from "@/config/plans";
 import { AIError } from "@/lib/ai/types";
 import { writeCoverLetter } from "@/lib/ai/writing";
 import type {
@@ -9,7 +9,7 @@ import type {
   LetterRequestBody,
   LetterResponse,
 } from "@/lib/api/types";
-import { cookieJar, jsonRequest, resetDb, signInAs } from "@/lib/auth/test-helpers";
+import { cookieJar, jsonRequest, resetDb, signInOnTrial } from "@/lib/auth/test-helpers";
 import type { SessionUser } from "@/lib/auth/types";
 import { resetEnvForTests } from "@/lib/env";
 import { createSampleResume } from "@/lib/resume/sample";
@@ -24,6 +24,8 @@ vi.mock("@/lib/ai/writing", async (importOriginal) => {
   return { ...actual, writeCoverLetter: vi.fn(actual.writeCoverLetter) };
 });
 
+// Accounts run on the free Pro trial, the smallest real AI allowance (Free has none).
+const TRIAL_END = Date.UTC(2099, 0, 15, 12);
 const NOW = Date.UTC(2026, 10, 7, 12, 0, 0, 7);
 
 const JOB_POST =
@@ -49,7 +51,7 @@ const letter = (payload: unknown = letterBody(), init?: { site?: string }) => {
 const answer = (payload: unknown = answerBody()) => answerPost(jsonRequest("/api/answer", payload));
 
 async function signIn(email = "ada@example.com"): Promise<SessionUser> {
-  const user = await signInAs(email);
+  const user = await signInOnTrial(email, TRIAL_END);
   return user;
 }
 
@@ -93,20 +95,21 @@ describe("POST /api/letter", () => {
     const body = (await res.json()) as LetterResponse;
     expect(body.demo).toBe(true);
     expect(body.result.letter.startsWith("Dear Contoso team,")).toBe(true);
-    expect(body.usage.letter).toEqual({ used: 1, limit: PLANS.free.limits.letter });
+    expect(body.usage.letter).toEqual({ used: 1, limit: PRO_TRIAL.limits.letter });
     expect(body.usage.tailor.used).toBe(0);
     expect((await getUsage(user)).letter.used).toBe(1);
   });
 
-  it("answers 429 limit_reached after the free letters", async () => {
+  it("answers 429 limit_reached after the trial's letters", async () => {
     const user = await signIn();
-    for (let i = 0; i < PLANS.free.limits.letter; i++) await consumeUsage(user, "letter");
+    for (let i = 0; i < PRO_TRIAL.limits.letter; i++) await consumeUsage(user, "letter");
     const res = await letter();
     expect(res.status).toBe(429);
     expect(res.headers.get("Retry-After")).not.toBeNull();
     expect(await errorOf(res)).toEqual({
       code: "limit_reached",
-      message: "You've used this month's 5 cover letters, answers and interview prep. Pro has 100 a month.",
+      message:
+        "You've used this trial's 15 cover letters, answers and interview prep. Pro has 100 a month. Your full allowance starts on Jan 15.",
     });
   });
 
@@ -154,7 +157,7 @@ describe("POST /api/answer", () => {
 
   it("answers 429 once cover letters used the allowance up", async () => {
     const user = await signIn();
-    for (let i = 0; i < PLANS.free.limits.letter; i++) await consumeUsage(user, "letter");
+    for (let i = 0; i < PRO_TRIAL.limits.letter; i++) await consumeUsage(user, "letter");
     const res = await answer();
     expect(res.status).toBe(429);
     expect((await errorOf(res)).code).toBe("limit_reached");

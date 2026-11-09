@@ -2,6 +2,7 @@ import { and, eq, gt, inArray, like, min, sql } from "drizzle-orm";
 import {
   allowancePeriodFor,
   FEATURES,
+  isTrialing,
   planLimits,
   type Feature,
   type Usage,
@@ -16,6 +17,8 @@ import type { SessionUser } from "@/lib/auth/types";
 // (user, feature, period). Free, monthly and yearly accounts count per UTC calendar month
 // ("2026-11"). Weekly subscribers count per billing week ("week:<ISO instant it ends>"): the 7 days
 // ending at plan_renews_at, or the ISO week in UTC when there is no renewal date (mock billing).
+// A trial counts in one fixed row, "trial": a person gets one trial, so a trial end date that moves
+// (or a month that turns mid-trial) can never open a second allowance. Free's limits are all zero.
 //
 // Switching interval never starts an allowance over:
 // - every period keeps its own row, so coming back to an interval within the same month or week
@@ -29,11 +32,12 @@ const DAY_MS = 86_400_000;
 const MINUTE_MS = 60_000;
 export const WEEK_MS = 7 * DAY_MS;
 const WEEK_PREFIX = "week:";
+export const TRIAL_PERIOD_KEY = "trial";
 
 /** A period with its row key. Only kind and resetsAt leave the server. */
 export type ResolvedPeriod = UsagePeriod & { key: string };
 
-type PeriodAccount = Pick<SessionUser, "id" | "plan" | "planInterval" | "planRenewsAt">;
+type PeriodAccount = Pick<SessionUser, "id" | "plan" | "planInterval" | "planRenewsAt" | "trialEndsAt">;
 
 /** The UTC calendar month's key, e.g. "2026-11". */
 export function monthKey(now = Date.now()): string {
@@ -77,7 +81,11 @@ export async function resolvePeriod(
   account: PeriodAccount,
   now = Date.now(),
 ): Promise<ResolvedPeriod> {
-  if (allowancePeriodFor(account.plan, account.planInterval) === "month") return monthPeriod(now);
+  const kind = allowancePeriodFor(account.plan, account.planInterval, isTrialing(account));
+  if (kind === "trial") {
+    return { kind, key: TRIAL_PERIOD_KEY, resetsAt: account.trialEndsAt ?? now };
+  }
+  if (kind === "month") return monthPeriod(now);
   // A week already started (any feature's row) whose 7 days hold now. Keys are fixed-width ISO
   // instants, so byte order ("C") is time order whatever the database's collation.
   const [running] = await db
@@ -110,6 +118,7 @@ export async function periodForUser(
       plan: users.plan,
       planInterval: users.planInterval,
       planRenewsAt: users.planRenewsAt,
+      trialEndsAt: users.trialEndsAt,
     })
     .from(users)
     .where(eq(users.id, userId))
@@ -134,8 +143,9 @@ function periodCounts(db: Db, userId: string, key: string) {
 function toSnapshot(limits: Record<Feature, number>, rows: CountRow[]): UsageSnapshot {
   const entry = (feature: Feature): Usage => {
     const row = rows.find((candidate) => candidate.feature === feature);
-    // Invite bonuses (src/lib/referrals) count for this period on top of the plan's limit.
-    const limit = limits[feature] + (row?.bonus ?? 0);
+    // Invite bonuses (src/lib/referrals) count for this period on top of the plan's limit, on plans
+    // that include the feature at all: Free has no AI, bonus or not.
+    const limit = limits[feature] > 0 ? limits[feature] + (row?.bonus ?? 0) : 0;
     // A downgrade can leave this period's count above the new limit; never report over 100% used.
     return { used: Math.min(row?.count ?? 0, limit), limit };
   };
@@ -224,7 +234,7 @@ async function countTowardMonth(db: Db, userId: string, feature: Feature, now: n
 export async function refundUsage(user: SessionUser, feature: Feature, now = Date.now()): Promise<void> {
   const db = await getDb();
   const period = await resolvePeriod(db, user, now);
-  if (period.kind === "month") return giveBack(db, user.id, feature, period.key);
+  if (period.kind !== "week") return giveBack(db, user.id, feature, period.key);
   // Week row, then month row: the same order consumeUsage() locks them in, so the two can't deadlock.
   await db.transaction(async (tx) => {
     await giveBack(tx, user.id, feature, period.key);

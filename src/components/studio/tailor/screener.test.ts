@@ -121,16 +121,16 @@ describe("the add-a-line helpers", () => {
     expect(hasBlank(tidyLine("Set up staging with Terraform."))).toBe(false);
   });
 
-  it("shows the letter allowance on every plan", () => {
+  it("shows the letter allowance on paid plans, and what Pro adds on Free or signed out", () => {
     expect(writingAllowance(null, null)).toBe(
-      "Needs a free account, with 5 cover letters and answers a month.",
+      "Letters, answers and interview prep come with Pro. Try it free for 3 days.",
     );
-    expect(writingAllowance("free", { used: 2, limit: 5 })).toBe(
-      "3 of 5 free cover letters and answers left this month.",
+    expect(writingAllowance("free", { used: 0, limit: 0 }, null, false)).toBe(
+      "Letters, answers and interview prep come with Pro.",
     );
-    expect(writingAllowance("free", { used: 5, limit: 5 })).toContain("No free cover letters");
     expect(writingAllowance("pro", { used: 2, limit: 100 })).toBe(
       "98 of 100 cover letters and answers left this month.",
     );
+    expect(writingAllowance("pro", { used: 100, limit: 100 })).toContain("No cover letters");
   });
 });

@@ -1,11 +1,33 @@
-import { bigint, boolean, index, integer, jsonb, pgTable, primaryKey, text, uuid } from "drizzle-orm/pg-core";
+import {
+  bigint,
+  boolean,
+  customType,
+  index,
+  integer,
+  jsonb,
+  pgTable,
+  primaryKey,
+  real,
+  text,
+  uuid,
+} from "drizzle-orm/pg-core";
 import { APPLICATION_STAGES, APPLICATION_STATUSES } from "@/lib/applications/status";
 import { WORK_RIGHTS } from "@/lib/eligibility/profile";
 import { FEEDBACK_KINDS } from "@/lib/feedback/types";
+import {
+  EMPLOYMENT_TYPES,
+  JOB_SOURCES,
+  MATCH_EVENT_KINDS,
+  NOT_FIT_REASONS,
+  ROLE_FAMILIES,
+  SENIORITIES,
+} from "@/lib/job-feed/types";
 import type { InterviewPrep } from "@/lib/insights/prep";
 import { NOTIFICATION_KINDS } from "@/lib/notifications/types";
+import { PORTFOLIO_TEMPLATE_IDS } from "@/lib/portfolio/types";
 import { REFERRAL_BLOCK_REASONS, REFERRAL_STATUSES } from "@/lib/referrals/referrals";
 import type { Resume } from "@/lib/resume/schema";
+import { WRITING_KINDS } from "@/lib/writings/schema";
 
 // Mirrors supabase/migrations, which create these tables (with their foreign keys and RLS). Change
 // both together: a new migration file for the database, then the matching columns here.
@@ -22,14 +44,21 @@ export const users = pgTable(
     // A copy of the auth user's address, kept in sync on sign-in. Not unique: auth.users owns
     // uniqueness, and a stale copy must never block someone else's sign-in.
     email: text("email").notNull(),
-    plan: text("plan", { enum: ["free", "pro", "max"] }).notNull().default("free"),
-    // Provider subscription status as last reported by a webhook, e.g. "active", "on_hold", "cancelled".
+    plan: text("plan", { enum: ["free", "pro", "max"] })
+      .notNull()
+      .default("free"),
+    // Provider subscription status as last reported by a webhook, e.g. "active", "trialing", "canceled".
     planStatus: text("plan_status"),
     planRenewsAt: epochMs("plan_renews_at"),
     // How often the paid plan bills; null on Free (20261108000900_plan_interval.sql).
     planInterval: text("plan_interval", { enum: ["month", "year", "week"] }),
+    // When the Pro trial ends, while the subscription is on it; null otherwise
+    // (20261108004000_pro_trial.sql).
+    trialEndsAt: epochMs("trial_ends_at"),
     billingCustomerId: text("billing_customer_id"),
     billingSubscriptionId: text("billing_subscription_id"),
+    // The newest subscription event applied, so a late retry of an older one is ignored.
+    billingEventAt: epochMs("billing_event_at"),
     createdAt: epochMs("created_at").notNull(),
     updatedAt: epochMs("updated_at").notNull(),
   },
@@ -40,8 +69,8 @@ export const users = pgTable(
   ],
 );
 
-// subject is a user id; period is "YYYY-MM" (a UTC calendar month) or "week:<ISO end instant>" (a
-// weekly subscriber's billing week, src/lib/usage.ts).
+// subject is a user id; period is "YYYY-MM" (a UTC calendar month), "week:<ISO end instant>" (a
+// weekly subscriber's billing week) or "trial" (the one Pro trial, src/lib/usage.ts).
 export const usage = pgTable(
   "usage",
   {
@@ -106,6 +135,14 @@ export const billingEvents = pgTable("billing_events", {
   receivedAt: epochMs("received_at").notNull(),
 });
 
+// Everyone who has trialed or paid, by email hash, so each person gets one trial. Not tied to
+// users: it outlives a deleted account (20261108004000_pro_trial.sql).
+export const trialHistory = pgTable("trial_history", {
+  emailHash: text("email_hash").primaryKey(),
+  kind: text("kind", { enum: ["trial", "paid"] }).notNull(),
+  createdAt: epochMs("created_at").notNull(),
+});
+
 // Job applications a user logs, each tied to the resume version that was sent.
 export const applications = pgTable(
   "applications",
@@ -152,6 +189,8 @@ export const workProfiles = pgTable("work_profiles", {
   workCa: text("work_ca", { enum: WORK_RIGHTS }),
   fullTime: boolean("full_time").notNull().default(true),
   contract: boolean("contract").notNull().default(true),
+  // Only remote jobs, please: the Jobs tab's default filter (20261108001000_jobs.sql).
+  remoteOnly: boolean("remote_only").notNull().default(false),
   createdAt: epochMs("created_at").notNull(),
   updatedAt: epochMs("updated_at").notNull(),
 });
@@ -244,6 +283,193 @@ export const referrals = pgTable(
     createdAt: epochMs("created_at").notNull(),
   },
   (t) => [index("referrals_referrer_status_idx").on(t.referrerId, t.status)],
+);
+
+// Postgres full-text search vector. Written with to_tsvector() in SQL, never read back by the app.
+const tsvector = customType<{ data: string }>({ dataType: () => "tsvector" });
+
+// Openings from public job boards (20261108001000_jobs.sql), written by the daily ingest in
+// src/lib/job-feed. See the migration for each column; the partial indexes live there too.
+export const jobs = pgTable("jobs", {
+  id: uuid("id").primaryKey(),
+  source: text("source", { enum: JOB_SOURCES }).notNull(),
+  externalId: text("external_id").notNull(),
+  board: text("board").notNull().default(""),
+  company: text("company").notNull(),
+  title: text("title").notNull(),
+  location: text("location").notNull().default(""),
+  remote: boolean("remote").notNull().default(false),
+  employmentType: text("employment_type", { enum: EMPLOYMENT_TYPES }),
+  seniority: text("seniority", { enum: SENIORITIES }).notNull().default("mid"),
+  family: text("family", { enum: ROLE_FAMILIES }),
+  minYears: integer("min_years"),
+  postedAt: epochMs("posted_at").notNull(),
+  validThrough: epochMs("valid_through"),
+  url: text("url").notNull(),
+  description: text("description").notNull().default(""),
+  rulesText: text("rules_text").notNull().default(""),
+  keywords: text("keywords").array().notNull().default([]),
+  search: tsvector("search").notNull(),
+  dedupeKey: text("dedupe_key").notNull(),
+  // Location copies of one opening share it (20261109001000_match_quality.sql).
+  groupKey: text("group_key").notNull().default(""),
+  evergreen: boolean("evergreen").notNull().default(false),
+  contentHash: text("content_hash").notNull(),
+  firstSeenAt: epochMs("first_seen_at").notNull(),
+  lastSeenAt: epochMs("last_seen_at").notNull(),
+  missedRuns: integer("missed_runs").notNull().default(0),
+  closedAt: epochMs("closed_at"),
+  closeReason: text("close_reason", {
+    enum: ["gone", "expired", "duplicate", "board_gone", "aged"],
+  }),
+  createdAt: epochMs("created_at").notNull(),
+  updatedAt: epochMs("updated_at").notNull(),
+});
+
+// When each company board and feed was last read, so a run resumes where the last one stopped.
+export const jobBoards = pgTable(
+  "job_boards",
+  {
+    source: text("source", { enum: JOB_SOURCES }).notNull(),
+    token: text("token").notNull(),
+    company: text("company").notNull().default(""),
+    lastFetchedAt: epochMs("last_fetched_at"),
+    lastStatus: text("last_status", { enum: ["ok", "not_found", "failed"] }),
+    failures: integer("failures").notNull().default(0),
+    openJobs: integer("open_jobs").notNull().default(0),
+  },
+  (t) => [primaryKey({ columns: [t.source, t.token] })],
+);
+
+// Open jobs naming each skill and its matching weight, rewritten after each ingest run
+// (20261109001000_match_quality.sql).
+export const jobSkills = pgTable("job_skills", {
+  skill: text("skill").primaryKey(),
+  openJobs: integer("open_jobs").notNull(),
+  weight: real("weight").notNull(),
+  updatedAt: epochMs("updated_at").notNull(),
+});
+
+// What the Jobs tab showed and what was done with it (20261109002000_match_events.sql). Never the
+// resume or contact details.
+export const matchEvents = pgTable(
+  "match_events",
+  {
+    id: uuid("id").primaryKey(),
+    userId: uuid("user_id").notNull(),
+    requestId: uuid("request_id"),
+    kind: text("kind", { enum: MATCH_EVENT_KINDS }).notNull(),
+    jobId: uuid("job_id").notNull(),
+    position: integer("position"),
+    label: text("label", { enum: ["strong", "good", "stretch"] }),
+    variant: text("variant").notNull(),
+    resumeHash: text("resume_hash"),
+    reason: text("reason", { enum: NOT_FIT_REASONS }),
+    createdAt: epochMs("created_at").notNull(),
+  },
+  (t) => [index("match_events_created_idx").on(t.createdAt)],
+);
+
+// Jobs an account saved from the Jobs tab; cascades from users and from jobs.
+export const savedJobs = pgTable(
+  "saved_jobs",
+  {
+    userId: uuid("user_id").notNull(),
+    jobId: uuid("job_id").notNull(),
+    savedAt: epochMs("saved_at").notNull(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.userId, t.jobId] }),
+    index("saved_jobs_user_saved_idx").on(t.userId, t.savedAt),
+  ],
+);
+
+// One public portfolio per account (20261108002000_portfolios.sql), read by slug on /p/<slug>.
+export const portfolios = pgTable(
+  "portfolios",
+  {
+    id: uuid("id").primaryKey(),
+    userId: uuid("user_id").notNull().unique(),
+    resumeId: text("resume_id").notNull(),
+    slug: text("slug").notNull().unique(),
+    template: text("template", { enum: PORTFOLIO_TEMPLATE_IDS }).notNull().default("navy"),
+    // Validated with ResumeSchema on write and on read.
+    snapshot: jsonb("snapshot").$type<Resume>().notNull(),
+    showEmail: boolean("show_email").notNull().default(false),
+    showPhone: boolean("show_phone").notNull().default(false),
+    hiddenSections: text("hidden_sections").array().notNull().default([]),
+    sync: boolean("sync").notNull().default(true),
+    published: boolean("published").notNull().default(false),
+    allowIndexing: boolean("allow_indexing").notNull().default(false),
+    hideCredit: boolean("hide_credit").notNull().default(false),
+    // Project id -> https picture address (20261108003000_portfolio_templates.sql); re-checked on read.
+    projectImages: jsonb("project_images").$type<Record<string, string>>().notNull().default({}),
+    // What the rich templates show beyond the resume (20261108005000_portfolio_content.sql),
+    // checked with PortfolioContentSchema on write and read.
+    content: jsonb("content").$type<Record<string, unknown>>().notNull().default({}),
+    github: jsonb("github").$type<Record<string, unknown>>(),
+    githubCheckedAt: epochMs("github_checked_at"),
+    views: integer("views").notNull().default(0),
+    createdAt: epochMs("created_at").notNull(),
+    updatedAt: epochMs("updated_at").notNull(),
+    publishedAt: epochMs("published_at"),
+  },
+  (t) => [index("portfolios_user_resume_idx").on(t.userId, t.resumeId)],
+);
+
+// A portfolio's old addresses, redirecting to its current one until expires_at.
+export const portfolioRedirects = pgTable(
+  "portfolio_redirects",
+  {
+    slug: text("slug").primaryKey(),
+    portfolioId: uuid("portfolio_id").notNull(),
+    userId: uuid("user_id").notNull(),
+    createdAt: epochMs("created_at").notNull(),
+    expiresAt: epochMs("expires_at").notNull(),
+  },
+  (t) => [index("portfolio_redirects_portfolio_idx").on(t.portfolioId, t.createdAt)],
+);
+
+// Uploaded portfolio pictures (20261108005000_portfolio_content.sql); the files are in the media
+// store under `key`. detachedAt: when the saved content stopped using it, null while in use.
+export const portfolioMedia = pgTable(
+  "portfolio_media",
+  {
+    id: uuid("id").primaryKey(),
+    userId: uuid("user_id").notNull(),
+    key: text("key").notNull().unique(),
+    kind: text("kind", { enum: ["photo", "screenshot", "personal", "logo", "avatar"] }).notNull(),
+    contentType: text("content_type").notNull(),
+    bytes: integer("bytes").notNull(),
+    width: integer("width").notNull(),
+    height: integer("height").notNull(),
+    createdAt: epochMs("created_at").notNull(),
+    detachedAt: epochMs("detached_at"),
+  },
+  (t) => [index("portfolio_media_user_idx").on(t.userId, t.createdAt)],
+);
+
+// Cover letters and answers to application questions an account keeps
+// (20261108007500_writings.sql). Written only through /api/writings.
+export const writings = pgTable(
+  "writings",
+  {
+    id: uuid("id").primaryKey(),
+    userId: uuid("user_id").notNull(),
+    kind: text("kind", { enum: WRITING_KINDS }).notNull(),
+    resumeId: text("resume_id"),
+    resumeTitle: text("resume_title").notNull().default(""),
+    company: text("company").notNull().default(""),
+    role: text("role").notNull().default(""),
+    jobUrl: text("job_url").notNull().default(""),
+    question: text("question").notNull().default(""),
+    body: text("body").notNull(),
+    warnings: jsonb("warnings").$type<string[]>().notNull().default([]),
+    demo: boolean("demo").notNull().default(false),
+    createdAt: epochMs("created_at").notNull(),
+    updatedAt: epochMs("updated_at").notNull(),
+  },
+  (t) => [index("writings_user_created_idx").on(t.userId, t.createdAt, t.id)],
 );
 
 export type UserRow = typeof users.$inferSelect;

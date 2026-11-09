@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { checkEligibility } from "./check";
+import { checkEligibility, ruleLines } from "./check";
 import { emptyWorkProfile, type WorkProfile } from "./profile";
 import type { EligibilityFinding, EligibilityRule } from "./types";
 
@@ -49,6 +49,8 @@ const VANCOUVER = person({
 
 function check(location: string, text: string, who: WorkProfile | null) {
   const findings = checkEligibility({ location, text }, who, { now: NOW });
+  // The Jobs tab stores and checks only these sentences, so they must give the same findings.
+  expect(checkEligibility({ location, text: ruleLines(text) }, who, { now: NOW })).toEqual(findings);
   return Object.fromEntries(findings.map((item) => [item.rule, item])) as Partial<
     Record<EligibilityRule, EligibilityFinding>
   >;

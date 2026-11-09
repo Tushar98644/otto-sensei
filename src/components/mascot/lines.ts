@@ -1,5 +1,16 @@
 import { BRAND } from "@/config/brand";
-import { type Feature, FEATURE_LABELS, PLANS, type UsagePeriod } from "@/config/plans";
+import {
+  type Feature,
+  FEATURE_LABELS,
+  FREE_APPLICATIONS,
+  FREE_JOB_MATCHES,
+  PLANS,
+  PRO_TRIAL,
+  type ProTool,
+  RESUME_LIMITS,
+  type UsagePeriod,
+} from "@/config/plans";
+import { countClaim } from "@/lib/job-feed/counts";
 import { resetSentence, thisPeriod } from "@/lib/usage-copy";
 import { pluralize } from "@/lib/utils";
 
@@ -21,13 +32,35 @@ function asSentence(text: string) {
   return /[.!?]$/.test(trimmed) ? trimmed : `${trimmed}.`;
 }
 
+// AI help is Pro (or its free trial), so signing in is the first of two steps.
 const SIGN_IN_REASONS: Record<Feature, string> = {
-  fix: "Fixing lines needs a free account.",
-  tailor: "Tailoring needs a free account.",
-  letter: "Cover letters and answers need a free account.",
-  import: "Sign in for more AI reads of your uploads each month.",
-  draft: "Sign in to keep building drafts with me.",
-  github: "Sign in to keep drafting projects from GitHub.",
+  fix: `Sign in, then try Pro free for ${PRO_TRIAL.days} days to fix lines with me.`,
+  tailor: `Sign in, then try Pro free for ${PRO_TRIAL.days} days to tailor with me.`,
+  letter: `Sign in, then try Pro free for ${PRO_TRIAL.days} days for letters and answers.`,
+  import: `Sign in, then try Pro free for ${PRO_TRIAL.days} days for AI reads.`,
+  draft: `Sign in, then try Pro free for ${PRO_TRIAL.days} days to build drafts with me.`,
+  github: `Sign in, then try Pro free for ${PRO_TRIAL.days} days to draft from GitHub.`,
+};
+
+// What Otto says when a plan has none of a feature (Free has no AI help).
+const COMES_WITH_PRO: Record<Feature, string> = {
+  fix: "Line fixes come with Pro.",
+  tailor: "Tailoring comes with Pro.",
+  letter: "Letters, answers and interview prep come with Pro.",
+  import: "AI reading of uploads comes with Pro.",
+  draft: "Building drafts with me comes with Pro.",
+  github: "GitHub drafts come with Pro.",
+};
+
+// The same, for the tools Free leaves out besides AI help.
+const TOOL_COMES_WITH_PRO: Record<ProTool, string> = {
+  resumes: `Free keeps ${pluralize(RESUME_LIMITS.free, "resume")}. Pro keeps up to ${RESUME_LIMITS.paid}.`,
+  formats: "This format comes with Pro. Free has Classic and Compact.",
+  word: "Word downloads come with Pro. Your PDF download stays free.",
+  tracker: `Free tracks ${pluralize(FREE_APPLICATIONS, "application")}. Pro tracks every one.`,
+  jobs: "Filters, saved jobs and every match come with Pro.",
+  share: "Share links come with Pro.",
+  eligibility: "Checking where a job can hire from comes with Pro.",
 };
 
 // FEATURE_LABELS is too long for a one-line note in the sidebar ("cover letters, answers and
@@ -41,7 +74,7 @@ const SHORT_LABELS: Record<Feature, string> = {
   github: "GitHub drafts",
 };
 
-const REVIEW_ALL_GOOD ="Every check passed. Hiring software can read all of it.";
+const REVIEW_ALL_GOOD = "Every check passed. Hiring software can read all of it.";
 
 function reviewSummary(counts: CheckCounts) {
   const fail = whole(counts.fail);
@@ -93,6 +126,37 @@ function downloadChecked({ before, after }: BeforeAfter) {
   if (a === 0) return `${was} After: none. Hiring software can read every line.`;
   if (a < b) return `${was} After: ${a}. Better, with a little left to fix.`;
   return `${was} After: ${a}. Let's look at what's left.`;
+}
+
+const count = new Intl.NumberFormat("en-US");
+
+// The Jobs tab's note: counts only, from the matches on screen. "at least" when one request
+// looked at its full share of candidates and there may be more.
+// `matching`: every open job that matches; `shown`: the best of them, the ones listed.
+function jobsFound(matching: number, shown: number, strong: number, newToday: number) {
+  const n = whole(matching);
+  if (n === 0 || whole(shown) === 0)
+    return "No open jobs match this resume yet. I check the boards every day.";
+  // Kept to 18 words: "I found 4,210 matching jobs. Here are the closest 300. 120 look strong, 5 are new today."
+  const lead =
+    n > whole(shown)
+      ? `I found ${count.format(n)} matching jobs. Here are the closest ${count.format(whole(shown))}.`
+      : `I found ${count.format(n)} ${n === 1 ? "job that matches" : "jobs that match"} your resume.`;
+  const s = whole(strong);
+  const fresh = whole(newToday);
+  const parts = [
+    s > 0 ? `${count.format(s)} ${s === 1 ? "looks" : "look"} strong` : "",
+    fresh > 0 ? `${count.format(fresh)} ${fresh === 1 ? "is" : "are"} new today` : "",
+  ].filter(Boolean);
+  return parts.length > 0 ? `${lead} ${parts.join(", ")}.` : lead;
+}
+
+// Under Free's closest few matches: how many more Pro lists, rounded down ("27,000+ more").
+function jobsLocked(more: number) {
+  const n = whole(more);
+  if (n === 0) return "Filters and saved jobs come with Pro.";
+  const shown = countClaim(n) ?? count.format(n);
+  return `${shown} more ${n === 1 ? "match" : "matches"}. Filters, saved jobs and every match come with Pro.`;
 }
 
 export const OTTO = {
@@ -149,10 +213,27 @@ export const OTTO = {
   },
   limit: {
     // Pass the user's actual limit from their UsageSnapshot and their period from /api/me; they
-    // default to the free plan's limit and the calendar month.
-    reached: (feature: Feature, limit: number = PLANS.free.limits[feature], period?: UsagePeriod | null) =>
-      `You've used all ${whole(limit)} ${FEATURE_LABELS[feature]} for ${thisPeriod(period)}. ` +
-      resetSentence(period),
+    // default to Pro's limit and the calendar month. A limit of 0 (Free) is the trial pitch.
+    reached: (
+      feature: Feature,
+      limit: number = PLANS.pro.limits[feature],
+      period?: UsagePeriod | null,
+    ) =>
+      whole(limit) === 0
+        ? `${COMES_WITH_PRO[feature]} Try it free for ${PRO_TRIAL.days} days.`
+        : `You've used all ${whole(limit)} ${FEATURE_LABELS[feature]} for ${thisPeriod(period)}. ` +
+          resetSentence(period),
+    // On Free: the feature isn't part of the plan at all. Someone who has had the trial isn't
+    // offered it again.
+    none: (feature: Feature, trial = true) =>
+      trial
+        ? `${COMES_WITH_PRO[feature]} Try it free for ${PRO_TRIAL.days} days.`
+        : COMES_WITH_PRO[feature],
+    // On Free: a Pro tool (see ProTool), with the trial when it's still on offer.
+    tool: (tool: ProTool, trial = true) =>
+      trial
+        ? `${TOOL_COMES_WITH_PRO[tool]} Try it free for ${PRO_TRIAL.days} days.`
+        : TOOL_COMES_WITH_PRO[tool],
     // 80% or more of a meter used, said with his worried face: a heads-up, not a sales pitch.
     near: (feature: Feature, used: number, limit: number, period?: UsagePeriod | null) =>
       `Uh-oh, ${whole(used)} of ${whole(limit)} ${SHORT_LABELS[feature]} used. ${resetSentence(period)}`,
@@ -181,18 +262,49 @@ export const OTTO = {
   },
   upgrade: {
     done: (plan: string) => `You're on ${plan} now. Your new limits apply straight away.`,
+    trial: `Try my AI help free for ${PRO_TRIAL.days} days. Cancel before it ends and you pay nothing.`,
+    // The trial's end date, written for the reader, e.g. "Nov 11".
+    trialStarted: (endsOn: string) => `Your Pro trial runs until ${endsOn}. Let's get to work.`,
   },
   errors: {
     generic: "Something went wrong on my end. Mind trying that again?",
     // The server gives the unit back for these, except past a small daily cap on failed runs the
     // model may have been paid for (see runMetered), hence "most".
-    aiUnavailable: "I'm stuck on that one. Try again in a minute. Most hiccups like this won't count against you.",
+    aiUnavailable:
+      "I'm stuck on that one. Try again in a minute. Most hiccups like this won't count against you.",
     offline: "You seem to be offline. Your work is saved in this browser.",
     rateLimited: "That's a lot at once. Give me a minute to catch up.",
     notFound: "I looked everywhere, but this page isn't here.",
   },
   empty: {
     noResumes: "No resumes here yet. Upload one, or start fresh with me.",
+  },
+  jobs: {
+    found: jobsFound,
+    locked: jobsLocked,
+    filtered: "Nothing matches these filters. Try loosening one of them.",
+    noResume: "Add a resume and I'll find open jobs that fit it.",
+    noJobs: "No jobs here yet. The boards are read once a day.",
+    saved: (saved: number) =>
+      whole(saved) === 0
+        ? "Nothing saved yet. Save a job and it waits for you here."
+        : `${pluralize(whole(saved), "saved job")}. Closed ones stay here for 30 days.`,
+    noSkills:
+      "I couldn't find any skills in this resume. Add a skills section and I'll match again.",
+    publicInvite: `Sign in free and I'll show your ${FREE_JOB_MATCHES} closest matches, with the reasons. Pro ranks them all.`,
+    publicFailed: "I couldn't load the jobs just now. Try again in a minute.",
+  },
+  // The Cover letters page (/dashboard/letters).
+  letters: {
+    empty: "No letters yet. Paste a job link and I'll write one from your resume.",
+    noResume: "I need a resume to write from. Add one, then come back here.",
+    write: "Paste the job link. I'll write about 200 words from your resume, nothing made up.",
+    answer: "Paste the question and the job link. I'll draft a short answer from your resume.",
+  },
+  // The Interview prep page (/dashboard/interview).
+  interview: {
+    empty: "No prep yet. Pick an application or paste a job link and I'll start.",
+    pick: "Pick the job. A pasted link joins your Applications, marked as an interview.",
   },
   demoMode: "Demo mode: AI is off, so my suggestions are samples, not real rewrites.",
 } as const satisfies Record<string, Line | Record<string, Line>>;

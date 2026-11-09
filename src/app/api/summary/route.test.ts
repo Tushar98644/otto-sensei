@@ -1,9 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { PLANS } from "@/config/plans";
+import { PRO_TRIAL } from "@/config/plans";
 import { writeSummary } from "@/lib/ai/summary";
 import { AIError } from "@/lib/ai/types";
 import type { ApiErrorBody, SummaryRequestBody, SummaryResponse } from "@/lib/api/types";
-import { cookieJar, jsonRequest, resetDb, signInAs } from "@/lib/auth/test-helpers";
+import { cookieJar, jsonRequest, resetDb, signInOnTrial } from "@/lib/auth/test-helpers";
 import { resetEnvForTests } from "@/lib/env";
 import { createSampleResume } from "@/lib/resume/sample";
 import { getUsage } from "@/lib/usage";
@@ -16,6 +16,8 @@ vi.mock("@/lib/ai/summary", async (importOriginal) => {
   return { ...actual, writeSummary: vi.fn(actual.writeSummary) };
 });
 
+// Accounts run on the free Pro trial, the smallest real AI allowance (Free has none).
+const TRIAL_END = Date.UTC(2099, 0, 15, 12);
 const NOW = Date.UTC(2026, 10, 7, 12, 0, 0, 7);
 
 const write = (): SummaryRequestBody => ({ mode: "write", resume: createSampleResume(NOW) });
@@ -47,19 +49,19 @@ describe("POST /api/summary", () => {
   });
 
   it("writes two demo takes and counts one line fix", async () => {
-    const user = await signInAs("ada@example.com");
+    const user = await signInOnTrial("ada@example.com", TRIAL_END);
     const res = await send(write());
     expect(res.status).toBe(200);
     const body = (await res.json()) as SummaryResponse;
 
     expect(body.demo).toBe(true);
     expect(body.result.options.map((option) => option.kind)).toEqual(["achievements", "role"]);
-    expect(body.usage.fix).toEqual({ used: 1, limit: PLANS.free.limits.fix });
+    expect(body.usage.fix).toEqual({ used: 1, limit: PRO_TRIAL.limits.fix });
     expect((await getUsage(user, NOW)).fix.used).toBe(1);
   });
 
   it("tightens the person's own summary", async () => {
-    await signInAs("ada@example.com");
+    await signInOnTrial("ada@example.com", TRIAL_END);
     const res = await send({ mode: "improve", summary: "I am a very hard-working designer. Ships fast." });
     expect(res.status).toBe(200);
     const body = (await res.json()) as SummaryResponse;
@@ -69,7 +71,7 @@ describe("POST /api/summary", () => {
   });
 
   it("rejects a summary too short to improve before counting anything", async () => {
-    const user = await signInAs("ada@example.com");
+    const user = await signInOnTrial("ada@example.com", TRIAL_END);
     const res = await send({ mode: "improve", summary: "Hi" });
     expect(res.status).toBe(400);
     expect((await errorOf(res)).code).toBe("bad_request");
@@ -77,13 +79,13 @@ describe("POST /api/summary", () => {
   });
 
   it("rejects an unknown mode", async () => {
-    await signInAs("ada@example.com");
+    await signInOnTrial("ada@example.com", TRIAL_END);
     const res = await send({ mode: "rewrite", summary: "Backend engineer building APIs." });
     expect(res.status).toBe(400);
   });
 
   it("gives the unit back when the model fails", async () => {
-    const user = await signInAs("ada@example.com");
+    const user = await signInOnTrial("ada@example.com", TRIAL_END);
     vi.mocked(writeSummary).mockRejectedValueOnce(new AIError("unavailable", "down"));
     const res = await send(write());
     expect(res.status).toBe(502);

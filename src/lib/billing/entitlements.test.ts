@@ -25,8 +25,10 @@ async function createUser(overrides: Partial<UserRow> = {}): Promise<UserRow> {
     planStatus: null,
     planRenewsAt: null,
     planInterval: null,
+    trialEndsAt: null,
     billingCustomerId: null,
     billingSubscriptionId: null,
+    billingEventAt: null,
     createdAt: NOW - 1000,
     updatedAt: NOW - 1000,
     ...overrides,
@@ -49,11 +51,13 @@ function subscription(overrides: Partial<SubscriptionState> = {}): SubscriptionS
     productInterval: "month",
     status: "active",
     renewsAt: RENEWS_AT,
+    periodEndsAt: RENEWS_AT,
+    eventAt: null,
     ...overrides,
   };
 }
 
-const source = () => ({ eventId: next("msg"), eventType: "subscription.updated" });
+const source = () => ({ eventId: next("msg"), eventType: "subscription.update" });
 
 beforeEach(async () => {
   await resetDb();
@@ -63,12 +67,13 @@ describe("planForStatus", () => {
   const cases: Array<[string, "paid" | "free" | null]> = [
     ["active", "paid"],
     ["past_due", "paid"],
-    ["on_hold", "free"],
+    ["trialing", "paid"],
+    ["scheduled_cancel", "paid"],
+    ["unpaid", "free"],
     ["paused", "free"],
-    ["cancelled", "free"],
+    ["canceled", "free"],
     ["expired", "free"],
-    ["failed", "free"],
-    ["pending", null],
+    ["incomplete", null],
     ["something_new", null],
   ];
 
@@ -84,7 +89,7 @@ describe("applySubscriptionState", () => {
 
     const result = await applySubscriptionState(state, source(), NOW);
 
-    expect(result).toEqual({ outcome: "applied", userId: user.id, plan: "pro" });
+    expect(result).toMatchObject({ outcome: "applied", userId: user.id, plan: "pro" });
     expect(await reload(user.id)).toMatchObject({
       plan: "pro",
       planStatus: "active",
@@ -106,7 +111,7 @@ describe("applySubscriptionState", () => {
     expect(await reload(user.id)).toMatchObject({ plan: "pro", planStatus: "past_due" });
   });
 
-  it.each(["cancelled", "expired", "on_hold", "paused", "failed"])(
+  it.each(["canceled", "expired", "unpaid", "paused"])(
     "takes Pro away when the subscription is %s",
     async (status) => {
       const user = await createUser({
@@ -123,15 +128,15 @@ describe("applySubscriptionState", () => {
         NOW,
       );
 
-      expect(result).toEqual({ outcome: "applied", userId: user.id, plan: "free" });
+      expect(result).toMatchObject({ outcome: "applied", userId: user.id, plan: "free" });
       expect(await reload(user.id)).toMatchObject({ plan: "free", planStatus: status, planRenewsAt: null });
     },
   );
 
-  it("leaves the user alone for pending and unknown statuses", async () => {
+  it("leaves the user alone for incomplete and unknown statuses", async () => {
     const user = await createUser({ plan: "pro", planStatus: "active", billingSubscriptionId: "sub_1" });
 
-    const pending = subscription({ userId: user.id, status: "pending" });
+    const pending = subscription({ userId: user.id, status: "incomplete" });
     const unknown = subscription({ userId: user.id, status: "something_new" });
 
     expect(await applySubscriptionState(pending, source(), NOW)).toEqual({
@@ -225,7 +230,7 @@ describe("protecting paying users", () => {
     });
 
     const result = await applySubscriptionState(
-      subscription({ userId: user.id, customerId: "cus_1", subscriptionId: "sub_second", status: "failed" }),
+      subscription({ userId: user.id, customerId: "cus_1", subscriptionId: "sub_second", status: "unpaid" }),
       source(),
       NOW,
     );
@@ -235,7 +240,7 @@ describe("protecting paying users", () => {
   });
 
   it("lets a new subscription take over after the old one ended", async () => {
-    const user = await createUser({ planStatus: "cancelled", billingSubscriptionId: "sub_old" });
+    const user = await createUser({ planStatus: "canceled", billingSubscriptionId: "sub_old" });
     const result = await applySubscriptionState(
       subscription({ userId: user.id, subscriptionId: "sub_new" }),
       source(),
@@ -254,11 +259,11 @@ describe("protecting paying users", () => {
 
     const subscriber = await createUser({ plan: "pro", billingSubscriptionId: "sub_mine" });
     const changed = await applySubscriptionState(
-      subscription({ subscriptionId: "sub_mine", productPlan: null, status: "cancelled" }),
+      subscription({ subscriptionId: "sub_mine", productPlan: null, status: "canceled" }),
       source(),
       NOW,
     );
-    expect(changed).toEqual({ outcome: "applied", userId: subscriber.id, plan: "free" });
+    expect(changed).toMatchObject({ outcome: "applied", userId: subscriber.id, plan: "free" });
   });
 });
 
@@ -272,12 +277,12 @@ describe("idempotency", () => {
       outcome: "applied",
     });
     // Change the row behind the webhook's back: applying the same event again would undo this.
-    await db.update(users).set({ plan: "free", planStatus: "cancelled" }).where(eq(users.id, user.id));
+    await db.update(users).set({ plan: "free", planStatus: "canceled" }).where(eq(users.id, user.id));
 
     expect(await applySubscriptionState(subscription({ userId: user.id }), event, NOW + 1)).toEqual({
       outcome: "duplicate",
     });
-    expect(await reload(user.id)).toMatchObject({ plan: "free", planStatus: "cancelled", updatedAt: NOW });
+    expect(await reload(user.id)).toMatchObject({ plan: "free", planStatus: "canceled", updatedAt: NOW });
     expect(await db.select().from(billingEvents)).toEqual([
       { id: event.eventId, type: event.eventType, receivedAt: NOW },
     ]);
@@ -312,7 +317,7 @@ describe("plans from products", () => {
       source(),
       NOW,
     );
-    expect(moved).toEqual({ outcome: "applied", userId: subscriber.id, plan: "max" });
+    expect(moved).toMatchObject({ outcome: "applied", userId: subscriber.id, plan: "max" });
     expect(await reload(subscriber.id)).toMatchObject({ plan: "max", planInterval: "week" });
   });
 
@@ -343,7 +348,48 @@ describe("plans from products", () => {
   it("clears the interval when we cancel the subscription ourselves", async () => {
     const user = await createUser({ plan: "pro", planInterval: "week", billingSubscriptionId: "sub_gone" });
     await markSubscriptionCancelled(user.id, "sub_gone", NOW);
-    expect(await reload(user.id)).toMatchObject({ plan: "free", planInterval: null, planStatus: "cancelled" });
+    expect(await reload(user.id)).toMatchObject({ plan: "free", planInterval: null, planStatus: "canceled" });
   });
 });
 
+
+describe("the trial", () => {
+  const TRIAL_ENDS = Date.UTC(2026, 10, 9, 12);
+
+  it("keeps the trial's allowance through a cancellation scheduled during it, and ends it on payment", async () => {
+    const user = await createUser();
+    const started = await applySubscriptionState(
+      subscription({ userId: user.id, subscriptionId: "sub_t", status: "trialing", periodEndsAt: TRIAL_ENDS }),
+      source(),
+      NOW,
+    );
+    expect(started).toMatchObject({ outcome: "applied", plan: "pro", trialing: true, before: { plan: "free" } });
+
+    await applySubscriptionState(
+      subscription({ subscriptionId: "sub_t", status: "scheduled_cancel", renewsAt: null }),
+      source(),
+      NOW,
+    );
+    expect(await reload(user.id)).toMatchObject({ plan: "pro", trialEndsAt: TRIAL_ENDS, planRenewsAt: null });
+
+    const paid = await applySubscriptionState(subscription({ subscriptionId: "sub_t" }), source(), NOW);
+    expect(paid).toMatchObject({ outcome: "applied", trialing: false, before: { trialing: true } });
+    expect(await reload(user.id)).toMatchObject({ plan: "pro", trialEndsAt: null });
+  });
+
+  it("drops an event older than the last one applied for the same subscription", async () => {
+    const user = await createUser();
+    await applySubscriptionState(
+      subscription({ userId: user.id, subscriptionId: "sub_o", eventAt: 2_000 }),
+      source(),
+      NOW,
+    );
+    const late = await applySubscriptionState(
+      subscription({ subscriptionId: "sub_o", status: "canceled", eventAt: 1_000 }),
+      source(),
+      NOW,
+    );
+    expect(late).toEqual({ outcome: "ignored", reason: "superseded" });
+    expect(await reload(user.id)).toMatchObject({ plan: "pro", billingEventAt: 2_000 });
+  });
+});

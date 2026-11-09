@@ -1,22 +1,25 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { PLANS } from "@/config/plans";
+import { PRO_TRIAL } from "@/config/plans";
 import type {
   ApiErrorBody,
+  InterviewPacksResponse,
   InterviewPrepResponse,
   InterviewRequestBody,
   InterviewResponse,
 } from "@/lib/api/types";
-import { cookieJar, jsonRequest, resetDb, signInAs } from "@/lib/auth/test-helpers";
+import { cookieJar, jsonRequest, resetDb, signInAs, signInOnTrial } from "@/lib/auth/test-helpers";
 import { resetEnvForTests } from "@/lib/env";
 import { getPrep, savePrep } from "@/lib/insights/prep-store";
 import { createSampleResume } from "@/lib/resume/sample";
 import { getUsage } from "@/lib/usage";
 import { createApplication } from "../applications/records";
 import { GET } from "./[id]/route";
-import { POST } from "./route";
+import { GET as listPacks, POST } from "./route";
 
 vi.mock("next/headers", async () => (await import("@/lib/auth/test-helpers")).nextHeadersMock);
 
+// Accounts run on the free Pro trial, the smallest real AI allowance (Free has none).
+const TRIAL_END = Date.UTC(2099, 0, 15, 12);
 const NOW = Date.UTC(2026, 10, 7, 12, 0, 0, 7);
 
 const JOB_POST =
@@ -72,7 +75,7 @@ describe("POST /api/interview", () => {
   });
 
   it("makes a demo pack, saves it on the application and counts one letter", async () => {
-    const user = await signInAs();
+    const user = await signInOnTrial(undefined, TRIAL_END);
     const id = await newApplication(user.id);
     const res = await POST(jsonRequest("/api/interview", body(id)));
     expect(res.status).toBe(200);
@@ -81,7 +84,7 @@ describe("POST /api/interview", () => {
     expect(json.result.saved).toBe(true);
     expect(json.result.prep.questions.length).toBeGreaterThan(0);
     expect(json.result.prep.stories[0]?.place).toBe("Product Marketing Manager at Brightloop");
-    expect(json.usage.letter).toEqual({ used: 1, limit: PLANS.free.limits.letter });
+    expect(json.usage.letter).toEqual({ used: 1, limit: PRO_TRIAL.limits.letter });
     expect((await getUsage(user)).letter.used).toBe(1);
 
     const loaded = await prepRequest(id);
@@ -93,14 +96,14 @@ describe("POST /api/interview", () => {
   });
 
   it("still hands over the pack when the application is gone", async () => {
-    await signInAs();
+    await signInOnTrial(undefined, TRIAL_END);
     const res = await POST(jsonRequest("/api/interview", body(crypto.randomUUID())));
     expect(res.status).toBe(200);
     expect(((await res.json()) as InterviewResponse).result.saved).toBe(false);
   });
 
   it("rejects a post that's too short without spending a letter", async () => {
-    const user = await signInAs();
+    const user = await signInOnTrial(undefined, TRIAL_END);
     const id = await newApplication(user.id);
     const res = await POST(
       jsonRequest("/api/interview", { ...body(id), job: { text: "Apply now.", title: "", company: "" } }),
@@ -117,16 +120,16 @@ describe("GET /api/interview/:id", () => {
   });
 
   it("answers 404 for another account's application and for a bad id", async () => {
-    const owner = await signInAs("owner@example.com");
+    const owner = await signInOnTrial("owner@example.com", TRIAL_END);
     const id = await newApplication(owner.id);
     cookieJar.clear();
-    await signInAs("other@example.com");
+    await signInOnTrial("other@example.com", TRIAL_END);
     expect((await prepRequest(id)).status).toBe(404);
     expect((await prepRequest("not-a-uuid")).status).toBe(404);
   });
 
   it("returns no pack before one is made", async () => {
-    const user = await signInAs();
+    const user = await signInOnTrial(undefined, TRIAL_END);
     const id = await newApplication(user.id);
     const res = await prepRequest(id);
     expect(((await res.json()) as InterviewPrepResponse).prep).toBeNull();
@@ -135,7 +138,7 @@ describe("GET /api/interview/:id", () => {
 
 describe("prep store", () => {
   it("never writes another account's row and reads a broken pack as none", async () => {
-    const owner = await signInAs("owner@example.com");
+    const owner = await signInOnTrial("owner@example.com", TRIAL_END);
     const id = await newApplication(owner.id);
     const pack = {
       version: 1 as const,
@@ -150,5 +153,38 @@ describe("prep store", () => {
     expect(await savePrep(owner.id, id, pack)).toBe(true);
     expect((await getPrep(owner.id, id))?.prep).toEqual(pack);
     await expect(savePrep(owner.id, id, { ...pack, asks: ["x".repeat(500)] })).rejects.toThrow();
+  });
+});
+
+describe("GET /api/interview", () => {
+  it("lists the account's packs as counts, newest first, on any plan", async () => {
+    expect((await listPacks()).status).toBe(401);
+    const owner = await signInOnTrial("owner@example.com", TRIAL_END);
+    const older = await newApplication(owner.id);
+    const newer = await newApplication(owner.id);
+    await newApplication(owner.id);
+    const pack = {
+      version: 1 as const,
+      job: { title: "", company: "" },
+      questions: [{ question: "Tell me about a launch.", why: "" }],
+      stories: [],
+      asks: [],
+      createdAt: NOW - 5_000,
+      demo: true,
+    };
+    await savePrep(owner.id, older, pack);
+    await savePrep(owner.id, newer, { ...pack, createdAt: NOW, demo: false, questions: [] });
+
+    const res = await listPacks();
+    expect(res.headers.get("cache-control")).toBe("no-store");
+    const { packs } = (await res.json()) as InterviewPacksResponse;
+    expect(packs).toEqual([
+      expect.objectContaining({ applicationId: newer, createdAt: NOW, questions: 0, stories: 0, demo: false }),
+      expect.objectContaining({ applicationId: older, company: "Contoso", questions: 1, demo: true }),
+    ]);
+
+    cookieJar.clear();
+    await signInAs("free@example.com");
+    expect(((await (await listPacks()).json()) as InterviewPacksResponse).packs).toEqual([]);
   });
 });

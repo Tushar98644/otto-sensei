@@ -1,14 +1,20 @@
 import { TEXT_LIMITS } from "@/config/plans";
+import { fail, ok } from "@/lib/api/respond";
+import type { InterviewPacksResponse } from "@/lib/api/types";
 import { prepareInterview } from "@/lib/ai/interview";
 import { rejectCrossSite } from "@/lib/auth/route-guards";
 import { getCurrentUser } from "@/lib/auth/session";
 import { InterviewRequestSchema, type InterviewPrep, type InterviewResult } from "@/lib/insights/prep";
-import { savePrep } from "@/lib/insights/prep-store";
+import { listPreps, savePrep } from "@/lib/insights/prep-store";
 import { log } from "@/lib/log";
 import { runMetered, type MeteredCopy } from "../fix/metered";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
+export const dynamic = "force-dynamic";
+
+// Per-user, and changes with every new pack, so no browser or CDN may keep a copy.
+const NO_STORE = { "Cache-Control": "no-store" };
 
 const COPY: MeteredCopy = {
   signIn: "Sign in to let Otto help you prepare.",
@@ -28,6 +34,20 @@ async function saveForCaller(applicationId: string, prep: InterviewPrep): Promis
   } catch (error) {
     log.error("interview.save_failed", error);
     return false;
+  }
+}
+
+// GET /api/interview: the account's prep packs, for /dashboard/interview. Readable on every plan,
+// so packs made on Pro or the trial stay after it.
+export async function GET(): Promise<Response> {
+  try {
+    const user = await getCurrentUser();
+    if (!user) return fail("unauthorized", "Sign in to see your interview prep.", 401, NO_STORE);
+    const response: Omit<InterviewPacksResponse, "ok"> = { packs: await listPreps(user.id) };
+    return ok(response, { headers: NO_STORE });
+  } catch (error) {
+    log.error("interview.list_failed", error);
+    return fail("server_error", "Couldn't load your interview prep. Please try again.", 500, NO_STORE);
   }
 }
 

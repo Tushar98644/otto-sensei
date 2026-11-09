@@ -20,7 +20,7 @@ export const RETENTION = {
   readNotificationsMs: 90 * DAY_MS,
   // Unread ones too, eventually: nobody opens a year-old reminder.
   anyNotificationsMs: 365 * DAY_MS,
-  // Dodo stops redelivering a webhook within days, so an id this old can never arrive again.
+  // Creem stops redelivering a webhook after a day, so an id this old can never arrive again.
   billingEventsMs: 400 * DAY_MS,
 } as const;
 

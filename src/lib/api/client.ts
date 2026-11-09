@@ -19,6 +19,26 @@ import type {
   UpdateShareBody,
 } from "@/lib/share/types";
 import type {
+  CreatePortfolioBody,
+  PortfolioResponse,
+  PortfolioSaveResponse,
+  PortfolioSlugResponse,
+  UpdatePortfolioBody,
+} from "@/lib/portfolio/types";
+import type {
+  ContentResponse,
+  GitHubRefreshResponse,
+  MediaUploadResponse,
+  SaveContentBody,
+} from "@/lib/portfolio/content";
+import type { MediaKind } from "@/lib/portfolio/media";
+import type {
+  CreateWritingBody,
+  UpdateWritingBody,
+  WritingResponse,
+  WritingsResponse,
+} from "@/lib/writings/schema";
+import type {
   AnswerRequestBody,
   AnswerResponse,
   ApiErrorBody,
@@ -38,10 +58,15 @@ import type {
   FixResponse,
   GoogleSignInResponse,
   ImportResponse,
+  InterviewPacksResponse,
   InterviewPrepResponse,
   InterviewRequestBody,
   InterviewResponse,
+  JobMatchesRequestBody,
+  JobMatchesResponse,
+  JobPostResponse,
   JobRequestBody,
+  MatchActionInput,
   JobResponse,
   LetterRequestBody,
   LetterResponse,
@@ -51,6 +76,7 @@ import type {
   ReferralSummaryResponse,
   RequestCodeResponse,
   ResumesResponse,
+  SavedJobResponse,
   SummaryRequestBody,
   SummaryResponse,
   TailorRequestBody,
@@ -133,8 +159,28 @@ export const api = {
     request<InterviewPrepResponse>(`/api/interview/${encodeURIComponent(applicationId)}`, {
       cache: "no-store",
     }),
+  interviewPacks: () => request<InterviewPacksResponse>("/api/interview", { cache: "no-store" }),
+  writings: () => request<WritingsResponse>("/api/writings", { cache: "no-store" }),
+  saveWriting: (body: CreateWritingBody) =>
+    request<WritingResponse>("/api/writings", postJson(body)),
+  editWriting: (id: string, body: UpdateWritingBody) =>
+    request<WritingResponse>(`/api/writings/${encodeURIComponent(id)}`, postJson(body, "PATCH")),
+  // keepalive: sent from a page that is closing (an undo window that never ran out).
+  deleteWriting: (id: string, { keepalive = false }: { keepalive?: boolean } = {}) =>
+    request<EmptyOk>(`/api/writings/${encodeURIComponent(id)}`, { method: "DELETE", keepalive }),
   summary: (body: SummaryRequestBody) => request<SummaryResponse>("/api/summary", postJson(body)),
   readJob: (body: JobRequestBody) => request<JobResponse>("/api/job", postJson(body)),
+  jobMatches: (body: JobMatchesRequestBody) =>
+    request<JobMatchesResponse>("/api/jobs/matches", postJson(body)),
+  jobPost: (id: string) =>
+    request<JobPostResponse>(`/api/jobs/${encodeURIComponent(id)}`, { cache: "no-store" }),
+  saveJob: (id: string) =>
+    request<SavedJobResponse>(`/api/jobs/saved/${encodeURIComponent(id)}`, { method: "PUT" }),
+  unsaveJob: (id: string) =>
+    request<SavedJobResponse>(`/api/jobs/saved/${encodeURIComponent(id)}`, { method: "DELETE" }),
+  // keepalive: "Open job" leaves for another tab, and the note should still arrive.
+  jobEvent: (body: MatchActionInput) =>
+    request<EmptyOk>("/api/jobs/events", { ...postJson(body), keepalive: true }),
   me: () => request<MeResponse>("/api/me", { cache: "no-store" }),
   requestCode: (email: string) =>
     request<RequestCodeResponse>("/api/auth/request-code", postJson({ email })),
@@ -153,13 +199,18 @@ export const api = {
     request<EmptyOk>(`/api/resumes/${encodeURIComponent(id)}`, { method: "DELETE" }),
   listApplications: (cursor: string | null = null) =>
     request<ApplicationsResponse>(
-      cursor === null ? "/api/applications" : `/api/applications?cursor=${encodeURIComponent(cursor)}`,
+      cursor === null
+        ? "/api/applications"
+        : `/api/applications?cursor=${encodeURIComponent(cursor)}`,
       { cache: "no-store" },
     ),
   createApplication: (body: CreateApplicationBody) =>
     request<ApplicationResponse>("/api/applications", postJson(body)),
   updateApplication: (id: string, body: UpdateApplicationBody) =>
-    request<ApplicationResponse>(`/api/applications/${encodeURIComponent(id)}`, postJson(body, "PATCH")),
+    request<ApplicationResponse>(
+      `/api/applications/${encodeURIComponent(id)}`,
+      postJson(body, "PATCH"),
+    ),
   setApplicationsStatus: (body: BulkApplicationStatusBody) =>
     request<BulkApplicationsResponse>("/api/applications", postJson(body, "PATCH")),
   // keepalive: sent from a page that is closing (an undo window that never ran out).
@@ -201,4 +252,28 @@ export const api = {
     request<ShareResponse>(`/api/share/${encodeURIComponent(id)}`, postJson(body, "PATCH")),
   revokeShare: (id: string, { keepalive = false }: { keepalive?: boolean } = {}) =>
     request<EmptyOk>(`/api/share/${encodeURIComponent(id)}`, { method: "DELETE", keepalive }),
+  portfolio: () => request<PortfolioResponse>("/api/portfolio", { cache: "no-store" }),
+  createPortfolio: (body: CreatePortfolioBody) =>
+    request<PortfolioSaveResponse>("/api/portfolio", postJson(body)),
+  updatePortfolio: (body: UpdatePortfolioBody) =>
+    request<PortfolioSaveResponse>("/api/portfolio", postJson(body, "PATCH")),
+  checkPortfolioSlug: (value: string) =>
+    request<PortfolioSlugResponse>(`/api/portfolio/slug?value=${encodeURIComponent(value)}`, {
+      cache: "no-store",
+    }),
+  deletePortfolio: () => request<EmptyOk>("/api/portfolio", { method: "DELETE" }),
+  portfolioContent: () => request<ContentResponse>("/api/portfolio/content", { cache: "no-store" }),
+  savePortfolioContent: (
+    body: SaveContentBody,
+    { keepalive = false }: { keepalive?: boolean } = {},
+  ) => request<ContentResponse>("/api/portfolio/content", { ...postJson(body, "PUT"), keepalive }),
+  refreshPortfolioGitHub: () =>
+    request<GitHubRefreshResponse>("/api/portfolio/github", { method: "POST" }),
+  uploadPortfolioMedia: (file: File, kind: MediaKind) => {
+    const form = fileForm(file);
+    form.append("kind", kind);
+    return request<MediaUploadResponse>("/api/portfolio/media", { method: "POST", body: form });
+  },
+  portfolioSiteIcon: (url: string) =>
+    request<MediaUploadResponse>("/api/portfolio/media/icon", postJson({ url })),
 };

@@ -51,7 +51,7 @@ function joinTokens(tokens: readonly string[]): string {
 // One- and two-letter matches are where false positives live: "it", "or", "ml" (millilitres), a
 // middle initial ("Jane R. Doe"), "C-suite". They only count in capitals (or spelled exactly like
 // a mixed-case term such as "Qt"), and a lone letter can't be glued to a dot, hyphen or apostrophe.
-function isPlausible(text: string, start: number, end: number, surface: string): boolean {
+export function isPlausible(text: string, start: number, end: number, surface: string): boolean {
   const span = text.slice(start, end);
   if (!/^\p{L}{1,2}$/u.test(span)) return true;
   const capitalized =

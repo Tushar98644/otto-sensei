@@ -1,7 +1,10 @@
 "use client";
 
 import { useId, useMemo, useState, type ReactNode } from "react";
+import { useProTools, useTryProLabel } from "@/components/account/pro-tools";
 import { SignInDialog } from "@/components/account/sign-in-dialog";
+import { openUpgradePrompt } from "@/components/account/upgrade-prompt";
+import { OTTO } from "@/components/mascot/lines";
 import { useNow } from "@/components/studio/use-now";
 import { Button } from "@/components/ui/button";
 import { Eyebrow } from "@/components/ui/eyebrow";
@@ -53,7 +56,8 @@ function FindingRow({ item }: { item: EligibilityFinding }) {
 
 // "Can they hire you from here?": the post's rules on where you live, visas, hours and job type,
 // each checked against the work profile, with the line it comes from. Rule-based and in the
-// browser, so it costs nothing and needs no account; the profile only sharpens the verdicts.
+// browser, so it costs nothing; the profile only sharpens the verdicts. It's Pro all the same: on
+// Free (and signed out) the card says how many rules the post has and offers the trial.
 export function EligibilityCard({ location, text }: EligibilityCardProps) {
   const work = useWorkProfile();
   // Offsets only move with daylight saving, so the hour is precise enough and the check doesn't
@@ -62,6 +66,8 @@ export function EligibilityCard({ location, text }: EligibilityCardProps) {
   const titleId = useId();
   const [editing, setEditing] = useState(false);
   const [signingIn, setSigningIn] = useState(false);
+  const locked = useProTools() === false;
+  const tryPro = useTryProLabel();
   const profile = work.status === "ready" && work.updatedAt !== null ? work.profile : null;
   const settled = hour !== 0 && work.status !== "unknown" && work.status !== "loading";
   const findings = useMemo(
@@ -125,7 +131,26 @@ export function EligibilityCard({ location, text }: EligibilityCardProps) {
       <h3 id={titleId} className="mt-2 text-base/6 font-semibold text-ink">
         Can they hire you from here?
       </h3>
-      {!settled ? (
+      {settled && locked ? (
+        <div className="mt-1 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-sm/6 text-muted">
+            {findings.length === 0
+              ? null
+              : findings.length === 1
+                ? "1 rule in this post. "
+                : `${findings.length} rules in this post. `}
+            {OTTO.limit.tool("eligibility", false)}
+          </p>
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={() => openUpgradePrompt("eligibility")}
+            className="self-start"
+          >
+            {tryPro}
+          </Button>
+        </div>
+      ) : !settled ? (
         <div className="mt-4 flex flex-col gap-2" aria-hidden>
           <Skeleton className="h-6 w-28 rounded-full" />
           <Skeleton className="h-4 w-full" />
@@ -150,7 +175,7 @@ export function EligibilityCard({ location, text }: EligibilityCardProps) {
           </ul>
         </>
       )}
-      {settled && (footer || action) ? (
+      {settled && !locked && (footer || action) ? (
         <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           {footer ? <p className="text-sm/6 text-muted">{footer}</p> : null}
           {action}

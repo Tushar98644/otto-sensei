@@ -16,8 +16,9 @@ export type AccountGate = {
   // Resolves true once a user is signed in, opening the sign-in dialog first if needed.
   // Resolves false if the user closes the dialog without signing in.
   requireUser: (reason: string) => Promise<boolean>;
-  // For errors from api.fix / api.tailor: opens the sign-in dialog for "unauthorized" and the
-  // upgrade dialog for "limit_reached". Returns true when it handled the error.
+  // For errors from the AI routes: opens the sign-in dialog for "unauthorized", and the upgrade
+  // dialog (the free trial, on Free) for "upgrade_required" and "limit_reached". Returns true when
+  // it handled the error.
   handleApiError: (error: unknown, feature: Feature) => boolean;
   // Render once inside the component that calls useAccountGate().
   dialogs: ReactNode;
@@ -74,7 +75,7 @@ export function useAccountGate(): AccountGate {
         void refreshMe();
         return true;
       }
-      if (isApiError(error, "limit_reached")) {
+      if (isApiError(error, "limit_reached") || isApiError(error, "upgrade_required")) {
         setUpgrade({ open: true, feature });
         // The meters elsewhere on the page still show the old count.
         void refreshMe();

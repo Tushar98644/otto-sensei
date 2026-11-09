@@ -13,6 +13,7 @@ import {
   type UserResponse,
   type VerifyOtpParams,
 } from "@supabase/supabase-js";
+import { eq } from "drizzle-orm";
 import { getDb } from "@/db/client";
 import { users } from "@/db/schema";
 import { execSql, resetDb as truncateTables } from "@/db/testing";
@@ -318,6 +319,39 @@ export async function signInAs(email = "ada@example.com"): Promise<SessionUser> 
   if (!authUser) throw new Error("fake Supabase: user vanished");
   startSession(authUser);
   return user;
+}
+
+const TRIAL_MS = 3 * 24 * 60 * 60 * 1000;
+
+/**
+ * Puts the account on a plan, the way a webhook would. "trial" is Pro monthly on its free trial,
+ * ending `trialEndsAt` (3 days from now unless given): the smallest real AI allowance, so tests
+ * that count to a limit stay short. Free has no AI allowance at all.
+ */
+export async function setPlan(
+  user: SessionUser,
+  plan: "pro" | "max" | "trial",
+  trialEndsAt = Date.now() + TRIAL_MS,
+): Promise<SessionUser> {
+  const trial = plan === "trial";
+  const [row] = await (await getDb())
+    .update(users)
+    .set({
+      plan: trial ? "pro" : plan,
+      planInterval: "month",
+      planStatus: trial ? "trialing" : "active",
+      planRenewsAt: trial ? trialEndsAt : null,
+      trialEndsAt: trial ? trialEndsAt : null,
+    })
+    .where(eq(users.id, user.id))
+    .returning();
+  if (!row) throw new Error("setPlan: no such user");
+  return toSessionUser(row);
+}
+
+/** signInAs(), then the account on Pro's free trial (see setPlan). */
+export async function signInOnTrial(email = "ada@example.com", trialEndsAt?: number): Promise<SessionUser> {
+  return setPlan(await signInAs(email), "trial", trialEndsAt);
 }
 
 /** Empties every table and the fake auth service. Cookies are left to cookieJar.clear(). */

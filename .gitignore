@@ -11,3 +11,4 @@ local.db*
 .DS_Store
 .vercel
 .pglite
+.uploads

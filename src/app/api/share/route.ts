@@ -10,6 +10,7 @@ import {
   type ShareResponse,
   type SharesResponse,
 } from "@/lib/share/types";
+import { requireProTool } from "../pro-tools";
 import { NO_STORE, SIGN_IN } from "./messages";
 import { writeLimited } from "./write-limit";
 
@@ -35,13 +36,16 @@ export async function GET(): Promise<Response> {
 }
 
 // POST /api/share: makes a link for this version of the resume, or points the resume's live link
-// at it. 201 for a new link, 200 for an updated one.
+// at it. 201 for a new link, 200 for an updated one. Pro: on Free, links made before stay live and
+// can still be changed or turned off (PATCH, DELETE), but no new version goes out.
 export async function POST(req: Request): Promise<Response> {
   const blocked = rejectCrossSite(req) ?? rejectNonJson(req);
   if (blocked) return blocked;
   try {
     const user = await getCurrentUser();
     if (!user) return fail("unauthorized", SIGN_IN, 401);
+    const locked = requireProTool(user, "share");
+    if (locked) return locked;
     const limited = await writeLimited(user.id);
     if (limited) return limited;
     const body = await readJson(req, CreateShareSchema);

@@ -1,10 +1,11 @@
 import { eq, sql } from "drizzle-orm";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { getDb } from "@/db/client";
-import { resumes, resumeTombstones } from "@/db/schema";
+import { resumes, resumeTombstones, users } from "@/db/schema";
 import type { ApiErrorBody, PutResumeResponse, ResumesResponse } from "@/lib/api/types";
-import { cookieJar, resetDb, signInAs } from "@/lib/auth/test-helpers";
+import { cookieJar, resetDb, setPlan, signInAs } from "@/lib/auth/test-helpers";
 import type { SessionUser } from "@/lib/auth/types";
+import { RESUME_LIMITS } from "@/config/plans";
 import { createSampleResume } from "@/lib/resume/sample";
 import { newBullet, newExperience, type Resume } from "@/lib/resume/schema";
 import { deleteUserData } from "@/lib/users";
@@ -73,9 +74,10 @@ async function insertTombstones(userId: string, rows: { id: string; deletedAt: n
   }
 }
 
-async function signIn(email: string): Promise<SessionUser> {
+// On Pro unless asked: most of these are about sync, and Free keeps just one resume.
+async function signIn(email: string, plan: "free" | "pro" | "trial" = "pro"): Promise<SessionUser> {
   const user = await signInAs(email);
-  return user;
+  return plan === "free" ? user : setPlan(user, plan);
 }
 
 async function errorOf(res: Response): Promise<ApiErrorBody["error"]> {
@@ -240,6 +242,58 @@ describe("/api/resumes", () => {
     ]);
 
     expect(await list()).toEqual([good]);
+  });
+});
+
+describe("Free's resume limit", () => {
+  it(`refuses a new resume past ${RESUME_LIMITS.free} on Free with the trial prompt`, async () => {
+    await signIn("ada@example.com", "free");
+    const first = resume({ title: "First" });
+    expect(await saved(await save(first))).toEqual({ ok: true, deleted: false });
+
+    const second = await save(resume({ title: "Second" }));
+    expect(second.status).toBe(402);
+    expect(await errorOf(second)).toEqual({
+      code: "upgrade_required",
+      message: "Free keeps 1 resume. Try Pro free for 3 days.",
+    });
+    expect(await list()).toEqual([first]);
+
+    // Edits to the one it has still save.
+    const edited = { ...first, title: "First, edited", updatedAt: 9_000 };
+    expect((await save(edited)).status).toBe(200);
+    expect(await list()).toEqual([edited]);
+
+    // Deleting it frees the slot.
+    await remove(first.id);
+    expect((await save(resume({ title: "Another" }))).status).toBe(200);
+  });
+
+  it("takes more resumes on the trial and on Pro", async () => {
+    for (const [email, plan] of [
+      ["trial@example.com", "trial"],
+      ["pro@example.com", "pro"],
+    ] as const) {
+      await signIn(email, plan);
+      for (let i = 0; i < 3; i++) expect((await save(resume({ updatedAt: 10_000 + i }))).status).toBe(200);
+      expect(await list()).toHaveLength(3);
+    }
+  });
+
+  it("keeps every resume usable on Free after a paid plan ends, but adds no more", async () => {
+    const user = await signIn("ada@example.com", "trial");
+    const kept = [resume({ updatedAt: 3_000 }), resume({ updatedAt: 2_000 }), resume({ updatedAt: 1_500 })];
+    for (const item of kept) await save(item);
+    // The trial ends without a payment.
+    const db = await getDb();
+    await db.update(users).set({ plan: "free", planStatus: "canceled", trialEndsAt: null }).where(eq(users.id, user.id));
+
+    expect(await list()).toEqual(kept);
+    const edited = { ...kept[2]!, title: "Still mine", updatedAt: 5_000 };
+    expect((await save(edited)).status).toBe(200);
+    expect((await list())[0]).toEqual(edited);
+    expect((await save(resume({ updatedAt: 6_000 }))).status).toBe(402);
+    expect(await list()).toHaveLength(3);
   });
 });
 

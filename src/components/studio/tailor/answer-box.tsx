@@ -22,16 +22,19 @@ export type AnswerBoxProps = {
   writing: Writing;
   onAsk: (question: string) => Promise<boolean>;
   onEdit: (id: string, text: string) => void;
+  // Editing paused (the field lost focus): a good moment to save the answer.
+  onSettle?: (id: string) => void;
   onRemove: (id: string) => void;
 };
 
 type AnswerItemProps = {
   answer: SavedAnswer;
   onEdit: (text: string) => void;
+  onSettle?: () => void;
   onRemove: () => void;
 };
 
-function AnswerItem({ answer, onEdit, onRemove }: AnswerItemProps) {
+function AnswerItem({ answer, onEdit, onSettle, onRemove }: AnswerItemProps) {
   const labelId = useId();
   return (
     <li className="flex flex-col gap-3 border-t border-border pt-4">
@@ -53,6 +56,7 @@ function AnswerItem({ answer, onEdit, onRemove }: AnswerItemProps) {
         maxLength={ANSWER_CHARS}
         value={answer.text}
         onChange={(event) => onEdit(event.target.value)}
+        onBlur={onSettle}
         className="text-base/7 sm:text-sm/6"
       />
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -68,7 +72,7 @@ function AnswerItem({ answer, onEdit, onRemove }: AnswerItemProps) {
 
 // Paste a question from the application form, get a short draft from the resume and the job.
 // Otto never fills in or submits the form: the person copies the answer over.
-export function AnswerBox({ answers, writing, onAsk, onEdit, onRemove }: AnswerBoxProps) {
+export function AnswerBox({ answers, writing, onAsk, onEdit, onSettle, onRemove }: AnswerBoxProps) {
   const headingId = useId();
   const [question, setQuestion] = useState("");
   const [problem, setProblem] = useState<string | null>(null);
@@ -116,6 +120,7 @@ export function AnswerBox({ answers, writing, onAsk, onEdit, onRemove }: AnswerB
               key={answer.id}
               answer={answer}
               onEdit={(text) => onEdit(answer.id, text)}
+              onSettle={onSettle ? () => onSettle(answer.id) : undefined}
               onRemove={() => onRemove(answer.id)}
             />
           ))}

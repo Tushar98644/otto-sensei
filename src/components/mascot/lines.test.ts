@@ -4,6 +4,7 @@ import { OTTO } from "./lines";
 
 // Noon UTC, so it's Nov 14 or 15 in every time zone the tests might run in.
 const WEEK: UsagePeriod = { kind: "week", resetsAt: Date.UTC(2026, 10, 14, 12) };
+const TRIAL: UsagePeriod = { kind: "trial", resetsAt: Date.UTC(2026, 10, 11, 12) };
 
 // Representative arguments for every line that is a function, keyed by path. A new function line
 // without samples fails the walk below, so nothing ships unchecked.
@@ -18,13 +19,34 @@ const SAMPLES: Record<string, unknown[][]> = {
   ],
   "fix.manyIssues": [[0], [1], [24]],
   "tailor.screener": [
-    [{ proven: 0, total: 0 }, { proven: 0, total: 0 }],
-    [{ proven: 0, total: 0 }, { proven: 2, total: 5 }],
-    [{ proven: 1, total: 1 }, { proven: 0, total: 3 }],
-    [{ proven: 8, total: 8 }, { proven: 1, total: 6 }],
-    [{ proven: 0, total: 6 }, { proven: 0, total: 2 }],
-    [{ proven: 5, total: 8 }, { proven: 3, total: 6 }],
-    [{ proven: 7, total: 8 }, { proven: 3, total: 6 }],
+    [
+      { proven: 0, total: 0 },
+      { proven: 0, total: 0 },
+    ],
+    [
+      { proven: 0, total: 0 },
+      { proven: 2, total: 5 },
+    ],
+    [
+      { proven: 1, total: 1 },
+      { proven: 0, total: 3 },
+    ],
+    [
+      { proven: 8, total: 8 },
+      { proven: 1, total: 6 },
+    ],
+    [
+      { proven: 0, total: 6 },
+      { proven: 0, total: 2 },
+    ],
+    [
+      { proven: 5, total: 8 },
+      { proven: 3, total: 6 },
+    ],
+    [
+      { proven: 7, total: 8 },
+      { proven: 3, total: 6 },
+    ],
   ],
   "download.checked": [
     [{ before: 0, after: 0 }],
@@ -42,15 +64,48 @@ const SAMPLES: Record<string, unknown[][]> = {
     ["github"],
     ["fix", 1000],
     ["letter", 1000, WEEK],
+    ["fix", 0],
+    ["tailor", 10, TRIAL],
   ],
+  "limit.none": [
+    ["fix"],
+    ["tailor"],
+    ["letter"],
+    ["import"],
+    ["draft"],
+    ["github"],
+    ["fix", false],
+  ],
+  "limit.tool": [
+    ["resumes"],
+    ["formats"],
+    ["word"],
+    ["tracker"],
+    ["jobs"],
+    ["share"],
+    ["eligibility"],
+    ["resumes", false],
+  ],
+  "upgrade.trialStarted": [["Nov 11"]],
   "limit.near": [
     ["tailor", 8, 10],
     ["letter", 27, 30],
     ["import", 1000, 1000],
     ["fix", Number.NaN, 5],
     ["letter", 70, 75, WEEK],
+    ["fix", 45, 50, TRIAL],
   ],
   "upgrade.done": [["Pro"], ["Max"]],
+  "jobs.locked": [[0], [1], [38], [27_828], [Number.NaN]],
+  "jobs.found": [
+    [0, 0, 0, 0],
+    [1, 1, 1, 1],
+    [23, 23, 5, 2],
+    [1234, 300, 0, 7],
+    [27_833, 300, 300, 300],
+    [Number.NaN, 2, 2, 0],
+  ],
+  "jobs.saved": [[0], [1], [12]],
 };
 
 function everyLine() {
@@ -85,6 +140,22 @@ describe("OTTO lines", () => {
     expect(text).not.toMatch(/₹|lakh|crore|rupee/i);
   });
 
+  it("counts jobs found as facts, with no score", () => {
+    expect(OTTO.jobs.found(23, 23, 5, 2)).toBe(
+      "I found 23 jobs that match your resume. 5 look strong, 2 are new today.",
+    );
+    expect(OTTO.jobs.found(1, 1, 0, 0)).toBe("I found 1 job that matches your resume.");
+    expect(OTTO.jobs.found(2000, 300, 3, 0)).toBe(
+      "I found 2,000 matching jobs. Here are the closest 300. 3 look strong.",
+    );
+    expect(OTTO.jobs.locked(27_828)).toBe(
+      "27,000+ more matches. Filters, saved jobs and every match come with Pro.",
+    );
+    expect(OTTO.jobs.locked(38)).toBe(
+      "38 more matches. Filters, saved jobs and every match come with Pro.",
+    );
+  });
+
   it("summarizes checks with correct grammar", () => {
     expect(OTTO.review.summary({ fail: 2, warn: 1, pass: 8 })).toBe(
       "2 checks need fixing and 1 could be better. 8 already look good.",
@@ -102,11 +173,15 @@ describe("OTTO lines", () => {
     expect(OTTO.tailor.screener({ proven: 5, total: 8 }, { proven: 3, total: 6 })).toBe(
       "Your resume proves 5 of 8 must-haves. Let's look at the other 3.",
     );
-    expect(OTTO.tailor.screener({ proven: 7, total: 8 }, { proven: 0, total: 0 })).toContain("the one left");
-    expect(OTTO.tailor.screener({ proven: 12, total: 8 }, { proven: 0, total: 0 })).toContain("all 8");
-    expect(OTTO.tailor.screener({ proven: Number.NaN, total: 4 }, { proven: 0, total: 0 })).toContain(
-      "the 4 must-haves",
+    expect(OTTO.tailor.screener({ proven: 7, total: 8 }, { proven: 0, total: 0 })).toContain(
+      "the one left",
     );
+    expect(OTTO.tailor.screener({ proven: 12, total: 8 }, { proven: 0, total: 0 })).toContain(
+      "all 8",
+    );
+    expect(
+      OTTO.tailor.screener({ proven: Number.NaN, total: 4 }, { proven: 0, total: 0 }),
+    ).toContain("the 4 must-haves");
   });
 
   it("reports the before and after PDF check", () => {
@@ -116,10 +191,21 @@ describe("OTTO lines", () => {
     expect(OTTO.download.checked({ before: 1, after: 0 })).toMatch(/^Before: 1 problem\./);
   });
 
-  it("uses the free plan limit unless told otherwise", () => {
-    const freeTailors = PLANS.free.limits.tailor;
-    expect(OTTO.limit.reached("tailor")).toContain(`all ${freeTailors} tailored versions`);
+  it("uses Pro's limit unless told otherwise, and pitches the trial on a plan without the feature", () => {
+    expect(OTTO.limit.reached("tailor")).toContain(
+      `all ${PLANS.pro.limits.tailor} tailored versions`,
+    );
     expect(OTTO.limit.reached("fix", 1000)).toContain("all 1000 line fixes");
+    expect(OTTO.limit.reached("fix", PLANS.free.limits.fix)).toBe(
+      "Line fixes come with Pro. Try it free for 3 days.",
+    );
+    expect(OTTO.limit.none("tailor")).toBe("Tailoring comes with Pro. Try it free for 3 days.");
+  });
+
+  it("says when a trial's allowance gives way to the full one", () => {
+    expect(OTTO.limit.reached("tailor", 10, TRIAL)).toMatch(
+      /^You've used all 10 tailored versions for this trial\. Your full allowance starts on Nov 1[12]\.$/,
+    );
   });
 
   it("names the week and its reset day for a weekly allowance", () => {

@@ -3,6 +3,7 @@
 import { ArrowLeft, RotateCcw } from "lucide-react";
 import Link from "next/link";
 import { useMemo, useState } from "react";
+import { roomForResume } from "@/components/account/pro-tools";
 import { OttoNote } from "@/components/mascot/otto-note";
 import { ROUTES } from "@/components/site/routes";
 import { formatRelativeTime } from "@/components/studio/relative-time";
@@ -31,7 +32,9 @@ export function TrashPage() {
   const [forgetting, setForgetting] = useState<TrashedResume | null>(null);
   const [emptying, setEmptying] = useState(false);
 
-  function restore(entry: TrashedResume) {
+  // A restored resume is a new copy to the account, so it counts against Free's limit.
+  async function restore(entry: TrashedResume) {
+    if (!(await roomForResume())) return;
     const id = useStudioStore.getState().restoreFromTrash(entry.resume.id);
     const copy = id ? useStudioStore.getState().resumes[id] : undefined;
     if (!copy) return;
@@ -107,7 +110,7 @@ export function TrashPage() {
                 key={`${entry.resume.id}-${entry.deletedAt}`}
                 entry={entry}
                 now={now}
-                onRestore={() => restore(entry)}
+                onRestore={() => void restore(entry)}
                 onForget={() => setForgetting(entry)}
               />
             ))}

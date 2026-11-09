@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { roomForResume } from "@/components/account/pro-tools";
 import { useNow } from "@/components/studio/use-now";
 import { toast } from "@/components/ui/toast";
 import { trashWithUndo } from "@/components/ui/trash-with-undo";
@@ -42,7 +43,8 @@ export function ResumeGrid({
   const byId = useMemo(() => new Map(all.map((resume) => [resume.id, resume])), [all]);
   const copies = useMemo(() => tailoredCounts(all), [all]);
 
-  function duplicate(resume: Resume) {
+  async function duplicate(resume: Resume) {
+    if (!(await roomForResume())) return;
     const id = duplicateResume(resume.id);
     const copy = id ? useStudioStore.getState().resumes[id] : undefined;
     if (copy) toast({ title: "Copy made", description: resumeTitle(copy), variant: "success" });
@@ -64,7 +66,7 @@ export function ResumeGrid({
                 now={now}
                 actions={actions}
                 onRename={setRenaming}
-                onDuplicate={duplicate}
+                onDuplicate={(target) => void duplicate(target)}
                 onDelete={(target) => trashWithUndo(target.id)}
                 onShowBase={onShowBase}
                 cheer={cheer}

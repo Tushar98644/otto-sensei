@@ -9,6 +9,9 @@ export type SessionUser = {
   // won't renew). Together they set the allowance period (src/lib/usage.ts).
   planInterval: BillingInterval | null;
   planRenewsAt: number | null;
+  // When the Pro trial ends (epoch ms) while the subscription is on it, else null. A trial gets
+  // its own allowance and can't publish a portfolio. Optional for servers from before trials.
+  trialEndsAt?: number | null;
 };
 
 // supabase: email codes and Google through Supabase. dev: development's on-screen codes, no

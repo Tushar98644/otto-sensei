@@ -34,7 +34,7 @@ import { CHAR_LIMITS } from "./limits";
 import { editSection, getResume, useResumeValue } from "./use-editor";
 
 const MAX_LABEL = CHAR_LIMITS.summary.toLocaleString("en-US");
-const SIGN_IN_REASON = "Otto's summary help needs a free account.";
+const SIGN_IN_REASON = "Sign in, then try Pro free for 3 days for summary help.";
 
 type Mode = SummaryRequestBody["mode"];
 
@@ -159,9 +159,10 @@ function useSummaryHelp(resumeId: string, focusInput: () => void) {
         if (id !== requestRef.current) return;
         let message = fixErrorMessage(error);
         if (gateRef.current.handleApiError(error, "fix")) {
-          message = isApiError(error, "limit_reached")
-            ? problemMessage({ kind: "limit" }, limit, false, me?.period)
-            : SIGN_IN_REASON;
+          message =
+            isApiError(error, "limit_reached") || isApiError(error, "upgrade_required")
+              ? problemMessage({ kind: "limit" }, limit, false, me?.period)
+              : SIGN_IN_REASON;
         }
         setHelp({ status: "failed", mode, message });
       }
@@ -198,6 +199,7 @@ function useSummaryHelp(resumeId: string, focusInput: () => void) {
     dialogs: gate.dialogs,
     plan: user?.plan,
     period: me?.period ?? null,
+    trial: me?.billing.trial !== false,
   };
 }
 
@@ -310,7 +312,7 @@ type Flow = ReturnType<typeof useSummaryHelp>;
 function ReadyOptions({ flow, state, baseId }: { flow: Flow; state: Ready; baseId: string }) {
   const unchanged =
     state.mode === "improve" && sameText(state.options[0]?.text ?? "", state.original);
-  const allowance = fixAllowanceText(state.usage.fix, flow.plan, flow.period);
+  const allowance = fixAllowanceText(state.usage.fix, flow.plan, flow.period, flow.trial);
   return (
     <>
       {unchanged ? null : (

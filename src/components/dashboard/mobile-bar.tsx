@@ -1,21 +1,31 @@
 "use client";
 
+import { Ellipsis } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { loginHref } from "@/components/account/next-path";
+import { useProTools } from "@/components/account/pro-tools";
 import { NotificationBell } from "@/components/notifications/notification-bell";
 import { OttoMark } from "@/components/site/otto-mark";
 import { ROUTES } from "@/components/site/routes";
 import { AccountMenu } from "@/components/studio/account-menu";
+import { Menu } from "@/components/ui/menu";
 import { BRAND } from "@/config/brand";
 import { cn } from "@/lib/utils";
-import { APP_NAV, isCurrent } from "./nav";
+import { isCurrent, PHONE_MORE, PHONE_TABS, showsProBadge } from "./nav";
 
-// Below lg the sidebar folds into a top bar plus one segmented strip of sections: every section
-// stays one tap away without a hidden drawer.
+const SEGMENT =
+  "flex h-10 min-w-0 flex-1 items-center justify-center gap-2 rounded-lg px-2 text-sm font-medium transition-colors -outline-offset-2 max-sm:px-1 max-sm:text-xs";
+const CURRENT = "bg-surface text-ink shadow-control";
+const IDLE = "text-muted hover:text-ink aria-expanded:text-ink";
+
+// Below lg the sidebar folds into a top bar plus one segmented strip: the four sections people use
+// most, then "More" for the rest, so every section stays two taps away at most.
 export function MobileBar() {
   const pathname = usePathname();
   const router = useRouter();
+  const proTools = useProTools();
+  const moreCurrent = PHONE_MORE.find((item) => isCurrent(item, pathname));
 
   return (
     <header className="sticky top-0 z-30 bg-surface-muted lg:hidden">
@@ -37,7 +47,7 @@ export function MobileBar() {
       </div>
       <nav aria-label="Dashboard" className="px-4 pb-3 sm:px-8">
         <div className="flex gap-1 rounded-xl bg-surface-strong p-1">
-          {APP_NAV.filter((item) => !item.desktopOnly).map((item) => {
+          {PHONE_TABS.map((item) => {
             const current = isCurrent(item, pathname);
             return (
               <Link
@@ -45,10 +55,7 @@ export function MobileBar() {
                 href={item.href}
                 aria-current={current ? "page" : undefined}
                 data-tour={item.href === ROUTES.dashboardResumes ? "dashboard-library" : undefined}
-                className={cn(
-                  "flex h-10 min-w-0 flex-1 items-center justify-center gap-2 rounded-lg px-2 text-sm font-medium transition-colors -outline-offset-2 max-sm:px-1 max-sm:text-xs",
-                  current ? "bg-surface text-ink shadow-control" : "text-muted hover:text-ink",
-                )}
+                className={cn(SEGMENT, current ? CURRENT : IDLE)}
               >
                 {/* Small, text-only and short names on small phones, so all five fit without scrolling. */}
                 <item.icon className="hidden size-4 shrink-0 sm:block" aria-hidden />
@@ -63,6 +70,26 @@ export function MobileBar() {
               </Link>
             );
           })}
+          <Menu
+            label="More sections"
+            align="end"
+            triggerLabel={moreCurrent ? `More sections, now on ${moreCurrent.label}` : "More sections"}
+            triggerClassName={cn(SEGMENT, moreCurrent ? CURRENT : IDLE)}
+            trigger={
+              <>
+                <Ellipsis className="hidden size-4 shrink-0 sm:block" aria-hidden />
+                <span className="truncate">More</span>
+              </>
+            }
+            items={PHONE_MORE.map((item) => ({
+              label: item.label,
+              icon: item.icon,
+              // The section you're on gets the menu's check, so "More" still says where you are.
+              checked: isCurrent(item, pathname),
+              description: showsProBadge(item, proTools) ? "Comes with Pro" : undefined,
+              onSelect: () => router.push(item.href),
+            }))}
+          />
         </div>
       </nav>
     </header>

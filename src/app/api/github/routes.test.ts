@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ApiErrorBody } from "@/lib/api/types";
-import { cookieJar, jsonRequest, resetDb } from "@/lib/auth/test-helpers";
+import { cookieJar, jsonRequest, resetDb, signInAs, signInOnTrial } from "@/lib/auth/test-helpers";
 import { resetEnvForTests } from "@/lib/env";
 import { clearGitHubCache } from "@/lib/github/cache";
 import { installFakeGitHub, json, rawPull, rawRepo, searchResult, type FakeGitHub } from "@/lib/github/testing";
@@ -102,6 +102,11 @@ describe("POST /api/github/lookup", () => {
 });
 
 describe("POST /api/github/draft", () => {
+  // Drafting is an AI call: Pro, Max or the trial. Looking repos up stays free (above).
+  beforeEach(async () => {
+    await signInOnTrial("octo@example.com");
+  });
+
   it("drafts entries and never touches a resume", async () => {
     github = installFakeGitHub(standard);
     const res = await draft(
@@ -128,14 +133,19 @@ describe("POST /api/github/draft", () => {
     expect(github.calls).toHaveLength(0);
   });
 
-  it("limits drafts per device", async () => {
+  it("is part of Pro: signed out or on Free it answers 402 before calling GitHub", async () => {
     github = installFakeGitHub(standard);
     const body = { username: "octocat", repos: ["octocat/ledger-lint"] };
-    for (let i = 0; i < GITHUB_LIMITS.draft.device; i++) {
-      expect((await draft(jsonRequest("/api/github/draft", body))).status).toBe(200);
+    cookieJar.clear();
+    for (const signIn of [async () => null, () => signInAs("free@example.com")]) {
+      await signIn();
+      const res = await draft(jsonRequest("/api/github/draft", body));
+      expect(res.status).toBe(402);
+      expect(await errorOf(res)).toEqual({
+        code: "upgrade_required",
+        message: "GitHub drafts come with Pro. Try Pro free for 3 days.",
+      });
     }
-    const res = await draft(jsonRequest("/api/github/draft", body));
-    expect(res.status).toBe(429);
-    expect((await errorOf(res)).code).toBe("rate_limited");
+    expect(github.calls).toHaveLength(0);
   });
 });

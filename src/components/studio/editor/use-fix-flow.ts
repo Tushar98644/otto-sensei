@@ -91,7 +91,10 @@ export function useFixFlow(resumeId: string) {
         if (id !== requestRef.current) return null;
         if (gateRef.current.handleApiError(error, "fix")) {
           return {
-            problem: isApiError(error, "limit_reached") ? { kind: "limit" } : { kind: "signin" },
+            problem:
+              isApiError(error, "limit_reached") || isApiError(error, "upgrade_required")
+                ? { kind: "limit" }
+                : { kind: "signin" },
           };
         }
         return { problem: { kind: "error", message: fixErrorMessage(error) } };

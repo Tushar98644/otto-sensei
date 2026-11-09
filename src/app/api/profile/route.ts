@@ -5,6 +5,7 @@ import { WorkProfileSchema, type WorkProfileResponse } from "@/lib/eligibility/p
 import { readWorkProfile, saveWorkProfile } from "@/lib/eligibility/records";
 import { readJson } from "@/lib/http";
 import { log } from "@/lib/log";
+import { requireProTool } from "../pro-tools";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -38,6 +39,10 @@ export async function PUT(req: Request): Promise<Response> {
   try {
     const user = await getCurrentUser();
     if (!user) return fail("unauthorized", SIGN_IN, 401);
+    // The work profile only feeds the work-rights check and job matching, both Pro. Reading it
+    // stays open, so a Free account still sees what it saved.
+    const locked = requireProTool(user, "eligibility");
+    if (locked) return locked;
     const body = await readJson(req, WorkProfileSchema);
     if (!body.ok) {
       // readJson names the field and the rule it broke, never the value.

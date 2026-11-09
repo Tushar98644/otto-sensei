@@ -8,6 +8,7 @@ import {
   Ellipsis,
   FileBraces,
   FolderGit,
+  Globe,
   Link2,
   PenLine,
   Settings2,
@@ -15,9 +16,11 @@ import {
   Trash2,
 } from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useId, useMemo, useState } from "react";
 import { GitHubImportDialog } from "@/components/github/github-import-dialog";
 import { OttoCheer } from "@/components/mascot/otto-cheer";
+import { portfolioFrom } from "@/components/portfolio/route";
 import { useShareResume } from "@/components/share/use-share-resume";
 import { ROUTES } from "@/components/site/routes";
 import { formatRelativeTime } from "@/components/studio/relative-time";
@@ -89,6 +92,7 @@ export function ResumeCard({
   // closing it hands focus back to the menu.
   const [github, setGithub] = useState({ used: false, open: false });
   const share = useShareResume(resume);
+  const router = useRouter();
   const report = useStudioStore((s) => s.reports[resume.id]);
   const lint = useMemo(() => lintResume(resume), [resume]);
   const title = resumeTitle(resume);
@@ -193,6 +197,11 @@ export function ResumeCard({
                 },
                 { label: "Copy share link", icon: Link2, onSelect: share.share },
                 { label: "Share link settings", icon: Settings2, onSelect: share.open },
+                {
+                  label: "Make my portfolio",
+                  icon: Globe,
+                  onSelect: () => router.push(portfolioFrom(resume.id)),
+                },
                 {
                   label: "Export JSON",
                   icon: FileBraces,

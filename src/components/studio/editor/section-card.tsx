@@ -108,7 +108,7 @@ export function SectionCard({
                 <span
                   id={titleId}
                   className={cn(
-                    "text-base font-semibold break-words",
+                    "text-base font-semibold wrap-break-word",
                     hidden ? "text-muted" : "text-ink",
                   )}
                 >

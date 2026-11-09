@@ -3,8 +3,13 @@
 import { Plus } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { errorMessage } from "@/components/account/errors";
+import { roomForApplication, useProTools, useTryProLabel } from "@/components/account/pro-tools";
+import { openUpgradePrompt } from "@/components/account/upgrade-prompt";
+import { OTTO } from "@/components/mascot/lines";
 import { Otto } from "@/components/mascot/otto";
+import { OttoNote } from "@/components/mascot/otto-note";
 import { useNow } from "@/components/studio/use-now";
+import { FREE_APPLICATIONS } from "@/config/plans";
 import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { FolderCard } from "@/components/ui/folder-card";
@@ -60,6 +65,9 @@ export function ApplicationsPage() {
   const [dialog, setDialog] = useState<ApplicationDialogTarget | null>(null);
   const [announcement, setAnnouncement] = useState("");
   const opened = useRef(0);
+  // Free tracks FREE_APPLICATIONS and can change it freely; only adding past that offers the trial.
+  const full = useProTools() === false && items.length >= FREE_APPLICATIONS;
+  const tryPro = useTryProLabel();
 
   const versions = useMemo(
     () =>
@@ -95,9 +103,14 @@ export function ApplicationsPage() {
     setRows(PAGE_ROWS);
   }
 
-  function add() {
+  async function add() {
+    if (!(await roomForApplication(items.length))) return;
     opened.current += 1;
     setDialog({ kind: "add", key: opened.current, resumeId: null });
+  }
+
+  function edit(application: Application) {
+    setDialog({ kind: "edit", application });
   }
 
   function setStatus(application: Application, next: ApplicationStatus) {
@@ -121,7 +134,11 @@ export function ApplicationsPage() {
       onUndo: () => restoreApplication(target),
       onCommit: (options) => {
         commitDelete(target, options).catch((error: unknown) =>
-          toast({ title: "Couldn't delete it", description: errorMessage(error), variant: "error" }),
+          toast({
+            title: "Couldn't delete it",
+            description: errorMessage(error),
+            variant: "error",
+          }),
         );
       },
     });
@@ -140,11 +157,17 @@ export function ApplicationsPage() {
               : "Log the jobs you apply to and the resume you sent. See which version gets interviews."}
           </p>
         </div>
-        <Button onClick={add}>
+        <Button onClick={() => void add()}>
           <Plus aria-hidden />
           Add application
         </Button>
       </header>
+
+      {full ? (
+        <OttoNote live={false} message={OTTO.limit.tool("tracker", false)}>
+          <Button onClick={() => openUpgradePrompt("tracker")}>{tryPro}</Button>
+        </OttoNote>
+      ) : null}
 
       {status === "loading" ? (
         <LoadingState />
@@ -161,7 +184,7 @@ export function ApplicationsPage() {
           Check your connection, then try again.
         </Alert>
       ) : items.length === 0 ? (
-        <EmptyState onAdd={add} />
+        <EmptyState onAdd={() => void add()} />
       ) : (
         <>
           <NoReplyNudge stale={stale} />
@@ -193,8 +216,8 @@ export function ApplicationsPage() {
                       application={application}
                       sent={sentLabel(application, versions)}
                       now={now}
-                      onStatus={setStatus}
-                      onEdit={(target) => setDialog({ kind: "edit", application: target })}
+                      onStatus={(target, next) => setStatus(target, next)}
+                      onEdit={(target) => edit(target)}
                       onDelete={remove}
                     />
                   ))}
@@ -224,7 +247,6 @@ export function ApplicationsPage() {
       )}
 
       <ApplicationDialog target={dialog} resumes={resumes} onClose={() => setDialog(null)} />
-
     </div>
   );
 }

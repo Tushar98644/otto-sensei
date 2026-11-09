@@ -7,7 +7,7 @@ export const ACCOUNT_OTTO = {
   signInDialog: "Use Google or a 6-digit email code, then we're back where you left off.",
   login: "Use Google, or I'll email you a 6-digit code. No password to remember.",
   signedOut: "Sign in to see your plan and what you've used this month.",
-  upgradePitch: "More tailoring, letters and fixes each month, for a busy job hunt.",
+  upgradePitch: "Tailoring, letters and line fixes each month, for a busy job hunt.",
   upgradeSignIn: "Sign in first. Then I'll take you straight to checkout.",
   billingOff: "Payments aren't switched on yet, but you can still email us about a plan.",
   alreadyMax: "You're on Max, the biggest plan. Email us if you need more.",

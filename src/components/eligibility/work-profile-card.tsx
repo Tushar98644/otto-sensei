@@ -1,6 +1,9 @@
 "use client";
 
 import { useId } from "react";
+import { useProTools, useTryProLabel } from "@/components/account/pro-tools";
+import { openUpgradePrompt } from "@/components/account/upgrade-prompt";
+import { OTTO } from "@/components/mascot/lines";
 import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -9,10 +12,13 @@ import { useWorkProfile } from "./use-work-profile";
 import { WorkProfileForm } from "./work-profile-form";
 
 // The Account page's work profile. Signed-out visitors see nothing here: the account view above
-// already asks them to sign in.
+// already asks them to sign in. It only feeds the work-rights check and job matching, both Pro, so
+// on Free the card offers the trial instead of the form.
 export function WorkProfileCard() {
   const work = useWorkProfile();
   const titleId = useId();
+  const locked = useProTools() === false;
+  const tryPro = useTryProLabel();
   if (work.status === "unknown" || work.status === "signed_out") return null;
 
   return (
@@ -26,7 +32,14 @@ export function WorkProfileCard() {
           you can see it.
         </CardDescription>
       </CardHeader>
-      {work.status === "loading" ? (
+      {locked ? (
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-sm/6 text-muted">{OTTO.limit.tool("eligibility", false)}</p>
+          <Button variant="secondary" onClick={() => openUpgradePrompt("eligibility")}>
+            {tryPro}
+          </Button>
+        </div>
+      ) : work.status === "loading" ? (
         <div className="flex flex-col gap-4" aria-busy="true">
           <Skeleton className="h-11 w-full" />
           <Skeleton className="h-11 w-full" />

@@ -128,6 +128,7 @@ describe("toSessionUser", () => {
       plan: "pro",
       planInterval: "week",
       planRenewsAt: NOW + 1000,
+      trialEndsAt: null,
     });
   });
 });

@@ -60,9 +60,16 @@ export default function PrivacyPage() {
         </li>
         <li>
           <strong>Your work profile.</strong> If you fill it in, we store the country you live in,
-          your time zone, where you can work without a sponsored visa, and whether you want
-          full-time or contract work. Otto checks job posts against it in your browser. Nobody else
-          sees it.
+          your time zone, where you can work without a sponsored visa, whether you want full-time
+          or contract work, and whether you only want remote jobs. Otto checks job posts against
+          it in your browser, and on our server when ranking the Jobs tab. Nobody else sees it.
+        </li>
+        <li>
+          <strong>Jobs you match and save.</strong> To rank open jobs for you, your browser sends
+          the skills, job titles and years of experience it reads from your resume, never the
+          resume itself or your contact details. We use them for that one request and don&apos;t
+          store them or send them to an AI. If you save a job, we store which one and when. The
+          jobs themselves come from public job boards, each linked to its original post.
         </li>
         <li>
           <strong>Files you upload.</strong> We read them in memory to pull out the text and run the
@@ -70,13 +77,19 @@ export default function PrivacyPage() {
         </li>
         <li>
           <strong>Usage counts.</strong> For signed-in users, how many line fixes, tailored versions,
-          cover letters and answers you&apos;ve used this month (and this week, on a weekly plan),
-          plus any extra an invite earned you, so plan limits work.
+          cover letters and answers you&apos;ve used this month (this week on a weekly plan, or
+          during your trial), plus any extra an invite earned you, so plan limits work.
         </li>
         <li>
-          <strong>Plan and billing status.</strong> If you subscribe, we store your plan and the
-          subscription details Dodo Payments sends us, such as whether it&apos;s active and when it
-          renews. We never see your full card number.
+          <strong>Plan and billing status.</strong> If you subscribe or start a trial, we store your
+          plan and the subscription details Creem sends us, such as whether it&apos;s active, when
+          your trial ends and when it renews. We never see your full card number.
+        </li>
+        <li>
+          <strong>Trial record.</strong> So each person gets the free Pro trial once, we keep a
+          one-way fingerprint (a SHA-256 hash) of the email of anyone who has started a trial or
+          paid. It can&apos;t be turned back into your email, and we keep it after you delete your
+          account, only to check whether that email has had a trial.
         </li>
         <li>
           <strong>Feedback you send.</strong> Your note, whether it&apos;s a problem or an idea, and
@@ -163,8 +176,9 @@ export default function PrivacyPage() {
 
       <h2>Payments</h2>
       <p>
-        Dodo Payments handles payments as our merchant of record. They collect your payment details,
-        charge you, send receipts and handle sales tax, under their own privacy policy.
+        Creem handles payments as our merchant of record. They collect your payment details (also
+        for a free trial, so the plan can start when it ends), charge you, send receipts and handle
+        sales tax, under their own privacy policy.
       </p>
 
       <h2>Cookies and local storage</h2>
@@ -205,7 +219,7 @@ export default function PrivacyPage() {
           for the AI features above.
         </li>
         <li>
-          <strong>Dodo Payments</strong> processes payments as our merchant of record.
+          <strong>Creem</strong> processes payments as our merchant of record.
         </li>
         <li>
           <strong>Supabase</strong> hosts our database and runs sign-in, including your sign-in
@@ -245,6 +259,7 @@ export default function PrivacyPage() {
           until you delete them or your account.
         </li>
         <li>Share links: until you turn the link off or delete your account.</li>
+        <li>Saved jobs: until you remove them, or 30 days after the job closes.</li>
         <li>Reminder notes: 90 days once read, a year if never read.</li>
         <li>Sign-in codes: they work once and expire after 10 minutes.</li>
         <li>
@@ -264,9 +279,10 @@ export default function PrivacyPage() {
         <li>
           Delete your account from your <Link href={ROUTES.account}>account page</Link>. This
           removes your email, sign-in record, resume backups, logged applications and their prep,
-          work profile, share links, reminders, invite records, feedback and usage records right
+          work profile, saved jobs, share links, reminders, invite records, feedback and usage records right
           away, and signs you out on every device.
-          Deleting your account cancels your paid plan right away, and you won&apos;t be charged again.
+          Deleting your account cancels your paid plan or trial right away, and you won&apos;t be
+          charged again. Only the trial fingerprint above stays.
         </li>
         <li>
           Ask us for a copy of your data, or to correct or delete it, by emailing{" "}

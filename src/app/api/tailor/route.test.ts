@@ -1,9 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { PLANS } from "@/config/plans";
+import { PRO_TRIAL } from "@/config/plans";
 import { tailorResume } from "@/lib/ai/tailor";
 import { AIError, type TailorResult } from "@/lib/ai/types";
 import type { ApiErrorBody, TailorRequestBody, TailorResponse } from "@/lib/api/types";
-import { cookieJar, jsonRequest, resetDb, signInAs } from "@/lib/auth/test-helpers";
+import { cookieJar, jsonRequest, resetDb, signInOnTrial } from "@/lib/auth/test-helpers";
 import type { SessionUser } from "@/lib/auth/types";
 import { resetEnvForTests } from "@/lib/env";
 import { createSampleResume } from "@/lib/resume/sample";
@@ -17,6 +17,8 @@ vi.mock("@/lib/ai/tailor", async (importOriginal) => {
   return { ...actual, tailorResume: vi.fn(actual.tailorResume) };
 });
 
+// Accounts run on the free Pro trial, the smallest real AI allowance (Free has none).
+const TRIAL_END = Date.UTC(2099, 0, 15, 12);
 const NOW = Date.UTC(2026, 10, 7, 12, 0, 0, 7);
 
 const JOB_POST =
@@ -35,7 +37,7 @@ function body(overrides: Partial<TailorRequestBody["job"]> = {}): TailorRequestB
 const tailor = (payload: unknown = body()) => POST(jsonRequest("/api/tailor", payload));
 
 async function signIn(email = "ada@example.com"): Promise<SessionUser> {
-  const user = await signInAs(email);
+  const user = await signInOnTrial(email, TRIAL_END);
   return user;
 }
 
@@ -74,7 +76,7 @@ describe("POST /api/tailor", () => {
     expect(result.result.requirements.length).toBeGreaterThan(0);
     expect(result.result.requirements.every((item) => item.id.startsWith("r"))).toBe(true);
     expect(Array.isArray(result.result.bulletOrder)).toBe(true);
-    expect(result.usage.tailor).toEqual({ used: 1, limit: PLANS.free.limits.tailor });
+    expect(result.usage.tailor).toEqual({ used: 1, limit: PRO_TRIAL.limits.tailor });
     expect(result.usage.fix.used).toBe(0);
     expect(result.demo).toBe(true);
     expect((await getUsage(user)).tailor.used).toBe(1);
@@ -118,14 +120,15 @@ describe("POST /api/tailor", () => {
     expect((await getUsage(user)).tailor.used).toBe(0);
   });
 
-  it("answers 429 limit_reached after the free tailored versions", async () => {
+  it("answers 429 limit_reached after the trial's tailored versions", async () => {
     const user = await signIn();
-    for (let i = 0; i < PLANS.free.limits.tailor; i++) await consumeUsage(user, "tailor");
+    for (let i = 0; i < PRO_TRIAL.limits.tailor; i++) await consumeUsage(user, "tailor");
     const res = await tailor();
     expect(res.status).toBe(429);
     expect(await errorOf(res)).toEqual({
       code: "limit_reached",
-      message: "You've used this month's 3 tailored versions. Pro has 60 a month.",
+      message:
+        "You've used this trial's 10 tailored versions. Pro has 60 a month. Your full allowance starts on Jan 15.",
     });
   });
 

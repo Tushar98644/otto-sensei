@@ -24,7 +24,18 @@ type Load =
   | { status: "error"; message: string }
   | { status: "ready"; target: PrepTarget; prep: InterviewPrep | null };
 
-export function InterviewPrepPage({ applicationId }: { applicationId: string }) {
+type BackLink = { href: string; label: string };
+
+const TO_APPLICATIONS: BackLink = { href: ROUTES.dashboardApplications, label: "Applications" };
+
+// back: where the page was reached from, Applications or Interview prep.
+export function InterviewPrepPage({
+  applicationId,
+  back = TO_APPLICATIONS,
+}: {
+  applicationId: string;
+  back?: BackLink;
+}) {
   const hydrated = useStudioHydrated();
   const resumes = useResumeList();
   const [load, setLoad] = useState<Load>({ status: "loading" });
@@ -75,11 +86,11 @@ export function InterviewPrepPage({ applicationId }: { applicationId: string }) 
     <div className="flex flex-col gap-8">
       <header className="flex flex-col gap-4">
         <Link
-          href={ROUTES.dashboardApplications}
+          href={back.href}
           className="group inline-flex w-fit items-center gap-1 text-sm font-medium text-muted hover:text-ink"
         >
           <ArrowLeft aria-hidden className="size-4 transition-transform group-hover:-translate-x-0.5" />
-          Applications
+          {back.label}
         </Link>
         <div className="flex items-end justify-between gap-6">
           <div className="min-w-0">
@@ -107,8 +118,8 @@ export function InterviewPrepPage({ applicationId }: { applicationId: string }) 
           variant="warn"
           title="That application isn't in your list anymore"
           action={
-            <Link href={ROUTES.dashboardApplications} className="text-sm font-medium text-ink underline">
-              Back to Applications
+            <Link href={back.href} className="text-sm font-medium text-ink underline">
+              Back to {back.label}
             </Link>
           }
         >

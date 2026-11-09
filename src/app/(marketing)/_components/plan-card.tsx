@@ -3,6 +3,7 @@ import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { buttonClasses } from "@/components/ui/button";
 import { PLANS, type AllowancePeriod, type PlanId } from "@/config/plans";
+import type { JobCounts } from "@/lib/job-feed/counts";
 import { cn } from "@/lib/utils";
 import { planCopy } from "./plan-features";
 
@@ -23,6 +24,12 @@ export type PlanPrice = {
   period: string;
   // Read out instead of the period: "per month".
   spoken: string;
+  // Struck through before the amount: "$30" (SHOW_REFERENCE_PRICES, monthly only).
+  reference?: string;
+  // Beside the price: "50% off", or a yearly option's "Save 33% vs monthly".
+  badge?: string;
+  // One small line under the price, e.g. how it compares with a competitor's.
+  comparison?: string;
 };
 
 export type PlanCardProps = {
@@ -37,6 +44,10 @@ export type PlanCardProps = {
   cta: { href: string; label: string };
   // One more small line under the button, e.g. the monthly equivalent of a yearly price.
   priceNote?: string | null;
+  // Replaces the plan's own note under the button, e.g. how the trial turns into a payment.
+  note?: string;
+  // Live job counts for the jobs line, read when the page was built.
+  jobCounts?: JobCounts;
   className?: string;
 };
 
@@ -49,10 +60,12 @@ export function PlanCard({
   allowance = "month",
   cta,
   priceNote,
+  note,
+  jobCounts,
   className,
 }: PlanCardProps) {
   const plan = PLANS[planId];
-  const copy = planCopy(planId, allowance);
+  const copy = planCopy(planId, allowance, jobCounts);
   return (
     <div
       className={cn(
@@ -68,7 +81,13 @@ export function PlanCard({
       </div>
       <p className="mt-2 text-base/7 text-muted">{copy.summary}</p>
       <div className="mt-6">
-        <p className="flex items-baseline gap-1">
+        <p className="flex flex-wrap items-baseline gap-x-1 gap-y-2">
+          {price.reference ? (
+            <s className="mr-1 text-base text-subtle lining-nums tabular-nums">
+              <span className="sr-only">Reference price </span>
+              {price.reference}
+            </s>
+          ) : null}
           <span className="text-2xl font-semibold text-ink lining-nums tabular-nums">
             {price.amount}
           </span>
@@ -76,7 +95,13 @@ export function PlanCard({
             {price.period}
           </span>
           <span className="sr-only">{price.spoken}</span>
+          {price.badge ? (
+            <Badge variant="neutral" className="ml-1 self-center">
+              {price.badge}
+            </Badge>
+          ) : null}
         </p>
+        {price.comparison ? <p className="mt-1 text-sm text-muted">{price.comparison}</p> : null}
         <Link
           href={cta.href}
           className={buttonClasses({
@@ -87,7 +112,7 @@ export function PlanCard({
         >
           {cta.label}
         </Link>
-        <p className="mt-3 text-center text-sm text-subtle">{copy.note}</p>
+        <p className="mt-3 text-center text-sm text-subtle">{note ?? copy.note}</p>
         {/* Under the button, so every card's button stays level. */}
         {priceNote ? <p className="mt-1 text-center text-sm text-muted">{priceNote}</p> : null}
       </div>

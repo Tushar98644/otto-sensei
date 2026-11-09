@@ -1,4 +1,3 @@
-import { ANON_LIMITS, IP_LIMITS } from "@/config/plans";
 import { fail } from "@/lib/api/respond";
 import { GitHubError } from "@/lib/github/http";
 import { clientIp, getDeviceId } from "@/lib/http";
@@ -6,23 +5,16 @@ import { log } from "@/lib/log";
 import { rateLimit, retryAfterHeader, waitText, type RateLimitResult } from "@/lib/rate-limit";
 import { ipBucket } from "../import/upload-limits";
 
-// Server-only. "Import from GitHub" needs no account, so like job links it is limited per network
-// and per device. GitHub's own allowance for this server is shared by everyone, so both limits sit
-// well under what would let one person or script use it up.
+// Server-only. Looking a GitHub account up needs no account, so like job links it is limited per
+// network and per device. GitHub's own allowance for this server is shared by everyone, so both
+// limits sit well under what would let one person or script use it up. Drafting project lines is
+// an AI call and spends the account's "github" allowance instead (see ../metered-free).
 
 const HOUR_MS = 60 * 60 * 1000;
-const DAY_MS = 24 * HOUR_MS;
 
 export const GITHUB_LIMITS = {
   // Two GitHub calls each, often fewer with the cache.
   lookup: { windowMs: HOUR_MS, device: 20, ip: 60 },
-  // Up to 10 GitHub calls and one AI call each. Signed-out visitors only, at the Free plan's
-  // numbers: signed-in accounts spend their monthly "github" allowance (see ../metered-free).
-  draft: {
-    windowMs: 30 * DAY_MS,
-    device: ANON_LIMITS.githubDraftsPer30Days,
-    ip: IP_LIMITS.githubDraftsPer30Days,
-  },
 } as const;
 
 export type GitHubAction = keyof typeof GITHUB_LIMITS;
@@ -63,10 +55,7 @@ async function count(
 
 function tooMany(action: GitHubAction, scope: "ip" | "device", result: RateLimitResult): Response {
   log.info("github.rate_limited", { action, scope });
-  const message =
-    action === "lookup"
-      ? `You've looked up a lot of GitHub accounts this hour. Try again in ${waitText(result.retryAfterMs)}.`
-      : `That's the ${GITHUB_LIMITS.draft.device} free GitHub drafts on this device this month. Edit the projects you have, or sign in to upgrade for more.`;
+  const message = `You've looked up a lot of GitHub accounts this hour. Try again in ${waitText(result.retryAfterMs)}.`;
   return fail("rate_limited", message, 429, retryAfterHeader(result.retryAfterMs));
 }
 

@@ -1,3 +1,4 @@
+import { FREE_TEMPLATES, hasProTools, type PlanId } from "@/config/plans";
 import {
   DEFAULT_TEMPLATE,
   TEMPLATE_IDS,
@@ -99,4 +100,22 @@ export function followsHint(order: readonly SectionKey[], hint: readonly Section
 
 export function withTemplate(resume: Resume, id: TemplateId): Resume {
   return { ...resume, template: id };
+}
+
+/** Classic and Compact are on every plan; the other formats come with Pro, Max and the trial. */
+export function isProTemplate(id: TemplateId): boolean {
+  return !(FREE_TEMPLATES as readonly TemplateId[]).includes(id);
+}
+
+export function canUseTemplate(plan: PlanId, id: TemplateId): boolean {
+  return hasProTools(plan) || !isProTemplate(id);
+}
+
+/**
+ * The resume as this plan downloads it: a Pro format on Free (say, set before a paid plan ended)
+ * comes out in Classic. The resume itself keeps its format, so it's back once Pro is. Returns the
+ * same object when nothing changes.
+ */
+export function forPlan(resume: Resume, plan: PlanId): Resume {
+  return canUseTemplate(plan, templateOf(resume)) ? resume : withTemplate(resume, DEFAULT_TEMPLATE);
 }

@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ApiClientError } from "@/lib/api/client";
 import type { ApiErrorBody, EmptyOk, PutResumeResponse, ResumesResponse } from "@/lib/api/types";
-import { cookieJar, resetDb, signInAs } from "@/lib/auth/test-helpers";
+import { cookieJar, resetDb, setPlan, signInAs } from "@/lib/auth/test-helpers";
 import { emptyResume, type Resume } from "@/lib/resume/schema";
 import type { useStudioStore } from "@/lib/store/resume-store";
 import { startCloudSync, type CloudSync, type SyncApi } from "@/lib/sync/cloud-sync";
@@ -101,12 +101,39 @@ afterEach(() => {
   for (const sync of running.splice(0)) sync.stop();
 });
 
+// On Pro: these are about devices, and Free keeps just one resume.
 async function signedInDevices() {
-  const user = await signInAs("ada@example.com");
+  const user = await setPlan(await signInAs("ada@example.com"), "pro");
   const laptop = device(await freshStore(), user.id);
   const phone = device(await freshStore(), user.id);
   return { laptop, phone };
 }
+
+describe("Free's resume limit in sync", () => {
+  it("backs up the first resume and keeps a second one in the browser, asking only once per version", async () => {
+    const user = await signInAs("ada@example.com");
+    const laptop = device(await freshStore(), user.id);
+    const first = { ...emptyResume(1_000), title: "First" };
+    const second = { ...emptyResume(2_000), title: "Second" };
+    // Made before signing in, so the studio's own check never saw the account.
+    laptop.store.getState().addResume(first);
+    laptop.store.getState().addResume(second);
+    const session = laptop.startSession();
+    await session.flush();
+
+    expect((await cloudState()).ids).toHaveLength(1);
+    expect(Object.keys(laptop.store.getState().resumes)).toHaveLength(2);
+    const sent = laptop.api.putResume.mock.calls.length;
+    await session.flush();
+    expect(laptop.api.putResume.mock.calls.length).toBe(sent);
+
+    // The one that made it keeps backing up its edits.
+    const [backedUp] = (await cloudState()).ids;
+    laptop.store.getState().updateResume(backedUp!, (r) => ({ ...r, title: "First, edited" }));
+    await session.flush();
+    expect((await cloudState()).ids).toEqual([backedUp]);
+  });
+});
 
 describe("resume deletions across devices", () => {
   it("a resume deleted on one device is dropped by the next sign-in elsewhere, not restored", async () => {

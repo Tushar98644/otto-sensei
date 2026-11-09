@@ -13,7 +13,8 @@ export default function FormatsPage() {
           Formats
         </h1>
         <p className="mt-3 max-w-prose text-base/7 text-pretty text-muted">
-          Six looks for one resume. Hiring software reads every one cleanly.
+          Six looks for one resume. Classic and Compact are free; the other four come with Pro.
+          Hiring software reads every one cleanly.
         </p>
         <OttoNote live={false} message={OTTO.formats.tip} className="mt-5" />
       </header>

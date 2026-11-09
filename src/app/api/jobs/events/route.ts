@@ -1,0 +1,46 @@
+import { getDb } from "@/db/client";
+import { fail, ok } from "@/lib/api/respond";
+import { rejectCrossSite, rejectNonJson } from "@/lib/auth/route-guards";
+import { getCurrentUser } from "@/lib/auth/session";
+import { readJson } from "@/lib/http";
+import { logAction } from "@/lib/job-feed/events";
+import { MatchActionSchema } from "@/lib/job-feed/types";
+import { log } from "@/lib/log";
+import { rateLimit, retryAfterHeader } from "@/lib/rate-limit";
+
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+
+const NO_STORE = { "Cache-Control": "no-store" };
+// Far above what a person clicks, low enough that a script can't fill the table.
+const PER_MINUTE = 120;
+
+// POST /api/jobs/events: one thing done with a matched job (open, save, tailor, mark applied,
+// "not a fit" with its reason), for measuring match quality. Ids and labels only.
+export async function POST(req: Request): Promise<Response> {
+  const blocked = rejectCrossSite(req) ?? rejectNonJson(req);
+  if (blocked) return blocked;
+  try {
+    const user = await getCurrentUser();
+    if (!user) return fail("unauthorized", "Sign in first.", 401, NO_STORE);
+    const limit = await rateLimit(`jobs-events:user:${user.id}`, PER_MINUTE, 60_000);
+    if (!limit.allowed) {
+      return fail("rate_limited", "Too many at once. Try again in a minute.", 429, {
+        ...NO_STORE,
+        ...retryAfterHeader(limit.retryAfterMs),
+      });
+    }
+    const body = await readJson(req, MatchActionSchema);
+    if (!body.ok) return fail("bad_request", "That didn't look right.", 400, NO_STORE);
+    await logAction(await getDb(), user.id, body.data, Date.now());
+    return ok({}, { headers: NO_STORE });
+  } catch (error) {
+    log.error("jobs.event_failed", error);
+    return fail(
+      "server_error",
+      "Couldn't note that. It doesn't change anything else.",
+      500,
+      NO_STORE,
+    );
+  }
+}

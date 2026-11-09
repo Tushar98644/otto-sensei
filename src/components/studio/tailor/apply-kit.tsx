@@ -20,13 +20,16 @@ export type ApplyKitProps = {
   onSettleLetter: () => void;
   onAsk: (question: string) => Promise<boolean>;
   onEditAnswer: (id: string, text: string) => void;
+  onSettleAnswer?: (id: string) => void;
   onRemoveAnswer: (id: string) => void;
 };
 
 // The writing an application asks for besides the resume, from the same facts and the same job.
 export function ApplyKit(props: ApplyKitProps) {
   const { user, me, loading } = useMe();
-  const allowance = loading ? null : writingAllowance(user?.plan, me?.usage?.letter, me?.period);
+  const allowance = loading
+    ? null
+    : writingAllowance(user?.plan, me?.usage?.letter, me?.period, me?.billing.trial !== false);
   return (
     <Card>
       <CardHeader>
@@ -50,6 +53,7 @@ export function ApplyKit(props: ApplyKitProps) {
           writing={props.writing}
           onAsk={props.onAsk}
           onEdit={props.onEditAnswer}
+          onSettle={props.onSettleAnswer}
           onRemove={props.onRemoveAnswer}
         />
       </div>

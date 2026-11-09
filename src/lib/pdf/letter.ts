@@ -9,12 +9,21 @@ import { toPdfLine } from "./text";
  * are swapped or dropped, the same way as on the resume.
  */
 export function letterBlocks(text: string, lost?: Set<string>): string[][] {
+  return splitLetter(text, (line) => toPdfLine(line, lost));
+}
+
+/** The same blocks with every character kept, for the Word file, whose fonts draw them all. */
+export function letterParagraphs(text: string): string[][] {
+  return splitLetter(text, (line) => line.trim());
+}
+
+function splitLetter(text: string, clean: (line: string) => string): string[][] {
   return text
     .split(/\r?\n[^\S\r\n]*\r?\n\s*/u)
     .map((block) =>
       block
         .split(/\r\n|[\n\r\p{Zl}\p{Zp}]/u)
-        .map((line) => toPdfLine(line, lost))
+        .map(clean)
         .filter(Boolean),
     )
     .filter((block) => block.length > 0);

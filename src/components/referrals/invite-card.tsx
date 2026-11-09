@@ -157,15 +157,16 @@ function InviteDetails({ summary, plan }: { summary: ReferralSummary; plan: Plan
       </p>
       {extras.fix > 0 || extras.tailor > 0 ? (
         <p className="text-sm/6 text-ink">
-          {period === "week" ? "This week" : "This month"} you have {extras.fix} more line fixes
-          and {extras.tailor} more tailored versions from invites.
+          {period === "week" ? "This week" : period === "trial" ? "During your trial" : "This month"}{" "}
+          you have {extras.fix} more line fixes and {extras.tailor} more tailored versions from
+          invites.
         </p>
       ) : null}
-      {plan === "free" ? null : (
-        <p className="text-sm/6 text-muted">
-          Extras add to your {PLANS[plan].name} limits too.
-        </p>
-      )}
+      <p className="text-sm/6 text-muted">
+        {plan === "free"
+          ? "Extras add to Pro and Max limits, so they count once you're on one."
+          : `Extras add to your ${PLANS[plan].name} limits too.`}
+      </p>
     </div>
   );
 }

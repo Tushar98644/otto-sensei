@@ -69,11 +69,14 @@ const RETRY_BASE_MS = 5_000;
 const RETRY_MAX_MS = 60_000;
 
 // Sending the same resume again can't fix these, so that version is skipped until it changes.
+// upgrade_required: a new resume past Free's limit. It stays in this browser only; the studio
+// offers the trial before making one, so this is a resume made elsewhere or before signing in.
 const REFUSED: ReadonlySet<ApiClientError["code"]> = new Set<ApiClientError["code"]>([
   "bad_request",
   "too_large",
   "unsupported_type",
   "limit_reached",
+  "upgrade_required",
 ]);
 
 function defaultWarn(message: string, error?: unknown) {

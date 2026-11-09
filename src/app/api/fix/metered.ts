@@ -12,10 +12,11 @@ import { readJson } from "@/lib/http";
 import { log } from "@/lib/log";
 import { rateLimit, retryAfterHeader, waitText } from "@/lib/rate-limit";
 import { consumeUsage, refundUsage } from "@/lib/usage";
-import { limitReached } from "../metered-free";
+import { limitReached, requirePlanFeature } from "../metered-free";
 
 // Server-only. The flow behind POST /api/fix, /api/tailor, /api/letter and /api/answer: sign-in, a
-// per-minute burst limit, validation, the monthly allowance, then the AI call. A failed call gives
+// plan that includes the feature (Free has none: 402 upgrade_required), a per-minute burst limit,
+// validation, the allowance, then the AI call. A failed call gives
 // its unit back, within a daily cap for failures the model may still have been paid for.
 
 export type MeteredCopy = {
@@ -34,9 +35,8 @@ export type MeteredRoute<S extends z.ZodType, R> = {
 
 const MINUTE_MS = 60_000;
 const DAY_MS = 24 * 60 * MINUTE_MS;
-// Every call keeps Claude busy for seconds, so people clicking through the studio stay far below
-// these. Both sit above the free monthly allowance, so free accounts always get limit_reached
-// first; this only stops a script from draining the API quota every customer shares.
+// Every call keeps the model busy for seconds, so people clicking through the studio stay far
+// below these. This only stops a script from draining the API quota every customer shares.
 const CALLS_PER_MINUTE: Record<Feature, number> = {
   fix: 30,
   tailor: 10,
@@ -87,6 +87,8 @@ export async function runMetered<S extends z.ZodType, R>(
   try {
     const user = await getCurrentUser();
     if (!user) return fail("unauthorized", copy.signIn, 401);
+    const missing = requirePlanFeature(user, feature);
+    if (missing) return missing;
 
     const burst = await rateLimit(`${feature}:user:${user.id}`, CALLS_PER_MINUTE[feature], MINUTE_MS);
     if (!burst.allowed) {

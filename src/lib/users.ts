@@ -78,5 +78,6 @@ export function toSessionUser(row: UserRow): SessionUser {
     plan: row.plan,
     planInterval: row.planInterval,
     planRenewsAt: row.planRenewsAt,
+    trialEndsAt: row.trialEndsAt,
   };
 }

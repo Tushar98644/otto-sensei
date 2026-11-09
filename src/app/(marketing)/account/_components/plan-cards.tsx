@@ -7,6 +7,7 @@ import { SUPPORT_MAILTO } from "@/components/account/copy";
 import { IntervalPicker } from "@/components/account/interval-picker";
 import { PlanPicker } from "@/components/account/plan-picker";
 import { PlanPerks } from "@/components/account/pro-perks";
+import { ReferencePrice } from "@/components/account/reference-price";
 import { useBillingRedirect } from "@/components/account/use-billing-redirect";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonClasses } from "@/components/ui/button";
@@ -17,13 +18,14 @@ import {
   PAID_PLANS,
   PLAN_ORDER,
   PLANS,
+  PRO_TRIAL,
   type BillingInterval,
   type PaidPlanId,
   type PlanId,
 } from "@/config/plans";
-import { planPrice } from "@/lib/billing/prices";
+import { planPrice, trialHeadline, trialSentence } from "@/lib/billing/prices";
 import type { BillingMode } from "@/lib/billing/types";
-import { periodNoun } from "@/lib/usage-copy";
+import { periodNoun, trialEndDay } from "@/lib/usage-copy";
 
 type Offer = Record<PaidPlanId, BillingInterval[]>;
 
@@ -33,11 +35,13 @@ export type UpgradeCardProps = {
   interval: BillingInterval | null;
   mode: BillingMode;
   offer: Offer;
+  // Pro monthly would start with the free trial for this account.
+  trial?: boolean;
 };
 
 // The plans above this one, straight to checkout with no dialog in between. Pro to Max changes
 // the subscription in place (see createCheckoutUrl), so it's one click there too.
-export function UpgradeCard({ plan, interval: current, mode, offer }: UpgradeCardProps) {
+export function UpgradeCard({ plan, interval: current, mode, offer, trial = false }: UpgradeCardProps) {
   const checkout = useBillingRedirect("checkout");
   const above = PAID_PLANS.filter(
     (candidate) => PLAN_ORDER.indexOf(candidate) > PLAN_ORDER.indexOf(plan) && offer[candidate].length > 0,
@@ -51,12 +55,15 @@ export function UpgradeCard({ plan, interval: current, mode, offer }: UpgradeCar
   const intervals = offer[target];
   const interval = intervals.includes(pickedInterval) ? pickedInterval : (intervals[0] ?? "month");
   const name = PLANS[target].name;
+  const onTrial =
+    trial && plan === "free" && target === PRO_TRIAL.plan && interval === PRO_TRIAL.interval;
   return (
     <Card>
       <CardHeader>
         <div className="flex items-baseline justify-between gap-3">
-          <CardTitle as="h2">Go {name}</CardTitle>
-          <p className="text-ink">
+          <CardTitle as="h2">{onTrial ? trialHeadline() : `Go ${name}`}</CardTitle>
+          <p className="flex items-baseline gap-1.5 text-ink">
+            <ReferencePrice plan={target} interval={interval} className="text-base" />
             <span className="text-2xl font-semibold lining-nums tabular-nums">
               {planPrice(target, interval)}
             </span>
@@ -64,18 +71,26 @@ export function UpgradeCard({ plan, interval: current, mode, offer }: UpgradeCar
           </p>
         </div>
         <CardDescription>
-          {plan === "free"
-            ? `More from Otto every ${periodNoun(allowancePeriodFor(target, interval))}, for a busy job hunt. Cancel anytime.`
-            : "Even more for a long, busy search. Your subscription changes in place."}
+          {onTrial
+            ? `${trialSentence()} Otto's AI help, with its limits written down.`
+            : plan === "free"
+              ? `Otto's AI help every ${periodNoun(allowancePeriodFor(target, interval))}, for a busy job hunt. Cancel anytime.`
+              : "Even more for a long, busy search. Your subscription changes in place."}
         </CardDescription>
       </CardHeader>
       {mode === "disabled" ? null : (
         <>
-          <PlanPicker plans={above} value={target} onChange={setPicked} />
+          <PlanPicker
+            plans={above}
+            value={target}
+            onChange={setPicked}
+            interval={interval}
+            offer={offer}
+          />
           <IntervalPicker plan={target} intervals={intervals} value={interval} onChange={setPickedInterval} />
         </>
       )}
-      <PlanPerks plan={target} interval={interval} />
+      <PlanPerks plan={target} interval={interval} trial={onTrial} />
       <BillingNote mode={mode} />
       <CardFooter>
         {mode === "disabled" ? (
@@ -91,7 +106,7 @@ export function UpgradeCard({ plan, interval: current, mode, offer }: UpgradeCar
             loading={checkout.pending}
             className="w-full sm:w-auto"
           >
-            Upgrade to {name}
+            {onTrial ? "Start my free trial" : `Upgrade to ${name}`}
           </Button>
         )}
       </CardFooter>
@@ -100,13 +115,17 @@ export function UpgradeCard({ plan, interval: current, mode, offer }: UpgradeCar
 }
 
 // A paid plan: card changes, invoices and cancelling all live in the payment provider's portal.
-export function BillingCard({ mode }: { mode: BillingMode }) {
+export function BillingCard({ mode, trialEndsAt = null }: { mode: BillingMode; trialEndsAt?: number | null }) {
   const portal = useBillingRedirect("portal");
   return (
     <Card>
       <CardHeader>
         <CardTitle as="h2">Billing</CardTitle>
-        <CardDescription>Update your card, get invoices, or cancel your plan.</CardDescription>
+        <CardDescription>
+          {trialEndsAt
+            ? `Nothing is charged during your trial. Cancel before ${trialEndDay(trialEndsAt)} and you won't pay anything.`
+            : "Update your card, get invoices, or cancel your plan."}
+        </CardDescription>
       </CardHeader>
       {mode === "mock" ? (
         <p className="flex flex-wrap items-center gap-2 text-sm text-muted">

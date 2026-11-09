@@ -1,81 +1,83 @@
-import type { DodoPayments } from "dodopayments";
-import { and, eq, or } from "drizzle-orm";
+import { and, eq, isNull, lte, ne, or } from "drizzle-orm";
 import type { BillingInterval, PaidPlanId, PlanId } from "@/config/plans";
 import { getDb, type Db } from "@/db/client";
 import { billingEvents, users, type UserRow } from "@/db/schema";
 // Same rule auth uses to store users.email; policy.ts keeps billing out of the sign-in module.
 import { normalizeEmail } from "@/lib/auth/policy";
 import { isUserId } from "@/lib/users";
+import { recordTrialHistory } from "./trial";
 
-// Server-only. Copies Dodo's view of a subscription onto the user row, so every request reads the
-// plan locally instead of asking Dodo.
+// Server-only. Copies Creem's view of a subscription onto the user row, so every request reads the
+// plan locally instead of asking Creem.
 
-// https://docs.dodopayments.com/features/subscription#subscription-states
-// - active: paid and renewing.
-// - past_due: a renewal failed, but during the grace period "the customer keeps full access".
-// - on_hold and paused: "access revoked". cancelled and expired: the subscription is over.
-// - failed: creation failed, and Dodo says never grant entitlements for it
-//   (https://docs.dodopayments.com/developer-resources/subscription-integration-guide).
-// - pending: checkout isn't finished. It can only become active or failed, so it changes nothing.
+// https://docs.creem.io/features/subscriptions/introduction#subscription-status
+// - trialing: in the trial, before the first regular payment. The plan, with the trial's allowance.
+// - active: paid and renewing. past_due: a renewal failed and Creem is retrying it; access stays
+//   until it gives up. scheduled_cancel: "still active until" the period ends, then canceled.
+// - canceled: over. expired: the period ended without a payment (also forced by the
+//   subscription.expired event, whose status field still shows the old value). paused and unpaid:
+//   no access, as Creem's own access helpers revoke it.
+// - incomplete: checkout isn't finished. It can only become active or canceled, so it changes nothing.
 // "paid": the plan the subscription's product sells (Pro or Max).
 type StatusGrant = "paid" | "free" | null;
 
-const PLAN_BY_STATUS: Record<DodoPayments.SubscriptionStatus, StatusGrant> = {
+const PLAN_BY_STATUS: Record<string, StatusGrant> = {
+  trialing: "paid",
   active: "paid",
   past_due: "paid",
-  on_hold: "free",
-  paused: "free",
-  cancelled: "free",
+  scheduled_cancel: "paid",
+  canceled: "free",
   expired: "free",
-  failed: "free",
-  pending: null,
+  paused: "free",
+  unpaid: "free",
+  incomplete: null,
 };
 
-function isKnownStatus(status: string): status is DodoPayments.SubscriptionStatus {
+function isKnownStatus(status: string): boolean {
   return Object.hasOwn(PLAN_BY_STATUS, status);
 }
 
-// Final states: Dodo never charges these again, so there is nothing left to cancel.
-const ENDED_STATUSES: ReadonlySet<string> = new Set<string>([
-  "cancelled",
-  "expired",
-  "failed",
-] satisfies DodoPayments.SubscriptionStatus[]);
+// Final states: Creem never charges these again, so there is nothing left to cancel.
+const ENDED_STATUSES: ReadonlySet<string> = new Set(["canceled", "expired"]);
 
 export function isEndedStatus(status: string): boolean {
   return ENDED_STATUSES.has(status);
 }
 
 /**
- * A subscription that can still charge: not ended, and past checkout. Pending ones (a checkout left
- * open) can't charge until finished and may be impossible to cancel, so they don't count.
+ * A subscription that can still charge: not ended, and past checkout. Paused and unpaid ones count,
+ * since they charge again once resumed or once the card is fixed.
  */
 export function isLiveStatus(status: string): boolean {
-  return !isEndedStatus(status) && status !== "pending";
+  return !isEndedStatus(status) && status !== "incomplete";
 }
 
 /**
- * What a Dodo subscription status grants: its product's paid plan, Free, or null when the status
+ * What a Creem subscription status grants: its product's paid plan, Free, or null when the status
  * shouldn't change the plan.
  */
 export function planForStatus(status: string): StatusGrant {
-  return isKnownStatus(status) ? PLAN_BY_STATUS[status] : null;
+  return isKnownStatus(status) ? (PLAN_BY_STATUS[status] ?? null) : null;
 }
 
 export type SubscriptionState = {
-  /** metadata.user_id from our checkout session, when Dodo carries it onto the subscription. */
+  /** metadata.user_id from our checkout session, which Creem copies onto the subscription. */
   userId?: string;
   email?: string;
   customerId: string;
   subscriptionId: string;
-  /** The plan the product sells; null for other products sold from the same Dodo account. */
+  /** The plan the product sells; null for other products sold from the same Creem store. */
   productPlan: PaidPlanId | null;
   /** How often that product bills; null exactly when productPlan is. */
   productInterval: BillingInterval | null;
-  /** Dodo's subscription status, e.g. "active" or "on_hold". */
+  /** Creem's subscription status, e.g. "active" or "trialing". */
   status: string;
   /** Next renewal (epoch ms), or null when the subscription won't renew. */
   renewsAt: number | null;
+  /** When the current period ends (epoch ms); on a trial, when the trial ends. */
+  periodEndsAt: number | null;
+  /** When Creem created the event (epoch ms), to drop an older event that arrives late. */
+  eventAt: number | null;
 };
 
 /** The webhook that reported the state. Its id is stored with the update, so a retry can't apply twice. */
@@ -84,7 +86,14 @@ export type WebhookSource = { eventId: string; eventType: string };
 export type IgnoreReason = "unknown_status" | "no_change" | "no_user" | "other_product" | "superseded";
 
 export type ApplyResult =
-  | { outcome: "applied"; userId: string; plan: PlanId }
+  | {
+      outcome: "applied";
+      userId: string;
+      plan: PlanId;
+      trialing: boolean;
+      /** The plan and trial the row had before, so callers can react to a change. */
+      before: { plan: PlanId; trialing: boolean };
+    }
   | { outcome: "duplicate" }
   | { outcome: "ignored"; reason: IgnoreReason };
 
@@ -105,13 +114,14 @@ export function findUserQuery(db: Db, lookup: UserLookup) {
       email: users.email,
       plan: users.plan,
       planInterval: users.planInterval,
+      trialEndsAt: users.trialEndsAt,
       billingCustomerId: users.billingCustomerId,
       billingSubscriptionId: users.billingSubscriptionId,
     })
     .from(users)
     .where(
       or(
-        // Metadata is free text to Dodo; a value that isn't a uuid can't be one of our ids.
+        // Metadata is free text to Creem; a value that isn't a uuid can't be one of our ids.
         lookup.userId && isUserId(lookup.userId) ? eq(users.id, lookup.userId) : undefined,
         eq(users.billingSubscriptionId, lookup.subscriptionId),
         eq(users.billingCustomerId, lookup.customerId),
@@ -135,9 +145,23 @@ async function findUser(db: Db, state: SubscriptionState) {
   );
 }
 
+type FoundUser = NonNullable<Awaited<ReturnType<typeof findUser>>>;
+
+// The trial lasts until the first regular payment: "active" ends it. A failed first payment
+// (past_due) or a cancellation scheduled during the trial keeps its allowance, so neither turns a
+// trial into a full month of Pro that nobody paid for.
+function trialEndFor(state: SubscriptionState, user: FoundUser, plan: PlanId): number | null {
+  if (plan === "free" || state.status === "active") return null;
+  if (state.status === "trialing") {
+    return state.periodEndsAt ?? state.renewsAt ?? user.trialEndsAt ?? null;
+  }
+  return user.billingSubscriptionId === state.subscriptionId ? user.trialEndsAt : null;
+}
+
 /**
  * Finds the user (metadata user_id, then subscription id, then customer id, then email) and stores
- * the plan, billing interval, status, ids and renewal date from Dodo, at most once per webhook id.
+ * the plan, billing interval, trial, status, ids and renewal date from Creem, at most once per
+ * event id, and never from an event older than the last one applied for the same subscription.
  */
 export async function applySubscriptionState(
   state: SubscriptionState,
@@ -152,7 +176,7 @@ export async function applySubscriptionState(
   const db = await getDb();
   const user = await findUser(db, state);
   if (!user) return { outcome: "ignored", reason: "no_user" };
-  // Other products on the same Dodo account must not grant a plan. The user's own subscription
+  // Other products on the same Creem store must not grant a plan. The user's own subscription
   // still counts after a plan change moves it to a product we don't list, as the plan it had.
   const own = user.billingSubscriptionId === state.subscriptionId;
   if (state.productPlan === null && !own) {
@@ -163,10 +187,12 @@ export async function applySubscriptionState(
   // An unlisted product on the user's own subscription keeps the interval it had, like the plan.
   const planInterval: BillingInterval | null =
     plan === "free" ? null : (state.productInterval ?? user.planInterval);
+  const trialEndsAt = trialEndFor(state, user, plan);
+  const before = { plan: user.plan, trialing: user.plan !== "free" && user.trialEndsAt !== null };
 
   // One transaction, event id first: a redelivery of an event that already committed finds its id
   // and changes nothing, a parallel one waits on the unique key and then does the same, and a
-  // failure rolls both writes back so Dodo's retry applies it.
+  // failure rolls both writes back so Creem's retry applies it.
   return db.transaction(async (tx): Promise<ApplyResult> => {
     const recorded = await tx
       .insert(billingEvents)
@@ -181,8 +207,10 @@ export async function applySubscriptionState(
         planInterval,
         planStatus: state.status,
         planRenewsAt: plan === "free" ? null : state.renewsAt,
+        trialEndsAt,
         billingCustomerId: state.customerId,
         billingSubscriptionId: state.subscriptionId,
+        ...(state.eventAt === null ? {} : { billingEventAt: state.eventAt }),
         updatedAt: now,
       })
       .where(
@@ -193,11 +221,31 @@ export async function applySubscriptionState(
           plan === "free"
             ? or(eq(users.plan, "free"), eq(users.billingSubscriptionId, state.subscriptionId))
             : undefined,
+          // A retry of an older event for the same subscription (Creem retries for up to a day)
+          // can't undo a newer one, e.g. a late "trialing" after the first payment made it active.
+          state.eventAt === null
+            ? undefined
+            : or(
+                isNull(users.billingSubscriptionId),
+                ne(users.billingSubscriptionId, state.subscriptionId),
+                isNull(users.billingEventAt),
+                lte(users.billingEventAt, state.eventAt),
+              ),
         ),
       )
-      .returning({ id: users.id });
-    if (updated.length === 0) return { outcome: "ignored", reason: "superseded" };
-    return { outcome: "applied", userId: user.id, plan };
+      .returning({ id: users.id, email: users.email });
+    const [row] = updated;
+    if (!row) return { outcome: "ignored", reason: "superseded" };
+    if (plan !== "free") {
+      await recordTrialHistory(tx, row.email, state.status === "trialing" ? "trial" : "paid", now);
+    }
+    return {
+      outcome: "applied",
+      userId: user.id,
+      plan,
+      trialing: plan !== "free" && trialEndsAt !== null,
+      before,
+    };
   });
 }
 
@@ -232,7 +280,7 @@ export async function getBillingRecord(userId: string): Promise<BillingRecord | 
 }
 
 /**
- * The stored subscription Dodo could still charge, or null. Paused and on-hold subscriptions count:
+ * The stored subscription Creem could still charge, or null. Paused and unpaid subscriptions count:
  * they start charging again once resumed or once the card is fixed. An unknown status counts too.
  */
 export function chargeableSubscriptionId(record: BillingRecord): string | null {
@@ -253,6 +301,13 @@ export async function markSubscriptionCancelled(
   const db = await getDb();
   await db
     .update(users)
-    .set({ plan: "free", planInterval: null, planStatus: "cancelled", planRenewsAt: null, updatedAt: now })
+    .set({
+      plan: "free",
+      planInterval: null,
+      planStatus: "canceled",
+      planRenewsAt: null,
+      trialEndsAt: null,
+      updatedAt: now,
+    })
     .where(and(eq(users.id, userId), eq(users.billingSubscriptionId, subscriptionId)));
 }

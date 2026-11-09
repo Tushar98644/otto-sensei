@@ -1,9 +1,9 @@
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { ANON_LIMITS, IP_LIMITS, PLANS, UPLOAD_LIMITS } from "@/config/plans";
+import { ANON_LIMITS, IP_LIMITS, PRO_TRIAL, UPLOAD_LIMITS } from "@/config/plans";
 import { structureResume } from "@/lib/ai/structure";
 import { AIError } from "@/lib/ai/types";
 import type { ApiErrorBody, ImportResponse } from "@/lib/api/types";
-import { cookieJar, resetDb, signInAs } from "@/lib/auth/test-helpers";
+import { cookieJar, resetDb, signInAs, signInOnTrial } from "@/lib/auth/test-helpers";
 import { resetEnvForTests } from "@/lib/env";
 import { getUsage } from "@/lib/usage";
 import { blankPdf, cleanResumePdf, encryptedPdf, noTextPdf, templateDocx } from "@/lib/parse/test-fixtures";
@@ -272,42 +272,30 @@ describe("AI reads of uploads", () => {
     return (await res.json()) as ImportResponse;
   }
 
-  it(`gives a free account ${PLANS.free.limits.import} AI reads a month, then never blocks`, async () => {
-    const maya = await signInAs("maya@example.com");
-    for (let i = 0; i < PLANS.free.limits.import; i++) {
+  it(`gives the trial ${PRO_TRIAL.limits.import} AI reads, then never blocks`, async () => {
+    const maya = await signInOnTrial("maya@example.com");
+    for (let i = 0; i < PRO_TRIAL.limits.import; i++) {
       expect(await read(await POST(upload(resumePdf)))).toMatchObject({ usedAI: true, basicReader: false });
     }
     const past = await read(await POST(upload(resumePdf)));
     expect(past).toMatchObject({ usedAI: false, basicReader: true });
     expect(past.resume.basics.email).toBe("jane.doe@example.com");
     expect(structureResume).toHaveBeenLastCalledWith(expect.any(String), NOW, { ai: false });
-    expect((await getUsage(maya)).import).toEqual({ used: 3, limit: 3 });
+    expect((await getUsage(maya)).import).toEqual({ used: 5, limit: 5 });
   });
 
-  it("gives signed-out visitors 3 AI reads per device over 30 days, then the basic reader", async () => {
-    for (let i = 0; i < 3; i++) {
-      expect((await read(await POST(upload(resumePdf)))).usedAI).toBe(true);
-    }
+  it("reads every file with the basic reader, signed out and on Free, and never calls the AI", async () => {
+    const signedOut = await read(await POST(upload(resumePdf)));
+    expect(signedOut).toMatchObject({ usedAI: false, basicReader: true });
+    expect(signedOut.resume.basics.email).toBe("jane.doe@example.com");
+    const free = await signInAs("free@example.com");
     expect(await read(await POST(upload(resumePdf)))).toMatchObject({ usedAI: false, basicReader: true });
-    // A new device on another network starts with its own.
-    cookieJar.clear();
-    expect((await read(await POST(upload(resumePdf, { ip: "198.51.100.9" })))).usedAI).toBe(true);
-  });
-
-  it("caps AI reads for a whole network, then still reads every file", async () => {
-    for (let i = 0; i < IP_LIMITS.aiReadsPer30Days; i++) {
-      cookieJar.clear();
-      expect((await read(await POST(upload(resumePdf, { ip: "198.51.100.4" })))).usedAI).toBe(true);
-    }
-    cookieJar.clear();
-    expect(await read(await POST(upload(resumePdf, { ip: "198.51.100.4" })))).toMatchObject({
-      usedAI: false,
-      basicReader: true,
-    });
+    expect(vi.mocked(structureResume).mock.calls.every(([, , options]) => options?.ai === false)).toBe(true);
+    expect((await getUsage(free)).import).toEqual({ used: 0, limit: 0 });
   });
 
   it("gives the read back when the AI fell back, and never counts a scan", async () => {
-    const maya = await signInAs("maya@example.com");
+    const maya = await signInOnTrial("maya@example.com");
     vi.mocked(structureResume).mockImplementationOnce(async (text, now) => {
       const { heuristicParse } = await import("@/lib/resume/heuristic-parse");
       return { resume: heuristicParse(text, now), usedAI: false };

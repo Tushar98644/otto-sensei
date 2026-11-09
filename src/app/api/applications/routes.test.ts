@@ -11,7 +11,7 @@ import type {
   CreateApplicationBody,
 } from "@/lib/api/types";
 import { APPLICATION_LIMITS, CreateApplicationSchema } from "@/lib/applications/schema";
-import { cookieJar, resetDb, signInAs } from "@/lib/auth/test-helpers";
+import { cookieJar, resetDb, setPlan, signInAs } from "@/lib/auth/test-helpers";
 import type { SessionUser } from "@/lib/auth/types";
 import { deleteUserData } from "@/lib/users";
 import { DELETE as deleteOne, PATCH as patchOne } from "./[id]/route";
@@ -69,9 +69,9 @@ const bulk = (payload: unknown) => patchMany(send("PATCH", "/api/applications", 
 const remove = (id: string, headers: Record<string, string> = {}) =>
   deleteOne(send("DELETE", `/api/applications/${id}`, undefined, headers), context(id));
 
+// The tracker is Pro, so these sign in on Pro; "the tracker on Free" below covers Free.
 async function signIn(email: string): Promise<SessionUser> {
-  const user = await signInAs(email);
-  return user;
+  return setPlan(await signInAs(email), "pro");
 }
 
 async function created(res: Response): Promise<Application> {
@@ -256,6 +256,50 @@ describe("/api/applications", () => {
 
     await signIn("ada@example.com");
     expect(await listed()).toEqual([adas]);
+  });
+});
+
+describe("the tracker on Free", () => {
+  it("tracks one application, changes it freely, and offers the trial for a second", async () => {
+    await signInAs("ada@example.com");
+    const first = await created(await create(body()));
+    expect((await updated(await patch(first.id, { status: "interview" }))).status).toBe(
+      "interview",
+    );
+    expect((await bulk({ ids: [first.id], status: "no_reply" })).status).toBe(200);
+
+    const second = await create(body({ company: "Linear" }));
+    expect(second.status).toBe(402);
+    expect(await errorOf(second)).toEqual({
+      code: "upgrade_required",
+      message: "Free tracks 1 application. Pro tracks every one. Try Pro free for 3 days.",
+    });
+    expect(await listed()).toHaveLength(1);
+
+    // Deleting it makes room again.
+    expect((await remove(first.id)).status).toBe(200);
+    expect((await create(body({ company: "Linear" }))).status).toBe(201);
+  });
+
+  it("keeps everything logged on a paid plan changeable after it ends", async () => {
+    const free = await signInAs("ada@example.com");
+    for (const company of ["Stripe", "Linear"]) {
+      const made = await createApplication(
+        free.id,
+        CreateApplicationSchema.parse(body({ company })),
+      );
+      if (made.status !== "created") throw new Error("seed failed");
+    }
+    const [kept] = await listed();
+    if (!kept) throw new Error("seed failed");
+    expect((await updated(await patch(kept.id, { status: "offer" }))).status).toBe("offer");
+    expect((await create(body({ company: "Vercel" }))).status).toBe(402);
+  });
+
+  it("works on the trial", async () => {
+    await setPlan(await signInAs("ada@example.com"), "trial");
+    const made = await created(await create(body()));
+    expect((await updated(await patch(made.id, { status: "interview" }))).status).toBe("interview");
   });
 });
 
@@ -444,8 +488,9 @@ describe("follow-up reminders", () => {
     expect((await set({ followUpAt: null })).followUpAt).toBeNull();
     expect((await patch(app.id, { followUpAt: Date.now() + 400 * DAY_MS })).status).toBe(400);
 
-    const many = (await (await bulk({ ids: [app.id], status: "no_reply" })).json()) as BulkApplicationsResponse;
+    const many = (await (
+      await bulk({ ids: [app.id], status: "no_reply" })
+    ).json()) as BulkApplicationsResponse;
     expect(many.applications[0]?.followUpAt).toBeNull();
   });
 });
-

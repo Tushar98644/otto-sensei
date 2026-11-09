@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { getDb } from "@/db/client";
 import { applications, notifications, rateLimits } from "@/db/schema";
 import type { ApiErrorBody } from "@/lib/api/types";
-import { createUser, resetDb } from "@/lib/auth/test-helpers";
+import { createUser, resetDb, setPlan } from "@/lib/auth/test-helpers";
 import type { CronResponse } from "@/lib/cron/run";
 import { resetEnvForTests } from "@/lib/env";
 import { GET as cleanup, POST as cleanupPost } from "./cleanup/route";
@@ -69,7 +69,8 @@ describe("/api/cron/*", () => {
   });
 
   it("runs the follow-ups in-app only when email isn't set up", async () => {
-    const maya = await createUser("maya@example.com");
+    // Reminders are part of the tracker, which is Pro.
+    const maya = await setPlan(await createUser("maya@example.com"), "pro");
     const sent = Date.now() - 30 * DAY;
     await (await getDb()).insert(applications).values({
       id: crypto.randomUUID(),

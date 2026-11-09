@@ -13,13 +13,15 @@ import {
   PAID_PLANS,
   PLAN_ORDER,
   PLANS,
+  PRO_TRIAL,
   type BillingInterval,
   type Feature,
   type PaidPlanId,
   type PlanId,
+  type ProTool,
 } from "@/config/plans";
 import type { SessionUser } from "@/lib/auth/types";
-import { planPriceLabel } from "@/lib/billing/prices";
+import { planPriceLabel, trialHeadline, trialSentence } from "@/lib/billing/prices";
 import { resetDay, thisPeriod } from "@/lib/usage-copy";
 import { BillingNote } from "./billing-note";
 import { ACCOUNT_OTTO, SUPPORT_MAILTO } from "./copy";
@@ -35,6 +37,8 @@ export type UpgradeDialogProps = {
   onOpenChange: (open: boolean) => void;
   // The allowance that ran out, for the copy ("You've used all 3 tailored versions for this month").
   feature?: Feature;
+  // Or the Pro tool a Free account reached for (a second resume, a Pro format, Word, ...).
+  tool?: ProTool;
   // What the pricing page asked for; otherwise the next plan up.
   plan?: PaidPlanId;
   interval?: BillingInterval;
@@ -53,9 +57,17 @@ type View = {
 const rank = (plan: PlanId) => PLAN_ORDER.indexOf(plan);
 
 // Pitch, then checkout in one click. It offers the next plan up (Free to Pro, Pro to Max), with
-// the other one a tap away. Signed-out users sign in inside the dialog first and go straight on to
-// checkout, so there's never a second dialog on top of this one.
-export function UpgradeDialog({ open, onOpenChange, feature, plan, interval }: UpgradeDialogProps) {
+// the other one a tap away; on Free, Pro monthly is the free trial for anyone who hasn't had one.
+// Signed-out users sign in inside the dialog first and go straight on to checkout, so there's never
+// a second dialog on top of this one.
+export function UpgradeDialog({
+  open,
+  onOpenChange,
+  feature,
+  tool,
+  plan,
+  interval,
+}: UpgradeDialogProps) {
   const { me, user, loading } = useMe();
   const checkout = useBillingRedirect("checkout");
   const [stage, setStage] = useState<Stage>("pitch");
@@ -91,7 +103,20 @@ export function UpgradeDialog({ open, onOpenChange, feature, plan, interval }: U
     ? wantedInterval
     : (intervals?.[0] ?? "month");
   const period = me?.period;
-  const limitLine = feature ? OTTO.limit.reached(feature, me?.usage?.[feature].limit, period) : null;
+  // Signed out counts as new: a new account gets the trial when it's on sale here.
+  const trialOnOffer = current === "free" && me?.billing.trial === true;
+  const onTrial =
+    trialOnOffer && target === PRO_TRIAL.plan && chosenInterval === PRO_TRIAL.interval;
+  // Free has none of the AI features or Pro tools, so there is no limit to talk about, only what
+  // Pro adds.
+  let limitLine: string | null = null;
+  if (tool && current === "free") limitLine = OTTO.limit.tool(tool, trialOnOffer);
+  else if (feature) {
+    limitLine =
+      current === "free"
+        ? OTTO.limit.none(feature, trialOnOffer)
+        : OTTO.limit.reached(feature, me?.usage?.[feature].limit, period);
+  }
   const close = () => onOpenChange(false);
 
   function startUpgrade() {
@@ -114,7 +139,13 @@ export function UpgradeDialog({ open, onOpenChange, feature, plan, interval }: U
     <div className="flex flex-col gap-4">
       {mode === "disabled" ? null : (
         <>
-          <PlanPicker plans={above} value={target} onChange={setPickedPlan} />
+          <PlanPicker
+            plans={above}
+            value={target}
+            onChange={setPickedPlan}
+            interval={chosenInterval}
+            offer={offer}
+          />
           <IntervalPicker
             plan={target}
             intervals={intervals}
@@ -123,7 +154,7 @@ export function UpgradeDialog({ open, onOpenChange, feature, plan, interval }: U
           />
         </>
       )}
-      <PlanPerks plan={target} interval={chosenInterval} />
+      <PlanPerks plan={target} interval={chosenInterval} trial={onTrial} />
       <BillingNote mode={mode} />
     </div>
   ) : null;
@@ -156,7 +187,7 @@ export function UpgradeDialog({ open, onOpenChange, feature, plan, interval }: U
     view = {
       message: limitLine ?? ACCOUNT_OTTO.billingOff,
       title: `Upgrade to ${PLANS[target].name}`,
-      description: `${planPriceLabel(target, "month")}. Cancel anytime.`,
+      description: `${planPriceLabel(target, chosenInterval)}. Cancel anytime.`,
       body: pitch,
       footer: (
         <>
@@ -172,7 +203,7 @@ export function UpgradeDialog({ open, onOpenChange, feature, plan, interval }: U
   } else if (stage === "sign-in" && !user) {
     view = {
       message: ACCOUNT_OTTO.upgradeSignIn,
-      title: "Sign in to upgrade",
+      title: onTrial ? "Sign in to start your trial" : "Sign in to upgrade",
       description: "Use Google or a 6-digit email code. No password.",
       // Google leaves the page, so it comes back to the account page with the upgrade flow open.
       body: (
@@ -189,10 +220,34 @@ export function UpgradeDialog({ open, onOpenChange, feature, plan, interval }: U
         </Button>
       ),
     };
+  } else if (onTrial) {
+    view = {
+      message: limitLine ?? OTTO.upgrade.trial,
+      title: trialHeadline(),
+      description: trialSentence(),
+      body: pitch,
+      footer: (
+        <>
+          <Button variant="outline" onClick={close}>
+            Not now
+          </Button>
+          <Button
+            onClick={startUpgrade}
+            loading={checkout.pending}
+            disabled={loading}
+            autoFocus
+            data-autofocus
+          >
+            Start my free trial
+          </Button>
+        </>
+      ),
+    };
   } else {
     const name = PLANS[target].name;
     view = {
-      message: limitLine ? `${limitLine} ${name} has more.` : ACCOUNT_OTTO.upgradePitch,
+      message:
+        limitLine && current !== "free" ? `${limitLine} ${name} has more.` : (limitLine ?? ACCOUNT_OTTO.upgradePitch),
       title: `Upgrade to ${name}`,
       description: `${planPriceLabel(target, chosenInterval)}. Cancel anytime.`,
       body: pitch,

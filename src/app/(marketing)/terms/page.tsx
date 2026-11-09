@@ -3,7 +3,7 @@ import Link from "next/link";
 import { pageMetadata } from "@/components/site/page-metadata";
 import { ROUTES } from "@/components/site/routes";
 import { BRAND } from "@/config/brand";
-import { FEATURE_LABELS, FEATURES, PAID_PLANS, PLAN_ORDER, PLANS, PRICES_USD } from "@/config/plans";
+import { FEATURE_LABELS, FEATURES, PAID_PLANS, PLANS, PRICES_USD, PRO_TRIAL } from "@/config/plans";
 import { LegalPage } from "../_components/legal-page";
 import { formatUsd } from "../_components/plan-features";
 
@@ -69,29 +69,43 @@ export default function TermsPage() {
 
       <h2>Plans and their limits</h2>
       <p>
-        Every plan has a limit for each thing Otto does with AI. On Free and on monthly and yearly
-        plans the limits are per month and reset on the 1st of each month (UTC). Weekly plans have
-        smaller limits per billing week, the 7 days up to each renewal. Unused ones don&apos;t carry
-        over. Invite extras add to the current month or week.
+        Free includes the basic reader for uploads, the recruiter view, editing by hand, 1 resume,
+        the Classic and Compact formats, PDF downloads, the 5 closest job matches and one tracked
+        application with its reminder. Otto&apos;s AI help (line fixes, summaries, tailoring,
+        letters, answers, interview prep, Build with Otto, GitHub drafts and AI reading of uploads),
+        the other formats, up to 50 resumes, Word downloads, every job match with filters and saved
+        jobs, tracking more than one application, share links, the work-rights check and portfolios
+        come with Pro and Max. If a paid plan ends, nothing you made is deleted: you can still open,
+        edit and download it, and links you shared stay up, but you can&apos;t add more until you
+        upgrade again.
+      </p>
+      <p>
+        Pro and Max have a limit for each thing Otto does with AI. On monthly and yearly plans the
+        limits are per month and reset on the 1st of each month (UTC). Weekly plans have smaller
+        limits per billing week, the 7 days up to each renewal. The Pro trial has its own smaller
+        limits for the whole trial. Unused ones don&apos;t carry over. Invite extras add to the
+        current month, week or trial, on Pro and Max.
       </p>
       <table>
         <thead>
           <tr>
             <th scope="col">Each month</th>
-            {PLAN_ORDER.map((plan) => (
+            {PAID_PLANS.map((plan) => (
               <th key={plan} scope="col">
                 {PLANS[plan].name}
               </th>
             ))}
+            <th scope="col">Pro trial, in total</th>
           </tr>
         </thead>
         <tbody>
           {FEATURES.map((feature) => (
             <tr key={feature}>
               <th scope="row">{sentenceCase(FEATURE_LABELS[feature])}</th>
-              {PLAN_ORDER.map((plan) => (
+              {PAID_PLANS.map((plan) => (
                 <td key={plan}>{count.format(PLANS[plan].limits[feature])}</td>
               ))}
+              <td>{count.format(PRO_TRIAL.limits[feature])}</td>
             </tr>
           ))}
         </tbody>
@@ -119,12 +133,12 @@ export default function TermsPage() {
         </tbody>
       </table>
       <p>
-        At a limit that feature pauses until the 1st (on a weekly plan, until your next renewal), or
-        until you move to a bigger plan. Switching between weekly and monthly billing doesn&apos;t
-        reset either limit: what you use on a weekly plan also counts toward that month, and a week
-        keeps its count until its 7 days are up. Uploads never stop: past the AI
-        reads, the basic reader reads your file instead. Editing, recruiter checks and PDF downloads
-        have no limit on any plan.
+        At a limit that feature pauses until the 1st (on a weekly plan, until your next renewal; on
+        the trial, until Pro starts), or until you move to a bigger plan. Switching between weekly
+        and monthly billing doesn&apos;t reset either limit: what you use on a weekly plan also
+        counts toward that month, and a week keeps its count until its 7 days are up. Uploads never
+        stop: past the AI reads, the basic reader reads your file instead. Editing, recruiter checks
+        and PDF downloads have no limit on any plan.
       </p>
 
       <h2>Payments and cancelling</h2>
@@ -137,14 +151,21 @@ export default function TermsPage() {
           you live. Only the options shown on the pricing page are on sale.
         </li>
         <li>
-          Payments are processed by Dodo Payments, our merchant of record, and their checkout terms
-          apply to the purchase.
+          New accounts can try Pro free for {PRO_TRIAL.days} days, once per person. You add a card
+          at checkout and nothing is charged during the trial. When it ends, Pro starts at{" "}
+          {formatUsd(PRICES_USD.pro.month)} a month unless you cancel before then. During the trial
+          a portfolio can be built and previewed, but it goes public only on a paid plan.
+        </li>
+        <li>
+          Payments are processed by Creem, our merchant of record, and their checkout terms apply to
+          the purchase.
         </li>
         <li>
           A paid plan renews every period you picked until you cancel. Cancel anytime from your{" "}
           <Link href={ROUTES.account}>account page</Link>, and you keep it until the end of the
           period you paid for. Moving between Pro and Max changes your subscription in place, with
-          the difference charged or credited.
+          the difference charged or refunded. If you drop to Free, your published portfolio goes
+          offline, and its data is kept in case you come back.
         </li>
         <li>
           Prices and limits may change. If your plan&apos;s price or limits change, we&apos;ll email

@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
+import { UpgradePromptHost } from "@/components/account/upgrade-prompt";
 import { AccountSkeleton } from "./_components/account-skeleton";
 import { AccountView } from "./_components/account-view";
 
@@ -22,6 +23,8 @@ export default function AccountPage() {
           <AccountView />
         </Suspense>
       </div>
+      {/* The dashboard's account page has one from the app shell. */}
+      <UpgradePromptHost />
     </div>
   );
 }

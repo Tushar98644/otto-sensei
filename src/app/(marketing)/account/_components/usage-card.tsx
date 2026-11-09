@@ -11,14 +11,16 @@ import { Skeleton } from "@/components/ui/skeleton";
 import {
   FEATURE_LABELS,
   FEATURES,
+  isTrialing,
   nextPlan,
   PLANS,
+  PRO_TRIAL,
   type Feature,
   type PlanId,
   type Usage,
   type UsagePeriod,
 } from "@/config/plans";
-import { resetDay, thisPeriod } from "@/lib/usage-copy";
+import { resetDay, thisPeriod, trialEndDay } from "@/lib/usage-copy";
 
 const count = new Intl.NumberFormat("en-US");
 
@@ -26,20 +28,26 @@ function sentenceCase(text: string): string {
   return text.charAt(0).toUpperCase() + text.slice(1);
 }
 
-// Every metered feature as used / limit, on every plan: the limits are real, so they're shown.
+// Every metered feature as used / limit on Pro, Max and the trial: the limits are real, so they're
+// shown. Free has no AI help, so it gets one plain line instead of a row of empty meters.
 export function UsageCard({ me, plan }: { me: Me; plan: PlanId }) {
   const { usage, period } = me;
+  if (plan === "free") return <FreeUsageCard trial={me.billing.trial === true} />;
   const near = nearestLimit(usage, FEATURES);
   const next = nextPlan(plan);
-  const weekly = period?.kind === "week";
+  const trialEndsAt = me.user && isTrialing(me.user) ? (me.user.trialEndsAt ?? null) : null;
   return (
     <Card>
       <CardHeader>
-        <CardTitle as="h2">{sentenceCase(thisPeriod(period))}</CardTitle>
+        <CardTitle as="h2">
+          {trialEndsAt ? "Your trial" : sentenceCase(thisPeriod(period))}
+        </CardTitle>
         <CardDescription>
-          {weekly
-            ? `Your ${PLANS[plan].name} weekly allowance resets on ${resetDay(period)}.`
-            : `Your ${PLANS[plan].name} allowance resets on the 1st of each month.`}{" "}
+          {trialEndsAt
+            ? `Your ${PLANS[plan].name} trial ends on ${trialEndDay(trialEndsAt)}. Then the full ${PLANS[plan].name} allowance starts each month.`
+            : period?.kind === "week"
+              ? `Your ${PLANS[plan].name} weekly allowance resets on ${resetDay(period)}.`
+              : `Your ${PLANS[plan].name} allowance resets on the 1st of each month.`}{" "}
           Uploads past the AI reads still work, read by the basic reader.
         </CardDescription>
       </CardHeader>
@@ -80,6 +88,21 @@ export function UsageCard({ me, plan }: { me: Me; plan: PlanId }) {
   );
 }
 
+function FreeUsageCard({ trial }: { trial: boolean }) {
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle as="h2">Otto&apos;s AI help</CardTitle>
+        <CardDescription>
+          Free has the basic reader, the recruiter view, editing, PDFs, a few job matches and one
+          tracked application. Line fixes, tailoring, letters, AI reads and portfolios come with Pro
+          {trial ? `: try it free for ${PRO_TRIAL.days} days below.` : "."}
+        </CardDescription>
+      </CardHeader>
+    </Card>
+  );
+}
+
 function UsageRow({
   feature,
   usage,
@@ -101,9 +124,11 @@ function UsageRow({
       />
       {usage.used >= usage.limit ? (
         <p className="text-sm text-muted">
-          {feature === "import"
-            ? `All used. Uploads still work, read by the basic reader until ${day}.`
-            : `All used. They reset on ${day}.`}
+          {period?.kind === "trial"
+            ? `All used for the trial. More once it ends on ${day}.`
+            : feature === "import"
+              ? `All used. Uploads still work, read by the basic reader until ${day}.`
+              : `All used. They reset on ${day}.`}
         </p>
       ) : null}
     </div>

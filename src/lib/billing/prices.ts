@@ -1,4 +1,11 @@
-import { PRICES_USD, type BillingInterval, type PaidPlanId } from "@/config/plans";
+import {
+  PLANS,
+  PRICES_USD,
+  PRO_PRICE_COMPARISON,
+  PRO_TRIAL,
+  type BillingInterval,
+  type PaidPlanId,
+} from "@/config/plans";
 
 // Client-safe. How each paid plan's billing options are written, from PRICES_USD.
 
@@ -35,6 +42,16 @@ export function perMonth(plan: PaidPlanId): string {
   return usd.format(Math.round((PRICES_USD[plan].year / 12) * 100) / 100);
 }
 
+/**
+ * "About half the price of Rezi Pro ($29/mo)", or null once Pro monthly is no longer about half
+ * (40 to 60%) of it, so a price change can't leave the line untrue.
+ */
+export function proComparison(): string | null {
+  const ratio = PRICES_USD.pro.month / PRO_PRICE_COMPARISON.priceUsd;
+  if (ratio < 0.4 || ratio > 0.6) return null;
+  return `About half the price of ${PRO_PRICE_COMPARISON.name} (${usd.format(PRO_PRICE_COMPARISON.priceUsd)}/mo)`;
+}
+
 /** "month, year or week", for "Pro renews each … until you cancel." */
 export function renewalPeriods(intervals: readonly BillingInterval[]): string {
   const names: string[] = intervals.length ? [...intervals] : ["month"];
@@ -53,4 +70,14 @@ export function priceSentence(plan: PaidPlanId, interval: BillingInterval): stri
   }
   if (interval === "week") return `${price} a week, for a short, busy search. Cancel anytime.`;
   return `${price} a month. Cancel anytime.`;
+}
+
+/** "Try Pro free for 3 days" */
+export function trialHeadline(): string {
+  return `Try ${PLANS[PRO_TRIAL.plan].name} free for ${PRO_TRIAL.days} days`;
+}
+
+/** "Free for 3 days, then $15/month. Cancel anytime before the trial ends." */
+export function trialSentence(): string {
+  return `Free for ${PRO_TRIAL.days} days, then ${planPriceLabel(PRO_TRIAL.plan, PRO_TRIAL.interval)}. Cancel anytime before the trial ends.`;
 }

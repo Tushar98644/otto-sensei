@@ -11,7 +11,9 @@ import * as schema from "./schema";
 // Postgres in a folder (.pglite/, git-ignored), so `bun dev` needs no database server or keys.
 // Delete the folder to start over.
 
-const DATA_DIR = path.join(process.cwd(), ".pglite");
+// OTTO_PGLITE_DIR points a script at another folder (the match test set's own copy, say), since
+// only one process may open a folder and `bun dev` may hold .pglite/.
+const DATA_DIR = process.env.OTTO_PGLITE_DIR?.trim() || path.join(process.cwd(), ".pglite");
 
 // Here Supabase isn't creating the auth user before our users row, so the row brings its own.
 const AUTH_USER_SHIM_TRIGGER = `
@@ -58,6 +60,6 @@ async function open(): Promise<Db> {
   }
   // After the migrations: the trigger needs public.users.
   await client.exec(AUTH_USER_SHIM_TRIGGER);
-  log.info("db.local_ready", { dir: ".pglite" });
+  log.info("db.local_ready", { dir: process.env.OTTO_PGLITE_DIR?.trim() ? DATA_DIR : ".pglite" });
   return drizzle(client, { schema });
 }

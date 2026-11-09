@@ -5,12 +5,12 @@ import { log } from "@/lib/log";
 
 export const runtime = "nodejs";
 
-// Called by Dodo, not the browser: the signature is the auth. Dodo only reads the status code; the
+// Called by Creem, not the browser: the signature is the auth. Creem only reads the status code; the
 // short message shows up in its delivery log.
 export async function POST(req: Request) {
   let rawBody: string;
   try {
-    // The signature covers the exact bytes Dodo sent, so read them before anything parses the body.
+    // The signature covers the exact bytes Creem sent, so read them before anything parses the body.
     rawBody = await req.text();
   } catch {
     return fail("bad_request", "unreadable_body", 400);

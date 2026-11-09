@@ -29,7 +29,7 @@ function linkRun(link: PdfLink, props: RunProps, links: Hyperlinks): string {
   return `<w:hyperlink r:id="${id}" w:history="1">${run(link.text, { ...props, style: "Hyperlink" })}</w:hyperlink>`;
 }
 
-function header(model: PdfModel, look: DocxLook, links: Hyperlinks): string[] {
+export function header(model: PdfModel, look: DocxLook, links: Hyperlinks): string[] {
   const out: string[] = [];
   if (model.name) out.push(paragraph(run(model.name), { style: "Title" }));
   if (model.headline) out.push(paragraph(run(model.headline), { style: "Subtitle" }));

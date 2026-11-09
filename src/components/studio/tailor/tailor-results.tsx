@@ -2,12 +2,15 @@
 
 import { FilePlus, Lightbulb } from "lucide-react";
 import { useMemo, type ReactNode } from "react";
+import { roomForResume } from "@/components/account/pro-tools";
 import { OTTO } from "@/components/mascot/lines";
 import { Button } from "@/components/ui/button";
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "@/components/ui/toast";
-import { COVER_LETTER_CHARS, type Resume } from "@/lib/resume/schema";
+import type { Resume } from "@/lib/resume/schema";
+import { resumeTitle } from "@/lib/resume/ops";
 import { useStudioStore } from "@/lib/store/resume-store";
+import { keepEdit, keepWriting } from "@/lib/writings/client";
 import { pluralize } from "@/lib/utils";
 import { DemoNote } from "../demo-note";
 import {
@@ -21,12 +24,13 @@ import {
   type TailorChoices,
 } from "./apply";
 import { ApplyKit } from "./apply-kit";
+import { saveLetterOnCopy } from "./copy-letter";
 import { noteFreshCopy } from "./fresh-copy";
 import { jumpToLine } from "./jump";
 import { ReorderPreview } from "./reorder-preview";
 import type { Screener } from "./screener";
 import { ScreenerView } from "./screener-view";
-import { MAX_SAVED_ANSWERS, type SavedResult } from "./session";
+import { MAX_SAVED_ANSWERS, type SavedResult, type SavedWriting } from "./session";
 import { SummaryChoice } from "./summary-choice";
 import type { ResultPatch } from "./use-tailor";
 import { useWriting } from "./use-writing";
@@ -70,22 +74,6 @@ function describeChanges({ lines, skills, reorderedJobs, summary }: ChangeSummar
   return `The copy ${sentence}. Your original stays the same.`;
 }
 
-// Keeps the latest letter on the tailored copy made from this result, if there is one. Skipped
-// when nothing changed, so an unchanged letter never bumps the copy's "edited" time.
-function saveLetterOnCopy(copyId: string | undefined, text: string) {
-  if (!copyId) return;
-  const store = useStudioStore.getState();
-  const tailor = store.resumes[copyId]?.tailor;
-  const letter = text.trim().slice(0, COVER_LETTER_CHARS);
-  if (!tailor || (tailor.coverLetter ?? "") === letter) return;
-  store.updateResume(copyId, (resume) => {
-    if (!resume.tailor) return resume;
-    const meta = { ...resume.tailor };
-    delete meta.coverLetter;
-    return { ...resume, tailor: letter ? { ...meta, coverLetter: letter } : meta };
-  });
-}
-
 export function TailorResults({ source, saved, choices, screener, onPatch }: TailorResultsProps) {
   const createTailoredCopy = useStudioStore((s) => s.createTailoredCopy);
   const setStep = useStudioStore((s) => s.setStep);
@@ -112,21 +100,42 @@ export function TailorResults({ source, saved, choices, screener, onPatch }: Tai
     setChoices({ ...choices, requirements });
   }
 
+  // Every letter and answer is also kept on the Cover letters page. Awaited so the saved id lands
+  // with the text; a failed save leaves it on this page only, as before.
+  function keep(kind: "letter" | "answer", text: SavedWriting, question = "") {
+    return keepWriting({
+      kind,
+      resumeId: source.id,
+      resumeTitle: resumeTitle(source),
+      company: job.company,
+      role: job.title,
+      jobUrl: job.posting?.url ?? job.link ?? "",
+      question,
+      text: text.text,
+      warnings: text.warnings,
+      demo: text.demo,
+    });
+  }
+
   async function writeLetter() {
     const letter = await writing.letter(preview);
     if (!letter) return;
-    onPatch({ letter });
+    const kept = await keep("letter", letter);
+    onPatch({ letter: kept ? { ...letter, savedId: kept.id } : letter });
     saveLetterOnCopy(saved.copyId, letter.text);
   }
 
   async function ask(question: string): Promise<boolean> {
     const answer = await writing.answer(preview, question);
     if (!answer) return false;
-    onPatch({ answers: [answer, ...answers].slice(0, MAX_SAVED_ANSWERS) });
+    const kept = await keep("answer", answer, answer.question);
+    const fresh = kept ? { ...answer, savedId: kept.id } : answer;
+    onPatch({ answers: [fresh, ...answers].slice(0, MAX_SAVED_ANSWERS) });
     return true;
   }
 
-  function create() {
+  async function create() {
+    if (!(await roomForResume())) return;
     const id = createTailoredCopy(source.id, tailorMeta(result, job, saved.letter?.text), (fresh) =>
       applyTailorChoices(fresh, result, choices),
     );
@@ -211,19 +220,27 @@ export function TailorResults({ source, saved, choices, screener, onPatch }: Tai
         company={tailorMeta(result, job).company}
         onWriteLetter={() => void writeLetter()}
         onEditLetter={(text) => saved.letter && onPatch({ letter: { ...saved.letter, text } })}
-        onSettleLetter={() => saveLetterOnCopy(saved.copyId, saved.letter?.text ?? "")}
+        onSettleLetter={() => {
+          saveLetterOnCopy(saved.copyId, saved.letter?.text ?? "");
+          keepEdit(saved.letter?.savedId, saved.letter?.text ?? "");
+        }}
         onAsk={ask}
         onEditAnswer={(id, text) =>
           onPatch({
             answers: answers.map((answer) => (answer.id === id ? { ...answer, text } : answer)),
           })
         }
+        onSettleAnswer={(id) => {
+          const answer = answers.find((item) => item.id === id);
+          if (answer) keepEdit(answer.savedId, answer.text);
+        }}
+        // Off this job's list only: the saved copy stays on the Cover letters page.
         onRemoveAnswer={(id) => onPatch({ answers: answers.filter((answer) => answer.id !== id) })}
       />
 
       <Card className="sm:flex-row sm:items-center sm:justify-between">
         <p className="text-sm text-muted">{describeChanges(changes)}</p>
-        <Button size="lg" onClick={create} className="w-full sm:w-auto">
+        <Button size="lg" onClick={() => void create()} className="w-full sm:w-auto">
           <FilePlus />
           Create tailored version
         </Button>

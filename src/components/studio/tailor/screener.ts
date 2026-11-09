@@ -1,4 +1,5 @@
-import { PLANS, type PlanId, type Usage, type UsagePeriod } from "@/config/plans";
+import { OTTO } from "@/components/mascot/lines";
+import type { PlanId, Usage, UsagePeriod } from "@/config/plans";
 import type { TailorRequirement, TailorResult } from "@/lib/ai/types";
 import { droppedSupport, verbsAdded } from "@/lib/ai/writing-guards";
 import type { Resume } from "@/lib/resume/schema";
@@ -74,20 +75,19 @@ export function hasBlank(line: string): boolean {
 }
 
 // Under the letter and question tools, like the tailor allowance note above the job form.
+// Free has none at all, so it hears what Pro adds (`trial`: whether the free trial is open to them).
 export function writingAllowance(
   plan: PlanId | null | undefined,
   usage: Usage | null | undefined,
   period?: UsagePeriod | null,
+  trial = true,
 ): string | null {
-  if (!plan) {
-    const limit = PLANS.free.limits.letter;
-    return `Needs a free account, with ${limit} cover letters and answers a month.`;
-  }
+  if (!plan) return OTTO.limit.none("letter", trial);
   if (!usage) return null;
-  const free = plan === "free" ? "free " : "";
+  if (usage.limit === 0) return OTTO.limit.none("letter", trial);
   const left = Math.max(0, usage.limit - usage.used);
   if (left === 0) {
-    return `No ${free}cover letters or answers left ${thisPeriod(period)}. ${resetSentence(period)}`;
+    return `No cover letters or answers left ${thisPeriod(period)}. ${resetSentence(period)}`;
   }
-  return `${left} of ${usage.limit} ${free}cover letters and answers left ${thisPeriod(period)}.`;
+  return `${left} of ${usage.limit} cover letters and answers left ${thisPeriod(period)}.`;
 }

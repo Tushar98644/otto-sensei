@@ -2,6 +2,7 @@
 
 import { CircleCheck, Maximize2 } from "lucide-react";
 import { useId } from "react";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { FolderCard } from "@/components/ui/folder-card";
 import type { TemplateInfo } from "@/lib/pdf/templates";
@@ -11,6 +12,8 @@ export type FormatCardProps = {
   info: TemplateInfo;
   // The resume the gallery applies formats to already uses this one.
   inUse: boolean;
+  // A Pro format and the viewer is on Free: the card says so, and using it offers the trial.
+  pro?: boolean;
   actionLabel: string;
   ready: boolean;
   onUse: () => void;
@@ -23,14 +26,30 @@ const SIZES = "(min-width: 1280px) 18rem, (min-width: 640px) 45vw, 100vw";
 
 // A folder per format: the tab names it, the window shows the top of page 1 (enough to judge the
 // look; "Preview" shows the whole page), and one row holds both actions, so cards stay short.
-export function FormatCard({ info, inUse, actionLabel, ready, onUse, onPreview }: FormatCardProps) {
+export function FormatCard({
+  info,
+  inUse,
+  pro = false,
+  actionLabel,
+  ready,
+  onUse,
+  onPreview,
+}: FormatCardProps) {
   const titleId = useId();
   return (
     <article aria-labelledby={titleId} className="h-full">
       <FolderCard
         tab={<span id={titleId}>{info.name}</span>}
         tone={inUse ? "forest" : "plain"}
-        tabEnd={inUse ? <span className="text-xs/4 font-medium text-ink">In use</span> : null}
+        tabEnd={
+          inUse ? (
+            <span className="text-xs/4 font-medium text-ink">In use</span>
+          ) : pro ? (
+            <Badge variant="ink" className="h-5 px-1.5">
+              Pro
+            </Badge>
+          ) : null
+        }
         className="h-full"
         bodyClassName="flex flex-col gap-4 p-4"
       >

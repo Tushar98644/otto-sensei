@@ -1,16 +1,23 @@
 import { eq } from "drizzle-orm";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { PLANS } from "@/config/plans";
+import { FEATURES, PLANS, PRO_TRIAL } from "@/config/plans";
 import { getDb } from "@/db/client";
 import { users } from "@/db/schema";
 import { clearSession } from "@/lib/auth/session";
-import { AUTH_COOKIE, cookieJar, fakeAuth, resetDb, signInAs } from "@/lib/auth/test-helpers";
+import { AUTH_COOKIE, cookieJar, fakeAuth, resetDb, signInAs, signInOnTrial } from "@/lib/auth/test-helpers";
+import { recordTrialHistory } from "@/lib/billing/trial";
 import { billingWeekEnd, consumeUsage } from "@/lib/usage";
 import { GET } from "./route";
 
 vi.mock("next/headers", async () => (await import("@/lib/auth/test-helpers")).nextHeadersMock);
 // Pinned so this test doesn't depend on how billing picks its mode.
-vi.mock("@/lib/billing", () => ({ billingMode: () => "mock" }));
+vi.mock("@/lib/billing", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/billing")>()),
+  billingMode: () => "mock",
+}));
+
+const usageOf = (limits: Record<(typeof FEATURES)[number], number>, used: Partial<Record<string, number>> = {}) =>
+  Object.fromEntries(FEATURES.map((feature) => [feature, { used: used[feature] ?? 0, limit: limits[feature] }]));
 
 beforeEach(async () => {
   await resetDb();
@@ -30,6 +37,8 @@ describe("GET /api/me", () => {
       billing: {
         mode: "mock",
         offer: { pro: ["month", "year", "week"], max: ["month", "year", "week"] },
+        // A new account would start on the trial.
+        trial: true,
       },
       auth: { mode: "supabase" },
     });
@@ -48,30 +57,37 @@ describe("GET /api/me", () => {
     expect(await (await GET()).json()).toMatchObject({ ok: true, user: null, usage: null });
   });
 
-  it("returns the user with this month's usage", async () => {
+  it("returns a Free user with no AI allowance, and the trial on offer until they've had one", async () => {
     const user = await signInAs("ada@example.com");
-    await consumeUsage(user, "fix");
-
     const res = await GET();
     expect(res.headers.get("Cache-Control")).toBe("no-store");
     expect(await res.json()).toEqual({
       ok: true,
-      user,
-      usage: {
-        fix: { used: 1, limit: PLANS.free.limits.fix },
-        tailor: { used: 0, limit: PLANS.free.limits.tailor },
-        letter: { used: 0, limit: PLANS.free.limits.letter },
-        import: { used: 0, limit: PLANS.free.limits.import },
-        draft: { used: 0, limit: PLANS.free.limits.draft },
-        github: { used: 0, limit: PLANS.free.limits.github },
-      },
+      user: { ...user, trialEndsAt: null },
+      usage: usageOf(PLANS.free.limits),
       period: { kind: "month", resetsAt: expect.any(Number) },
       billing: {
         mode: "mock",
         offer: { pro: ["month", "year", "week"], max: ["month", "year", "week"] },
+        trial: true,
       },
       auth: { mode: "supabase" },
     });
+
+    await recordTrialHistory(await getDb(), user.email, "trial");
+    expect((await (await GET()).json()).billing.trial).toBe(false);
+  });
+
+  it("returns a trial's own allowance, its end date as the reset, and no second trial", async () => {
+    const trialEnd = Date.now() + 2 * 86_400_000;
+    const user = await signInOnTrial("ada@example.com", trialEnd);
+    await consumeUsage(user, "fix");
+
+    const body = await (await GET()).json();
+    expect(body.user).toMatchObject({ plan: "pro", trialEndsAt: trialEnd });
+    expect(body.usage).toEqual(usageOf(PRO_TRIAL.limits, { fix: 1 }));
+    expect(body.period).toEqual({ kind: "trial", resetsAt: trialEnd });
+    expect(body.billing.trial).toBe(false);
   });
 
   it("counts a weekly subscriber's usage per billing week, with its reset time", async () => {

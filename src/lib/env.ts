@@ -38,23 +38,36 @@ const EnvSchema = z.object({
   DEV_AUTH: optionalString,
   // Development only: signs dev-mode session cookies. Falls back to a fixed dev secret.
   AUTH_SECRET: optionalString,
-  DODO_PAYMENTS_API_KEY: optionalString,
-  DODO_PAYMENTS_WEBHOOK_KEY: optionalString,
-  DODO_PAYMENTS_PRODUCT_ID: optionalString,
-  // Optional Pro products billed yearly and weekly, and the Max plan's three (PRICES_USD in
-  // src/config/plans.ts). Each one is offered only while its id is set.
-  DODO_PAYMENTS_PRODUCT_ID_YEARLY: optionalString,
-  DODO_PAYMENTS_PRODUCT_ID_WEEKLY: optionalString,
-  DODO_PAYMENTS_MAX_PRODUCT_ID: optionalString,
-  DODO_PAYMENTS_MAX_PRODUCT_ID_YEARLY: optionalString,
-  DODO_PAYMENTS_MAX_PRODUCT_ID_WEEKLY: optionalString,
-  DODO_PAYMENTS_ENVIRONMENT: z.preprocess(
+  // Creem (merchant of record) payments. The API key and webhook secret belong to one Creem
+  // environment: test keys only work against the test API, live keys only against the live one.
+  CREEM_API_KEY: optionalString,
+  CREEM_WEBHOOK_SECRET: optionalString,
+  // Anything but "false" or "0" uses Creem's test API (no real charges), so a missing value can't
+  // take real money by mistake.
+  CREEM_TEST_MODE: z.preprocess(
     emptyToUndefined,
-    z.enum(["test_mode", "live_mode"]).default("test_mode"),
+    z
+      .string()
+      .default("true")
+      .transform((value) => !["false", "0", "no", "off"].includes(value.trim().toLowerCase())),
   ),
+  // One Creem product per plan and billing interval (PRICES_USD in src/config/plans.ts), plus Pro
+  // monthly with the free 3-day trial. Pro monthly turns checkout on; every other option is offered
+  // only while its id is set.
+  CREEM_PRO_MONTHLY_PRODUCT_ID: optionalString,
+  CREEM_PRO_YEARLY_PRODUCT_ID: optionalString,
+  CREEM_PRO_WEEKLY_PRODUCT_ID: optionalString,
+  CREEM_MAX_MONTHLY_PRODUCT_ID: optionalString,
+  CREEM_MAX_YEARLY_PRODUCT_ID: optionalString,
+  CREEM_MAX_WEEKLY_PRODUCT_ID: optionalString,
+  CREEM_PRO_TRIAL_PRODUCT_ID: optionalString,
   // Optional, for "Import from GitHub": a fine-grained token with public read-only access and no
   // other permissions. Without it GitHub allows this server 60 calls an hour.
   GITHUB_TOKEN: optionalString,
+  // Optional: where portfolio pictures go. "supabase" (the "portfolio-media" Storage bucket, needs
+  // the secret key) or "local" (web/.uploads, development only). Unset: Supabase when the secret
+  // key is set, else local outside production.
+  PORTFOLIO_MEDIA_STORE: z.preprocess(emptyToUndefined, z.enum(["supabase", "local"]).optional()),
   // Scheduled jobs (/api/cron/*): Vercel Cron sends it as "Authorization: Bearer <secret>". Without
   // it (or under 16 characters) every job refuses to run. Also signs the reminder unsubscribe links.
   CRON_SECRET: optionalString,

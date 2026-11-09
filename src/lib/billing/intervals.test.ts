@@ -6,6 +6,7 @@ import {
   paidProductIds,
   planForProduct,
   productId,
+  trialOffered,
 } from "./intervals";
 
 function useEnv(values: Record<string, string | undefined>) {
@@ -14,17 +15,18 @@ function useEnv(values: Record<string, string | undefined>) {
 }
 
 // Real checkout: without these, development falls back to mock checkout, which offers everything.
-const LIVE = { DODO_PAYMENTS_API_KEY: "key_test", DODO_PAYMENTS_WEBHOOK_KEY: "whsec_test" };
+const LIVE = { CREEM_API_KEY: "key_test", CREEM_WEBHOOK_SECRET: "whsec_test" };
 
 const NONE = {
-  DODO_PAYMENTS_API_KEY: undefined,
-  DODO_PAYMENTS_WEBHOOK_KEY: undefined,
-  DODO_PAYMENTS_PRODUCT_ID: undefined,
-  DODO_PAYMENTS_PRODUCT_ID_YEARLY: undefined,
-  DODO_PAYMENTS_PRODUCT_ID_WEEKLY: "",
-  DODO_PAYMENTS_MAX_PRODUCT_ID: undefined,
-  DODO_PAYMENTS_MAX_PRODUCT_ID_YEARLY: undefined,
-  DODO_PAYMENTS_MAX_PRODUCT_ID_WEEKLY: undefined,
+  CREEM_API_KEY: undefined,
+  CREEM_WEBHOOK_SECRET: undefined,
+  CREEM_PRO_MONTHLY_PRODUCT_ID: undefined,
+  CREEM_PRO_YEARLY_PRODUCT_ID: undefined,
+  CREEM_PRO_WEEKLY_PRODUCT_ID: "",
+  CREEM_MAX_MONTHLY_PRODUCT_ID: undefined,
+  CREEM_MAX_YEARLY_PRODUCT_ID: undefined,
+  CREEM_MAX_WEEKLY_PRODUCT_ID: undefined,
+  CREEM_PRO_TRIAL_PRODUCT_ID: undefined,
 };
 
 afterEach(() => {
@@ -43,26 +45,26 @@ describe("billing intervals", () => {
   });
 
   it("with real checkout, offers Pro monthly alone, and no Max, until more products are set", () => {
-    useEnv({ ...NONE, ...LIVE, DODO_PAYMENTS_PRODUCT_ID: "pdt_month" });
+    useEnv({ ...NONE, ...LIVE, CREEM_PRO_MONTHLY_PRODUCT_ID: "prod_month" });
     expect(offeredIntervals("pro")).toEqual(["month"]);
     expect(offeredIntervals("max")).toEqual([]);
     expect(billingOffer()).toEqual({ pro: ["month"], max: [] });
-    expect(paidProductIds()).toEqual(["pdt_month"]);
+    expect(paidProductIds()).toEqual(["prod_month"]);
   });
 
   it("adds yearly and weekly in a fixed order, each with its own product", () => {
     useEnv({
       ...NONE,
       ...LIVE,
-      DODO_PAYMENTS_PRODUCT_ID: "pdt_month",
-      DODO_PAYMENTS_PRODUCT_ID_YEARLY: "pdt_year",
-      DODO_PAYMENTS_PRODUCT_ID_WEEKLY: "pdt_week",
+      CREEM_PRO_MONTHLY_PRODUCT_ID: "prod_month",
+      CREEM_PRO_YEARLY_PRODUCT_ID: "prod_year",
+      CREEM_PRO_WEEKLY_PRODUCT_ID: "prod_week",
     });
     expect(offeredIntervals()).toEqual(["month", "year", "week"]);
-    expect(productId("pro", "year")).toBe("pdt_year");
-    expect(paidProductIds()).toEqual(["pdt_month", "pdt_year", "pdt_week"]);
+    expect(productId("pro", "year")).toBe("prod_year");
+    expect(paidProductIds()).toEqual(["prod_month", "prod_year", "prod_week"]);
 
-    useEnv({ DODO_PAYMENTS_PRODUCT_ID_YEARLY: undefined });
+    useEnv({ CREEM_PRO_YEARLY_PRODUCT_ID: undefined });
     expect(offeredIntervals()).toEqual(["month", "week"]);
   });
 
@@ -70,39 +72,55 @@ describe("billing intervals", () => {
     useEnv({
       ...NONE,
       ...LIVE,
-      DODO_PAYMENTS_PRODUCT_ID: "pdt_pro",
-      DODO_PAYMENTS_MAX_PRODUCT_ID_YEARLY: "pdt_max_year",
+      CREEM_PRO_MONTHLY_PRODUCT_ID: "prod_pro",
+      CREEM_MAX_YEARLY_PRODUCT_ID: "prod_max_year",
     });
     expect(offeredIntervals("max")).toEqual(["year"]);
-    useEnv({ DODO_PAYMENTS_MAX_PRODUCT_ID: "pdt_max" });
+    useEnv({ CREEM_MAX_MONTHLY_PRODUCT_ID: "prod_max" });
     expect(offeredIntervals("max")).toEqual(["month", "year"]);
-    expect(planForProduct("pdt_pro")).toEqual({ plan: "pro", interval: "month" });
-    expect(planForProduct("pdt_max_year")).toEqual({ plan: "max", interval: "year" });
-    expect(planForProduct("pdt_someone_else")).toBeNull();
+    expect(planForProduct("prod_pro")).toEqual({ plan: "pro", interval: "month" });
+    expect(planForProduct("prod_max_year")).toEqual({ plan: "max", interval: "year" });
+    expect(planForProduct("prod_someone_else")).toBeNull();
     expect(planForProduct(null)).toBeNull();
-    expect(paidProductIds()).toEqual(["pdt_pro", "pdt_max", "pdt_max_year"]);
+    expect(paidProductIds()).toEqual(["prod_pro", "prod_max", "prod_max_year"]);
   });
 
   it("maps every product to its plan and billing interval, so weekly ones get weekly allowances", () => {
     useEnv({
       ...NONE,
       ...LIVE,
-      DODO_PAYMENTS_PRODUCT_ID: "pdt_pro_month",
-      DODO_PAYMENTS_PRODUCT_ID_YEARLY: "pdt_pro_year",
-      DODO_PAYMENTS_PRODUCT_ID_WEEKLY: "pdt_pro_week",
-      DODO_PAYMENTS_MAX_PRODUCT_ID: "pdt_max_month",
-      DODO_PAYMENTS_MAX_PRODUCT_ID_YEARLY: "pdt_max_year",
-      DODO_PAYMENTS_MAX_PRODUCT_ID_WEEKLY: "pdt_max_week",
+      CREEM_PRO_MONTHLY_PRODUCT_ID: "prod_pro_month",
+      CREEM_PRO_YEARLY_PRODUCT_ID: "prod_pro_year",
+      CREEM_PRO_WEEKLY_PRODUCT_ID: "prod_pro_week",
+      CREEM_MAX_MONTHLY_PRODUCT_ID: "prod_max_month",
+      CREEM_MAX_YEARLY_PRODUCT_ID: "prod_max_year",
+      CREEM_MAX_WEEKLY_PRODUCT_ID: "prod_max_week",
     });
     expect(
       paidProductIds().map((id) => [id, planForProduct(id)]),
     ).toEqual([
-      ["pdt_pro_month", { plan: "pro", interval: "month" }],
-      ["pdt_pro_year", { plan: "pro", interval: "year" }],
-      ["pdt_pro_week", { plan: "pro", interval: "week" }],
-      ["pdt_max_month", { plan: "max", interval: "month" }],
-      ["pdt_max_year", { plan: "max", interval: "year" }],
-      ["pdt_max_week", { plan: "max", interval: "week" }],
+      ["prod_pro_month", { plan: "pro", interval: "month" }],
+      ["prod_pro_year", { plan: "pro", interval: "year" }],
+      ["prod_pro_week", { plan: "pro", interval: "week" }],
+      ["prod_max_month", { plan: "max", interval: "month" }],
+      ["prod_max_year", { plan: "max", interval: "year" }],
+      ["prod_max_week", { plan: "max", interval: "week" }],
     ]);
+  });
+
+  it("offers the trial only once its product is set, and maps it to Pro monthly", () => {
+    useEnv({ ...NONE, ...LIVE, CREEM_PRO_MONTHLY_PRODUCT_ID: "prod_pro_month" });
+    expect(trialOffered()).toBe(false);
+    useEnv({ CREEM_PRO_TRIAL_PRODUCT_ID: "prod_pro_trial" });
+    expect(trialOffered()).toBe(true);
+    expect(planForProduct("prod_pro_trial")).toEqual({ plan: "pro", interval: "month" });
+    expect(paidProductIds()).toEqual(["prod_pro_month", "prod_pro_trial"]);
+    // The trial is a way into Pro monthly, not another billing option.
+    expect(billingOffer()).toEqual({ pro: ["month"], max: [] });
+  });
+
+  it("offers the trial in mock checkout, with no products at all", () => {
+    useEnv(NONE);
+    expect(trialOffered()).toBe(true);
   });
 });

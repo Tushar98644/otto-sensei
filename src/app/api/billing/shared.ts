@@ -34,7 +34,7 @@ export function billingFailure(error: unknown, action: "checkout" | "portal"): R
   return fail("server_error", "Something went wrong. Please try again.", 500);
 }
 
-// Each link costs a Dodo API call on our key; a per-user cap stops one account from using up the
+// Each link costs a Creem API call on our key; a per-user cap stops one account from using up the
 // API rate limit that every customer shares.
 const LINKS_PER_HOUR = 20;
 const HOUR_MS = 60 * 60 * 1000;

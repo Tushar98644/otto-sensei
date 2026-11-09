@@ -22,7 +22,7 @@ function devSession(request: NextRequest): SessionUpdate {
 }
 
 // Skips build assets, the image optimizer, generated icons and share images, files in public/,
-// the billing webhook (Dodo signs it) and the scheduled jobs (Vercel Cron sends a bearer secret):
+// the billing webhook (Creem signs it) and the scheduled jobs (Vercel Cron sends a bearer secret):
 // neither ever has a session to refresh.
 export const config = {
   matcher: [

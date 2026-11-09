@@ -1,13 +1,14 @@
 import JSZip from "jszip";
 import { themeFor } from "@/components/pdf/themes";
 import { BRAND } from "@/config/brand";
+import { letterDate, letterParagraphs } from "@/lib/pdf/letter";
 import { buildPdfModel } from "@/lib/pdf/model";
 import type { PdfPageSize } from "@/lib/pdf/page-size";
 import type { Resume, TemplateId } from "@/lib/resume/schema";
-import { bodyXml, sectionPropsXml } from "./body";
-import { docxLook } from "./look";
+import { bodyXml, header, sectionPropsXml } from "./body";
+import { docxLook, type DocxLook } from "./look";
 import { numberingXml, stylesXml } from "./styles";
-import { R_NS, W_NS, XML_HEAD, escapeXml } from "./xml";
+import { R_NS, W_NS, XML_HEAD, escapeXml, paragraph, run } from "./xml";
 
 // The resume as a real Word file (.docx), built in the browser with jszip: named styles, Heading 1
 // sections, a bulleted list, dates on a tab stop, the chosen page size, font and accent. Many
@@ -80,27 +81,37 @@ function coreXml(title: string, author: string, subject: string, now: number): s
   ].join("");
 }
 
-/** The .docx file's bytes. */
-export async function buildResumeDocx(
-  resume: Resume,
-  options: DocxOptions = {},
-): Promise<Uint8Array> {
-  const { pageSize = "LETTER", template, now = Date.now() } = options;
-  const model = buildPdfModel(resume, { charset: "unicode" });
-  const look = docxLook(themeFor(resume, template), pageSize);
-  const hyperlinks = new Map<string, string>();
-  const links = {
+type Links = { add: (href: string) => string; rels: () => string[] };
+
+// Hyperlinks get relationship ids after the three fixed parts (styles, numbering, settings).
+function hyperlinks(): Links {
+  const ids = new Map<string, string>();
+  return {
     add(href: string) {
-      let id = hyperlinks.get(href);
+      let id = ids.get(href);
       if (!id) {
-        // rId1-3 are the styles, numbering and settings parts below.
-        id = `rId${hyperlinks.size + 10}`;
-        hyperlinks.set(href, id);
+        id = `rId${ids.size + 10}`;
+        ids.set(href, id);
       }
       return id;
     },
+    rels: () =>
+      [...ids].map(
+        ([href, id]) =>
+          `<Relationship Id="${id}" Type="${REL}/hyperlink" Target="${escapeXml(href)}" TargetMode="External"/>`,
+      ),
   };
-  const body = bodyXml(model, look, links);
+}
+
+type Package = {
+  body: string;
+  look: DocxLook;
+  links: Links;
+  meta: { title: string; author: string; subject: string };
+  now: number;
+};
+
+async function pack({ body, look, links, meta, now }: Package): Promise<Uint8Array> {
   const document = [
     XML_HEAD,
     `<w:document xmlns:w="${W_NS}" xmlns:r="${R_NS}"><w:body>`,
@@ -114,20 +125,14 @@ export async function buildResumeDocx(
     `<Relationship Id="rId1" Type="${REL}/styles" Target="styles.xml"/>`,
     `<Relationship Id="rId2" Type="${REL}/numbering" Target="numbering.xml"/>`,
     `<Relationship Id="rId3" Type="${REL}/settings" Target="settings.xml"/>`,
-    ...[...hyperlinks].map(
-      ([href, id]) =>
-        `<Relationship Id="${id}" Type="${REL}/hyperlink" Target="${escapeXml(href)}" TargetMode="External"/>`,
-    ),
+    ...links.rels(),
     "</Relationships>",
   ].join("");
 
   const zip = new JSZip();
   zip.file("[Content_Types].xml", CONTENT_TYPES);
   zip.file("_rels/.rels", ROOT_RELS);
-  zip.file(
-    "docProps/core.xml",
-    coreXml(model.meta.title, model.meta.author, model.meta.subject, now),
-  );
+  zip.file("docProps/core.xml", coreXml(meta.title, meta.author, meta.subject, now));
   zip.file("docProps/app.xml", APP);
   zip.file("word/document.xml", document);
   zip.file("word/_rels/document.xml.rels", documentRels);
@@ -137,12 +142,66 @@ export async function buildResumeDocx(
   return zip.generateAsync({ type: "uint8array", compression: "DEFLATE", mimeType: DOCX_MIME });
 }
 
+const toBlob = (bytes: Uint8Array) => new Blob([bytes.slice().buffer], { type: DOCX_MIME });
+
+/** The .docx file's bytes. */
+export async function buildResumeDocx(
+  resume: Resume,
+  options: DocxOptions = {},
+): Promise<Uint8Array> {
+  const { pageSize = "LETTER", template, now = Date.now() } = options;
+  const model = buildPdfModel(resume, { charset: "unicode" });
+  const look = docxLook(themeFor(resume, template), pageSize);
+  const links = hyperlinks();
+  return pack({ body: bodyXml(model, look, links), look, links, meta: model.meta, now });
+}
+
+// The letter PDF's spacing: paragraphs further apart than resume lines, the date set off.
+const LETTER_DATE = { before: 18, after: 14 };
+const LETTER_GAP = 10;
+
+/**
+ * The cover letter as a Word file in the resume's format: the same name block, fonts and margins
+ * as the PDF letter, then the date and the letter's paragraphs. A single line break stays a break
+ * inside its paragraph, so "Best regards," keeps the name under it.
+ */
+export async function buildLetterDocx(
+  resume: Resume,
+  letter: string,
+  options: DocxOptions = {},
+): Promise<Uint8Array> {
+  const { pageSize = "LETTER", template, now = Date.now() } = options;
+  const model = buildPdfModel(resume, { charset: "unicode" });
+  const look = docxLook(themeFor(resume, template), pageSize);
+  const links = hyperlinks();
+  const paragraphs = letterParagraphs(letter).map((lines, index) =>
+    paragraph(lines.map((line, at) => (at > 0 ? "<w:r><w:br/></w:r>" : "") + run(line)).join(""), {
+      keepLines: true,
+      before: index > 0 ? LETTER_GAP : undefined,
+    }),
+  );
+  const body = [
+    ...header(model, look, links),
+    paragraph(run(letterDate(now, pageSize)), LETTER_DATE),
+    ...paragraphs,
+  ].join("");
+  const title = model.name ? `${model.name} - Cover letter` : "Cover letter";
+  return pack({ body, look, links, meta: { ...model.meta, title }, now });
+}
+
+export async function buildLetterDocxBlob(
+  resume: Resume,
+  letter: string,
+  options: DocxOptions = {},
+): Promise<Blob> {
+  return toBlob(await buildLetterDocx(resume, letter, options));
+}
+
 export async function buildResumeDocxBlob(
   resume: Resume,
   options: DocxOptions = {},
 ): Promise<Blob> {
-  const bytes = await buildResumeDocx(resume, options);
-  return new Blob([bytes.slice().buffer], { type: DOCX_MIME });
+  return toBlob(await buildResumeDocx(resume, options));
 }
 
 /** "Maya-Lindqvist-Resume.pdf" -> "Maya-Lindqvist-Resume.docx". */

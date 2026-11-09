@@ -3,6 +3,7 @@
 import { ArrowRight, FilePlus, Info, Upload } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
+import { roomForResume } from "@/components/account/pro-tools";
 import { upgradeInterval } from "@/components/account/upgrade-interval";
 import { useMe } from "@/components/account/use-me";
 import { OTTO } from "@/components/mascot/lines";
@@ -61,7 +62,8 @@ export function ReviewStep() {
     (check) => check.id === "text-layer" && check.status === "fail",
   );
 
-  function startFromScratch() {
+  async function startFromScratch() {
+    if (!(await roomForResume())) return;
     addResume(emptyResume());
     setStep("fix");
   }
@@ -80,7 +82,7 @@ export function ReviewStep() {
         >
           {scanned ? (
             <>
-              <Button onClick={startFromScratch}>
+              <Button onClick={() => void startFromScratch()}>
                 <FilePlus />
                 Start from scratch
               </Button>
@@ -103,7 +105,9 @@ export function ReviewStep() {
                   href={upgradeHref(upgradeTo, upgradeInterval(me, upgradeTo))}
                   className="font-medium text-ink underline decoration-border-strong underline-offset-4 hover:decoration-ink"
                 >
-                  Upgrade for AI reading
+                  {(user?.plan ?? "free") === "free" && me?.billing.trial !== false
+                    ? "Try Pro free for 3 days for AI reading"
+                    : "Upgrade for AI reading"}
                 </Link>
               ) : (
                 `AI reading is back on ${resetDay(me?.period)}.`

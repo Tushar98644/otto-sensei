@@ -140,6 +140,8 @@ Base: `inline-flex h-6 items-center gap-1 rounded-full px-2 text-xs font-medium`
 | `fail` | `bg-fail-soft text-fail-ink`, `CircleX` in `text-fail` |
 | `ink` (replaces `accent`) | `bg-ink text-white`: the Pro plan mark |
 
+**Pro tools on Free** (2026-11-08): a Pro format in the format picker or gallery, and the Word button, carry a small `ink` "Pro" badge (`h-5 px-1.5`) on Free only, never while the plan is loading. Clicking one opens the same trial prompt as the AI buttons (`openUpgradePrompt(tool)`), never an error. A page that is Pro as a whole (Applications, the Jobs tab) stays visible with one `OttoNote` and one "Try Pro free for 3 days" button ("See Pro" once the trial is used); Jobs shows only the match count, no cards or filters. A resume set to a Pro format says so in one line under the picker ("Modern is a Pro format, so your download comes out in Classic.") with a ghost "Try Pro free" button.
+
 ### Folder card (`ui/folder-card.tsx`)
 
 Everything in the signed-in app is a document, so cards are folders: a labelled tab (`h-8 rounded-t-xl px-3.5`, eyebrow type) on a white body with a square top-left corner. Tab tones: `plain` (white tab, `text-subtle`), `lavender` (ink on lavender: the **Tailored** mark, and "Start here"), `forest` (white on forest: the format in use). Used for document cards, action cards, "At a glance", the format gallery and empty starts. On the mist canvas only.
@@ -171,6 +173,89 @@ Page 1 as a tiny HTML page: the PDF's own model (`buildPdfModel`) and its own th
 ### Library (`dashboard/resumes-page.tsx`, `library-toolbar.tsx`, `library.ts`)
 
 Header: h1 "Resumes", a fact line ("7 resumes, 1 tailored to a job. Kept in this browser and backed up to your account."), the New resume menu on the right. Toolbar (one row from `xl`, stacked below): filter segments All, Uploaded, Tailored, Samples, From scratch with counts (`aria-pressed`; empty sources hide unless picked; on phones the strip scrolls inside itself), then search ("Search by name or company": title, person, companies, the tailored job; every word, any order, accents ignored) and a sort menu (Last edited, Name). A polite live region says "3 resumes shown of 7". States: loading (skeleton folders), empty (full-body Otto reading, "Your resumes will live here", Upload / Start from scratch / Try a sample), no results (an OttoNote with "Show all resumes").
+
+### Jobs (`dashboard/jobs/*`, new 2026-11-08)
+
+The Jobs tab, second in the nav. On the stone canvas, top to bottom:
+
+```text
+ Jobs                                                    <- h1, then a muted fact line
+ [otto] Otto · 4,210 open jobs · checked 3 hours ago
+        I found 23 jobs that match your resume. 5 look strong, 2 are new today.
+ ( Best matches | Saved 3 )                 [ Matching: Amara Okafor   v ]
+ [ (search) Search titles, companies or skills ] [ City or country ]
+ [ Any role v ] [ Any level v ] [ Posted any time v ]
+ [x] Remote only   [ ] Only jobs I can take
+ +- card: bg-surface rounded-2xl p-4 sm:p-6 -------------------------------+
+ | Vercel                                                   via Greenhouse |  <- text-sm text-subtle
+ | Senior Software Engineer, Dashboard                                     |  <- text-base font-semibold
+ | Remote - Germany · Full-time · Posted 3 days ago                        |  <- text-sm text-muted
+ | (v Strong match)                                                        |
+ | Found in your resume: React, TypeScript, Node.js. Not found: Go.        |  <- text-sm ink
+ | Asks for 5+ years; your resume shows about 3.                           |  <- notes, text-sm muted
+ | [Tailor my resume] [Save] [Mark applied]               Open job ↗       |
+ +-------------------------------------------------------------------------+
+ [Previous]                    Page 1 of 3                         [Next]
+```
+
+- **No score, ever.** Labels are words: Strong match (`StatusPill pass`, the only green), Good match and Stretch (`neutral` badges). A post with a rule the work profile can't meet adds a `fail` "Likely blocked" pill and the rule as a note. The reason line names the skills found and not found; nothing is a number or a percentage.
+- **Otto note** at the top, facts only (`OTTO.jobs.found`): counts of matches, strong ones and new today; meta = open jobs and when the boards were read. Saved view: how many are saved. No full-body Otto while results show.
+- **Card actions**, in order: primary sm "Tailor my resume" (or "Open tailored copy" once one exists for that link), secondary "Save" (`aria-pressed`, the bookmark fills), secondary "Mark applied" (once logged it becomes the ghost status link into the tracker, like the resume cards), ghost "Open job" with an arrow, pushed right from `sm`. One primary per card.
+- **Source credit** on every card ("via Himalayas"), and "Open job" is a plain followed link (`rel="noopener"`, never `nofollow`).
+- **States:** loading = three skeleton cards; no resumes = the empty state (full-body Otto `read`, 128px, "Jobs that fit your resume will show up here", the New resume menu); no matches with filters = a white row with "Clear filters"; error = the error `Alert` with "Try again". A polite live region says "20 of 230 jobs shown, page 1 of 12."
+- **Phones:** the filter rows stack, cards keep their order of facts, the actions wrap. The phone strip has five sections (Home, Jobs, Resumes, Applied, Formats); Account moves to the avatar menu only.
+
+**Public `/jobs`** (marketing layout, paper): eyebrow "OPEN JOBS", h1 "Real jobs, *read every day.*", lead, then one panel holding a plain GET filter form, a small Otto note ("Sign in and I'll rank these for your resume…") with a primary sm "See how well you match", and the list as white cards on the panel (company · via source, title, place · posted date, secondary "See how well you match", ghost "Open job"). Titles of company-board jobs open `/jobs/[id]` (the post's text on a white sheet inside a panel, two buttons on top); the feeds' titles link straight out.
+
+### Portfolio (`portfolio/*`, `/dashboard/portfolio` and `/p/[slug]`, new 2026-11-08)
+
+Your resume as a personal web page. One per account, free on every plan with all six templates. On the stone canvas:
+
+```text
+ Portfolio                                               <- h1, then a muted fact line
+ [otto] Otto · 3 projects · 2 jobs · 12 skills
+        I filled this in from your resume. Nothing goes live until you publish.
+ +- settings (lg:col-span-2) -----+  +- preview Window (lg:col-span-3, sticky) ---------+
+ | Your page   (Draft) /p/maya-chen|  | [...] /p/maya-chen              Preview · Navy   |
+ | No views yet · ...  [Publish]   |  |  the real template component, edge to edge on   |
+ | Template  6 pictures, 3 a row   |  |  its own canvas, sized by its container, with   |
+ | (Project pictures: Showcase)    |  |  the "Made with Otto Sensei" line at its foot   |
+ | Address   /p/ [maya-chen ][Save]|  |                                                 |
+ | What shows  [ ] email [ ] phone |  |                                                 |
+ |   Sections [x] About [x] Proj.. |  |                                                 |
+ | Settings  Made from [Maya v]    |  |                                                 |
+ |   [x] Keep in sync [ ] Search   |  |                                                 |
+ |   [ ] Hide "Made with" (Pro)    |  |                                                 |
+ +---------------------------------+  +-------------------------------------------------+
+```
+
+- **Cards** are white `rounded-2xl p-4 sm:p-6` with a `text-base font-semibold` title; switches are the share dialog's row list (checkbox, label, muted hint, 44px rows). Every change saves at once; no Save button except the address.
+- **Before there is one:** a white panel with the screen's one full-body Otto (`wave`, 128px), "Your resume, as a web page", a "Make it from" select when there are several resumes (base resumes first) and a primary lg "Make my portfolio" (`Globe` icon), with "Nothing goes live until you publish." under it. The resume card menu's "Make my portfolio" opens this screen and makes it in the same click; when one already exists from another resume, an `Alert` offers "Use this resume" / "Keep the current one" instead.
+- **Publish** is primary; once live the card shows a `pass` "Live" pill, secondary "Copy link", ghost "Open page" and a ghost red "Take down". Both directions happen at once with an Undo toast, never "Are you sure?".
+- **Address:** a mono field after "Your page lives at /p/", normalised as you type ("Maya Chen" → `maya-chen`), checked 400ms after typing stops, with the reason in plain words (too short, reserved, someone has it). Once the page has been public, the hint says the old address keeps working for 90 days.
+- **Privacy defaults:** email and phone off, search engines off (noindex), sync on; each section with content can be hidden. Hiding the credit line is the one Pro/Max switch: on Free it is disabled with an `ink` "Pro" badge and a "See Pro" link.
+- **Template picker:** eight labels in a 2/3-column grid (`grid-cols-2 sm:grid-cols-3 lg:grid-cols-2 xl:grid-cols-3`), each the top of a static render at 1440px (`public/portfolio-templates/<id>.webp`, 480×300, `rounded-lg ring-1 ring-border`), the name and its one-line idea; the chosen one gets `bg-surface-muted ring-1 ring-ink` and a check. New portfolios start on **Navy**.
+- **Project pictures** (only while Showcase is chosen and there are projects): one https field per project ("Paste an https link to a screenshot…"), checked as you type (https only, no name/password in it, 2,048 characters), saved with a secondary Save. Empty means Showcase draws its sketch. No uploads.
+- **Content cards** (`portfolio/content/*`, new 2026-11-08): under Settings, everything the rich templates draw beyond the resume. First a white `EditorCard` "Your page's content" with a small Otto note (`size="sm"`, `live`; meta "<Template> · 4 of 7 filled in"; message from `content/lines.ts`, at most 18 words: what this design still shows, "Everything this design uses is filled in", or "This design draws your resume only" for the first six), then "This design uses: photo, screenshots, interests…" and a row-list checklist (pass `Check` for done, muted `Circle` for to do, the gap on the right in `text-xs text-subtle`: "2 of 5 projects"), and the picture space line ("Pictures: 3 of 60, 1.2 MB of 60 MB"). Which fields each design uses lives in `src/lib/portfolio/content-uses.ts`.
+- Then folding cards (`<details>` on white `rounded-2xl`, title + a muted facts line, `ChevronDown` that turns): **Photo and intro** (open), **About**, **Projects** (open), **Experience and education**, **Now and numbers**, **Milestones and talks**, **Writing and kind words**, **Outside work**, **GitHub**. Inside, rows and list items sit on the mist (`rounded-xl bg-surface-muted p-3 sm:p-4`), never a card in a card.
+- **Filled in for you:** every field Otto can fill shows the filled value (not a placeholder) with "Filled in for you" in `text-xs text-subtle` beside the label; once edited it becomes the owner's and the note turns into a quiet "Fill in for me" link (`RotateCcw` 12px) that puts the automatic value back. Lists work the same: automatic until the first edit.
+- **Saving:** no Save buttons. Changes show in the preview at once and save 0.9s after typing stops (and on leaving the page). Removing anything (a link, a talk, a picture) happens at once with an Undo toast, never "Are you sure?". Hiding a resume project is the eye toggle; the row stays, struck through in `text-subtle`.
+- **Projects:** one row per project on the mist: `GripVertical` drag handle, name, a star toggle (filled ink star = featured), up/down arrows (`icon-sm` ghost, labelled "Move Tally up"), eye (resume projects) or ✕ (added ones). Expanding shows name, one line, description, category + years, outcome ("4.2k stars · 600+ sites"), built with, website + source, screenshots, demo video link + frame (`Select`), icon, role, a longer write-up. Under the list: one secondary chip per GitHub repo not on the page ("+ tally ★ 4.2k") and a ghost "Add a project".
+- **Drop zones** use `ui/dropzone.tsx`: a single picture is a 112-128px tile (`aspect-square` photo/logo) that shows the picture, the initials or an `ImagePlus` icon, with a spinner veil while uploading and a ghost "Remove"; screenshots and personal photos are a 2/3-column grid of `aspect-video` thumbnails (`rounded-xl ring-1 ring-border`, first one marked "Cover" in an ink pill), each with move-left/right and remove, plus an "Add" drop tile while there's room. Hint: "Drop a PNG, JPEG, WebP or AVIF here, up to 4 MB. We shrink it for the web."
+- **Logos:** typing a company or school website fetches its icon on blur (no click); a muted monogram (initials in a `size-8 rounded-lg` tile) shows until then and whenever a site has none.
+- **Delete this page:** a ghost red link at the very end; it asks inline ("This deletes the page, its address and every picture… It can't be undone." + danger "Delete page and pictures" + ghost "Keep it"). The one confirm on the screen, because pictures can't come back.
+- **Templates** (`templates/registry.ts`: `id`, `name`, `description`, `thumbnail`, `credit`, `Component`; info in `src/lib/portfolio/templates.ts`) are rebuilds of eight real MIT-licensed portfolios (Navy ← Brittany Chiang's v4, Dock ← Dillion Verma's magicui portfolio, Reel ← Hamish Williams, Bento ← Gianmarco Cavallo; CV, Prose, Folio and Paper are placeholders until their builds land), drawn with our users' data. Each takes `view`, `content` (a `PortfolioContentView`) and an optional `footer`; the template component uses no hooks, and its interactions (tabs, menus, theme toggles, clocks, the Reel sphere) are small `"use client"` islands that render the same markup on the server. Each ships its own stylesheet whose every selector is prefixed with its root (`.pf-navy` …, `templates/css.ts`), keeps its original's `LICENSE.txt`, and prints "Design based on <author>'s <work> (MIT)" in its footer (see `THIRD_PARTY_NOTICES.md`). The originals' `@media` widths are `@container pf` queries, so the editor's narrow preview shows the phone layout; the preview contains fixed headers and docks (`contain: layout`) and sets `--pf-screen` for one-screen sections. Fonts come from `templates/fonts.ts` (next/font, no preload; only the chosen template's variables are applied), with free stand-ins for paid fonts. Missing data never leaves a gap: sections with nothing are left out and a page with only a name still looks finished. Motion respects `prefers-reduced-motion`.
+
+| Template | Idea | Type and colour | Data notes |
+|---|---|---|---|
+| **Margin** | Text first, one 640px column; years on the right | Instrument Sans, `#fbfbf9`, no accent | Headline and city under the name, summary as prose |
+| **Broadsheet** | Editorial serif page: big headline, double rules, numbered projects, a back page | Newsreader + Schibsted Grotesk, cream `#f4efe6`, brick `#a33a22` labels | Italic name over the headline; "Now" byline from a current job; kicker "No. 1 · Open source" for GitHub repos |
+| **Ledger** | The resume as one white sheet, label column, print button | IBM Plex Sans + Plex Mono dates, grey desk | Print stylesheet hides the bar and credit; `@page` margins 14×16mm |
+| **Showcase** | Projects first as 4:3 tiles, career below | Geist + Geist Mono, `#e9e8e3` tiles, one green dot for a current job | Tile = the owner's picture, else a CSS sketch from the project's own name and lines (README window, reader, terminal, e-ink panel, in turn; `aria-hidden`) |
+| **Shell** | All monospace README on near-black | JetBrains Mono, `#131312`, amber `#e3a857` | `role / location / stack / github` facts; `$ mail …` contact line |
+| **Signal** | Huge wide name pinned left, numbered sections right | Archivo (wide 125%), stone `#f2f1ec`, orange `#ff5420` | Name steps down by its longest word (`data-len`); the rail stops pinning under 640px of height |
+
+- **Public page** `/p/[slug]`: no frame; the template's own canvas fills the window (`main.flex.min-h-dvh`), the browser bar takes the template's background, and the template draws the quiet "Made with Otto Sensei" line (Otto's head + the name, in the template's own type and colour) at its foot unless a Pro/Max owner hid it. Its Open Graph image: the template's background, "PORTFOLIO" eyebrow, the name in large ink type, the headline in muted, full-body Otto `wave` on the right. Screenshots of each template at 1440 and 390px: `../portfolio-samples/app-shots/`.
 
 ### Sidebar and phone bar (`dashboard/sidebar.tsx`, `mobile-bar.tsx`)
 
@@ -266,6 +351,7 @@ Fills stay flat (`fur`, `cream`, `furShade`). No gradients, white keylines, drop
 | Otto notes, new 2026-11-08 | `OttoNote` | Formats page (a fact-only tip: "Not sure? Classic suits any job. Compact fits a long career on one page."); near a usage limit (80% or more of a meter): the sidebar's plan slip (its three meters, above the existing upgrade button; not on the account page) and the account usage card (every meter, with the existing "Upgrade to" link): "Uh-oh, 8 of 10 tailored versions used. They reset on the 1st." | Words follow the worried pose; the head itself doesn't change |
 | `OttoMark` in a toast (new 2026-11-08) | `size-5` head in a `size-7` round avatar | The start of every toast, undo toasts included | |
 | `OttoMark` on the share page (new 2026-11-08) | 24px | The public resume's quiet footer: "Made with Otto Sensei", one link to the home page | |
+| Portfolio (new 2026-11-08) | Full body `wave` 128px; `OttoNote`; `OttoMark` 24px | Full body only on the empty start; the editor gets an Otto note (facts in the meta: projects, jobs, skills); `/p/[slug]`'s template draws the "Made with" line with `OttoMark` 24px (Pro and Max may hide it); the Open Graph image has Otto `wave` | One full-body Otto per screen |
 | Email head (new 2026-11-08) | `public/email/otto-head.png`, 96px drawn, shown at 48px | Top of every email: the follow-up reminder (`OTTO_HEAD_EMAIL_PATH` on the app's base URL) and the sign-in code (SETUP.md 6e, `{{ .SiteURL }}`). A PNG because email apps don't show inline SVG; alt "Otto". Rendered once from the color `OttoMark` in the note avatar (white disc, `border` ring); render it again if the head ever changes | |
 | `peek` pose (new) | 64px phone, 104px desktop | Hero: head and paws over the top edge of the parsed-text window | Hero only |
 | `OttoMark tone="color"` | 28-32px | Logo, favicon (`icon.svg` takes the new `line` color) | Next to the wordmark |
@@ -328,7 +414,7 @@ Order: Hero with the recruiter-view moment → How it works → What Otto won't 
 
 **What Otto won't do:** h2 on the left, then a row list; each row is `grid gap-2 py-8 sm:grid-cols-2`, with a small-display serif claim on the left and a `text-muted` reason on the right: "Make up a score." · "Invent your numbers." · "Charge you to download." · "Keep your file." Reasons come from the current WhyDifferent and FAQ copy, and every claim must stay true of the product.
 
-**Pricing:** h2 "Free for the basics. *Pro for a busy job hunt.*" A panel holds two cards (`PLANS_PANEL_CLASSES`: `grid gap-3 rounded-3xl bg-surface-muted p-3 sm:p-6 md:grid-cols-2`); from `md` each card is `md:row-span-4 md:grid md:grid-rows-subgrid md:gap-0` over the rows name, summary, price and button, features, so both buttons line up even when a summary wraps. Keep summaries to one line anyway. A closing "(fair use)" never breaks across lines. Each card: plan name in small display, summary `text-muted`, price `text-2xl font-semibold lining-nums tabular-nums` with "/month" in `text-muted`, then the button (Pro `primary`, Free `secondary`) with a gray line under it ("Cancel anytime from your account" / "No card needed"), then `border-t border-border pt-6` and the list with ink `Check` icons. Pro's list starts with "Everything in Free, plus:". Pro gets an `ink` badge, not an accent border. On /pricing only: Otto (`point`, 96px) beside the billing switch and a small Otto note under the plans (section 5); the homepage teaser stays without him.
+**Pricing:** h2 "Free for the basics. *Pro for a busy job hunt.*" A panel holds two cards (`PLANS_PANEL_CLASSES`: `grid gap-3 rounded-3xl bg-surface-muted p-3 sm:p-6 md:grid-cols-2`); from `md` each card is `md:row-span-4 md:grid md:grid-rows-subgrid md:gap-0` over the rows name, summary, price and button, features, so both buttons line up even when a summary wraps. Keep summaries to one line anyway. A closing "(fair use)" never breaks across lines. Each card: plan name in small display, summary `text-muted`, price `text-2xl font-semibold lining-nums tabular-nums` with "/month" in `text-muted`, then the button (Pro `primary`, Free `secondary`) with a gray line under it ("Cancel anytime from your account" / "No card needed"), then `border-t border-border pt-6` and the list with ink `Check` icons. Pro's list starts with "Everything in Free, plus:". Monthly prices show the reference price struck through before the amount (`text-base text-subtle`, read out as "Reference price") and a `neutral` badge after it ("55% off"); yearly gets "Save 33% vs monthly" in the same badge; weekly gets neither. The Pro card adds one `text-sm text-muted` line under the price: "About half the price of Rezi Pro ($29/mo)". `SHOW_REFERENCE_PRICES` in `src/config/plans.ts` turns the struck prices and their badges off. Pro gets an `ink` badge, not an accent border. On /pricing only: Otto (`point`, 96px) beside the billing switch and a small Otto note under the plans (section 5); the homepage teaser stays without him.
 
 **Before you start (FAQ):** `lg:grid-cols-3`, h2 on the left, a row list on the right (`lg:col-span-2`). Each `<summary>` is a FAQ-question serif line with a `Plus` icon that turns 45° when open; the answer is `pb-6 text-base/7 text-muted max-w-prose`.
 

@@ -5,10 +5,14 @@ export const ROUTES = {
   studio: "/studio",
   howItWorks: "/#how",
   pricing: "/pricing",
+  jobs: "/jobs",
   login: "/login",
   dashboard: "/dashboard",
+  dashboardJobs: "/dashboard/jobs",
   dashboardResumes: "/dashboard/resumes",
   dashboardApplications: "/dashboard/applications",
+  dashboardLetters: "/dashboard/letters",
+  dashboardInterview: "/dashboard/interview",
   dashboardFormats: "/dashboard/formats",
   dashboardAccount: "/dashboard/account",
   account: "/account",
@@ -30,6 +34,7 @@ export type NavLink = { href: string; label: string };
 
 export const MAIN_NAV: readonly NavLink[] = [
   { href: ROUTES.howItWorks, label: "How it works" },
+  { href: ROUTES.jobs, label: "Jobs" },
   { href: ROUTES.pricing, label: "Pricing" },
 ];
 

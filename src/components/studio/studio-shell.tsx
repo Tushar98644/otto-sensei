@@ -3,6 +3,7 @@
 import dynamic from "next/dynamic";
 import { useEffect, useRef } from "react";
 import { useAccountGate } from "@/components/account/account-gate";
+import { UpgradePromptHost } from "@/components/account/upgrade-prompt";
 import { refreshMe } from "@/components/account/use-me";
 import { useOttoLoadingScreen } from "@/components/mascot/otto-loading-screen";
 import { StudioTour } from "@/components/onboarding/studio-tour";
@@ -67,6 +68,7 @@ export function StudioShell() {
         {hydrated ? <StudioSteps /> : <StudioSkeleton />}
       </main>
       {gate.dialogs}
+      <UpgradePromptHost />
     </div>
   );
 }

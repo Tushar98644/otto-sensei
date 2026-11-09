@@ -105,7 +105,9 @@ export function AccountView() {
             Taking you to checkout for {PLANS[wanted].name}
           </p>
         ) : null}
-        {backFromCheckout ? <UpgradeStatus plan={user.plan} target={bought} watch={watch} /> : null}
+        {backFromCheckout ? (
+          <UpgradeStatus plan={user.plan} trialEndsAt={user.trialEndsAt} target={bought} watch={watch} />
+        ) : null}
         <ProfileCard user={user} />
         <UsageCard me={me} plan={user.plan} />
         {user.plan === "max" ? null : (
@@ -114,9 +116,10 @@ export function AccountView() {
             interval={user.planInterval}
             mode={me.billing.mode}
             offer={me.billing.offer}
+            trial={me.billing.trial === true}
           />
         )}
-        {paid ? <BillingCard mode={me.billing.mode} /> : null}
+        {paid ? <BillingCard mode={me.billing.mode} trialEndsAt={user.trialEndsAt ?? null} /> : null}
         <InviteCard plan={user.plan} />
         <WorkProfileCard />
         <ReminderSettingsCard />

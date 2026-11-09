@@ -38,6 +38,8 @@ export type WorkProfile = {
   rights: WorkRights;
   fullTime: boolean;
   contract: boolean;
+  // Only remote jobs: the Jobs tab's default filter. Optional so profiles built before it parse.
+  remoteOnly?: boolean;
 };
 
 export function emptyWorkProfile(): WorkProfile {
@@ -47,6 +49,7 @@ export function emptyWorkProfile(): WorkProfile {
     rights: { us: null, uk: null, eu: null, ca: null },
     fullTime: true,
     contract: true,
+    remoteOnly: false,
   };
 }
 
@@ -77,6 +80,8 @@ export const WorkProfileSchema = z
     rights: z.object({ us: RightSchema, uk: RightSchema, eu: RightSchema, ca: RightSchema }),
     fullTime: z.boolean(),
     contract: z.boolean(),
+    // Older clients don't send it; they keep whatever is saved (see saveWorkProfile).
+    remoteOnly: z.boolean().optional(),
   })
   .refine((profile) => profile.fullTime || profile.contract, {
     message: "Pick full-time, contract or both.",

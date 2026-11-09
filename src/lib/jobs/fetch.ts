@@ -23,6 +23,9 @@ export type FetchOptions = {
   maxBytes?: number;
   // Epoch ms by which the whole read must be done. Each request gets what's left, up to 8 seconds.
   deadline?: number;
+  // Per request, instead of the 8 seconds: the daily job ingest reads whole company boards of
+  // several megabytes.
+  timeoutMs?: number;
 };
 
 export type Fetched = { url: URL; body: string };
@@ -133,9 +136,14 @@ function redirectTarget(location: string, from: URL): URL {
 /** Fetches a public https URL. Every failure leaves as a JobReadError. */
 export async function safeFetch(
   start: URL,
-  { kind, maxBytes = FETCH_LIMITS.maxBytes, deadline = Number.POSITIVE_INFINITY }: FetchOptions,
+  {
+    kind,
+    maxBytes = FETCH_LIMITS.maxBytes,
+    deadline = Number.POSITIVE_INFINITY,
+    timeoutMs = FETCH_LIMITS.timeoutMs,
+  }: FetchOptions,
 ): Promise<Fetched> {
-  const budget = Math.min(FETCH_LIMITS.timeoutMs, deadline - Date.now());
+  const budget = Math.min(timeoutMs, deadline - Date.now());
   if (budget <= 0) throw new JobReadError("timeout");
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), budget);

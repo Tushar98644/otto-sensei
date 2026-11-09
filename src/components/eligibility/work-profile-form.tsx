@@ -172,6 +172,16 @@ export function WorkProfileForm({ userId, initial, saved, footer }: WorkProfileF
             />
             Contract work
           </label>
+          {/* Not a work right: it only sets the Jobs tab's "Remote only" filter to start with. */}
+          <label className={CHECKBOX}>
+            <input
+              type="checkbox"
+              checked={draft.remoteOnly ?? false}
+              onChange={(event) => patch({ remoteOnly: event.target.checked })}
+              className="size-4 accent-ink"
+            />
+            Remote jobs only
+          </label>
         </div>
         {typeError ? (
           <p

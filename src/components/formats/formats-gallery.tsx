@@ -1,8 +1,9 @@
 "use client";
 
 import { useState } from "react";
+import { useProTools } from "@/components/account/pro-tools";
 import { resumeLabel } from "@/components/studio/resume-label";
-import { TEMPLATE_INFO, TEMPLATE_LIST, templateOf } from "@/lib/pdf/templates";
+import { isProTemplate, TEMPLATE_INFO, TEMPLATE_LIST, templateOf } from "@/lib/pdf/templates";
 import type { TemplateId } from "@/lib/resume/schema";
 import { FormatCard } from "./format-card";
 import { FormatPreviewDialog } from "./format-preview-dialog";
@@ -11,6 +12,7 @@ import { useApplyFormat } from "./use-apply-format";
 export function FormatsGallery() {
   const { ready, target, apply } = useApplyFormat();
   const [previewId, setPreviewId] = useState<TemplateId | null>(null);
+  const free = useProTools() === false;
   const current = target ? templateOf(target) : null;
   const actionLabel = target || !ready ? "Use this format" : "Try it with a sample";
 
@@ -34,9 +36,10 @@ export function FormatsGallery() {
             <FormatCard
               info={info}
               inUse={current === info.id}
+              pro={free && isProTemplate(info.id)}
               actionLabel={actionLabel}
               ready={ready}
-              onUse={() => apply(info.id)}
+              onUse={() => void apply(info.id)}
               onPreview={() => setPreviewId(info.id)}
             />
           </li>
@@ -47,7 +50,7 @@ export function FormatsGallery() {
         onClose={() => setPreviewId(null)}
         actionLabel={actionLabel}
         ready={ready}
-        onUse={(info) => apply(info.id)}
+        onUse={(info) => void apply(info.id)}
       />
     </div>
   );

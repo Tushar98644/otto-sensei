@@ -10,6 +10,8 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { toast } from "@/components/ui/toast";
 import type { SessionUser } from "@/lib/auth/types";
+import { planPriceLabel } from "@/lib/billing/prices";
+import { trialEndDay } from "@/lib/usage-copy";
 import { signOutAndRelease } from "@/lib/sync/use-cloud-sync";
 
 export function ProfileCard({ user }: { user: SessionUser }) {
@@ -37,6 +39,12 @@ export function ProfileCard({ user }: { user: SessionUser }) {
           <p className="text-sm text-muted">Signed in as</p>
           <p className="font-medium break-all text-ink">{user.email}</p>
           <PlanBadge plan={user.plan} />
+          {user.plan !== "free" && user.trialEndsAt ? (
+            <p className="text-sm text-muted">
+              Free trial until {trialEndDay(user.trialEndsAt)}. Then{" "}
+              {planPriceLabel(user.plan, user.planInterval ?? "month")}, unless you cancel before.
+            </p>
+          ) : null}
         </div>
         <Button
           variant="outline"

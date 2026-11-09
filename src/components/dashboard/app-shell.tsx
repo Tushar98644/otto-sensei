@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, type ReactNode } from "react";
+import { UpgradePromptHost } from "@/components/account/upgrade-prompt";
 import { useMe } from "@/components/account/use-me";
 import { useOttoLoadingScreen } from "@/components/mascot/otto-loading-screen";
 import { DashboardTour } from "@/components/onboarding/dashboard-tour";
@@ -41,6 +42,7 @@ export function AppShell({ initialUser, children }: { initialUser: SessionUser; 
         </main>
       </div>
       <DashboardTour />
+      <UpgradePromptHost />
     </div>
   );
 }

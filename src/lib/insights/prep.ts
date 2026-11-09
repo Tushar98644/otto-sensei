@@ -80,6 +80,23 @@ export type InterviewRequestBody = z.input<typeof InterviewRequestSchema>;
 // made. The person still gets the pack they were counted for.
 export type InterviewResult = { prep: InterviewPrep; saved: boolean };
 
+// GET /api/interview: one line per application with a saved pack, newest pack first. Counts only,
+// so the list stays small however many packs there are.
+export type PrepSummary = {
+  applicationId: string;
+  company: string;
+  role: string;
+  jobUrl: string;
+  resumeTitle: string;
+  // When the pack was made.
+  createdAt: number;
+  questions: number;
+  stories: number;
+  demo: boolean;
+};
+
+export const PREP_LIST_LIMIT = 200;
+
 // GET /api/interview/:applicationId: the job details the prep page needs, not the whole row.
 export type PrepTarget = {
   id: string;

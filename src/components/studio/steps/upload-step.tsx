@@ -2,13 +2,15 @@
 
 import { FileUp, RotateCcw, ShieldCheck } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import { roomForResume, useProTools, useTryProLabel } from "@/components/account/pro-tools";
+import { openUpgradePrompt } from "@/components/account/upgrade-prompt";
 import { OTTO } from "@/components/mascot/lines";
 import { OttoNote } from "@/components/mascot/otto-note";
 import { OttoWorking } from "@/components/mascot/otto-working";
 import { Button } from "@/components/ui/button";
 import { Dropzone } from "@/components/ui/dropzone";
 import { formatBytes } from "@/components/ui/file-check";
-import { UPLOAD_LIMITS } from "@/config/plans";
+import { RESUME_LIMITS, UPLOAD_LIMITS } from "@/config/plans";
 import { track } from "@/lib/analytics/client";
 import { api, isApiError } from "@/lib/api/client";
 import { createSampleResume } from "@/lib/resume/sample";
@@ -47,8 +49,13 @@ export function UploadStep() {
   }, []);
 
   const reading = state.status === "reading";
+  // Free keeps RESUME_LIMITS.free resumes: every way in below asks roomForResume() first.
+  const pro = useProTools();
+  const full = pro === false && resumes.length >= RESUME_LIMITS.free;
+  const tryPro = useTryProLabel();
 
   async function upload(file: File) {
+    if (!(await roomForResume())) return;
     setState({ status: "reading", file });
     try {
       const { resume, report, usedAI, basicReader } = await api.importFile(file);
@@ -66,6 +73,7 @@ export function UploadStep() {
 
   // LinkedIn exports and JSON Resume files are read in the browser, so there's no report to review.
   async function importLocal(kind: LocalImportKind, file: File) {
+    if (!(await roomForResume())) return;
     setState({ status: "reading", file });
     try {
       const resume = await readLocalImport(kind, file);
@@ -86,13 +94,20 @@ export function UploadStep() {
     setStep("fix");
   }
 
-  function startFromScratch() {
+  // Checked before the questions, so nobody writes a draft they can't keep.
+  async function startGuided() {
+    if (await roomForResume()) setGuided(true);
+  }
+
+  async function startFromScratch() {
+    if (!(await roomForResume())) return;
     addResume(emptyResume());
     track("resume_imported", { source: "scratch" });
     setStep("fix");
   }
 
-  function trySample() {
+  async function trySample() {
+    if (!(await roomForResume())) return;
     addResume(createSampleResume());
     track("resume_imported", { source: "sample" });
     setStep("fix");
@@ -116,11 +131,15 @@ export function UploadStep() {
 
   return (
     <div className="mx-auto flex w-full max-w-3xl flex-col gap-8">
-      <OttoNote message={otto}>
+      <OttoNote message={full && state.status === "idle" ? OTTO.limit.tool("resumes", false) : otto}>
         {retryFile ? (
           <Button variant="outline" onClick={() => void upload(retryFile)}>
             <RotateCcw />
             Try again
+          </Button>
+        ) : full ? (
+          <Button variant="outline" onClick={() => openUpgradePrompt("resumes")}>
+            {tryPro}
           </Button>
         ) : null}
       </OttoNote>
@@ -162,10 +181,10 @@ export function UploadStep() {
       </div>
 
       <StartOptions
-        onGuided={() => setGuided(true)}
+        onGuided={() => void startGuided()}
         onLocalFile={(kind, file) => void importLocal(kind, file)}
-        onScratch={startFromScratch}
-        onSample={trySample}
+        onScratch={() => void startFromScratch()}
+        onSample={() => void trySample()}
         disabled={reading}
       />
 

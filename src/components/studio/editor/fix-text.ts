@@ -106,15 +106,17 @@ export function problemMessage(
   }
 }
 
-// Every plan has a real limit, so every plan sees what's left.
+// Every paid plan and the trial have a real limit, so they see what's left. Free has none at all,
+// so it hears what Pro adds instead (`trial`: whether the free trial is still open to them).
 export function fixAllowanceText(
   usage: Usage | null | undefined,
   plan: PlanId | null | undefined,
   period?: UsagePeriod | null,
+  trial = true,
 ): string | null {
   if (!plan || !usage) return null;
-  const free = plan === "free" ? "free " : "";
+  if (usage.limit === 0) return OTTO.limit.none("fix", trial);
   const left = Math.max(0, usage.limit - usage.used);
-  if (left === 0) return `No ${free}fixes left ${thisPeriod(period)}. ${resetSentence(period)}`;
-  return `${left} of ${usage.limit} ${free}fixes left ${thisPeriod(period)}`;
+  if (left === 0) return `No fixes left ${thisPeriod(period)}. ${resetSentence(period)}`;
+  return `${left} of ${usage.limit} fixes left ${thisPeriod(period)}`;
 }

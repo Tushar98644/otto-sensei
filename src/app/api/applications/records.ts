@@ -114,12 +114,14 @@ export async function listApplications(
 
 /**
  * Adds one application. Runs under the account's row lock, so parallel requests can't push an
- * account past APPLICATION_LIMITS.perUser, and nothing is written for a deleted account.
+ * account past its limit (Free's one, or APPLICATION_LIMITS.perUser), and nothing is written for a
+ * deleted account.
  */
 export async function createApplication(
   userId: string,
   input: CreateApplicationInput,
   now = Date.now(),
+  max: number = APPLICATION_LIMITS.perUser,
 ): Promise<CreateResult> {
   const db = await getDb();
   const stage = isStage(input.status) ? input.status : "applied";
@@ -129,7 +131,7 @@ export async function createApplication(
       .select({ n: count() })
       .from(applications)
       .where(eq(applications.userId, userId));
-    if ((stored?.n ?? 0) >= APPLICATION_LIMITS.perUser) return { status: "limit_reached" };
+    if ((stored?.n ?? 0) >= max) return { status: "limit_reached" };
     // Logging a job as applied sets its follow-up by itself; the setting only picks the delay.
     const followUpAt =
       input.status === "applied"

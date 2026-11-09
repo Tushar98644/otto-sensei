@@ -43,6 +43,10 @@ beforeEach(async () => {
   code = made;
 });
 
+// Bonus units land on the account's period row whatever its plan, but Free has no AI to spend them
+// on, so these read the row as a monthly Pro account sees it.
+const onPro = (user: SessionUser): SessionUser => ({ ...user, plan: "pro" });
+
 describe("ensureReferralCode", () => {
   it("makes one code per account and keeps it", async () => {
     expect(await ensureReferralCode(owner.id, null, NOV)).toBe(code);
@@ -75,23 +79,25 @@ describe("claimReferral", () => {
       await claimReferral({ userId: maya.id, code, deviceId: device(), checked: false }, NOV),
     ).toBe("pending");
     expect(await statusOf(maya.id)).toEqual({ status: "pending", blockedReason: null });
-    expect((await getUsage(maya, NOV)).fix.limit).toBe(PLANS.free.limits.fix);
+    expect((await getUsage(onPro(maya), NOV)).fix.limit).toBe(PLANS.pro.limits.fix);
 
     expect(await claimReferral({ userId: maya.id, code, deviceId: null, checked: true }, NOV)).toBe(
       "rewarded",
     );
     for (const person of [maya, owner]) {
-      const usage = await getUsage(person, NOV);
-      expect(usage.fix.limit).toBe(PLANS.free.limits.fix + REFERRAL_BONUS.fix);
-      expect(usage.tailor.limit).toBe(PLANS.free.limits.tailor + REFERRAL_BONUS.tailor);
-      expect(usage.letter.limit).toBe(PLANS.free.limits.letter);
+      const usage = await getUsage(onPro(person), NOV);
+      expect(usage.fix.limit).toBe(PLANS.pro.limits.fix + REFERRAL_BONUS.fix);
+      expect(usage.tailor.limit).toBe(PLANS.pro.limits.tailor + REFERRAL_BONUS.tailor);
+      expect(usage.letter.limit).toBe(PLANS.pro.limits.letter);
     }
+    // On Free itself the extras wait: no AI, bonus or not.
+    expect((await getUsage(maya, NOV)).fix.limit).toBe(0);
     // Only for that month.
-    expect((await getUsage(owner, DEC)).fix.limit).toBe(PLANS.free.limits.fix);
+    expect((await getUsage(onPro(owner), DEC)).fix.limit).toBe(PLANS.pro.limits.fix);
     expect(await claimReferral({ userId: maya.id, code, deviceId: null, checked: true }, NOV)).toBe(
       "already",
     );
-    expect((await getUsage(owner, NOV)).fix.limit).toBe(PLANS.free.limits.fix + REFERRAL_BONUS.fix);
+    expect((await getUsage(onPro(owner), NOV)).fix.limit).toBe(PLANS.pro.limits.fix + REFERRAL_BONUS.fix);
   });
 
   it("pays at once when the check ran before sign-up", async () => {
@@ -105,22 +111,22 @@ describe("claimReferral", () => {
   it("lets the bonus through the one-statement allowance check, exactly", async () => {
     const maya = await friend();
     await claimReferral({ userId: maya.id, code, deviceId: device(), checked: true }, NOV);
-    const limit = PLANS.free.limits.tailor + REFERRAL_BONUS.tailor;
+    const limit = PLANS.pro.limits.tailor + REFERRAL_BONUS.tailor;
     const results = await Promise.all(
-      Array.from({ length: limit + 4 }, () => consumeUsage(maya, "tailor", NOV)),
+      Array.from({ length: limit + 4 }, () => consumeUsage(onPro(maya), "tailor", NOV)),
     );
     expect(results.filter((result) => result.allowed)).toHaveLength(limit);
-    expect((await getUsage(maya, NOV)).tailor).toEqual({ used: limit, limit });
+    expect((await getUsage(onPro(maya), NOV)).tailor).toEqual({ used: limit, limit });
   });
 
   it("adds a bonus on top of what's already used this month", async () => {
-    for (let i = 0; i < PLANS.free.limits.tailor; i++) await consumeUsage(owner, "tailor", NOV);
-    expect((await consumeUsage(owner, "tailor", NOV)).allowed).toBe(false);
+    for (let i = 0; i < PLANS.pro.limits.tailor; i++) await consumeUsage(onPro(owner), "tailor", NOV);
+    expect((await consumeUsage(onPro(owner), "tailor", NOV)).allowed).toBe(false);
     await claimReferral(
       { userId: (await friend()).id, code, deviceId: device(), checked: true },
       NOV,
     );
-    expect((await consumeUsage(owner, "tailor", NOV)).allowed).toBe(true);
+    expect((await consumeUsage(onPro(owner), "tailor", NOV)).allowed).toBe(true);
   });
 
   it("refuses your own code, unknown codes and old accounts", async () => {
@@ -139,7 +145,7 @@ describe("claimReferral", () => {
       await claimReferral({ userId: old.id, code, deviceId: device(), checked: true }, NOV),
     ).toBe("existing_account");
     expect(await statusOf(old.id)).toBeNull();
-    expect((await getUsage(owner, NOV)).fix.limit).toBe(PLANS.free.limits.fix);
+    expect((await getUsage(onPro(owner), NOV)).fix.limit).toBe(PLANS.pro.limits.fix);
   });
 
   it("blocks the inviter's own mailbox under another spelling", async () => {
@@ -148,7 +154,7 @@ describe("claimReferral", () => {
       await claimReferral({ userId: alias.id, code, deviceId: device(), checked: true }, NOV),
     ).toBe("blocked");
     expect(await statusOf(alias.id)).toEqual({ status: "blocked", blockedReason: "same_person" });
-    expect((await getUsage(alias, NOV)).fix.limit).toBe(PLANS.free.limits.fix);
+    expect((await getUsage(onPro(alias), NOV)).fix.limit).toBe(PLANS.pro.limits.fix);
   });
 
   it("blocks the inviter's browser, and a second friend from one browser", async () => {
@@ -175,7 +181,7 @@ describe("claimReferral", () => {
     expect(
       await claimReferral({ userId: second.id, code, deviceId: shared, checked: true }, NOV),
     ).toBe("blocked");
-    expect((await getUsage(owner, NOV)).fix.limit).toBe(PLANS.free.limits.fix + REFERRAL_BONUS.fix);
+    expect((await getUsage(onPro(owner), NOV)).fix.limit).toBe(PLANS.pro.limits.fix + REFERRAL_BONUS.fix);
   });
 
   it("stops paying the inviter after the cap, but still pays the friend", async () => {
@@ -202,7 +208,7 @@ describe("claimReferral", () => {
     });
     const last = friends.at(-1);
     if (!last) throw new Error("no friends");
-    expect((await getUsage(last, NOV)).fix.limit).toBe(PLANS.free.limits.fix + REFERRAL_BONUS.fix);
+    expect((await getUsage(onPro(last), NOV)).fix.limit).toBe(PLANS.pro.limits.fix + REFERRAL_BONUS.fix);
   });
 
   it("credits an account to one inviter only", async () => {
@@ -216,8 +222,8 @@ describe("claimReferral", () => {
         NOV,
       ),
     ).toBe("rewarded");
-    expect((await getUsage(owner, NOV)).fix.limit).toBe(PLANS.free.limits.fix + REFERRAL_BONUS.fix);
-    expect((await getUsage(other, NOV)).fix.limit).toBe(PLANS.free.limits.fix);
+    expect((await getUsage(onPro(owner), NOV)).fix.limit).toBe(PLANS.pro.limits.fix + REFERRAL_BONUS.fix);
+    expect((await getUsage(onPro(other), NOV)).fix.limit).toBe(PLANS.pro.limits.fix);
   });
 });
 
@@ -262,7 +268,7 @@ describe("referralSummary", () => {
     ).toBe("rewarded");
 
     expect((await getUsage(weeklyOwner, NOV)).fix.limit).toBe(PLANS.pro.weeklyLimits.fix + REFERRAL_BONUS.fix);
-    expect((await getUsage(maya, NOV)).fix.limit).toBe(PLANS.free.limits.fix + REFERRAL_BONUS.fix);
+    expect((await getUsage(onPro(maya), NOV)).fix.limit).toBe(PLANS.pro.limits.fix + REFERRAL_BONUS.fix);
     expect(await referralSummary(owner.id, null, NOV)).toMatchObject({
       thisPeriod: REFERRAL_BONUS,
       period: "week",

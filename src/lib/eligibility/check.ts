@@ -73,6 +73,44 @@ function unitsOf(text: string): Unit[] {
   return units;
 }
 
+// Whether a sentence can change any verdict below: every test checkEligibility runs on a sentence.
+function mattersToRules(text: string): boolean {
+  return (
+    LOCATION_LINE.test(text) ||
+    REMOTE.test(text) ||
+    NOT_REMOTE.test(text) ||
+    saysOnSite(text) ||
+    RELOCATION.test(text) ||
+    AUTHORIZATION.test(text) ||
+    HOME_COUNTRY.test(text) ||
+    asksCitizenship(text) ||
+    refusesSponsorship(text) ||
+    offersSponsorship(text) ||
+    FULL_TIME.test(text) ||
+    CONTRACT.test(text) ||
+    saysWorldwide(text) ||
+    findTimeRule(text) !== null ||
+    findPlaces(text.replace(TIME_ZONE_PHRASE, " ")).length > 0
+  );
+}
+
+/**
+ * Only the sentences of a post that the eligibility rules read, one per line. Checking these gives
+ * the same findings as checking the whole post, so the Jobs tab can store a few hundred characters
+ * per job instead of the whole text and still check thousands of jobs per request.
+ */
+export function ruleLines(text: string, maxChars = 2_000): string {
+  const kept: string[] = [];
+  let length = 0;
+  for (const unit of unitsOf(text)) {
+    if (!mattersToRules(unit.text)) continue;
+    if (length + unit.text.length + 1 > maxChars) break;
+    kept.push(unit.text);
+    length += unit.text.length + 1;
+  }
+  return kept.join("\n");
+}
+
 // "Remote · United States" (how job boards join remote and the allowed countries) limits the job;
 // "Remote · New York, NY" names an office and may not.
 function remoteCountries(location: string, spots: FoundPlace[]): Place[] {

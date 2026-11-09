@@ -1,6 +1,8 @@
 import { ROUTES } from "@/components/site/routes";
 import { TextLink } from "@/components/site/text-link";
-import { PLANS } from "@/config/plans";
+import { FREE_APPLICATIONS, FREE_JOB_MATCHES, PLANS, PRO_TRIAL } from "@/config/plans";
+import { planPriceLabel } from "@/lib/billing/prices";
+import { pluralize } from "@/lib/utils";
 import { type FaqItem, FaqList } from "./faq-list";
 import { Section, SectionHeader } from "./section";
 
@@ -8,7 +10,7 @@ const FAQ: readonly FaqItem[] = [
   {
     question: "Is it really free to download?",
     answer:
-      "Yes. Editing, recruiter checks and PDF downloads are free, with no paywall at the last step. Pro and Max only add more help from Otto each month.",
+      "Yes. Editing, recruiter checks and PDF downloads are free, with no paywall at the last step. Pro and Max add Otto's AI help, more formats, more resumes and Word downloads on top.",
   },
   {
     question: "What is an ATS?",
@@ -22,7 +24,7 @@ const FAQ: readonly FaqItem[] = [
   },
   {
     question: "Do I need an account?",
-    answer: `Not to check, edit or download. Fixing lines and tailoring need a free account: sign in with Google or an emailed 6-digit code, no password. Free accounts get ${PLANS.free.limits.fix} line fixes and ${PLANS.free.limits.tailor} tailored versions a month.`,
+    answer: `Not to check, edit or download. Backups need a free account: sign in with Google or an emailed 6-digit code, no password. Otto's AI help, the full list of job matches (Free shows your closest ${FREE_JOB_MATCHES}) and tracking more than ${pluralize(FREE_APPLICATIONS, "application")} come with ${PLANS.pro.name}: try it free for ${PRO_TRIAL.days} days, then ${planPriceLabel("pro", "month")}.`,
   },
   {
     question: "Where is my data stored?",
