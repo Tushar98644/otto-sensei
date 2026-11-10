@@ -108,7 +108,12 @@ describe("POST /api/import", () => {
     expect(structureResume).not.toHaveBeenCalled();
     expect(body.usedAI).toBe(false);
     expect(ResumeSchema.safeParse(body.resume).success).toBe(true);
-    expect(body.resume).toMatchObject({ source: "import", summary: "", experience: [], createdAt: NOW });
+    expect(body.resume).toMatchObject({
+      source: "import",
+      summary: "",
+      experience: [],
+      createdAt: NOW,
+    });
     expect(body.report.checks.find((check) => check.id === "text-layer")?.status).toBe("fail");
   });
 
@@ -127,17 +132,34 @@ describe("POST /api/import", () => {
   });
 
   it("refuses oversized files before parsing them", async () => {
-    const justOver = await POST(upload(file(new Uint8Array(UPLOAD_LIMITS.maxBytes + 1), "big.pdf")));
+    const justOver = await POST(
+      upload(file(new Uint8Array(UPLOAD_LIMITS.maxBytes + 1), "big.pdf")),
+    );
     expect(justOver.status).toBe(413);
-    expect(await errorOf(justOver)).toEqual({ code: "too_large", message: "That file is over 4 MB. Try a smaller copy." });
+    expect(await errorOf(justOver)).toEqual({
+      code: "too_large",
+      message: "That file is over 4 MB. Try a smaller copy.",
+    });
 
-    // Past the body cap the read stops early, before the multipart body is even parsed.
-    const huge = await POST(upload(file(new Uint8Array(UPLOAD_LIMITS.maxBytes + 200_000), "huge.pdf")));
+    // Past the body cap the read stops early, before the multipart body is even parsed. The body is
+    // encoded up front, as a browser's arrives: on Node 24.22 a FormData body that the route stops
+    // reading leaves an "already closed" rejection inside Node's fetch code after the test ends.
+    const hugeForm = upload(file(new Uint8Array(UPLOAD_LIMITS.maxBytes + 200_000), "huge.pdf"));
+    const huge = await POST(
+      new Request(hugeForm.url, {
+        method: "POST",
+        headers: hugeForm.headers,
+        body: await hugeForm.arrayBuffer(),
+      }),
+    );
     expect(huge.status).toBe(413);
 
     const declared = new Request("http://localhost/api/import", {
       method: "POST",
-      headers: { "content-type": "multipart/form-data; boundary=x", "content-length": String(50 * 1024 * 1024) },
+      headers: {
+        "content-type": "multipart/form-data; boundary=x",
+        "content-length": String(50 * 1024 * 1024),
+      },
       body: "--x--",
     });
     expect((await POST(declared)).status).toBe(413);
@@ -146,13 +168,18 @@ describe("POST /api/import", () => {
   it("asks for a file when there isn't a usable one", async () => {
     const missing = await POST(upload(null));
     expect(missing.status).toBe(400);
-    expect(await errorOf(missing)).toEqual({ code: "bad_request", message: "Choose a PDF or Word (.docx) file to upload." });
+    expect(await errorOf(missing)).toEqual({
+      code: "bad_request",
+      message: "Choose a PDF or Word (.docx) file to upload.",
+    });
 
     expect((await POST(upload("not a file"))).status).toBe(400);
 
     const empty = await POST(upload(file(new Uint8Array(0), "empty.pdf")));
     expect(empty.status).toBe(400);
-    expect((await errorOf(empty)).message).toBe("That file is empty. Choose your resume and try again.");
+    expect((await errorOf(empty)).message).toBe(
+      "That file is empty. Choose your resume and try again.",
+    );
 
     const json = new Request("http://localhost/api/import", {
       method: "POST",
@@ -165,7 +192,10 @@ describe("POST /api/import", () => {
   it("reports locked and overlong PDFs as files we couldn't read", async () => {
     const locked = await POST(upload(file(await encryptedPdf(), "locked.pdf")));
     expect(locked.status).toBe(422);
-    expect(await errorOf(locked)).toMatchObject({ code: "parse_failed", message: expect.stringContaining("password") });
+    expect(await errorOf(locked)).toMatchObject({
+      code: "parse_failed",
+      message: expect.stringContaining("password"),
+    });
 
     const book = await POST(upload(file(await blankPdf(UPLOAD_LIMITS.maxPages + 1), "book.pdf")));
     expect(book.status).toBe(422);
@@ -176,7 +206,9 @@ describe("POST /api/import", () => {
   });
 
   it("answers 422 when the text is longer than a resume can be", async () => {
-    vi.mocked(structureResume).mockRejectedValueOnce(new AIError("too_long", "Resume text is too long"));
+    vi.mocked(structureResume).mockRejectedValueOnce(
+      new AIError("too_long", "Resume text is too long"),
+    );
     const res = await POST(upload(resumePdf));
     expect(res.status).toBe(422);
     expect((await errorOf(res)).code).toBe("parse_failed");
@@ -231,7 +263,9 @@ describe("POST /api/import", () => {
       });
     };
     for (let i = 0; i < ANON_LIMITS.uploadsPerDay; i++) {
-      const res = await POST(fromElsewhere({ "sec-fetch-site": "cross-site", origin: "https://evil.example" }));
+      const res = await POST(
+        fromElsewhere({ "sec-fetch-site": "cross-site", origin: "https://evil.example" }),
+      );
       expect(res.status).toBe(403);
       expect((await errorOf(res)).code).toBe("forbidden");
     }
@@ -250,7 +284,9 @@ describe("POST /api/import", () => {
   it("doesn't count uploads it turned away before reading them", async () => {
     for (let i = 0; i < ANON_LIMITS.uploadsPerDay + 2; i++) {
       expect((await POST(upload(null))).status).toBe(400);
-      expect((await POST(upload(file(new Uint8Array(UPLOAD_LIMITS.maxBytes + 1), "big.pdf")))).status).toBe(413);
+      expect(
+        (await POST(upload(file(new Uint8Array(UPLOAD_LIMITS.maxBytes + 1), "big.pdf")))).status,
+      ).toBe(413);
     }
     expect((await POST(upload(resumePdf))).status).toBe(200);
   });
@@ -311,7 +347,9 @@ describe("AI reads of uploads", () => {
     const body = await read(await POST(upload(cleanFile())));
     expect(body).toMatchObject({ usedAI: false, basicReader: false, readWell: true });
     expect(body.resume.experience).toHaveLength(2);
-    expect(vi.mocked(structureResume).mock.calls.every(([, , options]) => options?.ai === false)).toBe(true);
+    expect(
+      vi.mocked(structureResume).mock.calls.every(([, , options]) => options?.ai === false),
+    ).toBe(true);
     expect((await getUsage(maya)).import.used).toBe(0);
   });
 
@@ -328,7 +366,10 @@ describe("AI reads of uploads", () => {
     expect(signedOut).toMatchObject({ usedAI: false, basicReader: true });
     expect(signedOut.resume.basics.email).toBe("alex.morgan@example.com");
     const free = await signInAs("free@example.com");
-    expect(await read(await POST(upload(weakFile)))).toMatchObject({ usedAI: false, basicReader: true });
+    expect(await read(await POST(upload(weakFile)))).toMatchObject({
+      usedAI: false,
+      basicReader: true,
+    });
     // A file the rules read well isn't sent to the basic reader for the plan, so there's no
     // AI reading to offer for it.
     expect(await read(await POST(upload(cleanFile())))).toMatchObject({
@@ -336,7 +377,9 @@ describe("AI reads of uploads", () => {
       basicReader: false,
       readWell: true,
     });
-    expect(vi.mocked(structureResume).mock.calls.every(([, , options]) => options?.ai === false)).toBe(true);
+    expect(
+      vi.mocked(structureResume).mock.calls.every(([, , options]) => options?.ai === false),
+    ).toBe(true);
     expect((await getUsage(free)).import).toEqual({ used: 0, limit: 0 });
   });
 
