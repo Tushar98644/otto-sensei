@@ -20,6 +20,7 @@ import {
 import { WORK_RIGHTS } from "@/lib/eligibility/profile";
 import { FEEDBACK_KINDS } from "@/lib/feedback/types";
 import {
+  ASKED_APPLIED_ANSWERS,
   EMPLOYMENT_TYPES,
   JOB_SOURCES,
   MATCH_EVENT_KINDS,
@@ -444,6 +445,7 @@ export const matchEvents = pgTable(
     variant: text("variant").notNull(),
     resumeHash: text("resume_hash"),
     reason: text("reason", { enum: NOT_FIT_REASONS }),
+    answer: text("answer", { enum: ASKED_APPLIED_ANSWERS }),
     createdAt: epochMs("created_at").notNull(),
   },
   (t) => [index("match_events_created_idx").on(t.createdAt)],

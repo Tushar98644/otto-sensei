@@ -3,8 +3,9 @@
 import { Lock } from "lucide-react";
 import { useMemo, useRef, useState } from "react";
 import { errorMessage } from "@/components/account/errors";
-import { useTryProLabel } from "@/components/account/pro-tools";
+import { roomForApplication, useTryProLabel } from "@/components/account/pro-tools";
 import { openUpgradePrompt } from "@/components/account/upgrade-prompt";
+import { useMe } from "@/components/account/use-me";
 import { storeLookingFor, useWorkProfile } from "@/components/eligibility/use-work-profile";
 import { OTTO } from "@/components/mascot/lines";
 import { Otto } from "@/components/mascot/otto";
@@ -23,9 +24,9 @@ import {
   DEFAULT_FILTERS,
   MAX_JOB_PAGE,
   NO_CHOICE,
+  type AskedAppliedAnswer,
   type JobFilters,
   type LookingForChoice,
-  type NotFitReason,
 } from "@/lib/job-feed/types";
 import { resumeTitle } from "@/lib/resume/ops";
 import { useResumeList, useStudioHydrated } from "@/lib/store/resume-store";
@@ -33,11 +34,14 @@ import { commitDelete, hideApplication, useApplications } from "../applications/
 import { formatDay } from "../applications/view";
 import { NewResumeMenu } from "../new-resume-menu";
 import { useStudioActions } from "../use-studio-actions";
+import type { OpenedJobRef } from "./applied-prompt";
+import { AppliedAnnouncer, AppliedStrip } from "./applied-question";
 import { logJobApplied } from "./job-actions";
 import { JobCard } from "./job-card";
 import { JobFiltersBar } from "./job-filters";
 import { LookingForCard } from "./looking-for-card";
 import { useJobMatches, type JobView } from "./use-job-matches";
+import { answerAppliedPrompt, rememberOpenedJob, useAppliedPrompts } from "./use-opened-jobs";
 import {
   appliedFor,
   checkedLabel,
@@ -61,7 +65,9 @@ export function JobsPage() {
   const resumes = useResumeList();
   const actions = useStudioActions();
   const work = useWorkProfile();
-  const { items: applications } = useApplications();
+  const { user } = useMe();
+  const userId = user?.id ?? null;
+  const { items: applications, status: applicationsStatus } = useApplications();
   const now = useNow();
   const listRef = useRef<HTMLDivElement>(null);
   const tryPro = useTryProLabel();
@@ -99,6 +105,14 @@ export function JobsPage() {
   });
   const data: JobMatchesResponse | null =
     state.status === "ready" ? state.data : state.status === "loading" ? state.previous : null;
+  const pageJobIds = useMemo(() => data?.jobs.map((job) => job.id) ?? null, [data]);
+  const prompts = useAppliedPrompts({
+    userId,
+    applications,
+    applicationsReady: applicationsStatus === "ready",
+    pageJobIds,
+    now,
+  });
 
   function changeFilters(next: Partial<JobFilters>) {
     setChosen({ ...filters, ...next });
@@ -130,23 +144,28 @@ export function JobsPage() {
     listRef.current?.scrollIntoView({ block: "start" });
   }
 
-  // Noted for measuring match quality; a lost note never gets in the person's way.
+  // Noted for measuring match quality; a lost note never gets in the person's way. Actions count
+  // on the ranked list only. The answer to "Applied?" counts anywhere, since the strip asks about
+  // jobs that aren't on this page; those go without the page's place and label.
   function note(
-    job: MatchedJob,
+    job: { id: string },
     kind: MatchActionInput["kind"],
-    reason: NotFitReason | null = null,
+    detail: Pick<MatchActionInput, "reason" | "answer"> = {},
   ) {
-    if (!data || view !== "matches") return;
+    if (!data) return;
+    const shown = view === "matches" ? data.jobs.find((item) => item.id === job.id) : undefined;
+    if (!shown && kind !== "asked_applied") return;
     void api
       .jobEvent({
         kind,
         jobId: job.id,
-        requestId: data.requestId,
-        position: job.position,
-        label: job.match.label,
+        requestId: shown ? data.requestId : null,
+        position: shown?.position ?? null,
+        label: shown?.match.label ?? null,
         variant: data.variant,
-        resumeHash: data.resumeHash,
-        reason,
+        resumeHash: shown ? data.resumeHash : null,
+        reason: detail.reason ?? null,
+        answer: detail.answer ?? null,
       })
       .catch(() => undefined);
   }
@@ -222,13 +241,16 @@ export function JobsPage() {
   }
 
   // One click logs it as sent today, with the tailored copy for this job when there is one, and
-  // the usual follow-up reminder.
-  async function markApplied(job: MatchedJob) {
+  // the usual follow-up reminder. Free past its tracked applications gets the trial prompt.
+  async function markApplied(job: OpenedJobRef): Promise<"logged" | "blocked" | "failed"> {
+    if (!(await roomForApplication(applications.length))) return "blocked";
     const sent = tailoredFor(resumes, job) ?? resume;
     setBusy({ id: job.id, action: "apply" });
     try {
       const application = await logJobApplied(job, sent);
       note(job, "applied");
+      // In the tracker now, so "Applied?" never asks about it again.
+      if (userId) answerAppliedPrompt(userId, job.id, "yes");
       undoToast({
         title: `Marked as applied at ${application.company}`,
         description:
@@ -246,11 +268,27 @@ export function JobsPage() {
           );
         },
       });
+      return "logged";
     } catch (error) {
       toast({ title: "Couldn't log it", description: errorMessage(error), variant: "error" });
+      return "failed";
     } finally {
       setBusy(null);
     }
+  }
+
+  function openJob(job: MatchedJob) {
+    note(job, "open");
+    if (userId) rememberOpenedJob(userId, job);
+  }
+
+  // "Yes" is "Mark applied". If the tracker couldn't be reached the question stays, to answer
+  // again; Free's limit counts as answered, since the trial prompt already said why.
+  async function answerApplied(job: OpenedJobRef, answer: AskedAppliedAnswer) {
+    if (!userId) return;
+    if (answer === "yes" && (await markApplied(job)) === "failed") return;
+    answerAppliedPrompt(userId, job.id, answer);
+    note(job, "asked_applied", { answer });
   }
 
   if (hydrated && resumes.length === 0) {
@@ -298,6 +336,7 @@ export function JobsPage() {
   const pages = data
     ? Math.min(MAX_JOB_PAGE, Math.max(1, Math.ceil(data.total / data.pageSize)))
     : 1;
+  const askingIds = new Set(prompts.onCard.map((entry) => entry.jobId));
 
   return (
     <div className="flex flex-col gap-8">
@@ -342,7 +381,20 @@ export function JobsPage() {
         />
       )}
 
-      <div ref={listRef} className="flex scroll-mt-24 flex-col gap-4">
+      {/* Focusable from script only: where focus lands when the last opened job is answered. */}
+      <div ref={listRef} tabIndex={-1} className="flex scroll-mt-24 flex-col gap-4 outline-none">
+        <AppliedAnnouncer onCard={prompts.onCard} offPage={prompts.offPage} />
+        <AppliedStrip
+          jobs={prompts.offPage}
+          loggingId={busy?.action === "apply" ? busy.id : null}
+          onAnswer={(job, answer) =>
+            void answerApplied(
+              { id: job.jobId, company: job.company, title: job.title, url: job.url },
+              answer,
+            )
+          }
+          focusAfter={listRef}
+        />
         <p aria-live="polite" className="sr-only">
           {state.status === "loading"
             ? "Loading jobs"
@@ -399,10 +451,12 @@ export function JobsPage() {
                   onOpenTailored={openTailored}
                   onToggleSave={(target) => void toggleSave(target)}
                   onMarkApplied={(target) => void markApplied(target)}
-                  onOpen={(target) => note(target, "open")}
+                  onOpen={openJob}
+                  asking={askingIds.has(job.id)}
+                  onAnswer={(target, answer) => void answerApplied(target, answer)}
                   onNotFit={
                     view === "matches"
-                      ? (target, reason) => note(target, "not_fit", reason)
+                      ? (target, reason) => note(target, "not_fit", { reason })
                       : undefined
                   }
                 />

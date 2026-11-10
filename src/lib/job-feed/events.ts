@@ -38,7 +38,7 @@ export async function logImpressions(
   );
 }
 
-/** Open, save, tailor, mark applied or "not a fit", as the page reported it. */
+/** Open, save, tailor, mark applied, "not a fit" or the answer to "did you apply?". */
 export async function logAction(
   db: Db,
   userId: string,
@@ -56,6 +56,7 @@ export async function logAction(
     variant: action.variant,
     resumeHash: action.resumeHash,
     reason: action.reason,
+    answer: action.answer,
     createdAt: now,
   });
 }

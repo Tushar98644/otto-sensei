@@ -16,7 +16,8 @@ const NO_STORE = { "Cache-Control": "no-store" };
 const PER_MINUTE = 120;
 
 // POST /api/jobs/events: one thing done with a matched job (open, save, tailor, mark applied,
-// "not a fit" with its reason), for measuring match quality. Ids and labels only.
+// "not a fit" with its reason, the answer to "did you apply?"), for measuring match quality. Ids
+// and labels only.
 export async function POST(req: Request): Promise<Response> {
   const blocked = rejectCrossSite(req) ?? rejectNonJson(req);
   if (blocked) return blocked;

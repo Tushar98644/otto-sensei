@@ -329,6 +329,7 @@ export const MATCH_EVENT_KINDS = [
   "tailor",
   "applied",
   "not_fit",
+  "asked_applied",
 ] as const;
 export type MatchEventKind = (typeof MATCH_EVENT_KINDS)[number];
 export const NOT_FIT_REASONS = ["role", "level", "place", "skills", "other"] as const;
@@ -340,11 +341,14 @@ export const NOT_FIT_LABELS: Record<NotFitReason, string> = {
   skills: "Wrong skills",
   other: "Something else",
 };
+// The answer to "Applied to <company>?", asked when someone comes back after opening a job.
+export const ASKED_APPLIED_ANSWERS = ["yes", "not_yet"] as const;
+export type AskedAppliedAnswer = (typeof ASKED_APPLIED_ANSWERS)[number];
 
 // POST /api/jobs/events. Requires sign-in. Ids and labels only: never resume text.
 export const MatchActionSchema = z
   .object({
-    kind: z.enum(["open", "save", "tailor", "applied", "not_fit"]),
+    kind: z.enum(["open", "save", "tailor", "applied", "not_fit", "asked_applied"]),
     jobId: z.uuid(),
     requestId: z.uuid().nullable().default(null),
     position: z.number().int().min(1).max(1_000).nullable().default(null),
@@ -359,9 +363,13 @@ export const MatchActionSchema = z
       .nullable()
       .default(null),
     reason: z.enum(NOT_FIT_REASONS).nullable().default(null),
+    answer: z.enum(ASKED_APPLIED_ANSWERS).nullable().default(null),
   })
   .refine((event) => (event.kind === "not_fit") === (event.reason !== null), {
     message: "A reason goes with “not a fit” and nothing else",
+  })
+  .refine((event) => (event.kind === "asked_applied") === (event.answer !== null), {
+    message: "An answer goes with “did you apply?” and nothing else",
   });
 export type MatchActionInput = z.input<typeof MatchActionSchema>;
 

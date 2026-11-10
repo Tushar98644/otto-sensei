@@ -1,14 +1,8 @@
 "use client";
 
-import {
-  ArrowUpRight,
-  Bookmark,
-  BookmarkCheck,
-  ScanSearch,
-  ThumbsDown,
-} from "lucide-react";
+import { ArrowUpRight, Bookmark, BookmarkCheck, ScanSearch, ThumbsDown } from "lucide-react";
 import Link from "next/link";
-import { useId, useState } from "react";
+import { useId, useRef, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonClasses } from "@/components/ui/button";
 import { Menu } from "@/components/ui/menu";
@@ -21,11 +15,13 @@ import {
   MATCH_LABELS,
   NOT_FIT_LABELS,
   NOT_FIT_REASONS,
+  type AskedAppliedAnswer,
   type JobMatch,
   type MatchedJob,
   type NotFitReason,
 } from "@/lib/job-feed/types";
 import { StatusIcon } from "../applications/status-menu";
+import { CardAppliedQuestion } from "./applied-question";
 import { placeLine, postedLabel } from "./view";
 
 export type JobCardProps = {
@@ -44,6 +40,9 @@ export type JobCardProps = {
   onMarkApplied: (job: MatchedJob) => void;
   // "Open job" was followed; only noted, the link works on its own.
   onOpen?: (job: MatchedJob) => void;
+  // Back from this job's post and not in the tracker yet: "Applied to <company>?" at the foot.
+  asking?: boolean;
+  onAnswer?: (job: MatchedJob, answer: AskedAppliedAnswer) => void;
   // Matches only: "Not a fit" and why, noted to make matching better.
   onNotFit?: (job: MatchedJob, reason: NotFitReason) => void;
 };
@@ -70,9 +69,12 @@ export function JobCard({
   onToggleSave,
   onMarkApplied,
   onOpen,
+  asking = false,
+  onAnswer,
   onNotFit,
 }: JobCardProps) {
   const [notFit, setNotFit] = useState<NotFitReason | null>(null);
+  const titleRef = useRef<HTMLHeadingElement>(null);
   const titleId = useId();
   const reasonId = useId();
   const posted = postedLabel(job.postedAt, now);
@@ -90,7 +92,13 @@ export function JobCard({
             <span className="font-medium text-muted">{job.company}</span>
             <span>{sourceCredit(job.source)}</span>
           </p>
-          <h3 id={titleId} className="text-base/6 font-semibold text-pretty text-ink">
+          {/* Focusable from script only: where focus lands once the question is answered. */}
+          <h3
+            ref={titleRef}
+            id={titleId}
+            tabIndex={-1}
+            className="text-base/6 font-semibold text-pretty text-ink outline-none"
+          >
             {job.title}
           </h3>
           <p className="text-sm/6 text-muted">
@@ -199,6 +207,10 @@ export function JobCard({
             target="_blank"
             rel="noopener"
             onClick={() => onOpen?.(job)}
+            // A middle click opens it in a new tab too.
+            onAuxClick={(event) => {
+              if (event.button === 1) onOpen?.(job);
+            }}
             className={buttonClasses({ variant: "ghost", size: "sm", className: "sm:ml-auto" })}
           >
             Open job
@@ -206,6 +218,16 @@ export function JobCard({
             <span className="sr-only">(opens {job.company}&apos;s posting in a new tab)</span>
           </a>
         </div>
+
+        {onAnswer ? (
+          <CardAppliedQuestion
+            open={asking && !applied}
+            company={job.company}
+            logging={logging}
+            onAnswer={(answer) => onAnswer(job, answer)}
+            focusAfter={titleRef}
+          />
+        ) : null}
       </article>
     </li>
   );

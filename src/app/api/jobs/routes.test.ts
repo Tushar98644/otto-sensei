@@ -352,13 +352,26 @@ describe("POST /api/jobs/matches", () => {
     // A reason goes with "not a fit" only.
     expect((await sendEvent({ ...action, kind: "not_fit" })).status).toBe(400);
     expect((await sendEvent({ ...action, kind: "save", reason: "role" })).status).toBe(400);
+    // "Did you apply?" answers, also for a job asked about from the strip with no page context.
+    expect((await sendEvent({ ...action, kind: "asked_applied", answer: "yes" })).status).toBe(200);
+    expect(
+      (await sendEvent({ jobId: first.id, kind: "asked_applied", answer: "not_yet" })).status,
+    ).toBe(200);
+    expect((await sendEvent({ ...action, kind: "asked_applied" })).status).toBe(400);
+    expect((await sendEvent({ ...action, kind: "open", answer: "yes" })).status).toBe(400);
+    expect((await sendEvent({ ...action, kind: "asked_applied", answer: "maybe" })).status).toBe(
+      400,
+    );
     const actions = await db.select().from(matchEvents).where(ne(matchEvents.kind, "impression"));
-    expect(actions.map((row) => [row.kind, row.reason, row.position])).toEqual(
+    expect(actions.map((row) => [row.kind, row.reason, row.answer, row.position])).toEqual(
       expect.arrayContaining([
-        ["not_fit", "level", 1],
-        ["open", null, 1],
+        ["not_fit", "level", null, 1],
+        ["open", null, null, 1],
+        ["asked_applied", null, "yes", 1],
+        ["asked_applied", null, "not_yet", null],
       ]),
     );
+    expect(actions).toHaveLength(4);
     cookieJar.clear();
     expect((await sendEvent({ ...action, kind: "open" })).status).toBe(401);
   });
