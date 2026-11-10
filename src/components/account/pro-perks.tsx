@@ -13,7 +13,7 @@ import {
   type PaidPlanId,
 } from "@/config/plans";
 import { TEMPLATE_IDS } from "@/lib/resume/schema";
-import { perPeriod } from "@/lib/usage-copy";
+import { perPeriod, PLAN_PROMISES, resetRule } from "@/lib/usage-copy";
 import { cn, pluralize } from "@/lib/utils";
 
 const count = new Intl.NumberFormat("en-US");
@@ -89,11 +89,8 @@ export function PlanPerks({ plan, interval = "month", trial = false, className }
       <p className="text-xs text-muted">
         {trial
           ? `Nothing is charged for ${PRO_TRIAL.days} days. Cancel before the trial ends and you pay nothing.`
-          : period === "week"
-            ? "Limits reset each billing week, when the plan renews."
-            : "Limits reset on the 1st."}{" "}
-        Uploads always work, read by the basic reader past the AI reads. PDF downloads stay free on
-        every plan.
+          : resetRule(interval)}{" "}
+        {PLAN_PROMISES}
       </p>
     </div>
   );

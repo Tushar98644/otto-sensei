@@ -1,8 +1,11 @@
 import { eq, sql } from "drizzle-orm";
 import { beforeEach, describe, expect, it } from "vitest";
+import { PLANS } from "@/config/plans";
 import { getDb } from "@/db/client";
 import { billingEvents, users, type UserRow } from "@/db/schema";
 import { insertUserRow, resetDb } from "@/lib/auth/test-helpers";
+import { addMonths, consumeUsage, getUsage } from "@/lib/usage";
+import { toSessionUser } from "@/lib/users";
 import {
   applySubscriptionState,
   findUserQuery,
@@ -13,6 +16,7 @@ import {
 
 const NOW = Date.UTC(2026, 10, 6, 12);
 const RENEWS_AT = Date.UTC(2026, 11, 6, 12);
+const PERIOD_STARTS_AT = Date.UTC(2026, 10, 6, 12);
 
 let sequence = 0;
 const next = (prefix: string) => `${prefix}_${++sequence}`;
@@ -26,6 +30,8 @@ async function createUser(overrides: Partial<UserRow> = {}): Promise<UserRow> {
     planRenewsAt: null,
     planInterval: null,
     trialEndsAt: null,
+    planPeriodStartsAt: null,
+    planPeriodEndsAt: null,
     billingCustomerId: null,
     billingSubscriptionId: null,
     billingEventAt: null,
@@ -51,6 +57,7 @@ function subscription(overrides: Partial<SubscriptionState> = {}): SubscriptionS
     productInterval: "month",
     status: "active",
     renewsAt: RENEWS_AT,
+    periodStartsAt: PERIOD_STARTS_AT,
     periodEndsAt: RENEWS_AT,
     eventAt: null,
     ...overrides,
@@ -391,5 +398,82 @@ describe("the trial", () => {
     );
     expect(late).toEqual({ outcome: "ignored", reason: "superseded" });
     expect(await reload(user.id)).toMatchObject({ plan: "pro", billingEventAt: 2_000 });
+  });
+});
+
+describe("billing periods", () => {
+  const MINUTE = 60_000;
+  const DAY = 24 * 60 * MINUTE;
+
+  async function sessionOf(id: string) {
+    const row = await reload(id);
+    if (!row) throw new Error("user missing");
+    return toSessionUser(row);
+  }
+
+  it("stores the period, keeps it through an event without dates, and clears it on Free", async () => {
+    const user = await createUser();
+    const state = subscription({ userId: user.id, subscriptionId: "sub_period" });
+    await applySubscriptionState(state, source(), NOW);
+    expect(await reload(user.id)).toMatchObject({
+      planPeriodStartsAt: PERIOD_STARTS_AT,
+      planPeriodEndsAt: RENEWS_AT,
+    });
+
+    await applySubscriptionState({ ...state, periodStartsAt: null, periodEndsAt: null }, source(), NOW);
+    expect(await reload(user.id)).toMatchObject({
+      planPeriodStartsAt: PERIOD_STARTS_AT,
+      planPeriodEndsAt: RENEWS_AT,
+    });
+
+    await applySubscriptionState({ ...state, status: "canceled" }, source(), NOW);
+    expect(await reload(user.id)).toMatchObject({
+      plan: "free",
+      planPeriodStartsAt: null,
+      planPeriodEndsAt: null,
+    });
+  });
+
+  it("keeps what was used when Pro becomes Max partway through, then starts over at the renewal", async () => {
+    const user = await createUser();
+    const pro = subscription({ userId: user.id, subscriptionId: "sub_up" });
+    await applySubscriptionState(pro, source(), NOW);
+    const mid = NOW + 10 * DAY;
+    const asPro = await sessionOf(user.id);
+    for (let i = 0; i < 3; i++) await consumeUsage(asPro, "tailor", mid);
+
+    // Creem moves the subscription to Max and starts a new period at the change.
+    const renewsAt = addMonths(mid, 1);
+    const max = { ...pro, productPlan: "max" as const, periodStartsAt: mid, periodEndsAt: renewsAt, renewsAt };
+    await applySubscriptionState(max, source(), mid + MINUTE);
+    const asMax = await sessionOf(user.id);
+    expect(await getUsage(asMax, mid + MINUTE)).toMatchObject({
+      tailor: { used: 3, limit: PLANS.max.limits.tailor },
+    });
+
+    // Its renewal starts a fresh month.
+    const renewal = { ...max, periodStartsAt: renewsAt, periodEndsAt: addMonths(mid, 2), renewsAt: addMonths(mid, 2) };
+    await applySubscriptionState(renewal, source(), renewsAt + MINUTE);
+    const renewed = await sessionOf(user.id);
+    expect((await getUsage(renewed, renewsAt + MINUTE)).tailor.used).toBe(0);
+    expect((await getUsage(renewed, renewsAt - MINUTE)).tailor.used).toBe(3);
+  });
+
+  it("keeps this month's count for a row paid before billing periods", async () => {
+    const user = await createUser({
+      plan: "pro",
+      planInterval: "month",
+      planStatus: "active",
+      planRenewsAt: RENEWS_AT,
+      billingSubscriptionId: "sub_old",
+    });
+    const asOld = await sessionOf(user.id);
+    const mid = NOW + 10 * DAY;
+    for (let i = 0; i < 2; i++) await consumeUsage(asOld, "fix", mid);
+    // Its first event since: a change partway through, with the period dated at last.
+    await applySubscriptionState(subscription({ subscriptionId: "sub_old", status: "scheduled_cancel", renewsAt: null }), source(), mid);
+    const dated = await sessionOf(user.id);
+    expect(dated).toMatchObject({ planPeriodStartsAt: PERIOD_STARTS_AT, planPeriodEndsAt: RENEWS_AT });
+    expect((await getUsage(dated, mid)).fix.used).toBe(2);
   });
 });

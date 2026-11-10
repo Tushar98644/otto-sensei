@@ -99,7 +99,7 @@ describe("messages", () => {
     );
     expect(fixAllowanceText({ used: 3, limit: 300 }, "pro")).toBe("297 of 300 fixes left this month");
     expect(fixAllowanceText({ used: 300, limit: 300 }, "pro")).toBe(
-      "No fixes left this month. They reset on the 1st.",
+      "No fixes left this month. They reset when your plan renews.",
     );
     expect(fixAllowanceText({ used: 3, limit: 50 }, "pro", { kind: "trial", resetsAt: Date.UTC(2026, 10, 11, 12) })).toBe(
       "47 of 50 fixes left this trial",

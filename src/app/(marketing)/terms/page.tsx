@@ -80,16 +80,19 @@ export default function TermsPage() {
         upgrade again.
       </p>
       <p>
-        Pro and Max have a limit for each thing Otto does with AI. On monthly and yearly plans the
-        limits are per month and reset on the 1st of each month (UTC). Weekly plans have smaller
-        limits per billing week, the 7 days up to each renewal. The Pro trial has its own smaller
-        limits for the whole trial. Unused ones don&apos;t carry over. Invite extras add to the
-        current month, week or trial, on Pro and Max.
+        Pro and Max have a limit for each thing Otto does with AI. On monthly plans the limits run
+        from one renewal to the next and reset when your plan renews. Yearly plans have the same
+        limits per month, reset on the day of the month the plan started (in a shorter month, on
+        its last day: a plan started on the 31st resets on the 30th of a 30-day month). Weekly
+        plans have smaller limits per billing week, the 7 days up to each renewal. The Pro trial has
+        its own smaller limits for the whole trial. Unused ones don&apos;t carry over. Invite extras
+        add to the current month, week or trial, on Pro and Max. Your account page shows the date
+        your limits next reset.
       </p>
       <table>
         <thead>
           <tr>
-            <th scope="col">Each month</th>
+            <th scope="col">Each month, on monthly and yearly plans</th>
             {PAID_PLANS.map((plan) => (
               <th key={plan} scope="col">
                 {PLANS[plan].name}
@@ -133,10 +136,11 @@ export default function TermsPage() {
         </tbody>
       </table>
       <p>
-        At a limit that feature pauses until the 1st (on a weekly plan, until your next renewal; on
-        the trial, until Pro starts), or until you move to a bigger plan. Switching between weekly
-        and monthly billing doesn&apos;t reset either limit: what you use on a weekly plan also
-        counts toward that month, and a week keeps its count until its 7 days are up. Uploads never
+        At a limit that feature pauses until your limits reset (on a monthly or weekly plan, at
+        your next renewal; on a yearly plan, on the next monthly reset day; on the trial, until Pro
+        starts), or until you move to a bigger plan. Moving between Pro and Max, or to another
+        billing option, between renewals doesn&apos;t reset a limit: what you used this month
+        counts on the new plan, and a week keeps its count until its 7 days are up. Uploads never
         stop: past the AI reads, the basic reader reads your file instead. Editing, recruiter checks
         and PDF downloads have no limit on any plan.
       </p>

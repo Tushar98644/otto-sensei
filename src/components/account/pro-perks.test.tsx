@@ -14,7 +14,14 @@ describe("PlanPerks", () => {
       expect(html).toContain("All 6 formats, up to 50 resumes and Word downloads");
       expect(html).toContain("Free has 1 resume, Classic and Compact, and PDFs.");
       expect(html).toContain("Every job match, every application tracked, share links");
-      expect(html).toContain("Limits reset on the 1st.");
+      expect(html).toContain(
+        interval === "year"
+          ? "Limits reset each month, on the day of the month your plan started."
+          : "Limits reset each month, when your plan renews.",
+      );
+      expect(html).toContain("Uploads always work, read by the basic reader past the AI reads.");
+      expect(html).toContain("PDF downloads stay free on every plan.");
+      expect(html).not.toContain("1st");
     }
   });
 

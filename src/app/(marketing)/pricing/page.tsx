@@ -28,7 +28,7 @@ export const metadata: Metadata = pageMetadata({
 });
 
 const count = new Intl.NumberFormat("en-US");
-const monthlyLimits = `Free has no AI help. Every month, from the 1st: ${FEATURES.map(
+const monthlyLimits = `Free has no AI help. Pro and Max limits reset each month, when your plan renews (on a yearly plan, on the day of the month it started): ${FEATURES.map(
   (feature) =>
     `${FEATURE_LABELS[feature]}: ${count.format(PLANS.pro.limits[feature])} on Pro, ${count.format(PLANS.max.limits[feature])} on Max`,
 ).join("; ")}.`;

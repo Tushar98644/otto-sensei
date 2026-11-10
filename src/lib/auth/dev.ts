@@ -127,6 +127,8 @@ export async function getDevUser(now = Date.now()): Promise<SessionUser | null> 
       planInterval: users.planInterval,
       planRenewsAt: users.planRenewsAt,
       trialEndsAt: users.trialEndsAt,
+      planPeriodStartsAt: users.planPeriodStartsAt,
+      planPeriodEndsAt: users.planPeriodEndsAt,
     })
     .from(devSessions)
     .innerJoin(users, eq(users.id, devSessions.userId))

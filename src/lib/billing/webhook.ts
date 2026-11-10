@@ -68,6 +68,7 @@ const SubscriptionSchema = z.object({
   status: z.string().min(1).max(50),
   product: ProductRef,
   customer: CustomerRef,
+  current_period_start_date: z.string().max(64).nullish(),
   current_period_end_date: z.string().max(64).nullish(),
   next_transaction_date: z.string().max(64).nullish(),
   metadata: z.record(z.string(), z.unknown()).nullish(),
@@ -200,6 +201,8 @@ function toState(
     // A scheduled cancellation keeps access until the period ends, but nothing renews.
     renewsAt:
       status === "scheduled_cancel" ? null : (parseTimestamp(data.next_transaction_date) ?? periodEndsAt),
+    // The AI allowance counts in this period (src/lib/usage.ts), so a renewal starts it over.
+    periodStartsAt: parseTimestamp(data.current_period_start_date),
     periodEndsAt,
     eventAt: createdAt,
   };

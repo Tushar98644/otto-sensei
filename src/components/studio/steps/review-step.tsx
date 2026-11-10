@@ -19,7 +19,7 @@ import type { RecruiterReport } from "@/lib/checks/types";
 import { nextPlan } from "@/config/plans";
 import { emptyResume } from "@/lib/resume/schema";
 import { useActiveReport, useActiveResume, useStudioStore } from "@/lib/store/resume-store";
-import { resetDay } from "@/lib/usage-copy";
+import { resetWhen } from "@/lib/usage-copy";
 import { pluralize } from "@/lib/utils";
 import { useReadByRules } from "../import-notes";
 import { ChecksList } from "../review/checks-list";
@@ -112,7 +112,7 @@ export function ReviewStep() {
                     : "Upgrade for AI reading"}
                 </Link>
               ) : (
-                `AI reading is back on ${resetDay(me?.period)}.`
+                `AI reading is back ${resetWhen(me?.period)}.`
               )}
             </span>
           </p>

@@ -5,6 +5,8 @@ import { OTTO } from "./lines";
 // Noon UTC, so it's Nov 14 or 15 in every time zone the tests might run in.
 const WEEK: UsagePeriod = { kind: "week", resetsAt: Date.UTC(2026, 10, 14, 12) };
 const TRIAL: UsagePeriod = { kind: "trial", resetsAt: Date.UTC(2026, 10, 11, 12) };
+// A monthly plan renewing on Dec 17 at noon UTC: Dec 18 in zones past UTC+12.
+const MONTH: UsagePeriod = { kind: "month", resetsAt: Date.UTC(2026, 11, 17, 12), renews: true };
 
 // Representative arguments for every line that is a function, keyed by path. A new function line
 // without samples fails the walk below, so nothing ships unchecked.
@@ -64,6 +66,7 @@ const SAMPLES: Record<string, unknown[][]> = {
     ["github"],
     ["fix", 1000],
     ["letter", 1000, WEEK],
+    ["letter", 1000, MONTH],
     ["fix", 0],
     ["tailor", 10, TRIAL],
   ],
@@ -93,6 +96,7 @@ const SAMPLES: Record<string, unknown[][]> = {
     ["import", 1000, 1000],
     ["fix", Number.NaN, 5],
     ["letter", 70, 75, WEEK],
+    ["letter", 270, 300, MONTH],
     ["fix", 45, 50, TRIAL],
   ],
   "upgrade.done": [["Pro"], ["Max"]],
@@ -186,9 +190,9 @@ describe("OTTO lines", () => {
 
   it("uses Pro's limit unless told otherwise, and pitches the trial on a plan without the feature", () => {
     expect(OTTO.limit.reached("tailor")).toContain(
-      `all ${PLANS.pro.limits.tailor} tailored versions`,
+      `this month's ${PLANS.pro.limits.tailor} tailored versions`,
     );
-    expect(OTTO.limit.reached("fix", 1000)).toContain("all 1000 line fixes");
+    expect(OTTO.limit.reached("fix", 1000)).toContain("this month's 1000 line fixes");
     expect(OTTO.limit.reached("fix", PLANS.free.limits.fix)).toBe(
       "Line fixes come with Pro. Try it free for 3 days.",
     );
@@ -197,16 +201,19 @@ describe("OTTO lines", () => {
 
   it("says when a trial's allowance gives way to the full one", () => {
     expect(OTTO.limit.reached("tailor", 10, TRIAL)).toMatch(
-      /^You've used all 10 tailored versions for this trial\. Your full allowance starts on Nov 1[12]\.$/,
+      /^You've used this trial's 10 tailored versions\. Your full allowance starts on Nov 1[12]\.$/,
     );
   });
 
-  it("names the week and its reset day for a weekly allowance", () => {
+  it("names the reset: the renewal for a month, the day for a week", () => {
     expect(OTTO.limit.reached("tailor", 15)).toBe(
-      "You've used all 15 tailored versions for this month. They reset on the 1st.",
+      "You've used this month's 15 tailored versions. They reset when your plan renews.",
+    );
+    expect(OTTO.limit.reached("tailor", 60, MONTH)).toMatch(
+      /^You've used this month's 60 tailored versions\. They reset on Dec 1[78], when your plan renews\.$/,
     );
     expect(OTTO.limit.reached("tailor", 15, WEEK)).toMatch(
-      /^You've used all 15 tailored versions for this week\. They reset on Nov 1[45]\.$/,
+      /^You've used this week's 15 tailored versions\. They reset on Nov 1[45]\.$/,
     );
     expect(OTTO.limit.near("fix", 70, 75, WEEK)).toMatch(/used\. They reset on Nov 1[45]\.$/);
   });

@@ -4,6 +4,7 @@ import { getDb, type Db } from "@/db/client";
 import { billingEvents, users, type UserRow } from "@/db/schema";
 // Same rule auth uses to store users.email; policy.ts keeps billing out of the sign-in module.
 import { normalizeEmail } from "@/lib/auth/policy";
+import { carryUsageOver, type PeriodAccount } from "@/lib/usage";
 import { isUserId } from "@/lib/users";
 import { recordTrialHistory } from "./trial";
 
@@ -74,6 +75,8 @@ export type SubscriptionState = {
   status: string;
   /** Next renewal (epoch ms), or null when the subscription won't renew. */
   renewsAt: number | null;
+  /** When the current period started (epoch ms); on a trial, when the trial started. */
+  periodStartsAt: number | null;
   /** When the current period ends (epoch ms); on a trial, when the trial ends. */
   periodEndsAt: number | null;
   /** When Creem created the event (epoch ms), to drop an older event that arrives late. */
@@ -114,7 +117,10 @@ export function findUserQuery(db: Db, lookup: UserLookup) {
       email: users.email,
       plan: users.plan,
       planInterval: users.planInterval,
+      planRenewsAt: users.planRenewsAt,
       trialEndsAt: users.trialEndsAt,
+      planPeriodStartsAt: users.planPeriodStartsAt,
+      planPeriodEndsAt: users.planPeriodEndsAt,
       billingCustomerId: users.billingCustomerId,
       billingSubscriptionId: users.billingSubscriptionId,
     })
@@ -160,8 +166,10 @@ function trialEndFor(state: SubscriptionState, user: FoundUser, plan: PlanId): n
 
 /**
  * Finds the user (metadata user_id, then subscription id, then customer id, then email) and stores
- * the plan, billing interval, trial, status, ids and renewal date from Creem, at most once per
- * event id, and never from an event older than the last one applied for the same subscription.
+ * the plan, billing interval, trial, status, ids, renewal date and billing period from Creem, at
+ * most once per event id, and never from an event older than the last one applied for the same
+ * subscription. A change that moves the AI allowance to another billing month without a renewal
+ * (Pro to Max and back, say) keeps what was used this month (src/lib/usage.ts).
  */
 export async function applySubscriptionState(
   state: SubscriptionState,
@@ -189,6 +197,19 @@ export async function applySubscriptionState(
     plan === "free" ? null : (state.productInterval ?? user.planInterval);
   const trialEndsAt = trialEndFor(state, user, plan);
   const before = { plan: user.plan, trialing: user.plan !== "free" && user.trialEndsAt !== null };
+  // The billing period the allowance counts in. An event without dates keeps the ones stored for
+  // the same subscription.
+  const periodOf = (reported: number | null, stored: number | null) =>
+    plan === "free" ? null : (reported ?? (own ? stored : null));
+  const after: PeriodAccount = {
+    id: user.id,
+    plan,
+    planInterval,
+    planRenewsAt: plan === "free" ? null : state.renewsAt,
+    trialEndsAt,
+    planPeriodStartsAt: periodOf(state.periodStartsAt, user.planPeriodStartsAt),
+    planPeriodEndsAt: periodOf(state.periodEndsAt, user.planPeriodEndsAt),
+  };
 
   // One transaction, event id first: a redelivery of an event that already committed finds its id
   // and changes nothing, a parallel one waits on the unique key and then does the same, and a
@@ -206,8 +227,10 @@ export async function applySubscriptionState(
         plan,
         planInterval,
         planStatus: state.status,
-        planRenewsAt: plan === "free" ? null : state.renewsAt,
+        planRenewsAt: after.planRenewsAt,
         trialEndsAt,
+        planPeriodStartsAt: after.planPeriodStartsAt,
+        planPeriodEndsAt: after.planPeriodEndsAt,
         billingCustomerId: state.customerId,
         billingSubscriptionId: state.subscriptionId,
         ...(state.eventAt === null ? {} : { billingEventAt: state.eventAt }),
@@ -236,6 +259,7 @@ export async function applySubscriptionState(
       .returning({ id: users.id, email: users.email });
     const [row] = updated;
     if (!row) return { outcome: "ignored", reason: "superseded" };
+    await carryUsageOver(tx, user, after, now);
     if (plan !== "free") {
       await recordTrialHistory(tx, row.email, state.status === "trialing" ? "trial" : "paid", now);
     }
@@ -307,6 +331,8 @@ export async function markSubscriptionCancelled(
       planStatus: "canceled",
       planRenewsAt: null,
       trialEndsAt: null,
+      planPeriodStartsAt: null,
+      planPeriodEndsAt: null,
       updatedAt: now,
     })
     .where(and(eq(users.id, userId), eq(users.billingSubscriptionId, subscriptionId)));

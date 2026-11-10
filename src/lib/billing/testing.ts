@@ -146,6 +146,7 @@ export type WebhookSubscription = {
   product?: string;
   customer?: { id: string; email: string };
   metadata?: Record<string, unknown>;
+  current_period_start_date?: string;
   current_period_end_date?: string;
   next_transaction_date?: string;
 };
@@ -172,7 +173,7 @@ export function subscriptionEvent(
       customer: { object: "customer", ...(subscription.customer ?? { id: "cust_1", email: "ada@example.com" }) },
       collection_method: "charge_automatically",
       status: subscription.status ?? "active",
-      current_period_start_date: "2026-11-08T10:00:00.000Z",
+      current_period_start_date: subscription.current_period_start_date ?? "2026-11-08T10:00:00.000Z",
       current_period_end_date: subscription.current_period_end_date ?? "2026-12-08T10:00:00.000Z",
       ...(subscription.next_transaction_date
         ? { next_transaction_date: subscription.next_transaction_date }

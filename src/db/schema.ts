@@ -61,6 +61,10 @@ export const users = pgTable(
     // When the Pro trial ends, while the subscription is on it; null otherwise
     // (20261108004000_pro_trial.sql).
     trialEndsAt: epochMs("trial_ends_at"),
+    // The subscription's current billing period from Creem, which the AI allowance counts in;
+    // null on Free and on rows from before 20261111000100_plan_period.sql.
+    planPeriodStartsAt: epochMs("plan_period_starts_at"),
+    planPeriodEndsAt: epochMs("plan_period_ends_at"),
     billingCustomerId: text("billing_customer_id"),
     billingSubscriptionId: text("billing_subscription_id"),
     // The newest subscription event applied, so a late retry of an older one is ignored.
@@ -75,8 +79,10 @@ export const users = pgTable(
   ],
 );
 
-// subject is a user id; period is "YYYY-MM" (a UTC calendar month), "week:<ISO end instant>" (a
-// weekly subscriber's billing week) or "trial" (the one Pro trial, src/lib/usage.ts).
+// subject is a user id; period is "cycle:<ISO start instant>" (a monthly or yearly subscriber's
+// billing month), "YYYY-MM" (a UTC calendar month: Free, and paid rows with no billing period yet),
+// "week:<ISO end instant>" (a weekly subscriber's billing week) or "trial" (the one Pro trial,
+// src/lib/usage.ts).
 export const usage = pgTable(
   "usage",
   {

@@ -28,6 +28,8 @@ describe("getCurrentUser", () => {
       planInterval: null,
       planRenewsAt: null,
       trialEndsAt: null,
+      planPeriodStartsAt: null,
+      planPeriodEndsAt: null,
     });
   });
 

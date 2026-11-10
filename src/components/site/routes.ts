@@ -48,4 +48,4 @@ export const FOOTER_NAV: readonly NavLink[] = [
 ];
 
 // Shown at the top of every legal page and used as their sitemap lastmod. Bump it with any edit.
-export const LEGAL_LAST_UPDATED = "2026-11-08";
+export const LEGAL_LAST_UPDATED = "2026-11-11";

@@ -215,7 +215,8 @@ export type MeResponse = {
   ok: true;
   user: SessionUser | null;
   usage: UsageSnapshot | null;
-  // The period usage counts in: the calendar month, a weekly subscriber's billing week, or a trial.
+  // The period usage counts in: a billing month (renewal to renewal; the calendar month on Free and
+  // on paid rows with no billing period yet), a weekly subscriber's billing week, or a trial.
   period: UsagePeriod | null;
   // offer: how often each paid plan can bill here, "month" first; a plan with none isn't on sale.
   // trial: Pro monthly would start with the free trial (signed out: a new account would). Optional

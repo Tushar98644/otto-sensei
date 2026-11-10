@@ -6,7 +6,8 @@ import { INTERVAL_NAMES, priceSentence } from "@/lib/billing/prices";
 import { cn } from "@/lib/utils";
 
 export type IntervalPickerProps = {
-  plan: PaidPlanId;
+  // Says what the pick costs on this plan. Without one (several plans priced below it), nothing.
+  plan?: PaidPlanId;
   // From /api/me (billing.offer[plan]). With one option or none there is nothing to pick, so the
   // picker renders nothing.
   intervals: readonly BillingInterval[] | undefined;
@@ -21,7 +22,10 @@ export function IntervalPicker({ plan, intervals, value, onChange, className }: 
   const noteId = `${name}-note`;
   if (!intervals || intervals.length < 2) return null;
   return (
-    <fieldset className={cn("flex flex-col gap-2", className)} aria-describedby={noteId}>
+    <fieldset
+      className={cn("flex flex-col gap-2", className)}
+      aria-describedby={plan ? noteId : undefined}
+    >
       <legend className="mb-2 text-sm font-medium text-ink">How often to pay</legend>
       <div className="flex gap-1 rounded-xl bg-surface-muted p-1">
         {intervals.map((interval) => (
@@ -40,9 +44,11 @@ export function IntervalPicker({ plan, intervals, value, onChange, className }: 
           </label>
         ))}
       </div>
-      <p id={noteId} className="text-sm/6 text-muted" aria-live="polite">
-        {priceSentence(plan, value)}
-      </p>
+      {plan ? (
+        <p id={noteId} className="text-sm/6 text-muted" aria-live="polite">
+          {priceSentence(plan, value)}
+        </p>
+      ) : null}
     </fieldset>
   );
 }

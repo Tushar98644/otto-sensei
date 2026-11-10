@@ -1,7 +1,6 @@
 import { BRAND } from "@/config/brand";
 import {
   type Feature,
-  FEATURE_LABELS,
   FREE_APPLICATIONS,
   FREE_JOB_MATCHES,
   PLANS,
@@ -63,7 +62,7 @@ const TOOL_COMES_WITH_PRO: Record<ProTool, string> = {
 };
 
 // FEATURE_LABELS is too long for a one-line note in the sidebar ("cover letters, answers and
-// interview prep"), so the near-limit line uses these.
+// interview prep"), so the limit lines use these.
 const SHORT_LABELS: Record<Feature, string> = {
   fix: "line fixes",
   tailor: "tailored versions",
@@ -204,7 +203,8 @@ export const OTTO = {
   },
   limit: {
     // Pass the user's actual limit from their UsageSnapshot and their period from /api/me; they
-    // default to Pro's limit and the calendar month. A limit of 0 (Free) is the trial pitch.
+    // default to Pro's limit and a month that resets when the plan renews. A limit of 0 (Free) is
+    // the trial pitch. Short labels, so the reset date and "when your plan renews" still fit.
     reached: (
       feature: Feature,
       limit: number = PLANS.pro.limits[feature],
@@ -212,7 +212,7 @@ export const OTTO = {
     ) =>
       whole(limit) === 0
         ? `${COMES_WITH_PRO[feature]} Try it free for ${PRO_TRIAL.days} days.`
-        : `You've used all ${whole(limit)} ${FEATURE_LABELS[feature]} for ${thisPeriod(period)}. ` +
+        : `You've used ${thisPeriod(period)}'s ${whole(limit)} ${SHORT_LABELS[feature]}. ` +
           resetSentence(period),
     // On Free: the feature isn't part of the plan at all. Someone who has had the trial isn't
     // offered it again.

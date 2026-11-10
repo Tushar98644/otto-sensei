@@ -180,6 +180,24 @@ describe("statuses", () => {
     expect(await reload(user.id)).toMatchObject({ plan: "pro", planStatus: "past_due", trialEndsAt: 5 });
   });
 
+  it("stores the billing period Creem reports, which the AI allowance counts in", async () => {
+    const user = await createUser();
+    const body = event("subscription.paid", {
+      status: "active",
+      metadata: { user_id: user.id },
+      current_period_start_date: "2026-11-17T09:30:00.000Z",
+      current_period_end_date: "2026-12-17T09:30:00.000Z",
+      next_transaction_date: "2026-12-17T09:30:00.000Z",
+    });
+    expect(await deliver(body)).toMatchObject({ message: "applied" });
+    expect(await reload(user.id)).toMatchObject({
+      plan: "pro",
+      planPeriodStartsAt: Date.parse("2026-11-17T09:30:00.000Z"),
+      planPeriodEndsAt: Date.parse("2026-12-17T09:30:00.000Z"),
+      planRenewsAt: Date.parse("2026-12-17T09:30:00.000Z"),
+    });
+  });
+
   it("scheduled_cancel keeps the plan until the period ends, with nothing renewing", async () => {
     const user = await createUser({ plan: "pro", planInterval: "month", billingSubscriptionId: "sub_1" });
     const body = event("subscription.scheduled_cancel", { status: "scheduled_cancel", next_transaction_date: NEXT_MONTH });

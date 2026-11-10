@@ -9,6 +9,7 @@ import { ROUTES } from "@/components/site/routes";
 import { FolderCard } from "@/components/ui/folder-card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { openLineOnArrival } from "@/components/studio/tailor/jump";
+import type { UsagePeriod } from "@/config/plans";
 import { lintResume } from "@/lib/lint/bullets";
 import { firstWeakLine } from "@/lib/lint/weak-lines";
 import { createSampleResume } from "@/lib/resume/sample";
@@ -150,7 +151,7 @@ export function DashboardHome() {
                   ? "Line fixes come with Pro"
                   : me?.period?.kind === "trial"
                     ? `of ${count.format(fixes.limit)} · trial ends ${resetDay(me.period)}`
-                    : `of ${count.format(fixes.limit)} · resets on ${resetDay(me?.period)}`
+                    : `of ${count.format(fixes.limit)} · resets ${resetOn(me?.period)}`
                 : null
             }
           />
@@ -203,6 +204,12 @@ export function DashboardHome() {
 }
 
 // "2 uploaded · 1 sample", in the order people care about.
+// Short enough for a stat's note: "on Dec 17", or "when your plan renews" with no date known.
+function resetOn(period: UsagePeriod | null | undefined): string {
+  const day = resetDay(period);
+  return day ? `on ${day}` : "when your plan renews";
+}
+
 function sourceNote(sources: readonly string[]): string {
   if (sources.length === 0) return "None yet";
   const labels: [string, string][] = [

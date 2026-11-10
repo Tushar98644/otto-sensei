@@ -129,6 +129,8 @@ describe("toSessionUser", () => {
       planInterval: "week",
       planRenewsAt: NOW + 1000,
       trialEndsAt: null,
+      planPeriodStartsAt: null,
+      planPeriodEndsAt: null,
     });
   });
 });

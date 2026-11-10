@@ -12,6 +12,10 @@ export type SessionUser = {
   // When the Pro trial ends (epoch ms) while the subscription is on it, else null. A trial gets
   // its own allowance and can't publish a portfolio. Optional for servers from before trials.
   trialEndsAt?: number | null;
+  // The subscription's current billing period (epoch ms), which monthly and yearly allowances
+  // count in; null on Free and on rows no webhook has dated yet. Optional for the same reason.
+  planPeriodStartsAt?: number | null;
+  planPeriodEndsAt?: number | null;
 };
 
 // supabase: email codes and Google through Supabase. dev: development's on-screen codes, no

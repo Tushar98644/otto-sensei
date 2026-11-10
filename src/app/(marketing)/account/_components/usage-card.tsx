@@ -20,7 +20,7 @@ import {
   type Usage,
   type UsagePeriod,
 } from "@/config/plans";
-import { resetDay, thisPeriod, trialEndDay } from "@/lib/usage-copy";
+import { resetDay, resetWhen, thisPeriod, trialEndDay } from "@/lib/usage-copy";
 
 const count = new Intl.NumberFormat("en-US");
 
@@ -44,10 +44,10 @@ export function UsageCard({ me, plan }: { me: Me; plan: PlanId }) {
         </CardTitle>
         <CardDescription>
           {trialEndsAt
-            ? `Your ${PLANS[plan].name} trial ends on ${trialEndDay(trialEndsAt)}. Then the full ${PLANS[plan].name} allowance starts each month.`
+            ? `Your ${PLANS[plan].name} trial ends on ${trialEndDay(trialEndsAt)}. Then the full ${PLANS[plan].name} allowance starts, and resets each time your plan renews.`
             : period?.kind === "week"
-              ? `Your ${PLANS[plan].name} weekly allowance resets on ${resetDay(period)}.`
-              : `Your ${PLANS[plan].name} allowance resets on the 1st of each month.`}{" "}
+              ? `Your ${PLANS[plan].name} weekly allowance resets ${resetWhen(period)}.`
+              : `Your ${PLANS[plan].name} allowance resets ${resetWhen(period)}.`}{" "}
           Uploads past the AI reads still work, read by the basic reader.
         </CardDescription>
       </CardHeader>
@@ -113,7 +113,7 @@ function UsageRow({
   period: UsagePeriod | null;
 }) {
   const label = sentenceCase(FEATURE_LABELS[feature]);
-  const day = resetDay(period);
+  const when = resetWhen(period);
   return (
     <div className="flex flex-col gap-1.5">
       <Progress
@@ -125,10 +125,10 @@ function UsageRow({
       {usage.used >= usage.limit ? (
         <p className="text-sm text-muted">
           {period?.kind === "trial"
-            ? `All used for the trial. More once it ends on ${day}.`
+            ? `All used for the trial. More once it ends on ${resetDay(period)}.`
             : feature === "import"
-              ? `All used. Uploads still work, read by the basic reader until ${day}.`
-              : `All used. They reset on ${day}.`}
+              ? `All used. Uploads still work, read by the basic reader. They reset ${when}.`
+              : `All used. They reset ${when}.`}
         </p>
       ) : null}
     </div>

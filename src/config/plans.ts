@@ -39,7 +39,8 @@ type Plan = {
   name: string;
   // Monthly price; PRICES_USD has every billing option.
   priceUsd: number;
-  // Per calendar month (UTC): monthly and yearly subscribers. All zero on Free.
+  // Per billing month: monthly subscribers from one renewal to the next, yearly ones each month
+  // from the day their plan started (src/lib/usage.ts). All zero on Free.
   limits: Record<Feature, number>;
   // Per billing week, for weekly subscribers. A quarter of the monthly limit, rounded up, so a
   // $6 week can't take a whole month's allowance. Free is never weekly.
@@ -142,7 +143,8 @@ export const PRO_PRICE_COMPARISON = { name: "Rezi Pro", priceUsd: 29 } as const;
 
 // How long an allowance lasts. Trials get PRO_TRIAL's limits once, for the whole trial; weekly
 // subscribers get the weekly limits per billing week; everyone else (Free, monthly, yearly) gets
-// the monthly limits per calendar month.
+// the monthly limits per month, which starts over when a monthly plan renews (yearly: on the same
+// day each month). src/lib/usage.ts works out the dates.
 export type AllowancePeriod = "month" | "week" | "trial";
 
 export function allowancePeriodFor(
@@ -215,5 +217,6 @@ export const TEXT_LIMITS = { resumeChars: 40_000, jobPostChars: 20_000, bulletCh
 export type Usage = { used: number; limit: number };
 export type UsageSnapshot = Record<Feature, Usage>;
 // The allowance period a snapshot counts: its kind and when it starts over (epoch ms). A trial's
-// ends with the trial, when the plan's own allowance takes over.
-export type UsagePeriod = { kind: AllowancePeriod; resetsAt: number };
+// ends with the trial, when the plan's own allowance takes over. renews: the reset is the plan's
+// own renewal (a monthly plan's), not a day in between (a yearly plan's monthly reset).
+export type UsagePeriod = { kind: AllowancePeriod; resetsAt: number; renews?: boolean };
