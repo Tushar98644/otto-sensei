@@ -5,7 +5,7 @@ import type { JobMatch, MatchLabel, MatchProfile, RoleFamily, Seniority } from "
 
 // Client-safe and pure. How one job lines up with one resume, as a label (Strong, Good, Stretch)
 // and the plain reason behind it. There is deliberately no score: the reason names the skills
-// found and not found, so the person can check every word of it against their own resume.
+// found and not found, and the occupation shared, so the person can check every word of it.
 
 export type MatchPerson = {
   skills: ReadonlySet<string>;
@@ -14,6 +14,17 @@ export type MatchPerson = {
   // "Business Analyst" title once made operations count fully for a product manager
   // (MATCHING-RESEARCH.md, Round 2: product-pm-mid fell 76 -> 55).
   families: ReadonlyMap<RoleFamily, number>;
+  // Occupations (O*NET-SOC codes) and how much each counts: the looked-for one 1, its O*NET
+  // neighbours less (KIND), older titles' half that. Minor and major SOC groups likewise, so a
+  // nurse reaches other nursing jobs first and other healthcare work last.
+  occupations: ReadonlyMap<string, number>;
+  // The occupations the card and the titles name themselves, before neighbours are added.
+  titled: ReadonlyMap<string, number>;
+  minors: ReadonlyMap<string, number>;
+  majors: ReadonlyMap<string, number>;
+  // The occupation looked for and its O*NET Job Zone (1-5), for "needs more training" notes.
+  occupation: string | null;
+  zone: number | null;
   seniority: Seniority | null;
   years: number | null;
 };
@@ -23,39 +34,141 @@ export type MatchableJob = {
   keywords: readonly string[];
   seniority: Seniority;
   minYears: number | null;
+  // Read at ingest (normalize.ts); left out, the kind is read from the title alone.
+  family?: RoleFamily | null;
+  occupation?: string | null;
+  // Plain words for the occupation, for the reason line, and its O*NET Job Zone.
+  occupationName?: string | null;
+  zone?: number | null;
 };
 
 export type EligibilityHint = { blocked: boolean; note: string | null };
+
+/** What a title says about the kind of work: a kind of role (office and tech) and an occupation. */
+export type TitleKind = { family: RoleFamily | null; occupation: string | null };
+
+/** The occupation data matching needs, from occupations/index.ts on the server. */
+export type OccupationReader = {
+  read(title: string): TitleKind;
+  neighbours(code: string): { close: readonly string[]; related: readonly string[] };
+  zone(code: string): number | null;
+};
+
+// Without occupation data (the frozen newest-v0 ordering, client code): kinds of role only.
+export const FAMILIES_ONLY: OccupationReader = {
+  read: (title) => ({ family: roleFamily(title), occupation: null }),
+  neighbours: () => ({ close: [], related: [] }),
+  zone: () => null,
+};
+
+// How much a job's occupation counts against the one looked for: O*NET's closest five related
+// occupations, its next five, the same SOC minor group ("Health Diagnosing and Treating
+// Practitioners") and the same major group ("Healthcare Practitioners"). From SAME_KIND up a job
+// is the person's own kind of work; below OWN_KIND it is ordered and labelled one step lower.
+export const KIND = {
+  close: 0.85,
+  related: 0.7,
+  minor: 0.3,
+  major: 0.1,
+  own: 0.85,
+  same: 0.3,
+} as const;
 
 const MAX_FOUND_SHOWN = 5;
 const MAX_MISSING_SHOWN = 3;
 export const PAST_KIND_WEIGHT = 0.5;
 
-/** The person as matching sees them, from what the browser sent and the "Looking for" card. */
+const majorOf = (code: string) => code.slice(0, 2);
+const minorOf = (code: string) => code.slice(0, 4);
+
+/**
+ * The person as matching sees them, from what the browser sent and the "Looking for" card.
+ * `reader` reads each title's kind of role and occupation (the server passes the O*NET lookup).
+ */
 export function personFrom(
   profile: MatchProfile,
-  lookingFor?: Pick<LookingFor, "family" | "level"> | null,
+  lookingFor?: (Pick<LookingFor, "family" | "level"> & { occupation?: string | null }) | null,
+  reader: OccupationReader = FAMILIES_ONLY,
 ): MatchPerson {
   const families = new Map<RoleFamily, number>();
+  const direct = new Map<string, number>();
   if (lookingFor?.family) families.set(lookingFor.family, 1);
+  if (lookingFor?.occupation) direct.set(lookingFor.occupation, 1);
   for (const title of profile.titles) {
-    const family = roleFamily(title);
-    if (!family || families.has(family)) continue;
+    const { family, occupation } = reader.read(title);
     // The newest titled job is the role looked for unless the card names another.
-    families.set(family, families.size === 0 ? 1 : PAST_KIND_WEIGHT);
+    if (family && !families.has(family))
+      families.set(family, families.size === 0 ? 1 : PAST_KIND_WEIGHT);
+    if (occupation && !direct.has(occupation))
+      direct.set(occupation, direct.size === 0 ? 1 : PAST_KIND_WEIGHT);
   }
+  const occupations = new Map<string, number>();
+  const minors = new Map<string, number>();
+  const majors = new Map<string, number>();
+  const raise = (map: Map<string, number>, key: string, weight: number) => {
+    if (weight > (map.get(key) ?? 0)) map.set(key, weight);
+  };
+  for (const [code, weight] of direct) {
+    raise(occupations, code, weight);
+    const { close, related } = reader.neighbours(code);
+    for (const other of close) raise(occupations, other, weight * KIND.close);
+    for (const other of related) raise(occupations, other, weight * KIND.related);
+    raise(minors, minorOf(code), weight * KIND.minor);
+    raise(majors, majorOf(code), weight * KIND.major);
+  }
+  const occupation = [...direct].find(([, weight]) => weight === 1)?.[0] ?? null;
   return {
     skills: new Set(knownSkills(profile.skills)),
     families,
+    occupations,
+    titled: direct,
+    minors,
+    majors,
+    occupation,
+    zone: occupation ? reader.zone(occupation) : null,
     seniority: lookingFor?.level ?? levelOf(profile),
     years: profile.years,
   };
 }
 
-/** How much the job's kind of role counts for this person: 1, PAST_KIND_WEIGHT or 0. */
-export function kindWeight(person: MatchPerson, title: string): number {
-  const family = roleFamily(title);
-  return family === null ? 0 : (person.families.get(family) ?? 0);
+export type Kind = {
+  weight: number;
+  // What the weight comes from, for the reason line.
+  via: "family" | "same" | "close" | "group" | null;
+};
+
+/**
+ * How much the job's kind of work counts for this person, 0 to 1. Office and tech jobs compare by
+ * kind of role, as tuned on the test set; everything else (and anyone whose titles name no kind
+ * of role) by occupation.
+ */
+export function kindOf(
+  person: MatchPerson,
+  job: Pick<MatchableJob, "title" | "family" | "occupation">,
+): Kind {
+  const family = job.family !== undefined ? job.family : roleFamily(job.title);
+  if (family && person.families.size > 0) {
+    const weight = person.families.get(family) ?? 0;
+    return { weight, via: weight > 0 ? "family" : null };
+  }
+  const code = job.occupation ?? null;
+  if (!code) return { weight: 0, via: null };
+  const exact = person.occupations.get(code) ?? 0;
+  const group = Math.max(
+    person.minors.get(minorOf(code)) ?? 0,
+    person.majors.get(majorOf(code)) ?? 0,
+  );
+  if (exact > 0 && exact >= group)
+    return { weight: exact, via: person.titled.has(code) ? "same" : "close" };
+  return { weight: group, via: group > 0 ? "group" : null };
+}
+
+/** How much the job's kind of work counts for this person: 1, PAST_KIND_WEIGHT, down to 0. */
+export function kindWeight(
+  person: MatchPerson,
+  job: Pick<MatchableJob, "title" | "family" | "occupation">,
+): number {
+  return kindOf(person, job).weight;
 }
 
 function list(items: readonly string[], max: number): string {
@@ -90,10 +203,10 @@ export function matchJob(
   const missing = job.keywords.filter((skill) => !person.skills.has(skill));
   const total = job.keywords.length;
   const coverage = total === 0 ? 0 : found.length / total;
-  const weight = kindWeight(person, job.title);
-  const sameKind = weight > 0;
-  // A kind of role only an older title names: one label lower than the role looked for.
-  const pastKind = sameKind && weight < 1;
+  const kind = kindOf(person, job);
+  const sameKind = kind.weight >= KIND.same;
+  // A kind of work only an older title names, or one next to the looked-for one: one label lower.
+  const pastKind = sameKind && kind.weight < KIND.own;
 
   if (!sameKind && found.length < 2) return null;
 
@@ -116,6 +229,18 @@ export function matchJob(
       notes.push(`This is ${LEVEL_WORDS[job.seniority]}, more junior than your latest title.`);
     }
   }
+  // O*NET Job Zones (1 little preparation ... 5 extensive): a nursing assistant looking at nurse
+  // practitioner jobs, a cashier at pharmacist ones.
+  if (
+    person.zone !== null &&
+    job.zone &&
+    job.occupation &&
+    job.occupation !== person.occupation &&
+    job.zone - person.zone >= 2
+  ) {
+    label = "stretch";
+    notes.push("Jobs like this usually need more training or experience than your latest role.");
+  }
   if (job.minYears !== null && person.years !== null && person.years + 1 <= job.minYears) {
     label = stepDown(label);
     const shown = Math.max(0, Math.floor(person.years));
@@ -133,13 +258,22 @@ export function matchJob(
     reason = `Found in your resume: ${list(found, MAX_FOUND_SHOWN)}.`;
     if (missing.length > 0) reason += ` Not found: ${list(missing, MAX_MISSING_SHOWN)}.`;
   } else {
-    const kind = pastKind ? "Like an earlier role on your resume." : "The same kind of role as yours.";
+    const what = kindLine(kind, pastKind, job.occupationName ?? null);
     reason =
       total > 0
-        ? `${kind} Not found: ${list(missing, MAX_MISSING_SHOWN)}.`
-        : `${kind} The post names no tools to compare.`;
+        ? `${what} Not found: ${list(missing, MAX_MISSING_SHOWN)}.`
+        : `${what} The post names no tools to compare.`;
   }
   return { label, found, missing, reason, notes, blocked: eligibility.blocked };
+}
+
+// The reason when no skill is shared: what kind of work the two have in common, by name.
+function kindLine(kind: Kind, pastKind: boolean, name: string | null): string {
+  const named = name ? `: ${name}` : "";
+  if (kind.via === "same" && !pastKind) return `The same occupation as yours${named}.`;
+  if (kind.via === "close") return `A closely related occupation${named}.`;
+  if (kind.via === "group") return `A related kind of work${named}.`;
+  return pastKind ? "Like an earlier role on your resume." : "The same kind of role as yours.";
 }
 
 /** A saved job that shares nothing with the resume still shows, with no label. */

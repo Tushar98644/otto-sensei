@@ -23,6 +23,8 @@ describe("the Looking for guess", () => {
     expect(lookingForOf(profile, inCountry("DE"))).toEqual({
       title: "Product Manager",
       family: "product",
+      // Read on the server (rank.ts withOccupation); the browser has no occupation lookup.
+      occupation: null,
       level: "senior",
       place: "g:eu",
       remote: false,

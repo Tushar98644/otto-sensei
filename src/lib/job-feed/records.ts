@@ -109,6 +109,7 @@ export async function listJobs(
 
 export type CandidateRow = ListRow & {
   family: RoleFamily | null;
+  occupation: string | null;
   minYears: number | null;
   rulesText: string;
   firstSeenAt: number;
@@ -118,6 +119,7 @@ export type CandidateRow = ListRow & {
 export const CANDIDATE_COLUMNS = {
   ...LIST_COLUMNS,
   family: jobs.family,
+  occupation: jobs.occupation,
   minYears: jobs.minYears,
   rulesText: jobs.rulesText,
   firstSeenAt: jobs.firstSeenAt,

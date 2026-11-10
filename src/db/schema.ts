@@ -205,6 +205,7 @@ export const workProfiles = pgTable("work_profiles", {
   // resume (20261109006100_looking_for.sql).
   targetTitle: text("target_title"),
   targetFamily: text("target_family", { enum: ROLE_FAMILIES }),
+  targetOccupation: text("target_occupation"),
   targetLevel: text("target_level", { enum: SENIORITIES }),
   targetPlace: text("target_place"),
   createdAt: epochMs("created_at").notNull(),
@@ -318,6 +319,8 @@ export const jobs = pgTable("jobs", {
   employmentType: text("employment_type", { enum: EMPLOYMENT_TYPES }),
   seniority: text("seniority", { enum: SENIORITIES }).notNull().default("mid"),
   family: text("family", { enum: ROLE_FAMILIES }),
+  // O*NET-SOC code the title names (20261110000200_occupations.sql), null when it can't tell.
+  occupation: text("occupation"),
   minYears: integer("min_years"),
   postedAt: epochMs("posted_at").notNull(),
   validThrough: epochMs("valid_through"),
@@ -378,6 +381,10 @@ export const jobMatch = pgTable("job_match", {
   grp: text("grp").notNull(),
   company: text("company").notNull(),
   family: text("family", { enum: ROLE_FAMILIES }),
+  occ: text("occ"),
+  occMinor: text("occ_minor"),
+  occMajor: text("occ_major"),
+  zone: smallint("zone"),
   level: smallint("level").notNull(),
   sids: integer("sids").array().notNull(),
   places: text("places").array().notNull().default([]),

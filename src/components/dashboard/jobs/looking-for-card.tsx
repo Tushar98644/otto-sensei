@@ -1,23 +1,38 @@
 "use client";
 
 import { ChevronDown } from "lucide-react";
+import { useState } from "react";
 import { Menu, type MenuEntry } from "@/components/ui/menu";
-import { LEVEL_NAMES, placeLabel, placeLine, type RoleOption } from "@/lib/job-feed/looking-for";
+import { LEVEL_NAMES, placeLabel, placeLine } from "@/lib/job-feed/looking-for";
+import { familyOfOccupation } from "@/lib/job-feed/roles";
 import {
+  LOOKING_FOR_LIMITS,
   PLACE_GROUPS,
   ROLE_FAMILIES,
   ROLE_LABELS,
   SENIORITIES,
   type LookingFor,
   type LookingForChoice,
+  type OccupationOption,
   type PlaceChoice,
+  type RoleFamily,
 } from "@/lib/job-feed/types";
+import { OccupationSearch } from "./occupation-search";
+
+export type CardRole = {
+  title: string;
+  family: RoleFamily | null;
+  // The occupation the server read from the title; null until the first list arrives.
+  occupation: OccupationOption | null;
+};
 
 export type LookingForCardProps = {
   value: LookingFor;
+  // The occupation the list was ranked for, in plain words ("Registered Nurse").
+  occupation: OccupationOption | null;
   choice: LookingForChoice;
   // The roles the resume names, newest first.
-  roles: readonly RoleOption[];
+  roles: readonly CardRole[];
   // The work profile's country, offered as a place when it isn't one of the usual ones.
   country: string;
   saving: boolean;
@@ -34,21 +49,31 @@ const COMMON_PLACES: readonly PlaceChoice[] = [
   ...PLACE_GROUPS.map((group) => `g:${group}` as const),
 ];
 
-function roleName(value: Pick<LookingFor, "title" | "family">): string {
+function roleName(value: Pick<LookingFor, "title" | "family">, occupation: string | null): string {
   if (value.title) return value.title;
+  if (occupation) return occupation;
   return value.family ? `Any ${ROLE_LABELS[value.family].toLowerCase()} role` : "Any role";
+}
+
+// The occupation in plain words when it says more than the title: "Staff Nurse" is read as
+// "Registered Nurse", "Backend Engineer" as "Software Developer".
+function occupationNote(title: string, occupation: OccupationOption | null): string | null {
+  if (!occupation || occupation.name.toLowerCase() === title.toLowerCase()) return null;
+  return occupation.name;
 }
 
 // "Looking for: Senior · Product Manager · Remote, EU", each part a one-tap menu. Guessed from the
 // resume and the work profile; what's changed is kept for the account and ranks Matches.
 export function LookingForCard({
   value,
+  occupation,
   choice,
   roles,
   country,
   saving,
   onChange,
 }: LookingForCardProps) {
+  const [searching, setSearching] = useState(false);
   const levelItems: MenuEntry[] = [
     ...SENIORITIES.map((level) => ({
       label: LEVEL_NAMES[level],
@@ -69,15 +94,29 @@ export function LookingForCard({
   const roleItems: MenuEntry[] = [
     ...roles.map((role) => ({
       label: role.title,
-      description: role.family ? ROLE_LABELS[role.family] : undefined,
+      description: role.occupation?.name ?? (role.family ? ROLE_LABELS[role.family] : undefined),
       checked: value.title.toLowerCase() === role.title.toLowerCase(),
-      onSelect: () => onChange({ ...choice, role }),
+      onSelect: () =>
+        onChange({
+          ...choice,
+          role: {
+            title: role.title,
+            family: role.family,
+            occupation: role.occupation?.code ?? null,
+          },
+        }),
     })),
     ...(roles.length > 0 ? ["separator" as const] : []),
+    {
+      label: "Any other job…",
+      description: "Search every kind of work by name",
+      onSelect: () => setSearching(true),
+    },
+    "separator" as const,
     ...ROLE_FAMILIES.map((family) => ({
       label: `Any ${ROLE_LABELS[family].toLowerCase()} role`,
       checked: value.title === "" && value.family === family,
-      onSelect: () => onChange({ ...choice, role: { title: "", family } }),
+      onSelect: () => onChange({ ...choice, role: { title: "", family, occupation: null } }),
     })),
     ...(choice.role === null
       ? []
@@ -89,6 +128,9 @@ export function LookingForCard({
           },
         ]),
   ];
+
+  const role = roleName(value, occupation?.name ?? null);
+  const note = value.title ? occupationNote(value.title, occupation) : null;
 
   const own: PlaceChoice | null =
     country && !COMMON_PLACES.includes(`c:${country}`) ? `c:${country}` : null;
@@ -151,11 +193,12 @@ export function LookingForCard({
         />
         <Menu
           label="Role"
-          triggerLabel={`Role: ${roleName(value)}. Change it`}
+          triggerLabel={`Role: ${role}${note ? `, read as ${note}` : ""}. Change it`}
           triggerClassName={TRIGGER}
           trigger={
             <>
-              {roleName(value)}
+              {role}
+              {note ? <span className="font-normal text-muted">({note})</span> : null}
               <ChevronDown aria-hidden className="size-3.5 text-subtle" />
             </>
           }
@@ -177,8 +220,22 @@ export function LookingForCard({
       </div>
       <p className="text-xs/5 text-subtle">
         Guessed from your resume and work profile. Matches are ordered for it; tap a part to change
-        it.
+        it. Job names from O*NET® and ESCO.
       </p>
+      <OccupationSearch
+        open={searching}
+        onOpenChange={setSearching}
+        onPick={(picked) =>
+          onChange({
+            ...choice,
+            role: {
+              title: picked.name.slice(0, LOOKING_FOR_LIMITS.titleChars),
+              family: familyOfOccupation(picked.code),
+              occupation: picked.code,
+            },
+          })
+        }
+      />
     </section>
   );
 }

@@ -3,7 +3,8 @@ import { ruleLines } from "@/lib/eligibility/check";
 import { capText } from "@/lib/jobs/posting";
 import { foldCase } from "@/lib/tailor/tokens";
 import type { RawJob } from "./parsers";
-import { minYearsOf, roleFamily, seniorityOf } from "./roles";
+import { readTitle } from "./occupations";
+import { minYearsOf, seniorityOf } from "./roles";
 import { findSkills } from "./skills";
 import type { EmploymentType, RoleFamily, Seniority } from "./types";
 
@@ -34,6 +35,8 @@ export type NormalizedJob = {
   employmentType: EmploymentType | null;
   seniority: Seniority;
   family: RoleFamily | null;
+  // The O*NET-SOC occupation the title names ("29-1141.00"), null when it can't tell.
+  occupation: string | null;
   minYears: number | null;
   postedAt: number;
   validThrough: number | null;
@@ -92,7 +95,8 @@ export function dedupeKey(company: string, title: string, location: string): str
 // its jobs instead of skipping them as unchanged. 2: groupKey and evergreen (2026-11-09).
 // 3: context rules for short skill names ("Go To Market" is not Go) and no skill named after the
 // company itself (2026-11-09). 4: no stored text for sources that can be read again (2026-11-10).
-const NORMALIZE_VERSION = "4";
+// 5: occupations, and kinds of role checked against them (2026-11-10).
+const NORMALIZE_VERSION = "5";
 
 /** Everything normalizing reads, so an unchanged job can skip it. */
 export function contentHash(job: RawJob): string {
@@ -231,6 +235,7 @@ export function normalizeJob(
     .filter((skill) => searchWords(skill) !== brand)
     .slice(0, JOB_LIMITS.keywords);
   const fromTitle = seniorityOf(title);
+  const kind = readTitle(title);
   // A posting date in the future is a source's bug; the time we first saw it is the honest one.
   const postedAt = job.postedAt !== null && job.postedAt <= now ? job.postedAt : now;
   return {
@@ -241,7 +246,8 @@ export function normalizeJob(
     remote: job.remote,
     employmentType: job.employmentType,
     seniority: fromTitle === "mid" && job.seniority ? job.seniority : fromTitle,
-    family: roleFamily(title),
+    family: kind.family,
+    occupation: kind.occupation,
     minYears: minYearsOf(own),
     postedAt,
     validThrough: job.validThrough,

@@ -2,12 +2,36 @@ import { emptyWorkProfile, type WorkProfile } from "@/lib/eligibility/profile";
 
 // The match test set (MATCHING-RESEARCH.md, Phase 0): 40 made-up resumes across engineering,
 // data, product, design, sales, support and operations, at junior, mid and senior level, 5 of
-// them outside the US. Nobody real: names, employers and contact details are left out on purpose,
-// since matching never sees them either.
+// them outside the US; and from 2026-11-10, 28 more from every other kind of work (healthcare,
+// education, retail, hospitality, logistics, trades, manufacturing, science, public sector,
+// finance and admin, creative), 6 of them outside the US. Nobody real: names, employers and
+// contact details are left out on purpose, since matching never sees them either.
+
+export const TECH_FIELDS = [
+  "engineering",
+  "data",
+  "product",
+  "design",
+  "sales",
+  "support",
+  "operations",
+] as const;
 
 export type TestResume = {
   id: string;
-  field: "engineering" | "data" | "product" | "design" | "sales" | "support" | "operations";
+  field:
+    | (typeof TECH_FIELDS)[number]
+    | "healthcare"
+    | "education"
+    | "retail"
+    | "hospitality"
+    | "logistics"
+    | "trades"
+    | "manufacturing"
+    | "science"
+    | "public"
+    | "finance-admin"
+    | "creative";
   level: "junior" | "mid" | "senior";
   // Where they live and may work, in words for the judge and as a work profile for the rules.
   place: string;
@@ -34,6 +58,12 @@ function workIn(
 
 const US = workIn("US", "America/New_York", { us: "authorized" });
 const US_WEST = workIn("US", "America/Los_Angeles", { us: "authorized" });
+const US_CENTRAL = workIn("US", "America/Chicago", { us: "authorized" });
+const UK = workIn("GB", "Europe/London", {
+  uk: "authorized",
+  us: "sponsorship",
+  eu: "sponsorship",
+});
 
 export const TEST_RESUMES: readonly TestResume[] = [
   // Engineering
@@ -453,4 +483,309 @@ export const TEST_RESUMES: readonly TestResume[] = [
     years: 7,
     text: "Revenue operations lead owning the go-to-market systems. Ran Salesforce and HubSpot administration, built territory plans and forecasts, wrote SQL for pipeline reporting. Skills: Salesforce, HubSpot, SQL, Excel.",
   },
+  ...nonTechResumes(),
 ];
+
+// Every other kind of work (2026-11-10). Functions so the work profiles above exist first.
+function nonTechResumes(): TestResume[] {
+  return [
+    // Healthcare
+    {
+      id: "hc-rn-mid",
+      field: "healthcare",
+      level: "mid",
+      place: "Columbus, Ohio, US; authorized to work in the US",
+      work: US,
+      titles: ["Registered Nurse", "Nursing Assistant"],
+      years: 5,
+      text: "Registered nurse on a 32-bed medical-surgical unit. Assess and monitor patients, give medications, chart in Epic, precept new graduate nurses, served as relief charge nurse. Licensed RN (Ohio), BLS and ACLS certified. Skills: patient assessment, medication administration, IV therapy, wound care, Epic, telemetry.",
+    },
+    {
+      id: "hc-nurse-practitioner-senior",
+      field: "healthcare",
+      level: "senior",
+      place: "Remote from Phoenix, Arizona, US; authorized to work in the US",
+      work: workIn("US", "America/Phoenix", { us: "authorized" }),
+      titles: ["Family Nurse Practitioner", "Registered Nurse"],
+      years: 12,
+      text: "Board-certified family nurse practitioner (FNP-BC) with seven years in primary care and telehealth, five before as an ER registered nurse. Diagnose and treat acute and chronic conditions, prescribe, order labs, manage chronic care panels of 1,200 patients. Active NP licenses in Arizona, California and Texas; DEA registration.",
+    },
+    {
+      id: "hc-healthcare-assistant-junior-uk",
+      field: "healthcare",
+      level: "junior",
+      place:
+        "Manchester, UK; authorized to work in the UK only (would need a visa for the US or EU)",
+      work: UK,
+      titles: ["Healthcare Assistant", "Care Assistant"],
+      years: 1.5,
+      text: "Healthcare assistant on an elderly care ward in an NHS hospital, previously a care assistant in a residential care home. Personal care, observations (blood pressure, temperature, pulse), feeding, moving and handling, record keeping. Care Certificate completed, NVQ Level 2 in Health and Social Care.",
+    },
+    {
+      id: "hc-phlebotomist-junior",
+      field: "healthcare",
+      level: "junior",
+      place: "Houston, Texas, US; authorized to work in the US",
+      work: US_CENTRAL,
+      titles: ["Phlebotomist", "Medical Assistant"],
+      years: 2,
+      text: "Certified phlebotomy technician drawing 40+ patients a day at an outpatient lab; venipuncture, capillary draws, specimen processing and labeling. Earlier a medical assistant taking vitals and rooming patients. CPT (NHA), CPR certified.",
+    },
+    {
+      id: "hc-pharmacist-senior-ca",
+      field: "healthcare",
+      level: "senior",
+      place: "Toronto, Canada; authorized to work in Canada only (would need a visa for the US)",
+      work: workIn("CA", "America/Toronto", { ca: "authorized", us: "sponsorship" }),
+      titles: ["Pharmacist", "Pharmacy Manager"],
+      years: 10,
+      text: "Licensed pharmacist (Ontario College of Pharmacists) with ten years in community pharmacy, four managing a high-volume store. Dispensing, medication reviews, vaccinations, compounding, supervising pharmacy technicians, inventory and controlled substances.",
+    },
+    // Education
+    {
+      id: "edu-primary-teacher-mid-au",
+      field: "education",
+      level: "mid",
+      place:
+        "Brisbane, Australia; authorized to work in Australia only (no US, UK, EU or Canada rights)",
+      work: workIn("AU", "Australia/Brisbane", {
+        us: "sponsorship",
+        uk: "sponsorship",
+        eu: "sponsorship",
+        ca: "sponsorship",
+      }),
+      titles: ["Primary School Teacher", "Relief Teacher"],
+      years: 6,
+      text: "Primary school teacher (Year 3 and Year 4) at a state school, registered with the Queensland College of Teachers. Plan and deliver lessons across the Australian Curriculum, differentiate for students with learning needs, run parent meetings, lead the school's reading program.",
+    },
+    {
+      id: "edu-math-teacher-senior",
+      field: "education",
+      level: "senior",
+      place: "Chicago, Illinois, US; authorized to work in the US",
+      work: US_CENTRAL,
+      titles: ["High School Math Teacher", "Math Teacher"],
+      years: 14,
+      text: "High school mathematics teacher for 14 years: Algebra II, Pre-Calculus and AP Calculus; math department chair for four. Illinois Professional Educator License (secondary math). Built a peer tutoring program and coached the math team.",
+    },
+    {
+      id: "edu-early-years-junior-uk",
+      field: "education",
+      level: "junior",
+      place: "Leeds, UK; authorized to work in the UK only (would need a visa for the US or EU)",
+      work: UK,
+      titles: ["Early Years Practitioner", "Nursery Assistant"],
+      years: 2,
+      text: "Level 3 early years practitioner in a 60-place day nursery, key person for eight children aged 2 to 3. Plan play-based activities to the EYFS, keep learning journals, paediatric first aid trained, safeguarding level 2.",
+    },
+    // Retail and hospitality
+    {
+      id: "retail-sales-associate-junior",
+      field: "retail",
+      level: "junior",
+      place: "Atlanta, Georgia, US; authorized to work in the US",
+      work: US,
+      titles: ["Sales Associate", "Cashier"],
+      years: 1.5,
+      text: "Sales associate at a clothing store: greeting customers, styling and selling, running the register, processing returns, restocking the floor and setting displays. Earlier a cashier at a grocery store. Weekend and evening availability.",
+    },
+    {
+      id: "retail-store-manager-senior",
+      field: "retail",
+      level: "senior",
+      place: "Dallas, Texas, US; authorized to work in the US",
+      work: US_CENTRAL,
+      titles: ["Store Manager", "Assistant Store Manager"],
+      years: 9,
+      text: "Store manager of a $6M specialty retail store with a team of 25. Hire, train and schedule staff, own sales targets, P&L, inventory and loss prevention, visual merchandising standards. Grew comparable sales 12% in two years.",
+    },
+    {
+      id: "hosp-line-cook-mid",
+      field: "hospitality",
+      level: "mid",
+      place: "Denver, Colorado, US; authorized to work in the US",
+      work: workIn("US", "America/Denver", { us: "authorized" }),
+      titles: ["Line Cook", "Prep Cook"],
+      years: 4,
+      text: "Line cook on the grill and sauté stations of a 150-cover restaurant. Prep, cook to ticket times, keep stations stocked and clean, follow food safety rules. ServSafe Food Handler certified.",
+    },
+    {
+      id: "hosp-shift-supervisor-junior-ca",
+      field: "hospitality",
+      level: "junior",
+      place: "Vancouver, Canada; authorized to work in Canada only (would need a visa for the US)",
+      work: workIn("CA", "America/Vancouver", { ca: "authorized", us: "sponsorship" }),
+      titles: ["Shift Supervisor", "Barista"],
+      years: 2.5,
+      text: "Shift supervisor at a busy cafe: running shifts of six baristas, opening and closing, cash counts, coaching new staff, keeping drink quality and speed. Earlier a barista. FoodSafe Level 1.",
+    },
+    // Logistics and driving
+    {
+      id: "log-truck-driver-mid",
+      field: "logistics",
+      level: "mid",
+      place: "Memphis, Tennessee, US; authorized to work in the US",
+      work: US_CENTRAL,
+      titles: ["CDL-A Truck Driver", "Delivery Driver"],
+      years: 6,
+      text: "Class A CDL driver with six years over the road and regional, 500,000 safe miles. Dry van and reefer, electronic logs, pre-trip inspections, Hazmat and Tanker endorsements. Clean MVR.",
+    },
+    {
+      id: "log-warehouse-associate-junior",
+      field: "logistics",
+      level: "junior",
+      place: "Reno, Nevada, US; authorized to work in the US",
+      work: US_WEST,
+      titles: ["Warehouse Associate", "Forklift Operator"],
+      years: 2,
+      text: "Warehouse associate in a fulfillment center: picking, packing, receiving and putaway with RF scanners, hitting pick-rate targets. Certified forklift and reach truck operator. Cycle counts in the WMS.",
+    },
+    {
+      id: "log-hgv-driver-mid-uk",
+      field: "logistics",
+      level: "mid",
+      place:
+        "Birmingham, UK; authorized to work in the UK only (would need a visa for the US or EU)",
+      work: UK,
+      titles: ["HGV Class 1 Driver", "Class 2 Driver"],
+      years: 7,
+      text: "HGV Class 1 (C+E) driver with seven years of trunking and multi-drop deliveries for a supermarket chain. Full Driver CPC, digital tachograph card, ADR licence, clean licence.",
+    },
+    // Trades
+    {
+      id: "trades-electrician-senior",
+      field: "trades",
+      level: "senior",
+      place: "Sacramento, California, US; authorized to work in the US",
+      work: US_WEST,
+      titles: ["Journeyman Electrician", "Apprentice Electrician"],
+      years: 10,
+      text: "Licensed journeyman electrician (California C-10 certified) with ten years of commercial and industrial work: service upgrades, conduit runs, panel installs, troubleshooting motor controls and PLC wiring, reading blueprints. OSHA 30.",
+    },
+    {
+      id: "trades-hvac-technician-mid",
+      field: "trades",
+      level: "mid",
+      place: "Charlotte, North Carolina, US; authorized to work in the US",
+      work: US,
+      titles: ["HVAC Service Technician", "HVAC Installer"],
+      years: 5,
+      text: "HVAC service technician for residential and light commercial systems: diagnosing and repairing furnaces, heat pumps and rooftop units, preventive maintenance, refrigerant recovery. EPA 608 Universal certified, NATE certified.",
+    },
+    // Manufacturing
+    {
+      id: "mfg-production-supervisor-senior",
+      field: "manufacturing",
+      level: "senior",
+      place: "Grand Rapids, Michigan, US; authorized to work in the US",
+      work: US,
+      titles: ["Production Supervisor", "Machine Operator"],
+      years: 11,
+      text: "Production supervisor on second shift at an automotive parts plant, leading 35 operators across stamping and assembly lines. Own safety, output, scrap and OEE targets, run lean and 5S events, train new operators. Started as a machine operator.",
+    },
+    {
+      id: "mfg-cnc-machinist-mid",
+      field: "manufacturing",
+      level: "mid",
+      place: "Cleveland, Ohio, US; authorized to work in the US",
+      work: US,
+      titles: ["CNC Machinist", "CNC Operator"],
+      years: 5,
+      text: "CNC machinist setting up and running Haas and Mazak mills and lathes, writing and editing G-code, reading blueprints and GD&T, inspecting parts with micrometers and calipers to tight tolerances.",
+    },
+    // Science and lab
+    {
+      id: "sci-lab-technician-junior",
+      field: "science",
+      level: "junior",
+      place: "Raleigh, North Carolina, US; authorized to work in the US",
+      work: US,
+      titles: ["Laboratory Technician", "Research Assistant"],
+      years: 1.5,
+      text: "Laboratory technician in a clinical diagnostics lab after a BS in Biology: sample accessioning, running PCR and ELISA assays, maintaining instruments, following GLP and keeping records in a LIMS.",
+    },
+    {
+      id: "sci-research-associate-mid",
+      field: "science",
+      level: "mid",
+      place: "Boston, Massachusetts, US; authorized to work in the US",
+      work: US,
+      titles: ["Research Associate II", "Research Associate"],
+      years: 4,
+      text: "Research associate in a biotech cell therapy group: mammalian cell culture, flow cytometry, qPCR, Western blots, designing and running experiments and presenting results to the team. MS in Molecular Biology.",
+    },
+    // Public sector
+    {
+      id: "pub-social-worker-mid",
+      field: "public",
+      level: "mid",
+      place: "Seattle, Washington, US; authorized to work in the US",
+      work: US_WEST,
+      titles: ["Social Worker", "Case Manager"],
+      years: 5,
+      text: "Licensed social worker (LSW) in county child welfare: assessments, safety plans, case management for 20 families, court reports, connecting families to housing and mental health services. Master of Social Work.",
+    },
+    {
+      id: "pub-policy-analyst-mid",
+      field: "public",
+      level: "mid",
+      place: "Washington, DC, US; authorized to work in the US",
+      work: US,
+      titles: ["Policy Analyst", "Legislative Aide"],
+      years: 4,
+      text: "Policy analyst at a state agency researching health and labor policy: writing briefs and memos, analyzing legislation and budget data in Excel and Stata, briefing senior officials. Earlier a legislative aide in the state senate.",
+    },
+    // Finance and admin
+    {
+      id: "fa-admin-assistant-junior",
+      field: "finance-admin",
+      level: "junior",
+      place: "Philadelphia, Pennsylvania, US; authorized to work in the US",
+      work: US,
+      titles: ["Administrative Assistant", "Receptionist"],
+      years: 2,
+      text: "Administrative assistant for a 40-person office: calendars, travel, meeting setup, expense reports, answering phones, ordering supplies. Microsoft Office, Excel, Google Sheets.",
+    },
+    {
+      id: "fa-bookkeeper-mid",
+      field: "finance-admin",
+      level: "mid",
+      place: "Remote from Tampa, Florida, US; authorized to work in the US",
+      work: US,
+      titles: ["Bookkeeper", "Accounts Payable Clerk"],
+      years: 6,
+      text: "Bookkeeper for small businesses: accounts payable and receivable, bank reconciliations, payroll, month-end close and sales tax filings in QuickBooks and Xero. Excel.",
+    },
+    {
+      id: "fa-staff-accountant-mid",
+      field: "finance-admin",
+      level: "mid",
+      place: "Minneapolis, Minnesota, US; authorized to work in the US",
+      work: US_CENTRAL,
+      titles: ["Staff Accountant", "Junior Accountant"],
+      years: 4,
+      text: "Staff accountant at a manufacturing company: journal entries, account reconciliations, month-end close, fixed assets, audit support, GAAP reporting in NetSuite. Excel. CPA candidate.",
+    },
+    // Creative
+    {
+      id: "creative-video-editor-mid",
+      field: "creative",
+      level: "mid",
+      place: "Los Angeles, California, US; authorized to work in the US",
+      work: US_WEST,
+      titles: ["Video Editor", "Assistant Editor"],
+      years: 5,
+      text: "Video editor for branded content and YouTube series: cutting long and short-form video, color correction, sound mixing and motion graphics. Adobe Premiere Pro, After Effects, DaVinci Resolve, Photoshop.",
+    },
+    {
+      id: "creative-copywriter-senior",
+      field: "creative",
+      level: "senior",
+      place: "New York, US; authorized to work in the US",
+      work: US,
+      titles: ["Senior Copywriter", "Copywriter"],
+      years: 9,
+      text: "Senior copywriter at an advertising agency writing campaigns for consumer brands across TV, social, web and out-of-home. Concepting with art directors, brand voice guidelines, mentoring junior writers. Copywriting, content marketing, SEO.",
+    },
+  ];
+}

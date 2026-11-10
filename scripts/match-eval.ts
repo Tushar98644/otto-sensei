@@ -37,7 +37,7 @@ import {
   type JobMatch,
   type MatchProfile,
 } from "@/lib/job-feed/types";
-import { TEST_RESUMES, type TestResume } from "./match-eval/resumes";
+import { TECH_FIELDS, TEST_RESUMES, type TestResume } from "./match-eval/resumes";
 
 const OUT = path.join(process.cwd(), "..", "match-eval");
 const LISTS = path.join(OUT, "lists.json");
@@ -223,15 +223,22 @@ function writeJson(file: string, value: unknown) {
 // variants stay as they were, graded, so a new ordering is compared on the same pairs; --with-v0
 // re-ranks the frozen newest-v0 too. --as <name> saves the lists under another name: the same
 // ordering on a changed pool of jobs (more sources, an age limit) is then its own variant.
+// --missing ranks only resumes the variant has no list for yet (resumes added to the set), so the
+// lists already graded stay as they were.
 async function rankAll() {
   const db = await openDb();
   const now = Date.now();
   const saved = readJson<Lists | null>(LISTS, null);
   const name = flag("--as") ?? MATCH_VARIANT;
-  const variants: Lists["variants"] = { ...(saved?.variants ?? {}), [name]: {} };
+  const missingOnly = process.argv.includes("--missing");
+  const variants: Lists["variants"] = {
+    ...(saved?.variants ?? {}),
+    [name]: missingOnly ? { ...(saved?.variants[name] ?? {}) } : {},
+  };
   const withV0 = process.argv.includes("--with-v0") || !saved;
   if (withV0) variants["newest-v0"] = {};
   for (const resume of TEST_RESUMES) {
+    if (missingOnly && variants[name]![resume.id]) continue;
     const started = Date.now();
     if (withV0) variants["newest-v0"]![resume.id] = await rankNewestV0(db, resume, now);
     const oldMs = Date.now() - started;
@@ -254,7 +261,8 @@ async function refresh() {
   const { refreshSkillWeights } = await import("@/lib/job-feed/store");
   const { rebuildMatchIndex } = await import("@/lib/job-feed/match-index");
   const { brandName, searchWords } = await import("@/lib/job-feed/normalize");
-  const { roleFamily, seniorityOf } = await import("@/lib/job-feed/roles");
+  const { seniorityOf } = await import("@/lib/job-feed/roles");
+  const { readTitle } = await import("@/lib/job-feed/occupations");
   const rows = await db
     .select({
       id: jobs.id,
@@ -263,6 +271,7 @@ async function refresh() {
       description: jobs.description,
       keywords: jobs.keywords,
       family: jobs.family,
+      occupation: jobs.occupation,
       seniority: jobs.seniority,
     })
     .from(jobs);
@@ -271,8 +280,18 @@ async function refresh() {
   let changed = 0;
   const dropped = new Map<string, number>();
   for (const row of rows) {
-    // Jobs stored without their text (2026-11-10 on) keep the skills read at ingest.
-    if (!row.description) continue;
+    // Kind of role and occupation from the title, as normalizeJob reads them now.
+    const kind = readTitle(row.title);
+    if (!row.description) {
+      // Jobs stored without their text (2026-11-10 on) keep the skills read at ingest.
+      if (kind.family === row.family && kind.occupation === row.occupation) continue;
+      changed += 1;
+      await db
+        .update(jobs)
+        .set({ family: kind.family, occupation: kind.occupation })
+        .where(sql`${jobs.id} = ${row.id}`);
+      continue;
+    }
     const found = new Set(findSkills(`${row.title}\n${row.description}`));
     const brand = brandName(row.company);
     // A context name the stored text doesn't show (it was past the 6,000-character cut) can't be
@@ -290,11 +309,12 @@ async function refresh() {
       if (!next.includes(skill)) dropped.set(skill, (dropped.get(skill) ?? 0) + 1);
     // Kind and level from the title, as normalizeJob reads them (a source's own level is kept
     // when the title has no marker).
-    const family = roleFamily(row.title);
+    const { family, occupation } = kind;
     const fromTitle = seniorityOf(row.title);
     const seniority = fromTitle === "mid" ? row.seniority : fromTitle;
     if (
       family === row.family &&
+      occupation === row.occupation &&
       seniority === row.seniority &&
       next.length === row.keywords.length &&
       next.every((skill, i) => skill === row.keywords[i])
@@ -303,11 +323,11 @@ async function refresh() {
     changed += 1;
     await db
       .update(jobs)
-      .set({ keywords: next, family, seniority })
+      .set({ keywords: next, family, occupation, seniority })
       .where(sql`${jobs.id} = ${row.id}`);
   }
   console.log(
-    `Rewrote keywords, kind or level on ${changed} of ${rows.length} jobs. Dropped per skill:`,
+    `Rewrote keywords, kind, occupation or level on ${changed} of ${rows.length} jobs. Dropped per skill:`,
   );
   console.log(Object.fromEntries([...dropped].sort((a, b) => b[1] - a[1]).slice(0, 25)));
   const now = Date.now();
@@ -854,11 +874,56 @@ async function report() {
       return [field, { old: p(oldName), new: p(newName) }];
     }),
   );
+  // The 40 office and tech resumes, the 28 from every other kind of work (2026-11-10), and all:
+  // each variant's averages over the resumes it ranked, and the good jobs its top 10 holds.
+  const techIds = new Set(
+    TEST_RESUMES.filter((resume) => (TECH_FIELDS as readonly string[]).includes(resume.field)).map(
+      (resume) => resume.id,
+    ),
+  );
+  const sets: Record<string, TestResume[]> = {
+    tech: TEST_RESUMES.filter((resume) => techIds.has(resume.id)),
+    nonTech: TEST_RESUMES.filter((resume) => !techIds.has(resume.id)),
+    all: [...TEST_RESUMES],
+  };
+  const bySet = Object.fromEntries(
+    Object.entries(sets).map(([set, members]) => [
+      set,
+      {
+        n: members.length,
+        // Good postings (graded 2-3, still open) found by any list: the most a top 10 could show.
+        goodAvailable: Math.round(mean(members.map((r) => goodFor(r.id, names, true))) * 10) / 10,
+        variants: Object.fromEntries(
+          names
+            .filter((name) => members.every((r) => lists.variants[name]?.[r.id] !== undefined))
+            .map((name) => {
+              const all = members.map((r) => perResume[r.id]![name]!);
+              const avg = (field: keyof Scores) =>
+                Math.round(mean(all.map((item) => item[field])) * 10) / 10;
+              const good = members.map((r) => goodFor(r.id, [name], true));
+              return [
+                name,
+                {
+                  ndcg10: avg("ndcg"),
+                  precision10: avg("precision"),
+                  badInTop10: avg("bad"),
+                  goodInTop10: Math.round(mean(good) * 10) / 10,
+                  emptyLists: members.filter(
+                    (r) => (lists.variants[name]![r.id] ?? []).length === 0,
+                  ).length,
+                },
+              ];
+            }),
+        ),
+      },
+    ]),
+  );
   const result = {
     at: new Date().toISOString(),
     judge: grades.model,
     spentUsd: Math.round(grades.spentUsd * 1000) / 1000,
     graded: Object.keys(grades.grades).length,
+    bySet,
     summary,
     newVsOld: wins,
     byField: fields,
@@ -880,7 +945,7 @@ async function report() {
     JSON.stringify(
       {
         compared: `${newName} vs ${oldName}`,
-        summary,
+        bySet,
         newVsOld: wins,
         watched,
         worse,
@@ -966,10 +1031,11 @@ async function report() {
       "",
     ]);
   }
-  // Never over the file the owner was handed (graded or not): a dated one beside it instead.
+  // Never over a file the owner was handed (graded or not): a new dated one beside it instead.
   let file = path.join(OUT, "hand-check-150.csv");
-  if (existsSync(file))
-    file = path.join(OUT, `hand-check-150-${new Date().toISOString().slice(0, 10)}.csv`);
+  const day = new Date().toISOString().slice(0, 10);
+  for (let n = 1; existsSync(file); n++)
+    file = path.join(OUT, `hand-check-150-${day}${n === 1 ? "" : `-${n}`}.csv`);
   writeFileSync(file, `${rows.map((row) => row.map(csvCell).join(",")).join("\n")}\n`);
   console.log(`Saved ${path.join(OUT, "results.json")} and ${file} (${picked.length} pairs).`);
 }
@@ -1008,6 +1074,21 @@ async function stats() {
   );
   console.log(
     await query(`select source, count(*)::int as open, count(distinct board)::int as boards from jobs
+      where closed_at is null group by 1 order by 2 desc`),
+  );
+  // How many open jobs have no occupation, no kind of role, or neither (2026-11-10: 29% had no
+  // kind of role before occupations).
+  console.log(
+    await query(`select count(*)::int as open,
+      count(*) filter (where occupation is null)::int as no_occupation,
+      count(*) filter (where family is null)::int as no_family,
+      count(*) filter (where occupation is null and family is null)::int as neither,
+      round(100.0 * count(*) filter (where occupation is null) / count(*), 1) as no_occupation_pct,
+      round(100.0 * count(*) filter (where occupation is null and family is null) / count(*), 1) as neither_pct
+      from jobs where closed_at is null`),
+  );
+  console.log(
+    await query(`select left(occupation, 2) as major, count(*)::int as open from jobs
       where closed_at is null group by 1 order by 2 desc`),
   );
 }

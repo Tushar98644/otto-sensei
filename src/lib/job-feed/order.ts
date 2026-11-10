@@ -25,6 +25,9 @@ export const ORDER_LIMITS = {
   farLevel: 0.5,
   // The role looked for, word for word in the job title ("Product Manager").
   titleFit: 1.1,
+  // An occupation that usually needs more preparation than the person's (zoneFactor).
+  oneZoneUp: 0.9,
+  farZone: 0.6,
   // A place the "Looking for" card names, and one it rules out (also ordered a label lower).
   placeMatch: 1.15,
   placeMiss: 0.6,
@@ -59,6 +62,21 @@ export function levelFactor(gap: number): number {
   if (gap === 1) return ORDER_LIMITS.oneUp;
   if (gap === -1) return ORDER_LIMITS.oneDown;
   return ORDER_LIMITS.farLevel;
+}
+
+/**
+ * Another occupation that usually needs more preparation (O*NET Job Zones, 1 little to 5
+ * extensive): one zone up a little lower, two or more well down. The same occupation never.
+ */
+export function zoneFactor(
+  person: { occupation: string | null; zone: number | null },
+  job: { occupation?: string | null; zone?: number | null },
+): number {
+  if (person.zone === null || !job.zone || !job.occupation || job.occupation === person.occupation)
+    return 1;
+  const gap = job.zone - person.zone;
+  if (gap >= 2) return ORDER_LIMITS.farZone;
+  return gap === 1 ? ORDER_LIMITS.oneZoneUp : 1;
 }
 
 export function placeFactor(fit: PlaceFit): number {

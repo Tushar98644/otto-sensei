@@ -6,13 +6,14 @@ import {
   acceptedPlaces,
   lookingForOf,
   placeFit,
+  roleOptions,
   titleFits,
   jobPlaceTokens,
-  type LookingFor,
   type PlaceFit,
 } from "./looking-for";
 import {
-  kindWeight,
+  KIND,
+  kindOf,
   matchJob,
   PAST_KIND_WEIGHT,
   personFrom,
@@ -20,6 +21,7 @@ import {
   type EligibilityHint,
   type MatchableJob,
 } from "./match";
+import { MAJOR_GROUPS, OCCUPATIONS, occupationOf, readTitle } from "./occupations";
 import { matchCacheKey, readMatchCache, writeMatchCache } from "./match-cache";
 import { poolOpenings, readStoredCounts, type PooledOpening } from "./match-index";
 import {
@@ -31,8 +33,10 @@ import {
   levelGap,
   ORDER_LIMITS,
   placeFactor,
+  zoneFactor,
   type Ranked,
 } from "./order";
+import { familyFits } from "./roles";
 import {
   CANDIDATE_POOL,
   DEFAULT_SKILL_WEIGHT,
@@ -48,8 +52,10 @@ import {
   JOB_PAGE_SIZE,
   type JobFilters,
   type JobMatchesResponse,
+  type LookingFor,
   type MatchedJob,
   type MatchProfile,
+  type OccupationOption,
   type RoleFamily,
 } from "./types";
 import { sponsorRegions, visaLines, type VisaFacts } from "./visa";
@@ -68,8 +74,29 @@ const FREE_POOL = 60;
 
 // Which ordering produced a list, logged with every impression so two can be compared later.
 // v2 (2026-11-09): context rules for short skill names, role kind by title age, level and place in
-// the order, the "Looking for" card.
-export const MATCH_VARIANT = "weighted-v2";
+// the order, the "Looking for" card. v3 (2026-11-10): occupations for every kind of job (O*NET).
+export const MATCH_VARIANT = "occupation-v3";
+
+/** One occupation for the card, in plain words with its SOC major group. */
+export function occupationOption(code: string | null): OccupationOption | null {
+  const occupation = occupationOf(code);
+  return occupation
+    ? { code: occupation.code, name: occupation.name, group: MAJOR_GROUPS[occupation.major] ?? "" }
+    : null;
+}
+
+/**
+ * The card with its occupation read on our server: the browser can't read occupations (the
+ * lookup stays here), so it sends null and the title. A kind of role the occupation rules out is
+ * dropped, as for any title ("Support Worker" is social care, not customer support).
+ */
+export function withOccupation(lookingFor: LookingFor): LookingFor {
+  const occupation =
+    lookingFor.occupation ?? (lookingFor.title ? readTitle(lookingFor.title).occupation : null);
+  const family =
+    lookingFor.family && familyFits(lookingFor.family, occupation) ? lookingFor.family : null;
+  return { ...lookingFor, occupation, family };
+}
 
 function eligibilityOf(
   row: { location: string; rulesText: string },
@@ -114,7 +141,10 @@ export type RankRequest = {
 
 export type RankResult = Omit<JobMatchesResponse, "ok" | "requestId" | "resumeHash">;
 
-type Check = (row: { location: string; rulesText: string }, visa: VisaFacts | null) => EligibilityHint;
+type Check = (
+  row: { location: string; rulesText: string },
+  visa: VisaFacts | null,
+) => EligibilityHint;
 
 // The copy to show: the first in a place the "Looking for" card names and the work profile
 // allows; the others become "also in" places on the card.
@@ -127,7 +157,8 @@ function pickCopy(
   const rest = opening.copies.filter((copy) => copy.id !== row.id);
   let list = [row, ...rest];
   if (accepted !== null && list.length > 1) {
-    const fits = (copy: CandidateRow): PlaceFit => placeFit(jobPlaceTokens(copy.location), accepted);
+    const fits = (copy: CandidateRow): PlaceFit =>
+      placeFit(jobPlaceTokens(copy.location), accepted);
     const order: Record<PlaceFit, number> = { match: 0, unknown: 1, miss: 2 };
     list = [...list].sort((a, b) => order[fits(a)] - order[fits(b)]);
   }
@@ -153,8 +184,18 @@ type Scored = Ranked & { job: MatchedJob; far: boolean; firstSeenAt: number };
 
 export async function rankJobs(db: Db, request: RankRequest): Promise<RankResult> {
   const { now, filters } = request;
-  const lookingFor = request.lookingFor ?? lookingForOf(request.profile, request.workProfile);
-  const person = personFrom(request.profile, lookingFor);
+  const lookingFor = withOccupation(
+    request.lookingFor ?? lookingForOf(request.profile, request.workProfile),
+  );
+  const person = personFrom(request.profile, lookingFor, OCCUPATIONS);
+  const shown = {
+    lookingFor,
+    occupation: occupationOption(lookingFor.occupation),
+    roles: roleOptions(request.profile).map((role) => ({
+      ...role,
+      occupation: occupationOption(readTitle(role.title).occupation),
+    })),
+  };
   const profileReady = request.workProfile !== null && isProfileStarted(request.workProfile);
   const options = { now, deviceTimeZone: request.deviceTimeZone };
   // Without a work profile nothing can be blocked, so the slow rules don't run at all.
@@ -194,7 +235,7 @@ export async function rankJobs(db: Db, request: RankRequest): Promise<RankResult
       openJobs: stats.openJobs,
       checkedAt: stats.checkedAt,
       profileReady,
-      lookingFor,
+      ...shown,
       variant: MATCH_VARIANT,
     };
   }
@@ -236,6 +277,12 @@ export async function rankJobs(db: Db, request: RankRequest): Promise<RankResult
       weights,
       places: accepted,
       limit: request.free ? FREE_POOL : CANDIDATE_POOL,
+      kinds: {
+        occupations: person.occupations,
+        minors: person.minors,
+        majors: person.majors,
+        byFamily: person.families.size > 0,
+      },
     },
     counts,
     now,
@@ -244,7 +291,7 @@ export async function rankJobs(db: Db, request: RankRequest): Promise<RankResult
   const scored: Scored[] = [];
   for (const opening of pool.openings) {
     const { row } = opening;
-    const facts = factsOf(row);
+    const facts = factsOf(row, opening.kind);
     // Skills and titles first: they're cheap, and a job that fails them never needs the rules.
     if (!matchJob(person, facts)) continue;
     const { shown, others, hint } = pickCopy(opening, check, accepted);
@@ -252,7 +299,7 @@ export async function rankJobs(db: Db, request: RankRequest): Promise<RankResult
     if (filters.eligibleOnly && match.blocked) continue;
     const gap = levelGap(person.seniority, row.seniority);
     const fit = placeFit(opening.places, accepted);
-    const kind = kindWeight(person, row.title);
+    const kind = kindOf(person, facts).weight;
     scored.push({
       match,
       company: row.company,
@@ -260,11 +307,12 @@ export async function rankJobs(db: Db, request: RankRequest): Promise<RankResult
       firstSeenAt: row.firstSeenAt,
       far: Math.abs(gap) >= 2,
       demoted: fit === "miss",
-      pastKind: kind > 0 && kind < 1,
+      pastKind: kind >= KIND.same && kind < KIND.own,
       closeness:
         closeness(match, row.keywords, weight, kind) *
         freshness(Math.min(row.postedAt, row.firstSeenAt), now) *
         levelFactor(gap) *
+        zoneFactor(person, facts) *
         placeFactor(fit) *
         (titleFits(row.title, lookingFor.title) ? ORDER_LIMITS.titleFit : 1),
       job: {
@@ -308,7 +356,7 @@ export async function rankJobs(db: Db, request: RankRequest): Promise<RankResult
     openJobs: stats.openJobs,
     checkedAt: stats.checkedAt,
     profileReady,
-    lookingFor,
+    ...shown,
     variant: MATCH_VARIANT,
   };
   if (cacheKey) await writeMatchCache(db, request.userId, cacheKey, result, now);
@@ -332,11 +380,18 @@ async function withSaved(db: Db, userId: string, result: RankResult): Promise<Ra
   };
 }
 
-function factsOf(row: CandidateRow): MatchableJob {
+// The job's kind of work from the match index when it ranked the job, else read from its title.
+function factsOf(row: CandidateRow, kind: PooledOpening["kind"] = null): MatchableJob {
+  const read = kind ?? { ...readTitle(row.title), zone: null };
+  const occupation = occupationOf(read.occupation);
   return {
     title: row.title,
     keywords: row.keywords,
     seniority: row.seniority,
     minYears: row.minYears,
+    family: read.family,
+    occupation: occupation?.code ?? null,
+    occupationName: occupation?.name ?? null,
+    zone: kind ? kind.zone : (occupation?.zone ?? null),
   };
 }

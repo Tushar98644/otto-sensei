@@ -170,9 +170,11 @@ describe("the Jobs tab on Free", () => {
       }),
     );
     expect(res.status).toBe(200);
-    expect(((await res.json()) as LookingForResponse).choice).toEqual(choice);
+    // A client that sends no occupation (as before occupations) gets one left to the server.
+    const stored = { ...choice, role: { ...choice.role, occupation: null } };
+    expect(((await res.json()) as LookingForResponse).choice).toEqual(stored);
     const read = (await (await getProfile()).json()) as WorkProfileResponse;
-    expect(read.lookingFor).toEqual(choice);
+    expect(read.lookingFor).toEqual(stored);
     expect(read.profile.remoteOnly).toBe(true);
 
     const lookingFor = {
@@ -183,7 +185,10 @@ describe("the Jobs tab on Free", () => {
       remote: true,
     };
     const preview = await ranked({ lookingFor });
-    expect(preview.lookingFor).toEqual(lookingFor);
+    // The server reads the occupation the browser can't (account executives sell technical
+    // products, O*NET 41-4011).
+    expect(preview.lookingFor).toEqual({ ...lookingFor, occupation: "41-4011.00" });
+    expect(preview.occupation?.name).toBe("Sales Representative (technical products)");
     // "Remote only" is Free's one filter: the Austin office job is gone. The sales role looked
     // for joins the list, and engineering, now only an older kind, is a label lower.
     expect(preview.jobs.map((job) => [job.title, job.match.label])).toEqual([
@@ -317,7 +322,7 @@ describe("POST /api/jobs/matches", () => {
     const user = await signInAs();
     await seedJobs();
     const body = await ranked();
-    expect(body).toMatchObject({ variant: "weighted-v2", matching: 3 });
+    expect(body).toMatchObject({ variant: "occupation-v3", matching: 3 });
     expect(body.requestId).toMatch(/^[0-9a-f-]{36}$/);
     const db = await getDb();
     const shown = await db.select().from(matchEvents).orderBy(matchEvents.position);

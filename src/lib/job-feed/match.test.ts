@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { matchJob, personFrom, unmatched, type MatchableJob } from "./match";
+import { KIND, kindOf, matchJob, personFrom, unmatched, type MatchableJob } from "./match";
+import { OCCUPATIONS, occupationOf } from "./occupations";
 import { compareRanked } from "./order";
 import { minYearsOf, roleFamily, seniorityOf } from "./roles";
 import { findSkills, knownSkills } from "./skills";
@@ -72,11 +73,21 @@ describe("findSkills", () => {
     expect(findSkills("Frontend in Elm")).toEqual(["Elm"]);
     expect(findSkills("Excel models and Excel macros")).toEqual(["Excel"]);
     // Real lines the first version of the rules dropped (match-eval skills-check, 2026-11-09).
-    expect(findSkills("System programming with C, C++, and/or Rust.")).toEqual(["C", "C++", "Rust"]);
-    expect(findSkills("Streaming such as Apache Kafka or Apache Flink")).toEqual(["Kafka", "Flink"]);
+    expect(findSkills("System programming with C, C++, and/or Rust.")).toEqual([
+      "C",
+      "C++",
+      "Rust",
+    ]);
+    expect(findSkills("Streaming such as Apache Kafka or Apache Flink")).toEqual([
+      "Kafka",
+      "Flink",
+    ]);
     expect(findSkills("Our Helm chart and Docker Compose setup")).toEqual(["Helm", "Docker"]);
     expect(findSkills("- Frontend: React and Typescript")).toEqual(["React", "TypeScript"]);
-    expect(findSkills("Ruby experience (our platform runs on Rails)")).toEqual(["Ruby", "Ruby on Rails"]);
+    expect(findSkills("Ruby experience (our platform runs on Rails)")).toEqual([
+      "Ruby",
+      "Ruby on Rails",
+    ]);
     // An investor named in the company intro is not the tool.
     expect(findSkills("Led by Altimeter Capital and Spark Capital.")).toEqual([]);
   });
@@ -221,7 +232,11 @@ describe("matchJob", () => {
 describe("role kind by title age", () => {
   // product-pm-mid in the test set: an old "Business Analyst" title once made operations count
   // fully, and Shift Coordinator posts reached the top 10.
-  const profile = { skills: ["Jira", "SQL"], titles: ["Product Manager", "Business Analyst"], years: 4 };
+  const profile = {
+    skills: ["Jira", "SQL"],
+    titles: ["Product Manager", "Business Analyst"],
+    years: 4,
+  };
   const pm = personFrom(profile);
   const post = (title: string): MatchableJob => ({
     title,
@@ -239,7 +254,9 @@ describe("role kind by title age", () => {
   it("labels a job of an older title's kind a step lower, and says why", () => {
     const ops = matchJob(pm, post("Shift Coordinator"));
     expect(ops?.label).toBe("stretch");
-    expect(ops?.reason).toBe("Like an earlier role on your resume. The post names no tools to compare.");
+    expect(ops?.reason).toBe(
+      "Like an earlier role on your resume. The post names no tools to compare.",
+    );
     expect(matchJob(pm, post("Product Manager"))?.label).toBe("good");
   });
 
@@ -248,5 +265,76 @@ describe("role kind by title age", () => {
     expect(switched.families.get("data")).toBe(1);
     expect(switched.families.get("product")).toBe(0.5);
     expect(switched.seniority).toBe("senior");
+  });
+});
+
+describe("occupations for every kind of work", () => {
+  // A nurse's resume names no tool the vocabulary knows and no kind of role the title rules
+  // know: only the occupation says what the work is.
+  const nurse = personFrom(
+    { skills: [], titles: ["Registered Nurse", "Nursing Assistant"], years: 5 },
+    null,
+    OCCUPATIONS,
+  );
+  const post = (title: string): MatchableJob => {
+    const { family, occupation } = OCCUPATIONS.read(title);
+    return {
+      title,
+      keywords: [],
+      seniority: "mid",
+      minYears: null,
+      family,
+      occupation,
+      occupationName: occupationOf(occupation)?.name ?? null,
+      zone: occupation ? OCCUPATIONS.zone(occupation) : null,
+    };
+  };
+
+  it("reads the newest title's occupation as the one looked for", () => {
+    expect(nurse.occupation).toBe("29-1141.00");
+    expect(nurse.families.size).toBe(0);
+    expect(nurse.occupations.get("29-1141.00")).toBe(1);
+  });
+
+  it("orders the same occupation, then close ones, then the same field, and says which", () => {
+    const same = matchJob(nurse, post("Staff Nurse - Med/Surg"));
+    expect(same?.label).toBe("good");
+    expect(same?.reason).toBe(
+      "The same occupation as yours: Registered Nurse. The post names no tools to compare.",
+    );
+    const near = post("Licensed Practical Nurse (LPN)");
+    expect(kindOf(nurse, near)).toEqual({ weight: KIND.close, via: "close" });
+    expect(matchJob(nurse, near)?.label).toBe("good");
+    const field = post("Respiratory Therapist");
+    expect(kindOf(nurse, field).weight).toBeLessThan(KIND.close);
+    expect(matchJob(nurse, field)?.label).toBe("stretch");
+    expect(matchJob(nurse, post("CDL-A Truck Driver"))).toBeNull();
+  });
+
+  it("notes when a job usually needs much more preparation (O*NET Job Zones)", () => {
+    // Pharmacy technicians (Job Zone 3) move to pharmacist jobs (Zone 5), which need a degree.
+    const technician = personFrom(
+      { skills: [], titles: ["Pharmacy Technician"], years: 2 },
+      null,
+      OCCUPATIONS,
+    );
+    const pharmacist = matchJob(technician, post("Pharmacist"));
+    expect(pharmacist?.label).toBe("stretch");
+    expect(pharmacist?.notes).toContain(
+      "Jobs like this usually need more training or experience than your latest role.",
+    );
+    expect(matchJob(technician, post("Pharmacy Technician - Retail"))?.notes).toEqual([]);
+  });
+
+  it("keeps office and tech jobs on the tuned kinds of role", () => {
+    const engineer = personFrom(
+      { skills: ["Go"], titles: ["Backend Engineer"], years: 4 },
+      null,
+      OCCUPATIONS,
+    );
+    expect(kindOf(engineer, post("Senior iOS Engineer")).weight).toBe(1);
+    // The title rules call these engineering; their occupations say otherwise.
+    expect(kindOf(engineer, post("Mechanical Engineer")).weight).toBe(0);
+    expect(kindOf(engineer, post("Solutions Engineer")).weight).toBe(0);
   });
 });

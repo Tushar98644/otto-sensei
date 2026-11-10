@@ -198,15 +198,25 @@ const PLACE_CHOICE = z
 
 export const LOOKING_FOR_LIMITS = { titleChars: 80 } as const;
 
+// An O*NET-SOC 2019 occupation code ("29-1141.00"), or one of ours with a letter ("11-X101.00");
+// see occupations/index.ts.
+export const OCCUPATION_CODE = /^\d{2}-[0-9X]\d{3}\.\d{2}$/;
+const OccupationCodeSchema = z.string().regex(OCCUPATION_CODE);
+
 /** What Matches are ranked for. Every part is filled: the guess, or what the person picked. */
 export const LookingForSchema = z.object({
   title: z.string().trim().max(LOOKING_FOR_LIMITS.titleChars),
   family: z.enum(ROLE_FAMILIES).nullable(),
+  // The occupation the title names; null lets the server read it from the title.
+  occupation: OccupationCodeSchema.nullable().default(null),
   level: z.enum(SENIORITIES).nullable(),
   place: PLACE_CHOICE,
   remote: z.boolean(),
 });
 export type LookingFor = z.output<typeof LookingForSchema>;
+
+/** One occupation as the card shows it: "Registered Nurse", in "Healthcare practitioners". */
+export type OccupationOption = { code: string; name: string; group: string };
 
 /**
  * What the person changed, kept per account (work_profiles.target_*): null parts follow the
@@ -218,6 +228,7 @@ export const LookingForChoiceSchema = z.object({
     .object({
       title: z.string().trim().max(LOOKING_FOR_LIMITS.titleChars),
       family: z.enum(ROLE_FAMILIES).nullable(),
+      occupation: OccupationCodeSchema.nullable().default(null),
     })
     .nullable(),
   level: z.enum(SENIORITIES).nullable(),
@@ -230,6 +241,9 @@ export const NO_CHOICE: LookingForChoice = { role: null, level: null, place: nul
 
 // PUT /api/jobs/looking-for. Free and Pro alike: the card shapes Free's closest matches too.
 export type LookingForResponse = { ok: true; choice: LookingForChoice };
+
+// GET /api/jobs/occupations?q=nurse: the card's search over every occupation and its names.
+export type OccupationSearchResponse = { ok: true; occupations: OccupationOption[] };
 
 export const JobFiltersSchema = z.object({
   q: z.string().trim().max(100).default(""),
@@ -294,8 +308,11 @@ export type JobMatchesResponse = {
   // Free: the closest FREE_JOB_MATCHES only, ranked with no filters and no work profile;
   // `matching` still counts them all.
   locked?: boolean;
-  // The "Looking for" card this list was ranked for.
+  // The "Looking for" card this list was ranked for, and its occupation in plain words.
   lookingFor: LookingFor | null;
+  occupation?: OccupationOption | null;
+  // The resume's roles, newest first, with the occupation each names (the card's role menu).
+  roles?: { title: string; family: RoleFamily | null; occupation: OccupationOption | null }[];
   // Which ordering made this list, and the ids actions are logged against (null when nothing
   // is logged: Free's preview and the saved view).
   variant: string;

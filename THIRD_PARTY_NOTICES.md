@@ -81,3 +81,42 @@ subsets) in the PDFs users download. All files are unmodified upstream releases.
 | Roboto 3.016 | `roboto/Roboto-{Light,Regular,Bold,Italic}.ttf` | (c) 2011 The Roboto Project Authors | SIL OFL 1.1 (`OFL.txt`) | [googlefonts/roboto-3-classic](https://github.com/googlefonts/roboto-3-classic) |
 | Source Sans 3 3.052 | `source-sans-3/SourceSans3-{Light,LightIt,Regular,Bold}.ttf` | (c) 2010-2024 Adobe, Reserved Font Name "Source" | SIL OFL 1.1 (`LICENSE.md`) | [adobe-fonts/source-sans](https://github.com/adobe-fonts/source-sans) |
 | Charis 7.000 | `charis/Charis-{Regular,Bold,Italic}.ttf` | (c) 1997-2025 SIL Global, Reserved Font Names "Charis" and "SIL" | SIL OFL 1.1 (`OFL.txt`) | [software.sil.org/charis](https://software.sil.org/charis/) |
+
+## Occupation data
+
+The Jobs tab reads every job title (and the titles on a resume) as an occupation, using a lookup
+built by `scripts/occupations-build.ts` into `src/lib/job-feed/occupations/data.json`. It ships
+only in server code; the browser sees an occupation's name, never the lookup.
+
+| Data | Version | Owner | Licence | Source |
+|---|---|---|---|---|
+| O*NET® Database: Occupation Data, Job Titles, Sample of Reported Titles, Related Occupations, Job Zones | 31.0 (August 2026) | U.S. Department of Labor, Employment and Training Administration (USDOL/ETA) | [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/) | [onetcenter.org/database.html](https://www.onetcenter.org/database.html) |
+| ESCO to O*NET-SOC 2019 crosswalk (`ESCO_to_ONET-SOC.xlsx`) | As downloaded 2026-11-10 | USDOL/ETA ("Crosswalk Files"), built with the European Commission's ESCO team | [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/) | [onetcenter.org/crosswalks.html](https://www.onetcenter.org/crosswalks.html#esco) |
+| ESCO occupations (English preferred and alternative labels) | v1.2.1 | European Commission | Free reuse for any purpose under Commission Decision 2011/833/EU, with the statement below | [ESCO API](https://ec.europa.eu/esco/api), [reuse terms](https://esco.ec.europa.eu/en/about-esco/faq) |
+
+Credit lines, as each licence asks (shown in the app under the occupation search on the Jobs tab):
+
+> This page includes information from the O*NET 31.0 Database by the U.S. Department of Labor,
+> Employment and Training Administration (USDOL/ETA). Used under the CC BY 4.0 license. O*NET® is
+> a trademark of USDOL/ETA. Otto has modified all or some of this information. USDOL/ETA has not
+> approved, endorsed, or tested these modifications.
+
+> This service uses the ESCO classification of the European Commission.
+
+What Otto changed (both licences ask for changes to be marked):
+
+- Titles and labels are reduced to lookup keys: lower case, accents and punctuation removed,
+  British spellings turned into US ones, plurals made singular.
+- A name O*NET or ESCO gives to occupations in different fields is dropped ("Lab Technician"),
+  or kept for the one that uses it most; single generic words ("Manager", "Engineer") and
+  initials that are also places ("PA") are never keys; names that add nothing over a shorter one
+  for the same occupation are left out.
+- ESCO labels are attached to O*NET occupations through the crosswalk; ESCO's own occupations,
+  skills and hierarchy are not used.
+- Occupation names are shortened to one role in plain words ("Registered Nurse" for "Registered
+  Nurses"; "Truck Driver (heavy goods)" for "Heavy and Tractor-Trailer Truck Drivers").
+- Our own names for about 800 startup, office and frontline titles (`tech.ts`) are checked first,
+  and two roles O*NET has no occupation for are added: Product Manager (`11-X101.00`) and
+  Customer Success Manager (`41-X101.00`).
+- Only O*NET's closest ten Related Occupations per occupation are kept ("Primary-Short" and
+  "Primary-Long").

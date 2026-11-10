@@ -338,7 +338,8 @@ export type { WorkProfile, WorkProfileBody, WorkProfileResponse } from "@/lib/el
 // POST /api/jobs/matches (jobs ranked for one resume, or the saved ones), GET /api/jobs/saved (the
 // saved ones, unranked, for the Applications board), PUT/DELETE /api/jobs/saved/:id, POST /api/jobs/events (what was done with a match). Requires sign-in.
 // Free sees its closest few matches; filters, paging, saving and the full list are Pro.
-// PUT /api/jobs/looking-for (the "Looking for" card's choices; any plan).
+// PUT /api/jobs/looking-for (the "Looking for" card's choices; any plan). GET
+// /api/jobs/occupations?q= (the card's search over every occupation; no account needed).
 export {
   JobMatchesRequestSchema,
   LookingForChoiceSchema,
@@ -350,6 +351,8 @@ export type {
   LookingFor,
   LookingForChoice,
   LookingForResponse,
+  OccupationOption,
+  OccupationSearchResponse,
   JobPostResponse,
   MatchActionInput,
   MatchedJob,

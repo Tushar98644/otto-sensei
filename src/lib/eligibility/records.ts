@@ -33,7 +33,14 @@ function toStored(row: Row): StoredWorkProfile {
     },
     updatedAt: row.updatedAt,
     lookingFor: {
-      role: row.targetTitle === null ? null : { title: row.targetTitle, family: row.targetFamily },
+      role:
+        row.targetTitle === null
+          ? null
+          : {
+              title: row.targetTitle,
+              family: row.targetFamily,
+              occupation: row.targetOccupation,
+            },
       level: row.targetLevel,
       place: row.targetPlace as PlaceChoice | null,
       remote: row.remoteOnly,
@@ -69,6 +76,7 @@ export async function saveLookingFor(
     const values = {
       targetTitle: choice.role?.title ?? null,
       targetFamily: choice.role?.family ?? null,
+      targetOccupation: choice.role?.occupation ?? null,
       targetLevel: choice.level,
       targetPlace: choice.place,
       remoteOnly: choice.remote,

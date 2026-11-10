@@ -147,16 +147,14 @@ describe("match index", () => {
 
   it("copies company visa facts in and shows them as plain lines", async () => {
     const db = await getDb();
-    await db
-      .insert(companyVisa)
-      .values({
-        companyKey: "acme",
-        ukName: "ACME LTD",
-        h1bYear: 2025,
-        h1bApprovals: 12,
-        usName: "ACME INC",
-        checkedAt: NOW,
-      });
+    await db.insert(companyVisa).values({
+      companyKey: "acme",
+      ukName: "ACME LTD",
+      h1bYear: 2025,
+      h1bApprovals: 12,
+      usName: "ACME INC",
+      checkedAt: NOW,
+    });
     await ingest([raw("1")]);
     const user = await createUser("ada@example.com");
     const result = await rankJobs(db, {
@@ -204,7 +202,14 @@ describe("match index", () => {
     // ...but a new ingest run, a new day or another "Looking for" does.
     const other = await rankJobs(db, {
       ...request,
-      lookingFor: { title: "", family: "data", level: null, place: "anywhere", remote: false },
+      lookingFor: {
+        title: "",
+        family: "data",
+        occupation: null,
+        level: null,
+        place: "anywhere",
+        remote: false,
+      },
     });
     expect(other.jobs).toHaveLength(1);
     expect(await db.select().from(matchCache)).toHaveLength(2);

@@ -92,7 +92,8 @@ export function roleTitle(title: string): string {
   return (cleaned || title.trim()).slice(0, 80);
 }
 
-export type RoleOption = { title: string; family: RoleFamily | null };
+// The occupation is read on the server (occupations/index.ts); the browser leaves it null.
+export type RoleOption = { title: string; family: RoleFamily | null; occupation: string | null };
 
 /** The roles a resume names, newest first, without repeats: the card's role menu. */
 export function roleOptions(profile: Pick<MatchProfile, "titles">): RoleOption[] {
@@ -103,7 +104,7 @@ export function roleOptions(profile: Pick<MatchProfile, "titles">): RoleOption[]
     const key = role.toLowerCase();
     if (!role || seen.has(key)) continue;
     seen.add(key);
-    out.push({ title: role, family: roleFamily(title) });
+    out.push({ title: role, family: roleFamily(title), occupation: null });
   }
   return out;
 }
@@ -134,10 +135,13 @@ export function lookingForOf(
   choice: LookingForChoice = NO_CHOICE,
 ): LookingFor {
   const [latest] = roleOptions(profile).filter((option) => option.family !== null);
-  const role = choice.role ?? latest ?? roleOptions(profile)[0] ?? { title: "", family: null };
+  const role = choice.role ??
+    latest ??
+    roleOptions(profile)[0] ?? { title: "", family: null, occupation: null };
   return {
     title: role.title,
     family: role.family,
+    occupation: role.occupation ?? null,
     level: choice.level ?? levelOf(profile),
     place: choice.place ?? placeFromProfile(work),
     remote: choice.remote,

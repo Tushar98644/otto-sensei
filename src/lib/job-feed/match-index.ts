@@ -3,7 +3,9 @@ import type { Db } from "@/db/client";
 import { companyVisa, jobBoards, jobCountsRow, jobMatch, jobs, matchSkills } from "@/db/schema";
 import { log } from "@/lib/log";
 import { jobPlaceTokens } from "./looking-for";
-import { PAST_KIND_WEIGHT } from "./match";
+import { KIND, PAST_KIND_WEIGHT } from "./match";
+import { occupationOf, readTitle } from "./occupations";
+import { familyFits } from "./roles";
 import { ORDER_LIMITS } from "./order";
 import {
   CANDIDATE_COLUMNS,
@@ -100,7 +102,9 @@ export async function rebuildMatchIndex(db: Db, now: number): Promise<number | n
       id: jobs.id,
       groupKey: jobs.groupKey,
       company: jobs.company,
+      title: jobs.title,
       family: jobs.family,
+      occupation: jobs.occupation,
       seniority: jobs.seniority,
       keywords: jobs.keywords,
       location: jobs.location,
@@ -161,12 +165,20 @@ export async function rebuildMatchIndex(db: Db, now: number): Promise<number | n
       continue;
     }
     const facts = visa.get(companyKey(row.company));
+    // Read at ingest; a row stored before occupations were (or by an older lookup) is read here.
+    const read = row.occupation ? null : readTitle(row.title);
+    const occ = row.occupation ?? read?.occupation ?? null;
+    const family = row.family && familyFits(row.family, occ) ? row.family : (read?.family ?? null);
     // Rows come newest first, so the first copy of each opening is the one stored.
     openings.set(grp, {
       id: row.id,
       grp,
       company: row.company,
-      family: row.family,
+      family,
+      occ,
+      occMinor: occ?.slice(0, 4) ?? null,
+      occMajor: occ?.slice(0, 2) ?? null,
+      zone: occupationOf(occ)?.zone ?? null,
       level: SENIORITIES.indexOf(row.seniority),
       sids: [...new Set(row.keywords.flatMap((skill) => ids.get(skill) ?? []))].sort(
         (a, b) => a - b,
@@ -229,6 +241,8 @@ export type PooledOpening = {
   copies: CandidateRow[];
   places: string[];
   visa: VisaFacts | null;
+  // What the index says the opening is; null from the fallback query on jobs.
+  kind: { family: CandidateRow["family"]; occupation: string | null; zone: number | null } | null;
 };
 
 export type OpeningPool = {
@@ -242,7 +256,18 @@ export type PoolQuery = MatchQuery & {
   // Place tokens the "Looking for" card accepts, or null for anywhere (looking-for.ts).
   places: readonly string[] | null;
   limit?: number;
+  // Occupations and SOC groups with how much each counts (personFrom in match.ts), and whether
+  // the person's titles name kinds of role, which then decide for office and tech jobs.
+  kinds?: {
+    occupations: ReadonlyMap<string, number>;
+    minors: ReadonlyMap<string, number>;
+    majors: ReadonlyMap<string, number>;
+    byFamily: boolean;
+  };
 };
+
+const floatArray = (values: readonly number[]) =>
+  `{${values.map((value) => value.toFixed(4)).join(",")}}`;
 
 // The same text search as /jobs, on any open copy of the opening.
 function textMatch(filters: JobFilters): SQL | null {
@@ -270,7 +295,16 @@ async function indexedPool(
   const past = query.pastFamilies ?? [];
   const reachFamilies = [...families, ...past];
   const sids = query.skills.flatMap((skill) => table.ids.get(skill) ?? []).sort((a, b) => a - b);
-  if (sids.length === 0 && reachFamilies.length === 0)
+  const kinds = query.kinds ?? {
+    occupations: new Map<string, number>(),
+    minors: new Map<string, number>(),
+    majors: new Map<string, number>(),
+    byFamily: reachFamilies.length > 0,
+  };
+  const occCodes = [...kinds.occupations.keys()];
+  const minorCodes = [...kinds.minors.keys()];
+  const majorCodes = [...kinds.majors.keys()];
+  if (sids.length === 0 && reachFamilies.length === 0 && occCodes.length === 0)
     return { openings: [], groups: 0, source: "index" };
   // Weight of each skill id, 0 when not on the resume: the SQL sums w[id] over a job's ids.
   const dense = Array.from({ length: Math.max(table.maxSid, 1) }, () => 0);
@@ -280,10 +314,21 @@ async function indexedPool(
   }
   const level = query.seniority === null ? null : SENIORITIES.indexOf(query.seniority);
   const w = sql`${intArray(dense)}::float8[]`;
+  // The kind of work, 0 to 1, as kindOf in match.ts: office and tech jobs by kind of role when the
+  // person's titles name one, everything else by occupation, its neighbours and its SOC groups.
+  const weightAt = (codes: string[], weights: number[], column: SQL) =>
+    sql`coalesce((${floatArray(weights)}::float8[])[array_position(${textArrayLiteral(codes)}::text[], ${column})], 0)`;
+  const kindSql = sql`case when m.family is not null and ${kinds.byFamily}::boolean then
+      case when m.family = any(${textArrayLiteral(families)}::text[]) then 1::float8
+        when m.family = any(${textArrayLiteral(past)}::text[]) then ${PAST_KIND_WEIGHT}::float8 else 0::float8 end
+    else greatest(${weightAt(occCodes, [...kinds.occupations.values()], sql`m.occ`)},
+      ${weightAt(minorCodes, [...kinds.minors.values()], sql`m.occ_minor`)},
+      ${weightAt(majorCodes, [...kinds.majors.values()], sql`m.occ_major`)}) end`;
   const conditions: SQL[] = [
     sql`m.seen_at >= ${now - EVERGREEN_AFTER_MS}::bigint`,
-    sql`(m.sids operator(pg_catalog.&&) ${intArray(sids)}::int[] or m.family = any(${textArrayLiteral(reachFamilies)}::text[]))`,
-    sql`(m.family = any(${textArrayLiteral(reachFamilies)}::text[]) or h.found >= 2)`,
+    sql`(m.sids operator(pg_catalog.&&) ${intArray(sids)}::int[] or m.family = any(${textArrayLiteral(reachFamilies)}::text[])
+      or m.occ = any(${textArrayLiteral(occCodes)}::text[]) or m.occ_minor = any(${textArrayLiteral(minorCodes)}::text[]))`,
+    sql`(k.kind >= ${KIND.same}::float8 or h.found >= 2)`,
   ];
   if (filters.remote) conditions.push(sql`m.remote`);
   if (filters.role) conditions.push(sql`m.family = ${filters.role}`);
@@ -312,14 +357,17 @@ async function indexedPool(
     places: string[];
     uk_sponsor: boolean;
     h1b_year: number | null;
+    family: CandidateRow["family"];
+    occ: string | null;
+    zone: number | null;
     groups: number;
     near_groups: number;
   }>(
     await db.execute(sql`
       with scored as (
         select m.id, m.grp, m.places, m.uk_sponsor, m.h1b_year, m.posted_at,
-          (h.overlap + case when m.family = any(${textArrayLiteral(families)}::text[]) then ${ORDER_LIMITS.familyWeight}::float8
-              when m.family = any(${textArrayLiteral(past)}::text[]) then ${ORDER_LIMITS.familyWeight * PAST_KIND_WEIGHT}::float8 else 0 end)
+          m.family, m.occ, m.zone,
+          (h.overlap + ${ORDER_LIMITS.familyWeight}::float8 * k.kind)
             * case ${gap} when 0 then 1::float8 when 1 then ${ORDER_LIMITS.oneUp}::float8
                 when -1 then ${ORDER_LIMITS.oneDown}::float8 else ${ORDER_LIMITS.farLevel}::float8 end
             * ${placeFactor} as score,
@@ -329,9 +377,10 @@ async function indexedPool(
           select coalesce(sum((${w})[i]), 0) as overlap, count(*) filter (where (${w})[i] > 0) as found
           from unnest(m.sids) i
         ) h
+        cross join lateral (select ${kindSql} as kind) k
         where ${and(...conditions)}
       )
-      select id::text as id, grp, places, uk_sponsor, h1b_year,
+      select id::text as id, grp, places, uk_sponsor, h1b_year, family, occ, zone,
         (count(*) over ())::int as groups, (count(*) filter (where near) over ())::int as near_groups
       from scored
       order by near desc, score desc, posted_at desc, id
@@ -375,6 +424,7 @@ async function indexedPool(
         item.uk_sponsor || item.h1b_year !== null
           ? { ukSponsor: item.uk_sponsor, h1bYear: item.h1b_year }
           : null,
+      kind: { family: item.family, occupation: item.occ, zone: item.zone },
     });
   }
   return {
@@ -390,7 +440,7 @@ async function jobsPool(db: Db, query: PoolQuery, now: number): Promise<OpeningP
     openings: pool.rows.map((row) => {
       const copies = pool.copies.get(row.groupKey) ?? [row];
       const places = [...new Set(copies.flatMap((copy) => jobPlaceTokens(copy.location)))].sort();
-      return { row, copies, places, visa: null };
+      return { row, copies, places, visa: null, kind: null };
     }),
     groups: pool.groups,
     source: "jobs",

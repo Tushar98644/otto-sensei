@@ -86,6 +86,7 @@ function contentColumns(job: NormalizedJob) {
     employmentType: job.employmentType,
     seniority: job.seniority,
     family: job.family,
+    occupation: job.occupation,
     minYears: job.minYears,
     postedAt: job.postedAt,
     validThrough: job.validThrough,

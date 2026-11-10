@@ -64,6 +64,7 @@ import type {
   JobMatchesRequestBody,
   LookingForChoice,
   LookingForResponse,
+  OccupationSearchResponse,
   JobMatchesResponse,
   JobPostResponse,
   JobRequestBody,
@@ -188,6 +189,10 @@ export const api = {
   // keepalive: "Open job" leaves for another tab, and the note should still arrive.
   saveLookingFor: (body: LookingForChoice) =>
     request<LookingForResponse>("/api/jobs/looking-for", postJson(body, "PUT")),
+  searchOccupations: (query: string, signal?: AbortSignal) =>
+    request<OccupationSearchResponse>(`/api/jobs/occupations?q=${encodeURIComponent(query)}`, {
+      signal,
+    }),
   jobEvent: (body: MatchActionInput) =>
     request<EmptyOk>("/api/jobs/events", { ...postJson(body), keepalive: true }),
   me: () => request<MeResponse>("/api/me", { cache: "no-store" }),

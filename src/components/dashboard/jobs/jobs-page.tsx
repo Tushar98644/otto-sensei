@@ -308,8 +308,13 @@ export function JobsPage() {
       {lookingFor && profile && view === "matches" ? (
         <LookingForCard
           value={lookingFor}
+          // The occupation is read on our server; until the first list arrives the card shows
+          // the title alone.
+          occupation={
+            data?.lookingFor?.title === lookingFor.title ? (data.occupation ?? null) : null
+          }
           choice={choice}
-          roles={roleOptions(profile)}
+          roles={data?.roles ?? roleOptions(profile).map((role) => ({ ...role, occupation: null }))}
           country={work.status === "ready" ? work.profile.country : ""}
           saving={savingChoice}
           onChange={(next) => void changeLookingFor(next)}
