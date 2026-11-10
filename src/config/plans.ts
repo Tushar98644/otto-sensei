@@ -125,10 +125,10 @@ export const PRICES_USD: Record<PaidPlanId, Record<BillingInterval, number>> = {
 };
 
 // Reference prices shown struck through beside the monthly price on the pricing cards, with the
-// discount from them. The owner's call (2026-11-08), knowing these were never charged, which
-// consumer rules in the EU, UK and US can treat as a misleading discount (PLAN.md). false hides
-// every one at once. Weekly and yearly prices never get one.
-export const SHOW_REFERENCE_PRICES = true;
+// discount from them. Off since 2026-11-10 (owner): these were never charged, which payment review
+// (Creem rejects "false information") and consumer rules in the EU, UK and US can treat as a
+// misleading discount (PLAN.md). true shows every one again. Weekly and yearly prices never get one.
+export const SHOW_REFERENCE_PRICES = false;
 export const REFERENCE_MONTHLY_USD: Record<PaidPlanId, number> = { pro: 30, max: 60 };
 
 /** The monthly price's discount from its reference, in whole percent: 50 for $15 against $30. */
