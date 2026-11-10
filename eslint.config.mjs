@@ -5,5 +5,6 @@ import nextTs from "eslint-config-next/typescript";
 export default defineConfig([
   ...nextVitals,
   ...nextTs,
-  globalIgnores([".next/**", "out/**", "build/**", "next-env.d.ts", "local.db*"]),
+  // public/ holds shipped third-party files (the Draco decoder for Reel's 3D models), not our code.
+  globalIgnores([".next/**", "out/**", "build/**", "next-env.d.ts", "local.db*", "public/**"]),
 ]);

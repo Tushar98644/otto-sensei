@@ -163,9 +163,8 @@ section { margin: 0 auto; padding: 100px 0; max-width: 1000px; }
 .pic .wrapper { box-shadow: 0 10px 30px -15px var(--navy-shadow); transition: var(--transition); display: block; position: relative; width: 100%; border-radius: var(--border-radius); background-color: var(--green); }
 .pic .wrapper:hover { outline: 0; transform: translate(-4px, -4px); box-shadow: 0 20px 30px -15px var(--navy-shadow); }
 .pic .wrapper:hover::after { transform: translate(8px, 8px); }
-.pic .wrapper:hover .img { filter: none; mix-blend-mode: normal; }
-.pic .img { position: relative; width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: var(--border-radius); mix-blend-mode: multiply; filter: grayscale(100%) contrast(1); transition: var(--transition); }
-.pic .initials { display: grid; place-items: center; width: 100%; aspect-ratio: 1; border-radius: var(--border-radius); background: var(--light-navy); color: var(--green); font-family: var(--font-mono); font-size: 72px; mix-blend-mode: normal; }
+/* The initials on a blueprint grid, where v4 has its tinted photo */
+.pic .initials { display: grid; place-items: center; width: 100%; aspect-ratio: 1; border-radius: var(--border-radius); background: linear-gradient(var(--lightest-navy) 1px, transparent 1px) 0 0 / 100% 12.5%, linear-gradient(90deg, var(--lightest-navy) 1px, transparent 1px) 0 0 / 12.5% 100%, radial-gradient(circle at 30% 25%, var(--lightest-navy), var(--light-navy) 70%); color: var(--green); font-family: var(--font-mono); font-size: 84px; letter-spacing: -0.04em; text-shadow: 0 0 40px var(--green-tint); mix-blend-mode: normal; }
 .pic .wrapper::before, .pic .wrapper::after { content: ""; display: block; position: absolute; width: 100%; height: 100%; border-radius: var(--border-radius); transition: var(--transition); }
 .pic .wrapper::before { top: 0; left: 0; background-color: var(--navy); mix-blend-mode: screen; }
 .pic .wrapper::after { border: 2px solid var(--green); top: 14px; left: 14px; z-index: -1; }
@@ -218,7 +217,8 @@ section { margin: 0 auto; padding: 100px 0; max-width: 1000px; }
 .project-image a:hover, .project-image a:focus-visible { background: transparent; outline: 0; }
 .project-image a:hover::before, .project-image a:focus-visible::before, .project-image a:hover .img, .project-image a:focus-visible .img { background: transparent; filter: none; }
 .project-image a::before, .project-image .frame::before { content: ""; position: absolute; width: 100%; height: 100%; inset: 0; z-index: 3; transition: var(--transition); background-color: var(--navy); mix-blend-mode: screen; }
-.project-image .img { width: 100%; aspect-ratio: 16 / 10; object-fit: cover; object-position: top; border-radius: var(--border-radius); mix-blend-mode: multiply; filter: grayscale(100%) contrast(1) brightness(90%); }
+.project-image .img { display: block; width: 100%; aspect-ratio: 16 / 10; object-fit: cover; object-position: top; border-radius: var(--border-radius); mix-blend-mode: multiply; filter: grayscale(100%) contrast(1) brightness(90%); }
+.code-screen text { font-family: var(--font-mono); }
 
 /* Other projects (sections/projects.js) */
 .others { display: flex; flex-direction: column; align-items: center; }

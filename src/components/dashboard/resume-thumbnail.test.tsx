@@ -1,5 +1,6 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
+import { TEMPLATE_THEMES } from "@/components/pdf/themes";
 import { createSampleResume } from "@/lib/resume/sample";
 import { emptyResume, newBullet, type Resume } from "@/lib/resume/schema";
 import { ownPage, ResumeThumbnail } from "./resume-thumbnail";
@@ -90,7 +91,8 @@ describe("ResumeThumbnail", () => {
     expect(html).not.toContain(">Education<");
     expect(html).not.toContain(">Projects<");
     // One job with 3 lines, drawn with the format's bullet glyph.
-    expect(html.split(">•<").length - 1).toBe(3);
+    const glyph = TEMPLATE_THEMES.executive.bullet.glyph;
+    expect(html.split(`>${glyph}<`).length - 1).toBe(3);
   });
 
   it("keeps each line about as long as the real one", () => {
@@ -107,10 +109,10 @@ describe("ResumeThumbnail", () => {
 
   it("uses the resume's format, or the one asked for", () => {
     expect(markup(realResume())).toContain('data-format="executive"');
-    expect(markup(realResume())).toContain("var(--font-page-serif)");
+    expect(markup(realResume())).toContain("TeX Gyre Pagella");
     const developer = markup(realResume(), "developer");
     expect(developer).toContain('data-format="developer"');
-    expect(developer).toContain("var(--font-page-mono)");
+    expect(developer).toContain("CMU Serif");
   });
 
   it("draws a placeholder page for a resume with nothing in it yet", () => {

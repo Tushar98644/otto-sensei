@@ -4,6 +4,7 @@ import { useEffect, useSyncExternalStore } from "react";
 import { useMe } from "@/components/account/use-me";
 import { api } from "@/lib/api/client";
 import type { WorkProfile } from "@/lib/eligibility/profile";
+import { NO_CHOICE, type LookingForChoice } from "@/lib/job-feed/types";
 
 // One shared GET /api/profile per signed-in account, for the Account page form and the job card's
 // eligibility check alike. Kept per user id, so signing in as someone else never shows the last
@@ -14,9 +15,17 @@ type State = {
   status: "idle" | "loading" | "ready" | "error";
   profile: WorkProfile | null;
   updatedAt: number | null;
+  // What the Jobs tab's "Looking for" card was changed to; read with the profile.
+  lookingFor: LookingForChoice;
 };
 
-const IDLE: State = { userId: null, status: "idle", profile: null, updatedAt: null };
+const IDLE: State = {
+  userId: null,
+  status: "idle",
+  profile: null,
+  updatedAt: null,
+  lookingFor: NO_CHOICE,
+};
 
 let state: State = IDLE;
 let inflight: { userId: string; promise: Promise<void> } | null = null;
@@ -42,12 +51,19 @@ export function loadWorkProfile(userId: string): Promise<void> {
     status: "loading",
     profile: keep ? state.profile : null,
     updatedAt: keep ? state.updatedAt : null,
+    lookingFor: keep ? state.lookingFor : NO_CHOICE,
   });
   const promise = api
     .workProfile()
     .then((res) => {
       if (state.userId === userId) {
-        setState({ userId, status: "ready", profile: res.profile, updatedAt: res.updatedAt });
+        setState({
+          userId,
+          status: "ready",
+          profile: res.profile,
+          updatedAt: res.updatedAt,
+          lookingFor: res.lookingFor ?? NO_CHOICE,
+        });
       }
     })
     .catch(() => {
@@ -61,8 +77,23 @@ export function loadWorkProfile(userId: string): Promise<void> {
 }
 
 /** After a successful save: every reader sees the new answers at once. */
-export function storeWorkProfile(userId: string, profile: WorkProfile, updatedAt: number | null) {
-  setState({ userId, status: "ready", profile, updatedAt });
+export function storeWorkProfile(
+  userId: string,
+  profile: WorkProfile,
+  updatedAt: number | null,
+  lookingFor: LookingForChoice = state.userId === userId ? state.lookingFor : NO_CHOICE,
+) {
+  setState({ userId, status: "ready", profile, updatedAt, lookingFor });
+}
+
+/** After the "Looking for" card saved: its remote choice is the profile's "Remote only" too. */
+export function storeLookingFor(userId: string, lookingFor: LookingForChoice) {
+  if (state.userId !== userId || !state.profile) return;
+  setState({
+    ...state,
+    profile: { ...state.profile, remoteOnly: lookingFor.remote },
+    lookingFor,
+  });
 }
 
 export type WorkProfileState =
@@ -72,7 +103,13 @@ export type WorkProfileState =
   | { status: "loading" }
   | { status: "error"; retry: () => void }
   // updatedAt null: signed in, but nothing saved yet.
-  | { status: "ready"; userId: string; profile: WorkProfile; updatedAt: number | null };
+  | {
+      status: "ready";
+      userId: string;
+      profile: WorkProfile;
+      updatedAt: number | null;
+      lookingFor: LookingForChoice;
+    };
 
 export function useWorkProfile(): WorkProfileState {
   const { user, loading } = useMe();
@@ -96,5 +133,11 @@ export function useWorkProfile(): WorkProfileState {
   if (snapshot.status === "error" || !snapshot.profile) {
     return { status: "error", retry: () => void loadWorkProfile(userId) };
   }
-  return { status: "ready", userId, profile: snapshot.profile, updatedAt: snapshot.updatedAt };
+  return {
+    status: "ready",
+    userId,
+    profile: snapshot.profile,
+    updatedAt: snapshot.updatedAt,
+    lookingFor: snapshot.lookingFor,
+  };
 }

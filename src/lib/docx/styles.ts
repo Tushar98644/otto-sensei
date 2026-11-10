@@ -1,4 +1,5 @@
-import type { DocxLook, TextLook } from "./look";
+import { PDF_FONT_FAMILIES } from "@/lib/pdf/fonts";
+import { WORD_BULLET_FONT, wordFont, type DocxLook, type TextLook } from "./look";
 import { W_NS, XML_HEAD, escapeXml, paragraphProps, runProps, type ParagraphProps } from "./xml";
 
 // Named styles, so the file reads like one a person made in Word: "Title" for the name, "Heading 1"
@@ -7,12 +8,14 @@ import { W_NS, XML_HEAD, escapeXml, paragraphProps, runProps, type ParagraphProp
 
 export const BULLET_LIST_ID = 1;
 
-function textProps(look: TextLook, base: TextLook) {
+/** A run's properties, written only where they differ from `base`. */
+export function textProps(look: TextLook, base: TextLook) {
   return runProps({
     font: look.font !== base.font ? look.font : undefined,
-    bold: look.bold,
-    italic: look.italic,
+    bold: look.bold || undefined,
+    italic: look.italic || undefined,
     caps: look.caps,
+    smallCaps: look.smallCaps,
     color: look.color !== base.color ? look.color : undefined,
     letterSpacing: look.letterSpacing || undefined,
     size: look.size !== base.size ? look.size : undefined,
@@ -30,6 +33,26 @@ function paragraphStyle(id: string, name: string, paragraph: ParagraphProps, run
     run,
     "</w:style>",
   ].join("");
+}
+
+function headingStyle(look: DocxLook): string {
+  const { heading, body, textWidth, indent } = look;
+  const rule = heading.rule;
+  const props: ParagraphProps = {
+    keepNext: true,
+    keepLines: true,
+    before: heading.before,
+    after: heading.after,
+    align: heading.center ? "center" : undefined,
+    outline: 0,
+  };
+  // A rule after the heading runs to the margin as a tab leader: the closest Word gets to a line
+  // drawn from the end of the word.
+  if (rule?.place === "below") props.ruleBelow = { ...rule, space: 1 };
+  if (rule?.place === "above") props.ruleAbove = { ...rule, space: 4 };
+  if (rule?.place === "after")
+    props.rightTab = { pos: textWidth - indent.right, leader: "underscore" };
+  return paragraphStyle("Heading1", "heading 1", props, textProps(heading, body));
 }
 
 export function stylesXml(look: DocxLook): string {
@@ -52,23 +75,16 @@ export function stylesXml(look: DocxLook): string {
       textProps(look.headline, body),
     ),
     paragraphStyle("Contact", "Contact", { align: center }, textProps(look.contact, body)),
-    paragraphStyle(
-      "Heading1",
-      "heading 1",
-      {
-        keepNext: true,
-        keepLines: true,
-        ruleBelow: look.heading.rule ? { ...look.heading.rule, space: 1 } : undefined,
-        before: look.heading.before,
-        after: look.heading.after,
-        outline: 0,
-      },
-      textProps(look.heading, body),
-    ),
+    headingStyle(look),
     paragraphStyle(
       "EntryHeading",
       "Entry heading",
-      { keepNext: true, keepLines: true, rightTab: look.textWidth },
+      {
+        keepNext: true,
+        keepLines: true,
+        rightTab: look.textWidth - look.indent.right,
+        indent: look.indent.left || look.indent.right ? { ...look.indent } : undefined,
+      },
       "",
     ),
     paragraphStyle(
@@ -78,7 +94,7 @@ export function stylesXml(look: DocxLook): string {
         keepLines: true,
         bulletList: BULLET_LIST_ID,
         before: look.bulletBefore,
-        indent: { left: look.bulletIndent, hanging: look.bulletIndent },
+        indent: { left: look.bulletLeft, hanging: look.bulletHanging, right: look.indent.right },
       },
       "",
     ),
@@ -87,19 +103,49 @@ export function stylesXml(look: DocxLook): string {
   ].join("");
 }
 
+// Word draws a list bullet from a font of its own choosing; ■ and ○ come from Arial, which every
+// Word install has, and a small bullet keeps the PDF's smaller size.
 export function numberingXml(look: DocxLook): string {
-  const indent = Math.round(look.bulletIndent * 20);
+  const left = Math.round(look.bulletLeft * 20);
+  const hanging = Math.round(look.bulletHanging * 20);
   const glyph = escapeXml(look.bulletGlyph);
+  const font = look.bulletGlyph === "•" ? look.body.font : WORD_BULLET_FONT;
+  const { bulletLook, body } = look;
   return [
     XML_HEAD,
     `<w:numbering xmlns:w="${W_NS}">`,
     '<w:abstractNum w:abstractNumId="0"><w:multiLevelType w:val="singleLevel"/>',
     '<w:lvl w:ilvl="0"><w:start w:val="1"/><w:numFmt w:val="bullet"/>',
     `<w:lvlText w:val="${glyph}"/><w:lvlJc w:val="left"/>`,
-    `<w:pPr><w:ind w:left="${indent}" w:hanging="${indent}"/></w:pPr>`,
-    runProps({ font: look.body.font }),
+    `<w:pPr><w:ind w:left="${left}" w:hanging="${hanging}"/></w:pPr>`,
+    runProps({
+      font,
+      color: bulletLook.color !== body.color ? bulletLook.color : undefined,
+      size: bulletLook.size !== body.size ? Math.max(6, bulletLook.size) : undefined,
+    }),
     "</w:lvl></w:abstractNum>",
     `<w:num w:numId="${BULLET_LIST_ID}"><w:abstractNumId w:val="0"/></w:num>`,
     "</w:numbering>",
+  ].join("");
+}
+
+// The file's fonts with their class, so Word on a machine without one (CMU Serif, Charis) swaps
+// in a serif for a serif and a sans for a sans.
+export function fontTableXml(look: DocxLook): string {
+  const names = new Map<string, "roman" | "swiss">();
+  for (const family of look.fonts) {
+    const { wordClass } = PDF_FONT_FAMILIES[family];
+    names.set(wordFont(family), wordClass);
+    names.set(wordFont(family, true), wordClass);
+  }
+  names.set(WORD_BULLET_FONT, "swiss");
+  return [
+    XML_HEAD,
+    `<w:fonts xmlns:w="${W_NS}">`,
+    ...[...names].map(
+      ([name, kind]) =>
+        `<w:font w:name="${escapeXml(name)}"><w:family w:val="${kind}"/><w:pitch w:val="variable"/></w:font>`,
+    ),
+    "</w:fonts>",
   ].join("");
 }

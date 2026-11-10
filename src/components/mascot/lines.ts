@@ -10,7 +10,6 @@ import {
   RESUME_LIMITS,
   type UsagePeriod,
 } from "@/config/plans";
-import { countClaim } from "@/lib/job-feed/counts";
 import { resetSentence, thisPeriod } from "@/lib/usage-copy";
 import { pluralize } from "@/lib/utils";
 
@@ -151,14 +150,6 @@ function jobsFound(matching: number, shown: number, strong: number, newToday: nu
   return parts.length > 0 ? `${lead} ${parts.join(", ")}.` : lead;
 }
 
-// Under Free's closest few matches: how many more Pro lists, rounded down ("27,000+ more").
-function jobsLocked(more: number) {
-  const n = whole(more);
-  if (n === 0) return "Filters and saved jobs come with Pro.";
-  const shown = countClaim(n) ?? count.format(n);
-  return `${shown} more ${n === 1 ? "match" : "matches"}. Filters, saved jobs and every match come with Pro.`;
-}
-
 export const OTTO = {
   landing: {
     hello: `Hi, I'm ${BRAND.mascotName}. I read resumes the way hiring software does.`,
@@ -281,7 +272,6 @@ export const OTTO = {
   },
   jobs: {
     found: jobsFound,
-    locked: jobsLocked,
     filtered: "Nothing matches these filters. Try loosening one of them.",
     noResume: "Add a resume and I'll find open jobs that fit it.",
     noJobs: "No jobs here yet. The boards are read once a day.",

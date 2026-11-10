@@ -3,7 +3,7 @@ import { CONTENT_LINES, missingList } from "./lines";
 
 const words = (line: string) => line.trim().split(/\s+/).length;
 const item = (label: string, done = false, hidden = false) => ({
-  field: "photo" as const,
+  field: "pitch" as const,
   label,
   done,
   note: "",
@@ -13,7 +13,7 @@ const item = (label: string, done = false, hidden = false) => ({
 describe("Otto's lines above the content cards", () => {
   it("keep to 18 words", () => {
     const longest = CONTENT_LINES.missing(
-      missingList([item("Photo"), item("Screenshots"), item("Talks"), item("Writing")]),
+      missingList([item("Pitch"), item("Talks"), item("Writing"), item("Interests")]),
     );
     for (const line of [
       CONTENT_LINES.loading,
@@ -26,15 +26,17 @@ describe("Otto's lines above the content cards", () => {
   });
 
   it("names at most three missing things", () => {
-    expect(missingList([item("Photo"), item("About", true)])).toBe("photo");
-    expect(missingList([item("Photo"), item("Screenshots")])).toBe("photo and screenshots");
-    expect(missingList([item("Photo"), item("Screenshots"), item("Talks"), item("Writing")])).toBe(
-      "photo, screenshots and a few more",
+    expect(missingList([item("Pitch"), item("About", true)])).toBe("pitch");
+    expect(missingList([item("Pitch"), item("Project write-ups")])).toBe(
+      "pitch and project write-ups",
     );
-    expect(missingList([item("Photo", true)])).toBe("");
+    expect(missingList([item("Pitch"), item("Talks"), item("Writing"), item("Interests")])).toBe(
+      "pitch, talks and a few more",
+    );
+    expect(missingList([item("Pitch", true)])).toBe("");
   });
 
   it("never asks for something the owner hid on the page", () => {
-    expect(missingList([item("Photo", false, true), item("Talks")])).toBe("talks");
+    expect(missingList([item("Pitch", false, true), item("Talks")])).toBe("talks");
   });
 });

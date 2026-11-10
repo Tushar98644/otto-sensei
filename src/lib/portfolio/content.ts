@@ -1,9 +1,11 @@
 import { z } from "zod";
-import { safeImageUrl } from "./images";
 
 // Pure and client-safe. The portfolio CONTENT CONTRACT: everything a rich template can draw beyond
-// the resume itself (photo, pitch, "now", stats, project media, logos, talks, writing, hackathons,
-// testimonials, interests, a bookshelf, personal photos, GitHub numbers).
+// the resume itself (pitch, "now", stats, project write-ups, talks, writing, hackathons,
+// testimonials, interests, a bookshelf, GitHub numbers).
+//
+// Text only (owner decision 2026-11-10): no uploads, no stored media and no pictures linked from
+// other sites. Templates draw initials, monograms and patterns made from the text instead.
 //
 // Two halves:
 //   1. PortfolioContent (stored, versioned, PortfolioContentSchema): only what the owner changed.
@@ -50,8 +52,6 @@ export const CONTENT_LIMITS = {
   tags: 12,
   tag: 40,
   roles: 6,
-  // The cover plus three more, for a details page or a carousel.
-  projectImages: 4,
   entries: 40,
   jobHighlight: 80,
   jobSummary: 300,
@@ -65,9 +65,6 @@ export const CONTENT_LIMITS = {
   quote: 600,
   interests: 12,
   shelf: 24,
-  photos: 6,
-  alt: 200,
-  caption: 160,
   place: 120,
   date: 40,
   minutes: 240,
@@ -89,40 +86,6 @@ const linkUrl = z
   .max(L.url)
   .refine((value) => value === "" || webHref(value) !== null, { message: "Not a web address." });
 const autoLink = linkUrl.nullable().default(null);
-
-// ---------------------------------------------------------------------------------------------
-// Images
-// ---------------------------------------------------------------------------------------------
-
-// Uploads live at "<user id>/<media id>.webp" in the media store (./media.ts).
-export const MEDIA_KEY = /^[0-9a-f-]{36}\/[0-9a-f-]{36}\.webp$/;
-
-export const UploadedImageSchema = z.object({
-  kind: z.literal("upload"),
-  id: z.uuid(),
-  key: z.string().regex(MEDIA_KEY),
-  width: z.number().int().min(1).max(10_000),
-  height: z.number().int().min(1).max(10_000),
-  alt: text(L.alt).default(""),
-});
-
-// A picture the owner links to, or an account avatar (Google, GitHub) taken at sign-in.
-export const LinkedImageSchema = z.object({
-  kind: z.literal("link"),
-  url: z
-    .string()
-    .trim()
-    .max(2_048)
-    .refine((value) => safeImageUrl(value) !== null, { message: "Not an https picture address." }),
-  alt: text(L.alt).default(""),
-});
-
-export const ImageRefSchema = z.discriminatedUnion("kind", [
-  UploadedImageSchema,
-  LinkedImageSchema,
-]);
-export type ImageRef = z.infer<typeof ImageRefSchema>;
-export type UploadedImage = z.infer<typeof UploadedImageSchema>;
 
 // ---------------------------------------------------------------------------------------------
 // Stored content
@@ -159,8 +122,9 @@ export const SocialSchema = z.object({
     .refine((value) => socialHref(value) !== null, { message: "Not a link." }),
 });
 
-// How a template frames a project's pictures. "auto" lets the template choose.
-export const DEVICE_FRAMES = ["auto", "browser", "laptop", "phone", "none"] as const;
+// The device a design draws a project's screen on (Reel's laptop or pair of phones). "auto" lets
+// the design choose.
+export const DEVICE_FRAMES = ["auto", "laptop", "phone"] as const;
 export type DeviceFrame = (typeof DEVICE_FRAMES)[number];
 
 export const ProjectEntrySchema = z.object({
@@ -184,12 +148,8 @@ export const ProjectEntrySchema = z.object({
   source: autoLink,
   featured: z.boolean().nullable().default(null),
   hidden: z.boolean().default(false),
-  images: z.array(ImageRefSchema).max(L.projectImages).default([]),
-  // A YouTube, Vimeo or Loom link, or an https .mp4/.webm file.
-  video: linkUrl.default(""),
-  device: z.enum(DEVICE_FRAMES).default("auto"),
-  // Its own icon; without one the template uses the website's favicon, then a monogram.
-  logo: ImageRefSchema.nullable().default(null),
+  // Anything else (the old "browser" and "none" frames included) reads as "auto".
+  device: z.enum(DEVICE_FRAMES).catch("auto"),
 });
 export type ProjectEntry = z.infer<typeof ProjectEntrySchema>;
 
@@ -200,16 +160,14 @@ export const JobExtraSchema = z.object({
   summary: auto(L.jobSummary),
   // "Fintech · invoicing and payouts".
   type: auto(L.jobType),
-  // The company's site: linked from the name and the source of its favicon.
+  // The company's site, linked from its name.
   website: linkUrl.default(""),
-  logo: ImageRefSchema.nullable().default(null),
   tags: z.array(text(L.tag)).max(L.tags).nullable().default(null),
 });
 export type JobExtra = z.infer<typeof JobExtraSchema>;
 
 export const SchoolExtraSchema = z.object({
   website: linkUrl.default(""),
-  logo: ImageRefSchema.nullable().default(null),
 });
 export type SchoolExtra = z.infer<typeof SchoolExtraSchema>;
 
@@ -234,7 +192,6 @@ export const MilestoneSchema = z.object({
   // "Winner", "1st of 120".
   result: text(L.tag).default(""),
   url: linkUrl.default(""),
-  logo: ImageRefSchema.nullable().default(null),
 });
 
 export const TalkSchema = z.object({
@@ -264,7 +221,6 @@ export const TestimonialSchema = z.object({
   name: text(L.label).min(1),
   role: text(L.title).default(""),
   url: linkUrl.default(""),
-  photo: ImageRefSchema.nullable().default(null),
 });
 
 export const InterestSchema = z.object({
@@ -287,12 +243,6 @@ export const ShelfItemSchema = z.object({
   url: linkUrl.default(""),
 });
 
-export const PhotoSchema = z.object({
-  id: entryId,
-  image: ImageRefSchema,
-  caption: text(L.caption).default(""),
-});
-
 export const NowSchema = z.object({
   id: entryId,
   // "Building", "Reading", "Learning".
@@ -302,7 +252,6 @@ export const NowSchema = z.object({
 
 // Sections a template may draw that the owner can switch off without deleting what's in them.
 export const CONTENT_SECTIONS = [
-  "photo",
   "now",
   "stats",
   "milestones",
@@ -311,19 +260,16 @@ export const CONTENT_SECTIONS = [
   "testimonials",
   "interests",
   "shelf",
-  "photos",
   "github",
   "location",
 ] as const;
 export type ContentSection = (typeof CONTENT_SECTIONS)[number];
 
+const isContentSection = (key: string): key is ContentSection =>
+  (CONTENT_SECTIONS as readonly string[]).includes(key);
+
 export const PortfolioContentSchema = z.object({
   v: z.literal(PORTFOLIO_CONTENT_VERSION).default(PORTFOLIO_CONTENT_VERSION),
-  // null: the Google (or GitHub) avatar; "none": no photo, the template draws initials.
-  photo: z
-    .union([ImageRefSchema, z.literal("none")])
-    .nullable()
-    .default(null),
   pitch: auto(L.pitch),
   intro: auto(L.intro),
   // Hamish-style rotating words ("Developer", "Designer").
@@ -366,7 +312,6 @@ export const PortfolioContentSchema = z.object({
   testimonials: z.array(TestimonialSchema).max(L.testimonials).default([]),
   interests: z.array(InterestSchema).max(L.interests).nullable().default(null),
   shelf: z.array(ShelfItemSchema).max(L.shelf).default([]),
-  photos: z.array(PhotoSchema).max(L.photos).default([]),
   github: z
     .object({
       // null: the username on the resume (a GitHub link or imported repos).
@@ -378,7 +323,12 @@ export const PortfolioContentSchema = z.object({
         .default(null),
     })
     .default({ username: null }),
-  hidden: z.array(z.enum(CONTENT_SECTIONS)).max(CONTENT_SECTIONS.length).default([]),
+  // Names that are no longer sections (the old "photo" and "photos") are dropped, not refused.
+  hidden: z
+    .array(z.string().max(40))
+    .max(CONTENT_SECTIONS.length * 2)
+    .transform((keys) => [...new Set(keys.filter(isContentSection))])
+    .default([]),
 });
 export type PortfolioContent = z.output<typeof PortfolioContentSchema>;
 export type PortfolioContentInput = z.input<typeof PortfolioContentSchema>;
@@ -413,7 +363,6 @@ export function saveableContent(content: PortfolioContent): PortfolioContent {
       ...entry,
       website: okAutoLink(entry.website),
       source: okAutoLink(entry.source),
-      video: okLink(entry.video),
       details: entry.details.filter(filled),
     })),
     jobs: Object.fromEntries(
@@ -453,25 +402,6 @@ export function saveableContent(content: PortfolioContent): PortfolioContent {
       .filter((item) => filled(item.title))
       .map((item) => ({ ...item, url: okLink(item.url) })),
   };
-}
-
-/** Every upload a content document points at, for ownership checks and clean-up. */
-export function uploadsIn(content: PortfolioContent): UploadedImage[] {
-  const found: UploadedImage[] = [];
-  const take = (ref: ImageRef | "none" | null | undefined) => {
-    if (ref && ref !== "none" && ref.kind === "upload") found.push(ref);
-  };
-  take(content.photo);
-  for (const project of content.projects) {
-    project.images.forEach(take);
-    take(project.logo);
-  }
-  for (const job of Object.values(content.jobs)) take(job.logo);
-  for (const school of Object.values(content.schools)) take(school.logo);
-  for (const milestone of content.milestones ?? []) take(milestone.logo);
-  for (const testimonial of content.testimonials) take(testimonial.photo);
-  for (const photo of content.photos) take(photo.image);
-  return found;
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -521,8 +451,6 @@ export type GitHubRepoSummary = {
 export type GitHubStats = {
   username: string;
   name: string;
-  // avatars.githubusercontent.com; the photo falls back to it.
-  avatarUrl: string | null;
   bio: string;
   followers: number;
   publicRepos: number;
@@ -549,27 +477,12 @@ export type GitHubStats = {
 // Resolved view: what templates draw
 // ---------------------------------------------------------------------------------------------
 
-export type ContentImage = {
-  src: string;
-  alt: string;
-  width: number | null;
-  height: number | null;
-};
-
-// The uploaded logo or the site's icon (fetched once by the server and stored like an upload),
-// else src is null and the template draws the monogram ("LE" for Ledgerly).
-export type ContentLogo = { src: string | null; monogram: string };
-
 export type ContentLink = { href: string; text: string };
 
 export type ContentSocial = { kind: SocialKind; label: string; handle: string; href: string };
 
 // One paragraph split around the owner's highlighted phrases.
 export type TextPart = { text: string; mark: boolean };
-
-export type ContentVideo =
-  | { kind: "embed"; src: string; provider: "youtube" | "vimeo" | "loom" }
-  | { kind: "file"; src: string; type: "video/mp4" | "video/webm" };
 
 export type ContentProject = {
   id: string;
@@ -591,10 +504,9 @@ export type ContentProject = {
   // Pushed to on GitHub in the last 90 days.
   active: boolean;
   stars: number | null;
-  images: ContentImage[];
-  video: ContentVideo | null;
   device: DeviceFrame;
-  logo: ContentLogo;
+  // "TA" for Tally: what a design draws where an icon would go.
+  monogram: string;
 };
 
 export type ContentRole = {
@@ -611,7 +523,8 @@ export type ContentRole = {
   summary: string;
   type: string;
   website: ContentLink | null;
-  logo: ContentLogo;
+  // "LE" for Ledgerly.
+  monogram: string;
   tags: string[];
 };
 
@@ -624,7 +537,7 @@ export type ContentSchool = {
   end: string;
   lines: string[];
   website: ContentLink | null;
-  logo: ContentLogo;
+  monogram: string;
 };
 
 export type ContentSkillGroup = {
@@ -642,7 +555,6 @@ export type ContentMilestone = {
   detail: string;
   result: string;
   href: string | null;
-  logo: ContentImage | null;
 };
 
 export type ContentTalk = {
@@ -672,7 +584,6 @@ export type ContentTestimonial = {
   role: string;
   href: string | null;
   initials: string;
-  photo: ContentImage | null;
 };
 
 export type ContentInterest = { id: string; title: string; stat: string; line: string };
@@ -683,9 +594,8 @@ export type ContentShelfItem = {
   by: string;
   href: string | null;
 };
-export type ContentPhoto = ContentImage & { id: string; caption: string };
 
-export type ContentGitHub = Omit<GitHubStats, "fetchedAt" | "avatarUrl"> & { href: string };
+export type ContentGitHub = Omit<GitHubStats, "fetchedAt"> & { href: string };
 
 export type PortfolioContentView = {
   name: string;
@@ -695,7 +605,6 @@ export type PortfolioContentView = {
   pitch: string;
   intro: string;
   disciplines: string[];
-  photo: ContentImage | null;
   availability: { open: boolean; text: string; short: string } | null;
   // For a clock or map tile. coords only for places the app knows (./places.ts) or the owner set.
   location: {
@@ -723,7 +632,6 @@ export type PortfolioContentView = {
   testimonials: ContentTestimonial[];
   interests: ContentInterest[];
   shelf: ContentShelfItem[];
-  photos: ContentPhoto[];
   github: ContentGitHub | null;
   updatedAt: number;
 };
@@ -739,18 +647,6 @@ export type ContentResponse = {
   ok: true;
   content: PortfolioContent;
   github: GitHubStats | null;
-  media: MediaUsage;
-};
-
-// What the account has stored, for "12 of 60 pictures" lines.
-export type MediaUsage = { files: number; bytes: number; maxFiles: number; maxBytes: number };
-
-// POST /api/portfolio/media (multipart: file, kind) answers with the stored picture.
-export type MediaUploadResponse = {
-  ok: true;
-  image: UploadedImage;
-  src: string;
-  media: MediaUsage;
 };
 
 // POST /api/portfolio/github: fetches the numbers again. `github` is null without a username.

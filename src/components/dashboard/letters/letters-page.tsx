@@ -21,7 +21,9 @@ import { pluralize } from "@/lib/utils";
 import type { WritingKind } from "@/lib/writings/schema";
 import { NewResumeMenu } from "../new-resume-menu";
 import { useStudioActions } from "../use-studio-actions";
+import { useApplications } from "../applications/use-applications";
 import {
+  entryApplication,
   filterEntries,
   jobLine,
   kindCounts,
@@ -50,6 +52,7 @@ export function LettersPage() {
   const hydrated = useStudioHydrated();
   const resumes = useResumeList();
   const writings = useWritings();
+  const applications = useApplications();
   const now = useNow();
   const actions = useStudioActions();
   const pdf = useLetterPdf(resumes);
@@ -261,6 +264,7 @@ export function LettersPage() {
                     key={entry.key}
                     entry={entry}
                     source={sourceTitle(entry, resumes)}
+                    application={entryApplication(entry, applications.items, resumes)}
                     now={now}
                     canOpenInStudio={studioTarget(entry, resumes) !== null}
                     onOpen={() => view(entry.key)}

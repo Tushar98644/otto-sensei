@@ -7,6 +7,8 @@ import {
 } from "@/config/plans";
 import {
   perMonth,
+  PIZZA_MAX_USD,
+  pizzaLine,
   planPriceLabel,
   priceSentence,
   proComparison,
@@ -32,7 +34,9 @@ describe("plan prices", () => {
 
   it("states the yearly saving it really gives, rounded down", () => {
     for (const plan of PAID_PLANS) {
-      const expected = Math.floor((1 - PRICES_USD[plan].year / (PRICES_USD[plan].month * 12)) * 100);
+      const expected = Math.floor(
+        (1 - PRICES_USD[plan].year / (PRICES_USD[plan].month * 12)) * 100,
+      );
       expect(yearlySavingsPercent(plan)).toBe(Math.max(0, expected));
       if (expected > 0) expect(priceSentence(plan, "year")).toContain(`${expected}% less`);
       expect(priceSentence(plan, "week")).toMatch(/^\$\d+(\.\d{2})? a week/);
@@ -62,6 +66,11 @@ describe("reference prices and savings", () => {
     // $120 against 12 x $15 = $180; $232 against 12 x $29 = $348.
     expect(yearlySavingsPercent("pro")).toBe(33);
     expect(yearlySavingsPercent("max")).toBe(33);
+  });
+
+  it("says Pro costs less than a pizza only while it does", () => {
+    expect(pizzaLine()).toBe("Less than a pizza a month.");
+    expect(PRICES_USD.pro.month).toBeLessThanOrEqual(PIZZA_MAX_USD);
   });
 
   it("compares Pro with Rezi Pro only while it's about half the price", () => {

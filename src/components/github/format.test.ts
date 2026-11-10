@@ -1,7 +1,16 @@
 import { describe, expect, it } from "vitest";
 import type { GitHubPull, GitHubRepo } from "@/lib/github/types";
 import { emptyResume, type Resume } from "@/lib/resume/schema";
-import { contactOf, GITHUB_OTTO, matchesQuery, pullMeta, repoMeta, shortLink, usernameFromResume } from "./format";
+import {
+  contactOf,
+  GITHUB_OTTO,
+  matchesQuery,
+  offersGitHubImport,
+  pullMeta,
+  repoMeta,
+  shortLink,
+  usernameFromResume,
+} from "./format";
 
 function resumeWith(basics: Partial<Resume["basics"]>): Resume {
   const resume = emptyResume();
@@ -59,5 +68,16 @@ describe("GitHub dialog helpers", () => {
   it("keeps Otto's lines to 18 words", () => {
     const lines = [GITHUB_OTTO.pick, GITHUB_OTTO.nothing("a-really-long-username"), GITHUB_OTTO.reviewAI, GITHUB_OTTO.reviewPlain];
     for (const line of lines) expect(line.split(/\s+/).length).toBeLessThanOrEqual(18);
+  });
+
+  it("offers the import up top only to a resume with a GitHub link and under two projects", () => {
+    const linked = resumeWith({
+      links: [{ id: "g", label: "GitHub", url: "https://github.com/octocat" }],
+    });
+    const project = (id: string) => ({ id, name: id, link: "", bullets: [] });
+    expect(offersGitHubImport(linked)).toBe(true);
+    expect(offersGitHubImport({ ...linked, projects: [project("a")] })).toBe(true);
+    expect(offersGitHubImport({ ...linked, projects: [project("a"), project("b")] })).toBe(false);
+    expect(offersGitHubImport(resumeWith({ links: [] }))).toBe(false);
   });
 });

@@ -1,14 +1,15 @@
 import type { CSSProperties } from "react";
 import type { ContentProject } from "@/lib/portfolio/content";
-import { DesignCredit, Marked, nameOf, OutLink, Picture, TemplateStyle } from "../parts";
+import { DesignCredit, Marked, nameOf, OutLink, seeded, seedOf, TemplateStyle } from "../parts";
 import type { PortfolioTemplateProps } from "../types";
 import { FOLIO_CSS } from "./styles";
 
 // Folio: a rebuild of Samuel Kraft's site (github.com/samuelkraft/samuelkraft-next,
 // samuelkraft.com, MIT; ./LICENSE.txt) for anyone's data. One quiet 640px column of medium
-// Inter: a tiny avatar, a few lines of intro, links, then big rounded project tiles that light up
-// on hover, the places worked (the repo's Workplaces list) and a list of posts. Everything rises
-// in 90ms apart, and hovering a list dims its other rows.
+// Inter: a tiny initials avatar, a few lines of intro, links, then big rounded project tiles that
+// light up on hover (each an app icon drawn from the project's name, as his tiles show for apps
+// without a screenshot), the places worked (the repo's Workplaces list) and a list of posts.
+// Everything rises in 90ms apart, and hovering a list dims its other rows.
 
 const BLUR_LAYERS = [
   { blur: 0.5, solid: 80, fade: 100 },
@@ -20,60 +21,21 @@ const BLUR_LAYERS = [
 
 const step = (index: number) => ({ "--index": index }) as CSSProperties;
 
-// The original's tiles: a screenshot at its own shape on the dark ground, a tall (phone) one
-// standing in a 283px tile, and without a picture the app's icon in the middle of the tile.
+// The original's tile for an app: its icon in the middle of the dark tile. Here the icon is the
+// project's monogram on a two-tone gradient, lit by a glow in the same colours, all from the name.
 function Graphic({ project }: { project: ContentProject }) {
-  const video = project.video?.kind === "file" ? project.video : null;
-  const image = project.images[0];
-  if (video) {
-    return (
-      <div className="shot" style={{ aspectRatio: "1024 / 538" }}>
-        <video
-          src={video.src}
-          autoPlay
-          loop
-          muted
-          playsInline
-          preload="metadata"
-          aria-label={`${project.name} video`}
-        >
-          <source src={video.src} type={video.type} />
-        </video>
-      </div>
-    );
-  }
-  if (image) {
-    const width = image.width ?? 1024;
-    const height = image.height ?? 538;
-    if (height > width) {
-      return (
-        <div className="tile">
-          <Picture image={image} className="tall" />
-        </div>
-      );
-    }
-    return (
-      <div className="shot" style={{ aspectRatio: `${width} / ${height}` }}>
-        <Picture image={image} />
-      </div>
-    );
-  }
+  const random = seeded(seedOf(project.name));
+  const hue = Math.floor(random() * 360);
+  const style = {
+    "--hue": hue,
+    "--hue-2": (hue + 25 + Math.floor(random() * 40)) % 360,
+    "--glow-x": `${Math.round(30 + random() * 40)}%`,
+  } as CSSProperties;
   return (
-    <div className="tile">
-      {project.logo.src ? (
-        // eslint-disable-next-line @next/next/no-img-element -- uploaded or fetched icon, any host
-        <img
-          src={project.logo.src}
-          alt=""
-          className="app-icon"
-          loading="lazy"
-          referrerPolicy="no-referrer"
-        />
-      ) : (
-        <div className="app-icon" aria-hidden>
-          {project.logo.monogram}
-        </div>
-      )}
+    <div className="tile" style={style}>
+      <div className="app-icon" aria-hidden>
+        {project.monogram}
+      </div>
     </div>
   );
 }
@@ -94,13 +56,9 @@ export function FolioTemplate({ view, content, footer }: PortfolioTemplateProps)
 
   const intro = (
     <div className="intro">
-      {content.photo ? (
-        <Picture image={content.photo} className="avatar in" eager />
-      ) : (
-        <div className="avatar in" aria-hidden>
-          {content.initials}
-        </div>
-      )}
+      <div className="avatar in" aria-hidden>
+        {content.initials}
+      </div>
       <h1 className="in" style={step(1)}>
         {name}
       </h1>
@@ -204,20 +162,9 @@ export function FolioTemplate({ view, content, footer }: PortfolioTemplateProps)
                   const inner = (
                     <>
                       <div className="place-main">
-                        {job.logo.src ? (
-                          // eslint-disable-next-line @next/next/no-img-element -- uploaded or fetched logo, any host
-                          <img
-                            src={job.logo.src}
-                            alt=""
-                            className="logo"
-                            loading="lazy"
-                            referrerPolicy="no-referrer"
-                          />
-                        ) : (
-                          <div className="logo" aria-hidden>
-                            {job.logo.monogram}
-                          </div>
-                        )}
+                        <div className="logo" aria-hidden>
+                          {job.monogram}
+                        </div>
                         <div className="place-text">
                           <p className={job.website ? "external-arrow" : undefined}>
                             {job.company || job.title}

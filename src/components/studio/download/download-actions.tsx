@@ -14,6 +14,7 @@ import { PageSizeToggle } from "./page-size-toggle";
 import { PdfPreviewLink } from "./pdf-preview";
 import { PlainTextCopy } from "./plain-text-copy";
 import { SendCheckCard } from "./send-check";
+import { ShareLinkButton } from "./share-link-button";
 import type { ExportCheck } from "./use-export-check";
 import { setPageSize } from "./use-page-size";
 import type { ResumePdf } from "./use-resume-pdf";
@@ -29,7 +30,7 @@ export type DownloadActionsProps = {
   check: ExportCheck;
   pageSize: PdfPageSize;
   fileName: string;
-  // Characters the PDF font can't show, already swapped or left out.
+  // Characters the PDF fonts can't show, already swapped or left out.
   changedCharacters: string[];
   // Phones get a "Preview" link here instead of the inline preview.
   showPreviewLink: boolean;
@@ -63,7 +64,7 @@ export function DownloadActions({
         <PageSizeToggle value={pageSize} onChange={setPageSize} />
         {changedCharacters.length ? (
           <Alert variant="warn" title="A few characters look different">
-            The PDF font can&apos;t show {quoteList(changedCharacters.slice(0, 8))}
+            The PDF fonts can&apos;t show {quoteList(changedCharacters.slice(0, 8))}
             {changedCharacters.length > 8 ? " and a few more" : ""}, so they were swapped for close
             matches or left out. Check that your name and links still look right.
           </Alert>
@@ -98,6 +99,7 @@ export function DownloadActions({
             </Button>
           )}
           <WordDownload resume={resume} pageSize={pageSize} fileName={fileName} />
+          <ShareLinkButton resume={resume} />
           {showPreviewLink && pdf.file ? (
             <PdfPreviewLink url={pdf.file.url} className="w-full" />
           ) : null}

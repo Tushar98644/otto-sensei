@@ -4,7 +4,6 @@ import { BRAND } from "@/config/brand";
 import type { PdfLink } from "@/lib/pdf/links";
 import {
   buildPdfModel,
-  type PdfCompany,
   type PdfEntry,
   type PdfExtraSection,
   type PdfModel,
@@ -13,11 +12,26 @@ import {
 import type { PdfPageSize } from "@/lib/pdf/page-size";
 import { keepWordsWhole } from "@/lib/pdf/text";
 import type { Resume } from "@/lib/resume/schema";
-import type { PdfStyle, TemplateTheme } from "./theme";
+import { withFontFallbacks } from "./fonts";
+import {
+  bulletMark,
+  contactLines,
+  entryRows,
+  headingRuns,
+  headlineLine,
+  modelText,
+  nameRuns,
+  SECTION_KINDS,
+  themeText,
+  type PlannedRow,
+  type Run,
+} from "./layout";
+import type { EntryKind, PdfStyle, TemplateTheme } from "./theme";
 
 // The one resume layout every format shares: one column, clear headings in the user's section
 // order (extra sections after them), and no tables, images or icons. Reading order on the page is
-// the order a parser reads it in. Formats and look settings change only the theme.
+// the order a parser reads it in. Formats and look settings change only the theme; ./layout.ts
+// plans each line's pieces.
 
 export type ResumeDocumentProps = {
   resume: Resume;
@@ -26,8 +40,8 @@ export type ResumeDocumentProps = {
 };
 
 // react-pdf treats the seam between two text pieces of one line (even two strings side by side
-// in JSX) as a place it may break with a hyphen ("Engineer-"). So every seam below sits on a
-// regular space, and a piece with punctuation is one string: `${title},` and `${label}: `.
+// in JSX) as a place it may break with a hyphen ("Engineer-"). So every seam sits on a regular
+// space or right after punctuation, and a piece with punctuation is one string: `${label}: `.
 
 // Every Text goes through here so no word is ever hyphenated across lines.
 export function Line({ style, children }: { style?: PdfStyle; children: ReactNode }) {
@@ -38,26 +52,62 @@ export function Line({ style, children }: { style?: PdfStyle; children: ReactNod
   );
 }
 
-// Inline only: rendered inside a Line. Web addresses can look different from the email address.
-function LinkText({ link, theme }: { link: PdfLink; theme: TemplateTheme }) {
+function linkStyle(link: PdfLink, theme: TemplateTheme): PdfStyle {
   const web = link.href !== null && !link.href.startsWith("mailto:");
-  const style = web ? theme.styles.webLink : theme.styles.link;
-  if (!link.href) return <>{link.text}</>;
+  return web ? theme.styles.webLink : theme.styles.link;
+}
+
+// Inline only: rendered inside a Line.
+function LinkText({
+  link,
+  theme,
+  style,
+}: {
+  link: PdfLink;
+  theme: TemplateTheme;
+  style?: PdfStyle;
+}) {
+  if (!link.href) return style ? <Text style={style}>{link.text}</Text> : <>{link.text}</>;
   return (
-    <Link src={link.href} style={style}>
+    <Link src={link.href} style={{ ...style, ...linkStyle(link, theme) }}>
       {link.text}
     </Link>
+  );
+}
+
+function Runs({ runs, theme }: { runs: readonly Run[]; theme: TemplateTheme }) {
+  return runs.map((run, index) =>
+    run.link ? (
+      <LinkText
+        key={index}
+        link={{ ...run.link, text: run.text }}
+        theme={theme}
+        style={run.style}
+      />
+    ) : run.style ? (
+      <Text key={index} style={run.style}>
+        {run.text}
+      </Text>
+    ) : (
+      <Fragment key={index}>{run.text}</Fragment>
+    ),
   );
 }
 
 // Shared with the cover letter, so both pages carry the same name block.
 export function Header({ model, theme }: { model: PdfModel; theme: TemplateTheme }) {
   const { styles } = theme;
+  const name = nameRuns(model, theme);
+  const headline = headlineLine(model, theme);
   return (
     <View style={styles.header}>
-      {model.name ? <Line style={styles.name}>{model.name}</Line> : null}
-      {model.headline ? <Line style={styles.headline}>{model.headline}</Line> : null}
-      {model.contact.map((items, line) => (
+      {name.length > 0 ? (
+        <Line style={styles.name}>
+          <Runs runs={name} theme={theme} />
+        </Line>
+      ) : null}
+      {headline ? <Line style={styles.headline}>{headline}</Line> : null}
+      {contactLines(model, theme).map((items, line) => (
         <Line key={line} style={line === 0 ? styles.contact : styles.contactNext}>
           {items.map((item, index) => (
             <Fragment key={`${index}-${item.text}`}>
@@ -72,111 +122,74 @@ export function Header({ model, theme }: { model: PdfModel; theme: TemplateTheme
   );
 }
 
-function Detail({
-  detail,
-  theme,
-  lead,
-}: {
-  detail: PdfLink | null;
-  theme: TemplateTheme;
-  lead: boolean;
-}) {
-  if (!detail) return null;
+function Row({ row, theme }: { row: PlannedRow; theme: TemplateTheme }) {
   return (
-    <Text style={theme.styles.entryDetail}>
-      {lead ? " · " : null}
-      <LinkText link={detail} theme={theme} />
-    </Text>
-  );
-}
-
-function InlineEntryHeader({ entry, theme }: { entry: PdfEntry; theme: TemplateTheme }) {
-  const { styles } = theme;
-  return (
-    <View style={styles.entryHeader}>
-      <Line style={styles.entryLead}>
-        {entry.title ? (
-          <Text style={styles.entryTitle}>{entry.org ? `${entry.title},` : entry.title}</Text>
-        ) : null}
-        {entry.org ? <Text style={styles.entryOrg}>{` ${entry.org}`}</Text> : null}
-        <Detail detail={entry.detail} theme={theme} lead={Boolean(entry.title || entry.org)} />
+    <View style={row.box}>
+      <Line style={row.text}>
+        <Runs runs={row.lead} theme={theme} />
       </Line>
-      {entry.dates ? <Line style={styles.dates}>{entry.dates}</Line> : null}
-    </View>
-  );
-}
-
-function StackedEntryHeader({ entry, theme }: { entry: PdfEntry; theme: TemplateTheme }) {
-  const { styles } = theme;
-  // A project has no company, so its link moves up beside the name instead of sitting alone.
-  const subline = Boolean(entry.org);
-  return (
-    <View>
-      <View style={styles.entryHeader}>
-        <Line style={styles.entryLead}>
-          {entry.title ? <Text style={styles.entryTitle}>{entry.title}</Text> : null}
-          {subline ? null : (
-            <Detail detail={entry.detail} theme={theme} lead={Boolean(entry.title)} />
-          )}
-        </Line>
-        {entry.dates ? <Line style={styles.dates}>{entry.dates}</Line> : null}
-      </View>
-      {subline ? (
-        <Line style={styles.entrySub}>
-          <Text style={styles.entryOrg}>{entry.org}</Text>
-          <Detail detail={entry.detail} theme={theme} lead />
+      {row.side ? (
+        <Line style={row.side.style}>
+          {row.side.link ? <LinkText link={row.side.link} theme={theme} /> : row.side.text}
         </Line>
       ) : null}
     </View>
   );
 }
 
-// The company once, in the entry title's weight, with the location when every role shares it.
-function CompanyHeader({ company, theme }: { company: PdfCompany; theme: TemplateTheme }) {
-  const { styles } = theme;
-  return (
-    <View style={styles.entryHeader}>
-      <Line style={styles.entryLead}>
-        <Text style={styles.entryTitle}>{company.name}</Text>
-        <Detail detail={company.detail} theme={theme} lead />
-      </Line>
-    </View>
-  );
+const TEXT_PROPS = [
+  "color",
+  "fontFamily",
+  "fontSize",
+  "fontStyle",
+  "fontWeight",
+  "lineHeight",
+  "textAlign",
+] as const;
+
+// react-pdf doesn't pass a view's text styles on to the text inside it, so the glyph gets the
+// box's font, size and color itself.
+export function glyphStyle(box: PdfStyle): PdfStyle {
+  const style: Record<string, unknown> = {};
+  for (const key of TEXT_PROPS) if (box[key] !== undefined) style[key] = box[key];
+  return style as PdfStyle;
 }
 
-// Same shape in every layout: the role, its own location when the company header has none, and
-// its dates on the right.
-function RoleHeader({ entry, theme }: { entry: PdfEntry; theme: TemplateTheme }) {
-  const { styles } = theme;
-  if (!entry.title && !entry.detail && !entry.dates) return null;
-  return (
-    <View style={styles.entryHeader}>
-      <Line style={styles.entryLead}>
-        {entry.title ? <Text style={styles.roleTitle}>{entry.title}</Text> : null}
-        <Detail detail={entry.detail} theme={theme} lead={Boolean(entry.title)} />
-      </Line>
-      {entry.dates ? <Line style={styles.dates}>{entry.dates}</Line> : null}
-    </View>
-  );
-}
-
-function EntryHeader({ entry, theme }: { entry: PdfEntry; theme: TemplateTheme }) {
-  if (!entry.title && !entry.org && !entry.detail && !entry.dates) return null;
-  return theme.entryLayout === "stacked" ? (
-    <StackedEntryHeader entry={entry} theme={theme} />
-  ) : (
-    <InlineEntryHeader entry={entry} theme={theme} />
-  );
+// A drawn square or ring, for a font with no glyph for the bullet. Never text, so it adds nothing
+// to what hiring software reads.
+export function markStyle(theme: TemplateTheme, shape: "square" | "circle"): PdfStyle {
+  const mark = theme.styles.bulletMark;
+  const color = typeof mark.color === "string" ? mark.color : "#1a1a1a";
+  const size = typeof mark.width === "number" ? mark.width : 3.5;
+  return shape === "square"
+    ? { ...mark, backgroundColor: color }
+    : { ...mark, borderWidth: 0.7, borderColor: color, borderRadius: size / 2 };
 }
 
 // The hanging indent keeps wrapped lines aligned with the text, not the bullet. A bullet never
 // splits across pages.
-function Bullet({ text, theme }: { text: string; theme: TemplateTheme }) {
+function Bullet({ children, theme }: { children: ReactNode; theme: TemplateTheme }) {
   const { styles } = theme;
+  const mark = bulletMark(theme);
   return (
     <View style={styles.bullet} wrap={false}>
-      <Line style={styles.bulletGlyph}>{theme.bulletGlyph}</Line>
-      <Line style={styles.bulletText}>{text}</Line>
+      <View style={styles.bulletGlyph}>
+        {mark.kind === "glyph" ? (
+          // Shifted without taking room, so the line keeps its height.
+          <Line
+            style={{
+              ...glyphStyle(styles.bulletGlyph),
+              position: "relative",
+              top: theme.bulletOffset ?? 0,
+            }}
+          >
+            {mark.glyph}
+          </Line>
+        ) : (
+          <View style={markStyle(theme, mark.shape)} />
+        )}
+      </View>
+      <Line style={styles.bulletText}>{children}</Line>
     </View>
   );
 }
@@ -192,26 +205,41 @@ function entrySpacing(
 }
 
 // An entry's heading and first bullet stay together, so a heading never ends a page on its own.
-// A company header travels with its first role the same way.
-function entryBlocks(entry: PdfEntry, isFirst: boolean, theme: TemplateTheme): ReactElement[] {
+// A company line travels with its first role the same way.
+function entryBlocks(
+  entry: PdfEntry,
+  kind: EntryKind,
+  isFirst: boolean,
+  theme: TemplateTheme,
+): ReactElement[] {
   const [lead, ...rest] = entry.bullets;
   return [
     <View key={entry.id} wrap={false} style={entrySpacing(entry, isFirst, theme)}>
-      {entry.company?.first ? <CompanyHeader company={entry.company} theme={theme} /> : null}
-      {entry.company ? (
-        <RoleHeader entry={entry} theme={theme} />
-      ) : (
-        <EntryHeader entry={entry} theme={theme} />
-      )}
+      {entryRows(entry, kind, theme).map((row) => (
+        <Row key={row.key} row={row} theme={theme} />
+      ))}
       {entry.note ? <Line style={theme.styles.entryNote}>{entry.note}</Line> : null}
-      {lead ? <Bullet text={lead.text} theme={theme} /> : null}
+      {lead ? <Bullet theme={theme}>{lead.text}</Bullet> : null}
     </View>,
-    ...rest.map((bullet) => <Bullet key={bullet.id} text={bullet.text} theme={theme} />),
+    ...rest.map((bullet) => (
+      <Bullet key={bullet.id} theme={theme}>
+        {bullet.text}
+      </Bullet>
+    )),
   ];
 }
 
-function entryListBlocks(entries: readonly PdfEntry[], theme: TemplateTheme): ReactElement[] {
-  return entries.flatMap((entry, index) => entryBlocks(entry, index === 0, theme));
+function entryListBlocks(
+  entries: readonly PdfEntry[],
+  kind: EntryKind,
+  theme: TemplateTheme,
+): ReactElement[] {
+  return entries.flatMap((entry, index) => entryBlocks(entry, kind, index === 0, theme));
+}
+
+// Later lines of a list take the slot's gap above them; the first follows the heading.
+export function spaced(style: PdfStyle, index: number): PdfStyle {
+  return index > 0 ? style : { ...style, marginTop: 0 };
 }
 
 // Page-break units of a section, in reading order.
@@ -220,38 +248,76 @@ function sectionBlocks(section: PdfSection, theme: TemplateTheme): ReactElement[
   switch (section.key) {
     case "summary":
       return section.paragraphs.map((paragraph, index) => (
-        <Line key={index} style={index > 0 ? styles.paragraph : undefined}>
+        <Line key={index} style={spaced(styles.paragraph, index)}>
           {paragraph}
         </Line>
       ));
     case "skills":
-      return section.lines.map((line, index) => (
-        <Line key={line.id} style={index > 0 ? styles.skillLine : undefined}>
-          {line.label ? <Text style={styles.skillLabel}>{`${line.label}: `}</Text> : null}
-          <Text style={styles.skillItems}>{line.items}</Text>
-        </Line>
-      ));
+      return section.lines.map((line, index) => {
+        const content = (
+          <>
+            {line.label ? <Text style={styles.skillLabel}>{`${line.label}: `}</Text> : null}
+            <Text style={styles.skillItems}>{line.items}</Text>
+          </>
+        );
+        return theme.skills === "bullets" ? (
+          <Bullet key={line.id} theme={theme}>
+            {content}
+          </Bullet>
+        ) : (
+          <Line key={line.id} style={spaced(styles.skillLine, index)}>
+            {content}
+          </Line>
+        );
+      });
     default:
-      return entryListBlocks(section.entries, theme);
+      return entryListBlocks(section.entries, SECTION_KINDS[section.key], theme);
   }
 }
 
 function extraBlocks(section: PdfExtraSection, theme: TemplateTheme): ReactElement[] {
-  if (section.list) return [<Line key="list">{section.list}</Line>];
-  return entryListBlocks(section.entries, theme);
+  if (section.list) {
+    return [
+      <Line key="list" style={spaced(theme.styles.paragraph, 0)}>
+        {section.list}
+      </Line>,
+    ];
+  }
+  return entryListBlocks(section.entries, "item", theme);
 }
 
 function SectionTitle({ title, theme }: { title: string; theme: TemplateTheme }) {
   const { styles } = theme;
-  if (theme.headingRule === "after") {
-    return (
-      <View style={styles.sectionTitleRow}>
-        <Line style={styles.sectionTitle}>{title}</Line>
-        <View style={styles.sectionTitleRule} />
-      </View>
-    );
+  const text = (
+    <Line style={styles.sectionTitle}>
+      <Runs runs={headingRuns(title, theme)} theme={theme} />
+    </Line>
+  );
+  switch (theme.headingRule) {
+    case "after":
+      return (
+        <View style={styles.sectionTitleRow}>
+          {text}
+          <View style={styles.sectionTitleRule} />
+        </View>
+      );
+    case "below":
+      return (
+        <View>
+          {text}
+          <View style={styles.sectionTitleRule} />
+        </View>
+      );
+    case "above":
+      return (
+        <View>
+          <View style={styles.sectionTitleRule} />
+          {text}
+        </View>
+      );
+    default:
+      return text;
   }
-  return <Line style={styles.sectionTitle}>{title}</Line>;
 }
 
 function Section({
@@ -276,8 +342,9 @@ function Section({
   );
 }
 
-export function ResumeDocument({ resume, pageSize = "LETTER", theme }: ResumeDocumentProps) {
+export function ResumeDocument({ resume, pageSize = "LETTER", theme: base }: ResumeDocumentProps) {
   const model = buildPdfModel(resume);
+  const theme = withFontFallbacks(base, modelText(model) + themeText(base));
   return (
     <Document
       title={model.meta.title}

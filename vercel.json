@@ -4,7 +4,6 @@
   "buildCommand": "bun scripts/migrate.ts --deploy && bun run build",
   "crons": [
     { "path": "/api/cron/cleanup", "schedule": "17 4 * * *" },
-    { "path": "/api/cron/follow-ups", "schedule": "0 14 * * *" },
-    { "path": "/api/cron/jobs", "schedule": "40 5 * * *" }
+    { "path": "/api/cron/follow-ups", "schedule": "0 14 * * *" }
   ]
 }

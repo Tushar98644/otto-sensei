@@ -17,7 +17,7 @@ describe("waitingTooLong", () => {
       app("Fresh", "applied", 20),
       app("Exactly 21", "applied", 21),
       app("Old", "applied", 60),
-      app("Replied", "screening", 60),
+      app("Replied", "interview", 60),
       app("Closed", "no_reply", 60),
     ];
     expect(waitingTooLong(list, NOW).map((item) => item.company)).toEqual(["Old", "Exactly 21"]);

@@ -91,8 +91,6 @@ function withSettings(portfolio: Portfolio, patch: UpdatePortfolioBody): Portfol
   if (patch.sync !== undefined) next.sync = patch.sync;
   if (patch.published !== undefined) next.published = patch.published;
   if (patch.allowIndexing !== undefined) next.allowIndexing = patch.allowIndexing;
-  if (patch.hideCredit !== undefined) next.hideCredit = patch.hideCredit;
-  if (patch.projectImages !== undefined) next.projectImages = patch.projectImages;
   return next;
 }
 

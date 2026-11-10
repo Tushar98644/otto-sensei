@@ -64,10 +64,6 @@ const EnvSchema = z.object({
   // Optional, for "Import from GitHub": a fine-grained token with public read-only access and no
   // other permissions. Without it GitHub allows this server 60 calls an hour.
   GITHUB_TOKEN: optionalString,
-  // Optional: where portfolio pictures go. "supabase" (the "portfolio-media" Storage bucket, needs
-  // the secret key) or "local" (web/.uploads, development only). Unset: Supabase when the secret
-  // key is set, else local outside production.
-  PORTFOLIO_MEDIA_STORE: z.preprocess(emptyToUndefined, z.enum(["supabase", "local"]).optional()),
   // Scheduled jobs (/api/cron/*): Vercel Cron sends it as "Authorization: Bearer <secret>". Without
   // it (or under 16 characters) every job refuses to run. Also signs the reminder unsubscribe links.
   CRON_SECRET: optionalString,

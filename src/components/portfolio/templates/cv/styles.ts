@@ -62,8 +62,7 @@ a:hover { text-decoration-line: underline; }
 .contact svg { width: 1rem; height: 1rem; }
 .print-contact { display: none; flex-wrap: wrap; column-gap: 0.5rem; font-size: 0.875rem; color: var(--faint); }
 .print-contact a { color: var(--ink); text-decoration-line: underline; }
-.avatar { flex-shrink: 0; width: 7rem; height: 7rem; border-radius: 0.75rem; background: var(--wash); box-shadow: 0 0 0 1px var(--wash); object-fit: cover; overflow: hidden; }
-div.avatar { display: flex; align-items: center; justify-content: center; font-family: var(--pf-font-geist-pixel, "Geist Pixel"), monospace; font-size: 2.25rem; color: var(--faint); }
+.avatar { display: flex; flex-shrink: 0; align-items: center; justify-content: center; width: 7rem; height: 7rem; overflow: hidden; border-radius: 0.75rem; background: radial-gradient(circle, color-mix(in srgb, var(--ink) 9%, transparent) 1px, transparent 1.5px) 0 0 / 7px 7px, var(--wash); box-shadow: 0 0 0 1px var(--wash); font-family: var(--pf-font-geist-pixel, "Geist Pixel"), monospace; font-size: 2.5rem; color: var(--ink); }
 
 /* Section (components/ui/section.tsx) */
 .section { display: flex; min-height: 0; flex-direction: column; row-gap: 0.75rem; }

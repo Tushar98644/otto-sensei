@@ -172,7 +172,7 @@ describe("/api/portfolio", () => {
     expect(Number(limited.headers.get("retry-after"))).toBeGreaterThan(0);
   });
 
-  it("keeps portfolios to Pro and Max, publishing to paid plans, and the credit switch to both", async () => {
+  it("keeps portfolios to Pro and Max, and publishing to paid plans", async () => {
     // Free: 402, which the page answers with the trial's prompt.
     await signInFree("free@example.com");
     const free = await create({ resume: sampleResume() });
@@ -183,7 +183,7 @@ describe("/api/portfolio", () => {
     const trialEnd = Date.UTC(2099, 0, 15, 12);
     const maya = await setPlan(await signInFree("maya@example.com"), "trial", trialEnd);
     expect((await create({ resume: sampleResume() })).status).toBe(201);
-    expect((await patch({ hideCredit: true })).status).toBe(200);
+    expect((await patch({ allowIndexing: true })).status).toBe(200);
     const early = await patch({ published: true });
     expect(early.status).toBe(403);
     expect((await errorOf(early)).message).toBe(
@@ -192,13 +192,16 @@ describe("/api/portfolio", () => {
 
     // The first payment ends the trial.
     await setPlan(maya, "pro");
-    expect(((await (await patch({ published: true })).json()) as PortfolioSaveResponse).portfolio.published).toBe(
-      true,
-    );
+    expect(
+      ((await (await patch({ published: true })).json()) as PortfolioSaveResponse).portfolio
+        .published,
+    ).toBe(true);
     // Back on Free the page goes offline but stays saved, and can't be changed.
     await (await getDb()).update(users).set({ plan: "free" }).where(eq(users.id, maya.id));
     expect((await patch({ published: false })).status).toBe(402);
-    expect(((await (await GET()).json()) as { portfolio: { published: boolean } }).portfolio.published).toBe(true);
+    expect(
+      ((await (await GET()).json()) as { portfolio: { published: boolean } }).portfolio.published,
+    ).toBe(true);
     expect((await metadataFor("maya-chen")).robots).toMatchObject({ index: false });
   });
 
@@ -209,14 +212,16 @@ describe("/api/portfolio", () => {
     expect((await patch({ hiddenSections: ["secrets"] })).status).toBe(400);
     expect((await patch({ template: "neon" })).status).toBe(400);
     expect((await patch({ template: "minimal" })).status).toBe(400);
-    expect((await patch({ projectImages: { p1: "http://cdn.example.com/a.png" } })).status).toBe(
+    // Project pictures went with the text-only pages: an old client's map changes nothing.
+    expect((await patch({ projectImages: { p1: "https://cdn.example.com/a.png" } })).status).toBe(
       400,
     );
-    expect((await patch({ projectImages: { p1: "javascript:alert(1)" } })).status).toBe(400);
-    expect(
-      (await patch({ template: "bento", projectImages: { p1: "https://cdn.example.com/a.png" } }))
-        .status,
-    ).toBe(200);
+    const withPictures = await patch({
+      template: "bento",
+      projectImages: { p1: "https://cdn.example.com/a.png" },
+    });
+    expect(withPictures.status).toBe(200);
+    expect(JSON.stringify(await withPictures.json())).not.toContain("cdn.example.com");
     expect((await patch({ published: true }, { "sec-fetch-site": "cross-site" })).status).toBe(403);
     expect(
       (await POST(jsonRequest("/api/portfolio", {}, { contentType: "text/plain" }))).status,

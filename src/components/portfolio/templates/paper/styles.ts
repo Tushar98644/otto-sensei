@@ -91,7 +91,7 @@ a { color: inherit; text-decoration: none; }
 
 .column { width: 100%; max-width: 37.5rem; margin: 0 auto; padding: 0 1.5rem; }
 
-/* Masthead: name, intro, halftone portrait. The original's pixel-cluster stamp is its own mark and
+/* Masthead: name, intro, halftone initials. The original's pixel-cluster stamp is its own mark and
    stays out. */
 .masthead { display: flex; flex-direction: column-reverse; justify-content: space-between; gap: 2.5rem; }
 .intro { max-width: 19rem; }
@@ -106,11 +106,12 @@ a { color: inherit; text-decoration: none; }
 .ext-mark { display: inline-block; width: 0.8rem; height: 0.8rem; margin-inline-start: 0.12em; vertical-align: -0.05em; stroke-width: 1.6; opacity: 0.6; transition: opacity 150ms ease, transform 180ms ease; }
 a:hover .ext-mark { opacity: 1; transform: translate(1px, -1px); }
 .portrait { width: 9.35rem; flex-shrink: 0; }
-/* The halftone print: the photo seen through a 3px screen of dots, ink only where the photo is dark */
-.halftone { position: relative; display: block; aspect-ratio: 1; overflow: hidden; mix-blend-mode: multiply; }
-.halftone img { width: 100%; height: 100%; object-fit: cover; filter: grayscale(1) contrast(1.35) brightness(0.92); -webkit-mask-image: radial-gradient(circle, #000 0.95px, transparent 1.35px); mask-image: radial-gradient(circle, #000 0.95px, transparent 1.35px); -webkit-mask-size: 3px 3px; mask-size: 3px 3px; }
-.halftone.blank { display: flex; align-items: center; justify-content: center; color: var(--foreground); font-size: 5.5rem; font-weight: 700; letter-spacing: -0.04em; -webkit-mask-image: radial-gradient(circle, #000 0.95px, transparent 1.35px); mask-image: radial-gradient(circle, #000 0.95px, transparent 1.35px); -webkit-mask-size: 3px 3px; mask-size: 3px 3px; }
-@media (prefers-color-scheme: dark) { .halftone { mix-blend-mode: screen; } .halftone img { filter: grayscale(1) contrast(1.35) invert(1); } }
+/* The halftone print where Cali has his portrait: the initials over a soft round shade, both seen
+   through a 3px screen of dots */
+.halftone { position: relative; display: grid; place-items: center; aspect-ratio: 1; overflow: hidden; mix-blend-mode: multiply; -webkit-mask-image: radial-gradient(circle, #000 0.95px, transparent 1.35px); mask-image: radial-gradient(circle, #000 0.95px, transparent 1.35px); -webkit-mask-size: 3px 3px; mask-size: 3px 3px; }
+.halftone::before { content: ""; position: absolute; inset: 6%; border-radius: 50%; background: radial-gradient(circle at 32% 28%, color-mix(in oklab, var(--foreground) 4%, transparent), color-mix(in oklab, var(--foreground) 46%, transparent) 55%, color-mix(in oklab, var(--foreground) 82%, transparent) 100%); }
+.halftone-ink { position: relative; color: var(--paper); font-size: 3.75rem; font-weight: 700; letter-spacing: -0.05em; line-height: 1; }
+@media (prefers-color-scheme: dark) { .halftone { mix-blend-mode: screen; } }
 
 /* Nav cards */
 .nav-cards { display: grid; grid-template-columns: repeat(var(--cards, 3), 1fr); margin: 3.5rem -1.5rem 0; border-top: var(--hairline) solid var(--border); border-bottom: var(--hairline) solid var(--border); }
@@ -122,9 +123,9 @@ a:hover .ext-mark { opacity: 1; transform: translate(1px, -1px); }
 .sheets span:nth-child(1) { transform: rotate(-7deg) translateX(-9px); }
 .sheets span:nth-child(2) { transform: rotate(4deg) translateX(9px); }
 .sheets span:nth-child(3) { transform: rotate(-1deg) translateY(-2px); }
-.mini { position: absolute; padding: 3px 3px 8px; background: var(--paper); box-shadow: 0 0 0 1px rgb(0 0 0 / 0.08), 0 1px 3px rgb(0 0 0 / 0.15); transform: rotate(calc(var(--i) * 9deg - 9deg)) translateX(calc(var(--i) * 16px - 16px)); transition: transform 300ms var(--ease-spring); }
-.mini img, .mini i { display: block; width: 2.25rem; height: 1.875rem; object-fit: cover; }
-.mini i { background: color-mix(in oklab, var(--foreground) 8%, var(--paper)); }
+/* Three spines from the shelf, the last one leaning */
+.spines span { position: absolute; bottom: 0.2rem; left: calc(50% - 1.15rem + var(--i) * 0.8rem); width: 0.7rem; height: calc(2.35rem + var(--i) * 0.3rem - var(--i) * var(--i) * 0.2rem); border-radius: 1px; background: var(--book); box-shadow: inset -2px 0 0 rgb(0 0 0 / 0.14), inset 0 3px 0 color-mix(in oklab, var(--book-ink) 30%, transparent), 0 0 0 1px rgb(0 0 0 / 0.06); transform-origin: bottom right; transition: transform 300ms var(--ease-spring); }
+.spines span:nth-child(3) { transform: rotate(9deg); }
 .tool { position: absolute; left: 50%; top: 50%; width: 3.25rem; height: 3.25rem; overflow: hidden; transform: translate(-50%, -50%); border: var(--hairline) solid color-mix(in oklab, var(--foreground) 20%, var(--border)); border-radius: 0.75rem; background: color-mix(in oklab, var(--foreground) 4%, var(--background)); box-shadow: 0 0 0 1px rgb(0 0 0 / 0.03), 0 1px 1px -0.5px rgb(0 0 0 / 0.06), 0 3px 3px -1.5px rgb(0 0 0 / 0.06); transition: transform 300ms var(--ease-spring); }
 .tool .guides-svg { position: absolute; inset: 0; width: 100%; height: 100%; stroke: color-mix(in oklab, var(--foreground) 25%, transparent); stroke-width: 0.65; fill: none; }
 .tool .mark-svg { position: absolute; top: 50%; left: 50%; width: 26px; height: 26px; stroke-width: 1.5; color: color-mix(in oklab, var(--foreground) 84%, var(--muted-foreground)); transform: translate(-50%, -50%); transition: transform 300ms var(--ease-spring); }
@@ -132,7 +133,8 @@ a:hover .ext-mark { opacity: 1; transform: translate(1px, -1px); }
   .nav-card:hover .sheets span:nth-child(1) { transform: rotate(-13deg) translateX(-16px) translateY(-2px); }
   .nav-card:hover .sheets span:nth-child(2) { transform: rotate(9deg) translateX(16px) translateY(-1px); }
   .nav-card:hover .sheets span:nth-child(3) { transform: rotate(-2deg) translateY(-5px); }
-  .nav-card:hover .mini { transform: rotate(calc(var(--i) * 15deg - 15deg)) translateX(calc(var(--i) * 24px - 24px)) translateY(calc((1 - var(--i)) * (1 - var(--i)) * 2px - 3px)); }
+  .nav-card:hover .spines span { transform: translateY(-2px); }
+  .nav-card:hover .spines span:nth-child(3) { transform: rotate(16deg); }
   .nav-card:hover .tool { transform: translate(-50%, calc(-50% - 2px)); }
   .nav-card:hover .tool .mark-svg { transform: translate(-50%, -50%) rotate(-8deg) scale(1.06); }
 }
@@ -162,7 +164,6 @@ a.row-title:hover { color: var(--foreground); }
 .row-date { white-space: nowrap; color: var(--muted-foreground); font-variant-numeric: tabular-nums; }
 .row-stat { white-space: nowrap; color: var(--muted-foreground); font-family: var(--pf-font-geist-mono, "Geist Mono"), ui-monospace, monospace; font-size: 0.75rem; letter-spacing: 0.02em; }
 .icon { display: flex; align-items: center; justify-content: center; width: 2rem; height: 2rem; flex: none; overflow: hidden; border: var(--hairline) solid color-mix(in oklab, var(--foreground) 20%, var(--border)); border-radius: 0.5rem; background: color-mix(in oklab, var(--foreground) 4%, var(--background)); font-size: 0.6875rem; font-weight: 600; color: var(--muted-foreground); }
-.icon img { width: 100%; height: 100%; object-fit: cover; }
 
 /* Writing rows: a print-pile thumb, the title, a dotted leader and the date */
 .post { display: flex; align-items: center; gap: 0.75rem; padding: 0.5rem 0; font-size: 0.9375rem; }
@@ -178,14 +179,6 @@ a.row-title:hover { color: var(--foreground); }
 .post-title { min-width: 0; color: var(--gray-11); font-weight: 500; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden; overflow-wrap: anywhere; }
 .leader { flex: 1; min-width: 1.5rem; height: 1px; align-self: center; background: radial-gradient(circle, color-mix(in oklab, var(--muted-foreground) 41%, transparent) 0.5px, transparent 0.5px) 0 0 / 6px 1px repeat-x; }
 .post time { flex-shrink: 0; font-size: 0.8125rem; letter-spacing: 0.01em; color: var(--muted-foreground); font-variant-numeric: tabular-nums; }
-
-/* Polaroids */
-.prints { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1.25rem 1rem; margin-top: 1.5rem; }
-.polaroid { padding: 4% 4% 0; background: var(--paper); box-shadow: 0 0 0 1px rgb(0 0 0 / 0.04), 0 2px 4px -1px rgb(0 0 0 / 0.18); transform: rotate(var(--tilt, 0deg)); }
-.polaroid .photo { position: relative; display: block; aspect-ratio: 1; overflow: hidden; }
-.polaroid .photo img { width: 100%; height: 100%; object-fit: cover; }
-.polaroid .photo::after { content: ""; position: absolute; inset: 0; box-shadow: inset 0 0 2px rgb(0 0 0 / 0.14); pointer-events: none; }
-.polaroid .caption { display: flex; align-items: center; min-height: 1.75rem; padding: 0.2rem 0.125rem; font-size: 0.75rem; letter-spacing: 0.08em; color: var(--paper-ink); }
 
 /* Room shelves: books and records on a wooden plank */
 .shelf { position: relative; margin-top: 1.25rem; }
@@ -244,18 +237,17 @@ a.row-title:hover { color: var(--foreground); }
 .dock-item:active { transform: scale(0.97); }
 .dock-item svg { width: 1.125rem; height: 1.125rem; stroke-width: 1.5; }
 .dock-avatar { display: block; width: 1.625rem; height: 1.625rem; overflow: hidden; border-radius: 999px; box-shadow: inset 0 0 0 1px var(--border); background: var(--muted); font-size: 0.5625rem; font-weight: 600; line-height: 1.625rem; text-align: center; color: var(--foreground); }
-.dock-avatar img { width: 100%; height: 100%; object-fit: cover; }
 .dock-rule { width: 1px; height: 1.5rem; margin: 0 0.125rem; background: var(--border); }
 
 @container pf (min-width: 640px) {
   .masthead { flex-direction: row; align-items: flex-start; }
   .portrait { width: 15rem; }
+  .halftone-ink { font-size: 6rem; }
   .nav-card { gap: 0.25rem; padding: 1.5rem 0.75rem 1.25rem; }
   .vignette { height: 3.5rem; margin-bottom: 0.375rem; }
   .nc-label { font-size: 0.875rem; line-height: 1.5; }
   .nc-sub { font-size: 0.875rem; }
   .post-title { display: block; white-space: nowrap; text-overflow: ellipsis; }
-  .prints { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .footer { padding-bottom: 3rem; }
   .footer-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .colophon { grid-column: auto; order: -1; display: flex; flex-direction: column; align-items: flex-start; justify-content: space-between; gap: 0.625rem; }

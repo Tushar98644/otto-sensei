@@ -5,15 +5,15 @@ import { PORTFOLIO_SECTION_LABELS, type PortfolioSection } from "@/lib/portfolio
 // 18 words), checked by lines.test.ts next to this file.
 
 export const CONTENT_LINES = {
-  loading: "I'm pulling in your GitHub numbers and photo. One moment.",
+  loading: "I'm pulling in your GitHub numbers. One moment.",
   resumeOnly: "This design draws your resume only. What you add here shows in the richer designs.",
   complete: "Everything this design uses is filled in. Have a look at the preview.",
-  // `missing` is the labels still to do, already joined ("photo and screenshots").
+  // `missing` is the labels still to do, already joined ("pitch and project write-ups").
   missing: (missing: string) =>
     `This design also shows your ${missing}. Add those and the page is done.`,
 } as const;
 
-/** "photo, screenshots and talks", lowercased, at most three named. */
+/** "pitch, writing and talks", lowercased, at most three named. */
 export function missingList(items: readonly ChecklistItem[]): string {
   const names = items
     .filter((item) => !item.done && !item.hidden)

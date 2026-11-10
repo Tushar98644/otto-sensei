@@ -14,7 +14,6 @@ const RECENT = 5;
 export const GitHubUserJson = z.object({
   login: z.string(),
   name: z.string().nullish(),
-  avatar_url: z.string().nullish(),
   bio: z.string().nullish(),
   followers: z.number().nullish(),
   public_repos: z.number().nullish(),
@@ -41,18 +40,6 @@ const clip = (value: string | null | undefined, max: number) =>
   (value ?? "").replace(/\s+/g, " ").trim().slice(0, max);
 const count = (value: number | null | undefined) =>
   typeof value === "number" && Number.isFinite(value) && value > 0 ? Math.floor(value) : 0;
-
-// Only GitHub's own avatar host; anything else is dropped rather than drawn on a public page.
-function avatarOf(raw: string | null | undefined): string | null {
-  try {
-    const url = new URL(raw ?? "");
-    return url.protocol === "https:" && url.hostname === "avatars.githubusercontent.com"
-      ? url.href
-      : null;
-  } catch {
-    return null;
-  }
-}
 
 function summary(repo: GitHubRepo): GitHubRepoSummary {
   return {
@@ -103,7 +90,6 @@ export function githubStatsFrom(
   return {
     username: clip(user.login, 39),
     name: clip(user.name, 100),
-    avatarUrl: avatarOf(user.avatar_url),
     bio: clip(user.bio, 300),
     followers: count(user.followers),
     publicRepos: count(user.public_repos),
@@ -129,5 +115,8 @@ export function parseStoredStats(value: unknown): GitHubStats | null {
   if (typeof stats.username !== "string" || typeof stats.fetchedAt !== "number") return null;
   if (!Array.isArray(stats.repos) || !Array.isArray(stats.languages) || !stats.activity)
     return null;
-  return { ...(stats as GitHubStats), avatarUrl: avatarOf(stats.avatarUrl) };
+  // Copies saved before 2026-11-10 carry an avatar address; pages draw no pictures, so it's dropped.
+  const { avatarUrl, ...rest } = stats as GitHubStats & { avatarUrl?: unknown };
+  void avatarUrl;
+  return rest;
 }

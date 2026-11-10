@@ -8,7 +8,6 @@ import {
   MessagesSquare,
   Search,
   Trash2,
-  UserRound,
   type LucideIcon,
 } from "lucide-react";
 import { PORTFOLIO_ROUTE } from "@/components/portfolio/route";
@@ -39,24 +38,39 @@ export const APP_NAV: readonly AppNavItem[] = [
     pro: true,
   },
   { href: ROUTES.dashboardJobs, label: "Jobs", icon: Search },
-  { href: ROUTES.dashboardApplications, label: "Applications", icon: BriefcaseBusiness },
+  {
+    href: ROUTES.dashboardApplications,
+    label: "Applications",
+    // "Applications" is cut off in a fifth of a small phone; "Applied" is one of its columns.
+    short: "Tracker",
+    icon: BriefcaseBusiness,
+  },
   { href: ROUTES.dashboardInterview, label: "Interview prep", icon: MessagesSquare, pro: true },
   { href: PORTFOLIO_ROUTE, label: "Portfolio", icon: Globe, pro: true },
   { href: ROUTES.dashboardFormats, label: "Formats", icon: LayoutTemplate },
 ];
 
-// Pinned to the bottom of the sidebar, under the sections.
+// Pinned to the bottom of the sidebar, under the sections. Account isn't here: the signed-in menu at
+// the foot of the sidebar (and the avatar on phones) already opens it (owner, 2026-11-09).
 export const APP_NAV_FOOTER: readonly AppNavItem[] = [
   { href: TRASH_ROUTE, label: "Recently deleted", icon: Trash2 },
-  { href: ROUTES.dashboardAccount, label: "Account", icon: UserRound },
 ];
 
-// Phones: the first four sections on the strip, everything else behind "More". Account is left
-// out there because the avatar menu beside the strip already opens it.
-export const PHONE_TABS: readonly AppNavItem[] = APP_NAV.slice(0, 4);
+// Phones: the four sections people come back to most on the strip, everything else behind "More"
+// in the sidebar's order. Applications is a tab and Cover letters waits under More: letters are
+// mostly written from Tailor, while the tracker is checked between applications.
+const PHONE_TAB_HREFS: readonly string[] = [
+  ROUTES.dashboard,
+  ROUTES.dashboardResumes,
+  ROUTES.dashboardJobs,
+  ROUTES.dashboardApplications,
+];
+export const PHONE_TABS: readonly AppNavItem[] = PHONE_TAB_HREFS.flatMap((href) =>
+  APP_NAV.filter((item) => item.href === href),
+);
 export const PHONE_MORE: readonly AppNavItem[] = [
-  ...APP_NAV.slice(4),
-  ...APP_NAV_FOOTER.filter((item) => item.href !== ROUTES.dashboardAccount),
+  ...APP_NAV.filter((item) => !PHONE_TAB_HREFS.includes(item.href)),
+  ...APP_NAV_FOOTER,
 ];
 
 // Home matches only itself; the others also match their sub-pages.

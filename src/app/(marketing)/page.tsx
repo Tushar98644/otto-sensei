@@ -9,6 +9,7 @@ import { Hero } from "./_components/hero";
 import { HowItWorks } from "./_components/how-it-works";
 import { PortfolioShowcase } from "./_components/portfolio-showcase";
 import { PricingTeaser } from "./_components/pricing-teaser";
+import { SmoothScroll } from "./_components/smooth-scroll";
 import { WebsiteJsonLd } from "./_components/website-json-ld";
 import { WontDo } from "./_components/wont-do";
 
@@ -28,6 +29,7 @@ export default async function HomePage() {
     <>
       <WebsiteJsonLd />
       <TrackView event="landing_viewed" />
+      <SmoothScroll />
       <Hero />
       <HowItWorks />
       <PortfolioShowcase />

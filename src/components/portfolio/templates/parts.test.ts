@@ -3,7 +3,7 @@ import { jordanContentView } from "@/lib/portfolio/fixtures/jordan";
 import { sampleResume } from "@/lib/portfolio/testing";
 import { portfolioView } from "@/lib/portfolio/view";
 import { scopeCss } from "./css";
-import { allSkills, contactHref, featuredFirst, safeId } from "./parts";
+import { allSkills, contactHref, featuredFirst, safeId, seeded, seedOf } from "./parts";
 
 describe("template parts", () => {
   it("scopes every selector, inside at-rules too, and leaves @page alone", () => {
@@ -58,5 +58,15 @@ a, b:where(c, d) { color: blue; }
       hiddenSections: [],
     });
     expect(allSkills(view)).toEqual([...new Set(view.skills.flatMap((group) => group.items))]);
+  });
+
+  it("draws the same stand-in for the same name, and a different one for another", () => {
+    expect(seedOf("Tally")).toBe(seedOf("Tally"));
+    expect(seedOf("Tally")).not.toBe(seedOf("Quayside"));
+    const a = seeded(seedOf("Tally"));
+    const b = seeded(seedOf("Tally"));
+    const first = [a(), a(), a()];
+    expect([b(), b(), b()]).toEqual(first);
+    expect(first.every((value) => value >= 0 && value < 1)).toBe(true);
   });
 });

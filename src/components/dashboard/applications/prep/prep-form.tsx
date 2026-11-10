@@ -101,7 +101,7 @@ export function PrepForm({ target, resumes, onDone, onCancel }: PrepFormProps) {
   return (
     <form onSubmit={(event) => void submit(event)} className="flex flex-col gap-6">
       <OttoNote
-        message="I'll list likely questions, outline stories from your own lines, and suggest what to ask."
+        message="I'll ask what an interviewer would, round by round, and outline stories from your own lines."
         meta={`Uses 1 cover letter or answer from ${thisPeriod(me?.period)}`}
         live={false}
       />

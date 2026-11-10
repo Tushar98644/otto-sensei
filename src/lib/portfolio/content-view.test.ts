@@ -7,14 +7,7 @@ import {
   type PortfolioContent,
 } from "./content";
 import { contentChecklist, contentUsesFor, hiddenFields, REFERENCE_USES } from "./content-uses";
-import {
-  autoContent,
-  contentView,
-  markParts,
-  mentions,
-  portfolioViews,
-  videoOf,
-} from "./content-view";
+import { autoContent, contentView, markParts, mentions, portfolioViews } from "./content-view";
 import { jordanContent, jordanContentView, jordanGitHub, jordanV2Resume } from "./fixtures/jordan";
 import { findPlace } from "./places";
 import { PORTFOLIO_SECTIONS } from "./types";
@@ -91,8 +84,9 @@ describe("automatic content from the resume and GitHub", () => {
   it("counts years per skill from the jobs that mention it, and headline stats", () => {
     expect(auto.skillYears.react).toBe(3);
     expect(auto.skillYears.kafka).toBeNull();
-    expect(auto.stats[0]).toEqual({ id: "st-years", value: "8", label: "years of experience" });
-    expect(auto.stats[1]).toEqual({ id: "st-stars", value: "6.4k", label: "GitHub stars" });
+    // From the earliest job (a part-time one in 2016) and the GitHub numbers.
+    expect(auto.stats[0]).toEqual({ id: "st-years", value: "10", label: "years of experience" });
+    expect(auto.stats[1]).toEqual({ id: "st-stars", value: "9.4k", label: "GitHub stars" });
     expect(auto.stats.map((stat) => stat.value)).toContain("1.4M");
     expect(auto.now[0]).toMatchObject({
       label: "Building",
@@ -175,30 +169,23 @@ describe("automatic content from the resume and GitHub", () => {
 
 describe("the content view templates draw", () => {
   it("resolves the Jordan fixture with every section filled", () => {
-    const rich = jordanContentView({ mediaBase: "https://media.test/" });
-    expect(rich.photo?.src).toMatch(
-      /^https:\/\/media\.test\/00000000-0000-4000-8000-0000000000e1\//,
-    );
-    expect(rich.projects).toHaveLength(5);
+    const rich = jordanContentView();
+    expect(rich.projects).toHaveLength(7);
     expect(rich.projects[0]).toMatchObject({
       name: "Tally",
       featured: true,
       outcome: "4.2k stars · 600+ sites · 38 contributors",
     });
-    expect(rich.projects[0]?.images).toHaveLength(2);
-    expect(rich.projects[3]?.video).toEqual({
-      kind: "embed",
-      provider: "youtube",
-      src: "https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ",
-    });
+    expect(rich.projects[0]).toMatchObject({ monogram: "T", device: "laptop" });
+    expect(rich.projects[3]).toMatchObject({ name: "Platform 9", monogram: "P", device: "phone" });
     expect(rich.experience[0]).toMatchObject({
       highlight: "-72% failed payouts",
       current: true,
       type: "Fintech · invoicing and payouts",
     });
-    expect(rich.experience[0]?.logo.src).toMatch(/^https:\/\/media\.test\//);
-    expect(rich.experience[1]?.logo.monogram).toBe("T");
-    expect(rich.education[0]?.logo.monogram).toBe("UM");
+    expect(rich.experience[0]?.monogram).toBe("L");
+    expect(rich.experience[2]?.monogram).toBe("NS");
+    expect(rich.education[0]?.monogram).toBe("UM");
     expect(rich.location).toEqual({
       label: "Lisbon, Portugal",
       city: "Lisbon",
@@ -216,20 +203,28 @@ describe("the content view templates draw", () => {
     expect(rich.initials).toBe("JE");
   });
 
-  it("drops uploads when this server has no media store, and hides switched-off sections", () => {
-    const content: PortfolioContent = { ...jordanContent(), hidden: ["github", "photos", "stats"] };
+  it("hides switched-off sections", () => {
+    const content: PortfolioContent = { ...jordanContent(), hidden: ["github", "shelf", "stats"] };
+    const rich = contentView({ view: view(), content, github: jordanGitHub(), now: NOW });
+    expect(rich.github).toBeNull();
+    expect(rich.shelf).toEqual([]);
+    expect(rich.stats).toEqual([]);
+  });
+
+  it("draws no pictures: no photo from GitHub, no logos, no screenshots", () => {
     const rich = contentView({
       view: view(),
-      content,
+      content: emptyContent(),
       github: jordanGitHub(),
-      mediaBase: "",
       now: NOW,
     });
-    expect(rich.photo).toBeNull();
-    expect(rich.projects[0]?.images).toEqual([]);
-    expect(rich.github).toBeNull();
-    expect(rich.photos).toEqual([]);
-    expect(rich.stats).toEqual([]);
+    expect(rich).not.toHaveProperty("photo");
+    expect(rich).not.toHaveProperty("photos");
+    expect(JSON.stringify(rich)).not.toContain("avatars.githubusercontent.com");
+    for (const project of rich.projects) {
+      expect(Object.keys(project)).not.toEqual(expect.arrayContaining(["images"]));
+      expect(project.monogram).not.toBe("");
+    }
   });
 
   it("follows the resume: new projects join at the end, deleted ones take their extras with them", () => {
@@ -242,13 +237,7 @@ describe("the content view templates draw", () => {
         { id: "tally", hidden: true },
       ],
     });
-    const rich = contentView({
-      view: view(),
-      content,
-      github: jordanGitHub(),
-      mediaBase: "",
-      now: NOW,
-    });
+    const rich = contentView({ view: view(), content, github: jordanGitHub(), now: NOW });
     expect(rich.projects.map((project) => project.id)).toEqual([
       "pgsnap",
       "gh:jordanellis/platform9",
@@ -256,40 +245,19 @@ describe("the content view templates draw", () => {
       "shiftboard",
       "platform9",
       "tab",
+      "quayside",
+      "inkwell",
     ]);
     expect(rich.projects[0]?.outcome).toBe("Mine");
     expect(rich.projects[1]).toMatchObject({ from: "github", name: "platform9", stars: 210 });
-  });
-
-  it("uses the GitHub avatar while the photo is automatic, and nothing once the owner removed it", () => {
-    const auto = contentView({
-      view: view(),
-      content: emptyContent(),
-      github: jordanGitHub(),
-      mediaBase: "",
-      now: NOW,
-    });
-    expect(auto.photo?.src).toBe("https://avatars.githubusercontent.com/u/1?v=4");
-    const none = contentView({
-      view: view(),
-      content: { ...emptyContent(), photo: "none" },
-      github: jordanGitHub(),
-      mediaBase: "",
-      now: NOW,
-    });
-    expect(none.photo).toBeNull();
   });
 
   it("never puts the email on the page unless the owner shows it", () => {
     const content = PortfolioContentSchema.parse({
       socials: [{ id: "s1", url: "mailto:hello@jordanellis.dev" }],
     });
-    expect(
-      contentView({ view: view(false), content, github: null, mediaBase: "" }).socials,
-    ).toEqual([]);
-    expect(
-      contentView({ view: view(true), content, github: null, mediaBase: "" }).socials[0]?.kind,
-    ).toBe("email");
+    expect(contentView({ view: view(false), content, github: null }).socials).toEqual([]);
+    expect(contentView({ view: view(true), content, github: null }).socials[0]?.kind).toBe("email");
   });
 
   it("marks highlighted phrases, longest first, and finds whole words", () => {
@@ -303,36 +271,12 @@ describe("the content view templates draw", () => {
     expect(mentions("Reacted quickly", "React")).toBe(false);
   });
 
-  it("plays only known video links", () => {
-    expect(videoOf("https://youtu.be/dQw4w9WgXcQ")?.src).toBe(
-      "https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ",
-    );
-    expect(videoOf("https://vimeo.com/76979871")?.src).toBe(
-      "https://player.vimeo.com/video/76979871",
-    );
-    expect(videoOf("https://www.loom.com/share/abc123def456")?.src).toBe(
-      "https://www.loom.com/embed/abc123def456",
-    );
-    expect(videoOf("https://cdn.example.com/demo.mp4")).toEqual({
-      kind: "file",
-      type: "video/mp4",
-      src: "https://cdn.example.com/demo.mp4",
-    });
-    expect(videoOf("http://cdn.example.com/demo.mp4")).toBeNull();
-    expect(videoOf("https://example.com/page")).toBeNull();
-  });
-
   it("lists what a design uses and what's missing", () => {
-    expect(contentUsesFor("navy")).toContain("photo");
-    expect(contentUsesFor("some-new-design").length).toBeGreaterThan(20);
-    const rich = contentView({
-      view: view(),
-      content: emptyContent(),
-      github: null,
-      mediaBase: "",
-    });
+    expect(contentUsesFor("navy")).toContain("pitch");
+    expect(contentUsesFor("some-new-design").length).toBeGreaterThan(15);
+    const rich = contentView({ view: view(), content: emptyContent(), github: null });
     const items = contentChecklist(rich, REFERENCE_USES.cali);
-    expect(items.find((item) => item.field === "photo")?.done).toBe(false);
+    expect(items.find((item) => item.field === "shelf")?.done).toBe(false);
     expect(items.find((item) => item.field === "about")?.done).toBe(true);
     expect(items.find((item) => item.field === "location")?.done).toBe(true);
     expect(
@@ -362,7 +306,6 @@ describe("hidden sections", () => {
     settings: { showEmail: false, showPhone: false, hiddenSections: [...PORTFOLIO_SECTIONS] },
     content: written,
     github: jordanGitHub(),
-    mediaBase: "https://media.example.com/",
     now: NOW,
   });
 
@@ -372,10 +315,9 @@ describe("hidden sections", () => {
     expect(page.content.projects).toEqual([]);
     expect(page.content.experience).toEqual([]);
     expect(page.content.socials).toEqual([]);
-    expect(page.content.photo).toBeNull();
     expect(page.content.location).toBeNull();
     expect(page.content.writing).toEqual([]);
-    expect(page.content.photos).toEqual([]);
+    expect(page.content.shelf).toEqual([]);
     expect(page.content.email).toBeNull();
   });
 
@@ -385,16 +327,20 @@ describe("hidden sections", () => {
     expect(editor.content.projects.map((project) => project.name)).toEqual([
       "Tally",
       "Shiftboard",
-      "pgsnap",
+      "Quayside",
       "Platform 9",
+      "pgsnap",
+      "Inkwell",
       "Tab",
       "Side quest",
     ]);
-    expect(editor.auto.projects).toHaveLength(5);
+    expect(editor.auto.projects).toHaveLength(7);
     expect(editor.content.experience.map((job) => job.company)).toEqual([
       "Ledgerly",
       "Tripwise",
       "Northwind Studio",
+      "Brightline",
+      "Paperplane Coffee",
     ]);
     expect(editor.content.education).toHaveLength(1);
     expect(editor.content.skills.length).toBeGreaterThan(0);
@@ -402,26 +348,20 @@ describe("hidden sections", () => {
     expect(editor.auto.socials.map((social) => social.kind)).toEqual(
       expect.arrayContaining(["github", "linkedin", "email"]),
     );
-    expect(editor.content.photo).not.toBeNull();
     expect(editor.content.location?.city).toBe("Lisbon");
-    expect(editor.content.writing).toHaveLength(3);
-    expect(editor.content.photos).toHaveLength(3);
+    expect(editor.content.writing).toHaveLength(6);
+    expect(editor.content.shelf).toHaveLength(8);
   });
 
   it("mark what's hidden in the checklist instead of asking for it", () => {
     const hidden = hiddenFields(page.view.hidden, written.hidden);
     const items = contentChecklist(editor.content, REFERENCE_USES.cali, hidden);
     expect(items.every((item) => item.hidden)).toBe(true);
-    expect(items.find((item) => item.field === "photo")).toMatchObject({
+    expect(items.find((item) => item.field === "shelf")).toMatchObject({
       done: true,
       note: "Hidden on your page",
     });
     expect(hiddenFields([], []).size).toBe(0);
-    expect([...hiddenFields(["projects"], [])]).toEqual([
-      "screenshots",
-      "video",
-      "projectDetails",
-      "categories",
-    ]);
+    expect([...hiddenFields(["projects"], [])]).toEqual(["projectDetails", "categories"]);
   });
 });

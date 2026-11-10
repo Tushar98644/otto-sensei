@@ -28,7 +28,9 @@ describe("dashboard nav", () => {
       "Portfolio",
       "Formats",
     ]);
-    expect(labels(APP_NAV_FOOTER)).toEqual(["Recently deleted", "Account"]);
+    expect(labels(APP_NAV_FOOTER)).toEqual(["Recently deleted"]);
+    // The signed-in menu opens Account, so the sidebar doesn't list it twice.
+    expect(labels([...APP_NAV, ...APP_NAV_FOOTER])).not.toContain("Account");
     expect(labels(APP_NAV)).not.toContain("Tailor to a job");
   });
 
@@ -39,21 +41,28 @@ describe("dashboard nav", () => {
     expect(byLabel("Interview prep").href).toBe("/dashboard/interview");
   });
 
-  it("puts four sections on the phone strip and the rest, minus Account, under More", () => {
-    expect(labels(PHONE_TABS)).toEqual(["Home", "Resumes", "Cover letters", "Jobs"]);
+  it("puts Home, Resumes, Jobs and Applications on the phone strip and the rest under More", () => {
+    expect(labels(PHONE_TABS)).toEqual(["Home", "Resumes", "Jobs", "Applications"]);
     expect(PHONE_TABS.map((item) => item.short ?? item.label)).toEqual([
       "Home",
       "Resumes",
-      "Letters",
       "Jobs",
+      "Tracker",
     ]);
     expect(labels(PHONE_MORE)).toEqual([
-      "Applications",
+      "Cover letters",
       "Interview prep",
       "Portfolio",
       "Formats",
       "Recently deleted",
     ]);
+  });
+
+  it("reaches every section from a phone exactly once", () => {
+    const phone = [...PHONE_TABS, ...PHONE_MORE].map((item) => item.href);
+    const all = [...APP_NAV, ...APP_NAV_FOOTER].map((item) => item.href);
+    expect(new Set(phone).size).toBe(phone.length);
+    expect([...phone].sort()).toEqual([...all].sort());
   });
 
   it("marks the Pro sections, and shows the badge on Free only", () => {

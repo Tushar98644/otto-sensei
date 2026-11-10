@@ -1,7 +1,14 @@
 import { isIP } from "node:net";
 import { isPublicAddress } from "./address";
 import { JobReadError } from "./errors";
-import { ASHBY_HOST, GREENHOUSE_HOSTS, LEVER_HOSTS } from "./hosts";
+import {
+  ASHBY_HOST,
+  GREENHOUSE_HOSTS,
+  LEVER_HOSTS,
+  PERSONIO_DOMAINS,
+  RECRUITEE_DOMAIN,
+  WORKABLE_HOST,
+} from "./hosts";
 
 // Server-only. Turns a pasted job link into what to read: a job on a board with a public JSON API,
 // or any other page. Pure: no network.
@@ -12,6 +19,9 @@ export type JobTarget =
   | { kind: "greenhouse"; url: URL; token: string; id: string }
   | { kind: "lever"; url: URL; company: string; id: string; eu: boolean }
   | { kind: "ashby"; url: URL; org: string; id: string }
+  | { kind: "workable"; url: URL; account: string; shortcode: string }
+  | { kind: "recruitee"; url: URL; company: string; slug: string }
+  | { kind: "personio"; url: URL; host: string; id: string }
   // Company career pages often embed a board and name the job in the query (?gh_jid=123).
   | { kind: "page"; url: URL; greenhouseId: string | null; ashbyId: string | null };
 
@@ -20,6 +30,17 @@ const JOB_NUMBER = /^\d{1,20}$/;
 const SLUG = /^[a-z0-9][a-z0-9._-]{0,99}$/i;
 // Ashby organization names may contain spaces ("Acme Labs" becomes Acme%20Labs).
 const ASHBY_ORG = /^[a-z0-9][a-z0-9 ._-]{0,99}$/i;
+const WORKABLE_SHORTCODE = /^[a-z0-9]{6,16}$/i;
+const HOST_LABEL = /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/;
+// Recruitee's and Personio's own sites under their domains, which are never a company's board.
+const VENDOR_LABELS = new Set(["www", "app", "api", "help", "support", "docs", "blog", "careers"]);
+
+/** "acme" for acme.recruitee.com, or null for another host or one of the vendor's own pages. */
+function companySubdomain(host: string, domain: string): string | null {
+  if (!host.endsWith(`.${domain}`)) return null;
+  const label = host.slice(0, -domain.length - 1);
+  return HOST_LABEL.test(label) && !VENDOR_LABELS.has(label) ? label : null;
+}
 
 // Sites that show jobs only after a login or a bot check. Asking them anyway would mean faking a
 // browser, so the person is asked for the text straight away.
@@ -147,6 +168,34 @@ export function parseJobLink(raw: string): JobTarget {
     const [org, id] = parts;
     if (org && id && ASHBY_ORG.test(org) && UUID.test(id))
       return { kind: "ashby", url, org, id: id.toLowerCase() };
+    throw new JobReadError("listing");
+  }
+  if (host === WORKABLE_HOST) {
+    // apply.workable.com/acme/j/1A2B3C4D5E/ ; the short /j/1A2B3C4D5E link doesn't name the
+    // account the documented endpoint needs, so it is read as a page.
+    const [account, j, shortcode] = parts;
+    if (
+      account &&
+      j === "j" &&
+      shortcode &&
+      SLUG.test(account) &&
+      WORKABLE_SHORTCODE.test(shortcode)
+    )
+      return { kind: "workable", url, account, shortcode };
+    if (account !== "j") throw new JobReadError("listing");
+  }
+  const recruitee = companySubdomain(host, RECRUITEE_DOMAIN);
+  if (recruitee) {
+    // acme.recruitee.com/o/account-manager, or its /c/new application form.
+    const [o, slug] = parts;
+    if (o === "o" && slug && SLUG.test(slug))
+      return { kind: "recruitee", url, company: recruitee, slug };
+    throw new JobReadError("listing");
+  }
+  const personio = PERSONIO_DOMAINS.find((domain) => companySubdomain(host, domain));
+  if (personio) {
+    const [job, id] = parts;
+    if (job === "job" && id && JOB_NUMBER.test(id)) return { kind: "personio", url, host, id };
     throw new JobReadError("listing");
   }
   return {

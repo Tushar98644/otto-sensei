@@ -1,10 +1,11 @@
 "use client";
 
+import { Lock } from "lucide-react";
 import { useMemo, useRef, useState } from "react";
 import { errorMessage } from "@/components/account/errors";
 import { useTryProLabel } from "@/components/account/pro-tools";
 import { openUpgradePrompt } from "@/components/account/upgrade-prompt";
-import { useWorkProfile } from "@/components/eligibility/use-work-profile";
+import { storeLookingFor, useWorkProfile } from "@/components/eligibility/use-work-profile";
 import { OTTO } from "@/components/mascot/lines";
 import { Otto } from "@/components/mascot/otto";
 import { OttoNote } from "@/components/mascot/otto-note";
@@ -17,10 +18,13 @@ import { toast } from "@/components/ui/toast";
 import { undoToast } from "@/components/ui/undo-toast";
 import { api } from "@/lib/api/client";
 import type { JobMatchesResponse, MatchActionInput, MatchedJob } from "@/lib/api/types";
+import { roleOptions } from "@/lib/job-feed/looking-for";
 import {
   DEFAULT_FILTERS,
   MAX_JOB_PAGE,
+  NO_CHOICE,
   type JobFilters,
+  type LookingForChoice,
   type NotFitReason,
 } from "@/lib/job-feed/types";
 import { resumeTitle } from "@/lib/resume/ops";
@@ -32,8 +36,16 @@ import { useStudioActions } from "../use-studio-actions";
 import { logJobApplied } from "./job-actions";
 import { JobCard } from "./job-card";
 import { JobFiltersBar } from "./job-filters";
+import { LookingForCard } from "./looking-for-card";
 import { useJobMatches, type JobView } from "./use-job-matches";
-import { appliedFor, checkedLabel, defaultResumeId, readsLink, tailoredFor } from "./view";
+import {
+  appliedFor,
+  checkedLabel,
+  defaultResumeId,
+  moreWithProCopy,
+  readsLink,
+  tailoredFor,
+} from "./view";
 
 const count = new Intl.NumberFormat("en-US");
 
@@ -74,12 +86,16 @@ export function JobsPage() {
     () => chosen ?? { ...DEFAULT_FILTERS, remote: remoteDefault },
     [chosen, remoteDefault],
   );
+  const choice = work.status === "ready" ? work.lookingFor : NO_CHOICE;
+  const [savingChoice, setSavingChoice] = useState(false);
   // Waits for the work profile, so a remote-only default doesn't cost a second request.
-  const { state, retry, patch } = useJobMatches({
+  const { state, retry, patch, profile, lookingFor } = useJobMatches({
     resume: profileSettled ? resume : null,
     view,
     filters,
     page,
+    choice,
+    workProfile: work.status === "ready" ? work.profile : null,
   });
   const data: JobMatchesResponse | null =
     state.status === "ready" ? state.data : state.status === "loading" ? state.previous : null;
@@ -87,6 +103,26 @@ export function JobsPage() {
   function changeFilters(next: Partial<JobFilters>) {
     setChosen({ ...filters, ...next });
     setPage(1);
+  }
+
+  // Shown at once and ranked for; kept for the account in the background.
+  async function changeLookingFor(next: LookingForChoice) {
+    if (work.status !== "ready") return;
+    const before = work.lookingFor;
+    storeLookingFor(work.userId, next);
+    // The filter bar's "Remote only" follows the card's.
+    if (chosen) setChosen({ ...chosen, remote: next.remote });
+    setPage(1);
+    setSavingChoice(true);
+    try {
+      const res = await api.saveLookingFor(next);
+      storeLookingFor(work.userId, res.choice);
+    } catch (error) {
+      storeLookingFor(work.userId, before);
+      toast({ title: "Couldn't save that", description: errorMessage(error), variant: "error" });
+    } finally {
+      setSavingChoice(false);
+    }
   }
 
   function goTo(next: number) {
@@ -121,6 +157,8 @@ export function JobsPage() {
     setBusy({ id: job.id, action: "tailor" });
     let text = "";
     try {
+      // The post as the server read it from the board's own API (or the text a feed's job
+      // keeps): the Tailor step's backup when the job's link can't be read.
       text = (await api.jobPost(job.id)).text;
     } catch {
       // The link alone still works for the boards; the feeds' jobs need their text.
@@ -142,6 +180,7 @@ export function JobsPage() {
       text,
       postedAt: job.postedAt,
       readLink: readsLink(job),
+      jobId: job.id,
     });
     actions.open(resume.id, "tailor");
   }
@@ -266,6 +305,17 @@ export function JobsPage() {
 
       {message ? <OttoNote message={message} meta={meta} /> : null}
 
+      {lookingFor && profile && view === "matches" ? (
+        <LookingForCard
+          value={lookingFor}
+          choice={choice}
+          roles={roleOptions(profile)}
+          country={work.status === "ready" ? work.profile.country : ""}
+          saving={savingChoice}
+          onChange={(next) => void changeLookingFor(next)}
+        />
+      ) : null}
+
       {locked ? null : (
         <JobFiltersBar
           key={resetKey}
@@ -357,12 +407,10 @@ export function JobsPage() {
         )}
 
         {data && locked && data.openJobs > 0 ? (
-          <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-surface px-4 py-5 sm:px-6">
-            <p className="text-sm/6 text-pretty text-muted">
-              {OTTO.jobs.locked(Math.max(0, data.matching - data.jobs.length))}
-            </p>
-            <Button onClick={() => openUpgradePrompt("jobs")}>{tryPro}</Button>
-          </div>
+          <MoreWithPro
+            copy={moreWithProCopy(data.jobs.length, data.matching, data.openJobs)}
+            tryPro={tryPro}
+          />
         ) : null}
 
         {data && pages > 1 && view === "matches" && !locked ? (
@@ -435,5 +483,43 @@ function LoadingCards() {
         </div>
       ))}
     </div>
+  );
+}
+
+// Free, under its closest few: faded card shapes say the list goes on, then the real numbers and
+// the trial. The shapes are plain bars, never made-up jobs.
+function MoreWithPro({ copy, tryPro }: { copy: { title: string; body: string }; tryPro: string }) {
+  return (
+    <section aria-labelledby="jobs-more" className="relative flex flex-col">
+      <div
+        aria-hidden
+        className="flex flex-col gap-4 [mask-image:linear-gradient(to_bottom,black,transparent)]"
+      >
+        {[0, 1].map((index) => (
+          <div
+            key={index}
+            className="flex flex-col gap-3 rounded-2xl bg-surface p-4 opacity-70 sm:p-6"
+          >
+            <div className="h-4 w-32 rounded-full bg-surface-muted" />
+            <div className="h-5 w-64 max-w-full rounded-full bg-surface-muted" />
+            <div className="h-4 w-48 rounded-full bg-surface-muted" />
+          </div>
+        ))}
+      </div>
+      <div className="-mt-16 flex flex-col items-start gap-4 rounded-2xl bg-surface px-4 py-6 shadow-sm ring-1 ring-border sm:flex-row sm:items-center sm:justify-between sm:px-6">
+        <div className="flex min-w-0 gap-3">
+          <Lock className="mt-1 size-4 shrink-0 text-subtle" aria-hidden />
+          <div className="min-w-0">
+            <h2 id="jobs-more" className="text-base/6 font-medium text-ink">
+              {copy.title}
+            </h2>
+            <p className="mt-1 text-sm/6 text-pretty text-muted">{copy.body}</p>
+          </div>
+        </div>
+        <Button onClick={() => openUpgradePrompt("jobs")} className="shrink-0">
+          {tryPro}
+        </Button>
+      </div>
+    </section>
   );
 }

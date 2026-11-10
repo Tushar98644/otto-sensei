@@ -12,7 +12,7 @@ export type PortfolioTemplateProps = {
   // Everything beyond the resume (photo, project media, logos, location...), built from `view`
   // so the same privacy choices hold.
   content: PortfolioContentView;
-  // The page's end matter (the "Made with" credit), drawn last on the template's own canvas.
+  // Optional end matter, drawn last on the template's own canvas. Pages pass none today.
   footer?: ReactNode;
 };
 

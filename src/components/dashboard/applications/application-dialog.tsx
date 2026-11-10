@@ -23,6 +23,7 @@ import { toast } from "@/components/ui/toast";
 import { APPLICATION_LIMITS, type Application } from "@/lib/applications/schema";
 import { cn } from "@/lib/utils";
 import { APPLICATION_STATUSES, isApplicationStatus, STATUS_NAMES } from "@/lib/applications/status";
+import { copyJobId } from "@/lib/applications/thread";
 import { resumeTitle } from "@/lib/resume/ops";
 import type { Resume } from "@/lib/resume/schema";
 import {
@@ -214,7 +215,10 @@ function ApplicationForm({
     setSaving(true);
     setFailure(null);
     try {
-      await addApplication(result.body);
+      await addApplication({
+        ...result.body,
+        jobId: copyJobId(byId.get(result.body.resumeId ?? "")),
+      });
       toast({ title: "Application added", description: result.body.company, variant: "success" });
       onClose();
     } catch (error) {

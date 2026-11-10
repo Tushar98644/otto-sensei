@@ -21,11 +21,11 @@ function devSession(request: NextRequest): SessionUpdate {
   return { response: NextResponse.next(), signedIn: Boolean(request.cookies.get(DEV_SESSION_COOKIE)?.value) };
 }
 
-// Skips build assets, the image optimizer, generated icons and share images, files in public/,
-// the billing webhook (Creem signs it) and the scheduled jobs (Vercel Cron sends a bearer secret):
-// neither ever has a session to refresh.
+// Skips build assets, the image optimizer, generated icons and share images, files in public/
+// (the PDF fonts included), the billing webhook (Creem signs it) and the scheduled jobs (Vercel
+// Cron sends a bearer secret): neither ever has a session to refresh.
 export const config = {
   matcher: [
-    "/((?!_next/static|_next/image|favicon\\.ico|icon|apple-icon|opengraph-image|robots\\.txt|sitemap\\.xml|api/billing/webhook|api/cron/|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|txt|xml|woff2?)$).*)",
+    "/((?!_next/static|_next/image|favicon\\.ico|icon|apple-icon|opengraph-image|robots\\.txt|sitemap\\.xml|api/billing/webhook|api/cron/|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|txt|xml|woff2?|ttf|otf)$).*)",
   ],
 };

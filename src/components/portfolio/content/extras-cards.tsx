@@ -14,7 +14,6 @@ import {
 import type { AutoContent } from "@/lib/portfolio/content-view";
 import { editContent } from "./content-store";
 import { AutoNote, FieldRow, ListEditor, newId } from "./fields";
-import { ImageField, ImageStrip } from "./image-drop";
 import { SectionCard, ShowRow } from "./section-card";
 
 // The lists beyond the resume. Lists Otto can fill (now, numbers, milestones, talks, writing,
@@ -185,7 +184,6 @@ export function MilestonesCard({ content, auto }: CardProps) {
             detail: "",
             result: "",
             url: "",
-            logo: null,
           })}
           onChange={(items, undo) => milestones.set(items, undo)}
         >
@@ -198,7 +196,7 @@ export function MilestonesCard({ content, auto }: CardProps) {
                 maxLength={L.title}
                 onChange={(e) => update({ title: e.currentTarget.value })}
               />
-              <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+              <div className="grid grid-cols-2 gap-3 @md:grid-cols-4">
                 <Select
                   aria-label="Kind"
                   value={item.kind}
@@ -240,19 +238,6 @@ export function MilestonesCard({ content, auto }: CardProps) {
                 maxLength={L.url}
                 onChange={(e) => update({ url: e.currentTarget.value })}
               />
-              {item.kind === "hackathon" ? (
-                <ImageField
-                  label="Badge or logo"
-                  kind="logo"
-                  value={item.logo}
-                  onChange={(logo, undo) =>
-                    milestones.set(
-                      milestones.items.map((m) => (m.id === item.id ? { ...m, logo } : m)),
-                      undo,
-                    )
-                  }
-                />
-              ) : null}
             </>
           )}
         </ListEditor>
@@ -291,7 +276,7 @@ export function MilestonesCard({ content, auto }: CardProps) {
                 maxLength={L.title}
                 onChange={(e) => update({ title: e.currentTarget.value })}
               />
-              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+              <div className="grid grid-cols-2 gap-3 @sm:grid-cols-3">
                 <Input
                   aria-label="Event"
                   placeholder="Lisbon Node meetup"
@@ -314,7 +299,7 @@ export function MilestonesCard({ content, auto }: CardProps) {
                   onChange={(e) => update({ place: e.currentTarget.value })}
                 />
               </div>
-              <div className="grid gap-3 sm:grid-cols-2">
+              <div className="grid gap-3 @md:grid-cols-2">
                 <Input
                   aria-label="Slides link"
                   type="url"
@@ -431,7 +416,7 @@ export function WritingCard({ content, auto }: CardProps) {
           addLabel="Add a quote"
           empty="A line from a manager, client or teammate, with their name."
           title={(item) => item.name || item.quote.slice(0, 40)}
-          create={() => ({ id: newId("q"), quote: "", name: "", role: "", url: "", photo: null })}
+          create={() => ({ id: newId("q"), quote: "", name: "", role: "", url: "" })}
           onChange={(items, undo) => editContent((c) => ({ ...c, testimonials: items }), undo)}
         >
           {(item, update) => (
@@ -474,7 +459,7 @@ export function PersonalCard({ content, auto }: CardProps) {
   return (
     <SectionCard
       title="Outside work"
-      meta={`${count(interests.items.length, "interest")} · ${count(content.shelf.length, "favourite")} · ${count(content.photos.length, "photo")}`}
+      meta={`${count(interests.items.length, "interest")} · ${count(content.shelf.length, "favourite")}`}
     >
       <div className="flex flex-col gap-2">
         <div className="flex items-baseline justify-between gap-3">
@@ -535,7 +520,7 @@ export function PersonalCard({ content, auto }: CardProps) {
           onChange={(items, undo) => editContent((c) => ({ ...c, shelf: items }), undo)}
         >
           {(item, update) => (
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+            <div className="grid grid-cols-2 gap-3 @md:grid-cols-4">
               <Select
                 aria-label="Kind"
                 value={item.kind}
@@ -549,7 +534,7 @@ export function PersonalCard({ content, auto }: CardProps) {
               </Select>
               <Input
                 aria-label="Title"
-                className="sm:col-span-2"
+                className="@md:col-span-2"
                 placeholder="Designing Data-Intensive Applications"
                 value={item.title}
                 maxLength={L.title}
@@ -566,55 +551,6 @@ export function PersonalCard({ content, auto }: CardProps) {
           )}
         </ListEditor>
         <ShowRow content={content} section="shelf" label="Show the bookshelf on my page" />
-      </div>
-      <div className="flex flex-col gap-3">
-        <ImageStrip
-          label="Personal photos"
-          kind="personal"
-          max={L.photos}
-          images={content.photos.map((photo) => photo.image)}
-          hint="Travel, hobbies, your desk. Location data is stripped before they're kept."
-          onChange={(images, undo) =>
-            editContent(
-              (c) => ({
-                ...c,
-                photos: images.flatMap((image) => {
-                  const found = c.photos.find((photo) => photo.image === image);
-                  return found ? [found] : [];
-                }),
-              }),
-              undo,
-            )
-          }
-          onAdd={(image) =>
-            editContent((c) => ({
-              ...c,
-              photos: [...c.photos, { id: newId("ph"), image, caption: "" }].slice(0, L.photos),
-            }))
-          }
-        />
-        {content.photos.length > 0 ? (
-          <ul className="flex flex-col gap-2">
-            {content.photos.map((photo, index) => (
-              <li key={photo.id}>
-                <Input
-                  aria-label={`Caption for photo ${index + 1}`}
-                  placeholder={`Caption for photo ${index + 1} (optional)`}
-                  value={photo.caption}
-                  maxLength={L.caption}
-                  onChange={(e) => {
-                    const caption = e.currentTarget.value;
-                    editContent((c) => ({
-                      ...c,
-                      photos: c.photos.map((p) => (p.id === photo.id ? { ...p, caption } : p)),
-                    }));
-                  }}
-                />
-              </li>
-            ))}
-          </ul>
-        ) : null}
-        <ShowRow content={content} section="photos" label="Show personal photos on my page" />
       </div>
     </SectionCard>
   );

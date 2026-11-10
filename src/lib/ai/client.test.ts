@@ -100,7 +100,7 @@ describe("runStructured request", () => {
         },
       },
       reasoning: { effort: "low", exclude: true },
-      provider: { require_parameters: true, data_collection: "deny" },
+      provider: { require_parameters: true, data_collection: "deny", sort: "price" },
     });
   });
 

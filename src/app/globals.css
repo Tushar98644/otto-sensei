@@ -83,12 +83,12 @@
     0 16px 28px -12px rgb(18 36 29 / 0.32);
 
   /*
-   * Resume thumbnails draw with the PDF's own font families (src/components/pdf/theme.ts uses the
-   * standard PDF fonts), so a miniature looks like its download, not like the app's Inter.
+   * The download step's Sans/Serif labels, in the look of the families they print in (Carlito and
+   * Tinos have Calibri's and Times's widths). Thumbnails take each PDF font's own stack from
+   * src/lib/pdf/fonts.ts.
    */
-  --font-page-sans: Helvetica, Arial, ui-sans-serif, sans-serif;
-  --font-page-serif: "Times New Roman", Times, ui-serif, serif;
-  --font-page-mono: "Courier New", Courier, ui-monospace, monospace;
+  --font-page-sans: Carlito, Calibri, "Segoe UI", Helvetica, Arial, ui-sans-serif, sans-serif;
+  --font-page-serif: Tinos, "Times New Roman", Times, ui-serif, serif;
 
   /*
    * otto-* animate the individual translate/rotate/scale properties, so they stack on top of SVG

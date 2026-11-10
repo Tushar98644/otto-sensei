@@ -1,16 +1,16 @@
 import { ArrowUpRight, Film, Lightbulb, Mic, Newspaper } from "lucide-react";
 import type { CSSProperties, ReactNode } from "react";
-import type { ContentLogo, ContentProject } from "@/lib/portfolio/content";
+import type { ContentProject } from "@/lib/portfolio/content";
 import { SocialIcon } from "../icons";
-import { DesignCredit, Marked, nameOf, OutLink, TemplateStyle } from "../parts";
+import { DesignCredit, Marked, nameOf, OutLink, seedOf, TemplateStyle } from "../parts";
 import type { PortfolioTemplateProps } from "../types";
 import { ArtPlum, ToTop } from "./islands";
 import { PROSE_CSS } from "./styles";
 
 // Prose: a rebuild of Anthony Fu's site (github.com/antfu/antfu.me, code MIT; ./LICENSE.txt) for
-// anyone's data. Words first: the name, a few paragraphs with logo chips for where you work and
-// what you made, your links; then projects grouped by kind under huge outlined labels, and talks
-// and writing listed under outlined years. Plum branches grow in behind the page. Only the code
+// anyone's data. Words first: the name, a few paragraphs with chips for where you work and what
+// you made (each with a coloured monogram where his have logos), your links; then projects grouped
+// by kind under huge outlined labels, and talks and writing listed under outlined years. Plum branches grow in behind the page. Only the code
 // and layout come from the original: its text and pictures (CC BY-NC-SA) are not used.
 
 const NAV_SOCIALS = 3;
@@ -36,26 +36,25 @@ function yearOf(date: string): string {
   return /\b(?:19|20)\d{2}\b/.exec(date)?.[0] ?? "";
 }
 
+// The chip's colour comes from the name, so Ledgerly is always the same blue and Tripwise its own.
+const hueOf = (name: string) => ({ "--hue": seedOf(name) % 360 }) as CSSProperties;
+
 function Chip({
   href,
-  logo,
+  monogram,
+  name,
   children,
 }: {
   href: string | null;
-  logo: ContentLogo;
+  monogram: string;
+  name: string;
   children: ReactNode;
 }) {
-  const mark = logo.src ? (
-    // eslint-disable-next-line @next/next/no-img-element -- uploaded or fetched logo, any host
-    <img src={logo.src} alt="" loading="lazy" referrerPolicy="no-referrer" />
-  ) : (
-    <span className="mono" aria-hidden>
-      {logo.monogram.slice(0, 2)}
-    </span>
-  );
   return (
     <OutLink href={href} className="chip">
-      {mark}
+      <span className="mono" style={hueOf(name)} aria-hidden>
+        {monogram.slice(0, 2)}
+      </span>
       {children}
     </OutLink>
   );
@@ -163,7 +162,7 @@ export function ProseTemplate({ view, content, footer }: PortfolioTemplateProps)
   }));
 
   const jobChip = (job: (typeof content.experience)[number]) => (
-    <Chip href={job.website?.href ?? null} logo={job.logo}>
+    <Chip href={job.website?.href ?? null} monogram={job.monogram} name={job.company || job.title}>
       {job.company || job.title}
     </Chip>
   );
@@ -222,7 +221,8 @@ export function ProseTemplate({ view, content, footer }: PortfolioTemplateProps)
                     <Chip
                       key={project.id}
                       href={project.website?.href ?? project.source?.href ?? null}
-                      logo={project.logo}
+                      monogram={project.monogram}
+                      name={project.name}
                     >
                       {project.name}
                     </Chip>
@@ -280,19 +280,9 @@ export function ProseTemplate({ view, content, footer }: PortfolioTemplateProps)
                       className="item"
                     >
                       <span className="item-icon">
-                        {project.logo.src ? (
-                          // eslint-disable-next-line @next/next/no-img-element -- uploaded or fetched icon, any host
-                          <img
-                            src={project.logo.src}
-                            alt=""
-                            loading="lazy"
-                            referrerPolicy="no-referrer"
-                          />
-                        ) : (
-                          <span className="mono" aria-hidden>
-                            {project.logo.monogram.slice(0, 2)}
-                          </span>
-                        )}
+                        <span className="mono" aria-hidden>
+                          {project.monogram.slice(0, 2)}
+                        </span>
                       </span>
                       <span className="item-body">
                         <span className="item-name">{project.name}</span>

@@ -1,5 +1,8 @@
+import { eq } from "drizzle-orm";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { PRO_TRIAL } from "@/config/plans";
+import { getDb } from "@/db/client";
+import { applications } from "@/db/schema";
 import type {
   ApiErrorBody,
   InterviewPacksResponse,
@@ -9,6 +12,7 @@ import type {
 } from "@/lib/api/types";
 import { cookieJar, jsonRequest, resetDb, signInAs, signInOnTrial } from "@/lib/auth/test-helpers";
 import { resetEnvForTests } from "@/lib/env";
+import type { InterviewPrep } from "@/lib/insights/prep";
 import { getPrep, savePrep } from "@/lib/insights/prep-store";
 import { createSampleResume } from "@/lib/resume/sample";
 import { getUsage } from "@/lib/usage";
@@ -82,7 +86,9 @@ describe("POST /api/interview", () => {
     const json = (await res.json()) as InterviewResponse;
     expect(json.demo).toBe(true);
     expect(json.result.saved).toBe(true);
-    expect(json.result.prep.questions.length).toBeGreaterThan(0);
+    expect(json.result.prep.version).toBe(2);
+    expect(json.result.prep.questions[0]?.round).toBe("opening");
+    expect(json.result.prep.questions.at(-1)?.round).toBe("closing");
     expect(json.result.prep.stories[0]?.place).toBe("Product Marketing Manager at Brightloop");
     expect(json.usage.letter).toEqual({ used: 1, limit: PRO_TRIAL.limits.letter });
     expect((await getUsage(user)).letter.used).toBe(1);
@@ -140,8 +146,8 @@ describe("prep store", () => {
   it("never writes another account's row and reads a broken pack as none", async () => {
     const owner = await signInOnTrial("owner@example.com", TRIAL_END);
     const id = await newApplication(owner.id);
-    const pack = {
-      version: 1 as const,
+    const pack: InterviewPrep = {
+      version: 2,
       job: { title: "", company: "" },
       questions: [],
       stories: [],
@@ -154,6 +160,42 @@ describe("prep store", () => {
     expect((await getPrep(owner.id, id))?.prep).toEqual(pack);
     await expect(savePrep(owner.id, id, { ...pack, asks: ["x".repeat(500)] })).rejects.toThrow();
   });
+
+  it("reads a pack saved before rounds as v2, and lists it", async () => {
+    const owner = await signInOnTrial("owner@example.com", TRIAL_END);
+    const id = await newApplication(owner.id);
+    const v1 = {
+      version: 1,
+      job: { title: "", company: "" },
+      questions: [{ question: "Tell me about a launch.", why: "The post asks for launches." }],
+      stories: [],
+      asks: [],
+      createdAt: NOW,
+      demo: false,
+    };
+    const db = await getDb();
+    await db
+      .update(applications)
+      .set({ prep: v1 as unknown as InterviewPrep })
+      .where(eq(applications.id, id));
+
+    const res = await prepRequest(id);
+    expect(res.status).toBe(200);
+    const { prep } = (await res.json()) as InterviewPrepResponse;
+    expect(prep?.version).toBe(2);
+    expect(prep?.questions).toEqual([
+      {
+        round: "fit",
+        question: "Tell me about a launch.",
+        checking: "The post asks for launches.",
+        followUp: "",
+        points: [],
+        story: null,
+      },
+    ]);
+    const { packs } = (await (await listPacks()).json()) as InterviewPacksResponse;
+    expect(packs).toEqual([expect.objectContaining({ applicationId: id, questions: 1 })]);
+  });
 });
 
 describe("GET /api/interview", () => {
@@ -163,10 +205,12 @@ describe("GET /api/interview", () => {
     const older = await newApplication(owner.id);
     const newer = await newApplication(owner.id);
     await newApplication(owner.id);
-    const pack = {
-      version: 1 as const,
+    const pack: InterviewPrep = {
+      version: 2,
       job: { title: "", company: "" },
-      questions: [{ question: "Tell me about a launch.", why: "" }],
+      questions: [
+        { round: "behavioural", question: "Tell me about a launch.", checking: "", followUp: "", points: [], story: null },
+      ],
       stories: [],
       asks: [],
       createdAt: NOW - 5_000,

@@ -160,7 +160,9 @@ export async function fixBullet(input: FixInput): Promise<FixResult> {
     system: FIX_SYSTEM_PROMPT,
     user: fixMessage(redactFix(fix, redactor)),
     schema: FixOutputSchema,
-    effort: "medium",
+    // Medium bought nothing measurable over low on the same lines and was about 3x slower on the
+    // answer step (AUDIT-cost-and-findability.md, "Fix: low vs medium effort").
+    effort: "low",
   });
   return finalizeFix(redactor.restoreDeep(output), fix);
 }

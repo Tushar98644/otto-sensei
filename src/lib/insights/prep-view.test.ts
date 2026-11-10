@@ -1,7 +1,16 @@
 import { describe, expect, it } from "vitest";
 import { emptyResume, type Resume } from "@/lib/resume/schema";
 import type { InterviewPrep } from "./prep";
-import { countBlanks, prepJobSource, prepResume, prepToText, splitBlanks } from "./prep-view";
+import {
+  countBlanks,
+  orderedQuestions,
+  prepJobSource,
+  prepResume,
+  prepRounds,
+  prepToText,
+  splitBlanks,
+  storyUses,
+} from "./prep-view";
 import { savedJobText, savedRequirements } from "./saved-job";
 
 const POST = "We're hiring a data engineer to build pipelines in Airflow and dbt. ".repeat(3);
@@ -16,25 +25,36 @@ function tailored(id: string, extra: Record<string, unknown> = {}, updatedAt = 1
   };
 }
 
+const STORY = {
+  title: "Billing rebuild",
+  line: "Rebuilt billing in Go",
+  place: "Engineer at Acme",
+  situation: "[What was going on?]",
+  task: "[What were you asked to do?]",
+  action: "Rebuilt billing in Go",
+  result: "Cut latency by [number]",
+};
+
 const PREP: InterviewPrep = {
-  version: 1,
+  version: 2,
   job: { title: "Data Engineer", company: "Mapline" },
-  questions: [{ question: "How do you test a pipeline?", why: "The post asks for dbt." }],
-  stories: [
+  questions: [
     {
-      title: "Billing rebuild",
-      line: "Rebuilt billing in Go",
-      place: "Engineer at Acme",
-      situation: "[What was going on?]",
-      task: "[What were you asked to do?]",
-      action: "Rebuilt billing in Go",
-      result: "Cut latency by [number]",
+      round: "skills",
+      question: "Walk me through how you'd test a dbt pipeline.",
+      checking: "Whether you test data, not just code.",
+      followUp: "What would you do when a test fails at 2am?",
+      points: ["Your billing rebuild in Go", "[Which checks did you run?]"],
+      story: 0,
     },
   ],
+  stories: [STORY],
   asks: ["What does the team ship next?"],
   createdAt: 1,
   demo: false,
 };
+
+const QUESTION = { checking: "", followUp: "", points: [], story: null };
 
 describe("prepJobSource", () => {
   it("uses the post saved with the copy first", () => {
@@ -92,11 +112,58 @@ describe("pack text", () => {
     expect(countBlanks(PREP)).toBe(3);
   });
 
-  it("writes the whole pack as plain text", () => {
+  it("writes the whole pack as plain text, round by round", () => {
     const text = prepToText(PREP, { company: "Mapline", role: "" });
     expect(text.split("\n")[0]).toBe("Interview prep: Data Engineer at Mapline");
-    expect(text).toContain("1. How do you test a pipeline?\n   Why: The post asks for dbt.");
+    expect(text).toContain(
+      [
+        "Round 1 · Skills",
+        "1. Walk me through how you'd test a dbt pipeline.",
+        "   What they're checking: Whether you test data, not just code.",
+        "   Hit these points:",
+        "   - Your billing rebuild in Go",
+        "   - [Which checks did you run?]",
+        "   Use your story: Billing rebuild",
+        "   Likely follow-up: What would you do when a test fails at 2am?",
+      ].join("\n"),
+    );
+    expect(text).toContain("Your turn: questions to ask them\n- What does the team ship next?");
     expect(text).toContain('  From: "Rebuilt billing in Go" (Engineer at Acme)');
-    expect(text.endsWith("- What does the team ship next?")).toBe(true);
+    expect(text.endsWith("  Result: Cut latency by [number]")).toBe(true);
+  });
+});
+
+describe("rounds", () => {
+  const prep: Pick<InterviewPrep, "questions" | "stories"> = {
+    stories: [STORY, { ...STORY, title: "Other", line: "Other line" }],
+    questions: [
+      { ...QUESTION, round: "closing", question: "Anything else?" },
+      { ...QUESTION, round: "behavioural", question: "A time it went wrong?", story: 1 },
+      { ...QUESTION, round: "opening", question: "Walk me through your background." },
+      { ...QUESTION, round: "behavioural", question: "A time you disagreed?", story: 1 },
+    ],
+  };
+
+  it("numbers questions in interview order, opening first and closing last", () => {
+    expect(orderedQuestions(prep).map(({ item, number }) => [number, item.round])).toEqual([
+      [1, "opening"],
+      [2, "behavioural"],
+      [3, "behavioural"],
+      [4, "closing"],
+    ]);
+  });
+
+  it("groups them by round, numbering only the rounds the pack has", () => {
+    expect(
+      prepRounds(prep).map((group) => [group.number, group.round, group.questions.map((q) => q.number)]),
+    ).toEqual([
+      [1, "opening", [1]],
+      [2, "behavioural", [2, 3]],
+      [3, "closing", [4]],
+    ]);
+  });
+
+  it("lists which questions each story answers", () => {
+    expect(storyUses(prep)).toEqual([[], [2, 3]]);
   });
 });

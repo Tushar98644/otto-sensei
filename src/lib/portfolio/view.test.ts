@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { planCopy, PORTFOLIO_PERK } from "@/app/(marketing)/_components/plan-features";
+import { planCopy } from "@/app/(marketing)/_components/plan-features";
 import { emptyResume } from "@/lib/resume/schema";
 import { sampleResume } from "./testing";
-import { canBuildPortfolio, canHideCredit, canPublishPortfolio, showsCredit } from "./plan";
+import { canBuildPortfolio, canPublishPortfolio } from "./plan";
 import { DEFAULT_PORTFOLIO_SETTINGS } from "./types";
 import { portfolioView, sectionsWithContent } from "./view";
 
@@ -92,22 +92,10 @@ describe("portfolioView", () => {
   });
 });
 
-describe("pictures and dates", () => {
-  it("gives a project its owner's picture only when the address is safe", () => {
-    const view = portfolioView(sampleResume(), {
-      ...defaults,
-      projectImages: {
-        p1: "https://cdn.example.com/otto.png",
-        p2: "https://cdn.example.com/secret.png",
-      },
-    });
-    expect(view.projects).toMatchObject([{ id: "p1", image: "https://cdn.example.com/otto.png" }]);
-    const unsafe = portfolioView(sampleResume(), {
-      ...defaults,
-      projectImages: { p1: "http://cdn.example.com/a.png" },
-    });
-    expect(unsafe.projects[0]?.image).toBeNull();
-    expect(portfolioView(sampleResume(), defaults).projects[0]?.image).toBeNull();
+describe("no pictures, and dates", () => {
+  it("never gives a project a picture: pages are text only", () => {
+    const view = portfolioView(sampleResume(), defaults);
+    for (const project of view.projects) expect(project).not.toHaveProperty("image");
   });
 
   it("keeps start and end dates apart, and when the resume changed", () => {
@@ -122,19 +110,11 @@ describe("pictures and dates", () => {
 });
 
 describe("plan perk", () => {
-  it("lets Pro and Max hide the credit line, and never Free", () => {
-    expect(canHideCredit("free")).toBe(false);
-    expect(canHideCredit("pro")).toBe(true);
-    expect(canHideCredit("max")).toBe(true);
-    expect(showsCredit(true, "free")).toBe(true);
-    expect(showsCredit(true, "pro")).toBe(false);
-    expect(showsCredit(false, "max")).toBe(true);
-  });
-
-  it("lists the portfolio and its perk on Pro, and neither on Free (portfolios are Pro and Max)", () => {
-    expect(planCopy("pro").features).toContain(PORTFOLIO_PERK);
-    expect(planCopy("pro", "week").features).toContain(PORTFOLIO_PERK);
-    expect(planCopy("pro").features.some((line) => /portfolio page/i.test(line))).toBe(true);
+  it("lists the portfolio on Pro, and not on Free (portfolios are Pro and Max)", () => {
+    expect(planCopy("pro").features.some((line) => /portfolio site/i.test(line))).toBe(true);
+    expect(planCopy("pro", "week").features.some((line) => /portfolio site/i.test(line))).toBe(
+      true,
+    );
     expect(planCopy("free").features.some((line) => /portfolio/i.test(line))).toBe(false);
   });
 

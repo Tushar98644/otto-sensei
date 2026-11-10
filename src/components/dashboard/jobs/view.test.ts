@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { Application } from "@/lib/applications/schema";
 import { emptyResume } from "@/lib/resume/schema";
 import {
+  moreWithProCopy,
   appliedFor,
   checkedLabel,
   defaultResumeId,
@@ -41,9 +42,12 @@ describe("Jobs tab helpers", () => {
     expect(appliedFor([{ ...applied, jobUrl: "" }], job)).toBeNull();
   });
 
-  it("reads board links again, but not the feeds' pages", () => {
+  it("reads board and Jobicy links again, but not Himalayas' or Remote OK's pages", () => {
     expect(readsLink({ source: "ashby" })).toBe(true);
+    expect(readsLink({ source: "workable" })).toBe(true);
+    expect(readsLink({ source: "jobicy" })).toBe(true);
     expect(readsLink({ source: "himalayas" })).toBe(false);
+    expect(readsLink({ source: "remoteok" })).toBe(false);
   });
 
   it("says when a job was posted and where it is", () => {
@@ -69,5 +73,16 @@ describe("Jobs tab helpers", () => {
     ).toBe("Remote UK, Remote Canada, Berlin (+2) · Full-time");
     expect(checkedLabel(NOW - 3 * 60 * 60 * 1_000, NOW)).toBe("3 hours ago");
     expect(checkedLabel(null, NOW)).toBeNull();
+  });
+});
+
+describe("moreWithProCopy", () => {
+  it("says how many matches Free isn't seeing, and what Pro adds, with real numbers", () => {
+    expect(moreWithProCopy(5, 1_243, 27_828)).toEqual({
+      title: "Your top 5 of 1,243 matches",
+      body: "Pro shows every match from 27,000+ open jobs, and narrows them by remote, level, posting date and where each job can hire.",
+    });
+    expect(moreWithProCopy(3, 3, 19_325).title).toBe("Your 3 matches so far");
+    expect(moreWithProCopy(1, 1, 19_325).title).toBe("Your match so far");
   });
 });

@@ -1,7 +1,7 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import { contentView } from "@/lib/portfolio/content-view";
-import { emptyContent } from "@/lib/portfolio/content";
+import { emptyContent, type PortfolioContent, type ProjectEntry } from "@/lib/portfolio/content";
 import { jordanContent, jordanGitHub, jordanV2Resume } from "@/lib/portfolio/fixtures/jordan";
 import { PORTFOLIO_SECTIONS, type PortfolioTemplateId } from "@/lib/portfolio/types";
 import { portfolioView, type ViewSettings } from "@/lib/portfolio/view";
@@ -9,7 +9,8 @@ import { emptyResume, type Resume } from "@/lib/resume/schema";
 import { PORTFOLIO_TEMPLATES } from "./registry";
 
 // The eight rebuilds with the full Jordan fixture, with the least data a page can have, with
-// hostile text, and with sections hidden.
+// hostile text, and with sections hidden. None of them draws a picture (owner decision
+// 2026-11-10): every stand-in is drawn from the page's own words.
 
 const NOW = Date.UTC(2026, 10, 8);
 const OPEN: ViewSettings = { showEmail: true, showPhone: false, hiddenSections: [] };
@@ -18,15 +19,24 @@ function draw(id: PortfolioTemplateId, resume: Resume, settings = OPEN, full = t
   const view = portfolioView(resume, settings);
   const content = contentView({
     view,
-    content: full ? jordanContent() : { ...emptyContent(), photo: "none" },
+    content: full ? jordanContent() : emptyContent(),
     github: full ? jordanGitHub() : null,
-    mediaBase: "https://media.example.com/",
     now: NOW,
   });
   const { Component } = PORTFOLIO_TEMPLATES[id];
   return renderToStaticMarkup(
     <Component view={view} content={content} footer={<span>Made with Otto</span>} />,
   );
+}
+
+// The fixture with its projects changed.
+function drawEdited(id: PortfolioTemplateId, edit: (project: ProjectEntry) => ProjectEntry) {
+  const view = portfolioView(jordanV2Resume(), OPEN);
+  const fixture = jordanContent();
+  const edited: PortfolioContent = { ...fixture, projects: fixture.projects.map(edit) };
+  const content = contentView({ view, content: edited, github: jordanGitHub(), now: NOW });
+  const { Component } = PORTFOLIO_TEMPLATES[id];
+  return renderToStaticMarkup(<Component view={view} content={content} />);
 }
 
 // What each design is expected to show from the full fixture. Reel, like its reference, has no
@@ -120,7 +130,6 @@ const SHOWS: Record<PortfolioTemplateId, string[]> = {
     "University of Manchester",
     "Platform 9",
     "Postgres is a fine queue",
-    "Sintra, on a dry day",
     "Bouldering",
     "Kind of Blue",
     "Designing Data-Intensive Applications",
@@ -130,11 +139,9 @@ const SHOWS: Record<PortfolioTemplateId, string[]> = {
 };
 
 describe.each(Object.keys(SHOWS) as PortfolioTemplateId[])("the %s rebuild", (id) => {
-  it("draws the full fixture: every section it has, with pictures from the media host", () => {
+  it("draws the full fixture: every section it has", () => {
     const html = draw(id, jordanV2Resume());
     for (const text of SHOWS[id]) expect(html, text).toContain(text);
-    expect(html).toContain('src="https://media.example.com/');
-    expect(html).toMatch(/referrerPolicy="no-referrer"|referrerpolicy="no-referrer"/);
     expect(html).not.toMatch(/<(section|article|ul)[^>]*>\s*<\/\1>/);
   });
 
@@ -199,28 +206,69 @@ describe.each(Object.keys(SHOWS) as PortfolioTemplateId[])("the %s rebuild", (id
 describe("rebuild details", () => {
   it("Navy draws jobs as tabs, with only the first panel open", () => {
     const html = draw("navy", jordanV2Resume());
-    expect(html.match(/role="tab"/g)).toHaveLength(3);
-    expect(html.match(/role="tabpanel"/g)).toHaveLength(3);
-    expect(html.match(/role="tabpanel"[^>]*hidden=""/g)).toHaveLength(2);
-    expect(html).toContain("Featured Project");
+    expect(html.match(/role="tab"/g)).toHaveLength(5);
+    expect(html.match(/role="tabpanel"/g)).toHaveLength(5);
+    expect(html.match(/role="tabpanel"[^>]*hidden=""/g)).toHaveLength(4);
+    // The first three, each over a code window drawn from its name instead of a screenshot.
+    expect(html.match(/Featured Project/g)).toHaveLength(3);
+    expect(html.match(/class="img code-screen"/g)).toHaveLength(3);
+    expect(html).toContain(">tally.ts<");
   });
 
   it("Dock draws work as expandable rows and a dock with a theme toggle", () => {
     const html = draw("dock", jordanV2Resume());
-    expect(html.match(/<details class="row"/g)).toHaveLength(3);
+    expect(html.match(/<details class="row"/g)).toHaveLength(5);
     expect(html).toContain('aria-label="Toggle theme"');
-    expect(html).toContain("youtube-nocookie.com/embed/");
+  });
+
+  it("Dock gives every project card a drawn cover, and every milestone an icon of its kind", () => {
+    const html = draw("dock", jordanV2Resume());
+    expect(html.match(/class="cover" data-pattern="(dots|grid|lines)"/g)).toHaveLength(7);
+    expect(html).toMatch(/class="cover-mark"[^>]*>T</);
+    expect(html).toContain("Open source · analytics");
+    expect(html.match(/class="t-icon"/g)).toHaveLength(6);
+    // No photo gallery: it only makes sense with pictures.
+    expect(html).not.toContain('aria-label="Photos"');
   });
 
   it("Reel gives projects with more to show their own page, opened in place", () => {
     const html = draw("reel", jordanV2Resume());
     expect(html).toContain('href="#pf-reel-p-tally"');
     expect(html).toContain('id="pf-reel-p-tally"');
-    expect(html).toContain("プロジェクト");
+    // His katakana outlines, drawn once and used behind each device and down the portrait tile.
+    expect(html).toContain('id="pf-reel-katakana-project"');
+    expect(html.match(/href="#pf-reel-katakana-project"/g)).toHaveLength(4);
+    expect(html).toContain('href="#pf-reel-katakana-profile"');
+    expect(html).toMatch(/class="image-initials-text">JE</);
+    // A project with no write-up has no page of its own.
+    expect(html).not.toContain('id="pf-reel-p-pgsnap"');
+  });
+
+  it("Reel puts each project in a laptop or a pair of phones, with still frames for no WebGL", () => {
+    const html = draw("reel", jordanV2Resume());
+    expect(html.match(/class="summary section"/g)).toHaveLength(4);
+    expect(html.match(/class="summary-model" data-device="laptop"/g)).toHaveLength(2);
+    expect(html.match(/class="summary-model" data-device="phone"/g)).toHaveLength(2);
+    // Every screen is drawn: one per laptop, two per pair of phones, and one atop each of the
+    // three project pages.
+    expect(html.match(/class="drawn-screen"/g)).toHaveLength(2 + 2 * 2 + 3);
+    // The phone behind lists the facts; the one in front is the title page.
+    expect(html).toContain("4.2k stars");
+    const laptops = drawEdited("reel", (project) => ({ ...project, device: "auto" }));
+    expect(laptops.match(/class="summary-model" data-device="laptop"/g)).toHaveLength(4);
+    // three.js draws only in the browser, and readers without JavaScript get the finished page.
+    expect(html).not.toContain("<canvas");
+    expect(html).toContain("<noscript>");
+    // The rest of the resume, in his language: more projects and the jobs.
+    expect(html).toContain('id="pf-reel-more"');
+    expect(html.match(/class="extra-row"/g)).toHaveLength(3 + 5);
   });
 
   it("Bento only draws the clock with a time zone, and frames every tile", () => {
     const html = draw("bento", jordanV2Resume());
+    // Each project tile has a pixel mark from its name; the intro has the initials.
+    expect(html.match(/<svg class="mark"/g)).toHaveLength(4);
+    expect(html).toContain('<div class="initials">JE</div>');
     expect(html).toContain("--:--");
     expect(html).toContain("-webkit-mask-box-image");
     expect(
@@ -234,31 +282,39 @@ describe("rebuild details", () => {
     expect(html).toContain('class="url"');
     expect(html).toContain("to open the command menu");
     expect(html).toContain("@page { size: A4;");
-    expect(html.match(/<article/g)?.length).toBe(3 + 1 + 5);
+    expect(html.match(/<article/g)?.length).toBe(5 + 1 + 7);
   });
 
-  it("Prose files projects under their kind and puts logo chips in the intro", () => {
+  it("Prose files projects under their kind and puts monogram chips in the intro", () => {
     const html = draw("prose", jordanV2Resume());
     for (const group of ["Open source", "SaaS", "PWA", "Hackathon"])
       expect(html).toContain(`<span>${group}</span>`);
     expect(html.match(/class="chip"/g)?.length).toBeGreaterThanOrEqual(3 + 5);
+    // Each chip's colour comes from its name, so it's the same on every render.
+    expect(html).toMatch(/class="mono" style="--hue:\d+"/);
+    expect(draw("prose", jordanV2Resume())).toBe(html);
     expect(html).toContain('class="plum"');
     expect(html).toContain("<span>2026</span>");
   });
 
-  it("Folio stands phone shots in a tile and gives projects without one their icon", () => {
+  it("Folio gives every project tile an app icon drawn from its name", () => {
     const html = draw("folio", jordanV2Resume());
-    expect(html).toMatch(/class="tall"/);
+    expect(html.match(/class="tile"/g)).toHaveLength(7);
+    expect(html.match(/class="app-icon"/g)).toHaveLength(7);
     expect(html).toMatch(/class="app-icon"[^>]*>T</);
-    expect(html.match(/class="logo"/g)).toHaveLength(3);
+    expect(html.match(/class="logo"/g)).toHaveLength(5);
   });
 
   it("Paper numbers its sections in order and only draws the clock with a time zone", () => {
     const html = draw("paper", jordanV2Resume());
-    for (const index of ["01", "02", "03", "04", "05", "06", "07"])
+    for (const index of ["01", "02", "03", "04", "05", "06"])
       expect(html).toContain(`<span class="tag-index" aria-hidden="true">${index}</span>`);
-    expect(html).not.toContain(">08<");
+    expect(html).not.toContain(">07<");
+    // Writing, Projects and the shelf, which takes the photo card's place.
     expect(html.match(/class="nav-card enter-swing"/g)).toHaveLength(3);
+    expect(html).toContain('href="#pf-paper-shelf"');
+    expect(html).toContain('id="pf-paper-shelf"');
+    expect(html).toContain('class="halftone-ink">JE<');
     expect(html).toContain("--:--");
     expect(html).toContain('class="spine"');
     const resume = jordanV2Resume();
@@ -268,7 +324,6 @@ describe("rebuild details", () => {
       view,
       content: { ...jordanContent(), location: null },
       github: null,
-      mediaBase: "",
       now: NOW,
     });
     const { Component } = PORTFOLIO_TEMPLATES.paper;
@@ -276,4 +331,36 @@ describe("rebuild details", () => {
       "--:--",
     );
   });
+});
+
+// Owner decision 2026-11-10: portfolios store no pictures and link to none. Every design, full or
+// bare, draws only markup, CSS and SVG made from the page's words.
+describe("every design without pictures", () => {
+  // The only url() a page may hold: an SVG fragment, an inline data: drawing, or the template's own
+  // drawn still frames (Reel's device frames and sphere, rendered from his models).
+  const ALLOWED_URL = /^url\(\s*["']?(?:#|%23|data:|\/portfolio-templates\/)/;
+
+  const pages = (id: PortfolioTemplateId) => {
+    const bare = emptyResume(1);
+    bare.basics.name = "Ada Lovelace";
+    return [draw(id, jordanV2Resume()), draw(id, bare, OPEN, false)];
+  };
+
+  it.each(Object.keys(PORTFOLIO_TEMPLATES) as PortfolioTemplateId[])(
+    "%s draws no picture, video or embed, and loads nothing from elsewhere",
+    (id) => {
+      for (const html of pages(id)) {
+        expect(html).not.toMatch(/<(?:img|picture|video|iframe|object|embed|image)\b/i);
+        expect(html).not.toMatch(/\ssrcset=/i);
+        expect(html).not.toMatch(/\ssrc=/i);
+        for (const [found] of html.matchAll(/url\([^)]*\)?/g)) {
+          expect(found, id).toMatch(ALLOWED_URL);
+        }
+        const ownFrames = /url\(\s*["']?\/portfolio-templates\/[^)]*\)/g;
+        expect(html.replace(ownFrames, "")).not.toMatch(
+          /portfolio-fixtures|\/api\/portfolio\/media|\.(?:webp|png|jpe?g|avif|gif|mp4|webm)\b/i,
+        );
+      }
+    },
+  );
 });

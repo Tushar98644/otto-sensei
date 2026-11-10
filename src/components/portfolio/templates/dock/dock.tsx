@@ -1,6 +1,18 @@
-import { ArrowUpRight, ChevronDown, ChevronRight, Globe } from "lucide-react";
+import {
+  ArrowUpRight,
+  ChevronDown,
+  ChevronRight,
+  Code,
+  Globe,
+  Mic,
+  Newspaper,
+  Rocket,
+  Star,
+  Trophy,
+  type LucideIcon,
+} from "lucide-react";
 import type { CSSProperties, ReactNode } from "react";
-import type { ContentLogo, ContentProject, ContentVideo } from "@/lib/portfolio/content";
+import type { ContentProject, MilestoneKind } from "@/lib/portfolio/content";
 import { GitHubIcon } from "../icons";
 import {
   allSkills,
@@ -9,7 +21,8 @@ import {
   Marked,
   nameOf,
   OutLink,
-  Picture,
+  seeded,
+  seedOf,
   TemplateStyle,
 } from "../parts";
 import type { PortfolioTemplateProps } from "../types";
@@ -18,62 +31,52 @@ import { DOCK_CSS } from "./styles";
 
 // Dock: a rebuild of Dillion Verma's portfolio (github.com/dillionverma/portfolio, the magicui
 // template, MIT; ./LICENSE.txt) for anyone's data. One calm column that blurs in block by block:
-// avatar hero, About, work as expandable rows with logos, education, skill badges, project cards
-// with screenshots or video, a hackathon timeline, a contact card, and a floating dock with a
-// theme toggle.
+// initials avatar hero, About, work as expandable rows with monogram badges, education, skill
+// badges, project cards with a drawn cover (a dot, grid or line field and the project's mark, in
+// place of his screenshots and videos), a hackathon timeline, a contact card, and a floating dock
+// with a theme toggle.
 
 const STEP = 0.04;
 const SOCIALS_IN_DOCK = 5;
 
 const delay = (steps: number) => ({ "--d": `${(steps * STEP).toFixed(2)}s` }) as CSSProperties;
 
-function Logo({ logo, alt }: { logo: ContentLogo; alt: string }) {
-  if (logo.src) {
-    return (
-      // eslint-disable-next-line @next/next/no-img-element -- uploaded or fetched icon, any host
-      <img src={logo.src} alt={alt} className="logo" loading="lazy" referrerPolicy="no-referrer" />
-    );
-  }
+function Logo({ monogram }: { monogram: string }) {
   return (
     <div className="logo" aria-hidden>
-      {logo.monogram}
+      {monogram}
     </div>
   );
 }
 
-function Media({ project }: { project: ContentProject }) {
-  const video: ContentVideo | null = project.video;
-  const image = project.images[0];
-  if (video?.kind === "file") {
-    return (
-      <video
-        src={video.src}
-        autoPlay
-        loop
-        muted
-        playsInline
-        preload="metadata"
-        aria-label={`${project.name} video`}
-      >
-        <source src={video.src} type={video.type} />
-      </video>
-    );
-  }
-  if (image) return <Picture image={image} />;
-  if (video?.kind === "embed") {
-    return (
-      <iframe
-        src={video.src}
-        title={`${project.name} video`}
-        loading="lazy"
-        allow="encrypted-media; picture-in-picture"
-        referrerPolicy="strict-origin-when-cross-origin"
-        allowFullScreen
-      />
-    );
-  }
-  return <div className="blank" />;
+const PATTERNS = ["dots", "grid", "lines"] as const;
+
+/** The card's cover: one of three fields, lit from a spot of its own, under the project's mark. */
+function Cover({ project }: { project: ContentProject }) {
+  const random = seeded(seedOf(project.name));
+  const style = {
+    "--x": `${Math.round(15 + random() * 70)}%`,
+    "--y": `${Math.round(10 + random() * 50)}%`,
+  } as CSSProperties;
+  const pattern = PATTERNS[Math.floor(random() * PATTERNS.length)]!;
+  return (
+    <div className="cover" data-pattern={pattern} style={style}>
+      <span className="cover-mark" aria-hidden>
+        {project.monogram}
+      </span>
+      {project.category ? <span className="cover-label">{project.category}</span> : null}
+    </div>
+  );
 }
+
+const MILESTONE_ICONS: Record<MilestoneKind, LucideIcon> = {
+  award: Trophy,
+  hackathon: Code,
+  launch: Rocket,
+  press: Newspaper,
+  talk: Mic,
+  other: Star,
+};
 
 function ProjectCard({ project }: { project: ContentProject }) {
   const href = project.website?.href ?? project.source?.href ?? null;
@@ -82,15 +85,11 @@ function ProjectCard({ project }: { project: ContentProject }) {
     links.push({ href: project.website.href, label: "Website", icon: <Globe aria-hidden /> });
   if (project.source)
     links.push({ href: project.source.href, label: "Source", icon: <GitHubIcon /> });
-  const media = <Media project={project} />;
+  const cover = <Cover project={project} />;
   return (
     <div className="card">
       <div className="media">
-        {href && project.video?.kind !== "embed" ? (
-          <OutLink href={href}>{media}</OutLink>
-        ) : (
-          <div>{media}</div>
-        )}
+        {href ? <OutLink href={href}>{cover}</OutLink> : <div>{cover}</div>}
         {links.length > 0 ? (
           <div className="media-links">
             {links.map((link) => (
@@ -186,13 +185,9 @@ export function DockTemplate({ view, content, footer }: PortfolioTemplateProps) 
               </div>
               <div className="avatar-wrap bf" style={delay(0)}>
                 <span className="avatar">
-                  {content.photo ? (
-                    <Picture image={content.photo} eager />
-                  ) : (
-                    <span className="fallback" aria-hidden>
-                      {content.initials}
-                    </span>
-                  )}
+                  <span className="fallback" aria-hidden>
+                    {content.initials}
+                  </span>
                 </span>
               </div>
             </div>
@@ -213,14 +208,6 @@ export function DockTemplate({ view, content, footer }: PortfolioTemplateProps) 
             </section>
           ) : null}
 
-          {content.photos.length > 0 ? (
-            <section className="photos bf" style={delay(3)} aria-label="Photos">
-              {content.photos.map((photo) => (
-                <Picture key={photo.id} image={photo} />
-              ))}
-            </section>
-          ) : null}
-
           {content.experience.length > 0 ? (
             <section className="section gap-6">
               <h2 className="title bf" style={delay(4)}>
@@ -232,7 +219,7 @@ export function DockTemplate({ view, content, footer }: PortfolioTemplateProps) 
                   const head = (
                     <div className="row-head">
                       <div className="row-main">
-                        <Logo logo={job.logo} alt={job.company || job.title} />
+                        <Logo monogram={job.monogram} />
                         <div className="row-text">
                           <div className="row-title">
                             {job.company || job.title}
@@ -286,7 +273,7 @@ export function DockTemplate({ view, content, footer }: PortfolioTemplateProps) 
                   const inner = (
                     <>
                       <div className="row-main">
-                        <Logo logo={school.logo} alt={school.school || school.degree} />
+                        <Logo monogram={school.monogram} />
                         <div className="row-text">
                           <div className="row-title">
                             {school.school || school.degree}
@@ -368,38 +355,39 @@ export function DockTemplate({ view, content, footer }: PortfolioTemplateProps) 
                 />
                 <div className="timeline">
                   <div className="timeline-list">
-                    {content.milestones.map((milestone) => (
-                      <div key={milestone.id} className="t-item">
-                        <div className="t-connect">
-                          <div className="t-line" />
-                          <div className="t-dot">
-                            {milestone.logo ? (
-                              <Picture image={milestone.logo} alt={milestone.title} />
-                            ) : (
-                              <div className="blank" />
-                            )}
+                    {content.milestones.map((milestone) => {
+                      const Icon = MILESTONE_ICONS[milestone.kind];
+                      return (
+                        <div key={milestone.id} className="t-item">
+                          <div className="t-connect">
+                            <div className="t-line" />
+                            <div className="t-dot">
+                              <span className="t-icon">
+                                <Icon aria-hidden />
+                              </span>
+                            </div>
+                          </div>
+                          <div className="t-body">
+                            {milestone.date ? <time>{milestone.date}</time> : null}
+                            <h3>{milestone.title}</h3>
+                            {milestone.place ? <p>{milestone.place}</p> : null}
+                            {milestone.detail || milestone.result ? (
+                              <p className="detail">
+                                {[milestone.result, milestone.detail].filter(Boolean).join(" · ")}
+                              </p>
+                            ) : null}
+                            {milestone.href ? (
+                              <div className="t-links">
+                                <OutLink href={milestone.href} className="badge solid">
+                                  <Globe aria-hidden />
+                                  Link
+                                </OutLink>
+                              </div>
+                            ) : null}
                           </div>
                         </div>
-                        <div className="t-body">
-                          {milestone.date ? <time>{milestone.date}</time> : null}
-                          <h3>{milestone.title}</h3>
-                          {milestone.place ? <p>{milestone.place}</p> : null}
-                          {milestone.detail || milestone.result ? (
-                            <p className="detail">
-                              {[milestone.result, milestone.detail].filter(Boolean).join(" · ")}
-                            </p>
-                          ) : null}
-                          {milestone.href ? (
-                            <div className="t-links">
-                              <OutLink href={milestone.href} className="badge solid">
-                                <Globe aria-hidden />
-                                Link
-                              </OutLink>
-                            </div>
-                          ) : null}
-                        </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </div>
               </div>

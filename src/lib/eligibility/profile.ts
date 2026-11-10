@@ -1,4 +1,5 @@
 import { z } from "zod";
+import type { LookingForChoice } from "@/lib/job-feed/types";
 import { isCountryCode } from "./places";
 
 // Client-safe. The work profile: the few facts that decide whether a job can hire someone from
@@ -90,8 +91,14 @@ export const WorkProfileSchema = z
 
 export type WorkProfileBody = z.input<typeof WorkProfileSchema>;
 
-// GET and PUT /api/profile. updatedAt is null until the profile is first saved.
-export type WorkProfileResponse = { ok: true; profile: WorkProfile; updatedAt: number | null };
+// GET and PUT /api/profile. updatedAt is null until the profile is first saved. lookingFor: the
+// parts of the Jobs tab's "Looking for" card the person changed (job-feed/looking-for.ts).
+export type WorkProfileResponse = {
+  ok: true;
+  profile: WorkProfile;
+  updatedAt: number | null;
+  lookingFor?: LookingForChoice;
+};
 
 /** How much of the profile the eligibility check can use. */
 export function isProfileStarted(profile: WorkProfile): boolean {

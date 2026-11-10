@@ -28,10 +28,8 @@ import type {
 import type {
   ContentResponse,
   GitHubRefreshResponse,
-  MediaUploadResponse,
   SaveContentBody,
 } from "@/lib/portfolio/content";
-import type { MediaKind } from "@/lib/portfolio/media";
 import type {
   CreateWritingBody,
   UpdateWritingBody,
@@ -45,6 +43,7 @@ import type {
   ApiErrorCode,
   ApplicationResponse,
   ApplicationsResponse,
+  ApplicationThreadResponse,
   BulkApplicationStatusBody,
   BulkApplicationsResponse,
   CheckResponse,
@@ -63,6 +62,8 @@ import type {
   InterviewRequestBody,
   InterviewResponse,
   JobMatchesRequestBody,
+  LookingForChoice,
+  LookingForResponse,
   JobMatchesResponse,
   JobPostResponse,
   JobRequestBody,
@@ -77,6 +78,7 @@ import type {
   RequestCodeResponse,
   ResumesResponse,
   SavedJobResponse,
+  SavedJobsResponse,
   SummaryRequestBody,
   SummaryResponse,
   TailorRequestBody,
@@ -144,8 +146,12 @@ function fileForm(file: Blob, filename?: string): FormData {
 }
 
 export const api = {
-  importFile: (file: File) =>
-    request<ImportResponse>("/api/import", { method: "POST", body: fileForm(file) }),
+  // reader "ai": read by the AI reader even when the rules read the file well.
+  importFile: (file: File, { reader }: { reader?: "ai" } = {}) =>
+    request<ImportResponse>(reader === "ai" ? "/api/import?reader=ai" : "/api/import", {
+      method: "POST",
+      body: fileForm(file),
+    }),
   draft: (body: DraftRequestBody) => request<DraftResponse>("/api/draft", postJson(body)),
   checkFile: (file: Blob, filename: string) =>
     request<CheckResponse>("/api/check", { method: "POST", body: fileForm(file, filename) }),
@@ -174,11 +180,14 @@ export const api = {
     request<JobMatchesResponse>("/api/jobs/matches", postJson(body)),
   jobPost: (id: string) =>
     request<JobPostResponse>(`/api/jobs/${encodeURIComponent(id)}`, { cache: "no-store" }),
+  savedJobs: () => request<SavedJobsResponse>("/api/jobs/saved", { cache: "no-store" }),
   saveJob: (id: string) =>
     request<SavedJobResponse>(`/api/jobs/saved/${encodeURIComponent(id)}`, { method: "PUT" }),
   unsaveJob: (id: string) =>
     request<SavedJobResponse>(`/api/jobs/saved/${encodeURIComponent(id)}`, { method: "DELETE" }),
   // keepalive: "Open job" leaves for another tab, and the note should still arrive.
+  saveLookingFor: (body: LookingForChoice) =>
+    request<LookingForResponse>("/api/jobs/looking-for", postJson(body, "PUT")),
   jobEvent: (body: MatchActionInput) =>
     request<EmptyOk>("/api/jobs/events", { ...postJson(body), keepalive: true }),
   me: () => request<MeResponse>("/api/me", { cache: "no-store" }),
@@ -204,6 +213,10 @@ export const api = {
         : `/api/applications?cursor=${encodeURIComponent(cursor)}`,
       { cache: "no-store" },
     ),
+  applicationThread: (id: string) =>
+    request<ApplicationThreadResponse>(`/api/applications/${encodeURIComponent(id)}`, {
+      cache: "no-store",
+    }),
   createApplication: (body: CreateApplicationBody) =>
     request<ApplicationResponse>("/api/applications", postJson(body)),
   updateApplication: (id: string, body: UpdateApplicationBody) =>
@@ -269,11 +282,4 @@ export const api = {
   ) => request<ContentResponse>("/api/portfolio/content", { ...postJson(body, "PUT"), keepalive }),
   refreshPortfolioGitHub: () =>
     request<GitHubRefreshResponse>("/api/portfolio/github", { method: "POST" }),
-  uploadPortfolioMedia: (file: File, kind: MediaKind) => {
-    const form = fileForm(file);
-    form.append("kind", kind);
-    return request<MediaUploadResponse>("/api/portfolio/media", { method: "POST", body: form });
-  },
-  portfolioSiteIcon: (url: string) =>
-    request<MediaUploadResponse>("/api/portfolio/media/icon", postJson({ url })),
 };

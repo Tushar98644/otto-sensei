@@ -82,8 +82,43 @@ describe("buildPdfModel", () => {
 
   it("names the document after the person and reports characters it changed", () => {
     const model = buildPdfModel(resume({ basics: { ...emptyResume(0).basics, name: "Łukasz Wójcik" } }));
-    expect(model.meta).toEqual({ title: "Lukasz Wójcik - Resume", author: "Lukasz Wójcik", subject: "" });
-    expect(model.changedCharacters).toEqual(["Ł"]);
+    expect(model.meta).toEqual({ title: "Łukasz Wójcik - Resume", author: "Łukasz Wójcik", subject: "" });
+    expect(model.changedCharacters).toEqual([]);
+    const cjk = buildPdfModel(resume({ basics: { ...emptyResume(0).basics, name: "王芳 Wang" } }));
+    expect(cjk.name).toBe("Wang");
+    expect(cjk.changedCharacters).toEqual(["王", "芳"]);
+  });
+
+  it("keeps a project's tools and dates, and dates a run of roles from first to last", () => {
+    const model = buildPdfModel(
+      resume({
+        projects: [
+          {
+            id: "p1",
+            name: "Ledger Lint",
+            link: "",
+            tech: "Go, SQL",
+            startDate: "2022",
+            endDate: "Present",
+            bullets: [],
+          },
+          { id: "p2", name: "Old project", link: "", bullets: [] },
+        ],
+        experience: [
+          { id: "e1", company: "Acme", title: "Lead", location: "", startDate: "Jan 2021", endDate: "Present", bullets: [] },
+          { id: "e2", company: "Acme", title: "Engineer", location: "", startDate: "Mar 2018", endDate: "Dec 2020", bullets: [] },
+        ],
+        sectionOrder: ["experience", "projects"],
+      }),
+    );
+    const [jobs, projects] = model.sections;
+    expect(projects?.key === "projects" && projects.entries).toMatchObject([
+      { title: "Ledger Lint", tech: "Go, SQL", dates: "2022 – Present" },
+      { title: "Old project", dates: "" },
+    ]);
+    expect(projects?.key === "projects" && projects.entries[1]!.tech).toBeUndefined();
+    expect(jobs?.key === "experience" && jobs.entries[0]!.company?.dates).toBe("Mar 2018 – Present");
+    expect(model.basics?.links).toEqual([]);
   });
 
   it("falls back to the resume title without a name", () => {

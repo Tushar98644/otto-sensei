@@ -8,8 +8,11 @@ import { OttoNote } from "@/components/mascot/otto-note";
 import { ROUTES } from "@/components/site/routes";
 import { FolderCard } from "@/components/ui/folder-card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { openLineOnArrival } from "@/components/studio/tailor/jump";
 import { lintResume } from "@/lib/lint/bullets";
+import { firstWeakLine } from "@/lib/lint/weak-lines";
 import { createSampleResume } from "@/lib/resume/sample";
+import type { Resume } from "@/lib/resume/schema";
 import { resetDay, thisPeriod } from "@/lib/usage-copy";
 import { useResumeList, useStudioHydrated } from "@/lib/store/resume-store";
 import { pluralize } from "@/lib/utils";
@@ -35,10 +38,8 @@ export function DashboardHome() {
   const [sample] = useState(() => createSampleResume(0));
   const groups = useMemo(() => groupResumes(resumes), [resumes]);
   const recent = useMemo(() => recentResumes(resumes, RECENT), [resumes]);
-  const linesToImprove = useMemo(
-    () => groups.reduce((sum, group) => sum + lintResume(group.resume).totals.withIssues, 0),
-    [groups],
-  );
+  const lines = useMemo(() => linesToImprove(groups.map((group) => group.resume)), [groups]);
+  const firstWeak = lines.first;
 
   const latest = recent[0] ?? null;
   const pageResume = latest ?? sample;
@@ -117,15 +118,27 @@ export function DashboardHome() {
           />
           <Stat
             label="Lines to improve"
-            value={hydrated ? count.format(linesToImprove) : null}
+            value={hydrated ? count.format(lines.total) : null}
             note={
               hydrated
                 ? groups.length === 0
                   ? "Nothing to check yet"
-                  : linesToImprove === 0
+                  : lines.total === 0
                     ? "Every line looks good"
                     : `Across ${pluralize(groups.length, "resume")}`
                 : null
+            }
+            // The count opens the editor on the first weak line, with "Fix with Otto" beside it.
+            action={
+              hydrated && firstWeak
+                ? {
+                    label: "Open the first one",
+                    onSelect: () => {
+                      openLineOnArrival(firstWeak.bulletId);
+                      actions.open(firstWeak.resumeId, "fix");
+                    },
+                  }
+                : undefined
             }
           />
           <Stat
@@ -248,12 +261,56 @@ function ActionCard({ tab, art, title, detail, ...target }: ActionCardProps) {
   );
 }
 
-function Stat({ label, value, note }: { label: string; value: string | null; note: string | null }) {
+// Lines with something to fix across the resumes, and the first of them, so the count can open it.
+function linesToImprove(resumes: readonly Resume[]): {
+  total: number;
+  first: { resumeId: string; bulletId: string } | null;
+} {
+  let total = 0;
+  let first: { resumeId: string; bulletId: string } | null = null;
+  for (const resume of resumes) {
+    const { byBullet, totals } = lintResume(resume);
+    total += totals.withIssues;
+    if (first) continue;
+    const bulletId = firstWeakLine(resume, (id) =>
+      Object.hasOwn(byBullet, id) ? byBullet[id] : undefined,
+    );
+    if (bulletId) first = { resumeId: resume.id, bulletId };
+  }
+  return { total, first };
+}
+
+type StatProps = {
+  label: string;
+  value: string | null;
+  note: string | null;
+  // Makes the number a button.
+  action?: { label: string; onSelect: () => void };
+};
+
+function Stat({ label, value, note, action }: StatProps) {
   return (
     <div className="flex flex-col bg-surface p-5 sm:p-6">
       <dt className="text-sm/5 text-muted">{label}</dt>
       <dd className="mt-2 font-display text-4xl/10 font-normal text-ink lining-nums tabular-nums">
-        {value ?? <Skeleton className="h-10 w-16" />}
+        {value === null ? (
+          <Skeleton className="h-10 w-16" />
+        ) : action ? (
+          <button
+            type="button"
+            onClick={action.onSelect}
+            className="group/stat inline-flex items-center gap-2 rounded-lg underline decoration-border-strong decoration-2 underline-offset-8 transition-colors hover:decoration-ink"
+          >
+            {value}
+            <ArrowRight
+              aria-hidden
+              className="size-5 text-muted transition-transform group-hover/stat:translate-x-0.5 group-hover/stat:text-ink"
+            />
+            <span className="sr-only">{`${label.toLowerCase()}. ${action.label}`}</span>
+          </button>
+        ) : (
+          value
+        )}
       </dd>
       <dd className="mt-1 min-h-5 text-xs/5 text-subtle">{note ?? null}</dd>
     </div>

@@ -9,8 +9,14 @@ export type SourceInfo = {
   termsUrl: string;
   // The terms allow showing the post's text on our own page with JobPosting structured data.
   // Himalayas forbids passing jobs to job search engines (structured data included) and Remote OK
-  // asks for traffic back, so their jobs only ever link out.
+  // asks for traffic back, so their jobs only ever link out. Workable, Recruitee and Personio
+  // document their public endpoints for a company's own careers page and grant nothing more, and
+  // Jobicy asks that every Apply go to its page, so theirs link out too.
   republish: boolean;
+  // The full post can be read again from its source (src/lib/jobs/read.ts), so none of its text
+  // is stored: skills, level, years and the work-rights lines are kept from one read at ingest.
+  // Himalayas' pages refuse bots and Remote OK's API can't return one job, so theirs is kept.
+  liveText: boolean;
 };
 
 export const SOURCE_INFO: Record<JobSourceId, SourceInfo> = {
@@ -19,30 +25,64 @@ export const SOURCE_INFO: Record<JobSourceId, SourceInfo> = {
     homeUrl: "https://www.greenhouse.com",
     termsUrl: "https://docs.greenhouse.io/job-board.html",
     republish: true,
+    liveText: true,
   },
   lever: {
     name: "Lever",
     homeUrl: "https://www.lever.co",
     termsUrl: "https://github.com/lever/postings-api",
     republish: true,
+    liveText: true,
   },
   ashby: {
     name: "Ashby",
     homeUrl: "https://www.ashbyhq.com",
     termsUrl: "https://developers.ashbyhq.com/docs/public-job-posting-api",
     republish: true,
+    liveText: true,
+  },
+  workable: {
+    name: "Workable",
+    homeUrl: "https://www.workable.com",
+    termsUrl: "https://help.workable.com/hc/en-us/articles/115012771647",
+    republish: false,
+    liveText: true,
+  },
+  recruitee: {
+    name: "Recruitee",
+    homeUrl: "https://recruitee.com",
+    termsUrl: "https://docs.recruitee.com/reference/intro-to-careers-site-api",
+    republish: false,
+    liveText: true,
+  },
+  personio: {
+    name: "Personio",
+    homeUrl: "https://www.personio.com",
+    termsUrl: "https://developer.personio.de/docs/integration-of-open-positions",
+    republish: false,
+    liveText: true,
   },
   himalayas: {
     name: "Himalayas",
     homeUrl: "https://himalayas.app",
     termsUrl: "https://himalayas.app/terms",
     republish: false,
+    liveText: false,
   },
   remoteok: {
     name: "Remote OK",
     homeUrl: "https://remoteok.com",
     termsUrl: "https://remoteok.com/api",
     republish: false,
+    liveText: false,
+  },
+  // Its terms let us store the jobs; every Apply must go to the job's Jobicy page, credited.
+  jobicy: {
+    name: "Jobicy",
+    homeUrl: "https://jobicy.com",
+    termsUrl: "https://jobicy.com/jobs-rss-feed",
+    republish: false,
+    liveText: true,
   },
 };
 

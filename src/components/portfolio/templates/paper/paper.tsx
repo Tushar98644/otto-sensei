@@ -1,17 +1,18 @@
-import { ArrowUpRight, Image as ImageIcon, Mail, PenLine, PencilRuler, Shapes } from "lucide-react";
+import { ArrowUpRight, Library, Mail, PenLine, PencilRuler, Shapes } from "lucide-react";
 import type { CSSProperties, ReactNode } from "react";
-import type { ContentLogo, ContentShelfItem } from "@/lib/portfolio/content";
-import { DesignCredit, Marked, nameOf, OutLink, Picture, TemplateStyle } from "../parts";
+import type { ContentShelfItem } from "@/lib/portfolio/content";
+import { DesignCredit, Marked, nameOf, OutLink, TemplateStyle } from "../parts";
 import type { PortfolioTemplateProps } from "../types";
 import { FooterClock } from "./islands";
 import { PAPER_CSS } from "./styles";
 
 // Paper: a rebuild of Cali Castle's site (github.com/CaliCastle/cali.so, application code MIT;
 // ./LICENSE.txt) for anyone's data. A sheet of warm working paper with dashed column guides: a
-// small masthead with a halftone portrait, three nav cards, numbered sections (experience,
-// writing as print rows with dotted leaders, projects, polaroid photos, interests, books on a
-// wooden shelf), a footer set as folder trees with a live local clock, and a pill dock. Cali's
-// own words, photos, artwork, name and branding are not used.
+// small masthead with the initials printed as a halftone (where Cali has his portrait), nav cards,
+// numbered sections (experience, writing as print rows with dotted leaders, projects, interests,
+// books on a wooden shelf), a footer set as folder trees with a live local clock, and a pill dock.
+// No pictures: his photo cards and polaroids have no stand-in, so the shelf takes their card.
+// Cali's own words, photos, artwork, name and branding are not used.
 
 const delay = (ms: number) => ({ "--enter-delay": `${ms}ms` }) as CSSProperties;
 
@@ -100,15 +101,10 @@ function Tag({ index, children, at }: { index: number; children: ReactNode; at: 
   );
 }
 
-function Icon({ logo }: { logo: ContentLogo }) {
+function Icon({ monogram }: { monogram: string }) {
   return (
     <span className="icon" aria-hidden>
-      {logo.src ? (
-        // eslint-disable-next-line @next/next/no-img-element -- uploaded or fetched icon, any host
-        <img src={logo.src} alt="" loading="lazy" referrerPolicy="no-referrer" />
-      ) : (
-        logo.monogram
-      )}
+      {monogram}
     </span>
   );
 }
@@ -205,25 +201,6 @@ export function PaperTemplate({ view, content, footer }: PortfolioTemplateProps)
       ),
     });
   }
-  if (content.photos.length > 0) {
-    cards.push({
-      id: "photos",
-      label: "Photos",
-      sub: `${content.photos.length} ${content.photos.length === 1 ? "photo" : "photos"}`,
-      vignette: (
-        <span className="vignette" aria-hidden>
-          {[0, 1, 2].map((i) => {
-            const photo = content.photos[i];
-            return (
-              <span key={i} className="mini" style={{ "--i": i } as CSSProperties}>
-                {photo ? <Picture image={photo} alt="" /> : <i />}
-              </span>
-            );
-          })}
-        </span>
-      ),
-    });
-  }
   if (content.projects.length > 0) {
     cards.push({
       id: "projects",
@@ -238,6 +215,22 @@ export function PaperTemplate({ view, content, footer }: PortfolioTemplateProps)
             </svg>
             <PencilRuler className="mark-svg" aria-hidden />
           </span>
+        </span>
+      ),
+    });
+  }
+  if (content.shelf.length > 0) {
+    // Three spines from the shelf itself, in their own bindings.
+    const spines = content.shelf.slice(0, 3);
+    cards.push({
+      id: "shelf",
+      label: allBooks && records.length === 0 ? "Books" : "Shelf",
+      sub: `${content.shelf.length} ${content.shelf.length === 1 ? "favourite" : "favourites"}`,
+      vignette: (
+        <span className="vignette spines" aria-hidden>
+          {spines.map((item, i) => (
+            <span key={item.id} style={{ ...binding(item), "--i": i } as CSSProperties} />
+          ))}
         </span>
       ),
     });
@@ -338,7 +331,7 @@ export function PaperTemplate({ view, content, footer }: PortfolioTemplateProps)
               <li key={project.id} className="enter-swing hairline-top" style={delay(280 + i * 40)}>
                 <div className="row">
                   <div className="row-main">
-                    <Icon logo={project.logo} />
+                    <Icon monogram={project.monogram} />
                     <div className="row-text">
                       {href ? (
                         <OutLink href={href} className="row-title">
@@ -359,35 +352,6 @@ export function PaperTemplate({ view, content, footer }: PortfolioTemplateProps)
             );
           })}
         </ul>
-      </section>,
-    );
-  }
-
-  if (content.photos.length > 0) {
-    sections.push(
-      <section key="photos" className="section" id="pf-paper-photos">
-        <Tag index={next()} at={300}>
-          Photos
-        </Tag>
-        <div className="prints">
-          {content.photos.map((photo, i) => (
-            <figure
-              key={photo.id}
-              className="polaroid enter-swing"
-              style={
-                {
-                  ...delay(320 + i * 40),
-                  "--tilt": `${[-1.6, 1.2, -0.6, 1.8, -1.1, 0.7][i % 6]}deg`,
-                } as CSSProperties
-              }
-            >
-              <span className="photo">
-                <Picture image={photo} />
-              </span>
-              <figcaption className="caption">{photo.caption}</figcaption>
-            </figure>
-          ))}
-        </div>
       </section>,
     );
   }
@@ -417,7 +381,7 @@ export function PaperTemplate({ view, content, footer }: PortfolioTemplateProps)
 
   if (records.length > 0) {
     sections.push(
-      <section key="records" className="section">
+      <section key="records" className="section" id="pf-paper-shelf">
         <Tag index={next()} at={340}>
           On rotation
         </Tag>
@@ -430,7 +394,11 @@ export function PaperTemplate({ view, content, footer }: PortfolioTemplateProps)
 
   if (books.length > 0) {
     sections.push(
-      <section key="books" className="section">
+      <section
+        key="books"
+        className="section"
+        id={records.length > 0 ? undefined : "pf-paper-shelf"}
+      >
         <Tag index={next()} at={380}>
           {allBooks ? "Books I love" : "Favourites"}
         </Tag>
@@ -499,16 +467,10 @@ export function PaperTemplate({ view, content, footer }: PortfolioTemplateProps)
               ) : null}
             </div>
           </div>
-          <div className="portrait">
-            {content.photo ? (
-              <span className="halftone">
-                <Picture image={content.photo} eager />
-              </span>
-            ) : (
-              <span className="halftone blank" aria-hidden>
-                {content.initials}
-              </span>
-            )}
+          <div className="portrait" aria-hidden>
+            <span className="halftone">
+              <span className="halftone-ink">{content.initials}</span>
+            </span>
           </div>
         </div>
 
@@ -608,9 +570,7 @@ export function PaperTemplate({ view, content, footer }: PortfolioTemplateProps)
 
       <nav className="dock" aria-label="Dock">
         <a href="#pf-paper-top" className="dock-item" aria-label="Home">
-          <span className="dock-avatar">
-            {content.photo ? <Picture image={content.photo} alt="" /> : content.initials}
-          </span>
+          <span className="dock-avatar">{content.initials}</span>
         </a>
         {cards.length > 0 || content.email ? <span className="dock-rule" aria-hidden /> : null}
         {cards.map((card) => (
@@ -622,8 +582,8 @@ export function PaperTemplate({ view, content, footer }: PortfolioTemplateProps)
           >
             {card.id === "writing" ? (
               <PenLine aria-hidden />
-            ) : card.id === "photos" ? (
-              <ImageIcon aria-hidden />
+            ) : card.id === "shelf" ? (
+              <Library aria-hidden />
             ) : (
               <Shapes aria-hidden />
             )}

@@ -11,15 +11,14 @@ import {
   contentChecklist,
   contentUsesFor,
   hiddenFields,
-  CONTENT_FIELD_LABELS,
   type ContentField,
 } from "@/lib/portfolio/content-uses";
 import type { AutoContent } from "@/lib/portfolio/content-view";
-import { mediaSize } from "@/lib/portfolio/media";
 import { PORTFOLIO_TEMPLATE_INFO } from "@/lib/portfolio/templates";
 import type { PortfolioSection, PortfolioTemplateId } from "@/lib/portfolio/types";
+import type { Resume } from "@/lib/resume/schema";
 import { cn } from "@/lib/utils";
-import { EditorCard } from "../check-row";
+import { EditorSection } from "../check-row";
 import { usePortfolioStore } from "../portfolio-store";
 import { CareerCard } from "./career-card";
 import { flushContent, resetContentStore, useContentStore } from "./content-store";
@@ -40,10 +39,14 @@ type ContentEditorProps = {
   // The page's "What shows" choices, for the marks.
   pageHidden: readonly PortfolioSection[];
   showEmail: boolean;
+  // The resume behind the page when it's in this browser: GitHub imports add projects to it.
+  resume?: Resume | null;
+  // After a GitHub import changed that resume.
+  onResumeChange?: (resume: Resume) => void;
 };
 
-// Everything beyond the resume, under the page settings: what this design uses and what's still
-// missing first, then one folding card per kind of content. Saves as you type.
+// The Content tab: what this design uses and what's still missing first, then one folding row per
+// kind of content. Saves as you type.
 export function ContentEditor({
   template,
   content,
@@ -52,6 +55,8 @@ export function ContentEditor({
   github,
   pageHidden,
   showEmail,
+  resume = null,
+  onResumeChange,
 }: ContentEditorProps) {
   // A closing tab still sends the last few keystrokes.
   useEffect(() => {
@@ -64,12 +69,13 @@ export function ContentEditor({
   }, []);
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col">
       <CompletenessCard
         template={template}
         view={view}
         hidden={hiddenFields(pageHidden, content.hidden)}
       />
+      <div className="mt-6 border-t border-border" />
       <ProfileCard
         content={content}
         auto={auto}
@@ -83,6 +89,8 @@ export function ContentEditor({
         auto={auto}
         github={github}
         hidden={hiddenOnPage(pageHidden, ["projects"])}
+        resume={resume}
+        onResumeChange={onResumeChange}
       />
       <CareerCard
         content={content}
@@ -95,7 +103,6 @@ export function ContentEditor({
       <WritingCard content={content} auto={auto} />
       <PersonalCard content={content} auto={auto} />
       <GitHubCard content={content} auto={auto} github={github} />
-      <DeletePortfolio />
     </div>
   );
 }
@@ -110,7 +117,6 @@ function CompletenessCard({
   hidden: ReadonlySet<ContentField>;
 }) {
   const status = useContentStore((state) => state.status);
-  const media = useContentStore((state) => state.media);
   const uses = contentUsesFor(template);
   const items = contentChecklist(view, uses, hidden);
   const missing = missingList(items);
@@ -126,7 +132,7 @@ function CompletenessCard({
   const done = items.filter((item) => item.done).length;
 
   return (
-    <EditorCard title="Your page's content">
+    <EditorSection title="Your page's content">
       <OttoNote
         size="sm"
         message={message}
@@ -135,11 +141,10 @@ function CompletenessCard({
       />
       {uses.length > 0 ? (
         <>
-          <p className="mt-4 text-sm/6 text-muted">
-            This design uses:{" "}
-            {uses.map((field) => CONTENT_FIELD_LABELS[field].toLowerCase()).join(", ")}.
-          </p>
-          <ul className="mt-2 divide-y divide-border border-y border-border">
+          <ul
+            aria-label={`What ${name} uses`}
+            className="divide-y divide-border border-y border-border"
+          >
             {items.map((item) => (
               <li key={item.field} className="flex min-h-10 items-center gap-3 py-2">
                 {item.hidden ? (
@@ -166,17 +171,12 @@ function CompletenessCard({
           </ul>
         </>
       ) : null}
-      {media ? (
-        <p className="mt-3 text-xs/5 text-subtle">
-          Pictures: {media.files} of {media.maxFiles}, {mediaSize(media.bytes)} of{" "}
-          {mediaSize(media.maxBytes)}.
-        </p>
-      ) : null}
-    </EditorCard>
+    </EditorSection>
   );
 }
 
-function DeletePortfolio() {
+/** "Delete this page", at the end of Settings: the screen's one confirm, since it can't come back. */
+export function DeletePortfolio() {
   const [asking, setAsking] = useState(false);
   const [busy, setBusy] = useState(false);
 
@@ -188,7 +188,7 @@ function DeletePortfolio() {
       usePortfolioStore.getState().put(null);
       toast({
         title: "Your page is deleted",
-        description: "Its address and pictures are gone. Your resume is untouched.",
+        description: "Its address and content are gone. Your resume is untouched.",
         variant: "success",
       });
     } catch (error) {
@@ -202,22 +202,27 @@ function DeletePortfolio() {
   }
 
   return (
-    <div className="flex flex-wrap items-center gap-2 px-1 pt-2">
+    <div className="flex flex-wrap items-center gap-2">
       {asking ? (
         <>
           <p className="w-full text-sm/6 text-muted">
-            This deletes the page, its address and every picture you uploaded for it. It can&apos;t
-            be undone.
+            This deletes the page, its address and everything you added for it. It can&apos;t be
+            undone.
           </p>
           <Button size="sm" variant="danger" loading={busy} onClick={() => void remove()}>
-            Delete page and pictures
+            Delete page
           </Button>
           <Button size="sm" variant="ghost" onClick={() => setAsking(false)}>
             Keep it
           </Button>
         </>
       ) : (
-        <Button size="sm" variant="ghost" className="text-fail" onClick={() => setAsking(true)}>
+        <Button
+          size="sm"
+          variant="ghost"
+          className="-ml-3 text-fail"
+          onClick={() => setAsking(true)}
+        >
           Delete this page
         </Button>
       )}

@@ -52,6 +52,15 @@ export function proComparison(): string | null {
   return `About half the price of ${PRO_PRICE_COMPARISON.name} (${usd.format(PRO_PRICE_COMPARISON.priceUsd)}/mo)`;
 }
 
+// Owner's line (2026-11-09). A delivery pizza in the US, UK, EU or Australia is about $15-25, so the
+// line holds only while Pro monthly stays at $20 or less; past that it disappears instead of going untrue.
+export const PIZZA_MAX_USD = 20;
+
+/** "Less than a pizza a month.", or null once Pro monthly costs more than a pizza. */
+export function pizzaLine(): string | null {
+  return PRICES_USD.pro.month <= PIZZA_MAX_USD ? "Less than a pizza a month." : null;
+}
+
 /** "month, year or week", for "Pro renews each … until you cancel." */
 export function renewalPeriods(intervals: readonly BillingInterval[]): string {
   const names: string[] = intervals.length ? [...intervals] : ["month"];

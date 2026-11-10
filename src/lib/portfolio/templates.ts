@@ -38,7 +38,8 @@ export const PORTFOLIO_TEMPLATE_INFO: Record<PortfolioTemplateId, PortfolioTempl
   dock: {
     id: "dock",
     name: "Dock",
-    description: "One calm column that fades in, with logos, project cards and a floating dock.",
+    description:
+      "One calm column that fades in, with work rows, project cards and a floating dock.",
     thumbnail: "/portfolio-templates/dock.webp",
     colors: { background: "#ffffff", ink: "#0a0a0a", muted: "#737373" },
     credit: {
@@ -90,7 +91,7 @@ export const PORTFOLIO_TEMPLATE_INFO: Record<PortfolioTemplateId, PortfolioTempl
   prose: {
     id: "prose",
     name: "Prose",
-    description: "Words first with logo chips, projects grouped by kind, then talks and writing.",
+    description: "Words first with colour chips, projects grouped by kind, then talks and writing.",
     thumbnail: "/portfolio-templates/prose.webp",
     colors: { background: "#ffffff", ink: "#222222", muted: "#888888" },
     credit: {
@@ -116,7 +117,8 @@ export const PORTFOLIO_TEMPLATE_INFO: Record<PortfolioTemplateId, PortfolioTempl
   paper: {
     id: "paper",
     name: "Paper",
-    description: "A warm paper page: halftone photo, numbered sections, polaroids, a bookshelf.",
+    description:
+      "A warm paper page: halftone initials, numbered sections, a bookshelf, a live clock.",
     thumbnail: "/portfolio-templates/paper.webp",
     colors: { background: "#fcfbf9", ink: "#201e1b", muted: "#7a7873" },
     credit: {
@@ -132,4 +134,29 @@ export const PORTFOLIO_TEMPLATE_INFO: Record<PortfolioTemplateId, PortfolioTempl
 export function designCreditText(id: PortfolioTemplateId): string {
   const { author, work, licence } = PORTFOLIO_TEMPLATE_INFO[id].credit;
   return `Design based on ${author}'s ${work} (${licence})`;
+}
+
+export type TemplateGroup = { label: string; ids: PortfolioTemplateId[] };
+
+// The editor's design picker, in this order: the showpieces (3D, motion, live tiles) first, then
+// the quieter pages. A design missing here still shows, at the end of the last group.
+const PICKER_GROUPS: readonly { label: string; ids: readonly PortfolioTemplateId[] }[] = [
+  { label: "Showpieces", ids: ["reel", "bento", "navy", "dock"] },
+  { label: "Simple and clean", ids: ["paper", "folio", "prose", "cv"] },
+];
+
+/** Every design once, grouped for the picker, the premium ones first. */
+export function templateGroups(ids: readonly PortfolioTemplateId[]): TemplateGroup[] {
+  const groups = PICKER_GROUPS.map(({ label, ids: listed }) => ({
+    label,
+    ids: listed.filter((id) => ids.includes(id)),
+  }));
+  const placed = new Set(groups.flatMap((group) => group.ids));
+  groups.at(-1)?.ids.push(...ids.filter((id) => !placed.has(id)));
+  return groups.filter((group) => group.ids.length > 0);
+}
+
+/** The designs in picker order, for anything that steps through them or lists them all. */
+export function templateOrder(ids: readonly PortfolioTemplateId[]): PortfolioTemplateId[] {
+  return templateGroups(ids).flatMap((group) => group.ids);
 }

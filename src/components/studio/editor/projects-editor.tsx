@@ -1,16 +1,16 @@
 "use client";
 
-import { FolderGit } from "lucide-react";
-import dynamic from "next/dynamic";
-import { memo, useState } from "react";
-import { usernameFromResume } from "@/components/github/format";
-import { Button } from "@/components/ui/button";
+import { memo } from "react";
+import { offersGitHubImport, usernameFromResume } from "@/components/github/format";
+import { GitHubImportButton } from "@/components/github/github-import-button";
+import { GitHubOffer } from "@/components/github/github-offer";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { newProject, type Project } from "@/lib/resume/schema";
 import { pluralize } from "@/lib/utils";
 import { BulletList } from "./bullet-list";
-import { metaLine, moveItem, patchItem, removeItem, setHidden } from "./edits";
+import { DateRangeFields } from "./date-range-fields";
+import { dateSpan, metaLine, moveItem, patchItem, removeItem, setHidden } from "./edits";
 import { EntryList, type EntryProps } from "./entry-list";
 import { EntryShell } from "./entry-shell";
 import { addButtonId, editThenFocus, entryFieldId, removeEntryWithFocus } from "./focus";
@@ -19,17 +19,11 @@ import { editList, getResume, useItemIds, useResumeValue } from "./use-editor";
 
 const ADD_ID = addButtonId("projects");
 
-// Loaded on first use: most people never open it.
-const GitHubImportDialog = dynamic(() =>
-  import("@/components/github/github-import-dialog").then((mod) => mod.GitHubImportDialog),
-);
-
 export const ProjectsEditor = memo(function ProjectsEditor({ resumeId }: { resumeId: string }) {
   const ids = useItemIds(resumeId, (resume) => resume.projects);
-  const hasGitHub = useResumeValue(resumeId, (resume) => usernameFromResume(resume) !== "", false);
-  const [github, setGithub] = useState({ used: false, open: false });
-  // Followed only once the dialog has been opened, so typing elsewhere doesn't rerender this list.
-  const resume = useResumeValue(resumeId, (current) => (github.used ? current : undefined), undefined);
+  const username = useResumeValue(resumeId, usernameFromResume, "");
+  // A GitHub link and fewer than two projects: the import goes first, where it's seen.
+  const upFront = useResumeValue(resumeId, offersGitHubImport, false);
 
   function add() {
     const project = newProject();
@@ -39,7 +33,7 @@ export const ProjectsEditor = memo(function ProjectsEditor({ resumeId }: { resum
     );
   }
 
-  return (
+  const list = (
     <EntryList
       count={ids.length}
       empty="No projects yet. Side projects, open source and school work all count."
@@ -48,20 +42,14 @@ export const ProjectsEditor = memo(function ProjectsEditor({ resumeId }: { resum
       onAdd={add}
       limit={LIST_LIMITS.projects}
       more={
-        <>
-          {/* The resume names a GitHub profile, so the import starts on its own once opened. */}
-          <Button variant="ghost" onClick={() => setGithub({ used: true, open: true })}>
-            <FolderGit />
-            {hasGitHub ? "Add from my GitHub" : "Add from GitHub"}
-          </Button>
-          {resume ? (
-            <GitHubImportDialog
-              resume={resume}
-              open={github.open}
-              onOpenChange={(open) => setGithub({ used: true, open })}
-            />
-          ) : null}
-        </>
+        upFront ? null : (
+          // The resume names a GitHub profile, so the import starts on its own once opened.
+          <GitHubImportButton
+            resumeId={resumeId}
+            variant="ghost"
+            label={username ? "Add from my GitHub" : "Add from GitHub"}
+          />
+        )
       }
     >
       {ids.map((id, index) => (
@@ -69,12 +57,21 @@ export const ProjectsEditor = memo(function ProjectsEditor({ resumeId }: { resum
       ))}
     </EntryList>
   );
+
+  if (!upFront) return list;
+  return (
+    <div className="flex flex-col gap-6">
+      <GitHubOffer resumeId={resumeId} />
+      {list}
+    </div>
+  );
 });
 
 function removeQuestion(project: Project): string | null {
   const lines = project.bullets.filter((bullet) => bullet.text.trim()).length;
   if (lines > 0) return `Remove this project and its ${pluralize(lines, "line")}?`;
-  return project.name.trim() || project.link.trim() ? "Remove this project?" : null;
+  const filled = [project.name, project.link, project.tech, project.startDate, project.endDate];
+  return filled.some((value) => value?.trim()) ? "Remove this project?" : null;
 }
 
 const ProjectEntry = memo(function ProjectEntry({ resumeId, entryId, index, count }: EntryProps) {
@@ -117,7 +114,10 @@ const ProjectEntry = memo(function ProjectEntry({ resumeId, entryId, index, coun
           patchItem(projects, entryId, (current) => setHidden(current, current.hidden !== true)),
         )
       }
-      meta={metaLine([project.link])}
+      meta={metaLine([
+        project.link,
+        dateSpan(project.startDate ?? "", project.endDate ?? ""),
+      ])}
       details={{
         complete: project.name.trim() !== "",
         firstFieldId,
@@ -144,6 +144,22 @@ const ProjectEntry = memo(function ProjectEntry({ resumeId, entryId, index, coun
                 placeholder="github.com/alex/budget"
               />
             </Field>
+            {/* Some formats print these by the project's name; every format prints them when set. */}
+            <Field label="Tools" optional className="sm:col-span-2">
+              <Input
+                value={project.tech ?? ""}
+                onChange={(event) => update({ tech: event.target.value })}
+                maxLength={CHAR_LIMITS.projectTech}
+                placeholder="React, Node.js, PostgreSQL"
+              />
+            </Field>
+            <DateRangeFields
+              className="sm:col-span-2"
+              startDate={project.startDate ?? ""}
+              endDate={project.endDate ?? ""}
+              presentLabel="Still working on it"
+              onChange={update}
+            />
           </div>
         ),
       }}

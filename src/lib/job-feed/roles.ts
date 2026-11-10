@@ -13,8 +13,8 @@ const FAMILY_RULES: readonly (readonly [RoleFamily, RegExp])[] = [
   ["product", /\b(?:product (?:manager|owner|lead|director|management)|pm|head of product|vp,? product|chief product)\b/],
   ["support", /\b(?:support|customer success|customer experience|success manager|implementation (?:manager|specialist|consultant)|onboarding|technical account manager|help ?desk|service desk)\b/],
   ["people", /\b(?:recruit(?:er|ing|ment)|talent|people (?:partner|operations|ops|team|business partner)|hr|human resources|sourcer)\b/],
-  ["finance", /\b(?:finance|financial|accountant|accounting|controller|fp&a|tax|payroll|treasury|audit(?:or)?|bookkeep\w*|billing specialist)\b/],
-  ["legal", /\b(?:counsel|legal|lawyer|attorney|paralegal|compliance|privacy officer)\b/],
+  ["finance", /\b(?:finance|financial|accountant|accounting|controller|fp&a|tax|payroll|treasury|audit(?:or)?|bookkeep\w*|billing specialist|accounts? (?:payable|receivable)|equity administration|stock (?:plan|administration)|credit analyst|underwrit\w*)\b/],
+  ["legal", /\b(?:counsel|legal|lawyer|attorney|paralegal|compliance|privacy officer|kyc|aml|sanctions)\b/],
   ["engineering", /\b(?:engineer(?:ing)?|developer|programmer|swe|sde|sre|devops|architect|full[- ]?stack|front[- ]?end|back[- ]?end|mobile|ios|android|qa|tester|test automation|cto|tech lead|technical lead)\b/],
   ["operations", /\b(?:operations|ops|program manager|project manager|chief of staff|strategy|business analyst|office manager|executive assistant|coordinator|administrator)\b/],
   // Broad words last, once nothing narrower matched.
@@ -35,7 +35,7 @@ const DIRECTOR =
   /\b(?:director|head of|vp|vice president|chief|cto|ceo|coo|cfo|cmo|cpo|founding (?:lead|head))\b/;
 // "Product Manager" and "Account Manager" are individual roles; these managers run a team.
 const PEOPLE_MANAGER =
-  /\b(?:engineering|design|sales|support|recruiting|people|team|group|qa|security) manager\b|\bmanager,? (?:engineering|software|design)\b/;
+  /\b(?:engineering|design|sales|support|recruiting|people|team|group|qa|security|sales development|customer success) manager\b|\bmanager(?: i{1,3})?,? (?:engineering|software|design|sales|sales development|commercial sales|customer success|support|solutions engineering)\b/;
 const LEAD = /\b(?:staff|principal|lead|architect|distinguished|fellow|group product manager|tech lead)\b/;
 const SENIOR = /\b(?:senior|sr\.?|snr|iii|iv|level 3)\b/;
 const JUNIOR = /\b(?:junior|jr\.?|entry[- ]level|graduate|grad|new grad|associate|apprentice|trainee|i|level 1)\b/;
@@ -44,7 +44,8 @@ const INTERN = /\b(?:intern|internship|co-?op|working student|placement student)
 /** How senior a title reads. A title with no marker is mid level. */
 export function seniorityOf(title: string): Seniority {
   // Roman numerals are only levels at the end ("Engineer II"), never inside ("Phase I trial").
-  const text = title.toLowerCase().replace(/[(),]/g, " ");
+  // Commas and brackets become one space, so "Manager, Software Engineering" still reads.
+  const text = title.toLowerCase().replace(/\s*[(),]\s*/g, " ").trim();
   if (INTERN.test(text)) return "intern";
   if (DIRECTOR.test(text)) return "director";
   if (LEAD.test(text) || PEOPLE_MANAGER.test(text)) return "lead";

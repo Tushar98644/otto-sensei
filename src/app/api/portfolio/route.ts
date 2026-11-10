@@ -41,12 +41,6 @@ function answer(result: SaveResult, user: SessionUser, createdStatus = 200): Res
       return fail("bad_request", result.message, 400);
     case "slug_taken":
       return fail("bad_request", SLUG_MESSAGES.taken, 400);
-    case "needs_plan":
-      return fail(
-        "forbidden",
-        "Taking the Otto Sensei line off your page comes with Pro and Max.",
-        403,
-      );
     case "needs_portfolio_plan":
       return fail("upgrade_required", NEEDS_PLAN, 402);
     case "needs_paid_plan":
@@ -129,8 +123,8 @@ export async function PATCH(req: Request): Promise<Response> {
   }
 }
 
-// DELETE /api/portfolio: deletes the page, its old addresses and every uploaded picture. The page
-// stops answering at once; the resume it came from is untouched.
+// DELETE /api/portfolio: deletes the page and its old addresses. The page stops answering at once;
+// the resume it came from is untouched.
 export async function DELETE(req: Request): Promise<Response> {
   const blocked = rejectCrossSite(req);
   if (blocked) return blocked;

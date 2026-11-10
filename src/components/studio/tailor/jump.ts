@@ -8,7 +8,7 @@ import { useStudioStore } from "@/lib/store/resume-store";
 // two more, so the line is looked for a few frames in a row before giving up quietly.
 const MAX_FRAMES = 30;
 
-function focusWhenShown(elementId: string, framesLeft = MAX_FRAMES): void {
+export function focusWhenShown(elementId: string, framesLeft = MAX_FRAMES): void {
   const element = document.getElementById(elementId);
   if (element) {
     element.scrollIntoView({ block: "center" });
@@ -28,6 +28,20 @@ export function jumpToLine(sourceId: string, bulletId: string): void {
   if (!active || !findBullet(active, bulletId)) store.setActive(sourceId);
   store.setStep("fix");
   window.requestAnimationFrame(() => focusWhenShown(bulletInputId(bulletId)));
+}
+
+// A line to open once the studio's Fix step is on screen, set by a page outside the studio (Home's
+// "Lines to improve"). Memory only: it means nothing after a reload.
+let arriving: string | null = null;
+
+export function openLineOnArrival(bulletId: string): void {
+  arriving = bulletId;
+}
+
+export function takeArrivingLine(): string | null {
+  const bulletId = arriving;
+  arriving = null;
+  return bulletId;
 }
 
 // Saves a generated file without leaving the page.

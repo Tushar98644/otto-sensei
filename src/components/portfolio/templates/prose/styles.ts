@@ -97,11 +97,10 @@ svg { flex: none; }
 .title h1 { margin-bottom: 0; }
 .subtitle { margin-top: -1.5rem !important; opacity: 0.5; font-style: italic; }
 
-/* The inline link chips ("magic links") with a logo */
+/* The inline link chips ("magic links"), each with a monogram in its own colour */
 .chip { display: inline-flex; align-items: center; gap: 0.25rem; padding: 0.25rem 0.375rem; border-radius: 0.25rem; background: #8882; transform: translateY(3px); line-height: 100%; color: var(--fg-light) !important; border: 0 !important; font-family: var(--pf-font-roboto-condensed, "Roboto Condensed"), var(--pf-font-inter, "Inter"), sans-serif; transition: all 150ms; }
 a.chip:hover { background: #8883; color: var(--fg) !important; }
-.chip img, .chip .mono { display: inline-block; width: 1.1em; height: 1.1em; border-radius: 0.125rem; object-fit: contain; }
-.chip .mono { display: inline-flex; align-items: center; justify-content: center; background: #8884; color: var(--fg-deep); font-size: 0.55em; font-weight: 700; }
+.chip .mono { display: inline-flex; align-items: center; justify-content: center; width: 1.1em; height: 1.1em; border-radius: 0.1875rem; background: oklch(0.62 0.14 var(--hue, 250)); box-shadow: inset 0 -1px 0 rgb(0 0 0 / 0.15); color: #fff; font-family: var(--pf-font-inter, "Inter"), sans-serif; font-size: 0.55em; font-weight: 700; letter-spacing: -0.02em; }
 .lines .label { color: var(--fg); }
 
 .socials { display: flex; flex-wrap: wrap; gap: 0.5rem 0.75rem; }
@@ -116,7 +115,6 @@ a.chip:hover { background: #8883; color: var(--fg) !important; }
 .item { position: relative; display: flex; align-items: center; width: 350px; max-width: 100%; padding: 0.5rem 0.875rem 0.875rem; border-radius: 6px; background: transparent; font-size: 1.1rem; opacity: 0.6; transition: 0.2s all ease-out; }
 .item:hover { opacity: 1; background: #88888811; }
 .item-icon { padding: 0.5rem 1.25rem 0 0; opacity: 0.5; }
-.item-icon img { width: 2.25rem; height: 2.25rem; object-fit: contain; border-radius: 0.375rem; }
 .item-icon .mono { display: flex; align-items: center; justify-content: center; width: 2.25rem; height: 2.25rem; border: 1.5px solid currentColor; border-radius: 0.5rem; font-size: 0.9rem; font-weight: 700; letter-spacing: -0.03em; }
 .item-body { flex: auto; min-width: 0; }
 .item-name { font-weight: 400; }

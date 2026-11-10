@@ -4,13 +4,12 @@ import {
   webHref,
   type ContentLink,
   type ContentSocial,
-  type ContentVideo,
   type SocialKind,
   type TextPart,
 } from "./content";
 import type { PortfolioView } from "./view";
 
-// Pure and client-safe. The small text, link, social and video rules the automatic content
+// Pure and client-safe. The small text, link and social rules the automatic content
 // (./content-auto.ts) and the finished view (./content-view.ts) share.
 
 // ---------------------------------------------------------------------------------------------
@@ -199,52 +198,6 @@ export function toSocial(
     handle: socialHandle(detected, href),
     href,
   };
-}
-
-// ---------------------------------------------------------------------------------------------
-// Video
-// ---------------------------------------------------------------------------------------------
-
-/** A project's video link as something a page can play: an embed for YouTube/Vimeo/Loom, else a file. */
-export function videoOf(raw: string): ContentVideo | null {
-  const href = webHref(raw);
-  if (!href || !href.startsWith("https://")) return null;
-  const url = new URL(href);
-  const host = url.hostname.replace(/^www\./, "").toLowerCase();
-  const id = (value: string | null | undefined) =>
-    value && /^[\w-]{6,64}$/.test(value) ? value : null;
-  if (host === "youtu.be" || host.endsWith("youtube.com")) {
-    const parts = url.pathname.split("/").filter(Boolean);
-    const videoId = id(
-      host === "youtu.be"
-        ? parts[0]
-        : parts[0] === "shorts" || parts[0] === "embed"
-          ? parts[1]
-          : url.searchParams.get("v"),
-    );
-    return videoId
-      ? {
-          kind: "embed",
-          provider: "youtube",
-          src: `https://www.youtube-nocookie.com/embed/${videoId}`,
-        }
-      : null;
-  }
-  if (host === "vimeo.com" || host === "player.vimeo.com") {
-    const videoId = url.pathname.split("/").filter((part) => /^\d+$/.test(part))[0];
-    return videoId
-      ? { kind: "embed", provider: "vimeo", src: `https://player.vimeo.com/video/${videoId}` }
-      : null;
-  }
-  if (host === "loom.com") {
-    const videoId = id(url.pathname.split("/").filter(Boolean)[1]);
-    return videoId
-      ? { kind: "embed", provider: "loom", src: `https://www.loom.com/embed/${videoId}` }
-      : null;
-  }
-  if (/\.mp4$/i.test(url.pathname)) return { kind: "file", type: "video/mp4", src: href };
-  if (/\.webm$/i.test(url.pathname)) return { kind: "file", type: "video/webm", src: href };
-  return null;
 }
 
 /** A paragraph cut around the highlighted phrases, longest phrase first so "Ledgerly Pay" wins over "Ledgerly". */

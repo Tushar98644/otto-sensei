@@ -76,7 +76,7 @@ export const PLANS = {
 // New accounts can start Pro with a free trial: the card is saved at checkout and nothing is charged
 // until Pro monthly starts when it ends. One per person (src/lib/billing/trial.ts). Its allowance
 // covers the whole trial, not a month or week, and is capped because a trial brings in nothing:
-// worst case, every call at its token cap, a trial costs about $0.42 (PLAN.md).
+// worst case, every call at its token cap, a trial costs about $0.44 (PLAN.md).
 export const PRO_TRIAL = {
   plan: "pro",
   interval: "month",

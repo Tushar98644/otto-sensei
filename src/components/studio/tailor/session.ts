@@ -1,5 +1,6 @@
 import { TEXT_LIMITS } from "@/config/plans";
 import type { TailorResult } from "@/lib/ai/types";
+import { sameJobUrl } from "@/lib/applications/thread";
 import type { JobPosting, JobSource } from "@/lib/api/types";
 import type { ScreeningQuestion } from "@/lib/ats/types";
 import type { RequirementChoice, TailorChoices } from "./apply";
@@ -61,6 +62,9 @@ const SOURCES = new Set<string>([
   "greenhouse",
   "lever",
   "ashby",
+  "workable",
+  "recruitee",
+  "personio",
   "jsonld",
   "page",
 ] satisfies JobSource[]);
@@ -250,9 +254,14 @@ export type QueuedJob = {
   text: string;
   postedAt: number | null;
   readLink: boolean;
+  // The opening's id on the Jobs tab, kept on the copy (tailor.jobId) so they find each other.
+  jobId?: string;
 };
 
 const QUEUE_KEY = "otto-tailor-queued-v1";
+// The last job sent from the Jobs tab, kept for the tab's life (a reload included) after the step
+// takes the queued job, so the copy made from it can name its opening.
+const JOB_REF_KEY = "otto-tailor-job-ref-v1";
 
 export function queueJobForTailor(job: QueuedJob): void {
   try {
@@ -260,8 +269,29 @@ export function queueJobForTailor(job: QueuedJob): void {
       QUEUE_KEY,
       JSON.stringify({ ...job, text: job.text.slice(0, TEXT_LIMITS.jobPostChars) }),
     );
+    if (job.jobId) {
+      window.sessionStorage.setItem(JOB_REF_KEY, JSON.stringify({ id: job.jobId, link: job.link }));
+    } else {
+      window.sessionStorage.removeItem(JOB_REF_KEY);
+    }
   } catch {
     // Storage blocked: the step opens empty and the person pastes the link themselves.
+  }
+}
+
+/**
+ * The Jobs tab opening behind this job link, when the link is still the one sent from there. A
+ * link typed in since is another job, so it gets none.
+ */
+export function queuedJobIdFor(link: string | undefined): string | null {
+  try {
+    const raw = window.sessionStorage.getItem(JOB_REF_KEY);
+    if (!raw || !link) return null;
+    const ref = JSON.parse(raw) as { id?: unknown; link?: unknown } | null;
+    if (typeof ref?.id !== "string" || typeof ref.link !== "string") return null;
+    return sameJobUrl(ref.link, link) ? ref.id : null;
+  } catch {
+    return null;
   }
 }
 

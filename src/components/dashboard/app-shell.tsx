@@ -37,7 +37,12 @@ export function AppShell({ initialUser, children }: { initialUser: SessionUser; 
       <Sidebar user={current} me={me} actions={actions} />
       <div className="flex min-w-0 flex-1 flex-col">
         <MobileBar />
-        <main id="main" className="mx-auto w-full max-w-5xl flex-1 px-4 pt-4 pb-16 sm:px-8 lg:pt-10">
+        {/* A page that is a workspace (the portfolio editor, [data-workspace]) fills the window
+            from lg and keeps its own padding, so its panels can scroll on their own. */}
+        <main
+          id="main"
+          className="mx-auto w-full max-w-5xl flex-1 px-4 pt-4 pb-16 sm:px-8 lg:pt-10 lg:has-[[data-workspace]]:max-w-none lg:has-[[data-workspace]]:p-0"
+        >
           {children}
         </main>
       </div>

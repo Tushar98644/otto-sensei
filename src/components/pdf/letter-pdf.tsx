@@ -5,6 +5,8 @@ import { buildPdfModel } from "@/lib/pdf/model";
 import type { PdfPageSize } from "@/lib/pdf/page-size";
 import type { Resume, TemplateId } from "@/lib/resume/schema";
 import { Header, Line } from "./document";
+import { withFontFallbacks } from "./fonts";
+import { modelText, themeText } from "./layout";
 import { themeFor } from "./themes";
 import type { PdfStyle } from "./theme";
 
@@ -26,9 +28,13 @@ const BLOCK_GAP: PdfStyle = { marginTop: 10 };
 const DATE: PdfStyle = { marginTop: 18, marginBottom: 14 };
 
 export function LetterPdf({ resume, letter, pageSize = "LETTER", template, now }: LetterPdfProps) {
-  const theme = themeFor(resume, template);
   const model = buildPdfModel(resume);
   const blocks = letterBlocks(letter);
+  const base = themeFor(resume, template);
+  const theme = withFontFallbacks(
+    base,
+    [modelText(model), themeText(base), ...blocks.flat()].join("\n"),
+  );
   const title = model.name ? `${model.name} - Cover letter` : "Cover letter";
   return (
     <Document

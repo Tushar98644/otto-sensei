@@ -4,7 +4,7 @@ import { resetEnvForTests } from "@/lib/env";
 import { InterviewPrepSchema } from "@/lib/insights/prep";
 import { emptyResume, type Resume } from "@/lib/resume/schema";
 import type { StructuredRequest } from "./client";
-import { cleanStories, novelShare, prepareInterview } from "./interview";
+import { cleanStories, namesIn, novelShare, prepareInterview } from "./interview";
 import { AIError, type WritingInput } from "./types";
 
 const runStructured = vi.hoisted(() =>
@@ -44,6 +44,16 @@ const LINES = [
   { id: "l2", text: "Helped with the quarterly customer newsletter", place: "Backend Engineer at Mapline" },
 ];
 
+// The fields a test doesn't care about.
+const QUESTION = {
+  round: "fit" as const,
+  question: "",
+  checking: "",
+  followUp: "",
+  points: [] as string[],
+  storyLineId: "",
+};
+
 function useKey(key: string | null) {
   if (key) process.env.OPENROUTER_API_KEY = key;
   else delete process.env.OPENROUTER_API_KEY;
@@ -63,9 +73,16 @@ describe("prepareInterview", () => {
   it("sends the resume, its numbered lines and the post as data, and copies lines in itself", async () => {
     runStructured.mockResolvedValueOnce({
       questions: [
-        { question: "How have you run Go services in production?", why: "The post lists Go as a must-have." },
-        { question: "How have you run Go services in production?", why: "Repeat" },
-        { question: "Not a question", why: "" },
+        {
+          round: "skills",
+          question: "How have you run Go services in production?",
+          checking: "Whether you've run Go for real.",
+          followUp: "What broke first?",
+          points: ["Your billing rebuild in Go", "Mention Kafka streams", "Cut p99 by 70%"],
+          storyLineId: "l1",
+        },
+        { ...QUESTION, round: "skills", question: "How have you run Go services in production?" },
+        { ...QUESTION, round: "skills", question: "Not a question" },
       ],
       stories: [
         {
@@ -84,14 +101,23 @@ describe("prepareInterview", () => {
 
     const sent = runStructured.mock.calls[0]?.[0];
     expect(sent?.task).toBe("letter");
+    expect(sent?.maxTokens).toBe(8_000);
     expect(sent?.user).toContain("<experience>");
     expect(sent?.user).toContain('"id":"l1"');
     expect(sent?.user).toContain("<job_post>\nJob title: Senior Backend Engineer");
 
     expect(InterviewPrepSchema.safeParse(prep).success).toBe(true);
-    expect(prep).toMatchObject({ version: 1, demo: false, createdAt: 123, job: { company: "Kestrel Labs" } });
+    expect(prep).toMatchObject({ version: 2, demo: false, createdAt: 123, job: { company: "Kestrel Labs" } });
+    // Kafka is in neither the resume nor the post, so that pointer goes; 70% becomes a blank.
     expect(prep.questions).toEqual([
-      { question: "How have you run Go services in production?", why: "The post lists Go as a must-have." },
+      {
+        round: "skills",
+        question: "How have you run Go services in production?",
+        checking: "Whether you've run Go for real.",
+        followUp: "What broke first?",
+        points: ["Your billing rebuild in Go", "Cut p99 by [number]"],
+        story: 0,
+      },
     ]);
     expect(prep.asks).toEqual(["What does on-call look like for this team?"]);
     expect(prep.stories).toHaveLength(1);
@@ -101,6 +127,42 @@ describe("prepareInterview", () => {
     expect(story?.action).toBe("I rebuilt the billing service in Go");
     // 300 hours isn't in the line, so the number goes; the rest still matches the line.
     expect(story?.result).not.toContain("300");
+  });
+
+  it("puts questions in interview order and links only stories that were kept", async () => {
+    runStructured.mockResolvedValueOnce({
+      questions: [
+        { ...QUESTION, round: "closing", question: "Anything we haven't covered that you'd want us to know?" },
+        { ...QUESTION, round: "behavioural", question: "Tell me about a time a release went wrong.", storyLineId: "l2" },
+        { ...QUESTION, round: "opening", question: "“Walk me through your background.”" },
+        { ...QUESTION, round: "skills", question: "How would you shard the billing tables?", storyLineId: "l9" },
+        { ...QUESTION, round: "behavioural", question: "Tell me about a time you disagreed with a lead?" },
+      ],
+      stories: [
+        { lineId: "l9", title: "Made up", situation: "", task: "", action: "", result: "" },
+        {
+          lineId: "l2",
+          title: "Customer newsletter",
+          situation: "[What was going on?]",
+          task: "[What were you asked to do?]",
+          action: "Helped with the quarterly customer newsletter",
+          result: "[What changed?]",
+        },
+      ],
+      asks: [],
+    });
+    const prep = await prepareInterview(makeResume(), JOB, 1);
+
+    expect(prep.questions.map((item) => [item.round, item.question])).toEqual([
+      ["opening", "Walk me through your background."],
+      ["skills", "How would you shard the billing tables?"],
+      ["behavioural", "Tell me about a time a release went wrong."],
+      ["behavioural", "Tell me about a time you disagreed with a lead?"],
+      ["closing", "Anything we haven't covered that you'd want us to know?"],
+    ]);
+    // l9 isn't a real line, so its story was dropped and the question links none.
+    expect(prep.questions.map((item) => item.story)).toEqual([null, null, 0, null, null]);
+    expect(prep.stories[0]?.title).toBe("Customer newsletter");
   });
 
   it("hides the name, contact details and links from the model and puts them back after", async () => {
@@ -120,7 +182,13 @@ describe("prepareInterview", () => {
       ];
     }
     runStructured.mockResolvedValueOnce({
-      questions: [{ question: "How did you document the ledger at [LINK_1]/ledger?", why: "The resume links it." }],
+      questions: [
+        {
+          ...QUESTION,
+          question: "How did you document the ledger at [LINK_1]/ledger?",
+          points: ["Say [NAME] wrote the docs used by 12 teams"],
+        },
+      ],
       stories: [],
       asks: [],
     });
@@ -133,6 +201,8 @@ describe("prepareInterview", () => {
     expect(sent).toContain("[LINK_");
     expect(prep.questions[0]?.question).toContain("github.com/priyaraman/ledger");
     expect(prep.questions[0]?.question).not.toContain("[LINK_");
+    // Restored before the checks, so the real name counts as one the resume has.
+    expect(prep.questions[0]?.points).toEqual(["Say Priya Raman wrote the docs used by 12 teams"]);
   });
 
   it("fails cleanly when no usable question comes back", async () => {
@@ -153,8 +223,17 @@ describe("prepareInterview", () => {
     expect(prep.demo).toBe(true);
     expect(InterviewPrepSchema.safeParse(prep).success).toBe(true);
     expect(prep.questions.map((item) => item.question)).toContain(
-      "What's your experience with this: Go services in production?",
+      "The post lists “Go services in production”. Where have you done that, and how did it go?",
     );
+    const rounds = prep.questions.map((item) => item.round);
+    expect(rounds[0]).toBe("opening");
+    expect(rounds.at(-1)).toBe("closing");
+    expect(prep.questions[0]?.points).toEqual([
+      "Start with where you are now: Backend Engineer at Mapline",
+      "Lead with one result: “Rebuilt the billing service in Go, cutting p99 latency by 40%”",
+      "End on why this job is the next step",
+    ]);
+    expect(prep.questions.find((item) => item.round === "behavioural")?.story).toBe(0);
     // The line with a number comes first, and its action is the line itself.
     expect(prep.stories[0]?.action).toBe("Rebuilt the billing service in Go, cutting p99 latency by 40%");
     expect(prep.stories[1]?.result).toBe("[What changed because of it, and by how much?]");
@@ -186,6 +265,14 @@ describe("cleanStories", () => {
   it("uses each line once", () => {
     const item = { lineId: "l1", title: "", situation: "", task: "", action: "", result: "" };
     expect(cleanStories([item, item], LINES)).toHaveLength(1);
+  });
+});
+
+describe("namesIn", () => {
+  it("finds names inside a sentence and inner capitals, not sentence starts or blanks", () => {
+    expect(namesIn("Tie it to their PostgreSQL must-have, then Kafka.")).toEqual(["PostgreSQL", "Kafka"]);
+    expect(namesIn("Say what you'd measure. Then stop. I'd ask [Which Tool?]")).toEqual([]);
+    expect(namesIn("AWS first: “Cut costs”")).toEqual(["AWS"]);
   });
 });
 

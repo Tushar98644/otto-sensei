@@ -121,6 +121,8 @@ describe("proxy", () => {
       "/api/cron/cleanup",
       "/api/cron/follow-ups",
       "/formats/classic@2x.png",
+      "/fonts/pdf/carlito/Carlito-Regular.ttf",
+      "/fonts/pdf/tex-gyre-pagella/texgyrepagella-regular.otf",
       "/icon.svg",
       "/apple-icon",
       "/opengraph-image",

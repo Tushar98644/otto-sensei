@@ -16,7 +16,7 @@ export const FETCH_LIMITS = {
 } as const;
 export const USER_AGENT = "OttoResumeBot/1.0";
 
-export type FetchKind = "html" | "json";
+export type FetchKind = "html" | "json" | "xml";
 
 export type FetchOptions = {
   kind: FetchKind;
@@ -30,7 +30,12 @@ export type FetchOptions = {
 
 export type Fetched = { url: URL; body: string };
 
-const MEDIA_TYPES: Record<FetchKind, string> = { html: "text/html", json: "application/json" };
+// The first type of each is the one asked for; XML feeds answer with either.
+const MEDIA_TYPES: Record<FetchKind, readonly string[]> = {
+  html: ["text/html"],
+  json: ["application/json"],
+  xml: ["application/xml", "text/xml"],
+};
 const REDIRECTS = new Set([301, 302, 303, 307, 308]);
 
 function errorCode(error: unknown): string | null {
@@ -149,7 +154,7 @@ export async function safeFetch(
   const timer = setTimeout(() => controller.abort(), budget);
   const headers = {
     "user-agent": USER_AGENT,
-    accept: MEDIA_TYPES[kind],
+    accept: MEDIA_TYPES[kind].join(", "),
     "accept-language": "en",
     "accept-encoding": "gzip, deflate, br",
   };
@@ -177,7 +182,7 @@ export async function safeFetch(
 
       const contentType = res.header("content-type") ?? "";
       const mediaType = contentType.split(";")[0]!.trim().toLowerCase();
-      if (mediaType !== MEDIA_TYPES[kind]) {
+      if (!MEDIA_TYPES[kind].includes(mediaType)) {
         res.discard();
         throw new JobReadError(kind === "html" ? "not_a_page" : "unreachable", {
           detail: mediaType || "no_type",

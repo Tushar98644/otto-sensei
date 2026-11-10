@@ -2,6 +2,7 @@ import { eq } from "drizzle-orm";
 import { getDb } from "@/db/client";
 import { lockUser } from "@/db/locks";
 import { workProfiles } from "@/db/schema";
+import { NO_CHOICE, type LookingForChoice, type PlaceChoice } from "@/lib/job-feed/types";
 import { emptyWorkProfile, type WorkProfile } from "./profile";
 
 // Server-only. The account's work profile: one row keyed by user_id, so a user can only ever read
@@ -9,7 +10,11 @@ import { emptyWorkProfile, type WorkProfile } from "./profile";
 
 type Row = typeof workProfiles.$inferSelect;
 
-export type StoredWorkProfile = { profile: WorkProfile; updatedAt: number | null };
+export type StoredWorkProfile = {
+  profile: WorkProfile;
+  updatedAt: number | null;
+  lookingFor: LookingForChoice;
+};
 
 export type SaveWorkProfileResult =
   | { status: "saved"; stored: StoredWorkProfile }
@@ -27,6 +32,12 @@ function toStored(row: Row): StoredWorkProfile {
       remoteOnly: row.remoteOnly,
     },
     updatedAt: row.updatedAt,
+    lookingFor: {
+      role: row.targetTitle === null ? null : { title: row.targetTitle, family: row.targetFamily },
+      level: row.targetLevel,
+      place: row.targetPlace as PlaceChoice | null,
+      remote: row.remoteOnly,
+    },
   };
 }
 
@@ -38,7 +49,39 @@ export async function readWorkProfile(userId: string): Promise<StoredWorkProfile
     .from(workProfiles)
     .where(eq(workProfiles.userId, userId))
     .limit(1);
-  return row ? toStored(row) : { profile: emptyWorkProfile(), updatedAt: null };
+  return row
+    ? toStored(row)
+    : { profile: emptyWorkProfile(), updatedAt: null, lookingFor: NO_CHOICE };
+}
+
+/**
+ * Saves the "Looking for" card's choices (any plan: it only shapes the order of Matches). Its
+ * "Remote only" is the work profile's. Creates an empty work profile around it when there is none.
+ */
+export async function saveLookingFor(
+  userId: string,
+  choice: LookingForChoice,
+  now = Date.now(),
+): Promise<SaveWorkProfileResult> {
+  const db = await getDb();
+  return db.transaction(async (tx): Promise<SaveWorkProfileResult> => {
+    if (!(await lockUser(tx, userId))) return { status: "no_user" };
+    const values = {
+      targetTitle: choice.role?.title ?? null,
+      targetFamily: choice.role?.family ?? null,
+      targetLevel: choice.level,
+      targetPlace: choice.place,
+      remoteOnly: choice.remote,
+      updatedAt: now,
+    };
+    const [row] = await tx
+      .insert(workProfiles)
+      .values({ userId, ...values, createdAt: now })
+      .onConflictDoUpdate({ target: workProfiles.userId, set: values })
+      .returning();
+    if (!row) throw new Error("work profile upsert returned no row");
+    return { status: "saved", stored: toStored(row) };
+  });
 }
 
 /**

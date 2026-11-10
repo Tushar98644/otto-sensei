@@ -4,6 +4,7 @@ import { getDb } from "@/db/client";
 import { lockUser } from "@/db/locks";
 import { applications } from "@/db/schema";
 import { firstFollowUpAt, snoozedUntil } from "@/lib/applications/follow-up";
+import { linkWritings, resolveJobId } from "@/lib/applications/links";
 import {
   APPLICATION_LIMITS,
   ApplicationIdSchema,
@@ -11,7 +12,14 @@ import {
   type CreateApplicationInput,
   type UpdateApplicationInput,
 } from "@/lib/applications/schema";
-import { isApplicationStatus, isStage, type ApplicationStatus } from "@/lib/applications/status";
+import {
+  isStage,
+  readStage,
+  readStatus,
+  STATUS_HISTORY_LIMIT,
+  type ApplicationStatus,
+  type StatusEvent,
+} from "@/lib/applications/status";
 import { followUpDaysOf, followUpDaysSql } from "@/lib/notifications/records";
 import type { FollowUpAction } from "@/lib/notifications/types";
 
@@ -19,8 +27,9 @@ import type { FollowUpAction } from "@/lib/notifications/types";
 // never read, change or delete another's rows, even with a guessed id.
 
 // What the list and every write return. prep (a whole interview pack per row, read only by
-// /api/interview) and reminded_at stay in the database, so a page of 500 rows stays small.
-const COLUMNS = {
+// /api/interview), the status history (read only by the application's own page) and reminded_at
+// stay in the database, so a page of 500 rows stays small. Whether a pack exists is one boolean.
+export const APPLICATION_COLUMNS = {
   id: applications.id,
   resumeId: applications.resumeId,
   resumeTitle: applications.resumeTitle,
@@ -33,11 +42,16 @@ const COLUMNS = {
   statusChangedAt: applications.statusChangedAt,
   notes: applications.notes,
   followUpAt: applications.followUpAt,
+  jobId: applications.jobId,
+  interviewAt: applications.interviewAt,
+  hasPrep: sql<boolean>`${applications.prep} is not null`.mapWith(Boolean),
   createdAt: applications.createdAt,
   updatedAt: applications.updatedAt,
 };
 
-type Row = Pick<typeof applications.$inferSelect, keyof typeof COLUMNS>;
+type Row = Pick<typeof applications.$inferSelect, Exclude<keyof typeof APPLICATION_COLUMNS, "hasPrep">> & {
+  hasPrep: boolean;
+};
 
 export type Cursor = { appliedAt: number; id: string };
 
@@ -49,8 +63,8 @@ export type CreateResult =
   // The account was deleted after the request was signed in, so nothing may be written.
   | { status: "no_user" };
 
-function toApplication(row: Row): Application {
-  const status = isApplicationStatus(row.status) ? row.status : "applied";
+export function toApplication(row: Row): Application {
+  const status = readStatus(row.status) ?? "applied";
   return {
     id: row.id,
     resumeId: row.resumeId,
@@ -60,13 +74,33 @@ function toApplication(row: Row): Application {
     jobUrl: row.jobUrl,
     appliedAt: row.appliedAt,
     status,
-    stageReached: row.stageReached,
+    stageReached: readStage(row.stageReached),
     statusChangedAt: row.statusChangedAt,
     notes: row.notes,
     followUpAt: row.followUpAt,
+    jobId: row.jobId,
+    hasPrep: row.hasPrep,
+    interviewAt: row.interviewAt,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
   };
+}
+
+// The newest STATUS_HISTORY_LIMIT entries of a history with this one added, as SQL.
+function appendHistory(status: ApplicationStatus, now: number) {
+  const entry = sql`jsonb_build_array(jsonb_build_object('status', ${status}::text, 'at', ${now}::bigint))`;
+  return sql`jsonb_path_query_array(${applications.statusHistory} || ${entry}, ${`$[last - ${STATUS_HISTORY_LIMIT - 1} to last]`}::jsonpath)`;
+}
+
+// What a new application's timeline starts with: the day it was sent, and the status it was
+// logged at when that's further along.
+export function startingHistory(
+  status: ApplicationStatus,
+  appliedAt: number,
+  now: number,
+): StatusEvent[] {
+  const sent: StatusEvent = { status: "applied", at: appliedAt };
+  return status === "applied" ? [sent] : [sent, { status, at: Math.max(now, appliedAt) }];
 }
 
 // "<appliedAt>.<id>" of the last row sent: the next page starts right after it.
@@ -99,7 +133,7 @@ export async function listApplications(
     : undefined;
   // One extra row says whether another page exists without a count query.
   const rows = await db
-    .select(COLUMNS)
+    .select(APPLICATION_COLUMNS)
     .from(applications)
     .where(after ? and(own, after) : own)
     .orderBy(desc(applications.appliedAt), desc(applications.id))
@@ -119,7 +153,7 @@ export async function listApplications(
  */
 export async function createApplication(
   userId: string,
-  input: CreateApplicationInput,
+  input: Omit<CreateApplicationInput, "jobId"> & { jobId?: string | null },
   now = Date.now(),
   max: number = APPLICATION_LIMITS.perUser,
 ): Promise<CreateResult> {
@@ -137,10 +171,11 @@ export async function createApplication(
       input.status === "applied"
         ? firstFollowUpAt(input.appliedAt, now, await followUpDaysOf(tx, userId))
         : null;
+    const id = crypto.randomUUID();
     const [row] = await tx
       .insert(applications)
       .values({
-        id: crypto.randomUUID(),
+        id,
         userId,
         resumeId: input.resumeId,
         resumeTitle: input.resumeTitle,
@@ -153,19 +188,24 @@ export async function createApplication(
         statusChangedAt: now,
         notes: input.notes,
         followUpAt,
+        jobId: await resolveJobId(tx, input.jobId ?? null, input.jobUrl),
+        statusHistory: startingHistory(input.status, input.appliedAt, now),
+        interviewAt: input.interviewAt ?? null,
         createdAt: now,
         updatedAt: now,
       })
-      .returning(COLUMNS);
+      .returning(APPLICATION_COLUMNS);
     if (!row) throw new Error("createApplication: insert returned no row");
+    // The letters already written for this job join it, so the thread is whole from the start.
+    await linkWritings(tx, userId, id, input);
     return { status: "created", application: toApplication(row) };
   });
 }
 
 // The status columns a change to `status` moves. Written as SQL against the stored row, so the
-// change-time only moves when the status really changes, and a step forward or back is recorded
-// while an ending keeps the furthest step (see stageAfter). Moving to applied from another status
-// starts a fresh follow-up; any other status ends it.
+// change-time and the timeline only move when the status really changes, and a step forward or
+// back is recorded while an ending keeps the furthest step (see stageAfter). Moving to applied
+// from another status starts a fresh follow-up; any other status ends it.
 function statusChange(
   userId: string,
   status: ApplicationStatus,
@@ -174,6 +214,7 @@ function statusChange(
   return {
     status,
     statusChangedAt: sql`case when ${applications.status} = ${status} then ${applications.statusChangedAt} else ${now} end`,
+    statusHistory: sql`case when ${applications.status} = ${status} then ${applications.statusHistory} else ${appendHistory(status, now)} end`,
     ...(isStage(status) ? { stageReached: status } : {}),
     followUpAt:
       status === "applied"
@@ -198,18 +239,28 @@ export async function updateApplication(
   if (patch.resumeTitle !== undefined) set.resumeTitle = patch.resumeTitle;
   if (patch.company !== undefined) set.company = patch.company;
   if (patch.role !== undefined) set.role = patch.role;
-  if (patch.jobUrl !== undefined) set.jobUrl = patch.jobUrl;
+  // A new link is another post: the opening follows the link, or goes when it's none of ours.
+  if (patch.jobUrl !== undefined) {
+    set.jobUrl = patch.jobUrl;
+    set.jobId = await resolveJobId(db, null, patch.jobUrl);
+  }
   if (patch.appliedAt !== undefined) set.appliedAt = patch.appliedAt;
   if (patch.notes !== undefined) set.notes = patch.notes;
+  if (patch.interviewAt !== undefined) set.interviewAt = patch.interviewAt;
   // Sent with a status, an explicit date wins over the one the status would set.
   if (patch.followUpAt !== undefined) set.followUpAt = patch.followUpAt;
   const rows = await db
     .update(applications)
     .set(set)
     .where(and(eq(applications.userId, userId), eq(applications.id, id)))
-    .returning(COLUMNS);
+    .returning(APPLICATION_COLUMNS);
   const row = rows[0];
-  return row ? toApplication(row) : null;
+  if (!row) return null;
+  // Naming the job better can only add letters to it; ones already linked stay.
+  if (patch.jobUrl !== undefined || patch.company !== undefined || patch.role !== undefined) {
+    await linkWritings(db, userId, row.id, row);
+  }
+  return toApplication(row);
 }
 
 /** One status for many of the user's applications. Returns the ones that changed. */
@@ -230,7 +281,7 @@ export async function setStatusMany(
         ne(applications.status, status),
       ),
     )
-    .returning(COLUMNS);
+    .returning(APPLICATION_COLUMNS);
   return rows.map(toApplication);
 }
 

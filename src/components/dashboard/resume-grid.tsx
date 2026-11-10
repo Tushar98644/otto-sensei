@@ -53,7 +53,11 @@ export function ResumeGrid({
 
   return (
     <>
-      <ul className={cn("grid gap-x-5 gap-y-8 sm:grid-cols-2 xl:grid-cols-3", className)}>
+      {/* grid-cols-1 rather than an implicit column: a long tailored title ("Senior Product
+          Marketing Manager at Northwind") would otherwise widen a phone's page past the screen. */}
+      <ul
+        className={cn("grid grid-cols-1 gap-x-5 gap-y-8 sm:grid-cols-2 xl:grid-cols-3", className)}
+      >
         {resumes.map((resume) => {
           const baseId = resume.tailor?.baseResumeId;
           const base = baseId && baseId !== resume.id ? (byId.get(baseId) ?? null) : null;

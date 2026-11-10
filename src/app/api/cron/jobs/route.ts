@@ -1,4 +1,5 @@
 import { runJobsIngest } from "@/lib/job-feed/ingest";
+import { dropJobsCache } from "@/lib/job-feed/public-cache";
 import { runCronRoute } from "@/lib/cron/run";
 
 export const runtime = "nodejs";
@@ -13,9 +14,14 @@ const INGEST_BUDGET_MS = 240_000;
 // Vercel Cron calls GET (schedule in vercel.json); POST is for a manual run or another scheduler.
 // Both need "Authorization: Bearer <CRON_SECRET>".
 export function GET(req: Request): Promise<Response> {
-  return runCronRoute(req, "jobs", (context) =>
-    runJobsIngest({ now: context.now, deadline: context.now + INGEST_BUDGET_MS }),
-  );
+  return runCronRoute(req, "jobs", async (context) => {
+    const outcome = await runJobsIngest({
+      now: context.now,
+      deadline: context.now + INGEST_BUDGET_MS,
+    });
+    dropJobsCache();
+    return outcome;
+  });
 }
 
 export const POST = GET;

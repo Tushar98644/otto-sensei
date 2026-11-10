@@ -5,6 +5,8 @@ import { PDF_PAGE_SIZES } from "@/lib/pdf/page-size";
 import { TEMPLATE_INFO } from "@/lib/pdf/templates";
 import { SECTION_LABELS, TEMPLATE_IDS, type Resume, type TemplateId } from "@/lib/resume/schema";
 import { RESUME_TEMPLATE_LIST, RESUME_TEMPLATES } from "./registry";
+import { yearsOnly } from "./layout";
+import { TEMPLATE_THEMES } from "./themes";
 import {
   flatten,
   longResume,
@@ -61,31 +63,40 @@ function reader(text: string) {
   };
 }
 
-function expectReadingOrder(text: string) {
+const CONTACT: Record<"location" | "email" | "phone", string> = {
+  location: "Toronto, Canada",
+  email: "maya.lindqvist@example.com",
+  phone: "+1 415 555 0142",
+};
+
+// The format's own order: its contact lines, and whether a job leads with the title or the company.
+function expectReadingOrder(text: string, id: TemplateId) {
+  const theme = TEMPLATE_THEMES[id];
   const read = reader(text);
-  for (const part of [
-    "Maya Lindqvist",
-    "Senior Backend Engineer",
-    "maya.lindqvist@example.com",
-    "+1 415 555 0142",
-  ]) {
-    read.next(part);
+  read.next("Maya Lindqvist");
+  read.next("Senior Backend Engineer");
+  for (const field of theme.contactLines.flat()) {
+    if (field === "links") {
+      read.next("linkedin.com/in/mayalindqvist");
+      read.next("github.com/mayal");
+    } else {
+      read.next(CONTACT[field]);
+    }
   }
-  read.next("Toronto, Canada");
-  read.next("linkedin.com/in/mayalindqvist");
-  read.next("github.com/mayal");
   read.next(SECTION_LABELS.summary);
   read.next("Backend engineer with 7 years");
   read.next(SECTION_LABELS.experience);
+  const titleFirst = theme.rows.job[0]!.lead[0] === "title";
   for (const job of JOBS) {
-    const title = read.next(job.title);
-    read.next(job.org);
-    // Dates sit on the title's line (right-aligned) in every format: after the title, before
-    // the first bullet. The company may come before or after them.
-    const dates = read.find(job.dates, title);
-    const firstBullet = read.find(job.bullets[0]!, title);
-    expect(dates, `${job.title} dates`).toBeGreaterThan(title);
-    expect(dates, `${job.title} dates before its first bullet`).toBeLessThan(firstBullet);
+    const [first, second] = titleFirst ? [job.title, job.org] : [job.org, job.title];
+    const start = read.next(first);
+    read.next(second);
+    // Dates sit in the entry's heading rows: after its first line starts, before its first bullet.
+    const dates = theme.dates === "years" ? yearsOnly(job.dates) : job.dates;
+    const at = read.find(dates, start);
+    const firstBullet = read.find(job.bullets[0]!, start);
+    expect(at, `${job.title} dates`).toBeGreaterThan(start);
+    expect(at, `${job.title} dates before its first bullet`).toBeLessThan(firstBullet);
     for (const bullet of job.bullets) read.next(bullet);
   }
   read.next(SECTION_LABELS.projects);
@@ -93,9 +104,10 @@ function expectReadingOrder(text: string) {
   read.next("github.com/mayal/ledger-lint");
   read.next("Open-source tool that flags rounding errors");
   read.next(SECTION_LABELS.education);
-  const degree = read.next("BSc, Computer Science");
-  expect(read.find("2013 – 2017", degree), "school dates").toBeGreaterThan(degree);
-  read.next("University of Edinburgh");
+  // Every format leads a school entry with the school, as its source does.
+  const school = read.next("University of Edinburgh");
+  expect(read.find("2013 – 2017", school), "school dates").toBeGreaterThan(school);
+  read.next("BSc, Computer Science");
   read.next(SECTION_LABELS.skills);
   read.next("Languages: TypeScript, Go, SQL, Python");
   read.next("Infrastructure: Kubernetes, AWS, Terraform, Kafka, PostgreSQL");
@@ -141,7 +153,7 @@ describe.each(RESUME_TEMPLATE_LIST.map((template) => [template.name, template.id
       }
       const pages = await readPages(bytes);
       expect(pages).toHaveLength(1);
-      expectReadingOrder(pages.join("\n"));
+      expectReadingOrder(pages.join("\n"), id);
       // Each heading is a line of its own, spelled as a whole word (no "S U M M A R Y").
       const lines = new Set(pages[0]!.split("\n").map((line) => line.trim().toLowerCase()));
       for (const label of Object.values(SECTION_LABELS))
@@ -213,8 +225,7 @@ describe.each(RESUME_TEMPLATE_LIST.map((template) => [template.name, template.id
           expect(headings.has(last.toLowerCase()), `page ends on the "${last}" heading`).toBe(
             false,
           );
-          // Inline formats start a job heading with "Role N, Company N"; stacked ones put the
-          // company on a line of its own.
+          // Every format starts a job's heading rows with "Role N" or "Company N".
           expect(last, "page ends on a job heading").not.toMatch(/^(Role|Company) \d+/);
         }
       }
@@ -222,37 +233,41 @@ describe.each(RESUME_TEMPLATE_LIST.map((template) => [template.name, template.id
   },
 );
 
-// The font names are written into the PDF in plain text, so they show which theme drew it.
+// The font names are written into the PDF in plain text (after a subset tag, "ABCDEF+"), so they
+// show which theme drew it.
 function fontsIn(bytes: Uint8Array): string[] {
   const raw = new TextDecoder("latin1").decode(bytes);
-  return [
-    ...new Set([...raw.matchAll(/\/BaseFont\s*\/([A-Za-z-]+)/g)].map((match) => match[1]!)),
-  ].sort();
+  const names = [...raw.matchAll(/\/BaseFont\s*\/(?:[A-Z]{6}\+)?([A-Za-z-]+)/g)];
+  return [...new Set(names.map((match) => match[1]!))].sort();
 }
+
+const CLASSIC_FONTS = ["Carlito-Bold", "Carlito-Regular"];
 
 describe("ResumePdf format choice", () => {
   it("uses Classic when the resume has no format saved", async () => {
     const old = sampleResume();
     delete old.template;
-    expect(fontsIn(await render(old))).toEqual(["Helvetica", "Helvetica-Bold"]);
+    expect(fontsIn(await render(old))).toEqual(CLASSIC_FONTS);
   });
 
   it("uses the format saved on the resume", async () => {
     expect(fontsIn(await render(withTemplate(sampleResume(), "executive")))).toContain(
-      "Times-Roman",
+      "TeXGyrePagella-Regular",
     );
-    expect(fontsIn(await render(withTemplate(sampleResume(), "developer")))).toContain("Courier");
+    expect(fontsIn(await render(withTemplate(sampleResume(), "developer")))).toContain(
+      "CMUSerif-Roman",
+    );
   });
 
   it("lets the template prop override the saved format", async () => {
     const fonts = fontsIn(
       await render(withTemplate(sampleResume(), "executive"), "LETTER", "classic"),
     );
-    expect(fonts).not.toContain("Times-Roman");
+    expect(fonts).toEqual(CLASSIC_FONTS);
   });
 
   it("falls back to Classic for a format this build doesn't know", async () => {
     const stale = { ...sampleResume(), template: "retro" } as unknown as Resume;
-    expect(fontsIn(await render(stale))).toEqual(["Helvetica", "Helvetica-Bold"]);
+    expect(fontsIn(await render(stale))).toEqual(CLASSIC_FONTS);
   });
 });

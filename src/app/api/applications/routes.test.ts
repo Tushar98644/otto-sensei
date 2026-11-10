@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { getDb } from "@/db/client";
 import { applications } from "@/db/schema";
@@ -332,8 +332,22 @@ describe("PATCH /api/applications/:id", () => {
 
     // A wrong click on "Offer", fixed straight away.
     await patch(application.id, { status: "offer" });
-    const fixed = await updated(await patch(application.id, { status: "screening" }));
-    expect(fixed).toMatchObject({ status: "screening", stageReached: "screening" });
+    const fixed = await updated(await patch(application.id, { status: "interview" }));
+    expect(fixed).toMatchObject({ status: "interview", stageReached: "interview" });
+  });
+
+  it("reads a row still on the old screening step as interviewing, before the migration runs", async () => {
+    const ada = await signIn("ada@example.com");
+    const application = await created(await create(body()));
+    const db = await getDb();
+    await db.execute(
+      sql`update public.applications set status = 'screening', stage_reached = 'screening' where id = ${application.id}`,
+    );
+    expect((await listed())[0]).toMatchObject({ status: "interview", stageReached: "interview" });
+    const [row] = (await listApplications(ada.id, null)).applications;
+    expect(row).toMatchObject({ status: "interview", stageReached: "interview" });
+    // The old step is gone from what the API takes.
+    expect((await patch(application.id, { status: "screening" })).status).toBe(400);
   });
 
   it("moves the status time only when the status really changes", async () => {
@@ -349,7 +363,7 @@ describe("PATCH /api/applications/:id", () => {
 
     const same = await updated(await patch(application.id, { status: "applied", notes: "Called" }));
     expect(same.statusChangedAt).toBe(APPLIED_AT);
-    const moved = await updated(await patch(application.id, { status: "screening" }));
+    const moved = await updated(await patch(application.id, { status: "interview" }));
     expect(moved.statusChangedAt).toBeGreaterThan(APPLIED_AT);
   });
 
@@ -382,19 +396,19 @@ describe("PATCH /api/applications (many)", () => {
     await signIn("ada@example.com");
     const quiet = await created(await create(body({ company: "Quiet Co" })));
     const already = await created(await create(body({ company: "Done Co", status: "no_reply" })));
-    const screening = await created(
-      await create(body({ company: "Talking Co", status: "screening" })),
+    const talking = await created(
+      await create(body({ company: "Talking Co", status: "interview" })),
     );
 
     const res = await bulk({
-      ids: [quiet.id, already.id, screening.id, quiet.id],
+      ids: [quiet.id, already.id, talking.id, quiet.id],
       status: "no_reply",
     });
     expect(res.status).toBe(200);
     const changed = ((await res.json()) as BulkApplicationsResponse).applications;
     expect(changed.map((item) => item.company).sort()).toEqual(["Quiet Co", "Talking Co"]);
-    // Going quiet after a first call still counts that call as a reply.
-    expect(changed.find((item) => item.id === screening.id)?.stageReached).toBe("screening");
+    // Going quiet after a recruiter call still counts that call as Interviewing.
+    expect(changed.find((item) => item.id === talking.id)?.stageReached).toBe("interview");
 
     expect((await bulk({ ids: [], status: "no_reply" })).status).toBe(400);
     expect((await bulk({ ids: ["x"], status: "no_reply" })).status).toBe(400);

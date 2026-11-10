@@ -216,6 +216,8 @@ export type TailorJob = {
   // The link as typed, and the address it was read from.
   link?: string;
   posting?: { url: string } | null;
+  // The Jobs tab opening it came from, when it did.
+  jobId?: string | null;
 };
 
 // What the screener read from the post, inside TailorMetaSchema's caps.
@@ -245,6 +247,7 @@ export function tailorMeta(result: TailorResult, job: TailorJob, coverLetter = "
     ...(jobText ? { jobText } : {}),
     ...(jobUrl ? { jobUrl } : {}),
     ...(requirements.length > 0 ? { requirements } : {}),
+    ...(job.jobId ? { jobId: job.jobId } : {}),
   };
 }
 

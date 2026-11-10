@@ -4,15 +4,23 @@ import {
   parseAshby,
   parseGreenhouse,
   parseHimalayas,
+  parseJobicy,
   parseLever,
+  parsePersonio,
+  parseRecruitee,
   parseRemoteOk,
+  parseWorkable,
 } from "./parsers";
 import {
   ASHBY_BOARD,
   GREENHOUSE_BOARD,
   HIMALAYAS_PAGE,
+  JOBICY_PAGE,
   LEVER_POSTINGS,
+  PERSONIO_FEED,
+  RECRUITEE_OFFERS,
   REMOTE_OK_FEED,
+  WORKABLE_ACCOUNT,
 } from "./test-fixtures";
 
 describe("parseGreenhouse", () => {
@@ -112,5 +120,123 @@ describe("parseRemoteOk", () => {
       postedAt: 1794009602_000,
       url: "https://remoteok.com/remote-jobs/remote-ai-developer-salvo-software-1137701",
     });
+  });
+});
+
+describe("parseWorkable", () => {
+  it("links each job on the account's own page and reads place, type and level", () => {
+    const jobs = parseWorkable(WORKABLE_ACCOUNT, "Blueground", "blueground");
+    expect(jobs).toHaveLength(2);
+    expect(jobs[0]).toMatchObject({
+      externalId: "DF694D45CA",
+      company: "Blueground",
+      title: "Operations Lead - New York City",
+      location: "New York, United States",
+      remote: false,
+      employmentType: "full_time",
+      postedAt: Date.parse("2026-09-23"),
+      url: "https://apply.workable.com/blueground/j/DF694D45CA/",
+      seniority: "junior",
+    });
+    expect(jobs[0]!.text).toContain("- Track turnover in Excel and Salesforce.");
+    // Hidden places stay hidden; telecommuting is remote.
+    expect(jobs[1]).toMatchObject({
+      location: "Remote · Athens, Attica, Greece",
+      remote: true,
+      employmentType: "part_time",
+    });
+  });
+
+  it("refuses an answer that isn't an account", () => {
+    expect(() => parseWorkable({ error: "not-found" }, "Blueground", "blueground")).toThrow(
+      FeedShapeError,
+    );
+  });
+});
+
+describe("parseRecruitee", () => {
+  it("reads published offers with their requirements, linked on recruitee.com", () => {
+    const jobs = parseRecruitee(RECRUITEE_OFFERS, "bunq", "bunq");
+    expect(jobs).toHaveLength(2);
+    expect(jobs[0]).toMatchObject({
+      externalId: "2819200",
+      company: "bunq",
+      title: "Security Lead",
+      location: "Hybrid · Amsterdam, Noord-Holland, Netherlands",
+      remote: false,
+      employmentType: "full_time",
+      postedAt: Date.parse("2026-11-06T17:01:19Z"),
+      validThrough: null,
+      url: "https://bunq.recruitee.com/o/security-lead",
+      seniority: null,
+    });
+    expect(jobs[0]!.text).toContain("You have 8+ years of experience in security engineering.");
+    expect(jobs[1]).toMatchObject({
+      remote: true,
+      employmentType: "contract",
+      seniority: "junior",
+      validThrough: Date.parse("2026-12-31T23:59:00Z"),
+    });
+  });
+});
+
+describe("parsePersonio", () => {
+  it("reads each position, its offices and its described sections", () => {
+    const jobs = parsePersonio(PERSONIO_FEED, "1KOMMA5°", "1komma5grad.jobs.personio.de");
+    expect(jobs).toHaveLength(2);
+    expect(jobs[0]).toMatchObject({
+      externalId: "2762189",
+      company: "1KOMMA5°",
+      title: "(Senior) Category Manager IT & Software (m/f/d)",
+      location: "Remote · Berlin · Hamburg",
+      remote: true,
+      employmentType: "full_time",
+      postedAt: Date.parse("2026-08-21T09:21:49+00:00"),
+      url: "https://1komma5grad.jobs.personio.de/job/2762189?language=en",
+      seniority: null,
+    });
+    expect(jobs[0]!.text).toContain("Your mission\n- Negotiate software contracts with SAP");
+    expect(jobs[0]!.text).toContain("Run tenders & supplier reviews.");
+    expect(jobs[0]!.text).toContain("Your profile\nYou have 5+ years of experience");
+    expect(jobs[1]).toMatchObject({
+      title: "(Junior) SEO & AI Marketing Manager (m/w/d)",
+      location: "Berlin",
+      employmentType: "internship",
+      seniority: "junior",
+      text: "",
+    });
+  });
+
+  it("refuses an answer that isn't a Personio feed", () => {
+    expect(() => parsePersonio("<html></html>", "Acme", "acme.jobs.personio.de")).toThrow(
+      FeedShapeError,
+    );
+  });
+});
+
+describe("parseJobicy", () => {
+  it("links each job to its Jobicy page and reads its region, type and level", () => {
+    const page = parseJobicy(JOBICY_PAGE);
+    // hasMore false: no next page, whatever the cursor says.
+    expect(page.nextCursor).toBeNull();
+    expect(page.jobs).toHaveLength(2);
+    expect(page.jobs[0]).toMatchObject({
+      externalId: "160713",
+      company: "Clipboard",
+      title: "Onboarding Documents Associate",
+      location: "Remote · APAC",
+      remote: true,
+      employmentType: "full_time",
+      postedAt: Date.parse("2026-11-09T19:40:24+00:00"),
+      url: "https://jobicy.com/jobs/160713-onboarding-documents-associate",
+      seniority: null,
+    });
+    expect(page.jobs[0]!.text).toContain("- Answer questions in Zendesk.");
+    expect(page.jobs[1]).toMatchObject({ location: "Remote", seniority: "senior" });
+  });
+
+  it("follows the cursor while there is more", () => {
+    expect(parseJobicy({ ...JOBICY_PAGE, hasMore: true }).nextCursor).toBe(JOBICY_PAGE.nextCursor);
+    expect(() => parseJobicy({ error: "nope" })).toThrow(FeedShapeError);
   });
 });

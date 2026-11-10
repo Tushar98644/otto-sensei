@@ -1,47 +1,119 @@
-import { defineTheme, inch } from "../theme";
+import { ACCENT_COLORS } from "@/lib/pdf/design";
+import { PDF_FONT } from "@/lib/pdf/fonts";
+import { defineTheme } from "../theme";
 
-const SOFT = "#6b6b6b";
-const HAIRLINE = "#c9c9c9";
+// Awesome-CV (posquit0, LPPL): a large two-tone name in Roboto (light first names, bold last
+// name), a small-capital headline in the accent, headings whose first three letters take the
+// accent with a gray rule running on to the margin, and Source Sans entries of a bold organisation
+// with its place in accent italics over the role in small capitals. No header icons, a 10pt body
+// (the original's is 9pt) and a dark accent instead of its bright red.
 
-// A large tight name, headings in sentence case with a hairline running to the margin, and the
-// company on its own gray line under each title.
+const ACCENT = ACCENT_COLORS.burgundy;
+const DARK = "#333333";
+const DARKER = "#414141";
+const GRAY = "#5d5d5d";
+const LIGHT = "#999999";
+
 export const modern = defineTheme({
-  contactSeparator: " · ",
-  entryLayout: "stacked",
+  contactLines: [["location"], ["phone", "email", "links"]],
+  contactSeparator: "  |  ",
+  bullet: { glyph: "•" },
+  rows: {
+    job: [
+      { lead: ["org"], side: "detail" },
+      { lead: ["title"], side: "dates" },
+    ],
+    school: [
+      { lead: ["org"], side: "detail" },
+      { lead: ["title"], side: "dates" },
+    ],
+    item: [
+      { lead: ["title", "org"], side: "detail" },
+      { lead: ["tech"], side: "dates" },
+    ],
+  },
+  companyRow: { lead: ["org"], side: "detail" },
+  roleRow: { lead: ["title", "detail"], side: "dates" },
+  separators: { org: ", ", detail: ", ", tech: ", ", title: ", " },
   headingRule: "after",
+  headingAccent: 3,
+  nameSplit: true,
+  accentSlots: ["sectionTitleAccent", "headline", "row1Side"],
   styles: {
     page: {
-      paddingTop: inch(0.55),
-      paddingBottom: inch(0.5),
-      paddingHorizontal: inch(0.7),
-      lineHeight: 1.32,
+      paddingTop: 30,
+      paddingBottom: 40,
+      paddingHorizontal: 40,
+      fontFamily: PDF_FONT.sourceSans,
+      fontWeight: 300,
+      fontSize: 10,
+      lineHeight: 1.25,
+      color: DARK,
     },
-    name: { fontSize: 24, letterSpacing: -0.4, lineHeight: 1.1 },
-    headline: { marginTop: 3, fontSize: 11.5, color: SOFT },
-    contact: { marginTop: 6, fontSize: 9.5, color: SOFT },
-    contactNext: { marginTop: 1, fontSize: 9.5, color: SOFT },
-    link: { color: SOFT },
-    webLink: { color: SOFT },
-    section: { marginTop: 12 },
-    sectionTitleRow: { flexDirection: "row", alignItems: "center", marginBottom: 5 },
-    sectionTitle: {
-      marginBottom: 0,
-      paddingBottom: 0,
-      borderBottomWidth: 0,
-      fontSize: 11,
-      letterSpacing: 0,
-      textTransform: "none",
+    name: {
+      fontFamily: PDF_FONT.roboto,
+      fontSize: 32,
+      fontWeight: 300,
+      lineHeight: 1.1,
+      color: GRAY,
+      textAlign: "center",
     },
+    nameLast: { fontWeight: "bold", color: DARK },
+    headline: {
+      marginTop: 3,
+      fontSize: 9,
+      fontWeight: "normal",
+      fontFeatureSettings: ["smcp"],
+      color: ACCENT,
+      textAlign: "center",
+    },
+    contact: {
+      marginTop: 3,
+      fontFamily: PDF_FONT.roboto,
+      fontSize: 8.5,
+      fontWeight: "normal",
+      fontStyle: "italic",
+      color: LIGHT,
+      textAlign: "center",
+    },
+    contactNext: {
+      marginTop: 2,
+      fontFamily: PDF_FONT.roboto,
+      fontSize: 8,
+      fontWeight: "normal",
+      color: DARK,
+      textAlign: "center",
+    },
+    link: { color: DARK, textDecoration: "none" },
+    webLink: { color: DARK, textDecoration: "none" },
+    header: { alignItems: "center", marginBottom: 6 },
+    section: { marginTop: 11 },
+    sectionTitleRow: { flexDirection: "row", alignItems: "flex-end", marginBottom: 6 },
+    sectionTitle: { fontSize: 16, fontWeight: "bold", color: DARK, lineHeight: 1.15 },
+    sectionTitleAccent: { color: ACCENT },
     sectionTitleRule: {
       flex: 1,
-      marginLeft: 10,
-      borderBottomWidth: 0.5,
-      borderBottomColor: HAIRLINE,
+      marginLeft: 4,
+      marginBottom: 4.6,
+      borderBottomWidth: 0.9,
+      borderBottomColor: GRAY,
     },
-    entry: { marginTop: 8 },
-    entrySub: { fontSize: 9.5, color: SOFT },
-    entryDetail: { color: SOFT },
-    dates: { fontSize: 9.5, color: SOFT },
-    bulletGlyph: { width: 10, color: SOFT },
+    paragraph: { marginTop: 3 },
+    entry: { marginTop: 7 },
+    role: { marginTop: 4 },
+    row1First: { fontSize: 11, fontWeight: "bold", color: DARKER },
+    row1Rest: { fontSize: 10, color: GRAY },
+    row1Side: { fontSize: 10, fontStyle: "italic", color: ACCENT },
+    row2: { marginTop: 0.5 },
+    row2Text: { fontSize: 9, color: GRAY },
+    row2First: { fontWeight: "normal", fontFeatureSettings: ["smcp"] },
+    row2Rest: { fontStyle: "italic" },
+    row2Side: { fontSize: 9, fontStyle: "italic", color: GRAY },
+    entryNote: { marginTop: 1 },
+    bullet: { marginTop: 0.5 },
+    bulletGlyph: { width: 10, paddingLeft: 1 },
+    bulletMark: { width: 3, height: 3, marginTop: 5, color: DARK },
+    skillLine: { marginTop: 2 },
+    skillLabel: { fontWeight: "bold", color: DARKER },
   },
 });

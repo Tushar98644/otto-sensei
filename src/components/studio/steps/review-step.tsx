@@ -6,6 +6,7 @@ import { useState } from "react";
 import { roomForResume } from "@/components/account/pro-tools";
 import { upgradeInterval } from "@/components/account/upgrade-interval";
 import { useMe } from "@/components/account/use-me";
+import { GitHubOffer } from "@/components/github/github-offer";
 import { OTTO } from "@/components/mascot/lines";
 import { OttoNote } from "@/components/mascot/otto-note";
 import { upgradeHref } from "@/components/site/routes";
@@ -22,6 +23,7 @@ import { resetDay } from "@/lib/usage-copy";
 import { pluralize } from "@/lib/utils";
 import { useReadByRules } from "../import-notes";
 import { ChecksList } from "../review/checks-list";
+import { RereadNote } from "../review/reread-note";
 import { HiringSystemsPanel } from "../review/hiring-systems-panel";
 import { ReadTextPanel } from "../review/read-text-panel";
 import { useMediaQuery } from "../use-media-query";
@@ -119,7 +121,11 @@ export function ReviewStep() {
             <Info className="mt-0.5 size-4 shrink-0" aria-hidden />
             {READ_BY_RULES_NOTE}
           </p>
+        ) : readBy === "rules_read_well" ? (
+          <RereadNote resumeId={resume.id} />
         ) : null}
+        {/* Right after the upload, while the person is deciding what to fix first. */}
+        {scanned ? null : <GitHubOffer resumeId={resume.id} className="bg-surface" />}
       </div>
 
       {sideBySide ? (

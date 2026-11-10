@@ -57,18 +57,21 @@ export type WriteDialogProps = {
   resumes: readonly Resume[];
   onClose: () => void;
   onWritten: (written: Written) => void;
+  // Opened from an application's page: its job and the version it went out with to start from,
+  // and the application the letter joins.
+  start?: { draft: TailorDraft; resumeId: string | null; applicationId: string };
 };
 
 // A new letter or answer from the Cover letters page: the resume edited last (with a link to pick
 // another), the question for an answer, then the job link. Pasting the link reads the job and
 // starts writing at once, as on the studio's Tailor step. Mounted per opening, so each starts blank.
-export function WriteDialog({ kind, open, resumes, onClose, onWritten }: WriteDialogProps) {
+export function WriteDialog({ kind, open, resumes, onClose, onWritten, start }: WriteDialogProps) {
   const { user, me, loading } = useMe();
   const actions = useStudioActions();
-  const [draft, setDraft] = useState(EMPTY_DRAFT);
+  const [draft, setDraft] = useState(start?.draft ?? EMPTY_DRAFT);
   const [question, setQuestion] = useState("");
   const [questionError, setQuestionError] = useState<string | null>(null);
-  const [resumeId, setResumeId] = useState<string | null>(null);
+  const [resumeId, setResumeId] = useState<string | null>(start?.resumeId ?? null);
   const [picking, setPicking] = useState(false);
   const [saving, setSaving] = useState(false);
   const questionRef = useRef<HTMLTextAreaElement>(null);
@@ -109,6 +112,7 @@ export function WriteDialog({ kind, open, resumes, onClose, onWritten }: WriteDi
       text: result.text,
       warnings: result.warnings,
       demo: result.demo,
+      applicationId: start?.applicationId ?? null,
     };
     setSaving(true);
     try {
@@ -124,7 +128,14 @@ export function WriteDialog({ kind, open, resumes, onClose, onWritten }: WriteDi
       onWritten({
         kind: "unsaved",
         show: openRef.current,
-        entry: { ...body, key: `new:${newId()}`, createdAt: Date.now(), writingId: null, copyId: null },
+        entry: {
+          ...body,
+          key: `new:${newId()}`,
+          createdAt: Date.now(),
+          writingId: null,
+          copyId: null,
+          applicationId: body.applicationId,
+        },
       });
     } finally {
       setSaving(false);
@@ -157,7 +168,7 @@ export function WriteDialog({ kind, open, resumes, onClose, onWritten }: WriteDi
             ) : (
               <p className="text-sm/6 text-muted">
                 Written from <span className="font-medium text-ink">{resumeTitle(resume)}</span>,
-                the resume you edited last.{" "}
+                {start?.resumeId === resume.id ? " the version you sent." : " the resume you edited last."}{" "}
                 {/* The newest edit is almost always the right one, so the picker waits behind a link. */}
                 {resumes.length > 1 ? (
                   <button

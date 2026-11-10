@@ -111,8 +111,6 @@ export function rightsRegionOf(place: Place): "us" | "uk" | "eu" | "ca" | null {
 
 const escape = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
-type Matcher = { pattern: RegExp; place: Place };
-
 const country = (code: string): Place => ({ kind: "country", code });
 const group = (name: PlaceGroup): Place => ({ kind: "group", group: name });
 
@@ -221,26 +219,28 @@ const PROVINCE_SET = set(PROVINCES);
 // Country names that are just as often a US state or a person: "Georgia", "Jordan", "Chad".
 const AMBIGUOUS = new Set(["georgia", "jordan", "chad", "jersey"]);
 
-let nameMatchers: Matcher[] | null = null;
+type NameMatcher = { pattern: RegExp; codes: Map<string, string> };
+let nameMatcher: NameMatcher | null = null;
 
-function namedCountries(): Matcher[] {
-  if (nameMatchers) return nameMatchers;
-  const names = new Map<string, string>();
+// Every country name and alias in one pattern, so a line is read once instead of once per
+// country (300 passes took about 0.4 ms a line; the Jobs tab checks thousands of lines a request).
+function namedCountries(): NameMatcher {
+  if (nameMatcher) return nameMatcher;
+  const codes = new Map<string, string>();
   for (const code of COUNTRY_CODES) {
     const name = displayNames.of(code);
     if (name && name !== code && !AMBIGUOUS.has(name.toLowerCase())) {
-      names.set(name.toLowerCase(), code);
+      codes.set(name.toLowerCase(), code);
     }
   }
-  for (const [name, code] of ALIASES) names.set(name, code);
+  for (const [name, code] of ALIASES) codes.set(name, code);
   // Longest first, so "Northern Ireland" wins over "Ireland" and "South Africa" over nothing.
-  nameMatchers = [...names.entries()]
-    .sort((a, b) => b[0].length - a[0].length)
-    .map(([name, code]) => ({
-      pattern: new RegExp(`(?<![\\p{L}])${escape(name)}(?![\\p{L}])`, "giu"),
-      place: country(code),
-    }));
-  return nameMatchers;
+  const names = [...codes.keys()].sort((a, b) => b.length - a.length).map(escape);
+  nameMatcher = {
+    pattern: new RegExp(`(?<![\\p{L}])(?:${names.join("|")})(?![\\p{L}])`, "giu"),
+    codes,
+  };
+  return nameMatcher;
 }
 
 export type FoundPlace = { place: Place; index: number; text: string };
@@ -266,7 +266,15 @@ export function findPlaces(line: string): FoundPlace[] {
     }
   };
   for (const [pattern, name] of GROUP_PATTERNS) add(pattern, group(name));
-  for (const matcher of namedCountries()) add(matcher.pattern, matcher.place);
+  const names = namedCountries();
+  names.pattern.lastIndex = 0;
+  for (const match of line.matchAll(names.pattern)) {
+    const code = names.codes.get(match[0].toLowerCase());
+    const end = match.index + match[0].length;
+    if (!code || !free(match.index, end)) continue;
+    taken.push([match.index, end]);
+    found.push({ place: country(code), index: match.index, text: match[0] });
+  }
   for (const [pattern, code] of CODE_PATTERNS) add(pattern, country(code));
   // State codes only when nothing else names the place: "Berlin, DE" is Germany, not Delaware.
   for (const match of found.length > 0 ? [] : line.matchAll(STATE_PATTERN)) {

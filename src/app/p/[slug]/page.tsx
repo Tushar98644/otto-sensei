@@ -1,6 +1,5 @@
 import type { Metadata, Viewport } from "next";
 import { notFound, redirect } from "next/navigation";
-import { PortfolioCredit } from "@/components/portfolio/credit";
 import { templateFontClasses } from "@/components/portfolio/templates/fonts";
 import { PORTFOLIO_TEMPLATES } from "@/components/portfolio/templates/registry";
 import { PortfolioViewBeacon } from "@/components/portfolio/view-beacon";
@@ -85,11 +84,7 @@ export default async function PublicPortfolioPage({ params }: Props) {
       id="main"
       className={cn("flex min-h-dvh flex-col", templateFontClasses(portfolio.template))}
     >
-      <Component
-        view={portfolio.view}
-        content={portfolio.content}
-        footer={portfolio.showCredit ? <PortfolioCredit /> : null}
-      />
+      <Component view={portfolio.view} content={portfolio.content} />
       <PortfolioViewBeacon slug={portfolio.slug} />
     </main>
   );

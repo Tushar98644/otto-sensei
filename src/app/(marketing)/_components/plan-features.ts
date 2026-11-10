@@ -11,8 +11,8 @@ import {
   type Feature,
   type PlanId,
 } from "@/config/plans";
-import { BRAND } from "@/config/brand";
 import { countClaim, JOB_COUNTS_FALLBACK, type JobCounts } from "@/lib/job-feed/counts";
+import { PORTFOLIO_TEMPLATE_IDS } from "@/lib/portfolio/types";
 import { TEMPLATE_INFO } from "@/lib/pdf/templates";
 import { TEMPLATE_IDS } from "@/lib/resume/schema";
 import { periodNoun, perPeriod } from "@/lib/usage-copy";
@@ -49,9 +49,8 @@ export function limitLine(
   return `${count.format(planLimits(plan, kind)[feature])} ${FEATURE_LABELS[feature]} ${perPeriod(kind)}`;
 }
 
-// Pro's portfolio perks; Max has them too, as "Everything in Pro".
-export const PORTFOLIO_PERK = `Hide “Made with ${BRAND.name}” on your portfolio`;
-const PORTFOLIO_PAGE = "A portfolio page made from your resume, with all 6 templates";
+// Pro.s portfolio line; Max has it too, as "Everything in Pro".
+const PORTFOLIO_PAGE = `A hosted portfolio site made from your resume, in all ${PORTFOLIO_TEMPLATE_IDS.length} designs`;
 
 const freeFormats = FREE_TEMPLATES.map((id) => TEMPLATE_INFO[id].name).join(" and ");
 
@@ -116,7 +115,7 @@ export function planCopy(
       return {
         summary: "Otto's AI help for a busy job hunt with lots of applications.",
         lead: "Everything in Free, plus:",
-        features: [...limitLines("pro", period), ...proTools(jobs), PORTFOLIO_PAGE, PORTFOLIO_PERK],
+        features: [...limitLines("pro", period), ...proTools(jobs), PORTFOLIO_PAGE],
         note: "Cancel anytime from your account",
       };
     case "max":

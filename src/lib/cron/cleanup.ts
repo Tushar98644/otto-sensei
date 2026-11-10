@@ -1,7 +1,15 @@
-import { and, isNotNull, lt, or, sql } from "drizzle-orm";
+import { and, eq, isNotNull, lt, or, sql } from "drizzle-orm";
 import { TOMBSTONE_MAX_AGE_MS } from "@/app/api/resumes/backups";
 import { getDb } from "@/db/client";
-import { billingEvents, notifications, rateLimits, resumeTombstones } from "@/db/schema";
+import {
+  billingEvents,
+  matchCache,
+  matchEvents,
+  notifications,
+  rateLimits,
+  resumeTombstones,
+} from "@/db/schema";
+import { MATCH_CACHE_MAX_AGE_MS } from "@/lib/job-feed/match-cache";
 import { log } from "@/lib/log";
 import { drain, type CronContext, type CronOutcome } from "./run";
 
@@ -22,6 +30,12 @@ export const RETENTION = {
   anyNotificationsMs: 365 * DAY_MS,
   // Creem stops redelivering a webhook after a day, so an id this old can never arrive again.
   billingEventsMs: 400 * DAY_MS,
+  // Jobs-tab impressions: 20 rows a view, about 130 MB a month at 1,000 users
+  // (AUDIT-cost-and-findability.md). Three months is enough to compare two orderings. Actions
+  // (open, save, applied, "not a fit") stay: they are few and are what ranking learns from.
+  impressionsMs: 90 * DAY_MS,
+  // A cached Matches page is only read on the day it was ranked (match-cache.ts).
+  matchCacheMs: MATCH_CACHE_MAX_AGE_MS,
 } as const;
 
 export const CLEANUP_BATCH = 1_000;
@@ -100,6 +114,42 @@ export async function runCleanup({ now, deadline }: CronContext): Promise<CronOu
           .delete(billingEvents)
           .where(sql`${billingEvents.id} in ${stale}`)
           .returning({ id: billingEvents.id });
+        return deleted.length;
+      },
+    },
+    {
+      name: "impressions",
+      run: async () => {
+        const stale = db
+          .select({ id: matchEvents.id })
+          .from(matchEvents)
+          // A range on match_events_created_idx, then the kind check on the rows it finds.
+          .where(
+            and(
+              lt(matchEvents.createdAt, now - RETENTION.impressionsMs),
+              eq(matchEvents.kind, "impression"),
+            ),
+          )
+          .limit(CLEANUP_BATCH);
+        const deleted = await db
+          .delete(matchEvents)
+          .where(sql`${matchEvents.id} in ${stale}`)
+          .returning({ id: matchEvents.id });
+        return deleted.length;
+      },
+    },
+    {
+      name: "matchCache",
+      run: async () => {
+        const stale = db
+          .select({ userId: matchCache.userId, key: matchCache.key })
+          .from(matchCache)
+          .where(lt(matchCache.createdAt, now - RETENTION.matchCacheMs))
+          .limit(CLEANUP_BATCH);
+        const deleted = await db
+          .delete(matchCache)
+          .where(sql`(${matchCache.userId}, ${matchCache.key}) in ${stale}`)
+          .returning({ key: matchCache.key });
         return deleted.length;
       },
     },

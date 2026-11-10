@@ -3,13 +3,13 @@ import type { ContentSection, PortfolioContentView } from "./content";
 import type { PortfolioSection } from "./types";
 
 // Pure and client-safe. Which pieces of content each design draws, so the editor can say "This
-// design uses: photo, screenshots, interests" and show a short checklist for just those.
+// design uses: pitch, write-ups, interests" and show a short checklist for just those. All of it
+// is text: the designs draw no pictures (owner decision 2026-11-10).
 //
 // Every template id is listed in TEMPLATE_USES with what its design actually draws. An id that
 // isn't listed is treated as using everything.
 
 export const CONTENT_FIELDS = [
-  "photo",
   "pitch",
   "disciplines",
   "availability",
@@ -18,11 +18,8 @@ export const CONTENT_FIELDS = [
   "about",
   "now",
   "stats",
-  "screenshots",
-  "video",
   "projectDetails",
   "categories",
-  "logos",
   "jobHighlights",
   "skillYears",
   "milestones",
@@ -31,13 +28,11 @@ export const CONTENT_FIELDS = [
   "testimonials",
   "interests",
   "shelf",
-  "photos",
   "github",
 ] as const;
 export type ContentField = (typeof CONTENT_FIELDS)[number];
 
 export const CONTENT_FIELD_LABELS: Record<ContentField, string> = {
-  photo: "Photo",
   pitch: "Pitch",
   disciplines: "What you do",
   availability: "Availability",
@@ -46,11 +41,8 @@ export const CONTENT_FIELD_LABELS: Record<ContentField, string> = {
   about: "About",
   now: "Now",
   stats: "Headline numbers",
-  screenshots: "Screenshots",
-  video: "Project video",
   projectDetails: "Project write-ups",
   categories: "Project categories",
-  logos: "Logos",
   jobHighlights: "Job highlights",
   skillYears: "Years per skill",
   milestones: "Milestones and hackathons",
@@ -59,62 +51,41 @@ export const CONTENT_FIELD_LABELS: Record<ContentField, string> = {
   testimonials: "Testimonials",
   interests: "Interests",
   shelf: "Bookshelf",
-  photos: "Personal photos",
   github: "GitHub",
 };
 
-// The eight MIT-licensed reference sites the templates rebuild, and what each one shows.
+// The eight MIT-licensed reference sites the templates rebuild, and the text each one shows. Their
+// photos, screenshots, logos and videos are drawn as initials, monograms and patterns instead.
 export const REFERENCE_USES = {
-  // bchiang7/v4: about with photo, jobs as company tabs, featured projects with big images.
-  chiangV4: ["photo", "pitch", "about", "socials", "screenshots", "jobHighlights"],
+  // bchiang7/v4: about, jobs as company tabs, featured projects.
+  chiangV4: ["pitch", "about", "socials", "jobHighlights"],
   // BartoszJarocki/cv: one printable CV page.
-  jarockiCv: ["photo", "location", "socials", "about"],
-  // antfu/antfu.me: prose first, projects by category with icons, talks, writing.
-  antfu: ["about", "categories", "logos", "talks", "writing", "socials"],
-  // samuelkraft/samuelkraft-next: avatar, about, where they live, big project tiles, writing.
-  kraft: ["photo", "about", "location", "screenshots", "writing", "socials"],
+  jarockiCv: ["location", "socials", "about"],
+  // antfu/antfu.me: prose first, projects by category, talks, writing.
+  antfu: ["about", "categories", "talks", "writing", "socials"],
+  // samuelkraft/samuelkraft-next: about, where they live, big project tiles, writing.
+  kraft: ["about", "location", "writing", "socials"],
   // HamishMW/portfolio: rotating disciplines, projects in device frames, a page per project.
-  hamish: ["disciplines", "screenshots", "video", "projectDetails", "socials"],
-  // dillionverma/portfolio (magicui): avatar, logos, skill badges, project video, hackathons, dock.
-  magicui: ["photo", "about", "logos", "screenshots", "video", "milestones", "socials"],
+  hamish: ["disciplines", "projectDetails", "socials"],
+  // dillionverma/portfolio (magicui): about, skill badges, project cards, hackathons, dock.
+  magicui: ["about", "milestones", "socials"],
   // Ladvace/astro-bento-portfolio: tiles for location, GitHub, socials, now, projects.
-  bento: ["photo", "location", "socials", "github", "now", "stats", "screenshots"],
-  // cali.so: paper look, halftone portrait, writing, photos, records and books, a local clock.
-  cali: ["photo", "about", "writing", "shelf", "photos", "location", "socials"],
+  bento: ["location", "socials", "github", "now", "stats"],
+  // cali.so: paper look, writing, records and books, a local clock.
+  cali: ["about", "writing", "shelf", "location", "socials"],
 } as const satisfies Record<string, readonly ContentField[]>;
 
 // By template id: what each rebuild draws for our users, which can go past its reference (Folio
 // adds the repo's Workplaces list, Paper adds interests).
 export const TEMPLATE_USES: Record<string, readonly ContentField[]> = {
-  navy: ["photo", "pitch", "about", "socials", "screenshots", "availability"],
-  dock: [
-    "photo",
-    "pitch",
-    "about",
-    "photos",
-    "logos",
-    "screenshots",
-    "video",
-    "milestones",
-    "socials",
-    "availability",
-  ],
-  reel: ["disciplines", "screenshots", "video", "projectDetails", "photo", "about", "socials"],
-  bento: ["photo", "pitch", "about", "location", "socials", "github", "now", "screenshots"],
-  cv: ["photo", "location", "socials", "about"],
-  prose: ["pitch", "about", "logos", "categories", "talks", "writing", "socials"],
-  folio: ["photo", "pitch", "about", "location", "socials", "screenshots", "logos", "writing"],
-  paper: [
-    "photo",
-    "pitch",
-    "about",
-    "socials",
-    "writing",
-    "photos",
-    "interests",
-    "shelf",
-    "location",
-  ],
+  navy: ["pitch", "about", "socials", "availability"],
+  dock: ["pitch", "about", "milestones", "socials", "availability"],
+  reel: ["disciplines", "projectDetails", "about", "socials"],
+  bento: ["pitch", "about", "location", "socials", "github", "now"],
+  cv: ["location", "socials", "about"],
+  prose: ["pitch", "about", "categories", "talks", "writing", "socials"],
+  folio: ["pitch", "about", "location", "socials", "writing"],
+  paper: ["pitch", "about", "socials", "writing", "interests", "shelf", "location"],
 };
 
 export function contentUsesFor(templateId: string): readonly ContentField[] {
@@ -126,16 +97,12 @@ export function contentUsesFor(templateId: string): readonly ContentField[] {
 const PAGE_SWITCH: Partial<Record<ContentField, PortfolioSection>> = {
   about: "about",
   socials: "links",
-  screenshots: "projects",
-  video: "projects",
   projectDetails: "projects",
   categories: "projects",
-  logos: "experience",
   jobHighlights: "experience",
   skillYears: "skills",
 };
 const CONTENT_SWITCH: Partial<Record<ContentField, ContentSection>> = {
-  photo: "photo",
   location: "location",
   now: "now",
   stats: "stats",
@@ -145,7 +112,6 @@ const CONTENT_SWITCH: Partial<Record<ContentField, ContentSection>> = {
   testimonials: "testimonials",
   interests: "interests",
   shelf: "shelf",
-  photos: "photos",
   github: "github",
 };
 
@@ -184,15 +150,9 @@ export function contentChecklist(
   hidden: ReadonlySet<ContentField> = new Set(),
 ): ChecklistItem[] {
   const projects = view.projects;
-  const withShots = projects.filter((project) => project.images.length > 0).length;
-  const withLogo = view.experience.filter((job) => job.logo.src).length;
   const yearsKnown = view.skills.some((group) => group.items.some((item) => item.years !== null));
   const count = (n: number, word: string, none: string) => (n > 0 ? pluralize(n, word) : none);
   const check: Record<ContentField, () => { done: boolean; note: string }> = {
-    photo: () => ({
-      done: view.photo !== null,
-      note: view.photo ? "Added" : "Add a photo, or your initials show",
-    }),
     pitch: () => ({
       done: view.pitch !== "",
       note: view.pitch ? "From your summary" : "One sentence about what you do",
@@ -229,15 +189,6 @@ export function contentChecklist(
       done: view.stats.length >= 3,
       note: count(view.stats.length, "number", "Numbers you're proud of"),
     }),
-    screenshots: () => ({
-      done: projects.length > 0 && withShots >= Math.min(3, projects.length),
-      note:
-        projects.length > 0 ? `${withShots} of ${projects.length} projects` : "Add a project first",
-    }),
-    video: () => ({
-      done: projects.some((project) => project.video),
-      note: "A demo video for one project",
-    }),
     projectDetails: () => ({
       done: projects.some((project) => project.details.length > 0),
       note: "A longer write-up for your best project",
@@ -245,13 +196,6 @@ export function contentChecklist(
     categories: () => ({
       done: projects.length > 0 && projects.every((project) => project.category),
       note: `${projects.filter((project) => project.category).length} of ${projects.length} projects`,
-    }),
-    logos: () => ({
-      done: view.experience.length > 0 && withLogo === view.experience.length,
-      note:
-        view.experience.length > 0
-          ? `${withLogo} of ${view.experience.length} jobs`
-          : "No jobs yet",
     }),
     jobHighlights: () => ({
       done: view.experience.some((job) => job.highlight),
@@ -284,10 +228,6 @@ export function contentChecklist(
     shelf: () => ({
       done: view.shelf.length > 0,
       note: count(view.shelf.length, "item", "Books or albums you love"),
-    }),
-    photos: () => ({
-      done: view.photos.length > 0,
-      note: count(view.photos.length, "photo", "Up to 6 photos of you"),
     }),
     github: () => ({
       done: view.github !== null,

@@ -1,4 +1,5 @@
-import { roleFamily, SENIORITY_RANK, seniorityForYears, seniorityOf } from "./roles";
+import { roleFamily, SENIORITY_RANK } from "./roles";
+import { levelOf, type LookingFor } from "./looking-for";
 import { knownSkills } from "./skills";
 import type { JobMatch, MatchLabel, MatchProfile, RoleFamily, Seniority } from "./types";
 
@@ -8,7 +9,11 @@ import type { JobMatch, MatchLabel, MatchProfile, RoleFamily, Seniority } from "
 
 export type MatchPerson = {
   skills: ReadonlySet<string>;
-  families: ReadonlySet<RoleFamily>;
+  // Kinds of role and how much each counts: 1 for the role looked for (the latest titled job,
+  // unless the "Looking for" card says otherwise), PAST_KIND_WEIGHT for older titles. An old
+  // "Business Analyst" title once made operations count fully for a product manager
+  // (MATCHING-RESEARCH.md, Round 2: product-pm-mid fell 76 -> 55).
+  families: ReadonlyMap<RoleFamily, number>;
   seniority: Seniority | null;
   years: number | null;
 };
@@ -24,29 +29,33 @@ export type EligibilityHint = { blocked: boolean; note: string | null };
 
 const MAX_FOUND_SHOWN = 5;
 const MAX_MISSING_SHOWN = 3;
+export const PAST_KIND_WEIGHT = 0.5;
 
-/** The person as matching sees them, from what the browser sent. */
-export function personFrom(profile: MatchProfile): MatchPerson {
-  const families = new Set<RoleFamily>();
+/** The person as matching sees them, from what the browser sent and the "Looking for" card. */
+export function personFrom(
+  profile: MatchProfile,
+  lookingFor?: Pick<LookingFor, "family" | "level"> | null,
+): MatchPerson {
+  const families = new Map<RoleFamily, number>();
+  if (lookingFor?.family) families.set(lookingFor.family, 1);
   for (const title of profile.titles) {
     const family = roleFamily(title);
-    if (family) families.add(family);
-  }
-  // The latest title says the most about the level someone works at now; years fill in when it
-  // has no marker, but never claim more than senior on their own.
-  const latest = profile.titles[0];
-  const fromTitle = latest ? seniorityOf(latest) : null;
-  const fromYears = profile.years === null ? null : seniorityForYears(profile.years);
-  let seniority: Seniority | null = fromTitle ?? fromYears;
-  if (fromTitle && fromYears && SENIORITY_RANK[fromYears] > SENIORITY_RANK[fromTitle]) {
-    seniority = fromYears;
+    if (!family || families.has(family)) continue;
+    // The newest titled job is the role looked for unless the card names another.
+    families.set(family, families.size === 0 ? 1 : PAST_KIND_WEIGHT);
   }
   return {
     skills: new Set(knownSkills(profile.skills)),
     families,
-    seniority,
+    seniority: lookingFor?.level ?? levelOf(profile),
     years: profile.years,
   };
+}
+
+/** How much the job's kind of role counts for this person: 1, PAST_KIND_WEIGHT or 0. */
+export function kindWeight(person: MatchPerson, title: string): number {
+  const family = roleFamily(title);
+  return family === null ? 0 : (person.families.get(family) ?? 0);
 }
 
 function list(items: readonly string[], max: number): string {
@@ -81,8 +90,10 @@ export function matchJob(
   const missing = job.keywords.filter((skill) => !person.skills.has(skill));
   const total = job.keywords.length;
   const coverage = total === 0 ? 0 : found.length / total;
-  const family = roleFamily(job.title);
-  const sameKind = family !== null && person.families.has(family);
+  const weight = kindWeight(person, job.title);
+  const sameKind = weight > 0;
+  // A kind of role only an older title names: one label lower than the role looked for.
+  const pastKind = sameKind && weight < 1;
 
   if (!sameKind && found.length < 2) return null;
 
@@ -92,6 +103,7 @@ export function matchJob(
   else if ((sameKind && (total === 0 || coverage >= 0.2)) || (found.length >= 4 && coverage >= 0.5))
     label = "good";
   else label = "stretch";
+  if (pastKind) label = stepDown(label);
 
   const notes: string[] = [];
   if (person.seniority) {
@@ -120,10 +132,12 @@ export function matchJob(
   if (found.length > 0) {
     reason = `Found in your resume: ${list(found, MAX_FOUND_SHOWN)}.`;
     if (missing.length > 0) reason += ` Not found: ${list(missing, MAX_MISSING_SHOWN)}.`;
-  } else if (total > 0) {
-    reason = `The same kind of role as yours. Not found: ${list(missing, MAX_MISSING_SHOWN)}.`;
   } else {
-    reason = "The same kind of role as yours. The post names no tools to compare.";
+    const kind = pastKind ? "Like an earlier role on your resume." : "The same kind of role as yours.";
+    reason =
+      total > 0
+        ? `${kind} Not found: ${list(missing, MAX_MISSING_SHOWN)}.`
+        : `${kind} The post names no tools to compare.`;
   }
   return { label, found, missing, reason, notes, blocked: eligibility.blocked };
 }

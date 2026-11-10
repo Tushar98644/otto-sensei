@@ -96,7 +96,6 @@ const SAMPLES: Record<string, unknown[][]> = {
     ["fix", 45, 50, TRIAL],
   ],
   "upgrade.done": [["Pro"], ["Max"]],
-  "jobs.locked": [[0], [1], [38], [27_828], [Number.NaN]],
   "jobs.found": [
     [0, 0, 0, 0],
     [1, 1, 1, 1],
@@ -147,12 +146,6 @@ describe("OTTO lines", () => {
     expect(OTTO.jobs.found(1, 1, 0, 0)).toBe("I found 1 job that matches your resume.");
     expect(OTTO.jobs.found(2000, 300, 3, 0)).toBe(
       "I found 2,000 matching jobs. Here are the closest 300. 3 look strong.",
-    );
-    expect(OTTO.jobs.locked(27_828)).toBe(
-      "27,000+ more matches. Filters, saved jobs and every match come with Pro.",
-    );
-    expect(OTTO.jobs.locked(38)).toBe(
-      "38 more matches. Filters, saved jobs and every match come with Pro.",
     );
   });
 

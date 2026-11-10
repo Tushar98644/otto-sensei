@@ -84,7 +84,8 @@ const TEMPLATE_FONTS: Record<PortfolioTemplateId, string> = {
   navy: `${inter.variable} ${firaCode.variable}`,
   dock: geist.variable,
   reel: montserrat.variable,
-  bento: figtree.variable,
+  // Geist Pixel draws the initials where the original has a pixelated portrait.
+  bento: `${figtree.variable} ${geistPixel.variable}`,
   cv: `${geistMono.variable} ${geistPixel.variable}`,
   prose: `${inter.variable} ${dmMono.variable} ${robotoCondensed.variable}`,
   folio: inter.variable,

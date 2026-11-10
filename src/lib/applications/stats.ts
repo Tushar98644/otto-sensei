@@ -10,12 +10,11 @@ export const MIN_FOR_RATE = 5;
 type Counted = Pick<Application, "status" | "stageReached">;
 type Grouped = Counted & Pick<Application, "resumeId" | "resumeTitle" | "appliedAt">;
 
-export type Outcome = { replied: boolean; interviewed: boolean; offered: boolean };
+export type Outcome = { interviewed: boolean; offered: boolean };
 
 /**
- * What an application got: a reply is any step past applied, or a rejection (a "no" is still an
- * answer); a quiet one marked no reply is not. Counted from the furthest step it reached, so an
- * interview that later ended in a rejection still counts as an interview.
+ * How far an application got, from the furthest step it reached: an interview (a recruiter call
+ * counts) that later ended in a rejection still counts as an interview.
  */
 export function outcomeOf(application: Counted): Outcome {
   // The status itself also counts, in case a row's furthest step lags behind it.
@@ -24,7 +23,6 @@ export function outcomeOf(application: Counted): Outcome {
     isStage(application.status) ? stageIndex(application.status) : 0,
   );
   return {
-    replied: reached >= stageIndex("screening") || application.status === "rejected",
     interviewed: reached >= stageIndex("interview"),
     offered: reached >= stageIndex("offer"),
   };
@@ -32,7 +30,6 @@ export function outcomeOf(application: Counted): Outcome {
 
 export type Tally = {
   applications: number;
-  replies: number;
   interviews: number;
   offers: number;
   // Still "applied": no answer yet.
@@ -40,11 +37,10 @@ export type Tally = {
 };
 
 export function tally(list: readonly Counted[]): Tally {
-  const counts: Tally = { applications: 0, replies: 0, interviews: 0, offers: 0, waiting: 0 };
+  const counts: Tally = { applications: 0, interviews: 0, offers: 0, waiting: 0 };
   for (const application of list) {
     const outcome = outcomeOf(application);
     counts.applications += 1;
-    if (outcome.replied) counts.replies += 1;
     if (outcome.interviewed) counts.interviews += 1;
     if (outcome.offered) counts.offers += 1;
     if (application.status === "applied") counts.waiting += 1;

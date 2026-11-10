@@ -82,6 +82,11 @@ export const ProjectSchema = z.object({
   id,
   name: text(200),
   link: text(500),
+  // Added after launch, so optional: a project saved before them prints without dates or tools.
+  startDate: text(50).optional(),
+  endDate: text(50).optional(),
+  // The tools it was built with, as written ("TypeScript, PostgreSQL").
+  tech: text(300).optional(),
   bullets: z.array(BulletSchema).max(20),
   hidden: hiddenFlag,
 });
@@ -204,6 +209,9 @@ export const TailorMetaSchema = z.object({
   jobText: text(JOB_TEXT_CHARS).optional(),
   jobUrl: text(2_048).optional(),
   requirements: z.array(SavedRequirementSchema).max(MAX_SAVED_REQUIREMENTS).optional(),
+  // The Jobs tab opening it was tailored for, so the job, this copy and its application find each
+  // other by id. A bad value is dropped rather than failing the whole resume.
+  jobId: z.uuid().optional().catch(undefined),
 });
 
 export const ResumeSourceSchema = z.enum(["import", "scratch", "sample", "tailored"]);

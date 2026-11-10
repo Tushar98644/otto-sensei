@@ -1,11 +1,16 @@
 "use client";
 
 import { Copy, Download, Ellipsis, ExternalLink, PanelsTopLeft, Trash2 } from "lucide-react";
+import Link from "next/link";
 import { useId } from "react";
 import { copyText } from "@/components/studio/tailor/letter-panel";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonClasses } from "@/components/ui/button";
 import { Menu, type MenuEntry } from "@/components/ui/menu";
+import type { Application } from "@/lib/applications/schema";
+import { STATUS_NAMES } from "@/lib/applications/status";
+import { applicationHref } from "@/lib/applications/thread";
+import { StatusIcon } from "../applications/status-menu";
 import { formatDay } from "../applications/view";
 import type { LetterEntry } from "./entries";
 
@@ -13,6 +18,8 @@ export type LetterRowProps = {
   entry: LetterEntry;
   // The resume it came from, by its title now (sourceTitle). "" when that isn't known.
   source: string;
+  // The application it was written for (entryApplication), shown as its status.
+  application: Application | null;
   now: number;
   // Only when there's a resume in this browser to open it with (studioTarget).
   canOpenInStudio: boolean;
@@ -27,6 +34,7 @@ export type LetterRowProps = {
 export function LetterRow({
   entry,
   source,
+  application,
   now,
   canOpenInStudio,
   onOpen,
@@ -79,6 +87,17 @@ export function LetterRow({
               Not saved
             </Badge>
           )}
+          {application ? (
+            <Link
+              href={applicationHref(application.id)}
+              aria-describedby={titleId}
+              className="inline-flex h-6 shrink-0 items-center gap-1 rounded-full bg-surface-muted px-2 text-xs font-medium text-muted transition-colors hover:bg-surface-strong hover:text-ink"
+            >
+              <StatusIcon status={application.status} className="size-3.5" />
+              {STATUS_NAMES[application.status]}
+              <span className="sr-only">: open the application</span>
+            </Link>
+          ) : null}
         </div>
         {entry.company && entry.role ? (
           <p className="truncate text-sm/5 text-muted">{entry.role}</p>

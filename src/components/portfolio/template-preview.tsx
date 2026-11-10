@@ -24,7 +24,8 @@ export function TemplatePreview({
   className,
 }: {
   id: PortfolioTemplateId;
-  // Whose page to draw; null draws Jordan's, which the static picture already shows.
+  // Whose page to draw; null draws Jordan's sample, with the static picture holding its place
+  // until the live page mounts.
   sample: TemplateSample | null;
   // The card's width on screen, for the static picture (next/image sizes).
   sizes: string;

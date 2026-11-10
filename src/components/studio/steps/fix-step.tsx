@@ -1,10 +1,13 @@
 "use client";
 
+import { useEffect } from "react";
 import { OTTO } from "@/components/mascot/lines";
 import { Otto } from "@/components/mascot/otto";
 import { FixIntro } from "@/components/studio/editor/fix-intro";
 import { ResumeEditor } from "@/components/studio/editor/resume-editor";
+import { bulletInputId } from "@/components/studio/editor/focus";
 import { StepActions } from "@/components/studio/editor/step-actions";
+import { focusWhenShown, takeArrivingLine } from "@/components/studio/tailor/jump";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { STEP_LABELS, useStudioStore } from "@/lib/store/resume-store";
@@ -16,14 +19,20 @@ export function FixStep() {
     state.activeId !== null && Object.hasOwn(state.resumes, state.activeId) ? state.activeId : null,
   );
 
+  // Arriving from Home's "Lines to improve": the first weak line is focused, its tip and "Fix with
+  // Otto" in view.
+  useEffect(() => {
+    const bulletId = takeArrivingLine();
+    if (bulletId) focusWhenShown(bulletInputId(bulletId));
+  }, []);
+
   if (!resumeId) return <NoResumeOpen />;
 
   return (
     <div className="mx-auto flex w-full max-w-3xl flex-col gap-6">
       <h2 className="sr-only">{STEP_LABELS.fix}</h2>
-      <FixIntro resumeId={resumeId} />
       {/* Keyed so switching resumes starts clean, with no half-typed skill carried over. */}
-      <ResumeEditor key={resumeId} resumeId={resumeId} />
+      <ResumeEditor key={resumeId} resumeId={resumeId} intro={<FixIntro resumeId={resumeId} />} />
       <StepActions />
     </div>
   );

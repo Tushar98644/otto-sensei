@@ -35,11 +35,24 @@ export function CheckRow({ checked, onChange, label, hint, disabled = false }: C
   );
 }
 
-export function EditorCard({ title, children }: { title: string; children: ReactNode }) {
+// A titled group in the editor panel. The panel itself is the white card, so a group is only a
+// heading, an optional line under it and its controls; the panel splits groups with hairlines.
+export function EditorSection({
+  title,
+  description,
+  children,
+}: {
+  title: string;
+  description?: ReactNode;
+  children?: ReactNode;
+}) {
   return (
-    <section className="rounded-2xl bg-surface p-4 sm:p-6">
-      <h2 className="font-sans text-base/6 font-semibold text-ink">{title}</h2>
-      <div className="mt-3">{children}</div>
+    <section className="flex flex-col gap-4">
+      <div className="flex flex-col gap-1">
+        <h2 className="font-sans text-base/6 font-semibold text-ink">{title}</h2>
+        {description ? <p className="text-sm/6 text-pretty text-muted">{description}</p> : null}
+      </div>
+      {children}
     </section>
   );
 }

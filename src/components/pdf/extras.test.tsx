@@ -3,7 +3,9 @@ import { runRecruiterChecks } from "@/lib/checks/recruiter";
 import { extractDocument } from "@/lib/parse";
 import { PDF_PAGE_SIZES } from "@/lib/pdf/page-size";
 import { TEMPLATE_IDS, type Resume, type TemplateId } from "@/lib/resume/schema";
+import { yearsOnly } from "./layout";
 import { flatten, open, readPages, render, richResume, sampleResume } from "./test-fixtures";
+import { TEMPLATE_THEMES } from "./themes";
 
 // The newer resume fields in every format: extra sections after the standard ones, the person's
 // own headings, hidden things left out, look settings applied, and roles at one company under one
@@ -27,18 +29,18 @@ function reader(text: string) {
 
 function fontsIn(bytes: Uint8Array): string[] {
   const raw = new TextDecoder("latin1").decode(bytes);
-  return [...new Set([...raw.matchAll(/\/BaseFont\s*\/([A-Za-z-]+)/g)].map((m) => m[1]!))].sort();
+  const names = [...raw.matchAll(/\/BaseFont\s*\/(?:[A-Z]{6}\+)?([A-Za-z-]+)/g)];
+  return [...new Set(names.map((m) => m[1]!))].sort();
 }
 
-// Lowest baseline on page 1, in points from the bottom: higher means the content ends sooner.
-async function lowestLine(bytes: Uint8Array): Promise<number> {
+// Where a line sits on page 1, in points from the bottom: higher means it comes sooner.
+async function lineHeightOf(bytes: Uint8Array, text: string): Promise<number> {
   const pdf = await open(bytes);
   try {
     const content = await (await pdf.getPage(1)).getTextContent();
-    const ys = content.items.flatMap((item) =>
-      "transform" in item && item.str.trim() ? [item.transform[5] as number] : [],
-    );
-    return Math.min(...ys);
+    const item = content.items.find((entry) => "str" in entry && entry.str.startsWith(text));
+    expect(item, text).toBeDefined();
+    return (item as { transform: number[] }).transform[5]!;
   } finally {
     await pdf.loadingTask.destroy();
   }
@@ -53,18 +55,31 @@ describe.each(TEMPLATE_IDS)("%s format with the newer fields", (id) => {
     read.next("Summary");
     read.next("Backend engineer with 7 years");
     read.next("Work history");
-    // One company header, then each role with its own dates and lines.
-    read.next("Northwind Payments");
-    read.next("Senior Backend Engineer");
-    read.next("Jan 2021 – Present");
+    const theme = TEMPLATE_THEMES[id];
+    const dates = (value: string) => (theme.dates === "years" ? yearsOnly(value) : value);
+    // The company once, then each role with its own dates and lines. Formats with a company line
+    // print it first; the others print the first role in full, company under its title.
+    if (theme.companyRow) {
+      read.next("Northwind Payments");
+      read.next("Senior Backend Engineer");
+    } else {
+      read.next("Senior Backend Engineer");
+    }
+    read.next(dates("Jan 2021 – Present"));
+    if (!theme.companyRow) read.next("Northwind Payments");
     read.next("Cut checkout latency 38%");
     read.next("Built an internal Kubernetes deployment tool");
     read.next("Backend Engineer");
-    read.next("Mar 2019 – Dec 2020");
+    read.next(dates("Mar 2019 – Dec 2020"));
     read.next("Owned the ledger service");
-    // A job on its own keeps its format's layout: the company before or after the dates.
-    read.next("Software Engineer");
-    read.next("Jun 2017 – Dec 2020");
+    // A job on its own keeps its format's layout: dates on the company's line or the title's.
+    if (theme.rows.job[0]!.side === "dates" && theme.rows.job[0]!.lead[0] === "org") {
+      read.next(dates("Jun 2017 – Dec 2020"));
+      read.next("Software Engineer");
+    } else {
+      read.next("Software Engineer");
+      read.next(dates("Jun 2017 – Dec 2020"));
+    }
     read.next("Designed a TypeScript and Node.js ingestion API");
     read.next("Education");
     read.next("Toolbox");
@@ -107,22 +122,27 @@ describe.each(TEMPLATE_IDS)("%s format with the newer fields", (id) => {
     expect(lines.has("experience")).toBe(false);
   });
 
-  it("uses the chosen font family", async () => {
+  it("uses the chosen font family everywhere", async () => {
     const serif = fontsIn(await render(withTemplate(richResume(), id)));
-    expect(serif.filter((font) => font.startsWith("Helvetica"))).toEqual([]);
-    expect(serif).toContain("Times-Roman");
+    expect(serif.filter((font) => !font.startsWith("Tinos-"))).toEqual([]);
+    expect(serif).toContain("Tinos-Regular");
     const sans = fontsIn(
       await render(withTemplate({ ...richResume(), design: { font: "sans" } }, id)),
     );
-    expect(sans.filter((font) => font.startsWith("Times"))).toEqual([]);
-    expect(sans).toContain("Helvetica");
+    expect(sans.filter((font) => !font.startsWith("Carlito-"))).toEqual([]);
+    expect(sans).toContain("Carlito-Regular");
   });
 
-  it("ends the page sooner with compact spacing", async () => {
+  it("moves everything up with compact spacing", async () => {
     const resume = withTemplate({ ...richResume(), design: {} }, id);
-    const normal = await lowestLine(await render(resume));
-    const compact = await lowestLine(await render({ ...resume, design: { density: "compact" } }));
-    expect(compact).toBeGreaterThan(normal + 10);
+    const line = "Designed a TypeScript and Node.js ingestion API";
+    const normal = await lineHeightOf(await render(resume), line);
+    const compact = await lineHeightOf(
+      await render({ ...resume, design: { density: "compact" } }),
+      line,
+    );
+    // Compact, already the densest format, has the least to give.
+    expect(compact).toBeGreaterThan(normal + 5);
   });
 
   it("passes every recruiter check with extra sections and grouped roles", async () => {

@@ -1,15 +1,9 @@
 import type { PdfStyle, TemplateTheme } from "@/components/pdf/theme";
-import { FONT_FAMILIES } from "@/lib/pdf/design";
+import { PDF_FONT, PDF_FONT_FAMILIES, primaryFont, type PdfFontName } from "@/lib/pdf/fonts";
 import type { PdfPageSize } from "@/lib/pdf/page-size";
 
 // The Word file's sizes, fonts and colors, read from the same theme the PDF uses (format plus the
 // person's look settings), so both downloads look like one resume.
-
-const WORD_FONTS: Readonly<Record<string, string>> = {
-  [FONT_FAMILIES.sans.pdf]: FONT_FAMILIES.sans.word,
-  [FONT_FAMILIES.serif.pdf]: FONT_FAMILIES.serif.word,
-  Courier: "Courier New",
-};
 
 // Page sizes in points.
 export const PAGE_POINTS: Record<PdfPageSize, { width: number; height: number }> = {
@@ -17,28 +11,70 @@ export const PAGE_POINTS: Record<PdfPageSize, { width: number; height: number }>
   A4: { width: 595.3, height: 841.9 },
 };
 
-const num = (value: PdfStyle[keyof PdfStyle], fallback: number) =>
+// Word picks faces by name, not weight: a light face is a family of its own.
+const LIGHT_FACES: Partial<Record<PdfFontName, string>> = {
+  Roboto: "Roboto Light",
+  "Source Sans 3": "Source Sans 3 Light",
+};
+
+const num = (value: unknown, fallback: number) =>
   typeof value === "number" && Number.isFinite(value) ? value : fallback;
 const color = (value: unknown, fallback: string) =>
   typeof value === "string" && /^#[0-9a-f]{6}$/i.test(value) ? value : fallback;
-const isBold = (style: PdfStyle, fallback: boolean) =>
-  style.fontWeight === undefined
-    ? fallback
-    : style.fontWeight === "bold" || style.fontWeight === 700;
-const font = (style: PdfStyle, fallback: string) =>
-  typeof style.fontFamily === "string" ? (WORD_FONTS[style.fontFamily] ?? fallback) : fallback;
 
 export type TextLook = {
+  // The PDF family; `font` is what Word names.
+  family: PdfFontName;
   font: string;
   size: number;
   bold: boolean;
+  light: boolean;
   italic: boolean;
   caps: boolean;
+  smallCaps: boolean;
   color: string;
   letterSpacing: number;
 };
 
+/** A style's look, inheriting whatever it doesn't set from `parent`, as react-pdf does. */
+export function textLook(style: PdfStyle | undefined, parent: TextLook): TextLook {
+  if (!style) return parent;
+  const family = primaryFont(style.fontFamily) ?? parent.family;
+  const weight = style.fontWeight;
+  const bold =
+    weight === undefined
+      ? parent.bold
+      : weight === "bold" || (typeof weight === "number" && weight >= 600);
+  const light =
+    weight === undefined
+      ? parent.light && family === parent.family
+      : typeof weight === "number" && weight < 400;
+  const features = style.fontFeatureSettings;
+  return {
+    family,
+    font: wordFont(family, light && !bold),
+    size: num(style.fontSize, parent.size),
+    bold,
+    light,
+    italic: style.fontStyle === undefined ? parent.italic : style.fontStyle === "italic",
+    caps: style.textTransform === undefined ? parent.caps : style.textTransform === "uppercase",
+    smallCaps:
+      features === undefined
+        ? parent.smallCaps
+        : Array.isArray(features) && features.includes("smcp"),
+    color: color(style.color, parent.color),
+    letterSpacing: num(style.letterSpacing, parent.letterSpacing),
+  };
+}
+
+export function wordFont(family: PdfFontName, light = false): string {
+  return (light && LIGHT_FACES[family]) || PDF_FONT_FAMILIES[family].word;
+}
+
+export type RuleLook = { color: string; width: number };
+
 export type DocxLook = {
+  theme: TemplateTheme;
   page: { width: number; height: number; top: number; bottom: number; left: number; right: number };
   // Width between the margins: where the right-aligned dates sit.
   textWidth: number;
@@ -48,103 +84,114 @@ export type DocxLook = {
   name: TextLook;
   headline: TextLook;
   contact: TextLook & { before: number };
-  contactSeparator: string;
-  headerRule: { color: string; width: number } | null;
+  contactNext: TextLook;
+  headerRule: RuleLook | null;
   heading: TextLook & {
     before: number;
     after: number;
-    rule: { color: string; width: number } | null;
+    center: boolean;
+    rule: (RuleLook & { place: "below" | "above" | "after" }) | null;
   };
-  entryLayout: TemplateTheme["entryLayout"];
   entryBefore: number;
   roleBefore: number;
-  entryTitle: TextLook;
-  roleTitle: TextLook;
-  org: TextLook;
-  detail: TextLook;
-  dates: TextLook;
   bulletBefore: number;
-  bulletIndent: number;
+  // Where the bullet's text starts and how far the bullet hangs left of it.
+  bulletLeft: number;
+  bulletHanging: number;
   bulletGlyph: string;
+  bulletLook: TextLook;
   paragraphBefore: number;
   skillBefore: number;
-  skillLabelBold: boolean;
+  // Lines indented like the PDF's (Developer's entries sit in from the margin).
+  indent: { left: number; right: number };
+  // Every Word font the file uses, for its font table.
+  fonts: Set<PdfFontName>;
 };
+
+function ruleOf(style: PdfStyle, side: "Top" | "Bottom", ink: string): RuleLook | null {
+  const width = num(style[`border${side}Width`], 0);
+  return width > 0 ? { color: color(style[`border${side}Color`], ink), width } : null;
+}
+
+// Word's list bullets come from its own fonts: ■ and ○ from Arial, which every Word install has,
+// when the PDF font draws them.
+export const WORD_BULLET_FONT = "Arial";
 
 export function docxLook(theme: TemplateTheme, pageSize: PdfPageSize): DocxLook {
   const s = theme.styles;
   const page = PAGE_POINTS[pageSize];
-  const baseFont = font(s.page, FONT_FAMILIES.sans.word);
   const ink = color(s.page.color, "#1a1a1a");
-  const bodySize = num(s.page.fontSize, 10);
-  const text = (style: PdfStyle, parent: TextLook): TextLook => ({
-    font: font(style, parent.font),
-    size: num(style.fontSize, parent.size),
-    bold: isBold(style, parent.bold),
-    italic: style.fontStyle === undefined ? parent.italic : style.fontStyle === "italic",
-    caps: style.textTransform === undefined ? parent.caps : style.textTransform === "uppercase",
-    color: color(style.color, parent.color),
-    letterSpacing: num(style.letterSpacing, 0),
-  });
+  const family = primaryFont(s.page.fontFamily) ?? PDF_FONT.carlito;
+  const pageLight = typeof s.page.fontWeight === "number" && s.page.fontWeight < 400;
   const body: TextLook = {
-    font: baseFont,
-    size: bodySize,
+    family,
+    font: wordFont(family, pageLight),
+    size: num(s.page.fontSize, 11),
     bold: false,
+    light: pageLight,
     italic: false,
     caps: false,
+    smallCaps: false,
     color: ink,
     letterSpacing: 0,
   };
-  const horizontal = num(s.page.paddingHorizontal, 50);
+  const horizontal = num(s.page.paddingHorizontal, 54);
   const margins = {
-    top: num(s.page.paddingTop, 43),
-    bottom: num(s.page.paddingBottom, 43),
+    top: num(s.page.paddingTop, 36),
+    bottom: num(s.page.paddingBottom, 36),
     left: horizontal,
     right: horizontal,
   };
-  const ruleOf = (style: PdfStyle) => {
-    const width = num(style.borderBottomWidth, 0);
-    return width > 0 ? { color: color(style.borderBottomColor, ink), width } : null;
-  };
-  const contact = text(s.contact, body);
-  const heading = text(s.sectionTitle, body);
-  const entryTitle = text(s.entryTitle, body);
+  const heading = textLook(s.sectionTitle, body);
+  const rule =
+    theme.headingRule === "none"
+      ? null
+      : theme.headingRule === "above"
+        ? ruleOf(s.sectionTitleRule, "Top", ink)
+        : ruleOf(s.sectionTitleRule, "Bottom", ink);
+  const contact = textLook(s.contact, body);
+  const glyphBox = s.bulletGlyph;
+  const bulletHanging = num(glyphBox.width, 18);
+  const bulletLook = textLook(glyphBox, body);
+  const fonts = new Set<PdfFontName>();
+  for (const style of Object.values(s)) {
+    const name = primaryFont((style as PdfStyle).fontFamily);
+    if (name) fonts.add(name);
+  }
   return {
+    theme,
     page: { ...page, ...margins },
     textWidth: page.width - margins.left - margins.right,
     body,
-    lineHeight: num(s.page.lineHeight, 1.35),
-    centerHeader: s.header.alignItems === "center",
-    name: text(s.name, { ...body, bold: true }),
-    headline: text(s.headline, body),
-    contact: { ...contact, before: num(s.contact.marginTop, 4) },
-    contactSeparator: theme.contactSeparator,
-    headerRule: theme.headerRule ? ruleOf(s.headerRule) : null,
+    lineHeight: num(s.page.lineHeight, 1.2),
+    centerHeader: s.name.textAlign === "center" || s.header.alignItems === "center",
+    name: textLook(s.name, { ...body, bold: true }),
+    headline: textLook(s.headline, body),
+    contact: { ...contact, before: num(s.contact.marginTop, 0) },
+    contactNext: textLook(s.contactNext, body),
+    headerRule: theme.headerRule ? ruleOf(s.headerRule, "Bottom", ink) : null,
     heading: {
       ...heading,
       before: num(s.section.marginTop, 12),
-      // With a rule running after the heading (Modern), the row's margin is the gap below.
       after: num(
         theme.headingRule === "after"
           ? s.sectionTitleRow.marginBottom
           : s.sectionTitle.marginBottom,
-        6,
+        2,
       ),
-      rule: theme.headingRule === "after" ? ruleOf(s.sectionTitleRule) : ruleOf(s.sectionTitle),
+      center: s.sectionTitle.textAlign === "center",
+      rule: rule && theme.headingRule !== "none" ? { ...rule, place: theme.headingRule } : null,
     },
-    entryLayout: theme.entryLayout,
-    entryBefore: num(s.entry.marginTop, 7),
+    entryBefore: num(s.entry.marginTop, 8),
     roleBefore: num(s.role.marginTop, 4),
-    entryTitle,
-    roleTitle: text(s.roleTitle, body),
-    org: text(s.entryOrg, body),
-    detail: text(s.entryDetail, body),
-    dates: text(s.dates, body),
-    bulletBefore: num(s.bullet.marginTop, 2),
-    bulletIndent: num(s.bulletGlyph.width, 11),
-    bulletGlyph: theme.bulletGlyph,
+    bulletBefore: num(s.bullet.marginTop, 1),
+    bulletLeft: num(s.bullet.paddingLeft, 0) + bulletHanging,
+    bulletHanging,
+    bulletGlyph: theme.bullet.glyph,
+    bulletLook,
     paragraphBefore: num(s.paragraph.marginTop, 3),
-    skillBefore: num(s.skillLine.marginTop, 2),
-    skillLabelBold: isBold(s.skillLabel, true),
+    skillBefore: num(s.skillLine.marginTop, 1),
+    indent: { left: num(s.row1.paddingLeft, 0), right: num(s.row1.paddingRight, 0) },
+    fonts,
   };
 }

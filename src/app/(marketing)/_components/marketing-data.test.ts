@@ -6,7 +6,6 @@ import {
   limitLine,
   planCopy,
   PLAN_ORDER,
-  PORTFOLIO_PERK,
   PRO_TOOLS,
   trialLines,
 } from "./plan-features";
@@ -47,7 +46,7 @@ describe("plan copy", () => {
       `${PLANS.pro.limits.tailor} tailored versions a month`,
     );
     expect(planCopy("pro", "month").lead).toBe("Everything in Free, plus:");
-    expect(planCopy("pro").features.join(" ")).toMatch(/portfolio page/i);
+    expect(planCopy("pro").features.join(" ")).toMatch(/portfolio site/i);
     expect(planCopy("max").features).toContain(
       `${PLANS.max.limits.fix.toLocaleString("en-US")} line fixes a month`,
     );
@@ -71,8 +70,7 @@ describe("plan copy", () => {
       "5 Build with Otto drafts a week",
       "5 GitHub project drafts a week",
       ...PRO_TOOLS,
-      "A portfolio page made from your resume, with all 6 templates",
-      PORTFOLIO_PERK,
+      "A hosted portfolio site made from your resume, in all 8 designs",
     ]);
     expect(planCopy("pro", "week").lead).toBe("Everything in Free, plus:");
     expect(planCopy("max", "week").features).toContain("50 tailored versions a week");

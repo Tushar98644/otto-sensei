@@ -2,6 +2,7 @@ import { and, count, desc, eq } from "drizzle-orm";
 import { getDb } from "@/db/client";
 import { lockUser } from "@/db/locks";
 import { writings } from "@/db/schema";
+import { applicationForWriting } from "@/lib/applications/links";
 import { textLimit, WRITING_LIMITS, type CreateWritingInput, type Writing } from "./schema";
 
 // Server-only. A user's saved cover letters and answers. Every query is filtered by user_id, so one
@@ -20,7 +21,7 @@ export type UpdateWritingResult =
   | { status: "too_long" }
   | { status: "not_found" };
 
-function toWriting(row: Row): Writing {
+export function toWriting(row: Row): Writing {
   return {
     id: row.id,
     kind: row.kind,
@@ -36,6 +37,7 @@ function toWriting(row: Row): Writing {
       ? row.warnings.filter((item): item is string => typeof item === "string")
       : [],
     demo: row.demo,
+    applicationId: row.applicationId,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
   };
@@ -77,6 +79,8 @@ export async function createWriting(
       .from(writings)
       .where(eq(writings.userId, userId));
     if ((stored?.n ?? 0) >= WRITING_LIMITS.perUser) return { status: "limit_reached" };
+    // Joins its application by itself: the one it was written from, else the one for this job.
+    const applicationId = await applicationForWriting(tx, userId, input.applicationId, input);
     const [row] = await tx
       .insert(writings)
       .values({
@@ -92,6 +96,7 @@ export async function createWriting(
         body: input.text,
         warnings: input.warnings,
         demo: input.demo,
+        applicationId,
         createdAt: now,
         updatedAt: now,
       })

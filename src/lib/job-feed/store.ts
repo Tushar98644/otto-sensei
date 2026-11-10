@@ -1,10 +1,17 @@
-import { and, count, eq, inArray, isNull, lt, notInArray, sql } from "drizzle-orm";
+import { and, count, eq, gt, inArray, isNull, lt, notInArray, or, sql } from "drizzle-orm";
 import type { PgInsertValue } from "drizzle-orm/pg-core";
 import type { Db } from "@/db/client";
-import { jobBoards, jobSkills, jobs } from "@/db/schema";
-import { boilerplateLines, contentHash, normalizeJob, type NormalizedJob } from "./normalize";
+import { applications, jobBoards, jobSkills, jobs, savedJobs } from "@/db/schema";
+import {
+  boilerplateLines,
+  contentHash,
+  JOB_LIMITS,
+  normalizeJob,
+  type NormalizedJob,
+} from "./normalize";
 import type { RawJob } from "./parsers";
-import { BOARD_SOURCES, type BoardSeed, type JobSourceId } from "./types";
+import { SOURCE_INFO } from "./sources";
+import { BOARD_SOURCES, FEED_SOURCES, type BoardSeed, type JobSourceId } from "./types";
 
 // Server-only. Writing what the ingest read. Every write is keyed by (source, external id), so a
 // repeated or overlapping run only finds less to do.
@@ -20,15 +27,22 @@ export const STORE_LIMITS = {
   missedRunsToClose: 2,
   // A board answering 404 this many times in a row is gone: its jobs close.
   notFoundToClose: 2,
-  // The feeds (Himalayas, Remote OK) show the newest jobs only, so a job dropping off them says
-  // nothing; their jobs close at their own end date or at this age.
+  // The feeds (Himalayas, Remote OK, Jobicy) show the newest jobs only, so a job dropping off them
+  // says nothing; their jobs close at their own end date or at this age. Company boards have no
+  // age limit: they're read whole every day, so "still listed" is the test (owner decision
+  // 2026-11-10, after 39% of listed jobs on 8 sampled boards were older than 60 days).
   feedMaxAgeMs: 30 * DAY_MS,
-  closedRetentionMs: 30 * DAY_MS,
-  // Open and closed rows together. 2026-11-08: 27,833 open jobs on the 323 boards, and closed ones
-  // stay 30 days, so 20,000 was trimming open jobs. 50,000 holds those plus a month of closed rows
-  // with about a third to spare, and at the 5.9 KB a row measured on 2026-11-09 (text, search
-  // vector and indexes) it is about 290 MB: inside Supabase Free's 500 MB with the other tables.
-  maxRows: 50_000,
+  // Closed rows are deleted after a week; one an account saved or linked to an application stays
+  // the month, so "This job has closed" still shows there. About 2% of board jobs close a day
+  // (measured 2026-11-10), so a month of closed rows was a third of the table.
+  closedRetentionMs: 7 * DAY_MS,
+  referencedRetentionMs: 30 * DAY_MS,
+  // Open and closed rows together, a ceiling above the expected size. Expected on 2026-11-10: about
+  // 44,000 open jobs on the 605 boards (27,833 on the first 323, 16,375 on the rest), about 13,000
+  // from the feeds and about 9,000 closed in their last week: some 66,000 rows. With no stored text
+  // a row is 1.65 KB in jobs plus about 0.2 KB in job_match (measured on 37,177 rows after
+  // VACUUM FULL), so 80,000 rows are about 150 MB before dead-row bloat.
+  maxRows: 80_000,
   writeChunk: 200,
 } as const;
 
@@ -37,7 +51,11 @@ const SOURCE_PRIORITY: Record<JobSourceId, number> = {
   greenhouse: 0,
   lever: 0,
   ashby: 0,
+  workable: 0,
+  recruitee: 0,
+  personio: 0,
   himalayas: 1,
+  jobicy: 1,
   remoteok: 2,
 };
 
@@ -91,8 +109,7 @@ export async function syncBoards(
 ): Promise<number> {
   const rows = [
     ...seeds.map((seed) => ({ source: seed.ats, token: seed.token, company: seed.company })),
-    { source: "himalayas" as const, token: FEED_TOKEN, company: "" },
-    { source: "remoteok" as const, token: FEED_TOKEN, company: "" },
+    ...FEED_SOURCES.map((source) => ({ source, token: FEED_TOKEN, company: "" })),
   ];
   for (const part of chunks(rows, 500)) {
     await db
@@ -163,6 +180,8 @@ export async function saveJobs(
 
   // Only a company's own board shares one intro across its jobs; a feed mixes companies.
   const boilerplate = snapshot ? boilerplateLines(fresh.map((raw) => raw.text)) : new Set<string>();
+  // The text is kept only where it can't be read again (full-post.ts reads the rest live).
+  const textChars = SOURCE_INFO[scope.source].liveText ? 0 : JOB_LIMITS.feedDescriptionChars;
 
   await db.transaction(async (tx) => {
     const existing = new Map<string, { id: string; hash: string }>();
@@ -182,7 +201,7 @@ export async function saveJobs(
     for (const raw of fresh) {
       const known = existing.get(raw.externalId);
       if (!known) {
-        additions.push(normalizeJob(raw, now, boilerplate));
+        additions.push(normalizeJob(raw, now, boilerplate, textChars));
         continue;
       }
       seenIds.push(known.id);
@@ -190,15 +209,18 @@ export async function saveJobs(
       await tx
         .update(jobs)
         .set({
-          ...contentColumns(normalizeJob(raw, now, boilerplate)),
+          ...contentColumns(normalizeJob(raw, now, boilerplate, textChars)),
           board: scope.board,
+          lastSeenAt: now,
           updatedAt: now,
         })
         .where(eq(jobs.id, known.id));
       stats.updated += 1;
     }
 
-    // Seen again: the miss count starts over, and a job closed for going missing reopens.
+    // Seen again: the miss count starts over, and a job closed for going missing reopens. Only
+    // those rows are written: rewriting every unchanged job each day would double the table on
+    // disk with dead row versions (Postgres keeps the old one until vacuum).
     for (const part of chunks(seenIds, 500)) {
       await tx
         .update(jobs)
@@ -208,7 +230,12 @@ export async function saveJobs(
           closedAt: sql`case when ${jobs.closeReason} in ('gone', 'board_gone') then null else ${jobs.closedAt} end`,
           closeReason: sql`case when ${jobs.closeReason} in ('gone', 'board_gone') then null else ${jobs.closeReason} end`,
         })
-        .where(inArray(jobs.id, part));
+        .where(
+          and(
+            inArray(jobs.id, part),
+            or(gt(jobs.missedRuns, 0), inArray(jobs.closeReason, ["gone", "board_gone"])),
+          ),
+        );
     }
     stats.seen = seenIds.length;
 
@@ -262,6 +289,7 @@ export async function saveJobs(
         .onConflictDoNothing({ target: [jobs.source, jobs.externalId] })
         .returning({ id: jobs.id });
       stats.added += added.length;
+      for (const row of added) seenIds.push(row.id);
     }
 
     if (snapshot) {
@@ -277,7 +305,8 @@ export async function saveJobs(
             eq(jobs.source, scope.source),
             eq(jobs.board, scope.board),
             isNull(jobs.closedAt),
-            lt(jobs.lastSeenAt, now),
+            // Neither seen nor added by this read (at most perBoard ids).
+            notInArray(jobs.id, seenIds),
           ),
         )
         .returning({ closedAt: jobs.closedAt });
@@ -341,7 +370,7 @@ export async function tidyJobs(db: Db, now: number): Promise<TidyStats> {
     .where(
       and(
         isNull(jobs.closedAt),
-        inArray(jobs.source, ["himalayas", "remoteok"]),
+        inArray(jobs.source, [...FEED_SOURCES]),
         lt(jobs.postedAt, now - STORE_LIMITS.feedMaxAgeMs),
       ),
     )
@@ -352,7 +381,16 @@ export async function tidyJobs(db: Db, now: number): Promise<TidyStats> {
     const stale = db
       .select({ id: jobs.id })
       .from(jobs)
-      .where(lt(jobs.closedAt, now - STORE_LIMITS.closedRetentionMs))
+      .where(
+        or(
+          lt(jobs.closedAt, now - STORE_LIMITS.referencedRetentionMs),
+          and(
+            lt(jobs.closedAt, now - STORE_LIMITS.closedRetentionMs),
+            sql`not exists (select 1 from ${savedJobs} where ${savedJobs.jobId} = ${jobs.id})`,
+            sql`not exists (select 1 from ${applications} where ${applications.jobId} = ${jobs.id})`,
+          ),
+        ),
+      )
       .limit(1_000);
     const gone = await db
       .delete(jobs)

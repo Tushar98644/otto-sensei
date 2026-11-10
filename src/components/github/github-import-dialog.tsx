@@ -24,6 +24,9 @@ export type GitHubImportDialogProps = {
   resume: Resume;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  // After "Add" changed the resume, with the resume as it is now (the portfolio pushes it to a page
+  // that isn't kept in sync).
+  onAdded?: (resume: Resume) => void;
 };
 
 const EDIT_LABEL = "Added projects from GitHub";
@@ -49,7 +52,12 @@ function projectCount(flow: GitHubImport): number {
  * the person keeps what they want, and only "Add" changes the resume. "Pick other repos" opens
  * the full list of repos and merged pull requests.
  */
-export function GitHubImportDialog({ resume, open, onOpenChange }: GitHubImportDialogProps) {
+export function GitHubImportDialog({
+  resume,
+  open,
+  onOpenChange,
+  onAdded,
+}: GitHubImportDialogProps) {
   const gate = useAccountGate();
   const flow = useGitHubImport(resume, alreadyOnFor(resume), (error) =>
     gate.handleApiError(error, "github"),
@@ -82,6 +90,8 @@ export function GitHubImportDialog({ resume, open, onOpenChange }: GitHubImportD
     const { added, skipped } = addGitHubProjects(resume, chosen);
     if (added > 0) {
       updateResume(resume.id, (current) => addGitHubProjects(current, chosen).resume, { label: EDIT_LABEL });
+      const latest = useStudioStore.getState().resumes[resume.id];
+      if (latest) onAdded?.(latest);
     }
     toast(
       added > 0

@@ -1,12 +1,9 @@
 import type { Resume } from "@/lib/resume/schema";
 import {
   webHref,
-  type ContentImage,
-  type ContentLogo,
   type ContentProject,
   type ContentSocial,
   type GitHubStats,
-  type ImageRef,
   type PortfolioContent,
   type PortfolioContentView,
 } from "./content";
@@ -30,9 +27,7 @@ import {
   resumeGitHubUsername,
   sentences,
   toSocial,
-  videoOf,
 } from "./content-rules";
-import { safeImageUrl } from "./images";
 import { compactNumber } from "./metrics";
 import { findPlace } from "./places";
 import { portfolioView, type PortfolioView, type ViewSettings } from "./view";
@@ -52,7 +47,6 @@ export {
   sentences,
   socialHandle,
   socialKindOf,
-  videoOf,
 } from "./content-rules";
 
 // ---------------------------------------------------------------------------------------------
@@ -63,27 +57,11 @@ export type ContentSources = {
   view: PortfolioView;
   content: PortfolioContent;
   github: GitHubStats | null;
-  // Where uploads are served from (media-store's base); "" drops uploaded pictures.
-  mediaBase: string;
   now?: number;
 };
 
-export function imageOf(
-  ref: ImageRef | "none" | null | undefined,
-  mediaBase: string,
-): ContentImage | null {
-  if (!ref || ref === "none") return null;
-  if (ref.kind === "upload") {
-    if (!mediaBase) return null;
-    return { src: `${mediaBase}${ref.key}`, alt: ref.alt, width: ref.width, height: ref.height };
-  }
-  const src = safeImageUrl(ref.url);
-  return src ? { src, alt: ref.alt, width: null, height: null } : null;
-}
-
-function logoOf(ref: ImageRef | null, name: string, mediaBase: string): ContentLogo {
-  return { src: imageOf(ref, mediaBase)?.src ?? null, monogram: initialsOf(name) || "·" };
-}
+/** What a design draws where a logo or icon would go: "LE" for Ledgerly, "·" for no name. */
+const monogramOf = (name: string) => initialsOf(name) || "·";
 
 const pick = <T>(own: T | null | undefined, fallback: T): T =>
   own === null || own === undefined ? fallback : own;
@@ -92,7 +70,6 @@ export function contentView({
   view,
   content,
   github,
-  mediaBase,
   now = Date.now(),
 }: ContentSources): PortfolioContentView {
   const auto = autoContent(view, github, now);
@@ -102,15 +79,6 @@ export function contentView({
   const pageHides = new Set(view.hidden);
   const shown = <T>(section: (typeof content.hidden)[number], value: T, empty: T): T =>
     hidden.has(section) ? empty : value;
-
-  // Photo: the owner's, else the GitHub avatar, else nothing (templates draw the initials).
-  const ownPhoto = content.photo === "none" ? null : imageOf(content.photo, mediaBase);
-  const githubAvatar =
-    content.photo === null && github?.avatarUrl
-      ? { src: github.avatarUrl, alt: "", width: null, height: null }
-      : null;
-  const photo = shown("photo", ownPhoto ?? githubAvatar, null);
-  if (photo && !photo.alt) photo.alt = view.name;
 
   const location = content.location
     ? (() => {
@@ -207,13 +175,8 @@ export function contentView({
       website,
       source,
       featured: pick(entry?.featured, fallback.featured),
-      images: (entry?.images ?? [])
-        .map((ref) => imageOf(ref, mediaBase))
-        .filter((image): image is ContentImage => image !== null)
-        .map((image) => ({ ...image, alt: image.alt || `${name} screenshot` })),
-      video: entry?.video ? videoOf(entry.video) : null,
       device: entry?.device ?? "auto",
-      logo: logoOf(entry?.logo ?? null, name, mediaBase),
+      monogram: monogramOf(name),
     });
   }
 
@@ -227,7 +190,7 @@ export function contentView({
       summary: pick(own?.summary, base.summary),
       type: pick(own?.type, base.type),
       website: link(own?.website),
-      logo: logoOf(own?.logo ?? null, job.company || job.title, mediaBase),
+      monogram: monogramOf(job.company || job.title),
       tags: pick(own?.tags, base.tags),
     };
   });
@@ -237,7 +200,7 @@ export function contentView({
     return {
       ...school,
       website: link(own?.website),
-      logo: logoOf(own?.logo ?? null, school.school || school.degree, mediaBase),
+      monogram: monogramOf(school.school || school.degree),
     };
   });
 
@@ -278,7 +241,6 @@ export function contentView({
     pitch: pick(content.pitch, auto.pitch),
     intro: pick(content.intro, auto.intro),
     disciplines: pick(content.disciplines, auto.disciplines).filter(Boolean),
-    photo,
     availability: (() => {
       const value = content.availability ?? auto.availability;
       if (!value || (!value.text && !value.short)) return null;
@@ -320,7 +282,6 @@ export function contentView({
         detail: item.detail,
         result: item.result,
         href: webHref(item.url),
-        logo: imageOf(item.logo, mediaBase),
       })),
       [],
     ),
@@ -362,7 +323,6 @@ export function contentView({
         role: item.role,
         href: webHref(item.url),
         initials: initialsOf(item.name),
-        photo: imageOf(item.photo, mediaBase),
       })),
       [],
     ),
@@ -376,16 +336,6 @@ export function contentView({
         by: item.by,
         href: webHref(item.url),
       })),
-      [],
-    ),
-    photos: shown(
-      "photos",
-      content.photos.flatMap((item) => {
-        const image = imageOf(item.image, mediaBase);
-        return image
-          ? [{ ...image, id: item.id, caption: item.caption, alt: image.alt || item.caption }]
-          : [];
-      }),
       [],
     ),
     github: shown("github", githubView, null),
@@ -416,7 +366,6 @@ export function portfolioViews({
   settings,
   content,
   github,
-  mediaBase,
   now = Date.now(),
 }: Omit<ContentSources, "view"> & { resume: Resume; settings: ViewSettings }): PortfolioViews {
   const pageView = portfolioView(resume, settings);
@@ -429,7 +378,7 @@ export function portfolioViews({
   return {
     page: {
       view: pageView,
-      content: contentView({ view: pageView, content, github, mediaBase, now }),
+      content: contentView({ view: pageView, content, github, now }),
     },
     editor: {
       view: editorView,
@@ -437,7 +386,6 @@ export function portfolioViews({
         view: editorView,
         content: { ...content, hidden: [] },
         github,
-        mediaBase,
         now,
       }),
       auto: autoContent(editorView, github, now),

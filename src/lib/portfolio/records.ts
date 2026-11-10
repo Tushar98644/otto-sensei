@@ -10,9 +10,7 @@ import { parseStoredStats } from "@/lib/github/stats";
 import { shareSnapshot } from "@/lib/share/snapshot";
 import { parseStoredContent, type PortfolioContentView } from "./content";
 import { contentView } from "./content-view";
-import { cleanProjectImages } from "./images";
-import { mediaBase } from "./media-store";
-import { canBuildPortfolio, canHideCredit, canPublishPortfolio, showsCredit } from "./plan";
+import { canBuildPortfolio, canPublishPortfolio } from "./plan";
 import { normalizeSlug, numberedSlug, SLUG_MESSAGES, slugProblem, suggestSlug } from "./slug";
 import {
   DEFAULT_PORTFOLIO_SETTINGS,
@@ -62,15 +60,12 @@ function toPortfolio(row: Row): Portfolio {
     versionAt: snapshot.updatedAt,
     content: parseStoredContent(row.content),
     github: parseStoredStats(row.github),
-    mediaBase: mediaBase(),
     showEmail: row.showEmail,
     showPhone: row.showPhone,
     hiddenSections: sectionsOf(row),
     sync: row.sync,
     published: row.published,
     allowIndexing: row.allowIndexing,
-    hideCredit: row.hideCredit,
-    projectImages: cleanProjectImages(row.projectImages),
     views: row.views,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
@@ -183,8 +178,6 @@ export type SaveResult =
     }
   | { status: "bad_slug"; message: string }
   | { status: "slug_taken" }
-  // Hiding the credit line needs Pro or Max.
-  | { status: "needs_plan" }
   // Portfolios are Pro and Max (a trial included); Free keeps its data but can't change it.
   | { status: "needs_portfolio_plan" }
   // Publishing needs a paid Pro or Max subscription, not a trial.
@@ -267,7 +260,6 @@ export async function updatePortfolio(
   if (patch.published === true && !canPublishPortfolio(plan, isTrialing(owner))) {
     return { status: "needs_paid_plan" };
   }
-  if (patch.hideCredit === true && !canHideCredit(plan)) return { status: "needs_plan" };
   const db = await getDb();
   return db.transaction(async (tx): Promise<SaveResult> => {
     if (!(await lockUser(tx, userId))) return { status: "no_user" };
@@ -306,8 +298,6 @@ export async function updatePortfolio(
     if (patch.hiddenSections !== undefined) changes.hiddenSections = patch.hiddenSections;
     if (patch.sync !== undefined) changes.sync = patch.sync;
     if (patch.allowIndexing !== undefined) changes.allowIndexing = patch.allowIndexing;
-    if (patch.hideCredit !== undefined) changes.hideCredit = patch.hideCredit;
-    if (patch.projectImages !== undefined) changes.projectImages = patch.projectImages;
     if (patch.published !== undefined) {
       changes.published = patch.published;
       if (patch.published && !current.published) changes.publishedAt = now;
@@ -386,7 +376,6 @@ export type PublicPortfolio = {
   // Everything the rich templates draw, built from `view`, so the same choices hold in it.
   content: PortfolioContentView;
   allowIndexing: boolean;
-  showCredit: boolean;
   updatedAt: number;
 };
 
@@ -416,12 +405,11 @@ export async function findPublicPortfolio(
     .limit(1);
   if (row && !ownerCanPublish(row)) return { status: "missing" };
   if (row) {
-    const { portfolio, plan } = row;
+    const { portfolio } = row;
     const view = portfolioView(snapshotOf(portfolio), {
       showEmail: portfolio.showEmail,
       showPhone: portfolio.showPhone,
       hiddenSections: sectionsOf(portfolio),
-      projectImages: cleanProjectImages(portfolio.projectImages),
     });
     return {
       status: "ok",
@@ -435,11 +423,9 @@ export async function findPublicPortfolio(
           view,
           content: parseStoredContent(portfolio.content),
           github: parseStoredStats(portfolio.github),
-          mediaBase: mediaBase(),
           now,
         }),
         allowIndexing: portfolio.allowIndexing,
-        showCredit: showsCredit(portfolio.hideCredit, plan),
         updatedAt: portfolio.updatedAt,
       },
     };

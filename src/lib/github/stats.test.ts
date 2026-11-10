@@ -42,7 +42,6 @@ describe("GitHub numbers for a portfolio", () => {
       {
         login: "octocat",
         name: "The Octocat",
-        avatar_url: "https://avatars.githubusercontent.com/u/583231?v=4",
         followers: 9000,
         public_repos: 8,
       },
@@ -76,17 +75,12 @@ describe("GitHub numbers for a portfolio", () => {
       { repo: "octocat/tally", kind: "push", at: new Date(NOW - DAY).toISOString() },
       { repo: "octocat/pgsnap", kind: "release", at: new Date(NOW - 10 * DAY).toISOString() },
     ]);
-    expect(stats.avatarUrl).toBe("https://avatars.githubusercontent.com/u/583231?v=4");
+    // Portfolios draw no pictures, so the avatar isn't kept.
+    expect(stats).not.toHaveProperty("avatarUrl");
   });
 
-  it("drops an avatar from anywhere but GitHub's own host", () => {
-    const stats = githubStatsFrom(
-      { login: "x", avatar_url: "https://evil.example/a.png" },
-      [],
-      [],
-      NOW,
-    );
-    expect(stats.avatarUrl).toBeNull();
+  it("has no activity for an account without events", () => {
+    const stats = githubStatsFrom({ login: "x" }, [], [], NOW);
     expect(stats.activity.lastActiveAt).toBeNull();
   });
 });

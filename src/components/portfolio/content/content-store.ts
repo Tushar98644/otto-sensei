@@ -8,13 +8,12 @@ import {
   emptyContent,
   saveableContent,
   type GitHubStats,
-  type MediaUsage,
   type PortfolioContent,
 } from "@/lib/portfolio/content";
 
 // The portfolio's content document in the editor. Every change shows at once and is saved a
 // moment after typing stops (the whole document, last change wins). Removing things gives an
-// Undo toast instead of asking first; removed pictures stay on the server long enough for it.
+// Undo toast instead of asking first.
 
 const SAVE_AFTER_MS = 900;
 
@@ -25,9 +24,6 @@ type ContentState = {
   owner: string | null;
   content: PortfolioContent;
   github: GitHubStats | null;
-  media: MediaUsage | null;
-  // Where uploads are served from (Portfolio.mediaBase).
-  mediaBase: string;
   // Local changes not yet confirmed by the server.
   dirty: boolean;
   saving: boolean;
@@ -39,8 +35,6 @@ export const useContentStore = create<ContentState>()(() => ({
   owner: null,
   content: emptyContent(),
   github: null,
-  media: null,
-  mediaBase: "",
   dirty: false,
   saving: false,
   error: null,
@@ -56,10 +50,10 @@ export async function loadContent(owner: string, { force = false } = {}): Promis
     return;
   useContentStore.setState({ status: "loading", owner, error: null });
   try {
-    const { content, github, media } = await api.portfolioContent();
+    const { content, github } = await api.portfolioContent();
     if (useContentStore.getState().owner !== owner) return;
     revision += 1;
-    useContentStore.setState({ status: "ready", content, github, media, dirty: false });
+    useContentStore.setState({ status: "ready", content, github, dirty: false });
   } catch (error) {
     if (useContentStore.getState().owner !== owner) return;
     useContentStore.setState({ status: "error", error: isApiError(error) ? error.message : null });
@@ -81,7 +75,6 @@ async function save({ keepalive = false } = {}): Promise<void> {
     );
     useContentStore.setState({
       github: answer.github,
-      media: answer.media,
       ...(sent === revision ? { dirty: false } : {}),
     });
   } catch (error) {
@@ -126,14 +119,6 @@ export function setGitHub(github: GitHubStats | null): void {
   useContentStore.setState({ github });
 }
 
-export function setMediaBase(mediaBase: string): void {
-  if (useContentStore.getState().mediaBase !== mediaBase) useContentStore.setState({ mediaBase });
-}
-
-export function setMediaUsage(media: MediaUsage): void {
-  useContentStore.setState({ media });
-}
-
 export function resetContentStore(): void {
   if (timer) clearTimeout(timer);
   timer = null;
@@ -142,7 +127,6 @@ export function resetContentStore(): void {
     owner: null,
     content: emptyContent(),
     github: null,
-    media: null,
     dirty: false,
   });
 }

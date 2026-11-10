@@ -1,7 +1,6 @@
 import { z } from "zod";
 import { ResumeSchema, type Resume } from "@/lib/resume/schema";
 import type { GitHubStats, PortfolioContent } from "./content";
-import { ProjectImagesSchema, type ProjectImages } from "./images";
 
 // Client-safe contract for portfolios: one public page per account at /p/<slug>, made from one
 // resume and shown in one of the web templates. Re-exported from @/lib/api/types.
@@ -94,9 +93,6 @@ export const UpdatePortfolioSchema = z
     sync: z.boolean().optional(),
     published: z.boolean().optional(),
     allowIndexing: z.boolean().optional(),
-    hideCredit: z.boolean().optional(),
-    // The whole map each time; a project left out has no picture.
-    projectImages: ProjectImagesSchema.optional(),
   })
   .refine((body) => Object.values(body).some((value) => value !== undefined), {
     message: "Nothing to change.",
@@ -118,11 +114,6 @@ export type PortfolioSettings = {
   published: boolean;
   // Off by default: the page asks search engines to stay away until the owner says otherwise.
   allowIndexing: boolean;
-  // Pro and Max only; Free always shows the credit line.
-  hideCredit: boolean;
-  // Project id -> https picture address, set with the round-1 Showcase template (now removed).
-  // Kept for those pages; the reference templates draw project pictures from `content` instead.
-  projectImages: ProjectImages;
 };
 
 export const DEFAULT_PORTFOLIO_SETTINGS: Omit<PortfolioSettings, "template"> = {
@@ -132,8 +123,6 @@ export const DEFAULT_PORTFOLIO_SETTINGS: Omit<PortfolioSettings, "template"> = {
   sync: true,
   published: false,
   allowIndexing: false,
-  hideCredit: false,
-  projectImages: {},
 };
 
 export type Portfolio = PortfolioSettings & {
@@ -150,8 +139,6 @@ export type Portfolio = PortfolioSettings & {
   content: PortfolioContent;
   // The GitHub numbers last fetched for the page, or null.
   github: GitHubStats | null;
-  // Where uploaded pictures are served from ("" when uploads are off on this server).
-  mediaBase: string;
   views: number;
   createdAt: number;
   updatedAt: number;

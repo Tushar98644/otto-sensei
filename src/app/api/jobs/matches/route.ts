@@ -52,18 +52,23 @@ export async function POST(req: Request): Promise<Response> {
     }
     const db = await getDb();
     const now = Date.now();
-    // Free sees the closest few from the same ranking, unfiltered, first page only, without the
-    // work-rights rules; the rest of the list comes with Pro.
+    // Free sees the closest few from the same ranking, first page only, without filters or the
+    // work-rights rules; the rest of the list comes with Pro. "Looking for" shapes both, and its
+    // "Remote only" is Free's one filter.
     const free = !hasProTools(user.plan);
+    const lookingFor = body.data.lookingFor;
     const ranked = await rankJobs(db, {
       userId: user.id,
       view: free ? "matches" : body.data.view,
       profile: body.data.profile,
-      filters: free ? DEFAULT_FILTERS : body.data.filters,
+      filters: free ? { ...DEFAULT_FILTERS, remote: lookingFor?.remote ?? false } : body.data.filters,
       page: free ? 1 : body.data.page,
       workProfile: free ? null : (await readWorkProfile(user.id)).profile,
+      lookingFor,
       deviceTimeZone: body.data.deviceTimeZone,
       now,
+      free,
+      cache: true,
     });
     const shown = free ? ranked.jobs.slice(0, FREE_JOB_MATCHES) : ranked.jobs;
     let logged: { requestId: string; resumeHash: string } | null = null;

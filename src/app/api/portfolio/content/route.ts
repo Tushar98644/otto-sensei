@@ -1,13 +1,11 @@
 import { fail, ok } from "@/lib/api/respond";
-import { accountAvatarUrl } from "@/lib/auth/avatar";
 import { rejectCrossSite, rejectNonJson } from "@/lib/auth/route-guards";
 import { getCurrentUser } from "@/lib/auth/session";
 import { readJson } from "@/lib/http";
 import { log } from "@/lib/log";
 import { refreshPortfolioPages } from "@/lib/portfolio/cache";
 import { SaveContentSchema, type ContentResponse } from "@/lib/portfolio/content";
-import { fillAccountPhoto, refreshGitHub, saveContent } from "@/lib/portfolio/content-records";
-import { mediaUsage } from "@/lib/portfolio/media-records";
+import { refreshGitHub, saveContent } from "@/lib/portfolio/content-records";
 import { canBuildPortfolio } from "@/lib/portfolio/plan";
 import { getPortfolio } from "@/lib/portfolio/records";
 import { rateLimit, retryAfterHeader, waitText } from "@/lib/rate-limit";
@@ -20,23 +18,18 @@ const HOUR_MS = 60 * 60 * 1000;
 // The editor autosaves a second after typing stops, so a long session sends a lot of these.
 const SAVES_PER_HOUR = 900;
 
-// GET /api/portfolio/content: the stored document, the GitHub numbers (fetched again when stale)
-// and the account's picture space. Fills the photo from the Google account the first time.
+// GET /api/portfolio/content: the stored document and the GitHub numbers (fetched again when stale).
 export async function GET(): Promise<Response> {
   try {
     const user = await getCurrentUser();
     if (!user) return fail("unauthorized", SIGN_IN, 401, NO_STORE);
     const portfolio = await getPortfolio(user.id);
     if (!portfolio) return fail("not_found", NO_PORTFOLIO, 404, NO_STORE);
-    let content = portfolio.content;
-    if (content.photo === null)
-      content = (await fillAccountPhoto(user.id, await accountAvatarUrl())) ?? content;
     const github = await refreshGitHub(user.id);
     if (github?.changed) refreshPortfolioPages([github.slug]);
     const body: Omit<ContentResponse, "ok"> = {
-      content,
+      content: portfolio.content,
       github: github?.github ?? portfolio.github,
-      media: await mediaUsage(user.id),
     };
     return ok(body, { headers: NO_STORE });
   } catch (error) {
@@ -83,16 +76,9 @@ export async function PUT(req: Request): Promise<Response> {
         const response: Omit<ContentResponse, "ok"> = {
           content: result.content,
           github: (await refreshGitHub(user.id))?.github ?? null,
-          media: await mediaUsage(user.id),
         };
         return ok(response, { headers: NO_STORE });
       }
-      case "bad_media":
-        return fail(
-          "bad_request",
-          "One of those pictures isn't in your account any more. Upload it again.",
-          400,
-        );
       case "not_found":
         return fail("not_found", NO_PORTFOLIO, 404);
       case "no_user":

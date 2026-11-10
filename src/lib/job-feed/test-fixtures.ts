@@ -1,6 +1,7 @@
 // Test-only. List answers in the shapes the five sources returned on 2026-11-08 (Vercel on
-// Greenhouse, Spotify on Lever, Linear on Ashby, the Himalayas and Remote OK feeds), cut down to
-// a few jobs with shortened text.
+// Greenhouse, Spotify on Lever, Linear on Ashby, the Himalayas and Remote OK feeds), and the three
+// added on 2026-11-10 (Blueground on Workable, bunq on Recruitee, 1KOMMA5° on Personio, the Jobicy
+// feed), cut down to a few jobs with shortened text.
 
 const ESCAPED =
   "&lt;div class=&quot;content-intro&quot;&gt;&lt;h2&gt;About Vercel:&lt;/h2&gt;&lt;p&gt;Vercel gives developers the tools to build and scale the web.&lt;/p&gt;&lt;/div&gt;" +
@@ -85,7 +86,7 @@ export const ASHBY_BOARD = {
       employmentType: "FullTime",
       location: "Europe",
       secondaryLocations: [{ location: "North America" }],
-      publishedAt: "2026-04-27T20:13:45.158+00:00",
+      publishedAt: "2026-10-27T20:13:45.158+00:00",
       isListed: true,
       isRemote: true,
       workplaceType: "Remote",
@@ -157,3 +158,218 @@ export const REMOTE_OK_FEED = [
     url: "https://remoteOK.com/remote-jobs/remote-ai-developer-salvo-software-1137701",
   },
 ];
+
+// apply.workable.com/api/v1/widget/accounts/blueground?details=true
+export const WORKABLE_ACCOUNT = {
+  name: "Blueground",
+  description: "<p><strong>Blueground</strong> is a global proptech company.</p>",
+  jobs: [
+    {
+      title: "Operations Lead - New York City",
+      shortcode: "DF694D45CA",
+      code: "",
+      employment_type: "Full-time",
+      telecommuting: false,
+      department: "City Core",
+      url: "https://apply.workable.com/j/DF694D45CA",
+      shortlink: "https://apply.workable.com/j/DF694D45CA",
+      application_url: "https://apply.workable.com/j/DF694D45CA/apply",
+      published_on: "2026-09-23",
+      created_at: "2025-04-22",
+      country: "United States",
+      city: "New York",
+      state: "New York",
+      education: "Unspecified",
+      experience: "Associate",
+      function: "",
+      industry: "Hospitality",
+      locations: [
+        { country: "United States", countryCode: "US", city: "New York", region: "New York", hidden: false },
+      ],
+      description:
+        "<h3>Redefining how people live.</h3><p>At <strong>Blueground,</strong> we believe that when your base is reliable, the world opens up. Every year, 350 million people move between cities, yet today's housing options haven't caught up.</p><h3>What you will do</h3><ul><li>Run move-ins and maintenance for 400 apartments across Manhattan and Brooklyn.</li><li>Track turnover in Excel and Salesforce.</li><li>Hire and coach a team of six field associates.</li></ul><p>You have 3+ years of experience in property operations.</p>",
+    },
+    {
+      title: "Customer Experience Specialist (Remote)",
+      shortcode: "8A1B2C3D4E",
+      code: null,
+      employment_type: "Part-time",
+      telecommuting: true,
+      department: "Shared Services",
+      url: "https://apply.workable.com/j/8A1B2C3D4E",
+      published_on: "2026-10-30",
+      created_at: "2026-10-29",
+      country: "Greece",
+      city: "Athens",
+      state: "Attica",
+      experience: "Entry level",
+      locations: [
+        { country: "Greece", countryCode: "GR", city: "Athens", region: "Attica", hidden: false },
+        { country: "Portugal", countryCode: "PT", city: "Lisbon", region: "Lisbon", hidden: true },
+      ],
+      description: "<p>Answer guests by chat and phone in Zendesk.</p>",
+    },
+    // No shortcode: dropped.
+    { title: "Broken", description: "" },
+  ],
+};
+
+// bunq.recruitee.com/api/offers/
+export const RECRUITEE_OFFERS = {
+  offers: [
+    {
+      id: 2819200,
+      guid: "7cnw3",
+      slug: "security-lead",
+      title: "Security Lead",
+      status: "published",
+      company_name: "bunq",
+      careers_url: "https://careers.bunq.com/o/security-lead",
+      careers_apply_url: "https://careers.bunq.com/o/security-lead/c/new",
+      location: "Amsterdam, Noord-Holland, Netherlands",
+      city: "Amsterdam",
+      country: "Netherlands",
+      country_code: "NL",
+      remote: false,
+      hybrid: true,
+      on_site: false,
+      department: "Technology",
+      employment_type_code: "fulltime_permanent",
+      experience_code: "experienced",
+      education_code: "bachelor_degree",
+      published_at: "2026-11-06 17:01:19 UTC",
+      created_at: "2026-11-06 16:41:39 UTC",
+      updated_at: "2026-11-09 15:36:12 UTC",
+      close_at: null,
+      description:
+        "<p>Keeping users money and data safe is the job. As our Security Lead, you take end-to-end responsibility for security at bunq. AI is changing the game: attackers move faster, and so must we. You set the roadmap, run the incident drills and work with every team that ships.</p>",
+      requirements:
+        "<ul><li><p>You have 8+ years of experience in security engineering.</p></li><li><p>You know AWS and Kubernetes.</p></li></ul>",
+      tags: ["L5"],
+    },
+    {
+      id: 2819201,
+      slug: "customer-support-agent-dutch",
+      title: "Customer Support Agent (Dutch)",
+      status: "published",
+      company_name: "bunq",
+      careers_url: "https://careers.bunq.com/o/customer-support-agent-dutch",
+      location: "Remote, Netherlands",
+      remote: true,
+      employment_type_code: "fulltime_fixed_term",
+      experience_code: "entry_level",
+      published_at: "2026-11-02 09:00:00 UTC",
+      close_at: "2026-12-31 23:59:00 UTC",
+      description: "<p>Help bunq users by chat in Dutch and English.</p>",
+      requirements: "",
+    },
+    { id: 1, title: "Draft", status: "draft", slug: "draft", careers_url: "https://careers.bunq.com/o/draft" },
+  ],
+};
+
+// 1komma5grad.jobs.personio.de/xml?language=en
+export const PERSONIO_FEED = `<?xml version="1.0" encoding="UTF-8"?>
+
+<workzag-jobs>
+
+<position>
+    <id>2762189</id>
+    <subcompany>1KOMMA5° Technology GmbH</subcompany>
+    <office>Remote</office>
+    <additionalOffices>
+        <office>Berlin</office>
+        <office>Hamburg</office>
+    </additionalOffices>
+    <department>Purchasing &amp; Logistics</department>
+    <recruitingCategory>1K5° Holding Technology</recruitingCategory>
+    <name>(Senior) Category Manager IT &amp; Software (m/f/d)</name>
+    <jobDescriptions>
+        <jobDescription>
+            <name>Your mission</name>
+            <value>
+                <![CDATA[<ul><li>Negotiate software contracts with SAP and Salesforce.</li><li>Run tenders &amp; supplier reviews.</li><li>Build the category strategy for IT hardware, software and services across our 70 installer companies.</li><li>Work with finance on budgets and savings tracking.</li></ul>]]>
+            </value>
+        </jobDescription>
+        <jobDescription>
+            <name>Your profile</name>
+            <value>
+                <![CDATA[<p>You have 5+ years of experience in IT procurement.</p>]]>
+            </value>
+        </jobDescription>
+    </jobDescriptions>
+    <employmentType>permanent</employmentType>
+    <seniority>experienced</seniority>
+    <schedule>full-time</schedule>
+    <yearsOfExperience>5-7</yearsOfExperience>
+    <keywords>Procurement,IT</keywords>
+    <occupation>purchasing</occupation>
+    <occupationCategory>purchasing_and_logistics</occupationCategory>
+    <createdAt>2026-08-21T09:21:49+00:00</createdAt>
+</position>
+
+<position>
+    <id>2800938</id>
+    <subcompany>1KOMMA5° GmbH</subcompany>
+    <office>Berlin</office>
+    <department>Marketing</department>
+    <name>(Junior) SEO &amp; AI Marketing Manager (m/w/d)</name>
+    <jobDescriptions></jobDescriptions>
+    <employmentType>intern</employmentType>
+    <seniority>entry-level</seniority>
+    <schedule>full-time</schedule>
+    <createdAt>2026-09-17T07:57:12+00:00</createdAt>
+</position>
+
+<position>
+    <id>not-a-number</id>
+    <name>Broken</name>
+</position>
+
+</workzag-jobs>
+`;
+
+// jobicy.com/api/jobs?count=100
+export const JOBICY_PAGE = {
+  apiVersion: "2.2.19",
+  documentationUrl: "https://jobi.cy/apidocs",
+  friendlyNotice:
+    "Thanks for using Jobicy API! Please ensure Jobicy is clearly credited with a direct link to the source, and all application buttons redirect to the original job URL provided in this feed.",
+  jobCount: 2,
+  lastUpdate: "2026-11-09T19:40:24+00:00",
+  nextCursor: "AgAAAABq8qm1AAAAAGryIZEAAAAAAAJzyJGStyjV",
+  hasMore: false,
+  jobs: [
+    {
+      id: 160713,
+      url: "https://jobicy.com/jobs/160713-onboarding-documents-associate",
+      jobSlug: "160713-onboarding-documents-associate",
+      jobTitle: "Onboarding Documents Associate",
+      companyName: "Clipboard",
+      jobIndustry: ["Admin & Virtual Assistance"],
+      jobType: ["Full-Time"],
+      jobGeo: "APAC",
+      jobLevel: "Any",
+      jobExcerpt: "About Clipboard Our mission is to uplift as many communities as possible.",
+      jobDescription:
+        '<h3>About <a href="https://jobicy.com/company/clipboard" target="_blank" rel="noopener">Clipboard</a></h3>\n<p>Our app connects healthcare professionals with the workplaces that need them.</p><ul><li>Check nurses\' licences and onboarding documents.</li><li>Answer questions in Zendesk.</li></ul>',
+      pubDate: "2026-11-09T19:40:24+00:00",
+      salaryMin: 7500,
+      salaryMax: 9000,
+      salaryCurrency: "USD",
+      salaryPeriod: "yearly",
+    },
+    {
+      id: 160712,
+      url: "https://jobicy.com/jobs/160712-strategic-account-executive-singapore-2",
+      jobTitle: "Strategic Account Executive - Singapore",
+      companyName: "GitLab",
+      jobType: ["Full-Time"],
+      jobGeo: "Anywhere",
+      jobLevel: "Senior",
+      jobDescription: "<p>Sell GitLab to enterprise accounts. You know Salesforce and MEDDPICC.</p>",
+      pubDate: "2026-11-09T19:40:01+00:00",
+    },
+    // No link: dropped.
+    { id: 1, jobTitle: "Broken", companyName: "Acme", url: "" },
+  ],
+};

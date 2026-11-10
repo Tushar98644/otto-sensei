@@ -10,8 +10,10 @@ export type JobCounts = {
 };
 
 // Shown when the database can't be read (a build without it). Floors of what was measured:
-// 27,833 open jobs on the 323 boards on 2026-11-08.
-export const JOB_COUNTS_FALLBACK: JobCounts = { open: 25_000, matchable: 1_000 };
+// 37,164 open jobs in the match test database on 2026-11-10 (285 of the first 323 boards as read
+// on 2026-11-09, all 282 boards added that day and the three feeds); a full read of every board
+// holds more (27,833 on the first 323 alone on 2026-11-08).
+export const JOB_COUNTS_FALLBACK: JobCounts = { open: 35_000, matchable: 1_000 };
 
 const count = new Intl.NumberFormat("en-US");
 

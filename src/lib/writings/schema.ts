@@ -46,6 +46,9 @@ export type Writing = {
   warnings: string[];
   // Sample output from a server without an AI key.
   demo: boolean;
+  // The application it was written for. The server links it by itself, when it's saved or when
+  // that application is logged later; null until then.
+  applicationId: string | null;
   createdAt: number;
   updatedAt: number;
 };
@@ -98,6 +101,8 @@ export const CreateWritingSchema = z
       .max(WRITING_LIMITS.warnings)
       .default([]),
     demo: z.boolean().default(false),
+    // Written from an application's own page: link it to that one. Otherwise the server finds it.
+    applicationId: z.uuid().nullable().default(null),
   })
   .superRefine((value, ctx) => {
     if (value.text.length > TEXT_MAX[value.kind]) {

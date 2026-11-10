@@ -1,5 +1,6 @@
 import { z } from "zod";
 import type { JobPosting } from "@/lib/api/types";
+import { parsePersonio, parseWorkable, recruiteeJob } from "@/lib/job-feed/parsers";
 import { JobReadError } from "./errors";
 import { safeFetch } from "./fetch";
 import { decodeEntities, htmlToText, scanPage } from "./html";
@@ -8,7 +9,9 @@ import { buildPosting, humanizeSlug, toTime } from "./posting";
 import { greenhouseQuestions } from "./questions";
 
 // Server-only. Job boards with public, no-login JSON APIs. Shapes were checked against live
-// postings (GitLab on Greenhouse, Spotify on Lever, Linear on Ashby) in November 2026.
+// postings (GitLab on Greenhouse, Spotify on Lever, Linear on Ashby) in November 2026; Workable,
+// Recruitee and Personio (Blueground, bunq, 1KOMMA5°) on 2026-11-10, read with the daily ingest's
+// own parsers so the two never disagree.
 
 // Ashby's API returns a company's whole board, every description included: OpenAI's was 14 MB.
 // The cap is higher than for pages because this is one fixed, trusted host.
@@ -212,4 +215,114 @@ export async function readAshby(
   const api = new URL(`https://api.ashbyhq.com/posting-api/job-board/${encodeURIComponent(org)}`);
   const res = await safeFetch(api, { kind: "json", deadline, maxBytes: ASHBY_BOARD_MAX_BYTES });
   return ashbyPosting(parseJson(res.body, "ashby"), org, id, url);
+}
+
+// Workable's and Personio's documented endpoints list a whole account, every description
+// included; most accounts have a few dozen jobs.
+export const ACCOUNT_FEED_MAX_BYTES = 8 * 1024 * 1024;
+
+// Recruitee puts the company in the host name.
+const HOST_LABEL = /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/i;
+
+export function workablePosting(
+  json: unknown,
+  account: string,
+  shortcode: string,
+  url: URL,
+): JobPosting {
+  let jobs;
+  try {
+    jobs = parseWorkable(json, "", account);
+  } catch {
+    throw shapeError("workable");
+  }
+  const job = jobs.find((entry) => entry.externalId.toLowerCase() === shortcode.toLowerCase());
+  if (!job) throw new JobReadError("not_found");
+  const name = z.object({ name: z.string().nullish() }).safeParse(json);
+  return buildPosting({
+    url: linkOr(job.url, url),
+    source: "workable",
+    title: job.title,
+    company: (name.success && name.data.name) || humanizeSlug(account),
+    location: job.location,
+    text: job.text,
+    firstPostedAt: job.postedAt,
+  });
+}
+
+export function recruiteePosting(json: unknown, company: string, url: URL): JobPosting {
+  const parsed = z.object({ offer: z.unknown() }).safeParse(json);
+  const job = parsed.success ? recruiteeJob(parsed.data.offer, "", company) : null;
+  if (!job) throw shapeError("recruitee");
+  const name = z.object({ company_name: z.string().nullish() }).safeParse(parsed.data?.offer);
+  return buildPosting({
+    url: linkOr(job.url, url),
+    source: "recruitee",
+    title: job.title,
+    company: (name.success && name.data.company_name) || humanizeSlug(company),
+    location: job.location,
+    text: job.text,
+    firstPostedAt: job.postedAt,
+    closesAt: job.validThrough,
+  });
+}
+
+export function personioPosting(xml: string, host: string, id: string, url: URL): JobPosting {
+  let jobs;
+  try {
+    jobs = parsePersonio(xml, "", host);
+  } catch {
+    throw shapeError("personio");
+  }
+  const job = jobs.find((entry) => entry.externalId === id);
+  if (!job) throw new JobReadError("not_found");
+  // The feed names the employing company per job ("Acme GmbH"); the host has the account.
+  const company = /<subcompany>([^<]{1,200})<\/subcompany>/.exec(xml)?.[1]?.trim();
+  return buildPosting({
+    url: linkOr(job.url, url),
+    source: "personio",
+    title: job.title,
+    company: company ? decodeEntities(company) : humanizeSlug(host.split(".")[0] ?? ""),
+    location: job.location,
+    text: job.text,
+    firstPostedAt: job.postedAt,
+  });
+}
+
+export async function readWorkable(
+  account: string,
+  shortcode: string,
+  url: URL,
+  deadline: number,
+): Promise<JobPosting> {
+  const api = new URL(
+    `https://apply.workable.com/api/v1/widget/accounts/${encodeURIComponent(account)}?details=true`,
+  );
+  const res = await safeFetch(api, { kind: "json", deadline, maxBytes: ACCOUNT_FEED_MAX_BYTES });
+  return workablePosting(parseJson(res.body, "workable"), account, shortcode, url);
+}
+
+/** `offer` is the offer's id or its slug; the Careers Site API answers to both. */
+export async function readRecruitee(
+  company: string,
+  offer: string,
+  url: URL,
+  deadline: number,
+): Promise<JobPosting> {
+  if (!HOST_LABEL.test(company)) throw new JobReadError("invalid_url");
+  const api = new URL(`https://${company}.recruitee.com/api/offers/${encodeURIComponent(offer)}`);
+  const res = await safeFetch(api, { kind: "json", deadline });
+  return recruiteePosting(parseJson(res.body, "recruitee"), company, url);
+}
+
+/** Personio's feed is the only documented way to read a job; it lists the whole account. */
+export async function readPersonio(
+  host: string,
+  id: string,
+  url: URL,
+  deadline: number,
+): Promise<JobPosting> {
+  const feed = new URL(`https://${host}/xml?language=en`);
+  const res = await safeFetch(feed, { kind: "xml", deadline, maxBytes: ACCOUNT_FEED_MAX_BYTES });
+  return personioPosting(res.body, host, id, url);
 }

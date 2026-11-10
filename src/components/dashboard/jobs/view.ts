@@ -1,5 +1,8 @@
-import { normalizeJobUrl, type Application } from "@/lib/applications/schema";
-import { BOARD_SOURCES, EMPLOYMENT_LABELS, type FeedJob } from "@/lib/job-feed/types";
+import type { Application } from "@/lib/applications/schema";
+import { applicationForJob, copyForJob } from "@/lib/applications/thread";
+import { countClaim } from "@/lib/job-feed/counts";
+import { SOURCE_INFO } from "@/lib/job-feed/sources";
+import { EMPLOYMENT_LABELS, type FeedJob } from "@/lib/job-feed/types";
 import type { Resume } from "@/lib/resume/schema";
 
 // Client-safe and pure. What the Jobs tab works out for its cards from the browser's own data:
@@ -14,30 +17,23 @@ export function defaultResumeId(resumes: readonly Resume[]): string | null {
   return newest(resumes.filter((resume) => resume.tailor === null)) ?? newest(resumes);
 }
 
-function sameJob(a: string, b: string): boolean {
-  const left = normalizeJobUrl(a);
-  return left !== null && left !== "" && left === normalizeJobUrl(b);
-}
+// A job as the cards know it: by its id on the Jobs tab, with its link as the fallback for copies
+// and applications saved before they kept the id.
+type JobKey = { id?: string; url: string };
 
 /** A tailored copy already made for this job, if any. */
-export function tailoredFor(resumes: readonly Resume[], job: Pick<FeedJob, "url">): Resume | null {
-  return (
-    resumes.find((resume) => resume.tailor?.jobUrl && sameJob(resume.tailor.jobUrl, job.url)) ??
-    null
-  );
+export function tailoredFor(resumes: readonly Resume[], job: JobKey): Resume | null {
+  return copyForJob(resumes, { id: job.id ?? "", url: job.url });
 }
 
-/** The newest tracker entry for this job's link. */
-export function appliedFor(
-  applications: readonly Application[],
-  job: Pick<FeedJob, "url">,
-): Application | null {
-  return applications.find((application) => sameJob(application.jobUrl, job.url)) ?? null;
+/** The newest tracker entry for this job. */
+export function appliedFor(applications: readonly Application[], job: JobKey): Application | null {
+  return applicationForJob(applications, { id: job.id ?? "", url: job.url });
 }
 
-/** The company boards' own pages can be read again for the full post; the feeds' pages can't. */
+/** Jobs whose post can be read again from their link; Himalayas' and Remote OK's keep theirs. */
 export function readsLink(job: Pick<FeedJob, "source">): boolean {
-  return (BOARD_SOURCES as readonly string[]).includes(job.source);
+  return SOURCE_INFO[job.source].liveText;
 }
 
 /** "Posted today", "Posted 3 days ago", "Posted Oct 2". `now` is 0 before the clock is known. */
@@ -85,4 +81,26 @@ export function checkedLabel(checkedAt: number | null, now: number): string | nu
   if (hours < 24) return hours === 1 ? "1 hour ago" : `${hours} hours ago`;
   const days = Math.floor(hours / 24);
   return days === 1 ? "yesterday" : `${days} days ago`;
+}
+
+const count = new Intl.NumberFormat("en-US");
+
+/**
+ * The heading and line under Free's closest few matches, so nobody mistakes them for everything
+ * there is. Every number is real: the matches counted for this resume, and the open jobs Pro ranks,
+ * rounded down ("27,000+").
+ */
+export function moreWithProCopy(
+  shown: number,
+  matching: number,
+  openJobs: number,
+): { title: string; body: string } {
+  const open = countClaim(openJobs) ?? count.format(openJobs);
+  return {
+    title:
+      matching > shown
+        ? `Your top ${shown} of ${count.format(matching)} matches`
+        : `Your ${shown === 1 ? "match" : `${shown} matches`} so far`,
+    body: `Pro shows every match from ${open} open jobs, and narrows them by remote, level, posting date and where each job can hire.`,
+  };
 }

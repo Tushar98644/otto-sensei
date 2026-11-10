@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import type { ContentImage, PortfolioContentView, TextPart } from "@/lib/portfolio/content";
+import type { PortfolioContentView, TextPart } from "@/lib/portfolio/content";
 import { PORTFOLIO_TEMPLATE_INFO } from "@/lib/portfolio/templates";
 import type { PortfolioTemplateId } from "@/lib/portfolio/types";
 import type { PortfolioView } from "@/lib/portfolio/view";
@@ -48,7 +48,7 @@ export function OutLink({
 
 /**
  * The footer line every template carries for the design it rebuilds: "Design based on Brittany
- * Chiang's v4 (MIT)", linking to the original. Shown even when the "Made with" credit is off.
+ * Chiang's v4 (MIT)", linking to the original. Every page shows it.
  */
 export function DesignCredit({ id }: { id: PortfolioTemplateId }) {
   const { author, work, href, licence } = PORTFOLIO_TEMPLATE_INFO[id].credit;
@@ -64,34 +64,29 @@ export function DesignCredit({ id }: { id: PortfolioTemplateId }) {
 }
 
 /**
- * A picture from the content view. Its address was checked when the view was built (an upload on
- * our media host, or an https link); it loads without a referrer so linked hosts can't track
- * readers back to the page.
+ * A steady number from some text (FNV-1a), so a pattern or colour drawn for a project is the same
+ * on every render, on the server and in the browser. Pages draw no pictures; this is what makes
+ * each project's drawn stand-in its own.
  */
-export function Picture({
-  image,
-  className,
-  alt,
-  eager = false,
-}: {
-  image: ContentImage;
-  className?: string;
-  alt?: string;
-  eager?: boolean;
-}) {
-  return (
-    // eslint-disable-next-line @next/next/no-img-element -- uploads and linked https pictures; next/image would proxy every linked host
-    <img
-      src={image.src}
-      alt={alt ?? image.alt}
-      width={image.width ?? undefined}
-      height={image.height ?? undefined}
-      loading={eager ? "eager" : "lazy"}
-      decoding="async"
-      referrerPolicy="no-referrer"
-      className={className}
-    />
-  );
+export function seedOf(text: string): number {
+  let hash = 0x811c9dc5;
+  for (const char of text) {
+    hash ^= char.codePointAt(0)!;
+    hash = Math.imul(hash, 0x01000193) >>> 0;
+  }
+  return hash;
+}
+
+/** A small pseudo-random sequence from a seed (mulberry32): values in [0, 1). */
+export function seeded(seed: number): () => number {
+  let state = seed >>> 0;
+  return () => {
+    state = (state + 0x6d2b79f5) >>> 0;
+    let t = state;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
 }
 
 /** A paragraph with the owner's highlighted phrases wrapped in `mark` (a <strong> by default). */

@@ -18,6 +18,7 @@ import {
 import {
   INTERVAL_NAMES,
   perMonth,
+  pizzaLine,
   proComparison,
   trialSentence,
   yearlySavingsPercent,
@@ -93,7 +94,10 @@ export function PricingPlans({
         price.reference = formatUsd(REFERENCE_MONTHLY_USD[plan]);
         price.badge = `${referenceDiscountPercent(plan)}% off`;
       }
-      if (plan === "pro") price.comparison = proComparison() ?? undefined;
+      if (plan === "pro") {
+        price.comparison = proComparison() ?? undefined;
+        note = pizzaLine();
+      }
     }
     if (interval === "year") {
       // A real saving, from the prices themselves: $120 a year against 12 x $15.

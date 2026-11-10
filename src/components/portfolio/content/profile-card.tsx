@@ -15,7 +15,6 @@ import type { AutoContent } from "@/lib/portfolio/content-view";
 import { CheckRow } from "../check-row";
 import { editContent } from "./content-store";
 import { AutoNote, FieldRow, ListEditor, newId, TagsField, TextField } from "./fields";
-import { ImageField } from "./image-drop";
 import { HiddenNote, SectionCard, ShowRow } from "./section-card";
 
 type CardProps = { content: PortfolioContent; auto: AutoContent; view: PortfolioContentView };
@@ -47,32 +46,9 @@ export function ProfileCard({
     typeof Intl !== "undefined" ? Intl.DateTimeFormat().resolvedOptions().timeZone : "";
   const availability = content.availability ??
     auto.availability ?? { open: false, text: "", short: "" };
-  const photoNote =
-    content.photo === null && view.photo
-      ? "From your Google or GitHub account. Drop a new one to replace it."
-      : content.photo === "none"
-        ? "No photo: your initials show instead."
-        : undefined;
 
   return (
-    <SectionCard
-      title="Photo and intro"
-      meta={[view.photo ? "Photo" : "No photo", view.pitch ? "pitch" : ""]
-        .filter(Boolean)
-        .join(" · ")}
-      defaultOpen
-    >
-      <ImageField
-        label="Photo"
-        kind="photo"
-        value={content.photo && content.photo !== "none" ? content.photo : null}
-        fallback={{
-          src: content.photo === "none" ? null : (view.photo?.src ?? null),
-          text: view.initials,
-        }}
-        hint={photoNote}
-        onChange={(value, undo) => set("photo", value ?? "none", undo)}
-      />
+    <SectionCard title="Intro" meta={view.pitch ? "Pitch" : "No pitch yet"}>
       <TextField
         label="Pitch"
         value={content.pitch}

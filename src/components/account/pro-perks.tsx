@@ -12,7 +12,6 @@ import {
   type BillingInterval,
   type PaidPlanId,
 } from "@/config/plans";
-import { BRAND } from "@/config/brand";
 import { TEMPLATE_IDS } from "@/lib/resume/schema";
 import { perPeriod } from "@/lib/usage-copy";
 import { cn, pluralize } from "@/lib/utils";
@@ -83,10 +82,6 @@ export function PlanPerks({ plan, interval = "month", trial = false, className }
               detail={
                 trial ? "Build and preview it now. It goes public once Pro starts." : "Not on Free."
               }
-            />
-            <Perk
-              title={`Hide “Made with ${BRAND.name}” on your portfolio`}
-              detail="Not on Free."
             />
           </>
         ) : null}

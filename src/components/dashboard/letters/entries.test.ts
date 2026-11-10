@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { emptyResume, type Resume } from "@/lib/resume/schema";
 import type { Writing } from "@/lib/writings/schema";
+import type { Application } from "@/lib/applications/schema";
 import {
   defaultResume,
+  entryApplication,
   filterEntries,
   jobLine,
   kindCounts,
@@ -44,6 +46,7 @@ function writing(id: string, patch: Partial<Writing>): Writing {
     text: "Dear Northwind team,",
     warnings: [],
     demo: false,
+    applicationId: null,
     createdAt: 5_000,
     updatedAt: 5_000,
     ...patch,
@@ -100,6 +103,45 @@ describe("the letters list", () => {
     );
     expect(jobLine({ role: "", company: "Northwind" })).toBe("Northwind");
     expect(jobLine({ role: " ", company: "" })).toBe("");
+  });
+});
+
+describe("the application each letter belongs to", () => {
+  function app(id: string, patch: Partial<Application> = {}): Application {
+    return {
+      id,
+      resumeId: null,
+      resumeTitle: "",
+      company: "Fabrikam",
+      role: "Data Analyst",
+      jobUrl: "",
+      appliedAt: 1,
+      status: "applied",
+      stageReached: "applied",
+      statusChangedAt: 1,
+      notes: "",
+      followUpAt: null,
+      jobId: null,
+      hasPrep: false,
+      interviewAt: null,
+      createdAt: 1,
+      updatedAt: 1,
+      ...patch,
+    };
+  }
+
+  it("follows the server's link, then the copy it was sent with, then the job link", () => {
+    const tailored = copy("c1", "Dear Fabrikam,", 1);
+    const [onCopy] = letterEntries([], [tailored]);
+    const sent = app("sent", { resumeId: "c1" });
+    const byLink = app("link", { jobUrl: "https://jobs.example.com/7" });
+    expect(entryApplication(onCopy!, [sent, byLink], [tailored])?.id).toBe("sent");
+    const [saved] = letterEntries([writing("w1", { jobUrl: "jobs.example.com/7" })], []);
+    expect(entryApplication(saved!, [sent, byLink], [])?.id).toBe("link");
+    const [linked] = letterEntries([writing("w2", { applicationId: "sent" })], []);
+    expect(entryApplication(linked!, [sent, byLink], [])?.id).toBe("sent");
+    const [loose] = letterEntries([writing("w3", {})], []);
+    expect(entryApplication(loose!, [sent, byLink], [])).toBeNull();
   });
 });
 

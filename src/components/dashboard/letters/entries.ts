@@ -1,3 +1,5 @@
+import type { Application } from "@/lib/applications/schema";
+import { applicationForCopy, applicationForWriting } from "@/lib/applications/thread";
 import { resumeTitle } from "@/lib/resume/ops";
 import { emptyResume, type Resume } from "@/lib/resume/schema";
 import type { Writing, WritingKind } from "@/lib/writings/schema";
@@ -24,6 +26,9 @@ export type LetterEntry = {
   // deletes go to each.
   writingId: string | null;
   copyId: string | null;
+  // The application it was written for, as the server linked it. Null for one kept only on a
+  // copy, or written before there was an application.
+  applicationId: string | null;
 };
 
 export type LetterFilter = "all" | WritingKind;
@@ -50,6 +55,7 @@ function fromWriting(writing: Writing, copies: readonly Resume[]): LetterEntry {
     createdAt: writing.createdAt,
     writingId: writing.id,
     copyId: copy?.id ?? null,
+    applicationId: writing.applicationId,
   };
 }
 
@@ -73,6 +79,7 @@ function fromCopy(copy: Resume): LetterEntry | null {
     createdAt: meta.createdAt,
     writingId: null,
     copyId: copy.id,
+    applicationId: null,
   };
 }
 
@@ -100,6 +107,25 @@ export function filterEntries(entries: readonly LetterEntry[], filter: LetterFil
 export function kindCounts(entries: readonly LetterEntry[]): Record<LetterFilter, number> {
   const letters = entries.filter((entry) => entry.kind === "letter").length;
   return { all: entries.length, letter: letters, answer: entries.length - letters };
+}
+
+/**
+ * The application a letter or answer belongs to: the one the server linked, else the one its
+ * tailored copy went out with, else the one with its job link.
+ */
+export function entryApplication(
+  entry: Pick<LetterEntry, "applicationId" | "copyId" | "jobUrl">,
+  applications: readonly Application[],
+  resumes: readonly Resume[],
+): Application | null {
+  if (entry.applicationId) {
+    return applicationForWriting(applications, { applicationId: entry.applicationId, jobUrl: "" });
+  }
+  const copy = entry.copyId ? resumes.find((resume) => resume.id === entry.copyId) : undefined;
+  return (
+    (copy ? applicationForCopy(applications, copy) : null) ??
+    applicationForWriting(applications, { applicationId: null, jobUrl: entry.jobUrl })
+  );
 }
 
 /** "Product Designer at Northwind", or whichever half is known. */

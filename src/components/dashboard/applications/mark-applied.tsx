@@ -4,11 +4,12 @@ import Link from "next/link";
 import { useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { errorMessage } from "@/components/account/errors";
 import { roomForApplication } from "@/components/account/pro-tools";
-import { ROUTES } from "@/components/site/routes";
 import { Button, buttonClasses } from "@/components/ui/button";
 import { toast } from "@/components/ui/toast";
 import { undoToast } from "@/components/ui/undo-toast";
+import type { Application } from "@/lib/applications/schema";
 import { STATUS_NAMES } from "@/lib/applications/status";
+import { applicationForCopy, applicationHref, copyJobId } from "@/lib/applications/thread";
 import { resumeTitle } from "@/lib/resume/ops";
 import type { Resume } from "@/lib/resume/schema";
 import { useResumeList } from "@/lib/store/resume-store";
@@ -16,7 +17,7 @@ import { ApplicationDialog, type ApplicationDialogTarget } from "./application-d
 import { prefillFor } from "./form";
 import { StatusIcon } from "./status-menu";
 import { addApplication, commitDelete, hideApplication, useApplications } from "./use-applications";
-import { applicationAnchor, formatDay, latestFor } from "./view";
+import { formatDay } from "./view";
 
 // The card whose job was just marked applied with the one-click shortcut: Otto cheers on that
 // card only, so a second click elsewhere moves him rather than adding another.
@@ -33,6 +34,12 @@ function subscribeCheer(listener: () => void) {
   return () => {
     cheerListeners.delete(listener);
   };
+}
+
+/** The application a tailored copy went out with: sent as it, or for its job (see thread.ts). */
+export function useCopyApplication(resume: Resume): Application | null {
+  const { items } = useApplications();
+  return useMemo(() => applicationForCopy(items, resume), [items, resume]);
 }
 
 export function useJustApplied(resumeId: string): boolean {
@@ -52,7 +59,7 @@ export function MarkApplied({ resume, describedBy }: { resume: Resume; described
   const [target, setTarget] = useState<ApplicationDialogTarget | null>(null);
   const [saving, setSaving] = useState(false);
   const opened = useRef(0);
-  const latest = useMemo(() => latestFor(items, resume.id), [items, resume.id]);
+  const latest = useMemo(() => applicationForCopy(items, resume), [items, resume]);
 
   async function markApplied() {
     if (!(await roomForApplication(items.length))) return;
@@ -64,9 +71,11 @@ export function MarkApplied({ resume, describedBy }: { resume: Resume; described
     }
     setSaving(true);
     try {
+      // The copy's job and its letters join the same thread: the server links them by id and link.
       const application = await addApplication({
         resumeId: resume.id,
         resumeTitle: resumeTitle(resume).slice(0, 200),
+        jobId: copyJobId(resume),
         ...known,
         appliedAt: Date.now(),
         status: "applied",
@@ -101,7 +110,7 @@ export function MarkApplied({ resume, describedBy }: { resume: Resume; described
     <>
       {latest ? (
         <Link
-          href={`${ROUTES.dashboardApplications}#${applicationAnchor(latest.id)}`}
+          href={applicationHref(latest.id)}
           aria-describedby={describedBy}
           className={buttonClasses({
             variant: "ghost",
@@ -111,7 +120,7 @@ export function MarkApplied({ resume, describedBy }: { resume: Resume; described
         >
           <StatusIcon status={latest.status} />
           {STATUS_NAMES[latest.status]}
-          <span className="sr-only">: see this application</span>
+          <span className="sr-only">: open this application</span>
         </Link>
       ) : (
         <Button

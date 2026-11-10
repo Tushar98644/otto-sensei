@@ -16,10 +16,32 @@ export const PORTFOLIO_LINES = {
   behind: "Your resume changed since this copy. Update the page when you're ready.",
   noResume: "The resume behind this page isn't in this browser. The page keeps its own copy.",
   noResumes: "Add a resume first, then I can turn it into a page.",
-  // Over the eight designs on Free: drawn from their own resume, or from Jordan's without one.
-  previews: "Every design below is your own resume. Projects, photos and links make them shine.",
+  // Over the eight designs on Free: drawn from their own resume, or from Jordan's sample page.
+  previews:
+    "Every design below is your own resume. Open one full page to see it as visitors would.",
   previewsSample: "These show a sample page. Add a resume and I'll draw each design with yours.",
+  // They have a resume, but the sample is on (it starts there when theirs is thin).
+  previewsThin: "These show a sample page with every part filled in. Switch to yours any time.",
 } as const;
+
+/** "No views yet", "1 view", "1,284 views": the top bar's count for a live page. */
+export function viewsLabel(views: number): string {
+  if (views <= 0) return "No views yet";
+  return `${count.format(views)} ${views === 1 ? "view" : "views"}`;
+}
+
+/** What the owner's last change is doing, beside the page's status. Every change saves at once. */
+export function saveLabel(saving: boolean, live: boolean): string {
+  if (saving) return "Saving…";
+  return live ? "Saved to your live page" : "All changes saved";
+}
+
+/** Why Publish is off during a trial: the page is built and previewed now, it goes live once paid. */
+export function publishNote(trialEnd: string | null): string {
+  return trialEnd
+    ? `Publishing starts with paid Pro, after your trial ends on ${trialEnd}. Until then only you can see this page.`
+    : "Publishing comes with paid Pro, and we host the page for you. Until then only you can see it.";
+}
 
 /** The facts line for Otto's note: "3 projects · 2 jobs". */
 export function portfolioFacts(counts: { projects: number; jobs: number; skills: number }): string {

@@ -1,0 +1,192 @@
+"use client";
+
+import { useEffect, useRef, useState, type ReactNode, type RefObject } from "react";
+import { useReel } from "./root";
+
+// Hamish's hooks (useInViewport, useInterval) and his Transition component, a small
+// react-transition-group over framer-motion's AnimatePresence, rebuilt without framer-motion.
+
+export function useInViewport(
+  elementRef: RefObject<Element | null>,
+  unobserveOnIntersect = false,
+  options: IntersectionObserverInit = {},
+  shouldObserve = true,
+): boolean {
+  const [intersect, setIntersect] = useState(false);
+  const [isUnobserved, setIsUnobserved] = useState(false);
+  const { root, rootMargin, threshold } = options;
+
+  useEffect(() => {
+    const element = elementRef.current;
+    if (!element) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (!entry) return;
+        setIntersect(entry.isIntersecting);
+        if (entry.isIntersecting && unobserveOnIntersect) {
+          observer.unobserve(entry.target);
+          setIsUnobserved(true);
+        }
+      },
+      { root, rootMargin, threshold },
+    );
+    if (!isUnobserved && shouldObserve) observer.observe(element);
+    return () => observer.disconnect();
+  }, [elementRef, unobserveOnIntersect, root, rootMargin, threshold, isUnobserved, shouldObserve]);
+
+  return intersect;
+}
+
+export function useInterval(callback: () => void, delay: number | null, reset?: unknown) {
+  const saved = useRef(callback);
+  useEffect(() => {
+    saved.current = callback;
+  });
+  useEffect(() => {
+    if (delay === null) return;
+    const id = window.setInterval(() => saved.current(), delay);
+    return () => window.clearInterval(id);
+  }, [delay, reset]);
+}
+
+/**
+ * Hamish's section trigger (routes/home/home.jsx): a section shows once 10% of it is inside the
+ * window, less its bottom tenth, and stays shown. Cards show everything at once.
+ */
+export function useSectionVisible(ref: RefObject<Element | null>): boolean {
+  const { mode } = useReel();
+  const [seen, setSeen] = useState(false);
+  useEffect(() => {
+    const section = ref.current;
+    if (!section || mode === "ssr" || mode === "still" || seen) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((entry) => entry.isIntersecting)) {
+          observer.disconnect();
+          setSeen(true);
+        }
+      },
+      { rootMargin: "0px 0px -10% 0px", threshold: 0.1 },
+    );
+    observer.observe(section);
+    return () => observer.disconnect();
+  }, [ref, mode, seen]);
+  return seen || mode === "still";
+}
+
+export type TransitionStatus = "entering" | "entered" | "exiting" | "exited";
+type Timeout = number | { enter: number; exit: number };
+type RenderProps = { visible: boolean; status: TransitionStatus };
+
+/**
+ * <Transition in={show} timeout={3000}>{({ visible, status }) => ...}</Transition>: status goes
+ * exited, entering, then entered after the timeout; with `unmount` it leaves the tree after
+ * exiting. Nothing starts before the page knows where it's drawn, and cards skip straight to the
+ * end.
+ */
+export function Transition({
+  in: show,
+  unmount = false,
+  initial = true,
+  timeout = 0,
+  children,
+}: {
+  in: boolean;
+  unmount?: boolean;
+  initial?: boolean;
+  timeout?: Timeout;
+  children: (props: RenderProps) => ReactNode;
+}) {
+  const { mode } = useReel();
+  const [present, setPresent] = useState(show || !unmount);
+  const [generation, setGeneration] = useState(0);
+
+  // Shown again after leaving: a fresh run from the start, like AnimatePresence remounting it.
+  if (show && !present) {
+    setPresent(true);
+    setGeneration(generation + 1);
+  }
+
+  if (!present) return null;
+  if (mode === "still") {
+    if (!show && unmount) return null;
+    return children({ visible: show, status: show ? "entered" : "exited" });
+  }
+  return (
+    <TransitionContent
+      key={generation}
+      show={show}
+      isPresent={show || !unmount}
+      initial={initial}
+      timeout={timeout}
+      onRemove={() => setPresent(false)}
+    >
+      {children}
+    </TransitionContent>
+  );
+}
+
+function TransitionContent({
+  show,
+  isPresent,
+  initial,
+  timeout,
+  onRemove,
+  children,
+}: {
+  show: boolean;
+  isPresent: boolean;
+  initial: boolean;
+  timeout: Timeout;
+  onRemove: () => void;
+  children: (props: RenderProps) => ReactNode;
+}) {
+  const { mode } = useReel();
+  const [status, setStatus] = useState<TransitionStatus>(initial ? "exited" : "entered");
+  const [hasEntered, setHasEntered] = useState(!initial);
+  const enterTimer = useRef(0);
+  const exitTimer = useRef(0);
+  const enterTimeout = typeof timeout === "object" ? timeout.enter : timeout;
+  const exitTimeout = typeof timeout === "object" ? timeout.exit : timeout;
+  const removeRef = useRef(onRemove);
+  useEffect(() => {
+    removeRef.current = onRemove;
+  });
+
+  // Each change is scheduled a tick later, as framer-motion's presence does, never set straight
+  // from the effect.
+  useEffect(() => {
+    if (mode === "ssr" || hasEntered || !show) return;
+    const start = window.setTimeout(() => {
+      window.clearTimeout(exitTimer.current);
+      setHasEntered(true);
+      setStatus("entering");
+      enterTimer.current = window.setTimeout(() => setStatus("entered"), enterTimeout);
+    }, 0);
+    return () => window.clearTimeout(start);
+  }, [mode, hasEntered, show, enterTimeout]);
+
+  useEffect(() => {
+    if (mode === "ssr" || (isPresent && show) || !hasEntered) return;
+    const start = window.setTimeout(() => {
+      window.clearTimeout(enterTimer.current);
+      setStatus("exiting");
+      exitTimer.current = window.setTimeout(() => {
+        setStatus("exited");
+        if (!isPresent) removeRef.current();
+      }, exitTimeout);
+    }, 0);
+    return () => window.clearTimeout(start);
+  }, [mode, isPresent, show, hasEntered, exitTimeout]);
+
+  useEffect(
+    () => () => {
+      window.clearTimeout(enterTimer.current);
+      window.clearTimeout(exitTimer.current);
+    },
+    [],
+  );
+
+  const visible = hasEntered && show ? isPresent : false;
+  return children({ visible, status });
+}

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { applyDesign } from "@/components/pdf/design";
+import { applyDesign, tint } from "@/components/pdf/design";
 import { TEMPLATE_THEMES, themeFor } from "@/components/pdf/themes";
 import { emptyResume, type Resume } from "@/lib/resume/schema";
 import { ACCENT_COLORS, designKey, designOf, sameDesign, withDesign } from "./design";
@@ -43,30 +43,48 @@ describe("applyDesign", () => {
     for (const theme of Object.values(TEMPLATE_THEMES)) expect(applyDesign(theme, {})).toBe(theme);
   });
 
-  it("colors headings and drawn rules, and adds no rule a format doesn't draw", () => {
+  it("colors what each format colors, and adds no rule a format doesn't draw", () => {
     const color = ACCENT_COLORS.burgundy;
     const classic = applyDesign(TEMPLATE_THEMES.classic, { accent: "burgundy" }).styles;
-    expect(classic.sectionTitle).toMatchObject({ color, borderBottomColor: color });
+    expect(classic.sectionTitle.color).toBe(color);
+    expect(classic.sectionTitle.borderBottomColor).toBeUndefined();
     const minimal = applyDesign(TEMPLATE_THEMES.minimal, { accent: "burgundy" }).styles;
     expect(minimal.sectionTitle.color).toBe(color);
-    expect(minimal.sectionTitle.borderBottomColor).toBe(
-      TEMPLATE_THEMES.minimal.styles.sectionTitle.borderBottomColor,
+    expect(minimal.sectionTitleRule.borderBottomColor).toBe(color);
+    // Modern: only the heading's first letters, the headline and places take the accent; its
+    // rules stay gray, as in Awesome-CV.
+    const modern = applyDesign(TEMPLATE_THEMES.modern, { accent: "forest" }).styles;
+    expect(modern.sectionTitleAccent.color).toBe(ACCENT_COLORS.forest);
+    expect(modern.headline.color).toBe(ACCENT_COLORS.forest);
+    expect(modern.sectionTitle.color).toBe(TEMPLATE_THEMES.modern.styles.sectionTitle.color);
+    expect(modern.sectionTitleRule.borderBottomColor).toBe(
+      TEMPLATE_THEMES.modern.styles.sectionTitleRule.borderBottomColor,
     );
-    const modern = applyDesign(TEMPLATE_THEMES.modern, { accent: "burgundy" }).styles;
-    expect(modern.sectionTitleRule.borderBottomColor).toBe(color);
+    // Executive: the name, headings and bullets, with the rule a light tint of the same hue.
     const executive = applyDesign(TEMPLATE_THEMES.executive, { accent: "burgundy" }).styles;
-    expect(executive.headerRule.borderBottomColor).toBe(color);
+    expect(executive.name.color).toBe(color);
+    expect(executive.bulletGlyph.color).toBe(color);
+    expect(executive.sectionTitleRule.borderBottomColor).toBe(tint(color, 0.55));
     // Body text stays ink.
     expect(classic.page.color).toBe(TEMPLATE_THEMES.classic.styles.page.color);
   });
 
-  it("swaps the body family but keeps Developer's code-style Courier", () => {
+  it("swaps every family a format uses for the chosen one", () => {
     const serif = applyDesign(TEMPLATE_THEMES.developer, { font: "serif" }).styles;
-    expect(serif.page.fontFamily).toBe("Times-Roman");
-    expect(serif.sectionTitle.fontFamily).toBe("Courier");
-    expect(serif.skillItems.fontFamily).toBe("Courier");
-    const sans = applyDesign(TEMPLATE_THEMES.executive, { font: "sans" }).styles;
-    expect(sans.page.fontFamily).toBe("Helvetica");
+    expect(serif.page.fontFamily).toBe("Tinos");
+    const sans = applyDesign(TEMPLATE_THEMES.modern, { font: "sans" }).styles;
+    expect(sans.page.fontFamily).toBe("Carlito");
+    // Modern's Roboto name and contact lines too.
+    expect(sans.name.fontFamily).toBe("Carlito");
+    expect(sans.contact.fontFamily).toBe("Carlito");
+  });
+
+  it("draws the bullet and swaps a separator the chosen font has no glyph for", () => {
+    expect(applyDesign(TEMPLATE_THEMES.compact, {}).drawBullet).toBeFalsy();
+    const sans = applyDesign(TEMPLATE_THEMES.compact, { font: "sans" });
+    expect(sans.drawBullet).toBe(true);
+    expect(sans.contactSeparator).toBe(" | ");
+    expect(applyDesign(TEMPLATE_THEMES.compact, { font: "serif" }).contactSeparator).toBe(" ■ ");
   });
 
   it("takes about 10% off the spacing with compact, never the type size", () => {
@@ -83,7 +101,7 @@ describe("applyDesign", () => {
 
   it("is what themeFor prints", () => {
     const styled = resume({ accent: "slate", font: "serif" });
-    expect(themeFor({ ...styled, template: "modern" }).styles.page.fontFamily).toBe("Times-Roman");
+    expect(themeFor({ ...styled, template: "modern" }).styles.page.fontFamily).toBe("Tinos");
     expect(themeFor(styled, "classic").styles.sectionTitle.color).toBe(ACCENT_COLORS.slate);
   });
 });

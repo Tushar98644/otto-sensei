@@ -5,12 +5,14 @@ import { useNow } from "@/components/studio/use-now";
 import { api } from "@/lib/api/client";
 import type { JobMatchesResponse } from "@/lib/api/types";
 import { deviceTimeZone } from "@/lib/eligibility/options";
+import type { WorkProfile } from "@/lib/eligibility/profile";
+import { lookingForOf } from "@/lib/job-feed/looking-for";
 import { matchProfileOf } from "@/lib/job-feed/profile";
-import type { JobFilters } from "@/lib/job-feed/types";
+import type { JobFilters, LookingForChoice } from "@/lib/job-feed/types";
 import type { Resume } from "@/lib/resume/schema";
 
-// One POST /api/jobs/matches per resume, view, filter and page. Only the resume's skills, titles
-// and years go out (matchProfileOf). Status is derived from which request the last answer was
+// One POST /api/jobs/matches per resume, view, filter, page and "Looking for". Only the resume's
+// skills, titles and years go out (matchProfileOf), with the card as shown. Status is derived from which request the last answer was
 // for, so nothing is set synchronously in an effect.
 
 export type JobView = "matches" | "saved";
@@ -30,11 +32,16 @@ export function useJobMatches({
   view,
   filters,
   page,
+  choice,
+  workProfile,
 }: {
   resume: Resume | null;
   view: JobView;
   filters: JobFilters;
   page: number;
+  // What the person changed on the "Looking for" card; the rest is guessed.
+  choice: LookingForChoice;
+  workProfile: WorkProfile | null;
 }) {
   const [answer, setAnswer] = useState<Answer | null>(null);
   const [attempt, setAttempt] = useState(0);
@@ -46,12 +53,16 @@ export function useJobMatches({
     () => (resume && day > 0 ? matchProfileOf(resume, day * DAY_MS) : null),
     [resume, day],
   );
+  const lookingFor = useMemo(
+    () => (profile ? lookingForOf(profile, workProfile, choice) : null),
+    [profile, workProfile, choice],
+  );
   const body = useMemo(
     () =>
       profile
-        ? { view, profile, filters, page, deviceTimeZone: deviceTimeZone() }
+        ? { view, profile, filters, page, lookingFor, deviceTimeZone: deviceTimeZone() }
         : null,
-    [profile, view, filters, page],
+    [profile, view, filters, page, lookingFor],
   );
   const key = body ? `${JSON.stringify(body)}|${attempt}` : null;
 
@@ -83,5 +94,5 @@ export function useJobMatches({
   else if (answer?.key === key && answer.data) state = { status: "ready", data: answer.data };
   else if (answer?.key === key) state = { status: "error", error: answer.error };
   else state = { status: "loading", previous: answer?.data ?? null };
-  return { state, retry, patch, profile };
+  return { state, retry, patch, profile, lookingFor };
 }

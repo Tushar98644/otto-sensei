@@ -34,6 +34,8 @@ import { LineChip, LineDescription, LineTip, useLineLint } from "./lint-notes";
 import { ICON_ACTION_CLASSES, MoveButtons } from "./move-buttons";
 import { editLines, getResume, useBulletIssues, useIsLinted } from "./use-editor";
 
+const SHOWN_ON_FOCUS = "sr-only group-focus-within/line:not-sr-only pointer-coarse:not-sr-only";
+
 export type BulletRowProps = {
   resumeId: string;
   section: BulletSection;
@@ -47,9 +49,11 @@ export type BulletRowProps = {
 };
 
 // One resume line: a ruled row holding the field and a status chip at its end. The tools under it
-// (tip, "Fix with Otto", move, hide, delete) show while the line has focus, and always on touch
-// screens. Not on hover: a row that grows under the pointer makes the whole list jump. They stay focusable and in the
-// accessibility tree (sr-only, never hidden), so Tab reaches them and focus can land on them.
+// ("Fix with Otto", move, hide, delete, tip) show while the line has focus, and always on touch
+// screens; a line with something to fix shows "Fix with Otto" all the time, so nobody has to find
+// it. Not on hover: a row that grows under the pointer makes the whole list jump. They stay
+// focusable and in the accessibility tree (sr-only, never hidden), so Tab reaches them and focus
+// can land on them.
 // Memoized and fed only primitives plus its own bullet, so typing in one line re-renders that line
 // alone. Handlers read the store at call time instead of taking callbacks.
 export const BulletRow = memo(function BulletRow({
@@ -75,6 +79,7 @@ export const BulletRow = memo(function BulletRow({
   // hidden line's chip says so; under a hidden entry, the entry's own chip already does.
   const linted = useIsLinted(resumeId, bullet.id);
   const lint = useLineLint(issues, hasText && linted);
+  const flagged = !hidden && lint !== null && lint.length > 0;
 
   function edit(update: (bullets: Bullet[]) => Bullet[]) {
     editLines(resumeId, section, (resume) => editBullets(resume, { section, parentId }, update));
@@ -238,10 +243,10 @@ export const BulletRow = memo(function BulletRow({
       ) : (
         <LineDescription id={lintId} issues={lint} />
       )}
-      {/* not-sr-only resets padding and margin, so the spacing lives on the inner row. */}
-      <div className="sr-only group-focus-within/line:not-sr-only pointer-coarse:not-sr-only">
+      {/* not-sr-only resets padding and margin, so the spacing lives on the inner row. A line
+          with something to fix keeps "Fix with Otto" in view; the other tools wait for focus. */}
+      <div className={cn(!flagged && SHOWN_ON_FOCUS)}>
         <div className="flex flex-col gap-1 pt-2 pb-1">
-          {lint ? <LineTip issues={lint} /> : null}
           <div className="flex items-center gap-1">
             <Button
               variant="ghost"
@@ -254,34 +259,43 @@ export const BulletRow = memo(function BulletRow({
               <OttoMark tone="line" small className="size-5 text-ink" />
               Fix with Otto
             </Button>
-            <div className="-mr-2 ml-auto flex items-center">
-              <MoveButtons
-                label={`line ${position}`}
-                canMoveUp={index > 0}
-                canMoveDown={index < count - 1}
-                onMove={(delta) => edit((bullets) => moveItem(bullets, bullet.id, delta))}
-              />
-              <HideToggle
-                label={`line ${position}`}
-                hidden={hidden}
-                onToggle={() =>
-                  edit((bullets) =>
-                    patchItem(bullets, bullet.id, (line) => setHidden(line, !hidden)),
-                  )
-                }
-              />
-              <Button
-                id={bulletDeleteId(bullet.id)}
-                variant="ghost"
-                size="icon"
-                aria-label={`Delete line ${position}`}
-                onClick={() => remove("button")}
-                className={ICON_ACTION_CLASSES}
-              >
-                <Trash />
-              </Button>
+            {/* flex-1 rather than ml-auto: not-sr-only resets margins. */}
+            <div className={cn("flex flex-1 justify-end", flagged && SHOWN_ON_FOCUS)}>
+              <div className="-mr-2 flex items-center">
+                <MoveButtons
+                  label={`line ${position}`}
+                  canMoveUp={index > 0}
+                  canMoveDown={index < count - 1}
+                  onMove={(delta) => edit((bullets) => moveItem(bullets, bullet.id, delta))}
+                />
+                <HideToggle
+                  label={`line ${position}`}
+                  hidden={hidden}
+                  onToggle={() =>
+                    edit((bullets) =>
+                      patchItem(bullets, bullet.id, (line) => setHidden(line, !hidden)),
+                    )
+                  }
+                />
+                <Button
+                  id={bulletDeleteId(bullet.id)}
+                  variant="ghost"
+                  size="icon"
+                  aria-label={`Delete line ${position}`}
+                  onClick={() => remove("button")}
+                  className={ICON_ACTION_CLASSES}
+                >
+                  <Trash />
+                </Button>
+              </div>
             </div>
           </div>
+          {/* Under the buttons, so the tip appearing on focus never moves the button being pressed. */}
+          {lint ? (
+            <div className={cn(flagged && SHOWN_ON_FOCUS)}>
+              <LineTip issues={lint} />
+            </div>
+          ) : null}
         </div>
       </div>
     </li>

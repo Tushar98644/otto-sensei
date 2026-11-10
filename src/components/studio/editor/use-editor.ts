@@ -2,6 +2,7 @@
 
 import { useShallow } from "zustand/react/shallow";
 import type { LintIssue, ResumeLint } from "@/lib/lint/types";
+import { firstWeakLine } from "@/lib/lint/weak-lines";
 import type { BulletSection } from "@/lib/resume/ops";
 import {
   extrasOf,
@@ -108,6 +109,17 @@ export function useIsLinted(resumeId: string, bulletId: string): boolean {
   return useStudioStore((state) => {
     const resume = pickResume(state, resumeId);
     return resume ? lintOf(resume).byBullet.has(bulletId) : false;
+  });
+}
+
+// The line "Fix the first weak line" opens, from the cached lint. A string, so it only re-renders
+// when that line changes.
+export function useFirstWeakLine(resumeId: string): string | null {
+  return useStudioStore((state) => {
+    const resume = pickResume(state, resumeId);
+    if (!resume) return null;
+    const { byBullet } = lintOf(resume);
+    return firstWeakLine(resume, (bulletId) => byBullet.get(bulletId));
   });
 }
 

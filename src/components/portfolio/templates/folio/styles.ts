@@ -67,8 +67,7 @@ a { color: inherit; text-decoration: none; }
 .main { max-width: 640px; margin: 0 auto; padding: 70px 14px 84px; }
 .stack { display: flex; flex-direction: column; gap: 56px; }
 .intro { display: flex; flex-direction: column; gap: 14px; }
-.avatar { width: 28px; height: 28px; border-radius: 9999px; object-fit: cover; }
-div.avatar { display: flex; align-items: center; justify-content: center; background: var(--sand4); color: var(--sand11); font-size: 10px; font-weight: 600; }
+.avatar { display: flex; align-items: center; justify-content: center; width: 28px; height: 28px; border-radius: 9999px; background: var(--sand4); color: var(--sand11); font-size: 10px; font-weight: 600; }
 h1 { font-size: 14px; line-height: 21px; font-weight: 500; }
 .intro .mark { color: var(--sand12); }
 .connect { display: flex; flex-wrap: wrap; gap: 4px 21px; }
@@ -86,20 +85,18 @@ h1 { font-size: 14px; line-height: 21px; font-weight: 500; }
 .card > .graphic, .card > .text { position: relative; z-index: 10; pointer-events: none; }
 .card > .text { display: flex; flex-direction: column; gap: 3.5px; }
 h3 { font-size: 14px; line-height: 21px; font-weight: 500; }
-.shot { overflow: hidden; border-radius: 10.5px; background: var(--tile); box-shadow: inset 0 0 0 1px var(--inner-shadow); }
-.shot img, .shot video { display: block; width: 100%; height: auto; clip-path: inset(0 0 1px 0); }
-.tile { position: relative; display: grid; place-items: center; height: 283px; overflow: hidden; border-radius: 10.5px; background: var(--tile); }
-.tile img.tall { height: 251px; width: auto; border-radius: 14px; object-fit: contain; }
-.app-icon { display: flex; align-items: center; justify-content: center; width: 120px; height: 120px; border-radius: 27px; object-fit: cover; }
-div.app-icon { background: linear-gradient(160deg, #3a3a3a, #161616 70%); box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.18), inset 0 0 0 1px rgb(255 255 255 / 0.08), 0 10px 30px rgb(0 0 0 / 0.5); color: #f4f4f2; font-size: 40px; font-weight: 600; letter-spacing: -0.02em; }
+.tile { position: relative; isolation: isolate; display: grid; place-items: center; height: 283px; overflow: hidden; border-radius: 10.5px; background: radial-gradient(60% 80% at var(--glow-x, 50%) 50%, oklch(0.42 0.12 var(--hue, 250) / 0.35), transparent 70%), var(--tile); }
+/* A faint dot screen behind the icon, fading out from the middle */
+.tile::before { content: ""; position: absolute; inset: 0; z-index: -1; background: radial-gradient(rgb(255 255 255 / 0.09) 1px, transparent 1.4px) 0 0 / 14px 14px; -webkit-mask-image: radial-gradient(circle at 50% 50%, #000, transparent 65%); mask-image: radial-gradient(circle at 50% 50%, #000, transparent 65%); }
+.app-icon { display: flex; align-items: center; justify-content: center; width: 120px; height: 120px; border-radius: 27px; background: linear-gradient(160deg, oklch(0.72 0.14 var(--hue-2, 250)), oklch(0.42 0.13 var(--hue, 250)) 75%); box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.3), inset 0 0 0 1px rgb(255 255 255 / 0.1), 0 10px 30px rgb(0 0 0 / 0.5); color: #fff; font-size: 40px; font-weight: 600; letter-spacing: -0.02em; text-shadow: 0 1px 2px rgb(0 0 0 / 0.25); }
+@media (prefers-reduced-motion: no-preference) { .app-icon { transition: transform 300ms cubic-bezier(0.34, 1.56, 0.64, 1); } .card:hover .app-icon { transform: scale(1.04) rotate(-2deg); } }
 
 /* Work (components/Workplaces.tsx) */
 .places { display: flex; flex-direction: column; gap: 28px; }
 .place { display: flex; justify-content: space-between; gap: 14px; }
 a.place { margin: -7px -10.5px; padding: 7px 10.5px; }
 .place-main { display: flex; align-items: center; gap: 14px; min-width: 0; }
-.logo { width: 48px; height: 48px; flex: none; border-radius: 9999px; object-fit: cover; }
-div.logo { display: flex; align-items: center; justify-content: center; background: var(--sand4); color: var(--sand11); font-size: 14px; font-weight: 600; }
+.logo { display: flex; flex: none; align-items: center; justify-content: center; width: 48px; height: 48px; border-radius: 9999px; background: var(--sand4); color: var(--sand11); font-size: 14px; font-weight: 600; }
 .place-text { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
 .place time { flex: none; color: var(--sand11); font-variant-numeric: tabular-nums; }
 .external-arrow::after { content: "↗"; margin-left: 3px; color: var(--sand11); }

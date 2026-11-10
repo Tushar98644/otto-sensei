@@ -8,10 +8,15 @@ import {
   pgTable,
   primaryKey,
   real,
+  smallint,
   text,
   uuid,
 } from "drizzle-orm/pg-core";
-import { APPLICATION_STAGES, APPLICATION_STATUSES } from "@/lib/applications/status";
+import {
+  APPLICATION_STAGES,
+  APPLICATION_STATUSES,
+  type StatusEvent,
+} from "@/lib/applications/status";
 import { WORK_RIGHTS } from "@/lib/eligibility/profile";
 import { FEEDBACK_KINDS } from "@/lib/feedback/types";
 import {
@@ -160,13 +165,18 @@ export const applications = pgTable(
     statusChangedAt: epochMs("status_changed_at").notNull(),
     notes: text("notes").notNull().default(""),
     // Interview prep pack (20261108000600_application_prep.sql). Validated with InterviewPrepSchema
-    // on write and on read; null until one is made.
+    // on write and read with readPrep, which also reads v1 packs; null until one is made.
     prep: jsonb("prep").$type<InterviewPrep>(),
     // When the daily follow-up job last reminded the user about it (20261108000300_notifications.sql).
     remindedAt: epochMs("reminded_at"),
     // When the next follow-up reminder is due (20261108000700_follow_up_dates.sql); null for none.
     // Reminded once per date: remindedAt at or past it means that date is done.
     followUpAt: epochMs("follow_up_at"),
+    // The opening it's for, and every status it has had (20261109003000_linked_threads.sql).
+    jobId: uuid("job_id"),
+    statusHistory: jsonb("status_history").$type<StatusEvent[]>().notNull().default([]),
+    // When the interview is, if the person said (20261109004000_interview_dates.sql).
+    interviewAt: epochMs("interview_at"),
     createdAt: epochMs("created_at").notNull(),
     updatedAt: epochMs("updated_at").notNull(),
   },
@@ -191,6 +201,12 @@ export const workProfiles = pgTable("work_profiles", {
   contract: boolean("contract").notNull().default(true),
   // Only remote jobs, please: the Jobs tab's default filter (20261108001000_jobs.sql).
   remoteOnly: boolean("remote_only").notNull().default(false),
+  // The Jobs tab's "Looking for" card, only the parts the person changed; null follows the
+  // resume (20261109006100_looking_for.sql).
+  targetTitle: text("target_title"),
+  targetFamily: text("target_family", { enum: ROLE_FAMILIES }),
+  targetLevel: text("target_level", { enum: SENIORITIES }),
+  targetPlace: text("target_place"),
   createdAt: epochMs("created_at").notNull(),
   updatedAt: epochMs("updated_at").notNull(),
 });
@@ -350,6 +366,62 @@ export const jobSkills = pgTable("job_skills", {
   updatedAt: epochMs("updated_at").notNull(),
 });
 
+// Ranking's narrow copy of the jobs, rebuilt after each ingest (20261109006200_match_index.sql,
+// src/lib/job-feed/match-index.ts), with the skill ids it uses and the counts the site states.
+export const matchSkills = pgTable("match_skills", {
+  sid: integer("sid").primaryKey(),
+  skill: text("skill").notNull(),
+});
+
+export const jobMatch = pgTable("job_match", {
+  id: uuid("id").primaryKey(),
+  grp: text("grp").notNull(),
+  company: text("company").notNull(),
+  family: text("family", { enum: ROLE_FAMILIES }),
+  level: smallint("level").notNull(),
+  sids: integer("sids").array().notNull(),
+  places: text("places").array().notNull().default([]),
+  remote: boolean("remote").notNull(),
+  postedAt: epochMs("posted_at").notNull(),
+  seenAt: epochMs("seen_at").notNull(),
+  ukSponsor: boolean("uk_sponsor").notNull().default(false),
+  h1bYear: smallint("h1b_year"),
+});
+
+export const jobCountsRow = pgTable("job_counts", {
+  id: smallint("id").primaryKey().default(1),
+  openJobs: integer("open_jobs").notNull(),
+  matchable: integer("matchable").notNull(),
+  checkedAt: epochMs("checked_at"),
+  builtAt: epochMs("built_at").notNull(),
+});
+
+// One page of Matches kept a day (unlogged; the cleanup cron deletes old rows).
+export const matchCache = pgTable(
+  "match_cache",
+  {
+    userId: uuid("user_id").notNull(),
+    key: text("key").notNull(),
+    value: jsonb("value").notNull(),
+    createdAt: epochMs("created_at").notNull(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.userId, t.key] }),
+    index("match_cache_created_idx").on(t.createdAt),
+  ],
+);
+
+// Companies on public visa registers, for the job card and the work-rights check
+// (20261109006300_company_visa.sql, scripts/visa-registers.ts).
+export const companyVisa = pgTable("company_visa", {
+  companyKey: text("company_key").primaryKey(),
+  ukName: text("uk_name"),
+  h1bYear: smallint("h1b_year"),
+  h1bApprovals: integer("h1b_approvals"),
+  usName: text("us_name"),
+  checkedAt: epochMs("checked_at").notNull(),
+});
+
 // What the Jobs tab showed and what was done with it (20261109002000_match_events.sql). Never the
 // resume or contact details.
 export const matchEvents = pgTable(
@@ -401,8 +473,11 @@ export const portfolios = pgTable(
     sync: boolean("sync").notNull().default(true),
     published: boolean("published").notNull().default(false),
     allowIndexing: boolean("allow_indexing").notNull().default(false),
+    // Unused since 2026-11-09, when the "Made with" line was dropped from every page. Kept so the
+    // schema still matches the migrations.
     hideCredit: boolean("hide_credit").notNull().default(false),
-    // Project id -> https picture address (20261108003000_portfolio_templates.sql); re-checked on read.
+    // Unused since 2026-11-10, when portfolios became text only (no pictures). Kept so the schema
+    // still matches the migrations (20261108003000_portfolio_templates.sql).
     projectImages: jsonb("project_images").$type<Record<string, string>>().notNull().default({}),
     // What the rich templates show beyond the resume (20261108005000_portfolio_content.sql),
     // checked with PortfolioContentSchema on write and read.
@@ -430,8 +505,8 @@ export const portfolioRedirects = pgTable(
   (t) => [index("portfolio_redirects_portfolio_idx").on(t.portfolioId, t.createdAt)],
 );
 
-// Uploaded portfolio pictures (20261108005000_portfolio_content.sql); the files are in the media
-// store under `key`. detachedAt: when the saved content stopped using it, null while in use.
+// Unused since 2026-11-10, when portfolios became text only: nothing uploads, stores or reads
+// pictures any more. Kept so the schema still matches 20261108005000_portfolio_content.sql.
 export const portfolioMedia = pgTable(
   "portfolio_media",
   {
@@ -466,6 +541,8 @@ export const writings = pgTable(
     body: text("body").notNull(),
     warnings: jsonb("warnings").$type<string[]>().notNull().default([]),
     demo: boolean("demo").notNull().default(false),
+    // The application it was written for (20261109003000_linked_threads.sql).
+    applicationId: uuid("application_id"),
     createdAt: epochMs("created_at").notNull(),
     updatedAt: epochMs("updated_at").notNull(),
   },

@@ -9,19 +9,20 @@ import {
   Marked,
   nameOf,
   OutLink,
-  Picture,
   allSkills,
   TemplateStyle,
 } from "../parts";
 import { RevealOnScroll } from "../reveal";
 import type { PortfolioTemplateProps } from "../types";
 import { JobTabs, NavMenu, NavScroll, ShowMore, type NavLink, type NavyJob } from "./islands";
+import { CodeScreen } from "./screen";
 import { NAVY_CSS } from "./styles";
 
 // Navy: a rebuild of Brittany Chiang's v4 (github.com/bchiang7/v4, MIT; ./LICENSE.txt) for
 // anyone's data. Same page: fixed header with numbered links, socials and email pinned to the
-// sides, hero, "About Me" with a tinted photo, jobs as company tabs, featured projects with a big
-// screenshot under an overlapping card, a grid of other projects, and "Get In Touch".
+// sides, hero, "About Me" with a tinted initials tile, jobs as company tabs, featured projects
+// with a big drawn code window (in place of his screenshots) under an overlapping card, a grid of
+// other projects, and "Get In Touch".
 
 const A = {
   top: "pf-navy-top",
@@ -57,7 +58,7 @@ function ProjectLinks({ project }: { project: ContentProject }) {
 
 function Featured({ project }: { project: ContentProject }) {
   const href = project.website?.href ?? project.source?.href ?? null;
-  const image = project.images[0]!;
+  const screen = <CodeScreen project={project} />;
   return (
     <li className="project" data-reveal>
       <div className="project-content">
@@ -82,15 +83,7 @@ function Featured({ project }: { project: ContentProject }) {
         </div>
       </div>
       <div className="project-image">
-        {href ? (
-          <OutLink href={href}>
-            <Picture image={image} className="img" />
-          </OutLink>
-        ) : (
-          <div className="frame">
-            <Picture image={image} className="img" />
-          </div>
-        )}
+        {href ? <OutLink href={href}>{screen}</OutLink> : <div className="frame">{screen}</div>}
       </div>
     </li>
   );
@@ -137,8 +130,7 @@ export function NavyTemplate({ view, content, footer }: PortfolioTemplateProps) 
   const socials = content.socials.filter((social) => social.kind !== "email");
   const skills = allSkills(view).slice(0, ABOUT_SKILLS);
   const hasAbout = content.about.length > 0 || skills.length > 0;
-  const ordered = featuredFirst(content.projects);
-  const featured = ordered.filter((project) => project.images.length > 0).slice(0, FEATURED_MAX);
+  const featured = featuredFirst(content.projects).slice(0, FEATURED_MAX);
   const others = content.projects.filter((project) => !featured.includes(project));
   const hello = contactHref(content);
 
@@ -296,13 +288,9 @@ export function NavyTemplate({ view, content, footer }: PortfolioTemplateProps) 
                 </div>
                 <div className="pic">
                   <div className="wrapper">
-                    {content.photo ? (
-                      <Picture image={content.photo} className="img" />
-                    ) : (
-                      <div className="initials" aria-hidden>
-                        {content.initials || initial}
-                      </div>
-                    )}
+                    <div className="initials" aria-hidden>
+                      {content.initials || initial}
+                    </div>
                   </div>
                 </div>
               </div>

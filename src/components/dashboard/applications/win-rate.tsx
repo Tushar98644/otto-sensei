@@ -25,7 +25,7 @@ const number = new Intl.NumberFormat("en-US");
 // Versions listed before "Show all": tailored copies are often sent once each, so the list grows.
 const FIRST_VERSIONS = 6;
 
-// The full win rate on the Applications page: the four counts, the rate with how much it can
+// The full win rate on the Applications page: the three counts, the rate with how much it can
 // swing, then the same per resume version.
 export function WinRate({
   items,
@@ -45,7 +45,7 @@ export function WinRate({
       </h2>
       <FolderCard tab="Win rate" bodyClassName="overflow-hidden p-0">
         {/* Hairlines between the numbers: the 1px gaps let the border color show through. */}
-        <dl className="grid grid-cols-2 gap-px bg-border lg:grid-cols-4">
+        <dl className="grid grid-cols-3 gap-px bg-border">
           <Stat
             label="Applications"
             value={counts.applications}
@@ -53,7 +53,6 @@ export function WinRate({
               counts.waiting > 0 ? `${number.format(counts.waiting)} still waiting` : "None waiting"
             }
           />
-          <Stat label="Replies" value={counts.replies} note={ofAll(counts)} />
           <Stat
             label="Interviews"
             value={counts.interviews}
@@ -124,10 +123,6 @@ function ByVersion({ stats }: { stats: readonly VersionStats[] }) {
 
 function VersionRow({ version }: { version: VersionStats }) {
   const { tally: counts, rate } = version;
-  const extras = [
-    formatCount(counts.replies, "reply", "replies"),
-    formatCount(counts.offers, "offer"),
-  ];
   return (
     <li className="flex flex-col gap-2 px-5 py-4 sm:flex-row sm:items-center sm:gap-6 sm:px-6">
       <div className="min-w-0 flex-1">
@@ -137,7 +132,7 @@ function VersionRow({ version }: { version: VersionStats }) {
           {version.state === "deleted" ? <Badge>Deleted</Badge> : null}
         </p>
         <p className="mt-0.5 text-sm/5 text-muted">
-          {countsLine(counts)} · {extras.join(" · ")}
+          {countsLine(counts)} · {formatCount(counts.offers, "offer")}
         </p>
       </div>
       <p className="flex shrink-0 items-baseline gap-2 text-sm/5 text-muted sm:justify-end">
@@ -158,8 +153,8 @@ function VersionRow({ version }: { version: VersionStats }) {
 
 function Stat({ label, value, note }: { label: string; value: number; note: string }) {
   return (
-    <div className="flex flex-col bg-surface p-5 sm:p-6">
-      <dt className="text-sm/5 text-muted">{label}</dt>
+    <div className="flex min-w-0 flex-col bg-surface p-4 sm:p-6">
+      <dt className="truncate text-sm/5 text-muted">{label}</dt>
       <dd className="mt-2 font-display text-4xl/10 font-normal text-ink lining-nums tabular-nums">
         {number.format(value)}
       </dd>

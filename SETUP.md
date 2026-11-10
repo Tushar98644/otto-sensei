@@ -39,10 +39,6 @@ and the "Upgrade" button (mock billing) all work.
 - To try real email codes and Google sign-in on your laptop (after steps 2 to 8), run
   `DEV_AUTH=supabase bun dev`. That uses the Supabase keys and `DATABASE_URL` from `.env.local`.
 - Production never uses dev codes or `.pglite/`, whatever variables are set.
-- Portfolio pictures you upload while developing go to `web/.uploads/` (gitignored) and are served
-  by `/api/portfolio/media/dev/...`. Delete the folder to start over. If `.env.local` has the
-  Supabase secret key, uploads go to the real bucket instead; set `PORTFOLIO_MEDIA_STORE=local`
-  to keep them on your laptop.
 - **Jobs tab with real jobs locally.** The daily cron doesn't run on your laptop, so fill
   `.pglite/` with a sample once (it reads the same public job APIs, at the same polite pace):
 
@@ -422,8 +418,7 @@ quietly; the rest of the app runs the same.
 | `NEXT_PUBLIC_SENTRY_DSN` (+ `SENTRY_AUTH_TOKEN`, `SENTRY_ORG`, `SENTRY_PROJECT`) | Error reports (+ readable stack traces) | 10b |
 | `NEXT_PUBLIC_POSTHOG_KEY` (+ `NEXT_PUBLIC_POSTHOG_HOST` for EU) | Funnel events | 10c |
 | `GITHUB_TOKEN` | Higher GitHub limits for Import from GitHub and portfolio GitHub numbers | 10d |
-| (none: the Supabase secret key from step 3) | Portfolio picture uploads in the `portfolio-media` Storage bucket | 10f |
-| `CRON_SECRET` | Daily cleanup, follow-up reminders (bell) and the Jobs tab's daily job read | 10e |
+| `CRON_SECRET` | Daily cleanup, follow-up reminders (bell), and clearing /jobs after the daily job read (also a GitHub secret) | 10e |
 | `RESEND_API_KEY`, `EMAIL_FROM` | Reminder emails (needs `CRON_SECRET`) | 10e |
 
 ---
@@ -511,13 +506,27 @@ vercel env add GITHUB_TOKEN production
 ## 10e. Scheduled jobs and reminder emails (optional)
 
 ```
-Vercel Cron → /api/cron/cleanup     04:17 UTC daily → old rate-limit windows, tombstones, notifications
-            → /api/cron/jobs        05:40 UTC daily → reads 323 company job boards + 2 remote job sites
-            → /api/cron/follow-ups  14:00 UTC daily → bell notification (+ email) per account
+Vercel Cron    → /api/cron/cleanup     04:17 UTC daily → old rate-limit windows, tombstones, notifications
+               → /api/cron/follow-ups  14:00 UTC daily → bell notification (+ email) per account
+GitHub Actions → scripts/jobs-ingest-ci.ts 05:40 UTC daily → every company job board + 3 job feeds,
+                 then POST /api/cron/jobs-cache to clear the cached /jobs pages
 ```
 
-The schedules are already in `vercel.json`. They only run on the production deployment, and only
+The two Vercel schedules are in `vercel.json`. They only run on the production deployment, and only
 once `CRON_SECRET` is set: without it every call answers 401 and nothing happens.
+
+The daily job read runs in GitHub Actions (`.github/workflows/jobs-ingest.yml`) because a Vercel run
+stops at 4 minutes, about half the boards; Actions reads all of them in one run (about 10-20
+minutes, a few hundred of the free Actions minutes a month). In GitHub → the repo → **Settings** →
+**Secrets and variables** → **Actions**, add:
+
+- Secret `POSTGRES_URL`: the same value as on Vercel (Supabase's pooled connection; GitHub's runners
+  can't reach the IPv6-only direct one).
+- Secret `CRON_SECRET`: the same value as on Vercel.
+- Variable `OTTO_APP_URL`: the site's address, e.g. `https://ottosensei.com`.
+
+Then **Actions** → **Daily jobs** → **Run workflow** fills the jobs the first time, without waiting
+for 05:40 UTC. `POST /api/cron/jobs` (Bearer `CRON_SECRET`) still runs a 4-minute read on Vercel by hand.
 
 1. Make a secret and add it (Vercel sends it to the jobs as `Authorization: Bearer <secret>`):
 
@@ -558,45 +567,17 @@ once `CRON_SECRET` is set: without it every call answers 401 and nothing happens
   20,000 rows, roughly 100 MB). Its migration, `20261108001000_jobs.sql`, is applied by the deploy's
   build command like every other one. A run that answers 500 names the feed that failed (Himalayas
   or Remote OK); company boards that fail are only counted (`boardsFailed`) and retried tomorrow.
-- **Portfolios** (`/p/<slug>`) need no keys, crons or new variables. Their migrations,
-  `20261108002000_portfolios.sql`, `20261108003000_portfolio_templates.sql` (round-1 templates;
-  adds project pictures) and `20261108006000_reference_templates.sql` (the eight reference
-  templates; moves pages margin→dock, broadsheet→paper, ledger→cv, showcase→folio, shell→bento,
-  signal→navy; new pages start on navy), are applied by the deploy's build command like every other one; locally, restart
+- **Portfolios** (`/p/<slug>`) need no keys, crons, storage or new variables. They are text only
+  (owner decision 2026-11-10): no uploads and no pictures, so no Supabase Storage bucket. Their
+  migrations, `20261108002000_portfolios.sql`, `20261108003000_portfolio_templates.sql` (round-1
+  templates; its project-pictures column is unused now) and
+  `20261108006000_reference_templates.sql` (the eight reference templates; moves pages
+  margin→dock, broadsheet→paper, ledger→cv, showcase→folio, shell→bento, signal→navy; new pages
+  start on navy), are applied by the deploy's build command like every other one; locally, restart
   `bun dev` once so `.pglite/` picks them up. The templates' fonts are self-hosted by next/font,
   fetched from Google Fonts once at build time.
 - Cleanup keeps: rate-limit windows 2 days, deleted-resume markers 180 days, read notifications
   90 days (unread ones a year), billing webhook ids 400 days.
-
----
-
-## 10f. Portfolio pictures: Supabase Storage
-
-Portfolio photos, project screenshots, logos and personal photos are kept in a public Supabase
-Storage bucket called `portfolio-media`. The pages are public, so anyone may read a file; only our
-server writes or deletes, with the secret key from step 3 (`SUPABASE_SECRET_KEY`). Nothing new to
-set in Vercel.
-
-The server creates the bucket on the first upload if it is missing. To create it yourself (or to
-check it):
-
-1. Supabase → **Storage** → **New bucket**. Name `portfolio-media`, **Public bucket** on.
-2. Under **Additional configuration**: file size limit **4 MB**, allowed MIME types `image/webp`
-   (every upload is re-encoded to WebP before it is stored).
-3. Leave the bucket's policies empty: no policies means the browser can't write to it, and public
-   reads don't need one.
-
-- Files live at `<user id>/<id>.webp`, one folder per account. Uploads are 4 MB in, shrunk to at
-  most 2,400px (screenshots), 1,600px (personal photos), 1,024px (photo) or 256px (logos), with
-  location data stripped. An account may keep 60 pictures and 60 MB.
-- Removed pictures are deleted 15 minutes later (so Undo works); deleting the portfolio or the
-  account deletes all of them at once.
-- `PORTFOLIO_MEDIA_STORE=supabase` forces the bucket, `local` forces `web/.uploads` (never in
-  production). Unset is right for almost everyone.
-- Without the secret key in production, uploads answer "Picture uploads aren't set up on this
-  server yet" and the rest of the portfolio works.
-- Logos fetched from a company's website come through Google's favicon service; the server never
-  connects to the address the person typed.
 
 ---
 
@@ -635,9 +616,8 @@ the Creem webhook URL (step 10). Redeploy.
       jobs run, `/jobs` lists openings and `/dashboard/jobs` ranks them for your resume.
 - [ ] Share a resume from its card menu and open the link in a private window: the page loads,
       and **Download PDF** works.
-- [ ] On a Pro test account, drop a photo into **Portfolio** → **Photo and intro**: it shows in
-      the preview, and Supabase **Storage** → `portfolio-media` has a `.webp` under the account's
-      id. Deleting the test account empties that folder.
+- [ ] On a Pro test account, write a pitch in **Portfolio** → **Intro**: it shows in the preview,
+      and the page has no pictures to upload anywhere.
 - [ ] If PostHog is set: upload a resume; PostHog **Activity** shows `resume_imported` within a
       minute.
 

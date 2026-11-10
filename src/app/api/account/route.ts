@@ -2,10 +2,13 @@ import { fail, ok } from "@/lib/api/respond";
 import type { EmptyOk } from "@/lib/api/types";
 import { canDeleteAuthUsers, deleteAuthUser } from "@/lib/auth/admin";
 import { clearSession, getCurrentUser } from "@/lib/auth/session";
-import { BillingError, cancelSubscriptionForDeletion, type DeletionCancelResult } from "@/lib/billing";
+import {
+  BillingError,
+  cancelSubscriptionForDeletion,
+  type DeletionCancelResult,
+} from "@/lib/billing";
 import { log } from "@/lib/log";
 import { refreshPortfolioPages } from "@/lib/portfolio/cache";
-import { deleteAllMedia } from "@/lib/portfolio/media-records";
 import { portfolioSlugsOf } from "@/lib/portfolio/records";
 import { deleteUserData } from "@/lib/users";
 
@@ -26,7 +29,11 @@ export async function DELETE(): Promise<Response> {
     // Checked before anything is deleted, so a missing key never leaves an account half gone.
     if (!canDeleteAuthUsers()) {
       log.error("account.delete_unavailable", "Supabase secret key is not configured");
-      return fail("auth_unavailable", "Account deletion isn't available right now. Email us and we'll do it.", 503);
+      return fail(
+        "auth_unavailable",
+        "Account deletion isn't available right now. Email us and we'll do it.",
+        503,
+      );
     }
 
     let billing: DeletionCancelResult;
@@ -40,9 +47,6 @@ export async function DELETE(): Promise<Response> {
 
     // The public page is cached; it must stop showing once the rows are gone.
     const portfolioAddresses = await portfolioSlugsOf(user.id);
-    // Uploaded portfolio pictures sit in storage, outside the rows; they go first, and a store that
-    // can't delete them stops the deletion here, while their keys are still known.
-    await deleteAllMedia(user.id);
     await deleteUserData(user.id);
     refreshPortfolioPages(portfolioAddresses);
     try {

@@ -11,6 +11,7 @@ import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { api, isApiError } from "@/lib/api/client";
+import { applicationHref } from "@/lib/applications/thread";
 import type { InterviewPrep, PrepTarget } from "@/lib/insights/prep";
 import { countBlanks } from "@/lib/insights/prep-view";
 import { useResumeList, useStudioHydrated } from "@/lib/store/resume-store";
@@ -85,20 +86,31 @@ export function InterviewPrepPage({
   return (
     <div className="flex flex-col gap-8">
       <header className="flex flex-col gap-4">
-        <Link
-          href={back.href}
-          className="group inline-flex w-fit items-center gap-1 text-sm font-medium text-muted hover:text-ink"
-        >
-          <ArrowLeft aria-hidden className="size-4 transition-transform group-hover:-translate-x-0.5" />
-          {back.label}
-        </Link>
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+          <Link
+            href={back.href}
+            className="group inline-flex w-fit items-center gap-1 text-sm font-medium text-muted hover:text-ink"
+          >
+            <ArrowLeft aria-hidden className="size-4 transition-transform group-hover:-translate-x-0.5" />
+            {back.label}
+          </Link>
+          {/* The whole thread (job, resume sent, letters, timeline) is one link away. */}
+          {target && back.href !== applicationHref(applicationId) ? (
+            <Link
+              href={applicationHref(applicationId)}
+              className="text-sm font-medium text-muted underline decoration-border-strong underline-offset-4 hover:text-ink"
+            >
+              See the whole application
+            </Link>
+          ) : null}
+        </div>
         <div className="flex items-end justify-between gap-6">
           <div className="min-w-0">
             <h1 className="font-display text-4xl/10 font-normal tracking-tight text-ink sm:text-5xl/13">
               Interview prep
             </h1>
             <p className="mt-2 max-w-prose text-base/7 text-muted">
-              {role || "Likely questions, your stories and what to ask."}
+              {role || "Your interview, round by round, with stories from your own lines."}
             </p>
           </div>
           {justMade && prep && !remaking ? <OttoCheer /> : null}
@@ -141,7 +153,7 @@ export function InterviewPrepPage({
         <>
           <OttoNote
             meta={`${pluralize(prep.questions.length, "question")} · ${pluralize(prep.stories.length, "story", "stories")} · ${pluralize(countBlanks(prep), "blank")} to fill`}
-            message="These come from the job and your own lines. Fill the blanks in your words."
+            message="I'll play the interviewer. Answer out loud, then fill the blanks in your words."
           >
             <Button
               variant="secondary"

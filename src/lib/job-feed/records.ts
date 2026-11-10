@@ -3,6 +3,7 @@ import type { Db } from "@/db/client";
 import { lockUser } from "@/db/locks";
 import { jobBoards, jobSkills, jobs, savedJobs } from "@/db/schema";
 import { searchWords } from "./normalize";
+import { PAST_KIND_WEIGHT } from "./match";
 import { ORDER_LIMITS } from "./order";
 import {
   DEFAULT_FILTERS,
@@ -13,6 +14,7 @@ import {
   type FeedJob,
   type JobFilters,
   type RoleFamily,
+  type SavedJob,
   type Seniority,
 } from "./types";
 
@@ -22,18 +24,14 @@ import {
 
 const DAY_MS = 24 * 60 * 60 * 1_000;
 // Openings one match request ranks: the best this many by skill-weighted overlap, out of every
-// open job (one per group of location copies). Work-rights rules cost about half a millisecond a
-// job, so this also bounds a request.
+// open job (one per group of location copies). Work-rights rules cost about 1 ms a job (300 real
+// posts in 330-400 ms under Bun, 2026-11-09), so this also bounds a request.
 export const CANDIDATE_POOL = 300;
 // Open this long, a post is treated like a "general application" one: hidden from Matches.
 export const EVERGREEN_AFTER_MS = 120 * DAY_MS;
 // Weight of a skill job_skills doesn't know yet (before the first ingest, and in tests).
 export const DEFAULT_SKILL_WEIGHT = 1;
-// A post two or more levels above the latest title can only be a Stretch; it still makes the
-// pool, just after close-level ones with the same overlap.
-const LEVEL_UP_FACTOR = 0.5;
-
-const LIST_COLUMNS = {
+export const LIST_COLUMNS = {
   id: jobs.id,
   source: jobs.source,
   company: jobs.company,
@@ -69,12 +67,12 @@ export function toFeedJob(row: ListRow): FeedJob {
 
 // Prefix search on whole words: "front" finds "Frontend". Only letters and digits reach the
 // query, so nothing typed can be tsquery syntax.
-function wordsQuery(input: string): string | null {
+export function wordsQuery(input: string): string | null {
   const words = searchWords(input).split(" ").filter(Boolean).slice(0, 6);
   return words.length === 0 ? null : words.map((word) => `${word}:*`).join(" & ");
 }
 
-function filterConditions(filters: JobFilters, now: number): SQL[] {
+export function filterConditions(filters: JobFilters, now: number): SQL[] {
   const conditions: SQL[] = [isNull(jobs.closedAt)];
   if (filters.remote) conditions.push(eq(jobs.remote, true));
   for (const text of [filters.q, filters.place]) {
@@ -117,7 +115,7 @@ export type CandidateRow = ListRow & {
   groupKey: string;
 };
 
-const CANDIDATE_COLUMNS = {
+export const CANDIDATE_COLUMNS = {
   ...LIST_COLUMNS,
   family: jobs.family,
   minYears: jobs.minYears,
@@ -127,11 +125,13 @@ const CANDIDATE_COLUMNS = {
 };
 
 // Another place the same opening is posted, for the card's "also in" and the work-rights check.
-export type CopyRow = ListRow & { rulesText: string; groupKey: string };
+export type CopyRow = CandidateRow;
 
 export type MatchQuery = {
   skills: readonly string[];
+  // The kind of role looked for, and kinds only older titles name (half weight, match.ts).
   families: readonly RoleFamily[];
+  pastFamilies?: readonly RoleFamily[];
   seniority: Seniority | null;
   filters: JobFilters;
   weights: ReadonlyMap<string, number>;
@@ -154,19 +154,19 @@ export async function skillWeights(db: Db): Promise<Map<string, number>> {
   return new Map(rows.map((row) => [row.skill, row.weight]));
 }
 
-const textArray = (items: readonly string[]) =>
+export const textArray = (items: readonly string[]) =>
   sql`array[${sql.join(
     items.map((item) => sql`${item}`),
     sql`, `,
   )}]::text[]`;
 
 // postgres.js hands back an array of rows, PGlite an object holding them.
-function rowsOf<T>(result: unknown): T[] {
+export function rowsOf<T>(result: unknown): T[] {
   return (Array.isArray(result) ? result : (result as { rows: T[] }).rows) as T[];
 }
 
 /** Open jobs that can be Matches at all: not filler, not open for months, within the filters. */
-function matchableConditions(filters: JobFilters, now: number): SQL[] {
+export function matchableConditions(filters: JobFilters, now: number): SQL[] {
   return [
     ...filterConditions(filters, now),
     eq(jobs.evergreen, false),
@@ -174,7 +174,7 @@ function matchableConditions(filters: JobFilters, now: number): SQL[] {
   ];
 }
 
-const GROUP = sql`coalesce(nullif(${jobs.groupKey}, ''), ${jobs.id}::text)`;
+export const GROUP = sql`coalesce(nullif(${jobs.groupKey}, ''), ${jobs.id}::text)`;
 
 /**
  * The best CANDIDATE_POOL openings for a resume across every open job, scored in one statement:
@@ -187,7 +187,9 @@ export async function matchCandidates(
   query: MatchQuery,
   now = Date.now(),
 ): Promise<CandidatePool> {
-  const { skills, families, seniority, filters, weights } = query;
+  const { skills, seniority, filters, weights } = query;
+  const past = query.pastFamilies ?? [];
+  const families = [...query.families, ...past];
   if (skills.length === 0 && families.length === 0)
     return { rows: [], copies: new Map(), groups: 0 };
   const skillList = textArray(skills);
@@ -196,19 +198,23 @@ export async function matchCandidates(
     sql`, `,
   )}]::float8[]`;
   const familyList = textArray(families);
+  const kindWeight = sql`case when ${jobs.family} = any(${textArray(query.families)}) then ${ORDER_LIMITS.familyWeight}::float8
+    when ${jobs.family} = any(${textArray(past)}) then ${ORDER_LIMITS.familyWeight * PAST_KIND_WEIGHT}::float8 else 0::float8 end`;
   const level = seniority === null ? null : SENIORITIES.indexOf(seniority);
   const levelOf = sql`array_position(${textArray(SENIORITIES)}, ${jobs.seniority})`;
+  // The same steps as levelFactor in order.ts.
   const levelFactor =
     level === null
       ? sql`1::float8`
-      : sql`case when r.level - 1 - ${level}::int >= 2 then ${LEVEL_UP_FACTOR}::float8 else 1::float8 end`;
+      : sql`case r.level - 1 - ${level}::int when 0 then 1::float8 when 1 then ${ORDER_LIMITS.oneUp}::float8
+          when -1 then ${ORDER_LIMITS.oneDown}::float8 else ${ORDER_LIMITS.farLevel}::float8 end`;
 
   const pooled = rowsOf<{ id: string; groups: number }>(
     await db.execute(sql`
       with person(skill, weight) as (select * from unnest(${skillList}, ${weightList})),
       reach as (
         select ${jobs.id} as id, ${GROUP} as grp, ${jobs.keywords} as keywords, ${jobs.postedAt} as posted_at,
-          coalesce(${jobs.family} = any(${familyList}), false) as same_kind, ${levelOf} as level
+          coalesce(${jobs.family} = any(${familyList}), false) as same_kind, ${kindWeight} as kind_weight, ${levelOf} as level
         from ${jobs}
         where ${and(
           ...matchableConditions(filters, now),
@@ -223,8 +229,7 @@ export async function matchCandidates(
       ),
       scored as (
         select r.id, r.grp, r.posted_at,
-          (coalesce(h.overlap, 0) + case when r.same_kind then ${ORDER_LIMITS.familyWeight}::float8 else 0 end)
-            * ${levelFactor} as score
+          (coalesce(h.overlap, 0) + r.kind_weight) * ${levelFactor} as score
         from reach r left join hits h on h.id = r.id
         where r.same_kind or coalesce(h.found, 0) >= 2
       ),
@@ -250,7 +255,7 @@ export async function matchCandidates(
   const copies = new Map<string, CopyRow[]>();
   if (keys.length > 0) {
     const others = await db
-      .select({ ...LIST_COLUMNS, rulesText: jobs.rulesText, groupKey: jobs.groupKey })
+      .select(CANDIDATE_COLUMNS)
       .from(jobs)
       .where(and(...matchableConditions(filters, now), inArray(jobs.groupKey, keys)))
       .orderBy(desc(jobs.postedAt), desc(jobs.id));
@@ -269,6 +274,18 @@ export async function savedCandidates(db: Db, userId: string): Promise<Candidate
     .where(eq(savedJobs.userId, userId))
     .orderBy(desc(savedJobs.savedAt))
     .limit(SAVED_JOBS_LIMIT);
+}
+
+/** The account's saved jobs with when each was saved, newest first, for the Applications board. */
+export async function listSavedJobs(db: Db, userId: string): Promise<SavedJob[]> {
+  const rows = await db
+    .select({ ...LIST_COLUMNS, savedAt: savedJobs.savedAt })
+    .from(savedJobs)
+    .innerJoin(jobs, eq(jobs.id, savedJobs.jobId))
+    .where(eq(savedJobs.userId, userId))
+    .orderBy(desc(savedJobs.savedAt), desc(jobs.id))
+    .limit(SAVED_JOBS_LIMIT);
+  return rows.map(({ savedAt, ...row }) => ({ ...toFeedJob(row), savedAt }));
 }
 
 export async function savedIds(
@@ -346,18 +363,29 @@ export async function unsaveJob(db: Db, userId: string, jobId: string): Promise<
 }
 
 export type JobDetail = FeedJob & {
+  // The opening of the post as stored (JOB_LIMITS.descriptionChars); full-post.ts reads the rest.
   description: string;
   validThrough: number | null;
   employmentType: FeedJob["employmentType"];
+  // Where the post can be read again: the board's token and the board's own id for the job.
+  board: string;
+  externalId: string;
 };
 
-/** One job with its text, for /jobs/:id. */
+/** One job with its stored text, for /jobs/:id and the tailor flow. */
 export async function jobById(db: Db, id: string): Promise<JobDetail | null> {
   const [row] = await db
-    .select({ ...LIST_COLUMNS, description: jobs.description, validThrough: jobs.validThrough })
+    .select({
+      ...LIST_COLUMNS,
+      description: jobs.description,
+      validThrough: jobs.validThrough,
+      board: jobs.board,
+      externalId: jobs.externalId,
+    })
     .from(jobs)
     .where(eq(jobs.id, id))
     .limit(1);
   if (!row) return null;
-  return { ...toFeedJob(row), description: row.description, validThrough: row.validThrough };
+  const { description, validThrough, board, externalId } = row;
+  return { ...toFeedJob(row), description, validThrough, board, externalId };
 }

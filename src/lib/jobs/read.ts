@@ -1,5 +1,12 @@
 import type { JobPosting } from "@/lib/api/types";
-import { readAshby, readGreenhouse, readLever } from "./boards";
+import {
+  readAshby,
+  readGreenhouse,
+  readLever,
+  readPersonio,
+  readRecruitee,
+  readWorkable,
+} from "./boards";
 import { JobReadError } from "./errors";
 import { safeFetch } from "./fetch";
 import { scanPage } from "./html";
@@ -105,9 +112,16 @@ async function readPage(
   return postingFromHtml(page.body, page.url);
 }
 
-/** Reads the job a link points to. Every expected failure leaves as a JobReadError. */
-export async function readJob(target: JobTarget, now = Date.now()): Promise<JobPosting> {
-  const deadline = now + READ_BUDGET_MS;
+/**
+ * Reads the job a link points to. Every expected failure leaves as a JobReadError. A page that
+ * waits on the read passes a shorter budget.
+ */
+export async function readJob(
+  target: JobTarget,
+  now = Date.now(),
+  budgetMs = READ_BUDGET_MS,
+): Promise<JobPosting> {
+  const deadline = now + budgetMs;
   switch (target.kind) {
     case "greenhouse":
       return readGreenhouse(target.token, target.id, target.url, deadline);
@@ -115,6 +129,12 @@ export async function readJob(target: JobTarget, now = Date.now()): Promise<JobP
       return readLever(target.company, target.id, target.eu, target.url, deadline);
     case "ashby":
       return readAshby(target.org, target.id, target.url, deadline);
+    case "workable":
+      return readWorkable(target.account, target.shortcode, target.url, deadline);
+    case "recruitee":
+      return readRecruitee(target.company, target.slug, target.url, deadline);
+    case "personio":
+      return readPersonio(target.host, target.id, target.url, deadline);
     case "page":
       return readPage(target, deadline);
   }

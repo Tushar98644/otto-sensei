@@ -1,10 +1,21 @@
 import { Fragment, memo, type CSSProperties, type ReactNode } from "react";
-import type { PdfStyle, TemplateTheme } from "@/components/pdf/theme";
+import {
+  bulletMark,
+  contactLines,
+  entryRows,
+  headingRuns,
+  headlineLine,
+  nameRuns,
+  SECTION_KINDS,
+  type PlannedRow,
+  type Run,
+} from "@/components/pdf/layout";
+import type { EntryKind, PdfStyle, TemplateTheme } from "@/components/pdf/theme";
 import { themeFor } from "@/components/pdf/themes";
+import { cssFontCaps, cssFontFamily } from "@/lib/pdf/fonts";
 import type { PdfLink } from "@/lib/pdf/links";
 import {
   buildPdfModel,
-  type PdfCompany,
   type PdfEntry,
   type PdfExtraSection,
   type PdfModel,
@@ -16,22 +27,17 @@ import type { Resume, TemplateId } from "@/lib/resume/schema";
 import { cn } from "@/lib/utils";
 import { standInPage } from "./stand-in";
 
-// Page 1 of a resume, drawn as a tiny HTML page with the same layout and the same theme numbers
-// the PDF uses (src/components/pdf/document.tsx), so each card shows exactly what the PDF prints.
+// Page 1 of a resume, drawn as a tiny HTML page from the same plan and the same theme numbers the
+// PDF uses (src/components/pdf/layout.ts, document.tsx), so each card shows what the PDF prints.
 // Decorative art (the home page scenes) passes standIn to draw the sample person in the resume's
 // layout instead (stand-in.ts), since those scenes end up in screenshots.
 // One PDF point is one CSS pixel on a 612px-wide Letter page, and the page-miniature utility
-// scales that down to the card. Importing the themes is cheap: they are plain style objects (with
-// the resume's look settings applied, as in the PDF), and react-pdf itself never loads here.
-
-const FONTS: Record<string, string> = {
-  Helvetica: "var(--font-page-sans)",
-  "Times-Roman": "var(--font-page-serif)",
-  Courier: "var(--font-page-mono)",
-};
+// scales that down to the card. The fonts are installed look-alikes of the PDF's (see
+// @/lib/pdf/fonts), so a miniature downloads nothing; react-pdf itself never loads here.
 
 // react-pdf styles are nearly CSS already: numbers are points (pixels here) and lineHeight is a
-// multiplier. Only the shorthands react-pdf invents, its font names and border styles differ.
+// multiplier. Only the shorthands react-pdf invents, its font names and features and its border
+// styles differ.
 export function pdfStyleToCss(style: PdfStyle | undefined): CSSProperties {
   if (!style) return {};
   const {
@@ -40,6 +46,7 @@ export function pdfStyleToCss(style: PdfStyle | undefined): CSSProperties {
     marginHorizontal,
     marginVertical,
     fontFamily,
+    fontFeatureSettings,
     ...rest
   } = style as PdfStyle & Record<string, unknown>;
   const css: Record<string, unknown> = { ...rest };
@@ -47,30 +54,59 @@ export function pdfStyleToCss(style: PdfStyle | undefined): CSSProperties {
   if (paddingVertical !== undefined) css.paddingTop = css.paddingBottom = paddingVertical;
   if (marginHorizontal !== undefined) css.marginLeft = css.marginRight = marginHorizontal;
   if (marginVertical !== undefined) css.marginTop = css.marginBottom = marginVertical;
-  if (typeof fontFamily === "string") css.fontFamily = FONTS[fontFamily] ?? FONTS.Helvetica;
-  if (typeof css.borderBottomWidth === "number" && css.borderBottomWidth > 0) {
-    css.borderBottomStyle = "solid";
+  if (fontFamily !== undefined) css.fontFamily = cssFontFamily(fontFamily);
+  const caps = cssFontCaps(fontFeatureSettings);
+  if (caps) css.fontVariantCaps = caps;
+  for (const side of ["Top", "Bottom"] as const) {
+    if (
+      typeof css[`border${side}Width`] === "number" &&
+      (css[`border${side}Width`] as number) > 0
+    ) {
+      css[`border${side}Style`] = "solid";
+    }
   }
+  if (typeof css.borderWidth === "number" && css.borderWidth > 0) css.borderStyle = "solid";
   return css as CSSProperties;
 }
 
 type Styled = { theme: TemplateTheme };
 
-function LinkText({ link, theme }: Styled & { link: PdfLink }) {
+function LinkText({ link, theme, style }: Styled & { link: PdfLink; style?: PdfStyle }) {
   const web = link.href !== null && !link.href.startsWith("mailto:");
-  const style = link.href
-    ? pdfStyleToCss(web ? theme.styles.webLink : theme.styles.link)
-    : undefined;
-  return <span style={style}>{link.text}</span>;
+  const own = link.href ? (web ? theme.styles.webLink : theme.styles.link) : undefined;
+  return <span style={pdfStyleToCss({ ...style, ...own })}>{link.text}</span>;
+}
+
+function Runs({ runs, theme }: Styled & { runs: readonly Run[] }) {
+  return runs.map((run, index) =>
+    run.link ? (
+      <LinkText
+        key={index}
+        link={{ ...run.link, text: run.text }}
+        theme={theme}
+        style={run.style}
+      />
+    ) : (
+      <span key={index} style={pdfStyleToCss(run.style)}>
+        {run.text}
+      </span>
+    ),
+  );
 }
 
 function Header({ model, theme }: Styled & { model: PdfModel }) {
   const { styles } = theme;
+  const name = nameRuns(model, theme);
+  const headline = headlineLine(model, theme);
   return (
     <div style={{ display: "flex", flexDirection: "column", ...pdfStyleToCss(styles.header) }}>
-      {model.name ? <p style={pdfStyleToCss(styles.name)}>{model.name}</p> : null}
-      {model.headline ? <p style={pdfStyleToCss(styles.headline)}>{model.headline}</p> : null}
-      {model.contact.map((items, line) => (
+      {name.length > 0 ? (
+        <p style={pdfStyleToCss(styles.name)}>
+          <Runs runs={name} theme={theme} />
+        </p>
+      ) : null}
+      {headline ? <p style={pdfStyleToCss(styles.headline)}>{headline}</p> : null}
+      {contactLines(model, theme).map((items, line) => (
         <p key={line} style={pdfStyleToCss(line === 0 ? styles.contact : styles.contactNext)}>
           {items.map((item, index) => (
             <Fragment key={`${index}-${item.text}`}>
@@ -85,84 +121,17 @@ function Header({ model, theme }: Styled & { model: PdfModel }) {
   );
 }
 
-function Detail({ detail, theme, lead }: Styled & { detail: PdfLink | null; lead: boolean }) {
-  if (!detail) return null;
+function Row({ row, theme }: Styled & { row: PlannedRow }) {
   return (
-    <span style={pdfStyleToCss(theme.styles.entryDetail)}>
-      {lead ? " · " : null}
-      <LinkText link={detail} theme={theme} />
-    </span>
-  );
-}
-
-function EntryHeader({ entry, theme }: Styled & { entry: PdfEntry }) {
-  const { styles } = theme;
-  if (!entry.title && !entry.org && !entry.detail && !entry.dates) return null;
-  const row = { display: "flex", ...pdfStyleToCss(styles.entryHeader) };
-  const dates = entry.dates ? <p style={pdfStyleToCss(styles.dates)}>{entry.dates}</p> : null;
-  if (theme.entryLayout === "stacked") {
-    const subline = Boolean(entry.org);
-    return (
-      <div>
-        <div style={row}>
-          <p style={pdfStyleToCss(styles.entryLead)}>
-            {entry.title ? (
-              <span style={pdfStyleToCss(styles.entryTitle)}>{entry.title}</span>
-            ) : null}
-            {subline ? null : (
-              <Detail detail={entry.detail} theme={theme} lead={Boolean(entry.title)} />
-            )}
-          </p>
-          {dates}
-        </div>
-        {subline ? (
-          <p style={pdfStyleToCss(styles.entrySub)}>
-            <span style={pdfStyleToCss(styles.entryOrg)}>{entry.org}</span>
-            <Detail detail={entry.detail} theme={theme} lead />
-          </p>
-        ) : null}
-      </div>
-    );
-  }
-  return (
-    <div style={row}>
-      <p style={pdfStyleToCss(styles.entryLead)}>
-        {entry.title ? (
-          <span style={pdfStyleToCss(styles.entryTitle)}>
-            {entry.org ? `${entry.title},` : entry.title}
-          </span>
-        ) : null}
-        {entry.org ? <span style={pdfStyleToCss(styles.entryOrg)}>{` ${entry.org}`}</span> : null}
-        <Detail detail={entry.detail} theme={theme} lead={Boolean(entry.title || entry.org)} />
+    <div style={{ display: "flex", ...pdfStyleToCss(row.box) }}>
+      <p style={pdfStyleToCss(row.text)}>
+        <Runs runs={row.lead} theme={theme} />
       </p>
-      {dates}
-    </div>
-  );
-}
-
-// Roles at one company, as the PDF prints them: the company once, then each role with its dates.
-function CompanyHeader({ company, theme }: Styled & { company: PdfCompany }) {
-  const { styles } = theme;
-  return (
-    <div style={{ display: "flex", ...pdfStyleToCss(styles.entryHeader) }}>
-      <p style={pdfStyleToCss(styles.entryLead)}>
-        <span style={pdfStyleToCss(styles.entryTitle)}>{company.name}</span>
-        <Detail detail={company.detail} theme={theme} lead />
-      </p>
-    </div>
-  );
-}
-
-function RoleHeader({ entry, theme }: Styled & { entry: PdfEntry }) {
-  const { styles } = theme;
-  if (!entry.title && !entry.detail && !entry.dates) return null;
-  return (
-    <div style={{ display: "flex", ...pdfStyleToCss(styles.entryHeader) }}>
-      <p style={pdfStyleToCss(styles.entryLead)}>
-        {entry.title ? <span style={pdfStyleToCss(styles.roleTitle)}>{entry.title}</span> : null}
-        <Detail detail={entry.detail} theme={theme} lead={Boolean(entry.title)} />
-      </p>
-      {entry.dates ? <p style={pdfStyleToCss(styles.dates)}>{entry.dates}</p> : null}
+      {row.side ? (
+        <p style={pdfStyleToCss(row.side.style)}>
+          {row.side.link ? <LinkText link={row.side.link} theme={theme} /> : row.side.text}
+        </p>
+      ) : null}
     </div>
   );
 }
@@ -178,74 +147,128 @@ function entrySpacing(
   );
 }
 
-function Entries({ entries, theme }: Styled & { entries: readonly PdfEntry[] }) {
+function Entries({
+  entries,
+  kind,
+  theme,
+}: Styled & { entries: readonly PdfEntry[]; kind: EntryKind }) {
   return entries.map((entry, index) => (
     <div key={entry.id} style={entrySpacing(entry, index, theme)}>
-      {entry.company?.first ? <CompanyHeader company={entry.company} theme={theme} /> : null}
-      {entry.company ? (
-        <RoleHeader entry={entry} theme={theme} />
-      ) : (
-        <EntryHeader entry={entry} theme={theme} />
-      )}
+      {entryRows(entry, kind, theme).map((row) => (
+        <Row key={row.key} row={row} theme={theme} />
+      ))}
       {entry.note ? <p style={pdfStyleToCss(theme.styles.entryNote)}>{entry.note}</p> : null}
       {entry.bullets.map((bullet) => (
-        <Bullet key={bullet.id} text={bullet.text} theme={theme} />
+        <Bullet key={bullet.id} theme={theme}>
+          {bullet.text}
+        </Bullet>
       ))}
     </div>
   ));
 }
 
-function Bullet({ text, theme }: Styled & { text: string }) {
+function Bullet({ children, theme }: Styled & { children: ReactNode }) {
   const { styles } = theme;
+  const mark = bulletMark(theme);
+  const markColor =
+    typeof styles.bulletMark.color === "string" ? styles.bulletMark.color : undefined;
   return (
     <div style={{ display: "flex", ...pdfStyleToCss(styles.bullet) }}>
       <span style={{ flexShrink: 0, ...pdfStyleToCss(styles.bulletGlyph) }}>
-        {theme.bulletGlyph}
+        {mark.kind === "glyph" ? (
+          mark.glyph
+        ) : (
+          <span
+            style={{
+              display: "block",
+              ...pdfStyleToCss(styles.bulletMark),
+              ...(mark.shape === "square"
+                ? { backgroundColor: markColor }
+                : { border: `0.7px solid ${markColor}`, borderRadius: "50%" }),
+            }}
+          />
+        )}
       </span>
-      <p style={pdfStyleToCss(styles.bulletText)}>{text}</p>
+      <p style={pdfStyleToCss(styles.bulletText)}>{children}</p>
     </div>
   );
 }
+
+const spaced = (style: PdfStyle, index: number) =>
+  pdfStyleToCss(index > 0 ? style : { ...style, marginTop: 0 });
 
 function SectionBody({ section, theme }: Styled & { section: PdfSection }): ReactNode {
   const { styles } = theme;
   switch (section.key) {
     case "summary":
       return section.paragraphs.map((paragraph, index) => (
-        <p key={index} style={index > 0 ? pdfStyleToCss(styles.paragraph) : undefined}>
+        <p key={index} style={spaced(styles.paragraph, index)}>
           {paragraph}
         </p>
       ));
     case "skills":
-      return section.lines.map((line, index) => (
-        <p key={line.id} style={index > 0 ? pdfStyleToCss(styles.skillLine) : undefined}>
-          {line.label ? (
-            <span style={pdfStyleToCss(styles.skillLabel)}>{`${line.label}: `}</span>
-          ) : null}
-          <span style={pdfStyleToCss(styles.skillItems)}>{line.items}</span>
-        </p>
-      ));
+      return section.lines.map((line, index) => {
+        const content = (
+          <>
+            {line.label ? (
+              <span style={pdfStyleToCss(styles.skillLabel)}>{`${line.label}: `}</span>
+            ) : null}
+            <span style={pdfStyleToCss(styles.skillItems)}>{line.items}</span>
+          </>
+        );
+        return theme.skills === "bullets" ? (
+          <Bullet key={line.id} theme={theme}>
+            {content}
+          </Bullet>
+        ) : (
+          <p key={line.id} style={spaced(styles.skillLine, index)}>
+            {content}
+          </p>
+        );
+      });
     default:
-      return <Entries entries={section.entries} theme={theme} />;
+      return <Entries entries={section.entries} kind={SECTION_KINDS[section.key]} theme={theme} />;
   }
 }
 
 function ExtraBody({ section, theme }: Styled & { section: PdfExtraSection }): ReactNode {
-  if (section.list !== null) return <p>{section.list}</p>;
-  return <Entries entries={section.entries} theme={theme} />;
+  if (section.list !== null) return <p style={spaced(theme.styles.paragraph, 0)}>{section.list}</p>;
+  return <Entries entries={section.entries} kind="item" theme={theme} />;
 }
 
 function SectionTitle({ title, theme }: Styled & { title: string }) {
   const { styles } = theme;
-  if (theme.headingRule === "after") {
-    return (
-      <div style={{ display: "flex", ...pdfStyleToCss(styles.sectionTitleRow) }}>
-        <p style={pdfStyleToCss(styles.sectionTitle)}>{title}</p>
-        <div style={pdfStyleToCss(styles.sectionTitleRule)} />
-      </div>
-    );
+  const text = (
+    <p style={pdfStyleToCss(styles.sectionTitle)}>
+      <Runs runs={headingRuns(title, theme)} theme={theme} />
+    </p>
+  );
+  const rule = <div style={pdfStyleToCss(styles.sectionTitleRule)} />;
+  switch (theme.headingRule) {
+    case "after":
+      return (
+        <div style={{ display: "flex", ...pdfStyleToCss(styles.sectionTitleRow) }}>
+          {text}
+          {rule}
+        </div>
+      );
+    case "below":
+      return (
+        <>
+          {text}
+          {rule}
+        </>
+      );
+    case "above":
+      return (
+        <>
+          {rule}
+          {text}
+        </>
+      );
+    default:
+      return text;
   }
-  return <p style={pdfStyleToCss(styles.sectionTitle)}>{title}</p>;
 }
 
 export type ResumePageProps = {

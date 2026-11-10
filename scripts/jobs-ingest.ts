@@ -2,7 +2,7 @@
 // and /jobs have something to show without waiting for the daily cron. Reads the same public APIs
 // the cron does, at the same polite pace.
 //
-//   bun scripts/jobs-ingest.ts              10 company boards, plus the Himalayas and Remote OK feeds
+//   bun scripts/jobs-ingest.ts              10 company boards, plus the Himalayas, Remote OK and Jobicy feeds
 //   bun scripts/jobs-ingest.ts --limit 30   30 boards
 //   bun scripts/jobs-ingest.ts --no-feeds   company boards only
 //   bun scripts/jobs-ingest.ts --minutes 25 give up after 25 minutes instead of 10
@@ -74,11 +74,17 @@ async function main() {
   const db = await openLocalDb();
   const started = Date.now();
   console.log(
-    `Reading ${limit} company boards${process.argv.includes("--no-feeds") ? "" : " and 2 feeds"}…`,
+    `Reading ${limit} company boards${process.argv.includes("--no-feeds") ? "" : " and 3 feeds"}…`,
   );
   const outcome = await runJobsIngest(
     { now: started, deadline: started + minutes * 60_000 },
-    { db, maxBoards: limit, feeds: !process.argv.includes("--no-feeds"), himalayasPages: 2 },
+    {
+      db,
+      maxBoards: limit,
+      feeds: !process.argv.includes("--no-feeds"),
+      himalayasPages: 2,
+      visa: false,
+    },
   );
   const { openJobs } = await jobStats(db);
   const { stats } = outcome;

@@ -9,8 +9,7 @@ export const APPLICATION_FILTERS: readonly ApplicationFilter[] = ["all", ...APPL
 export const FILTER_NAMES: Record<ApplicationFilter, string> = {
   all: "All",
   applied: "Waiting",
-  screening: "Screening",
-  interview: "Interview",
+  interview: "Interviewing",
   offer: "Offer",
   rejected: "Rejected",
   no_reply: "No reply",
@@ -46,7 +45,6 @@ export function filterCounts(list: readonly Application[]): Record<ApplicationFi
   const counts: Record<ApplicationFilter, number> = {
     all: 0,
     applied: 0,
-    screening: 0,
     interview: 0,
     offer: 0,
     rejected: 0,

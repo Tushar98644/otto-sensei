@@ -1,63 +1,84 @@
 "use client";
 
 import { Check } from "lucide-react";
-import Image from "next/image";
-import type { PortfolioTemplateId } from "@/lib/portfolio/types";
+import { Eyebrow } from "@/components/ui/eyebrow";
+import { PORTFOLIO_TEMPLATE_INFO, templateGroups } from "@/lib/portfolio/templates";
+import { PORTFOLIO_TEMPLATE_IDS, type PortfolioTemplateId } from "@/lib/portfolio/types";
 import { cn } from "@/lib/utils";
-import { EditorCard } from "./check-row";
-import { PORTFOLIO_TEMPLATE_LIST } from "./templates/registry";
+import { EditorSection } from "./check-row";
+import type { TemplateSample } from "./live-template";
+import { PreviewSourceBar, usePreviewSource } from "./preview-source";
+import { TemplatePreview } from "./template-preview";
 
 type TemplatePickerProps = {
   value: PortfolioTemplateId;
   onChange: (id: PortfolioTemplateId) => void;
+  // The owner's page as visitors get it, for the cards' "Your page" side.
+  own: TemplateSample;
   disabled?: boolean;
 };
 
-// Native radios, so arrow keys move between templates and the preview follows at once.
-export function TemplatePicker({ value, onChange, disabled = false }: TemplatePickerProps) {
+// Native radios in one group, so arrow keys move between designs (across both lists) and the
+// preview follows at once. The showpieces come first. Each card is the real template, drawn with
+// the owner's page or the sample (./preview-source.tsx); the live preview beside the panel always
+// stays theirs.
+export function TemplatePicker({ value, onChange, own, disabled = false }: TemplatePickerProps) {
+  const choice = usePreviewSource(own);
   return (
-    <EditorCard title="Template">
-      <fieldset disabled={disabled} className="min-w-0">
-        <legend className="sr-only">Template</legend>
-        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-2 xl:grid-cols-3">
-          {PORTFOLIO_TEMPLATE_LIST.map(({ id, name, description, thumbnail }) => {
-            const selected = id === value;
-            return (
-              <label
-                key={id}
-                className={cn(
-                  "relative flex cursor-pointer flex-col gap-2 rounded-xl p-2 has-focus-visible:outline-2 has-focus-visible:outline-offset-2 has-focus-visible:outline-ink",
-                  selected ? "bg-surface-muted ring-1 ring-ink" : "hover:bg-surface-hover",
-                )}
-              >
-                <input
-                  type="radio"
-                  name="portfolio-template"
-                  value={id}
-                  checked={selected}
-                  onChange={() => onChange(id)}
-                  className="sr-only"
-                />
-                {/* The top of the approved sample; the name and line below say the same. */}
-                <Image
-                  src={thumbnail}
-                  alt=""
-                  aria-hidden
-                  width={480}
-                  height={300}
-                  sizes="(min-width: 1280px) 140px, (min-width: 1024px) 200px, (min-width: 640px) 30vw, 45vw"
-                  className="h-auto w-full rounded-lg bg-surface-muted ring-1 ring-border"
-                />
-                <span className="flex items-center gap-1.5 text-sm/6 font-medium text-ink">
-                  {name}
-                  {selected ? <Check aria-hidden className="size-4" /> : null}
-                </span>
-                <span className="text-sm/5 text-muted">{description}</span>
-              </label>
-            );
-          })}
-        </div>
+    <EditorSection
+      title="Design"
+      description="Every design uses the same content. Switch any time; nothing is lost."
+    >
+      <PreviewSourceBar choice={choice} />
+      <fieldset disabled={disabled} className="flex min-w-0 flex-col gap-6">
+        <legend className="sr-only">Design</legend>
+        {templateGroups(PORTFOLIO_TEMPLATE_IDS).map((group) => (
+          <div key={group.label} className="flex flex-col gap-3">
+            <Eyebrow>{group.label}</Eyebrow>
+            <div className="grid grid-cols-2 gap-3 @xl:grid-cols-3">
+              {group.ids.map((id) => {
+                const { name, description } = PORTFOLIO_TEMPLATE_INFO[id];
+                const selected = id === value;
+                return (
+                  <label
+                    key={id}
+                    className={cn(
+                      "relative flex cursor-pointer flex-col gap-2 rounded-xl p-2 has-focus-visible:outline-2 has-focus-visible:outline-offset-2 has-focus-visible:outline-ink motion-safe:transition-colors",
+                      selected ? "bg-surface-muted ring-1 ring-ink" : "hover:bg-surface-hover",
+                    )}
+                  >
+                    <input
+                      type="radio"
+                      name="portfolio-template"
+                      value={id}
+                      checked={selected}
+                      onChange={() => onChange(id)}
+                      className="sr-only"
+                    />
+                    {/* The top of the page; the name and line below say what it is. */}
+                    <TemplatePreview
+                      id={id}
+                      sample={choice.sample}
+                      sizes="(min-width: 1024px) 200px, 45vw"
+                      className="rounded-lg"
+                    />
+                    <span className="flex items-center justify-between gap-2 px-0.5">
+                      <span className="text-sm/5 font-medium text-ink">{name}</span>
+                      {selected ? (
+                        <span className="flex items-center gap-1 text-xs/4 text-muted">
+                          <Check aria-hidden className="size-3.5 text-ink" />
+                          In use
+                        </span>
+                      ) : null}
+                    </span>
+                    <span className="line-clamp-2 px-0.5 text-xs/5 text-muted">{description}</span>
+                  </label>
+                );
+              })}
+            </div>
+          </div>
+        ))}
       </fieldset>
-    </EditorCard>
+    </EditorSection>
   );
 }

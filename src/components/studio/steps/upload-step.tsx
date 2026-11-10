@@ -17,8 +17,9 @@ import { createSampleResume } from "@/lib/resume/sample";
 import { titleFromFileName } from "@/lib/resume/ops";
 import { emptyResume, type Resume } from "@/lib/resume/schema";
 import { useResumeList, useStudioStore } from "@/lib/store/resume-store";
-import { noteReadByRules } from "../import-notes";
+import { noteReadByRules, noteReadWell } from "../import-notes";
 import { GuidedDraft } from "../upload/guided-draft";
+import { clearGuidedDraft, guidedDraftRequested } from "../upload/guided-start";
 import { LocalImportError, readLocalImport, type LocalImportKind } from "../upload/local-import";
 import { RecentResumes } from "../upload/recent-resumes";
 import { StartOptions } from "../upload/start-options";
@@ -37,12 +38,14 @@ export function UploadStep() {
   const setStep = useStudioStore((s) => s.setStep);
   const resumes = useResumeList();
   const [state, setState] = useState<UploadState>({ status: "idle" });
-  const [guided, setGuided] = useState(false);
+  // "Build with Otto" picked outside the studio opens straight on the questions.
+  const [guided, setGuided] = useState(guidedDraftRequested);
   // The import can't be aborted, so a result that lands after the user has moved on is dropped.
   const mounted = useRef(false);
 
   useEffect(() => {
     mounted.current = true;
+    clearGuidedDraft();
     return () => {
       mounted.current = false;
     };
@@ -58,9 +61,10 @@ export function UploadStep() {
     if (!(await roomForResume())) return;
     setState({ status: "reading", file });
     try {
-      const { resume, report, usedAI, basicReader } = await api.importFile(file);
+      const { resume, report, usedAI, basicReader, readWell } = await api.importFile(file);
       if (!mounted.current) return;
-      if (!usedAI) noteReadByRules(resume.id, basicReader === true);
+      if (readWell) noteReadWell(resume.id, file);
+      else if (!usedAI) noteReadByRules(resume.id, basicReader === true);
       // Named after the file the person picked; addResume numbers it if the name is taken.
       addResume({ ...resume, title: titleFromFileName(file.name) || resume.title }, report);
       track("resume_imported", { source: report.kind });

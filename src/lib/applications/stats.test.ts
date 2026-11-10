@@ -35,24 +35,23 @@ const many = (count: number, status: ApplicationStatus, overrides: Partial<Item>
 describe("stageAfter", () => {
   it("records steps forward and back, and keeps the step an ending happened at", () => {
     expect(stageAfter("applied", "interview")).toBe("interview");
-    expect(stageAfter("offer", "screening")).toBe("screening");
+    expect(stageAfter("offer", "interview")).toBe("interview");
     expect(stageAfter("interview", "rejected")).toBe("interview");
-    expect(stageAfter("screening", "no_reply")).toBe("screening");
+    expect(stageAfter("applied", "no_reply")).toBe("applied");
   });
 });
 
 describe("outcomeOf", () => {
   it.each([
-    ["applied", "applied", { replied: false, interviewed: false, offered: false }],
-    ["no_reply", "applied", { replied: false, interviewed: false, offered: false }],
-    ["rejected", "applied", { replied: true, interviewed: false, offered: false }],
-    ["screening", "screening", { replied: true, interviewed: false, offered: false }],
-    ["interview", "interview", { replied: true, interviewed: true, offered: false }],
-    ["offer", "offer", { replied: true, interviewed: true, offered: true }],
+    ["applied", "applied", { interviewed: false, offered: false }],
+    ["no_reply", "applied", { interviewed: false, offered: false }],
+    ["rejected", "applied", { interviewed: false, offered: false }],
+    ["interview", "interview", { interviewed: true, offered: false }],
+    ["offer", "offer", { interviewed: true, offered: true }],
     // Rejected after an interview is still an interview.
-    ["rejected", "interview", { replied: true, interviewed: true, offered: false }],
-    // A first call, then silence: that call was a reply.
-    ["no_reply", "screening", { replied: true, interviewed: false, offered: false }],
+    ["rejected", "interview", { interviewed: true, offered: false }],
+    // A recruiter call, then silence: the call counts as Interviewing.
+    ["no_reply", "interview", { interviewed: true, offered: false }],
   ] as const)("%s after reaching %s", (status, stageReached, expected) => {
     expect(outcomeOf({ status, stageReached })).toEqual(expected);
   });
@@ -65,7 +64,7 @@ describe("outcomeOf", () => {
 describe("tally and the interview rate", () => {
   it("is all zeros, with no rate, for no applications", () => {
     const counts = tally([]);
-    expect(counts).toEqual({ applications: 0, replies: 0, interviews: 0, offers: 0, waiting: 0 });
+    expect(counts).toEqual({ applications: 0, interviews: 0, offers: 0, waiting: 0 });
     expect(interviewRate(counts)).toEqual({ shown: false, needed: MIN_FOR_RATE });
     expect(countsLine(counts)).toBe("No applications logged yet");
     expect(swingNote(counts)).toMatch(/never an average from other people/);
@@ -73,7 +72,7 @@ describe("tally and the interview rate", () => {
 
   it("shows counts but no rate under 5 applications", () => {
     const counts = tally([app("interview"), app("applied"), app("rejected"), app("no_reply")]);
-    expect(counts).toEqual({ applications: 4, replies: 2, interviews: 1, offers: 0, waiting: 1 });
+    expect(counts).toEqual({ applications: 4, interviews: 1, offers: 0, waiting: 1 });
     expect(interviewRate(counts)).toEqual({ shown: false, needed: 1 });
     expect(countsLine(counts)).toBe("1 interview from 4 applications");
     expect(swingNote(counts)).toBe(
@@ -86,15 +85,15 @@ describe("tally and the interview rate", () => {
       ...many(12, "applied"),
       ...many(3, "no_reply"),
       ...many(2, "rejected"),
-      app("screening"),
+      app("no_reply", { stageReached: "interview" }),
       app("interview"),
       app("rejected", { stageReached: "interview" }),
       app("offer"),
     ];
     const counts = tally(list);
-    expect(counts).toEqual({ applications: 21, replies: 6, interviews: 3, offers: 1, waiting: 12 });
-    expect(interviewRate(counts)).toEqual({ shown: true, percent: 14 });
-    expect(countsLine(counts)).toBe("3 interviews from 21 applications");
+    expect(counts).toEqual({ applications: 21, interviews: 4, offers: 1, waiting: 12 });
+    expect(interviewRate(counts)).toEqual({ shown: true, percent: 19 });
+    expect(countsLine(counts)).toBe("4 interviews from 21 applications");
     expect(swingNote(counts)).toBe(
       "Small numbers swing a lot: with 21 applications, 1 interview moves the rate by 5 points.",
     );

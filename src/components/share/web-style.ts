@@ -1,20 +1,15 @@
 import type { CSSProperties } from "react";
 import type { PdfStyle } from "@/components/pdf/theme";
+import { cssFontCaps, cssFontFamily } from "@/lib/pdf/fonts";
 
 // A format's react-pdf styles as CSS for the public web page. Lengths in a theme are PDF points;
 // here each point is var(--pt) pixels, which the page sets per screen width, so a format keeps its
 // proportions on any screen and stays readable on a phone. The miniature on the dashboard
 // (resume-thumbnail.tsx) draws one point as one pixel instead.
 
-// The PDF's standard fonts, as the same --font-page-* stacks the thumbnails use.
-const FONTS: Record<string, string> = {
-  Helvetica: "var(--font-page-sans)",
-  "Times-Roman": "var(--font-page-serif)",
-  Courier: "var(--font-page-mono)",
-};
-
 const LENGTHS = new Set([
   "fontSize",
+  "height",
   "letterSpacing",
   "marginTop",
   "marginBottom",
@@ -47,18 +42,24 @@ export function webStyle(style: PdfStyle | undefined, omit: readonly string[] = 
 
   function put(key: string, value: unknown) {
     if (skip.has(key) || value === undefined || value === null) return;
+    // The PDF's fonts, as installed look-alikes (the same stacks the thumbnails use).
     if (key === "fontFamily") {
-      if (typeof value === "string") css.fontFamily = FONTS[value] ?? FONTS.Helvetica!;
+      css.fontFamily = cssFontFamily(value);
       return;
     }
-    if (key === "borderBottomWidth") {
+    if (key === "fontFeatureSettings") {
+      const caps = cssFontCaps(value);
+      if (caps) css.fontVariantCaps = caps;
+      return;
+    }
+    if (key === "borderBottomWidth" || key === "borderTopWidth") {
       if (typeof value !== "number" || value <= 0) {
-        css.borderBottomWidth = 0;
+        css[key] = 0;
         return;
       }
       // A 0.5pt hairline would round away on some screens.
-      css.borderBottomWidth = `max(1px, ${points(value)})`;
-      css.borderBottomStyle = "solid";
+      css[key] = `max(1px, ${points(value)})`;
+      css[key === "borderTopWidth" ? "borderTopStyle" : "borderBottomStyle"] = "solid";
       return;
     }
     if (LENGTHS.has(key) && typeof value === "number") {

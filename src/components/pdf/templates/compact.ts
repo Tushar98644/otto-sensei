@@ -1,36 +1,57 @@
-import { INK, defineTheme, inch } from "../theme";
+import { PDF_FONT } from "@/lib/pdf/fonts";
+import { INK, defineTheme } from "../theme";
 
-// Everything a size smaller and closer together, with a black hairline under small capital
-// headings, so a long career still fits on one page.
+// The one-page "resume book" format business schools send to banks and consultancies: Times 10pt
+// (Tinos, same widths) throughout, a capital name, a thin rule over each bold capital heading,
+// square bullets and years only. The densest format.
+
+const RULE_GRAY = "#808080";
+
 export const compact = defineTheme({
+  contactLines: [["location", "phone", "email"], ["links"]],
+  contactSeparator: " ■ ",
+  bullet: { glyph: "■", shape: "square" },
+  rows: {
+    job: [{ lead: ["org", "detail"], side: "dates" }, { lead: ["title"] }],
+    school: [{ lead: ["org", "detail"], side: "dates" }, { lead: ["title"] }],
+    item: [{ lead: ["title", "org", "tech", "detail"], side: "dates" }],
+  },
+  // Promotions: the firm once with its whole span, then each title with its own years.
+  companyRow: { lead: ["org", "detail"], side: "dates" },
+  roleRow: { lead: ["title", "detail"], side: "dates" },
+  separators: { org: ", ", detail: ", ", tech: ", ", title: ", " },
+  headingRule: "above",
+  dates: "years",
+  skills: "bullets",
+  bulletOffset: 2.4,
+  accentSlots: ["sectionTitle", ["sectionTitleRule", 0.35]],
   styles: {
     page: {
-      paddingTop: inch(0.45),
-      paddingBottom: inch(0.45),
-      paddingHorizontal: inch(0.55),
-      fontSize: 9,
-      lineHeight: 1.25,
+      paddingTop: 36,
+      paddingBottom: 36,
+      paddingHorizontal: 36,
+      fontFamily: PDF_FONT.tinos,
+      fontSize: 10,
+      lineHeight: 1.15,
+      color: INK,
     },
-    name: { fontSize: 16, lineHeight: 1.15 },
-    headline: { marginTop: 1, fontSize: 9.5 },
-    contact: { marginTop: 2, fontSize: 8.5 },
-    contactNext: { marginTop: 0.5, fontSize: 8.5 },
-    section: { marginTop: 8 },
-    sectionTitle: {
-      marginBottom: 3,
-      paddingBottom: 1.5,
-      borderBottomWidth: 0.5,
-      borderBottomColor: INK,
-      fontSize: 8.5,
-      letterSpacing: 0.6,
-    },
+    name: { fontSize: 12, fontWeight: "bold", textTransform: "uppercase", textAlign: "center" },
+    headline: { textAlign: "center" },
+    contact: { textAlign: "center" },
+    contactNext: { textAlign: "center" },
+    section: { marginTop: 7 },
+    sectionTitleRule: { borderTopWidth: 0.75, borderTopColor: RULE_GRAY, marginBottom: 3 },
+    sectionTitle: { marginBottom: 4, fontWeight: "bold", textTransform: "uppercase" },
     paragraph: { marginTop: 2 },
-    entry: { marginTop: 4.5 },
-    entryTitle: { fontSize: 9.5 },
-    dates: { fontSize: 8.5 },
-    role: { marginTop: 2.5 },
-    bullet: { marginTop: 1 },
-    bulletGlyph: { width: 9 },
-    skillLine: { marginTop: 1 },
+    entry: { marginTop: 6 },
+    role: { marginTop: 3 },
+    row1First: { fontWeight: "bold" },
+    row2First: { fontWeight: "bold" },
+    bullet: { marginTop: 0 },
+    // A small square: the resume book's Wingdings bullet, at about 4pt.
+    bulletGlyph: { width: 14, paddingLeft: 1, fontSize: 6, lineHeight: 11.5 / 6 },
+    bulletMark: { width: 3.6, height: 3.6, marginTop: 3.9, marginLeft: 1, color: INK },
+    skillLine: { marginTop: 0 },
+    skillLabel: { fontWeight: "normal" },
   },
 });

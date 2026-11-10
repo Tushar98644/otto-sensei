@@ -65,6 +65,38 @@ describe("parseJobLink", () => {
     });
   });
 
+  it("reads Workable, Recruitee and Personio job links", () => {
+    expect(parseJobLink("https://apply.workable.com/blueground/j/DF694D45CA/apply/")).toMatchObject(
+      {
+        kind: "workable",
+        account: "blueground",
+        shortcode: "DF694D45CA",
+      },
+    );
+    // The short link doesn't name the account, so it is read as a page.
+    expect(parseJobLink("https://apply.workable.com/j/DF694D45CA")).toMatchObject({ kind: "page" });
+    expect(parseJobLink("https://bunq.recruitee.com/o/security-lead/c/new")).toMatchObject({
+      kind: "recruitee",
+      company: "bunq",
+      slug: "security-lead",
+    });
+    expect(parseJobLink("https://acme.jobs.personio.com/job/2762189?language=en")).toMatchObject({
+      kind: "personio",
+      host: "acme.jobs.personio.com",
+      id: "2762189",
+    });
+    expect(reasonOf(() => parseJobLink("https://apply.workable.com/blueground/"))).toMatchObject({
+      reason: "listing",
+    });
+    expect(reasonOf(() => parseJobLink("https://bunq.recruitee.com/"))).toMatchObject({
+      reason: "listing",
+    });
+    // The vendors' own sites are ordinary pages.
+    expect(parseJobLink("https://support.recruitee.com/articles/6108676")).toMatchObject({
+      kind: "page",
+    });
+  });
+
   it("notes the board job on company career pages", () => {
     expect(
       parseJobLink("https://careers.airbnb.com/positions/8306554?gh_jid=8306554"),

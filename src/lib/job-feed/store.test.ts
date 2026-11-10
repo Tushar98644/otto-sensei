@@ -1,10 +1,11 @@
 import { eq } from "drizzle-orm";
 import { beforeEach, describe, expect, it } from "vitest";
 import { getDb } from "@/db/client";
-import { jobBoards, jobs, savedJobs } from "@/db/schema";
+import { applications, jobBoards, jobs, savedJobs } from "@/db/schema";
 import { createUser, resetDb } from "@/lib/auth/test-helpers";
 import type { RawJob } from "./parsers";
 import { jobCounts, listJobs, matchCandidates, saveJob, skillWeights } from "./records";
+import { JOB_LIMITS } from "./normalize";
 import {
   boardFailed,
   refreshSkillWeights,
@@ -73,6 +74,9 @@ describe("job store", () => {
     expect(again).toMatchObject({ added: 0, updated: 1, seen: 2 });
     const [two] = await db.select().from(jobs).where(eq(jobs.externalId, "2"));
     expect(two).toMatchObject({ seniority: "senior", lastSeenAt: NOW + DAY });
+    // An unchanged job that was never missing isn't written again.
+    const [one] = await db.select().from(jobs).where(eq(jobs.externalId, "1"));
+    expect(one).toMatchObject({ lastSeenAt: NOW, missedRuns: 0 });
     const [board] = await db.select().from(jobBoards).where(eq(jobBoards.token, "acme"));
     expect(board).toMatchObject({ lastStatus: "ok", openJobs: 2, lastFetchedAt: NOW + DAY });
   });
@@ -124,6 +128,31 @@ describe("job store", () => {
     });
     const open = (await rows()).filter((row) => row.closedAt === null);
     expect(open.map((row) => row.source)).toEqual(["greenhouse"]);
+  });
+
+  it("keeps a board's jobs of any age while the board lists them", async () => {
+    const db = await getDb();
+    const stats = await saveJobs(db, ACME, [raw("old", { postedAt: NOW - 200 * DAY })], NOW, {
+      snapshot: true,
+    });
+    expect(stats.added).toBe(1);
+    expect(await tidyJobs(db, NOW + DAY)).toMatchObject({ aged: 0 });
+  });
+
+  it("keeps no text for a job its source can be read again from, and a feed's text", async () => {
+    const db = await getDb();
+    const text = "Run the warehouse floor and train new pickers every week.\n".repeat(150);
+    await saveJobs(db, ACME, [raw("board", { text })], NOW, { snapshot: true });
+    await saveJobs(db, { source: "remoteok", board: "" }, [raw("feed", { text })], NOW, {
+      snapshot: false,
+    });
+    const stored = await db
+      .select({ externalId: jobs.externalId, description: jobs.description, rules: jobs.rulesText })
+      .from(jobs)
+      .orderBy(jobs.externalId);
+    expect(stored[0]).toMatchObject({ externalId: "board", description: "" });
+    expect(stored[1]!.description.length).toBeGreaterThan(5_000);
+    expect(stored[1]!.description.length).toBeLessThanOrEqual(JOB_LIMITS.feedDescriptionChars);
   });
 
   it("skips feed jobs past their end date or older than 30 days", async () => {
@@ -178,6 +207,33 @@ describe("job store", () => {
     const gone = await tidyJobs(db, NOW + 33 * DAY);
     expect(gone.deleted).toBe(2);
     expect(await db.select().from(savedJobs)).toEqual([]);
+  });
+
+  it("deletes closed rows after a week, unless saved or linked to an application", async () => {
+    const db = await getDb();
+    const user = await createUser("maya@example.com");
+    await saveJobs(db, ACME, [raw("1"), raw("2"), raw("3")], NOW, { snapshot: true });
+    const ids = new Map(
+      (await db.select({ id: jobs.id, externalId: jobs.externalId }).from(jobs)).map((row) => [
+        row.externalId,
+        row.id,
+      ]),
+    );
+    expect(await saveJob(db, user.id, ids.get("1")!, NOW)).toBe("saved");
+    await db.insert(applications).values({
+      id: crypto.randomUUID(),
+      userId: user.id,
+      company: "Acme",
+      jobId: ids.get("2")!,
+      appliedAt: NOW,
+      statusChangedAt: NOW,
+      createdAt: NOW,
+      updatedAt: NOW,
+    });
+    await db.update(jobs).set({ closedAt: NOW, closeReason: "gone" });
+    expect((await tidyJobs(db, NOW + 8 * DAY)).deleted).toBe(1);
+    expect((await rows()).map((row) => row.externalId)).toEqual(["1", "2"]);
+    expect((await tidyJobs(db, NOW + 31 * DAY)).deleted).toBe(2);
   });
 
   it("trims the oldest rows past the cap, closed ones first", async () => {
@@ -325,12 +381,17 @@ describe("job store", () => {
         raw("stale", {
           title: "Account Executive, Mid-Market",
           text: "Salesforce and Gong.",
-          postedAt: NOW - 150 * DAY,
+          postedAt: NOW - DAY,
         }),
       ],
       NOW,
       { snapshot: true },
     );
+    // Reposted with a fresh date, but first seen 150 days ago: kept, yet not a match any more.
+    await db
+      .update(jobs)
+      .set({ firstSeenAt: NOW - 150 * DAY })
+      .where(eq(jobs.externalId, "stale"));
     const pool = await matchCandidates(
       db,
       {

@@ -161,6 +161,7 @@ export function checkEligibility(
     relocation: units.some((unit) => RELOCATION.test(unit.text) && !NO_RELOCATION.test(unit.text)),
     remote: REMOTE.test(all) && !notRemote,
     onSite: notRemote || ON_SITE.test(location) || units.some((unit) => saysOnSite(unit.text)),
+    sponsorRegions: options.sponsorRegions,
   };
 
   const restricted: Claim[] = [];

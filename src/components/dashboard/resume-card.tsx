@@ -7,9 +7,11 @@ import {
   Download,
   Ellipsis,
   FileBraces,
+  FileText,
   FolderGit,
   Globe,
   Link2,
+  MessagesSquare,
   PenLine,
   Settings2,
   Target,
@@ -18,6 +20,8 @@ import {
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useId, useMemo, useState } from "react";
+import { useProTools } from "@/components/account/pro-tools";
+import { openFeaturePrompt } from "@/components/account/upgrade-prompt";
 import { GitHubImportDialog } from "@/components/github/github-import-dialog";
 import { OttoCheer } from "@/components/mascot/otto-cheer";
 import { portfolioFrom } from "@/components/portfolio/route";
@@ -33,10 +37,11 @@ import { downloadJsonResume } from "@/lib/jsonresume/download";
 import { lintResume } from "@/lib/lint/bullets";
 import { TEMPLATE_INFO, templateOf } from "@/lib/pdf/templates";
 import { resumeTitle } from "@/lib/resume/ops";
+import { copyLetter } from "@/lib/applications/thread";
 import type { Resume } from "@/lib/resume/schema";
 import { useStudioStore } from "@/lib/store/resume-store";
 import { cn, pluralize } from "@/lib/utils";
-import { MarkApplied, useJustApplied } from "./applications/mark-applied";
+import { MarkApplied, useCopyApplication, useJustApplied } from "./applications/mark-applied";
 import { SOURCE_TABS, tailoredJob } from "./library";
 import { linesChip, reportChip } from "./resume-status";
 import { ResumeThumbnail } from "./resume-thumbnail";
@@ -91,6 +96,9 @@ export function ResumeCard({
   // The GitHub dialog mounts on first use, like the share dialog, and stays mounted after so
   // closing it hands focus back to the menu.
   const [github, setGithub] = useState({ used: false, open: false });
+  // GitHub drafts are Pro: on Free the menu item offers the trial instead of a dialog that stops
+  // at its last step.
+  const githubLocked = useProTools() === false;
   const share = useShareResume(resume);
   const router = useRouter();
   const report = useStudioStore((s) => s.reports[resume.id]);
@@ -101,6 +109,12 @@ export function ResumeCard({
   const showJob = job !== null && resume.title.trim() !== defaultTailoredTitle(resume);
   const chips = [reportChip(report), linesChip(lint)].filter((chip) => chip !== null);
   const format = TEMPLATE_INFO[templateOf(resume)].name;
+  // A tailored copy's thread: its letter and, once it's sent, that application's prep.
+  const sentWith = useCopyApplication(resume);
+  const marks = [
+    copyLetter(resume) ? "Cover letter" : null,
+    sentWith?.hasPrep ? "Interview prep" : null,
+  ].filter((mark): mark is string => mark !== null);
   const open = () => actions.open(resume.id, "fix");
 
   return (
@@ -144,7 +158,7 @@ export function ResumeCard({
             {base ? <MadeFrom base={base} onShowBase={onShowBase} /> : null}
           </div>
 
-          {chips.length > 0 || copies > 0 ? (
+          {chips.length > 0 || copies > 0 || marks.length > 0 ? (
             <div className="flex flex-wrap gap-1.5">
               {chips.map((chip) => (
                 <StatusPill key={chip.label} status={chip.status}>
@@ -154,6 +168,12 @@ export function ResumeCard({
               {copies > 0 ? (
                 <Badge>{pluralize(copies, "tailored copy", "tailored copies")}</Badge>
               ) : null}
+              {marks.map((mark) => (
+                <Badge key={mark}>
+                  {mark === "Cover letter" ? <FileText aria-hidden /> : <MessagesSquare aria-hidden />}
+                  {mark}
+                </Badge>
+              ))}
             </div>
           ) : null}
 
@@ -187,7 +207,11 @@ export function ResumeCard({
                 {
                   label: "Import from GitHub",
                   icon: FolderGit,
-                  onSelect: () => setGithub({ used: true, open: true }),
+                  description: githubLocked ? "Comes with Pro" : undefined,
+                  onSelect: () =>
+                    githubLocked
+                      ? openFeaturePrompt("github")
+                      : setGithub({ used: true, open: true }),
                 },
                 "separator",
                 {

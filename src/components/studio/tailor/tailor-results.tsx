@@ -1,7 +1,7 @@
 "use client";
 
-import { FilePlus, Lightbulb } from "lucide-react";
-import { useMemo, type ReactNode } from "react";
+import { ArrowRight, FilePlus, Lightbulb } from "lucide-react";
+import { useEffect, useEffectEvent, useMemo, type ReactNode } from "react";
 import { roomForResume } from "@/components/account/pro-tools";
 import { OTTO } from "@/components/mascot/lines";
 import { Button } from "@/components/ui/button";
@@ -27,10 +27,16 @@ import { ApplyKit } from "./apply-kit";
 import { saveLetterOnCopy } from "./copy-letter";
 import { noteFreshCopy } from "./fresh-copy";
 import { jumpToLine } from "./jump";
+import { APPLY_KIT_ID, takeLetterRequest } from "./letter-request";
 import { ReorderPreview } from "./reorder-preview";
 import type { Screener } from "./screener";
 import { ScreenerView } from "./screener-view";
-import { MAX_SAVED_ANSWERS, type SavedResult, type SavedWriting } from "./session";
+import {
+  MAX_SAVED_ANSWERS,
+  queuedJobIdFor,
+  type SavedResult,
+  type SavedWriting,
+} from "./session";
 import { SummaryChoice } from "./summary-choice";
 import type { ResultPatch } from "./use-tailor";
 import { useWriting } from "./use-writing";
@@ -76,6 +82,7 @@ function describeChanges({ lines, skills, reorderedJobs, summary }: ChangeSummar
 
 export function TailorResults({ source, saved, choices, screener, onPatch }: TailorResultsProps) {
   const createTailoredCopy = useStudioStore((s) => s.createTailoredCopy);
+  const setActive = useStudioStore((s) => s.setActive);
   const setStep = useStudioStore((s) => s.setStep);
   const copy = useStudioStore((s) => (saved.copyId ? s.resumes[saved.copyId] : undefined));
   const { result, job } = saved;
@@ -125,6 +132,16 @@ export function TailorResults({ source, saved, choices, screener, onPatch }: Tai
     saveLetterOnCopy(saved.copyId, letter.text);
   }
 
+  // "Write the cover letter" on the copy's Download step lands here: the letter starts by itself,
+  // in view, from the same post and choices the copy was made with.
+  const writeRequestedLetter = useEffectEvent(() => {
+    document.getElementById(APPLY_KIT_ID)?.scrollIntoView({ block: "start" });
+    void writeLetter();
+  });
+  useEffect(() => {
+    if (saved.copyId && !saved.letter && takeLetterRequest(saved.copyId)) writeRequestedLetter();
+  }, [saved.copyId, saved.letter]);
+
   async function ask(question: string): Promise<boolean> {
     const answer = await writing.answer(preview, question);
     if (!answer) return false;
@@ -136,7 +153,8 @@ export function TailorResults({ source, saved, choices, screener, onPatch }: Tai
 
   async function create() {
     if (!(await roomForResume())) return;
-    const id = createTailoredCopy(source.id, tailorMeta(result, job, saved.letter?.text), (fresh) =>
+    const meta = tailorMeta(result, { ...job, jobId: queuedJobIdFor(job.link) }, saved.letter?.text);
+    const id = createTailoredCopy(source.id, meta, (fresh) =>
       applyTailorChoices(fresh, result, choices),
     );
     if (!id || !useStudioStore.getState().resumes[id]) {
@@ -238,13 +256,37 @@ export function TailorResults({ source, saved, choices, screener, onPatch }: Tai
         onRemoveAnswer={(id) => onPatch({ answers: answers.filter((answer) => answer.id !== id) })}
       />
 
-      <Card className="sm:flex-row sm:items-center sm:justify-between">
-        <p className="text-sm text-muted">{describeChanges(changes)}</p>
-        <Button size="lg" onClick={() => void create()} className="w-full sm:w-auto">
-          <FilePlus />
-          Create tailored version
-        </Button>
-      </Card>
+      {/* The step's main action, kept in view while the results scroll past, like the Fix step's
+          bar. Once a copy exists it opens that copy, so a second click doesn't make a twin. */}
+      <div className="sticky bottom-[max(0.75rem,env(safe-area-inset-bottom))] z-10 flex items-center gap-3 rounded-2xl bg-surface p-1.5 shadow-float ring-1 ring-ink/5 max-sm:flex-col max-sm:items-stretch max-sm:gap-1 sm:pl-4">
+        <p className="min-w-0 flex-1 text-sm text-muted max-sm:px-2.5 max-sm:pt-1.5 max-sm:pb-1">
+          {copy
+            ? `Your copy for this job is ready: ${resumeTitle(copy)}.`
+            : describeChanges(changes)}
+        </p>
+        {copy ? (
+          <div className="flex items-center gap-1 max-sm:w-full">
+            <Button variant="ghost" onClick={() => void create()} className="max-sm:flex-1">
+              Make another
+            </Button>
+            <Button
+              onClick={() => {
+                setActive(copy.id);
+                setStep("download");
+              }}
+              className="max-sm:flex-1"
+            >
+              Open tailored version
+              <ArrowRight />
+            </Button>
+          </div>
+        ) : (
+          <Button onClick={() => void create()} className="max-sm:w-full">
+            <FilePlus />
+            Create tailored version
+          </Button>
+        )}
+      </div>
       {writing.dialogs}
     </section>
   );

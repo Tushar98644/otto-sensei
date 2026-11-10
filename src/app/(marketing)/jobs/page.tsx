@@ -11,14 +11,26 @@ import { BOARD_SEEDS } from "@/lib/job-feed/seeds";
 import { filtersFromParams, isFiltered, paramsFromFilters } from "@/lib/job-feed/params";
 import { countClaim, type JobCounts } from "@/lib/job-feed/counts";
 import { loadJobCounts } from "@/lib/job-feed/live-counts";
-import { listJobs, jobStats } from "@/lib/job-feed/records";
+import { storedJobStats } from "@/lib/job-feed/match-index";
+import { cachedForDay } from "@/lib/job-feed/public-cache";
+import { listJobs } from "@/lib/job-feed/records";
 import type { FeedJob } from "@/lib/job-feed/types";
 import { log } from "@/lib/log";
 import { PublicFilters } from "./_components/public-filters";
 import { MATCH_HREF, PublicJobItem } from "./_components/public-job-item";
 
-// Read from the database on each visit: the list changes daily and its filters are in the address.
+// Rendered per address (its filters are in it), but each list page and the counts are read from
+// the database once a day: the jobs change only when the daily ingest runs, and it drops the cache.
 export const dynamic = "force-dynamic";
+
+const dailyList = cachedForDay(
+  "jobs-public-list",
+  async (filters: ReturnType<typeof filtersFromParams>["filters"], page: number) => {
+    const db = await getDb();
+    const [list, stats] = await Promise.all([listJobs(db, filters, page), storedJobStats(db)]);
+    return { ...list, openJobs: stats.openJobs };
+  },
+);
 
 const count = new Intl.NumberFormat("en-US");
 
@@ -46,9 +58,7 @@ export async function generateMetadata({ searchParams }: Props): Promise<Metadat
 async function load(params: Awaited<Props["searchParams"]>) {
   const { filters, page } = filtersFromParams(params);
   try {
-    const db = await getDb();
-    const [list, stats] = await Promise.all([listJobs(db, filters, page), jobStats(db)]);
-    return { filters, page, ...list, openJobs: stats.openJobs, failed: false };
+    return { filters, page, ...(await dailyList(filters, page)), failed: false };
   } catch (error) {
     log.error("jobs.public_list_failed", error);
     return { filters, page, jobs: [] as FeedJob[], hasMore: false, openJobs: 0, failed: true };
@@ -141,8 +151,9 @@ export default async function JobsPage({ searchParams }: Props) {
       </div>
 
       <p className="mt-6 max-w-prose text-sm/6 text-subtle">
-        Jobs come from public company job boards (Greenhouse, Lever and Ashby) and from Himalayas
-        and Remote OK, each credited and linked to its original post.
+        Jobs come from public company job boards (Greenhouse, Lever, Ashby, Workable, Recruitee and
+        Personio) and from Himalayas, Remote OK and Jobicy, each credited and linked to its original
+        post.
         {quality
           ? ` Matches rank ${quality} quality jobs: one card per opening when it's posted in several places, leaving out "general application" posts and posts open over 4 months.`
           : null}

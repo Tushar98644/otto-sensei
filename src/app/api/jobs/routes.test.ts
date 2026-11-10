@@ -10,7 +10,10 @@ import { emptyWorkProfile } from "@/lib/eligibility/profile";
 import type { RawJob } from "@/lib/job-feed/parsers";
 import { saveJobs, syncBoards } from "@/lib/job-feed/store";
 import type { JobMatchesRequestBody } from "@/lib/job-feed/types";
+import { GET as getProfile } from "../profile/route";
+import type { LookingForResponse, WorkProfileResponse } from "@/lib/api/types";
 import { POST as event } from "./events/route";
+import { PUT as putLookingFor } from "./looking-for/route";
 import { POST as matches } from "./matches/route";
 import { DELETE as unsave, PUT as save } from "./saved/[id]/route";
 
@@ -150,6 +153,55 @@ describe("the Jobs tab on Free", () => {
     ]);
   });
 
+  it("lets Free set what it's looking for, and ranks its few for it", async () => {
+    await signInFree();
+    await seedJobs();
+    const choice = {
+      role: { title: "Account Executive", family: "sales" },
+      level: null,
+      place: "c:US",
+      remote: true,
+    };
+    const res = await putLookingFor(
+      new Request("http://localhost/api/jobs/looking-for", {
+        method: "PUT",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(choice),
+      }),
+    );
+    expect(res.status).toBe(200);
+    expect(((await res.json()) as LookingForResponse).choice).toEqual(choice);
+    const read = (await (await getProfile()).json()) as WorkProfileResponse;
+    expect(read.lookingFor).toEqual(choice);
+    expect(read.profile.remoteOnly).toBe(true);
+
+    const lookingFor = {
+      title: "Account Executive",
+      family: "sales" as const,
+      level: "mid" as const,
+      place: "c:US" as const,
+      remote: true,
+    };
+    const preview = await ranked({ lookingFor });
+    expect(preview.lookingFor).toEqual(lookingFor);
+    // "Remote only" is Free's one filter: the Austin office job is gone. The sales role looked
+    // for joins the list, and engineering, now only an older kind, is a label lower.
+    expect(preview.jobs.map((job) => [job.title, job.match.label])).toEqual([
+      ["Backend Engineer", "good"],
+      ["Senior Frontend Engineer", "good"],
+      ["Account Executive", "stretch"],
+    ]);
+
+    const bad = await putLookingFor(
+      new Request("http://localhost/api/jobs/looking-for", {
+        method: "PUT",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ ...choice, place: "c:XX" }),
+      }),
+    );
+    expect(bad.status).toBe(400);
+  });
+
   it(`shows Free at most ${FREE_JOB_MATCHES} and counts the rest`, async () => {
     await signInFree();
     const db = await getDb();
@@ -265,7 +317,7 @@ describe("POST /api/jobs/matches", () => {
     const user = await signInAs();
     await seedJobs();
     const body = await ranked();
-    expect(body).toMatchObject({ variant: "weighted-v1", matching: 3 });
+    expect(body).toMatchObject({ variant: "weighted-v2", matching: 3 });
     expect(body.requestId).toMatch(/^[0-9a-f-]{36}$/);
     const db = await getDb();
     const shown = await db.select().from(matchEvents).orderBy(matchEvents.position);

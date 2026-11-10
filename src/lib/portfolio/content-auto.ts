@@ -33,10 +33,7 @@ export const ACTIVE_MS = 90 * DAY_MS;
 // A number has to be this clear (./metrics.ts scores) to stand alone as a highlight or a stat.
 const HIGHLIGHT_SCORE = 60;
 
-export type AutoProject = Omit<
-  ContentProject,
-  "images" | "video" | "device" | "logo" | "details" | "roles"
->;
+export type AutoProject = Omit<ContentProject, "device" | "monogram" | "details" | "roles">;
 
 export type AutoContent = {
   pitch: string;
@@ -323,7 +320,6 @@ export function autoContent(
         detail: clip(item.title ? item.detail || item.lines[0] || "" : "", 400),
         result: clip(RESULT.exec(text)?.[0] ?? "", 40),
         url: firstUrl(item.detail, ...item.lines),
-        logo: null,
       };
     },
   );

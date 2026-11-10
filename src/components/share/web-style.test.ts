@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { PDF_FONT_FAMILIES } from "@/lib/pdf/fonts";
 import { isBehind, viewFacts } from "./share-facts";
 import { webStyle } from "./web-style";
 
@@ -14,17 +15,24 @@ describe("webStyle", () => {
     });
   });
 
-  it("spells out react-pdf shorthands and maps its fonts", () => {
+  it("spells out react-pdf shorthands and maps its fonts and small capitals", () => {
     expect(
-      webStyle({ paddingHorizontal: 50, marginVertical: 2, fontFamily: "Times-Roman" }),
+      webStyle({
+        paddingHorizontal: 50,
+        marginVertical: 2,
+        fontFamily: "TeX Gyre Pagella",
+        fontFeatureSettings: ["smcp"],
+      }),
     ).toEqual({
       paddingLeft: "calc(50 * var(--pt))",
       paddingRight: "calc(50 * var(--pt))",
       marginTop: "calc(2 * var(--pt))",
       marginBottom: "calc(2 * var(--pt))",
-      fontFamily: "var(--font-page-serif)",
+      fontFamily: PDF_FONT_FAMILIES["TeX Gyre Pagella"].css,
+      fontVariantCaps: "small-caps",
     });
-    expect(webStyle({ fontFamily: "Unknown" }).fontFamily).toBe("var(--font-page-sans)");
+    expect(webStyle({ fontFamily: ["CMU Serif", "Tinos"] }).fontFamily).toContain("CMU Serif");
+    expect(webStyle({ fontFamily: "Unknown" }).fontFamily).toBe(PDF_FONT_FAMILIES.Carlito.css);
   });
 
   it("draws rules at least a pixel thick, and none when the width is zero", () => {

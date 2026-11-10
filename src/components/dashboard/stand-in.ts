@@ -257,6 +257,7 @@ export function standInPage(resume: Resume): { model: PdfModel; blank: boolean }
       name: p.model.name,
       headline: p.model.headline,
       contact: p.model.contact,
+      basics: p.model.basics,
       sections: real.sections.map((section) => standInSection(section, p)),
       extras: extras.map((section) => standInExtra(section, sources.get(section.id), p)),
       meta: p.model.meta,

@@ -6,20 +6,17 @@ import {
   PortfolioContentSchema,
   PORTFOLIO_CONTENT_VERSION,
   saveableContent,
-  uploadsIn,
   webHref,
 } from "./content";
-import { jordanContent, JORDAN_USER_ID } from "./fixtures/jordan";
+import { jordanContent } from "./fixtures/jordan";
 
-const upload = (n: number) => {
-  const id = `00000000-0000-4000-8000-${String(n).padStart(12, "0")}`;
-  return {
-    kind: "upload" as const,
-    id,
-    key: `${JORDAN_USER_ID}/${id}.webp`,
-    width: 800,
-    height: 600,
-  };
+// A picture as documents saved before 2026-11-10 could hold one.
+const oldUpload = {
+  kind: "upload" as const,
+  id: "00000000-0000-4000-8000-000000000001",
+  key: "00000000-0000-4000-8000-0000000000e1/00000000-0000-4000-8000-000000000001.webp",
+  width: 800,
+  height: 600,
 };
 
 describe("portfolio content contract", () => {
@@ -29,49 +26,59 @@ describe("portfolio content contract", () => {
     expect(content.pitch).toBeNull();
     expect(content.stats).toBeNull();
     expect(content.projects).toEqual([]);
-    expect(content.photo).toBeNull();
     expect(content.github).toEqual({ username: null });
   });
 
   it("keeps the fixture whole: every field the designs use is in it", () => {
     const content = jordanContent();
     expect(PortfolioContentSchema.safeParse(content).success).toBe(true);
-    expect(content.projects).toHaveLength(5);
-    expect(uploadsIn(content).length).toBeGreaterThanOrEqual(8);
+    expect(content.projects).toHaveLength(7);
+  });
+
+  it("holds no pictures: anything an older document stored is dropped when it's read", () => {
+    const stored = parseStoredContent({
+      pitch: "Hi",
+      photo: oldUpload,
+      photos: [{ id: "ph1", image: oldUpload, caption: "Sintra" }],
+      projects: [
+        {
+          id: "p1",
+          images: [oldUpload],
+          video: "https://youtu.be/dQw4w9WgXcQ",
+          logo: oldUpload,
+          device: "browser",
+        },
+        { id: "p2", device: "none" },
+      ],
+      jobs: { e1: { website: "https://ledgerly.example", logo: oldUpload } },
+      schools: { ed1: { logo: { kind: "link", url: "https://cdn.example.com/u.png" } } },
+      milestones: [{ id: "m1", title: "Winner", logo: oldUpload }],
+      testimonials: [{ id: "q1", quote: "Great", name: "Maya", photo: oldUpload }],
+      hidden: ["photo", "photos", "talks"],
+    });
+    expect(stored.pitch).toBe("Hi");
+    const json = JSON.stringify(stored);
+    for (const word of ["photo", "images", "video", "logo", ".webp", "cdn.example.com"]) {
+      expect(json).not.toContain(word);
+    }
+    // The old frames read as the design's own choice.
+    expect(stored.projects.map((project) => project.device)).toEqual(["auto", "auto"]);
+    expect(stored.jobs.e1?.website).toBe("https://ledgerly.example");
+    expect(stored.milestones?.[0]?.title).toBe("Winner");
+    expect(stored.hidden).toEqual(["talks"]);
   });
 
   it("holds the limits", () => {
-    const tooManyPhotos = Array.from({ length: CONTENT_LIMITS.photos + 1 }, (_, i) => ({
-      id: `p${i}`,
-      image: upload(i + 1),
-    }));
-    expect(PortfolioContentSchema.safeParse({ photos: tooManyPhotos }).success).toBe(false);
-    const fiveShots = { id: "p1", images: [1, 2, 3, 4, 5].map(upload) };
-    expect(PortfolioContentSchema.safeParse({ projects: [fiveShots] }).success).toBe(false);
     expect(
       PortfolioContentSchema.safeParse({ pitch: "x".repeat(CONTENT_LIMITS.pitch + 1) }).success,
     ).toBe(false);
     expect(PortfolioContentSchema.safeParse({ v: 2 }).success).toBe(false);
   });
 
-  it("refuses unsafe links and pictures", () => {
+  it("refuses unsafe links", () => {
     expect(
       PortfolioContentSchema.safeParse({ jobs: { e1: { website: "javascript:alert(1)" } } })
         .success,
-    ).toBe(false);
-    expect(
-      PortfolioContentSchema.safeParse({
-        photo: { kind: "link", url: "http://cdn.example.com/me.png" },
-      }).success,
-    ).toBe(false);
-    expect(
-      PortfolioContentSchema.safeParse({
-        photo: { kind: "link", url: "https://lh3.googleusercontent.com/a/x=s512-c" },
-      }).success,
-    ).toBe(true);
-    // Upload keys are only ever "<uuid>/<uuid>.webp": no paths, no other files.
-    expect(
-      PortfolioContentSchema.safeParse({ photo: { ...upload(1), key: "../etc/passwd" } }).success,
     ).toBe(false);
     expect(webHref("example.com")).toBe("https://example.com/");
     expect(webHref("ftp://example.com")).toBeNull();
@@ -94,16 +101,9 @@ describe("portfolio content contract", () => {
       talks: [
         { id: "t1", title: "", event: "", date: "", place: "", url: "", recording: "", slides: "" },
       ],
-      testimonials: [{ id: "q1", quote: "Great", name: "", role: "", url: "", photo: null }],
+      testimonials: [{ id: "q1", quote: "Great", name: "", role: "", url: "" }],
       jobs: {
-        e1: {
-          highlight: null,
-          summary: null,
-          type: null,
-          website: "not a site",
-          logo: null,
-          tags: null,
-        },
+        e1: { highlight: null, summary: null, type: null, website: "not a site", tags: null },
       },
     };
     const saved = saveableContent(content);

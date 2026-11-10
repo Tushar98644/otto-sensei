@@ -10,6 +10,7 @@ import {
 } from "@/config/plans";
 import type { AnswerResult, CoverLetterResult, FixResult, TailorResult } from "@/lib/ai/types";
 import type { Application } from "@/lib/applications/schema";
+import type { ApplicationThread } from "@/lib/applications/thread";
 import type { ScreeningQuestion } from "@/lib/ats/types";
 import type { AuthMode, SessionUser } from "@/lib/auth/types";
 import type { BillingMode } from "@/lib/billing/types";
@@ -54,6 +55,9 @@ export type ImportResponse = {
   usedAI: boolean;
   // The plan's AI reads were used up, so the rule-based reader read it. Optional for older servers.
   basicReader?: boolean;
+  // The rule-based read looked complete, so the AI reader wasn't needed and no AI read was spent.
+  // POST /api/import?reader=ai asks for the AI reader anyway. Optional for older servers.
+  readWell?: boolean;
 };
 
 // POST /api/check, multipart/form-data with field "file". Deterministic checks only, no AI.
@@ -167,7 +171,8 @@ export type SummaryResponse = {
 // POST /api/job. Reads a job post from its link, as input for POST /api/tailor. No account needed.
 export const JobRequestSchema = z.object({ url: z.string().max(2048) });
 export type JobRequestBody = z.input<typeof JobRequestSchema>;
-export type JobSource = "greenhouse" | "lever" | "ashby" | "jsonld" | "page";
+export type JobSource =
+  "greenhouse" | "lever" | "ashby" | "workable" | "recruitee" | "personio" | "jsonld" | "page";
 export type JobPosting = {
   // The board's own link for the job when it has one, else the page that was read.
   url: string;
@@ -248,6 +253,9 @@ export type ApplicationsResponse = {
   nextCursor: string | null;
 };
 export type ApplicationResponse = { ok: true; application: Application };
+// GET /api/applications/:id: the application and everything linked to it.
+export type { ApplicationThread } from "@/lib/applications/thread";
+export type ApplicationThreadResponse = { ok: true; thread: ApplicationThread };
 // The applications that changed; ones already on that status are left out.
 export type BulkApplicationsResponse = { ok: true; applications: Application[] };
 
@@ -327,17 +335,27 @@ export type {
 export { WorkProfileSchema } from "@/lib/eligibility/profile";
 export type { WorkProfile, WorkProfileBody, WorkProfileResponse } from "@/lib/eligibility/profile";
 
-// POST /api/jobs/matches (jobs ranked for one resume, or the saved ones), PUT/DELETE
-// /api/jobs/saved/:id, POST /api/jobs/events (what was done with a match). Requires sign-in.
+// POST /api/jobs/matches (jobs ranked for one resume, or the saved ones), GET /api/jobs/saved (the
+// saved ones, unranked, for the Applications board), PUT/DELETE /api/jobs/saved/:id, POST /api/jobs/events (what was done with a match). Requires sign-in.
 // Free sees its closest few matches; filters, paging, saving and the full list are Pro.
-export { JobMatchesRequestSchema, MatchActionSchema } from "@/lib/job-feed/types";
+// PUT /api/jobs/looking-for (the "Looking for" card's choices; any plan).
+export {
+  JobMatchesRequestSchema,
+  LookingForChoiceSchema,
+  MatchActionSchema,
+} from "@/lib/job-feed/types";
 export type {
   JobMatchesRequestBody,
   JobMatchesResponse,
+  LookingFor,
+  LookingForChoice,
+  LookingForResponse,
   JobPostResponse,
   MatchActionInput,
   MatchedJob,
+  SavedJob,
   SavedJobResponse,
+  SavedJobsResponse,
 } from "@/lib/job-feed/types";
 
 // GET/PATCH /api/notifications, GET/PUT /api/notifications/settings. Requires sign-in.

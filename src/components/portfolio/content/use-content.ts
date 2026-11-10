@@ -6,7 +6,7 @@ import type { GitHubStats, PortfolioContent } from "@/lib/portfolio/content";
 import { portfolioViews, type PortfolioViews } from "@/lib/portfolio/content-view";
 import type { Portfolio } from "@/lib/portfolio/types";
 import type { Resume } from "@/lib/resume/schema";
-import { loadContent, setMediaBase, useContentStore } from "./content-store";
+import { loadContent, useContentStore } from "./content-store";
 
 export type PortfolioContentState = PortfolioViews & {
   content: PortfolioContent;
@@ -27,26 +27,22 @@ export function usePortfolioContent(portfolio: Portfolio, resume: Resume): Portf
   const userId = user?.id ?? null;
 
   useEffect(() => {
-    setMediaBase(portfolio.mediaBase);
-  }, [portfolio.mediaBase]);
-  useEffect(() => {
     if (userId) void loadContent(userId);
   }, [userId]);
 
   const ready = status === "ready" && owner === userId;
   const content = ready ? stored : portfolio.content;
   const github = ready ? storedGitHub : portfolio.github;
-  const { showEmail, showPhone, hiddenSections, projectImages, mediaBase } = portfolio;
+  const { showEmail, showPhone, hiddenSections } = portfolio;
   const views = useMemo(
     () =>
       portfolioViews({
         resume,
-        settings: { showEmail, showPhone, hiddenSections, projectImages },
+        settings: { showEmail, showPhone, hiddenSections },
         content,
         github,
-        mediaBase,
       }),
-    [resume, showEmail, showPhone, hiddenSections, projectImages, content, github, mediaBase],
+    [resume, showEmail, showPhone, hiddenSections, content, github],
   );
   return { ...views, content, github };
 }

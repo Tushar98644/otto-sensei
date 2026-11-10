@@ -1,10 +1,20 @@
 import { Fragment, type CSSProperties, type ReactNode } from "react";
-import type { TemplateTheme } from "@/components/pdf/theme";
+import {
+  bulletMark,
+  contactLines,
+  entryRows,
+  headingRuns,
+  headlineLine,
+  nameRuns,
+  SECTION_KINDS,
+  type PlannedRow,
+  type Run,
+} from "@/components/pdf/layout";
+import type { EntryKind, PdfStyle, TemplateTheme } from "@/components/pdf/theme";
 import { themeFor } from "@/components/pdf/themes";
 import type { PdfLink } from "@/lib/pdf/links";
 import {
   buildPdfModel,
-  type PdfCompany,
   type PdfEntry,
   type PdfExtraSection,
   type PdfModel,
@@ -15,14 +25,15 @@ import type { Resume } from "@/lib/resume/schema";
 import { cn } from "@/lib/utils";
 import { points, webStyle } from "./web-style";
 
-// The resume as a web page: the PDF's own model (buildPdfModel) in its format's theme, with real
-// headings, lists and links. Same order and words as the PDF, one column, reflowing to the screen.
-// No hooks and no browser APIs, so it renders on the server.
+// The resume as a web page: the PDF's own model (buildPdfModel) in its format's theme and plan
+// (src/components/pdf/layout.ts), with real headings, lists and links. Same order and words as the
+// PDF, one column, reflowing to the screen. No hooks and no browser APIs, so it renders on the
+// server.
 
 type Styled = { theme: TemplateTheme };
 
 // The base layer gives h1/h2 the app's serif and h3 Inter; a resume heading takes its format's type.
-const HEADING: CSSProperties = { fontFamily: "inherit", fontWeight: "normal" };
+const HEADING: CSSProperties = { fontFamily: "inherit", fontWeight: "inherit" };
 // The page sets its own margins per screen; only the format's type carries over.
 const PAGE_SPACING = [
   "paddingTop",
@@ -37,15 +48,15 @@ const LEAD: CSSProperties = { flex: "1 1 16rem", minWidth: 0 };
 const LINK =
   "underline decoration-border-strong decoration-1 underline-offset-2 hover:decoration-current";
 
-function LinkText({ link, theme }: Styled & { link: PdfLink }) {
-  if (!link.href) return <span>{link.text}</span>;
+function LinkText({ link, theme, style }: Styled & { link: PdfLink; style?: PdfStyle }) {
+  if (!link.href) return <span style={webStyle(style)}>{link.text}</span>;
   const web = !link.href.startsWith("mailto:");
   // The PDF draws its links without underlines; on a screen they need one to look clickable.
-  const style = webStyle(web ? theme.styles.webLink : theme.styles.link, ["textDecoration"]);
+  const own = web ? theme.styles.webLink : theme.styles.link;
   return (
     <a
       href={link.href}
-      style={style}
+      style={webStyle({ ...style, ...own }, ["textDecoration"])}
       className={LINK}
       {...(web ? { target: "_blank", rel: "noopener noreferrer nofollow ugc" } : {})}
     >
@@ -54,17 +65,40 @@ function LinkText({ link, theme }: Styled & { link: PdfLink }) {
   );
 }
 
+function Runs({ runs, theme }: Styled & { runs: readonly Run[] }) {
+  return runs.map((run, index) =>
+    run.link ? (
+      <LinkText
+        key={index}
+        link={{ ...run.link, text: run.text }}
+        theme={theme}
+        style={run.style}
+      />
+    ) : run.style ? (
+      <span key={index} style={webStyle(run.style)}>
+        {run.text}
+      </span>
+    ) : (
+      <Fragment key={index}>{run.text}</Fragment>
+    ),
+  );
+}
+
 function Header({ model, theme }: Styled & { model: PdfModel }) {
   const { styles } = theme;
+  const name = nameRuns(model, theme);
+  const headline = headlineLine(model, theme);
   return (
     <header style={{ display: "flex", flexDirection: "column", ...webStyle(styles.header) }}>
-      {model.name ? (
-        <h1 style={{ ...HEADING, ...webStyle(styles.name) }}>{model.name}</h1>
+      {name.length > 0 ? (
+        <h1 style={{ ...HEADING, ...webStyle(styles.name) }}>
+          <Runs runs={name} theme={theme} />
+        </h1>
       ) : (
         <h1 className="sr-only">Resume</h1>
       )}
-      {model.headline ? <p style={webStyle(styles.headline)}>{model.headline}</p> : null}
-      {model.contact.map((items, line) => (
+      {headline ? <p style={webStyle(styles.headline)}>{headline}</p> : null}
+      {contactLines(model, theme).map((items, line) => (
         <p key={line} style={webStyle(line === 0 ? styles.contact : styles.contactNext)}>
           {items.map((item, index) => (
             <Fragment key={`${index}-${item.text}`}>
@@ -79,95 +113,26 @@ function Header({ model, theme }: Styled & { model: PdfModel }) {
   );
 }
 
-function Detail({ detail, theme, lead }: Styled & { detail: PdfLink | null; lead: boolean }) {
-  if (!detail) return null;
+// An entry's first row is its heading (h3); a role under a company line is h4.
+function Row({ row, theme, heading }: Styled & { row: PlannedRow; heading: "h3" | "h4" | "p" }) {
+  const Lead = heading;
   return (
-    <span style={webStyle(theme.styles.entryDetail)}>
-      {lead ? " · " : null}
-      <LinkText link={detail} theme={theme} />
-    </span>
-  );
-}
-
-function Dates({ dates, theme }: Styled & { dates: string }) {
-  if (!dates) return null;
-  // Right-aligned beside the title; under it, on a phone, it starts at the left like the text.
-  return (
-    <p style={webStyle(theme.styles.dates, ["textAlign"])} className="sm:text-right">
-      {dates}
-    </p>
-  );
-}
-
-function leadStyle(theme: TemplateTheme): CSSProperties {
-  return { ...HEADING, ...webStyle(theme.styles.entryLead, ["flex", "paddingRight"]), ...LEAD };
-}
-
-function EntryHeader({ entry, theme }: Styled & { entry: PdfEntry }) {
-  const { styles } = theme;
-  if (!entry.title && !entry.org && !entry.detail && !entry.dates) return null;
-  const row = { ...ROW, ...webStyle(styles.entryHeader) };
-  if (theme.entryLayout === "stacked") {
-    const subline = Boolean(entry.org);
-    return (
-      <div>
-        <div style={row}>
-          <h3 style={leadStyle(theme)}>
-            {entry.title ? <span style={webStyle(styles.entryTitle)}>{entry.title}</span> : null}
-            {subline ? null : (
-              <Detail detail={entry.detail} theme={theme} lead={Boolean(entry.title)} />
-            )}
-          </h3>
-          <Dates dates={entry.dates} theme={theme} />
-        </div>
-        {subline ? (
-          <p style={webStyle(styles.entrySub)}>
-            <span style={webStyle(styles.entryOrg)}>{entry.org}</span>
-            <Detail detail={entry.detail} theme={theme} lead />
-          </p>
-        ) : null}
-      </div>
-    );
-  }
-  return (
-    <div style={row}>
-      <h3 style={leadStyle(theme)}>
-        {entry.title ? (
-          <span style={webStyle(styles.entryTitle)}>
-            {entry.org ? `${entry.title},` : entry.title}
-          </span>
-        ) : null}
-        {entry.org ? <span style={webStyle(styles.entryOrg)}>{` ${entry.org}`}</span> : null}
-        <Detail detail={entry.detail} theme={theme} lead={Boolean(entry.title || entry.org)} />
-      </h3>
-      <Dates dates={entry.dates} theme={theme} />
-    </div>
-  );
-}
-
-// Roles at one company, as the PDF prints them: the company once, then each role with its dates.
-function CompanyHeader({ company, theme }: Styled & { company: PdfCompany }) {
-  const { styles } = theme;
-  return (
-    <div style={{ ...ROW, ...webStyle(styles.entryHeader) }}>
-      <h3 style={leadStyle(theme)}>
-        <span style={webStyle(styles.entryTitle)}>{company.name}</span>
-        <Detail detail={company.detail} theme={theme} lead />
-      </h3>
-    </div>
-  );
-}
-
-function RoleHeader({ entry, theme }: Styled & { entry: PdfEntry }) {
-  const { styles } = theme;
-  if (!entry.title && !entry.detail && !entry.dates) return null;
-  return (
-    <div style={{ ...ROW, ...webStyle(styles.entryHeader) }}>
-      <h4 style={leadStyle(theme)}>
-        {entry.title ? <span style={webStyle(styles.roleTitle)}>{entry.title}</span> : null}
-        <Detail detail={entry.detail} theme={theme} lead={Boolean(entry.title)} />
-      </h4>
-      <Dates dates={entry.dates} theme={theme} />
+    <div style={{ ...ROW, ...webStyle(row.box, ["flexDirection", "justifyContent"]) }}>
+      <Lead
+        style={{
+          ...(heading === "p" ? {} : HEADING),
+          ...webStyle(row.text, ["flex", "paddingRight"]),
+          ...LEAD,
+        }}
+      >
+        <Runs runs={row.lead} theme={theme} />
+      </Lead>
+      {row.side ? (
+        // Right-aligned beside the lead; under it, on a phone, it starts at the left like the text.
+        <p style={webStyle(row.side.style, ["textAlign"])} className="sm:text-right">
+          {row.side.link ? <LinkText link={row.side.link} theme={theme} /> : row.side.text}
+        </p>
+      ) : null}
     </div>
   );
 }
@@ -177,63 +142,101 @@ function entrySpacing(entry: PdfEntry, index: number, theme: TemplateTheme): CSS
   return webStyle(entry.company && !entry.company.first ? theme.styles.role : theme.styles.entry);
 }
 
-function Bullets({ bullets, theme }: Styled & { bullets: PdfEntry["bullets"] }) {
+function BulletList({ items, theme }: Styled & { items: { id: string; content: ReactNode }[] }) {
   const { styles } = theme;
-  if (bullets.length === 0) return null;
+  if (items.length === 0) return null;
+  const mark = bulletMark(theme);
+  const color = typeof styles.bulletMark.color === "string" ? styles.bulletMark.color : undefined;
   return (
     // role="list": Safari drops list semantics once list-style is none.
     <ul role="list">
-      {bullets.map((bullet) => (
-        <li key={bullet.id} style={{ display: "flex", ...webStyle(styles.bullet) }}>
+      {items.map((item) => (
+        <li key={item.id} style={{ display: "flex", ...webStyle(styles.bullet) }}>
           <span aria-hidden style={{ flexShrink: 0, ...webStyle(styles.bulletGlyph) }}>
-            {theme.bulletGlyph}
+            {mark.kind === "glyph" ? (
+              mark.glyph
+            ) : (
+              <span
+                style={{
+                  display: "block",
+                  ...webStyle(styles.bulletMark),
+                  ...(mark.shape === "square"
+                    ? { backgroundColor: color }
+                    : { border: `1px solid ${color}`, borderRadius: "50%" }),
+                }}
+              />
+            )}
           </span>
-          <span style={{ minWidth: 0, ...webStyle(styles.bulletText) }}>{bullet.text}</span>
+          <span style={{ minWidth: 0, ...webStyle(styles.bulletText) }}>{item.content}</span>
         </li>
       ))}
     </ul>
   );
 }
 
-function Entries({ entries, theme }: Styled & { entries: readonly PdfEntry[] }) {
+function Entries({
+  entries,
+  kind,
+  theme,
+}: Styled & { entries: readonly PdfEntry[]; kind: EntryKind }) {
   return entries.map((entry, index) => (
     <div key={entry.id} style={entrySpacing(entry, index, theme)}>
-      {entry.company?.first ? <CompanyHeader company={entry.company} theme={theme} /> : null}
-      {entry.company ? (
-        <RoleHeader entry={entry} theme={theme} />
-      ) : (
-        <EntryHeader entry={entry} theme={theme} />
-      )}
+      {entryRows(entry, kind, theme).map((row, at) => (
+        <Row
+          key={row.key}
+          row={row}
+          theme={theme}
+          heading={at > 0 ? "p" : entry.company && !entry.company.first ? "h4" : "h3"}
+        />
+      ))}
       {entry.note ? <p style={webStyle(theme.styles.entryNote)}>{entry.note}</p> : null}
-      <Bullets bullets={entry.bullets} theme={theme} />
+      <BulletList
+        items={entry.bullets.map((bullet) => ({ id: bullet.id, content: bullet.text }))}
+        theme={theme}
+      />
     </div>
   ));
 }
+
+const spaced = (style: PdfStyle, index: number) =>
+  webStyle(index > 0 ? style : { ...style, marginTop: 0 });
 
 function SectionBody({ section, theme }: Styled & { section: PdfSection }): ReactNode {
   const { styles } = theme;
   switch (section.key) {
     case "summary":
       return section.paragraphs.map((paragraph, index) => (
-        <p key={index} style={index > 0 ? webStyle(styles.paragraph) : undefined}>
+        <p key={index} style={spaced(styles.paragraph, index)}>
           {paragraph}
         </p>
       ));
-    case "skills":
-      return section.lines.map((line, index) => (
-        <p key={line.id} style={index > 0 ? webStyle(styles.skillLine) : undefined}>
-          {line.label ? <span style={webStyle(styles.skillLabel)}>{`${line.label}: `}</span> : null}
-          <span style={webStyle(styles.skillItems)}>{line.items}</span>
+    case "skills": {
+      const lines = section.lines.map((line) => ({
+        id: line.id,
+        content: (
+          <>
+            {line.label ? (
+              <span style={webStyle(styles.skillLabel)}>{`${line.label}: `}</span>
+            ) : null}
+            <span style={webStyle(styles.skillItems)}>{line.items}</span>
+          </>
+        ),
+      }));
+      if (theme.skills === "bullets") return <BulletList items={lines} theme={theme} />;
+      return lines.map((line, index) => (
+        <p key={line.id} style={spaced(styles.skillLine, index)}>
+          {line.content}
         </p>
       ));
+    }
     default:
-      return <Entries entries={section.entries} theme={theme} />;
+      return <Entries entries={section.entries} kind={SECTION_KINDS[section.key]} theme={theme} />;
   }
 }
 
 function ExtraBody({ section, theme }: Styled & { section: PdfExtraSection }): ReactNode {
-  if (section.list !== null) return <p>{section.list}</p>;
-  return <Entries entries={section.entries} theme={theme} />;
+  if (section.list !== null) return <p style={spaced(theme.styles.paragraph, 0)}>{section.list}</p>;
+  return <Entries entries={section.entries} kind="item" theme={theme} />;
 }
 
 type SectionProps = Styled & { id: string; title: string; children: ReactNode };
@@ -242,18 +245,23 @@ function Section({ id, title, theme, children }: SectionProps) {
   const { styles } = theme;
   const heading = (
     <h2 id={id} style={{ ...HEADING, ...webStyle(styles.sectionTitle) }}>
-      {title}
+      <Runs runs={headingRuns(title, theme)} theme={theme} />
     </h2>
   );
+  const rule = <div aria-hidden style={webStyle(styles.sectionTitleRule)} />;
   return (
     <section aria-labelledby={id} style={webStyle(styles.section)}>
       {theme.headingRule === "after" ? (
         <div style={{ display: "flex", ...webStyle(styles.sectionTitleRow) }}>
           {heading}
-          <div aria-hidden style={webStyle(styles.sectionTitleRule)} />
+          {rule}
         </div>
       ) : (
-        heading
+        <>
+          {theme.headingRule === "above" ? rule : null}
+          {heading}
+          {theme.headingRule === "below" ? rule : null}
+        </>
       )}
       {children}
     </section>

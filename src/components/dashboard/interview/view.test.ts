@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { Application } from "@/lib/applications/schema";
-import { findByLink, interviewHref, prepChoices, waitingForPrep } from "./view";
+import { emptyResume, type Resume } from "@/lib/resume/schema";
+import { findByLink, interviewHref, prepChoices, prepPickerChoices, waitingForPrep } from "./view";
 
 function application(id: string, patch: Partial<Application> = {}): Application {
   return {
@@ -13,6 +14,9 @@ function application(id: string, patch: Partial<Application> = {}): Application 
     appliedAt: 1_000,
     status: "applied",
     stageReached: "applied",
+    jobId: null,
+    hasPrep: false,
+    interviewAt: null,
     statusChangedAt: 1_000,
     notes: "",
     followUpAt: null,
@@ -46,6 +50,34 @@ describe("interview prep lists", () => {
     ];
     expect(prepChoices(list).map((item) => item.id)).toEqual(["talk", "new", "old"]);
     expect(list.map((item) => item.id)).toEqual(["old", "new", "talk"]);
+  });
+
+  it("offers tailored copies not sent yet after the applications", () => {
+    const copy = (id: string, company: string, createdAt: number): Resume => ({
+      ...emptyResume(),
+      id,
+      title: `Designer at ${company || "?"}`,
+      source: "tailored",
+      tailor: { baseResumeId: "base", jobTitle: "Designer", company, keywords: [], createdAt },
+    });
+    const choices = prepPickerChoices(
+      [application("talk", { status: "interview", company: "Initech" }), application("sent", { resumeId: "c-sent" })],
+      [
+        { ...emptyResume(), id: "base" },
+        copy("c-old", "Globex", 1),
+        copy("c-new", "Umbrella", 9),
+        copy("c-sent", "Acme", 5),
+        copy("c-nameless", "", 7),
+      ],
+    );
+    expect(choices.map((choice) => choice.value)).toEqual([
+      "application:talk",
+      "application:sent",
+      "copy:c-new",
+      "copy:c-old",
+    ]);
+    expect(choices[0]?.label).toBe("Initech (Interviewing)");
+    expect(choices[2]?.label).toBe("Designer at Umbrella (tailored copy, not sent yet)");
   });
 
   it("finds the application already logged for a pasted link", () => {

@@ -1,6 +1,13 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { getDb } from "@/db/client";
-import { billingEvents, notifications, rateLimits, resumeTombstones } from "@/db/schema";
+import {
+  billingEvents,
+  matchCache,
+  matchEvents,
+  notifications,
+  rateLimits,
+  resumeTombstones,
+} from "@/db/schema";
 import { createUser, resetDb } from "@/lib/auth/test-helpers";
 import { CLEANUP_BATCH, RETENTION, runCleanup } from "./cleanup";
 
@@ -47,9 +54,33 @@ describe("runCleanup", () => {
       { id: "evt_new", type: "subscription.active", receivedAt: NOW - DAY },
     ]);
 
+    const event = (kind: "impression" | "save", createdAt: number) => ({
+      id: crypto.randomUUID(),
+      userId: maya.id,
+      kind,
+      jobId: crypto.randomUUID(),
+      variant: "weighted-v2",
+      createdAt,
+    });
+    const oldImpression = event("impression", NOW - RETENTION.impressionsMs - 1);
+    const oldSave = event("save", NOW - RETENTION.impressionsMs - 1);
+    const newImpression = event("impression", NOW - DAY);
+    await db.insert(matchEvents).values([oldImpression, oldSave, newImpression]);
+    await db.insert(matchCache).values([
+      { userId: maya.id, key: "k".repeat(32), value: {}, createdAt: NOW - RETENTION.matchCacheMs - 1 },
+      { userId: maya.id, key: "n".repeat(32), value: {}, createdAt: NOW - 60_000 },
+    ]);
+
     const first = await runCleanup(context());
     expect(first).toEqual({
-      stats: { rateLimits: 1, tombstones: 1, notifications: 2, billingEvents: 1 },
+      stats: {
+        rateLimits: 1,
+        tombstones: 1,
+        notifications: 2,
+        billingEvents: 1,
+        impressions: 1,
+        matchCache: 1,
+      },
       complete: true,
       failed: [],
     });
@@ -58,9 +89,21 @@ describe("runCleanup", () => {
     expect((await db.select().from(resumeTombstones)).map((row) => row.id)).toEqual(["new"]);
     expect(await db.select().from(notifications)).toHaveLength(2);
     expect((await db.select().from(billingEvents)).map((row) => row.id)).toEqual(["evt_new"]);
+    // Old actions stay: only impressions age out.
+    expect((await db.select().from(matchEvents)).map((row) => row.id).sort()).toEqual(
+      [oldSave.id, newImpression.id].sort(),
+    );
+    expect((await db.select().from(matchCache)).map((row) => row.key)).toEqual(["n".repeat(32)]);
 
     const second = await runCleanup(context());
-    expect(second.stats).toEqual({ rateLimits: 0, tombstones: 0, notifications: 0, billingEvents: 0 });
+    expect(second.stats).toEqual({
+      rateLimits: 0,
+      tombstones: 0,
+      notifications: 0,
+      billingEvents: 0,
+      impressions: 0,
+      matchCache: 0,
+    });
   });
 
   it("drains more than one batch", async () => {

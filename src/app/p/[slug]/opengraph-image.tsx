@@ -30,7 +30,6 @@ export default async function PortfolioImage({ params }: Props) {
   const view = result.status === "ok" ? result.portfolio.view : null;
   const name = clip(view?.name || BRAND.name, 40);
   const headline = clip(view ? view.headline : BRAND.tagline, 90);
-  const credit = result.status !== "ok" || result.portfolio.showCredit;
   const theme =
     result.status === "ok" ? PORTFOLIO_TEMPLATE_INFO[result.portfolio.template].colors : null;
   const colors = theme ? { ...theme, subtle: theme.muted } : BRAND_COLORS;
@@ -62,11 +61,6 @@ export default async function PortfolioImage({ params }: Props) {
         {headline ? (
           <div style={{ marginTop: 24, fontSize: 38, lineHeight: 1.3, color: colors.muted }}>
             {headline}
-          </div>
-        ) : null}
-        {credit ? (
-          <div style={{ marginTop: 44, fontSize: 26, color: colors.subtle }}>
-            Made with {BRAND.name}
           </div>
         ) : null}
       </div>

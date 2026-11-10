@@ -1,15 +1,37 @@
 import { z } from "zod";
+import { isCountryCode, type PlaceGroup } from "@/lib/eligibility/places";
 
 // Client-safe. Openings read every day from public job boards (JOB-SOURCES.md), shown on the Jobs
 // tab matched to a resume and on the public /jobs page. Matching is rule-based and runs on our
 // server for free: nothing here ever reaches the AI.
 
-export const JOB_SOURCES = ["greenhouse", "lever", "ashby", "himalayas", "remoteok"] as const;
+export const JOB_SOURCES = [
+  "greenhouse",
+  "lever",
+  "ashby",
+  "workable",
+  "recruitee",
+  "personio",
+  "himalayas",
+  "remoteok",
+  "jobicy",
+] as const;
 export type JobSourceId = (typeof JOB_SOURCES)[number];
 
 // Company job boards: one board per company, read whole each time.
-export const BOARD_SOURCES = ["greenhouse", "lever", "ashby"] as const;
+export const BOARD_SOURCES = [
+  "greenhouse",
+  "lever",
+  "ashby",
+  "workable",
+  "recruitee",
+  "personio",
+] as const;
 export type BoardSource = (typeof BOARD_SOURCES)[number];
+
+// Feeds: many companies' newest jobs, read once a day.
+export const FEED_SOURCES = ["himalayas", "remoteok", "jobicy"] as const;
+export type FeedSource = (typeof FEED_SOURCES)[number];
 
 export type BoardSeed = { ats: BoardSource; token: string; company: string };
 
@@ -129,6 +151,9 @@ export type MatchedJob = FeedJob & {
   // how many more: "Remote UK, Remote Canada (+2)".
   otherPlaces: string[];
   morePlaces: number;
+  // Facts about the company from public visa registers, as card lines ("Listed as a UK visa
+  // sponsor"). Never a promise about this job (visa.ts).
+  visa: string[];
   // 1-based place in the whole ranked list, for match_events.
   position: number;
 };
@@ -144,6 +169,67 @@ export const MatchProfileSchema = z.object({
   years: z.number().min(0).max(70).nullable(),
 });
 export type MatchProfile = z.output<typeof MatchProfileSchema>;
+
+// The "Looking for" card (looking-for.ts has the guess and the place rules).
+export const PLACE_GROUPS = [
+  "north_america",
+  "latam",
+  "europe",
+  "eu",
+  "emea",
+  "apac",
+  "anz",
+] as const satisfies readonly PlaceGroup[];
+
+// "anywhere", a country ("c:US") or a group of countries ("g:eu").
+export type PlaceChoice = "anywhere" | `c:${string}` | `g:${PlaceGroup}`;
+
+const PLACE_CHOICE = z
+  .string()
+  .max(24)
+  .refine(
+    (value) =>
+      value === "anywhere" ||
+      (value.startsWith("c:") && isCountryCode(value.slice(2))) ||
+      (value.startsWith("g:") && (PLACE_GROUPS as readonly string[]).includes(value.slice(2))),
+    "Pick a place from the list.",
+  )
+  .transform((value) => value as PlaceChoice);
+
+export const LOOKING_FOR_LIMITS = { titleChars: 80 } as const;
+
+/** What Matches are ranked for. Every part is filled: the guess, or what the person picked. */
+export const LookingForSchema = z.object({
+  title: z.string().trim().max(LOOKING_FOR_LIMITS.titleChars),
+  family: z.enum(ROLE_FAMILIES).nullable(),
+  level: z.enum(SENIORITIES).nullable(),
+  place: PLACE_CHOICE,
+  remote: z.boolean(),
+});
+export type LookingFor = z.output<typeof LookingForSchema>;
+
+/**
+ * What the person changed, kept per account (work_profiles.target_*): null parts follow the
+ * resume, so switching resumes changes the guess and not a choice someone made. `remote` is the
+ * work profile's "Remote only".
+ */
+export const LookingForChoiceSchema = z.object({
+  role: z
+    .object({
+      title: z.string().trim().max(LOOKING_FOR_LIMITS.titleChars),
+      family: z.enum(ROLE_FAMILIES).nullable(),
+    })
+    .nullable(),
+  level: z.enum(SENIORITIES).nullable(),
+  place: PLACE_CHOICE.nullable(),
+  remote: z.boolean(),
+});
+export type LookingForChoice = z.output<typeof LookingForChoiceSchema>;
+
+export const NO_CHOICE: LookingForChoice = { role: null, level: null, place: null, remote: false };
+
+// PUT /api/jobs/looking-for. Free and Pro alike: the card shapes Free's closest matches too.
+export type LookingForResponse = { ok: true; choice: LookingForChoice };
 
 export const JobFiltersSchema = z.object({
   q: z.string().trim().max(100).default(""),
@@ -180,6 +266,8 @@ export const JobMatchesRequestSchema = z.object({
   page: z.number().int().min(1).max(MAX_JOB_PAGE).default(1),
   // For time zone rules when the work profile has none.
   deviceTimeZone: z.string().max(64).default(""),
+  // The "Looking for" card as shown (looking-for.ts); without it the server guesses the same way.
+  lookingFor: LookingForSchema.nullable().default(null),
 });
 export type JobMatchesRequestBody = z.input<typeof JobMatchesRequestSchema>;
 
@@ -206,6 +294,8 @@ export type JobMatchesResponse = {
   // Free: the closest FREE_JOB_MATCHES only, ranked with no filters and no work profile;
   // `matching` still counts them all.
   locked?: boolean;
+  // The "Looking for" card this list was ranked for.
+  lookingFor: LookingFor | null;
   // Which ordering made this list, and the ids actions are logged against (null when nothing
   // is logged: Free's preview and the saved view).
   variant: string;
@@ -264,3 +354,6 @@ export type JobPostResponse = { ok: true; job: FeedJob; text: string };
 // PUT/DELETE /api/jobs/saved/:id. Requires sign-in.
 export const SAVED_JOBS_LIMIT = 500;
 export type SavedJobResponse = { ok: true; saved: boolean; savedCount: number };
+// GET /api/jobs/saved: the account's saved jobs, newest save first, closed ones included.
+export type SavedJob = FeedJob & { savedAt: number };
+export type SavedJobsResponse = { ok: true; jobs: SavedJob[] };

@@ -1,5 +1,10 @@
 import { fail, ok } from "@/lib/api/respond";
-import { UpdateApplicationSchema, type ApplicationResponse, type EmptyOk } from "@/lib/api/types";
+import {
+  UpdateApplicationSchema,
+  type ApplicationResponse,
+  type ApplicationThreadResponse,
+  type EmptyOk,
+} from "@/lib/api/types";
 import { ApplicationIdSchema } from "@/lib/applications/schema";
 import { rejectCrossSite, rejectNonJson } from "@/lib/auth/route-guards";
 import { getCurrentUser } from "@/lib/auth/session";
@@ -7,8 +12,12 @@ import { readJson } from "@/lib/http";
 import { log } from "@/lib/log";
 import { INVALID, NOT_FOUND, SIGN_IN } from "../messages";
 import { deleteApplication, updateApplication } from "../records";
+import { getApplicationThread } from "../thread";
 
 export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+
+const NO_STORE = { "Cache-Control": "no-store" };
 
 type Context = { params: Promise<{ id: string }> };
 
@@ -16,6 +25,23 @@ const EMPTY: Omit<EmptyOk, "ok"> = {};
 
 function isApplicationId(id: string): boolean {
   return ApplicationIdSchema.safeParse(id).success;
+}
+
+// The application with everything linked to it, for its own page. Readable on every plan, like
+// the list: a Free account keeps what it made on Pro or the trial.
+export async function GET(_req: Request, { params }: Context): Promise<Response> {
+  try {
+    const user = await getCurrentUser();
+    if (!user) return fail("unauthorized", SIGN_IN, 401, NO_STORE);
+    const { id } = await params;
+    const thread = isApplicationId(id) ? await getApplicationThread(user.id, id) : null;
+    if (!thread) return fail("not_found", NOT_FOUND, 404, NO_STORE);
+    const response: Omit<ApplicationThreadResponse, "ok"> = { thread };
+    return ok(response, { headers: NO_STORE });
+  } catch (error) {
+    log.error("applications.thread_failed", error);
+    return fail("server_error", "Couldn't load that application. Please try again.", 500, NO_STORE);
+  }
 }
 
 // Another account's id gets the same 404 as one that never existed, so ids can't be probed.

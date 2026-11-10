@@ -8,6 +8,7 @@ import { OttoCheer } from "@/components/mascot/otto-cheer";
 import { OttoNote } from "@/components/mascot/otto-note";
 import { DownloadActions } from "@/components/studio/download/download-actions";
 import { ExportCheckResult } from "@/components/studio/download/export-check-result";
+import { ApplicationCard } from "@/components/studio/download/application-card";
 import { LetterCard } from "@/components/studio/download/letter-card";
 import { PdfFrame, useInlinePdfPreview } from "@/components/studio/download/pdf-preview";
 import { useExportCheck, type ExportCheck } from "@/components/studio/download/use-export-check";
@@ -86,6 +87,7 @@ function DownloadWorkspace({ resume }: { resume: Resume }) {
             <ExportCheckResult report={check.report} original={check.original} />
           ) : null}
           <LetterCard resume={printed} pageSize={pageSize} />
+          <ApplicationCard resume={resume} />
         </div>
         {inline ? (
           <section aria-label="PDF preview" className="lg:col-span-3 lg:col-start-1 lg:row-start-1">

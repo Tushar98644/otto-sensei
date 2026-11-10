@@ -6,7 +6,14 @@ import type { ApiErrorBody, ImportResponse } from "@/lib/api/types";
 import { cookieJar, resetDb, signInAs, signInOnTrial } from "@/lib/auth/test-helpers";
 import { resetEnvForTests } from "@/lib/env";
 import { getUsage } from "@/lib/usage";
-import { blankPdf, cleanResumePdf, encryptedPdf, noTextPdf, templateDocx } from "@/lib/parse/test-fixtures";
+import {
+  blankPdf,
+  cleanResumePdf,
+  encryptedPdf,
+  noTextPdf,
+  templateDocx,
+  twoColumnPdf,
+} from "@/lib/parse/test-fixtures";
 import { ResumeSchema } from "@/lib/resume/schema";
 import { POST } from "./route";
 
@@ -27,10 +34,13 @@ function file(bytes: Uint8Array, name: string, type = ""): File {
   return new File([new Uint8Array(bytes)], name, { type });
 }
 
-function upload(entry: File | string | null, { ip = "203.0.113.7" }: { ip?: string } = {}): Request {
+function upload(
+  entry: File | string | null,
+  { ip = "203.0.113.7", reader }: { ip?: string; reader?: "ai" } = {},
+): Request {
   const form = new FormData();
   if (entry !== null) form.append("file", entry);
-  return new Request("http://localhost/api/import", {
+  return new Request(`http://localhost/api/import${reader ? `?reader=${reader}` : ""}`, {
     method: "POST",
     headers: { "x-forwarded-for": ip },
     body: form,
@@ -272,35 +282,71 @@ describe("AI reads of uploads", () => {
     return (await res.json()) as ImportResponse;
   }
 
-  it(`gives the trial ${PRO_TRIAL.limits.import} AI reads, then never blocks`, async () => {
+  // The rules read this one well, so it never needs the AI.
+  const cleanFile = () => resumePdf;
+  // Columns read straight across: 0 jobs by rules, so it goes to the AI reader.
+  let weakFile: File;
+  beforeAll(async () => {
+    weakFile = file(await twoColumnPdf(), "two-column.pdf", "application/pdf");
+  });
+
+  it(`gives the trial ${PRO_TRIAL.limits.import} AI reads for weak reads, then never blocks`, async () => {
     const maya = await signInOnTrial("maya@example.com");
     for (let i = 0; i < PRO_TRIAL.limits.import; i++) {
-      expect(await read(await POST(upload(resumePdf)))).toMatchObject({ usedAI: true, basicReader: false });
+      expect(await read(await POST(upload(weakFile)))).toMatchObject({
+        usedAI: true,
+        basicReader: false,
+        readWell: false,
+      });
     }
-    const past = await read(await POST(upload(resumePdf)));
-    expect(past).toMatchObject({ usedAI: false, basicReader: true });
-    expect(past.resume.basics.email).toBe("jane.doe@example.com");
+    const past = await read(await POST(upload(weakFile)));
+    expect(past).toMatchObject({ usedAI: false, basicReader: true, readWell: false });
+    expect(past.resume.basics.email).toBe("alex.morgan@example.com");
     expect(structureResume).toHaveBeenLastCalledWith(expect.any(String), NOW, { ai: false });
     expect((await getUsage(maya)).import).toEqual({ used: 5, limit: 5 });
   });
 
+  it("keeps a good rules read without spending an AI read, even with reads left", async () => {
+    const maya = await signInOnTrial("maya@example.com");
+    const body = await read(await POST(upload(cleanFile())));
+    expect(body).toMatchObject({ usedAI: false, basicReader: false, readWell: true });
+    expect(body.resume.experience).toHaveLength(2);
+    expect(vi.mocked(structureResume).mock.calls.every(([, , options]) => options?.ai === false)).toBe(true);
+    expect((await getUsage(maya)).import.used).toBe(0);
+  });
+
+  it("reads a good file with the AI when asked to (Let Otto re-read it)", async () => {
+    const maya = await signInOnTrial("maya@example.com");
+    const body = await read(await POST(upload(cleanFile(), { reader: "ai" })));
+    expect(body).toMatchObject({ usedAI: true, basicReader: false, readWell: false });
+    expect(structureResume).toHaveBeenLastCalledWith(expect.any(String), NOW, { ai: true });
+    expect((await getUsage(maya)).import.used).toBe(1);
+  });
+
   it("reads every file with the basic reader, signed out and on Free, and never calls the AI", async () => {
-    const signedOut = await read(await POST(upload(resumePdf)));
+    const signedOut = await read(await POST(upload(weakFile)));
     expect(signedOut).toMatchObject({ usedAI: false, basicReader: true });
-    expect(signedOut.resume.basics.email).toBe("jane.doe@example.com");
+    expect(signedOut.resume.basics.email).toBe("alex.morgan@example.com");
     const free = await signInAs("free@example.com");
-    expect(await read(await POST(upload(resumePdf)))).toMatchObject({ usedAI: false, basicReader: true });
+    expect(await read(await POST(upload(weakFile)))).toMatchObject({ usedAI: false, basicReader: true });
+    // A file the rules read well isn't sent to the basic reader for the plan, so there's no
+    // AI reading to offer for it.
+    expect(await read(await POST(upload(cleanFile())))).toMatchObject({
+      usedAI: false,
+      basicReader: false,
+      readWell: true,
+    });
     expect(vi.mocked(structureResume).mock.calls.every(([, , options]) => options?.ai === false)).toBe(true);
     expect((await getUsage(free)).import).toEqual({ used: 0, limit: 0 });
   });
 
   it("gives the read back when the AI fell back, and never counts a scan", async () => {
     const maya = await signInOnTrial("maya@example.com");
-    vi.mocked(structureResume).mockImplementationOnce(async (text, now) => {
+    vi.mocked(structureResume).mockImplementation(async (text, now) => {
       const { heuristicParse } = await import("@/lib/resume/heuristic-parse");
       return { resume: heuristicParse(text, now), usedAI: false };
     });
-    expect((await read(await POST(upload(resumePdf)))).usedAI).toBe(false);
+    expect((await read(await POST(upload(weakFile)))).usedAI).toBe(false);
     expect((await read(await POST(upload(scanPdf)))).basicReader).toBe(false);
     expect((await getUsage(maya)).import.used).toBe(0);
   });

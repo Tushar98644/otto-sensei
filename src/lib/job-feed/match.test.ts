@@ -37,6 +37,54 @@ describe("findSkills", () => {
     expect(findSkills("R&D budget")).toEqual([]);
   });
 
+  // MATCHING-RESEARCH.md, Round 2: 330 non-engineering posts carried "Go" from lines like these.
+  it("doesn't read plain English as a short tech name", () => {
+    for (const line of [
+      "You will own our Go To Market strategy for the EMEA region.",
+      "Go deep on customer problems. Go above and beyond for our partners.",
+      "Go onsite to customer offices twice a month.",
+      "Access your benefits on the go with our app.",
+      "Go-to-market lead; go-live support",
+      "Swift action on incidents. Spark curiosity in every meeting.",
+      "Ruby's team reports to Julia's group.",
+      "A Series C company; Vitamin C and Grade R are not languages.",
+      "Excel at writing clear updates. React to feedback quickly.",
+      "Our office on Elm Street, near Cypress, California.",
+    ]) {
+      expect(findSkills(line), line).toEqual([]);
+    }
+  });
+
+  it("still finds short tech names next to other tech or tech words", () => {
+    expect(findSkills("Backend engineer building payment services in Go.")).toEqual(["Go"]);
+    expect(findSkills("Skills: Go, PostgreSQL, Kubernetes")).toEqual([
+      "Go",
+      "PostgreSQL",
+      "Kubernetes",
+    ]);
+    expect(findSkills("Senior Go Engineer")).toEqual(["Go"]);
+    expect(findSkills("Software Engineer (Go)")).toEqual(["Go"]);
+    expect(findSkills("Experience with Python, Go, or Rust")).toEqual(["Python", "Go", "Rust"]);
+    expect(findSkills("Statistics in R; R packages")).toEqual(["Statistics", "R"]);
+    expect(findSkills("Embedded C and C++ on Linux")).toEqual(["C", "C++", "Linux"]);
+    expect(findSkills("iOS apps in Swift and SwiftUI")).toEqual(["iOS", "Swift", "SwiftUI"]);
+    expect(findSkills("Spark jobs on Databricks; PySpark")).toEqual(["Spark", "Databricks"]);
+    expect(findSkills("Frontend in Elm")).toEqual(["Elm"]);
+    expect(findSkills("Excel models and Excel macros")).toEqual(["Excel"]);
+    // Real lines the first version of the rules dropped (match-eval skills-check, 2026-11-09).
+    expect(findSkills("System programming with C, C++, and/or Rust.")).toEqual(["C", "C++", "Rust"]);
+    expect(findSkills("Streaming such as Apache Kafka or Apache Flink")).toEqual(["Kafka", "Flink"]);
+    expect(findSkills("Our Helm chart and Docker Compose setup")).toEqual(["Helm", "Docker"]);
+    expect(findSkills("- Frontend: React and Typescript")).toEqual(["React", "TypeScript"]);
+    expect(findSkills("Ruby experience (our platform runs on Rails)")).toEqual(["Ruby", "Ruby on Rails"]);
+    // An investor named in the company intro is not the tool.
+    expect(findSkills("Led by Altimeter Capital and Spark Capital.")).toEqual([]);
+  });
+
+  it("judges each mention, so plain English before the tech one doesn't hide it", () => {
+    expect(findSkills("Go deep on data. Our services are written in Go.")).toEqual(["Go"]);
+  });
+
   it("checks what a browser sends against the vocabulary", () => {
     expect(knownSkills(["React", "React", "Made up", "Go"])).toEqual(["React", "Go"]);
   });
@@ -63,6 +111,17 @@ describe("roles", () => {
     expect(seniorityOf("Engineering Manager")).toBe("lead");
     expect(seniorityOf("Product Manager")).toBe("mid");
     expect(seniorityOf("Head of Design")).toBe("director");
+    // People managers the test set's judge saw as two steps up from an individual role.
+    expect(seniorityOf("Manager, Sales Development")).toBe("lead");
+    expect(seniorityOf("Manager I, Engineering - Client SDKs")).toBe("lead");
+    expect(seniorityOf("Senior Manager, Software Engineering (Android)")).toBe("lead");
+    expect(seniorityOf("Account Manager, Enterprise")).toBe("mid");
+  });
+
+  it("doesn't call every analyst a data role", () => {
+    expect(roleFamily("Accounts Payable Analyst")).toBe("finance");
+    expect(roleFamily("Sr. Analyst, Identity & KYC")).toBe("legal");
+    expect(roleFamily("Senior Business Intelligence Analyst")).toBe("data");
   });
 
   it("finds the fewest years a post asks for", () => {
@@ -156,5 +215,38 @@ describe("matchJob", () => {
   it("never prints a score", () => {
     const match = matchJob(engineer, job())!;
     expect([match.reason, ...match.notes].join(" ")).not.toMatch(/\d+\s*%|score|\/100/i);
+  });
+});
+
+describe("role kind by title age", () => {
+  // product-pm-mid in the test set: an old "Business Analyst" title once made operations count
+  // fully, and Shift Coordinator posts reached the top 10.
+  const profile = { skills: ["Jira", "SQL"], titles: ["Product Manager", "Business Analyst"], years: 4 };
+  const pm = personFrom(profile);
+  const post = (title: string): MatchableJob => ({
+    title,
+    keywords: [],
+    seniority: "mid",
+    minYears: null,
+  });
+
+  it("counts the latest title's kind fully and an older title's at half", () => {
+    expect(pm.families.get("product")).toBe(1);
+    expect(pm.families.get("operations")).toBe(0.5);
+    expect(pm.seniority).toBe("mid");
+  });
+
+  it("labels a job of an older title's kind a step lower, and says why", () => {
+    const ops = matchJob(pm, post("Shift Coordinator"));
+    expect(ops?.label).toBe("stretch");
+    expect(ops?.reason).toBe("Like an earlier role on your resume. The post names no tools to compare.");
+    expect(matchJob(pm, post("Product Manager"))?.label).toBe("good");
+  });
+
+  it("follows the role and level the Looking for card names", () => {
+    const switched = personFrom(profile, { family: "data", level: "senior" });
+    expect(switched.families.get("data")).toBe(1);
+    expect(switched.families.get("product")).toBe(0.5);
+    expect(switched.seniority).toBe("senior");
   });
 });

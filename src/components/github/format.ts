@@ -15,6 +15,14 @@ export function usernameFromResume(resume: Resume): string {
   return "";
 }
 
+// Below this many projects, the studio offers the GitHub import at the top of Projects.
+const FEW_PROJECTS = 2;
+
+/** The resume links a GitHub profile but has fewer than two projects: worth offering the import. */
+export function offersGitHubImport(resume: Resume): boolean {
+  return usernameFromResume(resume) !== "" && resume.projects.length < FEW_PROJECTS;
+}
+
 /** What the server hides from the AI: the details this resume itself shows. */
 export function contactOf(resume: Resume): GitHubContact {
   const { basics } = resume;

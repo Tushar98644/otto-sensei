@@ -8,6 +8,7 @@ import {
   type Resume,
   type ResumeDesign,
 } from "@/lib/resume/schema";
+import { PDF_FONT, type PdfFontName } from "./fonts";
 
 // The look settings on top of a format: what they're called and what they print as. Client-safe
 // and react-pdf free, so the Download step's controls and the Word export share them with the PDF
@@ -38,11 +39,12 @@ export const DENSITY_LABELS: Record<DesignDensity, string> = {
   compact: "Compact",
 };
 
-// The standard PDF families (nothing to download, every glyph maps back to text) and the Word
-// fonts that match their widths, so a page breaks in about the same place in both files.
-export const FONT_FAMILIES: Record<DesignFont, { pdf: string; word: string }> = {
-  sans: { pdf: "Helvetica", word: "Arial" },
-  serif: { pdf: "Times-Roman", word: "Times New Roman" },
+// "Sans" and "Serif" swap a format's own fonts for two broad bundled families, and the Word fonts
+// that match their widths (Carlito is metric-compatible with Calibri, Tinos with Times New Roman),
+// so a page breaks in about the same place in both files.
+export const FONT_FAMILIES: Record<DesignFont, { pdf: PdfFontName; word: string }> = {
+  sans: { pdf: PDF_FONT.carlito, word: "Calibri" },
+  serif: { pdf: PDF_FONT.tinos, word: "Times New Roman" },
 };
 
 // Compact takes about 10% off the page: margins and gaps shrink by a tenth and lines sit a little

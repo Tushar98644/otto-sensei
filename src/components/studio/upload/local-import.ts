@@ -2,14 +2,15 @@ import { formatBytes } from "@/components/ui/file-check";
 import { JSON_RESUME_MAX_BYTES, JsonResumeError, parseJsonResume } from "@/lib/jsonresume/import";
 import { LINKEDIN_MAX_ZIP_BYTES, LinkedInImportError, readLinkedInExport } from "@/lib/linkedin/import";
 import type { Resume } from "@/lib/resume/schema";
+import { LOCAL_IMPORT_ACCEPT, type LocalImportKind } from "./local-import-kinds";
 
 // Imports that never leave the browser: a LinkedIn data export (ZIP) and a JSON Resume file.
 
-export type LocalImportKind = "linkedin" | "jsonresume";
+export type { LocalImportKind };
 
 export const LOCAL_IMPORTS: Record<LocalImportKind, { accept: string; maxBytes: number }> = {
-  linkedin: { accept: ".zip", maxBytes: LINKEDIN_MAX_ZIP_BYTES },
-  jsonresume: { accept: ".json", maxBytes: JSON_RESUME_MAX_BYTES },
+  linkedin: { accept: LOCAL_IMPORT_ACCEPT.linkedin, maxBytes: LINKEDIN_MAX_ZIP_BYTES },
+  jsonresume: { accept: LOCAL_IMPORT_ACCEPT.jsonresume, maxBytes: JSON_RESUME_MAX_BYTES },
 };
 
 export class LocalImportError extends Error {}

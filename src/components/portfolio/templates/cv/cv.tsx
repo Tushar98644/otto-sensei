@@ -2,7 +2,7 @@ import { Globe, Mail, MapPin, Phone } from "lucide-react";
 import type { CSSProperties, ReactNode } from "react";
 import type { SocialKind } from "@/lib/portfolio/content";
 import { SocialIcon } from "../icons";
-import { allSkills, DesignCredit, Marked, nameOf, OutLink, Picture, TemplateStyle } from "../parts";
+import { allSkills, DesignCredit, Marked, nameOf, OutLink, TemplateStyle } from "../parts";
 import type { PortfolioTemplateProps } from "../types";
 import { CommandMenu } from "./islands";
 import { CV_CSS } from "./styles";
@@ -296,18 +296,10 @@ export function CvTemplate({ view, content, footer }: PortfolioTemplateProps) {
                   </>
                 ) : null}
               </div>
-              {content.photo ? (
-                <Picture
-                  image={content.photo}
-                  className="avatar"
-                  alt={`${name}'s profile picture`}
-                  eager
-                />
-              ) : (
-                <div className="avatar" aria-hidden>
-                  {content.initials}
-                </div>
-              )}
+              {/* The initials in the pixel face, where the original has a profile picture. */}
+              <div className="avatar" aria-hidden>
+                {content.initials}
+              </div>
             </header>
           </div>
           {sections.map((section, index) => (

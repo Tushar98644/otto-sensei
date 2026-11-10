@@ -1,5 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { ashbyPosting, greenhousePosting, leverPosting } from "./boards";
+import {
+  ashbyPosting,
+  greenhousePosting,
+  leverPosting,
+  personioPosting,
+  recruiteePosting,
+  workablePosting,
+} from "./boards";
+import { PERSONIO_FEED, RECRUITEE_OFFERS, WORKABLE_ACCOUNT } from "@/lib/job-feed/test-fixtures";
 import { JobReadError } from "./errors";
 import { ASHBY_BOARD, ASHBY_JOB_ID, GREENHOUSE_JOB, LEVER_POSTING } from "./test-fixtures";
 
@@ -97,5 +105,52 @@ describe("ashbyPosting", () => {
     expect(reasonOf(() => ashbyPosting({ jobs: "nope" }, "linear", ASHBY_JOB_ID, LINK))).toBe(
       "unreachable",
     );
+  });
+});
+
+describe("workablePosting", () => {
+  it("picks the job by shortcode and names the company from the account", () => {
+    const posting = workablePosting(WORKABLE_ACCOUNT, "blueground", "df694d45ca", LINK);
+    expect(posting).toMatchObject({
+      url: "https://apply.workable.com/blueground/j/DF694D45CA/",
+      source: "workable",
+      title: "Operations Lead - New York City",
+      company: "Blueground",
+      location: "New York, United States",
+      firstPostedAt: Date.parse("2026-09-23"),
+    });
+    expect(posting.text).toContain("You have 3+ years of experience in property operations.");
+    expect(reasonOf(() => workablePosting(WORKABLE_ACCOUNT, "blueground", "ZZZZZZ", LINK))).toBe(
+      "not_found",
+    );
+  });
+});
+
+describe("recruiteePosting", () => {
+  it("reads one offer with the company's own name", () => {
+    const posting = recruiteePosting({ offer: RECRUITEE_OFFERS.offers[0] }, "bunq", LINK);
+    expect(posting).toMatchObject({
+      url: "https://bunq.recruitee.com/o/security-lead",
+      source: "recruitee",
+      title: "Security Lead",
+      company: "bunq",
+    });
+    expect(posting.text).toContain("You know AWS and Kubernetes.");
+    expect(reasonOf(() => recruiteePosting({ offers: [] }, "bunq", LINK))).toBe("unreachable");
+  });
+});
+
+describe("personioPosting", () => {
+  it("finds the position in the account's feed", () => {
+    const posting = personioPosting(PERSONIO_FEED, "1komma5grad.jobs.personio.de", "2762189", LINK);
+    expect(posting).toMatchObject({
+      url: "https://1komma5grad.jobs.personio.de/job/2762189?language=en",
+      source: "personio",
+      title: "(Senior) Category Manager IT & Software (m/f/d)",
+      company: "1KOMMA5° Technology GmbH",
+    });
+    expect(
+      reasonOf(() => personioPosting(PERSONIO_FEED, "1komma5grad.jobs.personio.de", "1", LINK)),
+    ).toBe("not_found");
   });
 });

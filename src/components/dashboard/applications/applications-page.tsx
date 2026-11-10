@@ -1,6 +1,6 @@
 "use client";
 
-import { Plus } from "lucide-react";
+import { Columns3, List, Plus } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { errorMessage } from "@/components/account/errors";
 import { roomForApplication, useProTools, useTryProLabel } from "@/components/account/pro-tools";
@@ -25,6 +25,9 @@ import { useResumeList } from "@/lib/store/resume-store";
 import { ApplicationDialog, type ApplicationDialogTarget } from "./application-dialog";
 import { ApplicationFilters } from "./application-filters";
 import { ApplicationRow } from "./application-row";
+import { ApplicationsBoard } from "./board/applications-board";
+import { readView, toApplyItems, writeView, type BoardView } from "./board/board";
+import { useBoardExtras } from "./board/use-board-extras";
 import { NoReplyNudge } from "./no-reply-nudge";
 import { SkillGapsPanel } from "./skill-gaps";
 import {
@@ -48,6 +51,22 @@ import { WinRate } from "./win-rate";
 const PAGE_ROWS = 50;
 const ANCHOR_PREFIX = applicationAnchor("");
 
+function browserStorage(): Storage | null {
+  try {
+    return window.localStorage;
+  } catch {
+    return null;
+  }
+}
+
+// Board or List, as this browser last chose. The views only draw once the list has loaded in the
+// browser, so the server's "board" never has to match.
+function initialView(linked: string | null): BoardView {
+  if (typeof window === "undefined") return "board";
+  // An old link to one row of the list still lands on that row.
+  return linked ? "list" : readView(browserStorage());
+}
+
 // The row a resume card's status link points at (/dashboard/applications#application-<id>).
 function linkedApplicationId(): string | null {
   if (typeof window === "undefined") return null;
@@ -62,11 +81,14 @@ export function ApplicationsPage() {
   const [filter, setFilter] = useState<ApplicationFilter>("all");
   const [rows, setRows] = useState(PAGE_ROWS);
   const [linked] = useState(linkedApplicationId);
+  const [view, setView] = useState<BoardView>(() => initialView(linked));
+  const extras = useBoardExtras();
+  const pro = useProTools();
   const [dialog, setDialog] = useState<ApplicationDialogTarget | null>(null);
   const [announcement, setAnnouncement] = useState("");
   const opened = useRef(0);
   // Free tracks FREE_APPLICATIONS and can change it freely; only adding past that offers the trial.
-  const full = useProTools() === false && items.length >= FREE_APPLICATIONS;
+  const full = pro === false && items.length >= FREE_APPLICATIONS;
   const tryPro = useTryProLabel();
 
   const versions = useMemo(
@@ -83,6 +105,10 @@ export function ApplicationsPage() {
   const shown = useMemo(() => filterApplications(items, filter), [items, filter]);
   const stale = useMemo(() => (now === 0 ? [] : waitingTooLong(items, now)), [items, now]);
   const totals = useMemo(() => tally(items), [items]);
+  const waiting = useMemo(
+    () => toApplyItems(extras.savedJobs, resumes, items).length,
+    [extras.savedJobs, resumes, items],
+  );
 
   // A linked row past the first page is drawn too, so the link always lands.
   const linkedIndex = linked ? shown.findIndex((application) => application.id === linked) : -1;
@@ -97,6 +123,11 @@ export function ApplicationsPage() {
     row.scrollIntoView({ block: "center", behavior: smooth ? "smooth" : "auto" });
     row.querySelector<HTMLElement>("[aria-haspopup=menu]")?.focus({ preventScroll: true });
   }, [status, linked]);
+
+  function pickView(next: BoardView) {
+    setView(next);
+    writeView(browserStorage(), next);
+  }
 
   function pickFilter(next: ApplicationFilter) {
     setFilter(next);
@@ -157,10 +188,15 @@ export function ApplicationsPage() {
               : "Log the jobs you apply to and the resume you sent. See which version gets interviews."}
           </p>
         </div>
-        <Button onClick={() => void add()}>
-          <Plus aria-hidden />
-          Add application
-        </Button>
+        <div className="flex flex-wrap items-center gap-2">
+          {status === "ready" && (items.length > 0 || waiting > 0) ? (
+            <ViewToggle view={view} onChange={pickView} />
+          ) : null}
+          <Button onClick={() => void add()}>
+            <Plus aria-hidden />
+            Add application
+          </Button>
+        </div>
       </header>
 
       {full ? (
@@ -183,70 +219,112 @@ export function ApplicationsPage() {
         >
           Check your connection, then try again.
         </Alert>
-      ) : items.length === 0 ? (
+      ) : items.length === 0 && waiting === 0 ? (
         <EmptyState onAdd={() => void add()} />
       ) : (
         <>
           <NoReplyNudge stale={stale} />
-          <WinRate items={items} versions={versions} />
-          <SkillGapsPanel />
 
           <section aria-labelledby="applications-heading" className="flex flex-col gap-4">
-            <h2 id="applications-heading" className="font-sans text-lg/7 font-medium text-ink">
-              Every application
+            <h2 id="applications-heading" className="sr-only">
+              {view === "board" ? "Where each job stands" : "Every application"}
             </h2>
-            <ApplicationFilters filter={filter} counts={counts} onChange={pickFilter} />
             <p aria-live="polite" className="sr-only">
               {announcement}
             </p>
-            <FolderCard
-              tab={FILTER_NAMES[filter]}
-              tabEnd={
-                <span className="text-xs text-subtle tabular-nums">
-                  {formatCount(shown.length, "shown", "shown")}
-                </span>
-              }
-              bodyClassName="px-4 py-0 sm:px-6"
-            >
-              {shown.length > 0 ? (
-                <ul className="divide-y divide-border">
-                  {shown.slice(0, visibleRows).map((application) => (
-                    <ApplicationRow
-                      key={application.id}
-                      application={application}
-                      sent={sentLabel(application, versions)}
-                      now={now}
-                      onStatus={(target, next) => setStatus(target, next)}
-                      onEdit={(target) => edit(target)}
-                      onDelete={remove}
-                    />
-                  ))}
-                  {shown.length > visibleRows ? (
-                    <li className="py-3">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => setRows(visibleRows + PAGE_ROWS)}
-                      >
-                        Show {Math.min(PAGE_ROWS, shown.length - visibleRows)} more
+            {view === "board" ? (
+              <ApplicationsBoard
+                applications={items}
+                resumes={resumes}
+                savedJobs={extras.savedJobs}
+                writings={extras.writings}
+                now={now}
+                pro={pro}
+                onNeedsDetails={(resumeId) => {
+                  opened.current += 1;
+                  setDialog({ kind: "add", key: opened.current, resumeId });
+                }}
+              />
+            ) : (
+              <>
+                <ApplicationFilters filter={filter} counts={counts} onChange={pickFilter} />
+                <FolderCard
+                  tab={FILTER_NAMES[filter]}
+                  tabEnd={
+                    <span className="text-xs text-subtle tabular-nums">
+                      {formatCount(shown.length, "shown", "shown")}
+                    </span>
+                  }
+                  bodyClassName="px-4 py-0 sm:px-6"
+                >
+                  {shown.length > 0 ? (
+                    <ul className="divide-y divide-border">
+                      {shown.slice(0, visibleRows).map((application) => (
+                        <ApplicationRow
+                          key={application.id}
+                          application={application}
+                          sent={sentLabel(application, versions)}
+                          now={now}
+                          onStatus={(target, next) => setStatus(target, next)}
+                          onEdit={(target) => edit(target)}
+                          onDelete={remove}
+                        />
+                      ))}
+                      {shown.length > visibleRows ? (
+                        <li className="py-3">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setRows(visibleRows + PAGE_ROWS)}
+                          >
+                            Show {Math.min(PAGE_ROWS, shown.length - visibleRows)} more
+                          </Button>
+                        </li>
+                      ) : null}
+                    </ul>
+                  ) : (
+                    <div className="flex flex-wrap items-center justify-between gap-3 py-5">
+                      <p className="text-sm/6 text-muted">Nothing with this status right now.</p>
+                      <Button variant="secondary" size="sm" onClick={() => pickFilter("all")}>
+                        Show all
                       </Button>
-                    </li>
-                  ) : null}
-                </ul>
-              ) : (
-                <div className="flex flex-wrap items-center justify-between gap-3 py-5">
-                  <p className="text-sm/6 text-muted">Nothing with this status right now.</p>
-                  <Button variant="secondary" size="sm" onClick={() => pickFilter("all")}>
-                    Show all
-                  </Button>
-                </div>
-              )}
-            </FolderCard>
+                    </div>
+                  )}
+                </FolderCard>
+              </>
+            )}
           </section>
+
+          {items.length > 0 ? <WinRate items={items} versions={versions} /> : null}
+          <SkillGapsPanel />
         </>
       )}
 
       <ApplicationDialog target={dialog} resumes={resumes} onClose={() => setDialog(null)} />
+    </div>
+  );
+}
+
+const VIEW_OPTIONS = [
+  { value: "board", label: "Board", icon: Columns3 },
+  { value: "list", label: "List", icon: List },
+] as const;
+
+function ViewToggle({ view, onChange }: { view: BoardView; onChange: (view: BoardView) => void }) {
+  return (
+    <div role="group" aria-label="View" className="flex gap-1 rounded-xl bg-surface-strong p-1">
+      {VIEW_OPTIONS.map((option) => (
+        <button
+          key={option.value}
+          type="button"
+          aria-pressed={view === option.value}
+          onClick={() => onChange(option.value)}
+          className="flex h-9 items-center gap-1.5 rounded-lg px-3 text-sm font-medium text-muted -outline-offset-2 transition-colors hover:text-ink aria-pressed:bg-surface aria-pressed:text-ink aria-pressed:shadow-control pointer-coarse:h-10"
+        >
+          <option.icon aria-hidden className="size-4" />
+          {option.label}
+        </button>
+      ))}
     </div>
   );
 }
@@ -283,9 +361,9 @@ function LoadingState() {
       </span>
       <div aria-hidden className="flex flex-col">
         <Skeleton className="h-8 w-28 rounded-t-xl rounded-b-none" />
-        <div className="grid grid-cols-2 gap-px overflow-hidden rounded-2xl rounded-tl-none bg-border lg:grid-cols-4">
-          {[0, 1, 2, 3].map((index) => (
-            <div key={index} className="flex flex-col gap-2 bg-surface p-5 sm:p-6">
+        <div className="grid grid-cols-3 gap-px overflow-hidden rounded-2xl rounded-tl-none bg-border">
+          {[0, 1, 2].map((index) => (
+            <div key={index} className="flex flex-col gap-2 bg-surface p-4 sm:p-6">
               <Skeleton className="h-5 w-20" />
               <Skeleton className="h-10 w-12" />
             </div>

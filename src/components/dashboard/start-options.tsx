@@ -1,12 +1,20 @@
 "use client";
 
-import { ChevronRight, FilePlus2, FileText, FileUp } from "lucide-react";
+import {
+  ChevronRight,
+  FileArchive,
+  FileBraces,
+  FilePlus2,
+  FileText,
+  FileUp,
+  WandSparkles,
+} from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import type { StudioActions } from "./use-studio-actions";
 
 type Option = { label: string; detail: string; icon: LucideIcon; run: () => void };
 
-// The same three starts as the studio's upload screen, as a row list (DESIGN.md: no tiles).
+// The same starts as the studio's upload screen, in its order, as a row list (DESIGN.md: no tiles).
 export function StartOptions({ actions }: { actions: StudioActions }) {
   const options: Option[] = [
     {
@@ -14,6 +22,24 @@ export function StartOptions({ actions }: { actions: StudioActions }) {
       detail: "PDF or Word. See what hiring software reads.",
       icon: FileUp,
       run: actions.upload,
+    },
+    {
+      label: "Build with Otto",
+      detail: "No resume yet? Answer a few questions and Otto writes the first draft.",
+      icon: WandSparkles,
+      run: actions.guided,
+    },
+    {
+      label: "Import from LinkedIn",
+      detail: "Use the ZIP from LinkedIn's data export. It stays on your device.",
+      icon: FileArchive,
+      run: actions.linkedin,
+    },
+    {
+      label: "Import a JSON Resume",
+      detail: "A resume.json file from jsonresume.org or another resume tool.",
+      icon: FileBraces,
+      run: actions.jsonResume,
     },
     {
       label: "Start from scratch",

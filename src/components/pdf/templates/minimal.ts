@@ -1,46 +1,58 @@
-import { defineTheme, inch } from "../theme";
+import { PDF_FONT } from "@/lib/pdf/fonts";
+import { INK, defineTheme } from "../theme";
 
-const SOFT = "#5c5c5c";
+// RenderCV's "engineeringresumes" theme (MIT): Charter (Charis) 10pt in black only, a large
+// regular-weight name, one contact line, bold headings over a full rule, and every entry on one
+// line, "Title, Company – Place" with the dates on the right.
 
-// Wide margins and air instead of lines: a regular-weight name, small spaced gray capitals for
-// headings and quiet dashes for bullets.
 export const minimal = defineTheme({
-  contactSeparator: " · ",
-  bulletGlyph: "–",
+  contactLines: [["location", "email", "phone", "links"]],
+  contactSeparator: "  |  ",
+  bullet: { glyph: "•" },
+  rows: {
+    job: [{ lead: ["title", "org", "detail"], side: "dates" }],
+    school: [{ lead: ["org", "title", "detail"], side: "dates" }],
+    item: [{ lead: ["title", "org", "tech", "detail"], side: "dates" }],
+  },
+  companyRow: { lead: ["org", "detail"] },
+  roleRow: { lead: ["title", "detail"], side: "dates" },
+  separators: { org: ", ", title: ", ", detail: " – ", tech: " – " },
+  headingRule: "below",
+  bulletOffset: -2.2,
+  accentSlots: ["sectionTitle", "sectionTitleRule"],
   styles: {
     page: {
-      paddingTop: inch(0.8),
-      paddingBottom: inch(0.7),
-      paddingHorizontal: inch(0.85),
-      fontSize: 9.75,
-      lineHeight: 1.35,
+      paddingTop: 50.4,
+      paddingBottom: 50.4,
+      paddingHorizontal: 50.4,
+      fontFamily: PDF_FONT.charis,
+      fontSize: 10,
+      lineHeight: 1.3,
+      color: INK,
     },
-    name: { fontSize: 19, fontWeight: "normal", letterSpacing: 0.3 },
-    headline: { marginTop: 3, fontSize: 10.5, color: SOFT },
-    contact: { marginTop: 7, fontSize: 9, color: SOFT },
-    contactNext: { marginTop: 1, fontSize: 9, color: SOFT },
-    link: { color: SOFT },
-    webLink: { color: SOFT },
-    section: { marginTop: 16 },
-    // Spaced, but under ~8% of the type size: wider gaps make text extraction split the word.
-    sectionTitle: {
+    name: { fontSize: 25, fontWeight: "normal", lineHeight: 1.2, textAlign: "center" },
+    headline: { marginTop: 2, fontSize: 11, textAlign: "center" },
+    contact: { marginTop: 10, textAlign: "center" },
+    contactNext: { textAlign: "center" },
+    section: { marginTop: 13 },
+    sectionTitle: { fontSize: 12, fontWeight: "bold", lineHeight: 1.2 },
+    sectionTitleRule: {
+      borderBottomWidth: 0.5,
+      borderBottomColor: INK,
+      marginTop: 1,
       marginBottom: 7,
-      paddingBottom: 0,
-      borderBottomWidth: 0,
-      fontSize: 8.5,
-      fontWeight: "normal",
-      letterSpacing: 0.65,
-      color: SOFT,
     },
-    paragraph: { marginTop: 4 },
-    entry: { marginTop: 9 },
-    entryTitle: { fontSize: 10 },
-    entryDetail: { color: SOFT },
-    dates: { fontSize: 9, color: SOFT },
+    paragraph: { marginTop: 2.3 },
+    entry: { marginTop: 11 },
     role: { marginTop: 5 },
-    bullet: { marginTop: 2 },
-    bulletGlyph: { width: 11, color: SOFT },
-    skillLine: { marginTop: 2 },
-    skillLabel: { fontWeight: "normal", color: SOFT },
+    row1First: { fontWeight: "bold" },
+    row2First: { fontWeight: "bold" },
+    entryNote: { marginTop: 2 },
+    bullet: { marginTop: 2.3 },
+    // RenderCV's large bullet: a 13pt dot on the 10pt line.
+    bulletGlyph: { width: 11, fontSize: 13, lineHeight: 1 },
+    bulletMark: { width: 3.5, height: 3.5, marginTop: 4.8, color: INK },
+    skillLine: { marginTop: 2.3 },
+    skillLabel: { fontWeight: "bold" },
   },
 });

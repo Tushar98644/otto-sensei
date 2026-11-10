@@ -11,9 +11,12 @@ import type { EmploymentType, RoleFamily, Seniority } from "./types";
 // worked out here, at ingest, so a match request only compares short lists.
 
 export const JOB_LIMITS = {
-  // Enough for the job card's needs and the tailor flow's backup text; the full post stays one
-  // click away at its source.
-  descriptionChars: 6_000,
+  // Text kept for jobs whose source can't be read again (SOURCE_INFO[source].liveText false:
+  // Himalayas, Remote OK), which the tailor flow uses as the post. Every other job keeps none:
+  // skills, level, years and the work-rights lines come from one read of the whole post here,
+  // and the post itself is read again when a page needs it (full-post.ts). Until 2026-11-10
+  // every job kept 6,000 characters, two thirds of the jobs table's bytes.
+  feedDescriptionChars: 6_000,
   rulesChars: 1_500,
   keywords: 40,
   titleChars: 200,
@@ -64,12 +67,17 @@ const COMPANY_SUFFIX =
   /\b(?:inc|llc|ltd|limited|gmbh|ag|sa|sas|bv|plc|corp|corporation|co|company|labs?|technologies|hq)\b/g;
 const REMOTE_PLACE = /\b(?:remote|anywhere|worldwide|global|fully|hybrid|work from home)\b/g;
 
+/** The company's name without legal suffixes, as search words: "Databricks, Inc." -> "databricks". */
+export function brandName(company: string): string {
+  return searchWords(company).replace(COMPANY_SUFFIX, " ").replace(/\s+/g, " ").trim();
+}
+
 /**
  * Company, title and location reduced to what two listings of one job share: case, accents,
  * punctuation, legal suffixes, "Remote" and word order in the location all drop out.
  */
 export function dedupeKey(company: string, title: string, location: string): string {
-  const name = searchWords(company).replace(COMPANY_SUFFIX, " ").replace(/\s+/g, " ").trim();
+  const name = brandName(company);
   const role = searchWords(title)
     .replace(/\b(?:sr)\b/g, "senior")
     .replace(/\s+/g, " ");
@@ -82,7 +90,9 @@ export function dedupeKey(company: string, title: string, location: string): str
 
 // Bumped when normalizing starts writing something new, so the next read of each board rewrites
 // its jobs instead of skipping them as unchanged. 2: groupKey and evergreen (2026-11-09).
-const NORMALIZE_VERSION = "2";
+// 3: context rules for short skill names ("Go To Market" is not Go) and no skill named after the
+// company itself (2026-11-09). 4: no stored text for sources that can be read again (2026-11-10).
+const NORMALIZE_VERSION = "4";
 
 /** Everything normalizing reads, so an unchanged job can skip it. */
 export function contentHash(job: RawJob): string {
@@ -200,6 +210,8 @@ export function normalizeJob(
   job: RawJob,
   now: number,
   boilerplate: ReadonlySet<string> = new Set(),
+  // How much of the post to store; 0 for a source the post can be read again from.
+  textChars = 0,
 ): NormalizedJob {
   const title = oneLine(job.title, JOB_LIMITS.titleChars);
   const company = oneLine(job.company, JOB_LIMITS.companyChars);
@@ -212,8 +224,12 @@ export function normalizeJob(
           .split("\n")
           .filter((line) => !boilerplate.has(lineKey(line)))
           .join("\n");
-  // The title names the main skill as often as the text does ("Senior Go Engineer").
-  const keywords = findSkills(`${title}\n${own}`, JOB_LIMITS.keywords);
+  // The title names the main skill as often as the text does ("Senior Go Engineer"). A company's
+  // own name isn't a skill its posts ask for: Databricks and Snowflake name themselves throughout.
+  const brand = brandName(company);
+  const keywords = findSkills(`${title}\n${own}`, JOB_LIMITS.keywords + 1)
+    .filter((skill) => searchWords(skill) !== brand)
+    .slice(0, JOB_LIMITS.keywords);
   const fromTitle = seniorityOf(title);
   // A posting date in the future is a source's bug; the time we first saw it is the honest one.
   const postedAt = job.postedAt !== null && job.postedAt <= now ? job.postedAt : now;
@@ -230,7 +246,7 @@ export function normalizeJob(
     postedAt,
     validThrough: job.validThrough,
     url: job.url.slice(0, JOB_LIMITS.urlChars),
-    description: capText(text, JOB_LIMITS.descriptionChars),
+    description: textChars > 0 ? capText(text, textChars) : "",
     rulesText: ruleLines(text, JOB_LIMITS.rulesChars),
     keywords,
     searchText: searchWords(`${title} ${company} ${location} ${keywords.join(" ")}`),

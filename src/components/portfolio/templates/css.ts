@@ -61,7 +61,6 @@ export const BASE_CSS = `
 :scope :where(*, *::before, *::after) { box-sizing: border-box; }
 :scope :where(h1, h2, h3, h4, h5, h6, p, ul, ol, dl, dt, dd, figure) { margin: 0; padding: 0; font-family: inherit; font-size: inherit; font-weight: inherit; line-height: inherit; text-wrap: wrap; }
 :scope :where(ul, ol) { list-style: none; }
-:scope :where(img) { display: block; max-width: 100%; }
 :scope :where(button) { font: inherit; }
 :scope :where(a, button):focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
 :scope .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }

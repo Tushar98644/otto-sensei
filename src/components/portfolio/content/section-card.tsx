@@ -6,9 +6,10 @@ import type { ContentSection, PortfolioContent } from "@/lib/portfolio/content";
 import { CheckRow } from "../check-row";
 import { editContent } from "./content-store";
 
-// A white editor card that folds away, so the settings column stays short: title, a muted facts
-// line ("3 of 5 with screenshots") and the fields inside. `hidden` names what the page leaves out
-// ("Projects are hidden on your page"); the fields stay, so the owner can still edit them.
+// One folding row of the editor panel: title, a muted facts line ("3 of 5 with screenshots") and
+// the fields inside. The panel is white, so rows are split by hairlines rather than drawn as cards.
+// `hidden` names what the page leaves out ("Projects are hidden on your page"); the fields stay, so
+// the owner can still edit them.
 export function SectionCard({
   title,
   meta,
@@ -23,19 +24,19 @@ export function SectionCard({
   defaultOpen?: boolean;
 }) {
   return (
-    <details open={defaultOpen} className="group rounded-2xl bg-surface">
-      <summary className="flex min-h-14 cursor-pointer list-none items-center gap-3 rounded-2xl px-4 py-3 sm:px-6 [&::-webkit-details-marker]:hidden">
-        <span className="flex min-w-0 flex-1 flex-col">
+    <details open={defaultOpen} className="group border-b border-border">
+      <summary className="flex min-h-16 cursor-pointer list-none items-center gap-3 rounded-lg py-4 -outline-offset-2 [&::-webkit-details-marker]:hidden">
+        <span className="flex min-w-0 flex-1 flex-col gap-0.5">
           <span className="text-base/6 font-semibold text-ink">{title}</span>
           {meta ? <span className="truncate text-sm/5 text-subtle">{meta}</span> : null}
           {hidden ? <HiddenNote>{hidden}</HiddenNote> : null}
         </span>
         <ChevronDown
-          className="size-4 shrink-0 text-muted transition-transform group-open:rotate-180"
+          className="size-4 shrink-0 text-muted group-open:rotate-180 motion-safe:transition-transform"
           aria-hidden
         />
       </summary>
-      <div className="flex flex-col gap-5 px-4 pb-5 sm:px-6 sm:pb-6">{children}</div>
+      <div className="flex flex-col gap-5 pt-1 pb-8">{children}</div>
     </details>
   );
 }

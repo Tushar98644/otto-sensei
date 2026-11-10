@@ -2,11 +2,10 @@
 
 import { ArrowDown, ArrowUp, Eye, EyeOff, GripVertical, Plus, Star, X } from "lucide-react";
 import { useState } from "react";
+import { GitHubImportButton } from "@/components/github/github-import-button";
 import { Button } from "@/components/ui/button";
 import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { toast } from "@/components/ui/toast";
-import { api, isApiError } from "@/lib/api/client";
 import {
   CONTENT_LIMITS as L,
   DEVICE_FRAMES,
@@ -18,21 +17,19 @@ import {
 } from "@/lib/portfolio/content";
 import type { AutoContent, AutoProject } from "@/lib/portfolio/content-view";
 import { compactNumber } from "@/lib/portfolio/metrics";
+import type { Resume } from "@/lib/resume/schema";
 import { cn } from "@/lib/utils";
 import { CheckRow } from "../check-row";
-import { editContent, setMediaUsage } from "./content-store";
+import { editContent } from "./content-store";
 import { FieldRow, LinkField, TagsField, TextField } from "./fields";
-import { ImageField, ImageStrip } from "./image-drop";
 import { SectionCard } from "./section-card";
 
 type Row = { id: string; entry: ProjectEntry | null; base: AutoProject };
 
 const DEVICE_LABELS: Record<DeviceFrame, string> = {
   auto: "Let the design choose",
-  browser: "Browser window",
   laptop: "Laptop",
   phone: "Phone",
-  none: "No frame",
 };
 
 function blank(id: string, from: AutoProject["from"], name = ""): AutoProject {
@@ -118,13 +115,23 @@ type ProjectsCardProps = {
   github: GitHubStats | null;
   // "Hidden on your page: Projects" when the page leaves them out.
   hidden?: string;
+  // The resume behind the page, when it's in this browser: GitHub imports add projects to it.
+  resume?: Resume | null;
+  onResumeChange?: (resume: Resume) => void;
 };
 
-export function ProjectsCard({ content, auto, github, hidden }: ProjectsCardProps) {
+export function ProjectsCard({
+  content,
+  auto,
+  github,
+  hidden,
+  resume = null,
+  onResumeChange,
+}: ProjectsCardProps) {
   const rows = projectRows(content, auto, github);
   const [dragging, setDragging] = useState<string | null>(null);
   const shown = rows.filter((row) => !row.entry?.hidden);
-  const withShots = shown.filter((row) => (row.entry?.images.length ?? 0) > 0).length;
+  const described = shown.filter((row) => (row.entry?.line ?? row.base.line) !== "").length;
   const onPage = new Set(
     rows.map((row) => (row.base.source?.repo ?? row.id.replace(/^gh:/, "")).toLowerCase()),
   );
@@ -147,12 +154,25 @@ export function ProjectsCard({ content, auto, github, hidden }: ProjectsCardProp
       title="Projects"
       hidden={hidden}
       meta={
-        shown.length > 0
-          ? `${shown.length} on the page · ${withShots} with screenshots`
-          : "None yet"
+        shown.length > 0 ? `${shown.length} on the page · ${described} with a line` : "None yet"
       }
       defaultOpen
     >
+      {resume ? (
+        <div className="flex flex-col gap-3 rounded-xl bg-surface-muted p-4">
+          <p className="text-sm/6 text-muted">
+            <span className="font-medium text-ink">Work on GitHub?</span> Otto drafts projects from
+            your public repos and adds them to your resume, so they show here too.
+          </p>
+          <GitHubImportButton
+            resumeId={resume.id}
+            label="Add projects from GitHub"
+            size="sm"
+            className="self-start"
+            onAdded={onResumeChange}
+          />
+        </div>
+      ) : null}
       <p className="text-sm/6 text-muted">
         Drag or use the arrows to change the order. Starred projects get the big spots in designs
         that have them.
@@ -246,26 +266,6 @@ function ProjectRow({
   const hidden = entry?.hidden ?? false;
   const patch = (value: Partial<ProjectEntry>, undo?: string) =>
     patchRow(rows, row.id, value, undo);
-  const website = entry?.website ?? base.website?.href ?? "";
-  const [fetching, setFetching] = useState(false);
-
-  async function fetchSiteIcon() {
-    if (!website) return;
-    setFetching(true);
-    try {
-      const { image, media } = await api.portfolioSiteIcon(website);
-      setMediaUsage(media);
-      patch({ logo: image });
-    } catch (error) {
-      toast({
-        title: "No icon found",
-        description: isApiError(error) ? error.message : undefined,
-        variant: "error",
-      });
-    } finally {
-      setFetching(false);
-    }
-  }
 
   return (
     <details className="group/project">
@@ -339,7 +339,7 @@ function ProjectRow({
           </Button>
         )}
       </summary>
-      <div className="flex flex-col gap-4 border-t border-border px-3 pt-4 pb-4 sm:px-4">
+      <div className="flex flex-col gap-4 border-t border-border px-3 pt-4 pb-4 @sm:px-4">
         <TextField
           label="Name"
           value={entry?.name ?? null}
@@ -411,81 +411,25 @@ function ProjectRow({
             onChange={(value) => patch({ source: value })}
           />
         </FieldRow>
-        <ImageStrip
-          label="Screenshots"
-          kind="screenshot"
-          max={L.projectImages}
-          images={entry?.images ?? []}
-          hint="The first is the cover. Wide screenshots look best; phone ones get a phone frame."
-          onChange={(images, undo) => patch({ images }, undo)}
-          onAdd={(image) =>
-            editContent((current) => {
-              const own = current.projects.find((item) => item.id === row.id);
-              if (own) {
-                return {
-                  ...current,
-                  projects: current.projects.map((item) =>
-                    item.id === row.id
-                      ? { ...item, images: [...item.images, image].slice(0, L.projectImages) }
-                      : item,
-                  ),
-                };
-              }
-              const entries = rows.map(
-                (other) => other.entry ?? ProjectEntrySchema.parse({ id: other.id }),
-              );
-              return {
-                ...current,
-                projects: entries.map((item) =>
-                  item.id === row.id ? { ...item, images: [image] } : item,
-                ),
-              };
-            })
-          }
-        />
-        <FieldRow>
-          <LinkField
-            label="Demo video"
-            value={entry?.video ?? ""}
-            placeholder="YouTube, Vimeo or Loom link"
-            onChange={(value) => patch({ video: value ?? "" })}
-          />
-          <div className="flex flex-col gap-1.5">
-            <label className="text-sm font-medium text-ink" htmlFor={`device-${row.id}`}>
-              Frame
-            </label>
-            <Select
-              id={`device-${row.id}`}
-              value={entry?.device ?? "auto"}
-              onChange={(event) => patch({ device: event.currentTarget.value as DeviceFrame })}
-            >
-              {DEVICE_FRAMES.map((frame) => (
-                <option key={frame} value={frame}>
-                  {DEVICE_LABELS[frame]}
-                </option>
-              ))}
-            </Select>
-          </div>
-        </FieldRow>
-        <ImageField
-          label="Icon"
-          kind="logo"
-          value={entry?.logo ?? null}
-          fallback={{ src: null, text: (name || "?").slice(0, 1).toUpperCase() }}
-          hint="Small square mark for lists that show icons."
-          onChange={(logo, undo) => patch({ logo }, undo)}
-        />
-        {website && !entry?.logo ? (
-          <Button
-            size="sm"
-            variant="secondary"
-            className="self-start"
-            loading={fetching}
-            onClick={() => void fetchSiteIcon()}
+        <div className="flex flex-col gap-1.5">
+          <label className="text-sm font-medium text-ink" htmlFor={`device-${row.id}`}>
+            Device
+          </label>
+          <Select
+            id={`device-${row.id}`}
+            value={entry?.device ?? "auto"}
+            onChange={(event) => patch({ device: event.currentTarget.value as DeviceFrame })}
           >
-            Use the website&apos;s icon
-          </Button>
-        ) : null}
+            {DEVICE_FRAMES.map((frame) => (
+              <option key={frame} value={frame}>
+                {DEVICE_LABELS[frame]}
+              </option>
+            ))}
+          </Select>
+          <p className="text-sm/5 text-subtle">
+            Designs with devices draw the project&apos;s name and line on its screen.
+          </p>
+        </div>
         <TagsField
           label="Your role"
           value={entry?.roles ?? []}

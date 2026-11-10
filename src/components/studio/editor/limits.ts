@@ -67,6 +67,7 @@ export const CHAR_LIMITS = {
   schoolLocation: cap(EducationSchema.shape.location),
   projectName: cap(ProjectSchema.shape.name),
   projectLink: cap(ProjectSchema.shape.link),
+  projectTech: cap(ProjectSchema.shape.tech.unwrap()),
   skillGroupLabel: cap(SkillGroupSchema.shape.label),
   skill: cap(SkillGroupSchema.shape.items.element),
   certName: cap(CertificationSchema.shape.name),

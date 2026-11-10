@@ -27,6 +27,8 @@ export type Context = {
   onSite: boolean;
   // Set when the job is remote and open where the person lives, e.g. "Nigeria".
   worksFromHome?: string;
+  // Regions where a public register lists the company as sponsoring workers (job-feed/visa.ts).
+  sponsorRegions?: readonly WorkRegion[];
 };
 
 export type CheckOptions = {
@@ -34,7 +36,21 @@ export type CheckOptions = {
   now: number;
   // Used for time zone rules when the profile has no time zone.
   deviceTimeZone?: string;
+  // Regions where a public register lists the company as a visa sponsor (UK register, USCIS).
+  sponsorRegions?: readonly WorkRegion[];
 };
+
+// How a note states the register fact. An explicit "we don't sponsor" line still wins.
+const REGISTER_NAMES: Record<WorkRegion, string> = {
+  uk: "is listed as a UK visa sponsor",
+  us: "has had H-1B visa petitions approved",
+  eu: "is listed as a visa sponsor",
+  ca: "is listed as a visa sponsor",
+};
+
+function listedSponsor(regions: readonly WorkRegion[], context: Context): WorkRegion | null {
+  return regions.find((region) => context.sponsorRegions?.includes(region)) ?? null;
+}
 
 function listPlaces(places: Place[]): string {
   const names = [...new Set(places.map(placeName))];
@@ -126,6 +142,19 @@ function locationVerdict(
       "location",
       "check",
       `The job is in ${where}, and they sponsor visas. You'd need to move.`,
+      quote,
+      { source },
+    );
+  }
+  const listed = listedSponsor(
+    places.flatMap((place) => rightsRegionOf(place) ?? []),
+    context,
+  );
+  if (listed) {
+    return finding(
+      "location",
+      "check",
+      `The job is in ${where}, and the company ${REGISTER_NAMES[listed]}. Ask whether they'd sponsor you before you apply.`,
       quote,
       { source },
     );
@@ -308,11 +337,19 @@ export function rightsVerdict(
       `They don't sponsor visas, and you said you'd need one for ${where}.`,
       quote,
     );
-  return context.sponsorOffered
+  if (context.sponsorOffered)
+    return finding(
+      rule,
+      "check",
+      `You'd need a visa for ${where}, and the post mentions sponsorship. Ask before you apply.`,
+      quote,
+    );
+  const listed = listedSponsor(regions, context);
+  return listed
     ? finding(
         rule,
         "check",
-        `You'd need a visa for ${where}, and the post mentions sponsorship. Ask before you apply.`,
+        `You'd need a visa for ${where}, and the company ${REGISTER_NAMES[listed]}. Ask before you apply.`,
         quote,
       )
     : finding(rule, "blocked", `You said you'd need a visa to work in ${where}.`, quote);

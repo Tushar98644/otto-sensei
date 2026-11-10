@@ -26,6 +26,9 @@ export type PdfCompany = {
   detail: PdfLink | null;
   // The run's first role carries the header.
   first: boolean;
+  // From the earliest role's start to the latest one's end ("Aug 2017 – Present"), for formats
+  // that date the company line.
+  dates?: string;
 };
 
 export type PdfEntry = {
@@ -38,6 +41,8 @@ export type PdfEntry = {
   detail: PdfLink | null;
   // Right-aligned on the same line.
   dates: string;
+  // A project's tools ("TypeScript, PostgreSQL"), for formats that print them by its name.
+  tech?: string;
   bullets: PdfBullet[];
   // Set on every role in a run of jobs at one company.
   company?: PdfCompany;
@@ -67,11 +72,21 @@ export type PdfExtraSection = {
   entries: PdfEntry[];
 };
 
+export type PdfContact = {
+  email: PdfLink | null;
+  phone: PdfLink | null;
+  location: PdfLink | null;
+  links: PdfLink[];
+};
+
 export type PdfModel = {
   name: string;
   headline: string;
   // Two lines, like resumeToText(): email, phone and location, then web links.
   contact: PdfLink[][];
+  // The same items by kind, for formats that arrange them their own way. Optional so models put
+  // together by hand still type-check; formats fall back to `contact`.
+  basics?: PdfContact;
   sections: PdfSection[];
   // Always set by buildPdfModel. Optional so models put together by hand (the dashboard's
   // stand-in miniatures) still type-check without them.
@@ -82,7 +97,7 @@ export type PdfModel = {
 };
 
 export type PdfModelOptions = {
-  // "pdf" (default) keeps what the built-in PDF fonts can draw; "unicode" keeps every character,
+  // "pdf" (default) keeps what the bundled PDF fonts can draw; "unicode" keeps every character,
   // for a Word file.
   charset?: "pdf" | "unicode";
 };
@@ -118,6 +133,7 @@ function isEmpty(entry: PdfEntry): boolean {
     !entry.detail &&
     !entry.dates &&
     !entry.note &&
+    !entry.tech &&
     entry.bullets.length === 0
   );
 }
@@ -133,6 +149,8 @@ type Role = {
   title: string;
   company: string;
   location: PdfLink | null;
+  start: string;
+  end: string;
   dates: string;
   bullets: PdfBullet[];
 };
@@ -147,6 +165,17 @@ function single(role: Role): PdfEntry {
   };
 }
 
+const firstYear = (value: string) => Number(/\b(?:19|20)\d{2}\b/.exec(value)?.[0] ?? NaN);
+
+// Roles are usually listed newest first; a run listed oldest first spans the other way round.
+function runSpan(run: readonly Role[]): string {
+  const first = run[0]!;
+  const last = run[run.length - 1]!;
+  const oldestFirst = firstYear(first.start) < firstYear(last.start);
+  const [earliest, latest] = oldestFirst ? [first, last] : [last, first];
+  return [earliest.start, latest.end].filter(Boolean).join(" – ");
+}
+
 // Promotions read as one story at one company: its name once, then each role with its own dates.
 function grouped(run: readonly Role[]): PdfEntry[] {
   const places = run.map((role) => role.location).filter((place) => place !== null);
@@ -156,6 +185,7 @@ function grouped(run: readonly Role[]): PdfEntry[] {
     places.every((place) => companyKey(place.text) === companyKey(places[0]!.text))
       ? places[0]!
       : null;
+  const dates = runSpan(run);
   return run.map((role, index) => ({
     id: role.id,
     title: role.title,
@@ -163,7 +193,7 @@ function grouped(run: readonly Role[]): PdfEntry[] {
     detail: shared ? null : role.location,
     dates: role.dates,
     bullets: role.bullets,
-    company: { name: run[0]!.company, detail: shared, first: index === 0 },
+    company: { name: run[0]!.company, detail: shared, first: index === 0, dates },
   }));
 }
 
@@ -174,6 +204,8 @@ function experience(resume: Resume, c: Clean): PdfEntry[] {
       title: c.line(job.title),
       company: c.line(job.company),
       location: plainText(job.location, c.line),
+      start: c.line(job.startDate),
+      end: c.line(job.endDate),
       dates: dateRange(job.startDate, job.endDate, c),
       bullets: bullets(job.bullets, c),
     }))
@@ -205,14 +237,19 @@ function education(resume: Resume, c: Clean): PdfEntry[] {
 }
 
 function projects(resume: Resume, c: Clean): PdfEntry[] {
-  return resume.projects.map((project) => ({
-    id: project.id,
-    title: c.line(project.name),
-    org: "",
-    detail: webLink(project.link, c.line),
-    dates: "",
-    bullets: bullets(project.bullets, c),
-  }));
+  return resume.projects.map((project) => {
+    const entry: PdfEntry = {
+      id: project.id,
+      title: c.line(project.name),
+      org: "",
+      detail: webLink(project.link, c.line),
+      dates: dateRange(project.startDate ?? "", project.endDate ?? "", c),
+      bullets: bullets(project.bullets, c),
+    };
+    const tech = c.line(project.tech ?? "");
+    if (tech) entry.tech = tech;
+    return entry;
+  });
 }
 
 function certifications(resume: Resume, c: Clean): PdfEntry[] {
@@ -289,15 +326,18 @@ function extra(item: ExtraSection, c: Clean): PdfExtraSection | null {
 
 const present = (item: PdfLink | null): item is PdfLink => item !== null;
 
-function contact(resume: Resume, c: Clean): PdfLink[][] {
+function contactOf(resume: Resume, c: Clean): PdfContact {
   const { basics } = resume;
-  const details = [
-    emailLink(basics.email, c.line),
-    plainText(basics.phone, c.line),
-    plainText(basics.location, c.line),
-  ].filter(present);
-  const links = basics.links.map((link) => webLink(link.url, c.line)).filter(present);
-  return [details, links].filter((line) => line.length > 0);
+  return {
+    email: emailLink(basics.email, c.line),
+    phone: plainText(basics.phone, c.line),
+    location: plainText(basics.location, c.line),
+    links: basics.links.map((link) => webLink(link.url, c.line)).filter(present),
+  };
+}
+
+function contactLines({ email, phone, location, links }: PdfContact): PdfLink[][] {
+  return [[email, phone, location].filter(present), links].filter((line) => line.length > 0);
 }
 
 export function buildPdfModel(source: Resume, options: PdfModelOptions = {}): PdfModel {
@@ -317,10 +357,12 @@ export function buildPdfModel(source: Resume, options: PdfModelOptions = {}): Pd
     .filter((item): item is PdfExtraSection => item !== null);
   // PDF viewers show the title in place of the file name, so it reads like one.
   const title = name ? `${name} - Resume` : c.line(resume.title) || "Resume";
+  const basics = contactOf(resume, c);
   return {
     name,
     headline,
-    contact: contact(resume, c),
+    contact: contactLines(basics),
+    basics,
     sections,
     extras,
     meta: { title, author: name, subject: headline },

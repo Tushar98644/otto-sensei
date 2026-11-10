@@ -1,3 +1,4 @@
+import { fontCovers } from "@/lib/pdf/coverage";
 import {
   ACCENT_COLORS,
   COMPACT_LINE_HEIGHT,
@@ -5,26 +6,21 @@ import {
   FONT_FAMILIES,
   MIN_LINE_HEIGHT,
 } from "@/lib/pdf/design";
+import { primaryFont } from "@/lib/pdf/fonts";
 import type { ResumeDesign } from "@/lib/resume/schema";
-import type { PdfStyle, TemplateTheme, ThemeStyles } from "./theme";
+import type { PdfStyle, StyleSlot, TemplateTheme, ThemeStyles } from "./theme";
 
 // Look settings applied to a format's theme. Each one changes only what it names, so a format
-// keeps its character (Developer's code-style Courier, Executive's centered header) under any of
-// them, and an empty design returns the theme untouched.
+// keeps its character (Developer's small capitals, Executive's name and headline on one line)
+// under any of them, and an empty design returns the format's own look.
 
-const BODY_FAMILIES = new Set<string>([FONT_FAMILIES.sans.pdf, FONT_FAMILIES.serif.pdf]);
 const VERTICAL_SPACE = ["marginTop", "marginBottom", "paddingTop", "paddingBottom"] as const;
 
 // Two decimals: enough for print, and the numbers in a theme stay readable in tests.
 const round = (value: number) => Math.round(value * 100) / 100;
 
 function withFont(style: PdfStyle, family: string, isPage: boolean): PdfStyle {
-  const current = style.fontFamily;
-  // Courier stays: it marks code-style details, not the body text.
-  if (isPage || (typeof current === "string" && BODY_FAMILIES.has(current))) {
-    return { ...style, fontFamily: family };
-  }
-  return style;
+  return isPage || style.fontFamily !== undefined ? { ...style, fontFamily: family } : style;
 }
 
 function compacted(style: PdfStyle, isPage: boolean): PdfStyle {
@@ -42,25 +38,72 @@ function compacted(style: PdfStyle, isPage: boolean): PdfStyle {
   return next;
 }
 
-// Headings and every drawn rule take the accent. Rules a format doesn't draw stay undrawn.
-function accented(styles: ThemeStyles, color: string): ThemeStyles {
-  const ruled = (style: PdfStyle): PdfStyle =>
-    typeof style.borderBottomWidth === "number" && style.borderBottomWidth > 0
-      ? { ...style, borderBottomColor: color }
-      : style;
-  return {
-    ...styles,
-    sectionTitle: ruled({ ...styles.sectionTitle, color }),
-    sectionTitleRule: ruled(styles.sectionTitleRule),
-    headerRule: ruled(styles.headerRule),
-  };
+/** `color` mixed toward white by `amount` (0-1): a light rule in the accent's hue. */
+export function tint(color: string, amount: number): string {
+  const channels = [1, 3, 5].map((at) => parseInt(color.slice(at, at + 2), 16));
+  return `#${channels
+    .map((channel) =>
+      Math.round(channel + (255 - channel) * amount)
+        .toString(16)
+        .padStart(2, "0"),
+    )
+    .join("")}`;
+}
+
+const positive = (value: unknown) => typeof value === "number" && value > 0;
+
+// The slot's text, its drawn rules and a drawn bullet all take the color.
+function recolored(style: PdfStyle, color: string): PdfStyle {
+  const next: PdfStyle = { ...style, color };
+  if (positive(style.borderBottomWidth)) next.borderBottomColor = color;
+  if (positive(style.borderTopWidth)) next.borderTopColor = color;
+  if (positive(style.borderWidth)) next.borderColor = color;
+  if (style.backgroundColor !== undefined) next.backgroundColor = color;
+  return next;
+}
+
+function accented(theme: TemplateTheme, color: string): ThemeStyles {
+  const styles = { ...theme.styles };
+  for (const entry of theme.accentSlots) {
+    const [slot, amount] = typeof entry === "string" ? [entry, 0] : entry;
+    styles[slot as StyleSlot] = recolored(
+      styles[slot as StyleSlot],
+      amount ? tint(color, amount) : color,
+    );
+  }
+  return styles;
+}
+
+function fontOf(styles: ThemeStyles, ...slots: StyleSlot[]) {
+  for (const slot of slots) {
+    const name = primaryFont(styles[slot].fontFamily);
+    if (name) return name;
+  }
+  return primaryFont(styles.page.fontFamily);
+}
+
+// A bullet or separator glyph the theme's font lacks would print from the fallback font, or not
+// at all: a drawn mark replaces the bullet and a plain bar the separator.
+function withMarks(theme: TemplateTheme): TemplateTheme {
+  const { styles } = theme;
+  const bulletFont = fontOf(styles, "bulletGlyph");
+  const contactFont = fontOf(styles, "contact");
+  const drawBullet = bulletFont !== null && !fontCovers(bulletFont, theme.bullet.glyph);
+  const separator =
+    contactFont !== null && !fontCovers(contactFont, theme.contactSeparator.trim())
+      ? " | "
+      : theme.contactSeparator;
+  if (drawBullet === Boolean(theme.drawBullet) && separator === theme.contactSeparator) {
+    return theme;
+  }
+  return { ...theme, drawBullet, contactSeparator: separator };
 }
 
 export function applyDesign(theme: TemplateTheme, design: ResumeDesign): TemplateTheme {
   const { accent, font, density } = design;
-  if (!accent && !font && density !== "compact") return theme;
+  if (!accent && !font && density !== "compact") return withMarks(theme);
   let styles = { ...theme.styles };
-  const slots = Object.keys(styles) as (keyof ThemeStyles)[];
+  const slots = Object.keys(styles) as StyleSlot[];
   if (font) {
     const family = FONT_FAMILIES[font].pdf;
     for (const slot of slots) styles[slot] = withFont(styles[slot], family, slot === "page");
@@ -68,6 +111,6 @@ export function applyDesign(theme: TemplateTheme, design: ResumeDesign): Templat
   if (density === "compact") {
     for (const slot of slots) styles[slot] = compacted(styles[slot], slot === "page");
   }
-  if (accent) styles = accented(styles, ACCENT_COLORS[accent]);
-  return { ...theme, styles };
+  if (accent) styles = accented({ ...theme, styles }, ACCENT_COLORS[accent]);
+  return withMarks({ ...theme, styles });
 }

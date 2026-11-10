@@ -4,19 +4,18 @@ import {
   ArrowUpRight,
   Bookmark,
   BookmarkCheck,
-  CircleCheck,
   ScanSearch,
   ThumbsDown,
 } from "lucide-react";
 import Link from "next/link";
 import { useId, useState } from "react";
-import { ROUTES } from "@/components/site/routes";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonClasses } from "@/components/ui/button";
 import { Menu } from "@/components/ui/menu";
 import { StatusPill } from "@/components/ui/status";
 import { STATUS_NAMES } from "@/lib/applications/status";
 import type { Application } from "@/lib/applications/schema";
+import { applicationHref } from "@/lib/applications/thread";
 import { sourceCredit } from "@/lib/job-feed/sources";
 import {
   MATCH_LABELS,
@@ -26,7 +25,7 @@ import {
   type MatchedJob,
   type NotFitReason,
 } from "@/lib/job-feed/types";
-import { applicationAnchor } from "../applications/view";
+import { StatusIcon } from "../applications/status-menu";
 import { placeLine, postedLabel } from "./view";
 
 export type JobCardProps = {
@@ -100,6 +99,10 @@ export function JobCard({
               <span className="font-medium text-ink"> · This job has closed</span>
             ) : null}
           </p>
+          {/* Company facts from public visa registers, never a promise about this job. */}
+          {job.visa.length > 0 ? (
+            <p className="text-sm/6 text-subtle">{job.visa.join(" · ")}</p>
+          ) : null}
         </div>
 
         <div className="flex flex-col gap-1.5">
@@ -140,16 +143,16 @@ export function JobCard({
           </Button>
           {applied ? (
             <Link
-              href={`${ROUTES.dashboardApplications}#${applicationAnchor(applied.id)}`}
+              href={applicationHref(applied.id)}
               className={buttonClasses({
                 variant: "ghost",
                 size: "sm",
                 className: "text-muted hover:text-ink",
               })}
             >
-              <CircleCheck aria-hidden className="text-pass" />
+              <StatusIcon status={applied.status} />
               {STATUS_NAMES[applied.status]}
-              <span className="sr-only">: see this application</span>
+              <span className="sr-only">: open this application</span>
             </Link>
           ) : (
             <Button

@@ -15,7 +15,6 @@ function editor(hiddenSections: PortfolioSection[], showEmail = true) {
     settings: { showEmail, showPhone: false, hiddenSections },
     content,
     github: jordanGitHub(),
-    mediaBase: "https://media.example.com/",
   });
   return renderToStaticMarkup(
     <ContentEditor
@@ -52,5 +51,13 @@ describe("the content editor with sections hidden on the page", () => {
     expect(hidden).toContain("Hidden on your page: Links");
     expect(hidden).toContain("“Show my email” is off");
     expect(open).not.toContain("Hidden on your page:");
+  });
+
+  it("asks for words only: no picture, logo or video to upload or link", () => {
+    const html = editor([]);
+    expect(html).not.toMatch(/type="file"|<img/);
+    // Visible words only (attributes and Jordan's own text aside).
+    const text = html.replace(/<[^>]*>/g, " ");
+    expect(text).not.toMatch(/upload|screenshot|logo|demo video|picture|personal photos|drop a/i);
   });
 });

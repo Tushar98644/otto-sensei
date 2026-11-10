@@ -38,7 +38,7 @@ function onlyAName(name: string) {
   const view = portfolioView(resume, { showEmail: true, showPhone: true, hiddenSections: [] });
   return {
     view,
-    content: contentView({ view, content: emptyContent(), github: null, mediaBase: "" }),
+    content: contentView({ view, content: emptyContent(), github: null }),
   };
 }
 

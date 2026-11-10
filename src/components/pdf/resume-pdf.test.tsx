@@ -19,43 +19,42 @@ import {
 describe("ResumePdf", () => {
   it("reads back top to bottom in the resume's section order", async () => {
     const text = flatten(await readText(await render(sampleResume())));
+    // Classic: the employer and place, then the title and dates, under centered headings.
     expectInOrder(text, [
       "Maya Lindqvist",
       "Senior Backend Engineer",
-      "maya.lindqvist@example.com | +1 415 555 0142 | Toronto, Canada",
-      "linkedin.com/in/mayalindqvist | github.com/mayal",
-      "SUMMARY",
+      "Toronto, Canada • maya.lindqvist@example.com • +1 415 555 0142 • linkedin.com/in/mayalindqvist • github.com/mayal",
+      "Summary",
       "Backend engineer with 7 years",
-      "EXPERIENCE",
-      "Senior Backend Engineer, Northwind Payments · Toronto, Canada",
-      "Jan 2021 – Present",
-      "Cut checkout latency 38%",
-      "Led the migration of 40 services",
-      "Built an internal Kubernetes deployment tool",
-      "Software Engineer, Bluefin Analytics · Berlin, Germany",
-      "Jun 2017 – Dec 2020",
-      "Mentored 4 junior engineers",
-      "PROJECTS",
-      "Ledger Lint · github.com/mayal/ledger-lint",
-      "EDUCATION",
-      "BSc, Computer Science, University of Edinburgh · Edinburgh, UK",
-      "2013 – 2017",
-      "SKILLS",
+      "Experience",
+      "Northwind Payments Toronto, Canada",
+      "Senior Backend Engineer Jan 2021 – Present",
+      "• Cut checkout latency 38%",
+      "• Led the migration of 40 services",
+      "• Built an internal Kubernetes deployment tool",
+      "Bluefin Analytics Berlin, Germany",
+      "Software Engineer Jun 2017 – Dec 2020",
+      "• Mentored 4 junior engineers",
+      "Projects",
+      "Ledger Lint, github.com/mayal/ledger-lint",
+      "Education",
+      "University of Edinburgh Edinburgh, UK",
+      "BSc, Computer Science 2013 – 2017",
+      "Skills",
       "Languages: TypeScript, Go, SQL, Python",
       "Infrastructure: Kubernetes, AWS, Terraform, Kafka, PostgreSQL",
-      "CERTIFICATIONS",
-      "AWS Certified Solutions Architect, Amazon Web Services",
-      "2022",
+      "Certifications",
+      "AWS Certified Solutions Architect, Amazon Web Services 2022",
     ]);
   });
 
   it("follows a custom section order and leaves out empty sections", async () => {
     const resume = { ...sampleResume(), projects: [], sectionOrder: ["skills", "experience", "projects", "education"] as Resume["sectionOrder"] };
     const text = flatten(await readText(await render(resume)));
-    expectInOrder(text, ["SKILLS", "EXPERIENCE", "EDUCATION"]);
-    expect(text).not.toContain("PROJECTS");
-    expect(text).not.toContain("SUMMARY");
-    expect(text).not.toContain("CERTIFICATIONS");
+    expectInOrder(text, ["Skills", "Experience", "Education"]);
+    expect(text).not.toContain("Projects");
+    expect(text).not.toContain("Summary");
+    expect(text).not.toContain("Certifications");
   });
 
   it("never hyphenates a word across lines", async () => {
@@ -73,8 +72,9 @@ describe("ResumePdf", () => {
     const text = await readText(await render(resume));
     expect(text).not.toMatch(/\p{L}-\n/u);
     expect(flatten(text)).toContain(long);
+    expect(flatten(text)).toContain("Bluefin Analytics International Holdings Berlin, Germany");
     expect(flatten(text)).toContain(
-      "Principal Software Engineer, Payments Infrastructure and Developer Platform, Bluefin Analytics International Holdings · Berlin, Germany",
+      "Principal Software Engineer, Payments Infrastructure and Developer Platform",
     );
   });
 
@@ -87,12 +87,12 @@ describe("ResumePdf", () => {
     expect(text.replace(/-\n/g, "")).toContain(url.replace("https://", ""));
   });
 
-  it("swaps characters Helvetica can't draw instead of printing junk", async () => {
+  it("prints every accent, and swaps what its fonts can't draw instead of printing junk", async () => {
     const resume = sampleResume();
     resume.basics.name = "Łukasz Wójcik";
     resume.summary = "Shipped 3 launches → 2x revenue 🚀 in São Paulo and Kraków.";
     const text = flatten(await readText(await render(resume)));
-    expect(text).toContain("Lukasz Wójcik");
+    expect(text).toContain("Łukasz Wójcik");
     expect(text).toContain("Shipped 3 launches -> 2x revenue in São Paulo and Kraków.");
   });
 
@@ -109,14 +109,14 @@ describe("ResumePdf", () => {
   });
 
   it("never ends a page on a heading", async () => {
-    const headings = new Set(Object.values(SECTION_LABELS).map((label) => label.toUpperCase()));
+    const headings = new Set(Object.values(SECTION_LABELS));
     for (let padding = 0; padding < 8; padding++) {
       const pages = await readPages(await render(longResume(padding)));
       expect(pages.length).toBeGreaterThan(1);
       for (const page of pages.slice(0, -1)) {
         const last = page.trim().split("\n").at(-1)?.trim() ?? "";
         expect(headings.has(last), `page ends on the "${last}" heading`).toBe(false);
-        expect(last, "page ends on a job heading").not.toMatch(/Role \d+, Company \d+/);
+        expect(last, "page ends on a job heading").not.toMatch(/^(Role|Company) \d+/);
       }
     }
   });

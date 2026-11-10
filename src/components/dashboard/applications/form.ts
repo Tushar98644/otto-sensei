@@ -174,6 +174,9 @@ export function validateForm(
     ok: true,
     body: {
       resumeId,
+      // The dialog names the opening when the version sent was tailored from one; the server also
+      // finds it by the link.
+      jobId: null,
       resumeTitle: resumeId
         ? (titles.get(resumeId) ?? "").slice(0, APPLICATION_LIMITS.resumeTitle)
         : "",

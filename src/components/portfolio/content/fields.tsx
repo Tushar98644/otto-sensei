@@ -140,15 +140,12 @@ export function LinkField({
   auto,
   placeholder = "https://",
   onChange,
-  onCommit,
 }: {
   label: string;
   value: string | null;
   auto?: string;
   placeholder?: string;
   onChange: (value: string | null) => void;
-  // After a valid address is left (blur), for follow-ups like fetching the site's icon.
-  onCommit?: (href: string) => void;
 }) {
   const id = useId();
   const noteId = useId();
@@ -183,11 +180,7 @@ export function LinkField({
           if (text.trim() === "") onChange("");
           else if (webHref(text)) onChange(text.trim());
         }}
-        onBlur={() => {
-          const href = draft !== null ? webHref(draft) : null;
-          setDraft(null);
-          if (href && onCommit) onCommit(href);
-        }}
+        onBlur={() => setDraft(null)}
       />
       {bad ? (
         <p id={noteId} className="text-sm/5 text-fail">
@@ -198,9 +191,9 @@ export function LinkField({
   );
 }
 
-/** A labelled row of fields that wraps on phones. */
+/** A labelled row of fields, side by side once the panel is wide enough. */
 export function FieldRow({ children }: { children: ReactNode }) {
-  return <div className="grid gap-4 sm:grid-cols-2">{children}</div>;
+  return <div className="grid gap-4 @md:grid-cols-2">{children}</div>;
 }
 
 type ListEditorProps<T extends { id: string }> = {
@@ -263,7 +256,7 @@ export function ListEditor<T extends { id: string }>({
               setDragging(null);
             }}
             className={cn(
-              "rounded-xl bg-surface-muted p-3 sm:p-4",
+              "rounded-xl bg-surface-muted p-3 @sm:p-4",
               dragging === item.id && "opacity-60",
             )}
           >

@@ -7,7 +7,7 @@ import type { PdfPageSize } from "@/lib/pdf/page-size";
 import type { Resume, TemplateId } from "@/lib/resume/schema";
 import { bodyXml, header, sectionPropsXml } from "./body";
 import { docxLook, type DocxLook } from "./look";
-import { numberingXml, stylesXml } from "./styles";
+import { fontTableXml, numberingXml, stylesXml } from "./styles";
 import { R_NS, W_NS, XML_HEAD, escapeXml, paragraph, run } from "./xml";
 
 // The resume as a real Word file (.docx), built in the browser with jszip: named styles, Heading 1
@@ -36,6 +36,7 @@ const CONTENT_TYPES = [
   '<Override PartName="/word/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"/>',
   '<Override PartName="/word/numbering.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.numbering+xml"/>',
   '<Override PartName="/word/settings.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.settings+xml"/>',
+  '<Override PartName="/word/fontTable.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.fontTable+xml"/>',
   '<Override PartName="/docProps/core.xml" ContentType="application/vnd.openxmlformats-package.core-properties+xml"/>',
   '<Override PartName="/docProps/app.xml" ContentType="application/vnd.openxmlformats-officedocument.extended-properties+xml"/>',
   "</Types>",
@@ -83,7 +84,7 @@ function coreXml(title: string, author: string, subject: string, now: number): s
 
 type Links = { add: (href: string) => string; rels: () => string[] };
 
-// Hyperlinks get relationship ids after the three fixed parts (styles, numbering, settings).
+// Hyperlinks get relationship ids after the fixed parts (styles, numbering, settings, fonts).
 function hyperlinks(): Links {
   const ids = new Map<string, string>();
   return {
@@ -125,6 +126,7 @@ async function pack({ body, look, links, meta, now }: Package): Promise<Uint8Arr
     `<Relationship Id="rId1" Type="${REL}/styles" Target="styles.xml"/>`,
     `<Relationship Id="rId2" Type="${REL}/numbering" Target="numbering.xml"/>`,
     `<Relationship Id="rId3" Type="${REL}/settings" Target="settings.xml"/>`,
+    `<Relationship Id="rId4" Type="${REL}/fontTable" Target="fontTable.xml"/>`,
     ...links.rels(),
     "</Relationships>",
   ].join("");
@@ -139,6 +141,7 @@ async function pack({ body, look, links, meta, now }: Package): Promise<Uint8Arr
   zip.file("word/styles.xml", stylesXml(look));
   zip.file("word/numbering.xml", numberingXml(look));
   zip.file("word/settings.xml", SETTINGS);
+  zip.file("word/fontTable.xml", fontTableXml(look));
   return zip.generateAsync({ type: "uint8array", compression: "DEFLATE", mimeType: DOCX_MIME });
 }
 

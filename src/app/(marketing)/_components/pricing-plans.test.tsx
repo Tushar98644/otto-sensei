@@ -16,6 +16,7 @@ describe("PricingPlans", () => {
     expect(html).toContain("Reference price $60 $29 /month");
     expect(html).toContain("52% off");
     expect(html.match(/About half the price of Rezi Pro \(\$29\/mo\)/g)).toHaveLength(1);
+    expect(html.match(/Less than a pizza a month\./g)).toHaveLength(1);
     // Free lists exactly its basics.
     expect(html).toContain("1 resume");
     expect(html).toContain("Classic and Compact formats");

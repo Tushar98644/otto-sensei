@@ -1,21 +1,15 @@
-// Helvetica, like every built-in PDF font, can only draw the Windows-1252 character set, and pdfkit
-// writes anything outside it as raw bytes: "→" comes out as "’" and "Ł" as "A". Every string goes
-// through toPdfText() first, which keeps what the font can draw and swaps or drops the rest.
+import { isDrawable as fontsDraw } from "./coverage";
 
-// The Windows-1252 code points above Latin-1's 0xA0-0xFF block: € ‚ ƒ „ … † ‡ ˆ ‰ Š ‹ Œ Ž ‘ ’ “ ” •
-// – — ˜ ™ š › œ ž Ÿ.
-const WIN_1252_EXTRAS = new Set([
-  0x20ac, 0x201a, 0x0192, 0x201e, 0x2026, 0x2020, 0x2021, 0x02c6, 0x2030, 0x0160, 0x2039, 0x0152,
-  0x017d, 0x2018, 0x2019, 0x201c, 0x201d, 0x2022, 0x2013, 0x2014, 0x02dc, 0x2122, 0x0161, 0x203a,
-  0x0153, 0x017e, 0x0178,
-]);
+// The PDF prints in the bundled fonts (./fonts.ts), which draw Latin with every accent (Vietnamese
+// included), Greek and Cyrillic. Anything they can't (CJK, emoji, a few symbols) would come out as
+// a blank or as junk, so every string goes through toPdfText() first: it keeps what the fonts draw
+// and swaps or drops the rest.
 
 const SOFT_HYPHEN = 0xad;
 
 function isDrawable(codePoint: number): boolean {
   if (codePoint >= 0x20 && codePoint <= 0x7e) return true;
-  if (codePoint >= 0xa0 && codePoint <= 0xff) return codePoint !== SOFT_HYPHEN;
-  return WIN_1252_EXTRAS.has(codePoint);
+  return codePoint !== SOFT_HYPHEN && fontsDraw(codePoint);
 }
 
 function swap(replacement: string, ...codePoints: number[]): [string, string][] {
@@ -23,8 +17,10 @@ function swap(replacement: string, ...codePoints: number[]): [string, string][] 
 }
 
 // Same meaning, different glyph: nobody needs to hear about these swaps. Look-alike punctuation is
-// listed by code point so each entry can be told apart.
-const FAITHFUL: ReadonlyMap<string, string> = new Map([
+// listed by code point so each entry can be told apart. Spaces, hyphens, quotes and bullets are
+// always swapped, drawable or not: a non-breaking hyphen or a prime splits a keyword for hiring
+// software the same way a missing glyph would.
+const ALWAYS: ReadonlyMap<string, string> = new Map([
   // Tab, line breaks, and the Unicode spaces (en, em, thin, hair, narrow no-break, ideographic...).
   ...swap(" ", 0x09, 0x0a, 0x0d, 0x1680, 0x2000, 0x2001, 0x2002, 0x2003, 0x2004, 0x2005, 0x2006),
   ...swap(" ", 0x2007, 0x2008, 0x2009, 0x200a, 0x2028, 0x2029, 0x202f, 0x205f, 0x3000),
@@ -45,6 +41,10 @@ const FAITHFUL: ReadonlyMap<string, string> = new Map([
   // Other bullet shapes.
   ...swap("•", 0x2023, 0x2219, 0x25cf, 0x25cb, 0x25e6, 0x25aa, 0x25ab, 0x25a0, 0x25a1, 0x25c6),
   ...swap("•", 0x25c7, 0x2756, 0x27a2, 0x27a4, 0x25b8, 0x25b9, 0x25ba, 0x25b6, 0x2981, 0x29bf),
+]);
+
+// Symbols spelled out only when the fonts can't draw them.
+const FAITHFUL: ReadonlyMap<string, string> = new Map([
   ["→", "->"],
   ["➔", "->"],
   ["➜", "->"],
@@ -62,7 +62,7 @@ const FAITHFUL: ReadonlyMap<string, string> = new Map([
   ["∗", "*"],
   ["∕", "/"],
   ["⁄", "/"],
-  // Greek mu (as in "μs") to the micro sign, which Windows-1252 has.
+  // Greek mu (as in "μs") to the micro sign, when the fonts lack it.
   ...swap("µ", 0x03bc),
   ["₹", "INR "],
   ["₽", "RUB "],
@@ -110,6 +110,9 @@ function allDrawable(text: string): boolean {
   return true;
 }
 
+// Ligatures and full-width letters: "ﬁnance" isn't "finance" to a keyword search.
+const PRESENTATION_FORMS = /[\uFB00-\uFB06\uFF01-\uFF5E]/u;
+
 function replace(char: string): Replacement {
   const faithful = FAITHFUL.get(char);
   if (faithful !== undefined) return { text: faithful, lossy: false };
@@ -118,7 +121,7 @@ function replace(char: string): Replacement {
   // Ligatures, full-width forms and superscripts: "ﬁ" -> "fi", "Ａ" -> "A", "⁴" -> "4".
   const compatible = char.normalize("NFKC");
   if (compatible !== char && allDrawable(compatible)) return { text: compatible, lossy: false };
-  // Accented letters outside Windows-1252 lose the accent: "ő" -> "o", "ş" -> "s", "ț" -> "t".
+  // An accented letter no font draws loses the accent rather than the whole letter.
   const stripped = char.normalize("NFKD").replace(COMBINING_MARKS, "");
   if (stripped && stripped !== char && allDrawable(stripped))
     return { text: stripped, lossy: true };
@@ -135,7 +138,7 @@ function replacementFor(char: string): Replacement {
 }
 
 /**
- * Returns text Helvetica can draw. Characters it can't are swapped for a close equivalent or
+ * Returns text the PDF fonts can draw. Characters they can't are swapped for a close equivalent or
  * dropped; the ones a reader would notice (a changed letter, a missing emoji) are added to `lost`.
  */
 export function toPdfText(input: string, lost?: Set<string>): string {
@@ -143,6 +146,15 @@ export function toPdfText(input: string, lost?: Set<string>): string {
   const text = input.normalize("NFC");
   let out = "";
   for (const char of text) {
+    const always = ALWAYS.get(char);
+    if (always !== undefined) {
+      out += always;
+      continue;
+    }
+    if (PRESENTATION_FORMS.test(char)) {
+      out += char.normalize("NFKC");
+      continue;
+    }
     if (isDrawable(char.codePointAt(0) ?? 0)) {
       out += char;
       continue;

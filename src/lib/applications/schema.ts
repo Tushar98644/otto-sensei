@@ -39,6 +39,12 @@ export type Application = {
   notes: string;
   // When Otto reminds the person to follow up (see ./follow-up), or null for no reminder.
   followUpAt: number | null;
+  // The Jobs tab opening it's for. Null for a job found elsewhere, or one whose post was removed.
+  jobId: string | null;
+  // Whether an interview prep pack is saved on it (the pack itself is read by /api/interview).
+  hasPrep: boolean;
+  // The interview's day (local noon), when the person gave one moving it to Interviewing.
+  interviewAt: number | null;
   createdAt: number;
   updatedAt: number;
 };
@@ -85,6 +91,8 @@ const line = (max: number, min = 0) =>
     .pipe(z.string().min(min).max(max));
 
 const resumeIdField = ResumeSchema.shape.id.nullable();
+// The Jobs tab opening it's for. An id the server doesn't know is dropped, not refused.
+const jobIdField = z.uuid().nullable();
 const resumeTitleField = line(APPLICATION_LIMITS.resumeTitle);
 const companyField = line(APPLICATION_LIMITS.company, 1);
 const roleField = line(APPLICATION_LIMITS.role);
@@ -105,6 +113,13 @@ const notesField = z
   .max(APPLICATION_LIMITS.notes * 4)
   .transform(cleanNotes)
   .pipe(z.string().max(APPLICATION_LIMITS.notes));
+// Any day from 2000 to a year out: interviews are booked weeks ahead, not years.
+const interviewAtField = z
+  .number()
+  .int()
+  .min(MIN_APPLIED_AT)
+  .refine((value) => value <= Date.now() + 366 * DAY_MS, "That date is too far away.")
+  .nullable();
 // Snooze, Done (null) and putting a removed reminder back. A year out is far past any job hunt.
 const followUpAtField = z
   .number()
@@ -118,6 +133,7 @@ export const ApplicationIdSchema = z.uuid();
 // POST /api/applications
 export const CreateApplicationSchema = z.object({
   resumeId: resumeIdField.default(null),
+  jobId: jobIdField.default(null),
   resumeTitle: resumeTitleField.default(""),
   company: companyField,
   role: roleField.default(""),
@@ -126,6 +142,7 @@ export const CreateApplicationSchema = z.object({
   // Logging an older application that already moved on is fine.
   status: statusField.default("applied"),
   notes: notesField.default(""),
+  interviewAt: interviewAtField.optional(),
 });
 export type CreateApplicationBody = z.input<typeof CreateApplicationSchema>;
 export type CreateApplicationInput = z.output<typeof CreateApplicationSchema>;
@@ -142,6 +159,7 @@ export const UpdateApplicationSchema = z
     status: statusField.optional(),
     notes: notesField.optional(),
     followUpAt: followUpAtField.optional(),
+    interviewAt: interviewAtField.optional(),
   })
   .refine(
     (patch) => Object.values(patch).some((value) => value !== undefined),

@@ -1,7 +1,7 @@
 "use client";
 
-import { Check } from "lucide-react";
-import { useMemo, useState } from "react";
+import { Check, Expand } from "lucide-react";
+import { lazy, Suspense, useMemo, useState } from "react";
 import { useTryProLabel } from "@/components/account/pro-tools";
 import { UpgradeDialog } from "@/components/account/upgrade-dialog";
 import { useMe } from "@/components/account/use-me";
@@ -13,14 +13,25 @@ import { trialSentence } from "@/lib/billing/prices";
 import { emptyContent } from "@/lib/portfolio/content";
 import { contentView } from "@/lib/portfolio/content-view";
 import { suggestSlug } from "@/lib/portfolio/slug";
-import { PORTFOLIO_TEMPLATE_INFO } from "@/lib/portfolio/templates";
-import { PORTFOLIO_TEMPLATE_IDS, portfolioPath, type Portfolio } from "@/lib/portfolio/types";
+import { PORTFOLIO_TEMPLATE_INFO, templateOrder } from "@/lib/portfolio/templates";
+import {
+  PORTFOLIO_TEMPLATE_IDS,
+  portfolioPath,
+  type Portfolio,
+  type PortfolioTemplateId,
+} from "@/lib/portfolio/types";
 import { portfolioView } from "@/lib/portfolio/view";
 import type { Resume } from "@/lib/resume/schema";
 import type { TemplateSample } from "./live-template";
 import { PORTFOLIO_LINES } from "./lines";
-import { usePortfolioUrl } from "./publish-card";
+import { PreviewSourceBar, usePreviewSource } from "./preview-source";
+import { usePortfolioUrl } from "./use-portfolio-url";
 import { TemplatePreview } from "./template-preview";
+
+// Loaded on the first "Preview full page": it brings every template with it.
+const FullPortfolioPreview = lazy(() =>
+  import("./full-preview").then((module) => ({ default: module.FullPortfolioPreview })),
+);
 
 /** The page a Free account would get, in any design: its own resume (and kept settings), or null. */
 export function freeSample(
@@ -43,7 +54,6 @@ export function freeSample(
           showEmail: portfolio.showEmail,
           showPhone: portfolio.showPhone,
           hiddenSections: portfolio.hiddenSections,
-          projectImages: portfolio.projectImages,
         }
       : { showEmail: false, showPhone: false, hiddenSections: [] },
   );
@@ -53,15 +63,15 @@ export function freeSample(
       view,
       content: portfolio?.content ?? emptyContent(),
       github: portfolio?.github ?? null,
-      mediaBase: portfolio?.mediaBase ?? "",
     }),
   };
 }
 
 // Free accounts: portfolios are Pro and Max. The screen sells the page, not the plan: it's hosted
-// for them, and every design below is already drawn with their own resume (Jordan's sample when
-// they have none). Someone who had a page and dropped to Free is told it's offline but kept. The
-// button opens the same upgrade dialog as every other Pro tool, with the trial when it's on offer.
+// for them, and every design below can be drawn with their own resume or with Jordan's sample,
+// which starts on when theirs is too thin to judge a design by (./preview-source.tsx). Someone who
+// had a page and dropped to Free is told it's offline but kept. The button opens the same upgrade
+// dialog as every other Pro tool, with the trial when it's on offer.
 export function PortfolioUpgrade({
   portfolio,
   candidates,
@@ -71,10 +81,12 @@ export function PortfolioUpgrade({
 }) {
   const { me } = useMe();
   const [open, setOpen] = useState(false);
+  const [full, setFull] = useState<PortfolioTemplateId | null>(null);
   const tryLabel = useTryProLabel();
   const trial = me?.billing.trial === true;
-  const sample = useMemo(() => freeSample(portfolio, candidates), [portfolio, candidates]);
-  const slug = portfolio?.slug ?? suggestSlug(sample?.view.name ?? "");
+  const own = useMemo(() => freeSample(portfolio, candidates), [portfolio, candidates]);
+  const choice = usePreviewSource(own);
+  const slug = portfolio?.slug ?? suggestSlug(own?.view.name ?? "");
   const url = usePortfolioUrl(slug).replace(/^https?:\/\//, "") || portfolioPath(slug);
 
   return (
@@ -88,7 +100,7 @@ export function PortfolioUpgrade({
           <p className="mt-2 text-base/7 text-pretty text-muted">
             {portfolio
               ? "Portfolios come with Pro and Max. Your page and its settings are kept, so it comes back as it was."
-              : "Not your resume as a web page: a portfolio site with your projects, writing, photos and links, in one of eight designs."}
+              : "Not your resume as a web page: a portfolio site with your projects, work, writing and links, in one of eight designs."}
           </p>
           <ul className="mt-4 flex flex-col gap-2 text-sm/6 text-ink">
             <li className="flex gap-2">
@@ -120,27 +132,74 @@ export function PortfolioUpgrade({
       <OttoNote
         size="sm"
         className="mt-8"
-        message={sample ? PORTFOLIO_LINES.previews : PORTFOLIO_LINES.previewsSample}
+        message={
+          !own
+            ? PORTFOLIO_LINES.previewsSample
+            : choice.source === "own"
+              ? PORTFOLIO_LINES.previews
+              : PORTFOLIO_LINES.previewsThin
+        }
       />
 
-      <ul className="mt-6 grid gap-x-6 gap-y-8 sm:grid-cols-2 xl:grid-cols-3">
-        {PORTFOLIO_TEMPLATE_IDS.map((id) => {
+      <PreviewSourceBar choice={choice} className="mt-6" />
+
+      <ul className="mt-4 grid gap-x-6 gap-y-8 sm:grid-cols-2 xl:grid-cols-3">
+        {templateOrder(PORTFOLIO_TEMPLATE_IDS).map((id) => {
           const { name, description } = PORTFOLIO_TEMPLATE_INFO[id];
           return (
             <li key={id} className="flex flex-col gap-3">
-              <TemplatePreview
-                id={id}
-                sample={sample}
-                sizes="(min-width: 1280px) 30vw, (min-width: 640px) 45vw, 90vw"
-              />
-              <div>
-                <p className="text-sm/6 font-medium text-ink">{name}</p>
-                <p className="text-sm/5 text-muted">{description}</p>
+              <button
+                type="button"
+                onClick={() => setFull(id)}
+                aria-label={`Preview ${name} full page`}
+                className="group relative block rounded-xl text-left focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+              >
+                <TemplatePreview
+                  id={id}
+                  sample={choice.sample}
+                  sizes="(min-width: 1280px) 30vw, (min-width: 640px) 45vw, 90vw"
+                  className="transition-shadow group-hover:ring-2 group-hover:ring-ink/20"
+                />
+              </button>
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="text-sm/6 font-medium text-ink">{name}</p>
+                  <p className="text-sm/5 text-muted">{description}</p>
+                </div>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  className="shrink-0"
+                  onClick={() => setFull(id)}
+                  aria-label={`Preview ${name} full page`}
+                >
+                  <Expand aria-hidden />
+                  Full page
+                </Button>
               </div>
             </li>
           );
         })}
       </ul>
+
+      {full ? (
+        <Suspense fallback={null}>
+          <FullPortfolioPreview
+            id={full}
+            own={own}
+            onChange={setFull}
+            onClose={() => setFull(null)}
+            // One modal at a time: the preview closes, then the plan dialog opens over the page.
+            action={{
+              label: tryLabel,
+              onSelect: () => {
+                setFull(null);
+                setOpen(true);
+              },
+            }}
+          />
+        </Suspense>
+      ) : null}
 
       <UpgradeDialog
         open={open}

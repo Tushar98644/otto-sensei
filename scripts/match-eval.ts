@@ -2,11 +2,16 @@
 // ordering ("newest-v0", frozen below) and the new one (rank.ts), has an LLM judge grade the top
 // 10 of each from 0 to 3, and reports nDCG@10, Precision@10 and bad-in-top-10 for both.
 //
+//   OTTO_PGLITE_DIR=<folder> bun scripts/match-eval.ts refresh    apply today's skill rules, rebuild job_match
+//   OTTO_PGLITE_DIR=<folder> bun scripts/match-eval.ts skills-check  judge 20 kept/dropped hits per context skill
 //   OTTO_PGLITE_DIR=<folder> bun scripts/match-eval.ts rank       rank every resume, save the lists
 //   OTTO_PGLITE_DIR=<folder> bun scripts/match-eval.ts estimate   pairs left to grade, and their cost
 //   OTTO_PGLITE_DIR=<folder> bun scripts/match-eval.ts judge      grade them (stops at --max-usd, 4)
 //   OTTO_PGLITE_DIR=<folder> bun scripts/match-eval.ts report     the numbers, and 150 pairs to hand-check
 //   OTTO_PGLITE_DIR=<folder> bun scripts/match-eval.ts stats      job counts, copies, filler, row size
+//   OTTO_PGLITE_DIR=<folder> bun scripts/match-eval.ts sizes      bytes per column, table and index
+//   OTTO_PGLITE_DIR=<folder> bun scripts/match-eval.ts tidy       the ingest's tidy-up alone
+//   OTTO_PGLITE_DIR=<folder> bun scripts/match-eval.ts shrink     drop stored text as an ingest now would
 //
 // Needs its own database folder (fill it with scripts/jobs-ingest.ts and the same variable): it
 // never opens .pglite/, which the dev server may hold. Bun loads OPENROUTER_API_KEY from
@@ -24,7 +29,8 @@ import {
   type MatchableJob,
 } from "@/lib/job-feed/match";
 import { MATCH_VARIANT, rankJobs } from "@/lib/job-feed/rank";
-import { findSkills } from "@/lib/job-feed/skills";
+import { CONTEXT_SKILLS, findSkills } from "@/lib/job-feed/skills";
+import { lookingForOf } from "@/lib/job-feed/looking-for";
 import {
   DEFAULT_FILTERS,
   MATCH_PROFILE_LIMITS,
@@ -102,7 +108,7 @@ async function rankNewestV0(
       )}]::text[]`,
     );
   }
-  if (person.families.size > 0) reach.push(inArray(jobs.family, [...person.families]));
+  if (person.families.size > 0) reach.push(inArray(jobs.family, [...person.families.keys()]));
   const rows = await db
     .select({
       id: jobs.id,
@@ -168,13 +174,16 @@ async function rankNew(
   resume: TestResume,
   now: number,
 ): Promise<Listed[]> {
+  const profile = profileOf(resume);
   const result = await rankJobs(db, {
     userId: "00000000-0000-4000-8000-000000000000",
     view: "matches",
-    profile: profileOf(resume),
+    profile,
     filters: DEFAULT_FILTERS,
     page: 1,
     workProfile: resume.work,
+    // The card's guess, untouched: what someone sees before tapping anything.
+    lookingFor: lookingForOf(profile, resume.work),
     deviceTimeZone: resume.work.timeZone,
     now,
   });
@@ -210,19 +219,101 @@ function writeJson(file: string, value: unknown) {
   writeFileSync(file, `${JSON.stringify(value, null, 2)}\n`);
 }
 
+// Ranks every resume with today's ordering (MATCH_VARIANT). Lists already saved for other
+// variants stay as they were, graded, so a new ordering is compared on the same pairs; --with-v0
+// re-ranks the frozen newest-v0 too. --as <name> saves the lists under another name: the same
+// ordering on a changed pool of jobs (more sources, an age limit) is then its own variant.
 async function rankAll() {
   const db = await openDb();
   const now = Date.now();
-  const variants: Lists["variants"] = { "newest-v0": {}, [MATCH_VARIANT]: {} };
+  const saved = readJson<Lists | null>(LISTS, null);
+  const name = flag("--as") ?? MATCH_VARIANT;
+  const variants: Lists["variants"] = { ...(saved?.variants ?? {}), [name]: {} };
+  const withV0 = process.argv.includes("--with-v0") || !saved;
+  if (withV0) variants["newest-v0"] = {};
   for (const resume of TEST_RESUMES) {
     const started = Date.now();
-    variants["newest-v0"]![resume.id] = await rankNewestV0(db, resume, now);
+    if (withV0) variants["newest-v0"]![resume.id] = await rankNewestV0(db, resume, now);
     const oldMs = Date.now() - started;
-    variants[MATCH_VARIANT]![resume.id] = await rankNew(db, resume, now);
-    console.log(`${resume.id}: old ${oldMs} ms, new ${Date.now() - started - oldMs} ms`);
+    variants[name]![resume.id] = await rankNew(db, resume, now);
+    console.log(
+      `${resume.id}: ${withV0 ? `old ${oldMs} ms, ` : ""}new ${Date.now() - started - oldMs} ms`,
+    );
   }
-  writeJson(LISTS, { at: now, variants } satisfies Lists);
+  writeJson(LISTS, { at: saved?.at ?? now, variants } satisfies Lists);
   console.log(`Saved ${LISTS}`);
+}
+
+// What a re-ingest would write after the 2026-11-09 skill rules, from the stored text: names that
+// now need context (Go, R, Spark ...) are kept only where the rules still find them in the title
+// and stored description, a company's own name is dropped, and C and Elm are added where found.
+// A context name only mentioned past the stored 6,000 characters is kept as it was. Then the skill
+// weights and job_match are rebuilt as the ingest does.
+async function refresh() {
+  const db = await openDb();
+  const { refreshSkillWeights } = await import("@/lib/job-feed/store");
+  const { rebuildMatchIndex } = await import("@/lib/job-feed/match-index");
+  const { brandName, searchWords } = await import("@/lib/job-feed/normalize");
+  const { roleFamily, seniorityOf } = await import("@/lib/job-feed/roles");
+  const rows = await db
+    .select({
+      id: jobs.id,
+      title: jobs.title,
+      company: jobs.company,
+      description: jobs.description,
+      keywords: jobs.keywords,
+      family: jobs.family,
+      seniority: jobs.seniority,
+    })
+    .from(jobs);
+  const contextual = new Set(CONTEXT_SKILLS);
+  const added = new Set(["C", "Elm"]);
+  let changed = 0;
+  const dropped = new Map<string, number>();
+  for (const row of rows) {
+    // Jobs stored without their text (2026-11-10 on) keep the skills read at ingest.
+    if (!row.description) continue;
+    const found = new Set(findSkills(`${row.title}\n${row.description}`));
+    const brand = brandName(row.company);
+    // A context name the stored text doesn't show (it was past the 6,000-character cut) can't be
+    // judged again, so it stays.
+    const text = `${row.title}\n${row.description}`;
+    const shown = (skill: string) =>
+      new RegExp(`(?<![\\p{L}\\p{N}])${escapeRegExp(skill)}(?![\\p{L}\\p{N}+#])`, "u").test(text);
+    const next = row.keywords.filter(
+      (skill) =>
+        (!contextual.has(skill) || found.has(skill) || !shown(skill)) &&
+        searchWords(skill) !== brand,
+    );
+    for (const skill of found) if (added.has(skill) && !next.includes(skill)) next.push(skill);
+    for (const skill of row.keywords)
+      if (!next.includes(skill)) dropped.set(skill, (dropped.get(skill) ?? 0) + 1);
+    // Kind and level from the title, as normalizeJob reads them (a source's own level is kept
+    // when the title has no marker).
+    const family = roleFamily(row.title);
+    const fromTitle = seniorityOf(row.title);
+    const seniority = fromTitle === "mid" ? row.seniority : fromTitle;
+    if (
+      family === row.family &&
+      seniority === row.seniority &&
+      next.length === row.keywords.length &&
+      next.every((skill, i) => skill === row.keywords[i])
+    )
+      continue;
+    changed += 1;
+    await db
+      .update(jobs)
+      .set({ keywords: next, family, seniority })
+      .where(sql`${jobs.id} = ${row.id}`);
+  }
+  console.log(
+    `Rewrote keywords, kind or level on ${changed} of ${rows.length} jobs. Dropped per skill:`,
+  );
+  console.log(Object.fromEntries([...dropped].sort((a, b) => b[1] - a[1]).slice(0, 25)));
+  const now = Date.now();
+  console.log({ skills: await refreshSkillWeights(db, now) });
+  const started = Date.now();
+  console.log({ indexed: await rebuildMatchIndex(db, now), ms: Date.now() - started });
 }
 
 const key = (resumeId: string, jobId: string) => `${resumeId}|${jobId}`;
@@ -317,7 +408,10 @@ async function estimate() {
     input +=
       tokensOf(SYSTEM) +
       tokensOf(seekerText(pair.resume)) +
-      (post ? tokensOf(postText(post)) : 0) +
+      // A post stored without text is read again before judging: count a full excerpt.
+      (post
+        ? tokensOf(postText(post)) + (post.description ? 0 : tokensOf("x".repeat(POST_CHARS)))
+        : 0) +
       20;
   }
   const output = pairs.length * 40;
@@ -333,11 +427,63 @@ function flag(name: string): string | null {
   return index === -1 ? null : (process.argv[index + 1] ?? null);
 }
 
+type BunRuntime = {
+  plugin: (plugin: {
+    name: string;
+    setup: (build: {
+      onLoad: (options: { filter: RegExp }, load: () => { contents: string; loader: "js" }) => void;
+    }) => void;
+  }) => void;
+};
+
+// Jobs stored without their text (every source that can be read again, from 2026-11-10) are read
+// again here, as the job page and the Tailor step do, so the judge sees the post. Bun's node:https
+// can't make the app's pinned connection (scripts/dev-transport.mjs), so the job reader's
+// transport is swapped before it loads, as scripts/jobs-ingest.ts does.
+async function fillLiveText(posts: Map<string, JobText>, ids: readonly string[]) {
+  const missing = ids.filter((id) => posts.get(id) && !posts.get(id)!.description);
+  if (missing.length === 0) return;
+  const bun = (globalThis as { Bun?: BunRuntime }).Bun;
+  bun?.plugin({
+    name: "dev-job-transport",
+    setup(build) {
+      build.onLoad({ filter: /\/src\/lib\/jobs\/transport\.ts$/ }, () => ({
+        contents: readFileSync(new URL("./dev-transport.mjs", import.meta.url), "utf8"),
+        loader: "js",
+      }));
+    },
+  });
+  const { fullPostText } = await import("@/lib/job-feed/full-post");
+  const db = await openDb();
+  const rows = await db
+    .select({
+      id: jobs.id,
+      source: jobs.source,
+      board: jobs.board,
+      externalId: jobs.externalId,
+      url: jobs.url,
+      description: jobs.description,
+      closedAt: jobs.closedAt,
+    })
+    .from(jobs)
+    .where(inArray(jobs.id, missing));
+  let read = 0;
+  for (const row of rows) {
+    // Politely: Workable answers 429 at about one request a second.
+    await new Promise((resolve) => setTimeout(resolve, row.source === "workable" ? 3_000 : 400));
+    const text = await fullPostText({ ...row, closed: false });
+    if (text) read += 1;
+    posts.set(row.id, { ...posts.get(row.id)!, description: text });
+  }
+  console.log(`Read ${read} of ${rows.length} posts again from their source for the judge.`);
+}
+
 async function judge() {
   const apiKey = process.env.OPENROUTER_API_KEY?.trim();
   if (!apiKey) throw new Error("OPENROUTER_API_KEY isn't set (bun reads it from .env.local).");
   const maxUsd = Number(flag("--max-usd") ?? 4);
   const { pairs, posts, grades } = await estimate();
+  await fillLiveText(posts, [...new Set(pairs.map((pair) => pair.jobId))]);
   let next = 0;
   let failed = 0;
   const worker = async () => {
@@ -406,6 +552,109 @@ async function judge() {
   await Promise.all(Array.from({ length: 6 }, worker));
   writeJson(GRADES, grades);
   console.log(`Graded. ${failed} failed. Spent in all: $${grades.spentUsd.toFixed(3)}.`);
+}
+
+// The 20-hit check for names that count only in context (MATCHING-RESEARCH.md, Round 2 (c)):
+// for each, up to 20 posts where the rules keep it and 20 where they drop it, each shown to the
+// judge as the lines that name it. Kept-and-wrong is a false "Found in your resume"; dropped-and-
+// right is a skill the rules now miss.
+const escapeRegExp = (text: string) => text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+async function skillsCheck() {
+  const apiKey = process.env.OPENROUTER_API_KEY?.trim();
+  if (!apiKey) throw new Error("OPENROUTER_API_KEY isn't set (bun reads it from .env.local).");
+  const maxUsd = Number(flag("--max-usd") ?? 0.2);
+  const db = await openDb();
+  const rows = await db
+    .select({ id: jobs.id, title: jobs.title, description: jobs.description })
+    .from(jobs)
+    .where(isNull(jobs.closedAt));
+  const order = (id: string) =>
+    [...id].reduce((hash, ch) => (hash * 31 + ch.charCodeAt(0)) >>> 0, 7);
+  rows.sort((a, b) => order(a.id) - order(b.id));
+  type Tally = {
+    kept: number;
+    keptRight: number;
+    dropped: number;
+    droppedRight: number;
+    seenKept: number;
+    seenDropped: number;
+  };
+  const out: Record<string, Tally> = {};
+  let spent = 0;
+  for (const skill of CONTEXT_SKILLS) {
+    const word = new RegExp(`(?<![\\p{L}\\p{N}])${escapeRegExp(skill)}(?![\\p{L}\\p{N}+#])`, "u");
+    const kept: string[] = [];
+    const dropped: string[] = [];
+    let seenKept = 0;
+    let seenDropped = 0;
+    for (const row of rows) {
+      const text = `${row.title}\n${row.description}`;
+      if (!word.test(text)) continue;
+      const lines = text
+        .split("\n")
+        .filter((line) => word.test(line))
+        .slice(0, 3)
+        .map((line) => {
+          const at = line.search(word);
+          return line.slice(Math.max(0, at - 90), at + 90).trim();
+        })
+        .join(" | ");
+      if (findSkills(text).includes(skill)) {
+        seenKept += 1;
+        if (kept.length < 20) kept.push(lines);
+      } else {
+        seenDropped += 1;
+        if (dropped.length < 20) dropped.push(lines);
+      }
+    }
+    const ask = async (items: string[]): Promise<number> => {
+      if (items.length === 0 || spent >= maxUsd) return 0;
+      const prompt = items.map((item, i) => `${i + 1}. ${item}`).join("\n");
+      const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+        method: "POST",
+        headers: { authorization: `Bearer ${apiKey}`, "content-type": "application/json" },
+        body: JSON.stringify({
+          model: JUDGE.model,
+          max_tokens: 300,
+          reasoning: { enabled: false },
+          usage: { include: true },
+          messages: [
+            {
+              role: "system",
+              content: `For each numbered excerpt from a job post, say whether "${skill}" there means the software technology, programming language or tool called ${skill} (yes), or something else such as an ordinary word, a person, a place or a company (no). Reply with JSON only: {"answers": ["yes" or "no", ...]}, one per excerpt, in order.`,
+            },
+            { role: "user", content: prompt },
+          ],
+        }),
+      });
+      const data = (await res.json().catch(() => null)) as {
+        choices?: { message?: { content?: string } }[];
+        usage?: { cost?: number };
+      } | null;
+      spent += data?.usage?.cost ?? 0;
+      const answers = (data?.choices?.[0]?.message?.content ?? "").match(/"(yes|no)"/g) ?? [];
+      return answers.filter((answer) => answer === '"yes"').length;
+    };
+    const keptRight = await ask(kept);
+    const droppedRight = await ask(dropped);
+    out[skill] = {
+      kept: kept.length,
+      keptRight,
+      dropped: dropped.length,
+      droppedRight,
+      seenKept,
+      seenDropped,
+    };
+    console.log(skill, out[skill]);
+  }
+  writeJson(path.join(OUT, "skills-check.json"), {
+    at: new Date().toISOString(),
+    model: JUDGE.model,
+    spentUsd: spent,
+    skills: out,
+  });
+  console.log(`Spent $${spent.toFixed(3)}.`);
 }
 
 function dcg(gains: readonly number[]): number {
@@ -515,7 +764,18 @@ async function report() {
       ];
     }),
   );
-  const [oldName, newName] = names as [string, string];
+  // Today's ordering against the one before it, or the two named by --compare new,old.
+  const [askedNew, askedOld] = (flag("--compare") ?? "").split(",");
+  const newName =
+    askedNew && names.includes(askedNew)
+      ? askedNew
+      : names.includes(MATCH_VARIANT)
+        ? MATCH_VARIANT
+        : names[names.length - 1]!;
+  const oldName =
+    askedOld && names.includes(askedOld)
+      ? askedOld
+      : (names[names.indexOf(newName) - 1] ?? names[0]!);
   const wins = { better: 0, same: 0, worse: 0 };
   const byField: Record<string, { old: number[]; new: number[] }> = {};
   for (const resume of TEST_RESUMES) {
@@ -538,6 +798,62 @@ async function report() {
       },
     ]),
   );
+  // The "good jobs available" ceiling: distinct postings graded 2-3 for a resume in any list,
+  // counting only those still open. A resume with fewer than 10 can't fill a good top 10.
+  const listed = [
+    ...new Set(
+      Object.values(lists.variants).flatMap((variant) =>
+        Object.values(variant).flatMap((list) => list.slice(0, TOP).map((job) => job.id)),
+      ),
+    ),
+  ];
+  const open = new Set<string>();
+  const ceilingDb = await openDb();
+  for (let i = 0; i < listed.length; i += 500) {
+    const rows = await ceilingDb
+      .select({ id: jobs.id })
+      .from(jobs)
+      .where(and(inArray(jobs.id, listed.slice(i, i + 500)), isNull(jobs.closedAt)));
+    for (const row of rows) open.add(row.id);
+  }
+  const goodFor = (resumeId: string, variantNames: readonly string[], openOnly: boolean) =>
+    new Set(
+      variantNames.flatMap((variant) =>
+        (lists.variants[variant]?.[resumeId] ?? [])
+          .slice(0, TOP)
+          .filter((job) => (grades.grades[key(resumeId, job.id)]?.grade ?? 0) >= 2)
+          .filter((job) => !openOnly || open.has(job.id))
+          .map((job) => job.id),
+      ),
+    ).size;
+  // Before: the lists up to the old variant, as graded then; now: every list, open jobs only.
+  const before = names.slice(0, names.indexOf(oldName) + 1);
+  const ceiling: Record<string, { before: number[]; now: number[] }> = {};
+  for (const resume of TEST_RESUMES) {
+    const entry = (ceiling[resume.field] ??= { before: [], now: [] });
+    entry.before.push(goodFor(resume.id, before, false));
+    entry.now.push(goodFor(resume.id, names, true));
+  }
+  const ceilingByField = Object.fromEntries(
+    Object.entries(ceiling).map(([field, values]) => [
+      field,
+      {
+        before: Math.round(mean(values.before) * 10) / 10,
+        now: Math.round(mean(values.now) * 10) / 10,
+        underTenBefore: values.before.filter((n) => n < 10).length,
+        underTenNow: values.now.filter((n) => n < 10).length,
+        n: values.now.length,
+      },
+    ]),
+  );
+  const precisionByField = Object.fromEntries(
+    Object.keys(byField).map((field) => {
+      const ids = TEST_RESUMES.filter((resume) => resume.field === field).map((r) => r.id);
+      const p = (variant: string) =>
+        Math.round(mean(ids.map((id) => perResume[id]![variant]!.precision)));
+      return [field, { old: p(oldName), new: p(newName) }];
+    }),
+  );
   const result = {
     at: new Date().toISOString(),
     judge: grades.model,
@@ -546,15 +862,31 @@ async function report() {
     summary,
     newVsOld: wins,
     byField: fields,
+    precisionByField,
+    ceilingByField,
     perResume,
   };
   writeJson(path.join(OUT, "results.json"), result);
+  const watched = ["product-pm-mid", "eng-backend-go-mid"].map((id) => ({
+    id,
+    ...Object.fromEntries(names.map((name) => [name, Math.round(perResume[id]![name]!.ndcg)])),
+  }));
+  const worse = TEST_RESUMES.map((resume) => ({
+    id: resume.id,
+    old: Math.round(perResume[resume.id]![oldName]!.ndcg),
+    new: Math.round(perResume[resume.id]![newName]!.ndcg),
+  })).filter((item) => item.new < item.old - 0.5);
   console.log(
     JSON.stringify(
       {
+        compared: `${newName} vs ${oldName}`,
         summary,
         newVsOld: wins,
+        watched,
+        worse,
         byField: fields,
+        precisionByField,
+        ceilingByField,
         spentUsd: result.spentUsd,
         graded: result.graded,
       },
@@ -634,7 +966,10 @@ async function report() {
       "",
     ]);
   }
-  const file = path.join(OUT, "hand-check-150.csv");
+  // Never over the file the owner was handed (graded or not): a dated one beside it instead.
+  let file = path.join(OUT, "hand-check-150.csv");
+  if (existsSync(file))
+    file = path.join(OUT, `hand-check-150-${new Date().toISOString().slice(0, 10)}.csv`);
   writeFileSync(file, `${rows.map((row) => row.map(csvCell).join(",")).join("\n")}\n`);
   console.log(`Saved ${path.join(OUT, "results.json")} and ${file} (${picked.length} pairs).`);
 }
@@ -666,10 +1001,110 @@ async function stats() {
       and board <> '' group by board having count(*) >= 200) full_boards`),
   );
   console.log(await query(`select title from jobs where evergreen and closed_at is null limit 15`));
+  // The role mix by the title rules (roles.ts), and by source.
+  console.log(
+    await query(`select coalesce(family, 'none') as family, count(*)::int as open from jobs
+      where closed_at is null group by 1 order by 2 desc`),
+  );
+  console.log(
+    await query(`select source, count(*)::int as open, count(distinct board)::int as boards from jobs
+      where closed_at is null group by 1 order by 2 desc`),
+  );
+}
+
+// What the next ingest's tidy-up does to the stored pool (close by end date and feed age, delete
+// long-closed rows, keep the cap), then the skill weights and job_match rebuilt, as after an
+// ingest: a changed rule measured on the pool alone, without reading anything.
+async function tidy() {
+  const db = await openDb();
+  const { tidyJobs, refreshSkillWeights } = await import("@/lib/job-feed/store");
+  const { rebuildMatchIndex } = await import("@/lib/job-feed/match-index");
+  const now = Date.now();
+  console.log({ tidy: await tidyJobs(db, now) });
+  console.log({
+    skills: await refreshSkillWeights(db, now),
+    indexed: await rebuildMatchIndex(db, now),
+  });
+}
+
+// What re-reading every source with today's normalizing would store: no text for jobs whose
+// source can be read again (SOURCE_INFO[source].liveText); the others keep theirs. Keywords,
+// level, years and the work-rights lines were read from the whole post at ingest and stay.
+// Matching never reads the text, so the lists must not change (rank --as to check).
+async function shrink() {
+  const db = await openDb();
+  const { SOURCE_INFO } = await import("@/lib/job-feed/sources");
+  const live = Object.entries(SOURCE_INFO)
+    .filter(([, info]) => info.liveText)
+    .map(([source]) => source as (typeof jobs.$inferSelect)["source"]);
+  const emptied = await db
+    .update(jobs)
+    .set({ description: "" })
+    .where(and(inArray(jobs.source, live), sql`${jobs.description} <> ''`))
+    .returning({ id: jobs.id });
+  console.log(`Emptied the stored text of ${emptied.length} jobs.`);
+}
+
+// Where the jobs table's bytes go: each column's average stored size (pg_column_size, after
+// compression), and the table, its TOAST and its indexes, plus the other job tables. Compare
+// before and after a change to what a row stores.
+async function sizes() {
+  const db = await openDb();
+  const query = async (statement: string) => {
+    const result: unknown = await db.execute(sql.raw(statement));
+    return Array.isArray(result) ? result : (result as { rows: unknown[] }).rows;
+  };
+  if (process.argv.includes("--vacuum")) {
+    // Dead rows from earlier rewrites would count otherwise.
+    await query("vacuum full analyze jobs");
+    await query("vacuum full analyze job_match");
+  }
+  const columns = (await query(`select column_name from information_schema.columns
+    where table_schema = 'public' and table_name = 'jobs' order by ordinal_position`)) as {
+    column_name: string;
+  }[];
+  const averages = columns
+    .map((c) => `round(avg(pg_column_size("${c.column_name}")))::int as "${c.column_name}"`)
+    .join(", ");
+  console.log("Average stored bytes per column:");
+  console.log((await query(`select count(*)::int as rows, ${averages} from jobs`))[0]);
+  console.log(
+    await query(`select relname as table,
+      pg_relation_size(c.oid) / 1024 as heap_kb,
+      coalesce(pg_total_relation_size(nullif(c.reltoastrelid, 0)), 0) / 1024 as toast_kb,
+      pg_indexes_size(c.oid) / 1024 as indexes_kb,
+      pg_total_relation_size(c.oid) / 1024 as total_kb
+      from pg_class c join pg_namespace n on n.oid = c.relnamespace
+      where n.nspname = 'public' and c.relkind = 'r'
+      order by pg_total_relation_size(c.oid) desc limit 8`),
+  );
+  console.log(
+    await query(`select indexrelname as index, pg_relation_size(indexrelid) / 1024 as kb
+      from pg_stat_user_indexes where relname in ('jobs', 'job_match')
+      order by pg_relation_size(indexrelid) desc`),
+  );
+  console.log({
+    databaseMb: (
+      await query(`select (pg_database_size(current_database()) / 1048576)::int as mb`)
+    )[0],
+  });
+  // What a search vector would weigh with the stored opening of the post in it as well.
+  console.log(
+    await query(`select round(avg(pg_column_size(search)))::int as search_now,
+      round(avg(pg_column_size(to_tsvector('simple', title || ' ' || company || ' ' || location || ' ' ||
+        array_to_string(keywords, ' ') || ' ' || left(description, 1500)))))::int as search_with_text,
+      round(avg(pg_column_size(left(description, 1500))))::int as description_1500_raw
+      from jobs`),
+  );
 }
 
 const step = process.argv[2];
 const steps: Record<string, () => Promise<unknown>> = {
+  sizes,
+  tidy,
+  shrink,
+  refresh,
+  "skills-check": skillsCheck,
   rank: rankAll,
   estimate,
   judge,

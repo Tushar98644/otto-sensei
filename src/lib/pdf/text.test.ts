@@ -4,9 +4,12 @@ import { keepWordsWhole, toPdfLine, toPdfParagraphs, toPdfText } from "./text";
 const char = (codePoint: number) => String.fromCodePoint(codePoint);
 
 describe("toPdfText", () => {
-  it("keeps everything Windows-1252 can draw", () => {
-    const text = "Café Zürich – “quotes” ‘single’ • bullets … €5 ™ © ½ Œuvre Šibenik";
-    expect(toPdfText(text)).toBe(text);
+  it("keeps every accented letter, Greek and Cyrillic the PDF fonts draw", () => {
+    const text =
+      "Café Zürich – “quotes” ‘single’ • bullets … €5 ™ © ½ Œuvre Šibenik Boğaziçi Łódź Nguyễn Ångström Øre Ţepeş Иван Ωmega ≥ ₹50";
+    const lost = new Set<string>();
+    expect(toPdfText(text, lost)).toBe(text);
+    expect(lost.size).toBe(0);
   });
 
   it("swaps look-alike punctuation and spaces without reporting them", () => {
@@ -16,14 +19,8 @@ describe("toPdfText", () => {
     expect(lost.size).toBe(0);
   });
 
-  it("spells out symbols the font lacks", () => {
-    expect(toPdfText("3 launches → 2x ≥ 90% ↑30% ₹50,000")).toBe("3 launches -> 2x >= 90% +30% INR 50,000");
-  });
-
-  it("drops accents outside Windows-1252 and reports the changed letters", () => {
-    const lost = new Set<string>();
-    expect(toPdfText("Łukasz Ţepeş Nguyễn Gödel", lost)).toBe("Lukasz Tepes Nguyen Gödel");
-    expect([...lost].sort()).toEqual(["Ł", "Ţ", "ş", "ễ"].sort());
+  it("spells out symbols the fonts lack", () => {
+    expect(toPdfText("3 launches → 2x, ฿500")).toBe("3 launches -> 2x, THB 500");
   });
 
   it("composes decomposed accents instead of dropping them", () => {
@@ -37,9 +34,9 @@ describe("toPdfText", () => {
   it("drops emoji and scripts it can't draw, reporting what a reader would miss", () => {
     const lost = new Set<string>();
     const thumbs = `${char(0x1f44d)}${char(0x1f3fd)}`;
-    expect(toPdfText(`Shipped ${char(0x1f680)} fast ${thumbs} Иван`, lost)).toBe("Shipped  fast  ");
+    expect(toPdfText(`Shipped ${char(0x1f680)} fast ${thumbs} 王芳`, lost)).toBe("Shipped  fast  ");
     expect(lost.has(char(0x1f680))).toBe(true);
-    expect(lost.has("И")).toBe(true);
+    expect(lost.has("王")).toBe(true);
     // A skin tone on its own means nothing to a reader.
     expect(lost.has(char(0x1f3fd))).toBe(false);
   });

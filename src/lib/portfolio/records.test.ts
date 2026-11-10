@@ -43,12 +43,10 @@ describe("portfolio records", () => {
       slug: "maya-chen",
       resumeId: "resume-1",
       template: "navy",
-      projectImages: {},
       published: false,
       showEmail: false,
       showPhone: false,
       allowIndexing: false,
-      hideCredit: false,
       sync: true,
       hiddenSections: [],
       views: 0,
@@ -112,7 +110,6 @@ describe("portfolio records", () => {
     expect(page.portfolio.view.email).toBeNull();
     expect(page.portfolio.view.phone).toBeNull();
     expect(page.portfolio.allowIndexing).toBe(false);
-    expect(page.portfolio.showCredit).toBe(true);
 
     saved(await updatePortfolio(user.id, { published: false }, PRO));
     expect(await findPublicPortfolio("maya-chen")).toEqual({ status: "missing" });
@@ -137,46 +134,40 @@ describe("portfolio records", () => {
     expect(page.portfolio.allowIndexing).toBe(true);
   });
 
-  it("keeps the owner's project pictures and draws them on the public page", async () => {
+  it("draws the public page without pictures", async () => {
     const user = await createUser();
     saved(await createPortfolio(user.id, { resume: sampleResume() }));
     const updated = saved(
-      await updatePortfolio(
-        user.id,
-        {
-          published: true,
-          template: "reel",
-          projectImages: { p1: "https://cdn.example.com/otto.png" },
-        },
-        PRO,
-      ),
+      await updatePortfolio(user.id, { published: true, template: "reel" }, PRO),
     );
-    expect(updated).toMatchObject({
-      template: "reel",
-      projectImages: { p1: "https://cdn.example.com/otto.png" },
-    });
+    expect(updated.template).toBe("reel");
+    expect(updated).not.toHaveProperty("projectImages");
+    expect(updated).not.toHaveProperty("mediaBase");
     const page = await findPublicPortfolio("maya-chen");
     if (page.status !== "ok") throw new Error("expected the page");
     expect(page.portfolio.template).toBe("reel");
-    expect(page.portfolio.view.projects[0]?.image).toBe("https://cdn.example.com/otto.png");
-    expect(
-      saved(await updatePortfolio(user.id, { projectImages: {} }, PRO)).projectImages,
-    ).toEqual({});
+    expect(page.portfolio.view.projects[0]).not.toHaveProperty("image");
   });
 
-  it("lets Pro hide the credit line, and takes the page offline (kept) when the plan ends", async () => {
+  it("takes the page offline (kept) when the plan ends", async () => {
     const user = await createUser();
     saved(await createPortfolio(user.id, { resume: sampleResume() }));
-    saved(await updatePortfolio(user.id, { hideCredit: true, published: true }, PRO));
-    const page = await findPublicPortfolio("maya-chen");
-    expect(page.status === "ok" && page.portfolio.showCredit).toBe(false);
+    saved(await updatePortfolio(user.id, { published: true }, PRO));
+    expect((await findPublicPortfolio("maya-chen")).status).toBe("ok");
 
     // Dropped to Free: the page is answered as missing, its data stays, and it can't be changed.
     const free = { ...user, plan: "free" as const };
-    await (await getDb()).update(users).set({ plan: "free", planInterval: null }).where(eq(users.id, user.id));
+    await (
+      await getDb()
+    )
+      .update(users)
+      .set({ plan: "free", planInterval: null })
+      .where(eq(users.id, user.id));
     expect(await findPublicPortfolio("maya-chen")).toEqual({ status: "missing" });
-    expect(await getPortfolio(user.id)).toMatchObject({ published: true, hideCredit: true });
-    expect(await updatePortfolio(user.id, { showEmail: true }, free)).toEqual({ status: "needs_portfolio_plan" });
+    expect(await getPortfolio(user.id)).toMatchObject({ published: true });
+    expect(await updatePortfolio(user.id, { showEmail: true }, free)).toEqual({
+      status: "needs_portfolio_plan",
+    });
 
     // Back on Pro, it's live again as it was.
     await setPlan(user, "pro");
@@ -187,7 +178,9 @@ describe("portfolio records", () => {
     const user = await setPlan(await createFreeUser(), "trial", 50_000);
     saved(await createPortfolio(user.id, { resume: sampleResume() }));
     saved(await updatePortfolio(user.id, { template: "reel", showEmail: true }, user));
-    expect(await updatePortfolio(user.id, { published: true }, user)).toEqual({ status: "needs_paid_plan" });
+    expect(await updatePortfolio(user.id, { published: true }, user)).toEqual({
+      status: "needs_paid_plan",
+    });
     expect((await getPortfolio(user.id))?.published).toBe(false);
     expect(await findPublicPortfolio("maya-chen")).toEqual({ status: "missing" });
 

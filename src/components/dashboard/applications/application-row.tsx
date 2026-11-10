@@ -1,12 +1,14 @@
 "use client";
 
-import { Ellipsis, ExternalLink, MessagesSquare, PenLine, Trash2 } from "lucide-react";
+import { Ellipsis, ExternalLink, MessagesSquare, PanelsTopLeft, PenLine, Trash2 } from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useId } from "react";
 import { Button, buttonClasses } from "@/components/ui/button";
 import { Menu } from "@/components/ui/menu";
 import type { Application } from "@/lib/applications/schema";
 import { nextStep, type ApplicationStatus } from "@/lib/applications/status";
+import { applicationHref } from "@/lib/applications/thread";
 import { FollowUpChip } from "./follow-up-chip";
 import { StatusMenu } from "./status-menu";
 import { applicationAnchor, formatDay, prepHref } from "./view";
@@ -31,6 +33,7 @@ export function ApplicationRow({
   onDelete,
 }: ApplicationRowProps) {
   const titleId = useId();
+  const router = useRouter();
   const next = nextStep(application.status);
   const name = application.company;
 
@@ -42,7 +45,9 @@ export function ApplicationRow({
       <div className="min-w-0 flex-1">
         <div className="flex min-w-0 items-center gap-1">
           <h3 id={titleId} className="truncate text-base/6 font-medium text-ink">
-            {name}
+            <Link href={applicationHref(application.id)} className="underline-offset-4 hover:underline">
+              {name}
+            </Link>
           </h3>
           {application.jobUrl ? (
             <a
@@ -110,6 +115,11 @@ export function ApplicationRow({
           })}
           trigger={<Ellipsis aria-hidden />}
           items={[
+            {
+              label: "Open application",
+              icon: PanelsTopLeft,
+              onSelect: () => router.push(applicationHref(application.id)),
+            },
             { label: "Edit details", icon: PenLine, onSelect: () => onEdit(application) },
             "separator",
             {

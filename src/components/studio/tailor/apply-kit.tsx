@@ -5,6 +5,7 @@ import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/ca
 import type { Resume } from "@/lib/resume/schema";
 import { AnswerBox } from "./answer-box";
 import { LetterPanel } from "./letter-panel";
+import { APPLY_KIT_ID } from "./letter-request";
 import { writingAllowance } from "./screener";
 import type { SavedAnswer, SavedWriting } from "./session";
 import type { Writing } from "./use-writing";
@@ -31,7 +32,8 @@ export function ApplyKit(props: ApplyKitProps) {
     ? null
     : writingAllowance(user?.plan, me?.usage?.letter, me?.period, me?.billing.trial !== false);
   return (
-    <Card>
+    // Scrolled to when the Download step asks for the cover letter.
+    <Card id={APPLY_KIT_ID} className="scroll-mt-6">
       <CardHeader>
         <CardTitle as="h2">Apply to this job</CardTitle>
         <CardDescription>

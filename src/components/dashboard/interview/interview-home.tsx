@@ -14,7 +14,9 @@ import { Button, buttonClasses } from "@/components/ui/button";
 import { FolderCard } from "@/components/ui/folder-card";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { Application } from "@/lib/applications/schema";
+import { applicationHref } from "@/lib/applications/thread";
 import type { PrepSummary } from "@/lib/insights/prep";
+import { useResumeList } from "@/lib/store/resume-store";
 import { pluralize } from "@/lib/utils";
 import { useApplications } from "../applications/use-applications";
 import { formatDay } from "../applications/view";
@@ -30,6 +32,7 @@ export function InterviewHome() {
   const now = useNow();
   const packs = usePrepPacks();
   const applications = useApplications();
+  const resumes = useResumeList();
   // Prep is AI help, which Free doesn't have. Packs made on Pro or the trial stay readable here.
   const locked = useProTools() === false;
   const tryPro = useTryProLabel();
@@ -153,6 +156,7 @@ export function InterviewHome() {
           key={dialog.key}
           open={dialog.open}
           applications={applications.items}
+          resumes={resumes}
           packs={packs.items}
           onClose={() => setDialog({ ...dialog, open: false })}
         />
@@ -186,13 +190,22 @@ function PackRow({ pack, now }: { pack: PrepSummary; now: number }) {
         {pack.role ? <p className="truncate text-sm/5 text-muted">{pack.role}</p> : null}
         <p className="mt-1 text-xs/5 text-subtle">{meta}</p>
       </div>
-      <Link
-        href={interviewHref(pack.applicationId)}
-        aria-describedby={titleId}
-        className={buttonClasses({ variant: "secondary", size: "sm", className: "self-start md:self-auto" })}
-      >
-        Open
-      </Link>
+      <div className="flex flex-wrap items-center gap-2">
+        <Link
+          href={interviewHref(pack.applicationId)}
+          aria-describedby={titleId}
+          className={buttonClasses({ variant: "secondary", size: "sm" })}
+        >
+          Open
+        </Link>
+        <Link
+          href={applicationHref(pack.applicationId)}
+          aria-describedby={titleId}
+          className={buttonClasses({ variant: "ghost", size: "sm", className: "text-muted hover:text-ink" })}
+        >
+          Application
+        </Link>
+      </div>
     </li>
   );
 }

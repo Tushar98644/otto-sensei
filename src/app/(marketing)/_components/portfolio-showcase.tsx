@@ -26,7 +26,7 @@ export function PortfolioShowcase() {
         }
       >
         Not your resume as a web page. Pick one of eight designs and Otto fills it with your
-        projects, writing, photos and links. We host it, so there&apos;s nothing to set up. It comes
+        projects, work, writing and links. We host it, so there&apos;s nothing to set up. It comes
         with Pro{trialOffered() ? `, and you can try it free for ${PRO_TRIAL.days} days` : ""}.
       </SectionHeader>
       <ul className="mt-12 grid gap-x-6 gap-y-8 sm:mt-16 sm:grid-cols-3">

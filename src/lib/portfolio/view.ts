@@ -2,7 +2,6 @@ import { parseGitHubUsername } from "@/lib/github/username";
 import { webLink } from "@/lib/pdf/links";
 import { extrasOf, sectionTitleOf, type Resume } from "@/lib/resume/schema";
 import { shareSnapshot } from "@/lib/share/snapshot";
-import { safeImageUrl } from "./images";
 import { PORTFOLIO_SECTIONS, type PortfolioSection, type PortfolioSettings } from "./types";
 
 // Pure and client-safe. A resume as a portfolio page reads it: what every template draws, with
@@ -26,8 +25,6 @@ export type PortfolioProject = {
   host: string;
   // "octocat/otto-resume" for a GitHub repo, else null.
   repo: string | null;
-  // The owner's https picture for it (Showcase draws one when this is null).
-  image: string | null;
   lines: string[];
 };
 
@@ -90,8 +87,7 @@ export type PortfolioView = {
   hidden: PortfolioSection[];
 };
 
-export type ViewSettings = Pick<PortfolioSettings, "showEmail" | "showPhone" | "hiddenSections"> &
-  Partial<Pick<PortfolioSettings, "projectImages">>;
+export type ViewSettings = Pick<PortfolioSettings, "showEmail" | "showPhone" | "hiddenSections">;
 
 const clean = (value: string) => value.replace(/\s+/g, " ").trim();
 const lines = (bullets: readonly { text: string }[]) =>
@@ -177,7 +173,6 @@ export function portfolioView(source: Resume, settings: ViewSettings): Portfolio
               href: link?.href ?? null,
               host: hostOf(link?.href ?? null),
               repo: repo ? `${repo.owner}/${repo.name}` : null,
-              image: safeImageUrl(settings.projectImages?.[project.id]),
               lines: lines(project.bullets),
             };
           })

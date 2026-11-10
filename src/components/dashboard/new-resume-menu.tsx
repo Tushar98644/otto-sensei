@@ -1,6 +1,15 @@
 "use client";
 
-import { ChevronDown, FilePlus2, FileText, FileUp, Plus } from "lucide-react";
+import {
+  ChevronDown,
+  FileArchive,
+  FileBraces,
+  FilePlus2,
+  FileText,
+  FileUp,
+  Plus,
+  WandSparkles,
+} from "lucide-react";
 import { buttonClasses, type ButtonSize } from "@/components/ui/button";
 import { Menu } from "@/components/ui/menu";
 import { cn } from "@/lib/utils";
@@ -13,8 +22,8 @@ export type NewResumeMenuProps = {
   className?: string;
 };
 
-// The one "new" control everywhere in the app: the same three starts as the studio's upload
-// screen, behind a single primary button so a page never shows three competing ones.
+// The one "new" control everywhere in the app: the same starts as the studio's upload screen, in
+// its order, behind a single primary button so a page never shows six competing ones.
 export function NewResumeMenu({ actions, size = "md", align = "start", className }: NewResumeMenuProps) {
   return (
     <Menu
@@ -28,7 +37,7 @@ export function NewResumeMenu({ actions, size = "md", align = "start", className
           <ChevronDown aria-hidden className="text-white/70" />
         </>
       }
-      className="w-72"
+      className="w-80"
       items={[
         {
           label: "Upload a file",
@@ -36,6 +45,25 @@ export function NewResumeMenu({ actions, size = "md", align = "start", className
           icon: FileUp,
           onSelect: actions.upload,
         },
+        {
+          label: "Build with Otto",
+          description: "No resume yet? Answer a few questions for a first draft.",
+          icon: WandSparkles,
+          onSelect: actions.guided,
+        },
+        {
+          label: "Import from LinkedIn",
+          description: "The ZIP from LinkedIn's data export. Stays on your device.",
+          icon: FileArchive,
+          onSelect: actions.linkedin,
+        },
+        {
+          label: "Import a JSON Resume",
+          description: "A resume.json from jsonresume.org or another tool.",
+          icon: FileBraces,
+          onSelect: actions.jsonResume,
+        },
+        "separator",
         {
           label: "Start from scratch",
           description: "A blank page with the usual sections.",

@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { api } from "@/lib/api/client";
 import { normalizeSlug, SLUG_MAX, SLUG_MESSAGES, slugProblem } from "@/lib/portfolio/slug";
 import { PORTFOLIO_LIMITS, type Portfolio } from "@/lib/portfolio/types";
-import { EditorCard } from "./check-row";
+import { EditorSection } from "./check-row";
 import { messageOf, savePortfolio, usePortfolioStore } from "./portfolio-store";
 
 // Typing pauses this long before the server is asked whether the address is free.
@@ -65,7 +65,7 @@ export function AddressCard({ portfolio }: { portfolio: Portfolio }) {
   }
 
   return (
-    <EditorCard title="Address">
+    <EditorSection title="Address">
       <form
         className="flex flex-col gap-2"
         onSubmit={(event) => {
@@ -96,6 +96,6 @@ export function AddressCard({ portfolio }: { portfolio: Portfolio }) {
           {note}
         </p>
       </form>
-    </EditorCard>
+    </EditorSection>
   );
 }

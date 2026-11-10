@@ -1,4 +1,6 @@
-import type { JobMatch, MatchLabel } from "./types";
+import type { PlaceFit } from "./looking-for";
+import { SENIORITY_RANK } from "./roles";
+import type { JobMatch, MatchLabel, Seniority } from "./types";
 
 // Client-safe and pure. The order Matches come in: label first (the rule-based guardrail), then
 // how much of what the post asks for the resume covers, weighted so rare skills count more, with
@@ -16,6 +18,16 @@ export const ORDER_LIMITS = {
   // The same kind of role as the resume counts like one or two common shared skills, so a sales
   // or support resume that names few tools still reaches its own kind of job.
   familyWeight: 2,
+  // Level in the order (MATCHING-RESEARCH.md, Round 2 (e): same level 54% graded good, one up
+  // 43%, two up 24%). Two or more steps away leaves Matches unless nothing nearer is left.
+  oneUp: 0.85,
+  oneDown: 0.9,
+  farLevel: 0.5,
+  // The role looked for, word for word in the job title ("Product Manager").
+  titleFit: 1.1,
+  // A place the "Looking for" card names, and one it rules out (also ordered a label lower).
+  placeMatch: 1.15,
+  placeMiss: 0.6,
 } as const;
 
 /**
@@ -27,14 +39,32 @@ export function closeness(
   match: Pick<JobMatch, "found">,
   keywords: readonly string[],
   weight: (skill: string) => number,
-  sameKind: boolean,
+  kind: number,
 ): number {
   let found = 0;
   for (const skill of match.found) found += weight(skill);
   let asked = 0;
   for (const skill of keywords) asked += weight(skill);
   const coverage = asked === 0 ? 0 : found / asked;
-  return found * (0.5 + 0.5 * coverage) + (sameKind ? ORDER_LIMITS.familyWeight : 0);
+  return found * (0.5 + 0.5 * coverage) + ORDER_LIMITS.familyWeight * kind;
+}
+
+/** Steps from the person's level to the job's: 1 is one level up, -1 one down. 0 when unknown. */
+export function levelGap(person: Seniority | null, job: Seniority): number {
+  return person === null ? 0 : SENIORITY_RANK[job] - SENIORITY_RANK[person];
+}
+
+export function levelFactor(gap: number): number {
+  if (gap === 0) return 1;
+  if (gap === 1) return ORDER_LIMITS.oneUp;
+  if (gap === -1) return ORDER_LIMITS.oneDown;
+  return ORDER_LIMITS.farLevel;
+}
+
+export function placeFactor(fit: PlaceFit): number {
+  if (fit === "match") return ORDER_LIMITS.placeMatch;
+  if (fit === "miss") return ORDER_LIMITS.placeMiss;
+  return 1;
 }
 
 /**
@@ -49,12 +79,27 @@ export function freshness(seenAt: number, now: number): number {
   return 0.75;
 }
 
-export type Ranked = { match: JobMatch; company: string; postedAt: number; closeness: number };
+export type Ranked = {
+  match: JobMatch;
+  company: string;
+  postedAt: number;
+  closeness: number;
+  // Ordered one label lower than it shows: a place the "Looking for" card rules out.
+  demoted?: boolean;
+  // A kind of role only an older title names: after the role looked for, within its label.
+  pastKind?: boolean;
+};
 
-/** Best first: label, then closeness (already freshness-scaled), then newest. */
+/** Best first: label, the role looked for before older kinds, closeness, then newest. */
 export function compareRanked(a: Ranked, b: Ranked): number {
-  const rank = (match: JobMatch) => (match.label === null ? 3 : LABEL_ORDER[match.label]);
-  return rank(a.match) - rank(b.match) || b.closeness - a.closeness || b.postedAt - a.postedAt;
+  const rank = (item: Ranked) =>
+    (item.match.label === null ? 3 : LABEL_ORDER[item.match.label]) + (item.demoted ? 1 : 0);
+  return (
+    rank(a) - rank(b) ||
+    Number(a.pastKind ?? false) - Number(b.pastKind ?? false) ||
+    b.closeness - a.closeness ||
+    b.postedAt - a.postedAt
+  );
 }
 
 const companyOf = (item: { company: string }) => item.company.trim().toLowerCase();

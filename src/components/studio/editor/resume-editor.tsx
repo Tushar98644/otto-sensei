@@ -25,8 +25,15 @@ import { editResume, pickResume, useResumeValue, useSectionMeta } from "./use-ed
 const NO_SECTIONS: SectionKey[] = [];
 
 // Every section of one resume, in its print order, then the extra sections. Re-renders only when
-// sections move.
-export const ResumeEditor = memo(function ResumeEditor({ resumeId }: { resumeId: string }) {
+// sections move. `intro` sits above the sections, inside the Fix dialog's reach, so it can open a
+// line's fix too.
+export const ResumeEditor = memo(function ResumeEditor({
+  resumeId,
+  intro,
+}: {
+  resumeId: string;
+  intro?: ReactNode;
+}) {
   const order = useStudioStore(
     useShallow((state) => {
       const resume = pickResume(state, resumeId);
@@ -36,6 +43,7 @@ export const ResumeEditor = memo(function ResumeEditor({ resumeId }: { resumeId:
 
   return (
     <FixDialogProvider resumeId={resumeId}>
+      {intro}
       {/* Keeps a focused field clear of the sticky step bar when the browser scrolls to it. Scoped
           to the sections: the dialogs and the bar itself must scroll normally. */}
       <div className="flex flex-col gap-3 [&_:is(input,textarea,button)]:scroll-mb-28">

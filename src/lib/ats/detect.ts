@@ -10,6 +10,8 @@ const BY_SOURCE: Partial<Record<JobSource, HiringSystemId>> = {
   greenhouse: "greenhouse",
   lever: "lever",
   ashby: "ashby",
+  workable: "workable",
+  recruitee: "recruitee",
 };
 
 // Subdomains vendors use for their own sites, which are never a job.

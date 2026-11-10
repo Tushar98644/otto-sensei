@@ -54,8 +54,15 @@ describe("normalizeJob", () => {
     const [raw] = parseGreenhouse(GREENHOUSE_BOARD, "Vercel");
     const job = normalizeJob({ ...raw!, title: "Engineer", text: texts[0]! }, NOW, boilerplate);
     expect(job.keywords).toEqual(["Go"]);
-    // The stored text is the post as written.
-    expect(job.description).toContain("prototyping");
+    // A source that can be read again keeps no text; one that can't keeps the post as written.
+    expect(job.description).toBe("");
+    const kept = normalizeJob(
+      { ...raw!, title: "Engineer", text: texts[0]! },
+      NOW,
+      boilerplate,
+      500,
+    );
+    expect(kept.description).toContain("prototyping");
     expect(boilerplateLines(texts.slice(0, 3)).size).toBe(0);
   });
 
@@ -162,12 +169,15 @@ describe("matchProfileOf", () => {
 
 describe("BOARD_SEEDS", () => {
   it("has a few hundred boards, each once, with names and safe tokens", () => {
-    expect(BOARD_SEEDS.length).toBeGreaterThanOrEqual(300);
+    expect(BOARD_SEEDS.length).toBeGreaterThanOrEqual(500);
     const keys = BOARD_SEEDS.map((seed) => `${seed.ats}:${seed.token.toLowerCase()}`);
     expect(new Set(keys).size).toBe(keys.length);
     for (const seed of BOARD_SEEDS) {
       expect(seed.company.trim()).not.toBe("");
       expect(seed.token).toMatch(/^[a-z0-9][a-z0-9._-]{0,99}$/i);
+      // Recruitee and Personio put the token in the host name.
+      if (seed.ats === "recruitee" || seed.ats === "personio")
+        expect(seed.token).toMatch(/^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/);
     }
   });
 });

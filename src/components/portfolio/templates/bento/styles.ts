@@ -85,10 +85,11 @@ b { font-weight: 700; }
   .btn::before { content: ""; position: absolute; inset: 0; z-index: 2; pointer-events: none; background: var(--primary-500); -webkit-mask-box-image: var(--bt-rail-mask) var(--bt-slice) fill / var(--bt-border) stretch; }
 }
 .avatar { position: absolute; right: -110px; bottom: -20px; z-index: -1; opacity: 0.5; pointer-events: none; display: flex; flex-direction: column; align-items: center; }
-.avatar img, .avatar .initials { width: 220px; height: 270px; object-fit: cover; border-radius: 9999px 9999px 2rem 2rem; filter: drop-shadow(0 18px 24px rgb(0 0 0 / 0.5)); }
-.avatar:has(.initials) { display: none; }
-.avatar .initials { display: grid; place-items: center; background: radial-gradient(circle at 50% 35%, color-mix(in srgb, var(--primary-500) 55%, #000), var(--darkslate-800)); color: #fff; font-size: 4.5rem; font-weight: 800; letter-spacing: -0.04em; }
-@media (prefers-reduced-motion: no-preference) { .avatar img, .avatar .initials { animation: bento-levitate 4s ease-in-out infinite; } }
+/* The arch where his portrait floats: the initials in the pixel face over a dot screen */
+.avatar .initials { position: relative; display: grid; place-items: center; width: 220px; height: 270px; overflow: hidden; border-radius: 9999px 9999px 2rem 2rem; background: radial-gradient(circle at 50% 30%, color-mix(in srgb, var(--primary-500) 50%, #000), var(--darkslate-800) 72%); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--primary-400) 30%, transparent); filter: drop-shadow(0 18px 24px rgb(0 0 0 / 0.5)); color: #fff; font-family: var(--pf-font-geist-pixel, "Geist Pixel"), ui-monospace, monospace; font-size: 5.5rem; letter-spacing: 0.02em; text-shadow: 0 0 24px color-mix(in srgb, var(--primary-400) 60%, transparent); }
+.avatar .initials::before { content: ""; position: absolute; inset: 0; background: radial-gradient(circle, rgb(255 255 255 / 0.16) 1px, transparent 1.6px) 0 0 / 8px 8px; -webkit-mask-image: linear-gradient(to bottom, #000 20%, transparent 90%); mask-image: linear-gradient(to bottom, #000 20%, transparent 90%); }
+@container pf (max-width: 767px) { .avatar { display: none; } }
+@media (prefers-reduced-motion: no-preference) { .avatar .initials { animation: bento-levitate 4s ease-in-out infinite; } }
 @keyframes bento-levitate { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-8px); } }
 
 /* Stack & tools (AboutMe) */
@@ -158,9 +159,12 @@ b { font-weight: 700; }
 .now-text b { font-weight: 500; color: var(--darkslate-300); }
 
 /* Project link tiles (Playground, Guestbook, Blog in the original) */
-.shot { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: top; opacity: 0.35; filter: grayscale(0.4); transition: opacity 0.2s; }
-.card:hover .shot { opacity: 0.5; }
-.shade { position: absolute; inset: 0; background: linear-gradient(90deg, var(--darkslate-500) 10%, transparent); }
+/* The project's pixel mark before its name, where his tiles have a faded picture */
+.project-row { display: flex; align-items: center; gap: 0.875rem; }
+.project-text { min-width: 0; }
+.mark { flex: none; width: 2.5rem; height: 2.5rem; padding: 0.3125rem; border-radius: 0.375rem; background: color-mix(in srgb, var(--primary-800) 18%, transparent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--primary-500) 28%, transparent); fill: var(--primary-800); transition: transform 0.2s; }
+.mark .hot { fill: var(--primary-400); }
+.card:hover .mark { transform: scale(1.06); }
 .pattern { position: absolute; inset: 0; opacity: 0.5; background-image: radial-gradient(circle, var(--primary-800) 2px, transparent 2.5px); background-size: 18px 18px; mask: linear-gradient(90deg, transparent 30%, #000); -webkit-mask: linear-gradient(90deg, transparent 30%, #000); }
 .project-title { margin: 0; font-size: 1.25rem; line-height: 1.75rem; font-weight: 700; padding-right: 1.5rem; }
 .project-line { margin: 0; padding-right: 1.5rem; font-size: 0.75rem; line-height: 1rem; color: var(--darkslate-300); display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden; }
@@ -204,7 +208,7 @@ b { font-weight: 700; }
   .t-intro { grid-column: span 2; }
   .t-stack, .t-contact { grid-row: span 2; }
   .t-exp { grid-column: span 2; }
-  .avatar, .avatar:has(.initials) { display: flex; position: relative; right: auto; bottom: auto; z-index: auto; opacity: 1; pointer-events: auto; padding-bottom: 0.75rem; }
+  .avatar { display: flex; position: relative; right: auto; bottom: auto; z-index: auto; opacity: 1; pointer-events: auto; padding-bottom: 0.75rem; }
   .tz-block { flex: 1; align-items: center; justify-content: center; }
   .clock { font-size: clamp(1.5rem, 2.9cqi, 1.875rem); }
 }

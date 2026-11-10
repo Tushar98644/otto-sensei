@@ -81,15 +81,16 @@ export async function addApplication(body: CreateApplicationBody): Promise<Appli
 }
 
 /**
- * Saves a change. A status or reminder change shows at once and is rolled back if the save fails;
- * other fields wait for the server, since they come from a dialog that's still open.
+ * Saves a change. A status, reminder or interview-day change shows at once and is rolled back if
+ * the save fails; other fields wait for the server, since they come from a dialog that's still
+ * open.
  */
 export async function changeApplication(
   original: Application,
   patch: UpdateApplicationBody,
 ): Promise<Application> {
-  const { status, followUpAt } = patch;
-  if (status !== undefined || followUpAt !== undefined) {
+  const { status, followUpAt, interviewAt } = patch;
+  if (status !== undefined || followUpAt !== undefined || interviewAt !== undefined) {
     const optimistic: Application = {
       ...original,
       ...(status === undefined
@@ -101,6 +102,7 @@ export async function changeApplication(
             ...(status === "applied" ? {} : { followUpAt: null }),
           }),
       ...(followUpAt === undefined ? {} : { followUpAt }),
+      ...(interviewAt === undefined ? {} : { interviewAt }),
     };
     apply((items) => upsertApplication(items, optimistic));
   }

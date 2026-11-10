@@ -1,55 +1,81 @@
-import { INK, MUTED, RULE, defineTheme, inch } from "../theme";
+import { ACCENT_COLORS } from "@/lib/pdf/design";
+import { PDF_FONT } from "@/lib/pdf/fonts";
+import { tint } from "../design";
+import { INK, defineTheme } from "../theme";
 
-// Times throughout, a centered header closed by a rule, spaced capital headings and more room
-// between sections. The company follows the title in italics.
+// moderncv's "banking" style (LPPL): Palatino (TeX Gyre Pagella), the name in the accent with
+// "| Headline" beside it in gray, gray contact lines, accent headings over a light rule, entries as
+// a bold organisation and city over an italic role and dates, and hollow accent bullets. Navy by
+// default, where moderncv is a bright blue.
+
+const ACCENT = ACCENT_COLORS.navy;
+const GRAY = "#727272";
+
 export const executive = defineTheme({
-  headerRule: true,
+  contactLines: [["location"], ["phone", "email", "links"]],
+  contactSeparator: " • ",
+  bullet: { glyph: "○", shape: "circle" },
+  rows: {
+    job: [
+      { lead: ["org"], side: "detail" },
+      { lead: ["title"], side: "dates" },
+    ],
+    school: [
+      { lead: ["org"], side: "detail" },
+      { lead: ["title"], side: "dates" },
+    ],
+    item: [{ lead: ["title", "org", "tech", "detail"], side: "dates" }],
+  },
+  companyRow: { lead: ["org"], side: "detail" },
+  roleRow: { lead: ["title", "detail"], side: "dates" },
+  separators: { org: ", ", detail: ", ", tech: ", ", title: ", " },
+  headingRule: "below",
+  headlineInline: true,
+  accentSlots: ["name", "sectionTitle", ["sectionTitleRule", 0.55], "bulletGlyph", "bulletMark"],
   styles: {
     page: {
-      paddingTop: inch(0.6),
-      paddingBottom: inch(0.55),
-      paddingHorizontal: inch(0.8),
-      fontFamily: "Times-Roman",
-      fontSize: 10.5,
-      lineHeight: 1.32,
+      paddingTop: 54,
+      paddingBottom: 50,
+      paddingHorizontal: 64,
+      fontFamily: PDF_FONT.pagella,
+      fontSize: 11,
+      lineHeight: 1.24,
+      color: INK,
     },
-    header: { alignItems: "center" },
-    // Letter spacing stays under ~8% of the type size everywhere: past that, text extraction
-    // (pdf.js, and the hiring software built like it) reads "S U M M A R Y".
     name: {
       fontSize: 22,
-      fontWeight: "normal",
-      letterSpacing: 1.2,
-      textTransform: "uppercase",
+      fontWeight: "bold",
+      lineHeight: 1.15,
+      color: ACCENT,
       textAlign: "center",
     },
-    headline: { marginTop: 2, fontSize: 11.5, fontStyle: "italic", textAlign: "center" },
-    contact: { marginTop: 5, fontSize: 9.75, textAlign: "center" },
-    contactNext: { marginTop: 1, fontSize: 9.75, textAlign: "center" },
-    headerRule: {
-      alignSelf: "stretch",
-      marginTop: 9,
-      borderBottomWidth: 0.75,
-      borderBottomColor: INK,
+    headlineInline: { fontWeight: "normal", color: "#878787" },
+    headline: { fontSize: 13, color: "#878787", textAlign: "center" },
+    contact: { marginTop: 2, color: GRAY, textAlign: "center" },
+    contactNext: { color: GRAY, textAlign: "center" },
+    link: { color: GRAY, textDecoration: "none" },
+    webLink: { color: GRAY, textDecoration: "none" },
+    section: { marginTop: 13 },
+    sectionTitle: { fontSize: 14.4, fontWeight: "bold", color: ACCENT, lineHeight: 1.1 },
+    sectionTitleRule: {
+      borderBottomWidth: 0.4,
+      borderBottomColor: tint(ACCENT, 0.55),
+      marginBottom: 5,
     },
-    section: { marginTop: 14 },
-    sectionTitle: {
-      marginBottom: 7,
-      paddingBottom: 2,
-      borderBottomWidth: 0.5,
-      borderBottomColor: RULE,
-      fontSize: 10.5,
-      letterSpacing: 0.8,
-    },
-    paragraph: { marginTop: 3.5 },
-    entry: { marginTop: 9 },
-    entryTitle: { fontSize: 11 },
-    entryOrg: { fontStyle: "italic" },
-    entryDetail: { color: MUTED },
-    dates: { fontSize: 10 },
-    role: { marginTop: 5 },
-    bullet: { marginTop: 2.5 },
-    bulletGlyph: { width: 12 },
-    skillLine: { marginTop: 2.5 },
+    paragraph: { marginTop: 3 },
+    entry: { marginTop: 7 },
+    role: { marginTop: 4 },
+    row1First: { fontWeight: "bold" },
+    row1Side: { fontWeight: "bold" },
+    row2Text: { fontStyle: "italic" },
+    row2First: {},
+    row2Side: { fontStyle: "italic" },
+    entryNote: { marginTop: 1, fontSize: 10 },
+    bullet: { marginTop: 1.5 },
+    bulletGlyph: { width: 13, fontSize: 8, lineHeight: 13.02 / 8, color: ACCENT },
+    bulletMark: { width: 4, height: 4, marginTop: 5.5, marginLeft: 1, color: ACCENT },
+    bulletText: { fontSize: 10.5 },
+    skillLine: { marginTop: 2 },
+    skillLabel: { fontWeight: "bold" },
   },
 });

@@ -4,6 +4,7 @@ import { ArrowRight } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useMemo, useRef, useState, type FormEvent } from "react";
 import { errorMessage } from "@/components/account/errors";
+import { roomForApplication } from "@/components/account/pro-tools";
 import { OTTO } from "@/components/mascot/lines";
 import { OttoNote } from "@/components/mascot/otto-note";
 import { OttoWorking } from "@/components/mascot/otto-working";
@@ -15,14 +16,19 @@ import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { api, isApiError } from "@/lib/api/client";
 import { APPLICATION_LIMITS, normalizeJobUrl, type Application } from "@/lib/applications/schema";
-import { STATUS_NAMES } from "@/lib/applications/status";
+import { copyJobId } from "@/lib/applications/thread";
 import type { PrepSummary } from "@/lib/insights/prep";
+import { savedJobUrl } from "@/lib/insights/saved-job";
+import { resumeTitle } from "@/lib/resume/ops";
+import type { Resume } from "@/lib/resume/schema";
 import { addApplication } from "../applications/use-applications";
-import { findByLink, interviewHref, prepChoices, waitingForPrep } from "./view";
+import { findByLink, interviewHref, prepPickerChoices, waitingForPrep } from "./view";
 
 export type PrepareDialogProps = {
   open: boolean;
   applications: readonly Application[];
+  // Tailored copies not sent yet are offered too.
+  resumes: readonly Resume[];
   packs: readonly PrepSummary[];
   onClose: () => void;
 };
@@ -30,21 +36,18 @@ export type PrepareDialogProps = {
 // Shown when the job link can't name the company, which an application needs.
 type Manual = { company: string; role: string; note: string };
 
-function choiceLabel(application: Application): string {
-  const job = [application.company, application.role].filter(Boolean).join(", ");
-  return `${job} (${STATUS_NAMES[application.status]})`;
-}
-
-// Starts prep for a job: one already in Applications, or a job link, which joins Applications
-// marked as an interview. The prep itself is made on that job's own page, with the same form and
-// API as from Applications. Mounted per opening, so each one starts blank.
-export function PrepareDialog({ open, applications, packs, onClose }: PrepareDialogProps) {
+// Starts prep for a job: one already in Applications, a tailored copy not sent yet, or a job link.
+// A copy or a link joins Applications marked as an interview, with the copy, its job and its
+// letters linked. The prep itself is made on that job's own page, with the same form and API as
+// from Applications. Mounted per opening, so each one starts blank.
+export function PrepareDialog({ open, applications, resumes, packs, onClose }: PrepareDialogProps) {
   const router = useRouter();
-  const choices = useMemo(() => prepChoices(applications), [applications]);
+  const choices = useMemo(() => prepPickerChoices(applications, resumes), [applications, resumes]);
   // An interview that has no prep yet is almost always the one wanted.
-  const [picked, setPicked] = useState(
-    () => waitingForPrep(applications, packs)[0]?.id ?? choices[0]?.id ?? "",
-  );
+  const [picked, setPicked] = useState(() => {
+    const waiting = waitingForPrep(applications, packs)[0];
+    return waiting ? `application:${waiting.id}` : (choices[0]?.value ?? "");
+  });
   const [link, setLink] = useState("");
   const [linkError, setLinkError] = useState<string | null>(null);
   const [manual, setManual] = useState<Manual | null>(null);
@@ -54,7 +57,7 @@ export function PrepareDialog({ open, applications, packs, onClose }: PrepareDia
   const [failure, setFailure] = useState<string | null>(null);
   const linkRef = useRef<HTMLInputElement>(null);
   const companyRef = useRef<HTMLInputElement>(null);
-  const chosen = choices.find((application) => application.id === picked) ?? choices[0];
+  const chosen = choices.find((choice) => choice.value === picked) ?? choices[0];
 
   function go(applicationId: string) {
     router.push(interviewHref(applicationId));
@@ -138,9 +141,34 @@ export function PrepareDialog({ open, applications, packs, onClose }: PrepareDia
     void fromLink(link);
   }
 
-  function submitChoice(event: FormEvent<HTMLFormElement>) {
+  async function submitChoice(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (chosen) go(chosen.id);
+    if (!chosen || busy) return;
+    if (chosen.kind === "application") {
+      go(chosen.application.id);
+      return;
+    }
+    if (!(await roomForApplication(applications.length))) return;
+    const { copy } = chosen;
+    setBusy(true);
+    setFailure(null);
+    try {
+      const application = await addApplication({
+        resumeId: copy.id,
+        resumeTitle: resumeTitle(copy).slice(0, 200),
+        jobId: copyJobId(copy),
+        company: copy.tailor?.company.trim().slice(0, 200) ?? "",
+        role: copy.tailor?.jobTitle.trim().slice(0, 200) ?? "",
+        jobUrl: normalizeJobUrl(savedJobUrl(copy)) ?? "",
+        appliedAt: Date.now(),
+        status: "interview",
+      });
+      go(application.id);
+    } catch (error) {
+      setFailure(errorMessage(error));
+    } finally {
+      setBusy(false);
+    }
   }
 
   return (
@@ -154,17 +182,24 @@ export function PrepareDialog({ open, applications, packs, onClose }: PrepareDia
     >
       <div className="flex flex-col gap-6">
         {chosen ? (
-          <form onSubmit={submitChoice} className="flex flex-col gap-3">
-            <Field label="From your applications">
-              <Select value={chosen.id} onChange={(event) => setPicked(event.target.value)}>
-                {choices.map((application) => (
-                  <option key={application.id} value={application.id}>
-                    {choiceLabel(application)}
+          <form onSubmit={(event) => void submitChoice(event)} className="flex flex-col gap-3">
+            <Field
+              label="From your applications and tailored copies"
+              hint={
+                chosen.kind === "copy"
+                  ? "It joins Applications at the interview stage, with its letter."
+                  : undefined
+              }
+            >
+              <Select value={chosen.value} onChange={(event) => setPicked(event.target.value)}>
+                {choices.map((choice) => (
+                  <option key={choice.value} value={choice.value}>
+                    {choice.label}
                   </option>
                 ))}
               </Select>
             </Field>
-            <Button type="submit" className="self-start" data-autofocus>
+            <Button type="submit" className="self-start" loading={busy && chosen.kind === "copy"} data-autofocus>
               Prepare
               <ArrowRight aria-hidden />
             </Button>

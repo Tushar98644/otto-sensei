@@ -2,7 +2,15 @@ import type { ReactNode } from "react";
 import type { ContentProject, ContentSocial } from "@/lib/portfolio/content";
 import { compactNumber } from "@/lib/portfolio/metrics";
 import { SocialIcon } from "../icons";
-import { DesignCredit, featuredFirst, nameOf, OutLink, Picture, TemplateStyle } from "../parts";
+import {
+  DesignCredit,
+  featuredFirst,
+  nameOf,
+  OutLink,
+  seeded,
+  seedOf,
+  TemplateStyle,
+} from "../parts";
 import type { PortfolioTemplateProps } from "../types";
 import { AccentSwatches, TimeZoneTile } from "./islands";
 import { PixelArrow, PixelGitHub, PixelLinkedIn } from "./pixel-icons";
@@ -10,8 +18,9 @@ import { BENTO_CSS } from "./styles";
 
 // Bento: a rebuild of Gianmarco Cavallo's astro-bento-portfolio (github.com/Ladvace/
 // astro-bento-portfolio, MIT; ./LICENSE.txt) for anyone's data. One screen of framed tiles on a
-// fading grid: intro with photo and social buttons, stack and tools, contact details, live local
-// time against the reader's, GitHub, "now", projects, experience, accent swatches and the credit.
+// fading grid: intro with pixel initials and social buttons, stack and tools, contact details,
+// live local time against the reader's, GitHub, "now", projects (each with a pixel mark drawn from
+// its name, where he has pictures), experience, accent swatches and the credit.
 
 const INTRO_PARAGRAPHS = 3;
 const INTRO_BUTTONS = 3;
@@ -74,28 +83,51 @@ function SocialButton({ social }: { social: ContentSocial }) {
   );
 }
 
+const MARK = 5;
+
+/** A 5x5 pixel mark, mirrored like an identicon, from the project's name: its tile's picture. */
+function PixelMark({ name }: { name: string }) {
+  const random = seeded(seedOf(name));
+  const cells: { x: number; y: number; hot: boolean }[] = [];
+  for (let y = 0; y < MARK; y++) {
+    for (let x = 0; x < Math.ceil(MARK / 2); x++) {
+      if (random() < 0.5) continue;
+      const hot = random() < 0.3;
+      cells.push({ x, y, hot });
+      if (x !== MARK - 1 - x) cells.push({ x: MARK - 1 - x, y, hot });
+    }
+  }
+  return (
+    <svg className="mark" viewBox={`0 0 ${MARK} ${MARK}`} shapeRendering="crispEdges" aria-hidden>
+      {cells.map((cell) => (
+        <rect
+          key={`${cell.x}-${cell.y}`}
+          x={cell.x}
+          y={cell.y}
+          width="1"
+          height="1"
+          className={cell.hot ? "hot" : undefined}
+        />
+      ))}
+    </svg>
+  );
+}
+
 function ProjectTile({ project }: { project: ContentProject }) {
   const href = project.website?.href ?? project.source?.href ?? null;
-  const image = project.images[0];
   return (
     <Tile
       className="t-project"
       href={href}
       label={project.name}
-      background={
-        image ? (
-          <>
-            <Picture image={image} className="shot" alt="" />
-            <div className="shade" />
-          </>
-        ) : (
-          <div className="pattern" />
-        )
-      }
+      background={<div className="pattern" />}
     >
-      <div>
-        <h2 className="project-title">{project.name}</h2>
-        {project.line ? <p className="project-line">{project.line}</p> : null}
+      <div className="project-row">
+        <PixelMark name={project.name} />
+        <div className="project-text">
+          <h2 className="project-title">{project.name}</h2>
+          {project.line ? <p className="project-line">{project.line}</p> : null}
+        </div>
       </div>
     </Tile>
   );
@@ -165,14 +197,8 @@ export function BentoTemplate({ view, content, footer }: PortfolioTemplateProps)
                 </div>
               ) : null}
             </div>
-            <div className="avatar">
-              {content.photo ? (
-                <Picture image={content.photo} eager />
-              ) : (
-                <div className="initials" aria-hidden>
-                  {content.initials}
-                </div>
-              )}
+            <div className="avatar" aria-hidden>
+              <div className="initials">{content.initials}</div>
             </div>
           </div>
         </Tile>

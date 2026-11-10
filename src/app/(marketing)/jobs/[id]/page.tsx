@@ -11,11 +11,47 @@ import { buttonClasses } from "@/components/ui/button";
 import { Eyebrow } from "@/components/ui/eyebrow";
 import { getDb } from "@/db/client";
 import { jobPostingJsonLd, jsonLdScript } from "@/lib/job-feed/json-ld";
+import { cachedForDay } from "@/lib/job-feed/public-cache";
+import { fullPostText } from "@/lib/job-feed/full-post";
 import { jobById } from "@/lib/job-feed/records";
 import { SOURCE_INFO, sourceCredit } from "@/lib/job-feed/sources";
+import { EMPLOYMENT_LABELS, type FeedJob, type Seniority } from "@/lib/job-feed/types";
 import { MATCH_HREF } from "../_components/public-job-item";
 
-export const dynamic = "force-dynamic";
+// Built on the first visit and kept a day (the ingest cron drops it sooner): the post changes at
+// most once a day, and every open job's page can be crawled.
+export const revalidate = 86_400;
+
+export function generateStaticParams(): { id: string }[] {
+  return [];
+}
+
+// The post is read from its board with the page (the database keeps none of its text), so the
+// page and its JobPosting data show all of it; when the board can't be read, the page shows what
+// was read from the post at ingest and no JobPosting data, which needs the complete post.
+const dailyJob = cachedForDay("jobs-public-job", async (id: string) => {
+  const job = await jobById(await getDb(), id);
+  if (!job || !SOURCE_INFO[job.source].republish) return job;
+  return { ...job, description: await fullPostText(job) };
+});
+
+const LEVELS: Record<Seniority, string> = {
+  intern: "Internship level",
+  junior: "Entry level",
+  mid: "Mid level",
+  senior: "Senior",
+  lead: "Lead",
+  director: "Director and above",
+};
+
+function jobFacts(job: FeedJob): string[] {
+  return [
+    [LEVELS[job.seniority], job.employmentType ? EMPLOYMENT_LABELS[job.employmentType] : null]
+      .filter(Boolean)
+      .join(", "),
+    job.keywords.length > 0 ? `Skills it names: ${job.keywords.slice(0, 15).join(", ")}` : "",
+  ].filter(Boolean);
+}
 
 const DATE = new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" });
 
@@ -24,7 +60,7 @@ type Props = { params: Promise<{ id: string }> };
 // Only jobs whose source allows republishing have a page here; the others link out from the list.
 const load = cache(async (id: string) => {
   if (!z.uuid().safeParse(id).success) return null;
-  const job = await jobById(await getDb(), id);
+  const job = await dailyJob(id);
   return job && SOURCE_INFO[job.source].republish ? job : null;
 });
 
@@ -79,7 +115,20 @@ export default async function JobPage({ params }: Props) {
 
       <div className="mt-12 rounded-3xl bg-surface-muted p-3 sm:p-6 lg:p-10">
         <article className="rounded-2xl bg-surface p-4 sm:p-8">
-          <p className="max-w-prose text-base/7 whitespace-pre-line text-ink">{job.description}</p>
+          {job.description ? (
+            <p className="max-w-prose text-base/7 whitespace-pre-line text-ink">
+              {job.description}
+            </p>
+          ) : (
+            <div className="max-w-prose text-base/7 text-ink">
+              <p>The post couldn&apos;t be loaded just now. What we read from it:</p>
+              <ul className="mt-3 list-disc space-y-1 pl-5">
+                {jobFacts(job).map((fact) => (
+                  <li key={fact}>{fact}</li>
+                ))}
+              </ul>
+            </div>
+          )}
           <p className="mt-8 text-sm/6 text-subtle">
             The full post, and the way to apply, are on{" "}
             <a href={job.url} target="_blank" rel="noopener" className="underline decoration-border-strong">

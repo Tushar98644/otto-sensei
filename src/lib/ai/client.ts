@@ -136,6 +136,10 @@ function requestBody<T>(request: StructuredRequest<T>, model: string) {
       require_parameters: true,
       // Resume text is personal data: never send it to providers that may train on it.
       data_collection: "deny",
+      // Cheapest host first among those left after the two rules above (owner, 2026-11-09). The
+      // same model costs 4-6x more on some hosts. Fallbacks stay on, so a failing host hands the
+      // call to the next cheapest instead of failing it.
+      sort: "price",
     },
   };
 }

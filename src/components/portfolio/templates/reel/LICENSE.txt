@@ -22,7 +22,17 @@ SOFTWARE.
 
 ---
 
-sphere-gl.ts also carries the classic Perlin noise from webgl-noise, as the original does:
+Also from HamishMW/portfolio (commit b7444bc), under the licence above: the device models
+public/portfolio-templates/reel/macbook-pro.glb and iphone-11.glb (his Blender models, unchanged),
+the still frames rendered from them and from his displacement sphere
+(public/portfolio-templates/reel/*.webp), the katakana outlines and icons in sprites.tsx, and the
+ported code in this folder.
+
+The Draco decoder in public/portfolio-templates/reel/draco/ is Google's, as bundled with three.js
+r161 (examples/jsm/libs/draco/gltf), under the Apache License 2.0 (text in that folder). three.js
+itself is (c) 2010-2024 three.js authors, MIT.
+
+gl/sphere-shaders.ts also carries the classic Perlin noise from webgl-noise, as the original does:
 
 Copyright (C) 2011 by Stefan Gustavson (Classic noise and others)
 Copyright (C) 2011 by Ashima Arts (Simplex noise)

@@ -6,7 +6,6 @@ import {
   CircleX,
   Hourglass,
   MailX,
-  MessageCircle,
   UsersRound,
   type LucideIcon,
 } from "lucide-react";
@@ -24,7 +23,6 @@ import { cn } from "@/lib/utils";
 // Each status has its own icon shape as well as its word, so it never rests on color.
 export const STATUS_ICONS: Record<ApplicationStatus, LucideIcon> = {
   applied: Hourglass,
-  screening: MessageCircle,
   interview: UsersRound,
   offer: CircleCheck,
   rejected: CircleX,

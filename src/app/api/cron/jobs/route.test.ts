@@ -58,7 +58,7 @@ describe("/api/cron/jobs", () => {
 
   it("runs the ingest for Vercel Cron (GET) and manual calls (POST)", async () => {
     const res = await GET(call(`Bearer ${SECRET}`));
-    // Both feeds failed to resolve, which the run reports.
+    // The feeds failed to resolve, which the run reports.
     expect(res.status).toBe(500);
     expect(res.headers.get("cache-control")).toBe("no-store");
     expect(await (await getDb()).select({ id: jobs.id }).from(jobs)).toHaveLength(2);

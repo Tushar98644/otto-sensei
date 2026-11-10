@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, type ReactNode } from "react";
 import { useMe } from "@/components/account/use-me";
 import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -18,6 +18,24 @@ import { PORTFOLIO_ROUTE } from "./route";
 export function portfolioCandidates(resumes: readonly Resume[]): Resume[] {
   return [...resumes].sort(
     (a, b) => Number(a.tailor !== null) - Number(b.tailor !== null) || b.updatedAt - a.updatedAt,
+  );
+}
+
+// The screen's title before there's an editor (loading, the first run, the Free pitch). The editor
+// draws its own, smaller one in its top bar.
+function Screen({ children }: { children: ReactNode }) {
+  return (
+    <div className="flex flex-col gap-8">
+      <header>
+        <h1 className="font-display text-4xl/10 font-normal tracking-tight text-ink sm:text-5xl/13">
+          Portfolio
+        </h1>
+        <p className="mt-3 max-w-prose text-base/7 text-pretty text-muted">
+          Your resume as a personal web page, with your projects up front.
+        </p>
+      </header>
+      {children}
+    </div>
   );
 }
 
@@ -61,37 +79,51 @@ export function PortfolioPage({ fromResumeId }: PortfolioPageProps) {
 
   if (status === "error") {
     return (
-      <Alert
-        variant="error"
-        title="Couldn't load your portfolio"
-        action={
-          <Button
-            size="sm"
-            variant="secondary"
-            onClick={() =>
-              userId && void usePortfolioStore.getState().load(userId, { force: true })
-            }
-          >
-            Try again
-          </Button>
-        }
-      >
-        {error ?? "Check your connection, then try again."}
-      </Alert>
+      <Screen>
+        <Alert
+          variant="error"
+          title="Couldn't load your portfolio"
+          action={
+            <Button
+              size="sm"
+              variant="secondary"
+              onClick={() =>
+                userId && void usePortfolioStore.getState().load(userId, { force: true })
+              }
+            >
+              Try again
+            </Button>
+          }
+        >
+          {error ?? "Check your connection, then try again."}
+        </Alert>
+      </Screen>
     );
   }
   if (!ready || (saving && !portfolio)) {
     return (
-      <div className="grid gap-6 lg:grid-cols-5" aria-busy>
-        <Skeleton className="h-96 rounded-2xl lg:col-span-2" />
-        <Skeleton className="h-96 rounded-2xl lg:col-span-3" />
-      </div>
+      <Screen>
+        <div className="grid gap-6 lg:grid-cols-5" aria-busy>
+          <Skeleton className="h-96 rounded-2xl lg:col-span-2" />
+          <Skeleton className="h-96 rounded-2xl lg:col-span-3" />
+        </div>
+      </Screen>
     );
   }
   if (locked) {
-    return <PortfolioUpgrade portfolio={portfolio} candidates={candidates} />;
+    return (
+      <Screen>
+        <PortfolioUpgrade portfolio={portfolio} candidates={candidates} />
+      </Screen>
+    );
   }
-  if (!portfolio) return <PortfolioStart candidates={candidates} />;
+  if (!portfolio) {
+    return (
+      <Screen>
+        <PortfolioStart candidates={candidates} />
+      </Screen>
+    );
+  }
   return (
     <PortfolioEditor
       portfolio={portfolio}
