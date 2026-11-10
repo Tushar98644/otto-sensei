@@ -1,5 +1,6 @@
-import { OttoLoadingScreen } from "@/components/mascot/otto-loading-screen";
+import { DashboardPageLoading } from "@/components/dashboard/page-loading";
 
+// Renders inside the dashboard layout, so the sidebar and top bar stay put between pages.
 export default function DashboardLoading() {
-  return <OttoLoadingScreen detail="Opening your dashboard" />;
+  return <DashboardPageLoading />;
 }
