@@ -508,8 +508,8 @@ vercel env add GITHUB_TOKEN production
 ```
 Vercel Cron    → /api/cron/cleanup     04:17 UTC daily → old rate-limit windows, tombstones, notifications
                → /api/cron/follow-ups  14:00 UTC daily → bell notification (+ email) per account
-GitHub Actions → scripts/jobs-ingest-ci.ts 05:40 UTC daily → every company job board + 3 job feeds,
-                 then POST /api/cron/jobs-cache to clear the cached /jobs pages
+GitHub Actions → POST /api/cron/jobs, 05:40 UTC daily, called until every board and feed is read
+                 (scripts/jobs-ingest-ci.ts does the same in one run, given a database URL)
 ```
 
 The two Vercel schedules are in `vercel.json`. They only run on the production deployment, and only
@@ -520,9 +520,10 @@ stops at 4 minutes, about half the boards; Actions reads all of them in one run 
 minutes, a few hundred of the free Actions minutes a month). In GitHub → the repo → **Settings** →
 **Secrets and variables** → **Actions**, add:
 
-- Secret `POSTGRES_URL`: the same value as on Vercel (Supabase's pooled connection; GitHub's runners
-  can't reach the IPv6-only direct one).
-- Secret `CRON_SECRET`: the same value as on Vercel.
+- Secret `CRON_SECRET`: the same value as on Vercel. The workflow calls `POST /api/cron/jobs` up to 8 times
+  (each call reads boards for up to 4 minutes and resumes where the last stopped), so no database
+  password is stored in GitHub. Vercel hides sensitive values once saved, so make a new one if you
+  don't have it: `openssl rand -hex 32`, set it on Vercel and here, then redeploy.
 - Variable `OTTO_APP_URL`: the site's address, e.g. `https://ottosensei.com`.
 
 Then **Actions** → **Daily jobs** → **Run workflow** fills the jobs the first time, without waiting

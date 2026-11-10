@@ -1,14 +1,13 @@
 name: Daily jobs
 
-# Reads every company board and feed into the production database once a day, then clears the
-# site's cached /jobs pages. Runs here instead of a Vercel cron because a Vercel run stops at 4
-# minutes, about half the boards. "Run workflow" on the Actions tab fills it by hand.
+# Reads every company board and feed once a day by calling the site's own job read, which saves
+# board by board and picks up where the last call stopped. One call runs up to 4 minutes (the
+# Vercel limit), so this keeps calling until a run reports it read everything, or 8 calls (about
+# half an hour) have passed. No database credentials live here: only CRON_SECRET, the same value
+# as on Vercel. "Run workflow" on the Actions tab fills it by hand.
 #
-# Secrets (Settings > Secrets and variables > Actions):
-#   POSTGRES_URL   Supabase's pooled connection string (the same value as on Vercel)
-#   CRON_SECRET    the same value as on Vercel
-# Variable:
-#   OTTO_APP_URL   the site's address, e.g. https://ottosensei.com
+# Secret (Settings > Secrets and variables > Actions): CRON_SECRET
+# Variable: OTTO_APP_URL, the site's address, e.g. https://www.ottosensei.com
 
 on:
   schedule:
@@ -24,21 +23,31 @@ concurrency:
 jobs:
   ingest:
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 45
     steps:
-      - uses: actions/checkout@v4
-      - uses: oven-sh/setup-bun@v2
-        with:
-          bun-version: 1.2.20
-      - run: bun install --frozen-lockfile
-      # Until the secrets are added, a scheduled run says so and passes instead of failing every day.
-      - run: |
-          if [ -z "$POSTGRES_URL" ]; then
-            echo "::notice::POSTGRES_URL secret not set yet; skipping the job read (see SETUP.md 10e)."
-            exit 0
-          fi
-          bun scripts/jobs-ingest-ci.ts --minutes 45
+      - name: Read every board
         env:
-          POSTGRES_URL: ${{ secrets.POSTGRES_URL }}
           CRON_SECRET: ${{ secrets.CRON_SECRET }}
           OTTO_APP_URL: ${{ vars.OTTO_APP_URL }}
+        run: |
+          if [ -z "$CRON_SECRET" ] || [ -z "$OTTO_APP_URL" ]; then
+            echo "::notice::CRON_SECRET or OTTO_APP_URL not set yet; skipping (see SETUP.md 10e)."
+            exit 0
+          fi
+          base="${OTTO_APP_URL%/}"
+          for call in 1 2 3 4 5 6 7 8; do
+            status=$(curl -sS -o body.json -w '%{http_code}' --max-time 320 -X POST \
+              -H "Authorization: Bearer $CRON_SECRET" "$base/api/cron/jobs" || echo 000)
+            complete=$(jq -r '.complete // false' body.json 2>/dev/null || echo false)
+            echo "Call $call: HTTP $status, complete=$complete, $(jq -c '.stats // {}' body.json 2>/dev/null)"
+            if [ "$status" = "401" ]; then
+              echo "::error::The site refused CRON_SECRET. Use the same value as on Vercel."
+              exit 1
+            fi
+            # A 500 means one step failed (a feed timing out, say); the next call carries on.
+            if [ "$status" = "200" ] && [ "$complete" = "true" ]; then
+              echo "Every board was read."
+              exit 0
+            fi
+          done
+          echo "::warning::Stopped after 8 calls with boards left; tomorrow's run continues."
