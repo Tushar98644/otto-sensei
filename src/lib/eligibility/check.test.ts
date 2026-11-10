@@ -130,10 +130,12 @@ You must have at least 4 hours of overlap with PST.`;
   it("checks 'within N hours' against the profile, or the device when the profile has none", () => {
     const post =
       "Remote-friendly: you can work from anywhere in Canada, within 3 hours of Eastern Time.";
-    const vancouver = profile({ country: "CA", timeZone: "America/Vancouver" });
-    expect(run("Toronto, ON", post, vancouver).time_zone).toMatchObject({
+    // Saskatchewan keeps UTC-6 all year. Zones that are changing their clocks (British Columbia moved
+    // to permanent UTC-7 in newer time-zone data) give different answers on different machines.
+    const regina = profile({ country: "CA", timeZone: "America/Regina" });
+    expect(run("Toronto, ON", post, regina).time_zone).toMatchObject({
       verdict: "ok",
-      note: "You're on UTC-8, 3 hours from Eastern time. The post allows 3.",
+      note: "You're on UTC-6, 1 hour from Eastern time. The post allows 3.",
     });
     const mexico = profile({ country: "MX" });
     const result = run("Toronto, ON", post, mexico, "Europe/London");
