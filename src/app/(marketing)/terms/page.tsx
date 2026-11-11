@@ -67,6 +67,25 @@ export default function TermsPage() {
       </ul>
       <p>We may suspend or close accounts that break these rules.</p>
 
+      <h2>The AI writing tools</h2>
+      <p>
+        The AI tools (line fixes, tailoring, summaries, cover letters, answers to application
+        questions, interview prep and Build with Otto) are for job-search writing only.
+      </p>
+      <ul>
+        <li>
+          Don&apos;t use them to create sexual, sexually explicit or other NSFW (not safe for work)
+          content of any kind.
+        </li>
+        <li>
+          Don&apos;t use them to create hateful, harassing, violent, illegal or deceptive content.
+        </li>
+      </ul>
+      <p>
+        The AI is set up to refuse such requests and leave such material out. We may remove content
+        that breaks this rule and suspend or close the account that asked for it.
+      </p>
+
       <h2>Plans and their limits</h2>
       <p>
         Free includes the basic reader for uploads, the recruiter view, editing by hand, 1 resume,
@@ -82,12 +101,12 @@ export default function TermsPage() {
       <p>
         Pro and Max have a limit for each thing Otto does with AI. On monthly plans the limits run
         from one renewal to the next and reset when your plan renews. Yearly plans have the same
-        limits per month, reset on the day of the month the plan started (in a shorter month, on
-        its last day: a plan started on the 31st resets on the 30th of a 30-day month). Weekly
-        plans have smaller limits per billing week, the 7 days up to each renewal. The Pro trial has
-        its own smaller limits for the whole trial. Unused ones don&apos;t carry over. Invite extras
-        add to the current month, week or trial, on Pro and Max. Your account page shows the date
-        your limits next reset.
+        limits per month, reset on the day of the month the plan started (in a shorter month, on its
+        last day: a plan started on the 31st resets on the 30th of a 30-day month). Weekly plans
+        have smaller limits per billing week, the 7 days up to each renewal. The Pro trial has its
+        own smaller limits for the whole trial. Unused ones don&apos;t carry over. Invite extras add
+        to the current month, week or trial, on Pro and Max. Your account page shows the date your
+        limits next reset.
       </p>
       <table>
         <thead>
@@ -136,13 +155,13 @@ export default function TermsPage() {
         </tbody>
       </table>
       <p>
-        At a limit that feature pauses until your limits reset (on a monthly or weekly plan, at
-        your next renewal; on a yearly plan, on the next monthly reset day; on the trial, until Pro
+        At a limit that feature pauses until your limits reset (on a monthly or weekly plan, at your
+        next renewal; on a yearly plan, on the next monthly reset day; on the trial, until Pro
         starts), or until you move to a bigger plan. Moving between Pro and Max, or to another
-        billing option, between renewals doesn&apos;t reset a limit: what you used this month
-        counts on the new plan, and a week keeps its count until its 7 days are up. Uploads never
-        stop: past the AI reads, the basic reader reads your file instead. Editing, recruiter checks
-        and PDF downloads have no limit on any plan.
+        billing option, between renewals doesn&apos;t reset a limit: what you used this month counts
+        on the new plan, and a week keeps its count until its 7 days are up. Uploads never stop:
+        past the AI reads, the basic reader reads your file instead. Editing, recruiter checks and
+        PDF downloads have no limit on any plan.
       </p>
 
       <h2>Payments and cancelling</h2>
