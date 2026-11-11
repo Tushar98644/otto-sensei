@@ -28,7 +28,7 @@ describe("PlanPerks", () => {
   it("lists weekly limits for a weekly option, next to the plan below", () => {
     const pro = text(renderToStaticMarkup(<PlanPerks plan="pro" interval="week" />));
     expect(pro).toContain("38 tailored versions a week");
-    expect(pro).toContain("250 line fixes a week");
+    expect(pro).toContain("188 line fixes a week");
     expect(pro).not.toContain("150 tailored versions");
 
     const max = text(renderToStaticMarkup(<PlanPerks plan="max" interval="week" />));

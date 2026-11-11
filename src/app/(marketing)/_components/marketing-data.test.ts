@@ -65,7 +65,7 @@ describe("plan copy", () => {
     expect(planCopy("pro", "week").features).toEqual([
       "38 tailored versions a week",
       "38 cover letters, answers and interview prep a week",
-      "250 line fixes a week",
+      "188 line fixes a week",
       "AI reads of an uploaded resume",
       "Build with Otto drafts",
       "GitHub project drafts",
@@ -74,7 +74,7 @@ describe("plan copy", () => {
     ]);
     expect(planCopy("pro", "week").lead).toBe("Everything in Free, plus:");
     expect(planCopy("max", "week").features).toContain("75 tailored versions a week");
-    expect(planCopy("max", "week").features).toContain("750 line fixes a week");
+    expect(planCopy("max", "week").features).toContain("500 line fixes a week");
     expect(planCopy("max", "week").features.join(" ")).not.toMatch(/a month/);
     expect(planCopy("free", "week")).toEqual(planCopy("free", "month"));
     expect(limitLine("free", "tailor", "week")).toBe("0 tailored versions a month");
