@@ -1,7 +1,8 @@
 import { ArrowRight } from "lucide-react";
 import Link from "next/link";
 import { PORTFOLIO_ROUTE } from "@/components/portfolio/route";
-import { PortfolioShot, type PortfolioShotId } from "@/components/portfolio/portfolio-shot";
+import { PortfolioShot } from "@/components/portfolio/portfolio-shot";
+import type { PortfolioShotId } from "@/components/portfolio/portfolio-shot-data";
 import { buttonClasses } from "@/components/ui/button";
 import { PRO_TRIAL } from "@/config/plans";
 import { trialOffered } from "@/lib/billing/intervals";

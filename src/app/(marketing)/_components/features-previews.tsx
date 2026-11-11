@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { FormatImage } from "@/components/formats/format-image";
 import { PortfolioShot } from "@/components/portfolio/portfolio-shot";
+import { preloadShot } from "@/components/portfolio/portfolio-shot-data";
 import { PORTFOLIO_ROUTE } from "@/components/portfolio/route";
 import { ROUTES } from "@/components/site/routes";
 import { Badge } from "@/components/ui/badge";
@@ -138,13 +139,16 @@ function InterviewPreview() {
   );
 }
 
+const PORTFOLIO_SIZES = "(min-width: 1024px) 40rem, 90vw";
+
 function PortfolioPreview() {
+  preloadShot("reel", PORTFOLIO_SIZES);
   return (
     <div className="overflow-hidden rounded-xl ring-1 ring-border">
       <p className="truncate bg-surface px-3 py-2 font-mono text-xs text-muted">
         ottosensei.com/p/jordan-ellis
       </p>
-      <PortfolioShot id="reel" sizes="(min-width: 1024px) 40rem, 90vw" />
+      <PortfolioShot id="reel" sizes={PORTFOLIO_SIZES} />
     </div>
   );
 }
