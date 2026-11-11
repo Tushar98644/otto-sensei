@@ -8,6 +8,7 @@ import { Faq } from "./_components/faq";
 import { FinalCta } from "./_components/final-cta";
 import { Hero } from "./_components/hero";
 import { HowItWorks } from "./_components/how-it-works";
+import { JobsShowcase } from "./_components/jobs-showcase";
 import { PortfolioShowcase } from "./_components/portfolio-showcase";
 import { PricingTeaser } from "./_components/pricing-teaser";
 import { SmoothScroll } from "./_components/smooth-scroll";
@@ -34,6 +35,7 @@ export default async function HomePage() {
       <Hero />
       <AiScreening />
       <HowItWorks />
+      <JobsShowcase jobCounts={jobCounts} />
       <PortfolioShowcase />
       <WontDo />
       <PricingTeaser jobCounts={jobCounts} />
