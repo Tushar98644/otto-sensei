@@ -404,8 +404,16 @@
 @layer base {
   html {
     color-scheme: light;
-    /* Reserves the scrollbar's space so the page doesn't jump when a dialog locks scrolling. */
-    scrollbar-gutter: stable;
+  }
+
+  /* Scrollbars are hidden everywhere; areas still scroll by wheel, touch and keyboard. Chrome,
+     Firefox and Safari 18.2+ read scrollbar-width; older Safari needs the -webkit- rule. */
+  * {
+    scrollbar-width: none;
+  }
+
+  *::-webkit-scrollbar {
+    display: none;
   }
 
   /* A native modal blocks clicks on the page but still lets it scroll underneath. */
