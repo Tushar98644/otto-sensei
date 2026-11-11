@@ -137,11 +137,25 @@ export function followUpDaysSql(userId: string): SQL<number> {
   return sql<number>`coalesce((select ${notificationSettings.followUpDays} from ${notificationSettings} where ${notificationSettings.userId} = ${userId}), ${FOLLOW_UP_DAYS.default})`;
 }
 
-/** The account's reminder settings, or null when the account doesn't exist. */
-export async function readReminderSettings(userId: string): Promise<ReminderSettings | null> {
+/**
+ * The account's reminder settings, or null when the account doesn't exist. `chosen`: it has saved
+ * one, so the defaults were seen and kept or changed (the Home setup list ticks it off).
+ */
+export async function readReminderSettings(
+  userId: string,
+): Promise<(ReminderSettings & { chosen: boolean }) | null> {
   const db = await getDb();
   const [owner] = await db.select({ id: users.id }).from(users).where(eq(users.id, userId)).limit(1);
-  return owner ? settingsOf(db, userId) : null;
+  if (!owner) return null;
+  const [row] = await db
+    .select({
+      emailReminders: notificationSettings.emailReminders,
+      followUpDays: notificationSettings.followUpDays,
+    })
+    .from(notificationSettings)
+    .where(eq(notificationSettings.userId, userId))
+    .limit(1);
+  return row ? { ...row, chosen: true } : { ...DEFAULT_SETTINGS, chosen: false };
 }
 
 /** The account's reminder email switch, or null when the account doesn't exist. */

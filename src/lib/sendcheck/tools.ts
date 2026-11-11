@@ -168,16 +168,27 @@ const bounded = (alternatives: string, flags: string) =>
 
 const PATTERNS = TOOL_RELEASES.map((tool) => {
   const flags = tool.caseSensitive ? "gu" : "giu";
+  const names = source([tool.name, ...(tool.aliases ?? [])]);
   return {
     tool,
     releasedAt: monthIndex(tool.year, (tool.month ?? 1) - 1),
-    pattern: bounded(source([tool.name, ...(tool.aliases ?? [])]), flags),
+    // The names alone, without the word-boundary checks: it matches wherever `pattern` could.
+    quick: new RegExp(names, tool.caseSensitive ? "u" : "iu"),
+    pattern: bounded(names, flags),
     bare: new RegExp(
       `^${escape(tool.name).replace(/ /g, "\\s+")}$`,
       tool.caseSensitive ? "u" : "iu",
     ),
   };
 });
+
+// Any tool's name in any case: most lines name none and are done after this one scan. The
+// \p{L} boundary checks make each `pattern` slow to compile (about 70 ms for the whole list on
+// the first resume checked), so they only compile for tools a line really names.
+const ANY_TOOL = new RegExp(
+  source(TOOL_RELEASES.flatMap((tool) => [tool.name, ...(tool.aliases ?? [])])),
+  "iu",
+);
 
 // Start of the text or of a sentence, past any opening quote, bracket or list marker.
 const SENTENCE_START = /(?:^|[.!?\n])[\s"'“‘(\[•*–—-]*$/u;
@@ -187,8 +198,10 @@ const SENTENCE_START = /(?:^|[.!?\n])[\s"'“‘(\[•*–—-]*$/u;
  * longer, more specific one counts.
  */
 export function findTools(text: string, options: FindToolsOptions = {}): ToolMention[] {
+  if (!ANY_TOOL.test(text)) return [];
   const found: ToolMention[] = [];
-  for (const { tool, releasedAt, pattern, bare } of PATTERNS) {
+  for (const { tool, releasedAt, quick, pattern, bare } of PATTERNS) {
+    if (!quick.test(text)) continue;
     for (const match of text.matchAll(pattern)) {
       const start = match.index;
       const isBare = bare.test(match[0]);

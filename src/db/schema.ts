@@ -33,6 +33,7 @@ import { NOTIFICATION_KINDS } from "@/lib/notifications/types";
 import { PORTFOLIO_TEMPLATE_IDS } from "@/lib/portfolio/types";
 import { REFERRAL_BLOCK_REASONS, REFERRAL_STATUSES } from "@/lib/referrals/referrals";
 import type { Resume } from "@/lib/resume/schema";
+import { SETUP_STEP_OUTCOMES } from "@/lib/setup/types";
 import { WRITING_KINDS } from "@/lib/writings/schema";
 
 // Mirrors supabase/migrations, which create these tables (with their foreign keys and RLS). Change
@@ -147,6 +148,17 @@ export const billingEvents = pgTable("billing_events", {
   receivedAt: epochMs("received_at").notNull(),
 });
 
+// A Pro trial ended early by buying another plan, and whether it has been cancelled yet
+// (20261111000500_trial_replacements.sql).
+export const trialReplacements = pgTable("trial_replacements", {
+  replacedSubscriptionId: text("replaced_subscription_id").primaryKey(),
+  subscriptionId: text("subscription_id").notNull(),
+  userId: uuid("user_id").notNull(),
+  attempts: integer("attempts").notNull().default(0),
+  createdAt: epochMs("created_at").notNull(),
+  cancelledAt: epochMs("cancelled_at"),
+});
+
 // Everyone who has trialed or paid, by email hash, so each person gets one trial. Not tied to
 // users: it outlives a deleted account (20261108004000_pro_trial.sql).
 export const trialHistory = pgTable("trial_history", {
@@ -246,6 +258,17 @@ export const notificationSettings = pgTable("notification_settings", {
   userId: uuid("user_id").primaryKey(),
   emailReminders: boolean("email_reminders").notNull().default(false),
   followUpDays: integer("follow_up_days").notNull().default(7),
+  updatedAt: epochMs("updated_at").notNull(),
+});
+
+// The first-login step and the Home "Get set up" list, one row per account that answered, skipped
+// or hid either (20261111000200_account_setup.sql). No row: neither has happened.
+export const accountSetup = pgTable("account_setup", {
+  userId: uuid("user_id").primaryKey(),
+  stepAt: epochMs("step_at"),
+  stepOutcome: text("step_outcome", { enum: SETUP_STEP_OUTCOMES }),
+  checklistHiddenAt: epochMs("checklist_hidden_at"),
+  createdAt: epochMs("created_at").notNull(),
   updatedAt: epochMs("updated_at").notNull(),
 });
 

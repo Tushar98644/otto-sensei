@@ -10,10 +10,13 @@ import { useOttoLoadingScreen } from "@/components/mascot/otto-loading-screen";
 import { WorkProfileCard } from "@/components/eligibility/work-profile-card";
 import { OttoNote } from "@/components/mascot/otto-note";
 import { ReminderSettingsCard } from "@/components/notifications/reminder-settings-card";
+import { LookingForSettingsCard } from "@/components/setup/looking-for-settings-card";
+import { useScrollToSection } from "@/components/setup/use-scroll-to-section";
 import { InviteCard } from "@/components/referrals/invite-card";
 import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { Eyebrow } from "@/components/ui/eyebrow";
 import { Spinner } from "@/components/ui/spinner";
 import { nextPlan, PLAN_ORDER, PLANS, type PaidPlanId, type PlanId } from "@/config/plans";
 import { AccountSkeleton } from "./account-skeleton";
@@ -59,6 +62,9 @@ export function AccountView() {
   // signing in first, or for when payments aren't on.
   const straightToCheckout = wantsUpgrade && user !== null && me?.billing.mode !== "disabled" && offered;
   const upgradeOpen = wantsUpgrade && !straightToCheckout;
+
+  // Setup links (#work-profile, #looking-for, #reminders) land on their card once it exists.
+  useScrollToSection(!loading && user !== null);
 
   const started = useRef(false);
   const startCheckout = useEffectEvent(() => {
@@ -109,6 +115,13 @@ export function AccountView() {
           <UpgradeStatus plan={user.plan} trialEndsAt={user.trialEndsAt} target={bought} watch={watch} />
         ) : null}
         <ProfileCard user={user} />
+        {/* The job-search settings first (owner, 2026-11-11): they change what every page shows,
+            and the Home setup list and the account menu link straight to each one. */}
+        <Eyebrow className="mt-3 px-1">Your job search</Eyebrow>
+        <WorkProfileCard />
+        <LookingForSettingsCard />
+        <ReminderSettingsCard />
+        <Eyebrow className="mt-3 px-1">Plan and account</Eyebrow>
         <UsageCard me={me} plan={user.plan} />
         {user.plan === "max" ? null : (
           <UpgradeCard
@@ -121,8 +134,6 @@ export function AccountView() {
         )}
         {paid ? <BillingCard mode={me.billing.mode} trialEndsAt={user.trialEndsAt ?? null} /> : null}
         <InviteCard plan={user.plan} />
-        <WorkProfileCard />
-        <ReminderSettingsCard />
         {/* Last, so the one thing that can't be undone never sits between everyday settings. */}
         <DeleteAccountCard isPro={paid} />
       </div>

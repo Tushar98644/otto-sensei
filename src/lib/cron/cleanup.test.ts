@@ -79,6 +79,7 @@ describe("runCleanup", () => {
         notifications: 2,
         billingEvents: 1,
         impressions: 1,
+        replacedTrials: 0,
         matchCache: 1,
       },
       complete: true,
@@ -102,6 +103,7 @@ describe("runCleanup", () => {
       notifications: 0,
       billingEvents: 0,
       impressions: 0,
+      replacedTrials: 0,
       matchCache: 0,
     });
   });

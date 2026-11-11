@@ -27,8 +27,8 @@ export function WorkProfileDialog({
       open={open}
       onOpenChange={onOpenChange}
       size="lg"
-      title="Work profile"
-      description="Where you live, your hours and your visa needs. Only you can see it."
+      title="Where you can work"
+      description="Where you live, your time zone and your visa needs. Only you can see this."
     >
       <WorkProfileForm
         key={userId}

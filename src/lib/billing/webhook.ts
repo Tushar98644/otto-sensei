@@ -5,6 +5,7 @@ import { log } from "@/lib/log";
 import { refreshPortfolioPages } from "@/lib/portfolio/cache";
 import { canPublishPortfolio } from "@/lib/portfolio/plan";
 import { portfolioSlugsOf } from "@/lib/portfolio/records";
+import { REPLACES_METADATA_KEY } from "./creem";
 import {
   applySubscriptionState,
   planForStatus,
@@ -12,6 +13,7 @@ import {
   type SubscriptionState,
 } from "./entitlements";
 import type { ProductPlan } from "./intervals";
+import { settleReplacement } from "./replacements";
 
 // Server-only. Creem signs every webhook (creem-signature: HMAC-SHA256 of the raw body with the
 // webhook secret, checked by the official SDK) and redelivers anything but a 2xx up to 5 times
@@ -145,6 +147,19 @@ export async function processWebhook(
     return { status: 500, message: "retry" };
   }
   await report(result, { ...context, status: state.status });
+  // Any event for the new plan, a redelivery included, retries a trial cancel that failed. Only
+  // an applied active event writes the trial down, so before that this finds nothing to do.
+  const replaced = state.replacesSubscriptionId;
+  if (replaced) {
+    let settled: boolean;
+    try {
+      settled = await settleReplacement(replaced, now);
+    } catch (error) {
+      log.error("billing.replace_cancel_failed", error, { ...context, subscriptionId: replaced });
+      settled = false;
+    }
+    if (!settled) return { status: 500, message: "retry" };
+  }
   return result.outcome === "applied"
     ? { status: 200, message: "applied" }
     : { status: 200, message: result.outcome === "duplicate" ? "duplicate" : "ignored" };
@@ -181,6 +196,7 @@ function toState(
   config: WebhookConfig,
 ): SubscriptionState {
   const metadataUserId = data.metadata?.user_id;
+  const replaces = IdSchema.safeParse(data.metadata?.[REPLACES_METADATA_KEY]);
   const productId = typeof data.product === "string" ? data.product : data.product.id;
   const product = config.productIds.includes(productId) ? config.planForProduct(productId) : null;
   const customer = typeof data.customer === "string" ? { id: data.customer, email: null } : data.customer;
@@ -205,6 +221,7 @@ function toState(
     periodStartsAt: parseTimestamp(data.current_period_start_date),
     periodEndsAt,
     eventAt: createdAt,
+    replacesSubscriptionId: replaces.success ? replaces.data : null,
   };
 }
 

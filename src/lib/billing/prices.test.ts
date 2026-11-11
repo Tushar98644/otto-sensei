@@ -6,6 +6,7 @@ import {
   referenceDiscountPercent,
 } from "@/config/plans";
 import {
+  endsTrialSentence,
   perMonth,
   PIZZA_MAX_USD,
   pizzaLine,
@@ -71,6 +72,15 @@ describe("reference prices and savings", () => {
   it("says Pro costs less than a pizza only while it does", () => {
     expect(pizzaLine()).toBe("Less than a pizza a month.");
     expect(PRICES_USD.pro.month).toBeLessThanOrEqual(PIZZA_MAX_USD);
+  });
+
+  it("says what buying Max on the Pro trial does, priced for the picked option", () => {
+    expect(endsTrialSentence("max", "month")).toBe(
+      "Ends your free Pro trial today and starts Max at $29/month.",
+    );
+    expect(endsTrialSentence("max", "year")).toBe(
+      "Ends your free Pro trial today and starts Max at $232/year.",
+    );
   });
 
   it("compares Pro with Rezi Pro only while it's about half the price", () => {

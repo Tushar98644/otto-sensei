@@ -9,6 +9,7 @@ import { Button, buttonClasses } from "@/components/ui/button";
 import { Dialog, type DialogSize } from "@/components/ui/dialog";
 import { toast } from "@/components/ui/toast";
 import {
+  isTrialing,
   nextPlan,
   PLAN_ORDER,
   PLANS,
@@ -83,6 +84,8 @@ export function UpgradeDialog({
   const current: PlanId = user?.plan ?? "free";
   // Signed out counts as new: a new account gets the trial when it's on sale here.
   const trialOnOffer = current === "free" && me?.billing.trial === true;
+  // On the trial, another plan is a new subscription that ends it, not an in-place change.
+  const onTrial = user !== null && isTrialing(user);
   const offer = upgradeOffer({
     current,
     // Before /api/me answers, assume only what every server sells.
@@ -90,6 +93,7 @@ export function UpgradeDialog({
     // Until one is picked, a subscriber is offered their own billing interval.
     picked: pickedInterval ?? user?.planInterval ?? "month",
     trial: trialOnOffer,
+    onTrial,
   });
   const buyable = offer.cards.filter((card) => !card.current);
   // The card to start on and to carry on with after signing in: the plan chosen or asked for,
@@ -211,9 +215,11 @@ export function UpgradeDialog({
           : target.trial
             ? trialHeadline()
             : `Upgrade to ${PLANS[target.plan].name}`,
-      description: upgrading
-        ? "Your subscription changes in place: you pay only the difference, never twice."
-        : "Cancel anytime from your account.",
+      description: !upgrading
+        ? "Cancel anytime from your account."
+        : onTrial
+          ? "Your free trial ends the moment the new plan starts, so you're never billed for both."
+          : "Your subscription changes in place: you pay only the difference, never twice.",
       body: pitch,
       size,
       footer: billingOff ? (

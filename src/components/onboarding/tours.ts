@@ -44,8 +44,17 @@ export type DashboardTourState = {
   pathname: string;
   // The resume library is read from this browser; before that the home page is still skeletons.
   hydrated: boolean;
+  // The first-login step (lib/setup/step.ts): the tour waits until it is known not to open, and
+  // after it opened it waits for the next visit, so a first login meets one thing, not two.
+  setupStep?: "wait" | "show" | "skip";
+  setupShown?: boolean;
 };
 
-export function dashboardTourEligible({ pathname, hydrated }: DashboardTourState): boolean {
-  return hydrated && pathname === ROUTES.dashboard;
+export function dashboardTourEligible({
+  pathname,
+  hydrated,
+  setupStep = "skip",
+  setupShown = false,
+}: DashboardTourState): boolean {
+  return hydrated && pathname === ROUTES.dashboard && setupStep === "skip" && !setupShown;
 }

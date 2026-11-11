@@ -51,6 +51,7 @@ export async function PUT(req: Request): Promise<Response> {
     const response: Omit<ReminderSettingsResponse, "ok"> = {
       ...settings,
       emailAvailable: emailConfigured(),
+      chosen: true,
     };
     return ok(response, { headers: NO_STORE });
   } catch (error) {

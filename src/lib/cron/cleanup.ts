@@ -9,6 +9,7 @@ import {
   rateLimits,
   resumeTombstones,
 } from "@/db/schema";
+import { retryPendingReplacements } from "@/lib/billing/replacements";
 import { MATCH_CACHE_MAX_AGE_MS } from "@/lib/job-feed/match-cache";
 import { log } from "@/lib/log";
 import { drain, type CronContext, type CronOutcome } from "./run";
@@ -41,8 +42,10 @@ export const RETENTION = {
 export const CLEANUP_BATCH = 1_000;
 // Per table per run: at most 50,000 rows, so one run stays short and a backlog drains over days.
 const MAX_BATCHES = 50;
+// Each is a Creem API call of up to 8 seconds, not a row in one query.
+export const TRIAL_CANCEL_BATCH = 25;
 
-type Step = { name: string; run: () => Promise<number> };
+type Step = { name: string; run: () => Promise<number>; batchSize?: number };
 
 export async function runCleanup({ now, deadline }: CronContext): Promise<CronOutcome> {
   const db = await getDb();
@@ -139,6 +142,13 @@ export async function runCleanup({ now, deadline }: CronContext): Promise<CronOu
       },
     },
     {
+      // Not a deletion: trials another plan replaced whose cancel failed on every webhook so far
+      // (src/lib/billing/replacements.ts). Each failure logs its own error.
+      name: "replacedTrials",
+      batchSize: TRIAL_CANCEL_BATCH,
+      run: () => retryPendingReplacements({ now, deadline, limit: TRIAL_CANCEL_BATCH }),
+    },
+    {
       name: "matchCache",
       run: async () => {
         const stale = db
@@ -162,7 +172,7 @@ export async function runCleanup({ now, deadline }: CronContext): Promise<CronOu
   for (const step of steps) {
     try {
       const { count, done } = await drain(step.run, {
-        batchSize: CLEANUP_BATCH,
+        batchSize: step.batchSize ?? CLEANUP_BATCH,
         maxBatches: MAX_BATCHES,
         deadline,
       });

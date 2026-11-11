@@ -1,17 +1,13 @@
 "use client";
 
-import { CircleExclamationPoint } from "lucide-react";
-import { useEffect, useEffectEvent, useId, useMemo, useRef, useState, type ReactNode } from "react";
+import { useEffect, useEffectEvent, useRef, useState, type ReactNode } from "react";
 import { errorMessage } from "@/components/account/errors";
-import { useNow } from "@/components/studio/use-now";
 import { Button } from "@/components/ui/button";
-import { Field } from "@/components/ui/field";
-import { Select } from "@/components/ui/select";
 import { api } from "@/lib/api/client";
-import { countryOptions, deviceTimeZone, timeZoneOptions } from "@/lib/eligibility/options";
-import { WORK_REGIONS, type WorkProfile } from "@/lib/eligibility/profile";
-import { RightChoice } from "./right-choice";
+import { deviceTimeZone } from "@/lib/eligibility/options";
+import type { WorkProfile } from "@/lib/eligibility/profile";
 import { storeWorkProfile } from "./use-work-profile";
+import { WorkProfileFields } from "./work-profile-fields";
 
 export type WorkProfileFormProps = {
   userId: string;
@@ -21,8 +17,6 @@ export type WorkProfileFormProps = {
   footer?: ReactNode;
 };
 
-const CHECKBOX = "flex min-h-11 cursor-pointer items-center gap-2.5 text-sm text-ink";
-const DAY_MS = 24 * 60 * 60 * 1000;
 // Long enough to take a few quick clicks as one save.
 const SAVE_DELAY_MS = 600;
 
@@ -41,12 +35,6 @@ export function WorkProfileForm({ userId, initial, saved, footer }: WorkProfileF
   const [typeError, setTypeError] = useState<string | null>(null);
   const timer = useRef<number | undefined>(undefined);
   const pending = useRef<WorkProfile | null>(null);
-  // Offsets for the labels only change with daylight saving, so a day's precision is plenty.
-  const day = Math.floor(useNow() / DAY_MS) * DAY_MS;
-  const countries = useMemo(() => countryOptions(), []);
-  const zones = useMemo(() => timeZoneOptions(day, initial.timeZone), [day, initial.timeZone]);
-  const rightsId = useId();
-  const typesId = useId();
 
   async function save(profile: WorkProfile) {
     pending.current = null;
@@ -97,102 +85,7 @@ export function WorkProfileForm({ userId, initial, saved, footer }: WorkProfileF
 
   return (
     <form onSubmit={(event) => event.preventDefault()} noValidate className="flex flex-col gap-6">
-      <div className="grid gap-4 sm:grid-cols-2">
-        <Field label="Country you live in">
-          <Select
-            value={draft.country}
-            onChange={(event) => patch({ country: event.target.value })}
-          >
-            <option value="">Choose a country</option>
-            {countries.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </Select>
-        </Field>
-        <Field label="Time zone">
-          <Select
-            value={draft.timeZone}
-            onChange={(event) => patch({ timeZone: event.target.value })}
-          >
-            <option value="">Choose a time zone</option>
-            {zones.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </Select>
-        </Field>
-      </div>
-
-      <div role="group" aria-labelledby={`${rightsId}-title`} aria-describedby={`${rightsId}-hint`}>
-        <p id={`${rightsId}-title`} className="text-sm font-medium text-ink">
-          Can you work there without visa sponsorship?
-        </p>
-        <p id={`${rightsId}-hint`} className="mt-1 text-sm text-muted">
-          Yes if you&apos;re a citizen or resident there, or your visa already lets you work.
-        </p>
-        <div className="mt-4 flex flex-col gap-4">
-          {WORK_REGIONS.map((region) => (
-            <RightChoice
-              key={region}
-              region={region}
-              value={draft.rights[region]}
-              onChange={(value) => patch({ rights: { ...draft.rights, [region]: value } })}
-            />
-          ))}
-        </div>
-      </div>
-
-      <div
-        role="group"
-        aria-labelledby={`${typesId}-title`}
-        aria-describedby={typeError ? `${typesId}-error` : undefined}
-      >
-        <p id={`${typesId}-title`} className="text-sm font-medium text-ink">
-          Open to
-        </p>
-        <div className="mt-1 flex flex-wrap gap-x-6">
-          <label className={CHECKBOX}>
-            <input
-              type="checkbox"
-              checked={draft.fullTime}
-              onChange={(event) => patch({ fullTime: event.target.checked })}
-              className="size-4 accent-ink"
-            />
-            Full-time jobs
-          </label>
-          <label className={CHECKBOX}>
-            <input
-              type="checkbox"
-              checked={draft.contract}
-              onChange={(event) => patch({ contract: event.target.checked })}
-              className="size-4 accent-ink"
-            />
-            Contract work
-          </label>
-          {/* Not a work right: it only sets the Jobs tab's "Remote only" filter to start with. */}
-          <label className={CHECKBOX}>
-            <input
-              type="checkbox"
-              checked={draft.remoteOnly ?? false}
-              onChange={(event) => patch({ remoteOnly: event.target.checked })}
-              className="size-4 accent-ink"
-            />
-            Remote jobs only
-          </label>
-        </div>
-        {typeError ? (
-          <p
-            id={`${typesId}-error`}
-            className="mt-1 flex items-start gap-1.5 text-sm font-medium text-fail-ink"
-          >
-            <CircleExclamationPoint className="mt-0.5 size-4 shrink-0" />
-            <span>{typeError}</span>
-          </p>
-        ) : null}
-      </div>
+      <WorkProfileFields value={draft} onChange={patch} typeError={typeError} />
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <p

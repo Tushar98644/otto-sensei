@@ -1,7 +1,7 @@
 import { and, eq, isNull, lte, ne, or } from "drizzle-orm";
 import type { BillingInterval, PaidPlanId, PlanId } from "@/config/plans";
 import { getDb, type Db } from "@/db/client";
-import { billingEvents, users, type UserRow } from "@/db/schema";
+import { billingEvents, trialReplacements, users, type UserRow } from "@/db/schema";
 // Same rule auth uses to store users.email; policy.ts keeps billing out of the sign-in module.
 import { normalizeEmail } from "@/lib/auth/policy";
 import { carryUsageOver, type PeriodAccount } from "@/lib/usage";
@@ -81,12 +81,24 @@ export type SubscriptionState = {
   periodEndsAt: number | null;
   /** When Creem created the event (epoch ms), to drop an older event that arrives late. */
   eventAt: number | null;
+  /**
+   * The trial subscription this one was bought to replace (checkout metadata, ./replacements.ts).
+   * Once this one is active, the trial is written down to be cancelled.
+   */
+  replacesSubscriptionId?: string | null;
 };
 
 /** The webhook that reported the state. Its id is stored with the update, so a retry can't apply twice. */
 export type WebhookSource = { eventId: string; eventType: string };
 
-export type IgnoreReason = "unknown_status" | "no_change" | "no_user" | "other_product" | "superseded";
+export type IgnoreReason =
+  | "unknown_status"
+  | "no_change"
+  | "no_user"
+  | "other_product"
+  | "superseded"
+  // A trial another plan replaced: it's being cancelled, and nothing it says changes the plan.
+  | "replaced";
 
 export type ApplyResult =
   | {
@@ -169,7 +181,9 @@ function trialEndFor(state: SubscriptionState, user: FoundUser, plan: PlanId): n
  * the plan, billing interval, trial, status, ids, renewal date and billing period from Creem, at
  * most once per event id, and never from an event older than the last one applied for the same
  * subscription. A change that moves the AI allowance to another billing month without a renewal
- * (Pro to Max and back, say) keeps what was used this month (src/lib/usage.ts).
+ * (Pro to Max and back, say) keeps what was used this month (src/lib/usage.ts). An active
+ * subscription bought to replace a trial writes the trial down to be cancelled, in the same
+ * transaction; events from a replaced trial are ignored.
  */
 export async function applySubscriptionState(
   state: SubscriptionState,
@@ -182,6 +196,9 @@ export async function applySubscriptionState(
   }
 
   const db = await getDb();
+  // A late "trialing" or a first payment on the replaced trial would otherwise overwrite the plan
+  // that replaced it.
+  if (await isReplaced(db, state.subscriptionId)) return { outcome: "ignored", reason: "replaced" };
   const user = await findUser(db, state);
   if (!user) return { outcome: "ignored", reason: "no_user" };
   // Other products on the same Creem store must not grant a plan. The user's own subscription
@@ -259,6 +276,19 @@ export async function applySubscriptionState(
       .returning({ id: users.id, email: users.email });
     const [row] = updated;
     if (!row) return { outcome: "ignored", reason: "superseded" };
+    const replaces =
+      state.status === "active" && plan !== "free" ? state.replacesSubscriptionId : null;
+    if (replaces && replaces !== state.subscriptionId) {
+      await tx
+        .insert(trialReplacements)
+        .values({
+          replacedSubscriptionId: replaces,
+          subscriptionId: state.subscriptionId,
+          userId: user.id,
+          createdAt: now,
+        })
+        .onConflictDoNothing();
+    }
     await carryUsageOver(tx, user, after, now);
     if (plan !== "free") {
       await recordTrialHistory(tx, row.email, state.status === "trialing" ? "trial" : "paid", now);
@@ -271,6 +301,15 @@ export async function applySubscriptionState(
       before,
     };
   });
+}
+
+async function isReplaced(db: Db, subscriptionId: string): Promise<boolean> {
+  const [row] = await db
+    .select({ id: trialReplacements.replacedSubscriptionId })
+    .from(trialReplacements)
+    .where(eq(trialReplacements.replacedSubscriptionId, subscriptionId))
+    .limit(1);
+  return row !== undefined;
 }
 
 export async function getBillingCustomerId(userId: string): Promise<string | null> {

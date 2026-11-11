@@ -3,6 +3,7 @@ import { pageMetadata } from "@/components/site/page-metadata";
 import { BRAND } from "@/config/brand";
 import { TrackView } from "@/lib/analytics/track-view";
 import { loadJobCounts } from "@/lib/job-feed/live-counts";
+import { AiScreening } from "./_components/ai-screening";
 import { Faq } from "./_components/faq";
 import { FinalCta } from "./_components/final-cta";
 import { Hero } from "./_components/hero";
@@ -31,6 +32,7 @@ export default async function HomePage() {
       <TrackView event="landing_viewed" />
       <SmoothScroll />
       <Hero />
+      <AiScreening />
       <HowItWorks />
       <PortfolioShowcase />
       <WontDo />

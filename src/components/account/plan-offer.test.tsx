@@ -15,9 +15,10 @@ function render(
     offer = ALL,
     trial = false,
     buy = true,
-  }: { offer?: Offer; trial?: boolean; buy?: boolean } = {},
+    onTrial = false,
+  }: { offer?: Offer; trial?: boolean; buy?: boolean; onTrial?: boolean } = {},
 ) {
-  const { cards, intervals, interval } = upgradeOffer({ current, offer, picked, trial });
+  const { cards, intervals, interval } = upgradeOffer({ current, offer, picked, trial, onTrial });
   const html = renderToStaticMarkup(
     <PlanOffer
       cards={cards}
@@ -32,6 +33,19 @@ function render(
 }
 
 describe("PlanOffer", () => {
+  it("on the Pro trial, says Max ends the trial today and at what price, before the click", () => {
+    const monthly = render("pro", "month", { onTrial: true }).text;
+    expect(monthly).toContain("Start Max now");
+    expect(monthly).toContain(
+      `Ends your free Pro trial today and starts Max at ${usd(PRICES_USD.max.month)}/month.`,
+    );
+    expect(monthly).not.toContain("Upgrade to Max");
+    expect(render("pro", "year", { onTrial: true }).text).toContain(
+      `starts Max at ${usd(PRICES_USD.max.year)}/year.`,
+    );
+    expect(render("pro", "month").text).toContain("Upgrade to Max");
+  });
+
   it("shows Free both plans for the picked option, Pro most popular with the trial", () => {
     const { text, html } = render("free", "month", { trial: true });
     expect(text).toContain(`Pro Most popular ${usd(PRICES_USD.pro.month)} /month per month`);

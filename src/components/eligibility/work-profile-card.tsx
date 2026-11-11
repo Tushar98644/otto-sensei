@@ -25,11 +25,11 @@ export function WorkProfileCard() {
     <Card id="work-profile" aria-labelledby={titleId} role="region" className="scroll-mt-24">
       <CardHeader>
         <CardTitle as="h2" id={titleId}>
-          Work profile
+          Where you can work
         </CardTitle>
         <CardDescription>
-          Otto checks job posts against this: where you live, your hours and your visa needs. Only
-          you can see it.
+          Where you live, your time zone and your visa needs. Jobs flags posts that say they
+          can&apos;t hire you, and can hide them. Only you can see this.
         </CardDescription>
       </CardHeader>
       {locked ? (

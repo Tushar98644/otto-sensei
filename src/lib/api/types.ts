@@ -39,6 +39,9 @@ export type ApiErrorCode =
   | "ai_unavailable"
   | "ai_refused"
   | "billing_unavailable"
+  // 409 (or 502/503 when Creem's side is the problem): the payment provider turned a plan change
+  // down, or the last payment failed first. The message says why.
+  | "plan_change_failed"
   // Sign-in code email: 502 when Supabase or its SMTP provider failed to send it.
   | "email_unavailable"
   // 503: sign-in (Supabase) isn't configured, or account deletion has no Supabase secret key.

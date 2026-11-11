@@ -8,6 +8,7 @@ import { openUpgradePrompt } from "@/components/account/upgrade-prompt";
 import { OTTO } from "@/components/mascot/lines";
 import { Otto } from "@/components/mascot/otto";
 import { OttoNote } from "@/components/mascot/otto-note";
+import { ReminderPrompt } from "@/components/setup/reminder-prompt";
 import { useNow } from "@/components/studio/use-now";
 import { FREE_APPLICATIONS } from "@/config/plans";
 import { Alert } from "@/components/ui/alert";
@@ -224,6 +225,7 @@ export function ApplicationsPage() {
       ) : (
         <>
           <NoReplyNudge stale={stale} />
+          <ReminderPrompt applications={items.length} />
 
           <section aria-labelledby="applications-heading" className="flex flex-col gap-4">
             <h2 id="applications-heading" className="sr-only">

@@ -1,4 +1,10 @@
-import { PLANS, PRO_TRIAL, type BillingInterval, type PaidPlanId } from "@/config/plans";
+import {
+  isTrialing,
+  PLANS,
+  PRO_TRIAL,
+  type BillingInterval,
+  type PaidPlanId,
+} from "@/config/plans";
 import type { SessionUser } from "@/lib/auth/types";
 import { env } from "@/lib/env";
 import { log } from "@/lib/log";
@@ -35,14 +41,33 @@ import { processWebhook } from "./webhook";
 // customer portal. We only store the plan + ids from webhooks.
 
 export type { BillingMode } from "./types";
-export { BillingError, type BillingErrorCode } from "./errors";
+export { BillingError, type BillingErrorCode, type BillingErrorDetails } from "./errors";
 export { billingOffer, offeredIntervals } from "./intervals";
 
 export { billingMode } from "./mode";
 
-// Statuses whose subscription can move to another product in place. Anything else (a failed
-// renewal, a pause) goes to the portal, where the person can see and fix it first.
-const CHANGEABLE_STATUSES: ReadonlySet<string> = new Set(["active", "trialing"]);
+/**
+ * How a subscriber moves to another paid plan, by their subscription's Creem status:
+ * - in_place: Creem swaps the product and prorates. Creem only allows this on "active".
+ * - replace_trial: a free trial can't be modified, so the new plan is its own checkout, and the
+ *   webhook cancels the trial once that's paid (./replacements.ts). Nothing was ever charged on it.
+ * - fix_payment: a renewal failed (past_due) and Creem is retrying it. The card comes first.
+ * - portal: paused, unpaid, a paid plan that's set to end, or a status we don't know. The portal
+ *   shows what's going on, and a second subscription would charge alongside the first.
+ */
+export type PlanChangeRoute = "in_place" | "replace_trial" | "fix_payment" | "portal";
+
+export function planChangeRoute(
+  status: string,
+  user: Pick<SessionUser, "plan" | "trialEndsAt">,
+): PlanChangeRoute {
+  if (status === "active") return "in_place";
+  if (status === "trialing") return "replace_trial";
+  // A trial cancelled in the portal keeps access until the trial ends, and still charged nothing.
+  if (status === "scheduled_cancel" && isTrialing(user)) return "replace_trial";
+  if (status === "past_due") return "fix_payment";
+  return "portal";
+}
 
 /**
  * Whether this account would get the free trial at checkout now: trials are on sale here and it
@@ -56,13 +81,14 @@ export async function trialAvailableFor(user: SessionUser): Promise<boolean> {
  * Returns a URL to send the browser to. creem: a hosted checkout for `plan` billed every
  * `interval`, tied to the user (metadata user_id + customer email), returning to
  * /account?checkout=success. Pro monthly for someone who has never trialed or paid uses the trial
- * product: free for PRO_TRIAL.days, card taken at checkout, then Pro monthly. Someone already
- * subscribed who picks the other paid plan has their subscription moved to it (prorated, no second
- * checkout) and goes straight back to /account?checkout=success; anyone else with a subscription
- * that can still charge goes to the customer portal instead of a second subscription. mock:
- * switches the plan at once (on the trial when it applies). disabled, or an option with no
- * product: throws BillingError("unavailable"). Already on that plan: throws
- * BillingError("already_subscribed").
+ * product: free for PRO_TRIAL.days, card taken at checkout, then Pro monthly. A subscriber who
+ * picks the other paid plan follows planChangeRoute: an active subscription moves to it in place
+ * (prorated, no second checkout) and goes straight back to /account?checkout=success; one on the
+ * free trial gets a checkout for the new plan that ends the trial once paid; a failed renewal
+ * throws BillingError("payment_overdue"). Anyone else with a subscription that can still charge
+ * goes to the customer portal instead of a second subscription. mock: switches the plan at once
+ * (on the trial when it applies). disabled, or an option with no product: throws
+ * BillingError("unavailable"). Already on that plan: throws BillingError("already_subscribed").
  */
 export async function createCheckoutUrl(
   user: SessionUser,
@@ -90,11 +116,38 @@ export async function createCheckoutUrl(
   const existing = await existingSubscription(user);
   if (existing) {
     const target = productId(plan, interval);
-    // Pro to Max (or back) on a subscription we track: Creem swaps the product in place.
-    if (user.plan !== "free" && target && CHANGEABLE_STATUSES.has(existing.status)) {
+    const route =
+      user.plan !== "free" && target ? planChangeRoute(existing.status, user) : "portal";
+    const fields = { userId: user.id, from: user.plan, to: plan, status: existing.status };
+    if (route === "in_place" && target) {
       await changeCreemPlan(existing.subscriptionId, target);
-      log.info("billing.plan_change_requested", { userId: user.id, from: user.plan, to: plan });
+      log.info("billing.plan_change_requested", fields);
       return `/account?checkout=success&plan=${plan}`;
+    }
+    if (route === "replace_trial" && target) {
+      // Only when Creem listed the trial as the one live subscription: a second one means a plan
+      // bought a moment ago is still on its way, and a failed lookup can't rule that out.
+      if (existing.liveCount === null) {
+        throw new BillingError("provider_error", "Creem subscription lookup failed", {
+          operation: "lookup",
+        });
+      }
+      if (existing.liveCount === 1) {
+        const url = await createCreemCheckoutUrl(user, target, {
+          plan,
+          trial: false,
+          replaces: existing.subscriptionId,
+        });
+        log.info("billing.trial_replacement_started", {
+          ...fields,
+          replaces: existing.subscriptionId,
+        });
+        return url;
+      }
+    }
+    if (route === "fix_payment") {
+      log.info("billing.plan_change_blocked", { ...fields, reason: "past_due" });
+      throw new BillingError("payment_overdue", "The subscription's last payment failed");
     }
     log.info("billing.checkout_redirected", { userId: user.id, status: existing.status });
     return createCreemPortalUrl(existing.customerId);
@@ -104,19 +157,29 @@ export async function createCheckoutUrl(
   return createCreemCheckoutUrl(user, product, { plan, trial });
 }
 
-// Creem's answer when it gives one, else the stored subscription, so a failed lookup neither
-// blocks checkout for everyone nor lets a stored one be bought twice.
-async function existingSubscription(user: SessionUser): Promise<LiveSubscription | null> {
+type ExistingSubscription = LiveSubscription & {
+  // How many live subscriptions Creem listed; null when the lookup failed and the stored one
+  // stands in.
+  liveCount: number | null;
+};
+
+// Creem's answer when it gives one (the stored subscription first), else the stored subscription,
+// so a failed lookup neither blocks checkout for everyone nor lets a stored one be bought twice.
+async function existingSubscription(user: SessionUser): Promise<ExistingSubscription | null> {
   const record = await getBillingRecord(user.id);
   try {
-    const [live] = await findLiveSubscriptions(lookupFor(user, record));
-    return live ?? null;
+    const live = await findLiveSubscriptions(lookupFor(user, record));
+    const stored = live.find(
+      (candidate) => candidate.subscriptionId === record?.billingSubscriptionId,
+    );
+    const first = stored ?? live[0];
+    return first ? { ...first, liveCount: live.length } : null;
   } catch (error) {
     if (!(error instanceof BillingError)) throw error;
     const subscriptionId = record ? chargeableSubscriptionId(record) : null;
     const customerId = record?.billingCustomerId;
     if (!subscriptionId || !customerId) return null;
-    return { subscriptionId, customerId, status: record?.planStatus ?? "unknown" };
+    return { subscriptionId, customerId, status: record?.planStatus ?? "unknown", liveCount: null };
   }
 }
 

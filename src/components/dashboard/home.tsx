@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useMemo, useState, type ReactNode } from "react";
 import { useMe } from "@/components/account/use-me";
 import { OttoNote } from "@/components/mascot/otto-note";
+import { SetupChecklist } from "@/components/setup/setup-checklist";
 import { ROUTES } from "@/components/site/routes";
 import { FolderCard } from "@/components/ui/folder-card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -68,6 +69,8 @@ export function DashboardHome() {
         {/* The sidebar has this on wide screens. */}
         <NewResumeMenu actions={actions} className="lg:hidden" />
       </header>
+
+      <SetupChecklist actions={actions} />
 
       <section aria-labelledby="actions-heading" data-tour="dashboard-actions">
         <h2 id="actions-heading" className="sr-only">

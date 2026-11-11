@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { adjacentStep, resolveStep, stepStatus } from "./step-state";
+import { adjacentStep, resolveStep, stepStatus, stepsToPreload } from "./step-state";
 
 const empty = { hasResume: false, hasReport: false };
 const scratch = { hasResume: true, hasReport: false };
@@ -41,5 +41,22 @@ describe("resolveStep", () => {
   it("moves a stale step to one that works", () => {
     expect(resolveStep("review", scratch)).toBe("fix");
     expect(resolveStep("download", empty)).toBe("upload");
+  });
+});
+
+describe("stepsToPreload", () => {
+  it("warms only the next step from the upload screen", () => {
+    expect(stepsToPreload("upload", "review")).toEqual(["review"]);
+    expect(stepsToPreload("upload", "fix")).toEqual(["fix"]);
+    expect(stepsToPreload("upload", null)).toEqual([]);
+  });
+
+  it("warms the next step first, then every other step", () => {
+    expect(stepsToPreload("review", "fix")).toEqual(["fix", "upload", "tailor", "download"]);
+    expect(stepsToPreload("fix", "tailor")).toEqual(["tailor", "upload", "review", "download"]);
+  });
+
+  it("still warms the earlier steps at the end of the flow", () => {
+    expect(stepsToPreload("download", null)).toEqual(["upload", "review", "fix", "tailor"]);
   });
 });

@@ -40,9 +40,17 @@ export function useBillingRedirect(destination: BillingDestination) {
       window.location.assign(url);
     } catch (error) {
       setPending(false);
-      toast({ title: FAILURE_TITLES[destination], description: errorMessage(error), variant: "error" });
-      // "You're already on Pro" or a lapsed session: the plan or user on screen is out of date.
-      if (isApiError(error, "bad_request") || isApiError(error, "unauthorized")) void refreshMe();
+      const changingPlan = isApiError(error, "plan_change_failed");
+      toast({
+        title: changingPlan ? "Couldn't change your plan" : FAILURE_TITLES[destination],
+        description: errorMessage(error),
+        variant: "error",
+      });
+      // "You're already on Pro", a lapsed session or a subscription whose status moved on: the plan
+      // or user on screen is out of date.
+      if (changingPlan || isApiError(error, "bad_request") || isApiError(error, "unauthorized")) {
+        void refreshMe();
+      }
     }
   }, [destination]);
 

@@ -28,7 +28,7 @@ export function MainNavLinks() {
 export function HeaderActions() {
   if (useSignedIn()) {
     return (
-      <Link href={DASHBOARD_LINK.href} className={buttonClasses({ size: "sm", className: "max-md:h-11" })}>
+      <Link href={DASHBOARD_LINK.href} className={buttonClasses({ size: "sm", className: "max-md:h-12 pointer-coarse:h-12" })}>
         {DASHBOARD_LINK.label}
       </Link>
     );
@@ -38,9 +38,9 @@ export function HeaderActions() {
       <Link href={SIGN_IN_LINK.href} className={cn(NAV_LINK_CLASSES, "hidden md:inline-flex")}>
         {SIGN_IN_LINK.label}
       </Link>
-      {/* Stays visible at every width: it's the one thing most visitors came to do. Full 44px
-          tall on touch screens, compact where there's a mouse. */}
-      <Link href={ROUTES.studio} className={buttonClasses({ size: "sm", className: "max-md:h-11" })}>
+      {/* Stays visible at every width: it's the one thing most visitors came to do. 48px tall on
+          phones (the tap size search engines check), compact where there's a mouse. */}
+      <Link href={ROUTES.studio} className={buttonClasses({ size: "sm", className: "max-md:h-12 pointer-coarse:h-12" })}>
         Check my resume
       </Link>
     </>

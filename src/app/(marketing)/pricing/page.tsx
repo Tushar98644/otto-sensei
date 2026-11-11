@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { OTTO } from "@/components/mascot/lines";
 import { Otto } from "@/components/mascot/otto";
 import { OttoNote } from "@/components/mascot/otto-note";
+import { JsonLd } from "@/components/site/json-ld";
 import { pageMetadata } from "@/components/site/page-metadata";
 import { ROUTES } from "@/components/site/routes";
 import { TextLink } from "@/components/site/text-link";
@@ -15,8 +16,10 @@ import {
 } from "@/config/plans";
 import { billingOffer, trialOffered } from "@/lib/billing/intervals";
 import { planPriceLabel, renewalPeriods } from "@/lib/billing/prices";
+import { appUrl } from "@/lib/env";
 import { countClaim } from "@/lib/job-feed/counts";
 import { loadJobCounts } from "@/lib/job-feed/live-counts";
+import { softwareJsonLd } from "@/lib/seo/json-ld";
 import { type FaqItem, FaqList } from "../_components/faq-list";
 import { formatUsd } from "../_components/plan-features";
 import { PricingPlans } from "../_components/pricing-plans";
@@ -109,6 +112,7 @@ export default async function PricingPage() {
   const renewals = [...new Set(PAID_PLANS.flatMap((plan) => offer[plan]))];
   return (
     <div className="container-page pt-16 pb-24 sm:pt-24 sm:pb-32">
+      <JsonLd data={softwareJsonLd(offer, appUrl())} />
       <div className="mx-auto flex max-w-3xl flex-col items-center text-center">
         <h1 className="font-display text-5xl/none font-normal tracking-tight text-ink sm:text-7xl/none">
           Free for the basics. <em className="block">More when the hunt gets busy.</em>

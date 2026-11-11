@@ -138,20 +138,34 @@ describe("/api/notifications/settings", () => {
   it("starts with email off and a 7-day follow-up, and changes only what it is sent", async () => {
     await signInAs("maya@example.com");
     const initial = (await (await getSettings()).json()) as ReminderSettingsResponse;
-    expect(initial).toMatchObject({ emailReminders: false, followUpDays: 7, emailAvailable: false });
+    expect(initial).toMatchObject({
+      emailReminders: false,
+      followUpDays: 7,
+      emailAvailable: false,
+      // Still on the defaults: the Home setup list and the tracker's prompt ask about it.
+      chosen: false,
+    });
 
     process.env.RESEND_API_KEY = "re_test";
     process.env.EMAIL_FROM = "Otto Sensei <otto@example.com>";
     resetEnvForTests();
     // Changing the delay alone never turns email on.
     const later = (await (await put({ followUpDays: 10 })).json()) as ReminderSettingsResponse;
-    expect(later).toMatchObject({ emailReminders: false, followUpDays: 10, emailAvailable: true });
+    expect(later).toMatchObject({
+      emailReminders: false,
+      followUpDays: 10,
+      emailAvailable: true,
+      chosen: true,
+    });
 
     const on = (await (await put({ emailReminders: true })).json()) as ReminderSettingsResponse;
     expect(on).toMatchObject({ emailReminders: true, followUpDays: 10 });
     const off = (await (await put({ emailReminders: false })).json()) as ReminderSettingsResponse;
     expect(off.emailReminders).toBe(false);
-    expect(((await (await getSettings()).json()) as ReminderSettingsResponse).followUpDays).toBe(10);
+    expect((await (await getSettings()).json()) as ReminderSettingsResponse).toMatchObject({
+      followUpDays: 10,
+      chosen: true,
+    });
 
     for (const body of [{ emailReminders: "no" }, {}, { followUpDays: 0 }, { followUpDays: 61 }, { followUpDays: 2.5 }]) {
       expect(await errorCode(await put(body))).toBe("bad_request");

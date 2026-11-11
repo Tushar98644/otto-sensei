@@ -452,6 +452,36 @@ function ownerCanPublish(owner: { plan: PlanId; trialEndsAt: number | null }): b
   return canPublishPortfolio(owner.plan, isTrialing(owner));
 }
 
+/**
+ * Every page a search engine may list, newest change first, for /p/sitemap.xml: published, with
+ * "Let search engines find it" on, and online (findPublicPortfolio would show it, not a 404).
+ */
+export async function indexablePortfolios(
+  limit: number,
+): Promise<{ slug: string; updatedAt: number }[]> {
+  const db = await getDb();
+  const rows = await db
+    .select({
+      slug: portfolios.slug,
+      updatedAt: portfolios.updatedAt,
+      plan: users.plan,
+      trialEndsAt: users.trialEndsAt,
+    })
+    .from(portfolios)
+    .innerJoin(users, eq(users.id, portfolios.userId))
+    .where(and(eq(portfolios.published, true), eq(portfolios.allowIndexing, true)))
+    .orderBy(desc(portfolios.updatedAt), portfolios.slug);
+  // The same address checks as loadPublicPortfolio and findPublicPortfolio, so no listed page 404s.
+  const servable = (slug: string) => {
+    const problem = slugProblem(slug);
+    return normalizeSlug(slug) === slug && (problem === null || problem === "reserved");
+  };
+  return rows
+    .filter((row) => ownerCanPublish(row) && servable(row.slug))
+    .slice(0, limit)
+    .map(({ slug, updatedAt }) => ({ slug, updatedAt }));
+}
+
 /** The published page a view would count for, with its owner (whose own visits don't count). */
 export async function findViewTarget(
   slug: string,

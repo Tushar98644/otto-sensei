@@ -86,6 +86,14 @@ export function trialHeadline(): string {
   return `Try ${PLANS[PRO_TRIAL.plan].name} free for ${PRO_TRIAL.days} days`;
 }
 
+/**
+ * "Ends your free Pro trial today and starts Max at $29/month." On the trial another plan is a new
+ * subscription that ends the trial once paid (createCheckoutUrl), so the button says so first.
+ */
+export function endsTrialSentence(plan: PaidPlanId, interval: BillingInterval): string {
+  return `Ends your free ${PLANS[PRO_TRIAL.plan].name} trial today and starts ${PLANS[plan].name} at ${planPriceLabel(plan, interval)}.`;
+}
+
 /** "Free for 3 days, then $15/month. Cancel anytime before the trial ends." */
 export function trialSentence(): string {
   return `Free for ${PRO_TRIAL.days} days, then ${planPriceLabel(PRO_TRIAL.plan, PRO_TRIAL.interval)}. Cancel anytime before the trial ends.`;

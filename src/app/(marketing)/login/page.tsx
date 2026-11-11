@@ -11,6 +11,8 @@ export const metadata = pageMetadata({
   title: "Sign in",
   description: "Sign in with Google or your email. No password needed: we can send you a 6-digit code.",
   path: ROUTES.login,
+  // A sign-in form has nothing to find: search results should land on the home page instead.
+  noindex: true,
 });
 
 // Static HTML except the form, which needs the browser (it reads ?next= and the session). The

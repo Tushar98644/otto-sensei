@@ -172,6 +172,22 @@ describe("tools named before they existed", () => {
     expect(year("Styled with Tailwind CSS")).toEqual(["Tailwind", 2017, 11]);
   });
 
+  // The quick name scans that run first must never hide a match the full patterns would find.
+  it("finds names in any case, with any spacing, and nothing in a line without one", () => {
+    expect(findTools("Cut API latency by 40% with a cache")).toEqual([]);
+    expect(findTools("Automated releases with github   actions").map((m) => m.tool.name)).toEqual(
+      ["GitHub Actions"],
+    );
+    // Unicode case folding: the Kelvin sign is a capital K.
+    expect(findTools("Ran K8s clusters").map((m) => [m.tool.name, m.text])).toEqual([
+      ["Kubernetes", "K8s"],
+    ]);
+    expect(findTools("Rewrote the parser in rust")).toEqual([]);
+    expect(
+      findTools("Moved from Docker to Kubernetes and Terraform").map((m) => m.tool.name),
+    ).toEqual(["Docker", "Kubernetes", "Terraform"]);
+  });
+
   it("keeps the more specific name and never matches inside a longer one", () => {
     expect(findTools("Shipped with Claude Code").map((m) => m.tool.name)).toEqual(["Claude Code"]);
     expect(findTools("Fine-tuned GPT-4o").map((m) => m.tool.name)).toEqual(["GPT-4o"]);

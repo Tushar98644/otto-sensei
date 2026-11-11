@@ -1,17 +1,9 @@
-import { BRAND } from "@/config/brand";
+import { JsonLd } from "@/components/site/json-ld";
 import { appUrl } from "@/lib/env";
+import { websiteJsonLd } from "@/lib/seo/json-ld";
 
-// WebSite structured data lets search results show the brand name instead of the bare domain.
-// Server-only: reads the app URL from the environment.
+// WebSite and Organization data let search results show the brand name and logo instead of the
+// bare domain. Server-only: reads the app URL from the environment.
 export function WebsiteJsonLd() {
-  const data = {
-    "@context": "https://schema.org",
-    "@type": "WebSite",
-    name: BRAND.name,
-    url: `${appUrl()}/`,
-    description: BRAND.description,
-  };
-  // Escaping "<" keeps any future value from closing the script tag early.
-  const json = JSON.stringify(data).replace(/</g, "\\u003c");
-  return <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: json }} />;
+  return <JsonLd data={websiteJsonLd(appUrl())} />;
 }

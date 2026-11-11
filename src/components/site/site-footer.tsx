@@ -17,7 +17,7 @@ export function SiteFooter() {
           {SHOW_SUPPORT_EMAIL ? (
             <a
               href={`mailto:${BRAND.supportEmail}`}
-              className="inline-flex min-h-11 items-center text-sm text-ink underline decoration-border-strong underline-offset-4 transition-colors hover:decoration-ink"
+              className="inline-flex min-h-12 items-center text-sm text-ink underline decoration-border-strong underline-offset-4 transition-colors hover:decoration-ink sm:min-h-11"
             >
               {BRAND.supportEmail}
             </a>
@@ -29,7 +29,7 @@ export function SiteFooter() {
               <li key={link.href}>
                 <Link
                   href={link.href}
-                  className="inline-flex min-h-11 items-center text-sm text-muted transition-colors hover:text-ink"
+                  className="inline-flex min-h-12 items-center text-sm text-muted transition-colors hover:text-ink sm:min-h-11"
                 >
                   {link.label}
                 </Link>

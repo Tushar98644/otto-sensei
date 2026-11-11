@@ -3,12 +3,15 @@ import { notFound, redirect } from "next/navigation";
 import { templateFontClasses } from "@/components/portfolio/templates/fonts";
 import { PORTFOLIO_TEMPLATES } from "@/components/portfolio/templates/registry";
 import { PortfolioViewBeacon } from "@/components/portfolio/view-beacon";
+import { JsonLd } from "@/components/site/json-ld";
 import { BRAND } from "@/config/brand";
+import { profilePageJsonLd } from "@/lib/portfolio/json-ld";
 import { loadPublicPortfolio } from "@/lib/portfolio/page";
 import { normalizeSlug } from "@/lib/portfolio/slug";
 import { PORTFOLIO_TEMPLATE_INFO } from "@/lib/portfolio/templates";
 import { DEFAULT_PORTFOLIO_TEMPLATE, portfolioPath } from "@/lib/portfolio/types";
 import { portfolioDescription } from "@/lib/portfolio/view";
+import { absoluteUrl } from "@/lib/seo/urls";
 import { cn } from "@/lib/utils";
 
 // Static and cached: rendered on the first visit, then served as is until the owner changes
@@ -78,12 +81,21 @@ export default async function PublicPortfolioPage({ params }: Props) {
   if (result.status === "missing") notFound();
   const { portfolio } = result;
   const { Component } = PORTFOLIO_TEMPLATES[portfolio.template];
+  // On every published page, indexed or not: it repeats what any visitor already sees.
+  const jsonLd = profilePageJsonLd({
+    view: portfolio.view,
+    content: portfolio.content,
+    template: portfolio.template,
+    url: absoluteUrl(portfolioPath(portfolio.slug)),
+    updatedAt: portfolio.updatedAt,
+  });
   // No site chrome: the page is the template's own canvas, edge to edge, and belongs to its owner.
   return (
     <main
       id="main"
       className={cn("flex min-h-dvh flex-col", templateFontClasses(portfolio.template))}
     >
+      {jsonLd ? <JsonLd data={jsonLd} /> : null}
       <Component view={portfolio.view} content={portfolio.content} />
       <PortfolioViewBeacon slug={portfolio.slug} />
     </main>

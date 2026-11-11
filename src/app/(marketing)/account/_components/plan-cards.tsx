@@ -9,11 +9,13 @@ import { PlanPicker } from "@/components/account/plan-picker";
 import { PlanPerks } from "@/components/account/pro-perks";
 import { ReferencePrice } from "@/components/account/reference-price";
 import { useBillingRedirect } from "@/components/account/use-billing-redirect";
+import { useMe } from "@/components/account/use-me";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonClasses } from "@/components/ui/button";
 import { Card, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   allowancePeriodFor,
+  isTrialing,
   nextPlan,
   PAID_PLANS,
   PLAN_ORDER,
@@ -23,7 +25,7 @@ import {
   type PaidPlanId,
   type PlanId,
 } from "@/config/plans";
-import { planPrice, trialHeadline, trialSentence } from "@/lib/billing/prices";
+import { endsTrialSentence, planPrice, trialHeadline, trialSentence } from "@/lib/billing/prices";
 import type { BillingMode } from "@/lib/billing/types";
 import { periodNoun, trialEndDay } from "@/lib/usage-copy";
 
@@ -40,9 +42,12 @@ export type UpgradeCardProps = {
 };
 
 // The plans above this one, straight to checkout with no dialog in between. Pro to Max changes
-// the subscription in place (see createCheckoutUrl), so it's one click there too.
+// the subscription in place (see createCheckoutUrl), so it's one click there too. On the Pro trial
+// it's a new checkout that ends the trial, and the card says so before the click.
 export function UpgradeCard({ plan, interval: current, mode, offer, trial = false }: UpgradeCardProps) {
   const checkout = useBillingRedirect("checkout");
+  const { user } = useMe();
+  const endsTrial = plan !== "free" && user !== null && isTrialing(user);
   const above = PAID_PLANS.filter(
     (candidate) => PLAN_ORDER.indexOf(candidate) > PLAN_ORDER.indexOf(plan) && offer[candidate].length > 0,
   );
@@ -75,7 +80,9 @@ export function UpgradeCard({ plan, interval: current, mode, offer, trial = fals
             ? `${trialSentence()} Otto's AI help, with its limits written down.`
             : plan === "free"
               ? `Otto's AI help every ${periodNoun(allowancePeriodFor(target, interval))}, for a busy job hunt. Cancel anytime.`
-              : "Even more for a long, busy search. Your subscription changes in place."}
+              : endsTrial
+                ? endsTrialSentence(target, interval)
+                : "Even more for a long, busy search. Your subscription changes in place."}
         </CardDescription>
       </CardHeader>
       {mode === "disabled" ? null : (
@@ -106,7 +113,11 @@ export function UpgradeCard({ plan, interval: current, mode, offer, trial = fals
             loading={checkout.pending}
             className="w-full sm:w-auto"
           >
-            {onTrial ? "Start my free trial" : `Upgrade to ${name}`}
+            {onTrial
+              ? "Start my free trial"
+              : endsTrial
+                ? `Start ${name} now`
+                : `Upgrade to ${name}`}
           </Button>
         )}
       </CardFooter>

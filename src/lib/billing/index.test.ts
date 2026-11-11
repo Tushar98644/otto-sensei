@@ -11,6 +11,7 @@ import {
   cancelSubscriptionForDeletion,
   createCheckoutUrl,
   createPortalUrl,
+  planChangeRoute,
   trialAvailableFor,
 } from "./index";
 import { installFakeCreem, type FakeCreem } from "./testing";
@@ -215,23 +216,143 @@ describe("creem mode", () => {
     expect(checkoutBody()?.product_id).toBe("prod_max_month");
   });
 
-  it("moves a Pro subscription (or a trial) to Max in place, through the upgrade endpoint", async () => {
+  it("moves an active Pro subscription to Max in place, through the upgrade endpoint", async () => {
     useCreem({ CREEM_MAX_MONTHLY_PRODUCT_ID: "prod_max_month" });
     const user = await createUser({
       plan: "pro",
       planInterval: "month",
-      planStatus: "trialing",
-      trialEndsAt: Date.now() + DAY_MS,
+      planStatus: "active",
       billingCustomerId: "cust_1",
       billingSubscriptionId: "sub_1",
     });
-    creem.subscriptions.push({ id: "sub_1", customer: "cust_1", product: "prod_pro_trial", status: "trialing" });
+    creem.subscriptions.push({ id: "sub_1", customer: "cust_1", product: "prod_pro_month", status: "active" });
     expect(await createCheckoutUrl(user, "max", "month")).toBe("/account?checkout=success&plan=max");
     expect(creem.callsTo("POST /v1/subscriptions/sub_1/upgrade")[0]?.body).toEqual({
       product_id: "prod_max_month",
       update_behavior: "proration-charge-immediately",
     });
     expect(creem.callsTo("POST /v1/checkouts")).toEqual([]);
+  });
+
+  describe("on the Pro trial", () => {
+    const MAX = { CREEM_MAX_MONTHLY_PRODUCT_ID: "prod_max_month", CREEM_MAX_YEARLY_PRODUCT_ID: "prod_max_year" };
+    const trialist = (overrides: Partial<typeof users.$inferInsert> = {}) =>
+      createUser({
+        plan: "pro",
+        planInterval: "month",
+        planStatus: "trialing",
+        trialEndsAt: Date.now() + DAY_MS,
+        billingCustomerId: "cust_1",
+        billingSubscriptionId: "sub_trial",
+        ...overrides,
+      });
+
+    it("opens a checkout for Max that names the trial to cancel, and never calls upgrade", async () => {
+      useCreem(MAX);
+      const user = await trialist();
+      creem.subscriptions.push({ id: "sub_trial", customer: "cust_1", product: "prod_pro_trial", status: "trialing" });
+      expect(await createCheckoutUrl(user, "max", "year")).toBe("https://checkout.creem.test/ch_1");
+      expect(checkoutBody()).toEqual({
+        product_id: "prod_max_year",
+        customer: { email: user.email },
+        metadata: { user_id: user.id, replaces_subscription_id: "sub_trial" },
+        success_url: `${APP_URL}/account?checkout=success&plan=max`,
+      });
+      expect(creem.callsTo("POST /v1/subscriptions")).toEqual([]);
+      // Nothing is cancelled until Max is paid: an abandoned checkout leaves the trial running.
+      expect((await reload(user.id))?.planStatus).toBe("trialing");
+    });
+
+    it("does the same for a trial cancelled in the portal, but sends a paid plan set to end there", async () => {
+      useCreem(MAX);
+      const user = await trialist({ planStatus: "scheduled_cancel" });
+      creem.subscriptions.push({ id: "sub_trial", customer: "cust_1", product: "prod_pro_trial", status: "scheduled_cancel" });
+      expect(await createCheckoutUrl(user, "max", "month")).toBe("https://checkout.creem.test/ch_1");
+
+      const paid = await trialist({
+        email: "paid@example.com",
+        planStatus: "scheduled_cancel",
+        trialEndsAt: null,
+        billingCustomerId: "cust_2",
+        billingSubscriptionId: "sub_paid",
+      });
+      creem.subscriptions.push({ id: "sub_paid", customer: "cust_2", product: "prod_pro_month", status: "scheduled_cancel" });
+      expect(await createCheckoutUrl(paid, "max", "month")).toBe("https://creem.test/portal/cust_2");
+      expect(creem.callsTo("POST /v1/checkouts")).toHaveLength(1);
+    });
+
+    it("goes to the portal while a plan bought a moment ago is still on its way", async () => {
+      useCreem(MAX);
+      const user = await trialist();
+      creem.subscriptions.push(
+        { id: "sub_trial", customer: "cust_1", product: "prod_pro_trial", status: "trialing" },
+        { id: "sub_max", customer: "cust_1", product: "prod_max_month", status: "active" },
+      );
+      expect(await createCheckoutUrl(user, "max", "month")).toBe("https://creem.test/portal/cust_1");
+      expect(creem.callsTo("POST /v1/checkouts")).toEqual([]);
+    });
+
+    it("asks to try again when Creem can't list the subscriptions, rather than risk a second plan", async () => {
+      useCreem(MAX);
+      const user = await trialist();
+      creem.failNext("GET /v1/customers", 500, 10);
+      await expect(createCheckoutUrl(user, "max", "month")).rejects.toMatchObject({ code: "provider_error" });
+      expect(creem.callsTo("POST /v1/checkouts")).toEqual([]);
+    });
+  });
+
+  it("refuses a plan change while a renewal is past due, without writing to Creem", async () => {
+    useCreem({ CREEM_MAX_MONTHLY_PRODUCT_ID: "prod_max_month" });
+    const user = await createUser({
+      plan: "pro",
+      planStatus: "past_due",
+      billingCustomerId: "cust_1",
+      billingSubscriptionId: "sub_1",
+    });
+    creem.subscriptions.push({ id: "sub_1", customer: "cust_1", product: "prod_pro_month", status: "past_due" });
+    await expect(createCheckoutUrl(user, "max", "month")).rejects.toMatchObject({ code: "payment_overdue" });
+    expect(creem.calls.filter((call) => call.method === "POST")).toEqual([]);
+  });
+
+  it("tells a refused change (4xx, with Creem's code) apart from Creem being down (5xx)", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    useCreem({ CREEM_MAX_MONTHLY_PRODUCT_ID: "prod_max_month" });
+    const user = await createUser({
+      plan: "pro",
+      planStatus: "active",
+      billingCustomerId: "cust_1",
+      billingSubscriptionId: "sub_1",
+    });
+    creem.subscriptions.push({ id: "sub_1", customer: "cust_1", product: "prod_pro_month", status: "active" });
+    creem.failNext("POST /v1/subscriptions/sub_1/upgrade", 400, 1, "subscription_not_active");
+    await expect(createCheckoutUrl(user, "max", "month")).rejects.toMatchObject({
+      code: "refused",
+      details: { operation: "change_plan", providerStatus: 400, providerCode: "subscription_not_active" },
+    });
+    creem.failNext("POST /v1/subscriptions/sub_1/upgrade", 502);
+    await expect(createCheckoutUrl(user, "max", "month")).rejects.toMatchObject({ code: "provider_error" });
+  });
+
+  it("routes each Creem status to a plan change", () => {
+    const pro = { plan: "pro" as const, trialEndsAt: null };
+    const trial = { plan: "pro" as const, trialEndsAt: Date.now() + DAY_MS };
+    expect(
+      ["active", "trialing", "past_due", "scheduled_cancel", "paused", "unpaid", "unknown", "incomplete"].map(
+        (status) => [status, planChangeRoute(status, pro)],
+      ),
+    ).toEqual([
+      ["active", "in_place"],
+      ["trialing", "replace_trial"],
+      ["past_due", "fix_payment"],
+      ["scheduled_cancel", "portal"],
+      ["paused", "portal"],
+      ["unpaid", "portal"],
+      ["unknown", "portal"],
+      ["incomplete", "portal"],
+    ]);
+    expect(planChangeRoute("scheduled_cancel", trial)).toBe("replace_trial");
+    // A failed first payment after the trial still needs the card fixed first.
+    expect(planChangeRoute("past_due", trial)).toBe("fix_payment");
   });
 
   it("sends someone with a paused or unpaid subscription to the portal instead of a second one", async () => {

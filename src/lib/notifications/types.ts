@@ -45,7 +45,8 @@ export type ReminderSettings = { emailReminders: boolean; followUpDays: number }
 
 // GET/PUT /api/notifications/settings. Requires sign-in. PUT changes only the fields it sends.
 // emailAvailable is false when this server can't send email (no Resend key), so the page doesn't
-// offer a switch that does nothing.
+// offer a switch that does nothing. chosen: the account has saved a setting (always true after a
+// PUT); false means it is still on the defaults it never looked at.
 export const ReminderSettingsSchema = z
   .object({
     emailReminders: z.boolean().optional(),
@@ -61,7 +62,11 @@ export const ReminderSettingsSchema = z
     "Nothing to change.",
   );
 export type ReminderSettingsBody = z.input<typeof ReminderSettingsSchema>;
-export type ReminderSettingsResponse = { ok: true; emailAvailable: boolean } & ReminderSettings;
+export type ReminderSettingsResponse = {
+  ok: true;
+  emailAvailable: boolean;
+  chosen: boolean;
+} & ReminderSettings;
 
 // POST /api/notifications/follow-up: Done or Snooze from a reminder email's signed link. No
 // session: the mail is opened anywhere, so the link's signature is the only proof.

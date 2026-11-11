@@ -12,6 +12,7 @@ import type {
   ReminderSettingsResponse,
 } from "@/lib/notifications/types";
 import type { Resume } from "@/lib/resume/schema";
+import type { AccountSetupChange, AccountSetupResponse } from "@/lib/setup/types";
 import type {
   CreateShareBody,
   ShareResponse,
@@ -260,6 +261,9 @@ export const api = {
   notifications: () => request<NotificationsResponse>("/api/notifications", { cache: "no-store" }),
   markNotificationsRead: (body: MarkNotificationsReadBody) =>
     request<MarkNotificationsReadResponse>("/api/notifications", postJson(body, "PATCH")),
+  accountSetup: () => request<AccountSetupResponse>("/api/setup", { cache: "no-store" }),
+  saveAccountSetup: (body: AccountSetupChange) =>
+    request<AccountSetupResponse>("/api/setup", postJson(body, "PUT")),
   reminderSettings: () =>
     request<ReminderSettingsResponse>("/api/notifications/settings", { cache: "no-store" }),
   saveReminderSettings: (body: ReminderSettingsBody) =>

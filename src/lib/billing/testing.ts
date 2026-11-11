@@ -15,8 +15,11 @@ export type FakeCreem = {
   customers: FakeCustomer[];
   subscriptions: FakeSubscription[];
   calls: FakeCall[];
-  /** Answers this "METHOD /path" with the status `times` times, e.g. "POST /v1/subscriptions/sub_1/cancel". */
-  failNext: (route: string, status: number, times?: number) => void;
+  /**
+   * Answers this "METHOD /path" with the status `times` times, e.g. "POST /v1/subscriptions/sub_1/cancel",
+   * with Creem's machine `code` in the body when given (e.g. "subscription_not_active").
+   */
+  failNext: (route: string, status: number, times?: number, code?: string) => void;
   /** Every call to this "METHOD /path" (or its path prefix). */
   callsTo: (route: string) => FakeCall[];
 };
@@ -52,13 +55,14 @@ function customerEntity(customer: FakeCustomer) {
 
 /** Swaps fetch for a fake Creem API. Undo with vi.unstubAllGlobals() (or vi.restoreAllMocks). */
 export function installFakeCreem(): FakeCreem {
-  const failures = new Map<string, { status: number; left: number }>();
+  const failures = new Map<string, { status: number; left: number; code?: string }>();
   let checkouts = 0;
   const fake: FakeCreem = {
     customers: [],
     subscriptions: [],
     calls: [],
-    failNext: (route, status, times = 1) => failures.set(route, { status, left: times }),
+    failNext: (route, status, times = 1, code) =>
+      failures.set(route, { status, left: times, code }),
     callsTo: (route) =>
       fake.calls.filter((call) => `${call.method} ${call.path}`.startsWith(route)),
   };
@@ -77,7 +81,13 @@ export function installFakeCreem(): FakeCreem {
         failure.left -= 1;
         if (failure.left <= 0) failures.delete(route);
         return json(
-          { trace_id: "trace-test", status: failure.status, error: "Refused", message: ["no"] },
+          {
+            trace_id: "trace-test",
+            status: failure.status,
+            error: "Refused",
+            ...(failure.code ? { code: failure.code } : {}),
+            message: ["no"],
+          },
           failure.status,
         );
       }

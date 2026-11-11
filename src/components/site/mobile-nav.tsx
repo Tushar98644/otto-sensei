@@ -46,9 +46,9 @@ export function MobileNav() {
         aria-expanded={open}
         aria-controls={panelId}
         onClick={() => setOpen((value) => !value)}
-        // The 20px icon sits centered in a 44px target. Pulling the target 12px into the gutter puts
+        // The 20px icon sits centered in a 48px target. Pulling the target 14px into the gutter puts
         // the icon flush with the page edge, like the logo opposite, and frees room at 360px.
-        className={buttonClasses({ variant: "ghost", size: "icon", className: "-mr-3" })}
+        className={buttonClasses({ variant: "ghost", size: "icon", className: "-mr-3.5 size-12" })}
       >
         {open ? <X className="size-5" /> : <Menu className="size-5" />}
         <span className="sr-only">Menu</span>

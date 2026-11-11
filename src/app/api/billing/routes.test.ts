@@ -5,7 +5,7 @@ import { users } from "@/db/schema";
 import { getCurrentUser } from "@/lib/auth/session";
 import type { SessionUser } from "@/lib/auth/types";
 import { insertUserRow, resetDb } from "@/lib/auth/test-helpers";
-import { creemSignature } from "@/lib/billing/testing";
+import { creemSignature, installFakeCreem } from "@/lib/billing/testing";
 import { resetEnvForTests } from "@/lib/env";
 import { rateLimit } from "@/lib/rate-limit";
 import { toSessionUser } from "@/lib/users";
@@ -173,6 +173,64 @@ describe("POST /api/billing/checkout", () => {
     const res = await checkout(checkoutRequest({ interval: "fortnight" }));
     expect(res.status).toBe(400);
     expect(await res.json()).toMatchObject({ ok: false, error: { code: "bad_request" } });
+  });
+});
+
+describe("POST /api/billing/checkout with Creem", () => {
+  beforeEach(() => {
+    vi.stubEnv("CREEM_API_KEY", "creem_test_123");
+    vi.stubEnv("CREEM_PRO_TRIAL_PRODUCT_ID", "prod_otto_trial");
+    vi.stubEnv("CREEM_MAX_MONTHLY_PRODUCT_ID", "prod_otto_max");
+    resetEnvForTests();
+  });
+
+  afterEach(() => vi.unstubAllGlobals());
+
+  const subscriber = (planStatus: string) =>
+    signIn({
+      plan: "pro",
+      planInterval: "month",
+      planStatus,
+      trialEndsAt: planStatus === "trialing" ? Date.now() + 86_400_000 : null,
+      billingCustomerId: "cust_1",
+      billingSubscriptionId: "sub_1",
+    });
+
+  it("sends someone on the Pro trial to a Max checkout instead of failing", async () => {
+    const creem = installFakeCreem();
+    await subscriber("trialing");
+    creem.subscriptions.push({
+      id: "sub_1",
+      customer: "cust_1",
+      product: "prod_otto_trial",
+      status: "trialing",
+    });
+    const res = await checkout(checkoutRequest({ plan: "max", interval: "month" }));
+    expect(await res.json()).toEqual({ ok: true, url: "https://checkout.creem.test/ch_1" });
+    expect(creem.callsTo("POST /v1/subscriptions/sub_1/upgrade")).toEqual([]);
+  });
+
+  it("says plainly why Creem refused a plan change", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const creem = installFakeCreem();
+    await subscriber("active");
+    creem.subscriptions.push({
+      id: "sub_1",
+      customer: "cust_1",
+      product: PRODUCT_ID,
+      status: "active",
+    });
+    creem.failNext("POST /v1/subscriptions/sub_1/upgrade", 400, 1, "subscription_not_active");
+    const res = await checkout(checkoutRequest({ plan: "max", interval: "month" }));
+    expect(res.status).toBe(409);
+    expect(await res.json()).toEqual({
+      ok: false,
+      error: {
+        code: "plan_change_failed",
+        message:
+          "We couldn't change your plan: your subscription isn't active right now. Refresh the page and try again.",
+      },
+    });
   });
 });
 

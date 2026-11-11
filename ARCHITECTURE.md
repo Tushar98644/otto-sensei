@@ -125,7 +125,8 @@ All route handlers: `export const runtime = "nodejs"`; respond only via `ok()`/`
 | `GET/PUT /api/profile` | Work profile | Sign-in; PUT Pro |
 | `POST /api/github/lookup`, `POST /api/github/draft` | Public repos and merged PRs by username; drafted project lines | Anyone; per device and IP |
 | `GET/POST /api/share`, `PATCH/DELETE /api/share/[id]` | Share links (one live link per resume) | Sign-in; POST Pro |
-| `GET/PATCH /api/notifications`, `GET/PUT /api/notifications/settings` | Bell notifications; reminder email switch | Sign-in |
+| `GET/PATCH /api/notifications`, `GET/PUT /api/notifications/settings` | Bell notifications; reminder email switch (`chosen`: the account has saved one) | Sign-in |
+| `GET/PUT /api/setup` | First-login step answered or skipped, Home "Get set up" list hidden (`src/lib/setup`) | Sign-in, any plan |
 | `GET/POST /api/notifications/unsubscribe` | One-click unsubscribe from a reminder email (signed token) | Token |
 | `POST /api/notifications/follow-up` | Done or Snooze 3 days from a reminder email's signed link (sent by the `/reminder` page, which every email button opens) | Token |
 | `POST /api/feedback` | "Send feedback" | Anyone; per device, IP and account |
@@ -168,6 +169,7 @@ All in `public`, RLS on with no policies (only our server connects), every per-u
 | `applications.job_id`, `applications.status_history`, `writings.application_id`, `jobs_url_idx` | One job, one thread: the opening an application is for (`on delete set null`), its timeline (newest 30 status changes), the application a letter or answer was written for (`on delete set null`), a hash index for looking a link up among the openings. Old rows linked only where exactly one match is certain | `20261109003000_linked_threads.sql` |
 | `applications.interview_at` | The interview day, asked for as a card moves into Interviewing on the board | `20261109004000_interview_dates.sql` |
 | `applications.status`, `stage_reached`, `status_history` | Screening merged into interview (statuses now applied, interview, offer, rejected, no reply); `readStatus()` still reads an old "screening" as interview | `20261109005000_merge_screening.sql` |
+| `account_setup` | One row per account that answered or skipped the first-login step (`step_at`, `step_outcome`) or hid the Home setup list (`checklist_hidden_at`); what the list ticks off is read from the real settings | `20261111000200_account_setup.sql` |
 
 `src/db/schema.ts` mirrors these. Migrations apply in file order on a fresh database; a database that already ran 000500/000600 picks up 000100-000300 afterwards (the runner applies whatever is missing, and none of them touch the same objects).
 

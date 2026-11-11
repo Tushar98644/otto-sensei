@@ -15,6 +15,7 @@ describe("upgradeOffer", () => {
       popular: true,
       interval: "month",
       trial: true,
+      endsTrial: false,
     });
     expect(offer.cards[1]).toEqual({
       plan: "max",
@@ -22,6 +23,7 @@ describe("upgradeOffer", () => {
       popular: false,
       interval: "month",
       trial: false,
+      endsTrial: false,
     });
     expect(offer.intervals).toEqual(["month", "year"]);
   });
@@ -48,6 +50,23 @@ describe("upgradeOffer", () => {
       interval: "year",
     });
     expect(offer.cards[1]).toMatchObject({ current: false, interval: "year" });
+  });
+
+  it("marks Max as ending the trial for someone on the Pro trial, never their own plan", () => {
+    const offer = upgradeOffer({
+      current: "pro",
+      offer: BOTH,
+      picked: "year",
+      trial: false,
+      onTrial: true,
+    });
+    expect(offer.cards.map((card) => [card.plan, card.endsTrial])).toEqual([
+      ["pro", false],
+      ["max", true],
+    ]);
+    // A paying Pro changes in place.
+    const paying = upgradeOffer({ current: "pro", offer: BOTH, picked: "year", trial: false });
+    expect(paying.cards.some((card) => card.endsTrial)).toBe(false);
   });
 
   it("has nothing for Max, nor for Pro while Max isn't on sale", () => {

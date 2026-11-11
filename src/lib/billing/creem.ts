@@ -47,7 +47,18 @@ function client(): Creem {
   });
 }
 
-export type CheckoutOptions = { plan: PaidPlanId; trial: boolean };
+/**
+ * Checkout metadata naming the trial subscription a new plan replaces. Creem copies it onto the
+ * new subscription, so its webhooks know which one to cancel once it's paid (./replacements.ts).
+ */
+export const REPLACES_METADATA_KEY = "replaces_subscription_id";
+
+export type CheckoutOptions = {
+  plan: PaidPlanId;
+  trial: boolean;
+  /** The trial subscription this checkout ends once it's paid. */
+  replaces?: string;
+};
 
 /**
  * Hosted checkout for one product. Creem copies the metadata onto the subscription, so every
@@ -56,7 +67,7 @@ export type CheckoutOptions = { plan: PaidPlanId; trial: boolean };
 export async function createCreemCheckoutUrl(
   user: SessionUser,
   productId: string,
-  { plan, trial }: CheckoutOptions,
+  { plan, trial, replaces }: CheckoutOptions,
 ): Promise<string> {
   const success = `${appUrl()}/account?checkout=success&plan=${plan}${trial ? "&trial=1" : ""}`;
   const checkout = await request("checkout", (creem) =>
@@ -64,7 +75,7 @@ export async function createCreemCheckoutUrl(
       productId,
       customer: { email: user.email },
       // Webhooks look the user up by this first, then by billing ids, then by email.
-      metadata: { user_id: user.id },
+      metadata: { user_id: user.id, ...(replaces ? { [REPLACES_METADATA_KEY]: replaces } : {}) },
       successUrl: success,
     }),
   );
@@ -113,9 +124,10 @@ export async function cancelCreemSubscription(subscriptionId: string): Promise<C
 }
 
 /**
- * Moves a live subscription to another product (Pro to Max or back), charging or refunding the
+ * Moves an active subscription to another product (Pro to Max or back), charging or refunding the
  * difference for the rest of the period right away. The plan itself changes when the
- * subscription.update webhook arrives. Throws BillingError.
+ * subscription.update webhook arrives. Creem refuses anything not "active" (400
+ * subscription_not_active), a trial included. Throws BillingError.
  * https://docs.creem.io/features/subscriptions/managing#programmatic-upgrades
  */
 export async function changeCreemPlan(subscriptionId: string, productId: string): Promise<void> {
@@ -188,11 +200,30 @@ async function request<T>(operation: Operation, send: (creem: Creem) => Promise<
 
 function providerFailure(operation: Operation, error: unknown): BillingError {
   if (error instanceof BillingError) return error;
+  const body = errorBody(error);
   log.error("billing.provider_failed", failureKind(error) ?? error, {
     operation,
-    traceId: traceIdOf(error),
+    traceId: body.traceId,
+    providerCode: body.code,
   });
-  return new BillingError("provider_error", `Creem ${operation} request failed`);
+  // Creem answered and said no: nothing changed, and "couldn't reach" would be untrue.
+  if (isRefusal(error)) {
+    return new BillingError("refused", `Creem refused the ${operation} request`, {
+      operation,
+      providerStatus: error.statusCode,
+      providerCode: body.code,
+    });
+  }
+  return new BillingError("provider_error", `Creem ${operation} request failed`, { operation });
+}
+
+function isRefusal(error: unknown): error is CreemError {
+  return (
+    error instanceof CreemError &&
+    !(error instanceof ResponseValidationError) &&
+    error.statusCode >= 400 &&
+    error.statusCode < 500
+  );
 }
 
 // Logged instead of the SDK's message, which embeds the raw response body and may echo request
@@ -206,17 +237,26 @@ function failureKind(error: unknown): string | null {
   return null;
 }
 
-// Creem puts a trace_id in every error body; it's what their support asks for, and holds nothing
-// about the customer.
-function traceIdOf(error: unknown): string | undefined {
-  if (!(error instanceof CreemError) || error instanceof ResponseValidationError) return undefined;
+const ERROR_CODE = /^[a-z0-9_]{1,64}$/;
+
+// Creem puts a trace_id in every error body, which is what their support asks for, and on some a
+// machine code such as "subscription_not_active". Neither holds anything about the customer.
+function errorBody(error: unknown): { traceId?: string; code?: string } {
+  if (!(error instanceof CreemError) || error instanceof ResponseValidationError) return {};
   try {
     const body: unknown = JSON.parse(error.body);
-    if (typeof body === "object" && body !== null && "trace_id" in body && typeof body.trace_id === "string") {
-      return body.trace_id.slice(0, 64);
-    }
+    if (typeof body !== "object" || body === null) return {};
+    const traceId =
+      "trace_id" in body && typeof body.trace_id === "string"
+        ? body.trace_id.slice(0, 64)
+        : undefined;
+    const code =
+      "code" in body && typeof body.code === "string" && ERROR_CODE.test(body.code)
+        ? body.code
+        : undefined;
+    return { traceId, code };
   } catch {
     // Not JSON: nothing to report.
+    return {};
   }
-  return undefined;
 }

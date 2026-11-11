@@ -96,6 +96,22 @@ export function storeLookingFor(userId: string, lookingFor: LookingForChoice) {
   });
 }
 
+/**
+ * A "Looking for" change from any screen (the Jobs card, the Account card, the first-login step):
+ * every reader sees it at once, and it is put back if the save fails, which the caller reports.
+ */
+export async function saveLookingForChoice(userId: string, next: LookingForChoice): Promise<void> {
+  const before = state.userId === userId ? state.lookingFor : NO_CHOICE;
+  storeLookingFor(userId, next);
+  try {
+    const res = await api.saveLookingFor(next);
+    storeLookingFor(userId, res.choice);
+  } catch (error) {
+    storeLookingFor(userId, before);
+    throw error;
+  }
+}
+
 export type WorkProfileState =
   // The account isn't known yet.
   | { status: "unknown" }

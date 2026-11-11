@@ -14,6 +14,7 @@ import {
   type PaidPlanId,
 } from "@/config/plans";
 import {
+  endsTrialSentence,
   perMonth,
   planPrice,
   trialHeadline,
@@ -116,11 +117,13 @@ function PlanOfferCard({
   const savings = interval === "year" ? yearlySavingsPercent(plan) : 0;
   const note = card.trial
     ? trialSentence()
-    : interval !== picked
-      ? "Sold monthly only, for now."
-      : interval === "year"
-        ? `About ${perMonth(plan)} a month.`
-        : null;
+    : card.endsTrial
+      ? endsTrialSentence(plan, interval)
+      : interval !== picked
+        ? "Sold monthly only, for now."
+        : interval === "year"
+          ? `About ${perMonth(plan)} a month.`
+          : null;
   return (
     <div className="flex w-full flex-col gap-4 rounded-2xl bg-surface-muted p-4 sm:p-6">
       <div className="flex flex-col gap-1">
@@ -173,7 +176,11 @@ function PlanOfferCard({
           autoFocus={focus}
           data-autofocus={focus ? true : undefined}
         >
-          {card.trial ? trialHeadline() : `Upgrade to ${name}`}
+          {card.trial
+            ? trialHeadline()
+            : card.endsTrial
+              ? `Start ${name} now`
+              : `Upgrade to ${name}`}
         </Button>
       ) : null}
     </div>

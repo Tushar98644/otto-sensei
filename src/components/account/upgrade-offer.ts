@@ -26,6 +26,9 @@ export type OfferCard = {
   interval: BillingInterval;
   // Starts with the free trial: Pro monthly, on Free, for someone who hasn't had one.
   trial: boolean;
+  // Buying it ends the account's free trial today: on the trial it's a new subscription that
+  // replaces the trial (createCheckoutUrl), not an in-place change.
+  endsTrial: boolean;
 };
 
 export type UpgradeOffer = {
@@ -43,6 +46,7 @@ export function upgradeOffer({
   offer,
   picked,
   trial,
+  onTrial = false,
 }: {
   current: PlanId;
   offer: Offer;
@@ -50,6 +54,8 @@ export function upgradeOffer({
   picked: BillingInterval;
   // Pro monthly would start with the free trial for this account.
   trial: boolean;
+  // The account is on its free trial right now (isTrialing).
+  onTrial?: boolean;
 }): UpgradeOffer {
   const buyable = PAID_PLANS.filter(
     (plan) => rank(plan) > rank(current) && (offer[plan]?.length ?? 0) > 0,
@@ -68,6 +74,7 @@ export function upgradeOffer({
       popular: current === "free" && plan === "pro" && shown.length > 1,
       interval: own,
       trial: trial && current === "free" && plan === PRO_TRIAL.plan && own === PRO_TRIAL.interval,
+      endsTrial: onTrial && isPaidPlan(current) && plan !== current,
     };
   });
   return { cards, intervals, interval };

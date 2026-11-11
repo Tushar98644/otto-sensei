@@ -1,6 +1,13 @@
 "use client";
 
-import { ChevronsUpDown, CreditCard, LogOut, Sparkles, UserRound } from "lucide-react";
+import {
+  ChevronsUpDown,
+  CreditCard,
+  LogOut,
+  SlidersHorizontal,
+  Sparkles,
+  UserRound,
+} from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useState } from "react";
@@ -11,6 +18,7 @@ import { UpgradeDialog } from "@/components/account/upgrade-dialog";
 import { patchMe, refreshMe, type Me } from "@/components/account/use-me";
 import { FeedbackButton } from "@/components/feedback/feedback-button";
 import { NotificationBell } from "@/components/notifications/notification-bell";
+import { accountSectionHref } from "@/components/setup/links";
 import { OttoMark } from "@/components/site/otto-mark";
 import { ROUTES } from "@/components/site/routes";
 import { Badge } from "@/components/ui/badge";
@@ -173,7 +181,8 @@ function AccountRow({ user, me }: { user: SessionUser; me: Me | null }) {
         label="Account"
         triggerLabel={`Account menu for ${user.email}`}
         triggerClassName="flex h-12 w-full items-center gap-2.5 rounded-lg px-2 text-left transition-colors hover:bg-ink/5 aria-expanded:bg-ink/5"
-        className="w-56"
+        // Wide enough for "Work rights & preferences" on one line.
+        className="w-64"
         trigger={
           <>
             <span
@@ -208,6 +217,11 @@ function AccountRow({ user, me }: { user: SessionUser; me: Me | null }) {
             label: "Account",
             icon: UserRound,
             onSelect: () => router.push(ROUTES.dashboardAccount),
+          },
+          {
+            label: "Work rights & preferences",
+            icon: SlidersHorizontal,
+            onSelect: () => router.push(accountSectionHref("work")),
           },
           {
             label: "Plans and pricing",

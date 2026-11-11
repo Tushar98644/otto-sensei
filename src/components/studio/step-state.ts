@@ -41,3 +41,12 @@ export function resolveStep(step: StudioStep, context: StepContext): StudioStep 
   if (stepStatus(step, context) === "available") return step;
   return adjacentStep(step, 1, context) ?? adjacentStep(step, -1, context) ?? "upload";
 }
+
+// Whose code to warm while `step` is on screen: the next step first. The upload screen stops
+// there so a first visit stays light; from the recruiter view on, every other step follows too,
+// for the stepper's jumps and "Skip to download".
+export function stepsToPreload(step: StudioStep, next: StudioStep | null): StudioStep[] {
+  const first = next && next !== step ? [next] : [];
+  if (step === "upload") return first;
+  return [...first, ...STUDIO_STEPS.filter((other) => other !== step && other !== next)];
+}

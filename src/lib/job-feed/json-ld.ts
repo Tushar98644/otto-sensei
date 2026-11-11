@@ -59,7 +59,4 @@ export function jobPostingJsonLd(job: JsonLdJob): Record<string, unknown> | null
   };
 }
 
-/** Safe inside a <script> tag: no "</script>" can close it early. */
-export function jsonLdScript(value: Record<string, unknown>): string {
-  return JSON.stringify(value).replace(/</g, "\\u003c");
-}
+export { jsonLdScript } from "@/lib/seo/json-ld";

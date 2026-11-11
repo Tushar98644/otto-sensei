@@ -236,7 +236,7 @@ export function JobFiltersBar({
             </label>
             {profileReady ? null : (
               <p id={`${ids}-eligible`} className="flex min-h-11 items-center text-sm text-subtle">
-                Add where you live and your work rights on the Account page to use this.
+                Needs where you can work first.
               </p>
             )}
           </div>

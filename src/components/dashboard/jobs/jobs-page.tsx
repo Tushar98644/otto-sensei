@@ -3,13 +3,14 @@
 import { Lock } from "lucide-react";
 import { useMemo, useRef, useState } from "react";
 import { errorMessage } from "@/components/account/errors";
-import { roomForApplication, useTryProLabel } from "@/components/account/pro-tools";
+import { roomForApplication, useProTools, useTryProLabel } from "@/components/account/pro-tools";
 import { openUpgradePrompt } from "@/components/account/upgrade-prompt";
 import { useMe } from "@/components/account/use-me";
-import { storeLookingFor, useWorkProfile } from "@/components/eligibility/use-work-profile";
+import { saveLookingForChoice, useWorkProfile } from "@/components/eligibility/use-work-profile";
 import { OTTO } from "@/components/mascot/lines";
 import { Otto } from "@/components/mascot/otto";
 import { OttoNote } from "@/components/mascot/otto-note";
+import { JobsWorkPrompt } from "@/components/setup/jobs-work-prompt";
 import { useNow } from "@/components/studio/use-now";
 import { queueJobForTailor } from "@/components/studio/tailor/session";
 import { Alert } from "@/components/ui/alert";
@@ -29,6 +30,7 @@ import {
   type LookingForChoice,
 } from "@/lib/job-feed/types";
 import { resumeTitle } from "@/lib/resume/ops";
+import { jobsWorkPromptShows } from "@/lib/setup/checklist";
 import { useResumeList, useStudioHydrated } from "@/lib/store/resume-store";
 import { commitDelete, hideApplication, useApplications } from "../applications/use-applications";
 import { formatDay } from "../applications/view";
@@ -71,6 +73,7 @@ export function JobsPage() {
   const now = useNow();
   const listRef = useRef<HTMLDivElement>(null);
   const tryPro = useTryProLabel();
+  const pro = useProTools();
 
   const [picked, setPicked] = useState<string | null>(null);
   const [view, setView] = useState<JobView>("matches");
@@ -122,17 +125,13 @@ export function JobsPage() {
   // Shown at once and ranked for; kept for the account in the background.
   async function changeLookingFor(next: LookingForChoice) {
     if (work.status !== "ready") return;
-    const before = work.lookingFor;
-    storeLookingFor(work.userId, next);
     // The filter bar's "Remote only" follows the card's.
     if (chosen) setChosen({ ...chosen, remote: next.remote });
     setPage(1);
     setSavingChoice(true);
     try {
-      const res = await api.saveLookingFor(next);
-      storeLookingFor(work.userId, res.choice);
+      await saveLookingForChoice(work.userId, next);
     } catch (error) {
-      storeLookingFor(work.userId, before);
       toast({ title: "Couldn't save that", description: errorMessage(error), variant: "error" });
     } finally {
       setSavingChoice(false);
@@ -380,6 +379,18 @@ export function JobsPage() {
           profileReady={data?.profileReady ?? false}
         />
       )}
+
+      {work.status === "ready" && pro === true && data && !locked ? (
+        <JobsWorkPrompt
+          due={
+            view === "matches" &&
+            jobsWorkPromptShows({ pro, locked, profile: work.profile })
+          }
+          userId={work.userId}
+          profile={work.profile}
+          saved={work.updatedAt !== null}
+        />
+      ) : null}
 
       {/* Focusable from script only: where focus lands when the last opened job is answered. */}
       <div ref={listRef} tabIndex={-1} className="flex scroll-mt-24 flex-col gap-4 outline-none">

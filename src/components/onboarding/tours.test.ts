@@ -50,4 +50,12 @@ describe("dashboardTourEligible", () => {
       expect(dashboardTourEligible({ pathname, hydrated: true })).toBe(false);
     }
   });
+
+  it("never opens with the first-login step: it waits, then skips the visit the step opened on", () => {
+    const home = { pathname: ROUTES.dashboard, hydrated: true };
+    expect(dashboardTourEligible({ ...home, setupStep: "wait" })).toBe(false);
+    expect(dashboardTourEligible({ ...home, setupStep: "show" })).toBe(false);
+    expect(dashboardTourEligible({ ...home, setupStep: "skip", setupShown: true })).toBe(false);
+    expect(dashboardTourEligible({ ...home, setupStep: "skip", setupShown: false })).toBe(true);
+  });
 });

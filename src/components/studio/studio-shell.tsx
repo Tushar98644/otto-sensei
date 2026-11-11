@@ -1,7 +1,14 @@
 "use client";
 
-import dynamic from "next/dynamic";
-import { useEffect, useRef } from "react";
+import {
+  memo,
+  useDeferredValue,
+  useEffect,
+  useRef,
+  useState,
+  useSyncExternalStore,
+  type ComponentType,
+} from "react";
 import { useAccountGate } from "@/components/account/account-gate";
 import { UpgradePromptHost } from "@/components/account/upgrade-prompt";
 import { refreshMe } from "@/components/account/use-me";
@@ -16,7 +23,8 @@ import {
   type StudioStep,
 } from "@/lib/store/resume-store";
 import { useCloudSync, useFirstLoadPending } from "@/lib/sync/use-cloud-sync";
-import { adjacentStep, resolveStep, type StepContext } from "./step-state";
+import { createStepLoader, type StepLoader } from "./step-loader";
+import { adjacentStep, resolveStep, stepsToPreload, type StepContext } from "./step-state";
 import { StepSkeleton, StudioSkeleton } from "./studio-skeleton";
 import { StudioStepper } from "./studio-stepper";
 import { StudioTopBar } from "./studio-top-bar";
@@ -25,23 +33,18 @@ import { ReviewStep } from "./steps/review-step";
 import { UploadStep } from "./steps/upload-step";
 
 // The later steps carry the editor, the tailoring UI and the PDF renderer, so each loads on demand
-// and a first visit to the upload screen stays light.
-const FixStep = dynamic(() => import("./steps/fix-step").then((m) => m.FixStep), {
-  loading: () => <StepSkeleton />,
-});
-const TailorStep = dynamic(() => import("./steps/tailor-step").then((m) => m.TailorStep), {
-  loading: () => <StepSkeleton />,
-});
-const DownloadStep = dynamic(() => import("./steps/download-step").then((m) => m.DownloadStep), {
-  loading: () => <StepSkeleton />,
-});
+// and a first visit to the upload screen stays light. Not next/dynamic: see step-loader.ts.
+const LAZY_STEPS = {
+  fix: createStepLoader(() => import("./steps/fix-step").then((m) => m.FixStep)),
+  tailor: createStepLoader(() => import("./steps/tailor-step").then((m) => m.TailorStep)),
+  download: createStepLoader(() => import("./steps/download-step").then((m) => m.DownloadStep)),
+} satisfies Partial<Record<StudioStep, StepLoader<ComponentType>>>;
 
-// Warms the next step's code while the user reads the current one.
-const PREFETCH: Partial<Record<StudioStep, () => Promise<unknown>>> = {
-  fix: () => import("./steps/fix-step"),
-  tailor: () => import("./steps/tailor-step"),
-  download: () => import("./steps/download-step"),
-};
+type LazyStep = keyof typeof LAZY_STEPS;
+const isLazyStep = (step: StudioStep): step is LazyStep => Object.hasOwn(LAZY_STEPS, step);
+
+// Long enough for the current step to finish its own loading first.
+const PRELOAD_DELAY_MS = 1_500;
 
 const SIGN_IN_REASON = "Back up your resumes and let Otto help with your lines.";
 
@@ -81,6 +84,9 @@ function StudioSteps() {
   const context: StepContext = { hasResume: resume !== null, hasReport: report !== null };
   const step = resolveStep(savedStep, context);
   const next = adjacentStep(step, 1, context);
+  // The stepper moves on the click; the screen below follows in a background render that yields to
+  // input, so a heavy step (the editor of a long resume) never freezes the click that opens it.
+  const visibleStep = useDeferredValue(step);
   const headingRef = useRef<HTMLHeadingElement>(null);
   const shownStep = useRef<StudioStep | null>(null);
 
@@ -89,45 +95,72 @@ function StudioSteps() {
   // inside an open menu stays put (deleting the open resume from the switcher changes the step).
   useEffect(() => {
     const previous = shownStep.current;
-    shownStep.current = step;
-    if (previous === null || previous === step) return;
+    shownStep.current = visibleStep;
+    if (previous === null || previous === visibleStep) return;
     window.scrollTo({ top: 0 });
     if (document.activeElement?.closest("[popover]")) return;
     headingRef.current?.focus({ preventScroll: true });
-  }, [step]);
+  }, [visibleStep]);
 
+  // Warms the code of the steps the user can go to next while they read this one.
   useEffect(() => {
-    const load = next ? PREFETCH[next] : undefined;
-    if (!load) return;
-    const timer = window.setTimeout(() => void load().catch(() => {}), 1_500);
+    const steps = stepsToPreload(step, next).filter(isLazyStep);
+    if (steps.length === 0) return;
+    const timer = window.setTimeout(() => {
+      for (const key of steps) void LAZY_STEPS[key].load().catch(() => {});
+    }, PRELOAD_DELAY_MS);
     return () => window.clearTimeout(timer);
-  }, [next]);
+  }, [step, next]);
 
   return (
     <>
       <StudioStepper step={step} context={context} onSelect={setStep} />
       <h1 ref={headingRef} tabIndex={-1} className="sr-only">
-        {STEP_LABELS[step]}
+        {STEP_LABELS[visibleStep]}
       </h1>
       <div className="mt-6 flex-1 sm:mt-8">
-        <ActiveStep step={step} />
+        <ActiveStep step={visibleStep} />
       </div>
-      <StudioTour step={step} />
+      <StudioTour step={visibleStep} />
     </>
   );
 }
 
-function ActiveStep({ step }: { step: StudioStep }) {
+// Memoized, so the click's own render (the stepper) skips the step on screen.
+const ActiveStep = memo(function ActiveStep({ step }: { step: StudioStep }) {
   switch (step) {
     case "upload":
       return <UploadStep />;
     case "review":
       return <ReviewStep />;
     case "fix":
-      return <FixStep />;
     case "tailor":
-      return <TailorStep />;
     case "download":
-      return <DownloadStep />;
+      // Keyed so each step mounts fresh, as it would with its own component.
+      return <LoadedStep key={step} loader={LAZY_STEPS[step]} />;
   }
+});
+
+// The step itself once its code is here, at once when it was preloaded, else a skeleton until it
+// arrives. A load that fails for this visit goes to the error boundary, as a lazy component's would.
+function LoadedStep({ loader }: { loader: StepLoader<ComponentType> }) {
+  const state = useSyncExternalStore(loader.subscribe, loader.getState, loader.getState);
+  const [failure, setFailure] = useState<{ error: unknown } | null>(null);
+
+  useEffect(() => {
+    if (loader.getState().status === "ready") return;
+    let live = true;
+    // Also retries a background preload that failed.
+    loader.load().catch((error: unknown) => {
+      if (live) setFailure({ error });
+    });
+    return () => {
+      live = false;
+    };
+  }, [loader]);
+
+  if (failure) throw failure.error;
+  if (state.status !== "ready") return <StepSkeleton />;
+  const Step = state.value;
+  return <Step />;
 }

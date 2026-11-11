@@ -6,6 +6,7 @@ import { UpgradePromptHost } from "@/components/account/upgrade-prompt";
 import { useMe } from "@/components/account/use-me";
 import { useOttoLoadingScreen } from "@/components/mascot/otto-loading-screen";
 import { DashboardTour } from "@/components/onboarding/dashboard-tour";
+import { FirstRunSetup } from "@/components/setup/first-run-setup";
 import { ROUTES } from "@/components/site/routes";
 import type { SessionUser } from "@/lib/auth/types";
 import { useCloudSync, useFirstLoadPending } from "@/lib/sync/use-cloud-sync";
@@ -47,6 +48,7 @@ export function AppShell({ initialUser, children }: { initialUser: SessionUser; 
         </main>
       </div>
       <DashboardTour />
+      <FirstRunSetup />
       <UpgradePromptHost />
     </div>
   );

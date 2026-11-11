@@ -37,7 +37,15 @@ export type LookingForCardProps = {
   country: string;
   saving: boolean;
   onChange: (next: LookingForChoice) => void;
+  // "plain" drops the card's own white sheet, for a place that already is one (a dialog, an
+  // Account card).
+  tone?: "card" | "plain";
+  // The line under the choices; the job-name credit always follows it.
+  note?: string;
 };
+
+const DEFAULT_NOTE =
+  "Guessed from your resume and work profile. Matches are ordered for it; tap a part to change it.";
 
 const TRIGGER =
   "inline-flex items-center gap-0.5 rounded-lg px-1.5 py-0.5 font-medium text-ink underline decoration-ink/30 decoration-dotted underline-offset-4 transition-colors hover:bg-ink/5 pointer-coarse:py-1.5";
@@ -72,6 +80,8 @@ export function LookingForCard({
   country,
   saving,
   onChange,
+  tone = "card",
+  note: footnote = DEFAULT_NOTE,
 }: LookingForCardProps) {
   const [searching, setSearching] = useState(false);
   const levelItems: MenuEntry[] = [
@@ -174,7 +184,11 @@ export function LookingForCard({
     <section
       aria-label="What you're looking for"
       aria-busy={saving}
-      className="flex flex-col gap-1 rounded-2xl bg-surface px-4 py-3 sm:px-6"
+      className={
+        tone === "card"
+          ? "flex flex-col gap-1 rounded-2xl bg-surface px-4 py-3 sm:px-6"
+          : "flex flex-col gap-1"
+      }
     >
       {/* A div, not a p: each Menu renders its popover panel as a div, which a p can't hold. */}
       <div className="flex flex-wrap items-center gap-x-1 gap-y-1 text-sm/6 text-muted">
@@ -218,10 +232,7 @@ export function LookingForCard({
           items={placeItems}
         />
       </div>
-      <p className="text-xs/5 text-subtle">
-        Guessed from your resume and work profile. Matches are ordered for it; tap a part to change
-        it. Job names from O*NET® and ESCO.
-      </p>
+      <p className="text-xs/5 text-subtle">{footnote} Job names from O*NET® and ESCO.</p>
       <OccupationSearch
         open={searching}
         onOpenChange={setSearching}
