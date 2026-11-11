@@ -41,7 +41,8 @@ export function PlanPerks({ plan, interval = "month", trial = false, className }
   const period = allowancePeriodFor(plan, interval);
   const limits = planLimits(plan, period);
   const belowId = plan === "max" ? "pro" : "free";
-  const below = planLimits(belowId, allowancePeriodFor(belowId, interval));
+  const belowPeriod = allowancePeriodFor(belowId, interval);
+  const below = planLimits(belowId, belowPeriod);
   return (
     <div className={cn("flex flex-col gap-3", className)}>
       <ul className="flex flex-col gap-3">
@@ -56,9 +57,11 @@ export function PlanPerks({ plan, interval = "month", trial = false, className }
             detail={
               trial
                 ? `Then ${count.format(limits[feature])} ${perPeriod(period)} on ${PLANS[plan].name}.`
-                : belowId === "free"
-                  ? "Not on Free."
-                  : `${PLANS[belowId].name} has ${count.format(below[feature])}.`
+                : below[feature] === 0
+                  ? `Not on ${PLANS[belowId].name}.`
+                  : belowId === "free"
+                    ? `${PLANS.free.name} has ${count.format(below[feature])} ${perPeriod(belowPeriod)}.`
+                    : `${PLANS[belowId].name} has ${count.format(below[feature])}.`
             }
           />
         ))}

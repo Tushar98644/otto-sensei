@@ -1,12 +1,7 @@
-import {
-  FREE_APPLICATIONS,
-  hasProTools,
-  PRO_TRIAL,
-  RESUME_LIMITS,
-  type ProTool,
-} from "@/config/plans";
+import { FREE_APPLICATIONS, hasProTools, RESUME_LIMITS, type ProTool } from "@/config/plans";
 import { fail } from "@/lib/api/respond";
 import type { SessionUser } from "@/lib/auth/types";
+import { trialHeadline } from "@/lib/billing/prices";
 import { log } from "@/lib/log";
 import { pluralize } from "@/lib/utils";
 
@@ -22,11 +17,7 @@ export const PRO_TOOL_MESSAGES: Record<ProTool, string> = {
 
 export function proToolRequired(user: SessionUser | null, tool: ProTool): Response {
   log.info(`${tool}.upgrade_required`, { plan: user?.plan ?? "signed_out" });
-  return fail(
-    "upgrade_required",
-    `${PRO_TOOL_MESSAGES[tool]} Try Pro free for ${PRO_TRIAL.days} days.`,
-    402,
-  );
+  return fail("upgrade_required", `${PRO_TOOL_MESSAGES[tool]} ${trialHeadline()}.`, 402);
 }
 
 export function requireProTool(user: SessionUser, tool: ProTool): Response | null {

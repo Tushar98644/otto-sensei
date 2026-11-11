@@ -66,14 +66,19 @@ export function priceSentence(plan: PaidPlanId, interval: BillingInterval): stri
   return `${price} a month. Cancel anytime.`;
 }
 
+export function trialOffer(): string {
+  return `${PLANS[PRO_TRIAL.plan].name} for ${PRO_TRIAL.days} days`;
+}
+
 export function trialHeadline(): string {
-  return `Try ${PLANS[PRO_TRIAL.plan].name} free for ${PRO_TRIAL.days} days`;
+  return `Try ${trialOffer()}`;
 }
 
 export function endsTrialSentence(plan: PaidPlanId, interval: BillingInterval): string {
-  return `Ends your free ${PLANS[PRO_TRIAL.plan].name} trial today and starts ${PLANS[plan].name} at ${planPriceLabel(plan, interval)}.`;
+  return `Ends your ${PLANS[PRO_TRIAL.plan].name} trial today and starts ${PLANS[plan].name} at ${planPriceLabel(plan, interval)}.`;
 }
 
 export function trialSentence(): string {
-  return `Free for ${PRO_TRIAL.days} days, then ${planPriceLabel(PRO_TRIAL.plan, PRO_TRIAL.interval)}. Cancel anytime before the trial ends.`;
+  const { days, interval, plan, priceUsd } = PRO_TRIAL;
+  return `${usd.format(priceUsd)} for ${days} days, then ${planPrice(plan, interval)} a ${interval}. Cancel anytime before the trial ends.`;
 }

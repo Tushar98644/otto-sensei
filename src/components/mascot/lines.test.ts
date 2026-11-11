@@ -72,6 +72,7 @@ const SAMPLES: Record<string, unknown[][]> = {
     ["fix", 0],
     ["tailor", 10, TRIAL],
   ],
+  "limit.freeUsed": [["fix"]],
   "limit.none": [
     ["fix"],
     ["tailor"],
@@ -207,10 +208,23 @@ describe("OTTO lines", () => {
       `this month's ${PLANS.pro.limits.tailor} tailored versions`,
     );
     expect(OTTO.limit.reached("fix", 1000)).toContain("this month's 1000 line fixes");
-    expect(OTTO.limit.reached("fix", PLANS.free.limits.fix)).toBe(
-      "Line fixes come with Pro. Try it free for 3 days.",
+    expect(OTTO.limit.reached("tailor", PLANS.free.limits.tailor)).toBe(
+      "Tailoring comes with Pro. Try Pro for 3 days.",
     );
-    expect(OTTO.limit.none("tailor")).toBe("Tailoring comes with Pro. Try it free for 3 days.");
+    expect(OTTO.limit.none("tailor")).toBe("Tailoring comes with Pro. Try Pro for 3 days.");
+  });
+
+  it("lets Free fix lines after sign-in, and points to Pro once its 3 are used", () => {
+    expect(OTTO.signIn.reason("fix")).toBe(
+      "Sign in to fix lines with me. On Free you get 3 a month.",
+    );
+    expect(OTTO.limit.freeUsed("fix")).toBe(
+      `You've used this month's 3 line fixes. Pro has ${PLANS.pro.limits.fix} a month.`,
+    );
+    expect(OTTO.signIn.reason("tailor")).toBe(
+      "Sign in, then try Pro for 3 days to tailor with me.",
+    );
+    expect(OTTO.upgrade.trial).not.toMatch(/free/i);
   });
 
   it("says when a trial's allowance gives way to the full one", () => {

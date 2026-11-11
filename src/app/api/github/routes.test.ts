@@ -200,7 +200,7 @@ describe("POST /api/github/draft", () => {
       expect(res.status).toBe(402);
       expect(await errorOf(res)).toEqual({
         code: "upgrade_required",
-        message: "GitHub drafts come with Pro. Try Pro free for 3 days.",
+        message: "GitHub drafts come with Pro. Try Pro for 3 days.",
       });
     }
     expect(github.calls).toHaveLength(0);

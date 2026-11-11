@@ -395,10 +395,11 @@ receipts and hosts the billing portal. The app only stores the plan its webhooks
 
 **What's free and what's paid.** Free (no card, no time limit) has everything that costs no AI
 call: uploads read by the basic reader, the recruiter view, editing, formats, PDF downloads, the
-Jobs tab and its matching, and the application tracker. Every AI feature (line fixes, summaries,
+Jobs tab and its matching, and the application tracker. On AI it has only 3 line fixes a month
+(summaries count as fixes; `PLANS.free.limits.fix`). Every other AI feature (more line fixes,
 tailoring, letters, answers, interview prep, Build with Otto, GitHub drafts, AI reading of uploads)
-and the portfolio need Pro or Max. New accounts start Pro with a **free 3-day trial, card
-required**, then $15/month; one trial per person (by email, kept even after the account is
+and the portfolio need Pro or Max. New accounts start Pro with a **3-day trial, nothing charged,
+card required**, then $15/month; one trial per person (by email, kept even after the account is
 deleted). A trial has its own small allowance (`PRO_TRIAL` in `src/config/plans.ts`) and can build
 a portfolio but not publish it until the first payment.
 
@@ -470,8 +471,8 @@ redeploy.
 
 **5. Test it** (test mode, card `4111 1111 1111 1111`, any future date and CVC):
 
-- A new account → **Try Pro free for 3 days** → checkout says nothing is due today. Back on the
-  account page it shows "Free trial until <date>" within a few seconds (`subscription.trialing`).
+- A new account → **Try Pro for 3 days** → checkout says nothing is due today. Back on the
+  account page it shows "Pro trial until <date>" within a few seconds (`subscription.trialing`).
 - Cancel it from **Manage billing**: the account drops to Free. Checking out again now shows the
   normal $15/month, no trial.
 - Pro to Max: the subscription moves in place (`POST /v1/subscriptions/{id}/upgrade`, prorated and

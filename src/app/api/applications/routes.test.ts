@@ -287,7 +287,7 @@ describe("the tracker on Free", () => {
     expect(second.status).toBe(402);
     expect(await errorOf(second)).toEqual({
       code: "upgrade_required",
-      message: "Free tracks 1 application. Pro tracks every one. Try Pro free for 3 days.",
+      message: "Free tracks 1 application. Pro tracks every one. Try Pro for 3 days.",
     });
     expect(await listed()).toHaveLength(1);
 

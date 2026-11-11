@@ -26,12 +26,13 @@ import { PricingPlans } from "../_components/pricing-plans";
 
 export const metadata: Metadata = pageMetadata({
   title: "Pricing",
-  description: `Checking, fixing and downloading one resume as a PDF is free. Pro adds Otto's AI help, every format, Word downloads, the full list of job matches and the full tracker for ${formatUsd(PLANS.pro.priceUsd)} a month (${PLANS.pro.limits.tailor} tailored versions, ${PLANS.pro.limits.fix} line fixes), free to try for ${PRO_TRIAL.days} days; Max is ${formatUsd(PLANS.max.priceUsd)} for more. Cancel anytime.`,
+  description: `Checking, fixing and downloading one resume as a PDF is free, with ${PLANS.free.limits.fix} line fixes a month from Otto. Pro adds the rest of Otto's AI help, every format, Word downloads, the full list of job matches and the full tracker for ${formatUsd(PLANS.pro.priceUsd)} a month (${PLANS.pro.limits.tailor} tailored versions, ${PLANS.pro.limits.fix} line fixes), starting with a ${PRO_TRIAL.days}-day trial; Max is ${formatUsd(PLANS.max.priceUsd)} for more. Cancel anytime.`,
   path: ROUTES.pricing,
 });
 
 const count = new Intl.NumberFormat("en-US");
-const monthlyLimits = `Free has no AI help. Pro and Max limits reset each month, when your plan renews (on a yearly plan, on the day of the month it started): ${FEATURES.map(
+const freeLimits = `Free has ${count.format(PLANS.free.limits.fix)} ${FEATURE_LABELS.fix} a month (summary help counts as one), reset at the start of each month, and no other AI help.`;
+const monthlyLimits = `Pro and Max limits reset each month, when your plan renews (on a yearly plan, on the day of the month it started): ${FEATURES.map(
   (feature) =>
     `${FEATURE_LABELS[feature]}: ${count.format(PLANS.pro.limits[feature])} on Pro, ${count.format(PLANS.max.limits[feature])} on Max`,
 ).join("; ")}.`;
@@ -46,19 +47,23 @@ const uploadsNote =
   "Uploads always work: on Free, or past the AI reads, the basic reader reads them instead.";
 
 function limitsAnswer(weeklyOnSale: boolean): string {
-  return [monthlyLimits, ...(weeklyOnSale ? [weeklyLimits] : []), trialLimits, uploadsNote].join(
-    " ",
-  );
+  return [
+    freeLimits,
+    monthlyLimits,
+    ...(weeklyOnSale ? [weeklyLimits] : []),
+    trialLimits,
+    uploadsNote,
+  ].join(" ");
 }
 
 const billingFaq = (weeklyOnSale: boolean): readonly FaqItem[] => [
   {
-    question: "How does the free trial work?",
-    answer: `New accounts can try Pro free for ${PRO_TRIAL.days} days, once per person. You add a card at checkout and nothing is charged during the trial. When it ends, Pro starts at ${planPriceLabel(PRO_TRIAL.plan, PRO_TRIAL.interval)}. Cancel anytime before the trial ends and you pay nothing. During the trial you can build and preview a portfolio; it goes public once Pro starts.`,
+    question: "How does the Pro trial work?",
+    answer: `New accounts can try Pro for ${PRO_TRIAL.days} days, once per person. You add a card at checkout and nothing is charged during the trial. When it ends, Pro starts at ${planPriceLabel(PRO_TRIAL.plan, PRO_TRIAL.interval)}. Cancel anytime before the trial ends and you pay nothing. During the trial you can build and preview a portfolio; it goes public once Pro starts.`,
   },
   {
     question: "What stays free?",
-    answer: `Uploading with the basic reader, the recruiter view, editing and fixing by hand, 1 resume, the Classic and Compact formats, PDF downloads, your ${FREE_JOB_MATCHES} closest job matches and one tracked application with its reminder. No card, no time limit. The other formats, more resumes, Word downloads, the full list of job matches with filters, tracking every application, share links and the work-rights check come with Pro. If a paid plan ends, everything you made stays: you can still open, edit and download it.`,
+    answer: `Uploading with the basic reader, the recruiter view, editing and fixing by hand, ${PLANS.free.limits.fix} line fixes a month with Otto, 1 resume, the Classic and Compact formats, PDF downloads, your ${FREE_JOB_MATCHES} closest job matches and one tracked application with its reminder. No card, no time limit. More line fixes and the rest of Otto's AI help, the other formats, more resumes, Word downloads, the full list of job matches with filters, tracking every application, share links and the work-rights check come with Pro. If a paid plan ends, everything you made stays: you can still open, edit and download it.`,
   },
   {
     question: "Who handles payments?",
@@ -115,10 +120,10 @@ export default async function PricingPage() {
           Free for the basics. <em className="block">More when the hunt gets busy.</em>
         </h1>
         <p className="mt-6 max-w-xl text-lg/7 text-muted sm:text-xl/8">
-          Checking, fixing and downloading one resume as a PDF is free. Pro and Max add Otto&apos;s
-          AI help each month, with the numbers written down, plus every format, Word downloads,
-          every match from {open ? `${open} open jobs` : "open jobs"} and the full tracker. Try Pro
-          free for {PRO_TRIAL.days} days.
+          Checking, fixing and downloading one resume as a PDF is free, with {PLANS.free.limits.fix}{" "}
+          line fixes a month from Otto. Pro and Max add much more of Otto&apos;s AI help each month,
+          with the numbers written down, plus every format, Word downloads, every match from{" "}
+          {open ? `${open} open jobs` : "open jobs"} and the full tracker.
         </p>
       </div>
 

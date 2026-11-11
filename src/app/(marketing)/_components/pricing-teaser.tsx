@@ -2,6 +2,7 @@ import { ArrowRight } from "lucide-react";
 import Link from "next/link";
 import { ROUTES } from "@/components/site/routes";
 import { buttonClasses } from "@/components/ui/button";
+import { PLANS } from "@/config/plans";
 import { billingOffer, trialOffered } from "@/lib/billing/intervals";
 import { countClaim, type JobCounts } from "@/lib/job-feed/counts";
 import { PricingPlans } from "./pricing-plans";
@@ -20,9 +21,10 @@ export function PricingTeaser({ jobCounts }: { jobCounts: JobCounts }) {
           </>
         }
       >
-        Checking, fixing and downloading one resume as a PDF never costs a thing. Otto&apos;s AI
-        help, every match from {open ? `${open} open jobs` : "open jobs"} and the full tracker come
-        with Pro, and you can try it free for 3 days.
+        Checking, fixing and downloading one resume as a PDF never costs a thing, and Free comes
+        with {PLANS.free.limits.fix} line fixes a month from Otto. More of Otto&apos;s AI help,
+        every match from {open ? `${open} open jobs` : "open jobs"} and the full tracker come with
+        Pro.
       </SectionHeader>
       <PricingPlans
         offer={billingOffer()}

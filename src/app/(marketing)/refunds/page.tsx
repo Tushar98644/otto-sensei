@@ -3,6 +3,7 @@ import Link from "next/link";
 import { pageMetadata } from "@/components/site/page-metadata";
 import { ROUTES } from "@/components/site/routes";
 import { BRAND } from "@/config/brand";
+import { PRO_TRIAL } from "@/config/plans";
 import { LegalPage } from "../_components/legal-page";
 
 export const metadata: Metadata = pageMetadata({
@@ -36,9 +37,9 @@ export default function RefundsPage() {
         plan. Your resumes stay yours either way.
       </p>
       <p>
-        On the free Pro trial nothing is charged. Cancel before the trial ends and you won&apos;t pay
-        anything; otherwise your first Pro payment is taken when it ends, and the 7 days above start
-        from that payment.
+        On the {PRO_TRIAL.days}-day Pro trial nothing is charged. Cancel before the trial ends and
+        you won&apos;t pay anything; otherwise your first Pro payment is taken when it ends, and the
+        7 days above start from that payment.
       </p>
 
       <h2>How to ask for a refund</h2>

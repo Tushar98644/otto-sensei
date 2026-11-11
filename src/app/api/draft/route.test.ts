@@ -43,7 +43,7 @@ describe("POST /api/draft", () => {
       expect(res.status).toBe(402);
       expect(((await res.json()) as ApiErrorBody).error).toEqual({
         code: "upgrade_required",
-        message: "Build with Otto comes with Pro. Try Pro free for 3 days.",
+        message: "Build with Otto comes with Pro. Try Pro for 3 days.",
       });
     }
   });

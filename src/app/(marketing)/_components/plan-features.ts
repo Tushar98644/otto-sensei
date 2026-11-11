@@ -50,6 +50,7 @@ export const FREE_BASICS: readonly string[] = [
   "Upload a resume, read by the basic reader (no AI)",
   "The recruiter view: what hiring software reads",
   "Edit and fix every line by hand",
+  `${count.format(PLANS.free.limits.fix)} ${FEATURE_LABELS.fix} a month with Otto`,
   pluralize(RESUME_LIMITS.free, "resume"),
   `${freeFormats} formats`,
   "PDF download",

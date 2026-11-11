@@ -88,7 +88,7 @@ describe("claimReferral", () => {
       expect(usage.tailor.limit).toBe(PLANS.pro.limits.tailor + REFERRAL_BONUS.tailor);
       expect(usage.letter.limit).toBe(PLANS.pro.limits.letter);
     }
-    expect((await getUsage(maya, NOV)).fix.limit).toBe(0);
+    expect((await getUsage(maya, NOV)).fix.limit).toBe(PLANS.free.limits.fix);
     expect((await getUsage(onPro(owner), DEC)).fix.limit).toBe(PLANS.pro.limits.fix);
     expect(await claimReferral({ userId: maya.id, code, deviceId: null, checked: true }, NOV)).toBe(
       "already",

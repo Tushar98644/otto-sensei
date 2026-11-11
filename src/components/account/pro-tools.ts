@@ -1,12 +1,7 @@
 "use client";
 
-import {
-  FREE_APPLICATIONS,
-  hasProTools,
-  PRO_TRIAL,
-  RESUME_LIMITS,
-  type ProTool,
-} from "@/config/plans";
+import { FREE_APPLICATIONS, hasProTools, RESUME_LIMITS, type ProTool } from "@/config/plans";
+import { trialHeadline } from "@/lib/billing/prices";
 import { useStudioStore } from "@/lib/store/resume-store";
 import { openUpgradePrompt } from "./upgrade-prompt";
 import { currentPlan, useMe } from "./use-me";
@@ -21,7 +16,7 @@ export function useProTools(): boolean | null {
 
 export function useTryProLabel(): string {
   const { me } = useMe();
-  return me?.billing.trial === false ? "See Pro" : `Try Pro free for ${PRO_TRIAL.days} days`;
+  return me?.billing.trial === false ? "See Pro" : trialHeadline();
 }
 
 export async function unlockProTool(tool: ProTool): Promise<boolean> {

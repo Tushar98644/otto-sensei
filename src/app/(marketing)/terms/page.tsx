@@ -98,11 +98,13 @@ export default function TermsPage() {
 
       <h2>Plans and their limits</h2>
       <p>
-        Free includes the basic reader for uploads, the recruiter view, editing by hand, 1 resume,
+        Free includes the basic reader for uploads, the recruiter view, editing by hand,{" "}
+        {PLANS.free.limits.fix} line fixes a month with Otto (summary help counts as one), 1 resume,
         the Classic and Compact formats, PDF downloads, the 5 closest job matches and one tracked
-        application with its reminder. Otto&apos;s AI help (line fixes, summaries, tailoring,
-        letters, answers, interview prep, Build with Otto, GitHub drafts and AI reading of uploads),
-        the other formats, up to 50 resumes, Word downloads, every job match with filters and saved
+        application with its reminder. Free&apos;s line fixes reset at the start of each calendar
+        month (UTC). More line fixes and the rest of Otto&apos;s AI help (tailoring, letters,
+        answers, interview prep, Build with Otto, GitHub drafts and AI reading of uploads), the
+        other formats, up to 50 resumes, Word downloads, every job match with filters and saved
         jobs, tracking more than one application, share links, the work-rights check and portfolios
         come with Pro and Max. If a paid plan ends, nothing you made is deleted: you can still open,
         edit and download it, and links you shared stay up, but you can&apos;t add more until you
@@ -142,12 +144,13 @@ export default function TermsPage() {
         </tbody>
       </table>
       <p>
-        At a limit that feature pauses until your limits reset (on a monthly plan, at your next
-        renewal; on a yearly plan, on the next monthly reset day; on the trial, until Pro starts),
-        or until you move to a bigger plan. Moving between Pro and Max, or between monthly and
-        yearly, between renewals doesn&apos;t reset a limit: what you used this month counts on the
-        new plan. Uploads never stop: past the AI reads, the basic reader reads your file instead.
-        Editing, recruiter checks and PDF downloads have no limit on any plan.
+        At a limit that feature pauses until your limits reset (on Free, at the start of the next
+        month; on a monthly plan, at your next renewal; on a yearly plan, on the next monthly reset
+        day; on the trial, until Pro starts), or until you move to a bigger plan. Moving between Pro
+        and Max, or between monthly and yearly, between renewals doesn&apos;t reset a limit: what
+        you used this month counts on the new plan. Uploads never stop: past the AI reads, the basic
+        reader reads your file instead. Editing, recruiter checks and PDF downloads have no limit on
+        any plan.
       </p>
       <p>
         Each paid plan also has a monthly AI budget ({tokensInWords(AI_TOKEN_BUDGETS.pro)} tokens on{" "}
@@ -165,8 +168,8 @@ export default function TermsPage() {
           you live.
         </li>
         <li>
-          New accounts can try Pro free for {PRO_TRIAL.days} days, once per person. You add a card
-          at checkout and nothing is charged during the trial. When it ends, Pro starts at{" "}
+          New accounts can have a {PRO_TRIAL.days}-day Pro trial with nothing charged, once per
+          person. You add a card at checkout. When the trial ends, Pro starts at{" "}
           {formatUsd(PRICES_USD.pro.month)} a month unless you cancel before then. During the trial
           a portfolio can be built and previewed, but it goes public only on a paid plan.
         </li>

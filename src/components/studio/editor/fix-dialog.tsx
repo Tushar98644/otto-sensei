@@ -8,7 +8,7 @@ import { OttoWorking } from "@/components/mascot/otto-working";
 import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Dialog } from "@/components/ui/dialog";
-import { PLANS, type UsagePeriod } from "@/config/plans";
+import { PLANS, type PlanId, type UsagePeriod } from "@/config/plans";
 import { DemoNote } from "../demo-note";
 import {
   answerInputId,
@@ -59,13 +59,14 @@ function ottoLine(
   limit: number,
   signedIn: boolean,
   period: UsagePeriod | null,
+  plan: PlanId | null,
 ): string {
   switch (state.status) {
     case "closed":
     case "loading":
       return OTTO.fix.working;
     case "failed":
-      return problemMessage(state.problem, limit, signedIn, period);
+      return problemMessage(state.problem, limit, signedIn, period, plan);
     case "ready": {
       const view = readyView(state);
       if (state.refining) return OTTO.fix.working;
@@ -99,6 +100,7 @@ function FixDialog({ flow, resumeId }: { flow: FixFlow; resumeId: string }) {
   const baseId = useId();
   const limit = me?.usage?.fix.limit ?? PLANS.free.limits.fix;
   const period = me?.period ?? null;
+  const plan = user?.plan ?? null;
 
   const result = state.status === "ready" ? state.result : null;
   const focusId = state.status === "ready" ? readyFocusId(baseId, state) : null;
@@ -156,10 +158,11 @@ function FixDialog({ flow, resumeId }: { flow: FixFlow; resumeId: string }) {
           baseId={baseId}
           limit={limit}
           period={period}
+          plan={plan}
           signedIn={user !== null}
           allowance={fixAllowanceText(
             me?.usage?.fix ?? state.usage.fix,
-            user?.plan,
+            plan,
             period,
             me?.billing.trial !== false,
           )}
@@ -169,7 +172,7 @@ function FixDialog({ flow, resumeId }: { flow: FixFlow; resumeId: string }) {
       break;
   }
 
-  const otto = ottoLine(state, limit, user !== null, period);
+  const otto = ottoLine(state, limit, user !== null, period, plan);
 
   return (
     <Dialog
@@ -204,11 +207,13 @@ function ReadyContent({
   baseId,
   limit,
   period,
+  plan,
   signedIn,
   allowance,
 }: ReadyProps & {
   limit: number;
   period: UsagePeriod | null;
+  plan: PlanId | null;
   signedIn: boolean;
   allowance: string | null;
 }) {
@@ -240,7 +245,7 @@ function ReadyContent({
       ) : null}
       {problem ? (
         <Alert variant={problem.kind === "error" ? "error" : "warn"}>
-          {problemMessage(problem, limit, signedIn, period)}
+          {problemMessage(problem, limit, signedIn, period, plan)}
         </Alert>
       ) : null}
       {demo ? <DemoNote /> : null}

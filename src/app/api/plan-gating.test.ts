@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { PLANS, PRO_TRIAL, type Feature } from "@/config/plans";
+import { PLANS, planIncludes, PRO_TRIAL, type Feature } from "@/config/plans";
 import type { ApiErrorBody } from "@/lib/api/types";
 import { cookieJar, jsonRequest, linkGitHub, resetDb, setPlan, signInAs } from "@/lib/auth/test-helpers";
 import type { SessionUser } from "@/lib/auth/types";
@@ -28,28 +28,26 @@ const job = { text: JOB, title: "Senior Product Marketing Manager", company: "Co
 
 let github: FakeGitHub | undefined;
 
-type Call = { feature: Feature; send: (user: SessionUser | null) => Promise<Response>; message: string };
+type Call = { feature: Feature; send: (user: SessionUser | null) => Promise<Response>; message?: string };
 
 const CALLS: Call[] = [
   {
     feature: "fix",
     send: () => fix(jsonRequest("/api/fix", { bullet: "Managed the blog", role: { title: "Marketer", company: "Northwind" } })),
-    message: "Line fixes and summaries come with Pro. Try Pro free for 3 days.",
   },
   {
     feature: "fix",
     send: () => summary(jsonRequest("/api/summary", { mode: "write", resume: createSampleResume(NOW) })),
-    message: "Line fixes and summaries come with Pro. Try Pro free for 3 days.",
   },
   {
     feature: "tailor",
     send: () => tailor(jsonRequest("/api/tailor", { resume: createSampleResume(NOW), job })),
-    message: "Tailoring comes with Pro. Try Pro free for 3 days.",
+    message: "Tailoring comes with Pro. Try Pro for 3 days.",
   },
   {
     feature: "letter",
     send: () => letter(jsonRequest("/api/letter", { resume: createSampleResume(NOW), job })),
-    message: "Cover letters, answers and interview prep come with Pro. Try Pro free for 3 days.",
+    message: "Cover letters, answers and interview prep come with Pro. Try Pro for 3 days.",
   },
   {
     feature: "letter",
@@ -57,7 +55,7 @@ const CALLS: Call[] = [
       answer(
         jsonRequest("/api/answer", { resume: createSampleResume(NOW), job, question: "Why do you want this role?" }),
       ),
-    message: "Cover letters, answers and interview prep come with Pro. Try Pro free for 3 days.",
+    message: "Cover letters, answers and interview prep come with Pro. Try Pro for 3 days.",
   },
   {
     feature: "letter",
@@ -77,7 +75,7 @@ const CALLS: Call[] = [
       const applicationId = created?.status === "created" ? created.application.id : crypto.randomUUID();
       return interview(jsonRequest("/api/interview", { applicationId, resume: createSampleResume(NOW), job }));
     },
-    message: "Cover letters, answers and interview prep come with Pro. Try Pro free for 3 days.",
+    message: "Cover letters, answers and interview prep come with Pro. Try Pro for 3 days.",
   },
   {
     feature: "draft",
@@ -88,7 +86,7 @@ const CALLS: Call[] = [
           jobs: [{ company: "Contoso", title: "Intern", startDate: "Jun 2025", endDate: "Aug 2025", notes: ["built 3 dashboards"] }],
         }),
       ),
-    message: "Build with Otto comes with Pro. Try Pro free for 3 days.",
+    message: "Build with Otto comes with Pro. Try Pro for 3 days.",
   },
   {
     feature: "github",
@@ -96,7 +94,7 @@ const CALLS: Call[] = [
       if (user) linkGitHub(user, "octocat");
       return githubDraft(jsonRequest("/api/github/draft", { username: "octocat", repos: ["octocat/ledger-lint"] }));
     },
-    message: "GitHub drafts come with Pro. Try Pro free for 3 days.",
+    message: "GitHub drafts come with Pro. Try Pro for 3 days.",
   },
 ];
 
@@ -123,8 +121,41 @@ afterEach(() => {
   resetEnvForTests();
 });
 
+const PRO_ONLY = CALLS.filter((call) => !planIncludes("free", call.feature));
+const ON_FREE = CALLS.filter((call) => planIncludes("free", call.feature));
+
 describe("AI features by plan", () => {
-  it.each(CALLS.map((call, index) => [index, call.feature, call] as const))(
+  it("leaves Free only line fixes, which summaries share", () => {
+    expect(ON_FREE.map((call) => call.feature)).toEqual(["fix", "fix"]);
+    expect(PRO_ONLY).toHaveLength(CALLS.length - 2);
+  });
+
+  it.each(ON_FREE.map((call, index) => [index, call.feature, call] as const))(
+    "#%i %s: Free gets it on Free's monthly allowance",
+    async (_index, feature, call) => {
+      const user = await signInAs("free@example.com");
+      const res = await call.send(user);
+      expect(res.status, await res.clone().text()).toBe(200);
+      expect((await getUsage(user))[feature]).toEqual({ used: 1, limit: PLANS.free.limits[feature] });
+    },
+  );
+
+  it("shares Free's 3 line fixes between lines and summaries, then points to Pro", async () => {
+    const [line, summaryCall] = ON_FREE as [Call, Call];
+    const user = await signInAs("free@example.com");
+    expect((await line.send(user)).status).toBe(200);
+    expect((await summaryCall.send(user)).status).toBe(200);
+    expect((await line.send(user)).status).toBe(200);
+    const res = await summaryCall.send(user);
+    expect(res.status).toBe(429);
+    expect(await errorOf(res)).toEqual({
+      code: "limit_reached",
+      message: `You've used this month's 3 line fixes. Pro has ${PLANS.pro.limits.fix} a month.`,
+    });
+    expect((await getUsage(user)).fix).toEqual({ used: 3, limit: 3 });
+  });
+
+  it.each(PRO_ONLY.map((call, index) => [index, call.feature, call] as const))(
     "#%i %s: Free and signed out get 402 upgrade_required, and nothing is counted",
     async (_index, feature, call) => {
       if (feature === "draft" || feature === "github") {

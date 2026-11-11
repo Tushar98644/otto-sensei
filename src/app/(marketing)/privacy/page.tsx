@@ -83,7 +83,7 @@ export default function PrivacyPage() {
           your trial ends and when it renews. We never see your full card number.
         </li>
         <li>
-          <strong>Trial record.</strong> So each person gets the free Pro trial once, we keep a
+          <strong>Trial record.</strong> So each person gets the Pro trial only once, we keep a
           one-way fingerprint (a SHA-256 hash) of the email of anyone who has started a trial or
           paid. It can&apos;t be turned back into your email, and we keep it after you delete your
           account, only to check whether that email has had a trial.
@@ -180,8 +180,8 @@ export default function PrivacyPage() {
       <h2>Payments</h2>
       <p>
         Creem handles payments as our merchant of record. They collect your payment details (also
-        for a free trial, so the plan can start when it ends), charge you, send receipts and handle
-        sales tax, under their own privacy policy.
+        for a trial with nothing charged, so the plan can start when it ends), charge you, send
+        receipts and handle sales tax, under their own privacy policy.
       </p>
 
       <h2>Cookies and local storage</h2>

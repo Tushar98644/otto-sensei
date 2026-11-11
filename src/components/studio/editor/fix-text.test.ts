@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { OTTO } from "@/components/mascot/lines";
+import { PLANS } from "@/config/plans";
 import { ApiClientError, isBudgetReached } from "@/lib/api/client";
 import { FixRequestSchema } from "@/lib/api/types";
 import {
@@ -100,12 +101,28 @@ describe("messages", () => {
     expect(problemMessage({ kind: "limit" }, 20, true)).toBe(OTTO.limit.reached("fix", 20));
   });
 
-  it("shows what's left on paid plans and the trial, and what Pro adds on Free", () => {
+  it("points a Free user at their limit to Pro, not to the reset alone", () => {
+    expect(problemMessage({ kind: "limit" }, 3, true, null, "free")).toBe(
+      `You've used this month's 3 line fixes. Pro has ${PLANS.pro.limits.fix} a month.`,
+    );
+    expect(problemMessage({ kind: "limit" }, 750, true, null, "pro")).toBe(
+      OTTO.limit.reached("fix", 750),
+    );
+    const month = { kind: "month", resetsAt: Date.UTC(2026, 11, 1, 12) } as const;
+    expect(fixAllowanceText({ used: 1, limit: 3 }, "free", month)).toBe(
+      "2 of 3 fixes left this month",
+    );
+    expect(fixAllowanceText({ used: 3, limit: 3 }, "free", month)).toBe(
+      `No fixes left this month. They reset on Dec 1. Pro has ${PLANS.pro.limits.fix} a month.`,
+    );
+  });
+
+  it("shows what's left on paid plans and the trial, and what Pro adds without fixes", () => {
     expect(fixAllowanceText({ used: 0, limit: 0 }, "free")).toBe(
-      "Line fixes come with Pro. Try it free for 3 days.",
+      "More line fixes come with Pro. Try Pro for 3 days.",
     );
     expect(fixAllowanceText({ used: 0, limit: 0 }, "free", null, false)).toBe(
-      "Line fixes come with Pro.",
+      "More line fixes come with Pro.",
     );
     expect(fixAllowanceText({ used: 3, limit: 300 }, "pro")).toBe("297 of 300 fixes left this month");
     expect(fixAllowanceText({ used: 300, limit: 300 }, "pro")).toBe(

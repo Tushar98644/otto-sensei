@@ -9,6 +9,7 @@ import { patchMe, refreshMe } from "@/components/account/use-me";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { toast } from "@/components/ui/toast";
+import { PLANS } from "@/config/plans";
 import type { SessionUser } from "@/lib/auth/types";
 import { planPriceLabel } from "@/lib/billing/prices";
 import { trialEndDay } from "@/lib/usage-copy";
@@ -39,7 +40,7 @@ export function ProfileCard({ user }: { user: SessionUser }) {
           <PlanBadge plan={user.plan} />
           {user.plan !== "free" && user.trialEndsAt ? (
             <p className="text-sm text-muted">
-              Free trial until {trialEndDay(user.trialEndsAt)}. Then{" "}
+              {PLANS[user.plan].name} trial until {trialEndDay(user.trialEndsAt)}. Then{" "}
               {planPriceLabel(user.plan, user.planInterval ?? "month")}, unless you cancel before.
             </p>
           ) : null}

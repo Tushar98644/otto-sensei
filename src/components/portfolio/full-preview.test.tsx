@@ -16,7 +16,7 @@ function draw(id: (typeof PORTFOLIO_TEMPLATE_IDS)[number], own: TemplateSample |
     <FullPortfolioPreview
       id={id}
       own={own}
-      action={{ label: "Try Pro free for 3 days", onSelect: noop }}
+      action={{ label: "Try Pro for 3 days", onSelect: noop }}
       onChange={noop}
       onClose={noop}
     />,
@@ -52,7 +52,7 @@ describe("FullPortfolioPreview", () => {
       expect(html).toContain(`${index + 1} of ${PORTFOLIO_TEMPLATE_IDS.length}`);
       expect(html).toContain("Jordan Ellis");
       expect(html).toContain(SAMPLE_NOTE);
-      expect(html).toContain("Try Pro free for 3 days");
+      expect(html).toContain("Try Pro for 3 days");
       expect(html).toContain("Preview only: not live yet.");
     });
   });

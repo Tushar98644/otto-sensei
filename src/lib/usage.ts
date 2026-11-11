@@ -207,7 +207,10 @@ export async function carryUsageOver(
     .select({ feature: usage.feature, count: usage.count, bonus: usage.bonus })
     .from(usage)
     .where(and(eq(usage.subject, after.id), inArray(usage.feature, COUNTED), eq(usage.period, source)));
-  const carried = rows.filter((row) => row.count > 0 || row.bonus > 0);
+  // Free's own allowance stays on Free; only invite extras move up to the paid plan.
+  const carried = rows
+    .map((row) => (isPaidPlan(before.plan) ? row : { ...row, count: 0 }))
+    .filter((row) => row.count > 0 || row.bonus > 0);
   if (carried.length === 0) return;
   await db
     .insert(usage)
@@ -241,10 +244,15 @@ function periodCounts(db: Db, userId: string, key: string) {
     .where(and(eq(usage.subject, userId), inArray(usage.feature, COUNTED), eq(usage.period, key)));
 }
 
-function toSnapshot(limits: Record<Feature, number>, rows: CountRow[]): UsageSnapshot {
+function toSnapshot(
+  limits: Record<Feature, number>,
+  rows: CountRow[],
+  withBonus: boolean,
+): UsageSnapshot {
   const entry = (feature: Feature): Usage => {
     const row = rows.find((candidate) => candidate.feature === feature);
-    const limit = limits[feature] > 0 ? limits[feature] + (row?.bonus ?? 0) : 0;
+    const bonus = withBonus ? (row?.bonus ?? 0) : 0;
+    const limit = limits[feature] > 0 ? limits[feature] + bonus : 0;
     return { used: Math.min(row?.count ?? 0, limit), limit };
   };
   return Object.fromEntries(FEATURES.map((feature) => [feature, entry(feature)])) as UsageSnapshot;
@@ -265,7 +273,7 @@ export async function getUsageState(
   const period = await resolvePeriod(db, user, now);
   const rows = await periodCounts(db, user.id, period.key);
   return {
-    usage: toSnapshot(planLimits(user.plan, period.kind), rows),
+    usage: toSnapshot(planLimits(user.plan, period.kind), rows, isPaidPlan(user.plan)),
     period: publicPeriod(period),
     aiBudget: toBudget(user, period.kind, rows),
   };
@@ -285,19 +293,20 @@ export async function consumeUsage(
   const period = await resolvePeriod(db, user, now);
   const limits = planLimits(user.plan, period.kind);
   const limit = limits[feature];
+  const withBonus = isPaidPlan(user.plan);
   let allowed = false;
   if (limit > 0) {
     allowed =
       period.kind === "week"
         ? await db.transaction(async (tx) => {
-            if (!(await takeUnit(tx, user.id, feature, period.key, limit))) return false;
+            if (!(await takeUnit(tx, user.id, feature, period.key, limit, withBonus))) return false;
             await countTowardMonth(tx, user.id, feature, now);
             return true;
           })
-        : await takeUnit(db, user.id, feature, period.key, limit);
+        : await takeUnit(db, user.id, feature, period.key, limit, withBonus);
   }
   const rows = await periodCounts(db, user.id, period.key);
-  return { allowed, usage: toSnapshot(limits, rows), period: publicPeriod(period) };
+  return { allowed, usage: toSnapshot(limits, rows, withBonus), period: publicPeriod(period) };
 }
 
 async function takeUnit(
@@ -306,14 +315,16 @@ async function takeUnit(
   feature: Feature,
   key: string,
   limit: number,
+  withBonus: boolean,
 ): Promise<boolean> {
+  const cap = withBonus ? sql`${limit} + ${usage.bonus}` : sql`${limit}`;
   const taken = await db
     .insert(usage)
     .values({ subject: userId, feature, period: key, count: 1 })
     .onConflictDoUpdate({
       target: [usage.subject, usage.feature, usage.period],
       set: { count: sql`${usage.count} + 1` },
-      setWhere: sql`${usage.count} < ${limit} + ${usage.bonus}`,
+      setWhere: sql`${usage.count} < ${cap}`,
     })
     .returning({ count: usage.count });
   return taken.length > 0;

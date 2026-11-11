@@ -1,5 +1,5 @@
 import { OTTO } from "@/components/mascot/lines";
-import type { PlanId, Usage, UsagePeriod } from "@/config/plans";
+import { PLANS, type PlanId, type Usage, type UsagePeriod } from "@/config/plans";
 import type { FixInput } from "@/lib/ai/types";
 import { budgetReachedText } from "@/lib/ai-budget-copy";
 import { isApiError } from "@/lib/api/client";
@@ -89,10 +89,12 @@ export function problemMessage(
   limit: number,
   signedIn = false,
   period?: UsagePeriod | null,
+  plan?: PlanId | null,
 ): string {
   switch (problem.kind) {
     case "limit":
-      return problem.budget ? budgetReachedText(period) : OTTO.limit.reached("fix", limit, period);
+      if (problem.budget) return budgetReachedText(period);
+      return plan === "free" ? OTTO.limit.freeUsed("fix") : OTTO.limit.reached("fix", limit, period);
     case "signin":
       return signedIn ? OTTO.fix.signedInAgain : OTTO.signIn.reason("fix");
     case "error":
@@ -109,6 +111,9 @@ export function fixAllowanceText(
   if (!plan || !usage) return null;
   if (usage.limit === 0) return OTTO.limit.none("fix", trial);
   const left = Math.max(0, usage.limit - usage.used);
-  if (left === 0) return `No fixes left ${thisPeriod(period)}. ${resetSentence(period)}`;
+  if (left === 0) {
+    const more = plan === "free" ? ` ${PLANS.pro.name} has ${PLANS.pro.limits.fix} a month.` : "";
+    return `No fixes left ${thisPeriod(period)}. ${resetSentence(period)}${more}`;
+  }
   return `${left} of ${usage.limit} fixes left ${thisPeriod(period)}`;
 }

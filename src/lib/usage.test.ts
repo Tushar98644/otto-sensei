@@ -107,26 +107,40 @@ describe("periods", () => {
 });
 
 describe("getUsage", () => {
-  it("starts at zero with the plan's limits: none at all on Free", async () => {
+  it("starts at zero with the plan's limits: only line fixes on Free", async () => {
     const zero = (limits: Record<Feature, number>) =>
       Object.fromEntries(FEATURES.map((feature) => [feature, { used: 0, limit: limits[feature] }]));
     expect(await getUsage(free, NOV)).toEqual(zero(PLANS.free.limits));
-    expect(Object.values(PLANS.free.limits).every((limit) => limit === 0)).toBe(true);
+    expect(FEATURES.filter((feature) => PLANS.free.limits[feature] > 0)).toEqual(["fix"]);
     expect(await getUsage(pro, NOV)).toEqual(zero(PLANS.pro.limits));
     expect(await getUsage(trial, NOV)).toEqual(zero(PRO_TRIAL.limits));
   });
 });
 
 describe("Free", () => {
-  it("never takes a unit, and an invite bonus doesn't open AI on it", async () => {
-    for (const feature of FEATURES) {
+  it("takes no unit for anything but line fixes, and an invite bonus doesn't open AI on it", async () => {
+    for (const feature of FEATURES.filter((candidate) => candidate !== "fix")) {
       expect((await consumeUsage(free, feature, NOV)).allowed).toBe(false);
     }
     const db = await getDb();
-    await db.insert(usage).values({ subject: free.id, feature: "fix", period: monthKey(NOV), bonus: 10 });
-    const result = await consumeUsage(free, "fix", NOV);
+    await db.insert(usage).values({ subject: free.id, feature: "tailor", period: monthKey(NOV), bonus: 2 });
+    const result = await consumeUsage(free, "tailor", NOV);
     expect(result.allowed).toBe(false);
-    expect(result.usage.fix).toEqual({ used: 0, limit: 0 });
+    expect(result.usage.tailor).toEqual({ used: 0, limit: 0 });
+  });
+
+  it("takes 3 line fixes a calendar month, with no invite extras on top", async () => {
+    const db = await getDb();
+    await db.insert(usage).values({ subject: free.id, feature: "fix", period: monthKey(NOV), bonus: 10 });
+    await consumeTimes(free, "fix", PLANS.free.limits.fix);
+    const blocked = await consumeUsage(free, "fix", NOV);
+    expect(blocked.allowed).toBe(false);
+    expect(blocked.usage.fix).toEqual({ used: 3, limit: 3 });
+    expect(blocked.period).toEqual({ kind: "month", resetsAt: Date.UTC(2026, 11, 1) });
+    expect(await storedCount(free, "fix")).toBe(3);
+
+    expect((await consumeUsage(free, "fix", DEC)).allowed).toBe(true);
+    expect((await getUsage(free, DEC)).fix).toEqual({ used: 1, limit: 3 });
   });
 });
 
@@ -569,6 +583,16 @@ describe("carryUsageOver", () => {
     const bought: SessionUser = { ...free, plan: "pro", planInterval: "month", ...periodFrom(NOV) };
     await carryUsageOver(db, free, bought, NOV);
     expect((await getUsage(bought, NOV)).tailor).toEqual({ used: 0, limit: PLANS.pro.limits.tailor + 3 });
+  });
+
+  it("starts Pro's line fixes fresh after Free's 3, keeping Free's invite extras", async () => {
+    const db = await getDb();
+    await db.insert(usage).values({ subject: free.id, feature: "fix", period: monthKey(NOV), bonus: 10 });
+    await consumeTimes(free, "fix", PLANS.free.limits.fix);
+    const bought: SessionUser = { ...free, plan: "pro", planInterval: "month", ...periodFrom(NOV) };
+    await carryUsageOver(db, free, bought, NOV);
+    expect((await getUsage(bought, NOV)).fix).toEqual({ used: 0, limit: PLANS.pro.limits.fix + 10 });
+    expect(await storedCount(free, "fix")).toBe(3);
   });
 
   it("starts the full allowance fresh when a trial's first payment lands", async () => {

@@ -137,7 +137,7 @@ describe("the Jobs tab on Free", () => {
     expect(put.status).toBe(402);
     expect(((await put.json()) as ApiErrorBody).error).toEqual({
       code: "upgrade_required",
-      message: "Filters, saved jobs and every match come with Pro. Try Pro free for 3 days.",
+      message: "Filters, saved jobs and every match come with Pro. Try Pro for 3 days.",
     });
     await setPlan(user, "trial");
     const full = await ranked({ filters: { remote: true } });

@@ -37,7 +37,7 @@ describe("PlanOffer", () => {
     const monthly = render("pro", "month", { onTrial: true }).text;
     expect(monthly).toContain("Start Max now");
     expect(monthly).toContain(
-      `Ends your free Pro trial today and starts Max at ${usd(PRICES_USD.max.month)}/month.`,
+      `Ends your Pro trial today and starts Max at ${usd(PRICES_USD.max.month)}/month.`,
     );
     expect(monthly).not.toContain("Upgrade to Max");
     expect(render("pro", "year", { onTrial: true }).text).toContain(
@@ -50,8 +50,9 @@ describe("PlanOffer", () => {
     const { text, html } = render("free", "month", { trial: true });
     expect(text).toContain(`Pro Most popular ${usd(PRICES_USD.pro.month)} /month per month`);
     expect(text).toContain(`Max ${usd(PRICES_USD.max.month)} /month per month`);
-    expect(text).toContain("Try Pro free for 3 days");
-    expect(text).toContain(`Free for 3 days, then ${usd(PRICES_USD.pro.month)}/month.`);
+    expect(text).toContain("Try Pro for 3 days");
+    expect(text).toContain(`$0 for 3 days, then ${usd(PRICES_USD.pro.month)} a month.`);
+    expect(text).not.toMatch(/free for|try pro free/i);
     expect(text).toContain("Upgrade to Max");
     expect(text).toContain("Everything in Pro, with more:");
     expect(html.match(/data-autofocus/g)).toHaveLength(1);
@@ -63,7 +64,7 @@ describe("PlanOffer", () => {
     expect(text).toContain(`Max ${usd(PRICES_USD.max.year)} /year per year`);
     expect(text).toContain(`Save ${yearlySavingsPercent("pro")}%`);
     expect(text).toContain(`About ${perMonth("max")} a month.`);
-    expect(text).not.toContain("Try Pro free");
+    expect(text).not.toContain("Try Pro for");
     expect(text).toContain("Upgrade to Pro");
     expect(text).toContain("Limits reset each month, on the day of the month your plan started.");
 

@@ -74,7 +74,7 @@ export function UpgradeCard({ plan, interval: current, mode, offer, trial = fals
           {onTrial
             ? `${trialSentence()} Otto's AI help, with its limits written down.`
             : plan === "free"
-              ? `Otto's AI help every ${periodNoun(allowancePeriodFor(target, interval))}, for a busy job hunt. Cancel anytime.`
+              ? `Much more of Otto's AI help every ${periodNoun(allowancePeriodFor(target, interval))}, for a busy job hunt. Cancel anytime.`
               : endsTrial
                 ? endsTrialSentence(target, interval)
                 : "Even more for a long, busy search. Your subscription changes in place."}
@@ -109,7 +109,7 @@ export function UpgradeCard({ plan, interval: current, mode, offer, trial = fals
             className="w-full sm:w-auto"
           >
             {onTrial
-              ? "Start my free trial"
+              ? `Start my ${PLANS[PRO_TRIAL.plan].name} trial`
               : endsTrial
                 ? `Start ${name} now`
                 : `Upgrade to ${name}`}

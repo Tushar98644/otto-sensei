@@ -68,17 +68,36 @@ describe("POST /api/fix", () => {
     expect(res.status).toBe(415);
   });
 
-  it("answers Free with 402 upgrade_required, the trial's prompt, without spending anything", async () => {
+  it("gives Free 3 fixes a month, then says Pro has more without calling the AI", async () => {
     const user = await signInAs("free@example.com");
+    for (let used = 1; used <= PLANS.free.limits.fix; used++) {
+      const res = await fix();
+      expect(res.status).toBe(200);
+      expect(((await res.json()) as FixResponse).usage.fix).toEqual({ used, limit: 3 });
+    }
     const calls = vi.mocked(fixBullet).mock.calls.length;
+
     const res = await fix();
-    expect(res.status).toBe(402);
+    expect(res.status).toBe(429);
+    expect(res.headers.get("Retry-After")).toBe(String((Date.UTC(2026, 11, 1) - Date.UTC(2026, 10, 7, 12)) / 1000));
     expect(await errorOf(res)).toEqual({
-      code: "upgrade_required",
-      message: "Line fixes and summaries come with Pro. Try Pro free for 3 days.",
+      code: "limit_reached",
+      message: `You've used this month's 3 line fixes. Pro has ${PLANS.pro.limits.fix} a month.`,
     });
     expect(vi.mocked(fixBullet).mock.calls).toHaveLength(calls);
-    expect((await getUsage(user)).fix).toEqual({ used: 0, limit: 0 });
+    expect((await getUsage(user)).fix).toEqual({ used: 3, limit: 3 });
+
+    vi.setSystemTime(Date.UTC(2026, 11, 1, 0, 0, 1));
+    expect((await fix()).status).toBe(200);
+  });
+
+  it("keeps Free at 3 fixes even with invite extras", async () => {
+    const user = await signInAs("free@example.com");
+    const db = await getDb();
+    await db.insert(usage).values({ subject: user.id, feature: "fix", period: monthKey(NOW), bonus: 10 });
+    for (let i = 0; i < PLANS.free.limits.fix; i++) expect((await fix()).status).toBe(200);
+    expect((await fix()).status).toBe(429);
+    expect((await getUsage(user)).fix).toEqual({ used: 3, limit: 3 });
   });
 
   it("returns Otto's demo fix and the allowance after counting it", async () => {

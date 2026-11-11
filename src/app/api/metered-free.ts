@@ -5,7 +5,6 @@ import {
   PLANS,
   planIncludes,
   planLimits,
-  PRO_TRIAL,
   type Feature,
   type UsagePeriod,
 } from "@/config/plans";
@@ -13,6 +12,7 @@ import { checkAiBudget, spendAiTokens } from "@/lib/ai-budget";
 import { budgetReachedText } from "@/lib/ai-budget-copy";
 import { fail } from "@/lib/api/respond";
 import type { SessionUser } from "@/lib/auth/types";
+import { trialHeadline } from "@/lib/billing/prices";
 import { log } from "@/lib/log";
 import { retryAfterHeader } from "@/lib/rate-limit";
 import { consumeUsage, refundUsage } from "@/lib/usage";
@@ -24,7 +24,7 @@ export type AccountUnit = {
 };
 
 const COMES_WITH_PRO: Record<Feature, string> = {
-  fix: "Line fixes and summaries come with Pro.",
+  fix: "More line fixes and summaries come with Pro.",
   tailor: "Tailoring comes with Pro.",
   letter: "Cover letters, answers and interview prep come with Pro.",
   import: "AI reading of uploads comes with Pro.",
@@ -34,11 +34,7 @@ const COMES_WITH_PRO: Record<Feature, string> = {
 
 export function upgradeRequired(user: SessionUser | null, feature: Feature): Response {
   log.info(`${feature}.upgrade_required`, { plan: user?.plan ?? "signed_out" });
-  return fail(
-    "upgrade_required",
-    `${COMES_WITH_PRO[feature]} Try Pro free for ${PRO_TRIAL.days} days.`,
-    402,
-  );
+  return fail("upgrade_required", `${COMES_WITH_PRO[feature]} ${trialHeadline()}.`, 402);
 }
 
 export function requirePlanFeature(user: SessionUser | null, feature: Feature): Response | null {

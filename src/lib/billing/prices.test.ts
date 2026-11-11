@@ -14,6 +14,9 @@ import {
   priceSentence,
   proComparison,
   renewalPeriods,
+  trialHeadline,
+  trialOffer,
+  trialSentence,
   yearlySavingsPercent,
 } from "./prices";
 
@@ -74,11 +77,22 @@ describe("reference prices and savings", () => {
 
   it("says what buying Max on the Pro trial does, priced for the picked option", () => {
     expect(endsTrialSentence("max", "month")).toBe(
-      "Ends your free Pro trial today and starts Max at $29/month.",
+      "Ends your Pro trial today and starts Max at $29/month.",
     );
     expect(endsTrialSentence("max", "year")).toBe(
-      "Ends your free Pro trial today and starts Max at $232/year.",
+      "Ends your Pro trial today and starts Max at $232/year.",
     );
+  });
+
+  it("offers the trial as the way to start Pro, never as another free plan", () => {
+    expect(trialOffer()).toBe("Pro for 3 days");
+    expect(trialHeadline()).toBe("Try Pro for 3 days");
+    expect(trialSentence()).toBe(
+      "$0 for 3 days, then $15 a month. Cancel anytime before the trial ends.",
+    );
+    for (const line of [trialHeadline(), trialSentence(), endsTrialSentence("max", "month")]) {
+      expect(line).not.toMatch(/free/i);
+    }
   });
 
   it("compares Pro with Rezi Pro only while it's about half the price", () => {

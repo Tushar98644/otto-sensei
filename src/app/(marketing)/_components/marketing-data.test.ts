@@ -21,6 +21,7 @@ describe("plan copy", () => {
       "Upload a resume, read by the basic reader (no AI)",
       "The recruiter view: what hiring software reads",
       "Edit and fix every line by hand",
+      "3 line fixes a month with Otto",
       "1 resume",
       "Classic and Compact formats",
       "PDF download",
@@ -75,6 +76,7 @@ describe("plan copy", () => {
     expect(planCopy("max", "week").features.join(" ")).not.toMatch(/a month/);
     expect(planCopy("free", "week")).toEqual(planCopy("free", "month"));
     expect(limitLine("free", "tailor", "week")).toBe("0 tailored versions a month");
+    expect(limitLine("free", "fix", "week")).toBe("3 line fixes a month");
   });
 
   it("gives weekly plans a quarter of the monthly limit, rounded up", () => {
@@ -96,10 +98,17 @@ describe("plan copy", () => {
     }
   });
 
-  it("gives each plan more than the one below it", () => {
+  it("gives each plan more than the one below it, and Free only a taste of line fixes", () => {
+    expect(PLANS.free.limits).toEqual({
+      tailor: 0,
+      letter: 0,
+      fix: 3,
+      import: 0,
+      draft: 0,
+      github: 0,
+    });
     for (const feature of FEATURES) {
-      expect(PLANS.free.limits[feature]).toBe(0);
-      expect(PRO_TRIAL.limits[feature]).toBeGreaterThan(0);
+      expect(PRO_TRIAL.limits[feature]).toBeGreaterThan(PLANS.free.limits[feature]);
       expect(PLANS.pro.limits[feature]).toBeGreaterThan(PRO_TRIAL.limits[feature]);
       expect(PLANS.max.limits[feature]).toBeGreaterThan(PLANS.pro.limits[feature]);
     }

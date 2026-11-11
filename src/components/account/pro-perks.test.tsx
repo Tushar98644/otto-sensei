@@ -5,11 +5,12 @@ import { PlanPerks } from "./pro-perks";
 const text = (html: string) => html.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ");
 
 describe("PlanPerks", () => {
-  it("lists monthly limits for monthly and yearly options, next to a Free with no AI", () => {
+  it("lists monthly limits for monthly and yearly options, next to Free's line fixes", () => {
     for (const interval of [undefined, "month", "year"] as const) {
       const html = text(renderToStaticMarkup(<PlanPerks plan="pro" interval={interval} />));
       expect(html).toContain("150 tailored versions a month");
       expect(html).toContain("Not on Free.");
+      expect(html).toContain("750 line fixes a month Free has 3 a month.");
       expect(html).toContain("A portfolio page from your resume");
       expect(html).toContain("All 6 formats, up to 50 resumes and Word downloads");
       expect(html).toContain("Free has 1 resume, Classic and Compact, and PDFs.");

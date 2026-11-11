@@ -3,11 +3,11 @@ import {
   type Feature,
   FREE_APPLICATIONS,
   PLANS,
-  PRO_TRIAL,
   type ProTool,
   RESUME_LIMITS,
   type UsagePeriod,
 } from "@/config/plans";
+import { trialHeadline, trialOffer } from "@/lib/billing/prices";
 import { resetSentence, thisPeriod } from "@/lib/usage-copy";
 import { pluralize } from "@/lib/utils";
 
@@ -25,16 +25,16 @@ function asSentence(text: string) {
 }
 
 const SIGN_IN_REASONS: Record<Feature, string> = {
-  fix: `Sign in, then try Pro free for ${PRO_TRIAL.days} days to fix lines with me.`,
-  tailor: `Sign in, then try Pro free for ${PRO_TRIAL.days} days to tailor with me.`,
-  letter: `Sign in, then try Pro free for ${PRO_TRIAL.days} days for letters and answers.`,
-  import: `Sign in, then try Pro free for ${PRO_TRIAL.days} days for AI reads.`,
-  draft: `Sign in, then try Pro free for ${PRO_TRIAL.days} days to build drafts with me.`,
-  github: `Sign in, then try Pro free for ${PRO_TRIAL.days} days to draft from GitHub.`,
+  fix: `Sign in to fix lines with me. On Free you get ${PLANS.free.limits.fix} a month.`,
+  tailor: `Sign in, then try ${trialOffer()} to tailor with me.`,
+  letter: `Sign in, then try ${trialOffer()} for letters and answers.`,
+  import: `Sign in, then try ${trialOffer()} for AI reads.`,
+  draft: `Sign in, then try ${trialOffer()} to build drafts with me.`,
+  github: `Sign in, then try ${trialOffer()} to draft from GitHub.`,
 };
 
 const COMES_WITH_PRO: Record<Feature, string> = {
-  fix: "Line fixes come with Pro.",
+  fix: "More line fixes come with Pro.",
   tailor: "Tailoring comes with Pro.",
   letter: "Letters, answers and interview prep come with Pro.",
   import: "AI reading of uploads comes with Pro.",
@@ -202,17 +202,16 @@ export const OTTO = {
       period?: UsagePeriod | null,
     ) =>
       whole(limit) === 0
-        ? `${COMES_WITH_PRO[feature]} Try it free for ${PRO_TRIAL.days} days.`
+        ? `${COMES_WITH_PRO[feature]} ${trialHeadline()}.`
         : `You've used ${thisPeriod(period)}'s ${whole(limit)} ${SHORT_LABELS[feature]}. ` +
           resetSentence(period),
+    freeUsed: (feature: Feature) =>
+      `You've used this month's ${count.format(PLANS.free.limits[feature])} ${SHORT_LABELS[feature]}. ` +
+      `${PLANS.pro.name} has ${count.format(PLANS.pro.limits[feature])} a month.`,
     none: (feature: Feature, trial = true) =>
-      trial
-        ? `${COMES_WITH_PRO[feature]} Try it free for ${PRO_TRIAL.days} days.`
-        : COMES_WITH_PRO[feature],
+      trial ? `${COMES_WITH_PRO[feature]} ${trialHeadline()}.` : COMES_WITH_PRO[feature],
     tool: (tool: ProTool, trial = true) =>
-      trial
-        ? `${TOOL_COMES_WITH_PRO[tool]} Try it free for ${PRO_TRIAL.days} days.`
-        : TOOL_COMES_WITH_PRO[tool],
+      trial ? `${TOOL_COMES_WITH_PRO[tool]} ${trialHeadline()}.` : TOOL_COMES_WITH_PRO[tool],
     near: (feature: Feature, used: number, limit: number, period?: UsagePeriod | null) =>
       `Uh-oh, ${whole(used)} of ${whole(limit)} ${SHORT_LABELS[feature]} used. ${resetSentence(period)}`,
   },
@@ -238,7 +237,7 @@ export const OTTO = {
   },
   upgrade: {
     done: (plan: string) => `You're on ${plan} now. Your new limits apply straight away.`,
-    trial: `Try my AI help free for ${PRO_TRIAL.days} days. Cancel before it ends and you pay nothing.`,
+    trial: `Try all my AI help with ${trialOffer()}. Cancel before it ends and you pay nothing.`,
     trialStarted: (endsOn: string) => `Your Pro trial runs until ${endsOn}. Let's get to work.`,
   },
   errors: {

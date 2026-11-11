@@ -171,11 +171,9 @@ describe("refusing at the budget", () => {
     });
   });
 
-  it("leaves Free as it was: 402 upgrade_required and no budget", async () => {
+  it("gives Free no AI budget: its line fixes are capped by count alone", async () => {
     const user = await signInAs("free@example.com");
-    const res = await fix();
-    expect(res.status).toBe(402);
-    expect((await errorOf(res)).code).toBe("upgrade_required");
+    expect((await fix()).status).toBe(200);
     expect((await getUsageState(user)).aiBudget).toBeNull();
   });
 

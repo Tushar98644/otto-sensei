@@ -12,7 +12,9 @@ import {
   isTrialing,
   nextPlan,
   PLAN_ORDER,
+  planIncludes,
   PLANS,
+  PRO_TRIAL,
   type BillingInterval,
   type Feature,
   type PaidPlanId,
@@ -97,7 +99,9 @@ export function UpgradeDialog({
   else if (feature) {
     limitLine =
       current === "free"
-        ? OTTO.limit.none(feature, trialOnOffer)
+        ? planIncludes("free", feature)
+          ? OTTO.limit.freeUsed(feature)
+          : OTTO.limit.none(feature, trialOnOffer)
         : budget
           ? budgetReachedText(period)
           : OTTO.limit.reached(feature, me?.usage?.[feature].limit, period);
@@ -203,7 +207,7 @@ export function UpgradeDialog({
       description: !upgrading
         ? "Cancel anytime from your account."
         : onTrial
-          ? "Your free trial ends the moment the new plan starts, so you're never billed for both."
+          ? `Your ${PLANS[PRO_TRIAL.plan].name} trial ends the moment the new plan starts, so you're never billed for both.`
           : "Your subscription changes in place: you pay only the difference, never twice.",
       body: pitch,
       size,

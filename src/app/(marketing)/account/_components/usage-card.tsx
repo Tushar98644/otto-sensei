@@ -13,13 +13,13 @@ import {
   isTrialing,
   nextPlan,
   PLANS,
-  PRO_TRIAL,
   type Feature,
   type PlanId,
   type Usage,
   type UsagePeriod,
 } from "@/config/plans";
 import { aiBudgetLine } from "@/lib/ai-budget-copy";
+import { trialHeadline } from "@/lib/billing/prices";
 import { resetDay, resetWhen, thisPeriod, trialEndDay } from "@/lib/usage-copy";
 
 const count = new Intl.NumberFormat("en-US");
@@ -30,7 +30,7 @@ function sentenceCase(text: string): string {
 
 export function UsageCard({ me, plan }: { me: Me; plan: PlanId }) {
   const { usage, period, aiBudget } = me;
-  if (plan === "free") return <FreeUsageCard trial={me.billing.trial === true} />;
+  if (plan === "free") return <FreeUsageCard me={me} />;
   const near = nearestLimit(usage, FEATURES);
   const next = nextPlan(plan);
   const trialEndsAt = me.user && isTrialing(me.user) ? (me.user.trialEndsAt ?? null) : null;
@@ -86,17 +86,24 @@ export function UsageCard({ me, plan }: { me: Me; plan: PlanId }) {
   );
 }
 
-function FreeUsageCard({ trial }: { trial: boolean }) {
+function FreeUsageCard({ me }: { me: Me }) {
+  const fixes = me.usage?.fix;
   return (
     <Card>
       <CardHeader>
         <CardTitle as="h2">Otto&apos;s AI help</CardTitle>
         <CardDescription>
-          Free has the basic reader, the recruiter view, editing, PDFs, a few job matches and one
-          tracked application. Line fixes, tailoring, letters, AI reads and portfolios come with Pro
-          {trial ? `: try it free for ${PRO_TRIAL.days} days below.` : "."}
+          Free has {PLANS.free.limits.fix} line fixes a month with Otto, plus the basic reader, the
+          recruiter view, editing, PDFs, a few job matches and one tracked application. More line
+          fixes, tailoring, letters, AI reads and portfolios come with Pro
+          {me.billing.trial === true ? `. ${trialHeadline()} below.` : "."}
         </CardDescription>
       </CardHeader>
+      {fixes ? (
+        <UsageRow feature="fix" usage={fixes} period={me.period} />
+      ) : (
+        <Skeleton className="h-8 w-full" />
+      )}
     </Card>
   );
 }

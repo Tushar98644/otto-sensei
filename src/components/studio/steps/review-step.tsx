@@ -15,6 +15,7 @@ import { StatusPill } from "@/components/ui/status";
 import { FixFirst, type FixFirstEntry } from "@/components/studio/fix-first";
 import { Tab, TabList, TabPanel, Tabs } from "@/components/ui/tabs";
 import { TrackView } from "@/lib/analytics/track-view";
+import { trialHeadline } from "@/lib/billing/prices";
 import type { RecruiterReport } from "@/lib/checks/types";
 import { MAX_TOP, reviewResume, type ResumeReview, type ReviewItem } from "@/lib/lint/review";
 import { nextPlan } from "@/config/plans";
@@ -125,7 +126,7 @@ export function ReviewStep() {
                   className="font-medium text-ink underline decoration-border-strong underline-offset-4 hover:decoration-ink"
                 >
                   {(user?.plan ?? "free") === "free" && me?.billing.trial !== false
-                    ? "Try Pro free for 3 days for AI reading"
+                    ? `${trialHeadline()} for AI reading`
                     : "Upgrade for AI reading"}
                 </Link>
               ) : (

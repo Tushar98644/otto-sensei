@@ -91,7 +91,7 @@ describe("POST /api/billing/checkout", () => {
     expect(limiter).not.toHaveBeenCalled();
   });
 
-  it("returns where to send the browser: a new account starts on the free trial", async () => {
+  it("returns where to send the browser: a new account starts on the Pro trial", async () => {
     const user = await signIn();
     const res = await checkout(checkoutRequest());
 

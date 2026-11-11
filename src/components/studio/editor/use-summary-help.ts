@@ -11,7 +11,7 @@ import { fixErrorMessage, problemMessage } from "./fix-text";
 import { CHAR_LIMITS } from "./limits";
 import { editSection, getResume } from "./use-editor";
 
-const SIGN_IN_REASON = "Sign in, then try Pro free for 3 days for summary help.";
+const SIGN_IN_REASON = `Sign in for summary help. On Free it uses 1 of your ${PLANS.free.limits.fix} line fixes a month.`;
 
 type Mode = SummaryRequestBody["mode"];
 
@@ -84,7 +84,7 @@ export function useSummaryHelp(resumeId: string, focusInput: () => void) {
           const limited = { kind: "limit", budget: isBudgetReached(error) } as const;
           message =
             isApiError(error, "limit_reached") || isApiError(error, "upgrade_required")
-              ? problemMessage(limited, limit, false, me?.period)
+              ? problemMessage(limited, limit, false, me?.period, user?.plan)
               : SIGN_IN_REASON;
         }
         setHelp({ status: "failed", mode, message });

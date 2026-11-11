@@ -141,7 +141,7 @@ Base: `inline-flex h-6 items-center gap-1 rounded-full px-2 text-xs font-medium`
 | `fail` | `bg-fail-soft text-fail-ink`, `CircleX` in `text-fail` |
 | `ink` (replaces `accent`) | `bg-ink text-white`: the Pro plan mark |
 
-**Pro tools on Free** (2026-11-08): a Pro format in the format picker or gallery, and the Word button, carry a small `ink` "Pro" badge (`h-5 px-1.5`) on Free only, never while the plan is loading. Clicking one opens the same trial prompt as the AI buttons (`openUpgradePrompt(tool)`), never an error. A page that is Pro as a whole (Applications, the Jobs tab) stays visible with one `OttoNote` and one "Try Pro free for 3 days" button ("See Pro" once the trial is used); Jobs shows only the match count, no cards or filters. A resume set to a Pro format says so in one line under the picker ("Modern is a Pro format, so your download comes out in Classic.") with a ghost "Try Pro free" button.
+**Pro tools on Free** (2026-11-08): a Pro format in the format picker or gallery, and the Word button, carry a small `ink` "Pro" badge (`h-5 px-1.5`) on Free only, never while the plan is loading. Clicking one opens the same trial prompt as the AI buttons (`openUpgradePrompt(tool)`), never an error. A page that is Pro as a whole (Applications, the Jobs tab) stays visible with one `OttoNote` and one "Try Pro for 3 days" button ("See Pro" once the trial is used); Jobs shows only the match count, no cards or filters. A resume set to a Pro format says so in one line under the picker ("Modern is a Pro format, so your download comes out in Classic.") with a ghost "Try Pro for 3 days" button.
 
 ### Folder card (`ui/folder-card.tsx`)
 

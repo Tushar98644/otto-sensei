@@ -38,7 +38,7 @@ export const PLANS = {
     id: "free",
     name: "Free",
     priceUsd: 0,
-    limits: { tailor: 0, letter: 0, fix: 0, import: 0, draft: 0, github: 0 },
+    limits: { tailor: 0, letter: 0, fix: 3, import: 0, draft: 0, github: 0 },
     weeklyLimits: null,
   },
   pro: {

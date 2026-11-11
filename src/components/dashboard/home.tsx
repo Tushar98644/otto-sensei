@@ -10,7 +10,7 @@ import { ROUTES } from "@/components/site/routes";
 import { FolderCard } from "@/components/ui/folder-card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { openLineOnArrival } from "@/components/studio/tailor/jump";
-import type { UsagePeriod } from "@/config/plans";
+import { PLANS, type UsagePeriod } from "@/config/plans";
 import { lintResume } from "@/lib/lint/bullets";
 import { firstWeakLine } from "@/lib/lint/weak-lines";
 import { createSampleResume } from "@/lib/resume/sample";
@@ -146,11 +146,9 @@ export function DashboardHome() {
             value={fixes ? count.format(Math.max(0, fixes.limit - fixes.used)) : null}
             note={
               fixes
-                ? fixes.limit === 0
-                  ? "Line fixes come with Pro"
-                  : me?.period?.kind === "trial"
-                    ? `of ${count.format(fixes.limit)} · trial ends ${resetDay(me.period)}`
-                    : `of ${count.format(fixes.limit)} · resets ${resetOn(me?.period)}`
+                ? me?.period?.kind === "trial"
+                  ? `of ${count.format(fixes.limit)} · trial ends ${resetDay(me.period)}`
+                  : `of ${count.format(fixes.limit)} · resets ${resetOn(me?.period)}`
                 : null
             }
           />
@@ -190,7 +188,8 @@ export function DashboardHome() {
           <FolderCard tab="Start here" tone="lavender" bodyClassName="p-5 sm:p-6">
             <p className="text-base/6 font-medium text-ink">Your first resume goes here</p>
             <p className="mt-1 text-sm/6 text-muted">
-              Checking and PDF downloads are free. Otto&apos;s AI help comes with Pro.
+              Checking and PDF downloads are free, and so are {PLANS.free.limits.fix} line fixes a
+              month with Otto. More AI help comes with Pro.
             </p>
             <div className="mt-4">
               <StartOptions actions={actions} />
