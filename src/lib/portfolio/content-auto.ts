@@ -1,3 +1,4 @@
+import { DAY_MS } from "@/lib/time";
 import {
   webHref,
   type ContentProject,
@@ -26,7 +27,6 @@ import type { PortfolioExtra, PortfolioView } from "./view";
 // Automatic (null) content fields, by rules (no AI) from the resume as the page shows it and the
 // stored GitHub numbers. ./content-view.ts merges the owner's values on top.
 
-const DAY_MS = 24 * 60 * 60 * 1000;
 export const ACTIVE_MS = 90 * DAY_MS;
 // A number has to be this clear (./metrics.ts scores) to stand alone as a highlight or a stat.
 const HIGHLIGHT_SCORE = 60;

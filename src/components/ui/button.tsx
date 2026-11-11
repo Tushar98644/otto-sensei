@@ -2,7 +2,7 @@ import type { ComponentProps } from "react";
 import { cn } from "@/lib/utils";
 import { Spinner } from "./spinner";
 
-export type ButtonVariant = "primary" | "secondary" | "outline" | "ghost" | "danger" | "link";
+export type ButtonVariant = "primary" | "secondary" | "ghost" | "danger" | "link";
 export type ButtonSize = "sm" | "md" | "lg" | "icon" | "icon-sm";
 
 export type ButtonStyleOptions = {
@@ -31,11 +31,7 @@ const SIZES: Record<ButtonSize, string> = {
 const VARIANTS: Record<ButtonVariant, string> = {
   primary:
     "border-primary-edge bg-primary bg-linear-to-b from-primary-top to-primary text-white shadow-key inset-shadow-key hover:from-primary-hover-top hover:to-primary-hover active:translate-y-px active:from-primary active:to-primary active:shadow-none active:inset-shadow-pressed disabled:not-aria-busy:border-transparent disabled:not-aria-busy:bg-none disabled:not-aria-busy:bg-surface-strong disabled:not-aria-busy:text-muted disabled:not-aria-busy:shadow-none disabled:not-aria-busy:inset-shadow-none",
-  // A second action. White with a hairline, so it holds its shape on white and on the mist alike.
   secondary:
-    "border-border-control bg-surface text-ink shadow-control hover:border-border-control-hover hover:bg-surface-hover active:translate-y-px active:bg-surface-muted active:shadow-none disabled:not-aria-busy:border-border disabled:not-aria-busy:bg-transparent disabled:not-aria-busy:text-muted disabled:not-aria-busy:shadow-none",
-  // Same as secondary; kept for older call sites.
-  outline:
     "border-border-control bg-surface text-ink shadow-control hover:border-border-control-hover hover:bg-surface-hover active:translate-y-px active:bg-surface-muted active:shadow-none disabled:not-aria-busy:border-border disabled:not-aria-busy:bg-transparent disabled:not-aria-busy:text-muted disabled:not-aria-busy:shadow-none",
   // Row tools and toolbars. An ink wash, so the same hover works on white and on the mist.
   ghost:

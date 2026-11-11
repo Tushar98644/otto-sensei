@@ -8,11 +8,9 @@ import { TAILOR_SYSTEM_PROMPT } from "./prompts";
 import { redactResume, redactorFor } from "./redact";
 import { demoTailor } from "./tailor-demo";
 import { finalizeTailor, type RawTailor } from "./tailor-finalize";
-import { clip, oneLine, tag } from "./text";
+import { clip, MAX_RESUME_CHARS, oneLine, tag } from "./text";
 import { AIError, type TailorInput, type TailorResult } from "./types";
 
-// resumeToText() adds headings, so an imported resume can render a little past the import cap.
-const MAX_RESUME_CHARS = Math.round(TEXT_LIMITS.resumeChars * 1.5);
 const JOB_FIELD_CHARS = 200;
 
 const TailorOutputSchema = z.object({

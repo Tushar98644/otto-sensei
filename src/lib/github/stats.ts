@@ -1,8 +1,8 @@
 import { z } from "zod";
 import type { GitHubRepoSummary, GitHubStats } from "@/lib/portfolio/content";
+import { DAY_MS } from "@/lib/time";
 import type { GitHubRepo } from "./types";
 
-const DAY_MS = 24 * 60 * 60 * 1000;
 const WEEKS = 12;
 const TOP_REPOS = 8;
 const TOP_LANGUAGES = 6;

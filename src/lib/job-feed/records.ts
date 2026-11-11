@@ -2,6 +2,7 @@ import { and, count, desc, eq, gte, inArray, isNull, max, or, sql, type SQL } fr
 import type { Db } from "@/db/client";
 import { lockUser } from "@/db/locks";
 import { jobBoards, jobSkills, jobs, savedJobs } from "@/db/schema";
+import { DAY_MS } from "@/lib/time";
 import { searchWords } from "./normalize";
 import { PAST_KIND_WEIGHT } from "./match";
 import { ORDER_LIMITS } from "./order";
@@ -19,7 +20,6 @@ import {
 
 // Matching scores every candidate job in SQL and reads back only the best few hundred.
 
-const DAY_MS = 24 * 60 * 60 * 1_000;
 // Work-rights rules cost ~1 ms a job, so this also bounds a request.
 export const CANDIDATE_POOL = 300;
 // Open this long, a post is treated like a "general application" one: hidden from Matches.

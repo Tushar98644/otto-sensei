@@ -1,4 +1,4 @@
-import { fail, ok } from "@/lib/api/respond";
+import { fail, NO_STORE, ok } from "@/lib/api/respond";
 import { log } from "@/lib/log";
 import { isAuthorizedCron } from "./auth";
 
@@ -35,8 +35,6 @@ export type CronResponse = {
 
 // Under the routes' 60-second maxDuration, with room for the last batch and the response.
 export const CRON_BUDGET_MS = 45_000;
-
-const NO_STORE = { "Cache-Control": "no-store" };
 
 export async function runCronRoute(req: Request, name: string, job: CronJob): Promise<Response> {
   if (!isAuthorizedCron(req)) {

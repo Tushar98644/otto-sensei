@@ -44,7 +44,7 @@ export function AccountMenu({ onSignIn }: AccountMenuProps) {
     // Holds the space while /api/me loads, so a signed-in user never sees "Sign in" flash.
     if (loading) return <Skeleton className="h-11 w-24 shrink-0 rounded-lg" />;
     return (
-      <Button variant="outline" onClick={onSignIn} className="shrink-0">
+      <Button variant="secondary" onClick={onSignIn} className="shrink-0">
         <LogIn />
         Sign in
       </Button>

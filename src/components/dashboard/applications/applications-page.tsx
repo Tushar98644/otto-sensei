@@ -21,6 +21,7 @@ import { waitingTooLong } from "@/lib/applications/nudge";
 import type { Application } from "@/lib/applications/schema";
 import { formatCount, tally, type VersionInfo } from "@/lib/applications/stats";
 import { STATUS_NAMES, type ApplicationStatus } from "@/lib/applications/status";
+import { browserStorage } from "@/lib/browser-storage";
 import { resumeTitle } from "@/lib/resume/ops";
 import { useResumeList } from "@/lib/store/resume-store";
 import { ApplicationDialog, type ApplicationDialogTarget } from "./application-dialog";
@@ -51,14 +52,6 @@ import { WinRate } from "./win-rate";
 // Rows drawn at first and per "Show more": each row carries two menus, so 2,000 at once is slow.
 const PAGE_ROWS = 50;
 const ANCHOR_PREFIX = applicationAnchor("");
-
-function browserStorage(): Storage | null {
-  try {
-    return window.localStorage;
-  } catch {
-    return null;
-  }
-}
 
 // Board or List, as this browser last chose. The views only draw once the list has loaded in the
 // browser, so the server's "board" never has to match.

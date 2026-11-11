@@ -2,6 +2,7 @@ import { TEXT_LIMITS } from "@/config/plans";
 import type { TailorResult } from "@/lib/ai/types";
 import { sameJobUrl } from "@/lib/applications/thread";
 import type { JobPosting, JobSource } from "@/lib/api/types";
+import { readJsonItem, removeItem, writeJsonItem } from "@/lib/browser-storage";
 import type { Resume } from "@/lib/resume/schema";
 import type { ScreeningQuestion } from "@/lib/ats/types";
 import type { RequirementChoice, TailorChoices } from "./apply";
@@ -230,23 +231,17 @@ function toSavedResult(last: SavedResult): SavedResult {
 }
 
 function read(): Saved | null {
-  try {
-    const raw = window.sessionStorage.getItem(STORAGE_KEY);
-    if (!raw) return null;
-    const saved = JSON.parse(raw) as Partial<Saved> | null;
-    const draft = saved?.version === 1 ? toDraft(saved.draft) : null;
-    if (!saved || !draft) return null;
-    const last = saved.last ?? null;
-    const valid =
-      last !== null &&
-      isString(last.id) &&
-      isString(last.sourceId) &&
-      toDraft(last.job) !== null &&
-      isResult(last.result);
-    return { version: 1, draft, last: valid ? toSavedResult(last) : null };
-  } catch {
-    return null;
-  }
+  const saved = readJsonItem(STORAGE_KEY, "session") as Partial<Saved> | null;
+  const draft = saved?.version === 1 ? toDraft(saved.draft) : null;
+  if (!saved || !draft) return null;
+  const last = saved.last ?? null;
+  const valid =
+    last !== null &&
+    isString(last.id) &&
+    isString(last.sourceId) &&
+    toDraft(last.job) !== null &&
+    isResult(last.result);
+  return { version: 1, draft, last: valid ? toSavedResult(last) : null };
 }
 
 // A job picked on the Jobs tab; the step reads its link at once. `text` is the stored post, the
@@ -269,74 +264,50 @@ const QUEUE_KEY = "otto-tailor-queued-v1";
 // Kept for the tab's life after the step takes the queued job, so the copy can name its opening.
 const JOB_REF_KEY = "otto-tailor-job-ref-v1";
 
+// Storage blocked: the step opens empty and the person pastes the link themselves.
 export function queueJobForTailor(job: QueuedJob): void {
-  try {
-    window.sessionStorage.setItem(
-      QUEUE_KEY,
-      JSON.stringify({ ...job, text: job.text.slice(0, TEXT_LIMITS.jobPostChars) }),
-    );
-    if (job.jobId) {
-      window.sessionStorage.setItem(JOB_REF_KEY, JSON.stringify({ id: job.jobId, link: job.link }));
-    } else {
-      window.sessionStorage.removeItem(JOB_REF_KEY);
-    }
-  } catch {
-    // Storage blocked: the step opens empty and the person pastes the link themselves.
-  }
+  const queued = { ...job, text: job.text.slice(0, TEXT_LIMITS.jobPostChars) };
+  if (!writeJsonItem(QUEUE_KEY, queued, "session")) return;
+  if (job.jobId) writeJsonItem(JOB_REF_KEY, { id: job.jobId, link: job.link }, "session");
+  else removeItem(JOB_REF_KEY, "session");
 }
 
 /** The Jobs tab opening behind this link, only while it's still the link sent from there. */
 export function queuedJobIdFor(link: string | undefined): string | null {
-  try {
-    const raw = window.sessionStorage.getItem(JOB_REF_KEY);
-    if (!raw || !link) return null;
-    const ref = JSON.parse(raw) as { id?: unknown; link?: unknown } | null;
-    if (typeof ref?.id !== "string" || typeof ref.link !== "string") return null;
-    return sameJobUrl(ref.link, link) ? ref.id : null;
-  } catch {
-    return null;
-  }
+  const ref = readJsonItem(JOB_REF_KEY, "session") as { id?: unknown; link?: unknown } | null;
+  if (!link || typeof ref?.id !== "string" || typeof ref.link !== "string") return null;
+  return sameJobUrl(ref.link, link) ? ref.id : null;
 }
 
 /** The queued job, left in place: the step takes it once it has mounted (see takeQueuedJob). */
 export function peekQueuedJob(): QueuedJob | null {
-  try {
-    const raw = window.sessionStorage.getItem(QUEUE_KEY);
-    if (!raw) return null;
-    const job = JSON.parse(raw) as Partial<QueuedJob> | null;
-    if (
-      !job ||
-      !isString(job.link) ||
-      !isString(job.title) ||
-      !isString(job.company) ||
-      !isString(job.location) ||
-      !isString(job.text) ||
-      typeof job.readLink !== "boolean"
-    ) {
-      return null;
-    }
-    const posting = readJob(job.posting);
-    return {
-      link: job.link,
-      title: job.title,
-      company: job.company,
-      location: job.location,
-      text: job.text,
-      postedAt: typeof job.postedAt === "number" ? job.postedAt : null,
-      readLink: job.readLink,
-      ...(posting ? { posting } : {}),
-    };
-  } catch {
+  const job = readJsonItem(QUEUE_KEY, "session") as Partial<QueuedJob> | null;
+  if (
+    !job ||
+    !isString(job.link) ||
+    !isString(job.title) ||
+    !isString(job.company) ||
+    !isString(job.location) ||
+    !isString(job.text) ||
+    typeof job.readLink !== "boolean"
+  ) {
     return null;
   }
+  const posting = readJob(job.posting);
+  return {
+    link: job.link,
+    title: job.title,
+    company: job.company,
+    location: job.location,
+    text: job.text,
+    postedAt: typeof job.postedAt === "number" ? job.postedAt : null,
+    readLink: job.readLink,
+    ...(posting ? { posting } : {}),
+  };
 }
 
 export function clearQueuedJob(): void {
-  try {
-    window.sessionStorage.removeItem(QUEUE_KEY);
-  } catch {
-    // Nothing to clear.
-  }
+  removeItem(QUEUE_KEY, "session");
 }
 
 export function loadDraft(): TailorDraft {
@@ -355,9 +326,6 @@ export function saveTailorSession(draft: TailorDraft, last: SavedResult | null):
     draft: { ...draft, text: draft.text.slice(0, TEXT_LIMITS.jobPostChars * 2) },
     last,
   };
-  try {
-    window.sessionStorage.setItem(STORAGE_KEY, JSON.stringify(saved));
-  } catch {
-    // Storage full or blocked: the step still works, it just won't survive a reload.
-  }
+  // Storage full or blocked: the step still works, it just won't survive a reload.
+  writeJsonItem(STORAGE_KEY, saved, "session");
 }

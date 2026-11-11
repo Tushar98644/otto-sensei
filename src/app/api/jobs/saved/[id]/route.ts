@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { getDb } from "@/db/client";
-import { fail, ok } from "@/lib/api/respond";
+import { fail, NO_STORE, ok } from "@/lib/api/respond";
 import { rejectCrossSite } from "@/lib/auth/route-guards";
 import { getCurrentUser } from "@/lib/auth/session";
 import { saveJob, savedCount, unsaveJob } from "@/lib/job-feed/records";
@@ -11,7 +11,6 @@ import { requireProTool } from "../../../pro-tools";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const NO_STORE = { "Cache-Control": "no-store" };
 const SIGN_IN = "Sign in to save jobs.";
 const JobIdSchema = z.uuid();
 

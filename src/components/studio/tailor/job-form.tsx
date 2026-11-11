@@ -13,6 +13,7 @@ import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { TEXT_LIMITS } from "@/config/plans";
+import { DAY_MS } from "@/lib/time";
 import { cn } from "@/lib/utils";
 import { HiringSystemNotes } from "./hiring-system-notes";
 import type { QueuedJob, ReadJob, TailorDraft } from "./session";
@@ -22,7 +23,6 @@ export { MIN_POST_CHARS };
 
 const MAX_POST_CHARS = TEXT_LIMITS.jobPostChars;
 const MAX_FIELD_CHARS = 200;
-const DAY_MS = 24 * 60 * 60 * 1000;
 const QUIET_LINK = "min-h-11 self-start text-sm text-muted hover:text-ink";
 
 export type JobFormProps = {

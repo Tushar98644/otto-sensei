@@ -1,6 +1,7 @@
 import { ROUTES } from "@/components/site/routes";
 import { BRAND } from "@/config/brand";
 import { SNOOZE_DAYS } from "@/lib/applications/follow-up";
+import { DAY_MS } from "@/lib/time";
 import type { EmailMessage } from "./email";
 import { NOTIFICATION_LIMITS } from "./types";
 
@@ -10,7 +11,6 @@ export type DueApplication = { id: string; company: string; role: string; applie
 
 export type FollowUpNotice = { title: string; body: string; link: string };
 
-const DAY_MS = 24 * 60 * 60 * 1_000;
 const NAME_CHARS = 80;
 // Lines listed in the email; the rest become "and 4 more".
 export const EMAIL_LISTED = 10;

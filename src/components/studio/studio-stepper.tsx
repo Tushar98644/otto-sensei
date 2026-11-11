@@ -21,7 +21,7 @@ export function StudioStepper({ step, context, onSelect }: StudioStepperProps) {
     <nav aria-label="Studio steps">
       <div className="flex items-center justify-between gap-3 md:hidden">
         <Button
-          variant="outline"
+          variant="secondary"
           size="icon"
           disabled={!previous}
           aria-label={previous ? `Previous step: ${STEP_LABELS[previous]}` : "Previous step"}
@@ -36,7 +36,7 @@ export function StudioStepper({ step, context, onSelect }: StudioStepperProps) {
           <span className="font-medium text-ink">{STEP_LABELS[step]}</span>
         </p>
         <Button
-          variant="outline"
+          variant="secondary"
           size="icon"
           disabled={!next}
           aria-label={next ? `Next step: ${STEP_LABELS[next]}` : "Next step"}

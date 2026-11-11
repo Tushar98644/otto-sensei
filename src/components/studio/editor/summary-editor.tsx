@@ -1,75 +1,25 @@
 "use client";
 
-import { TriangleExclamationPoint } from "lucide-react";
-import { memo, useEffect, useId, useRef, useState } from "react";
-import { useAccountGate } from "@/components/account/account-gate";
-import { patchMe, useMe } from "@/components/account/use-me";
+import { memo, useEffect, useId, useRef } from "react";
 import { OttoNote } from "@/components/mascot/otto-note";
 import { OttoWorking } from "@/components/mascot/otto-working";
 import { OttoMark } from "@/components/site/otto-mark";
 import { Button } from "@/components/ui/button";
-import { Eyebrow } from "@/components/ui/eyebrow";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { PLANS, type UsageSnapshot } from "@/config/plans";
-import { api, isApiError, isBudgetReached } from "@/lib/api/client";
-import {
-  SUMMARY_IMPROVE_CHARS,
-  type SummaryOption,
-  type SummaryOptionKind,
-  type SummaryRequestBody,
-} from "@/lib/api/types";
+import { SUMMARY_IMPROVE_CHARS } from "@/lib/api/types";
 import { listBullets } from "@/lib/resume/ops";
 import type { Resume } from "@/lib/resume/schema";
-import { EDIT_LABELS } from "@/lib/store/resume-store";
-import { DemoNote } from "../demo-note";
-import {
-  fixAllowanceText,
-  fixErrorMessage,
-  hasPlaceholders,
-  problemMessage,
-  splitPlaceholders,
-} from "./fix-text";
 import { SUMMARY_INPUT_ID } from "./focus";
 import { CHAR_LIMITS } from "./limits";
-import { editSection, getResume, useResumeValue } from "./use-editor";
+import { ReadyOptions } from "./summary-options";
+import { editSection, useResumeValue } from "./use-editor";
+import { sameText, useSummaryHelp, type Help } from "./use-summary-help";
 
 const MAX_LABEL = CHAR_LIMITS.summary.toLocaleString("en-US");
-const SIGN_IN_REASON = "Sign in, then try Pro free for 3 days for summary help.";
-
-type Mode = SummaryRequestBody["mode"];
-
-type Ready = {
-  status: "ready";
-  mode: Mode;
-  options: SummaryOption[];
-  demo: boolean;
-  usage: UsageSnapshot;
-  // The summary as it was when Otto was asked, to say how much shorter his version is.
-  original: string;
-  editing: { index: number; draft: string } | null;
-};
-
-type Help =
-  | { status: "idle" }
-  | { status: "loading"; mode: Mode }
-  | { status: "failed"; mode: Mode; message: string }
-  | Ready;
-
-const IDLE: Help = { status: "idle" };
-
-const KIND_LABELS: Record<SummaryOptionKind, string> = {
-  achievements: "Leads with results",
-  role: "Leads with your role",
-  tightened: "Tighter version",
-};
 
 function wordsIn(text: string): number {
   return text.match(/[\p{L}\p{N}]+/gu)?.length ?? 0;
-}
-
-function sameText(a: string, b: string): boolean {
-  return a.replace(/\s+/g, " ").trim() === b.replace(/\s+/g, " ").trim();
 }
 
 function hasFacts(resume: Resume): boolean {
@@ -109,99 +59,6 @@ function ottoMeta(help: Help): string | undefined {
   if (help.mode === "write") return help.options.length > 1 ? "2 takes" : "1 take";
   const after = help.options[0]?.text ?? "";
   return `${wordsIn(help.original)} → ${wordsIn(after)} words`;
-}
-
-function useSummaryHelp(resumeId: string, focusInput: () => void) {
-  const gate = useAccountGate();
-  const { me, user } = useMe();
-  const [help, setHelp] = useState<Help>(IDLE);
-  // Read after awaits, when the render that started the request may hold a signed-out gate.
-  const gateRef = useRef(gate);
-  // Bumped by every request and by closing; an answer for an older number is dropped.
-  const requestRef = useRef(0);
-  // A double tap must not spend two fixes.
-  const busyRef = useRef(false);
-  const limit = me?.usage?.fix.limit ?? PLANS.free.limits.fix;
-
-  useEffect(() => {
-    gateRef.current = gate;
-  });
-
-  async function ask(mode: Mode) {
-    const resume = getResume(resumeId);
-    if (!resume || busyRef.current) return;
-    busyRef.current = true;
-    try {
-      const signedIn = await gateRef.current.requireUser(SIGN_IN_REASON).catch(() => false);
-      if (!signedIn) return;
-      const id = ++requestRef.current;
-      const original = resume.summary;
-      setHelp({ status: "loading", mode });
-      const body: SummaryRequestBody =
-        mode === "write" ? { mode, resume } : { mode, summary: original };
-      try {
-        const response = await api.summary(body);
-        patchMe({ usage: response.usage });
-        if (id !== requestRef.current) return;
-        const { options } = response.result;
-        // Strict check: a server from before the flag existed omits it, and its results were real.
-        const demo = response.demo === true;
-        setHelp({
-          status: "ready",
-          mode,
-          options,
-          demo,
-          usage: response.usage,
-          original,
-          editing: null,
-        });
-      } catch (error) {
-        if (id !== requestRef.current) return;
-        let message = fixErrorMessage(error);
-        if (gateRef.current.handleApiError(error, "fix")) {
-          const limited = { kind: "limit", budget: isBudgetReached(error) } as const;
-          message =
-            isApiError(error, "limit_reached") || isApiError(error, "upgrade_required")
-              ? problemMessage(limited, limit, false, me?.period)
-              : SIGN_IN_REASON;
-        }
-        setHelp({ status: "failed", mode, message });
-      }
-    } finally {
-      busyRef.current = false;
-    }
-  }
-
-  function close() {
-    requestRef.current += 1;
-    setHelp(IDLE);
-    focusInput();
-  }
-
-  function apply(text: string) {
-    const summary = text.trim().slice(0, CHAR_LIMITS.summary);
-    if (!summary) return;
-    editSection(resumeId, "summary", (resume) => ({ ...resume, summary }), {
-      label: EDIT_LABELS.summary,
-    });
-    close();
-  }
-
-  function setEditing(editing: Ready["editing"]) {
-    setHelp((current) => (current.status === "ready" ? { ...current, editing } : current));
-  }
-
-  return {
-    help,
-    ask,
-    close,
-    apply,
-    setEditing,
-    dialogs: gate.dialogs,
-    plan: user?.plan,
-    period: me?.period ?? null,
-    trial: me?.billing.trial !== false,
-  };
 }
 
 export const SummaryEditor = memo(function SummaryEditor({ resumeId }: { resumeId: string }) {
@@ -306,117 +163,3 @@ export const SummaryEditor = memo(function SummaryEditor({ resumeId }: { resumeI
     </div>
   );
 });
-
-type Flow = ReturnType<typeof useSummaryHelp>;
-
-function ReadyOptions({ flow, state, baseId }: { flow: Flow; state: Ready; baseId: string }) {
-  const unchanged =
-    state.mode === "improve" && sameText(state.options[0]?.text ?? "", state.original);
-  const allowance = fixAllowanceText(state.usage.fix, flow.plan, flow.period, flow.trial);
-  return (
-    <>
-      {unchanged ? null : (
-        <ul role="list" className="flex flex-col divide-y divide-border">
-          {state.options.map((option, index) => (
-            <OptionRow
-              key={option.kind}
-              option={option}
-              id={`${baseId}-option-${index}`}
-              draft={state.editing?.index === index ? state.editing.draft : null}
-              onEdit={(draft) => flow.setEditing(draft === null ? null : { index, draft })}
-              onUse={flow.apply}
-            />
-          ))}
-        </ul>
-      )}
-      {state.demo ? <DemoNote /> : null}
-      {allowance ? <p className="text-sm text-muted">{allowance}</p> : null}
-    </>
-  );
-}
-
-type OptionRowProps = {
-  option: SummaryOption;
-  id: string;
-  draft: string | null;
-  onEdit: (draft: string | null) => void;
-  onUse: (text: string) => void;
-};
-
-function OptionRow({ option, id, draft, onEdit, onUse }: OptionRowProps) {
-  const blanks = hasPlaceholders(option.text);
-  const draftRef = useRef<HTMLTextAreaElement>(null);
-  const editing = draft !== null;
-
-  useEffect(() => {
-    if (editing) draftRef.current?.focus();
-  }, [editing]);
-
-  return (
-    <li className="flex flex-col gap-3 py-4 first:pt-0 last:pb-0">
-      <Eyebrow>{KIND_LABELS[option.kind]}</Eyebrow>
-      {draft === null ? (
-        <p className="text-base/7 text-pretty text-ink">
-          {splitPlaceholders(option.text).map((part, index) =>
-            part.placeholder ? (
-              <mark key={index} className="rounded-sm bg-warn-soft px-1 font-medium text-warn-ink">
-                {part.text}
-              </mark>
-            ) : (
-              part.text
-            ),
-          )}
-        </p>
-      ) : (
-        <>
-          <Label htmlFor={`${id}-draft`} className="sr-only">
-            Your version
-          </Label>
-          <Textarea
-            ref={draftRef}
-            id={`${id}-draft`}
-            autoResize
-            value={draft}
-            maxLength={CHAR_LIMITS.summary}
-            onChange={(event) => onEdit(event.target.value)}
-            className="min-h-28"
-          />
-        </>
-      )}
-      {option.warnings.length > 0 ? (
-        <ul role="list" className="flex flex-col gap-1.5">
-          {option.warnings.map((warning) => (
-            <li key={warning} className="flex items-start gap-2 text-sm text-ink">
-              <TriangleExclamationPoint className="mt-0.5 size-4 shrink-0 text-warn" aria-hidden />
-              <span>{warning}</span>
-            </li>
-          ))}
-        </ul>
-      ) : null}
-      {blanks && draft === null ? (
-        <p id={`${id}-hint`} className="text-sm text-muted">
-          Words in [brackets] are blanks for your real facts. Edit it to fill them in.
-        </p>
-      ) : null}
-      <div className="flex flex-wrap items-center gap-2">
-        {draft === null ? (
-          <Button variant="secondary" size="sm" onClick={() => onEdit(option.text)}>
-            Edit first
-          </Button>
-        ) : (
-          <Button variant="ghost" size="sm" onClick={() => onEdit(null)}>
-            Cancel edit
-          </Button>
-        )}
-        <Button
-          size="sm"
-          disabled={draft === null ? blanks : !draft.trim()}
-          aria-describedby={blanks && draft === null ? `${id}-hint` : undefined}
-          onClick={() => onUse(draft ?? option.text)}
-        >
-          Use this
-        </Button>
-      </div>
-    </li>
-  );
-}

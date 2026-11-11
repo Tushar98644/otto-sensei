@@ -168,12 +168,12 @@ export function UploadStep() {
     <div className="mx-auto flex w-full max-w-3xl flex-col gap-8">
       <OttoNote message={full && state.status === "idle" ? OTTO.limit.tool("resumes", false) : otto}>
         {retryFile ? (
-          <Button variant="outline" onClick={() => void upload(retryFile)}>
+          <Button variant="secondary" onClick={() => void upload(retryFile)}>
             <RotateCcw />
             Try again
           </Button>
         ) : full ? (
-          <Button variant="outline" onClick={() => openUpgradePrompt("resumes")}>
+          <Button variant="secondary" onClick={() => openUpgradePrompt("resumes")}>
             {tryPro}
           </Button>
         ) : null}

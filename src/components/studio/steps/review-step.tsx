@@ -110,7 +110,7 @@ export function ReviewStep() {
                 <FilePlus />
                 Start from scratch
               </Button>
-              <Button variant="outline" onClick={() => setStep("upload")}>
+              <Button variant="secondary" onClick={() => setStep("upload")}>
                 <Upload />
                 Try another file
               </Button>

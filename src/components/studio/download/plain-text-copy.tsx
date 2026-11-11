@@ -27,7 +27,7 @@ export function PlainTextCopy({ resume }: { resume: Resume }) {
 
   return (
     <div className="flex flex-col gap-3">
-      <Button variant="outline" onClick={copy} className="w-full">
+      <Button variant="secondary" onClick={copy} className="w-full">
         <Copy />
         Copy plain text
       </Button>

@@ -1,4 +1,4 @@
-import { fail, ok } from "@/lib/api/respond";
+import { fail, NO_STORE, ok } from "@/lib/api/respond";
 import {
   UpdateApplicationSchema,
   type ApplicationResponse,
@@ -16,8 +16,6 @@ import { getApplicationThread } from "../thread";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-
-const NO_STORE = { "Cache-Control": "no-store" };
 
 type Context = { params: Promise<{ id: string }> };
 

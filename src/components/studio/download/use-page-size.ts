@@ -1,6 +1,7 @@
 "use client";
 
 import { useSyncExternalStore } from "react";
+import { readItem, writeItem } from "@/lib/browser-storage";
 import { defaultPageSize, isPdfPageSize, type PdfPageSize } from "@/lib/pdf/page-size";
 
 // Kept in memory too, so the toggle still works when storage is blocked (private windows).
@@ -10,12 +11,8 @@ const listeners = new Set<() => void>();
 let current: PdfPageSize | null = null;
 
 function readStored(): PdfPageSize | null {
-  try {
-    const value = window.localStorage.getItem(STORAGE_KEY);
-    return isPdfPageSize(value) ? value : null;
-  } catch {
-    return null;
-  }
+  const value = readItem(STORAGE_KEY);
+  return isPdfPageSize(value) ? value : null;
 }
 
 function getSnapshot(): PdfPageSize {
@@ -48,11 +45,8 @@ function subscribe(listener: () => void) {
 
 export function setPageSize(size: PdfPageSize): void {
   current = size;
-  try {
-    window.localStorage.setItem(STORAGE_KEY, size);
-  } catch {
-    // Not remembered after a reload, but still applied now.
-  }
+  // If storage is blocked: not remembered after a reload, but still applied now.
+  writeItem(STORAGE_KEY, size);
   notify();
 }
 

@@ -1,4 +1,4 @@
-import { fail, ok } from "@/lib/api/respond";
+import { fail, NO_STORE, ok } from "@/lib/api/respond";
 import type { InterviewPrepResponse } from "@/lib/api/types";
 import { ApplicationIdSchema } from "@/lib/applications/validation";
 import { getCurrentUser } from "@/lib/auth/session";
@@ -10,7 +10,6 @@ export const dynamic = "force-dynamic";
 
 type Context = { params: Promise<{ id: string }> };
 
-const NO_STORE = { "Cache-Control": "no-store" };
 const NOT_FOUND = "That application isn't in your list anymore.";
 
 // Another account's id gets the same 404 as a missing one, so ids can't be probed.

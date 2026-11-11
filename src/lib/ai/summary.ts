@@ -1,5 +1,4 @@
 import { z } from "zod";
-import { TEXT_LIMITS } from "@/config/plans";
 import type { SummaryOption, SummaryOptionKind, SummaryResult } from "@/lib/api/types";
 import { aiEnabled } from "@/lib/env";
 import { log } from "@/lib/log";
@@ -8,7 +7,15 @@ import type { Resume } from "@/lib/resume/schema";
 import { runStructured } from "./client";
 import { createRedactor, redactResume, redactorFor } from "./redact";
 import { maskInventedNumbers, NUMBER_PLACEHOLDER, novelWordShare } from "./guards";
-import { asResumeLine, capitalize, clipWords, oneLine, placeholdersIn, tag } from "./text";
+import {
+  asResumeLine,
+  capitalize,
+  clipWords,
+  MAX_RESUME_CHARS,
+  oneLine,
+  placeholdersIn,
+  tag,
+} from "./text";
 import { AIError } from "./types";
 import { clichesIn, sentencesOf, upgradedVerbs } from "./writing-guards";
 
@@ -20,8 +27,6 @@ export type SummaryInput = { mode: "write"; resume: Resume } | { mode: "improve"
 // 2-3 sentences run about 250-450 characters; the cap leaves room without letting a ramble through.
 export const SUMMARY_CHARS = 600;
 const MAX_SENTENCES = 3;
-// Same bound as tailoring and cover letters: resumeToText() adds headings to what was imported.
-const MAX_RESUME_CHARS = Math.round(TEXT_LIMITS.resumeChars * 1.5);
 // Above these the model wrote about someone else; showing nothing beats showing a made-up person.
 const MAX_NOVEL_SHARE = { write: 0.4, improve: 0.3 } as const;
 

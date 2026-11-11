@@ -1,9 +1,8 @@
 import type { AskedAppliedAnswer, FeedJob } from "@/lib/job-feed/types";
+import { DAY_MS } from "@/lib/time";
 
 // "Open job" goes to the company's own post, so an application sent there never reaches the
 // tracker unless someone says so. The list lives in this browser only; nothing here is sent.
-
-const DAY_MS = 24 * 60 * 60 * 1_000;
 
 /** A job is asked about for a week after it was last opened. */
 export const ASK_FOR_MS = 7 * DAY_MS;

@@ -2,6 +2,7 @@
 
 import { useEffect } from "react";
 import { useMe } from "@/components/account/use-me";
+import { readJsonItem, writeJsonItem } from "@/lib/browser-storage";
 import { useStudioStore } from "@/lib/store/resume-store";
 
 // A person's own resume with no email gets their sign-in email, as an undoable edit. Once per
@@ -11,22 +12,14 @@ const STORAGE_KEY = "otto-email-filled-v1";
 const MAX_REMEMBERED = 200;
 
 function remembered(): string[] {
-  try {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
-    const list: unknown = raw ? JSON.parse(raw) : [];
-    return Array.isArray(list) ? list.filter((id): id is string => typeof id === "string") : [];
-  } catch {
-    return [];
-  }
+  const list = readJsonItem(STORAGE_KEY);
+  return Array.isArray(list) ? list.filter((id): id is string => typeof id === "string") : [];
 }
 
+// Storage blocked: at worst the email is offered again on another visit.
 function remember(id: string) {
-  try {
-    const list = [...remembered().filter((item) => item !== id), id].slice(-MAX_REMEMBERED);
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
-  } catch {
-    // Storage blocked: at worst the email is offered again on another visit.
-  }
+  const list = [...remembered().filter((item) => item !== id), id].slice(-MAX_REMEMBERED);
+  writeJsonItem(STORAGE_KEY, list);
 }
 
 export function useAccountEmailPrefill(): void {

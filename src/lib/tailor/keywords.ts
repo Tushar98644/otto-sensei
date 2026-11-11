@@ -103,6 +103,11 @@ export function normalizeTerm(term: string): string {
   return form ? joinTokens(form.tokens) : "";
 }
 
+// Without spaces, so "node js" and "nodejs" count as one term.
+export function termKey(term: string): string {
+  return normalizeTerm(term).replace(/ /g, "");
+}
+
 // Whole words: "Java" must not match "JavaScript".
 export function findTerm(resumeText: string, term: string): KeywordMatch {
   return matchTerm(resumeText, textTokens(resumeText), term);

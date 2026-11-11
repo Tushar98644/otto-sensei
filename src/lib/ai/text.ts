@@ -1,4 +1,8 @@
+import { TEXT_LIMITS } from "@/config/plans";
 import { bulletText } from "@/lib/resume/sections";
+
+// resumeToText() adds headings, so an imported resume can render a little past the import cap.
+export const MAX_RESUME_CHARS = Math.round(TEXT_LIMITS.resumeChars * 1.5);
 
 const HIGH_SURROGATE_AT_END = /[\uD800-\uDBFF]$/;
 const PLACEHOLDER = /\[[^\]]+\]/;

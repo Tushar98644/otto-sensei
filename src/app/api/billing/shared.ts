@@ -4,6 +4,7 @@ import type { ApiErrorCode } from "@/lib/api/types";
 import { BillingError, type BillingErrorDetails } from "@/lib/billing";
 import { log } from "@/lib/log";
 import { rateLimit, retryAfterHeader, waitText } from "@/lib/rate-limit";
+import { HOUR_MS } from "@/lib/time";
 
 type Failure = { code: ApiErrorCode; status: number; message: string };
 type Action = "checkout" | "portal";
@@ -96,7 +97,6 @@ export function billingFailure(error: unknown, action: Action): Response {
 // Each link costs a Creem API call on our key; a per-user cap stops one account from using up the
 // API rate limit that every customer shares.
 const LINKS_PER_HOUR = 20;
-const HOUR_MS = 60 * 60 * 1000;
 
 export async function limitBillingLinks(userId: string): Promise<Response | null> {
   const result = await rateLimit(`billing:user:${userId}`, LINKS_PER_HOUR, HOUR_MS);

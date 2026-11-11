@@ -16,10 +16,10 @@ import { matchProfileOf } from "@/lib/job-feed/profile";
 import type { LookingForChoice, MatchProfile } from "@/lib/job-feed/types";
 import { ownResumes } from "@/lib/setup/checklist";
 import { useResumeList } from "@/lib/store/resume-store";
+import { DAY_MS } from "@/lib/time";
 import { ACCOUNT_SECTIONS } from "./links";
 
 const NO_MATCH: MatchProfile = { skills: [], titles: [], years: null };
-const DAY_MS = 24 * 60 * 60 * 1000;
 
 // Same store and API as the Jobs card, so a change here shows there at once. Free and Pro.
 export function LookingForSettingsCard() {
@@ -74,7 +74,7 @@ export function LookingForSettingsCard() {
           variant="error"
           title="Couldn't load what you're looking for"
           action={
-            <Button variant="outline" onClick={work.retry}>
+            <Button variant="secondary" onClick={work.retry}>
               Try again
             </Button>
           }

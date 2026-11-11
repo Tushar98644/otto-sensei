@@ -16,6 +16,7 @@ import { getDb, type Db } from "@/db/client";
 import { usage, users } from "@/db/schema";
 import type { SessionUser } from "@/lib/auth/types";
 import { log } from "@/lib/log";
+import { DAY_MS, MINUTE_MS } from "@/lib/time";
 
 // One `usage` row per (user, feature, period). Period keys:
 // - "cycle:<ISO start>": a monthly or yearly subscriber's billing month. Monthly: Creem's current
@@ -30,8 +31,6 @@ import { log } from "@/lib/log";
 // count
 // toward the calendar month; and a started billing week always runs its full 7 days.
 
-const DAY_MS = 86_400_000;
-const MINUTE_MS = 60_000;
 export const WEEK_MS = 7 * DAY_MS;
 const WEEK_PREFIX = "week:";
 const CYCLE_PREFIX = "cycle:";

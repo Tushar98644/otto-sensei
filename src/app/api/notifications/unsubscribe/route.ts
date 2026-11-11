@@ -1,5 +1,5 @@
 import { ROUTES } from "@/components/site/routes";
-import { fail, ok } from "@/lib/api/respond";
+import { fail, NO_STORE, ok } from "@/lib/api/respond";
 import { appUrl } from "@/lib/env";
 import { log } from "@/lib/log";
 import { setEmailReminders } from "@/lib/notifications/records";
@@ -8,8 +8,6 @@ import { isUserId } from "@/lib/users";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-
-const NO_STORE = { "Cache-Control": "no-store" };
 
 // RFC 8058 one-click: mail apps send it from their servers with no cookies, so the signed link is
 // the only proof, and the app's same-site rules don't apply.

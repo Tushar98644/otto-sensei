@@ -6,14 +6,12 @@ import { jordanPage } from "@/lib/portfolio/fixtures/jordan";
 import type { PortfolioTemplateId } from "@/lib/portfolio/types";
 import type { PortfolioView } from "@/lib/portfolio/view";
 import { cn } from "@/lib/utils";
+import { LIVE_HEIGHT, LIVE_WIDTH } from "./live-size";
 import { templateFontClasses } from "./templates/fonts";
 import { PORTFOLIO_TEMPLATES } from "./templates/registry";
 
 // Loaded on demand by ./template-preview.tsx, so the templates, their styles and fonts only reach
 // a screen when a preview is about to show.
-
-export const LIVE_WIDTH = 1280;
-export const LIVE_HEIGHT = 800;
 
 export type TemplateSample = { view: PortfolioView; content: PortfolioContentView };
 

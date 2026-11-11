@@ -60,7 +60,7 @@ export function InviteCard({ plan }: { plan: PlanId }) {
           title="Couldn't load your invite link"
           action={
             <Button
-              variant="outline"
+              variant="secondary"
               onClick={() => {
                 setLoad({ status: "loading" });
                 fetchSummary();

@@ -1,4 +1,4 @@
-import { fail, ok } from "@/lib/api/respond";
+import { fail, NO_STORE, ok } from "@/lib/api/respond";
 import { rejectCrossSite, rejectNonJson } from "@/lib/auth/route-guards";
 import { getCurrentUser } from "@/lib/auth/session";
 import { type WorkProfileResponse } from "@/lib/eligibility/profile";
@@ -11,7 +11,6 @@ import { requireProTool } from "../pro-tools";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const NO_STORE = { "Cache-Control": "no-store" };
 const SIGN_IN = "Sign in to save your work profile.";
 
 export async function GET(): Promise<Response> {

@@ -5,6 +5,7 @@ import type { CronContext, CronOutcome } from "@/lib/cron/run";
 import { JobReadError } from "@/lib/jobs/errors";
 import { safeFetch } from "@/lib/jobs/fetch";
 import { log } from "@/lib/log";
+import { DAY_MS, HOUR_MS } from "@/lib/time";
 import {
   FeedShapeError,
   parseAshby,
@@ -40,9 +41,6 @@ import {
 
 // Oldest-read boards first, each host at its own pace, until the budget runs out; next run
 // continues.
-
-const HOUR_MS = 60 * 60 * 1_000;
-const DAY_MS = 24 * HOUR_MS;
 
 export const INGEST_LIMITS = {
   // Whole company boards can be several megabytes of descriptions (Ashby's OpenAI board was 14 MB).

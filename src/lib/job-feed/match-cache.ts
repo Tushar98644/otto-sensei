@@ -3,10 +3,9 @@ import { and, eq } from "drizzle-orm";
 import type { Db } from "@/db/client";
 import { matchCache } from "@/db/schema";
 import { log } from "@/lib/log";
+import { DAY_MS } from "@/lib/time";
 
 // Kept for the day. The key holds every input, so nothing is invalidated by hand.
-
-const DAY_MS = 24 * 60 * 60 * 1_000;
 
 export type CacheParts = {
   variant: string;

@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import type { Db } from "@/db/client";
 import { checkEligibility } from "@/lib/eligibility/check";
 import { isProfileStarted, type WorkProfile, type WorkRegion } from "@/lib/eligibility/profile";
+import { DAY_MS } from "@/lib/time";
 import {
   acceptedPlaces,
   lookingForOf,
@@ -62,7 +63,6 @@ import { sponsorRegions, visaLines, type VisaFacts } from "./visa";
 
 // Candidates, labels, work-rights rules and order, all by rules on our server. No AI call.
 
-const DAY_MS = 24 * 60 * 60 * 1_000;
 const NO_RULES: EligibilityHint = { blocked: false, note: null };
 // Copies of one opening checked for a place the person can take before giving up on it.
 const COPIES_CHECKED = 6;

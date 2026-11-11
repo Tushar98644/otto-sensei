@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { fail, ok } from "@/lib/api/respond";
+import { fail, NO_STORE, ok } from "@/lib/api/respond";
 import { rejectCrossSite, rejectNonJson } from "@/lib/auth/route-guards";
 import { getCurrentUser } from "@/lib/auth/session";
 import { readJson } from "@/lib/http";
@@ -7,7 +7,7 @@ import { log } from "@/lib/log";
 import { revokeShare, updateShareOptions } from "@/lib/share/records";
 import { type ShareResponse } from "@/lib/share/types";
 import { UpdateShareSchema } from "@/lib/share/validation";
-import { NOT_FOUND, NO_STORE, SIGN_IN } from "../messages";
+import { NOT_FOUND, SIGN_IN } from "../messages";
 import { writeLimited } from "../write-limit";
 
 export const runtime = "nodejs";

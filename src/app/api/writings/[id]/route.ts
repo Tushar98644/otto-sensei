@@ -1,4 +1,4 @@
-import { fail, ok } from "@/lib/api/respond";
+import { fail, NO_STORE, ok } from "@/lib/api/respond";
 import { rejectCrossSite, rejectNonJson } from "@/lib/auth/route-guards";
 import { getCurrentUser } from "@/lib/auth/session";
 import { readJson } from "@/lib/http";
@@ -6,7 +6,7 @@ import { log } from "@/lib/log";
 import { deleteWriting, updateWriting } from "@/lib/writings/records";
 import { type WritingResponse } from "@/lib/writings/schema";
 import { UpdateWritingSchema, WritingIdSchema } from "@/lib/writings/validation";
-import { NOT_FOUND, NO_STORE, SIGN_IN, writeLimited } from "../shared";
+import { NOT_FOUND, SIGN_IN, writeLimited } from "../shared";
 
 export const runtime = "nodejs";
 

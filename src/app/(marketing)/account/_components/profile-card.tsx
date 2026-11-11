@@ -47,7 +47,7 @@ export function ProfileCard({ user }: { user: SessionUser }) {
           ) : null}
         </div>
         <Button
-          variant="outline"
+          variant="secondary"
           onClick={() => void signOut()}
           loading={signingOut}
           className="w-full sm:w-auto"

@@ -14,14 +14,12 @@ import type { Resume } from "@/lib/resume/schema";
 import { runStructured } from "./client";
 import { redactResume, redactorFor } from "./redact";
 import { maskInventedNumbers } from "./guards";
-import { asResumeLine, clip, clipWords, oneLine, tag } from "./text";
+import { asResumeLine, clip, clipWords, MAX_RESUME_CHARS, oneLine, tag } from "./text";
 import { AIError, type WritingInput } from "./types";
 
 // Stories point at resume lines by id and code copies the line in. Parts with unstated numbers get
 // [number], parts adding facts become a [question], and pointers naming unknown things are dropped.
 
-// Same bound as tailoring: resumeToText() adds headings to what was imported.
-const MAX_RESUME_CHARS = Math.round(TEXT_LIMITS.resumeChars * 1.5);
 // Lines offered to the model, in resume order: recent jobs come first and matter most.
 const MAX_LINES = 60;
 // Reasoning included. A full pack is ~2,500 tokens of JSON, leaving room for low-effort reasoning.

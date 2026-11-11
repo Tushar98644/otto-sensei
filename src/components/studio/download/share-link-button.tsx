@@ -13,7 +13,7 @@ export function ShareLinkButton({ resume }: { resume: Resume }) {
   const share = useShareResume(resume);
   return (
     <>
-      <Button variant="outline" onClick={share.share} className="w-full">
+      <Button variant="secondary" onClick={share.share} className="w-full">
         <Link2 />
         Copy share link
         {locked ? (

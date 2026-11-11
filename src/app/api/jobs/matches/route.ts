@@ -1,6 +1,6 @@
 import { FREE_JOB_MATCHES, hasProTools } from "@/config/plans";
 import { getDb } from "@/db/client";
-import { fail, ok } from "@/lib/api/respond";
+import { fail, NO_STORE, ok } from "@/lib/api/respond";
 import { rejectCrossSite, rejectNonJson } from "@/lib/auth/route-guards";
 import { getCurrentUser } from "@/lib/auth/session";
 import { readWorkProfile } from "@/lib/eligibility/records";
@@ -15,7 +15,6 @@ import { rateLimit, retryAfterHeader } from "@/lib/rate-limit";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const NO_STORE = { "Cache-Control": "no-store" };
 // Only against scripts: a person paging and filtering stays far under it.
 const PER_MINUTE = 60;
 

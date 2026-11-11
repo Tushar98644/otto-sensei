@@ -1,4 +1,4 @@
-import { fail, ok } from "@/lib/api/respond";
+import { fail, NO_STORE, ok } from "@/lib/api/respond";
 import { rejectCrossSite, rejectNonJson } from "@/lib/auth/route-guards";
 import { getCurrentAccount } from "@/lib/auth/session";
 import { readJson } from "@/lib/http";
@@ -9,12 +9,12 @@ import { refreshGitHub, saveContent } from "@/lib/portfolio/content-records";
 import { canBuildPortfolio } from "@/lib/portfolio/plan";
 import { getPortfolio } from "@/lib/portfolio/records";
 import { rateLimit, retryAfterHeader, waitText } from "@/lib/rate-limit";
-import { NEEDS_PLAN, NO_PORTFOLIO, NO_STORE, SIGN_IN } from "../limits";
+import { HOUR_MS } from "@/lib/time";
+import { NEEDS_PLAN, NO_PORTFOLIO, SIGN_IN } from "../limits";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const HOUR_MS = 60 * 60 * 1000;
 // The editor autosaves a second after typing stops, so a long session sends a lot of these.
 const SAVES_PER_HOUR = 900;
 

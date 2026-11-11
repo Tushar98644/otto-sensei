@@ -1,6 +1,6 @@
 import { resumeToText } from "@/lib/resume/ops";
 import type { Resume } from "@/lib/resume/schema";
-import { findTerm, keywordCoverage, normalizeTerm } from "@/lib/tailor/keywords";
+import { findTerm, keywordCoverage, termKey } from "@/lib/tailor/keywords";
 import {
   mustProofBulletIds,
   normalizeRequirements,
@@ -39,10 +39,6 @@ const TERM_CHARS = 100;
 const JOB_FIELD_CHARS = 200;
 
 type RankedKeyword = Pick<TailorKeyword, "term" | "importance">;
-
-function termKey(term: string): string {
-  return normalizeTerm(term).replace(/ /g, "");
-}
 
 function requirementTerms(requirements: readonly TailorRequirement[]): RankedKeyword[] {
   return requirements.flatMap((requirement) =>

@@ -153,7 +153,7 @@ export function UpgradeDialog({
   // Two plans side by side need the wide dialog; one fits the narrow one.
   const size: DialogSize = offer.cards.length > 1 ? "lg" : "sm";
   const notNow = (
-    <Button variant="outline" onClick={close}>
+    <Button variant="secondary" onClick={close}>
       Not now
     </Button>
   );
@@ -173,7 +173,7 @@ export function UpgradeDialog({
         : undefined,
       footer: (
         <>
-          <Button variant="outline" onClick={close}>
+          <Button variant="secondary" onClick={close}>
             Close
           </Button>
           <a href={SUPPORT_MAILTO} className={buttonClasses()}>
@@ -226,7 +226,7 @@ export function UpgradeDialog({
       size,
       footer: billingOff ? (
         <>
-          <Button variant="outline" onClick={close}>
+          <Button variant="secondary" onClick={close}>
             Close
           </Button>
           <a href={SUPPORT_MAILTO} className={buttonClasses()} data-autofocus>

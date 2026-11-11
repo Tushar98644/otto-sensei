@@ -1,4 +1,4 @@
-import { fail, ok } from "@/lib/api/respond";
+import { fail, NO_STORE, ok } from "@/lib/api/respond";
 import { GoogleSignInSchema, type GoogleSignInResponse } from "@/lib/api/types";
 import { AuthError } from "@/lib/auth/codes";
 import { googleSignInUrl } from "@/lib/auth/oauth";
@@ -16,7 +16,7 @@ export async function POST(req: Request): Promise<Response> {
   if (!body.ok) return fail("bad_request", "That sign-in link isn't valid.", 400);
   try {
     const response: Omit<GoogleSignInResponse, "ok"> = { url: await googleSignInUrl(body.data.next) };
-    return ok(response, { headers: { "Cache-Control": "no-store" } });
+    return ok(response, { headers: NO_STORE });
   } catch (error) {
     if (error instanceof AuthError) return fail("auth_unavailable", error.message, 503);
     log.error("auth.google_start_failed", error);

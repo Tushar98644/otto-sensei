@@ -7,7 +7,7 @@ import type { Resume } from "@/lib/resume/schema";
 import { runStructured, type AITask } from "./client";
 import { ANSWER_SYSTEM_PROMPT, LETTER_SYSTEM_PROMPT } from "./prompts";
 import { redactResume, redactorFor, type Redactor } from "./redact";
-import { clip, oneLine, tag } from "./text";
+import { clip, MAX_RESUME_CHARS, oneLine, tag } from "./text";
 import { AIError, type AnswerResult, type CoverLetterResult, type WritingInput } from "./types";
 import { demoAnswer, demoLetter } from "./writing-demo";
 import {
@@ -29,8 +29,6 @@ import {
 export const LETTER_WORDS = { min: 150, max: 250 } as const;
 export const ANSWER_WORDS = { min: 60, max: 150 } as const;
 export const QUESTION_CHARS = { min: 8, max: 500 } as const;
-// Same bound as tailoring: resumeToText() adds headings to what was imported.
-const MAX_RESUME_CHARS = Math.round(TEXT_LIMITS.resumeChars * 1.5);
 const JOB_FIELD_CHARS = 200;
 // Past this the person gets the phrase and a warning instead of a stub.
 const LETTER_FLOOR_WORDS = 110;

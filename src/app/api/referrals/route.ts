@@ -1,4 +1,4 @@
-import { fail, ok } from "@/lib/api/respond";
+import { fail, NO_STORE, ok } from "@/lib/api/respond";
 import type { ReferralSummaryResponse } from "@/lib/api/types";
 import { getCurrentUser } from "@/lib/auth/session";
 import { getDeviceId } from "@/lib/http";
@@ -8,7 +8,6 @@ import { referralSummary } from "@/lib/referrals/records";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const NO_STORE = { "Cache-Control": "no-store" };
 const SIGN_IN = "Sign in to get your invite link.";
 
 // Remembers this browser as the owner's, so a sign-up from it can't count as a friend.

@@ -1,5 +1,7 @@
 import type { ApiErrorCode, ApiErrorReason } from "./types";
 
+export const NO_STORE = { "Cache-Control": "no-store" };
+
 export function ok<T extends object>(data: T, init?: ResponseInit): Response {
   return Response.json({ ok: true, ...data }, init);
 }

@@ -1,4 +1,4 @@
-import { fail, ok } from "@/lib/api/respond";
+import { fail, NO_STORE, ok } from "@/lib/api/respond";
 import type { UrlResponse } from "@/lib/api/types";
 import { AuthError } from "@/lib/auth/codes";
 import { githubLinkUrl, unlinkGitHub } from "@/lib/auth/github";
@@ -14,7 +14,6 @@ import { refreshGitHub } from "@/lib/portfolio/content-records";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const NO_STORE = { "Cache-Control": "no-store" };
 const SIGN_IN = "Sign in to connect your GitHub account.";
 const SIGN_IN_ONLY_WITH_GITHUB =
   "You sign in to this account with GitHub, so it can't be disconnected.";

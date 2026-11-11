@@ -4,8 +4,7 @@ import { countClaim } from "@/lib/job-feed/counts";
 import { SOURCE_INFO } from "@/lib/job-feed/sources";
 import { EMPLOYMENT_LABELS, type FeedJob } from "@/lib/job-feed/types";
 import type { Resume } from "@/lib/resume/schema";
-
-const DAY_MS = 24 * 60 * 60 * 1_000;
+import { DAY_MS } from "@/lib/time";
 
 /** The newest resume of the person's own, else the newest of all: what Jobs matches by default. */
 export function defaultResumeId(resumes: readonly Resume[]): string | null {

@@ -1,3 +1,4 @@
+import { browserStorage } from "@/lib/browser-storage";
 import type { TourName } from "./tours";
 
 // Which tours this browser has already shown. localStorage only: a tour is a hint, not data worth
@@ -8,15 +9,6 @@ export type TourStorage = Pick<Storage, "getItem" | "setItem" | "removeItem">;
 const TOURS: readonly TourName[] = ["studio", "dashboard"];
 
 const keyOf = (name: TourName) => `otto.tour.${name}`;
-
-// Private windows and blocked site data can throw on any access, including the lookup itself.
-export function browserStorage(): TourStorage | null {
-  try {
-    return typeof window === "undefined" ? null : window.localStorage;
-  } catch {
-    return null;
-  }
-}
 
 // null when the browser won't say.
 export function hasSeenTour(storage: TourStorage | null, name: TourName): boolean | null {

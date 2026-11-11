@@ -2,6 +2,7 @@ import { and, count, eq, gt, inArray, isNull, lt, notInArray, or, sql } from "dr
 import type { PgInsertValue } from "drizzle-orm/pg-core";
 import type { Db } from "@/db/client";
 import { applications, jobBoards, jobSkills, jobs, savedJobs } from "@/db/schema";
+import { DAY_MS } from "@/lib/time";
 import {
   boilerplateLines,
   contentHash,
@@ -15,8 +16,6 @@ import { BOARD_SOURCES, FEED_SOURCES, type BoardSeed, type JobSourceId } from ".
 
 // Writes are keyed by (source, external id), so a repeated or overlapping run only finds less to
 // do.
-
-const DAY_MS = 24 * 60 * 60 * 1_000;
 
 export const STORE_LIMITS = {
   // Keeps every open job of the biggest boards; matching's per-company cap stops crowding.

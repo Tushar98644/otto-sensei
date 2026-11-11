@@ -1,10 +1,10 @@
-import { fail, ok } from "@/lib/api/respond";
+import { fail, NO_STORE, ok } from "@/lib/api/respond";
 import { getCurrentUser } from "@/lib/auth/session";
 import { log } from "@/lib/log";
 import { checkSlug } from "@/lib/portfolio/records";
 import { PORTFOLIO_LIMITS, type PortfolioSlugResponse } from "@/lib/portfolio/types";
 import { rateLimit, retryAfterHeader } from "@/lib/rate-limit";
-import { NO_STORE, SIGN_IN } from "../limits";
+import { SIGN_IN } from "../limits";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

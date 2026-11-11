@@ -9,6 +9,7 @@ import { emptyResume, type Resume } from "@/lib/resume/schema";
 import { ResumeSchema } from "@/lib/resume/validation";
 import { parseStoredStats } from "@/lib/github/stats";
 import { shareSnapshot } from "@/lib/share/snapshot";
+import { DAY_MS, HOUR_MS } from "@/lib/time";
 import { parseStoredContent, type PortfolioContentView } from "./content";
 import { contentView } from "./content-view";
 import { canBuildPortfolio, canPublishPortfolio } from "./plan";
@@ -27,8 +28,6 @@ import { portfolioView, type PortfolioView } from "./view";
 
 // Every owner query is filtered by user_id, so nobody can see or change another account's page.
 
-const DAY_MS = 24 * 60 * 60 * 1000;
-const HOUR_MS = 60 * 60 * 1000;
 // Numbered tries for a suggested address ("maya-chen-2" ... "maya-chen-20") before a random tail.
 const NUMBERED_TRIES = 20;
 

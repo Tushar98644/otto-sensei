@@ -158,7 +158,7 @@ export function QuestionsForm({
         <Button
           id={updateButtonId(idPrefix)}
           type="submit"
-          variant="outline"
+          variant="secondary"
           loading={refining}
           disabled={!answered}
         >

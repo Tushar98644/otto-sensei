@@ -31,7 +31,7 @@ export function UpgradeStatus({
         variant="warn"
         title={`Still showing ${PLANS[plan].name}?`}
         action={
-          <Button variant="outline" onClick={watch.retry}>
+          <Button variant="secondary" onClick={watch.retry}>
             Check again
           </Button>
         }

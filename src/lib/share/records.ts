@@ -8,6 +8,7 @@ import { forPlan } from "@/lib/pdf/templates";
 import { rateLimit } from "@/lib/rate-limit";
 import { type Resume } from "@/lib/resume/schema";
 import { ResumeSchema } from "@/lib/resume/validation";
+import { HOUR_MS } from "@/lib/time";
 import { publicResume, shareSnapshot } from "./snapshot";
 import { SHARE_LIMITS, SHARE_SLUG, type SharedLink } from "./types";
 
@@ -37,8 +38,6 @@ export const VIEW_LIMITS = {
   perLinkPerHour: 300,
   max: 1_000_000,
 } as const;
-
-const HOUR_MS = 60 * 60 * 1000;
 
 // Not the whole row: the list needs two fields of the snapshot.
 const linkColumns = {

@@ -1,6 +1,6 @@
 import { FREE_APPLICATIONS, hasProTools } from "@/config/plans";
 import { captureServerEvent } from "@/lib/analytics/server";
-import { fail, ok } from "@/lib/api/respond";
+import { fail, NO_STORE, ok } from "@/lib/api/respond";
 import {
   BulkApplicationStatusSchema,
   CreateApplicationSchema,
@@ -20,7 +20,6 @@ import { createApplication, listApplications, parseCursor, setStatusMany } from 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const NO_STORE = { "Cache-Control": "no-store" };
 const count = new Intl.NumberFormat("en-US");
 
 // Readable on every plan: a Free account keeps the record it made on Pro or the trial.

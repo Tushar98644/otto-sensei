@@ -1,3 +1,4 @@
+import { DAY_MS } from "@/lib/time";
 import type { PlaceFit } from "./looking-for";
 import { SENIORITY_RANK } from "./roles";
 import type { JobMatch, MatchLabel, Seniority } from "./types";
@@ -5,7 +6,6 @@ import type { JobMatch, MatchLabel, Seniority } from "./types";
 // Label first, then skill coverage (rare skills count more), plus a nudge for new posts. Never
 // shown.
 
-const DAY_MS = 24 * 60 * 60 * 1_000;
 const LABEL_ORDER: Record<MatchLabel, number> = { strong: 0, good: 1, stretch: 2 };
 
 export const ORDER_LIMITS = {

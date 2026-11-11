@@ -49,7 +49,7 @@ export function WorkProfileCard() {
           variant="error"
           title="Couldn't load your work profile"
           action={
-            <Button variant="outline" onClick={work.retry}>
+            <Button variant="secondary" onClick={work.retry}>
               Try again
             </Button>
           }

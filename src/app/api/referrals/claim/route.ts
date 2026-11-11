@@ -5,11 +5,11 @@ import { getCurrentUser } from "@/lib/auth/session";
 import { log } from "@/lib/log";
 import { rateLimit, retryAfterHeader, waitText } from "@/lib/rate-limit";
 import { claimFromCookie } from "@/lib/referrals/cookie";
+import { HOUR_MS } from "@/lib/time";
 
 export const runtime = "nodejs";
 
 const CLAIMS_PER_HOUR = 10;
-const HOUR_MS = 60 * 60 * 1000;
 
 // The code comes from the invite cookie, never the body.
 export async function POST(req: Request): Promise<Response> {

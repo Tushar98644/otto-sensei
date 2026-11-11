@@ -2,6 +2,7 @@ import { and, eq, isNotNull, or } from "drizzle-orm";
 import { PRO_TRIAL, type BillingInterval, type PaidPlanId } from "@/config/plans";
 import { getDb } from "@/db/client";
 import { users } from "@/db/schema";
+import { DAY_MS } from "@/lib/time";
 import { addMonths, carryUsageOver, type PeriodAccount } from "@/lib/usage";
 import { recordTrialHistory } from "./trial";
 
@@ -12,8 +13,6 @@ export const MOCK_STATUS = {
   trialing: "mock_trialing",
   cancelled: "mock_cancelled",
 } as const;
-
-const DAY_MS = 86_400_000;
 
 export type MockSubscribeOptions = { trial?: boolean; now?: number };
 

@@ -1,6 +1,6 @@
 import { bulletText } from "@/lib/resume/sections";
 import type { Resume } from "@/lib/resume/schema";
-import { findTerm, normalizeTerm } from "@/lib/tailor/keywords";
+import { findTerm, termKey } from "@/lib/tailor/keywords";
 import type { RawRequirement } from "@/lib/tailor/requirements";
 import type { RawTailor } from "./tailor-finalize";
 import { COMMON_SKILLS, EXACT_CASE_SKILLS, STOPWORDS } from "./tailor-vocabulary";
@@ -43,10 +43,6 @@ const DEMO_NOTES = [
   "Use the job post's exact words for skills you really have. Hiring software matches words, not meanings.",
   "Start each job with the bullet that fits this role best. Recruiters often read only the top lines.",
 ];
-
-function termKey(term: string): string {
-  return normalizeTerm(term).replace(/ /g, "");
-}
 
 const SKILL_BY_KEY = new Map(COMMON_SKILLS.map((skill) => [termKey(skill), skill]));
 

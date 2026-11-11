@@ -1,5 +1,5 @@
 import { applyFollowUpAction } from "@/app/api/applications/records";
-import { fail, ok } from "@/lib/api/respond";
+import { fail, NO_STORE, ok } from "@/lib/api/respond";
 import { rejectCrossSite, rejectNonJson } from "@/lib/auth/route-guards";
 import { readJson } from "@/lib/http";
 import { log } from "@/lib/log";
@@ -10,7 +10,6 @@ import { verifyFollowUpToken } from "@/lib/notifications/unsubscribe";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const NO_STORE = { "Cache-Control": "no-store" };
 const INVALID = "That reminder link isn't valid any more. Open your applications instead.";
 
 // Often sent without a session (another browser, a phone), so the signed link is the proof of

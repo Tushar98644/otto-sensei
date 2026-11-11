@@ -6,7 +6,7 @@ import type {
 } from "@/lib/ai/types";
 import type { Resume } from "@/lib/resume/schema";
 import { snippetAround } from "./evidence";
-import { findTermIn, normalizeTerm } from "./keywords";
+import { findTermIn, termKey } from "./keywords";
 import { foldCase, textTokens, type Token } from "./tokens";
 
 // Screener AI grades one qualification at a time, so a row is "proven" only when a real line shows
@@ -76,10 +76,6 @@ export type ScreenerOptions = {
 
 type Line = ProofLine & { full: string; tokens: Token[]; words: string[] };
 type ResumeLines = { shown: Line[]; listed: Line[] };
-
-function termKey(term: string): string {
-  return normalizeTerm(term).replace(/ /g, "");
-}
 
 function wordsOf(text: string): string[] {
   return foldCase(text).match(WORDS) ?? [];

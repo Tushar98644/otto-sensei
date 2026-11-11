@@ -2,7 +2,8 @@
 
 import { useEffect, useEffectEvent } from "react";
 import { loadingScreenUp } from "@/components/mascot/otto-loading-screen";
-import { browserStorage, hasSeenTour, markTourSeen, replayRequested, tourDue } from "./seen";
+import { browserStorage } from "@/lib/browser-storage";
+import { hasSeenTour, markTourSeen, replayRequested, tourDue } from "./seen";
 import type { TourName, TourStop } from "./tours";
 
 // Long enough for the screen to settle (an upload's own focus move, late layout), short enough to

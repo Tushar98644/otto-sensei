@@ -19,6 +19,7 @@ import {
   VERDICT_STATUS,
   type EligibilityFinding,
 } from "@/lib/eligibility/types";
+import { HOUR_MS } from "@/lib/time";
 import { useWorkProfile } from "./use-work-profile";
 import { WorkProfileDialog } from "./work-profile-dialog";
 
@@ -27,8 +28,6 @@ export type EligibilityCardProps = {
   location: string;
   text: string;
 };
-
-const HOUR_MS = 60 * 60 * 1000;
 
 function FindingRow({ item }: { item: EligibilityFinding }) {
   return (

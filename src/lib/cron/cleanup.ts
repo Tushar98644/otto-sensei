@@ -12,12 +12,11 @@ import {
 import { retryPendingReplacements } from "@/lib/billing/replacements";
 import { MATCH_CACHE_MAX_AGE_MS } from "@/lib/job-feed/match-cache";
 import { log } from "@/lib/log";
+import { DAY_MS } from "@/lib/time";
 import { drain, type CronContext, type CronOutcome } from "./run";
 
 // Bounded oldest-first batches through an age index; idempotent. Catches what request-path pruning
 // never reaches, such as keys that are never used again.
-
-const DAY_MS = 24 * 60 * 60 * 1_000;
 
 export const RETENTION = {
   // rate-limit.ts keeps windows 2 days; the longest window in use is one day.

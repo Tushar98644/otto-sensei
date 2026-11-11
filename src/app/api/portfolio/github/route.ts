@@ -1,4 +1,4 @@
-import { fail, ok } from "@/lib/api/respond";
+import { fail, NO_STORE, ok } from "@/lib/api/respond";
 import { rejectCrossSite } from "@/lib/auth/route-guards";
 import { getCurrentAccount } from "@/lib/auth/session";
 import { log } from "@/lib/log";
@@ -6,12 +6,12 @@ import { refreshPortfolioPages } from "@/lib/portfolio/cache";
 import type { GitHubRefreshResponse } from "@/lib/portfolio/content";
 import { refreshGitHub } from "@/lib/portfolio/content-records";
 import { rateLimit, retryAfterHeader, waitText } from "@/lib/rate-limit";
-import { NO_PORTFOLIO, NO_STORE, SIGN_IN } from "../limits";
+import { HOUR_MS } from "@/lib/time";
+import { NO_PORTFOLIO, SIGN_IN } from "../limits";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const HOUR_MS = 60 * 60 * 1000;
 // Without a token GitHub allows this server 60 calls an hour in all, and a refresh costs three.
 const REFRESHES_PER_HOUR = 6;
 

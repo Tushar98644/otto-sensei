@@ -3,6 +3,7 @@ import { EMAIL_LIMITS, IP_LIMITS } from "@/config/plans";
 import { log, maskEmail } from "@/lib/log";
 import { rateLimit, waitText } from "@/lib/rate-limit";
 import { createSupabaseServerClient, type ServerSupabase } from "@/lib/supabase/server";
+import { HOUR_MS } from "@/lib/time";
 import { ensureUser, toSessionUser } from "@/lib/users";
 import { DevCodeError, requestDevCode, verifyDevCode } from "./dev";
 import { devAuthActive } from "./dev-mode";
@@ -35,7 +36,6 @@ export class AuthError extends Error {
   }
 }
 
-const HOUR_MS = 60 * 60 * 1000;
 // Supabase's own floor between two codes for one address (Auth > Rate Limits), 60s by default.
 const SUPABASE_RESEND_WAIT_MS = 60_000;
 

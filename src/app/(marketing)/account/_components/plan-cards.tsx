@@ -102,7 +102,7 @@ export function UpgradeCard({ plan, interval: current, mode, offer, trial = fals
         {mode === "disabled" ? (
           <a
             href={SUPPORT_MAILTO}
-            className={buttonClasses({ variant: "outline", className: "w-full sm:w-auto" })}
+            className={buttonClasses({ variant: "secondary", className: "w-full sm:w-auto" })}
           >
             Email us
           </a>
@@ -145,7 +145,7 @@ export function BillingCard({ mode, trialEndsAt = null }: { mode: BillingMode; t
       ) : null}
       <CardFooter>
         <Button
-          variant="outline"
+          variant="secondary"
           onClick={() => void portal.go()}
           loading={portal.pending}
           className="w-full sm:w-auto"

@@ -1,5 +1,5 @@
 import { TEXT_LIMITS } from "@/config/plans";
-import { fail, ok } from "@/lib/api/respond";
+import { fail, NO_STORE, ok } from "@/lib/api/respond";
 import type { InterviewPacksResponse } from "@/lib/api/types";
 import { prepareInterview } from "@/lib/ai/interview";
 import { rejectCrossSite } from "@/lib/auth/route-guards";
@@ -12,8 +12,6 @@ import { runMetered, type MeteredCopy } from "../fix/metered";
 export const runtime = "nodejs";
 export const maxDuration = 60;
 export const dynamic = "force-dynamic";
-
-const NO_STORE = { "Cache-Control": "no-store" };
 
 const COPY: MeteredCopy = {
   signIn: "Sign in to let Otto help you prepare.",

@@ -135,7 +135,7 @@ export function GuidedDraft({ onDrafted, onCancel }: GuidedDraftProps) {
     <div className="flex flex-col gap-6">
       <OttoNote message={otto} meta={screen >= 0 ? `Job ${screen + 1} of ${jobs.length}` : undefined}>
         {status.kind === "failed" ? (
-          <Button variant="outline" onClick={() => formRef.current?.requestSubmit()}>
+          <Button variant="secondary" onClick={() => formRef.current?.requestSubmit()}>
             <RotateCcw />
             Try again
           </Button>
@@ -184,7 +184,7 @@ export function GuidedDraft({ onDrafted, onCancel }: GuidedDraftProps) {
           ) : null}
           <span className="hidden flex-1 sm:block" />
           {job && isLast && jobs.length < DRAFT_LIMITS.jobs ? (
-            <Button type="button" variant="outline" onClick={addJob} disabled={drafting}>
+            <Button type="button" variant="secondary" onClick={addJob} disabled={drafting}>
               <Plus />
               Add another job
             </Button>

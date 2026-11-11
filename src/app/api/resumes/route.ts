@@ -1,4 +1,4 @@
-import { fail, ok } from "@/lib/api/respond";
+import { fail, NO_STORE, ok } from "@/lib/api/respond";
 import type { ResumesResponse } from "@/lib/api/types";
 import { getCurrentUser } from "@/lib/auth/session";
 import { log } from "@/lib/log";
@@ -6,8 +6,6 @@ import { listBackups } from "./backups";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-
-const NO_STORE = { "Cache-Control": "no-store" };
 
 export async function GET(): Promise<Response> {
   try {

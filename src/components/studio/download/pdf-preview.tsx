@@ -94,7 +94,7 @@ export function PdfPreviewLink({ url, className }: { url: string; className?: st
       href={url}
       target="_blank"
       rel="noopener"
-      className={buttonClasses({ variant: "outline", className })}
+      className={buttonClasses({ variant: "secondary", className })}
     >
       <Eye />
       Preview

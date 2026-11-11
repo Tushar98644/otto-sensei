@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { ResumeSchema } from "@/lib/resume/validation";
+import { DAY_MS } from "@/lib/time";
 import { APPLICATION_STATUSES } from "./status";
 import {
   APPLICATION_LIMITS,
@@ -10,8 +11,6 @@ import {
 } from "./schema";
 
 // Apart from ./schema, which the board and the Jobs tab load, so those pages don't load zod.
-
-const DAY_MS = 24 * 60 * 60 * 1_000;
 
 // The raw cap is looser than the stored one, so text that only gets short once cleaned still fits.
 const line = (max: number, min = 0) =>

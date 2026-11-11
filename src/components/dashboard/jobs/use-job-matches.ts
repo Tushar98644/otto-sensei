@@ -14,6 +14,7 @@ import { getQueryClient, useAppQueryClient } from "@/lib/queries/client";
 import { JOB_MATCHES, queryKeys } from "@/lib/queries/keys";
 import { JOB_MATCHES_STALE_MS } from "@/lib/queries/options";
 import type { Resume } from "@/lib/resume/schema";
+import { DAY_MS } from "@/lib/time";
 
 // Only the resume's skills, titles and years go out (matchProfileOf). Answers stay in the query
 // cache, so coming back to the tab shows the last matches at once.
@@ -26,7 +27,6 @@ export type JobMatchesState =
   | { status: "ready"; data: JobMatchesResponse }
   | { status: "error"; error: unknown };
 
-const DAY_MS = 24 * 60 * 60 * 1_000;
 const IDLE_KEY = [...JOB_MATCHES, "idle"] as const;
 
 // A save changes the Saved view and every count, so other cached answers are dropped, and one on

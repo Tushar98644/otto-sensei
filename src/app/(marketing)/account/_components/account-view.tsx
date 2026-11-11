@@ -86,7 +86,7 @@ export function AccountView() {
         variant="error"
         title="Couldn't load your account"
         action={
-          <Button variant="outline" onClick={() => void refresh()}>
+          <Button variant="secondary" onClick={() => void refresh()}>
             Try again
           </Button>
         }

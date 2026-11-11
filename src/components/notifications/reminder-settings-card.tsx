@@ -81,7 +81,7 @@ export function ReminderSettingsCard() {
           variant="error"
           title="Couldn't load your reminder settings"
           action={
-            <Button variant="outline" onClick={() => void query.refetch()}>
+            <Button variant="secondary" onClick={() => void query.refetch()}>
               Try again
             </Button>
           }

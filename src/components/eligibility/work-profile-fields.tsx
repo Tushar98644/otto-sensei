@@ -12,6 +12,7 @@ import {
   type WorkRegion,
   type WorkRight,
 } from "@/lib/eligibility/profile";
+import { DAY_MS } from "@/lib/time";
 import { RightChoice } from "./right-choice";
 
 export type WorkProfileFieldsProps = {
@@ -29,7 +30,6 @@ export type WorkProfileFieldsProps = {
 };
 
 const CHECKBOX = "flex min-h-11 cursor-pointer items-center gap-2.5 text-sm text-ink";
-const DAY_MS = 24 * 60 * 60 * 1000;
 
 // No saving here: the Account form saves as answers change, the first-login step on Save.
 export function WorkProfileFields({

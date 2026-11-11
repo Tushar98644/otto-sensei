@@ -2,6 +2,7 @@ import { notInArray, sql } from "drizzle-orm";
 import type { Db } from "@/db/client";
 import { companyVisa } from "@/db/schema";
 import { USER_AGENT } from "@/lib/jobs/fetch";
+import { DAY_MS } from "@/lib/time";
 import { companyKey } from "./visa";
 import { VISA_REGISTER_NAMES, type RegisterNames } from "./visa-matches";
 
@@ -13,7 +14,6 @@ import { VISA_REGISTER_NAMES, type RegisterNames } from "./visa-matches";
 const UK_PAGE =
   "https://www.gov.uk/api/content/government/publications/register-of-licensed-sponsors-workers";
 const USCIS_FILES = "https://www.uscis.gov/archive/h-1b-employer-data-hub-files";
-const DAY_MS = 24 * 60 * 60 * 1_000;
 export const VISA_REFRESH_AFTER_MS = 30 * DAY_MS;
 const TIMEOUT_MS = 60_000;
 

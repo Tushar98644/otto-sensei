@@ -1,14 +1,12 @@
+import { limitNetworkThenDevice, type LimitScope } from "@/lib/api/limits";
 import { fail } from "@/lib/api/respond";
 import { GitHubError } from "@/lib/github/http";
-import { clientIp, getDeviceId } from "@/lib/http";
 import { log } from "@/lib/log";
-import { rateLimit, retryAfterHeader, waitText, type RateLimitResult } from "@/lib/rate-limit";
-import { ipBucket } from "../import/upload-limits";
+import { retryAfterHeader, waitText, type RateLimitResult } from "@/lib/rate-limit";
+import { HOUR_MS } from "@/lib/time";
 
 // Lookups cost no allowance, so they're limited per network and device, well under GitHub's
 // shared allowance for this server. Drafting spends the account's "github" allowance instead.
-
-const HOUR_MS = 60 * 60 * 1000;
 
 export const GITHUB_LIMITS = {
   // Two GitHub calls each, often fewer with the cache.
@@ -18,39 +16,15 @@ export const GITHUB_LIMITS = {
 export type GitHubAction = keyof typeof GITHUB_LIMITS;
 
 export async function limitGitHub(req: Request, action: GitHubAction): Promise<Response | null> {
-  const limits = GITHUB_LIMITS[action];
-  // The network goes first, so a flood without cookies stops before adding a device row per request.
-  const network = await count(
-    `github-${action}:ip:${ipBucket(clientIp(req))}`,
-    limits.ip,
-    limits.windowMs,
-  );
-  if (network && !network.allowed) return tooMany(action, "ip", network);
-  const device = await count(
-    `github-${action}:device:${await getDeviceId()}`,
-    limits.device,
-    limits.windowMs,
-  );
-  if (device && !device.allowed) return tooMany(action, "device", device);
-  return null;
+  const hit = await limitNetworkThenDevice(req, {
+    key: `github-${action}`,
+    logAs: "github",
+    ...GITHUB_LIMITS[action],
+  });
+  return hit && tooMany(action, hit.scope, hit.result);
 }
 
-// A database outage lets requests through instead of taking the feature down with it.
-async function count(
-  key: string,
-  limit: number,
-  windowMs: number,
-): Promise<RateLimitResult | null> {
-  try {
-    return await rateLimit(key, limit, windowMs);
-  } catch (error) {
-    // The key holds the IP address, so only the error goes to the log.
-    log.warn("github.rate_limit_unavailable", {}, error);
-    return null;
-  }
-}
-
-function tooMany(action: GitHubAction, scope: "ip" | "device", result: RateLimitResult): Response {
+function tooMany(action: GitHubAction, scope: LimitScope, result: RateLimitResult): Response {
   log.info("github.rate_limited", { action, scope });
   const message = `You've looked up a lot of GitHub accounts this hour. Try again in ${waitText(result.retryAfterMs)}.`;
   return fail("rate_limited", message, 429, retryAfterHeader(result.retryAfterMs));

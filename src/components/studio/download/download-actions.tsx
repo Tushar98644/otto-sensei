@@ -72,7 +72,7 @@ export function DownloadActions({
             variant="error"
             title="Your PDF didn't come out"
             action={
-              <Button variant="outline" onClick={pdf.retry}>
+              <Button variant="secondary" onClick={pdf.retry}>
                 Try again
               </Button>
             }
@@ -102,7 +102,7 @@ export function DownloadActions({
             <PdfPreviewLink url={pdf.file.url} className="w-full" />
           ) : null}
           <Button
-            variant="outline"
+            variant="secondary"
             onClick={check.run}
             loading={check.checking}
             disabled={!ready}

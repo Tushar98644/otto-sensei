@@ -3,6 +3,7 @@
 import { useEffect, useSyncExternalStore } from "react";
 import { useMe } from "@/components/account/use-me";
 import { api } from "@/lib/api/client";
+import { readJsonItem, writeJsonItem } from "@/lib/browser-storage";
 import type { WeakLineTarget } from "@/lib/setup/checklist";
 import { NO_SETUP, type AccountSetup, type SetupStepOutcome } from "@/lib/setup/types";
 
@@ -47,44 +48,28 @@ function subscribe(listener: () => void) {
 
 const keyOf = (userId: string) => `otto.setup.${userId}`;
 
-function storage(): Storage | null {
-  try {
-    return typeof window === "undefined" ? null : window.localStorage;
-  } catch {
-    return null;
-  }
-}
-
 const time = (value: unknown) => (typeof value === "number" && Number.isFinite(value) ? value : null);
 
 function readLocal(userId: string): Local {
-  try {
-    const raw = storage()?.getItem(keyOf(userId));
-    if (!raw) return NO_LOCAL;
-    const value = JSON.parse(raw) as Record<string, unknown>;
-    const line = value.weakLine as Record<string, unknown> | null | undefined;
-    return {
-      stepAt: time(value.stepAt),
-      checklistHiddenAt: time(value.checklistHiddenAt),
-      weakLine:
-        line && typeof line.resumeId === "string" && typeof line.bulletId === "string"
-          ? { resumeId: line.resumeId, bulletId: line.bulletId }
-          : null,
-    };
-  } catch {
-    return NO_LOCAL;
-  }
+  const value = readJsonItem(keyOf(userId)) as Record<string, unknown> | null;
+  if (value === null) return NO_LOCAL;
+  const line = value.weakLine as Record<string, unknown> | null | undefined;
+  return {
+    stepAt: time(value.stepAt),
+    checklistHiddenAt: time(value.checklistHiddenAt),
+    weakLine:
+      line && typeof line.resumeId === "string" && typeof line.bulletId === "string"
+        ? { resumeId: line.resumeId, bulletId: line.bulletId }
+        : null,
+  };
 }
 
 function writeLocal(userId: string, patch: Partial<Local>) {
   if (snapshot.userId !== userId) return;
   const local = { ...snapshot.local, ...patch };
   setSnapshot({ ...snapshot, local });
-  try {
-    storage()?.setItem(keyOf(userId), JSON.stringify(local));
-  } catch {
-    // Full or blocked storage: the server copy is the one that counts anyway.
-  }
+  // Full or blocked storage: the server copy is the one that counts anyway.
+  writeJsonItem(keyOf(userId), local);
 }
 
 function load(userId: string): Promise<void> {

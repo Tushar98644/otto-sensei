@@ -1,5 +1,5 @@
 import { getDb } from "@/db/client";
-import { fail, ok } from "@/lib/api/respond";
+import { fail, NO_STORE, ok } from "@/lib/api/respond";
 import type { SavedJobsResponse } from "@/lib/api/types";
 import { getCurrentUser } from "@/lib/auth/session";
 import { listSavedJobs } from "@/lib/job-feed/records";
@@ -7,8 +7,6 @@ import { log } from "@/lib/log";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-
-const NO_STORE = { "Cache-Control": "no-store" };
 
 // Readable on every plan: a Free account keeps the jobs it saved on Pro or the trial.
 export async function GET(): Promise<Response> {

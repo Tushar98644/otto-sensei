@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useSyncExternalStore } from "react";
 import type { Application } from "@/lib/api/types";
+import { readJsonItem, writeJsonItem } from "@/lib/browser-storage";
 import type { AskedAppliedAnswer } from "@/lib/job-feed/types";
 import {
   answerOpenedJob,
@@ -30,21 +31,9 @@ function notify() {
   for (const listener of listeners) listener();
 }
 
-function storage(): Storage | null {
-  try {
-    return window.localStorage;
-  } catch {
-    return null;
-  }
-}
-
 function readStored(userId: string): readonly OpenedJob[] {
-  try {
-    const raw = storage()?.getItem(KEY_PREFIX + userId);
-    return raw ? parseOpenedJobs(JSON.parse(raw)) : EMPTY;
-  } catch {
-    return EMPTY;
-  }
+  const parsed = readJsonItem(KEY_PREFIX + userId);
+  return parsed === null ? EMPTY : parseOpenedJobs(parsed);
 }
 
 function jobsFor(userId: string): readonly OpenedJob[] {
@@ -57,11 +46,8 @@ function update(userId: string, change: (jobs: readonly OpenedJob[]) => readonly
   const jobs = change(before);
   if (jobs === before) return;
   cache = { userId, jobs };
-  try {
-    storage()?.setItem(KEY_PREFIX + userId, JSON.stringify(jobs));
-  } catch {
-    // Full or blocked: remembered for this visit only.
-  }
+  // Full or blocked storage: remembered for this visit only.
+  writeJsonItem(KEY_PREFIX + userId, jobs);
   notify();
 }
 

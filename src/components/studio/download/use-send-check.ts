@@ -4,6 +4,7 @@ import { useCallback, useMemo, useSyncExternalStore } from "react";
 import { useShallow } from "zustand/react/shallow";
 import { loadResult } from "@/components/studio/tailor/session";
 import { useNow } from "@/components/studio/use-now";
+import { readJsonItem, writeJsonItem } from "@/lib/browser-storage";
 import { savedJobText } from "@/lib/insights/saved-job";
 import type { Resume } from "@/lib/resume/schema";
 import { runSendCheck, type SendCheckItem } from "@/lib/sendcheck";
@@ -20,17 +21,13 @@ const listeners = new Set<() => void>();
 let marks: Record<string, readonly string[]> | null = null;
 
 function readStored(): Record<string, readonly string[]> {
-  try {
-    const parsed: unknown = JSON.parse(window.localStorage.getItem(STORAGE_KEY) ?? "{}");
-    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return {};
-    const out: Record<string, readonly string[]> = {};
-    for (const [id, list] of Object.entries(parsed)) {
-      if (Array.isArray(list)) out[id] = list.filter((item) => typeof item === "string");
-    }
-    return out;
-  } catch {
-    return {};
+  const parsed = readJsonItem(STORAGE_KEY);
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return {};
+  const out: Record<string, readonly string[]> = {};
+  for (const [id, list] of Object.entries(parsed)) {
+    if (Array.isArray(list)) out[id] = list.filter((item) => typeof item === "string");
   }
+  return out;
 }
 
 function getSnapshot() {
@@ -47,11 +44,8 @@ function save(next: Record<string, readonly string[]>) {
   // Oldest resumes first in insertion order: drop them once the list is full.
   const ids = Object.keys(next);
   marks = Object.fromEntries(ids.slice(-MAX_RESUMES).map((id) => [id, next[id]!]));
-  try {
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(marks));
-  } catch {
-    // Not remembered after a reload, but still applied now.
-  }
+  // If storage is blocked: not remembered after a reload, but still applied now.
+  writeJsonItem(STORAGE_KEY, marks);
   for (const listener of listeners) listener();
 }
 

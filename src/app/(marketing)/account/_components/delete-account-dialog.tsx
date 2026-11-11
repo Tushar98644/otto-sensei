@@ -64,7 +64,7 @@ export function DeleteAccountDialog({ open, onOpenChange, isPro }: DeleteAccount
       description="This deletes your account, the resumes backed up to it, and your usage history. You can't undo it."
       footer={
         <>
-          <Button variant="outline" onClick={() => handleOpenChange(false)} disabled={deleting}>
+          <Button variant="secondary" onClick={() => handleOpenChange(false)} disabled={deleting}>
             Cancel
           </Button>
           <Button

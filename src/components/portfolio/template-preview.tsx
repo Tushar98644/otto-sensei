@@ -5,13 +5,12 @@ import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import { PORTFOLIO_TEMPLATE_INFO } from "@/lib/portfolio/templates";
 import type { PortfolioTemplateId } from "@/lib/portfolio/types";
 import { cn } from "@/lib/utils";
+import { LIVE_WIDTH } from "./live-size";
 import type { TemplateSample } from "./live-template";
 
 const LiveTemplate = lazy(() =>
   import("./live-template").then((module) => ({ default: module.LiveTemplate })),
 );
-// LIVE_WIDTH of ./live-template.tsx, written out: importing it would load that chunk up front.
-const LIVE_WIDTH = 1280;
 
 // A static picture until the person points at or tabs to the card, then the real template scaled
 // down: eight live pages at once were too slow. It unmounts when the card scrolls far away.

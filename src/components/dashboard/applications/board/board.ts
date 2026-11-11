@@ -13,6 +13,7 @@ import { savedJobUrl } from "@/lib/insights/saved-job";
 import type { SavedJob } from "@/lib/job-feed/types";
 import { resumeTitle } from "@/lib/resume/ops";
 import type { Resume } from "@/lib/resume/schema";
+import { DAY_MS } from "@/lib/time";
 
 // "To apply" is worked out, never stored: saved jobs and tailored copies with no application
 // yet. Moving one on creates the application the usual way, so Free's limit still applies.
@@ -93,7 +94,6 @@ export function toApplyItems(
   return items.sort((a, b) => b.addedAt - a.addedAt || a.key.localeCompare(b.key));
 }
 
-const DAY_MS = 24 * 60 * 60 * 1_000;
 // Waiting this long on Applied with no word back counts as overdue.
 export const STALE_DAYS = 14;
 export const COLUMN_PAGE = 20;

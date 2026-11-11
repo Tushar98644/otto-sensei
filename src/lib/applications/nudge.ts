@@ -1,9 +1,9 @@
+import { DAY_MS } from "@/lib/time";
 import type { Application } from "./schema";
 
 // Applications left on "applied" for weeks read as "still waiting", flattering the win rate.
 
 export const NO_REPLY_AFTER_DAYS = 21;
-const DAY_MS = 24 * 60 * 60 * 1_000;
 
 export function waitingTooLong<T extends Pick<Application, "status" | "appliedAt">>(
   list: readonly T[],

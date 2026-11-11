@@ -1,20 +1,19 @@
-import { fail, ok } from "@/lib/api/respond";
+import { fail, NO_STORE, ok } from "@/lib/api/respond";
 import { VerifyCodeSchema, type VerifyCodeResponse } from "@/lib/api/types";
 import { AuthError, normalizeEmail, verifyLoginCode } from "@/lib/auth/codes";
 import { rejectNonJson } from "@/lib/auth/route-guards";
 import { clientIp, readJson } from "@/lib/http";
 import { log } from "@/lib/log";
 import { rateLimit, retryAfterHeader, waitText } from "@/lib/rate-limit";
+import { HOUR_MS } from "@/lib/time";
 
 export const runtime = "nodejs";
 
-const HOUR_MS = 60 * 60 * 1000;
 // Supabase doesn't lock a code after wrong tries, so these do: one IP spraying many inboxes, and
 // many IPs guessing at one (two codes' worth of typos an hour).
 const VERIFY_PER_IP_PER_HOUR = 30;
 const VERIFY_PER_EMAIL_PER_HOUR = 10;
 // Responses that set session cookies must never be stored by a shared cache.
-const NO_STORE = { "Cache-Control": "no-store" };
 
 export async function POST(req: Request): Promise<Response> {
   const notJson = rejectNonJson(req);

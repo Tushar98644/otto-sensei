@@ -1,6 +1,6 @@
 import type { TailorRequirement } from "@/lib/ai/types";
 import type { Resume } from "@/lib/resume/schema";
-import { normalizeTerm } from "@/lib/tailor/keywords";
+import { termKey } from "@/lib/tailor/keywords";
 import { screenerRows } from "@/lib/tailor/requirements";
 import { foldCase } from "@/lib/tailor/tokens";
 import { savedTerms } from "./saved-job";
@@ -34,10 +34,6 @@ export type SkillGapReport = {
 };
 
 type Tally = SkillGap & { spellings: Map<string, number>; firstSeen: number };
-
-function termKey(term: string): string {
-  return normalizeTerm(term).replace(/ /g, "");
-}
 
 function jobKey(resume: Resume): string {
   const meta = resume.tailor;

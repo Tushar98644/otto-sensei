@@ -44,7 +44,7 @@ export function WordDownload({
   }
 
   return (
-    <Button variant="outline" loading={building} onClick={() => void download()} className="w-full">
+    <Button variant="secondary" loading={building} onClick={() => void download()} className="w-full">
       <FileText />
       Download Word
       {locked ? (

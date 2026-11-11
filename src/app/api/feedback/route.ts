@@ -7,11 +7,9 @@ import { saveFeedback } from "@/lib/feedback/records";
 import { clientIp, getDeviceId, readJson } from "@/lib/http";
 import { log } from "@/lib/log";
 import { rateLimit, retryAfterHeader, waitText } from "@/lib/rate-limit";
+import { DAY_MS, HOUR_MS } from "@/lib/time";
 
 export const runtime = "nodejs";
-
-const HOUR_MS = 60 * 60 * 1000;
-const DAY_MS = 24 * HOUR_MS;
 
 // Counted in the database, so they hold across server instances. Generous for a person, tight
 // for a script filling the table.

@@ -1,4 +1,4 @@
-import { fail, ok } from "@/lib/api/respond";
+import { fail, NO_STORE, ok } from "@/lib/api/respond";
 import { rejectCrossSite, rejectNonJson } from "@/lib/auth/route-guards";
 import { getCurrentUser } from "@/lib/auth/session";
 import { saveLookingFor } from "@/lib/eligibility/records";
@@ -10,7 +10,6 @@ import { log } from "@/lib/log";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const NO_STORE = { "Cache-Control": "no-store" };
 const SIGN_IN = "Sign in to keep what you're looking for.";
 
 // Free and Pro alike: it only orders the person's own matches. Read back via GET /api/profile.

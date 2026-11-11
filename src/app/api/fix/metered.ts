@@ -12,6 +12,7 @@ import { aiEnabled } from "@/lib/env";
 import { readJson } from "@/lib/http";
 import { log } from "@/lib/log";
 import { rateLimit, retryAfterHeader, waitText } from "@/lib/rate-limit";
+import { DAY_MS, MINUTE_MS } from "@/lib/time";
 import { consumeUsage, refundUsage } from "@/lib/usage";
 import { budgetReached, limitReached, requirePlanFeature } from "../metered-free";
 
@@ -32,8 +33,6 @@ export type MeteredRoute<S extends z.ZodType, R> = {
   run: (input: z.output<S>) => Promise<R>;
 };
 
-const MINUTE_MS = 60_000;
-const DAY_MS = 24 * 60 * MINUTE_MS;
 // Every call keeps the model busy for seconds, so people clicking through the studio stay far
 // below these. This only stops a script from draining the API quota every customer shares.
 const CALLS_PER_MINUTE: Record<Feature, number> = {

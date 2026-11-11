@@ -22,11 +22,14 @@ import { EditorSection } from "../check-row";
 import { putPortfolio } from "../portfolio-store";
 import { CareerCard } from "./career-card";
 import { flushContent, resetContentStore, useContentStore } from "./content-store";
-import { MilestonesCard, NowCard, PersonalCard, WritingCard } from "./extras-cards";
 import { GitHubCard } from "./github-card";
 import { CONTENT_LINES, hiddenOnPage, missingList } from "./lines";
+import { MilestonesCard } from "./milestones-card";
+import { NowCard } from "./now-card";
+import { PersonalCard } from "./personal-card";
 import { AboutCard, ProfileCard } from "./profile-card";
 import { ProjectsCard } from "./projects-card";
+import { WritingCard } from "./writing-card";
 
 type ContentEditorProps = {
   template: PortfolioTemplateId;

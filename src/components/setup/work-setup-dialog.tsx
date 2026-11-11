@@ -26,6 +26,7 @@ import { answerRegion, guessCountry, moveHomeRegion, type CountryGuess } from "@
 import { confirmedChoice } from "@/lib/setup/step";
 import type { SetupStepOutcome } from "@/lib/setup/types";
 import { useResumeList } from "@/lib/store/resume-store";
+import { DAY_MS } from "@/lib/time";
 
 export type WorkSetupDialogProps = {
   open: boolean;
@@ -46,7 +47,6 @@ type Draft = {
 };
 
 const NO_MATCH: MatchProfile = { skills: [], titles: [], years: null };
-const DAY_MS = 24 * 60 * 60 * 1000;
 const CHECKBOX = "flex min-h-11 cursor-pointer items-center gap-2.5 text-sm text-ink";
 
 // Everything is guessed first from the resume and this device, so most people only check it and

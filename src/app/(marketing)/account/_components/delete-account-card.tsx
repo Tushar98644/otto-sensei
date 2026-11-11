@@ -16,7 +16,7 @@ export function DeleteAccountCard({ isPro }: { isPro: boolean }) {
       </CardHeader>
       <CardFooter>
         <Button
-          variant="outline"
+          variant="secondary"
           onClick={() => setOpen(true)}
           className="w-full text-fail-ink hover:bg-fail-soft sm:w-auto"
         >

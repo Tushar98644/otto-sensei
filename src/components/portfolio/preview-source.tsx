@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useSyncExternalStore } from "react";
+import { readItem, writeItem } from "@/lib/browser-storage";
 import {
   isThinPage,
   parsePreviewSource,
@@ -19,11 +20,7 @@ const listeners = new Set<() => void>();
 let current: PreviewSource | null | undefined;
 
 function readStored(): PreviewSource | null {
-  try {
-    return parsePreviewSource(window.localStorage.getItem(STORAGE_KEY));
-  } catch {
-    return null;
-  }
+  return parsePreviewSource(readItem(STORAGE_KEY));
 }
 
 function getSnapshot(): PreviewSource | null {
@@ -58,11 +55,8 @@ function subscribe(listener: () => void) {
 
 export function setPreviewSource(source: PreviewSource): void {
   current = source;
-  try {
-    window.localStorage.setItem(STORAGE_KEY, source);
-  } catch {
-    // Not remembered after a reload, but still applied now.
-  }
+  // If storage is blocked: not remembered after a reload, but still applied now.
+  writeItem(STORAGE_KEY, source);
   notify();
 }
 

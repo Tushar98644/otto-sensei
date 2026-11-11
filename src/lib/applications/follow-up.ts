@@ -1,8 +1,7 @@
+import { DAY_MS } from "@/lib/time";
 import type { ApplicationStatus } from "./status";
 
 // Marking a job applied sets the date by itself; the account's setting only changes how many days.
-
-const DAY_MS = 24 * 60 * 60 * 1_000;
 
 export const FOLLOW_UP_DAYS = { default: 7, min: 1, max: 60 } as const;
 export const SNOOZE_DAYS = 3;

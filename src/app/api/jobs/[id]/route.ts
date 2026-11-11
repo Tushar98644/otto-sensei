@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { getDb } from "@/db/client";
-import { fail, ok } from "@/lib/api/respond";
+import { fail, NO_STORE, ok } from "@/lib/api/respond";
 import { getCurrentUser } from "@/lib/auth/session";
 import { readFullPost } from "@/lib/job-feed/full-post";
 import { cachedForDay } from "@/lib/job-feed/public-cache";
@@ -11,7 +11,6 @@ import { log } from "@/lib/log";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const NO_STORE = { "Cache-Control": "no-store" };
 const JobIdSchema = z.uuid();
 
 // Feed text, or the post re-read from its source (cached a day; "" on failure, and the tailor

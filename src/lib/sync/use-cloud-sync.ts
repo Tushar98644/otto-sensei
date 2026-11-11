@@ -5,9 +5,10 @@ import { refreshMe, useMe } from "@/components/account/use-me";
 import { toast } from "@/components/ui/toast";
 import { resetUser } from "@/lib/analytics/client";
 import { api } from "@/lib/api/client";
+import { browserStorage } from "@/lib/browser-storage";
 import { useStudioHydrated, useStudioStore } from "@/lib/store/resume-store";
 import { releaseBackedUp, startCloudSync } from "./cloud-sync";
-import { createLedger, type LedgerStorage } from "./ledger";
+import { createLedger } from "./ledger";
 import { createSyncSession } from "./sync-session";
 
 // Signed-out users get no network traffic; their deletions are only noted for a later sign-in.
@@ -133,13 +134,5 @@ export async function signOutAndRelease(userId: string): Promise<{ kept: number 
   } catch {
     // Storage is blocked, so there was nothing saved here to remove.
     return { kept: 0 };
-  }
-}
-
-function browserStorage(): LedgerStorage | null {
-  try {
-    return window.localStorage;
-  } catch {
-    return null;
   }
 }

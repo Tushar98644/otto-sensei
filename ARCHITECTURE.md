@@ -188,8 +188,8 @@ Each task writes only inside its own paths (plus its own `*.test.ts` files next 
 |---|---|
 | ui-kit | `src/app/layout.tsx`, `src/app/globals.css`, `src/components/ui/**` |
 | mascot | `src/components/mascot/**`, `src/app/icon.svg`, `src/app/opengraph-image.tsx` |
-| parse-checks | `src/lib/parse/**` (except `types.ts`), `src/lib/checks/recruiter.ts`, `src/lib/resume/sections.ts`, `src/lib/resume/heuristic-parse.ts` |
-| lint-keywords | `src/lib/lint/bullets.ts`, `src/lib/tailor/**`, tests for `src/lib/resume/ops.ts` |
+| parse-checks | `src/lib/parse/**` (except `types.ts`), `src/lib/checks/recruiter.ts`, `src/lib/resume/sections.ts`, `src/lib/resume/heuristic-parse.ts`, `src/lib/resume/heuristic-parse/**` |
+| lint-keywords | `src/lib/lint/bullets.ts`, `src/lib/lint/bullets/**`, `src/lib/tailor/**`, tests for `src/lib/resume/ops.ts` |
 | ai | `src/lib/ai/**` (except `types.ts`) |
 | auth | `src/lib/auth/**` (except `types.ts`), `src/lib/supabase/**`, `src/db/**`, `supabase/**`, `scripts/migrate.ts`, `src/proxy.ts`, `src/lib/usage.ts`, `src/lib/rate-limit.ts`, `src/lib/users.ts`, `src/app/api/auth/**`, `src/app/auth/**`, `src/app/api/me/**`, `src/app/api/account/**` |
 | billing | `src/lib/billing/**` (except `types.ts`), `src/app/api/billing/**` |
