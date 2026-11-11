@@ -40,8 +40,7 @@ function focusSoon(ref: RefObject<HTMLElement | null>) {
   requestAnimationFrame(() => ref.current?.focus());
 }
 
-// One live link per resume (the server keeps it that way): make it, copy it, point it at the
-// latest version, choose what it shows, or turn it off (at once, with Undo).
+// One live link per resume; the server keeps it that way.
 export function ShareDialog({ resume, open, onOpenChange }: ShareDialogProps) {
   const { user } = useMe();
   // Loads once per account; later opens reuse the list the Shared links section shares.

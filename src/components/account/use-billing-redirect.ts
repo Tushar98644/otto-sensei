@@ -15,13 +15,11 @@ const FAILURE_TITLES: Record<BillingDestination, string> = {
   portal: "Couldn't open billing",
 };
 
-// Sends the browser to the payment provider's checkout or customer portal (in test mode, straight
-// back to /account). Failures become a toast; `pending` stays on while the page unloads.
+// In test mode checkout comes straight back to /account. `pending` stays on while the page unloads.
 export function useBillingRedirect(destination: BillingDestination) {
   const [pending, setPending] = useState(false);
 
-  // Pressing Back on the provider's page can restore this one from the back/forward cache, with the
-  // button still spinning.
+  // Back from the provider can restore this page from bfcache with the button still spinning.
   useEffect(() => {
     const onPageShow = (event: PageTransitionEvent) => {
       if (event.persisted) setPending(false);

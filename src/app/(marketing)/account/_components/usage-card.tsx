@@ -28,8 +28,7 @@ function sentenceCase(text: string): string {
   return text.charAt(0).toUpperCase() + text.slice(1);
 }
 
-// Every metered feature as used / limit on Pro, Max and the trial: the limits are real, so they're
-// shown. Free has no AI help, so it gets one plain line instead of a row of empty meters.
+// Free has no AI help, so it gets one plain line instead of a row of empty meters.
 export function UsageCard({ me, plan }: { me: Me; plan: PlanId }) {
   const { usage, period, aiBudget } = me;
   if (plan === "free") return <FreeUsageCard trial={me.billing.trial === true} />;

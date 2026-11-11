@@ -14,9 +14,8 @@ import { portfolioDescription } from "@/lib/portfolio/view";
 import { absoluteUrl } from "@/lib/seo/urls";
 import { cn } from "@/lib/utils";
 
-// Static and cached: rendered on the first visit, then served as is until the owner changes
-// something (every write drops the cache, src/lib/portfolio/cache.ts) or an hour passes. Must
-// stay a literal (PORTFOLIO_REVALIDATE_SECONDS) for Next to read it.
+// Every write drops the cache (src/lib/portfolio/cache.ts), else hourly. Must stay a literal
+// (PORTFOLIO_REVALIDATE_SECONDS) for Next to read it.
 export const revalidate = 3600;
 
 // No pages at build time; each address is rendered on its first visit.

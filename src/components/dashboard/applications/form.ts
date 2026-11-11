@@ -13,8 +13,6 @@ import { savedJobUrl } from "@/lib/insights/saved-job";
 import { resumeTitle } from "@/lib/resume/ops";
 import type { Resume } from "@/lib/resume/schema";
 
-// Pure logic behind the add and edit dialog, so prefill and validation are tested without a browser.
-
 export type ApplicationFormValues = {
   // "" for a resume that isn't in Otto.
   resumeId: string;
@@ -69,10 +67,8 @@ export function versionChoices(resumes: readonly Resume[]): { id: string; label:
     }));
 }
 
-/**
- * What a tailored copy already knows about its job: the company and role from its tailor meta, and
- * the link it saved, else the studio's job draft's while that draft is still for the same job.
- */
+// Company and role from the copy's tailor meta; the link it saved, else the studio's job draft's
+// while that draft is still for the same job.
 export function prefillFor(
   resume: Resume | null,
   draft: JobDraft | null,
@@ -116,10 +112,8 @@ export function formFromApplication(application: Application): ApplicationFormVa
   };
 }
 
-/**
- * Picking another resume refills company, role and link from it, but only the fields the person
- * hasn't typed into: anything that still matches the old resume's prefill is fair game.
- */
+// Refills only the fields the person hasn't typed into: anything still matching the old resume's
+// prefill is fair game.
 export function switchResume(
   values: ApplicationFormValues,
   previous: Resume | null,

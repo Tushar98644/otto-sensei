@@ -1,14 +1,11 @@
 import type { ContentProject } from "@/lib/portfolio/content";
 import { safeId } from "../parts";
 
-// Pure helpers for Reel: what each part of Hamish's design gets from someone's portfolio.
-
 // His home page shows three projects; a fourth keeps a two-two rhythm for people with more.
 export const SUMMARIES_MAX = 4;
 
 export type Device = "laptop" | "phone";
 
-/** The device a project's drawn screen goes on: a pair of phones when the owner says so. */
 export function deviceOf(project: Pick<ContentProject, "device">): Device {
   return project.device === "phone" ? "phone" : "laptop";
 }
@@ -25,13 +22,9 @@ export function projectTarget(project: ContentProject): { href: string; label: s
   return null;
 }
 
-/** "01", "02"... as the summaries number themselves. */
 export const indexText = (index: number) => (index < 10 ? `0${index}` : String(index));
 
-/**
- * The screen reader label for the title: "Designer + Developer, Prototyper, and Animator" in the
- * original, which assumes several disciplines.
- */
+// The title's screen reader label, like the original's "Designer + Developer, and Animator".
 export function introLabel(role: string, disciplines: readonly string[]): string {
   if (disciplines.length === 0) return role;
   const list =
@@ -50,10 +43,7 @@ export function titleScale(role: string, disciplines: readonly string[]): number
   return Math.min(1, Number((TITLE_FITS / longest).toFixed(3)));
 }
 
-/**
- * The part of a drawing that fills a screen of width x height without stretching: centred
- * across, from the top down.
- */
+// Cover crop without stretching: centred across, anchored at the top.
 export function coverRect(
   sourceWidth: number,
   sourceHeight: number,
@@ -70,10 +60,7 @@ export function coverRect(
   return { x: 0, y: 0, width: sourceWidth, height: sourceWidth / target };
 }
 
-/**
- * Words of `text` in lines of at most `width` characters, at most `lines` of them; a cut ends in
- * an ellipsis. For text drawn into SVG, which doesn't wrap.
- */
+// For text drawn into SVG, which doesn't wrap. A cut ends in an ellipsis.
 export function wrapText(text: string, width: number, lines: number): string[] {
   const words = text.replace(/\s+/g, " ").trim().split(" ").filter(Boolean);
   const out: string[] = [];

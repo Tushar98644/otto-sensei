@@ -11,9 +11,8 @@ import {
   type PortfolioContent,
 } from "@/lib/portfolio/content";
 
-// The portfolio's content document in the editor. Every change shows at once and is saved a
-// moment after typing stops (the whole document, last change wins). Removing things gives an
-// Undo toast instead of asking first.
+// Saved a moment after typing stops (the whole document; last change wins). Removals offer Undo
+// instead of asking first.
 
 const SAVE_AFTER_MS = 900;
 
@@ -24,7 +23,6 @@ type ContentState = {
   owner: string | null;
   content: PortfolioContent;
   github: GitHubStats | null;
-  // Local changes not yet confirmed by the server.
   dirty: boolean;
   saving: boolean;
   error: string | null;
@@ -90,12 +88,10 @@ async function save({ keepalive = false } = {}): Promise<void> {
   }
 }
 
-/** Sends any change still waiting, at once (the page is closing, or something needs it saved first). */
 export async function flushContent({ keepalive = false } = {}): Promise<void> {
   if (useContentStore.getState().dirty) await save({ keepalive });
 }
 
-/** Changes the document. `undo` names what was removed and offers to put it back. */
 export function editContent(
   change: (content: PortfolioContent) => PortfolioContent,
   undo?: string,

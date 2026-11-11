@@ -11,9 +11,8 @@ import {
 import { resetSentence, thisPeriod } from "@/lib/usage-copy";
 import { pluralize } from "@/lib/utils";
 
-// Everything Otto says, in one place so his voice stays consistent. Voice rules: plain everyday
-// words, at most 18 words a line, warm and lightly funny, never hype. Readers are worldwide, so no
-// local idioms, holidays or currencies. lines.test.ts enforces the length limit.
+// Voice: plain everyday words, at most 18 a line (lines.test.ts), warm and lightly funny, never
+// hype. Readers are worldwide: no local idioms, holidays or currencies.
 
 type CheckCounts = { fail: number; warn: number; pass: number };
 type BeforeAfter = { before: number; after: number };
@@ -39,7 +38,6 @@ const SIGN_IN_REASONS: Record<Feature, string> = {
   github: `Sign in, then try Pro free for ${PRO_TRIAL.days} days to draft from GitHub.`,
 };
 
-// What Otto says when a plan has none of a feature (Free has no AI help).
 const COMES_WITH_PRO: Record<Feature, string> = {
   fix: "Line fixes come with Pro.",
   tailor: "Tailoring comes with Pro.",
@@ -49,7 +47,6 @@ const COMES_WITH_PRO: Record<Feature, string> = {
   github: "GitHub drafts come with Pro.",
 };
 
-// The same, for the tools Free leaves out besides AI help.
 const TOOL_COMES_WITH_PRO: Record<ProTool, string> = {
   resumes: `Free keeps ${pluralize(RESUME_LIMITS.free, "resume")}. Pro keeps up to ${RESUME_LIMITS.paid}.`,
   formats: "This format comes with Pro. Free has Classic and Compact.",
@@ -60,8 +57,7 @@ const TOOL_COMES_WITH_PRO: Record<ProTool, string> = {
   eligibility: "Checking where a job can hire from comes with Pro.",
 };
 
-// FEATURE_LABELS is too long for a one-line note in the sidebar ("cover letters, answers and
-// interview prep"), so the limit lines use these.
+// FEATURE_LABELS is too long for a one-line sidebar note, so the limit lines use these.
 const SHORT_LABELS: Record<Feature, string> = {
   fix: "line fixes",
   tailor: "tailored versions",
@@ -140,14 +136,12 @@ function downloadChecked({ before, after }: BeforeAfter) {
 
 const count = new Intl.NumberFormat("en-US");
 
-// The Jobs tab's note: counts only, from the matches on screen. "at least" when one request
-// looked at its full share of candidates and there may be more.
-// `matching`: every open job that matches; `shown`: the best of them, the ones listed.
+// Counts only, from the matches on screen. "at least" when a request hit its full share of
+// candidates. `matching`: every open job that matches; `shown`: the ones listed.
 function jobsFound(matching: number, shown: number, strong: number, newToday: number) {
   const n = whole(matching);
   if (n === 0 || whole(shown) === 0)
     return "No open jobs match this resume yet. I check the boards every day.";
-  // Kept to 18 words: "I found 4,210 matching jobs. Here are the closest 300. 120 look strong, 5 are new today."
   const lead =
     n > whole(shown)
       ? `I found ${count.format(n)} matching jobs. Here are the closest ${count.format(whole(shown))}.`
@@ -215,9 +209,7 @@ export const OTTO = {
     done: "You're in. Let's pick up where you left off.",
   },
   limit: {
-    // Pass the user's actual limit from their UsageSnapshot and their period from /api/me; they
-    // default to Pro's limit and a month that resets when the plan renews. A limit of 0 (Free) is
-    // the trial pitch. Short labels, so the reset date and "when your plan renews" still fit.
+    // Pass the user's limit and period (default: Pro, monthly). Limit 0 (Free) is the trial pitch.
     reached: (
       feature: Feature,
       limit: number = PLANS.pro.limits[feature],
@@ -227,13 +219,11 @@ export const OTTO = {
         ? `${COMES_WITH_PRO[feature]} Try it free for ${PRO_TRIAL.days} days.`
         : `You've used ${thisPeriod(period)}'s ${whole(limit)} ${SHORT_LABELS[feature]}. ` +
           resetSentence(period),
-    // On Free: the feature isn't part of the plan at all. Someone who has had the trial isn't
-    // offered it again.
+    // On Free: the feature isn't in the plan. No trial offer to someone who has had one.
     none: (feature: Feature, trial = true) =>
       trial
         ? `${COMES_WITH_PRO[feature]} Try it free for ${PRO_TRIAL.days} days.`
         : COMES_WITH_PRO[feature],
-    // On Free: a Pro tool (see ProTool), with the trial when it's still on offer.
     tool: (tool: ProTool, trial = true) =>
       trial
         ? `${TOOL_COMES_WITH_PRO[tool]} Try it free for ${PRO_TRIAL.days} days.`
@@ -242,8 +232,7 @@ export const OTTO = {
     near: (feature: Feature, used: number, limit: number, period?: UsagePeriod | null) =>
       `Uh-oh, ${whole(used)} of ${whole(limit)} ${SHORT_LABELS[feature]} used. ${resetSentence(period)}`,
   },
-  // What Otto is doing while someone waits on the AI. Said about him rather than by him: it's a
-  // status line under his working figure, not one of his notes.
+  // Said about him, not by him: a status line under his working figure, not one of his notes.
   working: {
     import: "Otto is reading your file.",
     job: "Otto is reading the job post.",
@@ -295,14 +284,12 @@ export const OTTO = {
     noSkills:
       "I couldn't find any skills in this resume. Add a skills section and I'll match again.",
   },
-  // The Cover letters page (/dashboard/letters).
   letters: {
     empty: "No letters yet. Paste a job link and I'll write one from your resume.",
     noResume: "I need a resume to write from. Add one, then come back here.",
     write: "Paste the job link. I'll write about 200 words from your resume, nothing made up.",
     answer: "Paste the question and the job link. I'll draft a short answer from your resume.",
   },
-  // The Interview prep page (/dashboard/interview).
   interview: {
     empty: "No prep yet. Pick an application or paste a job link and I'll start.",
     pick: "Pick the job. A pasted link joins your Applications, marked as an interview.",

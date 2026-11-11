@@ -5,10 +5,7 @@ import { resumeTitle } from "@/lib/resume/ops";
 import { useStudioStore } from "@/lib/store/resume-store";
 import { undoToast } from "./undo-toast";
 
-/**
- * Deleting a resume: it goes to Recently deleted at once (30 days), and Undo brings it straight
- * back. No confirm, since nothing is lost either way.
- */
+// No confirm: it goes to Recently deleted (30 days) at once and Undo brings it straight back.
 export function trashWithUndo(id: string): boolean {
   const store = useStudioStore.getState();
   const resume = store.resumes[id];

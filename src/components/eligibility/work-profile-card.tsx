@@ -11,9 +11,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useWorkProfile } from "./use-work-profile";
 import { WorkProfileForm } from "./work-profile-form";
 
-// The Account page's work profile. Signed-out visitors see nothing here: the account view above
-// already asks them to sign in. It only feeds the work-rights check and job matching, both Pro, so
-// on Free the card offers the trial instead of the form.
+// Signed-out visitors see nothing: the account view already asks them to sign in. Free gets the
+// trial offer instead of the form: the profile only feeds Pro features.
 export function WorkProfileCard() {
   const work = useWorkProfile();
   const titleId = useId();

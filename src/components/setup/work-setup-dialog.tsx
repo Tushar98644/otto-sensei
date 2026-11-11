@@ -42,7 +42,6 @@ type Draft = {
   profile: WorkProfile;
   // The region the step answered by itself from the country, until the person answers it.
   auto: WorkRegion | null;
-  // Where the country came from, until the person picks one.
   countryFrom: CountryGuess["from"] | null;
 };
 
@@ -50,9 +49,8 @@ const NO_MATCH: MatchProfile = { skills: [], titles: [], years: null };
 const DAY_MS = 24 * 60 * 60 * 1000;
 const CHECKBOX = "flex min-h-11 cursor-pointer items-center gap-2.5 text-sm text-ink";
 
-// The one first-login step (DESIGN.md, "First login and setup"). Everything is guessed first, from
-// the person's own resume and this device, so most people only check it and press Save. It reuses
-// the Account page's questions and the Jobs tab's "Looking for" line, and saves through their APIs.
+// Everything is guessed first from the resume and this device, so most people only check it and
+// press Save. Saves through the Account and Jobs APIs.
 export function WorkSetupDialog({ open, userId, pro, profile, onClose }: WorkSetupDialogProps) {
   const resumes = useResumeList();
   const own = useMemo(() => ownResumes(resumes), [resumes]);

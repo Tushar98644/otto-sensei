@@ -11,9 +11,7 @@ export const dynamic = "force-dynamic";
 
 const MAX_INPUT = 80;
 
-// GET /api/portfolio/slug?value=Maya Chen: the address as it would be saved ("maya-chen") and
-// whether it's free, for the editor while the owner types. Signed in only, so nobody can walk the
-// list of taken names.
+// Signed in only, so nobody can walk the list of taken names.
 export async function GET(req: Request): Promise<Response> {
   try {
     const user = await getCurrentUser();

@@ -5,8 +5,7 @@ import { TEMPLATE_IDS, type Resume, type TemplateId } from "@/lib/resume/schema"
 import { ResumeDocument } from "./document";
 import { TEMPLATE_THEMES, themeFor } from "./themes";
 
-// Every PDF format: its name and audience (TEMPLATE_INFO, client-safe) plus the component that
-// draws it. Importing this loads react-pdf, so UI that only lists formats uses TEMPLATE_INFO.
+// Importing this loads react-pdf, so UI that only lists formats uses TEMPLATE_INFO.
 
 export type ResumeTemplateProps = { resume: Resume; pageSize?: PdfPageSize };
 

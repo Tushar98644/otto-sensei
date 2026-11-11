@@ -22,8 +22,7 @@ async function jobId(context: Context): Promise<string | null> {
   return parsed.success ? parsed.data : null;
 }
 
-// PUT /api/jobs/saved/:id saves a job (again is fine); DELETE forgets it. No body either way.
-// Saving is Pro; forgetting a job saved before stays open on Free.
+// Saving again is fine. Saving is Pro; forgetting a job saved before stays open on Free.
 export async function PUT(req: Request, context: Context): Promise<Response> {
   const blocked = rejectCrossSite(req);
   if (blocked) return blocked;

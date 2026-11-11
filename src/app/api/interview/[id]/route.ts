@@ -10,12 +10,10 @@ export const dynamic = "force-dynamic";
 
 type Context = { params: Promise<{ id: string }> };
 
-// Per-user, and replaced by every new pack, so no browser or CDN may keep a copy.
 const NO_STORE = { "Cache-Control": "no-store" };
 const NOT_FOUND = "That application isn't in your list anymore.";
 
-// The application's job details and its saved prep pack. Another account's id gets the same 404 as
-// one that never existed, so ids can't be probed.
+// Another account's id gets the same 404 as a missing one, so ids can't be probed.
 export async function GET(_req: Request, { params }: Context): Promise<Response> {
   try {
     const user = await getCurrentUser();

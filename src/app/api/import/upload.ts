@@ -10,9 +10,7 @@ import type { ParseErrorCode } from "@/lib/parse/types";
 import { noteReferralCheck } from "@/lib/referrals/cookie";
 import { limitUploads, type UploadKind } from "./upload-limits";
 
-// Server-only. The shared first half of POST /api/import and POST /api/check: read one resume
-// file from multipart form data, apply the anonymous limits, extract it and run the recruiter
-// checks. Each route then adds its own step.
+// The shared first half of POST /api/import and POST /api/check.
 
 const MAX_MB = Math.round(UPLOAD_LIMITS.maxBytes / (1024 * 1024));
 // Room for the multipart boundary and part headers around a file right at the size limit.
@@ -43,11 +41,8 @@ export type CheckedUpload = {
   startedAt: number;
 };
 
-/**
- * Reads, limits, extracts and checks one uploaded file. Anything the person has to change comes
- * back as a finished error Response; unexpected failures throw. A missing or oversized file is
- * turned away before the rate limits, so it doesn't use up the day's allowance.
- */
+// Errors the person must fix come back as a Response; unexpected failures throw. A missing or
+// oversized file is turned away before the rate limits, so it doesn't use up the day's allowance.
 export async function checkUpload(req: Request, kind: UploadKind): Promise<CheckedUpload | Response> {
   const startedAt = Date.now();
   // Multipart needs no preflight, so another site's page could otherwise spend our parsing and AI

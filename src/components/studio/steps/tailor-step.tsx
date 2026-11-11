@@ -34,9 +34,8 @@ import type { Resume } from "@/lib/resume/schema";
 import { useActiveResume, useStudioStore } from "@/lib/store/resume-store";
 import { thisPeriod } from "@/lib/usage-copy";
 
-// The renderer is big; fetching it while the user reads results makes the download step instant.
-// The resume's PDF is then made ahead too (the tailored copy, once there is one), so Download
-// opens on a finished preview.
+// Fetching the big renderer while results are read makes Download instant; the resume's PDF is
+// then made ahead too, so Download opens on a finished preview.
 const PRELOAD_DELAY_MS = 2_000;
 
 function useUsageNote(): string | null {
@@ -91,8 +90,7 @@ function TailorWorkspace({ source, baseTitle }: { source: Resume; baseTitle: str
   else if (screener) otto = OTTO.tailor.screener(screener.counts.must, screener.counts.nice);
 
   const postChanged = run.last !== null && run.last.job.text.trim() !== draft.text.trim();
-  // Once there are results the form folds into one line, so they start near the top of the
-  // screen. It stays mounted (hidden), so opening it again keeps what was typed and read.
+  // Folded once there are results, but still mounted, so reopening keeps what was typed and read.
   const folded = Boolean(last && screener) && !editingPost && !run.loading && !postChanged;
   const jobName = last
     ? jobLabel(last.job.title || last.result.job.title, last.job.company || last.result.job.company)
@@ -224,8 +222,7 @@ export function TailorStep() {
       />
     );
   }
-  // Tailoring a tailored copy would stack one job's changes on another's, so work from the original
-  // while it still exists.
+  // Tailoring a copy would stack two jobs' changes, so work from the original while it exists.
   const source = base ?? active;
   const baseTitle = base ? base.title || "your original resume" : null;
   return <TailorWorkspace key={source.id} source={source} baseTitle={baseTitle} />;

@@ -1,10 +1,8 @@
 import { PDF_FONT } from "@/lib/pdf/fonts";
 import { INK, defineTheme } from "../theme";
 
-// The tech resume engineers pass around as a LaTeX template (Jake Gutierrez's, MIT; credited in
-// THIRD_PARTY_NOTICES.md): Computer Modern (CMU Serif), a big bold name, small-capital headings
-// over a full rule, and indented entries of a bold line with an italic line under it, dates and
-// places on the right. Skills stay first by default (the format's section hint).
+// Jake Gutierrez's LaTeX resume template (MIT; credited in THIRD_PARTY_NOTICES.md) in Computer
+// Modern (CMU Serif). Skills stay first by default (the format's section hint).
 
 // Jake's entries sit 0.15in in from the margin and end 3% short of it.
 const INDENT = 10.8;

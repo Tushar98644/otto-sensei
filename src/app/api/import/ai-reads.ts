@@ -5,9 +5,8 @@ import { aiEnabled } from "@/lib/env";
 import { log } from "@/lib/log";
 import { consumeUsage, refundUsage } from "@/lib/usage";
 
-// Server-only. Whether an upload is read by the AI or by the rule-based reader. Uploads are never
-// turned away for this: signed out, on Free, or once the plan's AI reads or AI budget are used up,
-// the file is still read, by rules, which costs nothing.
+// Uploads are never turned away for this: signed out, on Free or out of AI reads, the file is
+// still read by rules, which costs nothing.
 
 export type AiRead = {
   useAI: boolean;
@@ -33,7 +32,6 @@ export async function claimAiRead(
   now = Date.now(),
 ): Promise<AiRead> {
   if (!aiEnabled()) return NO_AI_READ;
-  // AI reads are Pro and Max (and the trial); everyone else gets the rule-based reader.
   if (!user || !planIncludes(user.plan, "import")) return LIMITED;
   try {
     const budget = await checkAiBudget(user, now);

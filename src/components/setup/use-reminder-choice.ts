@@ -9,8 +9,7 @@ import type { ReminderSettingsBody } from "@/lib/notifications/types";
 
 export type ReminderChoice = { available: boolean; chosen: boolean; emailReminders: boolean };
 
-// The reminder settings as the setup list and the tracker's prompt need them. Only loaded when
-// `enabled`: Free gets no follow-up reminders, so there's nothing to ask.
+// Only loaded when `enabled`: Free gets no follow-up reminders, so there's nothing to ask.
 export function useReminderChoice(userId: string | null, enabled: boolean) {
   const query = useReminderSettings(userId, enabled);
 

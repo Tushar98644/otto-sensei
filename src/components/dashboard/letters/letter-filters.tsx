@@ -12,8 +12,7 @@ export const LETTER_FILTER_NAMES: Record<LetterFilter, string> = {
   answer: "Answers",
 };
 
-// The same segmented strip as Applications. A kind with nothing in it stays out of the way unless
-// picked.
+// A kind with nothing in it stays out of the way unless picked.
 export function LetterFilters({
   filter,
   counts,

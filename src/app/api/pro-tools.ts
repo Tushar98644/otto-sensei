@@ -10,9 +10,8 @@ import type { SessionUser } from "@/lib/auth/types";
 import { log } from "@/lib/log";
 import { pluralize } from "@/lib/utils";
 
-// Server-only. How routes answer a Free account asking for a Pro tool: the same 402
-// upgrade_required the AI routes send (metered-free.ts), which the client turns into the trial
-// prompt. Reading what the account already has is never refused; only adding or changing is.
+// Same 402 upgrade_required as the AI routes. Reading what the account has is never refused;
+// only adding or changing is.
 
 export const PRO_TOOL_MESSAGES: Record<ProTool, string> = {
   resumes: `Free keeps ${pluralize(RESUME_LIMITS.free, "resume")}.`,
@@ -24,7 +23,6 @@ export const PRO_TOOL_MESSAGES: Record<ProTool, string> = {
   eligibility: "The work-rights check comes with Pro.",
 };
 
-/** The 402 for a Pro tool on Free. */
 export function proToolRequired(user: SessionUser | null, tool: ProTool): Response {
   log.info(`${tool}.upgrade_required`, { plan: user?.plan ?? "signed_out" });
   return fail(
@@ -34,7 +32,6 @@ export function proToolRequired(user: SessionUser | null, tool: ProTool): Respon
   );
 }
 
-/** The 402 when the plan doesn't have Pro tools, else null. */
 export function requireProTool(user: SessionUser, tool: ProTool): Response | null {
   return hasProTools(user.plan) ? null : proToolRequired(user, tool);
 }

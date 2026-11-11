@@ -36,17 +36,13 @@ type ContentEditorProps = {
   auto: AutoContent;
   view: PortfolioContentView;
   github: GitHubStats | null;
-  // The page's "What shows" choices, for the marks.
   pageHidden: readonly PortfolioSection[];
   showEmail: boolean;
   // The resume behind the page when it's in this browser: GitHub imports add projects to it.
   resume?: Resume | null;
-  // After a GitHub import changed that resume.
   onResumeChange?: (resume: Resume) => void;
 };
 
-// The Content tab: what this design uses and what's still missing first, then one folding row per
-// kind of content. Saves as you type.
 export function ContentEditor({
   template,
   content,
@@ -175,7 +171,7 @@ function CompletenessCard({
   );
 }
 
-/** "Delete this page", at the end of Settings: the screen's one confirm, since it can't come back. */
+// The screen's one confirm: a deleted page can't come back.
 export function DeletePortfolio() {
   const [asking, setAsking] = useState(false);
   const [busy, setBusy] = useState(false);

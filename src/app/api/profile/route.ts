@@ -11,11 +11,9 @@ import { requireProTool } from "../pro-tools";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-// Per-user, so no browser or CDN may keep a copy.
 const NO_STORE = { "Cache-Control": "no-store" };
 const SIGN_IN = "Sign in to save your work profile.";
 
-// GET /api/profile: the signed-in account's work profile (an empty one before the first save).
 export async function GET(): Promise<Response> {
   try {
     const user = await getCurrentUser();
@@ -33,7 +31,6 @@ export async function GET(): Promise<Response> {
   }
 }
 
-// PUT /api/profile: replaces the whole profile.
 export async function PUT(req: Request): Promise<Response> {
   const blocked = rejectCrossSite(req) ?? rejectNonJson(req);
   if (blocked) return blocked;

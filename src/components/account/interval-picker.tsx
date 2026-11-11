@@ -8,15 +8,13 @@ import { cn } from "@/lib/utils";
 export type IntervalPickerProps = {
   // Says what the pick costs on this plan. Without one (several plans priced below it), nothing.
   plan?: PaidPlanId;
-  // From /api/me (billing.offer[plan]). With one option or none there is nothing to pick, so the
-  // picker renders nothing.
+  // From /api/me (billing.offer[plan]). With one option or none, the picker renders nothing.
   intervals: readonly BillingInterval[] | undefined;
   value: BillingInterval;
   onChange: (interval: BillingInterval) => void;
   className?: string;
 };
 
-// How often the plan bills, as a segmented toggle of native radios, with what the pick costs.
 export function IntervalPicker({ plan, intervals, value, onChange, className }: IntervalPickerProps) {
   const name = useId();
   const noteId = `${name}-note`;

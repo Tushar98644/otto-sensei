@@ -1,8 +1,6 @@
 import { resumeTitle } from "@/lib/resume/ops";
 import type { Resume, ResumeSource } from "@/lib/resume/schema";
 
-// What the resume library shows: pure, so search, filters and sorting are tested without a browser.
-
 export const LIBRARY_FILTERS = ["all", "import", "tailored", "sample", "scratch"] as const;
 export type LibraryFilter = (typeof LIBRARY_FILTERS)[number];
 
@@ -14,7 +12,6 @@ export const FILTER_LABELS: Record<LibraryFilter, string> = {
   scratch: "From scratch",
 };
 
-// The folder tab on each card: where the resume came from.
 export const SOURCE_TABS: Record<ResumeSource, string> = {
   import: "Uploaded",
   tailored: "Tailored",
@@ -90,12 +87,10 @@ export function libraryView(resumes: readonly Resume[], { query, filter, sort }:
   return sortResumes(shown, sort);
 }
 
-// The newest work first, for the dashboard home.
 export function recentResumes(resumes: readonly Resume[], limit: number): Resume[] {
   return sortResumes(resumes, "edited").slice(0, limit);
 }
 
-// How many tailored copies each resume has, keyed by the base resume's id.
 export function tailoredCounts(resumes: readonly Resume[]): Map<string, number> {
   const counts = new Map<string, number>();
   for (const resume of resumes) {

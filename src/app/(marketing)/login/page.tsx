@@ -15,8 +15,7 @@ export const metadata = pageMetadata({
   noindex: true,
 });
 
-// Static HTML except the form, which needs the browser (it reads ?next= and the session). The
-// form sits straight on the paper, with no card. The marketing layout provides <main>.
+// The marketing layout provides <main>.
 export default function LoginPage() {
   return (
     <div className="mx-auto flex w-full max-w-lg flex-col gap-8 px-4 py-16 sm:py-24">

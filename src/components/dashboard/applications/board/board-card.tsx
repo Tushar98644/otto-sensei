@@ -57,11 +57,9 @@ export type CardAction =
 export type BoardCardProps = {
   card: BoardCard;
   now: number;
-  // A cover letter is kept for it (a saved one, or the one on its tailored copy).
   hasLetter: boolean;
-  // This card is the one being dragged: it stays in place, faded, while a copy follows the pointer.
+  // Being dragged: it stays in place, faded, while a ghost follows the pointer.
   lifted: boolean;
-  // Held from the keyboard: its handle says so.
   holding: boolean;
   busy: boolean;
   instructionsId: string;
@@ -73,9 +71,6 @@ export type BoardCardProps = {
   onHandleBlur: (card: BoardCard) => void;
 };
 
-// One job on the board, compact: the role, the company and its initials, how long it has sat in
-// its column (red once that's too long), and what's kept for it, as links. Hover or focus shows
-// "Move on" in the top row; the menu (or a right-click) has every move. The initials are the handle.
 export function BoardCardView({
   card,
   now,
@@ -219,8 +214,7 @@ export function BoardCardView({
             {role && company ? <p className="truncate text-xs/5 text-muted">{company}</p> : null}
           </div>
           {next ? (
-            // In the top row, never over the marks below, so Prep and Letter stay clickable. Close and
-            // every other move are in the menu; touch screens use the menu for all of them.
+            // In the top row, never over the marks below, so Prep and Letter stay clickable.
             <button
               type="button"
               aria-label={`Move on to ${COLUMN_NAMES[next]}`}
@@ -257,13 +251,10 @@ export function BoardCardView({
   );
 }
 
-// Marks that open something: a quiet hover, and a focus ring, like the other links on the card.
 const MARK_LINK =
   "rounded-md -outline-offset-1 transition-opacity hover:opacity-80 focus-visible:outline-2 focus-visible:outline-ink";
 
-// Days in its column (red, with a clock, once that's too long), the interview day, how it ended
-// (Closed holds both endings), a closed post, and the prep and letter kept for it. Nothing that
-// only repeats the column. Words and icons, never color alone.
+// Nothing that only repeats the column. Words and icons, never color alone.
 function Marks({ card, now, hasLetter }: { card: BoardCard; now: number; hasLetter: boolean }) {
   const marks: { key: string; node: ReactNode }[] = [];
   if (now > 0) {
@@ -405,7 +396,6 @@ function links(
   return out;
 }
 
-/** The copy that follows the pointer while a card is dragged. Drawn, not interactive. */
 export function CardGhost({ card }: { card: BoardCard }) {
   const company = card.kind === "application" ? card.application.company : card.item.company;
   const role = card.kind === "application" ? card.application.role : card.item.role;

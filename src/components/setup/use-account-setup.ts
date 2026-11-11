@@ -6,10 +6,8 @@ import { api } from "@/lib/api/client";
 import type { WeakLineTarget } from "@/lib/setup/checklist";
 import { NO_SETUP, type AccountSetup, type SetupStepOutcome } from "@/lib/setup/types";
 
-// One shared GET /api/setup per signed-in account, like the work profile. This browser keeps its
-// own note of what was answered too, so a server that can't be reached (or one that hasn't run
-// the migration yet) never brings the step or a hidden list back on every visit. The line the
-// "Fix the first weak line" item opened is only kept here: it is a hint, not account data.
+// This browser keeps its own note too, so an unreachable server never brings the step or a hidden
+// list back on every visit. The weak line is kept only here: a hint, not account data.
 
 type Load = "idle" | "loading" | "ready" | "error";
 
@@ -179,7 +177,6 @@ export function recordSetupStep(userId: string, outcome: SetupStepOutcome): Prom
   return save(userId, { step: outcome });
 }
 
-/** "Hide this" on the Home list, and its Undo. */
 export function setChecklistHidden(userId: string, hidden: boolean): Promise<void> {
   const at = hidden ? Date.now() : null;
   if (snapshot.userId === userId) {

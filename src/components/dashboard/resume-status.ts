@@ -4,8 +4,7 @@ import { pluralize } from "@/lib/utils";
 
 export type StatusChip = { status: CheckStatus; label: string };
 
-// What the recruiter checks found in the uploaded file. Scratch, sample and tailored resumes have
-// no upload, so no chip.
+// Only uploads were checked: scratch, sample and tailored resumes get no chip.
 export function reportChip(report: RecruiterReport | undefined): StatusChip | null {
   if (!report) return null;
   const { fail, warn } = report.counts;
@@ -14,7 +13,6 @@ export function reportChip(report: RecruiterReport | undefined): StatusChip | nu
   return { status: "pass", label: "File reads cleanly" };
 }
 
-// How many lines Otto's line checks flag right now.
 export function linesChip(lint: ResumeLint): StatusChip | null {
   const { bullets, withIssues } = lint.totals;
   if (bullets === 0) return null;

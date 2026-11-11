@@ -13,9 +13,7 @@ import { APPLICATIONS, queryKeys } from "@/lib/queries/keys";
 import { fetchAllApplications, type ReminderSettingsData } from "@/lib/queries/options";
 import { sortApplications, upsertApplication, withoutApplication } from "./view";
 
-// The signed-in user's applications, shared by the Applications page, the home page's win rate,
-// the Jobs tab and the "Mark as applied" shortcut on resume cards. Every change shows at once and
-// is rolled back if the server says no.
+// Every change shows at once and rolls back if the server says no.
 
 export type ApplicationsStatus = "loading" | "ready" | "error";
 
@@ -51,8 +49,7 @@ function apply(change: Change) {
   if (client.isFetching({ queryKey: APPLICATIONS }) > 0) replay.push(change);
 }
 
-// What the server will store, as far as the browser can tell, so the new row shows (and links to
-// its page) at once. The server's copy replaces it when it answers.
+// The row as the server will store it, so it shows (and links to its page) at once.
 function draftApplication(id: string, body: CreateApplicationBody, now: number): Application {
   const status = body.status ?? "applied";
   const userId = signedInUserId();
@@ -86,10 +83,8 @@ async function created(id: string): Promise<void> {
   await creating.get(id);
 }
 
-/**
- * Logs an application. It shows at once under the id it keeps, so its links work right away;
- * the server's copy replaces it, or it goes again if the server says no.
- */
+// Shows at once under the id it keeps, so its links work right away; the server's copy replaces
+// it, or it goes again if the server says no.
 export async function addApplication(body: CreateApplicationBody): Promise<Application> {
   const id = crypto.randomUUID();
   apply((items) => upsertApplication(items, draftApplication(id, body, Date.now())));
@@ -111,11 +106,8 @@ export async function addApplication(body: CreateApplicationBody): Promise<Appli
   }
 }
 
-/**
- * Saves a change. A status, reminder or interview-day change shows at once and is rolled back if
- * the save fails; other fields wait for the server, since they come from a dialog that's still
- * open.
- */
+// Status, reminder and interview-day changes show at once and roll back on failure; other fields
+// wait for the server, since they come from a dialog that's still open.
 export async function changeApplication(
   original: Application,
   patch: UpdateApplicationBody,

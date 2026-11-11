@@ -12,7 +12,6 @@ import {
 // Connecting GitHub leaves the page for GitHub and comes back through /auth/callback. The page's
 // address carries what to reopen there: a resume id (its import dialog) or "portfolio".
 
-/** This page's address, marked to reopen `target` on the way back. */
 export function returnPathFor(target: string): string {
   const url = new URL(window.location.href);
   url.searchParams.delete(GITHUB_ERROR_PARAM);
@@ -26,11 +25,7 @@ function errorMessage(code: string | null): string | null {
     : null;
 }
 
-/**
- * Whether this page load is the way back from connecting GitHub for `target`, with the reason
- * when it failed. The marks come off the address at once, so a reload or a second button for the
- * same resume doesn't reopen it again.
- */
+/** The marks come off the address at once, so a reload or a second button doesn't reopen it. */
 function takeReturn(target: string): { error: string | null } | null {
   const url = new URL(window.location.href);
   if (url.searchParams.get(GITHUB_RETURN_PARAM) !== target) return null;
@@ -41,10 +36,7 @@ function takeReturn(target: string): { error: string | null } | null {
   return { error };
 }
 
-/**
- * Calls `reopen` once when the page comes back from connecting GitHub for `target`, with the
- * reason when it didn't connect (already shown as a toast).
- */
+/** The error passed to `reopen` was already shown as a toast. */
 export function useGitHubReturn(target: string, reopen: (error: string | null) => void): void {
   const onReturn = useEffectEvent((error: string | null) => {
     if (error) toast({ title: "GitHub isn't connected", description: error, variant: "error" });

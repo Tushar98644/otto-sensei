@@ -11,7 +11,6 @@ import "./globals.css";
 
 const inter = Inter({ subsets: ["latin"], display: "swap", variable: "--font-inter" });
 
-// Regular weight plus a true italic, for the one phrase per heading that gets a voice.
 const garamond = EB_Garamond({
   subsets: ["latin"],
   style: ["normal", "italic"],

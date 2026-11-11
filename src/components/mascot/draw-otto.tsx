@@ -10,9 +10,7 @@ import {
 import { drawFace } from "./otto-face";
 import { moving, type OttoPose, POSE_ART } from "./otto-poses";
 
-// Full figure as a <g> in OTTO_VIEWBOX space. Paint order is back to front. No ground shadow and
-// no idle bob: he stands still and blinks, unless he's lively (dashboard home), when the parts
-// his pose uses move a little.
+// Back to front. He only blinks, unless lively (dashboard home), when his pose's parts move.
 export function drawOtto(pose: OttoPose, options: DrawOptions) {
   const art = POSE_ART[pose];
   return (

@@ -7,8 +7,7 @@ import { DEMO_FILE_NAME, DEMO_PERSON, PARSED_LINES } from "./recruiter-demo-data
 import { ResumeMock } from "./resume-mock";
 import { MomentCaption } from "./section";
 
-// It plays once on load and then sits still: lines appear 60ms apart, the highlights paint over
-// the skills that landed inside job lines, then the pill names the problem (about 1.2s in all).
+// Plays once on load (about 1.2s), then sits still.
 const LINE_STEP_MS = 60;
 const HIGHLIGHT_AT_MS = PARSED_LINES.length * LINE_STEP_MS + 150;
 const PILL_AT_MS = HIGHLIGHT_AT_MS + 350;
@@ -17,7 +16,6 @@ const PILL_AT_MS = HIGHLIGHT_AT_MS + 350;
 // window stop reading as a pen and start reading as noise. The rest of the scramble shows itself.
 const MARKED = new Set<string>(DEMO_PERSON.skills);
 
-// The "aha": the same resume as a person sees it and as hiring software reads it.
 export function HeroDemo({ className }: { className?: string }) {
   return (
     <figure className={className}>

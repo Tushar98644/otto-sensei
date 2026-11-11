@@ -16,8 +16,7 @@ type Context = { params: Promise<{ id: string }> };
 
 const isShareId = (id: string) => z.uuid().safeParse(id).success;
 
-// PATCH /api/share/:id: shows or hides email and phone, or lets search engines in or out. Another
-// account's id gets the same 404 as one that never existed, so ids can't be probed.
+// Another account's id gets the same 404 as a missing one, so ids can't be probed.
 export async function PATCH(req: Request, { params }: Context): Promise<Response> {
   const blocked = rejectCrossSite(req) ?? rejectNonJson(req);
   if (blocked) return blocked;
@@ -47,8 +46,7 @@ export async function PATCH(req: Request, { params }: Context): Promise<Response
   }
 }
 
-// DELETE /api/share/:id: turns the link off. Succeeds when it was already off too: the caller
-// only needs it to stop working.
+// Succeeds when it was already off: the caller only needs it to stop working.
 export async function DELETE(req: Request, { params }: Context): Promise<Response> {
   const blocked = rejectCrossSite(req);
   if (blocked) return blocked;

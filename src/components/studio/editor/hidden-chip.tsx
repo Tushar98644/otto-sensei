@@ -22,7 +22,6 @@ export function HiddenChip({ className }: { className?: string }) {
 }
 
 export type HideToggleProps = {
-  // What it hides, as read by screen readers: "Hide {label} in this version".
   label: string;
   hidden: boolean;
   onToggle: () => void;

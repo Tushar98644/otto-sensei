@@ -22,8 +22,7 @@ type ExampleJob = {
   reason: string;
 };
 
-// Made-up jobs for Maya, the landing page's sample person (recruiter-demo-data.ts), drawn the way
-// the Jobs page draws a match. Keep the wording in step with the real cards.
+// Made-up jobs for Maya (recruiter-demo-data.ts). Keep the wording in step with the real cards.
 const EXAMPLES: readonly ExampleJob[] = [
   {
     title: "Senior Product Designer",

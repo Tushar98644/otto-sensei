@@ -23,8 +23,7 @@ const SEGMENT =
 const CURRENT = "bg-surface text-ink shadow-control";
 const IDLE = "text-muted hover:text-ink aria-expanded:text-ink";
 
-// Below lg the sidebar folds into a top bar plus one segmented strip: the four sections people use
-// most, then "More" for the rest, so every section stays two taps away at most.
+// Four sections then "More", so every section stays two taps away at most.
 export function MobileBar({ user }: { user: SessionUser }) {
   const pathname = usePathname();
   const router = useRouter();

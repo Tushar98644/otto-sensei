@@ -32,12 +32,10 @@ const STYLES: Record<AlertVariant, { box: string; icon: string; Icon: LucideIcon
 export type AlertProps = Omit<ComponentProps<"div">, "title"> & {
   variant?: AlertVariant;
   title?: ReactNode;
-  // A follow-up such as a "Try again" button, shown under the text.
   action?: ReactNode;
 };
 
-// The soft fill carries the alert, so there is no border. An info alert on the stone studio canvas
-// needs className="bg-surface", or its stone fill disappears into the page.
+// An info alert on the stone studio canvas needs className="bg-surface", or its fill disappears.
 // Errors interrupt screen readers (role="alert"); everything else waits its turn (role="status").
 export function Alert({
   variant = "info",

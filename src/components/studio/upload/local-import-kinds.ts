@@ -1,5 +1,4 @@
-// The imports read in the browser, without the parsers behind them, so a page can offer them (and
-// open a file picker) without loading JSZip and the LinkedIn reader until a file is picked.
+// Kind names only, so a page can offer imports without loading JSZip and the LinkedIn reader.
 
 export type LocalImportKind = "linkedin" | "jsonresume";
 

@@ -41,9 +41,8 @@ export type UpgradeCardProps = {
   trial?: boolean;
 };
 
-// The plans above this one, straight to checkout with no dialog in between. Pro to Max changes
-// the subscription in place (see createCheckoutUrl), so it's one click there too. On the Pro trial
-// it's a new checkout that ends the trial, and the card says so before the click.
+// Straight to checkout. Pro to Max changes the subscription in place (see createCheckoutUrl); on
+// the Pro trial it's a new checkout that ends the trial, and the card says so.
 export function UpgradeCard({ plan, interval: current, mode, offer, trial = false }: UpgradeCardProps) {
   const checkout = useBillingRedirect("checkout");
   const { user } = useMe();

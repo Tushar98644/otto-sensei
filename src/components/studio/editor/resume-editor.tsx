@@ -25,9 +25,7 @@ import { editResume, pickResume, useResumeValue, useSectionMeta } from "./use-ed
 
 const NO_SECTIONS: SectionKey[] = [];
 
-// Every section of one resume, in its print order, then the extra sections. Re-renders only when
-// sections move. `intro` sits above the sections, inside the Fix dialog's reach, so it can open a
-// line's fix too.
+// `intro` sits inside the Fix dialog's reach, so it can open a line's fix too.
 export const ResumeEditor = memo(function ResumeEditor({
   resumeId,
   intro,
@@ -65,8 +63,7 @@ export const ResumeEditor = memo(function ResumeEditor({
   );
 });
 
-// The "Line updated" pill comes and goes, so the news is read out from one region that is
-// always on the page.
+// The pill comes and goes, so the news is read out from one region that's always there.
 function FlashAnnouncer() {
   const message = useFlashAnnouncement();
   return (
@@ -76,8 +73,7 @@ function FlashAnnouncer() {
   );
 }
 
-// Starts collapsed when an import already filled in the name and email, so the lines that need
-// work come first. Only the first render decides; typing never collapses it.
+// Starts collapsed when an import filled name and email; only the first render decides.
 const BasicsCard = memo(function BasicsCard({ resumeId }: { resumeId: string }) {
   const name = useResumeValue(resumeId, (resume) => resume.basics.name.trim(), "");
   const hasEmail = useResumeValue(resumeId, (resume) => resume.basics.email.trim() !== "", false);

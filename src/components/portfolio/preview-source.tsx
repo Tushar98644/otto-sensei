@@ -11,9 +11,8 @@ import {
 import { cn } from "@/lib/utils";
 import type { TemplateSample } from "./live-template";
 
-// The "Your page / Sample page" switch over the design previews: the Free pitch, the editor's
-// Design tab and the full-page preview. One choice per browser, shared by all three. Kept in memory
-// too, so the switch still works when storage is blocked (private windows, strict privacy settings).
+// One choice per browser, shared by every design preview. Kept in memory too, so the switch still
+// works when storage is blocked (private windows, strict privacy settings).
 
 const STORAGE_KEY = "otto.portfolio.preview-source";
 const listeners = new Set<() => void>();
@@ -69,13 +68,11 @@ export function setPreviewSource(source: PreviewSource): void {
 
 export type PreviewChoice = {
   source: PreviewSource;
-  // What the previews draw: the person's page, or null for the sample (the previews' own default).
   sample: TemplateSample | null;
   // Only someone with a page of their own has anything to switch to.
   canSwitch: boolean;
 };
 
-/** Whose page the previews draw, for `own` (the person's page, or null when they have none). */
 export function usePreviewSource(own: TemplateSample | null): PreviewChoice {
   const stored = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
   const thin = useMemo(() => (own ? isThinPage(own.content) : true), [own]);
@@ -144,7 +141,6 @@ export function PreviewSourceNote({
   );
 }
 
-/** The switch (when there's a choice) and the note beside it, for a preview grid. */
 export function PreviewSourceBar({
   choice,
   className,

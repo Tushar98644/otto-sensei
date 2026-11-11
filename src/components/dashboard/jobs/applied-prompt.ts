@@ -1,9 +1,7 @@
 import type { AskedAppliedAnswer, FeedJob } from "@/lib/job-feed/types";
 
-// Client-safe and pure. "Applied to <company>?" on the Jobs tab: "Open job" goes to the company's
-// own post, so an application sent there never reaches the tracker unless someone says so. These
-// rules decide which opened jobs to ask about, where, and for how long. The list lives in this
-// browser only (use-opened-jobs.ts); nothing here is sent anywhere.
+// "Open job" goes to the company's own post, so an application sent there never reaches the
+// tracker unless someone says so. The list lives in this browser only; nothing here is sent.
 
 const DAY_MS = 24 * 60 * 60 * 1_000;
 
@@ -32,7 +30,6 @@ export type OpenedJob = {
 
 export type OpenedJobRef = Pick<FeedJob, "id" | "company" | "title" | "url">;
 
-/** The list as it should be kept: nothing stale, newest first, capped. */
 export function pruneOpenedJobs(list: readonly OpenedJob[], now: number): readonly OpenedJob[] {
   return list
     .filter((entry) => {
@@ -45,7 +42,7 @@ export function pruneOpenedJobs(list: readonly OpenedJob[], now: number): readon
     .slice(0, MAX_OPENED_JOBS);
 }
 
-/** "Open job" was followed. Opening it again after a "Not yet" asks once more. */
+/** Opening it again after a "Not yet" asks once more. */
 export function recordOpen(
   list: readonly OpenedJob[],
   job: OpenedJobRef,
@@ -67,10 +64,8 @@ export function recordOpen(
   return pruneOpenedJobs([entry, ...list.filter((item) => item.jobId !== job.id)], now);
 }
 
-/**
- * "Yes, I applied" (or marked applied any other way) ends the asking. "Not yet" quiets it until the
- * job is opened again, and the second one ends it. A job that was never opened is left alone.
- */
+// "Not yet" quiets it until the job is opened again, and the second one ends it. A job that was
+// never opened is left alone.
 export function answerOpenedJob(
   list: readonly OpenedJob[],
   jobId: string,
@@ -98,11 +93,9 @@ export type AskContext = {
   // When the person last came back to the Jobs tab: a job opened after that isn't asked about yet,
   // so the question never shows up while they are still on their way out.
   returnedAt: number;
-  // Already in Applications, however it got there.
   isApplied: (entry: OpenedJob) => boolean;
 };
 
-/** The opened jobs to ask about right now, newest first. */
 export function promptsToShow(list: readonly OpenedJob[], context: AskContext): OpenedJob[] {
   const { now, returnedAt, isApplied } = context;
   if (now === 0) return [];
@@ -139,7 +132,6 @@ export function stripLine(jobs: number): string {
     : `You opened ${count.format(jobs)} jobs. Applied to any?`;
 }
 
-/** What a screen reader hears when new questions show up. Empty when there are none. */
 export function promptAnnouncement(onCard: readonly OpenedJob[], offPage: number): string {
   const parts: string[] = [];
   if (onCard.length === 1) parts.push(`Applied to ${onCard[0]!.company}? Answer on its job card.`);
@@ -156,7 +148,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-/** The list as saved in this browser. Anything that doesn't fit the shape is dropped. */
+/** Anything that doesn't fit the shape is dropped. */
 export function parseOpenedJobs(value: unknown): OpenedJob[] {
   if (!Array.isArray(value)) return [];
   return value.flatMap((item): OpenedJob[] => {

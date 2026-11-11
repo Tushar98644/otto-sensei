@@ -42,21 +42,16 @@ export type BulletRowProps = {
   resumeId: string;
   section: BulletSection;
   parentId: string;
-  // Heading of the job, project or school (space-separated ids allowed, like a role and its
-  // company), so each line is announced with what it belongs to.
+  // Space-separated ids allowed (a role and its company): each line is announced with its owner.
   ownerHeadingId: string;
   bullet: Bullet;
   index: number;
   count: number;
 };
 
-// One resume line: a ruled row holding the field and a status chip at its end. The tools under it
-// ("Fix with Otto", move, hide, delete, tip) show while the line has focus, and always on touch
-// screens; a line whose chip shows something Otto can rewrite keeps "Fix with Otto" in view. Not on hover: a row that grows under the pointer makes the whole list jump. They stay
-// focusable and in the accessibility tree (sr-only, never hidden), so Tab reaches them and focus
-// can land on them.
-// Memoized and fed only primitives plus its own bullet, so typing in one line re-renders that line
-// alone. Handlers read the store at call time instead of taking callbacks.
+// Tools show on focus, not hover: a row growing under the pointer makes the list jump. They're
+// sr-only rather than hidden, so Tab still reaches them.
+// Memoized and fed primitives, so typing in one line re-renders only that line.
 export const BulletRow = memo(function BulletRow({
   resumeId,
   section,
@@ -76,8 +71,7 @@ export const BulletRow = memo(function BulletRow({
   const position = index + 1;
   const hasText = bullet.text.trim() !== "";
   const hidden = bullet.hidden === true;
-  // Hidden lines, and lines of a hidden entry or section, aren't linted: they never print. A
-  // hidden line's chip says so; under a hidden entry, the entry's own chip already does.
+  // Hidden lines, and lines under a hidden entry or section, never print, so aren't linted.
   const linted = useIsLinted(resumeId, bullet.id);
   const lint = useLineLint(issues, hasText && linted);
   const flagged = !hidden && lint !== null && wantsOtto(lint);
@@ -113,8 +107,7 @@ export const BulletRow = memo(function BulletRow({
     );
   }
 
-  // Backspace in an empty line lands at the end of the line above, as in any list editor. The
-  // delete button keeps focus in place, on the next line's delete button, so no keyboard pops up.
+  // Backspace lands on the line above; the delete button moves focus on so no keyboard pops up.
   function remove(from: "keyboard" | "button") {
     const byKeyboard = from === "keyboard";
     const neighbor = pickNeighbor(siblingIds(), bullet.id, byKeyboard ? "previous" : "next");
@@ -200,10 +193,8 @@ export const BulletRow = memo(function BulletRow({
       <label id={labelId} htmlFor={inputId} className="sr-only">
         {`Line ${position}`}
       </label>
-      {/* Phones put the chip under the line, so the words keep the full width. The rule sits on
-          this row rather than the field, so a chip that wraps below the words stays inside its own
-          ruled line instead of drifting toward the next one. */}
-      {/* A hidden line's rule is dashed: still on this page, not on the printed one. */}
+      {/* The rule sits on this row, not the field, so a chip wrapped under the words (phones)
+          stays inside its own ruled line. Dashed when hidden: not on the printed page. */}
       <div
         className={cn(
           "flex flex-col gap-1.5 border-b border-border-strong transition-colors focus-within:border-ink focus-within:shadow-[inset_0_-1px_0_var(--color-ink)] sm:flex-row sm:items-start sm:gap-3",
@@ -224,9 +215,8 @@ export const BulletRow = memo(function BulletRow({
           onPaste={handlePaste}
           className={cn("flex-1 border-b-0 focus-visible:shadow-none", hidden && "text-muted")}
         />
-        {/* A fixed height, so a pill replacing the chip never moves the row, and on wider screens
-            a fixed width, so every line's text wraps at the same place. The pills are read through
-            the line's description instead; the issue chip is a button that explains itself. */}
+        {/* Fixed size, so a pill replacing the chip never moves the row and every line wraps at the
+            same place. Pills are aria-hidden: the line's description reads them instead. */}
         <div className="flex h-6 shrink-0 items-center max-sm:mb-2.5 max-sm:empty:hidden sm:mt-2 sm:w-36 sm:justify-end">
           {flashed ? (
             <span aria-hidden className="flex">
@@ -257,8 +247,7 @@ export const BulletRow = memo(function BulletRow({
       ) : (
         <LineDescription id={lintId} issues={lint} />
       )}
-      {/* not-sr-only resets padding and margin, so the spacing lives on the inner row. A line
-          whose chip Otto can fix keeps "Fix with Otto" in view; the other tools wait for focus. */}
+      {/* not-sr-only resets padding and margin, so the spacing lives on the inner row. */}
       <div className={cn(!flagged && SHOWN_ON_FOCUS)}>
         <div className="flex flex-col gap-1 pt-2 pb-1">
           <div className="flex items-center gap-1">

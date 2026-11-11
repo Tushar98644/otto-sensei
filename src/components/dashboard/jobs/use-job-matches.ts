@@ -15,9 +15,8 @@ import { JOB_MATCHES, queryKeys } from "@/lib/queries/keys";
 import { JOB_MATCHES_STALE_MS } from "@/lib/queries/options";
 import type { Resume } from "@/lib/resume/schema";
 
-// One POST /api/jobs/matches per resume, view, filter, page and "Looking for". Only the resume's
-// skills, titles and years go out (matchProfileOf), with the card as shown. Answers stay in the
-// tab's query cache, so coming back to the tab shows the last matches at once.
+// Only the resume's skills, titles and years go out (matchProfileOf). Answers stay in the query
+// cache, so coming back to the tab shows the last matches at once.
 
 export type JobView = "matches" | "saved";
 
@@ -30,11 +29,8 @@ export type JobMatchesState =
 const DAY_MS = 24 * 60 * 60 * 1_000;
 const IDLE_KEY = [...JOB_MATCHES, "idle"] as const;
 
-/**
- * Changes the answer for one request in place (a job saved or unsaved) without asking again. A
- * save changes the Saved view and every count, so the other answers kept are dropped, and one on
- * screen meanwhile (another page, picked while the save was on its way) is asked for again.
- */
+// A save changes the Saved view and every count, so other cached answers are dropped, and one on
+// screen meanwhile (another page, picked while the save was on its way) is asked for again.
 export function patchJobMatches(
   queryKey: readonly unknown[],
   change: (data: JobMatchesResponse) => JobMatchesResponse,
@@ -56,10 +52,7 @@ function matchesBody(
   return { ...request, deviceTimeZone: deviceTimeZone() };
 }
 
-/**
- * The first Matches page the Jobs tab asks for when it opens, as the tab itself builds it, so a
- * prefetch lands in the entry the tab reads. Null until there's a resume to match.
- */
+// Built as the tab builds it, so a prefetch lands in the entry the tab reads.
 export function openingMatchesRequest(
   resume: Resume | null,
   work: { profile: WorkProfile; lookingFor: LookingForChoice },
@@ -121,7 +114,6 @@ export function useJobMatches({
       queryKey: queryKey ?? IDLE_KEY,
       queryFn: body && queryKey ? () => api.jobMatches(body) : skipToken,
       staleTime: JOB_MATCHES_STALE_MS,
-      // The last answer stays on screen while the next page or filter loads.
       placeholderData: keepPreviousData,
     },
     client,

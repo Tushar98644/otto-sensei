@@ -9,15 +9,11 @@ import { SESSION_ENDED_REASON } from "./copy";
 import { LazySignInDialog, LazyUpgradeDialog } from "./lazy-dialogs";
 import { refreshMe, useMe } from "./use-me";
 
-// Contract used by the studio for AI actions. Implemented by the account-ui task.
-
 export type AccountGate = {
-  // Resolves true once a user is signed in, opening the sign-in dialog first if needed.
-  // Resolves false if the user closes the dialog without signing in.
+  // Opens the sign-in dialog if needed; false when it's closed without signing in.
   requireUser: (reason: string) => Promise<boolean>;
-  // For errors from the AI routes: opens the sign-in dialog for "unauthorized", and the upgrade
-  // dialog (the free trial, on Free) for "upgrade_required" and "limit_reached". Returns true when
-  // it handled the error.
+  // Sign-in for "unauthorized"; the upgrade dialog (trial, on Free) for "upgrade_required" and
+  // "limit_reached". True when it handled the error.
   handleApiError: (error: unknown, feature: Feature) => boolean;
   // Render once inside the component that calls useAccountGate().
   dialogs: ReactNode;

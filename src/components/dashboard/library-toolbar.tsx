@@ -27,8 +27,7 @@ export type LibraryToolbarProps = {
 
 const count = new Intl.NumberFormat("en-US");
 
-// Filters on the left, search and sort on the right; stacked on narrower screens, where the
-// filters scroll sideways inside their own strip instead of widening the page.
+// On narrow screens the filters scroll inside their own strip instead of widening the page.
 export function LibraryToolbar({
   query,
   onQueryChange,

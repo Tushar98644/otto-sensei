@@ -4,9 +4,8 @@ import { useEffect } from "react";
 import { useMe } from "@/components/account/use-me";
 import { useStudioStore } from "@/lib/store/resume-store";
 
-// Never ask for what we know: a resume of the person's own with no email gets the one they signed
-// in with, as an edit they can undo or clear. Once per resume and browser, so an email someone
-// deleted on purpose never comes back. Samples keep the sample person's details.
+// A person's own resume with no email gets their sign-in email, as an undoable edit. Once per
+// resume and browser, so an email deleted on purpose never comes back. Samples are left alone.
 
 const STORAGE_KEY = "otto-email-filled-v1";
 const MAX_REMEMBERED = 200;

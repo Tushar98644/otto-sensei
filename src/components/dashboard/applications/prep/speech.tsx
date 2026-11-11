@@ -12,8 +12,7 @@ const AVATAR: Record<AvatarSize, { box: string; icon: string }> = {
   lg: { box: "size-12", icon: "size-9" },
 };
 
-// Otto plays the interviewer, so his head is the interviewer's face, in the same round avatar as
-// his notes.
+// Otto plays the interviewer, so his head is the interviewer's face.
 export function InterviewerAvatar({ size = "md" }: { size?: AvatarSize }) {
   return (
     <span
@@ -49,15 +48,13 @@ export function Speaker({
   );
 }
 
-// The person's questions at the end of the interview: their side of the conversation, so on the
-// right under their own avatar. White on the mist canvas, mist on paper (practice mode).
+// The person's own questions: their side of the talk, so on the right under their avatar.
 export function AskBubbles({
   asks,
   surface = "mist",
   className,
 }: {
   asks: readonly string[];
-  // What the bubbles sit on.
   surface?: "mist" | "paper";
   className?: string;
 }) {
@@ -84,8 +81,7 @@ export function AskBubbles({
   );
 }
 
-// A [blank] reads as a gap to fill in: the question inside a dashed outline, like a field still
-// empty, in muted text so it never passes for a fact. No status color, since nothing is wrong yet.
+// A [blank] is a gap to fill in: dashed outline, muted text so it never passes for a fact.
 export function WithBlanks({ text }: { text: string }) {
   return (
     <>

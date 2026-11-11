@@ -15,9 +15,8 @@ import {
 } from "react";
 import { cn } from "@/lib/utils";
 
-// A native popover: the browser handles outside clicks, Escape and handing focus back to the
-// trigger, and the panel sits in the top layer above the sticky header. It's placed under its
-// trigger each time it opens. Content inside calls usePopover().close() after an action.
+// Native popover: the browser handles outside clicks, Escape and focus return, and the panel
+// sits in the top layer above the sticky header.
 
 type PopoverContextValue = { close: () => void };
 
@@ -30,15 +29,11 @@ export function usePopover(): PopoverContextValue {
 }
 
 export type PopoverProps = {
-  // Names the panel for screen readers, e.g. "Your resumes".
   label: string;
   trigger: ReactNode;
-  // Accessible name of the trigger when its visible content isn't enough.
   triggerLabel?: string;
   triggerClassName?: string;
-  // "end" lines the panel up with the trigger's right edge, for menus at the right of the page.
-  // "auto" lines up with the edge nearer the trigger: "end" for one in the right half of the
-  // screen (a line's chip on a wide screen), "start" otherwise, whichever fits.
+  // "auto" picks the edge nearer the trigger: "end" in the right half of the screen, else "start".
   align?: Align;
   className?: string;
   children: ReactNode;

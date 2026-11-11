@@ -7,9 +7,6 @@ import { getQueryClient, useAppQueryClient } from "@/lib/queries/client";
 import { queryKeys } from "@/lib/queries/keys";
 import { reminderSettingsQuery, type ReminderSettingsData } from "@/lib/queries/options";
 
-// The account's reminder settings, shared by the Account card, the Home setup list and the
-// tracker's prompt.
-
 export function useReminderSettings(userId: string | null, enabled = true) {
   const client = useAppQueryClient();
   return useQuery(
@@ -20,10 +17,8 @@ export function useReminderSettings(userId: string | null, enabled = true) {
 
 let queue: Promise<unknown> = Promise.resolve();
 
-/**
- * Shows the change at once and saves it. Saves go one after another, so quick changes reach the
- * server in order; a failed one puts back what was shown before it and rejects.
- */
+// Saves go one after another, so quick changes reach the server in order; a failed one puts back
+// what was shown before it and rejects.
 export function saveReminderSettings(
   userId: string,
   change: ReminderSettingsBody,

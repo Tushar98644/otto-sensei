@@ -13,7 +13,6 @@ export const runtime = "nodejs";
 export const maxDuration = 60;
 export const dynamic = "force-dynamic";
 
-// Per-user, and changes with every new pack, so no browser or CDN may keep a copy.
 const NO_STORE = { "Cache-Control": "no-store" };
 
 const COPY: MeteredCopy = {
@@ -37,8 +36,7 @@ async function saveForCaller(applicationId: string, prep: InterviewPrep): Promis
   }
 }
 
-// GET /api/interview: the account's prep packs, for /dashboard/interview. Readable on every plan,
-// so packs made on Pro or the trial stay after it.
+// Readable on every plan, so packs made on Pro or the trial stay after it.
 export async function GET(): Promise<Response> {
   try {
     const user = await getCurrentUser();
@@ -51,8 +49,7 @@ export async function GET(): Promise<Response> {
   }
 }
 
-// Resume + job post → likely questions, STAR outlines from the resume's own lines and questions to
-// ask, saved on the application. Uses one of the month's cover letters and answers.
+// Uses one of the month's cover letters and answers.
 export async function POST(req: Request): Promise<Response> {
   const crossSite = rejectCrossSite(req);
   if (crossSite) {

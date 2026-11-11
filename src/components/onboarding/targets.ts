@@ -2,10 +2,8 @@ import { ROUTES } from "@/components/site/routes";
 import { bulletInputId } from "@/components/studio/editor/focus";
 import { STEP_LABELS, type StudioStep } from "@/lib/store/resume-store";
 
-// Where each stop points. An element tagged data-tour="<id>" always wins; the lookups after it
-// read today's markup (landmark labels, headings, button words), so the tours work without
-// touching the screens they describe. When one of those screens changes its words, tag the
-// element instead of updating the text here.
+// A data-tour="<id>" tag always wins; the fallbacks read today's markup. When a screen's words
+// change, tag the element instead of updating the text here.
 
 function isVisible(element: Element): boolean {
   return element.getClientRects().length > 0;
@@ -40,8 +38,6 @@ function pageBlock(element: Element): Element {
   return node;
 }
 
-// Studio
-
 export function readTextPanel(): Element | null {
   return tagged("studio-read-text") ?? readTextSection() ?? readTextTab();
 }
@@ -63,7 +59,6 @@ export function fixStepShown(): boolean {
   return field !== null || stepBarTailor() !== null;
 }
 
-// The ruled row of the first of these lines that is on screen.
 export function lineRow(lineIds: readonly string[]): Element | null {
   for (const id of lineIds) {
     const field = document.getElementById(bulletInputId(id));
@@ -100,8 +95,6 @@ export function downloadControl(): Element | null {
     stepperButton("download")
   );
 }
-
-// Dashboard
 
 export function quickActions(): Element | null {
   const section = document.getElementById("actions-heading")?.closest("section") ?? null;

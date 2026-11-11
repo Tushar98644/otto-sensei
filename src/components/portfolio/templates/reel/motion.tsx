@@ -49,10 +49,8 @@ export function useInterval(callback: () => void, delay: number | null, reset?: 
   }, [delay, reset]);
 }
 
-/**
- * Hamish's section trigger (routes/home/home.jsx): a section shows once 10% of it is inside the
- * window, less its bottom tenth, and stays shown. Cards show everything at once.
- */
+// Hamish's trigger (routes/home/home.jsx): shown once 10% is in view, less the window's bottom
+// tenth, then stays. Cards show everything at once.
 export function useSectionVisible(ref: RefObject<Element | null>): boolean {
   const { mode } = useReel();
   const [seen, setSeen] = useState(false);
@@ -78,12 +76,8 @@ export type TransitionStatus = "entering" | "entered" | "exiting" | "exited";
 type Timeout = number | { enter: number; exit: number };
 type RenderProps = { visible: boolean; status: TransitionStatus };
 
-/**
- * <Transition in={show} timeout={3000}>{({ visible, status }) => ...}</Transition>: status goes
- * exited, entering, then entered after the timeout; with `unmount` it leaves the tree after
- * exiting. Nothing starts before the page knows where it's drawn, and cards skip straight to the
- * end.
- */
+// Status goes exited, entering, then entered after the timeout; `unmount` drops it once exited.
+// Nothing starts before the page knows where it's drawn, and cards skip to the end.
 export function Transition({
   in: show,
   unmount = false,
@@ -153,8 +147,7 @@ function TransitionContent({
     removeRef.current = onRemove;
   });
 
-  // Each change is scheduled a tick later, as framer-motion's presence does, never set straight
-  // from the effect.
+  // A tick later, as framer-motion's presence does, never set straight from the effect.
   useEffect(() => {
     if (mode === "ssr" || hasEntered || !show) return;
     const start = window.setTimeout(() => {

@@ -13,9 +13,7 @@ export const dynamic = "force-dynamic";
 const NO_STORE = { "Cache-Control": "no-store" };
 const SIGN_IN = "Sign in to keep what you're looking for.";
 
-// PUT /api/jobs/looking-for: the parts of the Jobs tab's "Looking for" card the person changed.
-// Free and Pro alike, since it only shapes the order of their own matches. It is read back with
-// the work profile (GET /api/profile).
+// Free and Pro alike: it only orders the person's own matches. Read back via GET /api/profile.
 export async function PUT(req: Request): Promise<Response> {
   const blocked = rejectCrossSite(req) ?? rejectNonJson(req);
   if (blocked) return blocked;

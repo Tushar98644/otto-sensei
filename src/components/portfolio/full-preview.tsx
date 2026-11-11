@@ -14,15 +14,10 @@ import { PORTFOLIO_TEMPLATES } from "./templates/registry";
 
 type Width = "desktop" | "phone";
 
-// Any design at full size, used like the real thing: scroll it, open its sections, try it at phone
-// width. It draws the person's own page or the sample (./preview-source.tsx), with a bar under the
-// header that says which and switches. Free accounts get it from ./portfolio-upgrade.tsx (the
-// action is the trial); the editor opens it for "Full screen" and its phone Preview (the action
-// picks the design). Loaded on demand, so the templates reach the screen only once someone opens one.
-//
-// A native modal <dialog>, like the mock interview: focus stays inside and the page behind is inert.
-// The page scrolls in its own box, which is a containing block for position: fixed (contain:
-// layout), so a template's fixed nav or dock stays inside the preview.
+// Free accounts open it from ./portfolio-upgrade.tsx (the action is the trial); the editor opens
+// it for "Full screen" and phone Preview (the action picks the design). Loaded on demand.
+// A native modal <dialog>: focus stays inside and the page behind is inert. The scroll box is a
+// containing block for position: fixed (contain: layout), so a template's fixed nav stays inside.
 export function FullPortfolioPreview({
   id,
   own,
@@ -32,11 +27,9 @@ export function FullPortfolioPreview({
   onClose,
 }: {
   id: PortfolioTemplateId;
-  // The person's own page; null when they have none, which leaves only the sample.
   own: TemplateSample | null;
   // The bar's one key ("Try Pro free for 3 days", "Use this design"); none when there's nothing to do.
   action: { label: string; onSelect: () => void } | null;
-  // After the design's one line, e.g. "In use on your page."
   note?: string;
   onChange: (id: PortfolioTemplateId) => void;
   onClose: () => void;
@@ -48,7 +41,6 @@ export function FullPortfolioPreview({
   const data = useMemo(() => choice.sample ?? jordanPage(), [choice.sample]);
   const { Component } = PORTFOLIO_TEMPLATES[id];
   const { name, description } = PORTFOLIO_TEMPLATE_INFO[id];
-  // The picker's order, showpieces first.
   const order = templateOrder(PORTFOLIO_TEMPLATE_IDS);
   const at = order.indexOf(id);
   const count = order.length;
@@ -150,9 +142,8 @@ export function FullPortfolioPreview({
           {choice.canSwitch ? <PreviewSourceSwitch source={choice.source} /> : null}
         </div>
 
-        {/* The frame doesn't scroll, the page inside it does: a template's fixed nav or dock is
-            placed against the frame (contain: layout), so it stays put while the page scrolls, and
-            at phone width it sits inside the phone, not across the whole screen. */}
+        {/* The page scrolls, not the frame, so a fixed nav stays put and, at phone width, sits
+            inside the phone rather than across the whole screen. */}
         <div className={cn("min-h-0 flex-1", width === "phone" && "bg-surface-muted md:p-6")}>
           <div
             className={cn(

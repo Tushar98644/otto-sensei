@@ -72,9 +72,8 @@ function ColorHead() {
   );
 }
 
-// Open strokes that don't quite close (the head line leaves a gap where the left ear sits, the
-// right ear stops short of the head), so he reads as a quick ink sketch beside a message, not an
-// icon. Same build as the color head: wide and flat, ears low on the sides, a big muzzle pad.
+// Open strokes that don't quite close, so he reads as a quick ink sketch, not an icon. Same build
+// as the color head.
 function LineHead({ small }: { small: boolean }) {
   return (
     <>

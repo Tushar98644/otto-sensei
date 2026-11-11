@@ -1,5 +1,4 @@
-// Public URLs the marketing site links to. The account-ui task owns /login and /account; the
-// account page reads ?upgrade=1 to start sign-in and checkout.
+// The account page reads ?upgrade=1 to start sign-in and checkout.
 export const ROUTES = {
   home: "/",
   studio: "/studio",
@@ -23,10 +22,7 @@ export const ROUTES = {
   acceptableUse: "/acceptable-use",
 } as const;
 
-/**
- * The account page link that signs in if needed and goes straight on to checkout for this plan,
- * with no dialog in between for someone already signed in.
- */
+/** Signs in if needed, then straight on to checkout, with no dialog for someone signed in. */
 export function upgradeHref(
   plan: "pro" | "max",
   interval: "month" | "year" | "week" = "month",

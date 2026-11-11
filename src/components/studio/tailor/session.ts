@@ -9,22 +9,19 @@ import type { RequirementChoice, TailorChoices } from "./apply";
 // Keeps the job post (read from a link or pasted) and the last result for this browser tab, so
 // leaving the step (or reloading) neither loses the job nor spends another tailor on the same post.
 
-// What Otto read from the job link, minus the text, which is the draft's own `text`.
 export type ReadJob = Omit<JobPosting, "text">;
 
 export type TailorDraft = {
   title: string;
   company: string;
   text: string;
-  // The job link as typed. Optional, like the two below: drafts saved before job links have none.
+  // Optional, like the two below: drafts saved before job links have none.
   link?: string;
   // Set while title, company and text are exactly what was read from the link.
   posting?: ReadJob | null;
-  // The person is typing the post in by hand: the backup when a link can't be read.
   paste?: boolean;
 };
 
-// savedId: the row it's kept under on the Cover letters page (/api/writings), once saved.
 export type SavedWriting = { text: string; warnings: string[]; demo: boolean; savedId?: string };
 export type SavedAnswer = SavedWriting & { id: string; question: string };
 
@@ -32,22 +29,16 @@ export type SavedResult = {
   id: string;
   // The resume the result was made for: its bullet ids only fit that one.
   sourceId: string;
-  // That resume's updatedAt when it was sent, to tell an unchanged resume from an edited one.
-  // Optional: results saved before this field existed don't say.
+  // To tell an unchanged resume from an edited one. Optional: older results don't have it.
   sourceUpdatedAt?: number;
-  // The post as it was sent, to tell when the draft has moved on.
   job: TailorDraft;
   result: TailorResult;
-  // Sample output from a server without an AI key. Kept with the result so the demo note survives a
-  // reload; optional because results saved before this field existed were real.
+  // Sample output (no AI key), kept so the demo note survives a reload. Older results were real.
   demo?: boolean;
-  // What the person picked in the results, so leaving the step (to check a line in the editor,
-  // say) doesn't lose their answers. The fields below are optional for the same reason as demo.
+  // Kept so leaving the step doesn't lose the answers. Optional, like demo.
   choices?: TailorChoices;
-  // The cover letter as last edited, and the answers to application questions, newest first.
   letter?: SavedWriting;
   answers?: SavedAnswer[];
-  // The tailored copy made from this result, which keeps the latest letter too.
   copyId?: string;
 };
 
@@ -59,7 +50,6 @@ const STORAGE_KEY = "otto-tailor-v1";
 
 export const EMPTY_DRAFT: TailorDraft = { title: "", company: "", text: "" };
 
-/** True when `last` was made from this very version of the resume and the same post. */
 export function sameRun(last: SavedResult, source: Resume, job: TailorDraft): boolean {
   const same = (a: string, b: string) => a.trim() === b.trim();
   return (
@@ -218,8 +208,7 @@ function isResult(value: unknown): value is TailorResult {
   );
 }
 
-// Results saved before the screener view have no requirements; the optional extras are checked
-// one by one, so a bad one is dropped without losing the result.
+// Older results lack requirements; extras are checked one by one so a bad one isn't fatal.
 function toSavedResult(last: SavedResult): SavedResult {
   const requirements = Array.isArray(last.result.requirements) ? last.result.requirements : [];
   const clean: SavedResult = {
@@ -260,9 +249,8 @@ function read(): Saved | null {
   }
 }
 
-// A job picked on the Jobs tab, waiting for the Tailor step: the step opens with its link and
-// reads it at once. `text` is the post as the job list stored it, the backup when the link can't
-// be read; readLink false (the feeds) skips reading and uses it straight away.
+// A job picked on the Jobs tab; the step reads its link at once. `text` is the stored post, the
+// backup when the link can't be read; readLink false (the feeds) uses it straight away.
 export type QueuedJob = {
   link: string;
   title: string;
@@ -273,14 +261,12 @@ export type QueuedJob = {
   readLink: boolean;
   // The opening's id on the Jobs tab, kept on the copy (tailor.jobId) so they find each other.
   jobId?: string;
-  // The post as the server just read it from its source for the Jobs tab: used as if the link had
-  // been read, so the step doesn't read the same post again before tailoring.
+  // Already read by the server for the Jobs tab: used as if read here, so it isn't read twice.
   posting?: ReadJob;
 };
 
 const QUEUE_KEY = "otto-tailor-queued-v1";
-// The last job sent from the Jobs tab, kept for the tab's life (a reload included) after the step
-// takes the queued job, so the copy made from it can name its opening.
+// Kept for the tab's life after the step takes the queued job, so the copy can name its opening.
 const JOB_REF_KEY = "otto-tailor-job-ref-v1";
 
 export function queueJobForTailor(job: QueuedJob): void {
@@ -299,10 +285,7 @@ export function queueJobForTailor(job: QueuedJob): void {
   }
 }
 
-/**
- * The Jobs tab opening behind this job link, when the link is still the one sent from there. A
- * link typed in since is another job, so it gets none.
- */
+/** The Jobs tab opening behind this link, only while it's still the link sent from there. */
 export function queuedJobIdFor(link: string | undefined): string | null {
   try {
     const raw = window.sessionStorage.getItem(JOB_REF_KEY);

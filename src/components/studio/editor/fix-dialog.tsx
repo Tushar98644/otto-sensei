@@ -24,7 +24,6 @@ import { fixAllowanceText, hasPlaceholders, problemMessage } from "./fix-text";
 import { useBulletIssues } from "./use-editor";
 import { useFixFlow, type FixFlow, type FixReady, type FixState } from "./use-fix-flow";
 
-// Owns the one Fix dialog for the editor, plus the sign-in and upgrade dialogs it may need.
 export function FixDialogProvider({
   resumeId,
   children,
@@ -77,14 +76,12 @@ function ottoLine(
   }
 }
 
-// Facts for Otto's meta line: how many questions he has, once he has answered.
 function ottoMeta(state: FixState): string | undefined {
   if (state.status !== "ready" || state.result.questions.length === 0) return undefined;
   const count = state.result.questions.length;
   return `${count} ${count === 1 ? "question" : "questions"}`;
 }
 
-// The next thing to do once Otto answers: his first question, else the main action.
 function readyFocusId(baseId: string, state: FixReady): string {
   const view = readyView(state);
   if (view.asking) return answerInputId(baseId, 0);
@@ -94,7 +91,6 @@ function readyFocusId(baseId: string, state: FixReady): string {
 
 function FixDialog({ flow, resumeId }: { flow: FixFlow; resumeId: string }) {
   const { state } = flow;
-  // The editor's own lint for this line, to mark the exact words it flagged.
   const lineIssues = useBulletIssues(
     resumeId,
     state.status === "closed" ? "" : state.target.bulletId,

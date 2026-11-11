@@ -1,5 +1,4 @@
-// The tailored copy just made in the Tailor step. The Download step it opens cheers once for it;
-// opening that copy again later doesn't.
+// The Download step cheers once for a copy the Tailor step just made, not on later opens.
 let freshId: string | null = null;
 
 export function noteFreshCopy(id: string): void {

@@ -1,8 +1,7 @@
 import type { BulletSection } from "@/lib/resume/ops";
 import { extrasOf, type Bullet, type Resume } from "@/lib/resume/schema";
 
-// Pure edits behind the editor. Untouched items keep their identity, so memoized rows that receive
-// them as props skip re-rendering.
+// Untouched items keep their identity, so memoized rows that get them as props skip re-renders.
 
 type WithId = { id: string };
 type WithBullets = WithId & { bullets: Bullet[] };
@@ -34,7 +33,6 @@ export function removeItem<T extends WithId>(items: T[], id: string): T[] {
   return next.length === items.length ? items : next;
 }
 
-// Inserts right after `afterId`, or at the end when it isn't in the list.
 export function insertAfter<T extends WithId>(items: T[], afterId: string, inserted: T[]): T[] {
   const index = items.findIndex((item) => item.id === afterId);
   const at = index === -1 ? items.length : index + 1;
@@ -43,7 +41,6 @@ export function insertAfter<T extends WithId>(items: T[], afterId: string, inser
 
 export type Neighbor = { id: string; before: boolean };
 
-// Where focus lands after `id` is removed: the preferred side if there is one, else the other.
 export function pickNeighbor(
   ids: readonly string[],
   id: string,
@@ -58,8 +55,7 @@ export function pickNeighbor(
   return prefer === "previous" ? (before ?? after) : (after ?? before);
 }
 
-// Hiding never deletes: the item stays in the editor and only leaves the PDF. Showing it again
-// clears the flag rather than storing `false`; JSON drops the undefined key when it's saved.
+// Hiding only leaves the PDF. Showing clears the flag (no stored false); JSON drops the key.
 export function setHidden<T extends { hidden?: boolean }>(item: T, hidden: boolean): T {
   if (hidden) return item.hidden === true ? item : { ...item, hidden: true };
   return item.hidden === undefined ? item : { ...item, hidden: undefined };
@@ -127,27 +123,22 @@ export function splitPastedLines(text: string): string[] {
 }
 
 export type PasteInput = {
-  // Text of the line before and after the selection being replaced.
   before: string;
   after: string;
   lines: string[];
-  // How many more lines the entry can hold.
   room: number;
   maxChars: number;
 };
 
 export type PastePlan = {
   current: string;
-  // New lines to insert right after the current one, in order.
   added: string[];
-  // Pasted lines left out because the entry is full.
   dropped: number;
   // Caret position in the last line written: the last added one, else the current one.
   caret: number;
 };
 
-// Pasting several lines splits them into bullets, the way a list editor would: the first joins the
-// current line at the caret, and the text after the caret moves to the end of the last one.
+// The first pasted line joins at the caret; the text after the caret moves to the end of the last.
 export function planPaste({ before, after, lines, room, maxChars }: PasteInput): PastePlan {
   const [first = "", ...rest] = lines;
   const added = rest.slice(0, Math.max(0, room));
@@ -178,8 +169,7 @@ export function splitSkills(text: string): string[] {
     .filter((skill) => skill !== "");
 }
 
-// Everything up to the last separator is finished; what follows is still being typed. Phone
-// keyboards often don't report "," as a key press, so the input splits on its value instead.
+// Phone keyboards often don't report "," as a key press, so this splits on the value instead.
 export function splitSkillDraft(value: string): { done: string[]; draft: string } {
   if (!SKILL_SEPARATOR.test(value)) return { done: [], draft: value };
   const match = LAST_SKILL_SEPARATOR.exec(value);
@@ -214,7 +204,6 @@ export function isPresentDate(value: string): boolean {
   return PRESENT_WORDS.test(value.trim());
 }
 
-// "Jan 2021 – now", "2019", or "" for an entry's meta line.
 export function dateSpan(startDate: string, endDate: string): string {
   const start = startDate.trim();
   const end = isPresentDate(endDate) ? "now" : endDate.trim();
@@ -222,7 +211,6 @@ export function dateSpan(startDate: string, endDate: string): string {
   return start || end;
 }
 
-// The gray line of facts under an entry's title: only the parts that are filled in.
 export function metaLine(parts: readonly string[]): string | null {
   return (
     parts

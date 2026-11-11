@@ -75,7 +75,6 @@ export function ResumeSwitcherItem({
     setMode("view");
   }
 
-  // Straight to Recently deleted, with Undo in the toast.
   function remove() {
     if (trashWithUndo(resume.id)) onDeleted();
   }

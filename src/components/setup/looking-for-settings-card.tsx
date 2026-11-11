@@ -21,8 +21,7 @@ import { ACCOUNT_SECTIONS } from "./links";
 const NO_MATCH: MatchProfile = { skills: [], titles: [], years: null };
 const DAY_MS = 24 * 60 * 60 * 1000;
 
-// The Jobs tab's "Looking for" line, also on the Account page so every job-search setting is in
-// one place. Same store and API as the Jobs card: a change here shows there at once. Free and Pro.
+// Same store and API as the Jobs card, so a change here shows there at once. Free and Pro.
 export function LookingForSettingsCard() {
   const work = useWorkProfile();
   const titleId = useId();

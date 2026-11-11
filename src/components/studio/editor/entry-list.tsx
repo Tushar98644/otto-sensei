@@ -9,13 +9,11 @@ export type EntryProps = { resumeId: string; entryId: string; index: number; cou
 
 export type EntryListProps = {
   count: number;
-  // Shown instead of the list while it's empty.
   empty: string;
   addId: string;
   addLabel: string;
   onAdd: () => void;
   limit: number;
-  // More ways to add, beside the add button (e.g. "Add from GitHub").
   more?: ReactNode;
   children: ReactNode;
 };

@@ -75,8 +75,7 @@ export const ExperienceEntry = memo(function ExperienceEntry({
   const role = job.title.trim();
   const company = job.company.trim();
   const title = [role, company].filter(Boolean).join(" at ") || "New job";
-  // A promotion is the usual reason, so a lone job with a company offers it too. A company's
-  // roles offer it once, after the last one.
+  // Promotion is the usual case, so a lone job offers it too; a company's roles offer it once.
   const offerRole = company !== "" && (!grouped || rolePosition === roleCount - 1);
   const update = (patch: ExperiencePatch) =>
     editList(resumeId, "experience", (jobs) =>

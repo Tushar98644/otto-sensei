@@ -20,7 +20,6 @@ import { createApplication, listApplications, parseCursor, setStatusMany } from 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-// Per-user and changes with every status click, so no browser or CDN may keep a copy.
 const NO_STORE = { "Cache-Control": "no-store" };
 const count = new Intl.NumberFormat("en-US");
 
@@ -88,7 +87,6 @@ export async function POST(req: Request): Promise<Response> {
   }
 }
 
-// One status for many, e.g. "no reply" for everything that went quiet weeks ago.
 export async function PATCH(req: Request): Promise<Response> {
   const blocked = rejectCrossSite(req) ?? rejectNonJson(req);
   if (blocked) return blocked;

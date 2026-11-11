@@ -74,7 +74,6 @@ function RenameForm({
             setDraft(event.target.value);
             setError(null);
           }}
-          // Selects the old name so typing replaces it, like renaming a file.
           onFocus={(event) => event.currentTarget.select()}
           data-autofocus
           autoComplete="off"

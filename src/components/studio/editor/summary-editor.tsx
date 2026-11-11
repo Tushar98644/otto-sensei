@@ -47,7 +47,6 @@ type Ready = {
   usage: UsageSnapshot;
   // The summary as it was when Otto was asked, to say how much shorter his version is.
   original: string;
-  // Index of the option being edited, and its text.
   editing: { index: number; draft: string } | null;
 };
 
@@ -218,8 +217,7 @@ export const SummaryEditor = memo(function SummaryEditor({ resumeId }: { resumeI
   const working = help.status === "loading";
   const canImprove = summary.trim().length >= SUMMARY_IMPROVE_CHARS.min;
 
-  // Otto's answer replaces his working figure in place; moving focus there lets keyboards act on
-  // it next.
+  // Otto's answer replaces his working figure; moving focus there lets keyboards act on it next.
   const settled = help.status === "ready" || help.status === "failed";
   useEffect(() => {
     if (settled) panelRef.current?.focus();
@@ -340,7 +338,6 @@ function ReadyOptions({ flow, state, baseId }: { flow: Flow; state: Ready; baseI
 type OptionRowProps = {
   option: SummaryOption;
   id: string;
-  // The person's edit of this option; null while it's shown as Otto wrote it.
   draft: string | null;
   onEdit: (draft: string | null) => void;
   onUse: (text: string) => void;

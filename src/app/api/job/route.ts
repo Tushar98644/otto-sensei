@@ -18,8 +18,7 @@ function readFailure(error: JobReadError): Response {
   return fail("parse_failed", jobReadMessage(error), 422);
 }
 
-// Job link → the post's title, company, location, dates and plain text. No account needed. Logs
-// carry the host and the outcome only: paths and queries can identify a person's application.
+// Logs carry the host and outcome only: paths and queries can identify a person's application.
 export async function POST(req: Request): Promise<Response> {
   const crossSite = rejectCrossSite(req);
   if (crossSite) {

@@ -32,8 +32,6 @@ function placeholderFor(requirement: TailorRequirement): string {
     : "Mentored two new hires in their first month";
 }
 
-// "Yes, I've done it": where, and what happened, in the person's words. Otto can turn that into a
-// resume line, or the words go in as they are; either way nothing is added until they say so.
 export function AddLineForm({ requirement, targets, writing, onAdd, onCancel }: AddLineFormProps) {
   const [targetId, setTargetId] = useState(targets[0]?.id ?? "");
   const [what, setWhat] = useState("");

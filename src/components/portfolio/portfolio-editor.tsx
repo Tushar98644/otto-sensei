@@ -43,10 +43,8 @@ type PortfolioEditorProps = {
   onOfferDone: () => void;
 };
 
-// A workspace: the top bar, then a panel with one tab open at a time beside the live page. From lg
-// it fills the window (the app shell drops its padding for [data-workspace]) and the panel and the
-// preview scroll on their own; on phones it's one column with the preview full screen behind a
-// button. Every change saves at once.
+// From lg it fills the window (the app shell drops its padding for [data-workspace]) and the
+// panel and preview scroll on their own; on phones the preview is full screen behind a button.
 export function PortfolioEditor({ portfolio, resumes, offer, onOfferDone }: PortfolioEditorProps) {
   const saving = usePortfolioStore((state) => state.saving);
   const source = resumes.find((resume) => resume.id === portfolio.resumeId) ?? null;
@@ -57,7 +55,6 @@ export function PortfolioEditor({ portfolio, resumes, offer, onOfferDone }: Port
   // has: hiding a section only changes the page.
   const rich = usePortfolioContent(portfolio, shown);
   const view = rich.page.view;
-  // The page as readers get it, for the Design cards' and the full preview's "Your page" side.
   const own = useMemo(() => ({ view, content: rich.page.content }), [view, rich.page.content]);
   const sections = useMemo(() => sectionsWithContent(shown), [shown]);
   const [tab, setTab] = useState<EditorTab>("design");

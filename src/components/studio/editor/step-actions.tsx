@@ -5,9 +5,7 @@ import { memo } from "react";
 import { Button } from "@/components/ui/button";
 import { useStudioStore } from "@/lib/store/resume-store";
 
-// Floats at the bottom of the screen while scrolling a long resume, so the next step is always one
-// tap away. A floating pill on the right rather than a full-width bar, so it needs no assumptions
-// about the page's side padding.
+// A floating pill rather than a full-width bar, so it needs no assumptions about side padding.
 export const StepActions = memo(function StepActions() {
   const setStep = useStudioStore((state) => state.setStep);
   return (

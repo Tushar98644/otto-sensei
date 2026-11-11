@@ -4,8 +4,7 @@ import { bulletInputId } from "@/components/studio/editor/focus";
 import { findBullet } from "@/lib/resume/ops";
 import { useStudioStore } from "@/lib/store/resume-store";
 
-// The Fix step mounts on the next render after setStep(), and its sections may take a frame or
-// two more, so the line is looked for a few frames in a row before giving up quietly.
+// The Fix step may take a few frames to mount, so the line is looked for over several frames.
 const MAX_FRAMES = 30;
 
 export function focusWhenShown(
@@ -30,14 +29,12 @@ export function focusWhenShown(
 // focus on its heading; a jump has its own place to land, and the shell's focus would win the race.
 let jumpingToStep = false;
 
-/** True once after a jump changed the step; the shell then leaves scroll and focus alone. */
 export function takeStepJump(): boolean {
   const was = jumpingToStep;
   jumpingToStep = false;
   return was;
 }
 
-/** Opens the Fix step on an element (a line, a job heading, the summary), or at the top. */
 export function showInEditor(elementId: string | null): void {
   const store = useStudioStore.getState();
   if (store.step !== "fix") jumpingToStep = true;
@@ -47,10 +44,7 @@ export function showInEditor(elementId: string | null): void {
   else window.requestAnimationFrame(top);
 }
 
-/**
- * Opens the line in the editor. The proof comes from `sourceId`; when the open resume (a tailored
- * copy, say) doesn't have that line, the source opens instead.
- */
+/** When the open resume (a tailored copy, say) lacks the line, `sourceId` opens instead. */
 export function jumpToLine(sourceId: string, bulletId: string): void {
   const store = useStudioStore.getState();
   const active = store.activeId ? store.resumes[store.activeId] : undefined;
@@ -58,8 +52,7 @@ export function jumpToLine(sourceId: string, bulletId: string): void {
   showInEditor(bulletInputId(bulletId));
 }
 
-// A line to open once the studio's Fix step is on screen, set by a page outside the studio (Home's
-// "Lines to improve"). Memory only: it means nothing after a reload.
+// Set from outside the studio (Home's "Lines to improve"); memory only, a reload drops it.
 let arriving: string | null = null;
 
 export function openLineOnArrival(bulletId: string): void {
@@ -72,7 +65,6 @@ export function takeArrivingLine(): string | null {
   return bulletId;
 }
 
-// Saves a generated file without leaving the page.
 export function downloadBlob(blob: Blob, fileName: string): void {
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");

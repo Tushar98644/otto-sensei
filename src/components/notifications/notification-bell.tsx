@@ -24,9 +24,8 @@ const GUTTER_PX = 16;
 const OFFSET_PX = 8;
 const MIN_HEIGHT_PX = 160;
 
-// The bell with an unread count, opening a native popover with the newest notifications: the
-// browser handles outside clicks, Escape and handing focus back to the bell. Opening it marks
-// everything read. Renders nothing when signed out.
+// A native popover: the browser handles outside clicks, Escape and handing focus back. Opening
+// it marks everything read.
 export function NotificationBell({ align = "start", size = "sm", className }: NotificationBellProps) {
   const notifications = useNotifications();
   const panelId = useId();

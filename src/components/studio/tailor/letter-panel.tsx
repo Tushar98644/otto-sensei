@@ -20,12 +20,10 @@ import type { Writing } from "./use-writing";
 export type LetterPanelProps = {
   letter: SavedWriting | undefined;
   writing: Writing;
-  // The resume whose name block and format the PDF uses.
   pdfResume: Resume;
   company: string;
   onWrite: () => void;
   onEdit: (text: string) => void;
-  // Editing paused (the field lost focus): a good moment to save the letter on the tailored copy.
   onSettle: () => void;
 };
 

@@ -41,8 +41,7 @@ function emptyJob(): JobForm {
   return { company: "", title: "", startDate: "", endDate: "", current: false, notes: ["", ""] };
 }
 
-// "Build with Otto": the role someone wants, then one screen per job, then an AI first draft.
-// Their name stays in the browser; only the role and the jobs go to the server.
+// The name stays in the browser; only the role and the jobs go to the server.
 export function GuidedDraft({ onDrafted, onCancel }: GuidedDraftProps) {
   const [name, setName] = useState("");
   const [role, setRole] = useState("");

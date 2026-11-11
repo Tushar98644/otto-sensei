@@ -8,7 +8,6 @@ export type SpeechBubbleProps = {
   // "ink" is the user's own reply in a conversation with Otto.
   tone?: BubbleTone;
   className?: string;
-  // Announces changes to screen readers, for messages that update after an action.
   live?: boolean;
 };
 
@@ -17,8 +16,7 @@ const TONES: Record<BubbleTone, string> = {
   ink: "bg-ink text-white",
 };
 
-// A plain rounded message: no border and no tail. Otto himself speaks through OttoNote; this is
-// for the other side of the conversation.
+// No border or tail. Otto speaks through OttoNote; this is the other side of the conversation.
 export function SpeechBubble({
   children,
   tone = "default",

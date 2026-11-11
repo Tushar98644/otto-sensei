@@ -103,7 +103,6 @@ const MARKS: Partial<Record<SocialKind, (props: IconProps) => ReactElement>> = {
   dribbble: DribbbleIcon,
 };
 
-/** The mark for a social link's kind; email and website get Mail and Globe. */
 export function SocialIcon({ kind, className }: IconProps & { kind: SocialKind }) {
   const Mark = MARKS[kind];
   if (Mark) return <Mark className={className} />;

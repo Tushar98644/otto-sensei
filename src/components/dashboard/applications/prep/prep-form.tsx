@@ -32,9 +32,8 @@ type PrepFormProps = {
   onCancel?: () => void;
 };
 
-// Picks the resume and the job text, then asks Otto for the pack. The job text comes from the
-// tailored copy when it kept the post, else from the job link, else from a paste; a link that
-// can't be read falls through to the paste field with the reason.
+// Job text: the tailored copy's kept post, else the job link, else a paste; a link that can't
+// be read falls through to the paste field with the reason.
 export function PrepForm({ target, resumes, onDone, onCancel }: PrepFormProps) {
   const fallback = useMemo(() => prepResume(target, resumes), [target, resumes]);
   const [resumeId, setResumeId] = useState<string | null>(null);

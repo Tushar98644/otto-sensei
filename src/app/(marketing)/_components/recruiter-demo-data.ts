@@ -26,7 +26,6 @@ export const DEMO_PERSON = {
   ],
 } as const;
 
-// Shown in both demo windows' title bars.
 export const DEMO_FILE_NAME = "maya-chen.pdf";
 
 // "column": text that belongs to the side column but got pulled into a line of the main one.

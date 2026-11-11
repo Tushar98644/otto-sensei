@@ -28,8 +28,7 @@ export type JobCardProps = {
   job: MatchedJob;
   now: number;
   applied: Application | null;
-  // A tailored copy already made for this job: its button opens that copy instead of spending
-  // another tailored version.
+  // Its button opens that copy instead of spending another tailored version.
   tailoredTitle: string | null;
   logging: boolean;
   tailoring: boolean;
@@ -53,8 +52,6 @@ function MatchChip({ match }: { match: JobMatch }) {
   return <Badge>{MATCH_LABELS[match.label]}</Badge>;
 }
 
-// One opening: who, what, where and when, how it lines up with the resume and why, where it came
-// from, and the four things to do next. A white card on the stone canvas, no border.
 export function JobCard({
   job,
   now,

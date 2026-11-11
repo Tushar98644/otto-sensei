@@ -8,10 +8,8 @@ import { log } from "@/lib/log";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-// Where Google sign-in and "Connect GitHub" (through Supabase) send the browser back. Supabase
-// adds ?code=... on success and ?error=... when the person cancelled or the provider refused;
-// either way they land somewhere useful. A GitHub sign-in that someone starts by hand ends here
-// too and is treated like any new sign-in: GitHub has verified the email Supabase uses.
+// Supabase adds ?code=... on success and ?error=... on cancel or refusal. A GitHub sign-in started
+// by hand ends here too, like any sign-in: GitHub has verified the email Supabase uses.
 export async function GET(req: NextRequest) {
   const params = req.nextUrl.searchParams;
   const next = safeNextPath(params.get("next"));

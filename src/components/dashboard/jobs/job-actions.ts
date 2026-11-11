@@ -6,11 +6,8 @@ import { resumeTitle } from "@/lib/resume/ops";
 import type { Resume } from "@/lib/resume/schema";
 import { addApplication } from "../applications/use-applications";
 
-/**
- * Logs a job from the Jobs tab as sent today, with the resume version that went out (the copy
- * tailored for this job when there is one) and the opening itself, so the job, the copy, its
- * letters and the application are one thread. The server sets the usual follow-up reminder.
- */
+// Sends the opening itself, so the job, its copy, its letters and the application are one thread.
+// The server sets the usual follow-up reminder.
 export function logJobApplied(
   job: Pick<FeedJob, "id" | "company" | "title" | "url">,
   sent: Resume | null,

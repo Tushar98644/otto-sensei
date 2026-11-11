@@ -3,8 +3,7 @@ import { Eyebrow } from "@/components/ui/eyebrow";
 import { HeroDemo } from "./hero-demo";
 import { PrimaryCta } from "./primary-cta";
 
-// Most visitors arrive on a phone from a social post. Copy and the call to action come first, then
-// the product itself: your resume next to what hiring software reads from it.
+// Most visitors arrive on a phone, so the copy and call to action come before the demo.
 export function Hero() {
   return (
     <section aria-labelledby="hero-title" className="overflow-x-clip">

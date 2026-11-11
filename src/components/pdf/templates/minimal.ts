@@ -1,9 +1,7 @@
 import { PDF_FONT } from "@/lib/pdf/fonts";
 import { INK, defineTheme } from "../theme";
 
-// RenderCV's "engineeringresumes" theme (MIT): Charter (Charis) 10pt in black only, a large
-// regular-weight name, one contact line, bold headings over a full rule, and every entry on one
-// line, "Title, Company – Place" with the dates on the right.
+// RenderCV's "engineeringresumes" theme (MIT): Charter (Charis) 10pt, black only.
 
 export const minimal = defineTheme({
   contactLines: [["location", "email", "phone", "links"]],

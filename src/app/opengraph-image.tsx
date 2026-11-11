@@ -9,8 +9,7 @@ export const alt =
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
-// Satori can't read CSS variables, so these mirror the globals.css tokens (background, ink, muted,
-// accent, lavender). The pill is a lavender live pill; violet is only the small dot in it.
+// Satori can't read CSS variables, so these mirror the globals.css tokens.
 const COLORS = {
   background: "#FBFCFA",
   ink: "#12241D",

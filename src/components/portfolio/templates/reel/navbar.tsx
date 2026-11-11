@@ -9,9 +9,7 @@ import { scrollToHash } from "./scroll";
 import { Icon } from "./sprites";
 import { Button } from "./ui";
 
-// HamishMW/portfolio layouts/navbar: the monogram, the sideways links and the social icons down
-// the left, the theme toggle top right, and below 696px a menu button opening a full-screen,
-// blurred menu. The monogram is the owner's initials drawn the way his mark is.
+// HamishMW/portfolio layouts/navbar; the monogram draws the owner's initials the way his mark is.
 
 export type ReelNavLink = { label: string; href: string };
 export type ReelSocial = { label: string; href: string; kind: SocialKind };
@@ -177,7 +175,6 @@ function NavbarIcons({ desktop, socials }: { desktop?: boolean; socials: ReelSoc
   );
 }
 
-/** components/monogram, with the owner's initials as the mark the accent wipes over. */
 function Monogram({ initials }: { initials: string }) {
   const id = useId();
   const clipId = `${id}monogram-clip`;
@@ -209,7 +206,6 @@ function NavToggle({ menuOpen, onClick }: { menuOpen: boolean; onClick: () => vo
   );
 }
 
-/** layouts/navbar/theme-toggle: the sun's rays fold in as a moon bites it, and back. */
 function ThemeToggle({ isMobile, ...rest }: { isMobile?: boolean; "data-navbar-item"?: boolean }) {
   const id = useId();
   const { toggleTheme } = useReel();

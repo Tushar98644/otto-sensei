@@ -4,9 +4,7 @@ import { useSyncExternalStore } from "react";
 import type { Feature, ProTool } from "@/config/plans";
 import { LazyUpgradeDialog } from "./lazy-dialogs";
 
-// The trial prompt for the Pro tools, opened from anywhere with openUpgradePrompt(): a store action,
-// an Undo in a toast, a menu item. Mount <UpgradePromptHost /> once per page; the app shell, the
-// studio shell and /account each do.
+// Mount <UpgradePromptHost /> once per page (the app shell, studio shell and /account do).
 
 type Prompt = { open: boolean; tool?: ProTool; feature?: Feature };
 

@@ -60,9 +60,8 @@ function sameFilters(a: JobFilters, b: JobFilters): boolean {
   return JSON.stringify(a) === JSON.stringify(b);
 }
 
-// The Jobs tab: open jobs from public boards ranked for one resume, each one click from a tailored
-// copy and the tracker. Free sees its closest few matches (FREE_JOB_MATCHES) and how many more
-// there are, with the trial prompt; filters, paging and saving are Pro.
+// Free sees its closest few matches (FREE_JOB_MATCHES) and how many more there are; filters,
+// paging and saving are Pro.
 export function JobsPage() {
   const hydrated = useStudioHydrated();
   const resumes = useResumeList();
@@ -126,7 +125,6 @@ export function JobsPage() {
   // Shown at once and ranked for; kept for the account in the background.
   async function changeLookingFor(next: LookingForChoice) {
     if (work.status !== "ready") return;
-    // The filter bar's "Remote only" follows the card's.
     if (chosen) setChosen({ ...chosen, remote: next.remote });
     setPage(1);
     setSavingChoice(true);
@@ -144,9 +142,8 @@ export function JobsPage() {
     listRef.current?.scrollIntoView({ block: "start" });
   }
 
-  // Noted for measuring match quality; a lost note never gets in the person's way. Actions count
-  // on the ranked list only. The answer to "Applied?" counts anywhere, since the strip asks about
-  // jobs that aren't on this page; those go without the page's place and label.
+  // A lost note never gets in the person's way. "Applied?" counts anywhere, since the strip asks
+  // about jobs not on this page; those go without the page's place and label.
   function note(
     job: { id: string },
     kind: MatchActionInput["kind"],
@@ -177,9 +174,8 @@ export function JobsPage() {
     let text = "";
     let posting: QueuedJob["posting"];
     try {
-      // The post as the server read it from the board's own API (or the text a feed's job
-      // keeps). Read just now, it comes with what the read said and the Tailor step uses it
-      // without reading the link again; otherwise it's the backup when the link can't be read.
+      // Read just now, the post comes with what the read said, so Tailor won't read the link
+      // again; otherwise it's the backup when the link can't be read.
       const post = await api.jobPost(job.id);
       text = post.text;
       posting = post.posting ?? undefined;
@@ -254,8 +250,7 @@ export function JobsPage() {
     saveQueue.current.set(job.id, next);
   }
 
-  // One click logs it as sent today, with the tailored copy for this job when there is one, and
-  // the usual follow-up reminder. Free past its tracked applications gets the trial prompt.
+  // Free past its tracked applications gets the trial prompt.
   async function markApplied(job: OpenedJobRef): Promise<"logged" | "blocked" | "failed"> {
     if (!(await roomForApplication(applications.length))) return "blocked";
     const sent = tailoredFor(resumes, job) ?? resume;
@@ -361,8 +356,7 @@ export function JobsPage() {
       {lookingFor && profile && view === "matches" ? (
         <LookingForCard
           value={lookingFor}
-          // The occupation is read on our server; until the first list arrives the card shows
-          // the title alone.
+          // Read on our server; until the first list arrives the card shows the title alone.
           occupation={
             data?.lookingFor?.title === lookingFor.title ? (data.occupation ?? null) : null
           }
@@ -570,8 +564,7 @@ function LoadingCards() {
   );
 }
 
-// Free, under its closest few: faded card shapes say the list goes on, then the real numbers and
-// the trial. The shapes are plain bars, never made-up jobs.
+// The shapes are plain bars, never made-up jobs.
 function MoreWithPro({ copy, tryPro }: { copy: { title: string; body: string }; tryPro: string }) {
   return (
     <section aria-labelledby="jobs-more" className="relative flex flex-col">

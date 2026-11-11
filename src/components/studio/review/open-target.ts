@@ -5,7 +5,6 @@ import { jumpToLine, showInEditor } from "@/components/studio/tailor/jump";
 import type { ReviewTarget } from "@/lib/lint/review";
 import { useStudioStore } from "@/lib/store/resume-store";
 
-// Opens the editor on the thing a check points at: the line, the job's heading, or the summary.
 // The name-and-contact section may be folded away, so a headline check only opens the editor.
 export function openTarget(resumeId: string, target: ReviewTarget | null): void {
   if (target?.kind === "line") {

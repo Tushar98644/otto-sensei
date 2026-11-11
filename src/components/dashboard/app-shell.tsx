@@ -14,11 +14,8 @@ import { MobileBar } from "./mobile-bar";
 import { Sidebar } from "./sidebar";
 import { useStudioActions } from "./use-studio-actions";
 
-// The signed-in app frame: sidebar on desktop, top bar with tabs on phones, pages on the stone
-// canvas. Every dashboard page renders inside it.
 export function AppShell({ initialUser, children }: { initialUser: SessionUser; children: ReactNode }) {
   const router = useRouter();
-  // Brings in resumes backed up from other devices, and sends deletions made here to the account.
   useCloudSync(initialUser.id);
   useOttoLoadingScreen(useFirstLoadPending(), "Loading your resumes");
   const { me, user, loading } = useMe();

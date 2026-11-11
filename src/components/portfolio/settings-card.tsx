@@ -23,8 +23,6 @@ type SettingsCardProps = {
   disabled: boolean;
 };
 
-// The Settings tab: where the page lives, which resume feeds it, search engines, views, and
-// deleting it at the very end.
 export function SettingsCard({ portfolio, resumes, source, behind, disabled }: SettingsCardProps) {
   const selectId = useId();
   return (

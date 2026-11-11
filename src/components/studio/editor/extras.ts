@@ -13,20 +13,17 @@ import { moveItem, patchItem, removeItem } from "./edits";
 import { CHAR_LIMITS } from "./limits";
 import { cleanSectionTitle } from "./sections";
 
-// Pure edits for the extra sections (languages, awards, volunteering...). Like edits.ts, untouched
-// sections and items keep their identity.
+// Like edits.ts, untouched sections and items keep their identity.
 
 type FieldCopy = { label: string; placeholder: string };
 
 export type ExtraForm = {
-  // One item, as in "Add a language" or "Remove this award?".
   noun: string;
   addLabel: string;
   empty: string;
   title: FieldCopy;
   subtitle: FieldCopy;
-  // Fields this kind doesn't need still show when an import filled them, so nothing prints
-  // that can't be edited.
+  // Still shown when an import filled them, so nothing prints that can't be edited.
   date: FieldCopy | null;
   detail: FieldCopy | null;
   lines: string | null;
@@ -185,7 +182,6 @@ export function removeSectionQuestion(section: ExtraSection): string | null {
   return `Remove ${section.title.trim() || defaultExtraTitle(section.kind)} and its ${pluralize(filled, noun)}?`;
 }
 
-// "2 languages · 1 hidden", shown beside the section's title.
 export function extraCount(section: ExtraSection): string {
   const { noun } = EXTRA_FORMS[section.kind];
   if (section.items.length === 0) return "None yet";

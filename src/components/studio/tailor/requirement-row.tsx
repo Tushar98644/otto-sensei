@@ -58,17 +58,13 @@ const STATUS: Record<RequirementStatus, { label: string; chip: ReactNode }> = {
   },
 };
 
-// The row's element id, so "Fix these first" can bring it into view.
 export const requirementDomId = (rowId: string) => `tailor-requirement-${rowId}`;
 
 export type RequirementRowProps = {
   row: RequirementRow;
   reason: RowReason | undefined;
   choice: RequirementChoice | undefined;
-  // Ids of every line the person added: they exist only in the coming copy, so there's no line in
-  // the editor to jump to.
   addedIds: ReadonlySet<string>;
-  // The add-line form is open on this row.
   open: boolean;
   targets: LineTarget[];
   writing: Writing;
@@ -118,8 +114,6 @@ function Proof({ row, addedIds, onRemove, onJump }: ProofProps) {
   );
 }
 
-// One requirement, the way an AI screener grades it: proven by a real line, only listed, not
-// shown, or something the person said they don't have. Nothing is ever added without a "yes".
 // A line the person added that still doesn't prove the requirement: it names no search term.
 type UnprovenLineProps = { text: string; name: string; onRemove: () => void };
 

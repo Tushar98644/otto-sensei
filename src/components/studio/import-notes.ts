@@ -2,16 +2,14 @@
 
 import { useSyncExternalStore } from "react";
 
-// Which uploads in this tab were sorted by the rule-based parser instead of AI, so the recruiter
-// view can say so. Kept in memory on purpose: the note only matters right after an upload.
+// Uploads read by the rule-based parser, so the recruiter view can say so. Memory only on purpose.
 
 const readByRules = new Set<string>();
 // Of those, the ones the basic reader read because the plan's AI reads were used up.
 const pastAllowance = new Set<string>();
 // Of those, the ones the rules read well enough that the AI reader wasn't needed.
 const readWell = new Set<string>();
-// The file behind the latest upload that read well, for "Let Otto re-read it". One at a time, so
-// a long session doesn't hold on to every file.
+// One file at a time, so a long session doesn't hold on to every upload.
 let rereadable: { resumeId: string; file: File } | null = null;
 const listeners = new Set<() => void>();
 
@@ -34,7 +32,6 @@ export function noteReadWell(resumeId: string, file: File): void {
   notify();
 }
 
-// After "Let Otto re-read it" worked: the resume now holds the AI reader's result.
 export function noteReadByAI(resumeId: string): void {
   readByRules.delete(resumeId);
   pastAllowance.delete(resumeId);

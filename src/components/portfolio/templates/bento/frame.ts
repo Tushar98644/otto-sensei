@@ -1,7 +1,6 @@
 // The tiles' scalloped "nine-slice" frame, ported from Ladvace/astro-bento-portfolio (MIT, see
-// ./LICENSE.txt): src/lib/nine-slice.ts. One SVG frame is cut into nine pieces by CSS
-// (-webkit-mask-box-image, or border-image where that's missing), so the corners keep their
-// shape at any tile size. Pure string building, run once when the stylesheet module loads.
+// ./LICENSE.txt). CSS cuts one SVG frame into nine pieces (-webkit-mask-box-image, else
+// border-image), so the corners keep their shape at any tile size.
 
 const RAIL_X0 = 89.153;
 const RAIL_X1 = 189.534;
@@ -51,11 +50,9 @@ const group = (g: Geometry, stroke: string, fill: string) =>
   `<path d="${FRAME_PATH}" fill="none" stroke="${stroke}" stroke-width="${g.strokeWidth}" stroke-linejoin="round"/>` +
   `<path d="${FRAME_PATH}" fill="${fill}"/></g>`;
 
-/**
- * CSS custom properties for one frame size: --<p>-mask (the whole shape), --<p>-rail-mask (only
- * the outline, painted with --<p>-rail so hover can recolour it), --<p>-image (shape, fill and
- * outline in one picture, for browsers without mask-box-image) and the slice sizes.
- */
+// Per frame size: --<p>-mask (shape), --<p>-rail-mask (outline only, painted with --<p>-rail so
+// hover can recolour it), --<p>-image (all in one, for browsers without mask-box-image) and the
+// slice sizes.
 export function frameVars(
   prefix: string,
   {

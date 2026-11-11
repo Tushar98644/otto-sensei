@@ -1,11 +1,8 @@
 import { templateCss } from "../css";
 
 // Ported from CaliCastle/cali.so (application code MIT, see ./LICENSE.txt; Cali's own writing,
-// photos, artwork, name and branding are not part of that grant and none of them are here): the
-// warm working-paper palette, ambient guides, section tags, rows, nav cards, shelves, polaroids,
-// footer trees and dock from app/globals.css, written out for this page. The original's
-// "max-width: 39.99rem" queries become container queries on the template root. Geist and Geist
-// Mono, as the original.
+// photos, artwork, name and branding are not part of that grant and none of them are here).
+// Its "max-width: 39.99rem" queries become container queries on the template root.
 const css = `
 :scope {
   --gray-1: oklch(0.99 0.001 95);

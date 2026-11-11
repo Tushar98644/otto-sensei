@@ -18,10 +18,8 @@ export function useShareUrl(slug: string): string {
   return origin ? new URL(sharePath(slug), origin).href : "";
 }
 
-// Like a live pill's finished state, the "Copied" label fades after about 2.5s.
 const COPIED_MS = 2_500;
 
-/** Copies a link; `copied` stays true for a moment so the button can say so. */
 export function useCopyLink() {
   const [copied, setCopied] = useState(false);
   const timer = useRef<number | undefined>(undefined);

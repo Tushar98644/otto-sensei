@@ -17,7 +17,6 @@ import type { StudioActions } from "./use-studio-actions";
 const renameDialog = lazyComponent(() => import("./rename-dialog").then((m) => m.RenameDialog));
 
 export type ResumeGridProps = {
-  // The cards to show, in order.
   resumes: readonly Resume[];
   // Every resume, so tailored copies can name the resume they came from and count toward it.
   all: readonly Resume[];
@@ -28,8 +27,7 @@ export type ResumeGridProps = {
   className?: string;
 };
 
-// Document cards plus the rename dialog they open, so the home page and the library behave the
-// same. Delete moves a resume to Recently deleted at once, with Undo.
+// Delete moves a resume to Recently deleted at once, with Undo.
 export function ResumeGrid({
   resumes,
   all,

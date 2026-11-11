@@ -18,9 +18,6 @@ import { applicationHref, copyLetter } from "@/lib/applications/thread";
 import type { Resume } from "@/lib/resume/schema";
 import { useStudioStore } from "@/lib/store/resume-store";
 
-// The Download step's next move, so finishing a resume never ends on a dead end: a resume that
-// isn't tailored yet goes to a job, and a tailored copy to its application, its letter and its
-// interview prep.
 export function ApplicationCard({ resume }: { resume: Resume }) {
   return resume.tailor ? <TailoredCopyCard resume={resume} /> : <FindAJobCard />;
 }
@@ -49,8 +46,6 @@ function FindAJobCard() {
   );
 }
 
-// A tailored copy's job: where that application stands and a link to its page, or one click to
-// log it as sent. Its letter and its job go along by themselves. Then what the job asks for next.
 function TailoredCopyCard({ resume }: { resume: Resume }) {
   const { user } = useMe();
   const application = useCopyApplication(resume);
@@ -60,8 +55,7 @@ function TailoredCopyCard({ resume }: { resume: Resume }) {
   if (!resume.tailor || !user) return null;
   const job = [resume.tailor.jobTitle, resume.tailor.company].filter(Boolean).join(" at ");
   const letter = copyLetter(resume) !== "";
-  // This tab still holds the job post the copy was made from, so the Tailor step can write the
-  // letter from it. Otherwise the Cover letters page asks for the job again.
+  // The Tailor step can write the letter only while this tab still holds the copy's job post.
   const tailoredHere = loadResult(resume.tailor.baseResumeId)?.copyId === resume.id;
   const proBadge = locked ? (
     <Badge variant="ink" className="h-5 px-1.5">
@@ -122,8 +116,7 @@ function TailoredCopyCard({ resume }: { resume: Resume }) {
             {proBadge}
           </Link>
         )}
-        {/* Prep lives on an application; before one is logged, the Interview prep page starts it
-            from this copy. */}
+        {/* Before an application is logged, Interview prep starts from this copy. */}
         <Link
           href={application ? prepHref(application.id) : ROUTES.dashboardInterview}
           className={buttonClasses({ variant: "ghost" })}

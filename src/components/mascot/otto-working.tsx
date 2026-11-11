@@ -8,7 +8,6 @@ import type { OttoPose } from "./otto-poses";
 
 export type OttoTask = keyof typeof OTTO.working;
 
-// He reads what he reads, thinks over what he writes, and points where he picks things out.
 const TASK_POSE: Record<OttoTask, OttoPose> = {
   import: "read",
   job: "read",
@@ -27,7 +26,6 @@ const TASK_POSE: Record<OttoTask, OttoPose> = {
 // A quick answer comes back before this, so he never flashes on and off.
 export const OTTO_WORKING_DELAY_MS = 400;
 
-/** Calls `reveal` once `delayMs` has passed, unless cancelled first. */
 export function revealAfter(delayMs: number, reveal: () => void): () => void {
   const timer = setTimeout(reveal, delayMs);
   return () => clearTimeout(timer);
@@ -35,9 +33,7 @@ export function revealAfter(delayMs: number, reveal: () => void): () => void {
 
 export type OttoWorkingProps = {
   task: OttoTask;
-  // Replaces the task's line, e.g. to name the file he's reading.
   message?: string;
-  // A quieter second line, such as "This takes a few seconds."
   detail?: ReactNode;
   // sm (64px) inside dialogs and small panels, md (96px) in a page.
   size?: "sm" | "md";
@@ -47,8 +43,7 @@ export type OttoWorkingProps = {
   className?: string;
 };
 
-// Otto at work while someone waits on the AI: mount it for the wait, unmount it when the answer
-// is in. He's decoration (aria-hidden); the status line says what he's doing.
+// Mount for the wait, unmount when the answer is in. aria-hidden: the status line says it all.
 export function OttoWorking({
   task,
   message,

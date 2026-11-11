@@ -2,11 +2,8 @@ import type { GitHubContact, GitHubPull, GitHubRepo } from "@/lib/github/types";
 import { parseGitHubUsername } from "@/lib/github/username";
 import type { Resume } from "@/lib/resume/schema";
 
-// Client-safe helpers for the "Import from GitHub" dialog.
-
 const MONTH = new Intl.DateTimeFormat("en-US", { month: "short", year: "numeric", timeZone: "UTC" });
 
-/** The GitHub username in the resume's own links, which makes the studio offer the import. */
 export function usernameFromResume(resume: Resume): string {
   for (const link of resume.basics.links) {
     const name = parseGitHubUsername(link.url);
@@ -18,7 +15,6 @@ export function usernameFromResume(resume: Resume): string {
 // Below this many projects, the studio offers the GitHub import at the top of Projects.
 const FEW_PROJECTS = 2;
 
-/** The resume links a GitHub profile but has fewer than two projects: worth offering the import. */
 export function offersGitHubImport(resume: Resume): boolean {
   return usernameFromResume(resume) !== "" && resume.projects.length < FEW_PROJECTS;
 }
@@ -64,7 +60,6 @@ function fold(text: string): string {
   return text.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase();
 }
 
-// "github.com/octocat/ledger-lint", for showing a link without its scheme.
 export function shortLink(url: string): string {
   return url.replace(/^https?:\/\//, "").replace(/^www\./, "");
 }

@@ -12,8 +12,7 @@ import { Popover, usePopover } from "../popover";
 import { useLineStepper } from "./entry-lines";
 import { CHIP_LABELS } from "./lint-notes";
 
-// "No result" fires on most lines of a first draft, so each job says it once (ResultNote) instead
-// of the same chip on every line. The line's own popover still explains it.
+// "No result" fires on most first-draft lines, so each job says it once (ResultNote) instead.
 const ENTRY_LEVEL: LintIssueId = "no-result";
 // Otto rewrites wording; a repeat or a full stop is quicker to fix by hand.
 const NOT_FOR_OTTO: ReadonlySet<LintIssueId> = new Set(["duplicate", "punctuation"]);
@@ -28,14 +27,12 @@ export type IssueChipProps = {
   onSetText: (text: string) => void;
 };
 
-/** A line whose chip shows something Otto can rewrite keeps "Fix with Otto" in view. */
 export function wantsOtto(issues: readonly LintIssue[]): boolean {
   return issues.some(
     (issue) => issue.severity === "high" && issue.id !== ENTRY_LEVEL && !NOT_FOR_OTTO.has(issue.id),
   );
 }
 
-/** The chip at the end of a line. It opens why each issue matters, an example and a fix. */
 export function IssueChip({ issues, text, onFix, onSetText }: IssueChipProps) {
   const top = issues.find((issue) => issue.id !== ENTRY_LEVEL);
   if (!top) return null;
@@ -139,11 +136,7 @@ function Example({ before, after }: { before: string | null; after: string }) {
   );
 }
 
-/**
- * "4 of 6 lines don't say what changed", once per job or project, with the reason one tap away
- * and a button that opens each of those lines in turn. Duty lines count too: they keep their own
- * chip, which says why.
- */
+/** Duty lines count too: they keep their own chip, which says why. */
 export function ResultNote({ lines }: { lines: readonly CheckedLine[] }) {
   const ids = lines
     .filter((line) => line.issues.some((issue) => RESULT_ISSUES.includes(issue.id)))

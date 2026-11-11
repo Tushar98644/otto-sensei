@@ -29,9 +29,8 @@ import { patchMe, refreshMe } from "./use-me";
 
 type Step = "email" | "code" | "done";
 type Pending = "send" | "resend" | "verify";
-// "field" errors are about what was typed and sit under the input. "form" errors are about the
-// service (email not set up, provider down, too many tries), so they get their own alert instead
-// of marking a correct address as invalid.
+// "form" errors are about the service (email not set up, provider down, too many tries): they get
+// their own alert rather than marking a correct address invalid.
 type ErrorPlacement = "field" | "form";
 // A new id per error, so the same message twice in a row is still announced twice.
 type FormError = { id: number; message: string; placement: ErrorPlacement };
@@ -46,10 +45,8 @@ function placementOf(failure: unknown): ErrorPlacement {
 }
 
 export type SignInFormProps = {
-  // Runs once the session cookies are set and useMe() has the user. Not after Google: that sign-in
-  // leaves the page and comes back to `next` instead.
+  // Runs once cookies are set and useMe() has the user. Not after Google, which leaves the page.
   onSignedIn?: (user: SessionUser) => void;
-  // Where Google sign-in returns to. Defaults to the current page.
   next?: string;
   // Shown as a form alert on arrival, e.g. a Google sign-in that didn't finish.
   initialError?: string;
@@ -184,7 +181,6 @@ export function SignInForm({
   }
 
   const fieldError = error?.placement === "field" ? error.message : undefined;
-  // Keyed by id so a repeated failure remounts the alert and is announced again.
   const formAlert =
     error?.placement === "form" ? (
       <Alert key={error.id} variant="error">

@@ -56,8 +56,7 @@ export function LettersPage() {
   const now = useNow();
   const actions = useStudioActions();
   const pdf = useLetterPdf(resumes);
-  // Letters and answers are AI help, which Free doesn't have. What was written on Pro or the trial
-  // stays readable, editable and deletable here; writing a new one offers the trial.
+  // Free can't write new ones, but keeps reading, editing and deleting what it wrote on Pro.
   const locked = useProTools() === false;
   const tryPro = useTryProLabel();
   const [upgradeOpen, setUpgradeOpen] = useState(false);
@@ -138,8 +137,7 @@ export function LettersPage() {
     }
   }
 
-  // Gone from the list (and from its tailored copy) at once; the saved row is deleted only once
-  // the Undo has run out.
+  // Gone at once (also from its copy); the saved row is deleted only once the Undo runs out.
   function remove(entry: LetterEntry) {
     if (viewer?.entryKey === entry.key) setViewer({ ...viewer, open: false });
     const saved = writings.items.find((item) => item.id === entry.writingId);

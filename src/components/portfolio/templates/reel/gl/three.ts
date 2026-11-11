@@ -10,15 +10,13 @@ import { DRACOLoader } from "three/examples/jsm/loaders/DRACOLoader.js";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { REEL_ASSETS } from "./paths";
 
-// HamishMW/portfolio's utils/three.js. three-stdlib's loaders are three's own examples, so they
-// come from three here. The device models and the Draco decoder (three's, copied) are served
-// from public/portfolio-templates/reel/.
+// HamishMW/portfolio's utils/three.js. Loaders come from three (three-stdlib's are its examples).
+// Models and the Draco decoder (three's, copied) are served from public/portfolio-templates/reel/.
 
 Cache.enabled = true;
 
 let gltfLoader: GLTFLoader | null = null;
 
-/** GLTF model loader configured with the Draco decoder, made on first use. */
 export function modelLoader(): GLTFLoader {
   if (gltfLoader) return gltfLoader;
   const dracoLoader = new DRACOLoader();

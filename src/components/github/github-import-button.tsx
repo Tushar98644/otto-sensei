@@ -19,15 +19,11 @@ export type GitHubImportButtonProps = {
   variant?: ButtonVariant;
   size?: ButtonSize;
   className?: string;
-  // After projects were added, with the resume as it is now.
   onAdded?: (resume: Resume) => void;
 };
 
-/**
- * "Add projects from GitHub", wherever it's offered (studio Projects, the portfolio's Projects).
- * Drafting is Pro: on Free the button carries the Pro badge and opens the trial prompt instead of
- * a dialog that would stop at the last step.
- */
+// Drafting is Pro: on Free the button opens the trial prompt instead of a dialog that would stop
+// at the last step.
 export function GitHubImportButton({
   resumeId,
   label,
@@ -57,7 +53,6 @@ export function GitHubImportButton({
       },
     );
   }
-  // Back from connecting GitHub, the dialog picks up where it left off.
   useGitHubReturn(resumeId, open);
   // Followed only once the dialog has been opened, so typing elsewhere doesn't rerender this.
   const resume = useStudioStore((state) =>

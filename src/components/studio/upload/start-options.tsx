@@ -13,7 +13,6 @@ export type StartOptionsProps = {
   disabled?: boolean;
 };
 
-// The other ways in, as rows on one sheet rather than a grid of icon cards.
 export function StartOptions({
   onGuided,
   onLocalFile,

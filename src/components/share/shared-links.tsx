@@ -13,8 +13,7 @@ import { turnOffWithUndo } from "./share-actions";
 import { isBehind, viewFacts } from "./share-facts";
 import { useShares } from "./share-store";
 
-// The account's live share links with their views, under the library. Hidden until there is one,
-// so people who never share don't get an empty section.
+// Hidden until there is one, so people who never share don't get an empty section.
 export function SharedLinks() {
   const { user } = useMe();
   const userId = user?.id ?? null;

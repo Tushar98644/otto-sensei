@@ -9,9 +9,7 @@ import {
   type PlanId,
 } from "@/config/plans";
 
-// Client-safe. What the upgrade prompt offers: Free sees Pro and Max side by side, Pro sees Max
-// beside its own plan, and Max has nothing to buy. Only plans and billing options on sale here
-// (billing.offer from /api/me) appear.
+// Only plans and billing options on sale here (billing.offer from /api/me) appear.
 
 export type Offer = Partial<Record<PaidPlanId, readonly BillingInterval[]>>;
 
@@ -21,21 +19,17 @@ export type OfferCard = {
   current: boolean;
   // Pro next to Max, on Free.
   popular: boolean;
-  // What the card's price and checkout bill for: the picked option, or monthly where the plan
-  // isn't sold that way (the pricing page does the same).
+  // The picked option, or monthly where the plan isn't sold that way (as on the pricing page).
   interval: BillingInterval;
   // Starts with the free trial: Pro monthly, on Free, for someone who hasn't had one.
   trial: boolean;
-  // Buying it ends the account's free trial today: on the trial it's a new subscription that
-  // replaces the trial (createCheckoutUrl), not an in-place change.
+  // Buying it ends the free trial today: a new subscription replaces the trial, not a plan change.
   endsTrial: boolean;
 };
 
 export type UpgradeOffer = {
   cards: OfferCard[];
-  // The billing options on sale for the plans that can be bought here, in the pricing page's order.
   intervals: BillingInterval[];
-  // The one the cards are priced for.
   interval: BillingInterval;
 };
 
@@ -54,7 +48,6 @@ export function upgradeOffer({
   picked: BillingInterval;
   // Pro monthly would start with the free trial for this account.
   trial: boolean;
-  // The account is on its free trial right now (isTrialing).
   onTrial?: boolean;
 }): UpgradeOffer {
   const buyable = PAID_PLANS.filter(

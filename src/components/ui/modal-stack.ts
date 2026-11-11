@@ -1,6 +1,5 @@
-// While a modal <dialog> is open, everything outside it is inert and hidden from screen readers.
-// Each open Dialog registers an empty slot inside itself here, and overlays that must stay usable
-// (toasts) render into the topmost slot. Browser-only: nothing here runs during server rendering.
+// An open modal <dialog> makes everything outside it inert, so each open Dialog registers a slot
+// inside itself and overlays that must stay usable (toasts) render into the topmost one.
 
 const hosts: HTMLElement[] = [];
 const listeners = new Set<() => void>();

@@ -4,8 +4,7 @@ import { useRef, type CSSProperties, type ReactNode } from "react";
 import { useInViewport } from "./motion";
 import { useReel } from "./root";
 
-// HamishMW/portfolio components/image with `reveal`: when it scrolls in, an accent bar sweeps
-// across and what's inside fades in behind it. His pictures become drawn screens and tiles here.
+// HamishMW/portfolio components/image with `reveal`; his pictures become drawn screens and tiles.
 export function RevealFrame({
   delay = 0,
   className,

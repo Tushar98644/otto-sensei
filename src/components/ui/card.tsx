@@ -1,9 +1,7 @@
 import type { ComponentProps } from "react";
 import { cn } from "@/lib/utils";
 
-// Card pads itself, so plain content works too. The parts only add spacing and type styles.
-// No border or shadow: a white card only reads on stone (a Panel or the studio canvas), so never
-// put one straight on the paper background or inside another card.
+// No border or shadow: a white card only reads on stone (Panel, studio canvas), not on paper.
 export function Card({ className, ...props }: ComponentProps<"div">) {
   return (
     <div

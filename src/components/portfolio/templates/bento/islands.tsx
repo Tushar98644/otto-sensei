@@ -2,8 +2,7 @@
 
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 
-// Bento's live parts, after Ladvace/astro-bento-portfolio (MIT): the time-zone tile
-// (components/TimeZoneCard.astro) and the accent swatches (components/ThemeChangeCard.astro).
+// Bento's live parts, after Ladvace/astro-bento-portfolio (MIT).
 
 // The clock ticks from an external store, so the server (and the first client render) draw
 // "--:--" and the real time arrives right after hydration without a mismatch.
@@ -119,7 +118,6 @@ function chooseAccent(next: Accent) {
   for (const listener of listeners) listener();
 }
 
-/** The colour diamonds: each one swaps the page's accent, like the original's theme card. */
 export function AccentSwatches() {
   const ref = useRef<HTMLDivElement>(null);
   const accent = useSyncExternalStore(

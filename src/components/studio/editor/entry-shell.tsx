@@ -10,11 +10,9 @@ import { ICON_ACTION_CLASSES, MoveButtons } from "./move-buttons";
 import { removeWithUndo } from "./remove-with-undo";
 
 export type EntryDetails = {
-  // The entry's own fields (title, company, dates...). They fold away once `complete` is true on
-  // the first render, so a filled-in job shows its lines first.
+  // Folds away when `complete` is true on first render, so a filled-in job shows its lines first.
   content: ReactNode;
   complete: boolean;
-  // Focused when the fields are opened.
   firstFieldId: string;
 };
 
@@ -23,45 +21,31 @@ export type EntryShellProps = {
   resumeId: string;
   headingId: string;
   removeId: string;
-  // The entry's name in its buttons, e.g. "Backend Engineer at Stripe".
   title: string;
-  // What the heading shows, when it differs from `title`: a role under its company's heading
-  // shows only the role.
+  // When it differs from `title`: a role under its company's heading shows only the role.
   heading?: string;
-  // Roles sit one level under their company's heading.
   headingLevel?: 4 | 5;
-  // A gray line of facts under the title, e.g. "Jan 2021 – now · Remote".
   meta?: string | null;
   canMoveUp: boolean;
   canMoveDown: boolean;
   onMove: (delta: -1 | 1) => void;
-  // Set when the entry has something to lose, e.g. "Remove this job and its 4 lines?": it is
-  // still removed at once, but with Undo. Null removes it quietly.
+  // Something to lose (e.g. "Remove this job and its 4 lines?"): removed at once, with Undo.
   confirm: string | null;
   onRemove: () => void;
-  // "Hide in this version": the entry stays here, dimmed, and is left out of the PDF.
   hidden?: boolean;
   onToggleHidden?: () => void;
-  // Roles at one company: the first ("start") carries the company's heading in `lead`, and every
-  // role sits on one rule down the left, so the group reads as one block. The list stays flat,
-  // so regrouping never remounts an entry (or drops focus from the field being typed in).
+  // The list stays flat, so regrouping roles never remounts an entry or drops focus.
   rail?: "start" | "continue";
   lead?: ReactNode;
   // Fields that can fold away behind "Edit details". Without it, children are the fields.
   details?: EntryDetails;
-  // What stays in view under the title, folded or not (a job's lines, a group's skills).
   children?: ReactNode;
 };
 
-// Move, hide, remove and the details toggle fade in on hover or focus (always on touch), keeping
-// their space so nothing shifts.
+// Fade in on hover or focus (always on touch), keeping their space so nothing shifts.
 const REVEAL_CLASSES =
   "opacity-0 transition-opacity group-hover/entry:opacity-100 focus-within:opacity-100 pointer-coarse:opacity-100";
 
-// One job, school, project, skill group, certification or extra item: a heading, move, hide and
-// remove controls, then its fields, on a mist card so each entry reads apart from the next (the
-// owner's call, 2026-11-11). Roles at one company join into one card. Removing something with
-// content offers Undo, so nothing is lost by a tap.
 export function EntryShell({
   resumeId,
   headingId,
@@ -82,8 +66,7 @@ export function EntryShell({
   details,
   children,
 }: EntryShellProps) {
-  // Only the first render decides: filling in the company while typing must not fold the fields
-  // away under the cursor.
+  // Only the first render decides, so filling in the company never folds fields under the cursor.
   const [detailsOpen, setDetailsOpen] = useState(() => !details?.complete);
   const detailsId = useId();
   const Heading = headingLevel === 5 ? "h5" : "h4";

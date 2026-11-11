@@ -14,12 +14,10 @@ export const dynamic = "force-dynamic";
 const NO_STORE = { "Cache-Control": "no-store" };
 const JobIdSchema = z.uuid();
 
-// GET /api/jobs/:id: one job with its post, for the tailor flow: the text a feed's job keeps, or
-// the post read again from its source (cached a day; "" when that fails, and the tailor flow asks
-// for the text). A post read just now comes with what the read said (dates, form questions), so
-// the tailor flow uses it as is instead of reading the job's link a second time. Signed in only:
-// the feeds' terms let us use their text in the app, not hand it out to anyone who asks.
-// v2: entries from before `posting` was kept would send every tailor back to the link for a day.
+// Feed text, or the post re-read from its source (cached a day; "" on failure, and the tailor
+// flow asks for the text) with its dates and questions, so the link isn't read twice.
+// Signed in only: the feeds' terms allow their text in the app, not handing it to anyone.
+// v2: older entries lack `posting` and would send every tailor back to the link for a day.
 const dailyPost = cachedForDay("jobs-full-post-v2", async (id: string) => {
   const job = await jobById(await getDb(), id);
   if (!job) return null;

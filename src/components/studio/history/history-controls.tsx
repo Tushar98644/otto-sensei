@@ -8,8 +8,7 @@ import { historyKey, type HistoryKey } from "@/lib/store/history-keys";
 import { useHistoryStatus, useStudioStore } from "@/lib/store/resume-store";
 import { VersionsDialog } from "./versions-dialog";
 
-// Undo, Redo and saved versions for the open resume, in the studio top bar. Phones get Undo plus
-// one menu (Redo, Versions), so the resume switcher keeps room for a readable name.
+// Phones get Undo plus one menu (Redo, Versions), so the switcher keeps room for a readable name.
 
 const IS_MAC =
   typeof navigator !== "undefined" && /mac|iphone|ipad|ipod/i.test(navigator.userAgent);
@@ -19,7 +18,6 @@ function describe(action: "Undo" | "Redo", label: string | undefined): string {
   return label ? `${action}: ${label}` : action;
 }
 
-// Moves one step and returns what to read out, or null when there was nothing to move to.
 function stepHistory(id: string, direction: HistoryKey): string | null {
   const store = useStudioStore.getState();
   const history = store.history[id];

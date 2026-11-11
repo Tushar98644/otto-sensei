@@ -7,8 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import type { Resume } from "@/lib/resume/schema";
 
-// "Copy share link" beside the downloads, where people finish, not only in a card's menu. Share
-// links are Pro: on Free the button carries the badge and opens the trial prompt.
+// Share links are Pro: on Free the button carries the badge and opens the trial prompt.
 export function ShareLinkButton({ resume }: { resume: Resume }) {
   const locked = useProTools() === false;
   const share = useShareResume(resume);

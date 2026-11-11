@@ -17,8 +17,7 @@ let active: { name: TourName; stop: () => void } | null = null;
 // ?tour=1 replays once per page load, not on every step change that follows.
 const replayed = new Set<TourName>();
 
-// Starts a tour the first time `eligible` turns true on a browser that hasn't seen it. `prepare`
-// builds its stops at that moment (it may load code), or returns null to skip this time.
+// `prepare` builds the stops when the tour starts (it may load code), or returns null to skip.
 export function useFirstRunTour(
   name: TourName,
   eligible: boolean,

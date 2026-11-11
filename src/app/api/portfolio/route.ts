@@ -44,7 +44,6 @@ function answer(result: SaveResult, createdStatus = 200): Response {
   }
 }
 
-// GET /api/portfolio: the signed-in account's portfolio, or null before it has one.
 export async function GET(): Promise<Response> {
   try {
     const user = await getCurrentUser();
@@ -57,8 +56,7 @@ export async function GET(): Promise<Response> {
   }
 }
 
-// POST /api/portfolio: makes the portfolio from this resume (201), or points the existing one at
-// it (200). Nothing goes live until the owner publishes.
+// Nothing goes live until the owner publishes.
 export async function POST(req: Request): Promise<Response> {
   const blocked = rejectCrossSite(req) ?? rejectNonJson(req);
   if (blocked) return blocked;
@@ -85,7 +83,6 @@ export async function POST(req: Request): Promise<Response> {
   }
 }
 
-// PATCH /api/portfolio: changes the address, template, what shows, publishing or syncing.
 export async function PATCH(req: Request): Promise<Response> {
   const blocked = rejectCrossSite(req) ?? rejectNonJson(req);
   if (blocked) return blocked;
@@ -110,8 +107,7 @@ export async function PATCH(req: Request): Promise<Response> {
   }
 }
 
-// DELETE /api/portfolio: deletes the page and its old addresses. The page stops answering at once;
-// the resume it came from is untouched.
+// The page stops answering at once; the resume it came from is untouched.
 export async function DELETE(req: Request): Promise<Response> {
   const blocked = rejectCrossSite(req);
   if (blocked) return blocked;

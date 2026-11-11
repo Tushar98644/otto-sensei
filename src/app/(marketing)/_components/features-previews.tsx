@@ -9,8 +9,6 @@ import { TEMPLATE_INFO } from "@/lib/pdf/templates";
 import { MATCH_LABELS } from "@/lib/job-feed/types";
 import { DEMO_PERSON } from "./recruiter-demo-data";
 
-// Small, static copies of each app section for the landing page, drawn with Maya's sample data.
-
 function Row({ title, meta, children }: { title: string; meta: string; children?: ReactNode }) {
   return (
     <li className="flex flex-col gap-2 rounded-xl bg-surface p-3 ring-1 ring-border sm:p-4">

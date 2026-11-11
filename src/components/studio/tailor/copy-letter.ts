@@ -1,10 +1,7 @@
 import { COVER_LETTER_CHARS } from "@/lib/resume/schema";
 import { useStudioStore } from "@/lib/store/resume-store";
 
-/**
- * Keeps a letter on the tailored copy made for its job; an empty text takes it off. Skipped when
- * nothing changed, so an unchanged letter never bumps the copy's "edited" time.
- */
+/** An empty text removes it. Unchanged text is skipped, so the copy's "edited" time stays. */
 export function saveLetterOnCopy(copyId: string | null | undefined, text: string): void {
   if (!copyId) return;
   const store = useStudioStore.getState();

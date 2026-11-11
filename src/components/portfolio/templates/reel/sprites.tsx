@@ -1,8 +1,6 @@
-// HamishMW/portfolio's SVG sprites (MIT): the katakana that sits behind the devices and the
-// photo (routes/home/katakana.svg, プロジェクト "project" and プロフィール "profile", drawn as outlines so no
-// Japanese font is needed) and the icons the page uses (components/icon/icons.svg; the symbols keep
-// their 24px size, so a bigger box, like the menu button's 32px, draws them at 24 in its corner as
-// on his site). Drawn once per page; everything else points at them with <use>.
+// HamishMW/portfolio's SVG sprites (MIT): the katakana behind the devices, as outlines so no
+// Japanese font is needed, and his icons. Symbols keep their 24px size, so a bigger box (the
+// menu button's 32px) draws them at 24 in its corner, as on his site. Drawn once per page.
 
 export const KATAKANA_PROJECT = "pf-reel-katakana-project";
 export const KATAKANA_PROFILE = "pf-reel-katakana-profile";
@@ -46,7 +44,6 @@ export function ReelSprites() {
   );
 }
 
-/** components/icon: a 24px sprite icon in the text colour. */
 export function Icon({
   icon,
   className,

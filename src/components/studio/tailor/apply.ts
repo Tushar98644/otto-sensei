@@ -12,8 +12,6 @@ import {
 import type { TailorCopyMeta } from "@/lib/store/resume-store";
 import type { ScreenerOptions } from "@/lib/tailor/requirements";
 
-// Pure tailoring logic: what the result offers, and what the user picked, applied to a copy.
-
 // ResumeSchema limits, so a tailored copy always passes validation when it syncs to the cloud.
 const MAX_KEYWORDS = 60;
 const MAX_TERM_CHARS = 100;
@@ -23,15 +21,13 @@ const MAX_JOB_FIELD_CHARS = 200;
 const MAX_BULLET_CHARS = 1_000;
 const MAX_BULLETS = { experience: 40, projects: 20 } as const;
 
-// A line the person wrote for a requirement the resume didn't show. Its id is made when it is
-// added, so the screener view can point at it before the copy exists.
+// The id is made when added, so the screener view can point at it before the copy exists.
 export type AddedLine = { id: string; parentId: string; text: string };
 
 // "no": the person doesn't have it, so it stays missing and nothing is ever added for it.
 export type RequirementChoice = { kind: "no" } | { kind: "line"; line: AddedLine };
 
 export type TailorChoices = {
-  // Screener answers by requirement id. Unanswered requirements are simply not shown yet.
   requirements: Record<string, RequirementChoice>;
   // Per experience id; a missing entry means the reorder is on.
   reorder: Record<string, boolean>;
@@ -40,14 +36,11 @@ export type TailorChoices = {
 
 export type ReorderPlan = {
   experienceId: string;
-  // "Backend Engineer at Stripe"
   label: string;
   bulletIds: string[];
-  // Lines that end up higher than they are now, in their new order.
   movedUp: Bullet[];
 };
 
-// Where a new line can go: a job, or a project when there are no jobs that fit.
 export type LineTarget = { id: string; section: "experience" | "projects"; label: string };
 
 export function tailorTerms(result: TailorResult): string[] {
@@ -99,7 +92,6 @@ export function lineTargets(resume: Resume): LineTarget[] {
   ];
 }
 
-// Lines the person added, in requirement order, with the requirement they answer.
 function addedLines(result: TailorResult, choices: TailorChoices) {
   return result.requirements.flatMap((requirement) => {
     const choice = choices.requirements[requirement.id];
@@ -108,8 +100,7 @@ function addedLines(result: TailorResult, choices: TailorChoices) {
   });
 }
 
-// A must-have's line goes to the top of its job, where a screener and a skimming recruiter look
-// first; a nice-to-have's goes after the lines already there.
+// A must-have's line goes first in its job, where screeners look; a nice-to-have's goes last.
 function withAddedLines(resume: Resume, result: TailorResult, choices: TailorChoices): Resume {
   let next = resume;
   const atTop = new Map<string, number>();
@@ -137,8 +128,6 @@ function withAddedLines(resume: Resume, result: TailorResult, choices: TailorCho
   return next;
 }
 
-// A tool the person confirmed with a line of their own also belongs in their skills, where
-// recruiters search for it by name.
 export function confirmedSkills(result: TailorResult, choices: TailorChoices): string[] {
   return addedLines(result, choices)
     .map(({ requirement }) => requirement.terms[0]?.trim().slice(0, MAX_TERM_CHARS) ?? "")
@@ -156,8 +145,7 @@ function addConfirmedSkills(resume: Resume, skills: string[]): Resume {
 }
 
 export function defaultChoices(resume: Resume, result: TailorResult): TailorChoices {
-  // A suggested summary fills an empty one by default, but never replaces the user's own
-  // without a tick.
+  // A suggested summary fills an empty one by default; replacing the user's own needs a tick.
   return {
     requirements: {},
     reorder: {},
@@ -185,11 +173,8 @@ export function applyTailorChoices(
   return next;
 }
 
-/**
- * The copy as the screener view should judge it: every choice applied except the suggested
- * summary. That summary is written from the resume's own skills list, so counting it would turn
- * "Listed but not shown" into "Proven" without a single new line of proof.
- */
+// Every choice applied except the suggested summary: it's written from the skills list, so it
+// would turn "Listed but not shown" into "Proven" with no new proof.
 export function screenerResume(
   source: Resume,
   result: TailorResult,
@@ -213,14 +198,11 @@ export type TailorJob = {
   company: string;
   // The post as it was sent; optional so callers that only know the names still work.
   text?: string;
-  // The link as typed, and the address it was read from.
   link?: string;
   posting?: { url: string } | null;
-  // The Jobs tab opening it came from, when it did.
   jobId?: string | null;
 };
 
-// What the screener read from the post, inside TailorMetaSchema's caps.
 function savedRequirementsOf(result: TailorResult): SavedRequirement[] {
   return result.requirements.slice(0, MAX_SAVED_REQUIREMENTS).map((requirement) => ({
     text: requirement.text.trim().slice(0, 300),
@@ -232,8 +214,7 @@ function savedRequirementsOf(result: TailorResult): SavedRequirement[] {
   }));
 }
 
-// The user's own title and company win; the model's reading of the post fills any gaps. The post's
-// text, link and requirements go on the copy too, so later steps work from the real job.
+// The user's title and company win; the model's reading of the post only fills gaps.
 export function tailorMeta(result: TailorResult, job: TailorJob, coverLetter = ""): TailorCopyMeta {
   const letter = coverLetter.trim().slice(0, COVER_LETTER_CHARS);
   const jobText = (job.text ?? "").trim().slice(0, JOB_TEXT_CHARS);

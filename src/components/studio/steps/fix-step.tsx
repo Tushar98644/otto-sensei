@@ -14,16 +14,13 @@ import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { STEP_LABELS, useStudioStore } from "@/lib/store/resume-store";
 
-// Step 3: edit every section with live lint and "Fix with Otto". It subscribes to the active id
-// only; each part below selects its own slice, so typing never re-renders the whole step. Wide
-// screens put the outline of sections beside the editor, so nobody scrolls back to find a job.
+// Subscribes to the active id only, so typing never re-renders the whole step.
 export function FixStep() {
   const resumeId = useStudioStore((state) =>
     state.activeId !== null && Object.hasOwn(state.resumes, state.activeId) ? state.activeId : null,
   );
 
-  // Arriving from Home's "Lines to improve": the first weak line is focused, its tip and "Fix with
-  // Otto" in view.
+  // From Home's "Lines to improve": focus the first weak line, with its tip and Fix in view.
   useEffect(() => {
     const bulletId = takeArrivingLine();
     if (bulletId) focusWhenShown(bulletInputId(bulletId));

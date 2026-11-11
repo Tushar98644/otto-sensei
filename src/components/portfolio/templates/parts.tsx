@@ -44,11 +44,7 @@ export function OutLink({
   );
 }
 
-/**
- * A steady number from some text (FNV-1a), so a pattern or colour drawn for a project is the same
- * on every render, on the server and in the browser. Pages draw no pictures; this is what makes
- * each project's drawn stand-in its own.
- */
+// FNV-1a, so a project's drawn pattern or colour is the same on every render, server and browser.
 export function seedOf(text: string): number {
   let hash = 0x811c9dc5;
   for (const char of text) {
@@ -70,7 +66,6 @@ export function seeded(seed: number): () => number {
   };
 }
 
-/** A paragraph with the owner's highlighted phrases wrapped in `mark` (a <strong> by default). */
 export function Marked({
   parts,
   mark = "strong",
@@ -108,12 +103,10 @@ export function safeId(prefix: string, id: string): string {
   return `${prefix}-${tail || "item"}`;
 }
 
-/** Featured projects first, then the rest, each half in the owner's order. */
 export function featuredFirst<T extends { featured: boolean }>(items: readonly T[]): T[] {
   return [...items.filter((item) => item.featured), ...items.filter((item) => !item.featured)];
 }
 
-/** Every skill in order, flattened out of its groups, without repeats. */
 export function allSkills(view: PortfolioView): string[] {
   return [...new Set(view.skills.flatMap((group) => group.items))];
 }
@@ -123,7 +116,6 @@ export function unbroken(date: string): string {
   return date.replace(/ /g, "\u00a0");
 }
 
-/** The page's name, or a plain word when the resume has none yet. */
 export function nameOf(view: PortfolioView): string {
   return view.name || "Portfolio";
 }

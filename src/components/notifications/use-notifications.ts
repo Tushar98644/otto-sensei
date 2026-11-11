@@ -5,10 +5,8 @@ import { useMe } from "@/components/account/use-me";
 import { api } from "@/lib/api/client";
 import type { Notification } from "@/lib/notifications/types";
 
-// One shared GET /api/notifications per signed-in account, for the sidebar bell and the phone
-// bar's bell alike (both are mounted; CSS shows one). Kept per user id, so signing in as someone
-// else never shows the last person's notifications. Reminders come from a daily job, so a refresh
-// when the tab comes back after a few minutes is plenty; nothing polls.
+// Shared by both bells (both mounted; CSS shows one). Kept per user id, so another sign-in never
+// shows the last person's list. Reminders are daily, so a refresh on tab return is plenty.
 
 type State = {
   userId: string | null;
@@ -77,10 +75,8 @@ function refreshIfStale(userId: string) {
   if (stale || Date.now() - state.loadedAt > STALE_AFTER_MS) void loadNotifications(userId);
 }
 
-/**
- * Opening the bell counts as seeing everything: the badge clears at once and the server marks all
- * of them read. The ones that were unread stay marked "new" until the bell closes.
- */
+// The badge clears at once and the server marks all read. The unread ones stay marked "new"
+// until the bell closes.
 export function markAllSeen(userId: string) {
   if (state.userId !== userId || state.unread === 0) return;
   const now = Date.now();

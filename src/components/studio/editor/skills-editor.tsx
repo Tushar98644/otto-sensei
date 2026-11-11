@@ -89,8 +89,7 @@ const SkillGroupEntry = memo(function SkillGroupEntry({
       onRemove={remove}
       hidden={group.hidden === true}
       onToggleHidden={() => update((current) => setHidden(current, current.hidden !== true))}
-      // Like a job: the name folds away and the skills stay in view, the way the lines do. The
-      // heading already shows the name, so an open field under it would only repeat it.
+      // The heading already shows the name, so an open field under it would only repeat it.
       details={{
         complete: group.items.length > 0,
         firstFieldId,

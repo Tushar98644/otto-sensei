@@ -7,8 +7,7 @@ import { api } from "@/lib/api/client";
 import type { PlanId } from "@/config/plans";
 import type { MeResponse } from "@/lib/api/types";
 
-// One shared /api/me fetch for the whole page. Call refreshMe() after sign-in, sign-out, upgrade,
-// or any AI call that changes usage.
+// One shared /api/me fetch. Call refreshMe() after sign-in, sign-out, upgrade or a usage change.
 
 export type Me = Pick<MeResponse, "user" | "usage" | "period" | "aiBudget" | "billing" | "auth">;
 
@@ -58,7 +57,6 @@ export function refreshMe(): Promise<void> {
   return inflight;
 }
 
-/** The signed-in account's id as last loaded; null when signed out or not loaded yet. */
 export function signedInUserId(): string | null {
   return state.me?.user?.id ?? null;
 }
@@ -73,10 +71,7 @@ export async function currentUserId(): Promise<string | null> {
   return state.me?.user?.id ?? null;
 }
 
-/**
- * The plan as last loaded, loading it first if needed. Signed out is "free"; null only when
- * /api/me can't be reached, so callers can let the server decide.
- */
+// Signed out is "free"; null only when /api/me can't be reached, so callers let the server decide.
 export async function currentPlan(): Promise<PlanId | null> {
   if (!state.me) await refreshMe();
   if (!state.me) return null;
@@ -92,8 +87,7 @@ export function useMe() {
   const snapshot = useSyncExternalStore(subscribe, () => state, () => SERVER_STATE);
   const pathname = usePathname();
   useEffect(() => {
-    // src/proxy.ts sends every signed-in visitor from the home page to their dashboard, so whoever
-    // is on it is signed out and the static page is already right for them.
+    // proxy.ts sends signed-in visitors from home to the dashboard, so home is always signed out.
     if (state.status === "idle" && pathname !== ROUTES.home) void refreshMe();
   }, [pathname]);
   return {

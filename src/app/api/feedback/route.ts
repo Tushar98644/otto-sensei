@@ -21,7 +21,6 @@ const LIMITS = [
   { key: "user", limit: 20, windowMs: DAY_MS },
 ] as const;
 
-// POST /api/feedback: one note from anyone, signed in or not.
 export async function POST(req: Request): Promise<Response> {
   const blocked = rejectCrossSite(req) ?? rejectNonJson(req);
   if (blocked) return blocked;

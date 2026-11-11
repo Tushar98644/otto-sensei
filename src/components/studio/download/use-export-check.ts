@@ -11,7 +11,6 @@ import type { PdfFile } from "./use-resume-pdf";
 export type ExportCheck = {
   // The check of the exported PDF, only while it still matches the resume.
   report: RecruiterReport | null;
-  // The report of the file the user first uploaded, for "before vs after".
   original: RecruiterReport | null;
   checking: boolean;
   error: string | null;

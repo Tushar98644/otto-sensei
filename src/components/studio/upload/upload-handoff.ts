@@ -1,6 +1,5 @@
-// "Upload a file" from outside the studio (the New resume menu, Home, the setup list): the file is
-// picked right there, and the upload step starts reading it as it opens, instead of opening on an
-// empty dropzone that asks for the same file again. Read when the step mounts, cleared once it has.
+// The file is picked outside the studio and the upload step reads it as it opens, instead of
+// asking for it again. Read when the step mounts, cleared once it has.
 
 export const UPLOAD_ACCEPT = ".pdf,.docx";
 

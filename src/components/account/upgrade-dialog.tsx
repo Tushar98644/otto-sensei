@@ -58,10 +58,8 @@ type View = {
 
 const rank = (plan: PlanId) => PLAN_ORDER.indexOf(plan);
 
-// Pitch, then checkout in one click. Free sees Pro and Max side by side (Pro monthly is the free
-// trial for anyone who hasn't had one), Pro sees Max next to its own plan, and Max has nothing
-// above it. Signed-out users sign in inside the dialog first and go straight on to checkout, so
-// there's never a second dialog on top of this one.
+// Free sees Pro and Max (Pro monthly is the trial if unused), Pro sees Max, Max nothing above.
+// Signed-out users sign in inside this dialog, so there's never a second dialog on top.
 export function UpgradeDialog({
   open,
   onOpenChange,
@@ -100,16 +98,14 @@ export function UpgradeDialog({
     onTrial,
   });
   const buyable = offer.cards.filter((card) => !card.current);
-  // The card to start on and to carry on with after signing in: the plan chosen or asked for,
-  // else the next one up.
+  // Start (and carry on after sign-in) with the plan chosen or asked for, else the next one up.
   const target =
     buyable.find((card) => card.plan === chosen) ??
     buyable.find((card) => card.plan === nextPlan(current)) ??
     buyable[0] ??
     null;
   const period = me?.period;
-  // Free has none of the AI features or Pro tools, so there is no limit to talk about, only what
-  // Pro adds.
+  // Free has no AI features or Pro tools, so there's no limit to mention, only what Pro adds.
   let limitLine: string | null = null;
   if (tool && current === "free") limitLine = OTTO.limit.tool(tool, trialOnOffer);
   else if (feature) {

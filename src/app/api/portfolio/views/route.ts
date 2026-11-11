@@ -23,9 +23,8 @@ async function ownerIsReading(ownerId: string): Promise<boolean> {
   }
 }
 
-// POST /api/portfolio/views (body { slug }): sent once per tab by a published page after it
-// loads, because the page itself is served from the cache. Always 200 for a well-formed body, so
-// the answer says nothing about which addresses exist.
+// Sent by the page after it loads, since the page itself is cached. Always 200 for a well-formed
+// body, so the answer says nothing about which addresses exist.
 export async function POST(req: Request): Promise<Response> {
   const blocked = rejectCrossSite(req) ?? rejectNonJson(req);
   if (blocked) return blocked;

@@ -4,9 +4,8 @@ import { memo, useEffect, useRef, useState } from "react";
 import { useReel } from "./root";
 import { SpringValue } from "./spring";
 
-// HamishMW/portfolio components/decoder-text: the text settles out of random katakana, left to
-// right, on a soft spring (stiffness 8, damping 5). The readable text sits in a visually hidden
-// label; the scramble is drawn beside it for eyes only.
+// HamishMW/portfolio components/decoder-text. The readable text sits in a visually hidden label;
+// the scramble beside it is for eyes only.
 
 // prettier-ignore
 const glyphs = [

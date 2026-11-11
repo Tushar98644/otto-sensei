@@ -21,10 +21,8 @@ import { SpringValue } from "../spring";
 import { fragmentShader, vertexShader } from "./sphere-shaders";
 import { cleanRenderer, cleanScene, removeLights, throttle } from "./three";
 
-// HamishMW/portfolio routes/home/displacement-sphere.jsx, line for line: a 128-segment sphere whose
-// vertices the noise shader pushes around, turning slowly and leaning towards the pointer on a
-// spring. Only the window became the page's box (useReel().size), so it also fits the preview.
-// Imported lazily: three.js loads only where this draws.
+// HamishMW/portfolio routes/home/displacement-sphere.jsx, line for line, except it sizes to the
+// page's box (useReel().size) to fit the preview. Lazy, so three.js loads only where this draws.
 
 const springConfig = { stiffness: 30, damping: 20, mass: 2 };
 

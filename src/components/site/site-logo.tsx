@@ -6,9 +6,8 @@ import { ROUTES } from "./routes";
 
 export type SiteLogoProps = {
   className?: string;
-  // For the header: when the nearest @container is under 20rem (320px phones), the wordmark is only
-  // read to screen readers so the call to action still fits. It also truncates rather than pushing
-  // the row wider than the screen if a font renders wider than expected.
+  // Under a 20rem @container the wordmark is sr-only, so the call to action still fits. It also
+  // truncates if a font renders wider than expected.
   compact?: boolean;
 };
 

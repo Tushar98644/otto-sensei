@@ -9,9 +9,8 @@ import { cn } from "@/lib/utils";
 import { templateFontClasses } from "./templates/fonts";
 import { PORTFOLIO_TEMPLATES } from "./templates/registry";
 
-// The real template drawn at a desktop size and scaled down into a preview card. Loaded on demand
-// by ./template-preview.tsx, so the eight templates, their styles and fonts only reach a screen
-// when a preview is about to show.
+// Loaded on demand by ./template-preview.tsx, so the templates, their styles and fonts only reach
+// a screen when a preview is about to show.
 
 export const LIVE_WIDTH = 1280;
 export const LIVE_HEIGHT = 800;

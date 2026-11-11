@@ -19,15 +19,13 @@ import { cn } from "@/lib/utils";
 import type { JobView } from "./use-job-matches";
 
 const count = new Intl.NumberFormat("en-US");
-// Typing pauses this long before a search goes out.
 const TYPE_DELAY_MS = 350;
 
 const SEGMENT =
   "flex h-9 shrink-0 items-center gap-1.5 rounded-lg px-3 text-sm font-medium text-muted -outline-offset-2 transition-colors hover:text-ink aria-pressed:bg-surface aria-pressed:text-ink aria-pressed:shadow-control pointer-coarse:h-10";
 const CHECKBOX = "flex min-h-11 items-center gap-2 text-sm text-ink";
 
-// A text field that tells the page what was typed once the typing stops, and at once on Enter
-// or clear. The page's filters stay the one source of truth.
+// Reports once typing stops, and at once on Enter or clear. The page's filters stay the truth.
 function DelayedInput({
   value,
   onCommit,

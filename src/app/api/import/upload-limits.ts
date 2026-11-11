@@ -4,9 +4,8 @@ import { clientIp, getDeviceId } from "@/lib/http";
 import { log } from "@/lib/log";
 import { rateLimit, retryAfterHeader, waitText, type RateLimitResult } from "@/lib/rate-limit";
 
-// Server-only. Imports and checks need no account, so they're limited per device (a cookie) and
-// per network (the IP address), each over a one-day window. These only stop a flood: the plan
-// never turns an upload away (see ./ai-reads for what it does decide).
+// Imports and checks need no account, so they're limited per device cookie and per IP, over a
+// day. These only stop a flood: the plan never turns an upload away.
 
 export type UploadKind = "import" | "check";
 
@@ -18,11 +17,9 @@ const DAILY_LIMITS: Record<UploadKind, { ip: number; device: number }> = {
   check: { ip: IP_LIMITS.checksPerDay, device: ANON_LIMITS.checksPerDay },
 };
 
-/** Counts one upload against both limits. Returns a 429 response once either is used up. */
 export async function limitUploads(req: Request, kind: UploadKind): Promise<Response | null> {
   const limits = DAILY_LIMITS[kind];
-  // The network goes first: once it is over its limit, a flood without cookies stops here
-  // instead of adding a fresh device row with every request.
+  // The network goes first, so a flood without cookies stops before adding a device row each time.
   const network = await count(`${kind}:ip:${ipBucket(clientIp(req))}`, limits.ip, kind);
   if (network && !network.allowed) return tooMany(kind, "ip", network);
   const device = await count(`${kind}:device:${await getDeviceId()}`, limits.device, kind);
@@ -60,11 +57,8 @@ function waitLong(ms: number): string {
   return hours === 1 ? "1 hour" : `${hours} hours`;
 }
 
-/**
- * The rate-limit subject for a client address. An IPv6 host usually gets a whole /64, so one
- * person can rotate through billions of addresses; the /64 prefix is what identifies them.
- * IPv4-mapped IPv6 addresses count as the IPv4 address. Anything unparseable is used as is.
- */
+// An IPv6 host usually gets a whole /64, so the /64 prefix is what identifies one person.
+// IPv4-mapped addresses count as the IPv4 address.
 export function ipBucket(ip: string): string {
   const mapped = /^::ffff:(\d{1,3}(?:\.\d{1,3}){3})$/i.exec(ip);
   if (mapped?.[1]) return mapped[1];
@@ -73,8 +67,7 @@ export function ipBucket(ip: string): string {
   return groups ? `${groups.slice(0, 4).join(":")}::/64` : ip;
 }
 
-// The eight groups of an IPv6 address with "::" expanded and leading zeros dropped, so every
-// spelling of one address gives the same groups. Null when it isn't an IPv6 address.
+// Expanded and without leading zeros, so every spelling of one address gives the same groups.
 function ipv6Groups(ip: string): string[] | null {
   // A zone id ("fe80::1%eth0") names the local interface, not the address.
   const address = (ip.split("%")[0] ?? "").toLowerCase();

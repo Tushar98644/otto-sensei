@@ -10,7 +10,6 @@ import { FormatImage } from "./format-image";
 
 export type FormatCardProps = {
   info: TemplateInfo;
-  // The resume the gallery applies formats to already uses this one.
   inUse: boolean;
   // A Pro format and the viewer is on Free: the card says so, and using it offers the trial.
   pro?: boolean;
@@ -24,8 +23,7 @@ export type FormatCardProps = {
 // (see FormatsGallery).
 const SIZES = "(min-width: 1280px) 18rem, (min-width: 640px) 45vw, 100vw";
 
-// A folder per format: the tab names it, the window shows the top of page 1 (enough to judge the
-// look; "Preview" shows the whole page), and one row holds both actions, so cards stay short.
+// Shows only the top of page 1 ("Preview" shows the whole page), so cards stay short.
 export function FormatCard({
   info,
   inUse,

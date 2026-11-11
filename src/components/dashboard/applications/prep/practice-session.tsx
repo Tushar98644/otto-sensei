@@ -29,10 +29,8 @@ function typing(target: EventTarget): boolean {
   return target instanceof HTMLElement && target.closest("input, textarea, select, [contenteditable]") !== null;
 }
 
-// Practice mode: the interview as a full-screen session on paper, one question at a time in
-// interview order, ending with the person's own questions. Nothing is recorded or graded and no AI
-// runs: it only reads the pack. A native modal <dialog>, so focus stays inside, the page behind is
-// inert and Escape ends it.
+// Nothing is recorded or graded and no AI runs. A native modal <dialog>, so focus stays inside,
+// the page behind is inert and Escape ends it.
 export function PracticeSession({
   prep,
   target,

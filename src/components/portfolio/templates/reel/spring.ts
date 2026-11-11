@@ -1,7 +1,5 @@
-// The motion maths Hamish's portfolio gets from framer-motion 11 (useSpring, animate), ported so
-// Reel moves the same without the library: the analytic spring of
-// framer-motion/src/animation/generators/spring and its default tween. Pure, except the rAF-driven
-// SpringValue and animate() at the bottom.
+// framer-motion 11's analytic spring (animation/generators/spring) and default tween, ported so
+// Reel moves like Hamish's portfolio without the library. Pure except SpringValue and animate().
 
 export type SpringOptions = {
   stiffness?: number;
@@ -14,7 +12,7 @@ export type SpringOptions = {
 };
 
 export type Spring = {
-  // Value and whether it has come to rest, `t` milliseconds after it started.
+  // `t` is milliseconds since the start.
   at: (t: number) => { value: number; done: boolean };
 };
 
@@ -83,7 +81,6 @@ export function spring(from: number, to: number, options: SpringOptions = {}): S
   };
 }
 
-/** cubic-bezier(x1, y1, x2, y2) as a function of progress, like CSS and framer-motion's ease. */
 export function cubicBezier(x1: number, y1: number, x2: number, y2: number): (t: number) => number {
   const bezier = (t: number, a: number, b: number) =>
     ((1 - 3 * b + 3 * a) * t + (3 * b - 6 * a)) * t * t + 3 * a * t;
@@ -108,22 +105,14 @@ export function cubicBezier(x1: number, y1: number, x2: number, y2: number): (t:
 const DEFAULT_EASE = cubicBezier(0.25, 0.1, 0.35, 1);
 const DEFAULT_DURATION_MS = 300;
 
-/** The tween animate(from, to) plays: 300ms on the default ease. */
 export function tweenAt(from: number, to: number, t: number): { value: number; done: boolean } {
   const progress = Math.min(1, Math.max(0, t / DEFAULT_DURATION_MS));
   return { value: from + (to - from) * DEFAULT_EASE(progress), done: progress >= 1 };
 }
 
-// ---------------------------------------------------------------------------------------------
-// Browser side: values driven by requestAnimationFrame.
-// ---------------------------------------------------------------------------------------------
-
 export type Controls = { stop: () => void };
 
-/**
- * framer-motion's animate(from, to, options): a spring when stiffness/damping are given, else the
- * default tween. `delay` is in milliseconds.
- */
+// framer-motion's animate(): a spring given stiffness/damping, else the tween. `delay` is in ms.
 export function animate(
   from: number,
   to: number,
@@ -161,10 +150,7 @@ export function animate(
   };
 }
 
-/**
- * useSpring(0, config) without React: set() springs from wherever the value is, keeping its
- * velocity, and every frame tells the listeners.
- */
+// useSpring without React: set() springs from the current value, keeping its velocity.
 export class SpringValue {
   private current: number;
   private previous: number;
@@ -204,7 +190,6 @@ export class SpringValue {
     });
   }
 
-  /** Jumps straight to a value, no spring. */
   jump(value: number) {
     this.animation?.stop();
     this.update(value);

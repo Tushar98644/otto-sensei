@@ -34,17 +34,13 @@ import { planCta } from "./plan-ctas";
 import { formatUsd } from "./plan-features";
 
 export type PricingPlansProps = {
-  // How often each paid plan can bill here (src/lib/billing/intervals.ts), read when the page is
-  // built. A plan with none isn't on sale and gets no card.
+  // Read at build. A plan with no billing interval isn't on sale and gets no card.
   offer: Record<PaidPlanId, readonly BillingInterval[]>;
   // Whether Pro monthly starts with the free trial here, read when the page is built. Once
   // /api/me answers, someone who has already trialed or paid sees the normal price instead.
   trial?: boolean;
   headingAs?: "h2" | "h3";
-  // Otto pointing at the switch (the pricing page only). Decorative.
   otto?: ReactNode;
-  // Live job counts for Pro's jobs line (src/lib/job-feed/live-counts.ts), read when the page is
-  // built and revalidated.
   jobCounts?: JobCounts;
   className?: string;
 };
@@ -55,9 +51,8 @@ const PERIOD: Record<BillingInterval, { short: string; spoken: string }> = {
   week: { short: "/week", spoken: "per week" },
 };
 
-// The plans with a Monthly / Yearly / Weekly switch. Each paid card shows the price and allowances
-// for the picked option (or monthly, when that plan isn't sold that way) and its button goes
-// straight to that checkout.
+// Each paid card shows the picked billing option (or monthly, when the plan isn't sold that way)
+// and its button goes straight to that checkout.
 export function PricingPlans({
   offer,
   trial: trialOnSale = false,

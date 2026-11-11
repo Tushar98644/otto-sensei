@@ -13,11 +13,9 @@ import { PORTFOLIO_TEMPLATES } from "./templates/registry";
 
 type PortfolioPreviewProps = {
   view: PortfolioView;
-  // The editor's live content: pitch, project write-ups, location and the rest.
   content: PortfolioContentView;
   template: PortfolioTemplateId;
   slug: string;
-  // Opens the page full screen, where it moves and its links work.
   onExpand: () => void;
 };
 
@@ -29,7 +27,6 @@ const WIDTHS: readonly { value: PreviewWidth; label: string; Icon: typeof Monito
   { value: "phone", label: "Phone", Icon: Smartphone },
 ];
 
-/** The content size of the box a callback ref points at, kept current by a ResizeObserver. */
 function useBoxSize() {
   const [size, setSize] = useState({ width: 0, height: 0 });
   const observer = useRef<ResizeObserver | null>(null);
@@ -45,16 +42,10 @@ function useBoxSize() {
   return [ref, size] as const;
 }
 
-// The page as readers get it, drawn by the same template component as /p/<slug>, at a real screen
-// width (1280px or 390px) zoomed to fit, so the layout is the one visitors see.
-//
-// The scroll box is not inert, only the page inside it: inert content takes no pointer events, so
-// an inert scroll box let the wheel fall through to the editor and the page never scrolled (the bug
-// this replaced). The page stays out of the tab order and the reading order, and Reel draws still
-// frames here instead of loading WebGL (it checks for [inert]). The box around the scroller is the
-// containing block for position: fixed (contain: layout), so a template's fixed header or dock
-// stays put inside the frame while the page scrolls under it, and --pf-screen makes "one screen
-// tall" sections fit the frame.
+// Same template component as /p/<slug>, at a real screen width zoomed to fit. Only the page is
+// inert, not the scroll box: an inert box takes no pointer events, so the wheel fell through to
+// the editor. The box is a containing block for position: fixed (contain: layout), so a fixed
+// header stays inside the frame.
 export function PortfolioPreview({
   view,
   content,

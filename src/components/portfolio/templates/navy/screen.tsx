@@ -1,10 +1,8 @@
 import type { ContentProject } from "@/lib/portfolio/content";
 import { seeded, seedOf } from "../parts";
 
-// What a featured project shows where v4 has its screenshot: an editor window in the page's own
-// navy and green, its code drawn as syntax-coloured bars laid out from the project's name, so each
-// project gets its own. It sits under the same green tint and navy screen as his pictures did, and
-// shows its colours on hover.
+// Where v4 has a screenshot: an editor window whose code is syntax-coloured bars laid out from
+// the project's name, so each project gets its own.
 
 const W = 1600;
 const H = 1000;
@@ -55,7 +53,6 @@ function codeBars(seed: number): Bar[] {
   const rows = Math.floor((H - BAR - 60) / LINE);
   for (let row = 0; row < rows; row++) {
     const y = BAR + 44 + row * LINE;
-    // A blank line every so often, and indents that step in and out like real blocks.
     if (random() < 0.12) {
       indent = Math.max(0, indent - 1);
       continue;
@@ -128,7 +125,6 @@ export function CodeScreen({ project }: { project: ContentProject }) {
           fillOpacity={bar.fill === INK[0] ? 0.9 : 0.75}
         />
       ))}
-      {/* The minimap down the right edge: the same code, small. */}
       <rect x={W - 220} y={BAR} width="220" height={H - BAR} fill="#0a1628" />
       {bars.map((bar, index) => (
         <rect

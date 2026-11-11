@@ -7,13 +7,9 @@ import { readPrep } from "@/lib/insights/prep";
 import { toWriting } from "@/lib/writings/records";
 import { APPLICATION_COLUMNS, toApplication } from "./records";
 
-// Server-only. One application with everything linked to it, for its own page: the timeline, the
-// opening on the Jobs tab, the letters and answers written for it and its prep pack, as counts.
-
 // More than anyone writes for one job; keeps the response small whatever is stored.
 const THREAD_WRITINGS = 50;
 
-/** Null when the user has no application with this id. */
 export async function getApplicationThread(
   userId: string,
   id: string,

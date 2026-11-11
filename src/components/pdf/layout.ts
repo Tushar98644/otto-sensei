@@ -2,18 +2,13 @@ import type { PdfLink } from "@/lib/pdf/links";
 import type { PdfEntry, PdfModel } from "@/lib/pdf/model";
 import type { EntryField, EntryKind, EntryRow, PdfStyle, TemplateTheme } from "./theme";
 
-// Plans what every format prints, as plain data: the text runs of the name line, each heading and
-// each entry's heading rows, with the style each run takes. The PDF (./document.tsx), the
-// dashboard miniature, the web page and the Word file all draw from this, so they agree word for
-// word and in the same reading order. Pure and react-pdf free.
+// Pure and react-pdf free: the PDF, miniature, web page and Word file all agree word for word.
 
-// A piece of one line of text. Pieces meet on a space or right after punctuation, never inside a
-// word, so react-pdf never breaks a line there with a hyphen.
+// Pieces meet on a space or after punctuation, never mid-word, so react-pdf never hyphenates there.
 export type Run = { text: string; style?: PdfStyle; link?: PdfLink };
 
 export type PlannedRow = {
   key: string;
-  // The row's own box, the style of its left text, and the right-aligned text (if any).
   box: PdfStyle;
   text: PdfStyle;
   lead: Run[];
@@ -24,7 +19,6 @@ export type PlannedRow = {
 
 type EntrySection = "experience" | "projects" | "education" | "certifications";
 
-/** Which rows each standard section's entries take (extra sections are items). */
 export const SECTION_KINDS: Record<EntrySection, EntryKind> = {
   experience: "job",
   education: "school",
@@ -37,10 +31,7 @@ type Values = Partial<Record<EntryField, FieldValue | null>>;
 
 const YEAR = /\b(?:19|20)\d{2}\b/g;
 
-/**
- * "Mar 2019 – Feb 2022" as "2019 – 2022", for formats that date in years. A side with no year
- * ("Present") stays as written, and a range inside one year prints that year once.
- */
+// "Mar 2019 – Feb 2022" → "2019 – 2022". "Present" stays; a one-year range prints its year once.
 export function yearsOnly(dates: string): string {
   const parts = dates.split(" – ").map((part) => {
     const years = part.match(YEAR);
@@ -78,11 +69,8 @@ const PARTICLES = new Set([
   "von",
 ]);
 
-/**
- * The name as first names and last name, for a two-tone name. A guess: one word, a comma ("Park,
- * Byungjin") or a script without spaces gives no first part, so the whole name takes the last
- * name's style. `${first} ${last}` is always the name exactly as written.
- */
+// A guess: one word, a comma ("Park, Byungjin") or a script without spaces gives no first part.
+// `${first} ${last}` is always the name exactly as written.
 export function splitName(name: string): { first: string; last: string } {
   const words = name.split(" ");
   if (words.length < 2 || name.includes(",")) return { first: "", last: name };
@@ -111,7 +99,6 @@ export function nameRuns(model: Pick<PdfModel, "name" | "headline">, theme: Temp
   return runs;
 }
 
-/** Whether the headline gets a line of its own under the name. */
 export function headlineLine(model: Pick<PdfModel, "name" | "headline">, theme: TemplateTheme) {
   return model.headline && !(theme.headlineInline && model.name) ? model.headline : "";
 }
@@ -135,7 +122,6 @@ export function headingRuns(title: string, theme: TemplateTheme): Run[] {
   return rest ? [accent, { text: rest }] : [accent];
 }
 
-/** The contact lines in the format's order: location, email, phone and links where it puts them. */
 export function contactLines(model: Pick<PdfModel, "contact" | "basics">, theme: TemplateTheme) {
   const basics = model.basics;
   if (!basics) return model.contact;
@@ -302,7 +288,6 @@ export function modelText(model: PdfModel): string {
   return parts.join("\n");
 }
 
-/** The separators and bullet a theme adds to the page. */
 export function themeText(theme: TemplateTheme): string {
   const glyph = theme.drawBullet ? "" : theme.bullet.glyph;
   return [theme.contactSeparator, glyph, ...Object.values(theme.separators)].join("");

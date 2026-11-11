@@ -7,9 +7,8 @@ export type SelectProps = ComponentProps<"select"> & {
   invalid?: boolean;
 };
 
-// A styled native <select>, because the platform picker is the easiest one to use on phones.
-// Single choice only. className goes on the outer box (width, margins) so the arrow stays aligned;
-// every other prop, ref included, goes to the <select>.
+// Native, because the platform picker is easiest on phones. className goes on the outer box so the
+// arrow stays aligned; every other prop, ref included, goes to the <select>.
 export function Select({
   className,
   invalid,

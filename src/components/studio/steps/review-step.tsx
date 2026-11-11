@@ -146,7 +146,6 @@ export function ReviewStep() {
         ) : readBy === "rules_read_well" ? (
           <RereadNote resumeId={resume.id} />
         ) : null}
-        {/* Right after the upload, while the person is deciding what to fix first. */}
         {scanned ? null : <GitHubOffer resumeId={resume.id} className="bg-surface" />}
       </div>
 
@@ -168,7 +167,6 @@ export function ReviewStep() {
             {scanned ? null : <WordsChecks resumeId={resume.id} review={review} />}
             <ChecksList checks={report.checks} title="What hiring software checks" />
           </div>
-          {/* Stays in view while the longer checks column scrolls past. */}
           <div className="sticky top-20">
             <ReadTextPanel report={report} />
           </div>
@@ -191,8 +189,7 @@ export function ReviewStep() {
 
       <HiringSystemsPanel />
 
-      {/* A scanned file has no lines to fix; Otto's buttons above are the way forward. The bar
-          stays in view like the editor's, so the next step is one tap from anywhere. */}
+      {/* A scanned file has no lines to fix; Otto's buttons above are the way forward. */}
       {scanned ? null : (
         <div className="sticky bottom-[max(0.75rem,env(safe-area-inset-bottom))] z-10 flex items-center gap-1 self-end rounded-2xl bg-surface p-1.5 shadow-float ring-1 ring-ink/5 max-sm:w-full">
           <Button variant="ghost" onClick={() => setStep("tailor")}>
@@ -215,8 +212,7 @@ function wordsToFix(review: ResumeReview): number {
   return review.items.filter((item) => item.severity === "high").length;
 }
 
-// File problems lead (software that can't read the file never sees the words), then what a
-// reader notices in the words, then file warnings. Three at most.
+// File problems lead (unreadable files hide the words), then word problems, then file warnings.
 function fixFirstItems(
   report: RecruiterReport,
   review: ResumeReview,
@@ -249,7 +245,6 @@ function fixFirstItems(
   return [...file("fail"), ...words(true), ...file("warn"), ...words(false)].slice(0, MAX_TOP);
 }
 
-// "read 1 page, 97 words": what Otto looked at, for his meta line.
 function readMeta(report: RecruiterReport): string {
   return `read ${pluralize(report.pageCount, "page")}, ${pluralize(report.wordCount, "word")}`;
 }

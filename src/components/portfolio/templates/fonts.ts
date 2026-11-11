@@ -11,15 +11,10 @@ import {
 } from "next/font/google";
 import type { PortfolioTemplateId } from "@/lib/portfolio/types";
 
-// The templates' typefaces, self-hosted by next/font. Imported only by /p/<slug> and the editor's
-// preview, so no other screen carries them. Each sets a --pf-font-* variable the template's
-// stylesheet reads, and only the chosen template's variables go on the element around it. No
-// preloading: the browser fetches just the files that template's CSS uses.
-//
-// Stand-ins for fonts the originals don't let us ship: Inter and Fira Code for v4's Calibre and
-// SF Mono (Navy), Montserrat for Hamish's Gotham (Reel), Figtree for Satoshi and Cabinet Grotesk
-// (Bento). The rest use their originals' own free fonts: Geist (Dock), Geist Mono and Geist Pixel
-// (CV), Inter, DM Mono and Roboto Condensed (Prose), Inter (Folio), Geist and Geist Mono (Paper).
+// Only /p/<slug> and the editor's preview import these, and only the chosen template's variables
+// go on its wrapper; no preloading, so the browser fetches just the files its CSS uses.
+// Stand-ins for fonts we can't ship: Inter and Fira Code (Navy's Calibre, SF Mono), Montserrat
+// (Reel's Gotham), Figtree (Bento's Satoshi, Cabinet Grotesk).
 
 // Options must be written out in each call: next/font reads them at build time as literals.
 const inter = Inter({
@@ -92,7 +87,6 @@ const TEMPLATE_FONTS: Record<PortfolioTemplateId, string> = {
   paper: `${geist.variable} ${geistMono.variable}`,
 };
 
-/** The font variables one template reads, for the element that wraps it. */
 export function templateFontClasses(id: PortfolioTemplateId): string {
   return TEMPLATE_FONTS[id];
 }

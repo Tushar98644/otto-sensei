@@ -3,8 +3,7 @@
 import { useSyncExternalStore } from "react";
 import { defaultPageSize, isPdfPageSize, type PdfPageSize } from "@/lib/pdf/page-size";
 
-// The user's page size, remembered in this browser. Kept in memory too, so the toggle still works
-// when storage is blocked (private windows, strict privacy settings).
+// Kept in memory too, so the toggle still works when storage is blocked (private windows).
 
 const STORAGE_KEY = "otto-pdf-page-size";
 const listeners = new Set<() => void>();
@@ -32,7 +31,6 @@ function notify() {
   for (const listener of listeners) listener();
 }
 
-// Another tab changing the setting updates this one too.
 function onStorage(event: StorageEvent) {
   if (event.key !== STORAGE_KEY) return;
   current = readStored() ?? current;

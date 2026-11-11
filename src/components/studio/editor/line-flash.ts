@@ -2,9 +2,7 @@
 
 import { useSyncExternalStore } from "react";
 
-// Marks the line Otto just rewrote, so it can show "Line updated" right where the change happened
-// for a moment. One at a time: a newer fix replaces the older mark. Browser-only state, like the
-// toast queue: on the server nothing is ever flashed.
+// One line at a time: a newer fix replaces the older mark. Never flashed on the server.
 
 export const LINE_FLASH_MS = 2500;
 export const LINE_FLASH_LABEL = "Line updated";
@@ -43,8 +41,7 @@ export function useLineFlash(bulletId: string): boolean {
   );
 }
 
-// For one always-present live region, so the change is announced even though the pill itself
-// appears and disappears.
+// One always-present live region, so the change is announced though the pill comes and goes.
 export function useFlashAnnouncement(): string {
   return useSyncExternalStore(
     subscribe,

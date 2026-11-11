@@ -25,8 +25,6 @@ const number = new Intl.NumberFormat("en-US");
 // Versions listed before "Show all": tailored copies are often sent once each, so the list grows.
 const FIRST_VERSIONS = 6;
 
-// The full win rate on the Applications page: the three counts, the rate with how much it can
-// swing, then the same per resume version.
 export function WinRate({
   items,
   versions,

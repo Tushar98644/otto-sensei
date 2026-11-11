@@ -31,14 +31,12 @@ export type LookingForCardProps = {
   // The occupation the list was ranked for, in plain words ("Registered Nurse").
   occupation: OccupationOption | null;
   choice: LookingForChoice;
-  // The roles the resume names, newest first.
   roles: readonly CardRole[];
   // The work profile's country, offered as a place when it isn't one of the usual ones.
   country: string;
   saving: boolean;
   onChange: (next: LookingForChoice) => void;
-  // "plain" drops the card's own white sheet, for a place that already is one (a dialog, an
-  // Account card).
+  // "plain" drops the card's white sheet, for a place that already is one (a dialog, Account).
   tone?: "card" | "plain";
   // The line under the choices; the job-name credit always follows it.
   note?: string;
@@ -70,8 +68,7 @@ function occupationNote(title: string, occupation: OccupationOption | null): str
   return occupation.name;
 }
 
-// "Looking for: Senior · Product Manager · Remote, EU", each part a one-tap menu. Guessed from the
-// resume and the work profile; what's changed is kept for the account and ranks Matches.
+// Guessed from the resume and work profile; changes are kept for the account and rank Matches.
 export function LookingForCard({
   value,
   occupation,

@@ -20,10 +20,8 @@ export type WorkProfileFieldsProps = {
   // "essentials" is the first-login step: where you live, your work rights and remote only. The
   // time zone stays the device's and both job types stay on; the Account page has the rest.
   fields?: "all" | "essentials";
-  // A region's answer, when the caller needs to tell it from other changes.
   onRight?: (region: WorkRegion, value: WorkRight | null) => void;
   countryHint?: ReactNode;
-  // Under the regions, e.g. why one of them is already answered.
   rightsNote?: ReactNode;
   typeError?: string | null;
   // A dialog's first stop: without it the browser can land on the scroll box instead.
@@ -33,8 +31,7 @@ export type WorkProfileFieldsProps = {
 const CHECKBOX = "flex min-h-11 cursor-pointer items-center gap-2.5 text-sm text-ink";
 const DAY_MS = 24 * 60 * 60 * 1000;
 
-// The work profile's questions, without saving: the Account form saves them as they change, the
-// first-login step on its Save key.
+// No saving here: the Account form saves as answers change, the first-login step on Save.
 export function WorkProfileFields({
   value,
   onChange,

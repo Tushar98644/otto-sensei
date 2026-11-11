@@ -11,8 +11,6 @@ const BEATS: { key: Part; letter: string; label: string; cue: string }[] = [
   { key: "result", letter: "R", label: "Result", cue: "What changed" },
 ];
 
-// A STAR story as the answer you'd say, one beat after another down a thread, so it reads in the
-// order it's told rather than as four boxes to scan.
 export function StarScript({ story, className }: { story: StarStory; className?: string }) {
   return (
     <ol className={cn("flex flex-col", className)}>

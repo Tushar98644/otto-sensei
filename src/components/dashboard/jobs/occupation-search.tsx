@@ -14,7 +14,6 @@ export type OccupationSearchProps = {
   onPick: (occupation: OccupationOption) => void;
 };
 
-// Waits for a pause in typing, so a fast typist sends one search, not one per letter.
 const TYPING_PAUSE_MS = 150;
 
 type Results = { query: string; occupations: OccupationOption[] } | { query: string; error: true };

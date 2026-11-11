@@ -7,8 +7,7 @@ import { PLAN_ORDER, PLANS, type PlanId } from "@/config/plans";
 import { trialEndDay } from "@/lib/usage-copy";
 import type { UpgradeWatch } from "./use-upgrade-watch";
 
-// After checkout: wait for the new plan to show up, and say what to do if it doesn't. `target` is
-// the plan bought; without one, any paid plan counts.
+// `target` is the plan bought; without one, any paid plan counts.
 export function UpgradeStatus({
   plan,
   trialEndsAt,
@@ -16,7 +15,6 @@ export function UpgradeStatus({
   watch,
 }: {
   plan: PlanId;
-  // Set while the new plan is on its free trial.
   trialEndsAt?: number | null;
   target: PlanId | null;
   watch: UpgradeWatch;

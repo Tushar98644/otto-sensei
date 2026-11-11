@@ -10,7 +10,6 @@ type CheckRowProps = {
   disabled?: boolean;
 };
 
-// One switch in a row list, the share dialog's look: label, a muted hint, 44px tall.
 export function CheckRow({ checked, onChange, label, hint, disabled = false }: CheckRowProps) {
   const hintId = useId();
   return (
@@ -35,8 +34,6 @@ export function CheckRow({ checked, onChange, label, hint, disabled = false }: C
   );
 }
 
-// A titled group in the editor panel. The panel itself is the white card, so a group is only a
-// heading, an optional line under it and its controls; the panel splits groups with hairlines.
 export function EditorSection({
   title,
   description,

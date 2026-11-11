@@ -17,8 +17,7 @@ import { extraCount } from "./extras";
 import { extraNeedsWork, lintOf, NO_ISSUES, sectionNeedsWork } from "./lint-cache";
 import { includeSection, isBulletSection, sectionCount } from "./sections";
 
-// Store access for the editor. Each component selects only the slice it renders, so a keystroke
-// re-renders the line being typed in, not the whole editor.
+// Each component selects only the slice it renders, so a keystroke re-renders one line.
 
 type StudioSnapshot = ReturnType<typeof useStudioStore.getState>;
 type ListKey = "experience" | "education" | "projects" | "skills" | "certifications";
@@ -103,8 +102,7 @@ export function useBulletIssues(resumeId: string, bulletId: string): readonly Li
   });
 }
 
-// False when the line isn't linted because it, its entry or its section is hidden: it never
-// prints, so it gets no chip of its own.
+// False when the line, its entry or its section is hidden: it never prints, so gets no chip.
 export function useIsLinted(resumeId: string, bulletId: string): boolean {
   return useStudioStore((state) => {
     const resume = pickResume(state, resumeId);
@@ -112,8 +110,7 @@ export function useIsLinted(resumeId: string, bulletId: string): boolean {
   });
 }
 
-// The line "Fix the first weak line" opens, from the cached lint. A string, so it only re-renders
-// when that line changes.
+// A string, so it only re-renders when the first weak line changes.
 export function useFirstWeakLine(resumeId: string): string | null {
   return useStudioStore((state) => {
     const resume = pickResume(state, resumeId);

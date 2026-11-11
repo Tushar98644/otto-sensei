@@ -1,16 +1,11 @@
 import { scopeCss, templateCss } from "../css";
 
-// HamishMW/portfolio's styles (MIT, see ./LICENSE.txt), rule for rule: theme-provider/theme.js
-// tokens, reset and global CSS, components/{button,decoder-text,divider,heading,image,link,loader,
-// model,monogram,section,text,visually-hidden,footer}, layouts/{navbar,project} and
-// routes/home/{intro,displacement-sphere,project-summary,profile}. CSS-module nesting is written
-// out flat, class names carry their module's name, and:
-// - his viewport media queries (desktop 2080, laptop 1680, tablet 1040, mobile 696, mobileS 400)
-//   are container queries on the page's box, so a preview column gets the phone layout;
-// - 100vh is one screen of that box (--pf-screen) and 100vw is its width;
+// HamishMW/portfolio's styles (MIT, see ./LICENSE.txt), rule for rule, with CSS-module nesting
+// written out flat and class names carrying their module's name. Changes:
+// - his viewport media queries are container queries on the page's box, so a preview column gets
+//   the phone layout; 100vh is one screen of that box (--pf-screen) and 100vw is its width;
 // - Gotham (paid) is Montserrat, and IPA Gothic falls back to the system's Japanese face.
-// Additions of ours sit at the end: still frames for where WebGL doesn't run, the extra sections,
-// and the per-project pages.
+// Our additions sit at the end: WebGL still frames, the extra sections, per-project pages.
 
 const MONTSERRAT = `var(--pf-font-montserrat, "Montserrat")`;
 

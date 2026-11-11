@@ -1,13 +1,11 @@
 import { companyKey } from "@/lib/pdf/visible";
 import { newExperience, type Experience } from "@/lib/resume/schema";
 
-// Several roles at one company: consecutive jobs with the same company (case, accents and
-// punctuation aside) show under one company heading. Nothing about it is stored; it follows the
-// job list. The key is the PDF's own, so the editor groups exactly what the page groups.
+// Consecutive jobs at one company (case, accents and punctuation aside) group under one heading.
+// Nothing is stored; the key is the PDF's own, so the editor groups exactly what the page groups.
 
 type Job = Pick<Experience, "id" | "company">;
 
-// One row of the experience list: a lone job, or two or more roles at one company.
 export type RoleUnit = { ids: string[]; company: string };
 
 export function groupRoles(jobs: readonly Job[]): RoleUnit[] {
@@ -23,8 +21,7 @@ export function groupRoles(jobs: readonly Job[]): RoleUnit[] {
   return units;
 }
 
-// Units as strings, so a store selector can compare them with useShallow: the list re-renders
-// when jobs are added, moved or regrouped, not on every keystroke.
+// Strings, so useShallow can compare them: the list re-renders on regrouping, not keystrokes.
 export function roleLayout(jobs: readonly Job[]): string[] {
   return groupRoles(jobs).map((unit) => JSON.stringify(unit.ids));
 }
@@ -33,8 +30,7 @@ export function parseRoleLayout(layout: readonly string[]): string[][] {
   return layout.map((unit) => JSON.parse(unit) as string[]);
 }
 
-// Moves the lone job or company holding `id` past the unit next to it, so a job never lands
-// between two roles of another company.
+// Moves whole units, so a job never lands between two roles of another company.
 export function moveRoleUnit<T extends Job>(jobs: T[], id: string, delta: -1 | 1): T[] {
   const units = groupRoles(jobs);
   const from = units.findIndex((unit) => unit.ids.includes(id));
@@ -48,8 +44,7 @@ export function moveRoleUnit<T extends Job>(jobs: T[], id: string, delta: -1 | 1
   return units.flatMap((item) => item.ids.map((jobId) => byId.get(jobId)!));
 }
 
-// Another role at the same company, with the company filled in. It goes right after the
-// company's last role (insertAfter), so it joins the group.
+// Goes right after the company's last role (insertAfter), so it joins the group.
 export function newRole(company: string): Experience {
   return { ...newExperience(), company };
 }

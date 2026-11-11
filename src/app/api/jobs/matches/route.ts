@@ -19,10 +19,7 @@ const NO_STORE = { "Cache-Control": "no-store" };
 // Only against scripts: a person paging and filtering stays far under it.
 const PER_MINUTE = 60;
 
-// POST /api/jobs/matches: open jobs ranked for one resume (or the saved ones), by rules only.
-// The body holds skills, titles and years read from the resume in the browser, never the resume.
-// Free gets the closest FREE_JOB_MATCHES from the same ranking and the count of the rest;
-// filters, more pages, saved jobs and the work-rights rules are Pro.
+// Rules only. The body holds skills, titles and years read in the browser, never the resume.
 export async function POST(req: Request): Promise<Response> {
   const blocked = rejectCrossSite(req) ?? rejectNonJson(req);
   if (blocked) return blocked;
@@ -49,9 +46,8 @@ export async function POST(req: Request): Promise<Response> {
     }
     const db = await getDb();
     const now = Date.now();
-    // Free sees the closest few from the same ranking, first page only, without filters or the
-    // work-rights rules; the rest of the list comes with Pro. "Looking for" shapes both, and its
-    // "Remote only" is Free's one filter.
+    // Free sees the closest few, first page only, without filters or work-rights rules. "Looking
+    // for" shapes both, and its "Remote only" is Free's one filter.
     const free = !hasProTools(user.plan);
     const lookingFor = body.data.lookingFor;
     const ranked = await rankJobs(db, {

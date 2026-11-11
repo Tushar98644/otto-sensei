@@ -14,7 +14,7 @@ export const dynamic = "force-dynamic";
 
 const count = new Intl.NumberFormat("en-US");
 
-// GET /api/writings: readable on every plan, so letters written on Pro or the trial stay after it.
+// Readable on every plan, so letters written on Pro or the trial stay after it.
 export async function GET(): Promise<Response> {
   try {
     const user = await getCurrentUser();
@@ -32,8 +32,8 @@ export async function GET(): Promise<Response> {
   }
 }
 
-// POST /api/writings: keeps a letter or answer the AI routes just wrote. Those are Pro and the
-// trial only, so Free gets the same 402 as asking for one; a lapsed plan keeps what it saved.
+// The AI routes are Pro and trial only, so Free gets the same 402; a lapsed plan keeps what it
+// saved.
 export async function POST(req: Request): Promise<Response> {
   const blocked = rejectCrossSite(req) ?? rejectNonJson(req);
   if (blocked) return blocked;

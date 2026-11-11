@@ -23,12 +23,10 @@ import {
 import { followUpDaysOf, followUpDaysSql } from "@/lib/notifications/records";
 import type { FollowUpAction } from "@/lib/notifications/types";
 
-// Server-only. A user's job applications. Every query is filtered by user_id, so one account can
-// never read, change or delete another's rows, even with a guessed id.
+// Every query filters by user_id, so a guessed id never reaches another account's rows.
 
-// What the list and every write return. prep (a whole interview pack per row, read only by
-// /api/interview), the status history (read only by the application's own page) and reminded_at
-// stay in the database, so a page of 500 rows stays small. Whether a pack exists is one boolean.
+// Leaves out prep packs, status history and reminded_at, so a page of 500 rows stays small.
+// Whether a pack exists is one boolean.
 export const APPLICATION_COLUMNS = {
   id: applications.id,
   resumeId: applications.resumeId,
@@ -88,14 +86,11 @@ export function toApplication(row: Row): Application {
   };
 }
 
-// The newest STATUS_HISTORY_LIMIT entries of a history with this one added, as SQL.
 function appendHistory(status: ApplicationStatus, now: number) {
   const entry = sql`jsonb_build_array(jsonb_build_object('status', ${status}::text, 'at', ${now}::bigint))`;
   return sql`jsonb_path_query_array(${applications.statusHistory} || ${entry}, ${`$[last - ${STATUS_HISTORY_LIMIT - 1} to last]`}::jsonpath)`;
 }
 
-// What a new application's timeline starts with: the day it was sent, and the status it was
-// logged at when that's further along.
 export function startingHistory(
   status: ApplicationStatus,
   appliedAt: number,
@@ -119,7 +114,6 @@ export function parseCursor(value: string): Cursor | null {
   return { appliedAt, id };
 }
 
-/** One page of the user's applications, newest applied first. */
 export async function listApplications(
   userId: string,
   cursor: Cursor | null,
@@ -148,11 +142,8 @@ export async function listApplications(
   };
 }
 
-/**
- * Adds one application. Runs under the account's row lock, so parallel requests can't push an
- * account past its limit (Free's one, or APPLICATION_LIMITS.perUser), and nothing is written for a
- * deleted account.
- */
+// Runs under the account's row lock, so parallel requests can't push it past its limit, and
+// nothing is written for a deleted account.
 export async function createApplication(
   userId: string,
   input: Omit<CreateApplicationInput, "jobId"> & { jobId?: string | null },
@@ -208,16 +199,14 @@ export async function createApplication(
         ? { status: "created", application: toApplication(existing) }
         : { status: "id_taken" };
     }
-    // The letters already written for this job join it, so the thread is whole from the start.
     await linkWritings(tx, userId, id, input);
     return { status: "created", application: toApplication(row) };
   });
 }
 
-// The status columns a change to `status` moves. Written as SQL against the stored row, so the
-// change-time and the timeline only move when the status really changes, and a step forward or
-// back is recorded while an ending keeps the furthest step (see stageAfter). Moving to applied
-// from another status starts a fresh follow-up; any other status ends it.
+// SQL against the stored row, so change-time and timeline only move on a real change, and an
+// ending keeps the furthest step (see stageAfter). Moving to applied starts a fresh follow-up;
+// any other status ends it.
 function statusChange(
   userId: string,
   status: ApplicationStatus,
@@ -235,7 +224,6 @@ function statusChange(
   };
 }
 
-/** Changes the fields given. Null when the user has no application with this id. */
 export async function updateApplication(
   userId: string,
   id: string,
@@ -275,7 +263,6 @@ export async function updateApplication(
   return toApplication(row);
 }
 
-/** One status for many of the user's applications. Returns the ones that changed. */
 export async function setStatusMany(
   userId: string,
   ids: readonly string[],
@@ -297,7 +284,6 @@ export async function setStatusMany(
   return rows.map(toApplication);
 }
 
-/** True when a row was deleted. */
 export async function deleteApplication(userId: string, id: string): Promise<boolean> {
   const db = await getDb();
   const rows = await db
@@ -309,11 +295,8 @@ export async function deleteApplication(userId: string, id: string): Promise<boo
 
 export type FollowUpResult = { company: string; followUpAt: number | null };
 
-/**
- * Done (no more reminders for it) or Snooze (the next one a few days from now), from a reminder
- * email's link. Snoozing only applies while it is still on "applied". Null when the account has
- * no such application.
- */
+// From a reminder email's link. Snoozing only applies while it's still on "applied". Null when
+// the account has no such application.
 export async function applyFollowUpAction(
   userId: string,
   id: string,

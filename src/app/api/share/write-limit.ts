@@ -4,7 +4,6 @@ import { SHARE_LIMITS } from "@/lib/share/types";
 
 const HOUR_MS = 60 * 60 * 1000;
 
-/** Making, updating and changing links share one hourly budget per account. A 429 when it's spent. */
 export async function writeLimited(userId: string): Promise<Response | null> {
   const limit = await rateLimit(`share:write:user:${userId}`, SHARE_LIMITS.writesPerHour, HOUR_MS);
   if (limit.allowed) return null;

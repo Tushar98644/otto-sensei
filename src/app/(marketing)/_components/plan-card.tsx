@@ -7,9 +7,8 @@ import type { JobCounts } from "@/lib/job-feed/counts";
 import { cn } from "@/lib/utils";
 import { planCopy } from "./plan-features";
 
-// The stone panel that holds the plans. Side by side, each card is a subgrid over the same four
-// rows (name, summary, price and button, features), so a summary that wraps on one card can't push
-// that card's price and button lower than the others'.
+// Each card is a subgrid over the same four rows, so a summary that wraps on one card can't push
+// its price and button below the others'.
 export function plansPanelClasses(count: number): string {
   return cn(
     "grid gap-3 rounded-3xl bg-surface-muted p-3 sm:p-6",
@@ -18,17 +17,13 @@ export function plansPanelClasses(count: number): string {
 }
 
 export type PlanPrice = {
-  // "$15"
   amount: string;
-  // "/month"
   period: string;
   // Read out instead of the period: "per month".
   spoken: string;
   // Struck through before the amount: "$30" (SHOW_REFERENCE_PRICES, monthly only).
   reference?: string;
-  // Beside the price: "50% off", or a yearly option's "Save 33% vs monthly".
   badge?: string;
-  // One small line under the price, e.g. how it compares with a competitor's.
   comparison?: string;
 };
 
@@ -36,17 +31,14 @@ export type PlanCardProps = {
   planId: PlanId;
   // h3 inside a landing page section, h2 on /pricing where the plans are the page's main content.
   headingAs?: "h2" | "h3";
-  // Gives the card the ink badge and its button the primary style.
   featured?: boolean;
   price: PlanPrice;
   // The allowance the shown price buys: weekly options list weekly limits.
   allowance?: AllowancePeriod;
   cta: { href: string; label: string };
-  // One more small line under the button, e.g. the monthly equivalent of a yearly price.
   priceNote?: string | null;
   // Replaces the plan's own note under the button, e.g. how the trial turns into a payment.
   note?: string;
-  // Live job counts for the jobs line, read when the page was built.
   jobCounts?: JobCounts;
   className?: string;
 };

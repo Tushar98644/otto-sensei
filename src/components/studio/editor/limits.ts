@@ -15,9 +15,8 @@ import {
   SkillGroupSchema,
 } from "@/lib/resume/validation";
 
-// Inputs stop at the schema's caps, so the editor never holds a resume that cloud sync would
-// reject. Text caps are read from the schema itself. zod has no public getter for list caps, so
-// those are mirrored here and pinned to the schema by limits.test.ts.
+// Inputs stop at the schema's caps, so the editor never holds a resume cloud sync would reject.
+// zod has no public getter for list caps, so those are mirrored here and pinned by limits.test.ts.
 
 export const LIST_LIMITS = {
   links: 10,

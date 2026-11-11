@@ -25,8 +25,7 @@ export type GitHubImportDialogProps = {
   resume: Resume;
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  // After "Add" changed the resume, with the resume as it is now (the portfolio pushes it to a page
-  // that isn't kept in sync).
+  // The portfolio pushes the resume to a page that isn't kept in sync.
   onAdded?: (resume: Resume) => void;
 };
 
@@ -47,12 +46,7 @@ function projectCount(flow: GitHubImport): number {
   return repos.length + pullRepos.size;
 }
 
-/**
- * "Import from GitHub": the connected GitHub account (connected first when there is none, looked
- * up the moment the dialog opens) → the best public work picked and drafted by itself → the
- * person keeps what they want, and only "Add" changes the resume. "Pick other repos" opens the
- * full list of repos and merged pull requests.
- */
+// Drafts the best public work on open; only "Add" changes the resume.
 export function GitHubImportDialog({
   resume,
   open,

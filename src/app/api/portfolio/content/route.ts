@@ -18,8 +18,6 @@ const HOUR_MS = 60 * 60 * 1000;
 // The editor autosaves a second after typing stops, so a long session sends a lot of these.
 const SAVES_PER_HOUR = 900;
 
-// GET /api/portfolio/content: the stored document and the GitHub numbers of the connected account
-// (fetched again when stale).
 export async function GET(): Promise<Response> {
   try {
     const account = await getCurrentAccount();
@@ -45,7 +43,6 @@ export async function GET(): Promise<Response> {
   }
 }
 
-// PUT /api/portfolio/content: replaces the document (the editor autosaves it whole).
 export async function PUT(req: Request): Promise<Response> {
   const blocked = rejectCrossSite(req) ?? rejectNonJson(req);
   if (blocked) return blocked;

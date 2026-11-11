@@ -115,8 +115,7 @@ export function AccountView() {
           <UpgradeStatus plan={user.plan} trialEndsAt={user.trialEndsAt} target={bought} watch={watch} />
         ) : null}
         <ProfileCard user={user} />
-        {/* The job-search settings first (owner, 2026-11-11): they change what every page shows,
-            and the Home setup list and the account menu link straight to each one. */}
+        {/* Job-search settings first (owner, 2026-11-11): they change what every page shows. */}
         <Eyebrow className="mt-3 px-1">Your job search</Eyebrow>
         <WorkProfileCard />
         <LookingForSettingsCard />

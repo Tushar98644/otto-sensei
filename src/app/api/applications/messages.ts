@@ -1,4 +1,4 @@
-// What both application routes say. Route files may only export handlers and route config.
+// Route files may only export handlers and route config, so shared copy lives here.
 
 export const SIGN_IN = "Sign in to track your applications.";
 export const INVALID = "Some of those details aren't valid. Check them and try again.";

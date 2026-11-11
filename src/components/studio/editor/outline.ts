@@ -3,13 +3,9 @@ import type { LintIssue } from "@/lib/lint/types";
 import { extrasOf, sectionTitleOf, type Bullet, type Resume } from "@/lib/resume/schema";
 import { sectionDisplayOrder } from "./sections";
 
-// Client-safe and pure. The Fix step's outline: every section in print order, the entries that
-// hold lines, and how many of their lines need work.
-
 export type OutlineEntry = { id: string; label: string; needWork: number };
 
 export type OutlineSection = {
-  // A SectionKey, "basics", or an extra section's id.
   key: string;
   label: string;
   needWork: number;

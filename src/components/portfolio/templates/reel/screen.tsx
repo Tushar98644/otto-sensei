@@ -1,11 +1,8 @@
 import type { Device } from "./data";
 import { wrapText } from "./data";
 
-// What every device screen shows: a page in the design's own look (dark ground, the cyan of the
-// sphere, the notched divider, the title in the heading face) drawn from the project's words.
-// Pages hold no pictures, so this stands where Hamish has his screenshots. Drawn as SVG so the same
-// markup is the still frame's screen and, serialized, the 3D model's texture. Its size is the
-// device's screen (Hamish's 1280x800 and 375x812 textures).
+// Pages hold no pictures, so a page drawn from the project's words stands where Hamish has his
+// screenshots. SVG, so the same markup is the still frame's screen and, serialized, the texture.
 
 export const SCREEN_SIZE: Record<Device, { width: number; height: number }> = {
   laptop: { width: 1280, height: 800 },
@@ -60,10 +57,7 @@ function Divider({ x, y, width }: { x: number; y: number; width: number }) {
   );
 }
 
-/**
- * `variant` 1 is the second phone of a pair: the project's facts as a list, so the two screens
- * read as two pages of one app rather than the same picture twice.
- */
+// Variant 1, a pair's second phone, lists the facts: two pages of one app, not one picture twice.
 export function DrawnScreen({
   device,
   content,
@@ -163,7 +157,6 @@ function TitlePage({
   );
 }
 
-// The phone's second page: the name small at the top, then one fact per row under hairlines.
 function FactList({ content, facts, x }: { content: DrawnContent; facts: string[]; x: number }) {
   const name = wrapText(content.name, 22, 1)[0] ?? "";
   const top = 150;

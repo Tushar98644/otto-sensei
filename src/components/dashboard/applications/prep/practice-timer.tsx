@@ -18,8 +18,7 @@ function clock(ms: number): string {
   return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`;
 }
 
-// About how long a spoken answer should run. Only ever started by the person, it never stops them
-// or scores them: at zero it just says so. Remount it (a new key) to reset it for the next question.
+// Never stops or scores the person: at zero it just says so. A new key resets it.
 export function PracticeTimer() {
   const [state, setState] = useState<TimerState>({ status: "idle" });
   const [now, setNow] = useState(0);

@@ -26,8 +26,6 @@ import { interviewHref, waitingForPrep } from "./view";
 
 const count = new Intl.NumberFormat("en-US");
 
-// The home for interview prep, which otherwise lives inside one application at a time: every pack
-// made so far, the interviews still without one, and a way to start prep for any job.
 export function InterviewHome() {
   const now = useNow();
   const packs = usePrepPacks();

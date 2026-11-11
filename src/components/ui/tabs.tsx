@@ -13,16 +13,8 @@ import {
 } from "react";
 import { cn } from "@/lib/utils";
 
-// WAI-ARIA tabs with automatic activation: arrow keys move focus and select in one step, and only
-// the selected tab is in the Tab order (roving tabindex).
-//   <Tabs defaultValue="checks">
-//     <TabList aria-label="Recruiter view">
-//       <Tab value="checks">Checks</Tab>
-//       <Tab value="text">What software reads</Tab>
-//     </TabList>
-//     <TabPanel value="checks">…</TabPanel>
-//     <TabPanel value="text">…</TabPanel>
-//   </Tabs>
+// WAI-ARIA tabs with automatic activation: arrow keys move focus and select in one step; only the
+// selected tab is in the Tab order (roving tabindex).
 
 type TabsContextValue = {
   baseId: string;

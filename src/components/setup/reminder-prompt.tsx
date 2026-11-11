@@ -10,8 +10,7 @@ import { toast } from "@/components/ui/toast";
 import { reminderPromptShows } from "@/lib/setup/checklist";
 import { useReminderChoice } from "./use-reminder-choice";
 
-// Applications, once something is logged: one inline offer of reminder emails, until the person
-// answers it either way (the answer is the Account page's switch, so it never asks again).
+// Asks until answered either way: the answer is the Account switch, so it never asks again.
 export function ReminderPrompt({ applications }: { applications: number }) {
   const pro = useProTools();
   const { user } = useMe();

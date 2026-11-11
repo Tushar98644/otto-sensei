@@ -9,14 +9,10 @@ import {
 } from "@/lib/applications/status";
 import { formatDay } from "../view";
 
-// Client-safe and pure: the application page's timeline and its one next-step line.
-
 export type TimelineStep = {
   status: ApplicationStatus;
-  // done: passed on the way; current: where it stands; next: still ahead.
   state: "done" | "current" | "next";
-  // When it got there, when known. Rows logged before the timeline existed only know the day they
-  // were sent and their last change.
+  // When known: rows logged before the timeline existed only know their sent day and last change.
   at: number | null;
 };
 
@@ -30,10 +26,8 @@ function lastAt(history: readonly StatusEvent[], status: ApplicationStatus): num
   return null;
 }
 
-/**
- * The steps forward as far as it went, then either the steps still ahead or how it ended. An
- * interview that ended in a no shows Applied and Interviewing done, then Rejected.
- */
+// Steps forward as far as it went, then the steps ahead or how it ended. A no after an interview
+// shows Applied and Interviewing done, then Rejected.
 export function timelineSteps(application: Timed, history: readonly StatusEvent[]): TimelineStep[] {
   const ended = !isStage(application.status);
   const reached = stageIndex(isStage(application.status) ? application.status : application.stageReached);
@@ -58,10 +52,7 @@ export function timelineSteps(application: Timed, history: readonly StatusEvent[
   return steps;
 }
 
-/**
- * Otto's line at the top of the page: what this application needs next, from its own facts.
- * At most 18 words, like every Otto line.
- */
+// At most 18 words, like every Otto line.
 export function nextStepLine(
   application: Pick<Application, "status" | "followUpAt">,
   hasPrep: boolean,

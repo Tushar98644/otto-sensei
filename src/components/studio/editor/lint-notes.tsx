@@ -7,8 +7,6 @@ import { useSettled } from "./use-settled";
 // Long enough to finish a word, short enough to still feel live.
 export const SETTLE_MS = 450;
 
-// Two or three words for the chip at the end of a line. The full message is the line's
-// description and the tip shown under it while it has focus.
 export const CHIP_LABELS: Record<LintIssueId, string> = {
   "stock-phrase": "Stock phrase",
   duty: "Duty, not result",
@@ -26,15 +24,13 @@ export const CHIP_LABELS: Record<LintIssueId, string> = {
   punctuation: "Full stop",
 };
 
-// Lint updates once typing pauses, so a line that was just started isn't called "too short" after
-// its first letter. Null while the line is empty: it gets no chip and no description.
+// Waits for a typing pause, so a just-started line isn't called "too short". Null when empty.
 export function useLineLint(issues: readonly LintIssue[], hasText: boolean) {
   const settled = useSettled(hasText ? issues : null, SETTLE_MS);
   return hasText ? settled : null;
 }
 
-// The visible hint while the line has focus. Hidden from screen readers, which get every message
-// through LineDescription instead.
+// Hidden from screen readers, which get every message through LineDescription instead.
 export function LineTip({ issues }: { issues: readonly LintIssue[] }) {
   const [top] = issues;
   if (!top) return null;

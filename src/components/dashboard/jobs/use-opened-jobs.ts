@@ -14,9 +14,8 @@ import {
 } from "./applied-prompt";
 import { appliedFor } from "./view";
 
-// The jobs this browser opened from the Jobs tab, per account, and when the person last came back
-// to the tab: what "Applied to <company>?" asks about. Kept in localStorage, and in memory when
-// storage is blocked (private windows), so the question still works for the visit.
+// Kept in localStorage, and in memory when storage is blocked (private windows), so the question
+// still works for the visit.
 
 const KEY_PREFIX = "otto-opened-jobs-v1:";
 const EMPTY: readonly OpenedJob[] = [];
@@ -116,10 +115,7 @@ export function answerAppliedPrompt(
 export type AppliedPrompts = { onCard: OpenedJob[]; offPage: OpenedJob[] };
 const NONE: AppliedPrompts = { onCard: [], offPage: [] };
 
-/**
- * Which opened jobs to ask about, split into cards on this page and the strip for the rest.
- * Nothing until the tracker has loaded, so a job already in it is never asked about.
- */
+// Nothing until the tracker has loaded, so a job already in it is never asked about.
 export function useAppliedPrompts({
   userId,
   applications,

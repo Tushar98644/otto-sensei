@@ -42,9 +42,8 @@ function ottoLine(pdf: ResumePdf, check: ExportCheck): string {
 function DownloadWorkspace({ resume }: { resume: Resume }) {
   const pageSize = usePageSize();
   const pro = useProTools();
-  // What the PDF prints: on Free a Pro format comes out in Classic. Until the plan is known the
-  // resume's own format renders, so a paying user's preview doesn't flash Classic, but a Pro
-  // format can't be downloaded yet.
+  // Until the plan is known the resume's own format renders, so a paying user's preview doesn't
+  // flash Classic; a Pro format can't be downloaded yet, though.
   const printed = useMemo(() => printedResume(resume, pro), [resume, pro]);
   const formatPending = pro === null && isProTemplate(templateOf(resume));
   const pdf = useResumePdf(printed, pageSize);

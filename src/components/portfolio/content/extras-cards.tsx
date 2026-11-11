@@ -16,8 +16,7 @@ import { editContent } from "./content-store";
 import { AutoNote, FieldRow, ListEditor, newId } from "./fields";
 import { SectionCard, ShowRow } from "./section-card";
 
-// The lists beyond the resume. Lists Otto can fill (now, numbers, milestones, talks, writing,
-// interests) start automatic; the first edit makes them the owner's.
+// Lists Otto can fill start automatic; the first edit makes them the owner's.
 
 type CardProps = { content: PortfolioContent; auto: AutoContent };
 

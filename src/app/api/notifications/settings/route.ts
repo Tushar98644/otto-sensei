@@ -14,7 +14,6 @@ export const dynamic = "force-dynamic";
 const NO_STORE = { "Cache-Control": "no-store" };
 const SIGN_IN = "Sign in to change your reminders.";
 
-// GET /api/notifications/settings: the reminder defaults, and whether email can be sent at all.
 export async function GET(): Promise<Response> {
   try {
     const user = await getCurrentUser();
@@ -32,7 +31,6 @@ export async function GET(): Promise<Response> {
   }
 }
 
-// PUT /api/notifications/settings: { emailReminders?, followUpDays? }.
 export async function PUT(req: Request): Promise<Response> {
   const blocked = rejectCrossSite(req) ?? rejectNonJson(req);
   if (blocked) return blocked;

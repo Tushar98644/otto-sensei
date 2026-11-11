@@ -11,9 +11,8 @@ export const contentType = "image/png";
 // Same cache as the page: dropped by every write, else hourly.
 export const revalidate = 3600;
 
-// Satori can't read CSS variables, so these mirror the globals.css tokens (background, ink, muted,
-// subtle), like the site's own image in src/app/opengraph-image.tsx. A published page's card takes
-// its template's own colours instead.
+// Satori can't read CSS variables, so these mirror the globals.css tokens. A published page's
+// card takes its template's colours instead.
 const BRAND_COLORS = { background: "#FBFCFA", ink: "#12241D", muted: "#475850", subtle: "#5B6B63" };
 
 function clip(text: string, max: number): string {

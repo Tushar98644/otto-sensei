@@ -1,10 +1,8 @@
 import { templateCss } from "../css";
 
-// Ported from samuelkraft/samuelkraft-next (MIT, see ./LICENSE.txt): the Tailwind classes in
-// pages/{_app,index}.tsx, components/{header,Link,Workplaces}.tsx and styles/globals.css written
-// out as CSS. The original sets html to 14px, so every rem there is 14px here. Radix Sand
-// (@radix-ui/colors, MIT) supplies the colours, light and dark like the original's system
-// theme. Breakpoint (md 768) is a container query on the template root. Inter, as the original.
+// Ported from samuelkraft/samuelkraft-next (MIT, see ./LICENSE.txt): its Tailwind classes and
+// globals.css written out as CSS. The original sets html to 14px, so every rem there is 14px here.
+// Radix Sand (@radix-ui/colors, MIT) supplies the colours. Breakpoints are container queries.
 const css = `
 :scope {
   --sand1: #fdfdfc;

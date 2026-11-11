@@ -11,8 +11,7 @@ export const maxDuration = 300;
 // Stops starting new boards after this, leaving room for the last reads and the tidy-up.
 const INGEST_BUDGET_MS = 240_000;
 
-// Vercel Cron calls GET (schedule in vercel.json); POST is for a manual run or another scheduler.
-// Both need "Authorization: Bearer <CRON_SECRET>".
+// Vercel Cron calls GET (vercel.json); POST is for manual runs. Both need Bearer CRON_SECRET.
 export function GET(req: Request): Promise<Response> {
   return runCronRoute(req, "jobs", async (context) => {
     const outcome = await runJobsIngest({

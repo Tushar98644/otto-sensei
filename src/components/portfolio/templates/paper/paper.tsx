@@ -7,16 +7,12 @@ import { FooterClock } from "./islands";
 import { PAPER_CSS } from "./styles";
 
 // Paper: a rebuild of Cali Castle's site (github.com/CaliCastle/cali.so, application code MIT;
-// ./LICENSE.txt) for anyone's data. A sheet of warm working paper with dashed column guides: a
-// small masthead with the initials printed as a halftone (where Cali has his portrait), nav cards,
-// numbered sections (experience, writing as print rows with dotted leaders, projects, interests,
-// books on a wooden shelf), a footer set as folder trees with a live local clock, and a pill dock.
-// No pictures: his photo cards and polaroids have no stand-in, so the shelf takes their card.
+// ./LICENSE.txt) for anyone's data. No pictures: the initials print as a halftone where Cali has
+// his portrait, and the shelf takes the photo cards' place.
 // Cali's own words, photos, artwork, name and branding are not used.
 
 const delay = (ms: number) => ({ "--enter-delay": `${ms}ms` }) as CSSProperties;
 
-// Book and record colours: cloth bindings in the reference's quiet print palette.
 const BINDINGS: [string, string][] = [
   ["oklch(0.66 0.19 42)", "oklch(0.22 0.03 40)"],
   ["oklch(0.3 0.02 260)", "oklch(0.9 0.01 90)"],
@@ -71,7 +67,6 @@ const BRAILLE: Record<string, string> = {
 const braille = (text: string) =>
   [...text.toLowerCase()].map((ch) => (ch === " " ? "⠀" : (BRAILLE[ch] ?? ""))).join("");
 
-// Each post's stand-in print: the dot screen's fade angle and bright spot, from its title.
 function printOf(title: string): CSSProperties {
   const hash = hashOf(title);
   return {
@@ -83,8 +78,6 @@ function printOf(title: string): CSSProperties {
 const coordinate = (value: number, positive: string, negative: string) =>
   `${Math.abs(value).toFixed(4)}° ${value >= 0 ? positive : negative}`;
 
-// The external-link arrow beside outbound links (components/external-mark.tsx), drawn with
-// lucide's arrow rather than the original's own path.
 function ExternalMark() {
   return <ArrowUpRight className="ext-mark" aria-hidden />;
 }
@@ -220,7 +213,6 @@ export function PaperTemplate({ view, content, footer }: PortfolioTemplateProps)
     });
   }
   if (content.shelf.length > 0) {
-    // Three spines from the shelf itself, in their own bindings.
     const spines = content.shelf.slice(0, 3);
     cards.push({
       id: "shelf",

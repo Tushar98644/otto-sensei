@@ -8,10 +8,8 @@ import { BRAND } from "@/config/brand";
 import type { StopShape, TourStop } from "./tours";
 import "./tour.css";
 
-// Draws a tour as a small tip beside each stop: Otto's head, "Otto · 1 of 3", his line, and Skip
-// and Next. It is never modal: no dimmed page, no focus trap, and everything on the page keeps
-// working under it. The tip sits above or below the thing it points at, never on top of it, and a
-// thin ring marks that thing. Escape skips.
+// Never modal: no dimmed page, no focus trap, and the page keeps working under it. The tip sits
+// beside its target, never on top. Escape skips.
 
 export type TourEnd = { finished: boolean; reached: number; total: number };
 
@@ -28,7 +26,6 @@ const REVEAL_ATTRIBUTE = "data-otto-tour-reveal";
 const SCREEN_TIMEOUT_MS = 6_000;
 const GAP_PX = 12;
 const EDGE_PX = 16;
-// The ring hugs a card's or a key's corners, just outside them.
 const RING: Record<StopShape, { padding: number; radius: string }> = {
   card: { padding: 6, radius: "rounded-3xl" },
   control: { padding: 4, radius: "rounded-2xl" },
@@ -253,9 +250,8 @@ function Tip({ stop, target, position, total, onBack, onNext, onSkip }: TipProps
   );
 }
 
-// Below the target when it fits, else above, else whichever side has more room; kept inside the
-// screen sideways. Only a target taller than the screen can end up under the tip, and then the
-// tip keeps to the screen's bottom edge, away from the top where the target starts.
+// Below if it fits, else above, else the roomier side; clamped sideways. Only a target taller
+// than the screen can end up under the tip, which then keeps to the screen's bottom edge.
 function placeBeside(target: DOMRect, tip: DOMRect): Place {
   const viewW = window.innerWidth;
   const viewH = window.innerHeight;

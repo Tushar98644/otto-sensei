@@ -3,9 +3,8 @@
 import { useEffect, useState, useSyncExternalStore, type ComponentType } from "react";
 import { createStepLoader, type StepLoader } from "@/components/studio/step-loader";
 
-// Code most visits never run (a dialog that may never open) loads after the page has settled
-// instead of with it, and at once when it's wanted sooner. Unlike React.lazy, the component
-// renders on the first render after its code is here, with no Suspense hold (see step-loader.ts).
+// Loads code most visits never run once the page settles, or at once when wanted. Unlike
+// React.lazy there's no Suspense hold: it renders as soon as its code is here (see step-loader.ts).
 
 export function lazyComponent<P extends object>(
   importer: () => Promise<ComponentType<P>>,

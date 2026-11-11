@@ -30,13 +30,9 @@ export type JobFormProps = {
   onChange: (draft: TailorDraft) => void;
   onSubmit: () => void;
   busy: boolean;
-  // e.g. "2 of 3 free tailored versions left this month."
   note?: string | null;
-  // A job picked on the Jobs tab, read as soon as the form is on screen.
   queued?: QueuedJob | null;
-  // What the submit button does, when it isn't comparing the job with the resume.
   action?: { label: string; icon: LucideIcon };
-  // The work-rights and hiring-system notes, which only matter while tailoring. On by default.
   checks?: boolean;
 };
 
@@ -120,7 +116,6 @@ function JobCard({ job, link, onPasteInstead, checks }: JobCardProps) {
   );
 }
 
-// form: the id of the form it submits when it sits outside it.
 type SubmitRowProps = {
   busy: boolean;
   note?: string | null;
@@ -150,12 +145,10 @@ function SubmitRow({ busy, note, onClick, form, action }: SubmitRowProps) {
 
 type PasteFieldsProps = JobFormProps & {
   postRef: RefObject<HTMLTextAreaElement | null>;
-  // Why the link couldn't be read, when that is how the person got here.
   readNote: string | null;
 };
 
-// The backup: the job typed or pasted in by hand. Mounts fresh each time it opens, so its errors
-// wait for that opening's first submit.
+// Mounts fresh on each open, so its errors wait for that opening's first submit.
 function PasteFields({
   draft,
   onChange,
@@ -168,8 +161,7 @@ function PasteFields({
   checks = true,
 }: PasteFieldsProps) {
   const [submitted, setSubmitted] = useState(false);
-  // Read once: the browser owns the open state after that, so clearing both fields while typing
-  // never folds them away.
+  // Read once: the browser owns open state after, so clearing both fields never folds them away.
   const [openOptions] = useState(() => draft.title !== "" || draft.company !== "");
   const formId = useId();
   const problem = postProblem(draft.text);
@@ -185,8 +177,7 @@ function PasteFields({
     onSubmit();
   }
 
-  // The eligibility card holds its own form (the work profile dialog), so it sits after this form
-  // instead of inside it, and the submit button joins the form by id.
+  // The eligibility card holds its own form, so it sits after this one; submit joins by id.
   return (
     <div className="flex flex-col gap-5">
       <form id={formId} onSubmit={submit} noValidate className="flex flex-col gap-5">
@@ -261,8 +252,6 @@ function PasteFields({
   );
 }
 
-// One link field: Otto reads the job and goes straight on to comparing. The title, company and
-// text fields only open as the backup, or when the person asks for them.
 export function JobForm(props: JobFormProps) {
   const { onSubmit, busy, note, action = COMPARE, checks = true } = props;
   // Refs come out first: the React lint rules treat every field of an object holding refs as a

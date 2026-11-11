@@ -19,7 +19,6 @@ export function StudioStepper({ step, context, onSelect }: StudioStepperProps) {
 
   return (
     <nav aria-label="Studio steps">
-      {/* Phones: one line with back and forward instead of five cramped steps. */}
       <div className="flex items-center justify-between gap-3 md:hidden">
         <Button
           variant="outline"

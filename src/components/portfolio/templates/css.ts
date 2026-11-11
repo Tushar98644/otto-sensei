@@ -1,10 +1,7 @@
-// Each template ships its own stylesheet, ported from its reference site, inside a <style> the
-// template renders. Every selector is prefixed with the template's root class here, so a template
-// can't touch the app or another template; `:scope` stands for the root itself. The sheets are
-// constants written in this folder, never user text.
-//
-// Inline sheets rather than CSS modules: /p/<slug> then carries only the chosen template's CSS,
-// and the same markup renders unchanged in tests and the static screenshot script.
+// Every selector is prefixed with the template's root class, so a template can't touch the app or
+// another template; `:scope` stands for the root. The sheets are constants, never user text.
+// Inline sheets rather than CSS modules: /p/<slug> carries only the chosen template's CSS, and
+// the same markup renders unchanged in tests and the screenshot script.
 
 function splitSelectors(list: string): string[] {
   const parts: string[] = [];
@@ -31,10 +28,7 @@ function scopeSelector(root: string, selector: string): string {
 // Keyframe names stay global, so each template prefixes its own ("navy-fadeup").
 const KEYFRAMES = /@keyframes\s+[\w-]+\s*\{(?:[^{}]*\{[^{}]*\})*\s*\}/g;
 
-/**
- * Prefixes every rule's selectors with `root`. At-rules (@container, @media, @supports, @page)
- * are left as they are and the rules inside them are scoped; @keyframes pass through untouched.
- */
+// At-rules stay as they are with their inner rules scoped; @keyframes pass through untouched.
 export function scopeCss(root: string, css: string): string {
   const kept: string[] = [];
   const flat = css
@@ -53,9 +47,8 @@ export function scopeCss(root: string, css: string): string {
     .trim();
 }
 
-// What every template starts from: its own box, the container its narrow layouts answer to (so the
-// editor's preview column gets the phone layout, like a phone does), and a reset of the app's base
-// styles (the serif h1/h2, balanced headings, list padding) back to plain HTML defaults.
+// Every template's base: its own box, the container its narrow layouts answer to (so the preview
+// column gets the phone layout), and the app's base styles reset to plain HTML defaults.
 export const BASE_CSS = `
 :scope { container: pf / inline-size; display: flow-root; flex: 1 0 auto; overflow-wrap: anywhere; -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
 :scope :where(*, *::before, *::after) { box-sizing: border-box; }

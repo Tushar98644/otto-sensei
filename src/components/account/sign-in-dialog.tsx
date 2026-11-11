@@ -9,15 +9,13 @@ import { SignInForm } from "./sign-in-form";
 export type SignInDialogProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  // Why we're asking, shown under the title. e.g. "Sign in to let Otto fix this line."
   reason?: string;
   onSignedIn?: () => void;
 };
 
 const DEFAULT_REASON = `A free account lets ${BRAND.mascotName} fix lines and tailor your resume.`;
 
-// Closes itself after a successful sign-in, right after onSignedIn runs. The form only exists
-// while the dialog is open, so every opening starts fresh at the email step.
+// The form only exists while open, so every opening starts fresh at the email step.
 export function SignInDialog({ open, onOpenChange, reason, onSignedIn }: SignInDialogProps) {
   return (
     <Dialog

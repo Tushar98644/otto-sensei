@@ -1,9 +1,7 @@
 import { flushSync } from "react-dom";
 import { pickNeighbor } from "./edits";
 
-// Stable DOM ids, so focus can follow an item after it's added, moved or removed. Item ids are
-// only unique inside one resume, and the editor shows one resume at a time. The prefix keeps them
-// clear of ids used elsewhere on the page.
+// Stable DOM ids, so focus can follow an item after it's added, moved or removed.
 
 const safe = (id: string) => encodeURIComponent(id);
 
@@ -20,8 +18,7 @@ export const SUMMARY_INPUT_ID = "fix-summary";
 
 export type Caret = "start" | "end" | number;
 
-// Renders a store edit right away, then moves focus. Without the synchronous render the element to
-// focus may not exist yet, or may be about to move, and a DOM node that moves loses focus.
+// Renders synchronously before focusing: the target may not exist yet, or may move and lose focus.
 export function editThenFocus(edit: () => void, targetId: string | null, caret?: Caret): void {
   flushSync(edit);
   if (!targetId) return;
@@ -35,8 +32,7 @@ export function editThenFocus(edit: () => void, targetId: string | null, caret?:
   }
 }
 
-// Focus lands on the remove button of the entry that took the removed one's place, so keyboard
-// users keep their spot instead of being sent back to the top of the page.
+// Focus goes to the next entry's remove button, so keyboard users keep their spot.
 export function removeEntryWithFocus(
   entries: readonly { id: string }[],
   entryId: string,

@@ -15,8 +15,6 @@ const HOUR_MS = 60 * 60 * 1000;
 // Without a token GitHub allows this server 60 calls an hour in all, and a refresh costs three.
 const REFRESHES_PER_HOUR = 6;
 
-// POST /api/portfolio/github: fetches the page's GitHub numbers again now, from the connected
-// GitHub account only.
 export async function POST(req: Request): Promise<Response> {
   const blocked = rejectCrossSite(req);
   if (blocked) return blocked;

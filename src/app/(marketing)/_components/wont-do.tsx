@@ -31,7 +31,6 @@ const PLEDGES: readonly Pledge[] = [
   },
 ];
 
-// Type does the work here: no icons, no tiles, one promise per row.
 export function WontDo() {
   return (
     <Section labelledBy="wont-do-title">

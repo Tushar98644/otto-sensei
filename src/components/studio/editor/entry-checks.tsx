@@ -14,7 +14,6 @@ export type EntryChecksProps = {
   ended: boolean;
 };
 
-/** "9 of 11 checks passed · Show" under a job or project; a check that fails opens its lines. */
 export function EntryChecks({ lines, ownerHeadingId, ended }: EntryChecksProps) {
   const [open, setOpen] = useState(false);
   const listId = useId();

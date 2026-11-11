@@ -9,10 +9,7 @@ import { PixelArrow, PixelGitHub, PixelLinkedIn } from "./pixel-icons";
 import { BENTO_CSS } from "./styles";
 
 // Bento: a rebuild of Gianmarco Cavallo's astro-bento-portfolio (github.com/Ladvace/
-// astro-bento-portfolio, MIT; ./LICENSE.txt) for anyone's data. One screen of framed tiles on a
-// fading grid: intro with pixel initials and social buttons, stack and tools, contact details,
-// live local time against the reader's, GitHub, "now", projects (each with a pixel mark drawn from
-// its name, where he has pictures), experience and accent swatches.
+// astro-bento-portfolio, MIT; ./LICENSE.txt) for anyone's data, with pixel marks for pictures.
 
 const INTRO_PARAGRAPHS = 3;
 const INTRO_BUTTONS = 3;
@@ -77,7 +74,6 @@ function SocialButton({ social }: { social: ContentSocial }) {
 
 const MARK = 5;
 
-/** A 5x5 pixel mark, mirrored like an identicon, from the project's name: its tile's picture. */
 function PixelMark({ name }: { name: string }) {
   const random = seeded(seedOf(name));
   const cells: { x: number; y: number; hot: boolean }[] = [];

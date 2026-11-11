@@ -1,10 +1,8 @@
 import { templateCss } from "../css";
 import { frameVars } from "./frame";
 
-// Ported from Ladvace/astro-bento-portfolio (MIT, see ./LICENSE.txt): src/style.css, uno.config.ts
-// and the UnoCSS classes in src/pages/index.astro and src/components/*.astro, written out as CSS.
-// Breakpoints (sm 640, md 768, lg 1024) are container queries on the template root. Satoshi and
-// Cabinet Grotesk (Fontshare) are swapped for Figtree.
+// Ported from Ladvace/astro-bento-portfolio (MIT, see ./LICENSE.txt); breakpoints are container
+// queries on the template root. Satoshi and Cabinet Grotesk (Fontshare) become Figtree.
 const css = `
 :scope {
   --darkslate-50: #f7f7f7;

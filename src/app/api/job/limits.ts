@@ -4,15 +4,13 @@ import { log } from "@/lib/log";
 import { rateLimit, retryAfterHeader, waitText, type RateLimitResult } from "@/lib/rate-limit";
 import { ipBucket } from "../import/upload-limits";
 
-// Server-only. Reading job links needs no account, like imports, so it is limited per network and
-// per device over a one-hour window.
+// Reading job links needs no account, so it's limited per network and per device, hourly.
 
 const HOUR_MS = 60 * 60 * 1000;
 // Each read makes our server fetch someone else's page, so both stay well under what would let a
 // script use us as a crawler. A busy job hunt reads maybe a dozen links an hour.
 export const JOB_READ_LIMITS = { perDevicePerHour: 30, perIpPerHour: 120 } as const;
 
-/** Counts one read against both limits. Returns a 429 response once either is used up. */
 export async function limitJobReads(req: Request): Promise<Response | null> {
   // The network goes first, so a flood without cookies stops before adding a device row per request.
   const network = await count(`job:ip:${ipBucket(clientIp(req))}`, JOB_READ_LIMITS.perIpPerHour);

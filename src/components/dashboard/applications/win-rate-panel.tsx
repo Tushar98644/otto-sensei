@@ -18,8 +18,6 @@ import {
 } from "@/lib/applications/stats";
 import { useApplications } from "./use-applications";
 
-// The dashboard home's short version of the win rate: the counts, the rate once there are
-// enough applications, and a way to the full page.
 export function WinRatePanel() {
   const now = useNow();
   const { status, items } = useApplications();

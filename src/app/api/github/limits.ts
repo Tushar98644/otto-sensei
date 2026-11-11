@@ -5,10 +5,8 @@ import { log } from "@/lib/log";
 import { rateLimit, retryAfterHeader, waitText, type RateLimitResult } from "@/lib/rate-limit";
 import { ipBucket } from "../import/upload-limits";
 
-// Server-only. Looking up the connected GitHub account costs no allowance, so like job links it is
-// limited per network and per device. GitHub's own allowance for this server is shared by
-// everyone, so both limits sit well under what would let one person or script use it up. Drafting
-// project lines is an AI call and spends the account's "github" allowance instead (../metered-free).
+// Lookups cost no allowance, so they're limited per network and device, well under GitHub's
+// shared allowance for this server. Drafting spends the account's "github" allowance instead.
 
 const HOUR_MS = 60 * 60 * 1000;
 
@@ -19,7 +17,6 @@ export const GITHUB_LIMITS = {
 
 export type GitHubAction = keyof typeof GITHUB_LIMITS;
 
-/** Counts one request against both limits. Returns a 429 response once either is used up. */
 export async function limitGitHub(req: Request, action: GitHubAction): Promise<Response | null> {
   const limits = GITHUB_LIMITS[action];
   // The network goes first, so a flood without cookies stops before adding a device row per request.
@@ -59,7 +56,6 @@ function tooMany(action: GitHubAction, scope: "ip" | "device", result: RateLimit
   return fail("rate_limited", message, 429, retryAfterHeader(result.retryAfterMs));
 }
 
-/** The response for a GitHub failure: plain words, and GitHub's wait time when it gave one. */
 export function gitHubFailure(error: GitHubError, username: string): Response {
   switch (error.reason) {
     case "not_found":

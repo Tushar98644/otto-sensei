@@ -13,15 +13,13 @@ const shareDialog = lazyComponent(() => import("./share-dialog").then((m) => m.S
 export type ShareResume = {
   // One click: makes the link (or points it at this version) and copies it. For a menu item.
   share: () => void;
-  // The link's settings: what it shows, and turning it off.
   open: () => void;
   // Render once inside the component that calls the hook.
   dialog: ReactNode;
 };
 
-// "Copy share link" for one resume card. The settings dialog mounts on first use, so a page full of
-// cards doesn't carry a closed dialog for each one, and stays mounted after, so closing it hands
-// focus back.
+// The settings dialog mounts on first use, so a page of cards doesn't carry one each, and stays
+// mounted after, so closing it hands focus back.
 export function useShareResume(resume: Resume): ShareResume {
   const gate = useAccountGate();
   const { user } = useMe();

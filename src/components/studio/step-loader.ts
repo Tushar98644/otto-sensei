@@ -1,7 +1,5 @@
-// Loads a studio step's code once and remembers it, so a step whose code is already here renders
-// on the click that opens it. React.lazy (and next/dynamic, built on it) can't: its first render
-// always suspends, even for a module already downloaded, and React then holds the fallback for at
-// least 300 ms before it reveals the step (its Suspense throttle).
+// React.lazy (and next/dynamic) always suspends on first render, even for a loaded module, and
+// Suspense holds the fallback 300 ms; this renders a cached step on the very click.
 
 export type StepLoadState<T> =
   | { status: "idle" }

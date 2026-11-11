@@ -1,15 +1,13 @@
 import type { CSSProperties, MouseEventHandler, ReactNode } from "react";
 import { Icon, type ReelIcon } from "./sprites";
 
-// HamishMW/portfolio's small components (button, divider, loader, text, heading), as plain
-// markup with the same data attributes his CSS keys off. No hooks: used by the server template
-// and the client islands alike.
+// HamishMW/portfolio's small components as plain markup with the data attributes his CSS keys
+// off. No hooks: the server template and the client islands both use them.
 
 const EXTERNAL = /^https?:/i;
 
 type DataAttributes = { [key: `data-${string}`]: string | boolean | undefined };
 
-/** components/button: a link when it has an href, else a button. */
 export function Button({
   href,
   secondary,
@@ -88,7 +86,6 @@ export function Button({
   );
 }
 
-/** components/divider: a line with a notch hanging under its start, collapsing until shown. */
 export function Divider({
   notchWidth = "90px",
   notchHeight = "10px",
@@ -121,7 +118,6 @@ export function Divider({
   );
 }
 
-/** components/loader: a sliding bar, or the word when motion is reduced. */
 export function Loader({
   className,
   center,

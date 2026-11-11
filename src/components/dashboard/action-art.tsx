@@ -5,14 +5,9 @@ import type { Resume, TemplateId } from "@/lib/resume/schema";
 import { cn } from "@/lib/utils";
 import { ResumeThumbnail } from "./resume-thumbnail";
 
-// The scenes on the dashboard's action cards: Otto doing the job, with the paper he does it on.
 // Pages are miniatures of the user's newest resume drawn with the sample person (standIn), never
-// stock pictures; the job post is plain bars, because there's no real job yet.
-//
-// Otto and his props move on one clock per card: the stage sets --otto-delay, which every loop
-// here reads, so the band reads down the page before he lifts his own, and the keyword flips just
-// after he points at it. The card around a scene is a `group/action` (hover lifts the paper) and a
-// `group/otto` (hover makes Otto livelier). Nothing moves for people who prefer reduced motion.
+// stock pictures. Each card's loops read --otto-delay from the stage, so the band reads down the
+// page before Otto lifts his own. Nothing moves for people who prefer reduced motion.
 
 function Stage({ delay, children }: { delay: number; children: ReactNode }) {
   return (
@@ -40,7 +35,6 @@ export function CheckArt({ resume }: { resume: Resume }) {
       >
         <div className="relative">
           <ResumeThumbnail resume={resume} standIn className={PAGE} />
-          {/* Otto's highlighter reading down the page. */}
           <div className="absolute inset-x-0 top-1 h-4 bg-highlight opacity-0 mix-blend-multiply motion-safe:animate-scene-scan" />
         </div>
       </div>
@@ -88,7 +82,6 @@ export function TailorArt() {
         <div className="mt-2.5 flex flex-wrap gap-1">
           <KeywordChip have />
           <KeywordChip have />
-          {/* The keyword the resume is missing, added once Otto points it out. */}
           <span className="grid">
             <KeywordChip
               have={false}

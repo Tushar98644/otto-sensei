@@ -21,9 +21,7 @@ type EditorBarProps = {
   onPreview: () => void;
 };
 
-// The editor's top bar: the page's name and state on the left, its one main action on the right.
-// Every change saves at once, so a live page needs no "Update": the bar says it's saved instead.
-// On phones the actions move to a bar pinned at the bottom, with Preview beside them.
+// Every change saves at once, so a live page needs no "Update": the bar says it's saved.
 export function EditorBar({ portfolio, onPreview }: EditorBarProps) {
   const { user } = useMe();
   const saving = usePortfolioStore((state) => state.saving);

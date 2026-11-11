@@ -29,15 +29,11 @@ import {
 import { resetSentence, thisPeriod } from "@/lib/usage-copy";
 import { screenerOptions, screenerResume, type TailorChoices } from "./apply";
 
-// Pure logic behind the screener view and its "Have you done this? Where?" flow.
-
 export type Screener = {
   rows: RequirementRow[];
   counts: ScreenerCounts;
   headline: string;
-  // Why each row has its status, by row id.
   reasons: Record<string, RowReason>;
-  // The resume's lines as this job sees them, and how many show nothing for it.
   lines: JobLine[];
   unrelated: number;
   title: TitleCheck | null;
@@ -58,7 +54,6 @@ export function buildScreener(
   const reasons = rowReasons(rows, context);
   const { lines, unrelated } = jobLines(rows, context);
   const title = titleCheck(source, result.job.title);
-  // A picked suggestion is the summary the copy will have.
   const top =
     choices.useSummary && result.summary ? { ...source, summary: result.summary } : source;
   const summary = summaryCheck(top, rows, result.job.title);
@@ -75,14 +70,11 @@ export function buildScreener(
   };
 }
 
-// The question the line fixer answers from: it names the requirement, so the line it writes does
-// too, and asks for the where and the what that make a line worth reading.
 export function lineQuestion(requirement: TailorRequirement): string {
   return `${requirement.ask} Where, and what did you do?`;
 }
 
-// A screener searches for the name, so a line about Terraform that never says "Terraform" proves
-// nothing to it.
+// Screeners search by name: a Terraform line that never says "Terraform" proves nothing.
 export function missingName(requirement: TailorRequirement, line: string): string | null {
   const [first] = requirement.terms;
   if (!first || !line.trim()) return null;
@@ -90,8 +82,7 @@ export function missingName(requirement: TailorRequirement, line: string): strin
   return `Name ${first} in the line, so a screener can find it.`;
 }
 
-// The line fixer may still turn "helped set up" into "led", or drop the "helped". The person
-// decides, but they see it.
+// The fixer may turn "helped set up" into "led"; the person decides, but they see it.
 export function verbNote(answer: string, line: string): string | null {
   const [verb] = verbsAdded(answer, line);
   if (verb) {
@@ -117,8 +108,7 @@ export function hasBlank(line: string): boolean {
   return /\[[^\]\n]*\]/u.test(line);
 }
 
-// Under the letter and question tools, like the tailor allowance note above the job form.
-// Free has none at all, so it hears what Pro adds (`trial`: whether the free trial is open to them).
+// Free has none, so it hears what Pro adds; `trial` says whether the free trial is open to them.
 export function writingAllowance(
   plan: PlanId | null | undefined,
   usage: Usage | null | undefined,

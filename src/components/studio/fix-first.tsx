@@ -17,17 +17,13 @@ export type FixFirstProps = {
   items: readonly FixFirstEntry[];
   title?: string;
   description?: string;
-  // Shown instead of the list when there is nothing to do first.
   empty?: ReactNode;
-  // Under the list, e.g. the rest of the problems in a shorter form.
   footer?: ReactNode;
   id?: string;
   className?: string;
 };
 
-// The short "do these first" list at the top of the Recruiter view and Tailor: at most three
-// numbered items, each one plain reason and one way to act on it. Everything else stays further
-// down, grouped, so the first screen answers "what now?" without scrolling.
+// At most three items, so the first screen answers "what now?" without scrolling.
 export function FixFirst({
   items,
   title = "Fix these first",

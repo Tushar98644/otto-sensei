@@ -6,7 +6,6 @@ import { checkFile } from "./file-check";
 
 export type DropzoneProps = {
   onFile: (file: File) => void;
-  // Gets a plain message to show the user, e.g. "That file is too big. The limit is 4 MB."
   onReject: (message: string) => void;
   // Same syntax as <input accept>, e.g. ".pdf,.docx". Dropped files are checked against it too.
   accept?: string;

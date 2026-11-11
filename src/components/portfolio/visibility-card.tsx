@@ -18,8 +18,7 @@ type VisibilityCardProps = {
   disabled: boolean;
 };
 
-// The Sections tab: which parts of the resume the page shows, then the contact details. Hiding a
-// section only changes the page; the Content tab keeps its fields and marks them hidden.
+// Hiding a section only changes the page; the Content tab keeps its fields and marks them hidden.
 export function VisibilityCard({
   portfolio,
   sections,

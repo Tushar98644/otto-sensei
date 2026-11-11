@@ -21,8 +21,7 @@ export type TextareaProps = ComponentProps<"textarea"> & {
   variant?: TextareaVariant;
 };
 
-// The inset shadow thickens the rule to 2px on focus without moving the text, which a thicker
-// border would do.
+// An inset shadow thickens the rule on focus; a thicker border would move the text.
 const LINE_CLASSES =
   "rounded-none border-0 border-b border-border-strong bg-transparent px-0 py-2.5 focus-visible:border-ink focus-visible:shadow-[inset_0_-1px_0_var(--color-ink)] focus-visible:ring-0 disabled:bg-transparent";
 

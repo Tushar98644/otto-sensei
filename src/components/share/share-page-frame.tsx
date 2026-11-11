@@ -4,7 +4,6 @@ import { OttoMark } from "@/components/site/otto-mark";
 import { ROUTES } from "@/components/site/routes";
 import { BRAND } from "@/config/brand";
 
-// The public share page's frame: the mist canvas, the resume column and a quiet credit line.
 // No site header: the page belongs to the person who shared it, not to us.
 export function SharePageFrame({ children }: { children: ReactNode }) {
   return (

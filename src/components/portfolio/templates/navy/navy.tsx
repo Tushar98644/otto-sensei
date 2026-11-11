@@ -18,10 +18,7 @@ import { CodeScreen } from "./screen";
 import { NAVY_CSS } from "./styles";
 
 // Navy: a rebuild of Brittany Chiang's v4 (github.com/bchiang7/v4, MIT; ./LICENSE.txt) for
-// anyone's data. Same page: fixed header with numbered links, socials and email pinned to the
-// sides, hero, "About Me" with a tinted initials tile, jobs as company tabs, featured projects
-// with a big drawn code window (in place of his screenshots) under an overlapping card, a grid of
-// other projects, and "Get In Touch".
+// anyone's data, with a drawn code window in place of the project screenshots.
 
 const A = {
   top: "pf-navy-top",

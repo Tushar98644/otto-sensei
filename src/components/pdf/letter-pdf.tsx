@@ -10,8 +10,7 @@ import { modelText, themeText } from "./layout";
 import { themeFor } from "./themes";
 import type { PdfStyle } from "./theme";
 
-// The cover letter in the resume's own format: the same name block, fonts, sizes and margins, so
-// the two pages read as one application. Real text only, like the resume.
+// Same name block, fonts and margins as the resume, so the two pages read as one application.
 
 export type LetterPdfProps = {
   // Supplies the name block and, unless `template` is given, the format.

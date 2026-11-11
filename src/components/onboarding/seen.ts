@@ -36,7 +36,6 @@ export function markTourSeen(storage: TourStorage | null, name: TourName, now = 
   }
 }
 
-// For a "Show the tips again" control.
 export function forgetTours(storage: TourStorage | null = browserStorage()): void {
   for (const name of TOURS) {
     try {

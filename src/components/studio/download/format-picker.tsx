@@ -19,8 +19,7 @@ import { sectionOrderOffer } from "./format-choice";
 import { preparePdf, printedResume } from "./pdf-cache";
 import { usePageSize } from "./use-page-size";
 
-// How long the pointer rests on a format before its PDF is made, so sweeping across the row
-// doesn't render every format on the way. A click usually follows a rest by a few hundred ms.
+// A rest before rendering, so sweeping across the row doesn't render every format on the way.
 const REST_MS = 120;
 
 export type FormatPickerProps = {
@@ -28,11 +27,7 @@ export type FormatPickerProps = {
   className?: string;
 };
 
-// The format is saved on the resume, so the preview, the download and "Check my new PDF" all use
-// it, and it follows the resume to other devices. Native radios, like the page size toggle.
-// Classic and Compact are on every plan. The others carry a Pro badge on Free and offer the trial
-// instead of switching; a resume already set to one (a paid plan that ended) keeps it, but its
-// download comes out in Classic, which the line under the picker says.
+// A Pro format on Free offers the trial; one already set (a plan that ended) downloads in Classic.
 export function FormatPicker({ resume, className }: FormatPickerProps) {
   const updateResume = useStudioStore((s) => s.updateResume);
   const name = useId();

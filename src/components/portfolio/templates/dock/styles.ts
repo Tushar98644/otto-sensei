@@ -1,10 +1,7 @@
 import { templateCss } from "../css";
 
-// Ported from dillionverma/portfolio (MIT, see ./LICENSE.txt): the Tailwind classes in
-// src/app/{layout,page}.tsx, src/components/{project-card,timeline,navbar}.tsx, section/*.tsx and
-// magicui/{blur-fade,dock}.tsx written out as CSS, with the shadcn tokens from src/app/globals.css.
-// Breakpoints (sm 640, md 768, lg 1024, xl 1280) are container queries on the template root.
-// The original's fonts (Geist, Geist Mono) are free and used as is.
+// Ported from dillionverma/portfolio (MIT, see ./LICENSE.txt): its Tailwind classes and shadcn
+// tokens written out as CSS. Breakpoints are container queries on the template root.
 const css = `
 :scope {
   --radius: 0.625rem;

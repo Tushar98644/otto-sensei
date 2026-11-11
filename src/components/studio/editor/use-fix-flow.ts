@@ -29,13 +29,10 @@ export type FixReady = {
   target: FixTarget;
   result: FixResult;
   usage: UsageSnapshot;
-  // The server had no AI key, so the result is sample output.
   demo: boolean;
-  // One per question in result.questions.
   answers: string[];
   refining: boolean;
   problem: FixProblem | null;
-  // The user's own edit of the suggestion. Null until they pick "Edit before using".
   draft: string | null;
 };
 
@@ -71,8 +68,7 @@ export function useFixFlow(resumeId: string) {
   const gateRef = useRef(gate);
   // Bumped by every request and by closing. A response for an older number is ignored.
   const requestRef = useRef(0);
-  // True from a tap on "Fix with Otto" until the dialog closes, so a double tap can't spend two
-  // fixes on one line.
+  // Set from a tap on "Fix with Otto" until close, so a double tap can't spend two fixes.
   const busyRef = useRef(false);
 
   useEffect(() => {
@@ -195,7 +191,6 @@ export function useFixFlow(resumeId: string) {
       label: EDIT_LABELS.fix,
     });
     close();
-    // Shown on the line itself rather than as a toast in a corner.
     flashLine(bulletId);
   }
 

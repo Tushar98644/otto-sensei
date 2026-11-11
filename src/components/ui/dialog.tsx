@@ -14,13 +14,11 @@ export type DialogProps = {
   title: ReactNode;
   description?: ReactNode;
   children?: ReactNode;
-  // Buttons: side by side on the right on wide screens, stacked full width on phones.
-  // Put the main action last so it ends up rightmost on desktop and on top on phones.
+  // Put the main action last: rightmost on desktop, on top when stacked on phones.
   footer?: ReactNode;
   // Shown under the title: an OttoNote, never a full-body Otto.
   illustration?: ReactNode;
   size?: DialogSize;
-  // Styles the visible panel.
   className?: string;
 };
 
@@ -108,8 +106,7 @@ export function Dialog({
         pressStartedOnBackdrop.current = event.target === event.currentTarget;
       }}
       onClick={(event) => {
-        // Only a press that starts and ends on the backdrop closes it, so dragging a text
-        // selection out of the panel doesn't.
+        // Only a press starting and ending on the backdrop closes it, not a selection dragged out.
         const onBackdrop = pressStartedOnBackdrop.current && event.target === event.currentTarget;
         pressStartedOnBackdrop.current = false;
         if (onBackdrop) onOpenChange(false);

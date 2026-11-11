@@ -24,10 +24,8 @@ function since(iso: string | null, now = Date.now()): string {
   return `active ${ago.format(days, "day")}`;
 }
 
-/**
- * The page's GitHub numbers. They come only from the GitHub account the owner connected, never a
- * typed username, so a page can't show someone else's stars as its owner's.
- */
+// Numbers come only from the GitHub account the owner connected, never a typed username, so a
+// page can't show someone else's stars as its owner's.
 export function GitHubCard({
   content,
   github,

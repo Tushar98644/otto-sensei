@@ -13,7 +13,6 @@ export type WorkProfileFormProps = {
   userId: string;
   initial: WorkProfile;
   saved: boolean;
-  // Shown under the fields, e.g. a "Done" key in the dialog.
   footer?: ReactNode;
 };
 
@@ -22,7 +21,6 @@ const SAVE_DELAY_MS = 600;
 
 type SaveState = "idle" | "waiting" | "saving" | "saved" | "failed";
 
-// Every answer saves by itself a moment after it changes; there is no Save key.
 export function WorkProfileForm({ userId, initial, saved, footer }: WorkProfileFormProps) {
   // A first visit starts on this device's zone: it's a fact about the person. Stored with their
   // first answer, never before.

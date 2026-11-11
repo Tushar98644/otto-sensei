@@ -83,8 +83,7 @@ function AccountPanel({ user, onFeedback }: { user: SessionUser; onFeedback: () 
   async function signOut() {
     setSigningOut(true);
     try {
-      // Backs up recent edits first, and leaves nothing of the account behind for the next person
-      // on a shared computer.
+      // Backs up recent edits, then leaves nothing behind for the next person on a shared computer.
       const { kept } = await signOutAndRelease(user.id);
       await refreshMe();
       close();

@@ -15,8 +15,7 @@ export const maxDuration = 30;
 const GITHUB_BUDGET_MS = 15_000;
 const INVALID = "That isn't a GitHub username. Use the name in your profile link, like github.com/octocat.";
 
-// The connected GitHub account → its public repos and merged pull requests to pick from. Signed
-// in, and only the account linked to this one (../ownership.ts). Logs carry counts only: a
+// Only the GitHub account linked to this one (../ownership.ts). Logs carry counts only: a
 // username can name a person.
 export async function POST(req: Request): Promise<Response> {
   const rejected = rejectCrossSite(req) ?? rejectNonJson(req);

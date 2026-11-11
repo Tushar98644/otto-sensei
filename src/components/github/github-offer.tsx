@@ -5,11 +5,6 @@ import { cn } from "@/lib/utils";
 import { offersGitHubImport, usernameFromResume } from "./format";
 import { GitHubImportButton } from "./github-import-button";
 
-/**
- * "Your resume links to github.com/x": the GitHub import, offered where the resume links a GitHub
- * profile but lists fewer than two projects (offersGitHubImport). Nothing otherwise. The dialog
- * looks the profile up the moment it opens, so the best repos are already picked.
- */
 export function GitHubOffer({ resumeId, className }: { resumeId: string; className?: string }) {
   const username = useStudioStore((state) => {
     const resume = Object.hasOwn(state.resumes, resumeId) ? state.resumes[resumeId] : undefined;

@@ -37,9 +37,8 @@ const SAVE_LINES: Record<SaveState, string> = {
   failed: "Not saved yet",
 };
 
-// One letter or answer, open to read, edit, copy and download. Edits are kept when the box loses
-// focus and when the dialog closes, so there's no Save button to forget. Mounted per opening, so
-// the box always starts from the latest text.
+// Edits are kept on blur and on close, so there's no Save button to forget. Mounted per opening,
+// so the box always starts from the latest text.
 export function LetterDialog({
   entry,
   open,

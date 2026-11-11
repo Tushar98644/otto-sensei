@@ -51,10 +51,7 @@ export type ApplicationDialogProps = {
   onClose: () => void;
 };
 
-// Add or edit one application. Adding asks for the company, the role and the link; the rest
-// (which resume, the day, the status, notes) has sensible defaults behind "More options". Opened
-// from a tailored copy, it starts filled in from that copy's job. Editing saves each change by
-// itself; Done only closes.
+// Editing autosaves each change; Done only closes.
 export function ApplicationDialog({ target, resumes, onClose }: ApplicationDialogProps) {
   const fromCard = target?.kind === "add" && target.resumeId !== null;
   return (

@@ -5,8 +5,6 @@ import { BillingError, type BillingErrorDetails } from "@/lib/billing";
 import { log } from "@/lib/log";
 import { rateLimit, retryAfterHeader, waitText } from "@/lib/rate-limit";
 
-// Server-only helpers for the checkout and portal routes.
-
 type Failure = { code: ApiErrorCode; status: number; message: string };
 type Action = "checkout" | "portal";
 

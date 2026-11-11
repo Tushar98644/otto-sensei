@@ -13,7 +13,6 @@ const GROUP_TITLES: Record<Exclude<CheckStatus, "pass">, string> = {
 
 export type ChecksListProps = {
   checks: RecruiterCheck[];
-  // Visually hidden when a tab already names the panel.
   hideHeading?: boolean;
   title?: string;
 };

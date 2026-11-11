@@ -12,9 +12,7 @@ import { pluralize } from "@/lib/utils";
 import { openSendCheckTarget } from "./jump";
 import { useSendCheck } from "./use-send-check";
 
-// "Before you send it": the slips a recruiter would catch (a blank left in, another company's
-// name, dates that don't add up, a tool named before it existed, words copied from the post).
-// Each one can be fixed in place or marked correct; none of them blocks the download.
+// None of these blocks the download: each can be fixed in place or marked correct.
 
 const FIRST_SHOWN = 4;
 

@@ -27,9 +27,6 @@ import { StatusIcon } from "../status-menu";
 import { formatDay, prepHref } from "../view";
 import type { TimelineStep } from "./timeline";
 
-// The cards of an application's own page. White on the stone canvas, no borders; each one names
-// one part of the thread and links to where that part lives.
-
 export function HubCard({
   id,
   title,
@@ -362,7 +359,6 @@ export function ResumeSentCard({
   onOpen,
 }: {
   application: Application;
-  // The version in this browser, when it still is.
   sent: Resume | null;
   onOpen: (id: string, step: "fix" | "download") => void;
 }) {

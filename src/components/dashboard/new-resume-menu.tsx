@@ -22,8 +22,7 @@ export type NewResumeMenuProps = {
   className?: string;
 };
 
-// The one "new" control everywhere in the app: the same starts as the studio's upload screen, in
-// its order, behind a single primary button so a page never shows six competing ones.
+// One primary button, so a page never shows six competing ones.
 export function NewResumeMenu({ actions, size = "md", align = "start", className }: NewResumeMenuProps) {
   return (
     <Menu

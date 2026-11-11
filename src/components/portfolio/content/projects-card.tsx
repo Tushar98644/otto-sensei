@@ -113,9 +113,7 @@ type ProjectsCardProps = {
   content: PortfolioContent;
   auto: AutoContent;
   github: GitHubStats | null;
-  // "Hidden on your page: Projects" when the page leaves them out.
   hidden?: string;
-  // The resume behind the page, when it's in this browser: GitHub imports add projects to it.
   resume?: Resume | null;
   onResumeChange?: (resume: Resume) => void;
 };

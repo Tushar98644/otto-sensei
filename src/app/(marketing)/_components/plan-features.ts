@@ -18,15 +18,12 @@ import { TEMPLATE_IDS } from "@/lib/resume/schema";
 import { periodNoun, perPeriod } from "@/lib/usage-copy";
 import { pluralize } from "@/lib/utils";
 
-// Pricing copy shared by the landing teaser, /pricing and the terms. Numbers come from PLANS, so
-// changing a limit or price there updates every page.
+// Numbers come from PLANS, so changing a limit or price there updates every page.
 
 export type PlanCopy = {
   summary: string;
-  // A plain line above the feature list, e.g. "Everything in Free, plus AI help each month:".
   lead?: string;
   features: readonly string[];
-  // The small gray line under the plan's button.
   note: string;
 };
 
@@ -39,7 +36,6 @@ function periodOf(plan: PlanId, period: AllowancePeriod): AllowancePeriod {
   return PLANS[plan].weeklyLimits ? period : "month";
 }
 
-/** "150 tailored versions a month", or "38 tailored versions a week" on a weekly plan. */
 export function limitLine(
   plan: PlanId,
   feature: Feature,
@@ -49,13 +45,12 @@ export function limitLine(
   return `${count.format(planLimits(plan, kind)[feature])} ${FEATURE_LABELS[feature]} ${perPeriod(kind)}`;
 }
 
-// Pro.s portfolio line; Max has it too, as "Everything in Pro".
+// Max has this too, as "Everything in Pro".
 const PORTFOLIO_PAGE = `A hosted portfolio site made from your resume, in all ${PORTFOLIO_TEMPLATE_IDS.length} designs`;
 
 const freeFormats = FREE_TEMPLATES.map((id) => TEMPLATE_INFO[id].name).join(" and ");
 
-// What Free keeps for good, and nothing more (owner decision, 2026-11-08). Numbers come from
-// src/config/plans.ts.
+// What Free keeps for good, and nothing more (owner decision, 2026-11-08).
 export const FREE_BASICS: readonly string[] = [
   "Upload a resume, read by the basic reader (no AI)",
   "The recruiter view: what hiring software reads",
@@ -101,10 +96,7 @@ const namedFeatures = FEATURES.filter((feature) => !HEADLINE_FEATURES.includes(f
   (feature) => FEATURE_LABELS[feature].charAt(0).toUpperCase() + FEATURE_LABELS[feature].slice(1),
 );
 
-/**
- * A plan card's copy for the allowance its picked billing option gives. `jobs`: the live job
- * counts the page was built with.
- */
+/** `jobs`: the live job counts the page was built with. */
 export function planCopy(
   plan: PlanId,
   period: AllowancePeriod = "month",
@@ -140,7 +132,6 @@ export function planCopy(
   }
 }
 
-/** What the trial's allowance is, line by line: "10 tailored versions during the trial". */
 export function trialLines(): string[] {
   return FEATURES.map((feature) => limitLine("pro", feature, "trial"));
 }

@@ -5,9 +5,6 @@ import { SOURCE_INFO } from "@/lib/job-feed/sources";
 import { EMPLOYMENT_LABELS, type FeedJob } from "@/lib/job-feed/types";
 import type { Resume } from "@/lib/resume/schema";
 
-// Client-safe and pure. What the Jobs tab works out for its cards from the browser's own data:
-// which resume to match, which version to send, and whether a job is already in the tracker.
-
 const DAY_MS = 24 * 60 * 60 * 1_000;
 
 /** The newest resume of the person's own, else the newest of all: what Jobs matches by default. */
@@ -21,12 +18,10 @@ export function defaultResumeId(resumes: readonly Resume[]): string | null {
 // and applications saved before they kept the id.
 type JobKey = { id?: string; url: string };
 
-/** A tailored copy already made for this job, if any. */
 export function tailoredFor(resumes: readonly Resume[], job: JobKey): Resume | null {
   return copyForJob(resumes, { id: job.id ?? "", url: job.url });
 }
 
-/** The newest tracker entry for this job. */
 export function appliedFor(applications: readonly Application[], job: JobKey): Application | null {
   return applicationForJob(applications, { id: job.id ?? "", url: job.url });
 }
@@ -61,10 +56,8 @@ type Placed = Pick<FeedJob, "location" | "remote" | "employmentType"> & {
   morePlaces?: number;
 };
 
-/**
- * "Remote · Berlin · Full-time": the place as the post gives it, plus remote and job type. One
- * opening posted in several places lists them: "Remote UK, Remote Canada (+2) · Full-time".
- */
+// "Remote · Berlin · Full-time". One opening posted in several places lists them:
+// "Remote UK, Remote Canada (+2) · Full-time".
 export function placeLine(job: Placed): string {
   const places = [job.location.trim(), ...(job.otherPlaces ?? [])].filter(Boolean).join(", ");
   const parts = [places && job.morePlaces ? `${places} (+${job.morePlaces})` : places];
@@ -85,11 +78,7 @@ export function checkedLabel(checkedAt: number | null, now: number): string | nu
 
 const count = new Intl.NumberFormat("en-US");
 
-/**
- * The heading and line under Free's closest few matches, so nobody mistakes them for everything
- * there is. Every number is real: the matches counted for this resume, and the open jobs Pro ranks,
- * rounded down ("27,000+").
- */
+// So nobody mistakes Free's closest few for all there is. Every number is real ("27,000+").
 export function moreWithProCopy(
   shown: number,
   matching: number,

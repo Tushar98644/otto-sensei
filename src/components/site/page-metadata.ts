@@ -7,7 +7,6 @@ export type PageMetadataOptions = {
   description: string;
   // Site-relative; the root layout's metadataBase makes it absolute.
   path: string;
-  // Use the title as is, without the template. For the home page.
   absoluteTitle?: boolean;
   // Kept out of search results, links still followed: sign-in and the like. Such a page must stay
   // out of the sitemaps too (src/app/seo.test.ts).
@@ -23,11 +22,8 @@ const OG_IMAGE = {
   alt: `${BRAND.name}: ${BRAND.tagline}`,
 };
 
-/**
- * Title, description, canonical URL, Open Graph and Twitter card tags for a public page.
- * Next merges metadata one level deep, so a page's openGraph replaces the root layout's whole
- * openGraph, including the file-based share image. That's why the shared fields are restated here.
- */
+// Next merges metadata one level deep, so a page's openGraph replaces the root layout's whole
+// openGraph, share image included. That's why the shared fields are restated here.
 export function pageMetadata({
   title,
   description,

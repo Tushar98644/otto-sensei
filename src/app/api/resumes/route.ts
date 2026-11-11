@@ -7,7 +7,6 @@ import { listBackups } from "./backups";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-// Per-user and changes with every save, so no browser or CDN may keep a copy.
 const NO_STORE = { "Cache-Control": "no-store" };
 
 export async function GET(): Promise<Response> {

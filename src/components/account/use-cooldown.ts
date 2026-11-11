@@ -2,8 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 
-// Whole seconds left on a countdown, plus a function that (re)starts it. Counts against a deadline
-// instead of decrementing, so a throttled background tab shows the right number when it wakes up.
+// Counts against a deadline, not by decrementing, so a throttled background tab wakes up right.
 export function useCooldown(seconds: number): [remaining: number, start: () => void] {
   const [deadline, setDeadline] = useState(0);
   const [now, setNow] = useState(0);

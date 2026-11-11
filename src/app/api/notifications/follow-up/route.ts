@@ -13,9 +13,8 @@ export const dynamic = "force-dynamic";
 const NO_STORE = { "Cache-Control": "no-store" };
 const INVALID = "That reminder link isn't valid any more. Open your applications instead.";
 
-// POST /api/notifications/follow-up: Done or Snooze from a reminder email. Sent by the /reminder
-// page the email links to, often without a session (another browser, a phone), so the signed link
-// is the proof of whose application it is.
+// Often sent without a session (another browser, a phone), so the signed link is the proof of
+// whose application it is.
 export async function POST(req: Request): Promise<Response> {
   const blocked = rejectCrossSite(req) ?? rejectNonJson(req);
   if (blocked) return blocked;

@@ -241,8 +241,7 @@ function ottoFor(state: UploadState): string {
   }
 }
 
-// Server messages are already written for people ("That file isn't a PDF or Word document."), so
-// they go straight into Otto's line.
+// Server messages are already written for people, so they go straight into Otto's line.
 function describeError(error: unknown): string {
   if (isApiError(error, "rate_limited")) return OTTO.errors.rateLimited;
   if (isApiError(error)) return OTTO.upload.failed(error.message);

@@ -17,8 +17,7 @@ import {
 } from "@/lib/queries/options";
 import { applicationsQuery } from "./applications/use-applications";
 
-// A sidebar page's main data, asked for as soon as the pointer or focus lands on its link, so it
-// is usually in the cache by the click. Fresh copies aren't asked for again.
+// Asked for once the pointer or focus lands on a link, so it's usually cached by the click.
 
 type Prefetch = (client: QueryClient, user: SessionUser) => Promise<unknown>[];
 

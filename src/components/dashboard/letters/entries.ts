@@ -4,10 +4,8 @@ import { resumeTitle } from "@/lib/resume/ops";
 import { emptyResume, type Resume } from "@/lib/resume/schema";
 import type { Writing, WritingKind } from "@/lib/writings/schema";
 
-// Client-safe and pure: what the Cover letters page lists, kept out of the component so it's
-// tested. Letters and answers live in two places: saved rows (/api/writings, every one written
-// since the page existed) and the letter on each tailored copy (tailor.coverLetter, synced with the
-// resume). A letter in both shows once, as the saved row that also knows its copy.
+// Letters live in two places: saved rows (/api/writings) and the letter on each tailored copy
+// (tailor.coverLetter, synced with the resume). One in both shows once, as the saved row.
 
 export type LetterEntry = {
   key: string;
@@ -83,7 +81,6 @@ function fromCopy(copy: Resume): LetterEntry | null {
   };
 }
 
-/** Every letter and answer, newest first. */
 export function letterEntries(
   writings: readonly Writing[],
   resumes: readonly Resume[],
@@ -109,10 +106,7 @@ export function kindCounts(entries: readonly LetterEntry[]): Record<LetterFilter
   return { all: entries.length, letter: letters, answer: entries.length - letters };
 }
 
-/**
- * The application a letter or answer belongs to: the one the server linked, else the one its
- * tailored copy went out with, else the one with its job link.
- */
+// The one the server linked, else the one its copy went out with, else the one with its job link.
 export function entryApplication(
   entry: Pick<LetterEntry, "applicationId" | "copyId" | "jobUrl">,
   applications: readonly Application[],
@@ -133,10 +127,8 @@ export function jobLine(entry: Pick<LetterEntry, "role" | "company">): string {
   return [entry.role, entry.company].filter((part) => part.trim() !== "").join(" at ");
 }
 
-/**
- * The resume it came from, by the title it has now, else the title it had when the letter was
- * written. Never "deleted": a resume another device made may simply not be synced here yet.
- */
+// By the title it has now, else the one it had when written. Never "deleted": a resume another
+// device made may simply not be synced here yet.
 export function sourceTitle(
   entry: Pick<LetterEntry, "resumeId" | "resumeTitle">,
   resumes: readonly Resume[],
@@ -145,10 +137,8 @@ export function sourceTitle(
   return live ? resumeTitle(live) : entry.resumeTitle.trim();
 }
 
-/**
- * The resume whose name block and format the letter's PDF and Word file use: its tailored copy,
- * else the resume it was written from, else the newest base resume, else a blank page.
- */
+// Whose name block and format the letter's PDF and Word file use: its tailored copy, else the
+// resume it was written from, else the newest base resume, else a blank page.
 export function letterResume(
   entry: Pick<LetterEntry, "copyId" | "resumeId">,
   resumes: readonly Resume[],
@@ -178,7 +168,7 @@ export function studioTarget(
   return null;
 }
 
-/** The resume a new letter starts from: the one edited last (owner's call, 2026-11-08). */
+/** The one edited last. */
 export function defaultResume(resumes: readonly Resume[]): Resume | null {
   return [...resumes].sort((a, b) => b.updatedAt - a.updatedAt)[0] ?? null;
 }

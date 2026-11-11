@@ -11,7 +11,6 @@ export const ICON_ACTION_CLASSES =
   "text-muted hover:text-ink aria-disabled:cursor-not-allowed aria-disabled:opacity-40 aria-disabled:hover:bg-transparent";
 
 export type MoveButtonsProps = {
-  // What moves, as read by screen readers: "Move {label} up".
   label: string;
   canMoveUp: boolean;
   canMoveDown: boolean;
@@ -31,8 +30,7 @@ export function MoveButtons({
   function move(event: MouseEvent<HTMLButtonElement>, delta: -1 | 1, allowed: boolean) {
     if (!allowed) return;
     const button = event.currentTarget;
-    // React reorders a list by moving DOM nodes, and a moved node drops focus. Render now, then
-    // put focus back; focus() also scrolls the moved item into view.
+    // A moved DOM node drops focus: render now, then put it back (focus() also scrolls into view).
     flushSync(() => onMove(delta));
     button.focus();
   }

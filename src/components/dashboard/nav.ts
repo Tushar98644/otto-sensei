@@ -14,9 +14,8 @@ import { PORTFOLIO_ROUTE } from "@/components/portfolio/route";
 import { ROUTES } from "@/components/site/routes";
 import { TRASH_ROUTE } from "./trash/trash-route";
 
-// short: the name on the phone strip, where long names don't fit.
-// pro: the page is Pro as a whole. On Free the item carries a small "Pro" badge but stays a link:
-// its page says what the feature does and offers the trial.
+// short: the phone strip's name. pro: the page is Pro as a whole; on Free the item keeps its
+// link with a "Pro" badge, and the page offers the trial.
 export type AppNavItem = {
   href: string;
   label: string;
@@ -27,8 +26,7 @@ export type AppNavItem = {
   tour?: string;
 };
 
-// The sections, in the owner's order (2026-11-08). Every feature has its own place here, so
-// nothing is only reachable from inside another screen.
+// Every feature has its own place here, so nothing is only reachable from inside another screen.
 export const APP_NAV: readonly AppNavItem[] = [
   { href: ROUTES.dashboard, label: "Home", icon: House },
   { href: ROUTES.dashboardResumes, label: "Resumes", icon: FileText, tour: "dashboard-library" },
@@ -59,15 +57,14 @@ export const APP_NAV: readonly AppNavItem[] = [
   { href: ROUTES.dashboardFormats, label: "Formats", icon: LayoutTemplate },
 ];
 
-// Pinned to the bottom of the sidebar, under the sections. Account isn't here: the signed-in menu at
-// the foot of the sidebar (and the avatar on phones) already opens it (owner, 2026-11-09).
+// Account isn't here: the signed-in menu at the sidebar's foot (and the avatar on phones)
+// already opens it.
 export const APP_NAV_FOOTER: readonly AppNavItem[] = [
   { href: TRASH_ROUTE, label: "Recently deleted", icon: Trash2 },
 ];
 
-// Phones: the four sections people come back to most on the strip, everything else behind "More"
-// in the sidebar's order. Applications is a tab and Cover letters waits under More: letters are
-// mostly written from Tailor, while the tracker is checked between applications.
+// Applications is a tab and Cover letters waits under More: letters are mostly written from
+// Tailor, while the tracker is checked between applications.
 const PHONE_TAB_HREFS: readonly string[] = [
   ROUTES.dashboard,
   ROUTES.dashboardResumes,

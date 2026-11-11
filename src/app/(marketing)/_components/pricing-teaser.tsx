@@ -24,7 +24,6 @@ export function PricingTeaser({ jobCounts }: { jobCounts: JobCounts }) {
         help, every match from {open ? `${open} open jobs` : "open jobs"} and the full tracker come
         with Pro, and you can try it free for 3 days.
       </SectionHeader>
-      {/* Read when the page is built, like the rest of its config. */}
       <PricingPlans
         offer={billingOffer()}
         trial={trialOffered()}

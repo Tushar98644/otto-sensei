@@ -4,8 +4,7 @@ import { useActiveReport, useStudioStore, type StudioStep } from "@/lib/store/re
 import { studioTourEligible } from "./tours";
 import { useFirstRunTour } from "./use-first-run-tour";
 
-// The studio's first-run tour: the recruiter view's extracted text (after an upload), a flagged
-// line, Fix with Otto, Tailor and Download. Renders nothing; the tour draws itself over the page.
+// Renders nothing; the tour draws itself over the page.
 export function StudioTour({ step }: { step: StudioStep }) {
   const hasResume = useStudioStore(
     (state) => state.activeId !== null && Object.hasOwn(state.resumes, state.activeId),

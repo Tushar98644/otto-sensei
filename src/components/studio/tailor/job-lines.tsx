@@ -14,14 +14,10 @@ const SHOWN = 4;
 export type JobLinesProps = {
   lines: readonly JobLine[];
   unrelated: number;
-  // Lines the person added here exist only in the coming copy: nothing to open in the editor.
   addedIds: ReadonlySet<string>;
   onJump: (bulletId: string) => void;
 };
 
-// The resume's lines as this job reads them: which requirement each one shows, and what would make
-// it read better for this post. Weak proof of a must-have comes first, since that line is the one
-// a recruiter reads next.
 export function JobLines({ lines, unrelated, addedIds, onJump }: JobLinesProps) {
   const [all, setAll] = useState(false);
   if (lines.length === 0) return null;

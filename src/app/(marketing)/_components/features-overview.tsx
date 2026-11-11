@@ -11,9 +11,8 @@ import { Section, SectionHeader } from "./section";
 
 type Feature = { text: string; section?: string };
 
-// One line per section of the app, in the sidebar's order, so the landing page lists exactly what
-// a signed-in person sees. Each line must stay true of its page; a section further down this page
-// gets a link to it.
+// In the sidebar's order, so the page lists exactly what a signed-in person sees. Each line must
+// stay true of its page.
 const FEATURES: Record<string, Feature> = {
   [ROUTES.dashboardResumes]: {
     text: "Every resume and tailored copy in one place. Check, fix and download each one.",

@@ -1,9 +1,6 @@
 import { ArrowUpRight } from "lucide-react";
 import type { HiringNote } from "@/lib/ats/types";
 
-// One documented fact about a hiring system, what to do about it, and the vendor page that says
-// so. Shared by the Tailor step's job card and the recruiter view.
-
 function SourceLink({ source }: { source: HiringNote["source"] }) {
   return (
     <a
@@ -21,7 +18,6 @@ function SourceLink({ source }: { source: HiringNote["source"] }) {
 
 export type HiringNoteRowProps = {
   note: HiringNote;
-  // The system's name, when the list mixes systems.
   title?: string;
 };
 

@@ -24,7 +24,6 @@ export function MainNavLinks() {
   );
 }
 
-// Signed out: "Sign in" plus the main call to action. Signed in: one pill back to the dashboard.
 export function HeaderActions() {
   if (useSignedIn()) {
     return (

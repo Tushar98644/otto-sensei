@@ -8,18 +8,14 @@ import type { ResumeReview, ReviewItem } from "@/lib/lint/review";
 import { cn } from "@/lib/utils";
 import { openTarget, targetLabel } from "./open-target";
 
-// A group's element id, so "Fix these first" can open it and bring it into view.
 export const reviewItemDomId = (id: string) => `review-item-${id}`;
 
 export type WordsChecksProps = {
   resumeId: string;
   review: ResumeReview;
-  // Visually hidden when a tab already names the panel.
   hideHeading?: boolean;
 };
 
-// What a recruiter notices in the words, one folding row per kind of problem. Rows that need work
-// come first and show a warning; tips sit below them in a quieter style.
 export function WordsChecks({ resumeId, review, hideHeading = false }: WordsChecksProps) {
   const headingId = useId();
   return (

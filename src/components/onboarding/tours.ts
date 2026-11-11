@@ -1,8 +1,7 @@
 import { ROUTES } from "@/components/site/routes";
 import type { StudioStep } from "@/lib/store/resume-store";
 
-// First-run tours: what a stop is, and when each tour may start. Client-safe and DOM-free, so the
-// triggers are unit-tested; the copy, the lookups and the tip load only when a tour starts.
+// DOM-free so the triggers are unit-tested; copy, lookups and tip load only when a tour starts.
 
 export type TourName = "studio" | "dashboard";
 
@@ -15,7 +14,6 @@ export type TourStop = {
   body: string;
   // Looked up when the stop is shown, because its screen may not exist yet when the tour starts.
   target: () => Element | null;
-  // How the cut-out hugs the target: a card's corners or a key's.
   shape: StopShape;
   // Stops on another screen (a different studio step) bring it up first, then wait until ready.
   screen: string;
@@ -28,7 +26,6 @@ export type TourStop = {
 export type StudioTourState = {
   step: StudioStep;
   hasResume: boolean;
-  // The open resume was uploaded, so the recruiter view has a report to show.
   hasReport: boolean;
 };
 

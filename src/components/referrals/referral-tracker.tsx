@@ -15,8 +15,7 @@ import {
   type ReferralClaimOutcome,
 } from "@/lib/referrals/referrals";
 
-// Mounted once in the root layout. Turns ?ref=<code> into the invite cookie, then claims it once
-// the visitor is signed in. Renders nothing, and costs nothing for anyone without an invite.
+// Mounted once in the root layout. Costs nothing for anyone without an invite.
 
 const listeners = new Set<() => void>();
 

@@ -2,8 +2,6 @@ import { ChevronRight } from "lucide-react";
 import { HiringNoteRow } from "@/components/studio/hiring-notes";
 import { fileReadingNotes } from "@/lib/ats/systems";
 
-// The recruiter view's general version of the Tailor step's per-system notes: one documented fact
-// per common system about how it reads a file. Folded away, since the checks come first.
 export function HiringSystemsPanel() {
   const notes = fileReadingNotes();
   return (

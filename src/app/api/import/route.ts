@@ -17,11 +17,8 @@ export const runtime = "nodejs";
 // Structuring may call Claude, whose own deadline is 50 seconds.
 export const maxDuration = 60;
 
-// Upload → recruiter report plus an editable resume. No account needed, and never refused for the
-// plan: past the plan's AI reads the rule-based reader takes over (see ./ai-reads). Every file is
-// read by rules first, which is free and instant; the AI reader (and an AI read from the plan)
-// only takes over when that read looks weak (lib/resume/read-quality), or when the person asks
-// for it with ?reader=ai ("Let Otto re-read it").
+// Never refused for the plan (see ./ai-reads). Rules read every file first, free and instant; the
+// AI reader only takes over when that read looks weak, or on ?reader=ai ("Let Otto re-read it").
 export async function POST(req: Request): Promise<Response> {
   try {
     const askedForAI = new URL(req.url).searchParams.get("reader") === "ai";
@@ -93,8 +90,8 @@ export async function POST(req: Request): Promise<Response> {
 
 type ReadableText = { text: string; layout: ReadLayout };
 
-// The text to structure, or null for a scan. A LinkedIn "Save to PDF" profile is rebuilt column by
-// column, so its sidebar can't take the name's place and its columns aren't mixed.
+// Null for a scan. A LinkedIn "Save to PDF" profile is rebuilt column by column, so its sidebar
+// can't take the name's place.
 function readableText(extraction: Extraction): ReadableText | null {
   if (!extraction.signals.hasTextLayer) return null;
   const { kind, signals } = extraction;

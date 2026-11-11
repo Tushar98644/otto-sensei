@@ -4,10 +4,8 @@ import { cn } from "@/lib/utils";
 export type FolderTone = "plain" | "lavender" | "forest";
 
 export type FolderCardProps = ComponentProps<"div"> & {
-  // A short label on the folder's tab, e.g. "Uploaded file" or "Classic". Shown in small caps.
   tab: ReactNode;
   tone?: FolderTone;
-  // Sits at the far end of the tab row, outside the tab: a badge or a quiet action.
   tabEnd?: ReactNode;
   bodyClassName?: string;
 };
@@ -18,10 +16,7 @@ const TABS: Record<FolderTone, string> = {
   forest: "bg-primary text-white",
 };
 
-// Otto's signature surface: everything here is a document, so cards are folders with a labelled
-// tab. The tab and the body share the white of the sheet (or the tab takes a tone), and the body's
-// top-left corner stays square so the two read as one shape. Use on the mist canvas or a panel,
-// like any card.
+// The body's top-left corner stays square so tab and body read as one shape.
 export function FolderCard({
   tab,
   tone = "plain",

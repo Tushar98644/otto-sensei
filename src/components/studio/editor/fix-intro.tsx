@@ -23,10 +23,7 @@ function totalsMeta({ bullets, withIssues, withNumbers }: Totals): string {
   ].join(" · ");
 }
 
-// Otto's note above the editor, with the line counts in its meta line and a way to start: the
-// first weak line, and the GitHub import when the resume links GitHub but lists few projects.
-// Re-renders only when a count, that line or the offer changes. Sits inside the editor's Fix
-// dialog provider, so its button opens the same dialog as the line's own.
+// Inside the Fix dialog provider, so its button opens the same dialog as a line's own.
 export const FixIntro = memo(function FixIntro({ resumeId }: { resumeId: string }) {
   const totals = useLintTotals(resumeId);
   const firstWeak = useFirstWeakLine(resumeId);

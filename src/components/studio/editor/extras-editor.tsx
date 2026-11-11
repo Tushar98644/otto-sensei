@@ -67,8 +67,7 @@ function focusAddSection() {
   document.getElementById(ADD_SECTION_ID)?.querySelector("button")?.focus();
 }
 
-// Sections beyond the standard six. They print after those, in this order, so they move among
-// themselves only.
+// These print after the standard six sections, so they only move among themselves.
 export const ExtrasArea = memo(function ExtrasArea({ resumeId }: { resumeId: string }) {
   const ids = useItemIds(resumeId, (resume) => extrasOf(resume));
   const full = ids.length >= LIST_LIMITS.extraSections;

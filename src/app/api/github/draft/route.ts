@@ -15,9 +15,7 @@ export const maxDuration = 60;
 
 const GITHUB_BUDGET_MS = 15_000;
 
-// Picked repos and pull requests → drafted project entries. Never touches a resume: the dialog
-// shows the drafts and adds them only after the person confirms. Only from the GitHub account
-// linked to this one (../ownership.ts).
+// Never touches a resume: the dialog adds the drafts only after the person confirms.
 export async function POST(req: Request): Promise<Response> {
   const rejected = rejectCrossSite(req) ?? rejectNonJson(req);
   if (rejected) return rejected;

@@ -4,7 +4,7 @@ import { ROUTES } from "@/components/site/routes";
 import { buttonClasses } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
-// The one action the landing page exists for. Full width on phones, where it's easiest to tap.
+// Full width on phones, where it's easiest to tap.
 export function PrimaryCta({ className }: { className?: string }) {
   return (
     <Link

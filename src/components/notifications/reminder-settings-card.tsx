@@ -22,10 +22,8 @@ const SEGMENT = cn(
   "has-focus-visible:outline-2 has-focus-visible:outline-offset-2 has-focus-visible:outline-ink",
 );
 
-// The Account page's reminder defaults. Marking a job applied always sets a reminder in the bell;
-// these only change after how many days, and whether it is emailed too (off until turned on; the
-// switch is hidden when this server can't send email). Every change saves at once. Signed-out
-// visitors see nothing: the account view above already asks them to sign in.
+// Marking a job applied always sets a reminder in the bell; these only set the delay and email
+// (hidden when this server can't send email). Signed-out visitors see nothing.
 export function ReminderSettingsCard() {
   const { user } = useMe();
   const userId = user?.id ?? null;

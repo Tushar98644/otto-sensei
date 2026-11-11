@@ -11,11 +11,7 @@ type ControlProps = {
 
 export type FieldProps = {
   label: ReactNode;
-  // Exactly one control: <Input>, <Textarea>, <Select> or a native input. Field clones it to add
-  // id, aria-describedby and aria-invalid, keeping any id or description it already has:
-  //   <Field label="Email" hint="We'll send a 6-digit code." error={error}>
-  //     <Input type="email" value={email} onChange={...} />
-  //   </Field>
+  // Exactly one control; Field adds id, aria-describedby and aria-invalid, keeping its own.
   children: ReactElement<ControlProps>;
   hint?: ReactNode;
   error?: ReactNode;

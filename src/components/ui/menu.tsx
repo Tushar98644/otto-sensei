@@ -13,14 +13,11 @@ import {
 import { cn } from "@/lib/utils";
 
 // A WAI-ARIA menu button on the native popover: the browser handles outside clicks, Escape and
-// handing focus back to the trigger, and the panel sits in the top layer above sticky bars and
-// dialogs' backdrops. Arrow keys, Home and End move between items; Tab closes it and moves on.
-//   <Menu label="Resume actions" triggerLabel="More for Sample resume" items={[...]} />
+// focus return, and the top layer keeps it above sticky bars and dialog backdrops.
 
 export type MenuAction = {
   label: string;
   icon?: LucideIcon;
-  // A short gray line under the label.
   description?: string;
   onSelect: () => void;
   tone?: "default" | "danger";
@@ -32,7 +29,6 @@ export type MenuAction = {
 export type MenuEntry = MenuAction | "separator";
 
 export type MenuProps = {
-  // Names the menu for screen readers, e.g. "Sort resumes".
   label: string;
   trigger: ReactNode;
   // Accessible name of the trigger when its visible content isn't enough (icon-only triggers).
@@ -221,8 +217,7 @@ function MenuItemButton({ action, onSelect }: { action: MenuAction; onSelect: ()
   );
 }
 
-// Under the trigger, or above it when there's little room below and more above (cards near the
-// bottom of the screen). Anchoring the upward case by its bottom edge needs no measuring.
+// Anchoring the upward case by its bottom edge needs no measuring.
 function place(trigger: HTMLElement | null, panel: HTMLElement | null, align: "start" | "end") {
   if (!trigger || !panel) return;
   const rect = trigger.getBoundingClientRect();

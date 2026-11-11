@@ -67,11 +67,8 @@ export function freeSample(
   };
 }
 
-// Free accounts: portfolios are Pro and Max. The screen sells the page, not the plan: it's hosted
-// for them, and every design below can be drawn with their own resume or with Jordan's sample,
-// which starts on when theirs is too thin to judge a design by (./preview-source.tsx). Someone who
-// had a page and dropped to Free is told it's offline but kept. The button opens the same upgrade
-// dialog as every other Pro tool, with the trial when it's on offer.
+// Sells the page, not the plan. Jordan's sample starts on when their resume is too thin to judge
+// a design by (./preview-source.tsx). Someone who dropped to Free is told it's kept, offline.
 export function PortfolioUpgrade({
   portfolio,
   candidates,

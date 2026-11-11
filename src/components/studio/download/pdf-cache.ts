@@ -8,9 +8,7 @@ import type { Resume } from "@/lib/resume/schema";
 
 export type RenderedPdf = { blob: Blob; pages: number };
 
-// Finished PDFs keyed by what they print, not by when the resume was saved: picking a format bumps
-// updatedAt and nothing else, so a file made ahead (on hovering a format, or while on Tailor) is
-// still the right one after the click. A few recent files only; each is tens of KB.
+// Keyed by what they print, not updatedAt (a format pick bumps it), so files made ahead still fit.
 const MAX_FILES = 6;
 const files = new Map<string, Promise<RenderedPdf>>();
 

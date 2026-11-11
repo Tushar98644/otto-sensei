@@ -9,8 +9,7 @@ import type { PdfPageSize } from "@/lib/pdf/page-size";
 import { cn } from "@/lib/utils";
 import { useMediaQuery } from "../use-media-query";
 
-// Phones and tablets can't show a PDF inside a page (Android downloads it, iOS shows only the first
-// page as a picture), so they get a link that opens it full screen instead.
+// Phones and tablets can't show a PDF inline (Android downloads, iOS shows page one as an image).
 export function useInlinePdfPreview(): boolean {
   return useMediaQuery("(min-width: 768px) and (pointer: fine)");
 }
@@ -23,7 +22,6 @@ const ASPECT: Record<PdfPageSize, string> = {
 export type PdfFrameProps = {
   url: string | null;
   pageSize: PdfPageSize;
-  // A newer version is being made; the one shown is slightly out of date.
   updating: boolean;
   className?: string;
 };
@@ -34,8 +32,7 @@ const PAINT_MS = 150;
 const LOAD_FALLBACK_MS = 1500;
 const FADE_MS = 200;
 
-// Each version is a new file in a new frame. The new frame loads hidden on top of the old one and
-// fades in once the viewer has drawn it, then the old frame goes: no blank flash between formats.
+// The new frame loads hidden over the old one and fades in once drawn: no blank flash.
 export function PdfFrame({ url, pageSize, updating, className }: PdfFrameProps) {
   // Bottom to top: the frame on show, and at most one newer frame still loading over it.
   const [frames, setFrames] = useState<string[]>(url ? [url] : []);

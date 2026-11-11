@@ -18,9 +18,8 @@ import { retryAfterHeader } from "@/lib/rate-limit";
 import { consumeUsage, refundUsage } from "@/lib/usage";
 import { perPeriod, resetSentence, thisPeriod } from "@/lib/usage-copy";
 
-// Server-only. How AI allowances answer. Free (and signed-out visitors) have no AI at all, so they
-// get 402 upgrade_required, which the client turns into the trial prompt. Pro, Max and the trial
-// spend their allowance, the same way on every AI route, so two devices can't double it.
+// Free and signed-out visitors get 402 upgrade_required, which the client turns into the trial
+// prompt. Every AI route spends the allowance the same way, so two devices can't double it.
 
 export type AccountUnit = {
   giveBack: () => Promise<void>;
@@ -37,7 +36,6 @@ const COMES_WITH_PRO: Record<Feature, string> = {
   github: "GitHub drafts come with Pro.",
 };
 
-/** The 402 for a feature the plan (or no account) doesn't include. */
 export function upgradeRequired(user: SessionUser | null, feature: Feature): Response {
   log.info(`${feature}.upgrade_required`, { plan: user?.plan ?? "signed_out" });
   return fail(
@@ -47,15 +45,11 @@ export function upgradeRequired(user: SessionUser | null, feature: Feature): Res
   );
 }
 
-/** The 402 when the plan has none of the feature, else null. */
 export function requirePlanFeature(user: SessionUser | null, feature: Feature): Response | null {
   return user && planIncludes(user.plan, feature) ? null : upgradeRequired(user, feature);
 }
 
-/**
- * Takes one unit, or answers 402 (no such feature on the plan) or 429 limit_reached (the feature's
- * limit or the AI budget; a used-up budget takes no unit).
- */
+/** A used-up AI budget answers 429 limit_reached without taking a unit. */
 export async function takeAccountUnit(
   user: SessionUser,
   feature: Feature,
@@ -73,7 +67,6 @@ export async function takeAccountUnit(
   };
 }
 
-/** The 429 for a used-up AI budget, retried once the period starts over. */
 export function budgetReached(user: SessionUser, period: UsagePeriod, now: number): Response {
   log.warn("ai_budget.reached", { plan: user.plan, period: period.kind });
   return fail(
@@ -85,7 +78,6 @@ export function budgetReached(user: SessionUser, period: UsagePeriod, now: numbe
   );
 }
 
-/** The 429 for a used-up allowance, retried once the period starts over. */
 export function limitReached(
   user: SessionUser,
   feature: Feature,

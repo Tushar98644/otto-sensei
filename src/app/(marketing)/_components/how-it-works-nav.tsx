@@ -5,9 +5,8 @@ import { cn } from "@/lib/utils";
 
 export type HowItWorksNavItem = { id: string; name: string };
 
-// The pinned step list beside How it works. The step whose screen crosses the middle of the
-// viewport is marked, so the list says where you are. Color and weight only, never motion: nothing
-// moves below the hero. Between two screens the last one stays marked instead of flickering off.
+// Color and weight only, never motion: nothing moves below the hero. Between two screens the last
+// one stays marked instead of flickering off.
 export function HowItWorksNav({
   items,
   className,

@@ -18,18 +18,14 @@ import {
   type DropTarget,
 } from "./board";
 
-// Moving a card by pointer or keyboard, with no library. A mouse drags from anywhere on the card
-// that isn't a control; touch and pen drag from its avatar (the handle), so the page still
-// scrolls under a finger. The handle also works from the keyboard: Space picks the card up, the
-// arrow keys choose a column, Space drops it there and Escape puts it back. Drop places are any
-// element with data-drop-target (the columns, the phone's stage picker, the delete place).
+// No library. Touch and pen drag from the avatar (the handle), so the page still scrolls under a
+// finger; a mouse drags from anywhere that isn't a control.
 
 export type DragMode = "pointer" | "keyboard";
 
 export type Held = { card: BoardCard; mode: DragMode; target: DropTarget | null };
 
-// Where the card was let go, so a question about the move (Interviewing's date, Closed's reason)
-// opens beside it. Null for the keyboard: it opens beside the card instead.
+// Where the card was let go, so the move's question opens beside it. Null for the keyboard.
 export type DropPoint = { x: number; y: number } | null;
 
 type Pending = {
@@ -46,7 +42,6 @@ type Pending = {
   started: boolean;
 };
 
-// A pointer that moves less than this is a click.
 const DRAG_START_PX = 5;
 // Near an edge of the board's own scroller, it scrolls toward that edge, faster the closer.
 const EDGE_PX = 64;
@@ -65,7 +60,6 @@ export type BoardDrag = {
   // The floating copy under the pointer: its width, and a ref the hook moves without re-rendering.
   ghost: { width: number } | null;
   ghostRef: RefObject<HTMLDivElement | null>;
-  // What the board's live region says, and a way for the board to say what a drop did.
   announcement: string;
   announce: (message: string) => void;
   onCardPointerDown: (event: PointerEvent<HTMLElement>, card: BoardCard) => void;
@@ -125,8 +119,7 @@ export function useBoardDrag({
 
   // Window listeners for the pointer, so a fast drag that leaves the card is still followed.
   useEffect(() => {
-    // Scrolls the board while the pointer rests near its left or right edge, then checks again
-    // on the next frame, so holding still at the edge keeps it moving.
+    // Re-checks every frame, so holding still at the edge keeps scrolling.
     function edgeScroll() {
       frame.current = null;
       const drag = pending.current;

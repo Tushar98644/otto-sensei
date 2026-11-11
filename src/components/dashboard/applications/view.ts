@@ -1,8 +1,6 @@
 import type { Application } from "@/lib/applications/schema";
 import { APPLICATION_STATUSES, type ApplicationStatus } from "@/lib/applications/status";
 
-// Pure list logic for the Applications page and the resume-card shortcut.
-
 export type ApplicationFilter = "all" | ApplicationStatus;
 export const APPLICATION_FILTERS: readonly ApplicationFilter[] = ["all", ...APPLICATION_STATUSES];
 
@@ -22,11 +20,8 @@ export function sortApplications(list: readonly Application[]): Application[] {
   );
 }
 
-/**
- * Puts one application in the list, replacing an older copy of it. A copy older than the one
- * shown is ignored, so a slow response can't undo a later click; a tie wins, which is how an
- * optimistic change is rolled back.
- */
+// A copy older than the one shown is ignored, so a slow response can't undo a later click; a tie
+// wins, which is how an optimistic change is rolled back.
 export function upsertApplication(list: readonly Application[], next: Application): Application[] {
   const index = list.findIndex((item) => item.id === next.id);
   if (index === -1) return sortApplications([...list, next]);
@@ -64,7 +59,6 @@ export function filterApplications(
   return filter === "all" ? [...list] : list.filter((application) => application.status === filter);
 }
 
-// The newest application sent with this resume version, for its card.
 export function latestFor(list: readonly Application[], resumeId: string): Application | null {
   let latest: Application | null = null;
   for (const application of list) {
@@ -88,8 +82,7 @@ export function formatDay(timestamp: number, now: number): string {
   return format.format(timestamp);
 }
 
-// The version a row says was sent: its live title, the title it had if it's been deleted since,
-// or none at all for a file that isn't in Otto.
+// Its live title, else the title it had if deleted since, or none for a file not in Otto.
 export function sentLabel(
   application: Pick<Application, "resumeId" | "resumeTitle">,
   titles: ReadonlyMap<string, { title: string }>,
@@ -104,7 +97,6 @@ export function applicationAnchor(id: string): string {
   return `application-${id}`;
 }
 
-// The interview prep page for one application.
 export function prepHref(id: string): string {
   return `/dashboard/applications/${encodeURIComponent(id)}/prep`;
 }

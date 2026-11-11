@@ -1,9 +1,8 @@
 import { templateCss } from "../css";
 
-// Ported from bchiang7/v4 (MIT, see ./LICENSE.txt): src/styles/{variables,mixins,GlobalStyle,
-// TransitionStyles}.js and the styled-components in src/components. Viewport media queries
-// became container queries on the template root, so the editor's preview column gets the phone
-// layout. Calibre and SF Mono (not free to ship) are swapped for Inter and Fira Code.
+// Ported from bchiang7/v4 (MIT, see ./LICENSE.txt). Viewport media queries became container
+// queries on the template root, so the editor's preview column gets the phone layout. Calibre and
+// SF Mono (not free to ship) are swapped for Inter and Fira Code.
 const css = `
 :scope {
   --dark-navy: #020c1b;

@@ -1,5 +1,4 @@
-// Where to send someone after they sign in. Only paths on this site are allowed: anything else in
-// ?next= would turn /login into an open redirect.
+// Only paths on this site: anything else in ?next= would turn /login into an open redirect.
 
 export const DEFAULT_NEXT_PATH = "/dashboard";
 
@@ -28,7 +27,6 @@ export function safeNextPath(
   return `${url.pathname}${url.search}${url.hash}`;
 }
 
-// A /login link that returns here afterwards, e.g. loginHref("/studio?step=fix").
 export function loginHref(next?: string): string {
   const path = next ? safeNextPath(next, "") : "";
   return path ? `/login?next=${encodeURIComponent(path)}` : "/login";

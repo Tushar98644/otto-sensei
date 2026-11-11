@@ -29,11 +29,7 @@ function printedLines(resume: Resume, section: BulletSection, parentId: string):
   });
 }
 
-/**
- * One entry's printed lines and their issues, once typing pauses. Ids and issues are selected as
- * two flat lists so the shallow compare settles: the lint cache keeps a line's issues array while
- * they stay the same, so typing in another entry doesn't re-render this one.
- */
+// Two flat lists so the shallow compare settles: typing in another entry doesn't re-render this.
 export function useEntryLines(
   resumeId: string,
   section: BulletSection,

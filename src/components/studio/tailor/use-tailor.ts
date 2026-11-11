@@ -22,7 +22,6 @@ import {
 export const MIN_POST_CHARS = 80;
 const MAX_LINK_CHARS = 2048;
 
-// The parts of a result the person adds to while reading it.
 export type ResultPatch = Partial<Pick<SavedResult, "choices" | "letter" | "answers" | "copyId">>;
 
 export type TailorRun = {
@@ -56,8 +55,7 @@ function errorMessage(
   return OTTO.errors.generic;
 }
 
-// One tailor call against `source`. A new result replaces the last one only when it arrives, so a
-// failed retry never wipes results the user is still reading.
+// A new result replaces the last only when it arrives, so a failed retry never wipes results.
 export function useTailorRun(source: Resume): TailorRun {
   const gate = useAccountGate();
   const { me } = useMe();
@@ -69,8 +67,7 @@ export function useTailorRun(source: Resume): TailorRun {
 
   async function start(job: TailorDraft) {
     if (busy.current) return;
-    // The same resume against the same post (Tailor again from the Jobs tab, or Compare with
-    // nothing changed): the results on screen are the answer, and another call would spend a tailor.
+    // Same resume and post: the results shown already answer it, and a call would spend a tailor.
     if (last && sameRun(last, source, job)) {
       setError(null);
       return;
@@ -126,7 +123,6 @@ function linkProblem(link: string): string | null {
   return null;
 }
 
-// What to say when a link can't be read, and whether to open the paste fields as the backup.
 function readFailure(error: unknown): { message: string; backup: boolean } {
   if (isApiError(error, "network_error")) return { message: OTTO.errors.offline, backup: false };
   if (isApiError(error, "bad_request")) return { message: error.message, backup: false };
@@ -145,9 +141,7 @@ type Notice = { link: string; message: string; on: "field" | "paste" };
 
 export type JobLink = {
   link: string;
-  // The paste fields are open: the backup when a link can't be read, or the person's choice.
   pasting: boolean;
-  // What was read from the link, while the draft still holds exactly that.
   posting: ReadJob | null;
   reading: boolean;
   linkError: string | null;
@@ -158,7 +152,6 @@ export type JobLink = {
   postRef: RefObject<HTMLTextAreaElement | null>;
   edit: (link: string) => void;
   read: () => Promise<void>;
-  // A paste into the link field: read at once, no button.
   pasteAndRead: (text: string) => void;
   pasteInstead: () => void;
 };
@@ -169,15 +162,9 @@ type JobLinkOptions = {
   // Sends the draft the step last rendered, which is why a read job waits for its render.
   onSubmit: () => void;
   busy: boolean;
-  // A job picked on the Jobs tab: read (or used) once, as if its link had just been pasted.
   queued?: QueuedJob | null;
 };
 
-/**
- * Turns a job link into the draft's title, company and text, then goes straight on to tailoring.
- * Pasting the link is enough to start; Enter reads a typed one. When the link can't be read, opens
- * the paste fields with the reason.
- */
 export function useJobLink({ draft, onChange, onSubmit, busy, queued = null }: JobLinkOptions): JobLink {
   const linkRef = useRef<HTMLInputElement>(null);
   const postRef = useRef<HTMLTextAreaElement>(null);
@@ -262,9 +249,8 @@ export function useJobLink({ draft, onChange, onSubmit, busy, queued = null }: J
     }
   }
 
-  // The job arrives from the Jobs tab after the first render, like a paste, so the step's own
-  // state is in place before the read starts. Taken out of storage then, so a reload or the
-  // Strict Mode re-run doesn't read it twice.
+  // Read after the first render, like a paste, so the step's state is in place. Taken out of
+  // storage then, so a reload or Strict Mode re-run doesn't read it twice.
   const queuedJob = useRef(queued);
   useEffect(() => {
     const job = queuedJob.current;
@@ -272,7 +258,6 @@ export function useJobLink({ draft, onChange, onSubmit, busy, queued = null }: J
     const timer = window.setTimeout(() => {
       queuedJob.current = null;
       clearQueuedJob();
-      // Read just now by the server for the Jobs tab, the same way the link would be: used as is.
       if (job.posting && job.text.trim()) {
         const next: TailorDraft = {
           link: job.link,
@@ -317,7 +302,6 @@ export function useJobLink({ draft, onChange, onSubmit, busy, queued = null }: J
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // While reading, the working Otto under the field says so.
   let status = reading ? "" : (shown?.message ?? "");
   if (!reading && !shown && posting) {
     status = `Read the job: ${[posting.title, posting.company].filter(Boolean).join(" at ") || "untitled"}.`;

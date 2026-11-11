@@ -10,7 +10,6 @@ import { renderPdfCached } from "./pdf-cache";
 export type PdfFile = {
   blob: Blob;
   url: string;
-  // Which resume version, page size and format this file was made from.
   key: string;
   pages: number;
 };
@@ -18,14 +17,12 @@ export type PdfFile = {
 export type ResumePdf = {
   // The newest finished file. Stays up while a newer one renders, so the preview never blanks out.
   file: PdfFile | null;
-  // The file matches the resume as it is right now.
   isCurrent: boolean;
   failed: boolean;
   retry: () => void;
 };
 
-// Rendering takes a few hundred milliseconds of main-thread work, so edits wait for a pause in
-// typing. The first render, page size switches, format switches and look changes start right away.
+// Rendering costs a few hundred ms of main thread, so edits wait for a typing pause.
 const EDIT_PAUSE_MS = 600;
 
 export function pdfKey(resume: Resume, pageSize: PdfPageSize): string {
@@ -46,7 +43,6 @@ export function useResumePdf(resume: Resume, pageSize: PdfPageSize): ResumePdf {
   const [file, setFile] = useState<PdfFile | null>(null);
   const [failedKey, setFailedKey] = useState<string | null>(null);
   const [attempt, setAttempt] = useState(0);
-  // Version and look of the last finished render: decide between rendering now and waiting.
   const rendered = useRef<{ version: string; template: TemplateId; design: string } | null>(null);
   const template = templateOf(resume);
   const design = designKey(resume);
@@ -91,8 +87,7 @@ export function useResumePdf(resume: Resume, pageSize: PdfPageSize): ResumePdf {
     };
   }, [resume, pageSize, template, design, attempt]);
 
-  // Each object URL holds its PDF in memory until revoked: free the old one once a new one is
-  // showing, and the last one when the step closes.
+  // Object URLs hold their PDF until revoked: free the old one once replaced, the last on close.
   const url = file?.url;
   useEffect(() => {
     if (!url) return;

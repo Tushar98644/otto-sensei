@@ -9,7 +9,6 @@ const RECHECK_DELAYS_MS = [2_000, 3_000, 5_000, 8_000, 13_000, 21_000];
 
 export type UpgradeWatch = {
   state: "idle" | "checking" | "gave-up";
-  // Starts another round of checks, for a "Check again" button.
   retry: () => void;
 };
 

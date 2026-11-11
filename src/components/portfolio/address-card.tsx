@@ -10,7 +10,6 @@ import { PORTFOLIO_LIMITS, type Portfolio } from "@/lib/portfolio/types";
 import { EditorSection } from "./check-row";
 import { messageOf, savePortfolio, usePortfolioStore } from "./portfolio-store";
 
-// Typing pauses this long before the server is asked whether the address is free.
 const CHECK_DELAY_MS = 400;
 
 type Check = { slug: string; available: boolean; message: string | null } | null;

@@ -1,9 +1,7 @@
 import { PDF_FONT } from "@/lib/pdf/fonts";
 import { INK, defineTheme } from "../theme";
 
-// The one-page "resume book" format business schools send to banks and consultancies: Times 10pt
-// (Tinos, same widths) throughout, a capital name, a thin rule over each bold capital heading,
-// square bullets and years only. The densest format.
+// The one-page "resume book" business schools send to banks: Times 10pt (Tinos, same widths).
 
 const RULE_GRAY = "#808080";
 

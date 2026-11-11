@@ -3,10 +3,7 @@ import { PDF_FONT } from "@/lib/pdf/fonts";
 import { tint } from "../design";
 import { INK, defineTheme } from "../theme";
 
-// moderncv's "banking" style (LPPL): Palatino (TeX Gyre Pagella), the name in the accent with
-// "| Headline" beside it in gray, gray contact lines, accent headings over a light rule, entries as
-// a bold organisation and city over an italic role and dates, and hollow accent bullets. Navy by
-// default, where moderncv is a bright blue.
+// moderncv's "banking" style (LPPL) in Palatino (TeX Gyre Pagella); navy, not its bright blue.
 
 const ACCENT = ACCENT_COLORS.navy;
 const GRAY = "#727272";

@@ -30,9 +30,7 @@ export type DownloadActionsProps = {
   check: ExportCheck;
   pageSize: PdfPageSize;
   fileName: string;
-  // Characters the PDF fonts can't show, already swapped or left out.
   changedCharacters: string[];
-  // Phones get a "Preview" link here instead of the inline preview.
   showPreviewLink: boolean;
 };
 

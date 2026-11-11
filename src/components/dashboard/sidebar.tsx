@@ -42,8 +42,6 @@ import type { StudioActions } from "./use-studio-actions";
 
 const count = new Intl.NumberFormat("en-US");
 
-// Desktop navigation: logo, the one "new" control, the sections, then the account (with its plan) at
-// the bottom, so "where am I and am I signed in" is always answered on the left.
 export function Sidebar({
   user,
   me,
@@ -122,10 +120,9 @@ function SidebarLink({
   count: number | null;
 }) {
   const current = isCurrent(item, pathname);
-  // The page and its data are prefetched once the pointer or focus arrives, not as soon as the
-  // sidebar shows: viewport prefetching sent 18 requests (two per page) on every dashboard load
-  // for pages most visits never open. Dashboard pages are dynamic, so only a full prefetch
-  // brings the page itself.
+  // Prefetched on pointer or focus, not on view: viewport prefetching sent 18 requests per
+  // dashboard load for pages most visits never open. Dashboard pages are dynamic, so only a full
+  // prefetch brings the page itself.
   const [intent, setIntent] = useState(false);
   const showIntent = () => {
     setIntent(true);
@@ -166,8 +163,8 @@ function SidebarLink({
   );
 }
 
-// "Pro", "Pro · trial until Nov 13" or "Free plan": the plan in one line under the account, instead
-// of a usage panel (owner, 2026-11-10). Meters live on the Account page; limits prompt where they bite.
+// "Pro · trial until Nov 13" or "Free plan". Meters live on the Account page; limits prompt where
+// they bite.
 function planLine(user: SessionUser): string {
   if (user.plan === "free") return "Free plan";
   const name = PLANS[user.plan].name;

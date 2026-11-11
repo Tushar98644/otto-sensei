@@ -7,13 +7,9 @@ import { log } from "@/lib/log";
 import { type Resume } from "@/lib/resume/schema";
 import { ResumeSchema } from "@/lib/resume/validation";
 
-// Server-only. Cloud backups of studio resumes, one row per (user_id, id), so resumes follow
-// their owner to another device; the browser copy stays the source of truth. `updated_at` holds
-// the resume's own updatedAt: it orders the list and decides which of two copies is newer, the
-// same rule the studio uses when it merges the cloud copies in.
-//
-// Deleting a backup leaves a tombstone. Without one, another device that still holds the resume
-// would see it missing from the cloud and upload it again.
+// The browser copy stays the source of truth. `updated_at` holds the resume's own updatedAt, so
+// it decides which copy is newer by the same rule as the studio's merge.
+// A deleted backup leaves a tombstone, or another device would see it missing and upload it again.
 
 export const MAX_RESUMES_PER_USER = RESUME_LIMITS.paid;
 // 50 x 80 KiB keeps GET /api/resumes under Vercel's 4.5 MB response limit. A long real CV is
@@ -41,10 +37,7 @@ export type SaveStatus =
 
 export type BackupList = { resumes: Resume[]; deletedIds: string[] };
 
-/**
- * The user's backups, newest first, and the ids of resumes deleted from the account, newest
- * deletion first. A row that no longer passes ResumeSchema is skipped.
- */
+/** A row that no longer passes ResumeSchema is skipped. */
 export async function listBackups(userId: string): Promise<BackupList> {
   const db = await getDb();
   // One snapshot for both reads: a delete landing mid-request can't list a resume as both live
@@ -70,23 +63,16 @@ export async function listBackups(userId: string): Promise<BackupList> {
   const list: Resume[] = [];
   for (const row of rows) {
     const parsed = ResumeSchema.safeParse(row.data);
-    // Writes are validated, so a bad row means the schema moved on since. Skipping it keeps the
-    // rest of the list loading.
+    // Writes are validated, so a bad row means the schema moved on. Skipping it keeps the rest.
     if (parsed.success) list.push(parsed.data);
     else log.warn("resumes.invalid_row", { resumeId: row.id });
   }
   return { resumes: list, deletedIds: tombstones.map((tombstone) => tombstone.id) };
 }
 
-/**
- * Inserts or updates one backup. Runs under the account's row lock, so concurrent saves can't
- * push it past MAX_RESUMES_PER_USER or the plan's `planLimit`, and a save can't slip past a
- * concurrent delete. Both limits only stop new resumes: an account already past `planLimit` (a
- * paid plan that ended) keeps saving edits to the ones it has. An existing
- * row only changes when the incoming copy is at least as new, so a late retry of an older version
- * is a no-op ("stale"). A resume deleted from the account is never written again ("deleted"), and
- * nothing is written once the account itself is gone ("no_user").
- */
+// Under the account's row lock, so concurrent saves can't pass the limits or slip past a delete.
+// Limits only stop new resumes: an account past `planLimit` (a lapsed plan) keeps saving edits.
+// Only a copy at least as new replaces the row, so a late retry is a no-op ("stale").
 export async function saveBackup(
   userId: string,
   resume: Resume,
@@ -128,11 +114,8 @@ export async function saveBackup(
   return { status, bytes };
 }
 
-/**
- * Deletes one backup and leaves a tombstone for it, in one transaction under the account's row
- * lock, so no device can restore it in between. Also prunes this account's oldest tombstones a
- * little at a time: by age, and down to MAX_TOMBSTONES_PER_USER.
- */
+// One transaction under the row lock, so no device can restore it in between. Prunes the oldest
+// tombstones a little at a time.
 export async function deleteBackup(userId: string, id: string, now = Date.now()): Promise<void> {
   const db = await getDb();
   const ownTombstones = eq(resumeTombstones.userId, userId);

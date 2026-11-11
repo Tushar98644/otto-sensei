@@ -53,9 +53,6 @@ type Load =
   | { status: "error"; message: string }
   | { status: "ready"; thread: ApplicationThread };
 
-// One application's page: the hub every other screen links to. Where it stands and how it got
-// there, the job post, the resume version sent, its letters and answers, interview prep, the
-// follow-up and notes. All of it is linked by itself as the job moves along; nothing to attach.
 export function ApplicationHub({ applicationId }: { applicationId: string }) {
   const router = useRouter();
   const now = useNow();

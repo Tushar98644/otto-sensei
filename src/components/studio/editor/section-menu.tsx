@@ -6,15 +6,13 @@ import { Menu, type MenuEntry } from "@/components/ui/menu";
 import { ICON_ACTION_CLASSES } from "./move-buttons";
 
 export type SectionOptions = {
-  // Rename in place. `value` is what the field starts with; an empty title goes back to the
-  // section's standard name.
+  // `value` is the field's start; an empty title goes back to the section's standard name.
   rename?: {
     value: string;
     placeholder: string;
     maxLength: number;
     onSave: (title: string) => void;
   };
-  // "Hide in this version": the section stays in the editor, dimmed, and the PDF leaves it out.
   hidden?: boolean;
   onToggleHidden?: () => void;
   // Extra sections only. With something to lose (`confirm` names it), the removal comes with Undo.

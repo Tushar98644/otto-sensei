@@ -8,9 +8,7 @@ import { SAVED_JOBS } from "@/lib/queries/keys";
 import { savedJobsQuery, writingsQuery } from "@/lib/queries/options";
 import type { Writing } from "@/lib/writings/schema";
 
-// What the board shows beside the applications themselves: saved jobs (the To apply column) and
-// the letters and answers (a small mark on each card). Either failing only leaves its part out:
-// the board itself still works from the applications and this browser's tailored copies.
+// Either failing only leaves its part out: the board still works from the applications.
 
 export type BoardExtras = {
   savedJobs: SavedJob[];

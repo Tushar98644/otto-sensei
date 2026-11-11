@@ -11,8 +11,7 @@ export const runtime = "nodejs";
 const CLAIMS_PER_HOUR = 10;
 const HOUR_MS = 60 * 60 * 1000;
 
-// POST /api/referrals/claim (body {}): sent by the browser after sign-in while it holds an invite
-// cookie. The code comes from the cookie, never the body.
+// The code comes from the invite cookie, never the body.
 export async function POST(req: Request): Promise<Response> {
   const blocked = rejectCrossSite(req) ?? rejectNonJson(req);
   if (blocked) return blocked;

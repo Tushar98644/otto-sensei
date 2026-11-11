@@ -3,9 +3,8 @@
 import { ArrowUp } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
-// Prose's moving parts, after antfu/antfu.me (code MIT): the ArtPlum branches that grow in from
-// the edges behind the page (src/components/ArtPlum.vue, without VueUse) and the NavBar's
-// scroll-to-top button.
+// Prose's moving parts, after antfu/antfu.me (code MIT): ArtPlum's branches (without VueUse) and
+// the NavBar's scroll-to-top button.
 
 const R180 = Math.PI;
 const R90 = Math.PI / 2;

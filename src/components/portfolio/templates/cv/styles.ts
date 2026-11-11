@@ -1,10 +1,7 @@
 import { templateCss } from "../css";
 
-// Ported from BartoszJarocki/cv (MIT, see ./LICENSE.txt): the Tailwind classes in
-// src/app/{page,globals.css}.tsx, src/app/components/*.tsx and src/components/ui/*.tsx written
-// out as CSS, with the oklch roles from globals.css and tailwind.config.js. Breakpoints (sm 640,
-// md 768, lg 1024, xl 1280) are container queries on the template root. The original's fonts
-// (Geist Mono, Geist Pixel Square) are free and used as is.
+// Ported from BartoszJarocki/cv (MIT, see ./LICENSE.txt): its Tailwind classes and oklch roles
+// written out as CSS. Breakpoints are container queries on the template root.
 const css = `
 :scope {
   --bg: oklch(0.984 0.0025 95);

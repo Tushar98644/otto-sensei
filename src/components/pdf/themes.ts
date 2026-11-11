@@ -10,8 +10,7 @@ import { minimal } from "./templates/minimal";
 import { modern } from "./templates/modern";
 import type { TemplateTheme } from "./theme";
 
-// Every format's theme, with no react-pdf import, so the Word export can read the same sizes and
-// colors without loading the renderer.
+// No react-pdf import, so the Word export reads the same sizes and colors without the renderer.
 
 export const TEMPLATE_THEMES: Record<TemplateId, TemplateTheme> = {
   classic,

@@ -5,8 +5,7 @@ import { log } from "@/lib/log";
 
 export const runtime = "nodejs";
 
-// Called by Creem, not the browser: the signature is the auth. Creem only reads the status code; the
-// short message shows up in its delivery log.
+// Creem calls this; the signature is the auth. Creem only reads the status code.
 export async function POST(req: Request) {
   let rawBody: string;
   try {

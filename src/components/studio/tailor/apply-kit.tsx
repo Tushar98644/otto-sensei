@@ -25,14 +25,12 @@ export type ApplyKitProps = {
   onRemoveAnswer: (id: string) => void;
 };
 
-// The writing an application asks for besides the resume, from the same facts and the same job.
 export function ApplyKit(props: ApplyKitProps) {
   const { user, me, loading } = useMe();
   const allowance = loading
     ? null
     : writingAllowance(user?.plan, me?.usage?.letter, me?.period, me?.billing.trial !== false);
   return (
-    // Scrolled to when the Download step asks for the cover letter.
     <Card id={APPLY_KIT_ID} className="scroll-mt-6">
       <CardHeader>
         <CardTitle as="h2">Apply to this job</CardTitle>

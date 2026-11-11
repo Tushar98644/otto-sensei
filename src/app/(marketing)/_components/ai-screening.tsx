@@ -31,7 +31,6 @@ const POINTS: readonly Point[] = [
   },
 ];
 
-// Right under the hero: why the checks matter, before the steps that show them.
 export function AiScreening() {
   return (
     <Section id="ai-screening" labelledBy="ai-screening-title">

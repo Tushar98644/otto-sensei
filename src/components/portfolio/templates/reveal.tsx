@@ -2,13 +2,9 @@
 
 import { useEffect, useRef } from "react";
 
-// Scroll reveals for templates whose reference fades sections in as they arrive (v4's
-// ScrollReveal, Hamish's section transitions). Drawn as the template root's first child.
-//
-// The server's HTML shows everything: only elements still below the fold when this runs are
-// marked data-shown="false" (the template's CSS hides those), then flipped to "true" as they
-// scroll in. So a reader without JavaScript, or with reduced motion, sees a plain page and never
-// a flash of hidden content above the fold.
+// Scroll reveals for templates whose reference fades sections in (v4, Hamish). The server's HTML
+// shows everything; only elements still below the fold get data-shown="false", so readers
+// without JavaScript or with reduced motion see a plain page, never a flash above the fold.
 export function RevealOnScroll({ selector = "[data-reveal]" }: { selector?: string }) {
   const ref = useRef<HTMLSpanElement>(null);
 

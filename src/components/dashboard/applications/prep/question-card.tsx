@@ -20,7 +20,6 @@ function Note({ label, children }: { label: string; children: ReactNode }) {
   );
 }
 
-/** What the interviewer is after and how to answer: pointers, the story to tell, the follow-up. */
 export function AnswerNotes({ item, story }: { item: PrepQuestion; story: LinkedStory | null }) {
   return (
     <>
@@ -74,8 +73,7 @@ export function hasNotes(item: PrepQuestion, story: LinkedStory | null): boolean
   return Boolean(item.checking || item.points.length > 0 || story || item.followUp);
 }
 
-// One question as the interviewer says it: a speech card under their name, with how to answer it
-// folded underneath so the page reads as the interview first and the prep second.
+// How to answer is folded under, so the page reads as the interview first and the prep second.
 export function QuestionCard({
   item,
   number,

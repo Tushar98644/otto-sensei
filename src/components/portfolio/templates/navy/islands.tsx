@@ -2,10 +2,8 @@
 
 import { useEffect, useRef, useState, type KeyboardEvent, type CSSProperties } from "react";
 
-// Navy's interactive parts, after bchiang7/v4 (MIT): the header that hides while scrolling down
-// (hooks/useScrollDirection.js), the mobile menu (components/menu.js) and the job tabs
-// (sections/jobs.js). Each renders the same markup on the server, so the page reads fine before
-// it hydrates.
+// Navy's interactive parts, after bchiang7/v4 (MIT). Each renders the same markup on the server,
+// so the page reads fine before it hydrates.
 
 /** Sets data-top and data-direction on the header it sits in, for the hide-on-scroll styles. */
 export function NavScroll() {
@@ -30,7 +28,6 @@ export function NavScroll() {
 
 export type NavLink = { href: string; label: string };
 
-/** The hamburger and its slide-in sidebar, shown at 768px and below. */
 export function NavMenu({ links }: { links: NavLink[] }) {
   const [open, setOpen] = useState(false);
   const button = useRef<HTMLButtonElement>(null);
@@ -89,7 +86,6 @@ export type NavyJob = {
   lines: string[];
 };
 
-/** "Where I've Worked": one tab per company, arrow keys move between them. */
 export function JobTabs({ jobs }: { jobs: NavyJob[] }) {
   const [active, setActive] = useState(0);
   const tabs = useRef<(HTMLButtonElement | null)[]>([]);
@@ -207,7 +203,6 @@ export function JobTabs({ jobs }: { jobs: NavyJob[] }) {
   );
 }
 
-/** "Show More" under the project grid: the grid shows six until it's pressed. */
 export function ShowMore() {
   const [more, setMore] = useState(false);
   const ref = useRef<HTMLButtonElement>(null);

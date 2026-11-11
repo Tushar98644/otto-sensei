@@ -1,8 +1,6 @@
-// Otto's own palette, the only place his colors live (icon.svg repeats a few, as a static file
-// can't import). Every shape paints with these hex values as SVG attributes, so he renders right in
-// satori (OG image) and even if a theme token is missing. The `fill-otter` / `fill-otter-light`
-// token classes override fur and cream, so keep `fur` and `cream` equal to `--color-otter` and
-// `--color-otter-light` in globals.css, or the shades below stop matching.
+// Hex values as SVG attributes, so he renders in satori (OG image) and without theme tokens.
+// icon.svg repeats a few (a static file can't import). Keep `fur` and `cream` equal to
+// --color-otter and --color-otter-light in globals.css, which the token classes override with.
 export const OTTO_COLORS = {
   fur: "#7A5135",
   furShade: "#5A3A24",
@@ -21,8 +19,7 @@ export const OTTO_COLORS = {
 // Shared by every pose so swapping poses never shifts layout.
 export const OTTO_VIEWBOX = "0 0 200 200";
 
-// The hand-drawn outline: a thin sepia line with soft round ends. Thin enough to read as a
-// drawing, not a sticker.
+// Thin, with soft round ends: reads as a drawing, not a sticker.
 export const OUTLINE = {
   stroke: OTTO_COLORS.line,
   strokeWidth: 2.25,

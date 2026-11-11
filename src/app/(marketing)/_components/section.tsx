@@ -73,11 +73,9 @@ export type MomentCaptionProps = {
   // h3 when the caption names a step of a list (How it works); a plain line otherwise.
   titleAs?: "h3" | "p";
   titleId?: string;
-  // A small Otto doing this step, beside its name. Decorative.
   otto?: ReactNode;
 };
 
-// Under a product view: what it shows on the left, a plain sentence about it on the right.
 export function MomentCaption({
   title,
   children,

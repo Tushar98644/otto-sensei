@@ -58,7 +58,6 @@ export function IssueList({ issues }: { issues: string[] }) {
 export type SuggestionProps = {
   text: string;
   hintId: string;
-  // Whether there are questions below that can fill the blanks.
   asking: boolean;
 };
 
@@ -70,7 +69,6 @@ export function Suggestion({ text, hintId, asking }: SuggestionProps) {
       <h3 id={headingId} className={LABEL_CLASSES}>
         Otto&apos;s version
       </h3>
-      {/* Ruled like a line in the editor, with the chip it would get there. */}
       <div className="flex flex-col gap-2 border-b border-border-strong py-2.5 sm:flex-row sm:items-start sm:gap-3">
         <p className="min-w-0 flex-1 text-base/7 text-ink">
           {splitPlaceholders(text).map((part, index) =>

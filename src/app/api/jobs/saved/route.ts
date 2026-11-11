@@ -10,8 +10,7 @@ export const dynamic = "force-dynamic";
 
 const NO_STORE = { "Cache-Control": "no-store" };
 
-// GET /api/jobs/saved: the account's saved jobs, for the "To apply" column of the Applications
-// board. Readable on every plan: a Free account keeps the jobs it saved on Pro or the trial.
+// Readable on every plan: a Free account keeps the jobs it saved on Pro or the trial.
 export async function GET(): Promise<Response> {
   try {
     const user = await getCurrentUser();

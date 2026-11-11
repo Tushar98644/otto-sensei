@@ -27,17 +27,13 @@ import type { Resume, TemplateId } from "@/lib/resume/schema";
 import { cn } from "@/lib/utils";
 import { standInPage } from "./stand-in";
 
-// Page 1 of a resume, drawn as a tiny HTML page from the same plan and the same theme numbers the
-// PDF uses (src/components/pdf/layout.ts, document.tsx), so each card shows what the PDF prints.
-// Decorative art (the home page scenes) passes standIn to draw the sample person in the resume's
-// layout instead (stand-in.ts), since those scenes end up in screenshots.
-// One PDF point is one CSS pixel on a 612px-wide Letter page, and the page-miniature utility
-// scales that down to the card. The fonts are installed look-alikes of the PDF's (see
-// @/lib/pdf/fonts), so a miniature downloads nothing; react-pdf itself never loads here.
+// Drawn in HTML from the PDF's own plan and theme numbers (pdf/layout.ts), so each card shows
+// what the PDF prints. Fonts are installed look-alikes, so a miniature downloads nothing. One PDF
+// point is one CSS pixel. standIn draws the sample person, since decorative scenes end up in
+// screenshots.
 
-// react-pdf styles are nearly CSS already: numbers are points (pixels here) and lineHeight is a
-// multiplier. Only the shorthands react-pdf invents, its font names and features and its border
-// styles differ.
+// react-pdf styles are nearly CSS already; only its invented shorthands, font names and features
+// and border styles differ.
 export function pdfStyleToCss(style: PdfStyle | undefined): CSSProperties {
   if (!style) return {};
   const {
@@ -275,7 +271,6 @@ export type ResumePageProps = {
   resume: Resume;
   // Draw it in another format than the resume's own, e.g. to compare formats side by side.
   template?: TemplateId;
-  // The sample person's words in this resume's layout, for decorative art.
   standIn?: boolean;
   className?: string;
 };
@@ -333,9 +328,8 @@ export const ResumeThumbnail = memo(function ResumeThumbnail({
   );
 });
 
-// A resume started from scratch has nothing to draw yet: faint bars where the name, contact line
-// and the first sections will go, so the card reads as a fresh page rather than a missing image.
-// Sized in page pixels, like the real miniature, so it scales the same way.
+// Faint bars where the first sections will go, so a scratch resume reads as a fresh page rather
+// than a missing image. Sized in page pixels, so it scales like the real miniature.
 function BlankPage() {
   return (
     <div className="absolute top-0 left-0 flex page-miniature flex-col gap-3 px-12 py-11">

@@ -13,11 +13,9 @@ import { MarkNotificationsReadSchema } from "@/lib/notifications/validation";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-// Per-user and changes as they're read, so no browser or CDN may keep a copy.
 const NO_STORE = { "Cache-Control": "no-store" };
 const SIGN_IN = "Sign in to see your notifications.";
 
-// GET /api/notifications: the newest notifications and the unread count.
 export async function GET(): Promise<Response> {
   try {
     const user = await getCurrentUser();
@@ -30,7 +28,6 @@ export async function GET(): Promise<Response> {
   }
 }
 
-// PATCH /api/notifications: { ids } or { all: true } marked read.
 export async function PATCH(req: Request): Promise<Response> {
   const blocked = rejectCrossSite(req) ?? rejectNonJson(req);
   if (blocked) return blocked;

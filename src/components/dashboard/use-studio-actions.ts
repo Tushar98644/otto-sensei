@@ -41,9 +41,8 @@ function chooseFile(accept: string, onFile: (file: File) => void): void {
   input.click();
 }
 
-// Every dashboard button that leads into the studio: set the active resume and step in the store
-// (the studio reads both on arrival), then go there. Same starts as the studio's upload screen,
-// and the same check first that Free has room for another resume.
+// Sets the active resume and step in the store (the studio reads both on arrival), then goes
+// there, after the same check that Free has room for another resume.
 export function useStudioActions() {
   const router = useRouter();
   const setActive = useStudioStore((s) => s.setActive);
@@ -51,8 +50,7 @@ export function useStudioActions() {
   const addResume = useStudioStore((s) => s.addResume);
   const pro = useProTools();
 
-  // Load the studio ahead, so the first click doesn't wait on its page data and show the
-  // full-screen wait.
+  // Load the studio ahead, so the first click doesn't show the full-screen wait.
   useEffect(() => {
     router.prefetch(ROUTES.studio);
   }, [router]);
@@ -73,9 +71,7 @@ export function useStudioActions() {
     [go, setActive],
   );
 
-  // A LinkedIn export or a JSON Resume file, read in this browser like on the studio's upload
-  // screen. The file is picked first and the room checked after, as there: the picker must open
-  // inside the click.
+  // The picker must open inside the click, so the room is checked after the file is picked.
   const importLocal = useCallback(
     (kind: LocalImportKind) =>
       chooseFile(LOCAL_IMPORT_ACCEPT[kind], (file) => {

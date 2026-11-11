@@ -3,9 +3,8 @@ import type { LintIssue, ResumeLint } from "@/lib/lint/types";
 import type { EntrySection } from "@/lib/resume/ops";
 import { extrasOf, type Resume } from "@/lib/resume/schema";
 
-// Every keystroke makes a new Resume and a fresh lint run, and every line selects its own issues
-// from it. Results equal to the previous run keep their old identity, so only lines whose issues
-// really changed re-render. Lint runs once per resume version, however many lines ask.
+// Results equal to the previous run keep their identity, so only lines whose issues changed
+// re-render. Lint runs once per resume version, however many lines ask.
 
 export type EditorLint = {
   byBullet: ReadonlyMap<string, readonly LintIssue[]>;
@@ -75,8 +74,7 @@ function countNeedingWork(resume: Resume, items: readonly { bullets: { id: strin
   return count;
 }
 
-// Lines in one section with at least one issue, for the badge on a collapsed section. Hidden lines
-// are never linted, so they never count.
+// For the badge on a collapsed section. Hidden lines are never linted, so never count.
 export function sectionNeedsWork(resume: Resume, section: EntrySection): number {
   return countNeedingWork(resume, resume[section]);
 }

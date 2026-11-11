@@ -8,8 +8,7 @@ import { log } from "@/lib/log";
 
 export const runtime = "nodejs";
 
-// Sets the PKCE verifier cookie and hands back Google's URL; the browser then navigates there.
-// JSON-only, so another site can't start a sign-in (and plant a verifier) with a form post.
+// JSON-only, so another site can't start a sign-in (and plant a PKCE verifier) with a form post.
 export async function POST(req: Request): Promise<Response> {
   const notJson = rejectNonJson(req);
   if (notJson) return notJson;

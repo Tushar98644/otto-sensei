@@ -12,10 +12,6 @@ import { useSettled } from "./use-settled";
 // The whole-resume review is heavier than one line's lint, so it waits for a longer pause.
 const REVIEW_SETTLE_MS = 800;
 
-/**
- * What to fix first across the whole resume, the Recruiter view's list: the top three with a jump
- * to each, then every other problem in one line each, all with their counts.
- */
 export function FixSummary({ resumeId }: { resumeId: string }) {
   const resume = useResumeValue(resumeId, (current) => current, undefined);
   const settled = useSettled(resume, REVIEW_SETTLE_MS);

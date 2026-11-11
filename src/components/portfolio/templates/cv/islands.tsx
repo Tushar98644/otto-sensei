@@ -4,9 +4,8 @@ import { Search, X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { flushSync } from "react-dom";
 
-// The command menu of BartoszJarocki/cv (components/command-menu*.tsx, MIT): ⌘/Ctrl+J opens a
-// searchable list with Print and the page's links. A native <dialog> stands in for Radix Dialog
-// and cmdk, so the page ships no extra libraries.
+// The command menu of BartoszJarocki/cv (MIT). A native <dialog> stands in for Radix Dialog and
+// cmdk, so the page ships no extra libraries.
 
 export type CommandLink = { label: string; href: string };
 

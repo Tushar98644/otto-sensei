@@ -27,8 +27,7 @@ function isApplicationId(id: string): boolean {
   return ApplicationIdSchema.safeParse(id).success;
 }
 
-// The application with everything linked to it, for its own page. Readable on every plan, like
-// the list: a Free account keeps what it made on Pro or the trial.
+// Readable on every plan: a Free account keeps what it made on Pro or the trial.
 export async function GET(_req: Request, { params }: Context): Promise<Response> {
   try {
     const user = await getCurrentUser();

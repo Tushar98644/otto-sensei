@@ -10,8 +10,7 @@ import { applicationsQuery } from "../applications/use-applications";
 import { openingMatchesRequest } from "./use-job-matches";
 import { defaultResumeId } from "./view";
 
-// The Jobs tab's first page, prefetched from the sidebar. It needs the work profile (the
-// remote-only default and "Looking for") and the resume the tab opens on, picked the same way.
+// Picks the resume the same way the tab does, so the prefetch lands in the entry it reads.
 // Loaded only when wanted, so the matching rules stay out of the dashboard's first load.
 export async function prefetchMatches(client: QueryClient, userId: string): Promise<void> {
   const [work] = await Promise.all([

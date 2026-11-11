@@ -9,7 +9,6 @@ import { SummaryChoice } from "./summary-choice";
 export type TitleSummaryProps = {
   title: TitleCheck | null;
   summary: SummaryCheck;
-  // Otto's suggested summary, "" when there is none.
   suggestion: string;
   current: string;
   useSummary: boolean;
@@ -35,8 +34,7 @@ function CheckLine({ ok, label, text }: { ok: boolean; label: string; text: stri
   );
 }
 
-// The top of the page is read first (Ladders' eye-tracking: titles and the opening overview), so
-// the job's title and a summary that speaks to it get their own check here.
+// Recruiters read the top first (Ladders' eye-tracking), so title and summary get their own check.
 export function TitleSummary({
   title,
   summary,

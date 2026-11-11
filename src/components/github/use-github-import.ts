@@ -11,11 +11,7 @@ import { suggestPicks } from "@/lib/github/suggest";
 import type { Resume } from "@/lib/resume/schema";
 import { contactOf } from "./format";
 
-// State for the "Import from GitHub" dialog: name → (pick) → review. The connected GitHub account
-// is looked up as soon as the dialog opens, the best repos are picked and drafted by themselves,
-// and the person lands on the drafts to say which to keep; "Pick other repos" goes back to
-// choosing. Nothing reaches the resume here; the dialog adds the kept entries only when the
-// person confirms.
+// Nothing reaches the resume here: the dialog adds the kept entries once the person confirms.
 
 export type GitHubImportStep = "name" | "pick" | "review";
 
@@ -107,11 +103,7 @@ function messageOf(error: unknown, fallback: string): string {
 
 export type GitHubImport = ReturnType<typeof useGitHubImport>;
 
-/**
- * `login` is the connected GitHub account, the only one the server reads. `alreadyOn` names
- * drafted entries the resume already lists; they start unticked so a second import doesn't add
- * the same project twice.
- */
+/** `alreadyOn` entries start unticked, so a second import doesn't add the same project twice. */
 export function useGitHubImport(
   resume: Resume,
   login: string | null,

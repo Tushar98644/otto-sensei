@@ -10,8 +10,7 @@ import { takeAccountUnit, upgradeRequired } from "../metered-free";
 export const runtime = "nodejs";
 export const maxDuration = 60;
 
-// "Build with Otto": the guided form's answers → a first resume draft. Pro and Max (and the trial)
-// only: Free and signed-out visitors get 402 upgrade_required, and the form keeps their answers.
+// Free and signed-out visitors get 402 upgrade_required; the form keeps their answers.
 export async function POST(req: Request): Promise<Response> {
   try {
     const rejected = rejectCrossSite(req) ?? rejectNonJson(req);

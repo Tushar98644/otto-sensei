@@ -206,7 +206,6 @@ export function DashboardHome() {
   );
 }
 
-// "2 uploaded · 1 sample", in the order people care about.
 // Short enough for a stat's note: "on Dec 17", or "when your plan renews" with no date known.
 function resetOn(period: UsagePeriod | null | undefined): string {
   const day = resetDay(period);
@@ -235,9 +234,8 @@ type ActionCardProps = {
   detail: string;
 } & ({ onClick: () => void; href?: never } | { href: string; onClick?: never });
 
-// A folder per job, with Otto doing it on the paper it's about. The title is the real control; its
-// ::after stretches over the whole card, so the card is one big target without nesting the folder
-// inside a button.
+// The title's ::after stretches over the whole card, so the card is one big target without
+// nesting the folder inside a button.
 function ActionCard({ tab, art, title, detail, ...target }: ActionCardProps) {
   const control =
     "inline-flex items-center gap-1.5 text-base/6 font-medium text-ink outline-none after:absolute after:inset-0 after:rounded-2xl";
@@ -271,7 +269,6 @@ function ActionCard({ tab, art, title, detail, ...target }: ActionCardProps) {
   );
 }
 
-// Lines with something to fix across the resumes, and the first of them, so the count can open it.
 function linesToImprove(resumes: readonly Resume[]): {
   total: number;
   first: { resumeId: string; bulletId: string } | null;
@@ -294,7 +291,6 @@ type StatProps = {
   label: string;
   value: string | null;
   note: string | null;
-  // Makes the number a button.
   action?: { label: string; onSelect: () => void };
 };
 

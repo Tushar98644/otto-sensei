@@ -13,8 +13,7 @@ export function isBulletSection(key: SectionKey): key is EntrySection {
   return key === "experience" || key === "projects" || key === "education";
 }
 
-// The saved order (deduped, unknown keys dropped), then any section it leaves out, so every
-// section stays editable even when an import skipped one.
+// Missing sections are appended, so every section stays editable even if an import skipped it.
 export function sectionDisplayOrder(order: readonly SectionKey[]): SectionKey[] {
   const seen = new Set<SectionKey>();
   for (const key of order) if (SECTION_KEYS.includes(key)) seen.add(key);
@@ -31,21 +30,18 @@ export function moveSection(resume: Resume, key: SectionKey, delta: number): Res
   return { ...resume, sectionOrder: order };
 }
 
-// A section left out of sectionOrder doesn't print. Editing it means the user wants it, so it
-// joins the end of the order.
+// A section left out of sectionOrder doesn't print; editing it means the user wants it.
 export function includeSection(resume: Resume, key: SectionKey): Resume {
   return resume.sectionOrder.includes(key)
     ? resume
     : { ...resume, sectionOrder: [...resume.sectionOrder, key] };
 }
 
-// A typed heading, tidied: one line, outer spaces gone, capped like the schema.
 export function cleanSectionTitle(draft: string, max = MAX_SECTION_TITLE_CHARS): string {
   return draft.replace(/\s+/g, " ").trim().slice(0, max).trim();
 }
 
-// The person's own heading for a section. Blank, or the standard name typed back, removes it, so
-// the section follows the standard name again.
+// Blank, or the standard name typed back, removes the custom heading.
 export function setSectionTitle(resume: Resume, key: SectionKey, draft: string): Resume {
   const title = cleanSectionTitle(draft);
   const custom = title !== "" && title !== SECTION_LABELS[key];
@@ -72,7 +68,6 @@ function hiddenCount(items: readonly { hidden?: boolean }[]): number {
   return items.filter((item) => item.hidden === true).length;
 }
 
-// Shown next to each section's title, so a collapsed section still says what's in it.
 export function sectionCount(resume: Resume, key: SectionKey): string | null {
   switch (key) {
     case "summary":

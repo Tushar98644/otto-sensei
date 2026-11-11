@@ -11,12 +11,8 @@ import { createSampleResume } from "@/lib/resume/sample";
 import { extrasOf, type ExtraKind, type ExtraSection, type Resume } from "@/lib/resume/schema";
 
 // Miniatures show the sample person, never the user's own details: thumbnails end up in
-// screenshots and screen shares, and a page that small doesn't need to be read to be recognised.
-// What carries over is the layout: the format (applied by the caller), which sections exist and
-// in what order (extra sections included), how many entries each has, which entries have dates or
-// a location, roles grouped under one company, and how many lines there are and roughly how long
-// each one runs. Every word comes from the sample resume, or for extra sections (which the sample
-// doesn't have) from the sample person's few extras below. Hidden items are never drawn.
+// screenshots and screen shares. Only the layout carries over (sections, entry counts, dates,
+// line counts and rough lengths); every word comes from the sample resume or its extras below.
 
 type Pools = {
   model: PdfModel;
@@ -25,7 +21,6 @@ type Pools = {
   projects: PdfEntry[];
   certifications: PdfEntry[];
   skillLabels: string[];
-  // Sample lines to cut stand-ins from, by kind of line.
   bulletLines: string[];
   summaryLines: string[];
   skillLines: string[];
@@ -93,9 +88,8 @@ function getPools(): Pools {
   return pools;
 }
 
-// About `length` characters of sample text: the line-th sample line, cut at a word, or followed by
-// the next ones when it's too short. Whole sentences in order read as a real page, and the sample
-// resume's own miniature comes out word for word. Capped, since a miniature shows one page.
+// Whole sentences in order read as a real page, and the sample resume's own miniature comes out
+// word for word. Capped, since a miniature shows one page.
 export function standInText(lines: readonly string[], length: number, line: number): string {
   if (lines.length === 0 || length <= 0) return "";
   const target = Math.min(length, 600);
@@ -121,9 +115,8 @@ function orgOf(sample: PdfEntry | undefined): string {
   return sample?.company?.name || sample?.org || sample?.title || "Company";
 }
 
-// `firstLine` counts lines across the whole section, so the next job carries on with the next
-// sample sentence instead of repeating the first. `company` is the sample company standing in
-// for the real one, shared by every role of a run.
+// `firstLine` counts lines across the section, so the next job carries on with the next sample
+// sentence. `company` is the sample company, shared by every role of a run.
 function standInEntry(
   real: PdfEntry,
   sample: PdfEntry | undefined,
@@ -241,8 +234,7 @@ function standInExtra(
   };
 }
 
-// The resume's page with the sample person written into its layout. `blank` is a page with nothing
-// to draw yet (no name, no headline, no section with content), which gets a placeholder instead.
+// `blank`: nothing to draw yet (no name, headline or section with content).
 export function standInPage(resume: Resume): { model: PdfModel; blank: boolean } {
   // The PDF model leaves hidden items out too; going through the printed copy here keeps the
   // miniature honest even if that ever changes.

@@ -6,15 +6,12 @@ import { Window } from "@/components/ui/panel";
 import { StatusPill } from "@/components/ui/status";
 import { DEMO_CHECKS, DEMO_FILE_NAME, DEMO_PERSON } from "./recruiter-demo-data";
 
-// Small, faithful copies of the studio screens, one per step of How it works. They are pictures
-// of the product, not controls, so nothing here can be clicked.
+// Pictures of the product, not controls, so nothing here can be clicked.
 
-// The moment right after a drop: the file is in and its first lines are coming through. Shown as
-// a finished picture, not a drop box, which would invite a drop the page can't take.
+// A finished picture, not a drop box, which would invite a drop the page can't take.
 export function UploadMoment() {
   return (
     <Window title={DEMO_FILE_NAME} meta="PDF · 1 page" bodyClassName="px-4 py-4 sm:px-5 sm:py-5">
-      {/* Each line a shade lighter, as if the rest is still arriving. */}
       <div className="font-mono text-xs/6 sm:text-sm/7">
         <p className="text-ink">{DEMO_PERSON.name}</p>
         <p className="text-muted">{DEMO_PERSON.role}</p>

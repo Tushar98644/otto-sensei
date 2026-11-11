@@ -23,7 +23,6 @@ export type ApplicationRowProps = {
   onDelete: (application: Application) => void;
 };
 
-// One job: who and what on the left; the status, the likely next step and the rest on the right.
 export function ApplicationRow({
   application,
   sent,

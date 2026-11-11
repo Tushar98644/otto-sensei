@@ -14,15 +14,12 @@ import type { LineTarget } from "./apply";
 import { lineQuestion } from "./screener";
 import type { SavedAnswer, SavedWriting, TailorDraft } from "./session";
 
-// The AI calls the results make on their own: a cover letter, an answer to an application
-// question, and a resume line for a requirement the person says they have. Each one goes through
-// the account gate, and a double click never spends two.
+// Each call goes through the account gate, and a double click never spends two.
 
 export type WritingTask = "letter" | "answer" | "line";
 
 export type Writing = {
   busy: WritingTask | null;
-  // The last failure, for the tool that made it.
   error: { task: WritingTask; message: string } | null;
   letter: (resume: Resume) => Promise<SavedWriting | null>;
   answer: (resume: Resume, question: string) => Promise<SavedAnswer | null>;

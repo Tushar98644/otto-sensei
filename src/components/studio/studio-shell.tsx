@@ -33,8 +33,7 @@ import { useAccountEmailPrefill } from "./use-account-email";
 import { ReviewStep } from "./steps/review-step";
 import { UploadStep } from "./steps/upload-step";
 
-// The later steps carry the editor, the tailoring UI and the PDF renderer, so each loads on demand
-// and a first visit to the upload screen stays light. Not next/dynamic: see step-loader.ts.
+// Later steps load on demand so a first visit stays light. Not next/dynamic: see step-loader.ts.
 const LAZY_STEPS = {
   fix: createStepLoader(() => import("./steps/fix-step").then((m) => m.FixStep)),
   tailor: createStepLoader(() => import("./steps/tailor-step").then((m) => m.TailorStep)),
@@ -62,7 +61,6 @@ export function StudioShell() {
   }
 
   return (
-    // A stone canvas: each step's content sits on white sheets, so depth comes from the shade.
     <div className="flex min-h-dvh flex-col bg-surface-muted">
       <StudioTopBar hydrated={hydrated} onSignIn={signIn} />
       <main
@@ -91,9 +89,8 @@ function StudioSteps() {
   const headingRef = useRef<HTMLHeadingElement>(null);
   const shownStep = useRef<StudioStep | null>(null);
 
-  // A new step replaces the whole screen: start it at the top and move focus to its heading, so
-  // keyboard and screen reader users land on the new content instead of a removed button. Focus
-  // inside an open menu stays put (deleting the open resume from the switcher changes the step).
+  // Start each step at the top with focus on its heading, so keyboard and screen reader users land
+  // on it. Focus in an open menu stays (deleting the open resume from the switcher changes step).
   useEffect(() => {
     const previous = shownStep.current;
     shownStep.current = visibleStep;
@@ -105,7 +102,6 @@ function StudioSteps() {
     headingRef.current?.focus({ preventScroll: true });
   }, [visibleStep]);
 
-  // Warms the code of the steps the user can go to next while they read this one.
   useEffect(() => {
     const steps = stepsToPreload(step, next).filter(isLazyStep);
     if (steps.length === 0) return;
@@ -144,8 +140,7 @@ const ActiveStep = memo(function ActiveStep({ step }: { step: StudioStep }) {
   }
 });
 
-// The step itself once its code is here, at once when it was preloaded, else a skeleton until it
-// arrives. A load that fails for this visit goes to the error boundary, as a lazy component's would.
+// A load that fails for this visit goes to the error boundary, as a lazy component's would.
 function LoadedStep({ loader }: { loader: StepLoader<ComponentType> }) {
   const state = useSyncExternalStore(loader.subscribe, loader.getState, loader.getState);
   const [failure, setFailure] = useState<{ error: unknown } | null>(null);

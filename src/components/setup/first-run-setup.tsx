@@ -16,8 +16,7 @@ const START_DELAY_MS = 800;
 // While another dialog or menu is open, or the tab is in the background.
 const RETRY_MS = 1_500;
 
-// Opens the first-login step once per account, on Home or Jobs (lib/setup/step.ts says when).
-// Mounted in the app shell, so it survives moving between those pages.
+// Mounted in the app shell, so it survives moving between Home and Jobs.
 export function FirstRunSetup() {
   const pathname = usePathname();
   const decision = useSetupStepDecision();
@@ -26,9 +25,8 @@ export function FirstRunSetup() {
   const pro = useProTools();
   // The page it opened on: leaving it (the browser's Back button still works) counts as Skip.
   const [openedOn, setOpenedOn] = useState<string | null>(null);
-  // Shown once per account, so its code isn't part of every dashboard visit. Loaded as soon as
-  // the step is due, well inside START_DELAY_MS, and rendered once here rather than through
-  // Suspense, which would hold it back for React's 300 ms fallback throttle.
+  // Loaded once the step is due and rendered here rather than through Suspense, which would hold
+  // it back for React's 300 ms fallback throttle.
   const [WorkSetupDialog, setWorkSetupDialog] = useState<SetupDialog | null>(null);
 
   useEffect(() => {

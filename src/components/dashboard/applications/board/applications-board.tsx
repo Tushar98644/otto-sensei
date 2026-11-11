@@ -48,9 +48,7 @@ import { useBoardDrag, type DragMode, type DropPoint } from "./use-board-drag";
 
 const count = new Intl.NumberFormat("en-US");
 
-// Each stage's colour, from the design tokens: a small bar before the column's name, a faint
-// tint behind its header, and its edge while a card is over it. Written out in full so Tailwind
-// sees every class.
+// Written out in full so Tailwind sees every class.
 const STAGE: Record<BoardColumn, { bar: string; tint: string; over: string }> = {
   to_apply: { bar: "bg-border-strong", tint: "from-border-strong/10", over: "border-border-strong" },
   applied: { bar: "bg-primary", tint: "from-primary/8", over: "border-primary" },
@@ -69,21 +67,14 @@ function sentAt(): number {
 export type ApplicationsBoardProps = {
   applications: readonly Application[];
   resumes: readonly Resume[];
-  // Loaded by the page (useBoardExtras): the To apply column and the letter marks.
   savedJobs: readonly SavedJob[];
   writings: readonly Writing[];
   now: number;
   // null while the plan loads; false on Free, where prep opens the trial prompt.
   pro: boolean | null;
-  // A To apply card that doesn't name its company: the form asks for it.
   onNeedsDetails: (resumeId: string | null) => void;
 };
 
-// Where every job stands, left to right: To apply, Applied, Interviewing, Offer, Closed.
-// Columns sit side by side and scroll on their own; cards move by dragging, by keyboard from their
-// initials, by their quick buttons or from their menu. Moving into Interviewing asks for the day
-// and offers prep; moving to Closed asks how it ended. On phones one column shows at a time under a
-// stage picker, whose stages are drop places too, so nothing scrolls the page sideways.
 export function ApplicationsBoard({
   applications,
   resumes,
@@ -201,7 +192,6 @@ export function ApplicationsBoard({
     }
   }
 
-  // Shows at once and rolls back with a toast if the save fails (changeApplication).
   function changeStatus(application: Application, answer: MoveAnswer, mode: MoveMode) {
     const name = application.company || application.role || "It";
     drag.announce(`${name} moved to ${STATUS_NAMES[answer.status]}.`);
@@ -369,8 +359,7 @@ export function ApplicationsBoard({
         {drag.announcement}
       </p>
 
-      {/* Phones: a stage picker, one column at a time. While a card is held, its stages are
-          drop places. */}
+      {/* Phones: one column at a time; while a card is held, its stages are drop places. */}
       <div className="-mx-4 overflow-x-auto px-4 md:hidden">
         <div
           role="group"
@@ -396,9 +385,8 @@ export function ApplicationsBoard({
         </div>
       </div>
 
-      {/* From md the board runs on to the window's right edge, so the columns past the content's
-          width read as more to scroll to, not as cut off. 1.5rem, not the full 2rem of padding:
-          100vw counts a classic scrollbar, and half of one must never widen the page. */}
+      {/* Runs to the window's edge from md, so later columns read as more to scroll to. 1.5rem,
+          not 2rem: 100vw counts a classic scrollbar, and half of one must not widen the page. */}
       <div
         ref={scrollerRef}
         className="md:-mr-8 md:overflow-x-auto md:pr-8 md:pb-3 lg:-mr-[calc(max(0px,(100vw-15rem-64rem)/2)+1.5rem)] lg:pr-[calc(max(0px,(100vw-15rem-64rem)/2)+1.5rem)]"

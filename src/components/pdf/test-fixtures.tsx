@@ -5,8 +5,7 @@ import type { PdfPageSize } from "@/lib/pdf/page-size";
 import { emptyResume, type Resume, type TemplateId } from "@/lib/resume/schema";
 import { ResumePdf } from "./resume-pdf";
 
-// Shared by the PDF tests: a realistic resume, a long one for page breaks, and helpers that render
-// real PDF bytes and read the text back out with pdf.js, the way hiring software would.
+// Renders real PDF bytes and reads the text back with pdf.js, the way hiring software would.
 
 export function sampleResume(): Resume {
   const resume = emptyResume(0);
@@ -180,8 +179,7 @@ export function expectInOrder(text: string, parts: string[]) {
   }
 }
 
-// The sample with every newer field in use: two roles at one company, extra sections, the
-// person's own headings, hidden lines, entries and sections, and look settings.
+// Every newer field in use: company runs, extras, own headings, hidden items, look settings.
 export function richResume(): Resume {
   const resume = sampleResume();
   const [first, second] = resume.experience;

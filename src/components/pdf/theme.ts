@@ -1,14 +1,9 @@
 import type { Styles } from "@react-pdf/renderer";
 import { PDF_FONT } from "@/lib/pdf/fonts";
 
-// A format is a set of options for the one shared layout (./layout.ts plans it, ./document.tsx
-// draws it), never a layout of its own: one column, real text in reading order, the person's
-// headings, nothing drawn but lines and bullet marks. That keeps every format as readable to hiring
-// software as the others, and the page-break rules written once.
-//
-// Sizes are in points (72 per inch). Fonts are the bundled families in @/lib/pdf/fonts. Letter
-// spacing stays at 0.8pt or less everywhere: wider, and text extraction (pdf.js, and the hiring
-// software built like it) reads "S U M M A R Y".
+// A format is options for the one shared layout, never a layout of its own, so every format reads
+// the same to hiring software. Sizes in points (72 per inch). Letter spacing stays ≤ 0.8pt: wider,
+// and pdf.js-style text extraction reads "S U M M A R Y".
 
 export type PdfStyle = Styles[string];
 
@@ -26,15 +21,12 @@ export type ThemeStyles = {
   name: PdfStyle;
   nameLast: PdfStyle;
   headline: PdfStyle;
-  // With `headlineInline`: the " | Headline" printed after the name on its line.
   headlineInline: PdfStyle;
   contact: PdfStyle;
   contactNext: PdfStyle;
-  // Email and plain contact items.
   link: PdfStyle;
   // Web addresses (LinkedIn, GitHub, a portfolio), in the contact lines and on projects.
   webLink: PdfStyle;
-  // Drawn under the header when `headerRule` is on.
   headerRule: PdfStyle;
   section: PdfStyle;
   sectionTitle: PdfStyle;
@@ -47,8 +39,7 @@ export type ThemeStyles = {
   // Above every entry but a section's first, and above a later role at the same company.
   entry: PdfStyle;
   role: PdfStyle;
-  // An entry's heading rows (see EntryRow). Each row is a view (`rowN`) holding the lead text
-  // (`rowNText`, its first field `rowNFirst`, the others `rowNRest`) and the side text (`rowNSide`).
+  // Heading rows (see EntryRow): views rowN with rowNText (rowNFirst, rowNRest) and rowNSide.
   row1: PdfStyle;
   row1Text: PdfStyle;
   row1First: PdfStyle;
@@ -64,7 +55,6 @@ export type ThemeStyles = {
   bullet: PdfStyle;
   // The box the bullet sits in: its width is the hanging indent.
   bulletGlyph: PdfStyle;
-  // A drawn bullet (a square or ring), when the font has no glyph for it.
   bulletMark: PdfStyle;
   bulletText: PdfStyle;
   skillLine: PdfStyle;
@@ -74,8 +64,7 @@ export type ThemeStyles = {
 
 export type StyleSlot = keyof ThemeStyles;
 
-// The parts an entry heading is built from. `detail` is a location or a project link; `tech` a
-// project's tools.
+// `detail` is a location or project link; `tech` a project's tools.
 export type EntryField = "title" | "org" | "detail" | "dates" | "tech";
 
 // One heading row: lead fields left to right (empty ones skipped), one field right-aligned.
@@ -107,24 +96,20 @@ export type TemplateTheme = {
   // smaller or larger than the text off its middle, where a browser centres it.
   bulletOffset?: number;
   // Heading rows for jobs, schools and everything else (projects, certificates, extra sections).
-  // A row whose first field is empty folds into one line: lead fields, then the dates on the right.
   rows: Record<EntryKind, readonly EntryRow[]>;
-  // Two or more roles in a row at one company. With companyRow, the company prints once on that
-  // row (org, detail, and the run's whole span as dates) and every role on roleRow. Without it, the
-  // first role prints its full rows and later roles roleRow. roleRow uses the row2 styles.
+  // A run of roles at one company. With companyRow the company prints once (org, detail, span)
+  // and each role on roleRow (row2 styles); without it, the first role prints its full rows.
   companyRow?: EntryRow;
   roleRow: EntryRow;
   // Printed before a lead field that follows another. Punctuation before the space joins the
   // field in front (", " puts the comma on the bold company name).
   separators: Partial<Record<EntryField, string>>;
-  // below: a full-width rule under the heading. above: one over it. after: a rule from the end of
-  // the heading to the margin.
+  // below/above: a full-width rule under/over the heading. after: from its end to the margin.
   headingRule: "none" | "below" | "above" | "after";
   headingAccent: number;
   headerRule: boolean;
   nameSplit: boolean;
   headlineInline: boolean;
-  // "years" prints "2019 – 2022" for "Mar 2019 – Feb 2022"; text with no year stays as written.
   dates: "asWritten" | "years";
   // Skills as "Label: items" lines, or as bullets (the resume book's Additional Information).
   skills: "lines" | "bullets";

@@ -7,13 +7,11 @@ import { OttoMark } from "@/components/site/otto-mark";
 import { buttonClasses } from "./button";
 import { getTopModalHost, subscribeModalHosts } from "./modal-stack";
 
-// Usage, from any client code: toast({ title: "Saved", variant: "success" }).
 // <Toaster /> is rendered once, in the root layout.
 
 export type ToastVariant = "default" | "success" | "error";
 
-// "action": its button was pressed. Every other way out (timed out, closed, pushed off the stack,
-// replaced by the same message) counts as "closed".
+// "closed" covers every way out but the button: timeout, close, pushed off, replaced.
 export type ToastCloseReason = "action" | "closed";
 
 export type ToastOptions = {
@@ -22,9 +20,8 @@ export type ToastOptions = {
   variant?: ToastVariant;
   // How long it stays up. Hovering or focusing the toast pauses the countdown.
   durationMs?: number;
-  // One small key on the toast, such as Undo. Pressing it closes the toast.
+  // Pressing it closes the toast.
   action?: { label: string; onAction: () => void };
-  // Runs once when the toast goes, whichever way.
   onClose?: (reason: ToastCloseReason) => void;
 };
 

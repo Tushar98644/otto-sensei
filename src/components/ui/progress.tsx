@@ -19,7 +19,6 @@ export type ProgressProps = {
   valueText?: string;
   hideLabel?: boolean;
   tone?: ProgressTone;
-  // "sm" is the compact meter for tight spaces such as the sidebar's plan box.
   size?: "sm" | "md";
   className?: string;
 };

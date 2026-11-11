@@ -3,8 +3,7 @@ import { cn } from "@/lib/utils";
 
 export type SpinnerProps = {
   className?: string;
-  // Screen-reader text for a spinner that stands alone. Leave it out when visible text or a busy
-  // button already says what's happening, or it gets announced twice.
+  // For a spinner on its own. Leave it out when nearby text already says it, or it's read twice.
   label?: string;
 };
 

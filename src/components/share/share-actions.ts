@@ -8,9 +8,6 @@ import { sharePath, type SharedLink } from "@/lib/share/types";
 import { DEFAULT_SHARE_OPTIONS } from "./share-options";
 import { dropShare, ensureShares, putShare } from "./share-store";
 
-// The two share actions that need no dialog: make (or refresh) a resume's link and copy it in one
-// click, and turn a link off with Undo instead of a confirm.
-
 // Links turned off whose Undo hasn't run out, by resume. Sharing that resume again in the meantime
 // takes the turn-off back, so the held DELETE can't land on the link just handed out.
 const pendingTurnOffs = new Map<string, UndoHandle>();
@@ -48,11 +45,8 @@ export async function copyWhenReady(url: Promise<string>): Promise<boolean> {
   }
 }
 
-/**
- * Makes the resume's link, or points its live link at this version, and copies it. Keeps the
- * link's own settings (contact details, search engines); a new link starts with both off.
- * Resolves with the link, or null after telling the person why it failed.
- */
+// Keeps the link's own settings; a new link starts with contact details and indexing off.
+// Resolves with null after telling the person why it failed.
 export async function shareAndCopy(
   resume: Resume,
   owner: string,
@@ -91,7 +85,7 @@ export async function shareAndCopy(
   }
 }
 
-/** Turns a link off at once, with Undo; the server hears about it once Undo has run out. */
+/** The server hears about it once Undo has run out. */
 export function turnOffWithUndo(link: SharedLink): void {
   dropShare(link.id);
   const handle = undoToast({

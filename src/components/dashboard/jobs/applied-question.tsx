@@ -15,12 +15,7 @@ import type { AskedAppliedAnswer } from "@/lib/job-feed/types";
 import { cn } from "@/lib/utils";
 import { promptAnnouncement, stripLine, type OpenedJob } from "./applied-prompt";
 
-// "Applied to <company>?" after someone comes back from a job's own post: a question on that
-// job's card, or one strip above the list for jobs not on this page. Never a dialog, never a
-// toast, and never something that jumps under the pointer: both slide open by their own height.
-
-// Opens and shuts by its own height, so whatever sits below moves gently instead of jumping. Shut,
-// it takes no space and is inert. Reduced motion: the global rule makes it instant.
+// Opens by its own height, so what sits below moves gently. Shut, it takes no space and is inert.
 function Reveal({
   open,
   className,
@@ -52,11 +47,8 @@ function focusLost(active: Element | null, box: HTMLElement | null): boolean {
   return active.closest("[inert]") !== null || (active as HTMLButtonElement).disabled === true;
 }
 
-/**
- * After an answer its buttons go away or wait. If focus was on them, it lands on `fallback`
- * instead of the top of the page. Only after an answer: a question that closes on its own, or
- * someone who already moved on, never has focus moved.
- */
+// If focus was on an answered question's buttons, it lands on `fallback`, not the page top. Only
+// after an answer: a question that closes on its own never moves focus.
 function useFocusAfterAnswer(
   box: RefObject<HTMLElement | null>,
   fallback: () => HTMLElement | null | undefined,
@@ -77,7 +69,6 @@ function useFocusAfterAnswer(
   };
 }
 
-/** The question at the foot of a job card. */
 export function CardAppliedQuestion({
   open,
   company,
@@ -137,7 +128,6 @@ function sameJobs(a: readonly OpenedJob[], b: readonly OpenedJob[]): boolean {
   return a.length === b.length && a.every((entry, index) => entry.jobId === b[index]?.jobId);
 }
 
-/** One slim strip above the list for opened jobs that have no card on this page. */
 export function AppliedStrip({
   jobs,
   loggingId,
@@ -147,7 +137,6 @@ export function AppliedStrip({
   jobs: readonly OpenedJob[];
   loggingId: string | null;
   onAnswer: (job: OpenedJob, answer: AskedAppliedAnswer) => void;
-  // Where focus goes when the last one is answered and the strip closes.
   focusAfter: RefObject<HTMLElement | null>;
 }) {
   const [expanded, setExpanded] = useState(false);
@@ -233,10 +222,8 @@ export function AppliedStrip({
   );
 }
 
-/**
- * Says new questions out loud, politely, once each: the cards and the strip are in the page, not
- * live regions, so answering one never re-reads the rest.
- */
+// The cards and strip aren't live regions, so answering one never re-reads the rest; this says
+// each new question once.
 export function AppliedAnnouncer({
   onCard,
   offPage,

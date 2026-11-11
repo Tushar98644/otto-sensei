@@ -39,8 +39,7 @@ function Perk({ title, detail }: { title: string; detail: string }) {
   );
 }
 
-// What a paid plan gives each period next to the plan below it, read from PLANS so the copy can't
-// drift from the real limits. Free has no AI help, so next to it each line says what Pro adds.
+// Read from PLANS so the copy can't drift from the limits. Next to Free, lines say what Pro adds.
 export function PlanPerks({ plan, interval = "month", trial = false, className }: PlanPerksProps) {
   const period = allowancePeriodFor(plan, interval);
   const limits = planLimits(plan, period);

@@ -5,7 +5,6 @@ import { useState } from "react";
 import { cn } from "@/lib/utils";
 import { FeedbackDialog } from "./feedback-dialog";
 
-// Styled like a sidebar nav row, for the dashboard sidebar's footer.
 export function FeedbackButton({ className }: { className?: string }) {
   const [open, setOpen] = useState(false);
   return (

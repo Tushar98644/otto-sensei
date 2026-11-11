@@ -13,7 +13,6 @@ import type { Resume } from "@/lib/resume/schema";
 import { PORTFOLIO_LINES } from "./lines";
 import { makePortfolio, usePortfolioStore } from "./portfolio-store";
 
-// Before there is a portfolio: the screen's one full-body Otto, a resume picker and one button.
 export function PortfolioStart({ candidates }: { candidates: readonly Resume[] }) {
   const selectId = useId();
   const actions = useStudioActions();

@@ -32,8 +32,6 @@ function joinNumbers(numbers: readonly number[]): string {
   return `${numbers.slice(0, -1).join(", ")} and ${numbers.at(-1)}`;
 }
 
-// The interview at a glance: its rounds in order, each a link down to it, and the way into
-// practice mode, the page's main action.
 function Agenda({
   rounds,
   questions,
@@ -113,8 +111,7 @@ function Agenda({
   );
 }
 
-// One stop on the interview's thread: a numbered node, the round's name and what it's for. From
-// sm the nodes hang in a gutter joined by a line; phones keep the width for the questions.
+// From sm the nodes hang in a gutter joined by a line; phones keep the width for the questions.
 function Stop({
   id,
   node,

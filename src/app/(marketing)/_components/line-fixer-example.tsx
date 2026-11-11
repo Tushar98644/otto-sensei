@@ -4,8 +4,6 @@ import { SpeechBubble } from "@/components/mascot/speech-bubble";
 import { LivePill } from "@/components/ui/live-pill";
 import { StatusPill } from "@/components/ui/status";
 
-// Step 3 of How it works: one weak line, Otto's question, the answer, and the line it became.
-// Laid out like the studio's ruled lines, so the page shows what the editor really looks like.
 export function LineFixerMoment() {
   return (
     <div className="relative flex flex-col gap-6 rounded-2xl bg-surface p-4 pb-8 sm:p-6 sm:pb-10">

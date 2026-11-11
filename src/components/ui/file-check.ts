@@ -1,13 +1,10 @@
-// Client-side checks for a picked or dropped file, worded for the user. The server re-checks
-// everything; this only saves a round trip for obvious mistakes.
+// The server re-checks everything; this only saves a round trip for obvious mistakes.
 
 export type FileRules = {
-  // Same syntax as <input accept>, e.g. ".pdf,.docx" or "application/pdf,image/*".
   accept?: string;
   maxBytes?: number;
 };
 
-// Returns a message for the user, or null when the file is fine.
 export function checkFile(
   file: Pick<File, "name" | "type" | "size">,
   rules: FileRules,

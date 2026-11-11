@@ -1,7 +1,7 @@
 import { formatRelativeTime } from "@/components/studio/relative-time";
 import type { SharedLink } from "@/lib/share/types";
 
-// Pure. The facts line under a share link: "14 views · Last opened 2 hours ago · Shared 3 days ago".
+// "14 views · Last opened 2 hours ago · Shared 3 days ago".
 
 const COUNT = new Intl.NumberFormat("en-US");
 

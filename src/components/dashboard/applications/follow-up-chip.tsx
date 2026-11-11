@@ -11,8 +11,7 @@ import type { Application } from "@/lib/applications/schema";
 import { changeApplication } from "./use-applications";
 import { formatDay } from "./view";
 
-// An application's follow-up reminder, set by itself when it was marked applied. Due: one click
-// for Done or Snooze. Waiting: its date, and a way to drop it. Every change can be undone.
+// Set by itself when the job was marked applied. Every change can be undone.
 export function FollowUpChip({
   application,
   now,

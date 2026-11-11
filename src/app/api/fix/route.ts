@@ -13,8 +13,7 @@ const COPY: MeteredCopy = {
   tooLong: `That line is too long for Otto. Keep it under ${TEXT_LIMITS.bulletChars} characters.`,
 };
 
-// One resume line → issues, questions for missing facts and a stronger version. Uses one of the
-// month's line fixes.
+// Uses one of the month's line fixes.
 export async function POST(req: Request): Promise<Response> {
   return runMetered(req, { feature: "fix", schema: FixRequestSchema, copy: COPY, run: fixBullet });
 }

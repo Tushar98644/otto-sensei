@@ -15,8 +15,7 @@ export type JobsWorkPromptProps = {
   saved: boolean;
 };
 
-// The Jobs tab's one quiet line while the work-rights rules have nothing to go on: the Account
-// page's questions open right here, so the list updates without leaving it. Never a pop-up.
+// The Account questions open right here, so the list updates in place. Never a pop-up.
 export function JobsWorkPrompt({ due, userId, profile, saved }: JobsWorkPromptProps) {
   const [open, setOpen] = useState(false);
   return (

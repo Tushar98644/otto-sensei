@@ -25,10 +25,8 @@ import type { Resume } from "@/lib/resume/schema";
 import { cn } from "@/lib/utils";
 import { points, webStyle } from "./web-style";
 
-// The resume as a web page: the PDF's own model (buildPdfModel) in its format's theme and plan
-// (src/components/pdf/layout.ts), with real headings, lists and links. Same order and words as the
-// PDF, one column, reflowing to the screen. No hooks and no browser APIs, so it renders on the
-// server.
+// Built from the PDF's own model (buildPdfModel), so order and words match the PDF. No hooks or
+// browser APIs, so it renders on the server.
 
 type Styled = { theme: TemplateTheme };
 

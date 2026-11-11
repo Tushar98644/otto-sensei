@@ -8,13 +8,11 @@ import { SHARES } from "@/lib/queries/keys";
 import { sharesQuery } from "@/lib/queries/options";
 import type { SharedLink } from "@/lib/share/types";
 
-// The account's live share links, shared by every card's Share dialog and the Shared links list,
-// so a link made in one shows up in the other at once.
+// Shared by every Share dialog and the Shared links list, so a new link shows in both at once.
 
 export type SharesState = {
   status: "idle" | "loading" | "ready" | "error";
   links: SharedLink[];
-  // Why the last load failed, in words for the person.
   error: string | null;
   retry: () => void;
 };
@@ -48,7 +46,6 @@ export function useShares(enabled = true): SharesState {
   };
 }
 
-/** The account's links, loading them first if this tab hasn't yet. Rejects when they can't be read. */
 export function ensureShares(owner: string): Promise<SharedLink[]> {
   return getQueryClient().ensureQueryData(sharesQuery(owner));
 }

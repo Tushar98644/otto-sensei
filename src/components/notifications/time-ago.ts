@@ -1,4 +1,4 @@
-// Client-safe and pure. "just now", "5 minutes ago", "yesterday", "3 weeks ago".
+// "just now", "5 minutes ago", "yesterday", "3 weeks ago".
 
 const MINUTE = 60_000;
 const HOUR = 60 * MINUTE;

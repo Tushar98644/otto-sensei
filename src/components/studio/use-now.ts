@@ -26,8 +26,7 @@ function subscribe(listener: () => void) {
   };
 }
 
-// Refreshes a value left stale while nothing was subscribed, so a list that mounts later doesn't
-// start out minutes behind.
+// Refreshes a value left stale while unsubscribed, so a late-mounting list isn't minutes behind.
 function getSnapshot() {
   if (Date.now() - now > TICK_MS) now = Date.now();
   return now;

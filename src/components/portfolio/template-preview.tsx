@@ -13,10 +13,8 @@ const LiveTemplate = lazy(() =>
 // LIVE_WIDTH of ./live-template.tsx, written out: importing it would load that chunk up front.
 const LIVE_WIDTH = 1280;
 
-// A card showing the top of one template: its static picture, then the real template scaled down
-// once the person points at or tabs to the card (its whole card, the label or button around it).
-// A grid of eight live pages was the slowest part of the portfolio screens. The live page unmounts
-// when the card scrolls far away.
+// A static picture until the person points at or tabs to the card, then the real template scaled
+// down: eight live pages at once were too slow. It unmounts when the card scrolls far away.
 export function TemplatePreview({
   id,
   sample,
@@ -24,10 +22,8 @@ export function TemplatePreview({
   className,
 }: {
   id: PortfolioTemplateId;
-  // Whose page to draw; null draws Jordan's sample, with the static picture holding its place
-  // until the live page mounts.
+  // null draws Jordan's sample; the static picture holds its place until the live page mounts.
   sample: TemplateSample | null;
-  // The card's width on screen, for the static picture (next/image sizes).
   sizes: string;
   className?: string;
 }) {

@@ -2,9 +2,8 @@
 
 import { useEffect, useState } from "react";
 
-// Paper's footer clock, after CaliCastle/cali.so (components/footer-clock.tsx, MIT): a small
-// analogue face and a stamped readout of the owner's local time. The server draws "--:--"; the
-// browser fills in the time once it runs.
+// Paper's footer clock, after CaliCastle/cali.so (MIT). The server draws "--:--"; the browser
+// fills in the time once it runs.
 
 function partsIn(timeZone: string, date: Date) {
   try {

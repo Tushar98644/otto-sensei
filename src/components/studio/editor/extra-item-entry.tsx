@@ -33,8 +33,6 @@ function itemsOf(resume: Resume | undefined, sectionId: string): ExtraItem[] {
 
 type ItemPatch = Partial<Omit<ExtraItem, "id" | "bullets" | "hidden">>;
 
-// One language, award, role or entry of a custom section, shaped like a job: its fields fold away
-// once it has a name, and its lines (where the kind has them) stay in view.
 export const ExtraItemEntry = memo(function ExtraItemEntry({
   resumeId,
   sectionId,

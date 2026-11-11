@@ -11,7 +11,6 @@ export type Expression = { eyes: EyeStyle; brows: BrowStyle; mouth: MouthStyle }
 const EYE_X = [78, 122] as const;
 const EYE_Y = 62;
 
-// Where the pupils look, as an offset from straight ahead.
 const GAZE: Record<Exclude<EyeStyle, "happy">, readonly [number, number]> = {
   open: [0, 0],
   reading: [0, 5],
@@ -78,7 +77,6 @@ function drawBrows(style: BrowStyle) {
   return <path d={d} fill="none" stroke={C.line} strokeWidth={2} strokeLinecap="round" />;
 }
 
-// Every mouth hangs from the short line under the nose.
 const PHILTRUM = "M 100 85 V 88";
 const LINE_MOUTHS: Record<Exclude<MouthStyle, "grin">, string> = {
   smile: "M 92 87.5 C 94 91.5 98 91.5 100 88 C 102 91.5 106 91.5 108 87.5",

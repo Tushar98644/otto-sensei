@@ -18,7 +18,6 @@ export type LetterRowProps = {
   entry: LetterEntry;
   // The resume it came from, by its title now (sourceTitle). "" when that isn't known.
   source: string;
-  // The application it was written for (entryApplication), shown as its status.
   application: Application | null;
   now: number;
   // Only when there's a resume in this browser to open it with (studioTarget).
@@ -29,8 +28,6 @@ export type LetterRowProps = {
   onDelete: () => void;
 };
 
-// One letter or answer: the job on the left, then the resume it came from and the day; the
-// actions people use most stay one click away, the rest sit in the menu.
 export function LetterRow({
   entry,
   source,

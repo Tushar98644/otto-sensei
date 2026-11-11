@@ -25,7 +25,6 @@ import { WorkProfileDialog } from "./work-profile-dialog";
 export type EligibilityCardProps = {
   // The job's location field, "" when the board doesn't give one.
   location: string;
-  // The post's plain text.
   text: string;
 };
 
@@ -54,10 +53,8 @@ function FindingRow({ item }: { item: EligibilityFinding }) {
   );
 }
 
-// "Can they hire you from here?": the post's rules on where you live, visas, hours and job type,
-// each checked against the work profile, with the line it comes from. Rule-based and in the
-// browser, so it costs nothing; the profile only sharpens the verdicts. It's Pro all the same: on
-// Free (and signed out) the card says how many rules the post has and offers the trial.
+// Rule-based and in the browser, so it costs nothing. Pro all the same: on Free (and signed out)
+// the card says how many rules the post has and offers the trial.
 export function EligibilityCard({ location, text }: EligibilityCardProps) {
   const work = useWorkProfile();
   // Offsets only move with daylight saving, so the hour is precise enough and the check doesn't

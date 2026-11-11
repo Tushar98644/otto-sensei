@@ -42,13 +42,9 @@ import { useReel } from "../root";
 import { animate, type Controls, SpringValue } from "../spring";
 import { cleanRenderer, cleanScene, modelLoader, removeLights, throttle } from "./three";
 
-// HamishMW/portfolio components/model/model.jsx, line for line: the device models (his Blender
-// MacBook and iPhone, MIT) lit by three lights over a blurred contact shadow, leaning towards the
-// pointer, the laptop lid swinging open and the phones springing up. The screens show a page drawn
-// from the project's own words (../screen.tsx) instead of his textures; pages hold no pictures.
-// Imported lazily, only on the live page and the full preview.
+// HamishMW/portfolio components/model/model.jsx, line for line (his device models, MIT), with
+// screens drawn from the project's words (../screen.tsx). Lazy: live page and full preview only.
 
-// The drawn screen, as SVG markup.
 export type ScreenSource = { kind: "svg"; markup: string };
 
 export type DeviceModel = {
@@ -121,14 +117,12 @@ export default function Model({
     if (!blur || !r || !shadowCamera.current) return;
     blur.visible = true;
 
-    // Blur horizontally and draw in the renderTargetBlur
     blur.material = horizontalBlurMaterial.current!;
     horizontalBlurMaterial.current!.uniforms.tDiffuse!.value = renderTarget.current!.texture;
     horizontalBlurMaterial.current!.uniforms.h!.value = amount * (1 / 256);
     r.setRenderTarget(renderTargetBlur.current);
     r.render(blur, shadowCamera.current);
 
-    // Blur vertically and draw in the main renderTarget
     blur.material = verticalBlurMaterial.current!;
     verticalBlurMaterial.current!.uniforms.tDiffuse!.value = renderTargetBlur.current!.texture;
     verticalBlurMaterial.current!.uniforms.v!.value = amount * (1 / 256);
@@ -138,34 +132,27 @@ export default function Model({
     blur.visible = false;
   }, []);
 
-  // Handle render passes for a single frame
   const renderFrame = useCallback(() => {
     const r = renderer.current;
     const s = scene.current;
     if (!r || !s || !camera.current || !modelGroup.current || !shadowCamera.current) return;
     const blurAmount = 5;
 
-    // Remove the background
     const initialBackground = s.background;
     s.background = null;
 
-    // Force the depthMaterial to everything
     s.overrideMaterial = depthMaterial.current;
 
-    // Render to the render target to get the depths
     r.setRenderTarget(renderTarget.current);
     r.render(s, shadowCamera.current);
 
-    // And reset the override material
     s.overrideMaterial = null;
 
     blurShadow(blurAmount);
 
-    // A second pass to reduce the artifacts
-    // (0.4 is the minimum blur amout so that the artifacts are gone)
+    // A second pass removes the artifacts; 0.4 is the least blur that does.
     blurShadow(blurAmount * 0.4);
 
-    // Reset and render the normal scene
     r.setRenderTarget(null);
     s.background = initialBackground;
 
@@ -204,7 +191,6 @@ export default function Model({
     modelGroup.current = new Group();
     scene.current.add(modelGroup.current);
 
-    // Lighting
     const ambientLight = new AmbientLight(0xffffff, 1.2);
     const keyLight = new DirectionalLight(0xffffff, 1.1);
     const fillLight = new DirectionalLight(0xffffff, 0.8);
@@ -214,7 +200,6 @@ export default function Model({
     lights.current = [ambientLight, keyLight, fillLight];
     for (const light of lights.current) scene.current.add(light);
 
-    // The shadow container, if you need to move the plane just move this
     shadowGroup.current = new Group();
     scene.current.add(shadowGroup.current);
     shadowGroup.current.position.set(0, 0, -0.8);
@@ -227,15 +212,12 @@ export default function Model({
     const shadowOpacity = 0.8;
     const shadowDarkness = 3;
 
-    // The render target that will show the shadows in the plane texture
     renderTarget.current = new WebGLRenderTarget(renderTargetSize, renderTargetSize);
     renderTarget.current.texture.generateMipmaps = false;
 
-    // The render target that we will use to blur the first render target
     renderTargetBlur.current = new WebGLRenderTarget(renderTargetSize, renderTargetSize);
     renderTargetBlur.current.texture.generateMipmaps = false;
 
-    // Make a plane and make it face up
     const planeGeometry = new PlaneGeometry(planeWidth, planeHeight).rotateX(Math.PI / 2);
 
     const planeMaterial = new MeshBasicMaterial({
@@ -249,12 +231,10 @@ export default function Model({
     plane.current.scale.y = -1;
     shadowGroup.current.add(plane.current);
 
-    // The plane onto which to blur the texture
     blurPlane.current = new Mesh(planeGeometry);
     blurPlane.current.visible = false;
     shadowGroup.current.add(blurPlane.current);
 
-    // The plane with the color of the ground
     const fillMaterial = new MeshBasicMaterial({
       color: 0xffffff,
       opacity: 0,
@@ -266,7 +246,6 @@ export default function Model({
     fillPlane.current.position.y -= 0.00001;
     shadowGroup.current.add(fillPlane.current);
 
-    // The camera to render the depth material from
     shadowCamera.current = new OrthographicCamera(
       -planeWidth / 2,
       planeWidth / 2,
@@ -275,7 +254,6 @@ export default function Model({
       0,
       cameraHeight,
     );
-    // Get the camera to look up
     shadowCamera.current.rotation.x = Math.PI / 2;
     shadowGroup.current.add(shadowCamera.current);
 
@@ -322,7 +300,6 @@ export default function Model({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Handle mouse move animation
   useEffect(() => {
     const onMouseMove = throttle((event: MouseEvent) => {
       const { innerWidth, innerHeight } = window;
@@ -337,7 +314,7 @@ export default function Model({
     return () => window.removeEventListener("mousemove", onMouseMove);
   }, [isInViewport, reduceMotion, rotationX, rotationY]);
 
-  // Handle window resize (and the preview's box changing size)
+  // Resizes with the window and with the preview's box.
   useEffect(() => {
     const box = container.current;
     if (!box) return;
@@ -422,7 +399,6 @@ function Device({
 }) {
   const { reduceMotion } = useReel();
 
-  // The original builds the loader on mount and runs it once `show` is set; one effect here.
   useEffect(() => {
     if (!show) return;
     let animation: Controls | undefined;
@@ -448,7 +424,6 @@ function Device({
       material.needsUpdate = true;
     };
 
-    // Generate promises to await when ready
     const load = async (): Promise<Loaded> => {
       const { texture, position, url } = model;
       let loadFullResTexture: Loaded["loadFullResTexture"] = async () => {};
@@ -467,8 +442,7 @@ function Device({
         if (node.material) (node.material as ScreenMaterial).color = new Color(0x1f2025);
 
         if (node.name === MeshType.Screen) {
-          // Create a copy of the screen mesh so we can fade it out
-          // over the full resolution screen texture
+          // A copy of the screen mesh, faded out over the full-resolution texture.
           const placeholderScreen = node.clone();
           placeholderScreen.material = (node.material as ScreenMaterial).clone();
           node.parent?.add(placeholderScreen);
@@ -493,7 +467,6 @@ function Device({
 
       if (reduceMotion) gltf.scene.position.set(...targetPosition.toArray());
 
-      // Simple slide up animation
       if (model.animation === "spring-up") {
         playAnimation = () => {
           const startPosition = new Vector3(
@@ -518,7 +491,6 @@ function Device({
         };
       }
 
-      // Swing the laptop lid open
       if (model.animation === "laptop-open") {
         playAnimation = () => {
           const frameNode = gltf.scene.children.find((node) => node.name === MeshType.Frame);
@@ -577,10 +549,7 @@ type ScreenTextures = { full: Texture; placeholder: Texture };
 
 const PLACEHOLDER_SCALE = 1 / 24;
 
-/**
- * The drawn screen as textures: the SVG rasterised and cover-cropped to the screen's ratio (top
- * first), and a tiny copy for the blurred placeholder the original fades out.
- */
+// Cover-cropped to the screen's ratio (top first), plus a tiny copy for the blurred placeholder.
 async function screenTextures(
   source: ScreenSource,
   width: number,

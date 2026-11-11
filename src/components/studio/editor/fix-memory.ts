@@ -1,8 +1,7 @@
 import type { FixResponse } from "@/lib/api/types";
 
-// Line fixes already paid for in this tab, by the exact request (line, role and answers). Opening
-// "Fix with Otto" again on a line nobody changed, or sending the same answers again, shows the
-// suggestion Otto already wrote instead of spending another fix (and another AI call) on it.
+// Line fixes already paid for in this tab, by exact request: reopening an unchanged line, or
+// resending the same answers, shows Otto's earlier suggestion instead of spending another fix.
 
 const MAX_KEPT = 40;
 const kept = new Map<string, FixResponse>();

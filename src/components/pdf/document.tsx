@@ -28,10 +28,7 @@ import {
 } from "./layout";
 import type { EntryKind, PdfStyle, TemplateTheme } from "./theme";
 
-// The one resume layout every format shares: one column, clear headings in the user's section
-// order (extra sections after them), and no tables, images or icons. Reading order on the page is
-// the order a parser reads it in. Formats and look settings change only the theme; ./layout.ts
-// plans each line's pieces.
+// One layout for every format, with no tables, images or icons, so reading order is parser order.
 
 export type ResumeDocumentProps = {
   resume: Resume;
@@ -39,11 +36,8 @@ export type ResumeDocumentProps = {
   theme: TemplateTheme;
 };
 
-// react-pdf treats the seam between two text pieces of one line (even two strings side by side
-// in JSX) as a place it may break with a hyphen ("Engineer-"). So every seam sits on a regular
-// space or right after punctuation, and a piece with punctuation is one string: `${label}: `.
-
-// Every Text goes through here so no word is ever hyphenated across lines.
+// react-pdf may hyphenate at the seam between two text pieces ("Engineer-"), so every seam sits on
+// a space or after punctuation. Every Text goes through here so no word is hyphenated.
 export function Line({ style, children }: { style?: PdfStyle; children: ReactNode }) {
   return (
     <Text style={style} hyphenationCallback={keepWordsWhole}>
@@ -57,7 +51,6 @@ function linkStyle(link: PdfLink, theme: TemplateTheme): PdfStyle {
   return web ? theme.styles.webLink : theme.styles.link;
 }
 
-// Inline only: rendered inside a Line.
 function LinkText({
   link,
   theme,
@@ -94,7 +87,6 @@ function Runs({ runs, theme }: { runs: readonly Run[]; theme: TemplateTheme }) {
   );
 }
 
-// Shared with the cover letter, so both pages carry the same name block.
 export function Header({ model, theme }: { model: PdfModel; theme: TemplateTheme }) {
   const { styles } = theme;
   const name = nameRuns(model, theme);
@@ -147,16 +139,14 @@ const TEXT_PROPS = [
   "textAlign",
 ] as const;
 
-// react-pdf doesn't pass a view's text styles on to the text inside it, so the glyph gets the
-// box's font, size and color itself.
+// react-pdf doesn't pass a view's text styles to its text, so the glyph copies the box's.
 export function glyphStyle(box: PdfStyle): PdfStyle {
   const style: Record<string, unknown> = {};
   for (const key of TEXT_PROPS) if (box[key] !== undefined) style[key] = box[key];
   return style as PdfStyle;
 }
 
-// A drawn square or ring, for a font with no glyph for the bullet. Never text, so it adds nothing
-// to what hiring software reads.
+// Drawn, never text, for fonts with no bullet glyph: adds nothing to what hiring software reads.
 export function markStyle(theme: TemplateTheme, shape: "square" | "circle"): PdfStyle {
   const mark = theme.styles.bulletMark;
   const color = typeof mark.color === "string" ? mark.color : "#1a1a1a";
@@ -166,8 +156,7 @@ export function markStyle(theme: TemplateTheme, shape: "square" | "circle"): Pdf
     : { ...mark, borderWidth: 0.7, borderColor: color, borderRadius: size / 2 };
 }
 
-// The hanging indent keeps wrapped lines aligned with the text, not the bullet. A bullet never
-// splits across pages.
+// The hanging indent keeps wrapped lines aligned with the text. A bullet never splits across pages.
 function Bullet({ children, theme }: { children: ReactNode; theme: TemplateTheme }) {
   const { styles } = theme;
   const mark = bulletMark(theme);
@@ -204,8 +193,7 @@ function entrySpacing(
   return entry.company && !entry.company.first ? theme.styles.role : theme.styles.entry;
 }
 
-// An entry's heading and first bullet stay together, so a heading never ends a page on its own.
-// A company line travels with its first role the same way.
+// A heading stays with its first bullet (a company line with its first role): no orphan headings.
 function entryBlocks(
   entry: PdfEntry,
   kind: EntryKind,
@@ -242,7 +230,6 @@ export function spaced(style: PdfStyle, index: number): PdfStyle {
   return index > 0 ? style : { ...style, marginTop: 0 };
 }
 
-// Page-break units of a section, in reading order.
 function sectionBlocks(section: PdfSection, theme: TemplateTheme): ReactElement[] {
   const { styles } = theme;
   switch (section.key) {

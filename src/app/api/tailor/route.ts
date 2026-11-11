@@ -13,8 +13,7 @@ const COPY: MeteredCopy = {
   tooLong: "That job post or resume is too long for Otto. Try a shorter job post.",
 };
 
-// Resume + job post → keywords, questions, bullet order and a summary. Uses one of the month's
-// tailored versions.
+// Uses one of the month's tailored versions.
 export async function POST(req: Request): Promise<Response> {
   return runMetered(req, {
     feature: "tailor",

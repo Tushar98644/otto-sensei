@@ -16,9 +16,8 @@ export type ApplyFormat = {
   apply: (id: TemplateId) => Promise<void>;
 };
 
-// Puts the format on the resume and opens the studio's download step, where the preview, the
-// download and "Check my new PDF" all use it. With no resume yet, a sample stands in. A Pro format
-// on Free offers the trial instead; its preview in the gallery stays open to everyone.
+// With no resume yet, a sample stands in. A Pro format on Free offers the trial; its gallery
+// preview stays open to everyone.
 export function useApplyFormat(): ApplyFormat {
   const router = useRouter();
   const ready = useStudioHydrated();

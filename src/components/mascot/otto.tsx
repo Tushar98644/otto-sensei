@@ -12,14 +12,11 @@ export type OttoProps = {
   size?: number;
   className?: string;
   title?: string;
-  // A blink every few seconds, and the wave pose waves twice. Always off for users who prefer
-  // reduced motion. Turn it off in work screens, where he should sit still.
+  // Always off under reduced motion. Turn it off in work screens, where he should sit still.
   animated?: boolean;
-  // Otto at work, for the dashboard home's action cards only: his pose's idle loop, and a livelier
-  // take while the nearest ancestor with the `group/otto` class is hovered or focused.
+  // Dashboard home's action cards only; livelier while a `group/otto` ancestor is hovered.
   lively?: boolean;
-  // Seconds into his loops he starts (negative starts mid-loop), so Ottos side by side don't move
-  // in step.
+  // Seconds into his loops he starts (negative starts mid-loop), so Ottos side by side don't sync.
   delay?: number;
 };
 

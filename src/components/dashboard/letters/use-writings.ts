@@ -8,8 +8,7 @@ import { WRITINGS } from "@/lib/queries/keys";
 import { writingsQuery } from "@/lib/queries/options";
 import type { Writing } from "@/lib/writings/schema";
 
-// The account's saved letters and answers for the Cover letters page. Changes made here go into
-// the shared cache as they happen, so the board's letter marks see them too.
+// Changes go into the shared cache as they happen, so the board's letter marks see them too.
 
 export type WritingsState = {
   status: "loading" | "ready" | "error";

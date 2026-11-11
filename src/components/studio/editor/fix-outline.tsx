@@ -89,10 +89,6 @@ function Count({ value }: { value: number }) {
   );
 }
 
-/**
- * Every section and entry with what still needs work. Wide screens keep it beside the editor;
- * phones get the sections as a row under the top bar. Both scroll the editor to what you pick.
- */
 export function FixOutline({ resumeId }: { resumeId: string }) {
   const outline = useOutline(resumeId);
   const reading = useReading(outline);

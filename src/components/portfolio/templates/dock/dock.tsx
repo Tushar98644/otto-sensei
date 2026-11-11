@@ -29,12 +29,8 @@ import type { PortfolioTemplateProps } from "../types";
 import { Dock, FlickeringGrid, type DockLink } from "./islands";
 import { DOCK_CSS } from "./styles";
 
-// Dock: a rebuild of Dillion Verma's portfolio (github.com/dillionverma/portfolio, the magicui
-// template, MIT; ./LICENSE.txt) for anyone's data. One calm column that blurs in block by block:
-// initials avatar hero, About, work as expandable rows with monogram badges, education, skill
-// badges, project cards with a drawn cover (a dot, grid or line field and the project's mark, in
-// place of his screenshots and videos), a hackathon timeline, a contact card, and a floating dock
-// with a theme toggle.
+// Dock: a rebuild of Dillion Verma's portfolio (github.com/dillionverma/portfolio, MIT;
+// ./LICENSE.txt) for anyone's data, with drawn project covers in place of his screenshots.
 
 const STEP = 0.04;
 const SOCIALS_IN_DOCK = 5;
@@ -51,7 +47,6 @@ function Logo({ monogram }: { monogram: string }) {
 
 const PATTERNS = ["dots", "grid", "lines"] as const;
 
-/** The card's cover: one of three fields, lit from a spot of its own, under the project's mark. */
 function Cover({ project }: { project: ContentProject }) {
   const random = seeded(seedOf(project.name));
   const style = {

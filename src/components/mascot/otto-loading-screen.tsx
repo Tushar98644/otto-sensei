@@ -5,10 +5,8 @@ import { cn } from "@/lib/utils";
 import { createLoadingScreen, type LoadingScreenState } from "./loading-screen";
 import { Otto } from "./otto";
 
-// The full-screen wait, for app-level moments only: a route loading, the dashboard or studio's
-// first load, the way back from sign-in or checkout. Waits inside a page keep their skeletons or
-// the small working Otto. The one screen lives in the root layout (LoadingScreenHost); anything
-// that needs it asks with useOttoLoadingScreen or <OttoLoadingScreen />.
+// App-level waits only (route loads, first dashboard or studio load, sign-in or checkout return);
+// in-page waits keep skeletons or the small working Otto. One screen lives in the root layout.
 
 const screen = createLoadingScreen();
 const HIDDEN: LoadingScreenState = { phase: "hidden", detail: null };
@@ -19,7 +17,6 @@ export function loadingScreenUp(): boolean {
   return screen.getState().phase !== "hidden";
 }
 
-/** Asks for the loading screen while `active`. `detail` says what is really happening. */
 export function useOttoLoadingScreen(active: boolean, detail?: string | null): void {
   useEffect(() => {
     if (!active) return;
@@ -27,7 +24,6 @@ export function useOttoLoadingScreen(active: boolean, detail?: string | null): v
   }, [active, detail]);
 }
 
-/** For a route's loading.tsx and other places that are only on screen while something loads. */
 export function OttoLoadingScreen({ detail }: { detail?: string }) {
   useOttoLoadingScreen(true, detail);
   return null;

@@ -13,8 +13,7 @@ const LAST_UPDATED_LABEL = new Intl.DateTimeFormat("en-US", {
   timeZone: "UTC",
 }).format(new Date(`${LEGAL_LAST_UPDATED}T00:00:00Z`));
 
-// Shared frame for privacy, terms and refunds: one readable column with the last-updated date up
-// top, as the policies promise.
+// The last-updated date sits up top, as the policies promise.
 export function LegalPage({ title, children }: LegalPageProps) {
   return (
     <div className="container-page py-12 sm:py-16">

@@ -2,24 +2,21 @@
 
 import { dismissToast, toast } from "./toast";
 
-// Undo instead of "Are you sure?": the change happens at once and the toast offers to take it
-// back. Changes that can't be taken back on the server (a deleted row, a link turned off) are
-// held: `commit` sends them when the toast goes, or right away if the page is closed first.
+// Undo instead of "Are you sure?". Changes the server can't take back (a deleted row, a link
+// turned off) are held: `commit` sends them when the toast goes, or at once if the page closes.
 
 export const UNDO_MS = 6_000;
 
 export type UndoToastOptions = {
   title: string;
   description?: string;
-  // Puts things back as they were.
   onUndo: () => void;
   // Sends a held change. keepalive: the page is being closed, so the request must outlive it.
   onCommit?: (options: { keepalive: boolean }) => void;
 };
 
 export type UndoHandle = {
-  // Takes the change back without the toast's button (something newer replaced it): the held
-  // change is dropped, not sent.
+  // Undo without the button (something newer replaced it): the held change is dropped, not sent.
   undo: () => void;
 };
 

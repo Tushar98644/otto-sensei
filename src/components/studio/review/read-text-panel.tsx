@@ -9,7 +9,6 @@ const KIND_LABELS: Record<FileKind, string> = { pdf: "PDF", docx: "Word" };
 
 export type ReadTextPanelProps = {
   report: RecruiterReport;
-  // Visually hidden when a tab already names the panel.
   hideHeading?: boolean;
 };
 

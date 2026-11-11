@@ -45,8 +45,6 @@ export function StatusIcon({
   );
 }
 
-// The status as a white key that opens every status as a radio item: one press to open, one to
-// pick, arrow keys in between.
 export function StatusMenu({
   application,
   onChange,

@@ -4,9 +4,7 @@ import { useRef, useState, type ReactNode } from "react";
 import { useSectionVisible } from "./motion";
 import { Divider } from "./ui";
 
-// Sections the original doesn't have (more projects, experience), in its language: the profile's
-// notched tag as the heading over a ruled table like his uses page, revealed the way his sections
-// are.
+// Sections the original lacks (more projects, experience), in its language.
 export function ExtraSection({
   id,
   title,

@@ -14,9 +14,8 @@ import type { SavedJob } from "@/lib/job-feed/types";
 import { resumeTitle } from "@/lib/resume/ops";
 import type { Resume } from "@/lib/resume/schema";
 
-// Client-safe and pure: the Applications board. Columns are where each job stands; "To apply" is
-// worked out, never stored: saved jobs and tailored copies that have no application yet. Moving
-// one of those on creates the application the usual way, so Free's limit still applies.
+// "To apply" is worked out, never stored: saved jobs and tailored copies with no application
+// yet. Moving one on creates the application the usual way, so Free's limit still applies.
 
 export const BOARD_COLUMNS = ["to_apply", "applied", "interview", "offer", "closed"] as const;
 export type BoardColumn = (typeof BOARD_COLUMNS)[number];
@@ -29,14 +28,12 @@ export const COLUMN_NAMES: Record<BoardColumn, string> = {
   closed: "Closed",
 };
 
-// Where a dragged card can land: a column, or the delete place that shows while dragging.
 export type DropTarget = BoardColumn | "delete";
 
 export function columnOf(status: ApplicationStatus): BoardColumn {
   return status === "rejected" || status === "no_reply" ? "closed" : status;
 }
 
-/** A job waiting to be applied to: a saved job, a tailored copy, or a saved job with its copy. */
 export type ToApplyItem = {
   key: string;
   job: SavedJob | null;
@@ -45,9 +42,7 @@ export type ToApplyItem = {
   role: string;
   jobUrl: string;
   jobId: string | null;
-  // When it was saved or tailored, for the order.
   addedAt: number;
-  // The saved job's post has closed.
   closed: boolean;
 };
 
@@ -55,10 +50,7 @@ export type BoardCard =
   | { kind: "application"; key: string; application: Application; copy: Resume | null }
   | { kind: "to_apply"; key: string; item: ToApplyItem };
 
-/**
- * The To apply column: every saved job and tailored copy without an application, newest first.
- * A saved job and the copy made for it are one card.
- */
+/** Newest first. A saved job and the copy made for it are one card. */
 export function toApplyItems(
   savedJobs: readonly SavedJob[],
   resumes: readonly Resume[],
@@ -104,16 +96,14 @@ export function toApplyItems(
 const DAY_MS = 24 * 60 * 60 * 1_000;
 // Waiting this long on Applied with no word back counts as overdue.
 export const STALE_DAYS = 14;
-// Cards drawn per column at first and per "Load more".
 export const COLUMN_PAGE = 20;
 
-/** Whole days since it arrived in its column (sent, moved, saved or tailored). */
 export function daysInStage(card: BoardCard, now: number): number {
   const since = card.kind === "application" ? card.application.statusChangedAt : card.item.addedAt;
   return Math.max(0, Math.floor((now - since) / DAY_MS));
 }
 
-/** Needs doing now: a follow-up that's due. These cards sort first and carry a corner mark. */
+/** A follow-up that's due. These cards sort first and carry a corner mark. */
 export function needsAction(card: BoardCard, now: number): boolean {
   return (
     card.kind === "application" &&
@@ -129,10 +119,7 @@ export function isOverdue(card: BoardCard, now: number): boolean {
   return card.application.status === "applied" && daysInStage(card, now) >= STALE_DAYS;
 }
 
-/**
- * Every column's cards: the ones that need action first, then the latest to arrive. Rejected and
- * No reply share Closed.
- */
+/** Needs-action cards first, then the latest to arrive. Rejected and No reply share Closed. */
 export function boardColumns(
   applications: readonly Application[],
   toApply: readonly ToApplyItem[],
@@ -169,10 +156,8 @@ export function cardColumn(card: BoardCard): BoardColumn {
   return card.kind === "application" ? columnOf(card.application.status) : "to_apply";
 }
 
-/**
- * Whether a dragged card may land here. Nothing goes back to To apply (for an application that
- * would mean it was never sent, which is a delete), and only an application can be deleted.
- */
+// Nothing goes back to To apply (for an application that means it was never sent, which is a
+// delete), and only an application can be deleted.
 export function canDrop(card: BoardCard, target: DropTarget): boolean {
   if (target === "delete") return card.kind === "application";
   return target !== "to_apply" && target !== cardColumn(card);
@@ -186,7 +171,6 @@ export type Move =
   | { kind: "create"; item: ToApplyItem; status: ApplicationStatus }
   | { kind: "delete"; application: Application };
 
-/** What dropping a card on a column (or the delete place) does. */
 export function planDrop(card: BoardCard, target: DropTarget): Move {
   if (!canDrop(card, target)) return { kind: "none" };
   if (target === "delete") {
@@ -196,14 +180,12 @@ export function planDrop(card: BoardCard, target: DropTarget): Move {
   return planStatus(card, target as ApplicationStatus);
 }
 
-/** Moving a card straight to one status: a popover's answer, or "Move to…" in its menu. */
 export function planStatus(card: BoardCard, status: ApplicationStatus): Move {
   if (card.kind === "to_apply") return { kind: "create", item: card.item, status };
   if (card.application.status === status) return { kind: "none" };
   return { kind: "status", application: card.application, status };
 }
 
-/** Every status "Move to…" offers: all but the one it has. */
 export function menuStatuses(card: BoardCard): ApplicationStatus[] {
   return APPLICATION_STATUSES.filter(
     (status) => card.kind === "to_apply" || status !== card.application.status,
@@ -221,11 +203,8 @@ export function onward(card: BoardCard): BoardColumn | null {
   return ONWARD[cardColumn(card)] ?? null;
 }
 
-/**
- * The application a To apply card becomes, sent today at this status: the copy tailored for the
- * job when there is one, else the resume Jobs matches with. Null when the job has no company,
- * which an application needs: the form asks for it instead.
- */
+// The copy tailored for the job, else the resume Jobs matches with. Null without a company,
+// which an application needs: the form asks for it instead.
 export function createBody(
   item: ToApplyItem,
   status: ApplicationStatus,
@@ -249,10 +228,7 @@ export function createBody(
   };
 }
 
-/**
- * The keyboard's next column for a held card: one left or right, skipping the ones it can't go
- * to, and staying put at either end. Its own column counts, so it can be put back.
- */
+// Skips columns it can't go to; stays put at either end. Its own column counts, to put it back.
 export function stepColumn(card: BoardCard, current: BoardColumn, step: 1 | -1): BoardColumn {
   const here = cardColumn(card);
   const allowed = BOARD_COLUMNS.filter((column) => column === here || canDrop(card, column));
@@ -261,7 +237,6 @@ export function stepColumn(card: BoardCard, current: BoardColumn, step: 1 | -1):
   return next ?? here;
 }
 
-/** Two letters for the card's avatar: the company's initials. */
 export function initials(name: string): string {
   const words = name
     .replace(/[^\p{L}\p{N}\s]/gu, " ")
@@ -284,7 +259,6 @@ export type BoardView = (typeof BOARD_VIEWS)[number];
 
 const VIEW_KEY = "otto-applications-view-v1";
 
-/** The Board or List choice this browser made last; Board until one was made. */
 export function readView(storage: Pick<Storage, "getItem"> | null): BoardView {
   try {
     const value = storage?.getItem(VIEW_KEY);

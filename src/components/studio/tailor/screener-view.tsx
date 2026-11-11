@@ -25,9 +25,8 @@ export type ScreenerViewProps = {
   onJump: (bulletId: string) => void;
 };
 
-// Replaces the keyword cloud. Recruiter AI (HiredScore grades each qualification, Ashby marks each
-// criterion met or not) reads a resume one requirement at a time, so this shows exactly that, and
-// says plainly that it is the method, not any vendor's grade.
+// Recruiter AI (HiredScore, Ashby) grades one requirement at a time, so this does too, and says
+// plainly it's the method, not any vendor's grade.
 export function ScreenerView({
   screener,
   choices,

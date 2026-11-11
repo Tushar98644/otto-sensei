@@ -5,7 +5,7 @@ export const NEAR_LIMIT_SHARE = 0.8;
 
 export type NearLimit = { feature: Feature } & Usage;
 
-/** The meter closest to its limit, once one is at least 80% used. Ties go to the earlier feature. */
+/** Ties go to the earlier feature. */
 export function nearestLimit(
   usage: Partial<UsageSnapshot> | null | undefined,
   features: readonly Feature[],

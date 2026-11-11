@@ -31,8 +31,6 @@ function actionOf(action: FixFirstAction, onJump: (bulletId: string) => void) {
   return { label: "See it", onClick: () => scrollToElement(action.id) };
 }
 
-// The top of the results: what to do first for this job, then a short table of contents, so a
-// long page of requirements, lines and writing tools is one tap from any part.
 export function ResultsOverview({ screener, onJump }: ResultsOverviewProps) {
   const items: FixFirstEntry[] = screener.fixFirst.map((item) => ({
     key: item.key,

@@ -8,8 +8,6 @@ import { getQueryClient, useAppQueryClient } from "@/lib/queries/client";
 import { APPLICATIONS, PREP_PACKS } from "@/lib/queries/keys";
 import { prepPacksQuery } from "@/lib/queries/options";
 
-// The account's prep packs, as counts, for the Interview prep page.
-
 export type PrepPacksState = {
   status: "loading" | "ready" | "error";
   items: PrepSummary[];

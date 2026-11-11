@@ -9,8 +9,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { webHref } from "@/lib/portfolio/content";
 import { cn } from "@/lib/utils";
 
-// Small editing parts for the portfolio content cards. Values save as they change (the store
-// autosaves); "automatic" fields show what Otto filled in until the owner types over it.
+// Values save as they change (the store autosaves). "Automatic" fields show Otto's value until
+// the owner types over it.
 
 export function AutoNote({ auto, onReset }: { auto: boolean; onReset?: () => void }) {
   if (auto) return <span className="text-xs/5 text-subtle">Filled in for you</span>;
@@ -39,7 +39,6 @@ type TextFieldProps = {
   onChange: (value: string | null) => void;
 };
 
-/** A text field that may be automatic: it shows the filled-in value until the owner edits it. */
 export function TextField({
   label,
   value,
@@ -77,7 +76,6 @@ export function TextField({
   );
 }
 
-/** Comma-separated words ("React, Postgres") kept as a list. */
 export function TagsField({
   label,
   value,
@@ -191,7 +189,6 @@ export function LinkField({
   );
 }
 
-/** A labelled row of fields, side by side once the panel is wide enough. */
 export function FieldRow({ children }: { children: ReactNode }) {
   return <div className="grid gap-4 @md:grid-cols-2">{children}</div>;
 }
@@ -211,7 +208,6 @@ type ListEditorProps<T extends { id: string }> = {
   empty?: string;
 };
 
-/** A list the owner can add to, reorder (arrows or drag) and remove from, with Undo. */
 export function ListEditor<T extends { id: string }>({
   items,
   max,

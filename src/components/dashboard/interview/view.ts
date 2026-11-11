@@ -6,15 +6,13 @@ import type { PrepSummary } from "@/lib/insights/prep";
 import { resumeTitle } from "@/lib/resume/ops";
 import type { Resume } from "@/lib/resume/schema";
 
-// Client-safe and pure: what the Interview prep page lists and offers, kept out of the component
-// so it's tested. A pack lives on its application, so every list here is keyed by application id.
+// A pack lives on its application, so every list here is keyed by application id.
 
-/** The prep page for one application, under Interview prep. */
 export function interviewHref(applicationId: string): string {
   return `${ROUTES.dashboardInterview}/${encodeURIComponent(applicationId)}`;
 }
 
-/** Applications at the interview stage with no pack yet, the latest to get there first. */
+/** The latest to reach the interview stage first. */
 export function waitingForPrep(
   applications: readonly Application[],
   packs: readonly Pick<PrepSummary, "applicationId">[],
@@ -45,17 +43,13 @@ export function findByLink(applications: readonly Application[], link: string): 
   );
 }
 
-// One line of the job picker: an application, or a tailored copy not sent yet, which joins
-// Applications at the interview stage when picked.
+// A tailored copy not sent yet joins Applications at the interview stage when picked.
 export type PrepChoice =
   | { value: string; label: string; kind: "application"; application: Application }
   | { value: string; label: string; kind: "copy"; copy: Resume };
 
-/**
- * Every job prep can start from: the applications (interviews first), then each tailored copy that
- * has no application yet, newest first. A copy that doesn't name its company is left out: an
- * application needs one.
- */
+// Applications (interviews first), then each tailored copy with no application yet, newest
+// first. A copy that doesn't name its company is left out: an application needs one.
 export function prepPickerChoices(
   applications: readonly Application[],
   resumes: readonly Resume[],

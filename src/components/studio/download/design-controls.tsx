@@ -24,9 +24,7 @@ import {
 import { useStudioStore } from "@/lib/store/resume-store";
 import { cn } from "@/lib/utils";
 
-// Accent, font and spacing, saved on the resume like the format, so the preview, both downloads
-// and every device agree. Native radios, like the format picker: arrow keys and announcements
-// come for free.
+// Saved on the resume, so preview, downloads and devices agree. Native radios for arrow keys.
 
 const LOOK_LABEL = "Changed the look";
 

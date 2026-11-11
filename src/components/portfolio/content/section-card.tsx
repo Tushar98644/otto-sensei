@@ -6,10 +6,8 @@ import type { ContentSection, PortfolioContent } from "@/lib/portfolio/content";
 import { CheckRow } from "../check-row";
 import { editContent } from "./content-store";
 
-// One folding row of the editor panel: title, a muted facts line ("3 of 5 with screenshots") and
-// the fields inside. The panel is white, so rows are split by hairlines rather than drawn as cards.
-// `hidden` names what the page leaves out ("Projects are hidden on your page"); the fields stay, so
-// the owner can still edit them.
+// Rows are split by hairlines rather than drawn as cards: the panel is white. `hidden` names what
+// the page leaves out; the fields stay, so the owner can still edit them.
 export function SectionCard({
   title,
   meta,
@@ -41,7 +39,6 @@ export function SectionCard({
   );
 }
 
-/** "Hidden on your page" beside content the page leaves out, with where to turn it back on. */
 export function HiddenNote({ children }: { children: ReactNode }) {
   return (
     <span className="flex items-center gap-1.5 text-sm/5 text-warn-ink">
@@ -51,7 +48,6 @@ export function HiddenNote({ children }: { children: ReactNode }) {
   );
 }
 
-/** "Show on my page" for a content section, kept without deleting what's in it. */
 export function ShowRow({
   content,
   section,

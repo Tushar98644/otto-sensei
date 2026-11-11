@@ -57,14 +57,12 @@ export type WriteDialogProps = {
   resumes: readonly Resume[];
   onClose: () => void;
   onWritten: (written: Written) => void;
-  // Opened from an application's page: its job and the version it went out with to start from,
-  // and the application the letter joins.
+  // Opened from an application's page: the letter starts from its job and joins it.
   start?: { draft: TailorDraft; resumeId: string | null; applicationId: string };
 };
 
-// A new letter or answer from the Cover letters page: the resume edited last (with a link to pick
-// another), the question for an answer, then the job link. Pasting the link reads the job and
-// starts writing at once, as on the studio's Tailor step. Mounted per opening, so each starts blank.
+// Pasting the link reads the job and starts writing at once, as on the studio's Tailor step.
+// Mounted per opening, so each starts blank.
 export function WriteDialog({ kind, open, resumes, onClose, onWritten, start }: WriteDialogProps) {
   const { user, me, loading } = useMe();
   const actions = useStudioActions();

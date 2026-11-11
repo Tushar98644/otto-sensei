@@ -20,11 +20,9 @@ import { DrawnScreen, type DrawnContent } from "./screen";
 import { KATAKANA_PROJECT } from "./sprites";
 import { Button, Divider, Loader } from "./ui";
 
-// HamishMW/portfolio routes/home/project-summary.jsx: the numbered divider, title, line and button
-// beside a 3D laptop (lid swinging open) or a pair of phones (springing up), with プロジェクト behind,
-// alternating sides. The screens are drawn from the project's own words (./screen.tsx), never a
-// picture. Where WebGL doesn't run (template cards, the editor's preview, no hardware WebGL, no
-// JavaScript) the same devices show as still frames rendered from his models.
+// HamishMW/portfolio routes/home/project-summary.jsx. Where WebGL doesn't run (template cards, the
+// editor's preview, no hardware WebGL, no JavaScript) the devices show as still frames rendered
+// from his models.
 
 const Model = lazy(() => import("./gl/model"));
 

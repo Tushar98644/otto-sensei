@@ -1,5 +1,4 @@
-// "Write the cover letter" on a tailored copy's Download step: the Tailor step that made the copy
-// writes it as its results open, so the person never has to find the button. Memory only.
+// The Tailor step writes the requested letter as its results open. Memory only.
 
 let requestedFor: string | null = null;
 
@@ -9,7 +8,6 @@ export function requestLetterFor(copyId: string): void {
   requestedFor = copyId;
 }
 
-// True once, for the copy the letter was asked for.
 export function takeLetterRequest(copyId: string): boolean {
   if (requestedFor !== copyId) return false;
   requestedFor = null;

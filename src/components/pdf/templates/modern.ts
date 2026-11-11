@@ -2,11 +2,8 @@ import { ACCENT_COLORS } from "@/lib/pdf/design";
 import { PDF_FONT } from "@/lib/pdf/fonts";
 import { defineTheme } from "../theme";
 
-// Awesome-CV (posquit0, LPPL): a large two-tone name in Roboto (light first names, bold last
-// name), a small-capital headline in the accent, headings whose first three letters take the
-// accent with a gray rule running on to the margin, and Source Sans entries of a bold organisation
-// with its place in accent italics over the role in small capitals. No header icons, a 10pt body
-// (the original's is 9pt) and a dark accent instead of its bright red.
+// Awesome-CV (posquit0, LPPL) in Roboto and Source Sans. No header icons, a 10pt body (the
+// original's is 9pt) and a dark accent instead of its bright red.
 
 const ACCENT = ACCENT_COLORS.burgundy;
 const DARK = "#333333";

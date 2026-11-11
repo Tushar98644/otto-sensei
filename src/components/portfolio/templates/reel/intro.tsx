@@ -14,9 +14,7 @@ import { Transition, useInterval } from "./motion";
 import { useReel } from "./root";
 import { scrollToHash } from "./scroll";
 
-// HamishMW/portfolio routes/home/intro.jsx: the name decoding out of katakana, the role wiping in
-// with a line after it, the next discipline wiping in under it every five seconds, the displacement
-// sphere behind, and the scroll indicators. Switching theme plays it all again, as in the original.
+// HamishMW/portfolio routes/home/intro.jsx. Switching theme replays it, as in the original.
 
 const DisplacementSphere = lazy(() => import("./gl/displacement-sphere"));
 
@@ -36,7 +34,6 @@ export function Intro({
   // The title for screen readers: "Designer + Developer, and Animator".
   label: string;
   titleScale: number;
-  // The first project's section, when there is one.
   scrollTarget: string | null;
 }) {
   const { theme, mode, reduceMotion } = useReel();
@@ -48,7 +45,6 @@ export function Intro({
   const titleId = `${id}-title`;
   const currentDiscipline = disciplines[disciplineIndex];
 
-  // A new theme starts the words over.
   if (shownTheme !== theme) {
     setShownTheme(theme);
     setDisciplineIndex(0);

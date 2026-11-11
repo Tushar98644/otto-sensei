@@ -19,8 +19,6 @@ function useSkillGaps(limit: number): SkillGapReport | null {
   return hydrated ? report : null;
 }
 
-// The Applications page's panel: every skill that keeps coming up short, with what to do about it
-// and a way into the newest copy that's missing it.
 export function SkillGapsPanel() {
   const report = useSkillGaps(PANEL_GAPS);
   const actions = useStudioActions();
@@ -98,8 +96,7 @@ export function SkillGapsPanel() {
   );
 }
 
-// The dashboard home's compact version: the top gap and a way to the full list. Hidden until there
-// is a gap, so the home page never shows an empty card for it.
+// Hidden until there is a gap, so the home page never shows an empty card.
 export function SkillGapCard() {
   const report = useSkillGaps(3);
   const top = report?.gaps[0];

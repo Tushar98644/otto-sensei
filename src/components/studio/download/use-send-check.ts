@@ -9,9 +9,7 @@ import type { Resume } from "@/lib/resume/schema";
 import { runSendCheck, type SendCheckItem } from "@/lib/sendcheck";
 import { useStudioStore } from "@/lib/store/resume-store";
 
-// The send check for the open resume, minus what the person marked "This is correct". Those
-// marks are a convenience for this browser only (localStorage, kept in memory too when storage is
-// blocked); an edit to the text in question brings its item back, because the id includes it.
+// "This is correct" marks are per browser; editing the text brings its item back (id includes it).
 
 const STORAGE_KEY = "otto-send-check-ok-v1";
 const MAX_RESUMES = 50;
@@ -57,11 +55,9 @@ function save(next: Record<string, readonly string[]>) {
   for (const listener of listeners) listener();
 }
 
-// Keyed by the copy's tailor object, which keeps its identity across ordinary edits, so the session
-// is read once per copy rather than on every keystroke.
+// The tailor object keeps its identity across edits, so the session is read once per copy.
 const jobTexts = new WeakMap<object, string>();
 
-// The post this tailored copy was made from: saved on the copy, or still in this tab's session.
 function jobTextFor(resume: Resume): string {
   const tailor = resume.tailor;
   if (!tailor) return "";
@@ -77,7 +73,6 @@ function jobTextFor(resume: Resume): string {
 
 export type SendCheck = {
   items: SendCheckItem[];
-  // How many the person marked as correct.
   okCount: number;
   markOk: (id: string) => void;
   restore: () => void;

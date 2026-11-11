@@ -40,12 +40,10 @@ import { useWriting } from "./use-writing";
 
 export type TailorResultsProps = {
   source: Resume;
-  // The result with everything the person added to it so far.
   saved: SavedResult;
   choices: TailorChoices;
   screener: Screener;
   onPatch: (patch: ResultPatch) => void;
-  // Shown right before the apply kit (the eligibility check while the job form is folded away).
   beforeApply?: ReactNode;
 };
 
@@ -96,7 +94,6 @@ export function TailorResults({
 
   const plans = useMemo(() => reorderPlans(source, result), [source, result]);
   const targets = useMemo(() => lineTargets(source), [source]);
-  // What the copy will hold: the letter and answers are written from this, added lines included.
   const preview = useMemo(
     () => applyTailorChoices(source, result, choices),
     [source, result, choices],
@@ -119,8 +116,7 @@ export function TailorResults({
     setChoices({ ...choices, requirements });
   }
 
-  // Every letter and answer is also kept on the Cover letters page. Awaited so the saved id lands
-  // with the text; a failed save leaves it on this page only, as before.
+  // Awaited so the saved id lands with the text; a failed save leaves it on this page only.
   function keep(kind: "letter" | "answer", text: SavedWriting, question = "") {
     return keepWriting({
       kind,
@@ -144,8 +140,7 @@ export function TailorResults({
     saveLetterOnCopy(saved.copyId, letter.text);
   }
 
-  // "Write the cover letter" on the copy's Download step lands here: the letter starts by itself,
-  // in view, from the same post and choices the copy was made with.
+  // From the copy's Download step: the letter starts by itself, from the copy's post and choices.
   const writeRequestedLetter = useEffectEvent(() => {
     document.getElementById(APPLY_KIT_ID)?.scrollIntoView({ block: "start" });
     void writeLetter();
@@ -276,8 +271,7 @@ export function TailorResults({
         onRemoveAnswer={(id) => onPatch({ answers: answers.filter((answer) => answer.id !== id) })}
       />
 
-      {/* The step's main action, kept in view while the results scroll past, like the Fix step's
-          bar. Once a copy exists it opens that copy, so a second click doesn't make a twin. */}
+      {/* Once a copy exists this opens it, so a second click doesn't make a twin. */}
       <div className="sticky bottom-[max(0.75rem,env(safe-area-inset-bottom))] z-10 flex items-center gap-3 rounded-2xl bg-surface p-1.5 shadow-float ring-1 ring-ink/5 max-sm:flex-col max-sm:items-stretch max-sm:gap-1 sm:pl-4">
         <p className="min-w-0 flex-1 text-sm text-muted max-sm:px-2.5 max-sm:pt-1.5 max-sm:pb-1">
           {copy

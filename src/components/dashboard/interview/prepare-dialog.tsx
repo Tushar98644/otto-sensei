@@ -36,10 +36,8 @@ export type PrepareDialogProps = {
 // Shown when the job link can't name the company, which an application needs.
 type Manual = { company: string; role: string; note: string };
 
-// Starts prep for a job: one already in Applications, a tailored copy not sent yet, or a job link.
-// A copy or a link joins Applications marked as an interview, with the copy, its job and its
-// letters linked. The prep itself is made on that job's own page, with the same form and API as
-// from Applications. Mounted per opening, so each one starts blank.
+// A copy or a link joins Applications marked as an interview, with its job and letters linked.
+// Mounted per opening, so each one starts blank.
 export function PrepareDialog({ open, applications, resumes, packs, onClose }: PrepareDialogProps) {
   const router = useRouter();
   const choices = useMemo(() => prepPickerChoices(applications, resumes), [applications, resumes]);

@@ -2,8 +2,7 @@ import { fail } from "@/lib/api/respond";
 import type { GitHubConnection } from "@/lib/github/connect";
 import { log } from "@/lib/log";
 
-// Server-only. Import from GitHub reads one account: the one the person connected by signing in to
-// GitHub. A username in the request is only checked against it, never trusted on its own.
+// A username in the request is only checked against the connected account, never trusted alone.
 
 export const NOT_CONNECTED = "Connect your GitHub account to import its projects.";
 

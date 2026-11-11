@@ -8,7 +8,6 @@ import { toast } from "@/components/ui/toast";
 import { resumeToText } from "@/lib/resume/ops";
 import type { Resume } from "@/lib/resume/schema";
 
-// Many application forms want the resume pasted in as text, field by field.
 export function PlainTextCopy({ resume }: { resume: Resume }) {
   const text = useMemo(() => resumeToText(resume), [resume]);
 

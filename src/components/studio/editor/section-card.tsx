@@ -13,17 +13,13 @@ export type { SectionOptions } from "./section-menu";
 
 export type SectionCardProps = {
   title: string;
-  // Short summary beside the title, e.g. "3 jobs". Part of the toggle's name for screen readers.
+  // e.g. "3 jobs". Part of the toggle's name for screen readers.
   count?: string | null;
-  // Beside the count, e.g. a "2 need work" badge. Also part of the toggle's name.
   status?: ReactNode;
-  // At the right end of the header, outside the toggle, e.g. move up and down.
   actions?: ReactNode;
-  // Rename, "Hide in this version" and remove, behind one menu next to the actions.
   options?: SectionOptions;
   // Lets focus land on this section's toggle after a neighbouring section is removed.
   toggleId?: string;
-  // The section's own id, for the Fix step's outline to scroll to.
   sectionId?: string;
   defaultOpen?: boolean;
   children: ReactNode;
@@ -31,9 +27,8 @@ export type SectionCardProps = {
 
 type Mode = "view" | "rename";
 
-// One white sheet per section on the stone canvas. Collapsed content unmounts rather than hiding,
-// so a closed section costs nothing per keystroke. The header's actions fade in on hover or
-// focus; they keep their space while hidden, so nothing shifts when they appear.
+// Collapsed content unmounts rather than hiding, so a closed section costs nothing per keystroke.
+// Header actions fade in on hover or focus but keep their space, so nothing shifts.
 export function SectionCard({
   title,
   count,

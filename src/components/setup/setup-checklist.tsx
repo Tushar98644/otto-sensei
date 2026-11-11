@@ -62,9 +62,8 @@ const WEAK_LINE_WAITING: Partial<Record<WeakLineState["status"], string>> = {
   no_lines: "Add your jobs and what you did in them, then Otto marks the weak lines.",
 };
 
-// Home's "Get set up" list (DESIGN.md, "First login and setup"): 3 to 5 short items, each one tap
-// to its exact setting, ticked from the real settings as they get done. It goes away when all are
-// done, or for good with "Hide this" (kept for the account).
+// DESIGN.md, "First login and setup". Ticked from the real settings; gone when all are done, or
+// for good with "Hide this" (kept for the account).
 export function SetupChecklist({ actions }: { actions: StudioActions }) {
   const pro = useProTools();
   const work = useWorkProfile();

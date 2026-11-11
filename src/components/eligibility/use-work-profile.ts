@@ -9,10 +9,6 @@ import { getQueryClient, useAppQueryClient } from "@/lib/queries/client";
 import { queryKeys } from "@/lib/queries/keys";
 import { workProfileQuery, type WorkProfileData } from "@/lib/queries/options";
 
-// The signed-in account's work profile (GET /api/profile), for the Account page form, the job
-// card's eligibility check, the Jobs tab and the first-login step alike.
-
-/** After a successful save: every reader sees the new answers at once. */
 export function storeWorkProfile(
   userId: string,
   profile: WorkProfile,
@@ -38,10 +34,7 @@ function storeLookingFor(userId: string, lookingFor: LookingForChoice) {
   );
 }
 
-/**
- * A "Looking for" change from any screen (the Jobs card, the Account card, the first-login step):
- * every reader sees it at once, and it is put back if the save fails, which the caller reports.
- */
+/** Every reader sees it at once; it's put back if the save fails, which the caller reports. */
 export async function saveLookingForChoice(userId: string, next: LookingForChoice): Promise<void> {
   const before =
     getQueryClient().getQueryData<WorkProfileData>(queryKeys.workProfile(userId))?.lookingFor ??
@@ -57,7 +50,6 @@ export async function saveLookingForChoice(userId: string, next: LookingForChoic
 }
 
 export type WorkProfileState =
-  // The account isn't known yet.
   | { status: "unknown" }
   | { status: "signed_out" }
   | { status: "loading" }

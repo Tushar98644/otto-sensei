@@ -24,13 +24,8 @@ import { ProjectSummary } from "./summary";
 import { Button } from "./ui";
 
 // Reel: Hamish Williams' portfolio (github.com/HamishMW/portfolio, MIT; ./LICENSE.txt) ported for
-// anyone's data. His home page as it is (navbar rail, intro over the displacement sphere,
-// alternating project summaries in 3D devices, the profile, the footer), plus what our data has
-// and his page doesn't, in his language: more projects, experience, and a page per project
-// opened in place (:target, like his project routes). None of his own content is used, and no
-// pictures: every screen is drawn from the project's words (./screen.tsx).
-//
-// This file only lays the page out; everything that moves lives in the client islands it renders.
+// anyone's data, plus a page per project opened in place (:target). None of his content is used.
+// This file only lays the page out; everything that moves lives in the client islands.
 
 const SOCIALS_MAX = 4;
 
@@ -42,7 +37,6 @@ const hostOf = (href: string) => {
   }
 };
 
-/** What a project's drawn screens say: its name, line and site, and a few facts for a second page. */
 function drawnOf(project: ContentProject): DrawnContent {
   const facts = project.outcome
     ? project.outcome
@@ -231,7 +225,6 @@ export function ReelTemplate({ view, content, footer }: PortfolioTemplateProps) 
   );
 }
 
-/** layouts/project: the header with roles beside it, the drawn screen, the write-up. */
 function ProjectPage({ project, back }: { project: ContentProject; back: string }) {
   const link = project.website ?? project.source;
   const meta = [...project.roles, project.category, project.years].filter(Boolean);

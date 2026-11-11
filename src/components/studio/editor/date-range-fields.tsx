@@ -11,7 +11,6 @@ import { CHAR_LIMITS } from "./limits";
 export type DateRange = { startDate: string; endDate: string };
 
 export type DateRangeFieldsProps = DateRange & {
-  // The checkbox text, e.g. "I work here now".
   presentLabel: string;
   onChange: (patch: Partial<DateRange>) => void;
   className?: string;

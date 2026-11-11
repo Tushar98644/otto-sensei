@@ -11,16 +11,13 @@ export type PlanPickerProps = {
   plans: readonly PaidPlanId[];
   value: PaidPlanId;
   onChange: (plan: PaidPlanId) => void;
-  // The billing option picked below: each plan shows its price for it.
   interval: BillingInterval;
-  // How often each plan can bill here. A plan not sold at `interval` shows its monthly price, the
-  // option a switch to it falls back to.
+  // A plan not sold at `interval` shows its monthly price, the option a switch falls back to.
   offer?: Partial<Record<PaidPlanId, readonly BillingInterval[]>>;
   className?: string;
 };
 
-// Pro or Max, as a segmented toggle of native radios showing each one's price for the picked
-// billing option, never a fixed monthly one.
+// Each plan shows its price for the picked billing option, never a fixed monthly one.
 export function PlanPicker({ plans, value, onChange, interval, offer, className }: PlanPickerProps) {
   const name = useId();
   if (plans.length < 2) return null;

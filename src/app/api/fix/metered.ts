@@ -15,11 +15,8 @@ import { rateLimit, retryAfterHeader, waitText } from "@/lib/rate-limit";
 import { consumeUsage, refundUsage } from "@/lib/usage";
 import { budgetReached, limitReached, requirePlanFeature } from "../metered-free";
 
-// Server-only. The flow behind POST /api/fix, /api/tailor, /api/letter and /api/answer: sign-in, a
-// plan that includes the feature (Free has none: 402 upgrade_required), a per-minute burst limit,
-// validation, the AI budget, the allowance, then the AI call, whose tokens go on the budget. A
-// failed call gives its unit back, within a daily cap for failures the model may still have been
-// paid for.
+// Order matters: sign-in, plan, burst limit, validation, AI budget, allowance, then the call. A
+// failed call gives its unit back, within a daily cap for failures that may have been billed.
 
 export type MeteredCopy = {
   signIn: string;
@@ -51,9 +48,8 @@ const CALLS_PER_MINUTE: Record<Feature, number> = {
 // Nothing ran on the model for these (input checks, the provider turning the call away), so they
 // cost nothing and their unit always comes back.
 const UNBILLED_FAILURES: ReadonlySet<AIErrorCode> = new Set<AIErrorCode>(["too_long", "rate_limited"]);
-// Any other failure may still have been billed: a refusal, a cut-off or malformed answer, a run
-// past the deadline. Refunding all of them would let input written to fail run billed calls
-// without ever touching the allowance, so only a few a day per feature come back.
+// Other failures may still have been billed. Refunding all of them would let input written to
+// fail run billed calls for free, so only a few a day per feature come back.
 const BILLED_REFUNDS_PER_DAY = 3;
 
 const AI_UNAVAILABLE = "Otto couldn't finish that right now. Try again in a minute.";
@@ -74,11 +70,8 @@ function unavailableMessage(_copy: MeteredCopy, refunded: boolean): string {
   return refunded ? AI_UNAVAILABLE + NOT_COUNTED : AI_UNAVAILABLE;
 }
 
-/**
- * Responds with `{ result, usage, demo }`: usage is the snapshot after this call was counted, and
- * demo is true when there's no AI key, since fixBullet() and tailorResume() then answer with
- * sample output the UI must label as such.
- */
+// demo is true with no AI key: fixBullet() and tailorResume() then answer with sample output the
+// UI must label.
 export async function runMetered<S extends z.ZodType, R>(
   req: Request,
   route: MeteredRoute<S, R>,

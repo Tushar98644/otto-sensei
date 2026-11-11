@@ -11,9 +11,8 @@ export const dynamic = "force-dynamic";
 
 const NO_STORE = { "Cache-Control": "no-store" };
 
-// POST: RFC 8058 one-click unsubscribe. Mail apps (Gmail, Apple Mail) send it from their own
-// servers when someone presses "Unsubscribe", with no cookies, so the signed link is the only
-// proof, and it isn't held to the same-site rules the app's own forms are.
+// RFC 8058 one-click: mail apps send it from their servers with no cookies, so the signed link is
+// the only proof, and the app's same-site rules don't apply.
 export async function POST(req: Request): Promise<Response> {
   const url = new URL(req.url);
   const userId = url.searchParams.get("u") ?? "";

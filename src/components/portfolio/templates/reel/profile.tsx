@@ -7,10 +7,8 @@ import { RevealFrame } from "./reveal-frame";
 import { KATAKANA_PROFILE } from "./sprites";
 import { Button, Divider } from "./ui";
 
-// HamishMW/portfolio routes/home/profile.jsx: "Hi there" decoding in over the owner's own about
-// text and a way to write to them, beside the notched "About me" tag, a portrait tile with its
-// accent sweep (the owner's initials over the sphere's cyan, where he has his photo), and
-// プロフィール running down its edge.
+// HamishMW/portfolio routes/home/profile.jsx. The portrait tile shows the owner's initials over
+// the sphere's cyan where he has his photo.
 export function Profile({
   id,
   paragraphs,
@@ -23,7 +21,6 @@ export function Profile({
   paragraphs: ReactNode[];
   contact: string | null;
   initials: string;
-  // A small line on the tile: where they are, or what they do.
   caption: string;
 }) {
   const sectionRef = useRef<HTMLElement>(null);

@@ -5,8 +5,7 @@ import { api, isApiError } from "@/lib/api/client";
 import type { GitHubConnection } from "@/lib/github/connect";
 import { returnPathFor } from "./connect-return";
 
-// The GitHub account this person connected, read while `active` (the import dialog open, the
-// portfolio's GitHub card on screen). Import from GitHub and the portfolio read only that account.
+// Read only while `active`. Import from GitHub and the portfolio read only this account.
 
 export type GitHubConnectionState =
   | { status: "loading" }
@@ -56,7 +55,6 @@ export function useGitHubConnection(active: boolean) {
     }
   }
 
-  /** True once GitHub is disconnected. */
   async function disconnect(): Promise<boolean> {
     setBusy("disconnect");
     setError(null);

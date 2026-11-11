@@ -13,9 +13,6 @@ import { PORTFOLIO } from "@/lib/queries/keys";
 import { portfolioQuery } from "@/lib/queries/options";
 import type { Resume } from "@/lib/resume/schema";
 
-// The account's portfolio, from the tab's query cache, and the one piece of screen state its
-// editor shares: whether a write is on its way.
-
 // A write is on its way; the editor shows it and keeps a second one from racing it.
 export const usePortfolioStore = create<{ saving: boolean }>()(() => ({ saving: false }));
 
@@ -59,7 +56,6 @@ export function messageOf(error: unknown): string {
   return "Something went wrong. Please try again.";
 }
 
-/** Makes the portfolio from this resume (or points the existing one at it). Null on failure. */
 export async function makePortfolio(resume: Resume): Promise<Portfolio | null> {
   usePortfolioStore.setState({ saving: true });
   try {
@@ -94,10 +90,8 @@ function withSettings(portfolio: Portfolio, patch: UpdatePortfolioBody): Portfol
   return next;
 }
 
-/**
- * Saves a change. Settings show at once (optimistic) and go back if the server says no; the
- * server's answer is the final word. Resolves false after telling the person why it failed.
- */
+// Optimistic: settings show at once and roll back if the server says no. Resolves false after
+// telling the person why.
 export async function savePortfolio(patch: UpdatePortfolioBody): Promise<boolean> {
   const before = currentPortfolio();
   if (!before) return false;

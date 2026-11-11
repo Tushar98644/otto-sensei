@@ -8,10 +8,8 @@ import { ArtPlum, ToTop } from "./islands";
 import { PROSE_CSS } from "./styles";
 
 // Prose: a rebuild of Anthony Fu's site (github.com/antfu/antfu.me, code MIT; ./LICENSE.txt) for
-// anyone's data. Words first: the name, a few paragraphs with chips for where you work and what
-// you made (each with a coloured monogram where his have logos), your links; then projects grouped
-// by kind under huge outlined labels, and talks and writing listed under outlined years. Plum branches grow in behind the page. Only the code
-// and layout come from the original: its text and pictures (CC BY-NC-SA) are not used.
+// anyone's data, with coloured monograms where his chips have logos. Only the code and layout
+// come from the original: its text and pictures (CC BY-NC-SA) are not used.
 
 const NAV_SOCIALS = 3;
 

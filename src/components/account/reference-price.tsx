@@ -12,8 +12,7 @@ const usd = new Intl.NumberFormat("en-US", {
   trailingZeroDisplay: "stripIfInteger",
 });
 
-// The struck-through reference price before a monthly price ("$33" before "$15/month"). Monthly
-// only, and nothing at all while SHOW_REFERENCE_PRICES is off (see src/config/plans.ts).
+// Monthly only, and nothing while SHOW_REFERENCE_PRICES is off (src/config/plans.ts).
 export function ReferencePrice({
   plan,
   interval,

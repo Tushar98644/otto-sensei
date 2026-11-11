@@ -20,7 +20,6 @@ export function StudioSkeleton() {
   );
 }
 
-// Also the placeholder while a step's code loads.
 export function StepSkeleton() {
   return (
     <div aria-hidden className="flex flex-col gap-6">

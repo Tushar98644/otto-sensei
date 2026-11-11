@@ -8,12 +8,9 @@ import { HowItWorksNav } from "./how-it-works-nav";
 import { LineFixerMoment } from "./line-fixer-example";
 import { MomentCaption, Section, SectionHeader } from "./section";
 
-// otto: what he does in that step. He reads your file and the job post, points at what the
-// checks found, thinks up a stronger line, and cheers the finished PDF.
 type Step = { id: string; name: string; caption: string; moment: ReactNode; otto: OttoPose };
 
 // Same order as the studio's steps (STUDIO_STEPS), with friendlier names for first-time visitors.
-// Each step shows the real screen it stands for instead of an icon tile.
 const STEPS: readonly Step[] = [
   {
     id: "upload",
@@ -63,8 +60,7 @@ export function HowItWorks() {
         Five steps. Stop after any of them.
       </SectionHeader>
       <div className="mt-12 grid gap-12 sm:mt-16 lg:grid-cols-3">
-        {/* The list stays put while the screens scroll past and marks the one in view. Phones
-            skip it: each screen carries its own step label instead. */}
+        {/* Phones skip the pinned list: each screen carries its own step label. */}
         <HowItWorksNav
           items={STEPS.map((step) => ({ id: momentId(step), name: step.name }))}
           className="self-start max-lg:hidden lg:sticky lg:top-24"

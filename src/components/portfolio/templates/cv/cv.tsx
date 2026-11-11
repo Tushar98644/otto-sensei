@@ -7,11 +7,8 @@ import type { PortfolioTemplateProps } from "../types";
 import { CommandMenu } from "./islands";
 import { CV_CSS } from "./styles";
 
-// CV: a rebuild of Bartosz Jarocki's cv (github.com/BartoszJarocki/cv, cv.jarocki.me, MIT;
-// ./LICENSE.txt) for anyone's data. One monospaced sheet: pixel-type name, a one-line about,
-// location and icon links, then lowercase-labelled sections that fade in one after another.
-// Prints to a single A4 page (contacts written out, links spelled), and ⌘/Ctrl+J opens the
-// original's command menu.
+// CV: a rebuild of Bartosz Jarocki's cv (github.com/BartoszJarocki/cv, MIT; ./LICENSE.txt) for
+// anyone's data. Prints to a single A4 page, with contacts and links written out.
 
 type ContactLink = { label: string; href: string; text: string; icon: ReactNode };
 
@@ -296,7 +293,6 @@ export function CvTemplate({ view, content, footer }: PortfolioTemplateProps) {
                   </>
                 ) : null}
               </div>
-              {/* The initials in the pixel face, where the original has a profile picture. */}
               <div className="avatar" aria-hidden>
                 {content.initials}
               </div>

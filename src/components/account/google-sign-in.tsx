@@ -7,14 +7,12 @@ import { errorMessage } from "./errors";
 import { useMe } from "./use-me";
 
 export type GoogleSignInProps = {
-  // Where to land afterwards. Defaults to the page the button is on.
   next?: string;
   disabled?: boolean;
   onError: (message: string) => void;
 };
 
-// A white key with Google's own mark, per Google's sign-in branding rules. The server starts the
-// sign-in (it sets the verifier cookie) and the browser then leaves for Google's consent page.
+// The server starts sign-in (it sets the verifier cookie), then the browser leaves for Google.
 export function GoogleSignIn({ next, disabled = false, onError }: GoogleSignInProps) {
   const [pending, setPending] = useState(false);
   // Development's dev sign-in (and a deployment without Supabase) has no Google to send people to.
@@ -66,8 +64,7 @@ export function GoogleSignIn({ next, disabled = false, onError }: GoogleSignInPr
   );
 }
 
-// Google's "G", unchanged: its four brand colors are part of the mark, so they stay raw hex
-// instead of theme tokens.
+// Google's "G" unchanged: its four brand colors are part of the mark, so raw hex, not tokens.
 function GoogleMark() {
   return (
     <svg viewBox="0 0 48 48" aria-hidden="true" className="size-4.5">

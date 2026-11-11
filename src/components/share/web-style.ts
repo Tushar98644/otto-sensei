@@ -2,10 +2,8 @@ import type { CSSProperties } from "react";
 import type { PdfStyle } from "@/components/pdf/theme";
 import { cssFontCaps, cssFontFamily } from "@/lib/pdf/fonts";
 
-// A format's react-pdf styles as CSS for the public web page. Lengths in a theme are PDF points;
-// here each point is var(--pt) pixels, which the page sets per screen width, so a format keeps its
-// proportions on any screen and stays readable on a phone. The miniature on the dashboard
-// (resume-thumbnail.tsx) draws one point as one pixel instead.
+// Theme lengths are PDF points; here each is var(--pt) pixels, set per screen width, so a format
+// keeps its proportions and stays readable on a phone.
 
 const LENGTHS = new Set([
   "fontSize",

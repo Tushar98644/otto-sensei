@@ -29,7 +29,6 @@ type BackLink = { href: string; label: string };
 
 const TO_APPLICATIONS: BackLink = { href: ROUTES.dashboardApplications, label: "Applications" };
 
-// back: where the page was reached from, Applications or Interview prep.
 export function InterviewPrepPage({
   applicationId,
   back = TO_APPLICATIONS,
@@ -94,7 +93,6 @@ export function InterviewPrepPage({
             <ArrowLeft aria-hidden className="size-4 transition-transform group-hover:-translate-x-0.5" />
             {back.label}
           </Link>
-          {/* The whole thread (job, resume sent, letters, timeline) is one link away. */}
           {target && back.href !== applicationHref(applicationId) ? (
             <Link
               href={applicationHref(applicationId)}

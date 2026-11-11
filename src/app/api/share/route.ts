@@ -13,7 +13,6 @@ import { writeLimited } from "./write-limit";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-// GET /api/share: the signed-in account's live links, newest first.
 export async function GET(): Promise<Response> {
   try {
     const user = await getCurrentUser();
@@ -31,9 +30,8 @@ export async function GET(): Promise<Response> {
   }
 }
 
-// POST /api/share: makes a link for this version of the resume, or points the resume's live link
-// at it. 201 for a new link, 200 for an updated one. Pro: on Free, links made before stay live and
-// can still be changed or turned off (PATCH, DELETE), but no new version goes out.
+// Pro: on Free, links made before stay live and can be changed or turned off, but no new version
+// goes out.
 export async function POST(req: Request): Promise<Response> {
   const blocked = rejectCrossSite(req) ?? rejectNonJson(req);
   if (blocked) return blocked;

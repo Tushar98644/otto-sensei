@@ -54,7 +54,6 @@ export type ResumeCardProps = {
   resume: Resume;
   // The resume a tailored copy was made from, while it still exists.
   base: Resume | null;
-  // Tailored copies made from this resume.
   copies: number;
   now: number;
   actions: StudioActions;
@@ -80,8 +79,6 @@ function defaultTailoredTitle(resume: Resume): string {
   return [tailor.jobTitle || "Tailored", tailor.company].filter(Boolean).join(" at ");
 }
 
-// A resume as a document in a folder: the tab says where it came from, the sheet is its real page
-// 1, and the label under it holds the name, the facts and the actions.
 export function ResumeCard({
   resume,
   base,
@@ -99,9 +96,8 @@ export function ResumeCard({
   // The GitHub dialog mounts on first use, like the share dialog, and stays mounted after so
   // closing it hands focus back to the menu.
   const [github, setGithub] = useState({ used: false, open: false });
-  // Loaded on first use: most people never open it, and every card would otherwise bring it into
-  // the dashboard's first load. Shown once loaded rather than through Suspense, which would hold
-  // it back for React's 300 ms fallback throttle.
+  // Loaded on first use, outside the dashboard's first load. Shown once loaded rather than through
+  // Suspense, which would hold it back for React's 300 ms fallback throttle.
   const [GitHubImportDialog, setGitHubImportDialog] = useState<GitHubDialog | null>(null);
 
   function openGitHub() {

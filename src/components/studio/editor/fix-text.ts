@@ -40,8 +40,7 @@ export type MarkedPart = { text: string; marked: boolean };
 // More than three marks on one line stop reading as a pen and start reading as noise.
 const MAX_MARKS = 3;
 
-// Splits a line around the words the lint flagged, so the dialog can mark exactly those. Each
-// flagged phrase is marked once, at its first match, ignoring case; overlapping ones are skipped.
+// Each flagged phrase is marked once, at its first match, ignoring case; overlaps are skipped.
 export function splitMarks(text: string, marks: readonly string[]): MarkedPart[] {
   const lower = text.toLowerCase();
   const ranges: Array<[number, number]> = [];
@@ -110,8 +109,7 @@ export function problemMessage(
   }
 }
 
-// Every paid plan and the trial have a real limit, so they see what's left. Free has none at all,
-// so it hears what Pro adds instead (`trial`: whether the free trial is still open to them).
+// Paid plans and the trial see what's left; Free has none, so it hears what Pro adds instead.
 export function fixAllowanceText(
   usage: Usage | null | undefined,
   plan: PlanId | null | undefined,

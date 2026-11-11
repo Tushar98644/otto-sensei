@@ -10,7 +10,6 @@ import { useStudioHydrated, useTrash } from "@/lib/store/resume-store";
 import { pluralize } from "@/lib/utils";
 import { TRASH_ROUTE } from "./trash-route";
 
-// The way back to deleted resumes from the library. Shows only while something is there.
 export function RecentlyDeletedLink() {
   const hydrated = useStudioHydrated();
   const trash = useTrash();

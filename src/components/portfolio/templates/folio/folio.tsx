@@ -4,12 +4,8 @@ import { Marked, nameOf, OutLink, seeded, seedOf, TemplateStyle, unbroken } from
 import type { PortfolioTemplateProps } from "../types";
 import { FOLIO_CSS } from "./styles";
 
-// Folio: a rebuild of Samuel Kraft's site (github.com/samuelkraft/samuelkraft-next,
-// samuelkraft.com, MIT; ./LICENSE.txt) for anyone's data. One quiet 640px column of medium
-// Inter: a tiny initials avatar, a few lines of intro, links, then big rounded project tiles that
-// light up on hover (each an app icon drawn from the project's name, as his tiles show for apps
-// without a screenshot), the places worked (the repo's Workplaces list) and a list of posts.
-// Everything rises in 90ms apart, and hovering a list dims its other rows.
+// Folio: a rebuild of Samuel Kraft's site (github.com/samuelkraft/samuelkraft-next, MIT;
+// ./LICENSE.txt) for anyone's data, with app icons drawn from project names for screenshots.
 
 const BLUR_LAYERS = [
   { blur: 0.5, solid: 80, fade: 100 },
@@ -21,8 +17,6 @@ const BLUR_LAYERS = [
 
 const step = (index: number) => ({ "--index": index }) as CSSProperties;
 
-// The original's tile for an app: its icon in the middle of the dark tile. Here the icon is the
-// project's monogram on a two-tone gradient, lit by a glow in the same colours, all from the name.
 function Graphic({ project }: { project: ContentProject }) {
   const random = seeded(seedOf(project.name));
   const hue = Math.floor(random() * 360);

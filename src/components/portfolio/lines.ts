@@ -1,8 +1,6 @@
 import { pluralize } from "@/lib/utils";
 
-// What Otto says on the Portfolio screen. Kept here rather than in mascot/lines.ts while another
-// feature edits that file; same voice rules (first person, at most 18 words), checked by
-// lines.test.ts next to this file.
+// Same voice rules as mascot/lines.ts (first person, at most 18 words), checked by lines.test.ts.
 
 const count = new Intl.NumberFormat("en-US");
 
@@ -24,13 +22,11 @@ export const PORTFOLIO_LINES = {
   previewsThin: "These show a sample page with every part filled in. Switch to yours any time.",
 } as const;
 
-/** "No views yet", "1 view", "1,284 views": the top bar's count for a live page. */
 export function viewsLabel(views: number): string {
   if (views <= 0) return "No views yet";
   return `${count.format(views)} ${views === 1 ? "view" : "views"}`;
 }
 
-/** What the owner's last change is doing, beside the page's status. Every change saves at once. */
 export function saveLabel(saving: boolean, live: boolean): string {
   if (saving) return "Saving…";
   return live ? "Saved to your live page" : "All changes saved";
@@ -40,7 +36,6 @@ export function saveLabel(saving: boolean, live: boolean): string {
 export const PUBLISH_NOTE =
   "Publishing comes with Pro, and we host the page for you. Until then only you can see it.";
 
-/** The facts line for Otto's note: "3 projects · 2 jobs". */
 export function portfolioFacts(counts: { projects: number; jobs: number; skills: number }): string {
   return [
     counts.projects > 0 ? pluralize(counts.projects, "project") : "",

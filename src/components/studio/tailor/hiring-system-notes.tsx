@@ -10,8 +10,7 @@ import type { ScreeningQuestion } from "@/lib/ats/types";
 import { cn, pluralize } from "@/lib/utils";
 import type { ReadJob } from "./session";
 
-// "This job uses Greenhouse": what that system's own docs say it does with an application, folded
-// away under the job card. Never a score: the same system is set up differently by each employer.
+// Never a score: each employer sets up the same system differently.
 
 const LIST_CHOICES = 4;
 
@@ -51,7 +50,6 @@ function ScreeningQuestions({ questions }: { questions: readonly ScreeningQuesti
 }
 
 export type HiringSystemNotesProps = {
-  // What was read from the link, or null when only the typed link is known.
   posting: ReadJob | null;
   link?: string;
   className?: string;

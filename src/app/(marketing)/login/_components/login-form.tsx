@@ -8,9 +8,8 @@ import { SignInFormSkeleton } from "@/components/account/sign-in-form-skeleton";
 import { useMe } from "@/components/account/use-me";
 import { OttoLoadingScreen } from "@/components/mascot/otto-loading-screen";
 
-// Without ?next=, every sign-in lands on the dashboard: it shows the account, the plan and the
-// resumes in one place, so it's clear the sign-in worked. That includes visitors who were already
-// signed in and used the static header's "Sign in" link.
+// The dashboard shows account, plan and resumes in one place, so it's clear the sign-in worked.
+// That includes visitors already signed in who used the static header's "Sign in".
 const ALREADY_SIGNED_IN_PATH = DEFAULT_NEXT_PATH;
 
 // /auth/callback sends people back here with ?error=google when Google sign-in didn't finish.

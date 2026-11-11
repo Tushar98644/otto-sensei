@@ -9,9 +9,8 @@ import { PORTFOLIO_TEMPLATE_INFO } from "@/lib/portfolio/templates";
 import type { PortfolioTemplateId } from "@/lib/portfolio/types";
 import { Section, SectionHeader } from "./section";
 
-// Three of the eight designs (owner's pick, 2026-11-11), each the real template drawn with Jordan
-// (the made-up person of the samples). The cards start as static pictures; the live page loads
-// only as one scrolls near.
+// Owner's pick, 2026-11-11. The cards start as static pictures; the live page loads only as one
+// scrolls near.
 const SHOWN: readonly PortfolioTemplateId[] = ["bento", "dock", "reel"];
 
 export function PortfolioShowcase() {

@@ -11,14 +11,12 @@ import {
   type ReactNode,
 } from "react";
 
-// Hamish's ThemeProvider and the window facts his components read (useWindowSize,
-// useReducedMotion), for a page that may sit in a preview column instead of a window.
-//
-// mode says where the page is drawn:
-//   ssr   the server's markup and the first client render, before any of this has run
+// Hamish's ThemeProvider and window facts (useWindowSize, useReducedMotion), for a page that may
+// sit in a preview column instead of a window. Where the page is drawn:
+//   ssr   the server's markup and the first client render
 //   live  the public page or the full preview: everything moves, three.js loads
 //   lite  the editor's inert preview: the same choreography, still frames instead of WebGL
-//   still a template card (data-pf-still): the finished state at once, nothing moving
+//   still a template card (data-pf-still): the finished state at once
 
 export type ReelMode = "ssr" | "live" | "lite" | "still";
 export type ReelTheme = "dark" | "light";
@@ -53,8 +51,7 @@ export function ReelRoot({ children }: { children: ReactNode }) {
   const [size, setSize] = useState({ width: 1280, height: 800 });
   const [reduceMotion, setReduceMotion] = useState(false);
 
-  // A layout effect, so the first frame the reader sees already has the right theme and mode and
-  // nothing starts animating under the wrong one.
+  // Layout effect: the first painted frame already has the right theme and mode.
   useLayoutEffect(() => {
     const root = ref.current;
     if (!root) return;

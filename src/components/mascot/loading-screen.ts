@@ -1,9 +1,6 @@
-// When the full-screen loading screen shows, framework-free so its timing can be tested. Anything
-// may ask for it (a route's loading.tsx, the first load of the dashboard, a sign-in return); one
-// screen serves every request, so two never stack and a hand-off between pages doesn't blink.
-//
-// A request that ends within delayMs never shows the screen. Once it shows, it stays at least
-// minShownMs, so it can't flash on and off, then fades for fadeMs.
+// Framework-free so its timing can be tested. One screen serves every request, so two never stack
+// and a hand-off between pages doesn't blink. A request ending within delayMs never shows it; once
+// shown it stays minShownMs so it can't flash, then fades for fadeMs.
 
 export const LOADING_SCREEN_TIMING = { delayMs: 400, minShownMs: 600, fadeMs: 250 } as const;
 
@@ -84,7 +81,6 @@ export function createLoadingScreen(options: LoadingScreenOptions = {}): Loading
     }
 
     if (state.phase === "hidden") {
-      // Done before the delay ran out: it never shows.
       clearTimeout(timer);
       timer = undefined;
       return;

@@ -10,9 +10,7 @@ import { primaryFont } from "@/lib/pdf/fonts";
 import type { ResumeDesign } from "@/lib/resume/schema";
 import type { PdfStyle, StyleSlot, TemplateTheme, ThemeStyles } from "./theme";
 
-// Look settings applied to a format's theme. Each one changes only what it names, so a format
-// keeps its character (Developer's small capitals, Executive's name and headline on one line)
-// under any of them, and an empty design returns the format's own look.
+// Each look setting changes only what it names, so a format keeps its character under any of them.
 
 const VERTICAL_SPACE = ["marginTop", "marginBottom", "paddingTop", "paddingBottom"] as const;
 
@@ -52,7 +50,6 @@ export function tint(color: string, amount: number): string {
 
 const positive = (value: unknown) => typeof value === "number" && value > 0;
 
-// The slot's text, its drawn rules and a drawn bullet all take the color.
 function recolored(style: PdfStyle, color: string): PdfStyle {
   const next: PdfStyle = { ...style, color };
   if (positive(style.borderBottomWidth)) next.borderBottomColor = color;

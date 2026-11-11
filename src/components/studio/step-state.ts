@@ -1,13 +1,9 @@
 import { STUDIO_STEPS, type StudioStep } from "@/lib/store/resume-store";
 
-// Which studio steps can be opened right now. Pure, so the stepper, the phone header and the shell
-// always agree.
-
 export type StepStatus = "available" | "disabled" | "skipped";
 
 export type StepContext = {
   hasResume: boolean;
-  // The active resume came from an upload, so there is a recruiter report to show.
   hasReport: boolean;
 };
 
@@ -35,16 +31,14 @@ export function adjacentStep(
   return null;
 }
 
-// The saved step can go stale (its resume was deleted, or the newly active resume has no upload
-// report), so fall forward to the next step that works, then back.
+// A stale saved step (resume deleted, no report) falls forward to one that works, then back.
 export function resolveStep(step: StudioStep, context: StepContext): StudioStep {
   if (stepStatus(step, context) === "available") return step;
   return adjacentStep(step, 1, context) ?? adjacentStep(step, -1, context) ?? "upload";
 }
 
-// Whose code to warm while `step` is on screen: the next step first. The upload screen stops
-// there so a first visit stays light; from the recruiter view on, every other step follows too,
-// for the stepper's jumps and "Skip to download".
+// The next step first. The upload screen stops there so a first visit stays light; later steps
+// warm every other step too, for the stepper's jumps and "Skip to download".
 export function stepsToPreload(step: StudioStep, next: StudioStep | null): StudioStep[] {
   const first = next && next !== step ? [next] : [];
   if (step === "upload") return first;

@@ -9,9 +9,7 @@ import type { ApplicationStatus } from "@/lib/applications/status";
 import { fromDateInput, toDateInput } from "../form";
 import { cardName, type BoardCard } from "./board";
 
-// The one question a move asks, in a small panel beside where the card went: Interviewing asks
-// for the day (optional) and offers prep; Closed asks how it ended. Escape or a click outside leaves
-// the card where it was.
+// Escape or a click outside leaves the card where it was.
 
 export type MoveAsk = {
   card: BoardCard;

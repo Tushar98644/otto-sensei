@@ -13,15 +13,12 @@ import { TemplatePreview } from "./template-preview";
 type TemplatePickerProps = {
   value: PortfolioTemplateId;
   onChange: (id: PortfolioTemplateId) => void;
-  // The owner's page as visitors get it, for the cards' "Your page" side.
   own: TemplateSample;
   disabled?: boolean;
 };
 
 // Native radios in one group, so arrow keys move between designs (across both lists) and the
-// preview follows at once. The showpieces come first. Each card is the real template, drawn with
-// the owner's page or the sample (./preview-source.tsx); the live preview beside the panel always
-// stays theirs.
+// preview follows at once.
 export function TemplatePicker({ value, onChange, own, disabled = false }: TemplatePickerProps) {
   const choice = usePreviewSource(own);
   return (
@@ -55,7 +52,6 @@ export function TemplatePicker({ value, onChange, own, disabled = false }: Templ
                       onChange={() => onChange(id)}
                       className="sr-only"
                     />
-                    {/* The top of the page; the name and line below say what it is. */}
                     <TemplatePreview
                       id={id}
                       sample={choice.sample}

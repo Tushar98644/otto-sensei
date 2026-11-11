@@ -22,10 +22,8 @@ export type BulletListProps = {
   parentId: string;
   ownerHeadingId: string;
   bullets: Bullet[];
-  // Names the list, e.g. "What you did".
   title: string;
   addLabel?: string;
-  // More buttons beside "Add a line", e.g. "Add another role at Northwind".
   actions?: ReactNode;
 };
 

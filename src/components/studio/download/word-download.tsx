@@ -11,9 +11,7 @@ import { track } from "@/lib/analytics/client";
 import type { PdfPageSize } from "@/lib/pdf/page-size";
 import type { Resume } from "@/lib/resume/schema";
 
-// Some application forms only take Word. The file is built in the browser from the same model as
-// the PDF, so it has the same words, order, format and look; jszip loads only on the click.
-// Word is Pro: on Free the button carries a Pro badge and offers the trial. The PDF stays free.
+// Built from the PDF's own model, so the two match; jszip loads on click. Word is Pro.
 export function WordDownload({
   resume,
   pageSize,
@@ -21,7 +19,6 @@ export function WordDownload({
 }: {
   resume: Resume;
   pageSize: PdfPageSize;
-  // The PDF's file name; the Word file swaps the extension.
   fileName: string;
 }) {
   const [building, setBuilding] = useState(false);

@@ -1,8 +1,7 @@
 import type { ChecklistItem } from "@/lib/portfolio/content-uses";
 import { PORTFOLIO_SECTION_LABELS, type PortfolioSection } from "@/lib/portfolio/types";
 
-// What Otto says above the content cards. Same voice rules as ../lines.ts (first person, at most
-// 18 words), checked by lines.test.ts next to this file.
+// Same voice rules as ../lines.ts (first person, at most 18 words), checked by lines.test.ts.
 
 export const CONTENT_LINES = {
   loading: "I'm pulling in your GitHub numbers. One moment.",
@@ -23,7 +22,6 @@ export function missingList(items: readonly ChecklistItem[]): string {
   return `${shown.slice(0, -1).join(", ")} and ${shown.at(-1)}`;
 }
 
-/** "Hidden on your page: Experience and Skills", for a card whose sections are switched off. */
 export function hiddenOnPage(
   hidden: readonly PortfolioSection[],
   sections: readonly PortfolioSection[],

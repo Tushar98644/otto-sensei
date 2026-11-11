@@ -6,7 +6,6 @@ export type EmptyStateProps = {
   illustration?: ReactNode;
   title: ReactNode;
   description?: ReactNode;
-  // One or two buttons or links.
   action?: ReactNode;
   titleAs?: "h2" | "h3";
   className?: string;

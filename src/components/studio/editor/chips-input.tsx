@@ -12,7 +12,6 @@ export type ChipsInputProps = {
   id: string;
   label: string;
   items: string[];
-  // Gets every finished item; the caller dedupes and caps.
   onAdd: (items: string[]) => void;
   onRemove: (index: number) => void;
   // No room for more; the input says so instead of accepting text that would be dropped.
@@ -21,8 +20,7 @@ export type ChipsInputProps = {
   labelHidden?: boolean;
 };
 
-// Type and press Enter or a comma to add; pasting "React, SQL, Figma" adds all three. Text left in
-// the box is added on blur, so nothing typed is lost.
+// Text left in the box is added on blur, so nothing typed is lost.
 export function ChipsInput({
   id,
   label,
@@ -66,7 +64,6 @@ export function ChipsInput({
     inputRef.current?.focus();
   }
 
-  // Clicks on the box's padding focus the input, as they would on a plain text field.
   function focusInput(event: MouseEvent<HTMLDivElement>) {
     if (event.target === event.currentTarget) inputRef.current?.focus();
   }

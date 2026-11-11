@@ -42,20 +42,17 @@ const SPOKEN: Record<BillingInterval, string> = {
 export type PlanOfferProps = {
   cards: readonly OfferCard[];
   intervals: readonly BillingInterval[];
-  // The billing option picked above the cards.
   interval: BillingInterval;
   onIntervalChange: (interval: BillingInterval) => void;
   // Each plan's button goes straight to checkout. Left out while payments are off: no buttons.
   onChoose?: (card: OfferCard) => void;
-  // The plan whose button the dialog focuses when it opens.
   focusPlan?: PaidPlanId | null;
   // The plan whose checkout is starting: its button spins and the others wait.
   pendingPlan?: PaidPlanId | null;
   disabled?: boolean;
 };
 
-// The plans side by side (stacked on phones), each priced for the picked billing option, with
-// one button each. Prices come from PRICES_USD, so they can't drift from what Creem charges.
+// Prices come from PRICES_USD, so they can't drift from what Creem charges.
 export function PlanOffer({
   cards,
   intervals,

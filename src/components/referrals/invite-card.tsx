@@ -29,7 +29,6 @@ const canShare = () => typeof navigator !== "undefined" && typeof navigator.shar
 
 const plural = (count: number, one: string, many: string) => `${count} ${count === 1 ? one : many}`;
 
-// The Account page's invite link: copy or share it, and see what it has earned so far.
 export function InviteCard({ plan }: { plan: PlanId }) {
   const [load, setLoad] = useState<Load>({ status: "loading" });
   const fetchSummary = useCallback(() => {

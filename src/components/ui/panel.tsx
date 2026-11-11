@@ -1,8 +1,7 @@
 import type { ComponentProps, ReactNode } from "react";
 import { cn } from "@/lib/utils";
 
-// Stone, behind product moments, plans and account cards. White cards go on a panel, never
-// straight on the paper background, where white is nearly invisible.
+// White cards go on a panel, never straight on the paper background where white nearly vanishes.
 export function Panel({ className, ...props }: ComponentProps<"div">) {
   return (
     <div {...props} className={cn("rounded-3xl bg-surface-muted p-3 sm:p-6 lg:p-10", className)} />
@@ -10,14 +9,11 @@ export function Panel({ className, ...props }: ComponentProps<"div">) {
 }
 
 export type WindowProps = Omit<ComponentProps<"div">, "title"> & {
-  // The file name in the bar, e.g. "maya-chen.pdf".
   title: ReactNode;
-  // Facts on the right of the bar, e.g. "PDF · 1 page · 97 words".
   meta?: ReactNode;
   bodyClassName?: string;
 };
 
-// A product view with a window bar: the white card plus three quiet dots and a file name.
 export function Window({ title, meta, className, bodyClassName, children, ...props }: WindowProps) {
   return (
     <div

@@ -25,8 +25,7 @@ const ICON_COLORS: Record<CheckStatus, string> = {
 
 export type StatusIconProps = {
   status: CheckStatus;
-  // Screen-reader text, STATUS_LABELS by default. Pass "" only when visible text right next to
-  // the icon already names the status.
+  // Pass "" only when visible text right beside the icon already names the status.
   label?: string;
   className?: string;
 };
@@ -43,7 +42,6 @@ export function StatusIcon({ status, label = STATUS_LABELS[status], className }:
 
 export type StatusPillProps = {
   status: CheckStatus;
-  // Visible text, STATUS_LABELS by default.
   children?: ReactNode;
   className?: string;
 };

@@ -3,10 +3,6 @@ import type { Resume, TemplateId } from "@/lib/resume/schema";
 import { ResumeDocument } from "./document";
 import { themeFor } from "./themes";
 
-// The exported resume in the chosen format. Every format is one column of real, extractable text
-// in its bundled fonts (./fonts.ts), with clear headings and no tables, images or icons (see
-// ./document), in the resume's own look settings (accent, font, spacing).
-
 export type ResumePdfProps = {
   resume: Resume;
   pageSize?: PdfPageSize;

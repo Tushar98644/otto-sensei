@@ -2,7 +2,6 @@ import { fail } from "@/lib/api/respond";
 import { rateLimit, retryAfterHeader, waitText } from "@/lib/rate-limit";
 import { PORTFOLIO_LIMITS } from "@/lib/portfolio/types";
 
-// Per-user answers, so no browser or CDN may keep a copy.
 export const NO_STORE = { "Cache-Control": "no-store" };
 
 export const SIGN_IN = "Sign in to make your portfolio.";
@@ -12,7 +11,6 @@ export const NEEDS_PLAN =
 
 const HOUR_MS = 60 * 60 * 1000;
 
-/** Making and changing the portfolio share one hourly budget per account. A 429 when it's spent. */
 export async function writeLimited(userId: string): Promise<Response | null> {
   const limit = await rateLimit(
     `portfolio:write:user:${userId}`,

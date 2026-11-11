@@ -8,7 +8,6 @@ export type OttoNoteProps = {
   message: ReactNode;
   // Facts only, after "Otto ·": counts, file type, pages. Leave it out when there are none.
   meta?: ReactNode;
-  // Actions under the message, e.g. buttons.
   children?: ReactNode;
   // On by default: Otto's line usually reports what just happened (reading, failed, done). Turn it
   // off when the message changes while typing, or every keystroke would be read out.
@@ -17,9 +16,7 @@ export type OttoNoteProps = {
   className?: string;
 };
 
-// Otto's message: his logo head in a round avatar, a gray meta line and his words. No bubble, border,
-// tail or fill, so it reads like a note in the margin rather than a chat widget. This is how he
-// speaks in the studio and in dialogs; the full-body Otto is for empty states and big moments.
+// No bubble, border or tail: a note in the margin, not a chat widget.
 export function OttoNote({
   message,
   meta,
@@ -31,11 +28,9 @@ export function OttoNote({
   const small = size === "sm";
   return (
     <div className={cn("flex flex-col", className)}>
-      {/* The avatar centres on the name and message together (the owner found it top-aligned
-          looked off); actions sit below, so they never pull it down. */}
+      {/* Actions sit below this row, so they never pull the centred avatar down. */}
       <div className="flex items-center gap-3">
-        {/* Otto's own face, as on the logo, in a round avatar like a message sender's: the thin
-            sketch read as a doodle, not as him. */}
+        {/* The logo face, not the thin sketch: at avatar size the sketch reads as a doodle. */}
         <span
           aria-hidden
           className={cn(

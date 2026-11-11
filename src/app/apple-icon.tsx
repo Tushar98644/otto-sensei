@@ -8,9 +8,8 @@ export const contentType = "image/png";
 // Mirrors the globals.css background (paper) token; satori can't read CSS variables.
 const TILE = "#EEF3EF";
 
-// Home-screen icon for iOS. iOS paints transparent pixels black and rounds the corners itself, so
-// this is an opaque square tile with room around Otto. Like the OG image it renders once at build
-// time, and with no text it doesn't need a font, so the build never touches the network.
+// iOS paints transparent pixels black and rounds corners itself, so this is an opaque tile with
+// room around Otto. No text, so no font: the build never touches the network.
 export default function AppleIcon() {
   return new ImageResponse(
     <div

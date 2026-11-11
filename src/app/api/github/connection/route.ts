@@ -19,7 +19,6 @@ const SIGN_IN = "Sign in to connect your GitHub account.";
 const SIGN_IN_ONLY_WITH_GITHUB =
   "You sign in to this account with GitHub, so it can't be disconnected.";
 
-// GET /api/github/connection: the GitHub account linked to this one, or null.
 export async function GET(): Promise<Response> {
   try {
     const account = await getCurrentAccount();
@@ -37,8 +36,7 @@ export async function GET(): Promise<Response> {
   }
 }
 
-// POST /api/github/connection: starts connecting. Sets the PKCE verifier cookie and hands back
-// GitHub's URL for the browser to open. JSON-only, so another site can't start one with a form.
+// JSON-only, so another site can't start a connection with a form post.
 export async function POST(req: Request): Promise<Response> {
   const rejected = rejectCrossSite(req) ?? rejectNonJson(req);
   if (rejected) return rejected;
@@ -59,7 +57,6 @@ export async function POST(req: Request): Promise<Response> {
   }
 }
 
-// DELETE /api/github/connection: disconnects GitHub and takes its numbers off the portfolio.
 export async function DELETE(req: Request): Promise<Response> {
   const rejected = rejectCrossSite(req);
   if (rejected) return rejected;

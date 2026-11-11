@@ -11,8 +11,7 @@ export const dynamic = "force-dynamic";
 const NO_STORE = { "Cache-Control": "no-store" };
 const SIGN_IN = "Sign in to get your invite link.";
 
-// GET /api/referrals: the account's invite link and counts. Makes the code on the first visit and
-// remembers this browser as the owner's, so a sign-up from it can't count as a friend.
+// Remembers this browser as the owner's, so a sign-up from it can't count as a friend.
 export async function GET(): Promise<Response> {
   try {
     const user = await getCurrentUser();

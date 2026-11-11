@@ -13,11 +13,8 @@ export type PortfolioContentState = PortfolioViews & {
   github: GitHubStats | null;
 };
 
-/**
- * The content document for this portfolio (the copy it loaded with, then the editor's live one),
- * drawn twice: as the page shows it, and in full for the editor, so hiding a section on the page
- * never hides what the owner wrote for it.
- */
+// Drawn twice: as the page shows it, and in full for the editor, so hiding a section on the page
+// never hides what the owner wrote for it.
 export function usePortfolioContent(portfolio: Portfolio, resume: Resume): PortfolioContentState {
   const { user } = useMe();
   const status = useContentStore((state) => state.status);

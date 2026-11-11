@@ -5,9 +5,7 @@ import { SECTION_LABELS, sectionTitleOf, type Resume } from "@/lib/resume/schema
 import type { SendCheckTarget } from "@/lib/sendcheck";
 import { useStudioStore } from "@/lib/store/resume-store";
 
-// "Fix it" on a send-check item: open the step where that text is edited and put the cursor on
-// it. The Fix step mounts a frame or two after setStep(), so the target is looked for a few frames
-// in a row before giving up quietly; the step itself is then still the right place to be.
+// The Fix step mounts a frame or two after setStep(), so the target is looked for a few frames.
 
 const MAX_FRAMES = 30;
 
@@ -38,7 +36,6 @@ function byLabel(text: string, scope: ParentNode = document): HTMLElement | null
   return null;
 }
 
-// The toggle of the editor section with this heading, e.g. "Skills".
 function sectionToggle(title: string): HTMLElement | null {
   for (const button of document.querySelectorAll<HTMLButtonElement>("section h3 button")) {
     if (button.textContent?.trim().toLowerCase().startsWith(title.toLowerCase())) return button;
@@ -51,8 +48,7 @@ function land(element: HTMLElement): void {
   element.focus({ preventScroll: true });
 }
 
-// A job's or school's details fold away once filled: open them, which moves focus to the first
-// field, or focus that field if they are already open.
+// Filled entries fold their details away: open them (focusing the first field), or focus it.
 function openEntry(entryId: string): boolean {
   const first = document.getElementById(entryFieldId(entryId, "first"));
   if (first && isShown(first)) {

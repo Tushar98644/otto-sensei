@@ -8,10 +8,8 @@ import { isApiError } from "@/lib/api/client";
 import type { GitHubConnection } from "@/lib/github/connect";
 import type { GitHubConnectionFlow } from "./use-github-connection";
 
-// The import dialog's first screen: which GitHub account it will read, or connecting one. Only a
-// connected account can be imported from, so nobody can add someone else's public work.
+// Only a connected account can be imported from, so nobody can add someone else's public work.
 
-/** "Connected as octocat · Not you? Disconnect", where disconnecting is possible. */
 export function ConnectedAs({
   connection,
   busy,
@@ -41,7 +39,6 @@ export type GitHubStartDialogProps = {
   onOpenChange: (open: boolean) => void;
   onClose: () => void;
   github: GitHubConnectionFlow;
-  // What to reopen after GitHub sends the person back: this resume's id.
   target: string;
   lookingUp: boolean;
   error: string | null;

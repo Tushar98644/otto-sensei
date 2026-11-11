@@ -11,11 +11,8 @@ export type ButtonStyleOptions = {
   className?: string;
 };
 
-// Keys, not pills: rounded rectangles share the fields' radius, so a search box and the button
-// beside it line up, and pills stay free to mean "status" (badges, chips, live pills).
-// Every variant keeps a 1px border, transparent where it isn't drawn, so all of them are exactly
-// the same height and sit on the same baseline in a row. Icons without their own size-* class get
-// one that matches the button.
+// Rounded keys, not pills (pills mean "status"). A 1px border on every variant, transparent where
+// not drawn, keeps them one height in a row.
 const BASE =
   "relative inline-flex shrink-0 items-center justify-center border font-medium whitespace-nowrap transition duration-150 ease-out select-none disabled:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4";
 
@@ -32,13 +29,12 @@ const SIZES: Record<ButtonSize, string> = {
 // Raised keys press down 1px and lose their shadow, the way a real key does. A busy button is
 // working, not unavailable, so the disabled look skips it (aria-busy) and it keeps its color.
 const VARIANTS: Record<ButtonVariant, string> = {
-  // The main action of a view: forest, one shade lighter at the top, with a darker edge.
   primary:
     "border-primary-edge bg-primary bg-linear-to-b from-primary-top to-primary text-white shadow-key inset-shadow-key hover:from-primary-hover-top hover:to-primary-hover active:translate-y-px active:from-primary active:to-primary active:shadow-none active:inset-shadow-pressed disabled:not-aria-busy:border-transparent disabled:not-aria-busy:bg-none disabled:not-aria-busy:bg-surface-strong disabled:not-aria-busy:text-muted disabled:not-aria-busy:shadow-none disabled:not-aria-busy:inset-shadow-none",
   // A second action. White with a hairline, so it holds its shape on white and on the mist alike.
   secondary:
     "border-border-control bg-surface text-ink shadow-control hover:border-border-control-hover hover:bg-surface-hover active:translate-y-px active:bg-surface-muted active:shadow-none disabled:not-aria-busy:border-border disabled:not-aria-busy:bg-transparent disabled:not-aria-busy:text-muted disabled:not-aria-busy:shadow-none",
-  // Kept as a name for older call sites: the white key now reads on both surfaces.
+  // Same as secondary; kept for older call sites.
   outline:
     "border-border-control bg-surface text-ink shadow-control hover:border-border-control-hover hover:bg-surface-hover active:translate-y-px active:bg-surface-muted active:shadow-none disabled:not-aria-busy:border-border disabled:not-aria-busy:bg-transparent disabled:not-aria-busy:text-muted disabled:not-aria-busy:shadow-none",
   // Row tools and toolbars. An ink wash, so the same hover works on white and on the mist.
@@ -49,7 +45,6 @@ const VARIANTS: Record<ButtonVariant, string> = {
   link: "h-auto rounded-sm border-0 p-0 text-ink underline decoration-border-strong underline-offset-4 hover:decoration-ink disabled:not-aria-busy:opacity-45",
 };
 
-// Lets a Next <Link> or <a> look exactly like a Button.
 export function buttonClasses({
   variant = "primary",
   size = "md",
@@ -61,8 +56,7 @@ export function buttonClasses({
 export type ButtonProps = ComponentProps<"button"> & {
   variant?: ButtonVariant;
   size?: ButtonSize;
-  // Shows a spinner in place of the icon and blocks clicks. The label stays, so the button keeps
-  // its width and screen readers still know what it is.
+  // The label stays beside the spinner, so width holds and screen readers know what it is.
   loading?: boolean;
 };
 

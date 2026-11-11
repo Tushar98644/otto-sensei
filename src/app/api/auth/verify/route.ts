@@ -9,9 +9,8 @@ import { rateLimit, retryAfterHeader, waitText } from "@/lib/rate-limit";
 export const runtime = "nodejs";
 
 const HOUR_MS = 60 * 60 * 1000;
-// Supabase doesn't lock a code after a few wrong tries, so these do: one IP spraying guesses
-// across many inboxes, and many IPs guessing at one inbox (two codes' worth of typos an hour).
-// Real sign-ins never come close to either.
+// Supabase doesn't lock a code after wrong tries, so these do: one IP spraying many inboxes, and
+// many IPs guessing at one (two codes' worth of typos an hour).
 const VERIFY_PER_IP_PER_HOUR = 30;
 const VERIFY_PER_EMAIL_PER_HOUR = 10;
 // Responses that set session cookies must never be stored by a shared cache.

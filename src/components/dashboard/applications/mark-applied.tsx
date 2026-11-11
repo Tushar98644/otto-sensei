@@ -56,9 +56,7 @@ export function useJustApplied(resumeId: string): boolean {
   );
 }
 
-// The shortcut on a tailored copy's card: one click logs it as sent today, filled in from the job
-// it was tailored for, with its follow-up reminder already set. Only a copy that doesn't name its
-// company opens the form. Once it's logged, the card shows where that application stands instead.
+// One click logs it as sent today; only a copy that doesn't name its company opens the form.
 export function MarkApplied({ resume, describedBy }: { resume: Resume; describedBy?: string }) {
   const { items } = useApplications();
   const resumes = useResumeList();

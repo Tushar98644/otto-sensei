@@ -1,10 +1,8 @@
 import type { ReactNode } from "react";
 import { cn } from "@/lib/utils";
 
-// Loose ink sketches in the margins of the marketing pages. Drawn by hand as plain paths, never
-// generated. Budget: 3 in the hero (the squiggle plus 2), 1 in any other marketing section, none
-// in the studio, dialogs, account or legal pages, and never on top of text or controls. All of
-// them are decoration, so they stay hidden from screen readers.
+// Hand-drawn paths. Budget: 3 in the hero, 1 in any other marketing section, none in the studio,
+// dialogs, account or legal pages, never over text or controls. Decorative: hidden from readers.
 
 type DoodleProps = { className?: string };
 
@@ -38,10 +36,8 @@ function Sketch({ viewBox, width = 1.75, className, stretch = false, children }:
   );
 }
 
-// Under one word of a headline. Violet: it is one of the two accent marks on its screen. Drawn
-// like a quick pencil scribble rather than a wave: humps of uneven height that lean right and get
-// narrower as the hand speeds up, ending in a stroke that overshoots and hooks back. It keeps its
-// shape (never stretched), so give it a width and let the height follow.
+// Violet: one of the two accent marks on its screen. Never stretched, so give it a width and
+// let the height follow.
 export function Squiggle({ className }: DoodleProps) {
   return (
     <Sketch viewBox="0 0 218 14" width={2.5} className={cn("text-accent", className)}>
@@ -53,7 +49,6 @@ export function Squiggle({ className }: DoodleProps) {
   );
 }
 
-// A loose hand-drawn arrow from one thing to the next, curving down and to the right.
 export function Arrow({ className }: DoodleProps) {
   return (
     <Sketch viewBox="0 0 96 64" className={className}>
@@ -94,7 +89,6 @@ export function Bubble({
   );
 }
 
-// Three short strokes of "something happened here", beside a moment worth noticing.
 export function Dashes({ className }: DoodleProps) {
   return (
     <Sketch viewBox="0 0 32 32" className={className}>

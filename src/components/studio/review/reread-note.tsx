@@ -28,11 +28,7 @@ function withReadContent(current: Resume, read: Resume): Resume {
   };
 }
 
-/**
- * Under the recruiter view when the rules read the upload well, so no AI read was spent. Pro and
- * the trial can still ask the AI reader to take a second look; Free has no AI reads to offer here,
- * and its file needs nothing more.
- */
+// Pro and the trial can ask the AI reader for a second look; Free has no AI reads to offer.
 export function RereadNote({ resumeId }: { resumeId: string }) {
   const pro = useProTools();
   const updateResume = useStudioStore((s) => s.updateResume);

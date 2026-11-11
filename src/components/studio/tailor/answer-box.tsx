@@ -22,7 +22,6 @@ export type AnswerBoxProps = {
   writing: Writing;
   onAsk: (question: string) => Promise<boolean>;
   onEdit: (id: string, text: string) => void;
-  // Editing paused (the field lost focus): a good moment to save the answer.
   onSettle?: (id: string) => void;
   onRemove: (id: string) => void;
 };
@@ -70,8 +69,7 @@ function AnswerItem({ answer, onEdit, onSettle, onRemove }: AnswerItemProps) {
   );
 }
 
-// Paste a question from the application form, get a short draft from the resume and the job.
-// Otto never fills in or submits the form: the person copies the answer over.
+// Otto never fills in or submits the application form: the person copies the answer over.
 export function AnswerBox({ answers, writing, onAsk, onEdit, onSettle, onRemove }: AnswerBoxProps) {
   const headingId = useId();
   const [question, setQuestion] = useState("");

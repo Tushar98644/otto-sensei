@@ -21,8 +21,6 @@ export function portfolioCandidates(resumes: readonly Resume[]): Resume[] {
   );
 }
 
-// The screen's title before there's an editor (loading, the first run, the Free pitch). The editor
-// draws its own, smaller one in its top bar.
 function Screen({ children }: { children: ReactNode }) {
   return (
     <div className="flex flex-col gap-8">

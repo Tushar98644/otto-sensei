@@ -13,7 +13,6 @@ export const dynamic = "force-dynamic";
 const NO_STORE = { "Cache-Control": "no-store" };
 const SIGN_IN = "Sign in to keep your setup.";
 
-// GET /api/setup: whether the first-login step was answered and the Home setup list hidden.
 export async function GET(): Promise<Response> {
   try {
     const user = await getCurrentUser();
@@ -26,8 +25,7 @@ export async function GET(): Promise<Response> {
   }
 }
 
-// PUT /api/setup: { step?: "saved" | "skipped", checklist?: "hidden" | "shown" }. Any plan: it
-// only remembers what this account's screens have already asked.
+// Any plan: it only remembers what this account's screens have already asked.
 export async function PUT(req: Request): Promise<Response> {
   const blocked = rejectCrossSite(req) ?? rejectNonJson(req);
   if (blocked) return blocked;

@@ -5,8 +5,7 @@ import { useEffect, useRef, type MouseEvent } from "react";
 import type { SocialKind } from "@/lib/portfolio/content";
 import { SocialIcon } from "../icons";
 
-// Dock's moving parts, after dillionverma/portfolio (MIT): magicui's FlickeringGrid canvas,
-// the magnifying Dock (magicui/dock.tsx, without framer-motion) and the theme toggle.
+// Dock's moving parts, after dillionverma/portfolio (MIT), without framer-motion.
 
 // The theme's colours are oklch(); a 1px canvas turns any CSS colour into "rgba(r, g, b," so each
 // square can add its own alpha (the same trick as the original's toRGBA).
@@ -21,7 +20,6 @@ function rgbaPrefix(color: string): string {
   return `rgba(${r}, ${g}, ${b},`;
 }
 
-/** magicui/flickering-grid.tsx: 2px squares in the text colour, re-rolled at random. */
 export function FlickeringGrid({
   squareSize = 2,
   gridGap = 2,
@@ -128,12 +126,10 @@ const BASE = 40;
 const MAGNIFIED = 60;
 const DISTANCE = 100;
 
-/** The floating bar: home, socials, theme. Icons grow as the pointer nears, like macOS. */
 export function Dock({ home, socials }: { home: DockLink; socials: DockLink[] }) {
   const bar = useRef<HTMLDivElement>(null);
 
-  // The theme lives on the template root's data-theme (the stylesheet reads it), remembered per
-  // browser. Storage can be blocked; the page then just starts light.
+  // Theme lives on the root's data-theme, remembered per browser; blocked storage starts light.
   useEffect(() => {
     const root = bar.current?.closest<HTMLElement>(".pf-dock");
     try {
