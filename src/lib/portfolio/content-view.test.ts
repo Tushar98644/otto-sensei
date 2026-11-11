@@ -7,7 +7,14 @@ import {
   type PortfolioContent,
 } from "./content";
 import { contentChecklist, contentUsesFor, hiddenFields, REFERENCE_USES } from "./content-uses";
-import { autoContent, contentView, markParts, mentions, portfolioViews } from "./content-view";
+import {
+  autoContent,
+  contentView,
+  markParts,
+  mentions,
+  portfolioViews,
+  sentences,
+} from "./content-view";
 import { jordanContent, jordanContentView, jordanGitHub, jordanV2Resume } from "./fixtures/jordan";
 import { findPlace } from "./places";
 import { PORTFOLIO_SECTIONS } from "./types";
@@ -163,6 +170,38 @@ describe("automatic content from the resume and GitHub", () => {
       "Bouldering",
       "film photography",
       "road cycling",
+    ]);
+  });
+
+  it("reads project lines as written: dotted names stay whole, a stack line becomes tags", () => {
+    const resume = jordanV2Resume();
+    resume.projects = [
+      {
+        id: "p1",
+        name: "Calby",
+        link: "",
+        bullets: [
+          { id: "b1", text: "AI voice agent with warm transfer" },
+          { id: "b2", text: "Next.js · FastAPI · LiveKit" },
+          { id: "b3", text: "Built the call flow with Next.js, using LiveKit for audio" },
+        ],
+      },
+    ];
+    resume.skills = [{ id: "s1", label: "", items: ["Next.js", "FastAPI", "LiveKit"] }];
+    const [project] = autoContent(
+      portfolioView(resume, { showEmail: false, showPhone: false, hiddenSections: [] }),
+      null,
+      NOW,
+    ).projects;
+    expect(project?.line).toBe("AI voice agent with warm transfer");
+    expect(project?.description).toBe(
+      "AI voice agent with warm transfer. Built the call flow with Next.js, using LiveKit for audio.",
+    );
+    expect(project?.tech).toEqual(["Next.js", "FastAPI", "LiveKit"]);
+    expect(sentences("Mail me at jane@mail.com. Shipped v2.0 in Next.js! Done")).toEqual([
+      "Mail me at jane@mail.com.",
+      "Shipped v2.0 in Next.js!",
+      "Done",
     ]);
   });
 });

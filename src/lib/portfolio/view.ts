@@ -1,6 +1,7 @@
 import { parseGitHubUsername } from "@/lib/github/username";
 import { webLink } from "@/lib/pdf/links";
 import { extrasOf, sectionTitleOf, type Resume } from "@/lib/resume/schema";
+import { isLinkText } from "@/lib/resume/sections";
 import { shareSnapshot } from "@/lib/share/snapshot";
 import { PORTFOLIO_SECTIONS, type PortfolioSection, type PortfolioSettings } from "./types";
 
@@ -89,7 +90,12 @@ export type PortfolioView = {
 
 export type ViewSettings = Pick<PortfolioSettings, "showEmail" | "showPhone" | "hiddenSections">;
 
-const clean = (value: string) => value.replace(/\s+/g, " ").trim();
+// Control codes are icon-font glyphs a PDF read leaves behind.
+const clean = (value: string) =>
+  value
+    .replace(/\p{Cc}/gu, " ")
+    .replace(/\s+/g, " ")
+    .trim();
 const lines = (bullets: readonly { text: string }[]) =>
   bullets.map((b) => clean(b.text)).filter(Boolean);
 const dates = (start: string, end: string) =>
@@ -112,6 +118,19 @@ function hostOf(href: string | null): string {
   } catch {
     return "";
   }
+}
+
+// A summary that is only the contact line ("° github.com/jane | jane@mail.com | +1 555..."), as
+// older reads of icon-font resumes left it. It would show the phone on the page.
+function isContactLine(paragraph: string, contact: readonly string[]): boolean {
+  let rest = paragraph;
+  for (const value of contact) rest = rest.split(value).join(" ");
+  if (rest === paragraph) return false;
+  return rest
+    .split(/[\s|•·,;]+/)
+    .every(
+      (token) => token.length <= 1 || /[@/]|\.[a-z]{2,}$/i.test(token) || !/\p{L}{2}/u.test(token),
+    );
 }
 
 function toLink(label: string, url: string): PortfolioLink | null {
@@ -151,14 +170,31 @@ export function portfolioView(source: Resume, settings: ViewSettings): Portfolio
   const links = on("links")
     ? basics.links.map((link) => toLink(link.label, link.url)).filter((link) => link !== null)
     : [];
+  const contact = [basics.email, basics.phone, ...basics.links.map((link) => link.url)]
+    .map(clean)
+    .filter(Boolean);
+  const headline = clean(basics.headline);
+  // Written into the summary, a hidden email or phone would still reach the page.
+  const hiddenContact = [
+    settings.showEmail ? "" : clean(basics.email),
+    settings.showPhone ? "" : clean(basics.phone),
+  ].filter(Boolean);
+  const withoutHidden = (text: string) =>
+    clean(hiddenContact.reduce((rest, value) => rest.split(value).join(""), text));
 
   return {
     name: clean(basics.name),
-    headline: clean(basics.headline),
+    headline: isLinkText(headline) ? "" : headline,
     location: clean(basics.location),
     email: settings.showEmail && clean(basics.email) ? clean(basics.email) : null,
     phone: settings.showPhone && clean(basics.phone) ? clean(basics.phone) : null,
-    about: on("about") ? resume.summary.split(/\n+/).map(clean).filter(Boolean) : [],
+    about: on("about")
+      ? resume.summary
+          .split(/\n+/)
+          .map(clean)
+          .filter((paragraph) => paragraph && !isContactLine(paragraph, contact))
+          .map(withoutHidden)
+      : [],
     links,
     github: on("links") ? githubProfile(resume, links) : null,
     projects: on("projects")

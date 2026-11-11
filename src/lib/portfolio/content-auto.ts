@@ -129,6 +129,11 @@ export function categoryOf(
   return kinds.slice(0, 2).join(" · ");
 }
 
+function isTagLine(line: string): boolean {
+  const parts = line.split(" · ");
+  return parts.length >= 2 && parts.every((part) => part.trim().split(/\s+/).length <= 4);
+}
+
 function skillNames(view: PortfolioView): string[] {
   return [...new Set(view.skills.flatMap((group) => group.items))];
 }
@@ -206,7 +211,9 @@ export function autoContent(
     const repo = findRepo(github, fullName);
     const lines =
       project.lines.length > 0 ? project.lines : repo?.description ? [repo.description] : [];
-    const firstLine = sentences(lines[0] ?? "")[0] ?? "";
+    // "Go · Postgres · AWS" under a project's name is its stack, which designs draw as tags.
+    const prose = lines.filter((line) => !isTagLine(line));
+    const firstLine = sentences(prose[0] ?? "")[0] ?? "";
     const metrics = topMetrics(lines, 2).map(metricText);
     const stars = repo ? repo.stars : null;
     const outcome = [
@@ -229,7 +236,11 @@ export function autoContent(
       from: "resume",
       name: project.name,
       line: clip(firstLine, 200),
-      description: clip(lines.join(" "), 1200),
+      // Resume lines often have no full stop; joined as they are, they'd run into each other.
+      description: clip(
+        prose.map((line) => (/[.!?…:;]$/.test(line) ? line : `${line}.`)).join(" "),
+        1200,
+      ),
       lines: project.lines,
       category: categoryOf(lines, fullName, repo?.topics ?? []),
       years: years ? String(years) : "",

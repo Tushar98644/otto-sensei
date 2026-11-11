@@ -1,6 +1,6 @@
 import type { CSSProperties } from "react";
 import type { ContentProject } from "@/lib/portfolio/content";
-import { Marked, nameOf, OutLink, seeded, seedOf, TemplateStyle } from "../parts";
+import { Marked, nameOf, OutLink, seeded, seedOf, TemplateStyle, unbroken } from "../parts";
 import type { PortfolioTemplateProps } from "../types";
 import { FOLIO_CSS } from "./styles";
 
@@ -176,7 +176,9 @@ export function FolioTemplate({ view, content, footer }: PortfolioTemplateProps)
                       </div>
                       {job.dates ? (
                         <time>
-                          {job.start && job.end ? `${job.start} – ${job.end}` : job.dates}
+                          {job.start && job.end
+                            ? `${unbroken(job.start)} – ${unbroken(job.end)}`
+                            : job.dates}
                         </time>
                       ) : null}
                     </>
@@ -217,7 +219,11 @@ export function FolioTemplate({ view, content, footer }: PortfolioTemplateProps)
             </section>
           ) : null}
         </div>
-        <footer className="foot">{footer ? <div className="credit">{footer}</div> : null}</footer>
+        {footer ? (
+          <footer className="foot">
+            <div className="credit">{footer}</div>
+          </footer>
+        ) : null}
       </div>
     </div>
   );

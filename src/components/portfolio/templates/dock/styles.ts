@@ -85,9 +85,10 @@ h2.title { font-size: 1.25rem; line-height: 1.75rem; font-weight: 700; }
 .row-main { display: flex; align-items: center; column-gap: 0.75rem; flex: 1; min-width: 0; }
 .logo { display: flex; align-items: center; justify-content: center; width: 2rem; height: 2rem; padding: 0.25rem; flex: none; overflow: hidden; border: 1px solid var(--border); border-radius: 9999px; background: var(--muted); box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1), 0 0 0 2px var(--border); color: var(--muted-foreground); font-size: 0.625rem; font-weight: 600; }
 .row-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 0.125rem; }
-.row-title { font-weight: 600; line-height: 1; display: flex; align-items: center; gap: 0.5rem; }
+.row-title { font-weight: 600; line-height: 1.25; display: flex; align-items: center; gap: 0.5rem; }
 .row-sub { font-size: 0.875rem; line-height: 1.25rem; color: var(--muted-foreground); }
-.row-date { display: flex; align-items: center; gap: 0.25rem; flex: none; font-size: 0.75rem; line-height: 1rem; font-variant-numeric: tabular-nums; color: var(--muted-foreground); text-align: right; }
+/* Long month names ("September 2023") wrap on a phone rather than squeeze the title beside them. */
+.row-date { display: flex; align-items: center; gap: 0.25rem; flex: 0 1 auto; max-width: 40%; overflow-wrap: normal; font-size: 0.75rem; line-height: 1rem; font-variant-numeric: tabular-nums; color: var(--muted-foreground); text-align: right; }
 .chev { position: relative; display: inline-flex; align-items: center; width: 0.875rem; height: 0.875rem; }
 .chev svg { position: absolute; width: 0.875rem; height: 0.875rem; color: var(--muted-foreground); stroke-width: 2; }
 .chev .right { opacity: 0; transform: translateX(0); transition: all 0.3s ease-out; }
@@ -118,7 +119,7 @@ a.row-head:hover .arrow { opacity: 1; transform: none; }
 .head-text p { color: var(--muted-foreground); text-wrap: balance; text-align: center; }
 
 /* Project cards (project-card.tsx) */
-.cards { display: grid; grid-template-columns: 1fr; gap: 0.75rem; max-width: 800px; margin: 0 auto; grid-auto-rows: 1fr; width: 100%; }
+.cards { display: grid; grid-template-columns: 1fr; gap: 0.75rem; max-width: 800px; margin: 0 auto; width: 100%; }
 .cards > * { height: 100%; }
 .card { display: flex; flex-direction: column; height: 100%; border: 1px solid var(--border); border-radius: 0.75rem; overflow: hidden; transition: all 0.2s; }
 .card:hover { box-shadow: 0 0 0 2px var(--muted); }

@@ -98,7 +98,8 @@ a.place { margin: -7px -10.5px; padding: 7px 10.5px; }
 .place-main { display: flex; align-items: center; gap: 14px; min-width: 0; }
 .logo { display: flex; flex: none; align-items: center; justify-content: center; width: 48px; height: 48px; border-radius: 9999px; background: var(--sand4); color: var(--sand11); font-size: 14px; font-weight: 600; }
 .place-text { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
-.place time { flex: none; color: var(--sand11); font-variant-numeric: tabular-nums; }
+/* Full month names ("September 2023") wrap on a phone rather than squeeze the name beside them. */
+.place time { flex: 0 1 auto; max-width: 40%; overflow-wrap: normal; color: var(--sand11); font-variant-numeric: tabular-nums; text-align: right; }
 .external-arrow::after { content: "↗"; margin-left: 3px; color: var(--sand11); }
 
 /* Posts (SelectedPosts) */

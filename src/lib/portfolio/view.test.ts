@@ -54,6 +54,32 @@ describe("portfolioView", () => {
     expect(text).not.toContain("2nd try");
   });
 
+  it("keeps an imported contact line out of the About, and hidden details out of its prose", () => {
+    const resume = sampleResume({
+      summary: [
+        "\u0087 github.com/maya | ° linkedin.com/in/mayachen | portfolio/maya | > maya@example.com | Ó +1 415 555 0100",
+        "I build fast, friendly web apps. Write to me at maya@example.com.",
+      ].join("\n"),
+    });
+    const about = portfolioView(resume, defaults).about;
+    expect(about).toHaveLength(1);
+    expect(about[0]).toMatch(/^I build fast, friendly web apps\./);
+    expect(JSON.stringify(about)).not.toMatch(/maya@example\.com|555 0100/);
+    expect(portfolioView(resume, { ...defaults, showEmail: true }).about).toEqual([
+      "I build fast, friendly web apps. Write to me at maya@example.com.",
+    ]);
+  });
+
+  it("drops a headline that is only a link's text", () => {
+    const resume = (headline: string) =>
+      sampleResume({ basics: { ...sampleResume().basics, headline } });
+    expect(portfolioView(resume("portfolio/maya"), defaults).headline).toBe("");
+    expect(portfolioView(resume("bit.ly/Maya-CV"), defaults).headline).toBe("");
+    expect(portfolioView(resume("Designer/Developer"), defaults).headline).toBe(
+      "Designer/Developer",
+    );
+  });
+
   it("hides whole sections the owner turned off", () => {
     const view = portfolioView(sampleResume(), {
       ...defaults,

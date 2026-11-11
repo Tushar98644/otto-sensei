@@ -29,6 +29,7 @@ import {
   findLinks,
   findPhone,
   headingTitle,
+  isLinkText,
   splitInlineHeading,
   splitIntoSections,
   type DateRange,
@@ -112,7 +113,7 @@ function parse(text: string, now: number): Resume {
     if (block.kind && block.kind !== "other" && !order.includes(block.kind)) order.push(block.kind);
     if (block.kind === "summary") summaries.push(paragraph(block.lines));
     else if (block.kind === "experience") resume.experience.push(...parseExperience(block.lines));
-    else if (block.kind === "education") resume.education.push(...parseEducation(block.lines));
+    else if (block.kind === "education") addEducation(resume.education, block);
     else if (block.kind === "projects") resume.projects.push(...parseProjects(block.lines));
     else if (block.kind === "skills") resume.skills.push(...parseSkills(block.lines));
     else if (block.kind === "certifications") resume.certifications.push(...parseCertifications(block.lines));
@@ -159,7 +160,8 @@ function parseBasics(preamble: readonly string[], contactText: string): { basics
   for (const line of preamble) {
     let used = false;
     let hasOtherText = false;
-    for (const segment of segmentsOf(removeAll(line, contact))) {
+    const rest = removeAll(line, contact);
+    for (const segment of segmentsOf(rest)) {
       const value = segment.replace(CONTACT_LABEL, "").trim();
       if (!value || BARE_LABEL.test(value) || DOCUMENT_TITLE.test(value)) continue;
       const labelledLocation = /^(?:address|location)\b/i.test(segment);
@@ -172,6 +174,8 @@ function parseBasics(preamble: readonly string[], contactText: string): { basics
       }
       used = true;
     }
+    // A contact line's other bits are icon glyphs and link labels ("° portfolio/jane"), not a summary.
+    if (rest !== line) continue;
     if (hasOtherText || (!used && isProse(line))) leftovers.push(line);
   }
   return {
@@ -216,8 +220,16 @@ function isNameLike(value: string): boolean {
 }
 
 function isHeadlineLike(value: string): boolean {
-  return value.length <= 120 && value.split(/\s+/).length <= 14 && !value.includes("@") && !value.endsWith(".");
+  return (
+    value.length <= 120 &&
+    value.split(/\s+/).length <= 14 &&
+    (value.match(/\p{L}/gu)?.length ?? 0) >= 2 &&
+    !value.includes("@") &&
+    !value.endsWith(".") &&
+    !isLinkText(value)
+  );
 }
+
 
 // "Berlin, Germany", "Austin, TX 78701", "Rio de Janeiro, Brazil", "Remote". Short capitalised
 // place names only, so "Senior Engineer, Acme Corp" isn't mistaken for a city.
@@ -358,6 +370,7 @@ function headerFields(header: readonly string[]): { parts: string[]; location: s
   let location = "";
   for (const line of header) {
     for (const segment of segmentsOf(stripDates(line))) {
+      if (isLinkText(segment)) continue;
       const trailing = splitTrailingLocation(segment);
       if (!location && isLocation(segment)) location = segment;
       else if (!location && trailing) {
@@ -397,6 +410,12 @@ function assignTitleAndCompany(parts: readonly string[]): [string, string] {
   const firstIsCompany = COMPANY_WORDS.test(first) && !TITLE_WORDS.test(first);
   const secondIsTitle = TITLE_WORDS.test(second) && !COMPANY_WORDS.test(second) && !TITLE_WORDS.test(first);
   if (second && (firstIsCompany || secondIsTitle)) return [[second, ...rest].join(", "), first];
+  // "Program - Organisation <tab> dates / Student Developer": the one part that names a role.
+  const roles = parts.filter((part) => TITLE_WORDS.test(part.split(/\s+/).at(-1) ?? ""));
+  const [role] = roles;
+  if (role && roles.length === 1 && !TITLE_WORDS.test(first)) {
+    return [role, parts.filter((part) => part !== role).join(", ")];
+  }
   return [first, others];
 }
 
@@ -449,6 +468,7 @@ function parseEducation(lines: readonly string[]): Education[] {
   let current: EducationDraft | undefined;
   for (const line of lines) {
     const bullet = bulletText(line);
+    if (isTableHeading(line)) continue;
     if (bullet !== null || !isTitleLike(line)) {
       current ??= open();
       current.bullets.push(bullet ?? line);
@@ -487,6 +507,27 @@ function parseEducation(lines: readonly string[]): Education[] {
       endDate: clip(draft.endDate, LIMITS.date),
       bullets: finishBullets(draft.bullets, LIMITS.educationBullets),
     }));
+}
+
+// "Degree/Certificate<tab>Institute/Board<tab>CGPA/Percentage<tab>Year": the head of a table.
+const TABLE_HEADING_WORD =
+  /^(?:degree|certificate|qualification|course|program(?:me)?|institute|institution|board|university|school|college|c?gpa|cpi|percentage|grade|marks|score|result|year|duration|session)s?$/i;
+
+function isTableHeading(line: string): boolean {
+  const cells = line.split(/\t+/);
+  return cells.length >= 2 && cells.every((cell) => cell.split(/\s*[/&]\s*|\s+/).every((word) => TABLE_HEADING_WORD.test(word)));
+}
+
+// "Relevant Coursework" under its own heading lists courses of a degree above it.
+function addEducation(education: Education[], block: SectionBlock): void {
+  // Entries run newest first, so the courses belong to the first (latest) degree.
+  const latest = education[0];
+  if (latest && /\bcourse/i.test(block.heading)) {
+    const courses = block.lines.map((line) => (bulletText(line) ?? line).split(/\t+/).join(", "));
+    latest.bullets = [...latest.bullets, ...finishBullets(courses, LIMITS.educationBullets)].slice(0, LIMITS.educationBullets);
+    return;
+  }
+  education.push(...parseEducation(block.lines));
 }
 
 function educationFields(line: string): EducationFields {
@@ -538,12 +579,16 @@ function splitSchoolAndDegree(segment: string): string[] {
 // ---------------------------------------------------------------------------------------------
 // Projects, skills, certifications
 
-type ProjectDraft = { name: string; link: string; bullets: string[] };
+// "demo/github", "github/Apex", "Details": where a PDF had a link, read as text.
+const LINK_WORDS = /^(?:demo|live|code|source|github|gitlab|website|site|link|links|details|repo|app|video|slides)(?:\s*\/\s*[\w.-]+)?$/i;
+const isLinkWord = (segment: string) => LINK_WORDS.test(segment) || isLinkText(segment);
+
+type ProjectDraft = { name: string; link: string; bullets: string[]; dated: boolean; body: number };
 
 function parseProjects(lines: readonly string[]): Project[] {
   const drafts: ProjectDraft[] = [];
   const open = (): ProjectDraft => {
-    const draft: ProjectDraft = { name: "", link: "", bullets: [] };
+    const draft: ProjectDraft = { name: "", link: "", bullets: [], dated: false, body: 0 };
     drafts.push(draft);
     return draft;
   };
@@ -553,15 +598,38 @@ function parseProjects(lines: readonly string[]): Project[] {
     const last = current?.bullets.at(-1);
     const link = findLinks(line)[0]?.url ?? "";
     const withoutLink = link ? line.split(link).join("\t").trim() : line;
+    const undated = stripDates(withoutLink);
     // "Typeface Finder - A tool that names any font." names the project and describes it at once.
-    const named = /^([^:—–]{2,60}?)(?:\s+[—–-]\s+|:\s+)(.+)$/.exec(stripDates(withoutLink));
+    const named = /^([^:—–]{2,60}?)(?:\s+[—–-]\s+|:\s+)(.+)$/.exec(undated);
     const namePart = named?.[1] ?? withoutLink;
-    const startsProject = isTitleLike(namePart) && (!current || current.bullets.length > 0 || !current.name);
+    const dated = undated !== withoutLink.trim();
+    // "Name – tagline" opens the next project even when the last one has no bullets yet.
+    const dashed = /^[^:—–]{2,60}?\s+[—–-]\s/.test(undated);
+    const startsProject = isTitleLike(namePart) && (!current || current.body > 0 || !current.name || dashed);
+    // The line under a project's name, before its bullets: "Go | Postgres | AWS<tab>demo/github".
+    const segments = segmentsOf(undated);
+    const details =
+      current !== undefined &&
+      current.name !== "" &&
+      current.body === 0 &&
+      !named &&
+      !(dated && current.dated) &&
+      isTitleLike(line) &&
+      segments.length >= 2 &&
+      segments.every((segment) => segment.split(/\s+/).length <= 5);
     if (bullet !== null) {
       current ??= open();
       current.bullets.push(bullet);
+      current.body += 1;
     } else if (link && current && !segmentsOf(withoutLink).length) {
       current.link ||= link;
+    } else if (current && segments.length > 0 && segments.every(isLinkWord)) {
+      current.link ||= link;
+    } else if (details && current) {
+      const words = segments.filter((segment) => !isLinkWord(segment));
+      if (words.length) current.bullets.push(words.join(" · "));
+      current.link ||= link;
+      current.dated ||= dated;
     } else if (current && last !== undefined && continues(last, line)) {
       current.bullets[current.bullets.length - 1] = `${last} ${line}`;
     } else if (startsProject) {
@@ -569,10 +637,12 @@ function parseProjects(lines: readonly string[]): Project[] {
       if (!current || current.name || current.bullets.length > 0) current = open();
       current.name = segmentsOf(namePart).join(" · ");
       current.link ||= link;
+      current.dated = dated;
       if (named?.[2]) current.bullets.push(named[2].trim());
     } else {
       current ??= open();
       current.bullets.push(line);
+      current.body += 1;
       current.link ||= findLinks(line)[0]?.url ?? "";
     }
   }
@@ -591,8 +661,9 @@ const GROUP_LABEL = /^([^:\t]{1,40}):\s*(.+)$/;
 function parseSkills(lines: readonly string[]): SkillGroup[] {
   const groups: { label: string; items: string[] }[] = [];
   let flat: { label: string; items: string[] } | undefined;
-  for (const line of lines) {
-    const content = bulletText(line) ?? line;
+  // A two-column table reads as one line per row: "Languages: Go, Rust<tab>Cloud: AWS, GCP".
+  const cells = lines.flatMap((line) => (bulletText(line) ?? line).split(/\t+(?=[^:\t,]{1,40}:\s)/));
+  for (const content of cells) {
     const labelled = GROUP_LABEL.exec(content);
     const label = labelled?.[1]?.trim() ?? "";
     if (labelled?.[2] && label.split(/\s+/).length <= 5 && !/\d|https?/i.test(label)) {
@@ -765,8 +836,14 @@ function listDrafts(lines: readonly string[], kind: ExtraKind): ExtraDraft[] {
     } else if (isExtraDescription(text, kind)) {
       // Each line of a publication list is its own paper, sentence or not.
       const describes = kind !== "publications" && bullet === null && !usesMarkers;
-      if (current && describes && current.bullets.length === 0) {
+      // "Won the regional final.<tab>2023 | Details" is an item of its own, dated.
+      const cells = text.split(/\t+/);
+      const tail = cells.length > 1 ? (cells.at(-1) ?? "").replace(/\s*\|?\s*details$/i, "").trim() : "";
+      const dated = tail.split(/\s+/).length <= 5 && findDates(tail).length > 0 ? tail : "";
+      if (current && describes && current.bullets.length === 0 && !dated) {
         current.detail = current.detail ? `${current.detail} ${text}` : text;
+      } else if (dated) {
+        current = pushed(drafts, { ...emptyExtra(), detail: cells.slice(0, -1).join(" "), date: dated });
       } else {
         current = pushed(drafts, { ...emptyExtra(), detail: text });
       }
@@ -793,14 +870,20 @@ function appendToLast(draft: ExtraDraft, line: string): void {
 // Sentences, and in a custom section any list ("Chess, hiking, jazz piano"), read as text rather
 // than as a bold name.
 function isExtraDescription(text: string, kind: ExtraKind): boolean {
+  // A table row names its item in the first cell: "Hackathon<tab>Won first of 200 teams. 2023".
+  const [first = "", ...cells] = text.split(/\t+/);
+  if (cells.length > 0 && first.split(/\s+/).length <= 8 && isTitleLike(first)) return false;
   if (!isTitleLike(text)) return true;
   // Counted per segment, so "Best Paper Award | ACM CHI | 2019" stays a name.
   if (segmentsOf(stripDates(text)).some((segment) => segment.split(/\s+/).length >= 10)) return true;
   return kind === "custom" && /[,;]/.test(text);
 }
 
-function extraHeader(text: string, kind: ExtraKind): ExtraDraft {
-  const date = findDateRanges(text)[0]?.text ?? setApartDate(text) ?? "";
+function extraHeader(line: string, kind: ExtraKind): ExtraDraft {
+  // "...Digital Public Goods. 2023": the year after a full stop is the item's date.
+  const year = /\.\s+((?:19|20)\d{2})$/.exec(line);
+  const text = year ? line.slice(0, year.index + 1) : line;
+  const date = findDateRanges(text)[0]?.text ?? setApartDate(text) ?? year?.[1] ?? "";
   let parts = segmentsOf(stripDates(text));
   // "Dean's List, University of Leeds" names the award and who gave it. Titles of papers and
   // custom entries keep their commas.
@@ -898,6 +981,8 @@ function toLines(text: string): string[] {
     .split(/\r\n?|\n/)
     .map((line) =>
       line
+        // Icon fonts (FontAwesome in LaTeX templates) often come out of a PDF as control codes.
+        .replace(/(?!\t)\p{Cc}/gu, "")
         .replace(/[ \u00a0]+/g, " ")
         .replace(/ *\t[\t ]*/g, "\t")
         .trim(),

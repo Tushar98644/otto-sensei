@@ -1,7 +1,7 @@
 import { ArrowUpRight, Library, Mail, PenLine, PencilRuler, Shapes } from "lucide-react";
 import type { CSSProperties, ReactNode } from "react";
 import type { ContentShelfItem } from "@/lib/portfolio/content";
-import { Marked, nameOf, OutLink, TemplateStyle } from "../parts";
+import { Marked, nameOf, OutLink, TemplateStyle, unbroken } from "../parts";
 import type { PortfolioTemplateProps } from "../types";
 import { FooterClock } from "./islands";
 import { PAPER_CSS } from "./styles";
@@ -248,14 +248,16 @@ export function PaperTemplate({ view, content, footer }: PortfolioTemplateProps)
         title: job.company || job.title,
         sub: job.company ? job.title : "",
         href: job.website?.href ?? null,
-        dates: job.start ? `${job.start}—${job.end || "now"}` : job.dates,
+        dates: job.start ? `${unbroken(job.start)}—${unbroken(job.end || "now")}` : job.dates,
       })),
       ...content.education.map((school) => ({
         id: school.id,
         title: school.school || school.degree,
         sub: school.school ? school.degree : "",
         href: school.website?.href ?? null,
-        dates: school.start ? `${school.start}—${school.end || "now"}` : school.dates,
+        dates: school.start
+          ? `${unbroken(school.start)}—${unbroken(school.end || "now")}`
+          : school.dates,
       })),
     ];
     sections.push(
@@ -562,7 +564,11 @@ export function PaperTemplate({ view, content, footer }: PortfolioTemplateProps)
             ) : null}
           </div>
         </div>
-        <div className="ends">{footer ? <div className="credit">{footer}</div> : null}</div>
+        {footer ? (
+          <div className="ends">
+            <div className="credit">{footer}</div>
+          </div>
+        ) : null}
       </footer>
 
       <nav className="dock" aria-label="Dock">

@@ -173,11 +173,12 @@ section { margin: 0 auto; padding: 100px 0; max-width: 1000px; }
 /* Jobs (sections/jobs.js) */
 .jobs { max-width: 700px; }
 .jobs .inner { display: flex; min-height: 340px; }
-.tablist { position: relative; z-index: 3; width: max-content; padding: 0; margin: 0; list-style: none; }
-.tab { display: flex; align-items: center; width: 100%; height: var(--tab-height); padding: 0 20px 2px; border-left: 2px solid var(--lightest-navy); background-color: transparent; color: var(--slate); font-family: var(--font-mono); font-size: var(--fz-xs); text-align: left; white-space: nowrap; transition: var(--transition); }
+.tablist { position: relative; z-index: 3; flex: none; width: max-content; max-width: 240px; padding: 0; margin: 0; list-style: none; }
+/* v4's company names fit one line; a longer one wraps instead of squeezing the panel beside it. */
+.tab { display: flex; align-items: center; width: 100%; min-height: var(--tab-height); padding: 8px 20px 10px; border-left: 2px solid var(--lightest-navy); background-color: transparent; color: var(--slate); font-family: var(--font-mono); font-size: var(--fz-xs); text-align: left; transition: var(--transition); }
 .tab[aria-selected="true"] { color: var(--green); }
 .tab:hover, .tab:focus-visible { background-color: var(--light-navy); color: var(--green); }
-.highlight { position: absolute; top: 0; left: 0; z-index: 10; width: 2px; height: var(--tab-height); border-radius: var(--border-radius); background: var(--green); transform: translateY(calc(var(--active, 0) * var(--tab-height))); transition: transform 0.25s cubic-bezier(0.645, 0.045, 0.355, 1); transition-delay: 0.1s; }
+.highlight { position: absolute; top: 0; left: 0; z-index: 10; width: 2px; height: var(--hl-h, var(--tab-height)); border-radius: var(--border-radius); background: var(--green); transform: translateY(var(--hl-y, calc(var(--active, 0) * var(--tab-height)))); transition: transform 0.25s cubic-bezier(0.645, 0.045, 0.355, 1), height 0.25s cubic-bezier(0.645, 0.045, 0.355, 1), width 0.25s cubic-bezier(0.645, 0.045, 0.355, 1); transition-delay: 0.1s; }
 .panels { position: relative; width: 100%; margin-left: 20px; }
 .panel { width: 100%; height: auto; padding: 10px 5px; }
 .panel[hidden] { display: none; }
@@ -201,7 +202,7 @@ section { margin: 0 auto; padding: 100px 0; max-width: 1000px; }
 .project:nth-of-type(odd) .project-image { grid-column: 1 / 8; }
 .project-content { position: relative; grid-column: 1 / 7; grid-row: 1 / -1; }
 .project-overline { margin: 10px 0; color: var(--green); font-family: var(--font-mono); font-size: var(--fz-xs); font-weight: 400; }
-.project-title { color: var(--lightest-slate); font-size: clamp(24px, 5cqi, 28px); margin: 0 0 20px; }
+.project-title { position: relative; z-index: 2; color: var(--lightest-slate); font-size: clamp(24px, 5cqi, 28px); margin: 0 0 20px; }
 .project-description { box-shadow: 0 10px 30px -15px var(--navy-shadow); transition: var(--transition); position: relative; z-index: 2; padding: 25px; border-radius: var(--border-radius); background-color: var(--light-navy); color: var(--light-slate); font-size: var(--fz-lg); }
 .project-description:hover { box-shadow: 0 20px 30px -15px var(--navy-shadow); }
 .project-description strong { color: var(--white); font-weight: normal; }
@@ -261,6 +262,8 @@ section { margin: 0 auto; padding: 100px 0; max-width: 1000px; }
 
 /* Footer (src/components/footer.js) */
 .footer { display: flex; justify-content: center; align-items: center; flex-direction: column; height: auto; min-height: 70px; padding: 15px; text-align: center; gap: 4px; }
+/* Without a credit line the footer only holds the phone layout's social links. */
+.footer:not(:has(.credit)) { display: none; }
 .footer-social { display: none; width: 100%; max-width: 270px; margin: 0 auto 10px; color: var(--light-slate); }
 .footer-social ul { display: flex; justify-content: space-between; align-items: center; padding: 0; margin: 0; list-style: none; }
 .footer-social a { padding: 10px; }
@@ -292,14 +295,14 @@ section { margin: 0 auto; padding: 100px 0; max-width: 1000px; }
   .numbered-heading::after { width: 100%; }
   .about .inner { display: block; }
   .pic { margin: 50px auto 0; width: 70%; }
-  .tab { padding: 0 15px 2px; }
+  .tab { padding: 8px 15px 10px; }
   .project { box-shadow: 0 10px 30px -15px var(--navy-shadow); }
   .project:not(:last-of-type) { margin-bottom: 70px; }
   .project-content, .project:nth-of-type(odd) .project-content { display: flex; flex-direction: column; justify-content: center; height: 100%; grid-column: 1 / -1; padding: 40px 40px 30px; z-index: 5; text-align: left; }
   .project:nth-of-type(odd) .project-tech-list, .project:nth-of-type(odd) .project-links { justify-content: flex-start; }
   .project:nth-of-type(odd) .project-tech-list li { margin: 0 10px 5px 0; }
   .project:nth-of-type(odd) .project-links { margin-left: -10px; margin-right: 0; }
-  .project-title { color: var(--white); margin: 0 0 10px; }
+  .project-title { position: static; color: var(--white); margin: 0 0 10px; }
   .project-title a { position: static; }
   .project-title a::before { content: ""; display: block; position: absolute; z-index: 0; width: 100%; height: 100%; top: 0; left: 0; }
   .project-description { padding: 20px 0; background-color: transparent; box-shadow: none; }
@@ -311,6 +314,7 @@ section { margin: 0 auto; padding: 100px 0; max-width: 1000px; }
   .project-image .img { object-fit: cover; width: 100%; height: 100%; aspect-ratio: auto; filter: grayscale(100%) contrast(1) brightness(50%); }
   .contact { margin: 0 auto 50px; }
   .footer-social { display: block; }
+  .footer:not(:has(.credit)) { display: flex; }
 }
 @container pf (max-width: 600px) {
   .numbered-heading::after { margin-left: 10px; }
@@ -318,8 +322,9 @@ section { margin: 0 auto; padding: 100px 0; max-width: 1000px; }
   .tablist { display: flex; overflow-x: auto; width: calc(100% + 100px); padding-left: 50px; margin-left: -50px; margin-bottom: 30px; }
   .tablist li:first-of-type { margin-left: 50px; }
   .tablist li:last-of-type { padding-right: 50px; }
-  .tab { display: flex; justify-content: center; align-items: center; min-width: var(--tab-width); padding: 0 15px; border-left: 0; border-bottom: 2px solid var(--lightest-navy); text-align: center; }
-  .highlight { top: auto; bottom: 0; width: 100%; max-width: var(--tab-width); height: 2px; margin-left: 50px; transform: translateX(calc(var(--active, 0) * var(--tab-width))); }
+  .tablist { max-width: none; }
+  .tab { display: flex; flex: none; justify-content: center; align-items: center; width: auto; min-width: var(--tab-width); height: var(--tab-height); padding: 0 15px; border-left: 0; border-bottom: 2px solid var(--lightest-navy); text-align: center; white-space: nowrap; }
+  .highlight { top: auto; bottom: 0; width: var(--hl-w, 100%); max-width: var(--hl-w, var(--tab-width)); height: 2px; margin-left: 50px; transform: translateX(var(--hl-x, calc(var(--active, 0) * var(--tab-width)))); }
   .panels { margin-left: 0; }
 }
 @container pf (max-width: 480px) {

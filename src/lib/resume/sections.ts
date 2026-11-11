@@ -106,13 +106,15 @@ const HEAD_WORDS: Record<string, HeadingKind> = {
   publications: "other", patents: "other", presentations: "other", languages: "other", interests: "other",
   hobbies: "other", activities: "other", affiliations: "other", memberships: "other", references: "other",
   qualifications: "other", leadership: "other", volunteer: "other",
+  // "Responsibilities:" alone often labels a job's own bullets, so only the singular counts.
+  courses: "education", responsibility: "other", extracurriculars: "other",
 };
 const MODIFIERS = new Set([
   "professional", "relevant", "selected", "recent", "key", "core", "technical", "tech", "additional", "other",
   "notable", "featured", "career", "industry", "prior", "previous", "related", "academic", "personal", "side",
   "history", "background", "open", "source", "university", "independent", "freelance", "consulting",
   "international", "global", "and", "of", "the", "my", "in", "for", "language", "software", "programming",
-  "teaching", "research", "community",
+  "teaching", "research", "community", "positions", "taken",
 ]);
 
 const MAX_HEADING_CHARS = 60;
@@ -432,6 +434,15 @@ const LINK_LABELS: Record<string, string> = {
 };
 
 export type FoundLink = { label: string; url: string };
+
+/**
+ * "portfolio/jane", "bit.ly/Jane-CV": the visible text of a link (whose address a PDF keeps
+ * apart), not words. "Designer/Developer" and "iOS/Android" are words.
+ */
+export function isLinkText(value: string): boolean {
+  if (/\s/.test(value) || !value.includes("/")) return false;
+  return !/\p{Lu}/u.test(value) || /\.[a-z]{2,}\//i.test(value);
+}
 
 // URLs exactly as written (no protocol added), labelled by site.
 export function findLinks(text: string): FoundLink[] {

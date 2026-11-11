@@ -23,6 +23,7 @@ import {
   seeded,
   seedOf,
   TemplateStyle,
+  unbroken,
 } from "../parts";
 import type { PortfolioTemplateProps } from "../types";
 import { Dock, FlickeringGrid, type DockLink } from "./islands";
@@ -237,7 +238,9 @@ export function DockTemplate({ view, content, footer }: PortfolioTemplateProps) 
                       {job.dates ? (
                         <div className="row-date">
                           <span>
-                            {job.start && job.end ? `${job.start} - ${job.end}` : job.dates}
+                            {job.start && job.end
+                              ? `${unbroken(job.start)} - ${unbroken(job.end)}`
+                              : job.dates}
                           </span>
                         </div>
                       ) : null}
@@ -287,7 +290,7 @@ export function DockTemplate({ view, content, footer }: PortfolioTemplateProps) 
                         <div className="row-date">
                           <span>
                             {school.start && school.end
-                              ? `${school.start} - ${school.end}`
+                              ? `${unbroken(school.start)} - ${unbroken(school.end)}`
                               : school.dates}
                           </span>
                         </div>

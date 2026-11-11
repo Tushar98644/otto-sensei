@@ -308,7 +308,11 @@ export function CvTemplate({ view, content, footer }: PortfolioTemplateProps) {
             </div>
           ))}
         </div>
-        <footer className="foot">{footer ? <div className="credit">{footer}</div> : null}</footer>
+        {footer ? (
+          <footer className="foot">
+            <div className="credit">{footer}</div>
+          </footer>
+        ) : null}
         <CommandMenu links={menuLinks} />
       </div>
     </div>

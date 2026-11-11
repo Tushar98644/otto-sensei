@@ -100,7 +100,7 @@ svg { flex: none; }
 /* The inline link chips ("magic links"), each with a monogram in its own colour */
 .chip { display: inline-flex; align-items: center; gap: 0.25rem; padding: 0.25rem 0.375rem; border-radius: 0.25rem; background: #8882; transform: translateY(3px); line-height: 100%; color: var(--fg-light) !important; border: 0 !important; font-family: var(--pf-font-roboto-condensed, "Roboto Condensed"), var(--pf-font-inter, "Inter"), sans-serif; transition: all 150ms; }
 a.chip:hover { background: #8883; color: var(--fg) !important; }
-.chip .mono { display: inline-flex; align-items: center; justify-content: center; width: 1.1em; height: 1.1em; border-radius: 0.1875rem; background: oklch(0.62 0.14 var(--hue, 250)); box-shadow: inset 0 -1px 0 rgb(0 0 0 / 0.15); color: #fff; font-family: var(--pf-font-inter, "Inter"), sans-serif; font-size: 0.55em; font-weight: 700; letter-spacing: -0.02em; }
+.chip .mono { display: inline-flex; flex: none; align-items: center; justify-content: center; min-width: 1.1em; height: 1.1em; padding: 0 0.15em; white-space: nowrap; border-radius: 0.1875rem; background: oklch(0.62 0.14 var(--hue, 250)); box-shadow: inset 0 -1px 0 rgb(0 0 0 / 0.15); color: #fff; font-family: var(--pf-font-inter, "Inter"), sans-serif; font-size: 0.55em; font-weight: 700; letter-spacing: -0.02em; }
 .lines .label { color: var(--fg); }
 
 .socials { display: flex; flex-wrap: wrap; gap: 0.5rem 0.75rem; }

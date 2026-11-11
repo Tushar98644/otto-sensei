@@ -93,6 +93,27 @@ export type NavyJob = {
 export function JobTabs({ jobs }: { jobs: NavyJob[] }) {
   const [active, setActive] = useState(0);
   const tabs = useRef<(HTMLButtonElement | null)[]>([]);
+  const list = useRef<HTMLDivElement>(null);
+
+  // v4 slides the highlight by a fixed tab size; long company names make tabs taller (wrapped)
+  // or wider (the phone strip), so it follows the active tab's real box instead.
+  useEffect(() => {
+    const element = list.current;
+    if (!element) return;
+    const measure = () => {
+      const tab = tabs.current[active];
+      if (!tab) return;
+      const inset = Number.parseFloat(getComputedStyle(element).paddingLeft) || 0;
+      element.style.setProperty("--hl-x", `${tab.offsetLeft - inset}px`);
+      element.style.setProperty("--hl-y", `${tab.offsetTop}px`);
+      element.style.setProperty("--hl-w", `${tab.offsetWidth}px`);
+      element.style.setProperty("--hl-h", `${tab.offsetHeight}px`);
+    };
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, [active]);
 
   const focusTab = (index: number) => {
     const next = (index + jobs.length) % jobs.length;
@@ -113,6 +134,7 @@ export function JobTabs({ jobs }: { jobs: NavyJob[] }) {
   return (
     <div className="inner">
       <div
+        ref={list}
         className="tablist"
         role="tablist"
         aria-label="Job tabs"

@@ -118,6 +118,11 @@ export function allSkills(view: PortfolioView): string[] {
   return [...new Set(view.skills.flatMap((group) => group.items))];
 }
 
+/** A date with no-break spaces, so a range that wraps breaks at its dash, never inside "May 2024". */
+export function unbroken(date: string): string {
+  return date.replace(/ /g, "\u00a0");
+}
+
 /** The page's name, or a plain word when the resume has none yet. */
 export function nameOf(view: PortfolioView): string {
   return view.name || "Portfolio";

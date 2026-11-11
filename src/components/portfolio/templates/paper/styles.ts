@@ -103,6 +103,7 @@ a { color: inherit; text-decoration: none; }
 .intro-text .mark { color: var(--foreground); font-weight: 500; }
 .intro-text a { color: var(--foreground); text-decoration-line: underline; text-decoration-thickness: 1px; text-decoration-color: color-mix(in oklab, var(--muted-foreground) 45%, transparent); text-underline-offset: 3px; transition: color 150ms, text-decoration-color 150ms; }
 .intro-text a:hover { text-decoration-color: currentColor; }
+.intro-text a:has(.ext-mark) { white-space: nowrap; }
 .ext-mark { display: inline-block; width: 0.8rem; height: 0.8rem; margin-inline-start: 0.12em; vertical-align: -0.05em; stroke-width: 1.6; opacity: 0.6; transition: opacity 150ms ease, transform 180ms ease; }
 a:hover .ext-mark { opacity: 1; transform: translate(1px, -1px); }
 .portrait { width: 9.35rem; flex-shrink: 0; }
@@ -161,7 +162,8 @@ a:hover .ext-mark { opacity: 1; transform: translate(1px, -1px); }
 .row-title { font-weight: 500; overflow-wrap: anywhere; transition: color 150ms ease; }
 a.row-title:hover { color: var(--foreground); }
 .row-sub { color: var(--muted-foreground); overflow-wrap: anywhere; }
-.row-date { white-space: nowrap; color: var(--muted-foreground); font-variant-numeric: tabular-nums; }
+/* Full month names ("September 2023") wrap on a phone rather than squeeze the name beside them. */
+.row-date { max-width: 8.5rem; color: var(--muted-foreground); font-variant-numeric: tabular-nums; text-align: right; }
 .row-stat { white-space: nowrap; color: var(--muted-foreground); font-family: var(--pf-font-geist-mono, "Geist Mono"), ui-monospace, monospace; font-size: 0.75rem; letter-spacing: 0.02em; }
 .icon { display: flex; align-items: center; justify-content: center; width: 2rem; height: 2rem; flex: none; overflow: hidden; border: var(--hairline) solid color-mix(in oklab, var(--foreground) 20%, var(--border)); border-radius: 0.5rem; background: color-mix(in oklab, var(--foreground) 4%, var(--background)); font-size: 0.6875rem; font-weight: 600; color: var(--muted-foreground); }
 
@@ -247,6 +249,7 @@ a.row-title:hover { color: var(--foreground); }
   .nc-label { font-size: 0.875rem; line-height: 1.5; }
   .nc-sub { font-size: 0.875rem; }
   .post-title { display: block; white-space: nowrap; text-overflow: ellipsis; }
+  .row-date { max-width: none; white-space: nowrap; }
   .footer { padding-bottom: 3rem; }
   .footer-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .colophon { grid-column: auto; order: -1; display: flex; flex-direction: column; align-items: flex-start; justify-content: space-between; gap: 0.625rem; }

@@ -260,6 +260,138 @@ describe("heuristicParse", () => {
     expect(resume.basics.phone).toBe("");
   });
 
+  it("reads a LaTeX template with icon-font contact links and two-column tables", () => {
+    const resume = parse(
+      [
+        "Jane Doe",
+        "\u0087 github.com/janedoe | ° linkedin.com/in/jane-doe | portfolio/jane | > jane@example.com | Ó +1 555 010 0199",
+        "Education",
+        "University of Leeds\tSeptember 2019 - June 2023",
+        "Bachelor of Science in Computer Science\tGPA: 3.8/4.0",
+        "Experience",
+        "Northwind\tMarch 2024 – Present",
+        "Founding Engineer\tRemote",
+        "• Shipped the billing system end to end in Next.js and Node.js.",
+        "Open Source Summer - Tally Foundation\tMay 2023 - August 2023",
+        "Student Developer\tRemote",
+        "• Built the plugin loader that 40 plugins use.",
+        "Projects",
+        "Tally – Privacy-first analytics\tSeptember 2025",
+        "PostgreSQL | Go | Docker\tdemo/github",
+        "• Ingests two million events a day on one small server.",
+        "Ledger – Shared expense tracker\tJune 2024",
+        "React Native | SQLite\tgithub",
+        "• Splits bills between 3,000 households.",
+        "Relevant Coursework",
+        "Computer Science: Algorithms, Databases, Operating Systems",
+        "Technical Skills",
+        "Languages: Go, TypeScript, Python\tFrontend: React, Next.js",
+        "Backend: Node.js, PostgreSQL\tTools: Git, Docker",
+        "Achievements",
+        "Hackathon\tWon first place among 200 teams.\t2024",
+        "Open Source Award\tNamed one of the top 50 contributors of the year for work on public tooling. 2023",
+        "Positions of Responsibility",
+        "Mentor, Coding Club\tApril 2022 - April 2023",
+        "Ran weekly workshops for 60 first-year students.",
+      ].join("\n"),
+    );
+
+    // The contact line's icon glyphs and link labels are neither a headline nor a summary.
+    expect(resume.basics).toMatchObject({
+      name: "Jane Doe",
+      headline: "",
+      email: "jane@example.com",
+      phone: "+1 555 010 0199",
+    });
+    expect(resume.summary).toBe("");
+    expect(resume.education).toHaveLength(1);
+    expect(bullets(resume.education[0]?.bullets ?? [])).toEqual([
+      "GPA: 3.8/4.0",
+      "Computer Science: Algorithms, Databases, Operating Systems",
+    ]);
+    expect(resume.experience.map((job) => [job.title, job.company])).toEqual([
+      ["Founding Engineer", "Northwind"],
+      ["Student Developer", "Open Source Summer, Tally Foundation"],
+    ]);
+    // The stack line under a project's name stays with it; "demo/github" was only a link's text.
+    expect(resume.projects.map((project) => [project.name, bullets(project.bullets)])).toEqual([
+      [
+        "Tally",
+        [
+          "Privacy-first analytics",
+          "PostgreSQL · Go · Docker",
+          "Ingests two million events a day on one small server.",
+        ],
+      ],
+      [
+        "Ledger",
+        [
+          "Shared expense tracker",
+          "React Native · SQLite",
+          "Splits bills between 3,000 households.",
+        ],
+      ],
+    ]);
+    expect(resume.skills.map((group) => [group.label, group.items])).toEqual([
+      ["Languages", ["Go", "TypeScript", "Python"]],
+      ["Frontend", ["React", "Next.js"]],
+      ["Backend", ["Node.js", "PostgreSQL"]],
+      ["Tools", ["Git", "Docker"]],
+    ]);
+    expect(
+      extrasOf(resume).map((section) => [section.kind, section.title, items(section)]),
+    ).toEqual([
+      [
+        "awards",
+        "Achievements",
+        [
+          ["Hackathon", "Won first place among 200 teams.", "2024", ""],
+          [
+            "Open Source Award",
+            "Named one of the top 50 contributors of the year for work on public tooling.",
+            "2023",
+            "",
+          ],
+        ],
+      ],
+      [
+        "custom",
+        "Positions of Responsibility",
+        [
+          [
+            "Mentor, Coding Club",
+            "",
+            "April 2022 - April 2023",
+            "Ran weekly workshops for 60 first-year students.",
+          ],
+        ],
+      ],
+    ]);
+  });
+
+  it("skips the heading row of an education table and dated lines stay their own items", () => {
+    const resume = parse(
+      [
+        "Sam Lee",
+        "EDUCATION",
+        "Degree/Certificate\tInstitute/Board\tCGPA/Percentage\tYear",
+        "B.Tech\tExample Institute of Technology\t8.1\t2021-2025",
+        "ACHIEVEMENTS",
+        "Regional coding contest, placed second of 400 entrants in the final round.\t2023 | Details",
+        "Science olympiad, ranked ninth among 3,000 students across the region.\t2019",
+      ].join("\n"),
+    );
+    expect(resume.education).toEqual([
+      expect.objectContaining({ school: "Example Institute of Technology", degree: "B.Tech" }),
+    ]);
+    expect(
+      extrasOf(resume).flatMap((section) => section.items.map((item) => [item.date, item.detail])),
+    ).toEqual([
+      ["2023", "Regional coding contest, placed second of 400 entrants in the final round."],
+      ["2019", "Science olympiad, ranked ninth among 3,000 students across the region."],
+    ]);
+  });
+
   it("keeps languages, awards, volunteering, publications and interests as extra sections", () => {
     const resume = parse(
       [

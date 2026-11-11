@@ -166,7 +166,7 @@ b { font-weight: 700; }
 .mark .hot { fill: var(--primary-400); }
 .card:hover .mark { transform: scale(1.06); }
 .pattern { position: absolute; inset: 0; opacity: 0.5; background-image: radial-gradient(circle, var(--primary-800) 2px, transparent 2.5px); background-size: 18px 18px; mask: linear-gradient(90deg, transparent 30%, #000); -webkit-mask: linear-gradient(90deg, transparent 30%, #000); }
-.project-title { margin: 0; font-size: 1.25rem; line-height: 1.75rem; font-weight: 700; padding-right: 1.5rem; }
+.project-title { margin: 0; font-size: 1.25rem; line-height: 1.75rem; font-weight: 700; padding-right: 1.5rem; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
 .project-line { margin: 0; padding-right: 1.5rem; font-size: 0.75rem; line-height: 1rem; color: var(--darkslate-300); display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden; }
 
 /* Experience */

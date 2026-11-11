@@ -314,9 +314,11 @@ export function ProseTemplate({ view, content, footer }: PortfolioTemplateProps)
           </section>
         ) : null}
 
-        <footer className="prose foot slide-enter" style={stage(12)}>
-          {footer ? <div className="credit">{footer}</div> : null}
-        </footer>
+        {footer ? (
+          <footer className="prose foot slide-enter" style={stage(12)}>
+            <div className="credit">{footer}</div>
+          </footer>
+        ) : null}
       </div>
       <ToTop />
     </div>

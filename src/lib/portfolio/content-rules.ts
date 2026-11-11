@@ -18,8 +18,11 @@ import type { PortfolioView } from "./view";
 
 export const clean = (value: string) => value.replace(/\s+/g, " ").trim();
 
+// A full stop only ends a sentence before a space or the end, so "Next.js" and "gmail.com" stay whole.
 export function sentences(text: string): string[] {
-  return (clean(text).match(/[^.!?]+(?:[.!?]+(?=\s|$)|$)/g) ?? []).map(clean).filter(Boolean);
+  return (clean(text).match(/(?:[^.!?]|[.!?](?!\s|$))+(?:[.!?]+(?=\s|$)|$)/g) ?? [])
+    .map(clean)
+    .filter(Boolean);
 }
 
 export function clip(text: string, max: number): string {
