@@ -1,21 +1,16 @@
 import type { MetadataRoute } from "next";
 import { PHASE_PRODUCTION_BUILD } from "next/constants";
-import { JOB_SITEMAP_PARTS } from "@/lib/job-feed/sitemap";
 import { log } from "@/lib/log";
 import { absoluteUrl } from "./urls";
 
-// Server-only. Shared by the sitemaps read from the database (/p/sitemap.xml, /jobs/sitemap/*.xml).
+// Server-only. Shared by the sitemaps read from the database (/p/sitemap.xml).
 
 // The sitemap protocol's cap per file. Past it, the newest entries win.
 export const SITEMAP_MAX_URLS = 50_000;
 
-/** Every sitemap the site serves, for robots.txt: the site's pages, portfolios, then the jobs. */
+/** Every sitemap the site serves, for robots.txt: the site's pages, then portfolios. */
 export function sitemapUrls(base?: string): string[] {
-  return [
-    "/sitemap.xml",
-    "/p/sitemap.xml",
-    ...Array.from({ length: JOB_SITEMAP_PARTS }, (_, part) => `/jobs/sitemap/${part}.xml`),
-  ].map((path) => absoluteUrl(path, base));
+  return ["/sitemap.xml", "/p/sitemap.xml"].map((path) => absoluteUrl(path, base));
 }
 
 /**

@@ -227,7 +227,7 @@ The Jobs tab, second in the nav. On the stone canvas, top to bottom:
 - **States:** loading = three skeleton cards; no resumes = the empty state (full-body Otto `read`, 128px, "Jobs that fit your resume will show up here", the New resume menu); no matches with filters = a white row with "Clear filters"; error = the error `Alert` with "Try again". A polite live region says "20 of 230 jobs shown, page 1 of 12."
 - **Phones:** the filter rows stack, cards keep their order of facts, the actions wrap. The phone strip has Home, Resumes, Jobs and Applications (labelled "Tracker" there), then More for the rest (`PHONE_TABS` in `src/components/dashboard/nav.ts`); Account moves to the avatar menu only.
 
-**Public `/jobs`** (marketing layout, paper): eyebrow "OPEN JOBS", h1 "Real jobs, *read every day.*", lead, then one panel holding a plain GET filter form, a small Otto note ("Sign in and I'll rank these for your resume…") with a primary sm "See how well you match", and the list as white cards on the panel (company · via source, title, place · posted date, secondary "See how well you match", ghost "Open job"). Titles of company-board jobs open `/jobs/[id]` (the post's text on a white sheet inside a panel, two buttons on top); the feeds' titles link straight out.
+**Public `/jobs`**: removed 2026-11-11 (owner: no separate public jobs page). `/jobs` and `/jobs/*` redirect (308) to the home page's Jobs section (`#jobs`); jobs live only in the app.
 
 ### Applications board and hub (`dashboard/applications/board/*`, `hub/*`, new 2026-11-09)
 

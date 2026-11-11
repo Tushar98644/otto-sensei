@@ -13,7 +13,6 @@ import {
   DEFAULT_SKILL_WEIGHT,
   EVERGREEN_AFTER_MS,
   jobCounts,
-  jobStats,
   matchableConditions,
   matchCandidates,
   rowsOf,
@@ -215,14 +214,6 @@ export async function rebuildMatchIndex(db: Db, now: number): Promise<number | n
       .onConflictDoUpdate({ target: jobCountsRow.id, set: counts });
   });
   return values.length;
-}
-
-/** Open jobs and when a board was last read: the stored row, else counted (before the migration). */
-export async function storedJobStats(
-  db: Db,
-): Promise<{ openJobs: number; checkedAt: number | null }> {
-  const counts = await readStoredCounts(db);
-  return counts ?? jobStats(db);
 }
 
 /** The counts the site states: the stored row, else counted. */

@@ -4,8 +4,8 @@ export const ROUTES = {
   home: "/",
   studio: "/studio",
   howItWorks: "/#how",
+  jobsSection: "/#jobs",
   pricing: "/pricing",
-  jobs: "/jobs",
   login: "/login",
   dashboard: "/dashboard",
   dashboardJobs: "/dashboard/jobs",
@@ -26,7 +26,10 @@ export const ROUTES = {
  * The account page link that signs in if needed and goes straight on to checkout for this plan,
  * with no dialog in between for someone already signed in.
  */
-export function upgradeHref(plan: "pro" | "max", interval: "month" | "year" | "week" = "month"): string {
+export function upgradeHref(
+  plan: "pro" | "max",
+  interval: "month" | "year" | "week" = "month",
+): string {
   return `${ROUTES.upgrade}&plan=${plan}&interval=${interval}`;
 }
 
@@ -34,7 +37,7 @@ export type NavLink = { href: string; label: string };
 
 export const MAIN_NAV: readonly NavLink[] = [
   { href: ROUTES.howItWorks, label: "How it works" },
-  { href: ROUTES.jobs, label: "Jobs" },
+  { href: ROUTES.jobsSection, label: "Jobs" },
   { href: ROUTES.pricing, label: "Pricing" },
 ];
 

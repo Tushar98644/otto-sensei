@@ -129,10 +129,10 @@ export function JobsShowcase({ jobCounts }: { jobCounts: JobCounts }) {
         ))}
       </ul>
       <Link
-        href={ROUTES.jobs}
+        href={ROUTES.dashboardJobs}
         className={buttonClasses({ variant: "ghost", className: "mt-6 -ml-5" })}
       >
-        See the jobs
+        Find my matches
         <ArrowRight />
       </Link>
     </Section>

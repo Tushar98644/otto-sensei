@@ -5,6 +5,7 @@ import { TrackView } from "@/lib/analytics/track-view";
 import { loadJobCounts } from "@/lib/job-feed/live-counts";
 import { AiScreening } from "./_components/ai-screening";
 import { Faq } from "./_components/faq";
+import { FeaturesOverview } from "./_components/features-overview";
 import { FinalCta } from "./_components/final-cta";
 import { Hero } from "./_components/hero";
 import { HowItWorks } from "./_components/how-it-works";
@@ -34,6 +35,7 @@ export default async function HomePage() {
       <SmoothScroll />
       <Hero />
       <AiScreening />
+      <FeaturesOverview />
       <HowItWorks />
       <JobsShowcase jobCounts={jobCounts} />
       <PortfolioShowcase />

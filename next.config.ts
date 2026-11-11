@@ -20,6 +20,14 @@ const nextConfig: NextConfig = {
   async headers() {
     return [{ source: "/:path*", headers: securityHeaders }];
   },
+  // Jobs live only in the app now (owner, 2026-11-11); old public job links and search results
+  // land on the home page's Jobs section.
+  async redirects() {
+    return [
+      { source: "/jobs", destination: "/#jobs", permanent: true },
+      { source: "/jobs/:path*", destination: "/#jobs", permanent: true },
+    ];
+  },
 };
 
 const sentryDsn = process.env.SENTRY_DSN?.trim() || process.env.NEXT_PUBLIC_SENTRY_DSN?.trim();
