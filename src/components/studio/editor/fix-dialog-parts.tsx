@@ -5,9 +5,8 @@ import { StatusPill } from "@/components/ui/status";
 import { useId, type FormEvent, type KeyboardEvent } from "react";
 import { Button } from "@/components/ui/button";
 import { Field } from "@/components/ui/field";
-import { Input } from "@/components/ui/input";
 import { OttoWorking } from "@/components/mascot/otto-working";
-import { Textarea } from "@/components/ui/textarea";
+import { VoiceInput, VoiceTextarea } from "@/components/ui/voice-field";
 import { singleLine } from "./edits";
 import { FIX_ANSWER_LIMITS, hasPlaceholders, splitMarks, splitPlaceholders } from "./fix-text";
 import { CHAR_LIMITS } from "./limits";
@@ -144,10 +143,11 @@ export function QuestionsForm({
       </h3>
       {questions.map((question, index) => (
         <Field key={index} label={question} optional>
-          <Input
+          <VoiceInput
             id={answerInputId(idPrefix, index)}
             value={answers[index] ?? ""}
             onChange={(event) => onAnswer(index, event.target.value)}
+            onDictate={(text) => onAnswer(index, text)}
             maxLength={FIX_ANSWER_LIMITS.answerChars}
           />
         </Field>
@@ -192,12 +192,13 @@ export function DraftField({ id, value, onChange, onSubmit }: DraftFieldProps) {
           : "Change anything you like. Nothing changes on your resume until you use it."
       }
     >
-      <Textarea
+      <VoiceTextarea
         id={id}
         autoResize
         value={value}
         maxLength={CHAR_LIMITS.bullet}
         onChange={(event) => onChange(singleLine(event.target.value))}
+        onDictate={onChange}
         onKeyDown={handleKeyDown}
       />
     </Field>

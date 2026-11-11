@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Eyebrow } from "@/components/ui/eyebrow";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
+import { VoiceTextarea } from "@/components/ui/voice-field";
 import { TEXT_LIMITS } from "@/config/plans";
 import { DAY_MS } from "@/lib/time";
 import { cn } from "@/lib/utils";
@@ -226,7 +226,7 @@ function PasteFields({
             </span>
           }
         >
-          <Textarea
+          <VoiceTextarea
             ref={postRef}
             value={draft.text}
             rows={10}
@@ -234,6 +234,7 @@ function PasteFields({
             placeholder="Paste the job post here"
             className="min-h-60"
             onChange={(event) => onChange({ ...draft, text: event.target.value })}
+            onDictate={(text) => onChange({ ...draft, text })}
           />
         </Field>
       </form>

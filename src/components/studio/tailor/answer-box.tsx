@@ -7,6 +7,7 @@ import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Field } from "@/components/ui/field";
 import { Textarea } from "@/components/ui/textarea";
+import { VoiceTextarea } from "@/components/ui/voice-field";
 import { wordCount } from "@/lib/ai/writing-guards";
 import { DemoNote } from "../demo-note";
 import { copyText } from "./letter-panel";
@@ -95,11 +96,12 @@ export function AnswerBox({ answers, writing, onAsk, onEdit, onSettle, onRemove 
         hint="From your resume and this job. Check every sentence before you paste it: Otto never submits anything."
         error={problem}
       >
-        <Textarea
+        <VoiceTextarea
           autoResize
           maxLength={QUESTION_CHARS.max}
           value={question}
           onChange={(event) => setQuestion(event.target.value)}
+          onDictate={setQuestion}
           placeholder="Why do you want to work here?"
         />
       </Field>

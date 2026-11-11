@@ -23,6 +23,11 @@ const FAQ: readonly FaqItem[] = [
       "No. Otto asks you for facts, like numbers and results, and only uses what you tell him. You review every change before it goes on your resume.",
   },
   {
+    question: "Can I talk instead of typing?",
+    answer:
+      "Yes. The boxes where you write for Otto have a microphone, and so does each resume line. Press it and speak. It works in Chrome, Edge and Safari, but not in Firefox. Your browser turns your voice into text, and only the text reaches us.",
+  },
+  {
     question: "Do I need an account?",
     answer: `Not to check, edit or download. Backups need a free account: sign in with Google or an emailed 6-digit code, no password. Otto's AI help, the full list of job matches (Free shows your closest ${FREE_JOB_MATCHES}) and tracking more than ${pluralize(FREE_APPLICATIONS, "application")} come with ${PLANS.pro.name}: try it free for ${PRO_TRIAL.days} days, then ${planPriceLabel("pro", "month")}.`,
   },

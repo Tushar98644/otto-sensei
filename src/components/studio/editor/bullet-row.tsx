@@ -9,6 +9,7 @@ import { LivePill } from "@/components/ui/live-pill";
 import { StatusPill } from "@/components/ui/status";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/components/ui/toast";
+import { VoiceButton } from "@/components/ui/voice-button";
 import { setBulletText, type BulletSection } from "@/lib/resume/ops";
 import { newBullet, type Bullet } from "@/lib/resume/schema";
 import { cn, pluralize } from "@/lib/utils";
@@ -37,6 +38,7 @@ import { ICON_ACTION_CLASSES, MoveButtons } from "./move-buttons";
 import { editLines, getResume, useBulletIssues, useIsLinted } from "./use-editor";
 
 const SHOWN_ON_FOCUS = "sr-only group-focus-within/line:not-sr-only pointer-coarse:not-sr-only";
+const SHOWN_WHILE_LISTENING = "has-data-listening:not-sr-only";
 
 export type BulletRowProps = {
   resumeId: string;
@@ -239,7 +241,7 @@ export const BulletRow = memo(function BulletRow({
         <LineDescription id={lintId} issues={lint} />
       )}
       {/* not-sr-only resets padding and margin, so the spacing lives on the inner row. */}
-      <div className={cn(!flagged && SHOWN_ON_FOCUS)}>
+      <div className={cn(!flagged && SHOWN_ON_FOCUS, SHOWN_WHILE_LISTENING)}>
         <div className="flex flex-col gap-1 pt-2 pb-1">
           <div className="flex items-center gap-1">
             <Button
@@ -253,6 +255,15 @@ export const BulletRow = memo(function BulletRow({
               <OttoMark tone="line" small className="size-5 text-ink" />
               Fix with Otto
             </Button>
+            <span className={cn("flex", flagged && SHOWN_ON_FOCUS, SHOWN_WHILE_LISTENING)}>
+              <VoiceButton
+                size="icon"
+                value={bullet.text}
+                maxLength={CHAR_LIMITS.bullet}
+                aria-describedby={`${labelId} ${ownerHeadingId}`}
+                onDictate={setText}
+              />
+            </span>
             <div className={cn("flex flex-1 justify-end", flagged && SHOWN_ON_FOCUS)}>
               <div className="-mr-2 flex items-center">
                 <MoveButtons

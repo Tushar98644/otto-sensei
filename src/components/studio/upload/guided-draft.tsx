@@ -8,6 +8,7 @@ import { OttoWorking } from "@/components/mascot/otto-working";
 import { Button } from "@/components/ui/button";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { VoiceInput } from "@/components/ui/voice-field";
 import { useAccountGate } from "@/components/account/account-gate";
 import { api, isApiError } from "@/lib/api/client";
 import { DRAFT_LIMITS, type DraftRequestBody } from "@/lib/api/types";
@@ -245,9 +246,10 @@ function JobFields({ job, errors, onChange }: JobFieldsProps) {
         </p>
         {job.notes.map((note, index) => (
           <Field key={index} label={`Thing you did ${index + 1}`} hideLabel error={index === 0 ? errors.notes : undefined}>
-            <Input
+            <VoiceInput
               value={note}
               onChange={(e) => setNote(index, e.target.value)}
+              onDictate={(text) => setNote(index, text)}
               placeholder={NOTE_EXAMPLES[index]}
               maxLength={DRAFT_LIMITS.noteChars}
             />

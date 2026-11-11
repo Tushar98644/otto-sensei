@@ -47,6 +47,9 @@ export function FeaturesOverview() {
       >
         One account for your resume, the jobs, and every application after it. Pick a section to see
         it.
+        <span className="mt-2 block">
+          Rather talk than type? Press the microphone in any box where you write for Otto.
+        </span>
       </SectionHeader>
       <Tabs defaultValue={SHOWN[0]!.href} className="mt-12 sm:mt-16">
         <div className="grid gap-4 lg:grid-cols-[14rem_minmax(0,1fr)] lg:gap-6">

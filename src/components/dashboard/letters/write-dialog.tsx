@@ -16,8 +16,8 @@ import { Button } from "@/components/ui/button";
 import { Dialog } from "@/components/ui/dialog";
 import { Field } from "@/components/ui/field";
 import { Select } from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/components/ui/toast";
+import { VoiceTextarea } from "@/components/ui/voice-field";
 import { api } from "@/lib/api/client";
 import { normalizeJobUrl } from "@/lib/applications/schema";
 import { resumeTitle } from "@/lib/resume/ops";
@@ -177,7 +177,7 @@ export function WriteDialog({ kind, open, resumes, onClose, onWritten, start }: 
                 hint="Paste it as the application asks it."
                 error={questionError}
               >
-                <Textarea
+                <VoiceTextarea
                   ref={questionRef}
                   value={question}
                   rows={3}
@@ -185,6 +185,10 @@ export function WriteDialog({ kind, open, resumes, onClose, onWritten, start }: 
                   placeholder="e.g. Why do you want to work here?"
                   onChange={(event) => {
                     setQuestion(event.target.value);
+                    setQuestionError(null);
+                  }}
+                  onDictate={(text) => {
+                    setQuestion(text);
                     setQuestionError(null);
                   }}
                 />

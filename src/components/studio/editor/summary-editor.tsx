@@ -6,7 +6,7 @@ import { OttoWorking } from "@/components/mascot/otto-working";
 import { OttoMark } from "@/components/site/otto-mark";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
+import { VoiceTextarea } from "@/components/ui/voice-field";
 import { SUMMARY_IMPROVE_CHARS } from "@/lib/api/types";
 import { listBullets } from "@/lib/resume/ops";
 import type { Resume } from "@/lib/resume/schema";
@@ -74,6 +74,10 @@ export const SummaryEditor = memo(function SummaryEditor({ resumeId }: { resumeI
   const working = help.status === "loading";
   const canImprove = summary.trim().length >= SUMMARY_IMPROVE_CHARS.min;
 
+  function setSummary(text: string) {
+    editSection(resumeId, "summary", (resume) => ({ ...resume, summary: text }));
+  }
+
   const settled = help.status === "ready" || help.status === "failed";
   useEffect(() => {
     if (settled) panelRef.current?.focus();
@@ -84,14 +88,12 @@ export const SummaryEditor = memo(function SummaryEditor({ resumeId }: { resumeI
       <Label htmlFor={inputId} className="sr-only">
         Summary
       </Label>
-      <Textarea
+      <VoiceTextarea
         id={inputId}
         autoResize
         value={summary}
-        onChange={(event) => {
-          const text = event.target.value;
-          editSection(resumeId, "summary", (resume) => ({ ...resume, summary: text }));
-        }}
+        onChange={(event) => setSummary(event.target.value)}
+        onDictate={setSummary}
         maxLength={CHAR_LIMITS.summary}
         aria-describedby={`${hintId} ${countId}`}
         placeholder="Product designer with 6 years in fintech. Turns messy sign-up flows into simple ones and works best close to engineering."

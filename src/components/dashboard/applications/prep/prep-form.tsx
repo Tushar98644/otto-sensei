@@ -13,7 +13,7 @@ import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Field } from "@/components/ui/field";
 import { Select } from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
+import { VoiceTextarea } from "@/components/ui/voice-field";
 import { nextPlan, PLANS, TEXT_LIMITS } from "@/config/plans";
 import { api, isApiError } from "@/lib/api/client";
 import type { InterviewPrep, PrepTarget } from "@/lib/insights/prep";
@@ -143,9 +143,10 @@ export function PrepForm({ target, resumes, onDone, onCancel }: PrepFormProps) {
                 : undefined
             }
           >
-            <Textarea
+            <VoiceTextarea
               value={pasted}
               onChange={(event) => setPasted(event.target.value)}
+              onDictate={setPasted}
               rows={8}
               maxLength={TEXT_LIMITS.jobPostChars}
               placeholder="About the role…"

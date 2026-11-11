@@ -5,7 +5,7 @@ import { useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Eyebrow } from "@/components/ui/eyebrow";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
+import { VoiceTextarea } from "@/components/ui/voice-field";
 import type { SummaryOption, SummaryOptionKind } from "@/lib/api/types";
 import { DemoNote } from "../demo-note";
 import { fixAllowanceText, hasPlaceholders, splitPlaceholders } from "./fix-text";
@@ -89,13 +89,14 @@ function OptionRow({ option, id, draft, onEdit, onUse }: OptionRowProps) {
           <Label htmlFor={`${id}-draft`} className="sr-only">
             Your version
           </Label>
-          <Textarea
+          <VoiceTextarea
             ref={draftRef}
             id={`${id}-draft`}
             autoResize
             value={draft}
             maxLength={CHAR_LIMITS.summary}
             onChange={(event) => onEdit(event.target.value)}
+            onDictate={onEdit}
             className="min-h-28"
           />
         </>

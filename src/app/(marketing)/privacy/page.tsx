@@ -165,6 +165,12 @@ export default function PrivacyPage() {
         uploaded. The job post eligibility check also runs in your browser, with no AI.
       </p>
       <p>
+        <strong>Voice typing:</strong> when you press a microphone button, your browser turns your
+        speech into text with its own speech service (Google in Chrome, Microsoft in Edge, Apple in
+        Safari), under that company&apos;s privacy policy. Otto receives only the text, never the
+        audio. The browser listens only while the microphone button is on.
+      </p>
+      <p>
         &quot;Import from GitHub&quot; reads only public data from GitHub (your repos and merged
         pull requests) by the username you type, without your GitHub login. Nothing is added to your
         resume until you confirm. We don&apos;t store the GitHub data: a server keeps it in memory

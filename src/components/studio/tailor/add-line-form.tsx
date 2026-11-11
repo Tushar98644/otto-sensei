@@ -6,7 +6,7 @@ import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Field } from "@/components/ui/field";
 import { Select } from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
+import { VoiceTextarea } from "@/components/ui/voice-field";
 import type { TailorRequirement } from "@/lib/ai/types";
 import { newId } from "@/lib/resume/schema";
 import type { AddedLine, LineTarget } from "./apply";
@@ -90,11 +90,12 @@ export function AddLineForm({ requirement, targets, writing, onAdd, onCancel }: 
         hint="A few words is enough. Otto adds nothing you didn't say."
         error={problem}
       >
-        <Textarea
+        <VoiceTextarea
           autoResize
           maxLength={ANSWER_CHARS}
           value={what}
           onChange={(event) => setWhat(event.target.value)}
+          onDictate={setWhat}
           placeholder={placeholderFor(requirement)}
           className="bg-surface"
         />
@@ -123,11 +124,12 @@ export function AddLineForm({ requirement, targets, writing, onAdd, onCancel }: 
       ) : (
         <>
           <Field label="Your new line" hint={`Goes into the tailored copy, under ${target.label}.`}>
-            <Textarea
+            <VoiceTextarea
               autoResize
               maxLength={LINE_CHARS}
               value={draft}
               onChange={(event) => setDraft(event.target.value)}
+              onDictate={setDraft}
               className="bg-surface"
             />
           </Field>
