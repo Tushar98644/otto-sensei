@@ -1,3 +1,4 @@
+import { Mic } from "lucide-react";
 import type { ReactNode } from "react";
 import { OttoNote } from "@/components/mascot/otto-note";
 import { SpeechBubble } from "@/components/mascot/speech-bubble";
@@ -15,7 +16,13 @@ export function LineFixerMoment() {
       <OttoNote size="sm" meta="1 question" live={false} message="How much did followers grow?" />
 
       <div className="flex flex-col items-end gap-1 pl-10">
-        <p className="text-sm/5 text-subtle">You</p>
+        <p className="flex items-center gap-2 text-sm/5 text-subtle">
+          You
+          <span className="inline-flex items-center gap-1 rounded-full bg-ink px-2 py-0.5 text-xs font-medium text-white">
+            <Mic aria-hidden className="size-3" />
+            Said out loud
+          </span>
+        </p>
         <SpeechBubble tone="ink" className="rounded-br-md">
           They tripled in 6 months. I posted short videos every day.
         </SpeechBubble>

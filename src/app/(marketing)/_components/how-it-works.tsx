@@ -30,7 +30,7 @@ const STEPS: readonly Step[] = [
     otto: "think",
     name: "Fix lines with Otto",
     caption:
-      "Otto asks for the missing fact, then writes the line from your answer. He never makes up numbers, and you keep, edit or skip every suggestion.",
+      "Otto asks for the missing fact, then writes the line from your answer. Type it or just say it. He never makes up numbers, and you keep, edit or skip every suggestion.",
     moment: <LineFixerMoment />,
   },
   {
