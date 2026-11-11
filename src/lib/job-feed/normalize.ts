@@ -79,6 +79,12 @@ export function brandName(company: string): string {
  * Company, title and location reduced to what two listings of one job share: case, accents,
  * punctuation, legal suffixes, "Remote" and word order in the location all drop out.
  */
+// Keys are only ever compared, so they're stored as the first 16 hex of their MD5: a quarter of
+// the size, with their indexes. Migration 20261111000600 converted stored keys the same way.
+function shortKey(key: string): string {
+  return createHash("md5").update(key).digest("hex").slice(0, 16);
+}
+
 export function dedupeKey(company: string, title: string, location: string): string {
   const name = brandName(company);
   const role = searchWords(title)
@@ -88,7 +94,7 @@ export function dedupeKey(company: string, title: string, location: string): str
     .filter(Boolean)
     .sort()
     .join(" ");
-  return `${name}|${role}|${place}`;
+  return shortKey(`${name}|${role}|${place}`);
 }
 
 // Bumped when normalizing starts writing something new, so the next read of each board rewrites
@@ -184,7 +190,7 @@ export function groupKey(company: string, title: string, location: string, text:
     .filter(Boolean)
     .join("\n");
   const hash = createHash("sha256").update(body).digest("base64url").slice(0, 16);
-  return `${name}|${role}|${hash}`;
+  return shortKey(`${name}|${role}|${hash}`);
 }
 
 const lineKey = (line: string) => line.replace(/\s+/g, " ").trim().toLowerCase();

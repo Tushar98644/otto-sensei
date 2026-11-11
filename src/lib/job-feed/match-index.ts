@@ -87,6 +87,34 @@ const textArrayLiteral = (values: readonly string[]) =>
   `{${values.map((value) => `"${value.replace(/["\\]/g, "")}"`).join(",")}}`;
 
 /** Rewrites job_match and job_counts from the open jobs. Returns the openings written. */
+type MatchRow = typeof jobMatch.$inferInsert;
+
+const MATCH_COLUMNS = [
+  "grp",
+  "company",
+  "family",
+  "occ",
+  "occMinor",
+  "occMajor",
+  "zone",
+  "level",
+  "sids",
+  "places",
+  "remote",
+  "postedAt",
+  "seenAt",
+  "ukSponsor",
+  "h1bYear",
+] as const satisfies readonly (keyof MatchRow)[];
+
+const EXCLUDED_MATCH_COLUMNS = Object.fromEntries(
+  MATCH_COLUMNS.map((column) => [column, sql.raw(`excluded.${jobMatch[column].name}`)]),
+) as Record<(typeof MATCH_COLUMNS)[number], SQL>;
+
+function openingKey(row: MatchRow): string {
+  return JSON.stringify(MATCH_COLUMNS.map((column) => row[column] ?? null));
+}
+
 export async function rebuildMatchIndex(db: Db, now: number): Promise<number | null> {
   // Before the migration there is nothing to build.
   try {
@@ -198,10 +226,23 @@ export async function rebuildMatchIndex(db: Db, now: number): Promise<number | n
 
   const [open] = await db.select({ n: count() }).from(jobs).where(isNull(jobs.closedAt));
   const [read] = await db.select({ at: max(jobBoards.lastFetchedAt) }).from(jobBoards);
+  // Only rows that changed are written: rewriting the whole index each day left a dead copy of
+  // every row until vacuum, about doubling the table on disk.
+  const before = new Map(
+    (await db.select().from(jobMatch)).map((row) => [row.id, openingKey(row)]),
+  );
+  const writes = values.filter((value) => before.get(value.id) !== openingKey(value));
+  const kept = new Set(values.map((value) => value.id));
+  const gone = [...before.keys()].filter((id) => !kept.has(id));
   await db.transaction(async (tx) => {
-    await tx.delete(jobMatch);
-    for (let i = 0; i < values.length; i += CHUNK)
-      await tx.insert(jobMatch).values(values.slice(i, i + CHUNK));
+    for (let i = 0; i < gone.length; i += CHUNK)
+      await tx.delete(jobMatch).where(inArray(jobMatch.id, gone.slice(i, i + CHUNK)));
+    for (let i = 0; i < writes.length; i += CHUNK) {
+      await tx
+        .insert(jobMatch)
+        .values(writes.slice(i, i + CHUNK))
+        .onConflictDoUpdate({ target: jobMatch.id, set: EXCLUDED_MATCH_COLUMNS });
+    }
     const counts = {
       openJobs: open?.n ?? 0,
       matchable: values.length,

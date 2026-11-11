@@ -163,15 +163,8 @@ describe("a portfolio without pictures", () => {
 });
 
 describe("20261108005000_portfolio_content.sql", () => {
-  // portfolio_media is unused since 2026-11-10 but stays, locked, so the schema matches.
-  it("keeps row level security on and the document an object", async () => {
+  it("keeps the document an object", async () => {
     const db = await getDb();
-    const rls = await db.execute(
-      sql`select relrowsecurity from pg_class where relname = 'portfolio_media'`,
-    );
-    expect(
-      (rls as unknown as { rows: { relrowsecurity: boolean }[] }).rows[0]?.relrowsecurity,
-    ).toBe(true);
     const maya = await proWithPortfolio();
     await expect(
       db.execute(

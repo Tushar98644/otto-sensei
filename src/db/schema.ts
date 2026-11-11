@@ -511,12 +511,6 @@ export const portfolios = pgTable(
     sync: boolean("sync").notNull().default(true),
     published: boolean("published").notNull().default(false),
     allowIndexing: boolean("allow_indexing").notNull().default(false),
-    // Unused since 2026-11-09, when the "Made with" line was dropped from every page. Kept so the
-    // schema still matches the migrations.
-    hideCredit: boolean("hide_credit").notNull().default(false),
-    // Unused since 2026-11-10, when portfolios became text only (no pictures). Kept so the schema
-    // still matches the migrations (20261108003000_portfolio_templates.sql).
-    projectImages: jsonb("project_images").$type<Record<string, string>>().notNull().default({}),
     // What the rich templates show beyond the resume (20261108005000_portfolio_content.sql),
     // checked with PortfolioContentSchema on write and read.
     content: jsonb("content").$type<Record<string, unknown>>().notNull().default({}),
@@ -541,25 +535,6 @@ export const portfolioRedirects = pgTable(
     expiresAt: epochMs("expires_at").notNull(),
   },
   (t) => [index("portfolio_redirects_portfolio_idx").on(t.portfolioId, t.createdAt)],
-);
-
-// Unused since 2026-11-10, when portfolios became text only: nothing uploads, stores or reads
-// pictures any more. Kept so the schema still matches 20261108005000_portfolio_content.sql.
-export const portfolioMedia = pgTable(
-  "portfolio_media",
-  {
-    id: uuid("id").primaryKey(),
-    userId: uuid("user_id").notNull(),
-    key: text("key").notNull().unique(),
-    kind: text("kind", { enum: ["photo", "screenshot", "personal", "logo", "avatar"] }).notNull(),
-    contentType: text("content_type").notNull(),
-    bytes: integer("bytes").notNull(),
-    width: integer("width").notNull(),
-    height: integer("height").notNull(),
-    createdAt: epochMs("created_at").notNull(),
-    detachedAt: epochMs("detached_at"),
-  },
-  (t) => [index("portfolio_media_user_idx").on(t.userId, t.createdAt)],
 );
 
 // Cover letters and answers to application questions an account keeps

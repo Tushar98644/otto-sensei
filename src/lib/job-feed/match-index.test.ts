@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { beforeEach, describe, expect, it } from "vitest";
 import { getDb } from "@/db/client";
 import { companyVisa, jobs, matchCache } from "@/db/schema";
@@ -50,6 +50,28 @@ describe("match index", () => {
   beforeEach(async () => {
     await resetDb();
     await syncBoards(await getDb(), [{ ats: "greenhouse", token: "acme", company: "Acme" }], NOW);
+  });
+
+  it("rewrites only the rows that changed, and drops openings that closed", async () => {
+    const db = await getDb();
+    expect(await ingest([raw("1"), raw("2"), raw("3", { title: "Account Executive" })])).toBe(3);
+    // xmin changes whenever Postgres writes a new version of a row.
+    const versions = async () => {
+      const result = await db.execute(sql`select id, xmin::text as v from job_match`);
+      const { rows } = result as unknown as { rows: { id: string; v: string }[] };
+      return new Map(rows.map((row) => [row.id, row.v]));
+    };
+    const first = await versions();
+
+    expect(await rebuildMatchIndex(db, NOW)).toBe(3);
+    expect(await versions()).toEqual(first);
+
+    await saveJobs(db, ACME, [raw("1"), raw("2")], NOW + 1, { snapshot: true });
+    await saveJobs(db, ACME, [raw("1"), raw("2")], NOW + 2, { snapshot: true });
+    expect(await rebuildMatchIndex(db, NOW + 2)).toBe(2);
+    const after = await versions();
+    expect(after.size).toBe(2);
+    for (const [id, version] of after) expect(version).toBe(first.get(id));
   });
 
   it("ranks from jobs until an ingest has built it, then from job_match, with the same openings", async () => {
