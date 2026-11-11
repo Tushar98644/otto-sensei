@@ -13,10 +13,10 @@ describe("wantsOtto", () => {
   it("keeps Fix with Otto in view for a chip Otto can rewrite", () => {
     expect(wantsOtto([issue("duty")])).toBe(true);
     expect(wantsOtto([issue("no-result"), issue("weak-start")])).toBe(true);
+    expect(wantsOtto([issue("no-result")])).toBe(true);
   });
 
-  it("leaves it for focus when the only problem is said per entry, minor, or fixed by hand", () => {
-    expect(wantsOtto([issue("no-result")])).toBe(false);
+  it("leaves it for focus when the only problem is minor or fixed by hand", () => {
     expect(wantsOtto([issue("punctuation", "low")])).toBe(false);
     expect(wantsOtto([issue("duplicate")])).toBe(false);
     expect(wantsOtto([issue("no-number", "low")])).toBe(false);

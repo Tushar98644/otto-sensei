@@ -27,7 +27,7 @@ export type IssueChipProps = {
 
 export function wantsOtto(issues: readonly LintIssue[]): boolean {
   return issues.some(
-    (issue) => issue.severity === "high" && issue.id !== ENTRY_LEVEL && !NOT_FOR_OTTO.has(issue.id),
+    (issue) => issue.severity === "high" && !NOT_FOR_OTTO.has(issue.id),
   );
 }
 
