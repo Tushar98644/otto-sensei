@@ -4,6 +4,9 @@ import { APP_NAV } from "@/components/dashboard/nav";
 import { PORTFOLIO_ROUTE } from "@/components/portfolio/route";
 import { ROUTES } from "@/components/site/routes";
 import { Badge } from "@/components/ui/badge";
+import { Panel, Window } from "@/components/ui/panel";
+import { Tab, TabList, TabPanel, Tabs } from "@/components/ui/tabs";
+import { FEATURE_PREVIEWS } from "./features-previews";
 import { Section, SectionHeader } from "./section";
 
 type Feature = { text: string; section?: string };
@@ -49,36 +52,54 @@ export function FeaturesOverview() {
         eyebrow="What's inside"
         title="Your whole job hunt, in one place"
       >
-        One account for your resume, the jobs, and every application after it.
+        One account for your resume, the jobs, and every application after it. Pick a section to see
+        it.
       </SectionHeader>
-      <ul role="list" className="mt-12 grid gap-3 sm:mt-16 sm:grid-cols-2 lg:grid-cols-4">
-        {SHOWN.map((item) => {
-          const { text, section } = FEATURES[item.href]!;
-          return (
-            <li key={item.href} className="flex flex-col gap-2 rounded-2xl bg-surface-muted p-5">
-              <div className="flex items-center gap-2">
-                <item.icon className="size-4 text-muted" aria-hidden />
-                <h3 className="text-base/6 font-medium text-ink">{item.label}</h3>
+      <Tabs defaultValue={SHOWN[0]!.href} className="mt-12 sm:mt-16">
+        <div className="grid gap-4 lg:grid-cols-[14rem_minmax(0,1fr)] lg:gap-6">
+          <TabList
+            aria-label="Sections of the app"
+            className="lg:w-full lg:flex-col lg:items-stretch lg:self-start lg:bg-transparent lg:p-0"
+          >
+            {SHOWN.map((item) => (
+              <Tab key={item.href} value={item.href} className="lg:h-11 lg:justify-start lg:px-3">
+                <item.icon aria-hidden />
+                {item.label}
                 {item.pro ? (
                   <Badge variant="ink" className="h-5 px-1.5">
                     Pro
                   </Badge>
                 ) : null}
-              </div>
-              <p className="text-sm/6 text-pretty text-muted">{text}</p>
-              {section ? (
-                <Link
-                  href={section}
-                  className="mt-auto inline-flex items-center gap-1 pt-1 text-sm font-medium text-ink underline decoration-border-strong underline-offset-4 hover:decoration-ink"
-                >
-                  See how
-                  <ArrowRight className="size-3.5" aria-hidden />
-                </Link>
-              ) : null}
-            </li>
-          );
-        })}
-      </ul>
+              </Tab>
+            ))}
+          </TabList>
+          {SHOWN.map((item) => {
+            const { text, section } = FEATURES[item.href]!;
+            const Preview = FEATURE_PREVIEWS[item.href]!;
+            return (
+              <TabPanel key={item.href} value={item.href}>
+                <Panel className="flex flex-col gap-5 lg:p-8">
+                  <Window title={item.label} bodyClassName="bg-surface-muted/40 p-3 sm:p-5">
+                    <Preview />
+                  </Window>
+                  <div className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-2">
+                    <p className="max-w-prose text-base/7 text-pretty text-ink">{text}</p>
+                    {section ? (
+                      <Link
+                        href={section}
+                        className="inline-flex shrink-0 items-center gap-1 text-sm font-medium text-ink underline decoration-border-strong underline-offset-4 hover:decoration-ink"
+                      >
+                        See how
+                        <ArrowRight className="size-3.5" aria-hidden />
+                      </Link>
+                    ) : null}
+                  </div>
+                </Panel>
+              </TabPanel>
+            );
+          })}
+        </div>
+      </Tabs>
     </Section>
   );
 }

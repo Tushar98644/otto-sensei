@@ -78,7 +78,7 @@ export function Tabs({ value, defaultValue, onValueChange, className, children }
   );
 }
 
-const NAVIGATION_KEYS = new Set(["ArrowLeft", "ArrowRight", "Home", "End"]);
+const NAVIGATION_KEYS = new Set(["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "Home", "End"]);
 
 // Give it an aria-label (or aria-labelledby) that names the group, e.g. "Recruiter view".
 export type TabListProps = ComponentProps<"div">;
@@ -100,7 +100,7 @@ export function TabList({ className, onKeyDown, ...props }: TabListProps) {
         ? 0
         : event.key === "End"
           ? last
-          : event.key === "ArrowRight"
+          : event.key === "ArrowRight" || event.key === "ArrowDown"
             ? (index + 1) % tabs.length
             : (index - 1 + tabs.length) % tabs.length;
     const next = tabs[nextIndex];
