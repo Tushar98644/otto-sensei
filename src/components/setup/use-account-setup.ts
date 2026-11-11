@@ -22,8 +22,6 @@ type Snapshot = {
   status: Load;
   remote: AccountSetup;
   local: Local;
-  // The step opened during this page load, so the dashboard tour waits for the next visit.
-  shownThisLoad: boolean;
 };
 
 const IDLE: Snapshot = {
@@ -31,7 +29,6 @@ const IDLE: Snapshot = {
   status: "idle",
   remote: NO_SETUP,
   local: NO_LOCAL,
-  shownThisLoad: false,
 };
 
 let snapshot: Snapshot = IDLE;
@@ -100,7 +97,6 @@ function load(userId: string): Promise<void> {
     status: "loading",
     remote: keep ? snapshot.remote : NO_SETUP,
     local: keep ? snapshot.local : readLocal(userId),
-    shownThisLoad: keep ? snapshot.shownThisLoad : false,
   });
   const promise = api
     .accountSetup()
@@ -128,7 +124,6 @@ export type AccountSetupState =
       checklistHiddenAt: number | null;
       weakLine: WeakLineTarget | null;
       localStepAt: number | null;
-      shownThisLoad: boolean;
     };
 
 export function useAccountSetup(): AccountSetupState {
@@ -150,7 +145,6 @@ export function useAccountSetup(): AccountSetupState {
       checklistHiddenAt: null,
       weakLine: null,
       localStepAt: null,
-      shownThisLoad: false,
     };
   }
   const { remote, local } = current;
@@ -163,7 +157,6 @@ export function useAccountSetup(): AccountSetupState {
     checklistHiddenAt: remote.checklistHiddenAt ?? local.checklistHiddenAt,
     weakLine: local.weakLine,
     localStepAt: local.stepAt,
-    shownThisLoad: current.shownThisLoad,
   };
 }
 
@@ -199,8 +192,4 @@ export function setChecklistHidden(userId: string, hidden: boolean): Promise<voi
 /** The line "Fix the first weak line" opened, so the item ticks once that line reads well. */
 export function rememberWeakLine(userId: string, target: WeakLineTarget): void {
   writeLocal(userId, { weakLine: target });
-}
-
-export function markSetupStepShown(): void {
-  if (!snapshot.shownThisLoad) setSnapshot({ ...snapshot, shownThisLoad: true });
 }

@@ -120,7 +120,7 @@ export function SetupChecklist({ actions }: { actions: StudioActions }) {
   }
 
   return (
-    <section aria-labelledby="setup-heading">
+    <section aria-labelledby="setup-heading" data-tour="dashboard-setup">
       <h2 id="setup-heading" className="sr-only">
         Get set up
       </h2>

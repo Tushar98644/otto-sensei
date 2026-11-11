@@ -9,6 +9,8 @@ import {
   lineRow,
   quickActions,
   readTextPanel,
+  sectionLink,
+  setupList,
   tailorControl,
   winRatePanel,
 } from "./targets";
@@ -37,9 +39,21 @@ export const STUDIO_COPY: Record<StudioStopId, Copy> = {
   },
 };
 
-export type DashboardStopId = "actions" | "library" | "win-rate";
+export type DashboardStopId =
+  | "setup"
+  | "actions"
+  | "library"
+  | "jobs"
+  | "applications"
+  | "interview"
+  | "portfolio"
+  | "win-rate";
 
 export const DASHBOARD_COPY: Record<DashboardStopId, Copy> = {
+  setup: {
+    title: "Get set up",
+    body: "Five quick steps so jobs and checks fit you. Each one ticks itself off.",
+  },
   actions: {
     title: "Start here",
     body: "Check a file, tailor a resume to one job, or try a new format.",
@@ -47,6 +61,22 @@ export const DASHBOARD_COPY: Record<DashboardStopId, Copy> = {
   library: {
     title: "Your resumes",
     body: "Every resume and tailored copy lives here. Search by name or company.",
+  },
+  jobs: {
+    title: "Jobs for you",
+    body: "Open jobs from company boards, ordered by how closely each one matches your resume.",
+  },
+  applications: {
+    title: "Applications",
+    body: "Log each job you apply to on a board. Its letter and interview prep stay linked.",
+  },
+  interview: {
+    title: "Interview prep",
+    body: "For each interview: likely questions, stories from your own resume lines, and questions to ask.",
+  },
+  portfolio: {
+    title: "Portfolio",
+    body: "Turn your resume into a portfolio site, hosted for you at your own link.",
   },
   "win-rate": {
     title: "Win rate",
@@ -115,8 +145,24 @@ export function studioStops({
   return plan.stops.map((id) => stops[id]);
 }
 
+// Home, then each section in the sidebar's order. Stops whose target isn't on screen (the checklist
+// once hidden, sections under "More" on a phone) are skipped when the tour starts.
 export function dashboardStops(): TourStop[] {
+  const section = (id: "jobs" | "applications" | "interview" | "portfolio"): TourStop => ({
+    id,
+    ...DASHBOARD_COPY[id],
+    target: () => sectionLink(id),
+    shape: "control",
+    screen: "home",
+  });
   return [
+    {
+      id: "setup",
+      ...DASHBOARD_COPY.setup,
+      target: setupList,
+      shape: "card",
+      screen: "home",
+    },
     {
       id: "actions",
       ...DASHBOARD_COPY.actions,
@@ -131,6 +177,10 @@ export function dashboardStops(): TourStop[] {
       shape: "control",
       screen: "home",
     },
+    section("jobs"),
+    section("applications"),
+    section("interview"),
+    section("portfolio"),
     {
       id: "win-rate",
       ...DASHBOARD_COPY["win-rate"],

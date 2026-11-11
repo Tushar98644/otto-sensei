@@ -51,11 +51,11 @@ describe("dashboardTourEligible", () => {
     }
   });
 
-  it("never opens with the first-login step: it waits, then skips the visit the step opened on", () => {
+  it("never opens with the first-login step: it waits while the step may open, then starts", () => {
     const home = { pathname: ROUTES.dashboard, hydrated: true };
     expect(dashboardTourEligible({ ...home, setupStep: "wait" })).toBe(false);
     expect(dashboardTourEligible({ ...home, setupStep: "show" })).toBe(false);
-    expect(dashboardTourEligible({ ...home, setupStep: "skip", setupShown: true })).toBe(false);
-    expect(dashboardTourEligible({ ...home, setupStep: "skip", setupShown: false })).toBe(true);
+    // Saved or skipped: the step reads "skip" and the tour starts in the same visit.
+    expect(dashboardTourEligible({ ...home, setupStep: "skip" })).toBe(true);
   });
 });

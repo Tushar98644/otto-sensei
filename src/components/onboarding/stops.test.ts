@@ -48,9 +48,18 @@ describe("studioStops", () => {
 });
 
 describe("dashboardStops", () => {
-  it("covers the quick actions, the library and the win rate on one screen", () => {
+  it("covers setup, Home, every main section and the win rate on one screen", () => {
     const stops = dashboardStops();
-    expect(stops.map((stop) => stop.id)).toEqual(["actions", "library", "win-rate"]);
+    expect(stops.map((stop) => stop.id)).toEqual([
+      "setup",
+      "actions",
+      "library",
+      "jobs",
+      "applications",
+      "interview",
+      "portfolio",
+      "win-rate",
+    ]);
     expect(new Set(stops.map((stop) => stop.screen)).size).toBe(1);
   });
 });

@@ -54,7 +54,7 @@ export function MobileBar() {
                 key={item.href}
                 href={item.href}
                 aria-current={current ? "page" : undefined}
-                data-tour={item.href === ROUTES.dashboardResumes ? "dashboard-library" : undefined}
+                data-tour={item.tour}
                 className={cn(SEGMENT, current ? CURRENT : IDLE)}
               >
                 {/* Small, text-only and short names on small phones, so all five fit without scrolling. */}

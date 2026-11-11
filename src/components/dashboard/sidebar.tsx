@@ -119,7 +119,7 @@ function SidebarLink({
     <Link
       href={item.href}
       aria-current={current ? "page" : undefined}
-      data-tour={item.href === ROUTES.dashboardResumes ? "dashboard-library" : undefined}
+      data-tour={item.tour}
       className={cn(
         "flex h-9 shrink-0 items-center gap-2.5 rounded-lg px-2.5 text-sm font-medium transition-colors",
         current

@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 import { useProTools } from "@/components/account/pro-tools";
 import { useWorkProfile } from "@/components/eligibility/use-work-profile";
 import { loadingScreenUp } from "@/components/mascot/otto-loading-screen";
-import { markSetupStepShown, recordSetupStep, useAccountSetup } from "./use-account-setup";
+import { recordSetupStep, useAccountSetup } from "./use-account-setup";
 import { useSetupStepDecision } from "./use-setup-step";
 import { WorkSetupDialog } from "./work-setup-dialog";
 
@@ -34,7 +34,6 @@ export function FirstRunSetup() {
         timer = window.setTimeout(attempt, RETRY_MS);
         return;
       }
-      markSetupStepShown();
       setOpenedOn(pathname);
     };
     timer = window.setTimeout(attempt, START_DELAY_MS);

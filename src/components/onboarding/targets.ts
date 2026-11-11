@@ -121,3 +121,14 @@ export function winRatePanel(): Element | null {
   const tab = byText("main span", (text) => text === "Win rate");
   return tagged("dashboard-win-rate") ?? (tab ? pageBlock(tab) : null);
 }
+
+// The first-login checklist on Home; gone once hidden or done, and then the stop is skipped.
+export function setupList(): Element | null {
+  return tagged("dashboard-setup");
+}
+
+// A section's link in the sidebar, or its tab on the phone strip. Sections only in "More" on a
+// phone have no target there, so their stops are skipped.
+export function sectionLink(id: "jobs" | "applications" | "interview" | "portfolio"): Element | null {
+  return tagged(`dashboard-${id}`);
+}
