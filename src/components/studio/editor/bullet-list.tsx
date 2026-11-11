@@ -4,13 +4,17 @@ import { Plus } from "lucide-react";
 import { useId, type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { Eyebrow } from "@/components/ui/eyebrow";
+import { hasEnded } from "@/lib/lint/bullets";
 import type { BulletSection } from "@/lib/resume/ops";
 import { newBullet, type Bullet } from "@/lib/resume/schema";
 import { BulletRow } from "./bullet-row";
 import { editBullets } from "./edits";
+import { EntryChecks } from "./entry-checks";
+import { useEntryLines } from "./entry-lines";
 import { addLineButtonId, bulletInputId, editThenFocus } from "./focus";
 import { BULLET_LIMITS } from "./limits";
-import { editLines } from "./use-editor";
+import { ResultNote } from "./line-help";
+import { editLines, useResumeValue } from "./use-editor";
 
 export type BulletListProps = {
   resumeId: string;
@@ -38,6 +42,16 @@ export function BulletList({
   const titleId = useId();
   const max = BULLET_LIMITS[section];
   const full = bullets.length >= max;
+  const lines = useEntryLines(resumeId, section, parentId);
+  // Only jobs and projects get the tick list: school and award lines aren't asked for results.
+  const ticks = section === "experience" || section === "projects";
+  const ended = useResumeValue(
+    resumeId,
+    (resume) =>
+      section === "experience" &&
+      hasEnded(resume.experience.find((job) => job.id === parentId)?.endDate ?? ""),
+    false,
+  );
 
   function add() {
     const bullet = newBullet();
@@ -53,6 +67,9 @@ export function BulletList({
   return (
     <div className="flex flex-col">
       <Eyebrow id={titleId}>{title}</Eyebrow>
+      <div className="mt-2 empty:hidden">
+        <ResultNote lines={lines} />
+      </div>
       {bullets.length > 0 ? (
         <ul role="list" aria-labelledby={titleId} className="mt-1 flex flex-col gap-1">
           {bullets.map((bullet, index) => (
@@ -86,6 +103,11 @@ export function BulletList({
           <p className="text-sm text-muted">{`That's the most lines this can hold (${max}).`}</p>
         ) : null}
       </div>
+      {ticks ? (
+        <div className="mt-1 empty:hidden">
+          <EntryChecks lines={lines} ownerHeadingId={ownerHeadingId} ended={ended} />
+        </div>
+      ) : null}
     </div>
   );
 }

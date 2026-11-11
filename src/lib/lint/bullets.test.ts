@@ -523,6 +523,44 @@ describe("lintResume", () => {
     expect(lint.totals.bullets).toBe(3);
   });
 
+  it("flags full stops that don't match within each job and project only", () => {
+    const pattern = (lint: ReturnType<typeof lintResume>) =>
+      Object.entries(lint.byBullet)
+        .filter(([, issues]) => issues.some((i) => i.id === "punctuation"))
+        .map(([id]) => id)
+        .sort();
+    const lint = lintResume(
+      resume({
+        experience: [
+          [
+            "Cut deploy time 40% with a new CI pipeline.",
+            "Led 3 hiring rounds for the platform team.",
+            "Built a CLI used by 200 developers",
+          ],
+          // Each job is read on its own: this one is consistent.
+          ["Cut cloud costs 30% by moving jobs to spot instances"],
+        ],
+        projects: [["Built a CLI used by 200 developers.", "Grew stars from 10 to 400"]],
+        education: [["GPA: 3.8/4.0", "Dean's list for 4 semesters."]],
+      }),
+    );
+    expect(pattern(lint)).toEqual(["e0-2", "p0-1"]);
+    expect(lint.byBullet["e0-2"]?.at(-1)).toMatchObject({ id: "punctuation", severity: "low" });
+  });
+
+  it("leaves hidden lines out of a job's full stops", () => {
+    const base = resume({ experience: [["Cut costs 40% with spot instances.", "Led 3 hires"]] });
+    const [job] = base.experience;
+    if (!job) throw new Error("fixture");
+    const lint = lintResume({
+      ...base,
+      experience: [
+        { ...job, bullets: job.bullets.map((b, i) => (i === 1 ? { ...b, hidden: true } : b)) },
+      ],
+    });
+    expect(lint.byBullet["e0-0"]?.map((i) => i.id)).not.toContain("punctuation");
+  });
+
   it("returns empty totals for an empty resume", () => {
     expect(lintResume(emptyResume(0))).toEqual({
       byBullet: {},
@@ -614,6 +652,22 @@ describe("where a line sits", () => {
       "first-person",
       "stock-phrase",
     ]);
+  });
+
+  it.each([
+    "GPA: 3.8/4.0",
+    "CGPA 9.1/10",
+    "Percentage: 92%",
+    "Score: 1520 SAT",
+    "Coursework: Algorithms, Databases",
+    "Dean's List, 6 semesters",
+    "First place of 40 teams",
+  ])("leaves a short school or award line alone: %s", (text) => {
+    expect(lintBullet(text, { kind: "other" })).toEqual([]);
+  });
+
+  it("still calls a short job or project line too short", () => {
+    expect(ids("Fixed bugs")).toContain("too-short");
   });
 
   it("gives each section's lines their own context", () => {

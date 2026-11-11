@@ -23,6 +23,8 @@ export type SectionCardProps = {
   options?: SectionOptions;
   // Lets focus land on this section's toggle after a neighbouring section is removed.
   toggleId?: string;
+  // The section's own id, for the Fix step's outline to scroll to.
+  sectionId?: string;
   defaultOpen?: boolean;
   children: ReactNode;
 };
@@ -39,6 +41,7 @@ export function SectionCard({
   actions,
   options,
   toggleId,
+  sectionId,
   defaultOpen = true,
   children,
 }: SectionCardProps) {
@@ -69,7 +72,11 @@ export function SectionCard({
   }
 
   return (
-    <section aria-labelledby={titleId} className="group/section rounded-2xl bg-surface">
+    <section
+      id={sectionId}
+      aria-labelledby={titleId}
+      className="group/section scroll-mt-36 rounded-2xl bg-surface lg:scroll-mt-24"
+    >
       <div className="flex items-center gap-1 px-2 py-2 sm:px-4 sm:py-3">
         {mode === "rename" && options?.rename ? (
           <div className="min-w-0 flex-1">
@@ -108,7 +115,7 @@ export function SectionCard({
                 <span
                   id={titleId}
                   className={cn(
-                    "text-base font-semibold wrap-break-word",
+                    "text-lg/7 font-semibold wrap-break-word",
                     hidden ? "text-muted" : "text-ink",
                   )}
                 >
@@ -140,7 +147,7 @@ export function SectionCard({
       {open ? (
         <div
           id={panelId}
-          className={cn("px-4 pt-2 pb-6 sm:px-8 sm:pb-8", hidden && DIMMED_CLASSES)}
+          className={cn("px-3 pt-1 pb-3 sm:px-6 sm:pb-6", hidden && DIMMED_CLASSES)}
         >
           {children}
         </div>

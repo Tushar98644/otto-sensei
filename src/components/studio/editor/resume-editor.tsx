@@ -12,6 +12,7 @@ import { EducationEditor } from "./education-editor";
 import { ExperienceEditor } from "./experience-editor";
 import { ExtrasArea } from "./extras-editor";
 import { FixDialogProvider } from "./fix-dialog";
+import { sectionDomId } from "./focus";
 import { CHAR_LIMITS } from "./limits";
 import { useFlashAnnouncement } from "./line-flash";
 import { MoveButtons } from "./move-buttons";
@@ -81,7 +82,12 @@ const BasicsCard = memo(function BasicsCard({ resumeId }: { resumeId: string }) 
   const name = useResumeValue(resumeId, (resume) => resume.basics.name.trim(), "");
   const hasEmail = useResumeValue(resumeId, (resume) => resume.basics.email.trim() !== "", false);
   return (
-    <SectionCard title="Name and contact" count={name || null} defaultOpen={!(name && hasEmail)}>
+    <SectionCard
+      title="Name and contact"
+      count={name || null}
+      sectionId={sectionDomId("basics")}
+      defaultOpen={!(name && hasEmail)}
+    >
       <BasicsForm resumeId={resumeId} />
     </SectionCard>
   );
@@ -107,6 +113,7 @@ const SectionSlot = memo(function SectionSlot({
     <SectionCard
       title={label}
       count={count}
+      sectionId={sectionDomId(sectionKey)}
       options={{
         rename: {
           value: label,

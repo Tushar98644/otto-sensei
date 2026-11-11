@@ -212,4 +212,37 @@ describe("rankReview", () => {
     expect(ids(items)).toEqual(["duty", "first-person", "tense", "no-number"]);
     expect(ids(top)).toEqual(["duty", "first-person", "tense"]);
   });
+
+  it("fills the last places with numbers, then full stops, only when nothing else is left", () => {
+    const fillers = [item("punctuation", "low"), item("no-number", "low")];
+    expect(ids(rankReview([...fillers, item("duty", "high")]).top)).toEqual([
+      "duty",
+      "no-number",
+      "punctuation",
+    ]);
+    expect(ids(rankReview([...fillers, item("duty", "high"), item("vague", "low")]).top)).toEqual([
+      "duty",
+      "vague",
+      "no-number",
+    ]);
+  });
+});
+
+describe("full stops in the review", () => {
+  it("groups lines whose full stops don't match their job", () => {
+    const review = reviewResume(
+      resume({
+        experience: [
+          job("a", [
+            "Cut deploy time 40% with a new CI pipeline.",
+            "Led 3 hiring rounds for the platform team.",
+            "Built a CLI used by 200 developers",
+          ]),
+        ],
+      }),
+    );
+    const group = review.items.find((entry) => entry.id === "punctuation");
+    expect(group).toMatchObject({ severity: "low", title: "Full stops don't match in 1 line" });
+    expect(group?.lines.map((line) => line.target)).toEqual([{ kind: "line", bulletId: "a-2" }]);
+  });
 });

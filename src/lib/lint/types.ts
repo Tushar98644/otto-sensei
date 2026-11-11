@@ -13,7 +13,8 @@ export type LintIssueId =
   | "too-short" // fewer than ~5 words, says nothing
   | "passive" // "was responsible", "were improved by"
   | "vague" // "various", "several", "etc.", "many things"
-  | "duplicate"; // same or near-same line elsewhere in the resume
+  | "duplicate" // same or near-same line elsewhere in the resume
+  | "punctuation"; // ends with a full stop when most lines of its job don't, or the other way round
 
 export type LintSeverity = "high" | "low";
 

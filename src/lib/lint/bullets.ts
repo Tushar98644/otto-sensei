@@ -1,5 +1,6 @@
 import { listBullets } from "@/lib/resume/ops";
 import { extrasOf, type Resume } from "@/lib/resume/schema";
+import { punctuationIssues, type EntryLine } from "./punctuation";
 import type { LintContext, LintIssue, LintIssueId, LintSeverity, ResumeLint } from "./types";
 
 // Runs in the browser on every keystroke for every line: pure, dependency-free, one tokenizing pass
@@ -244,6 +245,7 @@ const SEVERITY: Record<LintIssueId, LintSeverity> = {
   passive: "low",
   vague: "low",
   duplicate: "low",
+  punctuation: "low",
 };
 // Breaks ties within a severity, and decides which issue keeps words two matches share.
 const PRIORITY: readonly LintIssueId[] = [
@@ -260,6 +262,7 @@ const PRIORITY: readonly LintIssueId[] = [
   "no-method",
   "too-short",
   "duplicate",
+  "punctuation",
 ];
 // Whole-line issues (no match to point at) sort after the ones that point at specific words.
 const WHOLE_LINE = Number.MAX_SAFE_INTEGER;
@@ -645,7 +648,8 @@ function analyze(text: string, context: LintContext = WORK): Analysis {
   if (words > TOO_LONG_WORDS || chars > TOO_LONG_CHARS) {
     const size = words > TOO_LONG_WORDS ? `${words} words` : `${chars} characters`;
     add("too-long", tooLongMessage(size), null, WHOLE_LINE);
-  } else if (words < TOO_SHORT_WORDS) {
+  } else if (context.kind === "work" && words < TOO_SHORT_WORDS) {
+    // "GPA: 3.8/4.0", "Dean's List" or an award line is meant to be short.
     add("too-short", TOO_SHORT_MESSAGE, null, WHOLE_LINE);
   }
 
@@ -742,7 +746,7 @@ const PRESENT = /^(?:present|current|now|today|ongoing|to date)$/i;
 // A custom section could hold anything ("Additional information"), so it gets the lighter checks.
 const WORK_EXTRAS: ReadonlySet<string> = new Set(["volunteering"]);
 
-function ended(endDate: string): boolean {
+export function hasEnded(endDate: string): boolean {
   const end = endDate.trim();
   return end !== "" && !PRESENT.test(end);
 }
@@ -751,7 +755,7 @@ function ended(endDate: string): boolean {
 export function lintContexts(resume: Resume): ReadonlyMap<string, LintContext> {
   const contexts = new Map<string, LintContext>();
   for (const job of resume.experience) {
-    const context: LintContext = { kind: "work", ended: ended(job.endDate) };
+    const context: LintContext = { kind: "work", ended: hasEnded(job.endDate) };
     for (const bullet of job.bullets) contexts.set(bullet.id, context);
   }
   for (const project of resume.projects) {
@@ -769,18 +773,36 @@ export function lintContexts(resume: Resume): ReadonlyMap<string, LintContext> {
   return contexts;
 }
 
+// Lines of each job and project, for checks that compare a line with the others in its entry.
+function entryGroups(refs: ReturnType<typeof listBullets>): EntryLine[][] {
+  const groups = new Map<string, EntryLine[]>();
+  for (const ref of refs) {
+    if (ref.section !== "experience" && ref.section !== "projects") continue;
+    const key = `${ref.section}:${ref.parentId}`;
+    const group = groups.get(key) ?? [];
+    group.push({ id: ref.bulletId, text: ref.text });
+    groups.set(key, group);
+  }
+  return [...groups.values()];
+}
+
 // Lints every bullet that prints (experience, projects, education, then extra sections) and adds
-// "duplicate" across the resume. Hidden lines, and lines of hidden entries or sections, are left
-// out (listBullets skips them): they never reach the page, so they don't count in the totals or
-// as duplicates. Totals count lines that have words; `highSeverity` is the number of lines with a
-// high issue.
+// "duplicate" across the resume and "punctuation" within each job and project. Hidden lines, and
+// lines of hidden entries or sections, are left out (listBullets skips them): they never reach the
+// page, so they don't count in the totals, as duplicates or in a job's full stops. Totals count
+// lines that have words; `highSeverity` is the number of lines with a high issue.
 export function lintResume(resume: Resume): ResumeLint {
   const contexts = lintContexts(resume);
-  const lines = listBullets(resume).map((ref) => ({
+  const refs = listBullets(resume);
+  const lines = refs.map((ref) => ({
     id: ref.bulletId,
     ...analyze(ref.text, contexts.get(ref.bulletId) ?? WORK),
   }));
   const duplicates = findDuplicates(lines.map((line) => line.words));
+  const punctuation = new Map<string, LintIssue>();
+  for (const group of entryGroups(refs)) {
+    for (const [id, issue] of punctuationIssues(group)) punctuation.set(id, issue);
+  }
   const totals = { bullets: 0, withIssues: 0, withNumbers: 0, highSeverity: 0 };
   const entries: [string, LintIssue[]][] = [];
   lines.forEach((line, index) => {
@@ -790,8 +812,13 @@ export function lintResume(resume: Resume): ResumeLint {
       message: DUPLICATE_MESSAGE,
       match: null,
     };
-    // Low severity and whole-line, so it always sorts last.
-    const issues = duplicates.has(index) ? [...line.issues, duplicate] : line.issues;
+    // Both low and whole-line, so they always sort last.
+    const pattern = punctuation.get(line.id);
+    const issues = [
+      ...line.issues,
+      ...(duplicates.has(index) ? [duplicate] : []),
+      ...(pattern ? [pattern] : []),
+    ];
     entries.push([line.id, issues]);
     if (!line.hasContent) return;
     totals.bullets += 1;

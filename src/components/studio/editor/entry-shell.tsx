@@ -59,8 +59,9 @@ const REVEAL_CLASSES =
   "opacity-0 transition-opacity group-hover/entry:opacity-100 focus-within:opacity-100 pointer-coarse:opacity-100";
 
 // One job, school, project, skill group, certification or extra item: a heading, move, hide and
-// remove controls, then its fields. Not a card: entries are split by a rule, so a section never
-// nests boxes. Removing something with content offers Undo, so nothing is lost by a tap.
+// remove controls, then its fields, on a mist card so each entry reads apart from the next (the
+// owner's call, 2026-11-11). Roles at one company join into one card. Removing something with
+// content offers Undo, so nothing is lost by a tap.
 export function EntryShell({
   resumeId,
   headingId,
@@ -105,16 +106,18 @@ export function EntryShell({
 
   return (
     <li
+      data-rail={rail}
       className={cn(
-        "flex flex-col gap-4 border-border",
-        !continues && "not-first:mt-6 not-first:border-t not-first:pt-6",
+        "flex scroll-mt-36 flex-col gap-4 rounded-2xl bg-surface-muted p-4 not-first:mt-3 sm:p-5 lg:scroll-mt-24",
+        continues && "rounded-t-none pt-0 not-first:mt-0 sm:pt-0",
+        "[&:has(+[data-rail=continue])]:rounded-b-none [&:has(+[data-rail=continue])]:pb-0 sm:[&:has(+[data-rail=continue])]:pb-0",
       )}
     >
       {lead}
       <div
         className={cn(
           "group/entry flex flex-col gap-4",
-          onRail && "border-l border-border pl-4 sm:pl-6",
+          onRail && "border-l border-border-strong/40 pl-4 sm:pl-6",
           continues && "pt-6",
           hidden && DIMMED_CLASSES,
         )}
@@ -123,8 +126,10 @@ export function EntryShell({
         <div className="flex flex-col sm:-mr-3 sm:flex-row sm:items-start sm:gap-1">
           <div className="min-w-0 flex-1 sm:py-2.5">
             <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+              {/* Focusable from code, so the Fix step's outline can land on the entry it opens. */}
               <Heading
                 id={headingId}
+                tabIndex={-1}
                 className={cn(
                   "text-base/6 font-medium wrap-break-word",
                   hidden ? "text-muted" : "text-ink",

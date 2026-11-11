@@ -39,7 +39,7 @@ import {
   removeSectionQuestion,
   renameExtraSection,
 } from "./extras";
-import { addButtonId, editThenFocus, entryFieldId } from "./focus";
+import { addButtonId, editThenFocus, entryFieldId, sectionDomId } from "./focus";
 import { CHAR_LIMITS, LIST_LIMITS } from "./limits";
 import { MoveButtons } from "./move-buttons";
 import { SectionCard } from "./section-card";
@@ -167,6 +167,7 @@ const ExtraSectionCard = memo(function ExtraSectionCard({
       title={title}
       count={meta.count}
       toggleId={toggleIdOf(sectionId)}
+      sectionId={sectionDomId(sectionId)}
       status={
         meta.needWork > 0 ? (
           <Badge variant="warn">

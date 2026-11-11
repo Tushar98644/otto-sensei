@@ -85,7 +85,10 @@ const RANK: Record<ReviewItemId, number> = {
   "too-short": 14,
   "no-method": 15,
   "no-number": 16,
+  punctuation: 17,
 };
+// Tips that apply to many resumes, kept out of "Fix these first" while anything else is left.
+const FILLERS: readonly ReviewItemId[] = ["no-number", "punctuation"];
 
 type Group = { title: (count: number) => string; reason: string };
 
@@ -145,6 +148,11 @@ const GROUPS: Record<LintIssueId, Group> = {
   "no-number": {
     title: (n) => `${lines(n)} could use a number`,
     reason: "Where you know it, a number shows the size: how many, how much, how fast.",
+  },
+  punctuation: {
+    title: (n) => `Full stops don't match in ${lines(n)}`,
+    reason:
+      "Lines under one job or project read neater when they all end the same way: with a full stop, or without.",
   },
 };
 
@@ -294,18 +302,18 @@ function lineGroups(resume: Resume, lint: ResumeLint): ReviewItem[] {
 
 /**
  * Ranks every item and picks what to fix first: high-severity items lead, then tips, and
- * "could use a number" only fills the last place when nothing else is left, so it never drowns
- * out a missing result, a duty line or a summary full of stock phrases.
+ * "could use a number" or full stops only fill the last places when nothing else is left, so they
+ * never drown out a missing result, a duty line or a summary full of stock phrases.
  */
 export function rankReview(items: readonly ReviewItem[]): ResumeReview {
   const sorted = [...items].sort(
     (a, b) =>
       (a.severity === b.severity ? 0 : a.severity === "high" ? -1 : 1) || RANK[a.id] - RANK[b.id],
   );
-  const top = sorted.filter((item) => item.id !== "no-number").slice(0, MAX_TOP);
-  if (top.length < MAX_TOP) {
-    const numbers = sorted.find((item) => item.id === "no-number");
-    if (numbers) top.push(numbers);
+  const top = sorted.filter((item) => !FILLERS.includes(item.id)).slice(0, MAX_TOP);
+  for (const id of FILLERS) {
+    const filler = sorted.find((item) => item.id === id);
+    if (filler && top.length < MAX_TOP) top.push(filler);
   }
   return { items: sorted, top };
 }

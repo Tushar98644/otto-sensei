@@ -1,14 +1,11 @@
 "use client";
 
-import { Info, TriangleExclamationPoint } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
-import { StatusPill } from "@/components/ui/status";
 import type { LintIssue, LintIssueId } from "@/lib/lint/types";
 import { pluralize } from "@/lib/utils";
 import { useSettled } from "./use-settled";
 
 // Long enough to finish a word, short enough to still feel live.
-const SETTLE_MS = 450;
+export const SETTLE_MS = 450;
 
 // Two or three words for the chip at the end of a line. The full message is the line's
 // description and the tip shown under it while it has focus.
@@ -26,6 +23,7 @@ export const CHIP_LABELS: Record<LintIssueId, string> = {
   passive: "Passive",
   vague: "Vague",
   duplicate: "Repeated",
+  punctuation: "Full stop",
 };
 
 // Lint updates once typing pauses, so a line that was just started isn't called "too short" after
@@ -33,22 +31,6 @@ export const CHIP_LABELS: Record<LintIssueId, string> = {
 export function useLineLint(issues: readonly LintIssue[], hasText: boolean) {
   const settled = useSettled(hasText ? issues : null, SETTLE_MS);
   return hasText ? settled : null;
-}
-
-// Most important issue only, plus how many more. High severity gets the warning style; low reads
-// as a neutral tip; a clean line gets a quiet pass that recedes.
-export function LineChip({ issues }: { issues: readonly LintIssue[] }) {
-  const [top] = issues;
-  if (!top) return <StatusPill status="pass">Looks good</StatusPill>;
-  const more = issues.length > 1 ? ` +${issues.length - 1}` : "";
-  const high = top.severity === "high";
-  return (
-    <Badge variant={high ? "warn" : "neutral"}>
-      {high ? <TriangleExclamationPoint className="text-warn" /> : <Info className="text-subtle" />}
-      {CHIP_LABELS[top.id]}
-      {more}
-    </Badge>
-  );
 }
 
 // The visible hint while the line has focus. Hidden from screen readers, which get every message

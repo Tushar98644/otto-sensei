@@ -19,6 +19,8 @@ export type FixFirstProps = {
   description?: string;
   // Shown instead of the list when there is nothing to do first.
   empty?: ReactNode;
+  // Under the list, e.g. the rest of the problems in a shorter form.
+  footer?: ReactNode;
   id?: string;
   className?: string;
 };
@@ -31,6 +33,7 @@ export function FixFirst({
   title = "Fix these first",
   description,
   empty,
+  footer,
   id,
   className,
 }: FixFirstProps) {
@@ -80,6 +83,7 @@ export function FixFirst({
             ))}
           </ol>
         )}
+        {footer}
       </section>
     </Card>
   );

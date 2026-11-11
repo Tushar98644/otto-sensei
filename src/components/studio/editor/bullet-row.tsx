@@ -6,6 +6,7 @@ import { flushSync } from "react-dom";
 import { OttoMark } from "@/components/site/otto-mark";
 import { Button } from "@/components/ui/button";
 import { LivePill } from "@/components/ui/live-pill";
+import { StatusPill } from "@/components/ui/status";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/components/ui/toast";
 import { setBulletText, type BulletSection } from "@/lib/resume/ops";
@@ -29,8 +30,9 @@ import { useOpenFix } from "./fix-launcher";
 import { addLineButtonId, bulletDeleteId, bulletInputId, editThenFocus } from "./focus";
 import { HIDDEN_LABEL, HiddenChip, HideToggle } from "./hidden-chip";
 import { BULLET_LIMITS, CHAR_LIMITS } from "./limits";
+import { IssueChip } from "./line-help";
 import { LINE_FLASH_LABEL, useLineFlash } from "./line-flash";
-import { LineChip, LineDescription, LineTip, useLineLint } from "./lint-notes";
+import { LineDescription, LineTip, useLineLint } from "./lint-notes";
 import { ICON_ACTION_CLASSES, MoveButtons } from "./move-buttons";
 import { editLines, getResume, useBulletIssues, useIsLinted } from "./use-editor";
 
@@ -91,9 +93,12 @@ export const BulletRow = memo(function BulletRow({
     return bullets?.map((line) => line.id) ?? [];
   }
 
-  function handleChange(event: ChangeEvent<HTMLTextAreaElement>) {
-    const text = singleLine(event.target.value);
+  function setText(text: string) {
     editLines(resumeId, section, (resume) => setBulletText(resume, bullet.id, text));
+  }
+
+  function handleChange(event: ChangeEvent<HTMLTextAreaElement>) {
+    setText(singleLine(event.target.value));
   }
 
   function addLineBelow() {
@@ -220,21 +225,31 @@ export const BulletRow = memo(function BulletRow({
           onPaste={handlePaste}
           className={cn("flex-1 border-b-0 focus-visible:shadow-none", hidden && "text-muted")}
         />
-        {/* Read through the line's description instead. A fixed height, so a pill replacing the
-            chip never moves the row, and on wider screens a fixed width, so every line's text
-            wraps at the same place. */}
-        <span
-          aria-hidden
-          className="flex h-6 shrink-0 items-center max-sm:mb-2.5 max-sm:empty:hidden sm:mt-2 sm:w-36 sm:justify-end"
-        >
+        {/* A fixed height, so a pill replacing the chip never moves the row, and on wider screens
+            a fixed width, so every line's text wraps at the same place. The pills are read through
+            the line's description instead; the issue chip is a button that explains itself. */}
+        <div className="flex h-6 shrink-0 items-center max-sm:mb-2.5 max-sm:empty:hidden sm:mt-2 sm:w-36 sm:justify-end">
           {flashed ? (
-            <LivePill announce={false}>{LINE_FLASH_LABEL}</LivePill>
+            <span aria-hidden className="flex">
+              <LivePill announce={false}>{LINE_FLASH_LABEL}</LivePill>
+            </span>
           ) : hidden ? (
-            <HiddenChip />
+            <span aria-hidden className="flex">
+              <HiddenChip />
+            </span>
+          ) : lint && lint.length === 0 ? (
+            <span aria-hidden className="flex">
+              <StatusPill status="pass">Looks good</StatusPill>
+            </span>
           ) : lint ? (
-            <LineChip issues={lint} />
+            <IssueChip
+              issues={lint}
+              text={bullet.text}
+              onFix={() => openFix(bullet.id)}
+              onSetText={setText}
+            />
           ) : null}
-        </span>
+        </div>
       </div>
       {hidden ? (
         <div id={lintId} className="sr-only">

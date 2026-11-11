@@ -37,14 +37,21 @@ export type PopoverProps = {
   triggerLabel?: string;
   triggerClassName?: string;
   // "end" lines the panel up with the trigger's right edge, for menus at the right of the page.
-  align?: "start" | "end";
+  // "auto" lines up with the edge nearer the trigger: "end" for one in the right half of the
+  // screen (a line's chip on a wide screen), "start" otherwise, whichever fits.
+  align?: Align;
   className?: string;
   children: ReactNode;
 };
 
+type Align = "start" | "end" | "auto";
+
 const GUTTER_PX = 16;
+// The panel's default width (w-80): it isn't laid out yet when it's placed on opening.
+const PANEL_WIDTH_PX = 320;
 const OFFSET_PX = 8;
 const MIN_HEIGHT_PX = 160;
+const FLIP_BELOW_PX = 280;
 
 export function Popover({
   label,
@@ -116,13 +123,28 @@ export function Popover({
   );
 }
 
-function place(trigger: HTMLElement | null, panel: HTMLElement | null, align: "start" | "end") {
+function place(trigger: HTMLElement | null, panel: HTMLElement | null, wanted: Align) {
   if (!trigger || !panel) return;
   const rect = trigger.getBoundingClientRect();
   const viewportWidth = document.documentElement.clientWidth;
+  const fitsStart = rect.left + PANEL_WIDTH_PX + GUTTER_PX <= viewportWidth;
+  const fitsEnd = rect.right - PANEL_WIDTH_PX >= GUTTER_PX;
+  const rightHalf = rect.left + rect.width / 2 > viewportWidth / 2;
+  const auto = (rightHalf && fitsEnd) || !fitsStart ? "end" : "start";
+  const align = wanted === "auto" ? auto : wanted;
   const top = rect.bottom + OFFSET_PX;
-  panel.style.top = `${top}px`;
-  panel.style.maxHeight = `${Math.max(MIN_HEIGHT_PX, window.innerHeight - top - GUTTER_PX)}px`;
+  const below = window.innerHeight - top - GUTTER_PX;
+  const above = rect.top - OFFSET_PX - GUTTER_PX;
+  // A trigger low on the screen (a line's chip) opens upward rather than into a sliver.
+  if (below < FLIP_BELOW_PX && above > below) {
+    panel.style.top = "auto";
+    panel.style.bottom = `${window.innerHeight - rect.top + OFFSET_PX}px`;
+    panel.style.maxHeight = `${above}px`;
+  } else {
+    panel.style.top = `${top}px`;
+    panel.style.bottom = "auto";
+    panel.style.maxHeight = `${Math.max(MIN_HEIGHT_PX, below)}px`;
+  }
   if (align === "end") {
     const right = Math.max(GUTTER_PX, viewportWidth - rect.right);
     panel.style.right = `${right}px`;
