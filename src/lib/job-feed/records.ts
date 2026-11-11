@@ -7,7 +7,6 @@ import { PAST_KIND_WEIGHT } from "./match";
 import { ORDER_LIMITS } from "./order";
 import {
   DEFAULT_FILTERS,
-  JOB_PAGE_SIZE,
   LEVEL_SENIORITIES,
   SAVED_JOBS_LIMIT,
   SENIORITIES,
@@ -85,26 +84,6 @@ export function filterConditions(filters: JobFilters, now: number): SQL[] {
   if (filters.postedWithin)
     conditions.push(gte(jobs.postedAt, now - filters.postedWithin * DAY_MS));
   return conditions;
-}
-
-/** One page of the newest open jobs: the public /jobs list. */
-export async function listJobs(
-  db: Db,
-  filters: JobFilters,
-  page: number,
-  now = Date.now(),
-): Promise<{ jobs: FeedJob[]; hasMore: boolean }> {
-  const rows = await db
-    .select(LIST_COLUMNS)
-    .from(jobs)
-    .where(and(...filterConditions(filters, now)))
-    .orderBy(desc(jobs.postedAt), desc(jobs.id))
-    .limit(JOB_PAGE_SIZE + 1)
-    .offset((page - 1) * JOB_PAGE_SIZE);
-  return {
-    jobs: rows.slice(0, JOB_PAGE_SIZE).map(toFeedJob),
-    hasMore: rows.length > JOB_PAGE_SIZE,
-  };
 }
 
 export type CandidateRow = ListRow & {

@@ -1,10 +1,10 @@
-import { eq } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
 import { beforeEach, describe, expect, it } from "vitest";
 import { getDb } from "@/db/client";
 import { applications, jobBoards, jobs, savedJobs } from "@/db/schema";
 import { createUser, resetDb } from "@/lib/auth/test-helpers";
 import type { RawJob } from "./parsers";
-import { jobCounts, listJobs, matchCandidates, saveJob, skillWeights } from "./records";
+import { filterConditions, jobCounts, matchCandidates, saveJob, skillWeights } from "./records";
 import { JOB_LIMITS } from "./normalize";
 import {
   boardFailed,
@@ -14,7 +14,7 @@ import {
   syncBoards,
   tidyJobs,
 } from "./store";
-import { DEFAULT_FILTERS } from "./types";
+import { DEFAULT_FILTERS, type JobFilters } from "./types";
 
 const DAY = 24 * 60 * 60 * 1_000;
 const NOW = Date.UTC(2026, 10, 8, 6);
@@ -50,6 +50,17 @@ async function rows() {
     })
     .from(jobs)
     .orderBy(jobs.externalId);
+}
+
+// Open jobs under the Jobs page filters, newest first.
+async function titlesFor(filters: JobFilters): Promise<string[]> {
+  const db = await getDb();
+  const rows = await db
+    .select({ title: jobs.title })
+    .from(jobs)
+    .where(and(...filterConditions(filters, NOW)))
+    .orderBy(desc(jobs.postedAt), desc(jobs.id));
+  return rows.map((row) => row.title);
 }
 
 describe("job store", () => {
@@ -256,7 +267,7 @@ describe("job store", () => {
     expect((await rows()).map((row) => row.externalId)).toEqual(["1", "2", "3"]);
   });
 
-  it("lists open jobs by filters and finds candidates by skill or kind", async () => {
+  it("filters open jobs and finds candidates by skill or kind", async () => {
     const db = await getDb();
     await saveJobs(
       db,
@@ -279,27 +290,20 @@ describe("job store", () => {
       NOW,
       { snapshot: true },
     );
-    const all = await listJobs(db, DEFAULT_FILTERS, 1, NOW);
-    expect(all.jobs.map((job) => job.title)).toEqual([
+    expect(await titlesFor(DEFAULT_FILTERS)).toEqual([
       "Backend Engineer 1",
       "Product Designer",
       "Account Executive",
     ]);
-    const remote = await listJobs(
-      db,
-      { ...DEFAULT_FILTERS, remote: true, postedWithin: 7 },
-      1,
-      NOW,
-    );
-    expect(remote.jobs.map((job) => job.title)).toEqual(["Backend Engineer 1"]);
-    const search = await listJobs(db, { ...DEFAULT_FILTERS, q: "desig", place: "berlin" }, 1, NOW);
-    expect(search.jobs.map((job) => job.title)).toEqual(["Product Designer"]);
-    const designers = await listJobs(db, { ...DEFAULT_FILTERS, role: "design" }, 1, NOW);
-    expect(designers.jobs).toHaveLength(1);
+    expect(await titlesFor({ ...DEFAULT_FILTERS, remote: true, postedWithin: 7 })).toEqual([
+      "Backend Engineer 1",
+    ]);
+    expect(await titlesFor({ ...DEFAULT_FILTERS, q: "desig", place: "berlin" })).toEqual([
+      "Product Designer",
+    ]);
+    expect(await titlesFor({ ...DEFAULT_FILTERS, role: "design" })).toHaveLength(1);
     // Search input never reaches tsquery as syntax.
-    expect((await listJobs(db, { ...DEFAULT_FILTERS, q: "') | !:* &" }, 1, NOW)).jobs).toHaveLength(
-      3,
-    );
+    expect(await titlesFor({ ...DEFAULT_FILTERS, q: "') | !:* &" })).toHaveLength(3);
 
     const query = { seniority: null, filters: DEFAULT_FILTERS, weights: new Map<string, number>() };
     const pool = await matchCandidates(
@@ -411,7 +415,7 @@ describe("job store", () => {
         ?.map((copy) => copy.location)
         .sort(),
     ).toEqual(["Remote, United Kingdom", "Toronto, Canada"]);
-    expect((await listJobs(db, DEFAULT_FILTERS, 1, NOW)).jobs).toHaveLength(4);
+    expect(await titlesFor(DEFAULT_FILTERS)).toHaveLength(4);
     expect(await jobCounts(db, NOW)).toEqual({ open: 4, matchable: 1 });
   });
 });
