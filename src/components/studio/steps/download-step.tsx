@@ -18,7 +18,8 @@ import { useResumePdf, type ResumePdf } from "@/components/studio/download/use-r
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { buildPdfModel } from "@/lib/pdf/model";
-import { forPlan, isProTemplate, templateOf } from "@/lib/pdf/templates";
+import { isProTemplate, templateOf } from "@/lib/pdf/templates";
+import { printedResume } from "@/components/studio/download/pdf-cache";
 import { suggestedFileName } from "@/lib/resume/ops";
 import type { Resume } from "@/lib/resume/schema";
 import { useActiveResume, useStudioStore } from "@/lib/store/resume-store";
@@ -44,7 +45,7 @@ function DownloadWorkspace({ resume }: { resume: Resume }) {
   // What the PDF prints: on Free a Pro format comes out in Classic. Until the plan is known the
   // resume's own format renders, so a paying user's preview doesn't flash Classic, but a Pro
   // format can't be downloaded yet.
-  const printed = useMemo(() => (pro === false ? forPlan(resume, "free") : resume), [resume, pro]);
+  const printed = useMemo(() => printedResume(resume, pro), [resume, pro]);
   const formatPending = pro === null && isProTemplate(templateOf(resume));
   const pdf = useResumePdf(printed, pageSize);
   const fileName = suggestedFileName(resume);

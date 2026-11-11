@@ -1,6 +1,6 @@
 "use client";
 
-import { useId } from "react";
+import { useId, useRef } from "react";
 import { unlockProTool, useProTools, useTryProLabel } from "@/components/account/pro-tools";
 import { openUpgradePrompt } from "@/components/account/upgrade-prompt";
 import { Badge } from "@/components/ui/badge";
@@ -16,6 +16,12 @@ import { DEFAULT_TEMPLATE, type Resume, type TemplateId } from "@/lib/resume/sch
 import { EDIT_LABELS, useStudioStore } from "@/lib/store/resume-store";
 import { cn } from "@/lib/utils";
 import { sectionOrderOffer } from "./format-choice";
+import { preparePdf, printedResume } from "./pdf-cache";
+import { usePageSize } from "./use-page-size";
+
+// How long the pointer rests on a format before its PDF is made, so sweeping across the row
+// doesn't render every format on the way. A click usually follows a rest by a few hundred ms.
+const REST_MS = 120;
 
 export type FormatPickerProps = {
   resume: Resume;
@@ -36,6 +42,17 @@ export function FormatPicker({ resume, className }: FormatPickerProps) {
   const pro = useProTools();
   const tryPro = useTryProLabel();
   const locked = (id: TemplateId) => pro === false && isProTemplate(id);
+  const pageSize = usePageSize();
+  const resting = useRef(0);
+
+  function prepare(id: TemplateId) {
+    window.clearTimeout(resting.current);
+    if (id === current || locked(id)) return;
+    resting.current = window.setTimeout(
+      () => preparePdf(printedResume(withTemplate(resume, id), pro), pageSize),
+      REST_MS,
+    );
+  }
 
   async function choose(id: TemplateId) {
     // Every update counts as an edit (new PDF, new sync), so the current format is left alone.
@@ -49,12 +66,18 @@ export function FormatPicker({ resume, className }: FormatPickerProps) {
       <legend className="mb-1.5 text-sm font-medium text-ink">Format</legend>
       <div className="grid grid-cols-2 gap-1 rounded-xl bg-surface-muted p-1 sm:grid-cols-3">
         {TEMPLATE_LIST.map((info) => (
-          <label key={info.id} className="relative">
+          <label
+            key={info.id}
+            className="relative"
+            onPointerEnter={() => prepare(info.id)}
+            onPointerLeave={() => window.clearTimeout(resting.current)}
+          >
             <input
               type="radio"
               name={name}
               value={info.id}
               checked={current === info.id}
+              onFocus={() => prepare(info.id)}
               onChange={() => void choose(info.id)}
               className="peer sr-only"
             />

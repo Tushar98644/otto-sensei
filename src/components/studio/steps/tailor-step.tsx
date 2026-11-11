@@ -1,11 +1,14 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useProTools } from "@/components/account/pro-tools";
 import { useMe } from "@/components/account/use-me";
 import { OTTO } from "@/components/mascot/lines";
 import { Otto } from "@/components/mascot/otto";
 import { OttoNote } from "@/components/mascot/otto-note";
 import { OttoWorking } from "@/components/mascot/otto-working";
+import { preparePdf, printedResume } from "@/components/studio/download/pdf-cache";
+import { usePageSize } from "@/components/studio/download/use-page-size";
 import { defaultChoices } from "@/components/studio/tailor/apply";
 import { JobForm } from "@/components/studio/tailor/job-form";
 import { buildScreener } from "@/components/studio/tailor/screener";
@@ -29,6 +32,8 @@ import { useActiveResume, useStudioStore } from "@/lib/store/resume-store";
 import { thisPeriod } from "@/lib/usage-copy";
 
 // The renderer is big; fetching it while the user reads results makes the download step instant.
+// The resume's PDF is then made ahead too (the tailored copy, once there is one), so Download
+// opens on a finished preview.
 const PRELOAD_DELAY_MS = 2_000;
 
 function useUsageNote(): string | null {
@@ -145,11 +150,25 @@ export function TailorStep() {
     active?.tailor ? (s.resumes[active.tailor.baseResumeId] ?? null) : null,
   );
   const setStep = useStudioStore((s) => s.setStep);
+  const pro = useProTools();
+  const pageSize = usePageSize();
 
   useEffect(() => {
     const timer = window.setTimeout(preloadPdfRenderer, PRELOAD_DELAY_MS);
     return () => window.clearTimeout(timer);
   }, []);
+
+  useEffect(() => {
+    if (!active) return;
+    let cancel = () => {};
+    const timer = window.setTimeout(() => {
+      cancel = preparePdf(printedResume(active, pro), pageSize);
+    }, PRELOAD_DELAY_MS);
+    return () => {
+      window.clearTimeout(timer);
+      cancel();
+    };
+  }, [active, pro, pageSize]);
 
   if (!active) {
     return (

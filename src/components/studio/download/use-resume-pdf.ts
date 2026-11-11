@@ -3,10 +3,9 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { designKey } from "@/lib/pdf/design";
 import type { PdfPageSize } from "@/lib/pdf/page-size";
-import { countBlobPages } from "@/lib/pdf/pages";
-import { renderResumePdf } from "@/lib/pdf/render";
 import { templateOf } from "@/lib/pdf/templates";
 import type { Resume, TemplateId } from "@/lib/resume/schema";
+import { renderPdfCached } from "./pdf-cache";
 
 export type PdfFile = {
   blob: Blob;
@@ -67,22 +66,20 @@ export function useResumePdf(resume: Resume, pageSize: PdfPageSize): ResumePdf {
     const timer = window.setTimeout(
       () => {
         cancelIdle = whenIdle(() => {
-          renderResumePdf(resume, { pageSize, template })
-            .then(async (blob) => ({ blob, pages: await countBlobPages(blob) }))
-            .then(
-              ({ blob, pages }) => {
-                // A newer edit already started its own render; this result is out of date.
-                if (cancelled) return;
-                rendered.current = { version, template, design };
-                setFile({ blob, key, pages, url: URL.createObjectURL(blob) });
-                setFailedKey(null);
-              },
-              (error: unknown) => {
-                if (cancelled) return;
-                console.error("PDF render failed", error);
-                setFailedKey(key);
-              },
-            );
+          renderPdfCached(resume, pageSize).then(
+            ({ blob, pages }) => {
+              // A newer edit already started its own render; this result is out of date.
+              if (cancelled) return;
+              rendered.current = { version, template, design };
+              setFile({ blob, key, pages, url: URL.createObjectURL(blob) });
+              setFailedKey(null);
+            },
+            (error: unknown) => {
+              if (cancelled) return;
+              console.error("PDF render failed", error);
+              setFailedKey(key);
+            },
+          );
         });
       },
       waitForPause ? EDIT_PAUSE_MS : 0,
