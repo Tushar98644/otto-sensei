@@ -28,6 +28,13 @@ export type IssueChipProps = {
   onSetText: (text: string) => void;
 };
 
+/** A line whose chip shows something Otto can rewrite keeps "Fix with Otto" in view. */
+export function wantsOtto(issues: readonly LintIssue[]): boolean {
+  return issues.some(
+    (issue) => issue.severity === "high" && issue.id !== ENTRY_LEVEL && !NOT_FOR_OTTO.has(issue.id),
+  );
+}
+
 /** The chip at the end of a line. It opens why each issue matters, an example and a fix. */
 export function IssueChip({ issues, text, onFix, onSetText }: IssueChipProps) {
   const top = issues.find((issue) => issue.id !== ENTRY_LEVEL);

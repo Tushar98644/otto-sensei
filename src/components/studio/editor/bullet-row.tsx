@@ -30,7 +30,7 @@ import { useOpenFix } from "./fix-launcher";
 import { addLineButtonId, bulletDeleteId, bulletInputId, editThenFocus } from "./focus";
 import { HIDDEN_LABEL, HiddenChip, HideToggle } from "./hidden-chip";
 import { BULLET_LIMITS, CHAR_LIMITS } from "./limits";
-import { IssueChip } from "./line-help";
+import { IssueChip, wantsOtto } from "./line-help";
 import { LINE_FLASH_LABEL, useLineFlash } from "./line-flash";
 import { LineDescription, LineTip, useLineLint } from "./lint-notes";
 import { ICON_ACTION_CLASSES, MoveButtons } from "./move-buttons";
@@ -52,8 +52,7 @@ export type BulletRowProps = {
 
 // One resume line: a ruled row holding the field and a status chip at its end. The tools under it
 // ("Fix with Otto", move, hide, delete, tip) show while the line has focus, and always on touch
-// screens; a line with something to fix shows "Fix with Otto" all the time, so nobody has to find
-// it. Not on hover: a row that grows under the pointer makes the whole list jump. They stay
+// screens; a line whose chip shows something Otto can rewrite keeps "Fix with Otto" in view. Not on hover: a row that grows under the pointer makes the whole list jump. They stay
 // focusable and in the accessibility tree (sr-only, never hidden), so Tab reaches them and focus
 // can land on them.
 // Memoized and fed only primitives plus its own bullet, so typing in one line re-renders that line
@@ -81,7 +80,7 @@ export const BulletRow = memo(function BulletRow({
   // hidden line's chip says so; under a hidden entry, the entry's own chip already does.
   const linted = useIsLinted(resumeId, bullet.id);
   const lint = useLineLint(issues, hasText && linted);
-  const flagged = !hidden && lint !== null && lint.length > 0;
+  const flagged = !hidden && lint !== null && wantsOtto(lint);
 
   function edit(update: (bullets: Bullet[]) => Bullet[]) {
     editLines(resumeId, section, (resume) => editBullets(resume, { section, parentId }, update));
@@ -259,7 +258,7 @@ export const BulletRow = memo(function BulletRow({
         <LineDescription id={lintId} issues={lint} />
       )}
       {/* not-sr-only resets padding and margin, so the spacing lives on the inner row. A line
-          with something to fix keeps "Fix with Otto" in view; the other tools wait for focus. */}
+          whose chip Otto can fix keeps "Fix with Otto" in view; the other tools wait for focus. */}
       <div className={cn(!flagged && SHOWN_ON_FOCUS)}>
         <div className="flex flex-col gap-1 pt-2 pb-1">
           <div className="flex items-center gap-1">
