@@ -650,17 +650,43 @@
 
   & :where(table) {
     width: 100%;
+    border: 1px solid var(--color-border);
+    border-radius: 0.75rem;
+    border-collapse: separate;
+    border-spacing: 0;
+    overflow: hidden;
     font-size: 0.875rem;
+    font-variant-numeric: tabular-nums;
   }
 
   & :where(th, td) {
     border-bottom: 1px solid var(--color-border);
-    padding: 0.5rem 0.75rem 0.5rem 0;
+    padding: 0.625rem 0.75rem;
     text-align: left;
     vertical-align: top;
   }
 
-  & :where(th) {
+  & :where(tbody tr:last-child) > :where(th, td) {
+    border-bottom: 0;
+  }
+
+  & :where(thead th) {
+    background-color: var(--color-surface-muted);
     font-weight: 600;
+  }
+
+  & :where(tbody th) {
+    font-weight: 500;
+  }
+
+  /* Legal tables hold counts: they line up on the right, under their plan's name. */
+  & :where(td, thead th:not(:first-child)) {
+    text-align: right;
+  }
+
+  @media (min-width: 40rem) {
+    & :where(th, td) {
+      padding: 0.75rem 1rem;
+    }
   }
 }
