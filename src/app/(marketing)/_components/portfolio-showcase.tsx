@@ -9,10 +9,10 @@ import { PORTFOLIO_TEMPLATE_INFO } from "@/lib/portfolio/templates";
 import type { PortfolioTemplateId } from "@/lib/portfolio/types";
 import { Section, SectionHeader } from "./section";
 
-// Two of the eight designs, shown large: each is the real template drawn with Jordan (the made-up
-// person of the samples). The cards start as static pictures; the live page loads only as one
-// scrolls near.
-const SHOWN: readonly PortfolioTemplateId[] = ["bento", "dock"];
+// Three of the eight designs (owner's pick, 2026-11-11), each the real template drawn with Jordan
+// (the made-up person of the samples). The cards start as static pictures; the live page loads
+// only as one scrolls near.
+const SHOWN: readonly PortfolioTemplateId[] = ["bento", "dock", "reel"];
 
 export function PortfolioShowcase() {
   return (
@@ -30,12 +30,12 @@ export function PortfolioShowcase() {
         projects, work, writing and links. We host it, so there&apos;s nothing to set up. It comes
         with Pro{trialOffered() ? `, and you can try it free for ${PRO_TRIAL.days} days` : ""}.
       </SectionHeader>
-      <ul className="mt-12 grid gap-x-6 gap-y-8 sm:mt-16 sm:grid-cols-2">
+      <ul className="mt-12 grid gap-x-6 gap-y-8 sm:mt-16 sm:grid-cols-3">
         {SHOWN.map((id) => {
           const { name, description } = PORTFOLIO_TEMPLATE_INFO[id];
           return (
             <li key={id} className="flex flex-col gap-3">
-              <TemplatePreview id={id} sample={null} sizes="(min-width: 640px) 45vw, 90vw" />
+              <TemplatePreview id={id} sample={null} sizes="(min-width: 640px) 30vw, 90vw" />
               <div>
                 <p className="text-base/7 font-medium text-ink">{name}</p>
                 <p className="text-sm/6 text-muted">{description}</p>
