@@ -20,6 +20,7 @@ export const ROUTES = {
   privacy: "/privacy",
   terms: "/terms",
   refunds: "/refunds",
+  acceptableUse: "/acceptable-use",
 } as const;
 
 /**
@@ -48,6 +49,7 @@ export const FOOTER_NAV: readonly NavLink[] = [
   { href: ROUTES.privacy, label: "Privacy" },
   { href: ROUTES.terms, label: "Terms" },
   { href: ROUTES.refunds, label: "Refunds" },
+  { href: ROUTES.acceptableUse, label: "Acceptable use" },
 ];
 
 // Shown at the top of every legal page and used as their sitemap lastmod. Bump it with any edit.

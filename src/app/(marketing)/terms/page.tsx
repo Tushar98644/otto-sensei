@@ -83,7 +83,8 @@ export default function TermsPage() {
       </ul>
       <p>
         The AI is set up to refuse such requests and leave such material out. We may remove content
-        that breaks this rule and suspend or close the account that asked for it.
+        that breaks this rule and suspend or close the account that asked for it. Our{" "}
+        <Link href={ROUTES.acceptableUse}>acceptable use policy</Link> has the full list.
       </p>
 
       <h2>Plans and their limits</h2>

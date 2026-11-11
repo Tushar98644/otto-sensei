@@ -19,7 +19,9 @@ describe("sitemap", () => {
 
   it("lists the indexable public pages, written as their canonical tags write them", () => {
     expect(entries.map((entry) => entry.url)).toEqual(
-      ["/", "/pricing", "/privacy", "/terms", "/refunds"].map((path) => absoluteUrl(path)),
+      ["/", "/pricing", "/privacy", "/terms", "/refunds", "/acceptable-use"].map((path) =>
+        absoluteUrl(path),
+      ),
     );
   });
 
@@ -32,7 +34,12 @@ describe("sitemap", () => {
 
   it("dates only the legal pages, with the date they show", () => {
     const dated = entries.filter((entry) => entry.lastModified);
-    expect(dated.map((entry) => pathOf(entry.url))).toEqual(["/privacy", "/terms", "/refunds"]);
+    expect(dated.map((entry) => pathOf(entry.url))).toEqual([
+      "/privacy",
+      "/terms",
+      "/refunds",
+      "/acceptable-use",
+    ]);
     for (const entry of dated) expect(entry.lastModified).toBe(LEGAL_LAST_UPDATED);
   });
 });

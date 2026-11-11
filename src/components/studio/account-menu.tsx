@@ -2,6 +2,7 @@
 
 import {
   LayoutDashboard,
+  LifeBuoy,
   LogIn,
   LogOut,
   MessageSquare,
@@ -21,6 +22,7 @@ import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
 import { toast } from "@/components/ui/toast";
+import { BRAND } from "@/config/brand";
 import { PLANS } from "@/config/plans";
 import type { SessionUser } from "@/lib/auth/types";
 import { signOutAndRelease } from "@/lib/sync/use-cloud-sync";
@@ -118,6 +120,10 @@ function AccountPanel({ user, onFeedback }: { user: SessionUser; onFeedback: () 
         <SlidersHorizontal className="size-4 text-muted" aria-hidden />
         Work rights & preferences
       </Link>
+      <a href={`mailto:${BRAND.supportEmail}`} className={ITEM} onClick={close}>
+        <LifeBuoy className="size-4 text-muted" aria-hidden />
+        Help: {BRAND.supportEmail}
+      </a>
       <button
         type="button"
         className={ITEM}

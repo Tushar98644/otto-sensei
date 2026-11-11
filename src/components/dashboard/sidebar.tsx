@@ -3,6 +3,7 @@
 import {
   ChevronsUpDown,
   CreditCard,
+  LifeBuoy,
   LogOut,
   SlidersHorizontal,
   Sparkles,
@@ -238,6 +239,11 @@ function AccountRow({ user, me }: { user: SessionUser; me: Me | null }) {
             label: "Plans and pricing",
             icon: CreditCard,
             onSelect: () => router.push(ROUTES.pricing),
+          },
+          {
+            label: `Help: ${BRAND.supportEmail}`,
+            icon: LifeBuoy,
+            onSelect: () => window.location.assign(`mailto:${BRAND.supportEmail}`),
           },
           "separator",
           {
