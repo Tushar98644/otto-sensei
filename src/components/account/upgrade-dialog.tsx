@@ -33,7 +33,7 @@ import { useMe } from "./use-me";
 export type UpgradeDialogProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  // The allowance that ran out, for the copy ("You've used this month's 60 tailored versions").
+  // The allowance that ran out, for the copy ("You've used this month's 150 tailored versions").
   feature?: Feature;
   // Or the Pro tool a Free account reached for (a second resume, a Pro format, Word, ...).
   tool?: ProTool;

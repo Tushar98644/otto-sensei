@@ -39,7 +39,7 @@ function periodOf(plan: PlanId, period: AllowancePeriod): AllowancePeriod {
   return PLANS[plan].weeklyLimits ? period : "month";
 }
 
-/** "60 tailored versions a month", or "15 tailored versions a week" on a weekly plan. */
+/** "150 tailored versions a month", or "38 tailored versions a week" on a weekly plan. */
 export function limitLine(
   plan: PlanId,
   feature: Feature,

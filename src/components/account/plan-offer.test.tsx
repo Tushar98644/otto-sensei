@@ -70,7 +70,7 @@ describe("PlanOffer", () => {
 
     const weekly = render("free", "week").text;
     expect(weekly).toContain(`${usd(PRICES_USD.pro.week)} /week`);
-    expect(weekly).toContain("15 tailored versions a week");
+    expect(weekly).toContain("38 tailored versions a week");
     expect(weekly).toContain("Limits reset each billing week, when the plan renews.");
   });
 

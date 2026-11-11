@@ -62,8 +62,8 @@ export const PLANS = {
     id: "pro",
     name: "Pro",
     priceUsd: 15,
-    limits: { tailor: 60, letter: 100, fix: 300, import: 30, draft: 20, github: 20 },
-    weeklyLimits: { tailor: 15, letter: 25, fix: 75, import: 8, draft: 5, github: 5 },
+    limits: { tailor: 150, letter: 100, fix: 300, import: 30, draft: 20, github: 20 },
+    weeklyLimits: { tailor: 38, letter: 25, fix: 75, import: 8, draft: 5, github: 5 },
   },
   max: {
     id: "max",

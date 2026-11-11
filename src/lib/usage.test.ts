@@ -260,7 +260,7 @@ describe("weekly subscribers", () => {
         expect(state.usage[feature]).toEqual({ used: 0, limit: PLANS[plan].weeklyLimits[feature] });
       }
     }
-    expect(PLANS.pro.weeklyLimits).toEqual({ tailor: 15, letter: 25, fix: 75, import: 8, draft: 5, github: 5 });
+    expect(PLANS.pro.weeklyLimits).toEqual({ tailor: 38, letter: 25, fix: 75, import: 8, draft: 5, github: 5 });
     expect(PLANS.max.weeklyLimits).toEqual({ tailor: 50, letter: 75, fix: 250, import: 25, draft: 15, github: 15 });
   });
 
@@ -286,9 +286,9 @@ describe("weekly subscribers", () => {
   it("stop at the weekly limit and start over when the billing week ends", async () => {
     const user = weekly();
     const limit = await useUp(user, "tailor");
-    expect(limit).toBe(15);
+    expect(limit).toBe(38);
     const blocked = await consumeUsage(user, "tailor", NOV);
-    expect(blocked).toMatchObject({ allowed: false, usage: { tailor: { used: 15, limit: 15 } } });
+    expect(blocked).toMatchObject({ allowed: false, usage: { tailor: { used: 38, limit: 38 } } });
     expect(blocked.period).toEqual({ kind: "week", resetsAt: WEEK_END });
     expect((await consumeUsage(user, "tailor", WEEK_END - 1)).allowed).toBe(false);
 
@@ -300,10 +300,10 @@ describe("weekly subscribers", () => {
 
   it("let exactly the weekly limit through under parallel calls", async () => {
     const user = weekly();
-    const results = await Promise.all(Array.from({ length: 20 }, () => consumeUsage(user, "tailor", NOV)));
-    expect(results.filter((result) => result.allowed)).toHaveLength(15);
-    expect(await storedCount(user, "tailor", NOV, weekKey(WEEK_END))).toBe(15);
-    expect(await storedCount(user, "tailor", NOV)).toBe(15);
+    const results = await Promise.all(Array.from({ length: 45 }, () => consumeUsage(user, "tailor", NOV)));
+    expect(results.filter((result) => result.allowed)).toHaveLength(38);
+    expect(await storedCount(user, "tailor", NOV, weekKey(WEEK_END))).toBe(38);
+    expect(await storedCount(user, "tailor", NOV)).toBe(38);
   });
 
   it("keep a started week running when the renewal date moves or is cleared", async () => {
@@ -328,18 +328,18 @@ describe("weekly subscribers", () => {
 
     // Into weekly: the week has its own count, so the week's allowance is all there.
     const intoWeekly = await consumeUsage(weekly(), "tailor", NOV);
-    expect(intoWeekly.usage.tailor).toEqual({ used: 1, limit: 15 });
-    await consumeTimes(weekly(), "tailor", 14);
+    expect(intoWeekly.usage.tailor).toEqual({ used: 1, limit: 38 });
+    await consumeTimes(weekly(), "tailor", 37);
     expect((await consumeUsage(weekly(), "tailor", NOV)).allowed).toBe(false);
 
     // Back to monthly: the weekly uses counted toward November too.
-    expect((await getUsage(monthly, NOV)).tailor).toEqual({ used: 25, limit: 60 });
-    await consumeTimes(monthly, "tailor", 35);
+    expect((await getUsage(monthly, NOV)).tailor).toEqual({ used: 48, limit: 150 });
+    await consumeTimes(monthly, "tailor", 102);
     expect((await consumeUsage(monthly, "tailor", NOV)).allowed).toBe(false);
 
     // And weekly again in the same week: still used up.
     expect((await consumeUsage(weekly(), "tailor", NOV)).allowed).toBe(false);
-    expect((await getUsage(weekly(), NOV)).tailor).toEqual({ used: 15, limit: 15 });
+    expect((await getUsage(weekly(), NOV)).tailor).toEqual({ used: 38, limit: 38 });
   });
 
   it("refund to both the week and the month", async () => {
@@ -356,7 +356,7 @@ describe("weekly subscribers", () => {
   it("add invite bonuses stored on the week's row to the weekly limit", async () => {
     const db = await getDb();
     await db.insert(usage).values({ subject: pro.id, feature: "tailor", period: weekKey(WEEK_END), count: 0, bonus: 2 });
-    expect((await getUsage(weekly(), NOV)).tailor).toEqual({ used: 0, limit: 17 });
+    expect((await getUsage(weekly(), NOV)).tailor).toEqual({ used: 0, limit: 40 });
     // Monthly sees none of it.
     expect((await getUsage(pro, NOV)).tailor.limit).toBe(PLANS.pro.limits.tailor);
   });
@@ -469,7 +469,7 @@ describe("monthly and yearly subscribers", () => {
     // The renewal's webhook stores the next period: a fresh month that ends at the next renewal.
     const renewed = dated({ planPeriodStartsAt: P_END, planPeriodEndsAt: P_NEXT, planRenewsAt: P_NEXT });
     const next = await consumeUsage(renewed, "tailor", P_END + MINUTE);
-    expect(next).toMatchObject({ allowed: true, usage: { tailor: { used: 1, limit: 60 } } });
+    expect(next).toMatchObject({ allowed: true, usage: { tailor: { used: 1, limit: 150 } } });
     expect(next.period).toEqual({ kind: "month", resetsAt: P_NEXT, renews: true });
     // Before that webhook lands, the account already counts in that same next month.
     const late = await consumeUsage(user, "tailor", P_END + MINUTE);

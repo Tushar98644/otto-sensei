@@ -128,7 +128,7 @@ describe("POST /api/tailor", () => {
     expect(await errorOf(res)).toEqual({
       code: "limit_reached",
       message:
-        "You've used this trial's 10 tailored versions. Pro has 60 a month. Your full allowance starts on Jan 15.",
+        "You've used this trial's 10 tailored versions. Pro has 150 a month. Your full allowance starts on Jan 15.",
     });
   });
 

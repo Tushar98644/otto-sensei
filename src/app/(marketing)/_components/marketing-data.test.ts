@@ -63,7 +63,7 @@ describe("plan copy", () => {
 
   it("lists the weekly numbers a week for weekly Pro and Max, and keeps Free monthly", () => {
     expect(planCopy("pro", "week").features).toEqual([
-      "15 tailored versions a week",
+      "38 tailored versions a week",
       "25 cover letters, answers and interview prep a week",
       "75 line fixes a week",
       "8 AI reads of an uploaded resume a week",
