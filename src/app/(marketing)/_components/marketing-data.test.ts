@@ -73,7 +73,7 @@ describe("plan copy", () => {
       "A hosted portfolio site made from your resume, in all 8 designs",
     ]);
     expect(planCopy("pro", "week").lead).toBe("Everything in Free, plus:");
-    expect(planCopy("max", "week").features).toContain("50 tailored versions a week");
+    expect(planCopy("max", "week").features).toContain("75 tailored versions a week");
     expect(planCopy("max", "week").features).toContain("250 line fixes a week");
     expect(planCopy("max", "week").features.join(" ")).not.toMatch(/a month/);
     expect(planCopy("free", "week")).toEqual(planCopy("free", "month"));

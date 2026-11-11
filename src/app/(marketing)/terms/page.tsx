@@ -103,11 +103,10 @@ export default function TermsPage() {
         Pro and Max have a limit for each thing Otto does with AI. On monthly plans the limits run
         from one renewal to the next and reset when your plan renews. Yearly plans have the same
         limits per month, reset on the day of the month the plan started (in a shorter month, on its
-        last day: a plan started on the 31st resets on the 30th of a 30-day month). Weekly plans
-        have smaller limits per billing week, the 7 days up to each renewal. The Pro trial has its
-        own smaller limits for the whole trial. Unused ones don&apos;t carry over. Invite extras add
-        to the current month, week or trial, on Pro and Max. Your account page shows the date your
-        limits next reset.
+        last day: a plan started on the 31st resets on the 30th of a 30-day month). The Pro trial
+        has its own smaller limits for the whole trial. Unused ones don&apos;t carry over. Invite
+        extras add to the current month or trial, on Pro and Max. Your account page shows the date
+        your limits next reset.
       </p>
       <table>
         <thead>
@@ -133,46 +132,22 @@ export default function TermsPage() {
           ))}
         </tbody>
       </table>
-      <table>
-        <thead>
-          <tr>
-            <th scope="col">Each week, on weekly plans</th>
-            {PAID_PLANS.map((plan) => (
-              <th key={plan} scope="col">
-                {PLANS[plan].name}
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {FEATURES.map((feature) => (
-            <tr key={feature}>
-              <th scope="row">{sentenceCase(FEATURE_LABELS[feature])}</th>
-              {PAID_PLANS.map((plan) => (
-                <td key={plan}>{count.format(PLANS[plan].weeklyLimits[feature])}</td>
-              ))}
-            </tr>
-          ))}
-        </tbody>
-      </table>
       <p>
-        At a limit that feature pauses until your limits reset (on a monthly or weekly plan, at your
-        next renewal; on a yearly plan, on the next monthly reset day; on the trial, until Pro
-        starts), or until you move to a bigger plan. Moving between Pro and Max, or to another
-        billing option, between renewals doesn&apos;t reset a limit: what you used this month counts
-        on the new plan, and a week keeps its count until its 7 days are up. Uploads never stop:
-        past the AI reads, the basic reader reads your file instead. Editing, recruiter checks and
-        PDF downloads have no limit on any plan.
+        At a limit that feature pauses until your limits reset (on a monthly plan, at your next
+        renewal; on a yearly plan, on the next monthly reset day; on the trial, until Pro starts),
+        or until you move to a bigger plan. Moving between Pro and Max, or between monthly and
+        yearly, between renewals doesn&apos;t reset a limit: what you used this month counts on the
+        new plan. Uploads never stop: past the AI reads, the basic reader reads your file instead.
+        Editing, recruiter checks and PDF downloads have no limit on any plan.
       </p>
 
       <h2>Payments and cancelling</h2>
       <ul>
         <li>
-          Pro costs {formatUsd(PRICES_USD.pro.month)} a month, {formatUsd(PRICES_USD.pro.year)} a
-          year or {formatUsd(PRICES_USD.pro.week)} a week. Max costs{" "}
-          {formatUsd(PRICES_USD.max.month)} a month, {formatUsd(PRICES_USD.max.year)} a year or{" "}
-          {formatUsd(PRICES_USD.max.week)} a week. Prices are in US dollars, plus any taxes where
-          you live. Only the options shown on the pricing page are on sale.
+          Pro costs {formatUsd(PRICES_USD.pro.month)} a month or {formatUsd(PRICES_USD.pro.year)} a
+          year. Max costs {formatUsd(PRICES_USD.max.month)} a month or{" "}
+          {formatUsd(PRICES_USD.max.year)} a year. Prices are in US dollars, plus any taxes where
+          you live.
         </li>
         <li>
           New accounts can try Pro free for {PRO_TRIAL.days} days, once per person. You add a card

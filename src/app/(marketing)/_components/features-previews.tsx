@@ -25,13 +25,9 @@ function Row({ title, meta, children }: { title: string; meta: string; children?
 
 function ResumesPreview() {
   const items = [
-    {
-      id: "classic",
-      title: `${DEMO_PERSON.name} · ${DEMO_PERSON.role}`,
-      meta: "Checked · 2 lines to fix",
-    },
-    { id: "compact", title: "Tailored for Northwind", meta: "Senior Product Designer" },
-    { id: "executive", title: "Tailored for Ledgerly", meta: "Product Designer, Payments" },
+    { id: "classic", title: "Jordan Ellis · Marketing", meta: "Checked · 2 lines to fix" },
+    { id: "compact", title: "Tailored for Northwind", meta: "Senior Product Marketing Manager" },
+    { id: "executive", title: "Tailored for Ledgerly", meta: "Product Marketing, Payments" },
   ] as const;
   return (
     <ul className="grid grid-cols-3 gap-3">

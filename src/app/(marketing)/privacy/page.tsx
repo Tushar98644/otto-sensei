@@ -39,46 +39,46 @@ export default function PrivacyPage() {
         </li>
         <li>
           <strong>Share links.</strong> If you share a resume, we keep a copy of that version
-          (without hidden lines or tailoring notes) so anyone with the link can read it and
-          download it as a PDF. Your email and phone show only if you turn that on, and search
-          engines are asked to skip the page unless you allow them. We count views: to count each
-          reader once, we keep a scrambled code made from their network address and browser (not
-          the address itself) for about two days. Turning the link off deletes the copy.
+          (without hidden lines or tailoring notes) so anyone with the link can read it and download
+          it as a PDF. Your email and phone show only if you turn that on, and search engines are
+          asked to skip the page unless you allow them. We count views: to count each reader once,
+          we keep a scrambled code made from their network address and browser (not the address
+          itself) for about two days. Turning the link off deletes the copy.
         </li>
         <li>
           <strong>Applications you log.</strong> If you track job applications, we store what you
-          enter (company, job title, job link, date, status and notes) and which resume you sent,
-          so you can see your own interview rate. If you make an interview prep pack for one, we
-          save it with that application. Nobody else sees it.
+          enter (company, job title, job link, date, status and notes) and which resume you sent, so
+          you can see your own interview rate. If you make an interview prep pack for one, we save
+          it with that application. Nobody else sees it.
         </li>
         <li>
-          <strong>Reminders.</strong> When you mark a job applied, we store a follow-up date (7
-          days later unless you pick another number). When it comes, we add a note to your
-          dashboard. We email you about it only if you turn reminder emails on on your account
-          page. We store the note, whether you&apos;ve read it, the date, and your reminder
-          settings. Read notes are deleted after 90 days, unread ones after a year.
+          <strong>Reminders.</strong> When you mark a job applied, we store a follow-up date (7 days
+          later unless you pick another number). When it comes, we add a note to your dashboard. We
+          email you about it only if you turn reminder emails on on your account page. We store the
+          note, whether you&apos;ve read it, the date, and your reminder settings. Read notes are
+          deleted after 90 days, unread ones after a year.
         </li>
         <li>
           <strong>Your work profile.</strong> If you fill it in, we store the country you live in,
-          your time zone, where you can work without a sponsored visa, whether you want full-time
-          or contract work, and whether you only want remote jobs. Otto checks job posts against
-          it in your browser, and on our server when ranking the Jobs tab. Nobody else sees it.
+          your time zone, where you can work without a sponsored visa, whether you want full-time or
+          contract work, and whether you only want remote jobs. Otto checks job posts against it in
+          your browser, and on our server when ranking the Jobs tab. Nobody else sees it.
         </li>
         <li>
           <strong>Jobs you match and save.</strong> To rank open jobs for you, your browser sends
-          the skills, job titles and years of experience it reads from your resume, never the
-          resume itself or your contact details. We use them for that one request and don&apos;t
-          store them or send them to an AI. If you save a job, we store which one and when. The
-          jobs themselves come from public job boards, each linked to its original post.
+          the skills, job titles and years of experience it reads from your resume, never the resume
+          itself or your contact details. We use them for that one request and don&apos;t store them
+          or send them to an AI. If you save a job, we store which one and when. The jobs themselves
+          come from public job boards, each linked to its original post.
         </li>
         <li>
           <strong>Files you upload.</strong> We read them in memory to pull out the text and run the
           checks. We don&apos;t store the files.
         </li>
         <li>
-          <strong>Usage counts.</strong> For signed-in users, how many line fixes, tailored versions,
-          cover letters and answers you&apos;ve used this month (this week on a weekly plan, or
-          during your trial), plus any extra an invite earned you, so plan limits work.
+          <strong>Usage counts.</strong> For signed-in users, how many line fixes, tailored
+          versions, cover letters and answers you&apos;ve used this month (or during your trial),
+          plus any extra an invite earned you, so plan limits work.
         </li>
         <li>
           <strong>Plan and billing status.</strong> If you subscribe or start a trial, we store your
@@ -113,15 +113,15 @@ export default function PrivacyPage() {
           <strong>Usage events.</strong> Which steps people take, such as uploading a resume,
           downloading a PDF or upgrading, with simple counts like how many checks failed. They never
           include your resume text, job posts, name or email address. If you&apos;re signed in,
-          they&apos;re linked to your account&apos;s random id. If your browser sends Do Not Track or
-          Global Privacy Control, we send none at all.
+          they&apos;re linked to your account&apos;s random id. If your browser sends Do Not Track
+          or Global Privacy Control, we send none at all.
         </li>
       </ul>
 
       <h2>How Otto uses AI</h2>
       <p>
-        Otto uses AI models (by default Z.ai&apos;s GLM) through OpenRouter. Each feature sends
-        only the text it needs, and only when you use it:
+        Otto uses AI models (by default Z.ai&apos;s GLM) through OpenRouter. Each feature sends only
+        the text it needs, and only when you use it:
       </p>
       <ul>
         <li>
@@ -147,17 +147,17 @@ export default function PrivacyPage() {
           each job, never your name.
         </li>
         <li>
-          <strong>Import from GitHub:</strong> the description, README and pull request text of
-          the repos and pull requests you pick.
+          <strong>Import from GitHub:</strong> the description, README and pull request text of the
+          repos and pull requests you pick.
         </li>
       </ul>
       <p>
         Before any of this goes to the AI, Otto replaces your name, email, phone number and links
-        with placeholders, and puts them back afterwards. It spots them by their usual patterns,
-        so an unusual format can slip through. OpenRouter passes the text to the model&apos;s
-        provider and sends back the result. We tell OpenRouter to use only providers that
-        don&apos;t train on this data. Providers may keep it for a limited time under their own
-        policies, for example to detect abuse.
+        with placeholders, and puts them back afterwards. It spots them by their usual patterns, so
+        an unusual format can slip through. OpenRouter passes the text to the model&apos;s provider
+        and sends back the result. We tell OpenRouter to use only providers that don&apos;t train on
+        this data. Providers may keep it for a limited time under their own policies, for example to
+        detect abuse.
       </p>
       <p>
         The recruiter checks, the editor and PDF downloads don&apos;t use AI. Line checks and PDFs
@@ -168,8 +168,8 @@ export default function PrivacyPage() {
         uploaded. The job post eligibility check also runs in your browser, with no AI.
       </p>
       <p>
-        &quot;Import from GitHub&quot; reads only public data from GitHub (your repos and merged pull
-        requests) by the username you type, without your GitHub login. Nothing is added to your
+        &quot;Import from GitHub&quot; reads only public data from GitHub (your repos and merged
+        pull requests) by the username you type, without your GitHub login. Nothing is added to your
         resume until you confirm. We don&apos;t store the GitHub data: a server keeps it in memory
         for up to an hour, so a second look doesn&apos;t ask GitHub again.
       </p>
@@ -203,9 +203,9 @@ export default function PrivacyPage() {
         </li>
       </ul>
       <p>
-        We don&apos;t use ads or tracking cookies. For the usage events above, a random id is kept in
-        local storage so your steps can be counted together, across visits. It isn&apos;t linked to
-        your name or email, and clearing your browser data removes it.
+        We don&apos;t use ads or tracking cookies. For the usage events above, a random id is kept
+        in local storage so your steps can be counted together, across visits. It isn&apos;t linked
+        to your name or email, and clearing your browser data removes it.
       </p>
 
       <h2>Who we share data with</h2>
@@ -215,8 +215,8 @@ export default function PrivacyPage() {
       </p>
       <ul>
         <li>
-          <strong>OpenRouter</strong> and the AI model provider it routes to process resume text
-          for the AI features above.
+          <strong>OpenRouter</strong> and the AI model provider it routes to process resume text for
+          the AI features above.
         </li>
         <li>
           <strong>Creem</strong> processes payments as our merchant of record.
@@ -263,8 +263,8 @@ export default function PrivacyPage() {
         <li>Reminder notes: 90 days once read, a year if never read.</li>
         <li>Sign-in codes: they work once and expire after 10 minutes.</li>
         <li>
-          Feedback and invite records: until your account is deleted. Feedback sent while signed
-          out isn&apos;t linked to any account.
+          Feedback and invite records: until your account is deleted. Feedback sent while signed out
+          isn&apos;t linked to any account.
         </li>
         <li>Abuse-prevention counters: about two days.</li>
         <li>Uploaded files: not kept at all.</li>
@@ -273,16 +273,16 @@ export default function PrivacyPage() {
       <h2>Your choices</h2>
       <ul>
         <li>
-          Delete any resume in the studio whenever you like. Its backup goes right away; the copy
-          in this browser waits in Recently deleted for 30 days, or until you sign out or empty it.
+          Delete any resume in the studio whenever you like. Its backup goes right away; the copy in
+          this browser waits in Recently deleted for 30 days, or until you sign out or empty it.
         </li>
         <li>
           Delete your account from your <Link href={ROUTES.account}>account page</Link>. This
           removes your email, sign-in record, resume backups, logged applications and their prep,
-          work profile, saved jobs, share links, reminders, invite records, feedback and usage records right
-          away, and signs you out on every device.
-          Deleting your account cancels your paid plan or trial right away, and you won&apos;t be
-          charged again. Only the trial fingerprint above stays.
+          work profile, saved jobs, share links, reminders, invite records, feedback and usage
+          records right away, and signs you out on every device. Deleting your account cancels your
+          paid plan or trial right away, and you won&apos;t be charged again. Only the trial
+          fingerprint above stays.
         </li>
         <li>
           Ask us for a copy of your data, or to correct or delete it, by emailing{" "}

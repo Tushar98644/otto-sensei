@@ -32,7 +32,7 @@ describe("PlanPerks", () => {
     expect(pro).not.toContain("150 tailored versions");
 
     const max = text(renderToStaticMarkup(<PlanPerks plan="max" interval="week" />));
-    expect(max).toContain("50 tailored versions a week");
+    expect(max).toContain("75 tailored versions a week");
     expect(max).toContain("Pro has 38.");
     expect(max).toContain("Limits reset each billing week");
   });

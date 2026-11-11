@@ -69,8 +69,8 @@ export const PLANS = {
     id: "max",
     name: "Max",
     priceUsd: 29,
-    limits: { tailor: 200, letter: 300, fix: 1000, import: 100, draft: 60, github: 60 },
-    weeklyLimits: { tailor: 50, letter: 75, fix: 250, import: 25, draft: 15, github: 15 },
+    limits: { tailor: 300, letter: 300, fix: 1000, import: 100, draft: 60, github: 60 },
+    weeklyLimits: { tailor: 75, letter: 75, fix: 250, import: 25, draft: 15, github: 15 },
   },
 } as const satisfies Record<PlanId, Plan>;
 
