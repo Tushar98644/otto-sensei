@@ -1,6 +1,6 @@
-import Image from "next/image";
 import type { ReactNode } from "react";
 import { FormatImage } from "@/components/formats/format-image";
+import { PortfolioShot } from "@/components/portfolio/portfolio-shot";
 import { PORTFOLIO_ROUTE } from "@/components/portfolio/route";
 import { ROUTES } from "@/components/site/routes";
 import { Badge } from "@/components/ui/badge";
@@ -23,9 +23,9 @@ function Row({ title, meta, children }: { title: string; meta: string; children?
 
 function ResumesPreview() {
   const items = [
-    { id: "classic", title: "Jordan Ellis · Marketing", meta: "Checked · 2 lines to fix" },
-    { id: "compact", title: "Tailored for Northwind", meta: "Senior Product Marketing Manager" },
-    { id: "executive", title: "Tailored for Ledgerly", meta: "Product Marketing, Payments" },
+    { id: "classic", title: "Jordan Ellis · Marketing", meta: "2 lines to fix" },
+    { id: "compact", title: "Tailored for Northwind", meta: "Ready to send" },
+    { id: "executive", title: "Tailored for Ledgerly", meta: "Ready to send" },
   ] as const;
   return (
     <ul className="grid grid-cols-3 gap-3">
@@ -38,7 +38,9 @@ function ResumesPreview() {
           />
           <div className="min-w-0">
             <p className="truncate text-xs font-medium text-ink">{item.title}</p>
-            <p className="truncate text-xs text-muted">{item.meta}</p>
+            <p className="truncate text-xs text-muted">
+              {TEMPLATE_INFO[item.id].name} · {item.meta}
+            </p>
           </div>
         </li>
       ))}
@@ -142,33 +144,8 @@ function PortfolioPreview() {
       <p className="truncate bg-surface px-3 py-2 font-mono text-xs text-muted">
         ottosensei.com/p/jordan-ellis
       </p>
-      <Image
-        src="/portfolio-templates/reel.webp"
-        width={480}
-        height={300}
-        sizes="(min-width: 1024px) 36rem, 90vw"
-        alt="A portfolio page in the Reel design"
-        className="h-auto w-full"
-      />
+      <PortfolioShot id="reel" sizes="(min-width: 1024px) 40rem, 90vw" />
     </div>
-  );
-}
-
-function FormatsPreview() {
-  const ids = ["classic", "compact", "developer", "minimal"] as const;
-  return (
-    <ul className="grid grid-cols-4 gap-2 sm:gap-3">
-      {ids.map((id) => (
-        <li key={id} className="flex min-w-0 flex-col gap-1.5">
-          <FormatImage
-            info={TEMPLATE_INFO[id]}
-            sizes="(min-width: 1024px) 9rem, 22vw"
-            className="rounded-md ring-1 ring-border"
-          />
-          <p className="truncate text-xs text-ink">{TEMPLATE_INFO[id].name}</p>
-        </li>
-      ))}
-    </ul>
   );
 }
 
@@ -179,5 +156,4 @@ export const FEATURE_PREVIEWS: Record<string, () => ReactNode> = {
   [ROUTES.dashboardApplications]: ApplicationsPreview,
   [ROUTES.dashboardInterview]: InterviewPreview,
   [PORTFOLIO_ROUTE]: PortfolioPreview,
-  [ROUTES.dashboardFormats]: FormatsPreview,
 };

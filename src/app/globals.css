@@ -406,16 +406,6 @@
     color-scheme: light;
   }
 
-  /* Scrollbars are hidden everywhere; areas still scroll by wheel, touch and keyboard. Chrome,
-     Firefox and Safari 18.2+ read scrollbar-width; older Safari needs the -webkit- rule. */
-  * {
-    scrollbar-width: none;
-  }
-
-  *::-webkit-scrollbar {
-    display: none;
-  }
-
   /* A native modal blocks clicks on the page but still lets it scroll underneath. */
   html:has(dialog:modal) {
     overflow: hidden;
@@ -697,4 +687,36 @@
       padding: 0.75rem 1rem;
     }
   }
+}
+
+@utility scroll-pan-frame {
+  view-timeline-name: --pan;
+}
+
+@utility scroll-pan {
+  @supports (animation-timeline: view()) {
+    @media (prefers-reduced-motion: no-preference) {
+      animation-name: scroll-pan;
+      animation-timing-function: linear;
+      animation-fill-mode: both;
+      animation-timeline: --pan;
+      animation-range: contain;
+    }
+  }
+}
+
+@keyframes scroll-pan {
+  to {
+    translate: 0 var(--pan, 0);
+  }
+}
+
+*,
+*::before,
+*::after {
+  scrollbar-width: none !important;
+}
+
+*::-webkit-scrollbar {
+  display: none !important;
 }

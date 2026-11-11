@@ -1,17 +1,14 @@
 import { ArrowRight } from "lucide-react";
 import Link from "next/link";
 import { PORTFOLIO_ROUTE } from "@/components/portfolio/route";
-import { TemplatePreview } from "@/components/portfolio/template-preview";
+import { PortfolioShot, type PortfolioShotId } from "@/components/portfolio/portfolio-shot";
 import { buttonClasses } from "@/components/ui/button";
 import { PRO_TRIAL } from "@/config/plans";
 import { trialOffered } from "@/lib/billing/intervals";
 import { PORTFOLIO_TEMPLATE_INFO } from "@/lib/portfolio/templates";
-import type { PortfolioTemplateId } from "@/lib/portfolio/types";
 import { Section, SectionHeader } from "./section";
 
-// Owner's pick, 2026-11-11. The cards start as static pictures; the live page loads only as one
-// scrolls near.
-const SHOWN: readonly PortfolioTemplateId[] = ["bento", "dock", "reel"];
+const SHOWN: readonly PortfolioShotId[] = ["bento", "dock", "reel"];
 
 export function PortfolioShowcase() {
   return (
@@ -34,7 +31,11 @@ export function PortfolioShowcase() {
           const { name, description } = PORTFOLIO_TEMPLATE_INFO[id];
           return (
             <li key={id} className="flex flex-col gap-3">
-              <TemplatePreview id={id} sample={null} sizes="(min-width: 640px) 30vw, 90vw" />
+              <PortfolioShot
+                id={id}
+                sizes="(min-width: 640px) 30vw, 90vw"
+                className="rounded-xl ring-1 ring-border"
+              />
               <div>
                 <p className="text-base/7 font-medium text-ink">{name}</p>
                 <p className="text-sm/6 text-muted">{description}</p>

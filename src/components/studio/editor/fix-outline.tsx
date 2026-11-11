@@ -172,7 +172,7 @@ function PhoneSections({
     >
       <div
         ref={rowRef}
-        className="relative flex [scrollbar-width:none] gap-1 overflow-x-auto rounded-xl bg-surface-strong p-1"
+        className="relative flex gap-1 overflow-x-auto rounded-xl bg-surface-strong p-1"
       >
         {outline.map((section) => (
           <button

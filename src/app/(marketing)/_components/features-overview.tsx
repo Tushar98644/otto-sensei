@@ -11,11 +11,10 @@ import { Section, SectionHeader } from "./section";
 
 type Feature = { text: string; section?: string };
 
-// In the sidebar's order, so the page lists exactly what a signed-in person sees. Each line must
-// stay true of its page.
+// Keyed by sidebar link, so tabs follow the app's order; Formats is folded into Resumes.
 const FEATURES: Record<string, Feature> = {
   [ROUTES.dashboardResumes]: {
-    text: "Every resume and tailored copy in one place. Check, fix and download each one.",
+    text: "Every resume and tailored copy in one place, in six clean formats hiring software reads. Check, fix and download each one.",
     section: "#how",
   },
   [ROUTES.dashboardLetters]: {
@@ -34,10 +33,6 @@ const FEATURES: Record<string, Feature> = {
   [PORTFOLIO_ROUTE]: {
     text: "A portfolio site made from your resume, hosted for you at your own link.",
     section: "#portfolio",
-  },
-  [ROUTES.dashboardFormats]: {
-    text: "Six clean formats that hiring software reads. Classic and Compact are free.",
-    section: "#how-download",
   },
 };
 

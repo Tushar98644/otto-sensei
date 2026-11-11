@@ -125,12 +125,7 @@ export function PortfolioPreview({
               tabIndex={0}
               role="region"
               aria-label={`Preview of your page in ${name}. Scroll to see all of it.`}
-              className={cn(
-                "absolute inset-0 overflow-x-hidden overflow-y-auto overscroll-contain -outline-offset-2",
-                phone
-                  ? "scrollbar-none"
-                  : "scrollbar-thin scrollbar-gutter-stable",
-              )}
+              className="absolute inset-0 overflow-x-hidden overflow-y-auto overscroll-contain -outline-offset-2"
             >
               {zoom > 0 ? (
                 <div
