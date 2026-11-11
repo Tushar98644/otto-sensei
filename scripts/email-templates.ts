@@ -7,6 +7,8 @@
 //
 // SUPABASE_PROJECT_REF defaults to the ref inside NEXT_PUBLIC_SUPABASE_URL.
 
+export {};
+
 const SITE = "https://www.ottosensei.com";
 
 const SUBJECT = "Your Otto Sensei code: {{ .Token }}";
