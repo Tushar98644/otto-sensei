@@ -1,3 +1,5 @@
+"use client";
+
 import Image from "next/image";
 import type { TemplateInfo } from "@/lib/pdf/templates";
 import { cn } from "@/lib/utils";
