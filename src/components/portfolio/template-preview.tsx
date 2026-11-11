@@ -13,10 +13,10 @@ const LiveTemplate = lazy(() =>
 // LIVE_WIDTH of ./live-template.tsx, written out: importing it would load that chunk up front.
 const LIVE_WIDTH = 1280;
 
-// A card showing the top of one template, drawn by the real template component and scaled down.
-// It mounts only while the card is near the screen and unmounts once it scrolls far away, so a
-// phone going past eight designs holds one or two live pages at a time. Until then (and with
-// Jordan's sample) the card shows the template's static picture.
+// A card showing the top of one template: its static picture, then the real template scaled down
+// once the person points at or tabs to the card (its whole card, the label or button around it).
+// A grid of eight live pages was the slowest part of the portfolio screens. The live page unmounts
+// when the card scrolls far away.
 export function TemplatePreview({
   id,
   sample,
@@ -33,7 +33,20 @@ export function TemplatePreview({
 }) {
   const frame = useRef<HTMLDivElement>(null);
   const [near, setNear] = useState(false);
+  const [wanted, setWanted] = useState(false);
   const [scale, setScale] = useState(0);
+
+  useEffect(() => {
+    const card = frame.current?.closest("label, button, a, li") ?? frame.current;
+    if (!card || wanted) return;
+    const want = () => setWanted(true);
+    card.addEventListener("pointerenter", want);
+    card.addEventListener("focusin", want);
+    return () => {
+      card.removeEventListener("pointerenter", want);
+      card.removeEventListener("focusin", want);
+    };
+  }, [wanted]);
 
   useEffect(() => {
     const box = frame.current;
@@ -62,10 +75,10 @@ export function TemplatePreview({
       )}
       style={{ backgroundColor: info.colors.background }}
     >
-      {sample === null ? (
+      {sample === null || !wanted ? (
         <Image src={info.thumbnail} alt="" fill sizes={sizes} className="object-cover object-top" />
       ) : null}
-      {near && scale > 0 ? (
+      {wanted && near && scale > 0 ? (
         <Suspense fallback={null}>
           <LiveTemplate id={id} sample={sample} scale={scale} />
         </Suspense>

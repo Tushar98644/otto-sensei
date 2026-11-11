@@ -1,5 +1,6 @@
 // Draws page 1 of every PDF format, filled with the sample resume on Letter, into
-// public/formats/<id>.png (600px wide) and <id>@2x.png (1200px) for the Formats gallery.
+// public/formats/<id>.png (600px wide) and <id>@2x.png (1200px), plus the WebP copies the app
+// serves (<id>-400.webp, -800 and -1200), for the Formats gallery.
 //
 //   bun scripts/render-format-previews.tsx
 //
@@ -15,6 +16,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { renderToBuffer } from "@react-pdf/renderer";
+import sharp from "sharp";
 import { sampleWithFormat } from "../src/components/formats/apply-format";
 import { RESUME_TEMPLATE_LIST } from "../src/components/pdf/registry";
 
@@ -29,6 +31,7 @@ const WIDTHS = [
   { width: 600, suffix: "" },
   { width: 1200, suffix: "@2x" },
 ] as const;
+const WEBP_WIDTHS = [400, 800, 1200] as const;
 // A fixed clock keeps the sample's ids out of the picture and the output stable between runs.
 const SAMPLE_TIME = Date.UTC(2026, 0, 15);
 
@@ -224,6 +227,12 @@ async function main() {
           Buffer.from(drawn.dataUrl.replace(/^data:image\/png;base64,/, ""), "base64"),
         );
         console.log(`${pdf.name}: ${file} (${(drawn.inked * 100).toFixed(1)}% ink)`);
+      }
+      for (const width of WEBP_WIDTHS) {
+        await sharp(join(OUT_DIR, `${pdf.id}@2x.png`))
+          .resize({ width })
+          .webp({ quality: 82 })
+          .toFile(join(OUT_DIR, `${pdf.id}-${width}.webp`));
       }
     }
   } finally {
