@@ -2,6 +2,8 @@
 
 import { useId, useState, type ReactNode } from "react";
 import { useMe } from "@/components/account/use-me";
+import { ROUTES } from "@/components/site/routes";
+import { TextLink } from "@/components/site/text-link";
 import {
   allowancePeriodFor,
   BILLING_INTERVALS,
@@ -165,12 +167,20 @@ export function PricingPlans({
               priceNote={note}
               jobCounts={jobCounts}
               note={
-                onTrial ? trialSentence() : endsTrial ? endsTrialSentence("max", interval) : undefined
+                onTrial
+                  ? trialSentence()
+                  : endsTrial
+                    ? endsTrialSentence("max", interval)
+                    : undefined
               }
             />
           );
         })}
       </div>
+      <p className="text-center text-sm text-muted">
+        Fair limits on every AI feature, all listed in the{" "}
+        <TextLink href={ROUTES.terms}>terms</TextLink>.
+      </p>
     </div>
   );
 }

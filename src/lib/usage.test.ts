@@ -260,8 +260,8 @@ describe("weekly subscribers", () => {
         expect(state.usage[feature]).toEqual({ used: 0, limit: PLANS[plan].weeklyLimits[feature] });
       }
     }
-    expect(PLANS.pro.weeklyLimits).toEqual({ tailor: 38, letter: 25, fix: 75, import: 8, draft: 5, github: 5 });
-    expect(PLANS.max.weeklyLimits).toEqual({ tailor: 75, letter: 75, fix: 250, import: 25, draft: 15, github: 15 });
+    expect(PLANS.pro.weeklyLimits).toEqual({ tailor: 38, letter: 38, fix: 250, import: 25, draft: 13, github: 13 });
+    expect(PLANS.max.weeklyLimits).toEqual({ tailor: 75, letter: 75, fix: 750, import: 75, draft: 38, github: 38 });
   });
 
   it("leave monthly, yearly and Free on the calendar month", async () => {

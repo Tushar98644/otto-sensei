@@ -109,7 +109,7 @@ describe("POST /api/letter", () => {
     expect(await errorOf(res)).toEqual({
       code: "limit_reached",
       message:
-        "You've used this trial's 15 cover letters, answers and interview prep. Pro has 100 a month. Your full allowance starts on Jan 15.",
+        "You've used this trial's 15 cover letters, answers and interview prep. Pro has 150 a month. Your full allowance starts on Jan 15.",
     });
   });
 

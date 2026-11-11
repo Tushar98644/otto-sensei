@@ -90,8 +90,16 @@ export function proTools(jobs: JobCounts = JOB_COUNTS_FALLBACK): readonly string
 
 export const PRO_TOOLS: readonly string[] = proTools();
 
-const limitLines = (plan: PlanId, period: AllowancePeriod) =>
-  FEATURES.map((feature) => limitLine(plan, feature, period));
+// Pricing states numbers only for what people compare plans on; the other AI features are listed
+// by name, and every exact limit is in the terms.
+const HEADLINE_FEATURES: readonly Feature[] = ["tailor", "letter", "fix"];
+
+const headlineLines = (plan: PlanId, period: AllowancePeriod) =>
+  HEADLINE_FEATURES.map((feature) => limitLine(plan, feature, period));
+
+const namedFeatures = FEATURES.filter((feature) => !HEADLINE_FEATURES.includes(feature)).map(
+  (feature) => FEATURE_LABELS[feature].charAt(0).toUpperCase() + FEATURE_LABELS[feature].slice(1),
+);
 
 /**
  * A plan card's copy for the allowance its picked billing option gives. `jobs`: the live job
@@ -114,14 +122,19 @@ export function planCopy(
       return {
         summary: "Otto's AI help for a busy job hunt with lots of applications.",
         lead: "Everything in Free, plus:",
-        features: [...limitLines("pro", period), ...proTools(jobs), PORTFOLIO_PAGE],
+        features: [
+          ...headlineLines("pro", period),
+          ...namedFeatures,
+          ...proTools(jobs),
+          PORTFOLIO_PAGE,
+        ],
         note: "Cancel anytime from your account",
       };
     case "max":
       return {
         summary: "For a long search, or many roles at once.",
         lead: `Everything in Pro, with more ${each}:`,
-        features: limitLines("max", period),
+        features: headlineLines("max", period),
         note: "Cancel anytime from your account",
       };
   }

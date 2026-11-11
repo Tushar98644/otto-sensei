@@ -240,6 +240,6 @@ describe("POST /api/fix", () => {
     const res = await fix();
     expect(res.status).toBe(429);
     expect(res.headers.get("Retry-After")).toBe(String((renewsAt - Date.UTC(2026, 10, 7, 12)) / 1000));
-    expect((await errorOf(res)).message).toBe("You've used this week's 75 line fixes. Max has 250 a week.");
+    expect((await errorOf(res)).message).toBe("You've used this week's 250 line fixes. Max has 750 a week.");
   });
 });

@@ -50,9 +50,9 @@ describe("plan copy", () => {
     expect(planCopy("max").features).toContain(
       `${PLANS.max.limits.fix.toLocaleString("en-US")} line fixes a month`,
     );
-    for (const plan of ["pro", "max"] as const) {
-      expect(planCopy(plan).features.length).toBeGreaterThanOrEqual(FEATURES.length);
-    }
+    expect(planCopy("pro").features.length).toBeGreaterThanOrEqual(FEATURES.length);
+    expect(planCopy("pro").features).toContain("AI reads of an uploaded resume");
+    expect(planCopy("max").features).toHaveLength(3);
   });
 
   it("writes the trial's allowance for the whole trial", () => {
@@ -64,17 +64,17 @@ describe("plan copy", () => {
   it("lists the weekly numbers a week for weekly Pro and Max, and keeps Free monthly", () => {
     expect(planCopy("pro", "week").features).toEqual([
       "38 tailored versions a week",
-      "25 cover letters, answers and interview prep a week",
-      "75 line fixes a week",
-      "8 AI reads of an uploaded resume a week",
-      "5 Build with Otto drafts a week",
-      "5 GitHub project drafts a week",
+      "38 cover letters, answers and interview prep a week",
+      "250 line fixes a week",
+      "AI reads of an uploaded resume",
+      "Build with Otto drafts",
+      "GitHub project drafts",
       ...PRO_TOOLS,
       "A hosted portfolio site made from your resume, in all 8 designs",
     ]);
     expect(planCopy("pro", "week").lead).toBe("Everything in Free, plus:");
     expect(planCopy("max", "week").features).toContain("75 tailored versions a week");
-    expect(planCopy("max", "week").features).toContain("250 line fixes a week");
+    expect(planCopy("max", "week").features).toContain("750 line fixes a week");
     expect(planCopy("max", "week").features.join(" ")).not.toMatch(/a month/);
     expect(planCopy("free", "week")).toEqual(planCopy("free", "month"));
     expect(limitLine("free", "tailor", "week")).toBe("0 tailored versions a month");
