@@ -68,12 +68,11 @@ export const FREE_BASICS: readonly string[] = [
   `${pluralize(FREE_APPLICATIONS, "tracked application")}, with a follow-up reminder`,
 ];
 
-// "21,000+ quality jobs matched to your resume": the live count of what matching ranks, rounded
-// down (src/lib/job-feed/counts.ts); no number at all when there are too few to state one.
+// The same live open-job count as the home page and the pricing lead, rounded down.
 function jobsLine(jobs: JobCounts): string {
-  const quality = countClaim(jobs.matchable);
-  return quality
-    ? `${quality} quality jobs matched to your resume, with filters and saved jobs`
+  const open = countClaim(jobs.open);
+  return open
+    ? `Every match from ${open} open jobs, with filters and saved jobs`
     : "Open jobs matched to your resume, with filters and saved jobs";
 }
 

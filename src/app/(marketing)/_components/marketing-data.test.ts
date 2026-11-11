@@ -35,7 +35,7 @@ describe("plan copy", () => {
     expect(PRO_TOOLS.join(" ")).toMatch(/All 6 formats and up to 50 resumes/);
     expect(PRO_TOOLS.join(" ")).toMatch(/Word \(\.docx\) downloads/);
     expect(PRO_TOOLS.join(" ")).toMatch(/Track every application/);
-    expect(PRO_TOOLS.join(" ")).toMatch(/matched to your resume/);
+    expect(PRO_TOOLS.join(" ")).toMatch(/Every match from [0-9,]+\+ open jobs/);
     expect(PRO_TOOLS.join(" ")).toMatch(/Share links/);
   });
 

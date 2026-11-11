@@ -18,18 +18,18 @@ describe("countClaim", () => {
 });
 
 describe("the plans' jobs line", () => {
-  it("uses the live count of quality jobs", () => {
+  it("uses the same live open-job count as the home page", () => {
     expect(proTools({ open: 27_833, matchable: 21_456 })).toContain(
-      "21,000+ quality jobs matched to your resume, with filters and saved jobs",
+      "Every match from 27,000+ open jobs, with filters and saved jobs",
     );
     expect(
       planCopy("pro", "month", { open: 27_833, matchable: 21_456 }).features.join(" "),
-    ).toMatch(/21,000\+ quality jobs/);
+    ).toMatch(/27,000\+ open jobs/);
   });
 
   it("falls back to the measured floor, and to no number at all with too few jobs", () => {
     expect(proTools(JOB_COUNTS_FALLBACK)).toContain(
-      "1,000+ quality jobs matched to your resume, with filters and saved jobs",
+      "Every match from 35,000+ open jobs, with filters and saved jobs",
     );
     expect(proTools({ open: 40, matchable: 12 })).toContain(
       "Open jobs matched to your resume, with filters and saved jobs",
