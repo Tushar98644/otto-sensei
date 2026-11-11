@@ -5,6 +5,7 @@ import { useMe } from "@/components/account/use-me";
 import {
   allowancePeriodFor,
   BILLING_INTERVALS,
+  isTrialing,
   PLAN_ORDER,
   PRICES_USD,
   PRO_TRIAL,
@@ -16,6 +17,7 @@ import {
   type PlanId,
 } from "@/config/plans";
 import {
+  endsTrialSentence,
   INTERVAL_NAMES,
   perMonth,
   pizzaLine,
@@ -63,8 +65,10 @@ export function PricingPlans({
   className,
 }: PricingPlansProps) {
   const name = useId();
-  const { me } = useMe();
+  const { me, user } = useMe();
   const trial = me ? me.billing.trial === true : trialOnSale;
+  // Max bought during the Pro trial ends the trial that day, so say so before the checkout.
+  const proTrialing = user !== null && user.plan === "pro" && isTrialing(user);
   const intervals = BILLING_INTERVALS.filter((interval) =>
     (["pro", "max"] as const).some((plan) => offer[plan].includes(interval)),
   );
@@ -147,6 +151,8 @@ export function PricingPlans({
         {plans.map((plan) => {
           const { price, interval, note } = priceFor(plan);
           const onTrial = trial && plan === PRO_TRIAL.plan && interval === PRO_TRIAL.interval;
+          const endsTrial = proTrialing && plan === "max";
+          const cta = planCta(plan, interval, onTrial);
           return (
             <PlanCard
               key={plan}
@@ -155,10 +161,12 @@ export function PricingPlans({
               featured={plan === "pro"}
               price={price}
               allowance={allowancePeriodFor(plan, interval)}
-              cta={planCta(plan, interval, onTrial)}
+              cta={endsTrial ? { ...cta, label: "Start Max now" } : cta}
               priceNote={note}
               jobCounts={jobCounts}
-              note={onTrial ? trialSentence() : undefined}
+              note={
+                onTrial ? trialSentence() : endsTrial ? endsTrialSentence("max", interval) : undefined
+              }
             />
           );
         })}

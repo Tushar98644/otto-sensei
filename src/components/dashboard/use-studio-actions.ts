@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useCallback, useMemo } from "react";
+import { useCallback, useEffect, useMemo } from "react";
 import { roomForResume } from "@/components/account/pro-tools";
 import { OTTO } from "@/components/mascot/lines";
 import { ROUTES } from "@/components/site/routes";
@@ -46,6 +46,12 @@ export function useStudioActions() {
   const setActive = useStudioStore((s) => s.setActive);
   const setStep = useStudioStore((s) => s.setStep);
   const addResume = useStudioStore((s) => s.addResume);
+
+  // Load the studio ahead, so the first click doesn't wait on its page data and show the
+  // full-screen wait.
+  useEffect(() => {
+    router.prefetch(ROUTES.studio);
+  }, [router]);
 
   const go = useCallback(
     (step: StudioStep) => {

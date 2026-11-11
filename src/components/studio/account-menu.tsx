@@ -1,11 +1,19 @@
 "use client";
 
-import { LayoutDashboard, LogIn, LogOut, MessageSquare, UserRound } from "lucide-react";
+import {
+  LayoutDashboard,
+  LogIn,
+  LogOut,
+  MessageSquare,
+  SlidersHorizontal,
+  UserRound,
+} from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 import { signedOutNote } from "@/components/account/copy";
 import { refreshMe, useMe } from "@/components/account/use-me";
 import { FeedbackDialog } from "@/components/feedback/feedback-dialog";
+import { accountSectionHref } from "@/components/setup/links";
 import { ROUTES } from "@/components/site/routes";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -105,6 +113,10 @@ function AccountPanel({ user, onFeedback }: { user: SessionUser; onFeedback: () 
       <Link href={ROUTES.dashboardAccount} className={ITEM} onClick={close}>
         <UserRound className="size-4 text-muted" aria-hidden />
         Account and plan
+      </Link>
+      <Link href={accountSectionHref("work")} className={ITEM} onClick={close}>
+        <SlidersHorizontal className="size-4 text-muted" aria-hidden />
+        Work rights & preferences
       </Link>
       <button
         type="button"

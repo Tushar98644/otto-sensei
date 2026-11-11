@@ -3,11 +3,11 @@
 import Link from "next/link";
 import { useMemo, useState, type FormEvent } from "react";
 import { errorMessage } from "@/components/account/errors";
-import { upgradeInterval } from "@/components/account/upgrade-interval";
+import { upgradeLink } from "@/components/account/upgrade-interval";
 import { refreshMe, useMe } from "@/components/account/use-me";
 import { OttoNote } from "@/components/mascot/otto-note";
 import { OttoWorking } from "@/components/mascot/otto-working";
-import { ROUTES, upgradeHref } from "@/components/site/routes";
+import { ROUTES } from "@/components/site/routes";
 import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Field } from "@/components/ui/field";
@@ -174,7 +174,7 @@ export function PrepForm({ target, resumes, onDone, onCancel }: PrepFormProps) {
             {error.message}{" "}
             {error.upgrade && upgradeTo ? (
               <Link
-                href={upgradeHref(upgradeTo, upgradeInterval(me, upgradeTo))}
+                href={upgradeLink(me, upgradeTo)}
                 className="font-medium underline"
               >
                 Upgrade to {PLANS[upgradeTo].name}

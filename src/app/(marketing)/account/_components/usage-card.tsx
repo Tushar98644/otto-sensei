@@ -1,10 +1,9 @@
 import Link from "next/link";
 import { nearestLimit } from "@/components/account/near-limit";
-import { upgradeInterval } from "@/components/account/upgrade-interval";
+import { upgradeLink } from "@/components/account/upgrade-interval";
 import type { Me } from "@/components/account/use-me";
 import { OTTO } from "@/components/mascot/lines";
 import { OttoNote } from "@/components/mascot/otto-note";
-import { upgradeHref } from "@/components/site/routes";
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -59,7 +58,7 @@ export function UsageCard({ me, plan }: { me: Me; plan: PlanId }) {
         >
           {next ? (
             <Link
-              href={upgradeHref(next, upgradeInterval(me, next))}
+              href={upgradeLink(me, next)}
               className="text-sm font-medium text-ink underline decoration-border-strong underline-offset-4 hover:decoration-ink"
             >
               Upgrade to {PLANS[next].name}

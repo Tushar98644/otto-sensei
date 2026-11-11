@@ -4,12 +4,11 @@ import { ArrowRight, FilePlus, Info, Upload } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 import { roomForResume } from "@/components/account/pro-tools";
-import { upgradeInterval } from "@/components/account/upgrade-interval";
+import { upgradeLink } from "@/components/account/upgrade-interval";
 import { useMe } from "@/components/account/use-me";
 import { GitHubOffer } from "@/components/github/github-offer";
 import { OTTO } from "@/components/mascot/lines";
 import { OttoNote } from "@/components/mascot/otto-note";
-import { upgradeHref } from "@/components/site/routes";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { StatusPill } from "@/components/ui/status";
@@ -104,7 +103,7 @@ export function ReviewStep() {
               Read with the basic reader.{" "}
               {upgradeTo ? (
                 <Link
-                  href={upgradeHref(upgradeTo, upgradeInterval(me, upgradeTo))}
+                  href={upgradeLink(me, upgradeTo)}
                   className="font-medium text-ink underline decoration-border-strong underline-offset-4 hover:decoration-ink"
                 >
                   {(user?.plan ?? "free") === "free" && me?.billing.trial !== false
