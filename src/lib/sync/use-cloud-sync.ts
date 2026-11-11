@@ -6,13 +6,35 @@ import { toast } from "@/components/ui/toast";
 import { resetUser } from "@/lib/analytics/client";
 import { api } from "@/lib/api/client";
 import { useStudioHydrated, useStudioStore } from "@/lib/store/resume-store";
-import { releaseBackedUp, startCloudSync, type CloudSync } from "./cloud-sync";
+import { releaseBackedUp, startCloudSync } from "./cloud-sync";
 import { createLedger, type LedgerStorage } from "./ledger";
+import { createSyncSession } from "./sync-session";
 
-// Backs up the studio to the signed-in account. Mount it once, in the studio shell. Signed-out
-// users get no network traffic at all; their deletions are only noted for a later sign-in.
+// Backs up the studio to the signed-in account. Mounted by the studio and dashboard shells, which
+// share one session per account (sync-session.ts). Signed-out users get no network traffic at all;
+// their deletions are only noted for a later sign-in.
 
-let active: CloudSync | null = null;
+const REREAD_AFTER_MS = 5 * 60_000;
+
+const session = createSyncSession(
+  (userId) =>
+    startCloudSync({
+      userId,
+      api,
+      store: useStudioStore,
+      ledger: createLedger(browserStorage()),
+      onSessionExpired: () => void refreshMe(),
+      // Resumes that weren't on screen leave quietly; only the open one vanishing needs a word.
+      onDeletedElsewhere: ({ wasActive }) => {
+        if (!wasActive) return;
+        toast({
+          title: "Resume deleted on another device",
+          description: "It's been removed here too, so your devices match.",
+        });
+      },
+    }),
+  REREAD_AFTER_MS,
+);
 
 // The first read of the account's resumes in this tab. The dashboard and studio keep the loading
 // screen up until it's in, so resumes from other devices don't pop in after the page shows.
@@ -45,32 +67,21 @@ export function useFirstLoadPending(): boolean {
   return !hydrated || loading || (user !== null && !readDone);
 }
 
-export function useCloudSync(): void {
+/**
+ * `signedInAs`: the account the server already checked for this page (the dashboard layout), so
+ * the first read of its resumes starts beside /api/me instead of waiting for it.
+ */
+export function useCloudSync(signedInAs?: string): void {
   const hydrated = useStudioHydrated();
-  const { user } = useMe();
-  const userId = user?.id ?? null;
+  const { user, loading } = useMe();
+  const userId = user?.id ?? (loading ? (signedInAs ?? null) : null);
 
   useEffect(() => {
     // Merging before localStorage has loaded would treat the user's resumes as missing.
     if (!hydrated) return;
-    const sync = startCloudSync({
-      userId,
-      api,
-      store: useStudioStore,
-      ledger: createLedger(browserStorage()),
-      onSessionExpired: () => void refreshMe(),
-      // Resumes that weren't on screen leave quietly; only the open one vanishing needs a word.
-      onDeletedElsewhere: ({ wasActive }) => {
-        if (!wasActive) return;
-        toast({
-          title: "Resume deleted on another device",
-          description: "It's been removed here too, so your devices match.",
-        });
-      },
-    });
-    active = sync;
+    const sync = session.acquire(userId);
     let cap: ReturnType<typeof setTimeout> | undefined;
-    if (userId) {
+    if (userId && !firstReadDone) {
       cap = setTimeout(finishFirstRead, FIRST_READ_MAX_MS);
       void sync.firstPass.finally(() => {
         clearTimeout(cap);
@@ -85,12 +96,11 @@ export function useCloudSync(): void {
     };
     window.addEventListener("online", flushNow);
     document.addEventListener("visibilitychange", onVisibilityChange);
+    // The session stays up: the next shell (dashboard or studio) picks it up without a new read.
     return () => {
       window.removeEventListener("online", flushNow);
       document.removeEventListener("visibilitychange", onVisibilityChange);
       clearTimeout(cap);
-      sync.stop();
-      if (active === sync) active = null;
     };
   }, [hydrated, userId]);
 }
@@ -98,7 +108,7 @@ export function useCloudSync(): void {
 // Pushes pending changes before something ends the session, such as signing out. Bounded, so a
 // slow server can't hold up the action the user asked for.
 export function flushCloudSync(timeoutMs = 3_000): Promise<void> {
-  const sync = active;
+  const sync = session.current();
   if (!sync) return Promise.resolve();
   return new Promise<void>((resolve) => {
     const timer = setTimeout(resolve, timeoutMs);
@@ -128,7 +138,7 @@ export async function signOutAndRelease(userId: string): Promise<{ kept: number 
   try {
     if (!useStudioStore.persist.hasHydrated()) await useStudioStore.persist.rehydrate();
     // The session it syncs for is over.
-    active?.stop();
+    session.end();
     const ledger = createLedger(browserStorage());
     const { kept } = releaseBackedUp({ userId, store: useStudioStore, ledger, cloud });
     // Deleted resumes stay only in this browser, so on a shared computer the next person could

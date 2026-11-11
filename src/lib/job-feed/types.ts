@@ -1,4 +1,5 @@
 import { z } from "zod";
+import type { JobPosting } from "@/lib/api/types";
 import { isCountryCode, type PlaceGroup } from "@/lib/eligibility/places";
 
 // Client-safe. Openings read every day from public job boards (JOB-SOURCES.md), shown on the Jobs
@@ -373,8 +374,15 @@ export const MatchActionSchema = z
   });
 export type MatchActionInput = z.input<typeof MatchActionSchema>;
 
-// GET /api/jobs/:id. Requires sign-in: the stored text, for the tailor flow.
-export type JobPostResponse = { ok: true; job: FeedJob; text: string };
+// GET /api/jobs/:id. Requires sign-in: the stored text, for the tailor flow. posting: what reading
+// the post from its source said besides the text, the same as reading the job's link would; null
+// (or missing, from a day-old cache) when the text wasn't read from the source.
+export type JobPostResponse = {
+  ok: true;
+  job: FeedJob;
+  text: string;
+  posting?: Omit<JobPosting, "text"> | null;
+};
 
 // PUT/DELETE /api/jobs/saved/:id. Requires sign-in.
 export const SAVED_JOBS_LIMIT = 500;

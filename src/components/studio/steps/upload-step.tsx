@@ -1,7 +1,7 @@
 "use client";
 
 import { FileUp, RotateCcw, ShieldCheck } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useEffectEvent, useRef, useState } from "react";
 import { roomForResume, useProTools, useTryProLabel } from "@/components/account/pro-tools";
 import { openUpgradePrompt } from "@/components/account/upgrade-prompt";
 import { OTTO } from "@/components/mascot/lines";
@@ -9,7 +9,7 @@ import { OttoNote } from "@/components/mascot/otto-note";
 import { OttoWorking } from "@/components/mascot/otto-working";
 import { Button } from "@/components/ui/button";
 import { Dropzone } from "@/components/ui/dropzone";
-import { formatBytes } from "@/components/ui/file-check";
+import { checkFile, formatBytes } from "@/components/ui/file-check";
 import { RESUME_LIMITS, UPLOAD_LIMITS } from "@/config/plans";
 import { track } from "@/lib/analytics/client";
 import { api, isApiError } from "@/lib/api/client";
@@ -20,11 +20,12 @@ import { useResumeList, useStudioStore } from "@/lib/store/resume-store";
 import { noteReadByRules, noteReadWell } from "../import-notes";
 import { GuidedDraft } from "../upload/guided-draft";
 import { clearGuidedDraft, guidedDraftRequested } from "../upload/guided-start";
-import { LocalImportError, readLocalImport, type LocalImportKind } from "../upload/local-import";
+import { clearHandedUpload, handedUpload, UPLOAD_ACCEPT } from "../upload/upload-handoff";
+import type { LocalImportKind } from "../upload/local-import-kinds";
 import { RecentResumes } from "../upload/recent-resumes";
 import { StartOptions } from "../upload/start-options";
 
-const ACCEPT = ".pdf,.docx";
+const ACCEPT = UPLOAD_ACCEPT;
 
 type UploadState =
   | { status: "idle" }
@@ -37,15 +38,25 @@ export function UploadStep() {
   const setActive = useStudioStore((s) => s.setActive);
   const setStep = useStudioStore((s) => s.setStep);
   const resumes = useResumeList();
-  const [state, setState] = useState<UploadState>({ status: "idle" });
+  // A file picked outside the studio ("Upload a file" on the dashboard) is read as the step opens.
+  const [handed] = useState(handedUpload);
+  const [state, setState] = useState<UploadState>(() => {
+    if (!handed) return { status: "idle" };
+    const problem = checkFile(handed, { accept: ACCEPT, maxBytes: UPLOAD_LIMITS.maxBytes });
+    return problem
+      ? { status: "failed", message: OTTO.upload.failed(problem), file: null }
+      : { status: "reading", file: handed };
+  });
   // "Build with Otto" picked outside the studio opens straight on the questions.
   const [guided, setGuided] = useState(guidedDraftRequested);
   // The import can't be aborted, so a result that lands after the user has moved on is dropped.
   const mounted = useRef(false);
+  const handedStarted = useRef(false);
 
   useEffect(() => {
     mounted.current = true;
     clearGuidedDraft();
+    clearHandedUpload();
     return () => {
       mounted.current = false;
     };
@@ -58,7 +69,11 @@ export function UploadStep() {
   const tryPro = useTryProLabel();
 
   async function upload(file: File) {
-    if (!(await roomForResume())) return;
+    if (!(await roomForResume())) {
+      // Only a handed-off file is already shown as reading at this point.
+      setState((current) => (current.status === "reading" ? { status: "idle" } : current));
+      return;
+    }
     setState({ status: "reading", file });
     try {
       const { resume, report, usedAI, basicReader, readWell } = await api.importFile(file);
@@ -75,20 +90,36 @@ export function UploadStep() {
     }
   }
 
+  const startHanded = useEffectEvent(() => {
+    if (!handed || handedStarted.current || state.status !== "reading") return;
+    handedStarted.current = true;
+    void upload(handed);
+  });
+  useEffect(() => startHanded(), []);
+
   // LinkedIn exports and JSON Resume files are read in the browser, so there's no report to review.
   async function importLocal(kind: LocalImportKind, file: File) {
     if (!(await roomForResume())) return;
     setState({ status: "reading", file });
     try {
-      const resume = await readLocalImport(kind, file);
-      if (!mounted.current) return;
-      addResume(resume);
-      track("resume_imported", { source: kind });
-      setStep("fix");
-    } catch (error) {
-      if (!mounted.current) return;
-      const message = error instanceof LocalImportError ? OTTO.upload.failed(error.message) : OTTO.errors.generic;
-      setState({ status: "failed", message, file: null });
+      // Loaded on use: the LinkedIn reader brings a ZIP library (about 50 KB) most visits never need.
+      const { LocalImportError, readLocalImport } = await import("../upload/local-import");
+      try {
+        const resume = await readLocalImport(kind, file);
+        if (!mounted.current) return;
+        addResume(resume);
+        track("resume_imported", { source: kind });
+        setStep("fix");
+      } catch (error) {
+        if (!mounted.current) return;
+        const message =
+          error instanceof LocalImportError
+            ? OTTO.upload.failed(error.message)
+            : OTTO.errors.generic;
+        setState({ status: "failed", message, file: null });
+      }
+    } catch {
+      if (mounted.current) setState({ status: "failed", message: OTTO.errors.generic, file: null });
     }
   }
 

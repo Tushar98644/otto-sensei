@@ -11,6 +11,7 @@ import { api, isApiError } from "@/lib/api/client";
 import type { FixResponse } from "@/lib/api/types";
 import { findBullet, setBulletText } from "@/lib/resume/ops";
 import { EDIT_LABELS } from "@/lib/store/resume-store";
+import { recallFix, rememberFix } from "./fix-memory";
 import { buildAnswers, fixErrorMessage, type FixAnswer, type FixProblem } from "./fix-text";
 import { flashLine } from "./line-flash";
 import { CHAR_LIMITS } from "./limits";
@@ -81,10 +82,14 @@ export function useFixFlow(resumeId: string) {
   const send = useCallback(
     async (target: FixTarget, answers: FixAnswer[]): Promise<Outcome | null> => {
       const id = ++requestRef.current;
+      const request = { bullet: target.text, role: target.role, answers };
+      const known = recallFix(request);
+      if (known) return { response: known };
       try {
-        const response = await api.fix({ bullet: target.text, role: target.role, answers });
+        const response = await api.fix(request);
         // The server counted it either way, so keep the allowance shown elsewhere in step.
         patchMe({ usage: response.usage });
+        rememberFix(request, response);
         return id === requestRef.current ? { response } : null;
       } catch (error) {
         // Checked first: no sign-in or upgrade dialog for a fix the user already walked away from.

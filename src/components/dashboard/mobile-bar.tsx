@@ -3,6 +3,7 @@
 import { Ellipsis } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
+import { useState } from "react";
 import { loginHref } from "@/components/account/next-path";
 import { useProTools } from "@/components/account/pro-tools";
 import { NotificationBell } from "@/components/notifications/notification-bell";
@@ -12,10 +13,11 @@ import { AccountMenu } from "@/components/studio/account-menu";
 import { Menu } from "@/components/ui/menu";
 import { BRAND } from "@/config/brand";
 import { cn } from "@/lib/utils";
+import { LinkPending } from "./link-pending";
 import { isCurrent, PHONE_MORE, PHONE_TABS, showsProBadge } from "./nav";
 
 const SEGMENT =
-  "flex h-10 min-w-0 flex-1 items-center justify-center gap-2 rounded-lg px-2 text-sm font-medium transition-colors -outline-offset-2 max-sm:px-1 max-sm:text-xs";
+  "relative flex h-10 min-w-0 flex-1 items-center justify-center gap-2 rounded-lg px-2 text-sm font-medium transition-colors -outline-offset-2 max-sm:px-1 max-sm:text-xs";
 const CURRENT = "bg-surface text-ink shadow-control";
 const IDLE = "text-muted hover:text-ink aria-expanded:text-ink";
 
@@ -26,6 +28,9 @@ export function MobileBar() {
   const router = useRouter();
   const proTools = useProTools();
   const moreCurrent = PHONE_MORE.find((item) => isCurrent(item, pathname));
+  const [intent, setIntent] = useState<string[]>([]);
+  const showIntent = (href: string) =>
+    setIntent((list) => (list.includes(href) ? list : [...list, href]));
 
   return (
     <header className="sticky top-0 z-30 bg-surface-muted lg:hidden">
@@ -53,10 +58,16 @@ export function MobileBar() {
               <Link
                 key={item.href}
                 href={item.href}
+                // Prefetched on a touch or focus, as in the sidebar (see SidebarLink).
+                prefetch={intent.includes(item.href) ? null : false}
+                onTouchStart={() => showIntent(item.href)}
+                onMouseEnter={() => showIntent(item.href)}
+                onFocus={() => showIntent(item.href)}
                 aria-current={current ? "page" : undefined}
                 data-tour={item.tour}
                 className={cn(SEGMENT, current ? CURRENT : IDLE)}
               >
+                <LinkPending variant="bar" />
                 {/* Small, text-only and short names on small phones, so all five fit without scrolling. */}
                 <item.icon className="hidden size-4 shrink-0 sm:block" aria-hidden />
                 {item.short ? (

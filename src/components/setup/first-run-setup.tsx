@@ -7,7 +7,8 @@ import { useWorkProfile } from "@/components/eligibility/use-work-profile";
 import { loadingScreenUp } from "@/components/mascot/otto-loading-screen";
 import { recordSetupStep, useAccountSetup } from "./use-account-setup";
 import { useSetupStepDecision } from "./use-setup-step";
-import { WorkSetupDialog } from "./work-setup-dialog";
+
+type SetupDialog = typeof import("./work-setup-dialog").WorkSetupDialog;
 
 // Long enough for the loading screen to fade and the page to settle, so the step arrives as part
 // of landing rather than on top of it.
@@ -25,6 +26,23 @@ export function FirstRunSetup() {
   const pro = useProTools();
   // The page it opened on: leaving it (the browser's Back button still works) counts as Skip.
   const [openedOn, setOpenedOn] = useState<string | null>(null);
+  // Shown once per account, so its code isn't part of every dashboard visit. Loaded as soon as
+  // the step is due, well inside START_DELAY_MS, and rendered once here rather than through
+  // Suspense, which would hold it back for React's 300 ms fallback throttle.
+  const [WorkSetupDialog, setWorkSetupDialog] = useState<SetupDialog | null>(null);
+
+  useEffect(() => {
+    if (decision !== "show" || WorkSetupDialog) return;
+    let live = true;
+    import("./work-setup-dialog")
+      .then((module) => {
+        if (live) setWorkSetupDialog(() => module.WorkSetupDialog);
+      })
+      .catch(() => {});
+    return () => {
+      live = false;
+    };
+  }, [decision, WorkSetupDialog]);
 
   useEffect(() => {
     if (decision !== "show" || openedOn !== null) return;
@@ -50,6 +68,7 @@ export function FirstRunSetup() {
   }, [userId, openedOn, pathname, answered]);
 
   if (openedOn === null || !userId || work.status !== "ready" || pro === null) return null;
+  if (!WorkSetupDialog) return null;
   return (
     <WorkSetupDialog
       open={openedOn === pathname && !answered}

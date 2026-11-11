@@ -54,7 +54,12 @@ export type CloudSyncOptions = {
 export type CloudSync = {
   // Sends pending work now. Resolves once idle or after a failure; never rejects.
   flush: () => Promise<void>;
+  // Reads the account again when the last read is older than maxAgeMs, then sends pending work.
+  // Same promise rules as flush.
+  refresh: (maxAgeMs: number) => Promise<void>;
   stop: () => void;
+  // Stopped by stop(), or by the server saying the session is gone.
+  isStopped: () => boolean;
   // Settles once the account's resumes have been read and merged, or that first try failed.
   // Resolved at once when signed out.
   firstPass: Promise<void>;
@@ -135,6 +140,7 @@ export function startCloudSync(options: CloudSyncOptions): CloudSync {
   // deletions of our own.
   let applyingCloud = false;
   let loaded = false;
+  let loadedAt = 0;
   let stopped = false;
   let failures = 0;
   let timer: ReturnType<typeof setTimeout> | undefined;
@@ -270,6 +276,7 @@ export function startCloudSync(options: CloudSyncOptions): CloudSync {
     );
     ledger.claim(Object.keys(store.getState().resumes), user);
     loaded = true;
+    loadedAt = Date.now();
     return true;
   }
 
@@ -358,7 +365,13 @@ export function startCloudSync(options: CloudSyncOptions): CloudSync {
     unsubscribe();
   }
 
+  function refresh(maxAgeMs: number): Promise<void> {
+    if (!userId || stopped) return Promise.resolve();
+    if (loaded && Date.now() - loadedAt >= maxAgeMs) loaded = false;
+    return flush();
+  }
+
   const firstPass = userId ? flush() : Promise.resolve();
 
-  return { flush, stop, firstPass };
+  return { flush, refresh, stop, isStopped: () => stopped, firstPass };
 }

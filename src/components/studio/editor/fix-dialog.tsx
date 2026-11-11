@@ -161,7 +161,13 @@ function FixDialog({ flow, resumeId }: { flow: FixFlow; resumeId: string }) {
           limit={limit}
           period={period}
           signedIn={user !== null}
-          allowance={fixAllowanceText(state.usage.fix, user?.plan, period, me?.billing.trial !== false)}
+          // The account's latest count: a suggestion shown again from memory carries an old one.
+          allowance={fixAllowanceText(
+            me?.usage?.fix ?? state.usage.fix,
+            user?.plan,
+            period,
+            me?.billing.trial !== false,
+          )}
         />
       );
       footer = <ReadyFooter flow={flow} state={state} baseId={baseId} keep={keep} />;

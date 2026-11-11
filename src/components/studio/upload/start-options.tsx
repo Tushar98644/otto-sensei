@@ -3,7 +3,7 @@
 import { ChevronRight } from "lucide-react";
 import { useRef } from "react";
 import { OTTO } from "@/components/mascot/lines";
-import { LOCAL_IMPORTS, type LocalImportKind } from "./local-import";
+import { LOCAL_IMPORT_ACCEPT, type LocalImportKind } from "./local-import-kinds";
 
 export type StartOptionsProps = {
   onGuided: () => void;
@@ -106,7 +106,7 @@ function FileRow({ kind, onFile, ...row }: FileRowProps) {
       <input
         ref={inputRef}
         type="file"
-        accept={LOCAL_IMPORTS[kind].accept}
+        accept={LOCAL_IMPORT_ACCEPT[kind]}
         className="sr-only"
         tabIndex={-1}
         aria-hidden

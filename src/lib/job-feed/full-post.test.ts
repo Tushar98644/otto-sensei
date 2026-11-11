@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { GREENHOUSE_JOB } from "@/lib/jobs/test-fixtures";
 import { fakeNet } from "@/lib/jobs/test-network";
-import { fullPostText } from "./full-post";
+import { fullPostText, readFullPost } from "./full-post";
 import { RECRUITEE_OFFERS } from "./test-fixtures";
 
 vi.mock("node:dns", async (importOriginal) =>
@@ -66,5 +66,29 @@ describe("fullPostText", () => {
     const feed = { ...STORED, source: "remoteok" as const, board: "", description: "Kept text." };
     expect(await fullPostText(feed)).toBe("Kept text.");
     expect(fakeNet.requests).toHaveLength(0);
+  });
+});
+
+describe("readFullPost", () => {
+  it("keeps what the read said, so the tailor flow needn't read the link again", async () => {
+    fakeNet.json(
+      "https://boards-api.greenhouse.io/v1/boards/gitlab/jobs/8638232002?questions=true",
+      GREENHOUSE_JOB,
+    );
+    const { text, posting } = await readFullPost(STORED);
+    expect(text).toContain("Salary range: $120,000–$180,000 & equity.");
+    expect(posting?.source).toBe("greenhouse");
+    expect(posting).not.toHaveProperty("text");
+  });
+
+  it("has no posting when the text is the stored one", async () => {
+    fakeNet.json(
+      "https://boards-api.greenhouse.io/v1/boards/gitlab/jobs/8638232002?questions=true",
+      { status: 404 },
+      404,
+    );
+    expect((await readFullPost({ ...STORED, description: "Opening only." })).posting).toBeNull();
+    const feed = { ...STORED, source: "remoteok" as const, board: "", description: "Kept text." };
+    expect(await readFullPost(feed)).toEqual({ text: "Kept text.", posting: null });
   });
 });

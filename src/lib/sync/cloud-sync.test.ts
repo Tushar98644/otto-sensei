@@ -234,6 +234,26 @@ describe("startCloudSync", () => {
     expect(api.putResume).not.toHaveBeenCalled();
   });
 
+  it("reads the account again on refresh only once the last read is old enough", async () => {
+    const { api, cloud } = fakeAccount();
+    const sync = start(api, createLedger(memoryStorage()));
+    await sync.firstPass;
+
+    await sync.refresh(300_000);
+    expect(api.listResumes).toHaveBeenCalledTimes(1);
+
+    const later = resume("Made on another device", 5_000);
+    cloud.set(later.id, later);
+    await vi.advanceTimersByTimeAsync(300_000);
+    await sync.refresh(300_000);
+
+    expect(api.listResumes).toHaveBeenCalledTimes(2);
+    expect(local()[later.id]?.title).toBe("Made on another device");
+    expect(sync.isStopped()).toBe(false);
+    sync.stop();
+    expect(sync.isStopped()).toBe(true);
+  });
+
   it("retries a failed upload on the next change", async () => {
     const mine = resume("Draft", 1_000);
     store().addResume(mine);

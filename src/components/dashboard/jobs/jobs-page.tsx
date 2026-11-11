@@ -12,7 +12,7 @@ import { Otto } from "@/components/mascot/otto";
 import { OttoNote } from "@/components/mascot/otto-note";
 import { JobsWorkPrompt } from "@/components/setup/jobs-work-prompt";
 import { useNow } from "@/components/studio/use-now";
-import { queueJobForTailor } from "@/components/studio/tailor/session";
+import { queueJobForTailor, type QueuedJob } from "@/components/studio/tailor/session";
 import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -99,6 +99,7 @@ export function JobsPage() {
   const [savingChoice, setSavingChoice] = useState(false);
   // Waits for the work profile, so a remote-only default doesn't cost a second request.
   const { state, retry, patch, profile, lookingFor } = useJobMatches({
+    userId,
     resume: profileSettled ? resume : null,
     view,
     filters,
@@ -174,10 +175,14 @@ export function JobsPage() {
     note(job, "tailor");
     setBusy({ id: job.id, action: "tailor" });
     let text = "";
+    let posting: QueuedJob["posting"];
     try {
       // The post as the server read it from the board's own API (or the text a feed's job
-      // keeps): the Tailor step's backup when the job's link can't be read.
-      text = (await api.jobPost(job.id)).text;
+      // keeps). Read just now, it comes with what the read said and the Tailor step uses it
+      // without reading the link again; otherwise it's the backup when the link can't be read.
+      const post = await api.jobPost(job.id);
+      text = post.text;
+      posting = post.posting ?? undefined;
     } catch {
       // The link alone still works for the boards; the feeds' jobs need their text.
       if (!readsLink(job)) {
@@ -199,6 +204,7 @@ export function JobsPage() {
       postedAt: job.postedAt,
       readLink: readsLink(job),
       jobId: job.id,
+      posting,
     });
     actions.open(resume.id, "tailor");
   }

@@ -2,15 +2,18 @@
 
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo } from "react";
-import { roomForResume } from "@/components/account/pro-tools";
+import { roomForResume, useProTools } from "@/components/account/pro-tools";
+import { openUpgradePrompt } from "@/components/account/upgrade-prompt";
 import { OTTO } from "@/components/mascot/lines";
 import { ROUTES } from "@/components/site/routes";
 import { requestGuidedDraft } from "@/components/studio/upload/guided-start";
+import { handOffUpload, UPLOAD_ACCEPT } from "@/components/studio/upload/upload-handoff";
 import {
   LOCAL_IMPORT_ACCEPT,
   type LocalImportKind,
 } from "@/components/studio/upload/local-import-kinds";
 import { toast } from "@/components/ui/toast";
+import { RESUME_LIMITS } from "@/config/plans";
 import { track } from "@/lib/analytics/client";
 import { useStudioStore, type StudioStep } from "@/lib/store/resume-store";
 import { createSampleResume } from "@/lib/resume/sample";
@@ -46,6 +49,7 @@ export function useStudioActions() {
   const setActive = useStudioStore((s) => s.setActive);
   const setStep = useStudioStore((s) => s.setStep);
   const addResume = useStudioStore((s) => s.addResume);
+  const pro = useProTools();
 
   // Load the studio ahead, so the first click doesn't wait on its page data and show the
   // full-screen wait.
@@ -100,10 +104,21 @@ export function useStudioActions() {
   return useMemo(
     () => ({
       open,
-      upload: () =>
-        void roomForResume().then((room) => {
-          if (room) go("upload");
-        }),
+      // The picker opens inside the click (browsers ignore it later), so the room check that can
+      // wait comes after; an account already known to be full gets the prompt instead.
+      upload: () => {
+        if (pro === false && useStudioStore.getState().order.length >= RESUME_LIMITS.free) {
+          openUpgradePrompt("resumes");
+          return;
+        }
+        chooseFile(UPLOAD_ACCEPT, (file) => {
+          void roomForResume().then((room) => {
+            if (!room) return;
+            handOffUpload(file);
+            go("upload");
+          });
+        });
+      },
       guided: () =>
         void roomForResume().then((room) => {
           if (!room) return;
@@ -125,7 +140,7 @@ export function useStudioActions() {
           go("fix");
         }),
     }),
-    [addResume, go, importLocal, open],
+    [addResume, go, importLocal, open, pro],
   );
 }
 

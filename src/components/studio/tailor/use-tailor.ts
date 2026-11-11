@@ -10,6 +10,7 @@ import { newId, type Resume } from "@/lib/resume/schema";
 import {
   clearQueuedJob,
   loadResult,
+  sameRun,
   type QueuedJob,
   type ReadJob,
   type SavedResult,
@@ -66,6 +67,12 @@ export function useTailorRun(source: Resume): TailorRun {
 
   async function start(job: TailorDraft) {
     if (busy.current) return;
+    // The same resume against the same post (Tailor again from the Jobs tab, or Compare with
+    // nothing changed): the results on screen are the answer, and another call would spend a tailor.
+    if (last && sameRun(last, source, job)) {
+      setError(null);
+      return;
+    }
     busy.current = true;
     setError(null);
     try {
@@ -79,6 +86,7 @@ export function useTailorRun(source: Resume): TailorRun {
       setLast({
         id: newId(),
         sourceId: source.id,
+        sourceUpdatedAt: source.updatedAt,
         job,
         result: response.result,
         demo: response.demo === true,
@@ -262,6 +270,20 @@ export function useJobLink({ draft, onChange, onSubmit, busy, queued = null }: J
     const timer = window.setTimeout(() => {
       queuedJob.current = null;
       clearQueuedJob();
+      // Read just now by the server for the Jobs tab, the same way the link would be: used as is.
+      if (job.posting && job.text.trim()) {
+        const next: TailorDraft = {
+          link: job.link,
+          posting: job.posting,
+          paste: false,
+          title: job.posting.title,
+          company: job.posting.company,
+          text: job.text,
+        };
+        sendAfterRender.current = next;
+        onChange(next);
+        return;
+      }
       if (job.readLink) {
         onChange({ ...draft, link: job.link, posting: null, paste: false });
         void read(job.link, job);

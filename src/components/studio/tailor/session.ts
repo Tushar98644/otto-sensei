@@ -2,6 +2,7 @@ import { TEXT_LIMITS } from "@/config/plans";
 import type { TailorResult } from "@/lib/ai/types";
 import { sameJobUrl } from "@/lib/applications/thread";
 import type { JobPosting, JobSource } from "@/lib/api/types";
+import type { Resume } from "@/lib/resume/schema";
 import type { ScreeningQuestion } from "@/lib/ats/types";
 import type { RequirementChoice, TailorChoices } from "./apply";
 
@@ -31,6 +32,9 @@ export type SavedResult = {
   id: string;
   // The resume the result was made for: its bullet ids only fit that one.
   sourceId: string;
+  // That resume's updatedAt when it was sent, to tell an unchanged resume from an edited one.
+  // Optional: results saved before this field existed don't say.
+  sourceUpdatedAt?: number;
   // The post as it was sent, to tell when the draft has moved on.
   job: TailorDraft;
   result: TailorResult;
@@ -54,6 +58,18 @@ type Saved = { version: 1; draft: TailorDraft; last: SavedResult | null };
 const STORAGE_KEY = "otto-tailor-v1";
 
 export const EMPTY_DRAFT: TailorDraft = { title: "", company: "", text: "" };
+
+/** True when `last` was made from this very version of the resume and the same post. */
+export function sameRun(last: SavedResult, source: Resume, job: TailorDraft): boolean {
+  const same = (a: string, b: string) => a.trim() === b.trim();
+  return (
+    last.sourceId === source.id &&
+    last.sourceUpdatedAt === source.updatedAt &&
+    same(last.job.text, job.text) &&
+    same(last.job.title, job.title) &&
+    same(last.job.company, job.company)
+  );
+}
 
 const isString = (value: unknown): value is string => typeof value === "string";
 const isTime = (value: unknown): value is number | null =>
@@ -213,6 +229,7 @@ function toSavedResult(last: SavedResult): SavedResult {
     result: { ...last.result, requirements },
   };
   if (last.demo === true) clean.demo = true;
+  if (typeof last.sourceUpdatedAt === "number") clean.sourceUpdatedAt = last.sourceUpdatedAt;
   const choices = toChoices(last.choices);
   if (choices) clean.choices = choices;
   const letter = toWriting(last.letter);
@@ -256,6 +273,9 @@ export type QueuedJob = {
   readLink: boolean;
   // The opening's id on the Jobs tab, kept on the copy (tailor.jobId) so they find each other.
   jobId?: string;
+  // The post as the server just read it from its source for the Jobs tab: used as if the link had
+  // been read, so the step doesn't read the same post again before tailoring.
+  posting?: ReadJob;
 };
 
 const QUEUE_KEY = "otto-tailor-queued-v1";
@@ -312,6 +332,7 @@ export function peekQueuedJob(): QueuedJob | null {
     ) {
       return null;
     }
+    const posting = readJob(job.posting);
     return {
       link: job.link,
       title: job.title,
@@ -320,6 +341,7 @@ export function peekQueuedJob(): QueuedJob | null {
       text: job.text,
       postedAt: typeof job.postedAt === "number" ? job.postedAt : null,
       readLink: job.readLink,
+      ...(posting ? { posting } : {}),
     };
   } catch {
     return null;

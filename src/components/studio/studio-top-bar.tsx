@@ -1,7 +1,9 @@
 "use client";
 
 import Link from "next/link";
+import { useMe } from "@/components/account/use-me";
 import { OttoMark } from "@/components/site/otto-mark";
+import { ROUTES } from "@/components/site/routes";
 import { Skeleton } from "@/components/ui/skeleton";
 import { BRAND } from "@/config/brand";
 import { useStudioStore } from "@/lib/store/resume-store";
@@ -17,11 +19,14 @@ export type StudioTopBarProps = {
 
 export function StudioTopBar({ hydrated, onSignIn }: StudioTopBarProps) {
   const activeId = useStudioStore((s) => s.activeId);
+  // Signed in, home is the dashboard. The sales page would also send them there, but only on a
+  // full page load: a client-side move to the prefetched "/" just shows the sales page.
+  const { user } = useMe();
   return (
     <header className="sticky top-0 z-30 bg-surface-muted">
       <div className="mx-auto flex h-16 w-full max-w-5xl items-center gap-2 px-4 sm:gap-4 sm:px-6">
         <Link
-          href="/"
+          href={user ? ROUTES.dashboard : ROUTES.home}
           aria-label={`${BRAND.name} home`}
           className="flex h-11 shrink-0 items-center gap-2 rounded-lg pr-1"
         >

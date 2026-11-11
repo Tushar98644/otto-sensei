@@ -19,7 +19,7 @@ import { useStudioActions } from "./use-studio-actions";
 export function AppShell({ initialUser, children }: { initialUser: SessionUser; children: ReactNode }) {
   const router = useRouter();
   // Brings in resumes backed up from other devices, and sends deletions made here to the account.
-  useCloudSync();
+  useCloudSync(initialUser.id);
   useOttoLoadingScreen(useFirstLoadPending(), "Loading your resumes");
   const { me, user, loading } = useMe();
   const actions = useStudioActions();

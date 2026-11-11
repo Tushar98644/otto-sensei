@@ -1,9 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { TailorResult } from "@/lib/ai/types";
+import { emptyResume } from "@/lib/resume/schema";
 import {
   EMPTY_DRAFT,
   loadDraft,
   loadResult,
+  peekQueuedJob,
+  queueJobForTailor,
+  sameRun,
   saveTailorSession,
   type SavedResult,
   type TailorDraft,
@@ -215,5 +219,65 @@ describe("tailor session", () => {
     delete old.requirements;
     storage.setItem("otto-tailor-v1", JSON.stringify({ version: 1, draft: EMPTY_DRAFT, last: { ...saved, result: old } }));
     expect(loadResult("resume-1")?.result.requirements).toEqual([]);
+  });
+});
+
+describe("queued job from the Jobs tab", () => {
+  const job = {
+    link: "https://job-boards.greenhouse.io/gitlab/jobs/8638232002",
+    title: "AI Transformation Owner, CRO",
+    company: "GitLab",
+    location: "Remote, United States",
+    text: "GitLab is the intelligent orchestration platform for DevSecOps.",
+    postedAt: Date.UTC(2026, 6, 22),
+    readLink: false,
+    jobId: "job-1",
+  };
+  const posting = {
+    url: job.link,
+    source: "greenhouse" as const,
+    title: job.title,
+    company: job.company,
+    location: job.location,
+    firstPostedAt: Date.UTC(2026, 6, 22),
+    updatedAt: Date.UTC(2026, 10, 6),
+    closesAt: null,
+    questions: [
+      { label: "Can you work in the US?", required: true, kind: "yes_no" as const, options: ["Yes", "No"], optionCount: 2 },
+    ],
+  };
+
+  it("carries the post as the server read it, questions included", () => {
+    queueJobForTailor({ ...job, posting });
+    expect(peekQueuedJob()?.posting).toEqual(posting);
+  });
+
+  it("drops a damaged posting and keeps the job", () => {
+    queueJobForTailor({ ...job, posting: { ...posting, source: "nowhere" as never } });
+    const queued = peekQueuedJob();
+    expect(queued?.posting).toBeUndefined();
+    expect(queued?.text).toBe(job.text);
+  });
+});
+
+describe("sameRun", () => {
+  const source = { ...emptyResume(5_000), id: "resume-1" };
+  const run: SavedResult = { ...saved, sourceUpdatedAt: 5_000 };
+
+  it("matches the same resume version against the same post", () => {
+    expect(sameRun(run, source, { ...saved.job, text: " A long job post.\n" })).toBe(true);
+  });
+
+  it("runs again for an edited resume, another post or another resume", () => {
+    expect(sameRun(run, { ...source, updatedAt: 6_000 }, saved.job)).toBe(false);
+    expect(sameRun(run, source, { ...saved.job, text: "Another post." })).toBe(false);
+    expect(sameRun(run, { ...source, id: "resume-2" }, saved.job)).toBe(false);
+    // Saved before the version was kept: no way to tell, so it runs.
+    expect(sameRun(saved, source, saved.job)).toBe(false);
+  });
+
+  it("keeps the resume version across a reload", () => {
+    saveTailorSession(saved.job, run);
+    expect(loadResult("resume-1")?.sourceUpdatedAt).toBe(5_000);
   });
 });

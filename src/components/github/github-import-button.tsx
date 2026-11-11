@@ -1,18 +1,16 @@
 "use client";
 
 import { FolderGit } from "lucide-react";
-import { lazy, Suspense, useState } from "react";
+import { useState } from "react";
 import { useProTools } from "@/components/account/pro-tools";
 import { openFeaturePrompt } from "@/components/account/upgrade-prompt";
 import { Badge } from "@/components/ui/badge";
 import { Button, type ButtonSize, type ButtonVariant } from "@/components/ui/button";
+import { toast } from "@/components/ui/toast";
 import type { Resume } from "@/lib/resume/schema";
 import { useStudioStore } from "@/lib/store/resume-store";
 
-// Loaded on first use: most people never open it.
-const GitHubImportDialog = lazy(() =>
-  import("./github-import-dialog").then((module) => ({ default: module.GitHubImportDialog })),
-);
+type Dialog = typeof import("./github-import-dialog").GitHubImportDialog;
 
 export type GitHubImportButtonProps = {
   resumeId: string;
@@ -39,6 +37,25 @@ export function GitHubImportButton({
 }: GitHubImportButtonProps) {
   const locked = useProTools() === false;
   const [dialog, setDialog] = useState({ used: false, open: false });
+  // Loaded on first use (most people never open it), and shown once loaded rather than through
+  // Suspense, which would hold it back for React's 300 ms fallback throttle.
+  const [GitHubImportDialog, setGitHubImportDialog] = useState<Dialog | null>(null);
+
+  function open() {
+    setDialog({ used: true, open: true });
+    if (GitHubImportDialog) return;
+    import("./github-import-dialog").then(
+      (module) => setGitHubImportDialog(() => module.GitHubImportDialog),
+      () => {
+        setDialog({ used: false, open: false });
+        toast({
+          title: "Couldn't open GitHub import",
+          description: "Try again in a moment.",
+          variant: "error",
+        });
+      },
+    );
+  }
   // Followed only once the dialog has been opened, so typing elsewhere doesn't rerender this.
   const resume = useStudioStore((state) =>
     dialog.used && Object.hasOwn(state.resumes, resumeId) ? state.resumes[resumeId] : undefined,
@@ -52,7 +69,7 @@ export function GitHubImportButton({
         className={className}
         onClick={() => {
           if (locked) openFeaturePrompt("github");
-          else setDialog({ used: true, open: true });
+          else open();
         }}
       >
         <FolderGit aria-hidden />
@@ -63,15 +80,13 @@ export function GitHubImportButton({
           </Badge>
         ) : null}
       </Button>
-      {resume ? (
-        <Suspense fallback={null}>
-          <GitHubImportDialog
-            resume={resume}
-            open={dialog.open}
-            onOpenChange={(open) => setDialog({ used: true, open })}
-            onAdded={onAdded}
-          />
-        </Suspense>
+      {resume && GitHubImportDialog ? (
+        <GitHubImportDialog
+          resume={resume}
+          open={dialog.open}
+          onOpenChange={(next) => setDialog({ used: true, open: next })}
+          onAdded={onAdded}
+        />
       ) : null}
     </>
   );

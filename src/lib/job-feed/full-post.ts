@@ -1,3 +1,4 @@
+import type { JobPosting } from "@/lib/api/types";
 import { JobReadError } from "@/lib/jobs/errors";
 import { readJob } from "@/lib/jobs/read";
 import type { JobTarget } from "@/lib/jobs/url";
@@ -41,19 +42,30 @@ function targetOf(job: Stored, url: URL): JobTarget | null {
   }
 }
 
+// posting: everything the read gave besides the text (dates, the application form's questions),
+// exactly what a pasted link of the same job reads; null when the text wasn't read just now.
+export type FullPost = { text: string; posting: Omit<JobPosting, "text"> | null };
+
 /** The full text of an open job, the stored text for the feeds that keep it, or "". */
 export async function fullPostText(job: Stored, now = Date.now()): Promise<string> {
-  if (!SOURCE_INFO[job.source].liveText || job.closed) return job.description;
+  return (await readFullPost(job, now)).text;
+}
+
+/** fullPostText, plus what the read said about the post, so the tailor flow needn't read it again. */
+export async function readFullPost(job: Stored, now = Date.now()): Promise<FullPost> {
+  const kept: FullPost = { text: job.description, posting: null };
+  if (!SOURCE_INFO[job.source].liveText || job.closed) return kept;
   let target: JobTarget | null = null;
   try {
     target = targetOf(job, new URL(job.url));
   } catch {
-    return job.description;
+    return kept;
   }
-  if (!target || (job.source !== "jobicy" && !job.board)) return job.description;
+  if (!target || (job.source !== "jobicy" && !job.board)) return kept;
   const started = Date.now();
   try {
-    return (await readJob(target, now, FULL_POST_BUDGET_MS)).text;
+    const { text, ...posting } = await readJob(target, now, FULL_POST_BUDGET_MS);
+    return { text, posting };
   } catch (error) {
     if (error instanceof JobReadError) {
       log.info("jobs.full_post_failed", {
@@ -64,6 +76,6 @@ export async function fullPostText(job: Stored, now = Date.now()): Promise<strin
     } else {
       log.error("jobs.full_post_error", error, { source: job.source });
     }
-    return job.description;
+    return kept;
   }
 }

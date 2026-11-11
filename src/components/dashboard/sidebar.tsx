@@ -34,6 +34,7 @@ import { signOutAndRelease } from "@/lib/sync/use-cloud-sync";
 import { trialEndDay } from "@/lib/usage-copy";
 import { cn } from "@/lib/utils";
 import { NewResumeMenu } from "./new-resume-menu";
+import { LinkPending } from "./link-pending";
 import { APP_NAV, APP_NAV_FOOTER, isCurrent, showsProBadge, type AppNavItem } from "./nav";
 import type { StudioActions } from "./use-studio-actions";
 
@@ -115,9 +116,18 @@ function SidebarLink({
   count: number | null;
 }) {
   const current = isCurrent(item, pathname);
+  // Prefetched once the pointer or focus arrives, not as soon as the sidebar shows: viewport
+  // prefetching sent 18 requests (two per page) on every dashboard load for pages most visits
+  // never open.
+  const [intent, setIntent] = useState(false);
+  const showIntent = () => setIntent(true);
   return (
     <Link
       href={item.href}
+      prefetch={intent ? null : false}
+      onMouseEnter={showIntent}
+      onFocus={showIntent}
+      onTouchStart={showIntent}
       aria-current={current ? "page" : undefined}
       data-tour={item.tour}
       className={cn(
@@ -129,6 +139,7 @@ function SidebarLink({
     >
       <item.icon className={cn("size-4", current ? "text-ink" : "text-muted")} aria-hidden />
       <span className="flex-1">{item.label}</span>
+      <LinkPending />
       {total !== null ? (
         <span className="text-xs text-muted tabular-nums">
           <span className="sr-only">(</span>

@@ -22,7 +22,6 @@ import { useRouter } from "next/navigation";
 import { useId, useMemo, useState } from "react";
 import { useProTools } from "@/components/account/pro-tools";
 import { openFeaturePrompt } from "@/components/account/upgrade-prompt";
-import { GitHubImportDialog } from "@/components/github/github-import-dialog";
 import { OttoCheer } from "@/components/mascot/otto-cheer";
 import { portfolioFrom } from "@/components/portfolio/route";
 import { useShareResume } from "@/components/share/use-share-resume";
@@ -33,6 +32,7 @@ import { Button, buttonClasses } from "@/components/ui/button";
 import { FolderCard } from "@/components/ui/folder-card";
 import { Menu } from "@/components/ui/menu";
 import { StatusPill } from "@/components/ui/status";
+import { toast } from "@/components/ui/toast";
 import { downloadJsonResume } from "@/lib/jsonresume/download";
 import { lintResume } from "@/lib/lint/bullets";
 import { TEMPLATE_INFO, templateOf } from "@/lib/pdf/templates";
@@ -46,6 +46,8 @@ import { SOURCE_TABS, tailoredJob } from "./library";
 import { linesChip, reportChip } from "./resume-status";
 import { ResumeThumbnail } from "./resume-thumbnail";
 import type { StudioActions } from "./use-studio-actions";
+
+type GitHubDialog = typeof import("@/components/github/github-import-dialog").GitHubImportDialog;
 
 export type ResumeCardProps = {
   resume: Resume;
@@ -96,6 +98,26 @@ export function ResumeCard({
   // The GitHub dialog mounts on first use, like the share dialog, and stays mounted after so
   // closing it hands focus back to the menu.
   const [github, setGithub] = useState({ used: false, open: false });
+  // Loaded on first use: most people never open it, and every card would otherwise bring it into
+  // the dashboard's first load. Shown once loaded rather than through Suspense, which would hold
+  // it back for React's 300 ms fallback throttle.
+  const [GitHubImportDialog, setGitHubImportDialog] = useState<GitHubDialog | null>(null);
+
+  function openGitHub() {
+    setGithub({ used: true, open: true });
+    if (GitHubImportDialog) return;
+    import("@/components/github/github-import-dialog").then(
+      (module) => setGitHubImportDialog(() => module.GitHubImportDialog),
+      () => {
+        setGithub({ used: false, open: false });
+        toast({
+          title: "Couldn't open GitHub import",
+          description: "Try again in a moment.",
+          variant: "error",
+        });
+      },
+    );
+  }
   // GitHub drafts are Pro: on Free the menu item offers the trial instead of a dialog that stops
   // at its last step.
   const githubLocked = useProTools() === false;
@@ -208,10 +230,7 @@ export function ResumeCard({
                   label: "Import from GitHub",
                   icon: FolderGit,
                   description: githubLocked ? "Comes with Pro" : undefined,
-                  onSelect: () =>
-                    githubLocked
-                      ? openFeaturePrompt("github")
-                      : setGithub({ used: true, open: true }),
+                  onSelect: () => (githubLocked ? openFeaturePrompt("github") : openGitHub()),
                 },
                 "separator",
                 {
@@ -246,7 +265,7 @@ export function ResumeCard({
           </div>
         </div>
       </FolderCard>
-      {github.used ? (
+      {github.used && GitHubImportDialog ? (
         <GitHubImportDialog
           resume={resume}
           open={github.open}
