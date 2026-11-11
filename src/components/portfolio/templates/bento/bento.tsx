@@ -2,15 +2,7 @@ import type { ReactNode } from "react";
 import type { ContentProject, ContentSocial } from "@/lib/portfolio/content";
 import { compactNumber } from "@/lib/portfolio/metrics";
 import { SocialIcon } from "../icons";
-import {
-  DesignCredit,
-  featuredFirst,
-  nameOf,
-  OutLink,
-  seeded,
-  seedOf,
-  TemplateStyle,
-} from "../parts";
+import { featuredFirst, nameOf, OutLink, seeded, seedOf, TemplateStyle } from "../parts";
 import type { PortfolioTemplateProps } from "../types";
 import { AccentSwatches, TimeZoneTile } from "./islands";
 import { PixelArrow, PixelGitHub, PixelLinkedIn } from "./pixel-icons";
@@ -20,7 +12,7 @@ import { BENTO_CSS } from "./styles";
 // astro-bento-portfolio, MIT; ./LICENSE.txt) for anyone's data. One screen of framed tiles on a
 // fading grid: intro with pixel initials and social buttons, stack and tools, contact details,
 // live local time against the reader's, GitHub, "now", projects (each with a pixel mark drawn from
-// its name, where he has pictures), experience, accent swatches and the credit.
+// its name, where he has pictures), experience and accent swatches.
 
 const INTRO_PARAGRAPHS = 3;
 const INTRO_BUTTONS = 3;
@@ -349,7 +341,6 @@ export function BentoTemplate({ view, content, footer }: PortfolioTemplateProps)
             <p>
               &copy; {year} · Crafted with <PixelHeart /> by {name}
             </p>
-            <DesignCredit id="bento" />
             {footer ? <div className="credit">{footer}</div> : null}
           </div>
         </Tile>

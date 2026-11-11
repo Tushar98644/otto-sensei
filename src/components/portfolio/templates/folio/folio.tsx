@@ -1,6 +1,6 @@
 import type { CSSProperties } from "react";
 import type { ContentProject } from "@/lib/portfolio/content";
-import { DesignCredit, Marked, nameOf, OutLink, seeded, seedOf, TemplateStyle } from "../parts";
+import { Marked, nameOf, OutLink, seeded, seedOf, TemplateStyle } from "../parts";
 import type { PortfolioTemplateProps } from "../types";
 import { FOLIO_CSS } from "./styles";
 
@@ -217,10 +217,7 @@ export function FolioTemplate({ view, content, footer }: PortfolioTemplateProps)
             </section>
           ) : null}
         </div>
-        <footer className="foot">
-          <DesignCredit id="folio" />
-          {footer ? <div className="credit">{footer}</div> : null}
-        </footer>
+        <footer className="foot">{footer ? <div className="credit">{footer}</div> : null}</footer>
       </div>
     </div>
   );

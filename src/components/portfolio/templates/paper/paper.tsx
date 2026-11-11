@@ -1,7 +1,7 @@
 import { ArrowUpRight, Library, Mail, PenLine, PencilRuler, Shapes } from "lucide-react";
 import type { CSSProperties, ReactNode } from "react";
 import type { ContentShelfItem } from "@/lib/portfolio/content";
-import { DesignCredit, Marked, nameOf, OutLink, TemplateStyle } from "../parts";
+import { Marked, nameOf, OutLink, TemplateStyle } from "../parts";
 import type { PortfolioTemplateProps } from "../types";
 import { FooterClock } from "./islands";
 import { PAPER_CSS } from "./styles";
@@ -562,10 +562,7 @@ export function PaperTemplate({ view, content, footer }: PortfolioTemplateProps)
             ) : null}
           </div>
         </div>
-        <div className="ends">
-          <DesignCredit id="paper" />
-          {footer ? <div className="credit">{footer}</div> : null}
-        </div>
+        <div className="ends">{footer ? <div className="credit">{footer}</div> : null}</div>
       </footer>
 
       <nav className="dock" aria-label="Dock">

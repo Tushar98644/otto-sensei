@@ -4,7 +4,6 @@ import type { ContentProject } from "@/lib/portfolio/content";
 import { GitHubIcon, SocialIcon } from "../icons";
 import {
   contactHref,
-  DesignCredit,
   featuredFirst,
   Marked,
   nameOf,
@@ -363,7 +362,6 @@ export function NavyTemplate({ view, content, footer }: PortfolioTemplateProps) 
               </ul>
             </div>
           ) : null}
-          <DesignCredit id="navy" />
           {footer ? <div className="credit">{footer}</div> : null}
         </footer>
       </div>

@@ -17,7 +17,6 @@ import { GitHubIcon } from "../icons";
 import {
   allSkills,
   contactHref,
-  DesignCredit,
   Marked,
   nameOf,
   OutLink,
@@ -421,10 +420,7 @@ export function DockTemplate({ view, content, footer }: PortfolioTemplateProps) 
           </section>
         </div>
       </div>
-      <footer className="foot">
-        <DesignCredit id="dock" />
-        {footer ? <div className="credit">{footer}</div> : null}
-      </footer>
+      <footer className="foot">{footer ? <div className="credit">{footer}</div> : null}</footer>
       <Dock home={{ href: "#pf-dock-top", label: "Home", kind: "home" }} socials={dockSocials} />
     </div>
   );

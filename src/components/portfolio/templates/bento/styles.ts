@@ -196,7 +196,6 @@ b { font-weight: 700; }
 .foot { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.25rem; height: 100%; text-align: center; font-size: 0.625rem; line-height: 0.875rem; }
 .foot p { margin: 0; }
 .foot .heart { display: inline-block; vertical-align: middle; width: 25px; height: 21px; margin: 0 0.25rem; image-rendering: pixelated; }
-.foot .design-credit { font-size: 0.625rem; line-height: 0.875rem; opacity: 1; color: var(--darkslate-300); }
 .foot .credit { padding: 0; font-size: 0.625rem; line-height: 0.875rem; }
 .foot .credit a { gap: 4px; color: var(--primary-500); }
 .foot .credit svg { width: 14px; height: 14px; }

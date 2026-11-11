@@ -7,8 +7,8 @@ template folder also keeps the original copyright and licence text in its own `L
 
 Each template rebuilds a real, MIT-licensed portfolio for our users' data. We reuse the
 original's layout, styles and interaction code; never its owner's text, photos, project images,
-logos or paid fonts. Every published page prints "Design based on <author>'s <work> (MIT)" with a
-link to the original.
+logos or paid fonts. MIT asks for the notice to travel with the code, which this file and each
+folder's `LICENSE.txt` do; published pages carry no credit line (owner, 2026-11-11).
 
 | Template | Based on | Copyright | Licence | Source commit | Code here | Font swaps |
 |---|---|---|---|---|---|---|

@@ -512,10 +512,6 @@ ul { padding: 0; }
 /* components/footer */
 .footer { --lineHeightBody: 1.1; display: flex; flex-wrap: wrap; align-items: baseline; justify-content: center; width: 100%; padding: var(--space3XL) var(--spaceL); z-index: var(--zIndex2); position: relative; color: var(--textLight); }
 .footer-date { padding-right: var(--spaceXS); display: inline-flex; }
-.footer .design-credit { display: inline; margin: 0; font-size: inherit; line-height: inherit; opacity: 1; text-align: center; }
-.footer .design-credit a { --lineStrokeWidth: 2px; --linkColor: var(--text); --lineOpacity: 30%; --filledLineGradient: linear-gradient(var(--linkColor), var(--linkColor)); --unfilledLineGradient: linear-gradient(color-mix(in lab, var(--linkColor) var(--lineOpacity), transparent), color-mix(in lab, var(--linkColor) var(--lineOpacity), transparent)); display: inline; color: var(--linkColor); text-decoration: none; background: var(--filledLineGradient) no-repeat 100% 100% / 0 var(--lineStrokeWidth), var(--unfilledLineGradient) no-repeat 0 100% / 100% var(--lineStrokeWidth); padding-bottom: var(--lineStrokeWidth); }
-.footer .design-credit a:hover, .footer .design-credit a:focus { background: var(--filledLineGradient) no-repeat 0 100% / 100% var(--lineStrokeWidth), var(--unfilledLineGradient) no-repeat 0 100% / 100% var(--lineStrokeWidth); }
-@media (prefers-reduced-motion: no-preference) { .footer .design-credit a { transition: background-size var(--durationM) var(--bezierFastoutSlowin); } }
 .footer .credit { flex-basis: 100%; padding: var(--spaceM) 0 0; font-size: var(--fontSizeBodyXS); }
 
 /* global.module.css keyframes and the modules' own */

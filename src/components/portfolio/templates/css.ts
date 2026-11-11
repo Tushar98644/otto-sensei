@@ -69,8 +69,6 @@ export const BASE_CSS = `
 :scope .credit a:hover { opacity: 1; }
 :scope .credit .brand { text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 3px; }
 @media print { :scope .credit { display: none; } }
-:scope .design-credit { margin: 0; font-size: 12px; line-height: 18px; text-align: center; opacity: 0.75; }
-:scope .design-credit a { color: inherit; text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 2px; }
 `;
 
 export function templateCss(root: string, css: string): string {

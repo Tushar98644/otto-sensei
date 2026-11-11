@@ -2,7 +2,7 @@ import { Globe, Mail, MapPin, Phone } from "lucide-react";
 import type { CSSProperties, ReactNode } from "react";
 import type { SocialKind } from "@/lib/portfolio/content";
 import { SocialIcon } from "../icons";
-import { allSkills, DesignCredit, Marked, nameOf, OutLink, TemplateStyle } from "../parts";
+import { allSkills, Marked, nameOf, OutLink, TemplateStyle } from "../parts";
 import type { PortfolioTemplateProps } from "../types";
 import { CommandMenu } from "./islands";
 import { CV_CSS } from "./styles";
@@ -308,10 +308,7 @@ export function CvTemplate({ view, content, footer }: PortfolioTemplateProps) {
             </div>
           ))}
         </div>
-        <footer className="foot">
-          <DesignCredit id="cv" />
-          {footer ? <div className="credit">{footer}</div> : null}
-        </footer>
+        <footer className="foot">{footer ? <div className="credit">{footer}</div> : null}</footer>
         <CommandMenu links={menuLinks} />
       </div>
     </div>

@@ -1,7 +1,5 @@
 import type { ReactNode } from "react";
 import type { PortfolioContentView, TextPart } from "@/lib/portfolio/content";
-import { PORTFOLIO_TEMPLATE_INFO } from "@/lib/portfolio/templates";
-import type { PortfolioTemplateId } from "@/lib/portfolio/types";
 import type { PortfolioView } from "@/lib/portfolio/view";
 
 // Small pieces the templates share. No hooks and no browser APIs: templates render on the server
@@ -43,23 +41,6 @@ export function OutLink({
     >
       {children}
     </a>
-  );
-}
-
-/**
- * The footer line every template carries for the design it rebuilds: "Design based on Brittany
- * Chiang's v4 (MIT)", linking to the original. Every page shows it.
- */
-export function DesignCredit({ id }: { id: PortfolioTemplateId }) {
-  const { author, work, href, licence } = PORTFOLIO_TEMPLATE_INFO[id].credit;
-  return (
-    <p className="design-credit">
-      Design based on{" "}
-      <a href={href} target="_blank" rel="noopener noreferrer">
-        {author}&rsquo;s {work}
-      </a>{" "}
-      ({licence})
-    </p>
   );
 }
 

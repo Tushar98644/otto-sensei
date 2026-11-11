@@ -48,7 +48,7 @@ const css = `
   /* Calibre has a smaller x-height than Inter; this keeps Inter's text the size v4's reads at. */
   font-size-adjust: 0.49;
 }
-:where(.hero h1, .links, .sidebar, .side-email, .skills-list, .tab, .range, .project-overline, .project-tech-list, .card .tech, .btn, .btn-small, .btn-big, .overline, .design-credit, .credit) { font-size-adjust: none; }
+:where(.hero h1, .links, .sidebar, .side-email, .skills-list, .tab, .range, .project-overline, .project-tech-list, .card .tech, .btn, .btn-small, .btn-big, .overline, .credit) { font-size-adjust: none; }
 ::selection { background-color: var(--lightest-navy); color: var(--lightest-slate); }
 :where(a, button):focus-visible { outline: 2px dashed var(--green); outline-offset: 3px; }
 svg { width: 100%; height: 100%; fill: currentColor; vertical-align: middle; }
@@ -265,11 +265,10 @@ section { margin: 0 auto; padding: 100px 0; max-width: 1000px; }
 .footer-social ul { display: flex; justify-content: space-between; align-items: center; padding: 0; margin: 0; list-style: none; }
 .footer-social a { padding: 10px; }
 .footer-social svg { width: 20px; height: 20px; display: block; }
-.design-credit, .credit { color: var(--light-slate); font-family: var(--font-mono); font-size: var(--fz-xxs); line-height: 1.6; opacity: 1; }
-.design-credit a { text-decoration: none; padding: 0; }
+.credit { color: var(--light-slate); font-family: var(--font-mono); font-size: var(--fz-xxs); line-height: 1.6; opacity: 1; }
 .credit { padding: 6px 0 0; }
 .credit a { padding: 6px; }
-.credit a:hover, .design-credit a:hover { color: var(--green); }
+.credit a:hover { color: var(--green); }
 
 @container pf (max-width: 1080px) {
   .nav { padding: 0 40px; }

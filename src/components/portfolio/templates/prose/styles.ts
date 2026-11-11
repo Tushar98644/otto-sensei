@@ -137,7 +137,6 @@ a.chip:hover { background: #8883; color: var(--fg) !important; }
 
 .foot { display: flex; flex-direction: column; gap: 0.25rem; margin: 2.5rem auto 1.5rem; }
 .foot > * { font-size: 0.875rem; line-height: 1.25rem; }
-.foot .design-credit { text-align: left; font-size: 0.875rem; line-height: 1.25rem; opacity: 0.5; }
 .foot .credit { justify-content: flex-start; padding: 0.25rem 0 0; opacity: 0.8; }
 
 /* NavBar's scroll-to-top button */

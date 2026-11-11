@@ -109,7 +109,6 @@ a.post:hover { background: var(--sandA4); }
 .post time { flex-shrink: 0; text-align: right; font-variant-numeric: tabular-nums; color: var(--sand11); }
 
 .foot { margin-top: 84px; color: var(--sand11); }
-.foot .design-credit { text-align: left; }
 .foot .credit { justify-content: flex-start; padding: 12px 0 0; }
 
 @container pf (min-width: 768px) {

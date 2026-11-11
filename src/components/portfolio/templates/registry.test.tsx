@@ -102,11 +102,11 @@ describe.each(PORTFOLIO_TEMPLATE_IDS)("the %s template", (id) => {
     expect(render(onlyAName(""))).toContain("Portfolio");
   });
 
-  it("always credits the design it rebuilds, and draws the page's credit only when given one", () => {
+  // The MIT notices for the rebuilt designs live in THIRD_PARTY_NOTICES.md, not on the page.
+  it("shows no design credit, and draws the page's credit only when given one", () => {
     const html = render(onlyAName("Ada Lovelace"));
-    expect(html).toContain("Design based on");
-    expect(html).toContain(`href="${credit.href}"`);
-    expect(html).toContain(`(${credit.licence})`);
+    expect(html).not.toContain("Design based on");
+    expect(html).not.toContain(`href="${credit.href}"`);
     expect(render(onlyAName("Ada Lovelace"), "Made with Otto")).toContain("Made with Otto");
     expect(html).not.toContain("Made with Otto");
   });

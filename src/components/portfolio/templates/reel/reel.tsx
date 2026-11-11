@@ -1,14 +1,6 @@
 import type { CSSProperties } from "react";
 import type { ContentProject } from "@/lib/portfolio/content";
-import {
-  contactHref,
-  DesignCredit,
-  featuredFirst,
-  Marked,
-  nameOf,
-  OutLink,
-  TemplateStyle,
-} from "../parts";
+import { contactHref, featuredFirst, Marked, nameOf, OutLink, TemplateStyle } from "../parts";
 import type { PortfolioTemplateProps } from "../types";
 import {
   deviceOf,
@@ -226,7 +218,6 @@ export function ReelTemplate({ view, content, footer }: PortfolioTemplateProps) 
           <footer className="footer">
             <div className="text" data-size="s" data-align="center">
               <span className="footer-date">{`© ${year} ${name}.`}</span>
-              <DesignCredit id="reel" />
             </div>
             {footer ? <div className="credit">{footer}</div> : null}
           </footer>

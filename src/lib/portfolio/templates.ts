@@ -7,7 +7,7 @@ import type { PortfolioTemplateId } from "./types";
 //
 // Every template rebuilds a real, MIT-licensed portfolio for our users' data. The licence asks
 // for the original notice to travel with the code (each template folder's LICENSE.txt and
-// THIRD_PARTY_NOTICES.md); the credit below is what each page prints in its footer.
+// THIRD_PARTY_NOTICES.md); pages show no credit line. The credit below records the source.
 
 export type PortfolioTemplateInfo = {
   id: PortfolioTemplateId;
@@ -129,12 +129,6 @@ export const PORTFOLIO_TEMPLATE_INFO: Record<PortfolioTemplateId, PortfolioTempl
     },
   },
 };
-
-/** "Design based on Brittany Chiang's v4 (MIT)": the words every page's footer carries. */
-export function designCreditText(id: PortfolioTemplateId): string {
-  const { author, work, licence } = PORTFOLIO_TEMPLATE_INFO[id].credit;
-  return `Design based on ${author}'s ${work} (${licence})`;
-}
 
 export type TemplateGroup = { label: string; ids: PortfolioTemplateId[] };
 

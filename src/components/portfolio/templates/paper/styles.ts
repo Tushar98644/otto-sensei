@@ -226,7 +226,6 @@ a.row-title:hover { color: var(--foreground); }
 .tree a { transition: color 150ms ease; }
 .tree a:hover { color: var(--foreground); }
 .ends { margin-top: 2.5rem; display: grid; gap: 0.5rem; }
-.ends .design-credit { text-align: left; }
 .ends .credit { justify-content: flex-start; padding: 0; }
 
 /* The pill dock */

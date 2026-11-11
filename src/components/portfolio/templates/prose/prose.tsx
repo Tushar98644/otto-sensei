@@ -2,7 +2,7 @@ import { ArrowUpRight, Film, Lightbulb, Mic, Newspaper } from "lucide-react";
 import type { CSSProperties, ReactNode } from "react";
 import type { ContentProject } from "@/lib/portfolio/content";
 import { SocialIcon } from "../icons";
-import { DesignCredit, Marked, nameOf, OutLink, seedOf, TemplateStyle } from "../parts";
+import { Marked, nameOf, OutLink, seedOf, TemplateStyle } from "../parts";
 import type { PortfolioTemplateProps } from "../types";
 import { ArtPlum, ToTop } from "./islands";
 import { PROSE_CSS } from "./styles";
@@ -315,7 +315,6 @@ export function ProseTemplate({ view, content, footer }: PortfolioTemplateProps)
         ) : null}
 
         <footer className="prose foot slide-enter" style={stage(12)}>
-          <DesignCredit id="prose" />
           {footer ? <div className="credit">{footer}</div> : null}
         </footer>
       </div>
