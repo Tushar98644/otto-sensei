@@ -137,8 +137,8 @@ export function PortfolioPreview({
               className={cn(
                 "absolute inset-0 overflow-x-hidden overflow-y-auto overscroll-contain -outline-offset-2",
                 phone
-                  ? "[scrollbar-width:none]"
-                  : "[scrollbar-width:thin] [scrollbar-gutter:stable]",
+                  ? "scrollbar-none"
+                  : "scrollbar-thin scrollbar-gutter-stable",
               )}
             >
               {zoom > 0 ? (

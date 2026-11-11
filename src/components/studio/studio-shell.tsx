@@ -14,6 +14,7 @@ import { UpgradePromptHost } from "@/components/account/upgrade-prompt";
 import { refreshMe } from "@/components/account/use-me";
 import { useOttoLoadingScreen } from "@/components/mascot/otto-loading-screen";
 import { StudioTour } from "@/components/onboarding/studio-tour";
+import { takeStepJump } from "@/components/studio/tailor/jump";
 import {
   STEP_LABELS,
   useActiveReport,
@@ -97,6 +98,8 @@ function StudioSteps() {
     const previous = shownStep.current;
     shownStep.current = visibleStep;
     if (previous === null || previous === visibleStep) return;
+    // A jump to a line (from the Recruiter view or Tailor) places focus itself.
+    if (takeStepJump()) return;
     window.scrollTo({ top: 0 });
     if (document.activeElement?.closest("[popover]")) return;
     headingRef.current?.focus({ preventScroll: true });

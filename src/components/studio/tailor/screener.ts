@@ -3,7 +3,22 @@ import type { PlanId, Usage, UsagePeriod } from "@/config/plans";
 import type { TailorRequirement, TailorResult } from "@/lib/ai/types";
 import { droppedSupport, verbsAdded } from "@/lib/ai/writing-guards";
 import type { Resume } from "@/lib/resume/schema";
+import { lintResume } from "@/lib/lint/bullets";
 import { findTerm } from "@/lib/tailor/keywords";
+import {
+  jobLines,
+  rowReasons,
+  tailorFixFirst,
+  type FixFirst,
+  type JobLine,
+  type RowReason,
+} from "@/lib/tailor/reasons";
+import {
+  summaryCheck,
+  titleCheck,
+  type SummaryCheck,
+  type TitleCheck,
+} from "@/lib/tailor/title-checks";
 import {
   screenerCounts,
   screenerHeadline,
@@ -16,20 +31,48 @@ import { screenerOptions, screenerResume, type TailorChoices } from "./apply";
 
 // Pure logic behind the screener view and its "Have you done this? Where?" flow.
 
-export type Screener = { rows: RequirementRow[]; counts: ScreenerCounts; headline: string };
+export type Screener = {
+  rows: RequirementRow[];
+  counts: ScreenerCounts;
+  headline: string;
+  // Why each row has its status, by row id.
+  reasons: Record<string, RowReason>;
+  // The resume's lines as this job sees them, and how many show nothing for it.
+  lines: JobLine[];
+  unrelated: number;
+  title: TitleCheck | null;
+  summary: SummaryCheck;
+  fixFirst: FixFirst[];
+};
 
 export function buildScreener(
   source: Resume,
   result: TailorResult,
   choices: TailorChoices,
+  now: number,
 ): Screener {
-  const rows = screenerRows(
-    screenerResume(source, result, choices),
-    result.requirements,
-    screenerOptions(choices),
-  );
+  const resume = screenerResume(source, result, choices);
+  const rows = screenerRows(resume, result.requirements, screenerOptions(choices));
   const counts = screenerCounts(rows);
-  return { rows, counts, headline: screenerHeadline(counts) };
+  const context = { resume, lint: lintResume(resume), now };
+  const reasons = rowReasons(rows, context);
+  const { lines, unrelated } = jobLines(rows, context);
+  const title = titleCheck(source, result.job.title);
+  // A picked suggestion is the summary the copy will have.
+  const top =
+    choices.useSummary && result.summary ? { ...source, summary: result.summary } : source;
+  const summary = summaryCheck(top, rows, result.job.title);
+  return {
+    rows,
+    counts,
+    headline: screenerHeadline(counts),
+    reasons,
+    lines,
+    unrelated,
+    title,
+    summary,
+    fixFirst: tailorFixFirst({ rows, reasons, lines, title, summary }),
+  };
 }
 
 // The question the line fixer answers from: it names the requirement, so the line it writes does

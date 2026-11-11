@@ -40,8 +40,10 @@ function lowerFirst(text: string): string {
 export function demoFix(fix: PreparedFix): FixResult {
   const lint = lintBullet(fix.bullet);
   const found = new Set(lint.map((issue) => issue.id));
-  const missingNumber = found.has("no-number");
-  const weakStart = lint.find((issue) => issue.id === "weak-start")?.match ?? null;
+  // A duty line and a line with no result are missing their number too.
+  const missingNumber = found.has("no-number") || found.has("no-result") || found.has("duty");
+  const weakStart =
+    lint.find((issue) => issue.id === "duty" || issue.id === "weak-start")?.match ?? null;
   const base = cleanLine(fix.bullet, weakStart);
   const answered = fix.answers.length > 0;
   const answers = fix.answers

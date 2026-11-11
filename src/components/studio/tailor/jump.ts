@@ -8,14 +8,43 @@ import { useStudioStore } from "@/lib/store/resume-store";
 // two more, so the line is looked for a few frames in a row before giving up quietly.
 const MAX_FRAMES = 30;
 
-export function focusWhenShown(elementId: string, framesLeft = MAX_FRAMES): void {
+export function focusWhenShown(
+  elementId: string,
+  framesLeft = MAX_FRAMES,
+  onMiss?: () => void,
+): void {
   const element = document.getElementById(elementId);
   if (element) {
     element.scrollIntoView({ block: "center" });
     element.focus({ preventScroll: true });
     return;
   }
-  if (framesLeft > 0) window.requestAnimationFrame(() => focusWhenShown(elementId, framesLeft - 1));
+  if (framesLeft > 0) {
+    window.requestAnimationFrame(() => focusWhenShown(elementId, framesLeft - 1, onMiss));
+  } else {
+    onMiss?.();
+  }
+}
+
+// Set while a jump changes the step. The studio shell normally starts a new step at the top with
+// focus on its heading; a jump has its own place to land, and the shell's focus would win the race.
+let jumpingToStep = false;
+
+/** True once after a jump changed the step; the shell then leaves scroll and focus alone. */
+export function takeStepJump(): boolean {
+  const was = jumpingToStep;
+  jumpingToStep = false;
+  return was;
+}
+
+/** Opens the Fix step on an element (a line, a job heading, the summary), or at the top. */
+export function showInEditor(elementId: string | null): void {
+  const store = useStudioStore.getState();
+  if (store.step !== "fix") jumpingToStep = true;
+  store.setStep("fix");
+  const top = () => window.scrollTo({ top: 0 });
+  if (elementId) window.requestAnimationFrame(() => focusWhenShown(elementId, MAX_FRAMES, top));
+  else window.requestAnimationFrame(top);
 }
 
 /**
@@ -26,8 +55,7 @@ export function jumpToLine(sourceId: string, bulletId: string): void {
   const store = useStudioStore.getState();
   const active = store.activeId ? store.resumes[store.activeId] : undefined;
   if (!active || !findBullet(active, bulletId)) store.setActive(sourceId);
-  store.setStep("fix");
-  window.requestAnimationFrame(() => focusWhenShown(bulletInputId(bulletId)));
+  showInEditor(bulletInputId(bulletId));
 }
 
 // A line to open once the studio's Fix step is on screen, set by a page outside the studio (Home's

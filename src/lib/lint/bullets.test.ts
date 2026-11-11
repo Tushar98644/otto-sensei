@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { emptyResume, type Resume } from "@/lib/resume/schema";
-import { lintBullet, lintResume } from "./bullets";
+import { lintBullet, lintContexts, lintResume, lintSummary } from "./bullets";
 import type { LintIssueId } from "./types";
 
 const ids = (text: string) => lintBullet(text).map((issue) => issue.id);
@@ -26,29 +26,34 @@ describe("lintBullet", () => {
   });
 
   it.each<[string, LintIssueId[]]>([
-    ["Responsible for managing the company website", ["weak-start", "no-number"]],
-    ["Results-driven team player passionate about clean code", ["stock-phrase", "no-number"]],
-    ["Hard-working self-starter with a strong work ethic", ["stock-phrase", "no-number"]],
+    // A duty opener already asks what changed, so it doesn't also get "no result".
+    ["Responsible for managing the company website", ["duty"]],
+    ["Results-driven team player passionate about clean code", ["stock-phrase", "no-result"]],
+    ["Hard-working self-starter with a strong work ethic", ["stock-phrase", "no-result"]],
     ["I built the billing system for 40 clients", ["first-person"]],
     ["We shipped the new app to 2 million users", ["first-person"]],
     ["I helped launch 3 products", ["first-person", "weak-start"]],
-    ["Worked on various things", ["weak-start", "no-number", "vague", "too-short"]],
-    ["Responsible for various duties", ["weak-start", "no-number", "vague", "too-short"]],
+    ["Worked on various things", ["duty", "vague", "too-short"]],
+    ["Responsible for various duties", ["duty", "vague", "too-short"]],
     ["The database was migrated to Postgres in 2022 by the team", ["passive"]],
     ["Legacy jobs were successfully migrated to Airflow in 3 weeks", ["passive"]],
     ["The new API was built by contractors in 6 weeks", ["passive"]],
     ["Assisted with onboarding of 12 new hires", ["weak-start"]],
     ["1. Helped the sales team close 3 deals", ["weak-start"]],
-    ["Was responsible for 4 regional offices", ["weak-start"]],
+    ["Was responsible for 4 regional offices", ["duty"]],
     ["Did data entry for 3 departments", ["weak-start"]],
     ["Participated in 5 hackathons", ["weak-start", "too-short"]],
-    ["Duties included answering phones", ["weak-start", "no-number", "too-short"]],
+    ["Duties included answering phones", ["duty", "too-short"]],
     ["Handled 20 support tickets a day etc.", ["weak-start", "vague"]],
-    ["Led several projects for numerous clients", ["no-number", "vague"]],
+    ["Led several projects for numerous clients", ["no-result", "vague"]],
     ["Thought outside the box to cut costs 10%", ["stock-phrase"]],
     ["Wore many hats at a 10-person startup", ["stock-phrase"]],
     ["Built my first app with 10k downloads", ["first-person"]],
-    ["Fixed bugs", ["no-number", "too-short"]],
+    ["Fixed bugs", ["no-result", "too-short"]],
+    // Says what changed but not by how much: a tip, not a warning.
+    ["Improved the checkout flow for new shoppers", ["no-number"]],
+    ["Wrote guides that the support team used in onboarding", ["no-number"]],
+    ["Increased sales 20% last year", ["no-method"]],
   ])("%s -> %j", (text, expected) => {
     expect(ids(text)).toEqual(expected);
   });
@@ -56,10 +61,15 @@ describe("lintBullet", () => {
   it("orders by severity, then by where the match is", () => {
     const issues = lintBullet("Responsible for various duties");
     expect(issues.map((i) => [i.id, i.severity, i.match])).toEqual([
-      ["weak-start", "high", "Responsible for"],
-      ["no-number", "high", null],
+      ["duty", "high", "Responsible for"],
       ["vague", "low", "various"],
       ["too-short", "low", null],
+    ]);
+    expect(lintBullet("Helped with various reports").map((i) => [i.id, i.severity])).toEqual([
+      ["weak-start", "high"],
+      ["no-result", "high"],
+      ["vague", "low"],
+      ["too-short", "low"],
     ]);
     expect(ids("I helped launch 3 products")).toEqual(["first-person", "weak-start"]);
   });
@@ -80,19 +90,63 @@ describe("lintBullet", () => {
     });
 
     it("names the weak start", () => {
-      expect(issue("Responsible for the website", "weak-start")?.message).toBe(
-        'Swap "Responsible for" for what you did, like "Built", "Cut" or "Led".',
-      );
-      expect(issue("Assisted with 4 audits", "weak-start")?.match).toBe("Assisted with");
+      expect(issue("Assisted with 4 audits", "weak-start")).toEqual({
+        id: "weak-start",
+        severity: "high",
+        message: 'Swap "Assisted with" for what you did, like "Built", "Cut" or "Led".',
+        match: "Assisted with",
+      });
     });
 
-    it("asks for a number", () => {
-      expect(issue("Improved the onboarding flow for new users", "no-number")).toEqual({
-        id: "no-number",
+    it("calls a duty a duty", () => {
+      expect(issue("Responsible for the website", "duty")).toEqual({
+        id: "duty",
         severity: "high",
-        message: "Add a number: how many, how much, or how fast?",
+        message:
+          '"Responsible for" reads like a job description. Say what you did and what changed.',
+        match: "Responsible for",
+      });
+      expect(issue("I worked on the billing service", "duty")?.match).toBe("worked on");
+    });
+
+    it("asks what changed when a line has no result at all", () => {
+      expect(
+        issue("Developed REST APIs in Node.js for the tracking platform", "no-result"),
+      ).toEqual({
+        id: "no-result",
+        severity: "high",
+        message: "What changed because of this? Add the result, and how much if you know it.",
         match: null,
       });
+    });
+
+    it("asks for a number only once the line says what changed", () => {
+      expect(issue("Improved the onboarding flow for new users", "no-number")).toEqual({
+        id: "no-number",
+        severity: "low",
+        message: '"Improved" by how much, or for how many? Add a number if you know it.',
+        match: null,
+      });
+      expect(
+        issue("Wrote guides that the support team used in onboarding", "no-number")?.message,
+      ).toBe("How many, how much, or how fast? Add a number if you know it.");
+      expect(ids("Improved the onboarding flow for new users")).not.toContain("no-result");
+    });
+
+    it("asks how for a short result with no method", () => {
+      expect(issue("Increased sales 20% last year", "no-method")).toEqual({
+        id: "no-method",
+        severity: "low",
+        message: "Say how you did it: what did you build, change or run?",
+        match: null,
+      });
+      // "by 15%" is the measure; "by retraining" is the method.
+      expect(ids("Cut costs by 15% in 2023")).toContain("no-method");
+      expect(ids("Cut costs 15% by retraining reps")).not.toContain("no-method");
+      expect(ids("Cut costs 15% using spot instances")).not.toContain("no-method");
+      // Long enough to carry its own context; and under five words "too short" already asks.
+      expect(ids("Grew newsletter signups from 2k to 11k in one quarter")).toEqual([]);
+      expect(ids("Increased sales by 20%")).toEqual(["too-short"]);
     });
 
     it("treats I and we differently", () => {
@@ -306,8 +360,9 @@ describe("lintResume", () => {
     expect(Object.keys(lint.byBullet).sort()).toEqual(["d0-0", "e0-0", "e0-1", "p0-0"]);
     expect(lint.byBullet["e0-0"]).toEqual([]);
     expect(lint.byBullet["e0-1"]).toEqual([]);
-    expect(lint.byBullet["p0-0"]?.map((i) => i.id)).toEqual(["no-number", "too-short"]);
-    expect(lint.byBullet["d0-0"]?.map((i) => i.id)).toEqual(["no-number"]);
+    expect(lint.byBullet["p0-0"]?.map((i) => i.id)).toEqual(["no-result", "too-short"]);
+    // A school line isn't asked for a result.
+    expect(lint.byBullet["d0-0"]).toEqual([]);
   });
 
   it("flags identical lines anywhere in the resume, after normalizing", () => {
@@ -414,7 +469,8 @@ describe("lintResume", () => {
         education: [["Dean's list for 4 semesters", "Wrote a thesis on graph theory"]],
       }),
     );
-    expect(lint.totals).toEqual({ bullets: 6, withIssues: 4, withNumbers: 4, highSeverity: 2 });
+    // The thesis line is education, which isn't asked for a result or a number.
+    expect(lint.totals).toEqual({ bullets: 6, withIssues: 3, withNumbers: 4, highSeverity: 1 });
   });
 
   it("leaves hidden lines, entries and sections out of the issues and totals", () => {
@@ -499,5 +555,144 @@ describe("lintResume", () => {
     expect(lint.totals.bullets).toBe(1_600);
     // Generous bound: a smoke test for accidental quadratic work, not a benchmark.
     expect(performance.now() - started).toBeLessThan(2_000);
+  });
+});
+
+describe("where a line sits", () => {
+  const ENDED = { kind: "work", ended: true } as const;
+
+  it("asks a finished job for past tense, with the word to use", () => {
+    expect(lintBullet("Build internal tools in React for 3 teams", ENDED)).toEqual([
+      {
+        id: "tense",
+        severity: "low",
+        message: 'This job has ended, so write "Built", not "Build".',
+        match: "Build",
+      },
+    ]);
+    const tense = (text: string) =>
+      lintBullet(text, ENDED).find((issue) => issue.id === "tense")?.message;
+    expect(tense("Managing a team of 4 nurses on night shift")).toBe(
+      'This job has ended, so write "Managed", not "Managing".',
+    );
+    expect(tense("Writes release notes for 3 products")).toBe(
+      'This job has ended, so write "Wrote", not "Writes".',
+    );
+    expect(tense("Shipping 2 releases a week to 40 stores")).toBe(
+      'This job has ended, so write "Shipped", not "Shipping".',
+    );
+    expect(tense("Coordinates 12 vendors across 3 sites")).toBe(
+      'This job has ended, so write "Coordinated", not "Coordinates".',
+    );
+    expect(tense("Running payroll for 30 staff each month")).toBe(
+      'This job has ended, so write "Ran", not "Running".',
+    );
+    expect(tense("Built internal tools in React for 3 teams")).toBeUndefined();
+  });
+
+  it("leaves tense alone in a current job and on words that open as nouns", () => {
+    expect(ids("Build internal tools in React for 3 teams")).not.toContain("tense");
+    for (const text of [
+      "Lead developer on a 6-person checkout team",
+      "Design system work for 3 product teams",
+      "Support engineer for 200 small businesses",
+    ]) {
+      expect(lintBullet(text, ENDED).map((issue) => issue.id)).not.toContain("tense");
+    }
+  });
+
+  it("doesn't ask a course list or an award for a result or a number", () => {
+    const other = { kind: "other" } as const;
+    expect(lintBullet("Relevant coursework: algorithms, databases and compilers", other)).toEqual(
+      [],
+    );
+    expect(lintBullet("Relevant coursework: algorithms, databases and compilers")).toContainEqual(
+      expect.objectContaining({ id: "no-result" }),
+    );
+    // Voice checks still apply everywhere.
+    expect(lintBullet("I led the robotics club as a team player", other).map((i) => i.id)).toEqual([
+      "first-person",
+      "stock-phrase",
+    ]);
+  });
+
+  it("gives each section's lines their own context", () => {
+    const base = resume({
+      experience: [["Run payroll for 30 staff"], ["Run payroll for 40 staff"]],
+      education: [["Thesis on graph theory"]],
+    });
+    const withDates: Resume = {
+      ...base,
+      experience: base.experience.map((job, index) => ({
+        ...job,
+        endDate: index === 0 ? "Present" : "Mar 2021",
+      })),
+      extras: [
+        {
+          id: "x1",
+          kind: "volunteering",
+          title: "Volunteering",
+          items: [
+            {
+              id: "v1",
+              title: "Food bank",
+              subtitle: "",
+              date: "",
+              detail: "",
+              bullets: [{ id: "v-0", text: "Sorted donations every Saturday" }],
+            },
+          ],
+        },
+        {
+          id: "x2",
+          kind: "awards",
+          title: "Awards",
+          items: [
+            {
+              id: "a1",
+              title: "Dean's list",
+              subtitle: "",
+              date: "",
+              detail: "",
+              bullets: [{ id: "a-0", text: "Top of the class in statistics" }],
+            },
+          ],
+        },
+      ],
+    };
+    const contexts = lintContexts(withDates);
+    expect(contexts.get("e0-0")).toEqual({ kind: "work", ended: false });
+    expect(contexts.get("e1-0")).toEqual({ kind: "work", ended: true });
+    expect(contexts.get("d0-0")).toEqual({ kind: "other" });
+    expect(contexts.get("v-0")).toEqual({ kind: "work" });
+    expect(contexts.get("a-0")).toEqual({ kind: "other" });
+
+    const lint = lintResume(withDates);
+    expect(lint.byBullet["e0-0"]?.map((i) => i.id)).toEqual([]);
+    expect(lint.byBullet["e1-0"]?.map((i) => i.id)).toContain("tense");
+    expect(lint.byBullet["v-0"]?.map((i) => i.id)).toContain("no-result");
+    expect(lint.byBullet["a-0"]).toEqual([]);
+  });
+
+  it("counts a line that only lacks a number as a tip, not a line that needs work", () => {
+    const lint = lintResume(
+      resume({ experience: [["Improved the onboarding flow for new users"]] }),
+    );
+    expect(lint.totals).toMatchObject({ bullets: 1, withIssues: 1, highSeverity: 0 });
+  });
+});
+
+describe("lintSummary", () => {
+  it("checks the summary's voice only", () => {
+    expect(
+      lintSummary("Hardworking engineer passionate about clean code. I enjoy hard problems.").map(
+        (issue) => [issue.id, issue.match],
+      ),
+    ).toEqual([
+      ["stock-phrase", "Hardworking"],
+      ["first-person", "I"],
+    ]);
+    // Prose without a number is fine in a summary.
+    expect(lintSummary("Backend engineer who builds payment systems in Go.")).toEqual([]);
   });
 });

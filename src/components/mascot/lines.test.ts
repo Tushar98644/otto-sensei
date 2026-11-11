@@ -19,6 +19,12 @@ const SAMPLES: Record<string, unknown[][]> = {
     [{ fail: 0, warn: 3, pass: 9 }],
     [{ fail: 0, warn: 0, pass: 12 }],
   ],
+  "review.overall": [
+    [{ fail: 0, warn: 0, pass: 13 }, 3],
+    [{ fail: 0, warn: 2, pass: 11 }, 1],
+    [{ fail: 1, warn: 0, pass: 12 }, 4],
+    [{ fail: 0, warn: 0, pass: 13 }, 0],
+  ],
   "fix.manyIssues": [[0], [1], [24]],
   "tailor.screener": [
     [
@@ -151,6 +157,20 @@ describe("OTTO lines", () => {
     expect(OTTO.jobs.found(2000, 300, 3, 0)).toBe(
       "I found 2,000 matching jobs. Here are the closest 300. 3 look strong.",
     );
+  });
+
+  it("names what a recruiter would notice once the file reads cleanly", () => {
+    expect(OTTO.review.overall({ fail: 0, warn: 0, pass: 13 }, 3)).toBe(
+      "Hiring software can read it all. A recruiter would notice 3 things in your words first.",
+    );
+    expect(OTTO.review.overall({ fail: 0, warn: 2, pass: 11 }, 1)).toBe(
+      "Software can read it, with small snags. A recruiter would notice 1 thing in your words first.",
+    );
+    // A file problem comes first: nothing else matters if the text can't be read.
+    expect(OTTO.review.overall({ fail: 1, warn: 0, pass: 12 }, 4)).toBe(
+      OTTO.review.summary({ fail: 1, warn: 0, pass: 12 }),
+    );
+    expect(OTTO.review.overall({ fail: 0, warn: 0, pass: 13 }, 0)).toBe(OTTO.review.allGood);
   });
 
   it("summarizes checks with correct grammar", () => {

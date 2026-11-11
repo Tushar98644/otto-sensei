@@ -30,6 +30,7 @@ import {
   problemMessage,
   splitPlaceholders,
 } from "./fix-text";
+import { SUMMARY_INPUT_ID } from "./focus";
 import { CHAR_LIMITS } from "./limits";
 import { editSection, getResume, useResumeValue } from "./use-editor";
 
@@ -207,7 +208,7 @@ export const SummaryEditor = memo(function SummaryEditor({ resumeId }: { resumeI
   const summary = useResumeValue(resumeId, (resume) => resume.summary, "");
   const canWrite = useResumeValue(resumeId, hasFacts, false);
   const id = useId();
-  const inputId = `${id}-input`;
+  const inputId = SUMMARY_INPUT_ID;
   const hintId = `${id}-hint`;
   const countId = `${id}-count`;
   const panelRef = useRef<HTMLElement>(null);

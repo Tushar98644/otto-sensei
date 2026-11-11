@@ -31,13 +31,10 @@ import { APPLY_KIT_ID, takeLetterRequest } from "./letter-request";
 import { ReorderPreview } from "./reorder-preview";
 import type { Screener } from "./screener";
 import { ScreenerView } from "./screener-view";
-import {
-  MAX_SAVED_ANSWERS,
-  queuedJobIdFor,
-  type SavedResult,
-  type SavedWriting,
-} from "./session";
-import { SummaryChoice } from "./summary-choice";
+import { MAX_SAVED_ANSWERS, queuedJobIdFor, type SavedResult, type SavedWriting } from "./session";
+import { JobLines } from "./job-lines";
+import { ResultsOverview } from "./results-overview";
+import { TitleSummary } from "./title-summary";
 import type { ResultPatch } from "./use-tailor";
 import { useWriting } from "./use-writing";
 
@@ -48,6 +45,8 @@ export type TailorResultsProps = {
   choices: TailorChoices;
   screener: Screener;
   onPatch: (patch: ResultPatch) => void;
+  // Shown right before the apply kit (the eligibility check while the job form is folded away).
+  beforeApply?: ReactNode;
 };
 
 type ResultCardProps = { title: string; description?: string; children?: ReactNode };
@@ -80,7 +79,14 @@ function describeChanges({ lines, skills, reorderedJobs, summary }: ChangeSummar
   return `The copy ${sentence}. Your original stays the same.`;
 }
 
-export function TailorResults({ source, saved, choices, screener, onPatch }: TailorResultsProps) {
+export function TailorResults({
+  source,
+  saved,
+  choices,
+  screener,
+  onPatch,
+  beforeApply,
+}: TailorResultsProps) {
   const createTailoredCopy = useStudioStore((s) => s.createTailoredCopy);
   const setActive = useStudioStore((s) => s.setActive);
   const setStep = useStudioStore((s) => s.setStep);
@@ -98,6 +104,12 @@ export function TailorResults({ source, saved, choices, screener, onPatch }: Tai
   const changes = summarizeChoices(source, result, choices);
   const summary = result.summary.trim();
   const answers = saved.answers ?? [];
+  const addedIds = new Set(
+    Object.values(choices.requirements).flatMap((choice) =>
+      choice.kind === "line" ? [choice.line.id] : [],
+    ),
+  );
+  const jump = (bulletId: string) => jumpToLine(source.id, bulletId);
 
   const setChoices = (next: TailorChoices) => onPatch({ choices: next });
   function answerRequirement(id: string, choice: RequirementChoice | null) {
@@ -153,7 +165,11 @@ export function TailorResults({ source, saved, choices, screener, onPatch }: Tai
 
   async function create() {
     if (!(await roomForResume())) return;
-    const meta = tailorMeta(result, { ...job, jobId: queuedJobIdFor(job.link) }, saved.letter?.text);
+    const meta = tailorMeta(
+      result,
+      { ...job, jobId: queuedJobIdFor(job.link) },
+      saved.letter?.text,
+    );
     const id = createTailoredCopy(source.id, meta, (fresh) =>
       applyTailorChoices(fresh, result, choices),
     );
@@ -179,13 +195,30 @@ export function TailorResults({ source, saved, choices, screener, onPatch }: Tai
   return (
     <section aria-label="Tailoring results" className="flex flex-col gap-6">
       {saved.demo ? <DemoNote /> : null}
+      <ResultsOverview screener={screener} onJump={jump} />
       <ScreenerView
         screener={screener}
         choices={choices.requirements}
         targets={targets}
         writing={writing}
         onChoice={answerRequirement}
-        onJump={(bulletId) => jumpToLine(source.id, bulletId)}
+        onJump={jump}
+      />
+
+      <JobLines
+        lines={screener.lines}
+        unrelated={screener.unrelated}
+        addedIds={addedIds}
+        onJump={jump}
+      />
+
+      <TitleSummary
+        title={screener.title}
+        summary={screener.summary}
+        suggestion={summary}
+        current={source.summary}
+        useSummary={choices.useSummary}
+        onUseSummary={(useSummary) => setChoices({ ...choices, useSummary })}
       />
 
       {plans.length ? (
@@ -203,20 +236,6 @@ export function TailorResults({ source, saved, choices, screener, onPatch }: Tai
         </ResultCard>
       ) : null}
 
-      {summary ? (
-        <ResultCard
-          title="Suggested summary"
-          description="Written only from what's already in your resume."
-        >
-          <SummaryChoice
-            suggestion={summary}
-            current={source.summary}
-            checked={choices.useSummary}
-            onChange={(useSummary) => setChoices({ ...choices, useSummary })}
-          />
-        </ResultCard>
-      ) : null}
-
       {result.notes.length ? (
         <ResultCard title="Tips for this job">
           <ul className="flex flex-col gap-3">
@@ -230,6 +249,7 @@ export function TailorResults({ source, saved, choices, screener, onPatch }: Tai
         </ResultCard>
       ) : null}
 
+      {beforeApply}
       <ApplyKit
         letter={saved.letter}
         answers={answers}

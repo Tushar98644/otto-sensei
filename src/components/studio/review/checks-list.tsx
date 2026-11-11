@@ -15,9 +15,14 @@ export type ChecksListProps = {
   checks: RecruiterCheck[];
   // Visually hidden when a tab already names the panel.
   hideHeading?: boolean;
+  title?: string;
 };
 
-export function ChecksList({ checks, hideHeading = false }: ChecksListProps) {
+export function ChecksList({
+  checks,
+  hideHeading = false,
+  title = "What we checked",
+}: ChecksListProps) {
   const headingId = useId();
   const failed = checks.filter((check) => check.status === "fail");
   const warned = checks.filter((check) => check.status === "warn");
@@ -29,7 +34,7 @@ export function ChecksList({ checks, hideHeading = false }: ChecksListProps) {
         id={headingId}
         className={hideHeading ? "sr-only" : "font-sans text-lg font-semibold text-ink"}
       >
-        What we checked
+        {title}
       </h2>
       {failed.length > 0 ? <CheckGroup title={GROUP_TITLES.fail} checks={failed} /> : null}
       {warned.length > 0 ? <CheckGroup title={GROUP_TITLES.warn} checks={warned} /> : null}

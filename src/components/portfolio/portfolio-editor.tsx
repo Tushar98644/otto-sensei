@@ -114,7 +114,7 @@ export function PortfolioEditor({ portfolio, resumes, offer, onOfferDone }: Port
       <div className="flex flex-col gap-6 lg:min-h-0 lg:flex-1 lg:flex-row">
         <div
           ref={panelRef}
-          className="flex scroll-mt-29 flex-col rounded-2xl bg-surface lg:min-h-0 lg:w-88 lg:shrink-0 xl:w-104 2xl:w-112"
+          className="flex scroll-mt-29 flex-col rounded-2xl bg-surface lg:min-h-0 lg:w-88 lg:shrink-0 xl:w-104 2xl:w-md"
         >
           <Tabs value={tab} onValueChange={changeTab} className="gap-0 lg:min-h-0 lg:flex-1">
             {/* Pinned under the phone's app bar (h-14 plus its section strip, 116px). */}

@@ -12,6 +12,8 @@ import {
   writingAllowance,
 } from "./screener";
 
+const NOW = Date.UTC(2026, 10, 11);
+
 function resume(): Resume {
   return {
     ...emptyResume(0),
@@ -62,21 +64,59 @@ function result(): TailorResult {
 describe("buildScreener", () => {
   it("counts proof the way a screener would, and moves when a confirmed line is added", () => {
     const none: TailorChoices = { requirements: {}, reorder: {}, useSummary: true };
-    const before = buildScreener(resume(), result(), none);
+    const before = buildScreener(resume(), result(), none, NOW);
     expect(before.rows.map((row) => row.status)).toEqual(["proven", "proven", "listed", "missing"]);
     expect(before.headline).toBe("Must-haves proven: 2 of 3 · Nice-to-haves: 0 of 1");
 
     const added: TailorChoices = {
       ...none,
       requirements: {
-        r3: { kind: "line", line: { id: "n1", parentId: "job", text: "Ran 40 services on Kubernetes" } },
+        r3: {
+          kind: "line",
+          line: { id: "n1", parentId: "job", text: "Ran 40 services on Kubernetes" },
+        },
         r4: { kind: "no" },
       },
     };
-    const after = buildScreener(resume(), result(), added);
+    const after = buildScreener(resume(), result(), added, NOW);
     expect(after.counts).toEqual({ must: { proven: 3, total: 3 }, nice: { proven: 0, total: 1 } });
     expect(after.rows.map((row) => row.status)).toEqual(["proven", "proven", "proven", "declined"]);
     expect(after.rows[2]?.proof.line?.bulletId).toBe("n1");
+  });
+
+  it("explains each row and lists what to fix first for the job", () => {
+    const none: TailorChoices = { requirements: {}, reorder: {}, useSummary: false };
+    const screener = buildScreener(resume(), result(), none, NOW);
+    expect(screener.reasons.r3?.text).toBe(
+      "Only in your Skills list. No job line shows you using it, and screeners look for it in what you did.",
+    );
+    expect(screener.reasons.r2?.text).toBe(
+      "Shown at Mapline, but that line doesn't say what changed.",
+    );
+    expect(screener.fixFirst.map((item) => item.key)).toEqual(["listed", "weak"]);
+    expect(screener.lines.map((line) => line.bulletId)).toEqual(["a"]);
+
+    // A line added for Kubernetes shows up as the copy's own line, with its reason.
+    const added: TailorChoices = {
+      ...none,
+      requirements: {
+        r3: {
+          kind: "line",
+          line: { id: "n1", parentId: "job", text: "Ran 40 services on Kubernetes" },
+        },
+      },
+    };
+    const after = buildScreener(resume(), result(), added, NOW);
+    expect(after.reasons.r3?.text).toBe("Shown in a line at Mapline.");
+    expect(after.fixFirst.map((item) => item.key)).toEqual(["weak"]);
+  });
+
+  it("checks the summary the copy will have", () => {
+    const noSummary = { ...resume(), summary: "" };
+    const picked: TailorChoices = { requirements: {}, reorder: {}, useSummary: true };
+    expect(buildScreener(noSummary, result(), picked, NOW).summary.status).toBe("match");
+    const kept: TailorChoices = { ...picked, useSummary: false };
+    expect(buildScreener(noSummary, result(), kept, NOW).summary.status).toBe("missing");
   });
 });
 
@@ -94,9 +134,9 @@ describe("the add-a-line helpers", () => {
   });
 
   it("flags a line that claims more than the person said", () => {
-    expect(verbNote("I helped set up staging with Terraform", "Led the staging setup with Terraform")).toBe(
-      "Otto wrote “led”, which claims more than you said. Change it if it isn't right.",
-    );
+    expect(
+      verbNote("I helped set up staging with Terraform", "Led the staging setup with Terraform"),
+    ).toBe("Otto wrote “led”, which claims more than you said. Change it if it isn't right.");
     expect(verbNote("I set up staging with Terraform", "Set up staging with Terraform")).toBeNull();
     // Real GLM Flash output: "helped set up" came back as plain "Set up".
     expect(
@@ -104,7 +144,9 @@ describe("the add-a-line helpers", () => {
         "At Brightloop I helped set up Amplitude dashboards to track how teams adopted the add-on",
         "Set up Amplitude dashboards tracking add-on adoption across teams",
       ),
-    ).toBe("You said you helped; this line reads as if you did it alone. Add it back if that's fairer.");
+    ).toBe(
+      "You said you helped; this line reads as if you did it alone. Add it back if that's fairer.",
+    );
   });
 
   it("drops the fixer's trailing asks for more, and keeps blanks the person must fill", () => {

@@ -1,6 +1,6 @@
 import { listBullets } from "@/lib/resume/ops";
-import type { Resume } from "@/lib/resume/schema";
-import type { LintIssue, LintIssueId, LintSeverity, ResumeLint } from "./types";
+import { extrasOf, type Resume } from "@/lib/resume/schema";
+import type { LintContext, LintIssue, LintIssueId, LintSeverity, ResumeLint } from "./types";
 
 // Runs in the browser on every keystroke for every line: pure, dependency-free, one tokenizing pass
 // per line, and every word list indexed once at module load.
@@ -84,41 +84,91 @@ const STOCK_PHRASES = [
   "world class",
 ];
 
-// Openers that describe a duty or a supporting role instead of what the person did.
+// Openers that read like a job description: the duty, not what the person did with it (MIT CAPD:
+// "Record accomplishments and contributions, not just responsibilities").
+const DUTY_STARTS = [
+  "duties include",
+  "duties included",
+  "in charge of",
+  "responsibilities include",
+  "responsibilities included",
+  "responsible for",
+  "tasked with",
+  "was in charge of",
+  "was responsible for",
+  "was tasked with",
+  "were responsible for",
+  "worked on",
+  "working on",
+];
+
+// Openers that describe a supporting role or filler instead of what the person did.
 const WEAK_STARTS = [
   "assisted",
   "assisted in",
   "assisted with",
   "assisting",
   "did",
-  "duties include",
-  "duties included",
   "handled",
   "handling",
   "helped",
   "helped with",
   "helping",
-  "in charge of",
   "involved in",
   "participated in",
-  "responsibilities include",
-  "responsibilities included",
-  "responsible for",
-  "tasked with",
   "took part in",
   "was",
-  "was in charge of",
   "was involved in",
   "was part of",
-  "was responsible for",
-  "was tasked with",
   "were",
   "were involved in",
-  "were responsible for",
-  "worked on",
   "worked with",
-  "working on",
 ];
+
+// Words that say what changed: the X in Bock's "Accomplished X as measured by Y by doing Z". A line
+// with none of these and no number lists an activity, not a result.
+const RESULT_WORDS = wordSet(`
+  accelerated accelerating achieved avoided boosted boosting cheaper converted cut cutting
+  decreased decreasing doubled drove driving earned eliminated eliminating enabled enabling
+  exceeded expanded expanding faster fewer generated generating grew growing halved higher
+  improved improving increased increasing lifted lifting lowered lowering maximized minimized
+  outperformed prevented preventing quadrupled quicker raised raising recovered reduced reducing
+  resulted resulting retained saved saving secured shortened shrank slashed sped surpassed
+  tripled won winning
+`);
+// Two-word results: "used by 300 agents", "adopted by 4 teams", "leading to fewer refunds".
+const RESULT_PHRASES = indexPhrases([
+  "adopted by",
+  "brought in",
+  "leading to",
+  "led to",
+  "so that",
+  "used by",
+  "used in",
+]);
+// A short line that opens with one of these and has a number is a result with no "how".
+const RESULT_OPENERS = wordSet(`
+  boosted cut decreased doubled drove generated grew halved improved increased lifted lowered
+  raised reduced saved tripled
+`);
+const METHOD_WORDS = wordSet("after through using via with");
+const NO_METHOD_MAX_WORDS = 7;
+
+// Action verbs that open resume lines, as "base:past" (regular ones get "-ed"). Left out on
+// purpose: words that open a line as a noun or adjective as often as a verb ("Lead developer on…",
+// "Design system for…", "Support engineer…", "Research on…", "Test plans…", "Plan…").
+const TENSE_VERBS = `
+  administer analyse analyze answer assess assist automate build:built close coach collaborate
+  communicate compile conduct configure coordinate create debug deliver deploy develop document
+  draft drive:drove edit establish evaluate fix generate greet grow:grew guide handle help hire
+  identify implement improve increase install integrate interview launch maintain manage map:mapped
+  mentor migrate monitor negotiate operate optimise optimize organise organize oversee:oversaw own
+  perform prepare present produce provide publish recruit reduce refactor resolve rewrite:rewrote
+  run:ran schedule sell:sold serve ship:shipped streamline supervise teach:taught track train
+  troubleshoot tutor write:wrote work
+`;
+// Present-tense forms ("build", "builds", "building") to the past form a finished job should use.
+const PAST_OF = indexTenses(TENSE_VERBS);
 
 // Words that stand in for a number, a list or a name; each kind gets its own fix. "and more" and
 // "tons of" are left out on purpose: "and more than 200 clinics", "40 tons of produce".
@@ -139,7 +189,9 @@ const VAGUE_COUNTS = [
 const VAGUE_LISTS = ["and so forth", "and so on", "et cetera", "etc"];
 const VAGUE_THINGS = ["stuff", "things"];
 
-const wordSet = (list: string): ReadonlySet<string> => new Set(list.trim().split(/\s+/));
+function wordSet(list: string): ReadonlySet<string> {
+  return new Set(list.trim().split(/\s+/));
+}
 
 const FIRST_PERSON = wordSet("i me my myself our ours ourselves we");
 const TEAM_PRONOUNS = wordSet("our ours ourselves we");
@@ -178,10 +230,16 @@ const ROMAN_NUMERAL_CONTEXT = wordSet(`
 
 const SEVERITY: Record<LintIssueId, LintSeverity> = {
   "stock-phrase": "high",
-  "no-number": "high",
+  duty: "high",
+  "no-result": "high",
   "weak-start": "high",
   "first-person": "high",
   "too-long": "high",
+  // A line that already says what changed reads fine without its size; the number is a bonus
+  // ("Quantify if you can", MIT CAPD). Low keeps "Add a number" from crowding out real problems.
+  "no-number": "low",
+  "no-method": "low",
+  tense: "low",
   "too-short": "low",
   passive: "low",
   vague: "low",
@@ -189,20 +247,29 @@ const SEVERITY: Record<LintIssueId, LintSeverity> = {
 };
 // Breaks ties within a severity, and decides which issue keeps words two matches share.
 const PRIORITY: readonly LintIssueId[] = [
+  "duty",
   "weak-start",
   "stock-phrase",
   "first-person",
-  "no-number",
+  "no-result",
   "too-long",
+  "tense",
   "passive",
   "vague",
+  "no-number",
+  "no-method",
   "too-short",
   "duplicate",
 ];
 // Whole-line issues (no match to point at) sort after the ones that point at specific words.
 const WHOLE_LINE = Number.MAX_SAFE_INTEGER;
 
-const NO_NUMBER_MESSAGE = "Add a number: how many, how much, or how fast?";
+const WORK: LintContext = { kind: "work" };
+const OTHER: LintContext = { kind: "other" };
+const NO_RESULT_MESSAGE =
+  "What changed because of this? Add the result, and how much if you know it.";
+const NO_NUMBER_MESSAGE = "How many, how much, or how fast? Add a number if you know it.";
+const NO_METHOD_MESSAGE = "Say how you did it: what did you build, change or run?";
 const TOO_SHORT_MESSAGE = "This line is too short to show much. Add what you did and what changed.";
 const DUPLICATE_MESSAGE =
   "This line repeats another one. Keep one, or make each say something new.";
@@ -224,6 +291,7 @@ type VagueKind = "count" | "list" | "thing";
 
 const STOCK_INDEX = indexPhrases(STOCK_PHRASES);
 const WEAK_START_INDEX = indexPhrases(WEAK_STARTS);
+const DUTY_INDEX = indexPhrases(DUTY_STARTS);
 const VAGUE_INDEX = indexPhrases([...VAGUE_COUNTS, ...VAGUE_LISTS, ...VAGUE_THINGS]);
 const VAGUE_KIND = new Map<string, VagueKind>([
   ...VAGUE_COUNTS.map((phrase) => [phrase, "count"] as const),
@@ -302,10 +370,11 @@ function findPhrases(
   return spans;
 }
 
-function weakStart(tokens: readonly Token[], text: string): Span[] {
+// Where the line's first real word is: past list numbering ("1. Helped…") and a leading "I" or
+// "We", which is its own issue while the verb after it still counts.
+function openerIndex(tokens: readonly Token[], text: string): number {
   let i = 0;
   const first = tokens[0];
-  // "1. Helped…": list numbering isn't the first word.
   if (
     first &&
     /^\p{N}+$/u.test(first.text) &&
@@ -313,11 +382,78 @@ function weakStart(tokens: readonly Token[], text: string): Span[] {
   ) {
     i = 1;
   }
-  // "I helped…": the pronoun is its own issue, and the weak verb after it still counts.
   const pronoun = tokens[i];
   if (pronoun && (pronoun.lower === "i" || pronoun.lower === "we")) i += 1;
-  const span = phraseAt(tokens, i, text, WEAK_START_INDEX);
+  return i;
+}
+
+function opener(
+  tokens: readonly Token[],
+  text: string,
+  index: ReadonlyMap<string, readonly string[][]>,
+): Span[] {
+  const span = phraseAt(tokens, openerIndex(tokens, text), text, index);
   return span ? [span] : [];
+}
+
+function indexTenses(list: string): ReadonlyMap<string, string> {
+  const map = new Map<string, string>();
+  for (const entry of list.trim().split(/\s+/)) {
+    const [base = "", irregular] = entry.split(":");
+    const stem = /[^aeiou]y$/.test(base) ? base.slice(0, -1) : base;
+    const past =
+      irregular ?? (base.endsWith("e") ? `${base}d` : stem === base ? `${base}ed` : `${stem}ied`);
+    // One short vowel before a final consonant doubles it: run -> running, ship -> shipping.
+    const doubled = /^[^aeiou]+[aeiou][^aeiouwxy]$/.test(base);
+    const gerund = doubled
+      ? `${base}${base.slice(-1)}ing`
+      : /[^e]e$/.test(base)
+        ? `${base.slice(0, -1)}ing`
+        : `${base}ing`;
+    const third = /(?:s|sh|ch|x|z|o)$/.test(base)
+      ? `${base}es`
+      : stem === base
+        ? `${base}s`
+        : `${stem}ies`;
+    for (const form of [base, third, gerund]) map.set(form, past);
+  }
+  return map;
+}
+
+// "Build internal tools…" under a job that ended: the verb is the line's first real word.
+function tenseSpan(tokens: readonly Token[], text: string): { span: Span; past: string } | null {
+  const token = tokens[openerIndex(tokens, text)];
+  const past = token ? PAST_OF.get(token.lower) : undefined;
+  if (!token || !past || past === token.lower) return null;
+  return { span: spanOf(token, token, text, 1), past };
+}
+
+// A word or phrase that says what changed, if the line has one.
+function resultMarker(tokens: readonly Token[], text: string): Span | null {
+  for (let i = 0; i < tokens.length; i++) {
+    const token = tokens[i];
+    if (!token) continue;
+    if (RESULT_WORDS.has(token.lower)) return spanOf(token, token, text, 1);
+    const phrase = phraseAt(tokens, i, text, RESULT_PHRASES);
+    if (phrase) return phrase;
+  }
+  return null;
+}
+
+// "Increased sales 20%": a result, but nothing about how. "by" before a number is the measure, not
+// the method ("by 20%"); before anything else it is the method ("by moving batch jobs…").
+function lacksMethod(tokens: readonly Token[], text: string): boolean {
+  const first = tokens[openerIndex(tokens, text)];
+  const words = countWords(text);
+  // Under five words "too short" already asks for more.
+  if (!first || !RESULT_OPENERS.has(first.lower)) return false;
+  if (words > NO_METHOD_MAX_WORDS || words < TOO_SHORT_WORDS) return false;
+  return !tokens.some((token, k) => {
+    if (METHOD_WORDS.has(token.lower)) return true;
+    if (k > 0 && token.lower.length > 4 && token.lower.endsWith("ing")) return true;
+    const next = tokens[k + 1];
+    return token.lower === "by" && next !== undefined && !/^\p{N}/u.test(next.text);
+  });
 }
 
 function isNumeralI(tokens: readonly Token[], k: number, text: string): boolean {
@@ -406,6 +542,21 @@ function weakStartMessage(span: Span): string {
   return `Swap "${span.text}" for what you did, like "Built", "Cut" or "Led".`;
 }
 
+function dutyMessage(span: Span): string {
+  return `"${span.text}" reads like a job description. Say what you did and what changed.`;
+}
+
+function tenseMessage(span: Span, past: string): string {
+  const word = /^\p{Lu}/u.test(span.text) ? past.charAt(0).toUpperCase() + past.slice(1) : past;
+  return `This job has ended, so write "${word}", not "${span.text}".`;
+}
+
+function noNumberMessage(marker: Span): string {
+  return /^\p{L}+$/u.test(marker.text) && marker.tokens === 1
+    ? `"${marker.text}" by how much, or for how many? Add a number if you know it.`
+    : NO_NUMBER_MESSAGE;
+}
+
 function firstPersonMessage(span: Span): string {
   return TEAM_PRONOUNS.has(span.key)
     ? `"${span.text}" hides your part. Say what you did.`
@@ -442,7 +593,7 @@ function overlaps(a: Span, b: Span): boolean {
   return a.start < b.end && b.start < a.end;
 }
 
-function analyze(text: string): Analysis {
+function analyze(text: string, context: LintContext = WORK): Analysis {
   // Nothing to lint in an empty line or a lone "-" someone just typed.
   if (!CONTENT.test(text)) return { issues: [], hasContent: false, hasNumber: false, words: [] };
   const tokens = tokenize(text);
@@ -453,7 +604,7 @@ function analyze(text: string): Analysis {
     found.push({ issue: { id, severity: SEVERITY[id], message, match }, position });
   };
   // At most one issue per id, so callers can key by id. Words an earlier id matched are taken:
-  // "Responsible for" at the start is a weak start, not also a stock phrase.
+  // "Responsible for" at the start is a duty, not also a stock phrase.
   const claim = (
     id: LintIssueId,
     spans: readonly Span[],
@@ -461,19 +612,33 @@ function analyze(text: string): Analysis {
   ) => {
     const free = spans.filter((span) => !claimed.some((taken) => overlaps(span, taken)));
     const [first] = free;
-    if (!first) return;
+    if (!first) return false;
     claimed.push(...free);
     add(id, message(first, free), first.text, first.start);
+    return true;
   };
 
-  claim("weak-start", weakStart(tokens, text), weakStartMessage);
+  const duty = claim("duty", opener(tokens, text, DUTY_INDEX), dutyMessage);
+  claim("weak-start", opener(tokens, text, WEAK_START_INDEX), weakStartMessage);
   claim("stock-phrase", findPhrases(tokens, text, STOCK_INDEX), stockMessage);
   claim("first-person", firstPerson(tokens, text), firstPersonMessage);
+  if (context.ended) {
+    const tense = tenseSpan(tokens, text);
+    if (tense) claim("tense", [tense.span], (span) => tenseMessage(span, tense.past));
+  }
   claim("passive", passives(tokens, text), passiveMessage);
   claim("vague", vagueSpans(tokens, text), vagueMessage);
 
   const hasNumber = NUMERIC.test(text) || tokens.some((token) => NUMBER_WORDS.has(token.lower));
-  if (!hasNumber) add("no-number", NO_NUMBER_MESSAGE, null, WHOLE_LINE);
+  if (context.kind === "work") {
+    const marker = hasNumber ? null : resultMarker(tokens, text);
+    // A duty opener already asks what changed; saying it twice is noise.
+    if (!hasNumber && !marker && !duty) add("no-result", NO_RESULT_MESSAGE, null, WHOLE_LINE);
+    if (marker) add("no-number", noNumberMessage(marker), null, WHOLE_LINE);
+    if (hasNumber && lacksMethod(tokens, text)) {
+      add("no-method", NO_METHOD_MESSAGE, null, WHOLE_LINE);
+    }
+  }
 
   const words = countWords(text);
   const chars = text.trim().length;
@@ -566,9 +731,42 @@ function findDuplicates(lines: readonly (readonly string[])[]): Set<number> {
   return duplicates;
 }
 
-// Issues for one line, most important first. Empty array for a good line.
-export function lintBullet(text: string): LintIssue[] {
-  return analyze(text).issues;
+// Issues for one line, most important first. Empty array for a good line. Without a context the
+// line is read as work (a job or a project) that may still be going on.
+export function lintBullet(text: string, context: LintContext = WORK): LintIssue[] {
+  return analyze(text, context).issues;
+}
+
+const PRESENT = /^(?:present|current|now|today|ongoing|to date)$/i;
+// Section kinds whose lines are things someone did, so a result is fair to ask for.
+// A custom section could hold anything ("Additional information"), so it gets the lighter checks.
+const WORK_EXTRAS: ReadonlySet<string> = new Set(["volunteering"]);
+
+function ended(endDate: string): boolean {
+  const end = endDate.trim();
+  return end !== "" && !PRESENT.test(end);
+}
+
+// Which checks apply to each line, by where it sits (see LintContext).
+export function lintContexts(resume: Resume): ReadonlyMap<string, LintContext> {
+  const contexts = new Map<string, LintContext>();
+  for (const job of resume.experience) {
+    const context: LintContext = { kind: "work", ended: ended(job.endDate) };
+    for (const bullet of job.bullets) contexts.set(bullet.id, context);
+  }
+  for (const project of resume.projects) {
+    for (const bullet of project.bullets) contexts.set(bullet.id, WORK);
+  }
+  for (const school of resume.education) {
+    for (const bullet of school.bullets) contexts.set(bullet.id, OTHER);
+  }
+  for (const section of extrasOf(resume)) {
+    const context = WORK_EXTRAS.has(section.kind) ? WORK : OTHER;
+    for (const item of section.items) {
+      for (const bullet of item.bullets) contexts.set(bullet.id, context);
+    }
+  }
+  return contexts;
 }
 
 // Lints every bullet that prints (experience, projects, education, then extra sections) and adds
@@ -577,7 +775,11 @@ export function lintBullet(text: string): LintIssue[] {
 // as duplicates. Totals count lines that have words; `highSeverity` is the number of lines with a
 // high issue.
 export function lintResume(resume: Resume): ResumeLint {
-  const lines = listBullets(resume).map((ref) => ({ id: ref.bulletId, ...analyze(ref.text) }));
+  const contexts = lintContexts(resume);
+  const lines = listBullets(resume).map((ref) => ({
+    id: ref.bulletId,
+    ...analyze(ref.text, contexts.get(ref.bulletId) ?? WORK),
+  }));
   const duplicates = findDuplicates(lines.map((line) => line.words));
   const totals = { bullets: 0, withIssues: 0, withNumbers: 0, highSeverity: 0 };
   const entries: [string, LintIssue[]][] = [];
@@ -599,4 +801,12 @@ export function lintResume(resume: Resume): ResumeLint {
   });
   // fromEntries defines own properties, so an id like "__proto__" can't touch the prototype.
   return { byBullet: Object.fromEntries(entries), totals };
+}
+
+// The summary is prose, not a list of results, so only the voice checks apply: stock phrases and
+// first person (Harvard and MIT both say to leave out I, me and my).
+export function lintSummary(summary: string): LintIssue[] {
+  return analyze(summary, OTHER).issues.filter(
+    (issue) => issue.id === "stock-phrase" || issue.id === "first-person",
+  );
 }

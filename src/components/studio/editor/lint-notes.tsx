@@ -14,9 +14,13 @@ const SETTLE_MS = 450;
 // description and the tip shown under it while it has focus.
 export const CHIP_LABELS: Record<LintIssueId, string> = {
   "stock-phrase": "Stock phrase",
+  duty: "Duty, not result",
+  "no-result": "No result",
   "no-number": "Add a number",
+  "no-method": "Say how",
   "weak-start": "Weak start",
   "first-person": "Drop I and my",
+  tense: "Past tense",
   "too-long": "Too long",
   "too-short": "Too short",
   passive: "Passive",

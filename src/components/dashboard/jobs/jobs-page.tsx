@@ -563,7 +563,7 @@ function MoreWithPro({ copy, tryPro }: { copy: { title: string; body: string }; 
     <section aria-labelledby="jobs-more" className="relative flex flex-col">
       <div
         aria-hidden
-        className="flex flex-col gap-4 [mask-image:linear-gradient(to_bottom,black,transparent)]"
+        className="flex flex-col gap-4 mask-[linear-gradient(to_bottom,black,transparent)]"
       >
         {[0, 1].map((index) => (
           <div

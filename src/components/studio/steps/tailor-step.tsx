@@ -1,8 +1,10 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { Pencil } from "lucide-react";
 import { useProTools } from "@/components/account/pro-tools";
 import { useMe } from "@/components/account/use-me";
+import { EligibilityCard } from "@/components/eligibility/eligibility-card";
 import { OTTO } from "@/components/mascot/lines";
 import { Otto } from "@/components/mascot/otto";
 import { OttoNote } from "@/components/mascot/otto-note";
@@ -25,6 +27,7 @@ import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
+import { Eyebrow } from "@/components/ui/eyebrow";
 import { TrackView } from "@/lib/analytics/track-view";
 import { preloadPdfRenderer } from "@/lib/pdf/render";
 import type { Resume } from "@/lib/resume/schema";
@@ -48,12 +51,18 @@ function useUsageNote(): string | null {
   return `${left} of ${usage.limit} tailored versions left ${thisPeriod(me?.period)}.`;
 }
 
+function jobLabel(title: string, company: string): string {
+  const parts = [title.trim(), company.trim()].filter(Boolean);
+  return parts.length > 0 ? parts.join(" · ") : "The job post you pasted";
+}
+
 function TailorWorkspace({ source, baseTitle }: { source: Resume; baseTitle: string | null }) {
   // A job sent from the Jobs tab replaces whatever post this tab had open.
   const [queued] = useState(peekQueuedJob);
   const [draft, setDraft] = useState<TailorDraft>(() =>
     queued ? { ...EMPTY_DRAFT, link: queued.link } : loadDraft(),
   );
+  const [editingPost, setEditingPost] = useState(false);
   const run = useTailorRun(source);
   const usageNote = useUsageNote();
   const last = run.last;
@@ -64,10 +73,12 @@ function TailorWorkspace({ source, baseTitle }: { source: Resume; baseTitle: str
     () => (result ? (savedChoices ?? defaultChoices(source, result)) : null),
     [source, result, savedChoices],
   );
+  // Fixed for the visit: "years of experience" counts a current job up to today.
+  const [now] = useState(() => Date.now());
   // Recomputed from the resume, so an added line moves the count at once.
   const screener = useMemo(
-    () => (result && choices ? buildScreener(source, result, choices) : null),
-    [source, result, choices],
+    () => (result && choices ? buildScreener(source, result, choices, now) : null),
+    [source, result, choices, now],
   );
 
   useEffect(() => {
@@ -80,6 +91,12 @@ function TailorWorkspace({ source, baseTitle }: { source: Resume; baseTitle: str
   else if (screener) otto = OTTO.tailor.screener(screener.counts.must, screener.counts.nice);
 
   const postChanged = run.last !== null && run.last.job.text.trim() !== draft.text.trim();
+  // Once there are results the form folds into one line, so they start near the top of the
+  // screen. It stays mounted (hidden), so opening it again keeps what was typed and read.
+  const folded = Boolean(last && screener) && !editingPost && !run.loading && !postChanged;
+  const jobName = last
+    ? jobLabel(last.job.title || last.result.job.title, last.job.company || last.result.job.company)
+    : "";
 
   return (
     <div className="mx-auto flex w-full max-w-3xl flex-col gap-6">
@@ -90,11 +107,31 @@ function TailorWorkspace({ source, baseTitle }: { source: Resume; baseTitle: str
           job gets its own copy.
         </Alert>
       ) : null}
-      <Card>
+      {folded ? (
+        <Card className="gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex min-w-0 flex-col gap-0.5">
+            <Eyebrow>Compared with</Eyebrow>
+            <p className="text-base/6 font-semibold text-pretty text-ink">{jobName}</p>
+          </div>
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={() => setEditingPost(true)}
+            className="self-start sm:self-auto"
+          >
+            <Pencil />
+            Change the job post
+          </Button>
+        </Card>
+      ) : null}
+      <Card hidden={folded}>
         <JobForm
           draft={draft}
           onChange={setDraft}
-          onSubmit={() => void run.start(draft)}
+          onSubmit={() => {
+            setEditingPost(false);
+            void run.start(draft);
+          }}
           busy={run.loading}
           note={usageNote}
           queued={queued}
@@ -126,12 +163,19 @@ function TailorWorkspace({ source, baseTitle }: { source: Resume; baseTitle: str
             choices={choices}
             screener={screener}
             onPatch={(patch) => run.update(last.id, patch)}
+            beforeApply={
+              // The form holds this check; while it's folded the check moves next to applying.
+              folded && draft.text.trim() ? (
+                <EligibilityCard location={draft.posting?.location ?? ""} text={draft.text} />
+              ) : null
+            }
           />
           <Button
             variant="ghost"
             onClick={() => {
               run.clear();
               setDraft(EMPTY_DRAFT);
+              setEditingPost(false);
             }}
             className="self-start"
           >

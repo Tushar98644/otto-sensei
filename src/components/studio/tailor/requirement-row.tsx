@@ -12,7 +12,9 @@ import {
 import type { ReactNode } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import type { RowReason } from "@/lib/tailor/reasons";
 import type { RequirementRow, RequirementStatus } from "@/lib/tailor/requirements";
+import { cn } from "@/lib/utils";
 import { AddLineForm } from "./add-line-form";
 import type { AddedLine, LineTarget, RequirementChoice } from "./apply";
 import type { Writing } from "./use-writing";
@@ -56,8 +58,12 @@ const STATUS: Record<RequirementStatus, { label: string; chip: ReactNode }> = {
   },
 };
 
+// The row's element id, so "Fix these first" can bring it into view.
+export const requirementDomId = (rowId: string) => `tailor-requirement-${rowId}`;
+
 export type RequirementRowProps = {
   row: RequirementRow;
+  reason: RowReason | undefined;
   choice: RequirementChoice | undefined;
   // Ids of every line the person added: they exist only in the coming copy, so there's no line in
   // the editor to jump to.
@@ -133,8 +139,28 @@ function UnprovenLine({ text, name, onRemove }: UnprovenLineProps) {
   );
 }
 
+// Why the row has its status, in this resume's terms. A warning gets the icon, never color alone.
+function ReasonLine({ reason }: { reason: RowReason | undefined }) {
+  if (!reason?.text) return null;
+  const warn = reason.tone === "warn";
+  return (
+    <p
+      className={cn(
+        "flex items-start gap-2 text-sm/6 text-pretty",
+        warn ? "text-ink" : "text-muted",
+      )}
+    >
+      {warn ? (
+        <TriangleExclamationPoint aria-hidden className="mt-1 size-4 shrink-0 text-warn" />
+      ) : null}
+      <span>{reason.text}</span>
+    </p>
+  );
+}
+
 export function RequirementRowItem({
   row,
+  reason,
   choice,
   addedIds,
   open,
@@ -161,24 +187,31 @@ export function RequirementRowItem({
   ) : null;
 
   return (
-    <li className="flex flex-col gap-3 py-4">
+    <li
+      id={requirementDomId(row.id)}
+      tabIndex={-1}
+      className="flex scroll-mt-24 flex-col gap-3 py-4 outline-offset-4"
+    >
       <div className="flex items-start justify-between gap-3">
         <p className="min-w-0 text-sm/6 font-medium text-ink">
           {row.text}
           <span className="sr-only">: {status.label}</span>
         </p>
-        <span aria-hidden className="mt-px">
+        <span aria-hidden className="mt-px shrink-0">
           {status.chip}
         </span>
       </div>
 
       {row.status === "proven" ? (
-        <Proof
-          row={row}
-          addedIds={addedIds}
-          onRemove={choice?.kind === "line" ? () => onChoice(null) : null}
-          onJump={onJump}
-        />
+        <>
+          <Proof
+            row={row}
+            addedIds={addedIds}
+            onRemove={choice?.kind === "line" ? () => onChoice(null) : null}
+            onJump={onJump}
+          />
+          <ReasonLine reason={reason} />
+        </>
       ) : null}
 
       {pending ? (
@@ -191,10 +224,7 @@ export function RequirementRowItem({
 
       {row.status === "listed" && !pending ? (
         <div className="flex flex-col gap-2">
-          <p className="text-sm text-muted">
-            Only in your {row.proof.line?.place === "Headline" ? "headline" : "skills list"}. A
-            screener looks for it in what you did.
-          </p>
+          <ReasonLine reason={reason} />
           {open ? (
             form
           ) : (
@@ -212,8 +242,9 @@ export function RequirementRowItem({
 
       {row.status === "missing" && !pending ? (
         <div className="flex flex-col gap-3">
+          <ReasonLine reason={reason} />
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-            <p className="text-sm text-ink">{row.ask}</p>
+            <p className="text-sm font-medium text-ink">{row.ask}</p>
             {open ? null : (
               <div role="group" aria-label={row.ask} className="flex shrink-0 gap-2">
                 <Button size="sm" variant="secondary" onClick={() => onOpen(true)}>

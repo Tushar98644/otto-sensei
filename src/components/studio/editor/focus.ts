@@ -13,6 +13,8 @@ export const entryFieldId = (entryId: string, field: string) =>
   `fix-entry-${safe(entryId)}-${field}`;
 export const addButtonId = (scope: string) => `fix-add-${safe(scope)}`;
 export const addLineButtonId = (parentId: string) => addButtonId(`lines-${parentId}`);
+// The editor shows one summary at a time, so a fixed id lets other steps open it.
+export const SUMMARY_INPUT_ID = "fix-summary";
 
 export type Caret = "start" | "end" | number;
 

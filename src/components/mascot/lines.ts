@@ -2,7 +2,6 @@ import { BRAND } from "@/config/brand";
 import {
   type Feature,
   FREE_APPLICATIONS,
-  FREE_JOB_MATCHES,
   PLANS,
   PRO_TRIAL,
   type ProTool,
@@ -73,6 +72,19 @@ const SHORT_LABELS: Record<Feature, string> = {
 };
 
 const REVIEW_ALL_GOOD = "Every check passed. Hiring software can read all of it.";
+
+// The file checks first (a file software can't read loses everything else), then what a reader
+// would notice in the words.
+function reviewOverall(counts: CheckCounts, toFix: number) {
+  const fail = whole(counts.fail);
+  const words = whole(toFix);
+  if (fail > 0 || words === 0) return reviewSummary(counts);
+  const start =
+    whole(counts.warn) > 0
+      ? "Software can read it, with small snags."
+      : "Hiring software can read it all.";
+  return `${start} A recruiter would notice ${pluralize(words, "thing")} in your words first.`;
+}
 
 function reviewSummary(counts: CheckCounts) {
   const fail = whole(counts.fail);
@@ -167,6 +179,7 @@ export const OTTO = {
   review: {
     intro: "This is exactly what hiring software reads from your file. Let's check it.",
     summary: reviewSummary,
+    overall: reviewOverall,
     allGood: REVIEW_ALL_GOOD,
     scanned: "This PDF is only a picture, so hiring software sees a blank page. Let's fix that.",
   },
@@ -281,8 +294,6 @@ export const OTTO = {
         : `${pluralize(whole(saved), "saved job")}. Closed ones stay here for 30 days.`,
     noSkills:
       "I couldn't find any skills in this resume. Add a skills section and I'll match again.",
-    publicInvite: `Sign in free and I'll show your ${FREE_JOB_MATCHES} closest matches, with the reasons. Pro ranks them all.`,
-    publicFailed: "I couldn't load the jobs just now. Try again in a minute.",
   },
   // The Cover letters page (/dashboard/letters).
   letters: {

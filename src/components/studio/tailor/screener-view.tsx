@@ -9,6 +9,8 @@ import { RequirementRowItem } from "./requirement-row";
 import type { Screener } from "./screener";
 import type { Writing } from "./use-writing";
 
+export const REQUIREMENTS_ID = "tailor-requirements";
+
 const GROUPS: { importance: RequirementImportance; title: string }[] = [
   { importance: "must", title: "Must-haves" },
   { importance: "nice", title: "Nice-to-haves" },
@@ -56,16 +58,15 @@ export function ScreenerView({
   }
 
   return (
-    <Card>
+    <Card id={REQUIREMENTS_ID} className="scroll-mt-24">
       <CardHeader>
         <Eyebrow>AI screener view</Eyebrow>
         <CardTitle as="h2" aria-live="polite" className="tabular-nums">
           {headline}
         </CardTitle>
         <CardDescription className="max-w-prose">
-          Some employers screen with AI tools such as HiredScore or Ashby. They check each
-          requirement on its own against your resume. This is that check, in the open. It isn&apos;t
-          any tool&apos;s exact grade.
+          Tools such as HiredScore and Ashby check each requirement on its own. This is that check,
+          done in the open. It isn&apos;t any tool&apos;s exact grade.
         </CardDescription>
       </CardHeader>
       {GROUPS.map(({ importance, title }) => {
@@ -79,6 +80,7 @@ export function ScreenerView({
                 <RequirementRowItem
                   key={row.id}
                   row={row}
+                  reason={screener.reasons[row.id]}
                   choice={choices[row.id]}
                   addedIds={addedIds}
                   open={openId === row.id}
