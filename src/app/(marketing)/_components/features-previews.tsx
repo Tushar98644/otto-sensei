@@ -142,14 +142,14 @@ function PortfolioPreview() {
   return (
     <div className="overflow-hidden rounded-xl ring-1 ring-border">
       <p className="truncate bg-surface px-3 py-2 font-mono text-xs text-muted">
-        ottosensei.com/p/maya-chen
+        ottosensei.com/p/jordan-ellis
       </p>
       <Image
-        src="/portfolio-templates/bento.webp"
+        src="/portfolio-templates/reel.webp"
         width={480}
         height={300}
         sizes="(min-width: 1024px) 36rem, 90vw"
-        alt="A portfolio page in the Bento design"
+        alt="A portfolio page in the Reel design"
         className="h-auto w-full"
       />
     </div>
