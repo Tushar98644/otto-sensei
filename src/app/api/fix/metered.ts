@@ -16,8 +16,7 @@ import { DAY_MS, MINUTE_MS } from "@/lib/time";
 import { consumeUsage, refundUsage } from "@/lib/usage";
 import { budgetReached, limitReached, requirePlanFeature } from "../metered-free";
 
-// Order matters: sign-in, plan, burst limit, validation, AI budget, allowance, then the call. A
-// failed call gives its unit back, within a daily cap for failures that may have been billed.
+// Order matters: sign-in, plan, burst limit, validation, AI budget, allowance, then the call.
 
 export type MeteredCopy = {
   signIn: string;
@@ -33,8 +32,6 @@ export type MeteredRoute<S extends z.ZodType, R> = {
   run: (input: z.output<S>) => Promise<R>;
 };
 
-// Every call keeps the model busy for seconds, so people clicking through the studio stay far
-// below these. This only stops a script from draining the API quota every customer shares.
 const CALLS_PER_MINUTE: Record<Feature, number> = {
   fix: 30,
   tailor: 10,
@@ -44,11 +41,8 @@ const CALLS_PER_MINUTE: Record<Feature, number> = {
   github: 10,
 };
 
-// Nothing ran on the model for these (input checks, the provider turning the call away), so they
-// cost nothing and their unit always comes back.
 const UNBILLED_FAILURES: ReadonlySet<AIErrorCode> = new Set<AIErrorCode>(["too_long", "rate_limited"]);
-// Other failures may still have been billed. Refunding all of them would let input written to
-// fail run billed calls for free, so only a few a day per feature come back.
+// Failures may still be billed; refunding all would let crafted input run free calls.
 const BILLED_REFUNDS_PER_DAY = 3;
 
 const AI_UNAVAILABLE = "Otto couldn't finish that right now. Try again in a minute.";
@@ -69,8 +63,6 @@ function unavailableMessage(_copy: MeteredCopy, refunded: boolean): string {
   return refunded ? AI_UNAVAILABLE + NOT_COUNTED : AI_UNAVAILABLE;
 }
 
-// demo is true with no AI key: fixBullet() and tailorResume() then answer with sample output the
-// UI must label.
 export async function runMetered<S extends z.ZodType, R>(
   req: Request,
   route: MeteredRoute<S, R>,
@@ -97,7 +89,6 @@ export async function runMetered<S extends z.ZodType, R>(
 
     const body = await readJson(req, route.schema);
     if (!body.ok) {
-      // readJson names the field and the rule it broke, never the value.
       log.info(`${feature}.bad_request`, { reason: body.message });
       return fail("bad_request", copy.invalid, 400);
     }
@@ -127,8 +118,6 @@ export async function runMetered<S extends z.ZodType, R>(
   }
 }
 
-// Resolves whether the unit came back. A lost refund costs the person one unit; it mustn't also
-// turn their AI error into a 500.
 async function refund(user: SessionUser, feature: Feature, now: number, cause: unknown): Promise<boolean> {
   try {
     if (!(cause instanceof AIError && UNBILLED_FAILURES.has(cause.code))) {

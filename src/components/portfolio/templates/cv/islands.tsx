@@ -4,8 +4,7 @@ import { Search, X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { flushSync } from "react-dom";
 
-// The command menu of BartoszJarocki/cv (MIT). A native <dialog> stands in for Radix Dialog and
-// cmdk, so the page ships no extra libraries.
+// Ported from BartoszJarocki/cv (MIT, see ./LICENSE.txt).
 
 export type CommandLink = { label: string; href: string };
 
@@ -14,7 +13,6 @@ const noSubscribe = () => () => {};
 export function CommandMenu({ links }: { links: readonly CommandLink[] }) {
   const dialog = useRef<HTMLDialogElement>(null);
   const [query, setQuery] = useState("");
-  // "⌘" on a Mac, "Ctrl" elsewhere; the server can't know, so it writes "Ctrl".
   const mac = useSyncExternalStore(
     noSubscribe,
     () => window.navigator.userAgent.includes("Mac"),
@@ -25,7 +23,6 @@ export function CommandMenu({ links }: { links: readonly CommandLink[] }) {
     const down = (event: KeyboardEvent) => {
       if (event.key !== "j" || !(event.metaKey || event.ctrlKey)) return;
       const box = dialog.current;
-      // A preview (the editor's inert column, a template thumbnail) never opens a modal over the app.
       if (!box || box.closest("[inert], [data-pf-still]")) return;
       event.preventDefault();
       if (box.open) box.close();

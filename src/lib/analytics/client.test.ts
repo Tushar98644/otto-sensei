@@ -44,7 +44,6 @@ async function loadClient(): Promise<Client> {
   return client;
 }
 
-// Lets the dynamic import and the promise chain behind every call settle.
 async function settle() {
   for (let i = 0; i < 5; i++) await new Promise((resolve) => setTimeout(resolve, 0));
 }
@@ -184,7 +183,6 @@ describe("identity", () => {
     expect(sdk.identify).toHaveBeenCalledWith("user-1", { plan: "free" });
     expect(sdk.capture).toHaveBeenCalledWith("signed_in", { plan: "free" });
 
-    // A later page load for the same person is not another sign-in.
     client.identifyUser("user-1", "free");
     await settle();
     expect(sdk.identify).toHaveBeenCalledOnce();

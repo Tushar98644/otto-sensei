@@ -2,15 +2,11 @@ import type { ReactNode } from "react";
 import type { PortfolioContentView, TextPart } from "@/lib/portfolio/content";
 import type { PortfolioView } from "@/lib/portfolio/view";
 
-// Small pieces the templates share. No hooks and no browser APIs: templates render on the server
-// for /p/<slug> and in the browser for the editor's preview.
-
-/** A template's scoped stylesheet (see ./css.ts). Constant CSS from its folder, never user text. */
+// Constant CSS from the template's folder, never user text.
 export function TemplateStyle({ css }: { css: string }) {
   return <style dangerouslySetInnerHTML={{ __html: css }} />;
 }
 
-// Links on someone's page lead away from it; they get no referrer and no ranking credit from us.
 export function OutLink({
   href,
   className,
@@ -19,7 +15,6 @@ export function OutLink({
 }: {
   href: string | null;
   className?: string;
-  // The link's accessible name when it only shows an icon.
   label?: string;
   children: ReactNode;
 }) {
@@ -44,7 +39,7 @@ export function OutLink({
   );
 }
 
-// FNV-1a, so a project's drawn pattern or colour is the same on every render, server and browser.
+// FNV-1a: deterministic, so server and browser draw the same pattern.
 export function seedOf(text: string): number {
   let hash = 0x811c9dc5;
   for (const char of text) {
@@ -54,7 +49,6 @@ export function seedOf(text: string): number {
   return hash;
 }
 
-/** A small pseudo-random sequence from a seed (mulberry32): values in [0, 1). */
 export function seeded(seed: number): () => number {
   let state = seed >>> 0;
   return () => {
@@ -87,13 +81,11 @@ export function Marked({
   );
 }
 
-/** Where "Say hello" goes: the email when it's shown, else the first social link, else nothing. */
 export function contactHref(content: PortfolioContentView): string | null {
   if (content.email) return `mailto:${content.email}`;
   return content.socials.find((social) => social.kind !== "email")?.href ?? null;
 }
 
-/** An element id from a project id ("gh:octo/repo" becomes "gh-octo-repo"), prefixed. */
 export function safeId(prefix: string, id: string): string {
   const tail = id
     .toLowerCase()
@@ -111,7 +103,6 @@ export function allSkills(view: PortfolioView): string[] {
   return [...new Set(view.skills.flatMap((group) => group.items))];
 }
 
-/** A date with no-break spaces, so a range that wraps breaks at its dash, never inside "May 2024". */
 export function unbroken(date: string): string {
   return date.replace(/ /g, "\u00a0");
 }

@@ -2,9 +2,6 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
-// Guards the design tokens other components depend on: every name exists, and every pairing we
-// actually render meets WCAG AA (4.5:1 for text, 3:1 for icons, borders and focus rings).
-
 const css = readFileSync(fileURLToPath(new URL("../../app/globals.css", import.meta.url)), "utf8");
 
 const colors = new Map<string, string>();
@@ -37,29 +34,21 @@ function contrast(a: string, b: string): number {
 const TEXT = 4.5;
 const GRAPHIC = 3;
 
-// [foreground, background, minimum ratio]
-// Paper, white and stone: the three surfaces text sits on.
 const SURFACES = ["background", "surface", "surface-muted"] as const;
 
 const PAIRS: Array<[string, string, number]> = [
-  // surface-strong is a hover shade: ink and muted text may sit on it, subtle may not.
   ...[...SURFACES, "surface-strong"].flatMap((bg): Array<[string, string, number]> => [
     ["ink", bg, 7],
     ["muted", bg, TEXT],
   ]),
   ...SURFACES.map((bg): [string, string, number] => ["subtle", bg, TEXT]),
-  // Forest buttons and the Pro mark, lavender live pills with the violet dot, highlighter marks,
-  // and the ink avatar.
   ["white", "primary", TEXT],
   ["white", "primary-hover", TEXT],
-  // Forest and red keys run one shade lighter at the top: white labels must hold there too.
   ["white", "primary-top", TEXT],
   ["white", "primary-hover-top", TEXT],
   ["white", "fail-top", TEXT],
-  // White keys on hover, and their labels' icons.
   ["ink", "surface-hover", 7],
   ["muted", "surface-hover", TEXT],
-  // The library's filter strip and the phone tabs sit on surface-strong.
   ["muted", "surface-strong", TEXT],
   ["ink", "lavender", TEXT],
   ["accent", "lavender", GRAPHIC],
@@ -74,7 +63,6 @@ const PAIRS: Array<[string, string, number]> = [
     ...SURFACES.map((bg): [string, string, number] => [status, bg, GRAPHIC]),
     [status, `${status}-soft`, GRAPHIC],
   ]),
-  // Otto's pencil marks and the field outlines must stay visible on every surface they touch.
   ...SURFACES.map((bg): [string, string, number] => ["accent", bg, GRAPHIC]),
   ...SURFACES.map((bg): [string, string, number] => ["border-strong", bg, GRAPHIC]),
   ["muted", "surface-muted", GRAPHIC],
@@ -117,7 +105,6 @@ describe("design tokens", () => {
       "otter-light",
     ];
     expect(required.filter((name) => !colors.has(name))).toEqual([]);
-    // Nothing orange carries text or fills any more, so these must not come back.
     expect(
       ["accent-hover", "accent-soft", "accent-ink"].filter((name) => colors.has(name)),
     ).toEqual([]);
@@ -155,10 +142,8 @@ describe("design tokens", () => {
       expect(css, `--animate-${name}`).toMatch(new RegExp(`--animate-${name}:\\s*${name}\\s`));
       expect(css, `@keyframes ${name}`).toContain(`@keyframes ${name} {`);
     }
-    // Blinking is the only idle loop; the bob is gone and the wave stops after two goes.
     expect(css).not.toContain("otto-bob");
     expect(css).toMatch(/--animate-otto-wave:[^;]*\s2;/);
-    // The dashboard's lively Ottos stagger on --otto-delay; the hover takes play once.
     expect(css).toMatch(/--animate-otto-page:[^;]*var\(--otto-delay, 0s\) infinite;/);
     expect(css).toMatch(/--animate-otto-page-lively:[^;]*ease-in-out;/);
   });

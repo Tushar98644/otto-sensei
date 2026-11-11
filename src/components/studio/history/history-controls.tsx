@@ -8,8 +8,6 @@ import { historyKey, type HistoryKey } from "@/lib/store/history-keys";
 import { useHistoryStatus, useStudioStore } from "@/lib/store/resume-store";
 import { VersionsDialog } from "./versions-dialog";
 
-// Phones get Undo plus one menu (Redo, Versions), so the switcher keeps room for a readable name.
-
 const IS_MAC =
   typeof navigator !== "undefined" && /mac|iphone|ipad|ipod/i.test(navigator.userAgent);
 const MOD = IS_MAC ? "⌘" : "Ctrl+";
@@ -31,7 +29,6 @@ function stepHistory(id: string, direction: HistoryKey): string | null {
 export function HistoryControls({ resumeId }: { resumeId: string | null }) {
   const status = useHistoryStatus(resumeId);
   const [versionsOpen, setVersionsOpen] = useState(false);
-  // Read out after each move, since the change itself may be off screen.
   const [announcement, setAnnouncement] = useState("");
 
   function move(direction: HistoryKey) {

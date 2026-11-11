@@ -1,8 +1,5 @@
 import { findTerm } from "./keywords";
 
-// Keyword searches find only the form typed, so write both once: "go-to-market (GTM)". The
-// matcher's own aliases (AWS, ML, UX…) already count either form as a match.
-
 export const ACRONYMS: readonly (readonly [short: string, long: string])[] = [
   ["ACLS", "advanced cardiac life support"],
   ["API", "application programming interface"],
@@ -60,7 +57,6 @@ export type OtherForm = {
   both: string;
 };
 
-// Null when the term isn't in the table, the resume has the post's form, or it has neither.
 export function otherForm(term: string, resumeText: string): OtherForm | null {
   const pair = BY_FORM.get(term.trim().toLowerCase());
   if (!pair) return null;

@@ -25,7 +25,6 @@ export async function POST(req: Request) {
 
 type Choice = { plan: PaidPlanId; interval: BillingInterval };
 
-// A request with no JSON body is Pro, monthly, as before plans and intervals existed.
 async function requestedChoice(req: Request): Promise<Choice | null> {
   if (!/^application\/json\b/i.test(req.headers.get("content-type") ?? "")) {
     return { plan: "pro", interval: "month" };

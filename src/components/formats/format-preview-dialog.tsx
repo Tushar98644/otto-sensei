@@ -44,7 +44,6 @@ export function FormatPreviewDialog({
     >
       {info ? (
         <div className="rounded-xl bg-surface-muted p-3 sm:p-6">
-          {/* Sized to the dialog: the whole page fits on screen without scrolling. */}
           <FormatImage
             info={info}
             sizes="(min-width: 672px) 36rem, 90vw"

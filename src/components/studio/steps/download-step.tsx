@@ -42,18 +42,14 @@ function ottoLine(pdf: ResumePdf, check: ExportCheck): string {
 function DownloadWorkspace({ resume }: { resume: Resume }) {
   const pageSize = usePageSize();
   const pro = useProTools();
-  // Until the plan is known the resume's own format renders, so a paying user's preview doesn't
-  // flash Classic; a Pro format can't be downloaded yet, though.
   const printed = useMemo(() => printedResume(resume, pro), [resume, pro]);
   const formatPending = pro === null && isProTemplate(templateOf(resume));
   const pdf = useResumePdf(printed, pageSize);
   const fileName = suggestedFileName(resume);
   const check = useExportCheck(printed, pdf.isCurrent ? pdf.file : null, fileName);
   const inline = useInlinePdfPreview();
-  // The model is cheap to build and never loads the PDF renderer.
   const changedCharacters = useMemo(() => buildPdfModel(resume).changedCharacters, [resume]);
   const otto = ottoLine(pdf, check);
-  // Read once on arrival: a copy that Tailor just made gets its success moment here.
   const [freshId] = useState(() => (isFreshCopy(resume.id) ? resume.id : null));
   useEffect(() => forgetFreshCopy(), []);
 
@@ -63,7 +59,6 @@ function DownloadWorkspace({ resume }: { resume: Resume }) {
         <OttoNote message={otto} className="flex-1" />
         {freshId === resume.id ? <OttoCheer /> : null}
       </div>
-      {/* Actions come first for keyboards and phones; on wide screens the preview sits on the left. */}
       <div className={cn("grid gap-6", inline && "lg:grid-cols-5")}>
         <div
           className={cn(

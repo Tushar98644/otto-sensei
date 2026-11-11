@@ -28,12 +28,10 @@ import { PreviewSourceBar, usePreviewSource } from "./preview-source";
 import { usePortfolioUrl } from "./use-portfolio-url";
 import { TemplatePreview } from "./template-preview";
 
-// Loaded on the first "Preview full page": it brings every template with it.
 const FullPortfolioPreview = lazy(() =>
   import("./full-preview").then((module) => ({ default: module.FullPortfolioPreview })),
 );
 
-/** The page a Free account would get, in any design: its own resume (and kept settings), or null. */
 export function freeSample(
   portfolio: Portfolio | null,
   candidates: readonly Resume[],
@@ -67,8 +65,6 @@ export function freeSample(
   };
 }
 
-// Sells the page, not the plan. Jordan's sample starts on when their resume is too thin to judge
-// a design by (./preview-source.tsx). Someone who dropped to Free is told it's kept, offline.
 export function PortfolioUpgrade({
   portfolio,
   candidates,
@@ -186,7 +182,6 @@ export function PortfolioUpgrade({
             own={own}
             onChange={setFull}
             onClose={() => setFull(null)}
-            // One modal at a time: the preview closes, then the plan dialog opens over the page.
             action={{
               label: tryLabel,
               onSelect: () => {

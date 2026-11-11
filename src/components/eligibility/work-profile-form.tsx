@@ -16,14 +16,11 @@ export type WorkProfileFormProps = {
   footer?: ReactNode;
 };
 
-// Long enough to take a few quick clicks as one save.
 const SAVE_DELAY_MS = 600;
 
 type SaveState = "idle" | "waiting" | "saving" | "saved" | "failed";
 
 export function WorkProfileForm({ userId, initial, saved, footer }: WorkProfileFormProps) {
-  // A first visit starts on this device's zone: it's a fact about the person. Stored with their
-  // first answer, never before.
   const [draft, setDraft] = useState<WorkProfile>(() => ({
     ...initial,
     timeZone: initial.timeZone || deviceTimeZone(),
@@ -53,7 +50,6 @@ export function WorkProfileForm({ userId, initial, saved, footer }: WorkProfileF
     if (pending.current) void save(pending.current);
   }
 
-  // Leaving (closing the dialog, another page) sends what is still waiting.
   const flushOnLeave = useEffectEvent(flush);
   useEffect(() => () => flushOnLeave(), []);
 

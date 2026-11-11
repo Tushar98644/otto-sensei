@@ -1,11 +1,3 @@
-// Real AI calls through the app's own code, to check a model's quality, speed and token use after
-// changing AI_MODEL / AI_STRUCTURE_MODEL or a prompt, and that no request carries the sample's
-// name, email, phone or links. Spends a few cents of OpenRouter credit at most.
-//
-//   bun scripts/ai-smoke.ts                    every check
-//   bun scripts/ai-smoke.ts tailor letter      only the named ones (structure fix tailor letter answer)
-//
-// Bun loads OPENROUTER_API_KEY from .env.local. Token counts print as "ai.usage" lines (dev only).
 import { fixBullet } from "@/lib/ai/fix";
 import { structureResume } from "@/lib/ai/structure";
 import { tailorResume } from "@/lib/ai/tailor";
@@ -19,8 +11,6 @@ import { screenerCounts, screenerHeadline, screenerRows } from "@/lib/tailor/req
 const CHECKS = ["structure", "fix", "tailor", "letter", "answer"] as const;
 type Check = (typeof CHECKS)[number];
 
-// Every request to OpenRouter is checked for the sample's personal details, and its token use is
-// added up for the cost line at the end.
 const personal: string[] = [];
 const spent = { calls: 0, leaks: 0, input: 0, output: 0 };
 const realFetch = globalThis.fetch;
@@ -43,7 +33,6 @@ globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
   return res;
 }) as typeof fetch;
 
-// Public price list; USD per token.
 async function priceOf(model: string): Promise<{ prompt: number; completion: number } | null> {
   try {
     const res = await realFetch("https://openrouter.ai/api/v1/models");
@@ -61,7 +50,6 @@ const QUESTIONS = [
   "Why do you want to work at Acme Analytics?",
   "Tell us about a launch you're proud of and what you'd do differently.",
 ];
-// Only one question, for a cheaper rerun after changing the answer prompt.
 const STORY_ONLY = process.argv.includes("--story");
 
 const JOB = `Senior Product Marketing Manager, Remote (US/EU)

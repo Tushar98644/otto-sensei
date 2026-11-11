@@ -4,8 +4,6 @@ import { LINKEDIN_MAX_ZIP_BYTES, LinkedInImportError, readLinkedInExport } from 
 import type { Resume } from "@/lib/resume/schema";
 import { LOCAL_IMPORT_ACCEPT, type LocalImportKind } from "./local-import-kinds";
 
-// Imports that never leave the browser: a LinkedIn data export (ZIP) and a JSON Resume file.
-
 export type { LocalImportKind };
 
 export const LOCAL_IMPORTS: Record<LocalImportKind, { accept: string; maxBytes: number }> = {

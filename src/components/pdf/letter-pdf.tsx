@@ -10,19 +10,14 @@ import { modelText, themeText } from "./layout";
 import { themeFor } from "./themes";
 import type { PdfStyle } from "./theme";
 
-// Same name block, fonts and margins as the resume, so the two pages read as one application.
-
 export type LetterPdfProps = {
-  // Supplies the name block and, unless `template` is given, the format.
   resume: Resume;
   letter: string;
   pageSize?: PdfPageSize;
   template?: TemplateId;
-  // Epoch ms for the date line.
   now: number;
 };
 
-// A letter reads in paragraphs, so they sit further apart than resume lines do.
 const BLOCK_GAP: PdfStyle = { marginTop: 10 };
 const DATE: PdfStyle = { marginTop: 18, marginBottom: 14 };
 
@@ -46,7 +41,6 @@ export function LetterPdf({ resume, letter, pageSize = "LETTER", template, now }
         <Header model={model} theme={theme} />
         <Line style={DATE}>{letterDate(now, pageSize)}</Line>
         {blocks.map((lines, index) => (
-          // A paragraph never splits across pages, so the sign-off stays with the name under it.
           <View key={index} wrap={false} style={index > 0 ? BLOCK_GAP : undefined}>
             {lines.map((line, lineIndex) => (
               <Line key={lineIndex}>{line}</Line>

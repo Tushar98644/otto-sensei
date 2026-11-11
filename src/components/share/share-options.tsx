@@ -15,8 +15,6 @@ type ShareOptionsProps = {
   disabled?: boolean;
 };
 
-// Both start off: a link pasted somewhere public shouldn't hand out a phone number or show up in
-// search results unless the owner chose that.
 export function ShareOptions({ value, onChange, disabled = false }: ShareOptionsProps) {
   return (
     <fieldset disabled={disabled} className="min-w-0">

@@ -24,8 +24,6 @@ import {
 import { companyKey, type VisaFacts } from "./visa";
 import { DEFAULT_FILTERS, LEVEL_SENIORITIES, SENIORITIES, type JobFilters } from "./types";
 
-// A narrow per-opening table rebuilt after each ingest, so matching scores 5 MB instead of jobs.
-
 const CHUNK = 1_000;
 
 export type StoredCounts = {
@@ -44,7 +42,6 @@ function missingTable(error: unknown): boolean {
   return false;
 }
 
-/** null before the migration or the first rebuild. */
 export async function readStoredCounts(db: Db): Promise<StoredCounts | null> {
   try {
     const [row] = await db.select().from(jobCountsRow).limit(1);
@@ -64,7 +61,6 @@ export async function readStoredCounts(db: Db): Promise<StoredCounts | null> {
 
 type SkillTable = { ids: Map<string, number>; weights: Map<string, number>; maxSid: number };
 
-// Skill ids and weights change only at an ingest, so a process keeps them until the next one.
 let skillCache: { builtAt: number; table: SkillTable } | null = null;
 
 async function skillTable(db: Db, builtAt: number): Promise<SkillTable> {
@@ -76,7 +72,6 @@ async function skillTable(db: Db, builtAt: number): Promise<SkillTable> {
   return table;
 }
 
-// Postgres array literals as one bound parameter each: '{1,4,9}', '{"g:eu","US"}'.
 const intArray = (values: readonly number[]) => `{${values.join(",")}}`;
 const textArrayLiteral = (values: readonly string[]) =>
   `{${values.map((value) => `"${value.replace(/["\\]/g, "")}"`).join(",")}}`;
@@ -110,7 +105,6 @@ function openingKey(row: MatchRow): string {
 }
 
 export async function rebuildMatchIndex(db: Db, now: number): Promise<number | null> {
-  // Before the migration there is nothing to build.
   try {
     await db.select({ sid: matchSkills.sid }).from(matchSkills).limit(1);
   } catch (error) {
@@ -137,7 +131,6 @@ export async function rebuildMatchIndex(db: Db, now: number): Promise<number | n
     .where(and(...matchableConditions(DEFAULT_FILTERS, now)))
     .orderBy(desc(jobs.postedAt), desc(jobs.id));
 
-  // New skills get the next free id; ids already given never change.
   const known = await db.select().from(matchSkills);
   const ids = new Map(known.map((row) => [row.skill, row.sid]));
   let next = Math.max(0, ...ids.values()) + 1;
@@ -186,11 +179,9 @@ export async function rebuildMatchIndex(db: Db, now: number): Promise<number | n
       continue;
     }
     const facts = visa.get(companyKey(row.company));
-    // Read at ingest; a row stored before occupations were (or by an older lookup) is read here.
     const read = row.occupation ? null : readTitle(row.title);
     const occ = row.occupation ?? read?.occupation ?? null;
     const family = row.family && familyFits(row.family, occ) ? row.family : (read?.family ?? null);
-    // Rows come newest first, so the first copy of each opening is the one stored.
     openings.set(grp, {
       id: row.id,
       grp,
@@ -220,8 +211,7 @@ export async function rebuildMatchIndex(db: Db, now: number): Promise<number | n
 
   const [open] = await db.select({ n: count() }).from(jobs).where(isNull(jobs.closedAt));
   const [read] = await db.select({ at: max(jobBoards.lastFetchedAt) }).from(jobBoards);
-  // Only changed rows are written: rewriting all of them left a dead copy of every row until
-  // vacuum.
+  // Only changed rows are written: rewriting all left a dead copy of every row until vacuum.
   const before = new Map(
     (await db.select().from(jobMatch)).map((row) => [row.id, openingKey(row)]),
   );
@@ -264,7 +254,6 @@ export type PooledOpening = {
   copies: CandidateRow[];
   places: string[];
   visa: VisaFacts | null;
-  // null from the fallback query on jobs.
   kind: { family: CandidateRow["family"]; occupation: string | null; zone: number | null } | null;
 };
 
@@ -288,7 +277,6 @@ export type PoolQuery = MatchQuery & {
 const floatArray = (values: readonly number[]) =>
   `{${values.map((value) => value.toFixed(4)).join(",")}}`;
 
-// The same text search as /jobs, on any open copy of the opening.
 function textMatch(filters: JobFilters): SQL | null {
   const queries = [filters.q, filters.place].flatMap((text) => wordsQuery(text) ?? []);
   if (queries.length === 0) return null;
@@ -325,7 +313,6 @@ async function indexedPool(
   const majorCodes = [...kinds.majors.keys()];
   if (sids.length === 0 && reachFamilies.length === 0 && occCodes.length === 0)
     return { openings: [], groups: 0, source: "index" };
-  // Weight of each skill id, 0 when not on the resume: the SQL sums w[id] over a job's ids.
   const dense = Array.from({ length: Math.max(table.maxSid, 1) }, () => 0);
   for (const skill of query.skills) {
     const sid = table.ids.get(skill);
@@ -333,7 +320,6 @@ async function indexedPool(
   }
   const level = query.seniority === null ? null : SENIORITIES.indexOf(query.seniority);
   const w = sql`${intArray(dense)}::float8[]`;
-  // Kind of work, 0 to 1, as kindOf in match.ts computes it.
   const weightAt = (codes: string[], weights: number[], column: SQL) =>
     sql`coalesce((${floatArray(weights)}::float8[])[array_position(${textArrayLiteral(codes)}::text[], ${column})], 0)`;
   const kindSql = sql`case when m.family is not null and ${kinds.byFamily}::boolean then
@@ -430,7 +416,6 @@ async function indexedPool(
   const openings: PooledOpening[] = [];
   for (const item of pooled) {
     const list = byGroup.get(item.grp) ?? [];
-    // The stored copy, or the newest one the filters still allow.
     const row = list.find((copy) => copy.id === item.id) ?? list[0];
     if (!row) continue;
     openings.push({
@@ -464,7 +449,6 @@ async function jobsPool(db: Db, query: PoolQuery, now: number): Promise<OpeningP
   };
 }
 
-// `counts` is readStoredCounts(db), read once per request by the caller.
 export async function poolOpenings(
   db: Db,
   query: PoolQuery,
@@ -475,7 +459,6 @@ export async function poolOpenings(
     try {
       return await indexedPool(db, query, counts, now);
     } catch (error) {
-      // A half-applied migration or a renamed column must cost speed, not the list.
       log.error("jobs.index_query_failed", error);
     }
   }

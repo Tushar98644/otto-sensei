@@ -114,7 +114,6 @@ describe("/api/writings", () => {
 
   it("turns away bodies that break the rules", async () => {
     await signInAs("maya@example.com");
-    // An answer without its question, a letter with one, an empty text, an over-long answer.
     for (const body of [
       { ...ANSWER, question: "" },
       { ...LETTER, question: "Why us?" },
@@ -124,7 +123,6 @@ describe("/api/writings", () => {
     ]) {
       expect((await create(body)).status).toBe(400);
     }
-    // A bad link is dropped, not fatal.
     const res = await create({ ...LETTER, jobUrl: "not a link" });
     expect(res.status).toBe(201);
     expect(((await res.json()) as WritingResponse).writing.jobUrl).toBe("");

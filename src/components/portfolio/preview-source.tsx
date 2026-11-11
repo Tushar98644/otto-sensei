@@ -12,9 +12,6 @@ import {
 import { cn } from "@/lib/utils";
 import type { TemplateSample } from "./live-template";
 
-// One choice per browser, shared by every design preview. Kept in memory too, so the switch still
-// works when storage is blocked (private windows, strict privacy settings).
-
 const STORAGE_KEY = "otto.portfolio.preview-source";
 const listeners = new Set<() => void>();
 let current: PreviewSource | null | undefined;
@@ -28,7 +25,6 @@ function getSnapshot(): PreviewSource | null {
   return current;
 }
 
-// The server can't know the choice, so it draws the default; the browser settles it on hydration.
 function getServerSnapshot(): PreviewSource | null {
   return null;
 }
@@ -37,7 +33,6 @@ function notify() {
   for (const listener of listeners) listener();
 }
 
-// A pick in another tab moves this one too.
 function onStorage(event: StorageEvent) {
   if (event.key !== STORAGE_KEY) return;
   current = parsePreviewSource(event.newValue);
@@ -55,7 +50,6 @@ function subscribe(listener: () => void) {
 
 export function setPreviewSource(source: PreviewSource): void {
   current = source;
-  // If storage is blocked: not remembered after a reload, but still applied now.
   writeItem(STORAGE_KEY, source);
   notify();
 }
@@ -63,7 +57,6 @@ export function setPreviewSource(source: PreviewSource): void {
 export type PreviewChoice = {
   source: PreviewSource;
   sample: TemplateSample | null;
-  // Only someone with a page of their own has anything to switch to.
   canSwitch: boolean;
 };
 
@@ -110,14 +103,12 @@ export function PreviewSourceSwitch({
   );
 }
 
-/** Says plainly whose page is on screen, so nobody takes the sample for their own. */
 export function PreviewSourceNote({
   source,
   short = false,
   className,
 }: {
   source: PreviewSource;
-  // For a phone-width bar: drops the name, keeps "made-up".
   short?: boolean;
   className?: string;
 }) {

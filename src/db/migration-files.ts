@@ -1,8 +1,7 @@
 import { readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 
-// No app imports: scripts/migrate.ts runs this under plain bun. Files are
-// supabase/migrations/<14-digit timestamp>_<name>.sql, oldest first.
+// No app imports: scripts/migrate.ts runs this under plain bun.
 
 export type MigrationFile = { version: string; name: string; file: string; sql: string };
 
@@ -23,7 +22,6 @@ export function readMigrations(dir = MIGRATIONS_DIR): MigrationFile[] {
     });
 }
 
-// The Supabase CLI's history table, created the way it creates it.
 export const MIGRATION_HISTORY_DDL = `
   create schema if not exists supabase_migrations;
   create table if not exists supabase_migrations.schema_migrations (version text primary key);

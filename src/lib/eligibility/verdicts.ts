@@ -11,8 +11,6 @@ import {
 } from "./time";
 import type { EligibilityFinding, EligibilityRule, EligibilityVerdict, ProfileGap } from "./types";
 
-// check.ts decides which rules a post sets.
-
 export type Source = "post" | "location";
 export type Unit = { text: string; quote: string };
 export type Claim = { places: Place[]; quote: string; source: Source };
@@ -24,7 +22,6 @@ export type Context = {
   relocation: boolean;
   remote: boolean;
   onSite: boolean;
-  // Set when the job is remote and open where the person lives, e.g. "Nigeria".
   worksFromHome?: string;
   sponsorRegions?: readonly WorkRegion[];
 };
@@ -35,7 +32,6 @@ export type CheckOptions = {
   sponsorRegions?: readonly WorkRegion[];
 };
 
-// How a note states the register fact. An explicit "we don't sponsor" line still wins.
 const REGISTER_NAMES: Record<WorkRegion, string> = {
   uk: "is listed as a UK visa sponsor",
   us: "has had H-1B visa petitions approved",
@@ -168,8 +164,6 @@ function locationVerdict(
   });
 }
 
-// Places limiting the job are alternatives ("Remote - US" in the field, "we also hire in Canada" in
-// the text), so the person only needs to be in one of them.
 export function locationFinding(
   restricted: Claim[],
   field: Claim | null,
@@ -238,7 +232,6 @@ export function rightsVerdict(
 ): EligibilityFinding {
   const rule = kind === "sponsorship" ? "sponsorship" : "authorization";
   const { quote } = unit;
-  // "Authorized to work in the country you live in": no visa comes into it.
   if (kind !== "citizenship" && places.length === 0 && HOME_COUNTRY.test(unit.text)) {
     const country = context.profile?.country ?? "";
     const home = country ? homeName(country) : "";
@@ -257,7 +250,6 @@ export function rightsVerdict(
     ? "citizenship or permanent residence"
     : "citizenship";
   const [first] = regions;
-  // "Remote - EMEA" with "no sponsorship", for someone in Lagos: no visa comes into it.
   if (!first && context.worksFromHome && kind !== "citizenship") {
     const home = context.worksFromHome;
     return kind === "sponsorship"
@@ -431,7 +423,6 @@ export function timeVerdict(
             quote,
           );
     }
-    // A 9 to 5 day in each place.
     const shared = Math.max(0, 480 - gap);
     const note = `A 9 to 5 day gives you ${formatHours(shared)} of overlap with ${rule.zone.label}. They ask for ${rule.hours}.`;
     return shared >= rule.hours * 60

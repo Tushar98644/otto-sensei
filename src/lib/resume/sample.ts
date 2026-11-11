@@ -8,10 +8,6 @@ import {
   type SkillGroup,
 } from "./schema";
 
-// A mid-level marketer with a deliberate mix of strong and weak lines, so lint and Otto have real
-// work to show. Fresh ids per call. Contacts use reserved example domains and a fictional 555
-// number.
-
 function job(fields: Omit<Experience, "id" | "bullets">, bullets: string[]): Experience {
   return { id: newId(), ...fields, bullets: bullets.map((text) => newBullet(text)) };
 }

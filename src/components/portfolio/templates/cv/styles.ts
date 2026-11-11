@@ -1,7 +1,6 @@
 import { templateCss } from "../css";
 
-// Ported from BartoszJarocki/cv (MIT, see ./LICENSE.txt): its Tailwind classes and oklch roles
-// written out as CSS. Breakpoints are container queries on the template root.
+// Ported from BartoszJarocki/cv (MIT, see ./LICENSE.txt).
 const css = `
 :scope {
   --bg: oklch(0.984 0.0025 95);

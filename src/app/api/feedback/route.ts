@@ -11,8 +11,6 @@ import { DAY_MS, HOUR_MS } from "@/lib/time";
 
 export const runtime = "nodejs";
 
-// Counted in the database, so they hold across server instances. Generous for a person, tight
-// for a script filling the table.
 const LIMITS = [
   { key: "device", limit: 10, windowMs: HOUR_MS },
   { key: "ip", limit: 30, windowMs: DAY_MS },
@@ -57,7 +55,6 @@ export async function POST(req: Request): Promise<Response> {
   }
 }
 
-// A bug report matters most while things are broken, so a sign-in outage sends it unsigned.
 async function signedInOrAnonymous(): Promise<SessionUser | null> {
   try {
     return await getCurrentUser();

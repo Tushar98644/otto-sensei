@@ -1,21 +1,3 @@
-// The match test set (MATCHING-RESEARCH.md, Phase 0): ranks 40 made-up resumes with today's
-// ordering ("newest-v0", frozen below) and the new one (rank.ts), has an LLM judge grade the top
-// 10 of each from 0 to 3, and reports nDCG@10, Precision@10 and bad-in-top-10 for both.
-//
-//   OTTO_PGLITE_DIR=<folder> bun scripts/match-eval.ts refresh    apply today's skill rules, rebuild job_match
-//   OTTO_PGLITE_DIR=<folder> bun scripts/match-eval.ts skills-check  judge 20 kept/dropped hits per context skill
-//   OTTO_PGLITE_DIR=<folder> bun scripts/match-eval.ts rank       rank every resume, save the lists
-//   OTTO_PGLITE_DIR=<folder> bun scripts/match-eval.ts estimate   pairs left to grade, and their cost
-//   OTTO_PGLITE_DIR=<folder> bun scripts/match-eval.ts judge      grade them (stops at --max-usd, 4)
-//   OTTO_PGLITE_DIR=<folder> bun scripts/match-eval.ts report     the numbers, and 150 pairs to hand-check
-//   OTTO_PGLITE_DIR=<folder> bun scripts/match-eval.ts stats      job counts, copies, filler, row size
-//   OTTO_PGLITE_DIR=<folder> bun scripts/match-eval.ts sizes      bytes per column, table and index
-//   OTTO_PGLITE_DIR=<folder> bun scripts/match-eval.ts tidy       the ingest's tidy-up alone
-//   OTTO_PGLITE_DIR=<folder> bun scripts/match-eval.ts shrink     drop stored text as an ingest now would
-//
-// Needs its own database folder (fill it with scripts/jobs-ingest.ts and the same variable): it
-// never opens .pglite/, which the dev server may hold. Bun loads OPENROUTER_API_KEY from
-// .env.local; it is sent to OpenRouter only and never printed. Output goes to ../match-eval/.
 import { mkdirSync, readFileSync, writeFileSync, existsSync } from "node:fs";
 import path from "node:path";
 import { and, desc, inArray, isNull, or, sql } from "drizzle-orm";
@@ -46,8 +28,6 @@ const DAY_MS = 24 * 60 * 60 * 1_000;
 const TOP = 10;
 const SHOWN = 20;
 
-// A judge different from the app's own model (GLM 5.3 Flash), priced per million tokens on
-// OpenRouter on 2026-11-09.
 const JUDGE = { model: "anthropic/claude-haiku-5.5", inputUsd: 0.1, outputUsd: 0.5 };
 const POST_CHARS = 2_000;
 
@@ -90,8 +70,7 @@ function hintFor(
   return { blocked: Boolean(blocked), note: blocked?.note ?? null };
 }
 
-// Today's ordering before Phase 1a, kept here unchanged so the two can be compared: the newest
-// 1,000 open jobs sharing a skill or a kind of role, then label, skills found, coverage, newest.
+// Frozen baseline ordering: leave it unchanged, the comparison depends on it.
 async function rankNewestV0(
   db: Awaited<ReturnType<typeof openDb>>,
   resume: TestResume,
@@ -182,7 +161,6 @@ async function rankNew(
     filters: DEFAULT_FILTERS,
     page: 1,
     workProfile: resume.work,
-    // The card's guess, untouched: what someone sees before tapping anything.
     lookingFor: lookingForOf(profile, resume.work),
     deviceTimeZone: resume.work.timeZone,
     now,
@@ -219,12 +197,6 @@ function writeJson(file: string, value: unknown) {
   writeFileSync(file, `${JSON.stringify(value, null, 2)}\n`);
 }
 
-// Ranks every resume with today's ordering (MATCH_VARIANT). Lists already saved for other
-// variants stay as they were, graded, so a new ordering is compared on the same pairs; --with-v0
-// re-ranks the frozen newest-v0 too. --as <name> saves the lists under another name: the same
-// ordering on a changed pool of jobs (more sources, an age limit) is then its own variant.
-// --missing ranks only resumes the variant has no list for yet (resumes added to the set), so the
-// lists already graded stay as they were.
 async function rankAll() {
   const db = await openDb();
   const now = Date.now();
@@ -251,11 +223,6 @@ async function rankAll() {
   console.log(`Saved ${LISTS}`);
 }
 
-// What a re-ingest would write after the 2026-11-09 skill rules, from the stored text: names that
-// now need context (Go, R, Spark ...) are kept only where the rules still find them in the title
-// and stored description, a company's own name is dropped, and C and Elm are added where found.
-// A context name only mentioned past the stored 6,000 characters is kept as it was. Then the skill
-// weights and job_match are rebuilt as the ingest does.
 async function refresh() {
   const db = await openDb();
   const { refreshSkillWeights } = await import("@/lib/job-feed/store");
@@ -280,10 +247,8 @@ async function refresh() {
   let changed = 0;
   const dropped = new Map<string, number>();
   for (const row of rows) {
-    // Kind of role and occupation from the title, as normalizeJob reads them now.
     const kind = readTitle(row.title);
     if (!row.description) {
-      // Jobs stored without their text (2026-11-10 on) keep the skills read at ingest.
       if (kind.family === row.family && kind.occupation === row.occupation) continue;
       changed += 1;
       await db
@@ -294,8 +259,6 @@ async function refresh() {
     }
     const found = new Set(findSkills(`${row.title}\n${row.description}`));
     const brand = brandName(row.company);
-    // A context name the stored text doesn't show (it was past the 6,000-character cut) can't be
-    // judged again, so it stays.
     const text = `${row.title}\n${row.description}`;
     const shown = (skill: string) =>
       new RegExp(`(?<![\\p{L}\\p{N}])${escapeRegExp(skill)}(?![\\p{L}\\p{N}+#])`, "u").test(text);
@@ -307,8 +270,6 @@ async function refresh() {
     for (const skill of found) if (added.has(skill) && !next.includes(skill)) next.push(skill);
     for (const skill of row.keywords)
       if (!next.includes(skill)) dropped.set(skill, (dropped.get(skill) ?? 0) + 1);
-    // Kind and level from the title, as normalizeJob reads them (a source's own level is kept
-    // when the title has no marker).
     const { family, occupation } = kind;
     const fromTitle = seniorityOf(row.title);
     const seniority = fromTitle === "mid" ? row.seniority : fromTitle;
@@ -428,7 +389,6 @@ async function estimate() {
     input +=
       tokensOf(SYSTEM) +
       tokensOf(seekerText(pair.resume)) +
-      // A post stored without text is read again before judging: count a full excerpt.
       (post
         ? tokensOf(postText(post)) + (post.description ? 0 : tokensOf("x".repeat(POST_CHARS)))
         : 0) +
@@ -456,10 +416,7 @@ type BunRuntime = {
   }) => void;
 };
 
-// Jobs stored without their text (every source that can be read again, from 2026-11-10) are read
-// again here, as the job page and the Tailor step do, so the judge sees the post. Bun's node:https
-// can't make the app's pinned connection (scripts/dev-transport.mjs), so the job reader's
-// transport is swapped before it loads, as scripts/jobs-ingest.ts does.
+// Bun can't make the app's pinned connection: swap the transport before importing the reader.
 async function fillLiveText(posts: Map<string, JobText>, ids: readonly string[]) {
   const missing = ids.filter((id) => posts.get(id) && !posts.get(id)!.description);
   if (missing.length === 0) return;
@@ -574,10 +531,6 @@ async function judge() {
   console.log(`Graded. ${failed} failed. Spent in all: $${grades.spentUsd.toFixed(3)}.`);
 }
 
-// The 20-hit check for names that count only in context (MATCHING-RESEARCH.md, Round 2 (c)):
-// for each, up to 20 posts where the rules keep it and 20 where they drop it, each shown to the
-// judge as the lines that name it. Kept-and-wrong is a false "Found in your resume"; dropped-and-
-// right is a skill the rules now miss.
 const escapeRegExp = (text: string) => text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
 async function skillsCheck() {
@@ -713,7 +666,6 @@ function score(
   const top = list.slice(0, TOP);
   const gradeOf = (job: Listed) => grades.grades[key(resumeId, job.id)]?.grade;
   const gains = top.map((job) => gradeOf(job) ?? 0);
-  // The same opening a second time tells the person nothing new: worth 0 in this variant.
   const seen = new Set<string>();
   const novel = top.map((job, index) => {
     const repeat = seen.has(job.group);
@@ -744,8 +696,6 @@ async function report() {
   const names = Object.keys(lists.variants);
   const perResume: Record<string, Record<string, Scores>> = {};
   for (const resume of TEST_RESUMES) {
-    // The ideal order: the best grades found for this resume in any variant's top 10, counting
-    // each posting (standard nDCG) or each opening once (copies merged).
     const items = new Map<string, number>();
     const openings = new Map<string, number>();
     for (const name of names) {
@@ -784,7 +734,6 @@ async function report() {
       ];
     }),
   );
-  // Today's ordering against the one before it, or the two named by --compare new,old.
   const [askedNew, askedOld] = (flag("--compare") ?? "").split(",");
   const newName =
     askedNew && names.includes(askedNew)
@@ -818,8 +767,6 @@ async function report() {
       },
     ]),
   );
-  // The "good jobs available" ceiling: distinct postings graded 2-3 for a resume in any list,
-  // counting only those still open. A resume with fewer than 10 can't fill a good top 10.
   const listed = [
     ...new Set(
       Object.values(lists.variants).flatMap((variant) =>
@@ -846,7 +793,6 @@ async function report() {
           .map((job) => job.id),
       ),
     ).size;
-  // Before: the lists up to the old variant, as graded then; now: every list, open jobs only.
   const before = names.slice(0, names.indexOf(oldName) + 1);
   const ceiling: Record<string, { before: number[]; now: number[] }> = {};
   for (const resume of TEST_RESUMES) {
@@ -874,8 +820,6 @@ async function report() {
       return [field, { old: p(oldName), new: p(newName) }];
     }),
   );
-  // The 40 office and tech resumes, the 28 from every other kind of work (2026-11-10), and all:
-  // each variant's averages over the resumes it ranked, and the good jobs its top 10 holds.
   const techIds = new Set(
     TEST_RESUMES.filter((resume) => (TECH_FIELDS as readonly string[]).includes(resume.field)).map(
       (resume) => resume.id,
@@ -891,7 +835,6 @@ async function report() {
       set,
       {
         n: members.length,
-        // Good postings (graded 2-3, still open) found by any list: the most a top 10 could show.
         goodAvailable: Math.round(mean(members.map((r) => goodFor(r.id, names, true))) * 10) / 10,
         variants: Object.fromEntries(
           names
@@ -960,14 +903,12 @@ async function report() {
     ),
   );
 
-  // 150 pairs for the owner to grade by hand, spread over grades and resumes.
   const posts = await loadPosts([
     ...new Set(Object.keys(grades.grades).map((id) => id.split("|")[1]!)),
   ]);
   const byGrade = new Map<number, string[]>();
   for (const [id, grade] of Object.entries(grades.grades))
     byGrade.set(grade.grade, [...(byGrade.get(grade.grade) ?? []), id]);
-  // A fixed shuffle, so the file is the same on every run.
   const shuffled = (ids: string[]) =>
     ids
       .map((id) => ({
@@ -1031,7 +972,7 @@ async function report() {
       "",
     ]);
   }
-  // Never over a file the owner was handed (graded or not): a new dated one beside it instead.
+  // Never overwrite a file the owner was handed (graded or not); write a dated one instead.
   let file = path.join(OUT, "hand-check-150.csv");
   const day = new Date().toISOString().slice(0, 10);
   for (let n = 1; existsSync(file); n++)
@@ -1040,7 +981,6 @@ async function report() {
   console.log(`Saved ${path.join(OUT, "results.json")} and ${file} (${picked.length} pairs).`);
 }
 
-// What the test database holds: the counts the site would state, copies, filler and row size.
 async function stats() {
   const db = await openDb();
   const { jobCounts } = await import("@/lib/job-feed/records");
@@ -1067,7 +1007,6 @@ async function stats() {
       and board <> '' group by board having count(*) >= 200) full_boards`),
   );
   console.log(await query(`select title from jobs where evergreen and closed_at is null limit 15`));
-  // The role mix by the title rules (roles.ts), and by source.
   console.log(
     await query(`select coalesce(family, 'none') as family, count(*)::int as open from jobs
       where closed_at is null group by 1 order by 2 desc`),
@@ -1076,8 +1015,6 @@ async function stats() {
     await query(`select source, count(*)::int as open, count(distinct board)::int as boards from jobs
       where closed_at is null group by 1 order by 2 desc`),
   );
-  // How many open jobs have no occupation, no kind of role, or neither (2026-11-10: 29% had no
-  // kind of role before occupations).
   console.log(
     await query(`select count(*)::int as open,
       count(*) filter (where occupation is null)::int as no_occupation,
@@ -1093,9 +1030,6 @@ async function stats() {
   );
 }
 
-// What the next ingest's tidy-up does to the stored pool (close by end date and feed age, delete
-// long-closed rows, keep the cap), then the skill weights and job_match rebuilt, as after an
-// ingest: a changed rule measured on the pool alone, without reading anything.
 async function tidy() {
   const db = await openDb();
   const { tidyJobs, refreshSkillWeights } = await import("@/lib/job-feed/store");
@@ -1108,10 +1042,6 @@ async function tidy() {
   });
 }
 
-// What re-reading every source with today's normalizing would store: no text for jobs whose
-// source can be read again (SOURCE_INFO[source].liveText); the others keep theirs. Keywords,
-// level, years and the work-rights lines were read from the whole post at ingest and stay.
-// Matching never reads the text, so the lists must not change (rank --as to check).
 async function shrink() {
   const db = await openDb();
   const { SOURCE_INFO } = await import("@/lib/job-feed/sources");
@@ -1126,9 +1056,6 @@ async function shrink() {
   console.log(`Emptied the stored text of ${emptied.length} jobs.`);
 }
 
-// Where the jobs table's bytes go: each column's average stored size (pg_column_size, after
-// compression), and the table, its TOAST and its indexes, plus the other job tables. Compare
-// before and after a change to what a row stores.
 async function sizes() {
   const db = await openDb();
   const query = async (statement: string) => {
@@ -1136,7 +1063,6 @@ async function sizes() {
     return Array.isArray(result) ? result : (result as { rows: unknown[] }).rows;
   };
   if (process.argv.includes("--vacuum")) {
-    // Dead rows from earlier rewrites would count otherwise.
     await query("vacuum full analyze jobs");
     await query("vacuum full analyze job_match");
   }
@@ -1169,7 +1095,6 @@ async function sizes() {
       await query(`select (pg_database_size(current_database()) / 1048576)::int as mb`)
     )[0],
   });
-  // What a search vector would weigh with the stored opening of the post in it as well.
   console.log(
     await query(`select round(avg(pg_column_size(search)))::int as search_now,
       round(avg(pg_column_size(to_tsvector('simple', title || ' ' || company || ' ' || location || ' ' ||

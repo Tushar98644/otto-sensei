@@ -1,6 +1,3 @@
-// Numbers pulled from resume lines by rules (no AI). A rule that isn't sure says nothing: a missing
-// highlight looks fine, a wrong one doesn't.
-
 export type MetricKind = "change" | "range" | "multiple" | "money" | "count";
 export type Metric = { value: string; label: string; kind: MetricKind; score: number };
 
@@ -8,14 +5,12 @@ const DOWN =
   /^(?:cut|cuts|reduc\w*|lower\w*|fell|fall\w*|drop\w*|decreas\w*|shrank|shrunk|halv\w*|trimm?\w*|saved|sav\w*|slash\w*|down)$/i;
 const UP =
   /^(?:rais\w*|increas\w*|grew|grow\w*|improv\w*|boost\w*|lift\w*|doubl\w*|tripl\w*|up|gain\w*|expand\w*|rose|ris\w*)$/i;
-// Words a label stops at: what follows them is how, not what.
 const STOP = new Set(
   "a an the by with in on at across from using for and that which while to via so after before into through over under of as now per".split(
     " ",
   ),
 );
 const LEADING = new Set("the a an our my their its his her this".split(" "));
-// "a month", "a day": part of what was counted.
 const RATE = /^(?:a|per|each|every)\s+(?:second|minute|hour|day|week|month|quarter|year)\b/i;
 const MONTHLY = /^(?:daily|weekly|monthly|yearly|annually)\b/i;
 
@@ -30,7 +25,6 @@ function cleanLabel(raw: string): string {
   const list = words(raw.replace(/[()"“”]/g, " "))
     .map((word) => word.replace(/^[^\p{L}\p{N}$#+]+|[^\p{L}\p{N}%+]+$/gu, ""))
     .filter(Boolean);
-  // "Grew MRR" is about MRR; the verb is how it moved.
   while (
     list.length > 1 &&
     (LEADING.has(list[0]!.toLowerCase()) || UP.test(list[0]!) || DOWN.test(list[0]!))
@@ -48,7 +42,6 @@ function labelAfter(rest: string): string {
     const lower = word.toLowerCase().replace(/[^a-z]/g, "");
     const tail = list.slice(i).join(" ");
     if (RATE.test(tail)) {
-      // Nothing counted before "a month": the label is the rate alone, kept as written.
       if (kept.length === 0) return list.slice(i, i + 2).join(" ");
       kept.push(...list.slice(i, i + 2));
       break;
@@ -95,7 +88,6 @@ function percentChanges(line: string): Metric[] {
     const before = line.slice(0, at);
     const prior = words(before);
     const previous = prior.at(-1)?.toLowerCase() ?? "";
-    // "to 90%" is where something ended up, not a change.
     if (previous === "to" || previous === "at") {
       const label = labelBefore(
         before
@@ -105,7 +97,6 @@ function percentChanges(line: string): Metric[] {
       if (label) found.push({ value: `${match[1]}%`, label, kind: "change", score: 70 });
       continue;
     }
-    // The nearest direction word within eight words before the number.
     let direction: "up" | "down" | null = null;
     let verbAt = -1;
     for (let i = prior.length - 1; i >= Math.max(0, prior.length - 8); i--) {
@@ -120,7 +111,6 @@ function percentChanges(line: string): Metric[] {
     const tail = line.slice((match.index ?? 0) + match[0].length).trimStart();
     let label = "";
     if (verbAt >= 0) {
-      // "failed payouts fell 72%": the subject; "cut load time by 40%": the object.
       const between = prior
         .slice(verbAt + 1)
         .join(" ")
@@ -207,7 +197,6 @@ const YEAR = /^(?:19|20)\d{2}$/;
 
 function counts(line: string): Metric[] {
   const found: Metric[] = [];
-  // 1.4M, 300K, 4,800, 20+, 600: not money, not a percent, not p95 or v2 or a year.
   const pattern = new RegExp(
     String.raw`(?<![\w$€£.#/-])(${NUMBER})(\s?[kmb](?![a-z]))?(\+)?(?![\w%×.]|\s?(?:%|percent|x\b|[kmgt]b\b|ms\b|s\b|seconds?\b|mins?\b|minutes?\b|hours?\b))`,
     "gi",
@@ -231,7 +220,6 @@ export function metricsIn(line: string): Metric[] {
   const text = line.replace(/\s+/g, " ").trim();
   if (!text) return [];
   const rangesFound = ranges(text);
-  // A range's two ends would otherwise come back as counts and percents of their own.
   const rest = rangesFound.length > 0 ? text.replace(/\bfrom\s+.*?\s+to\s+\S+/gi, " ") : text;
   const all = [
     ...rangesFound,
@@ -262,7 +250,6 @@ export function bestMetric(lines: readonly string[]): Metric | null {
   return best;
 }
 
-/** "-72% failed payouts", "3.1s → 0.9s dashboard p95 load". */
 export function metricText(metric: Metric): string {
   return `${metric.value} ${metric.label}`.trim();
 }
@@ -280,7 +267,6 @@ export function topMetrics(lines: readonly string[], max = 3): Metric[] {
   return picked;
 }
 
-/** 4200 -> "4.2k", 950 -> "950", 1_400_000 -> "1.4M". */
 export function compactNumber(value: number): string {
   if (value >= 1e6) return `${trimZero(value / 1e6)}M`;
   if (value >= 1e3) return `${trimZero(value / 1e3)}k`;

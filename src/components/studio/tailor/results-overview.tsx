@@ -19,7 +19,6 @@ function scrollToElement(id: string): void {
   const element = document.getElementById(id);
   if (!element) return;
   element.scrollIntoView({ block: "start" });
-  // Rows are focusable (tabIndex -1), so keyboard and screen reader users land on the item too.
   if (element.tabIndex >= -1 && element.matches("li")) element.focus({ preventScroll: true });
 }
 

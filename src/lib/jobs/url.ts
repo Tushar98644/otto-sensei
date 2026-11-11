@@ -10,8 +10,6 @@ import {
   WORKABLE_HOST,
 } from "./hosts";
 
-// Pure: no network.
-
 export const MAX_LINK_CHARS = 2048;
 
 export type JobTarget =
@@ -21,28 +19,22 @@ export type JobTarget =
   | { kind: "workable"; url: URL; account: string; shortcode: string }
   | { kind: "recruitee"; url: URL; company: string; slug: string }
   | { kind: "personio"; url: URL; host: string; id: string }
-  // Company career pages often embed a board and name the job in the query (?gh_jid=123).
   | { kind: "page"; url: URL; greenhouseId: string | null; ashbyId: string | null };
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const JOB_NUMBER = /^\d{1,20}$/;
 const SLUG = /^[a-z0-9][a-z0-9._-]{0,99}$/i;
-// Ashby organization names may contain spaces ("Acme Labs" becomes Acme%20Labs).
 const ASHBY_ORG = /^[a-z0-9][a-z0-9 ._-]{0,99}$/i;
 const WORKABLE_SHORTCODE = /^[a-z0-9]{6,16}$/i;
 const HOST_LABEL = /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/;
-// Recruitee's and Personio's own sites under their domains, which are never a company's board.
 const VENDOR_LABELS = new Set(["www", "app", "api", "help", "support", "docs", "blog", "careers"]);
 
-/** null for another host or one of the vendor's own pages. */
 function companySubdomain(host: string, domain: string): string | null {
   if (!host.endsWith(`.${domain}`)) return null;
   const label = host.slice(0, -domain.length - 1);
   return HOST_LABEL.test(label) && !VENDOR_LABELS.has(label) ? label : null;
 }
 
-// Jobs only behind a login or bot check: reading them would mean faking a browser, so ask for the
-// text.
 const UNREADABLE_SITES: Record<string, { site: string; reason: "login_required" | "blocked" }> = {
   linkedin: { site: "LinkedIn", reason: "login_required" },
   lnkd: { site: "LinkedIn", reason: "login_required" },
@@ -51,12 +43,9 @@ const UNREADABLE_SITES: Record<string, { site: string; reason: "login_required" 
 };
 
 const LOCAL_SUFFIXES = [".localhost", ".local", ".internal", ".home.arpa", ".lan", ".corp"];
-// Two-part endings such as co.uk and com.au, where the company is the label before them.
 const SECOND_LEVEL = new Set(["co", "com", "org", "net", "ac", "gov", "edu", "ne", "or"]);
 
-// Run before every request, redirects included. http is upgraded to https; other schemes,
-// credentials, ports other than 443 and non-public hosts are refused. DNS is checked at connect
-// time.
+// Runs before every request, redirects included; DNS is checked again at connect time.
 export function toFetchableUrl(input: string | URL, base?: URL): URL {
   let url: URL;
   try {
@@ -105,7 +94,6 @@ function unreadableSite(host: string) {
   return null;
 }
 
-/** careers.airbnb.com and airbnb.co.uk both give "airbnb". */
 export function companyLabel(hostname: string): string | null {
   const labels = hostname
     .toLowerCase()
@@ -135,13 +123,10 @@ function greenhouseTarget(url: URL, parts: string[]): JobTarget {
   throw new JobReadError("listing");
 }
 
-// Accepts links without the scheme. Throws JobReadError for non-URLs, non-public hosts, board links
-// listing many jobs, and sites that need a login.
 export function parseJobLink(raw: string): JobTarget {
   const link = raw.trim();
   if (!link || link.length > MAX_LINK_CHARS || /\s/.test(link))
     throw new JobReadError("invalid_url");
-  // "jobs.acme.com:443/..." has a colon but no scheme, so a scheme must not be followed by a digit.
   const hasScheme = /^[a-z][a-z0-9+.-]*:(?!\d)/i.test(link);
   const url = toFetchableUrl(hasScheme ? link : `https://${link.replace(/^\/\//, "")}`);
   const host = url.hostname.replace(/\.$/, "").replace(/^www\./, "");
@@ -165,8 +150,6 @@ export function parseJobLink(raw: string): JobTarget {
     throw new JobReadError("listing");
   }
   if (host === WORKABLE_HOST) {
-    // The short /j/<code> link doesn't name the account the documented endpoint needs, so it's read
-    // as a page.
     const [account, j, shortcode] = parts;
     if (
       account &&
@@ -180,7 +163,6 @@ export function parseJobLink(raw: string): JobTarget {
   }
   const recruitee = companySubdomain(host, RECRUITEE_DOMAIN);
   if (recruitee) {
-    // acme.recruitee.com/o/account-manager, or its /c/new application form.
     const [o, slug] = parts;
     if (o === "o" && slug && SLUG.test(slug))
       return { kind: "recruitee", url, company: recruitee, slug };

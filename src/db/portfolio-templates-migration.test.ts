@@ -3,9 +3,6 @@ import { afterAll, describe, expect, it } from "vitest";
 import { LOCAL_ONLY_DDL } from "./local-schema";
 import { readMigrations } from "./migration-files";
 
-// 20261108003000_portfolio_templates.sql runs on databases that already hold pages made with the
-// placeholder templates. This replays the migrations up to it, adds such pages, then applies it.
-
 const VERSION = "20261108003000";
 
 describe("portfolio templates migration", () => {

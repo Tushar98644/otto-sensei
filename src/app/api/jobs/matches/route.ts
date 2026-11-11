@@ -15,10 +15,9 @@ import { rateLimit, retryAfterHeader } from "@/lib/rate-limit";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-// Only against scripts: a person paging and filtering stays far under it.
 const PER_MINUTE = 60;
 
-// Rules only. The body holds skills, titles and years read in the browser, never the resume.
+// The body holds skills, titles and years read in the browser, never the resume.
 export async function POST(req: Request): Promise<Response> {
   const blocked = rejectCrossSite(req) ?? rejectNonJson(req);
   if (blocked) return blocked;
@@ -45,8 +44,6 @@ export async function POST(req: Request): Promise<Response> {
     }
     const db = await getDb();
     const now = Date.now();
-    // Free sees the closest few, first page only, without filters or work-rights rules. "Looking
-    // for" shapes both, and its "Remote only" is Free's one filter.
     const free = !hasProTools(user.plan);
     const lookingFor = body.data.lookingFor;
     const ranked = await rankJobs(db, {
@@ -66,7 +63,6 @@ export async function POST(req: Request): Promise<Response> {
     let logged: { requestId: string; resumeHash: string } | null = null;
     if (free || body.data.view === "matches") {
       const ids = { requestId: crypto.randomUUID(), resumeHash: profileHash(body.data.profile) };
-      // Measuring must never cost the person their list.
       try {
         await logImpressions(db, { userId: user.id, variant: ranked.variant, now, ...ids }, shown);
         logged = ids;

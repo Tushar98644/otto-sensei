@@ -15,7 +15,6 @@ import { applicationAnchor, formatDay, prepHref } from "./view";
 
 export type ApplicationRowProps = {
   application: Application;
-  // "“PM at Stripe”", "“Old title” (deleted)" or "a resume not in Otto".
   sent: string;
   now: number;
   onStatus: (application: Application, status: ApplicationStatus) => void;

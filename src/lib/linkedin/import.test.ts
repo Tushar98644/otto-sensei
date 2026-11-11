@@ -6,7 +6,6 @@ import { linkedInToResume, LinkedInImportError, readLinkedInExport } from "./imp
 
 const NOW = Date.UTC(2026, 10, 7);
 
-// Shaped like a real "Get a copy of your data" export: BOM, CRLF, quoted multi-line fields.
 const PROFILE =
   "﻿First Name,Last Name,Maiden Name,Address,Birth Date,Headline,Summary,Industry,Zip Code,Geo Location,Twitter Handles,Websites,Instant Messengers\r\n" +
   'Ana,Souza,,"12 Rua Augusta, Lisbon",,"Product Designer, Fintech","I design calm money apps.\r\nPreviously at two startups.",Design,1100,"Lisbon, Portugal",,"[PORTFOLIO:https://ana.design],[COMPANY:https://contoso.com]",\r\n';
@@ -66,7 +65,6 @@ describe("linkedInToResume", () => {
       email: "ana@example.com",
       location: "Lisbon, Portugal",
     });
-    // The street address is private and never copied.
     expect(JSON.stringify(resume)).not.toContain("Rua Augusta");
     expect(resume.basics.links.map((l) => l.url)).toEqual(["https://ana.design", "https://contoso.com"]);
     expect(resume.summary).toContain("Previously at two startups.");

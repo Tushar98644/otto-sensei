@@ -18,12 +18,8 @@ import { retryAfterHeader } from "@/lib/rate-limit";
 import { consumeUsage, refundUsage } from "@/lib/usage";
 import { perPeriod, resetSentence, thisPeriod } from "@/lib/usage-copy";
 
-// Free and signed-out visitors get 402 upgrade_required, which the client turns into the trial
-// prompt. Every AI route spends the allowance the same way, so two devices can't double it.
-
 export type AccountUnit = {
   giveBack: () => Promise<void>;
-  // Runs the AI work and charges its tokens to the account's AI budget.
   spend: <T>(work: () => Promise<T>) => Promise<T>;
 };
 
@@ -49,7 +45,6 @@ export function requirePlanFeature(user: SessionUser | null, feature: Feature): 
   return user && planIncludes(user.plan, feature) ? null : upgradeRequired(user, feature);
 }
 
-/** A used-up AI budget answers 429 limit_reached without taking a unit. */
 export async function takeAccountUnit(
   user: SessionUser,
   feature: Feature,
@@ -94,8 +89,6 @@ export function limitReached(
   );
 }
 
-// The next plan is quoted at the same billing interval, the one an upgrade from here would keep.
-// A trial is quoted what its own plan gives once the trial ends.
 export function limitMessage(user: SessionUser, feature: Feature, period: UsagePeriod): string {
   const limit = planLimits(user.plan, period.kind)[feature];
   const used = `You've used ${thisPeriod(period)}'s ${limit} ${FEATURE_LABELS[feature]}.`;

@@ -8,9 +8,6 @@ import {
 import { contentView } from "../content-view";
 import { portfolioView, type PortfolioView } from "../view";
 
-// Test and preview fixture: Jordan Ellis, a made-up person. Fills every section any design draws,
-// so the sample page shows a design with everything in it. Text only, like every real page.
-
 const NOW = Date.UTC(2026, 10, 8);
 
 const b = (id: string, text: string) => ({ id, text });
@@ -710,7 +707,6 @@ export function jordanGitHub(): GitHubStats {
   };
 }
 
-/** The sample page of the previews. */
 export function jordanPage(): { view: PortfolioView; content: PortfolioContentView } {
   const view = portfolioView(jordanV2Resume(), {
     showEmail: true,

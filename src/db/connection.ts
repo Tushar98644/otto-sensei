@@ -1,8 +1,6 @@
 import type postgres from "postgres";
 
-// No app imports: scripts/migrate.ts runs this under plain bun. Supports both Supabase wirings:
-// supabase.com (DATABASE_URL pooler :6543, DIRECT_DATABASE_URL :5432) and the Vercel integration
-// (POSTGRES_URL, POSTGRES_URL_NON_POOLING).
+// No app imports: scripts/migrate.ts runs this under plain bun.
 
 type EnvLike = Record<string, string | undefined>;
 
@@ -15,8 +13,7 @@ function first(env: EnvLike, names: readonly string[]): string | undefined {
 }
 
 export const POOLED_URL_VARS = ["DATABASE_URL", "POSTGRES_URL"] as const;
-// Migrations take a session-level lock and run DDL, so prefer a connection not pooled per
-// transaction.
+// Migrations take a session-level lock, so prefer a connection not pooled per transaction.
 export const DIRECT_URL_VARS = [
   "DIRECT_DATABASE_URL",
   "POSTGRES_URL_NON_POOLING",
@@ -35,10 +32,7 @@ const LOCAL_HOSTS = new Set(["localhost", "127.0.0.1", "::1", "[::1]"]);
 
 export type ConnectionTarget = { url: string; ssl: "require" | false };
 
-/**
- * postgres.js sends unknown query params as startup settings, and Vercel's URLs carry extras that
- * Postgres rejects, so only sslmode is kept. "require" skips the CA check Supabase's pooler fails.
- */
+// postgres.js sends URL params as startup settings Postgres may reject, so only sslmode stays.
 export function connectionTarget(rawUrl: string): ConnectionTarget {
   const url = new URL(rawUrl);
   const sslmode = url.searchParams.get("sslmode");
@@ -53,10 +47,7 @@ export function connectionTarget(rawUrl: string): ConnectionTarget {
   return { url: url.toString(), ssl };
 }
 
-/**
- * prepare: false because the transaction pooler (6543) may run each transaction on a different
- * server connection, losing named prepared statements. Small pool: the pooler multiplexes.
- */
+// prepare: false: the transaction pooler may switch server connections between transactions.
 export function appPoolOptions(target: ConnectionTarget): postgres.Options<Record<string, never>> {
   return {
     ssl: target.ssl,

@@ -9,7 +9,6 @@ import { useActiveReport, useStudioStore } from "@/lib/store/resume-store";
 import type { PdfFile } from "./use-resume-pdf";
 
 export type ExportCheck = {
-  // The check of the exported PDF, only while it still matches the resume.
   report: RecruiterReport | null;
   original: RecruiterReport | null;
   checking: boolean;
@@ -23,7 +22,6 @@ function errorMessage(error: unknown): string {
   return "I couldn't check your PDF just now. Try again in a minute.";
 }
 
-// A tailored copy has no upload of its own, so it compares against the resume it was made from.
 function useOriginalReport(resume: Resume): RecruiterReport | null {
   const own = useActiveReport();
   const base = useStudioStore((s) =>
@@ -55,7 +53,6 @@ export function useExportCheck(resume: Resume, file: PdfFile | null, fileName: s
     }
   }
 
-  // Any edit after the check started makes the result describe an older PDF.
   const report = stored && stored.checkedAt >= resume.updatedAt ? stored : null;
   return { report, original, checking, error, run };
 }

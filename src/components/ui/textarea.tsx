@@ -15,13 +15,10 @@ export type TextareaVariant = "box" | "line";
 
 export type TextareaProps = ComponentProps<"textarea"> & {
   invalid?: boolean;
-  // Grows with its content instead of scrolling. Add a max-h-* class to cap it.
   autoResize?: boolean;
-  // "line" is a ruled row with no box, for resume lines in the editor.
   variant?: TextareaVariant;
 };
 
-// An inset shadow thickens the rule on focus; a thicker border would move the text.
 const LINE_CLASSES =
   "rounded-none border-0 border-b border-border-strong bg-transparent px-0 py-2.5 focus-visible:border-ink focus-visible:shadow-[inset_0_-1px_0_var(--color-ink)] focus-visible:ring-0 disabled:bg-transparent";
 
@@ -67,7 +64,6 @@ export function Textarea({
   );
 }
 
-// Browsers with `field-sizing: content` resize in CSS alone; the rest get measured here.
 function useAutoResize(
   ref: RefObject<HTMLTextAreaElement | null>,
   enabled: boolean,
@@ -78,7 +74,6 @@ function useAutoResize(
     if (enabled && element && !supportsFieldSizing()) fitToContent(element);
   }, [ref, enabled, value]);
 
-  // A narrower box wraps to more lines, so refit when the width changes.
   useLayoutEffect(() => {
     const element = ref.current;
     if (!enabled || !element || supportsFieldSizing() || typeof ResizeObserver === "undefined") {

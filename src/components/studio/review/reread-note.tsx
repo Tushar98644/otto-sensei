@@ -12,7 +12,6 @@ import { noteReadByAI, noteReadByRules, rereadableFile } from "../import-notes";
 
 const REREAD_LABEL = "Otto re-read your file";
 
-// What the reader decides. Name, format, design and dates the person may already have changed stay.
 function withReadContent(current: Resume, read: Resume): Resume {
   return {
     ...current,
@@ -28,7 +27,6 @@ function withReadContent(current: Resume, read: Resume): Resume {
   };
 }
 
-// Pro and the trial can ask the AI reader for a second look; Free has no AI reads to offer.
 export function RereadNote({ resumeId }: { resumeId: string }) {
   const pro = useProTools();
   const updateResume = useStudioStore((s) => s.updateResume);
@@ -51,7 +49,6 @@ export function RereadNote({ resumeId }: { resumeId: string }) {
           variant: "success",
         });
       } else if (basicReader) {
-        // The plan's AI reads ran out since the upload: the note under the checks now says so.
         noteReadByRules(resumeId, true);
       } else {
         toast({

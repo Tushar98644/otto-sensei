@@ -52,7 +52,6 @@ function blank(id: string, from: AutoProject["from"], name = ""): AutoProject {
   };
 }
 
-/** Every project the editor lists, hidden ones too, in page order. */
 export function projectRows(
   content: PortfolioContent,
   auto: AutoContent,
@@ -83,12 +82,10 @@ export function projectRows(
       return [{ id, entry, base: row }];
     }
     if (id.startsWith("c:")) return [{ id, entry, base: blank(id, "custom") }];
-    // A resume project that's gone: its extras stay stored but aren't listed.
     return [];
   });
 }
 
-// Writes the whole order back, so a move or an edit to a project that had no extras yet sticks.
 function saveRows(
   rows: readonly Row[],
   change: (entries: ProjectEntry[]) => ProjectEntry[],

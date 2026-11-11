@@ -9,7 +9,6 @@ const WIDTHS = [480, 800, 1200, 1600] as const;
 const WIDTH = 1600;
 const FRAME_RATIO = 10 / 16;
 
-// Heights at 1600px wide, from the top 2000px of each page rendered at 1280px.
 const PORTFOLIO_SHOTS = { bento: 1343, dock: 2500, reel: 2500 } as const;
 
 export type PortfolioShotId = keyof typeof PORTFOLIO_SHOTS;

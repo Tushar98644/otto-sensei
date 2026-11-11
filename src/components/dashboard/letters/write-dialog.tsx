@@ -26,14 +26,11 @@ import { WRITING_LIMITS, type Writing, type WritingKind } from "@/lib/writings/s
 import { useStudioActions } from "../use-studio-actions";
 import { defaultResume, type LetterEntry } from "./entries";
 
-// show: the dialog was still open when it finished, so the page opens the result. Closed early,
-// it only joins the list.
 export type Written =
   | { kind: "saved"; writing: Writing; show: boolean }
   | { kind: "unsaved"; entry: LetterEntry; show: boolean };
 
 const EMPTY_DRAFT: TailorDraft = { title: "", company: "", text: "", link: "" };
-// useWriting needs a resume even while there's none to write from; nothing is sent then.
 const NO_RESUME = emptyResume(0);
 
 const COPY: Record<WritingKind, { title: string; note: string; label: string; icon: LucideIcon }> = {
@@ -57,12 +54,9 @@ export type WriteDialogProps = {
   resumes: readonly Resume[];
   onClose: () => void;
   onWritten: (written: Written) => void;
-  // Opened from an application's page: the letter starts from its job and joins it.
   start?: { draft: TailorDraft; resumeId: string | null; applicationId: string };
 };
 
-// Pasting the link reads the job and starts writing at once, as on the studio's Tailor step.
-// Mounted per opening, so each starts blank.
 export function WriteDialog({ kind, open, resumes, onClose, onWritten, start }: WriteDialogProps) {
   const { user, me, loading } = useMe();
   const actions = useStudioActions();
@@ -104,7 +98,6 @@ export function WriteDialog({ kind, open, resumes, onClose, onWritten, start }: 
       resumeTitle: resumeTitle(resume),
       company: draft.company.trim(),
       role: draft.title.trim(),
-      // As typed when the link couldn't be read, so only a real web link is kept.
       jobUrl: normalizeJobUrl(draft.posting?.url ?? draft.link ?? "") ?? "",
       question: kind === "answer" ? asked : "",
       text: result.text,
@@ -117,7 +110,6 @@ export function WriteDialog({ kind, open, resumes, onClose, onWritten, start }: 
       const { writing: saved } = await api.saveWriting(body);
       onWritten({ kind: "saved", writing: saved, show: openRef.current });
     } catch (error) {
-      // The letter was paid for, so it's handed over anyway, marked as not kept.
       toast({
         title: kind === "letter" ? "Couldn't keep this letter" : "Couldn't keep this answer",
         description: errorMessage(error),
@@ -167,7 +159,6 @@ export function WriteDialog({ kind, open, resumes, onClose, onWritten, start }: 
               <p className="text-sm/6 text-muted">
                 Written from <span className="font-medium text-ink">{resumeTitle(resume)}</span>,
                 {start?.resumeId === resume.id ? " the version you sent." : " the resume you edited last."}{" "}
-                {/* The newest edit is almost always the right one, so the picker waits behind a link. */}
                 {resumes.length > 1 ? (
                   <button
                     type="button"

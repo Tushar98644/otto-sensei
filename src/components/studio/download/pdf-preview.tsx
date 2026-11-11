@@ -28,13 +28,10 @@ export type PdfFrameProps = {
 
 // The browser's PDF viewer paints a moment after its frame's load event.
 const PAINT_MS = 150;
-// A viewer that never reports loading is shown anyway after this long.
 const LOAD_FALLBACK_MS = 1500;
 const FADE_MS = 200;
 
-// The new frame loads hidden over the old one and fades in once drawn: no blank flash.
 export function PdfFrame({ url, pageSize, updating, className }: PdfFrameProps) {
-  // Bottom to top: the frame on show, and at most one newer frame still loading over it.
   const [frames, setFrames] = useState<string[]>(url ? [url] : []);
   const [shown, setShown] = useState<string | null>(null);
   const newest = frames.at(-1) ?? null;
@@ -74,7 +71,6 @@ export function PdfFrame({ url, pageSize, updating, className }: PdfFrameProps) 
             "absolute inset-0 size-full transition-opacity duration-200 motion-reduce:transition-none",
             frame === newest && frame !== shown ? "opacity-0" : "opacity-100",
           )}
-          // Only the frame on show is in the tab order and the accessibility tree.
           tabIndex={frame === shown ? undefined : -1}
           aria-hidden={frame === shown ? undefined : true}
         />

@@ -10,21 +10,14 @@ const securityHeaders = [
 ];
 
 const nextConfig: NextConfig = {
-  // mammoth and unpdf read files at runtime, which bundling breaks. postgres.js stays a plain
-  // Node require too, so its socket and TLS code runs exactly as published. PGlite (the local
-  // development database, src/db/local.ts) ships WASM and data files it loads from its own folder.
+  // Bundling breaks these: they read their own files (WASM, data) or sockets at runtime.
   serverExternalPackages: ["postgres", "@electric-sql/pglite", "mammoth", "unpdf"],
-  // Production never opens the local database; keep its 25 MB out of every function.
   outputFileTracingExcludes: { "*": ["node_modules/@electric-sql/pglite/**"] },
   poweredByHeader: false,
-  // Dashboard pages are thin server components (their data comes from the browser's query cache),
-  // so one shown in the last 30 seconds is reused on the way back instead of asked for again.
   experimental: { staleTimes: { dynamic: 30 } },
   async headers() {
     return [{ source: "/:path*", headers: securityHeaders }];
   },
-  // Jobs live only in the app now (owner, 2026-11-11); old public job links and search results
-  // land on the home page's Jobs section.
   async redirects() {
     return [
       { source: "/jobs", destination: "/#jobs", permanent: true },
@@ -38,8 +31,6 @@ const sentryAuthToken = process.env.SENTRY_AUTH_TOKEN?.trim() || undefined;
 // An empty release name makes the Sentry plugin fail its own upload, so no commit means no name.
 const commit = process.env.VERCEL_GIT_COMMIT_SHA?.trim() || undefined;
 
-// Without a DSN the build is left exactly as it was: no wrappers, no plugin, nothing uploaded.
-// Source maps go up (and are then deleted from the output) only when SENTRY_AUTH_TOKEN is set.
 export default sentryDsn
   ? withSentryConfig(nextConfig, {
       org: process.env.SENTRY_ORG,
@@ -47,8 +38,7 @@ export default sentryDsn
       authToken: sentryAuthToken,
       silent: true,
       telemetry: false,
-      // Turbopack writes client chunks outside the plugin's default glob; without this the
-      // browser frames stay minified.
+      // Turbopack writes client chunks outside the plugin's default glob.
       widenClientFileUpload: true,
       sourcemaps: { disable: !sentryAuthToken, deleteSourcemapsAfterUpload: true },
       release: {

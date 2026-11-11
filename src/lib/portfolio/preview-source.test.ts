@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 import { jordanContentView } from "./fixtures/jordan";
 import { isThinPage, parsePreviewSource, previewSourceFor } from "./preview-source";
 
-// Each project as [line, description]; one job unless said otherwise.
 const page = (projects: [string, string][], about: string[], jobs = 1) => ({
   projects: projects.map(([line, description]) => ({ line, description })),
   experience: Array.from({ length: jobs }, (_, i) => ({ id: `e${i}` })),

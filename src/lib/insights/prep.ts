@@ -3,15 +3,12 @@ import { TEXT_LIMITS } from "@/config/plans";
 import { ApplicationIdSchema } from "@/lib/applications/validation";
 import { ResumeSchema } from "@/lib/resume/validation";
 
-// A stored pack is parsed again on read, so a bad row shows as "no pack yet" instead of breaking.
-
 export const PREP_LIMITS = {
   questions: 8,
   stories: 4,
   asks: 5,
   points: 4,
   questionChars: 220,
-  // v1's `why` had the same cap, so every v1 pack reads as v2 whole.
   checkingChars: 220,
   followUpChars: 160,
   pointChars: 160,
@@ -22,11 +19,9 @@ export const PREP_LIMITS = {
   jobFieldChars: 200,
 } as const;
 
-// In the order they happen; a pack lists its questions in this order.
 export const PREP_ROUNDS = ["opening", "fit", "skills", "behavioural", "closing"] as const;
 export type PrepRound = (typeof PREP_ROUNDS)[number];
 
-// v1 questions carry no round; this is the round they're shown under.
 export const DEFAULT_ROUND: PrepRound = "fit";
 
 const text = (max: number) => z.string().max(max);
@@ -34,15 +29,12 @@ const text = (max: number) => z.string().max(max);
 export const PrepQuestionSchema = z.object({
   round: z.enum(PREP_ROUNDS),
   question: text(PREP_LIMITS.questionChars),
-  // e.g. "Whether you can find what's slow and prove the fix."
   checking: text(PREP_LIMITS.checkingChars),
   followUp: text(PREP_LIMITS.followUpChars),
-  // Only from the resume and the job post, with [blanks] for the rest.
   points: z.array(text(PREP_LIMITS.pointChars)).max(PREP_LIMITS.points),
   story: z.number().int().min(0).max(PREP_LIMITS.stories - 1).nullable(),
 });
 
-// `line` is a real resume line, word for word; the four parts use only its facts, with [blanks].
 export const StarStorySchema = z.object({
   title: text(PREP_LIMITS.titleChars),
   line: text(PREP_LIMITS.lineChars),
@@ -67,7 +59,6 @@ export const InterviewPrepSchema = z
     stories: z.array(StarStorySchema).max(PREP_LIMITS.stories),
     asks: AsksSchema,
     createdAt: z.number().int(),
-    // Made without an AI key: the page must label it as sample output.
     demo: z.boolean(),
   })
   .superRefine((prep, ctx) => {
@@ -78,7 +69,6 @@ export const InterviewPrepSchema = z
     });
   });
 
-// Packs made before rounds. Read only: new packs are always v2.
 const InterviewPrepV1Schema = z.object({
   version: z.literal(1),
   job: JobSchema,
@@ -99,7 +89,6 @@ export function byRound<T extends Pick<PrepQuestion, "round">>(questions: readon
   return [...questions].sort((a, b) => PREP_ROUNDS.indexOf(a.round) - PREP_ROUNDS.indexOf(b.round));
 }
 
-// A v1 pack comes back as v2: `why` becomes `checking`, under the default round.
 export function readPrep(value: unknown): InterviewPrep | null {
   if (value === null || value === undefined) return null;
   const parsed = InterviewPrepSchema.safeParse(value);
@@ -120,7 +109,6 @@ export function readPrep(value: unknown): InterviewPrep | null {
   };
 }
 
-// Shares the "letter" allowance with cover letters.
 export const InterviewRequestSchema = z.object({
   applicationId: ApplicationIdSchema,
   resume: ResumeSchema,
@@ -132,11 +120,8 @@ export const InterviewRequestSchema = z.object({
 });
 export type InterviewRequestBody = z.input<typeof InterviewRequestSchema>;
 
-// saved: false when the application was deleted while the pack was being made; the person still
-// gets the pack they were counted for.
 export type InterviewResult = { prep: InterviewPrep; saved: boolean };
 
-// Counts only, so the list stays small however many packs there are.
 export type PrepSummary = {
   applicationId: string;
   company: string;

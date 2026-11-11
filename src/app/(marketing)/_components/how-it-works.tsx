@@ -10,7 +10,6 @@ import { MomentCaption, Section, SectionHeader } from "./section";
 
 type Step = { id: string; name: string; caption: string; moment: ReactNode; otto: OttoPose };
 
-// Same order as the studio's steps (STUDIO_STEPS), with friendlier names for first-time visitors.
 const STEPS: readonly Step[] = [
   {
     id: "upload",
@@ -60,7 +59,6 @@ export function HowItWorks() {
         Five steps. Stop after any of them.
       </SectionHeader>
       <div className="mt-12 grid gap-12 sm:mt-16 lg:grid-cols-3">
-        {/* Phones skip the pinned list: each screen carries its own step label. */}
         <HowItWorksNav
           items={STEPS.map((step) => ({ id: momentId(step), name: step.name }))}
           className="self-start max-lg:hidden lg:sticky lg:top-24"
@@ -81,7 +79,6 @@ export function HowItWorks() {
                 titleAs="h3"
                 titleId={`${momentId(step)}-title`}
                 title={step.name}
-                // Each one starts at a different point in his loop, as on the dashboard.
                 otto={<Otto pose={step.otto} size={64} lively delay={-1.3 * index} />}
               >
                 {step.caption}

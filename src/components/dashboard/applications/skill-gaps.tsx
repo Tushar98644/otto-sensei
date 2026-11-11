@@ -23,7 +23,6 @@ export function SkillGapsPanel() {
   const report = useSkillGaps(PANEL_GAPS);
   const actions = useStudioActions();
   const resumes = useResumeList();
-  // The newest resume of the person's own (not a copy), the one a new job is tailored from.
   const base = resumes.find((resume) => resume.tailor === null) ?? resumes[0] ?? null;
   if (!report) return null;
 
@@ -96,7 +95,6 @@ export function SkillGapsPanel() {
   );
 }
 
-// Hidden until there is a gap, so the home page never shows an empty card.
 export function SkillGapCard() {
   const report = useSkillGaps(3);
   const top = report?.gaps[0];

@@ -15,7 +15,6 @@ export const maxDuration = 60;
 
 const GITHUB_BUDGET_MS = 15_000;
 
-// Never touches a resume: the dialog adds the drafts only after the person confirms.
 export async function POST(req: Request): Promise<Response> {
   const rejected = rejectCrossSite(req) ?? rejectNonJson(req);
   if (rejected) return rejected;
@@ -25,8 +24,6 @@ export async function POST(req: Request): Promise<Response> {
 
     const account = await getCurrentAccount();
     const startedAt = Date.now();
-    // Drafting is an AI call, so Pro and Max (and the trial) only; looking repos up stays free.
-    // The plan is checked before the connection so Free hears about Pro first.
     if (!account) return upgradeRequired(null, "github");
     const noPlan = requirePlanFeature(account.user, "github");
     if (noPlan) return noPlan;
@@ -40,7 +37,6 @@ export async function POST(req: Request): Promise<Response> {
       const result = await unit.spend(() =>
         draftGitHubProjects(session, { ...body.data, username: login }),
       );
-      // GitHub's own words, lightly arranged: no model call to count.
       if (!result.usedAI || result.entries.length === 0) await unit.giveBack();
       log.info("github.drafted", {
         repos: body.data.repos.length,

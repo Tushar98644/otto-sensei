@@ -1,8 +1,5 @@
 import { vi } from "vitest";
 
-// Every test file gets its own module registry, so each one restores a fresh in-memory Postgres
-// (built from the real migrations) the first time it touches the database, and a fresh fake
-// Supabase Auth. Nothing in a test can reach a real database or Supabase project.
 vi.mock("@/db/client", () => import("@/db/testing"));
 vi.mock(
   "@/lib/supabase/server",
@@ -13,15 +10,13 @@ vi.mock(
   async () => (await import("@/lib/auth/test-helpers")).supabaseAdminMock,
 );
 
-// next/font only works under Next's compiler. Pages that load fonts (the portfolio page and its
-// preview) get a stand-in that hands back the CSS variable name and nothing else.
+// next/font only works under Next's compiler.
 vi.mock("next/font/google", () => {
   const font = (options: { variable?: string } = {}) => ({
     className: "",
     variable: options.variable ?? "",
     style: { fontFamily: "" },
   });
-  // The app's own (Inter, EB Garamond) and the portfolio templates' (templates/fonts.ts).
   const names = [
     "Inter",
     "EB_Garamond",

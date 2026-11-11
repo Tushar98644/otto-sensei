@@ -27,7 +27,6 @@ export type LibraryToolbarProps = {
 
 const count = new Intl.NumberFormat("en-US");
 
-// On narrow screens the filters scroll inside their own strip instead of widening the page.
 export function LibraryToolbar({
   query,
   onQueryChange,
@@ -43,7 +42,6 @@ export function LibraryToolbar({
         <div role="group" aria-label="Show" className="flex w-max gap-1 rounded-xl bg-surface-strong p-1">
           {LIBRARY_FILTERS.map((item) => {
             const selected = item === filter;
-            // A source with nothing in it stays out of the way, unless it's the one picked.
             if (item !== "all" && counts[item] === 0 && !selected) return null;
             return (
               <button
@@ -109,7 +107,6 @@ function SearchField({ value, onChange }: { value: string; onChange: (value: str
         aria-label="Search resumes"
         autoComplete="off"
         spellCheck={false}
-        // The browser's own clear button is replaced by ours, which matches the icons and is labelled.
         className={cn("pl-10 [&::-webkit-search-cancel-button]:appearance-none", value && "pr-11")}
       />
       {value ? (

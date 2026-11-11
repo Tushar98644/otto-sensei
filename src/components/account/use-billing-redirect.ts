@@ -15,7 +15,6 @@ const FAILURE_TITLES: Record<BillingDestination, string> = {
   portal: "Couldn't open billing",
 };
 
-// In test mode checkout comes straight back to /account. `pending` stays on while the page unloads.
 export function useBillingRedirect(destination: BillingDestination) {
   const [pending, setPending] = useState(false);
 
@@ -28,7 +27,6 @@ export function useBillingRedirect(destination: BillingDestination) {
     return () => window.removeEventListener("pageshow", onPageShow);
   }, []);
 
-  // plan and interval: checkout only, Pro monthly unless given.
   const go = useCallback(async (plan?: PaidPlanId, interval?: BillingInterval) => {
     setPending(true);
     if (destination === "checkout") track("upgrade_clicked");
@@ -44,8 +42,6 @@ export function useBillingRedirect(destination: BillingDestination) {
         description: errorMessage(error),
         variant: "error",
       });
-      // "You're already on Pro", a lapsed session or a subscription whose status moved on: the plan
-      // or user on screen is out of date.
       if (changingPlan || isApiError(error, "bad_request") || isApiError(error, "unauthorized")) {
         void refreshMe();
       }

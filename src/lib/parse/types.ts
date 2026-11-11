@@ -20,28 +20,22 @@ export type PdfPage = {
 };
 
 export type ExtractionSignals = {
-  // False for scanned/image-only PDFs: hiring software reads nothing.
   hasTextLayer: boolean;
   columnLayout: boolean;
   imageCount: number;
   tableCount: number;
   textBoxCount: number;
-  // Many parsers ignore these, so contact details placed there get lost.
   headerFooterText: string;
-  // Icon fonts / private-use glyphs (phone and mail icons), which parse as junk.
   iconGlyphCount: number;
 };
 
 export type Extraction = {
   kind: FileKind;
-  // Lines top-to-bottom, then left-to-right across the full width. Columns come out interleaved on
-  // purpose: that's what many ATSs do with them.
   text: string;
   lines: string[];
   pageCount: number;
   wordCount: number;
   pages: PdfPage[];
-  // PDF only. A resume often shows a short form ("GitHub") while the link holds the full address.
   links?: PdfLinkTarget[];
   signals: ExtractionSignals;
 };

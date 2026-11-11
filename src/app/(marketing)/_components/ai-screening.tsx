@@ -4,11 +4,8 @@ import { Section, SectionHeader } from "./section";
 
 type Point = { title: string; text: string; link: { href: string; label: string } };
 
-// Each point must stay true of the product and point to where a visitor can see it. Change the
-// copy if the behavior changes. No scores, no "guaranteed", no numbers about employers.
 const POINTS: readonly Point[] = [
   {
-    // src/components/pdf/formats.test.tsx and templates.test.tsx read every format back.
     title: "Every format reads top to bottom",
     text: "We test every PDF format so its text reads top to bottom in the right order, with headings on their own lines, on Letter and A4 paper.",
     link: { href: ROUTES.studio, label: "Try it on your resume" },
@@ -24,7 +21,6 @@ const POINTS: readonly Point[] = [
     link: { href: ROUTES.pricing, label: "See what Pro includes" },
   },
   {
-    // The ProfilePage data on /p/<slug> (src/lib/portfolio/json-ld.ts).
     title: "A portfolio AI can read too",
     text: "Your portfolio page carries a machine-readable summary of what it shows, so search engines and AI agents read your name, role, work and skills as clearly as people do. Nothing you hide goes in.",
     link: { href: "#portfolio", label: "See the portfolio designs" },

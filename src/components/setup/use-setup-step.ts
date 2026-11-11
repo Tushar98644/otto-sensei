@@ -8,13 +8,10 @@ import { setupStepDecision, type StepDecision } from "@/lib/setup/step";
 import { useFirstLoadPending } from "@/lib/sync/use-cloud-sync";
 import { useAccountSetup } from "./use-account-setup";
 
-// Whether the first-login step is due on this screen, from the shared stores the step itself and
-// the dashboard tour both read, so the two never open on top of each other.
 export function useSetupStepDecision(): StepDecision {
   const pathname = usePathname();
   const { user, loading } = useMe();
   const pro = useProTools();
-  // The account's resumes have arrived from the cloud: the prefills read them.
   const firstLoadPending = useFirstLoadPending();
   const work = useWorkProfile();
   const setup = useAccountSetup();

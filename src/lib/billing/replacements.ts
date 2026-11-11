@@ -6,13 +6,10 @@ import { log } from "@/lib/log";
 import { cancelCreemSubscription } from "./creem";
 import { BillingError } from "./errors";
 
-// Creem won't change a trialing subscription's product, so another plan is its own checkout; once
-// active, the webhook cancels the trial (nothing was charged). Until then both are live, so a
-// failed cancel is retried by the next webhook (answered 500) and by the daily cleanup.
+// Creem won't change a trialing subscription's product, so another plan is its own checkout.
 
 type Replacement = typeof trialReplacements.$inferSelect;
 
-// True when nothing is left to do; false while the trial is still live, so the caller can retry.
 export async function settleReplacement(
   replacedSubscriptionId: string,
   now = Date.now(),
@@ -31,7 +28,6 @@ export async function settleReplacement(
   return pending ? cancelReplaced(pending, now) : true;
 }
 
-/** Returns how many were cancelled. */
 export async function retryPendingReplacements({
   now,
   deadline,
@@ -71,7 +67,6 @@ async function cancelReplaced(replacement: Replacement, now: number): Promise<bo
     return false;
   }
   try {
-    // A cancel that went through on an earlier try is refused now and resolves to "already_ended".
     const result = await cancelCreemSubscription(replacement.replacedSubscriptionId);
     await db
       .update(trialReplacements)

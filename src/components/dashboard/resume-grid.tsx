@@ -18,16 +18,13 @@ const renameDialog = lazyComponent(() => import("./rename-dialog").then((m) => m
 
 export type ResumeGridProps = {
   resumes: readonly Resume[];
-  // Every resume, so tailored copies can name the resume they came from and count toward it.
   all: readonly Resume[];
   actions: StudioActions;
   onShowBase?: (id: string) => void;
-  // See ResumeCard's `cheer`.
   cheer?: boolean;
   className?: string;
 };
 
-// Delete moves a resume to Recently deleted at once, with Undo.
 export function ResumeGrid({
   resumes,
   all,
@@ -53,8 +50,7 @@ export function ResumeGrid({
 
   return (
     <>
-      {/* grid-cols-1 rather than an implicit column: a long tailored title ("Senior Product
-          Marketing Manager at Northwind") would otherwise widen a phone's page past the screen. */}
+      {/* Explicit grid-cols-1: an implicit column lets a long title widen a phone's page. */}
       <ul
         className={cn("grid grid-cols-1 gap-x-5 gap-y-8 sm:grid-cols-2 xl:grid-cols-3", className)}
       >

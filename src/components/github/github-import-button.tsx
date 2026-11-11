@@ -22,8 +22,6 @@ export type GitHubImportButtonProps = {
   onAdded?: (resume: Resume) => void;
 };
 
-// Drafting is Pro: on Free the button opens the trial prompt instead of a dialog that would stop
-// at the last step.
 export function GitHubImportButton({
   resumeId,
   label,
@@ -34,8 +32,7 @@ export function GitHubImportButton({
 }: GitHubImportButtonProps) {
   const locked = useProTools() === false;
   const [dialog, setDialog] = useState({ used: false, open: false });
-  // Loaded on first use (most people never open it), and shown once loaded rather than through
-  // Suspense, which would hold it back for React's 300 ms fallback throttle.
+  // Not Suspense: React's 300 ms fallback throttle would hold the dialog back.
   const [GitHubImportDialog, setGitHubImportDialog] = useState<Dialog | null>(null);
 
   function open() {
@@ -54,7 +51,6 @@ export function GitHubImportButton({
     );
   }
   useGitHubReturn(resumeId, open);
-  // Followed only once the dialog has been opened, so typing elsewhere doesn't rerender this.
   const resume = useStudioStore((state) =>
     dialog.used && Object.hasOwn(state.resumes, resumeId) ? state.resumes[resumeId] : undefined,
   );

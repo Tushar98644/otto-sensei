@@ -6,8 +6,7 @@ import { log } from "@/lib/log";
 
 export const runtime = "nodejs";
 
-// No body to require JSON for. Without the check, another site could auto-submit a form here: our
-// Lax cookie isn't sent, but a top-level navigation still accepts the expiring Set-Cookie.
+// JSON-only: another site's auto-submitted form could still sign people out via Set-Cookie.
 export async function POST(req: Request): Promise<Response> {
   const crossSite = rejectCrossSite(req);
   if (crossSite) return crossSite;

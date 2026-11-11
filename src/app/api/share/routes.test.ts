@@ -18,7 +18,6 @@ import { GET, POST } from "./route";
 
 vi.mock("next/headers", async () => (await import("@/lib/auth/test-helpers")).nextHeadersMock);
 
-// Share links are Pro; "share links on Free" below covers Free.
 const signInAs = async (email: string) => setPlan(await signInFree(email), "pro");
 
 function resume(id = "resume-1", updatedAt = 5_000): Resume {
@@ -85,7 +84,6 @@ describe("share links on Free", () => {
     expect((await findPublicShare(link.slug))?.resume.template).toBe("modern");
 
     await (await getDb()).update(users).set({ plan: "free", planStatus: "canceled" }).where(eq(users.id, maya.id));
-    // A reader's PDF follows the owner's plan, like the owner's own download.
     expect((await findPublicShare(link.slug))?.resume.template).toBe("classic");
     expect((await patch(link.id, { showContact: true })).status).toBe(200);
     expect((await create({ resume: { ...resume(), updatedAt: 9_000 } })).status).toBe(402);

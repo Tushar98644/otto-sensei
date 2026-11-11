@@ -3,7 +3,7 @@
 export const DEFAULT_NEXT_PATH = "/dashboard";
 
 const MAX_LENGTH = 512;
-// Never a real host (.invalid is reserved), only used to resolve the path the way a browser would.
+// .invalid is reserved, so this base is never a real host.
 const BASE = "https://next.invalid";
 
 export function safeNextPath(
@@ -22,7 +22,6 @@ export function safeNextPath(
   }
   // Catches tricks the checks above miss, e.g. "/\t/host": browsers drop the tab and see "//host".
   if (url.origin !== BASE) return fallback;
-  // Coming back to /login after signing in would just bounce again.
   if (url.pathname === "/login" || url.pathname.startsWith("/login/")) return fallback;
   return `${url.pathname}${url.search}${url.hash}`;
 }

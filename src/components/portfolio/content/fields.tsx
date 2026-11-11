@@ -9,9 +9,6 @@ import { Textarea } from "@/components/ui/textarea";
 import { webHref } from "@/lib/portfolio/content";
 import { cn } from "@/lib/utils";
 
-// Values save as they change (the store autosaves). "Automatic" fields show Otto's value until
-// the owner types over it.
-
 export function AutoNote({ auto, onReset }: { auto: boolean; onReset?: () => void }) {
   if (auto) return <span className="text-xs/5 text-subtle">Filled in for you</span>;
   if (!onReset) return null;
@@ -29,7 +26,6 @@ export function AutoNote({ auto, onReset }: { auto: boolean; onReset?: () => voi
 
 type TextFieldProps = {
   label: string;
-  // null: automatic, showing `auto`.
   value: string | null;
   auto?: string;
   max: number;
@@ -95,7 +91,6 @@ export function TagsField({
 }) {
   const id = useId();
   const list = value ?? auto ?? [];
-  // The typed text, kept while focused so a trailing comma or space isn't swallowed.
   const [draft, setDraft] = useState<string | null>(null);
   const isAuto = value === null && auto !== undefined;
   return (
@@ -131,7 +126,6 @@ export function TagsField({
   );
 }
 
-/** A web address, saved only once it is one ("example.com" is fine); "" clears it. */
 export function LinkField({
   label,
   value,
@@ -197,13 +191,11 @@ type ListEditorProps<T extends { id: string }> = {
   items: readonly T[];
   max: number;
   addLabel: string;
-  // What the Undo toast calls a removed item: "Talk removed".
   noun: string;
   onChange: (items: T[], undo?: string) => void;
   create: () => T;
   title: (item: T) => string;
   children: (item: T, update: (patch: Partial<T>) => void) => ReactNode;
-  // Shown above the list when it's automatic and not yet edited.
   autoNote?: ReactNode;
   empty?: string;
 };

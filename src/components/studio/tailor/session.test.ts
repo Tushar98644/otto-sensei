@@ -272,7 +272,6 @@ describe("sameRun", () => {
     expect(sameRun(run, { ...source, updatedAt: 6_000 }, saved.job)).toBe(false);
     expect(sameRun(run, source, { ...saved.job, text: "Another post." })).toBe(false);
     expect(sameRun(run, { ...source, id: "resume-2" }, saved.job)).toBe(false);
-    // Saved before the version was kept: no way to tell, so it runs.
     expect(sameRun(saved, source, saved.job)).toBe(false);
   });
 

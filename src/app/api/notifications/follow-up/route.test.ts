@@ -28,7 +28,6 @@ async function seed(userId: string, status: "applied" | "interview" = "applied")
   return id;
 }
 
-// What the /reminder page sends, from the link the email carried.
 function bodyFrom(link: string | null) {
   const url = new URL(link ?? "https://otto.test/reminder");
   return {

@@ -15,9 +15,6 @@ import {
 } from "react";
 import { cn } from "@/lib/utils";
 
-// Native popover: the browser handles outside clicks, Escape and focus return, and the panel
-// sits in the top layer above the sticky header.
-
 type PopoverContextValue = { close: () => void };
 
 const PopoverContext = createContext<PopoverContextValue | null>(null);
@@ -33,7 +30,6 @@ export type PopoverProps = {
   trigger: ReactNode;
   triggerLabel?: string;
   triggerClassName?: string;
-  // "auto" picks the edge nearer the trigger: "end" in the right half of the screen, else "start".
   align?: Align;
   className?: string;
   children: ReactNode;
@@ -42,7 +38,7 @@ export type PopoverProps = {
 type Align = "start" | "end" | "auto";
 
 const GUTTER_PX = 16;
-// The panel's default width (w-80): it isn't laid out yet when it's placed on opening.
+// Must match w-80: the panel isn't laid out yet when it's placed on opening.
 const PANEL_WIDTH_PX = 320;
 const OFFSET_PX = 8;
 const MIN_HEIGHT_PX = 160;
@@ -61,13 +57,11 @@ export function Popover({
   const triggerRef = useRef<HTMLButtonElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
   const [open, setOpen] = useState(false);
-  // Bumped on every open so the content remounts without a half-finished rename or confirm.
   const [session, setSession] = useState(0);
 
   const close = useCallback(() => panelRef.current?.hidePopover(), []);
   const context = useMemo(() => ({ close }), [close]);
 
-  // The phone keyboard and window resizes move the trigger; follow it rather than close.
   useEffect(() => {
     if (!open) return;
     const follow = () => place(triggerRef.current, panelRef.current, align);
@@ -130,7 +124,6 @@ function place(trigger: HTMLElement | null, panel: HTMLElement | null, wanted: A
   const top = rect.bottom + OFFSET_PX;
   const below = window.innerHeight - top - GUTTER_PX;
   const above = rect.top - OFFSET_PX - GUTTER_PX;
-  // A trigger low on the screen (a line's chip) opens upward rather than into a sliver.
   if (below < FLIP_BELOW_PX && above > below) {
     panel.style.top = "auto";
     panel.style.bottom = `${window.innerHeight - rect.top + OFFSET_PX}px`;

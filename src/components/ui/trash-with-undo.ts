@@ -5,7 +5,6 @@ import { resumeTitle } from "@/lib/resume/ops";
 import { useStudioStore } from "@/lib/store/resume-store";
 import { undoToast } from "./undo-toast";
 
-// No confirm: it goes to Recently deleted (30 days) at once and Undo brings it straight back.
 export function trashWithUndo(id: string): boolean {
   const store = useStudioStore.getState();
   const resume = store.resumes[id];
@@ -14,8 +13,7 @@ export function trashWithUndo(id: string): boolean {
   undoToast({
     title: "Moved to Recently deleted",
     description: resumeTitle(resume),
-    // A restored resume comes back under a new id: the account backup won't take a deleted one.
-    // So to the account it's a new resume, and Free past its limit gets the trial prompt.
+    // Restored under a new id: the account backup won't take a deleted one.
     onUndo: () =>
       void roomForResume().then((room) => {
         if (!room) return;

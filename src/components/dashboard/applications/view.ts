@@ -13,15 +13,13 @@ export const FILTER_NAMES: Record<ApplicationFilter, string> = {
   no_reply: "No reply",
 };
 
-// Newest applied first; ties by id, the same order the API pages in.
 export function sortApplications(list: readonly Application[]): Application[] {
   return [...list].sort(
     (a, b) => b.appliedAt - a.appliedAt || (a.id < b.id ? 1 : a.id > b.id ? -1 : 0),
   );
 }
 
-// A copy older than the one shown is ignored, so a slow response can't undo a later click; a tie
-// wins, which is how an optimistic change is rolled back.
+// Older copies are ignored so a slow response can't undo a later click; a tie wins (rollback).
 export function upsertApplication(list: readonly Application[], next: Application): Application[] {
   const index = list.findIndex((item) => item.id === next.id);
   if (index === -1) return sortApplications([...list, next]);
@@ -75,14 +73,12 @@ const otherYear = new Intl.DateTimeFormat("en-US", {
   year: "numeric",
 });
 
-// "Oct 12", or "Oct 12, 2025" outside the current year.
 export function formatDay(timestamp: number, now: number): string {
   const format =
     new Date(timestamp).getFullYear() === new Date(now).getFullYear() ? sameYear : otherYear;
   return format.format(timestamp);
 }
 
-// Its live title, else the title it had if deleted since, or none for a file not in Otto.
 export function sentLabel(
   application: Pick<Application, "resumeId" | "resumeTitle">,
   titles: ReadonlyMap<string, { title: string }>,

@@ -1,6 +1,5 @@
 import { Skeleton } from "@/components/ui/skeleton";
 
-// Shown until the browser copy of the studio has loaded. Mirrors the real layout so nothing jumps.
 export function StudioSkeleton() {
   return (
     <div role="status" className="flex flex-col gap-8">

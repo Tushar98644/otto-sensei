@@ -20,13 +20,10 @@ import { DrawnScreen, type DrawnContent } from "./screen";
 import { KATAKANA_PROJECT } from "./sprites";
 import { Button, Divider, Loader } from "./ui";
 
-// HamishMW/portfolio routes/home/project-summary.jsx. Where WebGL doesn't run (template cards, the
-// editor's preview, no hardware WebGL, no JavaScript) the devices show as still frames rendered
-// from his models.
+// Ported from HamishMW/portfolio routes/home/project-summary.jsx (MIT, see ./LICENSE.txt).
 
 const Model = lazy(() => import("./gl/model"));
 
-// Screen textures at the original's large sizes (1280w laptop screens at 1.5x, 375w phone at 2x).
 const TEXTURE = { laptop: { width: 1920, height: 1200 }, phone: { width: 750, height: 1624 } };
 
 export function ProjectSummary({
@@ -142,7 +139,6 @@ function Preview({
   const svgOpacity = theme === "light" ? "70%" : "100%";
   const showDelay = device === "laptop" ? 700 : 300;
 
-  // The textures come from the still frame's own screens, so both always show the same thing.
   useEffect(() => {
     if (!live || !visible || models) return;
     const sources = [...(stillRef.current?.querySelectorAll("svg.drawn-screen") ?? [])].map(
@@ -230,7 +226,6 @@ function Preview({
               device={device}
               content={drawn}
               id={`${idBase}-screen-${index}`}
-              // The phone behind shows the facts; the one in front, the title page.
               variant={device === "phone" && index === 0 ? 1 : 0}
             />
           ))}

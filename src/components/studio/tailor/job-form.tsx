@@ -60,7 +60,6 @@ function shortDate(time: number, now: number): string {
   });
 }
 
-// Calendar days where the person is, so a job posted late yesterday reads as "yesterday".
 function daysBetween(from: number, to: number): number {
   const day = (time: number) => {
     const date = new Date(time);
@@ -69,7 +68,6 @@ function daysBetween(from: number, to: number): number {
   return Math.round((day(to) - day(from)) / DAY_MS);
 }
 
-/** "First posted Jul 22 (108 days ago)". `now` is 0 before the clock is known. */
 export function postedLine(postedAt: number, now: number): string {
   const date = shortDate(postedAt, now);
   const days = now === 0 ? -1 : daysBetween(postedAt, now);
@@ -96,7 +94,6 @@ function JobCard({ job, link, onPasteInstead, checks }: JobCardProps) {
         {job.title || "Untitled job"}
       </h3>
       {meta ? <p className="text-sm/6 text-muted">{meta}</p> : null}
-      {/* Only the first posting date: an edit date would make an old job look new. */}
       {job.firstPostedAt !== null ? (
         <p className="text-sm/6 text-subtle">{postedLine(job.firstPostedAt, now)}</p>
       ) : null}
@@ -148,7 +145,6 @@ type PasteFieldsProps = JobFormProps & {
   readNote: string | null;
 };
 
-// Mounts fresh on each open, so its errors wait for that opening's first submit.
 function PasteFields({
   draft,
   onChange,
@@ -161,7 +157,6 @@ function PasteFields({
   checks = true,
 }: PasteFieldsProps) {
   const [submitted, setSubmitted] = useState(false);
-  // Read once: the browser owns open state after, so clearing both fields never folds them away.
   const [openOptions] = useState(() => draft.title !== "" || draft.company !== "");
   const formId = useId();
   const problem = postProblem(draft.text);
@@ -177,13 +172,10 @@ function PasteFields({
     onSubmit();
   }
 
-  // The eligibility card holds its own form, so it sits after this one; submit joins by id.
   return (
     <div className="flex flex-col gap-5">
       <form id={formId} onSubmit={submit} noValidate className="flex flex-col gap-5">
-        {/* The form's live status already announces it. */}
         {readNote ? <Alert role="note">{readNote}</Alert> : null}
-        {/* A link that couldn't be read can still name the hiring system in its address. */}
         {checks ? (
           <HiringSystemNotes
             posting={null}
@@ -191,7 +183,6 @@ function PasteFields({
             className="rounded-2xl bg-surface-muted px-4 py-1 sm:px-6"
           />
         ) : null}
-        {/* Otto reads the title and company from the post; these only override it. */}
         <details open={openOptions} className="group">
           <summary className="flex min-h-11 w-fit cursor-pointer list-none items-center gap-1 text-sm text-muted hover:text-ink">
             More options
@@ -254,8 +245,7 @@ function PasteFields({
 
 export function JobForm(props: JobFormProps) {
   const { onSubmit, busy, note, action = COMPARE, checks = true } = props;
-  // Refs come out first: the React lint rules treat every field of an object holding refs as a
-  // ref, and the rest of `job` is read during render.
+  // Refs come out first: React's lint treats every field of an object holding refs as a ref.
   const { linkRef, postRef, ...job } = useJobLink(props);
 
   return (
@@ -290,8 +280,6 @@ export function JobForm(props: JobFormProps) {
             onPaste={(event) => {
               const pasted = event.clipboardData.getData("text").trim();
               if (!pasted || job.reading || busy) return;
-              // A whole link (or a whole post) replaces the field; a fragment pasted into a
-              // half-typed link is left to the browser.
               const whole =
                 event.currentTarget.value.trim() === "" ||
                 /^(https?:\/\/|www\.)/i.test(pasted) ||

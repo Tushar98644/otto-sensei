@@ -21,7 +21,6 @@ import { ACCOUNT_SECTIONS } from "./links";
 
 const NO_MATCH: MatchProfile = { skills: [], titles: [], years: null };
 
-// Same store and API as the Jobs card, so a change here shows there at once. Free and Pro.
 export function LookingForSettingsCard() {
   const work = useWorkProfile();
   const titleId = useId();

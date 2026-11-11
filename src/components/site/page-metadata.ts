@@ -2,18 +2,14 @@ import type { Metadata } from "next";
 import { BRAND } from "@/config/brand";
 
 export type PageMetadataOptions = {
-  // Becomes "<title> · Otto Sensei" through the root layout's title template.
   title: string;
   description: string;
-  // Site-relative; the root layout's metadataBase makes it absolute.
   path: string;
   absoluteTitle?: boolean;
-  // Kept out of search results, links still followed: sign-in and the like. Such a page must stay
-  // out of the sitemaps too (src/app/seo.test.ts).
   noindex?: boolean;
 };
 
-// Served by src/app/opengraph-image.tsx. A root-level image route gets no hash suffix in its path.
+// A root-level image route (src/app/opengraph-image.tsx) gets no hash suffix in its path.
 const OG_IMAGE = {
   url: "/opengraph-image",
   type: "image/png",
@@ -22,8 +18,7 @@ const OG_IMAGE = {
   alt: `${BRAND.name}: ${BRAND.tagline}`,
 };
 
-// Next merges metadata one level deep, so a page's openGraph replaces the root layout's whole
-// openGraph, share image included. That's why the shared fields are restated here.
+// Next merges metadata one level deep, so openGraph here replaces the root's, image included.
 export function pageMetadata({
   title,
   description,
@@ -31,7 +26,6 @@ export function pageMetadata({
   absoluteTitle = false,
   noindex = false,
 }: PageMetadataOptions): Metadata {
-  // Matches the root title template; Open Graph and Twitter titles don't go through it.
   const shareTitle = absoluteTitle ? title : `${title} · ${BRAND.name}`;
   return {
     title: absoluteTitle ? { absolute: title } : title,

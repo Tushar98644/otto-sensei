@@ -7,20 +7,15 @@ import { OttoMark } from "@/components/site/otto-mark";
 import { buttonClasses } from "./button";
 import { getTopModalHost, subscribeModalHosts } from "./modal-stack";
 
-// <Toaster /> is rendered once, in the root layout.
-
 export type ToastVariant = "default" | "success" | "error";
 
-// "closed" covers every way out but the button: timeout, close, pushed off, replaced.
 export type ToastCloseReason = "action" | "closed";
 
 export type ToastOptions = {
   title: string;
   description?: string;
   variant?: ToastVariant;
-  // How long it stays up. Hovering or focusing the toast pauses the countdown.
   durationMs?: number;
-  // Pressing it closes the toast.
   action?: { label: string; onAction: () => void };
   onClose?: (reason: ToastCloseReason) => void;
 };
@@ -41,7 +36,6 @@ const NO_TOASTS: ToastItem[] = [];
 let toasts: ToastItem[] = NO_TOASTS;
 let nextId = 0;
 const listeners = new Set<() => void>();
-// Kept beside the list rather than in it, so the snapshot React reads holds only plain data.
 const handlers = new Map<string, Pick<ToastOptions, "action" | "onClose">>();
 
 function setToasts(next: ToastItem[]) {
@@ -89,8 +83,6 @@ export function toast({
     ...(action ? { actionLabel: action.label } : {}),
   };
   if (action || onClose) handlers.set(id, { action, onClose });
-  // The same message fired again (a retry, a double click) replaces the old copy, not stacks.
-  // Toasts with an action stay apart: each one undoes its own change.
   const others = toasts.filter(
     (t) =>
       t.actionLabel !== undefined ||
@@ -135,7 +127,6 @@ export function Toaster() {
     </section>
   );
 
-  // Everything outside an open modal is inert, so toasts move inside it while one is open.
   return modalHost ? createPortal(region, modalHost) : region;
 }
 
@@ -165,7 +156,6 @@ function ToastCard({ item }: { item: ToastItem }) {
       }}
       className="pointer-events-auto flex animate-pop items-start gap-3 rounded-2xl bg-surface p-4 text-sm shadow-float"
     >
-      {/* Otto's head, as on his notes: every toast is him telling you what just happened. */}
       <span
         aria-hidden
         className="flex size-7 shrink-0 items-center justify-center rounded-full bg-surface ring-1 ring-border"

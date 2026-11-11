@@ -11,7 +11,6 @@ const STORY = {
   result: "[What changed?]",
 };
 
-// A pack as saved before rounds (version 1).
 const V1 = {
   version: 1,
   job: { title: "Data Engineer", company: "Mapline" },
@@ -49,7 +48,6 @@ describe("readPrep", () => {
         },
       ],
     });
-    // What it reads can be saved again as it is.
     expect(InterviewPrepSchema.safeParse(readPrep(V1)).success).toBe(true);
   });
 

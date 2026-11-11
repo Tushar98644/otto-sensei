@@ -1,9 +1,6 @@
 import type { Application } from "./schema";
 import { isStage, stageIndex } from "./status";
 
-// Only the user's own applications count: there's no honest benchmark from anyone else.
-
-// Below this many applications a rate is mostly noise (1 of 3 reads as 33%), so only counts show.
 export const MIN_FOR_RATE = 5;
 
 type Counted = Pick<Application, "status" | "stageReached">;
@@ -11,9 +8,7 @@ type Grouped = Counted & Pick<Application, "resumeId" | "resumeTitle" | "applied
 
 export type Outcome = { interviewed: boolean; offered: boolean };
 
-// From the furthest step reached: an interview that later ended in a rejection still counts.
 export function outcomeOf(application: Counted): Outcome {
-  // The status itself also counts, in case a row's furthest step lags behind it.
   const reached = Math.max(
     stageIndex(application.stageReached),
     isStage(application.status) ? stageIndex(application.status) : 0,
@@ -71,7 +66,6 @@ export function rateHeadline(counts: Tally): string {
   return `${line}. The interview rate shows from ${MIN_FOR_RATE} applications, ${rate.needed} to go.`;
 }
 
-// So a 20% from 5 applications reads as the rough number it is.
 export function swingNote(counts: Tally): string {
   const total = counts.applications;
   if (total === 0)
@@ -90,7 +84,6 @@ export type VersionState = "live" | "deleted" | "none";
 export type VersionInfo = { title: string; tailored: boolean };
 
 export type VersionStats = {
-  // "" for applications sent with a file that isn't in Otto.
   key: string;
   resumeId: string | null;
   title: string;
@@ -102,7 +95,6 @@ export type VersionStats = {
 
 const collator = new Intl.Collator("en", { sensitivity: "base", numeric: true });
 
-// A version deleted since keeps its numbers under the title it had when last sent.
 export function statsByVersion(
   list: readonly Grouped[],
   versions: ReadonlyMap<string, VersionInfo>,
@@ -150,7 +142,6 @@ export type VersionComparison = {
   points: number;
 };
 
-// Only when both have MIN_FOR_RATE or more: a gap between 1 of 2 and 3 of 10 says nothing.
 export function compareVersions(stats: readonly VersionStats[]): VersionComparison | null {
   const [a, b] = stats
     .filter((version) => version.rate.shown)

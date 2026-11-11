@@ -6,7 +6,6 @@ import { emptyResume, newBullet, type Resume } from "@/lib/resume/schema";
 import { ownPage, ResumeThumbnail } from "./resume-thumbnail";
 import { standInPage, standInText } from "./stand-in";
 
-// Someone's own resume: their cards show every word of it; decorative art (standIn) shows none.
 function realResume(): Resume {
   return {
     ...emptyResume(1),
@@ -84,13 +83,11 @@ describe("ResumeThumbnail", () => {
     const html = markup(realResume(), undefined, true);
     expect(html).toContain(sample.basics.name);
     expect(html).toContain(sample.basics.email);
-    // Experience first, as this resume orders it; sections it doesn't have stay out.
     const order = ["Experience", "Summary", "Skills"].map((title) => html.indexOf(`>${title}<`));
     expect(order.every((index) => index > 0)).toBe(true);
     expect([...order].sort((a, b) => a - b)).toEqual(order);
     expect(html).not.toContain(">Education<");
     expect(html).not.toContain(">Projects<");
-    // One job with 3 lines, drawn with the format's bullet glyph.
     const glyph = TEMPLATE_THEMES.executive.bullet.glyph;
     expect(html.split(`>${glyph}<`).length - 1).toBe(3);
   });

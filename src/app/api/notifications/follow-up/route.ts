@@ -12,8 +12,7 @@ export const dynamic = "force-dynamic";
 
 const INVALID = "That reminder link isn't valid any more. Open your applications instead.";
 
-// Often sent without a session (another browser, a phone), so the signed link is the proof of
-// whose application it is.
+// Often sent without a session, so the signed link is the proof of whose application it is.
 export async function POST(req: Request): Promise<Response> {
   const blocked = rejectCrossSite(req) ?? rejectNonJson(req);
   if (blocked) return blocked;

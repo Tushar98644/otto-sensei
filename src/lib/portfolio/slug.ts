@@ -1,11 +1,9 @@
 export const SLUG_MIN = 3;
 export const SLUG_MAX = 40;
 
-// Lowercase letters and digits in words joined by single hyphens: "maya-chen", "dev42".
 export const PORTFOLIO_SLUG = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
-// Words that read as ours, or that a page of the app might want one day. A portfolio at
-// /p/support or /p/otto-sensei could pass for an official page.
+// A page at /p/support or /p/otto-sensei could pass for an official one.
 export const RESERVED_SLUGS: ReadonlySet<string> = new Set([
   "about",
   "abuse",
@@ -72,12 +70,10 @@ export const RESERVED_SLUGS: ReadonlySet<string> = new Set([
   "www",
 ]);
 
-// Any address starting with the product's name, with or without the hyphen.
 const BRAND_PREFIX = /^otto-?sensei/;
 
 export type SlugProblem = "too_short" | "too_long" | "characters" | "reserved";
 
-/** "  Maya Chén " -> "maya-chen". */
 export function normalizeSlug(input: string): string {
   return input
     .normalize("NFKD")
@@ -107,7 +103,6 @@ export const SLUG_MESSAGES: Record<SlugProblem | "taken", string> = {
   taken: "Someone already has that address. Try another.",
 };
 
-// Cuts at the last hyphen that fits, so "maya-chen-the-longest..." doesn't end mid-word.
 function fit(slug: string, max: number): string {
   if (slug.length <= max) return slug;
   const cut = slug.slice(0, max);
@@ -115,11 +110,9 @@ function fit(slug: string, max: number): string {
   return (lastHyphen >= SLUG_MIN ? cut.slice(0, lastHyphen) : cut).replace(/-+$/, "");
 }
 
-/** Always passes slugProblem. */
 export function suggestSlug(name: string): string {
   const base = fit(normalizeSlug(name), SLUG_MAX);
   if (slugProblem(base) === null) return base;
-  // A name that is reserved or too short still makes a fine address with a word after it.
   const padded = fit(`${base ? `${base}-` : ""}portfolio`.replace(BRAND_PREFIX, "my"), SLUG_MAX);
   return slugProblem(padded) === null ? padded : "my-portfolio";
 }

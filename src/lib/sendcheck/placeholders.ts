@@ -1,11 +1,6 @@
-// Otto's own drafts mark missing facts this way on purpose, so one can slip through to a sent
-// resume.
-
 const PATTERNS: readonly RegExp[] = [
-  // Square brackets around words, not "[1]" (a citation) or "[text](link)" (a link left as text).
   /\[[^[\]\n]{0,60}?\p{L}[^[\]\n]{0,60}?\](?!\()/gu,
   /\{\{?[^{}\n]{0,60}?\p{L}[^{}\n]{0,60}?\}\}?/gu,
-  // "XX%", "$XXk", "XXX users": a stand-in for a number.
   /(?<![\p{L}\p{N}])(?:X{2,}|x{3,})(?![\p{L}\p{N}])/gu,
   /(?<![\p{L}\p{N}])(?:TODO|TBD|FIXME|lorem ipsum)(?![\p{L}\p{N}])/giu,
   /\binsert\s[\p{L} ]{1,30}?\shere\b/giu,

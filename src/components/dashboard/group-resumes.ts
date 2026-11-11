@@ -2,11 +2,9 @@ import type { Resume } from "@/lib/resume/schema";
 
 export type ResumeGroup = {
   resume: Resume;
-  // Newest first.
   tailored: Resume[];
 };
 
-// A copy whose base was deleted stands on its own, so it never disappears from the list.
 export function groupResumes(resumes: readonly Resume[]): ResumeGroup[] {
   const ids = new Set(resumes.map((resume) => resume.id));
   const copies = new Map<string, Resume[]>();

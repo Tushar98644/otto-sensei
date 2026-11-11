@@ -13,8 +13,6 @@ import { moveItem, patchItem, removeItem } from "./edits";
 import { CHAR_LIMITS } from "./limits";
 import { cleanSectionTitle } from "./sections";
 
-// Like edits.ts, untouched sections and items keep their identity.
-
 type FieldCopy = { label: string; placeholder: string };
 
 export type ExtraForm = {
@@ -23,7 +21,6 @@ export type ExtraForm = {
   empty: string;
   title: FieldCopy;
   subtitle: FieldCopy;
-  // Still shown when an import filled them, so nothing prints that can't be edited.
   date: FieldCopy | null;
   detail: FieldCopy | null;
   lines: string | null;
@@ -103,7 +100,6 @@ export function editExtras(
   return next === current ? resume : { ...resume, extras: next };
 }
 
-// Unchanged when the resume already holds as many extra sections as the schema allows.
 export function appendExtraSection(resume: Resume, section: ExtraSection): Resume {
   return editExtras(resume, (sections) =>
     sections.length >= MAX_EXTRA_SECTIONS ? sections : [...sections, section],
@@ -132,7 +128,6 @@ export function removeExtraSection(resume: Resume, sectionId: string): Resume {
   return editExtras(resume, (sections) => removeItem(sections, sectionId));
 }
 
-// Blank goes back to the kind's own heading: an extra section always prints with one.
 export function renameExtraSection(resume: Resume, sectionId: string, draft: string): Resume {
   return patchExtraSection(resume, sectionId, (section) => {
     const title =

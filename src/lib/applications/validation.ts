@@ -10,9 +10,6 @@ import {
   normalizeJobUrl,
 } from "./schema";
 
-// Apart from ./schema, which the board and the Jobs tab load, so those pages don't load zod.
-
-// The raw cap is looser than the stored one, so text that only gets short once cleaned still fits.
 const line = (max: number, min = 0) =>
   z
     .string()
@@ -22,7 +19,6 @@ const line = (max: number, min = 0) =>
 
 const resumeIdField = ResumeSchema.shape.id.nullable();
 
-// An unknown id is dropped, not refused.
 const jobIdField = z.uuid().nullable();
 
 const resumeTitleField = line(APPLICATION_LIMITS.resumeTitle);
@@ -37,7 +33,6 @@ const jobUrlField = z
   .refine((value) => normalizeJobUrl(value) !== null, "That doesn't look like a web link.")
   .transform((value) => normalizeJobUrl(value) ?? "");
 
-// A day ahead of the server's clock covers the time zones that are already on tomorrow.
 const appliedAtField = z
   .number()
   .int()
@@ -52,7 +47,6 @@ const notesField = z
   .transform(cleanNotes)
   .pipe(z.string().max(APPLICATION_LIMITS.notes));
 
-// Any day from 2000 to a year out: interviews are booked weeks ahead, not years.
 const interviewAtField = z
   .number()
   .int()
@@ -60,7 +54,6 @@ const interviewAtField = z
   .refine((value) => value <= Date.now() + 366 * DAY_MS, "That date is too far away.")
   .nullable();
 
-// Snooze, Done (null) and putting a removed reminder back. A year out is far past any job hunt.
 const followUpAtField = z
   .number()
   .int()
@@ -70,7 +63,6 @@ const followUpAtField = z
 
 export const ApplicationIdSchema = z.uuid();
 
-// The browser may pick the id, so it can show and link the application before the server answers.
 export const CreateApplicationSchema = z.object({
   id: ApplicationIdSchema.optional(),
   resumeId: resumeIdField.default(null),
@@ -80,7 +72,6 @@ export const CreateApplicationSchema = z.object({
   role: roleField.default(""),
   jobUrl: jobUrlField.default(""),
   appliedAt: appliedAtField,
-  // Logging an older application that already moved on is fine.
   status: statusField.default("applied"),
   notes: notesField.default(""),
   interviewAt: interviewAtField.optional(),

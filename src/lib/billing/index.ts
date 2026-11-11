@@ -37,20 +37,12 @@ import { billingMode } from "./mode";
 import { isTrialEligible } from "./trial";
 import { processWebhook } from "./webhook";
 
-// Creem is the merchant of record (checkout, tax, invoices, portal); we store the plan and ids.
-
 export type { BillingMode } from "./types";
 export { BillingError, type BillingErrorCode, type BillingErrorDetails } from "./errors";
 export { billingOffer, offeredIntervals } from "./intervals";
 
 export { billingMode } from "./mode";
 
-// How a subscriber moves to another paid plan, by Creem status:
-// - in_place: Creem swaps the product and prorates; only allowed on "active".
-// - replace_trial: a trial can't be modified, so the new plan is its own checkout and the webhook
-//   cancels the trial once that's paid.
-// - fix_payment: a renewal failed (past_due); the card comes first.
-// - portal: anything else; a second subscription would charge alongside the first.
 export type PlanChangeRoute = "in_place" | "replace_trial" | "fix_payment" | "portal";
 
 export function planChangeRoute(
@@ -59,7 +51,6 @@ export function planChangeRoute(
 ): PlanChangeRoute {
   if (status === "active") return "in_place";
   if (status === "trialing") return "replace_trial";
-  // A trial cancelled in the portal keeps access until the trial ends, and still charged nothing.
   if (status === "scheduled_cancel" && isTrialing(user)) return "replace_trial";
   if (status === "past_due") return "fix_payment";
   return "portal";
@@ -69,9 +60,6 @@ export async function trialAvailableFor(user: SessionUser): Promise<boolean> {
   return trialOffered() && (await isTrialEligible(user));
 }
 
-// Pro monthly for someone who never trialed or paid uses the trial product. A subscriber picking
-// the other paid plan follows planChangeRoute; anyone else with a live subscription goes to the
-// portal rather than a second subscription. mock switches the plan at once.
 export async function createCheckoutUrl(
   user: SessionUser,
   plan: PaidPlanId = "pro",
@@ -92,8 +80,6 @@ export async function createCheckoutUrl(
     await mockSubscribe(user.id, plan, interval, { trial });
     return `/account?checkout=success&plan=${plan}${trial ? "&trial=1" : ""}`;
   }
-  // Free here doesn't mean nothing bills (unpaid, paused, or a webhook on its way), and only one
-  // subscription fits in our row.
   const existing = await existingSubscription(user);
   if (existing) {
     const target = productId(plan, interval);
@@ -106,8 +92,6 @@ export async function createCheckoutUrl(
       return `/account?checkout=success&plan=${plan}`;
     }
     if (route === "replace_trial" && target) {
-      // Only when Creem listed the trial as the one live subscription: a second one means a plan
-      // bought a moment ago is still on its way, and a failed lookup can't rule that out.
       if (existing.liveCount === null) {
         throw new BillingError("provider_error", "Creem subscription lookup failed", {
           operation: "lookup",
@@ -139,12 +123,9 @@ export async function createCheckoutUrl(
 }
 
 type ExistingSubscription = LiveSubscription & {
-  // null when the lookup failed and the stored one stands in.
   liveCount: number | null;
 };
 
-// Creem's answer when it gives one (the stored subscription first), else the stored subscription,
-// so a failed lookup neither blocks checkout for everyone nor lets a stored one be bought twice.
 async function existingSubscription(user: SessionUser): Promise<ExistingSubscription | null> {
   const record = await getBillingRecord(user.id);
   try {
@@ -171,7 +152,6 @@ function lookupFor(user: SessionUser, record: BillingRecord | null) {
   };
 }
 
-// mock: downgrades to Free and returns "/account?portal=mock".
 export async function createPortalUrl(user: SessionUser): Promise<string> {
   const mode = billingMode();
   if (mode === "disabled") throw new BillingError("unavailable", "Billing is not configured");
@@ -185,11 +165,9 @@ export async function createPortalUrl(user: SessionUser): Promise<string> {
   return createCreemPortalUrl(customerId);
 }
 
-// not_configured: Creem may still be charging, but there's no API key to stop it (logged).
 export type DeletionCancelResult = "none" | "cancelled" | "already_ended" | "not_configured";
 
-// Cancels every subscription that could still charge, immediately: the account is about to be
-// deleted. Call before deleting and keep the account if it throws, so the user can try again.
+// Call before deleting the account, and keep it if this throws so the user can try again.
 export async function cancelSubscriptionForDeletion(
   user: SessionUser,
   now = Date.now(),
@@ -200,12 +178,8 @@ export async function cancelSubscriptionForDeletion(
     return record.plan !== "free" && (await mockCancel(user.id, now)) ? "cancelled" : "none";
   }
   const stored = chargeableSubscriptionId(record);
-  // Someone Creem never told us about has nothing there to cancel, and deleting their account
-  // shouldn't wait on Creem.
   if (!stored && record.billingCustomerId === null && record.billingSubscriptionId === null)
     return "none";
-  // Only the API key is needed to cancel, so this still works while checkout is switched off for a
-  // missing product id or webhook secret.
   if (!env().CREEM_API_KEY) {
     if (!stored) return "none";
     log.warn("billing.cancel_skipped", {
@@ -223,7 +197,6 @@ export async function cancelSubscriptionForDeletion(
   let cancelled = false;
   for (const subscriptionId of subscriptionIds) {
     cancelled = (await cancelCreemSubscription(subscriptionId)) === "cancelled" || cancelled;
-    // The row is deleted next, but if that fails the account should already show the plan is over.
     await markSubscriptionCancelled(user.id, subscriptionId, now);
   }
   const result = cancelled ? "cancelled" : "already_ended";
@@ -236,8 +209,6 @@ export async function cancelSubscriptionForDeletion(
   return result;
 }
 
-// Best effort: the stored subscription is cancelled either way, so a failed lookup is left for a
-// person to check instead of blocking every deletion while Creem's API is down.
 async function otherLiveSubscriptions(
   user: SessionUser,
   record: BillingRecord,
@@ -251,8 +222,6 @@ async function otherLiveSubscriptions(
   }
 }
 
-// Returns the HTTP status: 401 bad signature, 200 handled or ignored, 500 retryable. Needs only the
-// webhook secret, so events still land while checkout is off.
 export async function handleWebhook(
   rawBody: string,
   headers: Headers,

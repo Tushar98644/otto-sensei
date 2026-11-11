@@ -4,7 +4,6 @@ import { ROUTES } from "@/components/site/routes";
 import { buttonClasses } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
-// Full width on phones, where it's easiest to tap.
 export function PrimaryCta({ className }: { className?: string }) {
   return (
     <Link

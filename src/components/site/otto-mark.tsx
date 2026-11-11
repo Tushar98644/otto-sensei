@@ -2,17 +2,11 @@ import { OTTO_COLORS as C } from "@/components/mascot/palette";
 import { cn } from "@/lib/utils";
 
 export type OttoMarkProps = {
-  // "color": the filled head for the logo and favicon (the same drawing as src/app/icon.svg).
-  // "line": a pencil sketch in currentColor for Otto's notes. Give it text-accent there, or
-  // text-ink inside a button; it counts toward the two-violet-marks-per-screen budget.
   tone?: "color" | "line";
-  // Line tone at 24px or smaller, where the regular line would break up.
   small?: boolean;
   className?: string;
 };
 
-// Otto's head for small sizes (16-48px), where the full mascot's hairline whiskers and outlines
-// blur. Decorative: the link or the note around it carries his name.
 export function OttoMark({ tone = "color", small = false, className }: OttoMarkProps) {
   return (
     <svg
@@ -26,8 +20,6 @@ export function OttoMark({ tone = "color", small = false, className }: OttoMarkP
   );
 }
 
-// Wide, flat head with small ears low on its sides and a big pale muzzle: at 28px that reads as
-// an otter, where a round head with high ears reads as a bear.
 function ColorHead() {
   return (
     <>
@@ -72,8 +64,6 @@ function ColorHead() {
   );
 }
 
-// Open strokes that don't quite close, so he reads as a quick ink sketch, not an icon. Same build
-// as the color head.
 function LineHead({ small }: { small: boolean }) {
   return (
     <>

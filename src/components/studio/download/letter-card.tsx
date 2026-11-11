@@ -12,7 +12,6 @@ import type { PdfPageSize } from "@/lib/pdf/page-size";
 import { renderLetterPdf } from "@/lib/pdf/render";
 import type { Resume } from "@/lib/resume/schema";
 
-// Uses whatever format the resume is in now, so the two pages always match.
 export function LetterCard({ resume, pageSize }: { resume: Resume; pageSize: PdfPageSize }) {
   const [rendering, setRendering] = useState(false);
   const letter = resume.tailor?.coverLetter?.trim() ?? "";

@@ -42,16 +42,13 @@ export type BulletRowProps = {
   resumeId: string;
   section: BulletSection;
   parentId: string;
-  // Space-separated ids allowed (a role and its company): each line is announced with its owner.
   ownerHeadingId: string;
   bullet: Bullet;
   index: number;
   count: number;
 };
 
-// Tools show on focus, not hover: a row growing under the pointer makes the list jump. They're
-// sr-only rather than hidden, so Tab still reaches them.
-// Memoized and fed primitives, so typing in one line re-renders only that line.
+// Tools are sr-only, not hidden, so Tab still reaches them.
 export const BulletRow = memo(function BulletRow({
   resumeId,
   section,
@@ -71,7 +68,6 @@ export const BulletRow = memo(function BulletRow({
   const position = index + 1;
   const hasText = bullet.text.trim() !== "";
   const hidden = bullet.hidden === true;
-  // Hidden lines, and lines under a hidden entry or section, never print, so aren't linted.
   const linted = useIsLinted(resumeId, bullet.id);
   const lint = useLineLint(issues, hasText && linted);
   const flagged = !hidden && lint !== null && wantsOtto(lint);
@@ -107,7 +103,6 @@ export const BulletRow = memo(function BulletRow({
     );
   }
 
-  // Backspace lands on the line above; the delete button moves focus on so no keyboard pops up.
   function remove(from: "keyboard" | "button") {
     const byKeyboard = from === "keyboard";
     const neighbor = pickNeighbor(siblingIds(), bullet.id, byKeyboard ? "previous" : "next");
@@ -193,8 +188,6 @@ export const BulletRow = memo(function BulletRow({
       <label id={labelId} htmlFor={inputId} className="sr-only">
         {`Line ${position}`}
       </label>
-      {/* The rule sits on this row, not the field, so a chip wrapped under the words (phones)
-          stays inside its own ruled line. Dashed when hidden: not on the printed page. */}
       <div
         className={cn(
           "flex flex-col gap-1.5 border-b border-border-strong transition-colors focus-within:border-ink focus-within:shadow-[inset_0_-1px_0_var(--color-ink)] sm:flex-row sm:items-start sm:gap-3",
@@ -215,8 +208,6 @@ export const BulletRow = memo(function BulletRow({
           onPaste={handlePaste}
           className={cn("flex-1 border-b-0 focus-visible:shadow-none", hidden && "text-muted")}
         />
-        {/* Fixed size, so a pill replacing the chip never moves the row and every line wraps at the
-            same place. Pills are aria-hidden: the line's description reads them instead. */}
         <div className="flex h-6 shrink-0 items-center max-sm:mb-2.5 max-sm:empty:hidden sm:mt-2 sm:w-36 sm:justify-end">
           {flashed ? (
             <span aria-hidden className="flex">
@@ -262,7 +253,6 @@ export const BulletRow = memo(function BulletRow({
               <OttoMark tone="line" small className="size-5 text-ink" />
               Fix with Otto
             </Button>
-            {/* flex-1 rather than ml-auto: not-sr-only resets margins. */}
             <div className={cn("flex flex-1 justify-end", flagged && SHOWN_ON_FOCUS)}>
               <div className="-mr-2 flex items-center">
                 <MoveButtons
@@ -293,7 +283,6 @@ export const BulletRow = memo(function BulletRow({
               </div>
             </div>
           </div>
-          {/* Under the buttons, so the tip appearing on focus never moves the button being pressed. */}
           {lint ? (
             <div className={cn(flagged && SHOWN_ON_FOCUS)}>
               <LineTip issues={lint} />

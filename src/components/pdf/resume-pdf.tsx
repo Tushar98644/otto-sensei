@@ -6,7 +6,6 @@ import { themeFor } from "./themes";
 export type ResumePdfProps = {
   resume: Resume;
   pageSize?: PdfPageSize;
-  // Defaults to the format saved on the resume, then Classic.
   template?: TemplateId;
 };
 

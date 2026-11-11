@@ -3,10 +3,8 @@ import { cn } from "@/lib/utils";
 
 export type BadgeVariant = "neutral" | "ink" | "pass" | "warn" | "fail";
 
-// Problems get a soft fill; passes get none, so they recede and the problems stand out.
 const VARIANTS: Record<BadgeVariant, string> = {
   neutral: "bg-surface-muted text-muted",
-  // The Pro plan mark.
   ink: "bg-primary text-white",
   pass: "text-muted",
   warn: "bg-warn-soft text-warn-ink",
@@ -17,7 +15,6 @@ export type BadgeProps = ComponentProps<"span"> & {
   variant?: BadgeVariant;
 };
 
-// For check results use StatusPill, which always adds the icon and the word.
 export function Badge({ variant = "neutral", className, ...props }: BadgeProps) {
   return (
     <span

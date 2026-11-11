@@ -6,8 +6,6 @@ import { useEffect, useId, useRef, useState } from "react";
 import { buttonClasses } from "@/components/ui/button";
 import { useMarketingLinks, useSignedIn } from "./use-account-link";
 
-// Disclosure menu for small screens. The panel is positioned against the sticky header, so it must
-// render inside <SiteHeader> with no positioned element in between.
 export function MobileNav() {
   const [open, setOpen] = useState(false);
   const panelId = useId();
@@ -35,7 +33,6 @@ export function MobileNav() {
     };
   }, [open]);
 
-  // Signed in, the header's one pill already goes to the dashboard; a menu would only repeat it.
   if (signedIn) return null;
 
   return (
@@ -46,8 +43,6 @@ export function MobileNav() {
         aria-expanded={open}
         aria-controls={panelId}
         onClick={() => setOpen((value) => !value)}
-        // The 20px icon sits centered in a 48px target. Pulling the target 14px into the gutter puts
-        // the icon flush with the page edge, like the logo opposite, and frees room at 360px.
         className={buttonClasses({ variant: "ghost", size: "icon", className: "-mr-3.5 size-12" })}
       >
         {open ? <X className="size-5" /> : <Menu className="size-5" />}

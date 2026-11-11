@@ -1,7 +1,4 @@
-// Word lists for the demo keyword extractor (./tailor-demo.ts). Kept sorted for easy review.
-
 const words = (text: string): string[] => text.trim().split(/\s+/);
-// Comma-separated items over several lines; lines starting with "#" are group titles.
 const list = (text: string): string[] =>
   text
     .split("\n")
@@ -10,7 +7,6 @@ const list = (text: string): string[] =>
     .map((item) => item.trim())
     .filter(Boolean);
 
-// Function words plus job-post boilerplate: frequent in every post, saying nothing about this one.
 export const STOPWORDS: ReadonlySet<string> = new Set(
   words(`
     a about above across after again all also am an and any are as at
@@ -36,8 +32,6 @@ export const STOPWORDS: ReadonlySet<string> = new Set(
   `),
 );
 
-// Common skills, written the way the demo shows them. Words that double as everyday English
-// ("rails", "helm") are left out or listed in EXACT_CASE_SKILLS.
 export const COMMON_SKILLS: readonly string[] = list(`
   # Programming languages
   Bash, C#, C++, Dart, Elixir, Golang, Java, JavaScript, Kotlin, MATLAB, PHP, Python, Ruby, Rust,
@@ -80,8 +74,6 @@ export const COMMON_SKILLS: readonly string[] = list(`
   Recruiting, Team leadership, Technical writing,
 `);
 
-// Also common English ("a swift reply", "lean team"): in a post they only count capitalized like
-// this.
 export const EXACT_CASE_SKILLS: ReadonlySet<string> = new Set(
   words("Excel Flutter Helm Lean Rust Sketch Spark Swift"),
 );

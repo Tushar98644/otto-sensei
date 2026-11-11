@@ -7,8 +7,6 @@ import { api } from "@/lib/api/client";
 import type { PlanId } from "@/config/plans";
 import type { MeResponse } from "@/lib/api/types";
 
-// One shared /api/me fetch. Call refreshMe() after sign-in, sign-out, upgrade or a usage change.
-
 export type Me = Pick<MeResponse, "user" | "usage" | "period" | "aiBudget" | "billing" | "auth">;
 
 type MeState = { status: "idle" | "loading" | "ready" | "error"; me: Me | null };
@@ -39,7 +37,6 @@ export function refreshMe(): Promise<void> {
     .then((res) =>
       setState({
         status: "ready",
-        // A server from before weekly allowances sends no period: that was always the month.
         me: {
           user: res.user,
           usage: res.usage,
@@ -65,20 +62,17 @@ export function subscribeToMe(listener: () => void): () => void {
   return subscribe(listener);
 }
 
-/** The signed-in user's id as last loaded, for code outside React that just signed someone in. */
 export async function currentUserId(): Promise<string | null> {
   if (!state.me?.user) await refreshMe();
   return state.me?.user?.id ?? null;
 }
 
-// Signed out is "free"; null only when /api/me can't be reached, so callers let the server decide.
 export async function currentPlan(): Promise<PlanId | null> {
   if (!state.me) await refreshMe();
   if (!state.me) return null;
   return state.me.user?.plan ?? "free";
 }
 
-// Optimistic local update, e.g. after an AI call returns a fresh usage snapshot.
 export function patchMe(patch: Partial<Me>) {
   if (state.me) setState({ status: state.status, me: { ...state.me, ...patch } });
 }

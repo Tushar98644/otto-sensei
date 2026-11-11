@@ -2,14 +2,10 @@ import { describe, expect, it } from "vitest";
 import { PLANS, type UsagePeriod } from "@/config/plans";
 import { OTTO } from "./lines";
 
-// Noon UTC, so it's Nov 14 or 15 in every time zone the tests might run in.
 const WEEK: UsagePeriod = { kind: "week", resetsAt: Date.UTC(2026, 10, 14, 12) };
 const TRIAL: UsagePeriod = { kind: "trial", resetsAt: Date.UTC(2026, 10, 11, 12) };
-// A monthly plan renewing on Dec 17 at noon UTC: Dec 18 in zones past UTC+12.
 const MONTH: UsagePeriod = { kind: "month", resetsAt: Date.UTC(2026, 11, 17, 12), renews: true };
 
-// Representative arguments for every line that is a function, keyed by path. A new function line
-// without samples fails the walk below, so nothing ships unchecked.
 const SAMPLES: Record<string, unknown[][]> = {
   "upload.failed": [["That file isn't a PDF or Word document."], ["No text found"], ["  "]],
   "review.summary": [
@@ -145,7 +141,6 @@ describe("OTTO lines", () => {
     expect(text).not.toMatch(/\s{2,}|undefined|NaN|null/);
     expect(text).toMatch(/[.!?]$/);
     expect(text.split(/\s+/).length).toBeLessThanOrEqual(18);
-    // Global audience: no region-specific money words.
     expect(text).not.toMatch(/₹|lakh|crore|rupee/i);
   });
 
@@ -166,7 +161,6 @@ describe("OTTO lines", () => {
     expect(OTTO.review.overall({ fail: 0, warn: 2, pass: 11 }, 1)).toBe(
       "Software can read it, with small snags. A recruiter would notice 1 thing in your words first.",
     );
-    // A file problem comes first: nothing else matters if the text can't be read.
     expect(OTTO.review.overall({ fail: 1, warn: 0, pass: 12 }, 4)).toBe(
       OTTO.review.summary({ fail: 1, warn: 0, pass: 12 }),
     );

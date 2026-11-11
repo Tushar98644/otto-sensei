@@ -20,9 +20,7 @@ const count = new Intl.NumberFormat("en-US");
 
 export type PlanPerksProps = {
   plan: PaidPlanId;
-  // The billing option being offered: a weekly one gives weekly limits.
   interval?: BillingInterval;
-  // Offered as the free trial: its own allowance first, then the plan's.
   trial?: boolean;
   className?: string;
 };
@@ -39,7 +37,6 @@ function Perk({ title, detail }: { title: string; detail: string }) {
   );
 }
 
-// Read from PLANS so the copy can't drift from the limits. Next to Free, lines say what Pro adds.
 export function PlanPerks({ plan, interval = "month", trial = false, className }: PlanPerksProps) {
   const period = allowancePeriodFor(plan, interval);
   const limits = planLimits(plan, period);
@@ -65,7 +62,6 @@ export function PlanPerks({ plan, interval = "month", trial = false, className }
             }
           />
         ))}
-        {/* Max has these too; the lines only say what's new next to the plan below. */}
         {belowId === "free" ? (
           <>
             <Perk

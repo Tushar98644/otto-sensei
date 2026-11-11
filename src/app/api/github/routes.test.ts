@@ -39,7 +39,6 @@ afterEach(() => {
   resetEnvForTests();
 });
 
-// Signed in, with "octocat" connected as this account's GitHub.
 async function connectedAs(login = "octocat", email = "octo@example.com") {
   const user = await signInAs(email);
   linkGitHub(user, login);
@@ -124,7 +123,6 @@ describe("POST /api/github/lookup", () => {
 
   it("limits lookups per network across devices", async () => {
     github = installFakeGitHub(standard);
-    // A fresh device each time: the per-device limit can't be what stops it.
     for (let i = 0; i < GITHUB_LIMITS.lookup.ip; i++) {
       cookieJar.clear();
       await connectedAs();
@@ -147,7 +145,6 @@ describe("POST /api/github/lookup", () => {
 });
 
 describe("POST /api/github/draft", () => {
-  // Drafting is an AI call: Pro, Max or the trial. Looking repos up stays free (above).
   beforeEach(async () => {
     linkGitHub(await signInOnTrial("octo@example.com"), "octocat");
   });

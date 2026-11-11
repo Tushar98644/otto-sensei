@@ -638,7 +638,6 @@ describe("extras and hidden items", () => {
       "xb2",
       "xb3",
     ]);
-    // The editor still finds a hidden line by id, to fix or focus it.
     expect(findBullet(resume, "b4")?.parentId).toBe("job-2");
     expect(findBullet(resume, "xb3")?.section).toBe("extras");
   });
@@ -700,7 +699,6 @@ describe("extras and hidden items", () => {
     expect(shown.extras?.map((section) => section.id)).toEqual(["x-vol", "x-lang"]);
     expect(shown.extras?.[0]?.items[0]?.bullets.map((b) => b.id)).toEqual(["xb1"]);
     expect(shown.extras?.[1]?.items.map((item) => item.id)).toEqual(["x-lang-1"]);
-    // Entries without hidden lines are passed through as they are.
     expect(shown.experience[0]).toBe(resume.experience[0]);
   });
 

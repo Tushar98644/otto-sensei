@@ -22,7 +22,6 @@ export type LetterDialogProps = {
   rendering: boolean;
   canOpenInStudio: boolean;
   onClose: () => void;
-  // Resolves false when the edit couldn't be kept; the text stays in the box to try again.
   onSave: (entry: LetterEntry, text: string) => Promise<boolean>;
   onDownload: (text: string) => void;
   onOpenInStudio: () => void;
@@ -37,8 +36,6 @@ const SAVE_LINES: Record<SaveState, string> = {
   failed: "Not saved yet",
 };
 
-// Edits are kept on blur and on close, so there's no Save button to forget. Mounted per opening,
-// so the box always starts from the latest text.
 export function LetterDialog({
   entry,
   open,

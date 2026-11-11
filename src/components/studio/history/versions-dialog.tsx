@@ -35,7 +35,6 @@ export function VersionsDialog({ resumeId, open, onOpenChange }: VersionsDialogP
       title="Versions"
       description="Save this resume as it is now, and come back to it any time. Restoring keeps what you have now as a version too."
     >
-      {/* Keyed so each opening starts with a fresh suggested name. */}
       {open && resumeId ? (
         <div className="flex flex-col gap-8">
           <SaveVersionForm key={versions.length} resumeId={resumeId} versions={versions} />
@@ -127,7 +126,6 @@ function VersionList({
     );
   }
 
-  // Gone at once, with Undo: a version is a copy of the resume, so a misclick must not lose it.
   function deleteVersion(version: ResumeVersion) {
     useStudioStore.getState().deleteVersion(resumeId, version.id);
     undoToast({

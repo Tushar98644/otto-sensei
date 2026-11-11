@@ -1,8 +1,5 @@
 import { emptyResume, type Resume } from "@/lib/resume/schema";
 
-// Test-only. Includes things a portfolio must leave out (hidden project and line, tailoring notes,
-// an unsafe link).
-
 export function sampleResume(overrides: Partial<Resume> = {}): Resume {
   return {
     ...emptyResume(1_000),
@@ -58,7 +55,6 @@ export function sampleResume(overrides: Partial<Resume> = {}): Resume {
 
 const b = (id: string, text: string) => ({ id, text });
 
-// The approved samples' made-up person, so a template can be held next to its sample.
 export function jordanResume(): Resume {
   return {
     ...emptyResume(Date.UTC(2026, 10, 8)),
@@ -200,7 +196,6 @@ export function jordanResume(): Resume {
   };
 }
 
-// Awkward real-world data: very long names and words, missing parts, eight jobs, forty skills.
 export function stressResume(): Resume {
   const companies = [
     "Featherstonehaugh International Payments and Settlement Infrastructure Group",

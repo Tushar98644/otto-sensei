@@ -5,9 +5,6 @@ import { posthogKey, posthogServerHost } from "./config";
 import type { ServerEvent, ServerEventProps } from "./events";
 import { cleanProps } from "./privacy";
 
-// Sent after the response, so analytics never slows or fails a request.
-
-/** Counted, never profiled. */
 export const ANONYMOUS_ID = "anonymous";
 
 const REQUEST_TIMEOUT_MS = 3_000;
@@ -21,7 +18,6 @@ function posthog(key: string): PostHog {
     flushInterval: 0,
     requestTimeout: REQUEST_TIMEOUT_MS,
     fetchRetryCount: 1,
-    // Our server's location says nothing about the person.
     disableGeoip: true,
   });
   return client;
@@ -33,7 +29,6 @@ export type CaptureOptions = {
   set?: PersonProps;
 };
 
-// Never throws.
 export function captureServerEvent<E extends ServerEvent>(
   distinctId: string,
   event: E,
@@ -57,7 +52,6 @@ export function captureServerEvent<E extends ServerEvent>(
     // A function can be frozen the moment it responds; after() keeps it alive for the send.
     after(send);
   } catch {
-    // Outside a request (a script, a test): nothing to wait for, so send now.
     void send();
   }
 }

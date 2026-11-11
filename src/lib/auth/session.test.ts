@@ -69,7 +69,6 @@ describe("getCurrentUser", () => {
     await expect(getCurrentUser()).resolves.toBeNull();
   });
 
-  // Returning null would send every dashboard visitor through the sign-out path.
   it("throws instead of signing anyone out when Supabase can't answer", async () => {
     vi.spyOn(console, "warn").mockImplementation(() => {});
     await signInAs("ada@example.com");

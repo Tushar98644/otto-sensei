@@ -11,12 +11,6 @@ import {
 } from "next/font/google";
 import type { PortfolioTemplateId } from "@/lib/portfolio/types";
 
-// Only /p/<slug> and the editor's preview import these, and only the chosen template's variables
-// go on its wrapper; no preloading, so the browser fetches just the files its CSS uses.
-// Stand-ins for fonts we can't ship: Inter and Fira Code (Navy's Calibre, SF Mono), Montserrat
-// (Reel's Gotham), Figtree (Bento's Satoshi, Cabinet Grotesk).
-
-// Options must be written out in each call: next/font reads them at build time as literals.
 const inter = Inter({
   subsets: ["latin", "latin-ext"],
   display: "swap",
@@ -79,7 +73,6 @@ const TEMPLATE_FONTS: Record<PortfolioTemplateId, string> = {
   navy: `${inter.variable} ${firaCode.variable}`,
   dock: geist.variable,
   reel: montserrat.variable,
-  // Geist Pixel draws the initials where the original has a pixelated portrait.
   bento: `${figtree.variable} ${geistPixel.variable}`,
   cv: `${geistMono.variable} ${geistPixel.variable}`,
   prose: `${inter.variable} ${dmMono.variable} ${robotoCondensed.variable}`,

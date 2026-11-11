@@ -6,7 +6,6 @@ import { flushSync } from "react-dom";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
-// Quiet icon buttons for row and card controls. aria-disabled ones look disabled but keep focus.
 export const ICON_ACTION_CLASSES =
   "text-muted hover:text-ink aria-disabled:cursor-not-allowed aria-disabled:opacity-40 aria-disabled:hover:bg-transparent";
 
@@ -18,8 +17,7 @@ export type MoveButtonsProps = {
   className?: string;
 };
 
-// aria-disabled rather than disabled: after a move to the top or bottom, focus has to stay on the
-// button that was pressed, and a disabled button can't hold focus.
+// aria-disabled, not disabled: focus must stay on the pressed button at the top or bottom.
 export function MoveButtons({
   label,
   canMoveUp,

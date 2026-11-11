@@ -21,9 +21,7 @@ import { AIError, type FixInput, type FixResult } from "./types";
 const MAX_ISSUES = 3;
 const MAX_QUESTIONS = 3;
 const ISSUE_CHARS = 200;
-// The client sends questions back with the answers, and the API caps those at 300 characters.
 const QUESTION_CHARS = 200;
-// Same caps as FixRequestSchema, for callers that skip the route.
 const MAX_ANSWERS = 5;
 const ASKED_CHARS = 300;
 const ANSWER_CHARS = 500;
@@ -76,7 +74,6 @@ function fixMessage(fix: PreparedFix): string {
   return parts.join("\n\n");
 }
 
-// Lines can hold a link or email; the model gets placeholders and finalizeFix() checks the result.
 function redactFix(fix: PreparedFix, redactor: Redactor): PreparedFix {
   return {
     bullet: redactor.redact(fix.bullet),
@@ -88,14 +85,12 @@ function redactFix(fix: PreparedFix, redactor: Redactor): PreparedFix {
   };
 }
 
-// Placeholders with no questions would leave the person stuck, so ask for each one.
 function placeholderQuestions(suggestion: string): string[] {
   return placeholdersIn(suggestion)
     .slice(0, MAX_QUESTIONS)
     .map((placeholder) => `What should go in ${placeholder}?`);
 }
 
-// Unwraps brackets models put around facts the person gave ("a [30%] result"); real gaps stay.
 function unwrapAnswered(text: string, answers: readonly string[]): string {
   const said = answers.join(" ").toLowerCase();
   return text.replace(/\[([^\]]+)\]/g, (match: string, inner: string) => {
@@ -106,7 +101,6 @@ function unwrapAnswered(text: string, answers: readonly string[]): string {
 
 function finalizeFix(output: FixOutput, fix: PreparedFix): FixResult {
   const answered = fix.answers.length > 0;
-  // Every number has to come from the line, the role or the answers; any other is made up.
   const sources = [
     fix.bullet,
     fix.role.title,
@@ -134,7 +128,6 @@ function finalizeFix(output: FixOutput, fix: PreparedFix): FixResult {
   };
 }
 
-// First call: issues, up to 3 questions and a [placeholder] draft. Second: only line plus answers.
 export async function fixBullet(input: FixInput): Promise<FixResult> {
   const fix = prepare(input);
   if (!fix.bullet) throw new AIError("invalid_output", "There is no line to fix");
@@ -149,7 +142,6 @@ export async function fixBullet(input: FixInput): Promise<FixResult> {
     system: FIX_SYSTEM_PROMPT,
     user: fixMessage(redactFix(fix, redactor)),
     schema: FixOutputSchema,
-    // Medium bought nothing measurable over low and was ~3x slower on the answer step.
     effort: "low",
   });
   return finalizeFix(redactor.restoreDeep(output), fix);

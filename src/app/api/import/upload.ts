@@ -10,8 +10,6 @@ import type { ParseErrorCode } from "@/lib/parse/types";
 import { noteReferralCheck } from "@/lib/referrals/cookie";
 import { limitUploads, type UploadKind } from "./upload-limits";
 
-// The shared first half of POST /api/import and POST /api/check.
-
 const MAX_MB = Math.round(UPLOAD_LIMITS.maxBytes / (1024 * 1024));
 // Room for the multipart boundary and part headers around a file right at the size limit.
 const MAX_BODY_BYTES = UPLOAD_LIMITS.maxBytes + 64 * 1024;
@@ -19,8 +17,6 @@ const MAX_BODY_BYTES = UPLOAD_LIMITS.maxBytes + 64 * 1024;
 const NO_FILE = "Choose a PDF or Word (.docx) file to upload.";
 const TOO_LARGE = `That file is over ${MAX_MB} MB. Try a smaller copy.`;
 
-// ParseError messages are written for people and name the file type (PDF, .doc, Word), so most go
-// out as they are. `message` replaces one where the route has better copy for every file type.
 const PARSE_FAILURES: Record<ParseErrorCode, { code: ApiErrorCode; status: number; message?: string }> = {
   unsupported_type: { code: "unsupported_type", status: 415 },
   too_large: { code: "too_large", status: 413 },
@@ -41,12 +37,9 @@ export type CheckedUpload = {
   startedAt: number;
 };
 
-// Errors the person must fix come back as a Response; unexpected failures throw. A missing or
-// oversized file is turned away before the rate limits, so it doesn't use up the day's allowance.
 export async function checkUpload(req: Request, kind: UploadKind): Promise<CheckedUpload | Response> {
   const startedAt = Date.now();
-  // Multipart needs no preflight, so another site's page could otherwise spend our parsing and AI
-  // on its visitors' behalf, with no device cookie to limit it.
+  // Multipart needs no preflight, so another site could otherwise spend our parsing and AI.
   const crossSite = rejectCrossSite(req);
   if (crossSite) {
     log.warn(`${kind}.cross_site`);
@@ -67,16 +60,13 @@ export async function checkUpload(req: Request, kind: UploadKind): Promise<Check
     return fail(code, message, status);
   }
   const report = runRecruiterChecks(extraction, startedAt);
-  // A first check is what an invite pays out on (src/lib/referrals).
   await noteReferralCheck();
   return { extraction, report, bytes: file.size, startedAt };
 }
 
-// The "file" field, size-checked from File.size before any of its bytes are copied out.
 async function readUpload(req: Request): Promise<File | Response> {
   const type = req.headers.get("content-type") ?? "";
   if (!/^multipart\/form-data\b/i.test(type)) return fail("bad_request", NO_FILE, 400);
-  // Browsers declare the size, so an oversized upload is refused before a byte of it is read.
   if (Number(req.headers.get("content-length")) > MAX_BODY_BYTES) return fail("too_large", TOO_LARGE, 413);
 
   const body = await readBody(req, MAX_BODY_BYTES);
@@ -101,8 +91,7 @@ async function readUpload(req: Request): Promise<File | Response> {
 
 type BodyRead = { ok: true; bytes: Uint8Array<ArrayBuffer> } | { ok: false; reason: "too_large" | "unreadable" };
 
-// Off Vercel nothing caps a request body, and a chunked upload declares no length, so reading
-// stops as soon as the body is too big instead of buffering all of it first.
+// Off Vercel nothing caps a body and chunked uploads declare no length, so stop reading early.
 async function readBody(req: Request, maxBytes: number): Promise<BodyRead> {
   if (!req.body) return { ok: true, bytes: new Uint8Array(0) };
   const reader = req.body.getReader();
@@ -120,7 +109,6 @@ async function readBody(req: Request, maxBytes: number): Promise<BodyRead> {
       chunks.push(value);
     }
   } catch {
-    // The client went away mid-upload.
     return { ok: false, reason: "unreadable" };
   }
   const bytes = new Uint8Array(size);

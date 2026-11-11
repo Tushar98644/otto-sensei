@@ -17,17 +17,14 @@ describe("extractDocx", () => {
       hasTextLayer: true,
       columnLayout: true,
       tableCount: 1,
-      // Word stores the box twice (DrawingML plus a VML fallback); it's still one box.
       textBoxCount: 1,
       imageCount: 0,
       iconGlyphCount: 0,
       headerFooterText: "sam.rivera@example.com",
     });
-    // Body only: the header's email is not part of what gets read.
     expect(extraction.text).not.toContain("sam.rivera@example.com");
     expect(extraction.lines.slice(0, 3)).toEqual(["Sam Rivera", "San Francisco, CA | +1 (415) 555-0134", "Experience"]);
     expect(extraction.lines).toContain("Lead Developer, Contoso Ltd");
-    // The text box is read once, not twice.
     expect(extraction.lines.filter((line) => line.includes("Tableau"))).toHaveLength(1);
   });
 
@@ -81,8 +78,6 @@ describe("extractDocx", () => {
     await expect(extractDocx(data)).rejects.toMatchObject({ code: "corrupt" });
   });
 
-  // About 1.8 MB of unclosed tags each, under the part cap, from a zip of a few KB. mammoth's
-  // parser took about half an hour on the body, and our header reader hours on the header.
   it("stays fast on a header or body full of unclosed tags", async () => {
     vi.spyOn(console, "warn").mockImplementation(() => undefined);
     const junk = "<w:br ".repeat(300_000);
@@ -101,7 +96,6 @@ describe("extractDocx", () => {
     const started = performance.now();
     const extraction = await extractDocx(header);
     expect(extraction.lines).toEqual(["Sam Rivera"]);
-    // The broken header is left out rather than read as text.
     expect(extraction.signals.headerFooterText).toBe("");
     await expect(extractDocx(body)).rejects.toMatchObject({ code: "corrupt" });
     expect(performance.now() - started).toBeLessThan(3_000);

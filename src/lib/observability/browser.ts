@@ -4,8 +4,7 @@ type Sdk = typeof import("./sentry-browser");
 
 let loading: Promise<Sdk | null> | null = null;
 
-// Only ever a dynamic import: a static one would put the SDK in every page's chunk. null when
-// Sentry is off or the chunk can't load; tries again on the next call.
+// Only ever a dynamic import: a static one would put the SDK in every page's chunk.
 export function loadSentry(): Promise<Sdk | null> {
   if (!sentryEnabled("browser")) return Promise.resolve(null);
   loading ??= import("./sentry-browser").then(

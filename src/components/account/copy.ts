@@ -1,7 +1,5 @@
 import { BRAND } from "@/config/brand";
 
-// ACCOUNT_OTTO follows the voice rules in mascot/lines.ts; copy.test.ts checks them.
-
 export const ACCOUNT_OTTO = {
   signInDialog: "Use Google or a 6-digit email code, then we're back where you left off.",
   login: "Use Google, or I'll email you a 6-digit code. No password to remember.",
@@ -14,7 +12,6 @@ export const ACCOUNT_OTTO = {
 
 export const SESSION_ENDED_REASON = "You were signed out. Sign in again to keep going.";
 
-// `kept`: resumes left in this browser because they hadn't finished backing up.
 export function signedOutNote(kept: number): string {
   if (kept === 0) return "Your resumes are safe in your account. Sign in again to see them here.";
   return kept === 1

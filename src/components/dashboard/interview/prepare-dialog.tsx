@@ -27,21 +27,16 @@ import { findByLink, interviewHref, prepPickerChoices, waitingForPrep } from "./
 export type PrepareDialogProps = {
   open: boolean;
   applications: readonly Application[];
-  // Tailored copies not sent yet are offered too.
   resumes: readonly Resume[];
   packs: readonly PrepSummary[];
   onClose: () => void;
 };
 
-// Shown when the job link can't name the company, which an application needs.
 type Manual = { company: string; role: string; note: string };
 
-// A copy or a link joins Applications marked as an interview, with its job and letters linked.
-// Mounted per opening, so each one starts blank.
 export function PrepareDialog({ open, applications, resumes, packs, onClose }: PrepareDialogProps) {
   const router = useRouter();
   const choices = useMemo(() => prepPickerChoices(applications, resumes), [applications, resumes]);
-  // An interview that has no prep yet is almost always the one wanted.
   const [picked, setPicked] = useState(() => {
     const waiting = waitingForPrep(applications, packs)[0];
     return waiting ? `application:${waiting.id}` : (choices[0]?.value ?? "");
@@ -62,7 +57,6 @@ export function PrepareDialog({ open, applications, resumes, packs, onClose }: P
     onClose();
   }
 
-  // The company and title from the post, or null with the reason when the person has to type them.
   async function readJob(url: string): Promise<{ company: string; role: string; url: string } | Manual> {
     setReading(true);
     try {
@@ -75,7 +69,6 @@ export function PrepareDialog({ open, applications, resumes, packs, onClose }: P
       const why = isApiError(error, "network_error")
         ? OTTO.errors.offline
         : "Otto couldn't read that link just now.";
-      // The prep page asks for the post as a paste if the link still can't be read there.
       return { company: "", role: "", note: `${why} Type the company to go on.` };
     } finally {
       setReading(false);
@@ -230,8 +223,6 @@ export function PrepareDialog({ open, applications, resumes, packs, onClose }: P
               }}
               onPaste={(event) => {
                 const pasted = event.clipboardData.getData("text").trim();
-                // A whole link starts at once; a fragment pasted into a half-typed one is left to
-                // the browser.
                 if (!pasted || busy || event.currentTarget.value.trim() !== "" || manual) return;
                 event.preventDefault();
                 setLink(pasted);

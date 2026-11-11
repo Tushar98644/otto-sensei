@@ -7,15 +7,12 @@ import { Button } from "@/components/ui/button";
 import type { WorkProfile } from "@/lib/eligibility/profile";
 
 export type JobsWorkPromptProps = {
-  // The line shows while this is true; the dialog stays up once opened, even after the answers
-  // it saves make the line go away.
   due: boolean;
   userId: string;
   profile: WorkProfile;
   saved: boolean;
 };
 
-// The Account questions open right here, so the list updates in place. Never a pop-up.
 export function JobsWorkPrompt({ due, userId, profile, saved }: JobsWorkPromptProps) {
   const [open, setOpen] = useState(false);
   return (

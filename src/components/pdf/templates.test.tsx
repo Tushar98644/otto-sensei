@@ -17,9 +17,6 @@ import {
   sampleResume,
 } from "./test-fixtures";
 
-// Every format must stay as readable to hiring software as Classic: same text, same reading order,
-// standard headings on their own lines, every recruiter check passing, on Letter and on A4.
-
 const PAGE_VIEW = { LETTER: [0, 0, 612, 792], A4: [0, 0, 595, 842] } as const;
 
 const JOBS = [
@@ -45,12 +42,10 @@ const JOBS = [
   },
 ];
 
-// Formats may print headings and names in capitals, so order is checked case-insensitively.
 function reader(text: string) {
   const lower = flatten(text).toLowerCase();
   let from = 0;
   return {
-    // The next occurrence of `part` after everything found so far.
     next(part: string): number {
       const at = lower.indexOf(part.toLowerCase(), from);
       expect(at, `"${part}" should appear after position ${from}`).toBeGreaterThanOrEqual(0);
@@ -69,7 +64,6 @@ const CONTACT: Record<"location" | "email" | "phone", string> = {
   phone: "+1 415 555 0142",
 };
 
-// The format's own order: its contact lines, and whether a job leads with the title or the company.
 function expectReadingOrder(text: string, id: TemplateId) {
   const theme = TEMPLATE_THEMES[id];
   const read = reader(text);
@@ -91,7 +85,6 @@ function expectReadingOrder(text: string, id: TemplateId) {
     const [first, second] = titleFirst ? [job.title, job.org] : [job.org, job.title];
     const start = read.next(first);
     read.next(second);
-    // Dates sit in the entry's heading rows: after its first line starts, before its first bullet.
     const dates = theme.dates === "years" ? yearsOnly(job.dates) : job.dates;
     const at = read.find(dates, start);
     const firstBullet = read.find(job.bullets[0]!, start);
@@ -104,7 +97,6 @@ function expectReadingOrder(text: string, id: TemplateId) {
   read.next("github.com/mayal/ledger-lint");
   read.next("Open-source tool that flags rounding errors");
   read.next(SECTION_LABELS.education);
-  // Every format leads a school entry with the school, as its source does.
   const school = read.next("University of Edinburgh");
   expect(read.find("2013 – 2017", school), "school dates").toBeGreaterThan(school);
   read.next("BSc, Computer Science");
@@ -154,7 +146,6 @@ describe.each(RESUME_TEMPLATE_LIST.map((template) => [template.name, template.id
       const pages = await readPages(bytes);
       expect(pages).toHaveLength(1);
       expectReadingOrder(pages.join("\n"), id);
-      // Each heading is a line of its own, spelled as a whole word (no "S U M M A R Y").
       const lines = new Set(pages[0]!.split("\n").map((line) => line.trim().toLowerCase()));
       for (const label of Object.values(SECTION_LABELS))
         expect(lines.has(label.toLowerCase()), label).toBe(true);
@@ -209,7 +200,6 @@ describe.each(RESUME_TEMPLATE_LIST.map((template) => [template.name, template.id
       const url = `https://example.com/${"portfolio/case-studies/".repeat(6)}payments-platform-rebuild`;
       resume.basics.links = [{ id: "l1", label: "Portfolio", url }];
       const text = await readText(await render(resume));
-      // A break inside a token adds a hyphen at the end of the line; nothing may go missing.
       expect(text.replace(/-\n/g, "")).toContain(url.replace("https://", ""));
     });
 
@@ -225,7 +215,6 @@ describe.each(RESUME_TEMPLATE_LIST.map((template) => [template.name, template.id
           expect(headings.has(last.toLowerCase()), `page ends on the "${last}" heading`).toBe(
             false,
           );
-          // Every format starts a job's heading rows with "Role N" or "Company N".
           expect(last, "page ends on a job heading").not.toMatch(/^(Role|Company) \d+/);
         }
       }
@@ -233,8 +222,6 @@ describe.each(RESUME_TEMPLATE_LIST.map((template) => [template.name, template.id
   },
 );
 
-// The font names are written into the PDF in plain text (after a subset tag, "ABCDEF+"), so they
-// show which theme drew it.
 function fontsIn(bytes: Uint8Array): string[] {
   const raw = new TextDecoder("latin1").decode(bytes);
   const names = [...raw.matchAll(/\/BaseFont\s*\/(?:[A-Z]{6}\+)?([A-Za-z-]+)/g)];

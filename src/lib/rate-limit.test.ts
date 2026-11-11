@@ -6,7 +6,6 @@ import { rateLimit, retryAfterHeader, waitText } from "./rate-limit";
 
 const MINUTE = 60_000;
 const DAY = 24 * 60 * MINUTE;
-// Minute-aligned and a multiple of 50: offsets that aren't multiples of 50 never trigger cleanup.
 const WINDOW_START = 1_800_000_000_000;
 
 async function storedKeys(): Promise<string[]> {

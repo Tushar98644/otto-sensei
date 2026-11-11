@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 import { fileReadingNotes, HIRING_SYSTEMS } from "./systems";
 
 const words = (text: string) => text.split(/\s+/).filter(Boolean).length;
-// The notes report what a vendor documents; they never grade or forecast the person's chances.
 const PREDICTION = /\b(?:you will|you'll (?:pass|fail|be rejected)|guarantee|your score|pass rate|beat the)\b/i;
 
 describe("hiring-system notes", () => {

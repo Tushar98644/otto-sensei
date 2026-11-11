@@ -4,7 +4,6 @@ import { bulletInputId } from "@/components/studio/editor/focus";
 import { findBullet } from "@/lib/resume/ops";
 import { useStudioStore } from "@/lib/store/resume-store";
 
-// The Fix step may take a few frames to mount, so the line is looked for over several frames.
 const MAX_FRAMES = 30;
 
 export function focusWhenShown(
@@ -25,8 +24,7 @@ export function focusWhenShown(
   }
 }
 
-// Set while a jump changes the step. The studio shell normally starts a new step at the top with
-// focus on its heading; a jump has its own place to land, and the shell's focus would win the race.
+// Set while a jump changes step, so the shell's heading focus doesn't win the race.
 let jumpingToStep = false;
 
 export function takeStepJump(): boolean {
@@ -44,7 +42,6 @@ export function showInEditor(elementId: string | null): void {
   else window.requestAnimationFrame(top);
 }
 
-/** When the open resume (a tailored copy, say) lacks the line, `sourceId` opens instead. */
 export function jumpToLine(sourceId: string, bulletId: string): void {
   const store = useStudioStore.getState();
   const active = store.activeId ? store.resumes[store.activeId] : undefined;
@@ -52,7 +49,6 @@ export function jumpToLine(sourceId: string, bulletId: string): void {
   showInEditor(bulletInputId(bulletId));
 }
 
-// Set from outside the studio (Home's "Lines to improve"); memory only, a reload drops it.
 let arriving: string | null = null;
 
 export function openLineOnArrival(bulletId: string): void {

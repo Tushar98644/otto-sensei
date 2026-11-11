@@ -19,8 +19,7 @@ import { useStudioStore, type StudioStep } from "@/lib/store/resume-store";
 import { createSampleResume } from "@/lib/resume/sample";
 import { emptyResume } from "@/lib/resume/schema";
 
-// Opens the browser's file picker without a file input in the page. The input joins the document
-// while the picker is open, because some mobile browsers ignore a click on a detached one.
+// Some mobile browsers ignore a click on a detached input, so it joins the document meanwhile.
 function chooseFile(accept: string, onFile: (file: File) => void): void {
   const input = document.createElement("input");
   input.type = "file";
@@ -41,8 +40,6 @@ function chooseFile(accept: string, onFile: (file: File) => void): void {
   input.click();
 }
 
-// Sets the active resume and step in the store (the studio reads both on arrival), then goes
-// there, after the same check that Free has room for another resume.
 export function useStudioActions() {
   const router = useRouter();
   const setActive = useStudioStore((s) => s.setActive);
@@ -50,7 +47,6 @@ export function useStudioActions() {
   const addResume = useStudioStore((s) => s.addResume);
   const pro = useProTools();
 
-  // Load the studio ahead, so the first click doesn't show the full-screen wait.
   useEffect(() => {
     router.prefetch(ROUTES.studio);
   }, [router]);
@@ -77,7 +73,6 @@ export function useStudioActions() {
       chooseFile(LOCAL_IMPORT_ACCEPT[kind], (file) => {
         void (async () => {
           if (!(await roomForResume())) return;
-          // Loaded on use: the LinkedIn reader brings a ZIP library most visits never need.
           const { LocalImportError, readLocalImport } =
             await import("@/components/studio/upload/local-import");
           try {
@@ -100,8 +95,6 @@ export function useStudioActions() {
   return useMemo(
     () => ({
       open,
-      // The picker opens inside the click (browsers ignore it later), so the room check that can
-      // wait comes after; an account already known to be full gets the prompt instead.
       upload: () => {
         if (pro === false && useStudioStore.getState().order.length >= RESUME_LIMITS.free) {
           openUpgradePrompt("resumes");

@@ -4,10 +4,8 @@ import { monthOf, parseRange } from "@/lib/sendcheck/dates";
 import { findSkills } from "./skills";
 import { MATCH_PROFILE_LIMITS, type MatchProfile } from "./types";
 
-// Only skills, titles and years are sent for ranking; resume text, name, contact details and lines
-// never leave the browser for this.
+// Only skills, titles and years are sent for ranking; nothing else leaves the browser.
 
-/** Overlapping jobs counted once. null when no dates read. */
 export function yearsOfExperience(resume: Resume, now: number): number | null {
   const nowMonth = monthOf(now);
   const spans: [number, number][] = [];
@@ -15,7 +13,6 @@ export function yearsOfExperience(resume: Resume, now: number): number | null {
     if (job.hidden) continue;
     const range = parseRange(job.startDate, job.endDate, nowMonth);
     if (!range.start || !range.end) continue;
-    // A year alone could be any month of it: the person gets the benefit of the doubt.
     const from = range.start.earliest;
     const to = Math.min(range.end.latest, nowMonth);
     if (to >= from) spans.push([from, to]);
@@ -38,7 +35,6 @@ export function yearsOfExperience(resume: Resume, now: number): number | null {
 
 export function matchProfileOf(resume: Resume, now: number): MatchProfile {
   const shown = visibleResume(resume);
-  // Experience titles first: they're dated; the headline is a claim.
   const titles = [...shown.experience.map((job) => job.title), shown.basics.headline]
     .map((title) => title.trim().slice(0, MATCH_PROFILE_LIMITS.titleChars))
     .filter(Boolean);

@@ -27,7 +27,6 @@ describe("GET /api/auth/expired", () => {
     const res = await GET(request("/dashboard"));
     expect(res.status).toBe(307);
     expect(res.headers.get("location")).toBe("https://otto.test/login?next=%2Fdashboard");
-    // The jar records a deletion the way the browser receives it: an empty, already-expired cookie.
     expect(cookieJar.get(AUTH_COOKIE)).toMatchObject({ value: "", maxAge: 0 });
   });
 

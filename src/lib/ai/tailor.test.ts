@@ -100,7 +100,6 @@ type Output = {
   notes: string[];
 };
 
-// A requirement that is one searchable name, the shape most tool requirements take.
 function named(term: string, importance: string, source = "structure"): RawRequirement {
   return { text: term, importance, source, terms: [term], quote: "", ask: `Have you used ${term}?` };
 }
@@ -217,12 +216,10 @@ describe("tailorResume with the AI", () => {
     await tailorResume(makeResume(), job({ jobTitle: "Backend Engineer", company: "Lumen" }));
     const sent = runStructured.mock.calls[0]?.[0];
     expect(sent).toMatchObject({ task: "tailor", effort: "low" });
-    // The name and email go as placeholders; everything else as written.
     const shown = resumeToText(makeResume())
       .replace("Jane Doe", "[NAME]")
       .replace("jane@example.com", "[EMAIL_1]");
     expect(sent?.user).toContain(`<resume>\n${shown}\n</resume>`);
-    // Entries with fewer than two written bullets have nothing to reorder, so they aren't sent.
     const experience = JSON.stringify([
       {
         id: "e1",
@@ -369,7 +366,6 @@ describe("tailorResume with the AI", () => {
     expect(result.keywords.slice(0, 8).every((keyword) => keyword.importance === "must")).toBe(true);
     expect(result.keywords).toHaveLength(14);
     const importance = new Map(result.keywords.map((keyword) => [keyword.term, keyword.importance]));
-    // Kubernetes is on the resume, so 7 must-haves are asked about before any nice-to-have.
     expect(result.askUser).toHaveLength(8);
     expect(result.askUser.map((question) => importance.get(question.term))).toEqual([
       ...Array<string>(7).fill("must"),

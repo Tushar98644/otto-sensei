@@ -4,7 +4,6 @@ import { BRAND } from "@/config/brand";
 import type { BillingMode } from "@/lib/billing/types";
 import { SUPPORT_MAILTO } from "./copy";
 
-// Only for checkout that won't take a real payment; nothing while the mode is loading.
 export function BillingNote({ mode }: { mode: BillingMode | undefined }) {
   if (mode === "mock") {
     return (

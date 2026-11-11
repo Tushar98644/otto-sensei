@@ -22,9 +22,6 @@ import { PATCH as patchMany, POST } from "./route";
 
 vi.mock("next/headers", async () => (await import("@/lib/auth/test-helpers")).nextHeadersMock);
 
-// One job, one thread: what the server links by itself when applications and letters are saved,
-// and what GET /api/applications/:id hands the application's own page.
-
 const DAY = 24 * 60 * 60 * 1_000;
 const APPLIED_AT = Date.UTC(2026, 9, 1, 12);
 const URL_1 = "https://job-boards.greenhouse.io/acme/jobs/1";
@@ -47,7 +44,6 @@ function raw(id: string, overrides: Partial<RawJob> = {}): RawJob {
   };
 }
 
-// Two openings; the second shares its link with a third, so that link names no single opening.
 async function seedJobs(): Promise<Record<string, string>> {
   const db = await getDb();
   await syncBoards(db, [{ ats: "greenhouse", token: "acme", company: "Acme" }], Date.now());
@@ -138,7 +134,6 @@ describe("the opening an application is for", () => {
     const ids = await seedJobs();
     const fromJobs = await create({ jobId: ids["1"], jobUrl: URL_1 });
     expect(fromJobs.jobId).toBe(ids["1"]);
-    // Logged by hand with the same link: still the same opening.
     const byLink = await create({ company: "Acme again", jobUrl: URL_1 });
     expect(byLink.jobId).toBe(ids["1"]);
   });
@@ -150,7 +145,6 @@ describe("the opening an application is for", () => {
     expect(unknown.jobId).toBeNull();
     const shared = await create({ jobUrl: "https://acme.example.com/careers/shared" });
     expect(shared.jobId).toBeNull();
-    // An unknown id with a link of ours still lands on that opening.
     const fallback = await create({ jobId: crypto.randomUUID(), jobUrl: URL_1 });
     expect(fallback.jobId).toBe(ids["1"]);
   });
@@ -186,7 +180,6 @@ describe("the status timeline", () => {
       { status: "applied", at: APPLIED_AT },
     ]);
     await setStatus(application.id, "interview");
-    // The same status again is no change.
     await setStatus(application.id, "interview");
     await setStatus(application.id, "offer");
     const history = (await threadOf(application.id)).history;
@@ -251,7 +244,6 @@ describe("letters and answers join their application by themselves", () => {
     await signIn();
     const early = await letter();
     expect(early.applicationId).toBeNull();
-    // Another job's letter stays out of it.
     const other = await letter({ company: "Globex", jobUrl: "https://globex.example.com/jobs/4" });
     const application = await create();
     const linked = await threadOf(application.id);
@@ -270,13 +262,10 @@ describe("letters and answers join their application by themselves", () => {
     const application = await create();
     const byLink = await letter();
     expect(byLink.applicationId).toBe(application.id);
-    // A letter with no link, same company and title (any case).
     const byName = await letter({ jobUrl: "", company: "ACME", role: "backend engineer" });
     expect(byName.applicationId).toBe(application.id);
-    // Same company, another post: two different links are two different jobs.
     const elsewhere = await letter({ jobUrl: "https://job-boards.greenhouse.io/acme/jobs/2" });
     expect(elsewhere.applicationId).toBeNull();
-    // Written from the application's own page.
     const fromHub = await letter({ company: "", role: "", jobUrl: "", applicationId: application.id });
     expect(fromHub.applicationId).toBe(application.id);
     const answer = await letter({
@@ -332,7 +321,6 @@ describe("GET /api/applications/:id", () => {
     await signIn();
     const ids = await seedJobs();
     const application = await create({ jobId: ids["1"] });
-    // Saved before the links existed: no application_id, same link.
     const db = await getDb();
     const old = await letter({ company: "Old Co", role: "" });
     await db.update(writings).set({ applicationId: null }).where(eq(writings.id, old.id));

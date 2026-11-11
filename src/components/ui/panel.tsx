@@ -1,7 +1,6 @@
 import type { ComponentProps, ReactNode } from "react";
 import { cn } from "@/lib/utils";
 
-// White cards go on a panel, never straight on the paper background where white nearly vanishes.
 export function Panel({ className, ...props }: ComponentProps<"div">) {
   return (
     <div {...props} className={cn("rounded-3xl bg-surface-muted p-3 sm:p-6 lg:p-10", className)} />

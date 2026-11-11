@@ -28,7 +28,6 @@ export type JobCardProps = {
   job: MatchedJob;
   now: number;
   applied: Application | null;
-  // Its button opens that copy instead of spending another tailored version.
   tailoredTitle: string | null;
   logging: boolean;
   tailoring: boolean;
@@ -36,16 +35,12 @@ export type JobCardProps = {
   onOpenTailored: (job: MatchedJob) => void;
   onToggleSave: (job: MatchedJob) => void;
   onMarkApplied: (job: MatchedJob) => void;
-  // "Open job" was followed; only noted, the link works on its own.
   onOpen?: (job: MatchedJob) => void;
-  // Back from this job's post and not in the tracker yet: "Applied to <company>?" at the foot.
   asking?: boolean;
   onAnswer?: (job: MatchedJob, answer: AskedAppliedAnswer) => void;
-  // Matches only: "Not a fit" and why, noted to make matching better.
   onNotFit?: (job: MatchedJob, reason: NotFitReason) => void;
 };
 
-// Labels are words, never numbers: the reason under them says what they rest on.
 function MatchChip({ match }: { match: JobMatch }) {
   if (match.label === "strong") return <StatusPill status="pass">{MATCH_LABELS.strong}</StatusPill>;
   if (match.label === null) return <Badge>No overlap</Badge>;
@@ -87,7 +82,6 @@ export function JobCard({
             <span className="font-medium text-muted">{job.company}</span>
             <span>{sourceCredit(job.source)}</span>
           </p>
-          {/* Focusable from script only: where focus lands once the question is answered. */}
           <h3
             ref={titleRef}
             id={titleId}
@@ -102,7 +96,6 @@ export function JobCard({
               <span className="font-medium text-ink"> · This job has closed</span>
             ) : null}
           </p>
-          {/* Company facts from public visa registers, never a promise about this job. */}
           {job.visa.length > 0 ? (
             <p className="text-sm/6 text-subtle">{job.visa.join(" · ")}</p>
           ) : null}
@@ -195,13 +188,12 @@ export function JobCard({
               />
             )
           ) : null}
-          {/* A plain followed link: Remote OK's terms ask for one, and every source gets the visit. */}
+          {/* A plain followed link: Remote OK's terms ask for one. */}
           <a
             href={job.url}
             target="_blank"
             rel="noopener"
             onClick={() => onOpen?.(job)}
-            // A middle click opens it in a new tab too.
             onAuxClick={(event) => {
               if (event.button === 1) onOpen?.(job);
             }}

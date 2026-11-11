@@ -1,9 +1,7 @@
 import { foldCase } from "@/lib/tailor/tokens";
 
-// Titles as the occupation lookup reads them. The same rules build the taxonomy's lookup keys, so
-// keys and titles only have to agree, not be good English ("labourer" -> "laborer").
+// scripts/occupations-build.ts builds data.json's keys with these rules: re-run it after edits.
 
-// ESCO's labels are British English, so both sides of the lookup meet on US spelling.
 const SPELLING: Record<string, string> = {
   labour: "labor",
   labourer: "laborer",
@@ -62,7 +60,6 @@ const SPELLING: Record<string, string> = {
   sceptic: "skeptic",
 };
 
-// Shorthand job ads use for whole words. Kept to forms that mean one thing in a title.
 const SHORTHAND: Record<string, string[]> = {
   mgr: ["manager"],
   mngr: ["manager"],
@@ -84,12 +81,10 @@ const SHORTHAND: Record<string, string[]> = {
   hgv: ["heavy", "goods", "vehicle"],
   lgv: ["large", "goods", "vehicle"],
   lorry: ["truck"],
-  // UK and Australian titles: an "operative" is a worker, a "carer" a caregiver.
   operative: ["worker"],
   carer: ["caregiver"],
 };
 
-// Depends on position: "Pharmacy Tech" is a technician, "Tech Lead" isn't.
 const SHORTHAND_LAST: Record<string, string> = {
   tech: "technician",
   techs: "technician",
@@ -97,8 +92,6 @@ const SHORTHAND_LAST: Record<string, string> = {
 };
 const SHORTHAND_INNER: Record<string, string> = { admin: "administrative" };
 
-// Hours, contract, hiring words and places: never what the job is. Seniority words and words that
-// are also jobs stay ("Staff Nurse", "Night Auditor"); the longest-match lookup steps over them.
 const NOISE_PHRASES =
   /\b(?:(?:full|part)[\s-]?time|per[\s-]?diem|work(?:ing)? (?:from|at) home|home[\s-]?based|sign[\s-]?on(?: bonus)?|(?:day|night|evening|weekend|swing|rotating|overnight|early|late|split) shifts?|fixed[\s-]?term|on[\s-]?site|in[\s-]?office|up to \S+|\d+(?:\.\d+)?\s*(?:k|hrs?|hours?)\b|all genders?)\b/g;
 const NOISE = new Set(
@@ -108,19 +101,14 @@ const NOISE = new Set(
     "immediate immediately hiring asap needed wanted opening openings multiple various vacancy " +
     "vacancies position positions opportunity opportunities bonus incentive usd gbp eur aud cad " +
     "m w d f x h mwd fmx fmd mfd mfx wmd " +
-    // Status, not the job: "Apprentice Electrician" is an electrician. Seniority reads them
-    // separately.
     "intern interns internship internships coop co op working student summer winter autumn " +
     "apprentice apprenticeship trainee graduate grad fellowship " +
-    // Levels written as Roman numerals: "Staff Accountant II".
     "i ii iii iv"
   ).split(" "),
 );
 
-// Codes and numbers in a title: requisition ids, store numbers, levels written as digits.
 const CODE = /^(?:[a-z]*\d[\da-z]*|\d+)$/;
 
-// Never a lookup key alone ("Manager", "Intern"), but still ends longer keys ("Software Engineer").
 export const GENERIC_WORDS: ReadonlySet<string> = new Set(
   (
     "engineer manager director operator technician specialist coordinator officer consultant " +
@@ -137,7 +125,6 @@ export const GENERIC_WORDS: ReadonlySet<string> = new Set(
   ).split(" "),
 );
 
-// "Senior Data Analyst" is O*NET's office supervisor, but in a title means a senior data analyst.
 export const RANK_WORDS: ReadonlySet<string> = new Set(
   "senior sr junior jr lead principal staff chief head associate assistant director".split(" "),
 );
@@ -147,7 +134,6 @@ export function canonicalWord(word: string): string {
   return singular(us);
 }
 
-// Consistent rather than correct ("sales" -> "sale"): both sides use it, so only agreement matters.
 function singular(word: string): string {
   if (word.length < 4 || !/^[a-z]+$/.test(word)) return word;
   if (/(?:ss|us|is|ics)$/.test(word)) return word;
@@ -158,17 +144,14 @@ function singular(word: string): string {
   return word.endsWith("s") ? word.slice(0, -1) : word;
 }
 
-/** For taxonomy titles, which carry no noise. */
 export function titleWords(text: string, { dropNoise = false } = {}): string[] {
   let folded = foldCase(decode(text))
     .replace(/['’]s\b/g, "")
-    // Rank words for "director" in what the job is: seniority reads them from the raw title.
     .replace(
       /\b(?:senior |executive |regional |area |group )?vice president\b|\b[searg]?vp\b|\bhead of\b/g,
       (m) => (m.endsWith("of") ? "director of" : "director"),
     );
   if (dropNoise) folded = folded.replace(NOISE_PHRASES, " ");
-  // "Nurse (RN)" and "Nurse - RN" read alike; "C++" and "C#" keep their marks.
   const raw = folded
     .replace(/&/g, " and ")
     .replace(/[^a-z0-9+#]+/g, " ")
@@ -193,17 +176,13 @@ const ENTITIES: Record<string, string> = {
   "&gt;": ">",
 };
 
-// Some boards send titles HTML-escaped: "Scheduling &amp; Reservations".
 function decode(text: string): string {
   return text.replace(/&(?:amp|nbsp|#39|quot|lt|gt);/g, (entity) => ENTITIES[entity] ?? entity);
 }
 
-// "Cook/Prep" keeps its slash; "Cook / Dishwasher" is two parts.
 const SPLIT = /\s+[-–—|/•·]+\s+|\s*[,;:|•·]\s*|\s*[()[\]{}]\s*|\s+[-–—]|[-–—]\s+/u;
-// Gender markers German, French and Dutch ads add: "(m/w/d)", "(f/h)", "(all genders)".
 const GENDER = /\(\s*(?:[mwfdhx]\s*\/\s*)+[mwfdhx]\s*\)|\(\s*all genders?\s*\)/giu;
 
-// Brackets are their own part: "Manager, Sales" -> [["manager"], ["sale"]].
 export function titleParts(title: string): string[][] {
   const text = decode(title).replace(GENDER, " ");
   const parts: string[][] = [];
@@ -214,7 +193,6 @@ export function titleParts(title: string): string[][] {
   return parts;
 }
 
-/** A title (or a taxonomy label) as one lookup key: "Registered Nurses" -> "registered nurse". */
 export function titleKey(title: string): string {
   return titleWords(title).join(" ");
 }

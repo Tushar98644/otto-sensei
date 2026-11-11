@@ -95,7 +95,6 @@ describe("profilePageJsonLd", () => {
   });
 
   it("keeps to what the design draws", () => {
-    // Navy shows skills but no schools and no place; Prose shows neither skills nor schools.
     const navy = jsonLd({ template: "navy" }).person;
     expect(navy.knowsAbout).toBeDefined();
     expect(navy.alumniOf).toBeUndefined();

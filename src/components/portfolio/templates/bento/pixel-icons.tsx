@@ -1,4 +1,4 @@
-// Pixel icons from Ladvace/astro-bento-portfolio (MIT, see ./LICENSE.txt): src/icons/pixel-*.svg.
+// Ported from Ladvace/astro-bento-portfolio (MIT, see ./LICENSE.txt): src/icons/pixel-*.svg.
 
 type IconProps = { className?: string };
 

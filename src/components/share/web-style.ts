@@ -2,9 +2,6 @@ import type { CSSProperties } from "react";
 import type { PdfStyle } from "@/components/pdf/theme";
 import { cssFontCaps, cssFontFamily } from "@/lib/pdf/fonts";
 
-// Theme lengths are PDF points; here each is var(--pt) pixels, set per screen width, so a format
-// keeps its proportions and stays readable on a phone.
-
 const LENGTHS = new Set([
   "fontSize",
   "height",
@@ -20,7 +17,6 @@ const LENGTHS = new Set([
   "width",
 ]);
 
-// react-pdf's own shorthands, spelled out.
 const SHORTHANDS: Record<string, readonly [string, string]> = {
   paddingHorizontal: ["paddingLeft", "paddingRight"],
   paddingVertical: ["paddingTop", "paddingBottom"],
@@ -32,7 +28,6 @@ export function points(value: number): string {
   return `calc(${value} * var(--pt))`;
 }
 
-/** CSS for one theme slot. `omit` drops properties the page sets its own way (e.g. margins). */
 export function webStyle(style: PdfStyle | undefined, omit: readonly string[] = []): CSSProperties {
   if (!style) return {};
   const css: Record<string, string | number> = {};
@@ -40,7 +35,6 @@ export function webStyle(style: PdfStyle | undefined, omit: readonly string[] = 
 
   function put(key: string, value: unknown) {
     if (skip.has(key) || value === undefined || value === null) return;
-    // The PDF's fonts, as installed look-alikes (the same stacks the thumbnails use).
     if (key === "fontFamily") {
       css.fontFamily = cssFontFamily(value);
       return;

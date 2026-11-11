@@ -5,7 +5,6 @@ import { queryKeys } from "@/lib/queries/keys";
 
 vi.mock("@tanstack/react-query", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@tanstack/react-query")>()),
-  // One cache for the whole file, as in a browser tab.
   isServer: false,
 }));
 

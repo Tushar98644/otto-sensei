@@ -7,13 +7,10 @@ import { checkFile } from "./file-check";
 export type DropzoneProps = {
   onFile: (file: File) => void;
   onReject: (message: string) => void;
-  // Same syntax as <input accept>, e.g. ".pdf,.docx". Dropped files are checked against it too.
   accept?: string;
   maxBytes?: number;
   disabled?: boolean;
-  // Accessible name, e.g. "Upload your resume". Without it, the visible text is read out.
   label?: string;
-  // The whole zone is one button, so this must not contain links or other buttons.
   children: ReactNode;
   className?: string;
 };

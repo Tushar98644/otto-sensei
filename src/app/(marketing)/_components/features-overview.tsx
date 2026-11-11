@@ -11,7 +11,6 @@ import { Section, SectionHeader } from "./section";
 
 type Feature = { text: string; section?: string };
 
-// Keyed by sidebar link, so tabs follow the app's order; Formats is folded into Resumes.
 const FEATURES: Record<string, Feature> = {
   [ROUTES.dashboardResumes]: {
     text: "Every resume and tailored copy in one place, in six clean formats hiring software reads. Check, fix and download each one.",

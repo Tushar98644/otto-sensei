@@ -9,7 +9,6 @@ vi.mock("next/headers", async () => (await import("@/lib/auth/test-helpers")).ne
 
 const callback = (query: string) => GET(new NextRequest(`https://otto.test/auth/callback?${query}`));
 
-// What the browser holds after POST /api/auth/google.
 function startedGoogleSignIn() {
   cookieJar.set(`${AUTH_COOKIE}-code-verifier`, "verifier");
 }
@@ -87,8 +86,6 @@ describe("GET /auth/callback after Connect GitHub", () => {
   });
 });
 
-// The app only links GitHub, but once the provider is on, a GitHub sign-in can be started by hand
-// (Supabase's authorize URL). It is treated like any new sign-in.
 describe("GET /auth/callback after a GitHub sign-in started by hand", () => {
   it("makes an ordinary free account connected to that GitHub account", async () => {
     startedGoogleSignIn();

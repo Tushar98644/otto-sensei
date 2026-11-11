@@ -1,7 +1,6 @@
 import { templateCss } from "../css";
 
-// Ported from dillionverma/portfolio (MIT, see ./LICENSE.txt): its Tailwind classes and shadcn
-// tokens written out as CSS. Breakpoints are container queries on the template root.
+// Ported from dillionverma/portfolio (MIT, see ./LICENSE.txt).
 const css = `
 :scope {
   --radius: 0.625rem;

@@ -1,5 +1,3 @@
-// All but invalid_url end the same way: the studio asks for the job text instead.
-
 export type JobReadReason =
   | "invalid_url"
   | "private_address"
@@ -16,7 +14,6 @@ export type JobReadReason =
 export class JobReadError extends Error {
   readonly reason: JobReadReason;
   readonly site: string | null;
-  // For logs only.
   readonly detail: string | null;
 
   constructor(

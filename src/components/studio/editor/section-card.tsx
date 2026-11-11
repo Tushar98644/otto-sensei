@@ -13,12 +13,10 @@ export type { SectionOptions } from "./section-menu";
 
 export type SectionCardProps = {
   title: string;
-  // e.g. "3 jobs". Part of the toggle's name for screen readers.
   count?: string | null;
   status?: ReactNode;
   actions?: ReactNode;
   options?: SectionOptions;
-  // Lets focus land on this section's toggle after a neighbouring section is removed.
   toggleId?: string;
   sectionId?: string;
   defaultOpen?: boolean;
@@ -27,8 +25,6 @@ export type SectionCardProps = {
 
 type Mode = "view" | "rename";
 
-// Collapsed content unmounts rather than hiding, so a closed section costs nothing per keystroke.
-// Header actions fade in on hover or focus but keep their space, so nothing shifts.
 export function SectionCard({
   title,
   count,

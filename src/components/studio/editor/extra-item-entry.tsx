@@ -23,7 +23,6 @@ import { editResume, getResume, useResumeValue } from "./use-editor";
 export type ExtraItemEntryProps = EntryProps & {
   sectionId: string;
   kind: ExtraKind;
-  // Where focus goes when the last item is removed.
   addId: string;
 };
 
@@ -115,7 +114,6 @@ function ExtraItemFields({
   firstFieldId: string;
   onChange: (patch: ItemPatch) => void;
 }) {
-  // A field this kind doesn't ask for still shows once it holds text, so it can be edited.
   const date = form.date ?? (item.date.trim() ? { label: "Date", placeholder: "" } : null);
   const detail = form.detail ?? (item.detail.trim() ? { label: "Details", placeholder: "" } : null);
   return (
@@ -152,7 +150,6 @@ function ExtraItemFields({
           <Textarea
             autoResize
             value={item.detail}
-            // One short paragraph on the page; a stray line break would print as a gap.
             onChange={(event) => update({ detail: singleLine(event.target.value) })}
             maxLength={CHAR_LIMITS.extraDetail}
             placeholder={detail.placeholder}

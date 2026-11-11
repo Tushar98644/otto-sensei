@@ -18,14 +18,10 @@ import {
   type DropTarget,
 } from "./board";
 
-// No library. Touch and pen drag from the avatar (the handle), so the page still scrolls under a
-// finger; a mouse drags from anywhere that isn't a control.
-
 export type DragMode = "pointer" | "keyboard";
 
 export type Held = { card: BoardCard; mode: DragMode; target: DropTarget | null };
 
-// Where the card was let go, so the move's question opens beside it. Null for the keyboard.
 export type DropPoint = { x: number; y: number } | null;
 
 type Pending = {
@@ -35,7 +31,6 @@ type Pending = {
   startY: number;
   x: number;
   y: number;
-  // Where the pointer sits inside the card, so the floating copy doesn't jump.
   offsetX: number;
   offsetY: number;
   width: number;
@@ -43,7 +38,6 @@ type Pending = {
 };
 
 const DRAG_START_PX = 5;
-// Near an edge of the board's own scroller, it scrolls toward that edge, faster the closer.
 const EDGE_PX = 64;
 const EDGE_MAX_STEP_PX = 18;
 
@@ -57,14 +51,12 @@ function targetAt(x: number, y: number): DropTarget | null {
 
 export type BoardDrag = {
   held: Held | null;
-  // The floating copy under the pointer: its width, and a ref the hook moves without re-rendering.
   ghost: { width: number } | null;
   ghostRef: RefObject<HTMLDivElement | null>;
   announcement: string;
   announce: (message: string) => void;
   onCardPointerDown: (event: PointerEvent<HTMLElement>, card: BoardCard) => void;
   onHandleKeyDown: (event: KeyboardEvent<HTMLElement>, card: BoardCard) => void;
-  // The handle lost focus while holding a card: put it back.
   onHandleBlur: (card: BoardCard) => void;
 };
 
@@ -74,7 +66,6 @@ export function useBoardDrag({
   scrollerRef,
 }: {
   onDrop: (card: BoardCard, target: DropTarget, mode: DragMode, point: DropPoint) => void;
-  // The keyboard moved over a column, so a phone can show it.
   onKeyboardTarget?: (target: DropTarget) => void;
   scrollerRef: RefObject<HTMLElement | null>;
 }): BoardDrag {
@@ -117,9 +108,7 @@ export function useBoardDrag({
     hold(null);
   }, [endPointer, hold]);
 
-  // Window listeners for the pointer, so a fast drag that leaves the card is still followed.
   useEffect(() => {
-    // Re-checks every frame, so holding still at the edge keeps scrolling.
     function edgeScroll() {
       frame.current = null;
       const drag = pending.current;
@@ -199,7 +188,6 @@ export function useBoardDrag({
     };
   }, [cancel, endPointer, hold, moveGhost, scrollerRef]);
 
-  // The ghost mounts after the drag starts; place it under the pointer on its first frame.
   useEffect(() => {
     if (ghost) moveGhost();
   }, [ghost, moveGhost]);

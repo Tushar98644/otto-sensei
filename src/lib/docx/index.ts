@@ -10,15 +10,11 @@ import { docxLook, type DocxLook } from "./look";
 import { fontTableXml, numberingXml, stylesXml } from "./styles";
 import { R_NS, W_NS, XML_HEAD, escapeXml, paragraph, run } from "./xml";
 
-// Built in the browser with jszip: named styles, Heading 1 sections, a real bulleted list. Many
-// application forms still ask for Word, and this is the shape their parsers read best.
-
 export const DOCX_MIME = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
 
 export type DocxOptions = {
   pageSize?: PdfPageSize;
   template?: TemplateId;
-  // Epoch ms for the file's created date.
   now?: number;
 };
 
@@ -66,7 +62,6 @@ const APP = [
 ].join("");
 
 function coreXml(title: string, author: string, subject: string, now: number): string {
-  // W3CDTF without milliseconds, the form Word writes.
   const stamp = new Date(now).toISOString().replace(/\.\d{3}Z$/, "Z");
   return [
     XML_HEAD,
@@ -82,7 +77,6 @@ function coreXml(title: string, author: string, subject: string, now: number): s
 
 type Links = { add: (href: string) => string; rels: () => string[] };
 
-// Hyperlinks get relationship ids after the fixed parts (styles, numbering, settings, fonts).
 function hyperlinks(): Links {
   const ids = new Map<string, string>();
   return {
@@ -156,11 +150,9 @@ export async function buildResumeDocx(
   return pack({ body: bodyXml(model, look, links), look, links, meta: model.meta, now });
 }
 
-// Paragraphs further apart than resume lines, the date set off, like the letter PDF.
 const LETTER_DATE = { before: 18, after: 14 };
 const LETTER_GAP = 10;
 
-// A single line break stays inside its paragraph, so "Best regards," keeps the name under it.
 export async function buildLetterDocx(
   resume: Resume,
   letter: string,
@@ -200,7 +192,6 @@ export async function buildResumeDocxBlob(
   return toBlob(await buildResumeDocx(resume, options));
 }
 
-/** "Maya-Lindqvist-Resume.pdf" -> "Maya-Lindqvist-Resume.docx". */
 export function docxFileName(pdfFileName: string): string {
   return pdfFileName.replace(/\.pdf$/i, "") + ".docx";
 }

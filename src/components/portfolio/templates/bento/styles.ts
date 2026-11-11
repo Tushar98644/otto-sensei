@@ -1,8 +1,7 @@
 import { templateCss } from "../css";
 import { frameVars } from "./frame";
 
-// Ported from Ladvace/astro-bento-portfolio (MIT, see ./LICENSE.txt); breakpoints are container
-// queries on the template root. Satoshi and Cabinet Grotesk (Fontshare) become Figtree.
+// Ported from Ladvace/astro-bento-portfolio (MIT, see ./LICENSE.txt).
 const css = `
 :scope {
   --darkslate-50: #f7f7f7;

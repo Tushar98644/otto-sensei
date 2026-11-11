@@ -74,7 +74,6 @@ export const SummaryEditor = memo(function SummaryEditor({ resumeId }: { resumeI
   const working = help.status === "loading";
   const canImprove = summary.trim().length >= SUMMARY_IMPROVE_CHARS.min;
 
-  // Otto's answer replaces his working figure; moving focus there lets keyboards act on it next.
   const settled = help.status === "ready" || help.status === "failed";
   useEffect(() => {
     if (settled) panelRef.current?.focus();

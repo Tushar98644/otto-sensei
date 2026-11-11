@@ -1,14 +1,9 @@
-// Framework-free so its timing can be tested. One screen serves every request, so two never stack
-// and a hand-off between pages doesn't blink. A request ending within delayMs never shows it; once
-// shown it stays minShownMs so it can't flash, then fades for fadeMs.
-
 export const LOADING_SCREEN_TIMING = { delayMs: 400, minShownMs: 600, fadeMs: 250 } as const;
 
 export type LoadingScreenPhase = "hidden" | "shown" | "leaving";
 
 export type LoadingScreenState = {
   phase: LoadingScreenPhase;
-  // The newest request's line, such as "Loading your resumes". Kept while it fades out.
   detail: string | null;
 };
 
@@ -20,7 +15,6 @@ export type LoadingScreenOptions = {
 };
 
 export type LoadingScreen = {
-  // Shows the screen until the returned function is called. A newer request's detail wins.
   request: (detail?: string | null) => () => void;
   getState: () => LoadingScreenState;
   subscribe: (listener: () => void) => () => void;
@@ -37,7 +31,6 @@ export function createLoadingScreen(options: LoadingScreenOptions = {}): Loading
   let nextId = 0;
   let state: LoadingScreenState = { phase: "hidden", detail: null };
   let shownAt = 0;
-  // At most one pending step at a time: the delay before showing, the minimum hold, or the fade.
   let timer: ReturnType<typeof setTimeout> | undefined;
 
   function set(next: LoadingScreenState) {
@@ -73,7 +66,6 @@ export function createLoadingScreen(options: LoadingScreenOptions = {}): Loading
         }
         return;
       }
-      // Back before it finished leaving (the next page asked for it): it stays up.
       clearTimeout(timer);
       timer = undefined;
       set({ phase: "shown", detail: latestDetail() });

@@ -3,7 +3,6 @@ import { cn } from "@/lib/utils";
 
 export type SpinnerProps = {
   className?: string;
-  // For a spinner on its own. Leave it out when nearby text already says it, or it's read twice.
   label?: string;
 };
 

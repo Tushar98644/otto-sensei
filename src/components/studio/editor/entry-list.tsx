@@ -4,7 +4,6 @@ import { Plus } from "lucide-react";
 import type { ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 
-// Props every memoized entry (job, school, project...) takes. The entry selects its own data.
 export type EntryProps = { resumeId: string; entryId: string; index: number; count: number };
 
 export type EntryListProps = {

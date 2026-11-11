@@ -19,8 +19,6 @@ import { DELETE as unsave, PUT as save } from "./saved/[id]/route";
 
 vi.mock("next/headers", async () => (await import("@/lib/auth/test-helpers")).nextHeadersMock);
 
-// Free sees its closest few matches; filters, paging and saving are Pro. "the Jobs tab on Free"
-// below covers Free.
 const signInAs = async (email?: string) => setPlan(await signInFree(email), "pro");
 
 const DAY = 24 * 60 * 60 * 1_000;
@@ -115,7 +113,6 @@ describe("the Jobs tab on Free", () => {
   it("gets the closest few, unfiltered, and the trial prompt for saving", async () => {
     const user = await signInFree();
     const [first] = await seedJobs();
-    // Filters, other views and pages are Pro: Free always gets page 1 of Matches.
     const preview = await ranked({ filters: { remote: true }, view: "saved", page: 2 });
     expect(preview).toMatchObject({
       locked: true,
@@ -130,7 +127,6 @@ describe("the Jobs tab on Free", () => {
       "Senior Frontend Engineer",
       "Platform Engineer",
     ]);
-    // What Free was shown is measured like Pro's.
     expect(preview.requestId).toMatch(/^[0-9a-f-]{36}$/);
     expect(await (await getDb()).select().from(matchEvents)).toHaveLength(3);
 
@@ -143,7 +139,6 @@ describe("the Jobs tab on Free", () => {
       code: "upgrade_required",
       message: "Filters, saved jobs and every match come with Pro. Try Pro free for 3 days.",
     });
-    // On the trial the same request gets the filtered list.
     await setPlan(user, "trial");
     const full = await ranked({ filters: { remote: true } });
     expect(full.locked).toBeUndefined();
@@ -170,7 +165,6 @@ describe("the Jobs tab on Free", () => {
       }),
     );
     expect(res.status).toBe(200);
-    // A client that sends no occupation (as before occupations) gets one left to the server.
     const stored = { ...choice, role: { ...choice.role, occupation: null } };
     expect(((await res.json()) as LookingForResponse).choice).toEqual(stored);
     const read = (await (await getProfile()).json()) as WorkProfileResponse;
@@ -185,12 +179,8 @@ describe("the Jobs tab on Free", () => {
       remote: true,
     };
     const preview = await ranked({ lookingFor });
-    // The server reads the occupation the browser can't (account executives sell technical
-    // products, O*NET 41-4011).
     expect(preview.lookingFor).toEqual({ ...lookingFor, occupation: "41-4011.00" });
     expect(preview.occupation?.name).toBe("Sales Representative (technical products)");
-    // "Remote only" is Free's one filter: the Austin office job is gone. The sales role looked
-    // for joins the list, and engineering, now only an older kind, is a label lower.
     expect(preview.jobs.map((job) => [job.title, job.match.label])).toEqual([
       ["Backend Engineer", "good"],
       ["Senior Frontend Engineer", "good"],
@@ -295,7 +285,6 @@ describe("POST /api/jobs/matches", () => {
 
   it("saves and unsaves jobs, and lists the saved ones", async () => {
     await signInAs();
-    // By external id: rows come back in insert order, which follows posting times a millisecond apart.
     const first = (await seedJobs()).find((row) => row.externalId === "1");
     const put = await save(
       new Request(`http://localhost/api/jobs/saved/${first!.id}`, { method: "PUT" }),
@@ -349,10 +338,8 @@ describe("POST /api/jobs/matches", () => {
     };
     expect((await sendEvent({ ...action, kind: "not_fit", reason: "level" })).status).toBe(200);
     expect((await sendEvent({ ...action, kind: "open" })).status).toBe(200);
-    // A reason goes with "not a fit" only.
     expect((await sendEvent({ ...action, kind: "not_fit" })).status).toBe(400);
     expect((await sendEvent({ ...action, kind: "save", reason: "role" })).status).toBe(400);
-    // "Did you apply?" answers, also for a job asked about from the strip with no page context.
     expect((await sendEvent({ ...action, kind: "asked_applied", answer: "yes" })).status).toBe(200);
     expect(
       (await sendEvent({ jobId: first.id, kind: "asked_applied", answer: "not_yet" })).status,

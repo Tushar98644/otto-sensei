@@ -21,8 +21,6 @@ import {
   type ReferralSummary,
 } from "./referrals";
 
-// A friend's first resume check adds a bonus to both accounts' usage rows for their own period.
-
 const MAX_DEVICE_IDS = 10;
 const MINT_ATTEMPTS = 3;
 
@@ -42,14 +40,11 @@ function isUniqueViolation(error: unknown): boolean {
   return false;
 }
 
-// Moves the device to the end and keeps the newest MAX_DEVICE_IDS, all in the UPDATE itself.
 function rememberDevice(deviceId: string) {
   const without = sql`array_remove(${referralCodes.deviceIds}, ${deviceId}::text)`;
   return sql`(array_append(${without}, ${deviceId}::text))[greatest(cardinality(${without}) - ${sql.raw(String(MAX_DEVICE_IDS - 2))}, 1):]`;
 }
 
-// Made on first use; `deviceId` is remembered as one of the owner's browsers. null when the account
-// is gone.
 export async function ensureReferralCode(
   userId: string,
   deviceId: string | null,
@@ -92,7 +87,6 @@ export async function ensureReferralCode(
         return raced?.code ?? null;
       });
     } catch (error) {
-      // Another account already has that code: draw again.
       if (!isUniqueViolation(error)) throw error;
     }
   }
@@ -101,7 +95,6 @@ export async function ensureReferralCode(
 
 type ReferralRow = typeof referrals.$inferSelect;
 
-// One statement for both features: the bonus lands on the same rows consumeUsage() checks.
 async function addBonus(tx: Tx, userId: string, period: string): Promise<void> {
   await tx
     .insert(usage)
@@ -120,8 +113,7 @@ async function addBonus(tx: Tx, userId: string, period: string): Promise<void> {
     });
 }
 
-// The friend always, the inviter while under the cap. Call with the inviter's row locked, so two
-// friends checking at once can't both take the last paid place.
+// Call with the inviter's row locked, so two friends at once can't both take the last place.
 async function reward(tx: Tx, row: Pick<ReferralRow, "referredId" | "referrerId">, now: number) {
   const [paid] = await tx
     .select({ n: count() })
@@ -138,7 +130,6 @@ async function reward(tx: Tx, row: Pick<ReferralRow, "referredId" | "referrerId"
   if (!updated) return false;
   await addBonus(tx, row.referredId, friendPeriod.key);
   if (status === "rewarded") {
-    // The inviter's row is locked by the caller, so it's there.
     const inviterPeriod = await periodForUser(tx, row.referrerId, now);
     if (inviterPeriod) await addBonus(tx, row.referrerId, inviterPeriod.key);
   }
@@ -146,7 +137,6 @@ async function reward(tx: Tx, row: Pick<ReferralRow, "referredId" | "referrerId"
   return true;
 }
 
-// Settles an account that is already linked: a pending invite pays out on its first check.
 async function settleExisting(
   row: ReferralRow,
   checked: boolean,
@@ -181,7 +171,6 @@ async function blockReason(
     )
     .limit(1);
   if (ownDevice) return "same_device";
-  // One browser signing up a second "friend" for the same inviter is one person with two emails.
   const [usedDevice] = await tx
     .select({ id: referrals.referredId })
     .from(referrals)
@@ -197,8 +186,6 @@ export type ClaimInput = {
   checked: boolean;
 };
 
-// At most once per account. A friend on the inviter's own mailbox or browser is recorded as blocked
-// and earns nobody anything.
 export async function claimReferral(
   { userId, code, deviceId, checked }: ClaimInput,
   now = Date.now(),
@@ -255,7 +242,6 @@ export async function claimReferral(
   });
 }
 
-/** null when the account is gone. */
 export async function referralSummary(
   userId: string,
   deviceId: string | null,

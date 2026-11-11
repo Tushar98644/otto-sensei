@@ -1,8 +1,7 @@
 import type { JobMatchesRequestBody } from "@/lib/api/types";
 import type { WorkProfile } from "@/lib/eligibility/profile";
 
-// Resource, then account: no cross-account reads, and a resource can be dropped for everyone by its
-// first part alone.
+// Resource first, then account: invalidating by the first part drops it for every account.
 
 export const APPLICATIONS = ["applications"] as const;
 export const SAVED_JOBS = ["saved-jobs"] as const;

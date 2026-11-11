@@ -2,7 +2,6 @@ import type { ComponentProps } from "react";
 import { cn } from "@/lib/utils";
 
 export type LabelProps = ComponentProps<"label"> & {
-  // Says "(optional)" in words, so required fields need no asterisk.
   optional?: boolean;
 };
 

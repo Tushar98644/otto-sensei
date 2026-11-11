@@ -15,21 +15,18 @@ export type PdfFile = {
 };
 
 export type ResumePdf = {
-  // The newest finished file. Stays up while a newer one renders, so the preview never blanks out.
   file: PdfFile | null;
   isCurrent: boolean;
   failed: boolean;
   retry: () => void;
 };
 
-// Rendering costs a few hundred ms of main thread, so edits wait for a typing pause.
 const EDIT_PAUSE_MS = 600;
 
 export function pdfKey(resume: Resume, pageSize: PdfPageSize): string {
   return `${resume.id}:${resume.updatedAt}:${pageSize}:${templateOf(resume)}`;
 }
 
-// Runs `task` when the browser is idle (soon at the latest), so it never lands mid-keystroke.
 function whenIdle(task: () => void): () => void {
   if (typeof window.requestIdleCallback === "function") {
     const handle = window.requestIdleCallback(task, { timeout: 1000 });
@@ -51,7 +48,6 @@ export function useResumePdf(resume: Resume, pageSize: PdfPageSize): ResumePdf {
     const version = `${resume.id}:${resume.updatedAt}`;
     const key = pdfKey(resume, pageSize);
     const last = rendered.current;
-    // Picking a format or a look also changes the version, but it is one click, not typing.
     const waitForPause =
       last !== null &&
       last.version !== version &&
@@ -64,7 +60,6 @@ export function useResumePdf(resume: Resume, pageSize: PdfPageSize): ResumePdf {
         cancelIdle = whenIdle(() => {
           renderPdfCached(resume, pageSize).then(
             ({ blob, pages }) => {
-              // A newer edit already started its own render; this result is out of date.
               if (cancelled) return;
               rendered.current = { version, template, design };
               setFile({ blob, key, pages, url: URL.createObjectURL(blob) });
@@ -87,7 +82,6 @@ export function useResumePdf(resume: Resume, pageSize: PdfPageSize): ResumePdf {
     };
   }, [resume, pageSize, template, design, attempt]);
 
-  // Object URLs hold their PDF until revoked: free the old one once replaced, the last on close.
   const url = file?.url;
   useEffect(() => {
     if (!url) return;

@@ -25,13 +25,11 @@ type PageLayout = {
   links: PdfLinkTarget[];
 };
 
-// Enough for any resume's links; a file with more is not one we need every link of.
 const MAX_LINKS = 40;
 const MAX_LINK_LENGTH = 500;
 
 export type ExtractPdfOptions = {
   maxPages?: number;
-  // A resume parses in well under a second; anything slower is a malformed or hostile file.
   timeoutMs?: number;
 };
 
@@ -44,8 +42,7 @@ class ParseTimeout extends Error {
   }
 }
 
-// Lines in naive full-width reading order, so two columns come out interleaved as many ATSs read
-// them.
+// Naive full-width order on purpose: two columns interleave, as many ATSs read them.
 export async function extractPdf(
   data: Uint8Array,
   options: ExtractPdfOptions = {},
@@ -53,8 +50,7 @@ export async function extractPdf(
   const maxPages = options.maxPages ?? UPLOAD_LIMITS.maxPages;
   const deadline = Date.now() + (options.timeoutMs ?? DEFAULT_TIMEOUT_MS);
   const pdfjs = await getResolvedPDFJS();
-  // Not getDocumentProxy(), so we hold the task and can destroy it even when loading fails. pdf.js
-  // may detach the buffer, so it gets a copy.
+  // getDocument, not getDocumentProxy, so the task can be destroyed; pdf.js may detach the buffer.
   const task = pdfjs.getDocument({
     data: data.slice(),
     useSystemFonts: true,
@@ -114,8 +110,7 @@ async function readPage(
   }
 }
 
-// Every way pdf.js paints a raster image. Solid-colour masks are left out: pdf.js turns 1x1 masks
-// into plain fills, which aren't pictures.
+// Solid-colour masks are left out: pdf.js turns 1x1 masks into plain fills.
 function imagePaintOps(ops: PdfJs["OPS"]): ReadonlySet<number> {
   return new Set([
     ops.paintImageXObject,
@@ -133,7 +128,6 @@ function toLayoutItem(
   viewportTransform: readonly number[],
 ): LayoutItem | null {
   if (!("str" in raw) || !raw.str.trim()) return null;
-  // Viewport space has its origin at the top-left, which also handles page rotation and offsets.
   const [a = 0, b = 0, c = 0, d = 0, e = 0, f = 0] = multiply(
     viewportTransform,
     raw.transform.map(Number),
@@ -195,13 +189,11 @@ function buildExtraction(pages: PageLayout[]): Extraction {
   };
 }
 
-// Mail, phone and in-document links add nothing the text doesn't say.
 function webLinks(
   annotations: readonly unknown[],
   items: readonly LayoutItem[],
   viewportTransform: readonly number[],
 ): PdfLinkTarget[] {
-  // Links are extra: a file whose annotations can't be read still reads as text.
   try {
     return linksUnder(annotations, items, viewportTransform);
   } catch (error) {
@@ -216,7 +208,6 @@ function linksUnder(
   viewportTransform: readonly number[],
 ): PdfLinkTarget[] {
   const [a = 1, b = 0, c = 0, d = 1, e = 0, f = 0] = viewportTransform.map(Number);
-  // PDF space to viewport space (top-left origin), the same move toLayoutItem makes for text.
   const toViewport = (x: number, y: number) => [a * x + c * y + e, b * x + d * y + f] as const;
   const links: PdfLinkTarget[] = [];
   for (const annotation of annotations) {
@@ -246,7 +237,6 @@ function linksUnder(
   return links;
 }
 
-// So a link over "GitHub" doesn't pick up the neighbouring "| LinkedIn" on its line.
 function underLink(
   item: LayoutItem,
   box: { left: number; right: number; top: number; bottom: number },
@@ -283,7 +273,6 @@ function toParseError(error: unknown): ParseError {
   );
 }
 
-// The finally block that destroys the loading task also stops leftover pdf.js work.
 function withDeadline<T>(promise: Promise<T>, deadline: number): Promise<T> {
   const remaining = deadline - Date.now();
   if (remaining <= 0) return Promise.reject(new ParseTimeout());

@@ -1,15 +1,3 @@
-// Draws page 1 of every PDF format, filled with the sample resume on Letter, into
-// public/formats/<id>.png (600px wide) and <id>@2x.png (1200px), plus the WebP copies the app
-// serves (<id>-400.webp, -800 and -1200), for the Formats gallery.
-//
-//   bun scripts/render-format-previews.tsx
-//
-// The PDFs come from the real templates, filled with the same sample "Try it with a sample" opens
-// in the gallery. Headless Chrome turns them into pictures with pdf.js (the copy unpdf bundles),
-// so nothing extra gets installed. Re-run it after changing a template.
-// Env: CHROME_PATH, CHROME_DEBUG_PORT (default 9335), PREVIEW_PROFILE_DIR (Chrome's throwaway
-// profile; deleted at the end).
-
 import { spawn } from "node:child_process";
 import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -32,7 +20,6 @@ const WIDTHS = [
   { width: 1200, suffix: "@2x" },
 ] as const;
 const WEBP_WIDTHS = [400, 800, 1200] as const;
-// A fixed clock keeps the sample's ids out of the picture and the output stable between runs.
 const SAMPLE_TIME = Date.UTC(2026, 0, 15);
 
 type Pending = { resolve: (value: unknown) => void; reject: (error: Error) => void };
@@ -44,7 +31,6 @@ type Evaluated = {
 type Target = { type: string; url: string; webSocketDebuggerUrl?: string };
 type Drawn = { dataUrl: string; inked: number };
 
-// Just enough of the Chrome DevTools Protocol: numbered requests over one page's WebSocket.
 class Cdp {
   private nextId = 1;
   private readonly pending = new Map<number, Pending>();
@@ -112,8 +98,7 @@ async function waitFor<T>(
   throw new Error(`Timed out waiting for ${what}`);
 }
 
-// pdf.js ships as an ES module. Inlined into the page (a file:// page can't import modules), its
-// export list becomes one global object.
+// A file:// page can't import modules, so pdf.js is inlined and its exports become one global.
 async function harnessHtml(): Promise<string> {
   const source = await readFile(PDFJS, "utf8");
   const exportList = /export\s*\{([^}]*)\};?\s*$/.exec(source);
@@ -219,7 +204,6 @@ async function main() {
         const drawn = (await page.evaluate(
           `drawPage(${JSON.stringify(pdf.base64)}, ${width})`,
         )) as Drawn;
-        // A page that came out blank or failed to draw text would sail through otherwise.
         if (drawn.inked < 0.005) throw new Error(`${pdf.name} came out blank at ${width}px`);
         const file = join(OUT_DIR, `${pdf.id}${suffix}.png`);
         await writeFile(

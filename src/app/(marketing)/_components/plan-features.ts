@@ -18,8 +18,6 @@ import { TEMPLATE_IDS } from "@/lib/resume/schema";
 import { periodNoun, perPeriod } from "@/lib/usage-copy";
 import { pluralize } from "@/lib/utils";
 
-// Numbers come from PLANS, so changing a limit or price there updates every page.
-
 export type PlanCopy = {
   summary: string;
   lead?: string;
@@ -31,7 +29,6 @@ export { PLAN_ORDER } from "@/config/plans";
 
 const count = new Intl.NumberFormat("en-US");
 
-// Free has no weekly option, whatever the switch on the pricing page says.
 function periodOf(plan: PlanId, period: AllowancePeriod): AllowancePeriod {
   return PLANS[plan].weeklyLimits ? period : "month";
 }
@@ -45,12 +42,10 @@ export function limitLine(
   return `${count.format(planLimits(plan, kind)[feature])} ${FEATURE_LABELS[feature]} ${perPeriod(kind)}`;
 }
 
-// Max has this too, as "Everything in Pro".
 const PORTFOLIO_PAGE = `A hosted portfolio site made from your resume, in all ${PORTFOLIO_TEMPLATE_IDS.length} designs`;
 
 const freeFormats = FREE_TEMPLATES.map((id) => TEMPLATE_INFO[id].name).join(" and ");
 
-// What Free keeps for good, and nothing more (owner decision, 2026-11-08).
 export const FREE_BASICS: readonly string[] = [
   "Upload a resume, read by the basic reader (no AI)",
   "The recruiter view: what hiring software reads",
@@ -58,12 +53,10 @@ export const FREE_BASICS: readonly string[] = [
   pluralize(RESUME_LIMITS.free, "resume"),
   `${freeFormats} formats`,
   "PDF download",
-  // Owner decision, 2026-11-09: Free sees a few real matches and tracks one application.
   `Your ${FREE_JOB_MATCHES} closest job matches`,
   `${pluralize(FREE_APPLICATIONS, "tracked application")}, with a follow-up reminder`,
 ];
 
-// The same live open-job count as the home page and the pricing lead, rounded down.
 function jobsLine(jobs: JobCounts): string {
   const open = countClaim(jobs.open);
   return open
@@ -71,8 +64,6 @@ function jobsLine(jobs: JobCounts): string {
     : "Open jobs matched to your resume, with filters and saved jobs";
 }
 
-// What Pro (and the trial, and Max) adds besides AI help. "Up to", not "unlimited": 50 is the
-// storage cap on every account.
 export function proTools(jobs: JobCounts = JOB_COUNTS_FALLBACK): readonly string[] {
   return [
     `All ${TEMPLATE_IDS.length} formats and up to ${RESUME_LIMITS.paid} resumes`,
@@ -85,8 +76,6 @@ export function proTools(jobs: JobCounts = JOB_COUNTS_FALLBACK): readonly string
 
 export const PRO_TOOLS: readonly string[] = proTools();
 
-// Pricing states numbers only for what people compare plans on; the other AI features are listed
-// by name, and every exact limit is in the terms.
 const HEADLINE_FEATURES: readonly Feature[] = ["tailor", "letter", "fix"];
 
 const headlineLines = (plan: PlanId, period: AllowancePeriod) =>
@@ -96,7 +85,6 @@ const namedFeatures = FEATURES.filter((feature) => !HEADLINE_FEATURES.includes(f
   (feature) => FEATURE_LABELS[feature].charAt(0).toUpperCase() + FEATURE_LABELS[feature].slice(1),
 );
 
-/** `jobs`: the live job counts the page was built with. */
 export function planCopy(
   plan: PlanId,
   period: AllowancePeriod = "month",
@@ -142,7 +130,6 @@ const usd = new Intl.NumberFormat("en-US", {
   trailingZeroDisplay: "stripIfInteger",
 });
 
-// "$15", or "$12.50" if a price ever has cents.
 export function formatUsd(amount: number): string {
   return usd.format(amount);
 }

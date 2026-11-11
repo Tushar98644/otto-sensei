@@ -23,7 +23,6 @@ vi.mock("@/lib/ai/structure", async (importOriginal) => {
   return { ...actual, structureResume: vi.fn(actual.structureResume) };
 });
 
-// Midday UTC, so every request in a test lands in the same day window (12 hours left in it).
 const NOW = Date.UTC(2026, 10, 7, 12, 0, 0, 7);
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 
@@ -85,7 +84,6 @@ describe("POST /api/import", () => {
     expect(body.report.readText).toContain("Jane Doe");
     expect(body.report.checks).toHaveLength(13);
     expect(body.report.counts.fail).toBe(0);
-    // The device cookie the per-device limit counts against.
     expect(cookieJar.get("otto_did")?.value).toMatch(UUID);
   });
 
@@ -95,7 +93,6 @@ describe("POST /api/import", () => {
     const body = (await res.json()) as ImportResponse;
     expect(body.report.kind).toBe("docx");
     expect(ResumeSchema.safeParse(body.resume).success).toBe(true);
-    // The template's email sits only in the page header.
     expect(body.resume.basics.email).toBe("sam.rivera@example.com");
   });
 
@@ -141,9 +138,7 @@ describe("POST /api/import", () => {
       message: "That file is over 4 MB. Try a smaller copy.",
     });
 
-    // Past the body cap the read stops early, before the multipart body is even parsed. The body is
-    // encoded up front, as a browser's arrives: on Node 24.22 a FormData body that the route stops
-    // reading leaves an "already closed" rejection inside Node's fetch code after the test ends.
+    // Encoded up front: on Node 24.22 a half-read FormData body leaves an unhandled rejection.
     const hugeForm = upload(file(new Uint8Array(UPLOAD_LIMITS.maxBytes + 200_000), "huge.pdf"));
     const huge = await POST(
       new Request(hugeForm.url, {
@@ -235,7 +230,6 @@ describe("POST /api/import", () => {
       message: "You've uploaded a lot of files today. Try again in 12 hours.",
     });
 
-    // Another device on the same network still has its own allowance.
     cookieJar.clear();
     expect((await POST(upload(scanPdf))).status).toBe(200);
   });
@@ -269,12 +263,10 @@ describe("POST /api/import", () => {
       expect(res.status).toBe(403);
       expect((await errorOf(res)).code).toBe("forbidden");
     }
-    // A browser without Sec-Fetch-Site still sends Origin.
     expect((await POST(fromElsewhere({ origin: "https://evil.example" }))).status).toBe(403);
     expect(structureResume).not.toHaveBeenCalled();
     expect(cookieJar.has("otto_did")).toBe(false);
 
-    // The site's own page, and the visitor's full allowance, are unaffected.
     for (let i = 0; i < ANON_LIMITS.uploadsPerDay; i++) {
       expect((await POST(fromElsewhere({ "sec-fetch-site": "same-origin" }))).status).toBe(200);
     }
@@ -293,7 +285,6 @@ describe("POST /api/import", () => {
 });
 
 describe("AI reads of uploads", () => {
-  // The model itself is replaced: these tests are about who gets an AI read, not what it returns.
   function answerAsAI() {
     vi.mocked(structureResume).mockImplementation(async (text, now, options) => {
       const { heuristicParse } = await import("@/lib/resume/heuristic-parse");
@@ -318,9 +309,7 @@ describe("AI reads of uploads", () => {
     return (await res.json()) as ImportResponse;
   }
 
-  // The rules read this one well, so it never needs the AI.
   const cleanFile = () => resumePdf;
-  // Columns read straight across: 0 jobs by rules, so it goes to the AI reader.
   let weakFile: File;
   beforeAll(async () => {
     weakFile = file(await twoColumnPdf(), "two-column.pdf", "application/pdf");
@@ -370,8 +359,6 @@ describe("AI reads of uploads", () => {
       usedAI: false,
       basicReader: true,
     });
-    // A file the rules read well isn't sent to the basic reader for the plan, so there's no
-    // AI reading to offer for it.
     expect(await read(await POST(upload(cleanFile())))).toMatchObject({
       usedAI: false,
       basicReader: false,

@@ -7,7 +7,6 @@ import { PLAN_ORDER, PLANS, type PlanId } from "@/config/plans";
 import { trialEndDay } from "@/lib/usage-copy";
 import type { UpgradeWatch } from "./use-upgrade-watch";
 
-// `target` is the plan bought; without one, any paid plan counts.
 export function UpgradeStatus({
   plan,
   trialEndsAt,

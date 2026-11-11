@@ -145,7 +145,6 @@ describe("addGitHubProjects", () => {
     expect(resume.projects[1]?.bullets.map((bullet) => bullet.text)).toEqual(ENTRY.bullets);
     expect(resume.sectionOrder).toEqual(["experience", "education", "projects"]);
     expect(resume.hiddenSections).toEqual(["skills"]);
-    // The resume passed in is untouched.
     expect(base.projects).toHaveLength(1);
   });
 

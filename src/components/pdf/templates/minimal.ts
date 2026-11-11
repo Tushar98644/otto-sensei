@@ -1,7 +1,7 @@
 import { PDF_FONT } from "@/lib/pdf/fonts";
 import { INK, defineTheme } from "../theme";
 
-// RenderCV's "engineeringresumes" theme (MIT): Charter (Charis) 10pt, black only.
+// After RenderCV's "engineeringresumes" theme (MIT).
 
 export const minimal = defineTheme({
   contactLines: [["location", "email", "phone", "links"]],
@@ -47,7 +47,6 @@ export const minimal = defineTheme({
     row2First: { fontWeight: "bold" },
     entryNote: { marginTop: 2 },
     bullet: { marginTop: 2.3 },
-    // RenderCV's large bullet: a 13pt dot on the 10pt line.
     bulletGlyph: { width: 11, fontSize: 13, lineHeight: 1 },
     bulletMark: { width: 3.5, height: 3.5, marginTop: 4.8, color: INK },
     skillLine: { marginTop: 2.3 },

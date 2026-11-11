@@ -19,9 +19,7 @@ vi.mock("@/lib/ai/fix", async (importOriginal) => {
   return { ...actual, fixBullet: vi.fn(actual.fixBullet) };
 });
 
-// 23.5 days before the December allowance reset.
 const NOW = Date.UTC(2026, 10, 7, 12, 0, 0, 7);
-// Most tests run on the free trial (the smallest real allowance), ending two days from now.
 const TRIAL_END = Date.UTC(2026, 10, 9, 12);
 
 const BODY: FixRequestBody = {
@@ -165,8 +163,6 @@ describe("POST /api/fix", () => {
     expect((await getUsage(user)).fix.used).toBe(0);
   });
 
-  // Input written to be refused, cut off or run past the deadline is billed by the model every
-  // time. Refunding all of it would leave such a loop limited only by the burst cap.
   it("stops giving back runs the model may have billed after a few a day", async () => {
     const user = await signIn();
     const messages: string[] = [];
@@ -184,7 +180,6 @@ describe("POST /api/fix", () => {
     expect((await fix()).status).toBe(422);
     expect((await getUsage(user)).fix.used).toBe(3);
 
-    // The cap is per day.
     vi.setSystemTime(NOW + 24 * 60 * 60 * 1000);
     vi.mocked(fixBullet).mockRejectedValueOnce(new AIError("unavailable", "timed out"));
     await fix();

@@ -8,15 +8,9 @@ import {
   type HeadingKind,
 } from "./sections";
 
-// The AI reader only takes over when one of these signs shows the rules lost the thread: on a clean
-// file it finds nothing more but costs an AI read and 4-22 seconds.
-
 export type WeakReadSign =
-  // Rows read straight across both columns, so sidebar lines land inside jobs.
   | "mixed_columns"
-  // Their text sits wherever the box was anchored, often inside another section.
   | "text_boxes"
-  // No job found: either there's no work history, or the rules couldn't tell where a job starts.
   | "no_jobs"
   | "lineless_jobs"
   | "empty_section"
@@ -24,7 +18,6 @@ export type WeakReadSign =
   | "unsorted_summary";
 
 export type ReadLayout = {
-  // Unless its text was rebuilt column by column, as LinkedIn profile PDFs are.
   mixedColumns?: boolean;
   textBoxes?: boolean;
 };
@@ -32,14 +25,10 @@ export type ReadLayout = {
 const LIST_SECTIONS = ["experience", "education", "projects", "skills", "certifications"] as const;
 type ListSection = (typeof LIST_SECTIONS)[number];
 
-// One date range reads as prose ("from 2019 to 2021 I led..."); a job list pasted into the summary
-// brings one per job.
 const MAX_SUMMARY_DATE_RANGES = 1;
 
-// How headings look once a row of two columns is joined into running text.
 const CAPITALS_RUN = /\b\p{Lu}{3,}(?:\s+\p{Lu}{2,})*\b/gu;
 
-// Same line splitting as the rule-based reader, so the sections line up with what it saw.
 function toLines(text: string): string[] {
   return text
     .split(/\r\n?|\n/)
@@ -59,7 +48,6 @@ function isListSection(kind: HeadingKind | null): kind is ListSection {
 function hasEmptySection(text: string, resume: Resume): boolean {
   return splitIntoSections(toLines(text)).some((block) => {
     if (!isListSection(block.kind) || block.lines.length === 0) return false;
-    // "Volunteer experience" and the like become extra sections, not jobs.
     if (block.kind === "experience" && extraKindOf(block.heading)) return false;
     return resume[block.kind].length === 0;
   });
@@ -82,7 +70,6 @@ function isUnsorted(summary: string): boolean {
   );
 }
 
-// Empty means the read can be kept as it is.
 export function weakReadSigns(
   text: string,
   resume: Resume,

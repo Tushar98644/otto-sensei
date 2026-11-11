@@ -4,10 +4,6 @@ import { fileURLToPath } from "node:url";
 import { __unstable__loadDesignSystem } from "tailwindcss";
 import { describe, expect, it } from "vitest";
 
-// Tailwind drops classes it doesn't know without a word, so a typo in a button variant or a card
-// would only show up as a styling bug. This compiles every class the dashboard and the UI kit use
-// against the real globals.css.
-
 const root = fileURLToPath(new URL("../../../", import.meta.url));
 
 function tsx(dir: string): string[] {
@@ -23,10 +19,8 @@ const files = [
   ...tsx("src/components/ui"),
 ];
 
-// Tables whose values aren't class lists.
 const NOT_CLASSES = new Set(["FONTS", "THEMES", "STATUS_LABELS"]);
 
-// The text of every cn(...) call, matching parentheses and skipping over string contents.
 function cnArguments(source: string): string[] {
   const calls: string[] = [];
   for (const match of source.matchAll(/\bcn\(/g)) {
@@ -48,8 +42,6 @@ function cnArguments(source: string): string[] {
   return calls;
 }
 
-// String literals that are class lists. Literals compared with === or !== are values, and quoted
-// object keys ("icon-sm": ...) are names, not classes.
 function literals(code: string): string[] {
   return Array.from(code.matchAll(/"([^"\\]*)"/g))
     .filter((match) => {
@@ -64,11 +56,9 @@ const isMarker = (name: string) => /^(group|peer)(\/[\w-]+)?$/.test(name);
 
 export function classesIn(source: string): string[] {
   const lists = [
-    // className, bodyClassName, triggerClassName, ...
     ...Array.from(source.matchAll(/\w*[cC]lassName="([^"]*)"/g), (m) => m[1] ?? ""),
     ...Array.from(source.matchAll(/\w*[cC]lassName:\s*"([^"]*)"/g), (m) => m[1] ?? ""),
     ...cnArguments(source).flatMap(literals),
-    // Upper-case constants and lookup tables: BASE = "...", VARIANTS: Record<...> = { ... }.
     ...Array.from(source.matchAll(/const ([A-Z][A-Z0-9_]*)\b[^=\n]*=\s*"([^"]*)"/g))
       .filter(([, name]) => !NOT_CLASSES.has(name ?? ""))
       .map((m) => m[2] ?? ""),

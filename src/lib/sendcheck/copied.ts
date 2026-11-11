@@ -1,6 +1,3 @@
-// Eight+ words lifted from the post read as pasted, and some screening tools flag it. Shorter runs
-// are fine: titles and tool names are meant to match.
-
 export const MIN_COPIED_WORDS = 8;
 
 type Word = { folded: string; start: number; end: number };

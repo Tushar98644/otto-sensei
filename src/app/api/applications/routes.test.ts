@@ -70,7 +70,6 @@ const bulk = (payload: unknown) => patchMany(send("PATCH", "/api/applications", 
 const remove = (id: string, headers: Record<string, string> = {}) =>
   deleteOne(send("DELETE", `/api/applications/${id}`, undefined, headers), context(id));
 
-// The tracker is Pro, so these sign in on Pro; "the tracker on Free" below covers Free.
 async function signIn(email: string): Promise<SessionUser> {
   return setPlan(await signInAs(email), "pro");
 }
@@ -95,14 +94,12 @@ async function errorOf(res: Response): Promise<ApiErrorBody["error"]> {
   return ((await res.json()) as ApiErrorBody).error;
 }
 
-// Rows written straight to the table, for the cap and paging tests.
 async function seed(userId: string, total: number, start = APPLIED_AT) {
   const db = await getDb();
   const rows = Array.from({ length: total }, (_, index) => ({
     id: crypto.randomUUID(),
     userId,
     company: `Company ${index}`,
-    // Pairs share a time, so paging has to break ties by id.
     appliedAt: start - Math.floor(index / 2) * 1_000,
     statusChangedAt: start,
     createdAt: start,
@@ -214,7 +211,6 @@ describe("/api/applications", () => {
       message: "You can track up to 2,000 applications. Delete some old ones to add more.",
     });
 
-    // Changes to existing rows still work at the cap, and the cap is per account.
     const [first] = ((await (await list()).json()) as ApplicationsResponse).applications;
     expect((await patch(first?.id ?? "", { status: "interview" })).status).toBe(200);
     await signIn("grace@example.com");
@@ -295,7 +291,6 @@ describe("the tracker on Free", () => {
     });
     expect(await listed()).toHaveLength(1);
 
-    // Deleting it makes room again.
     expect((await remove(first.id)).status).toBe(200);
     expect((await create(body({ company: "Linear" }))).status).toBe(201);
   });
@@ -349,7 +344,6 @@ describe("PATCH /api/applications/:id", () => {
     const rejected = await updated(await patch(application.id, { status: "rejected" }));
     expect(rejected).toMatchObject({ status: "rejected", stageReached: "interview" });
 
-    // A wrong click on "Offer", fixed straight away.
     await patch(application.id, { status: "offer" });
     const fixed = await updated(await patch(application.id, { status: "interview" }));
     expect(fixed).toMatchObject({ status: "interview", stageReached: "interview" });
@@ -365,7 +359,6 @@ describe("PATCH /api/applications/:id", () => {
     expect((await listed())[0]).toMatchObject({ status: "interview", stageReached: "interview" });
     const [row] = (await listApplications(ada.id, null)).applications;
     expect(row).toMatchObject({ status: "interview", stageReached: "interview" });
-    // The old step is gone from what the API takes.
     expect((await patch(application.id, { status: "screening" })).status).toBe(400);
   });
 
@@ -426,7 +419,6 @@ describe("PATCH /api/applications (many)", () => {
     expect(res.status).toBe(200);
     const changed = ((await res.json()) as BulkApplicationsResponse).applications;
     expect(changed.map((item) => item.company).sort()).toEqual(["Quiet Co", "Talking Co"]);
-    // Going quiet after a recruiter call still counts that call as Interviewing.
     expect(changed.find((item) => item.id === talking.id)?.stageReached).toBe("interview");
 
     expect((await bulk({ ids: [], status: "no_reply" })).status).toBe(400);
@@ -461,7 +453,6 @@ describe("account deletion", () => {
 
     const db = await getDb();
     expect(await db.select().from(applications).where(eq(applications.userId, ada.id))).toEqual([]);
-    // Signed in just before the deletion: the write finds no account and adds nothing.
     expect(await createApplication(ada.id, CreateApplicationSchema.parse(body()))).toEqual({
       status: "no_user",
     });
@@ -497,7 +488,6 @@ describe("follow-up reminders", () => {
     const app = await created(await create(body({ appliedAt: now })));
     expect(app.followUpAt).toBeGreaterThanOrEqual(now + 14 * DAY_MS - 5_000);
 
-    // 60 days in ms is past a 32-bit integer, so the status change's SQL must stay in bigint.
     await saveReminderSettings(maya.id, { followUpDays: 60 });
     await patch(app.id, { status: "interview" });
     const back = (await (await patch(app.id, { status: "applied" })).json()) as ApplicationResponse;
@@ -513,7 +503,6 @@ describe("follow-up reminders", () => {
     expect((await set({ status: "interview" })).followUpAt).toBeNull();
     const back = await set({ status: "applied" });
     expect(back.followUpAt).toBeGreaterThan(Date.now() + 6 * DAY_MS);
-    // Already on applied: a status sent again keeps the date.
     expect((await set({ status: "applied" })).followUpAt).toBe(back.followUpAt);
 
     const snoozed = Date.now() + 3 * DAY_MS;

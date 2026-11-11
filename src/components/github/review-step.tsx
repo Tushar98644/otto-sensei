@@ -12,7 +12,6 @@ import { shortLink } from "./format";
 export type ReviewStepProps = {
   draft: GitHubDraftResult;
   resume: Resume;
-  // Entry keys the person unticked.
   left: readonly string[];
   onToggle: (key: string) => void;
 };

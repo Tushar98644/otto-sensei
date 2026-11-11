@@ -10,8 +10,6 @@ import type { Resume } from "@/lib/resume/schema";
 import { runSendCheck, type SendCheckItem } from "@/lib/sendcheck";
 import { useStudioStore } from "@/lib/store/resume-store";
 
-// "This is correct" marks are per browser; editing the text brings its item back (id includes it).
-
 const STORAGE_KEY = "otto-send-check-ok-v1";
 const MAX_RESUMES = 50;
 const MAX_PER_RESUME = 100;
@@ -41,15 +39,12 @@ function subscribe(listener: () => void) {
 }
 
 function save(next: Record<string, readonly string[]>) {
-  // Oldest resumes first in insertion order: drop them once the list is full.
   const ids = Object.keys(next);
   marks = Object.fromEntries(ids.slice(-MAX_RESUMES).map((id) => [id, next[id]!]));
-  // If storage is blocked: not remembered after a reload, but still applied now.
   writeJsonItem(STORAGE_KEY, marks);
   for (const listener of listeners) listener();
 }
 
-// The tailor object keeps its identity across edits, so the session is read once per copy.
 const jobTexts = new WeakMap<object, string>();
 
 function jobTextFor(resume: Resume): string {
@@ -84,7 +79,6 @@ export function useSendCheck(resume: Resume): SendCheck {
   );
   const jobText = jobTextFor(resume);
   const found = useMemo(
-    // `now` is 0 until the client clock is read; every date would look like the future.
     () => (now === 0 ? [] : runSendCheck(resume, { now, jobText, otherCompanies: others })),
     [resume, now, jobText, others],
   );

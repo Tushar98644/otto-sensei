@@ -5,8 +5,6 @@ import { TEMPLATE_IDS, type Resume, type TemplateId } from "@/lib/resume/schema"
 import { ResumeDocument } from "./document";
 import { TEMPLATE_THEMES, themeFor } from "./themes";
 
-// Importing this loads react-pdf, so UI that only lists formats uses TEMPLATE_INFO.
-
 export type ResumeTemplateProps = { resume: Resume; pageSize?: PdfPageSize };
 
 export type ResumeTemplate = TemplateInfo & { Component: ComponentType<ResumeTemplateProps> };
@@ -15,7 +13,6 @@ export { TEMPLATE_THEMES };
 
 function templateFor(id: TemplateId): ResumeTemplate {
   const info = TEMPLATE_INFO[id];
-  // The format is fixed; the resume's own look settings still apply.
   function Component(props: ResumeTemplateProps) {
     return <ResumeDocument {...props} theme={themeFor(props.resume, id)} />;
   }

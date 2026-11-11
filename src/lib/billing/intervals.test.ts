@@ -14,7 +14,6 @@ function useEnv(values: Record<string, string | undefined>) {
   resetEnvForTests();
 }
 
-// Real checkout: without these, development falls back to mock checkout, which offers everything.
 const LIVE = { CREEM_API_KEY: "key_test", CREEM_WEBHOOK_SECRET: "whsec_test" };
 
 const NONE = {
@@ -115,7 +114,6 @@ describe("billing intervals", () => {
     expect(trialOffered()).toBe(true);
     expect(planForProduct("prod_pro_trial")).toEqual({ plan: "pro", interval: "month" });
     expect(paidProductIds()).toEqual(["prod_pro_month", "prod_pro_trial"]);
-    // The trial is a way into Pro monthly, not another billing option.
     expect(billingOffer()).toEqual({ pro: ["month"], max: [] });
   });
 

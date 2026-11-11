@@ -1,8 +1,6 @@
 import { env } from "@/lib/env";
 
-// Light (no database), so src/proxy.ts can use it. DEV_AUTH=supabase switches development to real
-// Supabase sign-in. NODE_ENV is read directly: production builds inline it, so every dev branch is
-// dead code there whatever else is set.
+// NODE_ENV is read directly: production builds inline it, so dev branches are dead code there.
 
 export const DEV_SESSION_COOKIE = "otto_dev_session";
 

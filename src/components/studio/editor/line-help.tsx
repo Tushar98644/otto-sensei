@@ -12,9 +12,7 @@ import { Popover, usePopover } from "../popover";
 import { useLineStepper } from "./entry-lines";
 import { CHIP_LABELS } from "./lint-notes";
 
-// "No result" fires on most first-draft lines, so each job says it once (ResultNote) instead.
 const ENTRY_LEVEL: LintIssueId = "no-result";
-// Otto rewrites wording; a repeat or a full stop is quicker to fix by hand.
 const NOT_FOR_OTTO: ReadonlySet<LintIssueId> = new Set(["duplicate", "punctuation"]);
 
 const CHIP_CLASSES =
@@ -136,7 +134,6 @@ function Example({ before, after }: { before: string | null; after: string }) {
   );
 }
 
-/** Duty lines count too: they keep their own chip, which says why. */
 export function ResultNote({ lines }: { lines: readonly CheckedLine[] }) {
   const ids = lines
     .filter((line) => line.issues.some((issue) => RESULT_ISSUES.includes(issue.id)))

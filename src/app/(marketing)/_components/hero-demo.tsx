@@ -7,13 +7,10 @@ import { DEMO_FILE_NAME, DEMO_PERSON, PARSED_LINES } from "./recruiter-demo-data
 import { ResumeMock } from "./resume-mock";
 import { MomentCaption } from "./section";
 
-// Plays once on load (about 1.2s), then sits still.
 const LINE_STEP_MS = 60;
 const HIGHLIGHT_AT_MS = PARSED_LINES.length * LINE_STEP_MS + 150;
 const PILL_AT_MS = HIGHLIGHT_AT_MS + 350;
 
-// Only the skills get marked: they are what the pill names, and more than three marks in one
-// window stop reading as a pen and start reading as noise. The rest of the scramble shows itself.
 const MARKED = new Set<string>(DEMO_PERSON.skills);
 
 export function HeroDemo({ className }: { className?: string }) {
@@ -29,8 +26,6 @@ export function HeroDemo({ className }: { className?: string }) {
           <div>
             <Eyebrow>What hiring software reads</Eyebrow>
             <div className="relative mt-3">
-              {/* Paws on the window's top edge: PEEK_EDGE_Y (112 of 200) of his height sits above
-                  it, so the offset is 56% of his size (45px of 80, 72px of 128). */}
               <Otto
                 pose="peek"
                 size={128}
@@ -70,7 +65,6 @@ function ParsedText() {
   return (
     <pre className="px-4 py-4 font-mono text-xs/6 wrap-break-word whitespace-pre-wrap text-ink sm:px-5 sm:text-sm/7">
       {PARSED_LINES.map((line, row) => (
-        // Fixed demo content, so a line's position is a stable key.
         <span
           key={row}
           className="block motion-safe:animate-fade-in"

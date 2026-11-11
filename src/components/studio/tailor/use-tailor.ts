@@ -18,7 +18,6 @@ import {
   type TailorDraft,
 } from "./session";
 
-// Same bound POST /api/tailor enforces, checked here first so the user hears about it before sending.
 export const MIN_POST_CHARS = 80;
 const MAX_LINK_CHARS = 2048;
 
@@ -29,7 +28,6 @@ export type TailorRun = {
   loading: boolean;
   error: string | null;
   start: (job: TailorDraft) => Promise<void>;
-  // Changes the current result's extras, if it is still the one with this id.
   update: (id: string, patch: ResultPatch) => void;
   clear: () => void;
   dialogs: ReactNode;
@@ -55,19 +53,16 @@ function errorMessage(
   return OTTO.errors.generic;
 }
 
-// A new result replaces the last only when it arrives, so a failed retry never wipes results.
 export function useTailorRun(source: Resume): TailorRun {
   const gate = useAccountGate();
   const { me } = useMe();
   const [last, setLast] = useState<SavedResult | null>(() => loadResult(source.id));
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  // Each call spends one of the user's tailors, so a double click must never send two.
   const busy = useRef(false);
 
   async function start(job: TailorDraft) {
     if (busy.current) return;
-    // Same resume and post: the results shown already answer it, and a call would spend a tailor.
     if (last && sameRun(last, source, job)) {
       setError(null);
       return;
@@ -135,8 +130,6 @@ function readFailure(error: unknown): { message: string; backup: boolean } {
   };
 }
 
-// A problem with the link itself shows on the field; a link that couldn't be read gets a note over
-// the paste fields. Either one shows only while the link is still the one it was about.
 type Notice = { link: string; message: string; on: "field" | "paste" };
 
 export type JobLink = {
@@ -146,7 +139,6 @@ export type JobLink = {
   reading: boolean;
   linkError: string | null;
   readNote: string | null;
-  // For a polite live region: reading, read, or why not.
   status: string;
   linkRef: RefObject<HTMLInputElement | null>;
   postRef: RefObject<HTMLTextAreaElement | null>;
@@ -159,7 +151,6 @@ export type JobLink = {
 type JobLinkOptions = {
   draft: TailorDraft;
   onChange: (draft: TailorDraft) => void;
-  // Sends the draft the step last rendered, which is why a read job waits for its render.
   onSubmit: () => void;
   busy: boolean;
   queued?: QueuedJob | null;
@@ -175,7 +166,6 @@ export function useJobLink({ draft, onChange, onSubmit, busy, queued = null }: J
   const focusPostAfterRender = useRef(false);
 
   const link = draft.link ?? "";
-  // Drafts saved before job links existed hold only pasted text.
   const pasting = draft.paste ?? (draft.text.trim() !== "" && !draft.posting);
   const posting = pasting ? null : (draft.posting ?? null);
   const shown = notice?.link === link ? notice : null;
@@ -197,13 +187,10 @@ export function useJobLink({ draft, onChange, onSubmit, busy, queued = null }: J
     onChange(next);
   }
 
-  // `typed`: the field's value when it hasn't reached the draft yet (a paste being handled).
-  // `backup`: the post as the Jobs tab stored it, for the paste fields if the link can't be read.
   async function read(typed?: string, backup?: QueuedJob) {
     if (reading || busy) return;
     const raw = typed ?? link;
     const value = raw.trim();
-    // People often paste the post itself here; it belongs in the text box.
     if (/\s/.test(value) && value.length >= MIN_POST_CHARS) {
       openPasteFields({ ...draft, link: "", posting: null, paste: true, text: value });
       return;
@@ -236,7 +223,6 @@ export function useJobLink({ draft, onChange, onSubmit, busy, queued = null }: J
         linkRef.current?.focus();
         return;
       }
-      // Fields typed by hand stay. Text read from an earlier link is another job's, so it goes.
       let next: TailorDraft = pasting
         ? { ...draft, link: value, posting: null }
         : { link: value, posting: null, paste: true, title: "", company: "", text: "" };
@@ -249,8 +235,7 @@ export function useJobLink({ draft, onChange, onSubmit, busy, queued = null }: J
     }
   }
 
-  // Read after the first render, like a paste, so the step's state is in place. Taken out of
-  // storage then, so a reload or Strict Mode re-run doesn't read it twice.
+  // Taken out of storage after the first render, so Strict Mode doesn't read it twice.
   const queuedJob = useRef(queued);
   useEffect(() => {
     const job = queuedJob.current;
@@ -276,7 +261,6 @@ export function useJobLink({ draft, onChange, onSubmit, busy, queued = null }: J
         void read(job.link, job);
         return;
       }
-      // The feeds' own pages are theirs to show, so the stored post is used as read.
       const next: TailorDraft = {
         link: job.link,
         posting: {
@@ -298,7 +282,6 @@ export function useJobLink({ draft, onChange, onSubmit, busy, queued = null }: J
       onChange(next);
     }, 0);
     return () => window.clearTimeout(timer);
-    // Once, on mount: later renders must not start another read.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -317,7 +300,6 @@ export function useJobLink({ draft, onChange, onSubmit, busy, queued = null }: J
     status,
     linkRef,
     postRef,
-    // What was read belongs to the old link, so the card goes until the new one is read.
     edit: (value) =>
       onChange(pasting ? { ...draft, link: value } : { ...draft, link: value, posting: null }),
     read: () => read(),

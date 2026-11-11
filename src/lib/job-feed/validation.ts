@@ -15,8 +15,6 @@ import {
   type PlaceChoice,
 } from "./types";
 
-// Apart from ./types so the Jobs tab and the first-login step don't load zod.
-
 export const MatchProfileSchema = z.object({
   skills: z.array(z.string().max(60)).max(MATCH_PROFILE_LIMITS.skills),
   titles: z
@@ -39,18 +37,15 @@ const PLACE_CHOICE = z
 
 const OccupationCodeSchema = z.string().regex(OCCUPATION_CODE);
 
-/** Every part is filled: the guess, or what the person picked. */
 export const LookingForSchema = z.object({
   title: z.string().trim().max(LOOKING_FOR_LIMITS.titleChars),
   family: z.enum(ROLE_FAMILIES).nullable(),
-  // The occupation the title names; null lets the server read it from the title.
   occupation: OccupationCodeSchema.nullable().default(null),
   level: z.enum(SENIORITIES).nullable(),
   place: PLACE_CHOICE,
   remote: z.boolean(),
 });
 
-// Null parts follow the resume, so switching resumes changes the guess, not a choice someone made.
 export const LookingForChoiceSchema = z.object({
   role: z
     .object({
@@ -82,9 +77,7 @@ export const JobMatchesRequestSchema = z.object({
   profile: MatchProfileSchema,
   filters: JobFiltersSchema.default(DEFAULT_FILTERS),
   page: z.number().int().min(1).max(MAX_JOB_PAGE).default(1),
-  // For time zone rules when the work profile has none.
   deviceTimeZone: z.string().max(64).default(""),
-  // The "Looking for" card as shown (looking-for.ts); without it the server guesses the same way.
   lookingFor: LookingForSchema.nullable().default(null),
 });
 

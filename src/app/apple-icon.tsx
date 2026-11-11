@@ -5,11 +5,10 @@ import { OTTO_VIEWBOX } from "@/components/mascot/palette";
 export const size = { width: 180, height: 180 };
 export const contentType = "image/png";
 
-// Mirrors the globals.css background (paper) token; satori can't read CSS variables.
+// Mirrors the globals.css paper token; satori can't read CSS variables.
 const TILE = "#EEF3EF";
 
-// iOS paints transparent pixels black and rounds corners itself, so this is an opaque tile with
-// room around Otto. No text, so no font: the build never touches the network.
+// iOS paints transparent pixels black and rounds corners itself, so this is an opaque tile.
 export default function AppleIcon() {
   return new ImageResponse(
     <div

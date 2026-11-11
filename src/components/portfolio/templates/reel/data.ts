@@ -1,7 +1,6 @@
 import type { ContentProject } from "@/lib/portfolio/content";
 import { safeId } from "../parts";
 
-// His home page shows three projects; a fourth keeps a two-two rhythm for people with more.
 export const SUMMARIES_MAX = 4;
 
 export type Device = "laptop" | "phone";
@@ -12,7 +11,6 @@ export function deviceOf(project: Pick<ContentProject, "device">): Device {
 
 export const detailId = (project: ContentProject) => safeId("pf-reel-p", project.id);
 
-/** Where a project's button goes: its own page when there's more to show, else its site. */
 export function projectTarget(project: ContentProject): { href: string; label: string } | null {
   if (project.details.length > 0) {
     return { href: `#${detailId(project)}`, label: "View project" };
@@ -24,7 +22,6 @@ export function projectTarget(project: ContentProject): { href: string; label: s
 
 export const indexText = (index: number) => (index < 10 ? `0${index}` : String(index));
 
-// The title's screen reader label, like the original's "Designer + Developer, and Animator".
 export function introLabel(role: string, disciplines: readonly string[]): string {
   if (disciplines.length === 0) return role;
   const list =
@@ -34,8 +31,6 @@ export function introLabel(role: string, disciplines: readonly string[]): string
   return `${role} + ${list}`;
 }
 
-// The original's words ("Designer", "+ Illustrator") fit its column at full size; past about 13
-// characters a line runs off the side, so longer ones step the whole title down together.
 const TITLE_FITS = 13;
 
 export function titleScale(role: string, disciplines: readonly string[]): number {
@@ -43,7 +38,6 @@ export function titleScale(role: string, disciplines: readonly string[]): number
   return Math.min(1, Number((TITLE_FITS / longest).toFixed(3)));
 }
 
-// Cover crop without stretching: centred across, anchored at the top.
 export function coverRect(
   sourceWidth: number,
   sourceHeight: number,
@@ -60,7 +54,6 @@ export function coverRect(
   return { x: 0, y: 0, width: sourceWidth, height: sourceWidth / target };
 }
 
-// For text drawn into SVG, which doesn't wrap. A cut ends in an ellipsis.
 export function wrapText(text: string, width: number, lines: number): string[] {
   const words = text.replace(/\s+/g, " ").trim().split(" ").filter(Boolean);
   const out: string[] = [];

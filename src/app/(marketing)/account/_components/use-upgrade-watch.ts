@@ -3,8 +3,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { refreshMe } from "@/components/account/use-me";
 
-// The payment webhook can land a little after the user is back here. Ask again for about a minute,
-// further apart each time, so a slow webhook never turns into a burst of requests.
 const RECHECK_DELAYS_MS = [2_000, 3_000, 5_000, 8_000, 13_000, 21_000];
 
 export type UpgradeWatch = {

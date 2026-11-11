@@ -29,15 +29,14 @@ describe("countWords and hasReadableText", () => {
 
 describe("countIconGlyphs", () => {
   it("counts icon fonts, emoji and contact symbols", () => {
-    const envelope = char(0xf0e0); // Font Awesome envelope
-    const phone = char(0x1f4de); // 📞
+    const envelope = char(0xf0e0);
+    const phone = char(0x1f4de);
     expect(countIconGlyphs([`${envelope} jane@example.com ${phone} +1 555 0100`, "☎ 555 0100 ✉ jane@example.com"])).toBe(4);
   });
 
   it("ignores Word's bullet glyphs at the start of a line and real bullet characters", () => {
     const wordBullet = char(0xf0b7);
     expect(countIconGlyphs([`${wordBullet} Built a thing`, "• Built a thing", "✓ Shipped", "Python\t➢ Led a team"])).toBe(0);
-    // The same glyph in the middle of a line is junk.
     expect(countIconGlyphs([`Phone ${wordBullet} 555 0100`])).toBe(1);
   });
 

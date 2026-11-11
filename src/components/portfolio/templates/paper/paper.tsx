@@ -6,10 +6,7 @@ import type { PortfolioTemplateProps } from "../types";
 import { FooterClock } from "./islands";
 import { PAPER_CSS } from "./styles";
 
-// Paper: a rebuild of Cali Castle's site (github.com/CaliCastle/cali.so, application code MIT;
-// ./LICENSE.txt) for anyone's data. No pictures: the initials print as a halftone where Cali has
-// his portrait, and the shelf takes the photo cards' place.
-// Cali's own words, photos, artwork, name and branding are not used.
+// Ported from CaliCastle/cali.so (code MIT, see ./LICENSE.txt); none of Cali's content or branding.
 
 const delay = (ms: number) => ({ "--enter-delay": `${ms}ms` }) as CSSProperties;
 
@@ -35,7 +32,6 @@ function binding(item: { title: string; by: string }): CSSProperties {
   return { "--book": book, "--book-ink": ink } as CSSProperties;
 }
 
-// Latin letters as braille cells, the footer's printer's mark (lib/braille.ts).
 const BRAILLE: Record<string, string> = {
   a: "⠁",
   b: "⠃",
@@ -228,7 +224,6 @@ export function PaperTemplate({ view, content, footer }: PortfolioTemplateProps)
     });
   }
 
-  // Sections number themselves in page order, so a missing one never leaves a gap.
   let count = 0;
   const next = () => ++count;
   const sections: ReactNode[] = [];

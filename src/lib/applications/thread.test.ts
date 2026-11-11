@@ -106,7 +106,6 @@ describe("one job, one thread", () => {
       applicationForCopy([app("link", { jobUrl: "jobs.lever.co/acme/1" })], tailored)?.id,
     ).toBe("link");
     expect(applicationForCopy([app("none")], tailored)).toBeNull();
-    // A base resume goes out to many jobs, so it's never one thread.
     const base = { ...emptyResume(), id: "base" };
     expect(applicationForCopy([app("sent", { resumeId: "base" })], base)).toBeNull();
   });
@@ -136,7 +135,6 @@ describe("one job, one thread", () => {
     expect(applicationForWriting([target, other], elsewhere)?.id).toBe("a2");
     expect(applicationForWriting([target, other], byLink)?.id).toBe("a1");
     expect(applicationForWriting([target, other], loose)).toBeNull();
-    // Linked to an application this browser doesn't list (deleted elsewhere): no guess.
     expect(applicationForWriting([target], writing("w5", { applicationId: "gone" }))).toBeNull();
   });
 
@@ -153,7 +151,6 @@ describe("one job, one thread", () => {
       ],
     );
     expect(grouped.get("a1")?.map((item) => item.id)).toEqual(["w1"]);
-    // By link, the newest application with that link takes it.
     expect(grouped.get("a2")?.map((item) => item.id)).toEqual(["w2"]);
     expect([...grouped.keys()].sort()).toEqual(["a1", "a2"]);
   });

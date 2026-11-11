@@ -1,23 +1,14 @@
 import { isPlausible } from "@/lib/tailor/keywords";
 import { termTokens, textTokens } from "@/lib/tailor/tokens";
 
-// The same rules run on the resume in the browser, so "Found: React" always means the word is
-// there.
-
 type Skill = {
   label: string;
   forms?: readonly string[];
-  // Everyday words in lowercase ("react", "rust", "excel at"): only the capitalized spelling
-  // counts. "exact": only exactly as written ("REST", "SAS").
   cased?: "capital" | "exact";
-  // Names that are also plain English. "tech": counts only near other tech or words like
-  // "developer"; other spellings ("Golang") always count. "word": not when it opens a sentence as a
-  // verb.
   context?: "tech" | "word";
 };
 
 const VOCABULARY: readonly Skill[] = [
-  // Languages
   { label: "Python" },
   { label: "Java" },
   { label: "JavaScript" },
@@ -49,7 +40,6 @@ const VOCABULARY: readonly Skill[] = [
   { label: "Solidity" },
   { label: "Bash", forms: ["Shell scripting"] },
   { label: "PowerShell" },
-  // Frontend
   { label: "React", forms: ["React.js", "ReactJS"], cased: "capital", context: "word" },
   { label: "React Native" },
   { label: "Next.js" },
@@ -73,15 +63,12 @@ const VOCABULARY: readonly Skill[] = [
   { label: "D3.js", forms: ["D3"] },
   { label: "WebGL" },
   { label: "WebAssembly", forms: ["Wasm"] },
-  // "Accessibility" alone is in most posts' interview boilerplate; the standard names the skill.
   { label: "WCAG", forms: ["Web accessibility"] },
-  // Mobile
   { label: "iOS" },
   { label: "Android" },
   { label: "SwiftUI" },
   { label: "Jetpack Compose" },
   { label: "Flutter", cased: "capital", context: "word" },
-  // Backend
   { label: "Node.js" },
   { label: "NestJS" },
   { label: "Express.js" },
@@ -102,7 +89,6 @@ const VOCABULARY: readonly Skill[] = [
   { label: "RabbitMQ" },
   { label: "Kafka" },
   { label: "Redis" },
-  // Databases and data
   { label: "PostgreSQL" },
   { label: "MySQL" },
   { label: "SQLite" },
@@ -135,7 +121,6 @@ const VOCABULARY: readonly Skill[] = [
   { label: "A/B testing" },
   { label: "SAS", cased: "exact" },
   { label: "SPSS" },
-  // Machine learning
   { label: "Machine learning" },
   { label: "Deep learning" },
   { label: "PyTorch" },
@@ -150,7 +135,6 @@ const VOCABULARY: readonly Skill[] = [
   { label: "LangChain" },
   { label: "MLOps" },
   { label: "Reinforcement learning" },
-  // Cloud and infrastructure
   { label: "AWS" },
   { label: "Google Cloud" },
   { label: "Azure", cased: "capital", context: "word" },
@@ -172,7 +156,6 @@ const VOCABULARY: readonly Skill[] = [
   { label: "Datadog" },
   { label: "Splunk" },
   { label: "OpenTelemetry" },
-  // Security
   { label: "Penetration testing", forms: ["Pentesting"] },
   { label: "SOC 2" },
   { label: "ISO 27001" },
@@ -180,7 +163,6 @@ const VOCABULARY: readonly Skill[] = [
   { label: "OWASP" },
   { label: "Threat modeling", forms: ["Threat modelling"] },
   { label: "IAM", cased: "exact" },
-  // Design
   { label: "Figma" },
   { label: "Sketch", cased: "capital", context: "word" },
   { label: "Adobe XD" },
@@ -197,7 +179,6 @@ const VOCABULARY: readonly Skill[] = [
   { label: "Design systems" },
   { label: "Interaction design" },
   { label: "Motion design" },
-  // Product and delivery
   { label: "Agile" },
   { label: "Scrum" },
   { label: "Kanban" },
@@ -206,7 +187,6 @@ const VOCABULARY: readonly Skill[] = [
   { label: "Roadmapping", forms: ["Product roadmap"] },
   { label: "Amplitude", cased: "capital", context: "word" },
   { label: "Mixpanel" },
-  // Marketing
   { label: "SEO", forms: ["Search engine optimization"] },
   { label: "SEM" },
   { label: "Google Ads" },
@@ -219,7 +199,6 @@ const VOCABULARY: readonly Skill[] = [
   { label: "Lifecycle marketing" },
   { label: "Performance marketing" },
   { label: "Marketing automation" },
-  // Sales and support
   { label: "Salesforce" },
   { label: "Salesloft" },
   { label: "MEDDICC", forms: ["MEDDIC", "MEDDPICC"] },
@@ -227,7 +206,6 @@ const VOCABULARY: readonly Skill[] = [
   { label: "Zendesk" },
   { label: "Intercom", cased: "capital", context: "word" },
   { label: "Freshdesk" },
-  // Finance and operations
   { label: "Financial modeling", forms: ["Financial modelling"] },
   { label: "FP&A" },
   { label: "GAAP" },
@@ -253,7 +231,6 @@ type Entry = {
   spellings: readonly string[];
 };
 
-// Squashed canonical tokens -> skill, so one pass over a text checks the whole vocabulary.
 const ENTRIES = new Map<string, Entry>();
 let longestTerm = 1;
 for (const skill of VOCABULARY) {
@@ -271,7 +248,6 @@ for (const skill of VOCABULARY) {
     ENTRIES.set(tokens.join(""), entry);
   }
 }
-// The squashed key may be one step longer than the term: "Express" + "js".
 const MAX_TOKENS = longestTerm + 1;
 
 function casedOk(span: string, entry: Entry): boolean {
@@ -282,21 +258,16 @@ function casedOk(span: string, entry: Entry): boolean {
 
 type Hit = { entry: Entry; start: number; end: number };
 
-// "Go, Rust", "Python/R", "C and C++"; one unknown name may sit between.
 const LIST_GAP =
   /^[\s,;/&|+()·•]*(?:\p{Lu}[\p{L}\p{N}.+#-]*[\s,;/&|+()]+)?(?:(?:and|or|plus|as well as)[\s,;/&|+()]*){0,2}$/iu;
 const MAX_LIST_GAP = 24;
-// Words before a name that make it the technology: "written in Go", "Languages: R", "Engineer (Go)".
 const TECH_BEFORE =
   /(?:\b(?:in|with|using|use|uses|write|writes|writing|written in|coding in|code in|programming in|experience in|proficiency in|proficient in|fluent in|fluency in|knowledge of|familiarity with|familiar with|expertise in|expert in|background in)|\b(?:languages?|skills?|stack|tech(?:nolog(?:y|ies))?|tools?|frameworks?)\s*[:\-–—]|\b(?:engineer|developer|programmer|engineering)s?\s*[,:(\-–—]|\b(?:e\.g\.,?|i\.e\.,?|such as|like|including))\s*$/i;
-// Words after it: "Go services", "Rust code", "Swift developer", "Spark jobs", "R packages".
 const TECH_AFTER =
   /^[\s-]*(?:developers?|engineers?|engineering|programming|programmers?|code(?:base)?s?|coding|services?|microservices?|back-?end|language|lang|apps?|applications?|sdks?|apis?|librar(?:y|ies)|packages?|modules?|frameworks?|ecosystem|runtime|toolchain|scripts?|scripting|stack|development|jobs|pipelines?|clusters?|streaming|sql|notebooks?|shiny|on rails|programs?|binaries|tests?|testing|charts?|experience|expertise|knowledge|proficiency|skills)\b/i;
-// Phrases that are never the technology, even beside other tech: "Go To Market", "on the Go".
 const NOT_TECH_AFTER =
   /^[\s-]*(?:to[\s-]+market|live\b|getter|deep\b|above\b|beyond\b|the extra mile|ahead\b|far\b)/i;
 const NOT_TECH_BEFORE = /\b(?:on the|let it|let's|series|vitamin|plan|grade|class|type)\s*$/i;
-// A name that opens a sentence and is followed by one of these is the verb: "Excel at", "React to".
 const VERB_NEXT = /^\s+(?:to|at|in|quickly|fast|swiftly|under|beyond|across|upon)\b/;
 const SENTENCE_START = /(?:^|[.!?:;•*\n]|\s[-–—])\s*$/;
 
@@ -308,17 +279,13 @@ function inContext(text: string, hits: readonly Hit[], index: number): boolean {
   const before = text.slice(Math.max(0, start - 40), start);
   const after = text.slice(end, end + 40);
   if (entry.context === "word") return !(SENTENCE_START.test(before) && VERB_NEXT.test(after));
-  // "Ruby's", "Julia's": a person, not a language.
   if (/['’]s$/.test(span)) return false;
-  // Another spelling ("Golang", "PySpark", "Apache Spark") is never plain English.
   if (span.toLowerCase() !== entry.label.toLowerCase()) return true;
   if (NOT_TECH_AFTER.test(after) || NOT_TECH_BEFORE.test(before)) return false;
   if (TECH_BEFORE.test(before) || TECH_AFTER.test(after)) return true;
-  // Part of a longer name that counts on its own: "Ruby" in "Ruby on Rails".
   const inside = (other: Hit) =>
     other !== hit && other.start <= start && other.end >= end && other.end - other.start > end - start;
   if (hits.some((other) => inside(other) && !other.entry.context)) return true;
-  // A list of tools: the nearest name before or after it is only a comma, slash or "and" away.
   const neighbour = (other: Hit | undefined, gap: string) =>
     other !== undefined && gap.length <= MAX_LIST_GAP && LIST_GAP.test(gap);
   const previous = hits.slice(0, index).findLast((other) => other.end <= start);
@@ -331,18 +298,15 @@ function inContext(text: string, hits: readonly Hit[], index: number): boolean {
 
 export function findSkills(text: string, max = Number.POSITIVE_INFINITY): string[] {
   const tokens = textTokens(text);
-  // Every place a name appears, so "Go deep" doesn't hide a later "written in Go".
   const hits: Hit[] = [];
   for (let i = 0; i < tokens.length; i++) {
     const first = tokens[i]!;
-    // Inside an alias expansion ("AWS" -> amazon web service) only its first token starts a match.
     if ((tokens[i - 1]?.end ?? -1) > first.start) continue;
     let squashed = "";
     for (let j = i; j < tokens.length && j < i + MAX_TOKENS; j++) {
       const token = tokens[j]!;
       if (j > i && !token.joined) break;
       squashed += token.value;
-      // A match must end where a word ends, not halfway through an alias expansion.
       if ((tokens[j + 1]?.start ?? Number.POSITIVE_INFINITY) < token.end) continue;
       const entry =
         ENTRIES.get(squashed) ??
@@ -362,7 +326,6 @@ export function findSkills(text: string, max = Number.POSITIVE_INFINITY): string
   return [...found];
 }
 
-/** What a browser sends is checked. */
 export function knownSkills(labels: readonly string[]): string[] {
   return [...new Set(labels.filter((label) => SKILL_LABELS.has(label)))];
 }

@@ -46,12 +46,10 @@ export function GuidedDraft({ onDrafted, onCancel }: GuidedDraftProps) {
   const [name, setName] = useState("");
   const [role, setRole] = useState("");
   const [jobs, setJobs] = useState<JobForm[]>(() => [emptyJob()]);
-  // -1 is the role screen; 0..n-1 are the jobs.
   const [screen, setScreen] = useState(-1);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [status, setStatus] = useState<Status>({ kind: "editing" });
   const formRef = useRef<HTMLFormElement>(null);
-  // A signed-in account at its monthly limit gets the next plan up, one click from checkout.
   const gate = useAccountGate();
 
   const job = screen >= 0 ? jobs[screen] : undefined;
@@ -69,7 +67,6 @@ export function GuidedDraft({ onDrafted, onCancel }: GuidedDraftProps) {
       if (!job.notes.some((note) => note.trim())) found.notes = "Add at least one thing you did.";
     }
     setErrors(found);
-    // Focus the first problem so keyboard and screen reader users land on it.
     if (Object.keys(found).length > 0) {
       requestAnimationFrame(() => formRef.current?.querySelector<HTMLElement>("[aria-invalid=true]")?.focus());
     }
@@ -115,7 +112,6 @@ export function GuidedDraft({ onDrafted, onCancel }: GuidedDraftProps) {
       const named = name.trim() ? { ...resume, basics: { ...resume.basics, name: name.trim() } } : resume;
       onDrafted(named, usedAI);
     } catch (error) {
-      // The sign-in or trial prompt opens instead; the form keeps every answer for the retry.
       if (gate.handleApiError(error, "draft")) setStatus({ kind: "editing" });
       else setStatus({ kind: "failed", message: describeError(error) });
     }

@@ -11,8 +11,7 @@ import { normalizeEmail } from "./policy";
 import { authErrorFields } from "./supabase-errors";
 import type { SessionUser } from "./types";
 
-// Supabase generates, emails (via our Resend SMTP) and checks the code. Our per-address and per-IP
-// limits stop the form being used to mail-bomb an inbox or drain the SMTP quota. Dev uses ./dev.
+// Per-address and per-IP limits stop the form mail-bombing an inbox or draining the SMTP quota.
 
 export { normalizeEmail } from "./policy";
 
@@ -20,7 +19,6 @@ export type AuthErrorCode =
   | "invalid_code"
   | "invalid_email"
   | "rate_limited"
-  // Supabase isn't configured, or its email sign-in is switched off.
   | "not_configured"
   | "email_send_failed";
 
@@ -53,7 +51,6 @@ async function requireSupabase(): Promise<ServerSupabase> {
   return supabase;
 }
 
-// Codes Supabase uses when email sign-in is off or can't create accounts: a setup problem.
 const SETUP_ERRORS: ReadonlySet<string> = new Set(["otp_disabled", "email_provider_disabled", "signup_disabled"]);
 const RATE_ERRORS: ReadonlySet<string> = new Set(["over_email_send_rate_limit", "over_request_rate_limit"]);
 
@@ -68,14 +65,11 @@ function sendFailure(error: SupabaseAuthError): AuthError {
   if (error.code === "email_address_invalid" || error.code === "validation_failed") {
     return new AuthError("invalid_email", AUTH_MESSAGES.invalid_email);
   }
-  // Includes email_address_not_authorized: Supabase's built-in mailer only reaches the project's
-  // team, so custom SMTP isn't set up yet.
   log.warn("auth.code_send_failed", authErrorFields(error));
   return new AuthError("email_send_failed", AUTH_MESSAGES.email_send_failed);
 }
 
-// Failed sends still count against our limits. Never looks the address up, so the response is the
-// same with or without an account. Returns { devCode } only with dev sign-in.
+// Never looks the address up, so the response is the same with or without an account.
 export async function requestLoginCode(
   email: string,
   ip: string,
@@ -107,7 +101,6 @@ export async function requestLoginCode(
   return {};
 }
 
-// Supabase sets the session cookies on success. Anything but a 4xx (Supabase down) is rethrown.
 export async function verifyLoginCode(email: string, code: string, now = Date.now()): Promise<SessionUser> {
   const address = normalizeEmail(email);
   if (devAuthActive()) {

@@ -18,7 +18,6 @@ export function FormatsGallery() {
 
   return (
     <div className="flex flex-col gap-6">
-      {/* min-h keeps the grid from jumping when the saved resumes finish loading. */}
       <p className="min-h-6 text-sm/6 text-muted">
         {!ready ? null : target ? (
           <>

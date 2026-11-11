@@ -1,4 +1,4 @@
-// Private windows and blocked site data can throw on any access, even reading window.localStorage.
+// Private windows and blocked site data can throw on any access, even reading localStorage.
 
 export type StorageArea = "local" | "session";
 
@@ -29,7 +29,6 @@ export function readJsonItem(key: string, area: StorageArea = "local"): unknown 
   }
 }
 
-// False when the browser didn't keep it (storage blocked or full).
 export function writeItem(key: string, value: string, area: StorageArea = "local"): boolean {
   try {
     const storage = browserStorage(area);
@@ -52,7 +51,5 @@ export function writeJsonItem(key: string, value: unknown, area: StorageArea = "
 export function removeItem(key: string, area: StorageArea = "local"): void {
   try {
     browserStorage(area)?.removeItem(key);
-  } catch {
-    // Blocked storage holds nothing to remove.
-  }
+  } catch {}
 }

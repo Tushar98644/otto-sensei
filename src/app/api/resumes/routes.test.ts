@@ -68,13 +68,11 @@ async function tombstonesOf(userId: string): Promise<{ id: string; deletedAt: nu
 
 async function insertTombstones(userId: string, rows: { id: string; deletedAt: number }[]) {
   const db = await getDb();
-  // Chunked to keep each insert's bound parameters to a sensible number.
   for (let i = 0; i < rows.length; i += 200) {
     await db.insert(resumeTombstones).values(rows.slice(i, i + 200).map((row) => ({ userId, ...row })));
   }
 }
 
-// On Pro unless asked: most of these are about sync, and Free keeps just one resume.
 async function signIn(email: string, plan: "free" | "pro" | "trial" = "pro"): Promise<SessionUser> {
   const user = await signInAs(email);
   return plan === "free" ? user : setPlan(user, plan);
@@ -104,7 +102,6 @@ describe("/api/resumes", () => {
     await signIn("ada@example.com");
     const older = resume({ title: "Older", updatedAt: 2_000 });
     const newer = resume({ title: "Newer", updatedAt: 3_000 });
-    // Saved out of order: the list follows each resume's own updatedAt, not arrival.
     expect((await save(newer)).status).toBe(200);
     const res = await save(older);
     expect(res.status).toBe(200);
@@ -121,7 +118,6 @@ describe("/api/resumes", () => {
     await save(first);
     const edited = { ...first, title: "Second draft", updatedAt: 5_000 };
     expect((await save(edited)).status).toBe(200);
-    // Same version again (a retry) is fine, and a stale copy doesn't overwrite the newer one.
     expect((await save(edited)).status).toBe(200);
     expect((await save(first)).status).toBe(200);
 
@@ -194,13 +190,11 @@ describe("/api/resumes", () => {
       message: "You can keep up to 50 resumes. Delete one to save another.",
     });
 
-    // Updating one that's already saved still works at the cap.
     const first = saved[0];
     if (!first) throw new Error("no resumes saved");
     expect((await save({ ...first, title: "Updated", updatedAt: 50_000 })).status).toBe(200);
     expect(await list()).toHaveLength(MAX_RESUMES_PER_USER);
 
-    // Another account isn't affected by this one's cap.
     await signIn("grace@example.com");
     expect((await save(resume())).status).toBe(200);
   });
@@ -219,8 +213,6 @@ describe("/api/resumes", () => {
     expect(await list()).toEqual([]);
   });
 
-  // A phone's save can pass sign-in just before the account is deleted on a laptop. Landing after
-  // the delete, it would leave a row of resume data that nothing can reach or remove.
   it("writes nothing for an account deleted after the save was signed in", async () => {
     const user = await signIn("ada@example.com");
     const item = resume();
@@ -259,12 +251,10 @@ describe("Free's resume limit", () => {
     });
     expect(await list()).toEqual([first]);
 
-    // Edits to the one it has still save.
     const edited = { ...first, title: "First, edited", updatedAt: 9_000 };
     expect((await save(edited)).status).toBe(200);
     expect(await list()).toEqual([edited]);
 
-    // Deleting it frees the slot.
     await remove(first.id);
     expect((await save(resume({ title: "Another" }))).status).toBe(200);
   });
@@ -284,7 +274,6 @@ describe("Free's resume limit", () => {
     const user = await signIn("ada@example.com", "trial");
     const kept = [resume({ updatedAt: 3_000 }), resume({ updatedAt: 2_000 }), resume({ updatedAt: 1_500 })];
     for (const item of kept) await save(item);
-    // The trial ends without a payment.
     const db = await getDb();
     await db.update(users).set({ plan: "free", planStatus: "canceled", trialEndsAt: null }).where(eq(users.id, user.id));
 
@@ -314,12 +303,10 @@ describe("/api/resumes deletions", () => {
     expect((await remove(drop.id)).status).toBe(200);
     expect(await tombstonesOf(user.id)).toEqual([{ id: drop.id, deletedAt: expect.any(Number) }]);
 
-    // Device B still has the resume, edited after the delete, and uploads it.
     const res = await save({ ...drop, title: "Edited on device B", updatedAt: Date.now() + 60_000 });
     expect(await saved(res)).toEqual({ ok: true, deleted: true });
     expect(await listed()).toEqual({ resumes: [keep], deletedIds: [drop.id] });
 
-    // Retries and further edits stay deleted.
     expect(await saved(await save(drop))).toEqual({ ok: true, deleted: true });
     expect(await list()).toEqual([keep]);
   });
@@ -345,7 +332,6 @@ describe("/api/resumes deletions", () => {
     );
     const capped = (await listed()).deletedIds;
     expect(capped).toHaveLength(MAX_DELETED_IDS_LISTED);
-    // The two real deletions are the newest, then the inserted ones in deletion order.
     expect(new Set(capped.slice(0, 2))).toEqual(new Set([first.id, second.id]));
     expect(capped[2]).toBe("old-0000");
     expect(capped.at(-1)).toBe(`old-${String(MAX_DELETED_IDS_LISTED - 3).padStart(4, "0")}`);
@@ -366,14 +352,12 @@ describe("/api/resumes deletions", () => {
     await save(shared);
     await remove(shared.id);
 
-    // Ada's deletion doesn't stop Grace saving, listing or keeping her resume with that id.
     const grace = await signIn("grace@example.com");
     expect((await listed()).deletedIds).toEqual([]);
     expect(await saved(await save(shared))).toEqual({ ok: true, deleted: false });
     expect(await list()).toEqual([shared]);
     expect(await tombstonesOf(grace.id)).toEqual([]);
 
-    // Grace deleting a made-up id or her own copy never touches Ada's tombstone.
     await remove(resume().id);
     await remove(shared.id);
     expect(await tombstonesOf(grace.id)).toEqual([{ id: shared.id, deletedAt: expect.any(Number) }]);

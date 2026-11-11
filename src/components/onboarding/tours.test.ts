@@ -55,7 +55,6 @@ describe("dashboardTourEligible", () => {
     const home = { pathname: ROUTES.dashboard, hydrated: true };
     expect(dashboardTourEligible({ ...home, setupStep: "wait" })).toBe(false);
     expect(dashboardTourEligible({ ...home, setupStep: "show" })).toBe(false);
-    // Saved or skipped: the step reads "skip" and the tour starts in the same visit.
     expect(dashboardTourEligible({ ...home, setupStep: "skip" })).toBe(true);
   });
 });

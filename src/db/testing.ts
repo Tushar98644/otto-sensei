@@ -6,9 +6,6 @@ import type { Db } from "./client";
 import * as schema from "./schema";
 import { buildDatabase } from "./test-template";
 
-// Test-only stand-in for ./client, swapped in for every test by vitest.setup.ts: an in-memory
-// Postgres per test file, restored from the migrated template vitest.global-setup.ts builds.
-
 let pending: Promise<{ client: PGlite; db: Db }> | null = null;
 
 async function open(): Promise<PGlite> {
@@ -29,7 +26,6 @@ export async function getDb(): Promise<Db> {
   return (await instance()).db;
 }
 
-/** Raw SQL for setup drizzle can't express, such as rows in the auth.users shim. */
 export async function execSql(statement: string, params: unknown[] = []): Promise<void> {
   await (await instance()).client.query(statement, params);
 }

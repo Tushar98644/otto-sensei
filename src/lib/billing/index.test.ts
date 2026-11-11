@@ -122,7 +122,6 @@ describe("mock mode", () => {
     await createCheckoutUrl(user, "pro", "month");
     expect(await createPortalUrl(user)).toBe("/account?portal=mock");
     expect(await reload(user.id)).toMatchObject({ plan: "free", trialEndsAt: null, planStatus: "mock_cancelled" });
-    // Cancelled during the trial: the next checkout is the plain plan.
     expect(await trialAvailableFor(toSessionUser((await reload(user.id))!))).toBe(false);
 
     const never = await createUser();
@@ -154,7 +153,6 @@ describe("trial eligibility", () => {
     await recordTrialHistory(await getDb(), trialed.email, "trial");
     expect(await trialAvailableFor(trialed)).toBe(false);
 
-    // Deleted and signed up again: same email, new account, still no second trial.
     const again = await createUser({ email: `  ${trialed.email.toUpperCase()} ` });
     expect(await trialAvailableFor({ ...again, email: trialed.email.toUpperCase() })).toBe(false);
 
@@ -183,7 +181,6 @@ describe("creem mode", () => {
       metadata: { user_id: user.id },
       success_url: `${APP_URL}/account?checkout=success&plan=pro&trial=1`,
     });
-    // Test mode by default: the sandbox API, never real money.
     expect(requestedUrls()).toContain("https://test-api.creem.io/v1/checkouts");
   });
 
@@ -259,7 +256,6 @@ describe("creem mode", () => {
         success_url: `${APP_URL}/account?checkout=success&plan=max`,
       });
       expect(creem.callsTo("POST /v1/subscriptions")).toEqual([]);
-      // Nothing is cancelled until Max is paid: an abandoned checkout leaves the trial running.
       expect((await reload(user.id))?.planStatus).toBe("trialing");
     });
 
@@ -351,7 +347,6 @@ describe("creem mode", () => {
       ["incomplete", "portal"],
     ]);
     expect(planChangeRoute("scheduled_cancel", trial)).toBe("replace_trial");
-    // A failed first payment after the trial still needs the card fixed first.
     expect(planChangeRoute("past_due", trial)).toBe("fix_payment");
   });
 
@@ -378,7 +373,6 @@ describe("creem mode", () => {
   it("falls back to the stored subscription when Creem can't list them, and reports provider errors", async () => {
     useCreem();
     const user = await createUser({ planStatus: "paused", billingCustomerId: "cust_1", billingSubscriptionId: "sub_1" });
-    // Reads are retried once or twice, so Creem stays down for all of them.
     creem.failNext("GET /v1/customers", 500, 10);
     expect(await createCheckoutUrl(user, "pro", "month")).toBe("https://creem.test/portal/cust_1");
 

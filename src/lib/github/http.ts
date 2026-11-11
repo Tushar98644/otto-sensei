@@ -1,8 +1,7 @@
 import { env } from "@/lib/env";
 import { cacheGet, cacheSet, isFresh } from "./cache";
 
-// Only https://api.github.com is ever fetched: paths come from names that passed strict patterns,
-// and redirects are followed only on that origin. Each request's session allows 10 upstream calls.
+// Only api.github.com is fetched: paths come from checked names, redirects stay on that origin.
 
 const ORIGIN = "https://api.github.com";
 const API_VERSION = "2022-11-28";
@@ -10,7 +9,6 @@ const API_VERSION = "2022-11-28";
 const USER_AGENT = "otto-resume-github-import";
 export const MAX_CALLS_PER_REQUEST = 10;
 const CALL_TIMEOUT_MS = 6_000;
-// 100 repos with every URL GitHub lists for each run to about 1 MB.
 export const MAX_JSON_BYTES = 3 * 1024 * 1024;
 
 const REPO_NAME = /^[a-z\d](?:[a-z\d]|-(?=[a-z\d])){0,38}\/(?!\.+$)[\w.-]{1,100}$/i;
@@ -51,7 +49,6 @@ function headersFor(accept: string, etag: string | null): Headers {
     "X-GitHub-Api-Version": API_VERSION,
     "User-Agent": USER_AGENT,
   });
-  // Raises GitHub's limit from 60 to 5,000 calls an hour.
   const token = env().GITHUB_TOKEN;
   if (token) headers.set("Authorization", `Bearer ${token}`);
   if (etag) headers.set("If-None-Match", etag);
@@ -87,7 +84,6 @@ async function call(session: GitHubSession, path: string, accept: string, etag: 
       throw new GitHubError("unavailable", "GitHub didn't answer");
     }
     if (![301, 302, 307, 308].includes(res.status)) return res;
-    // Renamed accounts and repos redirect to their new API address, once.
     const next = sameOriginUrl(res.headers.get("location") ?? "", url);
     await res.body?.cancel();
     if (!next || hop >= 1) throw new GitHubError("unavailable", "GitHub redirected somewhere else");
@@ -97,7 +93,6 @@ async function call(session: GitHubSession, path: string, accept: string, etag: 
 
 function failureOf(res: Response, now: number): GitHubError {
   if (res.status === 403 || res.status === 429) {
-    // Secondary limits send Retry-After; the hourly limit sends its reset time instead.
     const retryAfter = res.headers.get("retry-after");
     if (retryAfter !== null && Number.isFinite(Number(retryAfter))) {
       return new GitHubError("rate_limited", "GitHub asked us to slow down", Number(retryAfter) * 1000);
@@ -149,8 +144,6 @@ export type GetOptions<T> = {
   parse: (body: string, truncated: boolean) => T;
 };
 
-// null when GitHub says it doesn't exist (or, for search, can't search that account). Both are
-// cached.
 export async function cachedGet<T>(session: GitHubSession, path: string, options: GetOptions<T>): Promise<T | null> {
   const cached = cacheGet(path, Date.now());
   if (cached && isFresh(cached, Date.now())) return cached.value as T | null;

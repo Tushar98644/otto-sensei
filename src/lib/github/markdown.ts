@@ -1,34 +1,27 @@
-// Code, links, badges and set-up chores carry no facts a resume line can use, and every URL left in
-// invites a bullet to repeat it, so they go.
-
 const SKIPPED_SECTION =
   /^(?:install(?:ation|ing)?|set ?up|getting started|quick ?start|usage|how to (?:use|run)|running|build(?:ing)?|development|local development|requirements|prerequisites|configuration|license|licen[cs]e and .*|contribut(?:ing|ors?|ion)|code of conduct|sponsors?|support|changelog|faq|table of contents|contents|checklist|screenshots?|related issues?|type of change|acknowledg(?:e)?ments?|credits)\b/i;
 
 const FENCE = /^\s*(```|~~~)/;
 const HEADING = /^\s{0,3}(#{1,6})\s+(.*?)\s*#*\s*$/;
-// A table's divider row: | --- | :---: |
 const TABLE_DIVIDER = /^\s*\|?\s*:?-{3,}:?\s*(?:\|\s*:?-{3,}:?\s*)*\|?\s*$/;
 
 function inlineText(line: string): string {
-  return (
-    line
-      .replace(/!\[[^\]]*\]\([^)]*\)/g, " ")
-      .replace(/!\[[^\]]*\]\[[^\]]*\]/g, " ")
-      .replace(/\[([^\]]*)\]\([^)]*\)/g, "$1")
-      .replace(/\[([^\]]*)\]\[[^\]]*\]/g, "$1")
-      .replace(/<[^>]*>/g, " ")
-      .replace(/https?:\/\/\S+/gi, " ")
-      .replace(/`([^`]*)`/g, "$1")
-      // Emphasis markers, but not the underscores inside snake_case names.
-      .replace(/(\*{1,3}|(?<![\p{L}\p{N}])_{1,3}|_{1,3}(?![\p{L}\p{N}]))/gu, "")
-      .replace(/^\s*(?:>\s*)+/, "")
-      .replace(/^\s*(?:[-*+]|\d+[.)])\s+(?:\[[ xX]\]\s+)?/, "")
-      .replace(/\|/g, " ")
-      .replace(/&nbsp;|&#160;/gi, " ")
-      .replace(/&amp;/gi, "&")
-      .replace(/\s+/g, " ")
-      .trim()
-  );
+  return line
+    .replace(/!\[[^\]]*\]\([^)]*\)/g, " ")
+    .replace(/!\[[^\]]*\]\[[^\]]*\]/g, " ")
+    .replace(/\[([^\]]*)\]\([^)]*\)/g, "$1")
+    .replace(/\[([^\]]*)\]\[[^\]]*\]/g, "$1")
+    .replace(/<[^>]*>/g, " ")
+    .replace(/https?:\/\/\S+/gi, " ")
+    .replace(/`([^`]*)`/g, "$1")
+    .replace(/(\*{1,3}|(?<![\p{L}\p{N}])_{1,3}|_{1,3}(?![\p{L}\p{N}]))/gu, "")
+    .replace(/^\s*(?:>\s*)+/, "")
+    .replace(/^\s*(?:[-*+]|\d+[.)])\s+(?:\[[ xX]\]\s+)?/, "")
+    .replace(/\|/g, " ")
+    .replace(/&nbsp;|&#160;/gi, " ")
+    .replace(/&amp;/gi, "&")
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 export function markdownExcerpt(markdown: string, maxChars: number): string {
@@ -36,7 +29,6 @@ export function markdownExcerpt(markdown: string, maxChars: number): string {
   const lines: string[] = [];
   let length = 0;
   let inFence = false;
-  // The level of the heading whose section is being skipped, 0 when none.
   let skipping = 0;
 
   for (const raw of source.split("\n")) {
@@ -57,7 +49,6 @@ export function markdownExcerpt(markdown: string, maxChars: number): string {
       }
     } else if (!skipping && !TABLE_DIVIDER.test(raw) && !/^\s*\[[^\]]+\]:\s*\S+/.test(raw)) {
       const text = inlineText(raw);
-      // Lines without a word are leftovers of badges, rules and tables.
       if (/\p{L}{2}/u.test(text)) {
         lines.push(text);
         length += text.length + 1;

@@ -6,8 +6,6 @@ import { ROUTES } from "./routes";
 
 export type SiteLogoProps = {
   className?: string;
-  // Under a 20rem @container the wordmark is sr-only, so the call to action still fits. It also
-  // truncates if a font renders wider than expected.
   compact?: boolean;
 };
 
@@ -22,7 +20,6 @@ export function SiteLogo({ className, compact = false }: SiteLogoProps) {
       )}
     >
       <OttoMark className="size-7 sm:size-8" />
-      {/* The one weight-500 serif on the site: at 24px the regular weight looks too faint for a mark. */}
       <span
         className={cn(
           "font-display text-xl/none font-medium tracking-tight text-ink sm:text-2xl/none",

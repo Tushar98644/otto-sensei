@@ -5,8 +5,6 @@ import { billedTokens, jsonSchemaFor, runStructured, type StructuredRequest } fr
 import { metered } from "./token-meter";
 import { AIError } from "./types";
 
-// Only fetch is replaced, so request building, response parsing, retries and error mapping all run
-// for real without touching the network.
 const fetchMock = vi.fn<(input: string | URL | Request, init?: RequestInit) => Promise<Response>>();
 vi.stubGlobal("fetch", fetchMock);
 
@@ -337,7 +335,6 @@ describe("runStructured errors and retries", () => {
 });
 
 describe("runStructured billed tokens", () => {
-  // Runs the call inside a meter and returns what it was billed, whether it succeeded or not.
   async function billed(run: () => Promise<unknown>): Promise<number> {
     let tokens = -1;
     await metered(run, async (total) => {

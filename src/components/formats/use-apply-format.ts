@@ -10,14 +10,11 @@ import { useStudioHydrated, useStudioStore } from "@/lib/store/resume-store";
 import { formatTarget, sampleWithFormat } from "./apply-format";
 
 export type ApplyFormat = {
-  // False until the browser's saved resumes are loaded; before that "no resumes" isn't known yet.
   ready: boolean;
   target: Resume | null;
   apply: (id: TemplateId) => Promise<void>;
 };
 
-// With no resume yet, a sample stands in. A Pro format on Free offers the trial; its gallery
-// preview stays open to everyone.
 export function useApplyFormat(): ApplyFormat {
   const router = useRouter();
   const ready = useStudioHydrated();

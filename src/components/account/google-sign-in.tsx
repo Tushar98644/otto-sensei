@@ -12,14 +12,12 @@ export type GoogleSignInProps = {
   onError: (message: string) => void;
 };
 
-// The server starts sign-in (it sets the verifier cookie), then the browser leaves for Google.
 export function GoogleSignIn({ next, disabled = false, onError }: GoogleSignInProps) {
   const [pending, setPending] = useState(false);
-  // Development's dev sign-in (and a deployment without Supabase) has no Google to send people to.
   const mode = useMe().me?.auth.mode;
   const unavailable = mode === "dev" || mode === "off";
 
-  // Coming back with the browser's Back button restores this page as it was left, spinner and all.
+  // Back from Google restores this page from bfcache, spinner and all.
   useEffect(() => {
     const reset = (event: PageTransitionEvent) => {
       if (event.persisted) setPending(false);
@@ -64,7 +62,6 @@ export function GoogleSignIn({ next, disabled = false, onError }: GoogleSignInPr
   );
 }
 
-// Google's "G" unchanged: its four brand colors are part of the mark, so raw hex, not tokens.
 function GoogleMark() {
   return (
     <svg viewBox="0 0 48 48" aria-hidden="true" className="size-4.5">

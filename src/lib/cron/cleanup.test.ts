@@ -45,7 +45,6 @@ describe("runCleanup", () => {
       { userId: maya.id, id: "new", deletedAt: NOW - DAY },
     ]);
     await seedNotification(maya.id, NOW - RETENTION.readNotificationsMs - 1, NOW - 80 * DAY);
-    // Old but still unread: kept until the longer limit.
     await seedNotification(maya.id, NOW - RETENTION.readNotificationsMs - 1, null);
     await seedNotification(maya.id, NOW - RETENTION.anyNotificationsMs - 1, null);
     await seedNotification(maya.id, NOW - DAY, NOW);
@@ -90,7 +89,6 @@ describe("runCleanup", () => {
     expect((await db.select().from(resumeTombstones)).map((row) => row.id)).toEqual(["new"]);
     expect(await db.select().from(notifications)).toHaveLength(2);
     expect((await db.select().from(billingEvents)).map((row) => row.id)).toEqual(["evt_new"]);
-    // Old actions stay: only impressions age out.
     expect((await db.select().from(matchEvents)).map((row) => row.id).sort()).toEqual(
       [oldSave.id, newImpression.id].sort(),
     );

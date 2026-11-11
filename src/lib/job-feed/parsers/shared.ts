@@ -9,7 +9,6 @@ export type RawJob = {
   location: string;
   remote: boolean;
   employmentType: EmploymentType | null;
-  // Epoch ms, or null when the source doesn't say.
   postedAt: number | null;
   validThrough: number | null;
   url: string;
@@ -42,7 +41,6 @@ export function joinLocation(parts: readonly (string | null | undefined)[]): str
 
 export const REMOTE_WORDS = /\b(?:remote|anywhere|distributed|work from home)\b/i;
 
-// Lists of items where one bad entry must not lose the rest.
 export function eachItem<T>(items: readonly unknown[], schema: z.ZodType<T>): T[] {
   return items.flatMap((item) => {
     const parsed = schema.safeParse(item);
@@ -61,7 +59,6 @@ export function typeFrom(value: string | null | undefined): EmploymentType | nul
   return null;
 }
 
-// LinkedIn-style levels (Workable, Recruitee) and Personio's four; the title's level wins.
 const BOARD_LEVELS: Record<string, Seniority> = {
   internship: "intern",
   student: "intern",

@@ -14,7 +14,6 @@ import type { StudioActions } from "./use-studio-actions";
 
 type Option = { label: string; detail: string; icon: LucideIcon; run: () => void };
 
-// The same starts as the studio's upload screen, in its order, as a row list (DESIGN.md: no tiles).
 export function StartOptions({ actions }: { actions: StudioActions }) {
   const options: Option[] = [
     {

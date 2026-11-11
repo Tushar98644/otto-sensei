@@ -14,13 +14,11 @@ import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { STEP_LABELS, useStudioStore } from "@/lib/store/resume-store";
 
-// Subscribes to the active id only, so typing never re-renders the whole step.
 export function FixStep() {
   const resumeId = useStudioStore((state) =>
     state.activeId !== null && Object.hasOwn(state.resumes, state.activeId) ? state.activeId : null,
   );
 
-  // From Home's "Lines to improve": focus the first weak line, with its tip and Fix in view.
   useEffect(() => {
     const bulletId = takeArrivingLine();
     if (bulletId) focusWhenShown(bulletInputId(bulletId));
@@ -33,7 +31,6 @@ export function FixStep() {
       <h2 className="sr-only">{STEP_LABELS.fix}</h2>
       <FixOutline key={`outline-${resumeId}`} resumeId={resumeId} />
       <div className="flex min-w-0 flex-col gap-6">
-        {/* Keyed so switching resumes starts clean, with no half-typed skill carried over. */}
         <ResumeEditor
           key={resumeId}
           resumeId={resumeId}

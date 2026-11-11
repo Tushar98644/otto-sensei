@@ -21,7 +21,6 @@ export type ResumeSwitcherItemProps = {
   active: boolean;
   now: number;
   onSelect: () => void;
-  // Called after the row deletes its resume, to put focus somewhere that still exists.
   onDeleted: () => void;
 };
 
@@ -42,7 +41,6 @@ export function ResumeSwitcherItem({
   const title = resumeLabel(resume);
   const tailored = tailoredLabel(resume);
 
-  // Keeps keyboard focus on the control that replaced the one just used.
   useEffect(() => {
     const previous = previousMode.current;
     previousMode.current = mode;
@@ -67,7 +65,7 @@ export function ResumeSwitcherItem({
     setMode("view");
   }
 
-  // Escape cancels the rename only; without preventDefault it would also close the whole menu.
+  // Escape cancels the rename only; without preventDefault it would also close the menu.
   function handleRenameKeyDown(event: KeyboardEvent<HTMLInputElement>) {
     if (event.key !== "Escape") return;
     event.preventDefault();

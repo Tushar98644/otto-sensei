@@ -15,7 +15,6 @@ import { setGitHub } from "./content-store";
 import { SectionCard, ShowRow } from "./section-card";
 
 const ago = new Intl.RelativeTimeFormat("en", { numeric: "auto" });
-// What the way back from "Connect GitHub" names on this page (see connect-return.ts).
 const RETURN_TARGET = "portfolio";
 
 function since(iso: string | null, now = Date.now()): string {
@@ -24,8 +23,7 @@ function since(iso: string | null, now = Date.now()): string {
   return `active ${ago.format(days, "day")}`;
 }
 
-// Numbers come only from the GitHub account the owner connected, never a typed username, so a
-// page can't show someone else's stars as its owner's.
+// Only from the connected GitHub account, never a typed name: no showing someone else's stars.
 export function GitHubCard({
   content,
   github,

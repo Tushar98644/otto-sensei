@@ -5,7 +5,6 @@ import { useRef, useState, type ChangeEvent, type KeyboardEvent, type MouseEvent
 import { Label } from "@/components/ui/label";
 import { splitSkillDraft, splitSkills } from "./edits";
 
-// Room for a whole pasted skills line; each skill is trimmed to the schema's cap when it's added.
 const MAX_DRAFT_CHARS = 2_000;
 
 export type ChipsInputProps = {
@@ -14,13 +13,10 @@ export type ChipsInputProps = {
   items: string[];
   onAdd: (items: string[]) => void;
   onRemove: (index: number) => void;
-  // No room for more; the input says so instead of accepting text that would be dropped.
   full: boolean;
-  // For screen readers only, when a heading right above already says what the list is.
   labelHidden?: boolean;
 };
 
-// Text left in the box is added on blur, so nothing typed is lost.
 export function ChipsInput({
   id,
   label,
@@ -60,7 +56,6 @@ export function ChipsInput({
 
   function remove(index: number) {
     onRemove(index);
-    // The chip's own button is about to disappear; keep focus in the field.
     inputRef.current?.focus();
   }
 

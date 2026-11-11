@@ -38,7 +38,6 @@ describe("loading screen timing", () => {
     vi.advanceTimersByTime(minShownMs - 100 - 1);
     expect(screen.getState().phase).toBe("shown");
     vi.advanceTimersByTime(1);
-    // The line stays while it fades, so the text doesn't vanish first.
     expect(screen.getState()).toEqual({ phase: "leaving", detail: "Loading your resumes" });
     vi.advanceTimersByTime(fadeMs);
     expect(screen.getState()).toEqual({ phase: "hidden", detail: null });
@@ -58,7 +57,6 @@ describe("loading screen timing", () => {
     vi.advanceTimersByTime(delayMs);
     const resumes = screen.request("Loading your resumes");
     expect(screen.getState().detail).toBe("Loading your resumes");
-    // The page that asked first goes away; the next one still loading keeps it up.
     signIn();
     vi.advanceTimersByTime(minShownMs + fadeMs);
     expect(screen.getState()).toEqual({ phase: "shown", detail: "Loading your resumes" });

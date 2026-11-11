@@ -6,14 +6,12 @@ export type LegalPageProps = {
   children: ReactNode;
 };
 
-// LEGAL_LAST_UPDATED is a plain calendar date, so it's read and shown in UTC; a local time zone
-// west of UTC would show the day before.
+// A plain calendar date: format it in UTC, or zones west of UTC show the day before.
 const LAST_UPDATED_LABEL = new Intl.DateTimeFormat("en-US", {
   dateStyle: "long",
   timeZone: "UTC",
 }).format(new Date(`${LEGAL_LAST_UPDATED}T00:00:00Z`));
 
-// The last-updated date sits up top, as the policies promise.
 export function LegalPage({ title, children }: LegalPageProps) {
   return (
     <div className="container-page py-12 sm:py-16">

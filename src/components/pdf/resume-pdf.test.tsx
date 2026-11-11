@@ -13,13 +13,9 @@ import {
   sampleResume,
 } from "./test-fixtures";
 
-// Proof the export is readable by hiring software: render real PDF bytes, pull the text back out
-// with pdf.js, and run the same recruiter checks the "Check my new PDF" button runs.
-
 describe("ResumePdf", () => {
   it("reads back top to bottom in the resume's section order", async () => {
     const text = flatten(await readText(await render(sampleResume())));
-    // Classic: the employer and place, then the title and dates, under centered headings.
     expectInOrder(text, [
       "Maya Lindqvist",
       "Senior Backend Engineer",
@@ -61,7 +57,6 @@ describe("ResumePdf", () => {
     const resume = sampleResume();
     const long = "Kubernetes infrastructure orchestration observability ".repeat(12).trim();
     resume.experience[0]!.bullets[0] = { id: "b1", text: long };
-    // Long mixed-style lines too: the bold title, the company and the muted location all wrap.
     resume.experience[1] = {
       ...resume.experience[1]!,
       title: "Principal Software Engineer, Payments Infrastructure and Developer Platform",
@@ -83,7 +78,6 @@ describe("ResumePdf", () => {
     const url = `https://example.com/${"portfolio/case-studies/".repeat(6)}payments-platform-rebuild`;
     resume.basics.links = [{ id: "l1", label: "Portfolio", url }];
     const text = await readText(await render(resume));
-    // A break inside a token adds a hyphen at the end of the line; nothing may go missing.
     expect(text.replace(/-\n/g, "")).toContain(url.replace("https://", ""));
   });
 

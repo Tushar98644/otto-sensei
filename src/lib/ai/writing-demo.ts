@@ -2,11 +2,8 @@ import type { Resume } from "@/lib/resume/schema";
 import { asResumeLine } from "./text";
 import type { WritingInput } from "./types";
 
-// Demo mode (no API key): a letter and an answer stitched from the resume's own lines.
-
 const MAX_LINES = 3;
 
-// "Built the billing API" reads as part of "I built the billing API"; "AWS migration…" stays.
 function lowerFirst(text: string): string {
   return text.replace(/^\p{Lu}(?=\p{Ll})/u, (letter) => letter.toLowerCase());
 }

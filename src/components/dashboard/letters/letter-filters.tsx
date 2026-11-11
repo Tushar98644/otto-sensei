@@ -12,7 +12,6 @@ export const LETTER_FILTER_NAMES: Record<LetterFilter, string> = {
   answer: "Answers",
 };
 
-// A kind with nothing in it stays out of the way unless picked.
 export function LetterFilters({
   filter,
   counts,

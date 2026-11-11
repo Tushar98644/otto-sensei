@@ -7,8 +7,7 @@ import { RevealFrame } from "./reveal-frame";
 import { KATAKANA_PROFILE } from "./sprites";
 import { Button, Divider } from "./ui";
 
-// HamishMW/portfolio routes/home/profile.jsx. The portrait tile shows the owner's initials over
-// the sphere's cyan where he has his photo.
+// Ported from HamishMW/portfolio routes/home/profile.jsx (MIT, see ./LICENSE.txt).
 export function Profile({
   id,
   paragraphs,
@@ -17,7 +16,6 @@ export function Profile({
   caption,
 }: {
   id: string;
-  // Server-rendered paragraphs (the owner's highlighted phrases already marked).
   paragraphs: ReactNode[];
   contact: string | null;
   initials: string;

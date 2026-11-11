@@ -64,7 +64,6 @@ describe("draftResume", () => {
       headline: "Customer Success Manager",
       summary: "Support specialist who answers 40 customer emails a day. Led a team of 12 agents.",
       jobs: [
-        // The second line claims charge of training the note only helped with.
         { index: 0, bullets: ["Answered 40 customer emails a day in Zendesk, cutting wait times by 30%", "Led onboarding for new hires"] },
         { index: 1, bullets: ["Opened the shop on weekends"] },
       ],
@@ -74,7 +73,6 @@ describe("draftResume", () => {
     expect(usedAI).toBe(true);
     const request = runStructured.mock.calls[0]?.[0];
     expect(request?.user).toContain("<experience>");
-    // Names and contact details are never part of the request.
     expect(request?.user).not.toContain("@");
 
     expect(resume.experience[0]?.bullets.map((b) => b.text)).toEqual([

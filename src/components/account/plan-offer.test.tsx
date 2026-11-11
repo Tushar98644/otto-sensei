@@ -54,7 +54,6 @@ describe("PlanOffer", () => {
     expect(text).toContain(`Free for 3 days, then ${usd(PRICES_USD.pro.month)}/month.`);
     expect(text).toContain("Upgrade to Max");
     expect(text).toContain("Everything in Pro, with more:");
-    // One button is focused when the dialog opens.
     expect(html.match(/data-autofocus/g)).toHaveLength(1);
   });
 
@@ -91,7 +90,6 @@ describe("PlanOffer", () => {
     expect(text).toContain("Sold monthly only, for now.");
     expect(text).toContain(`Max ${usd(PRICES_USD.max.year)} /year`);
 
-    // One option on sale: nothing to pick.
     expect(
       render("free", "month", { offer: { pro: ["month"], max: ["month"] } }).text,
     ).not.toContain("How often to pay");

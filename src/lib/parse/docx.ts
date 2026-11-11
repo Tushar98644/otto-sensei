@@ -15,12 +15,10 @@ import {
 import { countIconGlyphs, countWords, hasReadableText, toLines } from "./text";
 import { ParseError, type Extraction } from "./types";
 
-// A 4 MB zip can inflate to gigabytes, so every part is inflated through a byte counter. This path
-// has no deadline, so the caps also bound how long mammoth can hold the server.
+// A 4 MB zip can inflate to gigabytes, so every part goes through a byte counter.
 const MAX_ENTRIES = 1_000;
 const MAX_PART_BYTES = 2 * 1024 * 1024;
 const MAX_TOTAL_XML_BYTES = 5 * 1024 * 1024;
-// Fallback when docProps/app.xml has no page count: a dense resume page holds ~450 words.
 const WORDS_PER_PAGE = 450;
 
 const DOCUMENT_PART = "word/document.xml";
@@ -30,7 +28,6 @@ const XML_PART = /\.(?:xml|rels)$/i;
 const unreadable = () =>
   new ParseError("corrupt", "We couldn't read that Word file. Try saving it again, or upload a PDF instead.");
 
-// Body text from mammoth, which (like many ATSs) ignores headers and footers; layout from the XML.
 export async function extractDocx(data: Uint8Array): Promise<Extraction> {
   const parts = await readXmlParts(data);
   const documentXml = parts.get(DOCUMENT_PART);
@@ -42,7 +39,6 @@ export async function extractDocx(data: Uint8Array): Promise<Extraction> {
     .filter((name) => HEADER_FOOTER_PART.test(name))
     .sort((a, b) => a.localeCompare(b, "en", { numeric: true }))
     .map((name) => parts.get(name) ?? "");
-  // Word often repeats one header for the first, odd and even pages; list each text once.
   const headerFooterText = [...new Set(headerFooterXml.map(partText).filter(Boolean))].join("\n");
 
   const wordCount = countWords(text);
@@ -70,7 +66,6 @@ export async function extractDocx(data: Uint8Array): Promise<Extraction> {
   };
 }
 
-// Every XML part of the package, decoded. Media files are never inflated: nothing here reads them.
 async function readXmlParts(data: Uint8Array): Promise<Map<string, string>> {
   let zip: JSZip;
   try {
@@ -87,7 +82,6 @@ async function readXmlParts(data: Uint8Array): Promise<Map<string, string>> {
   for (const file of files) {
     if (file.dir || !XML_PART.test(file.name)) continue;
     const xml = decodeXml(await inflateBounded(file, budget));
-    // Word never writes these. A broken part is left out; only a broken body fails the read.
     if (hasBrokenTags(xml)) {
       broken += 1;
       if (file.name === DOCUMENT_PART) {
@@ -108,7 +102,6 @@ function inflateBounded(file: JSZip.JSZipObject, budget: { left: number }): Prom
     // jszip's stream is readable-stream v2: events work, async iteration doesn't.
     stream = file.nodeStream("nodebuffer");
   } catch (error) {
-    // Unsupported compression methods throw here rather than emitting an error.
     log.warn("parse.docx_unreadable", {}, error);
     return Promise.reject(unreadable());
   }
@@ -119,7 +112,6 @@ function inflateBounded(file: JSZip.JSZipObject, budget: { left: number }): Prom
     const fail = (error: unknown) => {
       if (settled) return;
       settled = true;
-      // Pausing stops jszip inflating further chunks; the stream is then simply dropped.
       stream.pause();
       stream.removeAllListeners("data");
       if (!(error instanceof ParseError)) log.warn("parse.docx_unreadable", {}, error);
@@ -152,8 +144,7 @@ function decodeXml(bytes: Uint8Array): string {
   return new TextDecoder("utf-8").decode(bytes);
 }
 
-// A rebuilt package of only size-checked parts, so mammoth can't inflate anything we haven't
-// measured.
+// Only size-checked parts are repackaged, so mammoth can't inflate anything unmeasured.
 async function readBodyText(parts: ReadonlyMap<string, string>): Promise<string> {
   try {
     const clean = new JSZip();

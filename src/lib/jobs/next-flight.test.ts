@@ -16,8 +16,6 @@ function push(text: string): string {
   return `<script>self.__next_f.push([1,${JSON.stringify(text)}])</script>`;
 }
 
-// How jobs.micro1.ai ships it: next/script renders the JSON-LD on the client, so the HTML only
-// has a "$1b" reference and the JSON sits in a text row of the stream.
 function micro1Page(): string {
   const json = JSON.stringify(JOB);
   const row = `1b:T${Buffer.byteLength(json).toString(16)},${json}`;
@@ -27,7 +25,6 @@ function micro1Page(): string {
     body:
       '<div id="root"></div>' +
       push('5:["$","$L2",null,{"id":"jobPosting-jsonld","type":"application/ld+json","children":"$1b"}]\n') +
-      // Long rows are split across scripts.
       push(row.slice(0, half)) +
       push(row.slice(half) + "\n"),
   });

@@ -7,19 +7,14 @@ import {
   type TemplateId,
 } from "@/lib/resume/schema";
 
-// react-pdf free, so the picker and gallery list formats without the renderer
-// (src/components/pdf/registry.ts pairs them with their components).
-
 export type TemplateInfo = {
   id: TemplateId;
   name: string;
   description: string;
   bestFor: string;
-  // Offered, never forced: the PDF always follows the resume's own order.
   sectionOrderHint?: readonly SectionKey[];
 };
 
-// Names and copy describe the look, never the school or person a layout comes from.
 export const TEMPLATE_INFO: Record<TemplateId, TemplateInfo> = {
   classic: {
     id: "classic",
@@ -84,7 +79,6 @@ export function templateOf(resume: Pick<Resume, "template">): TemplateId {
   return isTemplateId(resume.template) ? resume.template : DEFAULT_TEMPLATE;
 }
 
-// The hint's shown sections first, then the rest in their current order.
 export function orderByHint(
   order: readonly SectionKey[],
   hint: readonly SectionKey[],
@@ -112,8 +106,6 @@ export function canUseTemplate(plan: PlanId, id: TemplateId): boolean {
   return hasProTools(plan) || !isProTemplate(id);
 }
 
-// A Pro format on Free (say, set before a paid plan ended) downloads in Classic; the resume keeps
-// its format, so it's back once Pro is.
 export function forPlan(resume: Resume, plan: PlanId): Resume {
   return canUseTemplate(plan, templateOf(resume)) ? resume : withTemplate(resume, DEFAULT_TEMPLATE);
 }

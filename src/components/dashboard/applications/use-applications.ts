@@ -13,20 +13,16 @@ import { APPLICATIONS, queryKeys } from "@/lib/queries/keys";
 import { fetchAllApplications, type ReminderSettingsData } from "@/lib/queries/options";
 import { sortApplications, upsertApplication, withoutApplication } from "./view";
 
-// Every change shows at once and rolls back if the server says no.
-
 export type ApplicationsStatus = "loading" | "ready" | "error";
 
 type Change = (items: Application[]) => Application[];
 
 const EMPTY: Application[] = [];
 
-// Changes made while a load is on its way, replayed over its answer so none of them is lost.
+// Changes made during a load, replayed over its answer so none is lost.
 let replay: Change[] = [];
-// Deletes still inside their undo window: the server keeps them until then, so a fresh load must
-// not bring them back.
+// Deletes in their undo window: the server still has them, so a fresh load must not restore them.
 const hidden = new Set<string>();
-// Applications shown before the server has them, by the id they keep (see addApplication).
 const creating = new Map<string, Promise<unknown>>();
 
 export const applicationsQuery = (userId: string) =>
@@ -49,7 +45,6 @@ function apply(change: Change) {
   if (client.isFetching({ queryKey: APPLICATIONS }) > 0) replay.push(change);
 }
 
-// The row as the server will store it, so it shows (and links to its page) at once.
 function draftApplication(id: string, body: CreateApplicationBody, now: number): Application {
   const status = body.status ?? "applied";
   const userId = signedInUserId();
@@ -78,13 +73,10 @@ function draftApplication(id: string, body: CreateApplicationBody, now: number):
   };
 }
 
-/** Waits for the create of an application that was shown before the server had it. */
 async function created(id: string): Promise<void> {
   await creating.get(id);
 }
 
-// Shows at once under the id it keeps, so its links work right away; the server's copy replaces
-// it, or it goes again if the server says no.
 export async function addApplication(body: CreateApplicationBody): Promise<Application> {
   const id = crypto.randomUUID();
   apply((items) => upsertApplication(items, draftApplication(id, body, Date.now())));
@@ -95,7 +87,7 @@ export async function addApplication(body: CreateApplicationBody): Promise<Appli
   );
   try {
     const { application } = await request;
-    // The draft's clock is the browser's, so the server's copy replaces it whatever its time.
+    // The draft uses the browser's clock, so the server's copy replaces it whatever its time.
     apply((items) => upsertApplication(withoutApplication(items, id), application));
     return application;
   } catch (error) {
@@ -106,8 +98,6 @@ export async function addApplication(body: CreateApplicationBody): Promise<Appli
   }
 }
 
-// Status, reminder and interview-day changes show at once and roll back on failure; other fields
-// wait for the server, since they come from a dialog that's still open.
 export async function changeApplication(
   original: Application,
   patch: UpdateApplicationBody,
@@ -121,7 +111,6 @@ export async function changeApplication(
         : {
             status,
             stageReached: stageAfter(original.stageReached, status),
-            // The server sets the new date; until it answers, only "none" is certain.
             ...(status === "applied" ? {} : { followUpAt: null }),
           }),
       ...(followUpAt === undefined ? {} : { followUpAt }),
@@ -135,7 +124,6 @@ export async function changeApplication(
     apply((items) => upsertApplication(items, application));
     return application;
   } catch (error) {
-    // Deleted on another device: drop it here too instead of showing a row that can't be saved.
     if (isApiError(error, "not_found")) apply((items) => withoutApplication(items, original.id));
     else apply((items) => upsertApplication(items, original));
     throw error;
@@ -153,8 +141,6 @@ export async function removeApplication(application: Application): Promise<void>
   }
 }
 
-// The two halves of a delete that can be undone: hide the row now, and send the delete only once
-// the chance to undo it has passed (or the page is closing).
 export function hideApplication(application: Application): void {
   hidden.add(application.id);
   apply((items) => withoutApplication(items, application.id));
@@ -179,7 +165,6 @@ export async function commitDelete(
   }
 }
 
-/** Marks these as no reply, in chunks the API takes. Resolves with how many changed. */
 export async function markNoReply(list: readonly Application[]): Promise<number> {
   const ids = new Set(list.map((application) => application.id));
   apply((items) =>
@@ -198,7 +183,6 @@ export async function markNoReply(list: readonly Application[]): Promise<number>
     }
     return changed;
   } catch (error) {
-    // Rows a finished chunk already saved are newer than these copies, so they stay saved.
     apply((items) => list.reduce(upsertApplication, items));
     throw error;
   }

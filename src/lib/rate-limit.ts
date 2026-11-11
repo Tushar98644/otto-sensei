@@ -3,8 +3,6 @@ import { getDb } from "@/db/client";
 import { rateLimits } from "@/db/schema";
 import { log } from "@/lib/log";
 
-// Fixed-window counter in `rate_limits`. Swap for Redis if the DB ever becomes the bottleneck.
-
 export type RateLimitResult = {
   allowed: boolean;
   remaining: number;
@@ -12,15 +10,11 @@ export type RateLimitResult = {
 };
 
 const RETENTION_MS = 2 * 24 * 60 * 60 * 1000;
-// Cleanup runs when `now` lands on a multiple of this: about 1 call in 50 in production, and on
-// demand in tests without mocking Math.random.
 const CLEANUP_EVERY = 50;
 const CLEANUP_BATCH = 500;
 // Keys embed caller-controlled text (emails, forwarded IPs), so cap them to keep rows small.
 const MAX_KEY_LENGTH = 512;
 
-// One upsert per call; now and then also prunes windows older than 2 days.
-// Keys look like "import:device:<uuid>", "import:ip:<ip>", "code:email:<email>".
 export async function rateLimit(
   key: string,
   limit: number,
@@ -54,7 +48,6 @@ async function countInDb(key: string, windowStart: number, now: number): Promise
   return row.count;
 }
 
-// Retry-After is in whole seconds; round up so clients never retry a moment too early.
 export function retryAfterHeader(retryAfterMs: number): Record<string, string> {
   return { "Retry-After": String(Math.max(1, Math.ceil(retryAfterMs / 1000))) };
 }
@@ -64,8 +57,6 @@ export function waitText(retryAfterMs: number): string {
   return minutes === 1 ? "1 minute" : `${minutes} minutes`;
 }
 
-// Bounded per run so one unlucky request never pays for a large backlog. Failures only delay
-// cleanup, so they must not fail the request that triggered it.
 async function pruneOldWindows(now: number): Promise<void> {
   try {
     const db = await getDb();
@@ -74,7 +65,6 @@ async function pruneOldWindows(now: number): Promise<void> {
       .from(rateLimits)
       .where(lt(rateLimits.windowStart, now - RETENTION_MS))
       .limit(CLEANUP_BATCH);
-    // By primary key, so each run deletes at most CLEANUP_BATCH rows found through the index.
     await db.delete(rateLimits).where(sql`(${rateLimits.key}, ${rateLimits.windowStart}) in ${stale}`);
   } catch (error) {
     log.warn("rate_limit.cleanup_failed", {}, error);

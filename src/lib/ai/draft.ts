@@ -11,10 +11,6 @@ import { maskInventedNumbers, novelWordShare, NUMBER_PLACEHOLDER } from "./guard
 import { asResumeLine, capitalize, clip, clipWords, cleanList, oneLine, tag } from "./text";
 import { droppedSupport, sentencesOf, upgradedVerbs } from "./writing-guards";
 
-// "Build with Otto": the model only rewrites the notes; code re-checks each line against them.
-// Without AI, the draft is the notes as typed.
-
-// TODO: give drafting its own AITask in ./client.ts; "fix" has the closest cost profile.
 const TASK: AITask = "fix";
 const MAX_TOKENS = 6_000;
 const SUMMARY_CHARS = 600;
@@ -89,11 +85,9 @@ export function checkedBullet(
   return line;
 }
 
-// No single note backs a summary sentence, so every number and claim of charge must come from them.
 function summaryBacked(sentence: string, notes: readonly string[]): boolean {
   if (sentence.includes(NUMBER_PLACEHOLDER) || upgradedVerbs(sentence, notes).length > 0)
     return false;
-  // "Helped train new hires" retold as "trained new hires": the note's words, minus the help.
   if (
     notes.some((note) => novelWordShare([note], sentence) <= 0.5 && droppedSupport(note, sentence))
   )
@@ -113,7 +107,6 @@ function applyOutput(input: DraftRequest, output: DraftOutput, resume: Resume): 
   const experience = resume.experience.map((entry, index) => {
     const job = input.jobs[index]!;
     const bullets = byIndex.get(index);
-    // A different count means bullets can't be paired with notes, so each is checked against them all.
     if (!bullets || bullets.length === 0) return entry;
     const paired = bullets.length === job.notes.length;
     const lines = bullets
@@ -162,7 +155,6 @@ export async function draftResume(input: DraftRequest, now = Date.now()): Promis
   if (!aiEnabled()) return { resume, usedAI: false };
   const call = { userId: null, task: "draft", aiTask: TASK, startedAt: Date.now() };
   try {
-    // An email, phone or link typed into a note is found by pattern and put back before the checks.
     const redactor = createRedactor();
     const output = await runStructured({
       task: TASK,
@@ -177,7 +169,6 @@ export async function draftResume(input: DraftRequest, now = Date.now()): Promis
     return { resume: drafted, usedAI: true };
   } catch (error) {
     trackAICall(call, error);
-    // Their own lines are still a working first draft, so a failed call never costs them the form.
     log.warn("draft.ai_failed", { jobs: input.jobs.length }, error);
     return { resume, usedAI: false };
   }

@@ -25,7 +25,6 @@ import {
 } from "./schema";
 import { ResumeSchema, TemplateIdSchema } from "@/lib/resume/validation";
 
-// A resume saved before formats existed: everything but `template`.
 function savedBeforeFormats(): Partial<Resume> {
   const old: Partial<Resume> = emptyResume(0);
   delete old.template;
@@ -102,7 +101,6 @@ describe("Tailored copy cover letter", () => {
   });
 });
 
-// A resume saved before hiding, extra sections, renamed headings and look settings existed.
 function savedBeforeExtras(): Partial<Resume> {
   const old: Partial<Resume> = createSampleResume(0);
   delete old.extras;

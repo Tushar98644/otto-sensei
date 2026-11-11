@@ -69,7 +69,6 @@ describe("/api/cron/*", () => {
   });
 
   it("runs the follow-ups in-app only when email isn't set up", async () => {
-    // Reminders are part of the tracker, which is Pro.
     const maya = await setPlan(await createUser("maya@example.com"), "pro");
     const sent = Date.now() - 30 * DAY;
     await (await getDb()).insert(applications).values({

@@ -8,8 +8,7 @@ import { sharePath, type SharedLink } from "@/lib/share/types";
 import { DEFAULT_SHARE_OPTIONS } from "./share-options";
 import { dropShare, ensureShares, putShare } from "./share-store";
 
-// Links turned off whose Undo hasn't run out, by resume. Sharing that resume again in the meantime
-// takes the turn-off back, so the held DELETE can't land on the link just handed out.
+// Re-sharing cancels a pending turn-off, so its held DELETE can't hit the new link.
 const pendingTurnOffs = new Map<string, UndoHandle>();
 
 function messageOf(error: unknown): string {
@@ -21,21 +20,17 @@ export function absolute(link: SharedLink): string {
   return new URL(sharePath(link.slug), window.location.origin).href;
 }
 
-// Safari only lets a page write to the clipboard during the click itself, so the write starts now
-// with the address still on its way; elsewhere a plain write after the fact works too.
+// Safari only allows clipboard writes during the click, so start before the URL arrives.
 export async function copyWhenReady(url: Promise<string>): Promise<boolean> {
   const clipboard = typeof navigator === "undefined" ? undefined : navigator.clipboard;
   if (!clipboard) return false;
   if (typeof ClipboardItem !== "undefined" && typeof clipboard.write === "function") {
     try {
       const blob = url.then((text) => new Blob([text], { type: "text/plain" }));
-      // A failed link is reported by the caller; this copy of the rejection has nowhere to go.
       void blob.catch(() => undefined);
       await clipboard.write([new ClipboardItem({ "text/plain": blob })]);
       return true;
-    } catch {
-      // Falls through: either the browser said no to the early write, or the link failed.
-    }
+    } catch {}
   }
   try {
     await clipboard.writeText(await url);
@@ -45,8 +40,6 @@ export async function copyWhenReady(url: Promise<string>): Promise<boolean> {
   }
 }
 
-// Keeps the link's own settings; a new link starts with contact details and indexing off.
-// Resolves with null after telling the person why it failed.
 export async function shareAndCopy(
   resume: Resume,
   owner: string,
@@ -85,7 +78,6 @@ export async function shareAndCopy(
   }
 }
 
-/** The server hears about it once Undo has run out. */
 export function turnOffWithUndo(link: SharedLink): void {
   dropShare(link.id);
   const handle = undoToast({

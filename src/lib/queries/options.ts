@@ -7,8 +7,6 @@ import { NO_CHOICE, type LookingForChoice } from "@/lib/job-feed/types";
 import type { ReminderSettings } from "@/lib/notifications/types";
 import { queryKeys } from "./keys";
 
-// A fresh copy is shown without asking again; an older one shows at once while a new one loads.
-
 const MINUTE = 60_000;
 
 export type ReminderSettingsData = ReminderSettings & { emailAvailable: boolean; chosen: boolean };
@@ -25,7 +23,6 @@ const MAX_APPLICATION_PAGES =
 export async function fetchAllApplications(): Promise<Application[]> {
   const items: Application[] = [];
   let cursor: string | null = null;
-  // Bounded by the per-account cap, in case a server ever keeps handing out cursors.
   for (let page = 0; page < MAX_APPLICATION_PAGES; page++) {
     const res = await api.listApplications(cursor);
     items.push(...res.applications);
@@ -56,7 +53,6 @@ export const prepPacksQuery = (userId: string) =>
     queryFn: async () => (await api.interviewPacks()).packs,
   });
 
-// Changed only from this tab's own screens, which update the cache themselves.
 export const sharesQuery = (userId: string) =>
   queryOptions({
     queryKey: queryKeys.shares(userId),
@@ -100,5 +96,4 @@ export const workProfileQuery = (userId: string) =>
     staleTime: 5 * MINUTE,
   });
 
-// Jobs are read in once a day, so a ranking stays good for a while.
 export const JOB_MATCHES_STALE_MS = 5 * MINUTE;

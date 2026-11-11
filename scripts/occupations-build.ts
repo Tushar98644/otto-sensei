@@ -1,15 +1,3 @@
-// Builds the occupation lookup (src/lib/job-feed/occupations/data.json) from public taxonomy files:
-// O*NET 31.0 (occupations, job titles, reported titles, related occupations, job zones) and ESCO
-// v1.2.1 English labels, joined to O*NET through the O*NET Center's ESCO crosswalk. Run it again
-// when either source publishes a new version; the app only reads the JSON it writes.
-//
-//   bun scripts/occupations-build.ts fetch-esco <out.json>       ESCO occupations, English labels
-//   bun scripts/occupations-build.ts build --onet <dir> --esco <json> --crosswalk <xlsx>
-//
-// Sources (MATCHING-RESEARCH.md, "Occupations for every kind of job"):
-//   https://www.onetcenter.org/dl_files/database/db_31_0_text.zip (CC BY 4.0)
-//   https://www.onetcenter.org/crosswalks/esco/ESCO_to_ONET-SOC.xlsx
-//   https://ec.europa.eu/esco/api (ESCO, free reuse under Commission Decision 2011/833/EU)
 import { readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { gzipSync } from "node:zlib";
@@ -75,7 +63,6 @@ async function fetchEsco(out: string) {
   writeFileSync(out, JSON.stringify({ version: "v1.2.1", occupations: rows }));
 }
 
-// The first sheet of an .xlsx as rows of cell text.
 async function xlsxRows(file: string): Promise<string[][]> {
   const zip = await JSZip.loadAsync(readFileSync(file));
   const unescape = (text: string) =>
@@ -106,8 +93,6 @@ async function xlsxRows(file: string): Promise<string[][]> {
   return rows;
 }
 
-// O*NET titles are plural lists ("Plumbers, Pipefitters, and Steamfitters"); the card shows one
-// role in plain words. These read better than the rule below, for the most common jobs.
 const NAMES: Record<string, string> = {
   "11-1021.00": "General or Operations Manager",
   "13-1111.00": "Management Analyst or Consultant",
@@ -155,21 +140,16 @@ function singularWord(word: string): string {
   return word.slice(0, -1);
 }
 
-// "Registered Nurses" -> "Registered Nurse"; "Elementary School Teachers, Except Special
-// Education" -> "Elementary School Teacher"; "Teachers and Instructors, All Other" -> "Teacher or
-// Instructor (other)". Plural nouns are singular where a list item or the title ends.
 function plainName(title: string): string {
   const [first = title, ...rest] = title.split(", ");
   let main = first;
   let suffix = "";
-  // A list of jobs ("Plumbers, Pipefitters, and Steamfitters") vs a note about one ("..., Hand").
   const restText = rest.join(", ");
   if (/^Except\b/.test(restText)) suffix = "";
   else if (/^All Other\b/.test(restText)) suffix = " (other)";
   else if (restText && /[a-z]s$/.test(restText) && !/^(?:Except|All Other)/.test(restText)) {
     main = [main, ...rest].join(", ");
   } else if (restText) suffix = ` (${restText.toLowerCase()})`;
-  // "First-Line Supervisors of Retail Sales Workers": the head is the word before "of".
   const of = main.indexOf(" of ");
   const tail = of === -1 ? "" : main.slice(of);
   if (of !== -1) main = main.slice(0, of);
@@ -189,11 +169,8 @@ function plainName(title: string): string {
 
 type Candidate = { occ: number; priority: number };
 
-// The card's role holds 80 characters (LOOKING_FOR_LIMITS); names this long read badly anyway.
 const MAX_NAME_CHARS = 60;
 
-// Initials kept as keys: common in titles and naming one job. Others this short ("PA" is also
-// Pennsylvania, "DO" a Portuguese word) are left out.
 const SHORT_KEYS = new Set(
   "rn lpn lvn cna np crna emt slp ota pta hha hca rgn rmn ceo cfo coo cto cmo cio cpa dds dmd cdl".split(
     " ",
@@ -222,11 +199,8 @@ async function build() {
     else if (tier === "Primary-Long") related[from]!.push(to);
   }
 
-  // Every way of naming an occupation, as lookup keys, with how much the source is trusted:
-  // the official title 4, titles workers reported 3, O*NET's job titles 2, ESCO's labels 1.
   const keys = new Map<string, Candidate[]>();
   const add = (label: string, occ: number, priority: number) => {
-    // "Registered Nurse (RN)" names it twice: "Registered Nurse" and "RN".
     const pieces = [
       label.replace(/\s*\([^)]*\)\s*/g, " "),
       ...[...label.matchAll(/\(([^)]*)\)/g)].map((m) => m[1]!),
@@ -250,7 +224,6 @@ async function build() {
     add(title, occ, 4);
     add(plainName(title), occ, 4);
   });
-  // The shortest title workers reported, for occupations whose O*NET title is too long to show.
   const reported = new Map<number, string>();
   for (const [code, title] of tsv(path.join(dir, "Sample of Reported Titles.txt"))) {
     const occ = index.get(code!);
@@ -287,7 +260,6 @@ async function build() {
     }
   }
 
-  // An occupation's keys as word sets, to tell which of several occupations a key names most.
   const keySets: string[][][] = codes.map(() => []);
   for (const [key, list] of keys) for (const { occ } of list) keySets[occ]!.push(key.split(" "));
   const centrality = (occ: number, words: readonly string[]) =>
@@ -307,14 +279,11 @@ async function build() {
   let ambiguous = 0;
   let dropped = 0;
   for (const [key, list] of keys) {
-    // The most trusted sources' candidates, with a specialty swapped for its parent occupation
-    // from any source: "Nurse" is Registered Nurses (29-1141.00), not Critical Care Nurses (.03).
     const top = Math.max(...list.map((item) => item.priority));
     const best = [
       ...new Map(
         list
           .filter((item) => item.priority === top)
-          // A specialty's own official name ("Baristas") stays the specialty's.
           .map((item) =>
             item.priority === 4
               ? item
@@ -338,7 +307,6 @@ async function build() {
       }))
       .sort(
         (a, b) =>
-          // "Nurse": Registered Nurses (29-1141.00) over its specialties (.01, .03).
           Number(isParentOf(b.occ, a.occ)) - Number(isParentOf(a.occ, b.occ)) ||
           b.central - a.central ||
           b.overlap - a.overlap ||
@@ -346,13 +314,9 @@ async function build() {
           a.occ - b.occ,
       );
     const winner = scored[0]!;
-    // Several kinds of work share the name ("Lab Technician": engineering, science, health,
-    // production): keep it only when one kind clearly owns it, else it stays unknown.
     const majors = new Map<string, number>();
     for (const item of scored) majors.set(major(item.occ), (majors.get(major(item.occ)) ?? 0) + 1);
     const share = (majors.get(major(winner.occ)) ?? 0) / scored.length;
-    // A rival O*NET relates to the winner is the same kind of work ("Restaurant Manager": food
-    // service managers and food preparation supervisors).
     const relatedTo = (a: number, b: number) =>
       close[a]!.includes(b) ||
       close[b]!.includes(a) ||
@@ -368,10 +332,6 @@ async function build() {
     }
   }
 
-  // A key whose longest shorter ending is itself a key for the same occupation adds nothing: the
-  // lookup takes the longest name ending at a title's head, so "travel registered nurse" finds
-  // "registered nurse" without its own entry. Shortest first, so chains collapse.
-  // Our own names (tech.ts) are checked first at run time, so they count here too.
   const owner = new Map<string, string>();
   aliases.forEach((list, occ) => {
     for (const key of list) owner.set(key, codes[occ]!);
@@ -407,7 +367,6 @@ async function build() {
     names: codes.map((code, i) => {
       const plain = NAMES[code] ?? plainName(titles[i]!);
       if (plain.length <= MAX_NAME_CHARS) return plain;
-      // A shorter reported title, else the name without its bracketed note, else cut at a word.
       const short = reported.get(i) ?? plain.replace(/\s*\([^)]*\)$/, "");
       return short.length <= MAX_NAME_CHARS
         ? short

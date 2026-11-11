@@ -6,34 +6,26 @@ import type { OccupationData } from "./data-types";
 import { CUSTOM_OCCUPATIONS, FUNCTIONS, LEAD_HEADS, TECH_NAMES, WORK_HEADS } from "./tech";
 import { GENERIC_WORDS, RANK_WORDS, titleKey, titleParts } from "./title";
 
-// Server-only: the lookup is ~1.3 MB. A title sharing only a generic word ("Manager") with the
-// taxonomy gets no occupation.
-
 const data = rawData as OccupationData;
 
 export type Occupation = {
   code: string;
   name: string;
-  // O*NET's own title, or ours for the few startup roles it lacks.
   title: string;
   zone: number | null;
-  // SOC major group ("29") and minor group ("29-1").
   major: string;
   minor: string;
 };
 
 export type OccupationHit = {
   code: string;
-  // The whole title, the longest name inside it, or the business function it names.
   via: "title" | "words" | "function";
-  // The name it matched, as a lookup key ("registered nurse"), or the function word ("talent").
   key: string;
 };
 
 type Index = {
   byCode: Map<string, Occupation>;
   keys: Map<string, string>;
-  // Words that end some key: the head nouns titles are built around ("nurse", "driver").
   heads: Set<string>;
   longest: number;
   neighbours: Map<string, { close: string[]; related: string[] }>;
@@ -93,7 +85,6 @@ function index(): Index {
     close.set(custom.code, [...custom.close]);
     related.set(custom.code, [...custom.related]);
   }
-  // Our startup role names win over the taxonomy's, even ones that only add a rank word.
   const ours = new Set<string>();
   for (const [name, code] of TECH_NAMES) {
     const key = titleKey(name);
@@ -108,8 +99,6 @@ function index(): Index {
   data.aliases.forEach((list, i) => {
     for (const key of list.split("|")) if (!shadowed(key)) addKey(key, data.codes[i]!);
   });
-  // Outwards only: Registered Nurses is close to Nurse Practitioners, not the reverse for an EMT.
-  // Other O*NET codes under one SOC code count as close both ways.
   const closeSets = new Map<string, Set<string>>();
   const relatedSets = new Map<string, Set<string>>();
   const link = (sets: Map<string, Set<string>>, a: string, b: string) => {
@@ -138,13 +127,10 @@ export function occupationOf(code: string | null | undefined): Occupation | null
   return code ? (index().byCode.get(code) ?? null) : null;
 }
 
-// Initials ("RN", "PA") that also name places ("Lancaster, PA"): trusted only in a title's first
-// part.
 const SHORT_KEY = 3;
 
 type Found = { code: string; start: number; end: number; length: number };
 
-// Words after a job's name that only say someone works there.
 const TAILS = new Set([
   "worker",
   "member",
@@ -161,8 +147,6 @@ function beforeTail(words: readonly string[], end: number): boolean {
   return rest.length > 0 && rest.length <= 2 && rest.every((word) => TAILS.has(word));
 }
 
-// The longest key ending at the part's head noun ("nurse" in "registered nurse icu"), else the
-// longest multi-word key anywhere in it. A single generic word only counts as the whole part.
 function findInPart(words: readonly string[], first: boolean): Found | null {
   const { keys, heads, longest } = index();
   let head = -1;
@@ -173,7 +157,6 @@ function findInPart(words: readonly string[], first: boolean): Found | null {
     }
   }
   let best: Found | null = null;
-  // Ending at the head beats not; then longer; then further right (English titles end in the role).
   const rank = (found: Found) => [found.end === head ? 1 : 0, found.length, found.end];
   const better = (found: Found, than: Found) => {
     const [a, b] = [rank(found), rank(than)];
@@ -187,8 +170,6 @@ function findInPart(words: readonly string[], first: boolean): Found | null {
       if (!code) continue;
       if (key.length <= SHORT_KEY && !first) continue;
       const found = { code, start, end, length: end - start + 1 };
-      // A one-word name inside a longer part says too little, unless it's the head ("Clinical
-      // Pharmacist") or comes just before a word that only says "worker" ("Loader Operative").
       if (found.length === 1 && words.length > 1 && end !== head && !beforeTail(words, end))
         continue;
       if (!best || better(found, best)) best = found;
@@ -197,7 +178,6 @@ function findInPart(words: readonly string[], first: boolean): Found | null {
   return best;
 }
 
-// Startup roles first, then the whole title, then each part, also reversed for "Manager, Sales".
 export function classifyTitle(title: string): OccupationHit | null {
   const parts = titleParts(title);
   if (parts.length === 0) return null;
@@ -205,7 +185,6 @@ export function classifyTitle(title: string): OccupationHit | null {
   const all = parts.flat().join(" ");
   const whole = keys.get(all);
   if (whole) return { code: whole, via: "title", key: all };
-  // The whole part, give or take rank words ("Senior Manufacturing Engineer"), or a name inside it.
   const hit = (words: readonly string[], found: Found): OccupationHit => ({
     code: found.code,
     via: words.every((word, i) => (i >= found.start && i <= found.end) || RANK_WORDS.has(word))
@@ -215,14 +194,12 @@ export function classifyTitle(title: string): OccupationHit | null {
   });
   for (let i = 0; i < parts.length; i++) {
     const part = parts[i]!;
-    // "Manager, Sales" and "Director, Product Design": a short head first, its field after.
     const next = parts[i + 1];
     if (part.length <= 2 && next && next.length <= 4) {
       const flipped = [...next, ...part];
       const found = findInPart(flipped, i === 0);
       if (found && found.end === flipped.length - 1) return hit(flipped, found);
     }
-    // "Director of Nursing" is a name of its own; "Teacher of Maths" reads as "Maths Teacher".
     const of = part.indexOf("of");
     if (of > 0 && of <= 3 && of < part.length - 1) {
       const direct = findInPart(part, i === 0);
@@ -237,7 +214,6 @@ export function classifyTitle(title: string): OccupationHit | null {
   return byFunction(parts);
 }
 
-// By the business function named and whether the head word leads or does the work.
 function byFunction(parts: readonly (readonly string[])[]): OccupationHit | null {
   const words = parts.flat();
   const leads = words.some((word) => LEAD_HEADS.has(word));
@@ -247,14 +223,12 @@ function byFunction(parts: readonly (readonly string[])[]): OccupationHit | null
   for (const [rule, leadCode, workCode] of FUNCTIONS) {
     const match = rule.exec(text);
     if (!match) continue;
-    // Clinical and quality work names too many different jobs to guess from.
     const code = leads ? leadCode : workCode;
     return code ? { code, via: "function", key: match[0].trim() } : null;
   }
   return null;
 }
 
-// O*NET's closest ten Related Occupations, plus other O*NET codes under the same SOC code.
 export function neighboursOf(code: string): {
   close: readonly string[];
   related: readonly string[];
@@ -265,7 +239,6 @@ export function neighboursOf(code: string): {
 const titleCache = new Map<string, TitleKind>();
 const TITLE_CACHE_MAX = 50_000;
 
-// The kind of role is dropped when the occupation rules it out ("Support Worker" is social care).
 export function readTitle(title: string): TitleKind {
   const known = titleCache.get(title);
   if (known) return known;
@@ -283,7 +256,6 @@ export const OCCUPATIONS: OccupationReader = {
   zone: (code) => occupationOf(code)?.zone ?? null,
 };
 
-// Plain names and O*NET titles first (they rank higher), then every lookup key.
 type SearchRow = { code: string; text: string; words: readonly string[]; own: boolean };
 let searchRows: SearchRow[] | null = null;
 
@@ -300,7 +272,6 @@ function rowsToSearch(): SearchRow[] {
   return rows;
 }
 
-// The last word typed matches as a prefix; aliases count, so "RN" finds its occupation.
 export function searchOccupations(query: string, limit = 8): OccupationOption[] {
   const words = titleKey(query).split(" ").filter(Boolean);
   if (words.length === 0) return [];
@@ -313,7 +284,6 @@ export function searchOccupations(query: string, limit = 8): OccupationOption[] 
       i === words.length - 1 ? row.words.some((w) => w.startsWith(word)) : row.words.includes(word),
     );
     if (!fits) continue;
-    // Exact, then starts-with, then anywhere; own names first; shorter first.
     const score =
       (row.text === typed ? 300 : row.text.startsWith(typed) ? 200 : 100) +
       (row.own ? 50 : 0) -
@@ -330,7 +300,6 @@ export function searchOccupations(query: string, limit = 8): OccupationOption[] 
     });
 }
 
-// SOC 2018 major groups, in plain words.
 export const MAJOR_GROUPS: Record<string, string> = {
   "11": "Management",
   "13": "Business and finance",

@@ -2,21 +2,16 @@
 
 import { dismissToast, toast } from "./toast";
 
-// Undo instead of "Are you sure?". Changes the server can't take back (a deleted row, a link
-// turned off) are held: `commit` sends them when the toast goes, or at once if the page closes.
-
 export const UNDO_MS = 6_000;
 
 export type UndoToastOptions = {
   title: string;
   description?: string;
   onUndo: () => void;
-  // Sends a held change. keepalive: the page is being closed, so the request must outlive it.
   onCommit?: (options: { keepalive: boolean }) => void;
 };
 
 export type UndoHandle = {
-  // Undo without the button (something newer replaced it): the held change is dropped, not sent.
   undo: () => void;
 };
 

@@ -1,7 +1,6 @@
 export const APPLICATION_STATUSES = ["applied", "interview", "offer", "rejected", "no_reply"] as const;
 export type ApplicationStatus = (typeof APPLICATION_STATUSES)[number];
 
-// Rejected and no reply end an application without moving it on.
 export const APPLICATION_STAGES = ["applied", "interview", "offer"] as const;
 export type ApplicationStage = (typeof APPLICATION_STAGES)[number];
 
@@ -27,13 +26,11 @@ export function isApplicationStatus(value: unknown): value is ApplicationStatus 
   return typeof value === "string" && STATUS_SET.has(value);
 }
 
-// "screening" was merged into interview; older rows and timelines still say it.
 export function readStatus(value: unknown): ApplicationStatus | null {
   if (value === "screening") return "interview";
   return isApplicationStatus(value) ? value : null;
 }
 
-/** Anything unknown counts as applied. */
 export function readStage(value: unknown): ApplicationStage {
   const status = readStatus(value);
   return status !== null && isStage(status) ? status : "applied";
@@ -47,8 +44,6 @@ export function stageIndex(stage: ApplicationStage): number {
   return APPLICATION_STAGES.indexOf(stage);
 }
 
-// A step forward, or back (fixing a wrong click), becomes the furthest step; an ending keeps it, so
-// an interview that ends in a "no" still counts in the win rate.
 export function stageAfter(current: ApplicationStage, next: ApplicationStatus): ApplicationStage {
   return isStage(next) ? next : current;
 }
@@ -67,10 +62,8 @@ export function nextStep(
 
 export type StatusEvent = { status: ApplicationStatus; at: number };
 
-// Matches the column's check.
 export const STATUS_HISTORY_LIMIT = 30;
 
-/** A hand-edited entry is skipped, not fatal. */
 export function readHistory(value: unknown): StatusEvent[] {
   if (!Array.isArray(value)) return [];
   return value

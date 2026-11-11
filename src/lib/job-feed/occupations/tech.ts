@@ -1,8 +1,4 @@
-// Roles O*NET files badly ("Product Manager" under Marketing Managers). These are lookup keys like
-// the taxonomy's, so the longest name in a title still wins.
-
 export type CustomOccupation = {
-  // A letter where SOC has a digit, so it never collides with O*NET and gets its own minor group.
   code: string;
   name: string;
   zone: number | null;
@@ -19,7 +15,6 @@ export const CUSTOM_OCCUPATIONS: readonly CustomOccupation[] = [
     code: PRODUCT_MANAGER,
     name: "Product Manager",
     zone: 4,
-    // Technical program managers and project managers do the nearest work.
     close: [],
     related: ["15-1299.09", "13-1082.00"],
   },
@@ -31,7 +26,6 @@ export const CUSTOM_OCCUPATIONS: readonly CustomOccupation[] = [
     related: ["43-4051.00", "41-4011.00", "41-3091.00", "15-1232.00"],
   },
   {
-    // Partner, alliance and channel managers: sales through other companies, not to customers.
     code: PARTNERSHIPS,
     name: "Partnerships Manager",
     zone: 4,
@@ -63,7 +57,6 @@ const OPS_OTHER = "13-1199.00";
 const CHIEF_EXEC = "11-1011.00";
 const GENERAL_MANAGER = "11-1021.00";
 
-// Each line: the occupation, then names as titles write them (any spelling titleKey folds alike).
 const NAMES: readonly (readonly [string, readonly string[]])[] = [
   [
     SOFTWARE,
@@ -140,7 +133,6 @@ const NAMES: readonly (readonly [string, readonly string[]])[] = [
       "staff software engineer",
       "principal software engineer",
       "software engineer in test",
-      // What an intern title names once "Intern" is set aside ("Software Engineering Intern").
       "software engineering",
       "software development",
     ],
@@ -800,7 +792,6 @@ const NAMES: readonly (readonly [string, readonly string[]])[] = [
   ],
 ];
 
-// Frontline titles O*NET files badly or lacks, often in British or Australian wording.
 const FRONTLINE: readonly (readonly [string, readonly string[]])[] = [
   [
     "11-3021.00",
@@ -1265,9 +1256,6 @@ export const TECH_NAMES: readonly (readonly [string, string])[] = [...NAMES, ...
   ([code, names]) => names.map((name) => [name, code] as const),
 );
 
-// Last resort for office titles no name covers: the business function the title names, and whether
-// its head word leads or does the work. Lookup words ("operation"); first match wins, narrowest
-// first.
 export const FUNCTIONS: readonly (readonly [RegExp, string, string | null])[] = [
   [/\b(?:talent|recruit\w*|people|hr|human resource|workforce)\b/, HR_MANAGER, HR],
   [/\b(?:payroll)\b/, "11-3111.00", "43-3051.00"],
@@ -1349,7 +1337,6 @@ export const FUNCTIONS: readonly (readonly [RegExp, string, string | null])[] = 
   ],
 ];
 
-// Head words of the two kinds: those who lead (a manager, a director) and those who do the work.
 export const LEAD_HEADS: ReadonlySet<string> = new Set(
   "manager director head lead leader chief supervisor".split(" "),
 );

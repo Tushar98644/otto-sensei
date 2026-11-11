@@ -13,7 +13,6 @@ import type { AddedLine, LineTarget } from "./apply";
 import { hasBlank, missingName, tidyLine, verbNote } from "./screener";
 import type { Writing } from "./use-writing";
 
-// Same caps as the line fixer's answers (FixRequestSchema) and a resume line (BulletSchema).
 const ANSWER_CHARS = 500;
 const LINE_CHARS = 1_000;
 
@@ -37,7 +36,6 @@ export function AddLineForm({ requirement, targets, writing, onAdd, onCancel }: 
   const [what, setWhat] = useState("");
   const [draft, setDraft] = useState<string | null>(null);
   const [problem, setProblem] = useState<string | null>(null);
-  // writing.busy is shared by every open form; this one says whether the line is this form's.
   const [asked, setAsked] = useState(false);
   const target = targets.find((item) => item.id === targetId) ?? null;
   const writingLine = writing.busy === "line";

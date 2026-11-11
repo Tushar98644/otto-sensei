@@ -48,9 +48,7 @@ describe("outcomeOf", () => {
     ["rejected", "applied", { interviewed: false, offered: false }],
     ["interview", "interview", { interviewed: true, offered: false }],
     ["offer", "offer", { interviewed: true, offered: true }],
-    // Rejected after an interview is still an interview.
     ["rejected", "interview", { interviewed: true, offered: false }],
-    // A recruiter call, then silence: the call counts as Interviewing.
     ["no_reply", "interview", { interviewed: true, offered: false }],
   ] as const)("%s after reaching %s", (status, stageReached, expected) => {
     expect(outcomeOf({ status, stageReached })).toEqual(expected);
@@ -197,7 +195,6 @@ describe("compareVersions", () => {
         ...many(8, "applied", { resumeId: "a" }),
         ...many(1, "interview", { resumeId: "b" }),
         ...many(24, "applied", { resumeId: "b" }),
-        // Fewer than 5: never compared, however good it looks.
         ...many(3, "offer", { resumeId: "c" }),
       ],
       versions,

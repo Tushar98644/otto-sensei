@@ -56,7 +56,6 @@ export async function GET(): Promise<Response> {
   }
 }
 
-// Nothing goes live until the owner publishes.
 export async function POST(req: Request): Promise<Response> {
   const blocked = rejectCrossSite(req) ?? rejectNonJson(req);
   if (blocked) return blocked;
@@ -68,7 +67,6 @@ export async function POST(req: Request): Promise<Response> {
     if (limited) return limited;
     const body = await readJson(req, CreatePortfolioSchema);
     if (!body.ok) {
-      // readJson names the field and the rule it broke, never the value.
       log.info("portfolio.bad_request", { reason: body.message });
       return fail(
         "bad_request",
@@ -107,7 +105,6 @@ export async function PATCH(req: Request): Promise<Response> {
   }
 }
 
-// The page stops answering at once; the resume it came from is untouched.
 export async function DELETE(req: Request): Promise<Response> {
   const blocked = rejectCrossSite(req);
   if (blocked) return blocked;

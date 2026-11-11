@@ -27,13 +27,6 @@ import type { Resume, TemplateId } from "@/lib/resume/schema";
 import { cn } from "@/lib/utils";
 import { standInPage } from "./stand-in";
 
-// Drawn in HTML from the PDF's own plan and theme numbers (pdf/layout.ts), so each card shows
-// what the PDF prints. Fonts are installed look-alikes, so a miniature downloads nothing. One PDF
-// point is one CSS pixel. standIn draws the sample person, since decorative scenes end up in
-// screenshots.
-
-// react-pdf styles are nearly CSS already; only its invented shorthands, font names and features
-// and border styles differ.
 export function pdfStyleToCss(style: PdfStyle | undefined): CSSProperties {
   if (!style) return {};
   const {
@@ -269,13 +262,11 @@ function SectionTitle({ title, theme }: Styled & { title: string }) {
 
 export type ResumePageProps = {
   resume: Resume;
-  // Draw it in another format than the resume's own, e.g. to compare formats side by side.
   template?: TemplateId;
   standIn?: boolean;
   className?: string;
 };
 
-/** Page 1 as the PDF prints it: hidden items left out, the person's own words. */
 export function ownPage(resume: Resume): { model: PdfModel; blank: boolean } {
   const model = buildPdfModel(visibleResume(resume));
   const blank =
@@ -283,7 +274,6 @@ export function ownPage(resume: Resume): { model: PdfModel; blank: boolean } {
   return { model, blank };
 }
 
-// Decorative: the card around it names the resume, so screen readers skip the miniature.
 export const ResumeThumbnail = memo(function ResumeThumbnail({
   resume,
   template,
@@ -328,8 +318,6 @@ export const ResumeThumbnail = memo(function ResumeThumbnail({
   );
 });
 
-// Faint bars where the first sections will go, so a scratch resume reads as a fresh page rather
-// than a missing image. Sized in page pixels, so it scales like the real miniature.
 function BlankPage() {
   return (
     <div className="absolute top-0 left-0 flex page-miniature flex-col gap-3 px-12 py-11">

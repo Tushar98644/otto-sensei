@@ -1,8 +1,6 @@
 import { templateCss } from "../css";
 
-// Ported from CaliCastle/cali.so (application code MIT, see ./LICENSE.txt; Cali's own writing,
-// photos, artwork, name and branding are not part of that grant and none of them are here).
-// Its "max-width: 39.99rem" queries become container queries on the template root.
+// Ported from CaliCastle/cali.so (code MIT, see ./LICENSE.txt); none of Cali's content or branding.
 const css = `
 :scope {
   --gray-1: oklch(0.99 0.001 95);

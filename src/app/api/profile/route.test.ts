@@ -37,7 +37,6 @@ async function errorCode(res: Response): Promise<string> {
   return ((await res.json()) as ApiErrorBody).error.code;
 }
 
-// The work profile feeds Pro tools only; "the work profile on Free" below covers Free.
 const signInAs = async (email: string) => setPlan(await signInFree(email), "pro");
 
 describe("the work profile on Free", () => {

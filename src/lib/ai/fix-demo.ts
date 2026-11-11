@@ -3,8 +3,6 @@ import { bulletText } from "@/lib/resume/sections";
 import { capitalize, clipWords, hasPlaceholder } from "./text";
 import type { FixResult } from "./types";
 
-// Demo mode (no API key): a deterministic fix from the linter, so the whole flow works locally.
-
 export type PreparedFix = {
   bullet: string;
   role: { title: string; company: string };
@@ -18,7 +16,6 @@ const RESULT_QUESTION = "What changed because of this work?";
 const RESULT_PLACEHOLDER = "[result]";
 const TRAILING_PUNCTUATION = /[\s.;,]+$/u;
 
-// "Responsible for the payments API." -> "The payments API": the opener and final period go.
 function cleanLine(line: string, weakStart: string | null): string {
   let text = (bulletText(line) ?? line.trim()).replace(/^(?:I|We)\s+/u, "");
   if (weakStart && text.toLowerCase().startsWith(weakStart.toLowerCase())) {
@@ -29,7 +26,6 @@ function cleanLine(line: string, weakStart: string | null): string {
   return cleaned || line.trim().replace(TRAILING_PUNCTUATION, "");
 }
 
-// "About 2,000 users" reads as part of the sentence once it follows a comma; "AWS" stays as is.
 function lowerFirst(text: string): string {
   return text.replace(/^\p{Lu}(?=\p{Ll})/u, (letter) => letter.toLowerCase());
 }
@@ -37,7 +33,6 @@ function lowerFirst(text: string): string {
 export function demoFix(fix: PreparedFix): FixResult {
   const lint = lintBullet(fix.bullet);
   const found = new Set(lint.map((issue) => issue.id));
-  // A duty line and a line with no result are missing their number too.
   const missingNumber = found.has("no-number") || found.has("no-result") || found.has("duty");
   const weakStart =
     lint.find((issue) => issue.id === "duty" || issue.id === "weak-start")?.match ?? null;
@@ -51,7 +46,6 @@ export function demoFix(fix: PreparedFix): FixResult {
   if (answers.length > 0) {
     suggestion = clipWords(`${base}, ${answers.join(", ")}`, SUGGESTION_CHARS);
   } else if (missingNumber) {
-    // Clip before adding the placeholder so a long line can't push it off the end.
     const room = SUGGESTION_CHARS - RESULT_PLACEHOLDER.length - 1;
     suggestion = `${clipWords(base, room)} ${RESULT_PLACEHOLDER}`;
   } else {

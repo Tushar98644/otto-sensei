@@ -1,8 +1,7 @@
 import type { Breadcrumb, ErrorEvent } from "@sentry/nextjs";
 import { scrubBreadcrumb, scrubEvent } from "./scrub";
 
-// Not src/lib/env.ts (server-only). NEXT_PUBLIC_ names are written in full: Next only inlines
-// literals.
+// NEXT_PUBLIC_ names are written in full: Next only inlines literal reads.
 
 export type SentryRuntime = "nodejs" | "edge" | "browser";
 
@@ -11,20 +10,17 @@ function clean(value: string | undefined): string | undefined {
   return trimmed ? trimmed : undefined;
 }
 
-/** The browser only ever sees the public one. */
 export function sentryDsn(runtime: SentryRuntime): string | undefined {
   const publicDsn = clean(process.env.NEXT_PUBLIC_SENTRY_DSN);
   if (runtime === "browser") return publicDsn;
   return clean(process.env.SENTRY_DSN) ?? publicDsn;
 }
 
-// `bun dev` stays quiet unless asked: hot-reload errors and half-typed code would bury real ones.
 function devOptIn(): boolean {
   const flag = clean(process.env.NEXT_PUBLIC_SENTRY_DEV)?.toLowerCase();
   return flag === "1" || flag === "true";
 }
 
-/** In development only with NEXT_PUBLIC_SENTRY_DEV=1; never in tests. */
 export function sentryEnabled(runtime: SentryRuntime): boolean {
   if (!sentryDsn(runtime)) return false;
   if (process.env.NODE_ENV === "production") return true;
@@ -35,7 +31,6 @@ export function serverRuntime(): SentryRuntime {
   return process.env.NEXT_RUNTIME === "edge" ? "edge" : "nodejs";
 }
 
-// Previews are NODE_ENV=production too; Vercel's own name keeps their errors apart from live ones.
 function sentryEnvironment(): string {
   return (
     clean(process.env.NEXT_PUBLIC_VERCEL_ENV) ??
@@ -52,7 +47,6 @@ function sentryRelease(): string | undefined {
   );
 }
 
-// The visitor's network or a browser extension, not a bug in the app.
 const IGNORE_ERRORS: (string | RegExp)[] = [
   "ResizeObserver loop limit exceeded",
   "ResizeObserver loop completed with undelivered notifications",
@@ -66,7 +60,6 @@ const IGNORE_ERRORS: (string | RegExp)[] = [
 
 const DENY_URLS = [/^chrome-extension:\/\//, /^moz-extension:\/\//, /^safari-web-extension:\/\//];
 
-/** Errors only: no tracing, replay or logs. */
 export function sentryOptions(runtime: SentryRuntime) {
   const release = sentryRelease();
   return {
@@ -82,7 +75,6 @@ export function sentryOptions(runtime: SentryRuntime) {
     maxBreadcrumbs: 50,
     beforeSend: (event: ErrorEvent) => scrubEvent(event),
     beforeBreadcrumb: (crumb: Breadcrumb) => scrubBreadcrumb(crumb),
-    // Nothing here writes Sentry logs; drop any a dependency sends, since they skip beforeSend.
     beforeSendLog: () => null,
   };
 }

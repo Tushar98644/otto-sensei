@@ -1,11 +1,3 @@
-// How long a Jobs-tab match takes against a real Postgres (MATCHING-RESEARCH.md, Round 2 (d)):
-// the query on jobs that ranks before job_match exists, the job_match one, the stored counts
-// against counting per request, and a whole match request both ways. Five profiles, each run
-// several times; prints the median and the slowest.
-//
-//   DATABASE_URL=<postgres url> bun scripts/match-speed.ts [--runs 5] [--rebuild]
-//
-// --rebuild rebuilds job_match and job_counts first (as the ingest does). Reads only, otherwise.
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import type { Db } from "@/db/client";
@@ -139,7 +131,6 @@ async function main() {
       deviceTimeZone: "America/New_York",
       now,
     };
-    // The scoring statement alone: limit 1 still scores and counts every opening.
     const scoring = await timed(runs, () => poolOpenings(db, { ...query, limit: 1 }, counts, now));
     const whole = await timed(runs, () => rankJobs(db, request));
     const noRules = await timed(runs, () => rankJobs(db, { ...request, workProfile: null }));

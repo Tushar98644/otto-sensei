@@ -1,14 +1,9 @@
-// Offsets are minutes east of UTC on a given day, so daylight saving is taken as it is that day.
-
 export type Zone = { label: string } & ({ timeZone: string } | { fixed: number });
 
 export type TimeRule =
-  // The person's offset must fall inside [min, max] (a named group of zones, or a UTC range).
   | { kind: "range"; label: string; min: Zone; max: Zone }
   | { kind: "within"; zone: Zone; hours: number }
-  // hours: the overlap asked for; null when the post only says "overlap with" or "PST hours".
   | { kind: "overlap"; zone: Zone; hours: number | null }
-  // "Must be in the EST or CST time zone": close to one of these.
   | { kind: "zone"; zones: Zone[] };
 
 export function offsetMinutes(timeZone: string, at: number): number | null {
@@ -44,7 +39,6 @@ export function formatHours(minutes: number): string {
   return `${hours} ${hours === 1 ? "hour" : "hours"}`;
 }
 
-/** The short way round: UTC+13 and UTC-10 are 1 hour apart. */
 export function gapMinutes(a: number, b: number): number {
   const raw = Math.abs(a - b) % 1440;
   return Math.min(raw, 1440 - raw);
@@ -52,9 +46,6 @@ export function gapMinutes(a: number, b: number): number {
 
 const iana = (label: string, timeZone: string): Zone => ({ label, timeZone });
 
-// Abbreviations and names posts use, longest forms first. Case-sensitive: "pt" and "et" are
-// ordinary letters in lower case. Bare "Pacific" and "Eastern" are left out: "Asia-Pacific" and
-// "Eastern Europe" aren't time zones.
 const NAMED: Array<[string, Zone]> = [
   ["Central European(?: Standard| Summer)? [Tt]ime|CEST|CET", iana("CET", "Europe/Berlin")],
   ["Eastern European(?: Standard| Summer)? [Tt]ime|EEST|EET", iana("EET", "Europe/Helsinki")],
@@ -128,7 +119,6 @@ function zonesIn(line: string): Spot[] {
   return spots.sort((a, b) => a.index - b.index);
 }
 
-// "−" and "–" show up in posts pasted from word processors.
 function sign(value: string | undefined): string {
   return value === "+" ? "+" : "-";
 }
@@ -177,7 +167,6 @@ const WITHIN =
 const OVERLAP_HOURS =
   /\b(\d{1,2})\+?\s*(?:hours?|hrs?)\s+(?:of\s+)?(?:daily\s+|working\s+|time\s+)?overlap|\boverlap\s+(?:of\s+|by\s+)?(?:at least\s+|a minimum of\s+)?(\d{1,2})\+?\s*(?:hours?|hrs?)/i;
 const OVERLAP = /\boverlap\b/i;
-// "Available until 1pm EST" asks for the same thing as "overlap with EST".
 const HOURS = /\bhours\b|\bavailab(?:le|ility)\b|\bschedule\b/i;
 const IN_ZONE = /\btime[- ]?zones?\b|\bbased in\b|\blocated in\b/i;
 

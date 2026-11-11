@@ -2,10 +2,9 @@
 
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 
-// Bento's live parts, after Ladvace/astro-bento-portfolio (MIT).
+// Ported from Ladvace/astro-bento-portfolio (MIT, see ./LICENSE.txt).
 
-// The clock ticks from an external store, so the server (and the first client render) draw
-// "--:--" and the real time arrives right after hydration without a mismatch.
+// External store: server and first render draw "--:--", so hydration never mismatches.
 const subscribeClock = (onChange: () => void) => {
   const timer = window.setInterval(onChange, 5_000);
   return () => window.clearInterval(timer);
@@ -109,7 +108,6 @@ function readAccent(): Accent {
   return remembered;
 }
 
-// Remembered per browser; when storage is blocked the choice still holds for this visit.
 function chooseAccent(next: Accent) {
   remembered = next;
   try {

@@ -10,7 +10,6 @@ import { takeAccountUnit, upgradeRequired } from "../metered-free";
 export const runtime = "nodejs";
 export const maxDuration = 60;
 
-// Free and signed-out visitors get 402 upgrade_required; the form keeps their answers.
 export async function POST(req: Request): Promise<Response> {
   try {
     const rejected = rejectCrossSite(req) ?? rejectNonJson(req);
@@ -31,7 +30,6 @@ export async function POST(req: Request): Promise<Response> {
       throw error;
     }
     const { resume, usedAI } = drafted;
-    // The person's own lines, as typed: nothing ran on the model worth counting.
     if (!usedAI) await unit.giveBack();
     log.info("draft.completed", {
       jobs: body.data.jobs.length,

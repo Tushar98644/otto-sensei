@@ -17,15 +17,11 @@ import {
   type SectionKey,
 } from "./schema";
 
-// Kept apart from ./schema so screens that only read resumes don't load zod.
-
 const text = (max = 2_000) => z.string().max(max);
 
 const id = z.string().min(1).max(64);
 
-// Fields added after launch are optional: localStorage copies are never re-parsed. Settings fall
-// back on a bad value (`.catch`); content caps stay strict, since a silent fallback would drop the
-// person's words from the cloud copy.
+// Fields added after launch stay optional: localStorage copies are never re-parsed.
 const hiddenFlag = z.boolean().optional().catch(undefined);
 
 export const SectionKeySchema = z.enum(SECTION_KEYS);
@@ -48,7 +44,6 @@ export const ExperienceSchema = z.object({
   company: text(200),
   title: text(200),
   location: text(200),
-  // Dates stay as the user wrote them ("Jan 2022", "2019", "Present").
   startDate: text(50),
   endDate: text(50),
   bullets: z.array(BulletSchema).max(40),
@@ -71,7 +66,6 @@ export const ProjectSchema = z.object({
   id,
   name: text(200),
   link: text(500),
-  // Optional: projects saved before these print without dates or tools.
   startDate: text(50).optional(),
   endDate: text(50).optional(),
   tech: text(300).optional(),
@@ -81,7 +75,6 @@ export const ProjectSchema = z.object({
 
 export const SkillGroupSchema = z.object({
   id,
-  // Empty label means a flat, ungrouped list.
   label: text(100),
   items: z.array(text(100)).max(100),
   hidden: hiddenFlag,
@@ -109,7 +102,6 @@ export const ExtraItemSchema = z.object({
 
 export const ExtraSectionSchema = z.object({
   id,
-  // A kind this build doesn't know keeps its title and items as a custom section.
   kind: ExtraKindSchema.catch("custom"),
   title: text(100),
   items: z.array(ExtraItemSchema).max(MAX_EXTRA_ITEMS),
@@ -118,7 +110,6 @@ export const ExtraSectionSchema = z.object({
 
 const sectionTitleField = text(MAX_SECTION_TITLE_CHARS).optional().catch(undefined);
 
-// A bad title falls back to the standard label and unknown keys are dropped, so the rest are kept.
 export const SectionTitlesSchema = z.object({
   summary: sectionTitleField,
   experience: sectionTitleField,
@@ -128,15 +119,12 @@ export const SectionTitlesSchema = z.object({
   certifications: sectionTitleField,
 } satisfies Record<SectionKey, typeof sectionTitleField>);
 
-// An unset value means the format's own choice, so older resumes print exactly as they did.
 export const ResumeDesignSchema = z.object({
   accent: z.enum(DESIGN_ACCENTS).optional().catch(undefined),
   font: z.enum(DESIGN_FONTS).optional().catch(undefined),
   density: z.enum(DESIGN_DENSITIES).optional().catch(undefined),
 });
 
-// Keeps the known keys of a bad list (an unknown key, a repeat past the cap) instead of showing
-// every section the person hid.
 function knownSectionKeys(value: unknown): SectionKey[] | undefined {
   if (!Array.isArray(value)) return undefined;
   const keys = value.filter(
@@ -160,13 +148,10 @@ export const TailorMetaSchema = z.object({
   company: text(200),
   keywords: z.array(text(100)).max(60),
   createdAt: z.number(),
-  // The latest letter for this job, as last edited. Optional so older copies still parse.
   coverLetter: text(COVER_LETTER_CHARS).optional(),
-  // So interview prep, skill gaps and the send check use the real post. Optional for older copies.
   jobText: text(JOB_TEXT_CHARS).optional(),
   jobUrl: text(2_048).optional(),
   requirements: z.array(SavedRequirementSchema).max(MAX_SAVED_REQUIREMENTS).optional(),
-  // Links the job, this copy and its application by id. A bad value is dropped, not fatal.
   jobId: z.uuid().optional().catch(undefined),
 });
 
@@ -188,11 +173,7 @@ export const ResumeSchema = z.object({
   sectionOrder: z.array(SectionKeySchema).max(SECTION_KEYS.length),
   source: ResumeSourceSchema,
   tailor: TailorMetaSchema.nullable(),
-  // An unknown or missing format parses as the default, so a dropped format never fails a resume.
-  // Read it with templateOf(): localStorage copies are never re-parsed.
   template: TemplateIdSchema.default(DEFAULT_TEMPLATE).catch(DEFAULT_TEMPLATE).optional(),
-  // Read these four with extrasOf(), sectionTitleOf() and isSectionHidden() below, and treat a
-  // missing `design` as the format's own look.
   extras: z.array(ExtraSectionSchema).max(MAX_EXTRA_SECTIONS).default([]).optional(),
   sectionTitles: SectionTitlesSchema.optional().catch(undefined),
   hiddenSections: z

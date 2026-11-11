@@ -22,7 +22,7 @@ const RemoteOkJob = z.object({
   url: nullishString,
 });
 
-// GET remoteok.com/api. The first item is its legal notice, not a job.
+// The first item of remoteok.com/api is its legal notice, not a job.
 export function parseRemoteOk(json: unknown): RawJob[] {
   if (!Array.isArray(json)) throw new FeedShapeError("remoteok");
   return eachItem(json, RemoteOkJob).flatMap((job) => {

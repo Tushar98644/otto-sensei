@@ -1,8 +1,6 @@
 import { createHmac } from "node:crypto";
 import { vi } from "vitest";
 
-// Tests only. A fake Creem API (the SDK calls global fetch) and webhook signatures.
-
 const AT = "2026-11-08T10:00:00.000Z";
 
 export type FakeCustomer = { id: string; email: string };
@@ -13,9 +11,7 @@ export type FakeCreem = {
   customers: FakeCustomer[];
   subscriptions: FakeSubscription[];
   calls: FakeCall[];
-  /** e.g. ("POST /v1/subscriptions/sub_1/cancel", 400, 1, "subscription_not_active"). */
   failNext: (route: string, status: number, times?: number, code?: string) => void;
-  /** Every call to this "METHOD /path" (or its path prefix). */
   callsTo: (route: string) => FakeCall[];
 };
 
@@ -48,7 +44,6 @@ function customerEntity(customer: FakeCustomer) {
   };
 }
 
-/** Swaps fetch for a fake Creem API. Undo with vi.unstubAllGlobals() (or vi.restoreAllMocks). */
 export function installFakeCreem(): FakeCreem {
   const failures = new Map<string, { status: number; left: number; code?: string }>();
   let checkouts = 0;
@@ -140,7 +135,6 @@ export function installFakeCreem(): FakeCreem {
   return fake;
 }
 
-/** The creem-signature header Creem sends: HMAC-SHA256 of the raw body with the webhook secret. */
 export function creemSignature(body: string, secret: string): string {
   return createHmac("sha256", secret).update(body).digest("hex");
 }
@@ -156,7 +150,6 @@ export type WebhookSubscription = {
   next_transaction_date?: string;
 };
 
-/** A subscription.* event as docs.creem.io shows it, with only the fields we read changed. */
 export function subscriptionEvent(
   eventType: string,
   subscription: WebhookSubscription = {},

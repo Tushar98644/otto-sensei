@@ -12,7 +12,6 @@ describe("visa facts", () => {
     expect(companyKey("STRIPE, INC.")).toBe("stripe");
     expect(companyKey("Databricks UK Limited")).toBe("databricks");
     expect(companyKey("AT&T Services, Inc.")).toBe("at and t services");
-    // A different company with a longer name never folds into the short one.
     expect(companyKey("Chime Software Limited")).not.toBe(companyKey("Chime"));
   });
 
@@ -46,7 +45,6 @@ describe("visa facts", () => {
     expect(listed.map((finding) => finding.note).join(" ")).toContain(
       "listed as a UK visa sponsor",
     );
-    // A post that says it doesn't sponsor still blocks.
     const refuses = checkEligibility(
       { ...post, text: "We are unable to sponsor visas for this role." },
       profile,

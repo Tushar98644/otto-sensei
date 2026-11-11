@@ -1,22 +1,17 @@
 import type { ReactNode } from "react";
 import { cn } from "@/lib/utils";
 
-// Hand-drawn paths. Budget: 3 in the hero, 1 in any other marketing section, none in the studio,
-// dialogs, account or legal pages, never over text or controls. Decorative: hidden from readers.
-
 type DoodleProps = { className?: string };
 
 type SketchProps = {
   viewBox: string;
   width?: number;
   className?: string;
-  // Stretch to the box instead of keeping the drawing's shape (the squiggle under a word).
   stretch?: boolean;
   children: ReactNode;
 };
 
-// Every path sets vectorEffect="non-scaling-stroke" (it doesn't inherit): it keeps the line weight
-// in screen pixels, so a doodle drawn bigger or stretched still looks like the same pen.
+// Every path sets vectorEffect="non-scaling-stroke" itself: it doesn't inherit.
 function Sketch({ viewBox, width = 1.75, className, stretch = false, children }: SketchProps) {
   return (
     <svg
@@ -36,8 +31,6 @@ function Sketch({ viewBox, width = 1.75, className, stretch = false, children }:
   );
 }
 
-// Violet: one of the two accent marks on its screen. Never stretched, so give it a width and
-// let the height follow.
 export function Squiggle({ className }: DoodleProps) {
   return (
     <Sketch viewBox="0 0 218 14" width={2.5} className={cn("text-accent", className)}>
@@ -68,7 +61,6 @@ const BUBBLE_MARKS = {
 
 export type BubbleProps = DoodleProps & {
   mark?: keyof typeof BUBBLE_MARKS;
-  // Fill with the surface the bubble sits on, so lines behind it don't show through.
   fillClassName?: string;
 };
 
@@ -97,8 +89,6 @@ export function Dashes({ className }: DoodleProps) {
   );
 }
 
-// A quick pencil circle around one number. Violet: one of the two accent marks on its screen.
-// Its ends overlap on purpose, the way a circle drawn in one go does.
 export function LooseCircle({ className }: DoodleProps) {
   return (
     <Sketch viewBox="0 0 120 48" width={2} stretch className={cn("text-accent", className)}>

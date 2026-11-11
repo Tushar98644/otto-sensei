@@ -7,7 +7,6 @@ const words = (text: string) => text.trim().split(/\s+/).length;
 describe("tour copy", () => {
   const all = [...Object.values(STUDIO_COPY), ...Object.values(DASHBOARD_COPY)];
 
-  // DESIGN.md: Otto speaks in 18 words at most, with no exclamation marks outside a success.
   it("keeps Otto's lines short and calm", () => {
     for (const { title, body } of all) {
       expect(words(body), body).toBeLessThanOrEqual(18);

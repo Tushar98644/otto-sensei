@@ -25,19 +25,16 @@ export type GitHubImportDialogProps = {
   resume: Resume;
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  // The portfolio pushes the resume to a page that isn't kept in sync.
   onAdded?: (resume: Resume) => void;
 };
 
 const EDIT_LABEL = "Added projects from GitHub";
 
-// Drafts already listed on the resume start unticked, so importing twice doesn't double them.
 function alreadyOnFor(resume: Resume) {
   return (draft: GitHubDraftResult) =>
     draft.entries.filter((entry) => isOnResume(resume, entry)).map((entry) => entry.key);
 }
 
-// Projects the picked items turn into: one per repo, one per repo the pull requests went to.
 function projectCount(flow: GitHubImport): number {
   const { profile, repos, pulls } = flow.state;
   const pullRepos = new Set(
@@ -46,7 +43,6 @@ function projectCount(flow: GitHubImport): number {
   return repos.length + pullRepos.size;
 }
 
-// Drafts the best public work on open; only "Add" changes the resume.
 export function GitHubImportDialog({
   resume,
   open,
@@ -56,14 +52,11 @@ export function GitHubImportDialog({
   const gate = useAccountGate();
   const github = useGitHubConnection(open);
   const flow = useGitHubImport(resume, github.login, alreadyOnFor(resume), (error) => {
-    // Disconnected since the dialog opened (another tab): the first screen offers "Connect
-    // GitHub" again.
     if (isApiError(error, "github_not_connected")) github.reload();
     else gate.handleApiError(error, "github");
   });
   const updateResume = useStudioStore((s) => s.updateResume);
   const { state } = flow;
-  // Once per opening, so going back to the first screen doesn't look the account up again.
   const autoStarted = useRef(false);
   const login = github.login;
   const startLookup = useEffectEvent(() => void flow.lookup());
@@ -71,7 +64,6 @@ export function GitHubImportDialog({
   useEffect(() => {
     if (!open || autoStarted.current || !login) return;
     autoStarted.current = true;
-    // After this render, so the dialog is on screen before its state moves on.
     const timer = window.setTimeout(startLookup, 0);
     return () => window.clearTimeout(timer);
   }, [open, login]);

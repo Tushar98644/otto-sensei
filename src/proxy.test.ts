@@ -7,8 +7,6 @@ import { config, proxy } from "./proxy";
 
 type ServerClientOptions = Parameters<typeof createServerClient>[2];
 
-// Stands in for Supabase: getClaims() either verifies the token as it is, or refreshes it first
-// and writes the new cookies through setAll, as the real client does near expiry.
 const supabase = vi.hoisted(() => ({
   created: 0,
   claims: null as { sub: string } | null,
@@ -68,7 +66,6 @@ describe("proxy", () => {
       const res = await proxy(visit("/", cookie));
       expect(res.headers.get("location")).toBeNull();
     }
-    // Signed-out visitors never cost a Supabase client.
     expect(supabase.created).toBe(0);
     supabase.claims = null;
     expect((await proxy(visit("/", `${COOKIE}=expired`))).headers.get("location")).toBeNull();
@@ -88,7 +85,6 @@ describe("proxy", () => {
     expect(res.headers.get("location")).toBeNull();
     expect(res.cookies.get(COOKIE)).toMatchObject({ value: "fresh", httpOnly: true });
     expect(res.headers.get("cache-control")).toContain("no-store");
-    // What the page and route handlers of this same request will read.
     expect(res.headers.get("x-middleware-request-cookie")).toContain(`${COOKIE}=fresh`);
   });
 

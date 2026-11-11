@@ -25,8 +25,6 @@ import type { FollowUpAction } from "@/lib/notifications/types";
 
 // Every query filters by user_id, so a guessed id never reaches another account's rows.
 
-// Leaves out prep packs, status history and reminded_at, so a page of 500 rows stays small.
-// Whether a pack exists is one boolean.
 export const APPLICATION_COLUMNS = {
   id: applications.id,
   resumeId: applications.resumeId,
@@ -58,9 +56,7 @@ export type ApplicationPage = { applications: Application[]; nextCursor: string 
 export type CreateResult =
   | { status: "created"; application: Application }
   | { status: "limit_reached" }
-  // The id the browser picked belongs to another account's application.
   | { status: "id_taken" }
-  // The account was deleted after the request was signed in, so nothing may be written.
   | { status: "no_user" };
 
 export function toApplication(row: Row): Application {
@@ -100,7 +96,6 @@ export function startingHistory(
   return status === "applied" ? [sent] : [sent, { status, at: Math.max(now, appliedAt) }];
 }
 
-// "<appliedAt>.<id>" of the last row sent: the next page starts right after it.
 export function encodeCursor({ appliedAt, id }: Cursor): string {
   return `${appliedAt}.${id}`;
 }
@@ -127,7 +122,6 @@ export async function listApplications(
         and(eq(applications.appliedAt, cursor.appliedAt), lt(applications.id, cursor.id)),
       )
     : undefined;
-  // One extra row says whether another page exists without a count query.
   const rows = await db
     .select(APPLICATION_COLUMNS)
     .from(applications)
@@ -142,8 +136,7 @@ export async function listApplications(
   };
 }
 
-// Runs under the account's row lock, so parallel requests can't push it past its limit, and
-// nothing is written for a deleted account.
+// Under the account's row lock, so parallel requests can't push it past its limit.
 export async function createApplication(
   userId: string,
   input: Omit<CreateApplicationInput, "jobId"> & { jobId?: string | null },
@@ -159,7 +152,6 @@ export async function createApplication(
       .from(applications)
       .where(eq(applications.userId, userId));
     if ((stored?.n ?? 0) >= max) return { status: "limit_reached" };
-    // Logging a job as applied sets its follow-up by itself; the setting only picks the delay.
     const followUpAt =
       input.status === "applied"
         ? firstFollowUpAt(input.appliedAt, now, await followUpDaysOf(tx, userId))
@@ -190,7 +182,6 @@ export async function createApplication(
       .onConflictDoNothing({ target: applications.id })
       .returning(APPLICATION_COLUMNS);
     if (!row) {
-      // A repeat of a create that already landed answers with that application.
       const [existing] = await tx
         .select(APPLICATION_COLUMNS)
         .from(applications)
@@ -204,9 +195,6 @@ export async function createApplication(
   });
 }
 
-// SQL against the stored row, so change-time and timeline only move on a real change, and an
-// ending keeps the furthest step (see stageAfter). Moving to applied starts a fresh follow-up;
-// any other status ends it.
 function statusChange(
   userId: string,
   status: ApplicationStatus,
@@ -239,7 +227,6 @@ export async function updateApplication(
   if (patch.resumeTitle !== undefined) set.resumeTitle = patch.resumeTitle;
   if (patch.company !== undefined) set.company = patch.company;
   if (patch.role !== undefined) set.role = patch.role;
-  // A new link is another post: the opening follows the link, or goes when it's none of ours.
   if (patch.jobUrl !== undefined) {
     set.jobUrl = patch.jobUrl;
     set.jobId = await resolveJobId(db, null, patch.jobUrl);
@@ -247,7 +234,6 @@ export async function updateApplication(
   if (patch.appliedAt !== undefined) set.appliedAt = patch.appliedAt;
   if (patch.notes !== undefined) set.notes = patch.notes;
   if (patch.interviewAt !== undefined) set.interviewAt = patch.interviewAt;
-  // Sent with a status, an explicit date wins over the one the status would set.
   if (patch.followUpAt !== undefined) set.followUpAt = patch.followUpAt;
   const rows = await db
     .update(applications)
@@ -256,7 +242,6 @@ export async function updateApplication(
     .returning(APPLICATION_COLUMNS);
   const row = rows[0];
   if (!row) return null;
-  // Naming the job better can only add letters to it; ones already linked stay.
   if (patch.jobUrl !== undefined || patch.company !== undefined || patch.role !== undefined) {
     await linkWritings(db, userId, row.id, row);
   }
@@ -295,8 +280,6 @@ export async function deleteApplication(userId: string, id: string): Promise<boo
 
 export type FollowUpResult = { company: string; followUpAt: number | null };
 
-// From a reminder email's link. Snoozing only applies while it's still on "applied". Null when
-// the account has no such application.
 export async function applyFollowUpAction(
   userId: string,
   id: string,

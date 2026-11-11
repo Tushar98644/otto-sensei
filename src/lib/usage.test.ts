@@ -24,25 +24,18 @@ import {
   weekKey,
 } from "./usage";
 
-// A Sunday. Its ISO week ends on Monday Nov 16, 00:00 UTC.
 const NOV = Date.UTC(2026, 10, 15, 12);
 const DEC = Date.UTC(2026, 11, 1, 0, 0, 1);
-// A weekly renewal on Thursday Nov 19 at 09:30:15.123, so NOV's billing week ends Nov 19 09:30.
 const RENEWS_AT = Date.UTC(2026, 10, 19, 9, 30, 15, 123);
 const WEEK_END = Date.UTC(2026, 10, 19, 9, 30);
 const MINUTE = 60_000;
 const HOUR = 60 * MINUTE;
 const DAY_MS = 24 * HOUR;
-// A trial that started Nov 14 and ends three days later, across the turn of no month.
 const TRIAL_END = Date.UTC(2026, 10, 17, 12);
-// A monthly plan's billing period as Creem reports it: Nov 10 to Dec 10, so NOV and DEC both fall
-// in it, then the next one to Jan 10.
 const P_START = Date.UTC(2026, 10, 10, 9, 30);
 const P_END = Date.UTC(2026, 11, 10, 9, 30);
 const P_NEXT = Date.UTC(2027, 0, 10, 9, 30);
 
-// Counters belong to real accounts (a foreign key), so they're created fresh for every test. The
-// trial has the smallest real limits, so the limit tests run on it.
 let free: SessionUser;
 let pro: SessionUser;
 let trial: SessionUser;
@@ -94,10 +87,8 @@ describe("periods", () => {
   it("lines billing weeks up with the renewal date, to the minute, on both sides of it", () => {
     expect(billingWeekEnd(RENEWS_AT, NOV)).toBe(WEEK_END);
     expect(billingWeekEnd(RENEWS_AT, WEEK_END - 1)).toBe(WEEK_END);
-    // The renewal webhook is late: the next week has started anyway.
     expect(billingWeekEnd(RENEWS_AT, WEEK_END)).toBe(WEEK_END + WEEK_MS);
     expect(billingWeekEnd(RENEWS_AT, WEEK_END + 3 * HOUR)).toBe(WEEK_END + WEEK_MS);
-    // A renewal more than a week out (e.g. after a plan change) still splits time into weeks.
     expect(billingWeekEnd(RENEWS_AT, WEEK_END - WEEK_MS - 1)).toBe(WEEK_END - WEEK_MS);
   });
 
@@ -152,7 +143,6 @@ describe("the trial", () => {
     const moved = { ...trial, trialEndsAt: TRIAL_END + 2 * HOUR };
     expect((await consumeUsage(moved, "tailor", NOV)).allowed).toBe(false);
     expect(await trialCount("tailor")).toBe(PRO_TRIAL.limits.tailor);
-    // Nothing spills into the month the trial ran in.
     expect(await storedCount(trial, "tailor")).toBeNull();
   });
 
@@ -270,7 +260,6 @@ describe("weekly subscribers", () => {
       expect(state.period).toEqual({ kind: "month", resetsAt: DEC - 1000 });
       expect(state.usage.tailor.limit).toBe(PLANS.pro.limits.tailor);
     }
-    // A stale interval on a Free row never makes it weekly.
     const state = await getUsageState({ ...free, planInterval: "week" }, NOV);
     expect(state.period.kind).toBe("month");
     expect(state.usage.tailor.limit).toBe(0);
@@ -308,14 +297,12 @@ describe("weekly subscribers", () => {
 
   it("keep a started week running when the renewal date moves or is cleared", async () => {
     await useUp(weekly(), "tailor");
-    // A scheduled cancellation clears the date; a plan change can move it.
     for (const planRenewsAt of [null, RENEWS_AT + 3 * 24 * HOUR, RENEWS_AT - 2 * 24 * HOUR]) {
       const moved = weekly({ planRenewsAt });
       const blocked = await consumeUsage(moved, "tailor", NOV);
       expect(blocked.allowed).toBe(false);
       expect(blocked.period.resetsAt).toBe(WEEK_END);
     }
-    // Once it ends, the new date decides the next week.
     const later = weekly({ planRenewsAt: RENEWS_AT + 3 * 24 * HOUR });
     const next = await consumeUsage(later, "tailor", WEEK_END);
     expect(next.allowed).toBe(true);
@@ -326,18 +313,15 @@ describe("weekly subscribers", () => {
     const monthly: SessionUser = { ...pro, planInterval: "month" };
     await consumeTimes(monthly, "tailor", 10);
 
-    // Into weekly: the week has its own count, so the week's allowance is all there.
     const intoWeekly = await consumeUsage(weekly(), "tailor", NOV);
     expect(intoWeekly.usage.tailor).toEqual({ used: 1, limit: 38 });
     await consumeTimes(weekly(), "tailor", 37);
     expect((await consumeUsage(weekly(), "tailor", NOV)).allowed).toBe(false);
 
-    // Back to monthly: the weekly uses counted toward November too.
     expect((await getUsage(monthly, NOV)).tailor).toEqual({ used: 48, limit: 150 });
     await consumeTimes(monthly, "tailor", 102);
     expect((await consumeUsage(monthly, "tailor", NOV)).allowed).toBe(false);
 
-    // And weekly again in the same week: still used up.
     expect((await consumeUsage(weekly(), "tailor", NOV)).allowed).toBe(false);
     expect((await getUsage(weekly(), NOV)).tailor).toEqual({ used: 38, limit: 38 });
   });
@@ -357,7 +341,6 @@ describe("weekly subscribers", () => {
     const db = await getDb();
     await db.insert(usage).values({ subject: pro.id, feature: "tailor", period: weekKey(WEEK_END), count: 0, bonus: 2 });
     expect((await getUsage(weekly(), NOV)).tailor).toEqual({ used: 0, limit: 40 });
-    // Monthly sees none of it.
     expect((await getUsage(pro, NOV)).tailor.limit).toBe(PLANS.pro.limits.tailor);
   });
 });
@@ -376,7 +359,6 @@ describe("billing months", () => {
   it("know leap years", () => {
     expect(addMonths(Date.UTC(2028, 0, 31), 1)).toBe(Date.UTC(2028, 1, 29));
     expect(addMonths(Date.UTC(2027, 0, 31), 1)).toBe(Date.UTC(2027, 1, 28));
-    // A year that starts on Feb 29 resets on the 29th, and on Feb 28 when February is shorter.
     const leapDay = Date.UTC(2028, 1, 29, 12);
     expect(addMonths(leapDay, 1)).toBe(Date.UTC(2028, 2, 29, 12));
     expect(addMonths(leapDay, 12)).toBe(Date.UTC(2029, 1, 28, 12));
@@ -388,7 +370,6 @@ describe("billing months", () => {
     const feb28 = Date.UTC(2026, 1, 28, 9, 30);
     expect(monthWindow(anchor, feb28 - 1)).toEqual({ start: anchor, end: feb28 });
     expect(monthWindow(anchor, feb28)).toEqual({ start: feb28, end: Date.UTC(2026, 2, 31, 9, 30) });
-    // Every step is from the anchor, so the 31st is back after February.
     expect(monthWindow(anchor, Date.UTC(2026, 3, 1))).toEqual({
       start: Date.UTC(2026, 2, 31, 9, 30),
       end: Date.UTC(2026, 3, 30, 9, 30),
@@ -403,9 +384,7 @@ describe("billing months", () => {
     const monthly = { planInterval: "month" as const, planPeriodStartsAt: P_START, planPeriodEndsAt: P_END };
     expect(billingMonth(monthly, NOV)).toEqual({ start: P_START, end: P_END });
     expect(billingMonth(monthly, DEC)).toEqual({ start: P_START, end: P_END });
-    // The renewal's webhook is late: the month after runs from the old end to the same day after.
     expect(billingMonth(monthly, P_END + HOUR)).toEqual({ start: P_END, end: P_NEXT });
-    // Milliseconds don't make another month.
     expect(billingMonth({ ...monthly, planPeriodStartsAt: P_START + 123 }, NOV)).toEqual({ start: P_START, end: P_END });
   });
 
@@ -462,16 +441,13 @@ describe("monthly and yearly subscribers", () => {
     const user = dated();
     await useAll(user, "tailor", cycleKey(P_START));
     expect((await consumeUsage(user, "tailor", NOV)).allowed).toBe(false);
-    // Dec 1 is still the same billing month.
     expect((await consumeUsage(user, "tailor", DEC)).allowed).toBe(false);
     expect((await consumeUsage(user, "tailor", P_END - MINUTE)).allowed).toBe(false);
 
-    // The renewal's webhook stores the next period: a fresh month that ends at the next renewal.
     const renewed = dated({ planPeriodStartsAt: P_END, planPeriodEndsAt: P_NEXT, planRenewsAt: P_NEXT });
     const next = await consumeUsage(renewed, "tailor", P_END + MINUTE);
     expect(next).toMatchObject({ allowed: true, usage: { tailor: { used: 1, limit: 150 } } });
     expect(next.period).toEqual({ kind: "month", resetsAt: P_NEXT, renews: true });
-    // Before that webhook lands, the account already counts in that same next month.
     const late = await consumeUsage(user, "tailor", P_END + MINUTE);
     expect(late).toMatchObject({ allowed: true, usage: { tailor: { used: 2 } } });
   });
@@ -485,7 +461,6 @@ describe("monthly and yearly subscribers", () => {
       planRenewsAt: addMonths(yearStart, 12),
     });
     const state = await getUsageState(yearly, NOV);
-    // Between renewals, so the reset isn't called the renewal.
     expect(state.period).toEqual({ kind: "month", resetsAt: Date.UTC(2026, 10, 30, 9, 30), renews: false });
     expect(state.usage.tailor).toEqual({ used: 0, limit: PLANS.pro.limits.tailor });
     await useAll(yearly, "tailor", cycleKey(Date.UTC(2026, 9, 31, 9, 30)));
@@ -500,10 +475,8 @@ describe("monthly and yearly subscribers", () => {
     expect(state.period).toEqual({ kind: "month", resetsAt: DEC - 1000 });
     expect(state.usage.tailor).toEqual({ used: 0, limit: PLANS.pro.limits.tailor });
     expect(warn).toHaveBeenCalledWith("usage.period_fallback", { userId: pro.id, interval: "month" });
-    // Neither blocked nor unlimited: the usual limit, on the calendar month's row.
     await useAll(old, "fix", monthKey(NOV));
     expect((await consumeUsage(old, "fix", NOV)).allowed).toBe(false);
-    // Free has no billing period to miss.
     warn.mockClear();
     await getUsageState(free, NOV);
     expect(warn).not.toHaveBeenCalled();
@@ -519,7 +492,6 @@ describe("carryUsageOver", () => {
     planPeriodEndsAt: P_END,
     ...overrides,
   });
-  // Creem starting a new period at `at`, e.g. for a plan change it charges for straight away.
   const periodFrom = (at: number): Partial<SessionUser> => ({
     planPeriodStartsAt: at,
     planPeriodEndsAt: addMonths(at, 1),
@@ -530,18 +502,15 @@ describe("carryUsageOver", () => {
     const db = await getDb();
     const user = monthly();
     await consumeTimes(user, "tailor", 5, NOV);
-    // Creem kept the period: the same month, nothing to copy.
     const sameDates: SessionUser = { ...user, plan: "max" };
     await carryUsageOver(db, user, sameDates, NOV);
     expect((await getUsage(sameDates, NOV)).tailor).toEqual({ used: 5, limit: PLANS.max.limits.tailor });
 
-    // Creem started a new period at the change: the count moves to it.
     const max = monthly({ plan: "max", ...periodFrom(NOV - HOUR) });
     await carryUsageOver(db, user, max, NOV);
     expect((await getUsage(max, NOV)).tailor).toEqual({ used: 5, limit: PLANS.max.limits.tailor });
     await consumeUsage(max, "tailor", NOV);
 
-    // A downgrade does the same, and a retried webhook adds nothing.
     const down = monthly(periodFrom(NOV));
     await carryUsageOver(db, max, down, NOV + MINUTE);
     await carryUsageOver(db, max, down, NOV + MINUTE);
@@ -560,9 +529,7 @@ describe("carryUsageOver", () => {
   it("carries a late renewal's first days over instead of counting them twice", async () => {
     const db = await getDb();
     const user = monthly();
-    // Two days past the period's end, its renewal still not in.
     await consumeTimes(user, "tailor", 3, P_END + 2 * DAY_MS);
-    // A payment retried until then starts the new period on the day it went through.
     const paid = monthly(periodFrom(P_END + 2 * DAY_MS + HOUR));
     await carryUsageOver(db, user, paid, P_END + 2 * DAY_MS + HOUR);
     expect((await getUsage(paid, P_END + 2 * DAY_MS + HOUR)).tailor.used).toBe(3);
@@ -571,14 +538,11 @@ describe("carryUsageOver", () => {
   it("moves a row from calendar months to billing months without losing this month's count", async () => {
     vi.spyOn(log, "warn").mockImplementation(() => {});
     const db = await getDb();
-    // Paid before billing months: counted on "2026-11", renewing on Dec 10.
     const old = monthly({ planPeriodStartsAt: null, planPeriodEndsAt: null });
     await consumeTimes(old, "fix", 4, NOV);
-    // Its first dated webhook comes partway through the period.
     const dated = monthly();
     await carryUsageOver(db, old, dated, NOV);
     expect((await getUsage(dated, NOV)).fix.used).toBe(4);
-    // Again (a second event): still 4, never 8.
     await carryUsageOver(db, old, dated, NOV);
     expect((await getUsage(dated, NOV)).fix.used).toBe(4);
   });

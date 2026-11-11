@@ -3,7 +3,6 @@ import { cn } from "@/lib/utils";
 
 export type SeparatorProps = ComponentProps<"div"> & {
   orientation?: "horizontal" | "vertical";
-  // Set false when the line splits content screen readers should know about.
   decorative?: boolean;
 };
 

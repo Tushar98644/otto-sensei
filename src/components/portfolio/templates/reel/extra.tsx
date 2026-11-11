@@ -4,7 +4,6 @@ import { useRef, useState, type ReactNode } from "react";
 import { useSectionVisible } from "./motion";
 import { Divider } from "./ui";
 
-// Sections the original lacks (more projects, experience), in its language.
 export function ExtraSection({
   id,
   title,

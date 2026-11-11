@@ -59,7 +59,6 @@ const STAGE: Record<BoardColumn, { bar: string; tint: string; over: string }> = 
 
 type MoveMode = DragMode | "menu";
 
-// The time a move is logged at, read when the move happens, never while drawing.
 function sentAt(): number {
   return Date.now();
 }
@@ -70,7 +69,6 @@ export type ApplicationsBoardProps = {
   savedJobs: readonly SavedJob[];
   writings: readonly Writing[];
   now: number;
-  // null while the plan loads; false on Free, where prep opens the trial prompt.
   pro: boolean | null;
   onNeedsDetails: (resumeId: string | null) => void;
 };
@@ -123,7 +121,6 @@ export function ApplicationsBoard({
     else router.push(prepHref(application.id));
   }
 
-  // Beside the drop, or under the card itself for moves that didn't come from one.
   function anchorOf(card: BoardCard, point: DropPoint): { x: number; y: number } {
     if (point) return point;
     const box = document
@@ -220,7 +217,6 @@ export function ApplicationsBoard({
       remove(move.application);
       return;
     }
-    // A phone follows the card to its new column.
     setTab(columnOf(move.status));
     const reply = answer ?? { status: move.status, interviewAt: null, prepare: false };
     if (move.kind === "status") changeStatus(move.application, reply, mode);
@@ -305,7 +301,6 @@ export function ApplicationsBoard({
             {count.format(cards.length)}
           </span>
         </header>
-        {/* pt-2 leaves room for a card's corner mark inside the scroller's edge. */}
         <div className="relative flex-1 px-2 pt-2 pb-2 md:overflow-y-auto">
           {cards.length > 0 ? (
             <ul className="flex flex-col gap-1">
@@ -359,7 +354,6 @@ export function ApplicationsBoard({
         {drag.announcement}
       </p>
 
-      {/* Phones: one column at a time; while a card is held, its stages are drop places. */}
       <div className="-mx-4 overflow-x-auto px-4 md:hidden">
         <div
           role="group"
@@ -385,8 +379,7 @@ export function ApplicationsBoard({
         </div>
       </div>
 
-      {/* Runs to the window's edge from md, so later columns read as more to scroll to. 1.5rem,
-          not 2rem: 100vw counts a classic scrollbar, and half of one must not widen the page. */}
+      {/* 1.5rem, not 2rem: 100vw counts a classic scrollbar, which must not widen the page. */}
       <div
         ref={scrollerRef}
         className="md:-mr-8 md:overflow-x-auto md:pr-8 md:pb-3 lg:-mr-[calc(max(0px,(100vw-15rem-64rem)/2)+1.5rem)] lg:pr-[calc(max(0px,(100vw-15rem-64rem)/2)+1.5rem)]"

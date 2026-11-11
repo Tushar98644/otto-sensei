@@ -25,7 +25,6 @@ const SEGMENT =
   "flex h-9 shrink-0 items-center gap-1.5 rounded-lg px-3 text-sm font-medium text-muted -outline-offset-2 transition-colors hover:text-ink aria-pressed:bg-surface aria-pressed:text-ink aria-pressed:shadow-control pointer-coarse:h-10";
 const CHECKBOX = "flex min-h-11 items-center gap-2 text-sm text-ink";
 
-// Reports once typing stops, and at once on Enter or clear. The page's filters stay the truth.
 function DelayedInput({
   value,
   onCommit,
@@ -110,7 +109,6 @@ export type JobFiltersBarProps = {
   savedCount: number;
   filters: JobFilters;
   onFilters: (patch: Partial<JobFilters>) => void;
-  // The work profile has answers the "can take it" rules can use.
   profileReady: boolean;
 };
 

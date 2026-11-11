@@ -8,10 +8,6 @@ import { portfolioView, type ViewSettings } from "@/lib/portfolio/view";
 import { emptyResume, type Resume } from "@/lib/resume/schema";
 import { PORTFOLIO_TEMPLATES } from "./registry";
 
-// The eight rebuilds with the full Jordan fixture, with the least data a page can have, with
-// hostile text, and with sections hidden. None of them draws a picture (owner decision
-// 2026-11-10): every stand-in is drawn from the page's own words.
-
 const NOW = Date.UTC(2026, 10, 8);
 const OPEN: ViewSettings = { showEmail: true, showPhone: false, hiddenSections: [] };
 
@@ -29,7 +25,6 @@ function draw(id: PortfolioTemplateId, resume: Resume, settings = OPEN, full = t
   );
 }
 
-// The fixture with its projects changed.
 function drawEdited(id: PortfolioTemplateId, edit: (project: ProjectEntry) => ProjectEntry) {
   const view = portfolioView(jordanV2Resume(), OPEN);
   const fixture = jordanContent();
@@ -39,8 +34,6 @@ function drawEdited(id: PortfolioTemplateId, edit: (project: ProjectEntry) => Pr
   return renderToStaticMarkup(<Component view={view} content={content} />);
 }
 
-// What each design is expected to show from the full fixture. Reel, like its reference, has no
-// work history or skills; the others do.
 const SHOWS: Record<PortfolioTemplateId, string[]> = {
   navy: [
     "Jordan Ellis",
@@ -157,7 +150,6 @@ describe.each(Object.keys(SHOWS) as PortfolioTemplateId[])("the %s rebuild", (id
       },
     ];
     const html = draw(id, resume, OPEN, false);
-    // Dock's hero greets by first name only, like its reference.
     expect(html).toContain(
       id === "dock" ? "Maximilian-Alexander" : "Maximilian-Alexander Featherstonehaugh-Montgomery",
     );
@@ -183,8 +175,6 @@ describe.each(Object.keys(SHOWS) as PortfolioTemplateId[])("the %s rebuild", (id
     expect(html).toContain("&lt;script&gt;");
   });
 
-  // Resume-backed sections follow the page's hidden sections. Text the owner wrote in the content
-  // editor (about, location) has its own switches there, so it isn't checked here.
   it("keeps out what the owner hid, and the email unless it's turned on", () => {
     const closed = draw(id, jordanV2Resume(), { ...OPEN, showEmail: false });
     expect(closed).not.toContain("hello@jordanellis.dev");
@@ -209,7 +199,6 @@ describe("rebuild details", () => {
     expect(html.match(/role="tab"/g)).toHaveLength(5);
     expect(html.match(/role="tabpanel"/g)).toHaveLength(5);
     expect(html.match(/role="tabpanel"[^>]*hidden=""/g)).toHaveLength(4);
-    // The first three, each over a code window drawn from its name instead of a screenshot.
     expect(html.match(/Featured Project/g)).toHaveLength(3);
     expect(html.match(/class="img code-screen"/g)).toHaveLength(3);
     expect(html).toContain(">tally.ts<");
@@ -227,7 +216,6 @@ describe("rebuild details", () => {
     expect(html).toMatch(/class="cover-mark"[^>]*>T</);
     expect(html).toContain("Open source · analytics");
     expect(html.match(/class="t-icon"/g)).toHaveLength(6);
-    // No photo gallery: it only makes sense with pictures.
     expect(html).not.toContain('aria-label="Photos"');
   });
 
@@ -235,12 +223,10 @@ describe("rebuild details", () => {
     const html = draw("reel", jordanV2Resume());
     expect(html).toContain('href="#pf-reel-p-tally"');
     expect(html).toContain('id="pf-reel-p-tally"');
-    // His katakana outlines, drawn once and used behind each device and down the portrait tile.
     expect(html).toContain('id="pf-reel-katakana-project"');
     expect(html.match(/href="#pf-reel-katakana-project"/g)).toHaveLength(4);
     expect(html).toContain('href="#pf-reel-katakana-profile"');
     expect(html).toMatch(/class="image-initials-text">JE</);
-    // A project with no write-up has no page of its own.
     expect(html).not.toContain('id="pf-reel-p-pgsnap"');
   });
 
@@ -249,24 +235,18 @@ describe("rebuild details", () => {
     expect(html.match(/class="summary section"/g)).toHaveLength(4);
     expect(html.match(/class="summary-model" data-device="laptop"/g)).toHaveLength(2);
     expect(html.match(/class="summary-model" data-device="phone"/g)).toHaveLength(2);
-    // Every screen is drawn: one per laptop, two per pair of phones, and one atop each of the
-    // three project pages.
     expect(html.match(/class="drawn-screen"/g)).toHaveLength(2 + 2 * 2 + 3);
-    // The phone behind lists the facts; the one in front is the title page.
     expect(html).toContain("4.2k stars");
     const laptops = drawEdited("reel", (project) => ({ ...project, device: "auto" }));
     expect(laptops.match(/class="summary-model" data-device="laptop"/g)).toHaveLength(4);
-    // three.js draws only in the browser, and readers without JavaScript get the finished page.
     expect(html).not.toContain("<canvas");
     expect(html).toContain("<noscript>");
-    // The rest of the resume, in his language: more projects and the jobs.
     expect(html).toContain('id="pf-reel-more"');
     expect(html.match(/class="extra-row"/g)).toHaveLength(3 + 5);
   });
 
   it("Bento only draws the clock with a time zone, and frames every tile", () => {
     const html = draw("bento", jordanV2Resume());
-    // Each project tile has a pixel mark from its name; the intro has the initials.
     expect(html.match(/<svg class="mark"/g)).toHaveLength(4);
     expect(html).toContain('<div class="initials">JE</div>');
     expect(html).toContain("--:--");
@@ -290,7 +270,6 @@ describe("rebuild details", () => {
     for (const group of ["Open source", "SaaS", "PWA", "Hackathon"])
       expect(html).toContain(`<span>${group}</span>`);
     expect(html.match(/class="chip"/g)?.length).toBeGreaterThanOrEqual(3 + 5);
-    // Each chip's colour comes from its name, so it's the same on every render.
     expect(html).toMatch(/class="mono" style="--hue:\d+"/);
     expect(draw("prose", jordanV2Resume())).toBe(html);
     expect(html).toContain('class="plum"');
@@ -310,7 +289,6 @@ describe("rebuild details", () => {
     for (const index of ["01", "02", "03", "04", "05", "06"])
       expect(html).toContain(`<span class="tag-index" aria-hidden="true">${index}</span>`);
     expect(html).not.toContain(">07<");
-    // Writing, Projects and the shelf, which takes the photo card's place.
     expect(html.match(/class="nav-card enter-swing"/g)).toHaveLength(3);
     expect(html).toContain('href="#pf-paper-shelf"');
     expect(html).toContain('id="pf-paper-shelf"');
@@ -333,11 +311,7 @@ describe("rebuild details", () => {
   });
 });
 
-// Owner decision 2026-11-10: portfolios store no pictures and link to none. Every design, full or
-// bare, draws only markup, CSS and SVG made from the page's words.
 describe("every design without pictures", () => {
-  // The only url() a page may hold: an SVG fragment, an inline data: drawing, or the template's own
-  // drawn still frames (Reel's device frames and sphere, rendered from his models).
   const ALLOWED_URL = /^url\(\s*["']?(?:#|%23|data:|\/portfolio-templates\/)/;
 
   const pages = (id: PortfolioTemplateId) => {

@@ -35,7 +35,6 @@ describe("upgradeOffer", () => {
       ["pro", "year", false],
       ["max", "year", false],
     ]);
-    // Someone who has had the trial sees Pro at its price.
     const used = upgradeOffer({ current: "free", offer: BOTH, picked: "month", trial: false });
     expect(used.cards[0]?.trial).toBe(false);
   });
@@ -64,7 +63,6 @@ describe("upgradeOffer", () => {
       ["pro", false],
       ["max", true],
     ]);
-    // A paying Pro changes in place.
     const paying = upgradeOffer({ current: "pro", offer: BOTH, picked: "year", trial: false });
     expect(paying.cards.some((card) => card.endsTrial)).toBe(false);
   });
@@ -99,7 +97,6 @@ describe("upgradeOffer", () => {
     expect(
       upgradeOffer({ current: "free", offer, picked: "month", trial: false }).intervals,
     ).toEqual(["month", "year"]);
-    // Weekly isn't on sale here, so the pick falls back to the first option that is.
     expect(upgradeOffer({ current: "free", offer, picked: "week", trial: false }).interval).toBe(
       "month",
     );
@@ -108,7 +105,6 @@ describe("upgradeOffer", () => {
       ["pro", "month"],
       ["max", "year"],
     ]);
-    // A Pro account is only offered what Max sells.
     const all: Offer = { pro: ["month", "year", "week"], max: ["month"] };
     expect(
       upgradeOffer({ current: "pro", offer: all, picked: "week", trial: false }).intervals,

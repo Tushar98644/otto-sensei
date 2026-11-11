@@ -27,8 +27,6 @@ import {
   stripDates,
 } from "./text";
 
-// References, contact and personal details never get here (extraKindOf).
-
 type ExtraDraft = {
   title: string;
   subtitle: string;
@@ -46,7 +44,6 @@ const emptyExtra = (): ExtraDraft => ({
 });
 
 export function parseExtra(block: SectionBlock, kind: ExtraKind): ExtraSection | null {
-  // A volunteer section under an experience-style heading is laid out like jobs.
   const drafts =
     kind === "languages"
       ? languageDrafts(block.lines)
@@ -62,7 +59,6 @@ export function parseExtra(block: SectionBlock, kind: ExtraKind): ExtraSection |
   return { id: newId(), kind, title, items };
 }
 
-// "AWARDS" then "AWARDS (CONTINUED)" on the next page is one section.
 export function addExtra(extras: ExtraSection[], section: ExtraSection | null): void {
   if (!section) return;
   const previous = extras.at(-1);
@@ -88,7 +84,6 @@ function toExtraItem(draft: ExtraDraft): ExtraItem {
   };
 }
 
-// "English (native), Spanish - B2", "German: fluent" -> language and level.
 const LEVEL_IN_BRACKETS = /^(.+?)\s*[([]\s*([^)\]]+?)\s*[)\]]$/u;
 const LEVEL_AFTER = /^(.+?)\s*(?::|\s[-–—]\s|[–—])\s*(.+)$/u;
 
@@ -111,7 +106,6 @@ function roleDraft(job: Experience): ExtraDraft {
   };
 }
 
-// One item per line or bullet; a sentence under a header describes it.
 function listDrafts(lines: readonly string[], kind: ExtraKind): ExtraDraft[] {
   const marked = lines.map((line) => bulletText(line));
   const usesMarkers = marked.some((text) => text !== null);
@@ -128,9 +122,7 @@ function listDrafts(lines: readonly string[], kind: ExtraKind): ExtraDraft[] {
     } else if (bullet === null && current && previous && continues(previous, line)) {
       appendToLast(current, line);
     } else if (isExtraDescription(text, kind)) {
-      // Each line of a publication list is its own paper, sentence or not.
       const describes = kind !== "publications" && bullet === null && !usesMarkers;
-      // "Won the regional final.<tab>2023 | Details" is an item of its own, dated.
       const cells = text.split(/\t+/);
       const tail =
         cells.length > 1 ? (cells.at(-1) ?? "").replace(/\s*\|?\s*details$/i, "").trim() : "";
@@ -166,25 +158,20 @@ function appendToLast(draft: ExtraDraft, line: string): void {
   else draft.title = draft.title ? `${draft.title} ${line}` : line;
 }
 
-// Sentences, and lists in custom sections ("Chess, hiking"), read as text, not a bold name.
 function isExtraDescription(text: string, kind: ExtraKind): boolean {
-  // A table row names its item in the first cell: "Hackathon<tab>Won first of 200 teams. 2023".
   const [first = "", ...cells] = text.split(/\t+/);
   if (cells.length > 0 && first.split(/\s+/).length <= 8 && isTitleLike(first)) return false;
   if (!isTitleLike(text)) return true;
-  // Counted per segment, so "Best Paper Award | ACM CHI | 2019" stays a name.
   if (segmentsOf(stripDates(text)).some((segment) => segment.split(/\s+/).length >= 10))
     return true;
   return kind === "custom" && /[,;]/.test(text);
 }
 
 function extraHeader(line: string, kind: ExtraKind): ExtraDraft {
-  // "...Digital Public Goods. 2023": the year after a full stop is the item's date.
   const year = /\.\s+((?:19|20)\d{2})$/.exec(line);
   const text = year ? line.slice(0, year.index + 1) : line;
   const date = findDateRanges(text)[0]?.text ?? setApartDate(text) ?? year?.[1] ?? "";
   let parts = segmentsOf(stripDates(text));
-  // "Dean's List, University of Leeds": award and issuer; papers and custom entries keep commas.
   const only = parts.length === 1 ? parts[0] : undefined;
   const comma =
     only && kind !== "publications" && kind !== "custom" ? /^([^,]+),\s*([^,]+)$/.exec(only) : null;

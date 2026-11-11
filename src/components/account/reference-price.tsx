@@ -12,7 +12,6 @@ const usd = new Intl.NumberFormat("en-US", {
   trailingZeroDisplay: "stripIfInteger",
 });
 
-// Monthly only, and nothing while SHOW_REFERENCE_PRICES is off (src/config/plans.ts).
 export function ReferencePrice({
   plan,
   interval,

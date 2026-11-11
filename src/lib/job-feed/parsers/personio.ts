@@ -11,7 +11,6 @@ import {
   type RawJob,
 } from "./shared";
 
-// Small flat XML with no attributes we need, so a few patterns read it without an XML library.
 function xmlText(raw: string): string {
   const cdata = /^\s*<!\[CDATA\[([\s\S]*?)\]\]>\s*$/.exec(raw);
   return cdata ? cdata[1]! : decodeEntities(raw);
@@ -30,12 +29,10 @@ const PERSONIO_TYPES: Record<string, EmploymentType> = {
   temporary: "temporary",
 };
 
-// GET :company.jobs.personio.de/xml?language=en. Each job's page is /job/:id on the same host.
 export function parsePersonio(xml: string, company: string, host: string): RawJob[] {
   if (!/<workzag-jobs[\s>]/.test(xml)) throw new FeedShapeError("personio");
   const positions = xml.match(/<position>[\s\S]*?<\/position>/g) ?? [];
   return positions.flatMap((block): RawJob[] => {
-    // The descriptions have <name> fields of their own; the job's fields sit outside them.
     const descriptions = /<jobDescriptions>([\s\S]*?)<\/jobDescriptions>/.exec(block)?.[1] ?? "";
     const fields = block.replace(descriptions, "");
     const id = xmlField(fields, "id");

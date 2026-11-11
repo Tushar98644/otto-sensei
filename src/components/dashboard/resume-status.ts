@@ -4,7 +4,6 @@ import { pluralize } from "@/lib/utils";
 
 export type StatusChip = { status: CheckStatus; label: string };
 
-// Only uploads were checked: scratch, sample and tailored resumes get no chip.
 export function reportChip(report: RecruiterReport | undefined): StatusChip | null {
   if (!report) return null;
   const { fail, warn } = report.counts;

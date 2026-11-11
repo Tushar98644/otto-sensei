@@ -27,8 +27,6 @@ function resume(title: string, updatedAt: number): Resume {
   return { ...emptyResume(updatedAt), title };
 }
 
-// An in-memory account that keeps tombstones like the server. Each call can be made to fail once
-// with queueFailure().
 function fakeAccount(initial: Resume[] = [], deleted: string[] = []) {
   const cloud = new Map(initial.map((r) => [r.id, structuredClone(r)]));
   const tombstones = new Set(deleted);
@@ -63,7 +61,6 @@ function fakeAccount(initial: Resume[] = [], deleted: string[] = []) {
   const queueFailure = (name: keyof SyncApi, error: ApiClientError) => {
     failures[name] = error;
   };
-  // Another device deleting a resume from the account.
   const deleteElsewhere = (id: string) => {
     cloud.delete(id);
     tombstones.add(id);
@@ -304,7 +301,6 @@ describe("startCloudSync with deletions from another device", () => {
     const kept = resume("Kept", 1_000);
     store().addResume(deletedThere);
     store().addResume(kept);
-    // Edited here after the other device deleted it: the deletion still wins.
     store().updateResume(deletedThere.id, (r) => ({ ...r, title: "Edited offline" }));
     const ledger = createLedger(memoryStorage());
     ledger.claim([deletedThere.id, kept.id], USER);
@@ -322,7 +318,6 @@ describe("startCloudSync with deletions from another device", () => {
     expect(api.deleteResume).not.toHaveBeenCalled();
     expect(ledger.ownerOf(deletedThere.id)).toBeUndefined();
     expect(ledger.buried(USER)).toEqual([]);
-    // kept was added last, so it was the open one.
     expect(onDeletedElsewhere).toHaveBeenCalledExactlyOnceWith({ ids: [deletedThere.id], wasActive: false });
   });
 
@@ -414,9 +409,6 @@ describe("releaseBackedUp", () => {
     expect(ledger.buried(USER)).toEqual([]);
   });
 
-  // Signing out can restart sync for the signed-out browser before the release runs, with a ledger
-  // read before it. Taking a lone resume out must still not look like the owner deleting it, or
-  // their next sign-in would delete it from the account.
   it("is never sent to the account as a deletion, even by a sync started just before", async () => {
     const only = resume("The only one", 1_000);
     const storage = memoryStorage();
@@ -432,7 +424,6 @@ describe("releaseBackedUp", () => {
     await vi.advanceTimersByTimeAsync(5_000);
     expect(createLedger(storage).buried(USER)).toEqual([]);
 
-    // The owner signs in again: the resume comes back instead of being deleted.
     for (const sync of running.splice(0)) sync.stop();
     await start(api, createLedger(storage)).flush();
     expect(api.deleteResume).not.toHaveBeenCalled();

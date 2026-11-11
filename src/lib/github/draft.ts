@@ -31,17 +31,10 @@ import type { GitHubDraftRequest, GitHubDraftResult, GitHubRepo } from "./types"
 
 type Contact = NonNullable<GitHubDraftRequest["contact"]>;
 
-// One AI call writes lines for every item; a line with a number the item lacks, a link, a
-// placeholder or too many words from nowhere is dropped. An item left with nothing gets GitHub's
-// own words.
-
-// The GitHub reads take up to 15 seconds of the route's 60.
 const AI_DEADLINE_MS = 40_000;
-// A line rewording the item lands around 0.1-0.3; one about something else goes well past this.
 const MAX_NOVEL_SHARE = 0.45;
 
-// Impact words ("faster", "reduced", "users") are left out on purpose: those must come from the
-// item.
+// Impact words ("faster", "reduced", "users") are left out: those must come from the item.
 const PLAIN_WORDS = `a an the and or of to in on for with by from that which who into as at its it this
 these their both each all also so via using used use uses across over through without within while
 than then when where how what more new own open source project projects tool tools app apps
@@ -97,7 +90,6 @@ function unique<T>(values: readonly T[], keyOf: (value: T) => string | number): 
   });
 }
 
-// Optional details: a repo without a README, or a GitHub hiccup on one, still gets an entry.
 async function soft<T>(read: Promise<T>, fallback: T, what: string): Promise<T> {
   try {
     return await read;
@@ -116,7 +108,7 @@ async function repoItem(session: GitHubSession, repo: GitHubRepo): Promise<RepoI
   return { kind: "repo", key: `repo:${repo.fullName}`, repo, languages, readme };
 }
 
-// Only items from this person's own lookup, so the route can't be pointed at anyone else's repos.
+// Only items from this person's own lookup, so the route can't be pointed at others' repos.
 async function pickItems(session: GitHubSession, request: GitHubDraftRequest): Promise<Picked> {
   const wantedRepos = unique(request.repos, (name) => name.toLowerCase());
   const wantedPulls = unique(request.pulls, (id) => id);
@@ -152,10 +144,8 @@ function itemTag(item: DraftItem, promptKey: string, redactor: Redactor): string
   return `<item key="${promptKey}" kind="${item.kind}">\n${body}\n</item>`;
 }
 
-// A project line has no use for contact details, so a line that placed one is dropped.
 const CONTACT_TOKEN = /\[\s*(?:EMAIL|PHONE|LINK)(?:[\s_-]*\d{1,3})?\s*\]/i;
 
-/** Also hides every email, phone and link the text shows. */
 export function draftRedactor(contact: Contact | undefined): Redactor {
   return createRedactor({
     name: contact?.name,
@@ -184,7 +174,6 @@ export function checkedLines(item: DraftItem, lines: readonly string[]): string[
   return kept;
 }
 
-// A pull request the AI's lines don't name gets its GitHub title instead.
 function linesForPulls(item: PullsItem, checked: readonly string[]): string[] {
   return item.pulls.map((pull) => {
     const number = new RegExp(`#${pull.number}(?!\\d)`);
@@ -211,7 +200,6 @@ async function writeLines(
   try {
     const raw = await runStructured(
       {
-        // Sized like a line fix: a few short lines per item.
         task: "fix",
         system: GITHUB_DRAFT_PROMPT,
         user: [...tags, "Write the lines for each item."].join("\n\n"),
@@ -241,7 +229,6 @@ async function writeLines(
   }
 }
 
-// Nothing is saved: the dialog shows the entries and the person confirms.
 export async function draftGitHubProjects(
   session: GitHubSession,
   request: GitHubDraftRequest,

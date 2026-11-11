@@ -16,8 +16,6 @@ export type SectionTitleFormProps = {
   initial: string;
   placeholder: string;
   maxLength: number;
-  // `focus` is true when the person pressed Enter or Save, so focus goes back to the heading.
-  // Clicking away saves too, and leaves focus where they clicked.
   onSave: (title: string, focus: boolean) => void;
   onCancel: () => void;
 };
@@ -51,7 +49,7 @@ export function SectionTitleForm({
     finish(() => onSave(draft, true));
   }
 
-  // Escape cancels the rename only; without stopPropagation it would also close a dialog around it.
+  // Without stopPropagation, Escape would also close a dialog around it.
   function handleKeyDown(event: KeyboardEvent<HTMLInputElement>) {
     if (event.key !== "Escape") return;
     event.preventDefault();

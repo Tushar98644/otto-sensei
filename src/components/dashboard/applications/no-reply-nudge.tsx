@@ -10,8 +10,6 @@ import type { Application } from "@/lib/applications/schema";
 import { formatCount } from "@/lib/applications/stats";
 import { markNoReply } from "./use-applications";
 
-// Applications left on "applied" for weeks read as "still waiting" and flatter the win rate.
-// Otto offers to close them; "Not now" hides the offer until another one goes quiet.
 export function NoReplyNudge({ stale }: { stale: readonly Application[] }) {
   const [dismissed, setDismissed] = useState("");
   const [saving, setSaving] = useState(false);

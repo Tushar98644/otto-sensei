@@ -1,8 +1,7 @@
 import type { CSSProperties, MouseEventHandler, ReactNode } from "react";
 import { Icon, type ReelIcon } from "./sprites";
 
-// HamishMW/portfolio's small components as plain markup with the data attributes his CSS keys
-// off. No hooks: the server template and the client islands both use them.
+// After HamishMW/portfolio's small components (MIT, see ./LICENSE.txt).
 
 const EXTERNAL = /^https?:/i;
 
@@ -72,7 +71,6 @@ export function Button({
       </button>
     );
   }
-  // Links on someone's page lead away from it: no referrer, no ranking credit.
   const external = EXTERNAL.test(href);
   return (
     <a

@@ -2,10 +2,8 @@ import { eq } from "drizzle-orm";
 import type { Tx } from "./client";
 import { users } from "./schema";
 
-// Postgres runs writers concurrently, so capped writes for one account take this lock first, which
-// queues them (and an account deletion) behind each other until commit.
+// Serializes capped writes (and account deletion) for one account until commit.
 
-/** False when the account no longer exists. */
 export async function lockUser(tx: Tx, userId: string): Promise<boolean> {
   const rows = await tx
     .select({ id: users.id })

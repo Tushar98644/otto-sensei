@@ -17,8 +17,6 @@ export const runtime = "nodejs";
 // Structuring may call Claude, whose own deadline is 50 seconds.
 export const maxDuration = 60;
 
-// Never refused for the plan (see ./ai-reads). Rules read every file first, free and instant; the
-// AI reader only takes over when that read looks weak, or on ?reader=ai ("Let Otto re-read it").
 export async function POST(req: Request): Promise<Response> {
   try {
     const askedForAI = new URL(req.url).searchParams.get("reader") === "ai";
@@ -34,7 +32,6 @@ export async function POST(req: Request): Promise<Response> {
     const structuring = Date.now();
     try {
       if (!source) {
-        // A scan has no text to structure (nor to pay the AI for), so it starts as a blank resume.
         structured = { resume: { ...emptyResume(startedAt), source: "import" }, usedAI: false };
       } else {
         const rules = await structureResume(source.text, startedAt, { ai: false });
@@ -71,10 +68,8 @@ export async function POST(req: Request): Promise<Response> {
       signedIn: user !== null,
       durationMs: Date.now() - startedAt,
     });
-    // Only files that went to the AI reader count: a scan or a good rules read never reaches it.
     if (read.useAI) trackStructureCall(structuring, structured.usedAI);
     const response: Omit<ImportResponse, "ok"> = {
-      // The text shows "github.com/jane"; the link under it may hold github.com/jane-doe.
       resume: withLinkTargets(structured.resume, extraction.links ?? []),
       report,
       usedAI: structured.usedAI,
@@ -90,8 +85,6 @@ export async function POST(req: Request): Promise<Response> {
 
 type ReadableText = { text: string; layout: ReadLayout };
 
-// Null for a scan. A LinkedIn "Save to PDF" profile is rebuilt column by column, so its sidebar
-// can't take the name's place.
 function readableText(extraction: Extraction): ReadableText | null {
   if (!extraction.signals.hasTextLayer) return null;
   const { kind, signals } = extraction;
@@ -105,8 +98,7 @@ function readableText(extraction: Extraction): ReadableText | null {
   };
 }
 
-// Word templates often put the name and contact details only in the page header, which mammoth
-// leaves out of the body text. Header lines go first, where a resume's contact block belongs.
+// mammoth drops page headers from the body text; Word resumes often keep contacts there.
 function withHeaderLines({ text, signals }: Extraction): string {
   const missing = signals.headerFooterText
     .split("\n")

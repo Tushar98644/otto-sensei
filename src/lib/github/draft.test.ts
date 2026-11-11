@@ -168,7 +168,6 @@ describe("draftGitHubProjects without AI", () => {
     expect(result.entries).toHaveLength(6);
     expect(session.calls).toBeLessThanOrEqual(MAX_CALLS_PER_REQUEST);
     expect(fake.calls.every((call) => new URL(call.url).origin === "https://api.github.com")).toBe(true);
-    // Several pull requests to one repo share an entry that links to all of them.
     const node = result.entries.find((entry) => entry.key === "pulls:nodejs/node");
     expect(node?.bullets).toHaveLength(5);
     expect(node?.link).toBe(
@@ -192,7 +191,6 @@ describe("draftGitHubProjects with AI", () => {
     await draftGitHubProjects(newGitHubSession(15_000), request());
 
     const sent = modelInput();
-    // The premise: the README and the pull request really did carry them.
     expect(README).toContain(NAME);
     expect(sent).toContain("rounding errors");
     for (const secret of [NAME, "Jane", EMAIL, "415 555", "555 0134"]) {

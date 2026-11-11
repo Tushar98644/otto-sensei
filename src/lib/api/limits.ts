@@ -8,9 +8,7 @@ export type LimitScope = "ip" | "device";
 export type LimitHit = { scope: LimitScope; result: RateLimitResult };
 
 export type NetworkDeviceLimit = {
-  // Counted under "<key>:ip:<network>" and "<key>:device:<id>".
   key: string;
-  // Log events are "<logAs>.rate_limit_unavailable".
   logAs: string;
   ip: number;
   device: number;
@@ -35,7 +33,6 @@ export async function limitNetworkThenDevice(
   return null;
 }
 
-// A database outage lets requests through instead of taking the feature down with it.
 async function count(
   key: string,
   limit: number,
@@ -51,7 +48,6 @@ async function count(
   }
 }
 
-// Per account, for saves that happen as someone types: the limit only stops a script.
 export async function limitHourlyWrites(
   key: string,
   perHour: number,
@@ -76,9 +72,7 @@ export function ipBucket(ip: string): string {
   return groups ? `${groups.slice(0, 4).join(":")}::/64` : ip;
 }
 
-// Expanded and without leading zeros, so every spelling of one address gives the same groups.
 function ipv6Groups(ip: string): string[] | null {
-  // A zone id ("fe80::1%eth0") names the local interface, not the address.
   const address = (ip.split("%")[0] ?? "").toLowerCase();
   const halves = address.split("::");
   if (halves.length > 2) return null;

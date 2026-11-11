@@ -24,13 +24,10 @@ import { StarScript } from "./star-script";
 const EYEBROW = "text-xs/4 font-medium tracking-widest text-subtle uppercase";
 const SPOKEN = "font-display text-3xl/10 font-normal text-pretty text-ink outline-none sm:text-4xl/12";
 
-// Keys typed into a field are the person's, not a request to move on.
 function typing(target: EventTarget): boolean {
   return target instanceof HTMLElement && target.closest("input, textarea, select, [contenteditable]") !== null;
 }
 
-// Nothing is recorded or graded and no AI runs. A native modal <dialog>, so focus stays inside,
-// the page behind is inert and Escape ends it.
 export function PracticeSession({
   prep,
   target,
@@ -48,7 +45,6 @@ export function PracticeSession({
     [prep],
   );
   const total = steps.length;
-  // 0 to total - 1 are the questions; total is "Your turn".
   const [index, setIndex] = useState(0);
   const [tips, setTips] = useState(false);
   const dialogRef = useRef<HTMLDialogElement>(null);
@@ -70,7 +66,6 @@ export function PracticeSession({
     };
   }, []);
 
-  // Each question starts at the top with focus on it, so a screen reader reads it out.
   useEffect(() => {
     dialogRef.current?.scrollTo({ top: 0 });
     headingRef.current?.focus({ preventScroll: true });
@@ -80,7 +75,6 @@ export function PracticeSession({
     const next = Math.min(Math.max(to, 0), total);
     if (next === index) return;
     setIndex(next);
-    // Tips fold away again, so each answer is tried before it's read.
     setTips(false);
   }
 
@@ -100,8 +94,7 @@ export function PracticeSession({
     onClose();
   }
 
-  // The browser can close it on its own (Escape pressed twice). Skip the event when the dialog has
-  // been shown again since, as happens when React remounts it in development.
+  // The browser may close it itself (Escape twice); skip if it was shown again since (dev remount).
   function onDialogClose(event: SyntheticEvent<HTMLDialogElement>) {
     if (!event.currentTarget.open) onClose();
   }
@@ -142,7 +135,7 @@ export function PracticeSession({
           </div>
         </header>
 
-        {/* Outside the keyed step below, so it stays in the page and each new count is read out. */}
+        {/* Outside the keyed step so the live region persists and each count is read out. */}
         <p className="sr-only" aria-live="polite" aria-atomic>
           {step ? `Question ${step.number} of ${total}` : "Your turn"}
         </p>

@@ -24,7 +24,6 @@ import { useWorkProfile } from "./use-work-profile";
 import { WorkProfileDialog } from "./work-profile-dialog";
 
 export type EligibilityCardProps = {
-  // The job's location field, "" when the board doesn't give one.
   location: string;
   text: string;
 };
@@ -52,12 +51,8 @@ function FindingRow({ item }: { item: EligibilityFinding }) {
   );
 }
 
-// Rule-based and in the browser, so it costs nothing. Pro all the same: on Free (and signed out)
-// the card says how many rules the post has and offers the trial.
 export function EligibilityCard({ location, text }: EligibilityCardProps) {
   const work = useWorkProfile();
-  // Offsets only move with daylight saving, so the hour is precise enough and the check doesn't
-  // rerun on every tick of the shared clock.
   const hour = Math.floor(useNow() / HOUR_MS) * HOUR_MS;
   const titleId = useId();
   const [editing, setEditing] = useState(false);

@@ -36,7 +36,6 @@ async function seedAccountData(userId: string) {
   await db.insert(usage).values({ subject: userId, feature: "fix", period: "2026-11", count: 4 });
 }
 
-// Only deletion is under test here, so the stored shape doesn't matter.
 function sampleData(id: string) {
   return { id } as unknown as typeof resumes.$inferInsert.data;
 }

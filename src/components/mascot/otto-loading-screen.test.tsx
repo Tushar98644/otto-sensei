@@ -17,10 +17,8 @@ describe("LoadingScreenView", () => {
     );
     expect(html).toContain(LOADING_SCREEN_TITLE.replace("'", "&#x27;"));
     expect(html).toContain(">Setting up your Pro plan</p>");
-    // Otto is decoration; the words carry the meaning.
     expect(html).toMatch(/<span aria-hidden="true"><svg[^>]*width="144"/);
     expect(html).toContain("motion-safe:animate-otto-page");
-    // No progress bar or percentage: we don't know how far along it is.
     expect(html).not.toMatch(/progressbar|%/);
   });
 

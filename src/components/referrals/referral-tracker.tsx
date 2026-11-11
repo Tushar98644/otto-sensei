@@ -15,8 +15,6 @@ import {
   type ReferralClaimOutcome,
 } from "@/lib/referrals/referrals";
 
-// Mounted once in the root layout. Costs nothing for anyone without an invite.
-
 const listeners = new Set<() => void>();
 
 function subscribe(listener: () => void) {
@@ -36,13 +34,12 @@ function readCookie(): string | null {
   return part ? decodeURIComponent(part.slice(prefix.length)) : null;
 }
 
-// The first invite link someone opens is the one that counts.
 function captureInvite(): boolean {
   const url = new URL(window.location.href);
   const code = url.searchParams.get(REF_PARAM);
   if (code === null) return false;
   url.searchParams.delete(REF_PARAM);
-  // A bookmark or a shared address shouldn't carry the code on. Next's own history state is kept.
+  // Keeps Next's own history state; drops the code so a bookmark doesn't carry it on.
   window.history.replaceState(window.history.state, "", `${url.pathname}${url.search}${url.hash}`);
   if (!isReferralCode(code) || parseRefCookie(readCookie())) return false;
   const secure = window.location.protocol === "https:" ? "; Secure" : "";
@@ -50,7 +47,6 @@ function captureInvite(): boolean {
   return true;
 }
 
-// "Current" rather than "this month": an inviter on a weekly plan gets theirs for this week.
 const EXTRAS = `${REFERRAL_BONUS.fix} more line fixes and ${REFERRAL_BONUS.tailor} more tailored versions on top of your current limits`;
 
 function announce(outcome: ReferralClaimOutcome) {
@@ -74,7 +70,6 @@ export function ReferralTracker() {
     if (captureInvite()) cookieChanged();
   }, []);
   const cookie = parseRefCookie(raw);
-  // "joined" waits for a resume check, which the server settles on its own.
   if (!cookie || cookie.stage === "joined") return null;
   return <ClaimWhenSignedIn />;
 }
@@ -84,7 +79,6 @@ function ClaimWhenSignedIn() {
   const sent = useRef(false);
   useEffect(() => {
     if (!user || sent.current) return;
-    // Once per page load: a failure is tried again on the next one, never in a loop.
     sent.current = true;
     api
       .claimReferral()

@@ -16,9 +16,6 @@ describe("plan copy", () => {
     expect(PLAN_ORDER).toEqual(["free", "pro", "max"]);
   });
 
-  // Owner decisions, 2026-11-08 and 2026-11-09: Free is upload, the recruiter view, fixing by
-  // hand, 1 resume, Classic and Compact, the PDF, its 5 closest job matches and 1 tracked application.
-  // Nothing else.
   it("lists exactly what Free has, and puts the rest on Pro", () => {
     expect(planCopy("free").features).toEqual([
       "Upload a resume, read by the basic reader (no AI)",

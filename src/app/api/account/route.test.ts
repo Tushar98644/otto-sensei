@@ -23,7 +23,6 @@ import { DELETE } from "./route";
 
 vi.mock("next/headers", async () => (await import("@/lib/auth/test-helpers")).nextHeadersMock);
 
-// The real Creem API is never called: fetch is swapped for a fake of it (src/lib/billing/testing.ts).
 let creem: FakeCreem;
 
 const NOW = Date.UTC(2026, 10, 6, 12);
@@ -52,7 +51,6 @@ async function signInAs(
   return row ? toSessionUser(row) : created;
 }
 
-// Deletion doesn't read the document, only removes it.
 const DATA = { id: "r1" } as unknown as Resume;
 
 const PRO = {
@@ -99,7 +97,6 @@ describe("DELETE /api/account", () => {
     const db = await getDb();
     for (const user of [ada, grace]) {
       await db.insert(resumes).values({ userId: user.id, id: "r1", data: DATA, createdAt: NOW, updatedAt: NOW });
-      // Free has no AI allowance, so the count is written as a paid plan would.
       await consumeUsage({ ...user, plan: "pro" }, "fix");
     }
 
@@ -115,7 +112,6 @@ describe("DELETE /api/account", () => {
 
     expect(cookieJar.get(AUTH_COOKIE)).toMatchObject({ value: "", maxAge: 0 });
     await expect(getCurrentUser()).resolves.toBeNull();
-    // The Supabase Auth user goes too, with every session it had on other devices.
     expect(fakeAuth.hasAuthUser(ada.id)).toBe(false);
     expect(fakeAuth.activeSessions(ada.id)).toBe(0);
     expect(fakeAuth.hasAuthUser(grace.id)).toBe(true);
@@ -225,8 +221,6 @@ describe("DELETE /api/account with a subscription", () => {
     expect(creem.calls).toEqual([]);
   });
 
-  // A second checkout's webhook replaces the stored id, so the first subscription is only found
-  // by asking Creem. Left alone, it would keep charging an account that no longer exists.
   it("also cancels a subscription the stored ids no longer point to", async () => {
     useBilling("creem");
     const user = await signInAs("ada@example.com", { ...PRO, billingSubscriptionId: "sub_2" });

@@ -21,7 +21,6 @@ export type Ready = {
   options: SummaryOption[];
   demo: boolean;
   usage: UsageSnapshot;
-  // The summary as it was when Otto was asked, to say how much shorter his version is.
   original: string;
   editing: { index: number; draft: string } | null;
 };
@@ -42,11 +41,8 @@ export function useSummaryHelp(resumeId: string, focusInput: () => void) {
   const gate = useAccountGate();
   const { me, user } = useMe();
   const [help, setHelp] = useState<Help>(IDLE);
-  // Read after awaits, when the render that started the request may hold a signed-out gate.
   const gateRef = useRef(gate);
-  // Bumped by every request and by closing; an answer for an older number is dropped.
   const requestRef = useRef(0);
-  // A double tap must not spend two fixes.
   const busyRef = useRef(false);
   const limit = me?.usage?.fix.limit ?? PLANS.free.limits.fix;
 
@@ -71,7 +67,6 @@ export function useSummaryHelp(resumeId: string, focusInput: () => void) {
         patchMe({ usage: response.usage });
         if (id !== requestRef.current) return;
         const { options } = response.result;
-        // Strict check: a server from before the flag existed omits it, and its results were real.
         const demo = response.demo === true;
         setHelp({
           status: "ready",

@@ -1,5 +1,3 @@
-// Country names come from Intl.DisplayNames, so nothing here needs translating.
-
 const CODES = `AD AE AF AG AI AL AM AO AQ AR AS AT AU AW AX AZ BA BB BD BE BF BG BH BI BJ BL BM BN BO BQ
 BR BS BT BV BW BY BZ CA CC CD CF CG CH CI CK CL CM CN CO CR CU CV CW CX CY CZ DE DJ DK DM DO DZ EC EE
 EG EH ER ES ET FI FJ FK FM FO FR GA GB GD GE GF GG GH GI GL GM GN GP GQ GR GS GT GU GW GY HK HM HN HR
@@ -19,7 +17,6 @@ export function isCountryCode(value: string): boolean {
 const set = (codes: string) => new Set(codes.split(" "));
 
 const EU = set("AT BE BG CY CZ DE DK EE ES FI FR GR HR HU IE IT LT LU LV MT NL PL PT RO SE SI SK");
-// EEA members and Switzerland: their citizens may work anywhere in the EU, but they aren't in it.
 const EEA_EXTRA = set("IS LI NO CH");
 const EUROPE_OTHER = set("GB AD AL BA BY FO GG GI IM JE MC MD ME MK RS RU SM UA VA AX SJ");
 const MIDDLE_EAST = set("AE BH IL IQ IR JO KW LB OM PS QA SA SY TR YE");
@@ -84,7 +81,6 @@ export function countryName(code: string): string {
   return displayNames.of(code) ?? code;
 }
 
-// How the rules name a place in a sentence: "the US", "Germany", "the EU".
 export function placeName(place: Place): string {
   if (place.kind === "group") return GROUP_NAMES[place.group];
   if (place.code === "US") return "the US";
@@ -100,7 +96,6 @@ export function rightsRegionOf(place: Place): "us" | "uk" | "eu" | "ca" | null {
   if (US_TERRITORIES.has(place.code)) return "us";
   if (place.code === "GB") return "uk";
   if (place.code === "CA") return "ca";
-  // A right to work in the EU (an EU passport, say) covers each member country.
   return EU.has(place.code) ? "eu" : null;
 }
 
@@ -109,7 +104,6 @@ const escape = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 const country = (code: string): Place => ({ kind: "country", code });
 const group = (name: PlaceGroup): Place => ({ kind: "group", group: name });
 
-// Names that aren't Intl's English name, plus cities and states that pin a post to one country.
 const ALIASES: Array<[string, string]> = [
   ["united states of america", "US"],
   ["new jersey", "US"],
@@ -183,7 +177,6 @@ const ALIASES: Array<[string, string]> = [
 ];
 
 const GROUP_PATTERNS: Array<[RegExp, PlaceGroup]> = [
-  // "the EU." ends a sentence; "EU.example" is not a place.
   [/\b(?:European Union|E\.U\.|EU)(?!\w)(?!\.\w)/g, "eu"],
   [/\bEurope(?:an)?\b(?!\s+Union)/gi, "europe"],
   [/\bEMEA\b/gi, "emea"],
@@ -194,14 +187,11 @@ const GROUP_PATTERNS: Array<[RegExp, PlaceGroup]> = [
   [/\b(?:ANZ|Australia and New Zealand)\b/g, "anz"],
 ];
 
-// Short forms are case-sensitive: "us" and "uk" in lower case are ordinary words.
 const CODE_PATTERNS: Array<[RegExp, string]> = [
   [/(?<![A-Za-z.])(?:U\.S\.A\.?|U\.S\.|USA|US)(?![A-Za-z])/g, "US"],
   [/(?<![A-Za-z.])(?:U\.K\.|UK)(?![A-Za-z])/g, "GB"],
 ];
 
-// After a comma in "Austin, TX": US states and DC, and Canadian provinces. CA is California
-// there; NL is left out because "Amsterdam, NL" is far more common than Newfoundland.
 const US_STATES =
   "AL AK AZ AR CA CO CT DE DC FL GA HI ID IL IN IA KS KY LA ME MD MA MI MN MS MO MT NE NV NH NJ NM NY NC ND OH OK OR PA RI SC SD TN TX UT VT VA WA WV WI WY";
 const PROVINCES = "ON BC QC AB MB SK NS NB PE YT NT NU";
@@ -211,14 +201,11 @@ const STATE_PATTERN = new RegExp(
 );
 const PROVINCE_SET = set(PROVINCES);
 
-// Country names that are just as often a US state or a person: "Georgia", "Jordan", "Chad".
 const AMBIGUOUS = new Set(["georgia", "jordan", "chad", "jersey"]);
 
 type NameMatcher = { pattern: RegExp; codes: Map<string, string> };
 let nameMatcher: NameMatcher | null = null;
 
-// One pattern for every name, so a line is read once, not once per country (the Jobs tab checks
-// thousands of lines a request).
 function namedCountries(): NameMatcher {
   if (nameMatcher) return nameMatcher;
   const codes = new Map<string, string>();
@@ -229,7 +216,6 @@ function namedCountries(): NameMatcher {
     }
   }
   for (const [name, code] of ALIASES) codes.set(name, code);
-  // Longest first, so "Northern Ireland" wins over "Ireland" and "South Africa" over nothing.
   const names = [...codes.keys()].sort((a, b) => b.length - a.length).map(escape);
   nameMatcher = {
     pattern: new RegExp(`(?<![\\p{L}])(?:${names.join("|")})(?![\\p{L}])`, "giu"),
@@ -240,7 +226,6 @@ function namedCountries(): NameMatcher {
 
 export type FoundPlace = { place: Place; index: number; text: string };
 
-// Longest first and never overlapping, so "Northern Ireland" isn't also "Ireland".
 export function findPlaces(line: string): FoundPlace[] {
   const taken: Array<[number, number]> = [];
   const found: FoundPlace[] = [];
@@ -267,7 +252,6 @@ export function findPlaces(line: string): FoundPlace[] {
     found.push({ place: country(code), index: match.index, text: match[0] });
   }
   for (const [pattern, code] of CODE_PATTERNS) add(pattern, country(code));
-  // State codes only when nothing else names the place: "Berlin, DE" is Germany, not Delaware.
   for (const match of found.length > 0 ? [] : line.matchAll(STATE_PATTERN)) {
     const code = match[1] ?? "";
     add(new RegExp(`,\\s*(${code})\\b`, "g"), country(PROVINCE_SET.has(code) ? "CA" : "US"), 1);

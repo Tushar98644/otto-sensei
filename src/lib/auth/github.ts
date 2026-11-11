@@ -10,22 +10,18 @@ import { devAuthActive } from "./dev-mode";
 import { OAUTH_CALLBACK_PATH } from "./oauth";
 import { authErrorFields } from "./supabase-errors";
 
-// Supabase manual identity linking: its login is the only GitHub account the import and portfolio
-// read, so nobody can claim someone else's public work.
+// Only the linked login is read, so nobody can claim someone else's public GitHub work.
 
-// /auth/callback?link=github marks a linking round trip, so a failure goes back to the page.
 export const GITHUB_LINK = "github";
 
 const NOT_SET_UP = "Connecting GitHub isn't set up yet. Please try again later.";
 const DEV_NOT_SET_UP = "Dev sign-in can't link GitHub. Set DEV_GITHUB_LOGIN in .env.local instead.";
-// Manual linking off, or the GitHub provider off (older Auth servers call it a validation error).
 const SETUP_ERRORS: ReadonlySet<string> = new Set([
   "manual_linking_disabled",
   "provider_disabled",
   "validation_failed",
 ]);
 
-// Supabase copies GitHub's login into both fields when the identity is linked.
 function loginOf(identity: UserIdentity): string | null {
   const data: Record<string, unknown> = identity.identity_data ?? {};
   for (const value of [data.user_name, data.preferred_username]) {
@@ -47,7 +43,6 @@ export function devGitHubConnection(): GitHubConnection | null {
   return GITHUB_USERNAME.test(login) ? { login, canDisconnect: false } : null;
 }
 
-// Like Google sign-in: sets the PKCE verifier cookie and returns to /auth/callback?link=github.
 export async function githubLinkUrl(next: string | null | undefined): Promise<string> {
   if (devAuthActive()) throw new AuthError("not_configured", DEV_NOT_SET_UP);
   const supabase = await createSupabaseServerClient();
@@ -72,7 +67,6 @@ export async function githubLinkUrl(next: string | null | undefined): Promise<st
 
 export type UnlinkResult = "unlinked" | "not_linked" | "only_identity";
 
-/** Supabase keeps it when it's the account's only way to sign in. */
 export async function unlinkGitHub(): Promise<UnlinkResult> {
   const supabase = await createSupabaseServerClient();
   if (!supabase) throw new AuthError("not_configured", AUTH_MESSAGES.not_configured);

@@ -4,8 +4,6 @@ import { toast } from "@/components/ui/toast";
 import { undoToast } from "@/components/ui/undo-toast";
 import { useStudioStore } from "@/lib/store/resume-store";
 
-// Removes at once and offers Undo instead of asking first. That Undo restores the resume exactly
-// while nothing else changed; after that the editor's own Undo walks back step by step.
 export function removeWithUndo(resumeId: string, what: string, remove: () => void): void {
   const before = useStudioStore.getState().resumes[resumeId];
   remove();

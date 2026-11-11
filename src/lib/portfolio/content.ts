@@ -1,8 +1,6 @@
 import { z } from "zod";
 import type { GitHubStats } from "./content-view-types";
 
-// Portfolio extras beyond the resume, text only. Stored: only what the owner changed; null = auto.
-
 export type {
   GitHubRepoSummary,
   GitHubStats,
@@ -84,7 +82,6 @@ const auto = (max: number) => text(max).nullable().default(null);
 const entryId = z.string().min(1).max(80);
 const year = z.number().int().min(0).max(L.maxYears);
 
-/** "" for none. Checked again when the page draws it. */
 const linkUrl = z
   .string()
   .trim()
@@ -112,7 +109,6 @@ export type SocialKind = (typeof SOCIAL_KINDS)[number];
 
 export const SocialSchema = z.object({
   id: entryId,
-  // Detected from the address when left out.
   kind: z.enum(SOCIAL_KINDS).optional(),
   label: text(L.label).default(""),
   url: z
@@ -122,36 +118,29 @@ export const SocialSchema = z.object({
     .refine((value) => socialHref(value) !== null, { message: "Not a link." }),
 });
 
-// "auto" lets the design choose.
 export const DEVICE_FRAMES = ["auto", "laptop", "phone"] as const;
 export type DeviceFrame = (typeof DEVICE_FRAMES)[number];
 
 export const ProjectEntrySchema = z.object({
-  // A resume project's id, "gh:<owner>/<repo>" for a GitHub repo, or "c:<uuid>" for one added here.
   id: entryId,
   name: auto(L.projectName),
   line: auto(L.projectLine),
   description: auto(L.projectDescription),
-  // Never filled automatically.
   details: z.array(text(L.projectDetail)).max(L.projectDetails).default([]),
   category: auto(L.category),
   years: auto(L.years),
-  // "4.2k stars · 600+ sites".
   outcome: auto(L.outcome),
   tech: z.array(text(L.tag)).max(L.tags).nullable().default(null),
-  // "Design", "Front end": what the person did on it.
   roles: z.array(text(L.tag)).max(L.roles).default([]),
   website: autoLink,
   source: autoLink,
   featured: z.boolean().nullable().default(null),
   hidden: z.boolean().default(false),
-  // Anything else (the old "browser" and "none" frames included) reads as "auto".
   device: z.enum(DEVICE_FRAMES).catch("auto"),
 });
 export type ProjectEntry = z.infer<typeof ProjectEntrySchema>;
 
 export const JobExtraSchema = z.object({
-  // "-72% failed payouts"; null pulls the strongest number out of the job's lines.
   highlight: auto(L.jobHighlight),
   summary: auto(L.jobSummary),
   type: auto(L.jobType),
@@ -174,11 +163,9 @@ export const StatSchema = z.object({
 export const MILESTONE_KINDS = ["award", "hackathon", "launch", "press", "talk", "other"] as const;
 export type MilestoneKind = (typeof MILESTONE_KINDS)[number];
 
-// Awards, hackathons (magicui's timeline), launches and press, newest first.
 export const MilestoneSchema = z.object({
   id: entryId,
   kind: z.enum(MILESTONE_KINDS).default("other"),
-  // "2024" or "Nov 2018".
   date: text(L.date).default(""),
   title: text(L.title).min(1),
   place: text(L.place).default(""),
@@ -204,7 +191,6 @@ export const WritingSchema = z.object({
   url: linkUrl.default(""),
   date: text(L.date).default(""),
   minutes: z.number().int().min(1).max(L.minutes).nullable().default(null),
-  // "Postgres Weekly"; the link's site when empty.
   publisher: text(L.label).default(""),
 });
 
@@ -219,7 +205,6 @@ export const TestimonialSchema = z.object({
 export const InterestSchema = z.object({
   id: entryId,
   title: text(L.label).min(1),
-  // The "number": "V5", "64 km", "1:2.2".
   stat: text(L.statValue).default(""),
   line: text(L.detail).default(""),
 });
@@ -241,7 +226,6 @@ export const NowSchema = z.object({
   text: text(L.nowText).default(""),
 });
 
-// Sections a template may draw that the owner can switch off without deleting what's in them.
 export const CONTENT_SECTIONS = [
   "now",
   "stats",
@@ -275,7 +259,6 @@ export const PortfolioContentSchema = z.object({
   location: z
     .object({
       label: text(L.place).default(""),
-      // IANA name, for the live clock: "Europe/Lisbon".
       timezone: text(64).default(""),
       lat: z.number().min(-90).max(90).nullable().default(null),
       lng: z.number().min(-180).max(180).nullable().default(null),
@@ -284,17 +267,13 @@ export const PortfolioContentSchema = z.object({
     .default(null),
   socials: z.array(SocialSchema).max(L.socials).nullable().default(null),
   about: z.array(text(L.aboutParagraph)).max(L.aboutParagraphs).nullable().default(null),
-  // Phrases inside the about text that templates mark (bold, colour, underline).
   highlights: z.array(text(L.highlight).min(1)).max(L.highlights).nullable().default(null),
   now: z.array(NowSchema).max(L.now).nullable().default(null),
   nowUpdatedAt: z.number().int().nonnegative().nullable().default(null),
   stats: z.array(StatSchema).max(L.stats).nullable().default(null),
-  // Order and per-project extras. Resume projects missing here follow in resume order.
   projects: z.array(ProjectEntrySchema).max(L.projects).default([]),
-  // Keyed by the resume entry's id.
   jobs: z.record(entryId, JobExtraSchema).default({}),
   schools: z.record(entryId, SchoolExtraSchema).default({}),
-  // Lowercased skill name -> years (null: counted from the jobs that mention it).
   skillYears: z.record(text(100), year.nullable()).default({}),
   milestones: z.array(MilestoneSchema).max(L.milestones).nullable().default(null),
   talks: z.array(TalkSchema).max(L.talks).nullable().default(null),
@@ -304,7 +283,6 @@ export const PortfolioContentSchema = z.object({
   shelf: z.array(ShelfItemSchema).max(L.shelf).default([]),
   github: z
     .object({
-      // null: the username on the resume (a GitHub link or imported repos).
       username: z
         .string()
         .trim()
@@ -313,7 +291,6 @@ export const PortfolioContentSchema = z.object({
         .default(null),
     })
     .default({ username: null }),
-  // Names that are no longer sections (the old "photo" and "photos") are dropped, not refused.
   hidden: z
     .array(z.string().max(40))
     .max(CONTENT_SECTIONS.length * 2)
@@ -327,7 +304,6 @@ export function emptyContent(): PortfolioContent {
   return PortfolioContentSchema.parse({});
 }
 
-/** A stored row read as untrusted: anything that no longer passes becomes "all automatic". */
 export function parseStoredContent(value: unknown): PortfolioContent {
   const parsed = PortfolioContentSchema.safeParse(value ?? {});
   return parsed.success ? parsed.data : emptyContent();
@@ -337,8 +313,6 @@ const filled = (value: string) => value.trim() !== "";
 const okLink = (value: string) => (value.trim() === "" || webHref(value) ? value : "");
 const okAutoLink = (value: string | null) => (value === null ? null : okLink(value));
 
-// Rows still being typed are left out of the save but stay on screen, so autosave never fails
-// mid-word.
 export function saveableContent(content: PortfolioContent): PortfolioContent {
   return {
     ...content,
@@ -392,7 +366,6 @@ export function saveableContent(content: PortfolioContent): PortfolioContent {
   };
 }
 
-/** An http(s) address as a link target ("example.com" gets https://), or null. */
 export function webHref(raw: string): string | null {
   const value = raw.trim();
   if (!value || /\s/.test(value)) return null;
@@ -414,7 +387,6 @@ export function socialHref(raw: string): string | null {
   return webHref(raw);
 }
 
-// PUT /api/portfolio/content: the whole document each time (autosaved). The answer is the saved copy.
 export const SaveContentSchema = z.object({ content: PortfolioContentSchema });
 export type SaveContentBody = { content: PortfolioContentInput };
 export type ContentResponse = {
@@ -423,5 +395,4 @@ export type ContentResponse = {
   github: GitHubStats | null;
 };
 
-// POST /api/portfolio/github: fetches the numbers again. `github` is null without a username.
 export type GitHubRefreshResponse = { ok: true; github: GitHubStats | null };

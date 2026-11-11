@@ -1,8 +1,6 @@
 import { z } from "zod";
 import { ResumeSchema } from "@/lib/resume/validation";
 
-// Apart from ./types so the dashboard doesn't load zod.
-
 export const CreateShareSchema = z.object({
   resume: ResumeSchema,
   showContact: z.boolean().default(false),

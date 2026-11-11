@@ -9,7 +9,6 @@ import { log } from "@/lib/log";
 import type { GitHubStats, PortfolioContent } from "./content";
 import { portfolioSlugsOf } from "./records";
 
-// GitHub numbers older than this are fetched again when the owner opens the editor.
 export const GITHUB_STALE_MS = 6 * 60 * 60 * 1000;
 
 export type SaveContentResult =
@@ -41,8 +40,7 @@ export async function saveContent(
 
 export type GitHubRefresh = { github: GitHubStats | null; changed: boolean; slug: string | null };
 
-// Only for `login`, the GitHub account the owner connected: a username on the resume could be
-// anyone's. Keeps the old copy when GitHub is busy; clears it when nothing is connected.
+// Only the owner's connected GitHub login: a username on the resume could be anyone's.
 export async function refreshGitHub(
   userId: string,
   login: string | null,
@@ -82,7 +80,6 @@ export async function refreshGitHub(
   } catch (error) {
     if (!(error instanceof GitHubError)) throw error;
     log.info("portfolio.github_unavailable", { reason: error.reason });
-    // Another account's numbers never stay up while GitHub is busy.
     return sameUser ? { github: stored, changed: false, slug: row.slug } : clear();
   }
   await db
@@ -92,7 +89,6 @@ export async function refreshGitHub(
   return { github, changed: true, slug: row.slug };
 }
 
-// Returns the addresses whose cached pages must be dropped, or null when there was no portfolio.
 export async function deletePortfolio(userId: string): Promise<string[] | null> {
   const slugs = await portfolioSlugsOf(userId);
   if (slugs.length === 0) return null;

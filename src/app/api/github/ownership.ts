@@ -6,7 +6,6 @@ import { log } from "@/lib/log";
 
 export const NOT_CONNECTED = "Connect your GitHub account to import its projects.";
 
-/** The connected login when `username` names it (any case), else the 403 to send. */
 export function ownGitHubLogin(
   connection: GitHubConnection | null,
   username: string,

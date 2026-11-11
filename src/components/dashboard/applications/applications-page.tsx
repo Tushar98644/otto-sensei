@@ -49,19 +49,15 @@ import {
 } from "./view";
 import { WinRate } from "./win-rate";
 
-// Rows drawn at first and per "Show more": each row carries two menus, so 2,000 at once is slow.
 const PAGE_ROWS = 50;
 const ANCHOR_PREFIX = applicationAnchor("");
 
-// Board or List, as this browser last chose. The views only draw once the list has loaded in the
-// browser, so the server's "board" never has to match.
+// Views draw only after the list loads in the browser, so the server's "board" needn't match.
 function initialView(linked: string | null): BoardView {
   if (typeof window === "undefined") return "board";
-  // An old link to one row of the list still lands on that row.
   return linked ? "list" : readView(browserStorage());
 }
 
-// The row a resume card's status link points at (/dashboard/applications#application-<id>).
 function linkedApplicationId(): string | null {
   if (typeof window === "undefined") return null;
   const hash = decodeURIComponent(window.location.hash.slice(1));
@@ -81,7 +77,6 @@ export function ApplicationsPage() {
   const [dialog, setDialog] = useState<ApplicationDialogTarget | null>(null);
   const [announcement, setAnnouncement] = useState("");
   const opened = useRef(0);
-  // Free tracks FREE_APPLICATIONS and can change it freely; only adding past that offers the trial.
   const full = pro === false && items.length >= FREE_APPLICATIONS;
   const tryPro = useTryProLabel();
 
@@ -104,11 +99,9 @@ export function ApplicationsPage() {
     [extras.savedJobs, resumes, items],
   );
 
-  // A linked row past the first page is drawn too, so the link always lands.
   const linkedIndex = linked ? shown.findIndex((application) => application.id === linked) : -1;
   const visibleRows = Math.max(rows, linkedIndex + 1);
 
-  // The rows load after the page, so the browser can't scroll to the linked one by itself.
   useEffect(() => {
     if (status !== "ready" || !linked) return;
     const row = document.getElementById(applicationAnchor(linked));
@@ -150,7 +143,6 @@ export function ApplicationsPage() {
     });
   }
 
-  // Gone from the list at once; the delete is sent only once the Undo has run out.
   function remove(target: Application) {
     hideApplication(target);
     undoToast({

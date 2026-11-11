@@ -43,7 +43,6 @@ describe("automatic content from the resume and GitHub", () => {
     expect(auto.location).toMatchObject({ city: "Lisbon", timezone: "Europe/Lisbon" });
     expect(findPlace("San Francisco, CA")?.timezone).toBe("America/Los_Angeles");
     expect(findPlace("Remote")).toBeNull();
-    // Short aliases only in capitals: "la" inside a word or in lowercase isn't Los Angeles.
     expect(findPlace("Lagos, Nigeria")?.city).toBe("Lagos");
     expect(findPlace("villa la angostura")).toBeNull();
   });
@@ -64,7 +63,6 @@ describe("automatic content from the resume and GitHub", () => {
   it("pulls each job's strongest number into its highlight", () => {
     expect(auto.jobs.e1?.highlight).toBe("-72% failed payouts");
     expect(auto.jobs.e2?.highlight).toBe("+11% booking conversion");
-    // Tags are the resume's own skills that a job's lines name ("Postgres" isn't "PostgreSQL").
     expect(auto.jobs.e2?.tags).toEqual(["React", "GraphQL"]);
   });
 
@@ -91,7 +89,6 @@ describe("automatic content from the resume and GitHub", () => {
   it("counts years per skill from the jobs that mention it, and headline stats", () => {
     expect(auto.skillYears.react).toBe(3);
     expect(auto.skillYears.kafka).toBeNull();
-    // From the earliest job (a part-time one in 2016) and the GitHub numbers.
     expect(auto.stats[0]).toEqual({ id: "st-years", value: "10", label: "years of experience" });
     expect(auto.stats[1]).toEqual({ id: "st-stars", value: "9.4k", label: "GitHub stars" });
     expect(auto.stats.map((stat) => stat.value)).toContain("1.4M");
@@ -324,12 +321,9 @@ describe("the content view templates draw", () => {
   });
 });
 
-// Hiding a section is a choice about the page. The editor used to build its fields from the
-// page's copy, so a hidden section's text vanished from the editor too and couldn't be edited.
 describe("hidden sections", () => {
   const written: PortfolioContent = {
     ...jordanContent(),
-    // Written in the content editor rather than taken from the resume.
     socials: [{ id: "s1", label: "Blog", url: "https://blog.example.com" }],
     projects: [
       ...jordanContent().projects,

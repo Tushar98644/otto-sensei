@@ -34,8 +34,6 @@ import type { Resume } from "@/lib/resume/schema";
 import { useActiveResume, useStudioStore } from "@/lib/store/resume-store";
 import { thisPeriod } from "@/lib/usage-copy";
 
-// Fetching the big renderer while results are read makes Download instant; the resume's PDF is
-// then made ahead too, so Download opens on a finished preview.
 const PRELOAD_DELAY_MS = 2_000;
 
 function useUsageNote(): string | null {
@@ -56,7 +54,6 @@ function jobLabel(title: string, company: string): string {
 }
 
 function TailorWorkspace({ source, baseTitle }: { source: Resume; baseTitle: string | null }) {
-  // A job sent from the Jobs tab replaces whatever post this tab had open.
   const [queued] = useState(peekQueuedJob);
   const [draft, setDraft] = useState<TailorDraft>(() =>
     queued ? { ...EMPTY_DRAFT, link: queued.link } : loadDraft(),
@@ -67,14 +64,11 @@ function TailorWorkspace({ source, baseTitle }: { source: Resume; baseTitle: str
   const last = run.last;
   const result = last?.result ?? null;
   const savedChoices = last?.choices ?? null;
-  // Keyed on the result and the choices only: typing a letter changes `last` on every keystroke.
   const choices = useMemo(
     () => (result ? (savedChoices ?? defaultChoices(source, result)) : null),
     [source, result, savedChoices],
   );
-  // Fixed for the visit: "years of experience" counts a current job up to today.
   const [now] = useState(() => Date.now());
-  // Recomputed from the resume, so an added line moves the count at once.
   const screener = useMemo(
     () => (result && choices ? buildScreener(source, result, choices, now) : null),
     [source, result, choices, now],
@@ -90,7 +84,6 @@ function TailorWorkspace({ source, baseTitle }: { source: Resume; baseTitle: str
   else if (screener) otto = OTTO.tailor.screener(screener.counts.must, screener.counts.nice);
 
   const postChanged = run.last !== null && run.last.job.text.trim() !== draft.text.trim();
-  // Folded once there are results, but still mounted, so reopening keeps what was typed and read.
   const folded = Boolean(last && screener) && !editingPost && !run.loading && !postChanged;
   const jobName = last
     ? jobLabel(last.job.title || last.result.job.title, last.job.company || last.result.job.company)
@@ -154,7 +147,6 @@ function TailorWorkspace({ source, baseTitle }: { source: Resume; baseTitle: str
             </Alert>
           ) : null}
           <TailorResults
-            // A fresh result starts with fresh choices.
             key={last.id}
             source={source}
             saved={last}
@@ -162,7 +154,6 @@ function TailorWorkspace({ source, baseTitle }: { source: Resume; baseTitle: str
             screener={screener}
             onPatch={(patch) => run.update(last.id, patch)}
             beforeApply={
-              // The form holds this check; while it's folded the check moves next to applying.
               folded && draft.text.trim() ? (
                 <EligibilityCard location={draft.posting?.location ?? ""} text={draft.text} />
               ) : null

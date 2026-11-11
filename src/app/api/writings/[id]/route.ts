@@ -12,8 +12,7 @@ export const runtime = "nodejs";
 
 type Context = { params: Promise<{ id: string }> };
 
-// Open on every plan: it costs no AI call and the words are theirs. Another account's id gets
-// the same 404 as a missing one.
+// Another account's id gets the same 404 as a missing one, so ids can't be probed.
 export async function PATCH(req: Request, { params }: Context): Promise<Response> {
   const blocked = rejectCrossSite(req) ?? rejectNonJson(req);
   if (blocked) return blocked;
@@ -42,7 +41,6 @@ export async function PATCH(req: Request, { params }: Context): Promise<Response
   }
 }
 
-// Succeeds when it was already gone: the caller only needs it gone.
 export async function DELETE(req: Request, { params }: Context): Promise<Response> {
   const blocked = rejectCrossSite(req);
   if (blocked) return blocked;

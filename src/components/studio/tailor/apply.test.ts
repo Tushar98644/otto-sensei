@@ -126,7 +126,6 @@ describe("applyTailorChoices", () => {
       "Wrote a toy ledger.",
       "Rewrote the ledger in Go",
     ]);
-    // A named tool the person confirmed joins their skills too; a kind of experience doesn't.
     expect(next.skills[0]?.items).toEqual(["TypeScript", "SQL", "Terraform", "Go"]);
   });
 
@@ -229,7 +228,6 @@ describe("tailorMeta", () => {
       { text: "Mentoring", importance: "must", terms: [] },
       { text: "Go", importance: "nice", terms: ["Go"] },
     ]);
-    // The address the post was read from beats the link as typed.
     expect(
       tailorMeta(result(), {
         title: "",

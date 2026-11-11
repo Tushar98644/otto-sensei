@@ -22,7 +22,6 @@ function job(id: string, company = "Northwind") {
   return { id, company, title: "Backend Engineer", url: `https://jobs.lever.co/${company}/${id}` };
 }
 
-// Opened at `at`, back on the tab a minute later, asked at `now`.
 function due(list: readonly OpenedJob[], now = NOW, returnedAt = now, applied: string[] = []) {
   return promptsToShow(list, {
     now,
@@ -34,10 +33,8 @@ function due(list: readonly OpenedJob[], now = NOW, returnedAt = now, applied: s
 describe("which opened jobs to ask about", () => {
   it("asks once the person is back, not while they are still leaving", () => {
     const list = recordOpen([], job("a"), NOW);
-    // Back on the tab before the job was opened: still on the way out.
     expect(due(list, NOW + MINUTE, NOW - MINUTE)).toEqual([]);
     expect(due(list, NOW + MINUTE, NOW + MINUTE)).toEqual(["a"]);
-    // Before the clock is known nothing is asked.
     expect(due(list, 0, NOW + MINUTE)).toEqual([]);
   });
 
@@ -53,7 +50,6 @@ describe("which opened jobs to ask about", () => {
     const list = recordOpen([], job("a"), NOW);
     expect(due(list, NOW + ASK_FOR_MS - MINUTE)).toEqual(["a"]);
     expect(due(list, NOW + ASK_FOR_MS)).toEqual([]);
-    // Opening it again starts the week over.
     const again = recordOpen(list, job("a"), NOW + 8 * DAY);
     expect(due(again, NOW + 8 * DAY + MINUTE)).toEqual(["a"]);
   });
@@ -72,7 +68,6 @@ describe("answers", () => {
     expect(due(answered, NOW + 2 * MINUTE)).toEqual([]);
     const reopened = recordOpen(answered, job("a"), NOW + DAY);
     expect(due(reopened, NOW + DAY + MINUTE)).toEqual([]);
-    // Nothing about which job it was is kept once it's done.
     expect(reopened[0]).toMatchObject({ jobId: "a", company: "", title: "", url: "", done: true });
   });
 
@@ -93,7 +88,6 @@ describe("answers", () => {
     expect(list[0]).toMatchObject({ notYet: 2, done: true });
     list = recordOpen(list, job("a"), NOW + 2 * DAY);
     expect(due(list, NOW + 2 * DAY + MINUTE)).toEqual([]);
-    // Remembered past the week of asking, so "never" outlasts it.
     list = recordOpen(list, job("a"), NOW + 40 * DAY);
     expect(due(list, NOW + 40 * DAY + MINUTE)).toEqual([]);
   });
@@ -151,7 +145,6 @@ describe("where the question shows", () => {
   it("words the strip and what a screen reader hears", () => {
     expect(stripLine(1)).toBe("You opened 1 job. Applied to it?");
     expect(stripLine(3)).toBe("You opened 3 jobs. Applied to any?");
-    // Opened in the same moment: the later write comes first.
     const [stripe, vercel] = recordOpen(
       recordOpen([], job("a", "Vercel"), NOW),
       job("b", "Stripe"),

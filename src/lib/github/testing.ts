@@ -1,8 +1,5 @@
 import { vi } from "vitest";
 
-// Test-only. A fake api.github.com (and AI endpoint) behind a stubbed fetch; every request is
-// recorded so tests can assert exactly what text left the server.
-
 export type FakeCall = { url: string; headers: Headers; body: string };
 export type FakeHandler = (url: URL, headers: Headers, body: string) => Response | undefined;
 
@@ -43,7 +40,6 @@ export function text(body: string, init: ResponseInit = {}): Response {
   return new Response(body, { ...init, headers: { "content-type": "text/plain", ...(init.headers as Record<string, string> | undefined) } });
 }
 
-/** An OpenRouter chat completion whose answer is `output` as JSON. */
 export function aiAnswer(output: unknown): Response {
   return json({
     id: "gen-test",

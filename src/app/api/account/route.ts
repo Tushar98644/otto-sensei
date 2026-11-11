@@ -19,8 +19,7 @@ const CANCEL_FAILED_MESSAGE =
 const AUTH_DELETE_FAILED_MESSAGE =
   "Your resumes and data are deleted, but we couldn't finish closing your sign-in. Try again in a minute.";
 
-// The subscription is cancelled first: once our rows are gone nobody could manage it and billing
-// would go on. The Supabase user goes last, which also ends its sessions everywhere.
+// Cancel billing first (no one could manage it once rows are gone); delete the auth user last.
 export async function DELETE(): Promise<Response> {
   try {
     const user = await getCurrentUser();
@@ -51,7 +50,6 @@ export async function DELETE(): Promise<Response> {
     try {
       await deleteAuthUser(user.id);
     } catch (error) {
-      // The session still works, so a retry signs in, finds a fresh empty row and finishes.
       log.error("account.auth_delete_failed", error, { userId: user.id });
       return fail("server_error", AUTH_DELETE_FAILED_MESSAGE, 500);
     }

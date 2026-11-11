@@ -18,7 +18,6 @@ export function AddressCard({ portfolio }: { portfolio: Portfolio }) {
   const inputId = useId();
   const noteId = useId();
   const saving = usePortfolioStore((state) => state.saving);
-  // null: showing the saved address; a string: what the owner is typing.
   const [draft, setDraft] = useState<string | null>(null);
   const [check, setCheck] = useState<Check>(null);
   const value = draft ?? portfolio.slug;

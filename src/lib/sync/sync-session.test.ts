@@ -30,7 +30,6 @@ describe("createSyncSession", () => {
   it("keeps one session for the account across shells, re-reading only when it is old", () => {
     const { session, start, started } = setup();
     const first = session.acquire("user-1");
-    // The dashboard unmounts and the studio mounts: same account, same session.
     const second = session.acquire("user-1");
 
     expect(second).toBe(first);

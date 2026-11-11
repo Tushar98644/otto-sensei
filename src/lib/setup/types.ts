@@ -1,8 +1,6 @@
 import type { z } from "zod";
 import type { AccountSetupChangeSchema } from "./validation";
 
-// What the list ticks off is read from the real settings, never stored here.
-
 export const SETUP_STEP_OUTCOMES = ["saved", "skipped"] as const;
 export type SetupStepOutcome = (typeof SETUP_STEP_OUTCOMES)[number];
 

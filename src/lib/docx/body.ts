@@ -15,14 +15,10 @@ import { textLook, type DocxLook, type TextLook } from "./look";
 import { BULLET_LIST_ID } from "./styles";
 import { paragraph, run, runProps, tabRun, type RunProps } from "./xml";
 
-// One column of paragraphs in reading order, no tables, text boxes, headers or footers (parsers
-// skip or scramble those), dates on a right tab stop and bullets as a real list.
-
 export type Hyperlinks = {
   add: (href: string) => string;
 };
 
-// Only where it differs from `base`, so the file stays small and Word's styles stay meaningful.
 function styleOf(look: TextLook, base: TextLook): RunProps {
   const changed = <K extends keyof TextLook>(key: K) =>
     look[key] !== base[key] ? look[key] : undefined;
@@ -38,7 +34,6 @@ function styleOf(look: TextLook, base: TextLook): RunProps {
   };
 }
 
-// The Hyperlink style has one color; a link keeps its own.
 const linkProps = (look: TextLook, base: TextLook): RunProps => ({
   ...styleOf(look, base),
   color: look.color,
@@ -202,13 +197,11 @@ function heading(title: string, look: DocxLook): string {
   const runs = headingRuns(title, look.theme)
     .map((piece) => {
       const own = textLook(piece.style, look.heading);
-      // The heading style carries the look; a run sets only what differs (the accent letters).
       return own.color !== look.heading.color
         ? run(piece.text, { color: own.color })
         : run(piece.text);
     })
     .join("");
-  // The rule's tab: a leader line from the heading to the margin, in the rule's color.
   const rule = look.heading.rule;
   const leader =
     rule?.place === "after" ? `<w:r>${runProps({ color: rule.color })}<w:tab/></w:r>` : "";

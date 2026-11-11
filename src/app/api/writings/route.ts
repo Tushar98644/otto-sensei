@@ -14,7 +14,6 @@ export const dynamic = "force-dynamic";
 
 const count = new Intl.NumberFormat("en-US");
 
-// Readable on every plan, so letters written on Pro or the trial stay after it.
 export async function GET(): Promise<Response> {
   try {
     const user = await getCurrentUser();
@@ -32,8 +31,6 @@ export async function GET(): Promise<Response> {
   }
 }
 
-// The AI routes are Pro and trial only, so Free gets the same 402; a lapsed plan keeps what it
-// saved.
 export async function POST(req: Request): Promise<Response> {
   const blocked = rejectCrossSite(req) ?? rejectNonJson(req);
   if (blocked) return blocked;
@@ -46,7 +43,6 @@ export async function POST(req: Request): Promise<Response> {
     if (limited) return limited;
     const body = await readJson(req, CreateWritingSchema);
     if (!body.ok) {
-      // readJson names the field and the rule it broke, never the value.
       log.info("writings.bad_request", { reason: body.message });
       return fail("bad_request", INVALID, 400);
     }

@@ -89,7 +89,6 @@ export function ApplicationHub({ applicationId }: { applicationId: string }) {
   const reload = useCallback(() => setAttempt((count) => count + 1), []);
 
   const thread = load.status === "ready" ? load.thread : null;
-  // The list's copy is the live one: a status changed here or on the board shows at once.
   const application: Application | null =
     items.find((item) => item.id === applicationId) ?? thread?.application ?? null;
   const sent = useMemo(
@@ -140,7 +139,6 @@ export function ApplicationHub({ applicationId }: { applicationId: string }) {
     setWriting((current) => ({ key: (current?.key ?? 0) + 1, open: true }));
   }
 
-  // Gone at once with an Undo; the delete is sent once the Undo has run out.
   function remove(target: Application) {
     hideApplication(target);
     router.push(ROUTES.dashboardApplications);
@@ -278,7 +276,6 @@ export function ApplicationHub({ applicationId }: { applicationId: string }) {
                 onEdit={() => setDialog({ kind: "edit", application })}
               />
             </div>
-            {/* On phones the job and the version sent come first: they say which job this is. */}
             <div className="flex flex-col gap-6 max-lg:order-first">
               <JobCard
                 application={application}

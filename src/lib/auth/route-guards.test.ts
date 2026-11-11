@@ -34,7 +34,6 @@ describe("rejectCrossSite", () => {
     expect(rejectCrossSite(post({ origin: "https://OTTO.example:443" }))).toBeNull();
     expect(rejectCrossSite(post({ origin: "https://evil.example" }))?.status).toBe(403);
     expect(rejectCrossSite(post({ origin: "https://otto.example.evil.example" }))?.status).toBe(403);
-    // Sandboxed frames send "null".
     expect(rejectCrossSite(post({ origin: "null" }))?.status).toBe(403);
   });
 

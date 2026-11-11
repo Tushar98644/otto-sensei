@@ -1,7 +1,5 @@
 import type { CheckStatus } from "@/lib/checks/types";
 
-// One made-up person drives both halves of the demo, so the designed resume and the text a parser
-// gets from it can never disagree.
 export const DEMO_PERSON = {
   name: "Maya Chen",
   role: "Product Designer",
@@ -28,15 +26,10 @@ export const DEMO_PERSON = {
 
 export const DEMO_FILE_NAME = "maya-chen.pdf";
 
-// "column": text that belongs to the side column but got pulled into a line of the main one.
-// "symbol": an icon that came out as a broken character.
 export type ParsedSegment = { text: string; kind?: "column" | "symbol" };
 
-// U+FFFD is what text extraction typically produces for icon-font glyphs.
 const ICON: ParsedSegment = { text: "�", kind: "symbol" };
 
-// Simple parsers read each line straight across the page, so row N of the side column lands in
-// front of row N of the main column.
 function readAcrossColumns(): ParsedSegment[][] {
   const { skills, languages, jobs } = DEMO_PERSON;
   const side = ["SKILLS", ...skills, "LANGUAGES", ...languages];
@@ -64,7 +57,6 @@ export const PARSED_LINES: readonly ParsedSegment[][] = [
 
 export type DemoCheck = { status: CheckStatus; title: string; detail: string };
 
-// Ordered like a real report: problems first, then warnings, then passes.
 export const DEMO_CHECKS: readonly DemoCheck[] = [
   {
     status: "fail",

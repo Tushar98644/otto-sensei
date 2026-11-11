@@ -39,31 +39,21 @@ import {
   type FeedSource,
 } from "./types";
 
-// Oldest-read boards first, each host at its own pace, until the budget runs out; next run
-// continues.
-
 export const INGEST_LIMITS = {
-  // Whole company boards can be several megabytes of descriptions (Ashby's OpenAI board was 14 MB).
   maxBytes: 24 * 1024 * 1024,
   timeoutMs: 25_000,
-  // 605 boards took ~920 s of reads: one or two daily runs. More would outrun the 5-connection
-  // pool.
+  // More workers would outrun the 5-connection database pool.
   workers: 4,
-  // A board read within this long isn't read again, so a second run the same day is cheap.
   refreshAfterMs: 20 * HOUR_MS,
-  // Himalayas holds 100,000+ jobs, 20 per page, newest first: the newest 200 a day is plenty.
   himalayasPages: 10,
-  // Jobicy's 7 days were ~1,500 jobs at 100 a page.
   jobicyPages: 25,
 } as const;
 
-// Lever's robots.txt asks for 1 s and Himalayas allows 60/min; the rest state none and get a gentle
-// pace. Recruitee and Personio companies share one service, so the pace is per domain.
+// Lever's robots.txt asks for 1 s and Himalayas allows 60/min; the rest get a gentle pace.
 export const HOST_SPACING_MS: Record<string, number> = {
   "boards-api.greenhouse.io": 300,
   "api.lever.co": 1_000,
   "api.ashbyhq.com": 500,
-  // Workable's public endpoint answered 429 at about one request a second (2026-11-10).
   "apply.workable.com": 3_000,
   "recruitee.com": 1_000,
   "jobs.personio.de": 1_000,
@@ -84,10 +74,8 @@ export type IngestOptions = {
   maxBoards?: number;
   feeds?: boolean;
   himalayasPages?: number;
-  // Replaces HOST_SPACING_MS; tests pass {} to run without pauses.
   spacing?: Record<string, number>;
   workers?: number;
-  // false: skip the monthly visa register refresh (tests, the dev script).
   visa?: boolean;
 };
 
@@ -116,10 +104,8 @@ function pacer(spacing: Record<string, number>, fallback: number) {
 
 type Pace = ReturnType<typeof pacer>;
 
-// How far down the queue a free worker looks for a board whose host it may ask now.
 const QUEUE_LOOKAHEAD = 50;
 
-// Workers skip boards whose host must wait, so they don't all idle on one slow-paced host.
 function takeBoard<T extends { source: string }>(queue: T[], pace: Pace): T | undefined {
   let best = -1;
   let bestAt = Number.POSITIVE_INFINITY;
@@ -166,7 +152,6 @@ function hostLabel(token: string): string {
   return token;
 }
 
-/** Lever boards in the EU answer on their own host. */
 export function boardUrl(source: BoardSource, token: string): URL {
   const name = encodeURIComponent(token);
   switch (source) {
@@ -228,7 +213,6 @@ function failureStatus(error: unknown): "not_found" | "failed" {
   return error instanceof JobReadError && error.reason === "not_found" ? "not_found" : "failed";
 }
 
-// Jobicy asks for at most one pass an hour; we make one a day and stop at what the last pass saw.
 async function readFeed(
   source: FeedSource,
   lastFetchedAt: number | null,
@@ -279,7 +263,6 @@ async function readFeeds(
     .select({ source: jobBoards.source, lastFetchedAt: jobBoards.lastFetchedAt })
     .from(jobBoards)
     .where(and(eq(jobBoards.token, FEED_TOKEN), inArray(jobBoards.source, [...FEED_SOURCES])));
-  // One feed at a time; each has its own host, so this runs beside the company boards.
   for (const feed of due) {
     if (feed.lastFetchedAt !== null && now - feed.lastFetchedAt < INGEST_LIMITS.refreshAfterMs)
       continue;
@@ -306,7 +289,6 @@ async function readFeeds(
   }
 }
 
-/** Idempotent: running it twice only finds less to read. */
 export async function runJobsIngest(
   { now, deadline }: CronContext,
   options: IngestOptions = {},
@@ -383,7 +365,6 @@ export async function runJobsIngest(
         );
         totals.boards += 1;
       } catch (error) {
-        // A board that fails is retried tomorrow; its jobs stay as they were.
         totals.boardsFailed += 1;
         if (!(error instanceof JobReadError || error instanceof FeedShapeError)) {
           log.error("jobs.board_failed", error, { source, token: board.token });
@@ -405,7 +386,6 @@ export async function runJobsIngest(
 
   const tidy = await tidyJobs(db, Date.now());
   const skills = await refreshSkillWeights(db, Date.now());
-  // Once a month, the public visa registers (a few MB each); a failure waits for tomorrow.
   let visa = -1;
   const visaAt = options.visa === false ? Date.now() : await visaCheckedAt(db);
   if ((visaAt === null || Date.now() - visaAt >= VISA_REFRESH_AFTER_MS) && Date.now() < deadline) {
@@ -415,7 +395,7 @@ export async function runJobsIngest(
       log.warn("jobs.visa_registers_failed", {}, error);
     }
   }
-  // Last, so the narrow table, the stored counts and every cached match list name this run.
+  // Last, so the match index, stored counts and every cached match list name this run.
   const indexed = await rebuildMatchIndex(db, Date.now());
   return {
     stats: {
@@ -427,7 +407,6 @@ export async function runJobsIngest(
       boardsLeft: queue.length,
     },
     complete: !stopped,
-    // Board failures are routine and retried tomorrow; only a failing feed marks the run.
     failed,
   };
 }

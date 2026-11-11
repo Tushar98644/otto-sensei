@@ -6,22 +6,19 @@ import { ParseError, type Extraction, type FileKind } from "./types";
 export { ParseError } from "./types";
 export type { Extraction, FileKind } from "./types";
 
-const PDF_MAGIC = [0x25, 0x50, 0x44, 0x46, 0x2d]; // "%PDF-"
-const ZIP_MAGIC = [0x50, 0x4b, 0x03, 0x04]; // "PK\x03\x04"
+const PDF_MAGIC = [0x25, 0x50, 0x44, 0x46, 0x2d];
+const ZIP_MAGIC = [0x50, 0x4b, 0x03, 0x04];
 // OLE compound file: legacy .doc, and also what Word writes for a password-protected .docx.
 const OLE_MAGIC = [0xd0, 0xcf, 0x11, 0xe0, 0xa1, 0xb1, 0x1a, 0xe1];
 
 const startsWith = (data: Uint8Array, magic: number[]) => magic.every((byte, i) => data[i] === byte);
 
-// Trusts the bytes, not the browser's MIME type or extension alone.
 export function detectKind(data: Uint8Array, filename: string): FileKind | null {
   if (startsWith(data, PDF_MAGIC)) return "pdf";
   if (startsWith(data, ZIP_MAGIC) && /\.docx$/i.test(filename)) return "docx";
   return null;
 }
 
-// Throws ParseError for empty, too large, unsupported, too many pages, encrypted or corrupt files.
-// Never throws for a scanned PDF: signals.hasTextLayer is false instead.
 export async function extractDocument(data: Uint8Array, filename: string): Promise<Extraction> {
   if (data.byteLength === 0) throw new ParseError("empty_file", "That file is empty.");
   if (data.byteLength > UPLOAD_LIMITS.maxBytes) {
@@ -33,7 +30,6 @@ export async function extractDocument(data: Uint8Array, filename: string): Promi
   if (!kind) throw unsupported(data, filename);
 
   const { maxPages } = UPLOAD_LIMITS;
-  // The PDF reader checks the page count before reading any page; a DOCX only knows it at the end.
   const extraction = kind === "pdf" ? await extractPdf(data, { maxPages }) : await extractDocx(data);
   if (extraction.pageCount > maxPages) {
     throw new ParseError("too_many_pages", `That file has more than ${maxPages} pages. Upload just your resume.`);

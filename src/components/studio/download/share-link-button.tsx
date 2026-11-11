@@ -7,7 +7,6 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import type { Resume } from "@/lib/resume/schema";
 
-// Share links are Pro: on Free the button carries the badge and opens the trial prompt.
 export function ShareLinkButton({ resume }: { resume: Resume }) {
   const locked = useProTools() === false;
   const share = useShareResume(resume);

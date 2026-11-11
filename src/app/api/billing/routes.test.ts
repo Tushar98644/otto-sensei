@@ -46,7 +46,6 @@ async function signIn(overrides: Partial<typeof users.$inferInsert> = {}): Promi
   return user;
 }
 
-// No body at all is how checkout was asked for before intervals, and still means monthly.
 function checkoutRequest(body?: unknown): Request {
   return new Request("http://localhost/api/billing/checkout", {
     method: "POST",
@@ -63,7 +62,6 @@ async function reload(id: string): Promise<UserRow | undefined> {
 }
 
 beforeEach(async () => {
-  // Mock billing: no API key, but a webhook secret so the webhook route can verify signatures.
   vi.stubEnv("CREEM_API_KEY", undefined);
   vi.stubEnv("CREEM_PRO_MONTHLY_PRODUCT_ID", PRODUCT_ID);
   vi.stubEnv("CREEM_WEBHOOK_SECRET", SECRET);
@@ -160,7 +158,6 @@ describe("POST /api/billing/checkout", () => {
     expect(text).not.toContain("/srv/otto/secrets");
   });
 
-  // Real checkout only offers an interval once its product is set (billing/intervals.test.ts).
   it("in mock checkout, sells yearly and weekly without any product set", async () => {
     const user = await signIn();
     const res = await checkout(checkoutRequest({ interval: "year" }));
@@ -283,7 +280,6 @@ describe("POST /api/billing/webhook", () => {
       createdAt: 1,
       updatedAt: 1,
     });
-    // Pretty-printed on purpose: the signature covers the exact bytes, whitespace included.
     const payload = JSON.stringify(
       {
         id: `evt_${sequence}`,

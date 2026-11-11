@@ -12,7 +12,6 @@ export const maxDuration = 30;
 
 const INVALID_LINK = jobReadMessage(new JobReadError("invalid_url"));
 
-// invalid_url is the person's typo; every other reason means "couldn't read it, paste the text".
 function readFailure(error: JobReadError): Response {
   if (error.reason === "invalid_url") return fail("bad_request", INVALID_LINK, 400);
   return fail("parse_failed", jobReadMessage(error), 422);

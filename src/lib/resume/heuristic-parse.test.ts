@@ -11,7 +11,6 @@ const NOW = 1_800_000_000_000;
 
 function parse(text: string): Resume {
   const resume = heuristicParse(text, NOW);
-  // Must always be storable as-is.
   expect(ResumeSchema.parse(resume)).toEqual(resume);
   expect(resume.source).toBe("import");
   return resume;
@@ -46,7 +45,6 @@ describe("heuristicParse", () => {
     });
     expect(bullets(resume.experience[0]?.bullets ?? [])).toEqual([
       "Built a payment API in Go that handles two million requests a day with 99.99% uptime.",
-      // The wrapped second line is joined back onto its bullet.
       "Led a team of five engineers through a move to Kubernetes, cutting release time from two days to two hours.",
       "Mentored three junior developers, and all three were promoted within a year.",
     ]);
@@ -66,7 +64,6 @@ describe("heuristicParse", () => {
         endDate: "Jun 2018",
       }),
     ]);
-    // "Languages: English, German" sits under Skills, so it stays a skill group.
     expect(resume.skills.map((group) => [group.label, group.items])).toEqual([
       ["", ["Python", "TypeScript", "Go", "PostgreSQL", "AWS", "Docker", "Kubernetes"]],
       ["Languages", ["English", "German"]],
@@ -257,7 +254,6 @@ describe("heuristicParse", () => {
         ],
       ],
     ]);
-    // A referee's phone number is never taken as the candidate's.
     expect(resume.basics.phone).toBe("");
   });
 
@@ -297,7 +293,6 @@ describe("heuristicParse", () => {
       ].join("\n"),
     );
 
-    // The contact line's icon glyphs and link labels are neither a headline nor a summary.
     expect(resume.basics).toMatchObject({
       name: "Jane Doe",
       headline: "",
@@ -314,7 +309,6 @@ describe("heuristicParse", () => {
       ["Founding Engineer", "Northwind"],
       ["Student Developer", "Open Source Summer, Tally Foundation"],
     ]);
-    // The stack line under a project's name stays with it; "demo/github" was only a link's text.
     expect(resume.projects.map((project) => [project.name, bullets(project.bullets)])).toEqual([
       [
         "Tally",
@@ -551,7 +545,6 @@ describe("heuristicParse", () => {
     expect(resume.experience[0]?.bullets[0]?.text.length).toBeLessThanOrEqual(1_000);
     const emoji = parse(`Jane 😀\nSUMMARY\n${"😀".repeat(2_000)}`);
     expect(emoji.summary.length).toBeLessThanOrEqual(3_000);
-    // A clipped string never ends in half of a surrogate pair.
     expect(/[\ud800-\udbff]$/.test(emoji.summary)).toBe(false);
   });
 });

@@ -36,7 +36,6 @@ describe("/api/cron/jobs", () => {
     fakeNet.reset();
     fakeNet.resolve("boards-api.greenhouse.io", "93.184.216.34");
     fakeNet.json(boardUrl("greenhouse", "vercel").toString(), GREENHOUSE_BOARD);
-    // The feeds don't answer here: the run reports them as failed and keeps the board's jobs.
   });
 
   afterEach(() => {
@@ -58,12 +57,10 @@ describe("/api/cron/jobs", () => {
 
   it("runs the ingest for Vercel Cron (GET) and manual calls (POST)", async () => {
     const res = await GET(call(`Bearer ${SECRET}`));
-    // The feeds failed to resolve, which the run reports.
     expect(res.status).toBe(500);
     expect(res.headers.get("cache-control")).toBe("no-store");
     expect(await (await getDb()).select({ id: jobs.id }).from(jobs)).toHaveLength(2);
 
-    // A second run the same day finds everything read (or tried) already: nothing to do.
     const before = fakeNet.requests.length;
     const again = await POST(call(`Bearer ${SECRET}`, "POST"));
     expect(again.status).toBe(200);

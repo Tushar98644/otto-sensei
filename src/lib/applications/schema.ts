@@ -22,31 +22,24 @@ export const MIN_APPLIED_AT = Date.UTC(2000, 0, 1);
 
 export type Application = {
   id: string;
-  // Usually a tailored copy. Null: a file that isn't in Otto.
   resumeId: string | null;
-  // So the win rate can still name it once it's deleted.
   resumeTitle: string;
   company: string;
   role: string;
   jobUrl: string;
   appliedAt: number;
   status: ApplicationStatus;
-  // The furthest step it ever reached (stageAfter): what the win rate counts.
   stageReached: ApplicationStage;
   statusChangedAt: number;
   notes: string;
   followUpAt: number | null;
-  // Null for a job found elsewhere, or one whose post was removed.
   jobId: string | null;
-  // The pack itself is read by /api/interview.
   hasPrep: boolean;
-  // Local noon of the interview day.
   interviewAt: number | null;
   createdAt: number;
   updatedAt: number;
 };
 
-// "" for none. https:// is assumed when pasted without a scheme. Null when it isn't a link.
 export function normalizeJobUrl(input: string): string | null {
   const value = input.trim();
   if (value === "") return "";

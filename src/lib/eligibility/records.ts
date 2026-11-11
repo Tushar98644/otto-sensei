@@ -5,8 +5,6 @@ import { workProfiles } from "@/db/schema";
 import { NO_CHOICE, type LookingForChoice, type PlaceChoice } from "@/lib/job-feed/types";
 import { emptyWorkProfile, type WorkProfile } from "./profile";
 
-// Keyed by user_id, so a user can only ever read or write their own.
-
 type Row = typeof workProfiles.$inferSelect;
 
 export type StoredWorkProfile = {
@@ -16,9 +14,7 @@ export type StoredWorkProfile = {
 };
 
 export type SaveWorkProfileResult =
-  | { status: "saved"; stored: StoredWorkProfile }
-  // The account was deleted after the request was signed in, so nothing may be written.
-  | { status: "no_user" };
+  { status: "saved"; stored: StoredWorkProfile } | { status: "no_user" };
 
 function toStored(row: Row): StoredWorkProfile {
   return {
@@ -59,7 +55,6 @@ export async function readWorkProfile(userId: string): Promise<StoredWorkProfile
     : { profile: emptyWorkProfile(), updatedAt: null, lookingFor: NO_CHOICE };
 }
 
-// Any plan: it only shapes the order of Matches. Creates an empty work profile when there is none.
 export async function saveLookingFor(
   userId: string,
   choice: LookingForChoice,
@@ -87,8 +82,6 @@ export async function saveLookingFor(
   });
 }
 
-// Under the account's row lock, so a write racing account deletion can't fail on the foreign key or
-// leave a row behind.
 export async function saveWorkProfile(
   userId: string,
   profile: WorkProfile,

@@ -10,7 +10,6 @@ import { useLineStepper } from "./entry-lines";
 export type EntryChecksProps = {
   lines: readonly CheckedLine[];
   ownerHeadingId: string;
-  // The job has an end date, so its lines are checked for past tense.
   ended: boolean;
 };
 

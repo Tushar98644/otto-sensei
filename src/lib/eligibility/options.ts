@@ -11,7 +11,6 @@ export function countryOptions(): Option[] {
   );
 }
 
-/** `keep` is always listed. */
 export function timeZoneOptions(now: number, keep = ""): Option[] {
   const zones = new Set(Intl.supportedValuesOf("timeZone"));
   // Older names such as "Asia/Calcutta" are valid but not listed; never drop a saved one.

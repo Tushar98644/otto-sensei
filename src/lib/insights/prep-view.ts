@@ -2,9 +2,6 @@ import type { Resume } from "@/lib/resume/schema";
 import { byRound, type InterviewPrep, type PrepQuestion, type PrepRound, type PrepTarget } from "./prep";
 import { savedJobText, savedJobUrl } from "./saved-job";
 
-// Kept out of the component so they're tested.
-
-// Best first: the post saved with the tailored copy, a fresh read of the job link, then pasting.
 export type PrepJobSource =
   | { kind: "saved"; text: string }
   | { kind: "link"; url: string }
@@ -20,7 +17,6 @@ export function prepJobSource(
   return url ? { kind: "link", url } : { kind: "paste" };
 }
 
-// The version sent when still in this browser, else the newest base resume, else the newest of any.
 export function prepResume(target: Pick<PrepTarget, "resumeId">, resumes: readonly Resume[]): Resume | null {
   const sent = target.resumeId ? resumes.find((resume) => resume.id === target.resumeId) : undefined;
   if (sent) return sent;
@@ -46,7 +42,6 @@ export function countBlanks(prep: InterviewPrep): number {
   );
 }
 
-// What each round is for, in plain words, shown under its heading.
 export const ROUND_COPY: Record<PrepRound, { label: string; about: string }> = {
   opening: { label: "Opening", about: "The first few minutes: who you are and what brought you here." },
   fit: { label: "Role fit", about: "Why this job, and why you." },
@@ -59,7 +54,6 @@ export type NumberedQuestion = { item: PrepQuestion; number: number };
 
 export type PrepRoundGroup = {
   round: PrepRound;
-  // Counts only the rounds this pack has, so a pack without a closing question still reads 1, 2, 3.
   number: number;
   questions: NumberedQuestion[];
 };
@@ -68,7 +62,6 @@ export function orderedQuestions(prep: Pick<InterviewPrep, "questions">): Number
   return byRound(prep.questions).map((item, index) => ({ item, number: index + 1 }));
 }
 
-/** Rounds with no questions are left out. */
 export function prepRounds(prep: Pick<InterviewPrep, "questions">): PrepRoundGroup[] {
   const groups: PrepRoundGroup[] = [];
   for (const question of orderedQuestions(prep)) {

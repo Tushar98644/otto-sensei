@@ -18,13 +18,9 @@ import type { SendCheckContext, SendCheckItem, SendCheckRule, SendCheckTarget } 
 
 export type { SendCheckContext, SendCheckItem, SendCheckRule, SendCheckTarget } from "./types";
 
-// Everything a recruiter would catch that no spell checker does. Reads only what will be sent.
-
-// Two jobs that share a month or two are a notice period or a handover, not a mistake.
 const OVERLAP_MONTHS = 3;
 const MAX_ITEMS = 40;
 
-// Most embarrassing first: a blank left in, then another company's name, then dates.
 const RULE_ORDER: readonly SendCheckRule[] = [
   "placeholder",
   "company",
@@ -280,7 +276,6 @@ function toolItems(resume: Resume, nowMonth: number): Draft[] {
     noun: string,
   ) => {
     const { start, end } = parseRange(entry.startDate, entry.endDate, nowMonth);
-    // Without an end date, a single date is the whole stint ("2019").
     const last = end ?? start;
     if (!last) return;
     const texts: { text: string; target: SendCheckTarget; heading: boolean }[] = [

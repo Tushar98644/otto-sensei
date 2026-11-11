@@ -1,7 +1,5 @@
 import type { LintIssue, LintIssueId, LintSeverity } from "./types";
 
-// The tick list under each job and project. School and award lines are never asked for a result.
-
 export type EntryCheckId =
   | "result"
   | "start"
@@ -20,14 +18,11 @@ type CheckRule = {
   id: EntryCheckId;
   label: string;
   issues: readonly LintIssueId[];
-  // Past tense only means something once a job has ended, and full stops once there are two lines.
   only?: "ended" | "several";
 };
 
-// A duty line ("Responsible for…") doesn't say what changed either; the lint just names it a duty.
 export const RESULT_ISSUES: readonly LintIssueId[] = ["no-result", "duty"];
 
-// A line with no result has no number either, so it counts against both.
 const RULES: readonly CheckRule[] = [
   { id: "result", label: "Says what changed", issues: RESULT_ISSUES },
   { id: "start", label: "Starts strong", issues: ["weak-start"] },
@@ -52,7 +47,6 @@ export type EntryCheck = {
   severity: LintSeverity | null;
 };
 
-/** In a fixed order. Empty with no lines. */
 export function entryChecks(lines: readonly CheckedLine[], ended: boolean): EntryCheck[] {
   if (lines.length === 0) return [];
   const applies = (rule: CheckRule) =>

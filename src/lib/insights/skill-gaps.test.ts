@@ -64,7 +64,6 @@ describe("skillGaps", () => {
     const other = copy({ company: "Contoso", keywords: ["Go"], updatedAt: 2 });
     const report = skillGaps([old, fresh, other]);
     expect(report.jobs).toBe(2);
-    // Short in only one job now, which isn't a pattern yet.
     expect(report.gaps).toEqual([]);
   });
 

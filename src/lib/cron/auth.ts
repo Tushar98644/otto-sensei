@@ -2,13 +2,10 @@ import { createHash, timingSafeEqual } from "node:crypto";
 import { env } from "@/lib/env";
 import { log } from "@/lib/log";
 
-// Vercel Cron sends "Authorization: Bearer <CRON_SECRET>"; any other caller must send the same.
-
 export const MIN_CRON_SECRET_LENGTH = 16;
 
 let warnedMissing = false;
 
-/** null when missing or too short to be worth checking. */
 export function cronSecret(): string | null {
   const secret = env().CRON_SECRET ?? "";
   if (secret.length >= MIN_CRON_SECRET_LENGTH) return secret;
@@ -19,8 +16,7 @@ export function cronSecret(): string | null {
   return null;
 }
 
-// Hashing both sides makes them equal length, so the compare leaks neither the secret nor its
-// length.
+// Hashing both sides makes them equal length, so the compare leaks neither secret nor length.
 function digest(value: string): Buffer {
   return createHash("sha256").update(value).digest();
 }

@@ -4,19 +4,14 @@ import { BRAND } from "@/config/brand";
 import { cn } from "@/lib/utils";
 
 export type OttoNoteProps = {
-  // First person, 18 words at most, about facts in the user's own file (see lines.ts).
   message: ReactNode;
-  // Facts only, after "Otto ·": counts, file type, pages. Leave it out when there are none.
   meta?: ReactNode;
   children?: ReactNode;
-  // On by default: Otto's line usually reports what just happened (reading, failed, done). Turn it
-  // off when the message changes while typing, or every keystroke would be read out.
   live?: boolean;
   size?: "sm" | "md";
   className?: string;
 };
 
-// No bubble, border or tail: a note in the margin, not a chat widget.
 export function OttoNote({
   message,
   meta,
@@ -28,9 +23,7 @@ export function OttoNote({
   const small = size === "sm";
   return (
     <div className={cn("flex flex-col", className)}>
-      {/* Actions sit below this row, so they never pull the centred avatar down. */}
       <div className="flex items-center gap-3">
-        {/* The logo face, not the thin sketch: at avatar size the sketch reads as a doodle. */}
         <span
           aria-hidden
           className={cn(
@@ -54,7 +47,6 @@ export function OttoNote({
           </p>
         </div>
       </div>
-      {/* Indented by the avatar plus the gap, so actions line up with the words. */}
       {children ? (
         <div className={cn("mt-3 flex flex-wrap gap-2", small ? "pl-10" : "pl-12")}>{children}</div>
       ) : null}

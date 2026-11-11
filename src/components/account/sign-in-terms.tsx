@@ -12,7 +12,6 @@ export function SignInTerms() {
   );
 }
 
-// Opens in a new tab so reading the terms doesn't throw away a half-finished sign-in.
 function LegalLink({ href, children }: { href: string; children: ReactNode }) {
   return (
     <TextLink href={href} target="_blank" rel="noopener">

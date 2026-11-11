@@ -11,9 +11,6 @@ export const metadata: Metadata = pageMetadata({
   path: ROUTES.privacy,
 });
 
-// Keep this in step with the code: sign-in and device cookies (src/lib/supabase/cookies.ts,
-// src/lib/http.ts), what account deletion removes (src/lib/users.ts, src/app/api/account) and
-// rate-limit retention (src/lib/rate-limit.ts). Bump LEGAL_LAST_UPDATED with any change.
 export default function PrivacyPage() {
   const mailto = `mailto:${BRAND.supportEmail}`;
   return (

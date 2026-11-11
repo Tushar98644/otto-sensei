@@ -18,20 +18,16 @@ import { RightChoice } from "./right-choice";
 export type WorkProfileFieldsProps = {
   value: WorkProfile;
   onChange: (next: Partial<WorkProfile>) => void;
-  // "essentials" is the first-login step: where you live, your work rights and remote only. The
-  // time zone stays the device's and both job types stay on; the Account page has the rest.
   fields?: "all" | "essentials";
   onRight?: (region: WorkRegion, value: WorkRight | null) => void;
   countryHint?: ReactNode;
   rightsNote?: ReactNode;
   typeError?: string | null;
-  // A dialog's first stop: without it the browser can land on the scroll box instead.
   autoFocusCountry?: boolean;
 };
 
 const CHECKBOX = "flex min-h-11 cursor-pointer items-center gap-2.5 text-sm text-ink";
 
-// No saving here: the Account form saves as answers change, the first-login step on Save.
 export function WorkProfileFields({
   value,
   onChange,
@@ -43,7 +39,6 @@ export function WorkProfileFields({
   autoFocusCountry = false,
 }: WorkProfileFieldsProps) {
   const all = fields === "all";
-  // Offsets for the labels only change with daylight saving, so a day's precision is plenty.
   const day = Math.floor(useNow() / DAY_MS) * DAY_MS;
   const countries = useMemo(() => countryOptions(), []);
   const zones = useMemo(
@@ -140,7 +135,6 @@ export function WorkProfileFields({
               </label>
             </>
           ) : null}
-          {/* Not a work right: it only sets the Jobs tab's "Remote only" filter to start with. */}
           <label className={CHECKBOX}>
             <input
               type="checkbox"

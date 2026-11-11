@@ -5,14 +5,10 @@ import { cn } from "@/lib/utils";
 import { createLoadingScreen, type LoadingScreenState } from "./loading-screen";
 import { Otto } from "./otto";
 
-// App-level waits only (route loads, first dashboard or studio load, sign-in or checkout return);
-// in-page waits keep skeletons or the small working Otto. One screen lives in the root layout.
-
 const screen = createLoadingScreen();
 const HIDDEN: LoadingScreenState = { phase: "hidden", detail: null };
 export const LOADING_SCREEN_TITLE = "Please wait, we're setting things up";
 
-/** Whether the loading screen covers the page right now, for things that should wait (tours). */
 export function loadingScreenUp(): boolean {
   return screen.getState().phase !== "hidden";
 }
@@ -34,8 +30,6 @@ export function LoadingScreenHost({ children }: { children: ReactNode }) {
   const covering = phase === "shown";
   return (
     <>
-      {/* `contents` keeps this wrapper out of every page's layout. While the screen covers the
-          app, the app can't be tabbed into or read out from underneath it. */}
       <div className="contents" aria-busy={covering || undefined} inert={covering}>
         {children}
       </div>
@@ -44,8 +38,7 @@ export function LoadingScreenHost({ children }: { children: ReactNode }) {
   );
 }
 
-// The status region stays in the page while hidden: screen readers only announce text that
-// arrives in a region they already know about.
+// The status region stays mounted: readers only announce text added to a known live region.
 export function LoadingScreenView({ phase, detail }: LoadingScreenState) {
   const hidden = phase === "hidden";
   const leaving = phase === "leaving";
@@ -58,7 +51,6 @@ export function LoadingScreenView({ phase, detail }: LoadingScreenState) {
           ? "sr-only"
           : "fixed inset-0 z-50 flex flex-col items-center justify-center bg-background px-4 text-center",
         phase === "shown" && "motion-safe:animate-fade-in",
-        // Reduced motion: no fade, it just goes.
         leaving && "pointer-events-none motion-safe:animate-fade-out motion-reduce:hidden",
       )}
     >

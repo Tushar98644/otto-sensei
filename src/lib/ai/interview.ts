@@ -17,14 +17,8 @@ import { maskInventedNumbers } from "./guards";
 import { asResumeLine, clip, clipWords, MAX_RESUME_CHARS, oneLine, tag } from "./text";
 import { AIError, type WritingInput } from "./types";
 
-// Stories point at resume lines by id and code copies the line in. Parts with unstated numbers get
-// [number], parts adding facts become a [question], and pointers naming unknown things are dropped.
-
-// Lines offered to the model, in resume order: recent jobs come first and matter most.
 const MAX_LINES = 60;
-// Reasoning included. A full pack is ~2,500 tokens of JSON, leaving room for low-effort reasoning.
 const MAX_TOKENS = 8_000;
-// Above this share of new content words, a STAR part says more than its line does.
 const MAX_NOVEL_SHARE = 0.34;
 const STEM_CHARS = 5;
 
@@ -34,7 +28,6 @@ const BLANKS = {
   result: "[What changed because of it, and by how much?]",
 } as const;
 
-// Words that carry no fact, so a sentence built around a line's facts may use them freely.
 const FILLER = new Set(
   (
     "a an the and or but so to of in on at by for with from into onto over under about after before " +
@@ -154,7 +147,6 @@ function stem(word: string): string {
   return word.slice(0, STEM_CHARS);
 }
 
-// By stem, so "launch" backs "launched"; [brackets] don't count.
 export function novelShare(part: string, source: string): number {
   const known = new Set(wordsOf(source).map(stem));
   const words = wordsOf(part.replace(BRACKETED, " ")).filter(
@@ -168,7 +160,6 @@ function sentence(text: string): string {
   return clipWords(oneLine(text), PREP_LIMITS.partChars);
 }
 
-// A part that only restates its line (or asks) is kept; one that adds facts falls back to a blank.
 function checkedPart(part: string, line: Line, fallback: string): string {
   const source = `${line.text} ${line.place}`;
   const text = sentence(maskInventedNumbers(part, [line.text]));
@@ -176,7 +167,6 @@ function checkedPart(part: string, line: Line, fallback: string): string {
   return text;
 }
 
-// Models sometimes wrap a line in quotes or start it like a list item.
 function unwrap(text: string): string {
   const line = oneLine(text).replace(/^[-•*]\s+/u, "");
   return /^["“](.*)["”]$/u.exec(line)?.[1]?.trim() ?? line;
@@ -187,7 +177,6 @@ function asQuestion(text: string, max: number): string {
   return /\p{L}.*\?$/u.test(value) ? value : "";
 }
 
-// Said in the room, a question can end on a period: "Walk me through your background."
 function asSpoken(text: string, max: number): string {
   const value = clipWords(unwrap(text), max);
   return /\p{L}.*[?.]$/u.test(value) ? value : "";
@@ -196,7 +185,6 @@ function asSpoken(text: string, max: number): string {
 const SENTENCE_END = /(?:^|[.!?:;"“(])$/u;
 const ONLY_I = /^I(?:'|’|$)/u;
 
-// "Kafka" mid-sentence, or a capital past the first letter ("PostgreSQL"). Brackets are skipped.
 export function namesIn(text: string): string[] {
   const plain = text.replace(BRACKETED, " ");
   const names: string[] = [];
@@ -214,7 +202,6 @@ function knownStems(sources: readonly string[]): Set<string> {
   return new Set(sources.flatMap((source) => wordsOf(source).map(stem)));
 }
 
-// A pointer may only bring up names (tools, employers, products) the resume or the post has.
 function cleanPoints(points: readonly string[], sources: readonly string[], known: Set<string>): string[] {
   const seen = new Set<string>();
   const out: string[] = [];
@@ -237,7 +224,6 @@ function sourcesOf(resumeText: string, job: WritingInput): Sources {
   return { texts, known: knownStems(texts) };
 }
 
-// So a question only links a story that survived cleaning.
 function cleanQuestions(
   output: Output["questions"],
   sources: Sources,
@@ -305,7 +291,6 @@ function keptStories(output: Output["stories"], lines: readonly Line[]): KeptSto
         title: titleFor(item.title, line),
         situation: checkedPart(item.situation, line, BLANKS.situation),
         task: checkedPart(item.task, line, BLANKS.task),
-        // The line itself is always a true action.
         action: checkedPart(item.action, line, sentence(line.text)),
         result: checkedPart(item.result, line, BLANKS.result),
       }),
@@ -337,10 +322,8 @@ function requirementLines(jobText: string): string[] {
 }
 
 const asPoint = (text: string) => clipWords(text, PREP_LIMITS.pointChars);
-// Short enough that the quote marks around it survive the pointer's cap.
 const QUOTED_LINE_CHARS = 110;
 
-// Demo mode (no API key): common questions plus the post's and the resume's own lines.
 function demoPrep(prepared: Prepared): Pick<InterviewPrep, "questions" | "stories" | "asks"> {
   const { job, lines } = prepared;
   const where = job.company ? ` at ${job.company}` : "";
@@ -428,7 +411,6 @@ function demoPrep(prepared: Prepared): Pick<InterviewPrep, "questions" | "storie
   return { questions, stories, asks: DEMO_ASKS };
 }
 
-// No API key: a demo pack (`demo: true`). Throws AIError, also for a pack with no questions.
 export async function prepareInterview(
   resume: Resume,
   input: WritingInput,
@@ -438,7 +420,6 @@ export async function prepareInterview(
   const job = { title: prepared.job.jobTitle, company: prepared.job.company };
   if (!aiEnabled()) return { version: 2, job, ...demoPrep(prepared), createdAt: now, demo: true };
 
-  // Stories still quote the real line: keptStories() picks it from prepared.lines by id.
   const redactor = redactorFor(resume);
   const shown: Prepared = {
     ...prepared,
@@ -461,7 +442,6 @@ export async function prepareInterview(
   );
   const kept = keptStories(output.stories, prepared.lines);
   const storyIndex = new Map(kept.map((item, index) => [item.lineId, index]));
-  // Checked against the real text, since the output has its placeholders restored by now.
   const sources = sourcesOf(prepared.resumeText, prepared.job);
   const questions = cleanQuestions(output.questions, sources, storyIndex);
   if (questions.length === 0) {

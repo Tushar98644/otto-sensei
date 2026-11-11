@@ -4,7 +4,6 @@ import { APPLICATION_FILTERS, FILTER_NAMES, type ApplicationFilter } from "./vie
 
 const count = new Intl.NumberFormat("en-US");
 
-// Empty statuses stay out of the way unless picked; on phones the strip scrolls inside itself.
 export function ApplicationFilters({
   filter,
   counts,

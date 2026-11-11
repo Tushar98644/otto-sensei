@@ -14,10 +14,7 @@ import { PORTFOLIO_TEMPLATES } from "./templates/registry";
 
 type Width = "desktop" | "phone";
 
-// Free accounts open it from ./portfolio-upgrade.tsx (the action is the trial); the editor opens
-// it for "Full screen" and phone Preview (the action picks the design). Loaded on demand.
-// A native modal <dialog>: focus stays inside and the page behind is inert. The scroll box is a
-// containing block for position: fixed (contain: layout), so a template's fixed nav stays inside.
+// contain: layout makes the scroll box the containing block for templates' fixed navs.
 export function FullPortfolioPreview({
   id,
   own,
@@ -28,7 +25,6 @@ export function FullPortfolioPreview({
 }: {
   id: PortfolioTemplateId;
   own: TemplateSample | null;
-  // The bar's one key ("Try Pro free for 3 days", "Use this design"); none when there's nothing to do.
   action: { label: string; onSelect: () => void } | null;
   note?: string;
   onChange: (id: PortfolioTemplateId) => void;
@@ -66,8 +62,7 @@ export function FullPortfolioPreview({
     onClose();
   }
 
-  // The browser can close it on its own (Escape pressed twice). Skip the event when the dialog has
-  // been shown again since, as happens when React remounts it in development.
+  // The browser may close it itself (Escape twice); skip if it was shown again since (dev remount).
   function onDialogClose(event: SyntheticEvent<HTMLDialogElement>) {
     if (!event.currentTarget.open) onClose();
   }
@@ -142,8 +137,6 @@ export function FullPortfolioPreview({
           {choice.canSwitch ? <PreviewSourceSwitch source={choice.source} /> : null}
         </div>
 
-        {/* The page scrolls, not the frame, so a fixed nav stays put and, at phone width, sits
-            inside the phone rather than across the whole screen. */}
         <div className={cn("min-h-0 flex-1", width === "phone" && "bg-surface-muted md:p-6")}>
           <div
             className={cn(
@@ -153,7 +146,6 @@ export function FullPortfolioPreview({
             )}
           >
             <div
-              // Remounted per design, width and page, so each one opens at its top.
               key={`${id}-${width}-${choice.source}`}
               className={cn(
                 // One screen is the window less the header (4rem) and the page bar (2.5rem).

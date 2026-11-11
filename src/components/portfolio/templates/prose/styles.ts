@@ -1,8 +1,6 @@
 import { templateCss } from "../css";
 
-// Ported from antfu/antfu.me (code MIT, see ./LICENSE.txt; the site's words and pictures are
-// CC BY-NC-SA and none of them are here): its UnoCSS utilities and scoped styles written out as
-// CSS. Breakpoints are container queries on the template root.
+// Ported from antfu/antfu.me (code MIT, see ./LICENSE.txt).
 const css = `
 :scope {
   --c-bg: #fff;

@@ -10,39 +10,32 @@ import { ICON_ACTION_CLASSES, MoveButtons } from "./move-buttons";
 import { removeWithUndo } from "./remove-with-undo";
 
 export type EntryDetails = {
-  // Folds away when `complete` is true on first render, so a filled-in job shows its lines first.
   content: ReactNode;
   complete: boolean;
   firstFieldId: string;
 };
 
 export type EntryShellProps = {
-  // The resume the entry belongs to, so a removal can be undone.
   resumeId: string;
   headingId: string;
   removeId: string;
   title: string;
-  // When it differs from `title`: a role under its company's heading shows only the role.
   heading?: string;
   headingLevel?: 4 | 5;
   meta?: string | null;
   canMoveUp: boolean;
   canMoveDown: boolean;
   onMove: (delta: -1 | 1) => void;
-  // Something to lose (e.g. "Remove this job and its 4 lines?"): removed at once, with Undo.
   confirm: string | null;
   onRemove: () => void;
   hidden?: boolean;
   onToggleHidden?: () => void;
-  // The list stays flat, so regrouping roles never remounts an entry or drops focus.
   rail?: "start" | "continue";
   lead?: ReactNode;
-  // Fields that can fold away behind "Edit details". Without it, children are the fields.
   details?: EntryDetails;
   children?: ReactNode;
 };
 
-// Fade in on hover or focus (always on touch), keeping their space so nothing shifts.
 const REVEAL_CLASSES =
   "opacity-0 transition-opacity group-hover/entry:opacity-100 focus-within:opacity-100 pointer-coarse:opacity-100";
 
@@ -66,7 +59,6 @@ export function EntryShell({
   details,
   children,
 }: EntryShellProps) {
-  // Only the first render decides, so filling in the company never folds fields under the cursor.
   const [detailsOpen, setDetailsOpen] = useState(() => !details?.complete);
   const detailsId = useId();
   const Heading = headingLevel === 5 ? "h5" : "h4";
@@ -105,11 +97,9 @@ export function EntryShell({
           hidden && DIMMED_CLASSES,
         )}
       >
-        {/* Phones stack the title over its controls, so a long job title keeps the full width. */}
         <div className="flex flex-col sm:-mr-3 sm:flex-row sm:items-start sm:gap-1">
           <div className="min-w-0 flex-1 sm:py-2.5">
             <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-              {/* Focusable from code, so the Fix step's outline can land on the entry it opens. */}
               <Heading
                 id={headingId}
                 tabIndex={-1}

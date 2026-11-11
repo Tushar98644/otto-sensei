@@ -25,7 +25,6 @@ import { editResume, pickResume, useResumeValue, useSectionMeta } from "./use-ed
 
 const NO_SECTIONS: SectionKey[] = [];
 
-// `intro` sits inside the Fix dialog's reach, so it can open a line's fix too.
 export const ResumeEditor = memo(function ResumeEditor({
   resumeId,
   intro,
@@ -43,8 +42,6 @@ export const ResumeEditor = memo(function ResumeEditor({
   return (
     <FixDialogProvider resumeId={resumeId}>
       {intro}
-      {/* Keeps a focused field clear of the sticky step bar when the browser scrolls to it. Scoped
-          to the sections: the dialogs and the bar itself must scroll normally. */}
       <div className="flex flex-col gap-3 [&_:is(input,textarea,button)]:scroll-mb-28">
         <BasicsCard resumeId={resumeId} />
         {order.map((key, index) => (
@@ -63,7 +60,6 @@ export const ResumeEditor = memo(function ResumeEditor({
   );
 });
 
-// The pill comes and goes, so the news is read out from one region that's always there.
 function FlashAnnouncer() {
   const message = useFlashAnnouncement();
   return (
@@ -73,7 +69,6 @@ function FlashAnnouncer() {
   );
 }
 
-// Starts collapsed when an import filled name and email; only the first render decides.
 const BasicsCard = memo(function BasicsCard({ resumeId }: { resumeId: string }) {
   const name = useResumeValue(resumeId, (resume) => resume.basics.name.trim(), "");
   const hasEmail = useResumeValue(resumeId, (resume) => resume.basics.email.trim() !== "", false);

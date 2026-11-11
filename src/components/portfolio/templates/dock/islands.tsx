@@ -5,10 +5,8 @@ import { useEffect, useRef, type MouseEvent } from "react";
 import type { SocialKind } from "@/lib/portfolio/content";
 import { SocialIcon } from "../icons";
 
-// Dock's moving parts, after dillionverma/portfolio (MIT), without framer-motion.
+// Ported from dillionverma/portfolio (MIT, see ./LICENSE.txt).
 
-// The theme's colours are oklch(); a 1px canvas turns any CSS colour into "rgba(r, g, b," so each
-// square can add its own alpha (the same trick as the original's toRGBA).
 function rgbaPrefix(color: string): string {
   const probe = document.createElement("canvas");
   probe.width = probe.height = 1;
@@ -39,7 +37,6 @@ export function FlickeringGrid({
     const canvas = canvasRef.current;
     const ctx = canvas?.getContext("2d");
     if (!container || !canvas || !ctx) return;
-    // Reduced motion and template thumbnails get one still frame.
     const still =
       window.matchMedia("(prefers-reduced-motion: reduce)").matches ||
       container.closest("[data-pf-still]") !== null;
@@ -129,7 +126,6 @@ const DISTANCE = 100;
 export function Dock({ home, socials }: { home: DockLink; socials: DockLink[] }) {
   const bar = useRef<HTMLDivElement>(null);
 
-  // Theme lives on the root's data-theme, remembered per browser; blocked storage starts light.
   useEffect(() => {
     const root = bar.current?.closest<HTMLElement>(".pf-dock");
     try {

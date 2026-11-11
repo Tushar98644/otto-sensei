@@ -8,10 +8,6 @@ import { findJsonLdJob } from "./jsonld";
 import { buildPosting, humanizeSlug, toTime } from "./posting";
 import { greenhouseQuestions } from "./questions";
 
-// Public, no-login JSON APIs, read with the daily ingest's own parsers so the two never disagree.
-
-// Ashby returns a whole board with every description (OpenAI's was 14 MB). Higher than for pages
-// because this is one fixed, trusted host.
 export const ASHBY_BOARD_MAX_BYTES = 24 * 1024 * 1024;
 
 const GreenhouseJobSchema = z.object({
@@ -19,7 +15,6 @@ const GreenhouseJobSchema = z.object({
   company_name: z.string().nullish(),
   absolute_url: z.string().nullish(),
   location: z.object({ name: z.string().nullish() }).nullish(),
-  // HTML, escaped once more: "&lt;p&gt;".
   content: z.string().nullish(),
   first_published: z.string().nullish(),
   updated_at: z.string().nullish(),
@@ -127,7 +122,6 @@ export function leverPosting(json: unknown, company: string, url: URL): JobPosti
     url: linkOr(job.hostedUrl, url),
     source: "lever",
     title: job.text,
-    // Lever's API doesn't name the company; its board slug is the closest thing.
     company: humanizeSlug(company),
     location: joinLocation([place, workplace(job.workplaceType)]),
     text: sections.filter(Boolean).join("\n\n"),
@@ -189,8 +183,6 @@ export async function readLever(
   return leverPosting(parseJson(res.body, "lever"), company, url);
 }
 
-// Ashby's job page carries the same posting as JSON-LD with the company's real name in ~50 KB, so
-// it goes first; the posting API is the fallback.
 export async function readAshby(
   org: string,
   id: string,
@@ -210,10 +202,8 @@ export async function readAshby(
   return ashbyPosting(parseJson(res.body, "ashby"), org, id, url);
 }
 
-// Whole-account feeds with every description; most accounts have a few dozen jobs.
 export const ACCOUNT_FEED_MAX_BYTES = 8 * 1024 * 1024;
 
-// Recruitee puts the company in the host name.
 const HOST_LABEL = /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/i;
 
 export function workablePosting(
@@ -268,7 +258,6 @@ export function personioPosting(xml: string, host: string, id: string, url: URL)
   }
   const job = jobs.find((entry) => entry.externalId === id);
   if (!job) throw new JobReadError("not_found");
-  // The feed names the employing company per job ("Acme GmbH"); the host has the account.
   const company = /<subcompany>([^<]{1,200})<\/subcompany>/.exec(xml)?.[1]?.trim();
   return buildPosting({
     url: linkOr(job.url, url),
@@ -294,7 +283,6 @@ export async function readWorkable(
   return workablePosting(parseJson(res.body, "workable"), account, shortcode, url);
 }
 
-/** The Careers Site API answers to the offer's id or its slug. */
 export async function readRecruitee(
   company: string,
   offer: string,

@@ -34,7 +34,6 @@ export function HubCard({
   children,
   className,
 }: {
-  // An anchor other screens link to, e.g. the board card's Letter mark goes to #letters.
   id?: string;
   title: string;
   meta?: ReactNode;
@@ -120,11 +119,9 @@ export type HubLetter = {
   question: string;
   text: string;
   at: number;
-  // Kept on the tailored copy rather than as a saved row.
   onCopy: boolean;
 };
 
-/** The saved letters and answers, plus the copy's own letter when it isn't one of them. */
 export function hubLetters(
   writings: readonly Writing[],
   copy: Resume | null,

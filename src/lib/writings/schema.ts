@@ -2,9 +2,6 @@ import type { z } from "zod";
 import type { CreateWritingSchema, UpdateWritingSchema } from "./validation";
 import { COVER_LETTER_CHARS } from "@/lib/resume/schema";
 
-// The AI routes only write the text; the page that asked saves it here, so every letter and answer
-// has one home that outlives the tab.
-
 export const WRITING_KINDS = ["letter", "answer"] as const;
 export type WritingKind = (typeof WRITING_KINDS)[number];
 
@@ -26,20 +23,15 @@ export const WRITING_LIMITS = {
 export type Writing = {
   id: string;
   kind: WritingKind;
-  // Null when not known.
   resumeId: string | null;
-  // So the list can still name it once it's deleted.
   resumeTitle: string;
   company: string;
   role: string;
   jobUrl: string;
-  // Answers only.
   question: string;
   text: string;
   warnings: string[];
-  // Sample output from a server without an AI key.
   demo: boolean;
-  // The server links it when saved or when that application is logged later; null until then.
   applicationId: string | null;
   createdAt: number;
   updatedAt: number;

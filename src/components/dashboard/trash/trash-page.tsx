@@ -27,12 +27,10 @@ export function TrashPage() {
   const hydrated = useStudioHydrated();
   const trash = useTrash();
   const now = useNow();
-  // Entries can pass their 30 days while the page is open; they leave the store on the next load.
   const entries = useMemo(() => (now > 0 ? freshTrash(trash, now) : []), [trash, now]);
   const [forgetting, setForgetting] = useState<TrashedResume | null>(null);
   const [emptying, setEmptying] = useState(false);
 
-  // A restored resume is a new copy to the account, so it counts against Free's limit.
   async function restore(entry: TrashedResume) {
     if (!(await roomForResume())) return;
     const id = useStudioStore.getState().restoreFromTrash(entry.resume.id);

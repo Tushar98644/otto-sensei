@@ -55,7 +55,6 @@ describe("match index", () => {
   it("rewrites only the rows that changed, and drops openings that closed", async () => {
     const db = await getDb();
     expect(await ingest([raw("1"), raw("2"), raw("3", { title: "Account Executive" })])).toBe(3);
-    // xmin changes whenever Postgres writes a new version of a row.
     const versions = async () => {
       const result = await db.execute(sql`select id, xmin::text as v from job_match`);
       const { rows } = result as unknown as { rows: { id: string; v: string }[] };
@@ -124,7 +123,6 @@ describe("match index", () => {
     expect(pool.openings).toHaveLength(1);
     expect(pool.openings[0]!.places).toEqual(["GB", "US"]);
     expect(pool.openings[0]!.copies).toHaveLength(2);
-    // Remote only: the opening stays, shown as its remote copy.
     const remote = await poolOpenings(
       db,
       { ...sales, filters: { ...DEFAULT_FILTERS, remote: true } },
@@ -163,7 +161,6 @@ describe("match index", () => {
       "Director of Engineering",
     ]);
     expect(pool.openings[0]!.row.location).toBe("Austin, TX");
-    // Two levels away counts only when nothing nearer matches.
     expect(pool.groups).toBe(2);
   });
 
@@ -214,14 +211,12 @@ describe("match index", () => {
     expect(first.jobs).toHaveLength(2);
     expect(first.lookingFor).toMatchObject({ family: "engineering", place: "g:eu" });
     expect(await db.select().from(matchCache)).toHaveLength(1);
-    // A job closing doesn't change today's cached page...
     await db
       .update(jobs)
       .set({ closedAt: NOW, closeReason: "gone" })
       .where(eq(jobs.externalId, "2"));
     const again = await rankJobs(db, { ...request, now: NOW + 60_000 });
     expect(again.jobs.map((job) => job.id)).toEqual(first.jobs.map((job) => job.id));
-    // ...but a new ingest run, a new day or another "Looking for" does.
     const other = await rankJobs(db, {
       ...request,
       lookingFor: {

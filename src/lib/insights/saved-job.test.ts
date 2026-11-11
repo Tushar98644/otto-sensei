@@ -4,7 +4,6 @@ import type { Resume } from "@/lib/resume/schema";
 import { SavedRequirementSchema } from "@/lib/resume/validation";
 import { savedRequirements } from "./saved-job";
 
-// savedRequirements reads by hand (no zod on the board), so it must keep the schema's rules.
 function withRequirements(requirements: unknown): Resume {
   const resume = createSampleResume(0);
   return {

@@ -9,7 +9,7 @@ export const runtime = "nodejs";
 export async function POST(req: Request) {
   let rawBody: string;
   try {
-    // The signature covers the exact bytes Creem sent, so read them before anything parses the body.
+    // The signature covers the exact bytes Creem sent: read them before anything parses the body.
     rawBody = await req.text();
   } catch {
     return fail("bad_request", "unreadable_body", 400);

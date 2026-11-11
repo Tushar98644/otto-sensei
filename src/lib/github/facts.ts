@@ -2,9 +2,6 @@ import { asResumeLine, capitalize, clipWords, oneLine } from "@/lib/ai/text";
 import type { LanguageShare, PullRecord } from "./api";
 import type { GitHubDraftEntry, GitHubRepo } from "./types";
 
-// Each item written two ways: the source text the AI works from and the guards check against, and
-// plain lines from GitHub's own words for when there is no AI.
-
 export type RepoItem = {
   kind: "repo";
   key: string;
@@ -25,10 +22,8 @@ export type DraftItem = RepoItem | PullsItem;
 
 export const BULLET_CHARS = 240;
 export const MAX_REPO_BULLETS = 3;
-// Below these, a count reads as a weakness, so it's left out of the facts entirely.
 const MIN_STARS = 10;
 const MIN_FORKS = 5;
-// Descriptions like "Questions? me@example.com" would otherwise print an email under a project.
 const EMAIL_LIKE = /[^\s@]+@[^\s@]+\.[a-z]{2,}/i;
 
 const MONTH = new Intl.DateTimeFormat("en-US", { month: "long", year: "numeric", timeZone: "UTC" });
@@ -42,7 +37,6 @@ export function entryName(item: DraftItem): string {
   return item.kind === "repo" ? item.repo.name : `Contributions to ${item.repo}`;
 }
 
-// One pull request links to itself; several link to the person's merged pull requests there.
 export function entryLink(item: DraftItem): string {
   if (item.kind === "repo") return item.repo.url;
   const [only] = item.pulls;
@@ -71,7 +65,6 @@ function webLabel(url: string): string {
   }
 }
 
-/** Everything a line may say, and the only place its numbers come from. */
 export function sourceText(item: DraftItem): string {
   if (item.kind === "pulls") {
     const lines = [`Repository: ${item.repo}`];
@@ -83,7 +76,6 @@ export function sourceText(item: DraftItem): string {
     return lines.join("\n");
   }
   const { repo } = item;
-  // Shares of code ("TypeScript 90%") read as odd claims on a resume, so only the order stays.
   const languages = item.languages.length
     ? `Languages, most code first: ${item.languages.map((language) => language.name).join(", ")}`
     : repo.language
@@ -103,8 +95,6 @@ export function sourceText(item: DraftItem): string {
   return lines.filter(Boolean).join("\n");
 }
 
-// Pull request titles are imperative ("Fix the cache") or carry a prefix; a resume line is past
-// tense.
 const PAST_TENSE: Record<string, string> = {
   add: "Added",
   allow: "Allowed",

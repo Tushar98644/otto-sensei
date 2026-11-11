@@ -49,7 +49,6 @@ function sameFilters(a: JobFilters, b: JobFilters): boolean {
   return JSON.stringify(a) === JSON.stringify(b);
 }
 
-// Free sees its closest few matches (FREE_JOB_MATCHES); filters, paging and saving are Pro.
 export function JobsPage() {
   const hydrated = useStudioHydrated();
   const resumes = useResumeList();
@@ -65,10 +64,8 @@ export function JobsPage() {
 
   const [picked, setPicked] = useState<string | null>(null);
   const [view, setView] = useState<JobView>("matches");
-  // null until the person changes a filter: until then "Remote only" follows the work profile.
   const [chosen, setChosen] = useState<JobFilters | null>(null);
   const [page, setPage] = useState(1);
-  // Bumped by "Clear filters", so the typed fields start over too.
   const [resetKey, setResetKey] = useState(0);
 
   const resumeId =
@@ -82,7 +79,6 @@ export function JobsPage() {
   );
   const choice = work.status === "ready" ? work.lookingFor : NO_CHOICE;
   const [savingChoice, setSavingChoice] = useState(false);
-  // Waits for the work profile, so a remote-only default doesn't cost a second request.
   const { state, retry, patch, profile, lookingFor } = useJobMatches({
     userId,
     resume: profileSettled ? resume : null,
@@ -110,7 +106,6 @@ export function JobsPage() {
     setPage(1);
   }
 
-  // Shown at once and ranked for; kept for the account in the background.
   async function changeLookingFor(next: LookingForChoice) {
     if (work.status !== "ready") return;
     if (chosen) setChosen({ ...chosen, remote: next.remote });
@@ -142,7 +137,6 @@ export function JobsPage() {
       message = OTTO.jobs.noSkills;
     else message = OTTO.jobs.found(data.matching, data.total, data.strong, data.newToday);
   }
-  // Free: the closest few from the same ranking, then how many more Pro lists.
   const locked = data?.locked === true;
   if (data && locked && data.openJobs > 0) {
     message = OTTO.jobs.found(data.matching, data.jobs.length, 0, 0);
@@ -167,7 +161,6 @@ export function JobsPage() {
       {lookingFor && profile && view === "matches" ? (
         <LookingForCard
           value={lookingFor}
-          // Read on our server; until the first list arrives the card shows the title alone.
           occupation={
             data?.lookingFor?.title === lookingFor.title ? (data.occupation ?? null) : null
           }
@@ -212,7 +205,6 @@ export function JobsPage() {
         />
       ) : null}
 
-      {/* Focusable from script only: where focus lands when the last opened job is answered. */}
       <div ref={listRef} tabIndex={-1} className="flex scroll-mt-24 flex-col gap-4 outline-none">
         <AppliedAnnouncer onCard={prompts.onCard} offPage={prompts.offPage} />
         <AppliedStrip
@@ -303,7 +295,6 @@ export function JobsPage() {
   );
 }
 
-// No skills section and no lines naming a tool: matching has nothing to go on but the titles.
 function isBare(resume: { skills: { items: string[] }[] }): boolean {
   return resume.skills.every((group) => group.items.length === 0);
 }

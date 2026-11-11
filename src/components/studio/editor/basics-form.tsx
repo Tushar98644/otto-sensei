@@ -14,7 +14,6 @@ type BasicsText = Partial<Omit<Basics, "links">>;
 
 export const BasicsForm = memo(function BasicsForm({ resumeId }: { resumeId: string }) {
   const basics = useResumeValue(resumeId, (resume) => resume.basics, undefined);
-  // Checked from the first blur on, so the hint never nags while the address is still being typed.
   const [checkEmail, setCheckEmail] = useState(false);
   if (!basics) return null;
 

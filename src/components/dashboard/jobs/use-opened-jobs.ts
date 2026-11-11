@@ -15,15 +15,10 @@ import {
 } from "./applied-prompt";
 import { appliedFor } from "./view";
 
-// Kept in localStorage, and in memory when storage is blocked (private windows), so the question
-// still works for the visit.
-
 const KEY_PREFIX = "otto-opened-jobs-v1:";
 const EMPTY: readonly OpenedJob[] = [];
 
-// One account at a time: someone else signing in on this browser starts from their own list.
 let cache: { userId: string; jobs: readonly OpenedJob[] } | null = null;
-// 0 until the Jobs tab mounts: nothing opened is asked about before then.
 let returnedAt = 0;
 const listeners = new Set<() => void>();
 
@@ -46,7 +41,6 @@ function update(userId: string, change: (jobs: readonly OpenedJob[]) => readonly
   const jobs = change(before);
   if (jobs === before) return;
   cache = { userId, jobs };
-  // Full or blocked storage: remembered for this visit only.
   writeJsonItem(KEY_PREFIX + userId, jobs);
   notify();
 }
@@ -56,12 +50,10 @@ function markReturned() {
   notify();
 }
 
-// Coming back from the job's tab (or window) is the moment to ask.
 function onVisibility() {
   if (document.visibilityState === "visible") markReturned();
 }
 
-// An answer in another tab shows here too.
 function onStorage(event: StorageEvent) {
   if (!cache || event.key !== KEY_PREFIX + cache.userId) return;
   cache = { userId: cache.userId, jobs: readStored(cache.userId) };
@@ -89,7 +81,6 @@ export function rememberOpenedJob(userId: string, job: OpenedJobRef): void {
   update(userId, (jobs) => recordOpen(jobs, job, Date.now()));
 }
 
-/** An answer, or the job marked applied some other way ("yes"). */
 export function answerAppliedPrompt(
   userId: string,
   jobId: string,
@@ -101,7 +92,6 @@ export function answerAppliedPrompt(
 export type AppliedPrompts = { onCard: OpenedJob[]; offPage: OpenedJob[] };
 const NONE: AppliedPrompts = { onCard: [], offPage: [] };
 
-// Nothing until the tracker has loaded, so a job already in it is never asked about.
 export function useAppliedPrompts({
   userId,
   applications,
@@ -112,7 +102,6 @@ export function useAppliedPrompts({
   userId: string | null;
   applications: readonly Application[];
   applicationsReady: boolean;
-  // null while the list hasn't loaded: until then nobody knows which jobs have a card.
   pageJobIds: readonly string[] | null;
   now: number;
 }): AppliedPrompts {
@@ -127,8 +116,6 @@ export function useAppliedPrompts({
     () => 0,
   );
 
-  // Arriving on the Jobs tab counts as coming back, so a job opened on an earlier visit is asked
-  // about now.
   useEffect(markReturned, []);
 
   return useMemo(() => {

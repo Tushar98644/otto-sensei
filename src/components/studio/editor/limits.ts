@@ -15,9 +15,6 @@ import {
   SkillGroupSchema,
 } from "@/lib/resume/validation";
 
-// Inputs stop at the schema's caps, so the editor never holds a resume cloud sync would reject.
-// zod has no public getter for list caps, so those are mirrored here and pinned by limits.test.ts.
-
 export const LIST_LIMITS = {
   links: 10,
   experience: 40,
@@ -37,7 +34,6 @@ export const BULLET_LIMITS: Readonly<Record<BulletSection, number>> = {
   extras: 20,
 };
 
-// Only used if a field ever loses its .max(). The server validates either way.
 export const UNCAPPED_TEXT = 10_000;
 
 function cap(schema: ZodString): number {

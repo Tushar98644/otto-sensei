@@ -28,7 +28,6 @@ import { portfolioView, type PortfolioView } from "./view";
 
 // Every owner query is filtered by user_id, so nobody can see or change another account's page.
 
-// Numbered tries for a suggested address ("maya-chen-2" ... "maya-chen-20") before a random tail.
 const NUMBERED_TRIES = 20;
 
 type Row = typeof portfolios.$inferSelect;
@@ -42,7 +41,6 @@ function sectionsOf(row: Pick<Row, "hiddenSections">): PortfolioSection[] {
 function snapshotOf(row: Pick<Row, "id" | "snapshot" | "resumeId" | "createdAt">): Resume {
   const parsed = ResumeSchema.safeParse(row.snapshot);
   if (parsed.success) return parsed.data;
-  // Writes are validated, so this means the schema moved on since. An empty page beats a broken one.
   log.warn("portfolio.snapshot_invalid", { portfolioId: row.id });
   return { ...emptyResume(row.createdAt), id: row.resumeId };
 }
@@ -81,7 +79,6 @@ export async function portfolioSlugsOf(userId: string): Promise<string[]> {
   const db = await getDb();
   const [own, old] = await Promise.all([
     db.select({ slug: portfolios.slug }).from(portfolios).where(eq(portfolios.userId, userId)),
-    // Through the portfolio, so both lookups ride an index (user_id, then portfolio_id).
     db
       .select({ slug: portfolioRedirects.slug })
       .from(portfolioRedirects)
@@ -96,7 +93,6 @@ async function lockSlug(tx: Tx, slug: string): Promise<void> {
   await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${`portfolio-slug:${slug}`}))`);
 }
 
-/** Live or redirecting addresses count as taken; ownId is null for a portfolio not made yet. */
 async function slugFree(tx: Tx, slug: string, ownId: string | null, now: number): Promise<boolean> {
   const [live] = await tx
     .select({ id: portfolios.id })
@@ -114,7 +110,6 @@ async function slugFree(tx: Tx, slug: string, ownId: string | null, now: number)
     .limit(1);
   if (!redirect || redirect.portfolioId === ownId) return true;
   if (redirect.expiresAt > now) return false;
-  // Its time is up, so the address is free again.
   await tx.delete(portfolioRedirects).where(eq(portfolioRedirects.slug, slug));
   return true;
 }
@@ -171,14 +166,10 @@ export type SaveResult =
     }
   | { status: "bad_slug"; message: string }
   | { status: "slug_taken" }
-  // Portfolios are Pro and Max (a trial included); Free keeps its data but can't change it.
   | { status: "needs_portfolio_plan" }
   | { status: "not_found" }
-  // The account was deleted after the request was signed in, so nothing may be written.
   | { status: "no_user" };
 
-// An account that already has a portfolio gets it pointed at this resume, keeping address and
-// settings.
 export async function createPortfolio(
   userId: string,
   { resume, slug: wanted, template }: CreatePortfolioInput,
@@ -263,9 +254,7 @@ export async function updatePortfolio(
         if (problem) return { status: "bad_slug", message: SLUG_MESSAGES[problem] };
         await lockSlug(tx, slug);
         if (!(await slugFree(tx, slug, current.id, now))) return { status: "slug_taken" };
-        // Coming back to an old address takes it out of the redirects.
         await tx.delete(portfolioRedirects).where(eq(portfolioRedirects.slug, slug));
-        // An address that was never public has nobody to send on.
         if (current.publishedAt !== null) await keepRedirect(tx, current, now);
         changes.slug = slug;
         touched.push(slug);
@@ -296,7 +285,6 @@ export async function updatePortfolio(
   });
 }
 
-// Only the newest few redirects are kept, so changing address repeatedly can't hoard names.
 async function keepRedirect(tx: Tx, current: Row, now: number): Promise<void> {
   const expiresAt = now + PORTFOLIO_LIMITS.redirectDays * DAY_MS;
   await tx
@@ -322,7 +310,6 @@ async function keepRedirect(tx: Tx, current: Row, now: number): Promise<void> {
   await tx.delete(portfolioRedirects).where(and(mine, notInArray(portfolioRedirects.slug, kept)));
 }
 
-// Called with every cloud backup. Returns the page's address when its copy changed, else null.
 export async function followResume(
   userId: string,
   resume: Resume,
@@ -351,7 +338,6 @@ export type PublicPortfolio = {
   slug: string;
   template: PortfolioTemplateId;
   view: PortfolioView;
-  // Built from `view`, so the same privacy choices hold.
   content: PortfolioContentView;
   allowIndexing: boolean;
   updatedAt: number;
@@ -359,16 +345,13 @@ export type PublicPortfolio = {
 
 export type PublicPortfolioResult =
   | { status: "ok"; portfolio: PublicPortfolio }
-  // An old address: the page now lives at this slug.
   | { status: "redirect"; slug: string }
   | { status: "missing" };
 
-// An owner no longer on Pro or Max is offline: kept, but answered as missing.
 export async function findPublicPortfolio(
   slug: string,
   now = Date.now(),
 ): Promise<PublicPortfolioResult> {
-  // A word reserved after someone took it as their address still opens their page.
   const problem = slugProblem(slug);
   if (problem !== null && problem !== "reserved") return { status: "missing" };
   const db = await getDb();
@@ -427,7 +410,6 @@ function ownerCanPublish(owner: { plan: PlanId }): boolean {
   return canPublishPortfolio(owner.plan);
 }
 
-// Published, indexing allowed, and online (findPublicPortfolio would show it, not a 404).
 export async function indexablePortfolios(
   limit: number,
 ): Promise<{ slug: string; updatedAt: number }[]> {
@@ -442,7 +424,6 @@ export async function indexablePortfolios(
     .innerJoin(users, eq(users.id, portfolios.userId))
     .where(and(eq(portfolios.published, true), eq(portfolios.allowIndexing, true)))
     .orderBy(desc(portfolios.updatedAt), portfolios.slug);
-  // The same address checks as loadPublicPortfolio and findPublicPortfolio, so no listed page 404s.
   const servable = (slug: string) => {
     const problem = slugProblem(slug);
     return normalizeSlug(slug) === slug && (problem === null || problem === "reserved");
@@ -453,7 +434,6 @@ export async function indexablePortfolios(
     .map(({ slug, updatedAt }) => ({ slug, updatedAt }));
 }
 
-/** The owner comes along because their own visits don't count. */
 export async function findViewTarget(
   slug: string,
 ): Promise<{ id: string; ownerId: string } | null> {

@@ -8,7 +8,6 @@ import type { JobLine } from "@/lib/tailor/reasons";
 import { pluralize } from "@/lib/utils";
 
 export const JOB_LINES_ID = "tailor-lines";
-// Enough to cover the must-haves on most posts; the rest one tap away.
 const SHOWN = 4;
 
 export type JobLinesProps = {
@@ -41,7 +40,6 @@ export function JobLines({ lines, unrelated, addedIds, onJump }: JobLinesProps) 
           <li key={line.bulletId} className="flex flex-col gap-2 py-4">
             <div className="flex flex-wrap gap-1.5">
               {line.proves.map((proof) => (
-                // Not a Badge: requirement names run long and must wrap on phones.
                 <span
                   key={proof.id}
                   className="rounded-lg bg-surface-muted px-2 py-0.5 text-xs/5 font-medium text-muted"

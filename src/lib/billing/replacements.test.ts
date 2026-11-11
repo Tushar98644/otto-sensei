@@ -8,9 +8,6 @@ import { resetEnvForTests } from "@/lib/env";
 import { handleWebhook } from "./index";
 import { creemSignature, installFakeCreem, subscriptionEvent, type FakeCreem } from "./testing";
 
-// Pro trial to Max: Creem won't modify a trialing subscription, so Max is its own checkout naming
-// the trial, and the webhook cancels the trial once Max is paid (./replacements.ts).
-
 const SECRET = "whsec_replacement_test_secret";
 const TRIAL_END = "2026-11-11T10:00:00.000Z";
 const CANCEL_TRIAL = "POST /v1/subscriptions/sub_trial/cancel";
@@ -32,7 +29,6 @@ async function replacements() {
   return (await getDb()).select().from(trialReplacements);
 }
 
-// Someone on the Pro trial, as the trial's webhooks left the row.
 async function trialist(): Promise<Row> {
   const id = crypto.randomUUID();
   await insertUserRow({
@@ -54,7 +50,6 @@ async function trialist(): Promise<Row> {
   return (await reload(id))!;
 }
 
-// An event for the new Max subscription, carrying the checkout's metadata.
 function maxEvent(eventType: string, user: Row, event: { id?: string; createdAt?: number } = {}) {
   return subscriptionEvent(
     eventType,
@@ -109,7 +104,6 @@ describe("a Pro trial replaced by Max", () => {
     ]);
     expect((await replacements())[0]?.cancelledAt).toEqual(expect.any(Number));
 
-    // A redelivery, the checkout's own event and the first payment's: none cancels again.
     expect(await deliver(body)).toEqual({ status: 200, message: "duplicate" });
     expect(await deliver(maxEvent("subscription.paid", user, { createdAt: 3_000 }))).toMatchObject({
       status: 200,
@@ -151,7 +145,6 @@ describe("a Pro trial replaced by Max", () => {
     const body = maxEvent("subscription.active", user, { id: "evt_max_1" });
     creem.failNext(CANCEL_TRIAL, 503);
     expect(await deliver(body)).toEqual({ status: 500, message: "retry" });
-    // The plan is Max either way; only the cancel is left.
     expect((await reload(user.id))?.plan).toBe("max");
     expect(await replacements()).toMatchObject([{ attempts: 1, cancelledAt: null }]);
     expect(JSON.stringify(error.mock.calls)).toContain("billing.replace_cancel_failed");

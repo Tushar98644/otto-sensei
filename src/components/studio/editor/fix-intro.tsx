@@ -14,7 +14,6 @@ import { useFirstWeakLine, useLintTotals, useResumeValue } from "./use-editor";
 
 type Totals = ResumeLint["totals"];
 
-// "5 lines · 2 need work · 3 with numbers": facts for Otto's meta line, never praise.
 function totalsMeta({ bullets, withIssues, withNumbers }: Totals): string {
   return [
     pluralize(bullets, "line"),
@@ -23,7 +22,6 @@ function totalsMeta({ bullets, withIssues, withNumbers }: Totals): string {
   ].join(" · ");
 }
 
-// Inside the Fix dialog provider, so its button opens the same dialog as a line's own.
 export const FixIntro = memo(function FixIntro({ resumeId }: { resumeId: string }) {
   const totals = useLintTotals(resumeId);
   const firstWeak = useFirstWeakLine(resumeId);
@@ -32,7 +30,6 @@ export const FixIntro = memo(function FixIntro({ resumeId }: { resumeId: string 
   const lines = totals && totals.bullets > 0 ? totals : null;
 
   return (
-    // Not live: the counts change while typing, and announcing each change would interrupt.
     <OttoNote
       live={false}
       meta={lines ? totalsMeta(lines) : undefined}

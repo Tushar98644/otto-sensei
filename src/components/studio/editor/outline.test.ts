@@ -56,7 +56,6 @@ describe("fixOutline", () => {
       entries: [{ id: "job", label: "Engineer · Acme", needWork: 1 }],
     });
     expect(byKey.projects?.entries).toEqual([{ id: "p", label: "New project", needWork: 1 }]);
-    // A GPA line is meant to be short.
     expect(byKey.education?.entries).toEqual([{ id: "s", label: "BSc · MIT", needWork: 0 }]);
     expect(byKey.skills).toEqual({ key: "skills", label: "Skills", needWork: 0, entries: [] });
   });

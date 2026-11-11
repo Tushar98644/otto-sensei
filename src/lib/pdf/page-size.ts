@@ -9,14 +9,11 @@ export function isPdfPageSize(value: unknown): value is PdfPageSize {
   return value === "LETTER" || value === "A4";
 }
 
-// Letter is the norm in North America, the Philippines and parts of Latin America; elsewhere A4. A
-// resume printed on the wrong size gets shrunk or cropped.
 const LETTER_REGIONS = new Set(["US", "CA", "MX", "PH", "CL", "CO", "VE", "CR", "GT", "PA", "DO", "PR", "SV", "NI", "HN"]);
 
 export function defaultPageSize(locale: string | undefined): PdfPageSize {
   if (!locale) return "LETTER";
   try {
-    // maximize() fills in the likely region, so a bare "de" still means Germany.
     const region = new Intl.Locale(locale).maximize().region;
     return region && !LETTER_REGIONS.has(region) ? "A4" : "LETTER";
   } catch {

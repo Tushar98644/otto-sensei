@@ -7,16 +7,13 @@ import type { PortfolioTemplateProps } from "../types";
 import { ArtPlum, ToTop } from "./islands";
 import { PROSE_CSS } from "./styles";
 
-// Prose: a rebuild of Anthony Fu's site (github.com/antfu/antfu.me, code MIT; ./LICENSE.txt) for
-// anyone's data, with coloured monograms where his chips have logos. Only the code and layout
-// come from the original: its text and pictures (CC BY-NC-SA) are not used.
+// Ported from antfu/antfu.me (code MIT, see ./LICENSE.txt); none of its CC BY-NC-SA content.
 
 const NAV_SOCIALS = 3;
 
 const stage = (n: number, step = 90) =>
   ({ "--enter-stage": n, "--enter-step": `${step}ms` }) as CSSProperties;
 
-/** "Open source · analytics" files under "Open source"; no category under "Projects". */
 function groupOf(project: ContentProject): string {
   return project.category.split(/\s*[·/|]\s*/)[0]?.trim() || "Projects";
 }
@@ -34,7 +31,6 @@ function yearOf(date: string): string {
   return /\b(?:19|20)\d{2}\b/.exec(date)?.[0] ?? "";
 }
 
-// The chip's colour comes from the name, so Ledgerly is always the same blue and Tripwise its own.
 const hueOf = (name: string) => ({ "--hue": seedOf(name) % 360 }) as CSSProperties;
 
 function Chip({

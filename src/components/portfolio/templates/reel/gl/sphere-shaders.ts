@@ -1,6 +1,4 @@
-// HamishMW/portfolio's displacement sphere shaders (routes/home/displacement-sphere-*.glsl),
-// byte for byte: three.js r161 Phong chunks with Stefan Gustavson's classic Perlin noise
-// (webgl-noise, MIT, see ../LICENSE.txt) displacing the vertices over time.
+// Ported from HamishMW/portfolio; Perlin noise from webgl-noise (MIT, see ../LICENSE.txt).
 
 export const vertexShader = `#define PHONG
 

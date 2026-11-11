@@ -23,10 +23,6 @@ import { ensureUser, toSessionUser } from "@/lib/users";
 import { normalizeEmail } from "./policy";
 import type { SessionUser } from "./types";
 
-// Test-only fakes for next/headers cookies() and Supabase Auth. vitest.setup.ts wires the Supabase
-// ones; a test needing cookies adds:
-//   vi.mock("next/headers", async () => (await import("@/lib/auth/test-helpers")).nextHeadersMock);
-
 export type JarCookie = {
   name: string;
   value: string;
@@ -54,7 +50,6 @@ export const cookieJar = {
   set(name: string, value: string, attributes: CookieAttributes = {}): void {
     jar.set(name, { name, value, ...attributes });
   },
-  // Like Next: a deleted cookie becomes an empty, already-expired one with the given attributes.
   delete(target: string | ({ name: string } & CookieAttributes)): void {
     const cookie = typeof target === "string" ? { name: target } : target;
     jar.set(cookie.name, { ...cookie, value: "", maxAge: 0 });
@@ -65,9 +60,6 @@ export const cookieJar = {
 };
 
 export const nextHeadersMock = { cookies: async () => cookieJar };
-
-// Behaves like the real service where the app depends on it: sessions in "sb-..." cookies, sign-out
-// revokes them, codes are single use, and auth users are real rows so foreign keys hold.
 
 export const AUTH_COOKIE = "sb-test-auth-token";
 
@@ -83,8 +75,6 @@ type FakeMethod =
   | "getUserIdentities"
   | "unlinkIdentity";
 
-// `github`: the linked GitHub login. `githubOnly`: made by signing in with GitHub, so it has no
-// email identity and GitHub is its only way in.
 type AuthUser = { id: string; email: string; github: string | null; githubOnly?: boolean };
 
 type OAuthGrant = { email: string; github?: string } | { linkTo: string; github: string };
@@ -112,7 +102,6 @@ function identity(user: AuthUser, provider: string, data: Record<string, unknown
   };
 }
 
-// Shaped like Supabase's: GitHub's login sits in user_name and preferred_username.
 function identitiesOf(user: AuthUser): UserIdentity[] {
   const list = user.githubOnly ? [] : [identity(user, "email", { sub: user.id, email: user.email })];
   if (user.github) {
@@ -189,7 +178,6 @@ type FakeServerAuth = Pick<
   | "getUserIdentities"
   | "unlinkIdentity"
 > & {
-  // Only the OAuth overload: the app never links with an ID token.
   linkIdentity: (credentials: SignInWithOAuthCredentials) => Promise<OAuthResponse>;
 };
 
@@ -211,7 +199,6 @@ function startOAuth(path: string, credentials: SignInWithOAuthCredentials): OAut
   return { data: { provider: credentials.provider, url: url.toString() }, error: null };
 }
 
-// Like Supabase: a GitHub account belongs to one user, and the same verified email is one user.
 async function grantUser(grant: OAuthGrant): Promise<AuthUser | AuthError> {
   const taken = (login: string, owner?: string) =>
     [...state.users.values()].some((user) => user.id !== owner && user.github?.toLowerCase() === login.toLowerCase());
@@ -324,7 +311,6 @@ const serverAuth: FakeServerAuth = {
     if (failure) return { error: failure };
     const token = cookieJar.get(AUTH_COOKIE)?.value;
     if (token) state.sessions.delete(token);
-    // The real client writes the expiring cookie through the cookie store, as here.
     if (cookieJar.has(AUTH_COOKIE)) cookieJar.set(AUTH_COOKIE, "", { path: "/", maxAge: 0 });
     return { error: null };
   },
@@ -386,7 +372,6 @@ export const fakeAuth = {
     if (!last) throw new Error("fake Supabase: no code was sent");
     return last.code;
   },
-  /** With `github`, a sign-in with that GitHub account instead (GitHub as its only way in). */
   issueOAuthCode(email: string, { github }: { github?: string } = {}): string {
     const code = crypto.randomUUID();
     state.oauthCodes.set(code, { email: normalizeEmail(email), github });
@@ -435,8 +420,6 @@ export function linkGitHub(user: Pick<SessionUser, "id">, login: string): void {
 
 const TRIAL_MS = 3 * 24 * 60 * 60 * 1000;
 
-// "trial" is Pro monthly on its free trial: the smallest real AI allowance, so tests that count to
-// a limit stay short.
 export async function setPlan(
   user: SessionUser,
   plan: "pro" | "max" | "trial",
@@ -462,7 +445,6 @@ export async function signInOnTrial(email = "ada@example.com", trialEndsAt?: num
   return setPlan(await signInAs(email), "trial", trialEndsAt);
 }
 
-/** Cookies are left to cookieJar.clear(). */
 export async function resetDb(): Promise<void> {
   await truncateTables();
   fakeAuth.reset();

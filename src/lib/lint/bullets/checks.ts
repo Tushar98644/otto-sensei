@@ -26,12 +26,9 @@ const NO_METHOD_MAX_WORDS = 7;
 
 const SPACES = /^\s+$/u;
 const HYPHEN = /[-‐‑]/u;
-// "I/O", "i.e.", "I-9": glued to more letters or digits, so not the pronoun.
 const GLUED_AFTER = /^[/.\-‐‑][\p{L}\p{N}]/u;
-// "Phase I and II", "Levels I-III", "I/II"
 const NUMERAL_SEQUENCE = /^\s*(?:[/&,\-‐‑–]|and|or|to|through)\s*(?:I{2,3}|IV|VI{0,3}|IX|X)\b/;
 
-// "Build internal tools…" under a job that ended: the verb is the line's first real word.
 export function tenseSpan(
   tokens: readonly Token[],
   text: string,
@@ -53,11 +50,9 @@ export function resultMarker(tokens: readonly Token[], text: string): Span | nul
   return null;
 }
 
-// "by" before a number is the measure ("by 20%"); before anything else it's the method.
 export function lacksMethod(tokens: readonly Token[], text: string): boolean {
   const first = tokens[openerIndex(tokens, text)];
   const words = countWords(text);
-  // Under five words "too short" already asks for more.
   if (!first || !RESULT_OPENERS.has(first.lower)) return false;
   if (words > NO_METHOD_MAX_WORDS || words < TOO_SHORT_WORDS) return false;
   return !tokens.some((token, k) => {
@@ -76,11 +71,9 @@ function isNumeralI(tokens: readonly Token[], k: number, text: string): boolean 
   const prev = tokens[k - 1];
   if (!prev) return false;
   const gap = text.slice(prev.end, token.start);
-  // "Phase I", "Phases I", "Vol. I", "Type-I"
   const singular = prev.lower.replace(/s$/, "");
   const context = ROMAN_NUMERAL_CONTEXT.has(prev.lower) || ROMAN_NUMERAL_CONTEXT.has(singular);
   if (context && /^\.?[\s\-‐‑]+$/u.test(gap)) return true;
-  // Course names: "Calculus I". "Bob and I." stays a pronoun because "and" is lowercase.
   return /^ +$/.test(gap) && /^\p{Lu}/u.test(prev.text) && /^\s*(?:[,.;:)\]]|$)/.test(rest);
 }
 
@@ -91,7 +84,6 @@ export function firstPerson(tokens: readonly Token[], text: string): Span[] {
     if (!FIRST_PERSON.has(token.lower)) return;
     if (GLUED_AFTER.test(text.slice(token.end, token.end + 2))) return;
     if (isNumeralI(tokens, k, text)) return;
-    // All-caps "ME" or "MY" inside normal text is an abbreviation (Maine, Malaysia), not a pronoun.
     if (token.lower !== "i" && hasLowercase && token.text === token.text.toUpperCase()) return;
     spans.push(spanOf(token, token, text, 1));
   });
@@ -101,11 +93,9 @@ export function firstPerson(tokens: readonly Token[], text: string): Span[] {
 function isParticiple(word: string): boolean {
   if (NOT_PASSIVE.has(word)) return false;
   if (IRREGULAR_PARTICIPLES.has(word)) return true;
-  // "need", "speed", "exceed" end in "-ed" but aren't participles.
   return word.length >= 4 && word.endsWith("ed") && !word.endsWith("eed");
 }
 
-// Conservative on purpose: "was/were/been/being", an optional "-ly" adverb, then a participle.
 export function passives(tokens: readonly Token[], text: string): Span[] {
   const spaced = (a: Token, b: Token) => SPACES.test(text.slice(a.end, b.start));
   const spans: Span[] = [];
@@ -124,14 +114,11 @@ export function passives(tokens: readonly Token[], text: string): Span[] {
 }
 
 export function vagueSpans(tokens: readonly Token[], text: string): Span[] {
-  return (
-    findPhrases(tokens, text, VAGUE_INDEX)
-      // "many-to-many", "multiple-choice": hyphenated compounds are terms, not filler.
-      .filter((span) => !HYPHEN.test(text.charAt(span.start - 1) + text.charAt(span.end)))
-      .map((span) =>
-        span.key === "etc" && text.charAt(span.end) === "."
-          ? { ...span, end: span.end + 1, text: `${span.text}.` }
-          : span,
-      )
-  );
+  return findPhrases(tokens, text, VAGUE_INDEX)
+    .filter((span) => !HYPHEN.test(text.charAt(span.start - 1) + text.charAt(span.end)))
+    .map((span) =>
+      span.key === "etc" && text.charAt(span.end) === "."
+        ? { ...span, end: span.end + 1, text: `${span.text}.` }
+        : span,
+    );
 }

@@ -41,7 +41,6 @@ describe("GET /api/referrals", () => {
   it("treats the owner's own browser as the owner", async () => {
     await signInAs("ada@example.com");
     const { referrals } = (await (await summary()).json()) as ReferralSummaryResponse;
-    // Same cookie jar, so the same otto_did device cookie signs up the "friend".
     cookieJar.set(REF_COOKIE, `${referrals.code}.c`);
     await signInAs("not-ada@example.com");
     const res = await claim(jsonRequest("/api/referrals/claim", {}));

@@ -58,7 +58,6 @@ export type BoardCardProps = {
   card: BoardCard;
   now: number;
   hasLetter: boolean;
-  // Being dragged: it stays in place, faded, while a ghost follows the pointer.
   lifted: boolean;
   holding: boolean;
   busy: boolean;
@@ -97,7 +96,6 @@ export function BoardCardView({
   const column = cardColumn(card);
   const urgent = needsAction(card, now);
 
-  // After a keyboard move the card lands in another column as a new element: focus follows it.
   useEffect(() => {
     if (!focusHandle) return;
     handleRef.current?.focus();
@@ -157,7 +155,6 @@ export function BoardCardView({
         aria-busy={busy || undefined}
         onPointerDown={(event) => onPointerDown(event, card)}
         onContextMenu={(event) => {
-          // The same menu as the ⋯ key, where the pointer already is.
           event.preventDefault();
           articleRef.current?.querySelector<HTMLButtonElement>("[aria-haspopup=menu]")?.click();
         }}
@@ -214,7 +211,6 @@ export function BoardCardView({
             {role && company ? <p className="truncate text-xs/5 text-muted">{company}</p> : null}
           </div>
           {next ? (
-            // In the top row, never over the marks below, so Prep and Letter stay clickable.
             <button
               type="button"
               aria-label={`Move on to ${COLUMN_NAMES[next]}`}
@@ -254,7 +250,6 @@ export function BoardCardView({
 const MARK_LINK =
   "rounded-md -outline-offset-1 transition-opacity hover:opacity-80 focus-visible:outline-2 focus-visible:outline-ink";
 
-// Nothing that only repeats the column. Words and icons, never color alone.
 function Marks({ card, now, hasLetter }: { card: BoardCard; now: number; hasLetter: boolean }) {
   const marks: { key: string; node: ReactNode }[] = [];
   if (now > 0) {

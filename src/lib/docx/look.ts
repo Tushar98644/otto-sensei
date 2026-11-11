@@ -2,9 +2,6 @@ import type { PdfStyle, TemplateTheme } from "@/components/pdf/theme";
 import { PDF_FONT, PDF_FONT_FAMILIES, primaryFont, type PdfFontName } from "@/lib/pdf/fonts";
 import type { PdfPageSize } from "@/lib/pdf/page-size";
 
-// Read from the same theme the PDF uses, so both downloads look like one resume.
-
-// Page sizes in points.
 export const PAGE_POINTS: Record<PdfPageSize, { width: number; height: number }> = {
   LETTER: { width: 612, height: 792 },
   A4: { width: 595.3, height: 841.9 },
@@ -22,7 +19,6 @@ const color = (value: unknown, fallback: string) =>
   typeof value === "string" && /^#[0-9a-f]{6}$/i.test(value) ? value : fallback;
 
 export type TextLook = {
-  // `font` is what Word names.
   family: PdfFontName;
   font: string;
   size: number;
@@ -74,7 +70,6 @@ export type RuleLook = { color: string; width: number };
 export type DocxLook = {
   theme: TemplateTheme;
   page: { width: number; height: number; top: number; bottom: number; left: number; right: number };
-  // Where the right-aligned dates sit.
   textWidth: number;
   body: TextLook;
   lineHeight: number;
@@ -93,14 +88,12 @@ export type DocxLook = {
   entryBefore: number;
   roleBefore: number;
   bulletBefore: number;
-  // And how far the bullet hangs left of it.
   bulletLeft: number;
   bulletHanging: number;
   bulletGlyph: string;
   bulletLook: TextLook;
   paragraphBefore: number;
   skillBefore: number;
-  // Lines indented like the PDF's (Developer's entries sit in from the margin).
   indent: { left: number; right: number };
   fonts: Set<PdfFontName>;
 };
@@ -110,7 +103,6 @@ function ruleOf(style: PdfStyle, side: "Top" | "Bottom", ink: string): RuleLook 
   return width > 0 ? { color: color(style[`border${side}Color`], ink), width } : null;
 }
 
-// ■ and ○ from Arial, which every Word install has.
 export const WORD_BULLET_FONT = "Arial";
 
 export function docxLook(theme: TemplateTheme, pageSize: PdfPageSize): DocxLook {

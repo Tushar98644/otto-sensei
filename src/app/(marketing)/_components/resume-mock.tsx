@@ -4,8 +4,6 @@ import { Window } from "@/components/ui/panel";
 import { cn } from "@/lib/utils";
 import { DEMO_FILE_NAME, DEMO_PERSON } from "./recruiter-demo-data";
 
-// HTML so it stays sharp at any size with no image request. Screen readers get one image with a
-// description; its words are read out in the parsed window beside it.
 export function ResumeMock({ className }: { className?: string }) {
   const { name, role, email, phone, skills, languages, jobs } = DEMO_PERSON;
   return (

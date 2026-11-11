@@ -5,10 +5,8 @@ import { titleParts } from "./title";
 
 const codeOf = (title: string) => classifyTitle(title)?.code ?? null;
 
-// Real titles from the job pool (2026-11-10) and from boards in the UK, Australia and Canada.
 describe("classifyTitle", () => {
   it.each([
-    // Healthcare
     ["Registered Nurse - ICU - Nights", "29-1141.00"],
     ["Registered Nurse (RN) – Med/Surg – $10,000 Sign-On Bonus", "29-1141.00"],
     ["Registered General Nurse", "29-1141.00"],
@@ -23,14 +21,12 @@ describe("classifyTitle", () => {
     ["Pharmacy Technician", "29-2052.00"],
     ["Phlebotomist", "31-9097.00"],
     ["Medical Assistant", "31-9092.00"],
-    // Education
     ["Primary School Teacher", "25-2021.00"],
     ["High School Math Teacher", "25-2031.00"],
     ["Teacher of Maths", "25-2031.00"],
     ["Teaching Assistant", "25-9042.00"],
     ["Early Years Practitioner", "25-2011.00"],
     ["Early Childhood Educator", "25-2011.00"],
-    // Retail and hospitality
     ["Sales Associate, Part-Time - Bloomingdale's", "41-2031.00"],
     ["Retail Assistant", "41-2031.00"],
     ["Store Manager", "41-1011.00"],
@@ -45,7 +41,6 @@ describe("classifyTitle", () => {
     ["Restaurant Manager", "11-9051.00"],
     ["Shift Supervisor", "35-1012.00"],
     ["Night Auditor", "43-4081.00"],
-    // Logistics and driving
     ["Truck Driver CDL-A - Home Weekly", "53-3032.00"],
     ["HGV Class 1 Driver", "53-3032.00"],
     ["Lorry Driver", "53-3032.00"],
@@ -53,7 +48,6 @@ describe("classifyTitle", () => {
     ["Warehouse Associate", "53-7062.00"],
     ["Warehouse Operative", "53-7062.00"],
     ["Forklift Operator", "53-7051.00"],
-    // Trades and manufacturing
     ["Journeyman Electrician", "47-2111.00"],
     ["Electrician (Commercial) - Night Shift", "47-2111.00"],
     ["HVAC Service Technician", "49-9021.00"],
@@ -63,7 +57,6 @@ describe("classifyTitle", () => {
     ["CNC Machinist", "51-4041.00"],
     ["Production Supervisor - 2nd Shift", "51-1011.00"],
     ["Welder/Fabricator", "51-4121.00"],
-    // Science, public sector, office, creative
     ["Research Associate II, Cell Therapy", "19-4021.00"],
     ["Police Officer", "33-3051.00"],
     ["Policy Analyst", "19-3094.00"],
@@ -83,8 +76,6 @@ describe("classifyTitle", () => {
     expect(codeOf(title)).toBe(code);
   });
 
-  // MATCHING-RESEARCH.md, Round 2 (c): O*NET's own title list files these under Urban Planners,
-  // Marketing Managers, Advertising Managers and office supervisors.
   it.each([
     ["Developer Advocate", "15-1252.00"],
     ["Founding Engineer", "15-1252.00"],
@@ -127,7 +118,6 @@ describe("classifyTitle", () => {
   });
 
   it("doesn't read a US state or a place as a job", () => {
-    // "PA" is also a physician assistant; only initials in the title's first part count.
     expect(codeOf("Chaplain (Part-Time) - Lancaster, PA")).not.toBe("29-1071.00");
     expect(codeOf("Nurse Recruiter")).toBe("13-1071.00");
   });
@@ -164,7 +154,6 @@ describe("readTitle", () => {
       family: "engineering",
       occupation: "15-1252.00",
     });
-    // The title rules read these as support, sales and engineering.
     expect(readTitle("Support Worker").family).toBeNull();
     expect(readTitle("Retail Sales Associate").family).toBeNull();
     expect(readTitle("Mechanical Engineer").family).toBeNull();
@@ -191,7 +180,6 @@ describe("occupation data", () => {
     const { close, related } = neighboursOf("29-1141.00");
     expect(close).toEqual(expect.arrayContaining(["29-1171.00", "29-2061.00", "29-1141.01"]));
     expect(related).toContain("31-1131.00");
-    // Where an EMT can move to doesn't make EMT jobs close to a nurse's.
     expect(close).not.toContain("29-2042.00");
   });
 });

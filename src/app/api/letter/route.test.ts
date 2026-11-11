@@ -24,7 +24,6 @@ vi.mock("@/lib/ai/writing", async (importOriginal) => {
   return { ...actual, writeCoverLetter: vi.fn(actual.writeCoverLetter) };
 });
 
-// Accounts run on the free Pro trial, the smallest real AI allowance (Free has none).
 const TRIAL_END = Date.UTC(2099, 0, 15, 12);
 const NOW = Date.UTC(2026, 10, 7, 12, 0, 0, 7);
 

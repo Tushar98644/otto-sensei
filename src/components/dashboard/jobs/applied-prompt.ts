@@ -1,29 +1,20 @@
 import type { AskedAppliedAnswer, FeedJob } from "@/lib/job-feed/types";
 import { DAY_MS } from "@/lib/time";
 
-// "Open job" goes to the company's own post, so an application sent there never reaches the
-// tracker unless someone says so. The list lives in this browser only; nothing here is sent.
-
-/** A job is asked about for a week after it was last opened. */
 export const ASK_FOR_MS = 7 * DAY_MS;
-/** The second "Not yet" on the same job ends the asking for good. */
 export const MAX_NOT_YET = 2;
-// Answers outlive the asking window so "never again" holds when the job is opened later; 90 days
-// is past the life of a job post. The cap keeps the list small however many jobs are opened.
+// 90 days outlives a job post, so "never again" still holds when it's opened later.
 export const KEEP_MS = 90 * DAY_MS;
 export const MAX_OPENED_JOBS = 200;
 
 export type OpenedJob = {
   jobId: string;
-  // Enough to ask, and to log the application, when the job isn't on the page any more.
   company: string;
   title: string;
   url: string;
   openedAt: number;
   notYet: number;
-  // The last "Not yet": the job stays quiet until it is opened again after this.
   answeredAt: number | null;
-  // Answered yes, marked applied, or told "not yet" twice: never asked again.
   done: boolean;
 };
 
@@ -34,14 +25,12 @@ export function pruneOpenedJobs(list: readonly OpenedJob[], now: number): readon
     .filter((entry) => {
       const age = now - entry.openedAt;
       if (age >= KEEP_MS) return false;
-      // An expired question nobody answered has nothing left to remember.
       return entry.done || entry.notYet > 0 || age < ASK_FOR_MS;
     })
     .sort((a, b) => b.openedAt - a.openedAt)
     .slice(0, MAX_OPENED_JOBS);
 }
 
-/** Opening it again after a "Not yet" asks once more. */
 export function recordOpen(
   list: readonly OpenedJob[],
   job: OpenedJobRef,
@@ -63,8 +52,6 @@ export function recordOpen(
   return pruneOpenedJobs([entry, ...list.filter((item) => item.jobId !== job.id)], now);
 }
 
-// "Not yet" quiets it until the job is opened again, and the second one ends it. A job that was
-// never opened is left alone.
 export function answerOpenedJob(
   list: readonly OpenedJob[],
   jobId: string,
@@ -87,10 +74,7 @@ export function answerOpenedJob(
 }
 
 export type AskContext = {
-  // The shared clock; 0 before it is known, when nothing is asked.
   now: number;
-  // When the person last came back to the Jobs tab: a job opened after that isn't asked about yet,
-  // so the question never shows up while they are still on their way out.
   returnedAt: number;
   isApplied: (entry: OpenedJob) => boolean;
 };
@@ -110,7 +94,6 @@ export function promptsToShow(list: readonly OpenedJob[], context: AskContext): 
     .sort((a, b) => b.openedAt - a.openedAt);
 }
 
-/** Jobs with a card on this page are asked on the card; the rest share one strip above the list. */
 export function splitByPage(
   due: readonly OpenedJob[],
   pageJobIds: readonly string[],
@@ -124,7 +107,6 @@ export function splitByPage(
 
 const count = new Intl.NumberFormat("en-US");
 
-/** The strip's line: "You opened 3 jobs. Applied to any?" */
 export function stripLine(jobs: number): string {
   return jobs === 1
     ? "You opened 1 job. Applied to it?"
@@ -147,7 +129,6 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-/** Anything that doesn't fit the shape is dropped. */
 export function parseOpenedJobs(value: unknown): OpenedJob[] {
   if (!Array.isArray(value)) return [];
   return value.flatMap((item): OpenedJob[] => {

@@ -73,7 +73,6 @@ describe("POST /api/draft", () => {
   it("spends the trial's drafts, and says when the full allowance starts", async () => {
     const trialEnd = Date.UTC(2099, 0, 15, 12);
     const maya = await signInOnTrial("maya@example.com", trialEnd);
-    // As if the model wrote them, so each one counts.
     vi.mocked(draftResume).mockImplementation(async (body, now) => {
       const { draftResume: real } =
         await vi.importActual<typeof import("@/lib/ai/draft")>("@/lib/ai/draft");

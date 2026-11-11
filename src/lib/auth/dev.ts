@@ -11,14 +11,9 @@ import { DEV_SESSION_COOKIE, devAuthActive } from "./dev-mode";
 import { LOGIN_CODE_DIGITS } from "./policy";
 import type { SessionUser } from "./types";
 
-// Development only. The account behind it is an ordinary users row, so plans, usage and mock
-// billing behave as for Supabase users. Every entry point re-checks devAuthActive(), false in
-// production.
-
 const CODE_TTL_MS = 10 * 60 * 1000;
 const MAX_ATTEMPTS = 5;
 const SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000;
-// Never used outside development; a fixed value keeps dev sessions alive across restarts.
 const DEV_SECRET = "otto-dev-only-session-secret-not-for-production";
 
 export type DevCodeFailure = "invalid_code" | "too_many_attempts";
@@ -53,7 +48,6 @@ function cookieAttributes() {
   return { httpOnly: true, sameSite: "lax", secure: false, path: "/" } as const;
 }
 
-/** Replaces any earlier code. The caller applies the rate limits. */
 export async function requestDevCode(email: string, now = Date.now()): Promise<string> {
   assertDevelopment();
   const code = String(randomInt(0, 10 ** LOGIN_CODE_DIGITS)).padStart(LOGIN_CODE_DIGITS, "0");
@@ -67,11 +61,10 @@ export async function requestDevCode(email: string, now = Date.now()): Promise<s
   return code;
 }
 
-/** Single use, 5 tries, 10 minutes. */
 export async function verifyDevCode(email: string, code: string, now = Date.now()): Promise<SessionUser> {
   assertDevelopment();
   const db = await getDb();
-  // Every guess claims an attempt in the same statement that checks the lock and the expiry.
+  // Each guess claims an attempt in the same statement that checks the lock and expiry.
   const [claimed] = await db
     .update(devLoginCodes)
     .set({ attempts: sql`${devLoginCodes.attempts} + 1` })
@@ -94,7 +87,6 @@ export async function verifyDevCode(email: string, code: string, now = Date.now(
   return user;
 }
 
-// The stand-in for a Supabase Auth user: the same address always gets the same id.
 async function identityFor(email: string): Promise<string> {
   const db = await getDb();
   const [existing] = await db.select({ id: authUsers.id }).from(authUsers).where(eq(authUsers.email, email)).limit(1);
@@ -111,7 +103,6 @@ function sessionIdFrom(cookie: string | undefined): string | null {
   return sameMac(Buffer.from(signature, "base64url"), hmac(id)) ? id : null;
 }
 
-/** Null outside development, whatever the cookie says. */
 export async function getDevUser(now = Date.now()): Promise<SessionUser | null> {
   if (!devAuthActive()) return null;
   const sessionId = sessionIdFrom((await cookies()).get(DEV_SESSION_COOKIE)?.value);
@@ -135,7 +126,6 @@ export async function getDevUser(now = Date.now()): Promise<SessionUser | null> 
   return row ?? null;
 }
 
-/** Revokes the session too, so a copy of the cookie stops working. */
 export async function clearDevSession(): Promise<void> {
   if (!devAuthActive()) return;
   const jar = await cookies();

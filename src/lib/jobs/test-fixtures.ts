@@ -1,5 +1,3 @@
-// Test-only. Job API answers as the live APIs returned them in November 2026, text cut down.
-
 const DUTIES = [
   "Own the plan for bringing AI into the revenue team, from first pilots to daily habits.",
   "Work with sales leaders to find the workflows where AI saves the most time.",
@@ -118,7 +116,6 @@ export const ASHBY_BOARD = {
   ],
 };
 
-// The JSON-LD Ashby's own job page carries for the same posting.
 export const ASHBY_JSON_LD = {
   "@context": "https://schema.org/",
   "@type": "JobPosting",
@@ -145,7 +142,6 @@ export function jsonLdScript(value: unknown): string {
   return `<script type="application/ld+json">${JSON.stringify(value)}</script>`;
 }
 
-// About 600 characters of ordinary job post text.
 export const LONG_POST = [
   "<h2>About the role</h2>",
   "<p>We are looking for a backend engineer to join the payments team and help us move money safely for small businesses around the world.</p>",

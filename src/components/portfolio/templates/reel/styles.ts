@@ -1,11 +1,6 @@
 import { scopeCss, templateCss } from "../css";
 
-// HamishMW/portfolio's styles (MIT, see ./LICENSE.txt), rule for rule, with CSS-module nesting
-// written out flat and class names carrying their module's name. Changes:
-// - his viewport media queries are container queries on the page's box, so a preview column gets
-//   the phone layout; 100vh is one screen of that box (--pf-screen) and 100vw is its width;
-// - Gotham (paid) is Montserrat, and IPA Gothic falls back to the system's Japanese face.
-// Our additions sit at the end: WebGL still frames, the extra sections, per-project pages.
+// Ported from HamishMW/portfolio's styles (MIT, see ./LICENSE.txt).
 
 const MONTSERRAT = `var(--pf-font-montserrat, "Montserrat")`;
 
@@ -612,8 +607,6 @@ ul { padding: 0; }
 
 export const REEL_CSS = templateCss(".pf-reel", css);
 
-// Readers without JavaScript get the finished page instead of the original's hidden first frame:
-// everything shown, the decoded names as plain text, the still frames in place of WebGL.
 export const REEL_NOSCRIPT_CSS = scopeCss(
   ".pf-reel",
   `

@@ -11,7 +11,6 @@ import { FormatImage } from "./format-image";
 export type FormatCardProps = {
   info: TemplateInfo;
   inUse: boolean;
-  // A Pro format and the viewer is on Free: the card says so, and using it offers the trial.
   pro?: boolean;
   actionLabel: string;
   ready: boolean;
@@ -19,11 +18,8 @@ export type FormatCardProps = {
   onPreview: () => void;
 };
 
-// The page inside the card: one column on phones, two from sm, three once the sidebar leaves room
-// (see FormatsGallery).
 const SIZES = "(min-width: 1280px) 18rem, (min-width: 640px) 45vw, 100vw";
 
-// Shows only the top of page 1 ("Preview" shows the whole page), so cards stay short.
 export function FormatCard({
   info,
   inUse,
@@ -51,8 +47,6 @@ export function FormatCard({
         className="h-full"
         bodyClassName="flex flex-col gap-4 p-4"
       >
-        {/* Clicking the page opens the larger preview too. Keyboards use the Preview button, so
-            the picture stays out of the tab order. */}
         <button
           type="button"
           tabIndex={-1}

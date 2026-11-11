@@ -23,8 +23,6 @@ function draw(id: (typeof PORTFOLIO_TEMPLATE_IDS)[number], own: TemplateSample |
   );
 }
 
-// Sam's own page: Jordan's resume under another name, with everything filled in, or cut down to
-// too few words to judge a design by (no summary, one project, no jobs).
 function samsPage(full: boolean): TemplateSample {
   const resume = jordanV2Resume();
   resume.basics.name = "Sam Rivera";
@@ -52,7 +50,6 @@ describe("FullPortfolioPreview", () => {
       const html = draw(id);
       expect(html).toContain(PORTFOLIO_TEMPLATE_INFO[id].name);
       expect(html).toContain(`${index + 1} of ${PORTFOLIO_TEMPLATE_IDS.length}`);
-      // Jordan's sample page, drawn by the real template and labelled as made up.
       expect(html).toContain("Jordan Ellis");
       expect(html).toContain(SAMPLE_NOTE);
       expect(html).toContain("Try Pro free for 3 days");

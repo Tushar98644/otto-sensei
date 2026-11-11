@@ -19,10 +19,6 @@ import { POST as tailor } from "./tailor/route";
 
 vi.mock("next/headers", async () => (await import("@/lib/auth/test-helpers")).nextHeadersMock);
 
-// Every AI feature on every kind of account: Free (and signed out) get the 402 that the client
-// turns into the trial prompt; the trial and Pro get the feature, counted on their allowance.
-// No AI key is set, so the routes answer with their demo or rule-based output.
-
 const NOW = Date.UTC(2026, 10, 7, 12);
 const TRIAL_END = Date.UTC(2026, 10, 10, 12);
 const JOB =
@@ -96,7 +92,6 @@ const CALLS: Call[] = [
   },
   {
     feature: "github",
-    // Drafts read only the connected GitHub account, so every account here has octocat connected.
     send: (user) => {
       if (user) linkGitHub(user, "octocat");
       return githubDraft(jsonRequest("/api/github/draft", { username: "octocat", repos: ["octocat/ledger-lint"] }));

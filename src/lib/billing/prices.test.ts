@@ -59,12 +59,10 @@ describe("reference prices and savings", () => {
   it("works the monthly discounts out from the reference prices", () => {
     expect(REFERENCE_MONTHLY_USD).toEqual({ pro: 30, max: 60 });
     expect(referenceDiscountPercent("pro")).toBe(50);
-    // $29 against $60 is 51.7%, rounded.
     expect(referenceDiscountPercent("max")).toBe(52);
   });
 
   it("works the yearly saving out from the real prices", () => {
-    // $120 against 12 x $15 = $180; $232 against 12 x $29 = $348.
     expect(yearlySavingsPercent("pro")).toBe(33);
     expect(yearlySavingsPercent("max")).toBe(33);
   });

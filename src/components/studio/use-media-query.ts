@@ -2,7 +2,6 @@
 
 import { useCallback, useSyncExternalStore } from "react";
 
-// False on the server and on the first client render, so layouts start mobile-first.
 export function useMediaQuery(query: string): boolean {
   const subscribe = useCallback(
     (onChange: () => void) => {

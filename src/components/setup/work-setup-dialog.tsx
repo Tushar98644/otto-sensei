@@ -31,17 +31,13 @@ import { DAY_MS } from "@/lib/time";
 export type WorkSetupDialogProps = {
   open: boolean;
   userId: string;
-  // Pro, Max or the trial: the work-rights answers are saved and used. Free, where they would do
-  // nothing, gets "Looking for" only.
   pro: boolean;
-  // The account's saved profile: still empty, or the step wouldn't open.
   profile: WorkProfile;
   onClose: (outcome: SetupStepOutcome) => void;
 };
 
 type Draft = {
   profile: WorkProfile;
-  // The region the step answered by itself from the country, until the person answers it.
   auto: WorkRegion | null;
   countryFrom: CountryGuess["from"] | null;
 };
@@ -49,8 +45,6 @@ type Draft = {
 const NO_MATCH: MatchProfile = { skills: [], titles: [], years: null };
 const CHECKBOX = "flex min-h-11 cursor-pointer items-center gap-2.5 text-sm text-ink";
 
-// Everything is guessed first from the resume and this device, so most people only check it and
-// press Save. Saves through the Account and Jobs APIs.
 export function WorkSetupDialog({ open, userId, pro, profile, onClose }: WorkSetupDialogProps) {
   const resumes = useResumeList();
   const own = useMemo(() => ownResumes(resumes), [resumes]);
@@ -75,7 +69,6 @@ export function WorkSetupDialog({ open, userId, pro, profile, onClose }: WorkSet
   const [saving, setSaving] = useState(false);
   const [failure, setFailure] = useState<string | null>(null);
 
-  // "Looking for" reads the newest resume of the person's own, as the Jobs tab does.
   const base = useMemo(() => own.find((resume) => resume.id === defaultResumeId(own)) ?? null, [own]);
   const match = useMemo(
     () => (base && day > 0 ? matchProfileOf(base, day * DAY_MS) : NO_MATCH),
@@ -118,7 +111,6 @@ export function WorkSetupDialog({ open, userId, pro, profile, onClose }: WorkSet
         storeWorkProfile(userId, res.profile, res.updatedAt, res.lookingFor ?? NO_CHOICE);
       }
       const keep = confirmedChoice({ shown, picked, placeFollowsCountry: pro });
-      // On Pro the work profile already holds "Remote only"; on Free it travels with this.
       if (lookingForSet(keep) || (!pro && keep.remote)) await saveLookingForChoice(userId, keep);
       onClose("saved");
       toast({
@@ -162,7 +154,6 @@ export function WorkSetupDialog({ open, userId, pro, profile, onClose }: WorkSet
             size="lg"
             loading={saving}
             onClick={() => void save()}
-            // Free's step is one line to confirm, so Save is the first stop there.
             data-autofocus={pro ? undefined : true}
           >
             Save

@@ -20,13 +20,10 @@ import { StatusIcon } from "./status-menu";
 import { addApplication, commitDelete, hideApplication, useApplications } from "./use-applications";
 import { formatDay } from "./view";
 
-// Most cards never open the form; its code loads once the page has settled.
 const applicationDialog = lazyComponent(() =>
   import("./application-dialog").then((m) => m.ApplicationDialog),
 );
 
-// The card whose job was just marked applied with the one-click shortcut: Otto cheers on that
-// card only, so a second click elsewhere moves him rather than adding another.
 let cheering: string | null = null;
 const cheerListeners = new Set<() => void>();
 
@@ -42,7 +39,6 @@ function subscribeCheer(listener: () => void) {
   };
 }
 
-/** The application a tailored copy went out with: sent as it, or for its job (see thread.ts). */
 export function useCopyApplication(resume: Resume): Application | null {
   const { items } = useApplications();
   return useMemo(() => applicationForCopy(items, resume), [items, resume]);
@@ -56,7 +52,6 @@ export function useJustApplied(resumeId: string): boolean {
   );
 }
 
-// One click logs it as sent today; only a copy that doesn't name its company opens the form.
 export function MarkApplied({ resume, describedBy }: { resume: Resume; describedBy?: string }) {
   const { items } = useApplications();
   const resumes = useResumeList();
@@ -76,7 +71,6 @@ export function MarkApplied({ resume, describedBy }: { resume: Resume; described
     }
     setSaving(true);
     try {
-      // The copy's job and its letters join the same thread: the server links them by id and link.
       const application = await addApplication({
         resumeId: resume.id,
         resumeTitle: resumeTitle(resume).slice(0, 200),

@@ -16,11 +16,9 @@ import type { LetterEntry } from "./entries";
 
 export type LetterRowProps = {
   entry: LetterEntry;
-  // The resume it came from, by its title now (sourceTitle). "" when that isn't known.
   source: string;
   application: Application | null;
   now: number;
-  // Only when there's a resume in this browser to open it with (studioTarget).
   canOpenInStudio: boolean;
   onOpen: () => void;
   onDownload: () => void;

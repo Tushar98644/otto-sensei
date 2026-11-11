@@ -5,15 +5,12 @@ import type { RawRequirement } from "@/lib/tailor/requirements";
 import type { RawTailor } from "./tailor-finalize";
 import { COMMON_SKILLS, EXACT_CASE_SKILLS, STOPWORDS } from "./tailor-vocabulary";
 
-// Demo mode (no API key): requirements from a phrase frequency count; deterministic.
-
 type Section = "required" | "nice" | "other";
 
 type Phrase = {
   surface: string;
   words: string[];
   count: number;
-  // Seen at least once in a requirements section or on a line that says "required" or "must".
   required: boolean;
   first: number;
 };
@@ -22,7 +19,6 @@ type Candidate = Phrase & { term: string; skill: boolean };
 type DemoKeyword = { term: string; importance: "must" | "nice"; required: boolean };
 
 const MAX_KEYWORDS = 25;
-// A word outside the skills list needs repeats to count: one mention is noise, three a theme.
 const MIN_REPEATS_WORD = 3;
 const MIN_REPEATS_PAIR = 2;
 const MAX_HEADING_WORDS = 8;
@@ -34,9 +30,7 @@ const REQUIRED_HEADING =
 const OTHER_HEADING =
   /\b(?:responsibilit\w*|what you(?:['’]ll)? do|about (?:us|the (?:role|team|company|job))|benefits|perks|we offer|compensation|salary|how to apply|your role|day[- ]to[- ]day|who we are|why join)\b/i;
 const REQUIRED_LINE = /\b(?:required|must)\b/i;
-// Two words only form a phrase when nothing but a space separates them.
 const PHRASE_BREAK = /[,;:!?()[\]{}|•·"“”]|\.(?=\s|$)|\s[-–—]\s/u;
-// Words the way job posts write tech names: Node.js, C++, C#, CI/CD, front-end, R&D, .NET.
 const WORD = /\.net(?![\p{L}\p{N}])|[\p{L}\p{N}](?:[\p{L}\p{N}+#.&'’/-]*[\p{L}\p{N}+#])?/giu;
 
 const DEMO_NOTES = [
@@ -52,7 +46,6 @@ function headingSection(line: string): Section | null {
   if (!text || text.split(/\s+/).length > MAX_HEADING_WORDS || /[.!?]$/u.test(text)) return null;
   if (NICE_HEADING.test(text)) return "nice";
   if (REQUIRED_HEADING.test(text)) return "required";
-  // Any other short line ending in a colon ("Benefits:") starts a section that isn't requirements.
   return /:\s*$/u.test(line) || OTHER_HEADING.test(text) ? "other" : null;
 }
 
@@ -99,8 +92,6 @@ function isContentWord(word: string): boolean {
   return !STOPWORDS.has(word.toLowerCase()) && /\p{L}.*\p{L}/u.test(word);
 }
 
-// The phrase scan reads every word as a term; the real matcher reads the post as prose, where only
-// "Go" is the language and "excel at" is not Excel.
 function isSkillInPost(skill: string, jobText: string): boolean {
   if (!findTerm(jobText, skill).found) return false;
   if (!EXACT_CASE_SKILLS.has(skill)) return true;
@@ -122,7 +113,6 @@ function pickKeywords(jobText: string): DemoKeyword[] {
       candidates.push({ ...phrase, term: phrase.surface, skill: false });
     }
   }
-  // "payments" on its own adds nothing once "payment systems" is in.
   const inLongerTerm = new Set(
     candidates.filter((c) => c.words.length > 1).flatMap((c) => c.words.map(termKey)),
   );
@@ -141,7 +131,6 @@ function pickKeywords(jobText: string): DemoKeyword[] {
     .map((c) => ({ term: c.term, importance: isMust(c) ? "must" : "nice", required: c.required }));
 }
 
-// From a requirements section or "required" line: structure. Only repeated: wording.
 function toRequirement(keyword: DemoKeyword): RawRequirement {
   return {
     text: keyword.term,

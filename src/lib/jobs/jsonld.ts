@@ -1,9 +1,6 @@
 import { decodeEntities, htmlToText } from "./html";
 import { toTime } from "./posting";
 
-// The shape varies a lot between sites (strings or objects, lists, @graph wrappers), so every field
-// is read defensively.
-
 type JsonObject = Record<string, unknown>;
 
 export type JsonLdJob = {
@@ -40,7 +37,6 @@ function str(value: unknown): string | null {
   return null;
 }
 
-// A name given as "Acme", { name: "Acme" } or a list of either.
 function nameOf(value: unknown): string | null {
   for (const item of list(value)) {
     const name = isObject(item) ? str(item.name) : str(item);
@@ -73,7 +69,6 @@ function findJobNode(value: unknown, depth = 0): JsonObject | null {
   return null;
 }
 
-/** May be HTML, HTML escaped once more, or plain text. */
 export function descriptionText(value: string): string {
   const html = !/<[a-z]/i.test(value) && /&lt;[a-z/]/i.test(value) ? decodeEntities(value) : value;
   if (/<\/?[a-z][a-z0-9]*[\s>/]/i.test(html)) return htmlToText(html);
@@ -127,14 +122,12 @@ function jobText(node: JsonObject): string {
     const value = node[key];
     if (typeof value !== "string") continue;
     const text = descriptionText(value);
-    // Many sites repeat these inside the description too.
     if (text && !description.includes(text.slice(0, 80))) sections.push(`${label}\n${text}`);
   }
   return sections.filter(Boolean).join("\n\n");
 }
 
-// Some sites wrap the JSON in an HTML comment or CDATA, or leave raw line breaks inside strings,
-// which JSON.parse refuses. Control characters are whitespace everywhere else, so spaces are safe.
+// Sites wrap it in comments or CDATA, or leave raw line breaks in strings (JSON.parse refuses).
 function parseBlock(block: string): unknown {
   try {
     return JSON.parse(block);

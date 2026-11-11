@@ -5,16 +5,12 @@ import { trialHistory, users } from "@/db/schema";
 import { normalizeEmail } from "@/lib/auth/policy";
 import type { SessionUser } from "@/lib/auth/types";
 
-// Creem doesn't track one trial per person, so trials and payments go to trial_history under an
-// email hash, which outlives the account: signing up again doesn't bring the trial back.
-
 export type TrialHistoryKind = "trial" | "paid";
 
 export function emailFingerprint(email: string): string {
   return createHash("sha256").update(normalizeEmail(email)).digest("hex");
 }
 
-/** The first kind seen stays. */
 export async function recordTrialHistory(
   db: Db | Tx,
   email: string,
@@ -27,7 +23,6 @@ export async function recordTrialHistory(
     .onConflictDoNothing();
 }
 
-// On Free, never billed (mock included) and no trial or payment under its email.
 export async function isTrialEligible(user: Pick<SessionUser, "id" | "email" | "plan">): Promise<boolean> {
   if (user.plan !== "free") return false;
   const db = await getDb();

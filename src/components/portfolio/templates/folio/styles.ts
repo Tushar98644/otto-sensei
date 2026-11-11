@@ -1,8 +1,6 @@
 import { templateCss } from "../css";
 
-// Ported from samuelkraft/samuelkraft-next (MIT, see ./LICENSE.txt): its Tailwind classes and
-// globals.css written out as CSS. The original sets html to 14px, so every rem there is 14px here.
-// Radix Sand (@radix-ui/colors, MIT) supplies the colours. Breakpoints are container queries.
+// Ported from samuelkraft/samuelkraft-next (MIT, see ./LICENSE.txt); colours: Radix Sand (MIT).
 const css = `
 :scope {
   --sand1: #fdfdfc;

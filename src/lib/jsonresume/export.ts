@@ -1,8 +1,6 @@
 import { extrasOf, type ExtraItem, type Resume } from "@/lib/resume/schema";
 import { isPresent, toIsoDate } from "./dates";
 
-// Hidden lines stay out. Dates that aren't clearly dates keep their text rather than being dropped.
-
 export const JSON_RESUME_SCHEMA_URL =
   "https://raw.githubusercontent.com/jsonresume/resume-schema/v1.0.0/schema.json";
 
@@ -27,7 +25,6 @@ function compact(entries: Record<string, Json | undefined>): { [key: string]: Js
 function range(startDate: string, endDate: string) {
   return {
     startDate: toIsoDate(startDate) ?? undefined,
-    // An open end ("Present") is a missing endDate in JSON Resume.
     endDate: isPresent(endDate) ? undefined : (toIsoDate(endDate) ?? undefined),
   };
 }
@@ -65,7 +62,6 @@ export function toJsonResume(resume: Resume): JsonResume {
       }),
     ),
     volunteer: extraItems("volunteering").map((item) => {
-      // Imports store a volunteer role's dates as one line: "2020 – Present".
       const [start = "", end = ""] = item.date.split(/\s+[–-]\s+/u);
       return compact({
         organization: item.subtitle,
@@ -81,7 +77,6 @@ export function toJsonResume(resume: Resume): JsonResume {
         area: school.field,
         studyType: school.degree,
         ...range(school.startDate, school.endDate),
-        // Not in the v1 schema, which allows extra fields; this importer reads it back.
         highlights: texts(school.bullets),
       }),
     ),
@@ -94,7 +89,6 @@ export function toJsonResume(resume: Resume): JsonResume {
     publications: extraItems("publications").map((item: ExtraItem) =>
       compact({ name: item.title, publisher: item.subtitle, releaseDate: date(item.date), summary: item.detail }),
     ),
-    // An unlabeled group is a flat list, which JSON Resume writes as one skill per entry.
     skills: section("skills", shown(resume.skills)).flatMap((group) =>
       group.label.trim()
         ? [compact({ name: group.label.trim(), keywords: group.items })]

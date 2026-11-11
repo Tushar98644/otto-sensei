@@ -30,8 +30,6 @@ import { UsageCard } from "./usage-card";
 
 const above = (plan: PlanId, target: PlanId) => PLAN_ORDER.indexOf(target) > PLAN_ORDER.indexOf(plan);
 
-// Back from checkout, the full-screen wait covers the first few plan checks (about 10s, at 2s, 5s
-// and 10s). A slower webhook gets the page and its "Finishing your upgrade" note instead.
 const ACTIVATION_SCREEN_MS = 10_000;
 
 export function AccountView() {
@@ -54,16 +52,12 @@ export function AccountView() {
     backFromCheckout && patient && (loading || watch.state === "checking"),
     bought ? `Setting up your ${PLANS[bought].name} plan` : "Setting up your new plan",
   );
-  // The plan a pricing link asked for, else the next one up; null when there's nothing above.
   const wanted: PaidPlanId | null = arrival.plan ?? nextPlan(user?.plan ?? "free");
   const wantsUpgrade = upgradeRequested && !loading && wanted !== null && above(user?.plan ?? "free", wanted);
   const offered = wanted !== null && (me?.billing.offer[wanted].length ?? 0) > 0;
-  // One step from the pricing page: someone signed in goes straight to checkout. The dialog is for
-  // signing in first, or for when payments aren't on.
   const straightToCheckout = wantsUpgrade && user !== null && me?.billing.mode !== "disabled" && offered;
   const upgradeOpen = wantsUpgrade && !straightToCheckout;
 
-  // Setup links (#work-profile, #looking-for, #reminders) land on their card once it exists.
   useScrollToSection(!loading && user !== null);
 
   const started = useRef(false);
@@ -115,7 +109,6 @@ export function AccountView() {
           <UpgradeStatus plan={user.plan} trialEndsAt={user.trialEndsAt} target={bought} watch={watch} />
         ) : null}
         <ProfileCard user={user} />
-        {/* Job-search settings first (owner, 2026-11-11): they change what every page shows. */}
         <Eyebrow className="mt-3 px-1">Your job search</Eyebrow>
         <WorkProfileCard />
         <LookingForSettingsCard />
@@ -133,7 +126,6 @@ export function AccountView() {
         )}
         {paid ? <BillingCard mode={me.billing.mode} trialEndsAt={user.trialEndsAt ?? null} /> : null}
         <InviteCard plan={user.plan} />
-        {/* Last, so the one thing that can't be undone never sits between everyday settings. */}
         <DeleteAccountCard isPro={paid} />
       </div>
     );
@@ -142,8 +134,7 @@ export function AccountView() {
   return (
     <>
       {content}
-      {/* Kept outside the branches above: signing in inside it swaps the page content, and it must
-          stay mounted to carry on to checkout. */}
+      {/* Outside the branches: it must stay mounted through sign-in to reach checkout. */}
       <UpgradeDialog
         open={upgradeOpen}
         plan={arrival.plan ?? undefined}

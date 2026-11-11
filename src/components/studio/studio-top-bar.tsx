@@ -12,15 +12,13 @@ import { HistoryControls } from "./history/history-controls";
 import { ResumeSwitcher } from "./resume-switcher";
 
 export type StudioTopBarProps = {
-  // The switcher reads the browser copy, which doesn't exist until the store has loaded.
   hydrated: boolean;
   onSignIn: () => void;
 };
 
 export function StudioTopBar({ hydrated, onSignIn }: StudioTopBarProps) {
   const activeId = useStudioStore((s) => s.activeId);
-  // Signed in, home is the dashboard. The sales page would also send them there, but only on a
-  // full page load: a client-side move to the prefetched "/" just shows the sales page.
+  // The proxy redirects "/" only on full loads; a client-side move would show the sales page.
   const { user } = useMe();
   return (
     <header className="sticky top-0 z-30 bg-surface-muted">
@@ -38,8 +36,6 @@ export function StudioTopBar({ hydrated, onSignIn }: StudioTopBarProps) {
         <div className="flex min-w-0 flex-1">
           {hydrated ? <ResumeSwitcher /> : <Skeleton className="h-11 w-40 rounded-lg" />}
         </div>
-        {/* Rendered only after load: history belongs to the browser copy, and the shortcut hints
-            depend on the platform, which the server can't know. */}
         {hydrated ? <HistoryControls resumeId={activeId} /> : null}
         <AccountMenu onSignIn={onSignIn} />
       </div>

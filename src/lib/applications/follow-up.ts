@@ -1,14 +1,10 @@
 import { DAY_MS } from "@/lib/time";
 import type { ApplicationStatus } from "./status";
 
-// Marking a job applied sets the date by itself; the account's setting only changes how many days.
-
 export const FOLLOW_UP_DAYS = { default: 7, min: 1, max: 60 } as const;
 export const SNOOZE_DAYS = 3;
-// Any whole number in FOLLOW_UP_DAYS' range is accepted.
 export const FOLLOW_UP_DAY_CHOICES = [3, 5, 7, 10, 14, 21] as const;
 
-// Never sooner than a day from now: someone logging an old application is looking at it already.
 export function firstFollowUpAt(appliedAt: number, now: number, days: number): number {
   return Math.max(appliedAt + days * DAY_MS, now + DAY_MS);
 }

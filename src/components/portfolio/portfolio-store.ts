@@ -13,7 +13,6 @@ import { PORTFOLIO } from "@/lib/queries/keys";
 import { portfolioQuery } from "@/lib/queries/options";
 import type { Resume } from "@/lib/resume/schema";
 
-// A write is on its way; the editor shows it and keeps a second one from racing it.
 export const usePortfolioStore = create<{ saving: boolean }>()(() => ({ saving: false }));
 
 export type PortfolioState = {
@@ -76,8 +75,6 @@ export async function makePortfolio(resume: Resume): Promise<Portfolio | null> {
 
 let latestSave = 0;
 
-// The settings in a change, shown before the server answers. The address and a new copy of the
-// resume wait for the server: it normalizes the one and trims the other.
 function withSettings(portfolio: Portfolio, patch: UpdatePortfolioBody): Portfolio {
   const next = { ...portfolio };
   if (patch.template !== undefined) next.template = patch.template;
@@ -90,13 +87,10 @@ function withSettings(portfolio: Portfolio, patch: UpdatePortfolioBody): Portfol
   return next;
 }
 
-// Optimistic: settings show at once and roll back if the server says no. Resolves false after
-// telling the person why.
 export async function savePortfolio(patch: UpdatePortfolioBody): Promise<boolean> {
   const before = currentPortfolio();
   if (!before) return false;
-  // Two quick switches send two requests; only the newest answer may replace what's shown, or a
-  // late first answer would undo the second switch on screen.
+  // Only the newest answer may replace what's shown, or a late one would undo a later switch.
   const mine = ++latestSave;
   putPortfolio(withSettings(before, patch));
   usePortfolioStore.setState({ saving: true });
@@ -114,7 +108,6 @@ export async function savePortfolio(patch: UpdatePortfolioBody): Promise<boolean
   }
 }
 
-/** Publishes or takes the page down at once, with Undo instead of "Are you sure?". */
 export async function setPublished(published: boolean): Promise<void> {
   if (!(await savePortfolio({ published }))) return;
   toast({

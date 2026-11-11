@@ -33,16 +33,12 @@ type Offer = Record<PaidPlanId, BillingInterval[]>;
 
 export type UpgradeCardProps = {
   plan: PlanId;
-  // How often the current plan bills, picked first so a weekly subscriber sees the weekly option.
   interval: BillingInterval | null;
   mode: BillingMode;
   offer: Offer;
-  // Pro monthly would start with the free trial for this account.
   trial?: boolean;
 };
 
-// Straight to checkout. Pro to Max changes the subscription in place (see createCheckoutUrl); on
-// the Pro trial it's a new checkout that ends the trial, and the card says so.
 export function UpgradeCard({ plan, interval: current, mode, offer, trial = false }: UpgradeCardProps) {
   const checkout = useBillingRedirect("checkout");
   const { user } = useMe();
@@ -124,7 +120,6 @@ export function UpgradeCard({ plan, interval: current, mode, offer, trial = fals
   );
 }
 
-// A paid plan: card changes, invoices and cancelling all live in the payment provider's portal.
 export function BillingCard({ mode, trialEndsAt = null }: { mode: BillingMode; trialEndsAt?: number | null }) {
   const portal = useBillingRedirect("portal");
   return (

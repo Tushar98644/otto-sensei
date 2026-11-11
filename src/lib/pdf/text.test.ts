@@ -37,7 +37,6 @@ describe("toPdfText", () => {
     expect(toPdfText(`Shipped ${char(0x1f680)} fast ${thumbs} 王芳`, lost)).toBe("Shipped  fast  ");
     expect(lost.has(char(0x1f680))).toBe(true);
     expect(lost.has("王")).toBe(true);
-    // A skin tone on its own means nothing to a reader.
     expect(lost.has(char(0x1f3fd))).toBe(false);
   });
 

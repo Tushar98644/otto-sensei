@@ -10,7 +10,6 @@ import { billingWeekEnd, consumeUsage } from "@/lib/usage";
 import { GET } from "./route";
 
 vi.mock("next/headers", async () => (await import("@/lib/auth/test-helpers")).nextHeadersMock);
-// Pinned so this test doesn't depend on how billing picks its mode.
 vi.mock("@/lib/billing", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/billing")>()),
   billingMode: () => "mock",
@@ -38,7 +37,6 @@ describe("GET /api/me", () => {
       billing: {
         mode: "mock",
         offer: { pro: ["month", "year", "week"], max: ["month", "year", "week"] },
-        // A new account would start on the trial.
         trial: true,
       },
       auth: { mode: "supabase" },
@@ -67,7 +65,6 @@ describe("GET /api/me", () => {
       user: { ...user, trialEndsAt: null },
       usage: usageOf(PLANS.free.limits),
       period: { kind: "month", resetsAt: expect.any(Number) },
-      // Free has no AI, so no AI budget either.
       aiBudget: null,
       billing: {
         mode: "mock",

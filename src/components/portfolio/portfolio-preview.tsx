@@ -19,7 +19,6 @@ type PortfolioPreviewProps = {
   onExpand: () => void;
 };
 
-// Below this, a 1280px page zoomed to fit is too small to read.
 const NARROW_PANE = 560;
 
 const WIDTHS: readonly { value: PreviewWidth; label: string; Icon: typeof Monitor }[] = [
@@ -42,10 +41,7 @@ function useBoxSize() {
   return [ref, size] as const;
 }
 
-// Same template component as /p/<slug>, at a real screen width zoomed to fit. Only the page is
-// inert, not the scroll box: an inert box takes no pointer events, so the wheel fell through to
-// the editor. The box is a containing block for position: fixed (contain: layout), so a fixed
-// header stays inside the frame.
+// Only the page is inert, not the scroll box: an inert box let the wheel fall to the editor.
 export function PortfolioPreview({
   view,
   content,
@@ -53,7 +49,6 @@ export function PortfolioPreview({
   slug,
   onExpand,
 }: PortfolioPreviewProps) {
-  // Until the owner picks one: a pane too narrow for a readable desktop page starts on Phone.
   const [picked, setPicked] = useState<PreviewWidth | null>(null);
   const [paneRef, pane] = useBoxSize();
   const [scrollerRef, box] = useBoxSize();
@@ -119,7 +114,6 @@ export function PortfolioPreview({
           )}
           <div className="relative min-h-0 flex-1 contain-layout">
             <div
-              // Remounted per design and width, so each one opens at its top.
               key={`${template}-${width}`}
               ref={scrollerRef}
               tabIndex={0}

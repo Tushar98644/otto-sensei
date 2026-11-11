@@ -1,10 +1,8 @@
 import { PDF_FONT } from "@/lib/pdf/fonts";
 import { INK, defineTheme } from "../theme";
 
-// Jake Gutierrez's LaTeX resume template (MIT; credited in THIRD_PARTY_NOTICES.md) in Computer
-// Modern (CMU Serif). Skills stay first by default (the format's section hint).
+// After Jake Gutierrez's LaTeX resume template (MIT, credited in THIRD_PARTY_NOTICES.md).
 
-// Jake's entries sit 0.15in in from the margin and end 3% short of it.
 const INDENT = 10.8;
 const INSET = 5.4;
 
@@ -23,7 +21,6 @@ export const developer = defineTheme({
     ],
     item: [{ lead: ["title", "tech", "org", "detail"], side: "dates" }],
   },
-  // Like Jake's: a later role at the same company is one italic line, title and dates.
   companyRow: undefined,
   roleRow: { lead: ["title", "detail"], side: "dates" },
   separators: { tech: " | ", org: ", ", detail: " | ", title: ", " },
@@ -73,7 +70,6 @@ export const developer = defineTheme({
     row2Rest: {},
     row2Side: { fontSize: 10, fontStyle: "italic" },
     entryNote: { marginTop: 1, paddingLeft: INDENT, fontSize: 10 },
-    // A small bullet at about 0.45in, its line at about 0.5in, like LaTeX's second-level list.
     bullet: { marginTop: 1.2, paddingLeft: INDENT + 14, paddingRight: INSET },
     bulletGlyph: { width: 11, fontSize: 7, lineHeight: 12 / 7, textAlign: "center" },
     bulletMark: { width: 2.6, height: 2.6, marginTop: 4.6, color: INK },

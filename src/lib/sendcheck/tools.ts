@@ -1,19 +1,12 @@
 import { monthIndex } from "./dates";
 
-// A tool named in a job that ended before it existed is the first thing a technical screener
-// notices. Dates are the earliest public release, checked by hand. Keep the list sorted. A false
-// alarm reads as an accusation, so everyday words and names are guarded: `caseSensitive` ("react"),
-// `plainWord` (not at a sentence start) and `context` ("Claude" the person, "Kafka" the writer).
-
 export type ToolRelease = {
   name: string;
   aliases?: readonly string[];
   year: number;
-  // 1-12. Without it, the tool counts as out from the start of the year.
   month?: number;
   caseSensitive?: boolean;
   plainWord?: boolean;
-  // The bare name counts only when the same text also matches this.
   context?: RegExp;
 };
 
@@ -50,12 +43,10 @@ export const TOOL_RELEASES: readonly ToolRelease[] = [
   { name: "Deno", year: 2018, month: 5, caseSensitive: true },
   { name: "Docker", year: 2013, month: 3 },
   { name: "Elasticsearch", year: 2010, month: 2 },
-  // The invite-only preview opened in December 2015, before the 2016 launch.
   { name: "Figma", year: 2015, month: 12 },
   { name: "Flutter", year: 2017, month: 5, caseSensitive: true, plainWord: true },
   { name: "GA4", aliases: ["Google Analytics 4"], year: 2020, month: 10 },
   { name: "GitHub Actions", year: 2018, month: 10 },
-  // Not plain "Copilot": that is also a pilot's job title.
   { name: "GitHub Copilot", year: 2021, month: 6 },
   { name: "Golang", year: 2009, month: 11 },
   { name: "GPT-3", year: 2020, month: 5 },
@@ -82,7 +73,6 @@ export const TOOL_RELEASES: readonly ToolRelease[] = [
   { name: "Next.js", aliases: ["NextJS"], year: 2016, month: 10 },
   { name: "Node.js", aliases: ["NodeJS"], year: 2009, month: 5 },
   { name: "OpenAI API", year: 2020, month: 6 },
-  // "Power BI for Office 365" was announced in July 2013, before the 2015 standalone app.
   { name: "Power BI", year: 2013, month: 7 },
   { name: "PyTorch", year: 2016, month: 9 },
   {
@@ -137,7 +127,6 @@ export type ToolMention = {
 };
 
 export type FindToolsOptions = {
-  // A job title or a name, not a sentence: its first word is capitalized because it is a name.
   heading?: boolean;
 };
 
@@ -148,7 +137,6 @@ const source = (names: readonly string[]) =>
     .map((name) => escape(name).replace(/ /g, "\\s+"))
     .join("|");
 
-// Not inside a longer word or name: "GPT-4" never matches in "GPT-4o", "React" never in "Reactor".
 const bounded = (alternatives: string, flags: string) =>
   new RegExp(
     `(?<![\\p{L}\\p{N}.-])(?:${alternatives})(?![\\p{L}\\p{N}]|[.-][\\p{L}\\p{N}])`,
@@ -161,7 +149,6 @@ const PATTERNS = TOOL_RELEASES.map((tool) => {
   return {
     tool,
     releasedAt: monthIndex(tool.year, (tool.month ?? 1) - 1),
-    // The names alone, without the word-boundary checks: it matches wherever `pattern` could.
     quick: new RegExp(names, tool.caseSensitive ? "u" : "iu"),
     pattern: bounded(names, flags),
     bare: new RegExp(
@@ -171,17 +158,13 @@ const PATTERNS = TOOL_RELEASES.map((tool) => {
   };
 });
 
-// One cheap scan first: the \p{L} boundary checks make each `pattern` slow to compile (~70 ms for
-// the whole list), so they only compile for tools a line really names.
 const ANY_TOOL = new RegExp(
   source(TOOL_RELEASES.flatMap((tool) => [tool.name, ...(tool.aliases ?? [])])),
   "iu",
 );
 
-// Start of the text or of a sentence, past any opening quote, bracket or list marker.
 const SENTENCE_START = /(?:^|[.!?\n])[\s"'“‘(\[•*–—-]*$/u;
 
-// When one name sits inside another ("Claude" in "Claude Code"), only the longer one counts.
 export function findTools(text: string, options: FindToolsOptions = {}): ToolMention[] {
   if (!ANY_TOOL.test(text)) return [];
   const found: ToolMention[] = [];

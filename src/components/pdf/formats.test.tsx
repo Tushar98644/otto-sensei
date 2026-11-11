@@ -5,17 +5,12 @@ import { entryRows } from "./layout";
 import { readPages, render, sampleResume } from "./test-fixtures";
 import { TEMPLATE_THEMES, themeFor } from "./themes";
 
-// What hiring software gets from each format's PDF, read back with pdf.js: every line top to
-// bottom in the order the plan prints it, every character as typed (accents included), and nothing
-// it would trip on (icon names, junk glyphs, words split by letter spacing).
-
 const ACCENTED = "Boğaziçi Łódź Nguyễn Ångström Øre";
 
 const DESIGNS: ResumeDesign[] = [{}, { font: "sans" }, { font: "serif" }, { density: "compact" }];
 
 const lower = (text: string) => text.replace(/\s+/g, " ").toLocaleLowerCase();
 
-// The next occurrence of each part, in order, case-insensitively (some formats print capitals).
 function expectInReadingOrder(text: string, parts: readonly string[]) {
   const flat = lower(text);
   let from = 0;
@@ -29,7 +24,6 @@ function expectInReadingOrder(text: string, parts: readonly string[]) {
   }
 }
 
-// Everything the page should print, in order, from the plan the renderers share.
 function plannedOrder(resume: Resume, template: TemplateId): string[] {
   const theme = themeFor(resume, template);
   const model = buildPdfModel(resume);
@@ -63,16 +57,13 @@ function plannedOrder(resume: Resume, template: TemplateId): string[] {
 
 function characterProblems(text: string): string[] {
   const problems: string[] = [];
-  // Junk a missing glyph or an icon font leaves: replacement marks, private use, controls, emoji.
   for (const char of text) {
     if (/[�\p{Co}\p{Cc}\p{Extended_Pictographic}]/u.test(char) && char !== "\n") {
       problems.push(`junk ${JSON.stringify(char)}`);
     }
   }
-  // Icon fonts read back as their names ("HOUSE-CHIMNEY", "GITHUB-SQUARE").
   for (const match of text.matchAll(/\b[A-Z]{3,}(?:-[A-Z]+)+\b/g))
     problems.push(`icon ${match[0]}`);
-  // Letter spacing past ~8% of the type size reads back as "S U M M A R Y".
   for (const match of text.matchAll(/(?:^|\s)(?:\p{L} ){3,}\p{L}(?=\s|$)/gu)) {
     problems.push(`spaced ${match[0].trim()}`);
   }
@@ -89,7 +80,6 @@ describe.each(TEMPLATE_IDS)("%s format, as hiring software reads it", (template)
       const text = pages.join("\n");
       expectInReadingOrder(text, plannedOrder(resume, template));
       expect(characterProblems(text)).toEqual([]);
-      // Each heading is a line of its own.
       const lines = new Set(text.split("\n").map((line) => line.trim().toLocaleLowerCase()));
       for (const heading of ["summary", "experience", "projects", "education", "skills"]) {
         expect(lines.has(heading), heading).toBe(true);
@@ -110,7 +100,6 @@ describe.each(TEMPLATE_IDS)("%s format, as hiring software reads it", (template)
         title: "Nguyễn Ångström Øre Lead",
       };
       resume.experience[0]!.bullets[0] = { id: "b1", text: `Hosted ${ACCENTED} at the summit.` };
-      // Latvian letters CMU Serif Bold lacks, drawn by the fallback font.
       resume.education[0] = { ...resume.education[0]!, school: "Ķemeri Ģimnāzija" };
       const model = buildPdfModel(resume);
       expect(model.changedCharacters).toEqual([]);
@@ -139,8 +128,6 @@ describe.each(TEMPLATE_IDS)("%s format, as hiring software reads it", (template)
 
 describe("embedded fonts", () => {
   it("keep every character readable in a PDF made after one with composite letters", async () => {
-    // "Å" and "ź" are drawn from the plain "A" and "z" glyphs; those must still read back as letters
-    // in the next file, which reuses the loaded fonts.
     for (const template of TEMPLATE_IDS) {
       const accented = sampleResume();
       accented.template = template;
@@ -158,7 +145,6 @@ describe("square bullets", () => {
   it("print as a glyph where the font has one and as a drawn mark where it doesn't", async () => {
     const tinos = await readPages(await render({ ...sampleResume(), template: "compact" }));
     expect(tinos.join("\n")).toContain("■ Cut checkout latency 38%");
-    // Carlito has no "■": the mark is drawn, so the text has none (and no stand-in from Helvetica).
     const carlito = {
       ...sampleResume(),
       template: "compact" as const,

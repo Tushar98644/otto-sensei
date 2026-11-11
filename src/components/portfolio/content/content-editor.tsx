@@ -34,14 +34,11 @@ import { WritingCard } from "./writing-card";
 type ContentEditorProps = {
   template: PortfolioTemplateId;
   content: PortfolioContent;
-  // `auto` and `view` are the editor's full copy (portfolioViews().editor): nothing hidden, so a
-  // section switched off on the page keeps its fields here, marked as hidden.
   auto: AutoContent;
   view: PortfolioContentView;
   github: GitHubStats | null;
   pageHidden: readonly PortfolioSection[];
   showEmail: boolean;
-  // The resume behind the page when it's in this browser: GitHub imports add projects to it.
   resume?: Resume | null;
   onResumeChange?: (resume: Resume) => void;
 };
@@ -57,7 +54,6 @@ export function ContentEditor({
   resume = null,
   onResumeChange,
 }: ContentEditorProps) {
-  // A closing tab still sends the last few keystrokes.
   useEffect(() => {
     const leave = () => void flushContent({ keepalive: true });
     window.addEventListener("pagehide", leave);
@@ -174,7 +170,6 @@ function CompletenessCard({
   );
 }
 
-// The screen's one confirm: a deleted page can't come back.
 export function DeletePortfolio() {
   const [asking, setAsking] = useState(false);
   const [busy, setBusy] = useState(false);

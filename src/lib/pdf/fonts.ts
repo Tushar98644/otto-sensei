@@ -1,7 +1,3 @@
-// Free, embeddable stand-ins for the fonts the source layouts use; files and licences live in
-// public/fonts/pdf (THIRD_PARTY_NOTICES.md). react-pdf free: src/components/pdf/fonts.ts registers
-// them.
-
 export const PDF_FONT = {
   carlito: "Carlito",
   tinos: "Tinos",
@@ -23,13 +19,9 @@ export type PdfFontFace = {
 export type PdfFontFamily = {
   dir: string;
   faces: readonly PdfFontFace[];
-  // The font Word ships with the same widths (Calibri, Times New Roman, Palatino), else this
-  // family.
   word: string;
-  // So a machine without the font substitutes a serif for a serif.
   wordClass: "roman" | "swiss";
   css: string;
-  // Draws what this family has no glyph for. Null for the two broad families every chain ends in.
   fallback: PdfFontName | null;
 };
 
@@ -74,7 +66,6 @@ export const PDF_FONT_FAMILIES: Record<PdfFontName, PdfFontFamily> = {
   },
   "TeX Gyre Pagella": {
     dir: "tex-gyre-pagella",
-    // Upstream ships only OpenType (CFF) files; react-pdf embeds them like a .ttf.
     faces: [
       face("texgyrepagella-regular.otf"),
       face("texgyrepagella-bold.otf", 700),
@@ -131,7 +122,6 @@ export function isPdfFont(value: unknown): value is PdfFontName {
   return typeof value === "string" && value in PDF_FONT_FAMILIES;
 }
 
-/** react-pdf allows a fallback list, whose first entry draws. */
 export function primaryFont(value: unknown): PdfFontName | null {
   const first = Array.isArray(value) ? value[0] : value;
   return isPdfFont(first) ? first : null;
@@ -141,7 +131,6 @@ export function cssFontFamily(value: unknown): string {
   return PDF_FONT_FAMILIES[primaryFont(value) ?? PDF_FONT.carlito].css;
 }
 
-/** Small capitals are the only OpenType feature formats use. */
 export function cssFontCaps(features: unknown): "small-caps" | undefined {
   return Array.isArray(features) && features.includes("smcp") ? "small-caps" : undefined;
 }

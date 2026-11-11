@@ -1,8 +1,6 @@
 import type { BulletSection } from "@/lib/resume/ops";
 import { extrasOf, type Bullet, type Resume } from "@/lib/resume/schema";
 
-// Untouched items keep their identity, so memoized rows that get them as props skip re-renders.
-
 type WithId = { id: string };
 type WithBullets = WithId & { bullets: Bullet[] };
 
@@ -55,13 +53,11 @@ export function pickNeighbor(
   return prefer === "previous" ? (before ?? after) : (after ?? before);
 }
 
-// Hiding only leaves the PDF. Showing clears the flag (no stored false); JSON drops the key.
 export function setHidden<T extends { hidden?: boolean }>(item: T, hidden: boolean): T {
   if (hidden) return item.hidden === true ? item : { ...item, hidden: true };
   return item.hidden === undefined ? item : { ...item, hidden: undefined };
 }
 
-// `parentId` is an entry's id, or an item's id inside an extra section ("extras").
 export type BulletParent = { section: BulletSection; parentId: string };
 
 export function editBullets(
@@ -101,20 +97,17 @@ export function bulletsOf(resume: Resume, parent: BulletParent): Bullet[] | null
 
 const LINE_BREAK = /\r\n|[\n\r\u2028\u2029]/;
 const LINE_BREAKS_WITH_SPACE = /\s*(?:\r\n|[\n\r\u2028\u2029])+\s*/g;
-// A pasted line's bullet or number: "• ", "- ", "1. ", "(2) ". Dashes and numbers need a space
-// after them, so "-20% churn" and "3.5 GPA" survive.
+// Dashes and numbers need a space after, so "-20% churn" and "3.5 GPA" survive.
 const LIST_MARKER = /^\s*(?:[•·▪◦‣●○■□►▸▹➤➢✓✔]\s*|[-*–—]\s+|\(?\d{1,2}[.)]\s+)/u;
 
 export function hasLineBreak(text: string): boolean {
   return LINE_BREAK.test(text);
 }
 
-// A resume line is one paragraph; a stray newline would print as a broken bullet.
 export function singleLine(text: string): string {
   return text.replace(LINE_BREAKS_WITH_SPACE, " ");
 }
 
-// Text copied from an old resume arrives as one line per bullet, often with its markers.
 export function splitPastedLines(text: string): string[] {
   return text
     .split(LINE_BREAK)
@@ -134,11 +127,9 @@ export type PastePlan = {
   current: string;
   added: string[];
   dropped: number;
-  // Caret position in the last line written: the last added one, else the current one.
   caret: number;
 };
 
-// The first pasted line joins at the caret; the text after the caret moves to the end of the last.
 export function planPaste({ before, after, lines, room, maxChars }: PasteInput): PastePlan {
   const [first = "", ...rest] = lines;
   const added = rest.slice(0, Math.max(0, room));
@@ -177,7 +168,6 @@ export function splitSkillDraft(value: string): { done: string[]; draft: string 
   return { done: splitSkills(value.slice(0, at)), draft: value.slice(at + 1).trimStart() };
 }
 
-// Case-insensitive, so "react" never sits next to "React". Same array back when nothing is new.
 export function addSkills(
   items: string[],
   incoming: readonly string[],
@@ -199,7 +189,6 @@ export function addSkills(
 export const PRESENT = "Present";
 const PRESENT_WORDS = /^(?:present|current|currently|now|today|ongoing)$/i;
 
-// Imported resumes say "Current" or "Now" as often as "Present".
 export function isPresentDate(value: string): boolean {
   return PRESENT_WORDS.test(value.trim());
 }

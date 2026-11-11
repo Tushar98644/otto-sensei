@@ -87,7 +87,6 @@ describe("prefillFor", () => {
     ).toMatchObject({
       jobUrl: "https://stripe.com/jobs/123",
     });
-    // The draft has moved on to another job: no link, rather than the wrong one.
     expect(prefillFor(tailored("Designer", "Figma"), DRAFT)).toEqual({
       company: "Figma",
       role: "Designer",
@@ -99,7 +98,6 @@ describe("prefillFor", () => {
     const empty = { company: "", role: "", jobUrl: "" };
     expect(prefillFor(resume(), DRAFT)).toEqual(empty);
     expect(prefillFor(null, DRAFT)).toEqual(empty);
-    // A copy whose post named neither never borrows a link.
     expect(
       prefillFor(tailored("", ""), { title: "", company: "", link: "https://x.com/1" }),
     ).toEqual(empty);

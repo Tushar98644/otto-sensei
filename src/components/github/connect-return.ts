@@ -9,9 +9,6 @@ import {
   type GitHubConnectError,
 } from "@/lib/github/connect";
 
-// Connecting GitHub leaves the page for GitHub and comes back through /auth/callback. The page's
-// address carries what to reopen there: a resume id (its import dialog) or "portfolio".
-
 export function returnPathFor(target: string): string {
   const url = new URL(window.location.href);
   url.searchParams.delete(GITHUB_ERROR_PARAM);
@@ -25,7 +22,6 @@ function errorMessage(code: string | null): string | null {
     : null;
 }
 
-/** The marks come off the address at once, so a reload or a second button doesn't reopen it. */
 function takeReturn(target: string): { error: string | null } | null {
   const url = new URL(window.location.href);
   if (url.searchParams.get(GITHUB_RETURN_PARAM) !== target) return null;
@@ -36,7 +32,6 @@ function takeReturn(target: string): { error: string | null } | null {
   return { error };
 }
 
-/** The error passed to `reopen` was already shown as a toast. */
 export function useGitHubReturn(target: string, reopen: (error: string | null) => void): void {
   const onReturn = useEffectEvent((error: string | null) => {
     if (error) toast({ title: "GitHub isn't connected", description: error, variant: "error" });
@@ -45,8 +40,7 @@ export function useGitHubReturn(target: string, reopen: (error: string | null) =
   useEffect(() => {
     const back = takeReturn(target);
     if (!back) return;
-    // After this render, so no state is set inside the effect. Not cancelled on cleanup: the
-    // marks are already gone, and Strict Mode's second run would otherwise lose the reopen.
+    // Not cancelled on cleanup: the marks are gone, so Strict Mode's rerun would lose the reopen.
     window.setTimeout(() => onReturn(back.error), 0);
   }, [target]);
 }

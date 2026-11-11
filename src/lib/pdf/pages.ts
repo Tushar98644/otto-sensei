@@ -1,5 +1,4 @@
-// react-pdf writes object dictionaries as plain text, one "/Type /Page" per page, so counting them
-// is exact for our own files. Not for other PDFs, which can compress objects.
+// Exact only for react-pdf output; other PDFs can compress their object dictionaries.
 
 const PAGE_OBJECT = /\/Type\s*\/Page(?![A-Za-z])/g;
 

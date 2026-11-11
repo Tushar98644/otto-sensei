@@ -10,9 +10,6 @@ import { LIVE_HEIGHT, LIVE_WIDTH } from "./live-size";
 import { templateFontClasses } from "./templates/fonts";
 import { PORTFOLIO_TEMPLATES } from "./templates/registry";
 
-// Loaded on demand by ./template-preview.tsx, so the templates, their styles and fonts only reach
-// a screen when a preview is about to show.
-
 export type TemplateSample = { view: PortfolioView; content: PortfolioContentView };
 
 export function LiveTemplate({
@@ -21,16 +18,13 @@ export function LiveTemplate({
   scale,
 }: {
   id: PortfolioTemplateId;
-  // null: Jordan, the made-up person of the samples.
   sample: TemplateSample | null;
   scale: number;
 }) {
   const data = useMemo(() => sample ?? jordanPage(), [sample]);
   const { Component } = PORTFOLIO_TEMPLATES[id];
   return (
-    // A still picture: out of the tab order and the reading order, with the templates' looping
-    // animations (sphere, canvases, branches) held still by data-pf-still. The transform makes
-    // this box the containing block for a template's fixed parts (docks, nav bars).
+    // The transform makes this box the containing block for a template's fixed parts.
     <div
       aria-hidden
       inert

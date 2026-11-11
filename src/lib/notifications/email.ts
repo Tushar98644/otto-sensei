@@ -2,9 +2,6 @@ import { Resend } from "resend";
 import { env } from "@/lib/env";
 import { log } from "@/lib/log";
 
-// Resend's batch API (up to 100 per call) keeps a daily run under its rate limit. Sign-in codes go
-// through Supabase's SMTP, not here.
-
 export type EmailMessage = {
   to: string;
   subject: string;
@@ -18,7 +15,7 @@ export type EmailMessage = {
 export type BatchResult = { sent: number; failed: number };
 
 export type EmailSender = {
-  /** The same idempotency key within 24 hours never sends twice, so a retry is safe. */
+  // The same idempotency key within 24 hours never sends twice, so a retry is safe.
   sendBatch(messages: EmailMessage[], idempotencyKey: string): Promise<BatchResult>;
 };
 
@@ -39,7 +36,6 @@ export function emailConfigured(): boolean {
 
 type Attempt = { ok: true; result: BatchResult } | { ok: false; retry: boolean; reason: string };
 
-/** null when RESEND_API_KEY or EMAIL_FROM is missing. */
 export function emailSender(): EmailSender | null {
   const config = emailConfig();
   if (!config) return null;
@@ -56,14 +52,12 @@ export function emailSender(): EmailSender | null {
         const status = error.statusCode ?? 0;
         return { ok: false, retry: status === 0 || status === 429 || status >= 500, reason: error.name };
       }
-      // Typed as always present, but don't bet a whole run on the API including an empty list.
       const errors = data.errors ?? [];
       // Not the messages themselves: they can quote the address they rejected.
       if (errors.length > 0) log.warn("email.batch_rejected_some", { failed: errors.length });
       const failed = errors.length;
       return { ok: true, result: { sent: data.data.length, failed } };
     } catch (error) {
-      // A timeout or a dropped connection: Resend may or may not have it, and the key settles it.
       log.warn("email.batch_request_failed", {}, error);
       return { ok: false, retry: true, reason: "network" };
     }

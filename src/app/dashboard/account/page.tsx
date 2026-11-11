@@ -5,7 +5,6 @@ import { AccountView } from "@/app/(marketing)/account/_components/account-view"
 
 export const metadata: Metadata = { title: "Account" };
 
-// Reads ?checkout= and ?upgrade=, hence Suspense.
 export default function DashboardAccountPage() {
   return (
     <div className="flex max-w-2xl flex-col gap-8">

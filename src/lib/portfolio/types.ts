@@ -8,10 +8,7 @@ import type {
 import { type Resume } from "@/lib/resume/schema";
 import type { GitHubStats, PortfolioContent } from "./content";
 
-// Re-exported from @/lib/api/types.
-
-// Must match the CHECK on portfolios.template. Each id rebuilds an MIT-licensed portfolio
-// (./templates.ts).
+// Must match the CHECK on portfolios.template.
 export const PORTFOLIO_TEMPLATE_IDS = [
   "navy",
   "dock",
@@ -25,7 +22,6 @@ export const PORTFOLIO_TEMPLATE_IDS = [
 export type PortfolioTemplateId = z.infer<typeof PortfolioTemplateIdSchema>;
 export const DEFAULT_PORTFOLIO_TEMPLATE: PortfolioTemplateId = "navy";
 
-// In page order. The name and headline always show.
 export const PORTFOLIO_SECTIONS = [
   "about",
   "projects",
@@ -50,10 +46,8 @@ export const PORTFOLIO_SECTION_LABELS: Record<PortfolioSection, string> = {
 };
 
 export const PORTFOLIO_LIMITS = {
-  // Per account per hour; trying templates is a click each.
   writesPerHour: 120,
   slugChecksPerMinute: 30,
-  // Past it the counter waits for the next hour.
   viewsPerHour: 300,
   viewsMax: 1_000_000,
   keptRedirects: 5,
@@ -69,7 +63,6 @@ export type PortfolioPatch = z.output<typeof UpdatePortfolioSchema>;
 
 export type PortfolioSettings = {
   template: PortfolioTemplateId;
-  // Off by default: a page anyone can open shouldn't hand out a phone number unasked.
   showEmail: boolean;
   showPhone: boolean;
   hiddenSections: PortfolioSection[];
@@ -91,8 +84,6 @@ export type Portfolio = PortfolioSettings & {
   id: string;
   resumeId: string;
   slug: string;
-  // The resume as the PDF prints it (no tailoring notes), for previews when it isn't in this
-  // browser.
   snapshot: Resume;
   versionAt: number;
   content: PortfolioContent;
@@ -104,7 +95,6 @@ export type Portfolio = PortfolioSettings & {
 };
 
 export type PortfolioResponse = { ok: true; portfolio: Portfolio | null };
-// created: false when POST pointed an existing portfolio at this resume.
 export type PortfolioSaveResponse = { ok: true; portfolio: Portfolio; created: boolean };
 export type PortfolioSlugResponse = {
   ok: true;

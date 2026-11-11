@@ -12,16 +12,12 @@ import {
 } from "react";
 import { cn } from "@/lib/utils";
 
-// A WAI-ARIA menu button on the native popover: the browser handles outside clicks, Escape and
-// focus return, and the top layer keeps it above sticky bars and dialog backdrops.
-
 export type MenuAction = {
   label: string;
   icon?: LucideIcon;
   description?: string;
   onSelect: () => void;
   tone?: "default" | "danger";
-  // Makes it a radio item (sort orders, views). Leave it out for plain actions.
   checked?: boolean;
   disabled?: boolean;
 };
@@ -31,7 +27,6 @@ export type MenuEntry = MenuAction | "separator";
 export type MenuProps = {
   label: string;
   trigger: ReactNode;
-  // Accessible name of the trigger when its visible content isn't enough (icon-only triggers).
   triggerLabel?: string;
   triggerClassName?: string;
   items: readonly MenuEntry[];
@@ -41,7 +36,6 @@ export type MenuProps = {
 
 const GUTTER_PX = 12;
 const OFFSET_PX = 6;
-// Below this much room under the trigger, the menu opens upward when there's more room there.
 const MIN_BELOW_PX = 260;
 
 const ITEM =
@@ -59,11 +53,9 @@ export function Menu({
   const menuId = useId();
   const triggerRef = useRef<HTMLButtonElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
-  // Which end the keyboard asked to start from: ArrowUp on the trigger opens at the last item.
   const startAt = useRef<"first" | "last">("first");
   const [open, setOpen] = useState(false);
 
-  // The page can scroll or resize under an open menu; it follows its trigger rather than float off.
   useEffect(() => {
     if (!open) return;
     const follow = () => place(triggerRef.current, panelRef.current, align);
@@ -103,7 +95,6 @@ export function Menu({
 
   function handlePanelKeyDown(event: KeyboardEvent<HTMLDivElement>) {
     if (event.key === "Tab") {
-      // Focus goes back to the trigger first, so Tab then moves on from where the menu started.
       panelRef.current?.hidePopover();
       return;
     }
@@ -122,8 +113,7 @@ export function Menu({
   }
 
   function select(action: MenuAction) {
-    // Closing first hands focus back to the trigger, so a dialog the action opens returns focus
-    // there when it closes.
+    // Close first so focus is back on the trigger before the action opens a dialog.
     panelRef.current?.hidePopover();
     action.onSelect();
   }
@@ -217,7 +207,6 @@ function MenuItemButton({ action, onSelect }: { action: MenuAction; onSelect: ()
   );
 }
 
-// Anchoring the upward case by its bottom edge needs no measuring.
 function place(trigger: HTMLElement | null, panel: HTMLElement | null, align: "start" | "end") {
   if (!trigger || !panel) return;
   const rect = trigger.getBoundingClientRect();

@@ -1,16 +1,12 @@
 import type { ContentProject } from "@/lib/portfolio/content";
 import { seeded, seedOf } from "../parts";
 
-// Where v4 has a screenshot: an editor window whose code is syntax-coloured bars laid out from
-// the project's name, so each project gets its own.
-
 const W = 1600;
 const H = 1000;
 const BAR = 70;
 const GUTTER = 96;
 const LINE = 46;
 
-// v4's palette: green for keywords, the slates for names and text, the dark slate for comments.
 const INK = ["#64ffda", "#ccd6f6", "#a8b2d1", "#8892b0", "#8892b0", "#495670"] as const;
 
 const EXTENSIONS: Record<string, string> = {
@@ -31,7 +27,6 @@ const EXTENSIONS: Record<string, string> = {
   elixir: "ex",
 };
 
-/** "tally.ts" from the project's name and its first language, else its README. */
 export function fileNameOf(project: Pick<ContentProject, "name" | "tech">): string {
   const slug = project.name
     .toLowerCase()

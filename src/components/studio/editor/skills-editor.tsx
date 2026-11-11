@@ -89,7 +89,6 @@ const SkillGroupEntry = memo(function SkillGroupEntry({
       onRemove={remove}
       hidden={group.hidden === true}
       onToggleHidden={() => update((current) => setHidden(current, current.hidden !== true))}
-      // The heading already shows the name, so an open field under it would only repeat it.
       details={{
         complete: group.items.length > 0,
         firstFieldId,
@@ -116,7 +115,6 @@ const SkillGroupEntry = memo(function SkillGroupEntry({
       <ChipsInput
         id={entryFieldId(entryId, "skills")}
         label="Skills"
-        // The group's heading sits right above, so a visible "Skills" label would only repeat it.
         labelHidden
         items={group.items}
         full={group.items.length >= LIST_LIMITS.skillsPerGroup}

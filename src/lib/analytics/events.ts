@@ -1,5 +1,4 @@
-// Props are names, counts and flags only: never resume text, job posts, emails, names or file
-// names. New events start here so the types stop anything personal by accident.
+// Props are names, counts and flags only: never resume text, emails, names or file names.
 
 import type { PlanId } from "@/config/plans";
 import type { ApplicationStatus } from "@/lib/applications/status";
@@ -19,7 +18,6 @@ export type ClientEventProps = {
   upgrade_clicked: NoProps;
 };
 
-// "fallback": the model failed and the rule-based parser read the resume instead.
 export type AICallOutcome =
   | "ok"
   | "fallback"
@@ -32,10 +30,8 @@ export type AICallOutcome =
 
 export type ServerEventProps = {
   signed_up: NoProps;
-  // trial: the checkout started the free Pro trial instead of a payment.
   checkout_completed: { plan: "pro" | "max"; trial?: boolean };
   ai_call: { task: string; model: string; latency_ms: number; outcome: AICallOutcome };
-  // demo: no AI key, so Otto answered with sample output.
   line_fixed: { demo: boolean };
   tailor_run: { demo: boolean };
   letter_written: { demo: boolean };

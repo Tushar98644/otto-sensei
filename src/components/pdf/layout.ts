@@ -2,9 +2,7 @@ import type { PdfLink } from "@/lib/pdf/links";
 import type { PdfEntry, PdfModel } from "@/lib/pdf/model";
 import type { EntryField, EntryKind, EntryRow, PdfStyle, TemplateTheme } from "./theme";
 
-// Pure and react-pdf free: the PDF, miniature, web page and Word file all agree word for word.
-
-// Pieces meet on a space or after punctuation, never mid-word, so react-pdf never hyphenates there.
+// Pieces meet on a space or after punctuation, so react-pdf never hyphenates at a seam.
 export type Run = { text: string; style?: PdfStyle; link?: PdfLink };
 
 export type PlannedRow = {
@@ -13,7 +11,6 @@ export type PlannedRow = {
   text: PdfStyle;
   lead: Run[];
   side: Run | null;
-  // 1 for a first row (and a company line), 2 for the rows under it.
   position: 1 | 2;
 };
 
@@ -31,7 +28,6 @@ type Values = Partial<Record<EntryField, FieldValue | null>>;
 
 const YEAR = /\b(?:19|20)\d{2}\b/g;
 
-// "Mar 2019 – Feb 2022" → "2019 – 2022". "Present" stays; a one-year range prints its year once.
 export function yearsOnly(dates: string): string {
   const parts = dates.split(" – ").map((part) => {
     const years = part.match(YEAR);
@@ -41,7 +37,6 @@ export function yearsOnly(dates: string): string {
   return parts.join(" – ");
 }
 
-// Suffixes stay with the last name ("King Jr."); particles join it ("van Beethoven").
 const SUFFIX = /^(?:jr|sr|ii|iii|iv|v|phd|ph\.d|md|m\.d|mba|cpa|esq)\.?,?$/i;
 const PARTICLES = new Set([
   "al",
@@ -69,8 +64,6 @@ const PARTICLES = new Set([
   "von",
 ]);
 
-// A guess: one word, a comma ("Park, Byungjin") or a script without spaces gives no first part.
-// `${first} ${last}` is always the name exactly as written.
 export function splitName(name: string): { first: string; last: string } {
   const words = name.split(" ");
   if (words.length < 2 || name.includes(",")) return { first: "", last: name };
@@ -81,7 +74,6 @@ export function splitName(name: string): { first: string; last: string } {
   return { first: words.slice(0, start).join(" "), last: words.slice(start).join(" ") };
 }
 
-/** The name line: the name (two-tone with `nameSplit`), then " | Headline" with `headlineInline`. */
 export function nameRuns(model: Pick<PdfModel, "name" | "headline">, theme: TemplateTheme): Run[] {
   const { styles } = theme;
   const runs: Run[] = [];
@@ -111,7 +103,6 @@ function graphemes(text: string): string[] {
   return Array.from(text);
 }
 
-/** A heading's runs: its first `headingAccent` letters in the accent, the rest as is. */
 export function headingRuns(title: string, theme: TemplateTheme): Run[] {
   const count = theme.headingAccent;
   if (count <= 0) return [{ text: title }];
@@ -170,7 +161,6 @@ function buildRow(
   fields.forEach((field, index) => {
     const item = values[field]!;
     if (index > 0) {
-      // ", " puts the comma on the field in front; the space (and any mark after it) leads.
       const separator = theme.separators[field] ?? ", ";
       const [, mark = "", gap = ""] = /^(\S*)([\s\S]*)$/.exec(separator) ?? [];
       if (mark) lead[lead.length - 1]!.text += mark;
@@ -192,8 +182,6 @@ function buildRow(
 
 const present = (row: PlannedRow | null): row is PlannedRow => row !== null;
 
-// The format's rows, or one line when a row would start with nothing (a school with no degree, a
-// project with no company): the rows' leading fields first, then the rest, dates on the right.
 function foldedRows(
   specs: readonly EntryRow[],
   values: Values,
@@ -215,7 +203,6 @@ function foldedRows(
   return [buildRow({ lead: order, side: "dates" }, values, 1, theme, `${id}-0`)].filter(present);
 }
 
-/** The heading rows of one entry: its company line when it starts a run of roles, and its own. */
 export function entryRows(entry: PdfEntry, kind: EntryKind, theme: TemplateTheme): PlannedRow[] {
   const values: Values = {
     title: value(entry.title),
@@ -262,7 +249,6 @@ export function bulletMark(theme: TemplateTheme): BulletMark {
     : { kind: "glyph", glyph: bullet.glyph };
 }
 
-/** Every string of the model, to check the fonts can draw it. */
 export function modelText(model: PdfModel): string {
   const parts: string[] = [model.name, model.headline];
   for (const line of model.contact) for (const item of line) parts.push(item.text);

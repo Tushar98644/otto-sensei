@@ -2,9 +2,6 @@ import { z } from "zod";
 import type { ScreeningQuestion } from "@/lib/ats/types";
 import { decodeEntities } from "./html";
 
-// Only yes/no and pick-from-a-list questions: the only types Greenhouse lets employers attach
-// automatic rejection rules to.
-
 const MAX_QUESTIONS = 12;
 const MAX_OPTIONS = 6;
 const LABEL_CHARS = 300;

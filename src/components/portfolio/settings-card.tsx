@@ -16,9 +16,7 @@ import { savePortfolio } from "./portfolio-store";
 type SettingsCardProps = {
   portfolio: Portfolio;
   resumes: readonly Resume[];
-  // The resume the page is made from, when it's in this browser.
   source: Resume | null;
-  // The page's copy is older than the resume.
   behind: boolean;
   disabled: boolean;
 };

@@ -4,8 +4,6 @@ import { matchEvents } from "@/db/schema";
 import type { MatchedJob } from "./types";
 import type { MatchActionSchema } from "./validation";
 
-// Ids, list places, labels and a hash only: never resume text, titles, skills or contact details.
-
 export type ImpressionContext = {
   userId: string;
   requestId: string;

@@ -1,7 +1,5 @@
 import { pluralize } from "@/lib/utils";
 
-// Same voice rules as mascot/lines.ts (first person, at most 18 words), checked by lines.test.ts.
-
 const count = new Intl.NumberFormat("en-US");
 
 export const PORTFOLIO_LINES = {
@@ -14,11 +12,9 @@ export const PORTFOLIO_LINES = {
   behind: "Your resume changed since this copy. Update the page when you're ready.",
   noResume: "The resume behind this page isn't in this browser. The page keeps its own copy.",
   noResumes: "Add a resume first, then I can turn it into a page.",
-  // Over the eight designs on Free: drawn from their own resume, or from Jordan's sample page.
   previews:
     "Every design below is your own resume. Open one full page to see it as visitors would.",
   previewsSample: "These show a sample page. Add a resume and I'll draw each design with yours.",
-  // They have a resume, but the sample is on (it starts there when theirs is thin).
   previewsThin: "These show a sample page with every part filled in. Switch to yours any time.",
 } as const;
 
@@ -32,7 +28,6 @@ export function saveLabel(saving: boolean, live: boolean): string {
   return live ? "Saved to your live page" : "All changes saved";
 }
 
-/** Why Publish is off: a Free account keeps its page saved but offline. */
 export const PUBLISH_NOTE =
   "Publishing comes with Pro, and we host the page for you. Until then only you can see it.";
 

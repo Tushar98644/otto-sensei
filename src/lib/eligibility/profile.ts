@@ -2,8 +2,6 @@ import type { z } from "zod";
 import type { WorkProfileSchema } from "./validation";
 import type { LookingForChoice } from "@/lib/job-feed/types";
 
-// One per account (work_profiles), edited on the Account page.
-
 export const WORK_REGIONS = ["us", "uk", "eu", "ca"] as const;
 export type WorkRegion = (typeof WORK_REGIONS)[number];
 
@@ -21,8 +19,6 @@ export const REGION_NAMES: Record<WorkRegion, string> = {
   ca: "Canada",
 };
 
-// "authorized": may work there without an employer sponsoring a visa (a citizen, a resident, or a
-// visa that already allows it). "sponsorship": would need one.
 export const WORK_RIGHTS = ["authorized", "sponsorship"] as const;
 export type WorkRight = (typeof WORK_RIGHTS)[number];
 
@@ -34,7 +30,6 @@ export type WorkProfile = {
   rights: WorkRights;
   fullTime: boolean;
   contract: boolean;
-  // Optional so profiles built before it parse.
   remoteOnly?: boolean;
 };
 
@@ -61,7 +56,6 @@ export function isTimeZone(value: string): boolean {
 
 export type WorkProfileBody = z.input<typeof WorkProfileSchema>;
 
-// updatedAt is null until first saved.
 export type WorkProfileResponse = {
   ok: true;
   profile: WorkProfile;

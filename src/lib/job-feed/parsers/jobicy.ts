@@ -22,7 +22,6 @@ const JOBICY_LEVELS: Record<string, Seniority> = {
   executive: "director",
 };
 
-// Jobicy's lists come as arrays from /api/jobs and as strings from its older v2 path.
 const listOrString = z.union([z.array(z.string()), z.string()]).nullish();
 const firstOf = (value: string[] | string | null | undefined) =>
   Array.isArray(value) ? value[0] : value;
@@ -42,7 +41,6 @@ const JobicyJob = z.object({
 
 export type JobicyPage = { jobs: RawJob[]; nextCursor: string | null };
 
-// GET jobicy.com/api/jobs?count=100&cursor=… (the last 7 days, newest first).
 export function parseJobicy(json: unknown): JobicyPage {
   const page = z
     .object({

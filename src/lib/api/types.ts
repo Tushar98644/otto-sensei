@@ -21,17 +21,13 @@ import type { InterviewPrep, InterviewResult, PrepSummary, PrepTarget } from "@/
 import { type Resume } from "@/lib/resume/schema";
 import { ResumeSchema } from "@/lib/resume/validation";
 
-// Routes validate bodies with these schemas; ./client.ts is typed with the response types.
-
 export type ApiErrorCode =
   | "bad_request"
   | "unauthorized"
-  // 403: sent from another website's page (rejectCrossSite).
   | "forbidden"
   | "not_found"
   | "rate_limited"
   | "limit_reached"
-  // 402: not on this plan. The client answers with the trial or upgrade prompt, never an error.
   | "upgrade_required"
   | "too_large"
   | "unsupported_type"
@@ -39,16 +35,12 @@ export type ApiErrorCode =
   | "ai_unavailable"
   | "ai_refused"
   | "billing_unavailable"
-  // 409 (or 502/503 when Creem fails): the provider turned a plan change down; the message says
-  // why.
   | "plan_change_failed"
   | "email_unavailable"
   | "auth_unavailable"
-  // 403: no GitHub connected, or a different GitHub account asked about.
   | "github_not_connected"
   | "server_error";
 
-// "ai_budget": the period's AI token budget, not the feature's own limit.
 export type ApiErrorReason = "ai_budget";
 
 export type ApiErrorBody = {
@@ -56,20 +48,15 @@ export type ApiErrorBody = {
   error: { code: ApiErrorCode; message: string; reason?: ApiErrorReason };
 };
 
-// No account needed.
 export type ImportResponse = {
   ok: true;
   resume: Resume;
   report: RecruiterReport;
   usedAI: boolean;
-  // The plan's AI reads were used up. Optional for older servers.
   basicReader?: boolean;
-  // The rules read it well, so no AI read was spent; ?reader=ai asks anyway. Optional for older
-  // servers.
   readWell?: boolean;
 };
 
-// Deterministic checks only, no AI.
 export type CheckResponse = { ok: true; report: RecruiterReport };
 
 export const FixRequestSchema = z.object({
@@ -81,7 +68,6 @@ export const FixRequestSchema = z.object({
     .default([]),
 });
 export type FixRequestBody = z.input<typeof FixRequestSchema>;
-// demo: no AI key, so the result is sample output.
 export type FixResponse = { ok: true; result: FixResult; usage: UsageSnapshot; demo: boolean };
 
 export const TailorRequestSchema = z.object({
@@ -109,7 +95,6 @@ export type LetterResponse = {
   demo: boolean;
 };
 
-// Shares the "letter" allowance with cover letters.
 export const AnswerRequestSchema = TailorRequestSchema.extend({
   question: z.string().trim().min(8).max(500),
 });
@@ -121,7 +106,6 @@ export type AnswerResponse = {
   demo: boolean;
 };
 
-// Shares the "letter" allowance.
 export { InterviewRequestSchema } from "@/lib/insights/prep";
 export type {
   InterviewPrep,
@@ -141,8 +125,6 @@ export type InterviewResponse = {
 export type InterviewPrepResponse = { ok: true; target: PrepTarget; prep: InterviewPrep | null };
 export type InterviewPacksResponse = { ok: true; packs: PrepSummary[] };
 
-// Counts against "fix". "improve" sees only the person's own summary, so it has nothing to add
-// facts from.
 export const SUMMARY_IMPROVE_CHARS = { min: 15, max: 3_000 } as const;
 export const SummaryRequestSchema = z.discriminatedUnion("mode", [
   z.object({ mode: z.literal("write"), resume: ResumeSchema }),
@@ -155,11 +137,9 @@ export type SummaryRequestBody = z.input<typeof SummaryRequestSchema>;
 export type SummaryOptionKind = "achievements" | "role" | "tightened";
 export type SummaryOption = {
   kind: SummaryOptionKind;
-  // "[number]" marks a figure Otto couldn't find in the resume.
   text: string;
   warnings: string[];
 };
-// write: 1-2 options (the guards may drop one); improve: exactly 1.
 export type SummaryResult = { options: SummaryOption[] };
 export type SummaryResponse = {
   ok: true;
@@ -168,7 +148,6 @@ export type SummaryResponse = {
   demo: boolean;
 };
 
-// No account needed.
 export const JobRequestSchema = z.object({ url: z.string().max(2048) });
 export type JobRequestBody = z.input<typeof JobRequestSchema>;
 export type JobSource =
@@ -180,16 +159,13 @@ export type JobPosting = {
   company: string;
   location: string;
   text: string;
-  // updatedAt is the last edit, not a posting date.
   firstPostedAt: number | null;
   updatedAt: number | null;
   closesAt: number | null;
-  // Only Greenhouse's API lists them.
   questions?: ScreeningQuestion[];
 };
 export type JobResponse = { ok: true; posting: JobPosting };
 
-// devCode: dev sign-in only, where the form shows the code instead of emailing it.
 export const RequestCodeSchema = z.object({ email: z.email().max(254) });
 export type RequestCodeResponse = { ok: true; devCode?: string };
 
@@ -206,23 +182,16 @@ export type MeResponse = {
   ok: true;
   user: SessionUser | null;
   usage: UsageSnapshot | null;
-  // Calendar month on Free and on paid rows with no billing period yet.
   period: UsagePeriod | null;
-  // null on Free and signed out. Optional for older servers.
   aiBudget?: Usage | null;
-  // offer: a plan with no intervals isn't on sale. trial: Pro monthly would start with the trial.
   billing: { mode: BillingMode; offer: Record<PaidPlanId, BillingInterval[]>; trial?: boolean };
   auth: { mode: AuthMode };
 };
 
 export const PutResumeSchema = ResumeSchema;
-// deletedIds: a browser drops its own copies of these instead of uploading them again.
 export type ResumesResponse = { ok: true; resumes: Resume[]; deletedIds: string[] };
-// deleted: deleted on another device, so nothing was saved and the sender should drop its copy.
 export type PutResumeResponse = { ok: true; deleted: boolean };
 
-// Lists are newest applied first, paged by APPLICATION_LIMITS.pageSize; nextCursor null on the
-// last.
 export {
   BulkApplicationStatusSchema,
   CreateApplicationSchema,
@@ -242,11 +211,8 @@ export type ApplicationsResponse = {
 export type ApplicationResponse = { ok: true; application: Application };
 export type { ApplicationThread } from "@/lib/applications/thread";
 export type ApplicationThreadResponse = { ok: true; thread: ApplicationThread };
-// Ones already on that status are left out.
 export type BulkApplicationsResponse = { ok: true; applications: Application[] };
 
-// No account needed; limited per device and IP. The person's name and contacts never reach this
-// route.
 export const DRAFT_LIMITS = { jobs: 6, notesPerJob: 4, noteChars: 400 } as const;
 export const DraftJobSchema = z.object({
   company: z.string().trim().max(200),
@@ -265,14 +231,11 @@ export const DraftRequestSchema = z.object({
 });
 export type DraftRequestBody = z.input<typeof DraftRequestSchema>;
 export type DraftRequest = z.output<typeof DraftRequestSchema>;
-// usedAI is false when the AI is off or failed: the draft is the person's own lines.
 export type DraftResponse = { ok: true; resume: Resume; usedAI: boolean };
 
 export type EmptyOk = { ok: true };
 
 export type UrlResponse = { ok: true; url: string };
-// No body still means Pro, monthly. A subscriber picking the other plan is changed, not re-checked
-// out.
 export const CheckoutRequestSchema = z.object({
   plan: z.enum(PAID_PLANS).default("pro"),
   interval: z.enum(BILLING_INTERVALS).default("month"),
@@ -309,11 +272,9 @@ export type {
   UpdatePortfolioBody,
 } from "@/lib/portfolio/types";
 
-// PUT is Pro.
 export { WorkProfileSchema } from "@/lib/eligibility/validation";
 export type { WorkProfile, WorkProfileBody, WorkProfileResponse } from "@/lib/eligibility/profile";
 
-// Free sees its closest few matches; filters, paging, saving and the full list are Pro.
 export {
   JobMatchesRequestSchema,
   LookingForChoiceSchema,

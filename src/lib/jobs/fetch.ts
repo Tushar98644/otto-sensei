@@ -5,8 +5,7 @@ import { JobReadError } from "./errors";
 import { sendPinned, type ResolvedAddress } from "./transport";
 import { toFetchableUrl } from "./url";
 
-// URL rules run on the first request and every redirect, every DNS answer must be public, and the
-// connection goes to exactly those answers. Bounded in time, size, redirects and type.
+// URL rules run on every redirect; every DNS answer must be public and is what we connect to.
 
 export const FETCH_LIMITS = {
   timeoutMs: 8_000,
@@ -20,15 +19,12 @@ export type FetchKind = "html" | "json" | "xml";
 export type FetchOptions = {
   kind: FetchKind;
   maxBytes?: number;
-  // Epoch ms by which the whole read must be done.
   deadline?: number;
-  // Instead of 8 seconds: the daily ingest reads whole boards of several megabytes.
   timeoutMs?: number;
 };
 
 export type Fetched = { url: URL; body: string };
 
-// The first type of each is the one asked for; XML feeds answer with either.
 const MEDIA_TYPES: Record<FetchKind, readonly string[]> = {
   html: ["text/html"],
   json: ["application/json"],
@@ -67,7 +63,6 @@ function abortable<T>(promise: Promise<T>, signal: AbortSignal): Promise<T> {
 
 async function resolvePublic(url: URL, signal: AbortSignal): Promise<ResolvedAddress[]> {
   const host = url.hostname.replace(/^\[|\]$/g, "");
-  // Literal addresses were checked with the URL.
   const literal = isIP(host);
   if (literal) return [{ address: host, family: literal === 6 ? 6 : 4 }];
 
@@ -85,8 +80,7 @@ async function resolvePublic(url: URL, signal: AbortSignal): Promise<ResolvedAdd
   return answers.map(({ address, family }) => ({ address, family: family === 6 ? 6 : 4 }));
 }
 
-// Each read races the deadline itself, so a stalled body can't outlive the timeout even if the
-// stream never notices the abort.
+// Each read races the deadline: a stalled body may never notice the abort.
 async function readCapped(
   body: AsyncIterable<Uint8Array>,
   maxBytes: number,
@@ -124,7 +118,6 @@ function decodeText(bytes: Uint8Array, contentType: string): string {
   }
 }
 
-// The same rules as the first request, but a bad Location is the site's fault, not the link's.
 function redirectTarget(location: string, from: URL): URL {
   try {
     return toFetchableUrl(location, from);

@@ -11,10 +11,7 @@ import {
   type SectionKey,
 } from "./schema";
 
-// Nothing here mutates its input.
-
 export type EntrySection = "experience" | "education" | "projects";
-// "extras" lines belong to an item of an extra section (a volunteering role, a custom entry).
 export type BulletSection = EntrySection | "extras";
 
 export type BulletRef = {
@@ -38,8 +35,6 @@ function shown<T extends Hideable>(items: readonly T[]): T[] {
 }
 
 export type ListBulletsOptions = {
-  // Hidden lines, entries and sections are left out unless asked for: they don't print, so lint,
-  // keyword matching and AI prompts must not count them. The editor still finds them by id.
   includeHidden?: boolean;
 };
 
@@ -106,7 +101,6 @@ export function listBullets(resume: Resume, options: ListBulletsOptions = {}): B
   return refs;
 }
 
-// Hidden lines too: the editor can still fix or jump to a line it shows.
 export function findBullet(resume: Resume, bulletId: string): BulletRef | null {
   return (
     listBullets(resume, { includeHidden: true }).find((ref) => ref.bulletId === bulletId) ?? null
@@ -135,7 +129,6 @@ export function setBulletText(resume: Resume, bulletId: string, text: string): R
   return next;
 }
 
-// Hidden lines, entries and sections taken out: wherever only the printed page counts.
 export function visibleResume(resume: Resume): Resume {
   const off = (key: SectionKey) => isSectionHidden(resume, key);
   const withLines = <T extends { bullets: Bullet[] }>(item: T): T =>
@@ -161,8 +154,7 @@ export function touch(resume: Resume, now = Date.now()): Resume {
   return { ...resume, updatedAt: now };
 }
 
-// Copies keep their nested ids: ids only need to be unique inside one resume, and keeping them
-// lets a tailor result (which references the base resume's bullet ids) apply to the copy.
+// Copies keep nested ids so a tailor result (base bullet ids) still applies to the copy.
 export function cloneResume(
   resume: Resume,
   overrides: Partial<Resume> = {},
@@ -172,8 +164,6 @@ export function cloneResume(
   return { ...copy, id: newId(), createdAt: now, updatedAt: now, ...overrides };
 }
 
-// Unchanged unless `orderedIds` is an exact permutation, so a bad AI ordering can't drop or
-// duplicate a line. A permutation of only the shown lines works too: hidden ones keep their places.
 export function reorderBullets(resume: Resume, experienceId: string, orderedIds: string[]): Resume {
   const job = resume.experience.find((j) => j.id === experienceId);
   if (!job) return resume;
@@ -198,12 +188,9 @@ export function reorderBullets(resume: Resume, experienceId: string, orderedIds:
   };
 }
 
-// Match the schema caps, so the result always passes validation (and cloud sync).
 const MAX_GROUP_ITEMS = 100;
 const MAX_GROUPS = 30;
 
-// Case-insensitive dedupe, first spelling wins. A skill only in a hidden group is added again,
-// since the hidden one never prints.
 export function addSkills(resume: Resume, items: string[]): Resume {
   const seen = new Set(
     shown(resume.skills).flatMap((g) => g.items.map((s) => s.trim().toLowerCase())),
@@ -234,19 +221,16 @@ export function displayName(resume: Resume): string {
   return resume.basics.name.trim() || "Untitled resume";
 }
 
-// The schema's cap, so a renamed or copied resume always passes validation.
 export const TITLE_MAX = 200;
 
 export function resumeTitle(resume: Resume): string {
   return resume.title.trim() || displayName(resume);
 }
 
-// Empty means "keep the old name".
 export function cleanTitle(draft: string): string {
   return draft.replace(/\s+/g, " ").trim().slice(0, TITLE_MAX).trim();
 }
 
-// Case, accents and extra spaces don't make two names different.
 export function titleKey(title: string): string {
   return cleanTitle(title).normalize("NFKD").replace(/\p{M}/gu, "").toLowerCase();
 }
@@ -259,7 +243,6 @@ export function isTitleTaken(title: string, resumes: Iterable<Resume>, exceptId?
   return false;
 }
 
-// "Sample resume (2)", (3)… A long name gives up its end, never the number.
 export function uniqueTitle(wanted: string, resumes: Iterable<Resume>, exceptId?: string): string {
   const list = [...resumes];
   const base = cleanTitle(wanted);
@@ -271,12 +254,10 @@ export function uniqueTitle(wanted: string, resumes: Iterable<Resume>, exceptId?
   }
 }
 
-// "Maya_Chen-Resume 2024.pdf" -> "Maya Chen Resume 2024".
 export function titleFromFileName(fileName: string): string {
   return cleanTitle(fileName.replace(/\.[a-z0-9]{1,5}$/i, "").replace(/[_-]+/g, " "));
 }
 
-// A long title gives up its end, never the marker, so the copy is told apart.
 export function copyTitle(resume: Resume): string {
   const suffix = " (copy)";
   return `${resumeTitle(resume)
@@ -284,7 +265,6 @@ export function copyTitle(resume: Resume): string {
     .trim()}${suffix}`;
 }
 
-// NFC first so a decomposed "é" stays one letter; \p{M} keeps marks that have no composed form.
 function fileNamePart(value: string): string {
   return value
     .normalize("NFC")
@@ -297,7 +277,6 @@ export function suggestedFileName(resume: Resume): string {
   return [...parts.filter(Boolean), "Resume"].join("-") + ".pdf";
 }
 
-// Blank bullets are editor placeholders, not content; a bare "- " would reach the AI and keyword matching.
 function bulletLines(bullets: { text: string }[]): string[] {
   return bullets.filter((b) => b.text.trim() !== "").map((b) => `- ${b.text}`);
 }
@@ -350,7 +329,6 @@ function block(title: string, lines: readonly string[]): string[] {
   return kept.length ? ["", title.toUpperCase(), ...kept] : [];
 }
 
-// For AI input and keyword matching. Mirrors the PDF's reading order; only what prints.
 export function resumeToText(resume: Resume): string {
   const shownResume = visibleResume(resume);
   const { basics } = shownResume;

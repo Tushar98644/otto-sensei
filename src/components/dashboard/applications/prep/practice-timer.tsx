@@ -18,7 +18,6 @@ function clock(ms: number): string {
   return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`;
 }
 
-// Never stops or scores the person: at zero it just says so. A new key resets it.
 export function PracticeTimer() {
   const [state, setState] = useState<TimerState>({ status: "idle" });
   const [now, setNow] = useState(0);
@@ -59,7 +58,6 @@ export function PracticeTimer() {
   return (
     <div className="inline-flex h-11 items-center gap-1 rounded-xl bg-surface-muted pr-1 pl-3.5">
       <Timer aria-hidden className="size-4 text-muted" />
-      {/* role="timer" isn't announced as it ticks; only "time's up" is, once. */}
       <span role="timer" aria-label="Time left" className="w-11 text-center text-base font-medium text-ink tabular-nums">
         {clock(left)}
       </span>

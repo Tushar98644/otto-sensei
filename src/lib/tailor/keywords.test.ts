@@ -390,7 +390,6 @@ describe("keywordCoverage", () => {
     const started = performance.now();
     const coverage = keywordCoverage(big, terms);
     expect(coverage.matched).toBe(3);
-    // Generous bound: this is a smoke test for accidental quadratic behavior, not a benchmark.
     expect(performance.now() - started).toBeLessThan(1_000);
   });
 });

@@ -1,7 +1,6 @@
 import type { ComponentProps } from "react";
 import { cn } from "@/lib/utils";
 
-// No border or shadow: a white card only reads on stone (Panel, studio canvas), not on paper.
 export function Card({ className, ...props }: ComponentProps<"div">) {
   return (
     <div
@@ -24,11 +23,7 @@ export type CardTitleProps = ComponentProps<"h3"> & {
 
 export function CardTitle({ as: Heading = "h3", className, ...props }: CardTitleProps) {
   return (
-    <Heading
-      {...props}
-      // font-sans: an h2 would otherwise pick up the serif from the base layer.
-      className={cn("font-sans text-lg/7 font-medium text-ink", className)}
-    />
+    <Heading {...props} className={cn("font-sans text-lg/7 font-medium text-ink", className)} />
   );
 }
 

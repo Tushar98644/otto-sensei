@@ -9,12 +9,9 @@ import type { ApplicationStatus } from "@/lib/applications/status";
 import { fromDateInput, toDateInput } from "../form";
 import { cardName, type BoardCard } from "./board";
 
-// Escape or a click outside leaves the card where it was.
-
 export type MoveAsk = {
   card: BoardCard;
   column: "interview" | "closed";
-  // Viewport point to open beside: where it was dropped, or under the card.
   anchor: { x: number; y: number };
 };
 
@@ -50,7 +47,6 @@ export function MovePopover({
     cancelRef.current = onCancel;
   }, [onCancel]);
 
-  // Kept inside the window, flipped above the point when there's no room below.
   useLayoutEffect(() => {
     const panel = panelRef.current;
     if (!panel) return;

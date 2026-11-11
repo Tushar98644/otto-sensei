@@ -34,16 +34,12 @@ function messageOf(error: unknown): string {
   return isApiError(error) ? error.message : "Something went wrong. Please try again.";
 }
 
-// The control that had focus can vanish when the view changes (the link appears), which would drop
-// focus to the page. Moves it on once React has drawn the new view.
 function focusSoon(ref: RefObject<HTMLElement | null>) {
   requestAnimationFrame(() => ref.current?.focus());
 }
 
-// One live link per resume; the server keeps it that way.
 export function ShareDialog({ resume, open, onOpenChange }: ShareDialogProps) {
   const { user } = useMe();
-  // Loads once per account; later opens reuse the list the Shared links section shares.
   const shares = useShares(open);
   const { status, error: loadError } = shares;
   const link = shares.links.find((item) => item.resumeId === resume.id) ?? null;
@@ -56,8 +52,7 @@ export function ShareDialog({ resume, open, onOpenChange }: ShareDialogProps) {
   const title = resumeTitle(resume);
   const userId = user?.id ?? null;
 
-  // Until the account's links have loaded, "no link yet" might be wrong, and making one then would
-  // quietly replace the version an existing link shows.
+  // "No link yet" may be wrong until links load, and making one would replace a shared version.
   const checking = link === null && userId !== null && (status === "idle" || status === "loading");
   const options = link
     ? { showContact: link.showContact, allowIndexing: link.allowIndexing }
@@ -70,8 +65,6 @@ export function ShareDialog({ resume, open, onOpenChange }: ShareDialogProps) {
   }
 
   async function save() {
-    // Making or updating a link is Pro; the settings of one made before stay open on Free. The
-    // trial prompt takes this dialog's place rather than stacking on it.
     if (!(await unlockProTool("share"))) {
       close();
       return;
@@ -197,7 +190,7 @@ export function ShareDialog({ resume, open, onOpenChange }: ShareDialogProps) {
           disabled={busy !== null || checking}
         />
         {error ? <Alert variant="error">{error}</Alert> : null}
-        {/* Stays in the page while empty, so screen readers hear the notice when it arrives. */}
+        {/* Stays mounted while empty, so screen readers announce the notice. */}
         <p aria-live="polite" className={cn("text-sm/6 text-muted", !notice && "sr-only")}>
           {notice}
         </p>

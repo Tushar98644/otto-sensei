@@ -3,8 +3,6 @@ import { BRAND } from "@/config/brand";
 import { FOOTER_NAV } from "./routes";
 import { SiteLogo } from "./site-logo";
 
-// BRAND.supportEmail is a placeholder until the real inbox exists. An address that reaches no one
-// is worse than none, so the footer leaves it out until then.
 const SHOW_SUPPORT_EMAIL = !BRAND.supportEmail.toLowerCase().endsWith("@example.com");
 
 export function SiteFooter() {

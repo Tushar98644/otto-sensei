@@ -34,7 +34,6 @@ const RESUME_JSON = {
   skills: [{ name: "Backend", keywords: ["Go", "PostgreSQL"] }, { name: "Docker" }],
   languages: [{ language: "Japanese", fluency: "Native" }],
   projects: [{ name: "pgq", url: "https://github.com/kenji/pgq", description: "A Postgres job queue" }],
-  // Wrong types in the wild must not sink the whole file.
   interests: "not a list",
   publications: [42, { name: "Queues at scale", publisher: "Blog", releaseDate: "2023" }],
 };

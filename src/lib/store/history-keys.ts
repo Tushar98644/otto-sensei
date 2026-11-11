@@ -1,7 +1,3 @@
-// Cmd/Ctrl+Z and Shift+Cmd/Ctrl+Z (or Ctrl+Y) move through resume history only while focus is
-// outside a text field, where the browser's own undo is what people expect. Nothing fires while a
-// dialog has focus: the change would land behind it, out of sight.
-
 export type HistoryKey = "undo" | "redo";
 
 export type KeyLike = {
@@ -21,7 +17,6 @@ export type FocusLike = {
   closest?: (selector: string) => unknown;
 };
 
-// Inputs that only hold a choice have no text to undo, so the resume shortcut still applies.
 const NON_TEXT_INPUTS = new Set([
   "button",
   "checkbox",

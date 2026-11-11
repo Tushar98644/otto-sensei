@@ -4,9 +4,6 @@ import { contentChecklist, contentUsesFor, TEMPLATE_USES } from "../content-uses
 import { isThinPage, SAMPLE_NAME } from "../preview-source";
 import { jordanContent, jordanContentView, jordanV2Resume } from "./jordan";
 
-// The sample page every design preview can show: it has to fill every part of every design, with
-// words only, exactly as a real page can (no photo, screenshots, logos or video).
-
 describe("Jordan's sample page", () => {
   const view = jordanContentView();
 
@@ -28,7 +25,6 @@ describe("Jordan's sample page", () => {
       expect(project.description, project.name).not.toBe("");
       expect(project.tech.length, project.name).toBeGreaterThan(0);
     }
-    // Reel draws some on a laptop and some on a pair of phones.
     expect(new Set(view.projects.map((project) => project.device))).toEqual(
       new Set(["laptop", "phone", "auto"]),
     );
@@ -65,7 +61,6 @@ describe("Jordan's sample page", () => {
     expect(jordanV2Resume().basics.name).toBe(SAMPLE_NAME);
     const text = JSON.stringify([jordanV2Resume(), jordanContent()]);
     expect(text).not.toMatch(/india|₹|\blakh|\bcrore|\bRs\.?\s?\d/i);
-    // Company sites use the reserved .example domain, so no real business is named as an employer.
     for (const job of Object.values(jordanContent().jobs)) {
       expect(job.website).toMatch(/\.example$/);
     }

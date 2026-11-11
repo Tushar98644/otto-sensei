@@ -94,7 +94,6 @@ describe("POST /api/auth/request-code", () => {
     expect(await res.json()).toMatchObject({ ok: false, error: { code } });
   });
 
-  // Drizzle puts every bound parameter in its error message, and the limit keys hold both.
   it("keeps the address and IP out of the log when the database fails", async () => {
     const error = vi.spyOn(console, "error").mockImplementation(() => {});
     await execSql("alter table public.rate_limits rename to rate_limits_away");
@@ -195,7 +194,6 @@ describe("POST /api/auth/verify", () => {
     expect(Number(res.headers.get("Retry-After"))).toBeGreaterThan(0);
   });
 
-  // Supabase doesn't lock a code after wrong tries, so many IPs could otherwise guess at one inbox.
   it("limits guesses per address, from any IP", async () => {
     await ask("ada@example.com");
     for (let i = 0; i < 10; i++) {
@@ -239,7 +237,6 @@ describe("POST /api/auth/logout", () => {
     expect(await res.json()).toEqual({ ok: true });
     expect(cookieJar.get(AUTH_COOKIE)).toMatchObject({ value: "", maxAge: 0, path: "/", httpOnly: true });
 
-    // A copy of the cookie taken before logout no longer signs anyone in.
     cookieJar.set(AUTH_COOKIE, token);
     await expect(getCurrentUser()).resolves.toBeNull();
   });
@@ -261,7 +258,6 @@ describe("POST /api/auth/logout", () => {
     expect(await res.json()).toEqual({ ok: true });
   });
 
-  // An auto-submitted form on another site would otherwise sign visitors out on every visit.
   it("ignores a sign-out another website's page sent", async () => {
     const token = await signedIn();
 

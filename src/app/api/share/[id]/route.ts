@@ -46,7 +46,6 @@ export async function PATCH(req: Request, { params }: Context): Promise<Response
   }
 }
 
-// Succeeds when it was already off: the caller only needs it to stop working.
 export async function DELETE(req: Request, { params }: Context): Promise<Response> {
   const blocked = rejectCrossSite(req);
   if (blocked) return blocked;

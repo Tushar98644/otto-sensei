@@ -19,7 +19,6 @@ import { sectionOrderOffer } from "./format-choice";
 import { preparePdf, printedResume } from "./pdf-cache";
 import { usePageSize } from "./use-page-size";
 
-// A rest before rendering, so sweeping across the row doesn't render every format on the way.
 const REST_MS = 120;
 
 export type FormatPickerProps = {
@@ -27,7 +26,6 @@ export type FormatPickerProps = {
   className?: string;
 };
 
-// A Pro format on Free offers the trial; one already set (a plan that ended) downloads in Classic.
 export function FormatPicker({ resume, className }: FormatPickerProps) {
   const updateResume = useStudioStore((s) => s.updateResume);
   const name = useId();
@@ -50,7 +48,6 @@ export function FormatPicker({ resume, className }: FormatPickerProps) {
   }
 
   async function choose(id: TemplateId) {
-    // Every update counts as an edit (new PDF, new sync), so the current format is left alone.
     if (id === current) return;
     if (isProTemplate(id) && !(await unlockProTool("formats"))) return;
     updateResume(resume.id, (r) => withTemplate(r, id), { label: EDIT_LABELS.format });

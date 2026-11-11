@@ -39,7 +39,6 @@ describe("OttoWorking", () => {
 
   it("once shown, keeps Otto out of the accessibility tree and says what he's doing", () => {
     const html = renderToStaticMarkup(<OttoWorking task="interview" delayMs={0} />);
-    // The drawing sits inside the hidden span; the line is in the status region.
     expect(html).toMatch(/<span aria-hidden="true"[^>]*><svg[^>]*role="img"/);
     expect(html).toMatch(new RegExp(`<p role="status"[^>]*>${OTTO.working.interview}</p>`));
   });

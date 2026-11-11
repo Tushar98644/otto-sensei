@@ -105,7 +105,6 @@ export function JobsPager({
   );
 }
 
-// The shapes are plain bars, never made-up jobs.
 export function MoreWithPro({
   copy,
   tryPro,

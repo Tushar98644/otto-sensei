@@ -11,23 +11,17 @@ import { shareAndCopy } from "./share-actions";
 const shareDialog = lazyComponent(() => import("./share-dialog").then((m) => m.ShareDialog));
 
 export type ShareResume = {
-  // One click: makes the link (or points it at this version) and copies it. For a menu item.
   share: () => void;
   open: () => void;
-  // Render once inside the component that calls the hook.
   dialog: ReactNode;
 };
 
-// The settings dialog mounts on first use, so a page of cards doesn't carry one each, and stays
-// mounted after, so closing it hands focus back.
 export function useShareResume(resume: Resume): ShareResume {
   const gate = useAccountGate();
   const { user } = useMe();
   const [used, setUsed] = useState(false);
   const [isOpen, setOpen] = useState(false);
-  // The sign-in dialog mounts only once someone signed out tries to share, like the settings one.
   const [gateUsed, setGateUsed] = useState(false);
-  // One link per resume, but two quick clicks would still copy twice and toast twice.
   const busy = useRef(false);
 
   const open = useCallback(() => {
@@ -46,7 +40,6 @@ export function useShareResume(resume: Resume): ShareResume {
         owner = await currentUserId();
         if (!owner) return;
       }
-      // Share links are Pro. A link made before stays live, and its settings stay open on Free.
       if (!(await unlockProTool("share"))) return;
       await shareAndCopy(resume, owner, open);
     } finally {

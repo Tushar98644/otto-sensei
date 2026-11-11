@@ -15,7 +15,6 @@ import type { AskedAppliedAnswer } from "@/lib/job-feed/types";
 import { cn } from "@/lib/utils";
 import { promptAnnouncement, stripLine, type OpenedJob } from "./applied-prompt";
 
-// Opens by its own height, so what sits below moves gently. Shut, it takes no space and is inert.
 function Reveal({
   open,
   className,
@@ -39,16 +38,12 @@ function Reveal({
   );
 }
 
-// Focus that is on its way to nowhere: on the page itself, or on a button that was just disabled
-// (a "Yes" waiting on the tracker) or shut away with its question.
 function focusLost(active: Element | null, box: HTMLElement | null): boolean {
   if (active === null || active === document.body) return true;
   if (!box?.contains(active)) return false;
   return active.closest("[inert]") !== null || (active as HTMLButtonElement).disabled === true;
 }
 
-// If focus was on an answered question's buttons, it lands on `fallback`, not the page top. Only
-// after an answer: a question that closes on its own never moves focus.
 function useFocusAfterAnswer(
   box: RefObject<HTMLElement | null>,
   fallback: () => HTMLElement | null | undefined,
@@ -78,14 +73,12 @@ export function CardAppliedQuestion({
 }: {
   open: boolean;
   company: string;
-  // "Yes" runs the card's "Mark applied", so it shares its spinner.
   logging: boolean;
   onAnswer: (answer: AskedAppliedAnswer) => void;
   focusAfter: RefObject<HTMLElement | null>;
 }) {
   const box = useRef<HTMLDivElement>(null);
   const answered = useFocusAfterAnswer(box, () => focusAfter.current);
-  // Drawn from the first time it opens, so it can slide shut again; cards never asked stay empty.
   const [asked, setAsked] = useState(open);
   if (open && !asked) setAsked(true);
 
@@ -95,8 +88,6 @@ export function CardAppliedQuestion({
   }
 
   return (
-    // The card's gap-4 is taken back while shut, so a card with no question keeps its height.
-    // The extra px-1 and pb-1 inside leave room for the focus ring that overflow would clip.
     <Reveal open={open} className="-mx-1 -mt-4">
       {asked ? (
         <div ref={box} className="px-1 pt-4 pb-1">
@@ -140,7 +131,6 @@ export function AppliedStrip({
   focusAfter: RefObject<HTMLElement | null>;
 }) {
   const [expanded, setExpanded] = useState(false);
-  // The last jobs shown, so the strip keeps its words while it slides shut.
   const [shown, setShown] = useState(jobs);
   if (jobs.length > 0 && !sameJobs(jobs, shown)) setShown(jobs);
   const open = jobs.length > 0;
@@ -157,7 +147,6 @@ export function AppliedStrip({
   }
 
   return (
-    // Sits in the list's gap-4 column: the gap below is taken back while shut.
     <Reveal open={open} className="-mb-4">
       <div ref={box} className="pb-4">
         <section aria-label="Jobs you opened" className="rounded-2xl bg-surface px-4 py-3 sm:px-6">
@@ -222,8 +211,6 @@ export function AppliedStrip({
   );
 }
 
-// The cards and strip aren't live regions, so answering one never re-reads the rest; this says
-// each new question once.
 export function AppliedAnnouncer({
   onCard,
   offPage,

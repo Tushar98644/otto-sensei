@@ -6,9 +6,7 @@ import { INTERVAL_NAMES, priceSentence } from "@/lib/billing/prices";
 import { cn } from "@/lib/utils";
 
 export type IntervalPickerProps = {
-  // Says what the pick costs on this plan. Without one (several plans priced below it), nothing.
   plan?: PaidPlanId;
-  // From /api/me (billing.offer[plan]). With one option or none, the picker renders nothing.
   intervals: readonly BillingInterval[] | undefined;
   value: BillingInterval;
   onChange: (interval: BillingInterval) => void;

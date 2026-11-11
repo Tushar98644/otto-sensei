@@ -52,7 +52,6 @@ describe("openingMatchesRequest", () => {
     const resume = createSampleResume(NOW);
     const profile = { ...emptyWorkProfile(), remoteOnly: true };
     const body = openingMatchesRequest(resume, { profile, lookingFor: NO_CHOICE }, NOW);
-    // The tab counts years to the start of today, so the request is the same all day.
     const match = matchProfileOf(resume, Math.floor(NOW / DAY_MS) * DAY_MS);
     expect(body).toEqual({
       view: "matches",

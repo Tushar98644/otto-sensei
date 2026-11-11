@@ -35,8 +35,6 @@ export type AlertProps = Omit<ComponentProps<"div">, "title"> & {
   action?: ReactNode;
 };
 
-// An info alert on the stone studio canvas needs className="bg-surface", or its fill disappears.
-// Errors interrupt screen readers (role="alert"); everything else waits its turn (role="status").
 export function Alert({
   variant = "info",
   title,

@@ -11,9 +11,6 @@ import {
   type PortfolioContent,
 } from "@/lib/portfolio/content";
 
-// Saved a moment after typing stops (the whole document; last change wins). Removals offer Undo
-// instead of asking first.
-
 const SAVE_AFTER_MS = 900;
 
 type Status = "idle" | "loading" | "ready" | "error";
@@ -39,7 +36,7 @@ export const useContentStore = create<ContentState>()(() => ({
 }));
 
 let timer: ReturnType<typeof setTimeout> | null = null;
-// Each edit bumps it; a save's answer only replaces what's shown if nothing changed since it left.
+// Each edit bumps it; a save's answer only replaces what's shown if nothing changed since.
 let revision = 0;
 
 export async function loadContent(owner: string, { force = false } = {}): Promise<void> {
@@ -66,7 +63,6 @@ async function save({ keepalive = false } = {}): Promise<void> {
   const sent = revision;
   useContentStore.setState({ saving: true });
   try {
-    // What's on screen stays as typed (half-filled rows included); the server gets the finished part.
     const answer = await api.savePortfolioContent(
       { content: saveableContent(content) },
       { keepalive },

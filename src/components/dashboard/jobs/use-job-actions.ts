@@ -50,7 +50,6 @@ export function useJobActions({
   const [busy, setBusy] = useState<{ id: string; action: "apply" | "tailor" } | null>(null);
   const saveQueue = useRef(new Map<string, Promise<void>>());
 
-  // Best effort. "Applied?" also counts for jobs off this page, without the page's place and label.
   function note(
     job: { id: string },
     kind: MatchActionInput["kind"],
@@ -81,12 +80,10 @@ export function useJobActions({
     let text = "";
     let posting: QueuedJob["posting"];
     try {
-      // Carries what the server read, so Tailor won't read the link again; else it's the backup.
       const post = await api.jobPost(job.id);
       text = post.text;
       posting = post.posting ?? undefined;
     } catch {
-      // The link alone still works for the boards; the feeds' jobs need their text.
       if (!readsLink(job)) {
         setBusy(null);
         toast({
@@ -116,9 +113,8 @@ export function useJobActions({
     if (copy) actions.open(copy.id, "fix");
   }
 
-  // Optimistic; clicks on one job queue up so a quick save-unsave reaches the server in order.
+  // Clicks on one job queue up so a quick save-unsave reaches the server in order.
   function toggleSave(job: MatchedJob) {
-    // Saving is Pro: Free gets the trial prompt instead of a failed request.
     if (data?.locked && !job.saved) {
       openUpgradePrompt("jobs");
       return;
@@ -155,7 +151,6 @@ export function useJobActions({
     saveQueue.current.set(job.id, next);
   }
 
-  // Free past its tracked applications gets the trial prompt.
   async function markApplied(job: OpenedJobRef): Promise<"logged" | "blocked" | "failed"> {
     if (!(await roomForApplication(applications.length))) return "blocked";
     const sent = tailoredFor(resumes, job) ?? resume;
@@ -163,7 +158,6 @@ export function useJobActions({
     try {
       const application = await logJobApplied(job, sent);
       note(job, "applied");
-      // In the tracker now, so "Applied?" never asks about it again.
       if (userId) answerAppliedPrompt(userId, job.id, "yes");
       undoToast({
         title: `Marked as applied at ${application.company}`,
@@ -196,7 +190,6 @@ export function useJobActions({
     if (userId) rememberOpenedJob(userId, job);
   }
 
-  // "Yes" is "Mark applied"; a failed log keeps the question, Free's limit counts as answered.
   async function answerApplied(job: OpenedJobRef, answer: AskedAppliedAnswer) {
     if (!userId) return;
     if (answer === "yes" && (await markApplied(job)) === "failed") return;

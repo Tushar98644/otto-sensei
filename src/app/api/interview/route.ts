@@ -20,7 +20,6 @@ const COPY: MeteredCopy = {
   tooLong: "That job post or resume is too long for Otto. Try a shorter job post.",
 };
 
-// The pack was paid for once it's made, so a failed save still hands it over (saved: false).
 async function saveForCaller(applicationId: string, prep: InterviewPrep): Promise<boolean> {
   try {
     const user = await getCurrentUser();
@@ -34,7 +33,6 @@ async function saveForCaller(applicationId: string, prep: InterviewPrep): Promis
   }
 }
 
-// Readable on every plan, so packs made on Pro or the trial stay after it.
 export async function GET(): Promise<Response> {
   try {
     const user = await getCurrentUser();
@@ -47,7 +45,6 @@ export async function GET(): Promise<Response> {
   }
 }
 
-// Uses one of the month's cover letters and answers.
 export async function POST(req: Request): Promise<Response> {
   const crossSite = rejectCrossSite(req);
   if (crossSite) {

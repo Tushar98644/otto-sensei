@@ -1,29 +1,18 @@
 import { AMBIGUOUS_WORDS, PHRASE_ALIASES, TOKEN_ALIASES } from "./aliases";
 
-// Job keywords and resume text in the same token stream, each token keeping its position for
-// quotes.
-
 export type Token = {
-  // Canonical form used for comparison: "nodejs", "api", "c++", ".net".
   value: string;
-  // Tokens expanded from one alias ("AWS") share a span.
   start: number;
   end: number;
-  // Only spaces, hyphens or slashes separate it from the previous token, so a multi-word term
-  // matches "front end", "front-end" and "CI/CD" alike, but never across commas or lines.
   joined: boolean;
 };
 
-// Job keywords are terse labels; resume text is prose. Only ambiguous words treat them differently.
 type Mode = "term" | "text";
 
 type Word = { text: string; folded: string; start: number; end: number; gap: string };
 
-// Letters and digits, optionally glued by ".", "&" or an apostrophe (Node.js, R&D, O'Reilly) and
-// ending in "++" or "#" (C++, C#). A leading dot only counts in ".NET": elsewhere it's punctuation.
 const WORD =
   /(?<![\p{L}\p{M}\p{N}.])\.net(?![\p{L}\p{M}\p{N}])|[\p{L}\p{M}\p{N}]+(?:[.&'’][\p{L}\p{M}\p{N}]+)*(?:\+\+|#(?![\p{L}\p{M}\p{N}]))?/giu;
-// Only real .NET frameworks split off ".NET"; an email domain like "att.net" must not.
 const DOT_NET_FRAMEWORK = /^(asp|ado|vb)(\.net(?:['’]s)?)$/i;
 const SOFT_GAP = /^(?:[^\S\r\n]|[-‐‑/_])*$/u;
 const HYPHEN = /^[-‐‑]$/u;
@@ -53,7 +42,6 @@ function words(input: string): Word[] {
     cursor = start + text.length;
   };
   for (const match of input.matchAll(WORD)) {
-    // "ASP.NET" splits so ".NET" matches on its own, with its own span for the evidence quote.
     const split = DOT_NET_FRAMEWORK.exec(match[0]);
     const framework = split?.[1];
     const suffix = split?.[2];
@@ -67,12 +55,9 @@ function words(input: string): Word[] {
   return out;
 }
 
-// Applied to keywords and text alike, so it only has to be consistent: "APIs" -> "api".
 function singularize(word: string, original: string): string {
   if (/^\p{Lu}[\p{Lu}\p{N}]+s$/u.test(original)) return word.slice(0, -1);
   if (word.length < 4 || !/^\p{L}+$/u.test(word)) return word;
-  // Already singular: "class", "analytics" (not "analytic"), "nodejs", "status", "redis". Short
-  // ones like "apis" and "gpus" are plurals.
   if (/(?:ss|ics|js)$/.test(word) || (word.length > 4 && /(?:us|is)$/.test(word))) return word;
   if (word.endsWith("sses")) return word.slice(0, -2);
   if (word.endsWith("ies") && word.length > 4) return `${word.slice(0, -3)}y`;
@@ -139,7 +124,6 @@ function scan(input: string, mode: Mode): Token[] {
   return tokens;
 }
 
-// Canonical tokens of a job keyword: "Node.js" -> ["nodejs"], "CI/CD" -> ["ci", "cd"].
 export function termTokens(term: string): string[] {
   return scan(term, "term").map((token) => token.value);
 }

@@ -12,10 +12,8 @@ import { fixOutline, type OutlineSection } from "./outline";
 import { pickResume } from "./use-editor";
 import { useSettled } from "./use-settled";
 
-// Where a section counts as the one being read: just under the sticky bars.
 const READING_LINE_PX = 160;
 
-// A string, so the store only re-renders this when a label, an entry or a count changes.
 function useOutline(resumeId: string): OutlineSection[] {
   const json = useStudioStore((state) => {
     const resume = pickResume(state, resumeId);
@@ -29,7 +27,6 @@ function entryCard(entryId: string): HTMLElement | null {
   return document.getElementById(entryFieldId(entryId, "heading"))?.closest("li") ?? null;
 }
 
-// The section (and entry) whose top has passed the reading line, as "key" or "key entryId".
 function useReading(outline: readonly OutlineSection[]): string {
   const [reading, setReading] = useState("");
   useEffect(() => {
@@ -65,7 +62,6 @@ function useReading(outline: readonly OutlineSection[]): string {
   return reading;
 }
 
-// A folded section opens first, so its entries exist to scroll to.
 function goTo(sectionKey: string, entryId?: string) {
   const section = document.getElementById(sectionDomId(sectionKey));
   if (!section) return;
@@ -154,7 +150,6 @@ function PhoneSections({
 }) {
   const rowRef = useRef<HTMLDivElement>(null);
 
-  // Keeps the section being read in view in the row, without moving the page.
   useEffect(() => {
     const row = rowRef.current;
     const chip = current

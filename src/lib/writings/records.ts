@@ -30,7 +30,6 @@ export function toWriting(row: Row): Writing {
     jobUrl: row.jobUrl,
     question: row.question,
     text: row.body,
-    // jsonb written only by createWriting, but a hand-edited row must not break the list.
     warnings: Array.isArray(row.warnings)
       ? row.warnings.filter((item): item is string => typeof item === "string")
       : [],
@@ -41,7 +40,6 @@ export function toWriting(row: Row): Writing {
   };
 }
 
-/** And how many the account keeps in all. */
 export async function listWritings(
   userId: string,
   limit: number = WRITING_LIMITS.listed,
@@ -60,8 +58,7 @@ export async function listWritings(
   return { writings: rows.map(toWriting), total: stored?.n ?? rows.length };
 }
 
-// Under the account's row lock, so parallel saves can't pass WRITING_LIMITS.perUser, and nothing is
-// written for a deleted account.
+// Under the account's row lock, so parallel saves can't pass WRITING_LIMITS.perUser.
 export async function createWriting(
   userId: string,
   input: CreateWritingInput,
@@ -75,7 +72,6 @@ export async function createWriting(
       .from(writings)
       .where(eq(writings.userId, userId));
     if ((stored?.n ?? 0) >= WRITING_LIMITS.perUser) return { status: "limit_reached" };
-    // Joins its application by itself: the one it was written from, else the one for this job.
     const applicationId = await applicationForWriting(tx, userId, input.applicationId, input);
     const [row] = await tx
       .insert(writings)
@@ -102,7 +98,6 @@ export async function createWriting(
   });
 }
 
-/** An answer keeps its own, smaller cap. */
 export async function updateWriting(
   userId: string,
   id: string,

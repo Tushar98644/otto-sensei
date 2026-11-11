@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { groupRows, hasColumnGutter, rowText, type LayoutItem } from "./pdf-layout";
 
-// Helvetica averages ~0.5em per character, close enough for layout tests.
 function item(str: string, x: number, baseline: number, size = 10): LayoutItem {
   return { str, x, y: baseline - size, width: str.length * size * 0.5, height: size, fontName: "f1", baseline, upright: true };
 }

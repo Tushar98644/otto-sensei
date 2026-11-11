@@ -1,5 +1,3 @@
-// The server re-checks everything; this only saves a round trip for obvious mistakes.
-
 export type FileRules = {
   accept?: string;
   maxBytes?: number;
@@ -46,7 +44,6 @@ function matchesAccept(file: Pick<File, "name" | "type">, accept: string): boole
   });
 }
 
-// ".pdf,.docx" → "PDF or DOCX". MIME-only lists have no friendly name, so they give "".
 function describeAccept(accept: string): string {
   const names = [
     ...new Set(

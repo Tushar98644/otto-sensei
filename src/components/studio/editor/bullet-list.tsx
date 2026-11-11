@@ -41,7 +41,6 @@ export function BulletList({
   const max = BULLET_LIMITS[section];
   const full = bullets.length >= max;
   const lines = useEntryLines(resumeId, section, parentId);
-  // Only jobs and projects get the tick list: school and award lines aren't asked for results.
   const ticks = section === "experience" || section === "projects";
   const ended = useResumeValue(
     resumeId,

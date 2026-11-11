@@ -10,9 +10,6 @@ import {
   type PDFPage,
 } from "pdf-lib";
 
-// Built in code (no binary fixtures). pdf-lib's standard fonts only encode WinAnsi, so no en
-// dashes.
-
 const LETTER: [number, number] = [612, 792];
 
 type Fonts = { regular: PDFFont; bold: PDFFont };
@@ -38,7 +35,6 @@ function rightAligned(
   page.drawText(text, { x: right - font.widthOfTextAtSize(text, size), y, size, font });
 }
 
-// A clean, single-column resume: every recruiter check should pass on it.
 export async function cleanResumePdf(): Promise<Uint8Array> {
   const { doc, page, fonts } = await newPdf();
   const { regular, bold } = fonts;
@@ -93,7 +89,6 @@ export async function cleanResumePdf(): Promise<Uint8Array> {
   return doc.save();
 }
 
-// Skills and contact details in a left sidebar, experience on the right, plus a photo.
 export async function twoColumnPdf(): Promise<Uint8Array> {
   const { doc, page, fonts } = await newPdf();
   const { regular, bold } = fonts;
@@ -161,7 +156,6 @@ export async function twoColumnPdf(): Promise<Uint8Array> {
   return doc.save();
 }
 
-// Links whose text is cut off over the full address, as many resume builders draw them.
 export async function linkedContactPdf(): Promise<Uint8Array> {
   const { doc, page, fonts } = await newPdf();
   page.drawText("Jane Doe", { x: 50, y: 740, size: 20, font: fonts.bold });
@@ -204,7 +198,6 @@ export async function blankPdf(pages: number): Promise<Uint8Array> {
   return doc.save();
 }
 
-// Standard security handler with an unknown user password: viewers ask for a password.
 export async function encryptedPdf(): Promise<Uint8Array> {
   const { doc, page, fonts } = await newPdf();
   page.drawText("Secret resume", { x: 50, y: 700, size: 12, font: fonts.regular });
@@ -258,7 +251,6 @@ const table = (...rows: string[][]) =>
     )
     .join("")}</w:tbl>`;
 
-// A floating text box as Word writes it: a DrawingML choice plus a VML fallback with the same text.
 const textBox = (text: string) =>
   `<w:p><w:r><mc:AlternateContent>` +
   `<mc:Choice Requires="wps"><w:drawing><wp:anchor><a:graphic><a:graphicData><wps:wsp><wps:txbx>` +
@@ -326,7 +318,6 @@ export async function buildDocx({
   return zip.generateAsync({ type: "uint8array", compression: "DEFLATE" });
 }
 
-// A table, a text box, columns, and the email only in the page header: the classic Word template.
 export function templateDocx(): Promise<Uint8Array> {
   return buildDocx({
     header: "sam.rivera@example.com",

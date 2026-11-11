@@ -18,8 +18,6 @@ const GAZE: Record<Exclude<EyeStyle, "happy">, readonly [number, number]> = {
   side: [2.5, 0],
 };
 
-// Reading pupils are rounder and sit low in the lenses, eyes on the page. No lids: half-closed
-// lids read as sleepy or annoyed at small sizes, never as focus.
 const PUPIL: Record<Exclude<EyeStyle, "happy">, { rx: number; ry: number }> = {
   open: { rx: 6, ry: 7 },
   reading: { rx: 5.5, ry: 5.5 },
@@ -27,7 +25,6 @@ const PUPIL: Record<Exclude<EyeStyle, "happy">, { rx: number; ry: number }> = {
   side: { rx: 6, ry: 7 },
 };
 
-// Blink squashes both eyes toward their own centerline instead of the SVG's top-left corner.
 const BLINK_ORIGIN: CSSProperties = { transformBox: "fill-box", transformOrigin: "center" };
 
 export function drawFace(expression: Expression, o: DrawOptions) {
@@ -69,7 +66,6 @@ function drawEyes(style: EyeStyle, o: DrawOptions) {
 
 function drawBrows(style: BrowStyle) {
   if (style === "none") return null;
-  // Worried lifts the inner ends; curious arches one brow.
   const d =
     style === "worried"
       ? "M 69 48 C 74 46.5 79 44.5 84 42 M 116 42 C 121 44.5 126 46.5 131 48"

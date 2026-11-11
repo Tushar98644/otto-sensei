@@ -24,7 +24,6 @@ export async function GET(): Promise<Response> {
   }
 }
 
-// Any plan: it only remembers what this account's screens have already asked.
 export async function PUT(req: Request): Promise<Response> {
   const blocked = rejectCrossSite(req) ?? rejectNonJson(req);
   if (blocked) return blocked;

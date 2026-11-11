@@ -8,8 +8,7 @@ import { retryAfterHeader } from "@/lib/rate-limit";
 
 export const runtime = "nodejs";
 
-// The answer is the same whether or not the address has an account, so it can't be used to
-// find out who has signed up.
+// Same answer whether or not the address has an account, so sign-ups can't be probed.
 export async function POST(req: Request): Promise<Response> {
   const notJson = rejectNonJson(req);
   if (notJson) return notJson;
@@ -31,7 +30,6 @@ export async function POST(req: Request): Promise<Response> {
           return fail("bad_request", error.message, 400);
         case "not_configured":
           return fail("auth_unavailable", error.message, 503);
-        // A provider hiccup that usually clears up within a minute; codes.ts logged the cause.
         case "email_send_failed":
           return fail("email_unavailable", error.message, 502);
       }

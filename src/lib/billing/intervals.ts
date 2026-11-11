@@ -8,8 +8,6 @@ import {
 import { env } from "@/lib/env";
 import { billingMode } from "./mode";
 
-// Apart from ./index so the pricing page can read them without loading the payment SDK.
-
 export function productId(plan: PaidPlanId, interval: BillingInterval): string | undefined {
   const e = env();
   if (plan === "max") {
@@ -26,9 +24,7 @@ export function trialProductId(): string | undefined {
   return env().CREEM_PRO_TRIAL_PRODUCT_ID;
 }
 
-// Pro monthly is always listed: billingMode() decides whether checkout works at all.
 export function offeredIntervals(plan: PaidPlanId = "pro"): BillingInterval[] {
-  // Mock checkout (development without Creem keys) can sell every option, so every card shows.
   if (billingMode() === "mock") return [...BILLING_INTERVALS];
   return BILLING_INTERVALS.filter(
     (interval) =>
@@ -51,7 +47,6 @@ export type ProductPlan = { plan: PaidPlanId; interval: BillingInterval };
 
 export function planForProduct(id: string | null | undefined): ProductPlan | null {
   if (!id) return null;
-  // After its trial the trial product simply bills Pro monthly.
   if (id === trialProductId()) return { plan: PRO_TRIAL.plan, interval: PRO_TRIAL.interval };
   for (const plan of PAID_PLANS) {
     const interval = BILLING_INTERVALS.find((candidate) => productId(plan, candidate) === id);

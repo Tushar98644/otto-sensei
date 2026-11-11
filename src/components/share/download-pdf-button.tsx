@@ -8,8 +8,7 @@ import { preloadPdfRenderer, renderResumePdf } from "@/lib/pdf/render";
 import { suggestedFileName } from "@/lib/resume/ops";
 import type { Resume } from "@/lib/resume/schema";
 
-// Saves a file through a temporary link. Revoked on the next tick: some browsers start the
-// download after click() returns.
+// Revoked on the next tick: some browsers start the download after click() returns.
 function saveFile(blob: Blob, fileName: string): void {
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
@@ -21,8 +20,6 @@ function saveFile(blob: Blob, fileName: string): void {
   setTimeout(() => URL.revokeObjectURL(url), 0);
 }
 
-// The shared copy as the owner's PDF, made in the reader's browser: the server never renders it,
-// and the reader gets the paper size their country uses.
 export function DownloadPdfButton({ resume }: { resume: Resume }) {
   const [busy, setBusy] = useState(false);
   const [failed, setFailed] = useState(false);

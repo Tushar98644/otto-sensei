@@ -23,9 +23,7 @@ import { REEL_CSS, REEL_NOSCRIPT_CSS } from "./styles";
 import { ProjectSummary } from "./summary";
 import { Button } from "./ui";
 
-// Reel: Hamish Williams' portfolio (github.com/HamishMW/portfolio, MIT; ./LICENSE.txt) ported for
-// anyone's data, plus a page per project opened in place (:target). None of his content is used.
-// This file only lays the page out; everything that moves lives in the client islands.
+// Ported from HamishMW/portfolio (MIT, see ./LICENSE.txt).
 
 const SOCIALS_MAX = 4;
 

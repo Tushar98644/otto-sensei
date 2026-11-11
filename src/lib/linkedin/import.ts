@@ -16,7 +16,6 @@ import { extraItem, extraSection } from "./extras";
 
 // Nothing is scraped and nothing leaves the browser: the person picks their own data export.
 
-// The full archive can be large; only a few small CSVs are read.
 export const LINKEDIN_MAX_ZIP_BYTES = 50 * 1024 * 1024;
 const MAX_CSV_CHARS = 2_000_000;
 
@@ -74,7 +73,6 @@ export async function readLinkedInExport(data: Uint8Array | ArrayBuffer, now = D
   return linkedInToResume(await readCsvs(zip), now);
 }
 
-// Matched by file name at any depth, shallowest first: the archive's folder name changes per export.
 async function readCsvs(zip: JSZip): Promise<LinkedInCsvs> {
   const wanted = new Map<string, LinkedInFile>(
     Object.entries(LINKEDIN_FILES).map(([key, name]): [string, LinkedInFile] => [name, key as LinkedInFile]),
@@ -113,7 +111,6 @@ function bulletsFrom(text: string, max: number): Bullet[] {
 }
 
 function profileLinks(websites: string) {
-  // "[PORTFOLIO:https://ana.dev],[COMPANY:https://contoso.com]" or plain URLs.
   const urls = websites.match(/https?:\/\/[^\s,\]]+/gi) ?? [];
   return [...new Set(urls)].slice(0, 10).map((url) => ({ id: newId(), label: "Website", url: clip(url, 500) }));
 }
@@ -212,7 +209,6 @@ export function linkedInToResume(csvs: LinkedInCsvs, now = Date.now()): LinkedIn
   ].filter((section) => section !== null);
 
   return {
-    // Every field is clipped above; parsing guards the caps if the schema ever tightens.
     resume: ResumeSchema.parse(resume),
     counts: {
       jobs: resume.experience.length,

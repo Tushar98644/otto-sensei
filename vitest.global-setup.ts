@@ -10,8 +10,6 @@ declare module "vitest" {
   }
 }
 
-// Booting Postgres and running the migrations takes seconds; restoring the finished data
-// directory takes well under one. So it's built once per run and every test file loads a copy.
 export default async function setup(project: TestProject) {
   const dir = mkdtempSync(path.join(tmpdir(), "otto-pglite-"));
   const file = path.join(dir, "template.tar");

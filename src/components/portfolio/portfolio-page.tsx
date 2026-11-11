@@ -14,7 +14,6 @@ import { PortfolioUpgrade } from "./portfolio-upgrade";
 import { makePortfolio, usePortfolio, usePortfolioStore } from "./portfolio-store";
 import { PORTFOLIO_ROUTE } from "./route";
 
-// Base resumes first, newest first: a tailored copy is for one job, a portfolio is for everyone.
 export function portfolioCandidates(resumes: readonly Resume[]): Resume[] {
   return [...resumes].sort(
     (a, b) => Number(a.tailor !== null) - Number(b.tailor !== null) || b.updatedAt - a.updatedAt,
@@ -38,7 +37,6 @@ function Screen({ children }: { children: ReactNode }) {
 }
 
 export type PortfolioPageProps = {
-  // From a resume card's "Make my portfolio": make it from this one without another click.
   fromResumeId: string | null;
 };
 
@@ -46,7 +44,6 @@ export function PortfolioPage({ fromResumeId }: PortfolioPageProps) {
   const router = useRouter();
   const { user } = useMe();
   const userId = user?.id ?? null;
-  // Portfolios are Pro and Max (a trial included). Free keeps the data, offline.
   const locked = user !== null && user.plan === "free";
   const hydrated = useStudioHydrated();
   const resumes = useResumeList();
@@ -58,8 +55,6 @@ export function PortfolioPage({ fromResumeId }: PortfolioPageProps) {
   const ready = hydrated && userId !== null && status === "ready";
   const from = fromResumeId ? (resumes.find((resume) => resume.id === fromResumeId) ?? null) : null;
 
-  // One click from a card: with no portfolio yet, make it from that resume as the page opens.
-  // Pointing an existing one at another resume waits for the editor's own button.
   useEffect(() => {
     if (!ready || handled.current || !fromResumeId || locked) return;
     handled.current = true;

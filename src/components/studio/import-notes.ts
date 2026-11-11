@@ -2,14 +2,9 @@
 
 import { useSyncExternalStore } from "react";
 
-// Uploads read by the rule-based parser, so the recruiter view can say so. Memory only on purpose.
-
 const readByRules = new Set<string>();
-// Of those, the ones the basic reader read because the plan's AI reads were used up.
 const pastAllowance = new Set<string>();
-// Of those, the ones the rules read well enough that the AI reader wasn't needed.
 const readWell = new Set<string>();
-// One file at a time, so a long session doesn't hold on to every upload.
 let rereadable: { resumeId: string; file: File } | null = null;
 const listeners = new Set<() => void>();
 

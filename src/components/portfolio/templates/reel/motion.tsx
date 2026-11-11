@@ -3,8 +3,7 @@
 import { useEffect, useRef, useState, type ReactNode, type RefObject } from "react";
 import { useReel } from "./root";
 
-// Hamish's hooks (useInViewport, useInterval) and his Transition component, a small
-// react-transition-group over framer-motion's AnimatePresence, rebuilt without framer-motion.
+// After HamishMW/portfolio's hooks and Transition (MIT, see ./LICENSE.txt).
 
 export function useInViewport(
   elementRef: RefObject<Element | null>,
@@ -49,8 +48,6 @@ export function useInterval(callback: () => void, delay: number | null, reset?: 
   }, [delay, reset]);
 }
 
-// Hamish's trigger (routes/home/home.jsx): shown once 10% is in view, less the window's bottom
-// tenth, then stays. Cards show everything at once.
 export function useSectionVisible(ref: RefObject<Element | null>): boolean {
   const { mode } = useReel();
   const [seen, setSeen] = useState(false);
@@ -76,8 +73,6 @@ export type TransitionStatus = "entering" | "entered" | "exiting" | "exited";
 type Timeout = number | { enter: number; exit: number };
 type RenderProps = { visible: boolean; status: TransitionStatus };
 
-// Status goes exited, entering, then entered after the timeout; `unmount` drops it once exited.
-// Nothing starts before the page knows where it's drawn, and cards skip to the end.
 export function Transition({
   in: show,
   unmount = false,
@@ -95,7 +90,6 @@ export function Transition({
   const [present, setPresent] = useState(show || !unmount);
   const [generation, setGeneration] = useState(0);
 
-  // Shown again after leaving: a fresh run from the start, like AnimatePresence remounting it.
   if (show && !present) {
     setPresent(true);
     setGeneration(generation + 1);
@@ -147,7 +141,6 @@ function TransitionContent({
     removeRef.current = onRemove;
   });
 
-  // A tick later, as framer-motion's presence does, never set straight from the effect.
   useEffect(() => {
     if (mode === "ssr" || hasEntered || !show) return;
     const start = window.setTimeout(() => {

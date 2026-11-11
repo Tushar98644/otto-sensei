@@ -1,5 +1,4 @@
-// An open modal <dialog> makes everything outside it inert, so each open Dialog registers a slot
-// inside itself and overlays that must stay usable (toasts) render into the topmost one.
+// A modal <dialog> makes everything outside it inert, so toasts render in the topmost one.
 
 const hosts: HTMLElement[] = [];
 const listeners = new Set<() => void>();

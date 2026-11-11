@@ -12,7 +12,6 @@ export type DueApplication = { id: string; company: string; role: string; applie
 export type FollowUpNotice = { title: string; body: string; link: string };
 
 const NAME_CHARS = 80;
-// Lines listed in the email; the rest become "and 4 more".
 export const EMAIL_LISTED = 10;
 
 const count = new Intl.NumberFormat("en-US");
@@ -89,9 +88,7 @@ export type FollowUpEmailInput = {
   now: number;
   applicationsUrl: string;
   settingsUrl: string;
-  // null each when links can't be signed.
   actionUrls: (applicationId: string) => FollowUpActionUrls;
-  // RFC 8058 one-click link for the header; null when it can't be signed.
   unsubscribeUrl: string | null;
   unsubscribePageUrl: string | null;
   ottoHeadUrl: string;

@@ -11,10 +11,8 @@ import { rateLimit, retryAfterHeader } from "@/lib/rate-limit";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-// Far above what a person clicks, low enough that a script can't fill the table.
 const PER_MINUTE = 120;
 
-// For measuring match quality: ids and labels only.
 export async function POST(req: Request): Promise<Response> {
   const blocked = rejectCrossSite(req) ?? rejectNonJson(req);
   if (blocked) return blocked;

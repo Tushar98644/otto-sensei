@@ -6,8 +6,6 @@ import { DAY_MS } from "@/lib/time";
 import { addMonths, carryUsageOver, type PeriodAccount } from "@/lib/usage";
 import { recordTrialHistory } from "./trial";
 
-// Development only: billingMode() never returns "mock" in production.
-
 export const MOCK_STATUS = {
   active: "mock_active",
   trialing: "mock_trialing",
@@ -16,8 +14,6 @@ export const MOCK_STATUS = {
 
 export type MockSubscribeOptions = { trial?: boolean; now?: number };
 
-// Mirrors Creem: monthly and yearly plans get a period starting now, a change keeps a running
-// period, weekly plans count per ISO week, and a trial is written down once.
 export async function mockSubscribe(
   userId: string,
   plan: PaidPlanId = "pro",
@@ -77,7 +73,6 @@ function mockPeriod(
 ): Pick<PeriodAccount, "planPeriodStartsAt" | "planPeriodEndsAt"> {
   if (trialEndsAt !== null) return { planPeriodStartsAt: now, planPeriodEndsAt: trialEndsAt };
   if (interval === "week") return { planPeriodStartsAt: null, planPeriodEndsAt: null };
-  // A trial's period ends with the trial, so a plan bought from it starts its own.
   const running =
     before.plan !== "free" &&
     before.trialEndsAt == null &&
@@ -90,7 +85,6 @@ function mockPeriod(
   return { planPeriodStartsAt: now, planPeriodEndsAt: addMonths(now, interval === "year" ? 12 : 1) };
 }
 
-/** Returns false when the user never subscribed, like the real portal. */
 export async function mockCancel(userId: string, now = Date.now()): Promise<boolean> {
   const db = await getDb();
   const rows = await db

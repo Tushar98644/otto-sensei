@@ -51,8 +51,6 @@ describe("applyDesign", () => {
     const minimal = applyDesign(TEMPLATE_THEMES.minimal, { accent: "burgundy" }).styles;
     expect(minimal.sectionTitle.color).toBe(color);
     expect(minimal.sectionTitleRule.borderBottomColor).toBe(color);
-    // Modern: only the heading's first letters, the headline and places take the accent; its
-    // rules stay gray, as in Awesome-CV.
     const modern = applyDesign(TEMPLATE_THEMES.modern, { accent: "forest" }).styles;
     expect(modern.sectionTitleAccent.color).toBe(ACCENT_COLORS.forest);
     expect(modern.headline.color).toBe(ACCENT_COLORS.forest);
@@ -60,12 +58,10 @@ describe("applyDesign", () => {
     expect(modern.sectionTitleRule.borderBottomColor).toBe(
       TEMPLATE_THEMES.modern.styles.sectionTitleRule.borderBottomColor,
     );
-    // Executive: the name, headings and bullets, with the rule a light tint of the same hue.
     const executive = applyDesign(TEMPLATE_THEMES.executive, { accent: "burgundy" }).styles;
     expect(executive.name.color).toBe(color);
     expect(executive.bulletGlyph.color).toBe(color);
     expect(executive.sectionTitleRule.borderBottomColor).toBe(tint(color, 0.55));
-    // Body text stays ink.
     expect(classic.page.color).toBe(TEMPLATE_THEMES.classic.styles.page.color);
   });
 
@@ -74,7 +70,6 @@ describe("applyDesign", () => {
     expect(serif.page.fontFamily).toBe("Tinos");
     const sans = applyDesign(TEMPLATE_THEMES.modern, { font: "sans" }).styles;
     expect(sans.page.fontFamily).toBe("Carlito");
-    // Modern's Roboto name and contact lines too.
     expect(sans.name.fontFamily).toBe("Carlito");
     expect(sans.contact.fontFamily).toBe("Carlito");
   });
@@ -165,7 +160,6 @@ describe("visibleResume", () => {
     expect(shown.experience[0]!.bullets.map((b) => b.id)).toEqual(["b1"]);
     expect(shown.skills).toEqual([]);
     expect(shown.extras?.map((x) => [x.id, x.items.map((i) => i.id)])).toEqual([["x2", ["i1"]]]);
-    // The source keeps everything.
     expect(source.experience[0]!.bullets).toHaveLength(2);
   });
 });

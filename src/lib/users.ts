@@ -12,12 +12,9 @@ import { captureServerEvent } from "@/lib/analytics/server";
 import { normalizeEmail } from "@/lib/auth/policy";
 import type { SessionUser } from "@/lib/auth/types";
 
-// Supabase Auth owns sign-in; our users row (same id) holds the plan and billing ids.
-
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-// Ids from outside (webhook metadata, tests) may be anything; Postgres would reject a non-uuid
-// with an error instead of simply finding nothing.
+// Postgres errors on a non-uuid instead of finding nothing, and outside ids may be anything.
 export function isUserId(value: string): boolean {
   return UUID.test(value);
 }
@@ -31,8 +28,6 @@ export async function findUserById(id: string): Promise<UserRow | null> {
 
 export type AuthIdentity = { id: string; email: string };
 
-// Created free on the first signed-in request; the email is synced if it changed. Racing first
-// requests are safe: the upsert keeps one row and both read it back.
 export async function ensureUser(identity: AuthIdentity, now = Date.now()): Promise<UserRow> {
   const email = normalizeEmail(identity.email);
   const existing = await findUserById(identity.id);
@@ -44,13 +39,11 @@ export async function ensureUser(identity: AuthIdentity, now = Date.now()): Prom
     .onConflictDoUpdate({ target: users.id, set: { email, updatedAt: now } })
     .returning();
   if (!row) throw new Error("ensureUser: upsert returned no row");
-  // Only the request whose insert made the row counts; a racing first request reads it back.
   if (!existing && row.createdAt === now) captureServerEvent(row.id, "signed_up", {});
   return row;
 }
 
-// Billing and the Supabase Auth user aren't touched here: DELETE /api/account cancels any live
-// subscription first and deletes the auth user after.
+// Billing and the auth user aren't touched here: DELETE /api/account handles both, in order.
 export async function deleteUserData(userId: string): Promise<void> {
   if (!isUserId(userId)) return;
   const db = await getDb();

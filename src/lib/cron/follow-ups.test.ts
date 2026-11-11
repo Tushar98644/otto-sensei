@@ -18,7 +18,6 @@ type Seed = {
   company: string;
   role?: string;
   appliedDaysAgo: number;
-  // Days from NOW to the follow-up date; negative is past. Default: a week after applying.
   followUpInDays?: number | null;
   status?: ApplicationStatus;
   remindedAt?: number | null;
@@ -65,7 +64,6 @@ function fakeSender(): EmailSender & { calls: { messages: EmailMessage[]; key: s
   };
 }
 
-// Reminders are part of the tracker, which is Pro.
 async function proUser(email: string) {
   return setPlan(await createUser(email), "pro");
 }
@@ -94,15 +92,10 @@ describe("runFollowUps", () => {
     const [stripe] = await seed(maya.id, [
       { company: "Stripe", role: "Backend Engineer", appliedDaysAgo: 9 },
       { company: "Linear", appliedDaysAgo: 7 },
-      // A week isn't up yet.
       { company: "Figma", appliedDaysAgo: 6 },
-      // Moved on.
       { company: "Notion", appliedDaysAgo: 40, status: "interview" },
-      // Already reminded about this date.
       { company: "Vercel", appliedDaysAgo: 20, remindedAt: NOW - 10 * DAY },
-      // Done: no date.
       { company: "Canva", appliedDaysAgo: 30, followUpInDays: null },
-      // Snoozed after an earlier reminder; the new date has come.
       { company: "Asana", appliedDaysAgo: 14, followUpInDays: -1, remindedAt: NOW - 4 * DAY },
     ]);
     const sender = fakeSender();
@@ -188,7 +181,6 @@ describe("runFollowUps", () => {
     const maya = await proUser("maya@example.com");
     const sam = await proUser("sam@example.com");
     const ana = await proUser("ana@example.com");
-    // Maya turned them off after turning them on; Ana never chose, so she gets none.
     await setEmailReminders(maya.id, true);
     await setEmailReminders(maya.id, false);
     await setEmailReminders(sam.id, true);

@@ -1,12 +1,3 @@
-// Shows, and with --apply writes, the sign-in email templates on the hosted Supabase project
-// through the Management API, so no dashboard paste can mangle {{ .Token }}.
-//
-//   read -s SUPABASE_ACCESS_TOKEN && export SUPABASE_ACCESS_TOKEN   # a token from supabase.com/dashboard/account/tokens
-//   bun scripts/email-templates.ts            # print what is saved now
-//   bun scripts/email-templates.ts --apply    # write SETUP.md 6e's templates, then print again
-//
-// SUPABASE_PROJECT_REF defaults to the ref inside NEXT_PUBLIC_SUPABASE_URL.
-
 export {};
 
 const SITE = "https://www.ottosensei.com";
@@ -20,7 +11,6 @@ const BODY = `<div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI
 <p style="margin:0;color:#475850;font-size:14px">If you didn't ask for this, you can ignore this email.</p>
 </div>`;
 
-// New people get the confirmation email, returning people the magic-link one; both carry the code.
 const WANTED = {
   mailer_subjects_confirmation: SUBJECT,
   mailer_templates_confirmation_content: BODY,
@@ -60,7 +50,6 @@ function show(config: Record<string, unknown>) {
     const ok = value === WANTED[key] ? "ok " : "OFF";
     console.log(`${ok} ${key}: ${text === "" ? "(empty: Supabase's default)" : text}`);
   }
-  // A send-email hook replaces the templates entirely.
   if (hook.length) console.log(`Send-email hook is on: ${hook.map(([key]) => key).join(", ")}`);
 }
 

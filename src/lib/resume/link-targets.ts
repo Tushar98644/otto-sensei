@@ -1,11 +1,6 @@
 import type { PdfLinkTarget } from "@/lib/parse/types";
 import type { Resume } from "./schema";
 
-// PDFs often show a cut-off link ("github.com/jane") while the clickable target holds the full
-// address. Swap in the target only when it's drawn under that link and on the same site, so a
-// chosen short link (bit.ly) stays as written.
-
-// A link written only as its site's name ("GitHub"), and the site that name means.
 const SITE_NAMES: Record<string, string> = {
   github: "github.com",
   linkedin: "linkedin.com",
@@ -27,7 +22,6 @@ function hostOf(raw: string): string | null {
   }
 }
 
-/** "https://www.linkedin.com/in/jane-doe/" -> "linkedin.com/in/jane-doe", as people write links. */
 function written(url: string): string {
   return url
     .replace(/^https?:\/\//i, "")
@@ -37,7 +31,6 @@ function written(url: string): string {
 
 const norm = (value: string) => written(value.trim()).toLowerCase();
 
-// The words under a link, split where a resume separates items ("github.com/jane | linkedin...").
 function tokens(text: string): string[] {
   return text
     .split(/[\s|·•,]+/)
@@ -61,7 +54,6 @@ export function linkTarget(shown: string, links: readonly PdfLinkTarget[]): stri
 export function withLinkTargets(resume: Resume, links: readonly PdfLinkTarget[]): Resume {
   if (links.length === 0) return resume;
   const basicsLinks = resume.basics.links.map((link) => {
-    // A link with no address may still be named on the page: "GitHub" under github.com/jane.
     const url = linkTarget(link.url.trim() || link.label, links);
     return url ? { ...link, url } : link;
   });

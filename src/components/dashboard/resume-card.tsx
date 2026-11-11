@@ -52,7 +52,6 @@ type GitHubDialog = typeof import("@/components/github/github-import-dialog").Gi
 
 export type ResumeCardProps = {
   resume: Resume;
-  // The resume a tailored copy was made from, while it still exists.
   base: Resume | null;
   copies: number;
   now: number;
@@ -60,10 +59,7 @@ export type ResumeCardProps = {
   onRename: (resume: Resume) => void;
   onDuplicate: (resume: Resume) => void;
   onDelete: (resume: Resume) => void;
-  // Jumps to the base resume's card on the same page. Without it, "Made from" links to the library.
   onShowBase?: (id: string) => void;
-  // Otto may cheer in the picture once this copy is marked applied. Off where Otto already works
-  // on the same screen (the dashboard home's action cards).
   cheer?: boolean;
 };
 
@@ -71,8 +67,6 @@ export function cardId(resumeId: string): string {
   return `resume-${resumeId}`;
 }
 
-// The title createTailoredCopy gives a copy. While the copy still has it, the job line under the
-// title would only repeat it.
 function defaultTailoredTitle(resume: Resume): string {
   const tailor = resume.tailor;
   if (!tailor) return "";
@@ -93,11 +87,9 @@ export function ResumeCard({
 }: ResumeCardProps) {
   const titleId = useId();
   const justApplied = useJustApplied(resume.id);
-  // The GitHub dialog mounts on first use, like the share dialog, and stays mounted after so
-  // closing it hands focus back to the menu.
+  // Stays mounted after first use, so closing it hands focus back to the menu.
   const [github, setGithub] = useState({ used: false, open: false });
-  // Loaded on first use, outside the dashboard's first load. Shown once loaded rather than through
-  // Suspense, which would hold it back for React's 300 ms fallback throttle.
+  // Not Suspense: React's 300 ms fallback throttle would hold the dialog back.
   const [GitHubImportDialog, setGitHubImportDialog] = useState<GitHubDialog | null>(null);
 
   function openGitHub() {
@@ -115,10 +107,7 @@ export function ResumeCard({
       },
     );
   }
-  // Back from connecting GitHub, the dialog picks up where it left off.
   useGitHubReturn(resume.id, openGitHub);
-  // GitHub drafts are Pro: on Free the menu item offers the trial instead of a dialog that stops
-  // at its last step.
   const githubLocked = useProTools() === false;
   const share = useShareResume(resume);
   const router = useRouter();
@@ -130,7 +119,6 @@ export function ResumeCard({
   const showJob = job !== null && resume.title.trim() !== defaultTailoredTitle(resume);
   const chips = [reportChip(report), linesChip(lint)].filter((chip) => chip !== null);
   const format = TEMPLATE_INFO[templateOf(resume)].name;
-  // A tailored copy's thread: its letter and, once it's sent, that application's prep.
   const sentWith = useCopyApplication(resume);
   const marks = [
     copyLetter(resume) ? "Cover letter" : null,
@@ -146,8 +134,6 @@ export function ResumeCard({
         className="h-full"
         bodyClassName="flex flex-col p-2"
       >
-        {/* The page opens the resume too, for the mouse. Keyboards and screen readers use the
-            Open button, so the picture stays out of both. */}
         <button
           type="button"
           tabIndex={-1}

@@ -25,14 +25,9 @@ import type { Resume } from "@/lib/resume/schema";
 import { cn } from "@/lib/utils";
 import { points, webStyle } from "./web-style";
 
-// Built from the PDF's own model (buildPdfModel), so order and words match the PDF. No hooks or
-// browser APIs, so it renders on the server.
-
 type Styled = { theme: TemplateTheme };
 
-// The base layer gives h1/h2 the app's serif and h3 Inter; a resume heading takes its format's type.
 const HEADING: CSSProperties = { fontFamily: "inherit", fontWeight: "inherit" };
-// The page sets its own margins per screen; only the format's type carries over.
 const PAGE_SPACING = [
   "paddingTop",
   "paddingBottom",
@@ -40,7 +35,6 @@ const PAGE_SPACING = [
   "paddingLeft",
   "paddingRight",
 ];
-// Rows wrap on a phone, so the dates drop under a long title instead of squeezing it.
 const ROW: CSSProperties = { display: "flex", flexWrap: "wrap", columnGap: points(12) };
 const LEAD: CSSProperties = { flex: "1 1 16rem", minWidth: 0 };
 const LINK =
@@ -49,7 +43,6 @@ const LINK =
 function LinkText({ link, theme, style }: Styled & { link: PdfLink; style?: PdfStyle }) {
   if (!link.href) return <span style={webStyle(style)}>{link.text}</span>;
   const web = !link.href.startsWith("mailto:");
-  // The PDF draws its links without underlines; on a screen they need one to look clickable.
   const own = web ? theme.styles.webLink : theme.styles.link;
   return (
     <a
@@ -111,7 +104,6 @@ function Header({ model, theme }: Styled & { model: PdfModel }) {
   );
 }
 
-// An entry's first row is its heading (h3); a role under a company line is h4.
 function Row({ row, theme, heading }: Styled & { row: PlannedRow; heading: "h3" | "h4" | "p" }) {
   const Lead = heading;
   return (
@@ -126,7 +118,6 @@ function Row({ row, theme, heading }: Styled & { row: PlannedRow; heading: "h3" 
         <Runs runs={row.lead} theme={theme} />
       </Lead>
       {row.side ? (
-        // Right-aligned beside the lead; under it, on a phone, it starts at the left like the text.
         <p style={webStyle(row.side.style, ["textAlign"])} className="sm:text-right">
           {row.side.link ? <LinkText link={row.side.link} theme={theme} /> : row.side.text}
         </p>
@@ -270,7 +261,6 @@ export type ResumeWebProps = { resume: Resume; className?: string };
 
 export function ResumeWeb({ resume, className }: ResumeWebProps) {
   const theme = themeFor(resume);
-  // Every character, as the Word file keeps them: a screen has the fonts the PDF lacks.
   const model = buildPdfModel(resume, { charset: "unicode" });
   return (
     <article

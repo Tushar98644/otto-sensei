@@ -20,7 +20,6 @@ vi.mock("@/lib/rate-limit", async (importOriginal) => {
   };
 });
 
-// Mid-window, so no test straddles a window boundary.
 const NOW = Date.UTC(2026, 10, 7, 12, 30, 0) + 7;
 const LIMITS: NetworkDeviceLimit = {
   key: "test",
@@ -62,7 +61,6 @@ describe("limitNetworkThenDevice", () => {
     }
     cookieJar.clear();
     expect((await limitNetworkThenDevice(request(), LIMITS))?.scope).toBe("ip");
-    // Stopped before the device count, so no device cookie was handed out.
     expect(cookieJar.getAll()).toEqual([]);
     expect(await limitNetworkThenDevice(request("198.51.100.1"), LIMITS)).toBeNull();
   });

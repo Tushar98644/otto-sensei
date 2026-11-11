@@ -61,16 +61,11 @@ import {
 } from "./types";
 import { sponsorRegions, visaLines, type VisaFacts } from "./visa";
 
-// Candidates, labels, work-rights rules and order, all by rules on our server. No AI call.
-
 const NO_RULES: EligibilityHint = { blocked: false, note: null };
-// Copies of one opening checked for a place the person can take before giving up on it.
 const COPIES_CHECKED = 6;
 const PLACES_SHOWN = 2;
-// Ranking this many leaves room for the per-company cap without scoring the whole pool.
 const FREE_POOL = 60;
 
-// Logged with every impression so two orderings can be compared later.
 export const MATCH_VARIANT = "occupation-v3";
 
 export function occupationOption(code: string | null): OccupationOption | null {
@@ -80,7 +75,6 @@ export function occupationOption(code: string | null): OccupationOption | null {
     : null;
 }
 
-// The browser can't read occupations (the lookup stays here), so it sends null and the title.
 export function withOccupation(lookingFor: LookingFor): LookingFor {
   const occupation =
     lookingFor.occupation ?? (lookingFor.title ? readTitle(lookingFor.title).occupation : null);
@@ -104,8 +98,6 @@ function eligibilityOf(
   return { blocked: Boolean(blocked), note: blocked?.note ?? null };
 }
 
-// Names a resume version without keeping it, so its impressions and actions line up in
-// match_events.
 export function profileHash(profile: MatchProfile): string {
   const facts = JSON.stringify([[...profile.skills].sort(), profile.titles, profile.years]);
   return createHash("sha256").update(facts).digest("base64url").slice(0, 22);
@@ -118,7 +110,6 @@ export type RankRequest = {
   filters: JobFilters;
   page: number;
   workProfile: WorkProfile | null;
-  // null guesses it from the profile and work profile.
   lookingFor?: LookingFor | null;
   deviceTimeZone: string;
   now: number;
@@ -133,7 +124,6 @@ type Check = (
   visa: VisaFacts | null,
 ) => EligibilityHint;
 
-// The first copy in a place the card names and the work profile allows; others become "also in".
 function pickCopy(
   opening: PooledOpening,
   check: Check | null,
@@ -184,7 +174,6 @@ export async function rankJobs(db: Db, request: RankRequest): Promise<RankResult
   };
   const profileReady = request.workProfile !== null && isProfileStarted(request.workProfile);
   const options = { now, deviceTimeZone: request.deviceTimeZone };
-  // Without a work profile nothing can be blocked, so the slow rules don't run at all.
   const check: Check | null = profileReady
     ? (row, visa) =>
         eligibilityOf(row, request.workProfile, { ...options, sponsors: sponsorRegions(visa, now) })
@@ -278,7 +267,6 @@ export async function rankJobs(db: Db, request: RankRequest): Promise<RankResult
   for (const opening of pool.openings) {
     const { row } = opening;
     const facts = factsOf(row, opening.kind);
-    // Skills and titles first: they're cheap, and a job that fails them never needs the rules.
     if (!matchJob(person, facts)) continue;
     const { shown, others, hint } = pickCopy(opening, check, accepted);
     const match = matchJob(person, facts, hint) ?? unmatched(facts, hint);
@@ -303,7 +291,6 @@ export async function rankJobs(db: Db, request: RankRequest): Promise<RankResult
         (titleFits(row.title, lookingFor.title) ? ORDER_LIMITS.titleFit : 1),
       job: {
         ...toFeedJob(row),
-        // The copy shown is a place the person can take; the rest of the card is the opening's.
         id: shown.id,
         source: shown.source,
         location: shown.location,
@@ -318,7 +305,6 @@ export async function rankJobs(db: Db, request: RankRequest): Promise<RankResult
       },
     });
   }
-  // Two or more levels away only when nothing nearer is left.
   const near = scored.filter((item) => !item.far);
   const kept = near.length > 0 ? near : scored;
   kept.sort(compareRanked);
@@ -349,7 +335,7 @@ export async function rankJobs(db: Db, request: RankRequest): Promise<RankResult
   return withSaved(db, request.userId, result);
 }
 
-// Saved jobs change between visits; the cached page never holds them.
+// Saved jobs change between visits, so the cached page never holds them.
 async function withSaved(db: Db, userId: string, result: RankResult): Promise<RankResult> {
   const [saved, total] = await Promise.all([
     savedIds(

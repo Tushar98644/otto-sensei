@@ -5,8 +5,6 @@ import { api, isApiError } from "@/lib/api/client";
 import type { GitHubConnection } from "@/lib/github/connect";
 import { returnPathFor } from "./connect-return";
 
-// Read only while `active`. Import from GitHub and the portfolio read only this account.
-
 export type GitHubConnectionState =
   | { status: "loading" }
   | { status: "ready"; connection: GitHubConnection | null }
@@ -42,7 +40,6 @@ export function useGitHubConnection(active: boolean) {
     };
   }, [active, round]);
 
-  /** Leaves for GitHub; the way back reopens `target` (see ./connect-return.ts). */
   async function connect(target: string) {
     setBusy("connect");
     setError(null);

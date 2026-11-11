@@ -57,7 +57,6 @@ describe("planStudioTour", () => {
     expect(
       planStudioTour({ step: "fix", resume: withLines(["", "   "]), hasReport: false }),
     ).toBeNull();
-    // A scanned upload: a report, but no text came out of the file.
     expect(planStudioTour({ step: "review", resume: emptyResume(), hasReport: true })).toBeNull();
   });
 

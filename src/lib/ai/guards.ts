@@ -1,12 +1,7 @@
-// The prompts forbid inventing facts; these catch a model that does it anyway, for numbers and
-// words.
-
-// "40", "1,200", "3.5". Digits glued to letters are names ("S3", "2FA"), except k/M/B/x ("10x").
 const NUMBER = /(?<![\p{L}\p{N}.,])[$€£¥]?(\d+(?:[.,]\d+)*)(?:%|\+|[kKmMbBx](?![\p{L}\p{N}]))?(?![\p{L}\p{N}])/gu;
 const PLACEHOLDER_OR_NUMBER = new RegExp(`\\[[^\\]]*\\]|${NUMBER.source}`, "gu");
 const WORD = /[\p{L}\p{N}]+/gu;
 
-// Spelled-out numbers in the source, so "two engineers" backs up a rewrite that says "2 engineers".
 const ZERO_TO_TWENTY = (
   "zero one two three four five six seven eight nine ten eleven twelve thirteen fourteen fifteen " +
   "sixteen seventeen eighteen nineteen twenty"
@@ -27,7 +22,6 @@ const NUMBER_WORDS = new Map<string, string>([
 
 export const NUMBER_PLACEHOLDER = "[number]";
 
-// "1,200" and "1200" are the same claim.
 function numberKey(digits: string): string {
   return digits.replace(/,/g, "");
 }
@@ -52,7 +46,6 @@ export function hasInventedNumbers(output: string, sources: readonly string[]): 
   return false;
 }
 
-// So the person is asked for the real figure instead of handed a made-up one.
 export function maskInventedNumbers(output: string, sources: readonly string[]): string {
   const known = knownNumbers(sources);
   return output.replace(PLACEHOLDER_OR_NUMBER, (match: string, digits: string | undefined) => {
@@ -61,7 +54,6 @@ export function maskInventedNumbers(output: string, sources: readonly string[]):
   });
 }
 
-// 0 to 1: copied text scores near 0; rewritten or invented text pushes it up.
 export function novelWordShare(values: readonly string[], source: string): number {
   const known = new Set(Array.from(source.toLowerCase().matchAll(WORD), (match) => match[0]));
   let total = 0;

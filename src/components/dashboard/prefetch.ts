@@ -17,8 +17,6 @@ import {
 } from "@/lib/queries/options";
 import { applicationsQuery } from "./applications/use-applications";
 
-// Asked for once the pointer or focus lands on a link, so it's usually cached by the click.
-
 type Prefetch = (client: QueryClient, user: SessionUser) => Promise<unknown>[];
 
 const PAGES: Record<string, Prefetch> = {

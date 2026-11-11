@@ -11,7 +11,6 @@ import type { Application } from "@/lib/applications/schema";
 import { changeApplication } from "./use-applications";
 import { formatDay } from "./view";
 
-// Set by itself when the job was marked applied. Every change can be undone.
 export function FollowUpChip({
   application,
   now,

@@ -122,7 +122,6 @@ describe("idempotency", () => {
       2_000,
     );
     expect(await deliver(paid)).toMatchObject({ message: "applied" });
-    // Creem retried the trial's start after the first payment had already landed.
     const late = event(
       "subscription.trialing",
       { status: "trialing", product: PRO_TRIAL, metadata: { user_id: user.id }, current_period_end_date: TRIAL_END },
@@ -209,7 +208,6 @@ describe("statuses", () => {
     ["subscription.canceled", "canceled"],
     ["subscription.unpaid", "unpaid"],
     ["subscription.paused", "paused"],
-    // Creem leaves the old status in an expired event's payload; the event itself ends access.
     ["subscription.expired", "active"],
   ])("%s drops the plan to Free", async (eventType, status) => {
     const user = await createUser({

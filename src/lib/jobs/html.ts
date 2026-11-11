@@ -1,5 +1,4 @@
-// Pages come from anyone, so this is one linear scan with indexOf, never a regex that can backtrack
-// across a 2 MB page.
+// Untrusted pages: linear indexOf scans only, never a regex that can backtrack over 2 MB.
 
 import { flightJsonLd, flightPayload } from "./next-flight";
 
@@ -55,7 +54,6 @@ const BLOCKS = new Set([
 ]);
 const LINES = new Set(["br", "dd", "dt", "tr"]);
 const CELLS = new Set(["td", "th"]);
-// Site chrome around the post. Skipped on whole pages, not in descriptions from job APIs.
 const PAGE_CHROME = new Set([
   "aside",
   "button",
@@ -160,8 +158,6 @@ function isNameChar(code: number, first: boolean): boolean {
   return letter || (code >= 48 && code <= 57) || code === 45 || code === 58 || code === 95;
 }
 
-// A quote counts only after "=", so an apostrophe inside an unquoted value doesn't swallow the
-// page.
 function tagEnd(html: string, from: number): number {
   let quote = "";
   let afterEquals = false;
@@ -209,7 +205,6 @@ function* tokenize(html: string): Generator<Token> {
     while (nameEnd < html.length && isNameChar(html.charCodeAt(nameEnd), nameEnd === nameStart))
       nameEnd++;
     if (nameEnd === nameStart) {
-      // A lone "<" in text, as in "salary < $100k".
       yield { type: "text", text: "<" };
       i = lt + 1;
       continue;
@@ -247,7 +242,6 @@ const BULLET = /^(?:[-*]\s+)?[•·◦▪●■‣⁃]\s*/;
 
 class TextBuilder {
   private parts: string[] = [];
-  // So "<li><p>" doesn't push its text off the bullet line. Closing tags still break.
   private emptyItem = false;
 
   text(text: string) {
@@ -286,7 +280,6 @@ class TextBuilder {
       lines.push(line);
     }
     while (lines.at(-1) === "") lines.pop();
-    // Items written as "<li><p>...</p></li>" would otherwise come out double spaced.
     return lines
       .filter(
         (line, i) =>
@@ -355,11 +348,9 @@ export type ScannedPage = {
   h1: string | null;
   meta: ReadonlyMap<string, string>;
   jsonLd: readonly string[];
-  // Without scripts and site chrome.
   main: string;
   article: string;
   body: string;
-  // Cloudflare, Incapsula, DataDome, PerimeterX.
   challenge: boolean;
 };
 
@@ -404,7 +395,6 @@ export function scanPage(html: string): ScannedPage {
       if (key && content && !meta.has(key)) meta.set(key, content);
       continue;
     }
-    // The first heading names the job on most pages, even inside a skipped page header.
     if (token.type === "open" && token.name === "h1" && h1 === null && h1Text === null) h1Text = [];
     else if (token.type === "close" && token.name === "h1" && h1Text !== null) {
       h1 = h1Text.join("").replace(/\s+/g, " ").trim() || null;

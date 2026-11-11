@@ -2,9 +2,7 @@ import type { ReactElement, ReactNode } from "react";
 import { Globe, Link2, Mail } from "lucide-react";
 import type { SocialKind } from "@/lib/portfolio/content";
 
-// Brand marks for social links, shared by the templates. Outline marks follow Feather (MIT, as
-// bundled by bchiang7/v4); X and Bluesky are solid, like their own logos. Kinds without a mark
-// here fall back to a plain link icon rather than a guessed logo.
+// Outline marks follow Feather (MIT, as bundled by bchiang7/v4).
 
 type IconProps = { className?: string };
 

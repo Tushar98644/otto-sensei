@@ -1,8 +1,5 @@
 import type { HiringNote, HiringSystem, HiringSystemId } from "./types";
 
-// From each system's own docs, checked 2026-11-07; a claim no page backs is left out. Never a score
-// or a pass/fail guess: employers set these systems up differently.
-
 const ANSWER_THE_SAME = "Answer these truthfully, and the same way every time.";
 
 const GREENHOUSE_HELP = "Greenhouse help center";
@@ -366,7 +363,6 @@ export const HIRING_SYSTEMS: Readonly<Record<HiringSystemId, HiringSystem>> = {
   teamtailor: { id: "teamtailor", name: "Teamtailor", notes: teamtailor },
 };
 
-// The recruiter view's short list: systems whose docs say something specific about reading files.
 const FILE_NOTE_SYSTEMS: readonly HiringSystemId[] = [
   "workday",
   "greenhouse",

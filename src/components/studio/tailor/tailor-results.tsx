@@ -49,7 +49,6 @@ export type TailorResultsProps = {
 
 type ResultCardProps = { title: string; description?: string; children?: ReactNode };
 
-// The shell titles the step with an h1, so each result section is an h2.
 function ResultCard({ title, description, children }: ResultCardProps) {
   return (
     <Card>
@@ -116,7 +115,6 @@ export function TailorResults({
     setChoices({ ...choices, requirements });
   }
 
-  // Awaited so the saved id lands with the text; a failed save leaves it on this page only.
   function keep(kind: "letter" | "answer", text: SavedWriting, question = "") {
     return keepWriting({
       kind,
@@ -140,7 +138,6 @@ export function TailorResults({
     saveLetterOnCopy(saved.copyId, letter.text);
   }
 
-  // From the copy's Download step: the letter starts by itself, from the copy's post and choices.
   const writeRequestedLetter = useEffectEvent(() => {
     document.getElementById(APPLY_KIT_ID)?.scrollIntoView({ block: "start" });
     void writeLetter();
@@ -267,11 +264,9 @@ export function TailorResults({
           const answer = answers.find((item) => item.id === id);
           if (answer) keepEdit(answer.savedId, answer.text);
         }}
-        // Off this job's list only: the saved copy stays on the Cover letters page.
         onRemoveAnswer={(id) => onPatch({ answers: answers.filter((answer) => answer.id !== id) })}
       />
 
-      {/* Once a copy exists this opens it, so a second click doesn't make a twin. */}
       <div className="sticky bottom-[max(0.75rem,env(safe-area-inset-bottom))] z-10 flex items-center gap-3 rounded-2xl bg-surface p-1.5 shadow-float ring-1 ring-ink/5 max-sm:flex-col max-sm:items-stretch max-sm:gap-1 sm:pl-4">
         <p className="min-w-0 flex-1 text-sm text-muted max-sm:px-2.5 max-sm:pt-1.5 max-sm:pb-1">
           {copy

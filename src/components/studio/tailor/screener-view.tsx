@@ -25,8 +25,6 @@ export type ScreenerViewProps = {
   onJump: (bulletId: string) => void;
 };
 
-// Recruiter AI (HiredScore, Ashby) grades one requirement at a time, so this does too, and says
-// plainly it's the method, not any vendor's grade.
 export function ScreenerView({
   screener,
   choices,

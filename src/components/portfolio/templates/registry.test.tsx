@@ -11,7 +11,6 @@ import { portfolioView, type PortfolioView } from "@/lib/portfolio/view";
 import { emptyResume } from "@/lib/resume/schema";
 import { PORTFOLIO_TEMPLATE_LIST, PORTFOLIO_TEMPLATES } from "./registry";
 
-/** The selectors of every rule in the template's own <style>, at-rules and keyframes left out. */
 function selectorsOf(html: string): string[] {
   const css = (/<style>([\s\S]*?)<\/style>/.exec(html)?.[1] ?? "").replace(
     /@keyframes\s+[\w-]+\s*\{(?:[^{}]*\{[^{}]*\})*\s*\}/g,
@@ -24,7 +23,6 @@ function selectorsOf(html: string): string[] {
   return selectors.filter(Boolean);
 }
 
-/** The ids in the newest migration's CHECK on portfolios.template. */
 function migrationTemplateIds(): string[] {
   const checks = readMigrations()
     .map((migration) => /check\s*\(\s*template\s+in\s*\(([^)]*)\)\s*\)/i.exec(migration.sql)?.[1])
@@ -65,7 +63,6 @@ describe("portfolio template registry", () => {
       );
       expect(template.credit.licence).toBe("MIT");
       expect(template.credit.href).toMatch(/^https:\/\/github\.com\//);
-      // A template is named for its look, never after the person whose design it rebuilds.
       for (const word of template.credit.author.split(" "))
         expect(template.name.toLowerCase()).not.toContain(word.toLowerCase());
       expect(TEMPLATE_USES[template.id], template.id).toBeDefined();
@@ -76,7 +73,6 @@ describe("portfolio template registry", () => {
     expect(migrationTemplateIds()).toEqual([...PORTFOLIO_TEMPLATE_IDS]);
     expect(DEFAULT_PORTFOLIO_TEMPLATE).toBe("navy");
     const latest = readMigrations()
-      // The newest migration that changes the template list, not just any one touching portfolios.
       .filter((migration) => /portfolios_template_check/.test(migration.sql))
       .at(-1);
     expect(latest?.sql).toMatch(/alter column template set default 'navy'/);
@@ -96,13 +92,11 @@ describe.each(PORTFOLIO_TEMPLATE_IDS)("the %s template", (id) => {
 
   it("draws a page with only a name, and a plain word with none at all", () => {
     const html = render(onlyAName("Ada Lovelace"));
-    // Dock greets by first name only, like its reference.
     expect(html).toContain(id === "dock" ? "Ada" : "Ada Lovelace");
     expect(html).not.toMatch(/<(section|article|ul)[^>]*>\s*<\/\1>/);
     expect(render(onlyAName(""))).toContain("Portfolio");
   });
 
-  // The MIT notices for the rebuilt designs live in THIRD_PARTY_NOTICES.md, not on the page.
   it("shows no design credit, and draws the page's credit only when given one", () => {
     const html = render(onlyAName("Ada Lovelace"));
     expect(html).not.toContain("Design based on");

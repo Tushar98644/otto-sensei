@@ -1,9 +1,5 @@
-// A small table of cities people put on resumes, matched by name. No lookup service, so an unknown
-// city gets no pin and the owner can still pick a time zone.
-
 export type Place = { city: string; timezone: string; lat: number; lng: number };
 
-// [names (first is the display name), IANA zone, lat, lng]
 const CITIES: readonly [string[], string, number, number][] = [
   [["Lisbon", "Lisboa"], "Europe/Lisbon", 38.72, -9.14],
   [["Porto"], "Europe/Lisbon", 41.15, -8.61],
@@ -115,8 +111,6 @@ const word = (name: string, flags: string) =>
 
 const MATCHERS = CITIES.map(([names, timezone, lat, lng]) => ({
   place: { city: names[0]!, timezone, lat, lng },
-  // Whole words only. Short aliases ("SF", "LA", "NYC") count only in capitals, the way people
-  // write them, so "la" in "Villa la Angostura" or "Lagos" never matches.
   tests: names.map((name) =>
     name.length <= 3
       ? (raw: string) => word(name, "u").test(raw)
@@ -124,7 +118,6 @@ const MATCHERS = CITIES.map(([names, timezone, lat, lng]) => ({
   ),
 }));
 
-/** null for "Remote" and unknown towns. */
 export function findPlace(location: string): Place | null {
   const value = location.trim();
   if (!value) return null;

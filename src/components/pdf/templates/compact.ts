@@ -1,8 +1,6 @@
 import { PDF_FONT } from "@/lib/pdf/fonts";
 import { INK, defineTheme } from "../theme";
 
-// The one-page "resume book" business schools send to banks: Times 10pt (Tinos, same widths).
-
 const RULE_GRAY = "#808080";
 
 export const compact = defineTheme({
@@ -14,7 +12,6 @@ export const compact = defineTheme({
     school: [{ lead: ["org", "detail"], side: "dates" }, { lead: ["title"] }],
     item: [{ lead: ["title", "org", "tech", "detail"], side: "dates" }],
   },
-  // Promotions: the firm once with its whole span, then each title with its own years.
   companyRow: { lead: ["org", "detail"], side: "dates" },
   roleRow: { lead: ["title", "detail"], side: "dates" },
   separators: { org: ", ", detail: ", ", tech: ", ", title: ", " },
@@ -46,7 +43,6 @@ export const compact = defineTheme({
     row1First: { fontWeight: "bold" },
     row2First: { fontWeight: "bold" },
     bullet: { marginTop: 0 },
-    // A small square: the resume book's Wingdings bullet, at about 4pt.
     bulletGlyph: { width: 14, paddingLeft: 1, fontSize: 6, lineHeight: 11.5 / 6 },
     bulletMark: { width: 3.6, height: 3.6, marginTop: 3.9, marginLeft: 1, color: INK },
     skillLine: { marginTop: 0 },

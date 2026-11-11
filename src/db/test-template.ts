@@ -2,8 +2,6 @@ import { PGlite } from "@electric-sql/pglite";
 import { LOCAL_ONLY_DDL } from "./local-schema";
 import { readMigrations } from "./migration-files";
 
-// Test-only: an in-memory Postgres with every migration applied, plus the local-only tables.
-
 export async function buildDatabase(): Promise<PGlite> {
   const client = new PGlite();
   await client.exec(LOCAL_ONLY_DDL);

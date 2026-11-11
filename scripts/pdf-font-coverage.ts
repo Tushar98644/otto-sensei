@@ -1,9 +1,4 @@
-// Writes src/lib/pdf/font-coverage.ts: which characters each bundled PDF font can draw, read from
-// the font files in public/fonts/pdf. Re-run it after adding or swapping a font file:
-//
-//   bun scripts/pdf-font-coverage.ts
-//
-// A family covers a character only when every face of it does (a name in bold must still print).
+// A family covers a character only when every face does: a bold name must still print.
 
 import { writeFile } from "node:fs/promises";
 import { createRequire } from "node:module";
@@ -19,7 +14,6 @@ const fontkit = createRequire(import.meta.url)("fontkit") as {
 const ROOT = fileURLToPath(new URL("..", import.meta.url));
 const OUT = join(ROOT, "src", "lib", "pdf", "font-coverage.ts");
 
-// Controls, private use and the like never count as drawable, whatever a font maps them to.
 const PRINTABLE = /^[\p{L}\p{M}\p{N}\p{P}\p{S}\p{Zs}]$/u;
 
 const intersect = (sets: Set<number>[]): Set<number> =>
@@ -36,7 +30,6 @@ function familyCoverage(name: PdfFontName): Set<number> {
   );
 }
 
-// [start, end, start, end, ...], inclusive and sorted.
 function ranges(set: Set<number>): number[] {
   const codes = [...set].sort((a, b) => a - b);
   const out: number[] = [];
@@ -55,8 +48,6 @@ function format(list: number[]): string {
 
 async function main() {
   const coverage = new Map(PDF_FONT_NAMES.map((name) => [name, familyCoverage(name)]));
-  // What every family prints, with its fallback drawing the gaps: the characters a resume keeps in
-  // any format.
   const drawable = intersect(
     PDF_FONT_NAMES.map((name) => {
       const own = coverage.get(name)!;

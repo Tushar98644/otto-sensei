@@ -14,9 +14,6 @@ import {
   type ReferralClaimOutcome,
 } from "./referrals";
 
-// Route handlers only (they can set cookies). The browser writes the invite cookie; here it moves
-// to "checked" or "joined", and is deleted once the invite is settled.
-
 export async function readRefCookie(): Promise<RefCookie | null> {
   return parseRefCookie((await cookies()).get(REF_COOKIE)?.value);
 }
@@ -31,7 +28,6 @@ async function writeRefCookie(next: RefCookie | null): Promise<void> {
   jar.set(REF_COOKIE, formatRefCookie(next), { ...options, maxAge: REF_COOKIE_MAX_AGE_S });
 }
 
-// Pays out when a check has run. Keeps the cookie only while the invite waits for that check.
 export async function claimFromCookie(
   user: SessionUser,
   { checked }: { checked: boolean },
@@ -52,7 +48,6 @@ export async function claimFromCookie(
   return outcome;
 }
 
-// Call after a recruiter check ran. Never fails the check: a referral problem is only logged.
 export async function noteReferralCheck(now = Date.now()): Promise<void> {
   try {
     const cookie = await readRefCookie();

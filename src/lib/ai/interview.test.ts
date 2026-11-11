@@ -44,7 +44,6 @@ const LINES = [
   { id: "l2", text: "Helped with the quarterly customer newsletter", place: "Backend Engineer at Mapline" },
 ];
 
-// The fields a test doesn't care about.
 const QUESTION = {
   round: "fit" as const,
   question: "",
@@ -108,7 +107,6 @@ describe("prepareInterview", () => {
 
     expect(InterviewPrepSchema.safeParse(prep).success).toBe(true);
     expect(prep).toMatchObject({ version: 2, demo: false, createdAt: 123, job: { company: "Kestrel Labs" } });
-    // Kafka is in neither the resume nor the post, so that pointer goes; 70% becomes a blank.
     expect(prep.questions).toEqual([
       {
         round: "skills",
@@ -125,7 +123,6 @@ describe("prepareInterview", () => {
     expect(story?.line).toBe("Rebuilt the billing service in Go, cutting p99 latency by 40%");
     expect(story?.place).toBe("Backend Engineer at Mapline");
     expect(story?.action).toBe("I rebuilt the billing service in Go");
-    // 300 hours isn't in the line, so the number goes; the rest still matches the line.
     expect(story?.result).not.toContain("300");
   });
 
@@ -160,7 +157,6 @@ describe("prepareInterview", () => {
       ["behavioural", "Tell me about a time you disagreed with a lead?"],
       ["closing", "Anything we haven't covered that you'd want us to know?"],
     ]);
-    // l9 isn't a real line, so its story was dropped and the question links none.
     expect(prep.questions.map((item) => item.story)).toEqual([null, null, 0, null, null]);
     expect(prep.stories[0]?.title).toBe("Customer newsletter");
   });
@@ -201,7 +197,6 @@ describe("prepareInterview", () => {
     expect(sent).toContain("[LINK_");
     expect(prep.questions[0]?.question).toContain("github.com/priyaraman/ledger");
     expect(prep.questions[0]?.question).not.toContain("[LINK_");
-    // Restored before the checks, so the real name counts as one the resume has.
     expect(prep.questions[0]?.points).toEqual(["Say Priya Raman wrote the docs used by 12 teams"]);
   });
 
@@ -234,7 +229,6 @@ describe("prepareInterview", () => {
       "End on why this job is the next step",
     ]);
     expect(prep.questions.find((item) => item.round === "behavioural")?.story).toBe(0);
-    // The line with a number comes first, and its action is the line itself.
     expect(prep.stories[0]?.action).toBe("Rebuilt the billing service in Go, cutting p99 latency by 40%");
     expect(prep.stories[1]?.result).toBe("[What changed because of it, and by how much?]");
     expect(prep.asks.length).toBeGreaterThan(0);

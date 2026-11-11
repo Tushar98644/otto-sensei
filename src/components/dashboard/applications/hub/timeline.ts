@@ -12,7 +12,6 @@ import { formatDay } from "../view";
 export type TimelineStep = {
   status: ApplicationStatus;
   state: "done" | "current" | "next";
-  // When known: rows logged before the timeline existed only know their sent day and last change.
   at: number | null;
 };
 
@@ -26,8 +25,6 @@ function lastAt(history: readonly StatusEvent[], status: ApplicationStatus): num
   return null;
 }
 
-// Steps forward as far as it went, then the steps ahead or how it ended. A no after an interview
-// shows Applied and Interviewing done, then Rejected.
 export function timelineSteps(application: Timed, history: readonly StatusEvent[]): TimelineStep[] {
   const ended = !isStage(application.status);
   const reached = stageIndex(isStage(application.status) ? application.status : application.stageReached);
@@ -52,7 +49,6 @@ export function timelineSteps(application: Timed, history: readonly StatusEvent[
   return steps;
 }
 
-// At most 18 words, like every Otto line.
 export function nextStepLine(
   application: Pick<Application, "status" | "followUpAt">,
   hasPrep: boolean,

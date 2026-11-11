@@ -2,7 +2,6 @@ import Link from "next/link";
 import type { ComponentProps } from "react";
 import { cn } from "@/lib/utils";
 
-// An underlined link inside running text. For links that look like buttons, use buttonClasses().
 export function TextLink({ className, ...props }: ComponentProps<typeof Link>) {
   return (
     <Link

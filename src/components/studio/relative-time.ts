@@ -14,7 +14,6 @@ const UNITS: readonly [Intl.RelativeTimeFormatUnit, number][] = [
 
 const formatter = new Intl.RelativeTimeFormat("en", { numeric: "auto" });
 
-// A future time (another device's clock running ahead) reads "just now", not "in 3 minutes".
 export function formatRelativeTime(timestamp: number, now: number): string {
   const elapsed = now - timestamp;
   if (!Number.isFinite(elapsed) || elapsed < 45 * SECOND) return "just now";

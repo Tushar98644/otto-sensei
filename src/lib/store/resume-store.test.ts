@@ -63,7 +63,6 @@ describe("mergeFromCloud", () => {
     expect(store().reports[deleted.id]).toBeUndefined();
     expect(store().exportReports[deleted.id]).toBeUndefined();
     expect(store().order).toEqual([kept.id]);
-    // The deleted one was open, so the next one takes over on the same step.
     expect(store().activeId).toBe(kept.id);
     expect(store().step).toBe("fix");
   });
@@ -158,7 +157,6 @@ describe("duplicateResume", () => {
     expect(copy?.title).toBe("Design roles (copy)");
     expect(copy?.basics).toEqual(original.basics);
     expect(store().order).toEqual([id, first.id, original.id]);
-    // The uploaded file's report comes along; the open resume stays open.
     expect(store().reports[id!]).toBe(report);
     expect(store().activeId).toBe(first.id);
     expect(store().resumes[original.id]).toEqual(original);
@@ -317,7 +315,6 @@ describe("undo and redo", () => {
 
     expect(store().undo(cv.id)).toBe(true);
     expect(store().resumes[cv.id]?.title).toBe("CV");
-    // Undo is an edit like any other, so sync uploads the older state.
     expect(store().resumes[cv.id]!.updatedAt).toBeGreaterThan(cv.updatedAt);
     expect(store().undo(cv.id)).toBe(false);
 
@@ -395,7 +392,6 @@ describe("saved versions", () => {
     store().undo(cv.id);
     expect(store().resumes[cv.id]?.summary).toBe("Second summary");
 
-    // Already saved: restoring from it adds no second copy of the same state.
     store().restoreVersion(cv.id, versions[0]!.id);
     expect(store().versions[cv.id]).toHaveLength(2);
 
@@ -500,10 +496,8 @@ describe("persisted state, version 2", () => {
       expect(raw.version).toBe(2);
       expect(raw.state.history).toBeUndefined();
 
-      // Pretend the trash entry was made 31 days ago.
       const state = raw.state as { trash: { deletedAt: number }[] };
       state.trash[0]!.deletedAt = Date.now() - 31 * 24 * 60 * 60 * 1000;
-      // clearAll() saves an empty studio, so the edited save goes back in after it.
       store().clearAll();
       values.set("otto-studio-v1", JSON.stringify(raw));
       await useStudioStore.persist.rehydrate();

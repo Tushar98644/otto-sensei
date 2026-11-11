@@ -6,8 +6,7 @@ import { OTTO_COLORS as C, OUTLINE } from "./palette";
 export const OTTO_POSES = ["wave", "read", "think", "point", "cheer", "worried", "peek"] as const;
 export type OttoPose = (typeof OTTO_POSES)[number];
 
-// An idle loop on the outer group plus a nested one-off take on hover or focus (nested, so the two
-// add up without a jump). Class names are written in full so Tailwind finds them.
+// Class names are written in full so Tailwind finds them.
 export type PartMotion = { idle: string; lively: string; origin: CSSProperties };
 
 const PAGE_MOTION: PartMotion = {
@@ -24,7 +23,6 @@ const POINT_MOTION: PartMotion = {
   origin: { transformBox: "view-box", transformOrigin: "122px 100px" },
 };
 
-// The forearm swings from the elbow at his side, so the paw taps his chin.
 const CHIN_MOTION: PartMotion = {
   idle: "motion-safe:animate-otto-chin",
   lively:
@@ -59,20 +57,14 @@ export function moving(o: DrawOptions, motion: PartMotion | undefined, part: Rea
 type PoseArt = {
   expression: Expression;
   head?: PartMotion;
-  // Head and paws only, peeking over an edge: drawOtto skips the tail and body.
   headOnly?: boolean;
-  // Drawn before the head, so shoulders tuck in under it and joints stay hidden.
   behind: (o: DrawOptions) => ReactNode;
-  // Drawn last, over the face and body: props and paws that sit in front.
   front?: (o: DrawOptions) => ReactNode;
 };
 
-// Arms start under the chin, where the head hides the join. Hanging arms start a little lower
-// (drawLimb's fromBody) so they grow out of him; raised arms keep the full outline.
 const SHOULDER_LEFT = "M 78 100";
 const SHOULDER_RIGHT = "M 122 100";
 
-// The waving arm swings from the shoulder. Coordinates are in viewBox units.
 const WAVE_PIVOT: CSSProperties = { transformBox: "view-box", transformOrigin: "124px 102px" };
 
 const RESUME_LINES = "M 80 137 H 120 M 80 144 H 116 M 80 151 H 120 M 80 158 H 108";
@@ -111,7 +103,6 @@ const read: PoseArt = {
       {drawLimb(`${SHOULDER_RIGHT} C 132 112 134 124 128 132`, o, 14, true)}
     </g>
   ),
-  // Tilted so it looks held, not pasted. Lively, he lifts it to read closer.
   front: (o) =>
     moving(
       o,
@@ -131,14 +122,12 @@ const read: PoseArt = {
 const think: PoseArt = {
   expression: { eyes: "up", brows: "curious", mouth: "hmm" },
   head: TILT_MOTION,
-  // Only the forearm is drawn, from an elbow at his side: a folded upper arm turns into a blob.
   behind: (o) => (
     <g>
       {restingArm(o)}
       {moving(o, CHIN_MOTION, drawLimb("M 142 137 C 137 127 124 119 115 110", o))}
     </g>
   ),
-  // In front of the head, since the paw rests on his chin. Same motion as the forearm: one arm.
   front: (o) => moving(o, CHIN_MOTION, drawPaw(114, 103, o)),
 };
 
@@ -170,7 +159,6 @@ const cheer: PoseArt = {
       {drawPaw(164, 63, o, 9.5, true)}
     </g>
   ),
-  // Plain motion strokes, not sparkles: the joy should come from his face.
   front: () => (
     <path
       d="M 22 50 L 16 44 M 178 50 L 184 44 M 182 63 L 190 62"
@@ -182,7 +170,6 @@ const cheer: PoseArt = {
   ),
 };
 
-// The edge he peeks over: y = 112, through his paws. Callers line it up with the real edge.
 export const PEEK_EDGE_Y = 112;
 
 const peek: PoseArt = {

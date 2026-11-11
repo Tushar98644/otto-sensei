@@ -14,19 +14,15 @@ import { portfolioDescription } from "@/lib/portfolio/view";
 import { absoluteUrl } from "@/lib/seo/urls";
 import { cn } from "@/lib/utils";
 
-// Every write drops the cache (src/lib/portfolio/cache.ts), else hourly. Must stay a literal
-// (PORTFOLIO_REVALIDATE_SECONDS) for Next to read it.
+// Must stay a literal (= PORTFOLIO_REVALIDATE_SECONDS): Next reads it statically.
 export const revalidate = 3600;
 
-// No pages at build time; each address is rendered on its first visit.
 export async function generateStaticParams(): Promise<{ slug: string }[]> {
   return [];
 }
 
 type Props = { params: Promise<{ slug: string }> };
 
-// The browser bar takes the template's own background (Navy's is dark blue). Same cached lookup
-// as the page.
 export async function generateViewport({ params }: Props): Promise<Viewport> {
   const { slug } = await params;
   const result = await loadPublicPortfolio(slug);
@@ -51,7 +47,6 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   return {
     title: { absolute: title },
     description,
-    // Off until the owner turns on "Let search engines find it".
     robots: allowIndexing ? { index: true, follow: true } : NO_INDEX,
     alternates: allowIndexing ? { canonical: portfolioPath(slug) } : undefined,
     openGraph: { type: "profile", title, description, url: portfolioPath(slug) },
@@ -69,7 +64,6 @@ function safeDecode(value: string): string {
 
 export default async function PublicPortfolioPage({ params }: Props) {
   const { slug } = await params;
-  // "/p/Maya-Chen" and "/p/maya%20chen" are the same page as "/p/maya-chen".
   const canonical = normalizeSlug(safeDecode(slug));
   if (canonical !== slug) {
     if (canonical) redirect(portfolioPath(canonical));
@@ -80,7 +74,6 @@ export default async function PublicPortfolioPage({ params }: Props) {
   if (result.status === "missing") notFound();
   const { portfolio } = result;
   const { Component } = PORTFOLIO_TEMPLATES[portfolio.template];
-  // On every published page, indexed or not: it repeats what any visitor already sees.
   const jsonLd = profilePageJsonLd({
     view: portfolio.view,
     content: portfolio.content,
@@ -88,7 +81,6 @@ export default async function PublicPortfolioPage({ params }: Props) {
     url: absoluteUrl(portfolioPath(portfolio.slug)),
     updatedAt: portfolio.updatedAt,
   });
-  // No site chrome: the page is the template's own canvas, edge to edge, and belongs to its owner.
   return (
     <main
       id="main"

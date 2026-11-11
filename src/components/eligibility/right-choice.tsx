@@ -10,7 +10,6 @@ const CHOICES: Array<{ value: WorkRight | null; label: string }> = [
   { value: null, label: "Not set" },
 ];
 
-// Native radios under the segmented look, so arrow keys, forms and screen readers behave as usual.
 const SEGMENT = cn(
   "flex h-9 cursor-pointer items-center justify-center rounded-lg px-2 text-sm text-muted pointer-coarse:h-11",
   "hover:text-ink has-checked:bg-surface has-checked:font-medium has-checked:text-ink",

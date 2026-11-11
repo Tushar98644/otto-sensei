@@ -23,7 +23,6 @@ export type FixFirstProps = {
   className?: string;
 };
 
-// At most three items, so the first screen answers "what now?" without scrolling.
 export function FixFirst({
   items,
   title = "Fix these first",

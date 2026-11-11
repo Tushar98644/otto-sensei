@@ -1,18 +1,12 @@
-// Per server instance. Without a token GitHub allows 60 calls an hour per server address, shared by
-// everyone, so a lookup then a draft must not pay twice. Holds mapped values, never raw responses.
-
 export const FRESH_MS = 10 * 60_000;
-// Kept past freshness so If-None-Match can revive them: GitHub doesn't count a 304 against its
-// limit.
+// Kept past freshness for If-None-Match: GitHub doesn't count a 304 against its limit.
 const KEEP_MS = 60 * 60_000;
-// A misspelt name is often retried as typed; a short memory of "no such account" saves calls.
 export const MISSING_MS = 2 * 60_000;
 const MAX_ENTRIES = 200;
 
 export type CacheEntry = {
   at: number;
   etag: string | null;
-  // null: GitHub answered "not found".
   value: unknown;
 };
 
@@ -25,7 +19,6 @@ export function cacheGet(key: string, now: number): CacheEntry | null {
     entries.delete(key);
     return null;
   }
-  // Map order is the eviction order, so a read moves the entry to the back.
   entries.delete(key);
   entries.set(key, entry);
   return entry;

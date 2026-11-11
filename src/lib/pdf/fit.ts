@@ -6,18 +6,14 @@ import { findTermIn } from "@/lib/tailor/keywords";
 import { textTokens } from "@/lib/tailor/tokens";
 import { visibleResume } from "./visible";
 
-// Only ever hides lines (hidden: true), never deletes, so every line can come back.
-
 export type FitLine = {
   bulletId: string;
   text: string;
   place: string;
   issue: LintIssueId | null;
-  // A tailored copy's line that names none of the job's requirement terms.
   offTarget: boolean;
 };
 
-// Planning renders the PDF about log2(n) + 1 times, so a short list plans in a second or two.
 export const MAX_FIT_LINES = 32;
 
 const SEVERITY_WEIGHT = { high: 3, low: 1 } as const;
@@ -63,9 +59,6 @@ function topIssue(issues: readonly LintIssue[]): LintIssueId | null {
   return (issues.find((issue) => issue.severity === "high") ?? issues[0])?.id ?? null;
 }
 
-// Weakest lint first, then later lines before earlier ones. On a tailored copy a line naming a
-// requirement's term is never offered: it's what the screener looks for. Each entry keeps its first
-// line, so no job is left as a bare heading.
 export function fitCandidates(resume: Resume): FitLine[] {
   const shown = visibleResume(resume);
   const lint = lintResume(shown).byBullet;
@@ -138,11 +131,9 @@ export function showLines(resume: Resume, ids: ReadonlySet<string>): Resume {
 
 export type FitPlan = {
   count: number;
-  // False when hiding every line still leaves more than one page.
   fits: boolean;
 };
 
-// Hiding more never adds a page, so a binary search needs about log2(n) + 1 renders.
 export async function planFit(
   resume: Resume,
   lines: readonly FitLine[],

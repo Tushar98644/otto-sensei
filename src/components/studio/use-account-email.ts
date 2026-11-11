@@ -5,9 +5,6 @@ import { useMe } from "@/components/account/use-me";
 import { readJsonItem, writeJsonItem } from "@/lib/browser-storage";
 import { useStudioStore } from "@/lib/store/resume-store";
 
-// A person's own resume with no email gets their sign-in email, as an undoable edit. Once per
-// resume and browser, so an email deleted on purpose never comes back. Samples are left alone.
-
 const STORAGE_KEY = "otto-email-filled-v1";
 const MAX_REMEMBERED = 200;
 
@@ -16,7 +13,6 @@ function remembered(): string[] {
   return Array.isArray(list) ? list.filter((id): id is string => typeof id === "string") : [];
 }
 
-// Storage blocked: at worst the email is offered again on another visit.
 function remember(id: string) {
   const list = [...remembered().filter((item) => item !== id), id].slice(-MAX_REMEMBERED);
   writeJsonItem(STORAGE_KEY, list);

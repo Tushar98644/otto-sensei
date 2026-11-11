@@ -41,11 +41,9 @@ import { useWritings } from "./use-writings";
 import { WriteDialog, type Written } from "./write-dialog";
 
 const count = new Intl.NumberFormat("en-US");
-// Rows drawn at first and per "Show more": each row carries a menu.
 const PAGE_ROWS = 50;
 
-// Each opening gets its own key, so a dialog always mounts fresh; it stays mounted (closed) after
-// that, so closing hands focus back before the next opening replaces it.
+// Kept mounted after closing, so focus returns before the next opening replaces it.
 type Opening<T> = T & { key: number; open: boolean };
 
 export function LettersPage() {
@@ -56,7 +54,6 @@ export function LettersPage() {
   const now = useNow();
   const actions = useStudioActions();
   const pdf = useLetterPdf(resumes);
-  // Free can't write new ones, but keeps reading, editing and deleting what it wrote on Pro.
   const locked = useProTools() === false;
   const tryPro = useTryProLabel();
   const [upgradeOpen, setUpgradeOpen] = useState(false);
@@ -64,8 +61,6 @@ export function LettersPage() {
   const [rows, setRows] = useState(PAGE_ROWS);
   const [composer, setComposer] = useState<Opening<{ kind: WritingKind }> | null>(null);
   const [viewer, setViewer] = useState<Opening<{ entryKey: string }> | null>(null);
-  // Written here but refused by the server: listed until the page is left, so nothing paid for is
-  // lost to a closed dialog.
   const [unsaved, setUnsaved] = useState<LetterEntry[]>([]);
   const openings = useRef(0);
 
@@ -111,7 +106,6 @@ export function LettersPage() {
     if (target) actions.open(target.id, target.step);
   }
 
-  // Shown at once in the list and on the tailored copy, and taken back if the server says no.
   async function saveEdit(entry: LetterEntry, text: string): Promise<boolean> {
     const value = text.trim();
     if (!value || value === entry.text.trim()) return true;
@@ -126,7 +120,6 @@ export function LettersPage() {
     try {
       const { writing } = await api.editWriting(before.id, { text: value });
       writings.replace(writing);
-      // The server tidies the text a little; the copy keeps the same words so the two stay one.
       saveLetterOnCopy(entry.copyId, writing.text);
       return true;
     } catch (error) {
@@ -137,7 +130,6 @@ export function LettersPage() {
     }
   }
 
-  // Gone at once (also from its copy); the saved row is deleted only once the Undo runs out.
   function remove(entry: LetterEntry) {
     if (viewer?.entryKey === entry.key) setViewer({ ...viewer, open: false });
     const saved = writings.items.find((item) => item.id === entry.writingId);
@@ -217,7 +209,6 @@ export function LettersPage() {
           Check your connection, then try again.
         </Alert>
       ) : entries.length === 0 ? (
-        // On Free the note above already says what this is and offers the trial.
         locked ? null : resumes.length === 0 ? (
           <div className="rounded-2xl bg-surface p-6 sm:p-8">
             <OttoNote live={false} message={OTTO.letters.noResume}>
@@ -327,7 +318,6 @@ export function LettersPage() {
   );
 }
 
-// "3 letters and 2 answers", leaving out a kind there's none of.
 function tally(counts: Record<LetterFilter, number>): string {
   return [
     counts.letter ? pluralize(counts.letter, "letter") : null,

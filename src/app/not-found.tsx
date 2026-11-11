@@ -7,10 +7,8 @@ import { SiteFooter } from "@/components/site/site-footer";
 import { SiteHeader } from "@/components/site/site-header";
 import { buttonClasses } from "@/components/ui/button";
 
-// Next adds noindex to 404 responses on its own.
 export const metadata: Metadata = { title: "Page not found" };
 
-// The root not-found renders outside the (marketing) layout, so it brings its own header and footer.
 export default function NotFound() {
   return (
     <div className="flex min-h-dvh flex-col">

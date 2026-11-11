@@ -4,8 +4,6 @@ import { ROUTES } from "@/components/site/routes";
 
 export const metadata: Metadata = { title: "Interview prep" };
 
-// The same prep page as /dashboard/applications/[id]/prep, reached from Interview prep, so the
-// sidebar keeps that section current and the back link returns there.
 export default async function Page({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   return (

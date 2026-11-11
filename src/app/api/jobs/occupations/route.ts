@@ -8,8 +8,6 @@ export const runtime = "nodejs";
 const MAX_QUERY_CHARS = 60;
 const RESULTS = 8;
 
-// "RN", "HGV driver" and "solicitor" all find theirs. The answer depends on the words alone, so
-// browsers and the CDN keep it.
 export async function GET(req: Request): Promise<Response> {
   const query = (new URL(req.url).searchParams.get("q") ?? "").trim();
   if (query.length > MAX_QUERY_CHARS)

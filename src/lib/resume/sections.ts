@@ -1,14 +1,11 @@
 import type { ExtraKind, SectionKey } from "./schema";
 
-// Section headings and line patterns shared by the heuristic parser and the recruiter checks.
-
 export type HeadingMatch = {
   lineIndex: number;
   section: SectionKey;
   text: string;
 };
 
-// "other" still ends the section above it, so awards don't leak into skills.
 export type HeadingKind = SectionKey | "other";
 
 const PHRASES: Record<HeadingKind, readonly string[]> = {
@@ -75,8 +72,6 @@ const PHRASES: Record<HeadingKind, readonly string[]> = {
   ],
 };
 
-// Single words that also show up as plain list items ("Leadership" in a soft-skills list, a DOCX
-// list whose bullets mammoth drops). They only count as headings in capitals or with a colon.
 const WEAK_HEADINGS = new Set([
   "work", "career", "positions", "volunteer", "volunteering", "studies", "coursework", "courses", "degrees",
   "academics", "tools", "abilities", "capabilities", "knowledge", "software", "specialties", "about",
@@ -84,8 +79,6 @@ const WEAK_HEADINGS = new Set([
   "teaching", "service", "additional", "other", "contact", "links", "social", "qualifications",
 ]);
 
-// For combinations the phrase list doesn't spell out ("Selected Professional Experience"): every word
-// must be a known heading word, and the first head word decides the section.
 const HEAD_WORDS: Record<string, HeadingKind> = {
   experience: "experience", experiences: "experience", employment: "experience", internships: "experience",
   internship: "experience", work: "experience", volunteering: "experience",
@@ -103,7 +96,6 @@ const HEAD_WORDS: Record<string, HeadingKind> = {
   publications: "other", patents: "other", presentations: "other", languages: "other", interests: "other",
   hobbies: "other", activities: "other", affiliations: "other", memberships: "other", references: "other",
   qualifications: "other", leadership: "other", volunteer: "other",
-  // "Responsibilities:" alone often labels a job's own bullets, so only the singular counts.
   courses: "education", responsibility: "other", extracurriculars: "other",
 };
 const MODIFIERS = new Set([
@@ -126,8 +118,6 @@ for (const [kind, phrases] of Object.entries(PHRASES) as [HeadingKind, readonly 
   }
 }
 
-// "WORK EXPERIENCE", "Employment History" -> experience; "Core Competencies" -> skills; and so on.
-// Rejects long lines and lines that read like sentences.
 export function matchHeading(line: string): SectionKey | null {
   const kind = classifyHeading(line);
   return kind === "other" ? null : kind;
@@ -147,7 +137,6 @@ export function classifyHeading(line: string): HeadingKind | null {
 
   const words = normalizeWords(raw);
   if (words.length === 0) return null;
-  // "W O R K  E X P E R I E N C E": mostly one-letter tokens means letter-spaced capitals.
   const singles = words.filter((word) => word.length === 1).length;
   if (words.length >= 3 && singles / words.length >= 0.7) {
     return SQUASHED_INDEX.get(words.join("")) ?? null;
@@ -168,8 +157,6 @@ export function classifyHeading(line: string): HeadingKind | null {
   return kind;
 }
 
-// Volunteer headings count as work history for the recruiter checks but get their own section here.
-// Contact details, personal details and references are never kept: null.
 const EXTRA_PHRASES: Record<ExtraKind, readonly string[]> = {
   languages: ["languages", "spoken languages", "language skills", "foreign languages", "language proficiency"],
   awards: [
@@ -218,8 +205,6 @@ export function extraKindOf(line: string): ExtraKind | null {
 
 const SMALL_WORDS = new Set(["a", "an", "and", "as", "at", "by", "for", "in", "of", "on", "or", "the", "to", "with"]);
 
-// "HONORS & AWARDS:" -> "Honors & Awards", "— Volunteer work (continued) —" -> "Volunteer work".
-// Mixed-case headings keep the person's own capitals.
 export function headingTitle(line: string): string {
   const text = unwrapDecoration(line.trim())
     .replace(/\(\s*cont(?:inued|['’]d|\.)?\s*\)/giu, " ")
@@ -236,8 +221,6 @@ export function headingTitle(line: string): string {
     .join(" ");
 }
 
-// Headings in a line, including side-by-side ones ("SKILLS⇥EXPERIENCE") that a two-column page
-// produces when both columns have a heading on the same row.
 export function headingsInLine(line: string): { kind: HeadingKind; text: string }[] {
   const whole = classifyHeading(line);
   if (whole) return [{ kind: whole, text: line.trim() }];
@@ -261,15 +244,12 @@ export function findSections(lines: string[]): HeadingMatch[] {
 }
 
 export type SectionBlock = {
-  // null for the lines before the first heading (name and contact details, usually).
   kind: HeadingKind | null;
   heading: string;
   start: number;
   lines: string[];
 };
 
-// A same-kind heading right after a block continues it ("EXPERIENCE (CONTINUED)"). "other" blocks
-// never merge, so "AWARDS" and "LANGUAGES" stay apart.
 export function splitIntoSections(lines: readonly string[]): SectionBlock[] {
   const preamble: SectionBlock = { kind: null, heading: "", start: 0, lines: [] };
   const blocks: SectionBlock[] = [preamble];
@@ -286,7 +266,6 @@ export function splitIntoSections(lines: readonly string[]): SectionBlock[] {
   return blocks.filter((block) => block.kind !== null || block.lines.length > 0);
 }
 
-// "Technical Skills: Python, Go" -> { kind: "skills", label: "Technical Skills", rest: "Python, Go" }.
 export function splitInlineHeading(line: string): { kind: HeadingKind; label: string; rest: string } | null {
   const match = /^([^:\t]{2,40}):\s*(.+)$/.exec(line.trim());
   const label = match?.[1]?.trim();
@@ -296,7 +275,6 @@ export function splitInlineHeading(line: string): { kind: HeadingKind; label: st
   return kind ? { kind, label, rest } : null;
 }
 
-// "— EXPERIENCE —", "| Skills |", "::: Projects :::" -> the words inside.
 function unwrapDecoration(text: string): string {
   const wrapped = /^[-–—=~*•·|:#_]+\s*(.*?)\s*[-–—=~*•·|:#_]+$/u.exec(text);
   return wrapped ? `${wrapped[1]}${text.endsWith(":") ? ":" : ""}` : text;
@@ -314,8 +292,6 @@ function normalizeWords(text: string): string[] {
     .filter(Boolean);
 }
 
-// Symbol bullets (including the private-use glyphs Word's bullets become in PDF text), dashes and
-// asterisks followed by a space, "1." / "1)" numbering, and Word's "o" sub-bullet.
 const BULLET_MARKER =
   /^(?:[•●○◦▪▫■□◆◇❖►▸▹▶➢➤➣➔→✓✔☑⦿⁃∙·‣\uf0b7\uf0a7\uf076\uf0d8\uf0fc\uf06e\uf06c\uf0a8\uf0d2\uf0e8]\s*|[-–—*]\s+|\(?\d{1,2}[.)]\s+|o\s+(?=\p{Lu}))/u;
 
@@ -344,7 +320,6 @@ const SINGLE_DATE = new RegExp(`${EDGE_BEFORE}${DATE}${EDGE_AFTER}`, "giu");
 
 export type DateRange = { text: string; start: string; end: string; index: number };
 
-// "Jan 2021 - Present", "2019 – 2021", "03/2020 to 06/2022", kept exactly as written.
 export function findDateRanges(line: string): DateRange[] {
   return [...line.matchAll(DATE_RANGE)].map((match) => ({
     text: match[0],
@@ -380,7 +355,6 @@ export function findEmail(text: string): string | null {
   return text.includes("@") ? (EMAIL.exec(text)?.[0] ?? null) : null;
 }
 
-// Digit runs that may hold a phone number; findPhone() then rules out dates, years and ids.
 const PHONE_CANDIDATE = /(?<![\p{L}\p{N}+])\+?\(?\d[\d ().-]{5,22}\d(?![\p{L}\p{N}])/gu;
 const YEAR_PAIR = /^(?:19|20)\d{2}\s*[-.]?\s*(?:19|20)\d{2}$/;
 const DAY_MONTH_YEAR = /^\d{1,2}[./-]\d{1,2}[./-]\d{2,4}$|^(?:19|20)\d{2}[./-]\d{1,2}[./-]\d{1,2}$/;
@@ -392,7 +366,6 @@ export function findPhone(text: string): string | null {
     if (digits.length < 7 || digits.length > 15) continue;
     if (YEAR_PAIR.test(candidate) || DAY_MONTH_YEAR.test(candidate)) continue;
     if (/\s{2,}/.test(candidate)) continue;
-    // Bare digit strings without a "+" or separators are more often ids than phone numbers.
     if (digits.length === candidate.length && digits.length < 10) continue;
     return candidate;
   }
@@ -416,14 +389,11 @@ const LINK_LABELS: Record<string, string> = {
 
 export type FoundLink = { label: string; url: string };
 
-// "portfolio/jane", "bit.ly/Jane-CV": link text whose address a PDF keeps apart. "iOS/Android" is
-// words.
 export function isLinkText(value: string): boolean {
   if (/\s/.test(value) || !value.includes("/")) return false;
   return !/\p{Lu}/u.test(value) || /\.[a-z]{2,}\//i.test(value);
 }
 
-// URLs exactly as written (no protocol added), labelled by site.
 export function findLinks(text: string): FoundLink[] {
   const seen = new Set<string>();
   const links: FoundLink[] = [];

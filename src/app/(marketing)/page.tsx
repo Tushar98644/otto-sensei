@@ -23,7 +23,6 @@ export const metadata: Metadata = pageMetadata({
   path: "/",
 });
 
-// Built ahead of time; rebuilt at most hourly so the job counts stay current.
 export const revalidate = 3600;
 
 export default async function HomePage() {

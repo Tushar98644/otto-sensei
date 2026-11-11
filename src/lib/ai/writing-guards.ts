@@ -1,14 +1,9 @@
 import { hasInventedNumbers, maskInventedNumbers, NUMBER_PLACEHOLDER } from "./guards";
 import { oneLine, placeholdersIn } from "./text";
 
-// Catches what the prompts forbid: invented numbers, bracketed real numbers, stock phrases, and
-// verbs that claim more than the resume does.
-
 const WORD = /[\p{L}\p{N}]+(?:['’]\p{L}+)?/gu;
-// Needs a space and then a capital or digit, so "99.9%" and "Node.js" stay whole.
 const SENTENCE_BREAK = /(?<=[.!?]["”’)]?)\s+(?=["“‘(]?[\p{Lu}\p{N}])/u;
 const PLACEHOLDER = /\[([^\]\n]*)\]/g;
-// Never unwrapped, even when the same word appears somewhere in the resume.
 const BLANK_WORDS = /^(?:your|the|a|an|insert|add|x|n|number|amount|name|company|date|role|city)\b/i;
 
 export const CLICHES: readonly { label: string; pattern: RegExp }[] = [
@@ -42,8 +37,6 @@ const IRREGULAR_PAST: ReadonlySet<string> = new Set([
   "led", "built", "wrote", "drove", "ran", "oversaw",
 ]);
 
-// Things only the person can know (a lesson, how long they've done something). Flagged, never
-// removed.
 export const UNBACKED: readonly { label: string; pattern: RegExp }[] = [
   { label: "taught me", pattern: /\btaught me\b/i },
   { label: "I learned", pattern: /\bI(?:['’]ve)? learned\b/i },
@@ -57,8 +50,6 @@ export const UNBACKED: readonly { label: string; pattern: RegExp }[] = [
   { label: "daily", pattern: /\b(?:daily|every day|day[- ]to[- ]day)\b/i },
 ];
 
-// Each group is one verb's forms, so "built" backs "build". Words with common non-verb uses are
-// left out.
 const STRONG_VERBS: readonly (readonly string[])[] = [
   ["lead", "led", "leading", "leads"],
   ["own", "owned", "owning", "owns"],
@@ -83,19 +74,15 @@ const STRONG_VERBS: readonly (readonly string[])[] = [
   ["engineer", "engineered"],
   ["spearhead", "spearheaded"],
 ];
-// Only past tense is flagged: it's how a letter claims work ("I built"); "the launch" is a noun.
 const CLAIMS: ReadonlySet<string> = new Set(
   STRONG_VERBS.flat().filter((form) => /(?:ed|en)$/.test(form) || IRREGULAR_PAST.has(form)),
 );
-// Costly to get wrong, so they need a related resume line saying the same, whatever its role.
 const LEADING: ReadonlySet<string> = new Set([
   "led", "owned", "managed", "ran", "oversaw", "spearheaded",
 ]);
 const VERB_GROUP = new Map<string, number>(
   STRONG_VERBS.flatMap((forms, group) => forms.map((form): [string, number] => [form, group])),
 );
-// A supporting role. In a person's answer it can sit anywhere; a resume line states its role up
-// front, and later words like "to help sales teams" are about someone else.
 const SUPPORT =
   "help(?:ed|ing|s)?|assist(?:ed|ing|s)?|support(?:ed|ing|s)?|contribut(?:ed|ing|es)|" +
   "participat(?:ed|ing|es)|took part|was involved|were involved|" +
@@ -109,7 +96,6 @@ const STOP = new Set(
     "also more most some such very can will would could should just only each every all any"
   ).split(" "),
 );
-// Two shared content words tie a sentence to a resume line; one is too easily a coincidence.
 const MIN_SHARED_WORDS = 2;
 
 export type Upgrade = {
@@ -132,7 +118,6 @@ function lowerWords(text: string): string[] {
   return text.toLowerCase().match(/[\p{L}\p{N}]+(?:-[\p{L}\p{N}]+)*/gu) ?? [];
 }
 
-// A bracket stays when it holds an unknown number or reads like a blank ("[your start date]").
 export function unwrapKnown(text: string, sources: readonly string[]): string {
   const haystack = sources.join("\n").toLowerCase();
   return text.replace(PLACEHOLDER, (match: string, inner: string) => {
@@ -147,7 +132,6 @@ export function clichesIn(text: string): string[] {
   return CLICHES.filter(({ pattern }) => pattern.test(text)).map(({ label }) => label);
 }
 
-// A phrase the resume uses is backed; one in a sentence with a [blank] is the person's to finish.
 export function unbackedIn(text: string, sources: readonly string[] = []): string[] {
   const claims = sentencesOf(text).filter((sentence) => !/\[[^\]\n]*\]/.test(sentence));
   return UNBACKED.filter(
@@ -157,7 +141,6 @@ export function unbackedIn(text: string, sources: readonly string[] = []): strin
   ).map(({ label }) => label);
 }
 
-// Unless that leaves fewer than `minWords`: two sentences are worse than one stock phrase to edit.
 export function dropClichedSentences(
   paragraphs: readonly string[],
   minWords: number,
@@ -188,9 +171,6 @@ function contentWords(text: string): Set<string> {
   );
 }
 
-// A sentence is tied to every resume line sharing two or more content words with it. A verb none of
-// those lines uses is an upgrade when one states a supporting role, and always when it claims
-// charge.
 export function upgradedVerbs(text: string, lines: readonly string[]): Upgrade[] {
   const sourceLines = lines
     .map((line) => {
@@ -205,7 +185,6 @@ export function upgradedVerbs(text: string, lines: readonly string[]): Upgrade[]
     const verbs = [...new Set(lowerWords(sentence).filter((word) => CLAIMS.has(word)))];
     if (verbs.length === 0) continue;
     const words = contentWords(sentence);
-    // The lines this sentence draws on, closest first. A sentence often merges two of them.
     const related = sourceLines
       .map((entry) => ({
         entry,
@@ -227,7 +206,6 @@ export function upgradedVerbs(text: string, lines: readonly string[]): Upgrade[]
   return found;
 }
 
-// `source` states a supporting role ("I helped set up…") and `output` no longer does ("Set up…").
 export function droppedSupport(source: string, output: string): boolean {
   return WEAK_ROLE.test(source) && !WEAK_ROLE.test(output);
 }
@@ -241,7 +219,6 @@ export function verbsAdded(source: string, output: string): string[] {
   return [...new Set(added)];
 }
 
-/** A paragraph left empty is dropped. */
 export function clipToWords(paragraphs: readonly string[], maxWords: number): string[] {
   let total = 0;
   const out: string[] = [];
@@ -270,8 +247,6 @@ export type ProseCheck = {
   placeholders: string[];
 };
 
-// One line per paragraph, real facts unwrapped, invented numbers masked. Reports what's still
-// wrong.
 export function checkProse(
   paragraphs: readonly string[],
   sources: readonly string[],
@@ -320,7 +295,6 @@ export function retryNotes(check: ProseCheck, range: { min: number; max: number 
   return notes;
 }
 
-// Lower is better: a retry is kept only when it fixes more than it breaks.
 export function problemScore(check: ProseCheck, range: { min: number; max: number }): number {
   const length = check.words > range.max || check.words < range.min ? 1 : 0;
   return (

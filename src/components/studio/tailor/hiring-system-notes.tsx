@@ -10,8 +10,6 @@ import type { ScreeningQuestion } from "@/lib/ats/types";
 import { cn, pluralize } from "@/lib/utils";
 import type { ReadJob } from "./session";
 
-// Never a score: each employer sets up the same system differently.
-
 const LIST_CHOICES = 4;
 
 function choicesLine(question: ScreeningQuestion): string {

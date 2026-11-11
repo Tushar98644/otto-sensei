@@ -14,12 +14,10 @@ import { resumeTitle } from "@/lib/resume/ops";
 import type { Resume } from "@/lib/resume/schema";
 
 export type ApplicationFormValues = {
-  // "" for a resume that isn't in Otto.
   resumeId: string;
   company: string;
   role: string;
   jobUrl: string;
-  // The date input's own format, YYYY-MM-DD, in the person's time zone.
   appliedOn: string;
   status: ApplicationStatus;
   notes: string;
@@ -28,7 +26,6 @@ export type ApplicationFormValues = {
 export type FormField = "company" | "role" | "jobUrl" | "appliedOn" | "notes";
 export type FormErrors = Partial<Record<FormField, string>>;
 
-// The part of the studio's tailor draft (sessionStorage) that can name the job's link.
 export type JobDraft = {
   title: string;
   company: string;
@@ -55,7 +52,6 @@ export function fromDateInput(value: string): number | null {
   return date.getTime();
 }
 
-// Tailored copies first (they're what gets sent), newest edit first within each group.
 export function versionChoices(resumes: readonly Resume[]): { id: string; label: string }[] {
   return [...resumes]
     .sort(
@@ -67,8 +63,6 @@ export function versionChoices(resumes: readonly Resume[]): { id: string; label:
     }));
 }
 
-// Company and role from the copy's tailor meta; the link it saved, else the studio's job draft's
-// while that draft is still for the same job.
 export function prefillFor(
   resume: Resume | null,
   draft: JobDraft | null,
@@ -112,8 +106,6 @@ export function formFromApplication(application: Application): ApplicationFormVa
   };
 }
 
-// Refills only the fields the person hasn't typed into: anything still matching the old resume's
-// prefill is fair game.
 export function switchResume(
   values: ApplicationFormValues,
   previous: Resume | null,
@@ -135,7 +127,6 @@ export function switchResume(
 
 export type ValidForm = { ok: true; body: CreateApplicationInput };
 
-// The server checks all of this again; checking here first puts the message next to the field.
 export function validateForm(
   values: ApplicationFormValues,
   titles: ReadonlyMap<string, string>,
@@ -168,8 +159,6 @@ export function validateForm(
     ok: true,
     body: {
       resumeId,
-      // The dialog names the opening when the version sent was tailored from one; the server also
-      // finds it by the link.
       jobId: null,
       resumeTitle: resumeId
         ? (titles.get(resumeId) ?? "").slice(0, APPLICATION_LIMITS.resumeTitle)
@@ -185,7 +174,6 @@ export function validateForm(
 }
 
 // Only what the edit changed, so a save can't overwrite a status changed on another device.
-// Keeps the stored time when the day itself didn't change.
 export function patchFrom(original: Application, body: ValidForm["body"]): UpdateApplicationBody {
   const patch: UpdateApplicationBody = {};
   if (body.resumeId !== original.resumeId) {

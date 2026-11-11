@@ -109,7 +109,6 @@ describe("weakLineState", () => {
       target,
     });
     expect(weakLineState([resume("a", [STRONG, WARNING])], target)).toEqual({ status: "done" });
-    // Deleted or emptied counts too: it no longer prints.
     expect(weakLineState([resume("a", ["", WARNING])], target)).toEqual({ status: "done" });
   });
 

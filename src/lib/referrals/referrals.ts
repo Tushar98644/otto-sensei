@@ -6,18 +6,15 @@ export type ReferralStatus = (typeof REFERRAL_STATUSES)[number];
 export const REFERRAL_BLOCK_REASONS = ["same_device", "same_person"] as const;
 export type ReferralBlockReason = (typeof REFERRAL_BLOCK_REASONS)[number];
 
-// Line fixes and tailoring are model calls, so the reward stays small and the cap bounds it.
 export const REFERRAL_BONUS = { fix: 10, tailor: 2 } as const;
 export type BonusFeature = keyof typeof REFERRAL_BONUS;
 export const BONUS_FEATURES = Object.keys(REFERRAL_BONUS) as BonusFeature[];
 
-// Friends past this still get their own bonus; the inviter stops earning.
 export const MAX_REWARDED_REFERRALS = 20;
 
 // So an existing account can't pick up an invite later by opening someone's link.
 export const CLAIM_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
 
-// No 0, 1, i, l or o: codes get read aloud and typed from screenshots.
 export const CODE_ALPHABET = "abcdefghjkmnpqrstuvwxyz23456789";
 export const CODE_LENGTH = 8;
 
@@ -29,8 +26,7 @@ export function isReferralCode(value: unknown): value is string {
   );
 }
 
-// One mailbox however it's spelled: plus tags dropped everywhere, and dots too on Gmail, which
-// ignores them. Only for telling an inviter apart from a "friend", never for sign-in.
+// Only for telling an inviter from a "friend", never for sign-in.
 export function inboxKey(email: string): string {
   const address = email.trim().toLowerCase();
   const at = address.lastIndexOf("@");
@@ -48,12 +44,10 @@ export function invitePath(code: string): string {
   return `/?${REF_PARAM}=${code}`;
 }
 
-// Not httpOnly on purpose: it holds a public invite code, and the browser has to see it to know
-// whether to claim it after sign-in. The server only trusts the code in it, never the stage.
+// Not httpOnly on purpose: the browser reads it. The server trusts the code, never the stage.
 export const REF_COOKIE = "otto_ref";
 export const REF_COOKIE_MAX_AGE_S = 30 * 24 * 60 * 60;
 
-// joined: linked to the invite, waiting for its first check.
 export type RefStage = "landed" | "checked" | "joined";
 export type RefCookie = { code: string; stage: RefStage };
 
@@ -73,7 +67,6 @@ export function parseRefCookie(value: string | null | undefined): RefCookie | nu
   return null;
 }
 
-// pending: linked, waiting for a check. existing_account: too old to count as invited.
 export type ReferralClaimOutcome =
   | "none"
   | "pending"
@@ -89,11 +82,9 @@ export type ReferralSummary = {
   url: string;
   joined: number;
   checked: number;
-  // At most maxRewarded.
   rewarded: number;
   maxRewarded: number;
   perFriend: typeof REFERRAL_BONUS;
-  // From inviting or being invited, in the current allowance period.
   thisPeriod: Record<BonusFeature, number>;
   period: AllowancePeriod;
 };

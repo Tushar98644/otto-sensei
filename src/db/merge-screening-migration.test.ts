@@ -3,9 +3,6 @@ import { afterAll, describe, expect, it } from "vitest";
 import { LOCAL_ONLY_DDL } from "./local-schema";
 import { readMigrations } from "./migration-files";
 
-// 20261109005000_merge_screening.sql runs on databases that still hold "screening" rows. This
-// replays the migrations before it, adds such rows, then applies it.
-
 const VERSION = "20261109005000";
 const DAY = 24 * 60 * 60 * 1_000;
 
@@ -70,7 +67,6 @@ describe("merge screening migration", () => {
         { status: "interview", at: 3 * DAY },
       ],
     });
-    // It ended after the call, so it keeps its ending and now counts as having reached Interviewing.
     expect(byId[closedAfterCall]).toMatchObject({
       status: "rejected",
       stage_reached: "interview",

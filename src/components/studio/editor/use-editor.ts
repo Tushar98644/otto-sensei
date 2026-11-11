@@ -17,8 +17,6 @@ import { extraCount } from "./extras";
 import { extraNeedsWork, lintOf, NO_ISSUES, sectionNeedsWork } from "./lint-cache";
 import { includeSection, isBulletSection, sectionCount } from "./sections";
 
-// Each component selects only the slice it renders, so a keystroke re-renders one line.
-
 type StudioSnapshot = ReturnType<typeof useStudioStore.getState>;
 type ListKey = "experience" | "education" | "projects" | "skills" | "certifications";
 
@@ -30,7 +28,6 @@ export function getResume(resumeId: string): Resume | undefined {
   return pickResume(useStudioStore.getState(), resumeId);
 }
 
-// options.label names an undo step ("Otto fixed a line"); plain typing leaves it out.
 export function editResume(
   resumeId: string,
   updater: (resume: Resume) => Resume,
@@ -48,7 +45,6 @@ export function editSection(
   editResume(resumeId, (resume) => includeSection(updater(resume), key), options);
 }
 
-// Lines of an extra section's item have no place in sectionOrder; the rest join it when edited.
 export function editLines(
   resumeId: string,
   section: BulletSection,
@@ -72,7 +68,7 @@ export function editList<K extends ListKey>(
   editSection(resumeId, key, (resume) => withList(resume, key, update(resume[key])));
 }
 
-// `fallback` must be a primitive or a module constant: a fresh object per call would never settle.
+// `fallback` must be a primitive or module constant; a fresh object would never settle.
 export function useResumeValue<T>(resumeId: string, select: (resume: Resume) => T, fallback: T): T {
   return useStudioStore((state) => {
     const resume = pickResume(state, resumeId);
@@ -82,7 +78,6 @@ export function useResumeValue<T>(resumeId: string, select: (resume: Resume) => 
 
 const NO_IDS: string[] = [];
 
-// Ids only, so a list re-renders when entries are added, removed or moved, not when one is edited.
 export function useItemIds(
   resumeId: string,
   select: (resume: Resume) => readonly { id: string }[],
@@ -102,7 +97,6 @@ export function useBulletIssues(resumeId: string, bulletId: string): readonly Li
   });
 }
 
-// False when the line, its entry or its section is hidden: it never prints, so gets no chip.
 export function useIsLinted(resumeId: string, bulletId: string): boolean {
   return useStudioStore((state) => {
     const resume = pickResume(state, resumeId);
@@ -110,7 +104,6 @@ export function useIsLinted(resumeId: string, bulletId: string): boolean {
   });
 }
 
-// A string, so it only re-renders when the first weak line changes.
 export function useFirstWeakLine(resumeId: string): string | null {
   return useStudioStore((state) => {
     const resume = pickResume(state, resumeId);

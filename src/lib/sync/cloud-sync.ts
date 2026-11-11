@@ -3,11 +3,6 @@ import type { EmptyOk, PutResumeResponse, ResumesResponse } from "@/lib/api/type
 import type { Resume } from "@/lib/resume/schema";
 import type { SyncLedger } from "./ledger";
 
-// The browser copy stays the source of truth: the cloud is read once per session, then changes are
-// pushed after a quiet period, one request at a time with backoff. The one exception: a deletion
-// made on another device leaves a tombstone, and this browser drops its copy instead of
-// re-uploading.
-
 export type SyncApi = {
   listResumes: () => Promise<ResumesResponse>;
   putResume: (resume: Resume) => Promise<PutResumeResponse>;
@@ -22,7 +17,6 @@ export type SyncStoreState = {
 };
 
 export type DeletedElsewhere = {
-  // Dropped because another device deleted them from the account.
   ids: string[];
   wasActive: boolean;
 };
@@ -33,38 +27,30 @@ export type SyncStore = {
 };
 
 export type CloudSyncOptions = {
-  // null while signed out: nothing is sent, but deletions are still recorded for after sign-in.
   userId: string | null;
   api: SyncApi;
   store: SyncStore;
   ledger: SyncLedger;
   debounceMs?: number;
-  // Expired, or signed out in another tab.
   onSessionExpired?: () => void;
   onDeletedElsewhere?: (detail: DeletedElsewhere) => void;
   warn?: (message: string, error?: unknown) => void;
 };
 
 export type CloudSync = {
-  // Resolves once idle or after a failure; never rejects.
   flush: () => Promise<void>;
-  // Re-reads the account when the last read is older than maxAgeMs, then flushes.
   refresh: (maxAgeMs: number) => Promise<void>;
   stop: () => void;
   isStopped: () => boolean;
-  // Settles once the first read merged or failed; at once when signed out.
   firstPass: Promise<void>;
 };
 
-// Checked by every sync instance in the tab, so none sends these removals as deletions.
 let releasing = false;
 
 const DEFAULT_DEBOUNCE_MS = 1_500;
 const RETRY_BASE_MS = 5_000;
 const RETRY_MAX_MS = 60_000;
 
-// Resending can't fix these, so that version is skipped until it changes. upgrade_required: a
-// resume past Free's limit made elsewhere; it stays in this browser only.
 const REFUSED: ReadonlySet<ApiClientError["code"]> = new Set<ApiClientError["code"]>([
   "bad_request",
   "too_large",
@@ -84,8 +70,7 @@ export type ReleaseOptions = {
   cloud: readonly Resume[];
 };
 
-// On sign-out, so the next person on a shared computer can't open them. Only resumes whose cloud
-// copy is at least as new go; unfinished backups stay. These are not deletions.
+// On sign-out, so the next person on a shared computer can't open them; not deletions.
 export function releaseBackedUp({ userId, store, ledger, cloud }: ReleaseOptions): {
   removed: string[];
   kept: string[];
@@ -116,7 +101,6 @@ export function startCloudSync(options: CloudSyncOptions): CloudSync {
 
   const remote = new Map<string, number>();
   const refused = new Map<string, number>();
-  // Never uploaded again, whatever happens locally.
   const gone = new Set<string>();
   // While the store changes on the cloud's behalf, so those removals aren't sent back as deletions.
   let applyingCloud = false;
@@ -161,8 +145,6 @@ export function startCloudSync(options: CloudSyncOptions): CloudSync {
   function recordDeletion(id: string) {
     const owner = ledger.ownerOf(id);
     const inCloud = remote.delete(id);
-    // Signed in, only this account's copies are deleted; signed out, the deletion waits for the
-    // owner.
     const cloudOwner = userId
       ? owner === userId || (owner === undefined && inCloud)
         ? userId
@@ -223,7 +205,6 @@ export function startCloudSync(options: CloudSyncOptions): CloudSync {
     }
     if (stopped) return false;
     const cloud = listed.resumes;
-    // A server from before tombstones (an old deploy during a rollback) sends no deletedIds.
     const deleted = new Set(
       (listed.deletedIds ?? []).filter((id) => {
         // Another account's resume on a shared browser isn't this account's to drop.
@@ -234,14 +215,12 @@ export function startCloudSync(options: CloudSyncOptions): CloudSync {
     for (const id of deleted) gone.add(id);
     const buried = new Set(ledger.buried(user));
     const cloudIds = new Set(cloud.map((resume) => resume.id));
-    // Already gone from the cloud, so no request is needed.
     for (const id of buried) if (!cloudIds.has(id)) ledger.unbury(id, user);
     // Deleted here while signed out: its cloud copy must not come back before the delete lands.
     const live = cloud.filter((resume) => !buried.has(resume.id) && !deleted.has(resume.id));
     for (const resume of live) remote.set(resume.id, resume.updatedAt);
     const before = store.getState();
     const dropped = Object.keys(before.resumes).filter((id) => deleted.has(id));
-    // Newer local copies come back from this too; pushChanges() finds them by updatedAt.
     fromCloud(() => store.getState().mergeFromCloud(live, [...deleted]));
     if (dropped.length > 0) {
       options.onDeletedElsewhere?.({
@@ -276,7 +255,6 @@ export function startCloudSync(options: CloudSyncOptions): CloudSync {
   }
 
   async function pushChanges(user: string): Promise<boolean> {
-    // A fixed list per pass, so edits during a request wait for the next quiet period.
     const ids = Object.values(store.getState().resumes)
       .filter((resume) => isChanged(resume, user))
       .map((resume) => resume.id);
@@ -295,7 +273,6 @@ export function startCloudSync(options: CloudSyncOptions): CloudSync {
         }
         return failed(error, "couldn't back up a resume");
       }
-      // Deleted on another device since this session loaded: its deletion wins over local edits.
       if (saved.deleted) dropDeletedElsewhere(id);
       else remote.set(id, resume.updatedAt);
     }
@@ -329,7 +306,6 @@ export function startCloudSync(options: CloudSyncOptions): CloudSync {
     }
     warn(message, error);
     failures += 1;
-    // The next edit retries sooner through schedule(); this covers a user who stopped editing.
     schedule(Math.min(RETRY_MAX_MS, RETRY_BASE_MS * 2 ** (failures - 1)));
     return false;
   }

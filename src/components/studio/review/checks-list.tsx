@@ -38,7 +38,6 @@ export function ChecksList({
       {failed.length > 0 ? <CheckGroup title={GROUP_TITLES.fail} checks={failed} /> : null}
       {warned.length > 0 ? <CheckGroup title={GROUP_TITLES.warn} checks={warned} /> : null}
       {passed.length > 0 ? (
-        // Collapsed: what passed matters less than what to fix.
         <details className="group rounded-2xl bg-surface">
           <summary className="flex min-h-12 cursor-pointer list-none items-center gap-2 rounded-2xl px-4 py-3 text-sm font-medium text-ink hover:bg-surface-muted [&::-webkit-details-marker]:hidden">
             <ChevronRight

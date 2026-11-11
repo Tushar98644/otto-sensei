@@ -7,9 +7,6 @@ import { posthogKey } from "./config";
 import type { AICallOutcome, ServerEvent } from "./events";
 import { ANONYMOUS_ID, captureServerEvent } from "./server";
 
-// Nothing about the input or the answer is sent.
-
-// /api/summary, /api/answer and /api/interview are AI calls (ai_call) but not funnel steps.
 const FUNNEL_STEPS: Readonly<Record<string, Extract<ServerEvent, "line_fixed" | "tailor_run" | "letter_written">>> = {
   fix: "line_fixed",
   tailor: "tailor_run",
@@ -17,15 +14,12 @@ const FUNNEL_STEPS: Readonly<Record<string, Extract<ServerEvent, "line_fixed" | 
 };
 
 export type AICall = {
-  // null before sign-in: counted without a person behind it.
   userId: string | null;
-  // What the person asked for, more precise than the AITask.
   task: string;
   aiTask: AITask;
   startedAt: number;
 };
 
-// Imports run as "structure"; drafts and GitHub lines run on the fix settings.
 const AI_TASK_OF: Record<Feature, AITask> = {
   fix: "fix",
   tailor: "tailor",
@@ -37,7 +31,6 @@ const AI_TASK_OF: Record<Feature, AITask> = {
 
 export type MeteredCall = {
   userId: string;
-  // Names the job more precisely than its allowance (/api/summary draws on "fix").
   path: string;
   feature: Feature;
   startedAt: number;
@@ -51,7 +44,6 @@ function endpointOf(path: string): string {
   return path.split("/").filter(Boolean).at(-1) ?? "unknown";
 }
 
-// A bug here must cost an event, never the response.
 function safely(run: () => void): void {
   if (!posthogKey()) return;
   try {
@@ -70,14 +62,12 @@ function sendAICall(call: AICall, outcome: AICallOutcome): void {
   });
 }
 
-// Skipped in demo mode. For AI steps outside runMetered that fall back to rules.
 export function trackAICall(call: AICall, error?: unknown): void {
   safely(() => {
     if (aiEnabled()) sendAICall(call, error === undefined ? "ok" : outcomeOf(error));
   });
 }
 
-/** ai_call when a model ran, and the funnel step on success. */
 export function trackMeteredCall(call: MeteredCall, error?: unknown): void {
   safely(() => {
     const task = endpointOf(call.path);
@@ -91,7 +81,6 @@ export function trackMeteredCall(call: MeteredCall, error?: unknown): void {
   });
 }
 
-/** `usedAI` false with a key set means the model failed and rules took over. */
 export function trackStructureCall(startedAt: number, usedAI: boolean): void {
   safely(() => {
     if (!aiEnabled()) return;

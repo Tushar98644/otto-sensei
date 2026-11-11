@@ -19,7 +19,6 @@ import { editResume, getResume } from "./use-editor";
 
 export type FixTarget = {
   bulletId: string;
-  // The line as it was when the dialog opened. Both calls send it, so answers refine one line.
   text: string;
   role: { title: string; company: string };
 };
@@ -52,7 +51,6 @@ function readyState(target: FixTarget, response: FixResponse): FixReady {
     target,
     result: response.result,
     usage: response.usage,
-    // Strict check: a server from before the flag existed omits it, and its results were real.
     demo: response.demo === true,
     answers: response.result.questions.map(() => ""),
     refining: false,
@@ -64,11 +62,8 @@ function readyState(target: FixTarget, response: FixResponse): FixReady {
 export function useFixFlow(resumeId: string) {
   const gate = useAccountGate();
   const [state, setState] = useState<FixState>(CLOSED);
-  // Async callbacks read the latest gate through this, so `open` stays stable for every line.
   const gateRef = useRef(gate);
-  // Bumped by every request and by closing. A response for an older number is ignored.
   const requestRef = useRef(0);
-  // Set from a tap on "Fix with Otto" until close, so a double tap can't spend two fixes.
   const busyRef = useRef(false);
 
   useEffect(() => {
@@ -83,12 +78,10 @@ export function useFixFlow(resumeId: string) {
       if (known) return { response: known };
       try {
         const response = await api.fix(request);
-        // The server counted it either way, so keep the allowance shown elsewhere in step.
         patchMe({ usage: response.usage });
         rememberFix(request, response);
         return id === requestRef.current ? { response } : null;
       } catch (error) {
-        // Checked first: no sign-in or upgrade dialog for a fix the user already walked away from.
         if (id !== requestRef.current) return null;
         if (gateRef.current.handleApiError(error, "fix")) {
           return {
@@ -118,7 +111,6 @@ export function useFixFlow(resumeId: string) {
     [send],
   );
 
-  // Null when there's nothing to send or the user didn't sign in.
   const targetFor = useCallback(
     async (bulletId: string): Promise<FixTarget | null> => {
       const resume = getResume(resumeId);

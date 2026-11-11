@@ -15,9 +15,6 @@ import { resumeTitle } from "@/lib/resume/ops";
 import type { Resume } from "@/lib/resume/schema";
 import { DAY_MS } from "@/lib/time";
 
-// "To apply" is worked out, never stored: saved jobs and tailored copies with no application
-// yet. Moving one on creates the application the usual way, so Free's limit still applies.
-
 export const BOARD_COLUMNS = ["to_apply", "applied", "interview", "offer", "closed"] as const;
 export type BoardColumn = (typeof BOARD_COLUMNS)[number];
 
@@ -51,7 +48,6 @@ export type BoardCard =
   | { kind: "application"; key: string; application: Application; copy: Resume | null }
   | { kind: "to_apply"; key: string; item: ToApplyItem };
 
-/** Newest first. A saved job and the copy made for it are one card. */
 export function toApplyItems(
   savedJobs: readonly SavedJob[],
   resumes: readonly Resume[],
@@ -94,7 +90,6 @@ export function toApplyItems(
   return items.sort((a, b) => b.addedAt - a.addedAt || a.key.localeCompare(b.key));
 }
 
-// Waiting this long on Applied with no word back counts as overdue.
 export const STALE_DAYS = 14;
 export const COLUMN_PAGE = 20;
 
@@ -103,7 +98,6 @@ export function daysInStage(card: BoardCard, now: number): number {
   return Math.max(0, Math.floor((now - since) / DAY_MS));
 }
 
-/** A follow-up that's due. These cards sort first and carry a corner mark. */
 export function needsAction(card: BoardCard, now: number): boolean {
   return (
     card.kind === "application" &&
@@ -112,14 +106,12 @@ export function needsAction(card: BoardCard, now: number): boolean {
   );
 }
 
-/** In its column too long: a follow-up past due, or two weeks on Applied. */
 export function isOverdue(card: BoardCard, now: number): boolean {
   if (card.kind !== "application" || now === 0) return false;
   if (needsAction(card, now)) return true;
   return card.application.status === "applied" && daysInStage(card, now) >= STALE_DAYS;
 }
 
-/** Needs-action cards first, then the latest to arrive. Rejected and No reply share Closed. */
 export function boardColumns(
   applications: readonly Application[],
   toApply: readonly ToApplyItem[],
@@ -156,8 +148,6 @@ export function cardColumn(card: BoardCard): BoardColumn {
   return card.kind === "application" ? columnOf(card.application.status) : "to_apply";
 }
 
-// Nothing goes back to To apply (for an application that means it was never sent, which is a
-// delete), and only an application can be deleted.
 export function canDrop(card: BoardCard, target: DropTarget): boolean {
   if (target === "delete") return card.kind === "application";
   return target !== "to_apply" && target !== cardColumn(card);
@@ -165,7 +155,6 @@ export function canDrop(card: BoardCard, target: DropTarget): boolean {
 
 export type Move =
   | { kind: "none" }
-  // Interviewing asks for its date (optional) and offers prep; Closed asks Rejected or No reply.
   | { kind: "ask"; card: BoardCard; column: "interview" | "closed" }
   | { kind: "status"; application: Application; status: ApplicationStatus }
   | { kind: "create"; item: ToApplyItem; status: ApplicationStatus }
@@ -198,13 +187,10 @@ const ONWARD: Partial<Record<BoardColumn, BoardColumn>> = {
   interview: "offer",
 };
 
-/** The column "Move on" takes it to, or null at Offer and Closed. */
 export function onward(card: BoardCard): BoardColumn | null {
   return ONWARD[cardColumn(card)] ?? null;
 }
 
-// The copy tailored for the job, else the resume Jobs matches with. Null without a company,
-// which an application needs: the form asks for it instead.
 export function createBody(
   item: ToApplyItem,
   status: ApplicationStatus,
@@ -228,7 +214,6 @@ export function createBody(
   };
 }
 
-// Skips columns it can't go to; stays put at either end. Its own column counts, to put it back.
 export function stepColumn(card: BoardCard, current: BoardColumn, step: 1 | -1): BoardColumn {
   const here = cardColumn(card);
   const allowed = BOARD_COLUMNS.filter((column) => column === here || canDrop(card, column));
@@ -246,7 +231,6 @@ export function initials(name: string): string {
   return letters.toUpperCase() || "?";
 }
 
-/** The card's job in a few words, for menus and announcements: "Stripe" or "Product Designer". */
 export function cardName(card: BoardCard): string {
   if (card.kind === "application") {
     return card.application.company || card.application.role || "this application";
@@ -271,7 +255,5 @@ export function readView(storage: Pick<Storage, "getItem"> | null): BoardView {
 export function writeView(storage: Pick<Storage, "setItem"> | null, view: BoardView): void {
   try {
     storage?.setItem(VIEW_KEY, view);
-  } catch {
-    // Storage blocked: the choice lasts until the page closes.
-  }
+  } catch {}
 }

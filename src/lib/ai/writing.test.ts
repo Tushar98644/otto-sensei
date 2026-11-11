@@ -40,7 +40,6 @@ const JOB: WritingInput = {
   company: "Kestrel Labs",
 };
 
-// 148 words of plain, resume-backed body text: short of the prompt's 150, which is no problem.
 const CLEAN = [
   "I'm applying for the Senior Backend Engineer role at Kestrel Labs. At Mapline I rebuilt the billing service in Go, cutting p99 latency by 40%.",
   "I like to keep services small and easy to reason about, and I said so in every review. I also run the weekly on-call rotation for 6 services, so I care about clear alerts, calm handovers and fixes that stay fixed. Most weeks the rotation is quiet, and when it isn't, the notes we keep make the next incident shorter. I write those notes so the next person can act on them without asking me first.",
@@ -69,7 +68,6 @@ describe("writeCoverLetter", () => {
 
     const sent = runStructured.mock.calls[0]?.[0];
     expect(sent).toMatchObject({ task: "letter", effort: "low" });
-    // The name and email go as placeholders; the sign-off still gets the real name.
     const shown = resumeToText(makeResume())
       .replace("Sam Rivera", "[NAME]")
       .replace("sam@example.com", "[EMAIL_1]");

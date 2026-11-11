@@ -1,5 +1,3 @@
-// Opens the upload step on the questions. Read when the step mounts, cleared once it has.
-
 let requested = false;
 
 export function requestGuidedDraft(): void {

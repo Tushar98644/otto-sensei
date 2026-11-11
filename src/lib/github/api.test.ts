@@ -19,11 +19,8 @@ const REPOS = [
 
 const PULLS = [
   rawPull("vercel/next.js", 101, "octocat", { title: "fix(router): keep scroll on back" }),
-  // Not merged: dropped even if search returns it.
   rawPull("vercel/next.js", 102, "octocat", { pull_request: { merged_at: null } }),
-  // Someone else's pull request: dropped.
   rawPull("vercel/next.js", 103, "hubot"),
-  // Their own repo: covered by the repo list.
   rawPull("octocat/ledger-lint", 7, "octocat"),
   rawPull("nodejs/node", 55, "OctoCat", { pull_request: { merged_at: "2026-10-20T00:00:00Z" } }),
 ];
@@ -72,7 +69,6 @@ describe("lookupProfile", () => {
       "vercel/next.js#101",
     ]);
     expect(profile.pulls[1]?.url).toBe("https://github.com/vercel/next.js/pull/101");
-    // The description stays on the server.
     expect(profile.pulls[0]).not.toHaveProperty("body");
     expect(profile.pullsUnavailable).toBe(false);
     expect(session.calls).toBe(2);

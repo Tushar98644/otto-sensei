@@ -31,11 +31,8 @@ import { ReadTextPanel } from "../review/read-text-panel";
 import { reviewItemDomId, WordsChecks } from "../review/words-checks";
 import { useMediaQuery } from "../use-media-query";
 
-// Tailwind's lg breakpoint: from here the checks and the extracted text fit side by side.
 const SIDE_BY_SIDE = "(min-width: 64rem)";
 
-// Shown when the rule-based parser read the file instead of AI. Locally that means demo mode;
-// in production it means the AI call failed and the import fell back.
 const READ_BY_RULES_NOTE =
   process.env.NODE_ENV === "production"
     ? "Your sections were sorted with simple rules this time, not AI. Check that each part landed in the right place."
@@ -53,7 +50,6 @@ export function ReviewStep() {
   const [tab, setTab] = useState("checks");
   const review = useMemo(() => (resume ? reviewResume(resume) : null), [resume]);
 
-  // Phones keep the groups in the Checks tab, so it opens first; the row exists a frame later.
   function showGroup(id: ReviewItem["id"]) {
     setTab("checks");
     window.requestAnimationFrame(() => {
@@ -119,7 +115,6 @@ export function ReviewStep() {
         </OttoNote>
         <CountsSummary report={report} review={review} />
         {readBy === "rules_past_allowance" ? (
-          // Said once, plainly, with one link: the import is complete and fully editable as is.
           <p className="flex items-start gap-2 text-sm text-muted">
             <Info className="mt-0.5 size-4 shrink-0" aria-hidden />
             <span>
@@ -189,7 +184,6 @@ export function ReviewStep() {
 
       <HiringSystemsPanel />
 
-      {/* A scanned file has no lines to fix; Otto's buttons above are the way forward. */}
       {scanned ? null : (
         <div className="sticky bottom-[max(0.75rem,env(safe-area-inset-bottom))] z-10 flex items-center gap-1 self-end rounded-2xl bg-surface p-1.5 shadow-float ring-1 ring-ink/5 max-sm:w-full">
           <Button variant="ghost" onClick={() => setStep("tailor")}>
@@ -207,12 +201,10 @@ export function ReviewStep() {
   );
 }
 
-// High-severity word problems, the ones Otto's note counts.
 function wordsToFix(review: ResumeReview): number {
   return review.items.filter((item) => item.severity === "high").length;
 }
 
-// File problems lead (unreadable files hide the words), then word problems, then file warnings.
 function fixFirstItems(
   report: RecruiterReport,
   review: ResumeReview,
@@ -230,7 +222,6 @@ function fixFirstItems(
         key: item.id,
         title: item.title,
         reason: item.reason,
-        // One line opens straight in the editor; a group opens below with every line listed.
         action:
           item.lines.length + item.more > 1
             ? {

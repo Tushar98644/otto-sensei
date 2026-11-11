@@ -1,18 +1,15 @@
-// framer-motion 11's analytic spring (animation/generators/spring) and default tween, ported so
-// Reel moves like Hamish's portfolio without the library. Pure except SpringValue and animate().
+// Ported from framer-motion 11's analytic spring and default tween (MIT).
 
 export type SpringOptions = {
   stiffness?: number;
   damping?: number;
   mass?: number;
-  // Units per second, like a MotionValue's velocity.
   velocity?: number;
   restSpeed?: number;
   restDelta?: number;
 };
 
 export type Spring = {
-  // `t` is milliseconds since the start.
   at: (t: number) => { value: number; done: boolean };
 };
 
@@ -101,7 +98,6 @@ export function cubicBezier(x1: number, y1: number, x2: number, y2: number): (t:
   };
 }
 
-// framer-motion's default for animate(from, to) on a plain number.
 const DEFAULT_EASE = cubicBezier(0.25, 0.1, 0.35, 1);
 const DEFAULT_DURATION_MS = 300;
 
@@ -112,7 +108,6 @@ export function tweenAt(from: number, to: number, t: number): { value: number; d
 
 export type Controls = { stop: () => void };
 
-// framer-motion's animate(): a spring given stiffness/damping, else the tween. `delay` is in ms.
 export function animate(
   from: number,
   to: number,
@@ -150,7 +145,6 @@ export function animate(
   };
 }
 
-// useSpring without React: set() springs from the current value, keeping its velocity.
 export class SpringValue {
   private current: number;
   private previous: number;
@@ -171,7 +165,6 @@ export class SpringValue {
     return this.current;
   }
 
-  // Like MotionValue.getVelocity: units per second over the last frame, 0 once it's stale.
   getVelocity(): number {
     const now = performance.now();
     if (now - this.updatedAt > 30 || this.updatedAt === this.previousAt) return 0;

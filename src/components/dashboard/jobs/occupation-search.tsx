@@ -18,8 +18,6 @@ const TYPING_PAUSE_MS = 150;
 
 type Results = { query: string; occupations: OccupationOption[] } | { query: string; error: true };
 
-// "Any other job": every occupation O*NET and ESCO name, found by any of their names ("RN",
-// "HGV driver", "solicitor"), not only the kinds of role the card lists.
 export function OccupationSearch({ open, onOpenChange, onPick }: OccupationSearchProps) {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<Results | null>(null);

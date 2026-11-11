@@ -4,9 +4,6 @@ import { PDF_FONT_FAMILIES, PDF_FONT_NAMES, primaryFont, type PdfFontName } from
 import { keepWordsWhole } from "@/lib/pdf/text";
 import type { PdfStyle, TemplateTheme, ThemeStyles } from "./theme";
 
-// Registering only records where each file is: the browser fetches a face from /fonts/pdf/ on first
-// use, Node reads public/fonts/pdf/. Subset embedding maps every glyph back to its character.
-
 function defaultRoot(): string {
   if (typeof process !== "undefined" && process.versions?.node) {
     return `${process.cwd()}/public/fonts/pdf`;
@@ -20,9 +17,7 @@ type Glyph = { codePoints: number[] };
 type FontkitFont = { getGlyph: (id: number, codePoints?: number[]) => Glyph | null };
 type Source = { data: unknown; _load?: () => Promise<void> };
 
-// fontkit caches one glyph per id with the characters first asked for. A composite letter ("Å")
-// fetches its parts with none, so the next PDF's "A" read back as a gap ("maon" for "Amazon").
-// A glyph that has none takes the ones it's asked for.
+// fontkit caches a composite glyph's parts with no characters ("maon" for "Amazon"); refill them.
 function keepCharacters(font: FontkitFont) {
   const getGlyph = font.getGlyph.bind(font);
   font.getGlyph = (id, codePoints = []) => {
@@ -63,16 +58,14 @@ export function registerPdfFonts(): void {
     });
     patchSources(name);
   }
-  // Backstop for any Text that skips keepWordsWhole: keywords stay whole for hiring software.
   Font.registerHyphenationCallback(keepWordsWhole);
   registered = true;
 }
 
 registerPdfFonts();
 
-// Adds a close fallback face where the family can't draw a character (Cyrillic in Pagella).
 export function withFontFallbacks(theme: TemplateTheme, text: string): TemplateTheme {
-  // Formats print some lines in capitals ("ĞÖKÇE"), which a family may lack where it has "ğökçe".
+  // Some lines print in capitals, which a family may lack ("ĞÖKÇE" but not "ğökçe").
   const printed = text + text.toLocaleUpperCase();
   const needed = new Map<PdfFontName, boolean>();
   const needsFallback = (name: PdfFontName) => {

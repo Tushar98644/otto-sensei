@@ -12,7 +12,6 @@ export type RenameDialogProps = {
   resume: Resume | null;
   onClose: () => void;
   onRename: (resume: Resume, title: string) => void;
-  // True when another resume already has this name; names must stay unique.
   isTaken: (title: string) => boolean;
 };
 
@@ -27,7 +26,6 @@ export function RenameDialog({ resume, onClose, onRename, isTaken }: RenameDialo
       title="Rename resume"
       description="Only you see this name. The PDF keeps your own name at the top."
     >
-      {/* Keyed so every opening starts from the resume's current name. */}
       {resume ? (
         <RenameForm
           key={resume.id}

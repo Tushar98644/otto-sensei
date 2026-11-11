@@ -7,18 +7,13 @@ import type { Resume } from "@/lib/resume/schema";
 import type { ScreeningQuestion } from "@/lib/ats/types";
 import type { RequirementChoice, TailorChoices } from "./apply";
 
-// Keeps the job post (read from a link or pasted) and the last result for this browser tab, so
-// leaving the step (or reloading) neither loses the job nor spends another tailor on the same post.
-
 export type ReadJob = Omit<JobPosting, "text">;
 
 export type TailorDraft = {
   title: string;
   company: string;
   text: string;
-  // Optional, like the two below: drafts saved before job links have none.
   link?: string;
-  // Set while title, company and text are exactly what was read from the link.
   posting?: ReadJob | null;
   paste?: boolean;
 };
@@ -28,15 +23,11 @@ export type SavedAnswer = SavedWriting & { id: string; question: string };
 
 export type SavedResult = {
   id: string;
-  // The resume the result was made for: its bullet ids only fit that one.
   sourceId: string;
-  // To tell an unchanged resume from an edited one. Optional: older results don't have it.
   sourceUpdatedAt?: number;
   job: TailorDraft;
   result: TailorResult;
-  // Sample output (no AI key), kept so the demo note survives a reload. Older results were real.
   demo?: boolean;
-  // Kept so leaving the step doesn't lose the answers. Optional, like demo.
   choices?: TailorChoices;
   letter?: SavedWriting;
   answers?: SavedAnswer[];
@@ -112,7 +103,6 @@ const QUESTION_KINDS = new Set<string>([
   "multi",
 ] satisfies ScreeningQuestion["kind"][]);
 
-// Bad entries are dropped one by one; the job itself stays.
 function toQuestions(value: unknown): ScreeningQuestion[] {
   if (!Array.isArray(value)) return [];
   return value.filter(
@@ -128,7 +118,6 @@ function toQuestions(value: unknown): ScreeningQuestion[] {
   );
 }
 
-// The draft's known fields only; optional ones that don't check out are dropped, not the draft.
 function toDraft(value: unknown): TailorDraft | null {
   const draft = value as Partial<TailorDraft> | null;
   if (!draft || !isString(draft.title) || !isString(draft.company) || !isString(draft.text))
@@ -196,7 +185,6 @@ function toAnswers(value: unknown): SavedAnswer[] | undefined {
     .slice(0, MAX_SAVED_ANSWERS);
 }
 
-// Light shape check: the data is our own, but storage can hold an older or hand-edited copy.
 function isResult(value: unknown): value is TailorResult {
   const result = value as Partial<TailorResult> | null;
   return (
@@ -209,7 +197,6 @@ function isResult(value: unknown): value is TailorResult {
   );
 }
 
-// Older results lack requirements; extras are checked one by one so a bad one isn't fatal.
 function toSavedResult(last: SavedResult): SavedResult {
   const requirements = Array.isArray(last.result.requirements) ? last.result.requirements : [];
   const clean: SavedResult = {
@@ -244,8 +231,6 @@ function read(): Saved | null {
   return { version: 1, draft, last: valid ? toSavedResult(last) : null };
 }
 
-// A job picked on the Jobs tab; the step reads its link at once. `text` is the stored post, the
-// backup when the link can't be read; readLink false (the feeds) uses it straight away.
 export type QueuedJob = {
   link: string;
   title: string;
@@ -254,17 +239,13 @@ export type QueuedJob = {
   text: string;
   postedAt: number | null;
   readLink: boolean;
-  // The opening's id on the Jobs tab, kept on the copy (tailor.jobId) so they find each other.
   jobId?: string;
-  // Already read by the server for the Jobs tab: used as if read here, so it isn't read twice.
   posting?: ReadJob;
 };
 
 const QUEUE_KEY = "otto-tailor-queued-v1";
-// Kept for the tab's life after the step takes the queued job, so the copy can name its opening.
 const JOB_REF_KEY = "otto-tailor-job-ref-v1";
 
-// Storage blocked: the step opens empty and the person pastes the link themselves.
 export function queueJobForTailor(job: QueuedJob): void {
   const queued = { ...job, text: job.text.slice(0, TEXT_LIMITS.jobPostChars) };
   if (!writeJsonItem(QUEUE_KEY, queued, "session")) return;
@@ -272,14 +253,12 @@ export function queueJobForTailor(job: QueuedJob): void {
   else removeItem(JOB_REF_KEY, "session");
 }
 
-/** The Jobs tab opening behind this link, only while it's still the link sent from there. */
 export function queuedJobIdFor(link: string | undefined): string | null {
   const ref = readJsonItem(JOB_REF_KEY, "session") as { id?: unknown; link?: unknown } | null;
   if (!link || typeof ref?.id !== "string" || typeof ref.link !== "string") return null;
   return sameJobUrl(ref.link, link) ? ref.id : null;
 }
 
-/** The queued job, left in place: the step takes it once it has mounted (see takeQueuedJob). */
 export function peekQueuedJob(): QueuedJob | null {
   const job = readJsonItem(QUEUE_KEY, "session") as Partial<QueuedJob> | null;
   if (
@@ -320,12 +299,10 @@ export function loadResult(sourceId: string): SavedResult | null {
 }
 
 export function saveTailorSession(draft: TailorDraft, last: SavedResult | null): void {
-  // Over-long pastes are rejected before sending anyway; don't store more than could be sent.
   const saved: Saved = {
     version: 1,
     draft: { ...draft, text: draft.text.slice(0, TEXT_LIMITS.jobPostChars * 2) },
     last,
   };
-  // Storage full or blocked: the step still works, it just won't survive a reload.
   writeJsonItem(STORAGE_KEY, saved, "session");
 }

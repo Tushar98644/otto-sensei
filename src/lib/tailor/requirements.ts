@@ -9,24 +9,17 @@ import { snippetAround } from "./evidence";
 import { findTermIn, termKey } from "./keywords";
 import { foldCase, textTokens, type Token } from "./tokens";
 
-// Screener AI grades one qualification at a time, so a row is "proven" only when a real line shows
-// it, never because the model says so.
-
 export const MAX_REQUIREMENTS = 16;
 const TEXT_CHARS = 140;
 const TERM_CHARS = 60;
 const MAX_TERMS = 4;
-// Longer than this it's a description, not a name a recruiter types into a search box.
 const MAX_TERM_WORDS = 5;
 const QUOTE_CHARS = 300;
 const ASK_CHARS = 160;
-// Two words ("built APIs") match too much by accident to count as a quote.
 const MIN_QUOTE_WORDS = 3;
-// Lines this long are cut around the match, so a row shows the proof, not a paragraph.
 const LINE_CHARS = 200;
 
 const SOURCES: ReadonlySet<string> = new Set<RequirementSource>(["wording", "structure", "guess"]);
-// "required" is the one off-spec answer that plainly means must.
 const MUST_VALUES: ReadonlySet<string> = new Set(["must", "required"]);
 const LEADING_MARKER = /^[\s\-–—•*·]+/u;
 const WORDS = /[\p{L}\p{N}]+/gu;
@@ -44,19 +37,14 @@ export type RawRequirement = {
 export type ProofStatus = "proven" | "listed" | "missing";
 
 export type ProofLine = {
-  // "Senior Engineer at Acme Payments, line 2", "Summary".
   place: string;
-  // Cut around the match when it's long.
   text: string;
-  // So the UI can jump to that line in the editor.
   bulletId: string | null;
 };
 
 export type Proof = {
   status: ProofStatus;
-  // The proving line or the Skills line; null when missing.
   line: ProofLine | null;
-  // quote: the model's quote was found word for word. added: a line the person wrote for it.
   via: "term" | "quote" | "added" | null;
 };
 
@@ -68,9 +56,7 @@ export type ProvenCount = { proven: number; total: number };
 export type ScreenerCounts = { must: ProvenCount; nice: ProvenCount };
 
 export type ScreenerOptions = {
-  // Requirements the person said they don't have. Ignored once the resume proves one anyway.
   declined?: ReadonlySet<string>;
-  // They prove a kind of experience; a named tool still has to be named in the line.
   linked?: ReadonlyMap<string, string>;
 };
 
@@ -100,7 +86,6 @@ function cleanAsk(ask: string, text: string, terms: readonly string[]): string {
   if (/[\p{L}].*\?$/u.test(question)) return question;
   const [term] = terms;
   if (term) return `Have you used ${term}?`;
-  // "Strong writing" reads as "strong writing" mid-sentence; "SQL" and "Go" keep their capitals.
   const phrase = text.replace(/^\p{Lu}(?=\p{Ll})/u, (letter) => letter.toLowerCase());
   return `Do you have experience with ${phrase.replace(/[.?!]+$/u, "")}?`;
 }
@@ -110,8 +95,6 @@ function readSource(value: string): RequirementSource {
   return SOURCES.has(source) ? (source as RequirementSource) : "guess";
 }
 
-// Anything unclear is a guess, and a guess is never a must-have. Repeats merge into the first,
-// keeping the stronger importance. Must-haves first, each group in post order.
 export function normalizeRequirements(raw: readonly RawRequirement[]): TailorRequirement[] {
   const kept: Omit<TailorRequirement, "id">[] = [];
   const byText = new Map<string, number>();
@@ -141,7 +124,6 @@ export function normalizeRequirements(raw: readonly RawRequirement[]): TailorReq
       importance,
       source,
       terms,
-      // A named tool is proven by its name, never by the model's opinion of a line.
       quote: terms.length ? "" : clipWords(oneLine(item.quote), QUOTE_CHARS),
       ask: cleanAsk(item.ask, text, terms),
     });
@@ -170,7 +152,6 @@ function entryLabel(title: string, company: string): string {
   return joined([title, company], " at ");
 }
 
-// Skills lists and the headline only list a name, so they can't prove one.
 function resumeLines(resume: Resume): ResumeLines {
   const shown: Line[] = [];
   const listed: Line[] = [];
@@ -226,7 +207,6 @@ function termIn(line: Line, terms: readonly string[]): ProofLine | null {
     if (line.full.length <= LINE_CHARS) {
       return { place: line.place, text: line.full, bulletId: line.bulletId };
     }
-    // The evidence snippet is already cut around the match.
     return { place: line.place, text: match.evidence, bulletId: line.bulletId };
   }
   return null;
@@ -239,8 +219,6 @@ function indexOfRun(words: readonly string[], run: readonly string[], from: numb
   return -1;
 }
 
-// Word for word, ignoring case, accents and punctuation. A quote the model shortened with "…"
-// must have every piece in the same line, in order.
 function quoteIn(line: Line, quote: string): boolean {
   const pieces = quote.split(ELLIPSIS).map(wordsOf).filter((piece) => piece.length > 0);
   if (pieces.reduce((sum, piece) => sum + piece.length, 0) < MIN_QUOTE_WORDS) return false;
@@ -292,7 +270,6 @@ export function findProof(resume: Resume, requirement: TailorRequirement): Proof
   return proofIn(resumeLines(resume), requirement, undefined);
 }
 
-// So a model can't "prove" a requirement with a line it made up.
 export function withVerifiedQuotes(
   resume: Resume,
   requirements: readonly TailorRequirement[],
@@ -305,7 +282,6 @@ export function withVerifiedQuotes(
   );
 }
 
-// Lines in a job that prove a must-have, so reordering can put them at the top of their job.
 export function mustProofBulletIds(
   resume: Resume,
   requirements: readonly TailorRequirement[],

@@ -27,7 +27,6 @@ describe("splitName", () => {
       ["Ludwig van Beethoven", "Ludwig", "van Beethoven"],
       ["Juan de la Cruz", "Juan", "de la Cruz"],
       ["Nguyễn Văn An", "Nguyễn Văn", "An"],
-      // One word, a comma or no spaces: nothing to split, so the whole name takes the bold style.
       ["Cher", "", "Cher"],
       ["Park, Byungjin", "", "Park, Byungjin"],
       ["王芳", "", "王芳"],
@@ -145,13 +144,11 @@ describe("entryRows", () => {
       ["Senior Backend Engineer", "Jan 2021 – Present"],
       ["Backend Engineer", "Mar 2019 – Dec 2020"],
     ]);
-    // The firm's whole span on its line, each title with its own years.
     expect(both("compact")).toEqual([
       ["Northwind Payments, Toronto, Canada", "2019 – Present"],
       ["Senior Backend Engineer", "2021 – Present"],
       ["Backend Engineer", "2019 – 2020"],
     ]);
-    // Jake's: the first role in full, later ones on one italic line.
     expect(both("developer")).toEqual([
       ["Senior Backend Engineer", "Jan 2021 – Present"],
       ["Northwind Payments", "Toronto, Canada"],

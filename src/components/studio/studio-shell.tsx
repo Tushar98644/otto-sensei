@@ -33,7 +33,6 @@ import { useAccountEmailPrefill } from "./use-account-email";
 import { ReviewStep } from "./steps/review-step";
 import { UploadStep } from "./steps/upload-step";
 
-// Later steps load on demand so a first visit stays light. Not next/dynamic: see step-loader.ts.
 const LAZY_STEPS = {
   fix: createStepLoader(() => import("./steps/fix-step").then((m) => m.FixStep)),
   tailor: createStepLoader(() => import("./steps/tailor-step").then((m) => m.TailorStep)),
@@ -43,7 +42,6 @@ const LAZY_STEPS = {
 type LazyStep = keyof typeof LAZY_STEPS;
 const isLazyStep = (step: StudioStep): step is LazyStep => Object.hasOwn(LAZY_STEPS, step);
 
-// Long enough for the current step to finish its own loading first.
 const PRELOAD_DELAY_MS = 1_500;
 
 const SIGN_IN_REASON = "Back up your resumes and let Otto help with your lines.";
@@ -83,19 +81,14 @@ function StudioSteps() {
   const context: StepContext = { hasResume: resume !== null, hasReport: report !== null };
   const step = resolveStep(savedStep, context);
   const next = adjacentStep(step, 1, context);
-  // The stepper moves on the click; the screen below follows in a background render that yields to
-  // input, so a heavy step (the editor of a long resume) never freezes the click that opens it.
   const visibleStep = useDeferredValue(step);
   const headingRef = useRef<HTMLHeadingElement>(null);
   const shownStep = useRef<StudioStep | null>(null);
 
-  // Start each step at the top with focus on its heading, so keyboard and screen reader users land
-  // on it. Focus in an open menu stays (deleting the open resume from the switcher changes step).
   useEffect(() => {
     const previous = shownStep.current;
     shownStep.current = visibleStep;
     if (previous === null || previous === visibleStep) return;
-    // A jump to a line (from the Recruiter view or Tailor) places focus itself.
     if (takeStepJump()) return;
     window.scrollTo({ top: 0 });
     if (document.activeElement?.closest("[popover]")) return;
@@ -125,7 +118,6 @@ function StudioSteps() {
   );
 }
 
-// Memoized, so the click's own render (the stepper) skips the step on screen.
 const ActiveStep = memo(function ActiveStep({ step }: { step: StudioStep }) {
   switch (step) {
     case "upload":
@@ -135,12 +127,10 @@ const ActiveStep = memo(function ActiveStep({ step }: { step: StudioStep }) {
     case "fix":
     case "tailor":
     case "download":
-      // Keyed so each step mounts fresh, as it would with its own component.
       return <LoadedStep key={step} loader={LAZY_STEPS[step]} />;
   }
 });
 
-// A load that fails for this visit goes to the error boundary, as a lazy component's would.
 function LoadedStep({ loader }: { loader: StepLoader<ComponentType> }) {
   const state = useSyncExternalStore(loader.subscribe, loader.getState, loader.getState);
   const [failure, setFailure] = useState<{ error: unknown } | null>(null);
@@ -148,7 +138,6 @@ function LoadedStep({ loader }: { loader: StepLoader<ComponentType> }) {
   useEffect(() => {
     if (loader.getState().status === "ready") return;
     let live = true;
-    // Also retries a background preload that failed.
     loader.load().catch((error: unknown) => {
       if (live) setFailure({ error });
     });

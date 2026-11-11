@@ -1,8 +1,6 @@
 import { flushSync } from "react-dom";
 import { pickNeighbor } from "./edits";
 
-// Stable DOM ids, so focus can follow an item after it's added, moved or removed.
-
 const safe = (id: string) => encodeURIComponent(id);
 
 export const bulletInputId = (bulletId: string) => `fix-line-${safe(bulletId)}`;
@@ -11,14 +9,12 @@ export const entryFieldId = (entryId: string, field: string) =>
   `fix-entry-${safe(entryId)}-${field}`;
 export const addButtonId = (scope: string) => `fix-add-${safe(scope)}`;
 export const addLineButtonId = (parentId: string) => addButtonId(`lines-${parentId}`);
-// A section's sheet: a SectionKey, "basics", or an extra section's id.
 export const sectionDomId = (key: string) => `fix-section-${safe(key)}`;
-// The editor shows one summary at a time, so a fixed id lets other steps open it.
 export const SUMMARY_INPUT_ID = "fix-summary";
 
 export type Caret = "start" | "end" | number;
 
-// Renders synchronously before focusing: the target may not exist yet, or may move and lose focus.
+// Renders synchronously first: the target may not exist yet, or may move and lose focus.
 export function editThenFocus(edit: () => void, targetId: string | null, caret?: Caret): void {
   flushSync(edit);
   if (!targetId) return;
@@ -32,7 +28,6 @@ export function editThenFocus(edit: () => void, targetId: string | null, caret?:
   }
 }
 
-// Focus goes to the next entry's remove button, so keyboard users keep their spot.
 export function removeEntryWithFocus(
   entries: readonly { id: string }[],
   entryId: string,

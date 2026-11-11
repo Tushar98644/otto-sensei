@@ -12,7 +12,6 @@ import {
 import type { TailorCopyMeta } from "@/lib/store/resume-store";
 import type { ScreenerOptions } from "@/lib/tailor/requirements";
 
-// ResumeSchema limits, so a tailored copy always passes validation when it syncs to the cloud.
 const MAX_KEYWORDS = 60;
 const MAX_TERM_CHARS = 100;
 const MAX_SKILL_ITEMS = 100;
@@ -21,15 +20,12 @@ const MAX_JOB_FIELD_CHARS = 200;
 const MAX_BULLET_CHARS = 1_000;
 const MAX_BULLETS = { experience: 40, projects: 20 } as const;
 
-// The id is made when added, so the screener view can point at it before the copy exists.
 export type AddedLine = { id: string; parentId: string; text: string };
 
-// "no": the person doesn't have it, so it stays missing and nothing is ever added for it.
 export type RequirementChoice = { kind: "no" } | { kind: "line"; line: AddedLine };
 
 export type TailorChoices = {
   requirements: Record<string, RequirementChoice>;
-  // Per experience id; a missing entry means the reorder is on.
   reorder: Record<string, boolean>;
   useSummary: boolean;
 };
@@ -100,7 +96,6 @@ function addedLines(result: TailorResult, choices: TailorChoices) {
   });
 }
 
-// A must-have's line goes first in its job, where screeners look; a nice-to-have's goes last.
 function withAddedLines(resume: Resume, result: TailorResult, choices: TailorChoices): Resume {
   let next = resume;
   const atTop = new Map<string, number>();
@@ -139,13 +134,11 @@ function addConfirmedSkills(resume: Resume, skills: string[]): Resume {
     resume.skills.flatMap((group) => group.items.map((item) => item.trim().toLowerCase())),
   );
   const fresh = [...new Set(skills)].filter((skill) => !existing.has(skill.toLowerCase()));
-  // addSkills() appends to the first group, which holds at most MAX_SKILL_ITEMS.
   const room = MAX_SKILL_ITEMS - (resume.skills[0]?.items.length ?? 0);
   return addSkills(resume, fresh.slice(0, Math.max(0, room)));
 }
 
 export function defaultChoices(resume: Resume, result: TailorResult): TailorChoices {
-  // A suggested summary fills an empty one by default; replacing the user's own needs a tick.
   return {
     requirements: {},
     reorder: {},
@@ -173,8 +166,7 @@ export function applyTailorChoices(
   return next;
 }
 
-// Every choice applied except the suggested summary: it's written from the skills list, so it
-// would turn "Listed but not shown" into "Proven" with no new proof.
+// Skips the suggested summary: it's written from the skills list, so it adds no proof.
 export function screenerResume(
   source: Resume,
   result: TailorResult,
@@ -196,7 +188,6 @@ export function screenerOptions(choices: TailorChoices): Required<ScreenerOption
 export type TailorJob = {
   title: string;
   company: string;
-  // The post as it was sent; optional so callers that only know the names still work.
   text?: string;
   link?: string;
   posting?: { url: string } | null;
@@ -214,7 +205,6 @@ function savedRequirementsOf(result: TailorResult): SavedRequirement[] {
   }));
 }
 
-// The user's title and company win; the model's reading of the post only fills gaps.
 export function tailorMeta(result: TailorResult, job: TailorJob, coverLetter = ""): TailorCopyMeta {
   const letter = coverLetter.trim().slice(0, COVER_LETTER_CHARS);
   const jobText = (job.text ?? "").trim().slice(0, JOB_TEXT_CHARS);

@@ -14,7 +14,6 @@ import type { ReminderSettings } from "@/lib/notifications/types";
 import { cn } from "@/lib/utils";
 import { saveReminderSettings, useReminderSettings } from "./use-reminder-settings";
 
-// Native radios under the segmented look, so arrow keys and screen readers behave as usual.
 const SEGMENT = cn(
   "flex h-9 cursor-pointer items-center justify-center rounded-lg px-3 text-sm text-muted pointer-coarse:h-11",
   "hover:text-ink has-checked:bg-surface has-checked:font-medium has-checked:text-ink",
@@ -22,8 +21,6 @@ const SEGMENT = cn(
   "has-focus-visible:outline-2 has-focus-visible:outline-offset-2 has-focus-visible:outline-ink",
 );
 
-// Marking a job applied always sets a reminder in the bell; these only set the delay and email
-// (hidden when this server can't send email). Signed-out visitors see nothing.
 export function ReminderSettingsCard() {
   const { user } = useMe();
   const userId = user?.id ?? null;
@@ -33,7 +30,6 @@ export function ReminderSettingsCard() {
   if (!userId) return null;
   const settings = query.data;
 
-  // Shows at once; put back with a note if the server says no.
   async function save(change: Partial<ReminderSettings>) {
     if (!userId) return;
     try {
@@ -97,7 +93,6 @@ export function ReminderSettingsCard() {
 
 function DelayChoice({ value, onChange }: { value: number; onChange: (days: number) => void }) {
   const id = useId();
-  // A value set some other way (an older choice list) still shows as itself.
   const choices = [...new Set<number>([...FOLLOW_UP_DAY_CHOICES, value])].sort((a, b) => a - b);
   return (
     <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-4">

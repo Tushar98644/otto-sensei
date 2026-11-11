@@ -9,7 +9,6 @@ export type ReorderPreviewProps = {
   onToggle: (experienceId: string, on: boolean) => void;
 };
 
-// Shows at most this many moved lines per job; the rest move too.
 const SHOWN_LINES = 3;
 
 export function ReorderPreview({ plans, reorder, onToggle }: ReorderPreviewProps) {

@@ -3,8 +3,7 @@
 import { ArrowUp } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
-// Prose's moving parts, after antfu/antfu.me (code MIT): ArtPlum's branches (without VueUse) and
-// the NavBar's scroll-to-top button.
+// Ported from antfu/antfu.me (code MIT, see ./LICENSE.txt).
 
 const R180 = Math.PI;
 const R90 = Math.PI / 2;
@@ -22,7 +21,6 @@ export function ArtPlum() {
     const canvas = canvasRef.current;
     const ctx = canvas?.getContext("2d");
     if (!wrap || !canvas || !ctx) return;
-    // Still pictures (template thumbnails) and readers who asked for less motion get no branches.
     if (wrap.closest("[data-pf-still]")) return;
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
 
@@ -74,7 +72,6 @@ export function ArtPlum() {
         cancelAnimationFrame(frame);
         return;
       }
-      // Half the steps wait a frame, which keeps the growth uneven and organic.
       for (const run of previous) {
         if (random() < 0.5) steps.push(run);
         else run();
@@ -105,7 +102,6 @@ export function ToTop() {
   const [shown, setShown] = useState(false);
 
   useEffect(() => {
-    // The page may scroll inside a box (the editor's preview) rather than the window.
     let scroller: HTMLElement | Window = window;
     for (let el = button.current?.parentElement ?? null; el; el = el.parentElement) {
       const overflow = getComputedStyle(el).overflowY;

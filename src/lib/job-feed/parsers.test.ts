@@ -139,7 +139,6 @@ describe("parseWorkable", () => {
       seniority: "junior",
     });
     expect(jobs[0]!.text).toContain("- Track turnover in Excel and Salesforce.");
-    // Hidden places stay hidden; telecommuting is remote.
     expect(jobs[1]).toMatchObject({
       location: "Remote · Athens, Attica, Greece",
       remote: true,
@@ -217,7 +216,6 @@ describe("parsePersonio", () => {
 describe("parseJobicy", () => {
   it("links each job to its Jobicy page and reads its region, type and level", () => {
     const page = parseJobicy(JOBICY_PAGE);
-    // hasMore false: no next page, whatever the cursor says.
     expect(page.nextCursor).toBeNull();
     expect(page.jobs).toHaveLength(2);
     expect(page.jobs[0]).toMatchObject({

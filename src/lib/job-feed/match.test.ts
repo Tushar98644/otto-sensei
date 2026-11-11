@@ -38,7 +38,6 @@ describe("findSkills", () => {
     expect(findSkills("R&D budget")).toEqual([]);
   });
 
-  // MATCHING-RESEARCH.md, Round 2: 330 non-engineering posts carried "Go" from lines like these.
   it("doesn't read plain English as a short tech name", () => {
     for (const line of [
       "You will own our Go To Market strategy for the EMEA region.",
@@ -72,7 +71,6 @@ describe("findSkills", () => {
     expect(findSkills("Spark jobs on Databricks; PySpark")).toEqual(["Spark", "Databricks"]);
     expect(findSkills("Frontend in Elm")).toEqual(["Elm"]);
     expect(findSkills("Excel models and Excel macros")).toEqual(["Excel"]);
-    // Real lines the first version of the rules dropped (match-eval skills-check, 2026-11-09).
     expect(findSkills("System programming with C, C++, and/or Rust.")).toEqual([
       "C",
       "C++",
@@ -88,7 +86,6 @@ describe("findSkills", () => {
       "Ruby",
       "Ruby on Rails",
     ]);
-    // An investor named in the company intro is not the tool.
     expect(findSkills("Led by Altimeter Capital and Spark Capital.")).toEqual([]);
   });
 
@@ -122,7 +119,6 @@ describe("roles", () => {
     expect(seniorityOf("Engineering Manager")).toBe("lead");
     expect(seniorityOf("Product Manager")).toBe("mid");
     expect(seniorityOf("Head of Design")).toBe("director");
-    // People managers the test set's judge saw as two steps up from an individual role.
     expect(seniorityOf("Manager, Sales Development")).toBe("lead");
     expect(seniorityOf("Manager I, Engineering - Client SDKs")).toBe("lead");
     expect(seniorityOf("Senior Manager, Software Engineering (Android)")).toBe("lead");
@@ -230,8 +226,6 @@ describe("matchJob", () => {
 });
 
 describe("role kind by title age", () => {
-  // product-pm-mid in the test set: an old "Business Analyst" title once made operations count
-  // fully, and Shift Coordinator posts reached the top 10.
   const profile = {
     skills: ["Jira", "SQL"],
     titles: ["Product Manager", "Business Analyst"],
@@ -269,8 +263,6 @@ describe("role kind by title age", () => {
 });
 
 describe("occupations for every kind of work", () => {
-  // A nurse's resume names no tool the vocabulary knows and no kind of role the title rules
-  // know: only the occupation says what the work is.
   const nurse = personFrom(
     { skills: [], titles: ["Registered Nurse", "Nursing Assistant"], years: 5 },
     null,
@@ -312,7 +304,6 @@ describe("occupations for every kind of work", () => {
   });
 
   it("notes when a job usually needs much more preparation (O*NET Job Zones)", () => {
-    // Pharmacy technicians (Job Zone 3) move to pharmacist jobs (Zone 5), which need a degree.
     const technician = personFrom(
       { skills: [], titles: ["Pharmacy Technician"], years: 2 },
       null,
@@ -333,7 +324,6 @@ describe("occupations for every kind of work", () => {
       OCCUPATIONS,
     );
     expect(kindOf(engineer, post("Senior iOS Engineer")).weight).toBe(1);
-    // The title rules call these engineering; their occupations say otherwise.
     expect(kindOf(engineer, post("Mechanical Engineer")).weight).toBe(0);
     expect(kindOf(engineer, post("Solutions Engineer")).weight).toBe(0);
   });

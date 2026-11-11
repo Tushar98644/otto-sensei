@@ -31,7 +31,6 @@ describe("githubConnectionOf", () => {
   it("is null without a GitHub identity, or with a login that isn't a GitHub username", () => {
     expect(githubConnectionOf({ identities: [email] })).toBeNull();
     expect(githubConnectionOf({ identities: undefined })).toBeNull();
-    // Only identity_data from GitHub counts, never a name in the user's own metadata.
     expect(
       githubConnectionOf({ identities: [identity("google", { user_name: "octocat" })] }),
     ).toBeNull();

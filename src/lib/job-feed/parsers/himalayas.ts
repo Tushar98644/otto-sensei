@@ -37,7 +37,6 @@ const HimalayasJob = z.object({
 
 export type HimalayasPage = { jobs: RawJob[]; nextCursor: string | null };
 
-// GET himalayas.app/jobs/api?limit=20&cursor=…
 export function parseHimalayas(json: unknown): HimalayasPage {
   const page = z
     .object({ jobs: z.array(z.unknown()), nextCursor: z.string().nullish() })

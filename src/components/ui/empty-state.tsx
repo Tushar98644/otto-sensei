@@ -2,7 +2,6 @@ import type { ReactNode } from "react";
 import { cn } from "@/lib/utils";
 
 export type EmptyStateProps = {
-  // Usually a full-body Otto in a fitting pose: an empty state is one of the few places he gets one.
   illustration?: ReactNode;
   title: ReactNode;
   description?: ReactNode;

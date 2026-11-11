@@ -21,7 +21,6 @@ import { POST as countView } from "./views/route";
 
 vi.mock("next/headers", async () => (await import("@/lib/auth/test-helpers")).nextHeadersMock);
 
-// Records what each write asked the page cache to drop; unstable_cache just runs the loader.
 const dropped = vi.hoisted(() => ({ tags: [] as string[], paths: [] as string[] }));
 vi.mock("next/cache", () => ({
   revalidateTag: (tag: string) => void dropped.tags.push(tag),
@@ -64,8 +63,6 @@ async function metadataFor(slug: string) {
   return generateMetadata({ params: Promise.resolve({ slug }) });
 }
 
-// Portfolios are Pro and Max; publishing needs a paid (not trial) plan. Owners here pay unless a
-// test says otherwise.
 const signInAs = async (email: string) => setPlan(await signInFree(email), "pro");
 
 describe("/api/portfolio", () => {
@@ -115,7 +112,6 @@ describe("/api/portfolio", () => {
     const down = await patch({ published: false });
     expect(((await down.json()) as PortfolioSaveResponse).portfolio.published).toBe(false);
     expect(dropped.tags).toContain("portfolio:maya-chen");
-    // Undo is the same call the other way.
     expect(
       ((await (await patch({ published: true })).json()) as PortfolioSaveResponse).portfolio
         .published,
@@ -173,13 +169,11 @@ describe("/api/portfolio", () => {
   });
 
   it("keeps portfolios to Pro and Max, the trial included", async () => {
-    // Free: 402, which the page answers with the trial's prompt.
     await signInFree("free@example.com");
     const free = await create({ resume: sampleResume() });
     expect(free.status).toBe(402);
     expect(await errorOf(free)).toMatchObject({ code: "upgrade_required" });
 
-    // On the trial: build, change and publish it.
     const trialEnd = Date.UTC(2099, 0, 15, 12);
     const maya = await setPlan(await signInFree("maya@example.com"), "trial", trialEnd);
     expect((await create({ resume: sampleResume() })).status).toBe(201);
@@ -188,7 +182,6 @@ describe("/api/portfolio", () => {
       ((await (await patch({ published: true })).json()) as PortfolioSaveResponse).portfolio
         .published,
     ).toBe(true);
-    // Back on Free the page goes offline but stays saved, and can't be changed.
     await (await getDb()).update(users).set({ plan: "free" }).where(eq(users.id, maya.id));
     expect((await patch({ published: false })).status).toBe(402);
     expect(
@@ -204,7 +197,6 @@ describe("/api/portfolio", () => {
     expect((await patch({ hiddenSections: ["secrets"] })).status).toBe(400);
     expect((await patch({ template: "neon" })).status).toBe(400);
     expect((await patch({ template: "minimal" })).status).toBe(400);
-    // Project pictures went with the text-only pages: an old client's map changes nothing.
     expect((await patch({ projectImages: { p1: "https://cdn.example.com/a.png" } })).status).toBe(
       400,
     );

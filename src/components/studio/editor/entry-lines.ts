@@ -18,7 +18,6 @@ type StudioState = Parameters<typeof pickResume>[0];
 
 const NO_LINES: CheckedLine[] = [];
 
-// Printed lines with words; hidden lines aren't linted, so they never count.
 function printedLines(resume: Resume, section: BulletSection, parentId: string): CheckedLine[] {
   const bullets = bulletsOf(resume, { section, parentId });
   if (!bullets) return NO_LINES;
@@ -29,7 +28,6 @@ function printedLines(resume: Resume, section: BulletSection, parentId: string):
   });
 }
 
-// Two flat lists so the shallow compare settles: typing in another entry doesn't re-render this.
 export function useEntryLines(
   resumeId: string,
   section: BulletSection,
@@ -48,7 +46,6 @@ export function useEntryLines(
   return useSettled(lines, SETTLE_MS);
 }
 
-/** Each call opens the next of `ids` in the editor, from the top again after the last one. */
 export function useLineStepper(ids: readonly string[]): () => void {
   const last = useRef<string | null>(null);
   return () => {

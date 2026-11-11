@@ -17,16 +17,11 @@ import {
 } from "@/lib/resume/sections";
 import type { CheckId, CheckStatus, RecruiterCheck, RecruiterReport } from "./types";
 
-// Recruiters skim; past two pages most of a resume goes unread.
 const MAX_PAGES = 2;
-// Under ~150 words there's too little text to match against a job post.
 const MIN_WORDS = 150;
-// Roughly three printed lines. Bullets rarely run this long; descriptive paragraphs usually do.
 const PARAGRAPH_WORDS = 50;
-// Paragraphs must carry at least half of the job text, and enough of it to matter.
 const PARAGRAPH_SHARE = 0.5;
 const MIN_PARAGRAPH_WORDS = 60;
-// A PDF line at least this share of the longest line probably wraps onto the next one.
 const WRAPPED_LINE_SHARE = 0.85;
 
 const STATUS_RANK: Record<CheckStatus, number> = { fail: 0, warn: 1, pass: 2 };
@@ -45,11 +40,8 @@ type Context = {
 
 type Check = (context: Context) => RecruiterCheck;
 
-// Deterministic (no AI, no network). Runs after upload and again on our own exported PDF. Every
-// CheckId in ./types must be evaluated.
 export function runRecruiterChecks(extraction: Extraction, now = Date.now()): RecruiterReport {
   const context = analyze(extraction);
-  // Array.prototype.sort is stable, so checks keep their logical order within each status.
   const checks = CHECKS.map((run) => run(context)).sort((a, b) => STATUS_RANK[a.status] - STATUS_RANK[b.status]);
   const counts: Record<CheckStatus, number> = { fail: 0, warn: 0, pass: 0 };
   for (const result of checks) counts[result.status]++;
@@ -75,9 +67,7 @@ function analyze(extraction: Extraction): Context {
     }
   };
   for (const line of extraction.lines) {
-    // Side-by-side headings count too: the heading exists even if the columns get mixed.
     for (const { kind } of headingsInLine(line)) add(kind);
-    // So do labelled lines like "Skills: Python, SQL", which many parsers recognise.
     for (const segment of line.split("\t")) add(splitInlineHeading(segment)?.kind);
   }
   const headerText = extraction.signals.headerFooterText;
@@ -97,7 +87,6 @@ function check(id: CheckId, status: CheckStatus, title: string, detail: string, 
   return { id, status, title, detail, fix: status === "pass" ? null : fix };
 }
 
-// Without a text layer there's nothing to look at, which is a different message from "missing".
 function notChecked(id: CheckId, title: string, what: string): RecruiterCheck {
   return check(id, "warn", title, `There's no readable text, so we couldn't check ${what}.`, SCAN_FIX);
 }
@@ -179,7 +168,6 @@ const sections: Check = ({ readable, sectionsFound }) => {
   if (!readable) return notChecked("sections", "Sections not checked", "your section headings");
   const has = (key: SectionKey) => sectionsFound.includes(key);
   if (!has("experience")) {
-    // Projects stand in for jobs early in a career, so their absence alone isn't a failure.
     if (has("projects")) {
       return check(
         "sections",
@@ -232,7 +220,6 @@ const sections: Check = ({ readable, sectionsFound }) => {
 };
 
 const columns: Check = ({ extraction, readable }) => {
-  // PDF columns are found from text positions, so a scan can't be judged. DOCX columns are a setting.
   if (!readable && extraction.kind === "pdf") return notChecked("columns", "Layout not checked", "the layout");
   if (!extraction.signals.columnLayout) {
     return check("columns", "pass", "Single column", "Your text reads top to bottom in one column.");
@@ -328,11 +315,9 @@ const dates: Check = ({ extraction, readable, blocks }) => {
     );
   }
   const sample = ranges[0] ? `${ranges[0].start} - ${ranges[0].end}` : "";
-  // Without a clean job history to read, education years could be mixed in, so only say dates exist.
   if (!fromJobs) {
     return check("dates", "pass", "Dates found", `We found dates like "${sample}", so systems can work out your experience.`);
   }
-  // Seasons ("Summer 2022") are normal for internships, and "Present" isn't a format.
   const examples = new Map<DateStyle, { sample: string; uses: number }>();
   for (const range of ranges) {
     for (const date of [range.start, range.end]) {
@@ -358,8 +343,6 @@ const dates: Check = ({ extraction, readable, blocks }) => {
   return check("dates", "pass", "Dates look consistent", `Your job dates all use one style, like "${sample}".`);
 };
 
-// Header lines only, not bullets. Without a clear Experience section, or with mixed columns, every
-// non-education line is searched, so a layout problem never becomes a false "no dates".
 function jobDateRanges(blocks: readonly SectionBlock[], columnLayout: boolean): { ranges: DateRange[]; fromJobs: boolean } {
   const headerRanges = (keep: (block: SectionBlock) => boolean) =>
     blocks
@@ -430,7 +413,6 @@ const bullets: Check = ({ extraction, readable, blocks }) => {
   return check("bullets", "pass", "Easy to skim", "No long paragraphs, so your jobs are quick to scan.");
 };
 
-// A PDF paragraph spans several visual lines, so a near-full-width line is treated as wrapping.
 function textBlocks(lines: readonly string[], wrapsLines: boolean): { words: number; bulleted: boolean }[] {
   const longest = Math.max(0, ...lines.map((line) => line.length));
   const blocks: { words: number; bulleted: boolean }[] = [];
@@ -446,7 +428,6 @@ function textBlocks(lines: readonly string[], wrapsLines: boolean): { words: num
   return blocks;
 }
 
-// A bullet marker at the start of the line or of any side-by-side segment (two-column rows).
 function lineHasBullet(line: string): boolean {
   return line.split("\t").some((segment) => bulletText(segment) !== null);
 }

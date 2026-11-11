@@ -16,7 +16,6 @@ export type PrepPacksState = {
 
 const NONE: PrepSummary[] = [];
 
-/** After a pack is made or changed (on its own page): the list and the applications' prep marks. */
 export function forgetPrepPacks(): void {
   const client = getQueryClient();
   void client.invalidateQueries({ queryKey: PREP_PACKS });

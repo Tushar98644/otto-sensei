@@ -170,13 +170,11 @@ describe("the board's columns", () => {
     expect(second && isOverdue(second, now)).toBe(false);
     expect(quietCard && daysInStage(quietCard, now)).toBe(20);
     expect(quietCard && isOverdue(quietCard, now)).toBe(true);
-    // Interviewing and offers never go stale, however long they sit.
     const [talkingCard] = columns.interview;
     const [offerCard] = columns.offer;
     expect(talkingCard && daysInStage(talkingCard, now)).toBe(50);
     expect(talkingCard && isOverdue(talkingCard, now)).toBe(false);
     expect(offerCard && isOverdue(offerCard, now)).toBe(false);
-    // Before the clock is known, nothing is due.
     expect(first && needsAction(first, 0)).toBe(false);
   });
 });
@@ -211,7 +209,6 @@ describe("moving a card", () => {
     expect(planDrop(waiting, "interview")).toEqual({ kind: "ask", card: waiting, column: "interview" });
     expect(planStatus(waiting, "no_reply")).toEqual({ kind: "create", item, status: "no_reply" });
     expect(planDrop(waiting, "to_apply")).toEqual({ kind: "none" });
-    // Only an application can be deleted from the board.
     expect(canDrop(waiting, "delete")).toBe(false);
     expect(onward(waiting)).toBe("applied");
     expect(menuStatuses(waiting)).toHaveLength(5);
@@ -224,7 +221,6 @@ describe("moving a card", () => {
     expect(onward(closed)).toBeNull();
     expect(planStatus(closed, "rejected")).toEqual({ kind: "none" });
     expect(planStatus(closed, "no_reply")).toMatchObject({ kind: "status", status: "no_reply" });
-    // Rejected to No reply is a change, but dropping on its own column isn't.
     expect(planDrop(closed, "closed")).toEqual({ kind: "none" });
   });
 
@@ -248,14 +244,12 @@ describe("moving a card", () => {
       interviewAt: 9_000,
     });
     expect(createBody(plain, "applied", 7_000, null)).toMatchObject({ resumeId: null, resumeTitle: "" });
-    // A copy that doesn't name its company: the form asks for it.
     const nameless = toApplyItems([], [copy("c", { company: " " })], [])[0]!;
     expect(createBody(nameless, "applied", 7_000, base)).toBeNull();
   });
 
   it("steps through the columns it may go to by keyboard, stopping at the ends", () => {
     expect(stepColumn(applied, "applied", 1)).toBe("interview");
-    // To apply is skipped for an application, so Applied is the left end.
     expect(stepColumn(applied, "applied", -1)).toBe("applied");
     expect(stepColumn(applied, "closed", 1)).toBe("closed");
     expect(stepColumn(applied, "offer", 1)).toBe("closed");

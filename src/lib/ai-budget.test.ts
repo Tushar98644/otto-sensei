@@ -23,7 +23,6 @@ const NOV = Date.UTC(2026, 10, 15, 12);
 const DEC = Date.UTC(2026, 11, 1, 0, 0, 1);
 const MINUTE = 60_000;
 const HOUR = 60 * MINUTE;
-// A monthly plan's billing period as Creem reports it: Nov 10 to Dec 10, then to Jan 10.
 const P_START = Date.UTC(2026, 10, 10, 9, 30);
 const P_END = Date.UTC(2026, 11, 10, 9, 30);
 const P_NEXT = Date.UTC(2027, 0, 10, 9, 30);
@@ -118,7 +117,6 @@ describe("checkAiBudget", () => {
       allowed: true,
       period: { kind: "month", resetsAt: P_END, renews: true },
     });
-    // The call that started just under may end well over.
     await recordAiTokens(pro, 12_000, NOV);
     expect((await checkAiBudget(pro, NOV)).allowed).toBe(false);
     expect((await getUsageState(pro, NOV)).aiBudget).toEqual({ used: 5_000_000, limit: 5_000_000 });
@@ -147,7 +145,6 @@ describe("checkAiBudget", () => {
       allowed: false,
       period: { kind: "trial", resetsAt: TRIAL_END },
     });
-    // Neither a month turning nor a moved end date opens a second one.
     expect((await checkAiBudget({ ...trial, trialEndsAt: TRIAL_END + HOUR }, DEC)).allowed).toBe(
       false,
     );

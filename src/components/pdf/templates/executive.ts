@@ -3,7 +3,7 @@ import { PDF_FONT } from "@/lib/pdf/fonts";
 import { tint } from "../design";
 import { INK, defineTheme } from "../theme";
 
-// moderncv's "banking" style (LPPL) in Palatino (TeX Gyre Pagella); navy, not its bright blue.
+// After moderncv's "banking" style (LPPL), in Palatino (TeX Gyre Pagella).
 
 const ACCENT = ACCENT_COLORS.navy;
 const GRAY = "#727272";

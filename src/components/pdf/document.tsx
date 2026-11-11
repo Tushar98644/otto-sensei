@@ -28,16 +28,13 @@ import {
 } from "./layout";
 import type { EntryKind, PdfStyle, TemplateTheme } from "./theme";
 
-// One layout for every format, with no tables, images or icons, so reading order is parser order.
-
 export type ResumeDocumentProps = {
   resume: Resume;
   pageSize?: PdfPageSize;
   theme: TemplateTheme;
 };
 
-// react-pdf may hyphenate at the seam between two text pieces ("Engineer-"), so every seam sits on
-// a space or after punctuation. Every Text goes through here so no word is hyphenated.
+// Every Text goes through here: react-pdf may hyphenate at a seam between text pieces.
 export function Line({ style, children }: { style?: PdfStyle; children: ReactNode }) {
   return (
     <Text style={style} hyphenationCallback={keepWordsWhole}>
@@ -146,7 +143,6 @@ export function glyphStyle(box: PdfStyle): PdfStyle {
   return style as PdfStyle;
 }
 
-// Drawn, never text, for fonts with no bullet glyph: adds nothing to what hiring software reads.
 export function markStyle(theme: TemplateTheme, shape: "square" | "circle"): PdfStyle {
   const mark = theme.styles.bulletMark;
   const color = typeof mark.color === "string" ? mark.color : "#1a1a1a";
@@ -156,7 +152,6 @@ export function markStyle(theme: TemplateTheme, shape: "square" | "circle"): Pdf
     : { ...mark, borderWidth: 0.7, borderColor: color, borderRadius: size / 2 };
 }
 
-// The hanging indent keeps wrapped lines aligned with the text. A bullet never splits across pages.
 function Bullet({ children, theme }: { children: ReactNode; theme: TemplateTheme }) {
   const { styles } = theme;
   const mark = bulletMark(theme);
@@ -164,7 +159,6 @@ function Bullet({ children, theme }: { children: ReactNode; theme: TemplateTheme
     <View style={styles.bullet} wrap={false}>
       <View style={styles.bulletGlyph}>
         {mark.kind === "glyph" ? (
-          // Shifted without taking room, so the line keeps its height.
           <Line
             style={{
               ...glyphStyle(styles.bulletGlyph),
@@ -189,11 +183,9 @@ function entrySpacing(
   theme: TemplateTheme,
 ): PdfStyle | undefined {
   if (isFirst) return undefined;
-  // A second role at the same company sits closer than the next company does.
   return entry.company && !entry.company.first ? theme.styles.role : theme.styles.entry;
 }
 
-// A heading stays with its first bullet (a company line with its first role): no orphan headings.
 function entryBlocks(
   entry: PdfEntry,
   kind: EntryKind,
@@ -225,7 +217,6 @@ function entryListBlocks(
   return entries.flatMap((entry, index) => entryBlocks(entry, kind, index === 0, theme));
 }
 
-// Later lines of a list take the slot's gap above them; the first follows the heading.
 export function spaced(style: PdfStyle, index: number): PdfStyle {
   return index > 0 ? style : { ...style, marginTop: 0 };
 }
@@ -319,7 +310,6 @@ function Section({
   const [first, ...rest] = blocks;
   return (
     <>
-      {/* The heading moves to the next page with the start of its content, never alone. */}
       <View wrap={false} style={theme.styles.section}>
         <SectionTitle title={title} theme={theme} />
         {first}

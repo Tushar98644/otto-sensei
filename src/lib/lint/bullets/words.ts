@@ -1,6 +1,3 @@
-// Word lists are reviewed by hand, so keep each sorted. In phrases a space also matches a hyphen.
-
-// Phrases recruiters skim past because nearly every resume has them.
 const STOCK_PHRASES = [
   "above and beyond",
   "attention to detail",
@@ -68,7 +65,6 @@ const STOCK_PHRASES = [
   "world class",
 ];
 
-// Openers that read like a job description: the duty, not what the person did with it.
 const DUTY_STARTS = [
   "duties include",
   "duties included",
@@ -85,7 +81,6 @@ const DUTY_STARTS = [
   "working on",
 ];
 
-// Openers that describe a supporting role or filler instead of what the person did.
 const WEAK_STARTS = [
   "assisted",
   "assisted in",
@@ -108,7 +103,6 @@ const WEAK_STARTS = [
   "worked with",
 ];
 
-// Words that say what changed. A line with none of these and no number lists an activity.
 export const RESULT_WORDS = wordSet(`
   accelerated accelerating achieved avoided boosted boosting cheaper converted cut cutting
   decreased decreasing doubled drove driving earned eliminated eliminating enabled enabling
@@ -118,7 +112,6 @@ export const RESULT_WORDS = wordSet(`
   resulted resulting retained saved saving secured shortened shrank slashed sped surpassed
   tripled won winning
 `);
-// Two-word results: "used by 300 agents", "adopted by 4 teams", "leading to fewer refunds".
 export const RESULT_PHRASES = indexPhrases([
   "adopted by",
   "brought in",
@@ -128,14 +121,12 @@ export const RESULT_PHRASES = indexPhrases([
   "used by",
   "used in",
 ]);
-// A short line that opens with one of these and has a number is a result with no "how".
 export const RESULT_OPENERS = wordSet(`
   boosted cut decreased doubled drove generated grew halved improved increased lifted lowered
   raised reduced saved tripled
 `);
 export const METHOD_WORDS = wordSet("after through using via with");
 
-// As "base:past"; verbs that open lines as nouns as often ("Lead developer…") are left out.
 const TENSE_VERBS = `
   administer analyse analyze answer assess assist automate build:built close coach collaborate
   communicate compile conduct configure coordinate create debug deliver deploy develop document
@@ -148,7 +139,6 @@ const TENSE_VERBS = `
 `;
 export const PAST_OF = indexTenses(TENSE_VERBS);
 
-// Not "and more" or "tons of": "and more than 200 clinics", "40 tons of produce".
 const VAGUE_COUNTS = [
   "a bunch of",
   "a lot",
@@ -181,13 +171,11 @@ export const NUMBER_WORDS = wordSet(`
 `);
 
 export const PASSIVE_AUXILIARIES = wordSet("been being was were");
-// Common irregular participles; regular ones are caught by their "-ed" ending.
 export const IRREGULAR_PARTICIPLES = wordSet(`
   begun bought broken brought built caught done drawn driven found given grown held hidden
   kept led made paid rebuilt rewritten run seen sent shown sold spent taken taught thrown
   told undertaken written
 `);
-// Adjectival "-ed" words ("was based in") and earned honors ("was promoted") read fine passive.
 export const NOT_PASSIVE = wordSet(`
   accepted admitted adopted appointed awarded based certified cited commended committed
   concerned credited dedicated elected entrusted excited experienced featured focused granted
@@ -196,7 +184,6 @@ export const NOT_PASSIVE = wordSet(`
   shortlisted skilled sponsored supposed talented tired trusted voted
 `);
 
-// Words that put a roman numeral "I" after them: "Phase I", "Type I diabetes", "World War I".
 export const ROMAN_NUMERAL_CONTEXT = wordSet(`
   act article book category chapter class division gen generation grade level mark module
   part phase round schedule season section series stage step tier title type unit vol volume
@@ -222,7 +209,6 @@ function indexPhrases(phrases: readonly string[]): ReadonlyMap<string, readonly 
     const first = words[0] ?? "";
     index.set(first, [...(index.get(first) ?? []), words]);
   }
-  // Longest first, so "assisted with" wins over "assisted".
   for (const list of index.values()) list.sort((a, b) => b.length - a.length);
   return index;
 }
@@ -234,7 +220,6 @@ function indexTenses(list: string): ReadonlyMap<string, string> {
     const stem = /[^aeiou]y$/.test(base) ? base.slice(0, -1) : base;
     const past =
       irregular ?? (base.endsWith("e") ? `${base}d` : stem === base ? `${base}ed` : `${stem}ied`);
-    // One short vowel before a final consonant doubles it: run -> running, ship -> shipping.
     const doubled = /^[^aeiou]+[aeiou][^aeiouwxy]$/.test(base);
     const gerund = doubled
       ? `${base}${base.slice(-1)}ing`

@@ -4,8 +4,6 @@ import { useSyncExternalStore } from "react";
 import { readItem, writeItem } from "@/lib/browser-storage";
 import { defaultPageSize, isPdfPageSize, type PdfPageSize } from "@/lib/pdf/page-size";
 
-// Kept in memory too, so the toggle still works when storage is blocked (private windows).
-
 const STORAGE_KEY = "otto-pdf-page-size";
 const listeners = new Set<() => void>();
 let current: PdfPageSize | null = null;
@@ -45,7 +43,6 @@ function subscribe(listener: () => void) {
 
 export function setPageSize(size: PdfPageSize): void {
   current = size;
-  // If storage is blocked: not remembered after a reload, but still applied now.
   writeItem(STORAGE_KEY, size);
   notify();
 }

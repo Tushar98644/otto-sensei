@@ -3,16 +3,12 @@ import type { PdfTextItem } from "./types";
 
 export type LayoutItem = PdfTextItem & {
   baseline: number;
-  // Rotated or vertical text is still read, but says nothing about columns.
   upright: boolean;
 };
 
 export type TextRow = { baseline: number; size: number; items: LayoutItem[] };
 
-// Running text sits at least ~1.1 font sizes apart, so this never merges real lines but joins
-// superscripts and mixed sizes.
 const SAME_LINE = 0.5;
-// In font sizes. A normal space is ~0.25; a tab stop or column gap is far wider.
 const WORD_GAP = 0.15;
 const WIDE_GAP = 1.5;
 // "Fake bold" PDFs paint the same text two or three times a fraction of a point apart.
@@ -50,7 +46,6 @@ function dropDuplicates(items: LayoutItem[]): LayoutItem[] {
   return kept;
 }
 
-// One space between words, a tab where the gap is wide (right-aligned dates, a second column).
 export function rowText(items: readonly LayoutItem[]): string {
   let text = "";
   let right = -Infinity;
@@ -69,25 +64,17 @@ export function rowText(items: readonly LayoutItem[]): string {
   return text;
 }
 
-// Deliberately strict: a false "two columns" warning on a clean resume is worse than missing a
-// sidebar.
 const MIN_ROWS = 8;
-// Narrowest gap that counts as a gutter. Word spacing is ~3pt; real gutters are 12pt and up.
 const MIN_GUTTER = 8;
-// A full-width name or footer may cross the gutter; running text may not.
 const MAX_CROSSING_SHARE = 0.1;
-// Each side needs a real share of the lines and of the text, so a few stray items never count.
 const MIN_SIDE_ROW_SHARE = 0.25;
 const MIN_SIDE_TEXT_SHARE = 0.06;
-// A single column with right-aligned dates has a "right side" of short items that all end at the
-// margin. A real column is left-aligned and holds longer lines.
 const DATE_COLUMN_MAX_CHARS = 25;
 const DATE_COLUMN_ALIGNED_SHARE = 0.7;
 const ALIGN_TOLERANCE = 3;
 
 type Span = { from: number; to: number; chars: number };
 
-// An x-band no text crosses (bar a few full-width lines), with substantial text on both sides.
 export function hasColumnGutter(rows: readonly TextRow[], pageWidth: number): boolean {
   const width = Math.max(1, Math.ceil(pageWidth));
   const spans: Span[][] = [];
@@ -116,7 +103,6 @@ export function hasColumnGutter(rows: readonly TextRow[], pageWidth: number): bo
     for (let x = 0; x < width; x++) coverage[x] = (coverage[x] ?? 0) + (covered[x] ?? 0);
   }
 
-  // Coverage is a cheap necessary condition; splitsIntoColumns then counts distinct rows exactly.
   const maxCrossing = Math.max(1, Math.floor(spans.length * MAX_CROSSING_SHARE));
   let clearRun = 0;
   for (let x = left + 1; x < right - 1; x++) {
@@ -132,7 +118,6 @@ function splitsIntoColumns(spans: Span[][], from: number, to: number, maxCrossin
   let leftChars = 0;
   let rightChars = 0;
   let totalChars = 0;
-  // Per row with text right of the gutter: where that text ends and how much of it there is.
   const rightRows: { end: number; chars: number }[] = [];
   for (const rowSpans of spans) {
     let hasLeft = false;

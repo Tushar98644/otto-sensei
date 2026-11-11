@@ -280,7 +280,6 @@ describe("tailorFixFirst", () => {
       title: "1 must-have isn't on your resume: CI/CD",
       action: { kind: "row", rowId: cicd.id },
     });
-    // Nice-to-haves never make the list.
     expect(items.map((item) => item.title).join(" ")).not.toContain("payments");
   });
 

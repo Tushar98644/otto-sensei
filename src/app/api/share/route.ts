@@ -30,8 +30,6 @@ export async function GET(): Promise<Response> {
   }
 }
 
-// Pro: on Free, links made before stay live and can be changed or turned off, but no new version
-// goes out.
 export async function POST(req: Request): Promise<Response> {
   const blocked = rejectCrossSite(req) ?? rejectNonJson(req);
   if (blocked) return blocked;
@@ -44,7 +42,6 @@ export async function POST(req: Request): Promise<Response> {
     if (limited) return limited;
     const body = await readJson(req, CreateShareSchema);
     if (!body.ok) {
-      // readJson names the field and the rule it broke, never the value.
       log.info("share.bad_request", { reason: body.message });
       return fail(
         "bad_request",

@@ -30,8 +30,6 @@ import { DUTY_INDEX, NUMBER_WORDS, STOCK_INDEX, WEAK_START_INDEX } from "./bulle
 import { punctuationIssues, type EntryLine } from "./punctuation";
 import type { LintContext, LintIssue, LintIssueId, LintSeverity, ResumeLint } from "./types";
 
-// Runs on every keystroke for every line: one tokenizing pass per line, word lists indexed at load.
-
 const TOO_LONG_WORDS = 32;
 const TOO_LONG_CHARS = 220;
 
@@ -42,7 +40,6 @@ const SEVERITY: Record<LintIssueId, LintSeverity> = {
   "weak-start": "high",
   "first-person": "high",
   "too-long": "high",
-  // Low, so "Add a number" never crowds out real problems on a line that already has a result.
   "no-number": "low",
   "no-method": "low",
   tense: "low",
@@ -52,7 +49,6 @@ const SEVERITY: Record<LintIssueId, LintSeverity> = {
   duplicate: "low",
   punctuation: "low",
 };
-// Breaks ties within a severity, and decides which issue keeps words two matches share.
 const PRIORITY: readonly LintIssueId[] = [
   "duty",
   "weak-start",
@@ -69,7 +65,6 @@ const PRIORITY: readonly LintIssueId[] = [
   "duplicate",
   "punctuation",
 ];
-// Whole-line issues (no match to point at) sort after the ones that point at specific words.
 const WHOLE_LINE = Number.MAX_SAFE_INTEGER;
 
 const WORK: LintContext = { kind: "work" };
@@ -89,7 +84,6 @@ function overlaps(a: Span, b: Span): boolean {
 }
 
 function analyze(text: string, context: LintContext = WORK): Analysis {
-  // Nothing to lint in an empty line or a lone "-" someone just typed.
   if (!CONTENT.test(text)) return { issues: [], hasContent: false, hasNumber: false, words: [] };
   const tokens = tokenize(text);
 
@@ -98,7 +92,6 @@ function analyze(text: string, context: LintContext = WORK): Analysis {
   const add = (id: LintIssueId, message: string, match: string | null, position: number) => {
     found.push({ issue: { id, severity: SEVERITY[id], message, match }, position });
   };
-  // At most one issue per id, so callers can key by id. Words an earlier id matched are taken.
   const claim = (
     id: LintIssueId,
     spans: readonly Span[],
@@ -126,7 +119,6 @@ function analyze(text: string, context: LintContext = WORK): Analysis {
   const hasNumber = NUMERIC.test(text) || tokens.some((token) => NUMBER_WORDS.has(token.lower));
   if (context.kind === "work") {
     const marker = hasNumber ? null : resultMarker(tokens, text);
-    // A duty opener already asks what changed; saying it twice is noise.
     if (!hasNumber && !marker && !duty) add("no-result", NO_RESULT_MESSAGE, null, WHOLE_LINE);
     if (marker) add("no-number", noNumberMessage(marker), null, WHOLE_LINE);
     if (hasNumber && lacksMethod(tokens, text)) {
@@ -140,7 +132,6 @@ function analyze(text: string, context: LintContext = WORK): Analysis {
     const size = words > TOO_LONG_WORDS ? `${words} words` : `${chars} characters`;
     add("too-long", tooLongMessage(size), null, WHOLE_LINE);
   } else if (context.kind === "work" && words < TOO_SHORT_WORDS) {
-    // "GPA: 3.8/4.0", "Dean's List" or an award line is meant to be short.
     add("too-short", TOO_SHORT_MESSAGE, null, WHOLE_LINE);
   }
 
@@ -156,13 +147,11 @@ function analyze(text: string, context: LintContext = WORK): Analysis {
   };
 }
 
-// Most important first. Without a context the line is read as possibly ongoing work.
 export function lintBullet(text: string, context: LintContext = WORK): LintIssue[] {
   return analyze(text, context).issues;
 }
 
 const PRESENT = /^(?:present|current|now|today|ongoing|to date)$/i;
-// A custom section could hold anything, so it gets the lighter checks.
 const WORK_EXTRAS: ReadonlySet<string> = new Set(["volunteering"]);
 
 export function hasEnded(endDate: string): boolean {
@@ -203,7 +192,6 @@ function entryGroups(refs: ReturnType<typeof listBullets>): EntryLine[][] {
   return [...groups.values()];
 }
 
-// Adds "duplicate" and "punctuation"; hidden lines never print, so they never count.
 export function lintResume(resume: Resume): ResumeLint {
   const contexts = lintContexts(resume);
   const refs = listBullets(resume);
@@ -225,7 +213,6 @@ export function lintResume(resume: Resume): ResumeLint {
       message: DUPLICATE_MESSAGE,
       match: null,
     };
-    // Both low and whole-line, so they always sort last.
     const pattern = punctuation.get(line.id);
     const issues = [
       ...line.issues,
@@ -243,7 +230,6 @@ export function lintResume(resume: Resume): ResumeLint {
   return { byBullet: Object.fromEntries(entries), totals };
 }
 
-// Prose, not results, so only the voice checks apply: stock phrases and first person.
 export function lintSummary(summary: string): LintIssue[] {
   return analyze(summary, OTHER).issues.filter(
     (issue) => issue.id === "stock-phrase" || issue.id === "first-person",

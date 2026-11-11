@@ -6,8 +6,6 @@ import { jordanContent, jordanGitHub, jordanV2Resume } from "@/lib/portfolio/fix
 import { PORTFOLIO_SECTIONS, type PortfolioSection } from "@/lib/portfolio/types";
 import { ContentEditor } from "./content-editor";
 
-// The content editor draws from the editor's full copy (portfolioViews().editor), so switching a
-// section off under "What shows" leaves its fields here, marked, instead of emptying them.
 function editor(hiddenSections: PortfolioSection[], showEmail = true) {
   const content = { ...jordanContent(), hidden: [...CONTENT_SECTIONS] };
   const views = portfolioViews({
@@ -56,7 +54,6 @@ describe("the content editor with sections hidden on the page", () => {
   it("asks for words only: no picture, logo or video to upload or link", () => {
     const html = editor([]);
     expect(html).not.toMatch(/type="file"|<img/);
-    // Visible words only (attributes and Jordan's own text aside).
     const text = html.replace(/<[^>]*>/g, " ");
     expect(text).not.toMatch(/upload|screenshot|logo|demo video|picture|personal photos|drop a/i);
   });

@@ -38,9 +38,6 @@ import {
 
 export type { CheckOptions };
 
-// Rule-based on purpose: every verdict points at a line the person can read, and nothing leaves the
-// browser.
-
 export type PostInput = { location: string; text: string };
 
 const MAX_QUOTE = 240;
@@ -60,7 +57,6 @@ function unitsOf(text: string): Unit[] {
   for (const raw of text.split(/\r?\n/)) {
     const line = raw.replace(/^\s*(?:[-*•·]|\d+[.)])\s+/, "").trim();
     if (!line) continue;
-    // Two letters before the stop, so "U.S. citizens" and "e.g. Python" stay in one piece.
     const parts = line.split(/(?<=[A-Za-z0-9)]{2}[.!?;])\s+(?=[A-Z"“(])/);
     for (const part of parts) {
       const clean = part.trim();
@@ -91,8 +87,6 @@ function mattersToRules(text: string): boolean {
   );
 }
 
-// Checking only these gives the same findings as the whole post, so the Jobs tab stores a few
-// hundred characters per job and still checks thousands per request.
 export function ruleLines(text: string, maxChars = 2_000): string {
   const kept: string[] = [];
   let length = 0;
@@ -105,8 +99,6 @@ export function ruleLines(text: string, maxChars = 2_000): string {
   return kept.join("\n");
 }
 
-// "Remote · United States" (how job boards join remote and the allowed countries) limits the job;
-// "Remote · New York, NY" names an office and may not.
 function remoteCountries(location: string, spots: FoundPlace[]): Place[] {
   const bare = (text: string) => text.replace(/^the\s+/i, "").toLowerCase();
   const parts = location
@@ -124,15 +116,12 @@ function clip(text: string): string {
   return `${cut.slice(0, Math.max(cut.lastIndexOf(" "), MAX_QUOTE - 20)).trimEnd()}…`;
 }
 
-// One finding per rule, the most serious when repeated. Empty means the post sets no rules.
-// `profile` null: signed out or never saved.
 export function checkEligibility(
   post: PostInput,
   profile: WorkProfile | null,
   options: CheckOptions,
 ): EligibilityFinding[] {
   const units = unitsOf(post.text);
-  // Boards without a location field often put a "Location: ..." line in the text instead.
   const locationUnit = post.location.trim()
     ? null
     : (units.find((unit) => LOCATION_LINE.test(unit.text)) ?? null);
@@ -190,14 +179,11 @@ export function checkEligibility(
       anywhere = { places: [], quote: unit.quote, source: "post" };
     }
   }
-  // A post that limits where you live also says which visa a "no sponsorship" line is about.
   if (context.locationPlaces.length === 0) {
     context.locationPlaces = restricted.flatMap((claim) => claim.places);
   }
   const where = locationFinding(restricted, field, anywhere, context);
   const found: EligibilityFinding[] = where ? [where] : [];
-  // Remote and open where they live, or asking for the right to work "in your country of
-  // residence": a "no sponsorship" line naming no country is then about home, needing no visa.
   const homeRights = units.some(
     (unit) => HOME_COUNTRY.test(unit.text) && AUTHORIZATION.test(unit.text),
   );
@@ -224,7 +210,6 @@ export function checkEligibility(
   if (profile && typeQuote)
     found.push(workTypeVerdict(fullTimeAt !== null, contractAt !== null, typeQuote.quote, profile));
 
-  // Of equally serious findings the first wins, in reading order.
   const best = new Map<EligibilityRule, EligibilityFinding>();
   for (const item of found) {
     const current = best.get(item.rule);

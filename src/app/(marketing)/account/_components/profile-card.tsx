@@ -19,14 +19,12 @@ export function ProfileCard({ user }: { user: SessionUser }) {
 
   async function signOut() {
     setSigningOut(true);
-    // Also takes the account's backed-up resumes out of this browser, for shared computers.
     const signedOut = await signOutAndRelease(user.id).catch((error: unknown) => {
       setSigningOut(false);
       toast({ title: "Couldn't sign you out", description: errorMessage(error), variant: "error" });
       return null;
     });
     if (!signedOut) return;
-    // The cookie is gone, so show that now; the page swaps to the sign-in form and this card unmounts.
     patchMe({ user: null, usage: null, period: null });
     toast({ title: "You're signed out.", description: signedOutNote(signedOut.kept) });
     void refreshMe();

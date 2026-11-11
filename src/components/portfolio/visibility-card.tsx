@@ -10,15 +10,12 @@ import { savePortfolio } from "./portfolio-store";
 
 type VisibilityCardProps = {
   portfolio: Portfolio;
-  // Sections the resume has something for; empty ones aren't offered.
   sections: readonly PortfolioSection[];
-  // The resume's own email and phone, so the switches can say what they'd show.
   email: string;
   phone: string;
   disabled: boolean;
 };
 
-// Hiding a section only changes the page; the Content tab keeps its fields and marks them hidden.
 export function VisibilityCard({
   portfolio,
   sections,

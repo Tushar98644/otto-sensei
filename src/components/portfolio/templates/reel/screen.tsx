@@ -1,9 +1,6 @@
 import type { Device } from "./data";
 import { wrapText } from "./data";
 
-// Pages hold no pictures, so a page drawn from the project's words stands where Hamish has his
-// screenshots. SVG, so the same markup is the still frame's screen and, serialized, the texture.
-
 export const SCREEN_SIZE: Record<Device, { width: number; height: number }> = {
   laptop: { width: 1280, height: 800 },
   phone: { width: 375, height: 812 },
@@ -41,7 +38,6 @@ export type DrawnContent = {
   name: string;
   line: string;
   host: string;
-  // Short facts for a second screen: "4.2k stars", "600+ sites", or the stack.
   facts: string[];
 };
 
@@ -57,7 +53,6 @@ function Divider({ x, y, width }: { x: number; y: number; width: number }) {
   );
 }
 
-// Variant 1, a pair's second phone, lists the facts: two pages of one app, not one picture twice.
 export function DrawnScreen({
   device,
   content,
@@ -66,7 +61,6 @@ export function DrawnScreen({
 }: {
   device: Device;
   content: DrawnContent;
-  // Unique per page, for the gradient.
   id: string;
   variant?: number;
 }) {

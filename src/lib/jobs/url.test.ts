@@ -73,7 +73,6 @@ describe("parseJobLink", () => {
         shortcode: "DF694D45CA",
       },
     );
-    // The short link doesn't name the account, so it is read as a page.
     expect(parseJobLink("https://apply.workable.com/j/DF694D45CA")).toMatchObject({ kind: "page" });
     expect(parseJobLink("https://bunq.recruitee.com/o/security-lead/c/new")).toMatchObject({
       kind: "recruitee",
@@ -91,7 +90,6 @@ describe("parseJobLink", () => {
     expect(reasonOf(() => parseJobLink("https://bunq.recruitee.com/"))).toMatchObject({
       reason: "listing",
     });
-    // The vendors' own sites are ordinary pages.
     expect(parseJobLink("https://support.recruitee.com/articles/6108676")).toMatchObject({
       kind: "page",
     });

@@ -2,9 +2,6 @@ import type { Resume } from "@/lib/resume/schema";
 import { isOnResume } from "./to-projects";
 import { GITHUB_PICK_LIMITS, type GitHubLookup } from "./types";
 
-// The most starred own repos still alive and not on the resume, then merged pull requests to
-// others' repos, newest first, while there's room.
-
 export const SUGGESTED_PROJECTS = 3;
 
 export type SuggestedPicks = { repos: string[]; pulls: number[] };
@@ -15,7 +12,6 @@ export function suggestPicks(profile: GitHubLookup, resume: Resume): SuggestedPi
     .slice(0, Math.min(SUGGESTED_PROJECTS, GITHUB_PICK_LIMITS.repos))
     .map((repo) => repo.fullName);
 
-  // Each repo the pull requests went to becomes one project.
   const pullRepos = new Set<string>();
   const pulls: number[] = [];
   for (const pull of profile.pulls) {

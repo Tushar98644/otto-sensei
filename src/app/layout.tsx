@@ -26,15 +26,13 @@ export const metadata: Metadata = {
   },
   description: BRAND.description,
   applicationName: BRAND.name,
-  // No title or description here on purpose: Next fills them from each page's own metadata.
   openGraph: { type: "website", siteName: BRAND.name, locale: "en_US" },
   twitter: { card: "summary_large_image" },
-  // Resume previews are full of phone numbers and emails that iOS would otherwise turn into links.
+  // iOS would otherwise turn the phone numbers and emails in resume previews into links.
   formatDetection: { telephone: false, email: false, address: false },
 };
 
 export const viewport: Viewport = {
-  // Same value as --color-background in globals.css, so the browser bar blends into the page.
   themeColor: "#fbfcfa",
   colorScheme: "only light",
 };
@@ -44,8 +42,6 @@ export default function RootLayout({ children }: { children: ReactNode }) {
     // The font variables must sit on <html>: the @theme font tokens are resolved at :root.
     <html lang="en" className={`${inter.variable} ${garamond.variable}`}>
       <body>
-        {/* Pages give their <main> id="main". Parked above the viewport until it gets focus; the
-            shadow comes with focus, or its blur shows as a smudge at the top of every page. */}
         <a
           href="#main"
           className="fixed top-4 left-4 z-50 -translate-y-16 rounded-full bg-surface px-4 py-2 text-sm font-medium text-ink transition-transform focus:translate-y-0 focus:shadow-float"

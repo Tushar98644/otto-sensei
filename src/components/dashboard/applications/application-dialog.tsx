@@ -41,7 +41,6 @@ import {
 import { addApplication, changeApplication } from "./use-applications";
 
 export type ApplicationDialogTarget =
-  // `key` starts every opening from a fresh form.
   | { kind: "add"; key: number; resumeId: string | null }
   | { kind: "edit"; application: Application };
 
@@ -51,7 +50,6 @@ export type ApplicationDialogProps = {
   onClose: () => void;
 };
 
-// Editing autosaves each change; Done only closes.
 export function ApplicationDialog({ target, resumes, onClose }: ApplicationDialogProps) {
   const fromCard = target?.kind === "add" && target.resumeId !== null;
   return (
@@ -122,14 +120,12 @@ function ApplicationForm({
   const [today] = useState(() => toDateInput(Date.now()));
   const [saved, setSaved] = useState<"idle" | "waiting" | "saved">("idle");
   const editing = target.kind === "edit" ? target.application : null;
-  // The row as the server last returned it, so each autosave sends only what is new.
   const latest = useRef<Application | null>(editing);
   const timer = useRef<number | undefined>(undefined);
   const [moreOpen, setMoreOpen] = useState(
     () => target.kind === "add" && values.resumeId === "" && resumes.length > 0,
   );
 
-  // A version deleted since keeps its place in the picker, under the title it was sent with.
   const missingVersion = editing?.resumeId && !byId.has(editing.resumeId) ? editing.resumeId : null;
   const versionTitles = missingVersion
     ? new Map([...titles, [missingVersion, editing?.resumeTitle ?? ""]])

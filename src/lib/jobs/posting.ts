@@ -3,11 +3,7 @@ import type { JobPosting, JobSource } from "@/lib/api/types";
 import { DAY_MS } from "@/lib/time";
 import { JobReadError } from "./errors";
 
-// Every source ends here, so every posting gets the same caps and the same "too thin" test.
-
-// Under this much text, what came back is a cookie wall, an app shell or a teaser, not a post.
 export const MIN_TEXT_CHARS = 300;
-// Matches the title and company caps of POST /api/tailor.
 const MAX_FIELD_CHARS = 200;
 const EARLIEST = Date.UTC(2000, 0, 1);
 
@@ -66,7 +62,6 @@ export function buildPosting(parts: PostingParts, now = Date.now()): JobPosting 
     company: oneLine(parts.company),
     location: oneLine(parts.location),
     text,
-    // A posting date in the future is a site's bug, not a fact worth showing.
     firstPostedAt: firstPostedAt !== null && firstPostedAt <= now + DAY_MS ? firstPostedAt : null,
     updatedAt: parts.updatedAt ?? null,
     closesAt: parts.closesAt ?? null,

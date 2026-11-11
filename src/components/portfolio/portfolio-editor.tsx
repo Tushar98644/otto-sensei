@@ -19,7 +19,6 @@ import { SettingsCard } from "./settings-card";
 import { TemplatePicker } from "./template-picker";
 import { VisibilityCard } from "./visibility-card";
 
-// Loaded on the first "Full screen" or phone "Preview": it brings every design with it.
 const FullPortfolioPreview = lazy(() =>
   import("./full-preview").then((module) => ({ default: module.FullPortfolioPreview })),
 );
@@ -32,27 +31,20 @@ const TABS = [
 ] as const;
 type EditorTab = (typeof TABS)[number]["value"];
 
-// The same width the panel and the preview split at (Tailwind's lg).
 const SIDE_BY_SIDE = "(min-width: 64rem)";
 
 type PortfolioEditorProps = {
   portfolio: Portfolio;
   resumes: readonly Resume[];
-  // A resume card asked for a portfolio while one already exists from another resume.
   offer: Resume | null;
   onOfferDone: () => void;
 };
 
-// From lg it fills the window (the app shell drops its padding for [data-workspace]) and the
-// panel and preview scroll on their own; on phones the preview is full screen behind a button.
 export function PortfolioEditor({ portfolio, resumes, offer, onOfferDone }: PortfolioEditorProps) {
   const saving = usePortfolioStore((state) => state.saving);
   const source = resumes.find((resume) => resume.id === portfolio.resumeId) ?? null;
   const behind = source !== null && source.updatedAt > portfolio.versionAt;
-  // In sync, the page is about to take this browser's copy; else it keeps the one it has.
   const shown = portfolio.sync && source ? source : portfolio.snapshot;
-  // The page as readers get it (the preview) and, for the content editor, everything the owner
-  // has: hiding a section only changes the page.
   const rich = usePortfolioContent(portfolio, shown);
   const view = rich.page.view;
   const own = useMemo(() => ({ view, content: rich.page.content }), [view, rich.page.content]);
@@ -61,11 +53,8 @@ export function PortfolioEditor({ portfolio, resumes, offer, onOfferDone }: Port
   const [full, setFull] = useState<PortfolioTemplateId | null>(null);
   const panelRef = useRef<HTMLDivElement>(null);
   const bodyRef = useRef<HTMLDivElement>(null);
-  // Each tab keeps its own place in the panel, so a trip to Design doesn't lose a long form.
   const scrolled = useRef(new Map<EditorTab, number>());
 
-  // Cloud backups already carry edits to a synced page; this covers edits that haven't been
-  // backed up yet when the owner opens this screen. Once per version.
   const pushed = useRef<number | null>(null);
   useEffect(() => {
     if (!portfolio.sync || !source || !behind || saving) return;
@@ -82,7 +71,6 @@ export function PortfolioEditor({ portfolio, resumes, offer, onOfferDone }: Port
     setTab(next);
     requestAnimationFrame(() => {
       if (body && sideBySide) body.scrollTop = scrolled.current.get(next) ?? 0;
-      // Phones scroll the page: bring the new tab's start up under the pinned tab strip.
       else if (panelRef.current && panelRef.current.getBoundingClientRect().top < 0)
         panelRef.current.scrollIntoView({ block: "start" });
     });
@@ -174,7 +162,6 @@ export function PortfolioEditor({ portfolio, resumes, offer, onOfferDone }: Port
                   pageHidden={portfolio.hiddenSections}
                   showEmail={portfolio.showEmail}
                   resume={source}
-                  // A page that isn't kept in sync still takes the projects it was just given.
                   onResumeChange={(next) => {
                     if (!portfolio.sync) void savePortfolio({ resume: next });
                   }}

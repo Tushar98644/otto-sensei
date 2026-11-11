@@ -50,7 +50,6 @@ describe("numbers pulled out of resume lines", () => {
   it("says nothing when there is no clear number", () => {
     expect(best("Mentor four engineers and run the team's RFC process.")).toBeNull();
     expect(best("Merged six services behind one GraphQL gateway.")).toBeNull();
-    // Years, versions and percentiles are not results.
     expect(metricsIn("Joined in 2019 and moved the app to Node 18 and p95 alerts")).toEqual([]);
     expect(metricsIn("")).toEqual([]);
   });

@@ -31,7 +31,6 @@ describe("the application's timeline", () => {
     );
     expect(steps.map((step) => [step.status, step.state, step.at])).toEqual([
       ["applied", "done", SENT],
-      // Skipped straight past interviewing: passed, with no day to show.
       ["interview", "done", null],
       ["offer", "done", SENT + 10 * DAY],
       ["rejected", "current", SENT + 20 * DAY],

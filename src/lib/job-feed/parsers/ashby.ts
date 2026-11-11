@@ -26,13 +26,11 @@ const AshbyJob = z.object({
   descriptionPlain: nullishString,
 });
 
-// GET api.ashbyhq.com/posting-api/job-board/:org
 export function parseAshby(json: unknown, company: string): RawJob[] {
   const board = z.object({ jobs: z.array(z.unknown()) }).safeParse(json);
   if (!board.success) throw new FeedShapeError("ashby");
   return eachItem(board.data.jobs, AshbyJob).flatMap((job) => {
     const url = httpsLink(job.jobUrl);
-    // Unlisted jobs are only for people the company sends the link to.
     if (!url || job.isListed === false) return [];
     const workplace = job.workplaceType?.toLowerCase();
     const remote = job.isRemote === true || workplace === "remote";

@@ -34,10 +34,7 @@ import { planCta } from "./plan-ctas";
 import { formatUsd } from "./plan-features";
 
 export type PricingPlansProps = {
-  // Read at build. A plan with no billing interval isn't on sale and gets no card.
   offer: Record<PaidPlanId, readonly BillingInterval[]>;
-  // Whether Pro monthly starts with the free trial here, read when the page is built. Once
-  // /api/me answers, someone who has already trialed or paid sees the normal price instead.
   trial?: boolean;
   headingAs?: "h2" | "h3";
   otto?: ReactNode;
@@ -51,8 +48,6 @@ const PERIOD: Record<BillingInterval, { short: string; spoken: string }> = {
   week: { short: "/week", spoken: "per week" },
 };
 
-// Each paid card shows the picked billing option (or monthly, when the plan isn't sold that way)
-// and its button goes straight to that checkout.
 export function PricingPlans({
   offer,
   trial: trialOnSale = false,
@@ -64,7 +59,6 @@ export function PricingPlans({
   const name = useId();
   const { me, user } = useMe();
   const trial = me ? me.billing.trial === true : trialOnSale;
-  // Max bought during the Pro trial ends the trial that day, so say so before the checkout.
   const proTrialing = user !== null && user.plan === "pro" && isTrialing(user);
   const intervals = BILLING_INTERVALS.filter((interval) =>
     (["pro", "max"] as const).some((plan) => offer[plan].includes(interval)),
@@ -101,7 +95,6 @@ export function PricingPlans({
       }
     }
     if (interval === "year") {
-      // A real saving, from the prices themselves: $120 a year against 12 x $15.
       const savings = yearlySavingsPercent(plan);
       if (savings > 0) price.badge = `Save ${savings}% vs monthly`;
       note = `About ${perMonth(plan)} a month, instead of ${formatUsd(PRICES_USD[plan].month * 12)} a year paid monthly.`;

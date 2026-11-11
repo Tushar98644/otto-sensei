@@ -1,7 +1,5 @@
 import type { DeviceFrame, MilestoneKind, ShelfKind, SocialKind } from "./content";
 
-// What templates read, resolved by contentView(). An empty list or null leaves the section out.
-
 export type GitHubRepoSummary = {
   name: string;
   fullName: string;
@@ -21,15 +19,12 @@ export type GitHubStats = {
   bio: string;
   followers: number;
   publicRepos: number;
-  // Over the person's own public repos, forks left out.
   totalStars: number;
   languages: { name: string; repos: number; percent: number }[];
   repos: GitHubRepoSummary[];
   activity: {
-    // ISO time of the newest public event, null when GitHub lists none (it keeps 90 days).
     lastActiveAt: string | null;
     events90d: number;
-    // Public events per week for the last 12 weeks, oldest first.
     weeks: number[];
     recent: { repo: string; kind: "push" | "pull" | "release" | "create" | "issue"; at: string }[];
   };
@@ -59,11 +54,9 @@ export type ContentProject = {
   website: ContentLink | null;
   source: (ContentLink & { repo: string | null }) | null;
   featured: boolean;
-  // Pushed to on GitHub in the last 90 days.
   active: boolean;
   stars: number | null;
   device: DeviceFrame;
-  // "TA" for Tally: what a design draws where an icon would go.
   monogram: string;
 };
 
@@ -163,14 +156,12 @@ export type PortfolioContentView = {
   intro: string;
   disciplines: string[];
   availability: { open: boolean; text: string; short: string } | null;
-  // For a clock or map tile. coords only for places the app knows (./places.ts) or the owner set.
   location: {
     label: string;
     city: string;
     timezone: string | null;
     coords: { lat: number; lng: number } | null;
   } | null;
-  // Only what the owner chose to show on the page.
   email: string | null;
   phone: string | null;
   socials: ContentSocial[];
@@ -178,7 +169,6 @@ export type PortfolioContentView = {
   aboutParts: TextPart[][];
   now: { items: { label: string; text: string }[]; updatedAt: number | null } | null;
   stats: { value: string; label: string }[];
-  // In the owner's order; featured ones keep their place (templates pick them out).
   projects: ContentProject[];
   experience: ContentRole[];
   education: ContentSchool[];

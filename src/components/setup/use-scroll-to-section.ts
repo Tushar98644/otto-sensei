@@ -2,9 +2,6 @@
 
 import { useEffect } from "react";
 
-// The browser scrolls to a #section on arrival, but the Account page draws its cards only once
-// the account has loaded, so it does it here instead, once, and moves focus there for keyboard
-// and screen reader users.
 export function useScrollToSection(ready: boolean): void {
   useEffect(() => {
     if (!ready) return;

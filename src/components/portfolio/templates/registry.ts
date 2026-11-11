@@ -10,13 +10,6 @@ import { ProseTemplate } from "./prose/prose";
 import { ReelTemplate } from "./reel/reel";
 import type { PortfolioTemplate } from "./types";
 
-// The one place the app finds a template. To drop in a new design: write its component (it gets
-// only `view`, `content` and `footer`, see ./types.ts) in its own folder with a stylesheet scoped
-// by ./css.ts, add its info, credit and picker picture in src/lib/portfolio/templates.ts, its
-// fonts in ./fonts.ts and what it draws in src/lib/portfolio/content-uses.ts, and point its entry
-// here; the editor, the picker and /p/<slug> follow. A new id also needs PORTFOLIO_TEMPLATE_IDS
-// and a migration for the CHECK on portfolios.template.
-
 export const PORTFOLIO_TEMPLATES: Record<PortfolioTemplateId, PortfolioTemplate> = {
   navy: { ...PORTFOLIO_TEMPLATE_INFO.navy, Component: NavyTemplate },
   dock: { ...PORTFOLIO_TEMPLATE_INFO.dock, Component: DockTemplate },

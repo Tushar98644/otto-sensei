@@ -20,7 +20,6 @@ function failureFor(error: BillingError, action: Action): Failure {
         status: 503,
         message: "Payments aren't available yet. Please try again later.",
       };
-    // Only for a network problem, a timeout or a 5xx: Creem never got to say no.
     case "provider_error":
       return {
         code: "billing_unavailable",
@@ -42,8 +41,6 @@ function failureFor(error: BillingError, action: Action): Failure {
   }
 }
 
-// Creem answered and said no, so nothing changed. Its own wording is never shown: it can be
-// technical, and only these cases are known well enough to explain.
 function refusedFailure(details: BillingErrorDetails, action: Action): Failure {
   const changing = details.operation === "change_plan";
   const what = changing
@@ -63,7 +60,6 @@ function refusalReason(
   if (providerCode === "subscription_not_active") {
     return [409, "your subscription isn't active right now. Refresh the page and try again."];
   }
-  // Our API key or account, not anything the person did.
   if (providerStatus === 401 || providerStatus === 403) {
     return [502, "payments aren't set up right on our side. Please try again later."];
   }
@@ -94,8 +90,7 @@ export function billingFailure(error: unknown, action: Action): Response {
   return fail("server_error", "Something went wrong. Please try again.", 500);
 }
 
-// Each link costs a Creem API call on our key; a per-user cap stops one account from using up the
-// API rate limit that every customer shares.
+// Each link is a Creem API call: one account mustn't use up the rate limit all customers share.
 const LINKS_PER_HOUR = 20;
 
 export async function limitBillingLinks(userId: string): Promise<Response | null> {

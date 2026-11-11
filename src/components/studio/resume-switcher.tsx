@@ -43,7 +43,6 @@ function SwitcherPanel({ activeId }: { activeId: string | null }) {
 
   function select(id: string) {
     setActive(id);
-    // Picking a resume from the upload screen means "work on this one", not "upload again".
     if (useStudioStore.getState().step === "upload") setStep("fix");
     close();
   }

@@ -142,14 +142,12 @@ describe("/api/notifications/settings", () => {
       emailReminders: false,
       followUpDays: 7,
       emailAvailable: false,
-      // Still on the defaults: the Home setup list and the tracker's prompt ask about it.
       chosen: false,
     });
 
     process.env.RESEND_API_KEY = "re_test";
     process.env.EMAIL_FROM = "Otto Sensei <otto@example.com>";
     resetEnvForTests();
-    // Changing the delay alone never turns email on.
     const later = (await (await put({ followUpDays: 10 })).json()) as ReminderSettingsResponse;
     expect(later).toMatchObject({
       emailReminders: false,

@@ -7,17 +7,14 @@ import { cn } from "@/lib/utils";
 import { ReferencePrice } from "./reference-price";
 
 export type PlanPickerProps = {
-  // The paid plans on sale, in order. With one there is nothing to pick.
   plans: readonly PaidPlanId[];
   value: PaidPlanId;
   onChange: (plan: PaidPlanId) => void;
   interval: BillingInterval;
-  // A plan not sold at `interval` shows its monthly price, the option a switch falls back to.
   offer?: Partial<Record<PaidPlanId, readonly BillingInterval[]>>;
   className?: string;
 };
 
-// Each plan shows its price for the picked billing option, never a fixed monthly one.
 export function PlanPicker({ plans, value, onChange, interval, offer, className }: PlanPickerProps) {
   const name = useId();
   if (plans.length < 2) return null;

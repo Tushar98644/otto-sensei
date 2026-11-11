@@ -78,7 +78,6 @@ describe("followUpEmail", () => {
     expect(email.html).toContain(`href="${LINKS.applicationsUrl}"`);
     expect(email.html).toContain(`href="https://otto.test/reminder?do=done&amp;a=${stripe.id}"`);
     expect(email.html).toContain(">Snooze 3 days</a>");
-    // Otto's head leads, as a PNG from the app's own address, since email clients drop SVG.
     expect(email.html).toMatch(
       /^<div[^>]*>\n<img src="https:\/\/otto\.test\/email\/otto-head\.png" width="48" height="48" alt="Otto"/,
     );

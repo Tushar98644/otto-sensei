@@ -1,5 +1,4 @@
-// RFC 4180. LinkedIn puts line breaks inside quoted descriptions, so splitting on newlines first
-// would cut a position in half.
+// LinkedIn puts line breaks inside quoted fields, so lines can't be split first.
 
 const MAX_ROWS = 2_000;
 
@@ -20,7 +19,6 @@ export function parseCsv(text: string): string[][] {
       } else quoted = false;
       continue;
     }
-    // A quote only opens a quoted field at its start; mid-field it's a literal (`24" monitor`).
     if (ch === '"' && field === "") quoted = true;
     else if (ch === ",") {
       row.push(field);
@@ -45,8 +43,6 @@ export type CsvRecord = Record<string, string>;
 
 const headerKey = (cell: string) => cell.trim().toLowerCase();
 
-// The header is the first row holding every `required` column: some files open with a "Notes:"
-// preamble. [] when no row looks like the header.
 export function csvRecords(text: string, required: readonly string[]): CsvRecord[] {
   const rows = parseCsv(text);
   const wanted = required.map(headerKey);

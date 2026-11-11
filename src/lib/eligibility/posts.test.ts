@@ -3,10 +3,6 @@ import { checkEligibility, ruleLines } from "./check";
 import { emptyWorkProfile, type WorkProfile } from "./profile";
 import type { EligibilityFinding, EligibilityRule } from "./types";
 
-// Whole job posts in the shapes the big boards send (Greenhouse, Lever, Ashby, Workable), with
-// the company intros and benefit lists that trip naive matching. Companies are made up.
-
-// November 9, 2026: standard time in both the US and Europe.
 const NOW = Date.UTC(2026, 10, 9, 12);
 
 const person = (overrides: Partial<WorkProfile>): WorkProfile => ({
@@ -49,7 +45,6 @@ const VANCOUVER = person({
 
 function check(location: string, text: string, who: WorkProfile | null) {
   const findings = checkEligibility({ location, text }, who, { now: NOW });
-  // The Jobs tab stores and checks only these sentences, so they must give the same findings.
   expect(checkEligibility({ location, text: ruleLines(text) }, who, { now: NOW })).toEqual(findings);
   return Object.fromEntries(findings.map((item) => [item.rule, item])) as Partial<
     Record<EligibilityRule, EligibilityFinding>

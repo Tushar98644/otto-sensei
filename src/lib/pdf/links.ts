@@ -7,11 +7,9 @@ export type LineCleaner = (value: string) => string;
 const pdfLine: LineCleaner = (value) => toPdfLine(value);
 
 const SCHEME = /^[a-z][a-z\d+.-]*:/i;
-// "janedoe.dev", "github.com/janedoe": a bare host with a dot and a real top-level domain.
 const BARE_HOST = /^[^\s/@:]+\.[a-z]{2,}(?:[/?#]\S*)?$/i;
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-// Anything but web links (javascript:, file:) stays plain text.
 function webHref(value: string): string | null {
   const candidate = SCHEME.test(value) ? value : BARE_HOST.test(value) ? `https://${value}` : null;
   if (!candidate) return null;
@@ -23,7 +21,6 @@ function webHref(value: string): string | null {
   }
 }
 
-// Shorter, and what a recruiter would type. The click target keeps the full address.
 function shortUrl(value: string): string {
   return value
     .replace(/^https?:\/\//i, "")

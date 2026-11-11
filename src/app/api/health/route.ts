@@ -6,7 +6,6 @@ import { log } from "@/lib/log";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-// For uptime monitors: 200 only when the database answers.
 export async function GET() {
   try {
     const db = await getDb();

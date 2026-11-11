@@ -8,19 +8,14 @@ import type { RequirementRow } from "./requirements";
 import { joinAnd, type SummaryCheck, type TitleCheck } from "./title-checks";
 import { foldCase, textTokens } from "./tokens";
 
-// Why each requirement is or isn't shown, in the person's terms ("only in your Skills list"). Title
-// and summary checks live in title-checks.ts.
-
 export type ReasonTone = "pass" | "warn" | "neutral";
 
 export type RowReason = {
   text: string;
   tone: ReasonTone;
-  // Set when the post's form of a name is missing but the other form is there ("GTM").
   form: OtherForm | null;
 };
 
-// What makes a proving line weak, in a few words that fit after "but that line…".
 const LINE_PROBLEMS: Partial<Record<LintIssueId, string>> = {
   duty: "reads like a job description",
   "no-result": "doesn't say what changed",
@@ -46,8 +41,6 @@ function lineProblem(issues: readonly LintIssue[] | undefined): LintIssue | null
   return issues?.find((issue) => issue.severity === "high" && LINE_PROBLEMS[issue.id]) ?? null;
 }
 
-// Not only a form the matcher counts as the same ("Amazon Web Services" for "AWS"): searches look
-// for the words typed.
 function hasExactForm(line: string, terms: readonly string[]): boolean {
   const folded = foldCase(line);
   return terms.some((term) => {
@@ -91,7 +84,6 @@ function provenReason(
   const ref = line.bulletId ? refs.get(line.bulletId) : undefined;
   const years = yearsNote(row, context) ?? "";
   if (!ref) {
-    // A job title, a certification, the education line or the summary.
     const where = line.place === "Job title" ? "a job title" : `your ${line.place.toLowerCase()}`;
     return {
       text: `Only in ${where}. Show it in a line about what you did, too.${spelled}${years}`,
@@ -117,7 +109,6 @@ function provenReason(
   const problem = lineProblem(context.lint.byBullet[ref.bulletId]);
   if (problem) {
     return {
-      // Short on purpose: "Your lines for this job" carries the full tip for the line.
       text: `Shown at ${where}, but that line ${LINE_PROBLEMS[problem.id]}.${spelled}${years}`,
       tone: "warn",
       form: null,
@@ -186,7 +177,6 @@ export type JobLine = {
   note: string;
 };
 
-// Weakest must-have proof first. Lines that show nothing for this job are only counted.
 export function jobLines(
   rows: readonly RequirementRow[],
   context: ReasonContext,
@@ -203,7 +193,6 @@ export function jobLines(
       { id: row.id, text: row.text, importance: row.importance },
     ]);
   }
-  // A line can show more requirements than the one it was picked for: check each term in it.
   for (const ref of refs) {
     const tokens = textTokens(ref.text);
     for (const row of rows) {
@@ -229,7 +218,6 @@ export function jobLines(
     const problem = lineProblem(context.lint.byBullet[ref.bulletId]);
     const names = joinAnd(proves.slice(0, 2).map((p) => p.text));
     const kind = proves[0]?.importance === "must" ? "a must-have" : "a nice-to-have";
-    // The lint message already names the problem, so it follows as is.
     const note = problem
       ? `Shows ${names} (${kind}). ${problem.message}`
       : `Shows ${names} (${kind}). Keep it near the top.`;
@@ -258,8 +246,6 @@ export type FixFirst = { key: string; title: string; reason: string; action: Fix
 export const MAX_FIX_FIRST = 3;
 export const TITLE_SECTION_ID = "tailor-title-summary";
 
-// At most three: missing must-haves, must-haves only in Skills, weak must-have proof, then the
-// title and summary. Nice-to-haves never make this list.
 export function tailorFixFirst(input: {
   rows: readonly RequirementRow[];
   reasons: Readonly<Record<string, RowReason>>;
@@ -270,7 +256,6 @@ export function tailorFixFirst(input: {
   const { rows, reasons, lines, title, summary } = input;
   const must = rows.filter((row) => row.importance === "must");
   const items: FixFirst[] = [];
-  // A named tool keeps its own spelling; a kind of experience reads mid-sentence in lowercase.
   const names = (list: readonly RequirementRow[]) =>
     joinAnd(
       list

@@ -1,6 +1,3 @@
-// Converts between JSON Resume's ISO dates and dates as people write them, without guessing:
-// anything not clearly a date passes through.
-
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 const MONTH_INDEX = new Map(MONTHS.map((month, index) => [month.toLowerCase(), index + 1]));
 const ISO = /^(\d{4})(?:-(\d{2})(?:-(\d{2}))?)?(?:T.*)?$/;
@@ -16,7 +13,6 @@ export function fromIsoDate(value: string | undefined): string {
   return name ? `${name} ${year}` : (year ?? text);
 }
 
-/** "Mar 2021" → "2021-03", "2019" → "2019", "Present" → null (an open end). */
 export function toIsoDate(value: string): string | null {
   const text = value.trim().replace(/\.$/, "");
   if (text === "" || PRESENT.test(text)) return null;

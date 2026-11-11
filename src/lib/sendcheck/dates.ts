@@ -1,8 +1,4 @@
-// A year alone could be any of its 12 months, so every date is a span of possible months, and each
-// rule takes the reading that gives the person the benefit of the doubt.
-
 export type MonthSpan = {
-  // Months since year 0: year * 12 + month (0 = January).
   earliest: number;
   latest: number;
   expected: boolean;
@@ -37,7 +33,6 @@ const MONTHS: Readonly<Record<string, number>> = {
   december: 11,
 };
 
-// Northern-hemisphere school terms. Winter straddles two years, so it reads as the whole year.
 const SEASONS: Readonly<Record<string, readonly [number, number]>> = {
   spring: [2, 4],
   summer: [5, 7],
@@ -112,7 +107,6 @@ export function parseDate(raw: string): ParsedDate {
     if (word === "winter") return span(y, 0, 11, expected);
     return null;
   }
-  // "Jan 5, 2021" and "5 Jan 2021": the day doesn't matter here.
   match = /^(?:(\p{L}+)\.? \d{1,2},? (\d{4})|\d{1,2} (\p{L}+)\.? (\d{4}))$/u.exec(text);
   if (match) {
     const month = MONTHS[(match[1] ?? match[3] ?? "").toLowerCase()];
@@ -125,14 +119,12 @@ export function parseDate(raw: string): ParsedDate {
     const quarter = Number(match[1]) - 1;
     return y === null ? null : span(y, quarter * 3, quarter * 3 + 2, expected);
   }
-  // "03/2020", "3-2020", "2020-03", "2020/3".
   match = /^(\d{1,2})[/.-](\d{4})$|^(\d{4})[/.-](\d{1,2})$/.exec(text);
   if (match) {
     const month = Number(match[1] ?? match[4]) - 1;
     const y = year(match[2] ?? match[3] ?? "");
     return y === null || month < 0 || month > 11 ? null : span(y, month, month, expected);
   }
-  // "05/03/2020": day and month can't be told apart unless one is over 12.
   match = /^(\d{1,2})[/.-](\d{1,2})[/.-](\d{4})$/.exec(text);
   if (match) {
     const a = Number(match[1]);
@@ -153,7 +145,6 @@ export function parseDate(raw: string): ParsedDate {
 
 const RANGE_SPLIT = /\s+(?:-|–|—|to|until|till)\s+|\s*[–—]\s*/i;
 
-// Imports sometimes put the whole range in the start field, so an empty end splits the start.
 export function parseRange(
   startText: string,
   endText: string,
@@ -175,7 +166,6 @@ export function parseRange(
   };
 }
 
-/** Months two spans surely share (0 when they may not overlap at all). */
 export function sureOverlap(
   a: { start: MonthSpan; end: MonthSpan },
   b: { start: MonthSpan; end: MonthSpan },

@@ -9,13 +9,12 @@ import { scrollToHash } from "./scroll";
 import { Icon } from "./sprites";
 import { Button } from "./ui";
 
-// HamishMW/portfolio layouts/navbar; the monogram draws the owner's initials the way his mark is.
+// Ported from HamishMW/portfolio layouts/navbar (MIT, see ./LICENSE.txt).
 
 export type ReelNavLink = { label: string; href: string };
 export type ReelSocial = { label: string; href: string; kind: SocialKind };
 
 const EXTERNAL = /^https?:/i;
-// Marks his sprite has; the rest come from the shared social icons.
 const OWN_MARKS = new Set<SocialKind>(["github", "bluesky"]);
 
 export function Navbar({

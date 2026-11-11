@@ -2,8 +2,7 @@ import { ACCENT_COLORS } from "@/lib/pdf/design";
 import { PDF_FONT } from "@/lib/pdf/fonts";
 import { defineTheme } from "../theme";
 
-// Awesome-CV (posquit0, LPPL) in Roboto and Source Sans. No header icons, a 10pt body (the
-// original's is 9pt) and a dark accent instead of its bright red.
+// After Awesome-CV (posquit0, LPPL), in Roboto and Source Sans.
 
 const ACCENT = ACCENT_COLORS.burgundy;
 const DARK = "#333333";

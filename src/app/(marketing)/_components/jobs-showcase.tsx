@@ -14,15 +14,12 @@ type ExampleJob = {
   title: string;
   company: string;
   where: string;
-  // Company facts from the public visa registers, worded as src/lib/job-feed/visa.ts words them.
   visa?: string;
   match: "strong" | "good";
-  // The work-rights verdict, worded as src/lib/eligibility/verdicts.ts words it.
   blocked?: string;
   reason: string;
 };
 
-// Made-up jobs for Maya (recruiter-demo-data.ts). Keep the wording in step with the real cards.
 const EXAMPLES: readonly ExampleJob[] = [
   {
     title: "Senior Product Designer",
@@ -51,14 +48,12 @@ const EXAMPLES: readonly ExampleJob[] = [
 
 type Point = { title: string; text: string };
 
-// Each point must stay true of the Jobs page. Change the copy if the behavior changes.
 const POINTS: readonly Point[] = [
   {
     title: "Matched to your resume",
     text: "Each job shows what it asks for that your resume has, and what it doesn't. The closest matches come first.",
   },
   {
-    // src/lib/eligibility (the post's own rules) and src/lib/job-feed/visa.ts (the registers).
     title: "Visa and work rights, checked",
     text: "On Pro, tell Otto where you can work and posts that say they can't hire you are marked. Companies on the public US H-1B and UK sponsor registers say so.",
   },

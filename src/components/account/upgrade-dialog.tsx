@@ -34,13 +34,9 @@ import { useMe } from "./use-me";
 export type UpgradeDialogProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  // The allowance that ran out, for the copy ("You've used this month's 150 tailored versions").
   feature?: Feature;
-  // It was the AI budget that ran out, not the feature's own limit.
   budget?: boolean;
-  // Or the Pro tool a Free account reached for (a second resume, a Pro format, Word, ...).
   tool?: ProTool;
-  // What the pricing page asked for: focused first, and priced for that billing option.
   plan?: PaidPlanId;
   interval?: BillingInterval;
 };
@@ -58,8 +54,6 @@ type View = {
 
 const rank = (plan: PlanId) => PLAN_ORDER.indexOf(plan);
 
-// Free sees Pro and Max (Pro monthly is the trial if unused), Pro sees Max, Max nothing above.
-// Signed-out users sign in inside this dialog, so there's never a second dialog on top.
 export function UpgradeDialog({
   open,
   onOpenChange,
@@ -72,10 +66,8 @@ export function UpgradeDialog({
   const { me, user, loading } = useMe();
   const checkout = useBillingRedirect("checkout");
   const [stage, setStage] = useState<Stage>("pitch");
-  // The plan last chosen, kept through signing in.
   const [chosen, setChosen] = useState<PaidPlanId | null>(plan ?? null);
   const [pickedInterval, setPickedInterval] = useState<BillingInterval | null>(interval ?? null);
-  // Each opening starts at the pitch, even if the last one was closed halfway through signing in.
   const [wasOpen, setWasOpen] = useState(open);
   if (open !== wasOpen) {
     setWasOpen(open);
@@ -84,28 +76,22 @@ export function UpgradeDialog({
 
   const mode = me?.billing.mode;
   const current: PlanId = user?.plan ?? "free";
-  // Signed out counts as new: a new account gets the trial when it's on sale here.
   const trialOnOffer = current === "free" && me?.billing.trial === true;
-  // On the trial, another plan is a new subscription that ends it, not an in-place change.
   const onTrial = user !== null && isTrialing(user);
   const offer = upgradeOffer({
     current,
-    // Before /api/me answers, assume only what every server sells.
     offer: me?.billing.offer ?? { pro: ["month"], max: [] },
-    // Until one is picked, a subscriber is offered their own billing interval.
     picked: pickedInterval ?? user?.planInterval ?? "month",
     trial: trialOnOffer,
     onTrial,
   });
   const buyable = offer.cards.filter((card) => !card.current);
-  // Start (and carry on after sign-in) with the plan chosen or asked for, else the next one up.
   const target =
     buyable.find((card) => card.plan === chosen) ??
     buyable.find((card) => card.plan === nextPlan(current)) ??
     buyable[0] ??
     null;
   const period = me?.period;
-  // Free has no AI features or Pro tools, so there's no limit to mention, only what Pro adds.
   let limitLine: string | null = null;
   if (tool && current === "free") limitLine = OTTO.limit.tool(tool, trialOnOffer);
   else if (feature) {
@@ -150,7 +136,6 @@ export function UpgradeDialog({
       <BillingNote mode={mode} />
     </div>
   );
-  // Two plans side by side need the wide dialog; one fits the narrow one.
   const size: DialogSize = offer.cards.length > 1 ? "lg" : "sm";
   const notNow = (
     <Button variant="secondary" onClick={close}>
@@ -160,7 +145,6 @@ export function UpgradeDialog({
 
   let view: View;
   if (!target) {
-    // Already on the top plan on sale: nothing to sell, so offer a person.
     view = {
       message:
         limitLine ??
@@ -187,7 +171,6 @@ export function UpgradeDialog({
       message: ACCOUNT_OTTO.upgradeSignIn,
       title: target.trial ? "Sign in to start your trial" : "Sign in to upgrade",
       description: "Use Google or a 6-digit email code. No password.",
-      // Google leaves the page, so it comes back to the account page with the upgrade flow open.
       body: (
         <SignInForm
           autoFocus

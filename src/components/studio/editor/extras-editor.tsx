@@ -67,7 +67,6 @@ function focusAddSection() {
   document.getElementById(ADD_SECTION_ID)?.querySelector("button")?.focus();
 }
 
-// These print after the standard six sections, so they only move among themselves.
 export const ExtrasArea = memo(function ExtrasArea({ resumeId }: { resumeId: string }) {
   const ids = useItemIds(resumeId, (resume) => extrasOf(resume));
   const full = ids.length >= LIST_LIMITS.extraSections;
@@ -151,7 +150,6 @@ const ExtraSectionCard = memo(function ExtraSectionCard({
   const title = meta.title.trim() || defaultExtraTitle(meta.kind);
   const edit = (update: (resume: Resume) => Resume) => editResume(resumeId, update);
 
-  // Focus moves to the section that takes this one's place, or the "Add a section" button.
   function remove() {
     const resume = getResume(resumeId);
     const ids = (resume ? extrasOf(resume) : []).map((section) => section.id);

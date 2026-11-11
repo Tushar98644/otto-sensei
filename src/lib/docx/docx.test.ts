@@ -8,9 +8,6 @@ import { PDF_PAGE_SIZES } from "@/lib/pdf/page-size";
 import { TEMPLATE_IDS, type Resume } from "@/lib/resume/schema";
 import { DOCX_MIME, buildResumeDocx, buildResumeDocxBlob, docxFileName } from "./index";
 
-// The Word export read back the way hiring software reads it: mammoth (the same reader our own
-// import uses) for the text and structure, jszip for the package itself.
-
 const NOW = Date.UTC(2026, 10, 7);
 
 async function partsOf(bytes: Uint8Array): Promise<Map<string, string>> {
@@ -23,8 +20,6 @@ async function partsOf(bytes: Uint8Array): Promise<Map<string, string>> {
   return parts;
 }
 
-// Tags open and close in order, attribute values are quoted, and nothing but entities follows an
-// ampersand: the mistakes that make Word call a file corrupt.
 function expectWellFormed(name: string, xml: string) {
   expect(xml.startsWith("<?xml"), name).toBe(true);
   const stack: string[] = [];
@@ -80,7 +75,6 @@ describe("buildResumeDocx", () => {
       if (mode === "External") expect(target).toMatch(/^(?:https?:|mailto:)/);
       else expect(parts.has(`word/${target}`), target).toBe(true);
     }
-    // Every hyperlink in the body points at a relationship that exists.
     const document = parts.get("word/document.xml")!;
     for (const [, id] of document.matchAll(/<w:hyperlink r:id="(\w+)"/g)) {
       expect(docRels).toContain(`Id="${id}"`);
@@ -108,8 +102,6 @@ describe("buildResumeDocx", () => {
       const next = reader(text);
       const theme = TEMPLATE_THEMES[template];
       const dates = (value: string) => (theme.dates === "years" ? yearsOnly(value) : value);
-      // The format's own order (see the PDF tests): a company line first, or the first role in
-      // full with the company under its title; dates on the company's line or the title's.
       const run = theme.companyRow
         ? ["Northwind Payments", "Senior Backend Engineer", dates("Jan 2021 – Present")]
         : ["Senior Backend Engineer", dates("Jan 2021 – Present"), "Northwind Payments"];
@@ -151,8 +143,6 @@ describe("buildResumeDocx", () => {
         next(part);
       }
       const flat = text.toLowerCase();
-      // Stacked formats put the dates beside the title and the issuer under it; both sit between
-      // the award and its note either way.
       const award = flat.indexOf("best paper award");
       const note = flat.indexOf("for work on streaming ledgers.");
       for (const part of ["acm sigmod", "2021"]) {
@@ -170,7 +160,6 @@ describe("buildResumeDocx", () => {
       ]) {
         expect(flat, hidden).not.toContain(hidden.toLowerCase());
       }
-      // One company header over both roles.
       expect(flat.split("northwind payments").length - 1).toBe(1);
 
       const page = (await partsOf(bytes)).get("word/document.xml")!;
@@ -184,7 +173,6 @@ describe("buildResumeDocx", () => {
     it("uses headings, a real bulleted list and tab stops for dates", async () => {
       const resume: Resume = { ...richResume(), template };
       const bytes = await buildResumeDocx(resume, { now: NOW });
-      // A rule running from the heading to the margin is a tab leader in Word.
       const markup = (await html(bytes)).replace(/\t<\/h1>/g, "</h1>");
       for (const heading of [
         "Summary",
@@ -209,7 +197,6 @@ describe("buildResumeDocx", () => {
         /w:styleId="EntryHeading">.*?<w:tabs><w:tab w:val="right" w:pos="\d+"\/><\/w:tabs>/,
       );
       expect(parts.get("word/numbering.xml")).toContain('<w:numFmt w:val="bullet"/>');
-      // The dates follow a tab in the same run, so a parser keeps them as one piece.
       const dates =
         TEMPLATE_THEMES[template].dates === "years" ? "2021 – Present" : "Jan 2021 – Present";
       expect(parts.get("word/document.xml")).toContain(
@@ -229,7 +216,6 @@ describe("buildResumeDocx", () => {
       expect(serif).toMatch(
         /<w:docDefaults><w:rPrDefault><w:rPr><w:rFonts w:ascii="Times New Roman"/,
       );
-      // Modern colors only the first letters of each heading; the others the whole heading.
       const accentOnHeading = (styles: string, document: string, hex: string) =>
         template === "modern"
           ? expect(document).toMatch(

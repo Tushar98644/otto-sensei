@@ -15,24 +15,20 @@ import {
 import type { ProductPlan } from "./intervals";
 import { settleReplacement } from "./replacements";
 
-// Creem redelivers anything but a 2xx up to 5 times within a day: 401 for a bad signature, 5xx when
-// a retry could succeed, 200 for everything else. https://docs.creem.io/code/webhooks
+// Creem redelivers any non-2xx up to 5 times in a day, so only retryable failures get a 5xx.
 
 export type WebhookResult = { status: number; message: string };
 
 export type WebhookConfig = {
-  /** CREEM_WEBHOOK_SECRET, from Developers > Webhooks in the Creem dashboard. */
   secret: string | undefined;
   productIds: readonly string[];
   planForProduct: (productId: string | null | undefined) => ProductPlan | null;
 };
 
-// Real payloads are a few KB. Checked before the HMAC so oversized junk costs nothing.
 const MAX_BODY_CHARS = 256 * 1024;
 const MAX_EVENT_ID_CHARS = 255;
 
-// Every subscription event carries the whole subscription, so the status decides the plan, not the
-// event name; checkout.completed too, so the plan lands even if it arrives first.
+// Status decides the plan, not the event name; checkout.completed may arrive first.
 const SUBSCRIPTION_EVENTS: ReadonlySet<string> = new Set([
   "subscription.active",
   "subscription.paid",
@@ -72,7 +68,6 @@ const SubscriptionSchema = z.object({
   metadata: z.record(z.string(), z.unknown()).nullish(),
 });
 
-// The checkout embeds the subscription with bare ids, and the product and customer as objects.
 const CheckoutSchema = z.object({
   product: ProductRef.nullish(),
   customer: CustomerRef.nullish(),
@@ -81,8 +76,6 @@ const CheckoutSchema = z.object({
 });
 
 type SubscriptionData = z.infer<typeof SubscriptionSchema>;
-// null: nothing to apply (a one-time purchase, or a checkout naming its subscription by id only,
-// whose own subscription events follow).
 type Parsed = { data: SubscriptionData } | { invalid: string } | null;
 type Context = { eventId: string; eventType: string };
 
@@ -109,8 +102,6 @@ export async function processWebhook(
     return { status: 401, message: "invalid_signature" };
   }
 
-  // Signed by Creem from here on, so anything unreadable is a bug on one side. A 5xx keeps the event
-  // in Creem's retry queue, and visible in its dashboard, until it's fixed.
   const envelope = EnvelopeSchema.safeParse(parseJson(rawBody));
   // Retries keep the event id; a manual resend from the dashboard gets a new one.
   const eventId = envelope.success ? (envelope.data.id ?? headers.get("webhook-id") ?? "") : "";
@@ -147,8 +138,6 @@ export async function processWebhook(
     return { status: 500, message: "retry" };
   }
   await report(result, { ...context, status: state.status });
-  // Any event for the new plan, a redelivery included, retries a trial cancel that failed. Only
-  // an applied active event writes the trial down, so before that this finds nothing to do.
   const replaced = state.replacesSubscriptionId;
   if (replaced) {
     let settled: boolean;
@@ -200,8 +189,7 @@ function toState(
   const product = config.productIds.includes(productId) ? config.planForProduct(productId) : null;
   const customer =
     typeof data.customer === "string" ? { id: data.customer, email: null } : data.customer;
-  // subscription.expired keeps the subscription's last status in the payload ("active"), but Creem
-  // sends it because the period ended unpaid: access ends until a retried payment makes it paid.
+  // subscription.expired still carries the last status ("active"), but it means access ended.
   const status = context.eventType === "subscription.expired" ? "expired" : data.status;
   const periodEndsAt = parseTimestamp(data.current_period_end_date);
   return {
@@ -215,12 +203,10 @@ function toState(
     productPlan: product?.plan ?? null,
     productInterval: product?.interval ?? null,
     status,
-    // A scheduled cancellation keeps access until the period ends, but nothing renews.
     renewsAt:
       status === "scheduled_cancel"
         ? null
         : (parseTimestamp(data.next_transaction_date) ?? periodEndsAt),
-    // The AI allowance counts in this period (src/lib/usage.ts), so a renewal starts it over.
     periodStartsAt: parseTimestamp(data.current_period_start_date),
     periodEndsAt,
     eventAt: createdAt,
@@ -236,7 +222,6 @@ async function report(result: ApplyResult, context: Context & { status: string }
       plan: result.plan,
       trialing: result.trialing,
     });
-    // One checkout.completed per checkout; a redelivery is "duplicate".
     if (result.plan !== "free" && context.eventType === CHECKOUT_COMPLETED) {
       captureServerEvent(
         result.userId,
@@ -253,8 +238,6 @@ async function report(result: ApplyResult, context: Context & { status: string }
     return;
   }
   const fields = { ...context, reason: result.reason };
-  // Someone may have paid without getting their plan, or Creem added a status: both need a person.
-  // An ending subscription with no user is expected after an account deletion cancelled it.
   const paidWithoutUser = result.reason === "no_user" && planForStatus(context.status) === "paid";
   if (paidWithoutUser || result.reason === "unknown_status") {
     log.warn("billing.webhook_ignored", fields);
@@ -263,13 +246,11 @@ async function report(result: ApplyResult, context: Context & { status: string }
   }
 }
 
-// A portfolio shows only while its owner is on Pro or Max, so drop the cached page now.
 async function refreshPublishedPage(result: Extract<ApplyResult, { outcome: "applied" }>) {
   if (canPublishPortfolio(result.before.plan) === canPublishPortfolio(result.plan)) return;
   try {
     refreshPortfolioPages(await portfolioSlugsOf(result.userId));
   } catch (error) {
-    // The hourly revalidation still catches it.
     log.warn("billing.portfolio_refresh_failed", { userId: result.userId }, error);
   }
 }

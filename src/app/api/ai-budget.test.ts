@@ -14,10 +14,6 @@ import { takeAccountUnit } from "./metered-free";
 
 vi.mock("next/headers", async () => (await import("@/lib/auth/test-helpers")).nextHeadersMock);
 
-// The AI budget end to end: OpenRouter's reported usage goes from the AI client through the route
-// onto the account's period row, and a used-up budget turns the next call away. Only fetch is
-// faked, so the real fixBullet() and runStructured() run.
-
 const NOW = Date.UTC(2026, 10, 7, 12);
 const DEC_1 = Date.UTC(2026, 11, 1);
 const TRIAL_END = Date.UTC(2026, 10, 10, 12);

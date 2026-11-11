@@ -5,8 +5,6 @@ import type { AutoContent } from "@/lib/portfolio/content-view";
 import { editContent } from "./content-store";
 import { AutoNote } from "./fields";
 
-// Lists Otto can fill start automatic; the first edit makes them the owner's.
-
 export type CardProps = { content: PortfolioContent; auto: AutoContent };
 
 type AutoListKey = "now" | "stats" | "milestones" | "talks" | "writing" | "interests";

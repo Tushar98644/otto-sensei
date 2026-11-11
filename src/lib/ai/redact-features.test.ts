@@ -9,9 +9,6 @@ import { tailorResume } from "./tailor";
 import type { WritingInput } from "./types";
 import { answerQuestion, writeCoverLetter } from "./writing";
 
-// Every AI feature, end to end with a fake model: what the model is sent holds no personal
-// details, and what the person gets back has them restored exactly.
-
 const runStructured = vi.hoisted(() =>
   vi.fn<(request: StructuredRequest<unknown>) => Promise<unknown>>(),
 );
@@ -79,7 +76,6 @@ function expectPrivate(user: string) {
   expect(user).not.toMatch(/[\w.+-]+@[\w-]+\.\w+/);
 }
 
-// The placeholder the model was shown between two bits of text, read back from its message.
 function placeholderFor(user: string, before: string, after: string): string {
   const escape = (text: string) => text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   const match = new RegExp(`${escape(before)}(\\[[A-Z]+_\\d+\\])${escape(after)}`).exec(user);
@@ -87,7 +83,6 @@ function placeholderFor(user: string, before: string, after: string): string {
   return match[1];
 }
 
-// The resume's header lines come first: name, headline, contact line, then the links line.
 function siteToken(user: string): string {
   const token = user.split("\n")[4]?.split(" | ")[1];
   if (!token) throw new Error("No links line");
@@ -115,7 +110,6 @@ afterEach(() => {
 describe("import structuring", () => {
   const text = resumeToText(makeResume());
 
-  // What a faithful model returns: every field copied from the text it was shown.
   function copyOf(user: string, overrides: { email?: string; phone?: string } = {}) {
     const lines = user.split("\n");
     const contact = lines[3]?.split(" | ") ?? [];
@@ -164,8 +158,6 @@ describe("import structuring", () => {
       email: EMAIL,
       phone: PHONE,
       location: "Leeds, UK",
-      // The model only saw "[LINK_1]", so a known site's name or a plain "Website" replaces its
-      // generic "Link".
       links: [
         { label: "LinkedIn", url: LINKEDIN },
         { label: "Website", url: SITE },
@@ -291,7 +283,6 @@ describe("tailoring", () => {
     const result = await tailorResume(makeResume(), { ...JOB });
     expectPrivate(sentUser());
     expect(result.summary).toBe(`${NAME} rebuilt the billing service in Go, cutting p99 latency by 40%.`);
-    // The quote is checked against the real resume, so it survives only when restored exactly.
     expect(result.requirements[1]?.quote).toBe(STATUS_LINE);
     expect(result.notes).toEqual(["Say what status.priya.dev/uptime measured."]);
     expect(result.bulletOrder).toEqual([{ experienceId: "job-1", bulletIds: ["b2", "b1", "b3"] }]);
@@ -315,7 +306,6 @@ describe("cover letters and answers", () => {
     runStructured.mockResolvedValueOnce({ paragraphs: LETTER });
     const result = await writeCoverLetter(makeResume(), JOB);
     expectPrivate(sentUser());
-    // No retry: the restored phone number is not an invented number.
     expect(runStructured).toHaveBeenCalledTimes(1);
     expect(result.letter).toContain(`You can reach me at ${PHONE}, and`);
     expect(result.letter).not.toContain("[number]");

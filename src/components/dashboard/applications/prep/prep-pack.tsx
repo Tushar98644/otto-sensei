@@ -111,7 +111,6 @@ function Agenda({
   );
 }
 
-// From sm the nodes hang in a gutter joined by a line; phones keep the width for the questions.
 function Stop({
   id,
   node,

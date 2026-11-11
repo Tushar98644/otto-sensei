@@ -52,7 +52,6 @@ async function rows() {
     .orderBy(jobs.externalId);
 }
 
-// Open jobs under the Jobs page filters, newest first.
 async function titlesFor(filters: JobFilters): Promise<string[]> {
   const db = await getDb();
   const rows = await db
@@ -85,7 +84,6 @@ describe("job store", () => {
     expect(again).toMatchObject({ added: 0, updated: 1, seen: 2 });
     const [two] = await db.select().from(jobs).where(eq(jobs.externalId, "2"));
     expect(two).toMatchObject({ seniority: "senior", lastSeenAt: NOW + DAY });
-    // An unchanged job that was never missing isn't written again.
     const [one] = await db.select().from(jobs).where(eq(jobs.externalId, "1"));
     expect(one).toMatchObject({ lastSeenAt: NOW, missedRuns: 0 });
     const [board] = await db.select().from(jobBoards).where(eq(jobBoards.token, "acme"));
@@ -121,12 +119,10 @@ describe("job store", () => {
     expect(
       await saveJobs(db, { source: "himalayas", board: "" }, [feedCopy], NOW, { snapshot: false }),
     ).toMatchObject({ added: 1 });
-    // The employer's own listing arrives: the feed's copy closes as a duplicate.
     expect(await saveJobs(db, ACME, [raw("1")], NOW, { snapshot: true })).toMatchObject({
       added: 1,
       closed: 1,
     });
-    // The feed lists it again: it is skipped, not added back.
     const repeat = raw("https://himalayas.app/companies/acme/jobs/backend-2", {
       title: "Backend Engineer 1",
       location: "Germany, remote",
@@ -302,7 +298,6 @@ describe("job store", () => {
       "Product Designer",
     ]);
     expect(await titlesFor({ ...DEFAULT_FILTERS, role: "design" })).toHaveLength(1);
-    // Search input never reaches tsquery as syntax.
     expect(await titlesFor({ ...DEFAULT_FILTERS, q: "') | !:* &" })).toHaveLength(3);
 
     const query = { seniority: null, filters: DEFAULT_FILTERS, weights: new Map<string, number>() };
@@ -316,7 +311,6 @@ describe("job store", () => {
       "Backend Engineer 1",
     ]);
     expect(pool.groups).toBe(2);
-    // One shared skill and another kind of role: nothing matchJob would label, so not a candidate.
     expect(
       (await matchCandidates(db, { ...query, skills: ["Go"], families: [] }, NOW)).rows,
     ).toEqual([]);
@@ -342,7 +336,6 @@ describe("job store", () => {
     await saveJobs(db, ACME, [old, ...fresh], NOW, { snapshot: true });
     expect(await refreshSkillWeights(db, NOW)).toBeGreaterThan(0);
     const weights = await skillWeights(db);
-    // ln(7 open / 1 naming Elixir) against ln(7 / 7) for PostgreSQL, floored.
     expect(weights.get("Elixir")).toBeCloseTo(Math.log(7), 5);
     expect(weights.get("PostgreSQL")).toBeCloseTo(0.05, 5);
     const pool = await matchCandidates(
@@ -391,7 +384,6 @@ describe("job store", () => {
       NOW,
       { snapshot: true },
     );
-    // Reposted with a fresh date, but first seen 150 days ago: kept, yet not a match any more.
     await db
       .update(jobs)
       .set({ firstSeenAt: NOW - 150 * DAY })

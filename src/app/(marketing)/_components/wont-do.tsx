@@ -5,7 +5,6 @@ import { Section, SectionHeader } from "./section";
 
 type Pledge = { claim: string; reason: ReactNode };
 
-// Each claim here must stay true of the product. Change the copy if the behavior changes.
 const PLEDGES: readonly Pledge[] = [
   {
     claim: "Make up a score.",

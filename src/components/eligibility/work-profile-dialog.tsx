@@ -13,8 +13,6 @@ export type WorkProfileDialogProps = {
   saved: boolean;
 };
 
-// The Account page's form, opened from a job post so the check updates without leaving the studio.
-// Answers save as they change; Done only closes it.
 export function WorkProfileDialog({
   open,
   onOpenChange,

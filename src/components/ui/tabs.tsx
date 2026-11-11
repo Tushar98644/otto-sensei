@@ -13,9 +13,6 @@ import {
 } from "react";
 import { cn } from "@/lib/utils";
 
-// WAI-ARIA tabs with automatic activation: arrow keys move focus and select in one step; only the
-// selected tab is in the Tab order (roving tabindex).
-
 type TabsContextValue = {
   baseId: string;
   value: string;
@@ -72,7 +69,6 @@ export function Tabs({ value, defaultValue, onValueChange, className, children }
 
 const NAVIGATION_KEYS = new Set(["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "Home", "End"]);
 
-// Give it an aria-label (or aria-labelledby) that names the group, e.g. "Recruiter view".
 export type TabListProps = ComponentProps<"div">;
 
 export function TabList({ className, onKeyDown, ...props }: TabListProps) {
@@ -127,7 +123,6 @@ export function Tab({ value, className, onClick, ...props }: TabProps) {
       type="button"
       role="tab"
       id={tabId(baseId, value)}
-      // Inactive panels aren't rendered, so only the selected tab points at one.
       aria-controls={selected ? panelId(baseId, value) : undefined}
       aria-selected={selected}
       tabIndex={selected ? 0 : -1}
@@ -146,7 +141,6 @@ export function Tab({ value, className, onClick, ...props }: TabProps) {
 
 export type TabPanelProps = ComponentProps<"div"> & {
   value: string;
-  // Keeps the panel in the page while hidden, so its state (scroll, typed text) survives a switch.
   keepMounted?: boolean;
 };
 

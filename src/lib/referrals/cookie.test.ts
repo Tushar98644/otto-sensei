@@ -55,7 +55,6 @@ describe("noteReferralCheck", () => {
     await noteReferralCheck();
     expect(await linked(maya.id)).toBe("rewarded");
     expect(cookieJar.get(REF_COOKIE)?.value).toBe("");
-    // Read as Pro sees it: Free has no AI to spend the extras on.
     expect((await getUsage({ ...maya, plan: "pro" })).tailor.limit).toBe(
       PLANS.pro.limits.tailor + REFERRAL_BONUS.tailor,
     );

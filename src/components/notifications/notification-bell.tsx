@@ -13,9 +13,7 @@ import { timeAgo } from "./time-ago";
 import { forgetFresh, markAllSeen, useNotifications } from "./use-notifications";
 
 export type NotificationBellProps = {
-  // "end" lines the panel up with the bell's right edge (the phone bar's right side).
   align?: "start" | "end";
-  // sm: the sidebar's 36px tools; md: the phone bar's 44px controls.
   size?: "sm" | "md";
   className?: string;
 };
@@ -24,8 +22,6 @@ const GUTTER_PX = 16;
 const OFFSET_PX = 8;
 const MIN_HEIGHT_PX = 160;
 
-// A native popover: the browser handles outside clicks, Escape and handing focus back. Opening
-// it marks everything read.
 export function NotificationBell({ align = "start", size = "sm", className }: NotificationBellProps) {
   const notifications = useNotifications();
   const panelId = useId();
@@ -33,19 +29,16 @@ export function NotificationBell({ align = "start", size = "sm", className }: No
   const triggerRef = useRef<HTMLButtonElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
   const [open, setOpen] = useState(false);
-  // When the panel opened: the clock for "3 days ago", read in an event rather than during render.
   const [openedAt, setOpenedAt] = useState(0);
 
   const ready = notifications.status === "ready" ? notifications : null;
   const userId = ready?.userId ?? null;
   const unread = ready?.unread ?? 0;
 
-  // Also covers a list that finishes loading after the panel opened.
   useEffect(() => {
     if (open && userId && unread > 0) markAllSeen(userId);
   }, [open, userId, unread]);
 
-  // The phone keyboard and window resizes move the bell; follow it rather than close.
   useEffect(() => {
     if (!open) return;
     const follow = () => place(triggerRef.current, panelRef.current, align);
@@ -67,7 +60,6 @@ export function NotificationBell({ align = "start", size = "sm", className }: No
   }
 
   function handleToggle(event: ToggleEvent<HTMLDivElement>) {
-    // Lands screen readers on the panel's name; Tab then walks the notifications.
     if (event.newState === "open") event.currentTarget.focus();
   }
 
@@ -213,7 +205,6 @@ function NotificationRow({
   );
 }
 
-// Under the bell, kept inside the viewport.
 function place(trigger: HTMLElement | null, panel: HTMLElement | null, align: "start" | "end") {
   if (!trigger || !panel) return;
   const rect = trigger.getBoundingClientRect();

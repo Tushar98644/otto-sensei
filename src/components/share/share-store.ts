@@ -8,8 +8,6 @@ import { SHARES } from "@/lib/queries/keys";
 import { sharesQuery } from "@/lib/queries/options";
 import type { SharedLink } from "@/lib/share/types";
 
-// Shared by every Share dialog and the Shared links list, so a new link shows in both at once.
-
 export type SharesState = {
   status: "idle" | "loading" | "ready" | "error";
   links: SharedLink[];
@@ -22,7 +20,6 @@ const NONE: SharedLink[] = [];
 const newestFirst = (a: SharedLink, b: SharedLink) =>
   b.createdAt - a.createdAt || b.id.localeCompare(a.id);
 
-/** Only loaded once `enabled` (a dialog that's open, a list that's shown). */
 export function useShares(enabled = true): SharesState {
   const { user } = useMe();
   const userId = user?.id ?? null;

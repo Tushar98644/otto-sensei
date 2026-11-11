@@ -14,7 +14,6 @@ const COPY: MeteredCopy = {
   tooLong: "That resume is too long for Otto. Trim it a little and try again.",
 };
 
-// Never changes the resume: the person picks from the options. Uses one of the month's line fixes.
 export async function POST(req: Request): Promise<Response> {
   const crossSite = rejectCrossSite(req);
   if (crossSite) {

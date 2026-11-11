@@ -13,8 +13,6 @@ export const dynamic = "force-dynamic";
 const COUNTED = { counted: true };
 const NOT_COUNTED = { counted: false };
 
-// Signed-in owners checking their own page shouldn't add to it. Only a visitor with a session
-// cookie costs a call to Supabase; a failure just means "count it".
 async function ownerIsReading(ownerId: string): Promise<boolean> {
   try {
     return (await getCurrentUser())?.id === ownerId;
@@ -23,8 +21,7 @@ async function ownerIsReading(ownerId: string): Promise<boolean> {
   }
 }
 
-// Sent by the page after it loads, since the page itself is cached. Always 200 for a well-formed
-// body, so the answer says nothing about which addresses exist.
+// Always 200 for a well-formed body, so the answer can't reveal which addresses exist.
 export async function POST(req: Request): Promise<Response> {
   const blocked = rejectCrossSite(req) ?? rejectNonJson(req);
   if (blocked) return blocked;
@@ -36,7 +33,6 @@ export async function POST(req: Request): Promise<Response> {
     if (!target || (await ownerIsReading(target.ownerId))) return ok(NOT_COUNTED);
     return ok((await countView(target.id)) ? COUNTED : NOT_COUNTED);
   } catch (error) {
-    // A lost view is not worth an error on someone else's page.
     log.warn("portfolio.view_not_counted", {}, error);
     return ok(NOT_COUNTED);
   }

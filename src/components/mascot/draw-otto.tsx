@@ -10,7 +10,6 @@ import {
 import { drawFace } from "./otto-face";
 import { moving, type OttoPose, POSE_ART } from "./otto-poses";
 
-// Back to front. He only blinks, unless lively (dashboard home), when his pose's parts move.
 export function drawOtto(pose: OttoPose, options: DrawOptions) {
   const art = POSE_ART[pose];
   return (

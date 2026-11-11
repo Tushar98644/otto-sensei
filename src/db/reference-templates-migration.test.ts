@@ -4,9 +4,6 @@ import { PORTFOLIO_TEMPLATE_IDS } from "@/lib/portfolio/types";
 import { LOCAL_ONLY_DDL } from "./local-schema";
 import { readMigrations } from "./migration-files";
 
-// 20261108006000_reference_templates.sql runs on databases that already hold pages on the six
-// round-1 designs. This replays the migrations before it, adds such pages, then applies it.
-
 const VERSION = "20261108006000";
 
 const MOVES = {

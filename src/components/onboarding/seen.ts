@@ -1,16 +1,12 @@
 import { browserStorage } from "@/lib/browser-storage";
 import type { TourName } from "./tours";
 
-// Which tours this browser has already shown. localStorage only: a tour is a hint, not data worth
-// a server round trip, and someone who clears their site data won't mind seeing it once more.
-
 export type TourStorage = Pick<Storage, "getItem" | "setItem" | "removeItem">;
 
 const TOURS: readonly TourName[] = ["studio", "dashboard"];
 
 const keyOf = (name: TourName) => `otto.tour.${name}`;
 
-// null when the browser won't say.
 export function hasSeenTour(storage: TourStorage | null, name: TourName): boolean | null {
   if (!storage) return null;
   try {
@@ -23,9 +19,7 @@ export function hasSeenTour(storage: TourStorage | null, name: TourName): boolea
 export function markTourSeen(storage: TourStorage | null, name: TourName, now = new Date()): void {
   try {
     storage?.setItem(keyOf(name), now.toISOString());
-  } catch {
-    // Full or blocked storage: the tour may show again next time, which is harmless.
-  }
+  } catch {}
 }
 
 export function forgetTours(storage: TourStorage | null = browserStorage()): void {
@@ -38,12 +32,10 @@ export function forgetTours(storage: TourStorage | null = browserStorage()): voi
   }
 }
 
-// ?tour=1 replays the page's tour, for support and for checking a change to it.
 export function replayRequested(search: string): boolean {
   return new URLSearchParams(search).get("tour") === "1";
 }
 
-// A browser that can't remember gets no tour: it would otherwise come back on every visit.
 export function tourDue({ seen, replay }: { seen: boolean | null; replay: boolean }): boolean {
   return replay || seen === false;
 }

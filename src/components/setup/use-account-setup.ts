@@ -7,9 +7,6 @@ import { readJsonItem, writeJsonItem } from "@/lib/browser-storage";
 import type { WeakLineTarget } from "@/lib/setup/checklist";
 import { NO_SETUP, type AccountSetup, type SetupStepOutcome } from "@/lib/setup/types";
 
-// This browser keeps its own note too, so an unreachable server never brings the step or a hidden
-// list back on every visit. The weak line is kept only here: a hint, not account data.
-
 type Load = "idle" | "loading" | "ready" | "error";
 
 type Local = { stepAt: number | null; checklistHiddenAt: number | null; weakLine: WeakLineTarget | null };
@@ -68,7 +65,6 @@ function writeLocal(userId: string, patch: Partial<Local>) {
   if (snapshot.userId !== userId) return;
   const local = { ...snapshot.local, ...patch };
   setSnapshot({ ...snapshot, local });
-  // Full or blocked storage: the server copy is the one that counts anyway.
   writeJsonItem(keyOf(userId), local);
 }
 
@@ -102,7 +98,6 @@ export type AccountSetupState =
   | {
       status: "loading" | "ready" | "error";
       userId: string;
-      // What the server said, or this browser's note where it couldn't.
       stepAt: number | null;
       checklistHiddenAt: number | null;
       weakLine: WeakLineTarget | null;
@@ -135,8 +130,6 @@ export function useAccountSetup(): AccountSetupState {
     status: current.status,
     userId,
     stepAt: remote.stepAt ?? local.stepAt,
-    // Hidden on either side stays hidden: a "Hide this" that never reached the server still holds
-    // in this browser.
     checklistHiddenAt: remote.checklistHiddenAt ?? local.checklistHiddenAt,
     weakLine: local.weakLine,
     localStepAt: local.stepAt,
@@ -147,12 +140,9 @@ async function save(userId: string, change: Parameters<typeof api.saveAccountSet
   try {
     const res = await api.saveAccountSetup(change);
     if (snapshot.userId === userId) setSnapshot({ ...snapshot, remote: res.setup });
-  } catch {
-    // This browser's note already holds it; the server gets it next time something is saved.
-  }
+  } catch {}
 }
 
-/** Save, Skip or a close of the first-login step: it never opens again for this account. */
 export function recordSetupStep(userId: string, outcome: SetupStepOutcome): Promise<void> {
   const now = Date.now();
   if (snapshot.userId === userId) {
@@ -171,7 +161,6 @@ export function setChecklistHidden(userId: string, hidden: boolean): Promise<voi
   return save(userId, { checklist: hidden ? "hidden" : "shown" });
 }
 
-/** The line "Fix the first weak line" opened, so the item ticks once that line reads well. */
 export function rememberWeakLine(userId: string, target: WeakLineTarget): void {
   writeLocal(userId, { weakLine: target });
 }

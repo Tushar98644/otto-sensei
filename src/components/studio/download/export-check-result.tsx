@@ -13,7 +13,6 @@ function Tally({ label, count }: { label: string; count: number }) {
     <div className="flex flex-col gap-1 rounded-2xl bg-surface-muted p-4">
       <dt className="text-sm text-muted">{label}</dt>
       <dd className="flex items-center gap-2">
-        {/* The word next to the number names the status, so the icon needs no label of its own. */}
         <StatusIcon status={count === 0 ? "pass" : "fail"} label="" />
         <span className="font-display text-2xl leading-none font-semibold text-ink tabular-nums">
           {count}

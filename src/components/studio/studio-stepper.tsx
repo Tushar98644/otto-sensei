@@ -72,13 +72,10 @@ type StepButtonProps = {
   number: number;
   status: StepStatus;
   current: boolean;
-  // Before the current step in the flow. Shown with a check; the number stays for screen readers.
   done: boolean;
   onSelect: (step: StudioStep) => void;
 };
 
-// Steps you can't open yet stay at full strength in muted text instead of fading out: "Skipped"
-// is information, and a faded label drops below readable contrast on stone.
 function StepButton({ step, number, status, current, done, onSelect }: StepButtonProps) {
   const skipped = status === "skipped";
   const upcoming = !current && !done && !skipped;

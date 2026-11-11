@@ -8,21 +8,16 @@ import { BRAND } from "@/config/brand";
 import type { StopShape, TourStop } from "./tours";
 import "./tour.css";
 
-// Never modal: no dimmed page, no focus trap, and the page keeps working under it. The tip sits
-// beside its target, never on top. Escape skips.
-
 export type TourEnd = { finished: boolean; reached: number; total: number };
 
 export type StartTourOptions = {
   stops: readonly TourStop[];
-  // The first stop is on screen: from here the tour counts as seen.
   onShown: () => void;
   onEnd: (end: TourEnd) => void;
 };
 
 const MAX_TIPS = 3;
 const REVEAL_ATTRIBUTE = "data-otto-tour-reveal";
-// A studio step's code loads on demand; past this the tour ends instead of waiting forever.
 const SCREEN_TIMEOUT_MS = 6_000;
 const GAP_PX = 12;
 const EDGE_PX = 16;
@@ -38,7 +33,6 @@ export function startTour({
 }: StartTourOptions): (() => void) | null {
   const start = planned[0];
   if (!start) return null;
-  // Stops on the starting screen are known now; later screens are checked as they come up.
   const stops = planned
     .filter((stop) => stop.screen !== start.screen || stop.target() !== null)
     .slice(0, MAX_TIPS);
@@ -67,8 +61,6 @@ export function startTour({
     if (event.key === "Escape" && !event.defaultPrevented) end(false);
   }
 
-  // The next stop in this direction whose target is on screen, without leaving its screen. A
-  // folded section, for one, hides the line a stop meant to show.
   function nextShown(to: number, direction: 1 | -1): number | null {
     const screen = stops[to]?.screen;
     for (let at = to; at >= 0 && at < stops.length; at += direction) {
@@ -93,8 +85,7 @@ export function startTour({
       root.render(null);
       next.enter();
       const ready = await waitUntil(() => ended || (next.ready?.() ?? true), SCREEN_TIMEOUT_MS);
-      // Let the new screen's own effects run first (the studio scrolls to the top and moves focus
-      // to its heading), or they would undo the scroll to the next stop.
+      // After paint: the new screen's own scroll and focus would otherwise undo ours.
       await afterPaint();
       moving = false;
       if (ended) return;
@@ -164,8 +155,6 @@ function Tip({ stop, target, position, total, onBack, onNext, onSkip }: TipProps
   const last = position === total;
   const ring = RING[stop.shape];
 
-  // Follows the target as the page scrolls or resizes. Measured after layout, so the tip never
-  // paints on top of what it points at.
   useLayoutEffect(() => {
     let frame = 0;
     const measure = () => {
@@ -177,7 +166,6 @@ function Tip({ stop, target, position, total, onBack, onNext, onSkip }: TipProps
     const schedule = () => {
       if (!frame) frame = window.requestAnimationFrame(measure);
     };
-    // The first measure waits a frame too: the card's own size is only known once it is drawn.
     schedule();
     window.addEventListener("scroll", schedule, { passive: true, capture: true });
     window.addEventListener("resize", schedule);
@@ -250,8 +238,6 @@ function Tip({ stop, target, position, total, onBack, onNext, onSkip }: TipProps
   );
 }
 
-// Below if it fits, else above, else the roomier side; clamped sideways. Only a target taller
-// than the screen can end up under the tip, which then keeps to the screen's bottom edge.
 function placeBeside(target: DOMRect, tip: DOMRect): Place {
   const viewW = window.innerWidth;
   const viewH = window.innerHeight;

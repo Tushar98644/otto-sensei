@@ -35,7 +35,6 @@ describe("greenhousePosting", () => {
       updatedAt: Date.parse("2026-11-06T15:25:07-05:00"),
       closesAt: null,
     });
-    // The content arrives HTML-escaped; it must come out as plain text.
     expect(posting.text).not.toMatch(/&lt;|&amp;|<p>/);
     expect(posting.text).toContain("What you’ll do\n\n- Own the plan for bringing AI");
     expect(posting.text).toContain("Salary range: $120,000–$180,000 & equity.");

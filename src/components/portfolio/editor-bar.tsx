@@ -17,11 +17,9 @@ import { usePortfolioUrl } from "./use-portfolio-url";
 
 type EditorBarProps = {
   portfolio: Portfolio;
-  // Phones: the page full screen, since there's no room beside the panel.
   onPreview: () => void;
 };
 
-// Every change saves at once, so a live page needs no "Update": the bar says it's saved.
 export function EditorBar({ portfolio, onPreview }: EditorBarProps) {
   const { user } = useMe();
   const saving = usePortfolioStore((state) => state.saving);
@@ -134,7 +132,6 @@ export function EditorBar({ portfolio, onPreview }: EditorBarProps) {
         {copied ? "Link copied" : ""}
       </span>
 
-      {/* Phones: pinned to the bottom, so Preview and the main action are always one tap away. */}
       <div className="fixed inset-x-4 bottom-4 z-20 flex justify-end lg:hidden">
         <div className="flex gap-1.5 rounded-2xl bg-surface p-1.5 shadow-float ring-1 ring-ink/5">
           <Button variant="secondary" onClick={onPreview}>

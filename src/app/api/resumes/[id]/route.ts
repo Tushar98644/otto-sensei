@@ -17,15 +17,12 @@ type Context = { params: Promise<{ id: string }> };
 const SIGN_IN = "Sign in to sync your resumes.";
 const EMPTY: Omit<EmptyOk, "ok"> = {};
 const SAVED: Omit<PutResumeResponse, "ok"> = { deleted: false };
-// A 200, not an error: the client did nothing wrong, it just hasn't heard about the deletion yet.
 const DELETED: Omit<PutResumeResponse, "ok"> = { deleted: true };
 
 function isResumeId(id: string): boolean {
   return ResumeSchema.shape.id.safeParse(id).success;
 }
 
-// Upsert keyed by (user, id). Sending the same version twice is harmless, and a copy older than
-// the stored one is accepted without replacing it. A resume deleted from the account stays deleted.
 export async function PUT(req: Request, { params }: Context): Promise<Response> {
   const notJson = rejectNonJson(req);
   if (notJson) return notJson;
@@ -36,7 +33,6 @@ export async function PUT(req: Request, { params }: Context): Promise<Response> 
     if (!isResumeId(id)) return fail("bad_request", "That resume id isn't valid.", 400);
     const body = await readJson(req, PutResumeSchema);
     if (!body.ok) {
-      // readJson names the field and the rule it broke, never the value.
       log.info("resumes.bad_request", { reason: body.message });
       return fail("bad_request", "That resume couldn't be saved because part of it isn't valid.", 400);
     }
@@ -62,7 +58,6 @@ export async function PUT(req: Request, { params }: Context): Promise<Response> 
         400,
       );
     }
-    // The resume stays in the browser; the client offers the trial before making a new one.
     if (status === "plan_limit") return proToolRequired(user, "resumes");
     if (status === "deleted") {
       log.info("resumes.write_after_delete");
@@ -77,14 +72,11 @@ export async function PUT(req: Request, { params }: Context): Promise<Response> 
   }
 }
 
-// Succeeds when there was nothing to delete too: the caller only needs the backup gone. A
-// tombstone is left behind so other devices drop their copies instead of uploading them again.
 export async function DELETE(_req: Request, { params }: Context): Promise<Response> {
   try {
     const user = await getCurrentUser();
     if (!user) return fail("unauthorized", SIGN_IN, 401);
     const { id } = await params;
-    // An id the schema rejects was never saved, so there's no row to look for.
     if (isResumeId(id)) await deleteBackup(user.id, id);
     return ok(EMPTY);
   } catch (error) {

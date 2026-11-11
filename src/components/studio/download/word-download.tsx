@@ -11,7 +11,6 @@ import { track } from "@/lib/analytics/client";
 import type { PdfPageSize } from "@/lib/pdf/page-size";
 import type { Resume } from "@/lib/resume/schema";
 
-// Built from the PDF's own model, so the two match; jszip loads on click. Word is Pro.
 export function WordDownload({
   resume,
   pageSize,

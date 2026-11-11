@@ -79,7 +79,6 @@ describe("sortResumes", () => {
   it("sorts by the name shown, with numbers in number order and untitled ones by person", () => {
     const named = [resume("Resume 10", 1), resume("resume 9", 2), resume("Alpha", 3)];
     expect(sortResumes(named, "name").map((r) => r.title)).toEqual(["Alpha", "resume 9", "Resume 10"]);
-    // An empty title falls back to "Untitled resume".
     expect(sortResumes([scratch, sample], "name").map((r) => r.title)).toEqual(["Sample resume", ""]);
   });
 

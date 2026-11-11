@@ -17,8 +17,7 @@ export function useReminderSettings(userId: string | null, enabled = true) {
 
 let queue: Promise<unknown> = Promise.resolve();
 
-// Saves go one after another, so quick changes reach the server in order; a failed one puts back
-// what was shown before it and rejects.
+// Saves run one after another, so quick changes reach the server in order.
 export function saveReminderSettings(
   userId: string,
   change: ReminderSettingsBody,

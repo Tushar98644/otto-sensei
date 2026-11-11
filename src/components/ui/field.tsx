@@ -11,12 +11,10 @@ type ControlProps = {
 
 export type FieldProps = {
   label: ReactNode;
-  // Exactly one control; Field adds id, aria-describedby and aria-invalid, keeping its own.
   children: ReactElement<ControlProps>;
   hint?: ReactNode;
   error?: ReactNode;
   optional?: boolean;
-  // Keeps the label for screen readers when the design shows none.
   hideLabel?: boolean;
   className?: string;
 };

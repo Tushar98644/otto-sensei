@@ -120,9 +120,7 @@ function SidebarLink({
   count: number | null;
 }) {
   const current = isCurrent(item, pathname);
-  // Prefetched on pointer or focus, not on view: viewport prefetching sent 18 requests per
-  // dashboard load for pages most visits never open. Dashboard pages are dynamic, so only a full
-  // prefetch brings the page itself.
+  // Prefetch on intent, not view (18 requests per load); dynamic pages need a full prefetch.
   const [intent, setIntent] = useState(false);
   const showIntent = () => {
     setIntent(true);
@@ -163,8 +161,6 @@ function SidebarLink({
   );
 }
 
-// "Pro · trial until Nov 13" or "Free plan". Meters live on the Account page; limits prompt where
-// they bite.
 function planLine(user: SessionUser): string {
   if (user.plan === "free") return "Free plan";
   const name = PLANS[user.plan].name;
@@ -181,7 +177,7 @@ function AccountRow({ user, me }: { user: SessionUser; me: Me | null }) {
 
   async function signOut() {
     setSigningOut(true);
-    // Also takes the account's backed-up resumes out of this browser, for shared computers.
+    // Also clears the account's backed-up resumes from this browser, for shared computers.
     const signedOut = await signOutAndRelease(user.id).catch((error: unknown) => {
       setSigningOut(false);
       toast({ title: "Couldn't sign you out", description: errorMessage(error), variant: "error" });
@@ -199,7 +195,6 @@ function AccountRow({ user, me }: { user: SessionUser; me: Me | null }) {
         label="Account"
         triggerLabel={`Account menu for ${user.email}`}
         triggerClassName="flex h-12 w-full items-center gap-2.5 rounded-lg px-2 text-left transition-colors hover:bg-ink/5 aria-expanded:bg-ink/5"
-        // Wide enough for "Work rights & preferences" on one line.
         className="w-64"
         trigger={
           <>

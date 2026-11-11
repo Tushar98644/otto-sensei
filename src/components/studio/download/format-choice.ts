@@ -12,13 +12,11 @@ function joinWords(words: readonly string[]): string {
   return `${words.slice(0, -1).join(", ")} and ${words.at(-1)}`;
 }
 
-// The user's section order wins until they accept the format's (Developer: skills first).
 export function sectionOrderOffer(resume: Resume): SectionOrderOffer | null {
   const hint = TEMPLATE_INFO[templateOf(resume)].sectionOrderHint;
   if (!hint || followsHint(resume.sectionOrder, hint)) return null;
   const order = orderByHint(resume.sectionOrder, hint);
   const before = resume.sectionOrder;
-  // A section "moves up" when something that used to come before it now comes after it.
   const moved = order.filter((key, index) =>
     order.slice(index + 1).some((later) => before.indexOf(later) < before.indexOf(key)),
   );

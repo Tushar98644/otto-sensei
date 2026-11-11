@@ -118,7 +118,7 @@ function FixDialog({ flow, resumeId }: { flow: FixFlow; resumeId: string }) {
     if (failure) document.getElementById(`${baseId}-retry`)?.focus();
   }, [failure, baseId]);
 
-  // The update button was disabled while it worked, which dropped focus. Hand it back for a retry.
+  // Disabling the button while it worked dropped focus; hand it back for a retry.
   useEffect(() => {
     if (refineProblem) document.getElementById(updateButtonId(baseId))?.focus();
   }, [refineProblem, baseId]);
@@ -157,7 +157,6 @@ function FixDialog({ flow, resumeId }: { flow: FixFlow; resumeId: string }) {
           limit={limit}
           period={period}
           signedIn={user !== null}
-          // The account's latest count: a suggestion shown again from memory carries an old one.
           allowance={fixAllowanceText(
             me?.usage?.fix ?? state.usage.fix,
             user?.plan,
@@ -184,8 +183,7 @@ function FixDialog({ flow, resumeId }: { flow: FixFlow; resumeId: string }) {
     >
       {state.status === "closed" ? null : (
         <div aria-busy={state.status === "loading" || undefined} className="flex flex-col gap-5">
-          {/* One note across every state: a live region only announces changes to text it
-              already holds, so swapping in a new note would go unheard. */}
+          {/* One note for all states: live regions only announce changes to existing text. */}
           <OttoNote size="sm" meta={ottoMeta(state)} message={otto} />
           <OriginalLine
             text={state.target.text}

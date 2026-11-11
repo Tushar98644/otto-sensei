@@ -30,7 +30,6 @@ import type { OfferCard } from "./upgrade-offer";
 
 const count = new Intl.NumberFormat("en-US");
 
-// The allowances people compare first. Every limit is on the pricing page and in the terms.
 const HIGHLIGHTS: readonly Feature[] = ["tailor", "letter", "fix"];
 
 const SPOKEN: Record<BillingInterval, string> = {
@@ -44,15 +43,12 @@ export type PlanOfferProps = {
   intervals: readonly BillingInterval[];
   interval: BillingInterval;
   onIntervalChange: (interval: BillingInterval) => void;
-  // Each plan's button goes straight to checkout. Left out while payments are off: no buttons.
   onChoose?: (card: OfferCard) => void;
   focusPlan?: PaidPlanId | null;
-  // The plan whose checkout is starting: its button spins and the others wait.
   pendingPlan?: PaidPlanId | null;
   disabled?: boolean;
 };
 
-// Prices come from PRICES_USD, so they can't drift from what Creem charges.
 export function PlanOffer({
   cards,
   intervals,
@@ -63,7 +59,6 @@ export function PlanOffer({
   pendingPlan = null,
   disabled = false,
 }: PlanOfferProps) {
-  // One primary key: the popular plan, or the only one to buy.
   const primary = (cards.find((card) => card.popular) ?? cards.find((card) => !card.current))?.plan;
   return (
     <div className="flex flex-col gap-4">
@@ -169,7 +164,6 @@ function PlanOfferCard({
           loading={pending}
           disabled={disabled}
           onClick={() => onChoose(card)}
-          // data-autofocus picks it on open; autoFocus when coming back from the sign-in step.
           autoFocus={focus}
           data-autofocus={focus ? true : undefined}
         >

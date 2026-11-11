@@ -13,7 +13,6 @@ import { turnOffWithUndo } from "./share-actions";
 import { isBehind, viewFacts } from "./share-facts";
 import { useShares } from "./share-store";
 
-// Hidden until there is one, so people who never share don't get an empty section.
 export function SharedLinks() {
   const { user } = useMe();
   const userId = user?.id ?? null;
@@ -52,7 +51,6 @@ export function SharedLinks() {
 
 type RowProps = {
   link: SharedLink;
-  // The resume in this browser, when it is still here.
   resume: Resume | null;
   now: number;
   onTurnOff: (link: SharedLink) => void;

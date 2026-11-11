@@ -42,14 +42,12 @@ import { useReel } from "../root";
 import { animate, type Controls, SpringValue } from "../spring";
 import { cleanRenderer, cleanScene, modelLoader, removeLights, throttle } from "./three";
 
-// HamishMW/portfolio components/model/model.jsx, line for line (his device models, MIT), with
-// screens drawn from the project's words (../screen.tsx). Lazy: live page and full preview only.
+// Ported from HamishMW/portfolio components/model/model.jsx (MIT, see ../LICENSE.txt).
 
 export type ScreenSource = { kind: "svg"; markup: string };
 
 export type DeviceModel = {
   url: string;
-  // Screen texture size: the device's own screen ratio.
   width: number;
   height: number;
   position: { x: number; y: number; z: number };
@@ -79,7 +77,6 @@ export default function Model({
   cameraPosition?: { x: number; y: number; z: number };
   className?: string;
   onLoad?: () => void;
-  // No WebGL, or a picture the page may not paint into WebGL: the still frame stays.
   onFail: () => void;
   alt: string;
 }) {
@@ -150,7 +147,6 @@ export default function Model({
 
     blurShadow(blurAmount);
 
-    // A second pass removes the artifacts; 0.4 is the least blur that does.
     blurShadow(blurAmount * 0.4);
 
     r.setRenderTarget(null);
@@ -227,7 +223,7 @@ export default function Model({
     });
 
     plane.current = new Mesh(planeGeometry, planeMaterial);
-    // The y from the texture is flipped!
+    // The texture's y is flipped.
     plane.current.scale.y = -1;
     shadowGroup.current.add(plane.current);
 
@@ -257,7 +253,6 @@ export default function Model({
     shadowCamera.current.rotation.x = Math.PI / 2;
     shadowGroup.current.add(shadowCamera.current);
 
-    // Like MeshDepthMaterial, but goes from black to transparent
     const depth = new MeshDepthMaterial();
     depth.userData.darkness = { value: shadowDarkness };
     depth.onBeforeCompile = (shader) => {
@@ -296,7 +291,6 @@ export default function Model({
       unsubscribeY();
       renderer.current = null;
     };
-    // Built once per mount, like the original.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -314,7 +308,6 @@ export default function Model({
     return () => window.removeEventListener("mousemove", onMouseMove);
   }, [isInViewport, reduceMotion, rotationX, rotationY]);
 
-  // Resizes with the window and with the preview's box.
   useEffect(() => {
     const box = container.current;
     if (!box) return;
@@ -412,15 +405,13 @@ function Device({
       texture.anisotropy = r.capabilities.getMaxAnisotropy();
       texture.generateMipmaps = false;
 
-      // Decode the texture to prevent jank on first render
       r.initTexture(texture);
 
       const material = node.material as ScreenMaterial;
       material.color = new Color(0xffffff);
       material.transparent = true;
       material.map = texture;
-      // three keeps the program it first compiled; without this a screen drawn before its
-      // picture arrived would stay blank.
+      // three keeps its first compiled program; without this an early screen stays blank.
       material.needsUpdate = true;
     };
 
@@ -442,7 +433,6 @@ function Device({
         if (node.material) (node.material as ScreenMaterial).color = new Color(0x1f2025);
 
         if (node.name === MeshType.Screen) {
-          // A copy of the screen mesh, faded out over the full-resolution texture.
           const placeholderScreen = node.clone();
           placeholderScreen.material = (node.material as ScreenMaterial).clone();
           node.parent?.add(placeholderScreen);
@@ -538,7 +528,6 @@ function Device({
       cancelled = true;
       animation?.stop();
     };
-    // Loaded once it's shown, like the original.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [show]);
 
@@ -549,13 +538,11 @@ type ScreenTextures = { full: Texture; placeholder: Texture };
 
 const PLACEHOLDER_SCALE = 1 / 24;
 
-// Cover-cropped to the screen's ratio (top first), plus a tiny copy for the blurred placeholder.
 async function screenTextures(
   source: ScreenSource,
   width: number,
   height: number,
 ): Promise<ScreenTextures> {
-  // Made in memory from the page's own markup, never fetched.
   const image = new Image();
   image.decoding = "async";
   image.src = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(source.markup)}`;
@@ -576,7 +563,7 @@ async function screenTextures(
     height,
     PLACEHOLDER_SCALE,
   );
-  // Throws if a browser treats the drawing as tainted, before anything reaches the GPU.
+  // Throws if the browser treats the drawing as tainted, before anything reaches the GPU.
   full.getContext("2d")?.getImageData(0, 0, 1, 1);
   return { full: new CanvasTexture(full), placeholder: new CanvasTexture(small) };
 }

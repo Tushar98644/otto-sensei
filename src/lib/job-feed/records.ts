@@ -18,13 +18,8 @@ import {
   type Seniority,
 } from "./types";
 
-// Matching scores every candidate job in SQL and reads back only the best few hundred.
-
-// Work-rights rules cost ~1 ms a job, so this also bounds a request.
 export const CANDIDATE_POOL = 300;
-// Open this long, a post is treated like a "general application" one: hidden from Matches.
 export const EVERGREEN_AFTER_MS = 120 * DAY_MS;
-// Weight of a skill job_skills doesn't know yet (before the first ingest, and in tests).
 export const DEFAULT_SKILL_WEIGHT = 1;
 export const LIST_COLUMNS = {
   id: jobs.id,
@@ -60,7 +55,7 @@ export function toFeedJob(row: ListRow): FeedJob {
   };
 }
 
-// Prefix search on whole words. Only letters and digits reach the query, so no tsquery syntax.
+// Only letters and digits reach the query, so no tsquery syntax gets through.
 export function wordsQuery(input: string): string | null {
   const words = searchWords(input).split(" ").filter(Boolean).slice(0, 6);
   return words.length === 0 ? null : words.map((word) => `${word}:*`).join(" & ");
@@ -145,7 +140,6 @@ export function matchableConditions(filters: JobFilters, now: number): SQL[] {
 
 export const GROUP = sql`coalesce(nullif(${jobs.groupKey}, ''), ${jobs.id}::text)`;
 
-// Only jobs matchJob would label count, so `groups` is how many Matches there are in all.
 export async function matchCandidates(
   db: Db,
   query: MatchQuery,
@@ -166,7 +160,6 @@ export async function matchCandidates(
     when ${jobs.family} = any(${textArray(past)}) then ${ORDER_LIMITS.familyWeight * PAST_KIND_WEIGHT}::float8 else 0::float8 end`;
   const level = seniority === null ? null : SENIORITIES.indexOf(seniority);
   const levelOf = sql`array_position(${textArray(SENIORITIES)}, ${jobs.seniority})`;
-  // The same steps as levelFactor in order.ts.
   const levelFactor =
     level === null
       ? sql`1::float8`
@@ -229,7 +222,6 @@ export async function matchCandidates(
   return { rows, copies, groups: pooled[0]?.groups ?? 0 };
 }
 
-/** Closed ones included. */
 export async function savedCandidates(db: Db, userId: string): Promise<CandidateRow[]> {
   return db
     .select(CANDIDATE_COLUMNS)
@@ -289,7 +281,6 @@ export async function jobStats(db: Db): Promise<{ openJobs: number; checkedAt: n
 
 export type SaveJobResult = "saved" | "not_found" | "limit_reached" | "no_user";
 
-/** Idempotent; capped per account under the user's row lock. */
 export async function saveJob(
   db: Db,
   userId: string,
@@ -321,11 +312,9 @@ export async function unsaveJob(db: Db, userId: string, jobId: string): Promise<
 }
 
 export type JobDetail = FeedJob & {
-  // The opening of the post as stored (JOB_LIMITS.descriptionChars); full-post.ts reads the rest.
   description: string;
   validThrough: number | null;
   employmentType: FeedJob["employmentType"];
-  // Where the post can be read again: the board's token and the board's own id for the job.
   board: string;
   externalId: string;
 };

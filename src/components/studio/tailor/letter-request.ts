@@ -1,5 +1,3 @@
-// The Tailor step writes the requested letter as its results open. Memory only.
-
 let requestedFor: string | null = null;
 
 export const APPLY_KIT_ID = "tailor-apply-kit";

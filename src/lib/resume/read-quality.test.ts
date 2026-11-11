@@ -13,8 +13,6 @@ function signsFor(text: string, layout?: ReadLayout) {
   return weakReadSigns(text, heuristicParse(text, NOW), layout);
 }
 
-// As the import route reads a file: PDFs in columns are read straight across, Word text boxes
-// float, and the header's contact lines go first.
 async function signsForFile(bytes: Uint8Array, name: string) {
   const extraction = await extractDocument(bytes, name);
   const { kind, signals } = extraction;

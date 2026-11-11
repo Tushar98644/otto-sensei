@@ -7,7 +7,6 @@ import { readPrep } from "@/lib/insights/prep";
 import { toWriting } from "@/lib/writings/records";
 import { APPLICATION_COLUMNS, toApplication } from "./records";
 
-// More than anyone writes for one job; keeps the response small whatever is stored.
 const THREAD_WRITINGS = 50;
 
 export async function getApplicationThread(
@@ -48,7 +47,6 @@ export async function getApplicationThread(
       .where(
         and(
           eq(writings.userId, userId),
-          // Linked by id; a letter saved before the links existed still shows by its job link.
           application.jobUrl
             ? or(
                 eq(writings.applicationId, id),

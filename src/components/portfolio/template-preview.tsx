@@ -12,8 +12,6 @@ const LiveTemplate = lazy(() =>
   import("./live-template").then((module) => ({ default: module.LiveTemplate })),
 );
 
-// A static picture until the person points at or tabs to the card, then the real template scaled
-// down: eight live pages at once were too slow. It unmounts when the card scrolls far away.
 export function TemplatePreview({
   id,
   sample,
@@ -21,7 +19,6 @@ export function TemplatePreview({
   className,
 }: {
   id: PortfolioTemplateId;
-  // null draws Jordan's sample; the static picture holds its place until the live page mounts.
   sample: TemplateSample | null;
   sizes: string;
   className?: string;

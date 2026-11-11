@@ -1,8 +1,6 @@
 import { formatRelativeTime } from "@/components/studio/relative-time";
 import type { SharedLink } from "@/lib/share/types";
 
-// "14 views · Last opened 2 hours ago · Shared 3 days ago".
-
 const COUNT = new Intl.NumberFormat("en-US");
 
 export function viewFacts(
@@ -21,7 +19,6 @@ export function viewFacts(
   return parts.join(" · ");
 }
 
-/** The resume changed after this version was shared, so the link shows an older one. */
 export function isBehind(
   link: Pick<SharedLink, "versionAt">,
   resume: { updatedAt: number },

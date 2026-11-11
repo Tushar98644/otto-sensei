@@ -9,8 +9,6 @@ import {
   type GitHubUser,
 } from "./stats";
 
-// Three calls, each cached like the import's, so a busy page costs GitHub nothing.
-
 const BUDGET_MS = 12_000;
 
 function parseUser(body: string, truncated: boolean): GitHubUser {
@@ -28,12 +26,10 @@ function parseEvents(body: string, truncated: boolean): GitHubEvent[] {
   });
 }
 
-// Throws GitHubError when GitHub is busy or out of calls; callers keep the copy they had.
 export async function fetchGitHubStats(
   username: string,
   now = Date.now(),
 ): Promise<GitHubStats | null> {
-  // The deadline runs on the real clock; `now` only dates the numbers.
   const session = newGitHubSession(BUDGET_MS);
   const name = encodeURIComponent(username.toLowerCase());
   const user = await cachedGet(session, `/users/${name}`, {
@@ -43,7 +39,6 @@ export async function fetchGitHubStats(
   });
   if (user === null) return null;
   const repos = await fetchRepos(session, username);
-  // Events are a nice extra: a busy events API still leaves the page its stars and languages.
   let events: GitHubEvent[] = [];
   try {
     events =

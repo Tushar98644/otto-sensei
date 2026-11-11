@@ -5,10 +5,6 @@ import type { Resume, TemplateId } from "@/lib/resume/schema";
 import { cn } from "@/lib/utils";
 import { ResumeThumbnail } from "./resume-thumbnail";
 
-// Pages are miniatures of the user's newest resume drawn with the sample person (standIn), never
-// stock pictures. Each card's loops read --otto-delay from the stage, so the band reads down the
-// page before Otto lifts his own. Nothing moves for people who prefer reduced motion.
-
 function Stage({ delay, children }: { delay: number; children: ReactNode }) {
   return (
     <div
@@ -121,7 +117,6 @@ export function FormatsArt({ resume }: { resume: Resume }) {
     <Stage delay={-5.8}>
       {FAN.map((page) => (
         <div key={page.template} className={cn("absolute w-20", MOVE, page.className)}>
-          {/* Hover moves the outer layer, the idle float the inner one, so they add up. */}
           <div
             className="motion-safe:animate-scene-float"
             style={{ "--scene-delay": `${page.float}s` } as CSSProperties}

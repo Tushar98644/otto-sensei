@@ -4,9 +4,7 @@ import { lintResume } from "./bullets";
 import { firstWeakLine } from "./weak-lines";
 
 const STRONG = "Cut checkout errors 38% by rewriting the payment retry logic";
-// Another strong line: the same one twice is flagged as repeated.
 const STRONG_TOO = "Led a team of 6 engineers to ship the mobile app in 4 months";
-// Low severity only: a tip, not a warning.
 const TIP = "Cut checkout errors 38% for various teams";
 const WARNING = "Responsible for managing the company website";
 

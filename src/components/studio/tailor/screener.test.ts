@@ -55,7 +55,6 @@ function result(): TailorResult {
     keywords: [],
     askUser: [],
     bulletOrder: [],
-    // A suggested summary that repeats the skills list must not count as proof.
     summary: "Engineer who runs Kubernetes and Kafka in production.",
     notes: [],
   };
@@ -96,7 +95,6 @@ describe("buildScreener", () => {
     expect(screener.fixFirst.map((item) => item.key)).toEqual(["listed", "weak"]);
     expect(screener.lines.map((line) => line.bulletId)).toEqual(["a"]);
 
-    // A line added for Kubernetes shows up as the copy's own line, with its reason.
     const added: TailorChoices = {
       ...none,
       requirements: {
@@ -138,7 +136,6 @@ describe("the add-a-line helpers", () => {
       verbNote("I helped set up staging with Terraform", "Led the staging setup with Terraform"),
     ).toBe("Otto wrote “led”, which claims more than you said. Change it if it isn't right.");
     expect(verbNote("I set up staging with Terraform", "Set up staging with Terraform")).toBeNull();
-    // Real GLM Flash output: "helped set up" came back as plain "Set up".
     expect(
       verbNote(
         "At Brightloop I helped set up Amplitude dashboards to track how teams adopted the add-on",

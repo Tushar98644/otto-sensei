@@ -1,9 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { cubicBezier, spring, tweenAt } from "./spring";
 
-// The springs Hamish's portfolio gets from framer-motion, checked against the physics: they start
-// where they're told, overshoot only when underdamped, and come to rest on the target.
-
 function settle(solver: ReturnType<typeof spring>, step = 1000 / 60, limit = 20_000) {
   const values: number[] = [];
   for (let t = 0; t <= limit; t += step) {
@@ -20,16 +17,13 @@ describe("spring", () => {
     expect(solver.at(0).value).toBeCloseTo(0, 6);
     const { values, t } = settle(solver);
     expect(values.at(-1)).toBe(12);
-    // The decoder text's spring takes a second or two, as on the original site.
     expect(t).toBeGreaterThan(1000);
     expect(t).toBeLessThan(6000);
   });
 
   it("overshoots when underdamped and never when overdamped", () => {
-    // framer-motion's default spring (stiffness 100, damping 10): damping ratio 0.5.
     const under = settle(spring(0, 10, { stiffness: 100, damping: 10 })).values;
     expect(Math.max(...under)).toBeGreaterThan(11);
-    // The model's lid: stiffness 80, damping 20 (ratio 1.12) never passes closed.
     const over = settle(
       spring(Math.PI / 2, 0, { stiffness: 80, damping: 20, restDelta: 0.0001, restSpeed: 0.0001 }),
     ).values;
@@ -44,7 +38,6 @@ describe("spring", () => {
   });
 
   it("handles a critically damped spring", () => {
-    // damping = 2 * sqrt(stiffness * mass)
     const solver = spring(0, 1, { stiffness: 100, damping: 20, mass: 1 });
     const { values } = settle(solver);
     expect(Math.max(...values)).toBeLessThanOrEqual(1);

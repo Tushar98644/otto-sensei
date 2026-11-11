@@ -10,9 +10,7 @@ import { visibleResume } from "@/lib/resume/ops";
 import { createSampleResume } from "@/lib/resume/sample";
 import { extrasOf, type ExtraKind, type ExtraSection, type Resume } from "@/lib/resume/schema";
 
-// Miniatures show the sample person, never the user's own details: thumbnails end up in
-// screenshots and screen shares. Only the layout carries over (sections, entry counts, dates,
-// line counts and rough lengths); every word comes from the sample resume or its extras below.
+// Never the user's own details: thumbnails end up in screenshots and screen shares.
 
 type Pools = {
   model: PdfModel;
@@ -88,8 +86,6 @@ function getPools(): Pools {
   return pools;
 }
 
-// Whole sentences in order read as a real page, and the sample resume's own miniature comes out
-// word for word. Capped, since a miniature shows one page.
 export function standInText(lines: readonly string[], length: number, line: number): string {
   if (lines.length === 0 || length <= 0) return "";
   const target = Math.min(length, 600);
@@ -102,7 +98,6 @@ export function standInText(lines: readonly string[], length: number, line: numb
       size += word.length + 1;
     }
   }
-  // A line cut after "teams," shouldn't end on the comma.
   return out.join(" ").replace(/[,;:]$/, "");
 }
 
@@ -110,13 +105,10 @@ function pick<T>(list: readonly T[], index: number): T | undefined {
   return list.length > 0 ? list[index % list.length] : undefined;
 }
 
-// A sample entry's company: its company header when it's one of several roles there.
 function orgOf(sample: PdfEntry | undefined): string {
   return sample?.company?.name || sample?.org || sample?.title || "Company";
 }
 
-// `firstLine` counts lines across the section, so the next job carries on with the next sample
-// sentence. `company` is the sample company, shared by every role of a run.
 function standInEntry(
   real: PdfEntry,
   sample: PdfEntry | undefined,
@@ -210,8 +202,6 @@ function sampleEntry(kind: ExtraKind, index: number): PdfEntry {
   };
 }
 
-// A one-line list ("Spanish (Fluent), French (Basic)") keeps its length and which items had a
-// level, read from the shown items of the section it came from.
 function standInList(section: PdfExtraSection, source: ExtraSection | undefined): string {
   const items = (source?.items ?? []).filter((item) => item.title.trim() || item.subtitle.trim());
   const count = Math.max(1, items.length);
@@ -234,10 +224,7 @@ function standInExtra(
   };
 }
 
-// `blank`: nothing to draw yet (no name, headline or section with content).
 export function standInPage(resume: Resume): { model: PdfModel; blank: boolean } {
-  // The PDF model leaves hidden items out too; going through the printed copy here keeps the
-  // miniature honest even if that ever changes.
   const shown = visibleResume(resume);
   const real = buildPdfModel(shown);
   const extras = real.extras ?? [];

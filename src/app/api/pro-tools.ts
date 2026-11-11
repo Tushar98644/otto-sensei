@@ -10,9 +10,6 @@ import type { SessionUser } from "@/lib/auth/types";
 import { log } from "@/lib/log";
 import { pluralize } from "@/lib/utils";
 
-// Same 402 upgrade_required as the AI routes. Reading what the account has is never refused;
-// only adding or changing is.
-
 export const PRO_TOOL_MESSAGES: Record<ProTool, string> = {
   resumes: `Free keeps ${pluralize(RESUME_LIMITS.free, "resume")}.`,
   formats: "That format comes with Pro. Free has Classic and Compact.",

@@ -4,7 +4,6 @@ import type { CheckStatus } from "@/lib/checks/types";
 import { cn } from "@/lib/utils";
 import { Badge } from "./badge";
 
-// Status is never color alone: each one has its own icon shape and a word.
 export const STATUS_LABELS: Record<CheckStatus, string> = {
   pass: "Passed",
   warn: "Warning",
@@ -25,7 +24,6 @@ const ICON_COLORS: Record<CheckStatus, string> = {
 
 export type StatusIconProps = {
   status: CheckStatus;
-  // Pass "" only when visible text right beside the icon already names the status.
   label?: string;
   className?: string;
 };

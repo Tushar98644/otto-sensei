@@ -3,15 +3,12 @@ import { Eyebrow } from "@/components/ui/eyebrow";
 import { HeroDemo } from "./hero-demo";
 import { PrimaryCta } from "./primary-cta";
 
-// Most visitors arrive on a phone, so the copy and call to action come before the demo.
 export function Hero() {
   return (
     <section aria-labelledby="hero-title" className="overflow-x-clip">
-      {/* Tight enough at the top that the highlighted lines of the demo land on the first screen. */}
       <div className="container-page pt-12">
         <div className="mx-auto flex max-w-3xl flex-col items-center text-center">
           <Eyebrow>Free resume checker</Eyebrow>
-          {/* BRAND.tagline, set in two lines so the second gets the italic voice. */}
           <h1
             id="hero-title"
             className="mt-4 font-display text-5xl/none font-normal tracking-tight text-ink sm:text-7xl/none lg:text-8xl/none"
@@ -26,7 +23,6 @@ export function Hero() {
               do.
             </em>
           </h1>
-          {/* One sentence group per line on wider screens, so neither breaks mid-thought. */}
           <p className="mx-auto mt-8 max-w-2xl text-lg/7 text-balance text-muted sm:text-xl/8">
             <span className="sm:block">Upload your file and see what hiring software reads.</span>{" "}
             <span className="sm:block">Otto helps you fix weak lines. Downloads are free.</span>

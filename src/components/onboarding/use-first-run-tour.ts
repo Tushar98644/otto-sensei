@@ -6,19 +6,12 @@ import { browserStorage } from "@/lib/browser-storage";
 import { hasSeenTour, markTourSeen, replayRequested, tourDue } from "./seen";
 import type { TourName, TourStop } from "./tours";
 
-// Long enough for the screen to settle (an upload's own focus move, late layout), short enough to
-// still feel like part of arriving.
 const START_DELAY_MS = 900;
-// While a dialog or menu is open, someone is typing, the loading screen is up, or the tab is in
-// the background.
 const RETRY_MS = 1_500;
 
-// One tour at a time across the app.
 let active: { name: TourName; stop: () => void } | null = null;
-// ?tour=1 replays once per page load, not on every step change that follows.
 const replayed = new Set<TourName>();
 
-// `prepare` builds the stops when the tour starts (it may load code), or returns null to skip.
 export function useFirstRunTour(
   name: TourName,
   eligible: boolean,
@@ -58,16 +51,13 @@ export function useFirstRunTour(
     };
     timer = window.setTimeout(() => void attempt(), START_DELAY_MS);
 
-    // Only the pending start is cancelled here: a running tour outlives the studio step it moves
-    // through. Leaving the page ends it (below).
+    // Only the pending start is cancelled: a running tour outlives the step it moves through.
     return () => {
       cancelled = true;
       window.clearTimeout(timer);
     };
   }, [eligible, name]);
 
-  // The page moved on under the tour (the browser's back button still works during it), so its
-  // stops no longer exist.
   useEffect(() => {
     if (!eligible && active?.name === name) active.stop();
   }, [eligible, name]);

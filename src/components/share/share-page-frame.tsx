@@ -4,7 +4,6 @@ import { OttoMark } from "@/components/site/otto-mark";
 import { ROUTES } from "@/components/site/routes";
 import { BRAND } from "@/config/brand";
 
-// No site header: the page belongs to the person who shared it, not to us.
 export function SharePageFrame({ children }: { children: ReactNode }) {
   return (
     <main id="main" className="min-h-dvh bg-surface-muted px-4 pt-4 pb-10 sm:px-6 sm:pt-8 sm:pb-16">

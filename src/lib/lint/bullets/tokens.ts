@@ -64,7 +64,6 @@ export function findPhrases(
   return spans;
 }
 
-// The line's first real word: past list numbering ("1. Helped…") and a leading "I" or "We".
 export function openerIndex(tokens: readonly Token[], text: string): number {
   let i = 0;
   const first = tokens[0];

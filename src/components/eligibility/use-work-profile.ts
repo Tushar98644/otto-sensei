@@ -25,7 +25,6 @@ export function storeWorkProfile(
   });
 }
 
-/** After the "Looking for" card saved: its remote choice is the profile's "Remote only" too. */
 function storeLookingFor(userId: string, lookingFor: LookingForChoice) {
   getQueryClient().setQueryData<WorkProfileData>(queryKeys.workProfile(userId), (data) =>
     data
@@ -34,7 +33,6 @@ function storeLookingFor(userId: string, lookingFor: LookingForChoice) {
   );
 }
 
-/** Every reader sees it at once; it's put back if the save fails, which the caller reports. */
 export async function saveLookingForChoice(userId: string, next: LookingForChoice): Promise<void> {
   const before =
     getQueryClient().getQueryData<WorkProfileData>(queryKeys.workProfile(userId))?.lookingFor ??
@@ -54,7 +52,6 @@ export type WorkProfileState =
   | { status: "signed_out" }
   | { status: "loading" }
   | { status: "error"; retry: () => void }
-  // updatedAt null: signed in, but nothing saved yet.
   | {
       status: "ready";
       userId: string;

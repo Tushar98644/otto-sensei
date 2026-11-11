@@ -23,7 +23,6 @@ const TASK_POSE: Record<OttoTask, OttoPose> = {
   github: "point",
 };
 
-// A quick answer comes back before this, so he never flashes on and off.
 export const OTTO_WORKING_DELAY_MS = 400;
 
 export function revealAfter(delayMs: number, reveal: () => void): () => void {
@@ -35,15 +34,12 @@ export type OttoWorkingProps = {
   task: OttoTask;
   message?: string;
   detail?: ReactNode;
-  // sm (64px) inside dialogs and small panels, md (96px) in a page.
   size?: "sm" | "md";
-  // "stack" puts him above the line, centered, for wide areas like the dropzone.
   layout?: "row" | "stack";
   delayMs?: number;
   className?: string;
 };
 
-// Mount for the wait, unmount when the answer is in. aria-hidden: the status line says it all.
 export function OttoWorking({
   task,
   message,
@@ -68,7 +64,6 @@ export function OttoWorking({
         className,
       )}
     >
-      {/* Holds his space while the delay runs, so nothing below jumps when he appears. */}
       <span aria-hidden className={cn("shrink-0", small ? "size-16" : "size-24")}>
         {shown ? (
           <Otto
@@ -80,7 +75,7 @@ export function OttoWorking({
         ) : null}
       </span>
       <div className="min-w-0">
-        {/* In the page from the start and filled after the delay, so screen readers announce it. */}
+        {/* Present from the start, filled after the delay, so screen readers announce it. */}
         <p
           role="status"
           className={cn(

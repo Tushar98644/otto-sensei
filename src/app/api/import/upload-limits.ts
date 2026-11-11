@@ -5,9 +5,6 @@ import { log } from "@/lib/log";
 import { retryAfterHeader, waitText, type RateLimitResult } from "@/lib/rate-limit";
 import { DAY_MS, HOUR_MS } from "@/lib/time";
 
-// Imports and checks need no account, so they're limited per device cookie and per IP, over a
-// day. These only stop a flood: the plan never turns an upload away.
-
 export type UploadKind = "import" | "check";
 
 const DAILY_LIMITS: Record<UploadKind, { ip: number; device: number }> = {
@@ -36,7 +33,6 @@ function tooMany(kind: UploadKind, scope: LimitScope, result: RateLimitResult): 
   );
 }
 
-// Day windows can be hours away, where "540 minutes" reads badly.
 function waitLong(ms: number): string {
   if (ms < HOUR_MS) return waitText(ms);
   const hours = Math.ceil(ms / HOUR_MS);

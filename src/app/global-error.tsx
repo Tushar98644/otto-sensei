@@ -9,7 +9,6 @@ import { BRAND } from "@/config/brand";
 import { reportClientError } from "@/lib/observability/browser";
 import "./globals.css";
 
-// Shown when the root layout itself fails, so it replaces <html> and <body> and brings the styles.
 export default function GlobalError({
   error,
   retry,

@@ -1,7 +1,6 @@
 import { PDF_FONT } from "@/lib/pdf/fonts";
 import { INK, defineTheme } from "../theme";
 
-// The layout US university career offices hand out: Calibri 11pt (Carlito, same widths).
 export const classic = defineTheme({
   contactLines: [["location", "email", "phone", "links"]],
   contactSeparator: " • ",

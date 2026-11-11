@@ -6,7 +6,7 @@ const MAX_JSON_BYTES = 512 * 1024;
 const DEVICE_COOKIE = "otto_did";
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-// Vercel overwrites x-forwarded-for with the real client address, so the first entry is trustworthy there.
+// Vercel overwrites x-forwarded-for with the real client IP, so its first entry is trustworthy.
 export function clientIp(req: Request): string {
   const forwarded = req.headers.get("x-forwarded-for");
   if (forwarded) return forwarded.split(",")[0]!.trim() || "unknown";

@@ -6,8 +6,6 @@ import type { ContentSection, PortfolioContent } from "@/lib/portfolio/content";
 import { CheckRow } from "../check-row";
 import { editContent } from "./content-store";
 
-// Rows are split by hairlines rather than drawn as cards: the panel is white. `hidden` names what
-// the page leaves out; the fields stay, so the owner can still edit them.
 export function SectionCard({
   title,
   meta,

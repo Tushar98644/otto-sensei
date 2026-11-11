@@ -13,7 +13,6 @@ export function isBulletSection(key: SectionKey): key is EntrySection {
   return key === "experience" || key === "projects" || key === "education";
 }
 
-// Missing sections are appended, so every section stays editable even if an import skipped it.
 export function sectionDisplayOrder(order: readonly SectionKey[]): SectionKey[] {
   const seen = new Set<SectionKey>();
   for (const key of order) if (SECTION_KEYS.includes(key)) seen.add(key);
@@ -30,7 +29,6 @@ export function moveSection(resume: Resume, key: SectionKey, delta: number): Res
   return { ...resume, sectionOrder: order };
 }
 
-// A section left out of sectionOrder doesn't print; editing it means the user wants it.
 export function includeSection(resume: Resume, key: SectionKey): Resume {
   return resume.sectionOrder.includes(key)
     ? resume
@@ -41,7 +39,6 @@ export function cleanSectionTitle(draft: string, max = MAX_SECTION_TITLE_CHARS):
   return draft.replace(/\s+/g, " ").trim().slice(0, max).trim();
 }
 
-// Blank, or the standard name typed back, removes the custom heading.
 export function setSectionTitle(resume: Resume, key: SectionKey, draft: string): Resume {
   const title = cleanSectionTitle(draft);
   const custom = title !== "" && title !== SECTION_LABELS[key];

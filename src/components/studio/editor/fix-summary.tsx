@@ -9,7 +9,6 @@ import { reviewResume, type ReviewItem } from "@/lib/lint/review";
 import { useResumeValue } from "./use-editor";
 import { useSettled } from "./use-settled";
 
-// The whole-resume review is heavier than one line's lint, so it waits for a longer pause.
 const REVIEW_SETTLE_MS = 800;
 
 export function FixSummary({ resumeId }: { resumeId: string }) {

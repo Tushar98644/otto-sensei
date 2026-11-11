@@ -8,7 +8,6 @@ import { sharePath } from "@/lib/share/types";
 
 const noSubscribe = () => () => {};
 
-/** The full address of a share page, from wherever the app is running. "" on the server. */
 export function useShareUrl(slug: string): string {
   const origin = useSyncExternalStore(
     noSubscribe,
@@ -30,7 +29,6 @@ export function useCopyLink() {
     try {
       await navigator.clipboard.writeText(url);
     } catch {
-      // No clipboard access (an insecure page, or the browser said no).
       toast({
         title: "Couldn't copy",
         description: "Select the link and copy it yourself.",
@@ -50,7 +48,6 @@ type LinkButtonProps = {
   slug: string;
   variant?: ButtonVariant;
   size?: ButtonSize;
-  // For rows with several links: "Copy link for Maya Chen".
   label?: string;
 };
 
@@ -65,7 +62,6 @@ export function CopyLinkButton({ slug, variant = "primary", size = "md", label }
         onClick={() => copy(url)}
         disabled={!url}
         aria-label={label}
-        // Keeps its width when the label turns into "Copied".
         className="min-w-28"
       >
         {copied ? <Check aria-hidden /> : null}

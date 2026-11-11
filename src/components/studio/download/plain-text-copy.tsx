@@ -16,7 +16,6 @@ export function PlainTextCopy({ resume }: { resume: Resume }) {
       await navigator.clipboard.writeText(text);
       toast({ title: "Copied", description: "Paste it into any application form.", variant: "success" });
     } catch {
-      // No clipboard access (an insecure page, or the browser said no): the text below still works.
       toast({
         title: "Couldn't copy",
         description: "Open “See the plain text” and copy it from there.",

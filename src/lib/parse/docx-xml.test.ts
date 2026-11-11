@@ -108,8 +108,6 @@ describe("hasBrokenTags", () => {
 });
 
 describe("parts full of unclosed tags", () => {
-  // About 1.8 MB, just under the 2 MiB part cap. Each pattern used to scan ahead and back from every
-  // "<", which took seconds (bounded repeats) or hours (the unbounded tag strip in partText) here.
   const unclosed = (name: string) => `<w:${name} `.repeat(Math.floor(1_800_000 / (name.length + 4)));
 
   function elapsed(run: () => unknown): number {

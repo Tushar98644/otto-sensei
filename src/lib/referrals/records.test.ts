@@ -43,8 +43,6 @@ beforeEach(async () => {
   code = made;
 });
 
-// Bonus units land on the account's period row whatever its plan, but Free has no AI to spend them
-// on, so these read the row as a monthly Pro account sees it.
 const onPro = (user: SessionUser): SessionUser => ({ ...user, plan: "pro" });
 
 describe("ensureReferralCode", () => {
@@ -90,9 +88,7 @@ describe("claimReferral", () => {
       expect(usage.tailor.limit).toBe(PLANS.pro.limits.tailor + REFERRAL_BONUS.tailor);
       expect(usage.letter.limit).toBe(PLANS.pro.limits.letter);
     }
-    // On Free itself the extras wait: no AI, bonus or not.
     expect((await getUsage(maya, NOV)).fix.limit).toBe(0);
-    // Only for that month.
     expect((await getUsage(onPro(owner), DEC)).fix.limit).toBe(PLANS.pro.limits.fix);
     expect(await claimReferral({ userId: maya.id, code, deviceId: null, checked: true }, NOV)).toBe(
       "already",
@@ -188,7 +184,6 @@ describe("claimReferral", () => {
     const friends = await Promise.all(
       Array.from({ length: MAX_REWARDED_REFERRALS + 2 }, () => friend()),
     );
-    // In parallel: the lock on the inviter keeps the cap exact.
     const outcomes = await Promise.all(
       friends.map((person) =>
         claimReferral({ userId: person.id, code, deviceId: device(), checked: true }, NOV),
@@ -273,7 +268,6 @@ describe("referralSummary", () => {
       thisPeriod: REFERRAL_BONUS,
       period: "week",
     });
-    // The next billing week starts without them.
     expect((await getUsage(weeklyOwner, renewsAt)).fix.limit).toBe(PLANS.pro.weeklyLimits.fix);
   });
 });

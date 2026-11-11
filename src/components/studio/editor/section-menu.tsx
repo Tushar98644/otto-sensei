@@ -6,7 +6,6 @@ import { Menu, type MenuEntry } from "@/components/ui/menu";
 import { ICON_ACTION_CLASSES } from "./move-buttons";
 
 export type SectionOptions = {
-  // `value` is the field's start; an empty title goes back to the section's standard name.
   rename?: {
     value: string;
     placeholder: string;
@@ -15,7 +14,6 @@ export type SectionOptions = {
   };
   hidden?: boolean;
   onToggleHidden?: () => void;
-  // Extra sections only. With something to lose (`confirm` names it), the removal comes with Undo.
   remove?: { confirm: string | null; run: () => void; resumeId: string };
 };
 

@@ -5,8 +5,6 @@ import type { PdfPageSize } from "@/lib/pdf/page-size";
 import { emptyResume, type Resume, type TemplateId } from "@/lib/resume/schema";
 import { ResumePdf } from "./resume-pdf";
 
-// Renders real PDF bytes and reads the text back with pdf.js, the way hiring software would.
-
 export function sampleResume(): Resume {
   const resume = emptyResume(0);
   return {
@@ -145,7 +143,6 @@ export async function readText(bytes: Uint8Array): Promise<string> {
   return (await readPages(bytes)).join("\n");
 }
 
-// Enough jobs for two or three pages. `padding` extra summary lines shift where the breaks land.
 export function longResume(padding: number): Resume {
   const resume = sampleResume();
   const extra = Array.from({ length: padding }, (_, i) => `Extra summary line ${i + 1}.`);
@@ -179,7 +176,6 @@ export function expectInOrder(text: string, parts: string[]) {
   }
 }
 
-// Every newer field in use: company runs, extras, own headings, hidden items, look settings.
 export function richResume(): Resume {
   const resume = sampleResume();
   const [first, second] = resume.experience;

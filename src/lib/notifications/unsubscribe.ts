@@ -3,8 +3,7 @@ import { cronSecret } from "@/lib/cron/auth";
 import { appUrl } from "@/lib/env";
 import type { FollowUpAction } from "./types";
 
-// RFC 8058: the mail app POSTs without a session, so the link must prove the account. Signed with
-// CRON_SECRET (only the cron sends reminders); rotating it retires old links.
+// RFC 8058 posts carry no session, so the signed link proves the account.
 
 export const UNSUBSCRIBE_PATH = "/api/notifications/unsubscribe";
 
@@ -33,7 +32,6 @@ export function unsubscribeUrl(userId: string): string | null {
   return url.toString();
 }
 
-// Sends the action at once, so Done, Snooze and Unsubscribe each take one click from the inbox.
 export const EMAIL_ACTION_PATH = "/reminder";
 
 function signAction(
@@ -76,7 +74,6 @@ export function followUpActionUrl(
   return url.toString();
 }
 
-/** The same token as the header's, opened as a page. */
 export function unsubscribePageUrl(userId: string): string | null {
   const token = unsubscribeToken(userId);
   if (!token) return null;

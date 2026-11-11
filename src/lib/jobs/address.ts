@@ -1,9 +1,7 @@
 import { isIPv4, isIPv6 } from "node:net";
 
-// Public unicast only: anything else could reach our network, the runtime API on loopback, or a
-// cloud metadata service (169.254.169.254, fd00:ec2::254).
+// Public unicast only: anything else could reach our network, loopback or cloud metadata.
 
-// Private, loopback, link-local, CGNAT, documentation, benchmarking, multicast and reserved ranges.
 const BLOCKED_V4: readonly (readonly [string, number])[] = [
   ["0.0.0.0", 8],
   ["10.0.0.0", 8],
@@ -22,8 +20,7 @@ const BLOCKED_V4: readonly (readonly [string, number])[] = [
   ["240.0.0.0", 4],
 ];
 
-// Inside global unicast (2000::/3): Teredo and other protocol ranges, documentation, and 6to4,
-// which can wrap any IPv4 address, private ones included.
+// 6to4 and Teredo can wrap any IPv4 address, private ones included.
 const BLOCKED_V6: readonly (readonly [string, number])[] = [
   ["2001::", 23],
   ["2001:db8::", 32],
@@ -31,7 +28,6 @@ const BLOCKED_V6: readonly (readonly [string, number])[] = [
   ["3fff::", 20],
 ];
 
-// These carry an IPv4 address in their last 32 bits, which decides for them.
 const MAPPED_V4: readonly (readonly [string, number])[] = [
   ["::ffff:0:0", 96],
   ["64:ff9b::", 96],
@@ -51,7 +47,6 @@ function isPublicV4(ip: string): boolean {
   return !BLOCKED_V4.some((range) => inV4(value, range));
 }
 
-// "::" expanded and a trailing dotted IPv4 part folded into the last two groups.
 export function ipv6Groups(ip: string): number[] | null {
   if (!isIPv6(ip)) return null;
   let address = ip.split("%")[0]!.toLowerCase();
@@ -90,7 +85,6 @@ function isPublicV6(ip: string): boolean {
   return !BLOCKED_V6.some((range) => inV6(groups, range));
 }
 
-/** Unparseable input is never public. */
 export function isPublicAddress(ip: string): boolean {
   if (isIPv4(ip)) return isPublicV4(ip);
   return isPublicV6(ip);

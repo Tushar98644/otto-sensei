@@ -8,10 +8,7 @@ import { minYearsOf, seniorityOf } from "./roles";
 import { findSkills } from "./skills";
 import type { EmploymentType, RoleFamily, Seniority } from "./types";
 
-// Everything is worked out at ingest, so a match request only compares short lists.
-
 export const JOB_LIMITS = {
-  // Kept only for sources that can't be read again (Himalayas, Remote OK); others use full-post.ts.
   feedDescriptionChars: 6_000,
   rulesChars: 1_500,
   keywords: 40,
@@ -38,12 +35,9 @@ export type NormalizedJob = {
   description: string;
   rulesText: string;
   keywords: string[];
-  // Accent-folded words for to_tsvector('simple', ...).
   searchText: string;
   dedupeKey: string;
-  // One opening posted once per place shares this: Matches shows the group as one card.
   groupKey: string;
-  // "General application", "Talent community" and the like: kept on /jobs, hidden from Matches.
   evergreen: boolean;
   contentHash: string;
 };
@@ -53,7 +47,6 @@ function oneLine(value: string, max: number): string {
   return line.length <= max ? line : `${line.slice(0, max - 1).trimEnd()}…`;
 }
 
-/** Lowercase letters and digits only, accents dropped: "Café-Bar" -> "cafe bar". */
 export function searchWords(value: string): string {
   return foldCase(value)
     .replace(/[^\p{L}\p{N}]+/gu, " ")
@@ -64,12 +57,10 @@ const COMPANY_SUFFIX =
   /\b(?:inc|llc|ltd|limited|gmbh|ag|sa|sas|bv|plc|corp|corporation|co|company|labs?|technologies|hq)\b/g;
 const REMOTE_PLACE = /\b(?:remote|anywhere|worldwide|global|fully|hybrid|work from home)\b/g;
 
-/** The company's name without legal suffixes, as search words: "Databricks, Inc." -> "databricks". */
 export function brandName(company: string): string {
   return searchWords(company).replace(COMPANY_SUFFIX, " ").replace(/\s+/g, " ").trim();
 }
 
-// Keys are only compared, so store the first 16 hex of their MD5: a quarter of the size.
 function shortKey(key: string): string {
   return createHash("md5").update(key).digest("hex").slice(0, 16);
 }
@@ -89,7 +80,6 @@ export function dedupeKey(company: string, title: string, location: string): str
 // Bump when normalizing writes something new, so every job is rewritten on its next read.
 const NORMALIZE_VERSION = "5";
 
-/** Everything normalizing reads, so an unchanged job can skip it. */
 export function contentHash(job: RawJob): string {
   const parts = [
     NORMALIZE_VERSION,
@@ -107,7 +97,6 @@ export function contentHash(job: RawJob): string {
   return createHash("sha256").update(parts.join("\u0000")).digest("base64url").slice(0, 32);
 }
 
-// They share a skill with every resume and rarely lead to a hire.
 const FILLER_TITLE =
   /\b(?:general (?:application|applications|interest|submission)|talent (?:community|pool|network|pipeline)|future (?:opportunit(?:y|ies)|openings?|roles?|positions?|hires?)|open application|expression of interest|speculative application|spontaneous application|unsolicited application|(?:submit|send us) your (?:resume|cv)|don'?t see (?:a|the|your)(?: right| perfect)? (?:role|job|position|fit|opening)|(?:can'?t|cannot) find (?:a|the|your)(?: right)? (?:role|job|position))\b/;
 
@@ -115,7 +104,6 @@ export function isFillerTitle(title: string): boolean {
   return FILLER_TITLE.test(foldCase(title).replace(/[’‘]/g, "'"));
 }
 
-// Titles carry them for one copy per place ("Account Executive - Remote UK").
 const PLACE_WORDS = new Set(
   (
     "remote anywhere worldwide global hybrid onsite on site office fully home wfh based " +
@@ -140,7 +128,6 @@ function placeTokens(location: string): Set<string> {
   );
 }
 
-// Numbers go from the text only: pay and headcounts change with the place, a title's don't.
 function withoutPlace(words: string, place: ReadonlySet<string>, { numbers = false } = {}): string {
   return words
     .split(" ")
@@ -151,8 +138,6 @@ function withoutPlace(words: string, place: ReadonlySet<string>, { numbers = fal
     .join(" ");
 }
 
-// The same opening posted for London and Toronto gets one key; two openings with one title don't
-// (their text differs). Lines about place or pay go whole, since pay changes with the place.
 export function groupKey(company: string, title: string, location: string, text: string): string {
   const place = placeTokens(location);
   const name = searchWords(company).replace(COMPANY_SUFFIX, " ").replace(/\s+/g, " ").trim();
@@ -162,7 +147,6 @@ export function groupKey(company: string, title: string, location: string, text:
     const folded = foldCase(line);
     return !PLACE_LINE.test(folded) && !PAY_LINE.test(folded);
   });
-  // A post that is one long line would lose everything to a single "remote": keep its words.
   const source = kept.join("").length >= text.length * 0.3 ? kept : lines;
   const body = source
     .map((line) => withoutPlace(searchWords(line), place, { numbers: true }))
@@ -173,10 +157,8 @@ export function groupKey(company: string, title: string, location: string, text:
 }
 
 const lineKey = (line: string) => line.replace(/\s+/g, " ").trim().toLowerCase();
-// Shorter lines ("Requirements", "- Python") repeat across jobs for honest reasons.
 const MIN_BOILERPLATE_CHARS = 40;
 
-// Lines most of a board's jobs share (intro, values, benefits) say nothing about one job.
 export function boilerplateLines(texts: readonly string[]): Set<string> {
   const shared = new Set<string>();
   if (texts.length < 4) return shared;
@@ -195,7 +177,6 @@ export function normalizeJob(
   job: RawJob,
   now: number,
   boilerplate: ReadonlySet<string> = new Set(),
-  // How much of the post to store; 0 for a source the post can be read again from.
   textChars = 0,
 ): NormalizedJob {
   const title = oneLine(job.title, JOB_LIMITS.titleChars);
@@ -209,15 +190,12 @@ export function normalizeJob(
           .split("\n")
           .filter((line) => !boilerplate.has(lineKey(line)))
           .join("\n");
-  // Titles name the main skill ("Senior Go Engineer"); a company's own name isn't a skill it asks
-  // for.
   const brand = brandName(company);
   const keywords = findSkills(`${title}\n${own}`, JOB_LIMITS.keywords + 1)
     .filter((skill) => searchWords(skill) !== brand)
     .slice(0, JOB_LIMITS.keywords);
   const fromTitle = seniorityOf(title);
   const kind = readTitle(title);
-  // A posting date in the future is a source's bug; the time we first saw it is the honest one.
   const postedAt = job.postedAt !== null && job.postedAt <= now ? job.postedAt : now;
   return {
     externalId: job.externalId.slice(0, 300),

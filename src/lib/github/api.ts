@@ -13,14 +13,12 @@ import {
 import { markdownExcerpt } from "./markdown";
 import type { GitHubLookup, GitHubPull, GitHubRepo } from "./types";
 
-// Only the top of a README is read, so a huge one is cut instead of refused.
 const MAX_README_BYTES = 256 * 1024;
 const README_CHARS = 1_500;
 const PULL_BODY_CHARS = 700;
 const MAX_REPOS = 60;
 const PULLS_PER_SEARCH = 30;
 
-// The description never goes back to the browser.
 export type PullRecord = GitHubPull & { body: string };
 
 export type LanguageShare = { name: string; percent: number };
@@ -40,7 +38,6 @@ const RepoJson = z.object({
   pushed_at: z.string().nullish(),
 });
 
-// Owners type all sorts into the website field; only real web addresses make it to a resume.
 function webAddress(value: string | null | undefined): string {
   const text = value?.trim() ?? "";
   if (!text || /\s/.test(text) || text.length > 300) return "";
@@ -62,14 +59,13 @@ function count(value: number | null | undefined): number {
 }
 
 function toRepo(raw: z.infer<typeof RepoJson>): GitHubRepo | null {
-  // Forks are mostly someone else's work; private repos stay out if GitHub ever sends one.
   if (raw.fork || raw.private || !isRepoName(raw.full_name)) return null;
   const name = raw.full_name.split("/")[1] ?? raw.full_name;
   return {
     id: raw.id,
     name,
     fullName: raw.full_name,
-    // Built from the checked name rather than taken from the answer, so it is always a GitHub link.
+    // Built from the checked name, not taken from the answer, so it is always a GitHub link.
     url: `https://github.com/${raw.full_name}`,
     description: clip(oneLine(raw.description ?? ""), 300),
     homepage: webAddress(raw.homepage),
@@ -96,7 +92,6 @@ function parseRepos(body: string, truncated: boolean): GitHubRepo[] {
     .slice(0, MAX_REPOS);
 }
 
-/** Throws GitHubError "not_found" for no account. */
 export async function fetchRepos(session: GitHubSession, username: string): Promise<GitHubRepo[]> {
   const path = `/users/${encodeURIComponent(username.toLowerCase())}/repos?type=owner&sort=pushed&per_page=100`;
   const repos = await cachedGet(session, path, {
@@ -133,7 +128,6 @@ function parsePulls(username: string) {
         ? pull.repository_url.slice(REPOS_PREFIX.length)
         : "";
       const mergedAt = pull.pull_request?.merged_at;
-      // The query already asks for exactly this; checked again because the result lands on a resume.
       if (!isRepoName(repo) || !mergedAt || pull.user?.login.toLowerCase() !== own) continue;
       if (repo.split("/")[0]?.toLowerCase() === own) continue;
       pulls.push({
@@ -150,7 +144,6 @@ function parsePulls(username: string) {
   };
 }
 
-// Their own repos are left out: the repo list covers them. An account GitHub can't search gives [].
 export async function fetchMergedPulls(session: GitHubSession, username: string): Promise<PullRecord[]> {
   const query = `is:pr is:merged is:public author:${username} -user:${username}`;
   const path = `/search/issues?q=${encodeURIComponent(query.toLowerCase())}&sort=updated&order=desc&per_page=${PULLS_PER_SEARCH}`;
@@ -198,7 +191,6 @@ function withoutBody(pull: PullRecord): GitHubPull {
   return { id, number, title, url, repo, mergedAt };
 }
 
-// Two GitHub calls at most. A busy search still returns the repos, with `pullsUnavailable` set.
 export async function lookupProfile(session: GitHubSession, username: string): Promise<GitHubLookup> {
   const repos = await fetchRepos(session, username);
   let pulls: PullRecord[] = [];

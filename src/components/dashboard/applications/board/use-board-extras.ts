@@ -8,8 +8,6 @@ import { SAVED_JOBS } from "@/lib/queries/keys";
 import { savedJobsQuery, writingsQuery } from "@/lib/queries/options";
 import type { Writing } from "@/lib/writings/schema";
 
-// Either failing only leaves its part out: the board still works from the applications.
-
 export type BoardExtras = {
   savedJobs: SavedJob[];
   writings: Writing[];
@@ -30,7 +28,6 @@ export function useBoardExtras(): BoardExtras {
   };
 }
 
-/** After a job is saved or unsaved elsewhere (the Jobs tab): the board reads its list again. */
 export function forgetSavedJobs(): void {
   void getQueryClient().invalidateQueries({ queryKey: SAVED_JOBS });
 }

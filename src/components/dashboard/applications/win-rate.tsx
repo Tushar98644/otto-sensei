@@ -22,7 +22,6 @@ import {
 } from "@/lib/applications/stats";
 
 const number = new Intl.NumberFormat("en-US");
-// Versions listed before "Show all": tailored copies are often sent once each, so the list grows.
 const FIRST_VERSIONS = 6;
 
 export function WinRate({
@@ -42,7 +41,6 @@ export function WinRate({
         Win rate
       </h2>
       <FolderCard tab="Win rate" bodyClassName="overflow-hidden p-0">
-        {/* Hairlines between the numbers: the 1px gaps let the border color show through. */}
         <dl className="grid grid-cols-3 gap-px bg-border">
           <Stat
             label="Applications"

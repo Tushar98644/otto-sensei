@@ -14,7 +14,7 @@ import { Transition, useInterval } from "./motion";
 import { useReel } from "./root";
 import { scrollToHash } from "./scroll";
 
-// HamishMW/portfolio routes/home/intro.jsx. Switching theme replays it, as in the original.
+// Ported from HamishMW/portfolio routes/home/intro.jsx (MIT, see ./LICENSE.txt).
 
 const DisplacementSphere = lazy(() => import("./gl/displacement-sphere"));
 
@@ -31,7 +31,6 @@ export function Intro({
   name: string;
   role: string;
   disciplines: string[];
-  // The title for screen readers: "Designer + Developer, and Animator".
   label: string;
   titleScale: number;
   scrollTarget: string | null;

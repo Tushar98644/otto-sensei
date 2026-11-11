@@ -64,7 +64,6 @@ describe("tourDue", () => {
     expect(tourDue({ seen: true, replay: false })).toBe(false);
   });
 
-  // Otherwise a browser that can't store the flag would show the tour on every visit.
   it("stays quiet when the browser can't remember", () => {
     expect(tourDue({ seen: null, replay: false })).toBe(false);
   });

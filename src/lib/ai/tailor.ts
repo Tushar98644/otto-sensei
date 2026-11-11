@@ -33,13 +33,11 @@ const TailorOutputSchema = z.object({
 
 type TailorOutput = z.infer<typeof TailorOutputSchema>;
 
-// Short aliases ("e1", "b4") instead of UUIDs: fewer tokens, and less room to mistype a copied id.
 type EntryRef = {
   alias: string;
   id: string;
   label: string;
   bullets: { alias: string; id: string; text: string }[];
-  // Blank bullets aren't sent; they keep their place at the end of a returned order.
   blankIds: string[];
 };
 
@@ -79,7 +77,6 @@ function snippet(text: string): string {
   return words.length > SNIPPET_WORDS ? `${words.slice(0, SNIPPET_WORDS).join(" ")}…` : words.join(" ");
 }
 
-// People never see aliases ("your b2 bullet"), so each becomes a bullet's opening words or a role.
 export function withoutAliases(note: string, refs: readonly EntryRef[]): string {
   const names = new Map<string, string>();
   for (const ref of refs) {
@@ -110,7 +107,6 @@ function tailorMessage(resumeText: string, input: TailorInput, refs: EntryRef[])
   ].join("\n\n");
 }
 
-// An order naming an unknown alias is dropped whole; finalizeTailor checks each is a permutation.
 function resolveOrders(
   orders: TailorOutput["bulletOrder"],
   refs: EntryRef[],
@@ -133,8 +129,6 @@ function resolveOrders(
   return resolved;
 }
 
-// Code normalizes requirements (a guess is never a must-have), drops quotes not in the resume word
-// for word, recomputes keyword matches and drops invalid orders. No API key: a demo result.
 export async function tailorResume(resume: Resume, input: TailorInput): Promise<TailorResult> {
   const job: TailorInput = {
     jobText: input.jobText.trim(),
@@ -151,7 +145,6 @@ export async function tailorResume(resume: Resume, input: TailorInput): Promise<
   if (!job.jobText) return finalizeTailor(EMPTY_RAW, resume, job);
   if (!aiEnabled()) return finalizeTailor(demoTailor(resume, job.jobText), resume, job);
 
-  // The redacted copy keeps every id, so its aliases are the real resume's. The post goes as it is.
   const redactor = redactorFor(resume);
   const shown = redactResume(resume, redactor);
   const refs = experienceRefs(resume);

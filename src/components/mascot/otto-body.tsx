@@ -1,17 +1,13 @@
 import { OTTO_COLORS as C, OUTLINE } from "./palette";
 
-// Plain functions returning SVG elements, not components: Satori (the OG image) only accepts
-// intrinsic elements inside <svg>, so the app and the share card share one drawing.
+// Plain functions, not components: Satori (the OG image) only takes intrinsic SVG elements.
 
 export type DrawOptions = {
   animated: boolean;
-  // Idle loop, livelier while a `group/otto` ancestor is hovered or focused. Dashboard home only.
   lively?: boolean;
-  // Adds theme token classes on top of the hex fills. Off for satori, which ignores classes.
   themed: boolean;
 };
 
-// The hex fill always paints; the token class, when ui-kit defines it, overrides it via CSS.
 export function fur(o: DrawOptions) {
   return { fill: C.fur, className: o.themed ? "fill-otter" : undefined };
 }
@@ -26,24 +22,18 @@ const BODY =
 const BELLY =
   "M 100 118 C 115 118 125 133 126 150 C 127 167 116 178 100 178 C 84 178 73 167 74 150 " +
   "C 75 133 85 118 100 118 Z";
-// Long, thick at the base and tapered to an upturned tip: the clearest "otter, not hamster" cue.
 const TAIL = "M 134 164 C 156 168 177 166 188 146 C 189 166 168 187 134 184 Z";
-// Wide and flat, widest at the cheeks: a round head with high ears reads as a teddy bear.
 const HEAD =
   "M 100 33 C 131 33 151 47 153.5 70 C 156 92 132 104 100 104 C 68 104 44 92 46.5 70 " +
   "C 49 47 69 33 100 33 Z";
-// Split open at the crown for the tuft: a line that stops short looks drawn, not stamped.
 const HEAD_LINE =
   "M 106.5 33.3 C 133 35 151.2 48.5 153.5 70 C 156 92 132 104 100 104 " +
   "C 68 104 44 92 46.5 70 C 48.8 48.5 67 35 93.5 33.3";
-// A small off-center tuft keeps him from looking machine-symmetrical.
 const TUFT = "M 94 36.5 C 93 30.5 96 26.5 101 27 M 101 35.5 C 102 30.5 106 28.5 111 30";
-// Each ear starts under the head (hidden by it) and stops short of the head line: a pen-stroke gap.
 const EARS = [
   { cx: 48.5, cy: 50, inner: 47.5, line: "M 54.9 51.1 A 6.5 6.5 0 1 0 47.4 56.4" },
   { cx: 151.5, cy: 50, inner: 152.5, line: "M 145.1 51.1 A 6.5 6.5 0 1 1 152.6 56.4" },
 ] as const;
-// Big two-lobed whisker pads down to the chin: the clearest "otter" cue after the tail.
 const MUZZLE =
   "M 100 75.5 C 108 69.5 127.5 70 131 84 C 134.5 98 118 103.5 107 100 C 104 99 102 98 100 98 " +
   "C 98 98 96 99 93 100 C 82 103.5 65.5 98 69 84 C 72.5 70 92 69.5 100 75.5 Z";
@@ -56,7 +46,6 @@ const WHISKERS = [
 const NOSE =
   "M 91 77.5 C 91 72.8 109 72.8 109 77.5 C 109 82 103 85 100 85 " +
   "C 97 85 91 82 91 77.5 Z";
-// Wire frames only: a lens fill or glints read as a sticker's gloss.
 const LENS = { r: 12, stroke: C.line, strokeWidth: 2 };
 const BRIDGE = "M 90 61.5 C 93 58.5 107 58.5 110 61.5";
 const TEMPLES = "M 66.2 60 L 52 56 M 133.8 60 L 148 56";
@@ -121,9 +110,6 @@ export function drawGlasses() {
   );
 }
 
-// One centerline drawn twice (wide dark stroke, narrower fur stroke on top): an outlined limb from
-// one path. With `fromBody`, a fur stroke near the shoulder hides the arm's inner edge, so the arm
-// grows out of him instead of being traced round like a sticker.
 const BODY_JOIN_LENGTH = 22;
 const BODY_JOIN_SHIFT = 2.6;
 

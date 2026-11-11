@@ -5,8 +5,6 @@ import { cn } from "@/lib/utils";
 
 export type HowItWorksNavItem = { id: string; name: string };
 
-// Color and weight only, never motion: nothing moves below the hero. Between two screens the last
-// one stays marked instead of flickering off.
 export function HowItWorksNav({
   items,
   className,
@@ -15,7 +13,6 @@ export function HowItWorksNav({
   className?: string;
 }) {
   const [activeId, setActiveId] = useState(items[0]?.id);
-  // A string key, so a fresh array with the same steps doesn't rebuild the observer.
   const idsKey = items.map((item) => item.id).join(" ");
 
   useEffect(() => {
@@ -28,7 +25,6 @@ export function HowItWorksNav({
           .sort((a, b) => ids.indexOf(a.target.id) - ids.indexOf(b.target.id))[0];
         if (hit) setActiveId(hit.target.id);
       },
-      // A thin band across the middle of the screen: one moment crosses it at a time.
       { rootMargin: "-45% 0px -50% 0px" },
     );
     for (const id of ids) {

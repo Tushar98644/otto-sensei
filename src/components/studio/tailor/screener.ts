@@ -74,7 +74,6 @@ export function lineQuestion(requirement: TailorRequirement): string {
   return `${requirement.ask} Where, and what did you do?`;
 }
 
-// Screeners search by name: a Terraform line that never says "Terraform" proves nothing.
 export function missingName(requirement: TailorRequirement, line: string): string | null {
   const [first] = requirement.terms;
   if (!first || !line.trim()) return null;
@@ -82,7 +81,6 @@ export function missingName(requirement: TailorRequirement, line: string): strin
   return `Name ${first} in the line, so a screener can find it.`;
 }
 
-// The fixer may turn "helped set up" into "led"; the person decides, but they see it.
 export function verbNote(answer: string, line: string): string | null {
   const [verb] = verbsAdded(answer, line);
   if (verb) {
@@ -94,8 +92,6 @@ export function verbNote(answer: string, line: string): string | null {
   return null;
 }
 
-// A trailing blank like ", [add result if known]" is the fixer asking for more, not part of the
-// line: it goes. A blank inside the line ("[X times]") stays for the person to fill.
 const TRAILING_BLANK = /\s*[,;:–—-]?\s*\[[^\]\n]*\]\s*\.?\s*$/u;
 
 export function tidyLine(line: string): string {
@@ -108,7 +104,6 @@ export function hasBlank(line: string): boolean {
   return /\[[^\]\n]*\]/u.test(line);
 }
 
-// Free has none, so it hears what Pro adds; `trial` says whether the free trial is open to them.
 export function writingAllowance(
   plan: PlanId | null | undefined,
   usage: Usage | null | undefined,

@@ -11,8 +11,6 @@ import { suggestPicks } from "@/lib/github/suggest";
 import type { Resume } from "@/lib/resume/schema";
 import { contactOf } from "./format";
 
-// Nothing reaches the resume here: the dialog adds the kept entries once the person confirms.
-
 export type GitHubImportStep = "name" | "pick" | "review";
 
 type State = {
@@ -21,7 +19,6 @@ type State = {
   repos: string[];
   pulls: number[];
   draft: GitHubDraftResult | null;
-  // Drafted entries the person unticked.
   left: string[];
   busy: "lookup" | "draft" | null;
   error: string | null;
@@ -103,13 +100,10 @@ function messageOf(error: unknown, fallback: string): string {
 
 export type GitHubImport = ReturnType<typeof useGitHubImport>;
 
-/** `alreadyOn` entries start unticked, so a second import doesn't add the same project twice. */
 export function useGitHubImport(
   resume: Resume,
   login: string | null,
   alreadyOn: (draft: GitHubDraftResult) => string[],
-  // Sees every failed lookup and draft after its message is set, e.g. to offer the next plan at
-  // the monthly limit or "Connect GitHub" again.
   onError?: (error: unknown) => void,
 ) {
   const [state, dispatch] = useReducer(reducer, INITIAL);
@@ -152,7 +146,6 @@ export function useGitHubImport(
     if (id !== run.current) return;
     const picks = suggestPicks(profile, resume);
     dispatch({ type: "found", profile, ...picks });
-    // Straight on to the drafts; with nothing worth picking, the pick step says why.
     if (picks.repos.length + picks.pulls.length > 0) await draftPicks(profile, picks.repos, picks.pulls, id);
   }
 

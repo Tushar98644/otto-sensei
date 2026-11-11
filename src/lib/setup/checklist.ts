@@ -5,21 +5,16 @@ import { firstWeakLine } from "@/lib/lint/weak-lines";
 import { listBullets } from "@/lib/resume/ops";
 import type { Resume } from "@/lib/resume/schema";
 
-// Every "done" is read from the real settings and resumes, so an item ticks itself however the
-// person got there.
-
 export type SetupItemId = "resume" | "work" | "looking_for" | "weak_line" | "reminders";
 
 export function workRightsSet(profile: WorkProfile): boolean {
   return profile.country !== "" && WORK_REGIONS.some((region) => profile.rights[region] !== null);
 }
 
-/** Parts left null only follow the resume. */
 export function lookingForSet(choice: LookingForChoice): boolean {
   return choice.role !== null || choice.level !== null || choice.place !== null;
 }
 
-/** Never the sample or a copy tailored from it. */
 export function ownResumes(resumes: readonly Resume[]): Resume[] {
   const byId = new Map(resumes.map((resume) => [resume.id, resume]));
   const fromSample = (resume: Resume) =>
@@ -33,7 +28,6 @@ export type WeakLineTarget = { resumeId: string; bulletId: string };
 
 export type WeakLineState =
   | { status: "no_resume" }
-  // Resumes, but no lines written yet.
   | { status: "no_lines" }
   | { status: "open"; target: WeakLineTarget }
   | { status: "done" };
@@ -41,8 +35,6 @@ export type WeakLineState =
 const warns = (issues: readonly { severity: string }[] | undefined) =>
   (issues ?? []).some((issue) => issue.severity === "high");
 
-// `remembered` is the line it opened last; once that has no warning (or is gone), it's done.
-// Without one, the first line with a warning. Tips alone don't count.
 export function weakLineState(
   own: readonly Resume[],
   remembered: WeakLineTarget | null,
@@ -56,7 +48,6 @@ export function weakLineState(
       ? { status: "open", target: remembered }
       : { status: "done" };
   }
-  // Base resumes before tailored copies: the copies repeat their lines.
   const ordered = [
     ...own.filter((resume) => resume.tailor === null),
     ...own.filter((resume) => resume.tailor !== null),
@@ -75,10 +66,8 @@ export function weakLineState(
 }
 
 export type SetupFacts = {
-  // The work-rights check and reminders are Pro tools.
   pro: boolean;
   ownResumes: number;
-  // null while loading or failed: its items are left out rather than guessed.
   work: { profile: WorkProfile; lookingFor: LookingForChoice } | null;
   weakLine: WeakLineState;
   reminders: { available: boolean; chosen: boolean } | null;
@@ -86,8 +75,6 @@ export type SetupFacts = {
 
 export type SetupItem = { id: SetupItemId; done: boolean };
 
-// At most 5. Pro tools are left out on Free, where they'd do nothing; email reminders also need a
-// server that can send email.
 export function setupItems(facts: SetupFacts): SetupItem[] {
   const items: SetupItem[] = [{ id: "resume", done: facts.ownResumes > 0 }];
   if (facts.work && facts.pro) {
@@ -109,7 +96,6 @@ export function checklistShows(items: readonly SetupItem[], hiddenAt: number | n
   return hiddenAt === null && items.some((item) => !item.done);
 }
 
-/** Free has no work-rights rules. */
 export function jobsWorkPromptShows({
   pro,
   locked,
@@ -122,7 +108,6 @@ export function jobsWorkPromptShows({
   return pro && !locked && profile !== null && !workRightsSet(profile);
 }
 
-// Until the person answers either way. Never on Free, which gets no follow-up reminders.
 export function reminderPromptShows({
   pro,
   applications,

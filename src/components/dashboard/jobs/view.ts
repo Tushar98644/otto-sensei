@@ -6,15 +6,12 @@ import { EMPLOYMENT_LABELS, type FeedJob } from "@/lib/job-feed/types";
 import type { Resume } from "@/lib/resume/schema";
 import { DAY_MS } from "@/lib/time";
 
-/** The newest resume of the person's own, else the newest of all: what Jobs matches by default. */
 export function defaultResumeId(resumes: readonly Resume[]): string | null {
   const newest = (list: readonly Resume[]) =>
     [...list].sort((a, b) => b.updatedAt - a.updatedAt)[0]?.id ?? null;
   return newest(resumes.filter((resume) => resume.tailor === null)) ?? newest(resumes);
 }
 
-// A job as the cards know it: by its id on the Jobs tab, with its link as the fallback for copies
-// and applications saved before they kept the id.
 type JobKey = { id?: string; url: string };
 
 export function tailoredFor(resumes: readonly Resume[], job: JobKey): Resume | null {
@@ -25,12 +22,10 @@ export function appliedFor(applications: readonly Application[], job: JobKey): A
   return applicationForJob(applications, { id: job.id ?? "", url: job.url });
 }
 
-/** Jobs whose post can be read again from their link; Himalayas' and Remote OK's keep theirs. */
 export function readsLink(job: Pick<FeedJob, "source">): boolean {
   return SOURCE_INFO[job.source].liveText;
 }
 
-/** "Posted today", "Posted 3 days ago", "Posted Oct 2". `now` is 0 before the clock is known. */
 export function postedLabel(postedAt: number, now: number): string {
   if (now === 0) return "";
   const day = (time: number) => {
@@ -50,13 +45,10 @@ export function postedLabel(postedAt: number, now: number): string {
 }
 
 type Placed = Pick<FeedJob, "location" | "remote" | "employmentType"> & {
-  // Other places one opening is posted, when Matches shows its location copies as one card.
   otherPlaces?: readonly string[];
   morePlaces?: number;
 };
 
-// "Remote · Berlin · Full-time". One opening posted in several places lists them:
-// "Remote UK, Remote Canada (+2) · Full-time".
 export function placeLine(job: Placed): string {
   const places = [job.location.trim(), ...(job.otherPlaces ?? [])].filter(Boolean).join(", ");
   const parts = [places && job.morePlaces ? `${places} (+${job.morePlaces})` : places];
@@ -65,7 +57,6 @@ export function placeLine(job: Placed): string {
   return parts.filter(Boolean).join(" · ");
 }
 
-/** "3 hours ago" for the list's freshness line. */
 export function checkedLabel(checkedAt: number | null, now: number): string | null {
   if (checkedAt === null || now === 0) return null;
   const hours = Math.floor((now - checkedAt) / (60 * 60 * 1_000));
@@ -77,7 +68,6 @@ export function checkedLabel(checkedAt: number | null, now: number): string | nu
 
 const count = new Intl.NumberFormat("en-US");
 
-// So nobody mistakes Free's closest few for all there is. Every number is real ("27,000+").
 export function moreWithProCopy(
   shown: number,
   matching: number,

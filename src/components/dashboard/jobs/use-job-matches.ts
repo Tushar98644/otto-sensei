@@ -16,8 +16,7 @@ import { JOB_MATCHES_STALE_MS } from "@/lib/queries/options";
 import type { Resume } from "@/lib/resume/schema";
 import { DAY_MS } from "@/lib/time";
 
-// Only the resume's skills, titles and years go out (matchProfileOf). Answers stay in the query
-// cache, so coming back to the tab shows the last matches at once.
+// Only the resume's skills, titles and years are sent (matchProfileOf).
 
 export type JobView = "matches" | "saved";
 
@@ -29,8 +28,6 @@ export type JobMatchesState =
 
 const IDLE_KEY = [...JOB_MATCHES, "idle"] as const;
 
-// A save changes the Saved view and every count, so other cached answers are dropped, and one on
-// screen meanwhile (another page, picked while the save was on its way) is asked for again.
 export function patchJobMatches(
   queryKey: readonly unknown[],
   change: (data: JobMatchesResponse) => JobMatchesResponse,
@@ -52,7 +49,6 @@ function matchesBody(
   return { ...request, deviceTimeZone: deviceTimeZone() };
 }
 
-// Built as the tab builds it, so a prefetch lands in the entry the tab reads.
 export function openingMatchesRequest(
   resume: Resume | null,
   work: { profile: WorkProfile; lookingFor: LookingForChoice },
@@ -83,13 +79,11 @@ export function useJobMatches({
   view: JobView;
   filters: JobFilters;
   page: number;
-  // What the person changed on the "Looking for" card; the rest is guessed.
   choice: LookingForChoice;
   workProfile: WorkProfile | null;
 }) {
   const client = useAppQueryClient();
-  // Years run to today for a job marked "Present"; the day is enough, so the shared clock's
-  // ticks don't send a new request every 30 seconds. 0 until the clock is known.
+  // Rounded to the day so the shared clock's 30-second ticks don't send a new request.
   const now = useNow();
   const day = now === 0 ? 0 : Math.floor(now / DAY_MS);
   const profile = useMemo(

@@ -31,8 +31,6 @@ export {
   type PlaceChoice,
 } from "./types";
 
-// Guessed from the resume and work profile. "Remote only" is the one hard filter.
-
 export const LEVEL_NAMES: Record<Seniority, string> = {
   intern: "Internship",
   junior: "Entry level",
@@ -62,31 +60,26 @@ export function placeLabel(choice: PlaceChoice): string {
   return SHORT_COUNTRY[code] ?? countryName(code);
 }
 
-/** "Remote, EU", "Remote or on-site, US", "Remote, anywhere". */
 export function placeLine(value: Pick<LookingFor, "place" | "remote">): string {
   if (value.place === "anywhere") return value.remote ? "Remote, anywhere" : "Anywhere";
   return `${value.remote ? "Remote" : "Remote or on-site"}, ${placeLabel(value.place)}`;
 }
 
-// Level words are dropped from the role: "Senior Product Manager" is a senior Product Manager.
 const LEVEL_WORDS =
   /\b(?:senior|sr\.?|snr|junior|jr\.?|associate|entry[- ]level|graduate|new grad|intern(?:ship)?|trainee|apprentice|staff|principal|lead|ii|iii|iv|level \d)\b/gi;
 
-/** The kind of role in a title, without its level: "Sr. Backend Engineer II" -> "Backend Engineer". */
 export function roleTitle(title: string): string {
   const cleaned = title
     .split(/\s+[-–—|@]\s+|\s+at\s+|,\s+/i)[0]!
     .replace(/\([^)]*\)/g, " ")
     .replace(LEVEL_WORDS, " ")
     .replace(/\s+\bi\s*$/i, " ")
-    // The dot a dropped "Sr." leaves behind.
     .replace(/(?:^|\s)[.,;:]+(?=\s|$)/g, " ")
     .replace(/\s+/g, " ")
     .trim();
   return (cleaned || title.trim()).slice(0, 80);
 }
 
-// The occupation is read on the server (occupations/index.ts); the browser leaves it null.
 export type RoleOption = { title: string; family: RoleFamily | null; occupation: string | null };
 
 export function roleOptions(profile: Pick<MatchProfile, "titles">): RoleOption[] {
@@ -102,7 +95,6 @@ export function roleOptions(profile: Pick<MatchProfile, "titles">): RoleOption[]
   return out;
 }
 
-/** The latest title's level, raised by years but never past senior by years alone. */
 export function levelOf(profile: Pick<MatchProfile, "titles" | "years">): Seniority | null {
   const latest = profile.titles[0];
   const fromTitle = latest ? seniorityOf(latest) : null;
@@ -139,7 +131,6 @@ export function lookingForOf(
   };
 }
 
-// Country codes ("US"), groups ("g:emea"), "*" for anywhere. Stored at ingest in job_match.
 const placeCache = new Map<string, string[]>();
 const PLACE_CACHE_MAX = 20_000;
 
@@ -171,13 +162,11 @@ function membersOf(group: PlaceGroup): Set<string> {
 
 const ALL_GROUPS: readonly PlaceGroup[] = [...PLACE_GROUPS, "americas"];
 
-// null for "anywhere", where place doesn't change the order.
 export function acceptedPlaces(choice: PlaceChoice): string[] | null {
   if (choice === "anywhere") return null;
   const countries = choice.startsWith("c:")
     ? new Set([choice.slice(2)])
     : membersOf(choice.slice(2) as PlaceGroup);
-  // A US choice takes Puerto Rico and the other territories, as placeContains does.
   if (choice === "c:US")
     for (const code of COUNTRY_CODES)
       if (placeContains({ kind: "country", code: "US" }, code)) countries.add(code);
@@ -191,7 +180,6 @@ export function acceptedPlaces(choice: PlaceChoice): string[] | null {
 
 export type PlaceFit = "match" | "unknown" | "miss";
 
-/** A job that names no place is "unknown", never a miss. */
 export function placeFit(
   jobTokens: readonly string[],
   accepted: readonly string[] | null,

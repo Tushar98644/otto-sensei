@@ -3,7 +3,6 @@ import { bulletText, findLinks, isLinkText } from "../sections";
 import { LIMITS } from "./limits";
 import { clip, continues, finishBullets, isTitleLike, segmentsOf, stripDates } from "./text";
 
-// "demo/github", "github/Apex", "Details": where a PDF had a link, read as text.
 const LINK_WORDS =
   /^(?:demo|live|code|source|github|gitlab|website|site|link|links|details|repo|app|video|slides)(?:\s*\/\s*[\w.-]+)?$/i;
 const isLinkWord = (segment: string) => LINK_WORDS.test(segment) || isLinkText(segment);
@@ -24,15 +23,12 @@ export function parseProjects(lines: readonly string[]): Project[] {
     const link = findLinks(line)[0]?.url ?? "";
     const withoutLink = link ? line.split(link).join("\t").trim() : line;
     const undated = stripDates(withoutLink);
-    // "Typeface Finder - A tool that names any font." names the project and describes it at once.
     const named = /^([^:—–]{2,60}?)(?:\s+[—–-]\s+|:\s+)(.+)$/.exec(undated);
     const namePart = named?.[1] ?? withoutLink;
     const dated = undated !== withoutLink.trim();
-    // "Name – tagline" opens the next project even when the last one has no bullets yet.
     const dashed = /^[^:—–]{2,60}?\s+[—–-]\s/.test(undated);
     const startsProject =
       isTitleLike(namePart) && (!current || current.body > 0 || !current.name || dashed);
-    // The line under a project's name, before its bullets: "Go | Postgres | AWS<tab>demo/github".
     const segments = segmentsOf(undated);
     const details =
       current !== undefined &&
@@ -59,7 +55,6 @@ export function parseProjects(lines: readonly string[]): Project[] {
     } else if (current && last !== undefined && continues(last, line)) {
       current.bullets[current.bullets.length - 1] = `${last} ${line}`;
     } else if (startsProject) {
-      // Reuse an empty draft so a stray line can't leave a nameless project behind.
       if (!current || current.name || current.bullets.length > 0) current = open();
       current.name = segmentsOf(namePart).join(" · ");
       current.link ||= link;

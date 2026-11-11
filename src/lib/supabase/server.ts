@@ -12,10 +12,8 @@ export function supabaseAuthConfigured(): boolean {
   return supabaseConfig() !== null;
 }
 
-/** null when Supabase isn't configured: sign-in is off, everything else works. */
 export async function createSupabaseServerClient(): Promise<ServerSupabase | null> {
-  // Read first, configured or not, so session pages render per request: otherwise a build without
-  // keys would prerender /dashboard as signed out, forever.
+  // Read cookies first, configured or not, or a keyless build prerenders /dashboard signed out.
   const store = await cookies();
   const config = supabaseConfig();
   if (!config) return null;

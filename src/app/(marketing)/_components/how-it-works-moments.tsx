@@ -6,9 +6,6 @@ import { Window } from "@/components/ui/panel";
 import { StatusPill } from "@/components/ui/status";
 import { DEMO_CHECKS, DEMO_FILE_NAME, DEMO_PERSON } from "./recruiter-demo-data";
 
-// Pictures of the product, not controls, so nothing here can be clicked.
-
-// A finished picture, not a drop box, which would invite a drop the page can't take.
 export function UploadMoment() {
   return (
     <Window title={DEMO_FILE_NAME} meta="PDF · 1 page" bodyClassName="px-4 py-4 sm:px-5 sm:py-5">
@@ -104,7 +101,6 @@ export function DownloadMoment() {
         <p className="mt-4 font-display text-6xl/none text-ink lining-nums tabular-nums">
           <span className="relative inline-block">
             0
-            {/* An SVG won't stretch to its insets, so a plain box takes them and the circle fills it. */}
             <span className="absolute -inset-x-7 -inset-y-3">
               <LooseCircle className="size-full" />
             </span>

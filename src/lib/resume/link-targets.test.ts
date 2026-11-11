@@ -3,7 +3,6 @@ import type { PdfLinkTarget } from "@/lib/parse/types";
 import { linkTarget, withLinkTargets } from "./link-targets";
 import { emptyResume } from "./schema";
 
-// The owner's own case (2026-11-11): the page shows "github.com/Tushar" and "linkedin.com/Tushar".
 const LINKS: PdfLinkTarget[] = [
   { url: "https://github.com/Tushar98644", text: "github.com/Tushar |" },
   {
@@ -34,7 +33,6 @@ describe("linkTarget", () => {
   });
 
   it("only fills a site's name from a link on that site", () => {
-    // "GitHub" sits over jane.dev here, which isn't GitHub: no swap.
     expect(linkTarget("GitHub", LINKS)).toBeNull();
     expect(linkTarget("GitHub", [{ url: "https://github.com/jane", text: "GitHub" }])).toBe(
       "github.com/jane",

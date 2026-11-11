@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { postedLine } from "./job-form";
 
-// Local times, so the calendar-day count holds in any test machine's time zone.
 const at = (year: number, month: number, day: number, hour = 12) =>
   new Date(year, month - 1, day, hour).getTime();
 

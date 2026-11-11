@@ -1,15 +1,4 @@
-// Fills the local development database (.pglite/) with a small sample of real jobs, so the Jobs tab
-// and /jobs have something to show without waiting for the daily cron. Reads the same public APIs
-// the cron does, at the same polite pace.
-//
-//   bun scripts/jobs-ingest.ts              10 company boards, plus the Himalayas, Remote OK and Jobicy feeds
-//   bun scripts/jobs-ingest.ts --limit 30   30 boards
-//   bun scripts/jobs-ingest.ts --no-feeds   company boards only
-//   bun scripts/jobs-ingest.ts --minutes 25 give up after 25 minutes instead of 10
-//
-// Stop `bun dev` first: only one process may open the .pglite folder. Running it again the same day
-// reads only boards it hasn't read in 20 hours. OTTO_PGLITE_DIR=<folder> writes to another folder
-// instead (the match test set uses its own), and then the dev server can keep running.
+// Stop `bun dev` first (only one process may open .pglite/), or set OTTO_PGLITE_DIR.
 import { readFileSync } from "node:fs";
 
 type Builder = {
@@ -17,15 +6,13 @@ type Builder = {
 };
 type BunRuntime = { plugin: (plugin: { name: string; setup: (build: Builder) => void }) => void };
 
-// Typed by hand: the project doesn't install Bun's type package for one script.
 const bun = (globalThis as { Bun?: BunRuntime }).Bun;
 if (!bun) {
   console.error("Run this with Bun: bun scripts/jobs-ingest.ts");
   process.exit(1);
 }
 
-// Bun's node:https can't make the pinned connection the app makes under Node (see
-// scripts/dev-transport.mjs), so the job reader's transport is swapped before anything loads it.
+// Bun can't make the pinned connection; swap the transport before anything imports it.
 bun.plugin({
   name: "dev-job-transport",
   setup(build) {

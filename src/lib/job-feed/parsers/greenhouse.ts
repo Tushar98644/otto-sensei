@@ -21,7 +21,6 @@ const GreenhouseJob = z.object({
   application_deadline: nullishString,
 });
 
-// GET boards-api.greenhouse.io/v1/boards/:token/jobs?content=true
 export function parseGreenhouse(json: unknown, company: string): RawJob[] {
   const board = z.object({ jobs: z.array(z.unknown()) }).safeParse(json);
   if (!board.success) throw new FeedShapeError("greenhouse");
@@ -37,7 +36,6 @@ export function parseGreenhouse(json: unknown, company: string): RawJob[] {
         location,
         remote: REMOTE_WORDS.test(location),
         employmentType: null,
-        // first_published is when it went up; updated_at is only its last edit.
         postedAt: toTime(job.first_published) ?? toTime(job.updated_at),
         validThrough: toTime(job.application_deadline),
         url,

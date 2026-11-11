@@ -17,8 +17,7 @@ import { JobTabs, NavMenu, NavScroll, ShowMore, type NavLink, type NavyJob } fro
 import { CodeScreen } from "./screen";
 import { NAVY_CSS } from "./styles";
 
-// Navy: a rebuild of Brittany Chiang's v4 (github.com/bchiang7/v4, MIT; ./LICENSE.txt) for
-// anyone's data, with a drawn code window in place of the project screenshots.
+// Ported from bchiang7/v4 (MIT, see ./LICENSE.txt).
 
 const A = {
   top: "pf-navy-top",

@@ -11,8 +11,6 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useWorkProfile } from "./use-work-profile";
 import { WorkProfileForm } from "./work-profile-form";
 
-// Signed-out visitors see nothing: the account view already asks them to sign in. Free gets the
-// trial offer instead of the form: the profile only feeds Pro features.
 export function WorkProfileCard() {
   const work = useWorkProfile();
   const titleId = useId();

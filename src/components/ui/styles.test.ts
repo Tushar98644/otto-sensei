@@ -4,10 +4,6 @@ import { fileURLToPath } from "node:url";
 import { __unstable__loadDesignSystem, compile } from "tailwindcss";
 import { describe, expect, it } from "vitest";
 
-// Compiles globals.css with the installed Tailwind and checks that the tokens, custom utilities
-// and newer variants the UI kit relies on really produce CSS. Tailwind drops unknown classes
-// silently, so a typo or an unsupported utility would otherwise only show up as a styling bug.
-
 const root = fileURLToPath(new URL("../../../", import.meta.url));
 const css = readFileSync(path.join(root, "src/app/globals.css"), "utf8");
 
@@ -18,7 +14,6 @@ async function loadStylesheet(id: string) {
 }
 
 const CLASSES = [
-  // Color, shadow and font tokens
   "bg-background",
   "bg-surface",
   "bg-surface-muted",
@@ -49,11 +44,9 @@ const CLASSES = [
   "shadow-float",
   "font-display",
   "font-sans",
-  // Opacity modifiers on hex tokens
   "ring-ink/15",
   "focus-visible:ring-ink/15",
   "bg-ink/85",
-  // Animations
   "animate-otto-blink",
   "motion-safe:animate-otto-blink",
   "animate-otto-wave",
@@ -63,10 +56,8 @@ const CLASSES = [
   "animate-draw",
   "animate-highlight-in",
   "animate-spin",
-  // Custom utilities
   "container-page",
   "prose-otto",
-  // Newer utilities and variants used by the components
   "field-sizing-content",
   "outline-hidden",
   "ring-3",
@@ -107,7 +98,6 @@ const CLASSES = [
   "bg-primary",
   "hover:bg-primary-hover",
   "bg-lavender",
-  // Keys
   "bg-linear-to-b",
   "from-primary-top",
   "hover:from-primary-hover-top",
@@ -123,7 +113,6 @@ const CLASSES = [
   "disabled:not-aria-busy:bg-none",
   "disabled:not-aria-busy:opacity-45",
   "pointer-coarse:h-11",
-  // Thumbnails and the dashboard's lively Otto
   "page-miniature",
   "@container",
   "aspect-17/22",
@@ -133,7 +122,6 @@ const CLASSES = [
   "motion-safe:group-hover/otto:animate-otto-page-lively",
   "motion-safe:group-focus-within/otto:animate-otto-chin-lively",
   "motion-safe:animate-scene-scan",
-  // The loading screen
   "motion-safe:animate-fade-out",
   "motion-reduce:hidden",
 ];
@@ -165,12 +153,10 @@ describe("globals.css", () => {
     expect(output).toMatch(/\.highlighter\s*\{[^}]*var\(--color-highlight\)/);
     expect(output).toMatch(/\.container-page\s*\{[^}]*max-width: 72rem/);
     expect(output).toMatch(/@media \(width >= 40rem\)\s*\{\s*padding-inline: 1\.5rem/);
-    // Raw compiler output keeps CSS nesting; the PostCSS plugin flattens it in the real build.
     expect(output).toMatch(/\.prose-otto\s*\{[\s\S]*?& :where\(h2\)\s*\{/);
     expect(output).toContain("html:has(dialog:modal)");
     expect(output).toContain("prefers-reduced-motion: reduce");
     expect(output).toMatch(/body\s*\{[^}]*font-family: var\(--font-sans\)/);
-    // Headings use the display font through the base layer alone, without any utility class.
     expect(output).toMatch(/--font-display: var\(--font-garamond\)/);
     expect(output).toMatch(/:focus-visible\s*\{\s*outline: 2px solid var\(--color-ink\)/);
     expect(

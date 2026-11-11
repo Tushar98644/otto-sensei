@@ -38,13 +38,10 @@ export function filterCounts(resumes: readonly Resume[]): Record<LibraryFilter, 
   return counts;
 }
 
-// Case and accents don't matter: "jose" finds "José", "ACME" finds "Acme".
 function fold(text: string): string {
   return text.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase().replace(/\s+/g, " ").trim();
 }
 
-// Searched by what people remember a resume by: its name, whose it is, and the companies on it,
-// the tailored job's included.
 function searchable(resume: Resume): string {
   return fold(
     [
@@ -57,7 +54,6 @@ function searchable(resume: Resume): string {
   );
 }
 
-// Every word typed must appear somewhere, in any order: "stripe pm" finds "PM at Stripe".
 export function matchesQuery(resume: Resume, query: string): boolean {
   const terms = fold(query).split(" ").filter(Boolean);
   if (terms.length === 0) return true;
@@ -67,7 +63,6 @@ export function matchesQuery(resume: Resume, query: string): boolean {
 
 const collator = new Intl.Collator("en", { sensitivity: "base", numeric: true });
 
-// Ties keep the incoming order, which is the store's newest-first order.
 export function sortResumes(resumes: readonly Resume[], sort: LibrarySort): Resume[] {
   const indexed = resumes.map((resume, index) => ({ resume, index }));
   indexed.sort((a, b) => {
@@ -101,7 +96,6 @@ export function tailoredCounts(resumes: readonly Resume[]): Map<string, number> 
   return counts;
 }
 
-// "Senior PM · Stripe" for a tailored copy, from what the job post said. Null when it said nothing.
 export function tailoredJob(resume: Resume): string | null {
   if (!resume.tailor) return null;
   const parts = [resume.tailor.jobTitle.trim(), resume.tailor.company.trim()].filter(Boolean);

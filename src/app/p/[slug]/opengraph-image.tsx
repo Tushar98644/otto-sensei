@@ -8,11 +8,9 @@ import { PORTFOLIO_TEMPLATE_INFO } from "@/lib/portfolio/templates";
 export const alt = `A portfolio page, with ${BRAND.mascotName} the otter waving`;
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
-// Same cache as the page: dropped by every write, else hourly.
 export const revalidate = 3600;
 
-// Satori can't read CSS variables, so these mirror the globals.css tokens. A published page's
-// card takes its template's colours instead.
+// Satori can't read CSS variables, so these mirror the globals.css tokens.
 const BRAND_COLORS = { background: "#FBFCFA", ink: "#12241D", muted: "#475850", subtle: "#5B6B63" };
 
 function clip(text: string, max: number): string {
@@ -21,8 +19,7 @@ function clip(text: string, max: number): string {
 
 type Props = { params: Promise<{ slug: string }> };
 
-// The name and headline of a published page; anything else gets the plain brand card, so an
-// unpublished page's name never leaves through its image.
+// Published pages only, so an unpublished page's name never leaves through its image.
 export default async function PortfolioImage({ params }: Props) {
   const { slug } = await params;
   const result = await loadPublicPortfolio(slug);

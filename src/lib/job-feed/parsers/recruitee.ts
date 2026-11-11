@@ -41,7 +41,6 @@ const RecruiteeOffer = z.object({
 
 export type RecruiteeOfferShape = z.infer<typeof RecruiteeOffer>;
 
-// Links to the offer on recruitee.com, which, unlike the careers page, the API can read again.
 export function recruiteeJob(offer: unknown, company: string, account: string): RawJob | null {
   const parsed = RecruiteeOffer.safeParse(offer);
   if (!parsed.success) return null;
@@ -60,7 +59,6 @@ export function recruiteeJob(offer: unknown, company: string, account: string): 
     title: job.title.trim(),
     location: joinLocation([remote ? "Remote" : job.hybrid ? "Hybrid" : null, place]),
     remote,
-    // "fulltime_permanent", "parttime_permanent", "internship", "freelance", "fulltime_fixed_term"
     employmentType: /fixed_term/.test(job.employment_type_code ?? "")
       ? "contract"
       : typeFrom(job.employment_type_code),
@@ -74,7 +72,6 @@ export function recruiteeJob(offer: unknown, company: string, account: string): 
   };
 }
 
-// GET :account.recruitee.com/api/offers/
 export function parseRecruitee(json: unknown, company: string, account: string): RawJob[] {
   const board = z.object({ offers: z.array(z.unknown()) }).safeParse(json);
   if (!board.success) throw new FeedShapeError("recruitee");

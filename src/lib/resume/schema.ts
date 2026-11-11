@@ -21,11 +21,7 @@ import type {
   TemplateIdSchema,
 } from "./validation";
 
-// Client-safe: no server imports and no zod (the schemas are in ./validation).
-
-// A 250-word letter is about 1,700 characters; the rest is room for the person's own edits.
 export const COVER_LETTER_CHARS = 5_000;
-// The same cap /api/tailor puts on a job post, so any tailored post fits on its copy.
 export const JOB_TEXT_CHARS = 20_000;
 export const MAX_SAVED_REQUIREMENTS = 40;
 export const SAVED_REQUIREMENT_LIMITS = { textChars: 300, terms: 8, termChars: 100 } as const;
@@ -51,7 +47,6 @@ export const SECTION_LABELS: Record<SectionKey, string> = {
 
 export const DEFAULT_SECTION_ORDER: SectionKey[] = [...SECTION_KEYS];
 
-// Not in `sectionOrder`: they print after the ordered sections, in array order.
 export const EXTRA_KINDS = [
   "languages",
   "awards",
@@ -81,7 +76,6 @@ export type DesignAccent = (typeof DESIGN_ACCENTS)[number];
 export type DesignFont = (typeof DESIGN_FONTS)[number];
 export type DesignDensity = (typeof DESIGN_DENSITIES)[number];
 
-// All are one column of real text, so the choice never changes what hiring software can read.
 export const TEMPLATE_IDS = [
   "classic",
   "modern",

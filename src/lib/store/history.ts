@@ -2,13 +2,7 @@ import type { RecruiterReport } from "@/lib/checks/types";
 import { cleanTitle, isTitleTaken, resumeTitle } from "@/lib/resume/ops";
 import { newId, type Resume } from "@/lib/resume/schema";
 
-// Pure, so the rules can be tested without zustand.
-
-// Undo history lives in memory only: a reload starts fresh, like a text editor. Saved versions
-// survive a reload.
-
 export const HISTORY_LIMIT = 100;
-// Edits closer together than this are one step, so Undo takes back a typed phrase, not a letter.
 export const MERGE_WINDOW_MS = 800;
 
 export const EDIT_LABELS = {
@@ -19,7 +13,6 @@ export const EDIT_LABELS = {
 } as const;
 
 export type EditOptions = {
-  // A named step: it never merges with typing before or after it. Use it for AI edits.
   label?: string;
 };
 
@@ -29,10 +22,8 @@ export type HistoryStep = {
 };
 
 export type ResumeHistory = {
-  // Oldest first.
   past: readonly HistoryStep[];
   future: readonly HistoryStep[];
-  // null once a named step, an undo or a redo closes the burst.
   burstAt: number | null;
 };
 
@@ -42,7 +33,6 @@ function step(resume: Resume, label: string | undefined): HistoryStep {
   return label ? { resume, label } : { resume };
 }
 
-// A new edit always clears Redo.
 export function recordEdit(
   history: ResumeHistory,
   before: Resume,
@@ -51,7 +41,6 @@ export function recordEdit(
 ): ResumeHistory {
   const label = options?.label?.trim() || undefined;
   if (!label && history.burstAt !== null && now - history.burstAt < MERGE_WINDOW_MS) {
-    // Same burst: the state before its first keystroke is already the undo point.
     return { past: history.past, future: [], burstAt: now };
   }
   const past = [...history.past, step(before, label)];
@@ -92,7 +81,6 @@ export function redoMove(history: ResumeHistory, current: Resume): HistoryMove |
   };
 }
 
-// Keeps the old name only while no other resume has taken it since: two resumes never share a name.
 export function adoptState(
   state: Resume,
   current: Resume,
@@ -111,7 +99,6 @@ export type ResumeVersion = {
   name: string;
   savedAt: number;
   resume: Resume;
-  // Saved by the app (the state just before a restore), not named by the user.
   auto?: boolean;
 };
 
@@ -124,7 +111,6 @@ export function newVersion(resume: Resume, name: string, now: number, auto = fal
   return auto ? { ...version, auto } : version;
 }
 
-// Newest first. Over the limit, automatic saves go before anything the user named.
 export function addVersion(
   versions: readonly ResumeVersion[],
   version: ResumeVersion,
@@ -142,7 +128,6 @@ export function versionToDrop(versions: readonly ResumeVersion[]): ResumeVersion
   return versions.findLast((v) => v.auto) ?? versions.at(-1) ?? null;
 }
 
-// The edit time doesn't count: an undo puts back the same words under a new one.
 export function isSaved(resume: Resume, versions: readonly ResumeVersion[]): boolean {
   const content = (r: Resume) => JSON.stringify({ ...r, updatedAt: 0 });
   const wanted = content(resume);
@@ -153,12 +138,10 @@ export function suggestVersionName(versions: readonly ResumeVersion[]): string {
   return `Version ${versions.filter((v) => !v.auto).length + 1}`;
 }
 
-// Trash lives only in this browser. The account refuses to bring a deleted id back, so restoring
-// makes a copy under a new id.
+// The account refuses a deleted id, so restoring makes a copy under a new id.
 
 export const TRASH_DAYS = 30;
 export const TRASH_KEEP_MS = TRASH_DAYS * 24 * 60 * 60 * 1000;
-// Each entry is a whole resume in localStorage, which is small and shared.
 export const TRASH_LIMIT = 30;
 
 export type TrashedResume = {
@@ -175,7 +158,6 @@ export function freshTrash(trash: readonly TrashedResume[], now: number): Trashe
     .slice(0, TRASH_LIMIT);
 }
 
-// Counting today: 30 right after deleting, 1 on the last day.
 export function daysLeft(entry: TrashedResume, now: number): number {
   const left = entry.deletedAt + TRASH_KEEP_MS - now;
   return Math.max(0, Math.ceil(left / (24 * 60 * 60 * 1000)));

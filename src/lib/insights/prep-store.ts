@@ -10,12 +10,10 @@ import {
   type PrepTarget,
 } from "./prep";
 
-// Every query is filtered by user_id. Saving a pack doesn't move updated_at: it isn't an edit to
-// the application, and the list's "newer copy wins" rule shouldn't see it as one.
+// Saving a pack leaves updated_at alone, or the list's "newer copy wins" rule would see an edit.
 
 export type PrepRecord = { target: PrepTarget; prep: InterviewPrep | null };
 
-/** Null when the user has no such row. */
 export async function getPrep(userId: string, applicationId: string): Promise<PrepRecord | null> {
   const db = await getDb();
   const [row] = await db
@@ -36,13 +34,11 @@ export async function getPrep(userId: string, applicationId: string): Promise<Pr
   return { target, prep: readPrep(prep) };
 }
 
-/** False when the user has no such row. */
 export async function savePrep(
   userId: string,
   applicationId: string,
   prep: InterviewPrep,
 ): Promise<boolean> {
-  // Parsed again on the way in, so nothing past the caps ever reaches the column.
   const checked = InterviewPrepSchema.parse(prep);
   const db = await getDb();
   const rows = await db
@@ -53,8 +49,6 @@ export async function savePrep(
   return rows.length > 0;
 }
 
-// Read inside the database so listing never pulls whole packs. The type checks keep one hand-edited
-// row from failing the whole list.
 const packMadeAt = sql<number>`case when jsonb_typeof(${applications.prep}->'createdAt') = 'number' then (${applications.prep}->>'createdAt')::bigint else ${applications.createdAt} end`;
 const lengthOf = (key: "questions" | "stories") => {
   const list = sql`${applications.prep}->${sql.raw(`'${key}'`)}`;

@@ -5,7 +5,6 @@ import { emptyWorkProfile, type WorkProfile } from "./profile";
 import { findTimeRule, formatHours, formatOffset, gapMinutes, offsetMinutes } from "./time";
 import type { EligibilityFinding, EligibilityRule } from "./types";
 
-// November 9, 2026: after both the US and Europe left daylight saving time.
 const NOW = Date.UTC(2026, 10, 9, 12);
 
 function profile(overrides: Partial<WorkProfile> = {}): WorkProfile {
@@ -80,7 +79,6 @@ describe("checkEligibility: a US-only remote job", () => {
     expect(result.location).toMatchObject({ verdict: "check", gap: "country" });
     expect(result.authorization).toMatchObject({ verdict: "check", gap: "rights" });
     expect(result.sponsorship).toMatchObject({ verdict: "check", gap: "rights" });
-    // Job type needs a saved profile: there is no preference to compare with.
     expect(result.work_type).toBeUndefined();
   });
 });
@@ -130,8 +128,7 @@ You must have at least 4 hours of overlap with PST.`;
   it("checks 'within N hours' against the profile, or the device when the profile has none", () => {
     const post =
       "Remote-friendly: you can work from anywhere in Canada, within 3 hours of Eastern Time.";
-    // Saskatchewan keeps UTC-6 all year. Zones that are changing their clocks (British Columbia moved
-    // to permanent UTC-7 in newer time-zone data) give different answers on different machines.
+    // Regina keeps UTC-6 all year; zones changing their clocks differ across tz data versions.
     const regina = profile({ country: "CA", timeZone: "America/Regina" });
     expect(run("Toronto, ON", post, regina).time_zone).toMatchObject({
       verdict: "ok",

@@ -11,12 +11,7 @@ import {
   type ReactNode,
 } from "react";
 
-// Hamish's ThemeProvider and window facts (useWindowSize, useReducedMotion), for a page that may
-// sit in a preview column instead of a window. Where the page is drawn:
-//   ssr   the server's markup and the first client render
-//   live  the public page or the full preview: everything moves, three.js loads
-//   lite  the editor's inert preview: the same choreography, still frames instead of WebGL
-//   still a template card (data-pf-still): the finished state at once
+// After HamishMW/portfolio's ThemeProvider and window hooks (MIT, see ./LICENSE.txt).
 
 export type ReelMode = "ssr" | "live" | "lite" | "still";
 export type ReelTheme = "dark" | "light";
@@ -25,7 +20,6 @@ type ReelState = {
   theme: ReelTheme;
   toggleTheme: () => void;
   mode: ReelMode;
-  // The page's width and one screen's height (the window, or the preview's box).
   size: { width: number; height: number };
   reduceMotion: boolean;
 };
@@ -45,13 +39,12 @@ const THEME_KEY = "pf-reel-theme";
 export function ReelRoot({ children }: { children: ReactNode }) {
   const ref = useRef<HTMLDivElement>(null);
   const screen = useRef<HTMLDivElement>(null);
-  // Dark first, like the original's cookie default; a reader's switch is kept per browser.
   const [theme, setTheme] = useState<ReelTheme>("dark");
   const [mode, setMode] = useState<ReelMode>("ssr");
   const [size, setSize] = useState({ width: 1280, height: 800 });
   const [reduceMotion, setReduceMotion] = useState(false);
 
-  // Layout effect: the first painted frame already has the right theme and mode.
+  // Layout effect, so the first painted frame already has the right theme and mode.
   useLayoutEffect(() => {
     const root = ref.current;
     if (!root) return;

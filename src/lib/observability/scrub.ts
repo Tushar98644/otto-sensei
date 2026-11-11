@@ -1,27 +1,20 @@
 import type { Breadcrumb, ErrorEvent } from "@sentry/nextjs";
 
-// Structure does most of the work (bodies, cookies and most headers dropped whole); these patterns
-// catch an email, phone or pasted resume inside an error message.
-
 type Fields = Record<string, string | number | boolean | null | undefined>;
 
-// "*" is allowed so maskEmail()'s "al***@example.com" goes too: the domain alone can name a person.
+// "*" too, so maskEmail()'s "al***@example.com" goes: the domain alone can name a person.
 const EMAIL = /[\p{L}\p{N}._%+*-]+@[\p{L}\p{N}-]+(?:\.[\p{L}\p{N}-]+)+/gu;
 const IPV4 = /(?<![\d.])(?:\d{1,3}\.){3}\d{1,3}(?![\d.])/g;
-// Not glued to letters or dashes, so digit runs inside ids and UUIDs stay readable.
 const PHONE =
   /(?<![\w+-])(?:\+\d{1,3}[\s.-]?)?(?:\(\d{1,4}\)[\s.-]?)?\d{2,4}(?:[\s.-]?\d{2,4}){1,4}(?![\w-])/gu;
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 // Share links are the key to someone's resume.
 const SHARE_PATH = /(\/s\/)[^/?#\s"']+/g;
-// Drizzle lists every bound value after "params:"; the statement before it has placeholders only.
 const QUERY_PARAMS = /\nparams:[\s\S]*$/;
 
-// Longer than this is pasted text (a resume, a job post), not a message a developer wrote.
 const MAX_TEXT = 300;
 const MAX_DEPTH = 6;
 
-// Matched on the key with case and separators removed: "userEmail" and "user_email" both go.
 const SENSITIVE_KEYS = new Set([
   "answer",
   "authorization",
@@ -42,7 +35,6 @@ const SENSITIVE_KEYS = new Set([
 ]);
 const SENSITIVE_SUFFIXES = ["email", "password", "phone", "secret", "text", "token"];
 
-// The only request headers kept: enough to tell browsers apart and match a Vercel log line.
 const KEPT_HEADERS = new Set([
   "accept",
   "content-length",
@@ -63,7 +55,6 @@ function digitCount(value: string): number {
 function maskPhone(match: string): string {
   if (ISO_DATE.test(match)) return match;
   const digits = digitCount(match);
-  // A bare run of digits is a phone number only at full length; with separators, 7 is enough.
   const formatted = /^\+|[\s().-]/.test(match);
   if (digits > 15 || digits < (formatted ? 7 : 10)) return match;
   return "[phone]";
@@ -82,7 +73,6 @@ function scrubString(value: string): string {
   return scrubText(value);
 }
 
-/** Database parameters cut, PII masked, and capped rather than dropped. */
 export function scrubMessage(value: string): string {
   const masked = scrubText(value.replace(QUERY_PARAMS, ""));
   return masked.length > MAX_TEXT ? `${masked.slice(0, MAX_TEXT)}… [cut]` : masked;
@@ -114,8 +104,7 @@ function scrubRequest(request: NonNullable<ErrorEvent["request"]>): ErrorEvent["
   for (const [name, value] of Object.entries(request.headers ?? {})) {
     if (KEPT_HEADERS.has(name.toLowerCase())) headers[name] = scrubString(value);
   }
-  // Body, cookies, query string and env are left behind on purpose: each can carry a resume,
-  // a sign-in code or a session.
+  // Body, cookies, query string and env stay behind: each can carry a resume, code or session.
   return {
     ...(request.url ? { url: scrubUrl(request.url) } : {}),
     ...(request.method ? { method: request.method } : {}),
@@ -140,7 +129,6 @@ export function scrubBreadcrumb(crumb: Breadcrumb): Breadcrumb {
 
 export function scrubEvent<T extends ErrorEvent>(event: T): T {
   if (event.request) event.request = scrubRequest(event.request);
-  // Only the opaque id survives: no email, name, username or IP address.
   if (event.user) event.user = event.user.id === undefined ? undefined : { id: event.user.id };
   if (event.message) event.message = scrubMessage(event.message);
   if (event.logentry?.message) event.logentry = { message: scrubMessage(event.logentry.message) };
@@ -159,7 +147,6 @@ export function scrubEvent<T extends ErrorEvent>(event: T): T {
 const TAG_KEY_LENGTH = 32;
 const TAG_VALUE_LENGTH = 200;
 
-/** Sensitive names skipped, values masked, within Sentry's limits. */
 export function safeTags(fields: Fields): Record<string, string> {
   const tags: Record<string, string> = {};
   for (const [key, value] of Object.entries(fields)) {

@@ -2,24 +2,18 @@ import { fail, NO_STORE, ok } from "@/lib/api/respond";
 import { log } from "@/lib/log";
 import { isAuthorizedCron } from "./auth";
 
-// Checks the secret, gives the job a time budget, logs one line, and answers 500 when any part
-// failed so Vercel's cron log shows it. Vercel may deliver a call twice and a run can stop at its
-// deadline, so every job is idempotent and picks up the rest next run.
+// Vercel may deliver a call twice and a run can stop at its deadline: every job is idempotent.
 
 export type CronStats = Record<string, number>;
 
 export type CronOutcome = {
   stats: CronStats;
-  // False when it stopped with work left for the next run.
   complete: boolean;
-  // The steps that threw. The others still ran.
   failed: string[];
 };
 
 export type CronContext = {
-  // For the job's own cutoffs ("older than 21 days").
   now: number;
-  // Wall-clock time after which no new batch starts.
   deadline: number;
 };
 
@@ -47,7 +41,6 @@ export async function runCronRoute(req: Request, name: string, job: CronJob): Pr
     const durationMs = Date.now() - started;
     const fields = { job: name, complete: outcome.complete, durationMs, ...outcome.stats };
     if (outcome.failed.length > 0) {
-      // Each failed step already logged (and reported) its own error.
       log.warn(`cron.${name}.partial_failure`, { ...fields, failed: outcome.failed.join(",") });
       return fail("server_error", `Some steps failed: ${outcome.failed.join(", ")}.`, 500, NO_STORE);
     }
@@ -65,7 +58,6 @@ export async function runCronRoute(req: Request, name: string, job: CronJob): Pr
   }
 }
 
-// Until a short batch (nothing left), the deadline, or `maxBatches`.
 export async function drain(
   step: () => Promise<number>,
   { batchSize, maxBatches, deadline }: { batchSize: number; maxBatches: number; deadline: number },

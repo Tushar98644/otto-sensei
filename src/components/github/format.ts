@@ -12,14 +12,12 @@ export function usernameFromResume(resume: Resume): string {
   return "";
 }
 
-// Below this many projects, the studio offers the GitHub import at the top of Projects.
 const FEW_PROJECTS = 2;
 
 export function offersGitHubImport(resume: Resume): boolean {
   return usernameFromResume(resume) !== "" && resume.projects.length < FEW_PROJECTS;
 }
 
-/** What the server hides from the AI: the details this resume itself shows. */
 export function contactOf(resume: Resume): GitHubContact {
   const { basics } = resume;
   return {
@@ -30,7 +28,6 @@ export function contactOf(resume: Resume): GitHubContact {
   };
 }
 
-// "TypeScript · 1,200 stars · Archived"
 export function repoMeta(repo: GitHubRepo): string {
   return [
     repo.language,
@@ -41,14 +38,12 @@ export function repoMeta(repo: GitHubRepo): string {
     .join(" · ");
 }
 
-// "vercel/next.js #101 · Merged Sep 2026"
 export function pullMeta(pull: GitHubPull): string {
   const time = Date.parse(pull.mergedAt);
   const merged = Number.isNaN(time) ? "" : `Merged ${MONTH.format(time)}`;
   return [`${pull.repo} #${pull.number}`, merged].filter(Boolean).join(" · ");
 }
 
-/** Case- and accent-blind match on every word, in any order. */
 export function matchesQuery(fields: readonly string[], query: string): boolean {
   const words = fold(query).split(/\s+/).filter(Boolean);
   if (words.length === 0) return true;
@@ -64,7 +59,6 @@ export function shortLink(url: string): string {
   return url.replace(/^https?:\/\//, "").replace(/^www\./, "");
 }
 
-// Otto's lines in the dialog: first person, 18 words at most (checked in format.test.ts).
 export const GITHUB_OTTO = {
   pick: "Pick your best work. I'll write lines only from what GitHub shows.",
   nothing: (username: string) => `I found no public repos or merged pull requests for ${username}.`,

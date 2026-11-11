@@ -76,7 +76,6 @@ export type RequirementRowProps = {
 type ProofProps = {
   row: RequirementRow;
   addedIds: ReadonlySet<string>;
-  // Set when this row's own added line is the proof, so it can be taken back here.
   onRemove: (() => void) | null;
   onJump: (bulletId: string) => void;
 };
@@ -114,7 +113,6 @@ function Proof({ row, addedIds, onRemove, onJump }: ProofProps) {
   );
 }
 
-// A line the person added that still doesn't prove the requirement: it names no search term.
 type UnprovenLineProps = { text: string; name: string; onRemove: () => void };
 
 function UnprovenLine({ text, name, onRemove }: UnprovenLineProps) {
@@ -133,7 +131,6 @@ function UnprovenLine({ text, name, onRemove }: UnprovenLineProps) {
   );
 }
 
-// Why the row has its status, in this resume's terms. A warning gets the icon, never color alone.
 function ReasonLine({ reason }: { reason: RowReason | undefined }) {
   if (!reason?.text) return null;
   const warn = reason.tone === "warn";

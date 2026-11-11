@@ -30,7 +30,6 @@ const ACCEPT = UPLOAD_ACCEPT;
 type UploadState =
   | { status: "idle" }
   | { status: "reading"; file: File }
-  // `file` is kept for "Try again" when the server failed; null when the file itself was the problem.
   | { status: "failed"; message: string; file: File | null };
 
 export function UploadStep() {
@@ -38,7 +37,6 @@ export function UploadStep() {
   const setActive = useStudioStore((s) => s.setActive);
   const setStep = useStudioStore((s) => s.setStep);
   const resumes = useResumeList();
-  // A file picked outside the studio ("Upload a file" on the dashboard) is read as the step opens.
   const [handed] = useState(handedUpload);
   const [state, setState] = useState<UploadState>(() => {
     if (!handed) return { status: "idle" };
@@ -47,7 +45,6 @@ export function UploadStep() {
       ? { status: "failed", message: OTTO.upload.failed(problem), file: null }
       : { status: "reading", file: handed };
   });
-  // "Build with Otto" picked outside the studio opens straight on the questions.
   const [guided, setGuided] = useState(guidedDraftRequested);
   // The import can't be aborted, so a result that lands after the user has moved on is dropped.
   const mounted = useRef(false);
@@ -63,14 +60,12 @@ export function UploadStep() {
   }, []);
 
   const reading = state.status === "reading";
-  // Free keeps RESUME_LIMITS.free resumes: every way in below asks roomForResume() first.
   const pro = useProTools();
   const full = pro === false && resumes.length >= RESUME_LIMITS.free;
   const tryPro = useTryProLabel();
 
   async function upload(file: File) {
     if (!(await roomForResume())) {
-      // Only a handed-off file is already shown as reading at this point.
       setState((current) => (current.status === "reading" ? { status: "idle" } : current));
       return;
     }
@@ -80,7 +75,6 @@ export function UploadStep() {
       if (!mounted.current) return;
       if (readWell) noteReadWell(resume.id, file);
       else if (!usedAI) noteReadByRules(resume.id, basicReader === true);
-      // Named after the file the person picked; addResume numbers it if the name is taken.
       addResume({ ...resume, title: titleFromFileName(file.name) || resume.title }, report);
       track("resume_imported", { source: report.kind });
       setStep("review");
@@ -97,12 +91,10 @@ export function UploadStep() {
   });
   useEffect(() => startHanded(), []);
 
-  // LinkedIn exports and JSON Resume files are read in the browser, so there's no report to review.
   async function importLocal(kind: LocalImportKind, file: File) {
     if (!(await roomForResume())) return;
     setState({ status: "reading", file });
     try {
-      // Loaded on use: the LinkedIn reader brings a ZIP library (about 50 KB) most visits never need.
       const { LocalImportError, readLocalImport } = await import("../upload/local-import");
       try {
         const resume = await readLocalImport(kind, file);
@@ -129,7 +121,6 @@ export function UploadStep() {
     setStep("fix");
   }
 
-  // Checked before the questions, so nobody writes a draft they can't keep.
   async function startGuided() {
     if (await roomForResume()) setGuided(true);
   }
@@ -241,7 +232,6 @@ function ottoFor(state: UploadState): string {
   }
 }
 
-// Server messages are already written for people, so they go straight into Otto's line.
 function describeError(error: unknown): string {
   if (isApiError(error, "rate_limited")) return OTTO.errors.rateLimited;
   if (isApiError(error)) return OTTO.upload.failed(error.message);

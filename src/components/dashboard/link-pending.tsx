@@ -4,9 +4,7 @@ import { useLinkStatus } from "next/link";
 import { Spinner } from "@/components/ui/spinner";
 import { cn } from "@/lib/utils";
 
-// Dashboard pages have no loading screen: a loading boundary made React hold every page change
-// for its 300 ms fallback throttle, even when the page arrived in 100. Faded in after a short
-// delay, so quick moves show nothing. Must render inside a next/link <Link>.
+// Must render inside a next/link <Link>. No loading.tsx: React holds it for a 300 ms throttle.
 export function LinkPending({ variant = "spinner" }: { variant?: "spinner" | "bar" }) {
   const { pending } = useLinkStatus();
   if (!pending) return null;

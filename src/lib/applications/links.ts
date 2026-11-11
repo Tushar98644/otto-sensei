@@ -3,16 +3,10 @@ import type { AnyPgColumn } from "drizzle-orm/pg-core";
 import type { Db, Tx } from "@/db/client";
 import { applications, jobs, writings } from "@/db/schema";
 
-// An application points at its opening (job_id) and a letter at its application (application_id).
-// The server sets both; ids from the browser are checked against the account first. thread.ts
-// mirrors the "same job" rule for rows saved before these links existed.
-
 type Executor = Db | Tx;
 
 export type JobFacts = { jobUrl: string; company: string; role: string };
 
-// The same link when both have one, else the same company and title. Two different links are two
-// different posts, even at one company.
 function sameJob(
   left: { url: AnyPgColumn; company: AnyPgColumn; role: AnyPgColumn },
   right: JobFacts,
@@ -25,7 +19,6 @@ function sameJob(
   return or(eq(left.url, right.jobUrl), and(eq(left.url, ""), byName))!;
 }
 
-// The id the browser sent while that job's row is kept, else the one opening with this link.
 export async function resolveJobId(
   db: Executor,
   jobId: string | null,
@@ -58,8 +51,6 @@ export async function linkWritings(
     );
 }
 
-// The one it was written from when that's the account's, else the newest for the same job. Null
-// when there's none yet; logging one later links it (linkWritings).
 export async function applicationForWriting(
   db: Executor,
   userId: string,

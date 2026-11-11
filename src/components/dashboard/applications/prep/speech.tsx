@@ -12,7 +12,6 @@ const AVATAR: Record<AvatarSize, { box: string; icon: string }> = {
   lg: { box: "size-12", icon: "size-9" },
 };
 
-// Otto plays the interviewer, so his head is the interviewer's face.
 export function InterviewerAvatar({ size = "md" }: { size?: AvatarSize }) {
   return (
     <span
@@ -27,7 +26,6 @@ export function InterviewerAvatar({ size = "md" }: { size?: AvatarSize }) {
   );
 }
 
-// Who is talking, over a line of the interview: "Interviewer · Question 3 of 8".
 export function Speaker({
   meta,
   size = "md",
@@ -48,7 +46,6 @@ export function Speaker({
   );
 }
 
-// The person's own questions: their side of the talk, so on the right under their avatar.
 export function AskBubbles({
   asks,
   surface = "mist",
@@ -69,7 +66,6 @@ export function AskBubbles({
           <UserRound className="size-4" />
         </span>
       </div>
-      {/* Inset on phones too, so the bubbles still read as the right-hand side of the talk. */}
       <ul className="flex w-full flex-col items-end gap-2 pl-10 sm:pl-16">
         {asks.map((ask) => (
           <li key={ask} className="flex max-w-xl justify-end">
@@ -81,7 +77,6 @@ export function AskBubbles({
   );
 }
 
-// A [blank] is a gap to fill in: dashed outline, muted text so it never passes for a fact.
 export function WithBlanks({ text }: { text: string }) {
   return (
     <>

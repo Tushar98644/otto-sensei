@@ -10,7 +10,6 @@ const SCHOOL_WORDS =
 const DEGREE_WORDS =
   /\b(?:bachelors?|masters?|doctor|doctorate|ph\.?\s?d|associate|diploma|certificate|degree|b\.?\s?sc|m\.?\s?sc|b\.?\s?s|m\.?\s?s|b\.?\s?a|m\.?\s?a|mba|bba|b\.?\s?tech|m\.?\s?tech|b\.?\s?eng|m\.?\s?eng|b\.?\s?e|m\.?\s?e|b\.?\s?com|m\.?\s?com|bca|mca|llb|llm|j\.?d|m\.?d|bfa|mfa|b\.?\s?ed|m\.?\s?ed|a-levels?|gcses?|high school|ged|hnd)(?![\p{L}])/iu;
 
-// "BSc Computer Science" -> "BSc" + "Computer Science".
 const DEGREE_ABBREVIATION =
   /^((?:B|M)\.?\s?(?:Sc|S|A|Eng|E|Tech|Com|Ed|Phil|FA|BA)\.?|MBA|BBA|BCA|MCA|Ph\.?\s?D\.?|LL\.?B\.?|LL\.?M\.?|J\.?D\.?|M\.?D\.?)\s+(?!in\b|of\b)(\p{Lu}.*)$/u;
 
@@ -18,7 +17,6 @@ type EducationDraft = Omit<Education, "id" | "bullets"> & { bullets: string[] };
 type EducationFields = Omit<EducationDraft, "bullets"> & { extras: string[] };
 const EDUCATION_KEYS = ["school", "degree", "field", "location", "startDate", "endDate"] as const;
 
-// Entries split where a second school, degree or date would land on the one being filled.
 function parseEducation(lines: readonly string[]): Education[] {
   const drafts: EducationDraft[] = [];
   const open = (): EducationDraft => {
@@ -56,7 +54,6 @@ function parseEducation(lines: readonly string[]): Education[] {
       if (fields[key] && !target[key]) target[key] = fields[key];
     }
     for (const extra of fields.extras) {
-      // "GPA 3.9", "Coursework: ..." are details, not names.
       if (/[\d:]/.test(extra)) target.bullets.push(extra);
       else if (!target.school) target.school = extra;
       else if (!target.degree) target.degree = extra;
@@ -78,7 +75,6 @@ function parseEducation(lines: readonly string[]): Education[] {
     }));
 }
 
-// "Degree/Certificate<tab>Institute/Board<tab>CGPA/Percentage<tab>Year": the head of a table.
 const TABLE_HEADING_WORD =
   /^(?:degree|certificate|qualification|course|program(?:me)?|institute|institution|board|university|school|college|c?gpa|cpi|percentage|grade|marks|score|result|year|duration|session)s?$/i;
 
@@ -92,9 +88,7 @@ function isTableHeading(line: string): boolean {
   );
 }
 
-// "Relevant Coursework" under its own heading lists courses of a degree above it.
 export function addEducation(education: Education[], block: SectionBlock): void {
-  // Entries run newest first, so the courses belong to the first (latest) degree.
   const latest = education[0];
   if (latest && /\bcourse/i.test(block.heading)) {
     const courses = block.lines.map((line) => (bulletText(line) ?? line).split(/\t+/).join(", "));
@@ -124,12 +118,10 @@ function educationFields(line: string): EducationFields {
     fields.endDate = range.end;
     rest = stripDates(line);
   } else {
-    // A single date on an education line is almost always the graduation date.
     const single = findDates(line)[0]?.text ?? "";
     fields.endDate = single;
     if (single) rest = line.replace(single, "\t");
   }
-  // Peel off "City, Region" first, so "University of Maryland, College Park, MD" keeps its name.
   const pieces = segmentsOf(rest).flatMap((segment) => {
     const trailing = fields.location ? null : splitTrailingLocation(segment);
     if (trailing) fields.location = trailing.location;
@@ -151,7 +143,6 @@ function educationFields(line: string): EducationFields {
   return fields;
 }
 
-// "BSc Physics, University of Leeds, Leeds" -> ["BSc Physics", "University of Leeds, Leeds"].
 function splitSchoolAndDegree(segment: string): string[] {
   const parts = segment.split(/,\s*/);
   const schoolAt = parts.findIndex((part) => SCHOOL_WORDS.test(part));

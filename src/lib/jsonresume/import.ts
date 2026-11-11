@@ -15,8 +15,6 @@ import {
 import { ResumeSchema } from "@/lib/resume/validation";
 import { fromIsoDate } from "./dates";
 
-// Every field is optional and files in the wild mix types, so a wrong-typed field is skipped.
-
 export const JSON_RESUME_MAX_BYTES = 2 * 1024 * 1024;
 
 export class JsonResumeError extends Error {
@@ -149,7 +147,6 @@ function extras(data: JsonResumeInput): ExtraSection[] {
   ].filter((section) => section !== null);
 }
 
-/** Throws JsonResumeError with a message for the person. */
 export function parseJsonResume(text: string, now = Date.now()): Resume {
   let raw: unknown;
   try {

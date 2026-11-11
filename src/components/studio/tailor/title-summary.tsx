@@ -34,7 +34,6 @@ function CheckLine({ ok, label, text }: { ok: boolean; label: string; text: stri
   );
 }
 
-// Recruiters read the top first (Ladders' eye-tracking), so title and summary get their own check.
 export function TitleSummary({
   title,
   summary,

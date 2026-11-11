@@ -5,7 +5,7 @@ export type EyebrowProps = ComponentProps<"p"> & {
   as?: "p" | "span" | "figcaption";
 };
 
-// Capitals come from CSS only: the text stays sentence case, so screen readers don't spell it out.
+// Capitals come from CSS only, so screen readers don't spell the text out.
 export function Eyebrow({ as: Tag = "p", className, ...props }: EyebrowProps) {
   return (
     <Tag

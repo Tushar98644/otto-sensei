@@ -4,8 +4,7 @@ import { Marked, nameOf, OutLink, seeded, seedOf, TemplateStyle, unbroken } from
 import type { PortfolioTemplateProps } from "../types";
 import { FOLIO_CSS } from "./styles";
 
-// Folio: a rebuild of Samuel Kraft's site (github.com/samuelkraft/samuelkraft-next, MIT;
-// ./LICENSE.txt) for anyone's data, with app icons drawn from project names for screenshots.
+// Ported from samuelkraft/samuelkraft-next (MIT, see ./LICENSE.txt).
 
 const BLUR_LAYERS = [
   { blur: 0.5, solid: 80, fade: 100 },
@@ -34,7 +33,6 @@ function Graphic({ project }: { project: ContentProject }) {
   );
 }
 
-/** The pitch opens the intro unless the about text already starts with it. */
 function introLines(pitch: string, about: readonly string[]): boolean {
   const first = about[0]?.trim() ?? "";
   return pitch !== "" && !first.startsWith(pitch.trim());

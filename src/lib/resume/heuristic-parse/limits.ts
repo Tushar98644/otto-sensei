@@ -1,4 +1,3 @@
-// Clipping to the schema caps means the result always passes ResumeSchema.
 export const LIMITS = {
   text: 200,
   label: 100,

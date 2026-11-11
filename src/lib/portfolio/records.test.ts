@@ -19,8 +19,6 @@ import { sampleResume } from "./testing";
 import { PORTFOLIO_LIMITS, type Portfolio } from "./types";
 
 const DAY = 24 * 60 * 60 * 1000;
-// Portfolios are Pro and Max, and only a paid (not trial) plan's page is public, so the owners
-// here pay unless a test says otherwise.
 const PRO = { plan: "pro" } as const;
 const createUser = async (email?: string) => setPlan(await createFreeUser(email), "pro");
 
@@ -53,7 +51,6 @@ describe("portfolio records", () => {
       versionAt: 1_000,
       publishedAt: null,
     });
-    // The snapshot is what the PDF prints: no tailoring notes, no hidden project.
     expect(portfolio.snapshot.tailor).toBeNull();
     expect(portfolio.snapshot.projects.map((project) => project.name)).toEqual(["otto-resume"]);
     expect(await findPublicPortfolio("maya-chen")).toEqual({ status: "missing" });
@@ -155,7 +152,6 @@ describe("portfolio records", () => {
     saved(await updatePortfolio(user.id, { published: true }, PRO));
     expect((await findPublicPortfolio("maya-chen")).status).toBe("ok");
 
-    // Dropped to Free: the page is answered as missing, its data stays, and it can't be changed.
     const free = { ...user, plan: "free" as const };
     await (
       await getDb()
@@ -169,7 +165,6 @@ describe("portfolio records", () => {
       status: "needs_portfolio_plan",
     });
 
-    // Back on Pro, it's live again as it was.
     await setPlan(user, "pro");
     expect((await findPublicPortfolio("maya-chen")).status).toBe("ok");
   });
@@ -197,11 +192,8 @@ describe("portfolio records", () => {
       status: "redirect",
       slug: "maya-builds",
     });
-    // Nobody else can take the old address while it still redirects...
     expect(await checkSlug(other.id, "maya-chen", 4_000)).toMatchObject({ available: false });
-    // ...but the owner can go back to it.
     expect(await checkSlug(maya.id, "maya-chen", 4_000)).toMatchObject({ available: true });
-    // Deleting the account drops the cache for both addresses.
     expect((await portfolioSlugsOf(maya.id)).sort()).toEqual(["maya-builds", "maya-chen"]);
     const expired = 3_000 + PORTFOLIO_LIMITS.redirectDays * DAY + 1;
     expect(await findPublicPortfolio("maya-chen", expired)).toEqual({ status: "missing" });

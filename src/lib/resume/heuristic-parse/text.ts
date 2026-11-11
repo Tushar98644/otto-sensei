@@ -2,7 +2,6 @@ import { newId, type Bullet } from "../schema";
 import { bulletText, findDateRanges, findDates } from "../sections";
 import { LIMITS } from "./limits";
 
-// "Developer Intern<tab>Summer 2020", not a date inside a sentence ("Led the 2020 migration").
 export function setApartDate(line: string): string | null {
   if (!isTitleLike(line)) return null;
   const date = findDates(line).at(-1);
@@ -13,7 +12,6 @@ export function setApartDate(line: string): string | null {
   return apart && /^[)\]]?$/.test(after) ? date.text : null;
 }
 
-// Continues the previous line when it starts lowercase or the previous one stops mid-phrase.
 const JOINER =
   /(?:[,;:&/–-]|\b(?:and|or|to|of|the|with|for|in|a|an|by|on|at|from|into|across|over|via|using|including|between|within|per|as|than|that|which|while))$/i;
 
@@ -21,7 +19,6 @@ export function continues(previous: string, line: string): boolean {
   return /^\p{Ll}/u.test(line) || JOINER.test(previous.trim());
 }
 
-// With markers, unmarked lines continue a bullet; without, each line is one unless it continues.
 export function toBullets(lines: readonly string[], max: number): Bullet[] {
   const usesMarkers = lines.some((line) => bulletText(line) !== null);
   const texts: string[] = [];
@@ -78,7 +75,6 @@ export function stripDates(line: string): string {
     .trim();
 }
 
-// Short, without sentence punctuation, not starting mid-sentence: a title, company or school line.
 export function isTitleLike(line: string): boolean {
   const text = line.replace(/\t/g, " ").trim();
   return (
@@ -99,7 +95,6 @@ export function toLines(text: string): string[] {
     .split(/\r\n?|\n/)
     .map((line) =>
       line
-        // Icon fonts (FontAwesome in LaTeX templates) often come out of a PDF as control codes.
         .replace(/(?!\t)\p{Cc}/gu, "")
         .replace(/[ \u00a0]+/g, " ")
         .replace(/ *\t[\t ]*/g, "\t")
@@ -111,7 +106,6 @@ export function toLines(text: string): string[] {
 export function clip(text: string, max: number): string {
   const trimmed = text.trim();
   if (trimmed.length <= max) return trimmed;
-  // Never cut a surrogate pair in half.
   const end = /[\ud800-\udbff]/.test(trimmed.charAt(max - 1)) ? max - 1 : max;
   return trimmed.slice(0, end).trimEnd();
 }

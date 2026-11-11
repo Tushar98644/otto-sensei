@@ -26,7 +26,6 @@ export type FeedbackDialogProps = {
   onOpenChange: (open: boolean) => void;
 };
 
-// Works signed in or out. The draft survives closing the dialog, so a stray Escape loses nothing.
 export function FeedbackDialog({ open, onOpenChange }: FeedbackDialogProps) {
   const formId = useId();
   const kindName = useId();
@@ -83,7 +82,6 @@ export function FeedbackDialog({ open, onOpenChange }: FeedbackDialogProps) {
       <form id={formId} onSubmit={submit} noValidate className="flex flex-col gap-5">
         <fieldset className="flex flex-col gap-2">
           <legend className="mb-2 text-sm font-medium text-ink">What is it about?</legend>
-          {/* Native radios: arrow keys and screen-reader announcements work without extra code. */}
           <div className="grid grid-cols-3 gap-1 rounded-xl bg-surface-muted p-1">
             {FEEDBACK_KINDS.map((value) => (
               <label key={value} className="relative min-w-0">

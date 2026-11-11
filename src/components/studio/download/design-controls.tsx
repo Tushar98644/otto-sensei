@@ -24,11 +24,8 @@ import {
 import { useStudioStore } from "@/lib/store/resume-store";
 import { cn } from "@/lib/utils";
 
-// Saved on the resume, so preview, downloads and devices agree. Native radios for arrow keys.
-
 const LOOK_LABEL = "Changed the look";
 
-// Executive is the one serif format; the toggle shows what the page uses now.
 const FORMAT_FONT: Partial<Record<string, DesignFont>> = { executive: "serif" };
 
 const OPTION =
@@ -90,7 +87,6 @@ function Swatch({ color }: { color: string | null }) {
         "size-4 shrink-0 rounded-full",
         color ? null : "bg-surface ring-1 ring-border-strong ring-inset",
       )}
-      // A print color picked by the person, not an app color: it can't be a theme token.
       style={color ? { backgroundColor: color } : undefined}
     />
   );

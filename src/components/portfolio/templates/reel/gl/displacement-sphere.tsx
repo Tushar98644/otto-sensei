@@ -21,8 +21,7 @@ import { SpringValue } from "../spring";
 import { fragmentShader, vertexShader } from "./sphere-shaders";
 import { cleanRenderer, cleanScene, removeLights, throttle } from "./three";
 
-// HamishMW/portfolio routes/home/displacement-sphere.jsx, line for line, except it sizes to the
-// page's box (useReel().size) to fit the preview. Lazy, so three.js loads only where this draws.
+// Ported from HamishMW/portfolio displacement-sphere.jsx (MIT, see ../LICENSE.txt).
 
 const springConfig = { stiffness: 30, damping: 20, mass: 2 };
 
@@ -66,7 +65,6 @@ export default function DisplacementSphere({ onFail }: { onFail: () => void }) {
         failIfMajorPerformanceCaveat: true,
       });
     } catch {
-      // No hardware WebGL: the page keeps the still frame.
       failRef.current();
       return;
     }
@@ -100,7 +98,6 @@ export default function DisplacementSphere({ onFail }: { onFail: () => void }) {
       cleanRenderer(ownRenderer);
       renderer.current = null;
     };
-    // Built once per mount, like the original; resizes are handled below.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -124,7 +121,6 @@ export default function DisplacementSphere({ onFail }: { onFail: () => void }) {
     camera.current.aspect = width / adjustedHeight;
     camera.current.updateProjectionMatrix();
 
-    // Render a single frame on resize when not animating
     if (reduceMotion) renderer.current.render(scene.current, camera.current);
 
     if (width <= MOBILE) {

@@ -22,7 +22,6 @@ const ADD_ID = addButtonId("projects");
 export const ProjectsEditor = memo(function ProjectsEditor({ resumeId }: { resumeId: string }) {
   const ids = useItemIds(resumeId, (resume) => resume.projects);
   const username = useResumeValue(resumeId, usernameFromResume, "");
-  // A GitHub link and fewer than two projects: the import goes first, where it's seen.
   const upFront = useResumeValue(resumeId, offersGitHubImport, false);
 
   function add() {
@@ -43,7 +42,6 @@ export const ProjectsEditor = memo(function ProjectsEditor({ resumeId }: { resum
       limit={LIST_LIMITS.projects}
       more={
         upFront ? null : (
-          // The resume names a GitHub profile, so the import starts on its own once opened.
           <GitHubImportButton
             resumeId={resumeId}
             variant="ghost"
@@ -144,7 +142,6 @@ const ProjectEntry = memo(function ProjectEntry({ resumeId, entryId, index, coun
                 placeholder="github.com/alex/budget"
               />
             </Field>
-            {/* Some formats print these by the project's name; every format prints them when set. */}
             <Field label="Tools" optional className="sm:col-span-2">
               <Input
                 value={project.tech ?? ""}

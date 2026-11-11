@@ -41,7 +41,6 @@ export function AccountMenu({ onSignIn }: AccountMenuProps) {
   const [feedbackOpen, setFeedbackOpen] = useState(false);
 
   if (!user) {
-    // Holds the space while /api/me loads, so a signed-in user never sees "Sign in" flash.
     if (loading) return <Skeleton className="h-11 w-24 shrink-0 rounded-lg" />;
     return (
       <Button variant="secondary" onClick={onSignIn} className="shrink-0">
@@ -83,7 +82,6 @@ function AccountPanel({ user, onFeedback }: { user: SessionUser; onFeedback: () 
   async function signOut() {
     setSigningOut(true);
     try {
-      // Backs up recent edits, then leaves nothing behind for the next person on a shared computer.
       const { kept } = await signOutAndRelease(user.id);
       await refreshMe();
       close();

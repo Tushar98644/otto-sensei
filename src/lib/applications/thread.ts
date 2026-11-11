@@ -4,13 +4,9 @@ import type { Writing } from "@/lib/writings/schema";
 import { normalizeJobUrl, type Application } from "./schema";
 import type { StatusEvent } from "./status";
 
-// One job is one thread: opening, saved job, tailored copy, application, letters and prep. They
-// find each other by server-kept ids, and by the job link only for rows saved before those existed.
-
 export type ApplicationThread = {
   application: Application;
   history: StatusEvent[];
-  // While its row is kept (30 days after it closes).
   job: ThreadJob | null;
   writings: Writing[];
   prep: { createdAt: number; questions: number; stories: number; demo: boolean } | null;
@@ -30,13 +26,11 @@ export type ThreadJob = {
 
 export type JobRef = { id: string; url: string };
 
-/** Empty or broken links never match. */
 export function sameJobUrl(a: string | null | undefined, b: string | null | undefined): boolean {
   const left = normalizeJobUrl(a ?? "");
   return left !== null && left !== "" && left === normalizeJobUrl(b ?? "");
 }
 
-// Read by shape: localStorage copies are never re-parsed.
 function copyJob(copy: Resume): { jobId: string | null; jobUrl: string } {
   const meta = copy.tailor as { jobId?: unknown; jobUrl?: unknown } | null;
   return {
@@ -61,7 +55,6 @@ export function applicationForJob(
   );
 }
 
-// Null for a base resume: it goes out to many jobs.
 export function applicationForCopy(
   applications: readonly Application[],
   copy: Resume,
@@ -120,7 +113,6 @@ export function writingsForApplication(
     .sort((a, b) => b.createdAt - a.createdAt);
 }
 
-// One pass over each list.
 export function writingsByApplication(
   applications: readonly Application[],
   writings: readonly Writing[],

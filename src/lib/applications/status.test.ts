@@ -8,7 +8,6 @@ describe("reading stored statuses", () => {
     expect(readStatus("ghosted")).toBeNull();
     expect(readStage("screening")).toBe("interview");
     expect(readStage("offer")).toBe("offer");
-    // An ending is never a furthest step.
     expect(readStage("rejected")).toBe("applied");
   });
 

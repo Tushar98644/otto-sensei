@@ -6,11 +6,9 @@ import { isLocation } from "./words";
 
 const LABEL_WORDS =
   "e-?mail|phone|tel(?:ephone)?|mobile|mob|cell|whatsapp|linkedin|github|website|web|portfolio|address|location";
-// "Email: ..." loses its label; a bare "Email" left over once the address is removed is dropped.
 const CONTACT_LABEL = new RegExp(`^(?:${LABEL_WORDS})\\s*[:.]\\s*`, "i");
 const BARE_LABEL = new RegExp(`^(?:${LABEL_WORDS})$`, "i");
 const DOCUMENT_TITLE = /^(?:resume|résumé|curriculum vitae|cv)$/i;
-// A profile, not a repository or a post: linkedin.com/in/jane, github.com/jane, behance.net/jane.
 const PROFILE_LINK =
   /^(?:https?:\/\/)?(?:www\.)?(?:linkedin\.com\/in\/[^/\s]+|(?:github\.com|gitlab\.com|behance\.net|dribbble\.com|kaggle\.com)\/[^/\s]+)\/?$/i;
 
@@ -21,7 +19,6 @@ export function parseBasics(
   const header = preamble.join("\n");
   const email = findEmail(header) ?? findEmail(contactText) ?? "";
   const phone = findPhone(header) ?? findPhone(contactText) ?? "";
-  // Profile links anywhere count; other URLs only from the header (body URLs belong to projects).
   const links = dedupeLinks([
     ...findLinks(header),
     ...findLinks(contactText).filter((link) => PROFILE_LINK.test(link.url)),
@@ -49,7 +46,6 @@ export function parseBasics(
       }
       used = true;
     }
-    // A contact line's other bits are icon glyphs and link labels ("° portfolio/jane"), not a summary.
     if (rest !== line) continue;
     if (hasOtherText || (!used && isProse(line))) leftovers.push(line);
   }

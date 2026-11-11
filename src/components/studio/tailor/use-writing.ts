@@ -14,8 +14,6 @@ import type { LineTarget } from "./apply";
 import { lineQuestion } from "./screener";
 import type { SavedAnswer, SavedWriting, TailorDraft } from "./session";
 
-// Each call goes through the account gate, and a double click never spends two.
-
 export type WritingTask = "letter" | "answer" | "line";
 
 export type Writing = {
@@ -116,8 +114,6 @@ export function useWriting(source: Resume, job: TailorDraft): Writing {
           demo: response.demo === true,
         };
       }),
-    // The line fixer's second step: the person's own words are both the line and the answer, so
-    // the line it writes holds only what they said.
     line: (requirement, target, what) =>
       run("line", "fix", async () => {
         const answer = what.trim();

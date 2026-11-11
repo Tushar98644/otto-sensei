@@ -6,7 +6,6 @@ vi.mock("@tanstack/react-query", async (importOriginal) => ({
   isServer: false,
 }));
 
-// A stand-in for the /api/me store: who is signed in, and its change listeners.
 const me = vi.hoisted(() => ({ userId: null as string | null, listeners: new Set<() => void>() }));
 vi.mock("@/components/account/use-me", () => ({
   signedInUserId: () => me.userId,

@@ -6,10 +6,7 @@ import { DAY_MS } from "@/lib/time";
 import { companyKey } from "./visa";
 import { VISA_REGISTER_NAMES, type RegisterNames } from "./visa-matches";
 
-// For the hand-checked names in visa-matches.ts only:
-// - UK: Register of Licensed Sponsors (GOV.UK, Open Government Licence v3.0), via the content API.
-// - US: USCIS H-1B Employer Data Hub yearly files; newer years are only in its dashboard.
-// Run monthly, by the jobs cron or scripts/visa-registers.ts.
+// Only for the hand-checked names in visa-matches.ts. UK data: Open Government Licence v3.0.
 
 const UK_PAGE =
   "https://www.gov.uk/api/content/government/publications/register-of-licensed-sponsors-workers";
@@ -73,7 +70,6 @@ export function ukSkilledWorkers(csv: string): UkRegister {
   return names;
 }
 
-/** Approved H-1B petitions (initial and continuing) per employer name, for one fiscal year. */
 export function h1bApprovals(csv: string): H1bYear {
   const approvals = new Map<string, number>();
   let year = 0;
@@ -155,7 +151,6 @@ export type VisaRefresh = { companies: number; uk: number; us: number; h1bYear: 
 export async function refreshVisaRegisters(db: Db, now: number): Promise<VisaRefresh> {
   const [ukCsv, usCsvs] = await Promise.all([ukRegisterCsv(), h1bCsvs()]);
   const uk = ukSkilledWorkers(ukCsv);
-  // A register that comes back nearly empty is a broken download, not 120,000 lost licences.
   if (uk.size < 10_000) throw new Error(`The UK register has only ${uk.size} Skilled Worker rows`);
   const years = usCsvs.map(h1bApprovals);
   const rows = visaRows(VISA_REGISTER_NAMES, uk, years, now);
@@ -179,7 +174,6 @@ export async function refreshVisaRegisters(db: Db, now: number): Promise<VisaRef
   };
 }
 
-/** null when never refreshed (or before the migration). */
 export async function visaCheckedAt(db: Db): Promise<number | null> {
   try {
     const [row] = await db

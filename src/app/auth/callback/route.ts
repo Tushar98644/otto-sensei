@@ -8,8 +8,7 @@ import { log } from "@/lib/log";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-// Supabase adds ?code=... on success and ?error=... on cancel or refusal. A GitHub sign-in started
-// by hand ends here too, like any sign-in: GitHub has verified the email Supabase uses.
+// A GitHub sign-in started by hand is accepted: GitHub has verified the email Supabase uses.
 export async function GET(req: NextRequest) {
   const params = req.nextUrl.searchParams;
   const next = safeNextPath(params.get("next"));
@@ -26,8 +25,6 @@ export async function GET(req: NextRequest) {
   return noStore(NextResponse.redirect(login));
 }
 
-// Connecting GitHub happens while signed in, so it goes back to the page it started on, saying
-// why. Cancelling at GitHub needs no message.
 function linkFailed(next: string, params: URLSearchParams, base: string): URL {
   const error = params.get("error");
   const reason = params.get("error_code") ?? error ?? "exchange_failed";

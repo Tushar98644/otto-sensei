@@ -4,8 +4,6 @@ import Image from "next/image";
 import type { TemplateInfo } from "@/lib/pdf/templates";
 import { cn } from "@/lib/utils";
 
-// Made by scripts/render-format-previews.tsx, with WebP copies at these widths served as is: the
-// image optimizer's first request for a size took seconds.
 const WIDTH = 1200;
 const HEIGHT = 1553;
 const WEBP_WIDTHS = [400, 800, 1200] as const;

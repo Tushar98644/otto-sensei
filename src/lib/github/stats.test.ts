@@ -65,7 +65,6 @@ describe("GitHub numbers for a portfolio", () => {
       { name: "TypeScript", repos: 2, percent: 67 },
       { name: "Go", repos: 1, percent: 33 },
     ]);
-    // Archived repos stay out of the showcase list but still count their stars.
     expect(stats.repos.map((item) => item.name)).toEqual(["tally", "pgsnap", "notes"]);
     expect(stats.activity.events90d).toBe(4);
     expect(stats.activity.weeks).toHaveLength(12);
@@ -75,7 +74,6 @@ describe("GitHub numbers for a portfolio", () => {
       { repo: "octocat/tally", kind: "push", at: new Date(NOW - DAY).toISOString() },
       { repo: "octocat/pgsnap", kind: "release", at: new Date(NOW - 10 * DAY).toISOString() },
     ]);
-    // Portfolios draw no pictures, so the avatar isn't kept.
     expect(stats).not.toHaveProperty("avatarUrl");
   });
 

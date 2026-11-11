@@ -1,4 +1,3 @@
-// A percentage keeps the similarity math in exact integers.
 const NEAR_DUPLICATE_PERCENT = 85;
 const NEAR_DUPLICATE_MIN_TOKENS = 4;
 
@@ -8,7 +7,6 @@ function isNearDuplicate(a: ReadonlySet<string>, b: ReadonlySet<string>): boolea
   return overlap * 100 >= (a.size + b.size - overlap) * NEAR_DUPLICATE_PERCENT;
 }
 
-// All-pairs Jaccard with prefix filtering (Bayardo et al.), near-linear for 2,000 bullets.
 function markNearDuplicates(lines: readonly (readonly string[])[], into: Set<number>): void {
   type Entry = { index: number; set: Set<string>; ordered: string[] };
   const entries: Entry[] = [];
@@ -37,7 +35,6 @@ function markNearDuplicates(lines: readonly (readonly string[])[], into: Set<num
       for (const other of list ?? []) {
         if (compared.has(other)) continue;
         compared.add(other);
-        // Entries arrive smallest first, so `other` is never larger; too small can't reach the bar.
         if (other.set.size * 100 < size * NEAR_DUPLICATE_PERCENT) continue;
         if (isNearDuplicate(entry.set, other.set)) {
           into.add(entry.index);

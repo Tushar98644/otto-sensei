@@ -20,7 +20,6 @@ import { extraKindOf, splitInlineHeading, splitIntoSections } from "./sections";
 
 const MAX_LINES = 2_000;
 
-// The no-AI fallback: never throws, never invents; what it can't place goes to the summary.
 export function heuristicParse(text: string, now = Date.now()): Resume {
   const input = typeof text === "string" ? text.slice(0, TEXT_LIMITS.resumeChars) : "";
   try {
@@ -37,7 +36,6 @@ function parse(text: string, now: number): Resume {
   const blocks = splitIntoSections(lines);
   const first = blocks[0];
   const top = first && first.kind === null ? first.lines : [];
-  // "Skills: Python, Go" under the name, with no Skills heading anywhere, is still a skills list.
   const isInlineSkills = (line: string) => splitInlineHeading(line)?.kind === "skills";
   const preamble = top.filter((line) => !isInlineSkills(line));
   const sections = blocks.filter((block) => block.kind !== null);
@@ -70,7 +68,6 @@ function parse(text: string, now: number): Resume {
     else if (block.kind === "certifications")
       resume.certifications.push(...parseCertifications(block.lines));
   }
-  // No summary heading: prose under the name is the summary, or the whole body if nothing has one.
   if (summaries.length === 0)
     summaries.push(paragraph(sections.length === 0 ? leftovers : leftovers.filter(isProse)));
 

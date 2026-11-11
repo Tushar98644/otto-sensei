@@ -5,7 +5,6 @@ import { checkUpload } from "../import/upload";
 
 export const runtime = "nodejs";
 
-// Recruiter checks only, no AI. The studio also sends the PDF it exports here, for "before vs after".
 export async function POST(req: Request): Promise<Response> {
   try {
     const upload = await checkUpload(req, "check");

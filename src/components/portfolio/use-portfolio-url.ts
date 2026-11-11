@@ -5,7 +5,6 @@ import { portfolioPath } from "@/lib/portfolio/types";
 
 const noSubscribe = () => () => {};
 
-/** The page's full address from wherever the app runs; "" on the server. */
 export function usePortfolioUrl(slug: string): string {
   const origin = useSyncExternalStore(
     noSubscribe,

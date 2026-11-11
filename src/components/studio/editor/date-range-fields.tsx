@@ -16,7 +16,6 @@ export type DateRangeFieldsProps = DateRange & {
   className?: string;
 };
 
-// Dates stay free text ("Jan 2022", "2019") because that's how resumes write them.
 export function DateRangeFields({
   startDate,
   endDate,
@@ -32,7 +31,6 @@ export function DateRangeFields({
       onChange({ endDate: PRESENT });
       return;
     }
-    // The end date was disabled until now; put the cursor there so the date can go straight in.
     flushSync(() => onChange({ endDate: "" }));
     endRef.current?.focus();
   }

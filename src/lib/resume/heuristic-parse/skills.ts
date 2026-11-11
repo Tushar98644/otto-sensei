@@ -8,7 +8,6 @@ const GROUP_LABEL = /^([^:\t]{1,40}):\s*(.+)$/;
 export function parseSkills(lines: readonly string[]): SkillGroup[] {
   const groups: { label: string; items: string[] }[] = [];
   let flat: { label: string; items: string[] } | undefined;
-  // A two-column table reads as one line per row: "Languages: Go, Rust<tab>Cloud: AWS, GCP".
   const cells = lines.flatMap((line) =>
     (bulletText(line) ?? line).split(/\t+(?=[^:\t,]{1,40}:\s)/),
   );
@@ -47,7 +46,6 @@ function skillGroup(label: string, items: readonly string[]): SkillGroup {
   };
 }
 
-// Splits "Python, Go | AWS (EC2, S3); Docker" at separators outside brackets.
 export function splitList(text: string): string[] {
   const items: string[] = [];
   let depth = 0;

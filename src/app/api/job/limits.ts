@@ -4,10 +4,7 @@ import { log } from "@/lib/log";
 import { retryAfterHeader, waitText, type RateLimitResult } from "@/lib/rate-limit";
 import { HOUR_MS } from "@/lib/time";
 
-// Reading job links needs no account, so it's limited per network and per device, hourly.
-
-// Each read makes our server fetch someone else's page, so both stay well under what would let a
-// script use us as a crawler. A busy job hunt reads maybe a dozen links an hour.
+// Each read fetches another site's page, so limits stop scripts using us as a crawler.
 export const JOB_READ_LIMITS = { perDevicePerHour: 30, perIpPerHour: 120 } as const;
 
 export async function limitJobReads(req: Request): Promise<Response | null> {

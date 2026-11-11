@@ -29,7 +29,6 @@ describe("dashboard nav", () => {
       "Formats",
     ]);
     expect(labels(APP_NAV_FOOTER)).toEqual(["Recently deleted"]);
-    // The signed-in menu opens Account, so the sidebar doesn't list it twice.
     expect(labels([...APP_NAV, ...APP_NAV_FOOTER])).not.toContain("Account");
     expect(labels(APP_NAV)).not.toContain("Tailor to a job");
   });
@@ -73,7 +72,6 @@ describe("dashboard nav", () => {
 
     const letters = byLabel("Cover letters");
     expect(showsProBadge(letters, false)).toBe(true);
-    // Pro, Max and the trial, and while the plan is still loading.
     expect(showsProBadge(letters, true)).toBe(false);
     expect(showsProBadge(letters, null)).toBe(false);
     expect(showsProBadge(byLabel("Formats"), false)).toBe(false);

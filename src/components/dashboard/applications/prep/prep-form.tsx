@@ -28,12 +28,9 @@ type PrepFormProps = {
   target: PrepTarget;
   resumes: readonly Resume[];
   onDone: (prep: InterviewPrep, saved: boolean) => void;
-  // Set when a pack already exists, so the person can go back to it.
   onCancel?: () => void;
 };
 
-// Job text: the tailored copy's kept post, else the job link, else a paste; a link that can't
-// be read falls through to the paste field with the reason.
 export function PrepForm({ target, resumes, onDone, onCancel }: PrepFormProps) {
   const fallback = useMemo(() => prepResume(target, resumes), [target, resumes]);
   const [resumeId, setResumeId] = useState<string | null>(null);
@@ -107,7 +104,6 @@ export function PrepForm({ target, resumes, onDone, onCancel }: PrepFormProps) {
         live={false}
       />
       <div className="flex flex-col gap-5 rounded-2xl bg-surface p-4 sm:p-6">
-        {/* The version that was sent is almost always right, so the picker waits behind a link. */}
         {picking && resumes.length > 1 ? (
           <Field
             label="Resume to build stories from"

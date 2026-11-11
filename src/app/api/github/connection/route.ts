@@ -78,7 +78,6 @@ export async function DELETE(req: Request): Promise<Response> {
   }
 }
 
-// Disconnected already; a page that still shows the numbers is put right on the editor's next load.
 async function dropPortfolioGitHub(userId: string): Promise<void> {
   try {
     const result = await refreshGitHub(userId, null);

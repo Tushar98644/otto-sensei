@@ -23,14 +23,10 @@ import {
   type ProseCheck,
 } from "./writing-guards";
 
-// One retry with problems spelled out; whatever is left reaches the person as a warning, never
-// silently.
-
 export const LETTER_WORDS = { min: 150, max: 250 } as const;
 export const ANSWER_WORDS = { min: 60, max: 150 } as const;
 export const QUESTION_CHARS = { min: 8, max: 500 } as const;
 const JOB_FIELD_CHARS = 200;
-// Past this the person gets the phrase and a warning instead of a stub.
 const LETTER_FLOOR_WORDS = 110;
 const ANSWER_FLOOR_WORDS = 45;
 // Two calls fit the route's 60 seconds: a retry only starts with enough time left to finish.
@@ -47,7 +43,6 @@ type Range = { readonly min: number; readonly max: number };
 
 type Prepared = {
   job: WritingInput;
-  // Placeholders for the name and contacts; drafts are restored before any guard runs.
   shownText: string;
   redactor: Redactor;
   sources: string[];
@@ -70,8 +65,6 @@ function prepare(resume: Resume, input: WritingInput): Prepared {
   const lines = [...listBullets(resume).map((bullet) => bullet.text), resume.summary];
   const redactor = redactorFor(resume);
   const shownText = resumeToText(redactResume(resume, redactor));
-  // The post's other numbers are the employer's facts, not the person's, so they never back a
-  // claim.
   return { job, shownText, redactor, sources: [resumeText, job.jobTitle, job.company], lines };
 }
 
@@ -132,7 +125,6 @@ async function draft<T>(request: DraftRequest<T>, prepared: Prepared): Promise<P
     const better = problemScore(second, request.range) < problemScore(first, request.range);
     return better ? second : first;
   } catch (error) {
-    // The first draft is still usable, and its problems still reach the person as warnings.
     if (!(error instanceof AIError)) throw error;
     log.warn(`${request.task}.retry_failed`, { code: error.code });
     return first;
@@ -176,7 +168,6 @@ function letterMessage(resumeText: string, job: WritingInput): string {
     .join("\n\n");
 }
 
-/** "Dear Kestrel Labs team," + body + "Best regards,\nJordan Ellis". */
 export function assembleLetter(
   paragraphs: readonly string[],
   name: string,
@@ -187,7 +178,6 @@ export function assembleLetter(
   return [greeting, ...paragraphs, signOff].join("\n\n");
 }
 
-// Throws AIError on refusal, rate limit, outage, too-long input or empty output.
 export async function writeCoverLetter(
   resume: Resume,
   input: WritingInput,
@@ -229,8 +219,6 @@ function answerMessage(resumeText: string, job: WritingInput, question: string):
   ].join("\n\n");
 }
 
-// Facts only the person knows (a start date, a reason) are left as [blanks] and named in
-// `warnings`.
 export async function answerQuestion(
   resume: Resume,
   input: WritingInput,
@@ -241,7 +229,6 @@ export async function answerQuestion(
     throw new AIError("invalid_output", "There is no question to answer");
   }
   const prepared = prepare(resume, input);
-  // The person typed the question, so it is redacted like their resume.
   const shownQuestion = prepared.redactor.redact(asked);
   const paragraphs = aiEnabled()
     ? polish(

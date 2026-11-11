@@ -2,10 +2,8 @@
 
 import { useEffect, useRef, useState, type KeyboardEvent, type CSSProperties } from "react";
 
-// Navy's interactive parts, after bchiang7/v4 (MIT). Each renders the same markup on the server,
-// so the page reads fine before it hydrates.
+// Ported from bchiang7/v4 (MIT, see ./LICENSE.txt).
 
-/** Sets data-top and data-direction on the header it sits in, for the hide-on-scroll styles. */
 export function NavScroll() {
   const ref = useRef<HTMLSpanElement>(null);
   useEffect(() => {
@@ -15,7 +13,6 @@ export function NavScroll() {
     const onScroll = () => {
       const y = window.scrollY;
       header.dataset.top = String(y < 50);
-      // A few pixels of wobble shouldn't flip the header.
       if (Math.abs(y - last) < 5) return;
       header.dataset.direction = y > last ? "down" : "up";
       last = y;
@@ -91,8 +88,6 @@ export function JobTabs({ jobs }: { jobs: NavyJob[] }) {
   const tabs = useRef<(HTMLButtonElement | null)[]>([]);
   const list = useRef<HTMLDivElement>(null);
 
-  // v4 slides the highlight by a fixed tab size; long company names make tabs taller (wrapped)
-  // or wider (the phone strip), so it follows the active tab's real box instead.
   useEffect(() => {
     const element = list.current;
     if (!element) return;

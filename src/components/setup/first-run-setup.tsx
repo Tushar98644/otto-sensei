@@ -10,23 +10,17 @@ import { useSetupStepDecision } from "./use-setup-step";
 
 type SetupDialog = typeof import("./work-setup-dialog").WorkSetupDialog;
 
-// Long enough for the loading screen to fade and the page to settle, so the step arrives as part
-// of landing rather than on top of it.
 const START_DELAY_MS = 800;
-// While another dialog or menu is open, or the tab is in the background.
 const RETRY_MS = 1_500;
 
-// Mounted in the app shell, so it survives moving between Home and Jobs.
 export function FirstRunSetup() {
   const pathname = usePathname();
   const decision = useSetupStepDecision();
   const setup = useAccountSetup();
   const work = useWorkProfile();
   const pro = useProTools();
-  // The page it opened on: leaving it (the browser's Back button still works) counts as Skip.
   const [openedOn, setOpenedOn] = useState<string | null>(null);
-  // Loaded once the step is due and rendered here rather than through Suspense, which would hold
-  // it back for React's 300 ms fallback throttle.
+  // Not through Suspense, whose 300 ms fallback throttle would hold the dialog back.
   const [WorkSetupDialog, setWorkSetupDialog] = useState<SetupDialog | null>(null);
 
   useEffect(() => {

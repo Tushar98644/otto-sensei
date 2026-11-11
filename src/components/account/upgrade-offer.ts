@@ -9,21 +9,14 @@ import {
   type PlanId,
 } from "@/config/plans";
 
-// Only plans and billing options on sale here (billing.offer from /api/me) appear.
-
 export type Offer = Partial<Record<PaidPlanId, readonly BillingInterval[]>>;
 
 export type OfferCard = {
   plan: PaidPlanId;
-  // The account's own plan, shown to compare against, with nothing to buy.
   current: boolean;
-  // Pro next to Max, on Free.
   popular: boolean;
-  // The picked option, or monthly where the plan isn't sold that way (as on the pricing page).
   interval: BillingInterval;
-  // Starts with the free trial: Pro monthly, on Free, for someone who hasn't had one.
   trial: boolean;
-  // Buying it ends the free trial today: a new subscription replaces the trial, not a plan change.
   endsTrial: boolean;
 };
 
@@ -44,9 +37,7 @@ export function upgradeOffer({
 }: {
   current: PlanId;
   offer: Offer;
-  // The billing option asked for; one not on sale falls back to the first that is.
   picked: BillingInterval;
-  // Pro monthly would start with the free trial for this account.
   trial: boolean;
   onTrial?: boolean;
 }): UpgradeOffer {

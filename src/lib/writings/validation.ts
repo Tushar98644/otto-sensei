@@ -3,8 +3,6 @@ import { cleanLine, normalizeJobUrl } from "@/lib/applications/schema";
 import { ResumeSchema } from "@/lib/resume/validation";
 import { textLimit, WRITING_KINDS, WRITING_LIMITS } from "./schema";
 
-// Apart from ./schema so the Cover letters page and the board don't load zod.
-
 const line = (max: number) =>
   z
     .string()
@@ -12,14 +10,12 @@ const line = (max: number) =>
     .transform(cleanLine)
     .pipe(z.string().max(max));
 
-// Dropped rather than failing the save: the letter matters more.
 const jobUrlField = z
   .string()
   .max(WRITING_LIMITS.jobUrl * 2)
   .transform((value) => normalizeJobUrl(value) ?? "")
   .catch("");
 
-// Line breaks are the letter's paragraphs, so only other control characters go.
 const bodyText = (max: number) =>
   z
     .string()
@@ -44,7 +40,6 @@ export const CreateWritingSchema = z
     text: bodyText(WRITING_LIMITS.letterChars),
     warnings: z.array(line(WRITING_LIMITS.warningChars)).max(WRITING_LIMITS.warnings).default([]),
     demo: z.boolean().default(false),
-    // Written from an application's own page: link it to that one. Otherwise the server finds it.
     applicationId: z.uuid().nullable().default(null),
   })
   .superRefine((value, ctx) => {
@@ -64,7 +59,6 @@ export const CreateWritingSchema = z
     }
   });
 
-// Capped at the letter's size; an answer's smaller cap is checked against the stored kind.
 export const UpdateWritingSchema = z.object({ text: bodyText(WRITING_LIMITS.letterChars) });
 
 export const WritingIdSchema = z.uuid();

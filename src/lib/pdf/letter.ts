@@ -1,13 +1,10 @@
 import type { PdfPageSize } from "./page-size";
 import { toPdfLine } from "./text";
 
-// A blank line starts a paragraph; a single break stays inside one ("Best regards,\nSam Rivera").
-// Characters the PDF font can't draw are swapped or dropped, as on the resume.
 export function letterBlocks(text: string, lost?: Set<string>): string[][] {
   return splitLetter(text, (line) => toPdfLine(line, lost));
 }
 
-/** Every character kept: Word's fonts draw them all. */
 export function letterParagraphs(text: string): string[][] {
   return splitLetter(text, (line) => line.trim());
 }
@@ -24,7 +21,6 @@ function splitLetter(text: string, clean: (line: string) => string): string[][] 
     .filter((block) => block.length > 0);
 }
 
-// US Letter readers write "November 7, 2026"; A4 regions put the day first.
 export function letterDate(now: number, pageSize: PdfPageSize): string {
   return new Date(now).toLocaleDateString(pageSize === "LETTER" ? "en-US" : "en-GB", {
     day: "numeric",

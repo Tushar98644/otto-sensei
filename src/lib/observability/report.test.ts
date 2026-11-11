@@ -32,7 +32,6 @@ afterEach(() => {
   vi.unstubAllEnvs();
 });
 
-// Long enough for a dynamic import that was going to happen to have happened.
 const settle = () => new Promise((resolve) => setTimeout(resolve, 50));
 
 describe("when Sentry is off", () => {

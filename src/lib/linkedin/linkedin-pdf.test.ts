@@ -6,10 +6,6 @@ import { cleanResumePdf } from "@/lib/parse/test-fixtures";
 import { heuristicParse } from "@/lib/resume/heuristic-parse";
 import { linkedInProfileText } from "./profile-pdf";
 
-// LinkedIn's "More → Save to PDF" profile: a gray sidebar (contact, top skills, languages,
-// certifications) beside the main column (name, headline, summary, experience with a duration in
-// brackets on each date line, education), and "Page N of M" footers.
-
 type Pen = { page: PDFPage; regular: PDFFont; bold: PDFFont };
 
 function writer({ page, regular, bold }: Pen, x: number, startY: number) {
@@ -90,7 +86,6 @@ describe("LinkedIn 'Save to PDF' profile through the PDF import", () => {
     expect(contoso?.bullets.map((b) => b.text).join(" ")).toContain("payments flow");
 
     expect(resume.education[0]?.school).toBe("University of Porto");
-    // Footers are page furniture, not resume content.
     expect(JSON.stringify(resume)).not.toMatch(/Page \d of \d/);
   });
 

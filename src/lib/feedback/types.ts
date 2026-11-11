@@ -4,7 +4,6 @@ import type { FeedbackRequestSchema } from "./validation";
 export const FEEDBACK_KINDS = ["bug", "idea", "other"] as const;
 export type FeedbackKind = (typeof FEEDBACK_KINDS)[number];
 
-// Short enough for three segments side by side on a 360px phone.
 export const FEEDBACK_KIND_LABELS: Record<FeedbackKind, string> = {
   bug: "Problem",
   idea: "Idea",

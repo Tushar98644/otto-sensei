@@ -1,8 +1,5 @@
 import type { FixResponse } from "@/lib/api/types";
 
-// Line fixes already paid for in this tab, by exact request: reopening an unchanged line, or
-// resending the same answers, shows Otto's earlier suggestion instead of spending another fix.
-
 const MAX_KEPT = 40;
 const kept = new Map<string, FixResponse>();
 

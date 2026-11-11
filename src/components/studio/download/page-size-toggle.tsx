@@ -10,7 +10,6 @@ export type PageSizeToggleProps = {
   className?: string;
 };
 
-// Native radios: arrow keys, focus and screen-reader announcements work without extra code.
 export function PageSizeToggle({ value, onChange, className }: PageSizeToggleProps) {
   const name = useId();
   const hintId = `${name}-hint`;

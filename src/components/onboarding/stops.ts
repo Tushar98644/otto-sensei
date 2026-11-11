@@ -16,8 +16,6 @@ import {
 } from "./targets";
 import type { TourStop } from "./tours";
 
-// Loaded only when a tour is about to start.
-
 type Copy = Pick<TourStop, "title" | "body">;
 
 export const STUDIO_COPY: Record<StudioStopId, Copy> = {
@@ -101,7 +99,6 @@ export function studioStops({
   const onFix = {
     screen: "fix",
     enter: () => setStep("fix"),
-    // The step's code loads on demand, so its skeleton shows first.
     ready: fixStepShown,
   } satisfies Partial<TourStop>;
 
@@ -145,7 +142,6 @@ export function studioStops({
   return plan.stops.map((id) => stops[id]);
 }
 
-// Sidebar order. Stops whose target isn't on screen (e.g. under "More" on a phone) are skipped.
 export function dashboardStops(): TourStop[] {
   const section = (id: "jobs" | "applications" | "interview" | "portfolio"): TourStop => ({
     id,

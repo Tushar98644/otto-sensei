@@ -13,26 +13,18 @@ import { emailLink, plainText, webLink, type LineCleaner, type PdfLink } from ".
 import { toPdfLine, toPdfParagraphs, toUnicodeLine, toUnicodeParagraphs } from "./text";
 import { companyKey, visibleResume } from "./visible";
 
-// Drawable characters only, hidden and empty things gone. react-pdf free, so the download step can
-// use it without the renderer, and the Word export prints the same model.
-
 export type PdfBullet = { id: string; text: string };
 
-// A run of jobs at one company prints one company header with each role under it.
 export type PdfCompany = {
   name: string;
-  // The location, when every role in the run shares it. Otherwise each role shows its own.
   detail: PdfLink | null;
   first: boolean;
-  // "Aug 2017 – Present", for formats that date the company line.
   dates?: string;
 };
 
 export type PdfEntry = {
   id: string;
-  // Falls back to the next field when empty.
   title: string;
-  // Empty for a role under a company header.
   org: string;
   detail: PdfLink | null;
   dates: string;
@@ -57,7 +49,6 @@ export type PdfExtraSection = {
   id: string;
   kind: ExtraKind;
   title: string;
-  // Name-only items read best as one line: "Spanish (Fluent), French (Basic)". Null for entries.
   list: string | null;
   entries: PdfEntry[];
 };
@@ -73,21 +64,17 @@ export type PdfModel = {
   name: string;
   headline: string;
   contact: PdfLink[][];
-  // Optional so hand-built models still type-check; formats fall back to `contact`.
   basics?: PdfContact;
   sections: PdfSection[];
-  // Always set by buildPdfModel; optional for hand-built models (the dashboard miniatures).
   extras?: PdfExtraSection[];
   meta: { title: string; author: string; subject: string };
   changedCharacters: string[];
 };
 
 export type PdfModelOptions = {
-  // "unicode" keeps every character, for a Word file.
   charset?: "pdf" | "unicode";
 };
 
-// The PDF draws its own bullet, so typed markers would print twice.
 const LEADING_MARKER = /^\s*(?:[•●○◦▪▫■□◆◇❖►▸▹▶➢➤➣➔→✓✔☑⦿⁃∙·‣*\p{Co}]+|[-–—](?=\s))\s*/u;
 
 type Clean = { line: LineCleaner; paragraphs: (value: string) => string[] };
@@ -122,7 +109,6 @@ function isEmpty(entry: PdfEntry): boolean {
   );
 }
 
-// So a job with only a company still gets a bold heading.
 function lead(primary: string, secondary: string): { title: string; org: string } {
   return primary ? { title: primary, org: secondary } : { title: secondary, org: "" };
 }
@@ -150,7 +136,6 @@ function single(role: Role): PdfEntry {
 
 const firstYear = (value: string) => Number(/\b(?:19|20)\d{2}\b/.exec(value)?.[0] ?? NaN);
 
-// Roles are usually listed newest first; a run listed oldest first spans the other way round.
 function runSpan(run: readonly Role[]): string {
   const first = run[0]!;
   const last = run[run.length - 1]!;
@@ -248,7 +233,6 @@ function skills(resume: Resume, c: Clean): PdfSkillLine[] {
   return resume.skills
     .map((group) => ({
       id: group.id,
-      // The PDF adds its own colon after the label.
       label: c.line(group.label).replace(/\s*:$/, ""),
       items: group.items
         .map((item) => c.line(item))
@@ -280,7 +264,6 @@ function section(resume: Resume, key: SectionKey, c: Clean): PdfSection | null {
   }
 }
 
-// "Custom section" names the menu choice, not a heading anyone would print.
 function extraFallbackTitle(kind: ExtraKind): string {
   return kind === "custom" ? "Additional information" : EXTRA_KIND_LABELS[kind];
 }
@@ -327,7 +310,6 @@ export function buildPdfModel(source: Resume, options: PdfModelOptions = {}): Pd
   const resume = visibleResume(source);
   const name = c.line(resume.basics.name);
   const headline = c.line(resume.basics.headline);
-  // The user's section order, like resumeToText(); unknown or repeated keys are skipped.
   const order = [...new Set(resume.sectionOrder)].filter((key) => SECTION_KEYS.includes(key));
   const sections = order
     .map((key) => section(resume, key, c))
@@ -335,7 +317,6 @@ export function buildPdfModel(source: Resume, options: PdfModelOptions = {}): Pd
   const extras = extrasOf(resume)
     .map((item) => extra(item, c))
     .filter((item): item is PdfExtraSection => item !== null);
-  // PDF viewers show the title in place of the file name, so it reads like one.
   const title = name ? `${name} - Resume` : c.line(resume.title) || "Resume";
   const basics = contactOf(resume, c);
   return {

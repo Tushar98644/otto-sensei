@@ -3,13 +3,9 @@ import { PAID_PLANS, PLANS, PRICES_USD, type BillingInterval } from "@/config/pl
 import type { BillingOffer } from "@/lib/billing/intervals";
 import { absoluteUrl } from "./urls";
 
-// Every value comes from config the pages themselves show, so the data never claims what they
-// don't.
-
 export type JsonLdData = Record<string, unknown>;
 
-// The HTML parser ends a <script> at the first "</script" whatever the JSON says, so tag characters
-// are \u-escaped.
+// "</script" ends the tag whatever the JSON says, so tag characters are \u-escaped.
 const UNSAFE = /[<>&\u2028\u2029]/g;
 
 export function jsonLdScript(value: JsonLdData): string {
@@ -19,7 +15,6 @@ export function jsonLdScript(value: JsonLdData): string {
   );
 }
 
-/** So results show the brand name and logo. */
 export function websiteJsonLd(base: string): JsonLdData {
   const home = absoluteUrl("/", base);
   const organization = `${home}/#organization`;
@@ -52,7 +47,6 @@ const INTERVALS: Record<BillingInterval, { name: string; duration: string; unit:
   week: { name: "weekly", duration: "P1W", unit: "week" },
 };
 
-// One Offer per billing option on sale. No rating: there are no public reviews to cite.
 export function softwareJsonLd(offer: BillingOffer, base: string): JsonLdData {
   const url = absoluteUrl("/pricing", base);
   const paid = PAID_PLANS.flatMap((plan) =>

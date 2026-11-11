@@ -60,7 +60,6 @@ beforeEach(async () => {
   await resetDb();
   cookieJar.clear();
   clearGitHubCache();
-  // sampleResume's repo link names "mayachen"; her numbers are read once she connects GitHub.
   github = installFakeGitHub((url) => {
     if (url.pathname === "/users/mayachen")
       return json({ login: "mayachen", followers: 5, public_repos: 1 });
@@ -114,7 +113,6 @@ describe("/api/portfolio/content", () => {
     expect(page.portfolio.content.pitch).toBe("I build calm software.");
     expect(page.portfolio.content.stats).toEqual([{ value: "40%", label: "faster loads" }]);
     expect(page.portfolio.content.github?.totalStars).toBe(42);
-    // Email stays off the page by default, in the rich content too.
     expect(page.portfolio.content.email).toBeNull();
   });
 
@@ -141,8 +139,6 @@ async function publicGitHub() {
   return page.portfolio.content.github;
 }
 
-// A page shows GitHub numbers only from the account its owner connected, never from a username on
-// the resume or typed into the editor: that could be anyone's.
 describe("a portfolio's GitHub numbers", () => {
   it("are left out until the owner connects GitHub, whatever username the page names", async () => {
     const maya = await proWithPortfolio();
@@ -200,7 +196,6 @@ describe("a portfolio's GitHub numbers", () => {
   });
 });
 
-// Owner decision 2026-11-10: portfolios are text only. Nothing uploads, stores or links a picture.
 describe("a portfolio without pictures", () => {
   it("has no upload routes any more", () => {
     expect(existsSync(join(process.cwd(), "src", "app", "api", "portfolio", "media"))).toBe(false);

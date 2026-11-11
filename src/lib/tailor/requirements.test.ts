@@ -94,7 +94,6 @@ describe("normalizeRequirements", () => {
       expect.objectContaining({
         id: "r2",
         text: "Kubernetes in production",
-        // The repeat was only a guess, so it can't raise the importance.
         importance: "nice",
         terms: ["Kubernetes"],
       }),
@@ -225,7 +224,6 @@ describe("screenerRows and counts", () => {
   it("gives each row its status and leaves a declined one missing for good", () => {
     const rows = screenerRows(makeResume(), requirements, { declined: new Set(["r3", "r1"]) });
     expect(rows.map((row) => [row.id, row.status])).toEqual([
-      // A "no" doesn't override what the resume already proves.
       ["r1", "proven"],
       ["r2", "listed"],
       ["r3", "declined"],

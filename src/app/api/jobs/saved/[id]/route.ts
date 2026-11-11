@@ -21,7 +21,6 @@ async function jobId(context: Context): Promise<string | null> {
   return parsed.success ? parsed.data : null;
 }
 
-// Saving again is fine. Saving is Pro; forgetting a job saved before stays open on Free.
 export async function PUT(req: Request, context: Context): Promise<Response> {
   const blocked = rejectCrossSite(req);
   if (blocked) return blocked;

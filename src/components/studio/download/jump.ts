@@ -5,8 +5,6 @@ import { SECTION_LABELS, sectionTitleOf, type Resume } from "@/lib/resume/schema
 import type { SendCheckTarget } from "@/lib/sendcheck";
 import { useStudioStore } from "@/lib/store/resume-store";
 
-// The Fix step mounts a frame or two after setStep(), so the target is looked for a few frames.
-
 const MAX_FRAMES = 30;
 
 const BASICS_LABELS = {
@@ -15,7 +13,6 @@ const BASICS_LABELS = {
   email: "Email",
   phone: "Phone",
   location: "Location",
-  // The first link's address: the editor has no field for the links as a whole.
   links: "Web address",
 } as const;
 
@@ -23,7 +20,6 @@ function isShown(element: HTMLElement): boolean {
   return element.getClientRects().length > 0;
 }
 
-// The field a visible <label> names. Labels may carry an "Optional" tag after the name.
 function byLabel(text: string, scope: ParentNode = document): HTMLElement | null {
   for (const label of scope.querySelectorAll("label")) {
     const name = label.textContent?.trim() ?? "";
@@ -48,7 +44,6 @@ function land(element: HTMLElement): void {
   element.focus({ preventScroll: true });
 }
 
-// Filled entries fold their details away: open them (focusing the first field), or focus it.
 function openEntry(entryId: string): boolean {
   const first = document.getElementById(entryFieldId(entryId, "first"));
   if (first && isShown(first)) {
@@ -114,7 +109,6 @@ function retry(attempt: () => boolean, framesLeft = MAX_FRAMES): void {
 
 export function openSendCheckTarget(resume: Resume, target: SendCheckTarget): void {
   const store = useStudioStore.getState();
-  // The cover letter is written and edited with the job, on the Tailor step.
   store.setStep(target.kind === "letter" ? "tailor" : "fix");
   const attempt = find(target, resume);
   if (attempt) window.requestAnimationFrame(() => retry(attempt));

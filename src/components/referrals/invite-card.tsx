@@ -24,7 +24,6 @@ type Load =
   | { status: "ready"; summary: ReferralSummary };
 
 const noSubscription = () => () => undefined;
-// A browser fact, so the server render (and the first client one) say no.
 const canShare = () => typeof navigator !== "undefined" && typeof navigator.share === "function";
 
 const plural = (count: number, one: string, many: string) => `${count} ${count === 1 ? one : many}`;

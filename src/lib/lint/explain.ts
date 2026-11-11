@@ -1,10 +1,7 @@
 import type { LintIssueId } from "./types";
 
-// Sources for each rule: projects/resume-app/RESUME-CHECKS-RESEARCH.md.
-
 export type IssueHelp = {
   why: string;
-  // A typical weak line and a better one. Null where one line can't show it (repeats, full stops).
   example: { before: string | null; after: string } | null;
 };
 

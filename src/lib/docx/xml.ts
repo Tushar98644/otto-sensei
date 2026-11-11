@@ -1,5 +1,4 @@
-// Word rejects property elements out of schema order ("unreadable content"), so each builder writes
-// its children in schema order.
+// Word rejects property elements out of schema order, so builders write children in that order.
 
 export const W_NS = "http://schemas.openxmlformats.org/wordprocessingml/2006/main";
 export const R_NS = "http://schemas.openxmlformats.org/officeDocument/2006/relationships";
@@ -27,7 +26,6 @@ export type RunProps = {
   caps?: boolean;
   smallCaps?: boolean;
   color?: string;
-  // In points.
   letterSpacing?: number;
   size?: number;
 };
@@ -41,7 +39,6 @@ export function runProps(props: RunProps): string {
       `<w:rFonts w:ascii="${font}" w:hAnsi="${font}" w:eastAsia="${font}" w:cs="${font}"/>`,
     );
   }
-  // False turns off what the paragraph's style turns on (a plain headline beside a bold name).
   if (props.bold !== undefined)
     parts.push(props.bold ? "<w:b/><w:bCs/>" : '<w:b w:val="0"/><w:bCs w:val="0"/>');
   if (props.italic !== undefined)
@@ -61,7 +58,6 @@ export function run(text: string, props: RunProps = {}): string {
   return `<w:r>${runProps(props)}<w:t xml:space="preserve">${escapeXml(text)}</w:t></w:r>`;
 }
 
-// A tab and then text in one run, so the right-aligned dates are one piece for a parser.
 export function tabRun(text: string, props: RunProps = {}): string {
   return `<w:r>${runProps(props)}<w:tab/><w:t xml:space="preserve">${escapeXml(text)}</w:t></w:r>`;
 }
@@ -77,11 +73,9 @@ export type ParagraphProps = {
   bulletList?: number;
   ruleBelow?: Rule;
   ruleAbove?: Rule;
-  // Every length here is in points.
   rightTab?: number | TabStop;
   before?: number;
   after?: number;
-  // Never tighter than the font needs.
   line?: number;
   indent?: { left: number; hanging?: number; right?: number };
   align?: "left" | "center";

@@ -40,10 +40,8 @@ export function InterviewPrepPage({
   const resumes = useResumeList();
   const [load, setLoad] = useState<Load>({ status: "loading" });
   const [attempt, setAttempt] = useState(0);
-  // Over a saved pack, the form shows with a way back to it; the saved one stays until replaced.
   const [remaking, setRemaking] = useState(false);
   const [unsaved, setUnsaved] = useState(false);
-  // Just made on this visit, not opened from before: Otto cheers once.
   const [justMade, setJustMade] = useState(false);
 
   useEffect(() => {

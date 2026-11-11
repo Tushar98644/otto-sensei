@@ -2,9 +2,6 @@ import { PDF_FONT_FAMILIES } from "@/lib/pdf/fonts";
 import { WORD_BULLET_FONT, wordFont, type DocxLook, type TextLook } from "./look";
 import { W_NS, XML_HEAD, escapeXml, paragraphProps, runProps, type ParagraphProps } from "./xml";
 
-// Named styles ("Title", "Heading 1", "List Bullet") are what hiring software and screen readers
-// look for. The look sits in the styles, the words in the document.
-
 export const BULLET_LIST_ID = 1;
 
 export function textProps(look: TextLook, base: TextLook) {
@@ -44,7 +41,6 @@ function headingStyle(look: DocxLook): string {
     align: heading.center ? "center" : undefined,
     outline: 0,
   };
-  // A tab leader to the margin: the closest Word gets to a line drawn from the end of the word.
   if (rule?.place === "below") props.ruleBelow = { ...rule, space: 1 };
   if (rule?.place === "above") props.ruleAbove = { ...rule, space: 4 };
   if (rule?.place === "after")
@@ -100,7 +96,6 @@ export function stylesXml(look: DocxLook): string {
   ].join("");
 }
 
-// ■ and ○ come from Arial, which every Word install has; a small bullet keeps the PDF's size.
 export function numberingXml(look: DocxLook): string {
   const left = Math.round(look.bulletLeft * 20);
   const hanging = Math.round(look.bulletHanging * 20);
@@ -125,7 +120,6 @@ export function numberingXml(look: DocxLook): string {
   ].join("");
 }
 
-// With their class, so Word without the font swaps a serif for a serif.
 export function fontTableXml(look: DocxLook): string {
   const names = new Map<string, "roman" | "swiss">();
   for (const family of look.fonts) {

@@ -1,12 +1,9 @@
-// App Router pages stream server output through self.__next_f.push([1,"..."]); JSON-LD rendered by
-// a client component exists only there (e.g. jobs.micro1.ai). Linear scans only, like html.ts.
+// JSON-LD from a client component exists only in the App Router flight stream (self.__next_f).
 
 const PUSH_START = "self.__next_f.push([1,";
 const MAX_FLIGHT_CHARS = 3_000_000;
 const MAX_OBJECT_CHARS = 300_000;
-// A schema.org object starts with "@context" or "@type" in every site seen so far.
 const OBJECT_START = '{"@';
-// The same object as a string prop (dangerouslySetInnerHTML.__html, or short children).
 const STRING_START = '"{\\"@';
 
 export function flightPayload(script: string): string | null {
@@ -64,7 +61,6 @@ export function flightJsonLd(payloads: readonly string[], max: number): string[]
   for (let at = flight.indexOf(OBJECT_START); at !== -1 && found.length < max; ) {
     const end = objectEnd(flight, at);
     if (end !== -1) keep(flight.slice(at, end));
-    // Past the whole object, so its nested {"@type": ...} parts aren't read again.
     at = flight.indexOf(OBJECT_START, end === -1 ? at + OBJECT_START.length : end);
   }
   for (let at = flight.indexOf(STRING_START); at !== -1 && found.length < max; ) {

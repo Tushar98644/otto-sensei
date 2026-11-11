@@ -4,14 +4,9 @@ import { fileURLToPath } from "node:url";
 import { __unstable__loadDesignSystem } from "tailwindcss";
 import { describe, expect, it } from "vitest";
 
-// Tailwind silently drops classes it doesn't know, so a typo or an unsupported utility in the
-// marketing pages would only show up as a styling bug. This compiles every class they use against
-// the real globals.css and fails on any that produce no CSS.
-
 const root = fileURLToPath(new URL("../../../", import.meta.url));
 const css = readFileSync(path.join(root, "src/app/globals.css"), "utf8");
 
-// The marketing task's files. (marketing)/login and /account belong to account-ui.
 const SOURCES = [
   "src/components/site",
   "src/app/(marketing)/layout.tsx",
@@ -24,7 +19,6 @@ const SOURCES = [
   "src/app/not-found.tsx",
 ];
 
-// Marker classes that other selectors read; they generate no CSS of their own.
 const MARKERS = new Set(["group", "peer"]);
 
 function tsxFiles(entry: string): string[] {
@@ -35,7 +29,6 @@ function tsxFiles(entry: string): string[] {
     .map((name) => path.join(full, name));
 }
 
-// The argument text of every `cn(...)` call, matched up to its closing parenthesis.
 function cnArguments(source: string): string[] {
   const calls: string[] = [];
   for (const match of source.matchAll(/\bcn\(/g)) {
@@ -57,7 +50,6 @@ function cnArguments(source: string): string[] {
   return calls;
 }
 
-// String literals that are class lists. Literals compared with === or !== are values, not classes.
 function classLiterals(code: string): string[] {
   return Array.from(code.matchAll(/(===|!==)?\s*"([^"\\]*)"/g))
     .filter(([, comparison]) => !comparison)
@@ -69,7 +61,6 @@ function classesIn(source: string): string[] {
     ...Array.from(source.matchAll(/className="([^"]*)"/g), (match) => match[1] ?? ""),
     ...Array.from(source.matchAll(/className:\s*"([^"]*)"/g), (match) => match[1] ?? ""),
     ...cnArguments(source).flatMap(classLiterals),
-    // Lookup tables of class lists, named *_CLASSES by convention.
     ...Array.from(source.matchAll(/const \w*CLASSES\b[^=]*=\s*\{([\s\S]*?)\};/g), (match) =>
       classLiterals(match[1] ?? ""),
     ).flat(),

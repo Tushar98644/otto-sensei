@@ -4,9 +4,6 @@ import { fileURLToPath } from "node:url";
 import { __unstable__loadDesignSystem } from "tailwindcss";
 import { describe, expect, it } from "vitest";
 
-// Tailwind drops unknown classes silently, so a typo would only show up as a styling bug in the
-// browser. This compiles every class the editor uses against the app's real globals.css.
-
 const root = fileURLToPath(new URL("../../../../", import.meta.url));
 const editorDir = path.join(root, "src/components/studio/editor");
 const files = [
@@ -22,7 +19,6 @@ async function loadStylesheet(id: string) {
   return { path: file, base: path.dirname(file), content: readFileSync(file, "utf8") };
 }
 
-// The text of every cn(...) call, matching parentheses and skipping over string contents.
 function cnArguments(source: string): string[] {
   const calls: string[] = [];
   for (const match of source.matchAll(/\bcn\(/g)) {
@@ -47,7 +43,6 @@ function cnArguments(source: string): string[] {
   return calls;
 }
 
-// Marker classes (group, group/line, peer...) that other selectors read; they generate no CSS.
 const isMarker = (name: string) => /^(group|peer)(\/[\w-]+)?$/.test(name);
 
 function classesIn(source: string): string[] {

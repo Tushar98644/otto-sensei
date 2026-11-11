@@ -28,7 +28,6 @@ function sentenceCase(text: string): string {
   return text.charAt(0).toUpperCase() + text.slice(1);
 }
 
-// Free has no AI help, so it gets one plain line instead of a row of empty meters.
 export function UsageCard({ me, plan }: { me: Me; plan: PlanId }) {
   const { usage, period, aiBudget } = me;
   if (plan === "free") return <FreeUsageCard trial={me.billing.trial === true} />;
@@ -69,7 +68,6 @@ export function UsageCard({ me, plan }: { me: Me; plan: PlanId }) {
       {usage ? (
         <div className="flex flex-col gap-5">
           {FEATURES.map((feature) => {
-            // A server from before a feature existed sends no count for it.
             const entry: Usage | undefined = usage[feature];
             return entry ? (
               <UsageRow key={feature} feature={feature} usage={entry} period={period} />

@@ -3,9 +3,6 @@
 import { useEffect, useState, useSyncExternalStore, type ComponentType } from "react";
 import { createStepLoader, type StepLoader } from "@/components/studio/step-loader";
 
-// Loads code most visits never run once the page settles, or at once when wanted. Unlike
-// React.lazy there's no Suspense hold: it renders as soon as its code is here (see step-loader.ts).
-
 export function lazyComponent<P extends object>(
   importer: () => Promise<ComponentType<P>>,
 ): StepLoader<ComponentType<P>> {
@@ -14,7 +11,6 @@ export function lazyComponent<P extends object>(
 
 const IDLE_TIMEOUT_MS = 4_000;
 
-/** True from the first time `open` is: a lazy dialog then stays mounted, to animate closed. */
 export function useOpenedOnce(open: boolean): boolean {
   const [opened, setOpened] = useState(open);
   if (open && !opened) setOpened(true);
@@ -27,7 +23,6 @@ export function Lazy<P extends object>({
   props,
 }: {
   loader: StepLoader<ComponentType<P>>;
-  // Load now; until then it loads once the browser is idle. Nothing renders before it's wanted.
   wanted: boolean;
   props: P;
 }) {
@@ -35,7 +30,6 @@ export function Lazy<P extends object>({
 
   useEffect(() => {
     if (loader.getState().status === "ready") return;
-    // A failed load is tried again the next time this renders.
     const load = () => void loader.load().catch(() => {});
     if (wanted) {
       load();

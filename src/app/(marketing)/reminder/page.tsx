@@ -10,7 +10,6 @@ type Props = { searchParams: Promise<Record<string, string | string[] | undefine
 
 const one = (value: string | string[] | undefined) => (typeof value === "string" ? value : "");
 
-// Sends the action as soon as it opens, so each email link takes a single click.
 export default async function ReminderPage({ searchParams }: Props) {
   const params = await searchParams;
   const action = one(params.do);

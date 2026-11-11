@@ -16,7 +16,6 @@ const LABEL_CLASSES = "text-sm font-medium text-ink";
 
 export type OriginalLineProps = {
   text: string;
-  // Words the lint flagged in this line ("Responsible for"), marked with the highlighter.
   marks?: readonly string[];
 };
 
@@ -102,7 +101,6 @@ export function Suggestion({ text, hintId, asking }: SuggestionProps) {
 }
 
 export type QuestionsFormProps = {
-  // Prefix for the answer inputs' ids; the first one gets focus when the questions appear.
   idPrefix: string;
   questions: string[];
   answers: string[];
@@ -175,7 +173,6 @@ export type DraftFieldProps = {
   id: string;
   value: string;
   onChange: (value: string) => void;
-  // Enter uses the line: a resume line has no line breaks, so Enter has nothing else to do.
   onSubmit: () => void;
 };
 

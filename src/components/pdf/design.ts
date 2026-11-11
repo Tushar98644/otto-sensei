@@ -10,11 +10,8 @@ import { primaryFont } from "@/lib/pdf/fonts";
 import type { ResumeDesign } from "@/lib/resume/schema";
 import type { PdfStyle, StyleSlot, TemplateTheme, ThemeStyles } from "./theme";
 
-// Each look setting changes only what it names, so a format keeps its character under any of them.
-
 const VERTICAL_SPACE = ["marginTop", "marginBottom", "paddingTop", "paddingBottom"] as const;
 
-// Two decimals: enough for print, and the numbers in a theme stay readable in tests.
 const round = (value: number) => Math.round(value * 100) / 100;
 
 function withFont(style: PdfStyle, family: string, isPage: boolean): PdfStyle {
@@ -36,7 +33,6 @@ function compacted(style: PdfStyle, isPage: boolean): PdfStyle {
   return next;
 }
 
-/** `color` mixed toward white by `amount` (0-1): a light rule in the accent's hue. */
 export function tint(color: string, amount: number): string {
   const channels = [1, 3, 5].map((at) => parseInt(color.slice(at, at + 2), 16));
   return `#${channels
@@ -79,8 +75,7 @@ function fontOf(styles: ThemeStyles, ...slots: StyleSlot[]) {
   return primaryFont(styles.page.fontFamily);
 }
 
-// A bullet or separator glyph the theme's font lacks would print from the fallback font, or not
-// at all: a drawn mark replaces the bullet and a plain bar the separator.
+// A glyph the theme's font lacks prints from a fallback or not at all, so marks are drawn.
 function withMarks(theme: TemplateTheme): TemplateTheme {
   const { styles } = theme;
   const bulletFont = fontOf(styles, "bulletGlyph");

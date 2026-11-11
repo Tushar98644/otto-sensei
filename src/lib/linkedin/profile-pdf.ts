@@ -1,15 +1,10 @@
 import { groupRows, rowText, type LayoutItem } from "@/lib/parse/pdf-layout";
 import type { Extraction } from "@/lib/parse/types";
 
-// LinkedIn's "Save to PDF" profile has a left sidebar; read row by row (as ATSs do) it glues every
-// job line to a skill. For this one layout the text is rebuilt column by column, footers dropped.
-
 const SIDEBAR_HEADINGS = ["Contact", "Top Skills", "Languages", "Certifications", "Honors-Awards", "Publications", "Patents"];
 const MAIN_HEADINGS = ["Summary", "Experience", "Education"];
 const FOOTER = /^Page \d+ of \d+$/;
-// The sidebar's text starts near the left edge; the main column starts about a third across.
 const SIDEBAR_SHARE = 0.3;
-// "March 2022 - Present (2 years 9 months)": the duration is LinkedIn's arithmetic, not a date.
 const DURATION = /\s*\((?:(?:\d+|less than a) (?:years?|months?)\s*)+\)\s*$/i;
 
 export function isLinkedInProfile(extraction: Extraction): boolean {
@@ -22,7 +17,6 @@ export function isLinkedInProfile(extraction: Extraction): boolean {
   );
 }
 
-/** null when the file isn't a LinkedIn profile PDF. */
 export function linkedInProfileText(extraction: Extraction): string | null {
   if (!isLinkedInProfile(extraction)) return null;
   const main: Line[] = [];
@@ -41,7 +35,6 @@ export function linkedInProfileText(extraction: Extraction): string | null {
     lines.filter((line) => line !== "" && !FOOTER.test(line)).map((line) => line.replace(DURATION, ""));
   const body = clean(withCompanies(main.filter((line) => line.text !== "" && !FOOTER.test(line.text))));
   const { contact, rest } = sidebarSections(joinLinkLabels(clean(sidebar)));
-  // Contact details belong under the name and headline, before the first section heading.
   const headerEnd = body.findIndex((line) => MAIN_HEADINGS.includes(line));
   const cut = headerEnd === -1 ? Math.min(3, body.length) : headerEnd;
   return [...body.slice(0, cut), ...contact, ...body.slice(cut), "", ...rest].join("\n");
@@ -51,11 +44,8 @@ type Line = { text: string; size: number };
 
 const MONTH_YEAR = "(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\\.?\\s+\\d{4}";
 const DATE_RANGE = new RegExp(`^(?:${MONTH_YEAR}|\\d{4})\\s*[-–]\\s*(?:present|${MONTH_YEAR}|\\d{4})`, "i");
-// A company with several roles shows its total time on its own line: "5 years 2 months".
 const TOTAL_TIME = /^(?:\d+ years?)?\s*(?:\d+ months?)?$/i;
 
-// LinkedIn prints the company above the role; parsers expect them together, so each title gets its
-// company appended ("Product Designer | Contoso").
 function withCompanies(lines: Line[]): string[] {
   const bodySize = modalSize(lines);
   const out: string[] = [];
@@ -104,12 +94,10 @@ function sidebarSections(lines: string[]): { contact: string[]; rest: string[] }
   return { contact, rest };
 }
 
-// "Top Skills" is LinkedIn's name for the skills a parser looks for under "Skills".
 function sidebarLine(line: string): string {
   return line === "Top Skills" ? "Skills" : line;
 }
 
-// Long profile URLs wrap, leaving "(LinkedIn)" or "(Portfolio)" alone on the next line.
 function joinLinkLabels(lines: string[]): string[] {
   const out: string[] = [];
   for (const line of lines) {

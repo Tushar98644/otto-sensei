@@ -1,12 +1,5 @@
 import { emptyWorkProfile, type WorkProfile } from "@/lib/eligibility/profile";
 
-// The match test set (MATCHING-RESEARCH.md, Phase 0): 40 made-up resumes across engineering,
-// data, product, design, sales, support and operations, at junior, mid and senior level, 5 of
-// them outside the US; and from 2026-11-10, 28 more from every other kind of work (healthcare,
-// education, retail, hospitality, logistics, trades, manufacturing, science, public sector,
-// finance and admin, creative), 6 of them outside the US. Nobody real: names, employers and
-// contact details are left out on purpose, since matching never sees them either.
-
 export const TECH_FIELDS = [
   "engineering",
   "data",
@@ -33,13 +26,10 @@ export type TestResume = {
     | "finance-admin"
     | "creative";
   level: "junior" | "mid" | "senior";
-  // Where they live and may work, in words for the judge and as a work profile for the rules.
   place: string;
   work: WorkProfile;
-  // Newest first, as a resume lists them.
   titles: string[];
   years: number;
-  // What the browser would read skills from: the summary, the job lines and the skills section.
   text: string;
 };
 
@@ -66,7 +56,6 @@ const UK = workIn("GB", "Europe/London", {
 });
 
 export const TEST_RESUMES: readonly TestResume[] = [
-  // Engineering
   {
     id: "eng-frontend-junior",
     field: "engineering",
@@ -187,7 +176,6 @@ export const TEST_RESUMES: readonly TestResume[] = [
     years: 4,
     text: "Software engineer building a real-time messaging backend in Elixir and Phoenix on PostgreSQL. Some Erlang for the presence service. Skills: Elixir, Phoenix, Erlang, PostgreSQL, Docker.",
   },
-  // Data
   {
     id: "data-analyst-junior",
     field: "data",
@@ -254,7 +242,6 @@ export const TEST_RESUMES: readonly TestResume[] = [
     years: 8,
     text: "Senior BI analyst running reporting for operations and finance. Built Power BI and Tableau dashboards, wrote SQL, modeled data in Excel. Skills: Power BI, Tableau, SQL, Excel.",
   },
-  // Product
   {
     id: "product-associate-pm",
     field: "product",
@@ -305,7 +292,6 @@ export const TEST_RESUMES: readonly TestResume[] = [
     years: 5,
     text: "Technical program manager coordinating cloud migration programs across engineering teams. Ran Agile and Scrum ceremonies, tracked risks in Jira, worked with AWS architects. Skills: Jira, Agile, Scrum, AWS, Confluence.",
   },
-  // Design
   {
     id: "design-junior",
     field: "design",
@@ -360,7 +346,6 @@ export const TEST_RESUMES: readonly TestResume[] = [
     years: 4,
     text: "Brand designer making campaigns, illustration and motion for a consumer brand. Worked in Adobe Illustrator, Photoshop, After Effects and Figma. Skills: Adobe Illustrator, Adobe Photoshop, After Effects, Figma, InDesign.",
   },
-  // Sales
   {
     id: "sales-sdr-junior",
     field: "sales",
@@ -411,7 +396,6 @@ export const TEST_RESUMES: readonly TestResume[] = [
     years: 7,
     text: "Partnerships lead building reseller and integration partnerships for a SaaS company. Signed 40 partners, ran co-selling programs, tracked pipeline in HubSpot and Salesforce. Skills: HubSpot, Salesforce.",
   },
-  // Support
   {
     id: "support-specialist-junior",
     field: "support",
@@ -452,7 +436,6 @@ export const TEST_RESUMES: readonly TestResume[] = [
     years: 8,
     text: "Support leader managing three teams across time zones. Built the support operations stack in Zendesk and Salesforce, set SLAs, hired and coached 20 agents. Skills: Zendesk, Salesforce.",
   },
-  // Operations
   {
     id: "ops-coordinator-junior",
     field: "operations",
@@ -486,10 +469,8 @@ export const TEST_RESUMES: readonly TestResume[] = [
   ...nonTechResumes(),
 ];
 
-// Every other kind of work (2026-11-10). Functions so the work profiles above exist first.
 function nonTechResumes(): TestResume[] {
   return [
-    // Healthcare
     {
       id: "hc-rn-mid",
       field: "healthcare",
@@ -541,7 +522,6 @@ function nonTechResumes(): TestResume[] {
       years: 10,
       text: "Licensed pharmacist (Ontario College of Pharmacists) with ten years in community pharmacy, four managing a high-volume store. Dispensing, medication reviews, vaccinations, compounding, supervising pharmacy technicians, inventory and controlled substances.",
     },
-    // Education
     {
       id: "edu-primary-teacher-mid-au",
       field: "education",
@@ -578,7 +558,6 @@ function nonTechResumes(): TestResume[] {
       years: 2,
       text: "Level 3 early years practitioner in a 60-place day nursery, key person for eight children aged 2 to 3. Plan play-based activities to the EYFS, keep learning journals, paediatric first aid trained, safeguarding level 2.",
     },
-    // Retail and hospitality
     {
       id: "retail-sales-associate-junior",
       field: "retail",
@@ -619,7 +598,6 @@ function nonTechResumes(): TestResume[] {
       years: 2.5,
       text: "Shift supervisor at a busy cafe: running shifts of six baristas, opening and closing, cash counts, coaching new staff, keeping drink quality and speed. Earlier a barista. FoodSafe Level 1.",
     },
-    // Logistics and driving
     {
       id: "log-truck-driver-mid",
       field: "logistics",
@@ -651,7 +629,6 @@ function nonTechResumes(): TestResume[] {
       years: 7,
       text: "HGV Class 1 (C+E) driver with seven years of trunking and multi-drop deliveries for a supermarket chain. Full Driver CPC, digital tachograph card, ADR licence, clean licence.",
     },
-    // Trades
     {
       id: "trades-electrician-senior",
       field: "trades",
@@ -672,7 +649,6 @@ function nonTechResumes(): TestResume[] {
       years: 5,
       text: "HVAC service technician for residential and light commercial systems: diagnosing and repairing furnaces, heat pumps and rooftop units, preventive maintenance, refrigerant recovery. EPA 608 Universal certified, NATE certified.",
     },
-    // Manufacturing
     {
       id: "mfg-production-supervisor-senior",
       field: "manufacturing",
@@ -693,7 +669,6 @@ function nonTechResumes(): TestResume[] {
       years: 5,
       text: "CNC machinist setting up and running Haas and Mazak mills and lathes, writing and editing G-code, reading blueprints and GD&T, inspecting parts with micrometers and calipers to tight tolerances.",
     },
-    // Science and lab
     {
       id: "sci-lab-technician-junior",
       field: "science",
@@ -714,7 +689,6 @@ function nonTechResumes(): TestResume[] {
       years: 4,
       text: "Research associate in a biotech cell therapy group: mammalian cell culture, flow cytometry, qPCR, Western blots, designing and running experiments and presenting results to the team. MS in Molecular Biology.",
     },
-    // Public sector
     {
       id: "pub-social-worker-mid",
       field: "public",
@@ -735,7 +709,6 @@ function nonTechResumes(): TestResume[] {
       years: 4,
       text: "Policy analyst at a state agency researching health and labor policy: writing briefs and memos, analyzing legislation and budget data in Excel and Stata, briefing senior officials. Earlier a legislative aide in the state senate.",
     },
-    // Finance and admin
     {
       id: "fa-admin-assistant-junior",
       field: "finance-admin",
@@ -766,7 +739,6 @@ function nonTechResumes(): TestResume[] {
       years: 4,
       text: "Staff accountant at a manufacturing company: journal entries, account reconciliations, month-end close, fixed assets, audit support, GAAP reporting in NetSuite. Excel. CPA candidate.",
     },
-    // Creative
     {
       id: "creative-video-editor-mid",
       field: "creative",

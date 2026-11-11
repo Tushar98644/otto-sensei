@@ -16,7 +16,6 @@ describe("extractPdf", () => {
       "Senior Software Engineer",
       "jane.doe@example.com | +1 555 123 4567 | Berlin, Germany",
     ]);
-    // A right-aligned date is a wide gap on the same line, kept apart by a tab.
     expect(extraction.lines).toContain("Senior Software Engineer, Acme Corp\tJan 2021 - Present");
     expect(extraction.lines).toContain(
       "• Built a payment API in Go that handles two million requests a day with 99.99% uptime.",
@@ -30,7 +29,6 @@ describe("extractPdf", () => {
     const page = extraction.pages[0];
     expect(page).toMatchObject({ pageNumber: 1, width: 612, height: 792 });
     const name = page?.items.find((item) => item.str === "Jane Doe");
-    // Drawn at baseline y=740 (bottom-left origin) in 20pt type.
     expect(name).toMatchObject({ x: 50, y: 792 - 740 - 20, height: 20 });
     expect(name?.width).toBeGreaterThan(50);
     expect(page?.items.every((item) => item.y >= 0 && item.y <= 792)).toBe(true);
@@ -40,7 +38,6 @@ describe("extractPdf", () => {
     const extraction = await extractPdf(await twoColumnPdf());
     expect(extraction.signals.columnLayout).toBe(true);
     expect(extraction.signals.imageCount).toBe(1);
-    // Sidebar skills land on the same lines as the job history next to them.
     expect(extraction.lines).toContain("CONTACT\tEXPERIENCE");
     expect(extraction.lines).toContain(
       "React\t• Wrote the first version of the partner API that now serves three hundred",

@@ -20,7 +20,6 @@ export type PickStepProps = {
   onTogglePull: (id: number) => void;
 };
 
-// Past this many repos a search box beats scrolling.
 const SEARCH_FROM = 8;
 
 export function PickStep({ profile, resume, repos, pulls, onToggleRepo, onTogglePull }: PickStepProps) {
@@ -57,7 +56,6 @@ export function PickStep({ profile, resume, repos, pulls, onToggleRepo, onToggle
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
                 onKeyDown={(event) => {
-                  // Escape clears the search instead of closing the dialog.
                   if (event.key === "Escape" && query) {
                     event.preventDefault();
                     event.stopPropagation();

@@ -95,8 +95,6 @@ import type {
   WorkProfileResponse,
 } from "./types";
 
-// Every method resolves with the success body or throws ApiClientError.
-
 export class ApiClientError extends Error {
   readonly code: ApiErrorCode | "network_error";
   readonly status: number;
@@ -162,7 +160,6 @@ function fileForm(file: Blob, filename?: string): FormData {
 }
 
 export const api = {
-  // "ai": use the AI reader even when the rules read the file well.
   importFile: (file: File, { reader }: { reader?: "ai" } = {}) =>
     request<ImportResponse>(reader === "ai" ? "/api/import?reader=ai" : "/api/import", {
       method: "POST",
@@ -187,7 +184,6 @@ export const api = {
     request<WritingResponse>("/api/writings", postJson(body)),
   editWriting: (id: string, body: UpdateWritingBody) =>
     request<WritingResponse>(`/api/writings/${encodeURIComponent(id)}`, postJson(body, "PATCH")),
-  // keepalive: sent from a closing page (an undo window that never ran out).
   deleteWriting: (id: string, { keepalive = false }: { keepalive?: boolean } = {}) =>
     request<EmptyOk>(`/api/writings/${encodeURIComponent(id)}`, { method: "DELETE", keepalive }),
   summary: (body: SummaryRequestBody) => request<SummaryResponse>("/api/summary", postJson(body)),
@@ -201,7 +197,6 @@ export const api = {
     request<SavedJobResponse>(`/api/jobs/saved/${encodeURIComponent(id)}`, { method: "PUT" }),
   unsaveJob: (id: string) =>
     request<SavedJobResponse>(`/api/jobs/saved/${encodeURIComponent(id)}`, { method: "DELETE" }),
-  // keepalive: "Open job" leaves for another tab.
   saveLookingFor: (body: LookingForChoice) =>
     request<LookingForResponse>("/api/jobs/looking-for", postJson(body, "PUT")),
   searchOccupations: (query: string, signal?: AbortSignal) =>
@@ -246,7 +241,6 @@ export const api = {
     ),
   setApplicationsStatus: (body: BulkApplicationStatusBody) =>
     request<BulkApplicationsResponse>("/api/applications", postJson(body, "PATCH")),
-  // keepalive: sent from a closing page (an undo window that never ran out).
   deleteApplication: (id: string, { keepalive = false }: { keepalive?: boolean } = {}) =>
     request<EmptyOk>(`/api/applications/${encodeURIComponent(id)}`, {
       method: "DELETE",

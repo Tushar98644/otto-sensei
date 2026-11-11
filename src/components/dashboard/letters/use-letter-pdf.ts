@@ -9,7 +9,6 @@ import { renderLetterPdf } from "@/lib/pdf/render";
 import type { Resume } from "@/lib/resume/schema";
 import { letterResume, type LetterEntry } from "./entries";
 
-// Same renderer, page size and file name as the studio's Download step.
 export function useLetterPdf(resumes: readonly Resume[]) {
   const pageSize = usePageSize();
   const [rendering, setRendering] = useState<string | null>(null);

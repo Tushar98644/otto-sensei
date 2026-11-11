@@ -5,13 +5,10 @@ import { budgetReachedText } from "@/lib/ai-budget-copy";
 import { isApiError } from "@/lib/api/client";
 import { resetSentence, thisPeriod } from "@/lib/usage-copy";
 
-// Mirrors the caps in FixRequestSchema (src/lib/api/types.ts); fix-text.test.ts checks they agree.
 export const FIX_ANSWER_LIMITS = { count: 5, questionChars: 300, answerChars: 500 } as const;
 
 export type FixAnswer = FixInput["answers"][number];
 
-// "signin" and "limit" mean the account gate already opened its dialog; Otto only explains.
-// budget: the limit hit was the AI budget, not the line fixes.
 export type FixProblem =
   | { kind: "error"; message: string }
   | { kind: "signin" }
@@ -22,7 +19,6 @@ const PLACEHOLDER = /\[[^[\]\n]+\]/;
 
 export type SuggestionPart = { text: string; placeholder: boolean };
 
-// Otto marks facts he doesn't know as [placeholders]; the dialog highlights them as blanks.
 export function splitPlaceholders(text: string): SuggestionPart[] {
   const parts: SuggestionPart[] = [];
   let last = 0;
@@ -37,10 +33,8 @@ export function splitPlaceholders(text: string): SuggestionPart[] {
 
 export type MarkedPart = { text: string; marked: boolean };
 
-// More than three marks on one line stop reading as a pen and start reading as noise.
 const MAX_MARKS = 3;
 
-// Each flagged phrase is marked once, at its first match, ignoring case; overlaps are skipped.
 export function splitMarks(text: string, marks: readonly string[]): MarkedPart[] {
   const lower = text.toLowerCase();
   const ranges: Array<[number, number]> = [];
@@ -70,7 +64,6 @@ export function hasPlaceholders(text: string): boolean {
   return PLACEHOLDER.test(text);
 }
 
-// Only answered questions go back; an empty answer would read as "the answer is nothing".
 export function buildAnswers(
   questions: readonly string[],
   answers: readonly string[],
@@ -91,8 +84,6 @@ export function fixErrorMessage(error: unknown): string {
   return OTTO.errors.generic;
 }
 
-// `signedIn` is the account as it is now: after a "signin" problem the gate's dialog may already
-// have signed the user back in, and nothing retries the request on its own.
 export function problemMessage(
   problem: FixProblem,
   limit: number,
@@ -109,7 +100,6 @@ export function problemMessage(
   }
 }
 
-// Paid plans and the trial see what's left; Free has none, so it hears what Pro adds instead.
 export function fixAllowanceText(
   usage: Usage | null | undefined,
   plan: PlanId | null | undefined,

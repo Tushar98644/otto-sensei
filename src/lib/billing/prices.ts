@@ -27,33 +27,27 @@ export function planPriceLabel(plan: PaidPlanId, interval: BillingInterval): str
   return `${planPrice(plan, interval)}/${interval}`;
 }
 
-/** Whole percent; 0 when it saves nothing. */
 export function yearlySavingsPercent(plan: PaidPlanId): number {
   const monthly = PRICES_USD[plan].month * 12;
   return monthly > 0 ? Math.max(0, Math.floor((1 - PRICES_USD[plan].year / monthly) * 100)) : 0;
 }
 
-/** "about $10 a month" for a yearly price, so plans compare at a glance. */
 export function perMonth(plan: PaidPlanId): string {
   return usd.format(Math.round((PRICES_USD[plan].year / 12) * 100) / 100);
 }
 
-// null once Pro monthly is no longer 40-60% of Rezi's price, so a price change can't leave it
-// untrue.
 export function proComparison(): string | null {
   const ratio = PRICES_USD.pro.month / PRO_PRICE_COMPARISON.priceUsd;
   if (ratio < 0.4 || ratio > 0.6) return null;
   return `About half the price of ${PRO_PRICE_COMPARISON.name} (${usd.format(PRO_PRICE_COMPARISON.priceUsd)}/mo)`;
 }
 
-// A delivery pizza is about $15-25, so the line holds only while Pro monthly stays at or under $20.
 export const PIZZA_MAX_USD = 20;
 
 export function pizzaLine(): string | null {
   return PRICES_USD.pro.month <= PIZZA_MAX_USD ? "Less than a pizza a month." : null;
 }
 
-/** "month, year or week", for "Pro renews each … until you cancel." */
 export function renewalPeriods(intervals: readonly BillingInterval[]): string {
   const names: string[] = intervals.length ? [...intervals] : ["month"];
   const last = names.pop();
@@ -76,8 +70,6 @@ export function trialHeadline(): string {
   return `Try ${PLANS[PRO_TRIAL.plan].name} free for ${PRO_TRIAL.days} days`;
 }
 
-// On the trial another plan is a new subscription that ends the trial once paid, so the button says
-// so first.
 export function endsTrialSentence(plan: PaidPlanId, interval: BillingInterval): string {
   return `Ends your free ${PLANS[PRO_TRIAL.plan].name} trial today and starts ${PLANS[plan].name} at ${planPriceLabel(plan, interval)}.`;
 }

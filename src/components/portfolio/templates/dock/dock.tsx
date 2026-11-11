@@ -29,8 +29,7 @@ import type { PortfolioTemplateProps } from "../types";
 import { Dock, FlickeringGrid, type DockLink } from "./islands";
 import { DOCK_CSS } from "./styles";
 
-// Dock: a rebuild of Dillion Verma's portfolio (github.com/dillionverma/portfolio, MIT;
-// ./LICENSE.txt) for anyone's data, with drawn project covers in place of his screenshots.
+// Ported from dillionverma/portfolio (MIT, see ./LICENSE.txt).
 
 const STEP = 0.04;
 const SOCIALS_IN_DOCK = 5;

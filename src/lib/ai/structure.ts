@@ -27,16 +27,12 @@ import { AIError } from "./types";
 
 export type StructureResult = {
   resume: Resume;
-  // False when the rule-based parser produced the result (no API key, or the AI call failed).
   usedAI: boolean;
 };
 
-// Scans and empty files yield next to no text: don't pay for a call.
 const MIN_AI_CHARS = 40;
-// Copied text reuses the source's words; above this the model rewrote or invented lines.
 const MAX_NOVEL_WORD_SHARE = 0.15;
 
-// ResumeSchema's caps. The final ResumeSchema check catches any drift between the two.
 const LIMIT = {
   text: 200,
   label: 100,
@@ -62,7 +58,6 @@ const LIMIT = {
   extraBullets: 20,
 } as const;
 
-// Mirrors ResumeSchema without ids (assigned in code) or length caps (the API can't enforce them).
 // A fresh schema per field keeps the JSON schema inline instead of full of shared $refs.
 const str = (description?: string) => (description ? z.string().describe(description) : z.string());
 const lines = (description: string) => z.array(z.string()).describe(description);
@@ -132,7 +127,6 @@ const ParsedResumeSchema = z.object({
 
 type ParsedResume = z.infer<typeof ParsedResumeSchema>;
 
-// The prompt asks for bullets without their symbol; this catches the odd one that keeps it.
 function toBullets(texts: readonly string[], max: number): Bullet[] {
   return texts
     .map((text) => oneLine(text))
@@ -149,7 +143,6 @@ function toItems(items: readonly string[]): string[] {
     .slice(0, LIMIT.skillItems);
 }
 
-// "HONORS & AWARDS:" -> "Honors & Awards", else the kind's own name.
 function extraTitle(kind: ExtraKind, title: string): string {
   const own = clip(headingTitle(title), LIMIT.extraTitle);
   if (own) return own;
@@ -261,7 +254,6 @@ function toResume(parsed: ParsedResume, now: number): Resume {
   };
 }
 
-// Link labels are left out: the model writes those itself ("LinkedIn").
 function copiedStrings(parsed: ParsedResume): string[] {
   const { basics } = parsed;
   return [
@@ -317,7 +309,6 @@ function hasContent(resume: Resume): boolean {
   return Boolean(basics.name || basics.email || basics.phone || resume.summary) || sections > 0;
 }
 
-// The name is hidden only when it reads like one: a wrong guess would hide a job title.
 function importRedactor(found: Basics): Redactor {
   return createRedactor({
     name: looksLikePersonName(found.name) ? found.name : "",
@@ -338,7 +329,6 @@ function hostOf(url: string): string {
 
 const GENERIC_LABEL = /^(?:links?|urls?|web|website|site|homepage|other|profile)?$/i;
 
-// The model sees only [LINK_1], so its label is a guess: a known site's own name beats it.
 function linkLabel(url: string, label: string): string {
   const found = findLinks(url)[0];
   if (found && found.label.toLowerCase() !== hostOf(url)) return found.label;
@@ -347,8 +337,6 @@ function linkLabel(url: string, label: string): string {
   return /portfolio/i.test(url) ? "Portfolio" : "Website";
 }
 
-// One the redactor never handed out is dropped. The model sometimes lists a project's link among
-// the profile links too; when the file has it only once, the project keeps it.
 function restoreParsed(parsed: ParsedResume, redactor: Redactor, text: string): ParsedResume {
   const restored = redactor.restoreDeep(parsed, { dropUnknown: true });
   const hidden = new Set(redactor.hidden("LINK"));
@@ -361,7 +349,6 @@ function restoreParsed(parsed: ParsedResume, redactor: Redactor, text: string): 
   return { ...restored, basics: { ...restored.basics, links } };
 }
 
-// Filled from the rule-based read, which found that exact text in the file.
 function withHiddenContact(resume: Resume, found: Basics, redactor: Redactor): Resume {
   const hid = (kind: "NAME" | "EMAIL" | "PHONE", value: string) =>
     value !== "" && redactor.hidden(kind).includes(value);
@@ -390,8 +377,6 @@ function acceptedResume(parsed: ParsedResume, text: string, now: number): Resume
   return checked.data;
 }
 
-// Falls back to heuristicParse() without a key or on any AI failure, so import never fails because
-// of the AI. ai: false skips the model (the plan's AI reads are used up).
 export async function structureResume(
   text: string,
   now = Date.now(),
@@ -403,7 +388,6 @@ export async function structureResume(
   if (!ai || !aiEnabled() || text.trim().length < MIN_AI_CHARS) {
     return { resume: heuristicParse(text, now), usedAI: false };
   }
-  // Read first by rules: it is the fallback, and it finds the details to hide from the model.
   const fallback = heuristicParse(text, now);
   const redactor = importRedactor(fallback.basics);
   try {

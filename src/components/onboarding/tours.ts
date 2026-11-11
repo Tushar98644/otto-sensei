@@ -1,8 +1,6 @@
 import { ROUTES } from "@/components/site/routes";
 import type { StudioStep } from "@/lib/store/resume-store";
 
-// DOM-free so the triggers are unit-tested; copy, lookups and tip load only when a tour starts.
-
 export type TourName = "studio" | "dashboard";
 
 export type StopShape = "card" | "control";
@@ -10,16 +8,12 @@ export type StopShape = "card" | "control";
 export type TourStop = {
   id: string;
   title: string;
-  // Otto's line: first person, 18 words at most.
   body: string;
-  // Looked up when the stop is shown, because its screen may not exist yet when the tour starts.
   target: () => Element | null;
   shape: StopShape;
-  // Stops on another screen (a different studio step) bring it up first, then wait until ready.
   screen: string;
   enter?: () => void;
   ready?: () => boolean;
-  // The target sits in a visually hidden wrapper that only shows on focus, like a line's tools.
   reveal?: boolean;
 };
 
@@ -29,9 +23,6 @@ export type StudioTourState = {
   hasReport: boolean;
 };
 
-// Right after an upload (the recruiter view), or the first time a resume is open in the editor,
-// e.g. the sample. Never on the upload screen, where there is nothing to point at yet, and never
-// mid-way through tailoring or downloading, where it would interrupt.
 export function studioTourEligible({ step, hasResume, hasReport }: StudioTourState): boolean {
   if (!hasResume) return false;
   return step === "fix" || (step === "review" && hasReport);
@@ -39,10 +30,7 @@ export function studioTourEligible({ step, hasResume, hasReport }: StudioTourSta
 
 export type DashboardTourState = {
   pathname: string;
-  // The resume library is read from this browser; before that the home page is still skeletons.
   hydrated: boolean;
-  // The first-login step (lib/setup/step.ts): the tour waits while it may open or is open, and
-  // starts once it closes, so a first login meets one thing at a time.
   setupStep?: "wait" | "show" | "skip";
 };
 

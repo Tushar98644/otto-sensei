@@ -8,7 +8,6 @@ import type { Resume } from "@/lib/resume/schema";
 
 export type RenderedPdf = { blob: Blob; pages: number };
 
-// Keyed by what they print, not updatedAt (a format pick bumps it), so files made ahead still fit.
 const MAX_FILES = 6;
 const files = new Map<string, Promise<RenderedPdf>>();
 
@@ -16,7 +15,6 @@ export function pdfContentKey(resume: Resume, pageSize: PdfPageSize): string {
   return `${pageSize}:${templateOf(resume)}:${JSON.stringify({ ...resume, updatedAt: 0 })}`;
 }
 
-/** What the PDF prints: on Free a Pro format comes out in Classic. Unknown plan prints as saved. */
 export function printedResume(resume: Resume, pro: boolean | null): Resume {
   return pro === false ? forPlan(resume, "free") : resume;
 }
@@ -33,7 +31,6 @@ export function renderPdfCached(resume: Resume, pageSize: PdfPageSize): Promise<
     async (blob) => ({ blob, pages: await countBlobPages(blob) }),
   );
   files.set(key, made);
-  // A failed render isn't kept, so the next try renders again.
   made.catch(() => {
     if (files.get(key) === made) files.delete(key);
   });
@@ -41,7 +38,6 @@ export function renderPdfCached(resume: Resume, pageSize: PdfPageSize): Promise<
   return made;
 }
 
-/** Renders ahead when the browser is idle, so the preview is ready the moment it's asked for. */
 export function preparePdf(resume: Resume, pageSize: PdfPageSize): () => void {
   if (files.has(pdfContentKey(resume, pageSize))) return () => {};
   const run = () => void renderPdfCached(resume, pageSize).catch(() => undefined);

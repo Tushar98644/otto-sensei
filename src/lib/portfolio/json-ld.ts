@@ -4,10 +4,8 @@ import { contentUsesFor } from "./content-uses";
 import type { PortfolioTemplateId } from "./types";
 import type { PortfolioView } from "./view";
 
-// schema.org ProfilePage data built only from what the page shows. Email and phone never go in,
-// even when shown: a machine-readable copy only helps spam scrapers.
+// Email and phone never go in, even when shown: a machine-readable copy only helps spammers.
 
-// Typed by template id, so a new design can't ship without saying what it draws.
 const DRAWS: Record<PortfolioTemplateId, { skills: boolean; education: boolean }> = {
   navy: { skills: true, education: false },
   dock: { skills: true, education: true },
@@ -35,7 +33,6 @@ export type ProfileJsonLdInput = {
   updatedAt: number;
 };
 
-/** Null for a page without a name: a Person needs one. */
 export function profilePageJsonLd({
   view,
   content,
@@ -71,7 +68,6 @@ export function profilePageJsonLd({
     url,
     ...(view.headline ? { jobTitle: view.headline } : {}),
     ...(about ? { description: clip(about, LIMITS.description) } : {}),
-    // "Remote" is how people write where they work, not a place.
     ...(city && !/\bremote\b/i.test(city)
       ? { address: { "@type": "PostalAddress", addressLocality: city } }
       : {}),

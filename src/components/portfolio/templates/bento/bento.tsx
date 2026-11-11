@@ -8,8 +8,7 @@ import { AccentSwatches, TimeZoneTile } from "./islands";
 import { PixelArrow, PixelGitHub, PixelLinkedIn } from "./pixel-icons";
 import { BENTO_CSS } from "./styles";
 
-// Bento: a rebuild of Gianmarco Cavallo's astro-bento-portfolio (github.com/Ladvace/
-// astro-bento-portfolio, MIT; ./LICENSE.txt) for anyone's data, with pixel marks for pictures.
+// Ported from Ladvace/astro-bento-portfolio (MIT, see ./LICENSE.txt).
 
 const INTRO_PARAGRAPHS = 3;
 const INTRO_BUTTONS = 3;

@@ -14,27 +14,17 @@ import type { RawJob } from "./parsers";
 import { SOURCE_INFO } from "./sources";
 import { BOARD_SOURCES, FEED_SOURCES, type BoardSeed, type JobSourceId } from "./types";
 
-// Writes are keyed by (source, external id), so a repeated or overlapping run only finds less to
-// do.
-
 export const STORE_LIMITS = {
-  // Keeps every open job of the biggest boards; matching's per-company cap stops crowding.
   perBoard: 1_000,
-  // A job missing from this many reads of its board in a row is closed.
   missedRunsToClose: 2,
-  // A board answering 404 this many times in a row is gone: its jobs close.
   notFoundToClose: 2,
-  // Feeds show only the newest jobs, so dropping off says nothing; boards are read whole daily.
   feedMaxAgeMs: 30 * DAY_MS,
-  // Saved or application-linked closed rows stay a month, so "This job has closed" still shows.
   closedRetentionMs: 7 * DAY_MS,
   referencedRetentionMs: 30 * DAY_MS,
-  // A ceiling above the ~66,000 rows expected; at ~1.85 KB a row that's ~150 MB before bloat.
   maxRows: 80_000,
   writeChunk: 200,
 } as const;
 
-// One opening listed by an employer's own board beats the same one copied by a feed.
 const SOURCE_PRIORITY: Record<JobSourceId, number> = {
   greenhouse: 0,
   lever: 0,
@@ -90,7 +80,6 @@ function contentColumns(job: NormalizedJob) {
   };
 }
 
-/** Drops boards no longer seeded. */
 export async function syncBoards(
   db: Db,
   seeds: readonly BoardSeed[],
@@ -109,7 +98,6 @@ export async function syncBoards(
         set: { company: sql`excluded.company` },
       });
   }
-  // A board taken off the list: its jobs close now instead of lingering unchecked.
   let dropped = 0;
   for (const source of BOARD_SOURCES) {
     const tokens = seeds.filter((seed) => seed.ats === source).map((seed) => seed.token);
@@ -142,7 +130,6 @@ async function closeBoard(
   return closed.length;
 }
 
-// `snapshot`: the read holds every open job, so missing ones count a missed run. Feeds aren't.
 export async function saveJobs(
   db: Db,
   scope: { source: JobSourceId; board: string },
@@ -163,9 +150,7 @@ export async function saveJobs(
         (raw) => (raw.postedAt ?? now) >= feedCutoff && (raw.validThrough ?? now) >= now,
       );
 
-  // Only a company's own board shares one intro across its jobs; a feed mixes companies.
   const boilerplate = snapshot ? boilerplateLines(fresh.map((raw) => raw.text)) : new Set<string>();
-  // The text is kept only where it can't be read again (full-post.ts reads the rest live).
   const textChars = SOURCE_INFO[scope.source].liveText ? 0 : JOB_LIMITS.feedDescriptionChars;
 
   await db.transaction(async (tx) => {
@@ -203,7 +188,6 @@ export async function saveJobs(
       stats.updated += 1;
     }
 
-    // Only rows seen again are written: rewriting unchanged rows leaves dead versions until vacuum.
     for (const part of chunks(seenIds, 500)) {
       await tx
         .update(jobs)
@@ -222,7 +206,6 @@ export async function saveJobs(
     }
     stats.seen = seenIds.length;
 
-    // One opening listed twice: the employer's own listing wins; within a source, the first stays.
     const keys = [...new Set(additions.map((job) => job.dedupeKey))];
     const open = new Map<string, { id: string; source: JobSourceId }>();
     for (const part of chunks(keys, 500)) {
@@ -265,7 +248,7 @@ export async function saveJobs(
       stats.closed += closed.length;
     }
     for (const part of chunks(inserts)) {
-      // Another source's id for this key can't collide; a racing run with the same id just skips.
+      // A racing run with the same id just skips.
       const added = await tx
         .insert(jobs)
         .values(part)
@@ -288,7 +271,6 @@ export async function saveJobs(
             eq(jobs.source, scope.source),
             eq(jobs.board, scope.board),
             isNull(jobs.closedAt),
-            // Neither seen nor added by this read (at most perBoard ids).
             notInArray(jobs.id, seenIds),
           ),
         )
@@ -312,7 +294,6 @@ export async function saveJobs(
   return stats;
 }
 
-// Still moves the board to the back of the queue, so one broken board can't hold up the rest.
 export async function boardFailed(
   db: Db,
   source: JobSourceId,
@@ -379,7 +360,6 @@ export async function tidyJobs(db: Db, now: number): Promise<TidyStats> {
     if (gone.length < 1_000) break;
   }
 
-  // Over the cap: closed rows go first, then the oldest open ones.
   const [total] = await db.select({ n: count() }).from(jobs);
   const excess = (total?.n ?? 0) - STORE_LIMITS.maxRows;
   let trimmed = 0;
@@ -398,10 +378,8 @@ export async function tidyJobs(db: Db, now: number): Promise<TidyStats> {
   return { expired: expired.length, aged: aged.length, deleted, trimmed };
 }
 
-// A skill in every job still counts a little.
 const MIN_SKILL_WEIGHT = 0.05;
 
-// weight = ln(open jobs / jobs naming it).
 export async function refreshSkillWeights(db: Db, now: number): Promise<number> {
   const counts = await db
     .select({ skill: sql<string>`k.skill`, n: sql<number>`count(*)::int` })

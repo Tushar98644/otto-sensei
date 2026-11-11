@@ -23,10 +23,7 @@ import { useStudioStore } from "@/lib/store/resume-store";
 import { pluralize } from "@/lib/utils";
 import type { ResumePdf } from "./use-resume-pdf";
 
-// Hiding is undoable and deletes nothing: hidden lines stay, ready to show again.
-
 const FIT_LABEL = "Hid lines to fit one page";
-// The planned lines plus a few spares, so there's a choice without a wall of text.
 const SPARE_LINES = 4;
 
 type Phase =
@@ -87,9 +84,7 @@ export function FitCard({ resume, pdf, pageSize }: FitCardProps) {
   const pages = pdf.file && pdf.isCurrent ? pdf.file.pages : null;
   const compact = designOf(resume).density === "compact";
   const fits = pages !== null && pages <= 1;
-  // Kept on screen after an action, so the result and its undo stay where the click was.
   const active = phase.kind !== "idle" && phase.kind !== "failed";
-  // Once spacing is tightest, lines to hide are planned unasked, once per visit.
   const wantsPlan =
     compact && pages !== null && pages > 1 && (phase.kind === "idle" || phase.kind === "tightened");
   const planned = useRef(false);

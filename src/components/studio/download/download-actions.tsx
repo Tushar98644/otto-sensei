@@ -22,9 +22,7 @@ import { WordDownload } from "./word-download";
 
 export type DownloadActionsProps = {
   resume: Resume;
-  // The resume as the PDF prints it: on Free a Pro format comes out in Classic.
   printed: Resume;
-  // The plan isn't known yet and the resume uses a Pro format, so the download waits.
   formatPending: boolean;
   pdf: ResumePdf;
   check: ExportCheck;
@@ -50,7 +48,6 @@ export function DownloadActions({
   showPreviewLink,
 }: DownloadActionsProps) {
   const ready = pdf.file !== null && pdf.isCurrent && !formatPending;
-  // Checked before the download, fitted and styled after it: the order people work in.
   return (
     <>
       <SendCheckCard resume={resume} />

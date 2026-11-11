@@ -1,8 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { resetEnvForTests } from "@/lib/env";
 
-// The real module (vitest.setup.ts swaps it out for every other test), with the local database
-// replaced by a spy so nothing touches the disk.
 const local = vi.hoisted(() => ({ openLocalDb: vi.fn(async () => ({ local: true })) }));
 vi.mock("./local", () => local);
 

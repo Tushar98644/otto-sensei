@@ -17,8 +17,6 @@ type TemplatePickerProps = {
   disabled?: boolean;
 };
 
-// Native radios in one group, so arrow keys move between designs (across both lists) and the
-// preview follows at once.
 export function TemplatePicker({ value, onChange, own, disabled = false }: TemplatePickerProps) {
   const choice = usePreviewSource(own);
   return (

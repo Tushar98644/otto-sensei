@@ -1,22 +1,9 @@
-// Applies pending SQL files from supabase/migrations, oldest first, each in its own transaction,
-// and records them in supabase_migrations.schema_migrations (the Supabase CLI's own history
-// table, so `supabase db push` would agree on what has run).
-//
-//   bun scripts/migrate.ts            apply what's pending
-//   bun scripts/migrate.ts --status   list applied and pending files, change nothing
-//   bun scripts/migrate.ts --deploy   the Vercel build step (vercel.json): production builds
-//                                     migrate, any other build or one without a database skips
-//
-// Bun loads .env.local, so after `vercel env pull .env.local` it uses DIRECT_DATABASE_URL, else
-// POSTGRES_URL_NON_POOLING (Vercel Marketplace), else the pooled URL.
-
 import { fileURLToPath } from "node:url";
 import postgres from "postgres";
 import { connectionTarget, DIRECT_URL_VARS, directDatabaseUrl } from "../src/db/connection";
 import { MIGRATION_HISTORY_DDL, readMigrations } from "../src/db/migration-files";
 
 const MIGRATIONS_DIR = fileURLToPath(new URL("../supabase/migrations", import.meta.url));
-// Any constant works; it only has to be the same for every copy of this script.
 const LOCK_ID = 727_001;
 
 function hostOf(url: string): string {

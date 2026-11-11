@@ -2,8 +2,7 @@
 
 import { useEffect, useState } from "react";
 
-// Paper's footer clock, after CaliCastle/cali.so (MIT). The server draws "--:--"; the browser
-// fills in the time once it runs.
+// Ported from CaliCastle/cali.so (application code MIT, see ./LICENSE.txt).
 
 function partsIn(timeZone: string, date: Date) {
   try {

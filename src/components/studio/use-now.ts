@@ -2,9 +2,6 @@
 
 import { useSyncExternalStore } from "react";
 
-// One shared clock for relative times ("5 minutes ago"), so render stays pure and every label on
-// the page ticks together. 0 on the server, where nothing time-relative is rendered.
-
 const TICK_MS = 30_000;
 
 let now = 0;
@@ -26,7 +23,6 @@ function subscribe(listener: () => void) {
   };
 }
 
-// Refreshes a value left stale while unsubscribed, so a late-mounting list isn't minutes behind.
 function getSnapshot() {
   if (Date.now() - now > TICK_MS) now = Date.now();
   return now;

@@ -13,9 +13,7 @@ const TONES: Record<ProgressTone, string> = {
 export type ProgressProps = {
   value: number;
   max?: number;
-  // What is being measured, e.g. "Line fixes this month". Always read to screen readers.
   label: string;
-  // Shown on the right and read instead of a bare percentage, e.g. "12 of 20 used".
   valueText?: string;
   hideLabel?: boolean;
   tone?: ProgressTone;

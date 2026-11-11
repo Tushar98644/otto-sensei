@@ -10,8 +10,6 @@ import { createLedger, type LedgerStorage } from "@/lib/sync/ledger";
 import { DELETE, PUT } from "./[id]/route";
 import { GET } from "./route";
 
-// Two browsers signed in to one account, syncing through the real route handlers and database.
-
 vi.mock("next/headers", async () => (await import("@/lib/auth/test-helpers")).nextHeadersMock);
 
 type StudioStore = typeof useStudioStore;
@@ -55,7 +53,6 @@ function memoryStorage(): LedgerStorage {
   };
 }
 
-// Each device needs its own studio store, and the store is a module singleton.
 async function freshStore(): Promise<StudioStore> {
   vi.resetModules();
   return (await import("@/lib/store/resume-store")).useStudioStore;
@@ -73,7 +70,6 @@ function device(store: StudioStore, userId: string) {
       api,
       store,
       ledger,
-      // Long enough that only explicit flushes send anything during a test.
       debounceMs: 60_000,
       onDeletedElsewhere,
       warn: () => {},
@@ -101,7 +97,6 @@ afterEach(() => {
   for (const sync of running.splice(0)) sync.stop();
 });
 
-// On Pro: these are about devices, and Free keeps just one resume.
 async function signedInDevices() {
   const user = await setPlan(await signInAs("ada@example.com"), "pro");
   const laptop = device(await freshStore(), user.id);
@@ -115,7 +110,6 @@ describe("Free's resume limit in sync", () => {
     const laptop = device(await freshStore(), user.id);
     const first = { ...emptyResume(1_000), title: "First" };
     const second = { ...emptyResume(2_000), title: "Second" };
-    // Made before signing in, so the studio's own check never saw the account.
     laptop.store.getState().addResume(first);
     laptop.store.getState().addResume(second);
     const session = laptop.startSession();
@@ -127,7 +121,6 @@ describe("Free's resume limit in sync", () => {
     await session.flush();
     expect(laptop.api.putResume.mock.calls.length).toBe(sent);
 
-    // The one that made it keeps backing up its edits.
     const [backedUp] = (await cloudState()).ids;
     laptop.store.getState().updateResume(backedUp!, (r) => ({ ...r, title: "First, edited" }));
     await session.flush();
@@ -154,7 +147,6 @@ describe("resume deletions across devices", () => {
     await laptopSession.flush();
     expect(await cloudState()).toEqual({ ids: [cover.id], deletedIds: [cv.id] });
 
-    // The phone, offline meanwhile, edits and opens its copy, then comes back.
     phone.store.getState().updateResume(cv.id, (r) => ({ ...r, title: "CV, edited on the phone" }));
     phone.store.getState().setActive(cv.id);
     phone.api.putResume.mockClear();
@@ -180,7 +172,6 @@ describe("resume deletions across devices", () => {
     await phoneSession.flush();
     phone.store.getState().setActive(other.id);
 
-    // Both sessions are already loaded when the laptop deletes it.
     laptop.store.getState().removeResume(cv.id);
     await laptopSession.flush();
     phone.store.getState().updateResume(cv.id, (r) => ({ ...r, title: "Edited on the phone" }));
@@ -193,7 +184,6 @@ describe("resume deletions across devices", () => {
     expect(phone.api.deleteResume).not.toHaveBeenCalled();
     expect(await cloudState()).toEqual({ ids: [other.id], deletedIds: [cv.id] });
 
-    // Nothing is left to send, so later flushes stay quiet.
     await phoneSession.flush();
     expect(uploadedIds(phone.api)).toEqual([cv.id]);
   });

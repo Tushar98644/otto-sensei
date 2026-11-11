@@ -1,8 +1,4 @@
-// Kept beside the studio store, for sync only:
-// - owners: which account each local resume belongs to, so a shared browser never copies one
-//   person's
-//   resumes into the next one's account. Unowned resumes are claimed at sign-in.
-// - tombstones: local deletions the cloud hasn't seen yet, so they don't come back on next sign-in.
+// Owners stop a shared browser copying one person's resumes into the next one's account.
 
 export type LedgerStorage = Pick<Storage, "getItem" | "setItem">;
 
@@ -21,14 +17,12 @@ type Tombstone = { id: string; owner: string };
 type LedgerData = { owners: Map<string, string>; tombstones: Tombstone[] };
 
 const STORAGE_KEY = "otto-sync-v1";
-// Oldest go first. Losing one only means that resume may come back from the cloud once.
 const MAX_TOMBSTONES = 200;
 
 export function createLedger(storage: LedgerStorage | null): SyncLedger {
   let data = read(storage) ?? emptyData();
 
-  // Re-reads before every write so another tab's change isn't overwritten. Without storage it
-  // carries on from memory.
+  // Re-reads before every write so another tab's change isn't overwritten.
   function update(mutate: (draft: LedgerData) => boolean) {
     const draft = read(storage) ?? {
       owners: new Map(data.owners),
@@ -99,7 +93,6 @@ function emptyData(): LedgerData {
   return { owners: new Map(), tombstones: [] };
 }
 
-// null for no, blocked or corrupt storage. The worst case is a deleted resume coming back once.
 function read(storage: LedgerStorage | null): LedgerData | null {
   if (!storage) return null;
   try {
@@ -126,9 +119,7 @@ function write(storage: LedgerStorage | null, data: LedgerData) {
         tombstones: data.tombstones.map((t) => [t.id, t.owner]),
       }),
     );
-  } catch {
-    // Storage full or blocked. Sync still works for this session; it just forgets on reload.
-  }
+  } catch {}
 }
 
 function pairs(value: unknown, key: string): [string, string][] {

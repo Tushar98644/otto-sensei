@@ -25,7 +25,6 @@ function isApplicationId(id: string): boolean {
   return ApplicationIdSchema.safeParse(id).success;
 }
 
-// Readable on every plan: a Free account keeps what it made on Pro or the trial.
 export async function GET(_req: Request, { params }: Context): Promise<Response> {
   try {
     const user = await getCurrentUser();
@@ -65,8 +64,6 @@ export async function PATCH(req: Request, { params }: Context): Promise<Response
   }
 }
 
-// Succeeds when there was nothing to delete too: the caller only needs the row gone. Open on Free:
-// people can always clear out their own data.
 export async function DELETE(req: Request, { params }: Context): Promise<Response> {
   const blocked = rejectCrossSite(req);
   if (blocked) return blocked;

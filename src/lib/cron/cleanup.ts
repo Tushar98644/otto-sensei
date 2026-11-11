@@ -15,28 +15,19 @@ import { log } from "@/lib/log";
 import { DAY_MS } from "@/lib/time";
 import { drain, type CronContext, type CronOutcome } from "./run";
 
-// Bounded oldest-first batches through an age index; idempotent. Catches what request-path pruning
-// never reaches, such as keys that are never used again.
-
 export const RETENTION = {
-  // rate-limit.ts keeps windows 2 days; the longest window in use is one day.
   rateLimitWindowsMs: 2 * DAY_MS,
   tombstonesMs: TOMBSTONE_MAX_AGE_MS,
   readNotificationsMs: 90 * DAY_MS,
-  // Unread ones too, eventually: nobody opens a year-old reminder.
   anyNotificationsMs: 365 * DAY_MS,
   // Creem stops redelivering a webhook after a day, so an id this old can never arrive again.
   billingEventsMs: 400 * DAY_MS,
-  // 20 rows a view (~130 MB a month at 1,000 users); three months is enough to compare two
-  // orderings. Actions stay: they're few and are what ranking learns from.
   impressionsMs: 90 * DAY_MS,
   matchCacheMs: MATCH_CACHE_MAX_AGE_MS,
 } as const;
 
 export const CLEANUP_BATCH = 1_000;
-// Per table per run, so one run stays short and a backlog drains over days.
 const MAX_BATCHES = 50;
-// Each is a Creem API call of up to 8 seconds, not a row in one query.
 export const TRIAL_CANCEL_BATCH = 25;
 
 type Step = { name: string; run: () => Promise<number>; batchSize?: number };
@@ -81,7 +72,6 @@ export async function runCleanup({ now, deadline }: CronContext): Promise<CronOu
         const stale = db
           .select({ id: notifications.id })
           .from(notifications)
-          // One range on notifications_created_idx, then the read check on the rows it finds.
           .where(
             and(
               lt(notifications.createdAt, now - RETENTION.readNotificationsMs),
@@ -120,7 +110,6 @@ export async function runCleanup({ now, deadline }: CronContext): Promise<CronOu
         const stale = db
           .select({ id: matchEvents.id })
           .from(matchEvents)
-          // A range on match_events_created_idx, then the kind check on the rows it finds.
           .where(
             and(
               lt(matchEvents.createdAt, now - RETENTION.impressionsMs),
@@ -136,7 +125,6 @@ export async function runCleanup({ now, deadline }: CronContext): Promise<CronOu
       },
     },
     {
-      // Not a deletion: replaced trials whose cancel failed on every webhook so far.
       name: "replacedTrials",
       batchSize: TRIAL_CANCEL_BATCH,
       run: () => retryPendingReplacements({ now, deadline, limit: TRIAL_CANCEL_BATCH }),

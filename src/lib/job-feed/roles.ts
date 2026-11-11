@@ -1,9 +1,5 @@
 import type { RoleFamily, Seniority } from "./types";
 
-// Job posts and resume titles are read by the same rules.
-
-// First match wins, so narrower kinds go first: "Product Designer" is design, "Sales Engineer"
-// sales.
 const FAMILY_RULES: readonly (readonly [RoleFamily, RegExp])[] = [
   [
     "design",
@@ -49,22 +45,18 @@ const FAMILY_RULES: readonly (readonly [RoleFamily, RegExp])[] = [
     "operations",
     /\b(?:operations|ops|program manager|project manager|chief of staff|strategy|business analyst|office manager|executive assistant|coordinator|administrator)\b/,
   ],
-  // Broad words last, once nothing narrower matched.
   ["marketing", /\b(?:ads|paid media|media buyer|campaigns?)\b/],
   ["people", /\b(?:benefits|compensation|workplace)\b/],
   ["sales", /\b(?:relationship manager|country manager|account lead)\b/],
   ["data", /\b(?:analyst|data manager)\b/],
 ];
 
-/** The kind of role, or null when the title doesn't say ("Founder", "Generalist"). */
 export function roleFamily(title: string): RoleFamily | null {
   const text = title.toLowerCase();
   for (const [family, rule] of FAMILY_RULES) if (rule.test(text)) return family;
   return null;
 }
 
-// The title rules fire on words other jobs share ("Support Worker" is social care, "Nurse - PM
-// shift" isn't product), so a kind whose title's occupation lies outside its list is dropped.
 const OFFICE = [
   "11-",
   "13-",
@@ -81,7 +73,6 @@ const OFFICE = [
   "43-",
 ];
 const FAMILY_OCCUPATIONS: Record<RoleFamily, readonly string[]> = {
-  // Software, not mechanical, electrical or civil engineering, nor sales engineers (41-9031).
   engineering: ["15-", "17-2061", "17-2072", "11-3021", "11-9041"],
   data: OFFICE,
   design: [...OFFICE, "27-4"],
@@ -95,13 +86,11 @@ const FAMILY_OCCUPATIONS: Record<RoleFamily, readonly string[]> = {
   legal: OFFICE,
 };
 
-/** True when there is no occupation. */
 export function familyFits(family: RoleFamily, occupation: string | null): boolean {
   if (occupation === null) return true;
   return FAMILY_OCCUPATIONS[family].some((prefix) => occupation.startsWith(prefix));
 }
 
-// Narrow lists for an occupation picked from the card's search, unlike the broad checks above.
 const PICKED_KIND: Record<RoleFamily, readonly string[]> = {
   engineering: ["15-1", "17-2061", "17-2072", "11-3021", "11-9041"],
   data: ["15-2", "15-1221", "15-124", "13-1161"],
@@ -116,7 +105,6 @@ const PICKED_KIND: Record<RoleFamily, readonly string[]> = {
   legal: ["23-", "13-1041", "11-9199.02"],
 };
 
-// The order a picked occupation is given a kind in: narrower lists first.
 const FAMILY_ORDER: readonly RoleFamily[] = [
   "product",
   "design",
@@ -141,7 +129,6 @@ export function familyOfOccupation(occupation: string): RoleFamily | null {
 
 const DIRECTOR =
   /\b(?:director|head of|vp|vice president|chief|cto|ceo|coo|cfo|cmo|cpo|founding (?:lead|head))\b/;
-// "Product Manager" and "Account Manager" are individual roles; these managers run a team.
 const PEOPLE_MANAGER =
   /\b(?:engineering|design|sales|support|recruiting|people|team|group|qa|security|sales development|customer success) manager\b|\bmanager(?: i{1,3})?,? (?:engineering|software|design|sales|sales development|commercial sales|customer success|support|solutions engineering)\b/;
 const LEAD =
@@ -151,10 +138,7 @@ const JUNIOR =
   /\b(?:junior|jr\.?|entry[- ]level|graduate|grad|new grad|associate|apprentice|trainee|i|level 1)\b/;
 const INTERN = /\b(?:intern|internship|co-?op|working student|placement student)\b/;
 
-/** A title with no marker is mid level. */
 export function seniorityOf(title: string): Seniority {
-  // Roman numerals are only levels at the end ("Engineer II"), never inside ("Phase I trial").
-  // Commas and brackets become one space, so "Manager, Software Engineering" still reads.
   const text = title
     .toLowerCase()
     .replace(/\s*[(),]\s*/g, " ")
@@ -163,7 +147,6 @@ export function seniorityOf(title: string): Seniority {
   if (DIRECTOR.test(text)) return "director";
   if (LEAD.test(text) || PEOPLE_MANAGER.test(text)) return "lead";
   if (SENIOR.test(text)) return "senior";
-  // "Associate Director" was caught above; "Associate Product Manager" is entry level.
   if (JUNIOR.test(text.replace(/\bi\b(?!\s*$)/g, ""))) return "junior";
   return "mid";
 }
@@ -186,7 +169,6 @@ export function seniorityForYears(years: number): Seniority {
 const YEARS =
   /\b(?:at least|minimum(?: of)?|min\.?)?\s*(\d{1,2})\s*(?:\+|plus)?\s*(?:(?:-|–|to)\s*\d{1,2}\s*)?(?:\+\s*)?(?:years?|yrs?)\b(?:\s+of)?(?:\s+[\w/&+.-]+){0,5}?\s+(?:experience|exp\b)/gi;
 
-// The smallest number wins, so a "nice to have 8 years" line doesn't raise the bar.
 export function minYearsOf(text: string): number | null {
   let min: number | null = null;
   for (const match of text.matchAll(YEARS)) {

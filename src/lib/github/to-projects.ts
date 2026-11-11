@@ -1,11 +1,9 @@
 import { newBullet, newId, type Project, type Resume } from "@/lib/resume/schema";
 import type { GitHubDraftEntry } from "./types";
 
-// ProjectSchema allows 30 projects of 20 lines each.
 export const MAX_PROJECTS = 30;
 const MAX_BULLETS = 20;
 
-// People type "github.com/jane/app"; the import writes "https://github.com/jane/app".
 function linkKey(link: string): string {
   return link
     .trim()
@@ -34,7 +32,6 @@ function toProject(entry: GitHubDraftEntry): Project {
 
 export type AddProjectsResult = { resume: Resume; added: number; skipped: number };
 
-// Makes sure the Projects section shows. Entries past the 30-project cap are skipped and counted.
 export function addGitHubProjects(resume: Resume, entries: readonly GitHubDraftEntry[]): AddProjectsResult {
   const room = Math.max(0, MAX_PROJECTS - resume.projects.length);
   const added = entries.slice(0, room).map(toProject);

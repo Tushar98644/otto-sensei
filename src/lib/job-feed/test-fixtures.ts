@@ -1,5 +1,3 @@
-// Test-only. Source answers as returned on 2026-11-08/10, cut down to a few jobs.
-
 const ESCAPED =
   "&lt;div class=&quot;content-intro&quot;&gt;&lt;h2&gt;About Vercel:&lt;/h2&gt;&lt;p&gt;Vercel gives developers the tools to build and scale the web.&lt;/p&gt;&lt;/div&gt;" +
   "&lt;h3&gt;What you will do&lt;/h3&gt;&lt;ul&gt;&lt;li&gt;Build our dashboard in React, Next.js and TypeScript.&lt;/li&gt;" +
@@ -38,7 +36,6 @@ export const GREENHOUSE_BOARD = {
       application_deadline: "2026-12-31",
       content: "&lt;p&gt;Sell Vercel to growing companies. You know Salesforce and MEDDICC.&lt;/p&gt;",
     },
-    // No link: dropped.
     { id: 1, title: "Broken", absolute_url: null, content: "" },
   ],
   meta: { total: 3 },
@@ -156,7 +153,6 @@ export const REMOTE_OK_FEED = [
   },
 ];
 
-// apply.workable.com/api/v1/widget/accounts/blueground?details=true
 export const WORKABLE_ACCOUNT = {
   name: "Blueground",
   description: "<p><strong>Blueground</strong> is a global proptech company.</p>",
@@ -206,12 +202,10 @@ export const WORKABLE_ACCOUNT = {
       ],
       description: "<p>Answer guests by chat and phone in Zendesk.</p>",
     },
-    // No shortcode: dropped.
     { title: "Broken", description: "" },
   ],
 };
 
-// bunq.recruitee.com/api/offers/
 export const RECRUITEE_OFFERS = {
   offers: [
     {
@@ -264,7 +258,6 @@ export const RECRUITEE_OFFERS = {
   ],
 };
 
-// 1komma5grad.jobs.personio.de/xml?language=en
 export const PERSONIO_FEED = `<?xml version="1.0" encoding="UTF-8"?>
 
 <workzag-jobs>
@@ -325,7 +318,6 @@ export const PERSONIO_FEED = `<?xml version="1.0" encoding="UTF-8"?>
 </workzag-jobs>
 `;
 
-// jobicy.com/api/jobs?count=100
 export const JOBICY_PAGE = {
   apiVersion: "2.2.19",
   documentationUrl: "https://jobi.cy/apidocs",
@@ -366,7 +358,6 @@ export const JOBICY_PAGE = {
       jobDescription: "<p>Sell GitLab to enterprise accounts. You know Salesforce and MEDDPICC.</p>",
       pubDate: "2026-11-09T19:40:01+00:00",
     },
-    // No link: dropped.
     { id: 1, jobTitle: "Broken", companyName: "Acme", url: "" },
   ],
 };

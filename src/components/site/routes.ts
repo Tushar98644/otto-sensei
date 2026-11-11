@@ -1,4 +1,3 @@
-// The account page reads ?upgrade=1 to start sign-in and checkout.
 export const ROUTES = {
   home: "/",
   studio: "/studio",
@@ -22,7 +21,6 @@ export const ROUTES = {
   acceptableUse: "/acceptable-use",
 } as const;
 
-/** Signs in if needed, then straight on to checkout, with no dialog for someone signed in. */
 export function upgradeHref(
   plan: "pro" | "max",
   interval: "month" | "year" | "week" = "month",
@@ -48,5 +46,4 @@ export const FOOTER_NAV: readonly NavLink[] = [
   { href: ROUTES.acceptableUse, label: "Acceptable use" },
 ];
 
-// Shown at the top of every legal page and used as their sitemap lastmod. Bump it with any edit.
 export const LEGAL_LAST_UPDATED = "2026-11-11";

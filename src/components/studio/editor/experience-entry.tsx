@@ -31,8 +31,6 @@ export const EXPERIENCE_ADD_ID = addButtonId("experience");
 const companyHeadingId = (firstRoleId: string) => entryFieldId(firstRoleId, "company");
 
 export type ExperienceEntryProps = EntryProps & {
-  // Where this job sits among roles at one company: -1 when it stands alone. `index` and `count`
-  // then count companies and lone jobs, which is what moves past what.
   rolePosition: number;
   roleCount: number;
   firstRoleId: string;
@@ -75,7 +73,6 @@ export const ExperienceEntry = memo(function ExperienceEntry({
   const role = job.title.trim();
   const company = job.company.trim();
   const title = [role, company].filter(Boolean).join(" at ") || "New job";
-  // Promotion is the usual case, so a lone job offers it too; a company's roles offer it once.
   const offerRole = company !== "" && (!grouped || rolePosition === roleCount - 1);
   const update = (patch: ExperiencePatch) =>
     editList(resumeId, "experience", (jobs) =>
@@ -88,7 +85,6 @@ export const ExperienceEntry = memo(function ExperienceEntry({
     );
   }
 
-  // Roles move within their company; a lone job moves past a whole company, never into it.
   const move = (delta: -1 | 1) =>
     editList(resumeId, "experience", (jobs) =>
       grouped ? moveItem(jobs, entryId, delta) : moveRoleUnit(jobs, entryId, delta),

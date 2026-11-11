@@ -31,8 +31,6 @@ import { compactNumber } from "./metrics";
 import { findPlace } from "./places";
 import { portfolioView, type PortfolioView, type ViewSettings } from "./view";
 
-// The automatic content with the owner's own values merged on top.
-
 export { autoContent, type AutoContent, type AutoProject } from "./content-auto";
 export {
   initialsOf,
@@ -50,7 +48,6 @@ export type ContentSources = {
   now?: number;
 };
 
-/** What a design draws where a logo or icon would go: "LE" for Ledgerly, "·" for no name. */
 const monogramOf = (name: string) => initialsOf(name) || "·";
 
 const pick = <T>(own: T | null | undefined, fallback: T): T =>
@@ -64,8 +61,6 @@ export function contentView({
 }: ContentSources): PortfolioContentView {
   const auto = autoContent(view, github, now);
   const hidden = new Set(content.hidden);
-  // Sections hidden on the page (About, Projects, Links) also keep out what the owner wrote for
-  // them here, not just what came from the resume.
   const pageHides = new Set(view.hidden);
   const shown = <T>(section: (typeof content.hidden)[number], value: T, empty: T): T =>
     hidden.has(section) ? empty : value;
@@ -98,13 +93,11 @@ export function contentView({
   const socials = (content.socials ?? auto.socials)
     .map((item) => toSocial("kind" in item ? item.kind : undefined, item.label, item.url))
     .filter((item): item is ContentSocial => item !== null)
-    // Email only goes on the page when the owner turned it on; the rest only with Links shown.
     .filter((item) => (item.kind === "email" ? view.email !== null : !pageHides.has("links")));
 
   const about = pageHides.has("about") ? [] : pick(content.about, auto.about).filter(Boolean);
   const highlights = pick(content.highlights, auto.highlights);
 
-  // Projects: the owner's order first, then resume projects that are new since.
   const autoById = new Map(auto.projects.map((project) => [project.id, project]));
   const entries = new Map(content.projects.map((entry) => [entry.id, entry]));
   const order = pageHides.has("projects")
@@ -117,7 +110,6 @@ export function contentView({
   for (const id of order) {
     const entry = entries.get(id);
     const base = autoById.get(id);
-    // A resume project that's gone (deleted or hidden on the resume) takes its extras with it.
     if (!base && !id.startsWith("gh:") && !id.startsWith("c:")) continue;
     if (entry?.hidden) continue;
     const repoFull = id.startsWith("gh:") ? id.slice(3) : (base?.source?.repo ?? null);
@@ -205,8 +197,6 @@ export function contentView({
   }));
 
   const now_ = pick(content.now, auto.now).filter((item) => item.text);
-  // Stored numbers only ever come from the owner's connected GitHub account (content-records.ts),
-  // so they show as they are, whatever username the resume names.
   const githubView = github
     ? {
         username: github.username,
@@ -334,10 +324,7 @@ export function contentView({
 }
 
 export type PortfolioViews = {
-  // Every privacy choice applied.
   page: { view: PortfolioView; content: PortfolioContentView };
-  // Everything, as if nothing were hidden: hiding is about the page, so the editor marks it
-  // instead.
   editor: { view: PortfolioView; content: PortfolioContentView; auto: AutoContent };
 };
 

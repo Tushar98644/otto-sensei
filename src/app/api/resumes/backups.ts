@@ -7,25 +7,16 @@ import { log } from "@/lib/log";
 import { type Resume } from "@/lib/resume/schema";
 import { ResumeSchema } from "@/lib/resume/validation";
 
-// The browser copy stays the source of truth. `updated_at` holds the resume's own updatedAt, so
-// it decides which copy is newer by the same rule as the studio's merge.
-// A deleted backup leaves a tombstone, or another device would see it missing and upload it again.
+// Deletes leave a tombstone, or another device would see the resume missing and upload it again.
 
 export const MAX_RESUMES_PER_USER = RESUME_LIMITS.paid;
-// 50 x 80 KiB keeps GET /api/resumes under Vercel's 4.5 MB response limit. A long real CV is
-// around 30 KiB of JSON.
+// 50 x 80 KiB keeps GET /api/resumes under Vercel's 4.5 MB response limit.
 export const MAX_RESUME_BYTES = 80 * 1024;
-// Newest deletions sent with the list. At most 64-character ids, so this adds ~35 KB at worst.
 export const MAX_DELETED_IDS_LISTED = 500;
-// More are kept than listed, so a device that was away for a long time still gets "deleted"
-// back from PUT for an older deletion instead of restoring it.
 export const MAX_TOMBSTONES_PER_USER = 1_000;
 export const TOMBSTONE_MAX_AGE_MS = 180 * 24 * 60 * 60 * 1_000;
-// Rows one request may prune, so cleanup never turns a delete into a long write.
 const PRUNE_LIMIT = 100;
 
-// no_user: the account was deleted after the request was signed in, so nothing may be written.
-// plan_limit: a new resume past the plan's own limit (Free keeps RESUME_LIMITS.free).
 export type SaveStatus =
   | "saved"
   | "stale"
@@ -37,11 +28,9 @@ export type SaveStatus =
 
 export type BackupList = { resumes: Resume[]; deletedIds: string[] };
 
-/** A row that no longer passes ResumeSchema is skipped. */
 export async function listBackups(userId: string): Promise<BackupList> {
   const db = await getDb();
-  // One snapshot for both reads: a delete landing mid-request can't list a resume as both live
-  // and deleted, or as neither.
+  // One snapshot: a delete landing mid-request can't list a resume as both live and deleted.
   const [rows, tombstones] = await db.transaction(
     async (tx) =>
       Promise.all([
@@ -63,7 +52,6 @@ export async function listBackups(userId: string): Promise<BackupList> {
   const list: Resume[] = [];
   for (const row of rows) {
     const parsed = ResumeSchema.safeParse(row.data);
-    // Writes are validated, so a bad row means the schema moved on. Skipping it keeps the rest.
     if (parsed.success) list.push(parsed.data);
     else log.warn("resumes.invalid_row", { resumeId: row.id });
   }
@@ -71,8 +59,6 @@ export async function listBackups(userId: string): Promise<BackupList> {
 }
 
 // Under the account's row lock, so concurrent saves can't pass the limits or slip past a delete.
-// Limits only stop new resumes: an account past `planLimit` (a lapsed plan) keeps saving edits.
-// Only a copy at least as new replaces the row, so a late retry is a no-op ("stale").
 export async function saveBackup(
   userId: string,
   resume: Resume,
@@ -114,8 +100,7 @@ export async function saveBackup(
   return { status, bytes };
 }
 
-// One transaction under the row lock, so no device can restore it in between. Prunes the oldest
-// tombstones a little at a time.
+// One transaction under the row lock, so no device can restore it in between.
 export async function deleteBackup(userId: string, id: string, now = Date.now()): Promise<void> {
   const db = await getDb();
   const ownTombstones = eq(resumeTombstones.userId, userId);
@@ -125,8 +110,6 @@ export async function deleteBackup(userId: string, id: string, now = Date.now())
       .delete(resumes)
       .where(and(eq(resumes.userId, userId), eq(resumes.id, id)))
       .returning({ id: resumes.id });
-    // Only a resume that was backed up can come back from another device. Skipping the rest
-    // keeps deletes of made-up ids from growing the table.
     if (deleted.length > 0) {
       await tx
         .insert(resumeTombstones)
@@ -168,7 +151,6 @@ export async function deleteBackup(userId: string, id: string, now = Date.now())
 }
 
 // jsonb can't hold U+0000 or a lone surrogate, and both can come out of a PDF's text layer.
-// Dropping them beats a backup that fails on every retry.
 function storableText(_key: string, value: unknown): unknown {
   return typeof value === "string" ? value.toWellFormed().replaceAll("\u0000", "") : value;
 }

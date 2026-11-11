@@ -1,10 +1,5 @@
 import { companyKey } from "@/lib/pdf/visible";
 
-// A reused summary or letter often names another company ("I'd love to join Initech" for Globex).
-// Cautious: other tailored copies' companies anywhere, or phrasings that only take the employer.
-
-// 1-4 capitalized words, allowing "&", dots and hyphens inside a name: "Acme", "Procter & Gamble",
-// "Booking.com", "Rolls-Royce Motor Cars".
 const NAME = String.raw`\p{Lu}[\p{L}\p{N}.&'’-]*(?:\s(?:&\s)?\p{Lu}[\p{L}\p{N}.&'’-]*){0,3}`;
 
 const PHRASES: readonly RegExp[] = [
@@ -23,7 +18,6 @@ const PHRASES: readonly RegExp[] = [
   new RegExp(String.raw`(?:^|\n)\s*Dear\s(${NAME})\s(?:team|hiring|recruit)`, "giu"),
 ];
 
-// Capitalized words those phrasings catch that aren't companies.
 const NOT_COMPANIES = new Set(
   [
     "a",
@@ -51,8 +45,6 @@ function sameCompany(a: string, b: string): boolean {
   const left = companyKey(a);
   const right = companyKey(b);
   if (!left || !right) return false;
-  // "Globex" and "Globex Corporation" are the same employer; word boundaries keep "Meta" apart
-  // from "Metabase".
   return left === right || ` ${left} `.includes(` ${right} `) || ` ${right} `.includes(` ${left} `);
 }
 

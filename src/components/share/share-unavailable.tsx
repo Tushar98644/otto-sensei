@@ -4,13 +4,9 @@ import { ROUTES } from "@/components/site/routes";
 import { buttonClasses } from "@/components/ui/button";
 import { SharePageFrame } from "./share-page-frame";
 
-export type ShareUnavailableProps =
-  | { reason: "missing" }
-  // wait: "1 minute", from waitText() in @/lib/rate-limit.
-  | { reason: "busy"; wait: string };
+export type ShareUnavailableProps = { reason: "missing" } | { reason: "busy"; wait: string };
 
-// A link that is off, mistyped or never existed all look the same, so nobody can tell a turned-off
-// link from a guess.
+// Off, mistyped and missing links look the same, so a guess can't find a turned-off link.
 export function ShareUnavailable(props: ShareUnavailableProps) {
   const busy = props.reason === "busy";
   return (

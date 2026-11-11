@@ -64,7 +64,6 @@ describe("punctuationIssues", () => {
     expect(flagged("Cut costs 20%", "Led 3 hires")).toEqual([]);
     expect(flagged("Cut costs 20%.")).toEqual([]);
     expect(flagged()).toEqual([]);
-    // Only one ending can be read: the question and the "etc." say nothing either way.
     expect(flagged("Cut costs 20%.", "Can we hire faster?", "Wrote docs, tests, etc.")).toEqual([]);
   });
 

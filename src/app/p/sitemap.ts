@@ -4,7 +4,6 @@ import { portfolioPath } from "@/lib/portfolio/types";
 import { SITEMAP_MAX_URLS, sitemapFromDb } from "@/lib/seo/sitemap";
 import { absoluteUrl } from "@/lib/seo/urls";
 
-// Only portfolios whose owner turned on "Let search engines find it"; the rest are noindex.
 export const revalidate = 3600;
 
 export default function sitemap(): Promise<MetadataRoute.Sitemap> {

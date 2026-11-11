@@ -10,8 +10,7 @@ import { DRACOLoader } from "three/examples/jsm/loaders/DRACOLoader.js";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { REEL_ASSETS } from "./paths";
 
-// HamishMW/portfolio's utils/three.js. Loaders come from three (three-stdlib's are its examples).
-// Models and the Draco decoder (three's, copied) are served from public/portfolio-templates/reel/.
+// Ported from HamishMW/portfolio utils/three.js (MIT, see ../LICENSE.txt).
 
 Cache.enabled = true;
 
@@ -42,7 +41,6 @@ export function cleanMaterial(material: Material) {
     if (value && typeof value === "object" && "minFilter" in value) {
       const texture = value as Texture & { source?: { data?: { close?: () => void } } };
       texture.dispose();
-      // Close GLTF bitmap textures
       texture.source?.data?.close?.();
     }
   }
@@ -56,7 +54,6 @@ export function removeLights(lights: Light[] | undefined) {
   for (const light of lights ?? []) light.parent?.remove(light);
 }
 
-/** utils/throttle: calls `fn` at most once per `ms` and drops the calls in between. */
 export function throttle<A extends unknown[]>(fn: (...args: A) => void, ms: number) {
   let last = 0;
   return (...args: A) => {

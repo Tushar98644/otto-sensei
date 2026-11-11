@@ -31,7 +31,6 @@ export function InterviewHome() {
   const packs = usePrepPacks();
   const applications = useApplications();
   const resumes = useResumeList();
-  // Prep is AI help, which Free doesn't have. Packs made on Pro or the trial stay readable here.
   const locked = useProTools() === false;
   const tryPro = useTryProLabel();
   const [upgradeOpen, setUpgradeOpen] = useState(false);
@@ -96,7 +95,6 @@ export function InterviewHome() {
       ) : !ready ? (
         <LoadingState />
       ) : packs.items.length === 0 && waiting.length === 0 ? (
-        // On Free the note above already says what this is and offers the trial.
         locked ? null : (
           <div className="rounded-2xl bg-surface p-6 sm:p-8">
             <OttoNote live={false} message={OTTO.interview.empty}>
@@ -182,7 +180,6 @@ function PackRow({ pack, now }: { pack: PrepSummary; now: number }) {
           <h3 id={titleId} className="truncate text-base/6 font-medium text-ink">
             {pack.company}
           </h3>
-          {/* Made without the AI, from common questions: never mistaken for a real pack. */}
           {pack.demo ? <Badge className="shrink-0">Demo</Badge> : null}
         </div>
         {pack.role ? <p className="truncate text-sm/5 text-muted">{pack.role}</p> : null}

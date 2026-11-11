@@ -32,7 +32,6 @@ const LeverPosting = z.object({
   createdAt: z.number().nullish(),
 });
 
-// GET api.lever.co/v0/postings/:company?mode=json
 export function parseLever(json: unknown, company: string): RawJob[] {
   if (!Array.isArray(json)) throw new FeedShapeError("lever");
   return eachItem(json, LeverPosting).flatMap((job) => {

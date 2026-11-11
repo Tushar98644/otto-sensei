@@ -1,5 +1,4 @@
-// React.lazy (and next/dynamic) always suspends on first render, even for a loaded module, and
-// Suspense holds the fallback 300 ms; this renders a cached step on the very click.
+// React.lazy suspends on first render even when loaded, and Suspense holds fallbacks 300 ms.
 
 export type StepLoadState<T> =
   | { status: "idle" }
@@ -8,7 +7,6 @@ export type StepLoadState<T> =
   | { status: "failed"; error: unknown };
 
 export type StepLoader<T> = {
-  // Starts the load, or joins the one in flight. A failed load starts over on the next call.
   load: () => Promise<T>;
   // The same object until the state changes, as useSyncExternalStore needs.
   getState: () => StepLoadState<T>;

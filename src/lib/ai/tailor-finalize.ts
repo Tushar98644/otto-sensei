@@ -17,9 +17,6 @@ import type {
   TailorResult,
 } from "./types";
 
-// Nothing the model says about the resume is trusted: matches are recomputed, quotes checked word
-// for word and invalid orderings dropped.
-
 export type RawTailor = {
   jobTitle: string;
   company: string;
@@ -34,7 +31,6 @@ const MAX_QUESTIONS = 8;
 const MAX_NOTES = 3;
 const SUMMARY_CHARS = 600;
 const NOTE_CHARS = 200;
-// TailorMetaSchema stores keywords and the job fields with these caps.
 const TERM_CHARS = 100;
 const JOB_FIELD_CHARS = 200;
 
@@ -56,7 +52,6 @@ function rankKeywords(raw: readonly RankedKeyword[]): RankedKeyword[] {
     seen.add(key);
     unique.push({ term, importance: keyword.importance });
   }
-  // Must-haves first, so the cap never drops one in favor of a nice-to-have.
   const must = unique.filter((keyword) => keyword.importance === "must");
   const nice = unique.filter((keyword) => keyword.importance === "nice");
   return [...must, ...nice].slice(0, MAX_KEYWORDS);
@@ -81,8 +76,6 @@ function askAbout(keywords: TailorKeyword[]): TailorQuestion[] {
     }));
 }
 
-// Exact permutation of the entry's bullets or nothing, so a line is never dropped or duplicated.
-// Lines proving a must-have go first: screeners and skimming recruiters read the top lines first.
 function validOrders(
   orders: RawTailor["bulletOrder"],
   resume: Resume,
@@ -114,7 +107,6 @@ function validOrders(
   return valid;
 }
 
-// A number the resume lacks is a made-up fact, and no summary beats a false one; nor placeholders.
 function checkedSummary(summary: string, resumeText: string): string {
   const text = clipWords(oneLine(summary), SUMMARY_CHARS);
   if (!text || hasPlaceholder(text) || hasInventedNumbers(text, [resumeText])) return "";

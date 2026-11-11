@@ -1,8 +1,5 @@
 import type { LintIssue } from "./types";
 
-// Lines in one entry should agree on a final full stop. Endings that can't be read either way ("?",
-// "etc.", "U.S.") are left out of the count.
-
 export type EntryLine = { id: string; text: string };
 
 type Ending = "stop" | "none";
@@ -11,13 +8,10 @@ const CONTENT = /[\p{L}\p{N}]/u;
 const CLOSING_QUOTES = /["'”’»]+$/u;
 const OTHER_MARK = /[?!…]$|\.\.$/u;
 const BRACKET_AFTER_STOP = /\.\s*[)\]]+$/u;
-// "U.S.", "e.g.", "Ph.D.": letters with a dot after each.
 const DOTTED_INITIALS = /(?:^|[^\p{L}])(?:\p{L}{1,2}\.){2,}$/u;
 const LAST_WORD = /(\p{L}+)\.$/u;
-// A full stop after these ends the word, so it says nothing about how the line ends.
 const ABBREVIATIONS = new Set("al approx co corp dept etc inc jr ltd pty sr vs".split(" "));
 
-// What a flagged line should do, by the ending most lines have. A tie follows the first line.
 const MESSAGES: Record<Ending, { most: string; first: string }> = {
   stop: {
     most: "Most lines here end with a full stop. Add one here to match.",
@@ -47,8 +41,6 @@ export function setFullStop(text: string, stop: boolean): string {
   return stop ? `${body}.${quotes}` : `${body.slice(0, -1)}${quotes}`;
 }
 
-// A tie follows the first line, which usually sets the pattern. Fewer than two readable endings:
-// none.
 export function punctuationIssues(lines: readonly EntryLine[]): Map<string, LintIssue> {
   const read = lines.flatMap((line) => {
     const ending = lineEnding(line.text);

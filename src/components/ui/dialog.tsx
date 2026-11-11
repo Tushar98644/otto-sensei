@@ -14,24 +14,18 @@ export type DialogProps = {
   title: ReactNode;
   description?: ReactNode;
   children?: ReactNode;
-  // Put the main action last: rightmost on desktop, on top when stacked on phones.
   footer?: ReactNode;
-  // Shown under the title: an OttoNote, never a full-body Otto.
   illustration?: ReactNode;
   size?: DialogSize;
   className?: string;
 };
 
-// Roomier than the content needs on purpose: the panel's generous padding eats into the width.
 const SIZES: Record<DialogSize, string> = {
   sm: "max-w-md",
   md: "max-w-lg",
   lg: "max-w-2xl",
 };
 
-// A native modal <dialog>: the browser traps focus and makes the page behind it inert. Opening
-// focuses the element marked data-autofocus, else the first focusable one; closing returns focus
-// to whatever opened it. Page scroll is locked by a rule in globals.css.
 export function Dialog({
   open,
   onOpenChange,
@@ -75,7 +69,6 @@ export function Dialog({
     return registerModalHost(host);
   }, [open]);
 
-  // Unmounting while open (a route change, say) still closes it, which hands focus back.
   useLayoutEffect(() => {
     const dialog = dialogRef.current;
     return () => {
@@ -83,14 +76,13 @@ export function Dialog({
     };
   }, []);
 
-  // Escape. The parent's state stays in charge, so stop the browser closing it on its own.
+  // Escape: the parent's state stays in charge, so stop the browser closing it itself.
   function handleCancel(event: SyntheticEvent<HTMLDialogElement>) {
     event.preventDefault();
     onOpenChange(false);
   }
 
-  // The browser can still close it by itself (e.g. Escape pressed twice). The event arrives a task
-  // later, so skip it if the dialog has been shown again in the meantime.
+  // The close event arrives a task later; skip it if the dialog was shown again meanwhile.
   function handleClose(event: SyntheticEvent<HTMLDialogElement>) {
     if (open && !event.currentTarget.open) onOpenChange(false);
   }
@@ -106,7 +98,6 @@ export function Dialog({
         pressStartedOnBackdrop.current = event.target === event.currentTarget;
       }}
       onClick={(event) => {
-        // Only a press starting and ending on the backdrop closes it, not a selection dragged out.
         const onBackdrop = pressStartedOnBackdrop.current && event.target === event.currentTarget;
         pressStartedOnBackdrop.current = false;
         if (onBackdrop) onOpenChange(false);
@@ -124,7 +115,6 @@ export function Dialog({
           )}
         >
           <div className="flex flex-col gap-1.5 pr-10">
-            {/* font-sans: a dialog title is UI text, not a display line. */}
             <h2 id={titleId} className="font-sans text-lg/7 font-semibold text-ink">
               {title}
             </h2>
@@ -136,7 +126,6 @@ export function Dialog({
           </div>
           {illustration ? <div>{illustration}</div> : null}
           {children ? (
-            // Inner padding keeps focus rings at the edges from being clipped by the scroll box.
             <div className="-mx-6 -my-1 min-h-0 flex-1 overflow-y-auto px-6 py-1 sm:-mx-8 sm:px-8">
               {children}
             </div>

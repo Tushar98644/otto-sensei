@@ -29,33 +29,25 @@ import { patchMe, refreshMe } from "./use-me";
 
 type Step = "email" | "code" | "done";
 type Pending = "send" | "resend" | "verify";
-// "form" errors are about the service (email not set up, provider down, too many tries): they get
-// their own alert rather than marking a correct address invalid.
 type ErrorPlacement = "field" | "form";
 // A new id per error, so the same message twice in a row is still announced twice.
 type FormError = { id: number; message: string; placement: ErrorPlacement };
 
-// Link-styled buttons keep the 44px touch target, and stay focusable while unavailable.
 const LINK_BUTTON =
   "min-h-11 aria-disabled:cursor-default aria-disabled:text-muted aria-disabled:hover:no-underline";
 
-// The API answers bad_request only for the address or code itself.
 function placementOf(failure: unknown): ErrorPlacement {
   return isApiError(failure, "bad_request") ? "field" : "form";
 }
 
 export type SignInFormProps = {
-  // Runs once cookies are set and useMe() has the user. Not after Google, which leaves the page.
   onSignedIn?: (user: SessionUser) => void;
   next?: string;
-  // Shown as a form alert on arrival, e.g. a Google sign-in that didn't finish.
   initialError?: string;
-  // Focuses the email field on mount. A Dialog doesn't need it: it focuses [data-autofocus].
   autoFocus?: boolean;
   className?: string;
 };
 
-// Google, or email then a 6-digit code. Anyone signing in for the first time gets a free account.
 export function SignInForm({
   onSignedIn,
   next,
@@ -153,7 +145,6 @@ export function SignInForm({
         codeRef.current?.select();
         return;
       }
-      // The page reacts at once; the refresh then brings this account's usage and billing.
       patchMe({ user });
       await refreshMe();
       setStep("done");
@@ -166,7 +157,6 @@ export function SignInForm({
     if (next === code) return;
     setCode(next);
     setError(null);
-    // A pasted or autofilled code signs in straight away, as the field's hint says.
     if (next.length === CODE_LENGTH) verify(next);
   }
 

@@ -1,10 +1,6 @@
 import { z } from "zod";
 import { GITHUB_USERNAME } from "./username";
 
-// Nothing is added to a resume on the server; the dialog shows the drafts and the person confirms.
-
-// Each picked repo costs two GitHub calls (README and languages), keeping a draft inside its
-// 10-call budget.
 export const GITHUB_PICK_LIMITS = { repos: 4, pulls: 6 } as const;
 
 export type GitHubRepo = {
@@ -41,7 +37,6 @@ export type GitHubLookup = {
 export type GitHubDraftKind = "repo" | "pulls";
 
 export type GitHubDraftEntry = {
-  // Unique within one draft: "repo:octocat/otto-resume" or "pulls:vercel/next.js".
   key: string;
   kind: GitHubDraftKind;
   name: string;
@@ -58,8 +53,7 @@ export const GitHubLookupRequestSchema = z.object({
 export type GitHubLookupBody = z.input<typeof GitHubLookupRequestSchema>;
 export type GitHubLookupResponse = { ok: true; profile: GitHubLookup };
 
-// Sent only so the server can hide them from the AI (READMEs often sign off with them). Never
-// stored or logged.
+// Sent only so the server can hide them from the AI. Never stored or logged.
 export const GitHubContactSchema = z.object({
   name: z.string().max(200).default(""),
   email: z.string().max(320).default(""),
@@ -81,9 +75,7 @@ export type GitHubDraftRequest = z.output<typeof GitHubDraftRequestSchema>;
 
 export type GitHubDraftResult = {
   entries: GitHubDraftEntry[];
-  // False when the AI is off or failed: the lines are then GitHub's own words.
   usedAI: boolean;
-  // Deleted, renamed or made private since the lookup.
   missing: number;
 };
 export type GitHubDraftResponse = { ok: true } & GitHubDraftResult;

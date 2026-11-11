@@ -22,8 +22,6 @@ import { ResumeGrid } from "./resume-grid";
 import { useStudioActions, type StudioActions } from "./use-studio-actions";
 import { RecentlyDeletedLink } from "./trash/recently-deleted-link";
 
-// Scrolls a card into view and puts focus on its Open button, so "Made from …" lands somewhere a
-// keyboard can carry on from.
 function reveal(resumeId: string) {
   const card = document.getElementById(cardId(resumeId));
   if (!card) return;
@@ -46,7 +44,6 @@ export function ResumesPage() {
   );
   const narrowed = query.trim() !== "" || filter !== "all";
 
-  // Arriving from a "Made from …" link on the dashboard home (/dashboard/resumes#resume-<id>).
   useEffect(() => {
     if (!hydrated) return;
     const hash = decodeURIComponent(window.location.hash.slice(1));

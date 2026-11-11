@@ -4,7 +4,7 @@ import { useRef, type CSSProperties, type ReactNode } from "react";
 import { useInViewport } from "./motion";
 import { useReel } from "./root";
 
-// HamishMW/portfolio components/image with `reveal`; his pictures become drawn screens and tiles.
+// Ported from HamishMW/portfolio components/image (MIT, see ./LICENSE.txt).
 export function RevealFrame({
   delay = 0,
   className,

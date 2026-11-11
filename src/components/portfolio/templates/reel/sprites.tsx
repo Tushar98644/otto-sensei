@@ -1,6 +1,4 @@
-// HamishMW/portfolio's SVG sprites (MIT): the katakana behind the devices, as outlines so no
-// Japanese font is needed, and his icons. Symbols keep their 24px size, so a bigger box (the
-// menu button's 32px) draws them at 24 in its corner, as on his site. Drawn once per page.
+// HamishMW/portfolio's SVG sprites (MIT, see ./LICENSE.txt).
 
 export const KATAKANA_PROJECT = "pf-reel-katakana-project";
 export const KATAKANA_PROFILE = "pf-reel-katakana-profile";

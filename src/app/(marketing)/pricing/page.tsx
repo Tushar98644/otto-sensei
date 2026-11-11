@@ -45,7 +45,6 @@ const weeklyLimits = `Weekly plans count each billing week instead: ${FEATURES.m
 const uploadsNote =
   "Uploads always work: on Free, or past the AI reads, the basic reader reads them instead.";
 
-// The weekly numbers only while a weekly option is on sale.
 function limitsAnswer(weeklyOnSale: boolean): string {
   return [monthlyLimits, ...(weeklyOnSale ? [weeklyLimits] : []), trialLimits, uploadsNote].join(
     " ",
@@ -101,11 +100,9 @@ const billingFaq = (weeklyOnSale: boolean): readonly FaqItem[] => [
   },
 ];
 
-// Built ahead of time; rebuilt at most hourly so the job counts stay current.
 export const revalidate = 3600;
 
 export default async function PricingPage() {
-  // Read when the page is built, like the rest of its config: a new product id needs a redeploy.
   const offer = billingOffer();
   const jobCounts = await loadJobCounts();
   const open = countClaim(jobCounts.open);

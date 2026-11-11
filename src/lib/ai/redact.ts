@@ -1,8 +1,5 @@
 import type { Resume } from "@/lib/resume/schema";
 
-// Swaps the name, emails, phones and links for placeholders ([NAME], [EMAIL_1]…) before a call, and
-// restore() puts them back. One redactor per request, so a value always gets the same placeholder.
-
 export type PlaceholderKind = "NAME" | "EMAIL" | "PHONE" | "LINK";
 
 export type KnownDetails = {
@@ -13,13 +10,11 @@ export type KnownDetails = {
 };
 
 export type RestoreOptions = {
-  // For fields that must hold only text copied from the resume.
   dropUnknown?: boolean;
 };
 
 export type Redactor = {
   redact: (text: string) => string;
-  // A field known to be one detail (basics.email) gets a placeholder even when no pattern matches.
   redactField: (kind: PlaceholderKind, value: string) => string;
   restore: (text: string, options?: RestoreOptions) => string;
   restoreDeep: <T>(value: T, options?: RestoreOptions) => T;
@@ -34,30 +29,23 @@ const EMAIL = /[A-Z0-9._%+-]{1,64}@[A-Z0-9-]{1,63}(?:\.[A-Z0-9-]{1,63}){0,8}\.[A
 
 const URL_CHARS = String.raw`[^\s|,;<>"'()[\]{}]`;
 const SCHEME_URL = new RegExp(String.raw`(?:https?:\/\/|www\.)${URL_CHARS}{1,500}`, "giu");
-// Listing endings keeps skills written like hosts ("D3.js") out of the link patterns.
 const TLDS =
   "com|org|net|edu|gov|io|dev|me|co|ai|app|xyz|site|page|tech|info|blog|design|studio|codes|" +
   "cloud|online|website|space|pro|biz|us|uk|ca|au|de|fr|nl|es|it|in|eu|ch|se|no|dk|fi|ie|nz|sg|" +
   "jp|br|mx|ly|gg|sh|to|tv|fm|cc|so|im|ws";
 const LABEL = String.raw`[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?`;
 const HOST = String.raw`(?<![\p{L}\p{N}.@/_-])(?:${LABEL}\.){1,5}(?:${TLDS})`;
-// A bare host with a path: linkedin.com/in/jane, janedoe.dev/work.
 const BARE_URL = new RegExp(String.raw`${HOST}\/${URL_CHARS}{0,500}`, "giu");
-// Only when it holds part of the person's name: alone it's as often an employer ("Booking.com").
 const BARE_HOST = new RegExp(String.raw`${HOST}(?![\p{L}\p{N}/@-])`, "giu");
-// Framework names that look like hosts.
 const NOT_HOSTS = new Set(["asp.net", "vb.net", "ado.net", "socket.io"]);
 const TRAILING_PUNCTUATION = /[.,;:!?]+$/;
 
-// Digit runs that may be a phone number; isPhone() then rules out dates, years and big numbers.
 const PHONE_CANDIDATE = /(?<![\p{L}\p{N}+_])\+?\(?\d[\d ().-]{5,22}\d(?![\p{L}\p{N}])/gu;
 const PHONE_LABEL = /(?:phone|tel|telephone|mobile|mob|cell|whatsapp|call)\.?\s*[:#-]?\s*$/i;
 const YEAR = /^(?:19|20)\d{2}$/;
-// "1 200 000" and "1.200.000" are amounts, not phone numbers.
 const GROUPED_AMOUNT = /^\d{1,3}(?:[ .]\d{3})+$/;
 
 const PERSON_NAME_WORD = /^[\p{Lu}][\p{L}'’.-]*$/u;
-// Words that make a header line a job title or a heading rather than a person's name.
 const NOT_NAME_WORDS = new Set(
   (
     "resume résumé curriculum vitae cv profile summary contact experience education skills " +
@@ -81,13 +69,11 @@ function isPhone(candidate: string, before: string): boolean {
   if (digits < 7 || digits > 15 || /\s{2,}/.test(candidate)) return false;
   const bare = candidate.replace(/[()]/g, " ").trim();
   const parts = bare.split(/[\s./-]+/).filter(Boolean);
-  // "2019 - 2021", "01.2019 - 03.2021": dates, however they are written.
   const isDates =
     parts.some((part) => YEAR.test(part)) &&
     parts.every((part) => YEAR.test(part) || part.length <= 2);
   if (isDates) return false;
   if (GROUPED_AMOUNT.test(bare)) return false;
-  // A short digit run with no sign of being a phone is more often a count or an id.
   return (
     candidate.startsWith("+") ||
     /^\(\d{1,4}\)/.test(candidate) ||
@@ -96,7 +82,6 @@ function isPhone(candidate: string, before: string): boolean {
   );
 }
 
-// Two or more words only: a one-word name ("Will", "Grace") is too often an ordinary word.
 function namePattern(name: string): RegExp | null {
   const parts = name.trim().split(/\s+/).filter(Boolean);
   if (parts.length < 2) return null;
@@ -111,7 +96,6 @@ function nameParts(name: string): string[] {
     .filter((part) => part.length >= 3);
 }
 
-// 2-4 capitalized words, no digits, symbols or title words: whether the name is safe to hide.
 export function looksLikePersonName(value: string): boolean {
   const words = value.trim().split(/\s+/).filter(Boolean);
   if (words.length < 2 || words.length > 4) return false;
@@ -176,7 +160,6 @@ export function createRedactor(known: KnownDetails = {}): Redactor {
   const byName = hasName ? namePattern(name) : null;
   const parts = hasName ? nameParts(name) : [];
 
-  // Longest first, so a link that extends another keeps its own placeholder.
   const literals = (
     [
       ...(known.emails ?? []).map((value) => ["EMAIL", value] as const),
@@ -200,7 +183,6 @@ export function createRedactor(known: KnownDetails = {}): Redactor {
 
   function bareLink(match: string): string {
     const host = match.split("/")[0] ?? match;
-    // "ASP.NET/C#": capitals are how frameworks are written, not how people type their site.
     if (NOT_HOSTS.has(host.toLowerCase()) || host === host.toUpperCase()) return match;
     return link(match);
   }
@@ -264,7 +246,6 @@ export function redactorFor(resume: Resume): Redactor {
   });
 }
 
-// Ids, dates and section order are unchanged, so results that point at bullets still fit.
 export function redactResume(resume: Resume, redactor: Redactor): Resume {
   const text = redactor.redact;
   const { basics } = resume;

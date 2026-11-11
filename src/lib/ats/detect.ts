@@ -2,9 +2,6 @@ import type { JobPosting, JobSource } from "@/lib/api/types";
 import { ASHBY_HOST, GREENHOUSE_HOSTS, LEVER_HOSTS } from "@/lib/jobs/hosts";
 import type { HiringSystemId } from "./types";
 
-// From the board a job was read from, else its job page's address. Company career sites on their
-// own domain can't be told apart, so they get no notes.
-
 const BY_SOURCE: Partial<Record<JobSource, HiringSystemId>> = {
   greenhouse: "greenhouse",
   lever: "lever",
@@ -13,7 +10,6 @@ const BY_SOURCE: Partial<Record<JobSource, HiringSystemId>> = {
   recruitee: "recruitee",
 };
 
-// Subdomains vendors use for their own sites, which are never a job.
 const VENDOR_PAGES = new Set([
   "www",
   "help",
@@ -43,7 +39,6 @@ type Rule = { id: HiringSystemId; matches: (host: string, url: URL) => boolean }
 const RULES: readonly Rule[] = [
   {
     id: "greenhouse",
-    // Company career pages that embed a Greenhouse board name the job in the query.
     matches: (host, url) =>
       GREENHOUSE_HOSTS.has(host) || JOB_NUMBER.test(url.searchParams.get("gh_jid") ?? ""),
   },
@@ -57,11 +52,9 @@ const RULES: readonly Rule[] = [
     matches: (host) => under(host, "myworkdayjobs.com") || under(host, "myworkdaysite.com"),
   },
   { id: "icims", matches: (host) => under(host, "icims.com") },
-  // Taleo Business Edition (*.tbe.taleo.net) is a different product, and these docs don't cover it.
   { id: "taleo", matches: (host) => under(host, "taleo.net") && !host.endsWith(".tbe.taleo.net") },
   {
     id: "successfactors",
-    // SAP's own job site runs on its SuccessFactors career site builder.
     matches: (host) =>
       /^career\d*\.successfactors\.(?:com|eu)$/.test(host) ||
       under(host, "jobs2web.com") ||
@@ -88,7 +81,6 @@ function toUrl(value: string | null | undefined): URL | null {
   }
 }
 
-// Else the link as typed: when reading it failed, the link is all there is.
 export function hiringSystemOf(
   posting: Pick<JobPosting, "source" | "url"> | null,
   link?: string | null,

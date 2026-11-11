@@ -2,15 +2,11 @@ import { z } from "zod";
 import { FOLLOW_UP_DAYS } from "@/lib/applications/follow-up";
 import { FOLLOW_UP_ACTIONS, NOTIFICATION_LIMITS } from "./types";
 
-// Apart from ./types so the bell doesn't load zod.
-
 export const MarkNotificationsReadSchema = z.union([
   z.object({ ids: z.array(z.uuid()).min(1).max(NOTIFICATION_LIMITS.markRead) }),
   z.object({ all: z.literal(true) }),
 ]);
 
-// PUT changes only the fields it sends. emailAvailable is false without a Resend key, so the page
-// hides a switch that does nothing. chosen: the account has saved a setting.
 export const ReminderSettingsSchema = z
   .object({
     emailReminders: z.boolean().optional(),

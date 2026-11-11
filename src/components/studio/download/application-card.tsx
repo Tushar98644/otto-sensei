@@ -55,7 +55,6 @@ function TailoredCopyCard({ resume }: { resume: Resume }) {
   if (!resume.tailor || !user) return null;
   const job = [resume.tailor.jobTitle, resume.tailor.company].filter(Boolean).join(" at ");
   const letter = copyLetter(resume) !== "";
-  // The Tailor step can write the letter only while this tab still holds the copy's job post.
   const tailoredHere = loadResult(resume.tailor.baseResumeId)?.copyId === resume.id;
   const proBadge = locked ? (
     <Badge variant="ink" className="h-5 px-1.5">
@@ -116,14 +115,12 @@ function TailoredCopyCard({ resume }: { resume: Resume }) {
             {proBadge}
           </Link>
         )}
-        {/* Before an application is logged, Interview prep starts from this copy. */}
         <Link
           href={application ? prepHref(application.id) : ROUTES.dashboardInterview}
           className={buttonClasses({ variant: "ghost" })}
         >
           <MessagesSquare aria-hidden />
           {application?.hasPrep ? "Open interview prep" : "Prepare for the interview"}
-          {/* A pack made on Pro or the trial stays readable on Free. */}
           {application?.hasPrep ? null : proBadge}
         </Link>
       </div>

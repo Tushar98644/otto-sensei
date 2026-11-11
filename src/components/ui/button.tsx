@@ -11,13 +11,9 @@ export type ButtonStyleOptions = {
   className?: string;
 };
 
-// Rounded keys, not pills (pills mean "status"). A 1px border on every variant, transparent where
-// not drawn, keeps them one height in a row.
 const BASE =
   "relative inline-flex shrink-0 items-center justify-center border font-medium whitespace-nowrap transition duration-150 ease-out select-none disabled:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4";
 
-// md, lg and both icon sizes keep the 44px touch target where it matters: sm and icon-sm are for
-// dense rows and toolbars on wide screens, and grow to 44px on touch screens.
 const SIZES: Record<ButtonSize, string> = {
   sm: "h-9 gap-1.5 rounded-lg px-3 text-sm pointer-coarse:h-11",
   md: "h-11 gap-2 rounded-xl px-4 text-sm",
@@ -26,14 +22,11 @@ const SIZES: Record<ButtonSize, string> = {
   "icon-sm": "size-9 rounded-lg pointer-coarse:size-11",
 };
 
-// Raised keys press down 1px and lose their shadow, the way a real key does. A busy button is
-// working, not unavailable, so the disabled look skips it (aria-busy) and it keeps its color.
 const VARIANTS: Record<ButtonVariant, string> = {
   primary:
     "border-primary-edge bg-primary bg-linear-to-b from-primary-top to-primary text-white shadow-key inset-shadow-key hover:from-primary-hover-top hover:to-primary-hover active:translate-y-px active:from-primary active:to-primary active:shadow-none active:inset-shadow-pressed disabled:not-aria-busy:border-transparent disabled:not-aria-busy:bg-none disabled:not-aria-busy:bg-surface-strong disabled:not-aria-busy:text-muted disabled:not-aria-busy:shadow-none disabled:not-aria-busy:inset-shadow-none",
   secondary:
     "border-border-control bg-surface text-ink shadow-control hover:border-border-control-hover hover:bg-surface-hover active:translate-y-px active:bg-surface-muted active:shadow-none disabled:not-aria-busy:border-border disabled:not-aria-busy:bg-transparent disabled:not-aria-busy:text-muted disabled:not-aria-busy:shadow-none",
-  // Row tools and toolbars. An ink wash, so the same hover works on white and on the mist.
   ghost:
     "border-transparent text-ink hover:bg-ink/6 active:bg-ink/10 aria-expanded:bg-ink/6 disabled:not-aria-busy:opacity-45",
   danger:
@@ -52,7 +45,6 @@ export function buttonClasses({
 export type ButtonProps = ComponentProps<"button"> & {
   variant?: ButtonVariant;
   size?: ButtonSize;
-  // The label stays beside the spinner, so width holds and screen readers know what it is.
   loading?: boolean;
 };
 

@@ -13,7 +13,6 @@ import { copyText } from "./letter-panel";
 import type { SavedAnswer } from "./session";
 import type { Writing } from "./use-writing";
 
-// Same bounds as AnswerRequestSchema.
 const QUESTION_CHARS = { min: 8, max: 500 } as const;
 const ANSWER_CHARS = 3_000;
 
@@ -69,7 +68,6 @@ function AnswerItem({ answer, onEdit, onSettle, onRemove }: AnswerItemProps) {
   );
 }
 
-// Otto never fills in or submits the application form: the person copies the answer over.
 export function AnswerBox({ answers, writing, onAsk, onEdit, onSettle, onRemove }: AnswerBoxProps) {
   const headingId = useId();
   const [question, setQuestion] = useState("");

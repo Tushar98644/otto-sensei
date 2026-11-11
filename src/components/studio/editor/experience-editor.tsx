@@ -13,7 +13,6 @@ import { editList, pickResume } from "./use-editor";
 
 const NO_LAYOUT: string[] = [];
 
-// Re-renders when jobs are added, moved or regrouped, not while one is being typed in.
 export const ExperienceEditor = memo(function ExperienceEditor({ resumeId }: { resumeId: string }) {
   const layout = useStudioStore(
     useShallow((state) => {

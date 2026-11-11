@@ -2,18 +2,14 @@ import { createElement } from "react";
 import type { Resume, TemplateId } from "@/lib/resume/schema";
 import type { PdfPageSize } from "./page-size";
 
-// react-pdf is large, so it's imported only when a PDF is actually needed.
-
 export type RenderPdfOptions = { pageSize?: PdfPageSize; template?: TemplateId };
 
-// Only stops a stuck render from leaving a spinner up forever.
 const RENDER_TIMEOUT_MS = 20_000;
 
 function loadRenderer() {
   return Promise.all([import("@react-pdf/renderer"), import("@/components/pdf/resume-pdf")]);
 }
 
-// Failures are ignored here; renderResumePdf() retries and reports them.
 export function preloadPdfRenderer(): void {
   loadRenderer().catch(() => undefined);
 }

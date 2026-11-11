@@ -16,8 +16,6 @@ const CONFIRM_WORD = "DELETE";
 export type DeleteAccountDialogProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  // Deleting ends a paid plan on the spot rather than at the end of the period, so Pro users are
-  // told before they confirm.
   isPro: boolean;
 };
 
@@ -28,7 +26,6 @@ export function DeleteAccountDialog({ open, onOpenChange, isPro }: DeleteAccount
   const confirmed = typed.trim().toUpperCase() === CONFIRM_WORD;
 
   function handleOpenChange(next: boolean) {
-    // Once the request is out it finishes either way, so there's nothing to cancel.
     if (deleting) return;
     if (!next) setTyped("");
     onOpenChange(next);
@@ -50,8 +47,7 @@ export function DeleteAccountDialog({ open, onOpenChange, isPro }: DeleteAccount
       return;
     }
     clearLocalStudio();
-    // A full page load rather than a client navigation, so no in-memory copy of the account or its
-    // resumes survives anywhere in the app. Replace, so Back doesn't return to the deleted account.
+    // Full page load so no in-memory copy of the account survives; replace so Back can't return.
     window.location.replace("/");
   }
 
@@ -109,13 +105,10 @@ export function DeleteAccountDialog({ open, onOpenChange, isPro }: DeleteAccount
   );
 }
 
-// The account is gone, so the resumes it backed up shouldn't linger in this browser either.
 function clearLocalStudio() {
   try {
     useStudioStore.getState().clearAll();
     // clearAll() leaves an empty studio saved; this also drops the key and any hydration in flight.
     useStudioStore.persist.clearStorage();
-  } catch {
-    // Storage can be blocked and throw. The account is already deleted, so still go home.
-  }
+  } catch {}
 }

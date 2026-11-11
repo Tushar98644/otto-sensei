@@ -22,7 +22,6 @@ export const dynamic = "force-dynamic";
 
 const count = new Intl.NumberFormat("en-US");
 
-// Readable on every plan: a Free account keeps the record it made on Pro or the trial.
 export async function GET(req: Request): Promise<Response> {
   try {
     const user = await getCurrentUser();
@@ -53,7 +52,6 @@ export async function POST(req: Request): Promise<Response> {
     if (!user) return fail("unauthorized", SIGN_IN, 401);
     const body = await readJson(req, CreateApplicationSchema);
     if (!body.ok) {
-      // readJson names the field and the rule it broke, never the value.
       log.info("applications.bad_request", { reason: body.message });
       return fail("bad_request", INVALID, 400);
     }

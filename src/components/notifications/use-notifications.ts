@@ -5,8 +5,7 @@ import { useMe } from "@/components/account/use-me";
 import { api } from "@/lib/api/client";
 import type { Notification } from "@/lib/notifications/types";
 
-// Shared by both bells (both mounted; CSS shows one). Kept per user id, so another sign-in never
-// shows the last person's list. Reminders are daily, so a refresh on tab return is plenty.
+// Kept per user id, so another sign-in never shows the last person's list.
 
 type State = {
   userId: string | null;
@@ -14,7 +13,6 @@ type State = {
   items: Notification[];
   unread: number;
   loadedAt: number;
-  // Unread when the bell was last opened. They keep their "new" mark until it closes.
   fresh: ReadonlySet<string>;
 };
 
@@ -41,7 +39,6 @@ function subscribe(listener: () => void) {
 export function loadNotifications(userId: string): Promise<void> {
   if (inflight?.userId === userId) return inflight.promise;
   const keep = state.userId === userId;
-  // A refresh keeps showing the current list; only a first load (or a retry) shows the skeleton.
   setState(
     keep
       ? { ...state, status: state.status === "ready" ? "ready" : "loading" }
@@ -60,7 +57,6 @@ export function loadNotifications(userId: string): Promise<void> {
       });
     })
     .catch(() => {
-      // A refresh that fails keeps what was already shown.
       if (state.userId === userId && state.status !== "ready") setState({ ...state, status: "error" });
     })
     .finally(() => {
@@ -75,8 +71,6 @@ function refreshIfStale(userId: string) {
   if (stale || Date.now() - state.loadedAt > STALE_AFTER_MS) void loadNotifications(userId);
 }
 
-// The badge clears at once and the server marks all read. The unread ones stay marked "new"
-// until the bell closes.
 export function markAllSeen(userId: string) {
   if (state.userId !== userId || state.unread === 0) return;
   const now = Date.now();
@@ -88,7 +82,6 @@ export function markAllSeen(userId: string) {
     fresh,
     items: state.items.map((item) => (item.readAt === null ? { ...item, readAt: now } : item)),
   });
-  // A failed mark only means the count comes back on the next refresh; no need to interrupt.
   api.markNotificationsRead({ all: true }).catch(() => undefined);
 }
 

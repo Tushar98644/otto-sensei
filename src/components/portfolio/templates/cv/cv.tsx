@@ -7,14 +7,12 @@ import type { PortfolioTemplateProps } from "../types";
 import { CommandMenu } from "./islands";
 import { CV_CSS } from "./styles";
 
-// CV: a rebuild of Bartosz Jarocki's cv (github.com/BartoszJarocki/cv, MIT; ./LICENSE.txt) for
-// anyone's data. Prints to a single A4 page, with contacts and links written out.
+// Ported from BartoszJarocki/cv (MIT, see ./LICENSE.txt).
 
 type ContactLink = { label: string; href: string; text: string; icon: ReactNode };
 
 const fade = (step: number) => ({ animationDelay: `${step * 75}ms` }) as CSSProperties;
 
-/** "github.com/jordanellis" for print, like the original's displayUrl. */
 function shortUrl(href: string): string {
   return href
     .replace(/^mailto:|^tel:/i, "")

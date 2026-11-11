@@ -17,7 +17,6 @@ type Entry = { header: string[]; range: DateRange | null; date: string | null; b
 const COMPANY_WORDS =
   /\b(?:inc|llc|ltd|limited|gmbh|corp|corporation|co|company|plc|ag|bv|pty|technologies|technology|labs|group|solutions|systems|software|consulting|partners|bank|agency|studio|studios|ventures|capital|holdings|foundation|hospital|media|networks|services)\b\.?/i;
 export const CORPORATE_SUFFIX = /^(?:inc|llc|ltd|co|corp|plc|gmbh)\.?$/i;
-// Strong signals only: legal suffixes, not "group", which turns up in descriptions too.
 const COMPANY_NAME =
   /\b(?:inc|llc|ltd|limited|gmbh|corp|corporation|plc|ag|bv|pty|labs|bank)\b\.?/i;
 const looksLikeJobHeader = (line: string) =>
@@ -42,7 +41,6 @@ export function parseExperience(lines: readonly string[]): Experience[] {
     .filter((job) => job.title || job.company || job.bullets.length > 0);
 }
 
-// Entries anchor on their date lines, which every common layout has ("Title / Company | dates").
 function groupEntries(lines: readonly string[]): Entry[] {
   const isBullet = lines.map((line) => bulletText(line) !== null);
   const ranges = lines.map((line, i) => (isBullet[i] ? null : (findDateRanges(line)[0] ?? null)));
@@ -50,7 +48,6 @@ function groupEntries(lines: readonly string[]): Entry[] {
   const anchors = lines.flatMap((_, i) => (ranges[i] || singles[i] ? [i] : []));
   if (anchors.length === 0) return groupWithoutDates(lines);
 
-  // Without markers, a short line above a date may end the last job: only clear titles count.
   const usesMarkers = isBullet.some(Boolean);
   const canLeadHeader = (i: number) => {
     const line = lines[i] ?? "";
@@ -69,7 +66,6 @@ function groupEntries(lines: readonly string[]): Entry[] {
   return anchors.map((anchor, k) => {
     const start = starts[k] ?? anchor;
     const next = starts[k + 1] ?? lines.length;
-    // "dates / Title, Company / Location" puts the header after the date line.
     const dateOnly = !segmentsOf(stripDates(lines[anchor] ?? "")).length && start === anchor;
     let end = anchor;
     for (let j = anchor + 1; j < next && j <= anchor + 2; j++) {
@@ -90,14 +86,12 @@ function groupEntries(lines: readonly string[]): Entry[] {
   });
 }
 
-// No dates anywhere: an entry is a run of header-looking lines followed by its body.
 function groupWithoutDates(lines: readonly string[]): Entry[] {
   const entries: Entry[] = [];
   let current: Entry | undefined;
   let previous = "";
   for (const line of lines) {
     const isHeader = bulletText(line) === null && isTitleLike(line);
-    // After body text, a line naming a role or company (or after a bullet) starts the next job.
     const opensEntry =
       isHeader &&
       current !== undefined &&
@@ -115,7 +109,6 @@ function groupWithoutDates(lines: readonly string[]): Entry[] {
   return entries;
 }
 
-// Header lines -> descriptive parts in reading order (title and company, in some order) plus a location.
 function headerFields(header: readonly string[]): { parts: string[]; location: string } {
   const parts: string[] = [];
   let location = "";
@@ -135,7 +128,6 @@ function headerFields(header: readonly string[]): { parts: string[]; location: s
   return { parts, location };
 }
 
-// "Acme Corp, San Francisco, CA" -> rest "Acme Corp", location "San Francisco, CA".
 export function splitTrailingLocation(segment: string): { rest: string; location: string } | null {
   const parts = segment.split(/,\s*/);
   if (parts.length < 3) return null;
@@ -143,7 +135,6 @@ export function splitTrailingLocation(segment: string): { rest: string; location
   return isLocation(location) ? { rest: parts.slice(0, -2).join(", "), location } : null;
 }
 
-// "Engineer at Acme", "Software Engineer, Acme Corp" -> two parts; "Acme, Inc." stays whole.
 function splitTitleAndCompany(segment: string): string[] {
   const at = /^(.+?)\s+(?:at|@)\s+(.+)$/i.exec(segment);
   if (at?.[1] && at[2] && TITLE_WORDS.test(at[1])) return [at[1].trim(), at[2].trim()];
@@ -159,12 +150,10 @@ function splitTitleAndCompany(segment: string): string[] {
 function assignTitleAndCompany(parts: readonly string[]): [string, string] {
   const [first = "", second = "", ...rest] = parts;
   const others = [second, ...rest].filter(Boolean).join(", ");
-  // Company-first layouts ("Acme Corp | Senior Engineer") are as common as title-first ones.
   const firstIsCompany = COMPANY_WORDS.test(first) && !TITLE_WORDS.test(first);
   const secondIsTitle =
     TITLE_WORDS.test(second) && !COMPANY_WORDS.test(second) && !TITLE_WORDS.test(first);
   if (second && (firstIsCompany || secondIsTitle)) return [[second, ...rest].join(", "), first];
-  // "Program - Organisation <tab> dates / Student Developer": the one part that names a role.
   const roles = parts.filter((part) => TITLE_WORDS.test(part.split(/\s+/).at(-1) ?? ""));
   const [role] = roles;
   if (role && roles.length === 1 && !TITLE_WORDS.test(first)) {

@@ -7,10 +7,6 @@ import { yearsOnly } from "./layout";
 import { flatten, open, readPages, render, richResume, sampleResume } from "./test-fixtures";
 import { TEMPLATE_THEMES } from "./themes";
 
-// The newer resume fields in every format: extra sections after the standard ones, the person's
-// own headings, hidden things left out, look settings applied, and roles at one company under one
-// company header. All still one column of real text that reads back in order.
-
 const withTemplate = (resume: Resume, template: TemplateId): Resume => ({ ...resume, template });
 
 function reader(text: string) {
@@ -33,7 +29,6 @@ function fontsIn(bytes: Uint8Array): string[] {
   return [...new Set(names.map((m) => m[1]!))].sort();
 }
 
-// Where a line sits on page 1, in points from the bottom: higher means it comes sooner.
 async function lineHeightOf(bytes: Uint8Array, text: string): Promise<number> {
   const pdf = await open(bytes);
   try {
@@ -57,8 +52,6 @@ describe.each(TEMPLATE_IDS)("%s format with the newer fields", (id) => {
     read.next("Work history");
     const theme = TEMPLATE_THEMES[id];
     const dates = (value: string) => (theme.dates === "years" ? yearsOnly(value) : value);
-    // The company once, then each role with its own dates and lines. Formats with a company line
-    // print it first; the others print the first role in full, company under its title.
     if (theme.companyRow) {
       read.next("Northwind Payments");
       read.next("Senior Backend Engineer");
@@ -72,7 +65,6 @@ describe.each(TEMPLATE_IDS)("%s format with the newer fields", (id) => {
     read.next("Backend Engineer");
     read.next(dates("Mar 2019 – Dec 2020"));
     read.next("Owned the ledger service");
-    // A job on its own keeps its format's layout: dates on the company's line or the title's.
     if (theme.rows.job[0]!.side === "dates" && theme.rows.job[0]!.lead[0] === "org") {
       read.next(dates("Jun 2017 – Dec 2020"));
       read.next("Software Engineer");
@@ -86,7 +78,6 @@ describe.each(TEMPLATE_IDS)("%s format with the newer fields", (id) => {
     read.next("Languages: TypeScript, Go, SQL, Python");
     read.next("Certifications");
     read.next("AWS Certified Solutions Architect");
-    // Extra sections come after every standard one, in their own order.
     read.next("Languages");
     read.next("Spanish (Fluent), French (Basic)");
     read.next("Awards");
@@ -114,7 +105,6 @@ describe.each(TEMPLATE_IDS)("%s format with the newer fields", (id) => {
     ]) {
       expect(flatten(text).toLowerCase(), hidden).not.toContain(hidden.toLowerCase());
     }
-    // The person's headings replace the standard ones, each on a line of its own.
     const lines = new Set(text.split("\n").map((line) => line.trim().toLowerCase()));
     for (const heading of ["work history", "toolbox", "languages", "awards"]) {
       expect(lines.has(heading), heading).toBe(true);
@@ -141,7 +131,6 @@ describe.each(TEMPLATE_IDS)("%s format with the newer fields", (id) => {
       await render({ ...resume, design: { density: "compact" } }),
       line,
     );
-    // Compact, already the densest format, has the least to give.
     expect(compact).toBeGreaterThan(normal + 5);
   });
 

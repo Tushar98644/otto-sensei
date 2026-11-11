@@ -9,8 +9,7 @@ import { HOUR_MS } from "@/lib/time";
 
 export const runtime = "nodejs";
 
-// Supabase doesn't lock a code after wrong tries, so these do: one IP spraying many inboxes, and
-// many IPs guessing at one (two codes' worth of typos an hour).
+// Supabase doesn't lock a code after wrong tries, so these limits do (per IP and per address).
 const VERIFY_PER_IP_PER_HOUR = 30;
 const VERIFY_PER_EMAIL_PER_HOUR = 10;
 // Responses that set session cookies must never be stored by a shared cache.

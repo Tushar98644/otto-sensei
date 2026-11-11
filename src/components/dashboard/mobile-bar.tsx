@@ -23,7 +23,6 @@ const SEGMENT =
 const CURRENT = "bg-surface text-ink shadow-control";
 const IDLE = "text-muted hover:text-ink aria-expanded:text-ink";
 
-// Four sections then "More", so every section stays two taps away at most.
 export function MobileBar({ user }: { user: SessionUser }) {
   const pathname = usePathname();
   const router = useRouter();
@@ -61,7 +60,6 @@ export function MobileBar({ user }: { user: SessionUser }) {
               <Link
                 key={item.href}
                 href={item.href}
-                // Prefetched on a touch or focus, as in the sidebar (see SidebarLink).
                 prefetch={intent.includes(item.href)}
                 onTouchStart={() => showIntent(item.href)}
                 onMouseEnter={() => showIntent(item.href)}
@@ -71,7 +69,6 @@ export function MobileBar({ user }: { user: SessionUser }) {
                 className={cn(SEGMENT, current ? CURRENT : IDLE)}
               >
                 <LinkPending variant="bar" />
-                {/* Small, text-only and short names on small phones, so all five fit without scrolling. */}
                 <item.icon className="hidden size-4 shrink-0 sm:block" aria-hidden />
                 {item.short ? (
                   <>
@@ -98,7 +95,6 @@ export function MobileBar({ user }: { user: SessionUser }) {
             items={PHONE_MORE.map((item) => ({
               label: item.label,
               icon: item.icon,
-              // The section you're on gets the menu's check, so "More" still says where you are.
               checked: isCurrent(item, pathname),
               description: showsProBadge(item, proTools) ? "Comes with Pro" : undefined,
               onSelect: () => router.push(item.href),

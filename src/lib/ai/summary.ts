@@ -19,15 +19,10 @@ import {
 import { AIError } from "./types";
 import { clichesIn, sentencesOf, upgradedVerbs } from "./writing-guards";
 
-// "improve" sees only the person's own summary. Code drops takes that reuse too few source words,
-// masks unstated numbers and flags stock phrases and stronger verbs.
-
 export type SummaryInput = { mode: "write"; resume: Resume } | { mode: "improve"; summary: string };
 
-// 2-3 sentences run about 250-450 characters; the cap leaves room without letting a ramble through.
 export const SUMMARY_CHARS = 600;
 const MAX_SENTENCES = 3;
-// Above these the model wrote about someone else; showing nothing beats showing a made-up person.
 const MAX_NOVEL_SHARE = { write: 0.4, improve: 0.3 } as const;
 
 const SUMMARY_RULES = `Ground rules:
@@ -74,7 +69,6 @@ type Guard = {
   lines: string[];
 };
 
-// Contact details never help a summary, so the model doesn't get them.
 function factsText(resume: Resume): string {
   const basics = { ...resume.basics, name: "", email: "", phone: "", location: "", links: [] };
   return resumeToText({ ...resume, basics });
@@ -120,7 +114,6 @@ function warningsFor(text: string, lines: readonly string[]): string[] {
   return warnings;
 }
 
-/** Null when it can't be shown honestly. */
 export function finalizeOption(
   kind: SummaryOptionKind,
   raw: string,
@@ -182,7 +175,6 @@ export function demoImprove(summary: string): SummaryOption {
 }
 
 async function write(resume: Resume): Promise<SummaryResult> {
-  // A caller asking without facts gets nothing, not a model call that could only invent.
   if (!hasFacts(resume)) return { options: [] };
   const text = factsText(resume);
   if (text.length > MAX_RESUME_CHARS) {
@@ -190,7 +182,6 @@ async function write(resume: Resume): Promise<SummaryResult> {
   }
   if (!aiEnabled()) return { options: demoWrite(resume) };
 
-  // The contact fields are already blank; this also hides a name, email or link inside a line.
   const redactor = redactorFor(resume);
   const output = redactor.restoreDeep(
     await runStructured({
@@ -224,7 +215,6 @@ async function improve(summary: string): Promise<SummaryResult> {
   if (!own) throw new AIError("invalid_output", "There is no summary to improve");
   if (!aiEnabled()) return { options: [demoImprove(own)] };
 
-  // Only the summary comes in, so emails, phone numbers and links are found by their patterns.
   const redactor = createRedactor();
   const output = redactor.restoreDeep(
     await runStructured({
@@ -244,7 +234,6 @@ async function improve(summary: string): Promise<SummaryResult> {
   return { options: [option] };
 }
 
-// Nothing is applied here: the studio shows the options and the person picks.
 export async function writeSummary(input: SummaryInput): Promise<SummaryResult> {
   return input.mode === "write" ? write(input.resume) : improve(input.summary);
 }

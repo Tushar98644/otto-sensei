@@ -3,10 +3,6 @@ import { afterAll, describe, expect, it } from "vitest";
 import { LOCAL_ONLY_DDL } from "./local-schema";
 import { readMigrations } from "./migration-files";
 
-// 20261109003000_linked_threads.sql runs on databases that already hold applications, letters and
-// jobs. This replays the migrations before it, adds such rows, then applies it: only links that
-// name exactly one row are filled in.
-
 const VERSION = "20261109003000";
 const DAY = 24 * 60 * 60 * 1_000;
 
@@ -86,7 +82,6 @@ describe("linked threads migration", () => {
     );
     const appById = Object.fromEntries(apps.rows.map((row) => [row.id, row]));
     expect(appById[linked]?.job_id).toBe(only);
-    // Two openings share that link, so neither is picked.
     expect(appById[shared]?.job_id).toBeNull();
     expect(appById[linked]?.status_history).toEqual([{ status: "applied", at: 5 * DAY }]);
     expect(appById[shared]?.status_history).toEqual([
@@ -99,14 +94,11 @@ describe("linked threads migration", () => {
     );
     const letterById = Object.fromEntries(letters.rows.map((row) => [row.id, row.application_id]));
     expect(letterById[letterByLink]).toBe(linked);
-    // The application has no link, so the company and title decide.
     expect(letterById[letterByName]).toBe(byName);
-    // Two applications fit: left for the browser's own fallback.
     expect(letterById[letterTwins]).toBeNull();
     expect(letterById[letterNone]).toBeNull();
     expect(twinA).toBeTruthy();
 
-    // Deleting an application or a job only lets go of the link.
     await client.query("delete from public.applications where id = $1", [linked]);
     const [after] = (
       await client.query<{ application_id: string | null }>(

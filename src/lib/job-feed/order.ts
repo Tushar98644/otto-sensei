@@ -3,19 +3,12 @@ import type { PlaceFit } from "./looking-for";
 import { SENIORITY_RANK } from "./roles";
 import type { JobMatch, MatchLabel, Seniority } from "./types";
 
-// Label first, then skill coverage (rare skills count more), plus a nudge for new posts. Never
-// shown.
-
 const LABEL_ORDER: Record<MatchLabel, number> = { strong: 0, good: 1, stretch: 2 };
 
 export const ORDER_LIMITS = {
-  // Per page, and never two in a row while another company's job is left.
   perCompany: 3,
   window: 20,
-  // Counts like one or two shared skills, so a resume naming few tools still reaches its kind of
-  // job.
   familyWeight: 2,
-  // Same level graded good 54% of the time, one up 43%, two up 24%.
   oneUp: 0.85,
   oneDown: 0.9,
   farLevel: 0.5,
@@ -26,7 +19,6 @@ export const ORDER_LIMITS = {
   placeMiss: 0.6,
 } as const;
 
-// `weight` is a skill's ln(open jobs / jobs naming it) from job_skills.
 export function closeness(
   match: Pick<JobMatch, "found">,
   keywords: readonly string[],
@@ -41,7 +33,6 @@ export function closeness(
   return found * (0.5 + 0.5 * coverage) + ORDER_LIMITS.familyWeight * kind;
 }
 
-/** 1 is one level up, -1 one down. 0 when unknown. */
 export function levelGap(person: Seniority | null, job: Seniority): number {
   return person === null ? 0 : SENIORITY_RANK[job] - SENIORITY_RANK[person];
 }
@@ -53,7 +44,6 @@ export function levelFactor(gap: number): number {
   return ORDER_LIMITS.farLevel;
 }
 
-// One zone up ranks a little lower, two or more well down. The same occupation never.
 export function zoneFactor(
   person: { occupation: string | null; zone: number | null },
   job: { occupation?: string | null; zone?: number | null },
@@ -71,7 +61,6 @@ export function placeFactor(fit: PlaceFit): number {
   return 1;
 }
 
-// `seenAt`: the earlier of posting date and first ingest, since some boards bump the date on edit.
 export function freshness(seenAt: number, now: number): number {
   const age = now - seenAt;
   if (age <= 7 * DAY_MS) return 1;
@@ -84,13 +73,10 @@ export type Ranked = {
   company: string;
   postedAt: number;
   closeness: number;
-  // Ordered one label lower than it shows: a place the "Looking for" card rules out.
   demoted?: boolean;
-  // A kind of role only an older title names: after the role looked for, within its label.
   pastKind?: boolean;
 };
 
-/** Best first: label, the role looked for before older kinds, closeness, then newest. */
 export function compareRanked(a: Ranked, b: Ranked): number {
   const rank = (item: Ranked) =>
     (item.match.label === null ? 3 : LABEL_ORDER[item.match.label]) + (item.demoted ? 1 : 0);
@@ -104,7 +90,6 @@ export function compareRanked(a: Ranked, b: Ranked): number {
 
 const companyOf = (item: { company: string }) => item.company.trim().toLowerCase();
 
-// Greedy. When no job keeps both rules they give way in that order, so a page is never short.
 export function capPerCompany<T extends { company: string }>(
   items: readonly T[],
   { perCompany = ORDER_LIMITS.perCompany, window = ORDER_LIMITS.window } = {},

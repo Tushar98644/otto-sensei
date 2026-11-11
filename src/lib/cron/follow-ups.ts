@@ -21,11 +21,7 @@ import {
 } from "@/lib/notifications/unsubscribe";
 import type { CronContext, CronOutcome } from "./run";
 
-// Each due application not yet reminded gets its owner one notification per run (all due ones
-// together), plus one email when set up and turned on.
-// Claiming is the idempotency: one statement stamps reminded_at only on still-unreminded rows, so a
-// repeated run finds nothing to claim. Email goes after commit, at most once: a failed send isn't
-// retried, because the bell already has it. Every plan gets reminders.
+// Claiming is the idempotency: one statement stamps reminded_at only on unreminded rows.
 
 export const FOLLOW_UP = {
   usersPerBatch: EMAIL_BATCH_MAX,
@@ -33,7 +29,6 @@ export const FOLLOW_UP = {
 } as const;
 
 export type FollowUpDeps = {
-  // null: no email this run; reminders stay in-app.
   sender: EmailSender | null;
 };
 
@@ -55,11 +50,9 @@ function dueFor(now: number) {
   );
 }
 
-/** null if none were due. */
 async function claimForUser(userId: string, now: number): Promise<Claimed | null> {
   const db = await getDb();
   return db.transaction(async (tx) => {
-    // Queues behind an account deletion, so the insert below can't hit a vanished user.
     if (!(await lockUser(tx, userId))) return null;
     const [owner] = await tx
       .select({ email: users.email })
@@ -129,13 +122,11 @@ export async function runFollowUps(
     emailsSkipped: 0,
   };
   const failed = new Set<string>();
-  // Accounts that threw this run, so the loop moves past them instead of retrying forever.
   const skipped: string[] = [];
   let complete = false;
 
   for (let batch = 0; batch < FOLLOW_UP.maxBatchesPerRun; batch++) {
     if (Date.now() >= deadline) break;
-    // Through applications_follow_up_due_idx: only rows not yet reminded are in it.
     const rows = await db
       .selectDistinct({ userId: applications.userId })
       .from(applications)
@@ -186,6 +177,5 @@ export async function runFollowUps(
     }
   }
 
-  // Emails that didn't go out don't fail the run: the reminders are in the bell either way.
   return { stats, complete, failed: [...failed] };
 }

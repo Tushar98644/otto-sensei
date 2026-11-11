@@ -11,14 +11,10 @@ import {
 import { resetSentence, thisPeriod } from "@/lib/usage-copy";
 import { pluralize } from "@/lib/utils";
 
-// Voice: plain everyday words, at most 18 a line (lines.test.ts), warm and lightly funny, never
-// hype. Readers are worldwide: no local idioms, holidays or currencies.
-
 type CheckCounts = { fail: number; warn: number; pass: number };
 type BeforeAfter = { before: number; after: number };
 type Line = string | ((...args: never[]) => string);
 
-// Counts come from parsers and APIs; keep a stray NaN or negative from reaching the copy.
 function whole(n: number) {
   return Number.isFinite(n) ? Math.max(0, Math.round(n)) : 0;
 }
@@ -28,7 +24,6 @@ function asSentence(text: string) {
   return /[.!?]$/.test(trimmed) ? trimmed : `${trimmed}.`;
 }
 
-// AI help is Pro (or its free trial), so signing in is the first of two steps.
 const SIGN_IN_REASONS: Record<Feature, string> = {
   fix: `Sign in, then try Pro free for ${PRO_TRIAL.days} days to fix lines with me.`,
   tailor: `Sign in, then try Pro free for ${PRO_TRIAL.days} days to tailor with me.`,
@@ -57,7 +52,6 @@ const TOOL_COMES_WITH_PRO: Record<ProTool, string> = {
   eligibility: "Checking where a job can hire from comes with Pro.",
 };
 
-// FEATURE_LABELS is too long for a one-line sidebar note, so the limit lines use these.
 const SHORT_LABELS: Record<Feature, string> = {
   fix: "line fixes",
   tailor: "tailored versions",
@@ -69,8 +63,6 @@ const SHORT_LABELS: Record<Feature, string> = {
 
 const REVIEW_ALL_GOOD = "Every check passed. Hiring software can read all of it.";
 
-// The file checks first (a file software can't read loses everything else), then what a reader
-// would notice in the words.
 function reviewOverall(counts: CheckCounts, toFix: number) {
   const fail = whole(counts.fail);
   const words = whole(toFix);
@@ -98,8 +90,6 @@ function reviewSummary(counts: CheckCounts) {
 
 type ProvenCount = { proven: number; total: number };
 
-// The screener view's headline in Otto's words. Must-haves are what an AI screener grades first,
-// so they lead; nice-to-haves only get a line when the post has no must-haves.
 function tailorScreener(must: ProvenCount, nice: ProvenCount) {
   const mustTotal = whole(must.total);
   const niceTotal = whole(nice.total);
@@ -136,8 +126,6 @@ function downloadChecked({ before, after }: BeforeAfter) {
 
 const count = new Intl.NumberFormat("en-US");
 
-// Counts only, from the matches on screen. "at least" when a request hit its full share of
-// candidates. `matching`: every open job that matches; `shown`: the ones listed.
 function jobsFound(matching: number, shown: number, strong: number, newToday: number) {
   const n = whole(matching);
   if (n === 0 || whole(shown) === 0)
@@ -162,7 +150,6 @@ export const OTTO = {
   upload: {
     idle: "Drop your resume here, PDF or Word. I'll show you what hiring software reads.",
     reading: "Glasses on. Reading your resume now.",
-    // `reason` is a plain, complete sentence such as "That file isn't a PDF or Word document."
     failed: (reason: string) =>
       reason.trim()
         ? `Hmm, I couldn't read that. ${asSentence(reason)}`
@@ -209,7 +196,6 @@ export const OTTO = {
     done: "You're in. Let's pick up where you left off.",
   },
   limit: {
-    // Pass the user's limit and period (default: Pro, monthly). Limit 0 (Free) is the trial pitch.
     reached: (
       feature: Feature,
       limit: number = PLANS.pro.limits[feature],
@@ -219,7 +205,6 @@ export const OTTO = {
         ? `${COMES_WITH_PRO[feature]} Try it free for ${PRO_TRIAL.days} days.`
         : `You've used ${thisPeriod(period)}'s ${whole(limit)} ${SHORT_LABELS[feature]}. ` +
           resetSentence(period),
-    // On Free: the feature isn't in the plan. No trial offer to someone who has had one.
     none: (feature: Feature, trial = true) =>
       trial
         ? `${COMES_WITH_PRO[feature]} Try it free for ${PRO_TRIAL.days} days.`
@@ -228,11 +213,9 @@ export const OTTO = {
       trial
         ? `${TOOL_COMES_WITH_PRO[tool]} Try it free for ${PRO_TRIAL.days} days.`
         : TOOL_COMES_WITH_PRO[tool],
-    // 80% or more of a meter used, said with his worried face: a heads-up, not a sales pitch.
     near: (feature: Feature, used: number, limit: number, period?: UsagePeriod | null) =>
       `Uh-oh, ${whole(used)} of ${whole(limit)} ${SHORT_LABELS[feature]} used. ${resetSentence(period)}`,
   },
-  // Said about him, not by him: a status line under his working figure, not one of his notes.
   working: {
     import: "Otto is reading your file.",
     job: "Otto is reading the job post.",
@@ -256,13 +239,10 @@ export const OTTO = {
   upgrade: {
     done: (plan: string) => `You're on ${plan} now. Your new limits apply straight away.`,
     trial: `Try my AI help free for ${PRO_TRIAL.days} days. Cancel before it ends and you pay nothing.`,
-    // The trial's end date, written for the reader, e.g. "Nov 11".
     trialStarted: (endsOn: string) => `Your Pro trial runs until ${endsOn}. Let's get to work.`,
   },
   errors: {
     generic: "Something went wrong on my end. Mind trying that again?",
-    // The server gives the unit back for these, except past a small daily cap on failed runs the
-    // model may have been paid for (see runMetered), hence "most".
     aiUnavailable:
       "I'm stuck on that one. Try again in a minute. Most hiccups like this won't count against you.",
     offline: "You seem to be offline. Your work is saved in this browser.",

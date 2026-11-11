@@ -10,7 +10,6 @@ import {
 } from "./content";
 import { jordanContent } from "./fixtures/jordan";
 
-// A picture as documents saved before 2026-11-10 could hold one.
 const oldUpload = {
   kind: "upload" as const,
   id: "00000000-0000-4000-8000-000000000001",
@@ -61,7 +60,6 @@ describe("portfolio content contract", () => {
     for (const word of ["photo", "images", "video", "logo", ".webp", "cdn.example.com"]) {
       expect(json).not.toContain(word);
     }
-    // The old frames read as the design's own choice.
     expect(stored.projects.map((project) => project.device)).toEqual(["auto", "auto"]);
     expect(stored.jobs.e1?.website).toBe("https://ledgerly.example");
     expect(stored.milestones?.[0]?.title).toBe("Winner");

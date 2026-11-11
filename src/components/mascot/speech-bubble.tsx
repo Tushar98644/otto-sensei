@@ -5,7 +5,6 @@ export type BubbleTone = "default" | "ink";
 
 export type SpeechBubbleProps = {
   children: ReactNode;
-  // "ink" is the user's own reply in a conversation with Otto.
   tone?: BubbleTone;
   className?: string;
   live?: boolean;
@@ -16,7 +15,6 @@ const TONES: Record<BubbleTone, string> = {
   ink: "bg-ink text-white",
 };
 
-// No border or tail. Otto speaks through OttoNote; this is the other side of the conversation.
 export function SpeechBubble({
   children,
   tone = "default",

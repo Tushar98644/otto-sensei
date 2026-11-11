@@ -16,7 +16,6 @@ const TABS: Record<FolderTone, string> = {
   forest: "bg-primary text-white",
 };
 
-// The body's top-left corner stays square so tab and body read as one shape.
 export function FolderCard({
   tab,
   tone = "plain",

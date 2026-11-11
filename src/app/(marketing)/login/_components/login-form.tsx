@@ -8,11 +8,8 @@ import { SignInFormSkeleton } from "@/components/account/sign-in-form-skeleton";
 import { useMe } from "@/components/account/use-me";
 import { OttoLoadingScreen } from "@/components/mascot/otto-loading-screen";
 
-// The dashboard shows account, plan and resumes in one place, so it's clear the sign-in worked.
-// That includes visitors already signed in who used the static header's "Sign in".
 const ALREADY_SIGNED_IN_PATH = DEFAULT_NEXT_PATH;
 
-// /auth/callback sends people back here with ?error=google when Google sign-in didn't finish.
 const GOOGLE_FAILED = "Google sign-in didn't finish. Try again, or use your email.";
 
 export function LoginForm() {
@@ -23,7 +20,6 @@ export function LoginForm() {
   const { user, loading } = useMe();
   // Both the store update and onSignedIn announce the same sign-in; navigate once.
   const leaving = useRef(false);
-  // True once the form has been shown, i.e. the visitor arrived signed out.
   const arrivedSignedOut = useRef(false);
 
   const leave = useCallback(
@@ -45,7 +41,6 @@ export function LoginForm() {
 
   if (loading) return <SignInFormSkeleton />;
 
-  // The screen stays up across the move: the dashboard asks for it again while it first loads.
   if (user) return <OttoLoadingScreen detail="Signing you in" />;
 
   return (

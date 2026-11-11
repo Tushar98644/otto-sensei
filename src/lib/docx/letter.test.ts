@@ -17,7 +17,6 @@ describe("cover letter as a Word file", () => {
 
     expect(text.indexOf(resume.basics.name)).toBeLessThan(text.indexOf("7 November 2026"));
     expect(text.indexOf("7 November 2026")).toBeLessThan(text.indexOf("Dear Northwind team,"));
-    // A blank line starts a paragraph; a single break stays inside one. Word keeps the dash.
     expect(html).toContain("<p>I design tools — and ship them.<br />Twice a week.</p>");
     expect(html).toContain("<p>Best regards,<br />Maya Chen</p>");
   });

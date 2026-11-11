@@ -1,18 +1,11 @@
 import type { LookupAddress } from "node:dns";
 import type { PinnedRequest, PinnedResponse } from "./transport";
 
-// Test-only. A fake internet for job reads, every request recorded. Wire it up with:
-//   vi.mock("node:dns", async (importOriginal) => (await import("@/lib/jobs/test-network")).dnsMock(await importOriginal()));
-//   vi.mock("@/lib/jobs/transport", async () => (await import("@/lib/jobs/test-network")).transportMock);
-
 export type FakeReply = {
   status?: number;
   headers?: Record<string, string>;
-  // A string is sent in one chunk; a list of chunks is sent as is.
   body?: string | Uint8Array[];
-  // Sends headers, then never finishes the body.
   stallBody?: boolean;
-  // Never answers at all, until the request is aborted.
   stallConnect?: boolean;
 };
 
@@ -24,7 +17,6 @@ const requests: PinnedRequest[] = [];
 
 export const fakeNet = {
   requests,
-  // Each host resolves to the given addresses; unknown hosts fail like a real ENOTFOUND.
   resolve(host: string, ...addresses: string[]) {
     dns.set(
       host,

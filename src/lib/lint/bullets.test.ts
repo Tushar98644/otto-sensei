@@ -26,7 +26,6 @@ describe("lintBullet", () => {
   });
 
   it.each<[string, LintIssueId[]]>([
-    // A duty opener already asks what changed, so it doesn't also get "no result".
     ["Responsible for managing the company website", ["duty"]],
     ["Results-driven team player passionate about clean code", ["stock-phrase", "no-result"]],
     ["Hard-working self-starter with a strong work ethic", ["stock-phrase", "no-result"]],
@@ -50,7 +49,6 @@ describe("lintBullet", () => {
     ["Wore many hats at a 10-person startup", ["stock-phrase"]],
     ["Built my first app with 10k downloads", ["first-person"]],
     ["Fixed bugs", ["no-result", "too-short"]],
-    // Says what changed but not by how much: a tip, not a warning.
     ["Improved the checkout flow for new shoppers", ["no-number"]],
     ["Wrote guides that the support team used in onboarding", ["no-number"]],
     ["Increased sales 20% last year", ["no-method"]],
@@ -140,11 +138,9 @@ describe("lintBullet", () => {
         message: "Say how you did it: what did you build, change or run?",
         match: null,
       });
-      // "by 15%" is the measure; "by retraining" is the method.
       expect(ids("Cut costs by 15% in 2023")).toContain("no-method");
       expect(ids("Cut costs 15% by retraining reps")).not.toContain("no-method");
       expect(ids("Cut costs 15% using spot instances")).not.toContain("no-method");
-      // Long enough to carry its own context; and under five words "too short" already asks.
       expect(ids("Grew newsletter signups from 2k to 11k in one quarter")).toEqual([]);
       expect(ids("Increased sales by 20%")).toEqual(["too-short"]);
     });
@@ -361,7 +357,6 @@ describe("lintResume", () => {
     expect(lint.byBullet["e0-0"]).toEqual([]);
     expect(lint.byBullet["e0-1"]).toEqual([]);
     expect(lint.byBullet["p0-0"]?.map((i) => i.id)).toEqual(["no-result", "too-short"]);
-    // A school line isn't asked for a result.
     expect(lint.byBullet["d0-0"]).toEqual([]);
   });
 
@@ -396,10 +391,10 @@ describe("lintResume", () => {
   });
 
   it.each([
-    { a: phrase(13), b: phrase(12, ["zulu"]), duplicate: true }, // 12 / 14 = 0.857
-    { a: phrase(12), b: phrase(11, ["zulu"]), duplicate: false }, // 11 / 13 = 0.846
-    { a: phrase(6), b: phrase(6, ["zulu"]), duplicate: true }, // 6 / 7 = 0.857
-    { a: phrase(5), b: phrase(5, ["zulu"]), duplicate: false }, // 5 / 6 = 0.833
+    { a: phrase(13), b: phrase(12, ["zulu"]), duplicate: true },
+    { a: phrase(12), b: phrase(11, ["zulu"]), duplicate: false },
+    { a: phrase(6), b: phrase(6, ["zulu"]), duplicate: true },
+    { a: phrase(5), b: phrase(5, ["zulu"]), duplicate: false },
     { a: phrase(4), b: phrase(4), duplicate: true },
   ])("uses a token Jaccard of 0.85: $a / $b", ({ a, b, duplicate }) => {
     const lint = lintResume(resume({ experience: [[a]], projects: [[b]] }));
@@ -407,7 +402,6 @@ describe("lintResume", () => {
   });
 
   it("matches a brute-force comparison on a large resume", () => {
-    // mulberry32: deterministic, so a failure always reproduces.
     let seed = 7;
     const random = () => {
       seed = (seed + 0x6d2b79f5) | 0;
@@ -469,7 +463,6 @@ describe("lintResume", () => {
         education: [["Dean's list for 4 semesters", "Wrote a thesis on graph theory"]],
       }),
     );
-    // The thesis line is education, which isn't asked for a result or a number.
     expect(lint.totals).toEqual({ bullets: 6, withIssues: 3, withNumbers: 4, highSeverity: 1 });
   });
 
@@ -489,7 +482,6 @@ describe("lintResume", () => {
       hiddenSections: ["projects"],
     });
     expect(Object.keys(lint.byBullet)).toEqual(["e0-0"]);
-    // Its twin is hidden, so the line no longer repeats anything on the page.
     expect(lint.byBullet["e0-0"]?.map((i) => i.id)).not.toContain("duplicate");
     expect(lint.totals.bullets).toBe(1);
   });
@@ -537,7 +529,6 @@ describe("lintResume", () => {
             "Led 3 hiring rounds for the platform team.",
             "Built a CLI used by 200 developers",
           ],
-          // Each job is read on its own: this one is consistent.
           ["Cut cloud costs 30% by moving jobs to spot instances"],
         ],
         projects: [["Built a CLI used by 200 developers.", "Grew stars from 10 to 400"]],
@@ -591,7 +582,6 @@ describe("lintResume", () => {
     const started = performance.now();
     const lint = lintResume(resume({ experience }));
     expect(lint.totals.bullets).toBe(1_600);
-    // Generous bound: a smoke test for accidental quadratic work, not a benchmark.
     expect(performance.now() - started).toBeLessThan(2_000);
   });
 });
@@ -647,7 +637,6 @@ describe("where a line sits", () => {
     expect(lintBullet("Relevant coursework: algorithms, databases and compilers")).toContainEqual(
       expect.objectContaining({ id: "no-result" }),
     );
-    // Voice checks still apply everywhere.
     expect(lintBullet("I led the robotics club as a team player", other).map((i) => i.id)).toEqual([
       "first-person",
       "stock-phrase",
@@ -746,7 +735,6 @@ describe("lintSummary", () => {
       ["stock-phrase", "Hardworking"],
       ["first-person", "I"],
     ]);
-    // Prose without a number is fine in a summary.
     expect(lintSummary("Backend engineer who builds payment systems in Go.")).toEqual([]);
   });
 });

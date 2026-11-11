@@ -2,8 +2,6 @@
 
 import { useSyncExternalStore } from "react";
 
-// One line at a time: a newer fix replaces the older mark. Never flashed on the server.
-
 export const LINE_FLASH_MS = 2500;
 export const LINE_FLASH_LABEL = "Line updated";
 
@@ -41,7 +39,6 @@ export function useLineFlash(bulletId: string): boolean {
   );
 }
 
-// One always-present live region, so the change is announced though the pill comes and goes.
 export function useFlashAnnouncement(): string {
   return useSyncExternalStore(
     subscribe,

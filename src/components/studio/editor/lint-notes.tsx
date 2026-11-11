@@ -4,7 +4,6 @@ import type { LintIssue, LintIssueId } from "@/lib/lint/types";
 import { pluralize } from "@/lib/utils";
 import { useSettled } from "./use-settled";
 
-// Long enough to finish a word, short enough to still feel live.
 export const SETTLE_MS = 450;
 
 export const CHIP_LABELS: Record<LintIssueId, string> = {
@@ -24,13 +23,11 @@ export const CHIP_LABELS: Record<LintIssueId, string> = {
   punctuation: "Full stop",
 };
 
-// Waits for a typing pause, so a just-started line isn't called "too short". Null when empty.
 export function useLineLint(issues: readonly LintIssue[], hasText: boolean) {
   const settled = useSettled(hasText ? issues : null, SETTLE_MS);
   return hasText ? settled : null;
 }
 
-// Hidden from screen readers, which get every message through LineDescription instead.
 export function LineTip({ issues }: { issues: readonly LintIssue[] }) {
   const [top] = issues;
   if (!top) return null;
@@ -43,8 +40,6 @@ export function LineTip({ issues }: { issues: readonly LintIssue[] }) {
   );
 }
 
-// Referenced by the line's aria-describedby: every issue in words, so the meaning never rests on
-// the chip's color or on a tip that only shows on focus.
 export function LineDescription({
   id,
   issues,

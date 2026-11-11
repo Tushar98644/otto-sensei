@@ -73,7 +73,6 @@ export function hasNotes(item: PrepQuestion, story: LinkedStory | null): boolean
   return Boolean(item.checking || item.points.length > 0 || story || item.followUp);
 }
 
-// How to answer is folded under, so the page reads as the interview first and the prep second.
 export function QuestionCard({
   item,
   number,

@@ -12,10 +12,8 @@ import {
 } from "./usage-copy";
 
 const WEEK = { kind: "week", resetsAt: Date.UTC(2026, 10, 19, 9, 30) } as const;
-// A monthly plan that renews on Dec 17, and a yearly one's monthly reset on the same day.
 const MONTHLY = { kind: "month", resetsAt: Date.UTC(2026, 11, 17, 9, 30), renews: true } as const;
 const YEARLY = { kind: "month", resetsAt: Date.UTC(2026, 11, 17, 9, 30), renews: false } as const;
-// A paid row no webhook has dated yet still counts per calendar month.
 const CALENDAR = { kind: "month", resetsAt: Date.UTC(2026, 11, 1) } as const;
 
 describe("usage period copy", () => {
@@ -30,7 +28,6 @@ describe("usage period copy", () => {
     expect(resetDay(MONTHLY, "UTC")).toBe("Dec 17");
     expect(resetWhen(MONTHLY, "UTC")).toBe("on Dec 17, when your plan renews");
     expect(resetSentence(MONTHLY, "UTC")).toBe("They reset on Dec 17, when your plan renews.");
-    // A yearly plan's monthly reset falls between renewals.
     expect(resetSentence(YEARLY, "UTC")).toBe("They reset on Dec 17.");
     expect(resetSentence(CALENDAR, "UTC")).toBe("They reset on Dec 1.");
     for (const period of [MONTHLY, YEARLY, CALENDAR, null, undefined]) {
@@ -49,7 +46,6 @@ describe("usage period copy", () => {
     expect(perPeriod("week")).toBe("a week");
     expect(resetDay(WEEK, "UTC")).toBe("Nov 19");
     expect(resetSentence(WEEK, "UTC")).toBe("They reset on Nov 19.");
-    // In the reader's own zone the day can differ.
     expect(resetDay({ kind: "week", resetsAt: Date.UTC(2026, 10, 19, 23) }, "Asia/Tokyo")).toBe("Nov 20");
   });
 

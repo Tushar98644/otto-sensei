@@ -60,7 +60,6 @@ describe("entryChecks", () => {
       ),
     );
     expect(checks.result).toMatchObject({ lineIds: ["a", "b"], severity: "high" });
-    // A line with no result has no number either.
     expect(checks.numbers).toMatchObject({ lineIds: ["a", "c"], severity: "high" });
     expect(checks.vague).toMatchObject({ lineIds: ["b"], severity: "low" });
     expect(checks.length).toMatchObject({ lineIds: ["d"], severity: "low" });

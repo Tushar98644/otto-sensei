@@ -160,7 +160,6 @@ describe("share records", () => {
     const [row] = await (await getDb()).select().from(shares).where(eq(shares.id, link.id));
     expect(row).toMatchObject({ snapshot: null, revokedAt: NOW + 1 });
 
-    // Sharing the resume again makes a new link; the old one stays dead.
     const fresh = await saved(user.id, undefined, NOW + 3);
     expect(fresh.created).toBe(true);
     expect(fresh.link.slug).not.toBe(link.slug);
@@ -234,7 +233,6 @@ describe("view counting", () => {
 
   it("stops counting a flood for the rest of the hour", async () => {
     const link = await liveLink();
-    // Start of an hour, so every view below lands in the same window.
     const hour = Math.ceil(NOW / 3_600_000) * 3_600_000;
     for (let index = 0; index < VIEW_LIMITS.perLinkPerHour; index++) {
       expect(await recordView(link.id, `reader-${index}`, hour + index)).toBe(true);

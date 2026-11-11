@@ -214,8 +214,6 @@ describe("finding the user", () => {
       subscriptionId: "sub_1",
     });
 
-    // A near-empty table is cheapest to scan, so the planner is told scans cost too much: if any
-    // OR branch had no index, it would have to scan anyway.
     const plan = await db.transaction(async (tx) => {
       await tx.execute(sql`set local enable_seqscan = off`);
       return tx.execute(sql`explain ${query.getSQL()}`);
@@ -283,7 +281,6 @@ describe("idempotency", () => {
     expect(await applySubscriptionState(subscription({ userId: user.id }), event, NOW)).toMatchObject({
       outcome: "applied",
     });
-    // Change the row behind the webhook's back: applying the same event again would undo this.
     await db.update(users).set({ plan: "free", planStatus: "canceled" }).where(eq(users.id, user.id));
 
     expect(await applySubscriptionState(subscription({ userId: user.id }), event, NOW + 1)).toEqual({
@@ -442,7 +439,6 @@ describe("billing periods", () => {
     const asPro = await sessionOf(user.id);
     for (let i = 0; i < 3; i++) await consumeUsage(asPro, "tailor", mid);
 
-    // Creem moves the subscription to Max and starts a new period at the change.
     const renewsAt = addMonths(mid, 1);
     const max = { ...pro, productPlan: "max" as const, periodStartsAt: mid, periodEndsAt: renewsAt, renewsAt };
     await applySubscriptionState(max, source(), mid + MINUTE);
@@ -451,7 +447,6 @@ describe("billing periods", () => {
       tailor: { used: 3, limit: PLANS.max.limits.tailor },
     });
 
-    // Its renewal starts a fresh month.
     const renewal = { ...max, periodStartsAt: renewsAt, periodEndsAt: addMonths(mid, 2), renewsAt: addMonths(mid, 2) };
     await applySubscriptionState(renewal, source(), renewsAt + MINUTE);
     const renewed = await sessionOf(user.id);
@@ -470,7 +465,6 @@ describe("billing periods", () => {
     const asOld = await sessionOf(user.id);
     const mid = NOW + 10 * DAY;
     for (let i = 0; i < 2; i++) await consumeUsage(asOld, "fix", mid);
-    // Its first event since: a change partway through, with the period dated at last.
     await applySubscriptionState(subscription({ subscriptionId: "sub_old", status: "scheduled_cancel", renewsAt: null }), source(), mid);
     const dated = await sessionOf(user.id);
     expect(dated).toMatchObject({ planPeriodStartsAt: PERIOD_STARTS_AT, planPeriodEndsAt: RENEWS_AT });

@@ -4,9 +4,6 @@ import { Lazy, lazyComponent, useOpenedOnce } from "@/components/ui/lazy";
 import type { SignInDialogProps } from "./sign-in-dialog";
 import type { UpgradeDialogProps } from "./upgrade-dialog";
 
-// The upgrade and sign-in dialogs, out of every page's first load: most visits open neither.
-// Once opened they stay mounted, so they can animate closed and hand focus back.
-
 const upgradeDialog = lazyComponent(() => import("./upgrade-dialog").then((m) => m.UpgradeDialog));
 const signInDialog = lazyComponent(() => import("./sign-in-dialog").then((m) => m.SignInDialog));
 

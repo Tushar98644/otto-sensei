@@ -54,10 +54,8 @@ describe("upsertApplication", () => {
 
     const newer = app("a", { appliedAt: 1, status: "interview", updatedAt: 2_000 });
     expect(upsertApplication(list, newer)[1]?.status).toBe("interview");
-    // A slow response for an earlier click doesn't undo a later one.
     const stale = app("a", { appliedAt: 1, status: "offer", updatedAt: 500 });
     expect(upsertApplication([newer], stale)[0]?.status).toBe("interview");
-    // A tie wins: that's how an optimistic change is rolled back.
     expect(upsertApplication([newer], { ...newer, status: "applied" })[0]?.status).toBe("applied");
   });
 

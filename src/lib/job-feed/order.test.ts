@@ -116,7 +116,6 @@ describe("capPerCompany", () => {
     const capped = capPerCompany(list, { window: 20, perCompany: 3 });
     expect(capped.slice(0, 20).filter((item) => item.company === "A")).toHaveLength(3);
     expect(capped).toHaveLength(list.length);
-    // Pushed back, not dropped: the two left over lead the second page, still apart.
     expect(order(capped.slice(20))).toMatch(/^A.A/);
   });
 

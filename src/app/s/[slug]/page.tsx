@@ -16,7 +16,6 @@ import { readerKey, recordView } from "@/lib/share/records";
 import { sharePath } from "@/lib/share/types";
 import { countsAsView, isPrefetch } from "@/lib/share/visits";
 
-// Same mist canvas as the dashboard (--color-surface-muted).
 export const viewport: Viewport = { themeColor: "#eef3ef" };
 
 type Props = { params: Promise<{ slug: string }> };
@@ -28,7 +27,7 @@ const NO_INDEX: Metadata["robots"] = {
   googleBot: { index: false, follow: false },
 };
 
-// Metadata and the page both need the link: one lookup, and one tick of the page limit, per request.
+// Metadata and the page share one lookup, so each request ticks the page limit once.
 const loadPage = cache(async (slug: string) => openSharePage(slug, ipFromHeaders(await headers())));
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
@@ -49,8 +48,6 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   };
 }
 
-// Signed-in owners checking their own link shouldn't see it as someone else's view. Only a visitor
-// with a session cookie costs a call to Supabase here; a failure just means "count it".
 async function ownerIsReading(ownerId: string): Promise<boolean> {
   try {
     return (await getCurrentUser())?.id === ownerId;
@@ -80,7 +77,6 @@ export default async function SharedResumePage({ params }: Props) {
   if (countsAsView({ userAgent, prefetch: isPrefetch(requestHeaders) })) {
     if (!(await ownerIsReading(share.ownerId))) {
       const reader = readerKey(ipFromHeaders(requestHeaders), userAgent ?? "");
-      // After the response: a slow counter never holds up the page, and a failed one only loses a view.
       after(() =>
         recordView(share.id, reader).catch((error: unknown) => {
           log.warn("share.view_not_counted", { shareId: share.id }, error);

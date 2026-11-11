@@ -6,13 +6,10 @@ import type { PrepSummary } from "@/lib/insights/prep";
 import { resumeTitle } from "@/lib/resume/ops";
 import type { Resume } from "@/lib/resume/schema";
 
-// A pack lives on its application, so every list here is keyed by application id.
-
 export function interviewHref(applicationId: string): string {
   return `${ROUTES.dashboardInterview}/${encodeURIComponent(applicationId)}`;
 }
 
-/** The latest to reach the interview stage first. */
 export function waitingForPrep(
   applications: readonly Application[],
   packs: readonly Pick<PrepSummary, "applicationId">[],
@@ -23,7 +20,6 @@ export function waitingForPrep(
     .sort((a, b) => b.statusChangedAt - a.statusChangedAt);
 }
 
-/** The job picker's order: interviews first, then the rest, newest application first in each. */
 export function prepChoices(applications: readonly Application[]): Application[] {
   return [...applications].sort(
     (a, b) =>
@@ -32,7 +28,6 @@ export function prepChoices(applications: readonly Application[]): Application[]
   );
 }
 
-/** The application already logged for this job link, so pasting it again doesn't log it twice. */
 export function findByLink(applications: readonly Application[], link: string): Application | null {
   const url = normalizeJobUrl(link);
   if (!url) return null;
@@ -43,13 +38,10 @@ export function findByLink(applications: readonly Application[], link: string): 
   );
 }
 
-// A tailored copy not sent yet joins Applications at the interview stage when picked.
 export type PrepChoice =
   | { value: string; label: string; kind: "application"; application: Application }
   | { value: string; label: string; kind: "copy"; copy: Resume };
 
-// Applications (interviews first), then each tailored copy with no application yet, newest
-// first. A copy that doesn't name its company is left out: an application needs one.
 export function prepPickerChoices(
   applications: readonly Application[],
   resumes: readonly Resume[],

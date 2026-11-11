@@ -4,8 +4,6 @@ import { lockUser } from "@/db/locks";
 import { accountSetup } from "@/db/schema";
 import { NO_SETUP, type AccountSetup, type AccountSetupChange } from "./types";
 
-// Keyed by user_id, so a user only ever reads or writes their own.
-
 type Row = typeof accountSetup.$inferSelect;
 
 function toSetup(row: Row): AccountSetup {
@@ -27,9 +25,7 @@ export async function readAccountSetup(userId: string): Promise<AccountSetup> {
 }
 
 export type SaveAccountSetupResult =
-  | { status: "saved"; setup: AccountSetup }
-  // The account was deleted after the request was signed in, so nothing may be written.
-  | { status: "no_user" };
+  { status: "saved"; setup: AccountSetup } | { status: "no_user" };
 
 export async function saveAccountSetup(
   userId: string,

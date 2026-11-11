@@ -5,11 +5,7 @@ import { log } from "@/lib/log";
 import { retryAfterHeader, waitText, type RateLimitResult } from "@/lib/rate-limit";
 import { HOUR_MS } from "@/lib/time";
 
-// Lookups cost no allowance, so they're limited per network and device, well under GitHub's
-// shared allowance for this server. Drafting spends the account's "github" allowance instead.
-
 export const GITHUB_LIMITS = {
-  // Two GitHub calls each, often fewer with the cache.
   lookup: { windowMs: HOUR_MS, device: 20, ip: 60 },
 } as const;
 

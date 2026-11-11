@@ -9,8 +9,7 @@ import { isUserId } from "@/lib/users";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-// RFC 8058 one-click: mail apps send it from their servers with no cookies, so the signed link is
-// the only proof, and the app's same-site rules don't apply.
+// RFC 8058 one-click comes from mail servers with no cookies: the signed link is the only proof.
 export async function POST(req: Request): Promise<Response> {
   const url = new URL(req.url);
   const userId = url.searchParams.get("u") ?? "";
@@ -20,7 +19,6 @@ export async function POST(req: Request): Promise<Response> {
     return fail("bad_request", "That unsubscribe link isn't valid.", 400, NO_STORE);
   }
   try {
-    // An account deleted since the email went out has nothing left to turn off.
     await setEmailReminders(userId, false);
     log.info("notifications.unsubscribed");
     return ok({}, { headers: NO_STORE });
@@ -30,8 +28,7 @@ export async function POST(req: Request): Promise<Response> {
   }
 }
 
-// GET: a person (or a mail app without one-click support) opened the link. Link checkers open
-// every link in an email too, so this changes nothing and sends them to the switch instead.
+// Link checkers open every link in an email, so GET changes nothing.
 export function GET(): Response {
   return Response.redirect(new URL(`${ROUTES.dashboardAccount}#reminders`, appUrl()), 303);
 }

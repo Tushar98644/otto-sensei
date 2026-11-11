@@ -40,9 +40,6 @@ import {
   STUDIO_STORE_VERSION,
 } from "./persisted";
 
-// The browser copy stays the source of truth while editing; signed-in users also get a cloud
-// backup.
-
 export const STUDIO_STEPS = ["upload", "review", "fix", "tailor", "download"] as const;
 export type StudioStep = (typeof STUDIO_STEPS)[number];
 
@@ -61,29 +58,19 @@ export { EDIT_LABELS } from "./history";
 
 type StudioState = {
   resumes: Record<string, Resume>;
-  // Newest first. Editing doesn't reorder, so the switcher doesn't jump while typing.
   order: string[];
   activeId: string | null;
-  // Of the originally uploaded file. Absent for scratch and sample resumes.
   reports: Record<string, RecruiterReport>;
-  // Of the PDF we exported, for the "before vs after" comparison.
   exportReports: Record<string, RecruiterReport>;
   step: StudioStep;
   versions: Record<string, ResumeVersion[]>;
-  // Persisted in this browser for 30 days, never synced.
   trash: TrashedResume[];
-  // Memory only.
   history: Record<string, ResumeHistory>;
 
   addResume: (resume: Resume, report?: RecruiterReport) => void;
-  // Plain edits within 800 ms merge into one step; a `label` makes a separate named step (AI
-  // edits).
   updateResume: (id: string, updater: (resume: Resume) => Resume, options?: EditOptions) => void;
-  // Keeps nothing: for deletions from another device and signing out. People use trashResume().
   removeResume: (id: string) => void;
-  // False (and no change) for a blank name or an unknown id.
   renameResume: (id: string, title: string) => boolean;
-  // The open resume stays open: copying from the library is filing, not switching.
   duplicateResume: (id: string) => string | null;
   setActive: (id: string) => void;
   setStep: (step: StudioStep) => void;
@@ -93,8 +80,6 @@ type StudioState = {
     meta: TailorCopyMeta,
     apply: (copy: Resume) => Resume,
   ) => string | null;
-  // Takes newer cloud copies and drops resumes the account deleted. Returns local resumes the cloud
-  // is missing or has older, for the caller to upload.
   mergeFromCloud: (cloud: Resume[], deletedIds?: readonly string[]) => Resume[];
   clearAll: () => void;
 
@@ -102,15 +87,11 @@ type StudioState = {
   redo: (id: string) => boolean;
 
   saveVersion: (id: string, name: string) => ResumeVersion | null;
-  // The replaced state is kept as an automatic version first, so restoring never loses work.
   restoreVersion: (id: string, versionId: string) => boolean;
   deleteVersion: (id: string, versionId: string) => void;
-  // Undo for deleteVersion. False when the resume is gone or the version is already there.
   putVersionBack: (id: string, version: ResumeVersion) => boolean;
 
-  // Removing it is what makes sync delete the cloud copy.
   trashResume: (id: string) => boolean;
-  // A copy under a new id (the account won't take a deleted id again), at the top of the list.
   restoreFromTrash: (trashedId: string) => string | null;
   deleteFromTrash: (trashedId: string) => void;
   emptyTrash: () => void;
@@ -144,7 +125,6 @@ function omitKeys<T>(record: Record<string, T>, ids: ReadonlySet<string>): Recor
   return next;
 }
 
-// When the active one goes, the newest remaining takes its place, or the studio returns to upload.
 function withoutResumes(s: StudioData, ids: ReadonlySet<string>): StudioData {
   const order = s.order.filter((id) => !ids.has(id));
   const activeId = s.activeId !== null && ids.has(s.activeId) ? (order[0] ?? null) : s.activeId;
@@ -164,7 +144,6 @@ function withoutResumes(s: StudioData, ids: ReadonlySet<string>): StudioData {
 export const useStudioStore = create<StudioState>()(
   persist(
     (set, get) => {
-      // A fresh edit time, so sync uploads it like any other change.
       function applyMove(id: string, move: (h: ResumeHistory, r: Resume) => HistoryMove | null) {
         const s = get();
         const current = s.resumes[id];
@@ -203,7 +182,6 @@ export const useStudioStore = create<StudioState>()(
             const now = Date.now();
             return {
               resumes: { ...s.resumes, [id]: touch(next, now) },
-              // An updater that changed nothing isn't a step anyone could undo.
               history:
                 next === current
                   ? s.history
@@ -220,9 +198,7 @@ export const useStudioStore = create<StudioState>()(
           const next = cleanTitle(title);
           const current = get().resumes[id];
           if (!next || !current) return false;
-          // The rename dialog checks first and explains; this keeps the rule for every caller.
           if (isTitleTaken(next, Object.values(get().resumes), id)) return false;
-          // An unchanged name isn't an edit: no new "edited" time, no upload.
           if (next !== current.title) {
             get().updateResume(id, (r) => ({ ...r, title: next }), { label: "Renamed the resume" });
           }
@@ -280,7 +256,6 @@ export const useStudioStore = create<StudioState>()(
           const cloudById = new Map(live.map((r) => [r.id, r]));
           const incoming = live.filter((r) => !local[r.id] || r.updatedAt > local[r.id]!.updatedAt);
           const gone = new Set(Object.keys(local).filter((id) => deleted.has(id)));
-          // One update, so subscribers (cloud sync) see the whole merge as a single change.
           if (incoming.length || gone.size) {
             set((s) => {
               const kept: StudioData = gone.size ? withoutResumes(s, gone) : s;
@@ -293,8 +268,7 @@ export const useStudioStore = create<StudioState>()(
                 reports: kept.reports,
                 exportReports: kept.exportReports,
                 versions: kept.versions,
-                // A copy replaced by a newer one from another device starts a fresh history:
-                // undoing past it would quietly bring back what was changed there.
+                // Undoing past a newer cloud copy would bring back what was changed there.
                 history: omitKeys(kept.history, new Set(incoming.map((r) => r.id))),
                 order: [
                   ...kept.order,
@@ -393,7 +367,6 @@ export const useStudioStore = create<StudioState>()(
             ...(report ? { report } : {}),
             ...(versions?.length ? { versions } : {}),
           };
-          // One update that removes exactly this resume, so sync sends it as one deletion.
           set({
             ...withoutResumes(s, new Set([id])),
             trash: freshTrash([entry, ...s.trash.filter((t) => t.resume.id !== id)], now),
@@ -415,7 +388,6 @@ export const useStudioStore = create<StudioState>()(
           set({
             resumes: { ...s.resumes, [copy.id]: copy },
             order: [copy.id, ...s.order],
-            // Filing, like duplicating: the open resume stays open unless nothing is.
             activeId: s.activeId ?? copy.id,
             reports: entry.report ? { ...s.reports, [copy.id]: entry.report } : s.reports,
             versions: versions?.length ? { ...s.versions, [copy.id]: versions } : s.versions,
@@ -434,7 +406,6 @@ export const useStudioStore = create<StudioState>()(
       name: STUDIO_STORAGE_KEY,
       version: STUDIO_STORE_VERSION,
       migrate: (persisted, fromVersion) => migrateStudio(persisted, fromVersion) as PersistedStudio,
-      // Shallow, like zustand's default, plus a cleanup: trash past its 30 days goes on load.
       merge: (persisted, current) =>
         persisted && typeof persisted === "object"
           ? {
@@ -446,7 +417,7 @@ export const useStudioStore = create<StudioState>()(
       storage: createJSONStorage(() =>
         typeof window === "undefined" ? noopStorage : quotaSafe(window.localStorage),
       ),
-      // Rehydrated explicitly in useStudioHydrated() so server and first client render match.
+      // Rehydrated in useStudioHydrated() so server and first client render match.
       skipHydration: true,
       partialize: (s): PersistedStudio => ({
         resumes: s.resumes,
@@ -465,7 +436,6 @@ export const useStudioStore = create<StudioState>()(
 const subscribeHydration = (onChange: () => void) =>
   useStudioStore.persist.onFinishHydration(onChange);
 
-// Before this the store holds defaults, not the user's data.
 export function useStudioHydrated(): boolean {
   const hydrated = useSyncExternalStore(
     subscribeHydration,

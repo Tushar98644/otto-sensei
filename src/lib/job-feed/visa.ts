@@ -5,19 +5,14 @@ import { foldCase } from "@/lib/tailor/tokens";
 
 export type VisaFacts = {
   ukSponsor: boolean;
-  // The latest US fiscal year with an approved H-1B petition (USCIS Employer Data Hub).
   h1bYear: number | null;
 };
 
-// Older petitions say little about hiring today. USCIS's newest file is FY2023, so lines name the
-// year.
 const H1B_RECENT_YEARS = 4;
 
-// Legal endings that differ between a brand and its registered name: "Acme" is "ACME, INC.".
 const LEGAL_SUFFIX =
   /\b(?:inc|incorporated|llc|l\.l\.c|ltd|limited|plc|corp|corporation|co|company|gmbh|ag|sa|sas|bv|b\.v|lp|llp|pbc|pty|uk)\b\.?/g;
 
-/** A company name folded for lookups: "Monzo Bank Ltd." -> "monzo bank". Never fuzzy. */
 export function companyKey(name: string): string {
   return foldCase(name)
     .replace(/&/g, " and ")

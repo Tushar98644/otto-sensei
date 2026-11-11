@@ -4,7 +4,6 @@ import { cn } from "@/lib/utils";
 
 export type FaqItem = { question: string; answer: ReactNode };
 
-// Native <details>: keyboard, screen reader and find-in-page support with zero JavaScript.
 export function FaqList({ items, className }: { items: readonly FaqItem[]; className?: string }) {
   return (
     <div className={cn("divide-y divide-border border-y border-border", className)}>

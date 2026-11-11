@@ -3,12 +3,10 @@
 import { useEffect } from "react";
 import { readItem, writeItem } from "@/lib/browser-storage";
 
-// The page is served from the cache, so the server never sees a visit; the browser reports one
-// instead. Once per tab per page, so refreshing adds nothing. Nothing about the visitor is sent.
+// The page is cached, so the browser reports the visit. Nothing about the visitor is sent.
 export function PortfolioViewBeacon({ slug }: { slug: string }) {
   useEffect(() => {
     const key = `otto:portfolio-viewed:${slug}`;
-    // Storage blocked: count it anyway; the server caps each page per hour.
     if (readItem(key, "session")) return;
     const send = () => {
       writeItem(key, "1", "session");

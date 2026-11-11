@@ -2,8 +2,6 @@ import { z } from "zod";
 import { isCountryCode } from "./places";
 import { WORK_RIGHTS, isTimeZone } from "./profile";
 
-// Apart from ./profile so screens that read the profile don't load zod.
-
 const RightSchema = z.enum(WORK_RIGHTS).nullable();
 
 export const WorkProfileSchema = z
@@ -19,7 +17,6 @@ export const WorkProfileSchema = z
     rights: z.object({ us: RightSchema, uk: RightSchema, eu: RightSchema, ca: RightSchema }),
     fullTime: z.boolean(),
     contract: z.boolean(),
-    // Older clients don't send it; they keep whatever is saved (see saveWorkProfile).
     remoteOnly: z.boolean().optional(),
   })
   .refine((profile) => profile.fullTime || profile.contract, {

@@ -2,10 +2,8 @@ import { z } from "zod";
 import { log } from "@/lib/log";
 import { AIError } from "./types";
 
-// Safe to log: which feature called which model. Never prompt text or resume content.
 export type AICallFields = { task: string; model: string };
 
-// Arrives with an error status, or inside a 200 when the provider failed after the status line.
 export const ErrorBodySchema = z.object({
   code: z.union([z.number(), z.string()]).optional(),
   message: z.string().optional(),
@@ -14,7 +12,6 @@ export const ErrorBodySchema = z.object({
 
 export type ErrorBody = z.infer<typeof ErrorBodySchema>;
 
-// Lets the caller tell a routing setup that can never work (503 every attempt) from a blip.
 export type CallFailure = { error: AIError; retryable: boolean; status?: number };
 
 function text(value: unknown): string | null {
@@ -27,7 +24,6 @@ function moderationReasons(body: ErrorBody | null): string[] | null {
   return Array.isArray(reasons) ? reasons.filter((reason) => typeof reason === "string") : null;
 }
 
-// status may also be the code inside a 200 error body.
 export function statusFailure(
   status: number,
   body: ErrorBody | null,
@@ -47,17 +43,15 @@ export function statusFailure(
     return fail(new AIError("rate_limited", "The AI provider is rate limiting requests"), true);
   }
   if (status === 408 || status >= 500) {
-    // 502: the model is down or answered badly; 503: no provider meets the routing rules right now.
     log.warn("ai.unavailable", detail);
     return fail(new AIError("unavailable", "The AI model is unavailable right now"), true);
   }
   if (status === 401) {
-    // A bad or revoked key takes every AI feature down at once, so it has to stand out.
     log.error("ai.auth_failed", new Error("OpenRouter rejected the API key"), detail);
     return fail(new AIError("unavailable", "OpenRouter rejected the API key"), false);
   }
   if (status === 402) {
-    // Spend-in-flight cap for new and low-balance accounts; it clears as running calls finish.
+    // OpenRouter's in-flight spend cap (new, low-balance accounts) clears as running calls finish.
     if (text(body?.metadata?.limit_source) === "openrouter_in_flight_budget") {
       log.warn("ai.in_flight_budget", detail);
       return fail(new AIError("rate_limited", "Too many AI calls are running at once"), true);
@@ -71,12 +65,10 @@ export function statusFailure(
       log.warn("ai.refused", { ...detail, reasons: reasons?.join(",") ?? null });
       return fail(new AIError("refused", "The AI provider declined this request"), false);
     }
-    // Guardrails, key permissions or a spending limit set in the OpenRouter dashboard.
     log.error("ai.forbidden", new Error("OpenRouter refused the request"), detail);
     return fail(new AIError("unavailable", "OpenRouter refused the request"), false);
   }
   if (status === 404) {
-    // An unknown AI_MODEL, or no allowed provider serves it.
     log.error("ai.no_route", new Error("OpenRouter found no route for the model"), detail);
     return fail(new AIError("unavailable", "The AI model isn't available"), false);
   }
@@ -84,7 +76,6 @@ export function statusFailure(
     log.warn("ai.request_too_large", detail);
     return fail(new AIError("too_long", "The request is too large for the AI model"), false);
   }
-  // Requests are built in code, so any other 4xx is our bug, not something the person did.
   log.error("ai.bad_request", new Error("OpenRouter rejected the request"), detail);
   return fail(new AIError("invalid_output", "The AI provider rejected the request"), false);
 }
@@ -100,8 +91,7 @@ export function thrownFailure(error: unknown, fields: AICallFields): CallFailure
     log.warn("ai.deadline_exceeded", fields);
     return { error: new AIError("unavailable", "The AI model took too long to answer"), retryable: false };
   }
-  // fetch()'s TypeError message can quote request headers (a malformed key), so only the cause is
-  // logged.
+  // A fetch TypeError message can quote request headers (a bad key): log only the cause.
   if (error instanceof TypeError) {
     log.warn("ai.unavailable", { ...fields, status: null, cause: causeCode(error) });
     return { error: new AIError("unavailable", "Couldn't reach the AI provider"), retryable: true };

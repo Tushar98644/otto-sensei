@@ -5,8 +5,6 @@ import { matchCache } from "@/db/schema";
 import { log } from "@/lib/log";
 import { DAY_MS } from "@/lib/time";
 
-// Kept for the day. The key holds every input, so nothing is invalidated by hand.
-
 export type CacheParts = {
   variant: string;
   builtAt: number;
@@ -38,7 +36,6 @@ export async function readMatchCache<T>(db: Db, userId: string, key: string): Pr
       .limit(1);
     return row ? (row.value as T) : null;
   } catch (error) {
-    // Before the migration, or a cache problem: rank afresh.
     log.warn("jobs.cache_read_failed", {}, error);
     return null;
   }

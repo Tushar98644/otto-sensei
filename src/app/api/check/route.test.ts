@@ -16,7 +16,6 @@ function file(bytes: Uint8Array, name: string): File {
   return new File([new Uint8Array(bytes)], name);
 }
 
-// Like the studio's "check my new PDF": a Blob with a file name, sent as multipart form data.
 function check(entry: Blob, name = "resume.pdf"): Request {
   const form = new FormData();
   form.append("file", entry, name);

@@ -4,20 +4,16 @@ import { cn } from "@/lib/utils";
 
 export type SectionProps = {
   id?: string;
-  // Id of the section's heading, so the region is named for screen readers.
   labelledBy: string;
   className?: string;
   children: ReactNode;
 };
 
-// One paper background for the whole page: sections are told apart by space and type, never by
-// white bands or rules between them. Top padding only, so two sections never stack their gaps.
 export function Section({ id, labelledBy, className, children }: SectionProps) {
   return (
     <section
       id={id}
       aria-labelledby={labelledBy}
-      // Keeps in-page jumps (/#how) from tucking the section under the sticky header.
       className={cn("scroll-mt-16 pt-24 sm:pt-32", className)}
     >
       <div className="container-page">{children}</div>
@@ -26,13 +22,10 @@ export function Section({ id, labelledBy, className, children }: SectionProps) {
 }
 
 export type SectionHeaderProps = {
-  // Becomes the <h2> id; pass the same value as the Section's labelledBy.
   id: string;
   eyebrow?: string;
   title: ReactNode;
   children?: ReactNode;
-  // Left-aligned by default. Only the hero and the final call to action are centered, so the
-  // page doesn't repeat one centered stack all the way down.
   align?: "center" | "start";
   className?: string;
 };
@@ -70,7 +63,6 @@ export function SectionHeader({
 export type MomentCaptionProps = {
   title: ReactNode;
   children: ReactNode;
-  // h3 when the caption names a step of a list (How it works); a plain line otherwise.
   titleAs?: "h3" | "p";
   titleId?: string;
   otto?: ReactNode;

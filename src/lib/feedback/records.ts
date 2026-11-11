@@ -3,10 +3,7 @@ import { getDb } from "@/db/client";
 import { feedback, users } from "@/db/schema";
 import type { FeedbackInput } from "./types";
 
-// Read by the owner in the Supabase table editor.
-
-// The account is looked up inside the insert, so a note sent during account deletion is kept
-// without it instead of failing on the foreign key.
+// Looked up inside the insert, so a note sent mid account deletion can't fail the foreign key.
 export async function saveFeedback(
   input: FeedbackInput,
   userId: string | null,

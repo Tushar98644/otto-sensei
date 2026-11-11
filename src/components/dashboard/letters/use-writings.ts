@@ -8,12 +8,9 @@ import { WRITINGS } from "@/lib/queries/keys";
 import { writingsQuery } from "@/lib/queries/options";
 import type { Writing } from "@/lib/writings/schema";
 
-// Changes go into the shared cache as they happen, so the board's letter marks see them too.
-
 export type WritingsState = {
   status: "loading" | "ready" | "error";
   items: Writing[];
-  // How many the account keeps in all; the list holds the newest WRITING_LIMITS.listed.
   total: number;
   retry: () => void;
   add: (writing: Writing) => void;
@@ -25,8 +22,7 @@ export type WritingsState = {
 type Writings = { items: Writing[]; total: number };
 
 const NONE: Writing[] = [];
-// Deletes still inside their undo window: the server keeps them until then, so a fresh load must
-// not bring them back.
+// Deletes in their undo window: the server still has them, so a fresh load must not restore them.
 const hidden = new Set<string>();
 
 function update(change: (data: Writings) => Writings) {
@@ -35,7 +31,6 @@ function update(change: (data: Writings) => Writings) {
   );
 }
 
-/** After a letter or answer is written somewhere else (the studio): lists read it again. */
 export function forgetWritings(): void {
   void getQueryClient().invalidateQueries({ queryKey: WRITINGS });
 }

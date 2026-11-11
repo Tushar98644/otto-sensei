@@ -36,7 +36,6 @@ export function DashboardHome() {
   const resumes = useResumeList();
   const { me } = useMe();
   const actions = useStudioActions();
-  // The action scenes draw a real page: the newest resume, or the sample until there is one.
   const [sample] = useState(() => createSampleResume(0));
   const groups = useMemo(() => groupResumes(resumes), [resumes]);
   const recent = useMemo(() => recentResumes(resumes, RECENT), [resumes]);
@@ -66,7 +65,6 @@ export function DashboardHome() {
             }
           />
         </div>
-        {/* The sidebar has this on wide screens. */}
         <NewResumeMenu actions={actions} className="lg:hidden" />
       </header>
 
@@ -102,7 +100,6 @@ export function DashboardHome() {
       </section>
 
       <FolderCard tab="At a glance" bodyClassName="overflow-hidden p-0">
-        {/* Hairlines between the numbers: the 1px gaps let the border color show through. */}
         <dl className="grid grid-cols-2 gap-px bg-border lg:grid-cols-4">
           <Stat
             label="Resumes"
@@ -132,7 +129,6 @@ export function DashboardHome() {
                     : `Across ${pluralize(groups.length, "resume")}`
                 : null
             }
-            // The count opens the editor on the first weak line, with "Fix with Otto" beside it.
             action={
               hydrated && firstWeak
                 ? {
@@ -206,7 +202,6 @@ export function DashboardHome() {
   );
 }
 
-// Short enough for a stat's note: "on Dec 17", or "when your plan renews" with no date known.
 function resetOn(period: UsagePeriod | null | undefined): string {
   const day = resetDay(period);
   return day ? `on ${day}` : "when your plan renews";
@@ -234,8 +229,6 @@ type ActionCardProps = {
   detail: string;
 } & ({ onClick: () => void; href?: never } | { href: string; onClick?: never });
 
-// The title's ::after stretches over the whole card, so the card is one big target without
-// nesting the folder inside a button.
 function ActionCard({ tab, art, title, detail, ...target }: ActionCardProps) {
   const control =
     "inline-flex items-center gap-1.5 text-base/6 font-medium text-ink outline-none after:absolute after:inset-0 after:rounded-2xl";

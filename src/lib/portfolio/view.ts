@@ -5,11 +5,8 @@ import { isLinkText } from "@/lib/resume/sections";
 import { shareSnapshot } from "@/lib/share/snapshot";
 import { PORTFOLIO_SECTIONS, type PortfolioSection, type PortfolioSettings } from "./types";
 
-// Templates get only this, never the resume, so a hidden section or phone number can't slip in.
-
 export type PortfolioLink = {
   label: string;
-  // "github.com/octocat": shorter than the address, and what a reader would type.
   text: string;
   href: string | null;
   kind: "github" | "linkedin" | "web";
@@ -19,7 +16,6 @@ export type PortfolioProject = {
   id: string;
   name: string;
   href: string | null;
-  // "github.com", "maya.dev"; "" without a link.
   host: string;
   repo: string | null;
   lines: string[];
@@ -30,7 +26,6 @@ export type PortfolioRole = {
   title: string;
   company: string;
   location: string;
-  // "Jan 2022 – Present"; start and end as written, for templates that set them apart.
   dates: string;
   start: string;
   end: string;
@@ -62,7 +57,6 @@ export type PortfolioView = {
   name: string;
   headline: string;
   location: string;
-  // Null unless the owner turned it on.
   email: string | null;
   phone: string | null;
   about: string[];
@@ -76,13 +70,11 @@ export type PortfolioView = {
   extras: PortfolioExtra[];
   titles: Record<Exclude<PortfolioSection, "links" | "extras">, string>;
   updatedAt: number;
-  // So what the owner wrote for hidden sections in the content editor stays off the page too.
   hidden: PortfolioSection[];
 };
 
 export type ViewSettings = Pick<PortfolioSettings, "showEmail" | "showPhone" | "hiddenSections">;
 
-// Control codes are icon-font glyphs a PDF read leaves behind.
 const clean = (value: string) =>
   value
     .replace(/\p{Cc}/gu, " ")
@@ -112,8 +104,7 @@ function hostOf(href: string | null): string {
   }
 }
 
-// A summary that is only the contact line, as older reads of icon-font resumes left it: it would
-// show the phone on the page.
+// A summary that is only the contact line would put the phone on the page.
 function isContactLine(paragraph: string, contact: readonly string[]): boolean {
   let rest = paragraph;
   for (const value of contact) rest = rest.split(value).join(" ");
@@ -135,7 +126,6 @@ function toLink(label: string, url: string): PortfolioLink | null {
 function githubProfile(resume: Resume, links: PortfolioLink[]): PortfolioLink | null {
   const own = links.find((link) => link.kind === "github");
   if (own) return own;
-  // Repos brought in by "Import from GitHub" name their owner; their most common one is the person.
   const owners = new Map<string, number>();
   for (const project of resume.projects) {
     const repo = repoOf(project.link);
@@ -152,7 +142,6 @@ function githubProfile(resume: Resume, links: PortfolioLink[]): PortfolioLink | 
 }
 
 export function portfolioView(source: Resume, settings: ViewSettings): PortfolioView {
-  // The same copy a share link keeps: hidden lines, entries and sections stay out.
   const resume = shareSnapshot(source);
   const hidden = new Set(settings.hiddenSections);
   const on = (section: PortfolioSection) => !hidden.has(section);

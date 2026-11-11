@@ -6,11 +6,6 @@ import { refreshMe } from "@/components/account/use-me";
 import { toast } from "@/components/ui/toast";
 import { BILLING_INTERVALS, PAID_PLANS, type BillingInterval, type PaidPlanId } from "@/config/plans";
 
-// How the visitor got here. Pricing links and the billing routes send people back with:
-//   ?upgrade=1                   start checkout (sign in first if needed)
-//   &plan=pro|max&interval=...   which plan and billing option, picked on the pricing page
-//   ?checkout=success|cancelled  back from the payment page (with &plan= for the plan bought)
-//   ?portal=mock                 back from the test-mode billing portal, which switched them to Free
 export type AccountArrival = {
   upgrade: boolean;
   plan: PaidPlanId | null;
@@ -25,8 +20,6 @@ function oneOf<T extends string>(value: string | null, options: readonly T[]): T
   return value !== null && (options as readonly string[]).includes(value) ? (value as T) : null;
 }
 
-// Read once, then dropped from the address bar, so a refresh or a bookmark doesn't reopen the
-// upgrade dialog or say thanks for a payment twice.
 export function useAccountArrival(): AccountArrival {
   const searchParams = useSearchParams();
   const [arrival] = useState<AccountArrival>(() => {
@@ -54,9 +47,7 @@ export function useAccountArrival(): AccountArrival {
     if (arrival.portalMock) toast({ title: "Test mode: you're back on Free." });
   }, [arrival]);
 
-  // Native history keeps this page mounted; router.replace() would remount it and lose the state
-  // above. Next patches replaceState (to keep its router state in the entry, so Back still works)
-  // in its own mount effect, which runs after this child's, hence the wait for the next tick.
+  // Next patches replaceState in its own mount effect, which runs after this one: wait a tick.
   useEffect(() => {
     const timer = window.setTimeout(() => {
       const url = new URL(window.location.href);

@@ -22,23 +22,18 @@ import { OccupationSearch } from "./occupation-search";
 export type CardRole = {
   title: string;
   family: RoleFamily | null;
-  // The occupation the server read from the title; null until the first list arrives.
   occupation: OccupationOption | null;
 };
 
 export type LookingForCardProps = {
   value: LookingFor;
-  // The occupation the list was ranked for, in plain words ("Registered Nurse").
   occupation: OccupationOption | null;
   choice: LookingForChoice;
   roles: readonly CardRole[];
-  // The work profile's country, offered as a place when it isn't one of the usual ones.
   country: string;
   saving: boolean;
   onChange: (next: LookingForChoice) => void;
-  // "plain" drops the card's white sheet, for a place that already is one (a dialog, Account).
   tone?: "card" | "plain";
-  // The line under the choices; the job-name credit always follows it.
   note?: string;
 };
 
@@ -61,14 +56,11 @@ function roleName(value: Pick<LookingFor, "title" | "family">, occupation: strin
   return value.family ? `Any ${ROLE_LABELS[value.family].toLowerCase()} role` : "Any role";
 }
 
-// The occupation in plain words when it says more than the title: "Staff Nurse" is read as
-// "Registered Nurse", "Backend Engineer" as "Software Developer".
 function occupationNote(title: string, occupation: OccupationOption | null): string | null {
   if (!occupation || occupation.name.toLowerCase() === title.toLowerCase()) return null;
   return occupation.name;
 }
 
-// Guessed from the resume and work profile; changes are kept for the account and rank Matches.
 export function LookingForCard({
   value,
   occupation,

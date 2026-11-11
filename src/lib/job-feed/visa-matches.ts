@@ -1,7 +1,6 @@
 import type { BoardSeed } from "./types";
 
-// Matching by name alone is unsafe ("Kraken Technologies" is Octopus Energy's). Checked 2026-11-09
-// by the agent that built it, not yet by a person.
+// Matching by name alone is unsafe ("Kraken Technologies" is Octopus Energy's).
 
 export type RegisterNames = { uk?: readonly string[]; us?: readonly string[] };
 

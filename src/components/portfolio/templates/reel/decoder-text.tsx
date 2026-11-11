@@ -4,8 +4,7 @@ import { memo, useEffect, useRef, useState } from "react";
 import { useReel } from "./root";
 import { SpringValue } from "./spring";
 
-// HamishMW/portfolio components/decoder-text. The readable text sits in a visually hidden label;
-// the scramble beside it is for eyes only.
+// Ported from HamishMW/portfolio components/decoder-text (MIT, see ./LICENSE.txt).
 
 // prettier-ignore
 const glyphs = [

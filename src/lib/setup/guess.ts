@@ -1,11 +1,8 @@
 import { COUNTRY_CODES, findPlaces, isCountryCode, rightsRegionOf } from "@/lib/eligibility/places";
 import type { WorkRegion, WorkRight, WorkRights } from "@/lib/eligibility/profile";
 
-// Every guess is shown and confirmed before anything is saved.
-
 export type CountryGuess = { code: string; from: "resume" | "device" };
 
-/** "Lisbon, Portugal" -> "PT", "Austin, TX" -> "US". */
 export function countryInLocation(location: string): string | null {
   for (const found of findPlaces(location)) {
     if (found.place.kind === "country") return found.place.code;
@@ -13,8 +10,7 @@ export function countryInLocation(location: string): string | null {
   return null;
 }
 
-// Firefox has neither spelling, so the map comes back empty there and the zone's city is read
-// instead.
+// Firefox has neither spelling, so the map comes back empty and the zone's city is read.
 type LocaleWithZones = Intl.Locale & { getTimeZones?: () => string[]; timeZones?: string[] };
 
 let zoneCountries: Map<string, string | null> | null = null;
@@ -31,7 +27,6 @@ function zoneMap(): Map<string, string | null> {
       zones = [];
     }
     for (const zone of zones) {
-      // A zone two countries share says nothing about which one it is.
       map.set(zone, map.has(zone) && map.get(zone) !== code ? null : code);
     }
   }
@@ -48,7 +43,6 @@ function canonicalZone(zone: string): string | null {
   }
 }
 
-/** Null for "UTC" and shared zones. */
 export function countryOfTimeZone(zone: string): string | null {
   if (!zone) return null;
   const canonical = canonicalZone(zone);
@@ -62,7 +56,6 @@ export function countryOfTimeZone(zone: string): string | null {
   return city ? countryInLocation(city) : null;
 }
 
-// The newest resume that names a country, else this device's time zone.
 export function guessCountry({
   locations,
   timeZone,
@@ -78,13 +71,10 @@ export function guessCountry({
   return code ? { code, from: "device" } : null;
 }
 
-/** "PT" -> "eu", "NO" -> null. */
 export function homeRegion(country: string): WorkRegion | null {
   return isCountryCode(country) ? rightsRegionOf({ kind: "country", code: country }) : null;
 }
 
-// `auto`: the region the step set itself, so a country change can take that guess back, never an
-// answer.
 export type RightsDraft = { rights: WorkRights; auto: WorkRegion | null };
 
 export function moveHomeRegion(draft: RightsDraft, country: string): RightsDraft {

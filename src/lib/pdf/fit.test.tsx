@@ -27,7 +27,6 @@ describe("fitCandidates", () => {
     const ids = lines.map((line) => line.bulletId);
     expect(ids[0]).toBe("weak");
     expect(ids).not.toContain("lead");
-    // Each job and project keeps its first line.
     for (const first of ["b4", "b8"]) expect(ids).not.toContain(first);
     expect(lines[0]).toMatchObject({
       place: "Senior Backend Engineer at Northwind Payments",
@@ -60,7 +59,6 @@ describe("fitCandidates", () => {
         createdAt: 0,
       },
     };
-    // Requirements saved with newer copies count too.
     Object.assign(resume.tailor!, {
       requirements: [{ text: "AWS cost work", importance: "must", terms: ["AWS"] }],
     });
@@ -97,7 +95,6 @@ describe("planFit", () => {
     const lines = fitCandidates(resume);
     const total = shownLines(resume).length;
     let renders = 0;
-    // Pretend the page holds total - 3 lines.
     const plan = await planFit(resume, lines, async (candidate) => {
       renders += 1;
       return shownLines(candidate).length <= total - 3 ? 1 : 2;

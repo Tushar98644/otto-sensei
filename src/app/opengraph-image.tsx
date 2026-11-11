@@ -18,8 +18,6 @@ const COLORS = {
   lavender: "#EBE5FF",
 };
 
-// Static: no request data, so Next renders this once at build time and serves it from the CDN.
-// Uses next/og's bundled font on purpose, so the build never needs the network.
 export default function OpenGraphImage() {
   return new ImageResponse(
     <div

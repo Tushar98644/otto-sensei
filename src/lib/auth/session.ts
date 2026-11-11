@@ -10,8 +10,6 @@ import { devGitHubConnection, githubConnectionOf } from "./github";
 import { authErrorFields, isSignedOutError } from "./supabase-errors";
 import type { AuthMode, SessionUser } from "./types";
 
-// Sessions belong to Supabase Auth (httpOnly "sb-..." cookies, refreshed by src/proxy.ts).
-
 export function authMode(): AuthMode {
   if (devAuthActive()) return "dev";
   return supabaseAuthConfigured() ? "supabase" : "off";
@@ -19,12 +17,10 @@ export function authMode(): AuthMode {
 
 export type CurrentAccount = {
   user: SessionUser;
-  // The only GitHub account GitHub features may read.
   github: GitHubConnection | null;
 };
 
-// Asks Supabase every call (getUser, not getClaims) so a revoked session stops working at once.
-// Throws when Supabase can't answer, so an outage can't sign every visitor out.
+// getUser, not getClaims: a revoked session stops at once. Throws so an outage signs nobody out.
 export async function getCurrentAccount(): Promise<CurrentAccount | null> {
   if (devAuthActive()) {
     const user = await getDevUser();
@@ -39,7 +35,6 @@ export async function getCurrentAccount(): Promise<CurrentAccount | null> {
     throw new Error("Supabase Auth is unavailable", { cause: error });
   }
   const { id, email } = data.user;
-  // Every sign-in method here proves an address, so a user without one isn't ours.
   if (!email) return null;
   return {
     user: toSessionUser(await ensureUser({ id, email })),
@@ -51,7 +46,6 @@ export async function getCurrentUser(): Promise<SessionUser | null> {
   return (await getCurrentAccount())?.user ?? null;
 }
 
-// Other devices stay signed in. The cookies go even when Supabase can't be reached.
 export async function clearSession(): Promise<void> {
   if (devAuthActive()) return clearDevSession();
   const supabase = await createSupabaseServerClient();

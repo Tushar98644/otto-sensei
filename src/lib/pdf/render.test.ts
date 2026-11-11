@@ -23,7 +23,6 @@ describe("renderResumePdf", () => {
     const pdf = await getDocumentProxy(bytes);
     try {
       const { text } = await extractText(pdf, { mergePages: true });
-      // Classic: the employer on its line, the title under it.
       expect(text.replace(/\s+/g, " ")).toContain("Feedzai Data Analyst");
       const page = await pdf.getPage(1);
       expect(page.view.map(Math.round)).toEqual([0, 0, 595, 842]);

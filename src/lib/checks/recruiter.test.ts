@@ -33,7 +33,6 @@ function find(report: RecruiterReport, id: CheckId) {
   return result;
 }
 
-// Contract every report must meet, whatever the input.
 function expectWellFormed(report: RecruiterReport, extraction: Extraction) {
   expect(report.checks.map((check) => check.id).sort()).toEqual([...ALL_CHECKS].sort());
   const rank = { fail: 0, warn: 1, pass: 2 };
@@ -53,7 +52,6 @@ function expectWellFormed(report: RecruiterReport, extraction: Extraction) {
     expect(sentences.length, check.detail).toBeLessThanOrEqual(2);
     if (check.status === "pass") expect(check.fix).toBeNull();
     else expect(check.fix?.length, check.id).toBeGreaterThan(10);
-    // Honest about scope: never claims every system behaves the same way.
     expect(`${check.detail} ${check.fix ?? ""}`).not.toMatch(/\b(?:all|every) (?:ats|applicant tracking|systems?)\b/i);
   }
 }
@@ -127,7 +125,6 @@ describe("runRecruiterChecks on real files", () => {
       sections: "pass",
       dates: "pass",
     });
-    // Headings are found even when the columns put them side by side.
     expect(report.sectionsFound).toEqual(expect.arrayContaining(["experience", "skills", "education"]));
     expect(find(report, "images").detail).toBe("We found 1 image. Logos, photos and skill bars are invisible to hiring software.");
   });
@@ -166,7 +163,6 @@ describe("runRecruiterChecks on real files", () => {
     );
     expect(find(report, "contact-email").fix).toBe("Move your email out of the page header and into the main text.");
     expect(find(report, "text-boxes").detail).toContain("1 text box.");
-    // "Skills: Python, SQL, Tableau" counts as a skills section.
     expect(report.sectionsFound).toEqual(["experience", "skills", "education"]);
   });
 });
@@ -211,7 +207,6 @@ describe("runRecruiterChecks on specific problems", () => {
     const docx = fakeExtraction(resumeLines({ experience: [paragraph, paragraph] }), { kind: "docx" });
     expect(find(runRecruiterChecks(docx, NOW), "bullets")).toMatchObject({ status: "warn", title: "Long paragraphs in your jobs" });
 
-    // In a PDF a paragraph is several full-width lines without markers.
     const wrapped = Array.from({ length: 4 }, (_, i) => `${"Managed the team and many projects across regions ".repeat(2)}line ${i}`);
     const pdf = fakeExtraction(resumeLines({ experience: [...wrapped, "Short end."] }));
     expect(find(runRecruiterChecks(pdf, NOW), "bullets").status).toBe("warn");

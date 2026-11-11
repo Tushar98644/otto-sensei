@@ -11,7 +11,6 @@ import type { PortfolioView } from "./view";
 
 export const clean = (value: string) => value.replace(/\s+/g, " ").trim();
 
-// A full stop only ends a sentence before a space or the end, so "Next.js" and "gmail.com" stay whole.
 export function sentences(text: string): string[] {
   return (clean(text).match(/(?:[^.!?]|[.!?](?!\s|$))+(?:[.!?]+(?=\s|$)|$)/g) ?? [])
     .map(clean)
@@ -26,7 +25,6 @@ export function clip(text: string, max: number): string {
   return `${(space > max * 0.6 ? cut.slice(0, space) : cut).replace(/[,;:\s]+$/, "")}…`;
 }
 
-/** Never half a sentence unless one is too long. */
 export function wholeSentences(list: readonly string[], max: number): string {
   let out = "";
   for (const sentence of list) {
@@ -47,7 +45,6 @@ export function initialsOf(name: string): string {
 
 export const escapeRegex = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
-/** Whole word, case-insensitive ("Node.js", "C++" included). */
 export function mentions(text: string, term: string): boolean {
   const value = term.trim();
   if (value.length < 1) return false;
@@ -144,7 +141,6 @@ export function socialKindOf(href: string): SocialKind {
   return "website";
 }
 
-/** What a reader would recognise: "jordanellis", "in/jordan-ellis", "@jordanbuilds", "jordanellis.dev". */
 export function socialHandle(kind: SocialKind, href: string): string {
   if (kind === "email") return href.replace(/^mailto:/, "");
   let url: URL;
@@ -192,7 +188,6 @@ export function toSocial(
   };
 }
 
-/** Longest phrase first, so "Ledgerly Pay" wins over "Ledgerly". */
 export function markParts(paragraph: string, highlights: readonly string[]): TextPart[] {
   const terms = [...new Set(highlights.map(clean).filter(Boolean))].sort(
     (a, b) => b.length - a.length,

@@ -73,7 +73,6 @@ describe("dates", () => {
   it("counts only the months two spans surely share", () => {
     const a = parseRange("2019", "2020", 0);
     const b = parseRange("Dec 2020", "2021", 0);
-    // "2020" could end in January, so nothing is sure.
     expect(sureOverlap(a as never, b as never)).toBe(0);
   });
 
@@ -125,7 +124,6 @@ describe("dates", () => {
       experience: [
         job("new", { startDate: "Jun 2021", endDate: "Present" }),
         job("old", { startDate: "Jan 2019", endDate: "Dec 2021" }),
-        // A month of handover is normal.
         job("handover", { startDate: "Jan 2017", endDate: "Feb 2019" }),
       ],
     });
@@ -172,13 +170,11 @@ describe("tools named before they existed", () => {
     expect(year("Styled with Tailwind CSS")).toEqual(["Tailwind", 2017, 11]);
   });
 
-  // The quick name scans that run first must never hide a match the full patterns would find.
   it("finds names in any case, with any spacing, and nothing in a line without one", () => {
     expect(findTools("Cut API latency by 40% with a cache")).toEqual([]);
     expect(findTools("Automated releases with github   actions").map((m) => m.tool.name)).toEqual(
       ["GitHub Actions"],
     );
-    // Unicode case folding: the Kelvin sign is a capital K.
     expect(findTools("Ran K8s clusters").map((m) => [m.tool.name, m.text])).toEqual([
       ["Kubernetes", "K8s"],
     ]);
@@ -207,10 +203,8 @@ describe("tools named before they existed", () => {
     expect(findTools("Scheduled 400 pins a month with Tailwind")).toEqual([]);
     expect(findTools("Copilot on 300 regional flights")).toEqual([]);
     expect(findTools("Designed a svelte packaging line")).toEqual([]);
-    // Context makes the bare name count.
     expect(findTools("Moved events onto Kafka topics").map((m) => m.tool.name)).toEqual(["Kafka"]);
     expect(findTools("Built Vue components").map((m) => m.tool.name)).toEqual(["Vue"]);
-    // A job title starts with the name because it is the name.
     expect(findTools("React Developer", { heading: true }).map((m) => m.tool.name)).toEqual([
       "React",
     ]);
@@ -246,7 +240,6 @@ describe("tools named before they existed", () => {
   });
 
   it("gives the benefit of the doubt when the end date is only a year", () => {
-    // React came out in May 2013; a job ending "2013" may have run to December.
     const resume = resumeWith({
       experience: [
         job("a", {
@@ -417,7 +410,6 @@ describe("runSendCheck", () => {
     expect(runSendCheck(resume, { now: NOW }).map((item) => item.id)).toEqual(
       first.map((item) => item.id),
     );
-    // Editing the text changes the id, so a dismissed item can come back.
     const edited = structuredClone(resume);
     edited.experience[0]!.bullets[0]!.text = "Grew signups [Y%].";
     expect(runSendCheck(edited, { now: NOW })[0]!.id).not.toBe(first[0]!.id);

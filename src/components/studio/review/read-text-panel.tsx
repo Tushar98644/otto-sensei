@@ -35,7 +35,6 @@ export function ReadTextPanel({ report, hideHeading = false }: ReadTextPanelProp
         </p>
       </div>
       {lines.length > 0 ? (
-        // Focusable so keyboard users can scroll it.
         <div
           tabIndex={0}
           role="region"

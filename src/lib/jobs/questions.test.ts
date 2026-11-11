@@ -3,7 +3,6 @@ import { greenhousePosting } from "./boards";
 import { greenhouseQuestions } from "./questions";
 import { GREENHOUSE_JOB } from "./test-fixtures";
 
-// Shaped like GitLab's live form (?questions=true, November 2026), cut down.
 const QUESTIONS = [
   { label: "First Name", required: true, fields: [{ name: "first_name", type: "input_text", values: [] }] },
   {

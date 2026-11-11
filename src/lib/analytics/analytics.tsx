@@ -5,17 +5,11 @@ import { useEffect, useSyncExternalStore } from "react";
 import { useMe } from "@/components/account/use-me";
 import { analyticsEnabled, identifyUser, resetUser, startAnalytics } from "./client";
 
-// Keeps PostHog's distinct id in step with the account: user id when signed in, anonymous
-// otherwise.
-
 const noChanges = () => () => {};
 
-// Elsewhere the SDK keeps the id it has, so a landing or share visit never costs an /api/me
-// request.
 const ACCOUNT_PAGES = /^\/(?:studio|dashboard|account|login)(?:\/|$)/;
 
 export function Analytics() {
-  // false on the server and during hydration, so both render the same.
   const enabled = useSyncExternalStore(noChanges, analyticsEnabled, () => false);
   const pathname = usePathname();
 
@@ -28,7 +22,7 @@ export function Analytics() {
 
 function IdentitySync() {
   const { me } = useMe();
-  // A failed /api/me leaves `me` null: that's "unknown", not "signed out", so nobody is reset.
+  // A failed /api/me leaves `me` null: unknown, not signed out, so nobody is reset.
   const known = me !== null;
   const id = me?.user?.id ?? null;
   const plan = me?.user?.plan ?? null;

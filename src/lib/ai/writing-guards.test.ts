@@ -68,7 +68,6 @@ describe("clichesIn and dropClichedSentences", () => {
       ],
       dropped: 2,
     });
-    // Cutting would leave less than the floor, so the draft stays as it was.
     expect(dropClichedSentences(paragraphs, 40)).toEqual({ paragraphs, dropped: 0 });
   });
 });

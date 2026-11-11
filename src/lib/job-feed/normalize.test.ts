@@ -54,7 +54,6 @@ describe("normalizeJob", () => {
     const [raw] = parseGreenhouse(GREENHOUSE_BOARD, "Vercel");
     const job = normalizeJob({ ...raw!, title: "Engineer", text: texts[0]! }, NOW, boilerplate);
     expect(job.keywords).toEqual(["Go"]);
-    // A source that can be read again keeps no text; one that can't keeps the post as written.
     expect(job.description).toBe("");
     const kept = normalizeJob(
       { ...raw!, title: "Engineer", text: texts[0]! },
@@ -97,7 +96,6 @@ describe("normalizeJob", () => {
       post("Toronto", "CA$120,000 - CA$140,000"),
     );
     expect(uk).toBe(canada);
-    // Same title, different job: the text tells them apart.
     const other = groupKey(
       "Acme",
       "Account Executive",
@@ -175,7 +173,6 @@ describe("BOARD_SEEDS", () => {
     for (const seed of BOARD_SEEDS) {
       expect(seed.company.trim()).not.toBe("");
       expect(seed.token).toMatch(/^[a-z0-9][a-z0-9._-]{0,99}$/i);
-      // Recruitee and Personio put the token in the host name.
       if (seed.ats === "recruitee" || seed.ats === "personio")
         expect(seed.token).toMatch(/^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/);
     }

@@ -12,8 +12,6 @@ import { pluralize } from "@/lib/utils";
 import { openSendCheckTarget } from "./jump";
 import { useSendCheck } from "./use-send-check";
 
-// None of these blocks the download: each can be fixed in place or marked correct.
-
 const FIRST_SHOWN = 4;
 
 function Item({
@@ -69,7 +67,6 @@ export function SendCheckCard({ resume }: { resume: Resume }) {
   const shown = showAll ? items : items.slice(0, FIRST_SHOWN);
   const more = items.length - shown.length;
 
-  // The item goes away under the focus, so focus moves to the next one's "Fix it" (or the title).
   function ok(item: SendCheckItem) {
     const index = items.indexOf(item);
     const next = items[index + 1] ?? items[index - 1];

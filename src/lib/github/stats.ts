@@ -107,7 +107,7 @@ export function githubStatsFrom(
 
 type StoredStats = GitHubStats & { connected: true };
 
-// The mark is what makes a copy count: older copies were read for whatever username the page named.
+// Only marked copies count: older ones were read for whatever username the page named.
 export function storedStats(stats: GitHubStats): StoredStats {
   return { ...stats, connected: true };
 }
@@ -119,7 +119,6 @@ export function parseStoredStats(value: unknown): GitHubStats | null {
   if (typeof stats.username !== "string" || typeof stats.fetchedAt !== "number") return null;
   if (!Array.isArray(stats.repos) || !Array.isArray(stats.languages) || !stats.activity)
     return null;
-  // Copies saved before 2026-11-10 carry an avatar address; pages draw no pictures, so it's dropped.
   const { avatarUrl, connected, ...rest } = stats as StoredStats & { avatarUrl?: unknown };
   void avatarUrl;
   void connected;

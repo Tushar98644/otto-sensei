@@ -22,7 +22,6 @@ export type NewResumeMenuProps = {
   className?: string;
 };
 
-// One primary button, so a page never shows six competing ones.
 export function NewResumeMenu({ actions, size = "md", align = "start", className }: NewResumeMenuProps) {
   return (
     <Menu

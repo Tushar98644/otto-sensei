@@ -5,16 +5,8 @@ import { textTokens } from "@/lib/tailor/tokens";
 import { lintResume, lintSummary } from "./bullets";
 import type { LintIssue, LintIssueId, LintSeverity, ResumeLint } from "./types";
 
-// Groups the line lint into a handful of fixes across the resume, most important first. Sources:
-// projects/resume-app/RESUME-CHECKS-RESEARCH.md.
-
 export type ReviewItemId =
-  | LintIssueId
-  // A job missing its title, company or dates: the first things a recruiter's eye looks for.
-  | "first-look"
-  | "summary-voice"
-  | "skills-unshown"
-  | "headline";
+  LintIssueId | "first-look" | "summary-voice" | "skills-unshown" | "headline";
 
 export type ReviewTarget =
   | { kind: "line"; bulletId: string }
@@ -34,7 +26,6 @@ export type ReviewItem = {
   severity: LintSeverity;
   title: string;
   reason: string;
-  // `more` counts the rest.
   lines: ReviewLine[];
   more: number;
   target: ReviewTarget | null;
@@ -47,14 +38,10 @@ export type ResumeReview = {
 
 export const MAX_TOP = 3;
 const MAX_LINES = 5;
-// "Add a number" applies to most lines of most resumes. Listing every one buries the rest.
 const MAX_NUMBER_LINES = 3;
 const MAX_SKILL_NAMES = 5;
-// Longer items in a skills list are descriptions ("Building teams from scratch"), not names a
-// recruiter would search for.
 const MAX_SKILL_WORDS = 3;
 
-// Lower comes first. Fixed, so the same resume always lists its fixes in the same order.
 const RANK: Record<ReviewItemId, number> = {
   "first-look": 0,
   duty: 1,
@@ -75,7 +62,6 @@ const RANK: Record<ReviewItemId, number> = {
   "no-number": 16,
   punctuation: 17,
 };
-// Tips that apply to many resumes, kept out of "Fix these first" while anything else is left.
 const FILLERS: readonly ReviewItemId[] = ["no-number", "punctuation"];
 
 type Group = { title: (count: number) => string; reason: string };
@@ -288,8 +274,6 @@ function lineGroups(resume: Resume, lint: ResumeLint): ReviewItem[] {
   });
 }
 
-// High-severity items lead; "add a number" and full stops only fill the last places, so they never
-// drown out a missing result or a duty line.
 export function rankReview(items: readonly ReviewItem[]): ResumeReview {
   const sorted = [...items].sort(
     (a, b) =>

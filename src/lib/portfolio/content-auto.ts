@@ -24,11 +24,7 @@ import { bestMetric, compactNumber, metricText, topMetrics } from "./metrics";
 import { findPlace } from "./places";
 import type { PortfolioExtra, PortfolioView } from "./view";
 
-// Automatic (null) content fields, by rules (no AI) from the resume as the page shows it and the
-// stored GitHub numbers. ./content-view.ts merges the owner's values on top.
-
 export const ACTIVE_MS = 90 * DAY_MS;
-// A number has to be this clear (./metrics.ts scores) to stand alone as a highlight or a stat.
 const HIGHLIGHT_SCORE = 60;
 
 export type AutoProject = Omit<ContentProject, "device" | "monogram" | "details" | "roles">;
@@ -204,7 +200,6 @@ export function autoContent(
     const repo = findRepo(github, fullName);
     const lines =
       project.lines.length > 0 ? project.lines : repo?.description ? [repo.description] : [];
-    // "Go · Postgres · AWS" under a project's name is its stack, which designs draw as tags.
     const prose = lines.filter((line) => !isTagLine(line));
     const firstLine = sentences(prose[0] ?? "")[0] ?? "";
     const metrics = topMetrics(lines, 2).map(metricText);
@@ -229,7 +224,6 @@ export function autoContent(
       from: "resume",
       name: project.name,
       line: clip(firstLine, 200),
-      // Resume lines often have no full stop; joined as they are, they'd run into each other.
       description: clip(
         prose.map((line) => (/[.!?…:;]$/.test(line) ? line : `${line}.`)).join(" "),
         1200,
@@ -347,7 +341,6 @@ export function autoContent(
   const interestItems = extrasMatching(view, SECTION_MATCH.interests);
   const interests: AutoContent["interests"] = interestItems.flatMap((item) => {
     const words = `${item.title}${item.detail ? `, ${item.detail}` : ""}`;
-    // "Bouldering, film photography, cycling" as one line becomes three interests.
     if (interestItems.length === 1 && !item.lines.length && words.includes(",")) {
       return words
         .split(/\s*[,;·]\s*/)
@@ -370,7 +363,6 @@ export function autoContent(
     ];
   });
 
-  // "Now": what the person pushed to most recently, when it was lately.
   const now_: AutoContent["now"] = [];
   const latest = github?.repos
     .filter((repo) => repo.pushedAt && now - Date.parse(repo.pushedAt) <= 60 * DAY_MS)

@@ -15,7 +15,6 @@ export type SignInDialogProps = {
 
 const DEFAULT_REASON = `A free account lets ${BRAND.mascotName} fix lines and tailor your resume.`;
 
-// The form only exists while open, so every opening starts fresh at the email step.
 export function SignInDialog({ open, onOpenChange, reason, onSignedIn }: SignInDialogProps) {
   return (
     <Dialog

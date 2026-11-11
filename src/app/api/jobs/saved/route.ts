@@ -8,7 +8,6 @@ import { log } from "@/lib/log";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-// Readable on every plan: a Free account keeps the jobs it saved on Pro or the trial.
 export async function GET(): Promise<Response> {
   try {
     const user = await getCurrentUser();

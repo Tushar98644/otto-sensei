@@ -10,12 +10,8 @@ import { LazySignInDialog, LazyUpgradeDialog } from "./lazy-dialogs";
 import { refreshMe, useMe } from "./use-me";
 
 export type AccountGate = {
-  // Opens the sign-in dialog if needed; false when it's closed without signing in.
   requireUser: (reason: string) => Promise<boolean>;
-  // Sign-in for "unauthorized"; the upgrade dialog (trial, on Free) for "upgrade_required" and
-  // "limit_reached". True when it handled the error.
   handleApiError: (error: unknown, feature: Feature) => boolean;
-  // Render once inside the component that calls useAccountGate().
   dialogs: ReactNode;
 };
 
@@ -35,7 +31,6 @@ export function useAccountGate(): AccountGate {
   const { user, loading } = useMe();
   const [signIn, setSignIn] = useState<SignInPrompt>({ open: false });
   const [upgrade, setUpgrade] = useState<UpgradePrompt>({ open: false });
-  // Callers awaiting requireUser(). Several can wait on the same dialog; all settle together.
   const waiting = useRef<Array<(signedIn: boolean) => void>>([]);
 
   const settle = useCallback((signedIn: boolean) => {
@@ -44,7 +39,6 @@ export function useAccountGate(): AccountGate {
     for (const resolve of resolvers) resolve(signedIn);
   }, []);
 
-  // Nobody should await forever because the studio unmounted with the dialog open.
   useEffect(() => () => settle(false), [settle]);
 
   const requireUser = useCallback(
@@ -65,14 +59,12 @@ export function useAccountGate(): AccountGate {
   const handleApiError = useCallback(
     (error: unknown, feature: Feature) => {
       if (isApiError(error, "unauthorized")) {
-        // A user on screen means the session ended (expired, or signed out in another tab).
         setSignIn({ open: true, reason: user ? SESSION_ENDED_REASON : OTTO.signIn.reason(feature) });
         void refreshMe();
         return true;
       }
       if (isApiError(error, "limit_reached") || isApiError(error, "upgrade_required")) {
         setUpgrade({ open: true, feature, budget: isBudgetReached(error) });
-        // The meters elsewhere on the page still show the old count.
         void refreshMe();
         return true;
       }
@@ -92,7 +84,6 @@ export function useAccountGate(): AccountGate {
   const handleSignedIn = useCallback(() => {
     const someoneWaiting = waiting.current.length > 0;
     settle(true);
-    // Opened by a failed request rather than requireUser(): nothing retries it automatically.
     if (!someoneWaiting) {
       toast({ title: "You're signed in.", description: "Try that again now.", variant: "success" });
     }

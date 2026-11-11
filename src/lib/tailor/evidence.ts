@@ -1,7 +1,6 @@
 const ELLIPSIS = "…";
 const SNIPPET_CHARS = 60;
 const SPACE = /\s/;
-// The "- " that resumeToText() puts before bullets is layout, not something the user wrote.
 const LINE_MARKER = /^[^\S\n]*(?:[-•*·][^\S\n]+)?/;
 const LEADING_PUNCTUATION = /^[\s,;:|·–—-]+/;
 const TRAILING_PUNCTUATION = /[\s,;:|·–—-]+$/;
@@ -10,8 +9,6 @@ function isSpace(text: string, index: number): boolean {
   return SPACE.test(text.charAt(index));
 }
 
-// Moves a cut that lands mid-word to the next word start, or back to this word's start when the
-// match itself begins inside the word (".NET" in "ASP.NET").
 function wordStart(text: string, cut: number, floor: number, matchStart: number): number {
   if (cut <= floor || isSpace(text, cut - 1)) return cut;
   for (let i = cut; i < matchStart; i++) if (isSpace(text, i)) return i + 1;
@@ -28,8 +25,6 @@ function wordEnd(text: string, cut: number, ceiling: number, matchEnd: number): 
   return i;
 }
 
-// Never crosses a line: each line of resumeToText() is one field, and a quote running into the next
-// would misstate the evidence.
 export function snippetAround(text: string, start: number, end: number): string {
   const lineStart = start === 0 ? 0 : text.lastIndexOf("\n", start - 1) + 1;
   const newline = text.indexOf("\n", end);

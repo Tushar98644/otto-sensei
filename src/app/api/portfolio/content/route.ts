@@ -15,7 +15,6 @@ import { NEEDS_PLAN, NO_PORTFOLIO, SIGN_IN } from "../limits";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-// The editor autosaves a second after typing stops, so a long session sends a lot of these.
 const SAVES_PER_HOUR = 900;
 
 export async function GET(): Promise<Response> {

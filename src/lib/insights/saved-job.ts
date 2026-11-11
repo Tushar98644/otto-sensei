@@ -7,8 +7,7 @@ import {
   type TailorMeta,
 } from "@/lib/resume/schema";
 
-// Newer copies also keep the post's text, link and requirements. Read by shape, not type:
-// localStorage copies are never re-parsed, so an older or hand-edited one may hold anything there.
+// Read by shape, not type: localStorage copies are never re-parsed and may hold anything.
 
 const MIN_JOB_CHARS = 80;
 
@@ -18,7 +17,6 @@ function loose(meta: TailorMeta): LooseMeta {
   return meta as LooseMeta;
 }
 
-/** "" when it has none worth sending. */
 export function savedJobText(resume: Resume | null | undefined): string {
   const meta = resume?.tailor;
   if (!meta) return "";
@@ -37,8 +35,6 @@ export function savedJobUrl(resume: Resume | null | undefined): string {
 
 export type { SavedRequirement };
 
-// null when the copy only kept keywords. Bad entries are skipped one by one; the same rules as
-// SavedRequirementSchema, by hand, so the board doesn't load zod.
 export function savedRequirements(resume: Resume | null | undefined): SavedRequirement[] | null {
   const meta = resume?.tailor;
   if (!meta) return null;
@@ -65,7 +61,6 @@ function readRequirement(value: unknown): SavedRequirement | null {
   };
 }
 
-// A requirement that is a kind of experience has no terms: it can't be counted across jobs.
 export function savedTerms(resume: Resume): string[] {
   const requirements = savedRequirements(resume);
   if (requirements) {

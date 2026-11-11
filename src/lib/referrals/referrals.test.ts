@@ -13,7 +13,6 @@ describe("isReferralCode", () => {
     expect(isReferralCode("abcd2345")).toBe(true);
     expect(isReferralCode("abcd234")).toBe(false);
     expect(isReferralCode("abcd23456")).toBe(false);
-    // 0, 1, i, l and o are left out so nobody types the wrong one.
     for (const char of ["0", "1", "i", "l", "o", "A"]) {
       expect(CODE_ALPHABET).not.toContain(char);
       expect(isReferralCode(`abcd234${char}`)).toBe(false);

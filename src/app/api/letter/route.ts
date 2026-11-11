@@ -15,7 +15,6 @@ const COPY: MeteredCopy = {
   tooLong: "That job post or resume is too long for Otto. Try a shorter job post.",
 };
 
-// Uses one of the month's cover letters and answers.
 export async function POST(req: Request): Promise<Response> {
   const crossSite = rejectCrossSite(req);
   if (crossSite) {

@@ -1,12 +1,4 @@
-// The daily job read for production, run by GitHub Actions (.github/workflows/jobs-ingest.yml).
-// Vercel's cron gives a run 4 minutes, about half the boards; this reads every board in one go and
-// writes to the production database through POSTGRES_URL (Supabase's pooler, which GitHub's
-// IPv4-only runners can reach; the direct connection is IPv6 only).
-//
-//   bun scripts/jobs-ingest-ci.ts                  every board and feed, up to 45 minutes
-//   bun scripts/jobs-ingest-ci.ts --minutes 20     stop starting new boards after 20 minutes
-//
-// Then, when OTTO_APP_URL and CRON_SECRET are set, it asks the site to drop its cached /jobs pages.
+// Uses POSTGRES_URL (pooler): GitHub's IPv4-only runners can't reach the IPv6-only direct host.
 import { readFileSync } from "node:fs";
 
 type Builder = {
@@ -20,8 +12,7 @@ if (!bun) {
   process.exit(1);
 }
 
-// Same swap as scripts/jobs-ingest.ts: Bun's node:https can't make the pinned connection the app
-// makes under Node, so the job reader's transport is replaced before anything loads it.
+// Bun can't make the pinned connection; swap the transport before anything imports it.
 bun.plugin({
   name: "ci-job-transport",
   setup(build) {
@@ -89,8 +80,6 @@ async function main() {
   await dropSiteCache().catch((error: unknown) =>
     console.log(`Site cache not cleared: ${String(error)}`),
   );
-  // A feed or a few boards timing out is normal for one day; they're read again tomorrow. It shows as
-  // a warning on the run, which only fails when the read itself breaks (the catch below).
   if (outcome.failed.length > 0) {
     console.log(`::warning::Steps that failed this run: ${outcome.failed.join(", ")}`);
   }
