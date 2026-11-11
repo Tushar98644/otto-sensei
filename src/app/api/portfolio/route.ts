@@ -13,12 +13,8 @@ import {
   type SaveResult,
 } from "@/lib/portfolio/records";
 import { SLUG_MESSAGES } from "@/lib/portfolio/slug";
-import {
-  CreatePortfolioSchema,
-  UpdatePortfolioSchema,
-  type PortfolioResponse,
-  type PortfolioSaveResponse,
-} from "@/lib/portfolio/types";
+import { type PortfolioResponse, type PortfolioSaveResponse } from "@/lib/portfolio/types";
+import { CreatePortfolioSchema, UpdatePortfolioSchema } from "@/lib/portfolio/validation";
 import { NEEDS_PLAN, NO_PORTFOLIO, NO_STORE, SIGN_IN, writeLimited } from "./limits";
 
 export const runtime = "nodejs";

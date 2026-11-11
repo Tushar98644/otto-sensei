@@ -1,6 +1,8 @@
 "use client";
 
+import { usePathname } from "next/navigation";
 import { useEffect, useSyncExternalStore } from "react";
+import { ROUTES } from "@/components/site/routes";
 import { api } from "@/lib/api/client";
 import type { PlanId } from "@/config/plans";
 import type { MeResponse } from "@/lib/api/types";
@@ -49,6 +51,15 @@ export function refreshMe(): Promise<void> {
   return inflight;
 }
 
+/** The signed-in account's id as last loaded; null when signed out or not loaded yet. */
+export function signedInUserId(): string | null {
+  return state.me?.user?.id ?? null;
+}
+
+export function subscribeToMe(listener: () => void): () => void {
+  return subscribe(listener);
+}
+
 /** The signed-in user's id as last loaded, for code outside React that just signed someone in. */
 export async function currentUserId(): Promise<string | null> {
   if (!state.me?.user) await refreshMe();
@@ -72,9 +83,12 @@ export function patchMe(patch: Partial<Me>) {
 
 export function useMe() {
   const snapshot = useSyncExternalStore(subscribe, () => state, () => SERVER_STATE);
+  const pathname = usePathname();
   useEffect(() => {
-    if (state.status === "idle") void refreshMe();
-  }, []);
+    // src/proxy.ts sends every signed-in visitor from the home page to their dashboard, so whoever
+    // is on it is signed out and the static page is already right for them.
+    if (state.status === "idle" && pathname !== ROUTES.home) void refreshMe();
+  }, [pathname]);
   return {
     me: snapshot.me,
     user: snapshot.me?.user ?? null,

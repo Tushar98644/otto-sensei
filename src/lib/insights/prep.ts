@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { TEXT_LIMITS } from "@/config/plans";
-import { ApplicationIdSchema } from "@/lib/applications/schema";
-import { ResumeSchema } from "@/lib/resume/schema";
+import { ApplicationIdSchema } from "@/lib/applications/validation";
+import { ResumeSchema } from "@/lib/resume/validation";
 
 // Client-safe. The interview prep pack for one application: what POST /api/interview returns and
 // what the application row keeps (applications.prep). The caps bound a stored pack, and a stored

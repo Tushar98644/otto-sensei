@@ -1,27 +1,23 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { keepPreviousData, skipToken, useQuery } from "@tanstack/react-query";
+import { useCallback, useMemo } from "react";
 import { useNow } from "@/components/studio/use-now";
 import { api } from "@/lib/api/client";
-import type { JobMatchesResponse } from "@/lib/api/types";
+import type { JobMatchesRequestBody, JobMatchesResponse } from "@/lib/api/types";
 import { deviceTimeZone } from "@/lib/eligibility/options";
 import type { WorkProfile } from "@/lib/eligibility/profile";
 import { lookingForOf } from "@/lib/job-feed/looking-for";
 import { matchProfileOf } from "@/lib/job-feed/profile";
-import type { JobFilters, LookingForChoice } from "@/lib/job-feed/types";
+import { DEFAULT_FILTERS, type JobFilters, type LookingForChoice } from "@/lib/job-feed/types";
+import { getQueryClient, useAppQueryClient } from "@/lib/queries/client";
+import { JOB_MATCHES, queryKeys } from "@/lib/queries/keys";
+import { JOB_MATCHES_STALE_MS } from "@/lib/queries/options";
 import type { Resume } from "@/lib/resume/schema";
-import {
-  forgetMatchesExcept,
-  isFreshMatch,
-  matchCacheKey,
-  recallMatches,
-  rememberMatches,
-} from "./match-cache";
 
 // One POST /api/jobs/matches per resume, view, filter, page and "Looking for". Only the resume's
-// skills, titles and years go out (matchProfileOf), with the card as shown. Status is derived from which request the last answer was
-// for, so nothing is set synchronously in an effect. Answers are kept for the tab (match-cache.ts),
-// so coming back to the tab shows the last matches at once.
+// skills, titles and years go out (matchProfileOf), with the card as shown. Answers stay in the
+// tab's query cache, so coming back to the tab shows the last matches at once.
 
 export type JobView = "matches" | "saved";
 
@@ -31,9 +27,54 @@ export type JobMatchesState =
   | { status: "ready"; data: JobMatchesResponse }
   | { status: "error"; error: unknown };
 
-type Answer = { key: string; data?: JobMatchesResponse; error?: unknown };
-
 const DAY_MS = 24 * 60 * 60 * 1_000;
+const IDLE_KEY = [...JOB_MATCHES, "idle"] as const;
+
+/**
+ * Changes the answer for one request in place (a job saved or unsaved) without asking again. A
+ * save changes the Saved view and every count, so the other answers kept are dropped, and one on
+ * screen meanwhile (another page, picked while the save was on its way) is asked for again.
+ */
+export function patchJobMatches(
+  queryKey: readonly unknown[],
+  change: (data: JobMatchesResponse) => JobMatchesResponse,
+): void {
+  const client = getQueryClient();
+  const target = client.getQueryCache().find({ queryKey, exact: true });
+  const other = (query: unknown) => query !== target;
+  client.removeQueries({
+    queryKey: JOB_MATCHES,
+    predicate: (query) => other(query) && query.getObserversCount() === 0,
+  });
+  void client.invalidateQueries({ queryKey: JOB_MATCHES, predicate: other });
+  client.setQueryData<JobMatchesResponse>(queryKey, (data) => (data ? change(data) : data));
+}
+
+function matchesBody(
+  request: Omit<JobMatchesRequestBody, "deviceTimeZone">,
+): JobMatchesRequestBody {
+  return { ...request, deviceTimeZone: deviceTimeZone() };
+}
+
+/**
+ * The first Matches page the Jobs tab asks for when it opens, as the tab itself builds it, so a
+ * prefetch lands in the entry the tab reads. Null until there's a resume to match.
+ */
+export function openingMatchesRequest(
+  resume: Resume | null,
+  work: { profile: WorkProfile; lookingFor: LookingForChoice },
+  now: number,
+): JobMatchesRequestBody | null {
+  if (!resume) return null;
+  const profile = matchProfileOf(resume, Math.floor(now / DAY_MS) * DAY_MS);
+  return matchesBody({
+    view: "matches",
+    profile,
+    filters: { ...DEFAULT_FILTERS, remote: work.profile.remoteOnly === true },
+    page: 1,
+    lookingFor: lookingForOf(profile, work.profile, work.lookingFor),
+  });
+}
 
 export function useJobMatches({
   userId,
@@ -53,10 +94,7 @@ export function useJobMatches({
   choice: LookingForChoice;
   workProfile: WorkProfile | null;
 }) {
-  const [answer, setAnswer] = useState<Answer | null>(null);
-  const [attempt, setAttempt] = useState(0);
-  // Kept answers are judged against this visit's start, so render and the request agree.
-  const [openedAt] = useState(() => Date.now());
+  const client = useAppQueryClient();
   // Years run to today for a job marked "Present"; the day is enough, so the shared clock's
   // ticks don't send a new request every 30 seconds. 0 until the clock is known.
   const now = useNow();
@@ -71,66 +109,38 @@ export function useJobMatches({
   );
   const body = useMemo(
     () =>
-      profile
-        ? { view, profile, filters, page, lookingFor, deviceTimeZone: deviceTimeZone() }
-        : null,
+      profile && lookingFor ? matchesBody({ view, profile, filters, page, lookingFor }) : null,
     [profile, view, filters, page, lookingFor],
   );
-  const key = body ? `${JSON.stringify(body)}|${attempt}` : null;
-  // The server also reads the saved work profile (for "Likely blocked"), so a change to it is a
-  // new answer too.
-  const cacheKey = matchCacheKey(userId, body ? { body, workProfile } : null);
-  const kept = recallMatches(cacheKey);
-  // "Try again" always asks; otherwise a fresh kept answer is the answer.
-  const useKept = attempt === 0 && isFreshMatch(kept, openedAt);
-
-  useEffect(() => {
-    if (!body || !key) return;
-    if (attempt === 0 && isFreshMatch(recallMatches(cacheKey), openedAt)) return;
-    let current = true;
-    api
-      .jobMatches(body)
-      .then((data) => {
-        if (cacheKey) rememberMatches(cacheKey, data, Date.now());
-        if (current) setAnswer({ key, data });
-      })
-      .catch((error: unknown) => {
-        if (current) setAnswer({ key, error });
-      });
-    return () => {
-      current = false;
-    };
-  }, [body, key, cacheKey, attempt, openedAt]);
-
-  const retry = useCallback(() => setAttempt((n) => n + 1), []);
+  const queryKey = useMemo(
+    () => (userId && body ? queryKeys.jobMatches(userId, body, workProfile) : null),
+    [userId, body, workProfile],
+  );
+  const query = useQuery(
+    {
+      queryKey: queryKey ?? IDLE_KEY,
+      queryFn: body && queryKey ? () => api.jobMatches(body) : skipToken,
+      staleTime: JOB_MATCHES_STALE_MS,
+      // The last answer stays on screen while the next page or filter loads.
+      placeholderData: keepPreviousData,
+    },
+    client,
+  );
+  const { refetch } = query;
+  const retry = useCallback(() => void refetch(), [refetch]);
+  const patch = useCallback(
+    (change: (data: JobMatchesResponse) => JobMatchesResponse) => {
+      if (queryKey) patchJobMatches(queryKey, change);
+    },
+    [queryKey],
+  );
 
   let state: JobMatchesState;
-  if (!key) state = { status: "idle" };
-  else if (answer?.key === key && answer.data) state = { status: "ready", data: answer.data };
-  else if (answer?.key === key) state = { status: "error", error: answer.error };
-  else if (kept && useKept) state = { status: "ready", data: kept.data };
-  // An old kept answer stays on screen while the new one comes.
-  else state = { status: "loading", previous: kept?.data ?? answer?.data ?? null };
-
-  // What patch() changes: the answer on screen, which may be a kept one.
-  const shown = useRef<{ key: string; cacheKey: string | null; data: JobMatchesResponse } | null>(
-    null,
-  );
-  useEffect(() => {
-    shown.current = key && state.status === "ready" ? { key, cacheKey, data: state.data } : null;
-  });
-
-  // Updates the shown answer in place (a job saved or unsaved) without asking again.
-  const patch = useCallback((change: (data: JobMatchesResponse) => JobMatchesResponse) => {
-    const current = shown.current;
-    if (!current) return;
-    const data = change(current.data);
-    const entry = recallMatches(current.cacheKey);
-    // A save changes the Saved view and every count, so other kept answers are out of date.
-    forgetMatchesExcept(current.cacheKey);
-    if (current.cacheKey && entry) rememberMatches(current.cacheKey, data, entry.at);
-    setAnswer({ key: current.key, data });
-  }, []);
+  if (!queryKey) state = { status: "idle" };
+  else if (query.isError && query.fetchStatus === "idle") {
+    state = { status: "error", error: query.error };
+  } else if (query.data && !query.isPlaceholderData) state = { status: "ready", data: query.data };
+  else state = { status: "loading", previous: query.data ?? null };
 
   return { state, retry, patch, profile, lookingFor };
 }

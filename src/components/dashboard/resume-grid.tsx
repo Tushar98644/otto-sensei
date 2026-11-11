@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { roomForResume } from "@/components/account/pro-tools";
 import { useNow } from "@/components/studio/use-now";
+import { Lazy, lazyComponent, useOpenedOnce } from "@/components/ui/lazy";
 import { toast } from "@/components/ui/toast";
 import { trashWithUndo } from "@/components/ui/trash-with-undo";
 import { isTitleTaken, resumeTitle } from "@/lib/resume/ops";
@@ -10,9 +11,10 @@ import type { Resume } from "@/lib/resume/schema";
 import { useStudioStore } from "@/lib/store/resume-store";
 import { cn } from "@/lib/utils";
 import { tailoredCounts } from "./library";
-import { RenameDialog } from "./rename-dialog";
 import { ResumeCard, cardId } from "./resume-card";
 import type { StudioActions } from "./use-studio-actions";
+
+const renameDialog = lazyComponent(() => import("./rename-dialog").then((m) => m.RenameDialog));
 
 export type ResumeGridProps = {
   // The cards to show, in order.
@@ -40,6 +42,7 @@ export function ResumeGrid({
   const renameResume = useStudioStore((s) => s.renameResume);
   const duplicateResume = useStudioStore((s) => s.duplicateResume);
   const [renaming, setRenaming] = useState<Resume | null>(null);
+  const renameWanted = useOpenedOnce(renaming !== null);
   const byId = useMemo(() => new Map(all.map((resume) => [resume.id, resume])), [all]);
   const copies = useMemo(() => tailoredCounts(all), [all]);
 
@@ -49,7 +52,6 @@ export function ResumeGrid({
     const copy = id ? useStudioStore.getState().resumes[id] : undefined;
     if (copy) toast({ title: "Copy made", description: resumeTitle(copy), variant: "success" });
   }
-
 
   return (
     <>
@@ -80,16 +82,19 @@ export function ResumeGrid({
         })}
       </ul>
 
-      <RenameDialog
-        resume={renaming}
-        onClose={() => setRenaming(null)}
-        isTaken={(title) => (renaming ? isTitleTaken(title, all, renaming.id) : false)}
-        onRename={(resume, title) => {
-          renameResume(resume.id, title);
-          setRenaming(null);
+      <Lazy
+        loader={renameDialog}
+        wanted={renameWanted}
+        props={{
+          resume: renaming,
+          onClose: () => setRenaming(null),
+          isTaken: (title: string) => (renaming ? isTitleTaken(title, all, renaming.id) : false),
+          onRename: (resume: Resume, title: string) => {
+            renameResume(resume.id, title);
+            setRenaming(null);
+          },
         }}
       />
-
     </>
   );
 }

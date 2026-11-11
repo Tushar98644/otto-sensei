@@ -4,7 +4,8 @@ import { getDb } from "@/db/client";
 import { lockUser } from "@/db/locks";
 import { resumes, resumeTombstones } from "@/db/schema";
 import { log } from "@/lib/log";
-import { ResumeSchema, type Resume } from "@/lib/resume/schema";
+import { type Resume } from "@/lib/resume/schema";
+import { ResumeSchema } from "@/lib/resume/validation";
 
 // Server-only. Cloud backups of studio resumes, one row per (user_id, id), so resumes follow
 // their owner to another device; the browser copy stays the source of truth. `updated_at` holds

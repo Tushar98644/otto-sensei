@@ -4,7 +4,8 @@ import { extractDocx } from "@/lib/parse/docx";
 import { extractPdf } from "@/lib/parse/pdf";
 import { cleanResumePdf, templateDocx } from "@/lib/parse/test-fixtures";
 import { heuristicParse } from "./heuristic-parse";
-import { ResumeSchema, extrasOf, type ExtraSection, type Resume } from "./schema";
+import { extrasOf, type ExtraSection, type Resume } from "./schema";
+import { ResumeSchema } from "@/lib/resume/validation";
 
 const NOW = 1_800_000_000_000;
 

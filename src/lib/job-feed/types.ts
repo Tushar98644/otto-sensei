@@ -1,6 +1,14 @@
-import { z } from "zod";
+import type { z } from "zod";
+import type {
+  JobFiltersSchema,
+  JobMatchesRequestSchema,
+  LookingForChoiceSchema,
+  LookingForSchema,
+  MatchActionSchema,
+  MatchProfileSchema,
+} from "./validation";
 import type { JobPosting } from "@/lib/api/types";
-import { isCountryCode, type PlaceGroup } from "@/lib/eligibility/places";
+import type { PlaceGroup } from "@/lib/eligibility/places";
 
 // Client-safe. Openings read every day from public job boards (JOB-SOURCES.md), shown on the Jobs
 // tab matched to a resume and on the public /jobs page. Matching is rule-based and runs on our
@@ -162,13 +170,6 @@ export type MatchedJob = FeedJob & {
 // What the browser sends about the resume: the skills the shared vocabulary found in it, its job
 // titles and its years of experience. Never the resume itself, its lines or contact details.
 export const MATCH_PROFILE_LIMITS = { skills: 200, titles: 12, titleChars: 200 } as const;
-export const MatchProfileSchema = z.object({
-  skills: z.array(z.string().max(60)).max(MATCH_PROFILE_LIMITS.skills),
-  titles: z
-    .array(z.string().trim().max(MATCH_PROFILE_LIMITS.titleChars))
-    .max(MATCH_PROFILE_LIMITS.titles),
-  years: z.number().min(0).max(70).nullable(),
-});
 export type MatchProfile = z.output<typeof MatchProfileSchema>;
 
 // The "Looking for" card (looking-for.ts has the guess and the place rules).
@@ -185,57 +186,15 @@ export const PLACE_GROUPS = [
 // "anywhere", a country ("c:US") or a group of countries ("g:eu").
 export type PlaceChoice = "anywhere" | `c:${string}` | `g:${PlaceGroup}`;
 
-const PLACE_CHOICE = z
-  .string()
-  .max(24)
-  .refine(
-    (value) =>
-      value === "anywhere" ||
-      (value.startsWith("c:") && isCountryCode(value.slice(2))) ||
-      (value.startsWith("g:") && (PLACE_GROUPS as readonly string[]).includes(value.slice(2))),
-    "Pick a place from the list.",
-  )
-  .transform((value) => value as PlaceChoice);
-
 export const LOOKING_FOR_LIMITS = { titleChars: 80 } as const;
 
 // An O*NET-SOC 2019 occupation code ("29-1141.00"), or one of ours with a letter ("11-X101.00");
 // see occupations/index.ts.
 export const OCCUPATION_CODE = /^\d{2}-[0-9X]\d{3}\.\d{2}$/;
-const OccupationCodeSchema = z.string().regex(OCCUPATION_CODE);
-
-/** What Matches are ranked for. Every part is filled: the guess, or what the person picked. */
-export const LookingForSchema = z.object({
-  title: z.string().trim().max(LOOKING_FOR_LIMITS.titleChars),
-  family: z.enum(ROLE_FAMILIES).nullable(),
-  // The occupation the title names; null lets the server read it from the title.
-  occupation: OccupationCodeSchema.nullable().default(null),
-  level: z.enum(SENIORITIES).nullable(),
-  place: PLACE_CHOICE,
-  remote: z.boolean(),
-});
 export type LookingFor = z.output<typeof LookingForSchema>;
 
 /** One occupation as the card shows it: "Registered Nurse", in "Healthcare practitioners". */
 export type OccupationOption = { code: string; name: string; group: string };
-
-/**
- * What the person changed, kept per account (work_profiles.target_*): null parts follow the
- * resume, so switching resumes changes the guess and not a choice someone made. `remote` is the
- * work profile's "Remote only".
- */
-export const LookingForChoiceSchema = z.object({
-  role: z
-    .object({
-      title: z.string().trim().max(LOOKING_FOR_LIMITS.titleChars),
-      family: z.enum(ROLE_FAMILIES).nullable(),
-      occupation: OccupationCodeSchema.nullable().default(null),
-    })
-    .nullable(),
-  level: z.enum(SENIORITIES).nullable(),
-  place: PLACE_CHOICE.nullable(),
-  remote: z.boolean(),
-});
 export type LookingForChoice = z.output<typeof LookingForChoiceSchema>;
 
 export const NO_CHOICE: LookingForChoice = { role: null, level: null, place: null, remote: false };
@@ -245,20 +204,6 @@ export type LookingForResponse = { ok: true; choice: LookingForChoice };
 
 // GET /api/jobs/occupations?q=nurse: the card's search over every occupation and its names.
 export type OccupationSearchResponse = { ok: true; occupations: OccupationOption[] };
-
-export const JobFiltersSchema = z.object({
-  q: z.string().trim().max(100).default(""),
-  remote: z.boolean().default(false),
-  place: z.string().trim().max(60).default(""),
-  role: z.enum(ROLE_FAMILIES).nullable().default(null),
-  level: z.enum(LEVELS).nullable().default(null),
-  postedWithin: z
-    .union([z.literal(7), z.literal(30)])
-    .nullable()
-    .default(null),
-  // Hide jobs whose post has a rule the work profile can't meet.
-  eligibleOnly: z.boolean().default(false),
-});
 export type JobFilters = z.output<typeof JobFiltersSchema>;
 export type JobFiltersInput = z.input<typeof JobFiltersSchema>;
 
@@ -271,19 +216,6 @@ export const DEFAULT_FILTERS: JobFilters = {
   postedWithin: null,
   eligibleOnly: false,
 };
-
-// POST /api/jobs/matches. Requires sign-in. Free gets the closest FREE_JOB_MATCHES (`locked`);
-// filters, more pages, saved jobs and the work-rights rules are Pro.
-export const JobMatchesRequestSchema = z.object({
-  view: z.enum(["matches", "saved"]).default("matches"),
-  profile: MatchProfileSchema,
-  filters: JobFiltersSchema.default(DEFAULT_FILTERS),
-  page: z.number().int().min(1).max(MAX_JOB_PAGE).default(1),
-  // For time zone rules when the work profile has none.
-  deviceTimeZone: z.string().max(64).default(""),
-  // The "Looking for" card as shown (looking-for.ts); without it the server guesses the same way.
-  lookingFor: LookingForSchema.nullable().default(null),
-});
 export type JobMatchesRequestBody = z.input<typeof JobMatchesRequestSchema>;
 
 export type JobMatchesResponse = {
@@ -345,33 +277,6 @@ export const NOT_FIT_LABELS: Record<NotFitReason, string> = {
 // The answer to "Applied to <company>?", asked when someone comes back after opening a job.
 export const ASKED_APPLIED_ANSWERS = ["yes", "not_yet"] as const;
 export type AskedAppliedAnswer = (typeof ASKED_APPLIED_ANSWERS)[number];
-
-// POST /api/jobs/events. Requires sign-in. Ids and labels only: never resume text.
-export const MatchActionSchema = z
-  .object({
-    kind: z.enum(["open", "save", "tailor", "applied", "not_fit", "asked_applied"]),
-    jobId: z.uuid(),
-    requestId: z.uuid().nullable().default(null),
-    position: z.number().int().min(1).max(1_000).nullable().default(null),
-    label: z.enum(["strong", "good", "stretch"]).nullable().default(null),
-    variant: z
-      .string()
-      .regex(/^[a-z0-9-]{1,40}$/)
-      .default("unknown"),
-    resumeHash: z
-      .string()
-      .regex(/^[A-Za-z0-9_-]{8,64}$/)
-      .nullable()
-      .default(null),
-    reason: z.enum(NOT_FIT_REASONS).nullable().default(null),
-    answer: z.enum(ASKED_APPLIED_ANSWERS).nullable().default(null),
-  })
-  .refine((event) => (event.kind === "not_fit") === (event.reason !== null), {
-    message: "A reason goes with “not a fit” and nothing else",
-  })
-  .refine((event) => (event.kind === "asked_applied") === (event.answer !== null), {
-    message: "An answer goes with “did you apply?” and nothing else",
-  });
 export type MatchActionInput = z.input<typeof MatchActionSchema>;
 
 // GET /api/jobs/:id. Requires sign-in: the stored text, for the tailor flow. posting: what reading

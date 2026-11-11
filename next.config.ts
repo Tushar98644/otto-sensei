@@ -17,6 +17,9 @@ const nextConfig: NextConfig = {
   // Production never opens the local database; keep its 25 MB out of every function.
   outputFileTracingExcludes: { "*": ["node_modules/@electric-sql/pglite/**"] },
   poweredByHeader: false,
+  // Dashboard pages are thin server components (their data comes from the browser's query cache),
+  // so one shown in the last 30 seconds is reused on the way back instead of asked for again.
+  experimental: { staleTimes: { dynamic: 30 } },
   async headers() {
     return [{ source: "/:path*", headers: securityHeaders }];
   },

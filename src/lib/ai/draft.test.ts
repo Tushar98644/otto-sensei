@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { DraftRequestSchema, type DraftRequest } from "@/lib/api/types";
 import { resetEnvForTests } from "@/lib/env";
-import { ResumeSchema } from "@/lib/resume/schema";
+import { ResumeSchema } from "@/lib/resume/validation";
 import type { StructuredRequest } from "./client";
 import { AIError } from "./types";
 import { checkedBullet, draftResume } from "./draft";

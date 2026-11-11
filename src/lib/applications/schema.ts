@@ -1,6 +1,10 @@
-import { z } from "zod";
-import { ResumeSchema } from "@/lib/resume/schema";
-import { APPLICATION_STATUSES, type ApplicationStage, type ApplicationStatus } from "./status";
+import type { z } from "zod";
+import type {
+  BulkApplicationStatusSchema,
+  CreateApplicationSchema,
+  UpdateApplicationSchema,
+} from "./validation";
+import type { ApplicationStage, ApplicationStatus } from "./status";
 
 // Client-safe. The job applications a signed-in user logs, and the request bodies that change them.
 
@@ -18,7 +22,6 @@ export const APPLICATION_LIMITS = {
   notes: 500,
 } as const;
 
-const DAY_MS = 24 * 60 * 60 * 1_000;
 export const MIN_APPLIED_AT = Date.UTC(2000, 0, 1);
 
 export type Application = {
@@ -81,96 +84,8 @@ export function cleanNotes(value: string): string {
     .replace(/\n{3,}/g, "\n\n")
     .trim();
 }
-
-// The raw cap is looser than the stored one, so text that only gets short once cleaned still fits.
-const line = (max: number, min = 0) =>
-  z
-    .string()
-    .max(max * 4)
-    .transform(cleanLine)
-    .pipe(z.string().min(min).max(max));
-
-const resumeIdField = ResumeSchema.shape.id.nullable();
-// The Jobs tab opening it's for. An id the server doesn't know is dropped, not refused.
-const jobIdField = z.uuid().nullable();
-const resumeTitleField = line(APPLICATION_LIMITS.resumeTitle);
-const companyField = line(APPLICATION_LIMITS.company, 1);
-const roleField = line(APPLICATION_LIMITS.role);
-const jobUrlField = z
-  .string()
-  .max(APPLICATION_LIMITS.jobUrl * 2)
-  .refine((value) => normalizeJobUrl(value) !== null, "That doesn't look like a web link.")
-  .transform((value) => normalizeJobUrl(value) ?? "");
-// A day ahead of the server's clock covers the time zones that are already on tomorrow.
-const appliedAtField = z
-  .number()
-  .int()
-  .min(MIN_APPLIED_AT)
-  .refine((value) => value <= Date.now() + DAY_MS, "That date is in the future.");
-const statusField = z.enum(APPLICATION_STATUSES);
-const notesField = z
-  .string()
-  .max(APPLICATION_LIMITS.notes * 4)
-  .transform(cleanNotes)
-  .pipe(z.string().max(APPLICATION_LIMITS.notes));
-// Any day from 2000 to a year out: interviews are booked weeks ahead, not years.
-const interviewAtField = z
-  .number()
-  .int()
-  .min(MIN_APPLIED_AT)
-  .refine((value) => value <= Date.now() + 366 * DAY_MS, "That date is too far away.")
-  .nullable();
-// Snooze, Done (null) and putting a removed reminder back. A year out is far past any job hunt.
-const followUpAtField = z
-  .number()
-  .int()
-  .min(MIN_APPLIED_AT)
-  .refine((value) => value <= Date.now() + 366 * DAY_MS, "That date is too far away.")
-  .nullable();
-
-export const ApplicationIdSchema = z.uuid();
-
-// POST /api/applications
-export const CreateApplicationSchema = z.object({
-  resumeId: resumeIdField.default(null),
-  jobId: jobIdField.default(null),
-  resumeTitle: resumeTitleField.default(""),
-  company: companyField,
-  role: roleField.default(""),
-  jobUrl: jobUrlField.default(""),
-  appliedAt: appliedAtField,
-  // Logging an older application that already moved on is fine.
-  status: statusField.default("applied"),
-  notes: notesField.default(""),
-  interviewAt: interviewAtField.optional(),
-});
 export type CreateApplicationBody = z.input<typeof CreateApplicationSchema>;
 export type CreateApplicationInput = z.output<typeof CreateApplicationSchema>;
-
-// PATCH /api/applications/:id. Only the fields sent change.
-export const UpdateApplicationSchema = z
-  .object({
-    resumeId: resumeIdField.optional(),
-    resumeTitle: resumeTitleField.optional(),
-    company: companyField.optional(),
-    role: roleField.optional(),
-    jobUrl: jobUrlField.optional(),
-    appliedAt: appliedAtField.optional(),
-    status: statusField.optional(),
-    notes: notesField.optional(),
-    followUpAt: followUpAtField.optional(),
-    interviewAt: interviewAtField.optional(),
-  })
-  .refine(
-    (patch) => Object.values(patch).some((value) => value !== undefined),
-    "Nothing to change.",
-  );
 export type UpdateApplicationBody = z.input<typeof UpdateApplicationSchema>;
 export type UpdateApplicationInput = z.output<typeof UpdateApplicationSchema>;
-
-// PATCH /api/applications: one status for many, e.g. "no reply" for everything that went quiet.
-export const BulkApplicationStatusSchema = z.object({
-  ids: z.array(ApplicationIdSchema).min(1).max(APPLICATION_LIMITS.bulk),
-  status: statusField,
-});
 export type BulkApplicationStatusBody = z.input<typeof BulkApplicationStatusSchema>;

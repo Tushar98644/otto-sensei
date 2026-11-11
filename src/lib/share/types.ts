@@ -1,5 +1,5 @@
-import { z } from "zod";
-import { ResumeSchema } from "@/lib/resume/schema";
+import type { z } from "zod";
+import type { CreateShareSchema, UpdateShareSchema } from "./validation";
 
 // Client-safe contract for share links: the request bodies /api/share validates and what it sends
 // back. Re-exported from @/lib/api/types.
@@ -20,21 +20,7 @@ export const SHARE_SLUG = /^[A-Za-z0-9]{10,32}$/;
 export function sharePath(slug: string): string {
   return `/s/${slug}`;
 }
-
-// POST /api/share: makes the resume's link, or points its existing link at this version.
-export const CreateShareSchema = z.object({
-  resume: ResumeSchema,
-  showContact: z.boolean().default(false),
-  allowIndexing: z.boolean().default(false),
-});
 export type CreateShareBody = z.input<typeof CreateShareSchema>;
-
-// PATCH /api/share/:id: changes who sees what, without changing the version shown.
-export const UpdateShareSchema = z
-  .object({ showContact: z.boolean().optional(), allowIndexing: z.boolean().optional() })
-  .refine((body) => body.showContact !== undefined || body.allowIndexing !== undefined, {
-    message: "Nothing to change.",
-  });
 export type UpdateShareBody = z.input<typeof UpdateShareSchema>;
 
 export type SharedLink = {

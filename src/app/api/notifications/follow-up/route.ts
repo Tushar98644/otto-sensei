@@ -3,10 +3,8 @@ import { fail, ok } from "@/lib/api/respond";
 import { rejectCrossSite, rejectNonJson } from "@/lib/auth/route-guards";
 import { readJson } from "@/lib/http";
 import { log } from "@/lib/log";
-import {
-  FollowUpActionSchema,
-  type FollowUpActionResponse,
-} from "@/lib/notifications/types";
+import { type FollowUpActionResponse } from "@/lib/notifications/types";
+import { FollowUpActionSchema } from "@/lib/notifications/validation";
 import { verifyFollowUpToken } from "@/lib/notifications/unsubscribe";
 
 export const runtime = "nodejs";

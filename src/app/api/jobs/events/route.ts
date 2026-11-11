@@ -4,7 +4,7 @@ import { rejectCrossSite, rejectNonJson } from "@/lib/auth/route-guards";
 import { getCurrentUser } from "@/lib/auth/session";
 import { readJson } from "@/lib/http";
 import { logAction } from "@/lib/job-feed/events";
-import { MatchActionSchema } from "@/lib/job-feed/types";
+import { MatchActionSchema } from "@/lib/job-feed/validation";
 import { log } from "@/lib/log";
 import { rateLimit, retryAfterHeader } from "@/lib/rate-limit";
 

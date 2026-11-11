@@ -1,6 +1,6 @@
 import { fail, ok } from "@/lib/api/respond";
 import type { InterviewPrepResponse } from "@/lib/api/types";
-import { ApplicationIdSchema } from "@/lib/applications/schema";
+import { ApplicationIdSchema } from "@/lib/applications/validation";
 import { getCurrentUser } from "@/lib/auth/session";
 import { getPrep } from "@/lib/insights/prep-store";
 import { log } from "@/lib/log";

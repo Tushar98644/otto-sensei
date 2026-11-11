@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useId, useState } from "react";
+import { useId } from "react";
 import { errorMessage } from "@/components/account/errors";
 import { useMe } from "@/components/account/use-me";
 import { Alert } from "@/components/ui/alert";
@@ -9,17 +9,10 @@ import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/ca
 import { Select } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "@/components/ui/toast";
-import { api } from "@/lib/api/client";
 import { FOLLOW_UP_DAY_CHOICES, SNOOZE_DAYS } from "@/lib/applications/follow-up";
 import type { ReminderSettings } from "@/lib/notifications/types";
 import { cn } from "@/lib/utils";
-
-type Settings = ReminderSettings & { emailAvailable: boolean };
-
-type Load =
-  | { userId: string; status: "loading" }
-  | { userId: string; status: "error" }
-  | { userId: string; status: "ready"; settings: Settings };
+import { saveReminderSettings, useReminderSettings } from "./use-reminder-settings";
 
 // Native radios under the segmented look, so arrow keys and screen readers behave as usual.
 const SEGMENT = cn(
@@ -27,7 +20,6 @@ const SEGMENT = cn(
   "hover:text-ink has-checked:bg-surface has-checked:font-medium has-checked:text-ink",
   "has-checked:shadow-control has-checked:ring-1 has-checked:ring-ink/5",
   "has-focus-visible:outline-2 has-focus-visible:outline-offset-2 has-focus-visible:outline-ink",
-  "has-disabled:cursor-default has-disabled:opacity-60",
 );
 
 // The Account page's reminder defaults. Marking a job applied always sets a reminder in the bell;
@@ -38,40 +30,16 @@ export function ReminderSettingsCard() {
   const { user } = useMe();
   const userId = user?.id ?? null;
   const titleId = useId();
-  const [load, setLoad] = useState<Load | null>(null);
-  const [attempt, setAttempt] = useState(0);
-  const [saving, setSaving] = useState(false);
-
-  useEffect(() => {
-    if (!userId) return;
-    let cancelled = false;
-    api
-      .reminderSettings()
-      .then((res) => {
-        if (!cancelled) {
-          setLoad({ userId, status: "ready", settings: settingsFrom(res) });
-        }
-      })
-      .catch(() => {
-        if (!cancelled) setLoad({ userId, status: "error" });
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [userId, attempt]);
+  const query = useReminderSettings(userId);
 
   if (!userId) return null;
-  // A result for another account (signed in as someone else since) counts as still loading.
-  const current: Load = load?.userId === userId ? load : { userId, status: "loading" };
+  const settings = query.data;
 
+  // Shows at once; put back with a note if the server says no.
   async function save(change: Partial<ReminderSettings>) {
-    if (current.status !== "ready" || saving) return;
-    const before = current.settings;
-    setSaving(true);
-    setLoad({ userId: current.userId, status: "ready", settings: { ...before, ...change } });
+    if (!userId) return;
     try {
-      const res = await api.saveReminderSettings(change);
-      setLoad({ userId: current.userId, status: "ready", settings: settingsFrom(res) });
+      const res = await saveReminderSettings(userId, change);
       toast({
         title:
           change.followUpDays !== undefined
@@ -82,10 +50,7 @@ export function ReminderSettingsCard() {
         variant: "success",
       });
     } catch (error) {
-      setLoad({ userId: current.userId, status: "ready", settings: before });
       toast({ title: "Couldn't save that", description: errorMessage(error), variant: "error" });
-    } finally {
-      setSaving(false);
     }
   }
 
@@ -100,20 +65,25 @@ export function ReminderSettingsCard() {
           on your dashboard. Each one has Done and Snooze {SNOOZE_DAYS} days.
         </CardDescription>
       </CardHeader>
-      {current.status === "loading" ? (
-        <Skeleton className="h-11 w-full" />
-      ) : current.status === "error" ? (
+      {settings ? (
+        <div className="flex flex-col gap-5">
+          <DelayChoice
+            value={settings.followUpDays}
+            onChange={(followUpDays) => void save({ followUpDays })}
+          />
+          {settings.emailAvailable ? (
+            <EmailChoice
+              value={settings.emailReminders}
+              onChange={(emailReminders) => void save({ emailReminders })}
+            />
+          ) : null}
+        </div>
+      ) : query.isError && query.fetchStatus === "idle" ? (
         <Alert
           variant="error"
           title="Couldn't load your reminder settings"
           action={
-            <Button
-              variant="outline"
-              onClick={() => {
-                setLoad(null);
-                setAttempt((count) => count + 1);
-              }}
-            >
+            <Button variant="outline" onClick={() => void query.refetch()}>
               Try again
             </Button>
           }
@@ -121,42 +91,13 @@ export function ReminderSettingsCard() {
           Check your connection, then try again.
         </Alert>
       ) : (
-        <div className="flex flex-col gap-5">
-          <DelayChoice
-            value={current.settings.followUpDays}
-            disabled={saving}
-            onChange={(followUpDays) => void save({ followUpDays })}
-          />
-          {current.settings.emailAvailable ? (
-            <EmailChoice
-              value={current.settings.emailReminders}
-              disabled={saving}
-              onChange={(emailReminders) => void save({ emailReminders })}
-            />
-          ) : null}
-        </div>
+        <Skeleton className="h-11 w-full" />
       )}
     </Card>
   );
 }
 
-function settingsFrom(res: Settings): Settings {
-  return {
-    emailReminders: res.emailReminders,
-    followUpDays: res.followUpDays,
-    emailAvailable: res.emailAvailable,
-  };
-}
-
-function DelayChoice({
-  value,
-  disabled,
-  onChange,
-}: {
-  value: number;
-  disabled: boolean;
-  onChange: (days: number) => void;
-}) {
+function DelayChoice({ value, onChange }: { value: number; onChange: (days: number) => void }) {
   const id = useId();
   // A value set some other way (an older choice list) still shows as itself.
   const choices = [...new Set<number>([...FOLLOW_UP_DAY_CHOICES, value])].sort((a, b) => a - b);
@@ -171,7 +112,6 @@ function DelayChoice({
       <Select
         id={id}
         value={String(value)}
-        disabled={disabled}
         onChange={(event) => onChange(Number(event.target.value))}
         className="sm:w-48"
       >
@@ -187,11 +127,9 @@ function DelayChoice({
 
 function EmailChoice({
   value,
-  disabled,
   onChange,
 }: {
   value: boolean;
-  disabled: boolean;
   onChange: (value: boolean) => void;
 }) {
   const id = useId();
@@ -210,7 +148,6 @@ function EmailChoice({
         role="radiogroup"
         aria-labelledby={`${id}-label`}
         aria-describedby={`${id}-hint`}
-        aria-busy={disabled || undefined}
         className="grid grid-cols-2 gap-1 rounded-xl bg-surface-muted p-1 sm:w-48"
       >
         {[
@@ -223,7 +160,6 @@ function EmailChoice({
               name={`${id}-email`}
               className="sr-only"
               checked={value === choice.on}
-              disabled={disabled}
               onChange={() => onChange(choice.on)}
             />
             {choice.label}

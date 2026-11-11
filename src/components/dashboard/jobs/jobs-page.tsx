@@ -33,6 +33,7 @@ import { resumeTitle } from "@/lib/resume/ops";
 import { jobsWorkPromptShows } from "@/lib/setup/checklist";
 import { useResumeList, useStudioHydrated } from "@/lib/store/resume-store";
 import { commitDelete, hideApplication, useApplications } from "../applications/use-applications";
+import { forgetSavedJobs } from "../applications/board/use-board-extras";
 import { formatDay } from "../applications/view";
 import { NewResumeMenu } from "../new-resume-menu";
 import { useStudioActions } from "../use-studio-actions";
@@ -80,9 +81,8 @@ export function JobsPage() {
   // null until the person changes a filter: until then "Remote only" follows the work profile.
   const [chosen, setChosen] = useState<JobFilters | null>(null);
   const [page, setPage] = useState(1);
-  const [busy, setBusy] = useState<{ id: string; action: "save" | "apply" | "tailor" } | null>(
-    null,
-  );
+  const [busy, setBusy] = useState<{ id: string; action: "apply" | "tailor" } | null>(null);
+  const saveQueue = useRef(new Map<string, Promise<void>>());
   // Bumped by "Clear filters", so the typed fields start over too.
   const [resetKey, setResetKey] = useState(0);
 
@@ -214,35 +214,44 @@ export function JobsPage() {
     if (copy) actions.open(copy.id, "fix");
   }
 
-  async function toggleSave(job: MatchedJob) {
+  // Shows at once and goes back if the server says no. Clicks on one job queue up, so a quick
+  // save-unsave reaches the server in order.
+  function toggleSave(job: MatchedJob) {
     // Saving is Pro: Free gets the trial prompt instead of a failed request.
     if (data?.locked && !job.saved) {
       openUpgradePrompt("jobs");
       return;
     }
-    setBusy({ id: job.id, action: "save" });
-    try {
-      const res = job.saved ? await api.unsaveJob(job.id) : await api.saveJob(job.id);
-      if (res.saved) note(job, "save");
+    const save = !job.saved;
+    const show = (saved: boolean, savedCount: number) =>
       patch((current) => ({
         ...current,
-        savedCount: res.savedCount,
+        savedCount,
         jobs:
-          view === "saved" && !res.saved
+          view === "saved" && !saved
             ? current.jobs.filter((item) => item.id !== job.id)
-            : current.jobs.map((item) =>
-                item.id === job.id ? { ...item, saved: res.saved } : item,
-              ),
+            : current.jobs.map((item) => (item.id === job.id ? { ...item, saved } : item)),
       }));
-    } catch (error) {
-      toast({
-        title: job.saved ? "Couldn't remove it" : "Couldn't save it",
-        description: errorMessage(error),
-        variant: "error",
-      });
-    } finally {
-      setBusy(null);
-    }
+    const before = data;
+    show(save, Math.max(0, (data?.savedCount ?? 0) + (save ? 1 : -1)));
+    const previous = saveQueue.current.get(job.id) ?? Promise.resolve();
+    const next = previous.then(async () => {
+      try {
+        const res = save ? await api.saveJob(job.id) : await api.unsaveJob(job.id);
+        if (res.saved) note(job, "save");
+        show(res.saved, res.savedCount);
+      } catch (error) {
+        if (before) patch(() => before);
+        toast({
+          title: save ? "Couldn't save it" : "Couldn't remove it",
+          description: errorMessage(error),
+          variant: "error",
+        });
+      } finally {
+        forgetSavedJobs();
+      }
+    });
+    saveQueue.current.set(job.id, next);
   }
 
   // One click logs it as sent today, with the tailored copy for this job when there is one, and
@@ -461,12 +470,11 @@ export function JobsPage() {
                   now={now}
                   applied={appliedFor(applications, job)}
                   tailoredTitle={copy ? resumeTitle(copy) : null}
-                  saving={busy?.id === job.id && busy.action === "save"}
                   logging={busy?.id === job.id && busy.action === "apply"}
                   tailoring={busy?.id === job.id && busy.action === "tailor"}
                   onTailor={(target) => void tailor(target)}
                   onOpenTailored={openTailored}
-                  onToggleSave={(target) => void toggleSave(target)}
+                  onToggleSave={toggleSave}
                   onMarkApplied={(target) => void markApplied(target)}
                   onOpen={openJob}
                   asking={askingIds.has(job.id)}

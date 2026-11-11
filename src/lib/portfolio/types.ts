@@ -1,5 +1,11 @@
-import { z } from "zod";
-import { ResumeSchema, type Resume } from "@/lib/resume/schema";
+import type { z } from "zod";
+import type {
+  CreatePortfolioSchema,
+  PortfolioSectionSchema,
+  PortfolioTemplateIdSchema,
+  UpdatePortfolioSchema,
+} from "./validation";
+import { type Resume } from "@/lib/resume/schema";
 import type { GitHubStats, PortfolioContent } from "./content";
 
 // Client-safe contract for portfolios: one public page per account at /p/<slug>, made from one
@@ -17,7 +23,6 @@ export const PORTFOLIO_TEMPLATE_IDS = [
   "folio",
   "paper",
 ] as const;
-export const PortfolioTemplateIdSchema = z.enum(PORTFOLIO_TEMPLATE_IDS);
 export type PortfolioTemplateId = z.infer<typeof PortfolioTemplateIdSchema>;
 export const DEFAULT_PORTFOLIO_TEMPLATE: PortfolioTemplateId = "navy";
 
@@ -32,7 +37,6 @@ export const PORTFOLIO_SECTIONS = [
   "extras",
   "links",
 ] as const;
-export const PortfolioSectionSchema = z.enum(PORTFOLIO_SECTIONS);
 export type PortfolioSection = z.infer<typeof PortfolioSectionSchema>;
 
 export const PORTFOLIO_SECTION_LABELS: Record<PortfolioSection, string> = {
@@ -62,46 +66,9 @@ export const PORTFOLIO_LIMITS = {
 export function portfolioPath(slug: string): string {
   return `/p/${slug}`;
 }
-
-// The address is checked against the slug rules (./slug.ts) by the route, so the person gets a
-// reason instead of a generic "bad request".
-const slugInput = z.string().trim().max(80);
-
-// POST /api/portfolio: makes the account's portfolio from this resume, or points it at this
-// resume when it already has one. The address is suggested from the name when none is given.
-export const CreatePortfolioSchema = z.object({
-  resume: ResumeSchema,
-  slug: slugInput.optional(),
-  template: PortfolioTemplateIdSchema.optional(),
-});
 export type CreatePortfolioBody = z.input<typeof CreatePortfolioSchema>;
-
-// PATCH /api/portfolio: any of these, at least one. `resume` refreshes the page's copy (or
-// switches it to another resume).
-export const UpdatePortfolioSchema = z
-  .object({
-    resume: ResumeSchema.optional(),
-    slug: slugInput.optional(),
-    template: PortfolioTemplateIdSchema.optional(),
-    showEmail: z.boolean().optional(),
-    showPhone: z.boolean().optional(),
-    hiddenSections: z
-      .array(PortfolioSectionSchema)
-      .max(PORTFOLIO_SECTIONS.length)
-      .transform((keys) => [...new Set(keys)])
-      .optional(),
-    sync: z.boolean().optional(),
-    published: z.boolean().optional(),
-    allowIndexing: z.boolean().optional(),
-  })
-  .refine((body) => Object.values(body).some((value) => value !== undefined), {
-    message: "Nothing to change.",
-  });
 export type UpdatePortfolioBody = z.input<typeof UpdatePortfolioSchema>;
 export type PortfolioPatch = z.output<typeof UpdatePortfolioSchema>;
-
-// POST /api/portfolio/views: one visit to a published page, sent by the page itself.
-export const PortfolioViewSchema = z.object({ slug: z.string().trim().max(80) });
 
 export type PortfolioSettings = {
   template: PortfolioTemplateId;

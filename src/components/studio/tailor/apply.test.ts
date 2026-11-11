@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { TailorRequirement, TailorResult } from "@/lib/ai/types";
-import { emptyResume, ResumeSchema, type Resume } from "@/lib/resume/schema";
+import { emptyResume, type Resume } from "@/lib/resume/schema";
+import { ResumeSchema } from "@/lib/resume/validation";
 import {
   applyTailorChoices,
   confirmedSkills,

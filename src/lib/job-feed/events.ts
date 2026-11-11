@@ -1,7 +1,8 @@
 import type { z } from "zod";
 import type { Db } from "@/db/client";
 import { matchEvents } from "@/db/schema";
-import type { MatchActionSchema, MatchedJob } from "./types";
+import type { MatchedJob } from "./types";
+import type { MatchActionSchema } from "./validation";
 
 // Server-only. What the Jobs tab showed and what people did with it, for measuring match quality
 // (MATCHING-RESEARCH.md, Phase 0). Ids, places in the list, labels and a hash only: never resume

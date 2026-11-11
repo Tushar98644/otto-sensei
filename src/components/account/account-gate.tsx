@@ -6,8 +6,7 @@ import { toast } from "@/components/ui/toast";
 import type { Feature } from "@/config/plans";
 import { api, isApiError } from "@/lib/api/client";
 import { SESSION_ENDED_REASON } from "./copy";
-import { SignInDialog } from "./sign-in-dialog";
-import { UpgradeDialog } from "./upgrade-dialog";
+import { LazySignInDialog, LazyUpgradeDialog } from "./lazy-dialogs";
 import { refreshMe, useMe } from "./use-me";
 
 // Contract used by the studio for AI actions. Implemented by the account-ui task.
@@ -111,13 +110,13 @@ export function useAccountGate(): AccountGate {
   const dialogs = useMemo(
     () => (
       <>
-        <SignInDialog
+        <LazySignInDialog
           open={signIn.open}
           onOpenChange={handleSignInOpenChange}
           reason={signIn.reason}
           onSignedIn={handleSignedIn}
         />
-        <UpgradeDialog
+        <LazyUpgradeDialog
           open={upgrade.open}
           onOpenChange={handleUpgradeOpenChange}
           feature={upgrade.feature}

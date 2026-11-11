@@ -1,58 +1,58 @@
 "use client";
 
+import { useQuery } from "@tanstack/react-query";
 import { create } from "zustand";
+import { useMe } from "@/components/account/use-me";
 import { toast } from "@/components/ui/toast";
 import { UNDO_MS } from "@/components/ui/undo-toast";
 import { api, isApiError } from "@/lib/api/client";
 import type { UpdatePortfolioBody } from "@/lib/api/types";
 import type { Portfolio } from "@/lib/portfolio/types";
+import { getQueryClient, useAppQueryClient } from "@/lib/queries/client";
+import { PORTFOLIO } from "@/lib/queries/keys";
+import { portfolioQuery } from "@/lib/queries/options";
 import type { Resume } from "@/lib/resume/schema";
 
-// The account's portfolio, loaded once and shared by the Portfolio screen and the resume cards.
+// The account's portfolio, from the tab's query cache, and the one piece of screen state its
+// editor shares: whether a write is on its way.
 
-type Status = "idle" | "loading" | "ready" | "error";
+// A write is on its way; the editor shows it and keeps a second one from racing it.
+export const usePortfolioStore = create<{ saving: boolean }>()(() => ({ saving: false }));
 
-type PortfolioState = {
-  status: Status;
-  // Whose portfolio this is: another account signing in on this tab starts from scratch.
-  owner: string | null;
+export type PortfolioState = {
+  status: "loading" | "ready" | "error";
   portfolio: Portfolio | null;
   error: string | null;
-  // A write is on its way; the editor shows it and keeps a second one from racing it.
-  saving: boolean;
-  load: (owner: string, options?: { force?: boolean }) => Promise<void>;
-  put: (portfolio: Portfolio | null) => void;
+  retry: () => void;
 };
 
-export const usePortfolioStore = create<PortfolioState>()((set, get) => ({
-  status: "idle",
-  owner: null,
-  portfolio: null,
-  error: null,
-  saving: false,
-  async load(owner, { force = false } = {}) {
-    const current = get();
-    const same = current.owner === owner;
-    if (same && current.status === "loading") return;
-    if (same && current.status === "ready" && !force) return;
-    set(
-      same
-        ? { status: "loading", error: null }
-        : { status: "loading", owner, portfolio: null, error: null },
-    );
-    try {
-      const { portfolio } = await api.portfolio();
-      if (get().owner !== owner) return;
-      set({ status: "ready", portfolio });
-    } catch (error) {
-      if (get().owner !== owner) return;
-      set({ status: "error", error: isApiError(error) ? error.message : null });
-    }
-  },
-  put(portfolio) {
-    set({ portfolio });
-  },
-}));
+export function usePortfolio(): PortfolioState {
+  const { user } = useMe();
+  const userId = user?.id ?? null;
+  const client = useAppQueryClient();
+  const query = useQuery({ ...portfolioQuery(userId ?? ""), enabled: userId !== null }, client);
+  const status: PortfolioState["status"] =
+    query.data !== undefined
+      ? "ready"
+      : query.isError && query.fetchStatus === "idle"
+        ? "error"
+        : "loading";
+  return {
+    status,
+    portfolio: query.data ?? null,
+    error: query.error && isApiError(query.error) ? query.error.message : null,
+    retry: () => void query.refetch(),
+  };
+}
+
+function currentPortfolio(): Portfolio | null {
+  const [entry] = getQueryClient().getQueriesData<Portfolio | null>({ queryKey: PORTFOLIO });
+  return entry?.[1] ?? null;
+}
+
+export function putPortfolio(portfolio: Portfolio | null): void {
+  getQueryClient().setQueriesData<Portfolio | null>({ queryKey: PORTFOLIO }, () => portfolio);
+}
 
 export function messageOf(error: unknown): string {
   if (isApiError(error) || error instanceof Error) return error.message;
@@ -64,7 +64,7 @@ export async function makePortfolio(resume: Resume): Promise<Portfolio | null> {
   usePortfolioStore.setState({ saving: true });
   try {
     const { portfolio } = await api.createPortfolio({ resume });
-    usePortfolioStore.getState().put(portfolio);
+    putPortfolio(portfolio);
     return portfolio;
   } catch (error) {
     toast({
@@ -99,19 +99,20 @@ function withSettings(portfolio: Portfolio, patch: UpdatePortfolioBody): Portfol
  * server's answer is the final word. Resolves false after telling the person why it failed.
  */
 export async function savePortfolio(patch: UpdatePortfolioBody): Promise<boolean> {
-  const before = usePortfolioStore.getState().portfolio;
+  const before = currentPortfolio();
   if (!before) return false;
   // Two quick switches send two requests; only the newest answer may replace what's shown, or a
   // late first answer would undo the second switch on screen.
   const mine = ++latestSave;
-  usePortfolioStore.setState({ portfolio: withSettings(before, patch), saving: true });
+  putPortfolio(withSettings(before, patch));
+  usePortfolioStore.setState({ saving: true });
   try {
     const { portfolio } = await api.updatePortfolio(patch);
-    if (mine === latestSave) usePortfolioStore.getState().put(portfolio);
+    if (mine === latestSave) putPortfolio(portfolio);
     return true;
   } catch (error) {
-    if (isApiError(error, "not_found")) usePortfolioStore.getState().put(null);
-    else if (mine === latestSave) usePortfolioStore.getState().put(before);
+    if (isApiError(error, "not_found")) putPortfolio(null);
+    else if (mine === latestSave) putPortfolio(before);
     toast({ title: "Couldn't save that", description: messageOf(error), variant: "error" });
     return false;
   } finally {

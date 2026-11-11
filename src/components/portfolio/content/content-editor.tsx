@@ -19,7 +19,7 @@ import type { PortfolioSection, PortfolioTemplateId } from "@/lib/portfolio/type
 import type { Resume } from "@/lib/resume/schema";
 import { cn } from "@/lib/utils";
 import { EditorSection } from "../check-row";
-import { usePortfolioStore } from "../portfolio-store";
+import { putPortfolio } from "../portfolio-store";
 import { CareerCard } from "./career-card";
 import { flushContent, resetContentStore, useContentStore } from "./content-store";
 import { MilestonesCard, NowCard, PersonalCard, WritingCard } from "./extras-cards";
@@ -185,7 +185,7 @@ export function DeletePortfolio() {
     try {
       await api.deletePortfolio();
       resetContentStore();
-      usePortfolioStore.getState().put(null);
+      putPortfolio(null);
       toast({
         title: "Your page is deleted",
         description: "Its address and content are gone. Your resume is untouched.",

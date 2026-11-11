@@ -23,8 +23,6 @@ import {
 
 export {
   LOOKING_FOR_LIMITS,
-  LookingForChoiceSchema,
-  LookingForSchema,
   NO_CHOICE,
   PLACE_GROUPS,
   type LookingFor,

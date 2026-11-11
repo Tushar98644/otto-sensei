@@ -4,12 +4,8 @@ import { getCurrentUser } from "@/lib/auth/session";
 import { readJson } from "@/lib/http";
 import { log } from "@/lib/log";
 import { listShares, saveShare } from "@/lib/share/records";
-import {
-  CreateShareSchema,
-  SHARE_LIMITS,
-  type ShareResponse,
-  type SharesResponse,
-} from "@/lib/share/types";
+import { SHARE_LIMITS, type ShareResponse, type SharesResponse } from "@/lib/share/types";
+import { CreateShareSchema } from "@/lib/share/validation";
 import { requireProTool } from "../pro-tools";
 import { NO_STORE, SIGN_IN } from "./messages";
 import { writeLimited } from "./write-limit";

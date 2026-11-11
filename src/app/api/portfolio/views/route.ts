@@ -4,7 +4,7 @@ import { getCurrentUser } from "@/lib/auth/session";
 import { readJson } from "@/lib/http";
 import { log } from "@/lib/log";
 import { countView, findViewTarget } from "@/lib/portfolio/records";
-import { PortfolioViewSchema } from "@/lib/portfolio/types";
+import { PortfolioViewSchema } from "@/lib/portfolio/validation";
 import { isAutomatedAgent } from "@/lib/share/visits";
 
 export const runtime = "nodejs";

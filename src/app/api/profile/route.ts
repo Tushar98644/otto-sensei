@@ -1,7 +1,8 @@
 import { fail, ok } from "@/lib/api/respond";
 import { rejectCrossSite, rejectNonJson } from "@/lib/auth/route-guards";
 import { getCurrentUser } from "@/lib/auth/session";
-import { WorkProfileSchema, type WorkProfileResponse } from "@/lib/eligibility/profile";
+import { type WorkProfileResponse } from "@/lib/eligibility/profile";
+import { WorkProfileSchema } from "@/lib/eligibility/validation";
 import { readWorkProfile, saveWorkProfile } from "@/lib/eligibility/records";
 import { readJson } from "@/lib/http";
 import { log } from "@/lib/log";

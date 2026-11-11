@@ -3,7 +3,8 @@ import { rejectCrossSite, rejectNonJson } from "@/lib/auth/route-guards";
 import { getCurrentUser } from "@/lib/auth/session";
 import { saveLookingFor } from "@/lib/eligibility/records";
 import { readJson } from "@/lib/http";
-import { LookingForChoiceSchema, type LookingForResponse } from "@/lib/job-feed/types";
+import { type LookingForResponse } from "@/lib/job-feed/types";
+import { LookingForChoiceSchema } from "@/lib/job-feed/validation";
 import { log } from "@/lib/log";
 
 export const runtime = "nodejs";

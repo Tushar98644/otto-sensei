@@ -10,7 +10,8 @@ import type {
   BulkApplicationsResponse,
   CreateApplicationBody,
 } from "@/lib/api/types";
-import { APPLICATION_LIMITS, CreateApplicationSchema } from "@/lib/applications/schema";
+import { APPLICATION_LIMITS } from "@/lib/applications/schema";
+import { CreateApplicationSchema } from "@/lib/applications/validation";
 import { cookieJar, resetDb, setPlan, signInAs } from "@/lib/auth/test-helpers";
 import type { SessionUser } from "@/lib/auth/types";
 import { deleteUserData } from "@/lib/users";
@@ -256,6 +257,24 @@ describe("/api/applications", () => {
 
     await signIn("ada@example.com");
     expect(await listed()).toEqual([adas]);
+  });
+
+  it("keeps an id the browser picked, answers a repeat with the same row, and never reuses another account's", async () => {
+    const id = crypto.randomUUID();
+    await signIn("ada@example.com");
+    const first = await created(await create(body({ id })));
+    expect(first.id).toBe(id);
+    expect(await created(await create(body({ id, company: "Other" })))).toEqual(first);
+    expect(await listed()).toEqual([first]);
+
+    await signIn("grace@example.com");
+    const taken = await create(body({ id }));
+    expect(taken.status).toBe(409);
+    expect((await errorOf(taken)).code).toBe("bad_request");
+    expect(await listed()).toEqual([]);
+
+    const notUuid = await create(body({ id: "not-a-uuid" }));
+    expect(notUuid.status).toBe(400);
   });
 });
 

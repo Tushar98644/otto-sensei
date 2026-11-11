@@ -1,8 +1,7 @@
-import { z } from "zod";
 import { TEXT_LIMITS } from "@/config/plans";
 import {
   MAX_SAVED_REQUIREMENTS,
-  SavedRequirementSchema,
+  SAVED_REQUIREMENT_LIMITS,
   type Resume,
   type SavedRequirement,
   type TailorMeta,
@@ -14,8 +13,6 @@ import {
 // never re-parsed, so an older or hand-edited one may hold anything there, or nothing.
 
 const MIN_JOB_CHARS = 80;
-
-const RequirementsSchema = z.array(z.unknown()).max(MAX_SAVED_REQUIREMENTS);
 
 type LooseMeta = { jobText?: unknown; jobUrl?: unknown; requirements?: unknown };
 
@@ -45,19 +42,33 @@ export type { SavedRequirement };
 
 /**
  * The requirement list saved with a tailored copy, or null when the copy only kept keywords.
- * Entries that don't parse are skipped one by one rather than dropping the whole list.
+ * Entries that don't read are skipped one by one rather than dropping the whole list. The same
+ * rules as SavedRequirementSchema, by hand, so the board doesn't load zod for them.
  */
 export function savedRequirements(resume: Resume | null | undefined): SavedRequirement[] | null {
   const meta = resume?.tailor;
   if (!meta) return null;
-  const list = RequirementsSchema.safeParse(loose(meta).requirements);
-  if (!list.success) return null;
-  const out: SavedRequirement[] = [];
-  for (const item of list.data) {
-    const parsed = SavedRequirementSchema.safeParse(item);
-    if (parsed.success) out.push(parsed.data);
-  }
+  const list = loose(meta).requirements;
+  if (!Array.isArray(list) || list.length > MAX_SAVED_REQUIREMENTS) return null;
+  const out = list.map(readRequirement).filter((item): item is SavedRequirement => item !== null);
   return out.length > 0 ? out : null;
+}
+
+function readRequirement(value: unknown): SavedRequirement | null {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) return null;
+  const { text, importance, terms } = value as Record<string, unknown>;
+  if (typeof text !== "string" || text.length > SAVED_REQUIREMENT_LIMITS.textChars) return null;
+  const termsRead =
+    Array.isArray(terms) &&
+    terms.length <= SAVED_REQUIREMENT_LIMITS.terms &&
+    terms.every(
+      (term) => typeof term === "string" && term.length <= SAVED_REQUIREMENT_LIMITS.termChars,
+    );
+  return {
+    text,
+    importance: importance === "must" ? "must" : "nice",
+    terms: termsRead ? (terms as string[]) : [],
+  };
 }
 
 /**

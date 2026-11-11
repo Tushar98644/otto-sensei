@@ -66,6 +66,10 @@ export async function POST(req: Request): Promise<Response> {
       log.info("applications.write_after_account_deleted");
       return fail("unauthorized", SIGN_IN, 401);
     }
+    if (result.status === "id_taken") {
+      log.info("applications.id_taken");
+      return fail("bad_request", INVALID, 409);
+    }
     if (result.status === "limit_reached" && !paid) return proToolRequired(user, "tracker");
     if (result.status === "limit_reached") {
       log.info("applications.limit_reached", { max: APPLICATION_LIMITS.perUser });

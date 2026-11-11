@@ -4,7 +4,8 @@ import { getCurrentUser } from "@/lib/auth/session";
 import { readJson } from "@/lib/http";
 import { log } from "@/lib/log";
 import { readAccountSetup, saveAccountSetup } from "@/lib/setup/records";
-import { AccountSetupChangeSchema, type AccountSetupResponse } from "@/lib/setup/types";
+import { type AccountSetupResponse } from "@/lib/setup/types";
+import { AccountSetupChangeSchema } from "@/lib/setup/validation";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

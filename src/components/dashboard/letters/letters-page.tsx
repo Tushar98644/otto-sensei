@@ -4,7 +4,7 @@ import { MessageSquareText, PenLine } from "lucide-react";
 import { useMemo, useRef, useState } from "react";
 import { errorMessage } from "@/components/account/errors";
 import { useProTools, useTryProLabel } from "@/components/account/pro-tools";
-import { UpgradeDialog } from "@/components/account/upgrade-dialog";
+import { LazyUpgradeDialog } from "@/components/account/lazy-dialogs";
 import { OTTO } from "@/components/mascot/lines";
 import { OttoNote } from "@/components/mascot/otto-note";
 import { saveLetterOnCopy } from "@/components/studio/tailor/copy-letter";
@@ -324,7 +324,7 @@ export function LettersPage() {
           onOpenInStudio={() => openInStudio(viewing)}
         />
       ) : null}
-      <UpgradeDialog open={upgradeOpen} onOpenChange={setUpgradeOpen} feature="letter" />
+      <LazyUpgradeDialog open={upgradeOpen} onOpenChange={setUpgradeOpen} feature="letter" />
     </div>
   );
 }

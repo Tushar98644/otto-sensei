@@ -1,6 +1,6 @@
-import { z } from "zod";
-import { cleanLine, normalizeJobUrl } from "@/lib/applications/schema";
-import { COVER_LETTER_CHARS, ResumeSchema } from "@/lib/resume/schema";
+import type { z } from "zod";
+import type { CreateWritingSchema, UpdateWritingSchema } from "./validation";
+import { COVER_LETTER_CHARS } from "@/lib/resume/schema";
 
 // Client-safe. Cover letters and answers to application questions an account keeps
 // (/api/writings). The AI routes (/api/letter, /api/answer) only write the text; the page that
@@ -53,82 +53,17 @@ export type Writing = {
   updatedAt: number;
 };
 
-const line = (max: number) =>
-  z
-    .string()
-    .max(max * 4)
-    .transform(cleanLine)
-    .pipe(z.string().max(max));
-
-// A link that can't be stored is dropped rather than failing the save: the letter matters more.
-const jobUrlField = z
-  .string()
-  .max(WRITING_LIMITS.jobUrl * 2)
-  .transform((value) => normalizeJobUrl(value) ?? "")
-  .catch("");
-
-// Line breaks are the letter's paragraphs, so only other control characters go.
-const bodyText = (max: number) =>
-  z
-    .string()
-    .max(max * 2)
-    .transform((value) =>
-      value
-        .replace(/\r\n?/g, "\n")
-        .replace(/[^\P{Cc}\n\t]/gu, "")
-        .trim(),
-    )
-    .pipe(z.string().min(1).max(max));
-
 const TEXT_MAX: Record<WritingKind, number> = {
   letter: WRITING_LIMITS.letterChars,
   answer: WRITING_LIMITS.answerChars,
 };
-
-// POST /api/writings
-export const CreateWritingSchema = z
-  .object({
-    kind: z.enum(WRITING_KINDS),
-    resumeId: ResumeSchema.shape.id.nullable().default(null),
-    resumeTitle: line(WRITING_LIMITS.resumeTitle).default(""),
-    company: line(WRITING_LIMITS.company).default(""),
-    role: line(WRITING_LIMITS.role).default(""),
-    jobUrl: jobUrlField.default(""),
-    question: line(WRITING_LIMITS.question.max).default(""),
-    text: bodyText(WRITING_LIMITS.letterChars),
-    warnings: z
-      .array(line(WRITING_LIMITS.warningChars))
-      .max(WRITING_LIMITS.warnings)
-      .default([]),
-    demo: z.boolean().default(false),
-    // Written from an application's own page: link it to that one. Otherwise the server finds it.
-    applicationId: z.uuid().nullable().default(null),
-  })
-  .superRefine((value, ctx) => {
-    if (value.text.length > TEXT_MAX[value.kind]) {
-      ctx.addIssue({ code: "custom", path: ["text"], message: "That's too long to keep." });
-    }
-    const asked = value.question.length >= WRITING_LIMITS.question.min;
-    if (value.kind === "answer" && !asked) {
-      ctx.addIssue({ code: "custom", path: ["question"], message: "An answer needs its question." });
-    }
-    if (value.kind === "letter" && value.question !== "") {
-      ctx.addIssue({ code: "custom", path: ["question"], message: "Letters have no question." });
-    }
-  });
 export type CreateWritingBody = z.input<typeof CreateWritingSchema>;
 export type CreateWritingInput = z.output<typeof CreateWritingSchema>;
-
-// PATCH /api/writings/:id: the person's own edits. Capped at the letter's size; an answer's
-// smaller cap is checked against the stored kind.
-export const UpdateWritingSchema = z.object({ text: bodyText(WRITING_LIMITS.letterChars) });
 export type UpdateWritingBody = z.input<typeof UpdateWritingSchema>;
 
 export function textLimit(kind: WritingKind): number {
   return TEXT_MAX[kind];
 }
-
-export const WritingIdSchema = z.uuid();
 
 // GET /api/writings: the newest WRITING_LIMITS.listed, and how many the account keeps in all.
 export type WritingsResponse = { ok: true; writings: Writing[]; total: number };

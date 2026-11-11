@@ -1,7 +1,7 @@
 "use client";
 
 import { Link2 } from "lucide-react";
-import { useEffect, useId, useRef, useState, type RefObject } from "react";
+import { useId, useRef, useState, type RefObject } from "react";
 import { unlockProTool } from "@/components/account/pro-tools";
 import { useMe } from "@/components/account/use-me";
 import { useNow } from "@/components/studio/use-now";
@@ -19,7 +19,7 @@ import { cn } from "@/lib/utils";
 import { absolute, copyWhenReady, turnOffWithUndo } from "./share-actions";
 import { isBehind, viewFacts } from "./share-facts";
 import { DEFAULT_SHARE_OPTIONS, ShareOptions, type ShareOptionValues } from "./share-options";
-import { useShareStore } from "./share-store";
+import { dropShare, putShare, useShares } from "./share-store";
 import { CopyLinkButton, OpenShareLink, useShareUrl } from "./copy-link";
 
 type ShareDialogProps = {
@@ -44,13 +44,10 @@ function focusSoon(ref: RefObject<HTMLElement | null>) {
 // latest version, choose what it shows, or turn it off (at once, with Undo).
 export function ShareDialog({ resume, open, onOpenChange }: ShareDialogProps) {
   const { user } = useMe();
-  const status = useShareStore((state) => state.status);
-  const loadError = useShareStore((state) => state.error);
-  const link = useShareStore(
-    (state) => state.links.find((item) => item.resumeId === resume.id) ?? null,
-  );
-  const put = useShareStore((state) => state.put);
-  const drop = useShareStore((state) => state.drop);
+  // Loads once per account; later opens reuse the list the Shared links section shares.
+  const shares = useShares(open);
+  const { status, error: loadError } = shares;
+  const link = shares.links.find((item) => item.resumeId === resume.id) ?? null;
   const [draft, setDraft] = useState<ShareOptionValues>(DEFAULT_SHARE_OPTIONS);
   const [busy, setBusy] = useState<Busy>(null);
   const [error, setError] = useState<string | null>(null);
@@ -59,11 +56,6 @@ export function ShareDialog({ resume, open, onOpenChange }: ShareDialogProps) {
   const makeButton = useRef<HTMLButtonElement>(null);
   const title = resumeTitle(resume);
   const userId = user?.id ?? null;
-
-  // Loads once per account; later opens reuse the list the Shared links section shares.
-  useEffect(() => {
-    if (open && userId) void useShareStore.getState().load(userId);
-  }, [open, userId]);
 
   // Until the account's links have loaded, "no link yet" might be wrong, and making one then would
   // quietly replace the version an existing link shows.
@@ -92,7 +84,7 @@ export function ShareDialog({ resume, open, onOpenChange }: ShareDialogProps) {
       const request = api.share({ resume, ...options });
       const copied = await copyWhenReady(request.then(({ link: made }) => absolute(made)));
       const { link: saved, created } = await request;
-      put(saved);
+      putShare(saved);
       setNotice(
         created
           ? copied
@@ -116,12 +108,12 @@ export function ShareDialog({ resume, open, onOpenChange }: ShareDialogProps) {
     setBusy("options");
     setError(null);
     setNotice("");
-    put({ ...link, ...patch });
+    putShare({ ...link, ...patch });
     try {
-      put((await api.updateShare(link.id, patch)).link);
+      putShare((await api.updateShare(link.id, patch)).link);
     } catch (failure) {
-      if (isApiError(failure, "not_found")) drop(link.id);
-      else put(link);
+      if (isApiError(failure, "not_found")) dropShare(link.id);
+      else putShare(link);
       setError(messageOf(failure));
     } finally {
       setBusy(null);
@@ -135,7 +127,7 @@ export function ShareDialog({ resume, open, onOpenChange }: ShareDialogProps) {
   }
 
   function retryLoad() {
-    if (userId) void useShareStore.getState().load(userId, { force: true });
+    shares.retry();
   }
 
   const onDialogChange = (next: boolean) => (next ? onOpenChange(true) : close());

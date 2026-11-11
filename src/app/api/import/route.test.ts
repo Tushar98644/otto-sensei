@@ -14,7 +14,7 @@ import {
   templateDocx,
   twoColumnPdf,
 } from "@/lib/parse/test-fixtures";
-import { ResumeSchema } from "@/lib/resume/schema";
+import { ResumeSchema } from "@/lib/resume/validation";
 import { POST } from "./route";
 
 vi.mock("next/headers", async () => (await import("@/lib/auth/test-helpers")).nextHeadersMock);

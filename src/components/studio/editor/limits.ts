@@ -1,5 +1,6 @@
 import type { ZodString } from "zod";
 import type { BulletSection } from "@/lib/resume/ops";
+import { MAX_EXTRA_ITEMS, MAX_EXTRA_SECTIONS, MAX_SECTION_TITLE_CHARS } from "@/lib/resume/schema";
 import {
   BasicsSchema,
   BulletSchema,
@@ -9,13 +10,10 @@ import {
   ExtraItemSchema,
   ExtraSectionSchema,
   LinkSchema,
-  MAX_EXTRA_ITEMS,
-  MAX_EXTRA_SECTIONS,
-  MAX_SECTION_TITLE_CHARS,
   ProjectSchema,
   ResumeSchema,
   SkillGroupSchema,
-} from "@/lib/resume/schema";
+} from "@/lib/resume/validation";
 
 // Inputs stop at the schema's caps, so the editor never holds a resume that cloud sync would
 // reject. Text caps are read from the schema itself. zod has no public getter for list caps, so

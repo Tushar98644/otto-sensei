@@ -2,7 +2,7 @@
 
 import { useSyncExternalStore } from "react";
 import type { Feature, ProTool } from "@/config/plans";
-import { UpgradeDialog } from "./upgrade-dialog";
+import { LazyUpgradeDialog } from "./lazy-dialogs";
 
 // The trial prompt for the Pro tools, opened from anywhere with openUpgradePrompt(): a store action,
 // an Undo in a toast, a menu item. Mount <UpgradePromptHost /> once per page; the app shell, the
@@ -42,7 +42,7 @@ export function UpgradePromptHost() {
     () => CLOSED,
   );
   return (
-    <UpgradeDialog
+    <LazyUpgradeDialog
       open={current.open}
       // The tool stays while the dialog animates closed, so its copy doesn't change mid-fade.
       onOpenChange={(open) => setPrompt({ ...prompt, open })}

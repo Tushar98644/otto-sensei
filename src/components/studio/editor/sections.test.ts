@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
   DEFAULT_SECTION_ORDER,
-  ResumeSchema,
   emptyResume,
   isSectionHidden,
   newExperience,
@@ -9,6 +8,7 @@ import {
   sectionTitleOf,
   type SectionKey,
 } from "@/lib/resume/schema";
+import { ResumeSchema } from "@/lib/resume/validation";
 import {
   cleanSectionTitle,
   includeSection,

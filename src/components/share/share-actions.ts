@@ -6,7 +6,7 @@ import { api, isApiError } from "@/lib/api/client";
 import type { Resume } from "@/lib/resume/schema";
 import { sharePath, type SharedLink } from "@/lib/share/types";
 import { DEFAULT_SHARE_OPTIONS } from "./share-options";
-import { useShareStore } from "./share-store";
+import { dropShare, ensureShares, putShare } from "./share-store";
 
 // The two share actions that need no dialog: make (or refresh) a resume's link and copy it in one
 // click, and turn a link off with Undo instead of a confirm.
@@ -61,16 +61,15 @@ export async function shareAndCopy(
   pendingTurnOffs.get(resume.id)?.undo();
   const made = (async () => {
     // A live link's settings must be known before saving over it.
-    await useShareStore.getState().load(owner);
-    if (useShareStore.getState().status === "error") {
+    const links = await ensureShares(owner).catch(() => {
       throw new Error("Couldn't check the links you already made. Check your connection, then try again.");
-    }
-    const existing = useShareStore.getState().links.find((item) => item.resumeId === resume.id);
+    });
+    const existing = links.find((item) => item.resumeId === resume.id);
     const options = existing
       ? { showContact: existing.showContact, allowIndexing: existing.allowIndexing }
       : DEFAULT_SHARE_OPTIONS;
     const { link } = await api.share({ resume, ...options });
-    useShareStore.getState().put(link);
+    putShare(link);
     return link;
   })();
   const copied = await copyWhenReady(made.then(absolute));
@@ -94,19 +93,18 @@ export async function shareAndCopy(
 
 /** Turns a link off at once, with Undo; the server hears about it once Undo has run out. */
 export function turnOffWithUndo(link: SharedLink): void {
-  const store = useShareStore.getState();
-  store.drop(link.id);
+  dropShare(link.id);
   const handle = undoToast({
     title: "Link turned off",
     description: "Anyone who opens it now sees that it doesn't work.",
     onUndo: () => {
       pendingTurnOffs.delete(link.resumeId);
-      useShareStore.getState().put(link);
+      putShare(link);
     },
     onCommit: (options) => {
       pendingTurnOffs.delete(link.resumeId);
       api.revokeShare(link.id, options).catch((error: unknown) => {
-        useShareStore.getState().put(link);
+        putShare(link);
         toast({ title: "Couldn't turn off the link", description: messageOf(error), variant: "error" });
       });
     },

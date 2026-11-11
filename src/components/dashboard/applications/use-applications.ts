@@ -1,83 +1,114 @@
 "use client";
 
-import { useCallback, useEffect } from "react";
-import { create } from "zustand";
-import { useMe } from "@/components/account/use-me";
+import { queryOptions, useQuery } from "@tanstack/react-query";
+import { useCallback } from "react";
+import { signedInUserId, useMe } from "@/components/account/use-me";
 import { api, isApiError } from "@/lib/api/client";
 import type { Application, CreateApplicationBody, UpdateApplicationBody } from "@/lib/api/types";
-import { APPLICATION_LIMITS } from "@/lib/applications/schema";
-import { stageAfter } from "@/lib/applications/status";
+import { firstFollowUpAt, FOLLOW_UP_DAYS } from "@/lib/applications/follow-up";
+import { APPLICATION_LIMITS, cleanLine, normalizeJobUrl } from "@/lib/applications/schema";
+import { isStage, stageAfter } from "@/lib/applications/status";
+import { getQueryClient, useAppQueryClient } from "@/lib/queries/client";
+import { APPLICATIONS, queryKeys } from "@/lib/queries/keys";
+import { fetchAllApplications, type ReminderSettingsData } from "@/lib/queries/options";
 import { sortApplications, upsertApplication, withoutApplication } from "./view";
 
-// The signed-in user's applications, shared by the Applications page, the home page's win rate
-// and the "Mark as applied" shortcut on resume cards: one load per page visit, kept per account
-// so a different sign-in in the same tab never sees the last person's list.
+// The signed-in user's applications, shared by the Applications page, the home page's win rate,
+// the Jobs tab and the "Mark as applied" shortcut on resume cards. Every change shows at once and
+// is rolled back if the server says no.
 
 export type ApplicationsStatus = "loading" | "ready" | "error";
 
-type State = {
-  userId: string | null;
-  status: "idle" | ApplicationsStatus;
-  items: Application[];
-};
-
-const useApplicationsStore = create<State>()(() => ({ userId: null, status: "idle", items: [] }));
-
-const EMPTY: Application[] = [];
-const MAX_PAGES = Math.ceil(APPLICATION_LIMITS.perUser / APPLICATION_LIMITS.pageSize) + 1;
-
 type Change = (items: Application[]) => Application[];
 
-let loadToken = 0;
-// Changes made while a load is in flight, replayed over its result so none of them is lost.
+const EMPTY: Application[] = [];
+
+// Changes made while a load is on its way, replayed over its answer so none of them is lost.
 let replay: Change[] = [];
+// Deletes still inside their undo window: the server keeps them until then, so a fresh load must
+// not bring them back.
+const hidden = new Set<string>();
+// Applications shown before the server has them, by the id they keep (see addApplication).
+const creating = new Map<string, Promise<unknown>>();
+
+export const applicationsQuery = (userId: string) =>
+  queryOptions({
+    queryKey: queryKeys.applications(userId),
+    queryFn: async () => {
+      replay = [];
+      const items = await fetchAllApplications();
+      const merged = replay.reduce((list, change) => change(list), sortApplications(items));
+      replay = [];
+      return merged.filter((item) => !hidden.has(item.id));
+    },
+  });
 
 function apply(change: Change) {
-  useApplicationsStore.setState((state) => ({ items: change(state.items) }));
-  if (useApplicationsStore.getState().status === "loading") replay.push(change);
+  const client = getQueryClient();
+  client.setQueriesData<Application[]>({ queryKey: APPLICATIONS }, (items) =>
+    items ? change(items) : items,
+  );
+  if (client.isFetching({ queryKey: APPLICATIONS }) > 0) replay.push(change);
 }
 
-async function load(userId: string): Promise<void> {
-  const token = ++loadToken;
-  replay = [];
-  useApplicationsStore.setState((state) => ({
-    userId,
-    status: "loading",
-    items: state.userId === userId ? state.items : EMPTY,
-  }));
-  try {
-    const items: Application[] = [];
-    let cursor: string | null = null;
-    // Bounded by the per-account cap, in case a server ever keeps handing out cursors.
-    for (let page = 0; page < MAX_PAGES; page++) {
-      const res = await api.listApplications(cursor);
-      items.push(...res.applications);
-      cursor = res.nextCursor;
-      if (cursor === null) break;
-    }
-    if (token !== loadToken) return;
-    const merged = replay.reduce((list, change) => change(list), sortApplications(items));
-    replay = [];
-    useApplicationsStore.setState({ userId, status: "ready", items: merged });
-  } catch {
-    if (token !== loadToken) return;
-    replay = [];
-    useApplicationsStore.setState({ status: "error" });
-  }
+// What the server will store, as far as the browser can tell, so the new row shows (and links to
+// its page) at once. The server's copy replaces it when it answers.
+function draftApplication(id: string, body: CreateApplicationBody, now: number): Application {
+  const status = body.status ?? "applied";
+  const userId = signedInUserId();
+  const reminders = userId
+    ? getQueryClient().getQueryData<ReminderSettingsData>(queryKeys.reminderSettings(userId))
+    : undefined;
+  const days = reminders?.followUpDays ?? FOLLOW_UP_DAYS.default;
+  return {
+    id,
+    resumeId: body.resumeId ?? null,
+    resumeTitle: cleanLine(body.resumeTitle ?? ""),
+    company: cleanLine(body.company),
+    role: cleanLine(body.role ?? ""),
+    jobUrl: normalizeJobUrl(body.jobUrl ?? "") ?? "",
+    appliedAt: body.appliedAt,
+    status,
+    stageReached: isStage(status) ? status : "applied",
+    statusChangedAt: now,
+    notes: body.notes ?? "",
+    followUpAt: status === "applied" ? firstFollowUpAt(body.appliedAt, now, days) : null,
+    jobId: body.jobId ?? null,
+    hasPrep: false,
+    interviewAt: body.interviewAt ?? null,
+    createdAt: now,
+    updatedAt: now,
+  };
 }
 
-function clear() {
-  loadToken += 1;
-  replay = [];
-  if (useApplicationsStore.getState().userId !== null) {
-    useApplicationsStore.setState({ userId: null, status: "idle", items: EMPTY });
-  }
+/** Waits for the create of an application that was shown before the server had it. */
+async function created(id: string): Promise<void> {
+  await creating.get(id);
 }
 
+/**
+ * Logs an application. It shows at once under the id it keeps, so its links work right away;
+ * the server's copy replaces it, or it goes again if the server says no.
+ */
 export async function addApplication(body: CreateApplicationBody): Promise<Application> {
-  const { application } = await api.createApplication(body);
-  apply((items) => upsertApplication(items, application));
-  return application;
+  const id = crypto.randomUUID();
+  apply((items) => upsertApplication(items, draftApplication(id, body, Date.now())));
+  const request = api.createApplication({ ...body, id });
+  creating.set(
+    id,
+    request.catch(() => undefined),
+  );
+  try {
+    const { application } = await request;
+    // The draft's clock is the browser's, so the server's copy replaces it whatever its time.
+    apply((items) => upsertApplication(withoutApplication(items, id), application));
+    return application;
+  } catch (error) {
+    apply((items) => withoutApplication(items, id));
+    throw error;
+  } finally {
+    creating.delete(id);
+  }
 }
 
 /**
@@ -107,6 +138,7 @@ export async function changeApplication(
     apply((items) => upsertApplication(items, optimistic));
   }
   try {
+    await created(original.id);
     const { application } = await api.updateApplication(original.id, patch);
     apply((items) => upsertApplication(items, application));
     return application;
@@ -121,6 +153,7 @@ export async function changeApplication(
 export async function removeApplication(application: Application): Promise<void> {
   apply((items) => withoutApplication(items, application.id));
   try {
+    await created(application.id);
     await api.deleteApplication(application.id);
   } catch (error) {
     apply((items) => upsertApplication(items, application));
@@ -131,10 +164,12 @@ export async function removeApplication(application: Application): Promise<void>
 // The two halves of a delete that can be undone: hide the row now, and send the delete only once
 // the chance to undo it has passed (or the page is closing).
 export function hideApplication(application: Application): void {
+  hidden.add(application.id);
   apply((items) => withoutApplication(items, application.id));
 }
 
 export function restoreApplication(application: Application): void {
+  hidden.delete(application.id);
   apply((items) => upsertApplication(items, application));
 }
 
@@ -143,7 +178,9 @@ export async function commitDelete(
   options: { keepalive: boolean },
 ): Promise<void> {
   try {
+    await created(application.id);
     await api.deleteApplication(application.id, options);
+    hidden.delete(application.id);
   } catch (error) {
     restoreApplication(application);
     throw error;
@@ -180,30 +217,13 @@ export function useApplications(): {
   items: Application[];
   retry: () => void;
 } {
-  const { user, loading } = useMe();
+  const { user } = useMe();
   const userId = user?.id ?? null;
-  const owner = useApplicationsStore((state) => state.userId);
-  const status = useApplicationsStore((state) => state.status);
-  const items = useApplicationsStore((state) => state.items);
+  const client = useAppQueryClient();
+  const query = useQuery({ ...applicationsQuery(userId ?? ""), enabled: userId !== null }, client);
+  const { refetch } = query;
+  const retry = useCallback(() => void refetch(), [refetch]);
 
-  useEffect(() => {
-    if (!userId) {
-      // Signed out: nothing of that account's list stays in this tab.
-      if (!loading) clear();
-      return;
-    }
-    const state = useApplicationsStore.getState();
-    if (state.userId !== userId || state.status === "idle") void load(userId);
-  }, [userId, loading]);
-
-  const retry = useCallback(() => {
-    if (userId) void load(userId);
-  }, [userId]);
-
-  const mine = userId !== null && owner === userId;
-  return {
-    status: mine && status !== "idle" ? status : "loading",
-    items: mine ? items : EMPTY,
-    retry,
-  };
+  const status: ApplicationsStatus = query.data ? "ready" : query.isError ? "error" : "loading";
+  return { status, items: query.data ?? EMPTY, retry };
 }

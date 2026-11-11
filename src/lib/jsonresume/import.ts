@@ -7,12 +7,12 @@ import {
   newBullet,
   newId,
   newSkillGroup,
-  ResumeSchema,
   type Bullet,
   type ExtraSection,
   type Resume,
   type SkillGroup,
 } from "@/lib/resume/schema";
+import { ResumeSchema } from "@/lib/resume/validation";
 import { fromIsoDate } from "./dates";
 
 // Client-safe. Reads a resume.json in the JSON Resume v1 format (jsonresume.org). Every field is

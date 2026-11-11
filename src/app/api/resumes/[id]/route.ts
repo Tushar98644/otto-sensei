@@ -6,7 +6,7 @@ import { getCurrentUser } from "@/lib/auth/session";
 import { readJson } from "@/lib/http";
 import { log } from "@/lib/log";
 import { syncPortfolioWith } from "@/lib/portfolio/sync";
-import { ResumeSchema } from "@/lib/resume/schema";
+import { ResumeSchema } from "@/lib/resume/validation";
 import { proToolRequired } from "../../pro-tools";
 import { deleteBackup, MAX_RESUMES_PER_USER, saveBackup } from "../backups";
 

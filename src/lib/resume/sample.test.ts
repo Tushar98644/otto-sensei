@@ -2,7 +2,8 @@ import { describe, expect, it } from "vitest";
 import { lintResume } from "@/lib/lint/bullets";
 import type { LintIssueId } from "@/lib/lint/types";
 import { createSampleResume } from "./sample";
-import { ResumeSchema, type Resume } from "./schema";
+import { type Resume } from "./schema";
+import { ResumeSchema } from "@/lib/resume/validation";
 
 function allIds(resume: Resume): string[] {
   return [

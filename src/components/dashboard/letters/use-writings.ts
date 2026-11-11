@@ -1,11 +1,15 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
-import { api } from "@/lib/api/client";
+import { useQuery } from "@tanstack/react-query";
+import { useCallback, useMemo } from "react";
+import { useMe } from "@/components/account/use-me";
+import { getQueryClient, useAppQueryClient } from "@/lib/queries/client";
+import { WRITINGS } from "@/lib/queries/keys";
+import { writingsQuery } from "@/lib/queries/options";
 import type { Writing } from "@/lib/writings/schema";
 
-// The account's saved letters and answers for the Cover letters page: one load per visit, then
-// changes made here are applied to the list as they happen.
+// The account's saved letters and answers for the Cover letters page. Changes made here go into
+// the shared cache as they happen, so the board's letter marks see them too.
 
 export type WritingsState = {
   status: "loading" | "ready" | "error";
@@ -19,57 +23,74 @@ export type WritingsState = {
   restore: (writing: Writing) => void;
 };
 
+type Writings = { items: Writing[]; total: number };
+
+const NONE: Writing[] = [];
+// Deletes still inside their undo window: the server keeps them until then, so a fresh load must
+// not bring them back.
+const hidden = new Set<string>();
+
+function update(change: (data: Writings) => Writings) {
+  getQueryClient().setQueriesData<Writings>({ queryKey: WRITINGS }, (data) =>
+    data ? change(data) : data,
+  );
+}
+
+/** After a letter or answer is written somewhere else (the studio): lists read it again. */
+export function forgetWritings(): void {
+  void getQueryClient().invalidateQueries({ queryKey: WRITINGS });
+}
+
 export function useWritings(): WritingsState {
-  const [status, setStatus] = useState<WritingsState["status"]>("loading");
-  const [items, setItems] = useState<Writing[]>([]);
-  const [total, setTotal] = useState(0);
-  const [attempt, setAttempt] = useState(0);
+  const { user } = useMe();
+  const userId = user?.id ?? "";
+  const client = useAppQueryClient();
+  const query = useQuery({ ...writingsQuery(userId), enabled: userId !== "" }, client);
+  const { refetch } = query;
 
-  useEffect(() => {
-    let live = true;
-    api.writings().then(
-      (res) => {
-        if (!live) return;
-        setItems(res.writings);
-        setTotal(res.total);
-        setStatus("ready");
-      },
-      () => {
-        if (live) setStatus("error");
-      },
-    );
-    return () => {
-      live = false;
-    };
-  }, [attempt]);
-
-  const retry = useCallback(() => {
-    setStatus("loading");
-    setAttempt((count) => count + 1);
-  }, []);
+  const retry = useCallback(() => void refetch(), [refetch]);
 
   const add = useCallback((writing: Writing) => {
-    setItems((list) => [writing, ...list.filter((item) => item.id !== writing.id)]);
-    setTotal((count) => count + 1);
+    update(({ items, total }) => ({
+      items: [writing, ...items.filter((item) => item.id !== writing.id)],
+      total: total + 1,
+    }));
   }, []);
 
   const replace = useCallback((writing: Writing) => {
-    setItems((list) => list.map((item) => (item.id === writing.id ? writing : item)));
+    update((data) => ({
+      ...data,
+      items: data.items.map((item) => (item.id === writing.id ? writing : item)),
+    }));
   }, []);
 
   const hide = useCallback((id: string) => {
-    setItems((list) => list.filter((item) => item.id !== id));
-    setTotal((count) => Math.max(0, count - 1));
+    hidden.add(id);
+    update(({ items, total }) => ({
+      items: items.filter((item) => item.id !== id),
+      total: Math.max(0, total - 1),
+    }));
   }, []);
 
   const restore = useCallback((writing: Writing) => {
-    setItems((list) =>
-      [...list.filter((item) => item.id !== writing.id), writing].sort(
+    hidden.delete(writing.id);
+    update(({ items, total }) => ({
+      items: [...items.filter((item) => item.id !== writing.id), writing].sort(
         (a, b) => b.createdAt - a.createdAt,
       ),
-    );
-    setTotal((count) => count + 1);
+      total: total + 1,
+    }));
   }, []);
 
-  return { status, items, total, retry, add, replace, hide, restore };
+  const items = useMemo(() => {
+    const list = query.data?.items ?? NONE;
+    return hidden.size > 0 ? list.filter((item) => !hidden.has(item.id)) : list;
+  }, [query.data]);
+
+  const status: WritingsState["status"] = query.data
+    ? "ready"
+    : query.isError
+      ? "error"
+      : "loading";
+  return { status, items, total: query.data?.total ?? 0, retry, add, replace, hide, restore };
 }

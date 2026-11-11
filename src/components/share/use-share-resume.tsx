@@ -4,9 +4,11 @@ import { useCallback, useRef, useState, type ReactNode } from "react";
 import { useAccountGate } from "@/components/account/account-gate";
 import { unlockProTool } from "@/components/account/pro-tools";
 import { currentUserId, useMe } from "@/components/account/use-me";
+import { Lazy, lazyComponent } from "@/components/ui/lazy";
 import type { Resume } from "@/lib/resume/schema";
 import { shareAndCopy } from "./share-actions";
-import { ShareDialog } from "./share-dialog";
+
+const shareDialog = lazyComponent(() => import("./share-dialog").then((m) => m.ShareDialog));
 
 export type ShareResume = {
   // One click: makes the link (or points it at this version) and copies it. For a menu item.
@@ -59,7 +61,11 @@ export function useShareResume(resume: Resume): ShareResume {
     open,
     dialog: (
       <>
-        {used ? <ShareDialog resume={resume} open={isOpen} onOpenChange={setOpen} /> : null}
+        <Lazy
+          loader={shareDialog}
+          wanted={used}
+          props={{ resume, open: isOpen, onOpenChange: setOpen }}
+        />
         {gateUsed ? gate.dialogs : null}
       </>
     ),

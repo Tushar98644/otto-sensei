@@ -5,6 +5,7 @@ import { useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { errorMessage } from "@/components/account/errors";
 import { roomForApplication } from "@/components/account/pro-tools";
 import { Button, buttonClasses } from "@/components/ui/button";
+import { Lazy, lazyComponent, useOpenedOnce } from "@/components/ui/lazy";
 import { toast } from "@/components/ui/toast";
 import { undoToast } from "@/components/ui/undo-toast";
 import type { Application } from "@/lib/applications/schema";
@@ -13,11 +14,16 @@ import { applicationForCopy, applicationHref, copyJobId } from "@/lib/applicatio
 import { resumeTitle } from "@/lib/resume/ops";
 import type { Resume } from "@/lib/resume/schema";
 import { useResumeList } from "@/lib/store/resume-store";
-import { ApplicationDialog, type ApplicationDialogTarget } from "./application-dialog";
+import type { ApplicationDialogTarget } from "./application-dialog";
 import { prefillFor } from "./form";
 import { StatusIcon } from "./status-menu";
 import { addApplication, commitDelete, hideApplication, useApplications } from "./use-applications";
 import { formatDay } from "./view";
+
+// Most cards never open the form; its code loads once the page has settled.
+const applicationDialog = lazyComponent(() =>
+  import("./application-dialog").then((m) => m.ApplicationDialog),
+);
 
 // The card whose job was just marked applied with the one-click shortcut: Otto cheers on that
 // card only, so a second click elsewhere moves him rather than adding another.
@@ -57,6 +63,7 @@ export function MarkApplied({ resume, describedBy }: { resume: Resume; described
   const { items } = useApplications();
   const resumes = useResumeList();
   const [target, setTarget] = useState<ApplicationDialogTarget | null>(null);
+  const dialogWanted = useOpenedOnce(target !== null);
   const [saving, setSaving] = useState(false);
   const opened = useRef(0);
   const latest = useMemo(() => applicationForCopy(items, resume), [items, resume]);
@@ -133,7 +140,11 @@ export function MarkApplied({ resume, describedBy }: { resume: Resume; described
           Mark as applied
         </Button>
       )}
-      <ApplicationDialog target={target} resumes={resumes} onClose={() => setTarget(null)} />
+      <Lazy
+        loader={applicationDialog}
+        wanted={dialogWanted}
+        props={{ target, resumes, onClose: () => setTarget(null) }}
+      />
     </>
   );
 }

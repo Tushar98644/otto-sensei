@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { ResumeSchema, emptyResume, type Resume } from "@/lib/resume/schema";
+import { emptyResume, type Resume } from "@/lib/resume/schema";
+import { ResumeSchema } from "@/lib/resume/validation";
 import { formatTarget, sampleWithFormat } from "./apply-format";
 
 function resumes(...items: Resume[]): Record<string, Resume> {

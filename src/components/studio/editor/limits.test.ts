@@ -10,9 +10,9 @@ import {
   newId,
   newProject,
   newSkillGroup,
-  ResumeSchema,
   type Resume,
 } from "@/lib/resume/schema";
+import { ResumeSchema } from "@/lib/resume/validation";
 import { BULLET_LIMITS, CHAR_LIMITS, LIST_LIMITS, UNCAPPED_TEXT } from "./limits";
 
 const times = <T>(count: number, make: () => T): T[] => Array.from({ length: count }, make);

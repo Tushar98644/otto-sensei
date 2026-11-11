@@ -6,7 +6,8 @@ import { shares, users } from "@/db/schema";
 import { log } from "@/lib/log";
 import { forPlan } from "@/lib/pdf/templates";
 import { rateLimit } from "@/lib/rate-limit";
-import { ResumeSchema, type Resume } from "@/lib/resume/schema";
+import { type Resume } from "@/lib/resume/schema";
+import { ResumeSchema } from "@/lib/resume/validation";
 import { publicResume, shareSnapshot } from "./snapshot";
 import { SHARE_LIMITS, SHARE_SLUG, type SharedLink } from "./types";
 

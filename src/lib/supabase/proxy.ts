@@ -3,9 +3,10 @@ import { NextResponse, type NextRequest } from "next/server";
 import { supabaseConfig } from "@/lib/env";
 import { authCookieOptions, isAuthCookie } from "./cookies";
 
-// Server-only, for src/proxy.ts. Refreshes the Supabase session once per request before any page
-// or route reads it, the pattern from Supabase's Next.js guide. Server components can't write
-// cookies, so without this an expired access token would never be replaced during navigation.
+// Server-only, for src/proxy.ts. Refreshes the Supabase session once per page request before the
+// page reads it, the pattern from Supabase's Next.js guide. Server components can't write cookies,
+// so without this an expired access token would never be replaced during navigation. API routes
+// skip it: their own lookup refreshes the session and writes the cookies.
 
 export type SessionUpdate = {
   response: NextResponse;

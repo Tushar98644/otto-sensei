@@ -7,11 +7,11 @@ import { firstFollowUpAt, snoozedUntil } from "@/lib/applications/follow-up";
 import { linkWritings, resolveJobId } from "@/lib/applications/links";
 import {
   APPLICATION_LIMITS,
-  ApplicationIdSchema,
   type Application,
   type CreateApplicationInput,
   type UpdateApplicationInput,
 } from "@/lib/applications/schema";
+import { ApplicationIdSchema } from "@/lib/applications/validation";
 import {
   isStage,
   readStage,
@@ -60,6 +60,8 @@ export type ApplicationPage = { applications: Application[]; nextCursor: string 
 export type CreateResult =
   | { status: "created"; application: Application }
   | { status: "limit_reached" }
+  // The id the browser picked belongs to another account's application.
+  | { status: "id_taken" }
   // The account was deleted after the request was signed in, so nothing may be written.
   | { status: "no_user" };
 
@@ -171,7 +173,7 @@ export async function createApplication(
       input.status === "applied"
         ? firstFollowUpAt(input.appliedAt, now, await followUpDaysOf(tx, userId))
         : null;
-    const id = crypto.randomUUID();
+    const id = input.id ?? crypto.randomUUID();
     const [row] = await tx
       .insert(applications)
       .values({
@@ -194,8 +196,18 @@ export async function createApplication(
         createdAt: now,
         updatedAt: now,
       })
+      .onConflictDoNothing({ target: applications.id })
       .returning(APPLICATION_COLUMNS);
-    if (!row) throw new Error("createApplication: insert returned no row");
+    if (!row) {
+      // A repeat of a create that already landed answers with that application.
+      const [existing] = await tx
+        .select(APPLICATION_COLUMNS)
+        .from(applications)
+        .where(and(eq(applications.id, id), eq(applications.userId, userId)));
+      return existing
+        ? { status: "created", application: toApplication(existing) }
+        : { status: "id_taken" };
+    }
     // The letters already written for this job join it, so the thread is whole from the start.
     await linkWritings(tx, userId, id, input);
     return { status: "created", application: toApplication(row) };

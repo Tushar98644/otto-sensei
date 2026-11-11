@@ -5,7 +5,7 @@ import {
   type ApplicationThreadResponse,
   type EmptyOk,
 } from "@/lib/api/types";
-import { ApplicationIdSchema } from "@/lib/applications/schema";
+import { ApplicationIdSchema } from "@/lib/applications/validation";
 import { rejectCrossSite, rejectNonJson } from "@/lib/auth/route-guards";
 import { getCurrentUser } from "@/lib/auth/session";
 import { readJson } from "@/lib/http";

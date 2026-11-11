@@ -1,6 +1,6 @@
 import JSZip from "jszip";
 import { describe, expect, it } from "vitest";
-import { ResumeSchema } from "@/lib/resume/schema";
+import { ResumeSchema } from "@/lib/resume/validation";
 import { csvRecords, parseCsv } from "./csv";
 import { linkedInToResume, LinkedInImportError, readLinkedInExport } from "./import";
 

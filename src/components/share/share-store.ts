@@ -1,60 +1,66 @@
 "use client";
 
-import { create } from "zustand";
-import { api, isApiError } from "@/lib/api/client";
+import { useQuery } from "@tanstack/react-query";
+import { useMe } from "@/components/account/use-me";
+import { isApiError } from "@/lib/api/client";
+import { getQueryClient, useAppQueryClient } from "@/lib/queries/client";
+import { SHARES } from "@/lib/queries/keys";
+import { sharesQuery } from "@/lib/queries/options";
 import type { SharedLink } from "@/lib/share/types";
 
-// The account's live share links, loaded once and shared by every card's Share dialog and the
-// Shared links list, so a link made in one shows up in the other at once.
+// The account's live share links, shared by every card's Share dialog and the Shared links list,
+// so a link made in one shows up in the other at once.
 
-type Status = "idle" | "loading" | "ready" | "error";
-
-type ShareState = {
-  status: Status;
-  // Whose links these are: another account signing in on this tab starts from scratch.
-  owner: string | null;
+export type SharesState = {
+  status: "idle" | "loading" | "ready" | "error";
   links: SharedLink[];
   // Why the last load failed, in words for the person.
   error: string | null;
-  load: (owner: string, options?: { force?: boolean }) => Promise<void>;
-  put: (link: SharedLink) => void;
-  drop: (id: string) => void;
+  retry: () => void;
 };
+
+const NONE: SharedLink[] = [];
 
 const newestFirst = (a: SharedLink, b: SharedLink) =>
   b.createdAt - a.createdAt || b.id.localeCompare(a.id);
 
-export const useShareStore = create<ShareState>()((set, get) => ({
-  status: "idle",
-  owner: null,
-  links: [],
-  error: null,
-  async load(owner, { force = false } = {}) {
-    const current = get();
-    const same = current.owner === owner;
-    if (same && current.status === "loading") return;
-    if (same && current.status === "ready" && !force) return;
-    set(
-      same
-        ? { status: "loading", error: null }
-        : { status: "loading", owner, links: [], error: null },
-    );
-    try {
-      const { links } = await api.shares();
-      // Signed out and in as someone else while this was on its way.
-      if (get().owner !== owner) return;
-      set({ status: "ready", links });
-    } catch (error) {
-      if (get().owner !== owner) return;
-      set({ status: "error", error: isApiError(error) ? error.message : null });
-    }
-  },
-  put(link) {
-    set(({ links }) => ({
-      links: [link, ...links.filter((item) => item.id !== link.id)].sort(newestFirst),
-    }));
-  },
-  drop(id) {
-    set(({ links }) => ({ links: links.filter((item) => item.id !== id) }));
-  },
-}));
+/** Only loaded once `enabled` (a dialog that's open, a list that's shown). */
+export function useShares(enabled = true): SharesState {
+  const { user } = useMe();
+  const userId = user?.id ?? null;
+  const client = useAppQueryClient();
+  const query = useQuery(
+    { ...sharesQuery(userId ?? ""), enabled: enabled && userId !== null },
+    client,
+  );
+  const status: SharesState["status"] = query.data
+    ? "ready"
+    : query.isError && query.fetchStatus === "idle"
+      ? "error"
+      : query.fetchStatus === "fetching"
+        ? "loading"
+        : "idle";
+  return {
+    status,
+    links: query.data ?? NONE,
+    error: query.error && isApiError(query.error) ? query.error.message : null,
+    retry: () => void query.refetch(),
+  };
+}
+
+/** The account's links, loading them first if this tab hasn't yet. Rejects when they can't be read. */
+export function ensureShares(owner: string): Promise<SharedLink[]> {
+  return getQueryClient().ensureQueryData(sharesQuery(owner));
+}
+
+export function putShare(link: SharedLink): void {
+  getQueryClient().setQueriesData<SharedLink[]>({ queryKey: SHARES }, (links) =>
+    links ? [link, ...links.filter((item) => item.id !== link.id)].sort(newestFirst) : links,
+  );
+}
+
+export function dropShare(id: string): void {
+  getQueryClient().setQueriesData<SharedLink[]>({ queryKey: SHARES }, (links) =>
+    links ? links.filter((item) => item.id !== id) : links,
+  );
+}

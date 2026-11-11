@@ -10,10 +10,8 @@ import {
   EXTRA_KINDS,
   EXTRA_KIND_LABELS,
   MAX_EXTRA_ITEMS,
-  ResumeSchema,
   SECTION_KEYS,
   TEMPLATE_IDS,
-  TemplateIdSchema,
   emptyResume,
   extrasOf,
   isSectionHidden,
@@ -25,6 +23,7 @@ import {
   type ExtraSection,
   type Resume,
 } from "./schema";
+import { ResumeSchema, TemplateIdSchema } from "@/lib/resume/validation";
 
 // A resume saved before formats existed: everything but `template`.
 function savedBeforeFormats(): Partial<Resume> {

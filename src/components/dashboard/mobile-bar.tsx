@@ -12,9 +12,11 @@ import { ROUTES } from "@/components/site/routes";
 import { AccountMenu } from "@/components/studio/account-menu";
 import { Menu } from "@/components/ui/menu";
 import { BRAND } from "@/config/brand";
+import type { SessionUser } from "@/lib/auth/types";
 import { cn } from "@/lib/utils";
 import { LinkPending } from "./link-pending";
 import { isCurrent, PHONE_MORE, PHONE_TABS, showsProBadge } from "./nav";
+import { prefetchPageData } from "./prefetch";
 
 const SEGMENT =
   "relative flex h-10 min-w-0 flex-1 items-center justify-center gap-2 rounded-lg px-2 text-sm font-medium transition-colors -outline-offset-2 max-sm:px-1 max-sm:text-xs";
@@ -23,14 +25,16 @@ const IDLE = "text-muted hover:text-ink aria-expanded:text-ink";
 
 // Below lg the sidebar folds into a top bar plus one segmented strip: the four sections people use
 // most, then "More" for the rest, so every section stays two taps away at most.
-export function MobileBar() {
+export function MobileBar({ user }: { user: SessionUser }) {
   const pathname = usePathname();
   const router = useRouter();
   const proTools = useProTools();
   const moreCurrent = PHONE_MORE.find((item) => isCurrent(item, pathname));
   const [intent, setIntent] = useState<string[]>([]);
-  const showIntent = (href: string) =>
+  const showIntent = (href: string) => {
     setIntent((list) => (list.includes(href) ? list : [...list, href]));
+    prefetchPageData(href, user);
+  };
 
   return (
     <header className="sticky top-0 z-30 bg-surface-muted lg:hidden">
@@ -59,7 +63,7 @@ export function MobileBar() {
                 key={item.href}
                 href={item.href}
                 // Prefetched on a touch or focus, as in the sidebar (see SidebarLink).
-                prefetch={intent.includes(item.href) ? null : false}
+                prefetch={intent.includes(item.href)}
                 onTouchStart={() => showIntent(item.href)}
                 onMouseEnter={() => showIntent(item.href)}
                 onFocus={() => showIntent(item.href)}

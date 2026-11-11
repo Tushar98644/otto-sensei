@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { ResumeSchema, emptyResume, newExperience, type Experience } from "@/lib/resume/schema";
+import { emptyResume, newExperience, type Experience } from "@/lib/resume/schema";
+import { ResumeSchema } from "@/lib/resume/validation";
 import { insertAfter } from "./edits";
 import { groupRoles, moveRoleUnit, newRole, parseRoleLayout, roleLayout } from "./roles";
 

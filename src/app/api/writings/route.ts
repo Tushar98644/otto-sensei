@@ -4,12 +4,8 @@ import { getCurrentUser } from "@/lib/auth/session";
 import { readJson } from "@/lib/http";
 import { log } from "@/lib/log";
 import { createWriting, listWritings } from "@/lib/writings/records";
-import {
-  CreateWritingSchema,
-  WRITING_LIMITS,
-  type WritingResponse,
-  type WritingsResponse,
-} from "@/lib/writings/schema";
+import { WRITING_LIMITS, type WritingResponse, type WritingsResponse } from "@/lib/writings/schema";
+import { CreateWritingSchema } from "@/lib/writings/validation";
 import { requirePlanFeature } from "../metered-free";
 import { INVALID, NO_STORE, SIGN_IN, writeLimited } from "./shared";
 

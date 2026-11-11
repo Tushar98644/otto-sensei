@@ -11,7 +11,7 @@ import { useResumeList, useStudioHydrated } from "@/lib/store/resume-store";
 import { PortfolioEditor } from "./portfolio-editor";
 import { PortfolioStart } from "./portfolio-start";
 import { PortfolioUpgrade } from "./portfolio-upgrade";
-import { makePortfolio, usePortfolioStore } from "./portfolio-store";
+import { makePortfolio, usePortfolio, usePortfolioStore } from "./portfolio-store";
 import { PORTFOLIO_ROUTE } from "./route";
 
 // Base resumes first, newest first: a tailored copy is for one job, a portfolio is for everyone.
@@ -53,18 +53,11 @@ export function PortfolioPage({ fromResumeId }: PortfolioPageProps) {
   const hydrated = useStudioHydrated();
   const resumes = useResumeList();
   const candidates = useMemo(() => portfolioCandidates(resumes), [resumes]);
-  const status = usePortfolioStore((state) => state.status);
-  const owner = usePortfolioStore((state) => state.owner);
-  const error = usePortfolioStore((state) => state.error);
-  const portfolio = usePortfolioStore((state) => state.portfolio);
+  const { status, error, portfolio, retry } = usePortfolio();
   const saving = usePortfolioStore((state) => state.saving);
   const handled = useRef(false);
 
-  useEffect(() => {
-    if (userId) void usePortfolioStore.getState().load(userId);
-  }, [userId]);
-
-  const ready = hydrated && userId !== null && owner === userId && status === "ready";
+  const ready = hydrated && userId !== null && status === "ready";
   const from = fromResumeId ? (resumes.find((resume) => resume.id === fromResumeId) ?? null) : null;
 
   // One click from a card: with no portfolio yet, make it from that resume as the page opens.
@@ -84,13 +77,7 @@ export function PortfolioPage({ fromResumeId }: PortfolioPageProps) {
           variant="error"
           title="Couldn't load your portfolio"
           action={
-            <Button
-              size="sm"
-              variant="secondary"
-              onClick={() =>
-                userId && void usePortfolioStore.getState().load(userId, { force: true })
-              }
-            >
+            <Button size="sm" variant="secondary" onClick={retry}>
               Try again
             </Button>
           }

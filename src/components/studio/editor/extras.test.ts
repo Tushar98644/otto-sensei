@@ -3,7 +3,6 @@ import {
   EXTRA_KINDS,
   MAX_EXTRA_ITEMS,
   MAX_EXTRA_SECTIONS,
-  ResumeSchema,
   emptyResume,
   extrasOf,
   newBullet,
@@ -13,6 +12,7 @@ import {
   type ExtraSection,
   type Resume,
 } from "@/lib/resume/schema";
+import { ResumeSchema } from "@/lib/resume/validation";
 import { setHidden } from "./edits";
 import {
   EXTRA_DESCRIPTIONS,

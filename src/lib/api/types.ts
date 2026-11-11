@@ -17,7 +17,8 @@ import type { BillingMode } from "@/lib/billing/types";
 import type { ReferralClaimOutcome, ReferralSummary } from "@/lib/referrals/referrals";
 import type { RecruiterReport } from "@/lib/checks/types";
 import type { InterviewPrep, InterviewResult, PrepSummary, PrepTarget } from "@/lib/insights/prep";
-import { ResumeSchema, type Resume } from "@/lib/resume/schema";
+import { type Resume } from "@/lib/resume/schema";
+import { ResumeSchema } from "@/lib/resume/validation";
 
 // Client-safe contract for every API route. Routes validate bodies with these schemas; the client
 // in ./client.ts is typed with the response types.
@@ -244,7 +245,7 @@ export {
   BulkApplicationStatusSchema,
   CreateApplicationSchema,
   UpdateApplicationSchema,
-} from "@/lib/applications/schema";
+} from "@/lib/applications/validation";
 export type {
   Application,
   BulkApplicationStatusBody,
@@ -300,7 +301,7 @@ export const CheckoutRequestSchema = z.object({
 export type CheckoutRequestBody = z.input<typeof CheckoutRequestSchema>;
 
 // POST /api/feedback. Works signed out; limited per device, IP and account.
-export { FeedbackRequestSchema } from "@/lib/feedback/types";
+export { FeedbackRequestSchema } from "@/lib/feedback/validation";
 export type { FeedbackKind, FeedbackRequestBody } from "@/lib/feedback/types";
 
 // GET /api/referrals: the signed-in account's invite link and counts. POST /api/referrals/claim
@@ -310,7 +311,7 @@ export type ReferralSummaryResponse = { ok: true; referrals: ReferralSummary };
 export type ReferralClaimResponse = { ok: true; outcome: ReferralClaimOutcome };
 
 // GET/POST /api/share, PATCH/DELETE /api/share/:id. Requires sign-in. The public page is /s/:slug.
-export { CreateShareSchema, UpdateShareSchema } from "@/lib/share/types";
+export { CreateShareSchema, UpdateShareSchema } from "@/lib/share/validation";
 export type {
   CreateShareBody,
   SharedLink,
@@ -325,7 +326,7 @@ export {
   CreatePortfolioSchema,
   PortfolioViewSchema,
   UpdatePortfolioSchema,
-} from "@/lib/portfolio/types";
+} from "@/lib/portfolio/validation";
 export type {
   CreatePortfolioBody,
   Portfolio,
@@ -336,7 +337,7 @@ export type {
 } from "@/lib/portfolio/types";
 
 // GET /api/profile, PUT /api/profile (body: the whole work profile). Requires sign-in; PUT is Pro.
-export { WorkProfileSchema } from "@/lib/eligibility/profile";
+export { WorkProfileSchema } from "@/lib/eligibility/validation";
 export type { WorkProfile, WorkProfileBody, WorkProfileResponse } from "@/lib/eligibility/profile";
 
 // POST /api/jobs/matches (jobs ranked for one resume, or the saved ones), GET /api/jobs/saved (the
@@ -348,7 +349,7 @@ export {
   JobMatchesRequestSchema,
   LookingForChoiceSchema,
   MatchActionSchema,
-} from "@/lib/job-feed/types";
+} from "@/lib/job-feed/validation";
 export type {
   JobMatchesRequestBody,
   JobMatchesResponse,
@@ -366,7 +367,10 @@ export type {
 } from "@/lib/job-feed/types";
 
 // GET/PATCH /api/notifications, GET/PUT /api/notifications/settings. Requires sign-in.
-export { MarkNotificationsReadSchema, ReminderSettingsSchema } from "@/lib/notifications/types";
+export {
+  MarkNotificationsReadSchema,
+  ReminderSettingsSchema,
+} from "@/lib/notifications/validation";
 export type {
   MarkNotificationsReadBody,
   MarkNotificationsReadResponse,

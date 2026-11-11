@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { ResumeSchema, emptyResume, type Resume } from "@/lib/resume/schema";
+import { emptyResume, type Resume } from "@/lib/resume/schema";
+import { ResumeSchema } from "@/lib/resume/validation";
 import { publicResume, shareSnapshot } from "./snapshot";
 
 function resume(): Resume {

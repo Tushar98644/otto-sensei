@@ -3,7 +3,7 @@
 import { Check, Expand } from "lucide-react";
 import { lazy, Suspense, useMemo, useState } from "react";
 import { useTryProLabel } from "@/components/account/pro-tools";
-import { UpgradeDialog } from "@/components/account/upgrade-dialog";
+import { LazyUpgradeDialog } from "@/components/account/lazy-dialogs";
 import { useMe } from "@/components/account/use-me";
 import { OttoNote } from "@/components/mascot/otto-note";
 import { Button } from "@/components/ui/button";
@@ -201,7 +201,7 @@ export function PortfolioUpgrade({
         </Suspense>
       ) : null}
 
-      <UpgradeDialog
+      <LazyUpgradeDialog
         open={open}
         onOpenChange={setOpen}
         plan={PRO_TRIAL.plan}

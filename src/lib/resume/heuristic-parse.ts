@@ -3,7 +3,6 @@ import {
   EXTRA_KIND_LABELS,
   MAX_EXTRA_ITEMS,
   MAX_EXTRA_SECTIONS,
-  ResumeSchema,
   SECTION_KEYS,
   emptyResume,
   newId,
@@ -20,6 +19,7 @@ import {
   type SectionKey,
   type SkillGroup,
 } from "./schema";
+import { ResumeSchema } from "@/lib/resume/validation";
 import {
   bulletText,
   extraKindOf,

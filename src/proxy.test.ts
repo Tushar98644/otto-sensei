@@ -100,21 +100,23 @@ describe("proxy", () => {
     expect(res.headers.get("cache-control")).toContain("no-store");
   });
 
-  it("runs on pages and APIs, but not on assets, the billing webhook or the scheduled jobs", () => {
+  it("runs on pages, but not on assets or API routes, which ask Supabase themselves", () => {
     const runsOn = (url: string) => unstable_doesMiddlewareMatch({ config, url });
     for (const url of [
       "/",
       "/dashboard",
+      "/dashboard/jobs",
       "/studio?step=fix",
-      "/api/me",
-      "/api/resumes/abc",
       "/auth/callback",
-      "/api/notifications",
       "/s/abc123def456",
+      "/apiary",
     ]) {
       expect(runsOn(url), url).toBe(true);
     }
     for (const url of [
+      "/api/me",
+      "/api/resumes/abc",
+      "/api/notifications",
       "/_next/static/chunks/app.js",
       "/_next/image?url=%2Fformats%2Fclassic.png&w=640&q=75",
       "/api/billing/webhook",

@@ -254,6 +254,30 @@ Supabase send people to the Site URL instead, signed out.
 
 ---
 
+## 7b. Faster page loads: asymmetric JWT signing keys
+
+Every dashboard page checks the sign-in in `src/proxy.ts` with `getClaims()`. With the old shared
+JWT secret that is a call to Supabase on every page; with an asymmetric signing key it is checked
+on our own server against Supabase's public key, with no call. No code change is needed. API calls
+still ask Supabase once each (`getUser()`), so a signed-out session stops at once.
+
+Supabase dashboard → **Project Settings** → **JWT Keys** (JWT signing keys):
+
+1. Click **Migrate JWT secret**. The old secret is imported and a new asymmetric key waits as
+   standby. Nothing changes for anyone yet.
+2. Click **Rotate keys**. New sign-ins and refreshes get tokens signed with the new key; tokens
+   already handed out keep working until they expire, so nobody is signed out. The app never
+   checks tokens against the old secret itself, and it has no Edge Functions.
+3. Optional, at least 1 hour 15 minutes later: move the old secret to **Previously used**, then
+   **Revoke** it. First check **Project Settings** → **API Keys**: the app must be on the
+   **Publishable** and **Secret** keys (`sb_publishable_...`, `sb_secret_...`, see step 3). The old
+   **anon** and **service_role** keys are signed with the old secret and stop working once it is
+   revoked; turn them off there first and watch their "last used" time.
+
+Changes on that page take about 5 minutes to settle.
+
+---
+
 ## 8. Google sign-in
 
 **8a. Google Cloud** (console.cloud.google.com)

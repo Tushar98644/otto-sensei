@@ -4,7 +4,7 @@ import { MessagesSquare, Plus } from "lucide-react";
 import Link from "next/link";
 import { useId, useMemo, useRef, useState } from "react";
 import { useProTools, useTryProLabel } from "@/components/account/pro-tools";
-import { UpgradeDialog } from "@/components/account/upgrade-dialog";
+import { LazyUpgradeDialog } from "@/components/account/lazy-dialogs";
 import { OTTO } from "@/components/mascot/lines";
 import { OttoNote } from "@/components/mascot/otto-note";
 import { useNow } from "@/components/studio/use-now";
@@ -161,7 +161,7 @@ export function InterviewHome() {
           onClose={() => setDialog({ ...dialog, open: false })}
         />
       ) : null}
-      <UpgradeDialog open={upgradeOpen} onOpenChange={setUpgradeOpen} feature="letter" />
+      <LazyUpgradeDialog open={upgradeOpen} onOpenChange={setUpgradeOpen} feature="letter" />
     </div>
   );
 }

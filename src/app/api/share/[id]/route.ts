@@ -5,7 +5,8 @@ import { getCurrentUser } from "@/lib/auth/session";
 import { readJson } from "@/lib/http";
 import { log } from "@/lib/log";
 import { revokeShare, updateShareOptions } from "@/lib/share/records";
-import { UpdateShareSchema, type ShareResponse } from "@/lib/share/types";
+import { type ShareResponse } from "@/lib/share/types";
+import { UpdateShareSchema } from "@/lib/share/validation";
 import { NOT_FOUND, NO_STORE, SIGN_IN } from "../messages";
 import { writeLimited } from "../write-limit";
 

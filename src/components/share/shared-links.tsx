@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo } from "react";
+import { useMemo } from "react";
 import { useMe } from "@/components/account/use-me";
 import { useNow } from "@/components/studio/use-now";
 import { Button } from "@/components/ui/button";
@@ -11,24 +11,19 @@ import { useResumeList } from "@/lib/store/resume-store";
 import { CopyLinkButton, OpenShareLink } from "./copy-link";
 import { turnOffWithUndo } from "./share-actions";
 import { isBehind, viewFacts } from "./share-facts";
-import { useShareStore } from "./share-store";
+import { useShares } from "./share-store";
 
 // The account's live share links with their views, under the library. Hidden until there is one,
 // so people who never share don't get an empty section.
 export function SharedLinks() {
   const { user } = useMe();
   const userId = user?.id ?? null;
-  const owner = useShareStore((state) => state.owner);
-  const links = useShareStore((state) => state.links);
+  const { links } = useShares();
   const resumes = useResumeList();
   const now = useNow();
   const byId = useMemo(() => new Map(resumes.map((resume) => [resume.id, resume])), [resumes]);
 
-  useEffect(() => {
-    if (userId) void useShareStore.getState().load(userId);
-  }, [userId]);
-
-  if (!userId || owner !== userId || links.length === 0) return null;
+  if (!userId || links.length === 0) return null;
 
   return (
     <section aria-labelledby="shared-links-title" className="flex flex-col gap-4">

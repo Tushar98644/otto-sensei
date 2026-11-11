@@ -7,11 +7,8 @@ import { readWorkProfile } from "@/lib/eligibility/records";
 import { readJson } from "@/lib/http";
 import { logImpressions } from "@/lib/job-feed/events";
 import { profileHash, rankJobs } from "@/lib/job-feed/rank";
-import {
-  DEFAULT_FILTERS,
-  JobMatchesRequestSchema,
-  type JobMatchesResponse,
-} from "@/lib/job-feed/types";
+import { DEFAULT_FILTERS, type JobMatchesResponse } from "@/lib/job-feed/types";
+import { JobMatchesRequestSchema } from "@/lib/job-feed/validation";
 import { log } from "@/lib/log";
 import { rateLimit, retryAfterHeader } from "@/lib/rate-limit";
 

@@ -31,7 +31,6 @@ export type JobCardProps = {
   // A tailored copy already made for this job: its button opens that copy instead of spending
   // another tailored version.
   tailoredTitle: string | null;
-  saving: boolean;
   logging: boolean;
   tailoring: boolean;
   onTailor: (job: MatchedJob) => void;
@@ -61,7 +60,6 @@ export function JobCard({
   now,
   applied,
   tailoredTitle,
-  saving,
   logging,
   tailoring,
   onTailor,
@@ -143,7 +141,6 @@ export function JobCard({
             variant="secondary"
             size="sm"
             aria-pressed={job.saved}
-            loading={saving}
             onClick={() => onToggleSave(job)}
           >
             {job.saved ? <BookmarkCheck aria-hidden /> : <Bookmark aria-hidden />}

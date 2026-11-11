@@ -1,99 +1,41 @@
 "use client";
 
-import { useEffect, useSyncExternalStore } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { useMe } from "@/components/account/use-me";
 import { api } from "@/lib/api/client";
 import type { WorkProfile } from "@/lib/eligibility/profile";
 import { NO_CHOICE, type LookingForChoice } from "@/lib/job-feed/types";
+import { getQueryClient, useAppQueryClient } from "@/lib/queries/client";
+import { queryKeys } from "@/lib/queries/keys";
+import { workProfileQuery, type WorkProfileData } from "@/lib/queries/options";
 
-// One shared GET /api/profile per signed-in account, for the Account page form and the job card's
-// eligibility check alike. Kept per user id, so signing in as someone else never shows the last
-// person's answers.
-
-type State = {
-  userId: string | null;
-  status: "idle" | "loading" | "ready" | "error";
-  profile: WorkProfile | null;
-  updatedAt: number | null;
-  // What the Jobs tab's "Looking for" card was changed to; read with the profile.
-  lookingFor: LookingForChoice;
-};
-
-const IDLE: State = {
-  userId: null,
-  status: "idle",
-  profile: null,
-  updatedAt: null,
-  lookingFor: NO_CHOICE,
-};
-
-let state: State = IDLE;
-let inflight: { userId: string; promise: Promise<void> } | null = null;
-const listeners = new Set<() => void>();
-
-function setState(next: State) {
-  state = next;
-  for (const listener of listeners) listener();
-}
-
-function subscribe(listener: () => void) {
-  listeners.add(listener);
-  return () => {
-    listeners.delete(listener);
-  };
-}
-
-export function loadWorkProfile(userId: string): Promise<void> {
-  if (inflight?.userId === userId) return inflight.promise;
-  const keep = state.userId === userId;
-  setState({
-    userId,
-    status: "loading",
-    profile: keep ? state.profile : null,
-    updatedAt: keep ? state.updatedAt : null,
-    lookingFor: keep ? state.lookingFor : NO_CHOICE,
-  });
-  const promise = api
-    .workProfile()
-    .then((res) => {
-      if (state.userId === userId) {
-        setState({
-          userId,
-          status: "ready",
-          profile: res.profile,
-          updatedAt: res.updatedAt,
-          lookingFor: res.lookingFor ?? NO_CHOICE,
-        });
-      }
-    })
-    .catch(() => {
-      if (state.userId === userId) setState({ ...state, status: "error" });
-    })
-    .finally(() => {
-      if (inflight?.promise === promise) inflight = null;
-    });
-  inflight = { userId, promise };
-  return promise;
-}
+// The signed-in account's work profile (GET /api/profile), for the Account page form, the job
+// card's eligibility check, the Jobs tab and the first-login step alike.
 
 /** After a successful save: every reader sees the new answers at once. */
 export function storeWorkProfile(
   userId: string,
   profile: WorkProfile,
   updatedAt: number | null,
-  lookingFor: LookingForChoice = state.userId === userId ? state.lookingFor : NO_CHOICE,
+  lookingFor?: LookingForChoice,
 ) {
-  setState({ userId, status: "ready", profile, updatedAt, lookingFor });
+  const key = queryKeys.workProfile(userId);
+  const client = getQueryClient();
+  const kept = client.getQueryData<WorkProfileData>(key)?.lookingFor ?? NO_CHOICE;
+  client.setQueryData<WorkProfileData>(key, {
+    profile,
+    updatedAt,
+    lookingFor: lookingFor ?? kept,
+  });
 }
 
 /** After the "Looking for" card saved: its remote choice is the profile's "Remote only" too. */
-export function storeLookingFor(userId: string, lookingFor: LookingForChoice) {
-  if (state.userId !== userId || !state.profile) return;
-  setState({
-    ...state,
-    profile: { ...state.profile, remoteOnly: lookingFor.remote },
-    lookingFor,
-  });
+function storeLookingFor(userId: string, lookingFor: LookingForChoice) {
+  getQueryClient().setQueryData<WorkProfileData>(queryKeys.workProfile(userId), (data) =>
+    data
+      ? { ...data, profile: { ...data.profile, remoteOnly: lookingFor.remote }, lookingFor }
+      : data,
+  );
 }
 
 /**
@@ -101,7 +43,9 @@ export function storeLookingFor(userId: string, lookingFor: LookingForChoice) {
  * every reader sees it at once, and it is put back if the save fails, which the caller reports.
  */
 export async function saveLookingForChoice(userId: string, next: LookingForChoice): Promise<void> {
-  const before = state.userId === userId ? state.lookingFor : NO_CHOICE;
+  const before =
+    getQueryClient().getQueryData<WorkProfileData>(queryKeys.workProfile(userId))?.lookingFor ??
+    NO_CHOICE;
   storeLookingFor(userId, next);
   try {
     const res = await api.saveLookingFor(next);
@@ -129,31 +73,15 @@ export type WorkProfileState =
 
 export function useWorkProfile(): WorkProfileState {
   const { user, loading } = useMe();
-  const snapshot = useSyncExternalStore(
-    subscribe,
-    () => state,
-    () => IDLE,
-  );
   const userId = user?.id ?? null;
-
-  useEffect(() => {
-    if (userId && (state.userId !== userId || state.status === "idle"))
-      void loadWorkProfile(userId);
-  }, [userId]);
+  const client = useAppQueryClient();
+  const query = useQuery({ ...workProfileQuery(userId ?? ""), enabled: userId !== null }, client);
 
   if (loading) return { status: "unknown" };
   if (!userId) return { status: "signed_out" };
-  if (snapshot.userId !== userId || snapshot.status === "idle" || snapshot.status === "loading") {
-    return { status: "loading" };
+  if (query.data) return { status: "ready", userId, ...query.data };
+  if (query.isError && query.fetchStatus === "idle") {
+    return { status: "error", retry: () => void query.refetch() };
   }
-  if (snapshot.status === "error" || !snapshot.profile) {
-    return { status: "error", retry: () => void loadWorkProfile(userId) };
-  }
-  return {
-    status: "ready",
-    userId,
-    profile: snapshot.profile,
-    updatedAt: snapshot.updatedAt,
-    lookingFor: snapshot.lookingFor,
-  };
+  return { status: "loading" };
 }

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { createSampleResume } from "@/lib/resume/sample";
-import { ResumeSchema } from "@/lib/resume/schema";
+import { ResumeSchema } from "@/lib/resume/validation";
 import { fromIsoDate, toIsoDate } from "./dates";
 import { jsonResumeFileName, toJsonResume } from "./export";
 import { JsonResumeError, parseJsonResume } from "./import";

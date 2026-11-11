@@ -15,7 +15,7 @@ import { useState } from "react";
 import { signedOutNote } from "@/components/account/copy";
 import { errorMessage } from "@/components/account/errors";
 import { useProTools } from "@/components/account/pro-tools";
-import { UpgradeDialog } from "@/components/account/upgrade-dialog";
+import { LazyUpgradeDialog } from "@/components/account/lazy-dialogs";
 import { patchMe, refreshMe, type Me } from "@/components/account/use-me";
 import { FeedbackButton } from "@/components/feedback/feedback-button";
 import { NotificationBell } from "@/components/notifications/notification-bell";
@@ -37,6 +37,7 @@ import { cn } from "@/lib/utils";
 import { NewResumeMenu } from "./new-resume-menu";
 import { LinkPending } from "./link-pending";
 import { APP_NAV, APP_NAV_FOOTER, isCurrent, showsProBadge, type AppNavItem } from "./nav";
+import { prefetchPageData } from "./prefetch";
 import type { StudioActions } from "./use-studio-actions";
 
 const count = new Intl.NumberFormat("en-US");
@@ -79,6 +80,7 @@ export function Sidebar({
           <SidebarLink
             key={item.href}
             item={item}
+            user={user}
             pathname={pathname}
             proBadge={showsProBadge(item, proTools)}
             count={item.href === ROUTES.dashboardResumes && resumeCount > 0 ? resumeCount : null}
@@ -92,6 +94,7 @@ export function Sidebar({
             <SidebarLink
               key={item.href}
               item={item}
+              user={user}
               pathname={pathname}
               proBadge={false}
               count={null}
@@ -107,25 +110,31 @@ export function Sidebar({
 
 function SidebarLink({
   item,
+  user,
   pathname,
   proBadge,
   count: total,
 }: {
   item: AppNavItem;
+  user: SessionUser;
   pathname: string;
   proBadge: boolean;
   count: number | null;
 }) {
   const current = isCurrent(item, pathname);
-  // Prefetched once the pointer or focus arrives, not as soon as the sidebar shows: viewport
-  // prefetching sent 18 requests (two per page) on every dashboard load for pages most visits
-  // never open.
+  // The page and its data are prefetched once the pointer or focus arrives, not as soon as the
+  // sidebar shows: viewport prefetching sent 18 requests (two per page) on every dashboard load
+  // for pages most visits never open. Dashboard pages are dynamic, so only a full prefetch
+  // brings the page itself.
   const [intent, setIntent] = useState(false);
-  const showIntent = () => setIntent(true);
+  const showIntent = () => {
+    setIntent(true);
+    prefetchPageData(item.href, user);
+  };
   return (
     <Link
       href={item.href}
-      prefetch={intent ? null : false}
+      prefetch={intent}
       onMouseEnter={showIntent}
       onFocus={showIntent}
       onTouchStart={showIntent}
@@ -254,7 +263,7 @@ function AccountRow({ user, me }: { user: SessionUser; me: Me | null }) {
           },
         ]}
       />
-      {nextOnSale ? <UpgradeDialog open={upgradeOpen} onOpenChange={setUpgradeOpen} /> : null}
+      {nextOnSale ? <LazyUpgradeDialog open={upgradeOpen} onOpenChange={setUpgradeOpen} /> : null}
     </>
   );
 }

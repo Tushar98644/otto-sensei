@@ -5,7 +5,8 @@ import { readJson } from "@/lib/http";
 import { log } from "@/lib/log";
 import { emailConfigured } from "@/lib/notifications/email";
 import { readReminderSettings, saveReminderSettings } from "@/lib/notifications/records";
-import { ReminderSettingsSchema, type ReminderSettingsResponse } from "@/lib/notifications/types";
+import { type ReminderSettingsResponse } from "@/lib/notifications/types";
+import { ReminderSettingsSchema } from "@/lib/notifications/validation";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

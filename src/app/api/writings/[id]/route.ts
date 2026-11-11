@@ -4,7 +4,8 @@ import { getCurrentUser } from "@/lib/auth/session";
 import { readJson } from "@/lib/http";
 import { log } from "@/lib/log";
 import { deleteWriting, updateWriting } from "@/lib/writings/records";
-import { UpdateWritingSchema, WritingIdSchema, type WritingResponse } from "@/lib/writings/schema";
+import { type WritingResponse } from "@/lib/writings/schema";
+import { UpdateWritingSchema, WritingIdSchema } from "@/lib/writings/validation";
 import { NOT_FOUND, NO_STORE, SIGN_IN, writeLimited } from "../shared";
 
 export const runtime = "nodejs";

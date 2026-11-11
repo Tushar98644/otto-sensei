@@ -1,0 +1,29 @@
+import type { JobMatchesRequestBody } from "@/lib/api/types";
+import type { WorkProfile } from "@/lib/eligibility/profile";
+
+// Every key is the resource, then the account: one account's data is never read as another's,
+// and a resource can be updated or dropped for everyone by its first part alone.
+
+export const APPLICATIONS = ["applications"] as const;
+export const SAVED_JOBS = ["saved-jobs"] as const;
+export const WRITINGS = ["writings"] as const;
+export const PREP_PACKS = ["prep-packs"] as const;
+export const SHARES = ["shares"] as const;
+export const PORTFOLIO = ["portfolio"] as const;
+export const REMINDER_SETTINGS = ["reminder-settings"] as const;
+export const WORK_PROFILE = ["work-profile"] as const;
+export const JOB_MATCHES = ["job-matches"] as const;
+
+export const queryKeys = {
+  applications: (userId: string) => [...APPLICATIONS, userId] as const,
+  savedJobs: (userId: string) => [...SAVED_JOBS, userId] as const,
+  writings: (userId: string) => [...WRITINGS, userId] as const,
+  prepPacks: (userId: string) => [...PREP_PACKS, userId] as const,
+  shares: (userId: string) => [...SHARES, userId] as const,
+  portfolio: (userId: string) => [...PORTFOLIO, userId] as const,
+  reminderSettings: (userId: string) => [...REMINDER_SETTINGS, userId] as const,
+  workProfile: (userId: string) => [...WORK_PROFILE, userId] as const,
+  // The server also reads the saved work profile (for "Likely blocked"), so it is part of the key.
+  jobMatches: (userId: string, body: JobMatchesRequestBody, workProfile: WorkProfile | null) =>
+    [...JOB_MATCHES, userId, body, workProfile] as const,
+};

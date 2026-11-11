@@ -7,10 +7,10 @@ import {
   newBullet,
   newId,
   newSkillGroup,
-  ResumeSchema,
   type Bullet,
   type Resume,
 } from "@/lib/resume/schema";
+import { ResumeSchema } from "@/lib/resume/validation";
 import { csvRecords, type CsvRecord } from "./csv";
 import { extraItem, extraSection } from "./extras";
 

@@ -5,10 +5,10 @@ import { readJson } from "@/lib/http";
 import { log } from "@/lib/log";
 import { listNotifications, markNotificationsRead } from "@/lib/notifications/records";
 import {
-  MarkNotificationsReadSchema,
   type MarkNotificationsReadResponse,
   type NotificationsResponse,
 } from "@/lib/notifications/types";
+import { MarkNotificationsReadSchema } from "@/lib/notifications/validation";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

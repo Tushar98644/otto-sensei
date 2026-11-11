@@ -9,7 +9,6 @@ import {
   EXTRA_KIND_LABELS,
   MAX_EXTRA_ITEMS,
   MAX_EXTRA_SECTIONS,
-  ResumeSchema,
   newId,
   type Basics,
   type Bullet,
@@ -17,6 +16,7 @@ import {
   type ExtraSection,
   type Resume,
 } from "@/lib/resume/schema";
+import { ResumeSchema } from "@/lib/resume/validation";
 import { bulletText, findLinks, headingTitle } from "@/lib/resume/sections";
 import { runStructured } from "./client";
 import { novelWordShare } from "./guards";

@@ -1,4 +1,5 @@
-import { z } from "zod";
+import type { z } from "zod";
+import type { AccountSetupChangeSchema } from "./validation";
 
 // Client-safe. The account's first-login setup (DESIGN.md, "First login and setup"): whether the
 // one "Where can you work?" step was answered or skipped, and whether the Home "Get set up" list
@@ -16,14 +17,6 @@ export type AccountSetup = {
 };
 
 export const NO_SETUP: AccountSetup = { stepAt: null, stepOutcome: null, checklistHiddenAt: null };
-
-// PUT /api/setup changes only what it sends. "shown" undoes "Hide this".
-export const AccountSetupChangeSchema = z
-  .object({
-    step: z.enum(SETUP_STEP_OUTCOMES).optional(),
-    checklist: z.enum(["hidden", "shown"]).optional(),
-  })
-  .refine((body) => body.step !== undefined || body.checklist !== undefined, "Nothing to change.");
 export type AccountSetupChange = z.input<typeof AccountSetupChangeSchema>;
 
 // GET and PUT /api/setup. Requires sign-in, any plan.

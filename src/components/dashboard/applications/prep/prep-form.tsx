@@ -5,6 +5,7 @@ import { useMemo, useState, type FormEvent } from "react";
 import { errorMessage } from "@/components/account/errors";
 import { upgradeLink } from "@/components/account/upgrade-interval";
 import { refreshMe, useMe } from "@/components/account/use-me";
+import { forgetPrepPacks } from "@/components/dashboard/interview/use-prep-packs";
 import { OttoNote } from "@/components/mascot/otto-note";
 import { OttoWorking } from "@/components/mascot/otto-working";
 import { ROUTES } from "@/components/site/routes";
@@ -77,6 +78,7 @@ export function PrepForm({ target, resumes, onDone, onCancel }: PrepFormProps) {
         job: { text, title: target.role, company: target.company },
       });
       void refreshMe();
+      forgetPrepPacks();
       onDone(result.prep, result.saved);
     } catch (caught) {
       setError({
