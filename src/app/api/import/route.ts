@@ -7,6 +7,7 @@ import { getCurrentUser } from "@/lib/auth/session";
 import { linkedInProfileText } from "@/lib/linkedin/profile-pdf";
 import { log } from "@/lib/log";
 import type { Extraction } from "@/lib/parse";
+import { withLinkTargets } from "@/lib/resume/link-targets";
 import { emptyResume } from "@/lib/resume/schema";
 import { weakReadSigns, type ReadLayout, type WeakReadSign } from "@/lib/resume/read-quality";
 import { claimAiRead, type AiRead } from "./ai-reads";
@@ -76,7 +77,8 @@ export async function POST(req: Request): Promise<Response> {
     // Only files that went to the AI reader count: a scan or a good rules read never reaches it.
     if (read.useAI) trackStructureCall(structuring, structured.usedAI);
     const response: Omit<ImportResponse, "ok"> = {
-      resume: structured.resume,
+      // The text shows "github.com/jane"; the link under it may hold github.com/jane-doe.
+      resume: withLinkTargets(structured.resume, extraction.links ?? []),
       report,
       usedAI: structured.usedAI,
       basicReader: read.limited,

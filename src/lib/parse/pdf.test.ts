@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { extractPdf } from "./pdf";
-import { cleanResumePdf, noTextPdf, twoColumnPdf } from "./test-fixtures";
+import { cleanResumePdf, linkedContactPdf, noTextPdf, twoColumnPdf } from "./test-fixtures";
 
 describe("extractPdf", () => {
   it("reads a single-column resume top to bottom", async () => {
@@ -18,7 +18,9 @@ describe("extractPdf", () => {
     ]);
     // A right-aligned date is a wide gap on the same line, kept apart by a tab.
     expect(extraction.lines).toContain("Senior Software Engineer, Acme Corp\tJan 2021 - Present");
-    expect(extraction.lines).toContain("• Built a payment API in Go that handles two million requests a day with 99.99% uptime.");
+    expect(extraction.lines).toContain(
+      "• Built a payment API in Go that handles two million requests a day with 99.99% uptime.",
+    );
     expect(extraction.text).toBe(extraction.lines.join("\n"));
     expect(extraction.wordCount).toBeGreaterThan(150);
   });
@@ -40,8 +42,12 @@ describe("extractPdf", () => {
     expect(extraction.signals.imageCount).toBe(1);
     // Sidebar skills land on the same lines as the job history next to them.
     expect(extraction.lines).toContain("CONTACT\tEXPERIENCE");
-    expect(extraction.lines).toContain("React\t• Wrote the first version of the partner API that now serves three hundred");
-    expect(extraction.lines).toContain("SKILLS\t• Cut page load time in half by moving image work to a background queue.");
+    expect(extraction.lines).toContain(
+      "React\t• Wrote the first version of the partner API that now serves three hundred",
+    );
+    expect(extraction.lines).toContain(
+      "SKILLS\t• Cut page load time in half by moving image work to a background queue.",
+    );
   });
 
   it("reports no text layer for a page with only shapes, without throwing", async () => {
@@ -50,7 +56,11 @@ describe("extractPdf", () => {
     expect(extraction.text).toBe("");
     expect(extraction.lines).toEqual([]);
     expect(extraction.wordCount).toBe(0);
-    expect(extraction.signals).toMatchObject({ hasTextLayer: false, columnLayout: false, imageCount: 0 });
+    expect(extraction.signals).toMatchObject({
+      hasTextLayer: false,
+      columnLayout: false,
+      imageCount: 0,
+    });
   });
 
   it("leaves the caller's buffer intact", async () => {
@@ -59,5 +69,20 @@ describe("extractPdf", () => {
     await extractPdf(data);
     expect(data.byteLength).toBe(length);
     expect(data[0]).toBe(0x25);
+  });
+});
+
+describe("extractPdf links", () => {
+  it("keeps each web link with the words drawn under it", async () => {
+    const result = await extractPdf(await linkedContactPdf());
+    expect(result.links).toEqual([
+      { url: "https://github.com/jane-doe-42", text: "github.com/jane" },
+      { url: "https://www.linkedin.com/in/jane-doe/", text: "LinkedIn" },
+      { url: "https://janedoe.dev/", text: "bit.ly/jane-site" },
+    ]);
+  });
+
+  it("finds no links in a file without any", async () => {
+    expect((await extractPdf(await cleanResumePdf())).links).toEqual([]);
   });
 });

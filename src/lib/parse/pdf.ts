@@ -3,14 +3,31 @@ import { UPLOAD_LIMITS } from "@/config/plans";
 import { log } from "@/lib/log";
 import { groupRows, hasColumnGutter, rowText, type LayoutItem } from "./pdf-layout";
 import { countIconGlyphs, countWords, hasReadableText, toLines } from "./text";
-import { ParseError, type Extraction, type PdfPage, type PdfTextItem } from "./types";
+import {
+  ParseError,
+  type Extraction,
+  type PdfLinkTarget,
+  type PdfPage,
+  type PdfTextItem,
+} from "./types";
 
 type PdfJs = Awaited<ReturnType<typeof getResolvedPDFJS>>;
 type PdfDocument = Awaited<ReturnType<PdfJs["getDocument"]>["promise"]>;
 type PdfPageProxy = Awaited<ReturnType<PdfDocument["getPage"]>>;
 type TextContentItem = Awaited<ReturnType<PdfPageProxy["getTextContent"]>>["items"][number];
 
-type PageLayout = { pageNumber: number; width: number; height: number; items: LayoutItem[]; images: number };
+type PageLayout = {
+  pageNumber: number;
+  width: number;
+  height: number;
+  items: LayoutItem[];
+  images: number;
+  links: PdfLinkTarget[];
+};
+
+// Enough for any resume's links; a file with more is not one we need every link of.
+const MAX_LINKS = 40;
+const MAX_LINK_LENGTH = 500;
 
 export type ExtractPdfOptions = {
   maxPages?: number;
@@ -31,7 +48,10 @@ class ParseTimeout extends Error {
  * Reads text with positions, rebuilds lines in naive full-width reading order (so two columns come
  * out interleaved, as many applicant tracking systems read them), and collects layout signals.
  */
-export async function extractPdf(data: Uint8Array, options: ExtractPdfOptions = {}): Promise<Extraction> {
+export async function extractPdf(
+  data: Uint8Array,
+  options: ExtractPdfOptions = {},
+): Promise<Extraction> {
   const maxPages = options.maxPages ?? UPLOAD_LIMITS.maxPages;
   const deadline = Date.now() + (options.timeoutMs ?? DEFAULT_TIMEOUT_MS);
   const pdfjs = await getResolvedPDFJS();
@@ -45,7 +65,10 @@ export async function extractPdf(data: Uint8Array, options: ExtractPdfOptions = 
   try {
     const pdf = await withDeadline(task.promise, deadline);
     if (pdf.numPages > maxPages) {
-      throw new ParseError("too_many_pages", `That PDF has more than ${maxPages} pages. Upload just your resume.`);
+      throw new ParseError(
+        "too_many_pages",
+        `That PDF has more than ${maxPages} pages. Upload just your resume.`,
+      );
     }
     const imageOps = imagePaintOps(pdfjs.OPS);
     const pages: PageLayout[] = [];
@@ -60,11 +83,19 @@ export async function extractPdf(data: Uint8Array, options: ExtractPdfOptions = 
   }
 }
 
-async function readPage(pdf: PdfDocument, pageNumber: number, imageOps: ReadonlySet<number>): Promise<PageLayout> {
+async function readPage(
+  pdf: PdfDocument,
+  pageNumber: number,
+  imageOps: ReadonlySet<number>,
+): Promise<PageLayout> {
   const page = await pdf.getPage(pageNumber);
   try {
     const viewport = page.getViewport({ scale: 1 });
-    const [content, operators] = await Promise.all([page.getTextContent(), page.getOperatorList()]);
+    const [content, operators, annotations] = await Promise.all([
+      page.getTextContent(),
+      page.getOperatorList(),
+      page.getAnnotations({ intent: "display" }),
+    ]);
     const items: LayoutItem[] = [];
     for (const raw of content.items) {
       const item = toLayoutItem(raw, viewport.transform);
@@ -72,7 +103,14 @@ async function readPage(pdf: PdfDocument, pageNumber: number, imageOps: Readonly
     }
     let images = 0;
     for (const fn of operators.fnArray) if (imageOps.has(fn)) images++;
-    return { pageNumber, width: viewport.width, height: viewport.height, items, images };
+    return {
+      pageNumber,
+      width: viewport.width,
+      height: viewport.height,
+      items,
+      images,
+      links: webLinks(annotations, items, viewport.transform),
+    };
   } finally {
     page.cleanup();
   }
@@ -92,10 +130,16 @@ function imagePaintOps(ops: PdfJs["OPS"]): ReadonlySet<number> {
   ]);
 }
 
-function toLayoutItem(raw: TextContentItem, viewportTransform: readonly number[]): LayoutItem | null {
+function toLayoutItem(
+  raw: TextContentItem,
+  viewportTransform: readonly number[],
+): LayoutItem | null {
   if (!("str" in raw) || !raw.str.trim()) return null;
   // Viewport space has its origin at the top-left, which also handles page rotation and offsets.
-  const [a = 0, b = 0, c = 0, d = 0, e = 0, f = 0] = multiply(viewportTransform, raw.transform.map(Number));
+  const [a = 0, b = 0, c = 0, d = 0, e = 0, f = 0] = multiply(
+    viewportTransform,
+    raw.transform.map(Number),
+  );
   const fontSize = Math.hypot(c, d) || Math.hypot(a, b);
   const height = raw.height > 0 ? raw.height : fontSize;
   return {
@@ -140,6 +184,7 @@ function buildExtraction(pages: PageLayout[]): Extraction {
     pageCount: pages.length,
     wordCount: countWords(text),
     pages: pdfPages,
+    links: pages.flatMap((page) => page.links).slice(0, MAX_LINKS),
     signals: {
       hasTextLayer,
       columnLayout: hasTextLayer && columnLayout,
@@ -152,6 +197,69 @@ function buildExtraction(pages: PageLayout[]): Extraction {
   };
 }
 
+// Link annotations that open a web page, each with the words under it. Mail and phone links, and
+// in-document jumps, add nothing the text doesn't already say.
+function webLinks(
+  annotations: readonly unknown[],
+  items: readonly LayoutItem[],
+  viewportTransform: readonly number[],
+): PdfLinkTarget[] {
+  // Links are extra: a file whose annotations can't be read still reads as text.
+  try {
+    return linksUnder(annotations, items, viewportTransform);
+  } catch (error) {
+    log.warn("parse.pdf_links_unreadable", {}, error);
+    return [];
+  }
+}
+
+function linksUnder(
+  annotations: readonly unknown[],
+  items: readonly LayoutItem[],
+  viewportTransform: readonly number[],
+): PdfLinkTarget[] {
+  const [a = 1, b = 0, c = 0, d = 1, e = 0, f = 0] = viewportTransform.map(Number);
+  // PDF space to viewport space (top-left origin), the same move toLayoutItem makes for text.
+  const toViewport = (x: number, y: number) => [a * x + c * y + e, b * x + d * y + f] as const;
+  const links: PdfLinkTarget[] = [];
+  for (const annotation of annotations) {
+    const { subtype, url, rect } = (annotation ?? {}) as {
+      subtype?: unknown;
+      url?: unknown;
+      rect?: unknown;
+    };
+    if (subtype !== "Link" || typeof url !== "string" || url.length > MAX_LINK_LENGTH) continue;
+    if (!/^https?:\/\//i.test(url) || !Array.isArray(rect) || rect.length !== 4) continue;
+    const [rx1 = 0, ry1 = 0, rx2 = 0, ry2 = 0] = rect.map(Number);
+    const [x1, y1] = toViewport(rx1, ry1);
+    const [x2, y2] = toViewport(rx2, ry2);
+    const box = {
+      left: Math.min(x1, x2),
+      right: Math.max(x1, x2),
+      top: Math.min(y1, y2),
+      bottom: Math.max(y1, y2),
+    };
+    const text = items
+      .filter((item) => underLink(item, box))
+      .map((item) => item.str.trim())
+      .join(" ")
+      .trim();
+    links.push({ url, text });
+  }
+  return links;
+}
+
+// Most of the word sits inside the link's box: a link drawn over "GitHub" doesn't pick up the
+// neighbouring "| LinkedIn" that shares its line.
+function underLink(
+  item: LayoutItem,
+  box: { left: number; right: number; top: number; bottom: number },
+): boolean {
+  const overlapX = Math.min(item.x + item.width, box.right) - Math.max(item.x, box.left);
+  const overlapY = Math.min(item.y + item.height, box.bottom) - Math.max(item.y, box.top);
+  return overlapY > 0 && overlapX >= Math.max(item.width, 1) * 0.5;
+}
+
 function toPdfTextItem({ str, x, y, width, height, fontName }: LayoutItem): PdfTextItem {
   return { str, x, y, width, height, fontName };
 }
@@ -159,15 +267,24 @@ function toPdfTextItem({ str, x, y, width, height, fontName }: LayoutItem): PdfT
 function toParseError(error: unknown): ParseError {
   if (error instanceof ParseError) return error;
   if (error instanceof Error && error.name === "PasswordException") {
-    return new ParseError("encrypted", "That PDF is password-protected. Remove the password and upload it again.");
+    return new ParseError(
+      "encrypted",
+      "That PDF is password-protected. Remove the password and upload it again.",
+    );
   }
   if (error instanceof ParseTimeout) {
     log.warn("parse.pdf_timeout");
-    return new ParseError("corrupt", "That PDF took too long to read. Try exporting it again from the app you made it in.");
+    return new ParseError(
+      "corrupt",
+      "That PDF took too long to read. Try exporting it again from the app you made it in.",
+    );
   }
   // pdf.js error messages describe file structure, never document text, so they're safe to log.
   log.warn("parse.pdf_unreadable", {}, error);
-  return new ParseError("corrupt", "We couldn't read that PDF. Try exporting it again from the app you made it in.");
+  return new ParseError(
+    "corrupt",
+    "We couldn't read that PDF. Try exporting it again from the app you made it in.",
+  );
 }
 
 // The loading task is destroyed in a finally block, which also stops pdf.js work left running here.

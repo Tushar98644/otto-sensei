@@ -10,6 +10,8 @@ export type PdfTextItem = {
   fontName: string;
 };
 
+export type PdfLinkTarget = { url: string; text: string };
+
 export type PdfPage = {
   pageNumber: number;
   width: number;
@@ -43,16 +45,14 @@ export type Extraction = {
   wordCount: number;
   // PDF only; empty for DOCX.
   pages: PdfPage[];
+  // PDF only: each clickable web link with the words drawn under it, in page order. A resume often
+  // shows a short form ("github.com/jane", or just "GitHub") while the link holds the full address.
+  links?: PdfLinkTarget[];
   signals: ExtractionSignals;
 };
 
 export type ParseErrorCode =
-  | "unsupported_type"
-  | "too_large"
-  | "too_many_pages"
-  | "empty_file"
-  | "encrypted"
-  | "corrupt";
+  "unsupported_type" | "too_large" | "too_many_pages" | "empty_file" | "encrypted" | "corrupt";
 
 export class ParseError extends Error {
   readonly code: ParseErrorCode;

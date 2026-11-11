@@ -1,5 +1,14 @@
 import JSZip from "jszip";
-import { PDFDocument, PDFHexString, StandardFonts, rgb, type PDFFont, type PDFPage } from "pdf-lib";
+import {
+  PDFDocument,
+  PDFHexString,
+  PDFName,
+  PDFString,
+  StandardFonts,
+  rgb,
+  type PDFFont,
+  type PDFPage,
+} from "pdf-lib";
 
 // Fixture files built in code for tests (no binary fixtures in the repo). pdf-lib's standard fonts
 // only encode WinAnsi, so PDF text uses "-" rather than en dashes.
@@ -18,7 +27,14 @@ async function newPdf(): Promise<{ doc: PDFDocument; page: PDFPage; fonts: Fonts
   return { doc, page, fonts };
 }
 
-function rightAligned(page: PDFPage, text: string, right: number, y: number, size: number, font: PDFFont) {
+function rightAligned(
+  page: PDFPage,
+  text: string,
+  right: number,
+  y: number,
+  size: number,
+  font: PDFFont,
+) {
   page.drawText(text, { x: right - font.widthOfTextAtSize(text, size), y, size, font });
 }
 
@@ -27,8 +43,16 @@ export async function cleanResumePdf(): Promise<Uint8Array> {
   const { doc, page, fonts } = await newPdf();
   const { regular, bold } = fonts;
   let y = 740;
-  const line = (text: string, options: { x?: number; size?: number; font?: PDFFont; gap?: number } = {}) => {
-    page.drawText(text, { x: options.x ?? 50, y, size: options.size ?? 10, font: options.font ?? regular });
+  const line = (
+    text: string,
+    options: { x?: number; size?: number; font?: PDFFont; gap?: number } = {},
+  ) => {
+    page.drawText(text, {
+      x: options.x ?? 50,
+      y,
+      size: options.size ?? 10,
+      font: options.font ?? regular,
+    });
     y -= options.gap ?? 13;
   };
   const job = (title: string, dates: string) => {
@@ -42,14 +66,20 @@ export async function cleanResumePdf(): Promise<Uint8Array> {
   line("jane.doe@example.com | +1 555 123 4567 | Berlin, Germany", { gap: 26 });
   line("SUMMARY", { size: 12, font: bold, gap: 15 });
   line("Backend engineer with eight years of experience building payment and data systems for");
-  line("fast-growing companies. I like clear code, calm on-call rotations and teams that ship small");
+  line(
+    "fast-growing companies. I like clear code, calm on-call rotations and teams that ship small",
+  );
   line("changes often.", { gap: 24 });
   line("EXPERIENCE", { size: 12, font: bold, gap: 16 });
   job("Senior Software Engineer, Acme Corp", "Jan 2021 - Present");
   line("• Built a payment API in Go that handles two million requests a day with 99.99% uptime.");
-  line("• Led a team of five engineers through a move to Kubernetes, cutting release time from two");
+  line(
+    "• Led a team of five engineers through a move to Kubernetes, cutting release time from two",
+  );
   line("days to two hours.", { x: 59 });
-  line("• Mentored three junior developers, and all three were promoted within a year.", { gap: 20 });
+  line("• Mentored three junior developers, and all three were promoted within a year.", {
+    gap: 20,
+  });
   job("Software Engineer, Beta Labs", "Mar 2018 - Dec 2020");
   line("• Rebuilt the reporting pipeline in Python, which cut nightly run time by 70 percent.");
   line("• Added end-to-end tests that caught over 40 bugs before they reached customers.");
@@ -120,13 +150,49 @@ export async function twoColumnPdf(): Promise<Uint8Array> {
     if (!text) return;
     const [left = "", right] = text.split("\t");
     const heading = left === left.toUpperCase() && /^[A-Z ]+$/.test(left);
-    page.drawText(left, { x: 230, y: top - i * spacing, size: 10, font: heading || right ? bold : regular });
+    page.drawText(left, {
+      x: 230,
+      y: top - i * spacing,
+      size: 10,
+      font: heading || right ? bold : regular,
+    });
     if (right) rightAligned(page, right, 572, top - i * spacing, 10, regular);
   });
   return doc.save();
 }
 
 // Vector shapes only: what a scanned page looks like to a text extractor, minus the picture.
+// A contact line whose links show cut-off text over full addresses, as many resume builders do:
+// "github.com/jane" over github.com/jane-doe-42, "LinkedIn" over linkedin.com/in/jane-doe, and a
+// short link the person chose on purpose.
+export async function linkedContactPdf(): Promise<Uint8Array> {
+  const { doc, page, fonts } = await newPdf();
+  page.drawText("Jane Doe", { x: 50, y: 740, size: 20, font: fonts.bold });
+  const parts: [string, string][] = [
+    ["github.com/jane", "https://github.com/jane-doe-42"],
+    ["LinkedIn", "https://www.linkedin.com/in/jane-doe/"],
+    ["bit.ly/jane-site", "https://janedoe.dev/"],
+  ];
+  const annots = [];
+  let x = 50;
+  for (const [text, url] of parts) {
+    page.drawText(text, { x, y: 712, size: 10, font: fonts.regular });
+    const width = fonts.regular.widthOfTextAtSize(text, 10);
+    const annot = doc.context.obj({
+      Type: "Annot",
+      Subtype: "Link",
+      Rect: [x, 709, x + width, 722],
+      Border: [0, 0, 0],
+      A: { Type: "Action", S: "URI", URI: PDFString.of(url) },
+    });
+    annots.push(doc.context.register(annot));
+    x += width + 30;
+  }
+  page.node.set(PDFName.of("Annots"), doc.context.obj(annots));
+  page.drawText("EXPERIENCE", { x: 50, y: 680, size: 12, font: fonts.bold });
+  return doc.save();
+}
+
 export async function noTextPdf(): Promise<Uint8Array> {
   const { doc, page } = await newPdf();
   page.drawRectangle({ x: 50, y: 600, width: 500, height: 120, color: rgb(0.9, 0.9, 0.9) });
@@ -155,13 +221,18 @@ export async function encryptedPdf(): Promise<Uint8Array> {
     P: -4,
   });
   context.trailerInfo.Encrypt = context.register(encrypt);
-  context.trailerInfo.ID = context.obj([PDFHexString.of("ab".repeat(16)), PDFHexString.of("ab".repeat(16))]);
+  context.trailerInfo.ID = context.obj([
+    PDFHexString.of("ab".repeat(16)),
+    PDFHexString.of("ab".repeat(16)),
+  ]);
   return doc.save({ useObjectStreams: false });
 }
 
 // 2x2 RGBA PNG.
 const TINY_PNG = Uint8Array.from(
-  atob("iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAYAAABytg0kAAAAFElEQVR4nGP4z8DwHwyBNAMDAwMAZ/kH+Uq9KvMAAAAASUVORK5CYII="),
+  atob(
+    "iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAYAAABytg0kAAAAFElEQVR4nGP4z8DwHwyBNAMDAwMAZ/kH+Uq9KvMAAAAASUVORK5CYII=",
+  ),
   (char) => char.charCodeAt(0),
 );
 
@@ -181,14 +252,17 @@ const NAMESPACES = [
   'mc:Ignorable="wps"',
 ].join(" ");
 
-const escapeXml = (text: string) => text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+const escapeXml = (text: string) =>
+  text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
 export const paragraph = (...runs: string[]) =>
   `<w:p>${runs.map((run) => (run === "\n" ? "<w:r><w:br/></w:r>" : `<w:r><w:t xml:space="preserve">${escapeXml(run)}</w:t></w:r>`)).join("")}</w:p>`;
 
 const table = (...rows: string[][]) =>
   `<w:tbl><w:tblPr><w:tblW w:w="0" w:type="auto"/></w:tblPr>${rows
-    .map((cells) => `<w:tr>${cells.map((cell) => `<w:tc>${paragraph(cell)}</w:tc>`).join("")}</w:tr>`)
+    .map(
+      (cells) => `<w:tr>${cells.map((cell) => `<w:tc>${paragraph(cell)}</w:tc>`).join("")}</w:tr>`,
+    )
     .join("")}</w:tbl>`;
 
 // A floating text box as Word writes it: a DrawingML choice plus a VML fallback with the same text.
@@ -206,7 +280,12 @@ type DocxOptions = {
   pages?: number;
 };
 
-export async function buildDocx({ body, header, columns, pages }: DocxOptions): Promise<Uint8Array> {
+export async function buildDocx({
+  body,
+  header,
+  columns,
+  pages,
+}: DocxOptions): Promise<Uint8Array> {
   const zip = new JSZip();
   zip.file(
     "[Content_Types].xml",
@@ -264,7 +343,11 @@ export function templateDocx(): Promise<Uint8Array> {
       paragraph("San Francisco, CA | +1 (415) 555-0134"),
       paragraph("Experience"),
       table(["Lead Developer, Contoso Ltd", "Feb 2019 - Present"]),
-      paragraph("Built a hiring dashboard used by 300 recruiters.", "\n", "Cut report time from hours to minutes."),
+      paragraph(
+        "Built a hiring dashboard used by 300 recruiters.",
+        "\n",
+        "Cut report time from hours to minutes.",
+      ),
       textBox("Skills: Python, SQL, Tableau"),
       paragraph("Education"),
       paragraph("BA Economics, University of Somewhere, 2018"),
