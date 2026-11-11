@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { OTTO } from "@/components/mascot/lines";
-import { ApiClientError } from "@/lib/api/client";
+import { ApiClientError, isBudgetReached } from "@/lib/api/client";
 import { FixRequestSchema } from "@/lib/api/types";
 import {
   buildAnswers,
@@ -82,6 +82,16 @@ describe("messages", () => {
     expect(problemMessage({ kind: "limit" }, 20)).toBe(OTTO.limit.reached("fix", 20));
     expect(problemMessage({ kind: "signin" }, 20)).toBe(OTTO.signIn.reason("fix"));
     expect(problemMessage({ kind: "error", message: "Nope" }, 20)).toBe("Nope");
+  });
+
+  it("says it was the AI budget, not the line fixes, when that ran out", () => {
+    const period = { kind: "month", resetsAt: Date.UTC(2026, 11, 4, 12) } as const;
+    expect(problemMessage({ kind: "limit", budget: true }, 20, false, period)).toMatch(
+      /^You've used this month's AI budget\. It resets on Dec [45]\.$/,
+    );
+    const error = new ApiClientError("limit_reached", "Budget", 429, "ai_budget");
+    expect(isBudgetReached(error)).toBe(true);
+    expect(isBudgetReached(new ApiClientError("limit_reached", "Fixes", 429))).toBe(false);
   });
 
   it("stops asking for an account once the user has signed back in", () => {

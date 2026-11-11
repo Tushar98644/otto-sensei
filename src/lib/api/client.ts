@@ -44,6 +44,7 @@ import type {
   AnswerResponse,
   ApiErrorBody,
   ApiErrorCode,
+  ApiErrorReason,
   ApplicationResponse,
   ApplicationsResponse,
   ApplicationThreadResponse,
@@ -99,17 +100,29 @@ import type {
 export class ApiClientError extends Error {
   readonly code: ApiErrorCode | "network_error";
   readonly status: number;
+  readonly reason?: ApiErrorReason;
 
-  constructor(code: ApiErrorCode | "network_error", message: string, status: number) {
+  constructor(
+    code: ApiErrorCode | "network_error",
+    message: string,
+    status: number,
+    reason?: ApiErrorReason,
+  ) {
     super(message);
     this.name = "ApiClientError";
     this.code = code;
     this.status = status;
+    if (reason) this.reason = reason;
   }
 }
 
 export function isApiError(error: unknown, code?: ApiClientError["code"]): error is ApiClientError {
   return error instanceof ApiClientError && (code === undefined || error.code === code);
+}
+
+/** A 429 from the period's AI budget rather than the feature's own limit. */
+export function isBudgetReached(error: unknown): boolean {
+  return isApiError(error, "limit_reached") && error.reason === "ai_budget";
 }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
@@ -131,6 +144,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
       error?.code ?? "server_error",
       error?.message ?? "Something went wrong. Please try again.",
       res.status,
+      error?.reason,
     );
   }
   return body as T;

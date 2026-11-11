@@ -1,6 +1,6 @@
 import { eq } from "drizzle-orm";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { FEATURES, PLANS, PRO_TRIAL } from "@/config/plans";
+import { AI_TOKEN_BUDGETS, FEATURES, PLANS, PRO_TRIAL } from "@/config/plans";
 import { getDb } from "@/db/client";
 import { users } from "@/db/schema";
 import { clearSession } from "@/lib/auth/session";
@@ -34,6 +34,7 @@ describe("GET /api/me", () => {
       user: null,
       usage: null,
       period: null,
+      aiBudget: null,
       billing: {
         mode: "mock",
         offer: { pro: ["month", "year", "week"], max: ["month", "year", "week"] },
@@ -66,6 +67,8 @@ describe("GET /api/me", () => {
       user: { ...user, trialEndsAt: null },
       usage: usageOf(PLANS.free.limits),
       period: { kind: "month", resetsAt: expect.any(Number) },
+      // Free has no AI, so no AI budget either.
+      aiBudget: null,
       billing: {
         mode: "mock",
         offer: { pro: ["month", "year", "week"], max: ["month", "year", "week"] },
@@ -87,6 +90,7 @@ describe("GET /api/me", () => {
     expect(body.user).toMatchObject({ plan: "pro", trialEndsAt: trialEnd });
     expect(body.usage).toEqual(usageOf(PRO_TRIAL.limits, { fix: 1 }));
     expect(body.period).toEqual({ kind: "trial", resetsAt: trialEnd });
+    expect(body.aiBudget).toEqual({ used: 0, limit: AI_TOKEN_BUDGETS.trial });
     expect(body.billing.trial).toBe(false);
   });
 

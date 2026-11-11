@@ -39,7 +39,9 @@ export async function POST(req: Request): Promise<Response> {
 
     const session = newGitHubSession(GITHUB_BUDGET_MS, startedAt);
     try {
-      const result = await draftGitHubProjects(session, { ...body.data, username: login });
+      const result = await unit.spend(() =>
+        draftGitHubProjects(session, { ...body.data, username: login }),
+      );
       // GitHub's own words, lightly arranged: no model call to count.
       if (!result.usedAI || result.entries.length === 0) await unit.giveBack();
       log.info("github.drafted", {

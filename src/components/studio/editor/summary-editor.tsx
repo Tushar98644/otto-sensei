@@ -12,7 +12,7 @@ import { Eyebrow } from "@/components/ui/eyebrow";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { PLANS, type UsageSnapshot } from "@/config/plans";
-import { api, isApiError } from "@/lib/api/client";
+import { api, isApiError, isBudgetReached } from "@/lib/api/client";
 import {
   SUMMARY_IMPROVE_CHARS,
   type SummaryOption,
@@ -160,9 +160,10 @@ function useSummaryHelp(resumeId: string, focusInput: () => void) {
         if (id !== requestRef.current) return;
         let message = fixErrorMessage(error);
         if (gateRef.current.handleApiError(error, "fix")) {
+          const limited = { kind: "limit", budget: isBudgetReached(error) } as const;
           message =
             isApiError(error, "limit_reached") || isApiError(error, "upgrade_required")
-              ? problemMessage({ kind: "limit" }, limit, false, me?.period)
+              ? problemMessage(limited, limit, false, me?.period)
               : SIGN_IN_REASON;
         }
         setHelp({ status: "failed", mode, message });

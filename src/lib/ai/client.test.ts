@@ -1,7 +1,8 @@
 import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { z } from "zod";
 import { resetEnvForTests } from "@/lib/env";
-import { jsonSchemaFor, runStructured, type StructuredRequest } from "./client";
+import { billedTokens, jsonSchemaFor, runStructured, type StructuredRequest } from "./client";
+import { metered } from "./token-meter";
 import { AIError } from "./types";
 
 // Only fetch is replaced, so request building, response parsing, retries and error mapping all run
@@ -332,5 +333,45 @@ describe("runStructured errors and retries", () => {
     respond(503, apiError(503, "No available providers"), { "retry-after": "3" });
     await expect(runStructured(request(), { deadlineMs: 1_000 })).rejects.toMatchObject({ code: "unavailable" });
     expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("runStructured billed tokens", () => {
+  // Runs the call inside a meter and returns what it was billed, whether it succeeded or not.
+  async function billed(run: () => Promise<unknown>): Promise<number> {
+    let tokens = -1;
+    await metered(run, async (total) => {
+      tokens = total;
+    }).catch(() => undefined);
+    return tokens;
+  }
+
+  it("reports prompt plus completion, or the provider's own total when it sends one", async () => {
+    respond(200, completion('{"answer":"ok"}'));
+    expect(await billed(() => runStructured(request()))).toBe(160);
+    expect(billedTokens({ usage: { prompt_tokens: 100, completion_tokens: 50, total_tokens: 175 } })).toBe(175);
+  });
+
+  it("counts every billed attempt, including a refused or cut-off answer", async () => {
+    respond(200, completion(null, { message: { content: null, refusal: "No." } }));
+    expect(await billed(() => runStructured(request()))).toBe(160);
+
+    respond(200, apiError(502, "Provider returned error", { error_type: "provider_unavailable" }));
+    respond(200, completion('{"answer":"o', { finish_reason: "length" }));
+    respond(200, completion('{"answer":"ok"}'));
+    const twoCalls = async () => {
+      await runStructured(request()).catch(() => undefined);
+      await runStructured(request());
+    };
+    expect(await billed(twoCalls)).toBe(320);
+  });
+
+  it("counts nothing for a call turned away with no usage, or outside a meter", async () => {
+    respond(429, apiError(429, "Rate limit exceeded"), { "retry-after": "60" });
+    expect(await billed(() => runStructured(request()))).toBe(0);
+    respond(200, completion('{"answer":"ok"}'));
+    await expect(runStructured(request())).resolves.toEqual({ answer: "ok" });
+    expect(billedTokens({ usage: { prompt_tokens: "lots" } })).toBe(0);
+    expect(billedTokens(null)).toBe(0);
   });
 });

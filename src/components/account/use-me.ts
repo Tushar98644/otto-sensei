@@ -10,7 +10,7 @@ import type { MeResponse } from "@/lib/api/types";
 // One shared /api/me fetch for the whole page. Call refreshMe() after sign-in, sign-out, upgrade,
 // or any AI call that changes usage.
 
-export type Me = Pick<MeResponse, "user" | "usage" | "period" | "billing" | "auth">;
+export type Me = Pick<MeResponse, "user" | "usage" | "period" | "aiBudget" | "billing" | "auth">;
 
 type MeState = { status: "idle" | "loading" | "ready" | "error"; me: Me | null };
 
@@ -41,7 +41,14 @@ export function refreshMe(): Promise<void> {
       setState({
         status: "ready",
         // A server from before weekly allowances sends no period: that was always the month.
-        me: { user: res.user, usage: res.usage, period: res.period ?? null, billing: res.billing, auth: res.auth },
+        me: {
+          user: res.user,
+          usage: res.usage,
+          period: res.period ?? null,
+          aiBudget: res.aiBudget ?? null,
+          billing: res.billing,
+          auth: res.auth,
+        },
       }),
     )
     .catch(() => setState({ status: "error", me: state.me }))

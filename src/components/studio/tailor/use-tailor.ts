@@ -5,7 +5,8 @@ import { useAccountGate } from "@/components/account/account-gate";
 import { patchMe, useMe } from "@/components/account/use-me";
 import { OTTO } from "@/components/mascot/lines";
 import type { UsagePeriod } from "@/config/plans";
-import { api, isApiError } from "@/lib/api/client";
+import { budgetReachedText } from "@/lib/ai-budget-copy";
+import { api, isApiError, isBudgetReached } from "@/lib/api/client";
 import { newId, type Resume } from "@/lib/resume/schema";
 import {
   clearQueuedJob,
@@ -43,6 +44,7 @@ function errorMessage(
   if (isApiError(error, "network_error")) return OTTO.errors.offline;
   if (isApiError(error, "rate_limited")) return OTTO.errors.rateLimited;
   if (isApiError(error, "ai_unavailable")) return OTTO.errors.aiUnavailable;
+  if (isBudgetReached(error)) return budgetReachedText(period);
   if (isApiError(error, "limit_reached")) return OTTO.limit.reached("tailor", tailorLimit, period);
   if (isApiError(error, "unauthorized"))
     return "You've been signed out. Sign in again to keep going.";

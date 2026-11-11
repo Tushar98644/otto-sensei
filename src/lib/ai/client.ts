@@ -8,6 +8,7 @@ import {
   type AICallFields,
   type CallFailure,
 } from "./errors";
+import { noteTokens } from "./token-meter";
 import { AIError } from "./types";
 
 // Server-only. One structured-output call through OpenRouter's Chat Completions API: a strict JSON
@@ -55,6 +56,23 @@ const ContentSchema = z.union([
   z.array(z.object({ type: z.string(), text: z.string().nullish() })),
 ]);
 
+const UsageSchema = z.object({
+  prompt_tokens: z.number().nullish(),
+  completion_tokens: z.number().nullish(),
+  // Prompt plus completion; the completion includes reasoning.
+  total_tokens: z.number().nullish(),
+  prompt_tokens_details: z
+    .object({ cached_tokens: z.number().nullish(), cache_write_tokens: z.number().nullish() })
+    .nullish(),
+  completion_tokens_details: z.object({ reasoning_tokens: z.number().nullish() }).nullish(),
+});
+
+// Read from any body, not just a valid answer: a refused, cut-off or failed answer is billed too.
+// Only the counts, so an odd detail field can't hide them.
+const BilledSchema = z.object({
+  usage: UsageSchema.pick({ prompt_tokens: true, completion_tokens: true, total_tokens: true }),
+});
+
 // Only the fields read below; OpenRouter sends more.
 const ChatResponseSchema = z.object({
   provider: z.string().nullish(),
@@ -67,16 +85,7 @@ const ChatResponseSchema = z.object({
       }),
     )
     .nullish(),
-  usage: z
-    .object({
-      prompt_tokens: z.number().nullish(),
-      completion_tokens: z.number().nullish(),
-      prompt_tokens_details: z
-        .object({ cached_tokens: z.number().nullish(), cache_write_tokens: z.number().nullish() })
-        .nullish(),
-      completion_tokens_details: z.object({ reasoning_tokens: z.number().nullish() }).nullish(),
-    })
-    .nullish(),
+  usage: UsageSchema.nullish(),
   error: ErrorBodySchema.nullish(),
 });
 
@@ -200,6 +209,7 @@ async function attemptOnce(
   } catch {
     // Handled below: an error status maps on its own, and a 200 fails the schema check.
   }
+  noteTokens(billedTokens(json));
 
   if (!res.ok) {
     const parsed = z.object({ error: ErrorBodySchema }).safeParse(json);
@@ -230,6 +240,14 @@ async function attemptOnce(
     return { ok: false, failure, retryAfterMs: null };
   }
   return { ok: true, response: parsed.data };
+}
+
+/** The total the provider reports, or prompt + completion when it leaves the total out. */
+export function billedTokens(json: unknown): number {
+  const parsed = BilledSchema.safeParse(json);
+  if (!parsed.success) return 0;
+  const { total_tokens, prompt_tokens, completion_tokens } = parsed.data.usage;
+  return total_tokens ?? (prompt_tokens ?? 0) + (completion_tokens ?? 0);
 }
 
 function contentText(content: z.infer<typeof ContentSchema> | null | undefined): string {

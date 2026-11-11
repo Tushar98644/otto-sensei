@@ -1,10 +1,12 @@
 import { and, eq, gt, inArray, like, min, sql } from "drizzle-orm";
 import {
+  aiTokenBudget,
   allowancePeriodFor,
   FEATURES,
   isPaidPlan,
   isTrialing,
   planLimits,
+  type AllowancePeriod,
   type Feature,
   type Usage,
   type UsagePeriod,
@@ -45,6 +47,10 @@ export const WEEK_MS = 7 * DAY_MS;
 const WEEK_PREFIX = "week:";
 const CYCLE_PREFIX = "cycle:";
 export const TRIAL_PERIOD_KEY = "trial";
+// The AI token budget's row in each period, beside the features' rows (src/lib/ai-budget.ts). Its
+// count is tokens, so it is never a Feature, but it resets and carries over the same way.
+export const AI_TOKENS = "ai_tokens";
+const COUNTED = [...FEATURES, AI_TOKENS];
 // How far from the date the last period gave a renewal can land and still be that renewal, not a
 // change partway through. Also how close a reset must be to plan_renews_at to be called the renewal.
 const RENEWAL_SLACK_MS = DAY_MS;
@@ -271,7 +277,7 @@ export async function carryUsageOver(
   const rows = await db
     .select({ feature: usage.feature, count: usage.count, bonus: usage.bonus })
     .from(usage)
-    .where(and(eq(usage.subject, after.id), inArray(usage.feature, FEATURES), eq(usage.period, source)));
+    .where(and(eq(usage.subject, after.id), inArray(usage.feature, COUNTED), eq(usage.period, source)));
   const carried = rows.filter((row) => row.count > 0 || row.bonus > 0);
   if (carried.length === 0) return;
   await db
@@ -297,18 +303,18 @@ function isRenewal(before: PeriodAccount, from: ResolvedPeriod, to: ResolvedPeri
   return boundary != null && to.startsAt >= boundary - RENEWAL_SLACK_MS;
 }
 
-function publicPeriod({ kind, resetsAt, renews }: ResolvedPeriod): UsagePeriod {
+export function publicPeriod({ kind, resetsAt, renews }: ResolvedPeriod): UsagePeriod {
   return renews === undefined ? { kind, resetsAt } : { kind, resetsAt, renews };
 }
 
 type CountRow = { feature: string; count: number; bonus: number };
 
-// Exact primary-key lookups: one (subject, feature, period) seek per feature.
+// Exact primary-key lookups: one (subject, feature, period) seek per feature, the tokens included.
 function periodCounts(db: Db, userId: string, key: string) {
   return db
     .select({ feature: usage.feature, count: usage.count, bonus: usage.bonus })
     .from(usage)
-    .where(and(eq(usage.subject, userId), inArray(usage.feature, FEATURES), eq(usage.period, key)));
+    .where(and(eq(usage.subject, userId), inArray(usage.feature, COUNTED), eq(usage.period, key)));
 }
 
 function toSnapshot(limits: Record<Feature, number>, rows: CountRow[]): UsageSnapshot {
@@ -323,14 +329,27 @@ function toSnapshot(limits: Record<Feature, number>, rows: CountRow[]): UsageSna
   return Object.fromEntries(FEATURES.map((feature) => [feature, entry(feature)])) as UsageSnapshot;
 }
 
+// Tokens used against the period's AI budget; null on Free, which has none. A call that started
+// under the budget can end over it, so never report over 100% used.
+function toBudget(user: SessionUser, kind: AllowancePeriod, rows: CountRow[]): Usage | null {
+  const limit = aiTokenBudget(user.plan, kind);
+  if (limit === null) return null;
+  const used = rows.find((row) => row.feature === AI_TOKENS)?.count ?? 0;
+  return { used: Math.min(used, limit), limit };
+}
+
 export async function getUsageState(
   user: SessionUser,
   now = Date.now(),
-): Promise<{ usage: UsageSnapshot; period: UsagePeriod }> {
+): Promise<{ usage: UsageSnapshot; period: UsagePeriod; aiBudget: Usage | null }> {
   const db = await getDb();
   const period = await resolvePeriod(db, user, now);
   const rows = await periodCounts(db, user.id, period.key);
-  return { usage: toSnapshot(planLimits(user.plan, period.kind), rows), period: publicPeriod(period) };
+  return {
+    usage: toSnapshot(planLimits(user.plan, period.kind), rows),
+    period: publicPeriod(period),
+    aiBudget: toBudget(user, period.kind, rows),
+  };
 }
 
 export async function getUsage(user: SessionUser, now = Date.now()): Promise<UsageSnapshot> {

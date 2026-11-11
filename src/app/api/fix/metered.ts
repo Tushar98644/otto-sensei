@@ -1,5 +1,6 @@
 import type { z } from "zod";
 import type { Feature } from "@/config/plans";
+import { checkAiBudget, spendAiTokens } from "@/lib/ai-budget";
 import { AIError, type AIErrorCode } from "@/lib/ai/types";
 import { trackMeteredCall } from "@/lib/analytics/ai";
 import { fail, ok } from "@/lib/api/respond";
@@ -12,12 +13,13 @@ import { readJson } from "@/lib/http";
 import { log } from "@/lib/log";
 import { rateLimit, retryAfterHeader, waitText } from "@/lib/rate-limit";
 import { consumeUsage, refundUsage } from "@/lib/usage";
-import { limitReached, requirePlanFeature } from "../metered-free";
+import { budgetReached, limitReached, requirePlanFeature } from "../metered-free";
 
 // Server-only. The flow behind POST /api/fix, /api/tailor, /api/letter and /api/answer: sign-in, a
 // plan that includes the feature (Free has none: 402 upgrade_required), a per-minute burst limit,
-// validation, the allowance, then the AI call. A failed call gives
-// its unit back, within a daily cap for failures the model may still have been paid for.
+// validation, the AI budget, the allowance, then the AI call, whose tokens go on the budget. A
+// failed call gives its unit back, within a daily cap for failures the model may still have been
+// paid for.
 
 export type MeteredCopy = {
   signIn: string;
@@ -109,12 +111,14 @@ export async function runMetered<S extends z.ZodType, R>(
     }
 
     const now = Date.now();
+    const budget = await checkAiBudget(user, now);
+    if (!budget.allowed) return budgetReached(user, budget.period, now);
     const { allowed, usage, period } = await consumeUsage(user, feature, now);
     if (!allowed) return limitReached(user, feature, period, now);
 
     const call = { userId: user.id, path: new URL(req.url).pathname, feature, startedAt: Date.now() };
     try {
-      const result = await route.run(body.data);
+      const result = await spendAiTokens(user, now, () => route.run(body.data));
       trackMeteredCall(call);
       return ok({ result, usage, demo: !aiEnabled() });
     } catch (error) {

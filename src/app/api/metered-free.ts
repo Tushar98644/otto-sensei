@@ -9,6 +9,8 @@ import {
   type Feature,
   type UsagePeriod,
 } from "@/config/plans";
+import { checkAiBudget, spendAiTokens } from "@/lib/ai-budget";
+import { budgetReachedText } from "@/lib/ai-budget-copy";
 import { fail } from "@/lib/api/respond";
 import type { SessionUser } from "@/lib/auth/types";
 import { log } from "@/lib/log";
@@ -20,7 +22,11 @@ import { perPeriod, resetSentence, thisPeriod } from "@/lib/usage-copy";
 // get 402 upgrade_required, which the client turns into the trial prompt. Pro, Max and the trial
 // spend their allowance, the same way on every AI route, so two devices can't double it.
 
-export type AccountUnit = { giveBack: () => Promise<void> };
+export type AccountUnit = {
+  giveBack: () => Promise<void>;
+  // Runs the AI work and charges its tokens to the account's AI budget.
+  spend: <T>(work: () => Promise<T>) => Promise<T>;
+};
 
 const COMES_WITH_PRO: Record<Feature, string> = {
   fix: "Line fixes and summaries come with Pro.",
@@ -46,7 +52,10 @@ export function requirePlanFeature(user: SessionUser | null, feature: Feature): 
   return user && planIncludes(user.plan, feature) ? null : upgradeRequired(user, feature);
 }
 
-/** Takes one unit, or answers 402 (no such feature on the plan) or 429 limit_reached. */
+/**
+ * Takes one unit, or answers 402 (no such feature on the plan) or 429 limit_reached (the feature's
+ * limit or the AI budget; a used-up budget takes no unit).
+ */
 export async function takeAccountUnit(
   user: SessionUser,
   feature: Feature,
@@ -54,9 +63,26 @@ export async function takeAccountUnit(
 ): Promise<AccountUnit | Response> {
   const missing = requirePlanFeature(user, feature);
   if (missing) return missing;
+  const budget = await checkAiBudget(user, now);
+  if (!budget.allowed) return budgetReached(user, budget.period, now);
   const { allowed, period } = await consumeUsage(user, feature, now);
   if (!allowed) return limitReached(user, feature, period, now);
-  return { giveBack: () => refundUsage(user, feature, now) };
+  return {
+    giveBack: () => refundUsage(user, feature, now),
+    spend: (work) => spendAiTokens(user, now, work),
+  };
+}
+
+/** The 429 for a used-up AI budget, retried once the period starts over. */
+export function budgetReached(user: SessionUser, period: UsagePeriod, now: number): Response {
+  log.warn("ai_budget.reached", { plan: user.plan, period: period.kind });
+  return fail(
+    "limit_reached",
+    budgetReachedText(period, "UTC"),
+    429,
+    retryAfterHeader(Math.max(0, period.resetsAt - now)),
+    "ai_budget",
+  );
 }
 
 /** The 429 for a used-up allowance, retried once the period starts over. */

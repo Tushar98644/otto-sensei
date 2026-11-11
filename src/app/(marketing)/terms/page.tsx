@@ -3,7 +3,16 @@ import Link from "next/link";
 import { pageMetadata } from "@/components/site/page-metadata";
 import { ROUTES } from "@/components/site/routes";
 import { BRAND } from "@/config/brand";
-import { FEATURE_LABELS, FEATURES, PAID_PLANS, PLANS, PRICES_USD, PRO_TRIAL } from "@/config/plans";
+import {
+  AI_TOKEN_BUDGETS,
+  FEATURE_LABELS,
+  FEATURES,
+  PAID_PLANS,
+  PLANS,
+  PRICES_USD,
+  PRO_TRIAL,
+} from "@/config/plans";
+import { tokensInWords } from "@/lib/ai-budget-copy";
 import { LegalPage } from "../_components/legal-page";
 import { formatUsd } from "../_components/plan-features";
 
@@ -139,6 +148,12 @@ export default function TermsPage() {
         yearly, between renewals doesn&apos;t reset a limit: what you used this month counts on the
         new plan. Uploads never stop: past the AI reads, the basic reader reads your file instead.
         Editing, recruiter checks and PDF downloads have no limit on any plan.
+      </p>
+      <p>
+        Each paid plan also has a monthly AI budget ({tokensInWords(AI_TOKEN_BUDGETS.pro)} tokens on{" "}
+        {PLANS.pro.name}, {tokensInWords(AI_TOKEN_BUDGETS.max)} on {PLANS.max.name},{" "}
+        {tokensInWords(AI_TOKEN_BUDGETS.trial)} on the trial) that covers full use of the limits
+        above and only stops automated or abusive use.
       </p>
 
       <h2>Payments and cancelling</h2>

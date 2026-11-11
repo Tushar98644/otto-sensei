@@ -20,6 +20,7 @@ import {
   type ProTool,
 } from "@/config/plans";
 import type { SessionUser } from "@/lib/auth/types";
+import { budgetReachedText } from "@/lib/ai-budget-copy";
 import { trialHeadline } from "@/lib/billing/prices";
 import { resetWhen, thisPeriod } from "@/lib/usage-copy";
 import { BillingNote } from "./billing-note";
@@ -35,6 +36,8 @@ export type UpgradeDialogProps = {
   onOpenChange: (open: boolean) => void;
   // The allowance that ran out, for the copy ("You've used this month's 150 tailored versions").
   feature?: Feature;
+  // It was the AI budget that ran out, not the feature's own limit.
+  budget?: boolean;
   // Or the Pro tool a Free account reached for (a second resume, a Pro format, Word, ...).
   tool?: ProTool;
   // What the pricing page asked for: focused first, and priced for that billing option.
@@ -63,6 +66,7 @@ export function UpgradeDialog({
   open,
   onOpenChange,
   feature,
+  budget = false,
   tool,
   plan,
   interval,
@@ -112,7 +116,9 @@ export function UpgradeDialog({
     limitLine =
       current === "free"
         ? OTTO.limit.none(feature, trialOnOffer)
-        : OTTO.limit.reached(feature, me?.usage?.[feature].limit, period);
+        : budget
+          ? budgetReachedText(period)
+          : OTTO.limit.reached(feature, me?.usage?.[feature].limit, period);
   }
   const close = () => onOpenChange(false);
 

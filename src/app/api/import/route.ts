@@ -10,7 +10,7 @@ import type { Extraction } from "@/lib/parse";
 import { withLinkTargets } from "@/lib/resume/link-targets";
 import { emptyResume } from "@/lib/resume/schema";
 import { weakReadSigns, type ReadLayout, type WeakReadSign } from "@/lib/resume/read-quality";
-import { claimAiRead, type AiRead } from "./ai-reads";
+import { claimAiRead, NO_AI_READ, type AiRead } from "./ai-reads";
 import { checkUpload } from "./upload";
 
 export const runtime = "nodejs";
@@ -44,7 +44,7 @@ export async function POST(req: Request): Promise<Response> {
         weakSigns = weakReadSigns(source.text, rules.resume, source.layout);
         if (askedForAI || weakSigns.length > 0) read = await claimAiRead(user, startedAt);
         structured = read.useAI
-          ? await structureResume(source.text, startedAt, { ai: true })
+          ? await read.spend(() => structureResume(source.text, startedAt, { ai: true }))
           : rules;
       }
     } catch (error) {
@@ -90,8 +90,6 @@ export async function POST(req: Request): Promise<Response> {
     return fail("server_error", "Something went wrong reading that file. Please try again.", 500);
   }
 }
-
-const NO_AI_READ: AiRead = { useAI: false, limited: false, giveBack: async () => {} };
 
 type ReadableText = { text: string; layout: ReadLayout };
 

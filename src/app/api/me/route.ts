@@ -22,6 +22,7 @@ export async function GET(): Promise<Response> {
       user,
       usage: state?.usage ?? null,
       period: state?.period ?? null,
+      aiBudget: state?.aiBudget ?? null,
       billing: { mode: billingMode(), offer: billingOffer(), trial },
       auth: { mode: authMode() },
     };

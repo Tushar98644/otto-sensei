@@ -26,7 +26,7 @@ export async function POST(req: Request): Promise<Response> {
 
     let drafted: Awaited<ReturnType<typeof draftResume>>;
     try {
-      drafted = await draftResume(body.data, startedAt);
+      drafted = await unit.spend(() => draftResume(body.data, startedAt));
     } catch (error) {
       await unit.giveBack();
       throw error;

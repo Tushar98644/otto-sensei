@@ -5,6 +5,7 @@ import {
   TEXT_LIMITS,
   type BillingInterval,
   type PaidPlanId,
+  type Usage,
   type UsagePeriod,
   type UsageSnapshot,
 } from "@/config/plans";
@@ -52,7 +53,14 @@ export type ApiErrorCode =
   | "github_not_connected"
   | "server_error";
 
-export type ApiErrorBody = { ok: false; error: { code: ApiErrorCode; message: string } };
+// Which limit a 429 limit_reached hit, when it isn't the feature's own: "ai_budget" is the
+// period's AI token budget (src/lib/ai-budget.ts).
+export type ApiErrorReason = "ai_budget";
+
+export type ApiErrorBody = {
+  ok: false;
+  error: { code: ApiErrorCode; message: string; reason?: ApiErrorReason };
+};
 
 // POST /api/import, multipart/form-data with field "file" (PDF or DOCX). No account needed.
 export type ImportResponse = {
@@ -225,6 +233,9 @@ export type MeResponse = {
   // The period usage counts in: a billing month (renewal to renewal; the calendar month on Free and
   // on paid rows with no billing period yet), a weekly subscriber's billing week, or a trial.
   period: UsagePeriod | null;
+  // Tokens used against the period's AI budget; null on Free and signed out. Optional for servers
+  // from before the budget.
+  aiBudget?: Usage | null;
   // offer: how often each paid plan can bill here, "month" first; a plan with none isn't on sale.
   // trial: Pro monthly would start with the free trial (signed out: a new account would). Optional
   // for servers from before trials.

@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } fro
 import { OTTO } from "@/components/mascot/lines";
 import { toast } from "@/components/ui/toast";
 import type { Feature } from "@/config/plans";
-import { api, isApiError } from "@/lib/api/client";
+import { api, isApiError, isBudgetReached } from "@/lib/api/client";
 import { SESSION_ENDED_REASON } from "./copy";
 import { LazySignInDialog, LazyUpgradeDialog } from "./lazy-dialogs";
 import { refreshMe, useMe } from "./use-me";
@@ -24,7 +24,7 @@ export type AccountGate = {
 };
 
 type SignInPrompt = { open: boolean; reason?: string };
-type UpgradePrompt = { open: boolean; feature?: Feature };
+type UpgradePrompt = { open: boolean; feature?: Feature; budget?: boolean };
 
 // On a fresh page /api/me may not have answered yet. Ask the server rather than assume signed out.
 async function signedInNow(): Promise<boolean> {
@@ -75,7 +75,7 @@ export function useAccountGate(): AccountGate {
         return true;
       }
       if (isApiError(error, "limit_reached") || isApiError(error, "upgrade_required")) {
-        setUpgrade({ open: true, feature });
+        setUpgrade({ open: true, feature, budget: isBudgetReached(error) });
         // The meters elsewhere on the page still show the old count.
         void refreshMe();
         return true;
@@ -120,6 +120,7 @@ export function useAccountGate(): AccountGate {
           open={upgrade.open}
           onOpenChange={handleUpgradeOpenChange}
           feature={upgrade.feature}
+          budget={upgrade.budget}
         />
       </>
     ),

@@ -1,6 +1,7 @@
 import { OTTO } from "@/components/mascot/lines";
 import type { PlanId, Usage, UsagePeriod } from "@/config/plans";
 import type { FixInput } from "@/lib/ai/types";
+import { budgetReachedText } from "@/lib/ai-budget-copy";
 import { isApiError } from "@/lib/api/client";
 import { resetSentence, thisPeriod } from "@/lib/usage-copy";
 
@@ -10,8 +11,11 @@ export const FIX_ANSWER_LIMITS = { count: 5, questionChars: 300, answerChars: 50
 export type FixAnswer = FixInput["answers"][number];
 
 // "signin" and "limit" mean the account gate already opened its dialog; Otto only explains.
+// budget: the limit hit was the AI budget, not the line fixes.
 export type FixProblem =
-  { kind: "error"; message: string } | { kind: "signin" } | { kind: "limit" };
+  | { kind: "error"; message: string }
+  | { kind: "signin" }
+  | { kind: "limit"; budget?: boolean };
 
 const PLACEHOLDERS = /\[[^[\]\n]+\]/g;
 const PLACEHOLDER = /\[[^[\]\n]+\]/;
@@ -98,7 +102,7 @@ export function problemMessage(
 ): string {
   switch (problem.kind) {
     case "limit":
-      return OTTO.limit.reached("fix", limit, period);
+      return problem.budget ? budgetReachedText(period) : OTTO.limit.reached("fix", limit, period);
     case "signin":
       return signedIn ? OTTO.fix.signedInAgain : OTTO.signIn.reason("fix");
     case "error":

@@ -92,6 +92,12 @@ export const PRO_TRIAL = {
   limits: Record<Feature, number>;
 };
 
+// AI tokens (prompt + answer, reasoning included) an account may use per allowance period, on top
+// of the limits above. An abuse guard, not a selling point: heavy real use of every limit is about
+// 3.1M tokens a month on Pro and 7.3M on Max, so only scripted or abusive use reaches it (owner,
+// 2026-11-11). Free has no AI, so it has no budget.
+export const AI_TOKEN_BUDGETS = { pro: 5_000_000, max: 10_000_000, trial: 500_000 } as const;
+
 export const PLAN_ORDER: readonly PlanId[] = ["free", "pro", "max"];
 export const PAID_PLANS: readonly PaidPlanId[] = ["pro", "max"];
 
@@ -161,6 +167,13 @@ export function planLimits(plan: PlanId, period: AllowancePeriod): Record<Featur
   if (!isPaidPlan(plan)) return PLANS.free.limits;
   if (period === "trial") return PRO_TRIAL.limits;
   return (period === "week" ? PLANS[plan].weeklyLimits : null) ?? PLANS[plan].limits;
+}
+
+/** The AI token budget for one allowance period, or null on Free. A week gets a quarter, like its limits. */
+export function aiTokenBudget(plan: PlanId, period: AllowancePeriod): number | null {
+  if (!isPaidPlan(plan)) return null;
+  if (period === "trial") return AI_TOKEN_BUDGETS.trial;
+  return period === "week" ? Math.ceil(AI_TOKEN_BUDGETS[plan] / 4) : AI_TOKEN_BUDGETS[plan];
 }
 
 /** Whether the plan includes any of this feature. Free includes no AI feature at all. */

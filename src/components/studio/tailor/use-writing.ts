@@ -7,7 +7,8 @@ import { OTTO } from "@/components/mascot/lines";
 import { fixErrorMessage } from "@/components/studio/editor/fix-text";
 import type { Feature, UsagePeriod } from "@/config/plans";
 import type { TailorRequirement } from "@/lib/ai/types";
-import { api, isApiError } from "@/lib/api/client";
+import { budgetReachedText } from "@/lib/ai-budget-copy";
+import { api, isApiError, isBudgetReached } from "@/lib/api/client";
 import { newId, type Resume } from "@/lib/resume/schema";
 import type { LineTarget } from "./apply";
 import { lineQuestion } from "./screener";
@@ -39,6 +40,7 @@ function errorMessage(
   limit: number | undefined,
   period: UsagePeriod | null | undefined,
 ): string {
+  if (isBudgetReached(error)) return budgetReachedText(period);
   if (isApiError(error, "limit_reached")) return OTTO.limit.reached(feature, limit, period);
   if (isApiError(error, "unauthorized")) {
     return "You've been signed out. Sign in again to keep going.";

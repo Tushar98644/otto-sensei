@@ -1,4 +1,4 @@
-import type { ApiErrorCode } from "./types";
+import type { ApiErrorCode, ApiErrorReason } from "./types";
 
 export function ok<T extends object>(data: T, init?: ResponseInit): Response {
   return Response.json({ ok: true, ...data }, init);
@@ -9,6 +9,8 @@ export function fail(
   message: string,
   status: number,
   headers?: HeadersInit,
+  reason?: ApiErrorReason,
 ): Response {
-  return Response.json({ ok: false, error: { code, message } }, { status, headers });
+  const error = reason ? { code, message, reason } : { code, message };
+  return Response.json({ ok: false, error }, { status, headers });
 }

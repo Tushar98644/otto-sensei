@@ -19,6 +19,7 @@ import {
   type Usage,
   type UsagePeriod,
 } from "@/config/plans";
+import { aiBudgetLine } from "@/lib/ai-budget-copy";
 import { resetDay, resetWhen, thisPeriod, trialEndDay } from "@/lib/usage-copy";
 
 const count = new Intl.NumberFormat("en-US");
@@ -30,7 +31,7 @@ function sentenceCase(text: string): string {
 // Every metered feature as used / limit on Pro, Max and the trial: the limits are real, so they're
 // shown. Free has no AI help, so it gets one plain line instead of a row of empty meters.
 export function UsageCard({ me, plan }: { me: Me; plan: PlanId }) {
-  const { usage, period } = me;
+  const { usage, period, aiBudget } = me;
   if (plan === "free") return <FreeUsageCard trial={me.billing.trial === true} />;
   const near = nearestLimit(usage, FEATURES);
   const next = nextPlan(plan);
@@ -75,6 +76,7 @@ export function UsageCard({ me, plan }: { me: Me; plan: PlanId }) {
               <UsageRow key={feature} feature={feature} usage={entry} period={period} />
             ) : null;
           })}
+          {aiBudget ? <p className="text-sm text-muted">{aiBudgetLine(aiBudget, period)}</p> : null}
         </div>
       ) : (
         <div className="flex flex-col gap-5">

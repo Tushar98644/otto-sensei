@@ -7,7 +7,7 @@ import { OTTO } from "@/components/mascot/lines";
 import { toast } from "@/components/ui/toast";
 import { TEXT_LIMITS, type UsageSnapshot } from "@/config/plans";
 import type { FixResult } from "@/lib/ai/types";
-import { api, isApiError } from "@/lib/api/client";
+import { api, isApiError, isBudgetReached } from "@/lib/api/client";
 import type { FixResponse } from "@/lib/api/types";
 import { findBullet, setBulletText } from "@/lib/resume/ops";
 import { EDIT_LABELS } from "@/lib/store/resume-store";
@@ -98,7 +98,7 @@ export function useFixFlow(resumeId: string) {
           return {
             problem:
               isApiError(error, "limit_reached") || isApiError(error, "upgrade_required")
-                ? { kind: "limit" }
+                ? { kind: "limit", budget: isBudgetReached(error) }
                 : { kind: "signin" },
           };
         }
