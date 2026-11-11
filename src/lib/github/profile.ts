@@ -9,8 +9,7 @@ import {
   type GitHubUser,
 } from "./stats";
 
-// Server-only. The numbers a portfolio shows for a GitHub account: three calls (profile, repos,
-// public events), each cached like the import's (./cache.ts), so a busy page costs GitHub nothing.
+// Three calls, each cached like the import's, so a busy page costs GitHub nothing.
 
 const BUDGET_MS = 12_000;
 
@@ -29,10 +28,7 @@ function parseEvents(body: string, truncated: boolean): GitHubEvent[] {
   });
 }
 
-/**
- * The account's numbers, or null when GitHub has no such account. Throws GitHubError when GitHub
- * is busy or out of calls; callers keep the copy they had.
- */
+// Throws GitHubError when GitHub is busy or out of calls; callers keep the copy they had.
 export async function fetchGitHubStats(
   username: string,
   now = Date.now(),

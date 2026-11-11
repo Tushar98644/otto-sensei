@@ -1,20 +1,18 @@
 import { countAlnum } from "./text";
 import type { PdfTextItem } from "./types";
 
-// Pure layout analysis over positioned PDF text: rebuilding lines and spotting side-by-side columns.
-
 export type LayoutItem = PdfTextItem & {
   baseline: number;
-  // False for rotated or vertical text. It still gets read, but it says nothing about columns.
+  // Rotated or vertical text is still read, but says nothing about columns.
   upright: boolean;
 };
 
 export type TextRow = { baseline: number; size: number; items: LayoutItem[] };
 
-// Baselines closer than half a font size are one line. Running text sits at least ~1.1 font sizes
-// apart, so this never merges two real lines, while superscripts and mixed font sizes still join.
+// Running text sits at least ~1.1 font sizes apart, so this never merges real lines but joins
+// superscripts and mixed sizes.
 const SAME_LINE = 0.5;
-// Gaps are measured in font sizes. A normal space is ~0.25; a tab stop or a column gap is far wider.
+// In font sizes. A normal space is ~0.25; a tab stop or column gap is far wider.
 const WORD_GAP = 0.15;
 const WIDE_GAP = 1.5;
 // "Fake bold" PDFs paint the same text two or three times a fraction of a point apart.
@@ -52,8 +50,7 @@ function dropDuplicates(items: LayoutItem[]): LayoutItem[] {
   return kept;
 }
 
-// Joins a row left to right the way a plain parser would: one space between words, a tab where the
-// gap is wide (right-aligned dates, or the jump into a second column).
+// One space between words, a tab where the gap is wide (right-aligned dates, a second column).
 export function rowText(items: readonly LayoutItem[]): string {
   let text = "";
   let right = -Infinity;
@@ -72,8 +69,8 @@ export function rowText(items: readonly LayoutItem[]): string {
   return text;
 }
 
-// Thresholds for a column gutter. They are deliberately strict: a false "two columns" warning on a
-// clean resume is worse than missing a narrow sidebar.
+// Deliberately strict: a false "two columns" warning on a clean resume is worse than missing a
+// sidebar.
 const MIN_ROWS = 8;
 // Narrowest gap that counts as a gutter. Word spacing is ~3pt; real gutters are 12pt and up.
 const MIN_GUTTER = 8;
@@ -90,8 +87,7 @@ const ALIGN_TOLERANCE = 3;
 
 type Span = { from: number; to: number; chars: number };
 
-// A consistent vertical gutter: an x-band no text crosses (bar a few full-width lines), with
-// substantial text on both sides of it.
+// An x-band no text crosses (bar a few full-width lines), with substantial text on both sides.
 export function hasColumnGutter(rows: readonly TextRow[], pageWidth: number): boolean {
   const width = Math.max(1, Math.ceil(pageWidth));
   const spans: Span[][] = [];
@@ -107,7 +103,6 @@ export function hasColumnGutter(rows: readonly TextRow[], pageWidth: number): bo
   }
   if (spans.length < MIN_ROWS) return false;
 
-  // How many rows have text over each x position.
   const coverage = new Uint16Array(width);
   let left = width;
   let right = 0;
@@ -121,8 +116,7 @@ export function hasColumnGutter(rows: readonly TextRow[], pageWidth: number): bo
     for (let x = 0; x < width; x++) coverage[x] = (coverage[x] ?? 0) + (covered[x] ?? 0);
   }
 
-  // Slide a gutter-wide window across the text. Coverage is a cheap necessary condition (no x in
-  // the window under more rows than allowed); splitsIntoColumns then counts distinct rows exactly.
+  // Coverage is a cheap necessary condition; splitsIntoColumns then counts distinct rows exactly.
   const maxCrossing = Math.max(1, Math.floor(spans.length * MAX_CROSSING_SHARE));
   let clearRun = 0;
   for (let x = left + 1; x < right - 1; x++) {

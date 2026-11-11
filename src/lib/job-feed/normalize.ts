@@ -8,15 +8,10 @@ import { minYearsOf, seniorityOf } from "./roles";
 import { findSkills } from "./skills";
 import type { EmploymentType, RoleFamily, Seniority } from "./types";
 
-// Server-only. A source's job, read once into what the lists filter and match on. Everything is
-// worked out here, at ingest, so a match request only compares short lists.
+// Everything is worked out at ingest, so a match request only compares short lists.
 
 export const JOB_LIMITS = {
-  // Text kept for jobs whose source can't be read again (SOURCE_INFO[source].liveText false:
-  // Himalayas, Remote OK), which the tailor flow uses as the post. Every other job keeps none:
-  // skills, level, years and the work-rights lines come from one read of the whole post here,
-  // and the post itself is read again when a page needs it (full-post.ts). Until 2026-11-10
-  // every job kept 6,000 characters, two thirds of the jobs table's bytes.
+  // Kept only for sources that can't be read again (Himalayas, Remote OK); others use full-post.ts.
   feedDescriptionChars: 6_000,
   rulesChars: 1_500,
   keywords: 40,
@@ -35,7 +30,6 @@ export type NormalizedJob = {
   employmentType: EmploymentType | null;
   seniority: Seniority;
   family: RoleFamily | null;
-  // The O*NET-SOC occupation the title names ("29-1141.00"), null when it can't tell.
   occupation: string | null;
   minYears: number | null;
   postedAt: number;
@@ -75,12 +69,7 @@ export function brandName(company: string): string {
   return searchWords(company).replace(COMPANY_SUFFIX, " ").replace(/\s+/g, " ").trim();
 }
 
-/**
- * Company, title and location reduced to what two listings of one job share: case, accents,
- * punctuation, legal suffixes, "Remote" and word order in the location all drop out.
- */
-// Keys are only ever compared, so they're stored as the first 16 hex of their MD5: a quarter of
-// the size, with their indexes. Migration 20261111000600 converted stored keys the same way.
+// Keys are only compared, so store the first 16 hex of their MD5: a quarter of the size.
 function shortKey(key: string): string {
   return createHash("md5").update(key).digest("hex").slice(0, 16);
 }
@@ -97,11 +86,7 @@ export function dedupeKey(company: string, title: string, location: string): str
   return shortKey(`${name}|${role}|${place}`);
 }
 
-// Bumped when normalizing starts writing something new, so the next read of each board rewrites
-// its jobs instead of skipping them as unchanged. 2: groupKey and evergreen (2026-11-09).
-// 3: context rules for short skill names ("Go To Market" is not Go) and no skill named after the
-// company itself (2026-11-09). 4: no stored text for sources that can be read again (2026-11-10).
-// 5: occupations, and kinds of role checked against them (2026-11-10).
+// Bump when normalizing writes something new, so every job is rewritten on its next read.
 const NORMALIZE_VERSION = "5";
 
 /** Everything normalizing reads, so an unchanged job can skip it. */
@@ -122,18 +107,15 @@ export function contentHash(job: RawJob): string {
   return createHash("sha256").update(parts.join("\u0000")).digest("base64url").slice(0, 32);
 }
 
-// Posts that collect applications for no particular opening. They share a skill with every resume
-// and rarely lead to a hire.
+// They share a skill with every resume and rarely lead to a hire.
 const FILLER_TITLE =
   /\b(?:general (?:application|applications|interest|submission)|talent (?:community|pool|network|pipeline)|future (?:opportunit(?:y|ies)|openings?|roles?|positions?|hires?)|open application|expression of interest|speculative application|spontaneous application|unsolicited application|(?:submit|send us) your (?:resume|cv)|don'?t see (?:a|the|your)(?: right| perfect)? (?:role|job|position|fit|opening)|(?:can'?t|cannot) find (?:a|the|your)(?: right)? (?:role|job|position))\b/;
 
-/** A post for no particular opening ("General application", "Join our talent community"). */
 export function isFillerTitle(title: string): boolean {
   return FILLER_TITLE.test(foldCase(title).replace(/[’‘]/g, "'"));
 }
 
-// Words that say where a job is, not what it is. Titles carry them for one copy per place
-// ("Account Executive - Remote UK"), and so do the lines that differ between those copies.
+// Titles carry them for one copy per place ("Account Executive - Remote UK").
 const PLACE_WORDS = new Set(
   (
     "remote anywhere worldwide global hybrid onsite on site office fully home wfh based " +
@@ -169,11 +151,8 @@ function withoutPlace(words: string, place: ReadonlySet<string>, { numbers = fal
     .join(" ");
 }
 
-/**
- * Company, title and post text with every trace of place removed: the same opening posted for
- * London and for Toronto gets one key, two different openings with one title don't (their
- * text differs). Lines about place or pay go whole, since pay ranges change with the place.
- */
+// The same opening posted for London and Toronto gets one key; two openings with one title don't
+// (their text differs). Lines about place or pay go whole, since pay changes with the place.
 export function groupKey(company: string, title: string, location: string, text: string): string {
   const place = placeTokens(location);
   const name = searchWords(company).replace(COMPANY_SUFFIX, " ").replace(/\s+/g, " ").trim();
@@ -197,11 +176,7 @@ const lineKey = (line: string) => line.replace(/\s+/g, " ").trim().toLowerCase()
 // Shorter lines ("Requirements", "- Python") repeat across jobs for honest reasons.
 const MIN_BOILERPLATE_CHARS = 40;
 
-/**
- * Lines most of a board's jobs share word for word: the company intro, the values list ("uses AI
- * to support research and prototyping"), the benefits. Skills named there say nothing about one
- * job, so they're left out of its keywords.
- */
+// Lines most of a board's jobs share (intro, values, benefits) say nothing about one job.
 export function boilerplateLines(texts: readonly string[]): Set<string> {
   const shared = new Set<string>();
   if (texts.length < 4) return shared;
@@ -234,8 +209,8 @@ export function normalizeJob(
           .split("\n")
           .filter((line) => !boilerplate.has(lineKey(line)))
           .join("\n");
-  // The title names the main skill as often as the text does ("Senior Go Engineer"). A company's
-  // own name isn't a skill its posts ask for: Databricks and Snowflake name themselves throughout.
+  // Titles name the main skill ("Senior Go Engineer"); a company's own name isn't a skill it asks
+  // for.
   const brand = brandName(company);
   const keywords = findSkills(`${title}\n${own}`, JOB_LIMITS.keywords + 1)
     .filter((skill) => searchWords(skill) !== brand)

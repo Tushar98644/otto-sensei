@@ -2,9 +2,8 @@ import type { JobPosting, JobSource } from "@/lib/api/types";
 import { ASHBY_HOST, GREENHOUSE_HOSTS, LEVER_HOSTS } from "@/lib/jobs/hosts";
 import type { HiringSystemId } from "./types";
 
-// Client-safe. Which hiring system a job runs on, from what reading its link already told us (the
-// board it was read from) and, for every other system, the address of its job page. Company
-// career sites on their own domain can't be told apart, so they get no notes.
+// From the board a job was read from, else its job page's address. Company career sites on their
+// own domain can't be told apart, so they get no notes.
 
 const BY_SOURCE: Partial<Record<JobSource, HiringSystemId>> = {
   greenhouse: "greenhouse",
@@ -31,7 +30,6 @@ const VENDOR_PAGES = new Set([
   "learn",
 ]);
 
-// Anything under the vendor's domain except its own help, blog and marketing pages.
 function under(host: string, domain: string): boolean {
   if (!host.endsWith(`.${domain}`)) return false;
   const label = host.slice(0, -domain.length - 1).split(".")[0] ?? "";
@@ -90,10 +88,7 @@ function toUrl(value: string | null | undefined): URL | null {
   }
 }
 
-/**
- * The hiring system behind a job: the board a posting was read from, else the posting's own
- * address, else the link as typed (when reading it failed, the link is all there is).
- */
+// Else the link as typed: when reading it failed, the link is all there is.
 export function hiringSystemOf(
   posting: Pick<JobPosting, "source" | "url"> | null,
   link?: string | null,

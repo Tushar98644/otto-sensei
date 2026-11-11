@@ -1,6 +1,5 @@
-// Eight or more words in a row lifted from the job post read as pasted to a recruiter who just
-// wrote that post, and some screening tools flag it. Shorter runs are fine: job titles and tool
-// names are meant to match.
+// Eight+ words lifted from the post read as pasted, and some screening tools flag it. Shorter runs
+// are fine: titles and tool names are meant to match.
 
 export const MIN_COPIED_WORDS = 8;
 
@@ -22,7 +21,6 @@ const key = (words: readonly Word[], from: number) =>
     .map((word) => word.folded)
     .join(" ");
 
-/** Every run of MIN_COPIED_WORDS words in the post, for quick lookups. */
 export function jobPhrases(jobText: string): ReadonlySet<string> {
   const words = wordsOf(jobText);
   const phrases = new Set<string>();
@@ -30,7 +28,6 @@ export function jobPhrases(jobText: string): ReadonlySet<string> {
   return phrases;
 }
 
-/** Runs of MIN_COPIED_WORDS or more words in `text` that also appear in the post, as written. */
 export function copiedRuns(text: string, phrases: ReadonlySet<string>): string[] {
   if (phrases.size === 0) return [];
   const words = wordsOf(text);

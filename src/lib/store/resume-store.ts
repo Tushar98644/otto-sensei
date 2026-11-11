@@ -40,8 +40,8 @@ import {
   STUDIO_STORE_VERSION,
 } from "./persisted";
 
-// Local-first studio state, persisted to localStorage. Signed-in users also get a cloud backup via
-// useCloudSync(); the browser copy stays the source of truth while editing.
+// The browser copy stays the source of truth while editing; signed-in users also get a cloud
+// backup.
 
 export const STUDIO_STEPS = ["upload", "review", "fix", "tailor", "download"] as const;
 export type StudioStep = (typeof STUDIO_STEPS)[number];
@@ -61,67 +61,56 @@ export { EDIT_LABELS } from "./history";
 
 type StudioState = {
   resumes: Record<string, Resume>;
-  // Newest first. Editing doesn't reorder, so the switcher doesn't jump around while typing.
+  // Newest first. Editing doesn't reorder, so the switcher doesn't jump while typing.
   order: string[];
   activeId: string | null;
-  // Recruiter report of the originally uploaded file. Absent for scratch and sample resumes.
+  // Of the originally uploaded file. Absent for scratch and sample resumes.
   reports: Record<string, RecruiterReport>;
-  // Latest check of the PDF we exported, for the "before vs after" comparison.
+  // Of the PDF we exported, for the "before vs after" comparison.
   exportReports: Record<string, RecruiterReport>;
   step: StudioStep;
-  // Saved versions per resume, newest first. Persisted.
   versions: Record<string, ResumeVersion[]>;
-  // Deleted resumes, newest first, for 30 days. Persisted in this browser, never synced.
+  // Persisted in this browser for 30 days, never synced.
   trash: TrashedResume[];
-  // Undo/redo per resume. Memory only.
+  // Memory only.
   history: Record<string, ResumeHistory>;
 
   addResume: (resume: Resume, report?: RecruiterReport) => void;
-  // Every change is an undo step; plain edits within 800 ms of each other merge into one, and a
-  // `label` makes a separate, named step (AI edits: `{ label: EDIT_LABELS.fix }`).
+  // Plain edits within 800 ms merge into one step; a `label` makes a separate named step (AI
+  // edits).
   updateResume: (id: string, updater: (resume: Resume) => Resume, options?: EditOptions) => void;
-  // Drops a resume without keeping it anywhere. Sync uses it for resumes deleted on another device
-  // and for signing out; people deleting a resume go through trashResume().
+  // Keeps nothing: for deletions from another device and signing out. People use trashResume().
   removeResume: (id: string) => void;
-  // Saves a new name. Returns false (and changes nothing) for a blank name or an unknown id.
+  // False (and no change) for a blank name or an unknown id.
   renameResume: (id: string, title: string) => boolean;
-  // Copies a resume, its uploaded file's report included, as "<title> (copy)" at the top of the
-  // list, and returns the copy's id. The open resume stays open: copying from the library is
-  // filing, not switching what the studio works on.
+  // The open resume stays open: copying from the library is filing, not switching.
   duplicateResume: (id: string) => string | null;
   setActive: (id: string) => void;
   setStep: (step: StudioStep) => void;
   setExportReport: (id: string, report: RecruiterReport) => void;
-  // Copies the base resume, runs `apply` on the copy, activates it, and returns its id.
   createTailoredCopy: (
     baseId: string,
     meta: TailorCopyMeta,
     apply: (copy: Resume) => Resume,
   ) => string | null;
-  // Takes cloud copies that are newer than local ones and drops local resumes the account says
-  // were deleted (`deletedIds`). Returns local resumes the cloud is missing or has older versions
-  // of, so the caller can upload them; deleted ones are never among them.
+  // Takes newer cloud copies and drops resumes the account deleted. Returns local resumes the cloud
+  // is missing or has older, for the caller to upload.
   mergeFromCloud: (cloud: Resume[], deletedIds?: readonly string[]) => Resume[];
   clearAll: () => void;
 
-  // Both return false when there is nothing to move to.
   undo: (id: string) => boolean;
   redo: (id: string) => boolean;
 
-  // Saves the resume as it is now under a name. Null for a blank name or an unknown resume.
   saveVersion: (id: string, name: string) => ResumeVersion | null;
-  // Puts a saved version back as a new, undoable state. The state it replaces is kept as an
-  // automatic version first unless a version already holds it, so restoring never loses work.
+  // The replaced state is kept as an automatic version first, so restoring never loses work.
   restoreVersion: (id: string, versionId: string) => boolean;
   deleteVersion: (id: string, versionId: string) => void;
-  // Undo for deleteVersion: puts the version back in its place by save time. False when the resume
-  // is gone or the version is already there.
+  // Undo for deleteVersion. False when the resume is gone or the version is already there.
   putVersionBack: (id: string, version: ResumeVersion) => boolean;
 
-  // Moves a resume to the trash. Removing it is what makes sync delete the cloud copy.
+  // Removing it is what makes sync delete the cloud copy.
   trashResume: (id: string) => boolean;
-  // Brings a trashed resume back as a copy under a new id (the account won't take a deleted id
-  // again), with its report and versions, at the top of the list. Returns the new id.
+  // A copy under a new id (the account won't take a deleted id again), at the top of the list.
   restoreFromTrash: (trashedId: string) => string | null;
   deleteFromTrash: (trashedId: string) => void;
   emptyTrash: () => void;
@@ -155,8 +144,7 @@ function omitKeys<T>(record: Record<string, T>, ids: ReadonlySet<string>): Recor
   return next;
 }
 
-// Drops resumes and everything keyed by them. When the active one goes, the newest remaining
-// resume takes its place, or the studio returns to upload.
+// When the active one goes, the newest remaining takes its place, or the studio returns to upload.
 function withoutResumes(s: StudioData, ids: ReadonlySet<string>): StudioData {
   const order = s.order.filter((id) => !ids.has(id));
   const activeId = s.activeId !== null && ids.has(s.activeId) ? (order[0] ?? null) : s.activeId;
@@ -176,8 +164,7 @@ function withoutResumes(s: StudioData, ids: ReadonlySet<string>): StudioData {
 export const useStudioStore = create<StudioState>()(
   persist(
     (set, get) => {
-      // Applies an undo or redo: the resume gets the older state with a fresh edit time, so sync
-      // uploads it like any other change.
+      // A fresh edit time, so sync uploads it like any other change.
       function applyMove(id: string, move: (h: ResumeHistory, r: Resume) => HistoryMove | null) {
         const s = get();
         const current = s.resumes[id];
@@ -197,7 +184,6 @@ export const useStudioStore = create<StudioState>()(
 
         addResume: (resume, report) =>
           set((s) => {
-            // Two resumes never share a name: a taken one gets a number ("Sample resume (2)").
             const current = resumeTitle(resume);
             const title = uniqueTitle(current, Object.values(s.resumes), resume.id);
             const named = title === current ? resume : { ...resume, title };
@@ -479,7 +465,7 @@ export const useStudioStore = create<StudioState>()(
 const subscribeHydration = (onChange: () => void) =>
   useStudioStore.persist.onFinishHydration(onChange);
 
-// Render studio UI only once this is true; before that the store holds defaults, not the user's data.
+// Before this the store holds defaults, not the user's data.
 export function useStudioHydrated(): boolean {
   const hydrated = useSyncExternalStore(
     subscribeHydration,
@@ -509,7 +495,6 @@ export function useResumeList(): Resume[] {
 export type HistoryStatus = {
   canUndo: boolean;
   canRedo: boolean;
-  // What Undo or Redo would take back or bring back, when that step has a name.
   undoLabel: string | undefined;
   redoLabel: string | undefined;
 };

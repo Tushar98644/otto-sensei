@@ -1,5 +1,3 @@
-// Server-only. Routes map each code to a plain message for the user.
-
 export type BillingErrorCode =
   | "unavailable"
   | "no_subscription"
@@ -11,13 +9,10 @@ export type BillingErrorCode =
   // Creem couldn't be reached, timed out, failed (5xx) or answered with something unreadable.
   | "provider_error";
 
-/** What Creem said when it refused, for the route's message. Never holds customer data. */
+/** Never holds customer data. */
 export type BillingErrorDetails = {
-  /** Which call it refused, e.g. "change_plan" or "checkout". */
   operation?: string;
-  /** Creem's HTTP status. */
   providerStatus?: number;
-  /** Creem's error code, e.g. "subscription_not_active", when its body had one. */
   providerCode?: string;
 };
 

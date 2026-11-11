@@ -21,20 +21,11 @@ import {
 } from "@/lib/notifications/unsubscribe";
 import type { CronContext, CronOutcome } from "./run";
 
-// Server-only. The daily follow-up: every application still on "applied" whose follow-up date
-// (applications.follow_up_at, set when it was marked applied) has come and hasn't been reminded
-// yet gets its owner one notification per run (all of that account's newly due applications
-// together), plus one email when email is set up and the user turned reminder emails on.
-//
-// Claiming is the idempotency: one statement stamps reminded_at only on rows whose date is still
-// unreminded, so a repeated or overlapping run finds nothing left to claim. The notification is
-// written in the same transaction. Email goes after commit, at most once: a failed send is
-// logged, never retried on a later day, because the bell already has the reminder. A snooze sets
-// a later date, which the stamp is behind, so that date is reminded once in its turn.
-//
-// Every plan gets reminders: Free for its one tracked application (FREE_APPLICATIONS), paid plans
-// for all of them. An account kept past Free's limit after a paid plan ended is reminded too, since
-// the dates were set while it paid.
+// Each due application not yet reminded gets its owner one notification per run (all due ones
+// together), plus one email when set up and turned on.
+// Claiming is the idempotency: one statement stamps reminded_at only on still-unreminded rows, so a
+// repeated run finds nothing to claim. Email goes after commit, at most once: a failed send isn't
+// retried, because the bell already has it. Every plan gets reminders.
 
 export const FOLLOW_UP = {
   usersPerBatch: EMAIL_BATCH_MAX,
@@ -42,7 +33,7 @@ export const FOLLOW_UP = {
 } as const;
 
 export type FollowUpDeps = {
-  // null: no email this run (not configured); reminders stay in-app.
+  // null: no email this run; reminders stay in-app.
   sender: EmailSender | null;
 };
 
@@ -54,8 +45,7 @@ type Claimed = {
   notificationId: string;
 };
 
-// The index's own predicate is written out rather than bound, so the planner can match the
-// partial index applications_follow_up_due_idx.
+// Written out rather than bound, so the planner can match the partial index.
 function dueFor(now: number) {
   return and(
     sql`${applications.status} = 'applied'`,
@@ -65,7 +55,7 @@ function dueFor(now: number) {
   );
 }
 
-/** Claims every due application of one account and writes its notification, or null if none. */
+/** null if none were due. */
 async function claimForUser(userId: string, now: number): Promise<Claimed | null> {
   const db = await getDb();
   return db.transaction(async (tx) => {
@@ -136,7 +126,6 @@ export async function runFollowUps(
     applications: 0,
     emailsSent: 0,
     emailsFailed: 0,
-    // Reminder emails not turned on, or email not set up.
     emailsSkipped: 0,
   };
   const failed = new Set<string>();

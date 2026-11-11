@@ -1,7 +1,5 @@
-// Page count of a PDF we rendered ourselves, without loading a PDF reader. react-pdf writes every
-// object dictionary as plain text (only page content is compressed), one "/Type /Page" per page
-// and "/Type /Pages" for the page tree, so counting the first kind is exact for our own files. Not
-// for PDFs from anywhere else: those can pack objects into compressed streams.
+// react-pdf writes object dictionaries as plain text, one "/Type /Page" per page, so counting them
+// is exact for our own files. Not for other PDFs, which can compress objects.
 
 const PAGE_OBJECT = /\/Type\s*\/Page(?![A-Za-z])/g;
 

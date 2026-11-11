@@ -18,8 +18,7 @@ import type { SendCheckContext, SendCheckItem, SendCheckRule, SendCheckTarget } 
 
 export type { SendCheckContext, SendCheckItem, SendCheckRule, SendCheckTarget } from "./types";
 
-// The send check: everything a recruiter would catch on a read-through that no spell checker does.
-// Pure and client-safe; it reads only what will be sent (hidden lines are skipped).
+// Everything a recruiter would catch that no spell checker does. Reads only what will be sent.
 
 // Two jobs that share a month or two are a notice period or a handover, not a mistake.
 const OVERLAP_MONTHS = 3;
@@ -57,7 +56,6 @@ function item(draft: Draft): SendCheckItem {
   return { ...draft, id: `${draft.rule}|${targetKey(draft.target)}|${draft.quote ?? ""}` };
 }
 
-// One readable piece of text and where it sits.
 type Piece = { text: string; place: string; target: SendCheckTarget };
 
 const jobPlace = (title: string, company: string, fallback: string) =>
@@ -69,7 +67,6 @@ function linePieces(bullets: readonly Bullet[], place: string): Piece[] {
     .map((bullet) => ({ text: bullet.text, place, target: { kind: "line", bulletId: bullet.id } }));
 }
 
-// Everything printed, in reading order.
 function pieces(resume: Resume): Piece[] {
   const out: Piece[] = [];
   const { basics } = resume;
@@ -338,7 +335,6 @@ function copiedItems(resume: Resume, jobText: string): Draft[] {
   );
 }
 
-/** Everything worth a second look before sending, most embarrassing first. */
 export function runSendCheck(source: Resume, context: SendCheckContext): SendCheckItem[] {
   const resume = visibleResume(source);
   const nowMonth = monthOf(context.now);

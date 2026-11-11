@@ -23,10 +23,8 @@ import { bestMetric, compactNumber, metricText, topMetrics } from "./metrics";
 import { findPlace } from "./places";
 import type { PortfolioExtra, PortfolioView } from "./view";
 
-// Pure and client-safe. What every automatic (null) field of the content document would be,
-// filled in by rules (no AI) from the resume as the page shows it (PortfolioView: privacy and
-// hidden sections already applied) and the stored GitHub numbers. The editor shows these as the
-// starting values; ./content-view.ts merges the owner's own values on top.
+// Automatic (null) content fields, by rules (no AI) from the resume as the page shows it and the
+// stored GitHub numbers. ./content-view.ts merges the owner's values on top.
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 export const ACTIVE_MS = 90 * DAY_MS;
@@ -61,10 +59,6 @@ export type AutoContent = {
   skillYears: Record<string, number | null>;
   githubUsername: string | null;
 };
-
-// ---------------------------------------------------------------------------------------------
-// Automatic content
-// ---------------------------------------------------------------------------------------------
 
 const AVAILABLE =
   /\b(?:open to|available (?:for|from|to)|looking for|seeking|currently exploring|taking on)\b/i;
@@ -205,7 +199,6 @@ export function autoContent(
 
   const githubUsername = resumeGitHubUsername(view);
 
-  // Projects
   const projects: AutoProject[] = view.projects.map((project, index) => {
     const fullName = project.repo ?? repoName(project.href ?? "");
     const repo = findRepo(github, fullName);
@@ -256,7 +249,6 @@ export function autoContent(
     };
   });
 
-  // Jobs and skills
   const jobs: AutoContent["jobs"] = {};
   const spans = new Map<string, [number, number][]>();
   for (const job of view.experience) {
@@ -288,7 +280,6 @@ export function autoContent(
     skillYears[skill.toLowerCase()] = Math.max(1, to - from);
   }
 
-  // Headline stats
   const stats: AutoContent["stats"] = [];
   const starts = view.experience
     .map((job) => spanOf(job.start, job.end, nowYear)?.[0])
@@ -318,7 +309,6 @@ export function autoContent(
     });
   }
 
-  // Lists from the resume's extra sections
   const milestones: AutoContent["milestones"] = extrasMatching(view, SECTION_MATCH.milestones).map(
     (item) => {
       const text = `${item.title} ${item.detail} ${item.lines.join(" ")}`;

@@ -1,11 +1,7 @@
 import type { BoardSeed } from "./types";
 
-// Which names on the public visa registers are the companies in seeds.ts (JOB-SOURCES.md, "Visa
-// registers"). Matching by name alone is unsafe ("Chime Software Limited" is not Chime, "Kraken
-// Technologies" is Octopus Energy's), so scripts/visa-registers.ts only uses names listed here.
-// Candidates were found by exact folded name, or the name plus a generic word ("Stripe Payments UK
-// Ltd"), and each was kept only when its town and name fit the company. Checked 2026-11-09 by the
-// agent that built it, not yet by a person; a company missing here simply shows no visa line.
+// Matching by name alone is unsafe ("Kraken Technologies" is Octopus Energy's). Checked 2026-11-09
+// by the agent that built it, not yet by a person.
 
 export type RegisterNames = { uk?: readonly string[]; us?: readonly string[] };
 

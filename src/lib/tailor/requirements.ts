@@ -9,10 +9,8 @@ import { snippetAround } from "./evidence";
 import { findTermIn, normalizeTerm } from "./keywords";
 import { foldCase, textTokens, type Token } from "./tokens";
 
-// Client-safe and deterministic: the screener view. The model reads the job post into
-// requirements; this code decides, line by line, whether the resume proves each one. Recruiter AI
-// (HiredScore, Ashby) grades one qualification at a time, so a row is "proven" only when a real
-// line shows it, never because the model says so.
+// Screener AI grades one qualification at a time, so a row is "proven" only when a real line shows
+// it, never because the model says so.
 
 export const MAX_REQUIREMENTS = 16;
 const TEXT_CHARS = 140;
@@ -28,8 +26,7 @@ const MIN_QUOTE_WORDS = 3;
 const LINE_CHARS = 200;
 
 const SOURCES: ReadonlySet<string> = new Set<RequirementSource>(["wording", "structure", "guess"]);
-// The schema asks for "must" or "nice"; "required" is the one off-spec answer that plainly means
-// must.
+// "required" is the one off-spec answer that plainly means must.
 const MUST_VALUES: ReadonlySet<string> = new Set(["must", "required"]);
 const LEADING_MARKER = /^[\s\-–—•*·]+/u;
 const WORDS = /[\p{L}\p{N}]+/gu;
@@ -47,20 +44,19 @@ export type RawRequirement = {
 export type ProofStatus = "proven" | "listed" | "missing";
 
 export type ProofLine = {
-  // Where the line sits, in words: "Senior Engineer at Acme Payments, line 2", "Summary".
+  // "Senior Engineer at Acme Payments, line 2", "Summary".
   place: string;
-  // The line as written, cut around the match when it's long.
+  // Cut around the match when it's long.
   text: string;
-  // Set for lines in a job, project or school, so the UI can jump to that line in the editor.
+  // So the UI can jump to that line in the editor.
   bulletId: string | null;
 };
 
 export type Proof = {
   status: ProofStatus;
-  // The proving line ("proven") or the Skills line ("listed"); null when missing.
+  // The proving line or the Skills line; null when missing.
   line: ProofLine | null;
-  // term: a name from the requirement appears; quote: the model's quote was found word for word;
-  // added: a line the person wrote for this requirement.
+  // quote: the model's quote was found word for word. added: a line the person wrote for it.
   via: "term" | "quote" | "added" | null;
 };
 
@@ -74,8 +70,7 @@ export type ScreenerCounts = { must: ProvenCount; nice: ProvenCount };
 export type ScreenerOptions = {
   // Requirements the person said they don't have. Ignored once the resume proves one anyway.
   declined?: ReadonlySet<string>;
-  // Lines the person added for a requirement, by requirement id. They prove a requirement that is
-  // a kind of experience; a named tool still has to be named in the line.
+  // They prove a kind of experience; a named tool still has to be named in the line.
   linked?: ReadonlyMap<string, string>;
 };
 
@@ -119,12 +114,8 @@ function readSource(value: string): RequirementSource {
   return SOURCES.has(source) ? (source as RequirementSource) : "guess";
 }
 
-/**
- * Cleans the model's requirement list: trims and caps every field, reads anything unclear as a
- * guess, and never lets a guess be a must-have. Repeats (the same wording, or the same names to
- * search for) merge into the first, keeping the stronger importance. Must-haves come first, each
- * group in the post's order, capped at MAX_REQUIREMENTS; ids follow that order.
- */
+// Anything unclear is a guess, and a guess is never a must-have. Repeats merge into the first,
+// keeping the stronger importance. Must-haves first, each group in post order.
 export function normalizeRequirements(raw: readonly RawRequirement[]): TailorRequirement[] {
   const kept: Omit<TailorRequirement, "id">[] = [];
   const byText = new Map<string, number>();
@@ -183,8 +174,7 @@ function entryLabel(title: string, company: string): string {
   return joined([title, company], " at ");
 }
 
-// Every line a screener reads as a claim, strongest first: work lines, then titles, credentials
-// and the summary. Skills lists and the headline only list a name, so they can't prove one.
+// Skills lists and the headline only list a name, so they can't prove one.
 function resumeLines(resume: Resume): ResumeLines {
   const shown: Line[] = [];
   const listed: Line[] = [];
@@ -302,13 +292,11 @@ function proofIn(
   return { status: "missing", line: null, via: null };
 }
 
-// The proof for one requirement against the resume as it is now.
 export function findProof(resume: Resume, requirement: TailorRequirement): Proof {
   return proofIn(resumeLines(resume), requirement, undefined);
 }
 
-// Drops every quote that isn't in the resume word for word, so a model can't "prove" a
-// requirement with a line it made up.
+// So a model can't "prove" a requirement with a line it made up.
 export function withVerifiedQuotes(
   resume: Resume,
   requirements: readonly TailorRequirement[],
@@ -343,7 +331,6 @@ export function mustProofBulletIds(
   return ids;
 }
 
-/** One row per requirement, in the order given, each with its status against `resume`. */
 export function screenerRows(
   resume: Resume,
   requirements: readonly TailorRequirement[],
@@ -365,7 +352,6 @@ export function screenerCounts(rows: readonly RequirementRow[]): ScreenerCounts 
   return { must: count("must"), nice: count("nice") };
 }
 
-/** "Must-haves proven: 5 of 8 · Nice-to-haves: 3 of 6", leaving out an empty group. */
 export function screenerHeadline({ must, nice }: ScreenerCounts): string {
   const parts = [
     must.total > 0 ? `Must-haves proven: ${must.proven} of ${must.total}` : null,

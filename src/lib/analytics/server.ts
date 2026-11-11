@@ -5,10 +5,9 @@ import { posthogKey, posthogServerHost } from "./config";
 import type { ServerEvent, ServerEventProps } from "./events";
 import { cleanProps } from "./privacy";
 
-// Server-only. Events the server is the only honest witness to (a sign-up, a payment, an AI call),
-// sent to PostHog after the response so analytics never slows a request or fails one.
+// Sent after the response, so analytics never slows or fails a request.
 
-/** For events with no person behind them (an AI call before sign-in): counted, never profiled. */
+/** Counted, never profiled. */
 export const ANONYMOUS_ID = "anonymous";
 
 const REQUEST_TIMEOUT_MS = 3_000;
@@ -31,14 +30,10 @@ function posthog(key: string): PostHog {
 type PersonProps = Record<string, string | number | boolean>;
 
 export type CaptureOptions = {
-  // Person properties to update along with the event, e.g. { plan: "pro" } on checkout.
   set?: PersonProps;
 };
 
-/**
- * Queues one event for after the response. `distinctId` is the user id, or ANONYMOUS_ID when
- * there's no account. A no-op without NEXT_PUBLIC_POSTHOG_KEY; never throws.
- */
+// Never throws.
 export function captureServerEvent<E extends ServerEvent>(
   distinctId: string,
   event: E,

@@ -10,9 +10,8 @@ import { devAuthActive } from "./dev-mode";
 import { OAUTH_CALLBACK_PATH } from "./oauth";
 import { authErrorFields } from "./supabase-errors";
 
-// Server-only. "Connect GitHub" through Supabase manual identity linking: the person signs in to
-// GitHub and Supabase adds that identity to their account. Its login is the only GitHub account
-// the import and the portfolio read, so nobody can claim someone else's public work.
+// Supabase manual identity linking: its login is the only GitHub account the import and portfolio
+// read, so nobody can claim someone else's public work.
 
 // /auth/callback?link=github marks a linking round trip, so a failure goes back to the page.
 export const GITHUB_LINK = "github";
@@ -35,7 +34,6 @@ function loginOf(identity: UserIdentity): string | null {
   return null;
 }
 
-/** The GitHub account linked to this auth user, read from Supabase's own identity record. */
 export function githubConnectionOf(user: Pick<User, "identities">): GitHubConnection | null {
   const identities = user.identities ?? [];
   const github = identities.find((identity) => identity.provider === "github");
@@ -43,17 +41,13 @@ export function githubConnectionOf(user: Pick<User, "identities">): GitHubConnec
   return login ? { login, canDisconnect: identities.length > 1 } : null;
 }
 
-/** Dev sign-in only: every account counts as connected to DEV_GITHUB_LOGIN when it is set. */
 export function devGitHubConnection(): GitHubConnection | null {
   if (!devAuthActive()) return null;
   const login = env().DEV_GITHUB_LOGIN?.trim() ?? "";
   return GITHUB_USERNAME.test(login) ? { login, canDisconnect: false } : null;
 }
 
-/**
- * GitHub's consent URL for linking to the signed-in account. Like Google sign-in it sets the PKCE
- * verifier cookie and comes back to /auth/callback, here with ?link=github&next=<path>.
- */
+// Like Google sign-in: sets the PKCE verifier cookie and returns to /auth/callback?link=github.
 export async function githubLinkUrl(next: string | null | undefined): Promise<string> {
   if (devAuthActive()) throw new AuthError("not_configured", DEV_NOT_SET_UP);
   const supabase = await createSupabaseServerClient();
@@ -78,7 +72,7 @@ export async function githubLinkUrl(next: string | null | undefined): Promise<st
 
 export type UnlinkResult = "unlinked" | "not_linked" | "only_identity";
 
-/** Removes the GitHub identity. Supabase keeps it when it is the account's only way to sign in. */
+/** Supabase keeps it when it's the account's only way to sign in. */
 export async function unlinkGitHub(): Promise<UnlinkResult> {
   const supabase = await createSupabaseServerClient();
   if (!supabase) throw new AuthError("not_configured", AUTH_MESSAGES.not_configured);

@@ -17,14 +17,10 @@ import {
   type Seniority,
 } from "./types";
 
-// Server-only. Reading jobs for the lists, and each account's saved jobs. Lists read open jobs
-// through jobs_open_posted_idx; a match request scores every open job that shares a skill or a
-// kind of role with the resume, in SQL, and reads back only the best few hundred.
+// Matching scores every candidate job in SQL and reads back only the best few hundred.
 
 const DAY_MS = 24 * 60 * 60 * 1_000;
-// Openings one match request ranks: the best this many by skill-weighted overlap, out of every
-// open job (one per group of location copies). Work-rights rules cost about 1 ms a job (300 real
-// posts in 330-400 ms under Bun, 2026-11-09), so this also bounds a request.
+// Work-rights rules cost ~1 ms a job, so this also bounds a request.
 export const CANDIDATE_POOL = 300;
 // Open this long, a post is treated like a "general application" one: hidden from Matches.
 export const EVERGREEN_AFTER_MS = 120 * DAY_MS;
@@ -64,8 +60,7 @@ export function toFeedJob(row: ListRow): FeedJob {
   };
 }
 
-// Prefix search on whole words: "front" finds "Frontend". Only letters and digits reach the
-// query, so nothing typed can be tsquery syntax.
+// Prefix search on whole words. Only letters and digits reach the query, so no tsquery syntax.
 export function wordsQuery(input: string): string | null {
   const words = searchWords(input).split(" ").filter(Boolean).slice(0, 6);
   return words.length === 0 ? null : words.map((word) => `${word}:*`).join(" & ");
@@ -105,12 +100,10 @@ export const CANDIDATE_COLUMNS = {
   groupKey: jobs.groupKey,
 };
 
-// Another place the same opening is posted, for the card's "also in" and the work-rights check.
 export type CopyRow = CandidateRow;
 
 export type MatchQuery = {
   skills: readonly string[];
-  // The kind of role looked for, and kinds only older titles name (half weight, match.ts).
   families: readonly RoleFamily[];
   pastFamilies?: readonly RoleFamily[];
   seniority: Seniority | null;
@@ -119,15 +112,11 @@ export type MatchQuery = {
 };
 
 export type CandidatePool = {
-  // Best first by overlap, one row per group.
   rows: CandidateRow[];
-  // Every open copy of each pooled group that has more than one, under the same filters.
   copies: Map<string, CopyRow[]>;
-  // Matching groups in all: the pool holds the best CANDIDATE_POOL of them.
   groups: number;
 };
 
-/** Each skill's weight in matching, from the last ingest's job_skills. A few hundred rows. */
 export async function skillWeights(db: Db): Promise<Map<string, number>> {
   const rows = await db
     .select({ skill: jobSkills.skill, weight: jobSkills.weight })
@@ -146,7 +135,6 @@ export function rowsOf<T>(result: unknown): T[] {
   return (Array.isArray(result) ? result : (result as { rows: T[] }).rows) as T[];
 }
 
-/** Open jobs that can be Matches at all: not filler, not open for months, within the filters. */
 export function matchableConditions(filters: JobFilters, now: number): SQL[] {
   return [
     ...filterConditions(filters, now),
@@ -157,12 +145,7 @@ export function matchableConditions(filters: JobFilters, now: number): SQL[] {
 
 export const GROUP = sql`coalesce(nullif(${jobs.groupKey}, ''), ${jobs.id}::text)`;
 
-/**
- * The best CANDIDATE_POOL openings for a resume across every open job, scored in one statement:
- * the summed weight of the skills it shares with the resume, plus ORDER_LIMITS.familyWeight for
- * the same kind of role. Only jobs matchJob would label make it (the same kind of role, or 2+
- * shared skills), so `groups` is how many Matches there are in all. Location copies count once.
- */
+// Only jobs matchJob would label count, so `groups` is how many Matches there are in all.
 export async function matchCandidates(
   db: Db,
   query: MatchQuery,
@@ -246,7 +229,7 @@ export async function matchCandidates(
   return { rows, copies, groups: pooled[0]?.groups ?? 0 };
 }
 
-/** The account's saved jobs, newest save first, closed ones included. */
+/** Closed ones included. */
 export async function savedCandidates(db: Db, userId: string): Promise<CandidateRow[]> {
   return db
     .select(CANDIDATE_COLUMNS)
@@ -257,7 +240,6 @@ export async function savedCandidates(db: Db, userId: string): Promise<Candidate
     .limit(SAVED_JOBS_LIMIT);
 }
 
-/** The account's saved jobs with when each was saved, newest first, for the Applications board. */
 export async function listSavedJobs(db: Db, userId: string): Promise<SavedJob[]> {
   const rows = await db
     .select({ ...LIST_COLUMNS, savedAt: savedJobs.savedAt })
@@ -287,10 +269,6 @@ export async function savedCount(db: Db, userId: string): Promise<number> {
   return row?.n ?? 0;
 }
 
-/**
- * Open jobs, and the ones matching can show: one per group of location copies, leaving out
- * "general application" posts and posts open 120+ days. For the job counts the site states.
- */
 export async function jobCounts(
   db: Db,
   now = Date.now(),
@@ -303,7 +281,6 @@ export async function jobCounts(
   return { open: open?.n ?? 0, matchable: matchable?.n ?? 0 };
 }
 
-/** Open jobs overall and when a source was last read, for the page's fact line. */
 export async function jobStats(db: Db): Promise<{ openJobs: number; checkedAt: number | null }> {
   const [open] = await db.select({ n: count() }).from(jobs).where(isNull(jobs.closedAt));
   const [read] = await db.select({ at: max(jobBoards.lastFetchedAt) }).from(jobBoards);
@@ -312,7 +289,7 @@ export async function jobStats(db: Db): Promise<{ openJobs: number; checkedAt: n
 
 export type SaveJobResult = "saved" | "not_found" | "limit_reached" | "no_user";
 
-/** Saves a job for the account. Idempotent; capped per account under the user's row lock. */
+/** Idempotent; capped per account under the user's row lock. */
 export async function saveJob(
   db: Db,
   userId: string,
@@ -353,7 +330,6 @@ export type JobDetail = FeedJob & {
   externalId: string;
 };
 
-/** One job with its stored text, for /jobs/:id and the tailor flow. */
 export async function jobById(db: Db, id: string): Promise<JobDetail | null> {
   const [row] = await db
     .select({

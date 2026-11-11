@@ -1,8 +1,6 @@
 import { clip, oneLine } from "@/lib/ai/text";
 import { EXTRA_KIND_LABELS, newId, type ExtraItem, type ExtraSection } from "@/lib/resume/schema";
 
-// Client-safe builders for the extra sections (languages, awards…) that imports fill in.
-
 export function extraItem(title: string, subtitle: string, date: string, detail: string): ExtraItem {
   return {
     id: newId(),

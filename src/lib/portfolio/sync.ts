@@ -3,9 +3,8 @@ import type { Resume } from "@/lib/resume/schema";
 import { refreshPortfolioPages } from "./cache";
 import { followResume } from "./records";
 
-// Server-only. Called after every cloud backup of a resume (PUT /api/resumes/:id): a portfolio
-// that keeps in sync with it takes the new version. Resumes are edited in the browser and backed
-// up as the person types, so this is how a page follows edits made in the studio.
+// Called after every cloud backup, which happens as the person types: this is how a page follows
+// edits made in the studio.
 
 /** Never throws: a page that misses one version must not fail the backup itself. */
 export async function syncPortfolioWith(userId: string, resume: Resume): Promise<void> {

@@ -2,24 +2,17 @@ import { and, eq, isNull, lte, ne, or } from "drizzle-orm";
 import type { BillingInterval, PaidPlanId, PlanId } from "@/config/plans";
 import { getDb, type Db } from "@/db/client";
 import { billingEvents, trialReplacements, users, type UserRow } from "@/db/schema";
-// Same rule auth uses to store users.email; policy.ts keeps billing out of the sign-in module.
 import { normalizeEmail } from "@/lib/auth/policy";
 import { carryUsageOver, type PeriodAccount } from "@/lib/usage";
 import { isUserId } from "@/lib/users";
 import { recordTrialHistory } from "./trial";
 
-// Server-only. Copies Creem's view of a subscription onto the user row, so every request reads the
-// plan locally instead of asking Creem.
+// Copies Creem's view of a subscription onto the user row, so requests read the plan locally.
 
-// https://docs.creem.io/features/subscriptions/introduction#subscription-status
-// - trialing: in the trial, before the first regular payment. The plan, with the trial's allowance.
-// - active: paid and renewing. past_due: a renewal failed and Creem is retrying it; access stays
-//   until it gives up. scheduled_cancel: "still active until" the period ends, then canceled.
-// - canceled: over. expired: the period ended without a payment (also forced by the
-//   subscription.expired event, whose status field still shows the old value). paused and unpaid:
-//   no access, as Creem's own access helpers revoke it.
-// - incomplete: checkout isn't finished. It can only become active or canceled, so it changes nothing.
-// "paid": the plan the subscription's product sells (Pro or Max).
+// https://docs.creem.io/features/subscriptions/introduction#subscription-status trialing: the plan
+// with the trial's allowance. active, past_due (Creem retrying a renewal) and scheduled_cancel:
+// paid until the period ends. canceled, expired (also forced by subscription.expired, whose status
+// still shows the old value), paused, unpaid: no access. incomplete: changes nothing.
 type StatusGrant = "paid" | "free" | null;
 
 const PLAN_BY_STATUS: Record<string, StatusGrant> = {
@@ -45,18 +38,12 @@ export function isEndedStatus(status: string): boolean {
   return ENDED_STATUSES.has(status);
 }
 
-/**
- * A subscription that can still charge: not ended, and past checkout. Paused and unpaid ones count,
- * since they charge again once resumed or once the card is fixed.
- */
+// Paused and unpaid count: they charge again once resumed or once the card is fixed.
 export function isLiveStatus(status: string): boolean {
   return !isEndedStatus(status) && status !== "incomplete";
 }
 
-/**
- * What a Creem subscription status grants: its product's paid plan, Free, or null when the status
- * shouldn't change the plan.
- */
+// null when the status shouldn't change the plan.
 export function planForStatus(status: string): StatusGrant {
   return isKnownStatus(status) ? (PLAN_BY_STATUS[status] ?? null) : null;
 }
@@ -67,28 +54,22 @@ export type SubscriptionState = {
   email?: string;
   customerId: string;
   subscriptionId: string;
-  /** The plan the product sells; null for other products sold from the same Creem store. */
+  /** null for other products sold from the same Creem store. */
   productPlan: PaidPlanId | null;
-  /** How often that product bills; null exactly when productPlan is. */
   productInterval: BillingInterval | null;
-  /** Creem's subscription status, e.g. "active" or "trialing". */
   status: string;
-  /** Next renewal (epoch ms), or null when the subscription won't renew. */
   renewsAt: number | null;
-  /** When the current period started (epoch ms); on a trial, when the trial started. */
+  /** On a trial, when the trial started. */
   periodStartsAt: number | null;
-  /** When the current period ends (epoch ms); on a trial, when the trial ends. */
+  /** On a trial, when the trial ends. */
   periodEndsAt: number | null;
-  /** When Creem created the event (epoch ms), to drop an older event that arrives late. */
+  /** To drop an older event that arrives late. */
   eventAt: number | null;
-  /**
-   * The trial subscription this one was bought to replace (checkout metadata, ./replacements.ts).
-   * Once this one is active, the trial is written down to be cancelled.
-   */
+  /** Once this one is active, the trial it replaces is written down to be cancelled. */
   replacesSubscriptionId?: string | null;
 };
 
-/** The webhook that reported the state. Its id is stored with the update, so a retry can't apply twice. */
+/** Its id is stored with the update, so a retry can't apply twice. */
 export type WebhookSource = { eventId: string; eventType: string };
 
 export type IgnoreReason =
@@ -106,7 +87,6 @@ export type ApplyResult =
       userId: string;
       plan: PlanId;
       trialing: boolean;
-      /** The plan and trial the row had before, so callers can react to a change. */
       before: { plan: PlanId; trialing: boolean };
     }
   | { outcome: "duplicate" }
@@ -117,11 +97,8 @@ type UserLookup = Pick<SubscriptionState, "userId" | "email" | "customerId" | "s
 // Each identifier matches at most one row in practice; the cap only bounds a pathological case.
 const LOOKUP_LIMIT = 10;
 
-/**
- * Every way we might know the user, in one round trip. Postgres answers each OR branch from its
- * own index (id, email, both billing ids) with a bitmap OR, so this never scans the table. `email`
- * must be normalized.
- */
+// One round trip: Postgres answers each OR branch from its own index, so this never scans the
+// table. `email` must be normalized.
 export function findUserQuery(db: Db, lookup: UserLookup) {
   return db
     .select({
@@ -165,9 +142,8 @@ async function findUser(db: Db, state: SubscriptionState) {
 
 type FoundUser = NonNullable<Awaited<ReturnType<typeof findUser>>>;
 
-// The trial lasts until the first regular payment: "active" ends it. A failed first payment
-// (past_due) or a cancellation scheduled during the trial keeps its allowance, so neither turns a
-// trial into a full month of Pro that nobody paid for.
+// "active" ends the trial. A failed first payment or a cancellation scheduled during the trial
+// keeps its allowance, so neither turns a trial into an unpaid month of Pro.
 function trialEndFor(state: SubscriptionState, user: FoundUser, plan: PlanId): number | null {
   if (plan === "free" || state.status === "active") return null;
   if (state.status === "trialing") {
@@ -176,15 +152,9 @@ function trialEndFor(state: SubscriptionState, user: FoundUser, plan: PlanId): n
   return user.billingSubscriptionId === state.subscriptionId ? user.trialEndsAt : null;
 }
 
-/**
- * Finds the user (metadata user_id, then subscription id, then customer id, then email) and stores
- * the plan, billing interval, trial, status, ids, renewal date and billing period from Creem, at
- * most once per event id, and never from an event older than the last one applied for the same
- * subscription. A change that moves the AI allowance to another billing month without a renewal
- * (Pro to Max and back, say) keeps what was used this month (src/lib/usage.ts). An active
- * subscription bought to replace a trial writes the trial down to be cancelled, in the same
- * transaction; events from a replaced trial are ignored.
- */
+// Stores the plan at most once per event id, and never from an event older than the last one
+// applied for the subscription. An active subscription replacing a trial writes the trial down to
+// be cancelled in the same transaction; events from a replaced trial are ignored.
 export async function applySubscriptionState(
   state: SubscriptionState,
   source: WebhookSource,
@@ -209,13 +179,11 @@ export async function applySubscriptionState(
   }
   const plan: PlanId =
     grant === "free" ? "free" : (state.productPlan ?? (user.plan === "free" ? "pro" : user.plan));
-  // An unlisted product on the user's own subscription keeps the interval it had, like the plan.
   const planInterval: BillingInterval | null =
     plan === "free" ? null : (state.productInterval ?? user.planInterval);
   const trialEndsAt = trialEndFor(state, user, plan);
   const before = { plan: user.plan, trialing: user.plan !== "free" && user.trialEndsAt !== null };
-  // The billing period the allowance counts in. An event without dates keeps the ones stored for
-  // the same subscription.
+  // An event without dates keeps the ones stored for the same subscription.
   const periodOf = (reported: number | null, stored: number | null) =>
     plan === "free" ? null : (reported ?? (own ? stored : null));
   const after: PeriodAccount = {
@@ -228,9 +196,8 @@ export async function applySubscriptionState(
     planPeriodEndsAt: periodOf(state.periodEndsAt, user.planPeriodEndsAt),
   };
 
-  // One transaction, event id first: a redelivery of an event that already committed finds its id
-  // and changes nothing, a parallel one waits on the unique key and then does the same, and a
-  // failure rolls both writes back so Creem's retry applies it.
+  // Event id first: a redelivery finds its id and changes nothing, a parallel one waits on the
+  // unique key, and a failure rolls both writes back so Creem's retry applies it.
   return db.transaction(async (tx): Promise<ApplyResult> => {
     const recorded = await tx
       .insert(billingEvents)
@@ -342,20 +309,15 @@ export async function getBillingRecord(userId: string): Promise<BillingRecord | 
   return row ?? null;
 }
 
-/**
- * The stored subscription Creem could still charge, or null. Paused and unpaid subscriptions count:
- * they start charging again once resumed or once the card is fixed. An unknown status counts too.
- */
+// Paused, unpaid and unknown statuses count: they can start charging again.
 export function chargeableSubscriptionId(record: BillingRecord): string | null {
   const { billingSubscriptionId, planStatus } = record;
   if (!billingSubscriptionId) return null;
   return planStatus !== null && isEndedStatus(planStatus) ? null : billingSubscriptionId;
 }
 
-/**
- * Records a cancellation we made ourselves, without waiting for the webhook. Only touches the row
- * while it still tracks that subscription, so a newer one stored meanwhile is left alone.
- */
+// Records our own cancel without waiting for the webhook, only while the row still tracks that
+// subscription.
 export async function markSubscriptionCancelled(
   userId: string,
   subscriptionId: string,

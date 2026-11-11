@@ -8,10 +8,8 @@ import type { RequirementRow } from "./requirements";
 import { joinAnd, type SummaryCheck, type TitleCheck } from "./title-checks";
 import { foldCase, textTokens } from "./tokens";
 
-// Client-safe and pure. The screener says whether each requirement is shown; this says why, in the
-// person's own terms ("only in your Skills list", "in a project, not a job", "the line names it but
-// reads like a duty"), the resume's lines as this job reads them, and what to fix first. The title
-// and summary checks live in title-checks.ts. Sources: projects/resume-app/RESUME-CHECKS-RESEARCH.md.
+// Why each requirement is or isn't shown, in the person's terms ("only in your Skills list"). Title
+// and summary checks live in title-checks.ts.
 
 export type ReasonTone = "pass" | "warn" | "neutral";
 
@@ -48,8 +46,8 @@ function lineProblem(issues: readonly LintIssue[] | undefined): LintIssue | null
   return issues?.find((issue) => issue.severity === "high" && LINE_PROBLEMS[issue.id]) ?? null;
 }
 
-// True when the line has the post's exact words, not only a form the matcher counts as the same
-// ("Amazon Web Services" for "AWS"). Keyword searches look for the words typed.
+// Not only a form the matcher counts as the same ("Amazon Web Services" for "AWS"): searches look
+// for the words typed.
 function hasExactForm(line: string, terms: readonly string[]): boolean {
   const folded = foldCase(line);
   return terms.some((term) => {
@@ -170,7 +168,6 @@ function reasonWith(
   };
 }
 
-/** Why each requirement has the status it has, specific to this resume and this post. */
 export function rowReasons(
   rows: readonly RequirementRow[],
   context: ReasonContext,
@@ -184,18 +181,12 @@ export type JobLine = {
   bulletId: string;
   place: string;
   text: string;
-  // The requirements this line shows, must-haves first.
   proves: { id: string; text: string; importance: "must" | "nice" }[];
-  // Its most important problem, when it has one worth fixing for this job.
   problem: LintIssue | null;
   note: string;
 };
 
-/**
- * The resume's lines as this job sees them: each line that shows a requirement, with what it shows
- * and what would make it read better, weakest must-have proof first. Lines that show nothing for
- * this job are only counted.
- */
+// Weakest must-have proof first. Lines that show nothing for this job are only counted.
 export function jobLines(
   rows: readonly RequirementRow[],
   context: ReasonContext,
@@ -265,14 +256,10 @@ export type FixFirstAction =
 export type FixFirst = { key: string; title: string; reason: string; action: FixFirstAction };
 
 export const MAX_FIX_FIRST = 3;
-// The Tailor step's title-and-summary card.
 export const TITLE_SECTION_ID = "tailor-title-summary";
 
-/**
- * At most three things to do first for this job, in order: must-haves the resume never shows,
- * must-haves only in the Skills list, must-have proof lines that read weakly, then the title and
- * summary. Nice-to-haves never make this list.
- */
+// At most three: missing must-haves, must-haves only in Skills, weak must-have proof, then the
+// title and summary. Nice-to-haves never make this list.
 export function tailorFixFirst(input: {
   rows: readonly RequirementRow[];
   reasons: Readonly<Record<string, RowReason>>;

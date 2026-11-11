@@ -1,8 +1,6 @@
-// Pure. Turns a README or pull request description into short plain text the draft can quote
-// from. Code, links, badges and set-up chores carry no facts a resume line can use, and every
-// URL left in would invite a bullet to repeat it, so they go.
+// Code, links, badges and set-up chores carry no facts a resume line can use, and every URL left in
+// invites a bullet to repeat it, so they go.
 
-// Sections that explain how to run or join the project rather than what it is or did.
 const SKIPPED_SECTION =
   /^(?:install(?:ation|ing)?|set ?up|getting started|quick ?start|usage|how to (?:use|run)|running|build(?:ing)?|development|local development|requirements|prerequisites|configuration|license|licen[cs]e and .*|contribut(?:ing|ors?|ion)|code of conduct|sponsors?|support|changelog|faq|table of contents|contents|checklist|screenshots?|related issues?|type of change|acknowledg(?:e)?ments?|credits)\b/i;
 
@@ -33,7 +31,6 @@ function inlineText(line: string): string {
   );
 }
 
-/** Plain lines from markdown, set-up sections and code left out, at most `maxChars` long. */
 export function markdownExcerpt(markdown: string, maxChars: number): string {
   const source = markdown.replace(/\r\n?/g, "\n").replace(/<!--[\s\S]*?-->/g, " ");
   const lines: string[] = [];

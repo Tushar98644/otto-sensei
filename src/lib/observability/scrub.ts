@@ -1,16 +1,14 @@
 import type { Breadcrumb, ErrorEvent } from "@sentry/nextjs";
 
-// Everything that leaves for Sentry passes through here first. Structure does most of the work
-// (request bodies, cookies and most headers are dropped whole); the patterns below are a second
-// net for an email, phone number or pasted resume that ends up inside an error message.
+// Structure does most of the work (bodies, cookies and most headers dropped whole); these patterns
+// catch an email, phone or pasted resume inside an error message.
 
 type Fields = Record<string, string | number | boolean | null | undefined>;
 
 // "*" is allowed so maskEmail()'s "al***@example.com" goes too: the domain alone can name a person.
 const EMAIL = /[\p{L}\p{N}._%+*-]+@[\p{L}\p{N}-]+(?:\.[\p{L}\p{N}-]+)+/gu;
 const IPV4 = /(?<![\d.])(?:\d{1,3}\.){3}\d{1,3}(?![\d.])/g;
-// Groups of digits with optional "+", parentheses, spaces, dots or dashes. Not glued to letters or
-// dashes, so the digit runs inside ids and UUIDs stay readable.
+// Not glued to letters or dashes, so digit runs inside ids and UUIDs stay readable.
 const PHONE =
   /(?<![\w+-])(?:\+\d{1,3}[\s.-]?)?(?:\(\d{1,4}\)[\s.-]?)?\d{2,4}(?:[\s.-]?\d{2,4}){1,4}(?![\w-])/gu;
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
@@ -71,7 +69,6 @@ function maskPhone(match: string): string {
   return "[phone]";
 }
 
-/** Masks emails, phone numbers, IP addresses and share links inside free text. */
 export function scrubText(value: string): string {
   return value
     .replace(EMAIL, "[email]")
@@ -85,7 +82,7 @@ function scrubString(value: string): string {
   return scrubText(value);
 }
 
-/** An error message: database parameters cut, PII masked, and capped rather than dropped. */
+/** Database parameters cut, PII masked, and capped rather than dropped. */
 export function scrubMessage(value: string): string {
   const masked = scrubText(value.replace(QUERY_PARAMS, ""));
   return masked.length > MAX_TEXT ? `${masked.slice(0, MAX_TEXT)}… [cut]` : masked;
@@ -128,7 +125,6 @@ function scrubRequest(request: NonNullable<ErrorEvent["request"]>): ErrorEvent["
 
 const URL_KEYS = new Set(["url", "from", "to"]);
 
-/** Breadcrumbs carry console lines and fetch URLs from before the error. */
 export function scrubBreadcrumb(crumb: Breadcrumb): Breadcrumb {
   const next: Breadcrumb = { ...crumb };
   if (next.message) next.message = scrubMessage(next.message);
@@ -142,7 +138,6 @@ export function scrubBreadcrumb(crumb: Breadcrumb): Breadcrumb {
   return next;
 }
 
-/** beforeSend: returns the same event with everything personal taken out. */
 export function scrubEvent<T extends ErrorEvent>(event: T): T {
   if (event.request) event.request = scrubRequest(event.request);
   // Only the opaque id survives: no email, name, username or IP address.
@@ -164,7 +159,7 @@ export function scrubEvent<T extends ErrorEvent>(event: T): T {
 const TAG_KEY_LENGTH = 32;
 const TAG_VALUE_LENGTH = 200;
 
-/** Log fields as Sentry tags: sensitive names skipped, values masked, within Sentry's limits. */
+/** Sensitive names skipped, values masked, within Sentry's limits. */
 export function safeTags(fields: Fields): Record<string, string> {
   const tags: Record<string, string> = {};
   for (const [key, value] of Object.entries(fields)) {

@@ -1,25 +1,16 @@
 import { monthIndex } from "./dates";
 
-// Tools named in a job that ended before the tool came out ("used ChatGPT" in a 2019 job) are the
-// first thing a technical screener notices, and usually a slip from copying lines between jobs.
-// Every date is the earliest public release (a preview or beta counts, or the 1.0 people mean by
-// the name), checked by hand, so the person always gets the benefit of the doubt. Keep the list
-// sorted by name.
-//
-// A false alarm here reads as an accusation, so names that are also everyday words, first names
-// or other companies are guarded: `caseSensitive` for "react", "swift", "rust"; `plainWord` skips
-// a match at the start of a sentence, where every word has a capital ("React quickly to..."); and
-// `context` makes a bare name count only beside words that show it is the tool ("Claude" the
-// person, "Kafka" the writer, "Vue" the cinema, "Tailwind" the Pinterest scheduler).
+// A tool named in a job that ended before it existed is the first thing a technical screener
+// notices. Dates are the earliest public release, checked by hand. Keep the list sorted. A false
+// alarm reads as an accusation, so everyday words and names are guarded: `caseSensitive` ("react"),
+// `plainWord` (not at a sentence start) and `context` ("Claude" the person, "Kafka" the writer).
 
 export type ToolRelease = {
   name: string;
-  // Other spellings that mean the same tool. They always count, even with `context`.
   aliases?: readonly string[];
   year: number;
   // 1-12. Without it, the tool counts as out from the start of the year.
   month?: number;
-  // Match the exact capitals only.
   caseSensitive?: boolean;
   plainWord?: boolean;
   // The bare name counts only when the same text also matches this.
@@ -139,9 +130,7 @@ export const TOOL_RELEASES: readonly ToolRelease[] = [
 
 export type ToolMention = {
   tool: ToolRelease;
-  // The words as written.
   text: string;
-  // First month the tool existed.
   releasedAt: number;
   start: number;
   end: number;
@@ -182,9 +171,8 @@ const PATTERNS = TOOL_RELEASES.map((tool) => {
   };
 });
 
-// Any tool's name in any case: most lines name none and are done after this one scan. The
-// \p{L} boundary checks make each `pattern` slow to compile (about 70 ms for the whole list on
-// the first resume checked), so they only compile for tools a line really names.
+// One cheap scan first: the \p{L} boundary checks make each `pattern` slow to compile (~70 ms for
+// the whole list), so they only compile for tools a line really names.
 const ANY_TOOL = new RegExp(
   source(TOOL_RELEASES.flatMap((tool) => [tool.name, ...(tool.aliases ?? [])])),
   "iu",
@@ -193,10 +181,7 @@ const ANY_TOOL = new RegExp(
 // Start of the text or of a sentence, past any opening quote, bracket or list marker.
 const SENTENCE_START = /(?:^|[.!?\n])[\s"'“‘(\[•*–—-]*$/u;
 
-/**
- * Tools named in `text`. When one name sits inside another ("Claude" in "Claude Code"), only the
- * longer, more specific one counts.
- */
+// When one name sits inside another ("Claude" in "Claude Code"), only the longer one counts.
 export function findTools(text: string, options: FindToolsOptions = {}): ToolMention[] {
   if (!ANY_TOOL.test(text)) return [];
   const found: ToolMention[] = [];

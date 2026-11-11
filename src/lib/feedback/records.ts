@@ -3,12 +3,10 @@ import { getDb } from "@/db/client";
 import { feedback, users } from "@/db/schema";
 import type { FeedbackInput } from "./types";
 
-// Server-only. Feedback notes, kept for the owner to read in the Supabase table editor.
+// Read by the owner in the Supabase table editor.
 
-/**
- * Stores one note. The account is looked up inside the insert, so a note sent while the account
- * is being deleted is kept without it instead of failing on the foreign key.
- */
+// The account is looked up inside the insert, so a note sent during account deletion is kept
+// without it instead of failing on the foreign key.
 export async function saveFeedback(
   input: FeedbackInput,
   userId: string | null,

@@ -1,5 +1,4 @@
-// Test-only. Job API answers in the shapes the live APIs returned in November 2026 (GitLab on
-// Greenhouse, Spotify on Lever, Linear on Ashby), with the text cut down.
+// Test-only. Job API answers as the live APIs returned them in November 2026, text cut down.
 
 const DUTIES = [
   "Own the plan for bringing AI into the revenue team, from first pilots to daily habits.",

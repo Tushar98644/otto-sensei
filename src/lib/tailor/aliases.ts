@@ -1,9 +1,7 @@
-// Matching vocabulary for the keyword matcher. Deliberately small, explicit and sorted, so a
-// reviewer can check every entry in one pass. Keys are folded (lowercase, no accents).
+// Deliberately small and sorted so a reviewer can check every entry. Keys are folded.
 
-// One written form -> canonical tokens. Short forms expand to the long form rather than the other
-// way round, so "GCP" still matches "Google Cloud Run" and "AWS" matches "Amazon Web Services".
-// Values are already singular: the plural rule never runs on alias output.
+// Short forms expand to the long form, so "GCP" matches "Google Cloud Run". Values are already
+// singular: the plural rule never runs on alias output.
 export const TOKEN_ALIASES: ReadonlyMap<string, readonly string[]> = new Map([
   ["ai", ["artificial", "intelligence"]],
   ["aws", ["amazon", "web", "service"]],
@@ -39,10 +37,9 @@ export const PHRASE_ALIASES: readonly (readonly [readonly string[], readonly str
   [["vue", "js"], ["vue"]],
 ];
 
-// Tech names that are also everyday words. As a job keyword "Go" means the language, but in resume
-// prose "go" is usually the verb and "node" a graph or cluster node. So resume text only counts the
-// capitalized spelling, and not when it's hyphenated ("Go-to-market", "Go-live"). The trade-off:
-// a skills list written in lowercase ("python, go") isn't matched for "Go"; "golang" always is.
+// "Go" in a job keyword is the language, but in resume prose usually the verb. So resume text
+// counts only the capitalized, unhyphenated spelling; a lowercase skills list misses "Go" ("golang"
+// always hits).
 export const AMBIGUOUS_WORDS: ReadonlyMap<string, { canonical: string; spelling: string }> =
   new Map([
     ["go", { canonical: "golang", spelling: "Go" }],

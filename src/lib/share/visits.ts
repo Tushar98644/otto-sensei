@@ -1,7 +1,5 @@
-// Pure. Decides whether an open of a share link counts as someone reading it.
-
-// Crawlers, link previews (pasting the link into a chat fetches it at once), monitors and scripts.
-// In-app browsers stay countable: LinkedIn's app says "LinkedInApp", its preview bot "LinkedInBot".
+// Link previews fetch a pasted link at once. In-app browsers stay countable ("LinkedInApp" vs
+// "LinkedInBot").
 const AUTOMATED_AGENT = new RegExp(
   [
     // Cubot is a phone brand, not a crawler.
@@ -59,8 +57,7 @@ export function isAutomatedAgent(userAgent: string | null | undefined): boolean 
 
 type HeaderReader = { get(name: string): string | null };
 
-// Browsers fetch pages ahead of a click (speculation rules, link prefetch) and say so. Nobody has
-// read the page yet; the real visit, if it happens, comes later.
+// Speculation rules and link prefetch: nobody has read the page yet.
 export function isPrefetch(headers: HeaderReader): boolean {
   // Next's router prefetches in-app links ahead of a click too.
   if (headers.get("next-router-prefetch") !== null) return true;

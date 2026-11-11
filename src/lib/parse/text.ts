@@ -1,7 +1,4 @@
-// Text helpers shared by the PDF and DOCX extractors, so both file types are measured the same way.
-
-// Below this many letters and digits a file counts as having no text layer: a scan with a page
-// number or a scanner watermark still reads as "nothing" to hiring software.
+// A scan with a page number or watermark still reads as "nothing" to hiring software.
 const MIN_TEXT_CHARS = 40;
 const MIN_TEXT_CHARS_PER_PAGE = 25;
 
@@ -23,8 +20,7 @@ export function countWords(text: string): number {
   return count;
 }
 
-// One entry per visual line (PDF) or paragraph (DOCX). Tabs survive because they separate side by
-// side text (right-aligned dates, a second column) and later steps split on them.
+// Tabs survive: they separate side-by-side text, and later steps split on them.
 export function toLines(text: string): string[] {
   const lines: string[] = [];
   for (const raw of text.split(/\r\n?|\n|\u2028|\u2029/)) {
@@ -50,12 +46,11 @@ const ICON_RANGES: ReadonlyArray<readonly [number, number]> = [
   [0x1fa70, 0x1faff],
 ];
 
-// Contact and rating symbols from the dingbats, misc symbols and misc technical blocks.
 // Check marks and arrows are left out on purpose: they're real characters used as bullets.
 const ICON_SYMBOLS = new Set(Array.from("☎☏✆✉✍⌂✈⚐⚑⚲★☆⭐⭑⭒✩✪✫✬✭✮✯✰", (char) => char.codePointAt(0) ?? 0));
 
-// Word's bullet library draws its bullets from the Symbol and Wingdings fonts, which PDF export maps
-// to these private-use code points. At the start of a line they're list markers, not icons.
+// Word's Symbol/Wingdings bullets, as PDF export maps them. At a line start they're markers, not
+// icons.
 const WORD_BULLET_GLYPHS = new Set([
   0xf0b7, 0xf0a7, 0xf076, 0xf0d8, 0xf0fc, 0xf06e, 0xf06c, 0xf0a8, 0xf0d2, 0xf0e8,
 ]);

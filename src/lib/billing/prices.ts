@@ -7,8 +7,6 @@ import {
   type PaidPlanId,
 } from "@/config/plans";
 
-// Client-safe. How each paid plan's billing options are written, from PRICES_USD.
-
 export const INTERVAL_NAMES: Record<BillingInterval, string> = {
   month: "Monthly",
   year: "Yearly",
@@ -21,17 +19,15 @@ const usd = new Intl.NumberFormat("en-US", {
   trailingZeroDisplay: "stripIfInteger",
 });
 
-/** "$120" */
 export function planPrice(plan: PaidPlanId, interval: BillingInterval): string {
   return usd.format(PRICES_USD[plan][interval]);
 }
 
-/** "$120/year" */
 export function planPriceLabel(plan: PaidPlanId, interval: BillingInterval): string {
   return `${planPrice(plan, interval)}/${interval}`;
 }
 
-/** Whole percent a year saves over twelve months, or 0 when it saves nothing. */
+/** Whole percent; 0 when it saves nothing. */
 export function yearlySavingsPercent(plan: PaidPlanId): number {
   const monthly = PRICES_USD[plan].month * 12;
   return monthly > 0 ? Math.max(0, Math.floor((1 - PRICES_USD[plan].year / monthly) * 100)) : 0;
@@ -42,21 +38,17 @@ export function perMonth(plan: PaidPlanId): string {
   return usd.format(Math.round((PRICES_USD[plan].year / 12) * 100) / 100);
 }
 
-/**
- * "About half the price of Rezi Pro ($29/mo)", or null once Pro monthly is no longer about half
- * (40 to 60%) of it, so a price change can't leave the line untrue.
- */
+// null once Pro monthly is no longer 40-60% of Rezi's price, so a price change can't leave it
+// untrue.
 export function proComparison(): string | null {
   const ratio = PRICES_USD.pro.month / PRO_PRICE_COMPARISON.priceUsd;
   if (ratio < 0.4 || ratio > 0.6) return null;
   return `About half the price of ${PRO_PRICE_COMPARISON.name} (${usd.format(PRO_PRICE_COMPARISON.priceUsd)}/mo)`;
 }
 
-// Owner's line (2026-11-09). A delivery pizza in the US, UK, EU or Australia is about $15-25, so the
-// line holds only while Pro monthly stays at $20 or less; past that it disappears instead of going untrue.
+// A delivery pizza is about $15-25, so the line holds only while Pro monthly stays at or under $20.
 export const PIZZA_MAX_USD = 20;
 
-/** "Less than a pizza a month.", or null once Pro monthly costs more than a pizza. */
 export function pizzaLine(): string | null {
   return PRICES_USD.pro.month <= PIZZA_MAX_USD ? "Less than a pizza a month." : null;
 }
@@ -68,7 +60,6 @@ export function renewalPeriods(intervals: readonly BillingInterval[]): string {
   return names.length ? `${names.join(", ")} or ${last}` : `${last}`;
 }
 
-/** One plain sentence about what the option costs and who it suits. */
 export function priceSentence(plan: PaidPlanId, interval: BillingInterval): string {
   const price = planPrice(plan, interval);
   if (interval === "year") {
@@ -81,20 +72,16 @@ export function priceSentence(plan: PaidPlanId, interval: BillingInterval): stri
   return `${price} a month. Cancel anytime.`;
 }
 
-/** "Try Pro free for 3 days" */
 export function trialHeadline(): string {
   return `Try ${PLANS[PRO_TRIAL.plan].name} free for ${PRO_TRIAL.days} days`;
 }
 
-/**
- * "Ends your free Pro trial today and starts Max at $29/month." On the trial another plan is a new
- * subscription that ends the trial once paid (createCheckoutUrl), so the button says so first.
- */
+// On the trial another plan is a new subscription that ends the trial once paid, so the button says
+// so first.
 export function endsTrialSentence(plan: PaidPlanId, interval: BillingInterval): string {
   return `Ends your free ${PLANS[PRO_TRIAL.plan].name} trial today and starts ${PLANS[plan].name} at ${planPriceLabel(plan, interval)}.`;
 }
 
-/** "Free for 3 days, then $15/month. Cancel anytime before the trial ends." */
 export function trialSentence(): string {
   return `Free for ${PRO_TRIAL.days} days, then ${planPriceLabel(PRO_TRIAL.plan, PRO_TRIAL.interval)}. Cancel anytime before the trial ends.`;
 }

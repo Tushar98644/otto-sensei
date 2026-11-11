@@ -1,9 +1,7 @@
 import { extrasOf, type ExtraItem, type Resume } from "@/lib/resume/schema";
 import { isPresent, toIsoDate } from "./dates";
 
-// Client-safe. The resume as a JSON Resume v1 document (jsonresume.org), so it can move to any
-// tool or theme that reads the format. Hidden lines are the person's choice to leave out, so they
-// stay out here too. Dates that aren't clearly dates keep their text rather than being dropped.
+// Hidden lines stay out. Dates that aren't clearly dates keep their text rather than being dropped.
 
 export const JSON_RESUME_SCHEMA_URL =
   "https://raw.githubusercontent.com/jsonresume/resume-schema/v1.0.0/schema.json";
@@ -17,7 +15,6 @@ const texts = (bullets: readonly { text: string; hidden?: boolean }[]) =>
     .map((bullet) => bullet.text.trim())
     .filter(Boolean);
 
-// Drops empty strings and empty lists so the file holds only what the person filled in.
 function compact(entries: Record<string, Json | undefined>): { [key: string]: Json } {
   const out: { [key: string]: Json } = {};
   for (const [key, value] of Object.entries(entries)) {

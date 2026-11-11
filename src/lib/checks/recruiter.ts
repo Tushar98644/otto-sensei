@@ -17,7 +17,6 @@ import {
 } from "@/lib/resume/sections";
 import type { CheckId, CheckStatus, RecruiterCheck, RecruiterReport } from "./types";
 
-// Thresholds, with the reasoning behind each one.
 // Recruiters skim; past two pages most of a resume goes unread.
 const MAX_PAGES = 2;
 // Under ~150 words there's too little text to match against a job post.
@@ -46,13 +45,8 @@ type Context = {
 
 type Check = (context: Context) => RecruiterCheck;
 
-/**
- * Deterministic checks over an Extraction (no AI, no network). Runs on the server after upload and
- * again on our own exported PDF ("before vs after").
- *
- * Every CheckId in ./types must be evaluated. Checks order: fail, warn, pass. Copy is plain and
- * short; `fix` is one concrete action. Uses matchHeading/findSections from @/lib/resume/sections.
- */
+// Deterministic (no AI, no network). Runs after upload and again on our own exported PDF. Every
+// CheckId in ./types must be evaluated.
 export function runRecruiterChecks(extraction: Extraction, now = Date.now()): RecruiterReport {
   const context = analyze(extraction);
   // Array.prototype.sort is stable, so checks keep their logical order within each status.
@@ -364,9 +358,8 @@ const dates: Check = ({ extraction, readable, blocks }) => {
   return check("dates", "pass", "Dates look consistent", `Your job dates all use one style, like "${sample}".`);
 };
 
-// Date ranges on job header lines; ranges inside bullets ("grew sales from 2019 to 2021") don't
-// count. Without a clear Experience section, or when columns are mixed into it, every non-education
-// line is searched instead, so a layout problem never turns into a false "no dates".
+// Header lines only, not bullets. Without a clear Experience section, or with mixed columns, every
+// non-education line is searched, so a layout problem never becomes a false "no dates".
 function jobDateRanges(blocks: readonly SectionBlock[], columnLayout: boolean): { ranges: DateRange[]; fromJobs: boolean } {
   const headerRanges = (keep: (block: SectionBlock) => boolean) =>
     blocks
@@ -437,8 +430,7 @@ const bullets: Check = ({ extraction, readable, blocks }) => {
   return check("bullets", "pass", "Easy to skim", "No long paragraphs, so your jobs are quick to scan.");
 };
 
-// Rebuilds paragraphs and bullets from lines. A DOCX line is already one paragraph; a PDF paragraph
-// spans several visual lines, so a near-full-width line is treated as wrapping onto the next.
+// A PDF paragraph spans several visual lines, so a near-full-width line is treated as wrapping.
 function textBlocks(lines: readonly string[], wrapsLines: boolean): { words: number; bulleted: boolean }[] {
   const longest = Math.max(0, ...lines.map((line) => line.length));
   const blocks: { words: number; bulleted: boolean }[] = [];

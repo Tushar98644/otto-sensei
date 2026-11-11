@@ -1,8 +1,6 @@
 import { fail } from "@/lib/api/respond";
 import { appUrl } from "@/lib/env";
 
-// Server-only request guards for route handlers.
-
 // HTML forms can't send application/json, so requiring it blocks cross-site form posts (login
 // CSRF, code spam from a victim's browser) without tokens. A cross-origin fetch with this type
 // needs a CORS preflight, which we never grant.
@@ -12,14 +10,10 @@ export function rejectNonJson(req: Request): Response | null {
   return fail("unsupported_type", "Send the request as JSON.", 415);
 }
 
-/**
- * For POST routes that can't require JSON (file uploads) or need no body (logout). Any website can
- * send those from a visitor's browser, as a form or a no-cors fetch: the response stays unreadable
- * to it, but the work still runs and Set-Cookie still lands, and our SameSite=Lax cookies don't
- * come along, so per-device limits never apply. Browsers say where a request came from in
- * Sec-Fetch-Site; older ones only send Origin, which must then name this host. Callers that send
- * neither, like curl and other servers, aren't a visitor's browser and pass.
- */
+// For POST routes that can't require JSON (uploads) or need no body (logout). Any site can send
+// those from a visitor's browser; the work still runs and our SameSite=Lax cookies don't come
+// along, so per-device limits never apply. Sec-Fetch-Site decides, else Origin must name this host;
+// callers sending neither (curl, servers) aren't a visitor's browser and pass.
 export function rejectCrossSite(req: Request): Response | null {
   const site = req.headers.get("sec-fetch-site");
   if (site !== null) return site === "cross-site" ? forbidden() : null;

@@ -10,12 +10,9 @@ import {
 } from "@/lib/resume/schema";
 import { PDF_FONT, type PdfFontName } from "./fonts";
 
-// The look settings on top of a format: what they're called and what they print as. Client-safe
-// and react-pdf free, so the Download step's controls and the Word export share them with the PDF
-// (src/components/pdf/design.ts applies them to a theme).
+// react-pdf free, so the Download controls and the Word export share these with the PDF.
 
-// Print colors, not app colors: dark enough for 7:1 on white paper, so headings in any of them read
-// like ink to people and are plain text to hiring software.
+// Print colors: dark enough for 7:1 on white paper, so headings read like ink and stay plain text.
 export const ACCENT_COLORS: Record<DesignAccent, string> = {
   ink: "#1b1b1b",
   forest: "#0e3b2e",
@@ -39,16 +36,14 @@ export const DENSITY_LABELS: Record<DesignDensity, string> = {
   compact: "Compact",
 };
 
-// "Sans" and "Serif" swap a format's own fonts for two broad bundled families, and the Word fonts
-// that match their widths (Carlito is metric-compatible with Calibri, Tinos with Times New Roman),
-// so a page breaks in about the same place in both files.
+// Word fonts match the PDF fonts' widths (Carlito ~ Calibri, Tinos ~ Times New Roman), so a page
+// breaks in about the same place in both files.
 export const FONT_FAMILIES: Record<DesignFont, { pdf: PdfFontName; word: string }> = {
   sans: { pdf: PDF_FONT.carlito, word: "Calibri" },
   serif: { pdf: PDF_FONT.tinos, word: "Times New Roman" },
 };
 
-// Compact takes about 10% off the page: margins and gaps shrink by a tenth and lines sit a little
-// closer, but type stays the same size, so nothing gets harder to read.
+// Margins and gaps shrink by a tenth but type stays the same size, so nothing gets harder to read.
 export const COMPACT_SPACING = 0.9;
 export const COMPACT_LINE_HEIGHT = 0.93;
 export const MIN_LINE_HEIGHT = 1.15;
@@ -56,7 +51,7 @@ export const MIN_LINE_HEIGHT = 1.15;
 const isOneOf = <T extends string>(list: readonly T[], value: unknown): value is T =>
   typeof value === "string" && (list as readonly string[]).includes(value);
 
-/** The resume's look settings, each one checked: copies in localStorage are never re-parsed. */
+/** Each setting checked: localStorage copies are never re-parsed. */
 export function designOf(resume: Pick<Resume, "design">): ResumeDesign {
   const design = resume.design;
   if (!design || typeof design !== "object") return {};
@@ -67,10 +62,8 @@ export function designOf(resume: Pick<Resume, "design">): ResumeDesign {
   return out;
 }
 
-/**
- * Sets look settings; `undefined` puts one back to the format's own choice. A resume with none left
- * drops `design` entirely, so it prints exactly like one saved before the settings existed.
- */
+// `undefined` restores the format's choice. With none left `design` is dropped, so the resume
+// prints exactly like one saved before the settings existed.
 export function withDesign(resume: Resume, patch: Partial<ResumeDesign>): Resume {
   const next: ResumeDesign = { ...designOf(resume), ...patch };
   for (const key of Object.keys(next) as (keyof ResumeDesign)[]) {
@@ -86,7 +79,7 @@ export function sameDesign(a: ResumeDesign, b: ResumeDesign): boolean {
   return a.accent === b.accent && a.font === b.font && a.density === b.density;
 }
 
-/** A stable string for cache keys: "navy/serif/compact", "-/-/-" when nothing is set. */
+/** For cache keys: "navy/serif/compact", "-/-/-" when nothing is set. */
 export function designKey(resume: Pick<Resume, "design">): string {
   const { accent, font, density } = designOf(resume);
   return [accent ?? "-", font ?? "-", density ?? "-"].join("/");

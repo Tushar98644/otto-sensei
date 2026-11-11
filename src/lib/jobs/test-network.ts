@@ -1,8 +1,7 @@
 import type { LookupAddress } from "node:dns";
 import type { PinnedRequest, PinnedResponse } from "./transport";
 
-// Test-only. A fake internet for job reads: DNS answers and HTTPS replies by exact URL, with every
-// request recorded. Wire it up in a test file with:
+// Test-only. A fake internet for job reads, every request recorded. Wire it up with:
 //   vi.mock("node:dns", async (importOriginal) => (await import("@/lib/jobs/test-network")).dnsMock(await importOriginal()));
 //   vi.mock("@/lib/jobs/transport", async () => (await import("@/lib/jobs/test-network")).transportMock);
 

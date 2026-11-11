@@ -15,17 +15,14 @@ import { textLook, type DocxLook, type TextLook } from "./look";
 import { BULLET_LIST_ID } from "./styles";
 import { paragraph, run, runProps, tabRun, type RunProps } from "./xml";
 
-// The document body, from the same model and plan the PDF draws: one column of paragraphs in
-// reading order, no tables, text boxes, headers or footers (parsers skip or scramble those), dates
-// on a right-aligned tab stop and bullets as a real list.
+// One column of paragraphs in reading order, no tables, text boxes, headers or footers (parsers
+// skip or scramble those), dates on a right tab stop and bullets as a real list.
 
 export type Hyperlinks = {
-  // Relationship id for an address, added to the document's relationships.
   add: (href: string) => string;
 };
 
-// A run's properties where they differ from what it sits in (`base`: the paragraph style's look,
-// or the document's), so the file stays small and Word's styles stay meaningful.
+// Only where it differs from `base`, so the file stays small and Word's styles stay meaningful.
 function styleOf(look: TextLook, base: TextLook): RunProps {
   const changed = <K extends keyof TextLook>(key: K) =>
     look[key] !== base[key] ? look[key] : undefined;
@@ -59,7 +56,6 @@ function linkLook(link: PdfLink, parent: TextLook, look: DocxLook): TextLook {
   return textLook(web ? styles.webLink : styles.link, parent);
 }
 
-// Each run in its own look, inheriting the line's; `base` is what the paragraph already sets.
 function runsXml(
   runs: readonly Run[],
   line: TextLook,

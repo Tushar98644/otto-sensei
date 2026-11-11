@@ -1,8 +1,7 @@
 import type { LintIssue } from "./types";
 
-// Client-safe and pure. Lines in one job or project should all end with a full stop or all end
-// without one; the lines that break the pattern get a low tip. Lines whose ending can't be read
-// either way ("?", "!", "etc.", "U.S.", ".)") are left out of the count.
+// Lines in one entry should agree on a final full stop. Endings that can't be read either way ("?",
+// "etc.", "U.S.") are left out of the count.
 
 export type EntryLine = { id: string; text: string };
 
@@ -40,7 +39,6 @@ export function lineEnding(text: string): Ending | null {
   return word && ABBREVIATIONS.has(word) ? null : "stop";
 }
 
-/** The line with its final full stop added or removed, keeping any closing quote after it. */
 export function setFullStop(text: string, stop: boolean): string {
   const trimmed = text.trimEnd();
   const quotes = CLOSING_QUOTES.exec(trimmed)?.[0] ?? "";
@@ -49,10 +47,8 @@ export function setFullStop(text: string, stop: boolean): string {
   return stop ? `${body}.${quotes}` : `${body.slice(0, -1)}${quotes}`;
 }
 
-/**
- * The lines of one entry that end unlike most of the others, by line id. A tie follows the first
- * line, which usually sets the pattern. Fewer than two readable endings means nothing to compare.
- */
+// A tie follows the first line, which usually sets the pattern. Fewer than two readable endings:
+// none.
 export function punctuationIssues(lines: readonly EntryLine[]): Map<string, LintIssue> {
   const read = lines.flatMap((line) => {
     const ending = lineEnding(line.text);

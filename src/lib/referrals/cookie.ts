@@ -14,10 +14,8 @@ import {
   type ReferralClaimOutcome,
 } from "./referrals";
 
-// Server-only, for route handlers (they can set cookies). The invite cookie is written by the
-// browser when someone opens an invite link (components/referrals/referral-tracker.tsx) and moved
-// on here: to "checked" by a signed-out resume check, to "joined" by a claim that waits for one,
-// and deleted once the invite is settled either way.
+// Route handlers only (they can set cookies). The browser writes the invite cookie; here it moves
+// to "checked" or "joined", and is deleted once the invite is settled.
 
 export async function readRefCookie(): Promise<RefCookie | null> {
   return parseRefCookie((await cookies()).get(REF_COOKIE)?.value);
@@ -33,10 +31,7 @@ async function writeRefCookie(next: RefCookie | null): Promise<void> {
   jar.set(REF_COOKIE, formatRefCookie(next), { ...options, maxAge: REF_COOKIE_MAX_AGE_S });
 }
 
-/**
- * Links the signed-in account to the invite in this browser's cookie, paying out when a check has
- * run. Keeps the cookie only while the invite waits for that check.
- */
+// Pays out when a check has run. Keeps the cookie only while the invite waits for that check.
 export async function claimFromCookie(
   user: SessionUser,
   { checked }: { checked: boolean },
@@ -57,10 +52,7 @@ export async function claimFromCookie(
   return outcome;
 }
 
-/**
- * Call after a recruiter check ran (POST /api/import, POST /api/check). Costs one cookie read for
- * everyone without an invite, and never fails the check: a referral problem is only logged.
- */
+// Call after a recruiter check ran. Never fails the check: a referral problem is only logged.
 export async function noteReferralCheck(now = Date.now()): Promise<void> {
   try {
     const cookie = await readRefCookie();

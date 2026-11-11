@@ -14,33 +14,28 @@ import { MATCH_CACHE_MAX_AGE_MS } from "@/lib/job-feed/match-cache";
 import { log } from "@/lib/log";
 import { drain, type CronContext, type CronOutcome } from "./run";
 
-// Server-only. The daily cleanup: rows that no request needs any more, deleted oldest-first in
-// bounded batches through an index on their age. Idempotent, so a repeated or overlapping run
-// only finds less to do. Request paths still prune a little on their own (rate-limit.ts,
-// deleteBackup); this catches what they never reach, such as keys that are never used again.
+// Bounded oldest-first batches through an age index; idempotent. Catches what request-path pruning
+// never reaches, such as keys that are never used again.
 
 const DAY_MS = 24 * 60 * 60 * 1_000;
 
 export const RETENTION = {
   // rate-limit.ts keeps windows 2 days; the longest window in use is one day.
   rateLimitWindowsMs: 2 * DAY_MS,
-  // Same age deleteBackup prunes by, for accounts that stopped deleting resumes.
   tombstonesMs: TOMBSTONE_MAX_AGE_MS,
   readNotificationsMs: 90 * DAY_MS,
   // Unread ones too, eventually: nobody opens a year-old reminder.
   anyNotificationsMs: 365 * DAY_MS,
   // Creem stops redelivering a webhook after a day, so an id this old can never arrive again.
   billingEventsMs: 400 * DAY_MS,
-  // Jobs-tab impressions: 20 rows a view, about 130 MB a month at 1,000 users
-  // (AUDIT-cost-and-findability.md). Three months is enough to compare two orderings. Actions
-  // (open, save, applied, "not a fit") stay: they are few and are what ranking learns from.
+  // 20 rows a view (~130 MB a month at 1,000 users); three months is enough to compare two
+  // orderings. Actions stay: they're few and are what ranking learns from.
   impressionsMs: 90 * DAY_MS,
-  // A cached Matches page is only read on the day it was ranked (match-cache.ts).
   matchCacheMs: MATCH_CACHE_MAX_AGE_MS,
 } as const;
 
 export const CLEANUP_BATCH = 1_000;
-// Per table per run: at most 50,000 rows, so one run stays short and a backlog drains over days.
+// Per table per run, so one run stays short and a backlog drains over days.
 const MAX_BATCHES = 50;
 // Each is a Creem API call of up to 8 seconds, not a row in one query.
 export const TRIAL_CANCEL_BATCH = 25;
@@ -142,8 +137,7 @@ export async function runCleanup({ now, deadline }: CronContext): Promise<CronOu
       },
     },
     {
-      // Not a deletion: trials another plan replaced whose cancel failed on every webhook so far
-      // (src/lib/billing/replacements.ts). Each failure logs its own error.
+      // Not a deletion: replaced trials whose cancel failed on every webhook so far.
       name: "replacedTrials",
       batchSize: TRIAL_CANCEL_BATCH,
       run: () => retryPendingReplacements({ now, deadline, limit: TRIAL_CANCEL_BATCH }),

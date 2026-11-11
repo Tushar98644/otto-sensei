@@ -1,18 +1,14 @@
 import { hasInventedNumbers, maskInventedNumbers, NUMBER_PLACEHOLDER } from "./guards";
 import { oneLine, placeholdersIn } from "./text";
 
-// Deterministic checks on a cover letter or an application answer, the prose Otto writes from a
-// resume. The prompts already forbid these; code catches a model that does them anyway:
-// invented numbers, real numbers wrapped in [brackets], stock phrases, and verbs that claim more
-// than the resume does ("Helped with the newsletter" becoming "Wrote and published it").
+// Catches what the prompts forbid: invented numbers, bracketed real numbers, stock phrases, and
+// verbs that claim more than the resume does.
 
 const WORD = /[\p{L}\p{N}]+(?:['’]\p{L}+)?/gu;
-// A sentence ends at ., ! or ? followed by a space and a capital or a digit, so "99.9%" and
-// "Node.js" stay whole.
+// Needs a space and then a capital or digit, so "99.9%" and "Node.js" stay whole.
 const SENTENCE_BREAK = /(?<=[.!?]["”’)]?)\s+(?=["“‘(]?[\p{Lu}\p{N}])/u;
 const PLACEHOLDER = /\[([^\]\n]*)\]/g;
-// A bracket that is a real blank for the person to fill, never unwrapped even when the same
-// word happens to appear somewhere in the resume.
+// Never unwrapped, even when the same word appears somewhere in the resume.
 const BLANK_WORDS = /^(?:your|the|a|an|insert|add|x|n|number|amount|name|company|date|role|city)\b/i;
 
 export const CLICHES: readonly { label: string; pattern: RegExp }[] = [
@@ -46,8 +42,8 @@ const IRREGULAR_PAST: ReadonlySet<string> = new Set([
   "led", "built", "wrote", "drove", "ran", "oversaw",
 ]);
 
-// Things only the person can know, which a model likes to supply: a lesson, a realization, how
-// long they've done something. Flagged, never removed: the person may well mean them.
+// Things only the person can know (a lesson, how long they've done something). Flagged, never
+// removed.
 export const UNBACKED: readonly { label: string; pattern: RegExp }[] = [
   { label: "taught me", pattern: /\btaught me\b/i },
   { label: "I learned", pattern: /\bI(?:['’]ve)? learned\b/i },
@@ -61,8 +57,8 @@ export const UNBACKED: readonly { label: string; pattern: RegExp }[] = [
   { label: "daily", pattern: /\b(?:daily|every day|day[- ]to[- ]day)\b/i },
 ];
 
-// Verbs that claim ownership. Each group is one verb's forms, so "built" in the resume backs
-// "build" in the letter. Words with common non-verb uses ("found", "head", "run") are left out.
+// Each group is one verb's forms, so "built" backs "build". Words with common non-verb uses are
+// left out.
 const STRONG_VERBS: readonly (readonly string[])[] = [
   ["lead", "led", "leading", "leads"],
   ["own", "owned", "owning", "owns"],
@@ -87,22 +83,19 @@ const STRONG_VERBS: readonly (readonly string[])[] = [
   ["engineer", "engineered"],
   ["spearhead", "spearheaded"],
 ];
-// Only past-tense forms are flagged: they are how a letter claims work ("I built"), while "the
-// launch", "my own" or "sales leads" are nouns and adjectives. Present forms still back a claim.
+// Only past tense is flagged: it's how a letter claims work ("I built"); "the launch" is a noun.
 const CLAIMS: ReadonlySet<string> = new Set(
   STRONG_VERBS.flat().filter((form) => /(?:ed|en)$/.test(form) || IRREGULAR_PAST.has(form)),
 );
-// Claims to have been in charge. These are the costly ones to get wrong, so they need a related
-// resume line that says the same, whatever role that line describes.
+// Costly to get wrong, so they need a related resume line saying the same, whatever its role.
 const LEADING: ReadonlySet<string> = new Set([
   "led", "owned", "managed", "ran", "oversaw", "spearheaded",
 ]);
 const VERB_GROUP = new Map<string, number>(
   STRONG_VERBS.flatMap((forms, group) => forms.map((form): [string, number] => [form, group])),
 );
-// A supporting role. In free text (a person's answer) it can sit anywhere; a resume line states
-// its role up front ("Helped with the blog"), and later words like "to help sales teams" are about
-// someone else.
+// A supporting role. In a person's answer it can sit anywhere; a resume line states its role up
+// front, and later words like "to help sales teams" are about someone else.
 const SUPPORT =
   "help(?:ed|ing|s)?|assist(?:ed|ing|s)?|support(?:ed|ing|s)?|contribut(?:ed|ing|es)|" +
   "participat(?:ed|ing|es)|took part|was involved|were involved|" +
@@ -120,9 +113,7 @@ const STOP = new Set(
 const MIN_SHARED_WORDS = 2;
 
 export type Upgrade = {
-  // The stronger verb Otto used: "wrote".
   verb: string;
-  // The resume line it most likely restates.
   line: string;
 };
 
@@ -141,11 +132,7 @@ function lowerWords(text: string): string[] {
   return text.toLowerCase().match(/[\p{L}\p{N}]+(?:-[\p{L}\p{N}]+)*/gu) ?? [];
 }
 
-/**
- * Takes the brackets off real facts: models sometimes write "[40%]" for a number the resume gives,
- * or "[Kestrel Labs]" for a name in the post. A bracket stays when it holds an unknown number or
- * reads like a blank for the person ("[your start date]").
- */
+// A bracket stays when it holds an unknown number or reads like a blank ("[your start date]").
 export function unwrapKnown(text: string, sources: readonly string[]): string {
   const haystack = sources.join("\n").toLowerCase();
   return text.replace(PLACEHOLDER, (match: string, inner: string) => {
@@ -160,8 +147,7 @@ export function clichesIn(text: string): string[] {
   return CLICHES.filter(({ pattern }) => pattern.test(text)).map(({ label }) => label);
 }
 
-// A phrase the resume itself uses is backed; one in a sentence with a [blank] is the person's to
-// finish, so it isn't Otto's claim either.
+// A phrase the resume uses is backed; one in a sentence with a [blank] is the person's to finish.
 export function unbackedIn(text: string, sources: readonly string[] = []): string[] {
   const claims = sentencesOf(text).filter((sentence) => !/\[[^\]\n]*\]/.test(sentence));
   return UNBACKED.filter(
@@ -171,10 +157,7 @@ export function unbackedIn(text: string, sources: readonly string[] = []): strin
   ).map(({ label }) => label);
 }
 
-/**
- * Drops every sentence with a stock phrase, unless that would leave fewer than `minWords`: a
- * letter cut down to two sentences is worse than one with a stock phrase the person can edit.
- */
+// Unless that leaves fewer than `minWords`: two sentences are worse than one stock phrase to edit.
 export function dropClichedSentences(
   paragraphs: readonly string[],
   minWords: number,
@@ -205,11 +188,9 @@ function contentWords(text: string): Set<string> {
   );
 }
 
-/**
- * Ownership verbs the resume doesn't back. A sentence is tied to every resume line it shares two
- * or more content words with. A verb none of those lines uses is an upgrade when one of them
- * states a supporting role ("Helped with", "Supported"), and always when it claims charge ("led").
- */
+// A sentence is tied to every resume line sharing two or more content words with it. A verb none of
+// those lines uses is an upgrade when one states a supporting role, and always when it claims
+// charge.
 export function upgradedVerbs(text: string, lines: readonly string[]): Upgrade[] {
   const sourceLines = lines
     .map((line) => {
@@ -246,13 +227,7 @@ export function upgradedVerbs(text: string, lines: readonly string[]): Upgrade[]
   return found;
 }
 
-/**
- * The ownership verbs `output` uses that `source` doesn't, when `source` describes a supporting
- * role. For a pair already known to say the same thing, like a person's answer and the line
- * written from it.
- */
-// True when `source` states a supporting role ("I helped set up…") and `output` no longer does
-// ("Set up…"): the same work, now claimed alone.
+// `source` states a supporting role ("I helped set up…") and `output` no longer does ("Set up…").
 export function droppedSupport(source: string, output: string): boolean {
   return WEAK_ROLE.test(source) && !WEAK_ROLE.test(output);
 }
@@ -266,7 +241,7 @@ export function verbsAdded(source: string, output: string): string[] {
   return [...new Set(added)];
 }
 
-/** Keeps whole sentences, in order, up to `maxWords`; a paragraph left empty is dropped. */
+/** A paragraph left empty is dropped. */
 export function clipToWords(paragraphs: readonly string[], maxWords: number): string[] {
   let total = 0;
   const out: string[] = [];
@@ -290,17 +265,13 @@ export type ProseCheck = {
   words: number;
   cliches: string[];
   upgrades: Upgrade[];
-  // Lessons and time spans the resume doesn't state.
   unbacked: string[];
-  // Numbers the sources don't contain, now "[number]".
   maskedNumbers: number;
   placeholders: string[];
 };
 
-/**
- * Cleans one draft: one line per paragraph, real facts unwrapped from brackets, invented numbers
- * masked. Reports what is still wrong, for a retry or for warnings the person sees.
- */
+// One line per paragraph, real facts unwrapped, invented numbers masked. Reports what's still
+// wrong.
 export function checkProse(
   paragraphs: readonly string[],
   sources: readonly string[],
@@ -322,7 +293,6 @@ export function checkProse(
   };
 }
 
-// Problems worth a second try, in words the model can act on.
 export function retryNotes(check: ProseCheck, range: { min: number; max: number }): string[] {
   const notes: string[] = [];
   if (check.cliches.length) {

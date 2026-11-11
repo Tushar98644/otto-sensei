@@ -5,15 +5,13 @@ import { writings } from "@/db/schema";
 import { applicationForWriting } from "@/lib/applications/links";
 import { textLimit, WRITING_LIMITS, type CreateWritingInput, type Writing } from "./schema";
 
-// Server-only. A user's saved cover letters and answers. Every query is filtered by user_id, so one
-// account can never read, change or delete another's rows, even with a guessed id.
+// Every query is filtered by user_id, so a guessed id never reaches another account's rows.
 
 type Row = typeof writings.$inferSelect;
 
 export type CreateWritingResult =
   | { status: "created"; writing: Writing }
   | { status: "limit_reached" }
-  // The account was deleted after the request was signed in, so nothing may be written.
   | { status: "no_user" };
 
 export type UpdateWritingResult =
@@ -43,7 +41,7 @@ export function toWriting(row: Row): Writing {
   };
 }
 
-/** The newest WRITING_LIMITS.listed, newest first, and how many the account keeps in all. */
+/** And how many the account keeps in all. */
 export async function listWritings(
   userId: string,
   limit: number = WRITING_LIMITS.listed,
@@ -62,10 +60,8 @@ export async function listWritings(
   return { writings: rows.map(toWriting), total: stored?.n ?? rows.length };
 }
 
-/**
- * Keeps one letter or answer. Runs under the account's row lock, so parallel saves can't push an
- * account past WRITING_LIMITS.perUser, and nothing is written for a deleted account.
- */
+// Under the account's row lock, so parallel saves can't pass WRITING_LIMITS.perUser, and nothing is
+// written for a deleted account.
 export async function createWriting(
   userId: string,
   input: CreateWritingInput,
@@ -106,7 +102,7 @@ export async function createWriting(
   });
 }
 
-/** Replaces the text with the person's edit. An answer keeps its own, smaller cap. */
+/** An answer keeps its own, smaller cap. */
 export async function updateWriting(
   userId: string,
   id: string,
@@ -122,7 +118,6 @@ export async function updateWriting(
   return row ? { status: "updated", writing: toWriting(row) } : { status: "not_found" };
 }
 
-/** True when a row was deleted. */
 export async function deleteWriting(userId: string, id: string): Promise<boolean> {
   const db = await getDb();
   const rows = await db

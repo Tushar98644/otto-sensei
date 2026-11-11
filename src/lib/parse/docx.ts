@@ -15,9 +15,8 @@ import {
 import { countIconGlyphs, countWords, hasReadableText, toLines } from "./text";
 import { ParseError, type Extraction } from "./types";
 
-// A .docx is a zip, and a 4 MB zip can inflate to gigabytes. Every part we (or mammoth) read is
-// inflated through a byte counter with these caps. Real resumes use well under 1 MB of XML, and
-// this path has no deadline, so the caps also bound how long mammoth can hold the server.
+// A 4 MB zip can inflate to gigabytes, so every part is inflated through a byte counter. This path
+// has no deadline, so the caps also bound how long mammoth can hold the server.
 const MAX_ENTRIES = 1_000;
 const MAX_PART_BYTES = 2 * 1024 * 1024;
 const MAX_TOTAL_XML_BYTES = 5 * 1024 * 1024;
@@ -31,10 +30,7 @@ const XML_PART = /\.(?:xml|rels)$/i;
 const unreadable = () =>
   new ParseError("corrupt", "We couldn't read that Word file. Try saving it again, or upload a PDF instead.");
 
-/**
- * Body text comes from mammoth, which (like many applicant tracking systems) reads the document
- * body and ignores headers and footers. Layout signals come from the package XML.
- */
+// Body text from mammoth, which (like many ATSs) ignores headers and footers; layout from the XML.
 export async function extractDocx(data: Uint8Array): Promise<Extraction> {
   const parts = await readXmlParts(data);
   const documentXml = parts.get(DOCUMENT_PART);
@@ -91,8 +87,7 @@ async function readXmlParts(data: Uint8Array): Promise<Map<string, string>> {
   for (const file of files) {
     if (file.dir || !XML_PART.test(file.name)) continue;
     const xml = decodeXml(await inflateBounded(file, budget));
-    // Word never writes these. A broken part is left out, so neither mammoth nor our own readers
-    // ever see it; only the body is one the text can't do without.
+    // Word never writes these. A broken part is left out; only a broken body fails the read.
     if (hasBrokenTags(xml)) {
       broken += 1;
       if (file.name === DOCUMENT_PART) {
@@ -157,8 +152,8 @@ function decodeXml(bytes: Uint8Array): string {
   return new TextDecoder("utf-8").decode(bytes);
 }
 
-// mammoth gets a rebuilt package holding only the size-checked XML parts, so it can't be made to
-// inflate anything we haven't measured, with soft line breaks turned into real ones.
+// A rebuilt package of only size-checked parts, so mammoth can't inflate anything we haven't
+// measured.
 async function readBodyText(parts: ReadonlyMap<string, string>): Promise<string> {
   try {
     const clean = new JSZip();

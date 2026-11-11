@@ -1,8 +1,7 @@
 import { bigint, integer, pgSchema, text, uuid } from "drizzle-orm/pg-core";
 
-// Server-only. Tables that exist only in the local development database (src/db/local.ts) and the
-// test database, never in Supabase: a stand-in for Supabase's auth.users (the migrations' foreign
-// key points at it), and the dev-mode sign-in codes and sessions (src/lib/auth/dev.ts).
+// Tables only in the local and test databases: a stand-in for Supabase's auth.users (the
+// migrations' foreign key points at it), and dev sign-in codes and sessions.
 
 export const LOCAL_ONLY_DDL = `
   create schema if not exists auth;

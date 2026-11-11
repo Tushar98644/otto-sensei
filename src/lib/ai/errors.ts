@@ -5,8 +5,7 @@ import { AIError } from "./types";
 // Safe to log: which feature called which model. Never prompt text or resume content.
 export type AICallFields = { task: string; model: string };
 
-// OpenRouter's error body. It arrives with an HTTP error status, or inside a 200 when the
-// provider failed after the status line was sent.
+// Arrives with an error status, or inside a 200 when the provider failed after the status line.
 export const ErrorBodySchema = z.object({
   code: z.union([z.number(), z.string()]).optional(),
   message: z.string().optional(),
@@ -15,25 +14,20 @@ export const ErrorBodySchema = z.object({
 
 export type ErrorBody = z.infer<typeof ErrorBodySchema>;
 
-// `status` is set for failures OpenRouter reported, so the caller can tell a routing setup that
-// can never work (503 on every attempt) from a blip.
+// Lets the caller tell a routing setup that can never work (503 every attempt) from a blip.
 export type CallFailure = { error: AIError; retryable: boolean; status?: number };
 
 function text(value: unknown): string | null {
   return typeof value === "string" ? value : null;
 }
 
-// Moderation metadata also echoes the flagged input, which is resume text, so only the reason
-// categories are ever logged.
+// Moderation metadata echoes the flagged resume text, so only the reason categories are logged.
 function moderationReasons(body: ErrorBody | null): string[] | null {
   const reasons = body?.metadata?.reasons;
   return Array.isArray(reasons) ? reasons.filter((reason) => typeof reason === "string") : null;
 }
 
-/**
- * Maps an OpenRouter error status (or the code inside a 200 error body) to an AIError, and says
- * whether another attempt could succeed.
- */
+// status may also be the code inside a 200 error body.
 export function statusFailure(
   status: number,
   body: ErrorBody | null,
@@ -63,8 +57,7 @@ export function statusFailure(
     return fail(new AIError("unavailable", "OpenRouter rejected the API key"), false);
   }
   if (status === 402) {
-    // New and low-balance accounts get a cap on spend in flight, checked against max_tokens. It
-    // clears as running calls finish, and the response says when to retry.
+    // Spend-in-flight cap for new and low-balance accounts; it clears as running calls finish.
     if (text(body?.metadata?.limit_source) === "openrouter_in_flight_budget") {
       log.warn("ai.in_flight_budget", detail);
       return fail(new AIError("rate_limited", "Too many AI calls are running at once"), true);
@@ -91,8 +84,7 @@ export function statusFailure(
     log.warn("ai.request_too_large", detail);
     return fail(new AIError("too_long", "The request is too large for the AI model"), false);
   }
-  // Requests are built entirely in code, so any other 4xx is a bug here (a parameter or schema the
-  // API rejects), not something the person did.
+  // Requests are built in code, so any other 4xx is our bug, not something the person did.
   log.error("ai.bad_request", new Error("OpenRouter rejected the request"), detail);
   return fail(new AIError("invalid_output", "The AI provider rejected the request"), false);
 }
@@ -102,15 +94,14 @@ function causeCode(error: Error): string | null {
   return cause && typeof cause === "object" && "code" in cause ? text(cause.code) : null;
 }
 
-/** Maps anything fetch or body reading throws (network failure, the deadline) to an AIError. */
 export function thrownFailure(error: unknown, fields: AICallFields): CallFailure {
   if (error instanceof AIError) return { error, retryable: false };
   if (error instanceof DOMException && (error.name === "TimeoutError" || error.name === "AbortError")) {
     log.warn("ai.deadline_exceeded", fields);
     return { error: new AIError("unavailable", "The AI model took too long to answer"), retryable: false };
   }
-  // fetch() rejects with a TypeError for DNS, connection and TLS failures. Its message can quote
-  // request headers (a malformed key ends up in it), so only the cause code is logged.
+  // fetch()'s TypeError message can quote request headers (a malformed key), so only the cause is
+  // logged.
   if (error instanceof TypeError) {
     log.warn("ai.unavailable", { ...fields, status: null, cause: causeCode(error) });
     return { error: new AIError("unavailable", "Couldn't reach the AI provider"), retryable: true };

@@ -12,11 +12,8 @@ import { asResumeLine, capitalize, clipWords, oneLine, placeholdersIn, tag } fro
 import { AIError } from "./types";
 import { clichesIn, sentencesOf, upgradedVerbs } from "./writing-guards";
 
-// Server-only. Otto's help with the resume summary. "write" drafts two takes from the resume's
-// own facts; "improve" tightens the person's own summary and is shown nothing else, so there is
-// nowhere for new facts to come from. Code then checks every draft: a take that reuses too few of
-// its source's words is dropped as invented, numbers the source doesn't have become "[number]",
-// and stock phrases or stronger verbs reach the person as warnings next to the text.
+// "improve" sees only the person's own summary. Code drops takes that reuse too few source words,
+// masks unstated numbers and flags stock phrases and stronger verbs.
 
 export type SummaryInput = { mode: "write"; resume: Resume } | { mode: "improve"; summary: string };
 
@@ -25,9 +22,7 @@ export const SUMMARY_CHARS = 600;
 const MAX_SENTENCES = 3;
 // Same bound as tailoring and cover letters: resumeToText() adds headings to what was imported.
 const MAX_RESUME_CHARS = Math.round(TEXT_LIMITS.resumeChars * 1.5);
-// A summary built from the resume reuses most of its words; the rest are joining words ("who",
-// "across"). Tightening reuses even more of the person's own. Above these, the model wrote about
-// someone else, and showing nothing beats showing a made-up person.
+// Above these the model wrote about someone else; showing nothing beats showing a made-up person.
 const MAX_NOVEL_SHARE = { write: 0.4, improve: 0.3 } as const;
 
 const SUMMARY_RULES = `Ground rules:
@@ -70,9 +65,7 @@ const ImproveOutputSchema = z.object({ summary: z.string() });
 
 type Guard = {
   mode: SummaryInput["mode"];
-  // Where every word and number should come from.
   source: string;
-  // The person's own lines, for the stronger-verb check.
   lines: string[];
 };
 
@@ -122,7 +115,7 @@ function warningsFor(text: string, lines: readonly string[]): string[] {
   return warnings;
 }
 
-/** Cleans one draft and checks it against its source. Null when it can't be shown honestly. */
+/** Null when it can't be shown honestly. */
 export function finalizeOption(
   kind: SummaryOptionKind,
   raw: string,
@@ -139,8 +132,6 @@ export function finalizeOption(
   return { kind, text: masked, warnings: warningsFor(masked, guard.lines) };
 }
 
-// Demo mode (no API key): takes stitched from the resume's own lines, so the flow works locally
-// and still never says anything the resume doesn't.
 function asSentence(text: string): string {
   const line = capitalize(text.trim());
   return /[.!?]$/.test(line) ? line : `${line}.`;
@@ -186,8 +177,7 @@ export function demoImprove(summary: string): SummaryOption {
 }
 
 async function write(resume: Resume): Promise<SummaryResult> {
-  // The studio only offers this once the resume has something to summarize; a direct caller
-  // asking without facts gets nothing back instead of a model call that could only invent.
+  // A caller asking without facts gets nothing, not a model call that could only invent.
   if (!hasFacts(resume)) return { options: [] };
   const text = factsText(resume);
   if (text.length > MAX_RESUME_CHARS) {
@@ -199,7 +189,6 @@ async function write(resume: Resume): Promise<SummaryResult> {
   const redactor = redactorFor(resume);
   const output = redactor.restoreDeep(
     await runStructured({
-      // Metered and capped as a line fix: one short piece of writing.
       task: "fix",
       system: WRITE_SUMMARY_PROMPT,
       user: [
@@ -216,7 +205,6 @@ async function write(resume: Resume): Promise<SummaryResult> {
     finalizeOption("achievements", output.achievements, guard),
     finalizeOption("role", output.role, guard),
   ].filter((option): option is SummaryOption => option !== null);
-  // Two takes that came back word for word the same are one take.
   const unique = options.filter(
     (option, index) => options.findIndex((other) => other.text === option.text) === index,
   );
@@ -251,13 +239,7 @@ async function improve(summary: string): Promise<SummaryResult> {
   return { options: [option] };
 }
 
-/**
- * "write": up to 2 takes (achievements-led, role-led) from the resume's facts, none when it has
- * nothing to summarize yet. "improve": the person's summary, tightened. Nothing is applied here:
- * the studio shows the options and the person picks. Without an API key returns demo takes built
- * from the resume's own lines. Throws AIError on refusal, outage, too-long input, or output that
- * drifted from its source.
- */
+// Nothing is applied here: the studio shows the options and the person picks.
 export async function writeSummary(input: SummaryInput): Promise<SummaryResult> {
   return input.mode === "write" ? write(input.resume) : improve(input.summary);
 }

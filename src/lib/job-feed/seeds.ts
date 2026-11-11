@@ -1,12 +1,7 @@
 import type { BoardSeed } from "./types";
 
-// The companies whose public job boards the daily ingest reads (JOB-SOURCES.md). Each token was
-// checked against its board API on 2026-11-08 (the first 323, mostly tech companies) or
-// 2026-11-10 (the rest, chosen for non-tech roles) and had open jobs. Boards that later disappear
-// are skipped after repeated 404s and their jobs closed, so a stale entry costs one request a day.
-// Left out on purpose: boards of mostly on-site manufacturing roles that need US citizenship
-// (SpaceX, Anduril, Rocket Lab, Relativity Space, Lucid Motors, and on 2026-11-10 Varda, Archer,
-// Astranis, Divergent, Machina Labs), which would crowd out the rest.
+// Boards that disappear are skipped after repeated 404s. Left out: mostly on-site manufacturing
+// boards needing US citizenship (SpaceX, Anduril…), which would crowd out the rest.
 
 export const BOARD_SEEDS: readonly BoardSeed[] = [
   { ats: "greenhouse", token: "abnormalsecurity", company: "Abnormal Security" },
@@ -332,11 +327,7 @@ export const BOARD_SEEDS: readonly BoardSeed[] = [
   { ats: "ashby", token: "zapier", company: "Zapier" },
   { ats: "ashby", token: "zed", company: "Zed" },
   { ats: "ashby", token: "zilch", company: "Zilch" },
-  // 2026-11-10: healthcare, finance and insurance, retail, food, logistics, education, media,
-  // nonprofits, hospitality, energy and staffing employers, where at least 5 open jobs were
-  // support, sales, operations, marketing, finance, people, legal, design, product or data roles
-  // (roles.ts), or 10+ were roles outside those kinds at a non-tech employer (nurses, teachers,
-  // store and warehouse staff). Names checked against each board.
+  // Non-tech employers with 5+ open office roles (roles.ts) or 10+ frontline ones.
   { ats: "greenhouse", token: "achievementfirst", company: "Achievement First" },
   { ats: "greenhouse", token: "aclu", company: "ACLU" },
   { ats: "greenhouse", token: "agilityrobotics", company: "Agility Robotics" },
@@ -601,8 +592,8 @@ export const BOARD_SEEDS: readonly BoardSeed[] = [
   { ats: "lever", token: "cfsenergy", company: "Commonwealth Fusion Systems" },
   { ats: "lever", token: "dexterity", company: "Dexterity" },
   { ats: "lever", token: "sila", company: "Sila Services" },
-  // Workable: employers found through Workable's public job search (discovery only) and read
-  // through the documented per-account endpoint; staffing agencies and aggregators left out.
+  // Workable employers found through its public job search; staffing agencies and aggregators left
+  // out.
   { ats: "workable", token: "aviso", company: "Aviso Wealth" },
   { ats: "workable", token: "banana-moon-day-nurseries", company: "Banana Moon Day Nurseries" },
   { ats: "workable", token: "biffa", company: "Biffa" },

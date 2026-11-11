@@ -11,8 +11,7 @@ import {
 } from "./time";
 import type { EligibilityFinding, EligibilityRule, EligibilityVerdict, ProfileGap } from "./types";
 
-// Client-safe and pure. Turns one rule a post sets into a verdict for this person, with a note in
-// plain words. check.ts decides which rules a post sets.
+// check.ts decides which rules a post sets.
 
 export type Source = "post" | "location";
 export type Unit = { text: string; quote: string };
@@ -27,16 +26,12 @@ export type Context = {
   onSite: boolean;
   // Set when the job is remote and open where the person lives, e.g. "Nigeria".
   worksFromHome?: string;
-  // Regions where a public register lists the company as sponsoring workers (job-feed/visa.ts).
   sponsorRegions?: readonly WorkRegion[];
 };
 
 export type CheckOptions = {
-  // Offsets (daylight saving) are taken on this day.
   now: number;
-  // Used for time zone rules when the profile has no time zone.
   deviceTimeZone?: string;
-  // Regions where a public register lists the company as a visa sponsor (UK register, USCIS).
   sponsorRegions?: readonly WorkRegion[];
 };
 

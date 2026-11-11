@@ -21,17 +21,13 @@ import type {
   TemplateIdSchema,
 } from "./validation";
 
-// The one shape every part of the app agrees on. Client-safe: no server imports, and no zod (the
-// schemas that check it, with the length caps a PUT to /api/resumes is held to, are in
-// ./validation).
+// Client-safe: no server imports and no zod (the schemas are in ./validation).
 
 // A 250-word letter is about 1,700 characters; the rest is room for the person's own edits.
 export const COVER_LETTER_CHARS = 5_000;
-// The same cap /api/tailor puts on a job post (TEXT_LIMITS.jobPostChars), so any post that could be
-// tailored to fits on its copy.
+// The same cap /api/tailor puts on a job post, so any tailored post fits on its copy.
 export const JOB_TEXT_CHARS = 20_000;
 export const MAX_SAVED_REQUIREMENTS = 40;
-// One saved requirement: its words, and up to `terms` names a screener searches for.
 export const SAVED_REQUIREMENT_LIMITS = { textChars: 300, terms: 8, termChars: 100 } as const;
 
 export const SECTION_KEYS = [
@@ -55,8 +51,7 @@ export const SECTION_LABELS: Record<SectionKey, string> = {
 
 export const DEFAULT_SECTION_ORDER: SectionKey[] = [...SECTION_KEYS];
 
-// Sections beyond the standard six. They aren't in `sectionOrder`: they print after the ordered
-// sections, in array order.
+// Not in `sectionOrder`: they print after the ordered sections, in array order.
 export const EXTRA_KINDS = [
   "languages",
   "awards",
@@ -86,8 +81,7 @@ export type DesignAccent = (typeof DESIGN_ACCENTS)[number];
 export type DesignFont = (typeof DESIGN_FONTS)[number];
 export type DesignDensity = (typeof DESIGN_DENSITIES)[number];
 
-// PDF formats (src/lib/pdf/templates.ts has their names). All are one column of real text, so the
-// choice changes only how the page looks, never what hiring software can read.
+// All are one column of real text, so the choice never changes what hiring software can read.
 export const TEMPLATE_IDS = [
   "classic",
   "modern",
@@ -188,8 +182,6 @@ export function newExtraItem(): ExtraItem {
 }
 
 export function newExtraSection(kind: ExtraKind): ExtraSection {
-  // "Custom section" names the menu choice; on the page it starts as a heading that reads well
-  // until the person renames it.
   const title = kind === "custom" ? "Additional information" : EXTRA_KIND_LABELS[kind];
   return { id: newId(), kind, title, items: [newExtraItem()] };
 }

@@ -1,9 +1,8 @@
 import { decodeEntities, htmlToText } from "./html";
 import { toTime } from "./posting";
 
-// Server-only. Reads the schema.org JobPosting that job pages publish for search engines. The
-// shape varies a lot between sites (strings or objects, one value or a list, @graph wrappers), so
-// every field is read defensively.
+// The shape varies a lot between sites (strings or objects, lists, @graph wrappers), so every field
+// is read defensively.
 
 type JsonObject = Record<string, unknown>;
 
@@ -19,7 +18,6 @@ export type JsonLdJob = {
 
 const MAX_DEPTH = 6;
 const MAX_ITEMS = 50;
-// Extra sections some sites keep out of the description.
 const SECTIONS: readonly (readonly [string, string])[] = [
   ["responsibilities", "Responsibilities"],
   ["qualifications", "Qualifications"],
@@ -75,7 +73,7 @@ function findJobNode(value: unknown, depth = 0): JsonObject | null {
   return null;
 }
 
-/** Description text that may be HTML, HTML escaped once more, or plain text. */
+/** May be HTML, HTML escaped once more, or plain text. */
 export function descriptionText(value: string): string {
   const html = !/<[a-z]/i.test(value) && /&lt;[a-z/]/i.test(value) ? decodeEntities(value) : value;
   if (/<\/?[a-z][a-z0-9]*[\s>/]/i.test(html)) return htmlToText(html);
@@ -154,7 +152,6 @@ function parseBlock(block: string): unknown {
   }
 }
 
-/** The first JobPosting in a page's JSON-LD blocks, or null. */
 export function findJsonLdJob(blocks: readonly string[]): JsonLdJob | null {
   for (const block of blocks) {
     const node = findJobNode(parseBlock(block));

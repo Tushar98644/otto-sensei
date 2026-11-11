@@ -1,5 +1,3 @@
-// Client-safe. Invite links: who may earn what, the code format, and the invite cookie.
-
 import type { AllowancePeriod } from "@/config/plans";
 
 export const REFERRAL_STATUSES = ["pending", "rewarded", "capped", "blocked"] as const;
@@ -8,9 +6,7 @@ export type ReferralStatus = (typeof REFERRAL_STATUSES)[number];
 export const REFERRAL_BLOCK_REASONS = ["same_device", "same_person"] as const;
 export type ReferralBlockReason = (typeof REFERRAL_BLOCK_REASONS)[number];
 
-// What a friend's first resume check adds for each of you, in the allowance period it happens in
-// (the month, or a weekly subscriber's billing week). Line fixes and tailoring are model calls, so
-// the reward stays small and the cap below bounds it.
+// Line fixes and tailoring are model calls, so the reward stays small and the cap bounds it.
 export const REFERRAL_BONUS = { fix: 10, tailor: 2 } as const;
 export type BonusFeature = keyof typeof REFERRAL_BONUS;
 export const BONUS_FEATURES = Object.keys(REFERRAL_BONUS) as BonusFeature[];
@@ -18,8 +14,7 @@ export const BONUS_FEATURES = Object.keys(REFERRAL_BONUS) as BonusFeature[];
 // Friends past this still get their own bonus; the inviter stops earning.
 export const MAX_REWARDED_REFERRALS = 20;
 
-// An account can be credited to an invite only this soon after it was made, so an existing
-// account can't pick up an invite later by opening someone's link.
+// So an existing account can't pick up an invite later by opening someone's link.
 export const CLAIM_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
 
 // No 0, 1, i, l or o: codes get read aloud and typed from screenshots.
@@ -58,8 +53,7 @@ export function invitePath(code: string): string {
 export const REF_COOKIE = "otto_ref";
 export const REF_COOKIE_MAX_AGE_S = 30 * 24 * 60 * 60;
 
-// landed: opened an invite link. checked: ran a resume check before signing up. joined: the new
-// account is linked to the invite and waits for its first check.
+// joined: linked to the invite, waiting for its first check.
 export type RefStage = "landed" | "checked" | "joined";
 export type RefCookie = { code: string; stage: RefStage };
 
@@ -79,9 +73,7 @@ export function parseRefCookie(value: string | null | undefined): RefCookie | nu
   return null;
 }
 
-// What a claim did. pending: linked, waiting for a check. rewarded: both bonuses added. already:
-// this account was linked before. existing_account: too old to count as invited. self, blocked,
-// unknown_code: nothing happened and nothing will.
+// pending: linked, waiting for a check. existing_account: too old to count as invited.
 export type ReferralClaimOutcome =
   | "none"
   | "pending"
@@ -94,17 +86,14 @@ export type ReferralClaimOutcome =
 
 export type ReferralSummary = {
   code: string;
-  // Full invite link on the public site.
   url: string;
-  // Friends who signed up through the link, and how many of them checked a resume.
   joined: number;
   checked: number;
-  // Checks that earned the inviter a bonus, at most maxRewarded.
+  // At most maxRewarded.
   rewarded: number;
   maxRewarded: number;
   perFriend: typeof REFERRAL_BONUS;
-  // Extra units on this account in its current allowance period (a month, or a weekly
-  // subscriber's billing week), from inviting or being invited.
+  // From inviting or being invited, in the current allowance period.
   thisPeriod: Record<BonusFeature, number>;
   period: AllowancePeriod;
 };

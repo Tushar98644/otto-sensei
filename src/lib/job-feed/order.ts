@@ -2,42 +2,31 @@ import type { PlaceFit } from "./looking-for";
 import { SENIORITY_RANK } from "./roles";
 import type { JobMatch, MatchLabel, Seniority } from "./types";
 
-// Client-safe and pure. The order Matches come in: label first (the rule-based guardrail), then
-// how much of what the post asks for the resume covers, weighted so rare skills count more, with
-// a small nudge for new posts. Nothing here is ever shown: the card states only the label and
-// "Found: … Not found: …".
+// Label first, then skill coverage (rare skills count more), plus a nudge for new posts. Never
+// shown.
 
 const DAY_MS = 24 * 60 * 60 * 1_000;
 const LABEL_ORDER: Record<MatchLabel, number> = { strong: 0, good: 1, stretch: 2 };
 
 export const ORDER_LIMITS = {
-  // At most this many cards from one company per page, and never two in a row while another
-  // company's job is left to show.
+  // Per page, and never two in a row while another company's job is left.
   perCompany: 3,
   window: 20,
-  // The same kind of role as the resume counts like one or two common shared skills, so a sales
-  // or support resume that names few tools still reaches its own kind of job.
+  // Counts like one or two shared skills, so a resume naming few tools still reaches its kind of
+  // job.
   familyWeight: 2,
-  // Level in the order (MATCHING-RESEARCH.md, Round 2 (e): same level 54% graded good, one up
-  // 43%, two up 24%). Two or more steps away leaves Matches unless nothing nearer is left.
+  // Same level graded good 54% of the time, one up 43%, two up 24%.
   oneUp: 0.85,
   oneDown: 0.9,
   farLevel: 0.5,
-  // The role looked for, word for word in the job title ("Product Manager").
   titleFit: 1.1,
-  // An occupation that usually needs more preparation than the person's (zoneFactor).
   oneZoneUp: 0.9,
   farZone: 0.6,
-  // A place the "Looking for" card names, and one it rules out (also ordered a label lower).
   placeMatch: 1.15,
   placeMiss: 0.6,
 } as const;
 
-/**
- * How closely the post lines up with the resume: the weight of the skills found, scaled by the
- * share of the post's own (weighted) skills they cover, plus a bit for the same kind of role.
- * `weight` is a skill's ln(open jobs / jobs naming it) from job_skills.
- */
+// `weight` is a skill's ln(open jobs / jobs naming it) from job_skills.
 export function closeness(
   match: Pick<JobMatch, "found">,
   keywords: readonly string[],
@@ -52,7 +41,7 @@ export function closeness(
   return found * (0.5 + 0.5 * coverage) + ORDER_LIMITS.familyWeight * kind;
 }
 
-/** Steps from the person's level to the job's: 1 is one level up, -1 one down. 0 when unknown. */
+/** 1 is one level up, -1 one down. 0 when unknown. */
 export function levelGap(person: Seniority | null, job: Seniority): number {
   return person === null ? 0 : SENIORITY_RANK[job] - SENIORITY_RANK[person];
 }
@@ -64,10 +53,7 @@ export function levelFactor(gap: number): number {
   return ORDER_LIMITS.farLevel;
 }
 
-/**
- * Another occupation that usually needs more preparation (O*NET Job Zones, 1 little to 5
- * extensive): one zone up a little lower, two or more well down. The same occupation never.
- */
+// One zone up ranks a little lower, two or more well down. The same occupation never.
 export function zoneFactor(
   person: { occupation: string | null; zone: number | null },
   job: { occupation?: string | null; zone?: number | null },
@@ -85,11 +71,7 @@ export function placeFactor(fit: PlaceFit): number {
   return 1;
 }
 
-/**
- * New posts get fewer applicants, so they rise a little; never enough for a weak match to pass a
- * close one. `seenAt` is the earlier of the posting date and when the ingest first saw it, since
- * some boards move the posting date on every edit.
- */
+// `seenAt`: the earlier of posting date and first ingest, since some boards bump the date on edit.
 export function freshness(seenAt: number, now: number): number {
   const age = now - seenAt;
   if (age <= 7 * DAY_MS) return 1;
@@ -122,12 +104,7 @@ export function compareRanked(a: Ranked, b: Ranked): number {
 
 const companyOf = (item: { company: string }) => item.company.trim().toLowerCase();
 
-/**
- * Reorders a best-first list so each page of `window` has at most `perCompany` jobs from one
- * company and no company twice in a row. A greedy pass: each slot takes the best job that keeps
- * both rules; when none does, the rules give way in that order, so a page is never left short.
- * Jobs pushed back keep their order and lead the next page.
- */
+// Greedy. When no job keeps both rules they give way in that order, so a page is never short.
 export function capPerCompany<T extends { company: string }>(
   items: readonly T[],
   { perCompany = ORDER_LIMITS.perCompany, window = ORDER_LIMITS.window } = {},

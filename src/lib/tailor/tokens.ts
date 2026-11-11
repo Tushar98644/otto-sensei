@@ -1,12 +1,12 @@
 import { AMBIGUOUS_WORDS, PHRASE_ALIASES, TOKEN_ALIASES } from "./aliases";
 
-// Turns job keywords and resume text into the same canonical token stream, keeping each token's
-// position in the original text so matches can quote it.
+// Job keywords and resume text in the same token stream, each token keeping its position for
+// quotes.
 
 export type Token = {
   // Canonical form used for comparison: "nodejs", "api", "c++", ".net".
   value: string;
-  // Source span in the original text. Tokens expanded from one alias ("AWS") share a span.
+  // Tokens expanded from one alias ("AWS") share a span.
   start: number;
   end: number;
   // Only spaces, hyphens or slashes separate it from the previous token, so a multi-word term
@@ -67,8 +67,7 @@ function words(input: string): Word[] {
   return out;
 }
 
-// Plural rule, applied the same way to keywords and resume text, so the result only has to be
-// consistent, not good English: "APIs" -> "api", "libraries" -> "library", "classes" -> "class".
+// Applied to keywords and text alike, so it only has to be consistent: "APIs" -> "api".
 function singularize(word: string, original: string): string {
   if (/^\p{Lu}[\p{Lu}\p{N}]+s$/u.test(original)) return word.slice(0, -1);
   if (word.length < 4 || !/^\p{L}+$/u.test(word)) return word;

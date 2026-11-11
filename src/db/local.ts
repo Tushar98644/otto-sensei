@@ -7,12 +7,10 @@ import { LOCAL_ONLY_DDL } from "./local-schema";
 import { MIGRATION_HISTORY_DDL, readMigrations } from "./migration-files";
 import * as schema from "./schema";
 
-// Development only, loaded by getDb() through a dynamic import that production builds drop. A real
-// Postgres in a folder (.pglite/, git-ignored), so `bun dev` needs no database server or keys.
-// Delete the folder to start over.
+// Development only: a real Postgres in .pglite/ (git-ignored), so `bun dev` needs no database
+// server. Delete the folder to start over.
 
-// OTTO_PGLITE_DIR points a script at another folder (the match test set's own copy, say), since
-// only one process may open a folder and `bun dev` may hold .pglite/.
+// Lets a script use another folder: only one process may open one, and `bun dev` may hold .pglite/.
 const DATA_DIR = process.env.OTTO_PGLITE_DIR?.trim() || path.join(process.cwd(), ".pglite");
 
 // Here Supabase isn't creating the auth user before our users row, so the row brings its own.

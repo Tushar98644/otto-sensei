@@ -1,9 +1,7 @@
 import { findTerm } from "./keywords";
 
-// Client-safe. Short forms and their spelled-out names, across fields. A recruiter's keyword search
-// (Greenhouse and Workday let them search resumes by keyword) finds only the form typed, so career
-// offices and Jobscan say to write both once: "go-to-market (GTM)". Kept short, sorted and checked
-// by hand; the matcher's own aliases (AWS, ML, UX…) already count either form as a match.
+// Keyword searches find only the form typed, so write both once: "go-to-market (GTM)". The
+// matcher's own aliases (AWS, ML, UX…) already count either form as a match.
 
 export const ACRONYMS: readonly (readonly [short: string, long: string])[] = [
   ["ACLS", "advanced cardiac life support"],
@@ -57,18 +55,12 @@ const BY_FORM = new Map<string, readonly [string, string]>(
 );
 
 export type OtherForm = {
-  // The form the post uses, and the one the resume has instead.
   asked: string;
   written: string;
-  // How to write it once with both: "go-to-market (GTM)".
   both: string;
 };
 
-/**
- * When the post names `term` one way and the resume only the other way ("GTM" against
- * "Go-to-market"), the pair to write once. Null when the term isn't in the table, the resume
- * already has the post's form, or it has neither.
- */
+// Null when the term isn't in the table, the resume has the post's form, or it has neither.
 export function otherForm(term: string, resumeText: string): OtherForm | null {
   const pair = BY_FORM.get(term.trim().toLowerCase());
   if (!pair) return null;

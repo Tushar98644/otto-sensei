@@ -1,18 +1,13 @@
 import type { PdfPageSize } from "./page-size";
 import { toPdfLine } from "./text";
 
-// Pure helpers for the cover letter PDF, react-pdf free so they can be tested and shared.
-
-/**
- * The letter as blocks of lines: a blank line starts a new block (a paragraph), a single line
- * break stays a break inside one ("Best regards,\nSam Rivera"). Characters the PDF font can't draw
- * are swapped or dropped, the same way as on the resume.
- */
+// A blank line starts a paragraph; a single break stays inside one ("Best regards,\nSam Rivera").
+// Characters the PDF font can't draw are swapped or dropped, as on the resume.
 export function letterBlocks(text: string, lost?: Set<string>): string[][] {
   return splitLetter(text, (line) => toPdfLine(line, lost));
 }
 
-/** The same blocks with every character kept, for the Word file, whose fonts draw them all. */
+/** Every character kept: Word's fonts draw them all. */
 export function letterParagraphs(text: string): string[][] {
   return splitLetter(text, (line) => line.trim());
 }
@@ -29,8 +24,7 @@ function splitLetter(text: string, clean: (line: string) => string): string[][] 
     .filter((block) => block.length > 0);
 }
 
-// US Letter readers write "November 7, 2026"; A4 is used almost everywhere else, where the day
-// comes first.
+// US Letter readers write "November 7, 2026"; A4 regions put the day first.
 export function letterDate(now: number, pageSize: PdfPageSize): string {
   return new Date(now).toLocaleDateString(pageSize === "LETTER" ? "en-US" : "en-GB", {
     day: "numeric",
@@ -39,7 +33,6 @@ export function letterDate(now: number, pageSize: PdfPageSize): string {
   });
 }
 
-// "Sam-Rivera-Kestrel-Labs-Cover-Letter.pdf", alongside suggestedFileName()'s resume name.
 export function letterFileName(name: string, company: string): string {
   const part = (value: string) =>
     value

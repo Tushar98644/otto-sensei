@@ -1,26 +1,18 @@
 import { isPlausible } from "@/lib/tailor/keywords";
 import { termTokens, textTokens } from "@/lib/tailor/tokens";
 
-// Client-safe and deterministic. The tools and skills a job post names, found by rules in its
-// text, and the same rules run over a resume in the browser, so "Found in your resume: React"
-// always means the word is there. Built on the tailor matcher's tokens: "front-end" = "frontend",
-// "Node JS" = "Node.js", "K8s" = "Kubernetes", "AWS" = "Amazon Web Services".
-//
-// Only concrete, checkable names are listed. Broad words ("communication", "APIs", "cloud", "AI")
-// would match every post and say nothing.
+// The same rules run on the resume in the browser, so "Found: React" always means the word is
+// there.
 
 type Skill = {
   label: string;
-  // Other spellings that mean the same skill.
   forms?: readonly string[];
   // Everyday words in lowercase ("react", "rust", "excel at"): only the capitalized spelling
   // counts. "exact": only exactly as written ("REST", "SAS").
   cased?: "capital" | "exact";
-  // Names that are also plain English or a place even when capitalized (MATCHING-RESEARCH.md,
-  // Round 2: 330 non-engineering posts carried "Go" from "Go To Market" and "Go deep").
-  // "tech": the label counts only next to other tech, in a "Skills:" list or beside words like
-  // "in", "developer" or "code"; its other spellings ("Golang", "PySpark") always count.
-  // "word": counts unless it opens a sentence as a verb ("Excel at", "React to").
+  // Names that are also plain English. "tech": counts only near other tech or words like
+  // "developer"; other spellings ("Golang") always count. "word": not when it opens a sentence as a
+  // verb.
   context?: "tech" | "word";
 };
 
@@ -250,7 +242,6 @@ const VOCABULARY: readonly Skill[] = [
 
 export const SKILL_LABELS: ReadonlySet<string> = new Set(VOCABULARY.map((skill) => skill.label));
 
-/** Skills that count only in context ("Go", "R", "Spark", "Excel"), for checks and the eval. */
 export const CONTEXT_SKILLS: readonly string[] = VOCABULARY.filter((skill) => skill.context).map(
   (skill) => skill.label,
 );
@@ -291,8 +282,7 @@ function casedOk(span: string, entry: Entry): boolean {
 
 type Hit = { entry: Entry; start: number; end: number };
 
-// What may sit between two names of one list: "Go, Rust", "Python/R", "C and C++", "Go (Golang)".
-// One name the vocabulary doesn't know may sit between: "MySQL, Aurora, Cassandra".
+// "Go, Rust", "Python/R", "C and C++"; one unknown name may sit between.
 const LIST_GAP =
   /^[\s,;/&|+()·•]*(?:\p{Lu}[\p{L}\p{N}.+#-]*[\s,;/&|+()]+)?(?:(?:and|or|plus|as well as)[\s,;/&|+()]*){0,2}$/iu;
 const MAX_LIST_GAP = 24;
@@ -310,7 +300,6 @@ const NOT_TECH_BEFORE = /\b(?:on the|let it|let's|series|vitamin|plan|grade|clas
 const VERB_NEXT = /^\s+(?:to|at|in|quickly|fast|swiftly|under|beyond|across|upon)\b/;
 const SENTENCE_START = /(?:^|[.!?:;•*\n]|\s[-–—])\s*$/;
 
-/** Whether one hit means the skill, from its spelling and the words around it. */
 function inContext(text: string, hits: readonly Hit[], index: number): boolean {
   const hit = hits[index]!;
   const { entry, start, end } = hit;
@@ -340,11 +329,9 @@ function inContext(text: string, hits: readonly Hit[], index: number): boolean {
   );
 }
 
-/** Labels of the vocabulary's skills found in `text`, in the order they first appear. */
 export function findSkills(text: string, max = Number.POSITIVE_INFINITY): string[] {
   const tokens = textTokens(text);
-  // Every place a name appears, so one in plain English ("Go deep") doesn't hide a later one that
-  // is the technology ("written in Go"), and each can be judged by its neighbours.
+  // Every place a name appears, so "Go deep" doesn't hide a later "written in Go".
   const hits: Hit[] = [];
   for (let i = 0; i < tokens.length; i++) {
     const first = tokens[i]!;
@@ -375,7 +362,7 @@ export function findSkills(text: string, max = Number.POSITIVE_INFINITY): string
   return [...found];
 }
 
-/** Keeps only labels this vocabulary knows, without repeats: what a browser sends is checked. */
+/** What a browser sends is checked. */
 export function knownSkills(labels: readonly string[]): string[] {
   return [...new Set(labels.filter((label) => SKILL_LABELS.has(label)))];
 }

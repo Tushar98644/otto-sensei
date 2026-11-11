@@ -36,20 +36,17 @@ import type { Resume } from "@/lib/resume/schema";
 import { SETUP_STEP_OUTCOMES } from "@/lib/setup/types";
 import { WRITING_KINDS } from "@/lib/writings/schema";
 
-// Mirrors supabase/migrations, which create these tables (with their foreign keys and RLS). Change
-// both together: a new migration file for the database, then the matching columns here.
-// Timestamps are epoch milliseconds as bigint, read back as JS numbers.
+// Mirrors supabase/migrations, which also own foreign keys and RLS: change both together.
+// Timestamps are epoch ms as bigint, read back as JS numbers.
 
 const epochMs = (name: string) => bigint(name, { mode: "number" });
 
-// One row per Supabase Auth user, same id. Created on the first signed-in request; deleting the
-// auth user cascades here and, through the foreign keys below, to everything the account owns.
+// Same id as the Supabase Auth user; deleting it cascades to everything the account owns.
 export const users = pgTable(
   "users",
   {
     id: uuid("id").primaryKey(),
-    // A copy of the auth user's address, kept in sync on sign-in. Not unique: auth.users owns
-    // uniqueness, and a stale copy must never block someone else's sign-in.
+    // Not unique: auth.users owns uniqueness, and a stale copy must never block a sign-in.
     email: text("email").notNull(),
     plan: text("plan", { enum: ["free", "pro", "max"] })
       .notNull()
@@ -57,13 +54,9 @@ export const users = pgTable(
     // Provider subscription status as last reported by a webhook, e.g. "active", "trialing", "canceled".
     planStatus: text("plan_status"),
     planRenewsAt: epochMs("plan_renews_at"),
-    // How often the paid plan bills; null on Free (20261108000900_plan_interval.sql).
     planInterval: text("plan_interval", { enum: ["month", "year", "week"] }),
-    // When the Pro trial ends, while the subscription is on it; null otherwise
-    // (20261108004000_pro_trial.sql).
     trialEndsAt: epochMs("trial_ends_at"),
-    // The subscription's current billing period from Creem, which the AI allowance counts in;
-    // null on Free and on rows from before 20261111000100_plan_period.sql.
+    // Start of Creem's current billing period, which the AI allowance counts in. Null on Free.
     planPeriodStartsAt: epochMs("plan_period_starts_at"),
     planPeriodEndsAt: epochMs("plan_period_ends_at"),
     billingCustomerId: text("billing_customer_id"),
@@ -80,10 +73,8 @@ export const users = pgTable(
   ],
 );
 
-// subject is a user id; period is "cycle:<ISO start instant>" (a monthly or yearly subscriber's
-// billing month), "YYYY-MM" (a UTC calendar month: Free, and paid rows with no billing period yet),
-// "week:<ISO end instant>" (a weekly subscriber's billing week) or "trial" (the one Pro trial,
-// src/lib/usage.ts).
+// period: "cycle:<ISO start>" (a monthly or yearly billing month), "YYYY-MM" (a UTC month: Free, or
+// no billing period yet), "week:<ISO end>" (weekly) or "trial". See src/lib/usage.ts.
 export const usage = pgTable(
   "usage",
   {
@@ -91,7 +82,7 @@ export const usage = pgTable(
     feature: text("feature").notNull(),
     period: text("period").notNull(),
     count: integer("count").notNull().default(0),
-    // Extra units from invites on top of the plan's limit (20261108000200_feedback_referrals.sql).
+    // Extra units from invites, on top of the plan's limit.
     bonus: integer("bonus").notNull().default(0),
   },
   (t) => [primaryKey({ columns: [t.subject, t.feature, t.period] })],
@@ -125,8 +116,7 @@ export const resumes = pgTable(
   (t) => [primaryKey({ columns: [t.userId, t.id] })],
 );
 
-// Resumes deleted from the cloud backup, so another device's stale copy can't bring one back.
-// Written in the same transaction that deletes the resumes row; pruned by age and count.
+// So another device's stale copy can't bring a deleted resume back. Pruned by age and count.
 export const resumeTombstones = pgTable(
   "resume_tombstones",
   {
@@ -148,8 +138,7 @@ export const billingEvents = pgTable("billing_events", {
   receivedAt: epochMs("received_at").notNull(),
 });
 
-// A Pro trial ended early by buying another plan, and whether it has been cancelled yet
-// (20261111000500_trial_replacements.sql).
+// A Pro trial ended early by buying another plan, and whether it has been cancelled yet.
 export const trialReplacements = pgTable("trial_replacements", {
   replacedSubscriptionId: text("replaced_subscription_id").primaryKey(),
   subscriptionId: text("subscription_id").notNull(),
@@ -159,8 +148,7 @@ export const trialReplacements = pgTable("trial_replacements", {
   cancelledAt: epochMs("cancelled_at"),
 });
 
-// Everyone who has trialed or paid, by email hash, so each person gets one trial. Not tied to
-// users: it outlives a deleted account (20261108004000_pro_trial.sql).
+// One trial per person, by email hash. Not tied to users: it outlives a deleted account.
 export const trialHistory = pgTable("trial_history", {
   emailHash: text("email_hash").primaryKey(),
   kind: text("kind", { enum: ["trial", "paid"] }).notNull(),
@@ -183,18 +171,13 @@ export const applications = pgTable(
     stageReached: text("stage_reached", { enum: APPLICATION_STAGES }).notNull().default("applied"),
     statusChangedAt: epochMs("status_changed_at").notNull(),
     notes: text("notes").notNull().default(""),
-    // Interview prep pack (20261108000600_application_prep.sql). Validated with InterviewPrepSchema
-    // on write and read with readPrep, which also reads v1 packs; null until one is made.
+    // Validated with InterviewPrepSchema; read with readPrep, which also reads v1 packs.
     prep: jsonb("prep").$type<InterviewPrep>(),
-    // When the daily follow-up job last reminded the user about it (20261108000300_notifications.sql).
     remindedAt: epochMs("reminded_at"),
-    // When the next follow-up reminder is due (20261108000700_follow_up_dates.sql); null for none.
     // Reminded once per date: remindedAt at or past it means that date is done.
     followUpAt: epochMs("follow_up_at"),
-    // The opening it's for, and every status it has had (20261109003000_linked_threads.sql).
     jobId: uuid("job_id"),
     statusHistory: jsonb("status_history").$type<StatusEvent[]>().notNull().default([]),
-    // When the interview is, if the person said (20261109004000_interview_dates.sql).
     interviewAt: epochMs("interview_at"),
     createdAt: epochMs("created_at").notNull(),
     updatedAt: epochMs("updated_at").notNull(),
@@ -206,7 +189,6 @@ export const applications = pgTable(
   ],
 );
 
-// One work profile per account (PUT /api/profile), read by the job post eligibility check.
 export const workProfiles = pgTable("work_profiles", {
   userId: uuid("user_id").primaryKey(),
   country: text("country").notNull().default(""),
@@ -218,10 +200,8 @@ export const workProfiles = pgTable("work_profiles", {
   workCa: text("work_ca", { enum: WORK_RIGHTS }),
   fullTime: boolean("full_time").notNull().default(true),
   contract: boolean("contract").notNull().default(true),
-  // Only remote jobs, please: the Jobs tab's default filter (20261108001000_jobs.sql).
   remoteOnly: boolean("remote_only").notNull().default(false),
-  // The Jobs tab's "Looking for" card, only the parts the person changed; null follows the
-  // resume (20261109006100_looking_for.sql).
+  // Only the "Looking for" fields the person changed; null follows the resume.
   targetTitle: text("target_title"),
   targetFamily: text("target_family", { enum: ROLE_FAMILIES }),
   targetOccupation: text("target_occupation"),
@@ -231,8 +211,6 @@ export const workProfiles = pgTable("work_profiles", {
   updatedAt: epochMs("updated_at").notNull(),
 });
 
-// What Otto tells a user in the dashboard bell (20261108000300_notifications.sql). Written by the
-// daily jobs in src/lib/cron; read and marked read through /api/notifications.
 export const notifications = pgTable(
   "notifications",
   {
@@ -252,8 +230,7 @@ export const notifications = pgTable(
   ],
 );
 
-// Reminder settings, one row per account that changed one. No row: the defaults, which are a
-// follow-up 7 days after applying and no email (20261108000700_follow_up_dates.sql).
+// No row means the defaults: a follow-up 7 days after applying, and no email.
 export const notificationSettings = pgTable("notification_settings", {
   userId: uuid("user_id").primaryKey(),
   emailReminders: boolean("email_reminders").notNull().default(false),
@@ -261,8 +238,7 @@ export const notificationSettings = pgTable("notification_settings", {
   updatedAt: epochMs("updated_at").notNull(),
 });
 
-// The first-login step and the Home "Get set up" list, one row per account that answered, skipped
-// or hid either (20261111000200_account_setup.sql). No row: neither has happened.
+// First-login step and Home "Get set up" list. No row: neither answered, skipped nor hidden.
 export const accountSetup = pgTable("account_setup", {
   userId: uuid("user_id").primaryKey(),
   stepAt: epochMs("step_at"),
@@ -272,8 +248,7 @@ export const accountSetup = pgTable("account_setup", {
   updatedAt: epochMs("updated_at").notNull(),
 });
 
-// Public share links (20261108000100_share_links.sql), read by slug on /s/<slug>. The migration
-// also keeps one live link per (user_id, resume_id). snapshot is null once the link is turned off.
+// The migration keeps one live link per (user_id, resume_id); snapshot is null once turned off.
 export const shares = pgTable(
   "shares",
   {
@@ -294,7 +269,7 @@ export const shares = pgTable(
   (t) => [index("shares_user_created_idx").on(t.userId, t.createdAt, t.id)],
 );
 
-// "Send feedback" notes (20261108000200_feedback_referrals.sql). userId is null when signed out.
+// userId is null when sent signed out.
 export const feedback = pgTable(
   "feedback",
   {
@@ -308,7 +283,7 @@ export const feedback = pgTable(
   (t) => [index("feedback_created_idx").on(t.createdAt)],
 );
 
-// Each account's invite code and the device cookies it was opened from (newest last, at most 10).
+// Device cookies the code was opened from: newest last, at most 10.
 export const referralCodes = pgTable("referral_codes", {
   userId: uuid("user_id").primaryKey(),
   code: text("code").notNull().unique(),
@@ -316,7 +291,6 @@ export const referralCodes = pgTable("referral_codes", {
   createdAt: epochMs("created_at").notNull(),
 });
 
-// One row per account that signed up through an invite (see the migration for each status).
 export const referrals = pgTable(
   "referrals",
   {
@@ -335,8 +309,7 @@ export const referrals = pgTable(
 // Postgres full-text search vector. Written with to_tsvector() in SQL, never read back by the app.
 const tsvector = customType<{ data: string }>({ dataType: () => "tsvector" });
 
-// Openings from public job boards (20261108001000_jobs.sql), written by the daily ingest in
-// src/lib/job-feed. See the migration for each column; the partial indexes live there too.
+// Column docs and the partial indexes live in 20261108001000_jobs.sql.
 export const jobs = pgTable("jobs", {
   id: uuid("id").primaryKey(),
   source: text("source", { enum: JOB_SOURCES }).notNull(),
@@ -349,7 +322,7 @@ export const jobs = pgTable("jobs", {
   employmentType: text("employment_type", { enum: EMPLOYMENT_TYPES }),
   seniority: text("seniority", { enum: SENIORITIES }).notNull().default("mid"),
   family: text("family", { enum: ROLE_FAMILIES }),
-  // O*NET-SOC code the title names (20261110000200_occupations.sql), null when it can't tell.
+  // O*NET-SOC code the title names; null when it can't tell.
   occupation: text("occupation"),
   minYears: integer("min_years"),
   postedAt: epochMs("posted_at").notNull(),
@@ -390,8 +363,7 @@ export const jobBoards = pgTable(
   (t) => [primaryKey({ columns: [t.source, t.token] })],
 );
 
-// Open jobs naming each skill and its matching weight, rewritten after each ingest run
-// (20261109001000_match_quality.sql).
+// Rewritten after each ingest run.
 export const jobSkills = pgTable("job_skills", {
   skill: text("skill").primaryKey(),
   openJobs: integer("open_jobs").notNull(),
@@ -399,8 +371,7 @@ export const jobSkills = pgTable("job_skills", {
   updatedAt: epochMs("updated_at").notNull(),
 });
 
-// Ranking's narrow copy of the jobs, rebuilt after each ingest (20261109006200_match_index.sql,
-// src/lib/job-feed/match-index.ts), with the skill ids it uses and the counts the site states.
+// Ranking's narrow copy of the jobs, rebuilt after each ingest (src/lib/job-feed/match-index.ts).
 export const matchSkills = pgTable("match_skills", {
   sid: integer("sid").primaryKey(),
   skill: text("skill").notNull(),
@@ -448,8 +419,7 @@ export const matchCache = pgTable(
   ],
 );
 
-// Companies on public visa registers, for the job card and the work-rights check
-// (20261109006300_company_visa.sql, scripts/visa-registers.ts).
+// Companies on public visa registers (scripts/visa-registers.ts).
 export const companyVisa = pgTable("company_visa", {
   companyKey: text("company_key").primaryKey(),
   ukName: text("uk_name"),
@@ -459,8 +429,7 @@ export const companyVisa = pgTable("company_visa", {
   checkedAt: epochMs("checked_at").notNull(),
 });
 
-// What the Jobs tab showed and what was done with it (20261109002000_match_events.sql). Never the
-// resume or contact details.
+// What the Jobs tab showed and what was done with it. Never the resume or contact details.
 export const matchEvents = pgTable(
   "match_events",
   {
@@ -480,7 +449,6 @@ export const matchEvents = pgTable(
   (t) => [index("match_events_created_idx").on(t.createdAt)],
 );
 
-// Jobs an account saved from the Jobs tab; cascades from users and from jobs.
 export const savedJobs = pgTable(
   "saved_jobs",
   {
@@ -494,7 +462,6 @@ export const savedJobs = pgTable(
   ],
 );
 
-// One public portfolio per account (20261108002000_portfolios.sql), read by slug on /p/<slug>.
 export const portfolios = pgTable(
   "portfolios",
   {
@@ -511,8 +478,7 @@ export const portfolios = pgTable(
     sync: boolean("sync").notNull().default(true),
     published: boolean("published").notNull().default(false),
     allowIndexing: boolean("allow_indexing").notNull().default(false),
-    // What the rich templates show beyond the resume (20261108005000_portfolio_content.sql),
-    // checked with PortfolioContentSchema on write and read.
+    // What rich templates show beyond the resume, checked with PortfolioContentSchema.
     content: jsonb("content").$type<Record<string, unknown>>().notNull().default({}),
     github: jsonb("github").$type<Record<string, unknown>>(),
     githubCheckedAt: epochMs("github_checked_at"),
@@ -537,8 +503,7 @@ export const portfolioRedirects = pgTable(
   (t) => [index("portfolio_redirects_portfolio_idx").on(t.portfolioId, t.createdAt)],
 );
 
-// Cover letters and answers to application questions an account keeps
-// (20261108007500_writings.sql). Written only through /api/writings.
+// Cover letters and application answers. Written only through /api/writings.
 export const writings = pgTable(
   "writings",
   {
@@ -554,7 +519,6 @@ export const writings = pgTable(
     body: text("body").notNull(),
     warnings: jsonb("warnings").$type<string[]>().notNull().default([]),
     demo: boolean("demo").notNull().default(false),
-    // The application it was written for (20261109003000_linked_threads.sql).
     applicationId: uuid("application_id"),
     createdAt: epochMs("created_at").notNull(),
     updatedAt: epochMs("updated_at").notNull(),

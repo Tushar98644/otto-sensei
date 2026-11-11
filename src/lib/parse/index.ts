@@ -13,22 +13,15 @@ const OLE_MAGIC = [0xd0, 0xcf, 0x11, 0xe0, 0xa1, 0xb1, 0x1a, 0xe1];
 
 const startsWith = (data: Uint8Array, magic: number[]) => magic.every((byte, i) => data[i] === byte);
 
-// Trusts the bytes, not the browser-reported MIME type or extension alone.
+// Trusts the bytes, not the browser's MIME type or extension alone.
 export function detectKind(data: Uint8Array, filename: string): FileKind | null {
   if (startsWith(data, PDF_MAGIC)) return "pdf";
   if (startsWith(data, ZIP_MAGIC) && /\.docx$/i.test(filename)) return "docx";
   return null;
 }
 
-/**
- * Extracts text and layout signals from an uploaded resume.
- *
- * - Throws ParseError("empty_file") for 0 bytes, ("too_large") above UPLOAD_LIMITS.maxBytes,
- *   ("unsupported_type") when detectKind() returns null, ("too_many_pages") above
- *   UPLOAD_LIMITS.maxPages, ("encrypted") for password-protected PDFs, ("corrupt") otherwise.
- * - Never throws for a scanned PDF: returns an Extraction with signals.hasTextLayer = false.
- * - Dispatches to extractPdf (./pdf.ts) or extractDocx (./docx.ts).
- */
+// Throws ParseError for empty, too large, unsupported, too many pages, encrypted or corrupt files.
+// Never throws for a scanned PDF: signals.hasTextLayer is false instead.
 export async function extractDocument(data: Uint8Array, filename: string): Promise<Extraction> {
   if (data.byteLength === 0) throw new ParseError("empty_file", "That file is empty.");
   if (data.byteLength > UPLOAD_LIMITS.maxBytes) {

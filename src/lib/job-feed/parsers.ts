@@ -4,9 +4,8 @@ import { descriptionText } from "@/lib/jobs/jsonld";
 import { toTime } from "@/lib/jobs/posting";
 import type { EmploymentType, Seniority } from "./types";
 
-// Server-only. Each source's JSON, as its public API returned it in November 2026, turned into one
-// shape. Every field is read defensively: a job with a field we don't understand is kept without
-// it, and only a job with no id, title or link is dropped.
+// Read defensively: an unreadable field is dropped; only a job with no id, title or link is
+// skipped.
 
 export type RawJob = {
   externalId: string;
@@ -19,9 +18,7 @@ export type RawJob = {
   postedAt: number | null;
   validThrough: number | null;
   url: string;
-  // Plain text of the post.
   text: string;
-  // Some feeds tag the level themselves.
   seniority?: Seniority | null;
 };
 
@@ -209,8 +206,8 @@ export function parseAshby(json: unknown, company: string): RawJob[] {
   });
 }
 
-// Workable and Recruitee name levels the way LinkedIn does; Personio has four of its own. A
-// level the title already gives wins over these (normalize.ts).
+// LinkedIn-style levels (Workable, Recruitee) and Personio's four; the title's level wins over
+// these.
 const BOARD_LEVELS: Record<string, Seniority> = {
   internship: "intern",
   student: "intern",
@@ -255,11 +252,8 @@ const WorkableJob = z.object({
   description: nullishString,
 });
 
-/**
- * GET apply.workable.com/api/v1/widget/accounts/:account?details=true. Its own links
- * (apply.workable.com/j/:shortcode) don't name the account, so the account's job page is used:
- * that one can be read again for the full post.
- */
+/** GET apply.workable.com/api/v1/widget/accounts/:account?details=true */
+// Its own links don't name the account, so the account's job page is used: it can be read again.
 export function parseWorkable(json: unknown, company: string, account: string): RawJob[] {
   const board = z.object({ jobs: z.array(z.unknown()) }).safeParse(json);
   if (!board.success) throw new FeedShapeError("workable");
@@ -320,11 +314,7 @@ const RecruiteeOffer = z.object({
 
 export type RecruiteeOfferShape = z.infer<typeof RecruiteeOffer>;
 
-/**
- * One offer from GET :account.recruitee.com/api/offers/ or /api/offers/:id, as a RawJob. The link
- * is the offer on recruitee.com, which forwards people to the company's own careers domain and,
- * unlike that domain's page, can be read again through the API.
- */
+// Links to the offer on recruitee.com, which, unlike the careers page, the API can read again.
 export function recruiteeJob(offer: unknown, company: string, account: string): RawJob | null {
   const parsed = RecruiteeOffer.safeParse(offer);
   if (!parsed.success) return null;
@@ -364,8 +354,7 @@ export function parseRecruitee(json: unknown, company: string, account: string):
   return board.data.offers.flatMap((offer) => recruiteeJob(offer, company, account) ?? []);
 }
 
-// Personio's feed is small, flat XML with no attributes we need, so a few patterns read it
-// without an XML library: <position> blocks of one-level fields, descriptions in CDATA.
+// Small flat XML with no attributes we need, so a few patterns read it without an XML library.
 function xmlText(raw: string): string {
   const cdata = /^\s*<!\[CDATA\[([\s\S]*?)\]\]>\s*$/.exec(raw);
   return cdata ? cdata[1]! : decodeEntities(raw);
@@ -384,10 +373,7 @@ const PERSONIO_TYPES: Record<string, EmploymentType> = {
   temporary: "temporary",
 };
 
-/**
- * GET :company.jobs.personio.de/xml?language=en. Jobs have no link in the feed; each one's page is
- * /job/:id on the same host.
- */
+/** GET :company.jobs.personio.de/xml?language=en. Each job's page is /job/:id on the same host. */
 export function parsePersonio(xml: string, company: string, host: string): RawJob[] {
   if (!/<workzag-jobs[\s>]/.test(xml)) throw new FeedShapeError("personio");
   const positions = xml.match(/<position>[\s\S]*?<\/position>/g) ?? [];

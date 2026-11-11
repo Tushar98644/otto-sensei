@@ -1,11 +1,9 @@
 import type { PdfLinkTarget } from "@/lib/parse/types";
 import type { Resume } from "./schema";
 
-// Client-safe and pure. A PDF often shows a cut-off link ("github.com/jane" for github.com/jane-doe,
-// or just "GitHub") while the clickable target holds the full address. The reader keeps the text,
-// so a read resume ended up with an address that leads nowhere. This swaps in the target only when
-// the written link is drawn under that very link and both are on the same site. A short link the
-// person chose on purpose (bit.ly/...) is another site, so it stays as written.
+// PDFs often show a cut-off link ("github.com/jane") while the clickable target holds the full
+// address. Swap in the target only when it's drawn under that link and on the same site, so a
+// chosen short link (bit.ly) stays as written.
 
 // A link written only as its site's name ("GitHub"), and the site that name means.
 const SITE_NAMES: Record<string, string> = {
@@ -47,7 +45,6 @@ function tokens(text: string): string[] {
     .filter(Boolean);
 }
 
-/** The full address behind a written link, or null to keep it as written. */
 export function linkTarget(shown: string, links: readonly PdfLinkTarget[]): string | null {
   const key = norm(shown);
   if (!key) return null;
@@ -61,7 +58,6 @@ export function linkTarget(shown: string, links: readonly PdfLinkTarget[]): stri
   return null;
 }
 
-/** The resume with its links swapped for the full addresses drawn under them, where that's certain. */
 export function withLinkTargets(resume: Resume, links: readonly PdfLinkTarget[]): Resume {
   if (links.length === 0) return resume;
   const basicsLinks = resume.basics.links.map((link) => {

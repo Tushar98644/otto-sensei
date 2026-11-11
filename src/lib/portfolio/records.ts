@@ -25,9 +25,7 @@ import {
 } from "./types";
 import { portfolioView, type PortfolioView } from "./view";
 
-// Server-only. Portfolios: written by their owner through /api/portfolio, read by slug on
-// /p/<slug>. Every owner query is filtered by user_id, so nobody can see or change another
-// account's page.
+// Every owner query is filtered by user_id, so nobody can see or change another account's page.
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const HOUR_MS = 60 * 60 * 1000;
@@ -74,14 +72,12 @@ function toPortfolio(row: Row): Portfolio {
   };
 }
 
-/** The account's portfolio, or null before it has one. */
 export async function getPortfolio(userId: string): Promise<Portfolio | null> {
   const db = await getDb();
   const [row] = await db.select().from(portfolios).where(eq(portfolios.userId, userId)).limit(1);
   return row ? toPortfolio(row) : null;
 }
 
-/** Every address the account's page answers at (its own and the old ones), to drop from the cache. */
 export async function portfolioSlugsOf(userId: string): Promise<string[]> {
   const db = await getDb();
   const [own, old] = await Promise.all([
@@ -96,13 +92,12 @@ export async function portfolioSlugsOf(userId: string): Promise<string[]> {
   return [...own, ...old].map((row) => row.slug);
 }
 
-// Claims of one address queue behind each other until commit, across both tables, so two
-// accounts can't both be told an address is free and both take it.
+// Queues claims of one address across both tables until commit, so two accounts can't both take it.
 async function lockSlug(tx: Tx, slug: string): Promise<void> {
   await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${`portfolio-slug:${slug}`}))`);
 }
 
-/** Free for this portfolio (null: one not made yet): no other page has it, live or redirecting. */
+/** Live or redirecting addresses count as taken; ownId is null for a portfolio not made yet. */
 async function slugFree(tx: Tx, slug: string, ownId: string | null, now: number): Promise<boolean> {
   const [live] = await tx
     .select({ id: portfolios.id })
@@ -148,7 +143,6 @@ async function claimSuggested(tx: Tx, name: string, now: number): Promise<string
 
 export type SlugCheck = { slug: string; available: boolean; message: string | null };
 
-/** What an address would be saved as, and whether this account can have it. */
 export async function checkSlug(userId: string, raw: string, now = Date.now()): Promise<SlugCheck> {
   const slug = normalizeSlug(raw);
   const problem = slugProblem(slug);
@@ -174,7 +168,6 @@ export type SaveResult =
       status: "saved";
       portfolio: Portfolio;
       created: boolean;
-      // Addresses whose cached pages are now out of date.
       touched: string[];
     }
   | { status: "bad_slug"; message: string }
@@ -185,11 +178,8 @@ export type SaveResult =
   // The account was deleted after the request was signed in, so nothing may be written.
   | { status: "no_user" };
 
-/**
- * Makes the account's portfolio from this resume, prefilled and unpublished, with the address
- * suggested from the name unless one is given. An account that already has one gets it pointed
- * at this resume instead, keeping its address and settings.
- */
+// An account that already has a portfolio gets it pointed at this resume, keeping address and
+// settings.
 export async function createPortfolio(
   userId: string,
   { resume, slug: wanted, template }: CreatePortfolioInput,
@@ -244,10 +234,8 @@ export async function createPortfolio(
   });
 }
 
-/** The owner's plan now: it decides what they may change and whether the page may go live. */
 export type PortfolioOwner = { plan: PlanId };
 
-/** Applies the owner's changes, as far as their plan allows. */
 export async function updatePortfolio(
   userId: string,
   patch: PortfolioPatch,
@@ -309,8 +297,7 @@ export async function updatePortfolio(
   });
 }
 
-// The old address redirects for PORTFOLIO_LIMITS.redirectDays; only the newest few are kept, so
-// changing the address over and over can't hold on to a pile of names.
+// Only the newest few redirects are kept, so changing address repeatedly can't hoard names.
 async function keepRedirect(tx: Tx, current: Row, now: number): Promise<void> {
   const expiresAt = now + PORTFOLIO_LIMITS.redirectDays * DAY_MS;
   await tx
@@ -336,10 +323,7 @@ async function keepRedirect(tx: Tx, current: Row, now: number): Promise<void> {
   await tx.delete(portfolioRedirects).where(and(mine, notInArray(portfolioRedirects.slug, kept)));
 }
 
-/**
- * Keeps a synced portfolio on its resume's latest version: called with every cloud backup of a
- * resume. Returns the page's address when its copy changed, else null.
- */
+// Called with every cloud backup. Returns the page's address when its copy changed, else null.
 export async function followResume(
   userId: string,
   resume: Resume,
@@ -367,9 +351,8 @@ export type PublicPortfolio = {
   ownerId: string;
   slug: string;
   template: PortfolioTemplateId;
-  // Ready to draw: privacy choices and hidden sections already applied.
   view: PortfolioView;
-  // Everything the rich templates draw, built from `view`, so the same choices hold in it.
+  // Built from `view`, so the same privacy choices hold.
   content: PortfolioContentView;
   allowIndexing: boolean;
   updatedAt: number;
@@ -381,10 +364,7 @@ export type PublicPortfolioResult =
   | { status: "redirect"; slug: string }
   | { status: "missing" };
 
-/**
- * The published portfolio at this address, as a reader may see it. A page whose owner is no longer
- * on Pro or Max is offline: kept, but answered as missing.
- */
+// An owner no longer on Pro or Max is offline: kept, but answered as missing.
 export async function findPublicPortfolio(
   slug: string,
   now = Date.now(),
@@ -448,10 +428,7 @@ function ownerCanPublish(owner: { plan: PlanId }): boolean {
   return canPublishPortfolio(owner.plan);
 }
 
-/**
- * Every page a search engine may list, newest change first, for /p/sitemap.xml: published, with
- * "Let search engines find it" on, and online (findPublicPortfolio would show it, not a 404).
- */
+// Published, indexing allowed, and online (findPublicPortfolio would show it, not a 404).
 export async function indexablePortfolios(
   limit: number,
 ): Promise<{ slug: string; updatedAt: number }[]> {
@@ -477,7 +454,7 @@ export async function indexablePortfolios(
     .map(({ slug, updatedAt }) => ({ slug, updatedAt }));
 }
 
-/** The published page a view would count for, with its owner (whose own visits don't count). */
+/** The owner comes along because their own visits don't count. */
 export async function findViewTarget(
   slug: string,
 ): Promise<{ id: string; ownerId: string } | null> {
@@ -491,10 +468,7 @@ export async function findViewTarget(
   return row ?? null;
 }
 
-/**
- * Adds one to the page's total, unless it has had its fill this hour. Nothing about the visitor
- * is kept: the only counter key is the page's own id. True when the total moved.
- */
+// Nothing about the visitor is kept: the only counter key is the page's id. True when it moved.
 export async function countView(portfolioId: string, now = Date.now()): Promise<boolean> {
   const hourly = await rateLimit(
     `portfolio:views:${portfolioId}`,

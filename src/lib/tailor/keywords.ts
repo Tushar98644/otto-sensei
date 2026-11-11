@@ -3,13 +3,12 @@ import type { Resume } from "@/lib/resume/schema";
 import { snippetAround } from "./evidence";
 import { termTokens, textTokens, type Token } from "./tokens";
 
-// Client-safe and deterministic. The AI extracts keywords from a job post; this code decides whether
-// the resume actually contains them, so we never claim a match the text doesn't show.
+// The AI extracts keywords; this code decides whether the resume contains them, so we never claim a
+// match the text doesn't show.
 
 export type KeywordMatch = {
   term: string;
   found: boolean;
-  // Short snippet of resume text around the match ("" when not found).
   evidence: string;
 };
 
@@ -17,11 +16,10 @@ export type KeywordCoverage = {
   matches: KeywordMatch[];
   matched: number;
   total: number;
-  // 0-100, rounded.
   percent: number;
 };
 
-// Job posts yield 10-25 keywords; the cap only bounds work if a caller passes something huge.
+// The cap only bounds work if a caller passes something huge.
 const MAX_TERMS = 100;
 const PARENTHETICAL = /\(([^()]*)\)/g;
 
@@ -48,9 +46,8 @@ function joinTokens(tokens: readonly string[]): string {
   );
 }
 
-// One- and two-letter matches are where false positives live: "it", "or", "ml" (millilitres), a
-// middle initial ("Jane R. Doe"), "C-suite". They only count in capitals (or spelled exactly like
-// a mixed-case term such as "Qt"), and a lone letter can't be glued to a dot, hyphen or apostrophe.
+// Short matches are where false positives live ("it", "ml", a middle initial). They only count in
+// capitals (or the term's exact mixed case), and a lone letter can't be glued to punctuation.
 export function isPlausible(text: string, start: number, end: number, surface: string): boolean {
   const span = text.slice(start, end);
   if (!/^\p{L}{1,2}$/u.test(span)) return true;
@@ -60,11 +57,8 @@ export function isPlausible(text: string, start: number, end: number, surface: s
   return span.length > 1 || !/[-‐‑.'’]/u.test(text.charAt(start - 1) + text.charAt(end));
 }
 
-/**
- * Finds `target` (a term's canonical tokens, squashed) as a run of whole tokens. Squashing lets
- * "front end", "front-end" and "frontend" match each other. Alias expansions ("AWS" -> amazon web
- * service) only match as a whole, so "Web" alone never matches "AWS".
- */
+// Squashing lets "front end", "front-end" and "frontend" match. Alias expansions only match whole,
+// so "Web" alone never matches "AWS".
 function locate(text: string, tokens: readonly Token[], form: TermForm) {
   const { target, surface } = form;
   // "Express" is shown by "Express.js", but not the other way round ("express delivery").
@@ -102,23 +96,19 @@ function matchTerm(text: string, tokens: readonly Token[], term: string): Keywor
   return { term: label, found: false, evidence: "" };
 }
 
-/**
- * Lowercases, trims, collapses whitespace, strips trailing punctuation, and normalizes common
- * variants so "Node.js" ~ "NodeJS" ~ "node js", "TypeScript" ~ "typescript", "CI/CD" ~ "ci cd",
- * "PostgreSQL" ~ "Postgres". Keep the alias list small and explicit.
- */
+// "Node.js" ~ "NodeJS" ~ "node js", "PostgreSQL" ~ "Postgres". Keep the alias list small and
+// explicit.
 export function normalizeTerm(term: string): string {
   const [form] = termForms(term);
   return form ? joinTokens(form.tokens) : "";
 }
 
-// Whole-word match on normalized text ("Java" must not match "JavaScript").
+// Whole words: "Java" must not match "JavaScript".
 export function findTerm(resumeText: string, term: string): KeywordMatch {
   return matchTerm(resumeText, textTokens(resumeText), term);
 }
 
-// findTerm() for a caller that checks many terms against one text: `tokens` must be
-// textTokens(text).
+// For checking many terms against one text: `tokens` must be textTokens(text).
 export function findTermIn(text: string, tokens: readonly Token[], term: string): KeywordMatch {
   return matchTerm(text, tokens, term);
 }

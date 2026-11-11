@@ -1,14 +1,8 @@
-// Startup and office roles the taxonomy files badly, measured on our own pool and checked before
-// it (MATCHING-RESEARCH.md, "Occupations for every kind of job"). O*NET's job-title list puts
-// "Product Manager" under Marketing Managers, "Account Executive" under Advertising Managers,
-// "Program Manager" under Media Programming Directors and "Developer Advocate" under Urban
-// Planners. Each name here is a lookup key like the taxonomy's own, so the longest name in a title
-// still wins: "Construction Project Manager" stays O*NET's, "Senior Backend Engineer, Payments"
-// finds "backend engineer".
+// Roles O*NET files badly ("Product Manager" under Marketing Managers). These are lookup keys like
+// the taxonomy's, so the longest name in a title still wins.
 
 export type CustomOccupation = {
-  // SOC-shaped, with a letter where SOC has a digit, so it never collides with an O*NET code and
-  // sits in a minor group of its own: "11-X101.00" is in major group 11 (management) only.
+  // A letter where SOC has a digit, so it never collides with O*NET and gets its own minor group.
   code: string;
   name: string;
   zone: number | null;
@@ -20,7 +14,6 @@ export const PRODUCT_MANAGER = "11-X101.00";
 export const CUSTOMER_SUCCESS = "41-X101.00";
 export const PARTNERSHIPS = "41-X102.00";
 
-// Roles O*NET has no occupation for.
 export const CUSTOM_OCCUPATIONS: readonly CustomOccupation[] = [
   {
     code: PRODUCT_MANAGER,
@@ -70,8 +63,7 @@ const OPS_OTHER = "13-1199.00";
 const CHIEF_EXEC = "11-1011.00";
 const GENERAL_MANAGER = "11-1021.00";
 
-// Each line: the occupation, then names for it as titles write them (any case and spelling the
-// title reader turns into the same words: "Back-end", "back end", "Backend").
+// Each line: the occupation, then names as titles write them (any spelling titleKey folds alike).
 const NAMES: readonly (readonly [string, readonly string[]])[] = [
   [
     SOFTWARE,
@@ -808,9 +800,7 @@ const NAMES: readonly (readonly [string, readonly string[]])[] = [
   ],
 ];
 
-// Frontline titles O*NET files badly or lacks, many in British or Australian wording: "Care
-// Assistant" is under Animal Caretakers there, "Warehouse Associate" under Tank Car Loaders and
-// "Teaching Assistant" under university teaching assistants.
+// Frontline titles O*NET files badly or lacks, often in British or Australian wording.
 const FRONTLINE: readonly (readonly [string, readonly string[]])[] = [
   [
     "11-3021.00",
@@ -1271,15 +1261,13 @@ const FRONTLINE: readonly (readonly [string, readonly string[]])[] = [
   ],
 ];
 
-// Lookup key -> code, filled in by the index (index.ts) with titleKey applied to each name.
 export const TECH_NAMES: readonly (readonly [string, string])[] = [...NAMES, ...FRONTLINE].flatMap(
   ([code, names]) => names.map((name) => [name, code] as const),
 );
 
-// The last resort for office titles no name covers ("Director, Talent Analytics", "Learning and
-// Enablement Manager", "Strategic Alliances Lead"): the business function the title names, and
-// whether its head word leads people or does the work. Lookup words, so "Operations" is
-// "operation"; first match wins, narrower functions first.
+// Last resort for office titles no name covers: the business function the title names, and whether
+// its head word leads or does the work. Lookup words ("operation"); first match wins, narrowest
+// first.
 export const FUNCTIONS: readonly (readonly [RegExp, string, string | null])[] = [
   [/\b(?:talent|recruit\w*|people|hr|human resource|workforce)\b/, HR_MANAGER, HR],
   [/\b(?:payroll)\b/, "11-3111.00", "43-3051.00"],

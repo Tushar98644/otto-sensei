@@ -1,20 +1,16 @@
 import type { WorkRegion } from "@/lib/eligibility/profile";
 import { foldCase } from "@/lib/tailor/tokens";
 
-// Client-safe and pure. What public visa registers say about a company (company_visa, filled by
-// scripts/visa-registers.ts), as facts a card can state. Never "will sponsor you": a licence or
-// past petitions say the company can and did sponsor, not that it will for this job.
+// Never "will sponsor you": a licence or past petitions show the company can, not that it will.
 
 export type VisaFacts = {
-  // On the UK Register of Licensed Sponsors for Skilled Worker.
   ukSponsor: boolean;
   // The latest US fiscal year with an approved H-1B petition (USCIS Employer Data Hub).
   h1bYear: number | null;
 };
 
-// Petitions older than this many fiscal years say little about hiring today. USCIS's newest
-// downloadable year is FY2023 (2026-11-09; later years are only in its dashboard), so the line
-// always names its year.
+// Older petitions say little about hiring today. USCIS's newest file is FY2023, so lines name the
+// year.
 const H1B_RECENT_YEARS = 4;
 
 // Legal endings that differ between a brand and its registered name: "Acme" is "ACME, INC.".
@@ -42,7 +38,6 @@ function recentH1b(facts: VisaFacts, now: number): boolean {
   return facts.h1bYear !== null && fiscalYearOf(now) - facts.h1bYear <= H1B_RECENT_YEARS;
 }
 
-/** The lines a job card shows, e.g. "Listed as a UK visa sponsor". */
 export function visaLines(facts: VisaFacts | null, now: number): string[] {
   if (!facts) return [];
   const lines: string[] = [];
@@ -52,7 +47,6 @@ export function visaLines(facts: VisaFacts | null, now: number): string[] {
   return lines;
 }
 
-/** Regions where the registers show the company sponsoring workers, for the work-rights check. */
 export function sponsorRegions(facts: VisaFacts | null, now: number): WorkRegion[] {
   if (!facts) return [];
   const regions: WorkRegion[] = [];

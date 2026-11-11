@@ -1,7 +1,5 @@
-// Server-only. Next.js App Router pages stream their server output through inline scripts,
-// self.__next_f.push([1,"..."]). JSON-LD rendered by a client component (next/script) exists only
-// in that stream, not as a tag in the HTML, so job pages like jobs.micro1.ai need it read from
-// there. Same rule as html.ts: indexOf and linear scans only, never a backtracking regex.
+// App Router pages stream server output through self.__next_f.push([1,"..."]); JSON-LD rendered by
+// a client component exists only there (e.g. jobs.micro1.ai). Linear scans only, like html.ts.
 
 const PUSH_START = "self.__next_f.push([1,";
 const MAX_FLIGHT_CHARS = 3_000_000;
@@ -11,7 +9,6 @@ const OBJECT_START = '{"@';
 // The same object as a string prop (dangerouslySetInnerHTML.__html, or short children).
 const STRING_START = '"{\\"@';
 
-/** The stream text of one inline script, or null when the script is anything else. */
 export function flightPayload(script: string): string | null {
   const code = script.trim().replace(/;$/, "");
   if (!code.startsWith(PUSH_START) || !code.endsWith("])")) return null;
@@ -23,7 +20,6 @@ export function flightPayload(script: string): string | null {
   }
 }
 
-// Index just past the JSON object that opens at `from`, or -1 if it doesn't close in time.
 function objectEnd(text: string, from: number): number {
   const limit = Math.min(text.length, from + MAX_OBJECT_CHARS);
   let depth = 0;
@@ -40,7 +36,6 @@ function objectEnd(text: string, from: number): number {
   return -1;
 }
 
-// Index just past the JSON string literal that opens at `from`, or -1.
 function stringEnd(text: string, from: number): number {
   const limit = Math.min(text.length, from + MAX_OBJECT_CHARS);
   for (let i = from + 1; i < limit; i++) {
@@ -59,7 +54,6 @@ function decodedString(literal: string): string | null {
   }
 }
 
-/** JobPosting JSON-LD found in the stream, as raw JSON text for findJsonLdJob. */
 export function flightJsonLd(payloads: readonly string[], max: number): string[] {
   const flight = payloads.join("").slice(0, MAX_FLIGHT_CHARS);
   const found: string[] = [];

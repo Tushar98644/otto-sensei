@@ -3,26 +3,19 @@ import { levelOf, type LookingFor } from "./looking-for";
 import { knownSkills } from "./skills";
 import type { JobMatch, MatchLabel, MatchProfile, RoleFamily, Seniority } from "./types";
 
-// Client-safe and pure. How one job lines up with one resume, as a label (Strong, Good, Stretch)
-// and the plain reason behind it. There is deliberately no score: the reason names the skills
-// found and not found, and the occupation shared, so the person can check every word of it.
+// No score on purpose: the reason names skills found and missing, so the person can check it.
 
 export type MatchPerson = {
   skills: ReadonlySet<string>;
-  // Kinds of role and how much each counts: 1 for the role looked for (the latest titled job,
-  // unless the "Looking for" card says otherwise), PAST_KIND_WEIGHT for older titles. An old
-  // "Business Analyst" title once made operations count fully for a product manager
-  // (MATCHING-RESEARCH.md, Round 2: product-pm-mid fell 76 -> 55).
+  // 1 for the role looked for, PAST_KIND_WEIGHT for older titles, so an old title can't dominate.
   families: ReadonlyMap<RoleFamily, number>;
-  // Occupations (O*NET-SOC codes) and how much each counts: the looked-for one 1, its O*NET
-  // neighbours less (KIND), older titles' half that. Minor and major SOC groups likewise, so a
-  // nurse reaches other nursing jobs first and other healthcare work last.
+  // Looked-for occupation 1, O*NET neighbours less (KIND), older titles half; SOC groups likewise.
   occupations: ReadonlyMap<string, number>;
-  // The occupations the card and the titles name themselves, before neighbours are added.
+  // Before neighbours are added.
   titled: ReadonlyMap<string, number>;
   minors: ReadonlyMap<string, number>;
   majors: ReadonlyMap<string, number>;
-  // The occupation looked for and its O*NET Job Zone (1-5), for "needs more training" notes.
+  // O*NET Job Zone (1-5), for "needs more training" notes.
   occupation: string | null;
   zone: number | null;
   seniority: Seniority | null;
@@ -37,17 +30,14 @@ export type MatchableJob = {
   // Read at ingest (normalize.ts); left out, the kind is read from the title alone.
   family?: RoleFamily | null;
   occupation?: string | null;
-  // Plain words for the occupation, for the reason line, and its O*NET Job Zone.
   occupationName?: string | null;
   zone?: number | null;
 };
 
 export type EligibilityHint = { blocked: boolean; note: string | null };
 
-/** What a title says about the kind of work: a kind of role (office and tech) and an occupation. */
 export type TitleKind = { family: RoleFamily | null; occupation: string | null };
 
-/** The occupation data matching needs, from occupations/index.ts on the server. */
 export type OccupationReader = {
   read(title: string): TitleKind;
   neighbours(code: string): { close: readonly string[]; related: readonly string[] };
@@ -61,10 +51,8 @@ export const FAMILIES_ONLY: OccupationReader = {
   zone: () => null,
 };
 
-// How much a job's occupation counts against the one looked for: O*NET's closest five related
-// occupations, its next five, the same SOC minor group ("Health Diagnosing and Treating
-// Practitioners") and the same major group ("Healthcare Practitioners"). From SAME_KIND up a job
-// is the person's own kind of work; below OWN_KIND it is ordered and labelled one step lower.
+// O*NET's closest five related occupations, its next five, the same SOC minor group, the same major
+// group. From SAME_KIND up it's the person's own kind of work; below OWN_KIND, one label lower.
 export const KIND = {
   close: 0.85,
   related: 0.7,
@@ -81,10 +69,7 @@ export const PAST_KIND_WEIGHT = 0.5;
 const majorOf = (code: string) => code.slice(0, 2);
 const minorOf = (code: string) => code.slice(0, 4);
 
-/**
- * The person as matching sees them, from what the browser sent and the "Looking for" card.
- * `reader` reads each title's kind of role and occupation (the server passes the O*NET lookup).
- */
+// `reader` reads each title's kind of role and occupation (the server passes the O*NET lookup).
 export function personFrom(
   profile: MatchProfile,
   lookingFor?: (Pick<LookingFor, "family" | "level"> & { occupation?: string | null }) | null,
@@ -133,15 +118,10 @@ export function personFrom(
 
 export type Kind = {
   weight: number;
-  // What the weight comes from, for the reason line.
   via: "family" | "same" | "close" | "group" | null;
 };
 
-/**
- * How much the job's kind of work counts for this person, 0 to 1. Office and tech jobs compare by
- * kind of role, as tuned on the test set; everything else (and anyone whose titles name no kind
- * of role) by occupation.
- */
+// Office and tech jobs by kind of role (tuned on the test set); everything else by occupation.
 export function kindOf(
   person: MatchPerson,
   job: Pick<MatchableJob, "title" | "family" | "occupation">,
@@ -163,7 +143,6 @@ export function kindOf(
   return { weight: group, via: group > 0 ? "group" : null };
 }
 
-/** How much the job's kind of work counts for this person: 1, PAST_KIND_WEIGHT, down to 0. */
 export function kindWeight(
   person: MatchPerson,
   job: Pick<MatchableJob, "title" | "family" | "occupation">,
@@ -190,10 +169,8 @@ const LEVEL_WORDS: Record<Seniority, string> = {
   director: "a director-level role",
 };
 
-/**
- * The label and reason for one job. null when the job shares nothing with the resume: no skill
- * in common, and a different kind of role (or one the titles don't name) with fewer than 2 skills.
- */
+// null when the job shares nothing: no skill in common, and a different kind of role (or one the
+// titles don't name) with fewer than 2 skills.
 export function matchJob(
   person: MatchPerson,
   job: MatchableJob,
@@ -229,8 +206,7 @@ export function matchJob(
       notes.push(`This is ${LEVEL_WORDS[job.seniority]}, more junior than your latest title.`);
     }
   }
-  // O*NET Job Zones (1 little preparation ... 5 extensive): a nursing assistant looking at nurse
-  // practitioner jobs, a cashier at pharmacist ones.
+  // O*NET Job Zones: 1 is little preparation, 5 extensive.
   if (
     person.zone !== null &&
     job.zone &&
@@ -267,7 +243,6 @@ export function matchJob(
   return { label, found, missing, reason, notes, blocked: eligibility.blocked };
 }
 
-// The reason when no skill is shared: what kind of work the two have in common, by name.
 function kindLine(kind: Kind, pastKind: boolean, name: string | null): string {
   const named = name ? `: ${name}` : "";
   if (kind.via === "same" && !pastKind) return `The same occupation as yours${named}.`;

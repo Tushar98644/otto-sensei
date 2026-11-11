@@ -5,9 +5,7 @@ import type { RawRequirement } from "@/lib/tailor/requirements";
 import type { RawTailor } from "./tailor-finalize";
 import { COMMON_SKILLS, EXACT_CASE_SKILLS, STOPWORDS } from "./tailor-vocabulary";
 
-// Demo mode (no API key): requirements from a frequency count of one- and two-word phrases in the
-// job post, one per keyword, and bullets ordered by keyword overlap. Deterministic, so the same
-// post gives the same result.
+// Demo mode (no API key): requirements from a phrase frequency count; deterministic.
 
 type Section = "required" | "nice" | "other";
 
@@ -17,7 +15,6 @@ type Phrase = {
   count: number;
   // Seen at least once in a requirements section or on a line that says "required" or "must".
   required: boolean;
-  // Order of first appearance, for stable ties.
   first: number;
 };
 
@@ -47,7 +44,6 @@ const DEMO_NOTES = [
   "Start each job with the bullet that fits this role best. Recruiters often read only the top lines.",
 ];
 
-// Spaces are dropped because matching ignores them too: "front end" and "frontend" are one term.
 function termKey(term: string): string {
   return normalizeTerm(term).replace(/ /g, "");
 }
@@ -107,8 +103,8 @@ function isContentWord(word: string): boolean {
   return !STOPWORDS.has(word.toLowerCase()) && /\p{L}.*\p{L}/u.test(word);
 }
 
-// The phrase scan reads every word as a term ("go" -> Golang); the real matcher reads the post as
-// prose, where only "Go" is the language and "excel at" is not Excel.
+// The phrase scan reads every word as a term; the real matcher reads the post as prose, where only
+// "Go" is the language and "excel at" is not Excel.
 function isSkillInPost(skill: string, jobText: string): boolean {
   if (!findTerm(jobText, skill).found) return false;
   if (!EXACT_CASE_SKILLS.has(skill)) return true;
@@ -149,8 +145,7 @@ function pickKeywords(jobText: string): DemoKeyword[] {
     .map((c) => ({ term: c.term, importance: isMust(c) ? "must" : "nice", required: c.required }));
 }
 
-// A keyword from a requirements section or a "required" line comes from the post's structure; one
-// that is only repeated is read from its wording.
+// From a requirements section or "required" line: structure. Only repeated: wording.
 function toRequirement(keyword: DemoKeyword): RawRequirement {
   return {
     text: keyword.term,
@@ -173,7 +168,6 @@ function orderBullets(resume: Resume, keywords: DemoKeyword[]): RawTailor["bulle
     const ranked = job.bullets.map((bullet, index) => ({
       id: bullet.id,
       index,
-      // Blank lines sink to the bottom.
       score: bullet.text.trim() ? score(bullet.text) : -1,
     }));
     ranked.sort((a, b) => b.score - a.score || a.index - b.index);

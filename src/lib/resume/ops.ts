@@ -11,9 +11,8 @@ import {
   type SectionKey,
 } from "./schema";
 
-// Pure helpers over Resume. Everything returns a new object; nothing mutates its input.
+// Nothing here mutates its input.
 
-// Standard sections whose entries hold lines.
 export type EntrySection = "experience" | "education" | "projects";
 // "extras" lines belong to an item of an extra section (a volunteering role, a custom entry).
 export type BulletSection = EntrySection | "extras";
@@ -23,7 +22,6 @@ export type BulletRef = {
   text: string;
   section: BulletSection;
   parentId: string;
-  // What the bullet belongs to, for display: "Backend Engineer at Stripe", "BSc Physics", "Side project".
   parentLabel: string;
   roleTitle: string;
   company: string;
@@ -137,8 +135,7 @@ export function setBulletText(resume: Resume, bulletId: string, text: string): R
   return next;
 }
 
-// The resume as it prints: hidden lines, entries and sections taken out (and left out of the
-// section order). Useful wherever only the printed page counts, like previews and plain text.
+// Hidden lines, entries and sections taken out: wherever only the printed page counts.
 export function visibleResume(resume: Resume): Resume {
   const off = (key: SectionKey) => isSectionHidden(resume, key);
   const withLines = <T extends { bullets: Bullet[] }>(item: T): T =>
@@ -175,9 +172,8 @@ export function cloneResume(
   return { ...copy, id: newId(), createdAt: now, updatedAt: now, ...overrides };
 }
 
-// Returns the resume unchanged when `orderedIds` isn't an exact permutation of the job's bullets,
-// so a bad AI ordering can never drop or duplicate a line. A permutation of only the shown lines
-// (what the AI was given) works too: hidden lines keep their places.
+// Unchanged unless `orderedIds` is an exact permutation, so a bad AI ordering can't drop or
+// duplicate a line. A permutation of only the shown lines works too: hidden ones keep their places.
 export function reorderBullets(resume: Resume, experienceId: string, orderedIds: string[]): Resume {
   const job = resume.experience.find((j) => j.id === experienceId);
   if (!job) return resume;
@@ -202,14 +198,12 @@ export function reorderBullets(resume: Resume, experienceId: string, orderedIds:
   };
 }
 
-// Match SkillGroupSchema's items cap and the skills list cap, so the result always passes
-// validation (and cloud sync).
+// Match the schema caps, so the result always passes validation (and cloud sync).
 const MAX_GROUP_ITEMS = 100;
 const MAX_GROUPS = 30;
 
-// Adds skills the user confirmed they have, to the first group that prints. Case-insensitive
-// dedupe across the shown groups and within `items`; the first spelling wins. A skill that only
-// sits in a hidden group is added again, since the hidden one never reaches the page.
+// Case-insensitive dedupe, first spelling wins. A skill only in a hidden group is added again,
+// since the hidden one never prints.
 export function addSkills(resume: Resume, items: string[]): Resume {
   const seen = new Set(
     shown(resume.skills).flatMap((g) => g.items.map((s) => s.trim().toLowerCase())),
@@ -240,28 +234,23 @@ export function displayName(resume: Resume): string {
   return resume.basics.name.trim() || "Untitled resume";
 }
 
-// Matches the schema's cap on titles, so a renamed or copied resume always passes validation (and
-// cloud sync).
+// The schema's cap, so a renamed or copied resume always passes validation.
 export const TITLE_MAX = 200;
 
-// What a resume is called in lists: its own title, else the person's name.
 export function resumeTitle(resume: Resume): string {
   return resume.title.trim() || displayName(resume);
 }
 
-// A typed name, tidied: outer spaces gone, runs of whitespace (a pasted line break) made one
-// space, and capped. Empty means "keep the old name".
+// Empty means "keep the old name".
 export function cleanTitle(draft: string): string {
   return draft.replace(/\s+/g, " ").trim().slice(0, TITLE_MAX).trim();
 }
 
-// Names are compared the way people read them: case, accents and extra spaces don't make two
-// resumes different.
+// Case, accents and extra spaces don't make two names different.
 export function titleKey(title: string): string {
   return cleanTitle(title).normalize("NFKD").replace(/\p{M}/gu, "").toLowerCase();
 }
 
-// True when another resume (not `exceptId`) already goes by this name.
 export function isTitleTaken(title: string, resumes: Iterable<Resume>, exceptId?: string): boolean {
   const key = titleKey(title);
   for (const resume of resumes) {
@@ -270,8 +259,7 @@ export function isTitleTaken(title: string, resumes: Iterable<Resume>, exceptId?
   return false;
 }
 
-// "Sample resume" becomes "Sample resume (2)" when that name is taken, then (3) and so on. A long
-// name gives up its end, never the number.
+// "Sample resume (2)", (3)… A long name gives up its end, never the number.
 export function uniqueTitle(wanted: string, resumes: Iterable<Resume>, exceptId?: string): string {
   const list = [...resumes];
   const base = cleanTitle(wanted);
@@ -283,14 +271,12 @@ export function uniqueTitle(wanted: string, resumes: Iterable<Resume>, exceptId?
   }
 }
 
-// "Maya_Chen-Resume 2024.pdf" -> "Maya Chen Resume 2024": a name the person recognises, instead
-// of every upload being called "Imported resume".
+// "Maya_Chen-Resume 2024.pdf" -> "Maya Chen Resume 2024".
 export function titleFromFileName(fileName: string): string {
   return cleanTitle(fileName.replace(/\.[a-z0-9]{1,5}$/i, "").replace(/[_-]+/g, " "));
 }
 
-// "Jordan's resume (copy)". A long title gives up its end, never the marker, so the copy is
-// always told apart from the original.
+// A long title gives up its end, never the marker, so the copy is told apart.
 export function copyTitle(resume: Resume): string {
   const suffix = " (copy)";
   return `${resumeTitle(resume)
@@ -364,9 +350,7 @@ function block(title: string, lines: readonly string[]): string[] {
   return kept.length ? ["", title.toUpperCase(), ...kept] : [];
 }
 
-// Plain-text rendering used for AI input and keyword matching. Mirrors the PDF's reading order:
-// the ordered sections under the person's own headings, then the extra sections. Only what
-// prints: hidden lines, entries and sections are left out.
+// For AI input and keyword matching. Mirrors the PDF's reading order; only what prints.
 export function resumeToText(resume: Resume): string {
   const shownResume = visibleResume(resume);
   const { basics } = shownResume;

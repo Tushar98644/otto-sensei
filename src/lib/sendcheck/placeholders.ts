@@ -1,5 +1,5 @@
-// Blanks left to fill in: "[number]", "[Company]", "{role}", "XX%", "TODO". Otto's own drafts mark
-// missing facts this way on purpose, so one can slip through to a sent resume.
+// Otto's own drafts mark missing facts this way on purpose, so one can slip through to a sent
+// resume.
 
 const PATTERNS: readonly RegExp[] = [
   // Square brackets around words, not "[1]" (a citation) or "[text](link)" (a link left as text).
@@ -11,7 +11,6 @@ const PATTERNS: readonly RegExp[] = [
   /\binsert\s[\p{L} ]{1,30}?\shere\b/giu,
 ];
 
-/** Each blank in `text`, as written, in reading order. */
 export function findPlaceholders(text: string): string[] {
   const found: { at: number; text: string }[] = [];
   for (const pattern of PATTERNS) {

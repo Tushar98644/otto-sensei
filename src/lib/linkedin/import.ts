@@ -14,10 +14,9 @@ import { ResumeSchema } from "@/lib/resume/validation";
 import { csvRecords, type CsvRecord } from "./csv";
 import { extraItem, extraSection } from "./extras";
 
-// Client-safe. Reads the ZIP from LinkedIn's "Get a copy of your data" into a resume. Nothing is
-// scraped and nothing leaves the browser: the person downloads their own export and picks it here.
+// Nothing is scraped and nothing leaves the browser: the person picks their own data export.
 
-// The full archive (messages, connections) can be large; only a handful of small CSVs are read.
+// The full archive can be large; only a few small CSVs are read.
 export const LINKEDIN_MAX_ZIP_BYTES = 50 * 1024 * 1024;
 const MAX_CSV_CHARS = 2_000_000;
 
@@ -104,7 +103,6 @@ const field = (record: CsvRecord, ...names: string[]): string => {
 
 const line = (value: string, max: number) => clip(oneLine(value), max);
 
-// One bullet per line of a description, with any typed marker ("•", "-") removed.
 function bulletsFrom(text: string, max: number): Bullet[] {
   return text
     .split(/\r?\n/)

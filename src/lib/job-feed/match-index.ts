@@ -24,11 +24,7 @@ import {
 import { companyKey, type VisaFacts } from "./visa";
 import { DEFAULT_FILTERS, LEVEL_SENIORITIES, SENIORITIES, type JobFilters } from "./types";
 
-// Server-only. The narrow job_match table (20261109006200_match_index.sql): one row per opening
-// Matches may show, with integer skill ids, rebuilt at the end of each ingest, so a match request
-// scores a 5 MB table instead of the wide jobs one (MATCHING-RESEARCH.md, Round 2 (d)). Until the
-// migration has run and an ingest has built it, matching falls back to the query on jobs
-// (matchCandidates), so a deploy never breaks between the code and its migration.
+// A narrow per-opening table rebuilt after each ingest, so matching scores 5 MB instead of jobs.
 
 const CHUNK = 1_000;
 
@@ -36,7 +32,6 @@ export type StoredCounts = {
   openJobs: number;
   matchable: number;
   checkedAt: number | null;
-  // The ingest run that built job_match; cached match lists name it.
   builtAt: number;
 };
 
@@ -49,7 +44,7 @@ function missingTable(error: unknown): boolean {
   return false;
 }
 
-/** The counts the last ingest wrote, or null before the migration or the first rebuild. */
+/** null before the migration or the first rebuild. */
 export async function readStoredCounts(db: Db): Promise<StoredCounts | null> {
   try {
     const [row] = await db.select().from(jobCountsRow).limit(1);
@@ -86,7 +81,6 @@ const intArray = (values: readonly number[]) => `{${values.join(",")}}`;
 const textArrayLiteral = (values: readonly string[]) =>
   `{${values.map((value) => `"${value.replace(/["\\]/g, "")}"`).join(",")}}`;
 
-/** Rewrites job_match and job_counts from the open jobs. Returns the openings written. */
 type MatchRow = typeof jobMatch.$inferInsert;
 
 const MATCH_COLUMNS = [
@@ -226,8 +220,8 @@ export async function rebuildMatchIndex(db: Db, now: number): Promise<number | n
 
   const [open] = await db.select({ n: count() }).from(jobs).where(isNull(jobs.closedAt));
   const [read] = await db.select({ at: max(jobBoards.lastFetchedAt) }).from(jobBoards);
-  // Only rows that changed are written: rewriting the whole index each day left a dead copy of
-  // every row until vacuum, about doubling the table on disk.
+  // Only changed rows are written: rewriting all of them left a dead copy of every row until
+  // vacuum.
   const before = new Map(
     (await db.select().from(jobMatch)).map((row) => [row.id, openingKey(row)]),
   );
@@ -257,7 +251,6 @@ export async function rebuildMatchIndex(db: Db, now: number): Promise<number | n
   return values.length;
 }
 
-/** The counts the site states: the stored row, else counted. */
 export async function storedJobCounts(
   db: Db,
   now = Date.now(),
@@ -266,30 +259,24 @@ export async function storedJobCounts(
   return counts ? { open: counts.openJobs, matchable: counts.matchable } : jobCounts(db, now);
 }
 
-/** One opening a match request ranks: the copy that scored, every open copy, where they are. */
 export type PooledOpening = {
   row: CandidateRow;
-  // Every open copy under the filters, newest first, `row` included.
   copies: CandidateRow[];
   places: string[];
   visa: VisaFacts | null;
-  // What the index says the opening is; null from the fallback query on jobs.
+  // null from the fallback query on jobs.
   kind: { family: CandidateRow["family"]; occupation: string | null; zone: number | null } | null;
 };
 
 export type OpeningPool = {
   openings: PooledOpening[];
-  // Matching openings in all, of the level asked for when there are any.
   groups: number;
   source: "index" | "jobs";
 };
 
 export type PoolQuery = MatchQuery & {
-  // Place tokens the "Looking for" card accepts, or null for anywhere (looking-for.ts).
   places: readonly string[] | null;
   limit?: number;
-  // Occupations and SOC groups with how much each counts (personFrom in match.ts), and whether
-  // the person's titles name kinds of role, which then decide for office and tech jobs.
   kinds?: {
     occupations: ReadonlyMap<string, number>;
     minors: ReadonlyMap<string, number>;
@@ -346,8 +333,7 @@ async function indexedPool(
   }
   const level = query.seniority === null ? null : SENIORITIES.indexOf(query.seniority);
   const w = sql`${intArray(dense)}::float8[]`;
-  // The kind of work, 0 to 1, as kindOf in match.ts: office and tech jobs by kind of role when the
-  // person's titles name one, everything else by occupation, its neighbours and its SOC groups.
+  // Kind of work, 0 to 1, as kindOf in match.ts computes it.
   const weightAt = (codes: string[], weights: number[], column: SQL) =>
     sql`coalesce((${floatArray(weights)}::float8[])[array_position(${textArrayLiteral(codes)}::text[], ${column})], 0)`;
   const kindSql = sql`case when m.family is not null and ${kinds.byFamily}::boolean then
@@ -421,7 +407,6 @@ async function indexedPool(
   );
   if (pooled.length === 0) return { openings: [], groups: 0, source: "index" };
 
-  // Every open copy of the pooled openings under the filters, in one read.
   const ids = pooled.map((row) => row.id);
   const groupKeys = pooled.map((row) => row.grp).filter((grp) => !ids.includes(grp));
   const copies = await db
@@ -479,10 +464,7 @@ async function jobsPool(db: Db, query: PoolQuery, now: number): Promise<OpeningP
   };
 }
 
-/**
- * The best openings for a resume: from job_match when the last ingest built it, else from jobs.
- * `counts` is readStoredCounts(db), read once per request by the caller.
- */
+// `counts` is readStoredCounts(db), read once per request by the caller.
 export async function poolOpenings(
   db: Db,
   query: PoolQuery,

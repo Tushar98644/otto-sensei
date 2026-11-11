@@ -2,9 +2,8 @@ import { z } from "zod";
 import type { ScreeningQuestion } from "@/lib/ats/types";
 import { decodeEntities } from "./html";
 
-// Server-only. The application form's questions from Greenhouse's job API (?questions=true). Only
-// yes/no and pick-from-a-list questions are kept: Greenhouse lets employers set automatic
-// rejection rules on those types and no others. Name, email, file and free-text fields never can.
+// Only yes/no and pick-from-a-list questions: the only types Greenhouse lets employers attach
+// automatic rejection rules to.
 
 const MAX_QUESTIONS = 12;
 const MAX_OPTIONS = 6;

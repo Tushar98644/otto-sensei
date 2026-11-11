@@ -2,8 +2,7 @@ import { TEXT_LIMITS } from "@/config/plans";
 import type { JobPosting, JobSource } from "@/lib/api/types";
 import { JobReadError } from "./errors";
 
-// Server-only. Every source ends here, so every posting gets the same caps and the same test for
-// "too thin to be a job post".
+// Every source ends here, so every posting gets the same caps and the same "too thin" test.
 
 // Under this much text, what came back is a cookie wall, an app shell or a teaser, not a post.
 export const MIN_TEXT_CHARS = 300;
@@ -24,12 +23,10 @@ export type PostingParts = {
   closesAt?: number | null;
 };
 
-/** Characters of text once runs of whitespace count as one. */
 export function realLength(text: string): number {
   return text.replace(/\s+/g, " ").trim().length;
 }
 
-/** Cuts text to the job post limit, at a line break when one is near the end. */
 export function capText(text: string, max: number = TEXT_LIMITS.jobPostChars): string {
   if (text.length <= max) return text;
   const cut = text.slice(0, max);
@@ -44,14 +41,12 @@ function oneLine(value: string | null | undefined): string {
   return `${cut.slice(0, Math.max(cut.lastIndexOf(" "), MAX_FIELD_CHARS / 2)).trimEnd()}…`;
 }
 
-/** Epoch ms from an ISO date, a date-time or epoch ms. Null for anything unusable. */
 export function toTime(value: unknown): number | null {
   const time =
     typeof value === "number" ? value : typeof value === "string" ? Date.parse(value) : Number.NaN;
   return Number.isFinite(time) && time >= EARLIEST ? time : null;
 }
 
-/** "acme-labs" → "Acme Labs", for boards whose API doesn't name the company. */
 export function humanizeSlug(slug: string): string {
   return slug
     .split(/[-_\s]+/)

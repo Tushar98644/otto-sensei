@@ -2,12 +2,8 @@ import { pluralize } from "@/lib/utils";
 import type { ContentSection, PortfolioContentView } from "./content";
 import type { PortfolioSection } from "./types";
 
-// Pure and client-safe. Which pieces of content each design draws, so the editor can say "This
-// design uses: pitch, write-ups, interests" and show a short checklist for just those. All of it
-// is text: the designs draw no pictures (owner decision 2026-11-10).
-//
-// Every template id is listed in TEMPLATE_USES with what its design actually draws. An id that
-// isn't listed is treated as using everything.
+// Which content each design draws, for the editor's "This design uses…" checklist. A template id
+// not in TEMPLATE_USES is treated as using everything.
 
 export const CONTENT_FIELDS = [
   "pitch",
@@ -54,8 +50,8 @@ export const CONTENT_FIELD_LABELS: Record<ContentField, string> = {
   github: "GitHub",
 };
 
-// The eight MIT-licensed reference sites the templates rebuild, and the text each one shows. Their
-// photos, screenshots, logos and videos are drawn as initials, monograms and patterns instead.
+// MIT-licensed reference sites the templates rebuild; their images are drawn as initials and
+// patterns.
 export const REFERENCE_USES = {
   // bchiang7/v4: about, jobs as company tabs, featured projects.
   chiangV4: ["pitch", "about", "socials", "jobHighlights"],
@@ -75,8 +71,7 @@ export const REFERENCE_USES = {
   cali: ["about", "writing", "shelf", "location", "socials"],
 } as const satisfies Record<string, readonly ContentField[]>;
 
-// By template id: what each rebuild draws for our users, which can go past its reference (Folio
-// adds the repo's Workplaces list, Paper adds interests).
+// What each rebuild draws, which can go past its reference.
 export const TEMPLATE_USES: Record<string, readonly ContentField[]> = {
   navy: ["pitch", "about", "socials", "availability"],
   dock: ["pitch", "about", "milestones", "socials", "availability"],
@@ -92,8 +87,8 @@ export function contentUsesFor(templateId: string): readonly ContentField[] {
   return TEMPLATE_USES[templateId] ?? CONTENT_FIELDS;
 }
 
-// The switch that keeps each piece of content off the page: a section under "What shows" or a
-// "Show on my page" row in the content editor. Fields not listed (pitch, availability...) have none.
+// The switch that keeps each field off the page. Fields not listed (pitch, availability…) have
+// none.
 const PAGE_SWITCH: Partial<Record<ContentField, PortfolioSection>> = {
   about: "about",
   socials: "links",
@@ -115,7 +110,6 @@ const CONTENT_SWITCH: Partial<Record<ContentField, ContentSection>> = {
   github: "github",
 };
 
-/** The fields the owner has switched off on the page, either way. */
 export function hiddenFields(
   pageHidden: readonly PortfolioSection[],
   contentHidden: readonly ContentSection[],
@@ -140,10 +134,7 @@ export type ChecklistItem = {
   hidden: boolean;
 };
 
-/**
- * One line per piece of content the design uses: is it there yet, and what's missing. Pass the
- * editor's full view and the hidden fields, so hidden content still counts and is marked.
- */
+// Pass the editor's full view and the hidden fields, so hidden content still counts and is marked.
 export function contentChecklist(
   view: PortfolioContentView,
   fields: readonly ContentField[],

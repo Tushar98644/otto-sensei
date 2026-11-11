@@ -1,21 +1,15 @@
 import type { JobSourceId } from "./types";
 
-// Client-safe. Where jobs come from and what each source's terms let us do (JOB-SOURCES.md has
-// the quotes). Every job links to its original posting and names its source.
+// Every job links to its original posting and names its source (terms quoted in JOB-SOURCES.md).
 
 export type SourceInfo = {
   name: string;
   homeUrl: string;
   termsUrl: string;
-  // The terms allow showing the post's text on our own page with JobPosting structured data.
-  // Himalayas forbids passing jobs to job search engines (structured data included) and Remote OK
-  // asks for traffic back, so their jobs only ever link out. Workable, Recruitee and Personio
-  // document their public endpoints for a company's own careers page and grant nothing more, and
-  // Jobicy asks that every Apply go to its page, so theirs link out too.
+  // Every other source's terms (no search engines, traffic back, careers-page-only) mean link out.
   republish: boolean;
-  // The full post can be read again from its source (src/lib/jobs/read.ts), so none of its text
-  // is stored: skills, level, years and the work-rights lines are kept from one read at ingest.
-  // Himalayas' pages refuse bots and Remote OK's API can't return one job, so theirs is kept.
+  // No text stored. Himalayas' pages refuse bots and Remote OK can't return one job, so theirs is
+  // kept.
   liveText: boolean;
 };
 

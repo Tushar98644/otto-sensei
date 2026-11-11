@@ -14,8 +14,7 @@ import { findJsonLdJob } from "./jsonld";
 import { buildPosting, MIN_TEXT_CHARS, realLength } from "./posting";
 import { companyLabel, type JobTarget } from "./url";
 
-// Server-only. Reads one job from a parsed link: the board's API when there is one, otherwise the
-// page's JobPosting JSON-LD, otherwise the page's main text.
+// The board's API when there is one, else the page's JobPosting JSON-LD, else its main text.
 
 // One read may take up to three requests (a guessed board, the page, the board the page names).
 const READ_BUDGET_MS = 20_000;
@@ -25,7 +24,6 @@ const GREENHOUSE_REFERENCE =
 const ASHBY_REFERENCE = /jobs\.ashbyhq\.com\/([a-z0-9][a-z0-9._%-]{0,99})/i;
 const LOGIN_PATH = /\/(?:log-?in|sign-?in|auth|sso)(?:\/|$)/i;
 
-/** The Greenhouse board a career page embeds, from its script or links. */
 export function greenhouseToken(html: string): string | null {
   const match = GREENHOUSE_REFERENCE.exec(html);
   const token = (match?.[1] ?? match?.[2])?.toLowerCase();
@@ -43,7 +41,6 @@ export function ashbyOrg(html: string): string | null {
   }
 }
 
-/** A posting from a fetched page: JSON-LD first, then the page's own text. */
 export function postingFromHtml(html: string, url: URL): JobPosting {
   const page = scanPage(html);
   const job = findJsonLdJob(page.jsonLd);
@@ -72,8 +69,8 @@ export function postingFromHtml(html: string, url: URL): JobPosting {
   });
 }
 
-// A board lookup that fails leaves the next way of reading the page to decide; the shared
-// deadline still bounds the whole read.
+// A failed board lookup leaves the next way of reading to decide; the shared deadline bounds it
+// all.
 async function attempt(read: () => Promise<JobPosting>): Promise<JobPosting | null> {
   try {
     return await read();
@@ -89,8 +86,8 @@ async function readPage(
 ): Promise<JobPosting> {
   const { url, greenhouseId, ashbyId } = target;
   const tried = new Set<string>();
-  // Greenhouse job ids are unique across all boards, so a guessed board that has this id is the
-  // right one. Most companies use their own name, which saves fetching their career page.
+  // Greenhouse job ids are unique across boards, so a guessed board with this id is the right one;
+  // most companies use their own name, which saves fetching their career page.
   const guess = greenhouseId ? companyLabel(url.hostname) : null;
   if (greenhouseId && guess) {
     tried.add(guess);
@@ -112,10 +109,7 @@ async function readPage(
   return postingFromHtml(page.body, page.url);
 }
 
-/**
- * Reads the job a link points to. Every expected failure leaves as a JobReadError. A page that
- * waits on the read passes a shorter budget.
- */
+// Every expected failure leaves as a JobReadError.
 export async function readJob(
   target: JobTarget,
   now = Date.now(),

@@ -1,11 +1,8 @@
 import type { CloudSync } from "./cloud-sync";
 
-// One backup session per account for the whole tab. The dashboard and the studio each mount the
-// sync hook, and moving between them used to start a new session that read every resume in the
-// account again. Now the session outlives both and ends only when the account changes, it signs
-// out, or the server ends it.
+// One backup session per account for the whole tab, so moving between dashboard and studio doesn't
+// re-read every resume. Ends when the account changes, signs out, or the server ends it.
 export type SyncSession = {
-  // The account's running session, or a new one for it (stopping any other account's).
   acquire: (userId: string | null) => CloudSync;
   current: () => CloudSync | null;
   end: () => void;
@@ -13,8 +10,7 @@ export type SyncSession = {
 
 export function createSyncSession(
   start: (userId: string | null) => CloudSync,
-  // A session picked up again re-reads the account after this long, so a tab left open still
-  // brings in resumes changed on other devices when the person moves on.
+  // So a long-open tab still brings in resumes changed on other devices.
   rereadAfterMs: number,
 ): SyncSession {
   let session: { userId: string | null; sync: CloudSync } | null = null;

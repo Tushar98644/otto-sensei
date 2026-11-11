@@ -10,8 +10,8 @@ import {
   type PDFPage,
 } from "pdf-lib";
 
-// Fixture files built in code for tests (no binary fixtures in the repo). pdf-lib's standard fonts
-// only encode WinAnsi, so PDF text uses "-" rather than en dashes.
+// Built in code (no binary fixtures). pdf-lib's standard fonts only encode WinAnsi, so no en
+// dashes.
 
 const LETTER: [number, number] = [612, 792];
 
@@ -161,10 +161,7 @@ export async function twoColumnPdf(): Promise<Uint8Array> {
   return doc.save();
 }
 
-// Vector shapes only: what a scanned page looks like to a text extractor, minus the picture.
-// A contact line whose links show cut-off text over full addresses, as many resume builders do:
-// "github.com/jane" over github.com/jane-doe-42, "LinkedIn" over linkedin.com/in/jane-doe, and a
-// short link the person chose on purpose.
+// Links whose text is cut off over the full address, as many resume builders draw them.
 export async function linkedContactPdf(): Promise<Uint8Array> {
   const { doc, page, fonts } = await newPdf();
   page.drawText("Jane Doe", { x: 50, y: 740, size: 20, font: fonts.bold });
@@ -228,16 +225,12 @@ export async function encryptedPdf(): Promise<Uint8Array> {
   return doc.save({ useObjectStreams: false });
 }
 
-// 2x2 RGBA PNG.
 const TINY_PNG = Uint8Array.from(
   atob(
     "iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAYAAABytg0kAAAAFElEQVR4nGP4z8DwHwyBNAMDAwMAZ/kH+Uq9KvMAAAAASUVORK5CYII=",
   ),
   (char) => char.charCodeAt(0),
 );
-
-// ---------------------------------------------------------------------------------------------
-// DOCX
 
 const W = 'xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"';
 const R = 'xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"';

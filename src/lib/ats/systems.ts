@@ -1,9 +1,7 @@
 import type { HiringNote, HiringSystem, HiringSystemId } from "./types";
 
-// Client-safe. What each hiring system's own documentation says it does with an application, in
-// plain words, each with what to do about it. Every note was checked against its source page on
-// 2026-11-07; a claim no page backs up is left out, so some systems have only one or two notes.
-// Never a score or a pass/fail guess: employers set these systems up differently.
+// From each system's own docs, checked 2026-11-07; a claim no page backs is left out. Never a score
+// or a pass/fail guess: employers set these systems up differently.
 
 const ANSWER_THE_SAME = "Answer these truthfully, and the same way every time.";
 
@@ -379,7 +377,6 @@ const FILE_NOTE_SYSTEMS: readonly HiringSystemId[] = [
 
 export type SystemNote = { system: HiringSystem; note: HiringNote };
 
-/** One note per system on how it reads a resume file, for the recruiter view. */
 export function fileReadingNotes(): SystemNote[] {
   return FILE_NOTE_SYSTEMS.flatMap((id) => {
     const system = HIRING_SYSTEMS[id];

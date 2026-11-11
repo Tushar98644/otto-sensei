@@ -2,19 +2,15 @@ import type { RecruiterReport } from "@/lib/checks/types";
 import { cleanTitle, isTitleTaken, resumeTitle } from "@/lib/resume/ops";
 import { newId, type Resume } from "@/lib/resume/schema";
 
-// Pure building blocks for undo/redo, saved versions and the trash. The store wires them up; they
-// live apart so the rules can be tested without zustand.
+// Pure, so the rules can be tested without zustand.
 
-// ---- Undo and redo ----
-//
-// Kept in memory only, per resume: a reload starts a fresh history, like a text editor. Saved
-// versions are the way back that survives a reload.
+// Undo history lives in memory only: a reload starts fresh, like a text editor. Saved versions
+// survive a reload.
 
 export const HISTORY_LIMIT = 100;
 // Edits closer together than this are one step, so Undo takes back a typed phrase, not a letter.
 export const MERGE_WINDOW_MS = 800;
 
-// Names for steps made by Otto, so the Undo button can say what it will take back.
 export const EDIT_LABELS = {
   fix: "Otto fixed a line",
   summary: "Otto wrote your summary",
@@ -28,19 +24,15 @@ export type EditOptions = {
 };
 
 export type HistoryStep = {
-  // The resume on the other side of the change.
   resume: Resume;
-  // What the change was, e.g. "Otto fixed a line". Absent for plain edits.
   label?: string;
 };
 
 export type ResumeHistory = {
-  // Oldest first: the last one is what Undo returns to.
+  // Oldest first.
   past: readonly HistoryStep[];
-  // The last one is what Redo returns to.
   future: readonly HistoryStep[];
-  // When the latest plain edit landed, while the next one may still join it. null once a named
-  // step, an undo or a redo closes the burst.
+  // null once a named step, an undo or a redo closes the burst.
   burstAt: number | null;
 };
 
@@ -50,7 +42,7 @@ function step(resume: Resume, label: string | undefined): HistoryStep {
   return label ? { resume, label } : { resume };
 }
 
-// Notes `before` as the state an edit moved away from. A new edit always clears Redo.
+// A new edit always clears Redo.
 export function recordEdit(
   history: ResumeHistory,
   before: Resume,
@@ -100,8 +92,7 @@ export function redoMove(history: ResumeHistory, current: Resume): HistoryMove |
   };
 }
 
-// Puts an older state of `current` back without changing which resume it is. Its old name stays
-// only while no other resume has taken it since, because two resumes never share a name.
+// Keeps the old name only while no other resume has taken it since: two resumes never share a name.
 export function adoptState(
   state: Resume,
   current: Resume,
@@ -111,8 +102,6 @@ export function adoptState(
   const title = isTitleTaken(resumeTitle(state), others, current.id) ? current.title : state.title;
   return { ...state, id: current.id, createdAt: current.createdAt, title, updatedAt: now };
 }
-
-// ---- Saved versions ----
 
 export const VERSION_LIMIT = 20;
 export const VERSION_NAME_MAX = 60;
@@ -148,14 +137,12 @@ export function addVersion(
   return next;
 }
 
-// The version that would be dropped to make room for one more, if any.
 export function versionToDrop(versions: readonly ResumeVersion[]): ResumeVersion | null {
   if (versions.length < VERSION_LIMIT) return null;
   return versions.findLast((v) => v.auto) ?? versions.at(-1) ?? null;
 }
 
-// True when a version already holds this state. The edit time doesn't count: an undo puts back
-// the same words under a new one.
+// The edit time doesn't count: an undo puts back the same words under a new one.
 export function isSaved(resume: Resume, versions: readonly ResumeVersion[]): boolean {
   const content = (r: Resume) => JSON.stringify({ ...r, updatedAt: 0 });
   const wanted = content(resume);
@@ -166,14 +153,12 @@ export function suggestVersionName(versions: readonly ResumeVersion[]): string {
   return `Version ${versions.filter((v) => !v.auto).length + 1}`;
 }
 
-// ---- Trash ----
-//
-// Lives only in this browser. The cloud copy is deleted through sync as before, and the account
-// refuses to bring a deleted id back, so restoring makes a copy under a new id.
+// Trash lives only in this browser. The account refuses to bring a deleted id back, so restoring
+// makes a copy under a new id.
 
 export const TRASH_DAYS = 30;
 export const TRASH_KEEP_MS = TRASH_DAYS * 24 * 60 * 60 * 1000;
-// Each entry is a whole resume in localStorage, which is small and shared with everything else.
+// Each entry is a whole resume in localStorage, which is small and shared.
 export const TRASH_LIMIT = 30;
 
 export type TrashedResume = {
@@ -183,7 +168,6 @@ export type TrashedResume = {
   versions?: ResumeVersion[];
 };
 
-// Newest first, without anything past its 30 days, and capped.
 export function freshTrash(trash: readonly TrashedResume[], now: number): TrashedResume[] {
   return trash
     .filter((entry) => now - entry.deletedAt < TRASH_KEEP_MS)
@@ -191,8 +175,7 @@ export function freshTrash(trash: readonly TrashedResume[], now: number): Trashe
     .slice(0, TRASH_LIMIT);
 }
 
-// Whole days left before an entry goes for good, counting today: 30 right after deleting, 1 on
-// the last day.
+// Counting today: 30 right after deleting, 1 on the last day.
 export function daysLeft(entry: TrashedResume, now: number): number {
   const left = entry.deletedAt + TRASH_KEEP_MS - now;
   return Math.max(0, Math.ceil(left / (24 * 60 * 60 * 1000)));

@@ -11,10 +11,7 @@ import {
 import { noteTokens } from "./token-meter";
 import { AIError } from "./types";
 
-// Server-only. One structured-output call through OpenRouter's Chat Completions API: a strict JSON
-// schema, retries on transient failures inside one shared deadline, provider routing that keeps
-// resume text away from providers that train on it, and prompt caching for Claude. Every failure
-// leaves as an AIError.
+// One structured-output call through OpenRouter, with retries inside one shared deadline.
 
 export type AITask = "structure" | "fix" | "tailor" | "letter" | "answer";
 // Reasoning is always on, so effort is the cost control.
@@ -32,8 +29,7 @@ export type StructuredRequest<T> = {
 export type RunOptions = { deadlineMs?: number };
 
 const ENDPOINT = "https://openrouter.ai/api/v1/chat/completions";
-// Output caps per task, reasoning included. They also size OpenRouter's up-front hold on credits,
-// so a one-line fix shouldn't reserve room for a whole resume.
+// Reasoning included. They also size OpenRouter's up-front credit hold, so keep them tight.
 const MAX_TOKENS: Record<AITask, number> = {
   structure: 16_000,
   tailor: 8_000,
@@ -41,11 +37,9 @@ const MAX_TOKENS: Record<AITask, number> = {
   letter: 4_000,
   answer: 3_000,
 };
-// AI routes run with maxDuration = 60 and do work of their own around the call (parsing, usage,
-// the fallback parse), so every attempt, retries included, shares one deadline with room to spare.
+// Routes run with maxDuration = 60 and do work around the call, so all attempts share one deadline.
 const DEADLINE_MS = 50_000;
-// A non-streaming call that is cut off at the deadline is still billed in full, so a retry only
-// starts when it has a real chance to finish.
+// A call cut off at the deadline is still billed, so a retry only starts if it can finish.
 const MIN_ATTEMPT_MS = 15_000;
 const MAX_ATTEMPTS = 3;
 const RETRY_BASE_MS = 400;
@@ -59,7 +53,6 @@ const ContentSchema = z.union([
 const UsageSchema = z.object({
   prompt_tokens: z.number().nullish(),
   completion_tokens: z.number().nullish(),
-  // Prompt plus completion; the completion includes reasoning.
   total_tokens: z.number().nullish(),
   prompt_tokens_details: z
     .object({ cached_tokens: z.number().nullish(), cache_write_tokens: z.number().nullish() })
@@ -67,13 +60,11 @@ const UsageSchema = z.object({
   completion_tokens_details: z.object({ reasoning_tokens: z.number().nullish() }).nullish(),
 });
 
-// Read from any body, not just a valid answer: a refused, cut-off or failed answer is billed too.
-// Only the counts, so an odd detail field can't hide them.
+// Read from any body: refused, cut-off and failed answers are billed too.
 const BilledSchema = z.object({
   usage: UsageSchema.pick({ prompt_tokens: true, completion_tokens: true, total_tokens: true }),
 });
 
-// Only the fields read below; OpenRouter sends more.
 const ChatResponseSchema = z.object({
   provider: z.string().nullish(),
   choices: z
@@ -97,7 +88,7 @@ type Attempt =
 
 const schemaCache = new WeakMap<z.ZodType, Record<string, unknown>>();
 
-/** The strict JSON schema sent as response_format: every property required, no extras. */
+/** Strict mode: every property required, no extras. */
 export function jsonSchemaFor(schema: z.ZodType): Record<string, unknown> {
   const cached = schemaCache.get(schema);
   if (cached) return cached;
@@ -110,8 +101,7 @@ export function jsonSchemaFor(schema: z.ZodType): Record<string, unknown> {
   return json;
 }
 
-// Structuring only copies text into fields (and is checked for faithfulness afterwards), so it
-// runs on a faster, cheaper model: a long resume has to come back inside the deadline.
+// Structuring only copies text (checked afterwards), so it runs on a faster, cheaper model.
 export function modelFor(task: AITask): string {
   const { AI_MODEL, AI_STRUCTURE_MODEL } = env();
   return task === "structure" ? AI_STRUCTURE_MODEL : AI_MODEL;
@@ -122,8 +112,7 @@ function isClaude(model: string): boolean {
 }
 
 function requestBody<T>(request: StructuredRequest<T>, model: string) {
-  // System prompts are byte-stable, so repeat Claude calls read this prefix from the cache once it
-  // passes the model's minimum length. Other providers cache automatically or not at all.
+  // System prompts are byte-stable, so repeat Claude calls hit the prompt cache.
   const system = isClaude(model)
     ? [{ type: "text", text: request.system, cache_control: { type: "ephemeral" } }]
     : request.system;
@@ -145,9 +134,8 @@ function requestBody<T>(request: StructuredRequest<T>, model: string) {
       require_parameters: true,
       // Resume text is personal data: never send it to providers that may train on it.
       data_collection: "deny",
-      // Cheapest host first among those left after the two rules above (owner, 2026-11-09). The
-      // same model costs 4-6x more on some hosts. Fallbacks stay on, so a failing host hands the
-      // call to the next cheapest instead of failing it.
+      // The same model costs 4-6x more on some hosts; fallbacks stay on so a failing host passes it
+      // on.
       sort: "price",
     },
   };
@@ -163,8 +151,7 @@ function retryAfterMs(headers: Headers, now: number): number | null {
   return Number.isNaN(date) ? null : Math.max(0, date - now);
 }
 
-// null means don't retry: never sooner than the provider asked, and never so late that the next
-// attempt would be cut off and billed for nothing.
+// null: don't retry. Never sooner than asked, nor so late the next attempt is cut off and billed.
 function nextWait(attempt: number, suggestedMs: number | null, deadline: number): number | null {
   if (suggestedMs !== null && suggestedMs > MAX_RETRY_WAIT_MS) return null;
   const wait = suggestedMs ?? RETRY_BASE_MS * 2 ** (attempt - 1) + Math.random() * 100;
@@ -207,7 +194,6 @@ async function attemptOnce(
   try {
     json = JSON.parse(raw);
   } catch {
-    // Handled below: an error status maps on its own, and a 200 fails the schema check.
   }
   noteTokens(billedTokens(json));
 
@@ -242,7 +228,6 @@ async function attemptOnce(
   return { ok: true, response: parsed.data };
 }
 
-/** The total the provider reports, or prompt + completion when it leaves the total out. */
 export function billedTokens(json: unknown): number {
   const parsed = BilledSchema.safeParse(json);
   if (!parsed.success) return 0;
@@ -317,12 +302,7 @@ function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-/**
- * Sends one system + user turn and returns the reply validated against `schema`. Throws AIError:
- * "refused" when the model or the provider's moderation declined, "invalid_output" for truncated
- * or schema-invalid output, and the codes from statusFailure()/thrownFailure() for API failures.
- * Callers still clip strings: the API can't enforce length limits, so the schemas don't carry them.
- */
+// Throws AIError. Callers still clip strings: the API can't enforce length limits.
 export async function runStructured<T>(
   request: StructuredRequest<T>,
   options: RunOptions = {},
@@ -347,8 +327,8 @@ export async function runStructured<T>(
       : null;
     if (wait === null) {
       if (failure.status === 503) {
-        // Every attempt found no provider that meets the routing rules: likely a setup problem
-        // (model slug, data policy or required parameters), not a blip.
+        // No provider met the routing rules on any attempt: likely setup (slug, data policy), not a
+        // blip.
         log.error("ai.no_provider", failure.error, { ...fields, attempts: attempt });
       }
       throw failure.error;

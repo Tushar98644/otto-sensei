@@ -1,9 +1,7 @@
 import type { Resume } from "@/lib/resume/schema";
 
-// Hides a person's name, emails, phone numbers and links from the AI. Before a call, each one
-// becomes a placeholder ([NAME], [EMAIL_1], [PHONE_1], [LINK_1]); after it, restore() puts the real
-// value back wherever the model used the placeholder. One redactor per request: the same value
-// always gets the same placeholder, so text redacted in pieces still lines up.
+// Swaps the name, emails, phones and links for placeholders ([NAME], [EMAIL_1]…) before a call, and
+// restore() puts them back. One redactor per request, so a value always gets the same placeholder.
 
 export type PlaceholderKind = "NAME" | "EMAIL" | "PHONE" | "LINK";
 
@@ -15,19 +13,16 @@ export type KnownDetails = {
 };
 
 export type RestoreOptions = {
-  // Placeholders the redactor never handed out are removed instead of kept: for fields that must
-  // hold only text copied from the resume.
+  // For fields that must hold only text copied from the resume.
   dropUnknown?: boolean;
 };
 
 export type Redactor = {
   redact: (text: string) => string;
-  // A whole field that is known to be one detail (basics.email, a link's URL): its placeholder,
-  // even when the value matches no pattern.
+  // A field known to be one detail (basics.email) gets a placeholder even when no pattern matches.
   redactField: (kind: PlaceholderKind, value: string) => string;
   restore: (text: string, options?: RestoreOptions) => string;
   restoreDeep: <T>(value: T, options?: RestoreOptions) => T;
-  // The real values that went out as placeholders, in the order they were first hidden.
   hidden: (kind: PlaceholderKind) => string[];
 };
 
@@ -39,8 +34,7 @@ const EMAIL = /[A-Z0-9._%+-]{1,64}@[A-Z0-9-]{1,63}(?:\.[A-Z0-9-]{1,63}){0,8}\.[A
 
 const URL_CHARS = String.raw`[^\s|,;<>"'()[\]{}]`;
 const SCHEME_URL = new RegExp(String.raw`(?:https?:\/\/|www\.)${URL_CHARS}{1,500}`, "giu");
-// Endings people use for profiles and personal sites. Listing them keeps skills written like hosts
-// ("Node.js/Express", "D3.js") out of the link patterns.
+// Listing endings keeps skills written like hosts ("D3.js") out of the link patterns.
 const TLDS =
   "com|org|net|edu|gov|io|dev|me|co|ai|app|xyz|site|page|tech|info|blog|design|studio|codes|" +
   "cloud|online|website|space|pro|biz|us|uk|ca|au|de|fr|nl|es|it|in|eu|ch|se|no|dk|fi|ie|nz|sg|" +
@@ -49,8 +43,7 @@ const LABEL = String.raw`[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?`;
 const HOST = String.raw`(?<![\p{L}\p{N}.@/_-])(?:${LABEL}\.){1,5}(?:${TLDS})`;
 // A bare host with a path: linkedin.com/in/jane, janedoe.dev/work.
 const BARE_URL = new RegExp(String.raw`${HOST}\/${URL_CHARS}{0,500}`, "giu");
-// A bare host alone ("janedoe.dev") is hidden only when it holds part of the person's name: on
-// its own it is as often an employer ("Booking.com") or a tool ("Fly.io").
+// Only when it holds part of the person's name: alone it's as often an employer ("Booking.com").
 const BARE_HOST = new RegExp(String.raw`${HOST}(?![\p{L}\p{N}/@-])`, "giu");
 // Framework names that look like hosts.
 const NOT_HOSTS = new Set(["asp.net", "vb.net", "ado.net", "socket.io"]);
@@ -103,8 +96,7 @@ function isPhone(candidate: string, before: string): boolean {
   );
 }
 
-// A name is matched in running text only with two or more words: a one-word name ("Will",
-// "Grace") is too often an ordinary word.
+// Two or more words only: a one-word name ("Will", "Grace") is too often an ordinary word.
 function namePattern(name: string): RegExp | null {
   const parts = name.trim().split(/\s+/).filter(Boolean);
   if (parts.length < 2) return null;
@@ -119,11 +111,7 @@ function nameParts(name: string): string[] {
     .filter((part) => part.length >= 3);
 }
 
-/**
- * True for a header line that reads like a person's name: 2 to 4 capitalized words with no
- * digits, symbols or job-title words. The import uses it to decide whether the rule-based read's
- * name is safe to hide.
- */
+// 2-4 capitalized words, no digits, symbols or title words: whether the name is safe to hide.
 export function looksLikePersonName(value: string): boolean {
   const words = value.trim().split(/\s+/).filter(Boolean);
   if (words.length < 2 || words.length > 4) return false;
@@ -188,8 +176,7 @@ export function createRedactor(known: KnownDetails = {}): Redactor {
   const byName = hasName ? namePattern(name) : null;
   const parts = hasName ? nameParts(name) : [];
 
-  // Known values are matched as written, longest first, so a link that extends another one keeps
-  // its own placeholder.
+  // Longest first, so a link that extends another keeps its own placeholder.
   const literals = (
     [
       ...(known.emails ?? []).map((value) => ["EMAIL", value] as const),
@@ -267,7 +254,6 @@ export function createRedactor(known: KnownDetails = {}): Redactor {
   };
 }
 
-/** A redactor that knows the resume's own name, contact details and links. */
 export function redactorFor(resume: Resume): Redactor {
   const { basics } = resume;
   return createRedactor({
@@ -278,11 +264,7 @@ export function redactorFor(resume: Resume): Redactor {
   });
 }
 
-/**
- * A copy of the resume as the AI may see it: the contact fields become placeholders and every
- * other line is redacted. Ids, dates and the section order are unchanged, so results that point
- * at bullets still fit the real resume.
- */
+// Ids, dates and section order are unchanged, so results that point at bullets still fit.
 export function redactResume(resume: Resume, redactor: Redactor): Resume {
   const text = redactor.redact;
   const { basics } = resume;

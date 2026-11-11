@@ -4,15 +4,13 @@ import { posthogHost, posthogKey } from "./config";
 import type { ClientEvent, ClientEventProps, EventArgs } from "./events";
 import { cleanProps, trackingRefused } from "./privacy";
 
-// Browser-only product analytics. Every export is a safe no-op without NEXT_PUBLIC_POSTHOG_KEY, on
-// the server, and for anyone whose browser sends Do Not Track or Global Privacy Control.
+// Every export is a no-op without a key, on the server, and under Do Not Track or GPC.
 
 type Identity = { id: string; plan: PlanId };
 
-// Fetched on first use rather than imported: the SDK is ~90 KB that no page needs to render.
+// Not imported: the SDK is ~90 KB no page needs to render.
 let loading: Promise<PostHog | null> | null = null;
-// undefined until /api/me answers, then the signed-in person or null. Held here so a sign-in seen
-// during hydration is applied once the SDK is up instead of racing init().
+// Held here so a sign-in seen during hydration is applied once the SDK is up, not racing init().
 let identity: Identity | null | undefined;
 
 export function analyticsEnabled(): boolean {
@@ -44,7 +42,7 @@ const CONFIG: Partial<PostHogConfig> = {
   disable_product_tours: true,
   disable_conversations: true,
   disable_web_experiments: true,
-  // No replay, surveys or site apps, so nothing else is ever fetched from PostHog.
+  // So nothing else is ever fetched from PostHog.
   disable_external_dependency_loading: true,
   advanced_disable_flags: true,
   mask_all_text: true,
@@ -58,7 +56,7 @@ const CONFIG: Partial<PostHogConfig> = {
   before_send: scrub,
 };
 
-// After first paint, not during it: analytics has nothing to say about a page that hasn't rendered.
+// Analytics has nothing to say about a page that hasn't rendered.
 function whenIdle(): Promise<void> {
   return new Promise((resolve) => {
     if (typeof window.requestIdleCallback === "function") {
@@ -99,12 +97,10 @@ function withPosthog(run: (posthog: PostHog) => void): void {
   });
 }
 
-/** Loads the SDK once the browser is idle. Called by <Analytics /> on every page. */
 export function startAnalytics(): void {
   void load();
 }
 
-/** Sends a funnel event; dropped silently when analytics is off. */
 export function track<E extends ClientEvent>(event: E, ...args: EventArgs<ClientEventProps[E]>): void {
   const [props] = args;
   withPosthog((posthog) => posthog.capture(event, cleanProps(props)));
@@ -126,13 +122,12 @@ function applyIdentity(posthog: PostHog): void {
   posthog.capture("signed_in", props);
 }
 
-/** Links this device's anonymous id to the account. The user id only: never an email or a name. */
+/** The user id only: never an email or a name. */
 export function identifyUser(id: string, plan: PlanId): void {
   identity = { id, plan };
   withPosthog(applyIdentity);
 }
 
-/** The visitor is signed out. Clears a previous account's id from this browser. */
 export function resetUser(): void {
   identity = null;
   withPosthog(applyIdentity);

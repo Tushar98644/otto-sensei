@@ -17,20 +17,14 @@ import { maskInventedNumbers } from "./guards";
 import { asResumeLine, clip, clipWords, oneLine, tag } from "./text";
 import { AIError, type WritingInput } from "./types";
 
-// Server-only. An interview prep pack for one job: likely questions worded the way an interviewer
-// says them, round by round, STAR outlines and questions to ask. Stories point at real resume lines
-// by id, and code, not the model, copies the line and its place in, so a story can't rest on a line
-// that doesn't exist. Each STAR part is checked against its line: numbers the line doesn't state
-// become [number], and a part that brings in facts of its own is swapped for a plain [question] the
-// person answers in their own words. Answer pointers get the same number check against the resume
-// and the post, and one that names something neither of them mentions is dropped.
+// Stories point at resume lines by id and code copies the line in. Parts with unstated numbers get
+// [number], parts adding facts become a [question], and pointers naming unknown things are dropped.
 
 // Same bound as tailoring: resumeToText() adds headings to what was imported.
 const MAX_RESUME_CHARS = Math.round(TEXT_LIMITS.resumeChars * 1.5);
 // Lines offered to the model, in resume order: recent jobs come first and matter most.
 const MAX_LINES = 60;
-// Reasoning included. A full pack (8 questions with their pointers, 4 stories, 5 asks) is about
-// 2,500 tokens of JSON, so this leaves room for low-effort reasoning without cutting the answer off.
+// Reasoning included. A full pack is ~2,500 tokens of JSON, leaving room for low-effort reasoning.
 const MAX_TOKENS = 8_000;
 // Above this share of new content words, a STAR part says more than its line does.
 const MAX_NOVEL_SHARE = 0.34;
@@ -162,8 +156,7 @@ function stem(word: string): string {
   return word.slice(0, STEM_CHARS);
 }
 
-// Share of content words outside [brackets] that the line doesn't contain (by stem, so "launch"
-// backs "launched").
+// By stem, so "launch" backs "launched"; [brackets] don't count.
 export function novelShare(part: string, source: string): number {
   const known = new Set(wordsOf(source).map(stem));
   const words = wordsOf(part.replace(BRACKETED, " ")).filter(
@@ -205,10 +198,7 @@ function asSpoken(text: string, max: number): string {
 const SENTENCE_END = /(?:^|[.!?:;"“(])$/u;
 const ONLY_I = /^I(?:'|’|$)/u;
 
-/**
- * Words that read as names: "Kafka" inside a sentence, or a capital past the first letter
- * ("PostgreSQL", "AWS"). Brackets are the person's to fill, so they're skipped.
- */
+// "Kafka" mid-sentence, or a capital past the first letter ("PostgreSQL"). Brackets are skipped.
 export function namesIn(text: string): string[] {
   const plain = text.replace(BRACKETED, " ");
   const names: string[] = [];
@@ -249,10 +239,7 @@ function sourcesOf(resumeText: string, job: WritingInput): Sources {
   return { texts, known: knownStems(texts) };
 }
 
-/**
- * The model's questions, checked and put in interview order. `storyIndex` maps a resume line id
- * to its place among the kept stories, so a question only links a story that survived cleaning.
- */
+// So a question only links a story that survived cleaning.
 function cleanQuestions(
   output: Output["questions"],
   sources: Sources,
@@ -330,7 +317,6 @@ function keptStories(output: Output["stories"], lines: readonly Line[]): KeptSto
   return out;
 }
 
-/** The model's stories, kept only where they rest on a real line and say nothing it doesn't. */
 export function cleanStories(output: Output["stories"], lines: readonly Line[]): StarStory[] {
   return keptStories(output, lines).map((kept) => kept.story);
 }
@@ -356,9 +342,7 @@ const asPoint = (text: string) => clipWords(text, PREP_LIMITS.pointChars);
 // Short enough that the quote marks around it survive the pointer's cap.
 const QUOTED_LINE_CHARS = 110;
 
-// Demo mode (no API key): common questions in interview order, the post's own list items and the
-// resume's own lines, so the page works locally without a model and still says nothing the resume
-// doesn't.
+// Demo mode (no API key): common questions plus the post's and the resume's own lines.
 function demoPrep(prepared: Prepared): Pick<InterviewPrep, "questions" | "stories" | "asks"> {
   const { job, lines } = prepared;
   const where = job.company ? ` at ${job.company}` : "";
@@ -446,11 +430,7 @@ function demoPrep(prepared: Prepared): Pick<InterviewPrep, "questions" | "storie
   return { questions, stories, asks: DEMO_ASKS };
 }
 
-/**
- * An interview prep pack from the resume and the job post. Without an API key returns a demo pack
- * built from common questions and the resume's own lines (`demo: true`).
- * Throws AIError on refusal, rate limit, outage, too-long input, or a pack with no questions.
- */
+// No API key: a demo pack (`demo: true`). Throws AIError, also for a pack with no questions.
 export async function prepareInterview(
   resume: Resume,
   input: WritingInput,
@@ -460,8 +440,7 @@ export async function prepareInterview(
   const job = { title: prepared.job.jobTitle, company: prepared.job.company };
   if (!aiEnabled()) return { version: 2, job, ...demoPrep(prepared), createdAt: now, demo: true };
 
-  // The model reads placeholders for the person's name, contact details and links. Stories still
-  // quote the real line: keptStories() picks it from prepared.lines by id.
+  // Stories still quote the real line: keptStories() picks it from prepared.lines by id.
   const redactor = redactorFor(resume);
   const shown: Prepared = {
     ...prepared,

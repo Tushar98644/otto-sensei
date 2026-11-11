@@ -12,8 +12,7 @@ export async function register() {
   }
 }
 
-// Errors that escape a server component, route handler, server action or the proxy. Errors code
-// catches itself reach Sentry through log.error.
+// Uncaught request errors; ones code catches reach Sentry through log.error.
 export async function onRequestError(
   ...args: Parameters<typeof captureRequestError>
 ): Promise<void> {

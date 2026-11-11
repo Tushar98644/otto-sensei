@@ -1,5 +1,4 @@
-// Server-only. Every way reading a job link can fail, each with the plain reason the person sees.
-// All of them except invalid_url end the same way: the studio asks for the job text instead.
+// All but invalid_url end the same way: the studio asks for the job text instead.
 
 export type JobReadReason =
   | "invalid_url"
@@ -16,9 +15,8 @@ export type JobReadReason =
 
 export class JobReadError extends Error {
   readonly reason: JobReadReason;
-  // The site's own name ("LinkedIn") when the message reads better with it.
   readonly site: string | null;
-  // A network error code such as ECONNREFUSED, for logs only.
+  // For logs only.
   readonly detail: string | null;
 
   constructor(

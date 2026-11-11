@@ -1,6 +1,5 @@
-// Server-only. Just enough HTML reading for job posts: plain text with list items and paragraph
-// breaks, the page title, meta tags and JSON-LD blocks. The pages come from anyone, so this is one
-// linear scan with indexOf, never a regex that can backtrack across a 2 MB page.
+// Pages come from anyone, so this is one linear scan with indexOf, never a regex that can backtrack
+// across a 2 MB page.
 
 import { flightJsonLd, flightPayload } from "./next-flight";
 
@@ -8,7 +7,6 @@ type Token =
   | { type: "text"; text: string }
   | { type: "open"; name: string; attrs: string; selfClosing: boolean }
   | { type: "close"; name: string }
-  // Elements whose content is not markup: scripts, styles, the title.
   | { type: "raw"; name: string; attrs: string; content: string };
 
 const RAW_TEXT = new Set([
@@ -139,7 +137,6 @@ const NAMED_ENTITIES: Record<string, string> = {
   Uuml: "Ü",
 };
 
-/** Decodes character references (&amp;, &#8217;, &#x2019;). Unknown names stay as they are. */
 export function decodeEntities(text: string): string {
   if (!text.includes("&")) return text;
   return text.replace(
@@ -163,8 +160,8 @@ function isNameChar(code: number, first: boolean): boolean {
   return letter || (code >= 48 && code <= 57) || code === 45 || code === 58 || code === 95;
 }
 
-// The ">" that ends a tag. A quote counts only after "=", where an attribute value starts, so an
-// apostrophe inside an unquoted value doesn't swallow the rest of the page.
+// A quote counts only after "=", so an apostrophe inside an unquoted value doesn't swallow the
+// page.
 function tagEnd(html: string, from: number): number {
   let quote = "";
   let afterEquals = false;
@@ -237,7 +234,6 @@ function* tokenize(html: string): Generator<Token> {
   }
 }
 
-/** One attribute's value from a tag's attribute text, decoded. */
 export function attribute(attrs: string, name: string): string | null {
   const match = new RegExp(
     `(?:^|[\\s"'])${name}\\s*=\\s*(?:"([^"]*)"|'([^']*)'|([^\\s"'>]+))`,
@@ -249,11 +245,9 @@ export function attribute(attrs: string, name: string): string | null {
 
 const BULLET = /^(?:[-*]\s+)?[•·◦▪●■‣⁃]\s*/;
 
-// Collects text with break marks; finish() turns them into lines and single blank lines.
 class TextBuilder {
   private parts: string[] = [];
-  // A list item with no text yet: a paragraph opening inside it ("<li><p>") must not push its
-  // text off the bullet line. Closing tags still break.
+  // So "<li><p>" doesn't push its text off the bullet line. Closing tags still break.
   private emptyItem = false;
 
   text(text: string) {
@@ -318,7 +312,6 @@ function addBreaks(builder: TextBuilder, token: Token) {
   }
 }
 
-// Tracks one skipped element by name until its matching close tag.
 class Skipper {
   private name: string | null = null;
   private depth = 0;
@@ -329,7 +322,6 @@ class Skipper {
     return this.name !== null;
   }
 
-  // Returns true when the token belongs to a skipped element.
   take(token: Token): boolean {
     if (token.type === "open") {
       if (this.name === null && this.names.has(token.name) && !token.selfClosing) {
@@ -347,7 +339,6 @@ class Skipper {
   }
 }
 
-/** Plain text from an HTML fragment such as a job description: "- " list items, paragraph breaks. */
 export function htmlToText(html: string): string {
   const builder = new TextBuilder();
   const skip = new Skipper(FRAGMENT_CHROME);
@@ -362,15 +353,13 @@ export function htmlToText(html: string): string {
 export type ScannedPage = {
   title: string | null;
   h1: string | null;
-  // og:title, og:site_name and the like, first value wins.
   meta: ReadonlyMap<string, string>;
-  // Raw contents of each <script type="application/ld+json">.
   jsonLd: readonly string[];
-  // Text of <main>, of <article>, and of the whole page, without scripts and site chrome.
+  // Without scripts and site chrome.
   main: string;
   article: string;
   body: string;
-  // Signs of a bot check page (Cloudflare, Incapsula, DataDome, PerimeterX).
+  // Cloudflare, Incapsula, DataDome, PerimeterX.
   challenge: boolean;
 };
 

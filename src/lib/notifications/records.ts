@@ -11,8 +11,7 @@ import {
   type ReminderSettings,
 } from "./types";
 
-// Server-only. A user's notifications. Every query is filtered by user_id, so a guessed id can
-// never read or mark another account's rows.
+// Every query is filtered by user_id, so a guessed id never reads or marks another account's rows.
 
 type Row = typeof notifications.$inferSelect;
 
@@ -28,7 +27,6 @@ function toNotification(row: Row): Notification {
   };
 }
 
-// A transaction is a Db too, so this reads inside one when given it.
 async function unreadCount(db: Db, userId: string): Promise<number> {
   const [row] = await db
     .select({ n: count() })
@@ -39,7 +37,7 @@ async function unreadCount(db: Db, userId: string): Promise<number> {
 
 export type NotificationList = { notifications: Notification[]; unread: number };
 
-/** The newest notifications and the unread count, read from one snapshot so they agree. */
+/** Read from one snapshot so they agree. */
 export async function listNotifications(
   userId: string,
   limit: number = NOTIFICATION_LIMITS.listed,
@@ -61,7 +59,7 @@ export async function listNotifications(
 
 export type MarkReadTarget = { ids: string[] } | { all: true };
 
-/** Marks the given unread notifications (or all of them) read. Returns how many stay unread. */
+/** Returns how many stay unread. */
 export async function markNotificationsRead(
   userId: string,
   target: MarkReadTarget,
@@ -82,7 +80,7 @@ export type NewNotification = {
   link: string | null;
 };
 
-/** Inside the caller's transaction, which must already hold the user's row lock (lockUser). */
+/** The caller's transaction must already hold the user's row lock (lockUser). */
 export async function insertNotification(
   tx: Tx,
   notification: NewNotification,
@@ -104,7 +102,7 @@ export async function insertNotification(
   return id;
 }
 
-// No row means the defaults: no email (people opt in, never out) and FOLLOW_UP_DAYS.default.
+// No email by default: people opt in, never out.
 const DEFAULT_SETTINGS: ReminderSettings = {
   emailReminders: false,
   followUpDays: FOLLOW_UP_DAYS.default,
@@ -122,25 +120,21 @@ async function settingsOf(db: Db, userId: string): Promise<ReminderSettings> {
   return row ?? DEFAULT_SETTINGS;
 }
 
-/** Whether reminder emails are on: only once the account turned them on. */
+/** Only once the account turned them on. */
 export async function emailRemindersOn(db: Db, userId: string): Promise<boolean> {
   return (await settingsOf(db, userId)).emailReminders;
 }
 
-/** Days from applying to the first follow-up reminder, for new applications. */
 export async function followUpDaysOf(db: Db, userId: string): Promise<number> {
   return (await settingsOf(db, userId)).followUpDays;
 }
 
-/** The same, as SQL for an UPDATE that sets many rows' dates in one statement. */
 export function followUpDaysSql(userId: string): SQL<number> {
   return sql<number>`coalesce((select ${notificationSettings.followUpDays} from ${notificationSettings} where ${notificationSettings.userId} = ${userId}), ${FOLLOW_UP_DAYS.default})`;
 }
 
-/**
- * The account's reminder settings, or null when the account doesn't exist. `chosen`: it has saved
- * one, so the defaults were seen and kept or changed (the Home setup list ticks it off).
- */
+// null when the account doesn't exist. `chosen`: it has saved one (the Home setup list ticks it
+// off).
 export async function readReminderSettings(
   userId: string,
 ): Promise<(ReminderSettings & { chosen: boolean }) | null> {
@@ -158,16 +152,11 @@ export async function readReminderSettings(
   return row ? { ...row, chosen: true } : { ...DEFAULT_SETTINGS, chosen: false };
 }
 
-/** The account's reminder email switch, or null when the account doesn't exist. */
 export async function readEmailReminders(userId: string): Promise<boolean | null> {
   return (await readReminderSettings(userId))?.emailReminders ?? null;
 }
 
-/**
- * Changes the given settings in one upsert (the rest keep their stored or default value), under
- * the account's row lock so it can't race an account deletion. Returns what is stored now, or
- * null when there's no account.
- */
+// Under the account's row lock so it can't race account deletion. null when there's no account.
 export async function saveReminderSettings(
   userId: string,
   change: Partial<ReminderSettings>,
@@ -193,7 +182,6 @@ export async function saveReminderSettings(
   });
 }
 
-/** Turns reminder emails on or off. Returns the stored value, or null when there's no account. */
 export async function setEmailReminders(
   userId: string,
   on: boolean,

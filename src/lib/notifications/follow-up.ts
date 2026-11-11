@@ -4,9 +4,7 @@ import { SNOOZE_DAYS } from "@/lib/applications/follow-up";
 import type { EmailMessage } from "./email";
 import { NOTIFICATION_LIMITS } from "./types";
 
-// Pure. What the follow-up reminder says, in the bell and by email, for the applications one
-// account just became due on. Company names and roles are the user's own text: escaped in HTML,
-// capped everywhere.
+// Company names and roles are the user's own text: escaped in HTML, capped everywhere.
 
 export type DueApplication = { id: string; company: string; role: string; appliedAt: number };
 
@@ -28,7 +26,6 @@ function oldestFirst(list: readonly DueApplication[]): DueApplication[] {
   return [...list].sort((a, b) => a.appliedAt - b.appliedAt);
 }
 
-// "It's been 7 days since you applied to Stripe. A short follow-up can help."
 export function followUpMessage(list: readonly DueApplication[], now: number): string {
   const due = oldestFirst(list);
   const names = [...new Set(due.map((item) => clip(item.company, NAME_CHARS)).filter(Boolean))];
@@ -90,21 +87,17 @@ export type FollowUpEmailInput = {
   to: string;
   applications: readonly DueApplication[];
   now: number;
-  // Absolute links.
   applicationsUrl: string;
   settingsUrl: string;
-  // Signed one-click links per application, null each when links can't be signed.
+  // null each when links can't be signed.
   actionUrls: (applicationId: string) => FollowUpActionUrls;
-  // RFC 8058 one-click link for the header, and the page the body's own link opens; null when
-  // they can't be signed.
+  // RFC 8058 one-click link for the header; null when it can't be signed.
   unsubscribeUrl: string | null;
   unsubscribePageUrl: string | null;
-  // Absolute link to Otto's head (OTTO_HEAD_EMAIL_PATH on the app's own address).
   ottoHeadUrl: string;
 };
 
-// A PNG, because email clients don't show inline SVG. Drawn from OttoMark at 2x (96px) and shown
-// at 48px. Supabase's sign-in email (SETUP.md, step 6e) uses the same file.
+// PNG: email clients don't show inline SVG. Drawn at 2x (96px), shown at 48px.
 export const OTTO_HEAD_EMAIL_PATH = "/email/otto-head.png";
 
 const INK = "#12241d";

@@ -5,24 +5,21 @@ import { firstWeakLine } from "@/lib/lint/weak-lines";
 import { listBullets } from "@/lib/resume/ops";
 import type { Resume } from "@/lib/resume/schema";
 
-// Client-safe and pure. What the Home "Get set up" list shows and when each item counts as done,
-// plus when the quiet prompts on Jobs and Applications appear (DESIGN.md, "First login and
-// setup"). Every "done" is read from the real settings and resumes, so an item ticks itself
-// however the person got there.
+// Every "done" is read from the real settings and resumes, so an item ticks itself however the
+// person got there.
 
 export type SetupItemId = "resume" | "work" | "looking_for" | "weak_line" | "reminders";
 
-/** A country and at least one region answered: enough for the work-rights rules to say something. */
 export function workRightsSet(profile: WorkProfile): boolean {
   return profile.country !== "" && WORK_REGIONS.some((region) => profile.rights[region] !== null);
 }
 
-/** Any part of "Looking for" picked or confirmed. Parts left null only follow the resume. */
+/** Parts left null only follow the resume. */
 export function lookingForSet(choice: LookingForChoice): boolean {
   return choice.role !== null || choice.level !== null || choice.place !== null;
 }
 
-/** The person's own resumes, newest first: never the sample or a copy tailored from it. */
+/** Never the sample or a copy tailored from it. */
 export function ownResumes(resumes: readonly Resume[]): Resume[] {
   const byId = new Map(resumes.map((resume) => [resume.id, resume]));
   const fromSample = (resume: Resume) =>
@@ -44,12 +41,8 @@ export type WeakLineState =
 const warns = (issues: readonly { severity: string }[] | undefined) =>
   (issues ?? []).some((issue) => issue.severity === "high");
 
-/**
- * "Fix the first weak line": the line the item opens and whether it is fixed. `remembered` is the
- * line it opened last time; once that line has no warning (or is gone), it is done. Without one, it
- * is the first line with a warning, the same one Home's "Lines to improve" opens. Tips alone don't
- * count: a resume with nothing worse reads well.
- */
+// `remembered` is the line it opened last; once that has no warning (or is gone), it's done.
+// Without one, the first line with a warning. Tips alone don't count.
 export function weakLineState(
   own: readonly Resume[],
   remembered: WeakLineTarget | null,
@@ -82,10 +75,10 @@ export function weakLineState(
 }
 
 export type SetupFacts = {
-  // Pro, Max or the trial: the work-rights check and the tracker's reminders are Pro tools.
+  // The work-rights check and reminders are Pro tools.
   pro: boolean;
   ownResumes: number;
-  // null: not known (still loading, or it failed), so its items are left out rather than guessed.
+  // null while loading or failed: its items are left out rather than guessed.
   work: { profile: WorkProfile; lookingFor: LookingForChoice } | null;
   weakLine: WeakLineState;
   reminders: { available: boolean; chosen: boolean } | null;
@@ -93,10 +86,8 @@ export type SetupFacts = {
 
 export type SetupItem = { id: SetupItemId; done: boolean };
 
-/**
- * The list, at most 5, in the order they pay off. Pro tools are left out on Free, where they would
- * do nothing; email reminders also need a server that can send email.
- */
+// At most 5. Pro tools are left out on Free, where they'd do nothing; email reminders also need a
+// server that can send email.
 export function setupItems(facts: SetupFacts): SetupItem[] {
   const items: SetupItem[] = [{ id: "resume", done: facts.ownResumes > 0 }];
   if (facts.work && facts.pro) {
@@ -114,12 +105,11 @@ export function setupProgress(items: readonly SetupItem[]): { done: number; tota
   return { done: items.filter((item) => item.done).length, total: items.length };
 }
 
-/** Shown until every item is done or "Hide this" was pressed. */
 export function checklistShows(items: readonly SetupItem[], hiddenAt: number | null): boolean {
   return hiddenAt === null && items.some((item) => !item.done);
 }
 
-/** Jobs: one quiet line while the work-rights rules have nothing to go on. Free has no such rules. */
+/** Free has no work-rights rules. */
 export function jobsWorkPromptShows({
   pro,
   locked,
@@ -132,10 +122,7 @@ export function jobsWorkPromptShows({
   return pro && !locked && profile !== null && !workRightsSet(profile);
 }
 
-/**
- * Applications: offer reminder emails once something is logged, until the person answers either
- * way. Free gets no follow-up reminders, so it is never offered there.
- */
+// Until the person answers either way. Never on Free, which gets no follow-up reminders.
 export function reminderPromptShows({
   pro,
   applications,

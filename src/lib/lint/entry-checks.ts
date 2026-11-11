@@ -1,8 +1,6 @@
 import type { LintIssue, LintIssueId, LintSeverity } from "./types";
 
-// Client-safe and pure. The tick list under each job and project in the editor: the line checks,
-// grouped the way a reader thinks of them, each either passed or with the lines it still flags.
-// Only jobs and projects get it; school and award lines are never asked for a result or a number.
+// The tick list under each job and project. School and award lines are never asked for a result.
 
 export type EntryCheckId =
   | "result"
@@ -50,13 +48,11 @@ export type CheckedLine = { id: string; issues: readonly LintIssue[] };
 export type EntryCheck = {
   id: EntryCheckId;
   label: string;
-  // The lines it still flags, in order; none means it passed.
   lineIds: string[];
-  // The strongest issue among them, null once it passed.
   severity: LintSeverity | null;
 };
 
-/** Checks for one entry's printed lines that have words, in a fixed order. Empty with no lines. */
+/** In a fixed order. Empty with no lines. */
 export function entryChecks(lines: readonly CheckedLine[], ended: boolean): EntryCheck[] {
   if (lines.length === 0) return [];
   const applies = (rule: CheckRule) =>

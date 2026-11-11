@@ -11,11 +11,8 @@ import { maskInventedNumbers, novelWordShare, NUMBER_PLACEHOLDER } from "./guard
 import { asResumeLine, capitalize, clip, clipWords, cleanList, oneLine, tag } from "./text";
 import { droppedSupport, sentencesOf, upgradedVerbs } from "./writing-guards";
 
-// Server-only. "Build with Otto": a first resume from a short form (the role someone wants, and
-// for each job what they did, in their own words). The model only rewrites those notes; code then
-// re-checks every line against them. A number the notes don't state becomes a [placeholder], a
-// line that claims more ownership than the note falls back to the note, and a skill the notes
-// never name is dropped. When the AI is off or fails, the draft is the notes as typed.
+// "Build with Otto": the model only rewrites the notes; code re-checks each line against them.
+// Without AI, the draft is the notes as typed.
 
 // TODO: give drafting its own AITask in ./client.ts; "fix" has the closest cost profile.
 const TASK: AITask = "fix";
@@ -51,7 +48,6 @@ type DraftOutput = z.infer<typeof DraftOutputSchema>;
 
 export type DraftOutcome = { resume: Resume; usedAI: boolean };
 
-// A note as a resume line, for the fallback and for any line the checks turn down.
 function asTyped(note: string): string {
   return clip(capitalize(asResumeLine(note)), TEXT_LIMITS.bulletChars);
 }
@@ -76,7 +72,6 @@ function baseResume(input: DraftRequest, now: number): Resume {
   return resume;
 }
 
-/** One line from the model, checked against the note it was written from. */
 export function checkedBullet(
   output: string,
   note: string | undefined,
@@ -94,8 +89,7 @@ export function checkedBullet(
   return line;
 }
 
-// A summary sentence ties to no single note, so it is kept only when every number and every
-// claim of charge in it comes from the notes; a placeholder there would read as a gap, not a prompt.
+// No single note backs a summary sentence, so every number and claim of charge must come from them.
 function summaryBacked(sentence: string, notes: readonly string[]): boolean {
   if (sentence.includes(NUMBER_PLACEHOLDER) || upgradedVerbs(sentence, notes).length > 0)
     return false;
@@ -168,8 +162,7 @@ export async function draftResume(input: DraftRequest, now = Date.now()): Promis
   if (!aiEnabled()) return { resume, usedAI: false };
   const call = { userId: null, task: "draft", aiTask: TASK, startedAt: Date.now() };
   try {
-    // The name never reaches this route; an email, phone number or link typed into a note is
-    // found by its pattern and put back before the checks below read the output.
+    // An email, phone or link typed into a note is found by pattern and put back before the checks.
     const redactor = createRedactor();
     const output = await runStructured({
       task: TASK,

@@ -1,10 +1,8 @@
 import type postgres from "postgres";
 
-// Server-only, no imports from the app so scripts/migrate.ts can use it under plain bun.
-// Which URL to connect to, and how, for both ways of wiring Supabase into Vercel:
-// - a project made at supabase.com: DATABASE_URL (transaction pooler, port 6543) and
-//   DIRECT_DATABASE_URL (direct or session pooler, port 5432), set by hand;
-// - the Vercel Marketplace integration: POSTGRES_URL (pooled) and POSTGRES_URL_NON_POOLING.
+// No app imports: scripts/migrate.ts runs this under plain bun. Supports both Supabase wirings:
+// supabase.com (DATABASE_URL pooler :6543, DIRECT_DATABASE_URL :5432) and the Vercel integration
+// (POSTGRES_URL, POSTGRES_URL_NON_POOLING).
 
 type EnvLike = Record<string, string | undefined>;
 
@@ -17,8 +15,8 @@ function first(env: EnvLike, names: readonly string[]): string | undefined {
 }
 
 export const POOLED_URL_VARS = ["DATABASE_URL", "POSTGRES_URL"] as const;
-// The migration runner holds a session-level lock and runs DDL, so it prefers a connection that
-// isn't shared per transaction, and falls back to the pooled one.
+// Migrations take a session-level lock and run DDL, so prefer a connection not pooled per
+// transaction.
 export const DIRECT_URL_VARS = [
   "DIRECT_DATABASE_URL",
   "POSTGRES_URL_NON_POOLING",
@@ -38,11 +36,8 @@ const LOCAL_HOSTS = new Set(["localhost", "127.0.0.1", "::1", "[::1]"]);
 export type ConnectionTarget = { url: string; ssl: "require" | false };
 
 /**
- * postgres.js forwards every unknown query parameter to the server as a startup setting, and the
- * Vercel integration's URLs carry extras (e.g. `supa=base-pooler.x`) that Postgres would reject.
- * So only sslmode is read and the query is dropped. TLS is on unless the URL says
- * sslmode=disable or points at this machine. "require" encrypts without checking the CA, which is
- * what Supabase's pooler needs (its certificate isn't from a public CA).
+ * postgres.js sends unknown query params as startup settings, and Vercel's URLs carry extras that
+ * Postgres rejects, so only sslmode is kept. "require" skips the CA check Supabase's pooler fails.
  */
 export function connectionTarget(rawUrl: string): ConnectionTarget {
   const url = new URL(rawUrl);
@@ -59,10 +54,8 @@ export function connectionTarget(rawUrl: string): ConnectionTarget {
 }
 
 /**
- * Options for the app's pool. prepare: false because Supabase's transaction pooler (port 6543)
- * hands each transaction to any server connection, so named prepared statements would go missing.
- * A small pool per instance: Fluid compute runs many requests per instance, and the pooler, not
- * this client, is what multiplexes them onto Postgres.
+ * prepare: false because the transaction pooler (6543) may run each transaction on a different
+ * server connection, losing named prepared statements. Small pool: the pooler multiplexes.
  */
 export function appPoolOptions(target: ConnectionTarget): postgres.Options<Record<string, never>> {
   return {

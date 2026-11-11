@@ -1,6 +1,5 @@
 import type { LintIssueId } from "./types";
 
-// Client-safe. What opens from a line's chip: why the rule matters, and one weak line made better.
 // Sources for each rule: projects/resume-app/RESUME-CHECKS-RESEARCH.md.
 
 export type IssueHelp = {

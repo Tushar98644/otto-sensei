@@ -3,10 +3,8 @@ import { cronSecret } from "@/lib/cron/auth";
 import { appUrl } from "@/lib/env";
 import type { FollowUpAction } from "./types";
 
-// Server-only. Signed one-click unsubscribe links for reminder emails (RFC 8058): the mail app
-// POSTs to the link without a session, so the link itself must prove which account it's for.
-// Signed with CRON_SECRET, which every deployment that sends reminders has (only the cron job
-// sends them). Rotating that secret retires old links; the Account page switch always works.
+// RFC 8058: the mail app POSTs without a session, so the link must prove the account. Signed with
+// CRON_SECRET (only the cron sends reminders); rotating it retires old links.
 
 export const UNSUBSCRIBE_PATH = "/api/notifications/unsubscribe";
 
@@ -26,7 +24,6 @@ export function verifyUnsubscribeToken(userId: string, token: string): boolean {
   return timingSafeEqual(Buffer.from(token, "base64url"), sign(secret, userId));
 }
 
-/** The absolute one-click link for this account, or null when links can't be signed. */
 export function unsubscribeUrl(userId: string): string | null {
   const token = unsubscribeToken(userId);
   if (!token) return null;
@@ -36,8 +33,7 @@ export function unsubscribeUrl(userId: string): string | null {
   return url.toString();
 }
 
-// The page a reminder email's buttons open: it sends the action at once and says what happened,
-// so Done, Snooze and Unsubscribe each take one click from the inbox.
+// Sends the action at once, so Done, Snooze and Unsubscribe each take one click from the inbox.
 export const EMAIL_ACTION_PATH = "/reminder";
 
 function signAction(
@@ -65,7 +61,6 @@ export function verifyFollowUpToken(
   );
 }
 
-/** Done or Snooze for one application from its email, or null when links can't be signed. */
 export function followUpActionUrl(
   userId: string,
   applicationId: string,
@@ -81,7 +76,7 @@ export function followUpActionUrl(
   return url.toString();
 }
 
-/** The email body's own unsubscribe link: the same token as the header's, opened as a page. */
+/** The same token as the header's, opened as a page. */
 export function unsubscribePageUrl(userId: string): string | null {
   const token = unsubscribeToken(userId);
   if (!token) return null;

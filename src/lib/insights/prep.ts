@@ -3,9 +3,7 @@ import { TEXT_LIMITS } from "@/config/plans";
 import { ApplicationIdSchema } from "@/lib/applications/validation";
 import { ResumeSchema } from "@/lib/resume/validation";
 
-// Client-safe. The interview prep pack for one application: what POST /api/interview returns and
-// what the application row keeps (applications.prep). The caps bound a stored pack, and a stored
-// pack is parsed again on read, so a bad row shows as "no pack yet" instead of breaking the page.
+// A stored pack is parsed again on read, so a bad row shows as "no pack yet" instead of breaking.
 
 export const PREP_LIMITS = {
   questions: 8,
@@ -13,20 +11,18 @@ export const PREP_LIMITS = {
   asks: 5,
   points: 4,
   questionChars: 220,
-  // v1's `why`, which `checking` replaces, had the same cap, so every v1 pack reads as v2 whole.
+  // v1's `why` had the same cap, so every v1 pack reads as v2 whole.
   checkingChars: 220,
   followUpChars: 160,
   pointChars: 160,
   titleChars: 100,
-  // A resume line's own cap (BulletSchema).
   lineChars: 1_000,
   placeChars: 300,
   partChars: 400,
   jobFieldChars: 200,
 } as const;
 
-// The rounds of a typical interview, in the order they happen. A pack lists its questions in this
-// order, so opening comes first and closing last.
+// In the order they happen; a pack lists its questions in this order.
 export const PREP_ROUNDS = ["opening", "fit", "skills", "behavioural", "closing"] as const;
 export type PrepRound = (typeof PREP_ROUNDS)[number];
 
@@ -37,20 +33,16 @@ const text = (max: number) => z.string().max(max);
 
 export const PrepQuestionSchema = z.object({
   round: z.enum(PREP_ROUNDS),
-  // Worded the way an interviewer says it in the room: "Walk me through how you'd cut…".
   question: text(PREP_LIMITS.questionChars),
-  // What the interviewer is really testing: "Whether you can find what's slow and prove the fix."
+  // e.g. "Whether you can find what's slow and prove the fix."
   checking: text(PREP_LIMITS.checkingChars),
-  // The probe they usually add after the answer. Empty when there isn't an obvious one.
   followUp: text(PREP_LIMITS.followUpChars),
-  // Answer pointers drawn only from the resume and the job post, with [blanks] for the rest.
+  // Only from the resume and the job post, with [blanks] for the rest.
   points: z.array(text(PREP_LIMITS.pointChars)).max(PREP_LIMITS.points),
-  // Index into the pack's stories when one of them answers this question.
   story: z.number().int().min(0).max(PREP_LIMITS.stories - 1).nullable(),
 });
 
-// One STAR outline. `line` is a real resume line, word for word, and `place` is where it sits; the
-// four parts use that line's facts only, with [blanks] for what only the person knows.
+// `line` is a real resume line, word for word; the four parts use only its facts, with [blanks].
 export const StarStorySchema = z.object({
   title: text(PREP_LIMITS.titleChars),
   line: text(PREP_LIMITS.lineChars),
@@ -65,7 +57,6 @@ const JobSchema = z.object({
   title: text(PREP_LIMITS.jobFieldChars),
   company: text(PREP_LIMITS.jobFieldChars),
 });
-// Good questions for the person to ask the interviewer.
 const AsksSchema = z.array(text(PREP_LIMITS.questionChars)).max(PREP_LIMITS.asks);
 
 export const InterviewPrepSchema = z
@@ -76,7 +67,7 @@ export const InterviewPrepSchema = z
     stories: z.array(StarStorySchema).max(PREP_LIMITS.stories),
     asks: AsksSchema,
     createdAt: z.number().int(),
-    // Made without an AI key: sample output the page must label as such.
+    // Made without an AI key: the page must label it as sample output.
     demo: z.boolean(),
   })
   .superRefine((prep, ctx) => {
@@ -87,7 +78,7 @@ export const InterviewPrepSchema = z
     });
   });
 
-// Packs made before rounds (2026-11-08 to 2026-11-09). Read only: new packs are always v2.
+// Packs made before rounds. Read only: new packs are always v2.
 const InterviewPrepV1Schema = z.object({
   version: z.literal(1),
   job: JobSchema,
@@ -104,15 +95,11 @@ export type PrepQuestion = z.infer<typeof PrepQuestionSchema>;
 export type StarStory = z.infer<typeof StarStorySchema>;
 export type InterviewPrep = z.infer<typeof InterviewPrepSchema>;
 
-/** Questions in interview order: by round, keeping the given order within a round. */
 export function byRound<T extends Pick<PrepQuestion, "round">>(questions: readonly T[]): T[] {
   return [...questions].sort((a, b) => PREP_ROUNDS.indexOf(a.round) - PREP_ROUNDS.indexOf(b.round));
 }
 
-/**
- * A stored pack, or null when the row has none or holds something this build can't read. A v1 pack
- * comes back as v2: its `why` becomes `checking`, under the default round, with no extras.
- */
+// A v1 pack comes back as v2: `why` becomes `checking`, under the default round.
 export function readPrep(value: unknown): InterviewPrep | null {
   if (value === null || value === undefined) return null;
   const parsed = InterviewPrepSchema.safeParse(value);
@@ -133,7 +120,7 @@ export function readPrep(value: unknown): InterviewPrep | null {
   };
 }
 
-// POST /api/interview. Requires sign-in; shares the "letter" allowance with cover letters.
+// Shares the "letter" allowance with cover letters.
 export const InterviewRequestSchema = z.object({
   applicationId: ApplicationIdSchema,
   resume: ResumeSchema,
@@ -145,19 +132,17 @@ export const InterviewRequestSchema = z.object({
 });
 export type InterviewRequestBody = z.input<typeof InterviewRequestSchema>;
 
-// saved: false when the application was deleted (or another account's) while the pack was being
-// made. The person still gets the pack they were counted for.
+// saved: false when the application was deleted while the pack was being made; the person still
+// gets the pack they were counted for.
 export type InterviewResult = { prep: InterviewPrep; saved: boolean };
 
-// GET /api/interview: one line per application with a saved pack, newest pack first. Counts only,
-// so the list stays small however many packs there are.
+// Counts only, so the list stays small however many packs there are.
 export type PrepSummary = {
   applicationId: string;
   company: string;
   role: string;
   jobUrl: string;
   resumeTitle: string;
-  // When the pack was made.
   createdAt: number;
   questions: number;
   stories: number;
@@ -166,7 +151,6 @@ export type PrepSummary = {
 
 export const PREP_LIST_LIMIT = 200;
 
-// GET /api/interview/:applicationId: the job details the prep page needs, not the whole row.
 export type PrepTarget = {
   id: string;
   company: string;

@@ -6,8 +6,7 @@ import { devAuthActive } from "@/lib/auth/dev-mode";
 import { appPoolOptions, connectionTarget, pooledDatabaseUrl } from "./connection";
 import * as schema from "./schema";
 
-// Server-only. Tests swap this module for ./testing (in-memory PGlite, see vitest.setup.ts), so
-// code takes the driver-neutral Db type, never the postgres.js one.
+// Tests swap this module for ./testing (PGlite), so code takes the driver-neutral Db type.
 
 export type Db = PgDatabase<PgQueryResultHKT, typeof schema>;
 export type Tx = PgTransaction<PgQueryResultHKT, typeof schema, ExtractTablesWithRelations<typeof schema>>;
@@ -15,16 +14,13 @@ export type Tx = PgTransaction<PgQueryResultHKT, typeof schema, ExtractTablesWit
 let db: Db | null = null;
 
 /**
- * The database for this process. Production: Supabase through DATABASE_URL (or POSTGRES_URL).
- * Development: the local .pglite/ folder whenever dev sign-in is on or no URL is set, so `bun dev`
- * never writes test accounts into a real database. Tables come from supabase/migrations
- * (scripts/migrate.ts in production, automatically for the local folder).
+ * Supabase via DATABASE_URL (or POSTGRES_URL) in production. In development, the local .pglite/
+ * folder when dev sign-in is on or no URL is set, so test accounts never reach a real database.
  */
 export async function getDb(): Promise<Db> {
   if (db) return db;
   const url = pooledDatabaseUrl();
-  // process.env.NODE_ENV is replaced at build time, so production bundles drop this branch and
-  // never contain PGlite.
+  // NODE_ENV is inlined at build time, so production bundles drop this branch and PGlite with it.
   if (process.env.NODE_ENV === "development" && (devAuthActive() || !url)) {
     const { openLocalDb } = await import("./local");
     return openLocalDb();

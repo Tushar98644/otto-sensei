@@ -10,8 +10,7 @@ import {
   WORKABLE_HOST,
 } from "./hosts";
 
-// Server-only. Turns a pasted job link into what to read: a job on a board with a public JSON API,
-// or any other page. Pure: no network.
+// Pure: no network.
 
 export const MAX_LINK_CHARS = 2048;
 
@@ -35,15 +34,15 @@ const HOST_LABEL = /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/;
 // Recruitee's and Personio's own sites under their domains, which are never a company's board.
 const VENDOR_LABELS = new Set(["www", "app", "api", "help", "support", "docs", "blog", "careers"]);
 
-/** "acme" for acme.recruitee.com, or null for another host or one of the vendor's own pages. */
+/** null for another host or one of the vendor's own pages. */
 function companySubdomain(host: string, domain: string): string | null {
   if (!host.endsWith(`.${domain}`)) return null;
   const label = host.slice(0, -domain.length - 1);
   return HOST_LABEL.test(label) && !VENDOR_LABELS.has(label) ? label : null;
 }
 
-// Sites that show jobs only after a login or a bot check. Asking them anyway would mean faking a
-// browser, so the person is asked for the text straight away.
+// Jobs only behind a login or bot check: reading them would mean faking a browser, so ask for the
+// text.
 const UNREADABLE_SITES: Record<string, { site: string; reason: "login_required" | "blocked" }> = {
   linkedin: { site: "LinkedIn", reason: "login_required" },
   lnkd: { site: "LinkedIn", reason: "login_required" },
@@ -55,11 +54,9 @@ const LOCAL_SUFFIXES = [".localhost", ".local", ".internal", ".home.arpa", ".lan
 // Two-part endings such as co.uk and com.au, where the company is the label before them.
 const SECOND_LEVEL = new Set(["co", "com", "org", "net", "ac", "gov", "edu", "ne", "or"]);
 
-/**
- * Checks a URL before any request to it, the first one and every redirect. Plain http is upgraded
- * to https; any other scheme, credentials, a port other than 443 and non-public hosts are refused.
- * DNS answers are checked separately, at connect time.
- */
+// Run before every request, redirects included. http is upgraded to https; other schemes,
+// credentials, ports other than 443 and non-public hosts are refused. DNS is checked at connect
+// time.
 export function toFetchableUrl(input: string | URL, base?: URL): URL {
   let url: URL;
   try {
@@ -108,7 +105,7 @@ function unreadableSite(host: string) {
   return null;
 }
 
-/** The company's own label in a host name: careers.airbnb.com and airbnb.co.uk both give "airbnb". */
+/** careers.airbnb.com and airbnb.co.uk both give "airbnb". */
 export function companyLabel(hostname: string): string | null {
   const labels = hostname
     .toLowerCase()
@@ -138,11 +135,8 @@ function greenhouseTarget(url: URL, parts: string[]): JobTarget {
   throw new JobReadError("listing");
 }
 
-/**
- * Parses a pasted job link. Accepts links without the scheme ("jobs.lever.co/acme/..."). Throws
- * JobReadError for links that aren't URLs, hosts that aren't public, board links that list many
- * jobs, and sites that can't be read without a login.
- */
+// Accepts links without the scheme. Throws JobReadError for non-URLs, non-public hosts, board links
+// listing many jobs, and sites that need a login.
 export function parseJobLink(raw: string): JobTarget {
   const link = raw.trim();
   if (!link || link.length > MAX_LINK_CHARS || /\s/.test(link))
@@ -171,8 +165,8 @@ export function parseJobLink(raw: string): JobTarget {
     throw new JobReadError("listing");
   }
   if (host === WORKABLE_HOST) {
-    // apply.workable.com/acme/j/1A2B3C4D5E/ ; the short /j/1A2B3C4D5E link doesn't name the
-    // account the documented endpoint needs, so it is read as a page.
+    // The short /j/<code> link doesn't name the account the documented endpoint needs, so it's read
+    // as a page.
     const [account, j, shortcode] = parts;
     if (
       account &&

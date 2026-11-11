@@ -76,8 +76,7 @@ function fixMessage(fix: PreparedFix): string {
   return parts.join("\n\n");
 }
 
-// A line or an answer can hold a link or an email ("Launched shop.acme.com/v2"). The model gets
-// placeholders; finalizeFix() then checks the restored output against the real text.
+// Lines can hold a link or email; the model gets placeholders and finalizeFix() checks the result.
 function redactFix(fix: PreparedFix, redactor: Redactor): PreparedFix {
   return {
     bullet: redactor.redact(fix.bullet),
@@ -89,17 +88,14 @@ function redactFix(fix: PreparedFix, redactor: Redactor): PreparedFix {
   };
 }
 
-// A suggestion with placeholders but no questions would leave the person stuck, so ask for each
-// placeholder directly.
+// Placeholders with no questions would leave the person stuck, so ask for each one.
 function placeholderQuestions(suggestion: string): string[] {
   return placeholdersIn(suggestion)
     .slice(0, MAX_QUESTIONS)
     .map((placeholder) => `What should go in ${placeholder}?`);
 }
 
-// After answers, some models still bracket the facts the person just gave ("a [30%] result").
-// Those are facts now, not blanks, so a bracket whose text appears in an answer comes off; a real
-// gap like "[number]" stays.
+// Unwraps brackets models put around facts the person gave ("a [30%] result"); real gaps stay.
 function unwrapAnswered(text: string, answers: readonly string[]): string {
   const said = answers.join(" ").toLowerCase();
   return text.replace(/\[([^\]]+)\]/g, (match: string, inner: string) => {
@@ -138,14 +134,7 @@ function finalizeFix(output: FixOutput, fix: PreparedFix): FixResult {
   };
 }
 
-/**
- * Improves one resume line without inventing facts. First call (no answers): issues, up to 3
- * questions for missing facts, and a suggestion with [placeholders]. Second call (with answers):
- * a final suggestion that uses only the original line plus the answers; questions = [].
- * Without an API key returns a deterministic demo result built from lintBullet().
- * Throws AIError on refusal, rate limit, outage, or schema-invalid output, and "too_long" for a
- * line over TEXT_LIMITS.bulletChars.
- */
+// First call: issues, up to 3 questions and a [placeholder] draft. Second: only line plus answers.
 export async function fixBullet(input: FixInput): Promise<FixResult> {
   const fix = prepare(input);
   if (!fix.bullet) throw new AIError("invalid_output", "There is no line to fix");
@@ -160,8 +149,7 @@ export async function fixBullet(input: FixInput): Promise<FixResult> {
     system: FIX_SYSTEM_PROMPT,
     user: fixMessage(redactFix(fix, redactor)),
     schema: FixOutputSchema,
-    // Medium bought nothing measurable over low on the same lines and was about 3x slower on the
-    // answer step (AUDIT-cost-and-findability.md, "Fix: low vs medium effort").
+    // Medium bought nothing measurable over low and was ~3x slower on the answer step.
     effort: "low",
   });
   return finalizeFix(redactor.restoreDeep(output), fix);

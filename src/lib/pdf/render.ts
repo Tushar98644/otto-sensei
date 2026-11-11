@@ -2,22 +2,18 @@ import { createElement } from "react";
 import type { Resume, TemplateId } from "@/lib/resume/schema";
 import type { PdfPageSize } from "./page-size";
 
-// Client entry point for PDF export. react-pdf is large, so it's imported only when a PDF is
-// actually needed and never lands in the bundle of any other page.
+// react-pdf is large, so it's imported only when a PDF is actually needed.
 
-// template: defaults to the format saved on the resume.
 export type RenderPdfOptions = { pageSize?: PdfPageSize; template?: TemplateId };
 
-// A two-page resume renders in well under a second. This only stops a stuck render from leaving
-// a spinner up forever.
+// Only stops a stuck render from leaving a spinner up forever.
 const RENDER_TIMEOUT_MS = 20_000;
 
 function loadRenderer() {
   return Promise.all([import("@react-pdf/renderer"), import("@/components/pdf/resume-pdf")]);
 }
 
-// Starts downloading the renderer early (e.g. on the tailor step) so the download step feels
-// instant. Failures are ignored here; renderResumePdf() retries and reports them.
+// Failures are ignored here; renderResumePdf() retries and reports them.
 export function preloadPdfRenderer(): void {
   loadRenderer().catch(() => undefined);
 }
@@ -34,7 +30,6 @@ export async function renderResumePdf(
 
 export type RenderLetterOptions = RenderPdfOptions & { now?: number };
 
-// The cover letter in the same format family as `resume`, whose name block it carries.
 export async function renderLetterPdf(
   resume: Resume,
   letter: string,

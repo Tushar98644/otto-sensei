@@ -6,7 +6,6 @@ import type { PdfFontName } from "./fonts";
 // Inclusive code point ranges, flattened: [start, end, start, end, ...].
 export type CoverageRanges = readonly number[];
 
-/** What each family draws in every one of its faces. */
 export const FAMILY_COVERAGE: Record<PdfFontName, CoverageRanges> = {
   "Carlito": [
     32, 126, 160, 172, 174, 697, 699, 712, 715, 755, 757, 757, 759, 767, 773, 773,
@@ -159,7 +158,6 @@ export const FAMILY_COVERAGE: Record<PdfFontName, CoverageRanges> = {
   ],
 };
 
-/** What every format prints, counting each family's fallback. */
 export const DRAWABLE: CoverageRanges = [
     32, 126, 160, 172, 174, 887, 890, 895, 900, 906, 908, 908, 910, 929, 931, 993,
     1008, 1327, 6832, 6846, 7424, 7669, 7676, 7957, 7960, 7965, 7968, 8005, 8008, 8013, 8016, 8023,

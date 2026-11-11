@@ -10,15 +10,13 @@ import { docxLook, type DocxLook } from "./look";
 import { fontTableXml, numberingXml, stylesXml } from "./styles";
 import { R_NS, W_NS, XML_HEAD, escapeXml, paragraph, run } from "./xml";
 
-// The resume as a real Word file (.docx), built in the browser with jszip: named styles, Heading 1
-// sections, a bulleted list, dates on a tab stop, the chosen page size, font and accent. Many
+// Built in the browser with jszip: named styles, Heading 1 sections, a real bulleted list. Many
 // application forms still ask for Word, and this is the shape their parsers read best.
 
 export const DOCX_MIME = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
 
 export type DocxOptions = {
   pageSize?: PdfPageSize;
-  // Defaults to the format saved on the resume.
   template?: TemplateId;
   // Epoch ms for the file's created date.
   now?: number;
@@ -147,7 +145,6 @@ async function pack({ body, look, links, meta, now }: Package): Promise<Uint8Arr
 
 const toBlob = (bytes: Uint8Array) => new Blob([bytes.slice().buffer], { type: DOCX_MIME });
 
-/** The .docx file's bytes. */
 export async function buildResumeDocx(
   resume: Resume,
   options: DocxOptions = {},
@@ -159,15 +156,11 @@ export async function buildResumeDocx(
   return pack({ body: bodyXml(model, look, links), look, links, meta: model.meta, now });
 }
 
-// The letter PDF's spacing: paragraphs further apart than resume lines, the date set off.
+// Paragraphs further apart than resume lines, the date set off, like the letter PDF.
 const LETTER_DATE = { before: 18, after: 14 };
 const LETTER_GAP = 10;
 
-/**
- * The cover letter as a Word file in the resume's format: the same name block, fonts and margins
- * as the PDF letter, then the date and the letter's paragraphs. A single line break stays a break
- * inside its paragraph, so "Best regards," keeps the name under it.
- */
+// A single line break stays inside its paragraph, so "Best regards," keeps the name under it.
 export async function buildLetterDocx(
   resume: Resume,
   letter: string,

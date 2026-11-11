@@ -23,10 +23,8 @@ import {
   type ProseCheck,
 } from "./writing-guards";
 
-// Server-only. Cover letters and answers to application questions, written from the resume and
-// the job post alone. Every draft goes through the prose guards; one with invented numbers,
-// stock phrases or upgraded verbs gets one more try with the problems spelled out, and whatever
-// is left reaches the person as a warning next to the text, never silently.
+// One retry with problems spelled out; whatever is left reaches the person as a warning, never
+// silently.
 
 export const LETTER_WORDS = { min: 150, max: 250 } as const;
 export const ANSWER_WORDS = { min: 60, max: 150 } as const;
@@ -34,12 +32,10 @@ export const QUESTION_CHARS = { min: 8, max: 500 } as const;
 // Same bound as tailoring: resumeToText() adds headings to what was imported.
 const MAX_RESUME_CHARS = Math.round(TEXT_LIMITS.resumeChars * 1.5);
 const JOB_FIELD_CHARS = 200;
-// Dropping stock-phrase sentences may not shrink a draft below these; past that the person gets
-// the phrase and a warning instead of a stub.
+// Past this the person gets the phrase and a warning instead of a stub.
 const LETTER_FLOOR_WORDS = 110;
 const ANSWER_FLOOR_WORDS = 45;
-// Two calls have to fit inside the route's 60 seconds: the first gets most of it, a retry only
-// starts with enough time left to finish.
+// Two calls fit the route's 60 seconds: a retry only starts with enough time left to finish.
 const FIRST_DEADLINE_MS = 30_000;
 const TOTAL_DEADLINE_MS = 50_000;
 const MIN_RETRY_MS = 15_000;
@@ -53,13 +49,10 @@ type Range = { readonly min: number; readonly max: number };
 
 type Prepared = {
   job: WritingInput;
-  // The resume as the model reads it: placeholders for the name, contact details and links. Its
-  // drafts are restored before any guard runs, so the guards always see the real text.
+  // Placeholders for the name and contacts; drafts are restored before any guard runs.
   shownText: string;
   redactor: Redactor;
-  // Every number in the output must come from these.
   sources: string[];
-  // What the person did, line by line, for the verb check.
   lines: string[];
 };
 
@@ -79,8 +72,8 @@ function prepare(resume: Resume, input: WritingInput): Prepared {
   const lines = [...listBullets(resume).map((bullet) => bullet.text), resume.summary];
   const redactor = redactorFor(resume);
   const shownText = resumeToText(redactResume(resume, redactor));
-  // The job title can carry a number ("Engineer II" rarely does, "Level 3 Support" might); the
-  // post's other numbers are the employer's facts, not the person's, so they never back a claim.
+  // The post's other numbers are the employer's facts, not the person's, so they never back a
+  // claim.
   return { job, shownText, redactor, sources: [resumeText, job.jobTitle, job.company], lines };
 }
 
@@ -153,7 +146,6 @@ function quoted(text: string): string {
   return `“${line.length > 80 ? `${line.slice(0, 77).trimEnd()}…` : line}”`;
 }
 
-// What the person should check before sending, in plain words.
 function warningsFor(text: string, prepared: Prepared, blankHint: string): string[] {
   const warnings: string[] = [];
   const blanks = [...new Set(text.match(/\[[^\]\n]+\]/g) ?? [])];
@@ -186,7 +178,7 @@ function letterMessage(resumeText: string, job: WritingInput): string {
     .join("\n\n");
 }
 
-/** "Dear Kestrel Labs team," + body + "Best regards,\nJordan Ellis", ready to edit. */
+/** "Dear Kestrel Labs team," + body + "Best regards,\nJordan Ellis". */
 export function assembleLetter(
   paragraphs: readonly string[],
   name: string,
@@ -197,13 +189,7 @@ export function assembleLetter(
   return [greeting, ...paragraphs, signOff].join("\n\n");
 }
 
-/**
- * A 150-250 word cover letter from the resume and the job post only. Numbers the resume doesn't
- * contain become "[number]", real ones lose any brackets, sentences with stock phrases go when the
- * letter can spare them, and anything left to check comes back in `warnings`. Without an API key
- * returns a demo letter built from the resume's own lines.
- * Throws AIError on refusal, rate limit, outage, too-long input, or empty output.
- */
+// Throws AIError on refusal, rate limit, outage, too-long input or empty output.
 export async function writeCoverLetter(
   resume: Resume,
   input: WritingInput,
@@ -245,11 +231,8 @@ function answerMessage(resumeText: string, job: WritingInput, question: string):
   ].join("\n\n");
 }
 
-/**
- * A 60-150 word answer to one application question, from the resume and the job post only, with
- * the same guards as the cover letter. Facts only the person knows (a start date, a reason) are
- * left as [blanks] and named in `warnings`. Without an API key returns a demo answer.
- */
+// Facts only the person knows (a start date, a reason) are left as [blanks] and named in
+// `warnings`.
 export async function answerQuestion(
   resume: Resume,
   input: WritingInput,

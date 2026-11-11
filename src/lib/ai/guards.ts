@@ -1,10 +1,7 @@
-// Deterministic checks on model output. The prompts already forbid inventing facts; these catch a
-// model that does it anyway, for the two kinds of fact that are cheap to verify in code: numbers
-// and words.
+// The prompts forbid inventing facts; these catch a model that does it anyway, for numbers and
+// words.
 
-// A standalone number as written: "40", "1,200", "3.5". Digits glued to letters on either side
-// are names ("S3", "HTML5", "2FA"), not quantities; "k", "M", "B" and "x" are the exceptions
-// ("2M", "10x").
+// "40", "1,200", "3.5". Digits glued to letters are names ("S3", "2FA"), except k/M/B/x ("10x").
 const NUMBER = /(?<![\p{L}\p{N}.,])[$€£¥]?(\d+(?:[.,]\d+)*)(?:%|\+|[kKmMbBx](?![\p{L}\p{N}]))?(?![\p{L}\p{N}])/gu;
 const PLACEHOLDER_OR_NUMBER = new RegExp(`\\[[^\\]]*\\]|${NUMBER.source}`, "gu");
 const WORD = /[\p{L}\p{N}]+/gu;
@@ -47,7 +44,6 @@ function knownNumbers(sources: readonly string[]): Set<string> {
   return known;
 }
 
-// True when `output` states a number that none of the sources contain.
 export function hasInventedNumbers(output: string, sources: readonly string[]): boolean {
   const known = knownNumbers(sources);
   for (const match of output.matchAll(NUMBER)) {
@@ -56,8 +52,7 @@ export function hasInventedNumbers(output: string, sources: readonly string[]): 
   return false;
 }
 
-// Swaps each number the sources don't contain for a placeholder, so the person is asked for the
-// real figure instead of being handed a made-up one. Existing placeholders are left alone.
+// So the person is asked for the real figure instead of handed a made-up one.
 export function maskInventedNumbers(output: string, sources: readonly string[]): string {
   const known = knownNumbers(sources);
   return output.replace(PLACEHOLDER_OR_NUMBER, (match: string, digits: string | undefined) => {
@@ -66,8 +61,7 @@ export function maskInventedNumbers(output: string, sources: readonly string[]):
   });
 }
 
-// Share of the words in `values` that never occur in `source`, from 0 to 1. Text copied from the
-// source scores near 0; rewritten or invented text pushes it up.
+// 0 to 1: copied text scores near 0; rewritten or invented text pushes it up.
 export function novelWordShare(values: readonly string[], source: string): number {
   const known = new Set(Array.from(source.toLowerCase().matchAll(WORD), (match) => match[0]));
   let total = 0;

@@ -10,7 +10,7 @@ import type { ClientEvent, ClientEventProps } from "./events";
 type TrackViewProps = {
   [E in ClientEvent]: {
     event: E;
-    // Sent at most once per page load for each value, e.g. once per resume rather than per visit.
+    // Sent at most once per page load for each value, e.g. once per resume.
     once?: string;
   } & (ClientEventProps[E] extends Record<string, never>
     ? { props?: ClientEventProps[E] }

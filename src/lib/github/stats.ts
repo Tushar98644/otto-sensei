@@ -2,9 +2,6 @@ import { z } from "zod";
 import type { GitHubRepoSummary, GitHubStats } from "@/lib/portfolio/content";
 import type { GitHubRepo } from "./types";
 
-// Pure. A person's public GitHub numbers for a portfolio: their profile, own repos and the last 90
-// days of public events, boiled down to a small, checked shape (src/lib/portfolio/content.ts).
-
 const DAY_MS = 24 * 60 * 60 * 1000;
 const WEEKS = 12;
 const TOP_REPOS = 8;
@@ -110,15 +107,11 @@ export function githubStatsFrom(
 
 type StoredStats = GitHubStats & { connected: true };
 
-/**
- * The copy to store, marked as read from the owner's connected GitHub account. Copies saved before
- * 2026-11-11 were read for whatever username the page named, so the mark is what makes one count.
- */
+// The mark is what makes a copy count: older copies were read for whatever username the page named.
 export function storedStats(stats: GitHubStats): StoredStats {
   return { ...stats, connected: true };
 }
 
-/** A stored copy read back as untrusted: the right shape with the mark, or null. */
 export function parseStoredStats(value: unknown): GitHubStats | null {
   if (!value || typeof value !== "object") return null;
   const stats = value as Partial<StoredStats>;

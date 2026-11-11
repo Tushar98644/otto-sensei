@@ -3,9 +3,8 @@ import { portfolioTag } from "./cache";
 import { findPublicPortfolio, type PublicPortfolioResult } from "./records";
 import { normalizeSlug } from "./slug";
 
-// Server-only. What /p/<slug> and its Open Graph image read: one database lookup per address,
-// cached until a write drops it (refreshPortfolioPages) or an hour passes, which also picks up a
-// plan change for the credit line.
+// One lookup per address, cached until a write drops it or an hour passes (which also picks up a
+// plan change for the credit line).
 
 export const PORTFOLIO_REVALIDATE_SECONDS = 3600;
 

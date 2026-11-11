@@ -7,10 +7,8 @@ import {
   type TailorMeta,
 } from "@/lib/resume/schema";
 
-// Client-safe. What a tailored copy remembers about its job. Every copy has the title, company and
-// keywords; copies made since 2026-11-08 also keep the post's text, its link and the requirement
-// list (TailorMetaSchema). Those are still read by shape, not by type: copies in localStorage are
-// never re-parsed, so an older or hand-edited one may hold anything there, or nothing.
+// Newer copies also keep the post's text, link and requirements. Read by shape, not type:
+// localStorage copies are never re-parsed, so an older or hand-edited one may hold anything there.
 
 const MIN_JOB_CHARS = 80;
 
@@ -20,7 +18,7 @@ function loose(meta: TailorMeta): LooseMeta {
   return meta as LooseMeta;
 }
 
-/** The job post's text saved with a tailored copy, or "" when it has none worth sending. */
+/** "" when it has none worth sending. */
 export function savedJobText(resume: Resume | null | undefined): string {
   const meta = resume?.tailor;
   if (!meta) return "";
@@ -30,7 +28,6 @@ export function savedJobText(resume: Resume | null | undefined): string {
   return text.length >= MIN_JOB_CHARS && text.length <= TEXT_LIMITS.jobPostChars ? text : "";
 }
 
-/** The job link saved with a tailored copy, or "". */
 export function savedJobUrl(resume: Resume | null | undefined): string {
   const meta = resume?.tailor;
   if (!meta) return "";
@@ -40,11 +37,8 @@ export function savedJobUrl(resume: Resume | null | undefined): string {
 
 export type { SavedRequirement };
 
-/**
- * The requirement list saved with a tailored copy, or null when the copy only kept keywords.
- * Entries that don't read are skipped one by one rather than dropping the whole list. The same
- * rules as SavedRequirementSchema, by hand, so the board doesn't load zod for them.
- */
+// null when the copy only kept keywords. Bad entries are skipped one by one; the same rules as
+// SavedRequirementSchema, by hand, so the board doesn't load zod.
 export function savedRequirements(resume: Resume | null | undefined): SavedRequirement[] | null {
   const meta = resume?.tailor;
   if (!meta) return null;
@@ -71,11 +65,7 @@ function readRequirement(value: unknown): SavedRequirement | null {
   };
 }
 
-/**
- * The names a screener searches for in this copy's job: the saved requirements' terms when there
- * are any, else the saved keywords. A requirement that is a kind of experience ("mentoring") has
- * no terms and is left out: it can't be counted across jobs word for word.
- */
+// A requirement that is a kind of experience has no terms: it can't be counted across jobs.
 export function savedTerms(resume: Resume): string[] {
   const requirements = savedRequirements(resume);
   if (requirements) {

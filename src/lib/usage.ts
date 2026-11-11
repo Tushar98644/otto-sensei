@@ -17,29 +17,18 @@ import { usage, users } from "@/db/schema";
 import type { SessionUser } from "@/lib/auth/types";
 import { log } from "@/lib/log";
 
-// Server-only. Allowances per user from planLimits(), stored in the `usage` table as one row per
-// (user, feature, period):
-// - monthly and yearly subscribers count per billing month ("cycle:<ISO instant it starts>"). On a
-//   monthly plan that is the subscription's current period from Creem, renewal to renewal; on a
-//   yearly plan, one-month steps from the day its period started (a day a month doesn't have, like
-//   the 31st, becomes that month's last day). A paid row no webhook has dated yet counts per UTC
-//   calendar month ("2026-11"), as every paid row did before billing months; so does Free, whose
-//   limits are all zero.
-// - weekly subscribers count per billing week ("week:<ISO instant it ends>"): the 7 days ending at
-//   plan_renews_at, or the ISO week in UTC when there is no renewal date (mock billing).
-// - a trial counts in one fixed row, "trial": a person gets one trial, so a trial end date that
-//   moves (or a month that turns mid-trial) can never open a second allowance.
+// One `usage` row per (user, feature, period). Period keys:
+// - "cycle:<ISO start>": a monthly or yearly subscriber's billing month. Monthly: Creem's current
+//   period. Yearly: one-month steps from the period start (a 31st becomes a short month's last
+//   day).
+// - "YYYY-MM": a UTC calendar month, for Free and for paid rows no webhook has dated yet.
+// - "week:<ISO end>": the 7 days ending at plan_renews_at, or the UTC ISO week without one.
+// - "trial": one fixed row, so a moved trial end can never open a second allowance.
 //
-// A renewal starts the allowance over. Nothing else does:
-// - a webhook that moves the account to another billing month without renewing it (Pro to Max,
-//   another interval, the first billing period stored on a row that counted calendar months)
-//   carries what was used over to the new month (carryUsageOver);
-// - every period keeps its own row, so coming back to an interval within the same month or week
-//   finds the count it left there;
-// - a weekly use also counts toward the calendar month, which is what a move from weekly to a
-//   monthly allowance carries over;
-// - a billing week, once started, runs its full 7 days even if the renewal date moves or is cleared
-//   (a plan change, a scheduled cancellation), so neither can open a fresh week early.
+// Only a renewal starts the allowance over. A move to another billing month (plan or interval
+// change) carries usage over (carryUsageOver); each period keeps its own row; weekly uses also
+// count
+// toward the calendar month; and a started billing week always runs its full 7 days.
 
 const DAY_MS = 86_400_000;
 const MINUTE_MS = 60_000;
@@ -47,15 +36,14 @@ export const WEEK_MS = 7 * DAY_MS;
 const WEEK_PREFIX = "week:";
 const CYCLE_PREFIX = "cycle:";
 export const TRIAL_PERIOD_KEY = "trial";
-// The AI token budget's row in each period, beside the features' rows (src/lib/ai-budget.ts). Its
-// count is tokens, so it is never a Feature, but it resets and carries over the same way.
+// Tokens, not a Feature, but it resets and carries over the same way (src/lib/ai-budget.ts).
 export const AI_TOKENS = "ai_tokens";
 const COUNTED = [...FEATURES, AI_TOKENS];
 // How far from the date the last period gave a renewal can land and still be that renewal, not a
 // change partway through. Also how close a reset must be to plan_renews_at to be called the renewal.
 const RENEWAL_SLACK_MS = DAY_MS;
 
-/** A period with its row key and start (null on the trial). Only kind, resetsAt and renews leave the server. */
+/** startsAt is null on the trial. Only kind, resetsAt and renews leave the server. */
 export type ResolvedPeriod = UsagePeriod & { key: string; startsAt: number | null };
 
 export type PeriodAccount = Pick<
@@ -71,7 +59,6 @@ export type PeriodAccount = Pick<
 
 type BillingWindow = { start: number; end: number };
 
-/** The UTC calendar month's key, e.g. "2026-11". */
 export function monthKey(now = Date.now()): string {
   const date = new Date(now);
   return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, "0")}`;
@@ -81,15 +68,12 @@ export function weekKey(end: number): string {
   return `${WEEK_PREFIX}${new Date(end).toISOString()}`;
 }
 
-/** A billing month's key, e.g. "cycle:2026-11-17T09:30:00.000Z". */
 export function cycleKey(start: number): string {
   return `${CYCLE_PREFIX}${new Date(start).toISOString()}`;
 }
 
-/**
- * `at` moved by whole months in UTC, keeping its day and time of day. A day the month doesn't have
- * becomes its last: Jan 31 plus one month is Feb 28, or Feb 29 in a leap year.
- */
+// UTC, keeping day and time of day. A day the month lacks becomes its last: Jan 31 + 1 month is
+// Feb 28 (29 in a leap year).
 export function addMonths(at: number, months: number): number {
   const date = new Date(at);
   const year = date.getUTCFullYear();
@@ -107,10 +91,7 @@ export function addMonths(at: number, months: number): number {
   );
 }
 
-/**
- * The month-long window holding `now`, in whole-month steps from `anchor` on either side of it.
- * Every step is taken from the anchor itself, so a 31st clamped to Feb 28 is back on Mar 31.
- */
+// Every step is taken from the anchor itself, so a 31st clamped to Feb 28 is back on Mar 31.
 export function monthWindow(anchor: number, now: number): BillingWindow {
   const from = new Date(anchor);
   const at = new Date(now);
@@ -123,10 +104,7 @@ export function monthWindow(anchor: number, now: number): BillingWindow {
 
 const toMinute = (at: number) => Math.floor(at / MINUTE_MS) * MINUTE_MS;
 
-/**
- * The billing month holding `now` for a monthly or yearly subscriber, from the period Creem last
- * reported, or null when no webhook has stored one for the row yet.
- */
+// null when no webhook has stored a period for the row yet.
 export function billingMonth(
   account: Pick<PeriodAccount, "planInterval" | "planPeriodStartsAt" | "planPeriodEndsAt">,
   now: number,
@@ -138,7 +116,6 @@ export function billingMonth(
   if (anchor === null) return null;
   // Yearly limits are monthly, on the day the year started (its end falls on the same day).
   if (account.planInterval === "year") return monthWindow(anchor, now);
-  // Monthly: renewal to renewal, as Creem reported it.
   if (start !== null && end !== null && start <= now && now < end) return { start, end };
   // Past the end while the renewal's webhook is still on its way: carry on in monthly steps from
   // it, so the reset still comes on the renewal day. Before the start, step back from the start.
@@ -146,7 +123,7 @@ export function billingMonth(
   return monthWindow(anchor, now);
 }
 
-/** When the billing week holding `now` ends: 7-day windows lined up with the renewal date. */
+/** 7-day windows lined up with the renewal date. */
 export function billingWeekEnd(renewsAt: number, now: number): number {
   // Whole minutes, so one renewal reported with different milliseconds is still one week.
   const anchor = toMinute(renewsAt);
@@ -155,7 +132,7 @@ export function billingWeekEnd(renewsAt: number, now: number): number {
   return anchor + (Math.floor((now - anchor) / WEEK_MS) + 1) * WEEK_MS;
 }
 
-/** When the ISO week holding `now` ends: the next Monday, 00:00 UTC. */
+/** The next Monday, 00:00 UTC. */
 export function isoWeekEnd(now: number): number {
   const date = new Date(now);
   const sinceMonday = (date.getUTCDay() + 6) % 7;
@@ -180,8 +157,8 @@ function monthPeriod(account: PeriodAccount, now: number, quiet: boolean): Resol
   if (!isPaidPlan(account.plan)) return calendarMonth(now);
   const window = billingMonth(account, now);
   if (!window) {
-    // Neither blocks nor opens AI up: the row counts the way every paid row did before billing
-    // months, until its next subscription event stores the period.
+    // Neither blocks nor opens AI: counts per calendar month until a subscription event stores the
+    // period.
     if (!quiet) {
       log.warn("usage.period_fallback", { userId: account.id, interval: account.planInterval ?? null });
     }
@@ -197,10 +174,7 @@ function monthPeriod(account: PeriodAccount, now: number, quiet: boolean): Resol
   };
 }
 
-/**
- * The period the account's allowance counts in at `now`. Takes a transaction too. quiet: don't log
- * a paid row that has no billing period yet.
- */
+// Takes a transaction too. quiet: don't log a paid row that has no billing period yet.
 export async function resolvePeriod(
   db: Db,
   account: PeriodAccount,
@@ -232,7 +206,6 @@ export async function resolvePeriod(
   );
 }
 
-/** resolvePeriod() for an account known only by id, e.g. both sides of an invite. */
 export async function periodForUser(
   db: Db,
   userId: string,
@@ -254,14 +227,9 @@ export async function periodForUser(
   return account ? resolvePeriod(db, account, now) : null;
 }
 
-/**
- * Keeps what was used when a webhook moves the account to another billing month without renewing
- * it: Pro to Max, another interval, or the first billing period stored on a row that counted
- * calendar months. The new month's rows take the old period's counts and invite extras (the higher
- * of the two, so a retry or a second move adds nothing). A renewal, the end of a trial and a move
- * to a weekly or trial allowance start over as before. Call it in the transaction that stores the
- * new plan.
- */
+// For a webhook that moves the account to another billing month without renewing it. The new
+// month's rows take the old counts and bonuses (the higher of the two, so a retry adds nothing).
+// Renewals, trial ends and moves to weekly or trial start over. Call inside the plan's transaction.
 export async function carryUsageOver(
   db: Db,
   before: PeriodAccount,
@@ -292,10 +260,8 @@ export async function carryUsageOver(
     });
 }
 
-// The new month is the next one when it starts where the paid period being counted ends, give or
-// take a renewal that lands a little early or late. In the days a renewal's webhook is late, the
-// period being counted is already the month after, so a late renewal carries those days over. A
-// row still on calendar months knows when it renews only from plan_renews_at.
+// A renewal: the new month starts where the counted period ends, give or take a slightly early or
+// late renewal. Rows still on calendar months only know their renewal from plan_renews_at.
 function isRenewal(before: PeriodAccount, from: ResolvedPeriod, to: ResolvedPeriod): boolean {
   if (!isPaidPlan(before.plan) || to.startsAt === null) return false;
   const dated = from.key.startsWith(CYCLE_PREFIX) || from.kind === "week";
@@ -309,7 +275,6 @@ export function publicPeriod({ kind, resetsAt, renews }: ResolvedPeriod): UsageP
 
 type CountRow = { feature: string; count: number; bonus: number };
 
-// Exact primary-key lookups: one (subject, feature, period) seek per feature, the tokens included.
 function periodCounts(db: Db, userId: string, key: string) {
   return db
     .select({ feature: usage.feature, count: usage.count, bonus: usage.bonus })
@@ -320,8 +285,7 @@ function periodCounts(db: Db, userId: string, key: string) {
 function toSnapshot(limits: Record<Feature, number>, rows: CountRow[]): UsageSnapshot {
   const entry = (feature: Feature): Usage => {
     const row = rows.find((candidate) => candidate.feature === feature);
-    // Invite bonuses (src/lib/referrals) count for this period on top of the plan's limit, on plans
-    // that include the feature at all: Free has no AI, bonus or not.
+    // Invite bonuses count only on plans that include the feature: Free has no AI, bonus or not.
     const limit = limits[feature] > 0 ? limits[feature] + (row?.bonus ?? 0) : 0;
     // A downgrade can leave this period's count above the new limit; never report over 100% used.
     return { used: Math.min(row?.count ?? 0, limit), limit };
@@ -329,8 +293,7 @@ function toSnapshot(limits: Record<Feature, number>, rows: CountRow[]): UsageSna
   return Object.fromEntries(FEATURES.map((feature) => [feature, entry(feature)])) as UsageSnapshot;
 }
 
-// Tokens used against the period's AI budget; null on Free, which has none. A call that started
-// under the budget can end over it, so never report over 100% used.
+// A call that started under budget can end over it, so never report over 100%.
 function toBudget(user: SessionUser, kind: AllowancePeriod, rows: CountRow[]): Usage | null {
   const limit = aiTokenBudget(user.plan, kind);
   if (limit === null) return null;
@@ -356,11 +319,8 @@ export async function getUsage(user: SessionUser, now = Date.now()): Promise<Usa
   return (await getUsageState(user, now)).usage;
 }
 
-/**
- * Atomically checks the allowance and increments it: one upsert whose update only runs below the
- * limit, so two concurrent requests can't both take the last unit (Postgres locks the row for the
- * second until the first commits, then re-checks). allowed=false leaves the count unchanged.
- */
+// One upsert whose update only runs below the limit, so two concurrent requests can't both take the
+// last unit (Postgres locks the row, then re-checks). allowed=false leaves the count unchanged.
 export async function consumeUsage(
   user: SessionUser,
   feature: Feature,
@@ -418,8 +378,7 @@ async function countTowardMonth(db: Db, userId: string, feature: Feature, now: n
     });
 }
 
-// Gives a unit back when the AI call failed after consumeUsage(). Never goes below zero.
-// Pass the `now` given to consumeUsage() so a refund just after a reset still lands in the period
+// Never below zero. Pass consumeUsage()'s `now` so a refund just after a reset lands in the period
 // that was charged.
 export async function refundUsage(user: SessionUser, feature: Feature, now = Date.now()): Promise<void> {
   const db = await getDb();

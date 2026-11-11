@@ -37,7 +37,7 @@ import {
   type SectionBlock,
 } from "./sections";
 
-// Schema caps (see ./schema). Clipping to them means the result always passes ResumeSchema.
+// Clipping to the schema caps means the result always passes ResumeSchema.
 const LIMITS = {
   text: 200,
   label: 100,
@@ -64,13 +64,8 @@ const LIMITS = {
 } as const;
 const MAX_LINES = 2_000;
 
-/**
- * Rule-based text -> Resume, used when the Claude API key is missing (demo mode) or the AI call
- * fails. Must never throw and never invent content: anything it can't place goes into the summary
- * or stays out. Detects name (first non-empty line), email/phone/links via regex, sections via
- * findSections, bullets via leading markers (•, -, *, ▪, numbered) or one line per item.
- * Returns source: "import".
- */
+// Used without an AI key or when the AI call fails. Must never throw and never invent content:
+// anything it can't place goes into the summary or stays out.
 export function heuristicParse(text: string, now = Date.now()): Resume {
   const input = typeof text === "string" ? text.slice(0, TEXT_LIMITS.resumeChars) : "";
   try {
@@ -132,9 +127,6 @@ function parse(text: string, now: number): Resume {
   resume.sectionOrder = [...order, ...SECTION_KEYS.filter((key) => !order.includes(key))];
   return resume;
 }
-
-// ---------------------------------------------------------------------------------------------
-// Name and contact details
 
 const LABEL_WORDS = "e-?mail|phone|tel(?:ephone)?|mobile|mob|cell|whatsapp|linkedin|github|website|web|portfolio|address|location";
 // "Email: ..." loses its label; a bare "Email" left over once the address is removed is dropped.
@@ -231,8 +223,7 @@ function isHeadlineLike(value: string): boolean {
 }
 
 
-// "Berlin, Germany", "Austin, TX 78701", "Rio de Janeiro, Brazil", "Remote". Short capitalised
-// place names only, so "Senior Engineer, Acme Corp" isn't mistaken for a city.
+// Short capitalised place names only, so "Senior Engineer, Acme Corp" isn't taken for a city.
 const PLACE = "\\p{Lu}[\\p{L}.'-]*(?:\\s+(?:\\p{Lu}[\\p{L}.'-]*|de|da|do|del|la|le|of|upon|am|an))*";
 const LOCATION = new RegExp(`^${PLACE},\\s*${PLACE}(?:,\\s*${PLACE})?(?:\\s+\\d{4,6})?$`, "u");
 
@@ -242,9 +233,6 @@ function isLocation(value: string): boolean {
   return value.split(/,\s*/).every((part) => part.split(/\s+/).length <= 3 && !NOT_A_PLACE.test(part));
 }
 
-// ---------------------------------------------------------------------------------------------
-// Experience
-
 type Entry = { header: string[]; range: DateRange | null; date: string | null; body: string[] };
 
 const TITLE_WORDS =
@@ -252,9 +240,8 @@ const TITLE_WORDS =
 const COMPANY_WORDS =
   /\b(?:inc|llc|ltd|limited|gmbh|corp|corporation|co|company|plc|ag|bv|pty|technologies|technology|labs|group|solutions|systems|software|consulting|partners|bank|agency|studio|studios|ventures|capital|holdings|foundation|hospital|media|networks|services)\b\.?/i;
 const CORPORATE_SUFFIX = /^(?:inc|llc|ltd|co|corp|plc|gmbh)\.?$/i;
-// Strong signals only, for deciding where a job starts: "group" or "systems" also turn up in
-// descriptions, a legal suffix doesn't. Role nouns are singular in titles ("engineer") and often
-// plural in descriptions ("mentored two engineers").
+// Strong signals only: "group" turns up in descriptions, a legal suffix doesn't. Role nouns are
+// singular in titles ("engineer"), often plural in descriptions.
 const COMPANY_NAME = /\b(?:inc|llc|ltd|limited|gmbh|corp|corporation|plc|ag|bv|pty|labs|bank)\b\.?/i;
 const looksLikeJobHeader = (line: string) =>
   line.split(/\s+/).length <= 8 && (TITLE_WORDS.test(line) || COMPANY_NAME.test(line));
@@ -278,8 +265,7 @@ function parseExperience(lines: readonly string[]): Experience[] {
     .filter((job) => job.title || job.company || job.bullets.length > 0);
 }
 
-// Splits a section into entries anchored on their date lines, which every common layout has:
-// "Title / Company | dates", "Title, Company <tab> dates", "dates / Title, Company", ...
+// Entries anchor on their date lines, which every common layout has ("Title / Company | dates").
 function groupEntries(lines: readonly string[]): Entry[] {
   const isBullet = lines.map((line) => bulletText(line) !== null);
   const ranges = lines.map((line, i) => (isBullet[i] ? null : (findDateRanges(line)[0] ?? null)));
@@ -327,8 +313,7 @@ function groupEntries(lines: readonly string[]): Entry[] {
   });
 }
 
-// A lone date set apart from the words before it ("Developer Intern<tab>Summer 2020", "Acme | 2019"),
-// as opposed to one inside a sentence ("Led the 2020 migration").
+// "Developer Intern<tab>Summer 2020", not a date inside a sentence ("Led the 2020 migration").
 function setApartDate(line: string): string | null {
   if (!isTitleLike(line)) return null;
   const date = findDates(line).at(-1);
@@ -427,17 +412,13 @@ function firstSingleDate(lines: readonly string[]): string | null {
   return null;
 }
 
-// ---------------------------------------------------------------------------------------------
-// Education
-
 const SCHOOL_WORDS =
   /\b(?:university|universit[äéà]t?|universidad|universidade|college|school|institute|institution|academy|polytechnic|conservatory|seminary|hochschule|univ\.|iit|nit)\b/i;
 const DEGREE_WORDS =
   /\b(?:bachelors?|masters?|doctor|doctorate|ph\.?\s?d|associate|diploma|certificate|degree|b\.?\s?sc|m\.?\s?sc|b\.?\s?s|m\.?\s?s|b\.?\s?a|m\.?\s?a|mba|bba|b\.?\s?tech|m\.?\s?tech|b\.?\s?eng|m\.?\s?eng|b\.?\s?e|m\.?\s?e|b\.?\s?com|m\.?\s?com|bca|mca|llb|llm|j\.?d|m\.?d|bfa|mfa|b\.?\s?ed|m\.?\s?ed|a-levels?|gcses?|high school|ged|hnd)(?![\p{L}])/iu;
 
-// Words that never appear in a place name. Short abbreviations ("Co", "MA", "MS") are left out on
-// purpose: they're also state codes, as in "Denver, CO" or "Boston, MA". Schools are matched by the
-// shape of their names ("University of ...", "... College"), since "College Park" is a city.
+// Short abbreviations ("CO", "MA") are left out: they're also state codes. Schools match by the
+// shape of their names, since "College Park" is a city.
 const NOT_A_PLACE = new RegExp(
   [
     TITLE_WORDS.source,
@@ -575,9 +556,6 @@ function splitSchoolAndDegree(segment: string): string[] {
   const cut = Math.max(schoolAt, degreeAt);
   return [parts.slice(0, cut).join(", "), parts.slice(cut).join(", ")];
 }
-
-// ---------------------------------------------------------------------------------------------
-// Projects, skills, certifications
 
 // "demo/github", "github/Apex", "Details": where a PDF had a link, read as text.
 const LINK_WORDS = /^(?:demo|live|code|source|github|gitlab|website|site|link|links|details|repo|app|video|slides)(?:\s*\/\s*[\w.-]+)?$/i;
@@ -745,9 +723,7 @@ function parseCertifications(lines: readonly string[]): Certification[] {
   return certifications;
 }
 
-// ---------------------------------------------------------------------------------------------
-// Extra sections: languages, awards, volunteering, publications and the rest (interests,
-// memberships...). References, contact and personal details never get here (extraKindOf).
+// References, contact and personal details never get here (extraKindOf).
 
 type ExtraDraft = { title: string; subtitle: string; date: string; detail: string; bullets: string[] };
 
@@ -815,9 +791,7 @@ function roleDraft(job: Experience): ExtraDraft {
   };
 }
 
-// "Employee of the Year | Northwind | 2021", "Dean's List, University of Leeds", one per line or
-// per bullet. Bullets under unmarked header lines belong to that item; a sentence under a header
-// describes it.
+// One item per line or bullet; a sentence under a header describes it.
 function listDrafts(lines: readonly string[], kind: ExtraKind): ExtraDraft[] {
   const marked = lines.map((line) => bulletText(line));
   const usesMarkers = marked.some((text) => text !== null);
@@ -867,8 +841,7 @@ function appendToLast(draft: ExtraDraft, line: string): void {
   else draft.title = draft.title ? `${draft.title} ${line}` : line;
 }
 
-// Sentences, and in a custom section any list ("Chess, hiking, jazz piano"), read as text rather
-// than as a bold name.
+// Sentences, and lists in custom sections ("Chess, hiking"), read as text, not a bold name.
 function isExtraDescription(text: string, kind: ExtraKind): boolean {
   // A table row names its item in the first cell: "Hackathon<tab>Won first of 200 teams. 2023".
   const [first = "", ...cells] = text.split(/\t+/);
@@ -885,8 +858,8 @@ function extraHeader(line: string, kind: ExtraKind): ExtraDraft {
   const text = year ? line.slice(0, year.index + 1) : line;
   const date = findDateRanges(text)[0]?.text ?? setApartDate(text) ?? year?.[1] ?? "";
   let parts = segmentsOf(stripDates(text));
-  // "Dean's List, University of Leeds" names the award and who gave it. Titles of papers and
-  // custom entries keep their commas.
+  // "Dean's List, University of Leeds": award and issuer. Paper titles and custom entries keep
+  // commas.
   const only = parts.length === 1 ? parts[0] : undefined;
   const comma = only && kind !== "publications" && kind !== "custom" ? /^([^,]+),\s*([^,]+)$/.exec(only) : null;
   if (comma?.[1] && comma[2] && !CORPORATE_SUFFIX.test(comma[2].trim())) parts = [comma[1], comma[2]];
@@ -894,11 +867,7 @@ function extraHeader(line: string, kind: ExtraKind): ExtraDraft {
   return { ...emptyExtra(), title, subtitle: rest.join(", "), date };
 }
 
-// ---------------------------------------------------------------------------------------------
-// Shared line helpers
-
-// A wrapped line continues the previous one when it starts in lower case or the previous one
-// clearly stops mid-phrase.
+// Continues the previous line when it starts lowercase or the previous one stops mid-phrase.
 const JOINER =
   /(?:[,;:&/–-]|\b(?:and|or|to|of|the|with|for|in|a|an|by|on|at|from|into|across|over|via|using|including|between|within|per|as|than|that|which|while))$/i;
 
@@ -948,7 +917,6 @@ function segmentsOf(line: string): string[] {
     .filter((segment) => /[\p{L}\p{N}]/u.test(segment));
 }
 
-// Removes date ranges (and the brackets around them) so the rest of a header line can be split.
 function stripDates(line: string): string {
   let rest = line;
   for (const range of findDateRanges(line)) rest = rest.split(range.text).join("\t");

@@ -5,23 +5,17 @@ import { textTokens } from "@/lib/tailor/tokens";
 import { lintResume, lintSummary } from "./bullets";
 import type { LintIssue, LintIssueId, LintSeverity, ResumeLint } from "./types";
 
-// Client-safe and pure. What a recruiter notices in the resume's words, grouped so a list of 40
-// lines reads as a handful of fixes, most important first. The line lint says what is wrong with
-// one line; this says which problems matter most across the whole resume. Sources for each rule:
+// Groups the line lint into a handful of fixes across the resume, most important first. Sources:
 // projects/resume-app/RESUME-CHECKS-RESEARCH.md.
 
 export type ReviewItemId =
   | LintIssueId
   // A job missing its title, company or dates: the first things a recruiter's eye looks for.
   | "first-look"
-  // Stock phrases or I/me/my in the summary.
   | "summary-voice"
-  // Skills that only the Skills list names.
   | "skills-unshown"
-  // No job title under the name.
   | "headline";
 
-// Where "Show me" goes in the editor.
 export type ReviewTarget =
   | { kind: "line"; bulletId: string }
   | { kind: "entry"; entryId: string }
@@ -30,30 +24,24 @@ export type ReviewTarget =
 
 export type ReviewLine = {
   target: ReviewTarget;
-  // "Software Engineer at Lumen Logistics", "Summary"
   place: string;
   text: string;
-  // Why this one, in a few words.
   message: string;
 };
 
 export type ReviewItem = {
   id: ReviewItemId;
   severity: LintSeverity;
-  // A plain headline with the count: "3 lines read like a job description".
   title: string;
-  // Why it matters, one sentence.
   reason: string;
-  // The first few lines it applies to; `more` counts the rest.
+  // `more` counts the rest.
   lines: ReviewLine[];
   more: number;
-  // Where to start fixing it.
   target: ReviewTarget | null;
 };
 
 export type ResumeReview = {
   items: ReviewItem[];
-  // At most MAX_TOP items worth doing first.
   top: ReviewItem[];
 };
 
@@ -300,11 +288,8 @@ function lineGroups(resume: Resume, lint: ResumeLint): ReviewItem[] {
   });
 }
 
-/**
- * Ranks every item and picks what to fix first: high-severity items lead, then tips, and
- * "could use a number" or full stops only fill the last places when nothing else is left, so they
- * never drown out a missing result, a duty line or a summary full of stock phrases.
- */
+// High-severity items lead; "add a number" and full stops only fill the last places, so they never
+// drown out a missing result or a duty line.
 export function rankReview(items: readonly ReviewItem[]): ResumeReview {
   const sorted = [...items].sort(
     (a, b) =>

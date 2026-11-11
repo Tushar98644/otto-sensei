@@ -5,17 +5,17 @@ import { useEffect, useSyncExternalStore } from "react";
 import { useMe } from "@/components/account/use-me";
 import { analyticsEnabled, identifyUser, resetUser, startAnalytics } from "./client";
 
-// Mounted once in the root layout. Renders nothing; starts PostHog when it's allowed and keeps its
-// distinct id in step with the account: the user id when signed in, the device's anonymous id when not.
+// Keeps PostHog's distinct id in step with the account: user id when signed in, anonymous
+// otherwise.
 
 const noChanges = () => () => {};
 
-// Pages that load the account anyway. Elsewhere (the landing page, policies, share links) the SDK
-// keeps the id it already has, so a visit there never costs an /api/me request.
+// Elsewhere the SDK keeps the id it has, so a landing or share visit never costs an /api/me
+// request.
 const ACCOUNT_PAGES = /^\/(?:studio|dashboard|account|login)(?:\/|$)/;
 
 export function Analytics() {
-  // false on the server and during hydration, so both render the same nothing.
+  // false on the server and during hydration, so both render the same.
   const enabled = useSyncExternalStore(noChanges, analyticsEnabled, () => false);
   const pathname = usePathname();
 

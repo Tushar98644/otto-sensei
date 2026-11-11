@@ -1,5 +1,3 @@
-// Client-safe. The lint runs in the browser on every keystroke, so it must be fast and pure.
-
 export type LintIssueId =
   | "stock-phrase" // "results-driven", "team player", "passionate about"
   | "duty" // "responsible for", "duties included", "worked on": a duty, not what was done
@@ -21,17 +19,16 @@ export type LintSeverity = "high" | "low";
 export type LintIssue = {
   id: LintIssueId;
   severity: LintSeverity;
-  // Plain-language message shown under the line, e.g. "What changed because of this? …"
+  // e.g. "What changed because of this? …"
   message: string;
-  // The exact text that triggered it, when there is one (for highlighting).
+  // For highlighting.
   match: string | null;
 };
 
-// Where a line sits changes which checks apply. Result and number checks are for things someone
-// did (jobs, projects, volunteering); a course list or an award line has no result to show.
+// Result and number checks are for things someone did; a course list or award line has none to
+// show.
 export type LintContext = {
   kind: "work" | "other";
-  // The job has an end date, so its lines read in past tense.
   ended?: boolean;
 };
 

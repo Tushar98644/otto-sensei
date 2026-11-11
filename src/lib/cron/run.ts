@@ -2,27 +2,24 @@ import { fail, ok } from "@/lib/api/respond";
 import { log } from "@/lib/log";
 import { isAuthorizedCron } from "./auth";
 
-// Server-only. The shared shell of every /api/cron/<job> route: check the secret, give the job a
-// time budget, log one line with its counts, answer 500 when any part failed so Vercel's cron log
-// shows it.
-//
-// Vercel may deliver a scheduled call more than once, and a run can stop at its deadline, so
-// every job is idempotent and picks up the rest on its next run.
+// Checks the secret, gives the job a time budget, logs one line, and answers 500 when any part
+// failed so Vercel's cron log shows it. Vercel may deliver a call twice and a run can stop at its
+// deadline, so every job is idempotent and picks up the rest next run.
 
 export type CronStats = Record<string, number>;
 
 export type CronOutcome = {
   stats: CronStats;
-  // False when the job stopped at its deadline or batch cap with work left for the next run.
+  // False when it stopped with work left for the next run.
   complete: boolean;
-  // Names of the steps that threw. The others still ran.
+  // The steps that threw. The others still ran.
   failed: string[];
 };
 
 export type CronContext = {
-  // Clock for the job's own cutoffs ("older than 21 days").
+  // For the job's own cutoffs ("older than 21 days").
   now: number;
-  // Wall-clock time (Date.now()) after which no new batch starts.
+  // Wall-clock time after which no new batch starts.
   deadline: number;
 };
 
@@ -70,10 +67,7 @@ export async function runCronRoute(req: Request, name: string, job: CronJob): Pr
   }
 }
 
-/**
- * Runs `step` until it reports a short batch (nothing left), the deadline passes, or `maxBatches`
- * ran. Returns the rows it handled and whether it finished.
- */
+// Until a short batch (nothing left), the deadline, or `maxBatches`.
 export async function drain(
   step: () => Promise<number>,
   { batchSize, maxBatches, deadline }: { batchSize: number; maxBatches: number; deadline: number },

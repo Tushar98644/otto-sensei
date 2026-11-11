@@ -28,11 +28,8 @@ function wordEnd(text: string, cut: number, ceiling: number, matchEnd: number): 
   return i;
 }
 
-/**
- * About 60 characters of the line around text[start, end), cut at word boundaries, with an
- * ellipsis on each side that was cut. Never crosses a line: each line of resumeToText() is one
- * field or bullet, and a quote that runs into the next one would misstate the evidence.
- */
+// Never crosses a line: each line of resumeToText() is one field, and a quote running into the next
+// would misstate the evidence.
 export function snippetAround(text: string, start: number, end: number): string {
   const lineStart = start === 0 ? 0 : text.lastIndexOf("\n", start - 1) + 1;
   const newline = text.indexOf("\n", end);

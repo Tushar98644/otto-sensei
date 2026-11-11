@@ -9,13 +9,6 @@ import {
 } from "./content";
 import type { PortfolioView } from "./view";
 
-// Pure and client-safe. The small text, link and social rules the automatic content
-// (./content-auto.ts) and the finished view (./content-view.ts) share.
-
-// ---------------------------------------------------------------------------------------------
-// Small text rules
-// ---------------------------------------------------------------------------------------------
-
 export const clean = (value: string) => value.replace(/\s+/g, " ").trim();
 
 // A full stop only ends a sentence before a space or the end, so "Next.js" and "gmail.com" stay whole.
@@ -33,7 +26,7 @@ export function clip(text: string, max: number): string {
   return `${(space > max * 0.6 ? cut.slice(0, space) : cut).replace(/[,;:\s]+$/, "")}…`;
 }
 
-/** Up to the first `max` characters of whole sentences; never half a sentence unless one is too long. */
+/** Never half a sentence unless one is too long. */
 export function wholeSentences(list: readonly string[], max: number): string {
   let out = "";
   for (const sentence of list) {
@@ -54,7 +47,7 @@ export function initialsOf(name: string): string {
 
 export const escapeRegex = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
-/** Whether `term` appears in `text` as a whole word, case-insensitive ("Node.js", "C++" included). */
+/** Whole word, case-insensitive ("Node.js", "C++" included). */
 export function mentions(text: string, term: string): boolean {
   const value = term.trim();
   if (value.length < 1) return false;
@@ -105,10 +98,6 @@ export function repoName(raw: string): string | null {
   if (!match?.[1] || !match[2] || !parseGitHubUsername(match[1])) return null;
   return `${match[1]}/${match[2].replace(/\.git$/i, "")}`;
 }
-
-// ---------------------------------------------------------------------------------------------
-// Socials
-// ---------------------------------------------------------------------------------------------
 
 const SOCIAL_HOSTS: [RegExp, SocialKind, string][] = [
   [/(^|\.)github\.com$/, "github", "GitHub"],
@@ -203,7 +192,7 @@ export function toSocial(
   };
 }
 
-/** A paragraph cut around the highlighted phrases, longest phrase first so "Ledgerly Pay" wins over "Ledgerly". */
+/** Longest phrase first, so "Ledgerly Pay" wins over "Ledgerly". */
 export function markParts(paragraph: string, highlights: readonly string[]): TextPart[] {
   const terms = [...new Set(highlights.map(clean).filter(Boolean))].sort(
     (a, b) => b.length - a.length,

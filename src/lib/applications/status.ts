@@ -1,9 +1,7 @@
-// Client-safe. Where a job application stands, and the furthest step it ever reached.
-
 export const APPLICATION_STATUSES = ["applied", "interview", "offer", "rejected", "no_reply"] as const;
 export type ApplicationStatus = (typeof APPLICATION_STATUSES)[number];
 
-// The steps forward, in order. Rejected and no reply end an application without moving it on.
+// Rejected and no reply end an application without moving it on.
 export const APPLICATION_STAGES = ["applied", "interview", "offer"] as const;
 export type ApplicationStage = (typeof APPLICATION_STAGES)[number];
 
@@ -29,17 +27,13 @@ export function isApplicationStatus(value: unknown): value is ApplicationStatus 
   return typeof value === "string" && STATUS_SET.has(value);
 }
 
-/**
- * A stored status as one of today's, or null. "screening" was its own step until
- * 20261109005000_merge_screening.sql folded it into interview; rows and timelines written before
- * that ran still say it.
- */
+// "screening" was merged into interview; older rows and timelines still say it.
 export function readStatus(value: unknown): ApplicationStatus | null {
   if (value === "screening") return "interview";
   return isApplicationStatus(value) ? value : null;
 }
 
-/** A stored furthest step, read the same way; anything unknown counts as applied. */
+/** Anything unknown counts as applied. */
 export function readStage(value: unknown): ApplicationStage {
   const status = readStatus(value);
   return status !== null && isStage(status) ? status : "applied";
@@ -53,16 +47,12 @@ export function stageIndex(stage: ApplicationStage): number {
   return APPLICATION_STAGES.indexOf(stage);
 }
 
-/**
- * The furthest step after a status change. A step forward, or back (fixing a wrong click), becomes
- * the furthest step; an ending keeps the step it ended at, so an interview that ends in a "no"
- * still counts as an interview in the win rate.
- */
+// A step forward, or back (fixing a wrong click), becomes the furthest step; an ending keeps it, so
+// an interview that ends in a "no" still counts in the win rate.
 export function stageAfter(current: ApplicationStage, next: ApplicationStatus): ApplicationStage {
   return isStage(next) ? next : current;
 }
 
-// The one-click step forward each status offers in the list, with its button label.
 const NEXT_STEPS: Partial<Record<ApplicationStatus, { status: ApplicationStatus; label: string }>> =
   {
     applied: { status: "interview", label: "Got an interview" },
@@ -75,13 +65,12 @@ export function nextStep(
   return NEXT_STEPS[status] ?? null;
 }
 
-// One entry of an application's timeline: the status it moved to and when (epoch ms).
 export type StatusEvent = { status: ApplicationStatus; at: number };
 
-// Entries kept per application; the oldest go first. Matches the column's check.
+// Matches the column's check.
 export const STATUS_HISTORY_LIMIT = 30;
 
-/** The stored history as a clean list, oldest first. A hand-edited entry is skipped, not fatal. */
+/** A hand-edited entry is skipped, not fatal. */
 export function readHistory(value: unknown): StatusEvent[] {
   if (!Array.isArray(value)) return [];
   return value

@@ -2,11 +2,9 @@ import type { Resume } from "@/lib/resume/schema";
 import { isOnResume } from "./to-projects";
 import { GITHUB_PICK_LIMITS, type GitHubLookup } from "./types";
 
-// Client-safe and pure. What "Import from GitHub" picks by itself, so the person only has to say
-// which drafts to keep: the most starred repos of their own that are still alive and not on the
-// resume yet, then merged pull requests to other people's repos, newest first, while there's room.
+// The most starred own repos still alive and not on the resume, then merged pull requests to
+// others' repos, newest first, while there's room.
 
-// A resume reads best with a few strong projects, not every repo.
 export const SUGGESTED_PROJECTS = 3;
 
 export type SuggestedPicks = { repos: string[]; pulls: number[] };

@@ -13,35 +13,24 @@ import type { RawJob } from "./parsers";
 import { SOURCE_INFO } from "./sources";
 import { BOARD_SOURCES, FEED_SOURCES, type BoardSeed, type JobSourceId } from "./types";
 
-// Server-only. Writing what the ingest read. Every write is keyed by (source, external id), so a
-// repeated or overlapping run only finds less to do.
+// Writes are keyed by (source, external id), so a repeated or overlapping run only finds less to
+// do.
 
 const DAY_MS = 24 * 60 * 60 * 1_000;
 
 export const STORE_LIMITS = {
-  // Newest jobs kept per company board. 1,000 keeps every open job of the biggest boards (Databricks
-  // had 922 on 2026-11-08), so the stored count matches what the boards list; the per-company cap in
-  // matching (order.ts) is what stops one board crowding out the rest.
+  // Keeps every open job of the biggest boards; matching's per-company cap stops crowding.
   perBoard: 1_000,
   // A job missing from this many reads of its board in a row is closed.
   missedRunsToClose: 2,
   // A board answering 404 this many times in a row is gone: its jobs close.
   notFoundToClose: 2,
-  // The feeds (Himalayas, Remote OK, Jobicy) show the newest jobs only, so a job dropping off them
-  // says nothing; their jobs close at their own end date or at this age. Company boards have no
-  // age limit: they're read whole every day, so "still listed" is the test (owner decision
-  // 2026-11-10, after 39% of listed jobs on 8 sampled boards were older than 60 days).
+  // Feeds show only the newest jobs, so dropping off says nothing; boards are read whole daily.
   feedMaxAgeMs: 30 * DAY_MS,
-  // Closed rows are deleted after a week; one an account saved or linked to an application stays
-  // the month, so "This job has closed" still shows there. About 2% of board jobs close a day
-  // (measured 2026-11-10), so a month of closed rows was a third of the table.
+  // Saved or application-linked closed rows stay a month, so "This job has closed" still shows.
   closedRetentionMs: 7 * DAY_MS,
   referencedRetentionMs: 30 * DAY_MS,
-  // Open and closed rows together, a ceiling above the expected size. Expected on 2026-11-10: about
-  // 44,000 open jobs on the 605 boards (27,833 on the first 323, 16,375 on the rest), about 13,000
-  // from the feeds and about 9,000 closed in their last week: some 66,000 rows. With no stored text
-  // a row is 1.65 KB in jobs plus about 0.2 KB in job_match (measured on 37,177 rows after
-  // VACUUM FULL), so 80,000 rows are about 150 MB before dead-row bloat.
+  // A ceiling above the ~66,000 rows expected; at ~1.85 KB a row that's ~150 MB before bloat.
   maxRows: 80_000,
   writeChunk: 200,
 } as const;
@@ -102,7 +91,7 @@ function contentColumns(job: NormalizedJob) {
   };
 }
 
-/** Upserts the board rows for the seed list and the two feeds; drops boards no longer seeded. */
+/** Drops boards no longer seeded. */
 export async function syncBoards(
   db: Db,
   seeds: readonly BoardSeed[],
@@ -154,10 +143,7 @@ async function closeBoard(
   return closed.length;
 }
 
-/**
- * Saves one read of a board or feed. `snapshot`: the read holds every open job of the board, so
- * jobs missing from it count a missed run (and close after two). Feeds aren't snapshots.
- */
+// `snapshot`: the read holds every open job, so missing ones count a missed run. Feeds aren't.
 export async function saveJobs(
   db: Db,
   scope: { source: JobSourceId; board: string },
@@ -166,7 +152,6 @@ export async function saveJobs(
   { snapshot }: { snapshot: boolean },
 ): Promise<SaveStats> {
   const stats: SaveStats = { added: 0, updated: 0, seen: 0, duplicates: 0, closed: 0 };
-  // The newest first, one per external id.
   const byId = new Map<string, RawJob>();
   for (const raw of [...raws].sort((a, b) => (b.postedAt ?? now) - (a.postedAt ?? now))) {
     if (!byId.has(raw.externalId)) byId.set(raw.externalId, raw);
@@ -219,9 +204,7 @@ export async function saveJobs(
       stats.updated += 1;
     }
 
-    // Seen again: the miss count starts over, and a job closed for going missing reopens. Only
-    // those rows are written: rewriting every unchanged job each day would double the table on
-    // disk with dead row versions (Postgres keeps the old one until vacuum).
+    // Only rows seen again are written: rewriting unchanged rows leaves dead versions until vacuum.
     for (const part of chunks(seenIds, 500)) {
       await tx
         .update(jobs)
@@ -330,10 +313,7 @@ export async function saveJobs(
   return stats;
 }
 
-/**
- * Records a failed read. It still moves the board to the back of the queue, so one broken board
- * can't hold up the rest. Two 404s in a row mean the board is gone, and its jobs close.
- */
+// Still moves the board to the back of the queue, so one broken board can't hold up the rest.
 export async function boardFailed(
   db: Db,
   source: JobSourceId,
@@ -358,7 +338,6 @@ export async function boardFailed(
 
 export type TidyStats = { expired: number; aged: number; deleted: number; trimmed: number };
 
-/** Closes jobs past their end date or age, deletes long-closed rows, and keeps the row cap. */
 export async function tidyJobs(db: Db, now: number): Promise<TidyStats> {
   const expired = await db
     .update(jobs)
@@ -420,14 +399,10 @@ export async function tidyJobs(db: Db, now: number): Promise<TidyStats> {
   return { expired: expired.length, aged: aged.length, deleted, trimmed };
 }
 
-// A skill no open job names can't match anything, so its weight never matters; one in every job
-// still counts for a little.
+// A skill in every job still counts a little.
 const MIN_SKILL_WEIGHT = 0.05;
 
-/**
- * Rewrites job_skills from the open jobs: how many name each skill, and its weight in matching,
- * ln(open jobs / jobs naming it). One grouped read of the keywords column, a few hundred rows out.
- */
+// weight = ln(open jobs / jobs naming it).
 export async function refreshSkillWeights(db: Db, now: number): Promise<number> {
   const counts = await db
     .select({ skill: sql<string>`k.skill`, n: sql<number>`count(*)::int` })

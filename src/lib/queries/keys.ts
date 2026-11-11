@@ -1,8 +1,8 @@
 import type { JobMatchesRequestBody } from "@/lib/api/types";
 import type { WorkProfile } from "@/lib/eligibility/profile";
 
-// Every key is the resource, then the account: one account's data is never read as another's,
-// and a resource can be updated or dropped for everyone by its first part alone.
+// Resource, then account: no cross-account reads, and a resource can be dropped for everyone by its
+// first part alone.
 
 export const APPLICATIONS = ["applications"] as const;
 export const SAVED_JOBS = ["saved-jobs"] as const;
@@ -23,7 +23,7 @@ export const queryKeys = {
   portfolio: (userId: string) => [...PORTFOLIO, userId] as const,
   reminderSettings: (userId: string) => [...REMINDER_SETTINGS, userId] as const,
   workProfile: (userId: string) => [...WORK_PROFILE, userId] as const,
-  // The server also reads the saved work profile (for "Likely blocked"), so it is part of the key.
+  // The server also reads the saved work profile ("Likely blocked"), so it's part of the key.
   jobMatches: (userId: string, body: JobMatchesRequestBody, workProfile: WorkProfile | null) =>
     [...JOB_MATCHES, userId, body, workProfile] as const,
 };

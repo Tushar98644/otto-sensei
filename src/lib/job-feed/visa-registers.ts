@@ -5,14 +5,10 @@ import { USER_AGENT } from "@/lib/jobs/fetch";
 import { companyKey } from "./visa";
 import { VISA_REGISTER_NAMES, type RegisterNames } from "./visa-matches";
 
-// Server-only. Refreshes company_visa from the two public registers (JOB-SOURCES.md, "Visa
-// registers"), for the company names checked by hand in visa-matches.ts only:
-// - UK: the Register of Licensed Sponsors, Worker and Temporary Worker (GOV.UK, Open Government
-//   Licence v3.0), found through the GOV.UK content API. Updated most working days.
-// - US: the USCIS H-1B Employer Data Hub yearly files ("public information and may be distributed
-//   or copied"). The archive's newest file is the one used; newer years are only in USCIS's
-//   interactive dashboard, which has no file to download.
-// Run monthly: by the jobs cron when the last check is 30+ days old, or scripts/visa-registers.ts.
+// For the hand-checked names in visa-matches.ts only:
+// - UK: Register of Licensed Sponsors (GOV.UK, Open Government Licence v3.0), via the content API.
+// - US: USCIS H-1B Employer Data Hub yearly files; newer years are only in its dashboard.
+// Run monthly, by the jobs cron or scripts/visa-registers.ts.
 
 const UK_PAGE =
   "https://www.gov.uk/api/content/government/publications/register-of-licensed-sponsors-workers";
@@ -31,7 +27,6 @@ async function download(url: string): Promise<string> {
   return res.text();
 }
 
-/** Rows of a CSV file with a header line, quoted fields allowed. */
 export function parseCsv(text: string): Record<string, string>[] {
   const rows: string[][] = [];
   let field = "";
@@ -69,7 +64,6 @@ export function parseCsv(text: string): Record<string, string>[] {
 export type UkRegister = Set<string>;
 export type H1bYear = { year: number; approvals: Map<string, number> };
 
-/** Organisation names licensed for the Skilled Worker route, exactly as listed. */
 export function ukSkilledWorkers(csv: string): UkRegister {
   const names = new Set<string>();
   for (const row of parseCsv(csv)) {
@@ -97,7 +91,6 @@ export function h1bApprovals(csv: string): H1bYear {
 
 export type VisaRow = typeof companyVisa.$inferInsert;
 
-/** The company_visa rows the registers support for the hand-checked names. */
 export function visaRows(
   names: Readonly<Record<string, RegisterNames>>,
   uk: UkRegister,
@@ -159,7 +152,6 @@ async function h1bCsvs(count = 2): Promise<string[]> {
 
 export type VisaRefresh = { companies: number; uk: number; us: number; h1bYear: number | null };
 
-/** Downloads both registers and rewrites company_visa. */
 export async function refreshVisaRegisters(db: Db, now: number): Promise<VisaRefresh> {
   const [ukCsv, usCsvs] = await Promise.all([ukRegisterCsv(), h1bCsvs()]);
   const uk = ukSkilledWorkers(ukCsv);
@@ -187,7 +179,7 @@ export async function refreshVisaRegisters(db: Db, now: number): Promise<VisaRef
   };
 }
 
-/** When company_visa was last refreshed, or null when never (or before the migration). */
+/** null when never refreshed (or before the migration). */
 export async function visaCheckedAt(db: Db): Promise<number | null> {
   try {
     const [row] = await db

@@ -2,8 +2,7 @@ import type { Resume } from "@/lib/resume/schema";
 import { asResumeLine } from "./text";
 import type { WritingInput } from "./types";
 
-// Demo mode (no API key): a letter and an answer stitched from the resume's own lines, so the flow
-// works locally without an AI call and still never says anything the resume doesn't.
+// Demo mode (no API key): a letter and an answer stitched from the resume's own lines.
 
 const MAX_LINES = 3;
 

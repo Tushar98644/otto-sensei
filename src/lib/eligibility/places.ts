@@ -1,5 +1,4 @@
-// Client-safe. Countries, the regions job posts name ("EU", "LATAM", "APAC"), and finding them in
-// a line of text. Country names come from Intl.DisplayNames, so nothing here needs translating.
+// Country names come from Intl.DisplayNames, so nothing here needs translating.
 
 const CODES = `AD AE AF AG AI AL AM AO AQ AR AS AT AU AW AX AZ BA BB BD BE BF BG BH BI BJ BL BM BN BO BQ
 BR BS BT BV BW BY BZ CA CC CD CF CG CH CI CK CL CM CN CO CR CU CV CW CX CY CZ DE DJ DK DM DO DZ EC EE
@@ -10,7 +9,6 @@ NO NP NR NU NZ OM PA PE PF PG PH PK PL PM PN PR PS PT PW PY QA RE RO RS RU RW SA
 SJ SK SL SM SN SO SR SS ST SV SX SY SZ TC TD TF TG TH TJ TK TL TM TN TO TR TT TV TW TZ UA UG UM US UY
 UZ VA VC VE VG VI VN VU WF WS YE YT ZA ZM ZW`;
 
-/** ISO 3166-1 alpha-2 codes. */
 export const COUNTRY_CODES: readonly string[] = CODES.split(/\s+/);
 const CODE_SET = new Set(COUNTRY_CODES);
 
@@ -74,7 +72,6 @@ function inGroup(group: PlaceGroup, code: string): boolean {
   }
 }
 
-/** Whether someone living in `country` is inside `place`. */
 export function placeContains(place: Place, country: string): boolean {
   if (place.kind === "group") return inGroup(place.group, country);
   if (place.code === "US") return US_TERRITORIES.has(country);
@@ -83,7 +80,6 @@ export function placeContains(place: Place, country: string): boolean {
 
 const displayNames = new Intl.DisplayNames(["en"], { type: "region" });
 
-/** "Germany" for "DE", the code itself if the runtime doesn't know it. */
 export function countryName(code: string): string {
   return displayNames.of(code) ?? code;
 }
@@ -99,7 +95,6 @@ export function placeName(place: Place): string {
   return countryName(place.code);
 }
 
-/** The visa regions the work profile asks about, for a place a post names. */
 export function rightsRegionOf(place: Place): "us" | "uk" | "eu" | "ca" | null {
   if (place.kind === "group") return place.group === "eu" ? "eu" : null;
   if (US_TERRITORIES.has(place.code)) return "us";
@@ -222,8 +217,8 @@ const AMBIGUOUS = new Set(["georgia", "jordan", "chad", "jersey"]);
 type NameMatcher = { pattern: RegExp; codes: Map<string, string> };
 let nameMatcher: NameMatcher | null = null;
 
-// Every country name and alias in one pattern, so a line is read once instead of once per
-// country (300 passes took about 0.4 ms a line; the Jobs tab checks thousands of lines a request).
+// One pattern for every name, so a line is read once, not once per country (the Jobs tab checks
+// thousands of lines a request).
 function namedCountries(): NameMatcher {
   if (nameMatcher) return nameMatcher;
   const codes = new Map<string, string>();
@@ -245,11 +240,7 @@ function namedCountries(): NameMatcher {
 
 export type FoundPlace = { place: Place; index: number; text: string };
 
-/**
- * Every country or region named in `line`, in reading order, without repeats. Matches are taken
- * longest first and never overlap, so "Northern Ireland" isn't also "Ireland" and "North America"
- * isn't also "America".
- */
+// Longest first and never overlapping, so "Northern Ireland" isn't also "Ireland".
 export function findPlaces(line: string): FoundPlace[] {
   const taken: Array<[number, number]> = [];
   const found: FoundPlace[] = [];

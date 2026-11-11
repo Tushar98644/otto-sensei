@@ -1,6 +1,4 @@
-// Client-safe. Time zone rules in job posts ("within 4 hours of ET", "overlap with PST", "EU time
-// zones", "UTC-3 to UTC+3") and the offsets to judge them by. Offsets are minutes east of UTC on a
-// given day, so daylight saving is taken as it is on that day.
+// Offsets are minutes east of UTC on a given day, so daylight saving is taken as it is that day.
 
 export type Zone = { label: string } & ({ timeZone: string } | { fixed: number });
 
@@ -13,7 +11,6 @@ export type TimeRule =
   // "Must be in the EST or CST time zone": close to one of these.
   | { kind: "zone"; zones: Zone[] };
 
-/** Minutes east of UTC for `timeZone` at `at`, or null for a zone this runtime doesn't know. */
 export function offsetMinutes(timeZone: string, at: number): number | null {
   try {
     const name = new Intl.DateTimeFormat("en-US", { timeZone, timeZoneName: "longOffset" })
@@ -34,7 +31,6 @@ export function zoneOffset(zone: Zone, at: number): number | null {
   return "fixed" in zone ? zone.fixed : offsetMinutes(zone.timeZone, at);
 }
 
-/** "UTC+5:30", "UTC-8", "UTC". */
 export function formatOffset(minutes: number): string {
   if (minutes === 0) return "UTC";
   const sign = minutes > 0 ? "+" : "-";
@@ -43,13 +39,12 @@ export function formatOffset(minutes: number): string {
   return `UTC${sign}${Math.floor(abs / 60)}${rest ? `:${String(rest).padStart(2, "0")}` : ""}`;
 }
 
-/** 570 → "9.5 hours", 60 → "1 hour". */
 export function formatHours(minutes: number): string {
   const hours = Math.round((minutes / 60) * 4) / 4;
   return `${hours} ${hours === 1 ? "hour" : "hours"}`;
 }
 
-/** Clock distance between two offsets, the short way round (UTC+13 and UTC-10 are 1 hour apart). */
+/** The short way round: UTC+13 and UTC-10 are 1 hour apart. */
 export function gapMinutes(a: number, b: number): number {
   const raw = Math.abs(a - b) % 1440;
   return Math.min(raw, 1440 - raw);
@@ -108,7 +103,6 @@ function fixedZone(minutes: number): Zone {
 
 type Spot = { zone: Zone; index: number };
 
-// Every zone named in the line, offsets ("UTC+2", "GMT-5") included, in reading order.
 function zonesIn(line: string): Spot[] {
   const spots: Spot[] = [];
   const taken: Array<[number, number]> = [];
@@ -187,7 +181,6 @@ const OVERLAP = /\boverlap\b/i;
 const HOURS = /\bhours\b|\bavailab(?:le|ility)\b|\bschedule\b/i;
 const IN_ZONE = /\btime[- ]?zones?\b|\bbased in\b|\blocated in\b/i;
 
-/** The time zone rule a line of a job post sets, if any. */
 export function findTimeRule(line: string): TimeRule | null {
   for (const [pattern, label, min, max] of GROUPS) {
     if (pattern.test(line))

@@ -31,10 +31,7 @@ export {
   type PlaceChoice,
 } from "./types";
 
-// Client-safe and pure. The "Looking for" card on the Jobs tab: the role, level and place Matches
-// are ranked for, guessed from the resume and the work profile and changed in one tap
-// (MATCHING-RESEARCH.md, Round 2 (f): infer, then confirm, never block). Role and level shape the
-// order; "Remote only" is the one hard filter. Nothing here leaves our own server.
+// Guessed from the resume and work profile. "Remote only" is the one hard filter.
 
 export const LEVEL_NAMES: Record<Seniority, string> = {
   intern: "Internship",
@@ -71,8 +68,7 @@ export function placeLine(value: Pick<LookingFor, "place" | "remote">): string {
   return `${value.remote ? "Remote" : "Remote or on-site"}, ${placeLabel(value.place)}`;
 }
 
-// Level words a title carries, dropped from the role it names: "Senior Product Manager" is a
-// Product Manager at the senior level.
+// Level words are dropped from the role: "Senior Product Manager" is a senior Product Manager.
 const LEVEL_WORDS =
   /\b(?:senior|sr\.?|snr|junior|jr\.?|associate|entry[- ]level|graduate|new grad|intern(?:ship)?|trainee|apprentice|staff|principal|lead|ii|iii|iv|level \d)\b/gi;
 
@@ -93,7 +89,6 @@ export function roleTitle(title: string): string {
 // The occupation is read on the server (occupations/index.ts); the browser leaves it null.
 export type RoleOption = { title: string; family: RoleFamily | null; occupation: string | null };
 
-/** The roles a resume names, newest first, without repeats: the card's role menu. */
 export function roleOptions(profile: Pick<MatchProfile, "titles">): RoleOption[] {
   const seen = new Set<string>();
   const out: RoleOption[] = [];
@@ -107,7 +102,7 @@ export function roleOptions(profile: Pick<MatchProfile, "titles">): RoleOption[]
   return out;
 }
 
-/** The level the resume reads at: the latest title, raised by years, never past senior by years. */
+/** The latest title's level, raised by years but never past senior by years alone. */
 export function levelOf(profile: Pick<MatchProfile, "titles" | "years">): Seniority | null {
   const latest = profile.titles[0];
   const fromTitle = latest ? seniorityOf(latest) : null;
@@ -119,14 +114,12 @@ export function levelOf(profile: Pick<MatchProfile, "titles" | "years">): Senior
 
 const EU_GROUP: Place = { kind: "group", group: "eu" };
 
-/** Where to look, from the work profile's country: the EU for an EU country, else the country. */
 export function placeFromProfile(profile: WorkProfile | null): PlaceChoice {
   const country = profile?.country ?? "";
   if (!country || !isCountryCode(country)) return "anywhere";
   return placeContains(EU_GROUP, country) ? "g:eu" : `c:${country}`;
 }
 
-/** The card as shown: each part the person picked, else the guess from resume and work profile. */
 export function lookingForOf(
   profile: Pick<MatchProfile, "titles" | "years">,
   work: WorkProfile | null,
@@ -146,10 +139,7 @@ export function lookingForOf(
   };
 }
 
-// --- Place fit, for ranking ---------------------------------------------------------------------
-
-// Where a job is, as short tokens: country codes ("US"), groups ("g:emea"), "*" for anywhere.
-// Worked out once per location (findPlaces reads the text), so stored at ingest in job_match.
+// Country codes ("US"), groups ("g:emea"), "*" for anywhere. Stored at ingest in job_match.
 const placeCache = new Map<string, string[]>();
 const PLACE_CACHE_MAX = 20_000;
 
@@ -181,10 +171,7 @@ function membersOf(group: PlaceGroup): Set<string> {
 
 const ALL_GROUPS: readonly PlaceGroup[] = [...PLACE_GROUPS, "americas"];
 
-/**
- * The job place tokens that suit a choice: the country or the group's countries, every group
- * that covers any of them, and "*". null for "anywhere", where place doesn't change the order.
- */
+// null for "anywhere", where place doesn't change the order.
 export function acceptedPlaces(choice: PlaceChoice): string[] | null {
   if (choice === "anywhere") return null;
   const countries = choice.startsWith("c:")
@@ -204,7 +191,7 @@ export function acceptedPlaces(choice: PlaceChoice): string[] | null {
 
 export type PlaceFit = "match" | "unknown" | "miss";
 
-/** Whether a job's place suits the choice. A job that names no place is "unknown", never a miss. */
+/** A job that names no place is "unknown", never a miss. */
 export function placeFit(
   jobTokens: readonly string[],
   accepted: readonly string[] | null,
@@ -221,7 +208,6 @@ const titleWords = (title: string) =>
     .split(/[^\p{L}\p{N}+#]+/u)
     .filter((word) => word && !TITLE_STOP.has(word));
 
-/** Every word of the role asked for is in the job's title: "Product Manager" in "Senior Product Manager, Growth". */
 export function titleFits(jobTitle: string, roleTitleAsked: string): boolean {
   const asked = titleWords(roleTitleAsked);
   if (asked.length === 0) return false;

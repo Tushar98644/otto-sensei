@@ -31,11 +31,9 @@ export type StructureResult = {
   usedAI: boolean;
 };
 
-// Scanned PDFs and empty files yield next to no text: nothing for the model to structure, so
-// don't pay for a call.
+// Scans and empty files yield next to no text: don't pay for a call.
 const MIN_AI_CHARS = 40;
-// Copied text reuses the source's words almost exactly; above this share the model rewrote or
-// invented lines, and the rule-based result is the honest one.
+// Copied text reuses the source's words; above this the model rewrote or invented lines.
 const MAX_NOVEL_WORD_SHARE = 0.15;
 
 // ResumeSchema's caps. The final ResumeSchema check catches any drift between the two.
@@ -151,8 +149,7 @@ function toItems(items: readonly string[]): string[] {
     .slice(0, LIMIT.skillItems);
 }
 
-// The heading as the editor shows it ("HONORS & AWARDS:" -> "Honors & Awards"), else the kind's
-// own name, the way a section added in the editor starts.
+// "HONORS & AWARDS:" -> "Honors & Awards", else the kind's own name.
 function extraTitle(kind: ExtraKind, title: string): string {
   const own = clip(headingTitle(title), LIMIT.extraTitle);
   if (own) return own;
@@ -264,8 +261,7 @@ function toResume(parsed: ParsedResume, now: number): Resume {
   };
 }
 
-// Every string the model was asked to copy from the resume. Link labels are left out: the model
-// writes those itself ("LinkedIn").
+// Link labels are left out: the model writes those itself ("LinkedIn").
 function copiedStrings(parsed: ParsedResume): string[] {
   const { basics } = parsed;
   return [
@@ -321,8 +317,7 @@ function hasContent(resume: Resume): boolean {
   return Boolean(basics.name || basics.email || basics.phone || resume.summary) || sections > 0;
 }
 
-// The contact details the rule-based read found are hidden from the model. Its name is hidden only
-// when it reads like a person's name: a wrong guess would hide a job title instead.
+// The name is hidden only when it reads like one: a wrong guess would hide a job title.
 function importRedactor(found: Basics): Redactor {
   return createRedactor({
     name: looksLikePersonName(found.name) ? found.name : "",
@@ -343,8 +338,7 @@ function hostOf(url: string): string {
 
 const GENERIC_LABEL = /^(?:links?|urls?|web|website|site|homepage|other|profile)?$/i;
 
-// The model sees a link only as [LINK_1], so its label is a guess from the words around it: a known
-// profile site's own name beats it, and a bare "Link" says nothing.
+// The model sees only [LINK_1], so its label is a guess: a known site's own name beats it.
 function linkLabel(url: string, label: string): string {
   const found = findLinks(url)[0];
   if (found && found.label.toLowerCase() !== hostOf(url)) return found.label;
@@ -353,10 +347,8 @@ function linkLabel(url: string, label: string): string {
   return /portfolio/i.test(url) ? "Portfolio" : "Website";
 }
 
-// Placeholders back to the file's own text, exactly as written. One the redactor never handed out
-// is dropped: nothing in the file stands behind it. Unable to see the URLs, the model sometimes
-// also lists a project's link among the profile links; when the file has that link only once, the
-// project keeps it.
+// One the redactor never handed out is dropped. The model sometimes lists a project's link among
+// the profile links too; when the file has it only once, the project keeps it.
 function restoreParsed(parsed: ParsedResume, redactor: Redactor, text: string): ParsedResume {
   const restored = redactor.restoreDeep(parsed, { dropUnknown: true });
   const hidden = new Set(redactor.hidden("LINK"));
@@ -369,8 +361,7 @@ function restoreParsed(parsed: ParsedResume, redactor: Redactor, text: string): 
   return { ...restored, basics: { ...restored.basics, links } };
 }
 
-// A contact field the model left empty although it was sent as a placeholder is filled from the
-// rule-based read, which found that exact text in the file.
+// Filled from the rule-based read, which found that exact text in the file.
 function withHiddenContact(resume: Resume, found: Basics, redactor: Redactor): Resume {
   const hid = (kind: "NAME" | "EMAIL" | "PHONE", value: string) =>
     value !== "" && redactor.hidden(kind).includes(value);
@@ -385,7 +376,6 @@ function withHiddenContact(resume: Resume, found: Basics, redactor: Redactor): R
   return { ...resume, basics };
 }
 
-// The model's output is only used when it is faithful to the source, non-empty and schema-valid.
 function acceptedResume(parsed: ParsedResume, text: string, now: number): Resume {
   const problem = (reason: string) => {
     log.warn("ai.structure_rejected", { reason });
@@ -400,14 +390,8 @@ function acceptedResume(parsed: ParsedResume, text: string, now: number): Resume
   return checked.data;
 }
 
-/**
- * Raw resume text -> Resume. With an API key: structured output, copying text exactly as written
- * and never inventing content; ids are assigned in code. The model sees placeholders instead of
- * the name, emails, phone numbers and links, and code puts the file's own text back. Falls back to
- * heuristicParse() on missing key or any AI failure, so import never fails because of the AI.
- * Throws AIError("too_long") when text exceeds TEXT_LIMITS.resumeChars.
- */
-// ai: false skips the model and reads by rules only (the plan's AI reads are used up).
+// Falls back to heuristicParse() without a key or on any AI failure, so import never fails because
+// of the AI. ai: false skips the model (the plan's AI reads are used up).
 export async function structureResume(
   text: string,
   now = Date.now(),

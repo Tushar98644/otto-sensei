@@ -15,13 +15,11 @@ const EnvSchema = z.object({
   // Vercel system variable, set on every deployment (preview too): the production host, no scheme.
   VERCEL_PROJECT_PRODUCTION_URL: optionalString,
   OPENROUTER_API_KEY: optionalString,
-  // OpenRouter model slugs. Each must support structured outputs and reasoning. Both default to
-  // GLM 5.3 Flash; they stay separate so import structuring (copy-only) can run on something
-  // cheaper or faster than fixing and tailoring.
+  // OpenRouter slugs; each must support structured outputs and reasoning. Separate so import
+  // structuring (copy-only) can use a cheaper model.
   AI_MODEL: stringWithDefault("z-ai/glm-5.3-flash"),
   AI_STRUCTURE_MODEL: stringWithDefault("z-ai/glm-5.3-flash"),
-  // Supabase Auth. Database URLs are read by src/db/connection.ts. Each value has two names: the
-  // one a project made at supabase.com uses, and the one the Vercel Marketplace integration sets.
+  // Each value has two names: a supabase.com project's and the Vercel integration's.
   NEXT_PUBLIC_SUPABASE_URL: optionalString,
   SUPABASE_URL: optionalString,
   // The publishable key (sb_publishable_...) replaces the legacy anon JWT; either works.
@@ -32,17 +30,14 @@ const EnvSchema = z.object({
   // Server-only admin key (sb_secret_... or the legacy service_role JWT), for deleting accounts.
   SUPABASE_SECRET_KEY: optionalString,
   SUPABASE_SERVICE_ROLE_KEY: optionalString,
-  // Development only: "supabase" turns off the on-screen dev codes (src/lib/auth/dev-mode.ts) and
-  // signs in through Supabase with the keys above.
-  // Free text on purpose: a typo must not stop the app from starting.
+  // Dev only: "supabase" signs in through Supabase instead of on-screen codes. Free text on
+  // purpose: a typo must not stop the app from starting.
   DEV_AUTH: optionalString,
   // Development only: signs dev-mode session cookies. Falls back to a fixed dev secret.
   AUTH_SECRET: optionalString,
-  // Development only, with dev sign-in: every dev account counts as connected to this GitHub
-  // login (src/lib/auth/github.ts), since dev sign-in has no Supabase to link a real one.
+  // Dev only: every dev account counts as connected to this GitHub login (no Supabase to link one).
   DEV_GITHUB_LOGIN: optionalString,
-  // Creem (merchant of record) payments. The API key and webhook secret belong to one Creem
-  // environment: test keys only work against the test API, live keys only against the live one.
+  // Creem keys belong to one environment: test keys only work on the test API, live keys on live.
   CREEM_API_KEY: optionalString,
   CREEM_WEBHOOK_SECRET: optionalString,
   // Anything but "false" or "0" uses Creem's test API (no real charges), so a missing value can't
@@ -54,9 +49,8 @@ const EnvSchema = z.object({
       .default("true")
       .transform((value) => !["false", "0", "no", "off"].includes(value.trim().toLowerCase())),
   ),
-  // One Creem product per plan and billing interval (PRICES_USD in src/config/plans.ts), plus Pro
-  // monthly with the free 3-day trial. Pro monthly turns checkout on; every other option is offered
-  // only while its id is set.
+  // One Creem product per plan and interval, plus Pro monthly with the 3-day trial. Pro monthly
+  // turns checkout on; other options are offered only while their id is set.
   CREEM_PRO_MONTHLY_PRODUCT_ID: optionalString,
   CREEM_PRO_YEARLY_PRODUCT_ID: optionalString,
   CREEM_PRO_WEEKLY_PRODUCT_ID: optionalString,
@@ -103,7 +97,7 @@ export function aiEnabled() {
 
 export type SupabaseConfig = { url: string; publishableKey: string };
 
-/** Project URL and public key, or null when Supabase isn't set up (sign-in is then off). */
+/** null when Supabase isn't set up, which turns sign-in off. */
 export function supabaseConfig(): SupabaseConfig | null {
   const e = env();
   const url = e.NEXT_PUBLIC_SUPABASE_URL ?? e.SUPABASE_URL;
@@ -129,11 +123,8 @@ function origin(value: string): string {
   return url.replace(/\/+$/, "");
 }
 
-/**
- * The public origin, no trailing slash: NEXT_PUBLIC_APP_URL, else the production domain Vercel
- * gives every deployment, else localhost. Previews get the production domain on purpose, so their
- * canonical links and sitemap never point crawlers at a preview URL.
- */
+// NEXT_PUBLIC_APP_URL, else Vercel's production domain, else localhost. Previews get the production
+// domain on purpose so canonical links and the sitemap never point crawlers at a preview.
 export function appUrl(): string {
   const { NEXT_PUBLIC_APP_URL: configured, VERCEL_PROJECT_PRODUCTION_URL: vercelHost } = env();
   if (configured) return origin(configured);

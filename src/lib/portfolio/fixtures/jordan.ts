@@ -8,13 +8,8 @@ import {
 import { contentView } from "../content-view";
 import { portfolioView, type PortfolioView } from "../view";
 
-// Fixture for tests and template previews: Jordan Ellis, the made-up person of the approved
-// round-2 samples (../portfolio-samples/v2/_src/data.mjs), as a resume, a filled-in content
-// document and GitHub numbers. It fills every section any design draws (TEMPLATE_USES), so the
-// sample page shows what a design looks like with everything in it.
-//
-// Text only, like every real page (owner decision 2026-11-10): no photo, screenshots, logos or
-// video. The designs draw initials, monograms and patterns from these words instead.
+// Test and preview fixture: Jordan Ellis, a made-up person. Fills every section any design draws,
+// so the sample page shows a design with everything in it. Text only, like every real page.
 
 const NOW = Date.UTC(2026, 10, 8);
 
@@ -715,10 +710,7 @@ export function jordanGitHub(): GitHubStats {
   };
 }
 
-/**
- * Jordan's page as a template draws it: the sample page of the previews (the landing page, the
- * "Sample page" side of the preview switch, an account without a resume).
- */
+/** The sample page of the previews. */
 export function jordanPage(): { view: PortfolioView; content: PortfolioContentView } {
   const view = portfolioView(jordanV2Resume(), {
     showEmail: true,
@@ -734,7 +726,6 @@ export function jordanPage(): { view: PortfolioView; content: PortfolioContentVi
   return { view, content };
 }
 
-/** Everything a rich template draws for Jordan, ready to render. */
 export function jordanContentView(): PortfolioContentView {
   return jordanPage().content;
 }

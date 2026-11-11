@@ -15,8 +15,7 @@ import {
   type PlaceChoice,
 } from "./types";
 
-// Request schemas for the Jobs tab's routes (zod), apart from ./types so the Jobs tab and the
-// first-login step don't load zod.
+// Apart from ./types so the Jobs tab and the first-login step don't load zod.
 
 export const MatchProfileSchema = z.object({
   skills: z.array(z.string().max(60)).max(MATCH_PROFILE_LIMITS.skills),
@@ -40,7 +39,7 @@ const PLACE_CHOICE = z
 
 const OccupationCodeSchema = z.string().regex(OCCUPATION_CODE);
 
-/** What Matches are ranked for. Every part is filled: the guess, or what the person picked. */
+/** Every part is filled: the guess, or what the person picked. */
 export const LookingForSchema = z.object({
   title: z.string().trim().max(LOOKING_FOR_LIMITS.titleChars),
   family: z.enum(ROLE_FAMILIES).nullable(),
@@ -51,11 +50,7 @@ export const LookingForSchema = z.object({
   remote: z.boolean(),
 });
 
-/**
- * What the person changed, kept per account (work_profiles.target_*): null parts follow the
- * resume, so switching resumes changes the guess and not a choice someone made. `remote` is the
- * work profile's "Remote only".
- */
+// Null parts follow the resume, so switching resumes changes the guess, not a choice someone made.
 export const LookingForChoiceSchema = z.object({
   role: z
     .object({
@@ -79,12 +74,9 @@ export const JobFiltersSchema = z.object({
     .union([z.literal(7), z.literal(30)])
     .nullable()
     .default(null),
-  // Hide jobs whose post has a rule the work profile can't meet.
   eligibleOnly: z.boolean().default(false),
 });
 
-// POST /api/jobs/matches. Requires sign-in. Free gets the closest FREE_JOB_MATCHES (`locked`);
-// filters, more pages, saved jobs and the work-rights rules are Pro.
 export const JobMatchesRequestSchema = z.object({
   view: z.enum(["matches", "saved"]).default("matches"),
   profile: MatchProfileSchema,
@@ -96,7 +88,7 @@ export const JobMatchesRequestSchema = z.object({
   lookingFor: LookingForSchema.nullable().default(null),
 });
 
-// POST /api/jobs/events. Requires sign-in. Ids and labels only: never resume text.
+// Ids and labels only: never resume text.
 export const MatchActionSchema = z
   .object({
     kind: z.enum(["open", "save", "tailor", "applied", "not_fit", "asked_applied"]),

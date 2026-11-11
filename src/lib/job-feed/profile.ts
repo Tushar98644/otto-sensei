@@ -4,11 +4,10 @@ import { monthOf, parseRange } from "@/lib/sendcheck/dates";
 import { findSkills } from "./skills";
 import { MATCH_PROFILE_LIMITS, type MatchProfile } from "./types";
 
-// Client-safe and pure. The few facts the Jobs tab sends to rank jobs, read from the resume in
-// the browser: skills from the shared vocabulary, job titles (newest first) and years of work.
-// The resume text, its name, contact details and lines never leave the browser for this.
+// Only skills, titles and years are sent for ranking; resume text, name, contact details and lines
+// never leave the browser for this.
 
-/** Whole years across the resume's jobs, overlapping ones counted once. null when no dates read. */
+/** Overlapping jobs counted once. null when no dates read. */
 export function yearsOfExperience(resume: Resume, now: number): number | null {
   const nowMonth = monthOf(now);
   const spans: [number, number][] = [];
@@ -39,8 +38,7 @@ export function yearsOfExperience(resume: Resume, now: number): number | null {
 
 export function matchProfileOf(resume: Resume, now: number): MatchProfile {
   const shown = visibleResume(resume);
-  // Experience titles first, newest at the top as resumes list them: they are dated, the headline
-  // is a claim.
+  // Experience titles first: they're dated; the headline is a claim.
   const titles = [...shown.experience.map((job) => job.title), shown.basics.headline]
     .map((title) => title.trim().slice(0, MATCH_PROFILE_LIMITS.titleChars))
     .filter(Boolean);

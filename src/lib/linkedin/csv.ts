@@ -1,5 +1,4 @@
-// RFC 4180 CSV, client-safe. Quoted fields can hold commas, doubled quotes and real line breaks:
-// LinkedIn writes job descriptions with line breaks inside quotes, so splitting on newlines first
+// RFC 4180. LinkedIn puts line breaks inside quoted descriptions, so splitting on newlines first
 // would cut a position in half.
 
 const MAX_ROWS = 2_000;
@@ -46,11 +45,8 @@ export type CsvRecord = Record<string, string>;
 
 const headerKey = (cell: string) => cell.trim().toLowerCase();
 
-/**
- * Rows as records keyed by lower-case header name. The header is the first row holding every
- * `required` column, because some LinkedIn files open with a "Notes:" preamble. Blank rows are
- * dropped. Returns [] when no row looks like the header.
- */
+// The header is the first row holding every `required` column: some files open with a "Notes:"
+// preamble. [] when no row looks like the header.
 export function csvRecords(text: string, required: readonly string[]): CsvRecord[] {
   const rows = parseCsv(text);
   const wanted = required.map(headerKey);

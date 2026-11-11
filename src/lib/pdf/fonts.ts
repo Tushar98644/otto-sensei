@@ -1,8 +1,6 @@
-// The typefaces the PDF formats print in: free, embeddable stand-ins for the fonts their source
-// layouts use (Calibri, Computer Modern, Times, Palatino, Roboto, Source Sans, Charter). The files
-// live in public/fonts/pdf/<dir>/ next to their licences (THIRD_PARTY_NOTICES.md lists them).
-// Client-safe and react-pdf free: the Word export, the thumbnails and the web page read the same
-// table; src/components/pdf/fonts.ts registers the files with react-pdf.
+// Free, embeddable stand-ins for the fonts the source layouts use; files and licences live in
+// public/fonts/pdf (THIRD_PARTY_NOTICES.md). react-pdf free: src/components/pdf/fonts.ts registers
+// them.
 
 export const PDF_FONT = {
   carlito: "Carlito",
@@ -25,15 +23,13 @@ export type PdfFontFace = {
 export type PdfFontFamily = {
   dir: string;
   faces: readonly PdfFontFace[];
-  // What the Word file names: the font the stand-in copies when Word ships it with the same widths
-  // (Calibri, Times New Roman, Palatino Linotype), else this same family.
+  // The font Word ships with the same widths (Calibri, Times New Roman, Palatino), else this
+  // family.
   word: string;
-  // Word's font class, so a machine without the font substitutes a serif for a serif.
+  // So a machine without the font substitutes a serif for a serif.
   wordClass: "roman" | "swiss";
-  // The miniature and the web page draw with installed fonts instead of downloading these.
   css: string;
-  // Draws what this family has no glyph for (a Latvian "ķ" in CMU Serif Bold, Cyrillic in
-  // Pagella). Null for the two broad families every chain ends in.
+  // Draws what this family has no glyph for. Null for the two broad families every chain ends in.
   fallback: PdfFontName | null;
 };
 
@@ -135,18 +131,17 @@ export function isPdfFont(value: unknown): value is PdfFontName {
   return typeof value === "string" && value in PDF_FONT_FAMILIES;
 }
 
-/** The PDF family a style names: react-pdf allows a fallback list, whose first entry draws. */
+/** react-pdf allows a fallback list, whose first entry draws. */
 export function primaryFont(value: unknown): PdfFontName | null {
   const first = Array.isArray(value) ? value[0] : value;
   return isPdfFont(first) ? first : null;
 }
 
-/** The CSS font stack standing in for a PDF family on screen (Carlito's for anything else). */
 export function cssFontFamily(value: unknown): string {
   return PDF_FONT_FAMILIES[primaryFont(value) ?? PDF_FONT.carlito].css;
 }
 
-/** react-pdf's OpenType features as CSS: small capitals are the only one formats use. */
+/** Small capitals are the only OpenType feature formats use. */
 export function cssFontCaps(features: unknown): "small-caps" | undefined {
   return Array.isArray(features) && features.includes("smcp") ? "small-caps" : undefined;
 }

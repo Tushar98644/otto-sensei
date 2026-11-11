@@ -1,22 +1,10 @@
 import { z } from "zod";
 
-// Pure and client-safe. The portfolio CONTENT CONTRACT: everything a rich template can draw beyond
-// the resume itself (pitch, "now", stats, project write-ups, talks, writing, hackathons,
-// testimonials, interests, a bookshelf, GitHub numbers).
-//
-// Text only (owner decision 2026-11-10): no uploads, no stored media and no pictures linked from
-// other sites. Templates draw initials, monograms and patterns made from the text instead.
-//
-// Two halves:
-//   1. PortfolioContent (stored, versioned, PortfolioContentSchema): only what the owner changed.
-//      Every override is nullable; null means "fill it in for me" from the resume, GitHub or the
-//      sign-in account, by the rules in ./content-view.ts and ./metrics.ts (no AI).
-//   2. PortfolioContentView (resolved, for templates): what a template draws, built by
-//      contentView() with every automatic value filled in and the owner's privacy choices applied.
-//      Templates read only this (plus PortfolioView for the old six); every field may be empty,
-//      and an empty list or null means "leave the section out", never a placeholder.
-//
-// Fixture for tests and previews: ./fixtures/jordan.ts (jordanContentView()).
+// Everything a rich template can draw beyond the resume. Text only: no uploads, stored media or
+// linked pictures; templates draw initials, monograms and patterns instead.
+// PortfolioContent (stored): only what the owner changed; null means "fill it in for me" by rules.
+// PortfolioContentView (resolved by contentView()): what templates read. An empty list or null
+// means "leave the section out", never a placeholder.
 
 export const PORTFOLIO_CONTENT_VERSION = 1;
 
@@ -79,17 +67,13 @@ const auto = (max: number) => text(max).nullable().default(null);
 const entryId = z.string().min(1).max(80);
 const year = z.number().int().min(0).max(L.maxYears);
 
-/** An https address a page may link to; "" for none. Checked again when the page draws it. */
+/** "" for none. Checked again when the page draws it. */
 const linkUrl = z
   .string()
   .trim()
   .max(L.url)
   .refine((value) => value === "" || webHref(value) !== null, { message: "Not a web address." });
 const autoLink = linkUrl.nullable().default(null);
-
-// ---------------------------------------------------------------------------------------------
-// Stored content
-// ---------------------------------------------------------------------------------------------
 
 export const SOCIAL_KINDS = [
   "github",
@@ -114,7 +98,6 @@ export const SocialSchema = z.object({
   // Detected from the address when left out.
   kind: z.enum(SOCIAL_KINDS).optional(),
   label: text(L.label).default(""),
-  // An https address, or mailto: for email.
   url: z
     .string()
     .trim()
@@ -122,8 +105,7 @@ export const SocialSchema = z.object({
     .refine((value) => socialHref(value) !== null, { message: "Not a link." }),
 });
 
-// The device a design draws a project's screen on (Reel's laptop or pair of phones). "auto" lets
-// the design choose.
+// "auto" lets the design choose.
 export const DEVICE_FRAMES = ["auto", "laptop", "phone"] as const;
 export type DeviceFrame = (typeof DEVICE_FRAMES)[number];
 
@@ -131,11 +113,9 @@ export const ProjectEntrySchema = z.object({
   // A resume project's id, "gh:<owner>/<repo>" for a GitHub repo, or "c:<uuid>" for one added here.
   id: entryId,
   name: auto(L.projectName),
-  // One sentence for cards and lists.
   line: auto(L.projectLine),
-  // A short paragraph for bigger cards.
   description: auto(L.projectDescription),
-  // Longer paragraphs for a details page (Hamish-style); never filled automatically.
+  // Never filled automatically.
   details: z.array(text(L.projectDetail)).max(L.projectDetails).default([]),
   category: auto(L.category),
   years: auto(L.years),
@@ -156,11 +136,8 @@ export type ProjectEntry = z.infer<typeof ProjectEntrySchema>;
 export const JobExtraSchema = z.object({
   // "-72% failed payouts"; null pulls the strongest number out of the job's lines.
   highlight: auto(L.jobHighlight),
-  // One line under the title ("Own the payouts platform that pays 60,000 freelancers").
   summary: auto(L.jobSummary),
-  // "Fintech · invoicing and payouts".
   type: auto(L.jobType),
-  // The company's site, linked from its name.
   website: linkUrl.default(""),
   tags: z.array(text(L.tag)).max(L.tags).nullable().default(null),
 });
@@ -189,7 +166,6 @@ export const MilestoneSchema = z.object({
   title: text(L.title).min(1),
   place: text(L.place).default(""),
   detail: text(L.detail).default(""),
-  // "Winner", "1st of 120".
   result: text(L.tag).default(""),
   url: linkUrl.default(""),
 });
@@ -234,7 +210,6 @@ export const InterestSchema = z.object({
 export const SHELF_KINDS = ["book", "album", "film", "game", "tool", "other"] as const;
 export type ShelfKind = (typeof SHELF_KINDS)[number];
 
-// Cali-style shelf of favourites: books, albums, films.
 export const ShelfItemSchema = z.object({
   id: entryId,
   kind: z.enum(SHELF_KINDS).default("book"),
@@ -245,7 +220,6 @@ export const ShelfItemSchema = z.object({
 
 export const NowSchema = z.object({
   id: entryId,
-  // "Building", "Reading", "Learning".
   label: text(L.nowLabel).min(1),
   text: text(L.nowText).default(""),
 });
@@ -272,7 +246,6 @@ export const PortfolioContentSchema = z.object({
   v: z.literal(PORTFOLIO_CONTENT_VERSION).default(PORTFOLIO_CONTENT_VERSION),
   pitch: auto(L.pitch),
   intro: auto(L.intro),
-  // Hamish-style rotating words ("Developer", "Designer").
   disciplines: z.array(text(L.discipline)).max(L.disciplines).nullable().default(null),
   availability: z
     .object({
@@ -347,10 +320,8 @@ const filled = (value: string) => value.trim() !== "";
 const okLink = (value: string) => (value.trim() === "" || webHref(value) ? value : "");
 const okAutoLink = (value: string | null) => (value === null ? null : okLink(value));
 
-/**
- * The document as the server will take it: rows still being typed (no title yet, a link that
- * isn't one) are left out of the save but stay on screen, so autosave never fails mid-word.
- */
+// Rows still being typed are left out of the save but stay on screen, so autosave never fails
+// mid-word.
 export function saveableContent(content: PortfolioContent): PortfolioContent {
   return {
     ...content,
@@ -404,10 +375,6 @@ export function saveableContent(content: PortfolioContent): PortfolioContent {
   };
 }
 
-// ---------------------------------------------------------------------------------------------
-// Links
-// ---------------------------------------------------------------------------------------------
-
 /** An http(s) address as a link target ("example.com" gets https://), or null. */
 export function webHref(raw: string): string | null {
   const value = raw.trim();
@@ -424,16 +391,11 @@ export function webHref(raw: string): string | null {
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-/** A social link's target: https, or mailto: for an email address. */
 export function socialHref(raw: string): string | null {
   const value = raw.trim().replace(/^mailto:/i, "");
   if (EMAIL.test(value)) return `mailto:${value}`;
   return webHref(raw);
 }
-
-// ---------------------------------------------------------------------------------------------
-// GitHub numbers (stored per portfolio, refreshed by the server, ./github-stats.ts)
-// ---------------------------------------------------------------------------------------------
 
 export type GitHubRepoSummary = {
   name: string;
@@ -456,9 +418,7 @@ export type GitHubStats = {
   publicRepos: number;
   // Over the person's own public repos, forks left out.
   totalStars: number;
-  // Main language of each own repo, counted; biggest first, at most 6.
   languages: { name: string; repos: number; percent: number }[];
-  // Most starred own repos still alive, at most 8.
   repos: GitHubRepoSummary[];
   activity: {
     // ISO time of the newest public event, null when GitHub lists none (it keeps 90 days).
@@ -468,20 +428,14 @@ export type GitHubStats = {
     weeks: number[];
     recent: { repo: string; kind: "push" | "pull" | "release" | "create" | "issue"; at: string }[];
   };
-  // ISO time the account was made.
   joinedAt: string;
   fetchedAt: number;
 };
-
-// ---------------------------------------------------------------------------------------------
-// Resolved view: what templates draw
-// ---------------------------------------------------------------------------------------------
 
 export type ContentLink = { href: string; text: string };
 
 export type ContentSocial = { kind: SocialKind; label: string; handle: string; href: string };
 
-// One paragraph split around the owner's highlighted phrases.
 export type TextPart = { text: string; mark: boolean };
 
 export type ContentProject = {
@@ -491,7 +445,6 @@ export type ContentProject = {
   line: string;
   description: string;
   details: string[];
-  // The resume's own lines for it.
   lines: string[];
   category: string;
   years: string;
@@ -523,7 +476,6 @@ export type ContentRole = {
   summary: string;
   type: string;
   website: ContentLink | null;
-  // "LE" for Ledgerly.
   monogram: string;
   tags: string[];
 };
@@ -635,10 +587,6 @@ export type PortfolioContentView = {
   github: ContentGitHub | null;
   updatedAt: number;
 };
-
-// ---------------------------------------------------------------------------------------------
-// API
-// ---------------------------------------------------------------------------------------------
 
 // PUT /api/portfolio/content: the whole document each time (autosaved). The answer is the saved copy.
 export const SaveContentSchema = z.object({ content: PortfolioContentSchema });

@@ -1,12 +1,10 @@
 import type { Application } from "./schema";
 
-// Client-safe and pure. Applications left on "applied" for weeks make the win rate look better
-// than it is (they read as "still waiting", not as "no"), so the page offers to close them.
+// Applications left on "applied" for weeks read as "still waiting", flattering the win rate.
 
 export const NO_REPLY_AFTER_DAYS = 21;
 const DAY_MS = 24 * 60 * 60 * 1_000;
 
-// Still on "applied" NO_REPLY_AFTER_DAYS or more after they were sent, oldest first.
 export function waitingTooLong<T extends Pick<Application, "status" | "appliedAt">>(
   list: readonly T[],
   now: number,
@@ -17,7 +15,6 @@ export function waitingTooLong<T extends Pick<Application, "status" | "appliedAt
     .sort((a, b) => a.appliedAt - b.appliedAt);
 }
 
-// Otto's line: "Stripe, Linear and 3 more haven't replied in 3 weeks. Mark them as no reply?"
 export function nudgeMessage(stale: readonly Pick<Application, "company">[]): string {
   const names = [
     ...new Set(stale.map((application) => application.company.trim()).filter(Boolean)),

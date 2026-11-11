@@ -1,8 +1,7 @@
 import { vi } from "vitest";
 
-// Test-only. A stand-in for api.github.com (and the AI endpoint) behind a stubbed global fetch.
-// Each call gets a fresh Response (a body reads once), and every request is recorded so tests can
-// assert what was asked, where, and exactly what text left the server.
+// Test-only. A fake api.github.com (and AI endpoint) behind a stubbed fetch; every request is
+// recorded so tests can assert exactly what text left the server.
 
 export type FakeCall = { url: string; headers: Headers; body: string };
 export type FakeHandler = (url: URL, headers: Headers, body: string) => Response | undefined;

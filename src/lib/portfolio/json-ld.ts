@@ -4,14 +4,10 @@ import { contentUsesFor } from "./content-uses";
 import type { PortfolioTemplateId } from "./types";
 import type { PortfolioView } from "./view";
 
-// Pure and client-safe. schema.org ProfilePage data for /p/<slug>, so search engines and AI tools
-// read who the page is about without guessing from the layout. Built only from what the page
-// itself shows: `view` and `content` already have every privacy choice applied (hidden sections,
-// email and phone), and a field a design doesn't draw stays out too. Email and phone never go in,
+// schema.org ProfilePage data built only from what the page shows. Email and phone never go in,
 // even when shown: a machine-readable copy only helps spam scrapers.
 
-// Which of these sections each design draws (src/components/portfolio/templates, 2026-11-11).
-// Typed by template id, so a new design can't ship without saying.
+// Typed by template id, so a new design can't ship without saying what it draws.
 const DRAWS: Record<PortfolioTemplateId, { skills: boolean; education: boolean }> = {
   navy: { skills: true, education: false },
   dock: { skills: true, education: true },
@@ -35,7 +31,6 @@ export type ProfileJsonLdInput = {
   view: PortfolioView;
   content: PortfolioContentView;
   template: PortfolioTemplateId;
-  // The page's absolute address.
   url: string;
   updatedAt: number;
 };

@@ -3,14 +3,12 @@ import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { deleteDevIdentity } from "./dev";
 import { devAuthActive } from "./dev-mode";
 
-// Server-only. Removing the Supabase Auth user, the last step of deleting an account.
-
-/** False without a Supabase secret key: deleting an account must then wait until one is set. */
+/** False without a Supabase secret key: account deletion must wait until one is set. */
 export function canDeleteAuthUsers(): boolean {
   return devAuthActive() || createSupabaseAdminClient() !== null;
 }
 
-/** Deletes the auth user and every session it has. An already deleted user counts as done. */
+/** An already deleted user counts as done. */
 export async function deleteAuthUser(userId: string): Promise<void> {
   if (devAuthActive()) return deleteDevIdentity(userId);
   const admin = createSupabaseAdminClient();

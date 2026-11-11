@@ -5,15 +5,12 @@ import { isLinkText } from "@/lib/resume/sections";
 import { shareSnapshot } from "@/lib/share/snapshot";
 import { PORTFOLIO_SECTIONS, type PortfolioSection, type PortfolioSettings } from "./types";
 
-// Pure and client-safe. A resume as a portfolio page reads it: what every template draws, with
-// the owner's privacy choices already applied. Templates get only this, never the resume, so a
-// hidden section or a phone number can't slip into one of them.
+// Templates get only this, never the resume, so a hidden section or phone number can't slip in.
 
 export type PortfolioLink = {
   label: string;
   // "github.com/octocat": shorter than the address, and what a reader would type.
   text: string;
-  // Only http(s) addresses become links.
   href: string | null;
   kind: "github" | "linkedin" | "web";
 };
@@ -24,7 +21,6 @@ export type PortfolioProject = {
   href: string | null;
   // "github.com", "maya.dev"; "" without a link.
   host: string;
-  // "octocat/otto-resume" for a GitHub repo, else null.
   repo: string | null;
   lines: string[];
 };
@@ -71,7 +67,6 @@ export type PortfolioView = {
   phone: string | null;
   about: string[];
   links: PortfolioLink[];
-  // The GitHub profile, from the resume's links or its imported repos; null when there is none.
   github: PortfolioLink | null;
   projects: PortfolioProject[];
   experience: PortfolioRole[];
@@ -79,12 +74,9 @@ export type PortfolioView = {
   education: PortfolioSchool[];
   certifications: PortfolioCertification[];
   extras: PortfolioExtra[];
-  // The resume's own section headings ("Work history" for Experience).
   titles: Record<Exclude<PortfolioSection, "links" | "extras">, string>;
-  // When the resume behind this copy was last edited (ms), for "Updated November 2026" lines.
   updatedAt: number;
-  // The sections the owner hid, so what they wrote for them in the content editor (an edited
-  // About, an added project, a hand-picked link) stays off the page too.
+  // So what the owner wrote for hidden sections in the content editor stays off the page too.
   hidden: PortfolioSection[];
 };
 
@@ -120,8 +112,8 @@ function hostOf(href: string | null): string {
   }
 }
 
-// A summary that is only the contact line ("° github.com/jane | jane@mail.com | +1 555..."), as
-// older reads of icon-font resumes left it. It would show the phone on the page.
+// A summary that is only the contact line, as older reads of icon-font resumes left it: it would
+// show the phone on the page.
 function isContactLine(paragraph: string, contact: readonly string[]): boolean {
   let rest = paragraph;
   for (const value of contact) rest = rest.split(value).join(" ");
@@ -159,7 +151,6 @@ function githubProfile(resume: Resume, links: PortfolioLink[]): PortfolioLink | 
   };
 }
 
-/** The page's content for this resume and these settings. */
 export function portfolioView(source: Resume, settings: ViewSettings): PortfolioView {
   // The same copy a share link keeps: hidden lines, entries and sections stay out.
   const resume = shareSnapshot(source);
@@ -293,7 +284,6 @@ export function portfolioView(source: Resume, settings: ViewSettings): Portfolio
   };
 }
 
-/** The sections this resume has something for, so the editor offers only those. */
 export function sectionsWithContent(resume: Resume): PortfolioSection[] {
   const view = portfolioView(resume, { showEmail: false, showPhone: false, hiddenSections: [] });
   const filled: Record<PortfolioSection, boolean> = {
@@ -309,7 +299,6 @@ export function sectionsWithContent(resume: Resume): PortfolioSection[] {
   return (Object.keys(filled) as PortfolioSection[]).filter((key) => filled[key]);
 }
 
-/** A one-line description for previews and the Open Graph card. */
 export function portfolioDescription(
   view: Pick<PortfolioView, "headline" | "about" | "name">,
 ): string {

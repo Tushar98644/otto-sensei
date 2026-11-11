@@ -5,9 +5,7 @@ import { JOB_COUNTS_FALLBACK, type JobCounts } from "./counts";
 import { storedJobCounts } from "./match-index";
 import { cachedForDay } from "./public-cache";
 
-// Server-only. The live job counts for pages that state one, as the last ingest stored them and
-// kept for the day (public-cache.ts). With no database (a build without it) pages show the
-// measured floors in JOB_COUNTS_FALLBACK; a failure is never cached.
+// Kept for the day. Without a database pages show JOB_COUNTS_FALLBACK; a failure is never cached.
 
 const dailyCounts = cachedForDay(
   "job-counts",

@@ -1,8 +1,6 @@
 import type { z } from "zod";
 import type { FeedbackRequestSchema } from "./validation";
 
-// Client-safe. "Send feedback": one short note, its kind, and the page it was sent from.
-
 export const FEEDBACK_KINDS = ["bug", "idea", "other"] as const;
 export type FeedbackKind = (typeof FEEDBACK_KINDS)[number];
 

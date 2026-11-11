@@ -1,8 +1,8 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { supabaseConfig, supabaseSecretKey } from "@/lib/env";
 
-// Server-only. Bypasses every Supabase permission check: never import it from client code, and only
-// use it for what the signed-in user's own session can't do (deleting their auth account).
+// Bypasses every Supabase permission check: never import it from client code, and only use it for
+// what the user's own session can't do (deleting their auth account).
 
 let cached: { key: string; client: SupabaseClient } | null = null;
 

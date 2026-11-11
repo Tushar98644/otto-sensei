@@ -38,9 +38,8 @@ import {
 
 export type { CheckOptions };
 
-// Client-safe and pure. Reads a job post for the rules that decide whether it can hire someone from
-// where they are, and checks each against the work profile. Rule-based on purpose: every verdict
-// points at a line the person can read for themselves, and nothing leaves the browser.
+// Rule-based on purpose: every verdict points at a line the person can read, and nothing leaves the
+// browser.
 
 export type PostInput = { location: string; text: string };
 
@@ -56,7 +55,6 @@ const RULES: EligibilityRule[] = [
 const SEVERITY: Record<EligibilityVerdict, number> = { ok: 1, check: 2, blocked: 3 };
 const TIME_ZONE_PHRASE = /\b[\w.]+(?:\s+[\w.]+)?\s+time[- ]?zones?\b/gi;
 
-// Sentences of the post, so each quote is one claim a person can find and read.
 function unitsOf(text: string): Unit[] {
   const units: Unit[] = [];
   for (const raw of text.split(/\r?\n/)) {
@@ -73,7 +71,6 @@ function unitsOf(text: string): Unit[] {
   return units;
 }
 
-// Whether a sentence can change any verdict below: every test checkEligibility runs on a sentence.
 function mattersToRules(text: string): boolean {
   return (
     LOCATION_LINE.test(text) ||
@@ -94,11 +91,8 @@ function mattersToRules(text: string): boolean {
   );
 }
 
-/**
- * Only the sentences of a post that the eligibility rules read, one per line. Checking these gives
- * the same findings as checking the whole post, so the Jobs tab can store a few hundred characters
- * per job instead of the whole text and still check thousands of jobs per request.
- */
+// Checking only these gives the same findings as the whole post, so the Jobs tab stores a few
+// hundred characters per job and still checks thousands per request.
 export function ruleLines(text: string, maxChars = 2_000): string {
   const kept: string[] = [];
   let length = 0;
@@ -130,11 +124,8 @@ function clip(text: string): string {
   return `${cut.slice(0, Math.max(cut.lastIndexOf(" "), MAX_QUOTE - 20)).trimEnd()}…`;
 }
 
-/**
- * One finding per rule the post sets (the most serious one when it says it more than once), in
- * rule order. An empty list means the post doesn't say where you must live, which visa you need,
- * which hours you'd keep or what kind of job it is. `profile` null: signed out or never saved.
- */
+// One finding per rule, the most serious when repeated. Empty means the post sets no rules.
+// `profile` null: signed out or never saved.
 export function checkEligibility(
   post: PostInput,
   profile: WorkProfile | null,
@@ -242,7 +233,6 @@ export function checkEligibility(
   return RULES.flatMap((rule) => best.get(rule) ?? []);
 }
 
-/** The most serious verdict in a list, or null when the post sets no rules. */
 export function worstVerdict(findings: EligibilityFinding[]): EligibilityVerdict | null {
   let worst: EligibilityVerdict | null = null;
   for (const item of findings) {

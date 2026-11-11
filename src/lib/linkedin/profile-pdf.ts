@@ -1,11 +1,8 @@
 import { groupRows, rowText, type LayoutItem } from "@/lib/parse/pdf-layout";
 import type { Extraction } from "@/lib/parse/types";
 
-// LinkedIn's "More → Save to PDF" profile puts contact details, top skills, languages and
-// certifications in a left sidebar beside the main column. Read row by row (as hiring software
-// does) the sidebar's "Contact" lands where the name should be and every job line is glued to a
-// skill. For that one well-known layout the text is rebuilt column by column: the main column
-// first, then the sidebar, without the "Page 1 of 3" footers.
+// LinkedIn's "Save to PDF" profile has a left sidebar; read row by row (as ATSs do) it glues every
+// job line to a skill. For this one layout the text is rebuilt column by column, footers dropped.
 
 const SIDEBAR_HEADINGS = ["Contact", "Top Skills", "Languages", "Certifications", "Honors-Awards", "Publications", "Patents"];
 const MAIN_HEADINGS = ["Summary", "Experience", "Education"];
@@ -25,7 +22,7 @@ export function isLinkedInProfile(extraction: Extraction): boolean {
   );
 }
 
-/** The profile's text in reading order, or null when the file isn't a LinkedIn profile PDF. */
+/** null when the file isn't a LinkedIn profile PDF. */
 export function linkedInProfileText(extraction: Extraction): string | null {
   if (!isLinkedInProfile(extraction)) return null;
   const main: Line[] = [];
@@ -57,11 +54,8 @@ const DATE_RANGE = new RegExp(`^(?:${MONTH_YEAR}|\\d{4})\\s*[-–]\\s*(?:present
 // A company with several roles shows its total time on its own line: "5 years 2 months".
 const TOTAL_TIME = /^(?:\d+ years?)?\s*(?:\d+ months?)?$/i;
 
-/**
- * LinkedIn prints each company in a larger font on its own line above the role, then the title,
- * then the dates. Parsers expect title and company together above the dates, so each title gets
- * its company appended ("Product Designer | Contoso"), roles at the same company included.
- */
+// LinkedIn prints the company above the role; parsers expect them together, so each title gets its
+// company appended ("Product Designer | Contoso").
 function withCompanies(lines: Line[]): string[] {
   const bodySize = modalSize(lines);
   const out: string[] = [];

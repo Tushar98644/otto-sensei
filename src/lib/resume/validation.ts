@@ -17,17 +17,15 @@ import {
   type SectionKey,
 } from "./schema";
 
-// The zod schemas behind ./schema's types, for code that checks a resume coming from outside:
-// API routes, imports, stored rows. Kept apart so screens that only read resumes don't load zod.
+// Kept apart from ./schema so screens that only read resumes don't load zod.
 
 const text = (max = 2_000) => z.string().max(max);
 
 const id = z.string().min(1).max(64);
 
-// Fields added after launch are optional in the type, because copies in localStorage are never
-// re-parsed. Flags, kinds and look settings fall back on a bad value (`.catch`), so one unknown
-// setting never fails a whole saved resume. Content caps stay strict like every other field: a
-// silent fallback there would drop the person's words from the cloud copy.
+// Fields added after launch are optional: localStorage copies are never re-parsed. Settings fall
+// back on a bad value (`.catch`); content caps stay strict, since a silent fallback would drop the
+// person's words from the cloud copy.
 const hiddenFlag = z.boolean().optional().catch(undefined);
 
 export const SectionKeySchema = z.enum(SECTION_KEYS);
@@ -73,10 +71,9 @@ export const ProjectSchema = z.object({
   id,
   name: text(200),
   link: text(500),
-  // Added after launch, so optional: a project saved before them prints without dates or tools.
+  // Optional: projects saved before these print without dates or tools.
   startDate: text(50).optional(),
   endDate: text(50).optional(),
-  // The tools it was built with, as written ("TypeScript, PostgreSQL").
   tech: text(300).optional(),
   bullets: z.array(BulletSchema).max(20),
   hidden: hiddenFlag,
@@ -121,8 +118,7 @@ export const ExtraSectionSchema = z.object({
 
 const sectionTitleField = text(MAX_SECTION_TITLE_CHARS).optional().catch(undefined);
 
-// The person's own heading for a standard section ("Work history" for Experience). A bad title
-// falls back to the standard label and unknown keys are dropped, so the rest are kept.
+// A bad title falls back to the standard label and unknown keys are dropped, so the rest are kept.
 export const SectionTitlesSchema = z.object({
   summary: sectionTitleField,
   experience: sectionTitleField,
@@ -132,8 +128,7 @@ export const SectionTitlesSchema = z.object({
   certifications: sectionTitleField,
 } satisfies Record<SectionKey, typeof sectionTitleField>);
 
-// Look settings on top of the format. An unset value means the format's own choice, so resumes
-// saved before these existed print exactly as they did.
+// An unset value means the format's own choice, so older resumes print exactly as they did.
 export const ResumeDesignSchema = z.object({
   accent: z.enum(DESIGN_ACCENTS).optional().catch(undefined),
   font: z.enum(DESIGN_FONTS).optional().catch(undefined),
@@ -150,7 +145,6 @@ function knownSectionKeys(value: unknown): SectionKey[] | undefined {
   return [...new Set(keys)];
 }
 
-// One thing the job asked for, as the screener read it.
 export const SavedRequirementSchema = z.object({
   text: text(SAVED_REQUIREMENT_LIMITS.textChars),
   importance: z.enum(["must", "nice"]).catch("nice"),
@@ -166,16 +160,13 @@ export const TailorMetaSchema = z.object({
   company: text(200),
   keywords: z.array(text(100)).max(60),
   createdAt: z.number(),
-  // The latest cover letter written for this job, as the person last edited it. Optional so copies
-  // saved before letters existed still parse.
+  // The latest letter for this job, as last edited. Optional so older copies still parse.
   coverLetter: text(COVER_LETTER_CHARS).optional(),
-  // The job itself, so interview prep, skill gaps and the send check use the real post rather
-  // than the keywords. Optional: copies made before these existed have none.
+  // So interview prep, skill gaps and the send check use the real post. Optional for older copies.
   jobText: text(JOB_TEXT_CHARS).optional(),
   jobUrl: text(2_048).optional(),
   requirements: z.array(SavedRequirementSchema).max(MAX_SAVED_REQUIREMENTS).optional(),
-  // The Jobs tab opening it was tailored for, so the job, this copy and its application find each
-  // other by id. A bad value is dropped rather than failing the whole resume.
+  // Links the job, this copy and its application by id. A bad value is dropped, not fatal.
   jobId: z.uuid().optional().catch(undefined),
 });
 
@@ -197,10 +188,8 @@ export const ResumeSchema = z.object({
   sectionOrder: z.array(SectionKeySchema).max(SECTION_KEYS.length),
   source: ResumeSourceSchema,
   tailor: TailorMetaSchema.nullable(),
-  // Resumes saved before formats existed parse as "classic", and so does an id this build doesn't
-  // know: a dropped format must never make a whole resume fail validation. Optional in the type
-  // because copies in localStorage are never re-parsed: read it with templateOf() from
-  // @/lib/pdf/templates.
+  // An unknown or missing format parses as the default, so a dropped format never fails a resume.
+  // Read it with templateOf(): localStorage copies are never re-parsed.
   template: TemplateIdSchema.default(DEFAULT_TEMPLATE).catch(DEFAULT_TEMPLATE).optional(),
   // Read these four with extrasOf(), sectionTitleOf() and isSectionHidden() below, and treat a
   // missing `design` as the format's own look.

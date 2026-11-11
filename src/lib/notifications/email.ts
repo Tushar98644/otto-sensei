@@ -2,9 +2,8 @@ import { Resend } from "resend";
 import { env } from "@/lib/env";
 import { log } from "@/lib/log";
 
-// Server-only. Reminder emails through Resend's batch API (up to 100 emails in one call, so a
-// daily run stays far under its per-second request limit). Sign-in codes don't come through here:
-// Supabase sends those over Resend's SMTP.
+// Resend's batch API (up to 100 per call) keeps a daily run under its rate limit. Sign-in codes go
+// through Supabase's SMTP, not here.
 
 export type EmailMessage = {
   to: string;
@@ -12,17 +11,14 @@ export type EmailMessage = {
   html: string;
   text: string;
   headers?: Record<string, string>;
-  // Resend tags: ASCII letters, digits, "_" and "-" only.
+  // ASCII letters, digits, "_" and "-" only.
   tags?: { name: string; value: string }[];
 };
 
 export type BatchResult = { sent: number; failed: number };
 
 export type EmailSender = {
-  /**
-   * Sends up to EMAIL_BATCH_MAX messages. The same idempotency key within 24 hours never sends
-   * twice, so a retry after a timeout is safe.
-   */
+  /** The same idempotency key within 24 hours never sends twice, so a retry is safe. */
   sendBatch(messages: EmailMessage[], idempotencyKey: string): Promise<BatchResult>;
 };
 
@@ -37,14 +33,13 @@ function emailConfig(): EmailConfig | null {
   return RESEND_API_KEY && EMAIL_FROM ? { apiKey: RESEND_API_KEY, from: EMAIL_FROM } : null;
 }
 
-/** Whether this deployment can send reminder emails at all. */
 export function emailConfigured(): boolean {
   return emailConfig() !== null;
 }
 
 type Attempt = { ok: true; result: BatchResult } | { ok: false; retry: boolean; reason: string };
 
-/** A Resend-backed sender, or null when RESEND_API_KEY or EMAIL_FROM is missing. */
+/** null when RESEND_API_KEY or EMAIL_FROM is missing. */
 export function emailSender(): EmailSender | null {
   const config = emailConfig();
   if (!config) return null;

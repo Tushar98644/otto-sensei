@@ -5,9 +5,8 @@ import { JobReadError } from "./errors";
 import { sendPinned, type ResolvedAddress } from "./transport";
 import { toFetchableUrl } from "./url";
 
-// Server-only. GET for links people paste in. The URL rules run on the first request and every
-// redirect, every DNS answer must be public, and the connection goes to exactly those answers.
-// Bounded in time, size, redirects and content type. Sends no cookies and says who it is.
+// URL rules run on the first request and every redirect, every DNS answer must be public, and the
+// connection goes to exactly those answers. Bounded in time, size, redirects and type.
 
 export const FETCH_LIMITS = {
   timeoutMs: 8_000,
@@ -21,10 +20,9 @@ export type FetchKind = "html" | "json" | "xml";
 export type FetchOptions = {
   kind: FetchKind;
   maxBytes?: number;
-  // Epoch ms by which the whole read must be done. Each request gets what's left, up to 8 seconds.
+  // Epoch ms by which the whole read must be done.
   deadline?: number;
-  // Per request, instead of the 8 seconds: the daily job ingest reads whole company boards of
-  // several megabytes.
+  // Instead of 8 seconds: the daily ingest reads whole boards of several megabytes.
   timeoutMs?: number;
 };
 
@@ -87,8 +85,8 @@ async function resolvePublic(url: URL, signal: AbortSignal): Promise<ResolvedAdd
   return answers.map(({ address, family }) => ({ address, family: family === 6 ? 6 : 4 }));
 }
 
-// Each read races the deadline itself, so a body that stalls can't outlive the timeout even if the
-// stream under it never notices the abort.
+// Each read races the deadline itself, so a stalled body can't outlive the timeout even if the
+// stream never notices the abort.
 async function readCapped(
   body: AsyncIterable<Uint8Array>,
   maxBytes: number,
@@ -138,7 +136,6 @@ function redirectTarget(location: string, from: URL): URL {
   }
 }
 
-/** Fetches a public https URL. Every failure leaves as a JobReadError. */
 export async function safeFetch(
   start: URL,
   {

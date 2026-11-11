@@ -2,13 +2,11 @@ import { PDF_FONT_FAMILIES } from "@/lib/pdf/fonts";
 import { WORD_BULLET_FONT, wordFont, type DocxLook, type TextLook } from "./look";
 import { W_NS, XML_HEAD, escapeXml, paragraphProps, runProps, type ParagraphProps } from "./xml";
 
-// Named styles, so the file reads like one a person made in Word: "Title" for the name, "Heading 1"
-// for section headings (what hiring software and screen readers look for), "List Bullet" for a real
-// bulleted list. The look sits in the styles, the words in the document.
+// Named styles ("Title", "Heading 1", "List Bullet") are what hiring software and screen readers
+// look for. The look sits in the styles, the words in the document.
 
 export const BULLET_LIST_ID = 1;
 
-/** A run's properties, written only where they differ from `base`. */
 export function textProps(look: TextLook, base: TextLook) {
   return runProps({
     font: look.font !== base.font ? look.font : undefined,
@@ -46,8 +44,7 @@ function headingStyle(look: DocxLook): string {
     align: heading.center ? "center" : undefined,
     outline: 0,
   };
-  // A rule after the heading runs to the margin as a tab leader: the closest Word gets to a line
-  // drawn from the end of the word.
+  // A tab leader to the margin: the closest Word gets to a line drawn from the end of the word.
   if (rule?.place === "below") props.ruleBelow = { ...rule, space: 1 };
   if (rule?.place === "above") props.ruleAbove = { ...rule, space: 4 };
   if (rule?.place === "after")
@@ -103,8 +100,7 @@ export function stylesXml(look: DocxLook): string {
   ].join("");
 }
 
-// Word draws a list bullet from a font of its own choosing; ■ and ○ come from Arial, which every
-// Word install has, and a small bullet keeps the PDF's smaller size.
+// ■ and ○ come from Arial, which every Word install has; a small bullet keeps the PDF's size.
 export function numberingXml(look: DocxLook): string {
   const left = Math.round(look.bulletLeft * 20);
   const hanging = Math.round(look.bulletHanging * 20);
@@ -129,8 +125,7 @@ export function numberingXml(look: DocxLook): string {
   ].join("");
 }
 
-// The file's fonts with their class, so Word on a machine without one (CMU Serif, Charis) swaps
-// in a serif for a serif and a sans for a sans.
+// With their class, so Word without the font swaps a serif for a serif.
 export function fontTableXml(look: DocxLook): string {
   const names = new Map<string, "roman" | "swiss">();
   for (const family of look.fonts) {

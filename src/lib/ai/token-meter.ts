@@ -1,17 +1,13 @@
 import { AsyncLocalStorage } from "node:async_hooks";
 
-// Server-only. Adds up the tokens the provider billed for every AI call made inside metered(), so
-// the route that knows the account can charge them to its AI budget (src/lib/ai-budget.ts) without
-// every AI helper passing usage back up through its result or its errors.
+// So the route that knows the account can charge the AI budget without helpers passing usage up.
 
 type Meter = { tokens: number };
 
 const meters = new AsyncLocalStorage<Meter>();
 
-/**
- * Runs `work`, then hands `settle` the tokens billed inside it, also when it threw. `settle` must
- * not throw: it would replace the work's own result or error.
- */
+// `settle` also runs when `work` threw, and must not throw: it would replace the work's own
+// outcome.
 export async function metered<T>(
   work: () => Promise<T>,
   settle: (tokens: number) => Promise<void>,
@@ -24,7 +20,7 @@ export async function metered<T>(
   }
 }
 
-/** One response's billed tokens. Outside metered() nothing is counted. */
+/** Outside metered() nothing is counted. */
 export function noteTokens(tokens: number): void {
   const meter = meters.getStore();
   if (meter && Number.isFinite(tokens) && tokens > 0) meter.tokens += Math.round(tokens);

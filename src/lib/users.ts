@@ -12,8 +12,7 @@ import { captureServerEvent } from "@/lib/analytics/server";
 import { normalizeEmail } from "@/lib/auth/policy";
 import type { SessionUser } from "@/lib/auth/types";
 
-// Server-only. Account rows and everything stored under them. Supabase Auth owns sign-in; our
-// users row (same id) holds the plan and billing ids.
+// Supabase Auth owns sign-in; our users row (same id) holds the plan and billing ids.
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -32,11 +31,8 @@ export async function findUserById(id: string): Promise<UserRow | null> {
 
 export type AuthIdentity = { id: string; email: string };
 
-/**
- * Our row for a Supabase Auth user, created free on their first signed-in request and given their
- * new address if it changed. The common case is one primary-key read. Safe when two first
- * requests race: the upsert keeps one row and both callers read it back.
- */
+// Created free on the first signed-in request; the email is synced if it changed. Racing first
+// requests are safe: the upsert keeps one row and both read it back.
 export async function ensureUser(identity: AuthIdentity, now = Date.now()): Promise<UserRow> {
   const email = normalizeEmail(identity.email);
   const existing = await findUserById(identity.id);
@@ -53,12 +49,8 @@ export async function ensureUser(identity: AuthIdentity, now = Date.now()): Prom
   return row;
 }
 
-/**
- * Deletes everything stored for the account in one transaction: cloud resumes and their
- * tombstones, logged job applications, usage counters, then the user row. A no-op for an unknown
- * id. Billing and the Supabase Auth user are not touched here: DELETE /api/account cancels any
- * live subscription first and deletes the auth user after.
- */
+// Billing and the Supabase Auth user aren't touched here: DELETE /api/account cancels any live
+// subscription first and deletes the auth user after.
 export async function deleteUserData(userId: string): Promise<void> {
   if (!isUserId(userId)) return;
   const db = await getDb();

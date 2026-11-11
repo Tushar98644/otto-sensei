@@ -4,20 +4,15 @@ import type { Writing } from "@/lib/writings/schema";
 import { normalizeJobUrl, type Application } from "./schema";
 import type { StatusEvent } from "./status";
 
-// Client-safe and pure. One job is one thread: the opening, the saved job, the tailored copy, the
-// application, its letters and answers and its prep. These find each other by the ids the server
-// keeps (applications.job_id, applications.resume_id, writings.application_id, tailor.jobId), and
-// by the job link only for rows saved before those existed.
+// One job is one thread: opening, saved job, tailored copy, application, letters and prep. They
+// find each other by server-kept ids, and by the job link only for rows saved before those existed.
 
-// GET /api/applications/:id: one application with everything linked to it, for its own page.
 export type ApplicationThread = {
   application: Application;
   history: StatusEvent[];
-  // The opening on the Jobs tab, while its row is kept (30 days after it closes).
+  // While its row is kept (30 days after it closes).
   job: ThreadJob | null;
-  // Letters and answers written for it, newest first.
   writings: Writing[];
-  // The saved prep pack, as counts.
   prep: { createdAt: number; questions: number; stories: number; demo: boolean } | null;
 };
 
@@ -33,16 +28,15 @@ export type ThreadJob = {
   source: JobSourceId;
 };
 
-// What a job on the Jobs tab, a saved job or a thread's opening is known by.
 export type JobRef = { id: string; url: string };
 
-/** Two links to the same post, once normalized. Empty or broken links never match. */
+/** Empty or broken links never match. */
 export function sameJobUrl(a: string | null | undefined, b: string | null | undefined): boolean {
   const left = normalizeJobUrl(a ?? "");
   return left !== null && left !== "" && left === normalizeJobUrl(b ?? "");
 }
 
-// A copy's job link and opening id, read by shape: copies in localStorage are never re-parsed.
+// Read by shape: localStorage copies are never re-parsed.
 function copyJob(copy: Resume): { jobId: string | null; jobUrl: string } {
   const meta = copy.tailor as { jobId?: unknown; jobUrl?: unknown } | null;
   return {
@@ -57,7 +51,6 @@ function newest(list: readonly Application[]): Application | null {
   return best;
 }
 
-/** The newest application for an opening: by its id, else by its link. */
 export function applicationForJob(
   applications: readonly Application[],
   job: JobRef,
@@ -68,10 +61,7 @@ export function applicationForJob(
   );
 }
 
-/**
- * The newest application a tailored copy went out with: sent as that copy, else (logged some
- * other way) for the same opening or link. Null for a base resume: it goes out to many jobs.
- */
+// Null for a base resume: it goes out to many jobs.
 export function applicationForCopy(
   applications: readonly Application[],
   copy: Resume,
@@ -87,7 +77,6 @@ export function applicationForCopy(
   return newest(applications.filter((application) => sameJobUrl(application.jobUrl, jobUrl)));
 }
 
-/** The tailored copy made for an opening: by its id, else by its link. Newest edit first. */
 export function copyForJob(resumes: readonly Resume[], job: JobRef): Resume | null {
   const copies = resumes
     .filter((resume) => resume.tailor !== null)
@@ -99,7 +88,6 @@ export function copyForJob(resumes: readonly Resume[], job: JobRef): Resume | nu
   );
 }
 
-/** The copy an application went out with, when it's a tailored copy still in this browser. */
 export function copyForApplication(
   resumes: readonly Resume[],
   application: Pick<Application, "resumeId">,
@@ -109,7 +97,6 @@ export function copyForApplication(
   return copy?.tailor ? copy : null;
 }
 
-/** The application a letter or answer belongs to: by its link, else by the job link. */
 export function applicationForWriting(
   applications: readonly Application[],
   writing: Pick<Writing, "applicationId" | "jobUrl">,
@@ -120,7 +107,6 @@ export function applicationForWriting(
   return newest(applications.filter((application) => sameJobUrl(application.jobUrl, writing.jobUrl)));
 }
 
-/** The letters and answers for one application, newest first. */
 export function writingsForApplication(
   writings: readonly Writing[],
   application: Pick<Application, "id" | "jobUrl">,
@@ -134,10 +120,7 @@ export function writingsForApplication(
     .sort((a, b) => b.createdAt - a.createdAt);
 }
 
-/**
- * Every listed application's letters and answers at once, for the board and the lists: by link,
- * else by the job link (newest application with it). One pass over each list.
- */
+// One pass over each list.
 export function writingsByApplication(
   applications: readonly Application[],
   writings: readonly Writing[],
@@ -163,18 +146,15 @@ export function writingsByApplication(
   return out;
 }
 
-/** The cover letter kept on a tailored copy, or "". */
 export function copyLetter(copy: Resume | null | undefined): string {
   const letter = (copy?.tailor as { coverLetter?: unknown } | null | undefined)?.coverLetter;
   return typeof letter === "string" ? letter.trim() : "";
 }
 
-/** The opening id a tailored copy was made for, or null. */
 export function copyJobId(copy: Resume | null | undefined): string | null {
   return copy ? copyJob(copy).jobId : null;
 }
 
-/** The application's own page, the hub every other screen links to. */
 export function applicationHref(id: string): string {
   return `/dashboard/applications/${encodeURIComponent(id)}`;
 }

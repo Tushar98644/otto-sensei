@@ -1,9 +1,7 @@
 import { companyKey } from "@/lib/pdf/visible";
 
-// A summary or letter reused from another application often still names the other company ("I'd
-// love to join Initech" in the copy for Globex). Two ways to spot one, both cautious: the companies
-// of the person's other tailored copies, matched anywhere; and a few phrasings that only ever take
-// the employer being written to ("join X", "X's mission", "the role at X", "Dear X team").
+// A reused summary or letter often names another company ("I'd love to join Initech" for Globex).
+// Cautious: other tailored copies' companies anywhere, or phrasings that only take the employer.
 
 // 1-4 capitalized words, allowing "&", dots and hyphens inside a name: "Acme", "Procter & Gamble",
 // "Booking.com", "Rolls-Royce Motor Cars".
@@ -59,11 +57,8 @@ function sameCompany(a: string, b: string): boolean {
 }
 
 export type CompanyCheck = {
-  // The company this copy is for.
   company: string;
-  // Places the person worked or studied: naming them is expected.
   own: readonly string[];
-  // Companies from the person's other tailored copies.
   others: readonly string[];
 };
 
@@ -71,7 +66,6 @@ function trimName(name: string): string {
   return name.replace(/[.'’-]+$/u, "").trim();
 }
 
-/** Company names in `text` that aren't the one this copy is for, first spelling of each. */
 export function otherCompanies(text: string, check: CompanyCheck): string[] {
   if (!companyKey(check.company)) return [];
   const allowed = (name: string) =>

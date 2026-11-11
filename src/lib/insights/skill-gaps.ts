@@ -5,36 +5,30 @@ import { screenerRows } from "@/lib/tailor/requirements";
 import { foldCase } from "@/lib/tailor/tokens";
 import { savedTerms } from "./saved-job";
 
-// Client-safe and deterministic. Skills the jobs someone tailored for keep asking about that their
-// copies don't show. Each job counts once, judged against the copy made for it as it reads now,
-// with the same line-by-line proof the screener view uses: "proven" needs a real line, a Skills
-// entry alone is only "listed".
+// Each job counts once, judged against its newest copy with the screener's line-by-line proof.
 
-// A skill short in a single job is noise; the panel is about what keeps coming up.
+// A skill short in a single job is noise.
 export const MIN_SHORT_JOBS = 2;
 const DEFAULT_LIMIT = 6;
 const MAX_JOB_LABELS = 3;
-// Bounds the work for a person with hundreds of copies; the newest jobs say the most.
 const MAX_JOBS = 200;
 const MAX_TERMS_PER_JOB = 60;
 
 export type SkillGap = {
-  // The spelling most jobs used: "Kubernetes".
+  // The spelling most jobs used.
   term: string;
-  // Jobs whose saved requirements or keywords name it.
   asked: number;
-  // Of those, jobs whose copy doesn't name it anywhere.
   missing: number;
-  // Of those, jobs whose copy names it only in Skills or the headline, with no line behind it.
+  // Named only in Skills or the headline, with no line behind it.
   listed: number;
-  // Up to 3 of the jobs it's short in, newest first: "Data Engineer at Mapline".
+  // Up to 3, newest first.
   jobs: string[];
-  // The copies made for those jobs, in the same order, so the UI can open one to add a line.
+  // Same order, so the UI can open one to add a line.
   copyIds: string[];
 };
 
 export type SkillGapReport = {
-  // Distinct jobs tailored for (several copies for one job count once).
+  // Several copies for one job count once.
   jobs: number;
   gaps: SkillGap[];
 };
@@ -59,7 +53,6 @@ export function jobLabel(resume: Resume): string {
   return title || company || resume.title.trim() || "A tailored copy";
 }
 
-// The newest copy per job: it holds the latest edits, so it's the fairest test of what shows.
 function latestCopyPerJob(resumes: readonly Resume[]): Resume[] {
   const byJob = new Map<string, Resume>();
   for (const resume of resumes) {
@@ -105,10 +98,7 @@ function mostUsed(spellings: ReadonlyMap<string, number>, fallback: string): str
   return best;
 }
 
-/**
- * Skills short in at least MIN_SHORT_JOBS of the jobs tailored for, most often short first.
- * Ties go to the one more jobs asked for, then to the one seen in the newest job.
- */
+// Most often short first; ties go to the one more jobs asked for, then the newest.
 export function skillGaps(resumes: readonly Resume[], limit = DEFAULT_LIMIT): SkillGapReport {
   const copies = latestCopyPerJob(resumes);
   const tallies = new Map<string, Tally>();
@@ -171,7 +161,6 @@ export function skillGaps(resumes: readonly Resume[], limit = DEFAULT_LIMIT): Sk
 
 const count = new Intl.NumberFormat("en-US");
 
-/** "Kubernetes: missing in 6 of 9 jobs you tailored for". */
 export function gapLine(gap: SkillGap, jobs: number): string {
   const short = gap.missing + gap.listed;
   const of = `${count.format(short)} of ${count.format(jobs)} ${jobs === 1 ? "job" : "jobs"}`;
@@ -182,10 +171,7 @@ export function gapLine(gap: SkillGap, jobs: number): string {
 
 export type GapNudge = { kind: "show" | "learn"; text: string };
 
-/**
- * What to do about one gap. Listed but never shown: point at a line. Missing everywhere: say it
- * if it's true, else it's a skill worth learning, with the count as the reason.
- */
+// Listed but never shown: point at a line. Missing everywhere: say it if true, else learn it.
 export function gapNudge(gap: SkillGap): GapNudge {
   if (gap.listed > 0 && gap.missing === 0) {
     return {

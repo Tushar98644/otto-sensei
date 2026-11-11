@@ -2,9 +2,8 @@ import { asResumeLine, capitalize, clipWords, oneLine } from "@/lib/ai/text";
 import type { LanguageShare, PullRecord } from "./api";
 import type { GitHubDraftEntry, GitHubRepo } from "./types";
 
-// Pure. What one picked item says about the person, written two ways: as the source text the AI
-// works from and the guards check against, and as plain lines built from GitHub's own words for
-// when there is no AI (or its lines didn't hold up).
+// Each item written two ways: the source text the AI works from and the guards check against, and
+// plain lines from GitHub's own words for when there is no AI.
 
 export type RepoItem = {
   kind: "repo";
@@ -17,10 +16,8 @@ export type RepoItem = {
 export type PullsItem = {
   kind: "pulls";
   key: string;
-  // "vercel/next.js"
   repo: string;
   username: string;
-  // In the order the person will read them: newest first.
   pulls: PullRecord[];
 };
 
@@ -28,8 +25,7 @@ export type DraftItem = RepoItem | PullsItem;
 
 export const BULLET_CHARS = 240;
 export const MAX_REPO_BULLETS = 3;
-// Below these, a count reads as a weak point rather than a strength, so it is left out of the
-// facts entirely and no line can mention it.
+// Below these, a count reads as a weakness, so it's left out of the facts entirely.
 const MIN_STARS = 10;
 const MIN_FORKS = 5;
 // Descriptions like "Questions? me@example.com" would otherwise print an email under a project.
@@ -75,7 +71,7 @@ function webLabel(url: string): string {
   }
 }
 
-/** The facts about one item: everything a line may say, and the only place its numbers come from. */
+/** Everything a line may say, and the only place its numbers come from. */
 export function sourceText(item: DraftItem): string {
   if (item.kind === "pulls") {
     const lines = [`Repository: ${item.repo}`];
@@ -107,8 +103,8 @@ export function sourceText(item: DraftItem): string {
   return lines.filter(Boolean).join("\n");
 }
 
-// Pull request titles are often imperative ("Fix the cache") or carry a commit prefix
-// ("fix(router): ..."); a resume line is past tense.
+// Pull request titles are imperative ("Fix the cache") or carry a prefix; a resume line is past
+// tense.
 const PAST_TENSE: Record<string, string> = {
   add: "Added",
   allow: "Allowed",
@@ -168,7 +164,6 @@ function firstReadmeSentence(readme: string): string {
   return line.split(/(?<=[.!?])\s/)[0] ?? "";
 }
 
-/** Lines built only from GitHub's own words: no AI, nothing to check. */
 export function plainBullets(item: DraftItem): string[] {
   if (item.kind === "pulls") return item.pulls.map(pullLine);
   const { repo } = item;

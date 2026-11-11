@@ -6,7 +6,6 @@ import {
   ResponseValidationError,
 } from "creem/models/errors";
 import type { PaidPlanId } from "@/config/plans";
-// Same rule auth uses to store users.email.
 import { normalizeEmail } from "@/lib/auth/policy";
 import type { SessionUser } from "@/lib/auth/types";
 import { appUrl, env } from "@/lib/env";
@@ -15,7 +14,7 @@ import { isEndedStatus, isLiveStatus } from "./entitlements";
 import { BillingError } from "./errors";
 import { paidProductIds } from "./intervals";
 
-// Server-only. The only file that calls the Creem API (official SDK, https://docs.creem.io).
+// The only file that calls the Creem API (https://docs.creem.io).
 
 // Someone is waiting on these links, so fail fast and let them click again. Writes (checkout,
 // upgrade, cancel) are never retried: a retry after a timeout could act twice.
@@ -28,11 +27,10 @@ const READ_RETRY = {
 
 type Operation = "checkout" | "portal" | "cancel" | "lookup" | "change_plan";
 
-// One page: a person has a handful of subscriptions at most.
 const SUBSCRIPTION_PAGE_SIZE = 50;
 
-// Creem answers these when a subscription can't be cancelled as asked, e.g. because it already
-// ended. Auth, rate-limit and server errors mean the same for every call, so they aren't here.
+// Creem's answers when a cancel is refused (e.g. already ended); other errors mean the same
+// everywhere.
 const REFUSED_STATUSES: ReadonlySet<number> = new Set([400, 404, 409, 422]);
 
 // Built per call: it holds no connection of its own (fetch pools sockets) and always matches env().
@@ -41,29 +39,22 @@ function client(): Creem {
   if (!CREEM_API_KEY) throw new BillingError("unavailable", "CREEM_API_KEY is not set");
   return new Creem({
     apiKey: CREEM_API_KEY,
-    // Test and live are separate environments with their own keys and products.
     server: CREEM_TEST_MODE ? "test" : "prod",
     timeoutMs: TIMEOUT_MS,
   });
 }
 
-/**
- * Checkout metadata naming the trial subscription a new plan replaces. Creem copies it onto the
- * new subscription, so its webhooks know which one to cancel once it's paid (./replacements.ts).
- */
+// Creem copies checkout metadata onto the new subscription, so its webhooks know which trial to
+// cancel once it's paid (./replacements.ts).
 export const REPLACES_METADATA_KEY = "replaces_subscription_id";
 
 export type CheckoutOptions = {
   plan: PaidPlanId;
   trial: boolean;
-  /** The trial subscription this checkout ends once it's paid. */
   replaces?: string;
 };
 
-/**
- * Hosted checkout for one product. Creem copies the metadata onto the subscription, so every
- * subscription webhook carries our user id. https://docs.creem.io/api-reference/endpoint/create-checkout
- */
+// Creem copies the metadata onto the subscription, so every webhook carries our user id.
 export async function createCreemCheckoutUrl(
   user: SessionUser,
   productId: string,
@@ -86,10 +77,6 @@ export async function createCreemCheckoutUrl(
   return checkout.checkoutUrl;
 }
 
-/**
- * Customer portal (cancel, change card, invoices). Make one per click.
- * https://docs.creem.io/features/customer-portal
- */
 export async function createCreemPortalUrl(customerId: string): Promise<string> {
   const links = await request("portal", (creem) => creem.customers.generateBillingLinks({ customerId }));
   return links.customerPortalLink;
@@ -97,10 +84,7 @@ export async function createCreemPortalUrl(customerId: string): Promise<string> 
 
 export type CreemCancelResult = "cancelled" | "already_ended";
 
-/**
- * Cancels the subscription right away (not at the end of the period), so nothing is charged again.
- * Resolves "already_ended" when Creem refuses because it was already over. Throws BillingError.
- */
+// Cancels right away, not at period end, so nothing is charged again.
 export async function cancelCreemSubscription(subscriptionId: string): Promise<CreemCancelResult> {
   try {
     await client().subscriptions.cancel(subscriptionId, { mode: "immediate" });
@@ -123,13 +107,8 @@ export async function cancelCreemSubscription(subscriptionId: string): Promise<C
   throw new BillingError("provider_error", "Creem refused to cancel the subscription");
 }
 
-/**
- * Moves an active subscription to another product (Pro to Max or back), charging or refunding the
- * difference for the rest of the period right away. The plan itself changes when the
- * subscription.update webhook arrives. Creem refuses anything not "active" (400
- * subscription_not_active), a trial included. Throws BillingError.
- * https://docs.creem.io/features/subscriptions/managing#programmatic-upgrades
- */
+// Charges or refunds the difference right away; the plan itself changes with the
+// subscription.update webhook. Creem refuses anything not "active", a trial included.
 export async function changeCreemPlan(subscriptionId: string, productId: string): Promise<void> {
   await request("change_plan", (creem) =>
     creem.subscriptions.upgrade(subscriptionId, {
@@ -144,17 +123,14 @@ export type LiveSubscription = { subscriptionId: string; customerId: string; sta
 export type SubscriptionLookup = {
   email: string;
   customerId: string | null;
-  // The stored subscription. It counts even after a plan change moved it to another product.
+  // Still counts after a plan change moved it to another product.
   subscriptionId: string | null;
 };
 
 const idOf = (ref: string | { id: string }) => (typeof ref === "string" ? ref : ref.id);
 
-/**
- * Every paid subscription Creem could still charge this person for, on the stored customer and on
- * the customer with their email. Stored ids alone miss two: a payment whose webhook hasn't landed
- * yet, and an earlier subscription a newer one replaced in our row. Throws BillingError.
- */
+// On the stored customer and the customer with their email: stored ids miss a payment whose webhook
+// hasn't landed and an earlier subscription a newer one replaced in our row.
 export async function findLiveSubscriptions(lookup: SubscriptionLookup): Promise<LiveSubscription[]> {
   const productIds = new Set(paidProductIds());
   const email = normalizeEmail(lookup.email);
@@ -226,8 +202,8 @@ function isRefusal(error: unknown): error is CreemError {
   );
 }
 
-// Logged instead of the SDK's message, which embeds the raw response body and may echo request
-// fields such as the customer's email. Anything else is our own bug and is logged as it is.
+// Instead of the SDK's message, which embeds the raw response body and may echo the customer's
+// email.
 function failureKind(error: unknown): string | null {
   if (error instanceof RequestTimeoutError) return "timeout";
   if (error instanceof ConnectionError) return "network";
@@ -239,8 +215,7 @@ function failureKind(error: unknown): string | null {
 
 const ERROR_CODE = /^[a-z0-9_]{1,64}$/;
 
-// Creem puts a trace_id in every error body, which is what their support asks for, and on some a
-// machine code such as "subscription_not_active". Neither holds anything about the customer.
+// trace_id is what Creem support asks for; neither field holds anything about the customer.
 function errorBody(error: unknown): { traceId?: string; code?: string } {
   if (!(error instanceof CreemError) || error instanceof ResponseValidationError) return {};
   try {
@@ -256,7 +231,6 @@ function errorBody(error: unknown): { traceId?: string; code?: string } {
         : undefined;
     return { traceId, code };
   } catch {
-    // Not JSON: nothing to report.
     return {};
   }
 }

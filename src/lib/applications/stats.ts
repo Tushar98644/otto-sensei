@@ -1,8 +1,7 @@
 import type { Application } from "./schema";
 import { isStage, stageIndex } from "./status";
 
-// Client-safe and pure: every number the win rate shows. Only the user's own applications count;
-// there is no benchmark or average from anyone else, because we don't have an honest one.
+// Only the user's own applications count: there's no honest benchmark from anyone else.
 
 // Below this many applications a rate is mostly noise (1 of 3 reads as 33%), so only counts show.
 export const MIN_FOR_RATE = 5;
@@ -12,10 +11,7 @@ type Grouped = Counted & Pick<Application, "resumeId" | "resumeTitle" | "applied
 
 export type Outcome = { interviewed: boolean; offered: boolean };
 
-/**
- * How far an application got, from the furthest step it reached: an interview (a recruiter call
- * counts) that later ended in a rejection still counts as an interview.
- */
+// From the furthest step reached: an interview that later ended in a rejection still counts.
 export function outcomeOf(application: Counted): Outcome {
   // The status itself also counts, in case a row's furthest step lags behind it.
   const reached = Math.max(
@@ -32,7 +28,6 @@ export type Tally = {
   applications: number;
   interviews: number;
   offers: number;
-  // Still "applied": no answer yet.
   waiting: number;
 };
 
@@ -50,7 +45,6 @@ export function tally(list: readonly Counted[]): Tally {
 
 export type InterviewRate = { shown: true; percent: number } | { shown: false; needed: number };
 
-// Interviews (offers included) per application, as a whole percent, from MIN_FOR_RATE on.
 export function interviewRate(counts: Tally): InterviewRate {
   if (counts.applications < MIN_FOR_RATE) {
     return { shown: false, needed: MIN_FOR_RATE - counts.applications };
@@ -64,13 +58,11 @@ export function formatCount(count: number, one: string, many = `${one}s`): strin
   return `${number.format(count)} ${count === 1 ? one : many}`;
 }
 
-// "3 interviews from 20 applications": counts always come before any percentage.
 export function countsLine(counts: Tally): string {
   if (counts.applications === 0) return "No applications logged yet";
   return `${formatCount(counts.interviews, "interview")} from ${formatCount(counts.applications, "application")}`;
 }
 
-// "3 interviews from 20 applications: a 15% interview rate." The rate only once it means something.
 export function rateHeadline(counts: Tally): string {
   const line = countsLine(counts);
   if (counts.applications === 0) return `${line}.`;
@@ -79,8 +71,7 @@ export function rateHeadline(counts: Tally): string {
   return `${line}. The interview rate shows from ${MIN_FOR_RATE} applications, ${rate.needed} to go.`;
 }
 
-// How far one more (or one fewer) interview would move the rate, so a 20% from 5 applications
-// reads as the rough number it is.
+// So a 20% from 5 applications reads as the rough number it is.
 export function swingNote(counts: Tally): string {
   const total = counts.applications;
   if (total === 0)
@@ -96,11 +87,10 @@ export function swingNote(counts: Tally): string {
 
 export type VersionState = "live" | "deleted" | "none";
 
-// What the page knows about a resume that still exists.
 export type VersionInfo = { title: string; tailored: boolean };
 
 export type VersionStats = {
-  // The resume id, or "" for applications sent with a file that isn't in Otto.
+  // "" for applications sent with a file that isn't in Otto.
   key: string;
   resumeId: string | null;
   title: string;
@@ -112,10 +102,7 @@ export type VersionStats = {
 
 const collator = new Intl.Collator("en", { sensitivity: "base", numeric: true });
 
-/**
- * The win rate per resume version, most-used first. A version deleted since keeps its numbers
- * under the title it had when it was last sent.
- */
+// A version deleted since keeps its numbers under the title it had when last sent.
 export function statsByVersion(
   list: readonly Grouped[],
   versions: ReadonlyMap<string, VersionInfo>,
@@ -158,17 +145,12 @@ function lastTitle(group: readonly Grouped[]): string {
 }
 
 export type VersionComparison = {
-  // The higher rate first.
   first: VersionStats;
   second: VersionStats;
-  // Percentage points between the two.
   points: number;
 };
 
-/**
- * The two most-used versions side by side, only when both have MIN_FOR_RATE applications or more:
- * a gap between 1 of 2 and 3 of 10 says nothing.
- */
+// Only when both have MIN_FOR_RATE or more: a gap between 1 of 2 and 3 of 10 says nothing.
 export function compareVersions(stats: readonly VersionStats[]): VersionComparison | null {
   const [a, b] = stats
     .filter((version) => version.rate.shown)

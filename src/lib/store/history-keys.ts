@@ -1,10 +1,6 @@
-// Which keyboard shortcut, if any, should move through resume history.
-//
-// The rule: Cmd/Ctrl+Z undoes and Shift+Cmd/Ctrl+Z (or Ctrl+Y) redoes resume changes, but only
-// while focus is outside a text field. Inside a field the browser's own undo runs for the words
-// in it, which is what people expect while typing. Press Escape or click outside the field, and
-// the same keys step through the resume. Nothing fires while a dialog has focus either, since the
-// change would land behind it, out of sight.
+// Cmd/Ctrl+Z and Shift+Cmd/Ctrl+Z (or Ctrl+Y) move through resume history only while focus is
+// outside a text field, where the browser's own undo is what people expect. Nothing fires while a
+// dialog has focus: the change would land behind it, out of sight.
 
 export type HistoryKey = "undo" | "redo";
 

@@ -8,39 +8,27 @@ import {
   type HeadingKind,
 } from "./sections";
 
-// Client-safe and pure. Whether the rule-based read of an upload can be kept as it is, or the AI
-// reader should take it over. On a clean file the AI finds nothing the rules missed but costs an
-// AI read and 4-22 seconds, so it only runs when one of these signs shows the rules lost the
-// thread. Measured on the cost audit's files (AUDIT-cost-and-findability.md, "Rules reader vs AI
-// reader"): the two-column PDF shows three of them, the clean PDF and Jordan's text none.
+// The AI reader only takes over when one of these signs shows the rules lost the thread: on a clean
+// file it finds nothing more but costs an AI read and 4-22 seconds.
 
 export type WeakReadSign =
-  // A PDF in side-by-side columns: its rows are read straight across both columns, so lines from
-  // the sidebar land inside jobs. Only the AI can pull them apart again.
+  // Rows read straight across both columns, so sidebar lines land inside jobs.
   | "mixed_columns"
-  // A Word file with text boxes: their text sits wherever the box was anchored, often inside
-  // another section (a skills box read as a job's line).
+  // Their text sits wherever the box was anchored, often inside another section.
   | "text_boxes"
   // No job found: either there's no work history, or the rules couldn't tell where a job starts.
   | "no_jobs"
-  // Jobs found, but not one line under any of them: the lines went somewhere else.
   | "lineless_jobs"
-  // A section heading with lines under it that came out empty.
   | "empty_section"
-  // A job with lines but neither a title nor a company: its heading line wasn't recognised.
   | "nameless_job"
-  // Headings, an email address or several date ranges in the summary: lines left unsorted.
   | "unsorted_summary";
 
-// What the file's layout says about the reading order, from the upload's extraction.
 export type ReadLayout = {
-  // Read straight across side-by-side columns: a PDF whose layout has columns, unless its text was
-  // rebuilt column by column, as LinkedIn profile PDFs are.
+  // Unless its text was rebuilt column by column, as LinkedIn profile PDFs are.
   mixedColumns?: boolean;
   textBoxes?: boolean;
 };
 
-// Section headings whose lines land in a list of the same name.
 const LIST_SECTIONS = ["experience", "education", "projects", "skills", "certifications"] as const;
 type ListSection = (typeof LIST_SECTIONS)[number];
 
@@ -48,8 +36,7 @@ type ListSection = (typeof LIST_SECTIONS)[number];
 // brings one per job.
 const MAX_SUMMARY_DATE_RANGES = 1;
 
-// A run of capitalised words ("CONTACT EXPERIENCE"): how headings look once a row of two columns
-// is joined into running text.
+// How headings look once a row of two columns is joined into running text.
 const CAPITALS_RUN = /\b\p{Lu}{3,}(?:\s+\p{Lu}{2,})*\b/gu;
 
 // Same line splitting as the rule-based reader, so the sections line up with what it saw.
@@ -95,10 +82,7 @@ function isUnsorted(summary: string): boolean {
   );
 }
 
-/**
- * Signs that the rule-based read of `text` (`resume`, from heuristicParse) is missing or mixing up
- * parts of it. Empty means the read can be kept as it is.
- */
+// Empty means the read can be kept as it is.
 export function weakReadSigns(
   text: string,
   resume: Resume,

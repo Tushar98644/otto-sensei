@@ -5,8 +5,7 @@ import { workProfiles } from "@/db/schema";
 import { NO_CHOICE, type LookingForChoice, type PlaceChoice } from "@/lib/job-feed/types";
 import { emptyWorkProfile, type WorkProfile } from "./profile";
 
-// Server-only. The account's work profile: one row keyed by user_id, so a user can only ever read
-// or write their own.
+// Keyed by user_id, so a user can only ever read or write their own.
 
 type Row = typeof workProfiles.$inferSelect;
 
@@ -48,7 +47,6 @@ function toStored(row: Row): StoredWorkProfile {
   };
 }
 
-/** The saved profile, or an empty one (updatedAt null) when there is none yet. */
 export async function readWorkProfile(userId: string): Promise<StoredWorkProfile> {
   const db = await getDb();
   const [row] = await db
@@ -61,10 +59,7 @@ export async function readWorkProfile(userId: string): Promise<StoredWorkProfile
     : { profile: emptyWorkProfile(), updatedAt: null, lookingFor: NO_CHOICE };
 }
 
-/**
- * Saves the "Looking for" card's choices (any plan: it only shapes the order of Matches). Its
- * "Remote only" is the work profile's. Creates an empty work profile around it when there is none.
- */
+// Any plan: it only shapes the order of Matches. Creates an empty work profile when there is none.
 export async function saveLookingFor(
   userId: string,
   choice: LookingForChoice,
@@ -92,10 +87,8 @@ export async function saveLookingFor(
   });
 }
 
-/**
- * Replaces the profile in one upsert, under the account's row lock so a write racing an account
- * deletion can't fail on the foreign key or leave a row behind.
- */
+// Under the account's row lock, so a write racing account deletion can't fail on the foreign key or
+// leave a row behind.
 export async function saveWorkProfile(
   userId: string,
   profile: WorkProfile,

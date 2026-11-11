@@ -2,12 +2,10 @@ import { z } from "zod";
 import { isCountryCode } from "./places";
 import { WORK_RIGHTS, isTimeZone } from "./profile";
 
-// The PUT /api/profile body schema (zod), apart from ./profile so the screens that read the
-// profile don't load zod.
+// Apart from ./profile so screens that read the profile don't load zod.
 
 const RightSchema = z.enum(WORK_RIGHTS).nullable();
 
-// PUT /api/profile body.
 export const WorkProfileSchema = z
   .object({
     country: z

@@ -31,12 +31,7 @@ import { compactNumber } from "./metrics";
 import { findPlace } from "./places";
 import { portfolioView, type PortfolioView, type ViewSettings } from "./view";
 
-// Pure and client-safe. The finished PortfolioContentView a template draws: the automatic content
-// (./content-auto.ts) with the owner's own values merged on top.
-//
-//   autoContent(view, github)        what each automatic field would be, for the editor
-//   contentView({ view, content })   what a template draws
-//   portfolioViews(...)              both at once: the page's copy and the editor's
+// The automatic content with the owner's own values merged on top.
 
 export { autoContent, type AutoContent, type AutoProject } from "./content-auto";
 export {
@@ -47,10 +42,6 @@ export {
   socialHandle,
   socialKindOf,
 } from "./content-rules";
-
-// ---------------------------------------------------------------------------------------------
-// The finished view
-// ---------------------------------------------------------------------------------------------
 
 export type ContentSources = {
   view: PortfolioView;
@@ -343,15 +334,13 @@ export function contentView({
 }
 
 export type PortfolioViews = {
-  // What the page and its preview draw: every privacy choice applied.
+  // Every privacy choice applied.
   page: { view: PortfolioView; content: PortfolioContentView };
-  // What the content editor lists: everything the owner has, as if nothing were hidden. Hiding is
-  // a choice about the page, so the editor keeps showing (and marks) what the page leaves out,
-  // and the owner can still edit it or turn it back on.
+  // Everything, as if nothing were hidden: hiding is about the page, so the editor marks it
+  // instead.
   editor: { view: PortfolioView; content: PortfolioContentView; auto: AutoContent };
 };
 
-/** The page's copy and the editor's, from the same resume, settings and content. */
 export function portfolioViews({
   resume,
   settings,

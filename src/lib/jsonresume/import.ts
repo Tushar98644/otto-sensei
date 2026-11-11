@@ -15,8 +15,7 @@ import {
 import { ResumeSchema } from "@/lib/resume/validation";
 import { fromIsoDate } from "./dates";
 
-// Client-safe. Reads a resume.json in the JSON Resume v1 format (jsonresume.org). Every field is
-// optional there and files in the wild mix types, so a wrong-typed field is skipped, not fatal.
+// Every field is optional and files in the wild mix types, so a wrong-typed field is skipped.
 
 export const JSON_RESUME_MAX_BYTES = 2 * 1024 * 1024;
 
@@ -150,7 +149,7 @@ function extras(data: JsonResumeInput): ExtraSection[] {
   ].filter((section) => section !== null);
 }
 
-/** Parses resume.json text. Throws JsonResumeError with a message for the person. */
+/** Throws JsonResumeError with a message for the person. */
 export function parseJsonResume(text: string, now = Date.now()): Resume {
   let raw: unknown;
   try {

@@ -10,11 +10,8 @@ import { devGitHubConnection, githubConnectionOf } from "./github";
 import { authErrorFields, isSignedOutError } from "./supabase-errors";
 import type { AuthMode, SessionUser } from "./types";
 
-// Server-only. Sessions belong to Supabase Auth (httpOnly "sb-..." cookies, refreshed by
-// src/proxy.ts). Signing in happens in ./codes.ts (email code) and ./oauth.ts (Google). In
-// development's dev sign-in, ./dev holds the session instead.
+// Sessions belong to Supabase Auth (httpOnly "sb-..." cookies, refreshed by src/proxy.ts).
 
-/** How people sign in on this deployment, for the sign-in form. */
 export function authMode(): AuthMode {
   if (devAuthActive()) return "dev";
   return supabaseAuthConfigured() ? "supabase" : "off";
@@ -22,16 +19,12 @@ export function authMode(): AuthMode {
 
 export type CurrentAccount = {
   user: SessionUser;
-  // The GitHub account linked to it (./github.ts): the only one GitHub features may read.
+  // The only GitHub account GitHub features may read.
   github: GitHubConnection | null;
 };
 
-/**
- * The signed-in account with a fresh plan from our users row (webhooks change it), or null. Asks
- * Supabase on every call (getUser, not getClaims) so a signed-out or deleted session stops working
- * at once, as the old revocable sessions did. Throws when Supabase can't answer, instead of
- * returning null, so an outage can't send every visitor through the sign-out path.
- */
+// Asks Supabase every call (getUser, not getClaims) so a revoked session stops working at once.
+// Throws when Supabase can't answer, so an outage can't sign every visitor out.
 export async function getCurrentAccount(): Promise<CurrentAccount | null> {
   if (devAuthActive()) {
     const user = await getDevUser();
@@ -54,15 +47,11 @@ export async function getCurrentAccount(): Promise<CurrentAccount | null> {
   };
 }
 
-/** getCurrentAccount() without the linked accounts. */
 export async function getCurrentUser(): Promise<SessionUser | null> {
   return (await getCurrentAccount())?.user ?? null;
 }
 
-/**
- * Ends this browser's session at Supabase (other devices stay signed in) and expires the cookies.
- * The cookies go even when Supabase can't be reached, so signing out always works here.
- */
+// Other devices stay signed in. The cookies go even when Supabase can't be reached.
 export async function clearSession(): Promise<void> {
   if (devAuthActive()) return clearDevSession();
   const supabase = await createSupabaseServerClient();

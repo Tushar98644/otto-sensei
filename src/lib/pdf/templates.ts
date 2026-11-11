@@ -7,24 +7,19 @@ import {
   type TemplateId,
 } from "@/lib/resume/schema";
 
-// What each PDF format is called and who it suits. Client-safe and react-pdf free, so the format
-// picker and the gallery can list formats without loading the renderer
-// (src/components/pdf/registry.ts pairs these with the components that draw them).
+// react-pdf free, so the picker and gallery list formats without the renderer
+// (src/components/pdf/registry.ts pairs them with their components).
 
 export type TemplateInfo = {
   id: TemplateId;
   name: string;
-  // How it looks, in one line.
   description: string;
-  // Who it suits, in one line.
   bestFor: string;
-  // The section order the format is designed around. Offered to the user, never forced: the PDF
-  // always follows the resume's own order, so the editor and the page never disagree.
+  // Offered, never forced: the PDF always follows the resume's own order.
   sectionOrderHint?: readonly SectionKey[];
 };
 
-// Each format follows one widely used resume layout (src/components/pdf/templates/ says which).
-// Names and copy describe the look, never the school or person it comes from.
+// Names and copy describe the look, never the school or person a layout comes from.
 export const TEMPLATE_INFO: Record<TemplateId, TemplateInfo> = {
   classic: {
     id: "classic",
@@ -84,13 +79,12 @@ export function isTemplateId(value: unknown): value is TemplateId {
   return typeof value === "string" && (TEMPLATE_IDS as readonly string[]).includes(value);
 }
 
-// Copies in localStorage are never re-parsed, so the stored value can be missing or stale.
+// localStorage copies are never re-parsed, so the stored value can be missing or stale.
 export function templateOf(resume: Pick<Resume, "template">): TemplateId {
   return isTemplateId(resume.template) ? resume.template : DEFAULT_TEMPLATE;
 }
 
-// The hint's sections first (only those the resume shows), then the rest in their current order.
-// Hidden sections stay hidden.
+// The hint's shown sections first, then the rest in their current order.
 export function orderByHint(
   order: readonly SectionKey[],
   hint: readonly SectionKey[],
@@ -110,7 +104,6 @@ export function withTemplate(resume: Resume, id: TemplateId): Resume {
   return { ...resume, template: id };
 }
 
-/** Classic and Compact are on every plan; the other formats come with Pro, Max and the trial. */
 export function isProTemplate(id: TemplateId): boolean {
   return !(FREE_TEMPLATES as readonly TemplateId[]).includes(id);
 }
@@ -119,11 +112,8 @@ export function canUseTemplate(plan: PlanId, id: TemplateId): boolean {
   return hasProTools(plan) || !isProTemplate(id);
 }
 
-/**
- * The resume as this plan downloads it: a Pro format on Free (say, set before a paid plan ended)
- * comes out in Classic. The resume itself keeps its format, so it's back once Pro is. Returns the
- * same object when nothing changes.
- */
+// A Pro format on Free (say, set before a paid plan ended) downloads in Classic; the resume keeps
+// its format, so it's back once Pro is.
 export function forPlan(resume: Resume, plan: PlanId): Resume {
   return canUseTemplate(plan, templateOf(resume)) ? resume : withTemplate(resume, DEFAULT_TEMPLATE);
 }

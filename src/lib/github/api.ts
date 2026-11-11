@@ -13,8 +13,6 @@ import {
 import { markdownExcerpt } from "./markdown";
 import type { GitHubLookup, GitHubPull, GitHubRepo } from "./types";
 
-// Server-only. What the import reads from GitHub, mapped to small, checked shapes.
-
 // Only the top of a README is read, so a huge one is cut instead of refused.
 const MAX_README_BYTES = 256 * 1024;
 const README_CHARS = 1_500;
@@ -22,8 +20,7 @@ const PULL_BODY_CHARS = 700;
 const MAX_REPOS = 60;
 const PULLS_PER_SEARCH = 30;
 
-// A merged pull request with the start of its description, which the draft quotes from. The
-// description never goes back to the browser.
+// The description never goes back to the browser.
 export type PullRecord = GitHubPull & { body: string };
 
 export type LanguageShare = { name: string; percent: number };
@@ -56,7 +53,6 @@ function webAddress(value: string | null | undefined): string {
   }
 }
 
-// ISO times sort as plain strings.
 function newerFirst(a: string, b: string): number {
   return a === b ? 0 : a < b ? 1 : -1;
 }
@@ -66,8 +62,7 @@ function count(value: number | null | undefined): number {
 }
 
 function toRepo(raw: z.infer<typeof RepoJson>): GitHubRepo | null {
-  // Forks are mostly someone else's work; private repos never show up here, but stay out if GitHub
-  // ever sends one.
+  // Forks are mostly someone else's work; private repos stay out if GitHub ever sends one.
   if (raw.fork || raw.private || !isRepoName(raw.full_name)) return null;
   const name = raw.full_name.split("/")[1] ?? raw.full_name;
   return {
@@ -101,7 +96,7 @@ function parseRepos(body: string, truncated: boolean): GitHubRepo[] {
     .slice(0, MAX_REPOS);
 }
 
-/** The person's own public repos, forks left out. Throws GitHubError "not_found" for no account. */
+/** Throws GitHubError "not_found" for no account. */
 export async function fetchRepos(session: GitHubSession, username: string): Promise<GitHubRepo[]> {
   const path = `/users/${encodeURIComponent(username.toLowerCase())}/repos?type=owner&sort=pushed&per_page=100`;
   const repos = await cachedGet(session, path, {
@@ -155,10 +150,7 @@ function parsePulls(username: string) {
   };
 }
 
-/**
- * The person's merged pull requests to other people's public repos, newest first. Their own repos
- * are left out because the repo list already covers them. An account GitHub can't search gives [].
- */
+// Their own repos are left out: the repo list covers them. An account GitHub can't search gives [].
 export async function fetchMergedPulls(session: GitHubSession, username: string): Promise<PullRecord[]> {
   const query = `is:pr is:merged is:public author:${username} -user:${username}`;
   const path = `/search/issues?q=${encodeURIComponent(query.toLowerCase())}&sort=updated&order=desc&per_page=${PULLS_PER_SEARCH}`;
@@ -183,7 +175,6 @@ function parseLanguages(body: string, truncated: boolean): LanguageShare[] {
     .slice(0, 5);
 }
 
-/** The repo's languages by share of code, biggest first; [] when GitHub has none. */
 export async function fetchLanguages(session: GitHubSession, fullName: string): Promise<LanguageShare[]> {
   const languages = await cachedGet(session, repoPath(fullName, "/languages"), {
     accept: "application/vnd.github+json",
@@ -193,7 +184,6 @@ export async function fetchLanguages(session: GitHubSession, fullName: string): 
   return languages ?? [];
 }
 
-/** The start of the repo's README as plain text; "" when it has none. */
 export async function fetchReadme(session: GitHubSession, fullName: string): Promise<string> {
   const readme = await cachedGet(session, repoPath(fullName, "/readme"), {
     accept: "application/vnd.github.raw",
@@ -208,10 +198,7 @@ function withoutBody(pull: PullRecord): GitHubPull {
   return { id, number, title, url, repo, mergedAt };
 }
 
-/**
- * Lists what the person can pick from: their repos, then their merged pull requests. Two GitHub
- * calls at most. A busy search still returns the repos, with `pullsUnavailable` set.
- */
+// Two GitHub calls at most. A busy search still returns the repos, with `pullsUnavailable` set.
 export async function lookupProfile(session: GitHubSession, username: string): Promise<GitHubLookup> {
   const repos = await fetchRepos(session, username);
   let pulls: PullRecord[] = [];

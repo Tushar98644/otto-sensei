@@ -3,8 +3,7 @@ import { getDb } from "@/db/client";
 import { rateLimits } from "@/db/schema";
 import { log } from "@/lib/log";
 
-// Server-only. Fixed-window counter in the `rate_limits` table. Good enough for abuse control on a
-// small app; swap for Redis if traffic ever makes the DB the bottleneck.
+// Fixed-window counter in `rate_limits`. Swap for Redis if the DB ever becomes the bottleneck.
 
 export type RateLimitResult = {
   allowed: boolean;
@@ -20,11 +19,8 @@ const CLEANUP_BATCH = 500;
 // Keys embed caller-controlled text (emails, forwarded IPs), so cap them to keep rows small.
 const MAX_KEY_LENGTH = 512;
 
-/**
- * Increments the counter for (key, current window) in one upsert and reports whether this call is
- * within `limit`. Also deletes windows older than 2 days opportunistically (cheap, bounded).
- * Key examples: "import:device:<uuid>", "import:ip:<ip>", "code:email:<email>", "code:ip:<ip>".
- */
+// One upsert per call; now and then also prunes windows older than 2 days.
+// Keys look like "import:device:<uuid>", "import:ip:<ip>", "code:email:<email>".
 export async function rateLimit(
   key: string,
   limit: number,
@@ -63,7 +59,6 @@ export function retryAfterHeader(retryAfterMs: number): Record<string, string> {
   return { "Retry-After": String(Math.max(1, Math.ceil(retryAfterMs / 1000))) };
 }
 
-// For user-facing copy: "Try again in 12 minutes."
 export function waitText(retryAfterMs: number): string {
   const minutes = Math.max(1, Math.ceil(retryAfterMs / 60_000));
   return minutes === 1 ? "1 minute" : `${minutes} minutes`;

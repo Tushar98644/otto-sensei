@@ -1,9 +1,8 @@
 import type { Breadcrumb, ErrorEvent } from "@sentry/nextjs";
 import { scrubBreadcrumb, scrubEvent } from "./scrub";
 
-// Read on the server, the edge and in the browser, so it can't use src/lib/env.ts (server-only).
-// Each NEXT_PUBLIC_ name is written out in full: Next inlines only literal references into the
-// client bundle.
+// Not src/lib/env.ts (server-only). NEXT_PUBLIC_ names are written in full: Next only inlines
+// literals.
 
 export type SentryRuntime = "nodejs" | "edge" | "browser";
 
@@ -12,7 +11,7 @@ function clean(value: string | undefined): string | undefined {
   return trimmed ? trimmed : undefined;
 }
 
-/** The DSN for this runtime, or undefined. The browser only ever sees the public one. */
+/** The browser only ever sees the public one. */
 export function sentryDsn(runtime: SentryRuntime): string | undefined {
   const publicDsn = clean(process.env.NEXT_PUBLIC_SENTRY_DSN);
   if (runtime === "browser") return publicDsn;
@@ -25,14 +24,13 @@ function devOptIn(): boolean {
   return flag === "1" || flag === "true";
 }
 
-/** On with a DSN in production; in development only with NEXT_PUBLIC_SENTRY_DEV=1; never in tests. */
+/** In development only with NEXT_PUBLIC_SENTRY_DEV=1; never in tests. */
 export function sentryEnabled(runtime: SentryRuntime): boolean {
   if (!sentryDsn(runtime)) return false;
   if (process.env.NODE_ENV === "production") return true;
   return process.env.NODE_ENV === "development" && devOptIn();
 }
 
-/** The current server runtime, for code that runs on both Node.js and the edge. */
 export function serverRuntime(): SentryRuntime {
   return process.env.NEXT_RUNTIME === "edge" ? "edge" : "nodejs";
 }
@@ -68,7 +66,7 @@ const IGNORE_ERRORS: (string | RegExp)[] = [
 
 const DENY_URLS = [/^chrome-extension:\/\//, /^moz-extension:\/\//, /^safari-web-extension:\/\//];
 
-/** Sentry.init options shared by every runtime. Errors only: no tracing, replay or logs. */
+/** Errors only: no tracing, replay or logs. */
 export function sentryOptions(runtime: SentryRuntime) {
   const release = sentryRelease();
   return {

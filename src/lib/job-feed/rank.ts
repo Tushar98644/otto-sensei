@@ -60,24 +60,19 @@ import {
 } from "./types";
 import { sponsorRegions, visaLines, type VisaFacts } from "./visa";
 
-// Server-only. A match request: candidates from the database, then labels, work-rights rules and
-// order, all by rules on our own server. No AI call; Pro all the same (see /api/jobs/matches).
+// Candidates, labels, work-rights rules and order, all by rules on our server. No AI call.
 
 const DAY_MS = 24 * 60 * 60 * 1_000;
 const NO_RULES: EligibilityHint = { blocked: false, note: null };
 // Copies of one opening checked for a place the person can take before giving up on it.
 const COPIES_CHECKED = 6;
 const PLACES_SHOWN = 2;
-// Free sees its closest few (FREE_JOB_MATCHES); ranking this many leaves room for the
-// per-company cap without scoring the whole pool.
+// Ranking this many leaves room for the per-company cap without scoring the whole pool.
 const FREE_POOL = 60;
 
-// Which ordering produced a list, logged with every impression so two can be compared later.
-// v2 (2026-11-09): context rules for short skill names, role kind by title age, level and place in
-// the order, the "Looking for" card. v3 (2026-11-10): occupations for every kind of job (O*NET).
+// Logged with every impression so two orderings can be compared later.
 export const MATCH_VARIANT = "occupation-v3";
 
-/** One occupation for the card, in plain words with its SOC major group. */
 export function occupationOption(code: string | null): OccupationOption | null {
   const occupation = occupationOf(code);
   return occupation
@@ -85,11 +80,7 @@ export function occupationOption(code: string | null): OccupationOption | null {
     : null;
 }
 
-/**
- * The card with its occupation read on our server: the browser can't read occupations (the
- * lookup stays here), so it sends null and the title. A kind of role the occupation rules out is
- * dropped, as for any title ("Support Worker" is social care, not customer support).
- */
+// The browser can't read occupations (the lookup stays here), so it sends null and the title.
 export function withOccupation(lookingFor: LookingFor): LookingFor {
   const occupation =
     lookingFor.occupation ?? (lookingFor.title ? readTitle(lookingFor.title).occupation : null);
@@ -113,10 +104,8 @@ function eligibilityOf(
   return { blocked: Boolean(blocked), note: blocked?.note ?? null };
 }
 
-/**
- * Names one version of what matching was sent (skills, titles, years) without keeping any of it,
- * so impressions and actions from the same resume version line up in match_events.
- */
+// Names a resume version without keeping it, so its impressions and actions line up in
+// match_events.
 export function profileHash(profile: MatchProfile): string {
   const facts = JSON.stringify([[...profile.skills].sort(), profile.titles, profile.years]);
   return createHash("sha256").update(facts).digest("base64url").slice(0, 22);
@@ -129,13 +118,11 @@ export type RankRequest = {
   filters: JobFilters;
   page: number;
   workProfile: WorkProfile | null;
-  // The card as the person sees it; null guesses it from the profile and work profile.
+  // null guesses it from the profile and work profile.
   lookingFor?: LookingFor | null;
   deviceTimeZone: string;
   now: number;
-  // Free ranks only its closest few. Pro ranks the whole pool.
   free?: boolean;
-  // Keep and reuse this page for the day (match_cache). The eval ranks afresh.
   cache?: boolean;
 };
 
@@ -146,8 +133,7 @@ type Check = (
   visa: VisaFacts | null,
 ) => EligibilityHint;
 
-// The copy to show: the first in a place the "Looking for" card names and the work profile
-// allows; the others become "also in" places on the card.
+// The first copy in a place the card names and the work profile allows; others become "also in".
 function pickCopy(
   opening: PooledOpening,
   check: Check | null,
@@ -380,7 +366,6 @@ async function withSaved(db: Db, userId: string, result: RankResult): Promise<Ra
   };
 }
 
-// The job's kind of work from the match index when it ranked the job, else read from its title.
 function factsOf(row: CandidateRow, kind: PooledOpening["kind"] = null): MatchableJob {
   const read = kind ?? { ...readTitle(row.title), zone: null };
   const occupation = occupationOf(read.occupation);

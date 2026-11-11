@@ -1,23 +1,18 @@
 import type { PortfolioTemplateId } from "./types";
 
-// Pure and client-safe. The web templates' names, one-line ideas, picker pictures, page colours
-// and design credits. The drawings live in the component registry (src/components/portfolio/
-// templates/registry.ts); this file stays free of React so the server, the Open Graph image and
-// tests can name a template.
-//
-// Every template rebuilds a real, MIT-licensed portfolio for our users' data. The licence asks
-// for the original notice to travel with the code (each template folder's LICENSE.txt and
-// THIRD_PARTY_NOTICES.md); pages show no credit line. The credit below records the source.
+// Free of React so the server, the OG image and tests can name a template (drawings live in
+// src/components/portfolio/templates/registry.ts). Every template rebuilds an MIT-licensed
+// portfolio; the notice travels in each folder's LICENSE.txt and THIRD_PARTY_NOTICES.md.
 
 export type PortfolioTemplateInfo = {
   id: PortfolioTemplateId;
   name: string;
   description: string;
-  // The picker's picture: the top of a static render at 1440px, a third of the size.
+  // Top of a static render at 1440px, a third of the size.
   thumbnail: string;
-  // The page's own colours, for the browser bar and the Open Graph card (Satori can't read CSS).
+  // For the browser bar and the OG card (Satori can't read CSS).
   colors: { background: string; ink: string; muted: string };
-  // Whose design it is. Never used as the template's name.
+  // Never used as the template's name.
   credit: { author: string; work: string; href: string; licence: "MIT" };
 };
 
@@ -132,14 +127,12 @@ export const PORTFOLIO_TEMPLATE_INFO: Record<PortfolioTemplateId, PortfolioTempl
 
 export type TemplateGroup = { label: string; ids: PortfolioTemplateId[] };
 
-// The editor's design picker, in this order: the showpieces (3D, motion, live tiles) first, then
-// the quieter pages. A design missing here still shows, at the end of the last group.
+// Showpieces first, then the quieter pages. A design missing here still shows at the end.
 const PICKER_GROUPS: readonly { label: string; ids: readonly PortfolioTemplateId[] }[] = [
   { label: "Showpieces", ids: ["reel", "bento", "navy", "dock"] },
   { label: "Simple and clean", ids: ["paper", "folio", "prose", "cv"] },
 ];
 
-/** Every design once, grouped for the picker, the premium ones first. */
 export function templateGroups(ids: readonly PortfolioTemplateId[]): TemplateGroup[] {
   const groups = PICKER_GROUPS.map(({ label, ids: listed }) => ({
     label,
@@ -150,7 +143,6 @@ export function templateGroups(ids: readonly PortfolioTemplateId[]): TemplateGro
   return groups.filter((group) => group.ids.length > 0);
 }
 
-/** The designs in picker order, for anything that steps through them or lists them all. */
 export function templateOrder(ids: readonly PortfolioTemplateId[]): PortfolioTemplateId[] {
   return templateGroups(ids).flatMap((group) => group.ids);
 }

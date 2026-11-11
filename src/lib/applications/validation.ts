@@ -9,8 +9,7 @@ import {
   normalizeJobUrl,
 } from "./schema";
 
-// Request schemas for the applications routes (zod). Kept apart from ./schema, which the board
-// and the Jobs tab load, so those pages don't load zod.
+// Apart from ./schema, which the board and the Jobs tab load, so those pages don't load zod.
 
 const DAY_MS = 24 * 60 * 60 * 1_000;
 
@@ -24,7 +23,7 @@ const line = (max: number, min = 0) =>
 
 const resumeIdField = ResumeSchema.shape.id.nullable();
 
-// The Jobs tab opening it's for. An id the server doesn't know is dropped, not refused.
+// An unknown id is dropped, not refused.
 const jobIdField = z.uuid().nullable();
 
 const resumeTitleField = line(APPLICATION_LIMITS.resumeTitle);
@@ -72,8 +71,7 @@ const followUpAtField = z
 
 export const ApplicationIdSchema = z.uuid();
 
-// POST /api/applications. id: the browser may pick the new application's id, so it can show the
-// application (and link to it) before the server answers. Without one the server picks.
+// The browser may pick the id, so it can show and link the application before the server answers.
 export const CreateApplicationSchema = z.object({
   id: ApplicationIdSchema.optional(),
   resumeId: resumeIdField.default(null),
@@ -89,7 +87,6 @@ export const CreateApplicationSchema = z.object({
   interviewAt: interviewAtField.optional(),
 });
 
-// PATCH /api/applications/:id. Only the fields sent change.
 export const UpdateApplicationSchema = z
   .object({
     resumeId: resumeIdField.optional(),
@@ -108,7 +105,6 @@ export const UpdateApplicationSchema = z
     "Nothing to change.",
   );
 
-// PATCH /api/applications: one status for many, e.g. "no reply" for everything that went quiet.
 export const BulkApplicationStatusSchema = z.object({
   ids: z.array(ApplicationIdSchema).min(1).max(APPLICATION_LIMITS.bulk),
   status: statusField,

@@ -23,9 +23,8 @@ import { ensureUser, toSessionUser } from "@/lib/users";
 import { normalizeEmail } from "./policy";
 import type { SessionUser } from "./types";
 
-// Test-only. Stand-ins for what a route handler talks to: next/headers cookies() and Supabase Auth.
-// vitest.setup.ts points @/lib/supabase/{server,admin} at the fakes below for every test; a test
-// file that needs cookies adds:
+// Test-only fakes for next/headers cookies() and Supabase Auth. vitest.setup.ts wires the Supabase
+// ones; a test needing cookies adds:
 //   vi.mock("next/headers", async () => (await import("@/lib/auth/test-helpers")).nextHeadersMock);
 
 export type JarCookie = {
@@ -67,11 +66,9 @@ export const cookieJar = {
 
 export const nextHeadersMock = { cookies: async () => cookieJar };
 
-// The fake Supabase Auth behaves like the real service where the app depends on it: the session lives in an "sb-..."
-// cookie, signing out or deleting the user revokes it (so a copied cookie stops working), codes
-// are single use, and auth users are real rows in the auth.users shim, so foreign keys hold.
+// Behaves like the real service where the app depends on it: sessions in "sb-..." cookies, sign-out
+// revokes them, codes are single use, and auth users are real rows so foreign keys hold.
 
-/** Named like a real Supabase cookie, so the app's own cookie rules apply to it. */
 export const AUTH_COOKIE = "sb-test-auth-token";
 
 type FakeMethod =
@@ -90,8 +87,6 @@ type FakeMethod =
 // email identity and GitHub is its only way in.
 type AuthUser = { id: string; email: string; github: string | null; githubOnly?: boolean };
 
-// What a provider hands back to /auth/callback: a sign-in (Google, or GitHub with `github`), or
-// GitHub linked to an existing account.
 type OAuthGrant = { email: string; github?: string } | { linkTo: string; github: string };
 
 const state = {
@@ -198,7 +193,6 @@ type FakeServerAuth = Pick<
   linkIdentity: (credentials: SignInWithOAuthCredentials) => Promise<OAuthResponse>;
 };
 
-// The signed-in auth user, or why there is none, as getUser() reports it.
 function sessionUser(): { user: AuthUser; error: null } | { user: null; error: AuthError } {
   const token = cookieJar.get(AUTH_COOKIE)?.value;
   if (!token) return { user: null, error: new AuthSessionMissingError() };
@@ -371,7 +365,6 @@ export const fakeAuth = {
     state.oauthStarts.length = 0;
     state.linkStarts.length = 0;
   },
-  /** As if NEXT_PUBLIC_SUPABASE_URL (or the secret key, for admin) weren't set. */
   setConfigured(configured: boolean, { admin = configured }: { admin?: boolean } = {}): void {
     state.configured = configured;
     state.adminConfigured = admin;
@@ -393,16 +386,12 @@ export const fakeAuth = {
     if (!last) throw new Error("fake Supabase: no code was sent");
     return last.code;
   },
-  /**
-   * What Google would hand back to /auth/callback for this address; with `github`, a sign-in with
-   * that GitHub account instead (a new account with GitHub as its only way in).
-   */
+  /** With `github`, a sign-in with that GitHub account instead (GitHub as its only way in). */
   issueOAuthCode(email: string, { github }: { github?: string } = {}): string {
     const code = crypto.randomUUID();
     state.oauthCodes.set(code, { email: normalizeEmail(email), github });
     return code;
   },
-  /** What GitHub would hand back to /auth/callback after linking `login` to this account. */
   issueLinkCode(userId: string, login: string): string {
     const code = crypto.randomUUID();
     state.oauthCodes.set(code, { linkTo: userId, github: login });
@@ -419,20 +408,17 @@ export const fakeAuth = {
   },
 };
 
-/** An account with our users row and its auth user, but not signed in. */
 export async function createUser(email = "ada@example.com", now?: number): Promise<SessionUser> {
   const authUser = await createAuthUser(email);
   return toSessionUser(await ensureUser(authUser, now));
 }
 
-/** A users row exactly as given, plus the auth user its foreign key needs. Not signed in. */
 export async function insertUserRow(row: typeof users.$inferInsert): Promise<void> {
   await execSql("insert into auth.users (id, email) values ($1, $2)", [row.id, row.email]);
   state.users.set(row.id, { id: row.id, email: row.email, github: null });
   await (await getDb()).insert(users).values(row);
 }
 
-/** Creates the account if needed and signs this cookie jar in as it, replacing any session. */
 export async function signInAs(email = "ada@example.com"): Promise<SessionUser> {
   const user = await createUser(email);
   const authUser = state.users.get(user.id);
@@ -441,7 +427,6 @@ export async function signInAs(email = "ada@example.com"): Promise<SessionUser> 
   return user;
 }
 
-/** Links a GitHub login to the account, as "Connect GitHub" would. */
 export function linkGitHub(user: Pick<SessionUser, "id">, login: string): void {
   const authUser = state.users.get(user.id);
   if (!authUser) throw new Error("fake Supabase: no such user");
@@ -450,11 +435,8 @@ export function linkGitHub(user: Pick<SessionUser, "id">, login: string): void {
 
 const TRIAL_MS = 3 * 24 * 60 * 60 * 1000;
 
-/**
- * Puts the account on a plan, the way a webhook would. "trial" is Pro monthly on its free trial,
- * ending `trialEndsAt` (3 days from now unless given): the smallest real AI allowance, so tests
- * that count to a limit stay short. Free has no AI allowance at all.
- */
+// "trial" is Pro monthly on its free trial: the smallest real AI allowance, so tests that count to
+// a limit stay short.
 export async function setPlan(
   user: SessionUser,
   plan: "pro" | "max" | "trial",
@@ -476,12 +458,11 @@ export async function setPlan(
   return toSessionUser(row);
 }
 
-/** signInAs(), then the account on Pro's free trial (see setPlan). */
 export async function signInOnTrial(email = "ada@example.com", trialEndsAt?: number): Promise<SessionUser> {
   return setPlan(await signInAs(email), "trial", trialEndsAt);
 }
 
-/** Empties every table and the fake auth service. Cookies are left to cookieJar.clear(). */
+/** Cookies are left to cookieJar.clear(). */
 export async function resetDb(): Promise<void> {
   await truncateTables();
   fakeAuth.reset();

@@ -10,9 +10,7 @@ import { releaseBackedUp, startCloudSync } from "./cloud-sync";
 import { createLedger, type LedgerStorage } from "./ledger";
 import { createSyncSession } from "./sync-session";
 
-// Backs up the studio to the signed-in account. Mounted by the studio and dashboard shells, which
-// share one session per account (sync-session.ts). Signed-out users get no network traffic at all;
-// their deletions are only noted for a later sign-in.
+// Signed-out users get no network traffic; their deletions are only noted for a later sign-in.
 
 const REREAD_AFTER_MS = 5 * 60_000;
 
@@ -36,9 +34,8 @@ const session = createSyncSession(
   REREAD_AFTER_MS,
 );
 
-// The first read of the account's resumes in this tab. The dashboard and studio keep the loading
-// screen up until it's in, so resumes from other devices don't pop in after the page shows.
-// Capped, so a slow server delays the page by a few seconds at most, never holds it.
+// The loading screen waits for the first read so other devices' resumes don't pop in later. Capped,
+// so a slow server delays the page a few seconds at most.
 const FIRST_READ_MAX_MS = 6_000;
 let firstReadDone = false;
 const firstReadListeners = new Set<() => void>();
@@ -56,10 +53,7 @@ function subscribeFirstRead(listener: () => void) {
   };
 }
 
-/**
- * True on a page's first load until this browser's copy has loaded and, when signed in, the
- * account's resumes have been read once. Later waits in the tab don't count.
- */
+// Only the page's first load counts, not later waits in the tab.
 export function useFirstLoadPending(): boolean {
   const hydrated = useStudioHydrated();
   const { user, loading } = useMe();
@@ -67,10 +61,7 @@ export function useFirstLoadPending(): boolean {
   return !hydrated || loading || (user !== null && !readDone);
 }
 
-/**
- * `signedInAs`: the account the server already checked for this page (the dashboard layout), so
- * the first read of its resumes starts beside /api/me instead of waiting for it.
- */
+// `signedInAs` lets the first read start beside /api/me instead of waiting for it.
 export function useCloudSync(signedInAs?: string): void {
   const hydrated = useStudioHydrated();
   const { user, loading } = useMe();
@@ -105,8 +96,7 @@ export function useCloudSync(signedInAs?: string): void {
   }, [hydrated, userId]);
 }
 
-// Pushes pending changes before something ends the session, such as signing out. Bounded, so a
-// slow server can't hold up the action the user asked for.
+// Bounded, so a slow server can't hold up the action the user asked for.
 export function flushCloudSync(timeoutMs = 3_000): Promise<void> {
   const sync = session.current();
   if (!sync) return Promise.resolve();
@@ -119,12 +109,8 @@ export function flushCloudSync(timeoutMs = 3_000): Promise<void> {
   });
 }
 
-/**
- * Signs out, then takes the account's backed-up resumes out of this browser (releaseBackedUp), so
- * the next person on a shared computer can't open them. Works on any page, not just the studio.
- * Resolves with how many of the account's resumes stayed because they hadn't finished backing up.
- * Throws, changing nothing, when the sign-out request fails.
- */
+// So the next person on a shared computer can't open them. Resolves with how many stayed because
+// they hadn't finished backing up. Throws, changing nothing, when sign-out fails.
 export async function signOutAndRelease(userId: string): Promise<{ kept: number }> {
   await flushCloudSync();
   // Read while the session still works. Without it nothing can be shown to be backed up, so
@@ -137,12 +123,11 @@ export async function signOutAndRelease(userId: string): Promise<{ kept: number 
   resetUser();
   try {
     if (!useStudioStore.persist.hasHydrated()) await useStudioStore.persist.rehydrate();
-    // The session it syncs for is over.
     session.end();
     const ledger = createLedger(browserStorage());
     const { kept } = releaseBackedUp({ userId, store: useStudioStore, ledger, cloud });
-    // Deleted resumes stay only in this browser, so on a shared computer the next person could
-    // restore them. Signing out empties the trash.
+    // The trash stays only in this browser, so the next person could restore it: sign-out empties
+    // it.
     useStudioStore.getState().emptyTrash();
     return { kept: kept.length };
   } catch {

@@ -11,11 +11,9 @@ import { DEV_SESSION_COOKIE, devAuthActive } from "./dev-mode";
 import { LOGIN_CODE_DIGITS } from "./policy";
 import type { SessionUser } from "./types";
 
-// Server-only, development only. Sign-in with zero setup: request-code makes a 6-digit code and
-// hands it to the sign-in form, verify checks it and sets a signed, revocable session cookie. The
-// account behind it is an ordinary users row, so plans, usage and mock billing behave exactly as
-// they do for Supabase users. Every entry point re-checks devAuthActive(), which is always false
-// in production builds.
+// Development only. The account behind it is an ordinary users row, so plans, usage and mock
+// billing behave as for Supabase users. Every entry point re-checks devAuthActive(), false in
+// production.
 
 const CODE_TTL_MS = 10 * 60 * 1000;
 const MAX_ATTEMPTS = 5;
@@ -55,7 +53,7 @@ function cookieAttributes() {
   return { httpOnly: true, sameSite: "lax", secure: false, path: "/" } as const;
 }
 
-/** A fresh code for the address, replacing any earlier one. The caller applies the rate limits. */
+/** Replaces any earlier code. The caller applies the rate limits. */
 export async function requestDevCode(email: string, now = Date.now()): Promise<string> {
   assertDevelopment();
   const code = String(randomInt(0, 10 ** LOGIN_CODE_DIGITS)).padStart(LOGIN_CODE_DIGITS, "0");
@@ -69,7 +67,7 @@ export async function requestDevCode(email: string, now = Date.now()): Promise<s
   return code;
 }
 
-/** Checks the code (single use, 5 tries, 10 minutes), then signs this browser in. */
+/** Single use, 5 tries, 10 minutes. */
 export async function verifyDevCode(email: string, code: string, now = Date.now()): Promise<SessionUser> {
   assertDevelopment();
   const db = await getDb();
@@ -113,7 +111,7 @@ function sessionIdFrom(cookie: string | undefined): string | null {
   return sameMac(Buffer.from(signature, "base64url"), hmac(id)) ? id : null;
 }
 
-/** The dev session's user, or null. Null outside development, whatever the cookie says. */
+/** Null outside development, whatever the cookie says. */
 export async function getDevUser(now = Date.now()): Promise<SessionUser | null> {
   if (!devAuthActive()) return null;
   const sessionId = sessionIdFrom((await cookies()).get(DEV_SESSION_COOKIE)?.value);
@@ -137,7 +135,7 @@ export async function getDevUser(now = Date.now()): Promise<SessionUser | null> 
   return row ?? null;
 }
 
-/** Revokes this browser's dev session, so a copy of the cookie stops working, and expires it. */
+/** Revokes the session too, so a copy of the cookie stops working. */
 export async function clearDevSession(): Promise<void> {
   if (!devAuthActive()) return;
   const jar = await cookies();
@@ -149,7 +147,6 @@ export async function clearDevSession(): Promise<void> {
   if (jar.get(DEV_SESSION_COOKIE)) jar.delete({ name: DEV_SESSION_COOKIE, ...cookieAttributes() });
 }
 
-/** Account deletion's last step in dev mode: every session and the stand-in auth user. */
 export async function deleteDevIdentity(userId: string): Promise<void> {
   assertDevelopment();
   const db = await getDb();

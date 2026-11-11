@@ -1,6 +1,5 @@
-// JSON Resume stores dates as ISO 8601 ("2021-03-15", "2021-03", "2021"); the editor keeps dates
-// as people write them ("Mar 2021"). These convert between the two without guessing: anything
-// that isn't clearly a date passes through as it was.
+// Converts between JSON Resume's ISO dates and dates as people write them, without guessing:
+// anything not clearly a date passes through.
 
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 const MONTH_INDEX = new Map(MONTHS.map((month, index) => [month.toLowerCase(), index + 1]));

@@ -1,7 +1,7 @@
 import { emptyResume, type Resume } from "@/lib/resume/schema";
 
-// Test-only. A resume with a bit of everything a portfolio reads, including things it must leave
-// out (a hidden project, a hidden line, tailoring notes, an unsafe link).
+// Test-only. Includes things a portfolio must leave out (hidden project and line, tailoring notes,
+// an unsafe link).
 
 export function sampleResume(overrides: Partial<Resume> = {}): Resume {
   return {
@@ -58,10 +58,7 @@ export function sampleResume(overrides: Partial<Resume> = {}): Resume {
 
 const b = (id: string, text: string) => ({ id, text });
 
-/**
- * The approved samples' made-up person (portfolio-samples/samples/*.html) as a resume, so a
- * template drawn from it can be held next to its sample. Full data: every section filled.
- */
+// The approved samples' made-up person, so a template can be held next to its sample.
 export function jordanResume(): Resume {
   return {
     ...emptyResume(Date.UTC(2026, 10, 8)),
@@ -203,11 +200,7 @@ export function jordanResume(): Resume {
   };
 }
 
-/**
- * Awkward real-world data: a very long name, address and unbroken words, no summary, no links,
- * eight jobs (one without a company, one without lines), projects without links or lines, and
- * forty unlabelled skills.
- */
+// Awkward real-world data: very long names and words, missing parts, eight jobs, forty skills.
 export function stressResume(): Resume {
   const companies = [
     "Featherstonehaugh International Payments and Settlement Infrastructure Group",

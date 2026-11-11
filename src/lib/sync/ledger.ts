@@ -1,22 +1,17 @@
-// Per-browser sync bookkeeping kept beside the studio store, because only sync needs it:
-// - owners: which account each local resume belongs to. A shared browser must never copy one
-//   person's resumes into the next person's account. Resumes made while signed out have no owner
-//   until someone signs in, which is how "sign in to keep your work" claims them.
-// - tombstones: resumes deleted here whose cloud copy still has to go, so they don't come back on
-//   the next sign-in.
+// Kept beside the studio store, for sync only:
+// - owners: which account each local resume belongs to, so a shared browser never copies one
+//   person's
+//   resumes into the next one's account. Unowned resumes are claimed at sign-in.
+// - tombstones: local deletions the cloud hasn't seen yet, so they don't come back on next sign-in.
 
 export type LedgerStorage = Pick<Storage, "getItem" | "setItem">;
 
 export type SyncLedger = {
   ownerOf: (id: string) => string | undefined;
-  // Gives unowned resumes to `owner`; leaves resumes that already have an owner alone.
   claim: (ids: readonly string[], owner: string) => void;
-  // Overrides the owner, for resumes the account's cloud copy proves are its own.
   assign: (ids: readonly string[], owner: string) => void;
   forget: (ids: readonly string[]) => void;
-  // Drops owners of resumes that no longer exist in this browser.
   retain: (ids: readonly string[]) => void;
-  // Records a deletion the owner's cloud hasn't seen yet.
   bury: (id: string, owner: string) => void;
   unbury: (id: string, owner: string) => void;
   buried: (owner: string) => string[];
@@ -32,8 +27,8 @@ const MAX_TOMBSTONES = 200;
 export function createLedger(storage: LedgerStorage | null): SyncLedger {
   let data = read(storage) ?? emptyData();
 
-  // Re-reads before every write so a change another tab made in the meantime isn't overwritten.
-  // Without readable storage (privacy mode) it carries on from memory for this session.
+  // Re-reads before every write so another tab's change isn't overwritten. Without storage it
+  // carries on from memory.
   function update(mutate: (draft: LedgerData) => boolean) {
     const draft = read(storage) ?? {
       owners: new Map(data.owners),
@@ -104,8 +99,7 @@ function emptyData(): LedgerData {
   return { owners: new Map(), tombstones: [] };
 }
 
-// null when there is nothing usable to read: no storage, blocked storage, or a corrupt value
-// (which the next write replaces). The worst case is a deleted resume coming back once.
+// null for no, blocked or corrupt storage. The worst case is a deleted resume coming back once.
 function read(storage: LedgerStorage | null): LedgerData | null {
   if (!storage) return null;
   try {

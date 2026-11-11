@@ -1,5 +1,3 @@
-// Pure and client-safe. The rules for a portfolio's address, /p/<slug>.
-
 export const SLUG_MIN = 3;
 export const SLUG_MAX = 40;
 
@@ -79,10 +77,7 @@ const BRAND_PREFIX = /^otto-?sensei/;
 
 export type SlugProblem = "too_short" | "too_long" | "characters" | "reserved";
 
-/**
- * What a person typed, as an address: "  Maya Chén " becomes "maya-chen". Accents are folded,
- * anything that isn't a letter or digit becomes one hyphen, and hyphens at either end go.
- */
+/** "  Maya Chén " -> "maya-chen". */
 export function normalizeSlug(input: string): string {
   return input
     .normalize("NFKD")
@@ -120,7 +115,7 @@ function fit(slug: string, max: number): string {
   return (lastHyphen >= SLUG_MIN ? cut.slice(0, lastHyphen) : cut).replace(/-+$/, "");
 }
 
-/** The address offered from a name: "Maya Chen" gives "maya-chen". Always passes slugProblem. */
+/** Always passes slugProblem. */
 export function suggestSlug(name: string): string {
   const base = fit(normalizeSlug(name), SLUG_MAX);
   if (slugProblem(base) === null) return base;
@@ -129,7 +124,6 @@ export function suggestSlug(name: string): string {
   return slugProblem(padded) === null ? padded : "my-portfolio";
 }
 
-/** A try when the suggestion is taken: "maya-chen-2" (or a random tail), still within SLUG_MAX. */
 export function numberedSlug(base: string, n: number | string): string {
   const suffix = `-${n}`;
   return `${fit(base, SLUG_MAX - suffix.length)}${suffix}`;

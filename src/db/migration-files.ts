@@ -1,8 +1,8 @@
 import { readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 
-// Server-only, no app imports (scripts/migrate.ts runs it under plain bun). The SQL files in
-// supabase/migrations, oldest first, named <14-digit timestamp>_<name>.sql (Supabase CLI style).
+// No app imports: scripts/migrate.ts runs this under plain bun. Files are
+// supabase/migrations/<14-digit timestamp>_<name>.sql, oldest first.
 
 export type MigrationFile = { version: string; name: string; file: string; sql: string };
 

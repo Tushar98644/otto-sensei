@@ -13,9 +13,8 @@ import { emailLink, plainText, webLink, type LineCleaner, type PdfLink } from ".
 import { toPdfLine, toPdfParagraphs, toUnicodeLine, toUnicodeParagraphs } from "./text";
 import { companyKey, visibleResume } from "./visible";
 
-// What the PDF shows, already cleaned: drawable characters only, hidden and empty things gone.
-// Pure and react-pdf free, so the download step can use it (for the "characters we changed"
-// notice) without loading the renderer, and the Word export prints the very same model.
+// Drawable characters only, hidden and empty things gone. react-pdf free, so the download step can
+// use it without the renderer, and the Word export prints the same model.
 
 export type PdfBullet = { id: string; text: string };
 
@@ -24,29 +23,22 @@ export type PdfCompany = {
   name: string;
   // The location, when every role in the run shares it. Otherwise each role shows its own.
   detail: PdfLink | null;
-  // The run's first role carries the header.
   first: boolean;
-  // From the earliest role's start to the latest one's end ("Aug 2017 – Present"), for formats
-  // that date the company line.
+  // "Aug 2017 – Present", for formats that date the company line.
   dates?: string;
 };
 
 export type PdfEntry = {
   id: string;
-  // Bold lead, e.g. the job title. Falls back to the next field when it's empty.
+  // Falls back to the next field when empty.
   title: string;
-  // Follows the title after a comma, e.g. the company. Empty for a role under a company header.
+  // Empty for a role under a company header.
   org: string;
-  // Muted, after a middle dot: a location or a project link.
   detail: PdfLink | null;
-  // Right-aligned on the same line.
   dates: string;
-  // A project's tools ("TypeScript, PostgreSQL"), for formats that print them by its name.
   tech?: string;
   bullets: PdfBullet[];
-  // Set on every role in a run of jobs at one company.
   company?: PdfCompany;
-  // A line of description under the heading (items in extra sections).
   note?: string;
 };
 
@@ -61,13 +53,11 @@ export type PdfSection =
       entries: PdfEntry[];
     };
 
-// Sections past the standard six (languages, awards...), printed after them in the person's order.
 export type PdfExtraSection = {
   id: string;
   kind: ExtraKind;
   title: string;
-  // Items that are only a name (and maybe a level) read best as one line: "Spanish (Fluent),
-  // French (Basic)". Null when the items need lines of their own (entries).
+  // Name-only items read best as one line: "Spanish (Fluent), French (Basic)". Null for entries.
   list: string | null;
   entries: PdfEntry[];
 };
@@ -82,28 +72,22 @@ export type PdfContact = {
 export type PdfModel = {
   name: string;
   headline: string;
-  // Two lines, like resumeToText(): email, phone and location, then web links.
   contact: PdfLink[][];
-  // The same items by kind, for formats that arrange them their own way. Optional so models put
-  // together by hand still type-check; formats fall back to `contact`.
+  // Optional so hand-built models still type-check; formats fall back to `contact`.
   basics?: PdfContact;
   sections: PdfSection[];
-  // Always set by buildPdfModel. Optional so models put together by hand (the dashboard's
-  // stand-in miniatures) still type-check without them.
+  // Always set by buildPdfModel; optional for hand-built models (the dashboard miniatures).
   extras?: PdfExtraSection[];
   meta: { title: string; author: string; subject: string };
-  // Characters the font can't draw that were swapped or left out, for a notice in the UI.
   changedCharacters: string[];
 };
 
 export type PdfModelOptions = {
-  // "pdf" (default) keeps what the bundled PDF fonts can draw; "unicode" keeps every character,
-  // for a Word file.
+  // "unicode" keeps every character, for a Word file.
   charset?: "pdf" | "unicode";
 };
 
-// Markers people type or paste at the start of a line. The PDF draws its own bullet, so keeping
-// them would print two. Includes the private-use glyphs Word bullets turn into.
+// The PDF draws its own bullet, so typed markers would print twice.
 const LEADING_MARKER = /^\s*(?:[•●○◦▪▫■□◆◇❖►▸▹▶➢➤➣➔→✓✔☑⦿⁃∙·‣*\p{Co}]+|[-–—](?=\s))\s*/u;
 
 type Clean = { line: LineCleaner; paragraphs: (value: string) => string[] };
@@ -138,8 +122,7 @@ function isEmpty(entry: PdfEntry): boolean {
   );
 }
 
-// The first non-empty field leads in bold and the second follows it, so a job with only a company
-// still gets a bold heading.
+// So a job with only a company still gets a bold heading.
 function lead(primary: string, secondary: string): { title: string; org: string } {
   return primary ? { title: primary, org: secondary } : { title: secondary, org: "" };
 }
@@ -176,7 +159,6 @@ function runSpan(run: readonly Role[]): string {
   return [earliest.start, latest.end].filter(Boolean).join(" – ");
 }
 
-// Promotions read as one story at one company: its name once, then each role with its own dates.
 function grouped(run: readonly Role[]): PdfEntry[] {
   const places = run.map((role) => role.location).filter((place) => place !== null);
   const shared =
@@ -277,7 +259,6 @@ function skills(resume: Resume, c: Clean): PdfSkillLine[] {
 }
 
 function section(resume: Resume, key: SectionKey, c: Clean): PdfSection | null {
-  // The person's own heading ("Work history"), unless nothing of it survives cleaning.
   const title = c.line(sectionTitleOf(resume, key)) || SECTION_LABELS[key];
   switch (key) {
     case "summary": {
@@ -346,8 +327,7 @@ export function buildPdfModel(source: Resume, options: PdfModelOptions = {}): Pd
   const resume = visibleResume(source);
   const name = c.line(resume.basics.name);
   const headline = c.line(resume.basics.headline);
-  // Follows the user's section order, like resumeToText(), so the PDF and the plain text match.
-  // Unknown or repeated keys are skipped rather than trusted.
+  // The user's section order, like resumeToText(); unknown or repeated keys are skipped.
   const order = [...new Set(resume.sectionOrder)].filter((key) => SECTION_KEYS.includes(key));
   const sections = order
     .map((key) => section(resume, key, c))

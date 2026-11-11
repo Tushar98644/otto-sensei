@@ -3,9 +3,7 @@ import { findTermIn } from "./keywords";
 import type { RequirementRow } from "./requirements";
 import { foldCase, textTokens } from "./tokens";
 
-// Client-safe and pure. The two things a recruiter reads before any line, checked against one
-// job: whether the top of the resume names the job's title, and whether the summary speaks to it.
-// Sources: projects/resume-app/RESUME-CHECKS-RESEARCH.md (Yate, Jobscan, Ladders 2018).
+// The two things a recruiter reads before any line. Sources: RESUME-CHECKS-RESEARCH.md.
 
 const SENIORITY = new Set(
   "senior sr jr junior lead principal staff head chief associate entry level mid i ii iii iv".split(
@@ -14,8 +12,7 @@ const SENIORITY = new Set(
 );
 const TITLE_STOPWORDS = new Set("a an and the of for to in on with at".split(" "));
 
-// "Backend Engineer, Payments Platform" -> "Backend Engineer"; "Senior Product Marketing Manager"
-// -> its words without the level, for comparing with the resume's titles.
+// Without the level or the trailing team, for comparing with the resume's titles.
 export function coreTitle(title: string): string {
   return title.split(/\s+[-–—|]\s+|,|\(|\s+at\s+/i)[0]?.trim() ?? "";
 }
@@ -33,10 +30,7 @@ function covers(have: string, want: readonly string[]): boolean {
 
 export type TitleCheck = { status: "match" | "differs" | "missing"; text: string; core: string };
 
-/**
- * Whether the resume's top line names the job. Only the headline and summary are suggested
- * places: a past job's title is a fact and never changes to fit a post.
- */
+// Only the headline and summary are suggested places: a past job's title is a fact.
 export function titleCheck(resume: Resume, jobTitle: string): TitleCheck | null {
   const core = coreTitle(jobTitle);
   const want = titleWords(core);
@@ -69,10 +63,7 @@ export function titleCheck(resume: Resume, jobTitle: string): TitleCheck | null 
 
 export type SummaryCheck = { status: "match" | "differs" | "missing"; text: string };
 
-/**
- * Whether the summary speaks to this job: the post's title or a must-have the resume already
- * shows. Only names the resume proves are suggested, so the advice never invites a claim.
- */
+// Only names the resume proves are suggested, so the advice never invites a claim.
 export function summaryCheck(
   resume: Resume,
   rows: readonly RequirementRow[],

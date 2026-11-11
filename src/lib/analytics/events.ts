@@ -1,6 +1,5 @@
-// The event catalogue, shared by the browser and the server. Props are names, counts and flags
-// only: never resume text, job posts, emails, names or file names. A new event starts here, so the
-// type system stops anyone from passing something personal by accident.
+// Props are names, counts and flags only: never resume text, job posts, emails, names or file
+// names. New events start here so the types stop anything personal by accident.
 
 import type { PlanId } from "@/config/plans";
 import type { ApplicationStatus } from "@/lib/applications/status";
@@ -46,5 +45,4 @@ export type ServerEventProps = {
 export type ClientEvent = keyof ClientEventProps;
 export type ServerEvent = keyof ServerEventProps;
 
-/** Events without props can leave the argument out: track("landing_viewed"). */
 export type EventArgs<P> = P extends NoProps ? [props?: P] : [props: P];

@@ -17,15 +17,13 @@ import type {
   TailorResult,
 } from "./types";
 
-// Turns a raw tailoring answer (from the model or the demo) into a TailorResult. Nothing the model
-// says about the resume is trusted: matches are recomputed here, quotes checked word for word and
-// invalid orderings dropped.
+// Nothing the model says about the resume is trusted: matches are recomputed, quotes checked word
+// for word and invalid orderings dropped.
 
 export type RawTailor = {
   jobTitle: string;
   company: string;
   requirements: RawRequirement[];
-  // Real experience and bullet ids.
   bulletOrder: { experienceId: string; bulletIds: string[] }[];
   summary: string;
   notes: string[];
@@ -42,12 +40,10 @@ const JOB_FIELD_CHARS = 200;
 
 type RankedKeyword = Pick<TailorKeyword, "term" | "importance">;
 
-// Spaces are dropped because matching ignores them too: "front end" and "frontend" are one term.
 function termKey(term: string): string {
   return normalizeTerm(term).replace(/ /g, "");
 }
 
-// Every name a requirement can be searched by, so the tailored copy keeps a keyword list.
 function requirementTerms(requirements: readonly TailorRequirement[]): RankedKeyword[] {
   return requirements.flatMap((requirement) =>
     requirement.terms.map((term) => ({ term, importance: requirement.importance })),
@@ -71,7 +67,6 @@ function rankKeywords(raw: readonly RankedKeyword[]): RankedKeyword[] {
 }
 
 function matchKeywords(ranked: RankedKeyword[], resume: Resume, resumeText: string): TailorKeyword[] {
-  // One tokenization of the resume for every term, instead of one per term.
   const coverage = keywordCoverage(resume, ranked.map((keyword) => keyword.term));
   const byTerm = new Map(coverage.matches.map((match) => [match.term, match]));
   return ranked.map((keyword) => {
@@ -90,10 +85,8 @@ function askAbout(keywords: TailorKeyword[]): TailorQuestion[] {
     }));
 }
 
-// Same rule as reorderBullets(): an exact permutation of the entry's bullets or nothing, so an
-// ordering can never drop or duplicate a line. Then the lines that prove a must-have go to the top
-// of their job, keeping the model's order otherwise: an AI screener and a skimming recruiter both
-// read the top lines first. Orders that change nothing are left out.
+// Exact permutation of the entry's bullets or nothing, so a line is never dropped or duplicated.
+// Lines proving a must-have go first: screeners and skimming recruiters read the top lines first.
 function validOrders(
   orders: RawTailor["bulletOrder"],
   resume: Resume,
@@ -125,8 +118,7 @@ function validOrders(
   return valid;
 }
 
-// A number the resume doesn't contain ("8 years of experience") is a made-up fact, and no
-// summary beats a false one. Placeholders don't belong in a ready-to-use summary either.
+// A number the resume lacks is a made-up fact, and no summary beats a false one; nor placeholders.
 function checkedSummary(summary: string, resumeText: string): string {
   const text = clipWords(oneLine(summary), SUMMARY_CHARS);
   if (!text || hasPlaceholder(text) || hasInventedNumbers(text, [resumeText])) return "";

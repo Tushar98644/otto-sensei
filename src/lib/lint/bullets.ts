@@ -3,8 +3,7 @@ import { extrasOf, type Resume } from "@/lib/resume/schema";
 import { punctuationIssues, type EntryLine } from "./punctuation";
 import type { LintContext, LintIssue, LintIssueId, LintSeverity, ResumeLint } from "./types";
 
-// Runs in the browser on every keystroke for every line: pure, dependency-free, one tokenizing pass
-// per line, and every word list indexed once at module load.
+// Runs on every keystroke for every line: one tokenizing pass per line, word lists indexed at load.
 
 const TOO_LONG_WORDS = 32;
 const TOO_LONG_CHARS = 220;
@@ -14,8 +13,7 @@ const NEAR_DUPLICATE_PERCENT = 85;
 const NEAR_DUPLICATE_MIN_TOKENS = 4;
 const MAX_LISTED_PHRASES = 3;
 
-// Every word list is reviewed by hand, so keep each one sorted. In phrases a space also matches a
-// hyphen: "results driven" covers "results-driven".
+// Word lists are reviewed by hand, so keep each sorted. In phrases a space also matches a hyphen.
 
 // Phrases recruiters skim past because nearly every resume has them.
 const STOCK_PHRASES = [
@@ -85,8 +83,7 @@ const STOCK_PHRASES = [
   "world class",
 ];
 
-// Openers that read like a job description: the duty, not what the person did with it (MIT CAPD:
-// "Record accomplishments and contributions, not just responsibilities").
+// Openers that read like a job description: the duty, not what the person did with it.
 const DUTY_STARTS = [
   "duties include",
   "duties included",
@@ -126,8 +123,7 @@ const WEAK_STARTS = [
   "worked with",
 ];
 
-// Words that say what changed: the X in Bock's "Accomplished X as measured by Y by doing Z". A line
-// with none of these and no number lists an activity, not a result.
+// Words that say what changed. A line with none of these and no number lists an activity.
 const RESULT_WORDS = wordSet(`
   accelerated accelerating achieved avoided boosted boosting cheaper converted cut cutting
   decreased decreasing doubled drove driving earned eliminated eliminating enabled enabling
@@ -155,9 +151,8 @@ const RESULT_OPENERS = wordSet(`
 const METHOD_WORDS = wordSet("after through using via with");
 const NO_METHOD_MAX_WORDS = 7;
 
-// Action verbs that open resume lines, as "base:past" (regular ones get "-ed"). Left out on
-// purpose: words that open a line as a noun or adjective as often as a verb ("Lead developer on…",
-// "Design system for…", "Support engineer…", "Research on…", "Test plans…", "Plan…").
+// As "base:past" (regular ones get "-ed"). Left out: words that open a line as a noun or adjective
+// as often as a verb ("Lead developer…", "Design system…", "Support engineer…").
 const TENSE_VERBS = `
   administer analyse analyze answer assess assist automate build:built close coach collaborate
   communicate compile conduct configure coordinate create debug deliver deploy develop document
@@ -168,11 +163,10 @@ const TENSE_VERBS = `
   run:ran schedule sell:sold serve ship:shipped streamline supervise teach:taught track train
   troubleshoot tutor write:wrote work
 `;
-// Present-tense forms ("build", "builds", "building") to the past form a finished job should use.
 const PAST_OF = indexTenses(TENSE_VERBS);
 
-// Words that stand in for a number, a list or a name; each kind gets its own fix. "and more" and
-// "tons of" are left out on purpose: "and more than 200 clinics", "40 tons of produce".
+// "and more" and "tons of" are left out on purpose: "and more than 200 clinics", "40 tons of
+// produce".
 const VAGUE_COUNTS = [
   "a bunch of",
   "a lot",
@@ -211,9 +205,8 @@ const IRREGULAR_PARTICIPLES = wordSet(`
   kept led made paid rebuilt rewritten run seen sent shown sold spent taken taught thrown
   told undertaken written
 `);
-// "-ed" words that read as adjectives after "was" ("was based in"), and honors or uptake someone
-// earned ("was promoted", "were adopted by 12 schools"), where the passive is the natural way to
-// say it. Flagging those would be noise.
+// Adjectival "-ed" words ("was based in") and earned honors ("was promoted"), where passive is
+// natural.
 const NOT_PASSIVE = wordSet(`
   accepted admitted adopted appointed awarded based certified cited commended committed
   concerned credited dedicated elected entrusted excited experienced featured focused granted
@@ -236,8 +229,8 @@ const SEVERITY: Record<LintIssueId, LintSeverity> = {
   "weak-start": "high",
   "first-person": "high",
   "too-long": "high",
-  // A line that already says what changed reads fine without its size; the number is a bonus
-  // ("Quantify if you can", MIT CAPD). Low keeps "Add a number" from crowding out real problems.
+  // A line that already says what changed reads fine without its size; low keeps "Add a number"
+  // from crowding out real problems.
   "no-number": "low",
   "no-method": "low",
   tense: "low",
@@ -431,7 +424,6 @@ function tenseSpan(tokens: readonly Token[], text: string): { span: Span; past: 
   return { span: spanOf(token, token, text, 1), past };
 }
 
-// A word or phrase that says what changed, if the line has one.
 function resultMarker(tokens: readonly Token[], text: string): Span | null {
   for (let i = 0; i < tokens.length; i++) {
     const token = tokens[i];
@@ -443,8 +435,7 @@ function resultMarker(tokens: readonly Token[], text: string): Span | null {
   return null;
 }
 
-// "Increased sales 20%": a result, but nothing about how. "by" before a number is the measure, not
-// the method ("by 20%"); before anything else it is the method ("by moving batch jobs…").
+// "by" before a number is the measure ("by 20%"); before anything else it's the method.
 function lacksMethod(tokens: readonly Token[], text: string): boolean {
   const first = tokens[openerIndex(tokens, text)];
   const words = countWords(text);
@@ -471,8 +462,7 @@ function isNumeralI(tokens: readonly Token[], k: number, text: string): boolean 
   const singular = prev.lower.replace(/s$/, "");
   const context = ROMAN_NUMERAL_CONTEXT.has(prev.lower) || ROMAN_NUMERAL_CONTEXT.has(singular);
   if (context && /^\.?[\s\-‐‑]+$/u.test(gap)) return true;
-  // Course names: "Calculus I", "Organic Chemistry I." A capitalized word, then I, then the end of
-  // the line or punctuation. "Bob and I." stays a pronoun because "and" is lowercase.
+  // Course names: "Calculus I". "Bob and I." stays a pronoun because "and" is lowercase.
   return /^ +$/.test(gap) && /^\p{Lu}/u.test(prev.text) && /^\s*(?:[,.;:)\]]|$)/.test(rest);
 }
 
@@ -606,8 +596,7 @@ function analyze(text: string, context: LintContext = WORK): Analysis {
   const add = (id: LintIssueId, message: string, match: string | null, position: number) => {
     found.push({ issue: { id, severity: SEVERITY[id], message, match }, position });
   };
-  // At most one issue per id, so callers can key by id. Words an earlier id matched are taken:
-  // "Responsible for" at the start is a duty, not also a stock phrase.
+  // At most one issue per id, so callers can key by id. Words an earlier id matched are taken.
   const claim = (
     id: LintIssueId,
     spans: readonly Span[],
@@ -671,12 +660,9 @@ function isNearDuplicate(a: ReadonlySet<string>, b: ReadonlySet<string>): boolea
   return overlap * 100 >= (a.size + b.size - overlap) * NEAR_DUPLICATE_PERCENT;
 }
 
-/**
- * All-pairs Jaccard with prefix filtering (Bayardo et al., "Scaling Up All Pairs Similarity
- * Search"). With tokens sorted rarest first, two sets at or above the threshold must share a token
- * within the first |x| - ceil(t|x|) + 1 tokens of each, so only sets sharing one are compared. That
- * keeps a 2,000-bullet resume near-linear instead of 2 million comparisons per keystroke.
- */
+// All-pairs Jaccard with prefix filtering (Bayardo et al.): with tokens sorted rarest first, only
+// sets sharing an early token are compared, keeping a 2,000-bullet resume near-linear per
+// keystroke.
 function markNearDuplicates(lines: readonly (readonly string[])[], into: Set<number>): void {
   type Entry = { index: number; set: Set<string>; ordered: string[] };
   const entries: Entry[] = [];
@@ -735,15 +721,13 @@ function findDuplicates(lines: readonly (readonly string[])[]): Set<number> {
   return duplicates;
 }
 
-// Issues for one line, most important first. Empty array for a good line. Without a context the
-// line is read as work (a job or a project) that may still be going on.
+// Most important first. Without a context the line is read as possibly ongoing work.
 export function lintBullet(text: string, context: LintContext = WORK): LintIssue[] {
   return analyze(text, context).issues;
 }
 
 const PRESENT = /^(?:present|current|now|today|ongoing|to date)$/i;
-// Section kinds whose lines are things someone did, so a result is fair to ask for.
-// A custom section could hold anything ("Additional information"), so it gets the lighter checks.
+// A custom section could hold anything, so it gets the lighter checks.
 const WORK_EXTRAS: ReadonlySet<string> = new Set(["volunteering"]);
 
 export function hasEnded(endDate: string): boolean {
@@ -751,7 +735,6 @@ export function hasEnded(endDate: string): boolean {
   return end !== "" && !PRESENT.test(end);
 }
 
-// Which checks apply to each line, by where it sits (see LintContext).
 export function lintContexts(resume: Resume): ReadonlyMap<string, LintContext> {
   const contexts = new Map<string, LintContext>();
   for (const job of resume.experience) {
@@ -773,7 +756,6 @@ export function lintContexts(resume: Resume): ReadonlyMap<string, LintContext> {
   return contexts;
 }
 
-// Lines of each job and project, for checks that compare a line with the others in its entry.
 function entryGroups(refs: ReturnType<typeof listBullets>): EntryLine[][] {
   const groups = new Map<string, EntryLine[]>();
   for (const ref of refs) {
@@ -786,11 +768,8 @@ function entryGroups(refs: ReturnType<typeof listBullets>): EntryLine[][] {
   return [...groups.values()];
 }
 
-// Lints every bullet that prints (experience, projects, education, then extra sections) and adds
-// "duplicate" across the resume and "punctuation" within each job and project. Hidden lines, and
-// lines of hidden entries or sections, are left out (listBullets skips them): they never reach the
-// page, so they don't count in the totals, as duplicates or in a job's full stops. Totals count
-// lines that have words; `highSeverity` is the number of lines with a high issue.
+// Also adds "duplicate" across the resume and "punctuation" within each entry. Hidden lines never
+// print, so they don't count in totals, duplicates or full stops.
 export function lintResume(resume: Resume): ResumeLint {
   const contexts = lintContexts(resume);
   const refs = listBullets(resume);
@@ -830,8 +809,7 @@ export function lintResume(resume: Resume): ResumeLint {
   return { byBullet: Object.fromEntries(entries), totals };
 }
 
-// The summary is prose, not a list of results, so only the voice checks apply: stock phrases and
-// first person (Harvard and MIT both say to leave out I, me and my).
+// Prose, not results, so only the voice checks apply: stock phrases and first person.
 export function lintSummary(summary: string): LintIssue[] {
   return analyze(summary, OTHER).issues.filter(
     (issue) => issue.id === "stock-phrase" || issue.id === "first-person",

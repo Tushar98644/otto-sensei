@@ -1,7 +1,6 @@
 import type { Resume } from "@/lib/resume/schema";
 import { jsonResumeFileName, toJsonResume } from "./export";
 
-// Browser-only: saves the resume as resume.json through a temporary link.
 export function downloadJsonResume(resume: Resume): void {
   const blob = new Blob([`${JSON.stringify(toJsonResume(resume), null, 2)}\n`], {
     type: "application/json",

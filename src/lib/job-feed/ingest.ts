@@ -38,10 +38,8 @@ import {
   type FeedSource,
 } from "./types";
 
-// Server-only. The daily read of every source (GET /api/cron/jobs). Boards are read oldest-read
-// first, a few at a time, each host no faster than its own pace, until the time budget runs out;
-// the next run starts with whatever this one didn't reach. All reads go through the SSRF-safe
-// transport, send no cookies and name the bot.
+// Oldest-read boards first, each host at its own pace, until the budget runs out; next run
+// continues.
 
 const HOUR_MS = 60 * 60 * 1_000;
 const DAY_MS = 24 * HOUR_MS;
@@ -50,23 +48,19 @@ export const INGEST_LIMITS = {
   // Whole company boards can be several megabytes of descriptions (Ashby's OpenAI board was 14 MB).
   maxBytes: 24 * 1024 * 1024,
   timeoutMs: 25_000,
-  // Read in parallel, on different hosts where the queue allows (takeBoard). 605 boards were about
-  // 920 s of reads from one laptop on 2026-11-10, so 4 workers need one to two daily runs of 240 s
-  // for a full pass; more would outrun the database pool (5 connections, db/connection.ts).
+  // 605 boards took ~920 s of reads: one or two daily runs. More would outrun the 5-connection
+  // pool.
   workers: 4,
   // A board read within this long isn't read again, so a second run the same day is cheap.
   refreshAfterMs: 20 * HOUR_MS,
   // Himalayas holds 100,000+ jobs, 20 per page, newest first: the newest 200 a day is plenty.
   himalayasPages: 10,
-  // Jobicy's 7 days were about 1,500 jobs on 2026-11-10; 100 a page. A first read takes them all.
+  // Jobicy's 7 days were ~1,500 jobs at 100 a page.
   jobicyPages: 25,
 } as const;
 
-// Time between requests to one host. Lever's robots.txt asks for a 1-second crawl delay;
-// Himalayas allows 60 requests a minute; Jobicy asks for one pass an hour at most (we make one a
-// day); the others state none, so they get a gentle pace.
-// Recruitee and Personio give each company its own subdomain on one service, so the pace is
-// kept for the whole domain, not per company.
+// Lever's robots.txt asks for 1 s and Himalayas allows 60/min; the rest state none and get a gentle
+// pace. Recruitee and Personio companies share one service, so the pace is per domain.
 export const HOST_SPACING_MS: Record<string, number> = {
   "boards-api.greenhouse.io": 300,
   "api.lever.co": 1_000,
@@ -80,7 +74,6 @@ export const HOST_SPACING_MS: Record<string, number> = {
   "jobicy.com": 2_000,
 };
 
-/** The pace a host shares: its own, or its service's ("acme.recruitee.com" -> "recruitee.com"). */
 export function paceKey(hostname: string, spacing: Record<string, number>): string {
   if (hostname in spacing) return hostname;
   const service = Object.keys(spacing).find((key) => hostname.endsWith(`.${key}`));
@@ -90,19 +83,16 @@ export function paceKey(hostname: string, spacing: Record<string, number>): stri
 export type IngestOptions = {
   db?: Db;
   seeds?: readonly BoardSeed[];
-  // At most this many company boards this run (the dev script's --limit).
   maxBoards?: number;
   feeds?: boolean;
   himalayasPages?: number;
-  // Time between requests per host, instead of HOST_SPACING_MS; hosts not named get none. Tests
-  // pass {} to run without pauses.
+  // Replaces HOST_SPACING_MS; tests pass {} to run without pauses.
   spacing?: Record<string, number>;
   workers?: number;
   // false: skip the monthly visa register refresh (tests, the dev script).
   visa?: boolean;
 };
 
-// The host each board source is read from, as its pace is kept (paceKey).
 const SOURCE_HOSTS: Record<BoardSource, string> = {
   greenhouse: "boards-api.greenhouse.io",
   lever: "api.lever.co",
@@ -112,7 +102,6 @@ const SOURCE_HOSTS: Record<BoardSource, string> = {
   personio: "jobs.personio.de",
 };
 
-// Requests to one host start at least its spacing apart, across all workers.
 function pacer(spacing: Record<string, number>, fallback: number) {
   const nextAt = new Map<string, number>();
   const wait = async (url: URL) => {
@@ -123,7 +112,6 @@ function pacer(spacing: Record<string, number>, fallback: number) {
     nextAt.set(key, at + gap);
     if (at > now) await new Promise((resolve) => setTimeout(resolve, at - now));
   };
-  // When the next request to this source's host may start.
   wait.readyAt = (source: BoardSource) => nextAt.get(paceKey(SOURCE_HOSTS[source], spacing)) ?? 0;
   return wait;
 }
@@ -133,11 +121,7 @@ type Pace = ReturnType<typeof pacer>;
 // How far down the queue a free worker looks for a board whose host it may ask now.
 const QUEUE_LOOKAHEAD = 50;
 
-/**
- * Takes the next board to read: the oldest-read one whose host may be asked now, else the one
- * whose host frees up first. Workers then don't all wait on one slow-paced host (Workable asks
- * for 3 seconds between requests) while others sit idle.
- */
+// Workers skip boards whose host must wait, so they don't all idle on one slow-paced host.
 function takeBoard<T extends { source: string }>(queue: T[], pace: Pace): T | undefined {
   let best = -1;
   let bestAt = Number.POSITIVE_INFINITY;
@@ -184,7 +168,7 @@ function hostLabel(token: string): string {
   return token;
 }
 
-/** The board's API address. Lever boards in the EU answer on their own host. */
+/** Lever boards in the EU answer on their own host. */
 export function boardUrl(source: BoardSource, token: string): URL {
   const name = encodeURIComponent(token);
   switch (source) {
@@ -246,8 +230,7 @@ function failureStatus(error: unknown): "not_found" | "failed" {
   return error instanceof JobReadError && error.reason === "not_found" ? "not_found" : "failed";
 }
 
-// Each feed's newest jobs, one paged pass. Jobicy lists the last 7 days, newest first, and asks
-// for no more than one pass an hour; we make one a day and stop at what the last pass saw.
+// Jobicy asks for at most one pass an hour; we make one a day and stop at what the last pass saw.
 async function readFeed(
   source: FeedSource,
   lastFetchedAt: number | null,
@@ -325,7 +308,7 @@ async function readFeeds(
   }
 }
 
-/** One ingest run. Idempotent: running it twice only finds less to read. */
+/** Idempotent: running it twice only finds less to read. */
 export async function runJobsIngest(
   { now, deadline }: CronContext,
   options: IngestOptions = {},
@@ -446,8 +429,7 @@ export async function runJobsIngest(
       boardsLeft: queue.length,
     },
     complete: !stopped,
-    // A board's own failure is routine (a renamed board, a slow host) and retried tomorrow; only a
-    // feed failing marks the run, since each feed is one request a day.
+    // Board failures are routine and retried tomorrow; only a failing feed marks the run.
     failed,
   };
 }

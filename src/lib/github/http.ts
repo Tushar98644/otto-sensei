@@ -1,10 +1,8 @@
 import { env } from "@/lib/env";
 import { cacheGet, cacheSet, isFresh } from "./cache";
 
-// Server-only. Reads public GitHub data through the REST API, without anyone's GitHub login.
-// Every request goes to https://api.github.com and nowhere else: paths are built only from names
-// that passed strict patterns, and a redirect is followed only when it stays on that origin.
-// Each incoming request gets a session that allows at most 10 upstream calls; cache hits are free.
+// Only https://api.github.com is ever fetched: paths come from names that passed strict patterns,
+// and redirects are followed only on that origin. Each request's session allows 10 upstream calls.
 
 const ORIGIN = "https://api.github.com";
 const API_VERSION = "2022-11-28";
@@ -22,7 +20,6 @@ export type GitHubErrorReason = "not_found" | "rate_limited" | "unavailable" | "
 
 export class GitHubError extends Error {
   readonly reason: GitHubErrorReason;
-  // When GitHub said how long to wait, else null.
   readonly retryAfterMs: number | null;
 
   constructor(reason: GitHubErrorReason, message: string, retryAfterMs: number | null = null) {
@@ -54,14 +51,13 @@ function headersFor(accept: string, etag: string | null): Headers {
     "X-GitHub-Api-Version": API_VERSION,
     "User-Agent": USER_AGENT,
   });
-  // Optional: raises GitHub's limits from 60 to 5,000 calls an hour. Read at call time.
+  // Raises GitHub's limit from 60 to 5,000 calls an hour.
   const token = env().GITHUB_TOKEN;
   if (token) headers.set("Authorization", `Bearer ${token}`);
   if (etag) headers.set("If-None-Match", etag);
   return headers;
 }
 
-// Only https://api.github.com, with no credentials or port tricks, is ever fetched.
 function sameOriginUrl(location: string, base: string): string | null {
   try {
     const url = new URL(location, base);
@@ -153,8 +149,8 @@ export type GetOptions<T> = {
   parse: (body: string, truncated: boolean) => T;
 };
 
-// The mapped value, or null when GitHub says it doesn't exist (or, for search, that it can't
-// search that account). Both outcomes are cached.
+// null when GitHub says it doesn't exist (or, for search, can't search that account). Both are
+// cached.
 export async function cachedGet<T>(session: GitHubSession, path: string, options: GetOptions<T>): Promise<T | null> {
   const cached = cacheGet(path, Date.now());
   if (cached && isFresh(cached, Date.now())) return cached.value as T | null;

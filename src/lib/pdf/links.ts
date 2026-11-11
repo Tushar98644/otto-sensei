@@ -1,9 +1,7 @@
 import { toPdfLine } from "./text";
 
-// Text shown on the page, plus a click target when the address is safe to link.
 export type PdfLink = { text: string; href: string | null };
 
-// Cleans one line for the target file: toPdfLine for a PDF, toUnicodeLine for Word.
 export type LineCleaner = (value: string) => string;
 
 const pdfLine: LineCleaner = (value) => toPdfLine(value);
@@ -13,7 +11,7 @@ const SCHEME = /^[a-z][a-z\d+.-]*:/i;
 const BARE_HOST = /^[^\s/@:]+\.[a-z]{2,}(?:[/?#]\S*)?$/i;
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-// Only web links become clickable. Anything else (javascript:, file:) stays plain text.
+// Anything but web links (javascript:, file:) stays plain text.
 function webHref(value: string): string | null {
   const candidate = SCHEME.test(value) ? value : BARE_HOST.test(value) ? `https://${value}` : null;
   if (!candidate) return null;
@@ -25,8 +23,7 @@ function webHref(value: string): string | null {
   }
 }
 
-// "https://www.linkedin.com/in/jane/" reads as "linkedin.com/in/jane": shorter, and it's what a
-// recruiter would type. The click target keeps the full address.
+// Shorter, and what a recruiter would type. The click target keeps the full address.
 function shortUrl(value: string): string {
   return value
     .replace(/^https?:\/\//i, "")

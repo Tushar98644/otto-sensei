@@ -21,9 +21,7 @@ import {
   type ReferralSummary,
 } from "./referrals";
 
-// Server-only. Invite codes, who signed up through whose link, and the bonus a friend's first
-// resume check adds to both accounts' usage rows for their current allowance period (each
-// account's own: a month, or a weekly subscriber's billing week).
+// A friend's first resume check adds a bonus to both accounts' usage rows for their own period.
 
 const MAX_DEVICE_IDS = 10;
 const MINT_ATTEMPTS = 3;
@@ -50,10 +48,8 @@ function rememberDevice(deviceId: string) {
   return sql`(array_append(${without}, ${deviceId}::text))[greatest(cardinality(${without}) - ${sql.raw(String(MAX_DEVICE_IDS - 2))}, 1):]`;
 }
 
-/**
- * The account's invite code, made on first use, and `deviceId` remembered as one of the owner's
- * browsers. Null when the account no longer exists.
- */
+// Made on first use; `deviceId` is remembered as one of the owner's browsers. null when the account
+// is gone.
 export async function ensureReferralCode(
   userId: string,
   deviceId: string | null,
@@ -124,10 +120,8 @@ async function addBonus(tx: Tx, userId: string, period: string): Promise<void> {
     });
 }
 
-/**
- * Pays out a pending invite: the friend always, the inviter while under the cap. Call with the
- * inviter's row locked, so two friends checking at once can't both take the last paid place.
- */
+// The friend always, the inviter while under the cap. Call with the inviter's row locked, so two
+// friends checking at once can't both take the last paid place.
 async function reward(tx: Tx, row: Pick<ReferralRow, "referredId" | "referrerId">, now: number) {
   const [paid] = await tx
     .select({ n: count() })
@@ -199,17 +193,12 @@ async function blockReason(
 export type ClaimInput = {
   userId: string;
   code: string;
-  // The otto_did device cookie of the browser that signed up.
   deviceId: string | null;
-  // A resume check already ran for this person (before or after signing up).
   checked: boolean;
 };
 
-/**
- * Links a new account to the inviter behind `code`, at most once per account. A friend on the
- * inviter's own mailbox or browser is recorded as blocked and earns nobody anything. When the
- * friend has already run a check, both bonuses are added in the same transaction.
- */
+// At most once per account. A friend on the inviter's own mailbox or browser is recorded as blocked
+// and earns nobody anything.
 export async function claimReferral(
   { userId, code, deviceId, checked }: ClaimInput,
   now = Date.now(),
@@ -266,7 +255,7 @@ export async function claimReferral(
   });
 }
 
-/** The invite card: link, counts, and this period's extras. Null when the account is gone. */
+/** null when the account is gone. */
 export async function referralSummary(
   userId: string,
   deviceId: string | null,

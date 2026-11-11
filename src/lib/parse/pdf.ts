@@ -44,10 +44,8 @@ class ParseTimeout extends Error {
   }
 }
 
-/**
- * Reads text with positions, rebuilds lines in naive full-width reading order (so two columns come
- * out interleaved, as many applicant tracking systems read them), and collects layout signals.
- */
+// Lines in naive full-width reading order, so two columns come out interleaved as many ATSs read
+// them.
 export async function extractPdf(
   data: Uint8Array,
   options: ExtractPdfOptions = {},
@@ -55,8 +53,8 @@ export async function extractPdf(
   const maxPages = options.maxPages ?? UPLOAD_LIMITS.maxPages;
   const deadline = Date.now() + (options.timeoutMs ?? DEFAULT_TIMEOUT_MS);
   const pdfjs = await getResolvedPDFJS();
-  // Created directly instead of through getDocumentProxy() so we hold the loading task and can
-  // destroy it even when loading fails. pdf.js may detach the buffer it gets, so it gets a copy.
+  // Not getDocumentProxy(), so we hold the task and can destroy it even when loading fails. pdf.js
+  // may detach the buffer, so it gets a copy.
   const task = pdfjs.getDocument({
     data: data.slice(),
     useSystemFonts: true,
@@ -197,8 +195,7 @@ function buildExtraction(pages: PageLayout[]): Extraction {
   };
 }
 
-// Link annotations that open a web page, each with the words under it. Mail and phone links, and
-// in-document jumps, add nothing the text doesn't already say.
+// Mail, phone and in-document links add nothing the text doesn't say.
 function webLinks(
   annotations: readonly unknown[],
   items: readonly LayoutItem[],
@@ -249,8 +246,7 @@ function linksUnder(
   return links;
 }
 
-// Most of the word sits inside the link's box: a link drawn over "GitHub" doesn't pick up the
-// neighbouring "| LinkedIn" that shares its line.
+// So a link over "GitHub" doesn't pick up the neighbouring "| LinkedIn" on its line.
 function underLink(
   item: LayoutItem,
   box: { left: number; right: number; top: number; bottom: number },
@@ -287,7 +283,7 @@ function toParseError(error: unknown): ParseError {
   );
 }
 
-// The loading task is destroyed in a finally block, which also stops pdf.js work left running here.
+// The finally block that destroys the loading task also stops leftover pdf.js work.
 function withDeadline<T>(promise: Promise<T>, deadline: number): Promise<T> {
   const remaining = deadline - Date.now();
   if (remaining <= 0) return Promise.reject(new ParseTimeout());

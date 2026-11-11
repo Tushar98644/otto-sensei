@@ -1,9 +1,7 @@
 import { createHmac } from "node:crypto";
 import { vi } from "vitest";
 
-// Tests only. A stand-in for Creem's API (the official SDK calls global fetch, so swapping fetch is
-// enough) and for its webhook signatures. Responses carry just the fields the SDK requires, in
-// the shapes docs.creem.io shows.
+// Tests only. A fake Creem API (the SDK calls global fetch) and webhook signatures.
 
 const AT = "2026-11-08T10:00:00.000Z";
 
@@ -15,10 +13,7 @@ export type FakeCreem = {
   customers: FakeCustomer[];
   subscriptions: FakeSubscription[];
   calls: FakeCall[];
-  /**
-   * Answers this "METHOD /path" with the status `times` times, e.g. "POST /v1/subscriptions/sub_1/cancel",
-   * with Creem's machine `code` in the body when given (e.g. "subscription_not_active").
-   */
+  /** e.g. ("POST /v1/subscriptions/sub_1/cancel", 400, 1, "subscription_not_active"). */
   failNext: (route: string, status: number, times?: number, code?: string) => void;
   /** Every call to this "METHOD /path" (or its path prefix). */
   callsTo: (route: string) => FakeCall[];

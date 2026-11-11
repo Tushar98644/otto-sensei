@@ -5,8 +5,7 @@ import { users } from "@/db/schema";
 import { addMonths, carryUsageOver, type PeriodAccount } from "@/lib/usage";
 import { recordTrialHistory } from "./trial";
 
-// Server-only, development only: billingMode() never returns "mock" in production. Flips the plan
-// locally so the upgrade, trial and cancel flows can be clicked through without a payment provider.
+// Development only: billingMode() never returns "mock" in production.
 
 export const MOCK_STATUS = {
   active: "mock_active",
@@ -18,11 +17,8 @@ const DAY_MS = 86_400_000;
 
 export type MockSubscribeOptions = { trial?: boolean; now?: number };
 
-// Also how a plan change (Pro to Max and back) works in mock mode. A monthly or yearly plan gets a
-// billing period starting now, like a Creem checkout, and a change keeps a period that is still
-// running, so the allowance carries on as it does with Creem. Weekly plans have no renewal date, so
-// their allowance counts per ISO week (src/lib/usage.ts). A trial ends PRO_TRIAL.days from now and,
-// like Creem's, is only written down once.
+// Mirrors Creem: monthly and yearly plans get a period starting now, a change keeps a running
+// period, weekly plans count per ISO week, and a trial is written down once.
 export async function mockSubscribe(
   userId: string,
   plan: PaidPlanId = "pro",

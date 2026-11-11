@@ -11,8 +11,7 @@ import { finalizeTailor, type RawTailor } from "./tailor-finalize";
 import { clip, oneLine, tag } from "./text";
 import { AIError, type TailorInput, type TailorResult } from "./types";
 
-// resumeToText() adds headings and separators to what was imported, so a resume that passed the
-// import cap can render a little longer. The cap only has to bound the cost of one call.
+// resumeToText() adds headings, so an imported resume can render a little past the import cap.
 const MAX_RESUME_CHARS = Math.round(TEXT_LIMITS.resumeChars * 1.5);
 const JOB_FIELD_CHARS = 200;
 
@@ -36,8 +35,7 @@ const TailorOutputSchema = z.object({
 
 type TailorOutput = z.infer<typeof TailorOutputSchema>;
 
-// Claude sees short aliases ("e1", "b4") instead of 36-character UUIDs: fewer tokens each way,
-// and much less room to mistype an id it has to copy back.
+// Short aliases ("e1", "b4") instead of UUIDs: fewer tokens, and less room to mistype a copied id.
 type EntryRef = {
   alias: string;
   id: string;
@@ -56,7 +54,6 @@ const EMPTY_RAW: RawTailor = {
   notes: [],
 };
 
-// Only entries with two or more written bullets have an order worth asking about.
 function experienceRefs(resume: Resume): EntryRef[] {
   const refs: EntryRef[] = [];
   let bulletCount = 0;
@@ -84,8 +81,7 @@ function snippet(text: string): string {
   return words.length > SNIPPET_WORDS ? `${words.slice(0, SNIPPET_WORDS).join(" ")}…` : words.join(" ");
 }
 
-// The model sometimes names a line by its alias ("your b2 bullet is vague"). People never see the
-// aliases, so each one becomes the words it stands for: a bullet's opening words, an entry's role.
+// People never see aliases ("your b2 bullet"), so each becomes a bullet's opening words or a role.
 export function withoutAliases(note: string, refs: readonly EntryRef[]): string {
   const names = new Map<string, string>();
   for (const ref of refs) {
@@ -116,8 +112,7 @@ function tailorMessage(resumeText: string, input: TailorInput, refs: EntryRef[])
   ].join("\n\n");
 }
 
-// Maps aliases back to real ids. An order naming an unknown alias is dropped whole; finalizeTailor
-// then checks that each one is an exact permutation of its entry.
+// An order naming an unknown alias is dropped whole; finalizeTailor checks each is a permutation.
 function resolveOrders(
   orders: TailorOutput["bulletOrder"],
   refs: EntryRef[],
@@ -140,16 +135,8 @@ function resolveOrders(
   return resolved;
 }
 
-/**
- * Compares a resume with a job post. The model reads the post into requirements (must/nice, how it
- * knows, names to search for, a quote from the resume for the rest), proposes bullet order per
- * experience entry, a summary from existing facts only, and tips. Code then normalizes the
- * requirements (a guess is never a must-have), drops quotes that aren't in the resume word for
- * word, recomputes keyword matches with findTerm(), puts lines that prove a must-have first, and
- * drops invalid orderings. Without an API key returns a deterministic demo result (requirements
- * from a frequency count of the job post).
- * Throws AIError on refusal, rate limit, outage, too-long input, or schema-invalid output.
- */
+// Code normalizes requirements (a guess is never a must-have), drops quotes not in the resume word
+// for word, recomputes keyword matches and drops invalid orders. No API key: a demo result.
 export async function tailorResume(resume: Resume, input: TailorInput): Promise<TailorResult> {
   const job: TailorInput = {
     jobText: input.jobText.trim(),
@@ -166,9 +153,7 @@ export async function tailorResume(resume: Resume, input: TailorInput): Promise<
   if (!job.jobText) return finalizeTailor(EMPTY_RAW, resume, job);
   if (!aiEnabled()) return finalizeTailor(demoTailor(resume, job.jobText), resume, job);
 
-  // The model reads a copy with placeholders for the person's name, contact details and links. The
-  // copy keeps every id, so its aliases are the real resume's. The job post is the employer's
-  // text and goes as it is.
+  // The redacted copy keeps every id, so its aliases are the real resume's. The post goes as it is.
   const redactor = redactorFor(resume);
   const shown = redactResume(resume, redactor);
   const refs = experienceRefs(resume);

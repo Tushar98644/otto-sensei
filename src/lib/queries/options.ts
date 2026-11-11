@@ -7,8 +7,7 @@ import { NO_CHOICE, type LookingForChoice } from "@/lib/job-feed/types";
 import type { ReminderSettings } from "@/lib/notifications/types";
 import { queryKeys } from "./keys";
 
-// What each signed-in page reads, and for how long a copy counts as fresh: a fresh copy is shown
-// without asking again, an older one is shown at once while a new one is fetched quietly.
+// A fresh copy is shown without asking again; an older one shows at once while a new one loads.
 
 const MINUTE = 60_000;
 
@@ -16,7 +15,6 @@ export type ReminderSettingsData = ReminderSettings & { emailAvailable: boolean;
 
 export type WorkProfileData = {
   profile: WorkProfile;
-  // null until the profile is first saved.
   updatedAt: number | null;
   lookingFor: LookingForChoice;
 };
@@ -24,7 +22,6 @@ export type WorkProfileData = {
 const MAX_APPLICATION_PAGES =
   Math.ceil(APPLICATION_LIMITS.perUser / APPLICATION_LIMITS.pageSize) + 1;
 
-/** Every page of the account's applications, newest applied first. */
 export async function fetchAllApplications(): Promise<Application[]> {
   const items: Application[] = [];
   let cursor: string | null = null;

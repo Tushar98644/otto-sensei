@@ -1,17 +1,14 @@
 import { DrizzleQueryError } from "drizzle-orm";
 import { reportError } from "@/lib/observability/report";
 
-// Server-side structured logging. One JSON object per line in production so log drains can parse
-// and filter it; readable lines in development.
-//
-// Never pass resume text, job posts, full emails, codes or tokens in `fields`. Use maskEmail().
+// One JSON object per line in production so log drains can filter it.
+// Never pass resume text, job posts, full emails, codes or tokens in `fields`; use maskEmail().
 
 type Level = "info" | "warn" | "error";
 type Fields = Record<string, string | number | boolean | null | undefined>;
 
-// Drizzle's query errors list every bound parameter in their message: an email, an IP address, a
-// whole resume. The driver error they wrap says what went wrong without them. Every logged error
-// goes through this, so callers can pass database errors as they are.
+// Drizzle's query errors list every bound parameter (emails, IPs, whole resumes); the wrapped
+// driver error says what went wrong without them.
 function loggableError(error: unknown): unknown {
   if (!(error instanceof DrizzleQueryError)) return error;
   return error.cause ?? new Error("Database query failed");

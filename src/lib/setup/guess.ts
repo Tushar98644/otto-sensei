@@ -1,14 +1,11 @@
 import { COUNTRY_CODES, findPlaces, isCountryCode, rightsRegionOf } from "@/lib/eligibility/places";
 import type { WorkRegion, WorkRight, WorkRights } from "@/lib/eligibility/profile";
 
-// Client-safe and pure. Smart defaults for the first-login step (DESIGN.md, "First login and
-// setup"): where the person lives, read from their own resume first and this device's time zone
-// second, and the work right that usually comes with living there. Every guess is shown and
-// confirmed before anything is saved.
+// Every guess is shown and confirmed before anything is saved.
 
 export type CountryGuess = { code: string; from: "resume" | "device" };
 
-/** The first country a location line names: "Lisbon, Portugal" -> "PT", "Austin, TX" -> "US". */
+/** "Lisbon, Portugal" -> "PT", "Austin, TX" -> "US". */
 export function countryInLocation(location: string): string | null {
   for (const found of findPlaces(location)) {
     if (found.place.kind === "country") return found.place.code;
@@ -16,8 +13,8 @@ export function countryInLocation(location: string): string | null {
   return null;
 }
 
-// Intl.Locale's time zones per region (Chrome, Safari, Node), turned around. Firefox has neither
-// spelling, so the map comes back empty there and the zone's city is read instead.
+// Firefox has neither spelling, so the map comes back empty there and the zone's city is read
+// instead.
 type LocaleWithZones = Intl.Locale & { getTimeZones?: () => string[]; timeZones?: string[] };
 
 let zoneCountries: Map<string, string | null> | null = null;
@@ -42,8 +39,7 @@ function zoneMap(): Map<string, string | null> {
   return map;
 }
 
-// The runtime's own name for a zone: "Asia/Kolkata" and "Asia/Calcutta" are the same place, and
-// each engine lists only one of them.
+// "Asia/Kolkata" and "Asia/Calcutta" are the same place, and each engine lists only one of them.
 function canonicalZone(zone: string): string | null {
   try {
     return new Intl.DateTimeFormat("en-US", { timeZone: zone }).resolvedOptions().timeZone;
@@ -52,7 +48,7 @@ function canonicalZone(zone: string): string | null {
   }
 }
 
-/** The country a time zone belongs to: "Europe/Berlin" -> "DE". Null for "UTC" and shared zones. */
+/** Null for "UTC" and shared zones. */
 export function countryOfTimeZone(zone: string): string | null {
   if (!zone) return null;
   const canonical = canonicalZone(zone);
@@ -66,10 +62,7 @@ export function countryOfTimeZone(zone: string): string | null {
   return city ? countryInLocation(city) : null;
 }
 
-/**
- * Where the person most likely lives: the newest resume that names a country, else this device's
- * time zone. `locations` are the person's own resumes' location lines, newest first.
- */
+// The newest resume that names a country, else this device's time zone.
 export function guessCountry({
   locations,
   timeZone,
@@ -85,16 +78,15 @@ export function guessCountry({
   return code ? { code, from: "device" } : null;
 }
 
-/** The work-rights region living in a country is usually enough for: "PT" -> "eu", "NO" -> null. */
+/** "PT" -> "eu", "NO" -> null. */
 export function homeRegion(country: string): WorkRegion | null {
   return isCountryCode(country) ? rightsRegionOf({ kind: "country", code: country }) : null;
 }
 
-// The rights as the step shows them, and which region the step set by itself (so changing the
-// country can take that guess back, but never an answer the person gave).
+// `auto`: the region the step set itself, so a country change can take that guess back, never an
+// answer.
 export type RightsDraft = { rights: WorkRights; auto: WorkRegion | null };
 
-/** After a country change: the old guess goes back to unanswered, the new home region to "Yes". */
 export function moveHomeRegion(draft: RightsDraft, country: string): RightsDraft {
   const rights: WorkRights = { ...draft.rights };
   if (draft.auto && rights[draft.auto] === "authorized") rights[draft.auto] = null;
@@ -106,7 +98,6 @@ export function moveHomeRegion(draft: RightsDraft, country: string): RightsDraft
   return { rights, auto: null };
 }
 
-/** The person's own answer for a region; it is never guessed over again. */
 export function answerRegion(
   draft: RightsDraft,
   region: WorkRegion,

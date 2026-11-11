@@ -7,14 +7,11 @@ import type { SessionUser } from "@/lib/auth/types";
 import { log } from "@/lib/log";
 import { AI_TOKENS, monthKey, publicPeriod, resolvePeriod } from "@/lib/usage";
 
-// Server-only. Each paid account's AI budget in tokens (aiTokenBudget), an abuse guard on top of the
-// feature limits. It counts in the same period row as the features, so it resets, carries over and
-// ends a trial the same way. It is checked before a call takes a unit and charged afterwards with
-// what the provider billed, so a call that starts under budget may end over it.
+// An abuse guard on top of the feature limits, counted in the same period row so it resets and
+// carries over the same way. Checked before a call, charged after, so a call may end over budget.
 
 export type BudgetCheck = { allowed: boolean; period: UsagePeriod };
 
-/** Whether the account may start an AI call. Free has no budget to check (and no AI to start). */
 export async function checkAiBudget(user: SessionUser, now = Date.now()): Promise<BudgetCheck> {
   const db = await getDb();
   const period = await resolvePeriod(db, user, now, { quiet: true });
@@ -30,10 +27,8 @@ export async function checkAiBudget(user: SessionUser, now = Date.now()): Promis
   return { allowed: (row?.count ?? 0) < budget, period: publicPeriod(period) };
 }
 
-/**
- * Adds billed tokens to the period that holds `now`. Pass the time the call started, as for
- * refundUsage(), so a call that ends just after a reset is charged where it began.
- */
+// `now` is when the call started, as for refundUsage(), so a call ending just after a reset is
+// charged where it began.
 export async function recordAiTokens(
   user: SessionUser,
   tokens: number,
@@ -60,10 +55,8 @@ async function addTokens(db: Db, userId: string, key: string, tokens: number): P
     });
 }
 
-/**
- * Runs an account's AI work and charges every token it was billed, failed calls included. A charge
- * that can't be saved is logged, never turned into the request's error.
- */
+// Charges every billed token, failed calls included. A charge that can't be saved is logged, never
+// turned into the request's error.
 export function spendAiTokens<T>(
   user: SessionUser,
   now: number,

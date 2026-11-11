@@ -1,7 +1,4 @@
-// Test-only. List answers in the shapes the five sources returned on 2026-11-08 (Vercel on
-// Greenhouse, Spotify on Lever, Linear on Ashby, the Himalayas and Remote OK feeds), and the three
-// added on 2026-11-10 (Blueground on Workable, bunq on Recruitee, 1KOMMA5° on Personio, the Jobicy
-// feed), cut down to a few jobs with shortened text.
+// Test-only. Source answers as returned on 2026-11-08/10, cut down to a few jobs.
 
 const ESCAPED =
   "&lt;div class=&quot;content-intro&quot;&gt;&lt;h2&gt;About Vercel:&lt;/h2&gt;&lt;p&gt;Vercel gives developers the tools to build and scale the web.&lt;/p&gt;&lt;/div&gt;" +

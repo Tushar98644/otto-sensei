@@ -2,8 +2,6 @@ import { cookies } from "next/headers";
 import type { z } from "zod";
 import { isProduction } from "@/lib/env";
 
-// Server-only request helpers for route handlers.
-
 const MAX_JSON_BYTES = 512 * 1024;
 const DEVICE_COOKIE = "otto_did";
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -45,8 +43,7 @@ export async function readJson<S extends z.ZodType>(
   return { ok: true, data: parsed.data };
 }
 
-// Anonymous device id for per-device limits on imports and checks. Only usable in route handlers
-// and server actions, where cookies can be set.
+// For per-device limits. Only in route handlers and server actions, where cookies can be set.
 export async function getDeviceId(): Promise<string> {
   const store = await cookies();
   const existing = store.get(DEVICE_COOKIE)?.value;

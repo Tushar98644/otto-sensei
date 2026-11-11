@@ -5,9 +5,8 @@ import type { LookupFunction } from "node:net";
 import { pipeline, type Readable } from "node:stream";
 import { createBrotliDecompress, createGunzip, createInflate } from "node:zlib";
 
-// Server-only. One HTTPS GET that connects only to addresses already checked by the caller.
-// Pinning matters: fetch() would resolve the host again, and a DNS server that answers with a
-// public address first and a private one next (DNS rebinding) would get past the check.
+// Connects only to addresses the caller checked: fetch() would resolve the host again, and a DNS
+// server could answer public then private (DNS rebinding).
 
 export type ResolvedAddress = { address: string; family: 4 | 6 };
 
@@ -21,7 +20,7 @@ export type PinnedRequest = {
 export type PinnedResponse = {
   status: number;
   header: (name: string) => string | null;
-  // Decompressed bytes. Ends with an error if the request is aborted mid-body.
+  // Decompressed. Errors if the request is aborted mid-body.
   body: AsyncIterable<Uint8Array>;
   // Drops the connection without reading the body (redirects and errors).
   discard: () => void;

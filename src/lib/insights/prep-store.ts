@@ -10,14 +10,12 @@ import {
   type PrepTarget,
 } from "./prep";
 
-// Server-only. The interview prep pack kept on an application row. Every query is filtered by
-// user_id, so a guessed id never reads or writes another account's row. Saving a pack doesn't move
-// updated_at: the pack isn't an edit to the application, and the list's "newer copy wins" rule
-// shouldn't see it as one.
+// Every query is filtered by user_id. Saving a pack doesn't move updated_at: it isn't an edit to
+// the application, and the list's "newer copy wins" rule shouldn't see it as one.
 
 export type PrepRecord = { target: PrepTarget; prep: InterviewPrep | null };
 
-/** The application's job details and its saved pack. Null when the user has no such row. */
+/** Null when the user has no such row. */
 export async function getPrep(userId: string, applicationId: string): Promise<PrepRecord | null> {
   const db = await getDb();
   const [row] = await db
@@ -38,7 +36,7 @@ export async function getPrep(userId: string, applicationId: string): Promise<Pr
   return { target, prep: readPrep(prep) };
 }
 
-/** Stores the pack, replacing any older one. False when the user has no such row. */
+/** False when the user has no such row. */
 export async function savePrep(
   userId: string,
   applicationId: string,
@@ -55,15 +53,14 @@ export async function savePrep(
   return rows.length > 0;
 }
 
-// Read inside the database, so listing packs never pulls whole packs across. Packs are validated
-// on write; the type checks only keep one hand-edited row from failing the whole list.
+// Read inside the database so listing never pulls whole packs. The type checks keep one hand-edited
+// row from failing the whole list.
 const packMadeAt = sql<number>`case when jsonb_typeof(${applications.prep}->'createdAt') = 'number' then (${applications.prep}->>'createdAt')::bigint else ${applications.createdAt} end`;
 const lengthOf = (key: "questions" | "stories") => {
   const list = sql`${applications.prep}->${sql.raw(`'${key}'`)}`;
   return sql<number>`case when jsonb_typeof(${list}) = 'array' then jsonb_array_length(${list}) else 0 end`.mapWith(Number);
 };
 
-/** Every application with a saved pack, newest pack first, as counts. */
 export async function listPreps(userId: string, limit = PREP_LIST_LIMIT): Promise<PrepSummary[]> {
   const db = await getDb();
   return db

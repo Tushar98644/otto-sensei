@@ -11,16 +11,14 @@ import { ResumeSchema } from "@/lib/resume/validation";
 import { publicResume, shareSnapshot } from "./snapshot";
 import { SHARE_LIMITS, SHARE_SLUG, type SharedLink } from "./types";
 
-// Server-only. Share links: written by their owner through /api/share, read by slug on /s/<slug>.
 // Every owner query is filtered by user_id, so nobody can see or change another account's links.
 
 const SLUG_ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
-// The largest multiple of 62 that fits a byte; bytes above it are thrown away so every letter is
-// equally likely.
+// Bytes above the largest multiple of 62 in a byte are thrown away, so every letter is equally
+// likely.
 const SLUG_BYTE_CEILING = 248;
 
-// 14 of 62 characters is about 83 random bits: guessing a live link isn't a plan, even before the
-// page's per-address limit.
+// 14 of 62 characters is ~83 random bits: guessing a live link isn't a plan.
 export function newSlug(length: number = SHARE_LIMITS.slugLength): string {
   let slug = "";
   while (slug.length < length) {
@@ -35,16 +33,14 @@ export function newSlug(length: number = SHARE_LIMITS.slugLength): string {
 export const VIEW_LIMITS = {
   // One reader, one view per window: refreshing or coming back a minute later adds nothing.
   sameReaderWindowMs: 30 * 60 * 1000,
-  // Past this many counted views in an hour the counter stops moving until the next hour, so a
-  // flood can't run it up.
+  // Past this the counter stops until the next hour, so a flood can't run it up.
   perLinkPerHour: 300,
-  // The column never grows past this.
   max: 1_000_000,
 } as const;
 
 const HOUR_MS = 60 * 60 * 1000;
 
-// Selected instead of the whole row: the list needs two fields of the snapshot, not the resume.
+// Not the whole row: the list needs two fields of the snapshot.
 const linkColumns = {
   id: shares.id,
   resumeId: shares.resumeId,
@@ -93,7 +89,6 @@ function toLink(row: LinkRow): SharedLink {
 
 const live = (userId: string) => and(eq(shares.userId, userId), isNull(shares.revokedAt));
 
-/** The account's live links, newest first. */
 export async function listShares(userId: string): Promise<SharedLink[]> {
   const db = await getDb();
   const rows = await db
@@ -109,16 +104,11 @@ export type SaveShareInput = { resume: Resume; showContact: boolean; allowIndexi
 
 export type SaveShareResult =
   | { status: "saved"; link: SharedLink; created: boolean }
-  // SHARE_LIMITS.live links already, none of them for this resume.
   | { status: "limit_reached" }
-  // The account was deleted after the request was signed in, so nothing may be written.
   | { status: "no_user" };
 
-/**
- * Gives the resume a link showing this version: a new one, or its live link updated in place, so
- * anyone who already has the link sees the new version. Runs under the account's row lock, so two
- * quick clicks can't make two links for one resume or go past the cap.
- */
+// A live link is updated in place, so anyone who has it sees the new version. Under the account's
+// row lock, so two quick clicks can't make two links for one resume.
 export async function saveShare(
   userId: string,
   { resume, showContact, allowIndexing }: SaveShareInput,
@@ -168,7 +158,7 @@ export async function saveShare(
 
 export type ShareOptions = { showContact?: boolean; allowIndexing?: boolean };
 
-/** Changes what a live link shows. Null when the account has no live link with that id. */
+/** null when the account has no live link with that id. */
 export async function updateShareOptions(
   userId: string,
   id: string,
@@ -184,11 +174,8 @@ export async function updateShareOptions(
   return row ? toLink(row) : null;
 }
 
-/**
- * Turns a link off for good: the page answers "not found" from now on and the copy of the resume
- * is deleted. The row stays (views and dates, no resume) among the newest few turned-off links.
- * False when the account has no live link with that id.
- */
+// The page answers "not found" and the resume copy is deleted; the row stays (views and dates)
+// among the newest few turned-off links.
 export async function revokeShare(userId: string, id: string, now = Date.now()): Promise<boolean> {
   const db = await getDb();
   return db.transaction(async (tx) => {
@@ -213,12 +200,11 @@ export async function revokeShare(userId: string, id: string, now = Date.now()):
 export type PublicShare = {
   id: string;
   ownerId: string;
-  // Ready to show: email and phone already gone unless the owner turned them on.
+  // Email and phone already gone unless the owner turned them on.
   resume: Resume;
   allowIndexing: boolean;
 };
 
-/** The live link with this slug, as a reader may see it, or null. */
 export async function findPublicShare(slug: string): Promise<PublicShare | null> {
   if (!SHARE_SLUG.test(slug)) return null;
   const db = await getDb();
@@ -244,22 +230,19 @@ export async function findPublicShare(slug: string): Promise<PublicShare | null>
   return {
     id: row.id,
     ownerId: row.ownerId,
-    // The reader's PDF follows the owner's plan, like the owner's own download: a Pro format
-    // shared before a paid plan ended comes out in Classic.
+    // The reader's PDF follows the owner's plan: a Pro format shared before a paid plan ended
+    // prints Classic.
     resume: publicResume(forPlan(parsed.data, row.ownerPlan), row.showContact),
     allowIndexing: row.allowIndexing,
   };
 }
 
-/** A stable stand-in for one reader (network plus browser) that keeps neither in the clear. */
+/** Stands for one reader (network plus browser) while keeping neither in the clear. */
 export function readerKey(ip: string, userAgent: string): string {
   return createHash("sha256").update(`${ip}\n${userAgent}`).digest("base64url").slice(0, 22);
 }
 
-/**
- * Counts one view of a live link, unless this reader was already counted in the last half hour or
- * the link has had its fill this hour. True when the counter moved.
- */
+// Unless this reader was counted in the last half hour or the link had its fill this hour.
 export async function recordView(
   shareId: string,
   reader: string,

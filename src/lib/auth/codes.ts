@@ -10,10 +10,8 @@ import { normalizeEmail } from "./policy";
 import { authErrorFields } from "./supabase-errors";
 import type { SessionUser } from "./types";
 
-// Server-only. Email one-time codes through Supabase Auth: it generates, emails (over our Resend
-// SMTP) and checks the 6-digit code, and sets the session cookies. We add per-address and per-IP
-// limits on top, so nobody can use the sign-in form to mail-bomb an inbox or drain the SMTP quota.
-// In development the same functions use ./dev instead: the code comes back as devCode.
+// Supabase generates, emails (via our Resend SMTP) and checks the code. Our per-address and per-IP
+// limits stop the form being used to mail-bomb an inbox or drain the SMTP quota. Dev uses ./dev.
 
 export { normalizeEmail } from "./policy";
 
@@ -23,12 +21,10 @@ export type AuthErrorCode =
   | "rate_limited"
   // Supabase isn't configured, or its email sign-in is switched off.
   | "not_configured"
-  // requestLoginCode only: Supabase or its SMTP provider failed to send.
   | "email_send_failed";
 
 export class AuthError extends Error {
   readonly code: AuthErrorCode;
-  // Set for "rate_limited" so the route can send Retry-After.
   readonly retryAfterMs?: number;
 
   constructor(code: AuthErrorCode, message: string, retryAfterMs?: number) {
@@ -73,19 +69,13 @@ function sendFailure(error: SupabaseAuthError): AuthError {
     return new AuthError("invalid_email", AUTH_MESSAGES.invalid_email);
   }
   // Includes email_address_not_authorized: Supabase's built-in mailer only reaches the project's
-  // team, which means custom SMTP (Resend) isn't set up yet.
+  // team, so custom SMTP isn't set up yet.
   log.warn("auth.code_send_failed", authErrorFields(error));
   return new AuthError("email_send_failed", AUTH_MESSAGES.email_send_failed);
 }
 
-/**
- * Rate-limits by email (EMAIL_LIMITS) and IP (IP_LIMITS), then asks Supabase to email a code,
- * creating the auth user on first use. Failed sends still count against our limits. Throws
- * AuthError("rate_limited" | "not_configured" | "invalid_email" | "email_send_failed"). Returns
- * { devCode } only in development's dev sign-in, where no email is sent.
- *
- * Never looks the address up, so the response is the same with or without an account.
- */
+// Failed sends still count against our limits. Never looks the address up, so the response is the
+// same with or without an account. Returns { devCode } only with dev sign-in.
 export async function requestLoginCode(
   email: string,
   ip: string,
@@ -117,11 +107,7 @@ export async function requestLoginCode(
   return {};
 }
 
-/**
- * Checks the code with Supabase, which sets the session cookies on success, then returns our user
- * (created free on first sign-in). Throws AuthError("invalid_code" | "rate_limited" |
- * "not_configured"); anything else (Supabase down) is rethrown for a 500.
- */
+// Supabase sets the session cookies on success. Anything but a 4xx (Supabase down) is rethrown.
 export async function verifyLoginCode(email: string, code: string, now = Date.now()): Promise<SessionUser> {
   const address = normalizeEmail(email);
   if (devAuthActive()) {

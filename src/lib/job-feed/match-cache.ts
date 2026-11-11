@@ -4,11 +4,7 @@ import type { Db } from "@/db/client";
 import { matchCache } from "@/db/schema";
 import { log } from "@/lib/log";
 
-// Server-only. One page of Matches kept for the day (match_cache), so a repeat visit, a page
-// change back or a reload costs one lookup instead of a full ranking. The key holds everything
-// the page depends on, so nothing has to be invalidated by hand: a new ingest run, a new day, an
-// edited resume, "Looking for", the work profile or the plan each make a new key, and the
-// cleanup cron deletes rows older than a day.
+// Kept for the day. The key holds every input, so nothing is invalidated by hand.
 
 const DAY_MS = 24 * 60 * 60 * 1_000;
 
@@ -18,7 +14,6 @@ export type CacheParts = {
   now: number;
   plan: "free" | "pro";
   profileHash: string;
-  // Already-resolved inputs: filters, "Looking for", page, and the work profile as ranked.
   inputs: unknown;
 };
 

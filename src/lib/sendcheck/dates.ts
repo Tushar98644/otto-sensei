@@ -1,13 +1,10 @@
-// Resume dates as people write them ("Jan 2021", "2019", "03/2020", "Present", "Expected May
-// 2027"), read into month numbers. A year alone could be any of its 12 months, so every date is a
-// span from its earliest to its latest possible month, and each rule uses the reading that gives
-// the person the benefit of the doubt.
+// A year alone could be any of its 12 months, so every date is a span of possible months, and each
+// rule takes the reading that gives the person the benefit of the doubt.
 
 export type MonthSpan = {
   // Months since year 0: year * 12 + month (0 = January).
   earliest: number;
   latest: number;
-  // "Expected", "anticipated": a date that is meant to be in the future.
   expected: boolean;
 };
 
@@ -40,8 +37,7 @@ const MONTHS: Readonly<Record<string, number>> = {
   december: 11,
 };
 
-// Northern-hemisphere school terms, the usual meaning on a resume. Winter straddles two years, so
-// it reads as the whole year.
+// Northern-hemisphere school terms. Winter straddles two years, so it reads as the whole year.
 const SEASONS: Readonly<Record<string, readonly [number, number]>> = {
   spring: [2, 4],
   summer: [5, 7],
@@ -80,7 +76,6 @@ export function monthLabel(index: number): string {
   return `${MONTH_NAMES[index % 12]} ${Math.floor(index / 12)}`;
 }
 
-/** "Mar 2021", or "2021" for a date that could be any month of the year. */
 export function spanLabel(date: MonthSpan): string {
   if (date.earliest % 12 === 0 && date.latest === date.earliest + 11) {
     return String(Math.floor(date.earliest / 12));
@@ -98,7 +93,6 @@ function span(y: number, from: number, to: number, expected: boolean): MonthSpan
   return { earliest: monthIndex(y, from), latest: monthIndex(y, to), expected };
 }
 
-/** One date, or null when it isn't one we can read for sure. */
 export function parseDate(raw: string): ParsedDate {
   let text = raw.trim().replace(/\s+/g, " ").replace(/[()]/g, "");
   if (!text) return null;
@@ -159,10 +153,7 @@ export function parseDate(raw: string): ParsedDate {
 
 const RANGE_SPLIT = /\s+(?:-|–|—|to|until|till)\s+|\s*[–—]\s*/i;
 
-/**
- * A job's start and end. Imports sometimes put the whole range in the start field ("Jan 2020 -
- * Mar 2021"), so an empty end splits the start. "Present" ends this month.
- */
+// Imports sometimes put the whole range in the start field, so an empty end splits the start.
 export function parseRange(
   startText: string,
   endText: string,

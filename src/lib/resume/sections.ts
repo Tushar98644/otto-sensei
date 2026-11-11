@@ -1,7 +1,6 @@
 import type { ExtraKind, SectionKey } from "./schema";
 
-// How resume text is structured: section headings, plus the line-level patterns (bullets, dates,
-// contact details) that the heuristic parser and the recruiter checks both rely on. Client-safe.
+// Section headings and line patterns shared by the heuristic parser and the recruiter checks.
 
 export type HeadingMatch = {
   lineIndex: number;
@@ -9,9 +8,7 @@ export type HeadingMatch = {
   text: string;
 };
 
-// "other" is a real heading for a section outside the six standard ones (awards, languages...).
-// It still ends the section above it, so awards don't leak into skills. extraKindOf() says which
-// extra section it becomes, if any.
+// "other" still ends the section above it, so awards don't leak into skills.
 export type HeadingKind = SectionKey | "other";
 
 const PHRASES: Record<HeadingKind, readonly string[]> = {
@@ -129,20 +126,13 @@ for (const [kind, phrases] of Object.entries(PHRASES) as [HeadingKind, readonly 
   }
 }
 
-/**
- * Maps a resume heading line to a canonical section, or null when the line isn't a heading.
- * Covers common variants and casing: "WORK EXPERIENCE", "Professional Experience",
- * "Employment History" -> experience; "Technical Skills", "Core Competencies" -> skills;
- * "Profile", "About Me", "Professional Summary" -> summary; "Licenses & Certifications" ->
- * certifications; "Personal Projects" -> projects; "Academic Background" -> education.
- * Rejects long lines and lines that read like sentences.
- */
+// "WORK EXPERIENCE", "Employment History" -> experience; "Core Competencies" -> skills; and so on.
+// Rejects long lines and lines that read like sentences.
 export function matchHeading(line: string): SectionKey | null {
   const kind = classifyHeading(line);
   return kind === "other" ? null : kind;
 }
 
-// Like matchHeading, but also recognises headings of sections the schema doesn't model.
 export function classifyHeading(line: string): HeadingKind | null {
   if (line.length > 2 * MAX_HEADING_CHARS) return null;
   const segments = line.split("\t").filter((segment) => segment.trim());
@@ -178,8 +168,7 @@ export function classifyHeading(line: string): HeadingKind | null {
   return kind;
 }
 
-// Which extra section a whole-line heading becomes. Volunteer headings count as work history for
-// the recruiter checks (classifyHeading says "experience"), but they get their own section here.
+// Volunteer headings count as work history for the recruiter checks but get their own section here.
 // Contact details, personal details and references are never kept: null.
 const EXTRA_PHRASES: Record<ExtraKind, readonly string[]> = {
   languages: ["languages", "spoken languages", "language skills", "foreign languages", "language proficiency"],
@@ -261,7 +250,6 @@ export function headingsInLine(line: string): { kind: HeadingKind; text: string 
   return found;
 }
 
-// All heading lines in reading order.
 export function findSections(lines: string[]): HeadingMatch[] {
   const matches: HeadingMatch[] = [];
   lines.forEach((line, lineIndex) => {
@@ -276,14 +264,12 @@ export type SectionBlock = {
   // null for the lines before the first heading (name and contact details, usually).
   kind: HeadingKind | null;
   heading: string;
-  // Index in the input of the block's first content line.
   start: number;
   lines: string[];
 };
 
-// Splits lines at whole-line headings. A heading of the same kind right after a block continues it
-// ("EXPERIENCE" on page 1, "EXPERIENCE (CONTINUED)" on page 2). "other" blocks never merge, so
-// "AWARDS" and "LANGUAGES" stay apart, and neither do work and volunteer experience.
+// A same-kind heading right after a block continues it ("EXPERIENCE (CONTINUED)"). "other" blocks
+// never merge, so "AWARDS" and "LANGUAGES" stay apart.
 export function splitIntoSections(lines: readonly string[]): SectionBlock[] {
   const preamble: SectionBlock = { kind: null, heading: "", start: 0, lines: [] };
   const blocks: SectionBlock[] = [preamble];
@@ -328,15 +314,11 @@ function normalizeWords(text: string): string[] {
     .filter(Boolean);
 }
 
-// ---------------------------------------------------------------------------------------------
-// Line patterns shared by the heuristic parser and the recruiter checks.
-
 // Symbol bullets (including the private-use glyphs Word's bullets become in PDF text), dashes and
 // asterisks followed by a space, "1." / "1)" numbering, and Word's "o" sub-bullet.
 const BULLET_MARKER =
   /^(?:[•●○◦▪▫■□◆◇❖►▸▹▶➢➤➣➔→✓✔☑⦿⁃∙·‣\uf0b7\uf0a7\uf076\uf0d8\uf0fc\uf06e\uf06c\uf0a8\uf0d2\uf0e8]\s*|[-–—*]\s+|\(?\d{1,2}[.)]\s+|o\s+(?=\p{Lu}))/u;
 
-// The text after a leading bullet marker, or null when the line doesn't start with one.
 export function bulletText(line: string): string | null {
   const trimmed = line.trim();
   const match = BULLET_MARKER.exec(trimmed);
@@ -391,8 +373,7 @@ export function isPresent(date: string): boolean {
   return PRESENT_ONLY.test(date.trim());
 }
 
-// Quantifiers are bounded (RFC 5321 lengths) so a 40k-character token can't trigger quadratic
-// backtracking.
+// Bounded quantifiers (RFC 5321 lengths) so a 40k-character token can't backtrack for long.
 const EMAIL = /[A-Z0-9._%+-]{1,64}@[A-Z0-9-]{1,63}(?:\.[A-Z0-9-]{1,63}){0,8}\.[A-Z]{2,24}(?![A-Z0-9-])/i;
 
 export function findEmail(text: string): string | null {
@@ -435,10 +416,8 @@ const LINK_LABELS: Record<string, string> = {
 
 export type FoundLink = { label: string; url: string };
 
-/**
- * "portfolio/jane", "bit.ly/Jane-CV": the visible text of a link (whose address a PDF keeps
- * apart), not words. "Designer/Developer" and "iOS/Android" are words.
- */
+// "portfolio/jane", "bit.ly/Jane-CV": link text whose address a PDF keeps apart. "iOS/Android" is
+// words.
 export function isLinkText(value: string): boolean {
   if (/\s/.test(value) || !value.includes("/")) return false;
   return !/\p{Lu}/u.test(value) || /\.[a-z]{2,}\//i.test(value);

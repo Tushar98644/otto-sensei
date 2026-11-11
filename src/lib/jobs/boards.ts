@@ -8,13 +8,10 @@ import { findJsonLdJob } from "./jsonld";
 import { buildPosting, humanizeSlug, toTime } from "./posting";
 import { greenhouseQuestions } from "./questions";
 
-// Server-only. Job boards with public, no-login JSON APIs. Shapes were checked against live
-// postings (GitLab on Greenhouse, Spotify on Lever, Linear on Ashby) in November 2026; Workable,
-// Recruitee and Personio (Blueground, bunq, 1KOMMA5°) on 2026-11-10, read with the daily ingest's
-// own parsers so the two never disagree.
+// Public, no-login JSON APIs, read with the daily ingest's own parsers so the two never disagree.
 
-// Ashby's API returns a company's whole board, every description included: OpenAI's was 14 MB.
-// The cap is higher than for pages because this is one fixed, trusted host.
+// Ashby returns a whole board with every description (OpenAI's was 14 MB). Higher than for pages
+// because this is one fixed, trusted host.
 export const ASHBY_BOARD_MAX_BYTES = 24 * 1024 * 1024;
 
 const GreenhouseJobSchema = z.object({
@@ -27,7 +24,6 @@ const GreenhouseJobSchema = z.object({
   first_published: z.string().nullish(),
   updated_at: z.string().nullish(),
   application_deadline: z.string().nullish(),
-  // The application form, from ?questions=true. Checked item by item in ./questions.ts.
   questions: z.unknown(),
 });
 
@@ -73,7 +69,6 @@ function parseJson(body: string, board: string): unknown {
   }
 }
 
-// The board's own link for the job when it gives a usable one.
 function linkOr(value: string | null | undefined, fallback: URL): string {
   try {
     const url = new URL(value ?? "");
@@ -194,10 +189,8 @@ export async function readLever(
   return leverPosting(parseJson(res.body, "lever"), company, url);
 }
 
-/**
- * Ashby's job page carries the same posting as JSON-LD, with the company's real name, in about
- * 50 KB, so it goes first. The posting API is the fallback for when that page changes.
- */
+// Ashby's job page carries the same posting as JSON-LD with the company's real name in ~50 KB, so
+// it goes first; the posting API is the fallback.
 export async function readAshby(
   org: string,
   id: string,
@@ -217,8 +210,7 @@ export async function readAshby(
   return ashbyPosting(parseJson(res.body, "ashby"), org, id, url);
 }
 
-// Workable's and Personio's documented endpoints list a whole account, every description
-// included; most accounts have a few dozen jobs.
+// Whole-account feeds with every description; most accounts have a few dozen jobs.
 export const ACCOUNT_FEED_MAX_BYTES = 8 * 1024 * 1024;
 
 // Recruitee puts the company in the host name.
@@ -302,7 +294,7 @@ export async function readWorkable(
   return workablePosting(parseJson(res.body, "workable"), account, shortcode, url);
 }
 
-/** `offer` is the offer's id or its slug; the Careers Site API answers to both. */
+/** The Careers Site API answers to the offer's id or its slug. */
 export async function readRecruitee(
   company: string,
   offer: string,
@@ -315,7 +307,6 @@ export async function readRecruitee(
   return recruiteePosting(parseJson(res.body, "recruitee"), company, url);
 }
 
-/** Personio's feed is the only documented way to read a job; it lists the whole account. */
 export async function readPersonio(
   host: string,
   id: string,

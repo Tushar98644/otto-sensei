@@ -4,8 +4,7 @@ import { lockUser } from "@/db/locks";
 import { accountSetup } from "@/db/schema";
 import { NO_SETUP, type AccountSetup, type AccountSetupChange } from "./types";
 
-// Server-only. One account_setup row per account, keyed by user_id, so a user only ever reads or
-// writes their own.
+// Keyed by user_id, so a user only ever reads or writes their own.
 
 type Row = typeof accountSetup.$inferSelect;
 
@@ -17,7 +16,6 @@ function toSetup(row: Row): AccountSetup {
   };
 }
 
-/** The account's setup state; NO_SETUP before anything was answered or hidden. */
 export async function readAccountSetup(userId: string): Promise<AccountSetup> {
   const db = await getDb();
   const [row] = await db
@@ -33,7 +31,6 @@ export type SaveAccountSetupResult =
   // The account was deleted after the request was signed in, so nothing may be written.
   | { status: "no_user" };
 
-/** Applies the change in one upsert, under the account's row lock like the other settings. */
 export async function saveAccountSetup(
   userId: string,
   change: AccountSetupChange,

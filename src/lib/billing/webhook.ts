@@ -15,19 +15,15 @@ import {
 import type { ProductPlan } from "./intervals";
 import { settleReplacement } from "./replacements";
 
-// Server-only. Creem signs every webhook (creem-signature: HMAC-SHA256 of the raw body with the
-// webhook secret, checked by the official SDK) and redelivers anything but a 2xx up to 5 times
-// within a day: 401 for a bad signature, 5xx when a retry could succeed, 200 for everything else.
-// https://docs.creem.io/code/webhooks
+// Creem redelivers anything but a 2xx up to 5 times within a day: 401 for a bad signature, 5xx when
+// a retry could succeed, 200 for everything else. https://docs.creem.io/code/webhooks
 
 export type WebhookResult = { status: number; message: string };
 
 export type WebhookConfig = {
   /** CREEM_WEBHOOK_SECRET, from Developers > Webhooks in the Creem dashboard. */
   secret: string | undefined;
-  /** Every paid product: Pro's and Max's per interval, and Pro monthly with the trial. */
   productIds: readonly string[];
-  /** Which plan a product sells and how often it bills; null for products that aren't ours. */
   planForProduct: (productId: string | null | undefined) => ProductPlan | null;
 };
 
@@ -35,10 +31,8 @@ export type WebhookConfig = {
 const MAX_BODY_CHARS = 256 * 1024;
 const MAX_EVENT_ID_CHARS = 255;
 
-// Every subscription event carries the whole subscription, so they're all handled the same way:
-// the status decides the plan, not the event name. checkout.completed carries the new
-// subscription too, so the plan lands even if it arrives first.
-// https://docs.creem.io/code/webhooks#event-types
+// Every subscription event carries the whole subscription, so the status decides the plan, not the
+// event name; checkout.completed too, so the plan lands even if it arrives first.
 const SUBSCRIPTION_EVENTS: ReadonlySet<string> = new Set([
   "subscription.active",
   "subscription.paid",
@@ -67,7 +61,6 @@ const CustomerRef = z.union([
   z.object({ id: IdSchema, email: z.string().max(320).nullish() }),
 ]);
 
-// Only the fields we use, lenient where Creem leaves them out.
 const SubscriptionSchema = z.object({
   id: IdSchema,
   status: z.string().min(1).max(50),
@@ -189,7 +182,6 @@ function subscriptionOfCheckout(object: unknown): Parsed {
   }
   return readSubscription({
     ...subscription,
-    // The checkout's own product and customer are the full objects (with the email).
     product: product ?? subscription.product,
     customer: customer ?? subscription.customer,
     metadata: subscription.metadata ?? metadata,
@@ -220,8 +212,6 @@ function toState(
     email: customer.email ?? undefined,
     customerId: customer.id,
     subscriptionId: data.id,
-    // Every event carries the current product, so a plan change (Pro to Max, or monthly to
-    // weekly) updates both.
     productPlan: product?.plan ?? null,
     productInterval: product?.interval ?? null,
     status,
@@ -273,8 +263,7 @@ async function report(result: ApplyResult, context: Context & { status: string }
   }
 }
 
-// A published portfolio shows only while its owner is on Pro or Max, so when that changes the
-// cached page has to go now rather than within the hour.
+// A portfolio shows only while its owner is on Pro or Max, so drop the cached page now.
 async function refreshPublishedPage(result: Extract<ApplyResult, { outcome: "applied" }>) {
   if (canPublishPortfolio(result.before.plan) === canPublishPortfolio(result.plan)) return;
   try {

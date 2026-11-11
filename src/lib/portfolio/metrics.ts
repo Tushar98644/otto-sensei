@@ -1,6 +1,5 @@
-// Pure and client-safe. Numbers pulled out of resume lines by rules (no AI), for a job's
-// highlight ("-72% failed payouts"), a project's outcome line and the page's headline stats.
-// A rule that isn't sure says nothing: a missing highlight looks fine, a wrong one doesn't.
+// Numbers pulled from resume lines by rules (no AI). A rule that isn't sure says nothing: a missing
+// highlight looks fine, a wrong one doesn't.
 
 export type MetricKind = "change" | "range" | "multiple" | "money" | "count";
 export type Metric = { value: string; label: string; kind: MetricKind; score: number };
@@ -40,7 +39,6 @@ function cleanLabel(raw: string): string {
   return list.slice(0, 5).join(" ");
 }
 
-/** The words after a number, up to a stop word or punctuation, keeping "a month". */
 function labelAfter(rest: string): string {
   const head = rest.split(/[;:,.!?](?:\s|$)|\s[-–—]\s/)[0] ?? "";
   const list = words(head);
@@ -65,7 +63,6 @@ function labelAfter(rest: string): string {
   return cleanLabel(kept.join(" "));
 }
 
-/** The words before an index, back to punctuation or the line's start, at most five. */
 function labelBefore(text: string): string {
   const parts = text.split(/[;:,.!?](?:\s|$)|\s[-–—]\s/);
   const list = words(parts.at(-1) ?? "");
@@ -230,7 +227,6 @@ function counts(line: string): Metric[] {
   return found;
 }
 
-/** Every number worth showing in one resume line, best first. */
 export function metricsIn(line: string): Metric[] {
   const text = line.replace(/\s+/g, " ").trim();
   if (!text) return [];
@@ -256,7 +252,6 @@ export function metricsIn(line: string): Metric[] {
     });
 }
 
-/** The strongest number in these lines, or null when none is clear. */
 export function bestMetric(lines: readonly string[]): Metric | null {
   let best: Metric | null = null;
   for (const line of lines) {
@@ -272,7 +267,6 @@ export function metricText(metric: Metric): string {
   return `${metric.value} ${metric.label}`.trim();
 }
 
-/** Up to `max` different numbers from these lines, for an outcome line. */
 export function topMetrics(lines: readonly string[], max = 3): Metric[] {
   const all = lines.flatMap((line) => metricsIn(line)).sort((a, b) => b.score - a.score);
   const seen = new Set<string>();

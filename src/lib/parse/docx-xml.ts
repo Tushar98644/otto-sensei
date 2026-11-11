@@ -1,10 +1,6 @@
-// String-level reading of WordprocessingML parts. We only count elements and pull plain text, and
-// every part is size-capped before it gets here, so regexes are enough and much cheaper than a DOM.
-//
-// Tag patterns match attributes with [^<>], never [^>]: well-formed XML can't have a raw "<" inside
-// a tag, and stopping there keeps every match attempt short. With [^>], a part full of unclosed
-// tags ("<w:br <w:br ...") makes each attempt scan far ahead and back, which blocks the server for
-// seconds per MiB with a bounded repeat and for hours with an unbounded one.
+// Parts are size-capped and we only count elements and pull text, so regexes beat a DOM. Tag
+// patterns use [^<>], never [^>]: a part full of unclosed tags would otherwise make each match scan
+// far ahead and back, blocking the server for seconds per MiB.
 
 const WORDML_NAMESPACE =
   /xmlns(?::([\w.-]+))?=["'](?:http:\/\/schemas\.openxmlformats\.org\/wordprocessingml\/2006\/main|http:\/\/purl\.oclc\.org\/ooxml\/wordprocessingml\/main)["']/;
@@ -18,12 +14,8 @@ const OPAQUE_SECTIONS: ReadonlyArray<readonly [open: string, close: string]> = [
 // A name, an end tag or a declaration such as <!DOCTYPE>.
 const TAG_START = /[\p{L}_:/!]/u;
 
-/**
- * True when some "<" doesn't open a proper tag: one that starts with a name, "/" or "!" and ends
- * with ">" before the next "<". Well-formed XML never trips it, and it runs in linear time.
- * mammoth's XML parser recovers from each broken tag separately and scans ahead every time, so a
- * part full of them would hold the server for minutes (quadratic in the part size).
- */
+// Linear. mammoth recovers from each broken tag by scanning ahead, so a part full of them would
+// hold the server for minutes (quadratic).
 export function hasBrokenTags(xml: string): boolean {
   let cursor = 0;
   for (;;) {
@@ -52,9 +44,8 @@ export function wordPrefix(xml: string): string {
   return match[1] ? `${match[1]}:` : "";
 }
 
-// Word stores every text box and floating picture twice: a modern mc:Choice and an old VML
-// mc:Fallback. Dropping the fallback copy stops us counting (and reading) everything twice.
-// A single indexOf pass, so a part full of unclosed fallbacks can't make this quadratic.
+// Word stores every text box and floating picture twice (mc:Choice and a VML mc:Fallback); drop the
+// fallback. A single indexOf pass, so unclosed fallbacks can't make this quadratic.
 export function stripFallbacks(xml: string): string {
   const open = "<mc:Fallback";
   const close = "</mc:Fallback>";
@@ -79,8 +70,7 @@ export function countElements(xml: string, qualifiedName: string): number {
   return xml.match(new RegExp(`<${escapeRegex(qualifiedName)}[\\s/>]`, "g"))?.length ?? 0;
 }
 
-// Pictures as placed on the page: one a:blip per DrawingML picture (an SVG keeps a PNG fallback
-// blip, counted once), plus v:imagedata for legacy VML pictures outside fallbacks.
+// One a:blip per DrawingML picture (an SVG's PNG fallback counted once), plus legacy v:imagedata.
 export function countPictures(xml: string): number {
   const body = stripFallbacks(xml);
   return countElements(body, "a:blip") + countElements(body, "v:imagedata");
@@ -95,8 +85,7 @@ export function hasMultipleColumns(xml: string): boolean {
   return false;
 }
 
-// Plain text of a part (used for headers and footers): paragraphs, cells, tabs and breaks become
-// spaces; field codes and tracked deletions are dropped because nobody sees them.
+// Field codes and tracked deletions are dropped because nobody sees them.
 export function partText(xml: string): string {
   const prefix = escapeRegex(wordPrefix(xml));
   // Field codes and deleted text are plain text inside their element, so [^<]* is exact and linear.

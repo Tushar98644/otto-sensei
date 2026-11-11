@@ -1,11 +1,9 @@
-// Server-only. A small in-memory cache for GitHub answers, per server instance. GitHub allows 60
-// calls an hour per server address without a token (10 searches a minute), shared by everyone
-// using the app, so a person who looks up a name and then drafts from it must not pay twice.
-// Entries hold the mapped, trimmed values, never raw responses, to stay small.
+// Per server instance. Without a token GitHub allows 60 calls an hour per server address, shared by
+// everyone, so a lookup then a draft must not pay twice. Holds mapped values, never raw responses.
 
 export const FRESH_MS = 10 * 60_000;
-// Kept past freshness so a conditional request (If-None-Match) can revive them: GitHub doesn't
-// count a 304 against its rate limit.
+// Kept past freshness so If-None-Match can revive them: GitHub doesn't count a 304 against its
+// limit.
 const KEEP_MS = 60 * 60_000;
 // A misspelt name is often retried as typed; a short memory of "no such account" saves calls.
 export const MISSING_MS = 2 * 60_000;

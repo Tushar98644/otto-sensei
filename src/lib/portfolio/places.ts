@@ -1,6 +1,5 @@
-// Pure and client-safe. Where a resume's "Lisbon, Portugal" is, for a template's live clock and map
-// tile: a small table of cities people put on resumes, matched by name. No lookup service, so a
-// city that isn't here simply gets no pin, and the owner can still pick a time zone.
+// A small table of cities people put on resumes, matched by name. No lookup service, so an unknown
+// city gets no pin and the owner can still pick a time zone.
 
 export type Place = { city: string; timezone: string; lat: number; lng: number };
 
@@ -125,7 +124,7 @@ const MATCHERS = CITIES.map(([names, timezone, lat, lng]) => ({
   ),
 }));
 
-/** The known city in a resume's location line, or null ("Remote", unknown towns). */
+/** null for "Remote" and unknown towns. */
 export function findPlace(location: string): Place | null {
   const value = location.trim();
   if (!value) return null;
@@ -135,7 +134,6 @@ export function findPlace(location: string): Place | null {
   return null;
 }
 
-/** True for a zone name this browser or server knows. */
 export function isTimeZone(value: string): boolean {
   if (!value) return false;
   try {

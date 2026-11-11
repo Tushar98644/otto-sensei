@@ -1,9 +1,7 @@
 import { isDrawable as fontsDraw } from "./coverage";
 
-// The PDF prints in the bundled fonts (./fonts.ts), which draw Latin with every accent (Vietnamese
-// included), Greek and Cyrillic. Anything they can't (CJK, emoji, a few symbols) would come out as
-// a blank or as junk, so every string goes through toPdfText() first: it keeps what the fonts draw
-// and swaps or drops the rest.
+// The bundled fonts draw Latin, Greek and Cyrillic. Anything else (CJK, emoji, some symbols) would
+// print blank or as junk, so every string goes through toPdfText() first.
 
 const SOFT_HYPHEN = 0xad;
 
@@ -16,29 +14,20 @@ function swap(replacement: string, ...codePoints: number[]): [string, string][] 
   return codePoints.map((codePoint) => [String.fromCodePoint(codePoint), replacement]);
 }
 
-// Same meaning, different glyph: nobody needs to hear about these swaps. Look-alike punctuation is
-// listed by code point so each entry can be told apart. Spaces, hyphens, quotes and bullets are
-// always swapped, drawable or not: a non-breaking hyphen or a prime splits a keyword for hiring
-// software the same way a missing glyph would.
+// Same meaning, different glyph: swapped silently. Spaces, hyphens, quotes and bullets are always
+// swapped: a non-breaking hyphen splits a keyword for hiring software like a missing glyph would.
 const ALWAYS: ReadonlyMap<string, string> = new Map([
-  // Tab, line breaks, and the Unicode spaces (en, em, thin, hair, narrow no-break, ideographic...).
   ...swap(" ", 0x09, 0x0a, 0x0d, 0x1680, 0x2000, 0x2001, 0x2002, 0x2003, 0x2004, 0x2005, 0x2006),
   ...swap(" ", 0x2007, 0x2008, 0x2009, 0x200a, 0x2028, 0x2029, 0x202f, 0x205f, 0x3000),
-  // Soft hyphen, zero-width space and joiners, word joiner, byte order mark, variation selectors.
   ...swap("", 0x00ad, 0x200b, 0x200c, 0x200d, 0x2060, 0xfeff, 0xfe0e, 0xfe0f),
-  // Hyphen, non-breaking hyphen, minus sign, hyphen bullet, small and full-width hyphen-minus.
   ...swap("-", 0x2010, 0x2011, 0x2212, 0x2043, 0xfe63, 0xff0d),
-  // Figure dash; horizontal bar and small em dash.
   ...swap("–", 0x2012),
   ...swap("—", 0x2015, 0xfe58),
-  // Reversed quote, prime, reversed prime, modifier prime, full-width apostrophe.
   ...swap("'", 0x201b, 0x2032, 0x2035, 0x02b9, 0xff07),
   // Modifier apostrophe and turned comma (as in Hawaiian names) keep their curl.
   ...swap("’", 0x02bc),
   ...swap("‘", 0x02bb),
-  // Reversed double quote, double prime, full-width and CJK double quotes.
   ...swap('"', 0x201f, 0x2033, 0xff02, 0x301d, 0x301e),
-  // Other bullet shapes.
   ...swap("•", 0x2023, 0x2219, 0x25cf, 0x25cb, 0x25e6, 0x25aa, 0x25ab, 0x25a0, 0x25a1, 0x25c6),
   ...swap("•", 0x25c7, 0x2756, 0x27a2, 0x27a4, 0x25b8, 0x25b9, 0x25ba, 0x25b6, 0x2981, 0x29bf),
 ]);
@@ -76,8 +65,7 @@ const FAITHFUL: ReadonlyMap<string, string> = new Map([
   ["฿", "THB "],
 ]);
 
-// Letters with no decomposition to a drawable base letter. Swapping them changes how a name is
-// spelled, so they're reported to the user.
+// Swapping these changes how a name is spelled, so they're reported to the user.
 const LOOKALIKE_LETTERS: ReadonlyMap<string, string> = new Map([
   ["Ł", "L"],
   ["ł", "l"],
@@ -96,8 +84,7 @@ const LOOKALIKE_LETTERS: ReadonlyMap<string, string> = new Map([
 ]);
 
 const COMBINING_MARKS = /\p{M}+/gu;
-// Invisible on screen (controls, direction marks, icon-font glyphs, emoji skin tones), so listing
-// them would only confuse.
+// Invisible on screen, so listing them would only confuse.
 const UNLISTED = /[\p{M}\p{C}\p{Emoji_Modifier}]/u;
 
 type Replacement = { text: string; lossy: boolean };
@@ -137,10 +124,7 @@ function replacementFor(char: string): Replacement {
   return replacement;
 }
 
-/**
- * Returns text the PDF fonts can draw. Characters they can't are swapped for a close equivalent or
- * dropped; the ones a reader would notice (a changed letter, a missing emoji) are added to `lost`.
- */
+// Ones a reader would notice (a changed letter, a missing emoji) are added to `lost`.
 export function toPdfText(input: string, lost?: Set<string>): string {
   // NFC first, so "e" plus a combining accent becomes the drawable "é".
   const text = input.normalize("NFC");
@@ -166,14 +150,12 @@ export function toPdfText(input: string, lost?: Set<string>): string {
   return out;
 }
 
-// One line of text: sanitized, whitespace collapsed, trimmed.
 export function toPdfLine(input: string, lost?: Set<string>): string {
   return toPdfText(input, lost).replace(/\s+/g, " ").trim();
 }
 
 const LINE_BREAK = /\r\n|[\n\r\p{Zl}\p{Zp}]/u;
 
-// Non-empty paragraphs, one per line the user typed.
 export function toPdfParagraphs(input: string, lost?: Set<string>): string[] {
   return input
     .split(LINE_BREAK)
@@ -181,15 +163,13 @@ export function toPdfParagraphs(input: string, lost?: Set<string>): string[] {
     .filter(Boolean);
 }
 
-// XML 1.0 can't hold C0 controls (other than tab and line breaks), U+FFFE, U+FFFF or half of a
-// surrogate pair, and Word refuses to open a file that has one.
+// XML 1.0 can't hold these, and Word refuses to open a file that has one.
 const NOT_XML =
   /[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F\uFFFE\uFFFF]|[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/g;
-// Zero-width characters and the soft hyphen are invisible in Word too, but they split a keyword in
-// two for anything searching the text.
+// Invisible in Word too, but they split a keyword for anything searching the text.
 const INVISIBLE = /[\u00AD\u200B-\u200D\u2060\uFEFF]/g;
 
-/** One line for a Word file: every character kept (Word fonts draw them), whitespace collapsed. */
+/** Every character kept (Word's fonts draw them), whitespace collapsed. */
 export function toUnicodeLine(input: string): string {
   return input
     .normalize("NFC")
@@ -203,18 +183,13 @@ export function toUnicodeParagraphs(input: string): string[] {
   return input.split(LINE_BREAK).map(toUnicodeLine).filter(Boolean);
 }
 
-// Tokens up to this length never break. A full line holds 85+ characters of normal text at body
-// size, so only something like a very long URL goes past it.
+// A full line holds 85+ characters, so only something like a very long URL goes past this.
 const LONG_TOKEN = 48;
 const CHUNK = 24;
 const BREAK_AFTER = /(?<=[/?&=#_.-])/u;
 
-/**
- * Hyphenation callback for every Text. react-pdf hyphenates English words by default
- * ("Kuber-netes"), which splits keywords for hiring software, so words stay whole. Only a token too
- * long for one line gets break points, after URL punctuation where it has some: without them
- * react-pdf lets it run off the page and silently drops its end.
- */
+// react-pdf hyphenates by default ("Kuber-netes"), splitting keywords for hiring software. Only a
+// token too long for a line gets break points; without them react-pdf silently drops its end.
 export function keepWordsWhole(word: string): string[] {
   if (word.length <= LONG_TOKEN) return [word];
   return word.split(BREAK_AFTER).flatMap((part) => {

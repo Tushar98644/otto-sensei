@@ -10,9 +10,7 @@ import type {
 import type { JobPosting } from "@/lib/api/types";
 import type { PlaceGroup } from "@/lib/eligibility/places";
 
-// Client-safe. Openings read every day from public job boards (JOB-SOURCES.md), shown on the Jobs
-// tab matched to a resume and on the public /jobs page. Matching is rule-based and runs on our
-// server for free: nothing here ever reaches the AI.
+// Matching is rule-based and runs on our server: nothing here ever reaches the AI.
 
 export const JOB_SOURCES = [
   "greenhouse",
@@ -38,7 +36,6 @@ export const BOARD_SOURCES = [
 ] as const;
 export type BoardSource = (typeof BOARD_SOURCES)[number];
 
-// Feeds: many companies' newest jobs, read once a day.
 export const FEED_SOURCES = ["himalayas", "remoteok", "jobicy"] as const;
 export type FeedSource = (typeof FEED_SOURCES)[number];
 
@@ -114,7 +111,7 @@ export const JOB_PAGE_SIZE = 20;
 // Pages past this are refused: nobody reads 1,000 jobs, and it bounds what a request can ask for.
 export const MAX_JOB_PAGE = 50;
 
-/** One opening as the list shows it. Dates are epoch ms. */
+/** Dates are epoch ms. */
 export type FeedJob = {
   id: string;
   source: JobSourceId;
@@ -125,9 +122,7 @@ export type FeedJob = {
   employmentType: EmploymentType | null;
   seniority: Seniority;
   postedAt: number;
-  // The original posting: where "Open job" goes, and what the tailor flow reads.
   url: string;
-  // Tools and skills found in the post by rules (./skills.ts), at most 40.
   keywords: string[];
   // Closed jobs only show up among saved ones.
   closed: boolean;
@@ -149,30 +144,25 @@ export type JobMatch = {
   reason: string;
   // Smaller lines under the reason: years asked for, a step up in level, a work-rights rule.
   notes: string[];
-  // The post has a rule the work profile says this person can't meet (see @/lib/eligibility).
   blocked: boolean;
 };
 
 export type MatchedJob = FeedJob & {
   match: JobMatch;
   saved: boolean;
-  // Other places the same opening is posted (location copies shown as one card), at most 2, and
-  // how many more: "Remote UK, Remote Canada (+2)".
+  // Location copies shown as one card, at most 2: "Remote UK, Remote Canada (+2)".
   otherPlaces: string[];
   morePlaces: number;
-  // Facts about the company from public visa registers, as card lines ("Listed as a UK visa
-  // sponsor"). Never a promise about this job (visa.ts).
+  // Public visa register facts, never a promise about this job (visa.ts).
   visa: string[];
   // 1-based place in the whole ranked list, for match_events.
   position: number;
 };
 
-// What the browser sends about the resume: the skills the shared vocabulary found in it, its job
-// titles and its years of experience. Never the resume itself, its lines or contact details.
+// Never the resume itself, its lines or contact details.
 export const MATCH_PROFILE_LIMITS = { skills: 200, titles: 12, titleChars: 200 } as const;
 export type MatchProfile = z.output<typeof MatchProfileSchema>;
 
-// The "Looking for" card (looking-for.ts has the guess and the place rules).
 export const PLACE_GROUPS = [
   "north_america",
   "latam",
@@ -183,17 +173,14 @@ export const PLACE_GROUPS = [
   "anz",
 ] as const satisfies readonly PlaceGroup[];
 
-// "anywhere", a country ("c:US") or a group of countries ("g:eu").
 export type PlaceChoice = "anywhere" | `c:${string}` | `g:${PlaceGroup}`;
 
 export const LOOKING_FOR_LIMITS = { titleChars: 80 } as const;
 
-// An O*NET-SOC 2019 occupation code ("29-1141.00"), or one of ours with a letter ("11-X101.00");
-// see occupations/index.ts.
+// O*NET-SOC 2019 ("29-1141.00"), or one of ours with a letter ("11-X101.00").
 export const OCCUPATION_CODE = /^\d{2}-[0-9X]\d{3}\.\d{2}$/;
 export type LookingFor = z.output<typeof LookingForSchema>;
 
-/** One occupation as the card shows it: "Registered Nurse", in "Healthcare practitioners". */
 export type OccupationOption = { code: string; name: string; group: string };
 export type LookingForChoice = z.output<typeof LookingForChoiceSchema>;
 
@@ -202,7 +189,6 @@ export const NO_CHOICE: LookingForChoice = { role: null, level: null, place: nul
 // PUT /api/jobs/looking-for. Free and Pro alike: the card shapes Free's closest matches too.
 export type LookingForResponse = { ok: true; choice: LookingForChoice };
 
-// GET /api/jobs/occupations?q=nurse: the card's search over every occupation and its names.
 export type OccupationSearchResponse = { ok: true; occupations: OccupationOption[] };
 export type JobFilters = z.output<typeof JobFiltersSchema>;
 export type JobFiltersInput = z.input<typeof JobFiltersSchema>;
@@ -223,38 +209,30 @@ export type JobMatchesResponse = {
   jobs: MatchedJob[];
   page: number;
   pageSize: number;
-  // Jobs to page through (the best CANDIDATE_POOL at most), and how many of them are strong or
-  // first seen today.
+  // The best CANDIDATE_POOL at most.
   total: number;
-  // Every open job that matches the resume, location copies counted once. Above `total` when
-  // there are more than one request ranks (`capped`).
+  // Above `total` when there are more than one request ranks (`capped`).
   matching: number;
   capped: boolean;
   strong: number;
   newToday: number;
   savedCount: number;
-  // Open jobs in the whole list, and when the boards were last read.
   openJobs: number;
   checkedAt: number | null;
   // The work profile has something the eligibility rules can use.
   profileReady: boolean;
-  // Free: the closest FREE_JOB_MATCHES only, ranked with no filters and no work profile;
-  // `matching` still counts them all.
+  // Free: the closest few, unfiltered; `matching` still counts them all.
   locked?: boolean;
-  // The "Looking for" card this list was ranked for, and its occupation in plain words.
   lookingFor: LookingFor | null;
   occupation?: OccupationOption | null;
-  // The resume's roles, newest first, with the occupation each names (the card's role menu).
   roles?: { title: string; family: RoleFamily | null; occupation: OccupationOption | null }[];
-  // Which ordering made this list, and the ids actions are logged against (null when nothing
-  // is logged: Free's preview and the saved view).
+  // Ids are null when nothing is logged (Free's preview, the saved view).
   variant: string;
   requestId: string | null;
   resumeHash: string | null;
 };
 
-// What the Jobs tab records to measure match quality (match_events). Impressions are written by
-// the server for each page of matches; the rest are sent by the page when they happen.
+// Impressions are written by the server per page; the page sends the rest as they happen.
 export const MATCH_EVENT_KINDS = [
   "impression",
   "open",
@@ -279,9 +257,7 @@ export const ASKED_APPLIED_ANSWERS = ["yes", "not_yet"] as const;
 export type AskedAppliedAnswer = (typeof ASKED_APPLIED_ANSWERS)[number];
 export type MatchActionInput = z.input<typeof MatchActionSchema>;
 
-// GET /api/jobs/:id. Requires sign-in: the stored text, for the tailor flow. posting: what reading
-// the post from its source said besides the text, the same as reading the job's link would; null
-// (or missing, from a day-old cache) when the text wasn't read from the source.
+// posting: null or missing when the text wasn't read from the source.
 export type JobPostResponse = {
   ok: true;
   job: FeedJob;
@@ -289,9 +265,7 @@ export type JobPostResponse = {
   posting?: Omit<JobPosting, "text"> | null;
 };
 
-// PUT/DELETE /api/jobs/saved/:id. Requires sign-in.
 export const SAVED_JOBS_LIMIT = 500;
 export type SavedJobResponse = { ok: true; saved: boolean; savedCount: number };
-// GET /api/jobs/saved: the account's saved jobs, newest save first, closed ones included.
 export type SavedJob = FeedJob & { savedAt: number };
 export type SavedJobsResponse = { ok: true; jobs: SavedJob[] };

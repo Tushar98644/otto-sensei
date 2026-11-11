@@ -1,7 +1,5 @@
 import { bulletText } from "@/lib/resume/sections";
 
-// Pure string helpers shared by the AI features.
-
 const HIGH_SURROGATE_AT_END = /[\uD800-\uDBFF]$/;
 const PLACEHOLDER = /\[[^\]]+\]/;
 const PLACEHOLDERS = /\[[^\]]+\]/g;
@@ -28,7 +26,7 @@ export function oneLine(value: string): string {
   return value.replace(/\s+/g, " ").trim();
 }
 
-// Trimmed, de-duplicated (case-insensitively), clipped and capped. Blank entries are dropped.
+// Case-insensitive de-duplication; blank entries are dropped.
 export function cleanList(values: readonly string[], limit: number, maxChars: number): string[] {
   const seen = new Set<string>();
   const out: string[] = [];
@@ -69,8 +67,8 @@ const DATA_TAGS = ["resume", "role", "line", "answers", "experience", "job_post"
 export type DataTag = (typeof DATA_TAGS)[number];
 const DATA_TAG_PATTERN = new RegExp(`<\\s*/?\\s*(?:${DATA_TAGS.join("|")})\\b[^>]*>`, "gi");
 
-// Wraps user text in a data tag. Copies of our own tags inside the text are removed, so a resume or
-// job post can't close the tag early and smuggle in text that reads as instructions.
+// Copies of our own tags are removed, so a resume or post can't close one early and smuggle in text
+// that reads as instructions.
 export function tag(name: DataTag, body: string): string {
   return `<${name}>\n${body.replace(DATA_TAG_PATTERN, " ")}\n</${name}>`;
 }

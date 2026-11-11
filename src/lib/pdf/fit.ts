@@ -6,22 +6,18 @@ import { findTermIn } from "@/lib/tailor/keywords";
 import { textTokens } from "@/lib/tailor/tokens";
 import { visibleResume } from "./visible";
 
-// "Fit to one page": which lines to offer for hiding, and how many of them a page needs gone.
-// It only ever hides (hidden: true), never deletes, so every line can come back.
+// Only ever hides lines (hidden: true), never deletes, so every line can come back.
 
 export type FitLine = {
   bulletId: string;
   text: string;
-  // Where it sits, in words: "Software Engineer at Bluefin Analytics".
   place: string;
-  // The line's most important lint issue, if it has one.
   issue: LintIssueId | null;
-  // A tailored copy's line that proves none of the job's requirements (names none of its terms).
+  // A tailored copy's line that names none of the job's requirement terms.
   offTarget: boolean;
 };
 
-// Planning renders the PDF about log2(n) + 1 times, so the list stays short enough to plan in a
-// second or two.
+// Planning renders the PDF about log2(n) + 1 times, so a short list plans in a second or two.
 export const MAX_FIT_LINES = 32;
 
 const SEVERITY_WEIGHT = { high: 3, low: 1 } as const;
@@ -67,12 +63,9 @@ function topIssue(issues: readonly LintIssue[]): LintIssueId | null {
   return (issues.find((issue) => issue.severity === "high") ?? issues[0])?.id ?? null;
 }
 
-/**
- * Lines that could go, least useful first: the weakest lint first, and later lines (older jobs,
- * the end of a list) before earlier ones at the same strength. On a tailored copy, a line that names
- * a requirement's term or a keyword is never offered: it is what the screener looks for. Each entry
- * keeps its first line, so no job is left as a bare heading.
- */
+// Weakest lint first, then later lines before earlier ones. On a tailored copy a line naming a
+// requirement's term is never offered: it's what the screener looks for. Each entry keeps its first
+// line, so no job is left as a bare heading.
 export function fitCandidates(resume: Resume): FitLine[] {
   const shown = visibleResume(resume);
   const lint = lintResume(shown).byBullet;
@@ -144,17 +137,12 @@ export function showLines(resume: Resume, ids: ReadonlySet<string>): Resume {
 }
 
 export type FitPlan = {
-  // How many lines from the top of the list to hide.
   count: number;
-  // False when hiding every line on the list still leaves more than one page.
+  // False when hiding every line still leaves more than one page.
   fits: boolean;
 };
 
-/**
- * The fewest lines, taken from the top of `lines`, whose hiding fits the resume on one page.
- * `pagesOf` renders a resume and counts its pages; hiding more never adds a page, so a binary
- * search finds the answer in about log2(n) + 1 renders.
- */
+// Hiding more never adds a page, so a binary search needs about log2(n) + 1 renders.
 export async function planFit(
   resume: Resume,
   lines: readonly FitLine[],

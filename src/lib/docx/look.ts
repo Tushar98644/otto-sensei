@@ -2,8 +2,7 @@ import type { PdfStyle, TemplateTheme } from "@/components/pdf/theme";
 import { PDF_FONT, PDF_FONT_FAMILIES, primaryFont, type PdfFontName } from "@/lib/pdf/fonts";
 import type { PdfPageSize } from "@/lib/pdf/page-size";
 
-// The Word file's sizes, fonts and colors, read from the same theme the PDF uses (format plus the
-// person's look settings), so both downloads look like one resume.
+// Read from the same theme the PDF uses, so both downloads look like one resume.
 
 // Page sizes in points.
 export const PAGE_POINTS: Record<PdfPageSize, { width: number; height: number }> = {
@@ -23,7 +22,7 @@ const color = (value: unknown, fallback: string) =>
   typeof value === "string" && /^#[0-9a-f]{6}$/i.test(value) ? value : fallback;
 
 export type TextLook = {
-  // The PDF family; `font` is what Word names.
+  // `font` is what Word names.
   family: PdfFontName;
   font: string;
   size: number;
@@ -36,7 +35,6 @@ export type TextLook = {
   letterSpacing: number;
 };
 
-/** A style's look, inheriting whatever it doesn't set from `parent`, as react-pdf does. */
 export function textLook(style: PdfStyle | undefined, parent: TextLook): TextLook {
   if (!style) return parent;
   const family = primaryFont(style.fontFamily) ?? parent.family;
@@ -76,7 +74,7 @@ export type RuleLook = { color: string; width: number };
 export type DocxLook = {
   theme: TemplateTheme;
   page: { width: number; height: number; top: number; bottom: number; left: number; right: number };
-  // Width between the margins: where the right-aligned dates sit.
+  // Where the right-aligned dates sit.
   textWidth: number;
   body: TextLook;
   lineHeight: number;
@@ -95,7 +93,7 @@ export type DocxLook = {
   entryBefore: number;
   roleBefore: number;
   bulletBefore: number;
-  // Where the bullet's text starts and how far the bullet hangs left of it.
+  // And how far the bullet hangs left of it.
   bulletLeft: number;
   bulletHanging: number;
   bulletGlyph: string;
@@ -104,7 +102,6 @@ export type DocxLook = {
   skillBefore: number;
   // Lines indented like the PDF's (Developer's entries sit in from the margin).
   indent: { left: number; right: number };
-  // Every Word font the file uses, for its font table.
   fonts: Set<PdfFontName>;
 };
 
@@ -113,8 +110,7 @@ function ruleOf(style: PdfStyle, side: "Top" | "Bottom", ink: string): RuleLook 
   return width > 0 ? { color: color(style[`border${side}Color`], ink), width } : null;
 }
 
-// Word's list bullets come from its own fonts: ■ and ○ from Arial, which every Word install has,
-// when the PDF font draws them.
+// ■ and ○ from Arial, which every Word install has.
 export const WORD_BULLET_FONT = "Arial";
 
 export function docxLook(theme: TemplateTheme, pageSize: PdfPageSize): DocxLook {

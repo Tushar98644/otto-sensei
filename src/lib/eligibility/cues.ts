@@ -1,10 +1,8 @@
 import { findPlaces, type FoundPlace, type Place } from "./places";
 import type { WorkRegion } from "./profile";
 
-// Client-safe and pure. The phrases job posts use for who they can hire. Kept apart from the
-// verdicts because almost every pattern here exists to stop a false alarm: company intros ("a
-// Berlin-based startup"), product lines ("B2B SaaS") and team descriptions ("spread across
-// UTC-8 to UTC+2") use the same words as real rules.
+// Almost every pattern here exists to stop a false alarm: company intros ("a Berlin-based startup")
+// and team descriptions ("spread across UTC-8 to UTC+2") use the same words as real rules.
 
 export const REMOTE = /\bremote\b|\bwork from home\b|\bWFH\b|\bdistributed (?:team|company)\b/i;
 export const NOT_REMOTE =
@@ -19,7 +17,6 @@ const AT_OFFICE =
 const OCCASIONAL =
   /\b(?:occasional(?:ly)?|optional(?:ly)?|once (?:a|per|every) (?:month|quarter|year)|quarterly|retreats?|off-?sites?|interviews?|if you (?:want|like|prefer)|whenever you)\b/i;
 
-/** A post line saying the job is (partly) in an office. */
 export function saysOnSite(line: string): boolean {
   if (OCCASIONAL.test(line)) return false;
   return ON_SITE.test(line) || OFFICE_DAYS.test(line) || AT_OFFICE.test(line);
@@ -36,12 +33,10 @@ const WORLDWIDE_SOFT = /\b(?:worldwide|world-wide|globally|global)\b/i;
 const WORK_CONTEXT =
   /\b(?:remote|hir(?:e|ing)|candidates?|applicants?|open to|location|based|work(?:ing)? from)\b/i;
 
-/** A post line saying the job can be done from any country. */
 export function saysWorldwide(line: string): boolean {
   return WORLDWIDE_STRONG.test(line) || (WORLDWIDE_SOFT.test(line) && WORK_CONTEXT.test(line));
 }
 
-/** A location field such as "Remote (Worldwide)" or "Anywhere". */
 export function fieldSaysWorldwide(location: string): boolean {
   return /\b(?:anywhere|worldwide|world-wide|global|globally|international)\b/i.test(location);
 }
@@ -63,12 +58,10 @@ function aboutVisas(line: string): boolean {
   return VISA_WORD.test(line) || !PERK_SPONSOR.test(line);
 }
 
-/** "We can't sponsor visas", "Visa sponsorship: No". */
 export function refusesSponsorship(line: string): boolean {
   return NO_SPONSOR.test(line) && aboutVisas(line);
 }
 
-/** "We offer visa sponsorship", "Visa sponsorship: Yes". */
 export function offersSponsorship(line: string): boolean {
   return YES_SPONSOR.test(line) && !NO_SPONSOR.test(line) && aboutVisas(line);
 }
@@ -175,11 +168,8 @@ function cuedAt(line: string, spot: FoundPlace): boolean {
 const joined = (line: string, a: FoundPlace, b: FoundPlace) =>
   LIST_JOIN.test(line.slice(a.index + a.text.length, b.index));
 
-/**
- * The places a line limits the job to, in reading order: each one a cue points at, plus the
- * rest of a list it starts or ends ("based in the US, Canada or the UK"). Empty when the line
- * only mentions places ("customers in the UK", "a Berlin-based startup").
- */
+// Each place a cue points at, plus the rest of a list it starts or ends. Empty when the line only
+// mentions places ("customers in the UK").
 export function restrictedPlaces(
   line: string,
   found: FoundPlace[] = findPlaces(line),

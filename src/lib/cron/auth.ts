@@ -2,14 +2,13 @@ import { createHash, timingSafeEqual } from "node:crypto";
 import { env } from "@/lib/env";
 import { log } from "@/lib/log";
 
-// Server-only. Vercel Cron calls each job with "Authorization: Bearer <CRON_SECRET>" when the
-// project has that variable; anything else (a GitHub Action, curl) must send the same header.
+// Vercel Cron sends "Authorization: Bearer <CRON_SECRET>"; any other caller must send the same.
 
 export const MIN_CRON_SECRET_LENGTH = 16;
 
 let warnedMissing = false;
 
-/** The configured secret, or null when it's missing or too short to be worth checking. */
+/** null when missing or too short to be worth checking. */
 export function cronSecret(): string | null {
   const secret = env().CRON_SECRET ?? "";
   if (secret.length >= MIN_CRON_SECRET_LENGTH) return secret;
@@ -20,13 +19,12 @@ export function cronSecret(): string | null {
   return null;
 }
 
-// Hashing both sides first makes them the same length, so the compare leaks neither the secret
-// nor its length.
+// Hashing both sides makes them equal length, so the compare leaks neither the secret nor its
+// length.
 function digest(value: string): Buffer {
   return createHash("sha256").update(value).digest();
 }
 
-/** True only when a secret is configured and the request carries exactly it. */
 export function isAuthorizedCron(req: Request): boolean {
   const secret = cronSecret();
   if (!secret) return false;

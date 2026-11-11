@@ -3,8 +3,7 @@ import { cleanLine, normalizeJobUrl } from "@/lib/applications/schema";
 import { ResumeSchema } from "@/lib/resume/validation";
 import { textLimit, WRITING_KINDS, WRITING_LIMITS } from "./schema";
 
-// Request schemas for the writings routes (zod), apart from ./schema so the Cover letters page and
-// the board don't load zod.
+// Apart from ./schema so the Cover letters page and the board don't load zod.
 
 const line = (max: number) =>
   z
@@ -13,7 +12,7 @@ const line = (max: number) =>
     .transform(cleanLine)
     .pipe(z.string().max(max));
 
-// A link that can't be stored is dropped rather than failing the save: the letter matters more.
+// Dropped rather than failing the save: the letter matters more.
 const jobUrlField = z
   .string()
   .max(WRITING_LIMITS.jobUrl * 2)
@@ -33,7 +32,6 @@ const bodyText = (max: number) =>
     )
     .pipe(z.string().min(1).max(max));
 
-// POST /api/writings
 export const CreateWritingSchema = z
   .object({
     kind: z.enum(WRITING_KINDS),
@@ -66,8 +64,7 @@ export const CreateWritingSchema = z
     }
   });
 
-// PATCH /api/writings/:id: the person's own edits. Capped at the letter's size; an answer's
-// smaller cap is checked against the stored kind.
+// Capped at the letter's size; an answer's smaller cap is checked against the stored kind.
 export const UpdateWritingSchema = z.object({ text: bodyText(WRITING_LIMITS.letterChars) });
 
 export const WritingIdSchema = z.uuid();

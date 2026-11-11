@@ -1,13 +1,9 @@
 import { foldCase } from "@/lib/tailor/tokens";
 
-// Pure. Job titles as the occupation lookup reads them: the parts a title is made of ("Registered
-// Nurse - ICU - Nights" is three), each as canonical words. The same rules turn the taxonomy's own
-// titles into lookup keys at build time (scripts/occupations-build.ts), so a key and a title only
-// have to agree with each other, not be good English: "nurses" and "nurse" both become "nurse",
-// "labourer" becomes "laborer".
+// Titles as the occupation lookup reads them. The same rules build the taxonomy's lookup keys, so
+// keys and titles only have to agree, not be good English ("labourer" -> "laborer").
 
-// British, Australian and Canadian spellings to the US ones the O*NET titles use. ESCO's labels
-// are British English, so both sides of the lookup meet here.
+// ESCO's labels are British English, so both sides of the lookup meet on US spelling.
 const SPELLING: Record<string, string> = {
   labour: "labor",
   labourer: "laborer",
@@ -93,8 +89,7 @@ const SHORTHAND: Record<string, string[]> = {
   carer: ["caregiver"],
 };
 
-// Shorthand that depends on where it stands: "Pharmacy Tech" is a technician, "Tech Lead" isn't;
-// "Admin Assistant" is administrative, "Office Admin" an administrator.
+// Depends on position: "Pharmacy Tech" is a technician, "Tech Lead" isn't.
 const SHORTHAND_LAST: Record<string, string> = {
   tech: "technician",
   techs: "technician",
@@ -102,11 +97,8 @@ const SHORTHAND_LAST: Record<string, string> = {
 };
 const SHORTHAND_INNER: Record<string, string> = { admin: "administrative" };
 
-// Hours, contract, hiring words and places of work: never what the job is. Matched as phrases on
-// the folded title first, then as single words. Seniority words stay: "Staff Nurse", "Head Chef"
-// and "Senior Accountant" are titles in their own right, and the longest-match lookup steps over
-// them when they aren't. Words that are also jobs stay too: "Night Auditor", "Bank Teller", "Site
-// Manager", "Contract Specialist", "Home Health Aide".
+// Hours, contract, hiring words and places: never what the job is. Seniority words and words that
+// are also jobs stay ("Staff Nurse", "Night Auditor"); the longest-match lookup steps over them.
 const NOISE_PHRASES =
   /\b(?:(?:full|part)[\s-]?time|per[\s-]?diem|work(?:ing)? (?:from|at) home|home[\s-]?based|sign[\s-]?on(?: bonus)?|(?:day|night|evening|weekend|swing|rotating|overnight|early|late|split) shifts?|fixed[\s-]?term|on[\s-]?site|in[\s-]?office|up to \S+|\d+(?:\.\d+)?\s*(?:k|hrs?|hours?)\b|all genders?)\b/g;
 const NOISE = new Set(
@@ -116,8 +108,8 @@ const NOISE = new Set(
     "immediate immediately hiring asap needed wanted opening openings multiple various vacancy " +
     "vacancies position positions opportunity opportunities bonus incentive usd gbp eur aud cad " +
     "m w d f x h mwd fmx fmd mfd mfx wmd " +
-    // Status, not the job: "Software Engineering Intern" is software engineering, "Graduate
-    // Nurse" a nurse, "Apprentice Electrician" an electrician. Seniority reads them separately.
+    // Status, not the job: "Apprentice Electrician" is an electrician. Seniority reads them
+    // separately.
     "intern interns internship internships coop co op working student summer winter autumn " +
     "apprentice apprenticeship trainee graduate grad fellowship " +
     // Levels written as Roman numerals: "Staff Accountant II".
@@ -128,8 +120,7 @@ const NOISE = new Set(
 // Codes and numbers in a title: requisition ids, store numbers, levels written as digits.
 const CODE = /^(?:[a-z]*\d[\da-z]*|\d+)$/;
 
-// One word that names a dozen kinds of work, or a status rather than a job: never a lookup key
-// alone ("Manager", "Engineer", "Intern"). It still ends longer keys ("Software Engineer").
+// Never a lookup key alone ("Manager", "Intern"), but still ends longer keys ("Software Engineer").
 export const GENERIC_WORDS: ReadonlySet<string> = new Set(
   (
     "engineer manager director operator technician specialist coordinator officer consultant " +
@@ -146,20 +137,17 @@ export const GENERIC_WORDS: ReadonlySet<string> = new Set(
   ).split(" "),
 );
 
-// Rank words a taxonomy name may start with: "Senior Data Analyst" is O*NET's name for an office
-// supervisor, but a title saying it means a data analyst at the senior level.
+// "Senior Data Analyst" is O*NET's office supervisor, but in a title means a senior data analyst.
 export const RANK_WORDS: ReadonlySet<string> = new Set(
   "senior sr junior jr lead principal staff chief head associate assistant director".split(" "),
 );
 
-/** One word as the lookup compares it: folded, US spelling, consistent singular. */
 export function canonicalWord(word: string): string {
   const us = SPELLING[word] ?? word;
   return singular(us);
 }
 
-// Consistent rather than correct: "nurses" -> "nurse", "secretaries" -> "secretary",
-// "waitresses" -> "waitress", "sales" -> "sale". Applied to both sides, so only agreement matters.
+// Consistent rather than correct ("sales" -> "sale"): both sides use it, so only agreement matters.
 function singular(word: string): string {
   if (word.length < 4 || !/^[a-z]+$/.test(word)) return word;
   if (/(?:ss|us|is|ics)$/.test(word)) return word;
@@ -170,7 +158,7 @@ function singular(word: string): string {
   return word.endsWith("s") ? word.slice(0, -1) : word;
 }
 
-/** Canonical words of one piece of text: for taxonomy titles, which carry no noise. */
+/** For taxonomy titles, which carry no noise. */
 export function titleWords(text: string, { dropNoise = false } = {}): string[] {
   let folded = foldCase(decode(text))
     .replace(/['’]s\b/g, "")
@@ -210,16 +198,12 @@ function decode(text: string): string {
   return text.replace(/&(?:amp|nbsp|#39|quot|lt|gt);/g, (entity) => ENTITIES[entity] ?? entity);
 }
 
-// What divides a title into parts: dashes and bars with spaces around them, commas, colons,
-// brackets, and slashes with spaces. "Cook/Prep" keeps its slash; "Cook / Dishwasher" is two parts.
+// "Cook/Prep" keeps its slash; "Cook / Dishwasher" is two parts.
 const SPLIT = /\s+[-–—|/•·]+\s+|\s*[,;:|•·]\s*|\s*[()[\]{}]\s*|\s+[-–—]|[-–—]\s+/u;
 // Gender markers German, French and Dutch ads add: "(m/w/d)", "(f/h)", "(all genders)".
 const GENDER = /\(\s*(?:[mwfdhx]\s*\/\s*)+[mwfdhx]\s*\)|\(\s*all genders?\s*\)/giu;
 
-/**
- * The parts of a job title, in order, each as canonical words with noise left out. Brackets are
- * their own part: "Nurse (Night Shift)" -> [["nurse"]], "Manager, Sales" -> [["manager"], ["sale"]].
- */
+// Brackets are their own part: "Manager, Sales" -> [["manager"], ["sale"]].
 export function titleParts(title: string): string[][] {
   const text = decode(title).replace(GENDER, " ");
   const parts: string[][] = [];

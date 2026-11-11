@@ -1,8 +1,7 @@
 import { loadSentry } from "@/lib/observability/browser";
 
-// Landing and policy pages have no session worth debugging and are the visits that pay most for
-// the download, so the SDK waits until the visitor moves into the app. A crash there still
-// reports itself through global-error.tsx.
+// Marketing pages pay most for the SDK download and have no session worth debugging, so it loads
+// once the visitor moves into the app. A crash there still reports through global-error.tsx.
 const MARKETING_PATHS = new Set(["/", "/pricing", "/privacy", "/terms", "/refunds"]);
 
 const wanted = (path: string) => !MARKETING_PATHS.has(path);

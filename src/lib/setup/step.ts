@@ -1,10 +1,6 @@
 import type { LookingFor, LookingForChoice } from "@/lib/job-feed/types";
 
-// Client-safe and pure. The one first-login step, "Where can you work?" (DESIGN.md, "First login
-// and setup"): when it opens, and what its Save keeps.
-
-// Where the first-login step may open: the first screens after signing in. Never on the account,
-// trash or a tool page, where it would get between the person and what they came to do.
+// Never on the account, trash or a tool page, where it would get in the way.
 export const SETUP_STEP_PATHS: readonly string[] = ["/dashboard", "/dashboard/jobs"];
 
 type Load = "loading" | "ready" | "error";
@@ -12,21 +8,17 @@ type Load = "loading" | "ready" | "error";
 export type StepFacts = {
   pathname: string;
   signedIn: boolean;
-  // The plan and this account's resumes are known, so the prefills are the real ones.
   ready: boolean;
   work: { status: Load; updatedAt: number | null };
   setup: { status: Load; stepAt: number | null };
-  // This browser's own note that the step was closed, for when the server couldn't keep it.
+  // For when the server couldn't keep that the step was closed.
   localStepAt: number | null;
 };
 
 export type StepDecision = "wait" | "show" | "skip";
 
-/**
- * Once per account: never for someone who has saved a work profile or a "Looking for" choice, and
- * never again after Save, Skip or closing it. Until everything it depends on is known it waits, so
- * it can't flash open and shut.
- */
+// Once per account, never after a saved profile or choice, Save, Skip or close. Waits until
+// everything it depends on is known, so it can't flash open and shut.
 export function setupStepDecision(facts: StepFacts): StepDecision {
   if (!facts.signedIn || !SETUP_STEP_PATHS.includes(facts.pathname)) return "skip";
   if (!facts.ready || facts.work.status === "loading") return "wait";
@@ -38,12 +30,9 @@ export function setupStepDecision(facts: StepFacts): StepDecision {
   return "show";
 }
 
-/**
- * What Save keeps of the "Looking for" line as shown: what the person picked, plus the guesses they
- * confirmed by saving. The place stays tied to the work profile's country (`placeFollowsCountry`)
- * unless they picked another; without a saved country (Free) the shown place is kept, unless it is
- * just "anywhere".
- */
+// The person's picks plus the guesses confirmed by saving. The place follows the profile's country
+// unless they picked another; without a saved country (Free) the shown place is kept unless
+// "anywhere".
 export function confirmedChoice({
   shown,
   picked,

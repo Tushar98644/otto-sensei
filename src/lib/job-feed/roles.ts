@@ -1,10 +1,9 @@
 import type { RoleFamily, Seniority } from "./types";
 
-// Client-safe and pure. What kind of role a job title names and how senior it is, for both job
-// posts and the titles on a resume, so the two are read by the same rules.
+// Job posts and resume titles are read by the same rules.
 
-// First match wins, so the narrower kinds go first: "Product Designer" is design, "Product
-// Marketing Manager" is marketing, "Sales Engineer" is sales, "Data Engineer" is data.
+// First match wins, so narrower kinds go first: "Product Designer" is design, "Sales Engineer"
+// sales.
 const FAMILY_RULES: readonly (readonly [RoleFamily, RegExp])[] = [
   [
     "design",
@@ -64,12 +63,8 @@ export function roleFamily(title: string): RoleFamily | null {
   return null;
 }
 
-// The occupations (O*NET-SOC code prefixes, occupations/index.ts) each kind of role can be. The
-// title rules above were written for office and tech jobs and fire on words other jobs share:
-// "Support Worker" (social care) reads as support, "Retail Sales Associate" as sales, "Nurse - PM
-// shift" as product, "Mechanical Engineer" as engineering. A kind whose title's occupation lies
-// outside its list is dropped, and the occupation alone says what the job is. Office kinds take
-// any office occupation, as the rules always did ("Sales Strategy & Operations" is sales).
+// The title rules fire on words other jobs share ("Support Worker" is social care, "Nurse - PM
+// shift" isn't product), so a kind whose title's occupation lies outside its list is dropped.
 const OFFICE = [
   "11-",
   "13-",
@@ -100,14 +95,13 @@ const FAMILY_OCCUPATIONS: Record<RoleFamily, readonly string[]> = {
   legal: OFFICE,
 };
 
-/** Whether a kind of role fits the occupation the same title names (true when there is none). */
+/** True when there is no occupation. */
 export function familyFits(family: RoleFamily, occupation: string | null): boolean {
   if (occupation === null) return true;
   return FAMILY_OCCUPATIONS[family].some((prefix) => occupation.startsWith(prefix));
 }
 
-// The kind of role an occupation picked from the card's search belongs to: narrow lists of the
-// occupations each kind is made of, unlike the broad checks above.
+// Narrow lists for an occupation picked from the card's search, unlike the broad checks above.
 const PICKED_KIND: Record<RoleFamily, readonly string[]> = {
   engineering: ["15-1", "17-2061", "17-2072", "11-3021", "11-9041"],
   data: ["15-2", "15-1221", "15-124", "13-1161"],
@@ -137,7 +131,6 @@ const FAMILY_ORDER: readonly RoleFamily[] = [
   "operations",
 ];
 
-/** The kind of role an occupation picked on its own belongs to, or null for most non-office work. */
 export function familyOfOccupation(occupation: string): RoleFamily | null {
   return (
     FAMILY_ORDER.find((family) =>
@@ -158,7 +151,7 @@ const JUNIOR =
   /\b(?:junior|jr\.?|entry[- ]level|graduate|grad|new grad|associate|apprentice|trainee|i|level 1)\b/;
 const INTERN = /\b(?:intern|internship|co-?op|working student|placement student)\b/;
 
-/** How senior a title reads. A title with no marker is mid level. */
+/** A title with no marker is mid level. */
 export function seniorityOf(title: string): Seniority {
   // Roman numerals are only levels at the end ("Engineer II"), never inside ("Phase I trial").
   // Commas and brackets become one space, so "Manager, Software Engineering" still reads.
@@ -184,7 +177,6 @@ export const SENIORITY_RANK: Record<Seniority, number> = {
   director: 5,
 };
 
-/** The level years of experience usually reach, for resumes whose titles don't say. */
 export function seniorityForYears(years: number): Seniority {
   if (years < 2) return "junior";
   if (years < 5) return "mid";
@@ -194,11 +186,7 @@ export function seniorityForYears(years: number): Seniority {
 const YEARS =
   /\b(?:at least|minimum(?: of)?|min\.?)?\s*(\d{1,2})\s*(?:\+|plus)?\s*(?:(?:-|–|to)\s*\d{1,2}\s*)?(?:\+\s*)?(?:years?|yrs?)\b(?:\s+of)?(?:\s+[\w/&+.-]+){0,5}?\s+(?:experience|exp\b)/gi;
 
-/**
- * The fewest years of experience the post asks for ("5+ years of experience", "3-5 years of
- * professional experience"), or null when it names none. The smallest number wins, so a "nice to
- * have 8 years" line doesn't raise the bar.
- */
+// The smallest number wins, so a "nice to have 8 years" line doesn't raise the bar.
 export function minYearsOf(text: string): number | null {
   let min: number | null = null;
   for (const match of text.matchAll(YEARS)) {

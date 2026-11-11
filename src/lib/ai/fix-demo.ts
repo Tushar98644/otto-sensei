@@ -3,10 +3,8 @@ import { bulletText } from "@/lib/resume/sections";
 import { capitalize, clipWords, hasPlaceholder } from "./text";
 import type { FixResult } from "./types";
 
-// Demo mode (no API key): a deterministic fix built from the linter, so the whole flow, questions
-// and answers included, works locally without an AI call.
+// Demo mode (no API key): a deterministic fix from the linter, so the whole flow works locally.
 
-// The fix input after trimming and capping, shared by the demo and the AI path.
 export type PreparedFix = {
   bullet: string;
   role: { title: string; company: string };
@@ -20,8 +18,7 @@ const RESULT_QUESTION = "What changed because of this work?";
 const RESULT_PLACEHOLDER = "[result]";
 const TRAILING_PUNCTUATION = /[\s.;,]+$/u;
 
-// "Responsible for the payments API." -> "The payments API": the weak opener and the closing
-// period go, everything else stays as the person wrote it.
+// "Responsible for the payments API." -> "The payments API": the opener and final period go.
 function cleanLine(line: string, weakStart: string | null): string {
   let text = (bulletText(line) ?? line.trim()).replace(/^(?:I|We)\s+/u, "");
   if (weakStart && text.toLowerCase().startsWith(weakStart.toLowerCase())) {

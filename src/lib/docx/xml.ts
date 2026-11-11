@@ -1,6 +1,5 @@
-// Small WordprocessingML builders. Word rejects a file whose property elements are out of schema
-// order ("unreadable content"), so each builder writes its children in the order the schema
-// lists them, not in the order the options happen to be given.
+// Word rejects property elements out of schema order ("unreadable content"), so each builder writes
+// its children in schema order.
 
 export const W_NS = "http://schemas.openxmlformats.org/wordprocessingml/2006/main";
 export const R_NS = "http://schemas.openxmlformats.org/officeDocument/2006/relationships";
@@ -28,7 +27,7 @@ export type RunProps = {
   caps?: boolean;
   smallCaps?: boolean;
   color?: string;
-  // Extra space between letters, in points.
+  // In points.
   letterSpacing?: number;
   size?: number;
 };
@@ -78,11 +77,11 @@ export type ParagraphProps = {
   bulletList?: number;
   ruleBelow?: Rule;
   ruleAbove?: Rule;
-  // A right-aligned tab stop this far from the left margin. Every length here is in points.
+  // Every length here is in points.
   rightTab?: number | TabStop;
   before?: number;
   after?: number;
-  // Line pitch in points; never tighter than the font needs.
+  // Never tighter than the font needs.
   line?: number;
   indent?: { left: number; hanging?: number; right?: number };
   align?: "left" | "center";

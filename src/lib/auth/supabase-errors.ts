@@ -1,7 +1,6 @@
 import { isAuthApiError, isAuthSessionMissingError, type AuthError } from "@supabase/supabase-js";
 
-// Server-only. Sorting Supabase Auth failures into "this visitor isn't signed in" and "Supabase
-// itself is failing": only the first may sign anyone out.
+// Only "this visitor isn't signed in" may sign anyone out, never "Supabase itself is failing".
 
 export function isSignedOutError(error: AuthError): boolean {
   if (isAuthSessionMissingError(error)) return true;

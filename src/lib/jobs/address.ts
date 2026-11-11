@@ -1,11 +1,9 @@
 import { isIPv4, isIPv6 } from "node:net";
 
-// Server-only. Which IP addresses a fetch of a user-supplied link may connect to: public unicast
-// only. Anything else could reach our own network, the platform's runtime API on loopback, or a
+// Public unicast only: anything else could reach our network, the runtime API on loopback, or a
 // cloud metadata service (169.254.169.254, fd00:ec2::254).
 
-// Private, loopback, link-local, carrier NAT, protocol, documentation, benchmarking, multicast and
-// reserved ranges.
+// Private, loopback, link-local, CGNAT, documentation, benchmarking, multicast and reserved ranges.
 const BLOCKED_V4: readonly (readonly [string, number])[] = [
   ["0.0.0.0", 8],
   ["10.0.0.0", 8],
@@ -53,8 +51,7 @@ function isPublicV4(ip: string): boolean {
   return !BLOCKED_V4.some((range) => inV4(value, range));
 }
 
-// The 8 groups of an IPv6 address, with "::" expanded and a trailing dotted IPv4 part folded into
-// the last two groups. Null for anything that isn't IPv6.
+// "::" expanded and a trailing dotted IPv4 part folded into the last two groups.
 export function ipv6Groups(ip: string): number[] | null {
   if (!isIPv6(ip)) return null;
   let address = ip.split("%")[0]!.toLowerCase();
@@ -93,7 +90,7 @@ function isPublicV6(ip: string): boolean {
   return !BLOCKED_V6.some((range) => inV6(groups, range));
 }
 
-/** True only for a public unicast IPv4 or IPv6 address. Unparseable input is never public. */
+/** Unparseable input is never public. */
 export function isPublicAddress(ip: string): boolean {
   if (isIPv4(ip)) return isPublicV4(ip);
   return isPublicV6(ip);

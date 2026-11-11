@@ -8,16 +8,13 @@ import { devAuthActive } from "./dev-mode";
 import { authErrorFields } from "./supabase-errors";
 import type { SessionUser } from "./types";
 
-// Server-only. "Continue with Google" through Supabase Auth, PKCE flow: the code verifier goes into
-// an httpOnly cookie here, and /auth/callback trades Google's code plus that cookie for a session.
+// PKCE: the code verifier goes into an httpOnly cookie, and /auth/callback trades it plus Google's
+// code for a session.
 
 export const OAUTH_CALLBACK_PATH = "/auth/callback";
 const GOOGLE_NEEDS_SUPABASE = "Google sign-in works once Supabase is set up.";
 
-/**
- * The Google consent URL to send the browser to. Comes back to /auth/callback?next=<path>, on the
- * public domain (appUrl()), which must be in Supabase's redirect allow list.
- */
+// Returns to /auth/callback on appUrl(), which must be in Supabase's redirect allow list.
 export async function googleSignInUrl(next: string | null | undefined): Promise<string> {
   if (devAuthActive()) throw new AuthError("not_configured", GOOGLE_NEEDS_SUPABASE);
   const supabase = await createSupabaseServerClient();
@@ -41,10 +38,7 @@ export async function googleSignInUrl(next: string | null | undefined): Promise<
   return data.url;
 }
 
-/**
- * Finishes the Google sign-in: Supabase sets the session cookies, and the user gets our row. Null
- * when the code or verifier is missing, expired or already used (a reload, a second tab).
- */
+// Null when the code or verifier is missing, expired or already used (a reload, a second tab).
 export async function finishOAuthSignIn(code: string): Promise<SessionUser | null> {
   const supabase = await createSupabaseServerClient();
   if (!supabase) return null;

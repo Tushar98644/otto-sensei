@@ -2,10 +2,7 @@ import { rateLimit } from "@/lib/rate-limit";
 import { findPublicShare, type PublicShare } from "./records";
 import { SHARE_SLUG } from "./types";
 
-// Server-only. What /s/<slug> needs before it renders.
-
-// Opens of any share page per network address per minute. A recruiter going through a pile of
-// links stays far below it; a script walking slugs doesn't.
+// A recruiter going through a pile of links stays far below it; a script walking slugs doesn't.
 export const PAGE_OPENS_PER_MINUTE = 60;
 
 export type SharePage =
