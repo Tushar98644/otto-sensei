@@ -174,20 +174,15 @@ describe("portfolio records", () => {
     expect((await findPublicPortfolio("maya-chen")).status).toBe("ok");
   });
 
-  it("lets a trial build the page but not publish it, and keeps a trial owner's page offline", async () => {
+  it("lets a trial publish, and takes the page offline if the plan drops to Free", async () => {
     const user = await setPlan(await createFreeUser(), "trial", 50_000);
     saved(await createPortfolio(user.id, { resume: sampleResume() }));
-    saved(await updatePortfolio(user.id, { template: "reel", showEmail: true }, user));
-    expect(await updatePortfolio(user.id, { published: true }, user)).toEqual({
-      status: "needs_paid_plan",
-    });
-    expect((await getPortfolio(user.id))?.published).toBe(false);
-    expect(await findPublicPortfolio("maya-chen")).toEqual({ status: "missing" });
-
-    // The first payment ends the trial: now it can go live.
-    const paid = await setPlan(user, "pro");
-    saved(await updatePortfolio(user.id, { published: true }, paid));
+    saved(await updatePortfolio(user.id, { template: "reel", published: true }, user));
     expect((await findPublicPortfolio("maya-chen")).status).toBe("ok");
+
+    await (await getDb()).update(users).set({ plan: "free" }).where(eq(users.id, user.id));
+    expect(await findPublicPortfolio("maya-chen")).toEqual({ status: "missing" });
+    expect((await getPortfolio(user.id))?.published).toBe(true);
   });
 
   it("keeps an old address redirecting after a change, and frees it when it expires", async () => {

@@ -2,7 +2,7 @@ import { and, desc, eq, gt, lt, notInArray, sql } from "drizzle-orm";
 import { getDb, type Tx } from "@/db/client";
 import { lockUser } from "@/db/locks";
 import { portfolioRedirects, portfolios, users } from "@/db/schema";
-import { isTrialing, type PlanId } from "@/config/plans";
+import type { PlanId } from "@/config/plans";
 import { log } from "@/lib/log";
 import { rateLimit } from "@/lib/rate-limit";
 import { emptyResume, ResumeSchema, type Resume } from "@/lib/resume/schema";
@@ -180,8 +180,6 @@ export type SaveResult =
   | { status: "slug_taken" }
   // Portfolios are Pro and Max (a trial included); Free keeps its data but can't change it.
   | { status: "needs_portfolio_plan" }
-  // Publishing needs a paid Pro or Max subscription, not a trial.
-  | { status: "needs_paid_plan" }
   | { status: "not_found" }
   // The account was deleted after the request was signed in, so nothing may be written.
   | { status: "no_user" };
@@ -246,7 +244,7 @@ export async function createPortfolio(
 }
 
 /** The owner's plan now: it decides what they may change and whether the page may go live. */
-export type PortfolioOwner = { plan: PlanId; trialEndsAt?: number | null };
+export type PortfolioOwner = { plan: PlanId };
 
 /** Applies the owner's changes, as far as their plan allows. */
 export async function updatePortfolio(
@@ -257,9 +255,6 @@ export async function updatePortfolio(
 ): Promise<SaveResult> {
   const { plan } = owner;
   if (!canBuildPortfolio(plan)) return { status: "needs_portfolio_plan" };
-  if (patch.published === true && !canPublishPortfolio(plan, isTrialing(owner))) {
-    return { status: "needs_paid_plan" };
-  }
   const db = await getDb();
   return db.transaction(async (tx): Promise<SaveResult> => {
     if (!(await lockUser(tx, userId))) return { status: "no_user" };
@@ -387,7 +382,7 @@ export type PublicPortfolioResult =
 
 /**
  * The published portfolio at this address, as a reader may see it. A page whose owner is no longer
- * on a paid plan (or is only on a trial) is offline: kept, but answered as missing.
+ * on Pro or Max is offline: kept, but answered as missing.
  */
 export async function findPublicPortfolio(
   slug: string,
@@ -398,7 +393,7 @@ export async function findPublicPortfolio(
   if (problem !== null && problem !== "reserved") return { status: "missing" };
   const db = await getDb();
   const [row] = await db
-    .select({ portfolio: portfolios, plan: users.plan, trialEndsAt: users.trialEndsAt })
+    .select({ portfolio: portfolios, plan: users.plan })
     .from(portfolios)
     .innerJoin(users, eq(users.id, portfolios.userId))
     .where(and(eq(portfolios.slug, slug), eq(portfolios.published, true)))
@@ -431,7 +426,7 @@ export async function findPublicPortfolio(
     };
   }
   const [moved] = await db
-    .select({ slug: portfolios.slug, plan: users.plan, trialEndsAt: users.trialEndsAt })
+    .select({ slug: portfolios.slug, plan: users.plan })
     .from(portfolioRedirects)
     .innerJoin(portfolios, eq(portfolios.id, portfolioRedirects.portfolioId))
     .innerJoin(users, eq(users.id, portfolios.userId))
@@ -448,8 +443,8 @@ export async function findPublicPortfolio(
     : { status: "missing" };
 }
 
-function ownerCanPublish(owner: { plan: PlanId; trialEndsAt: number | null }): boolean {
-  return canPublishPortfolio(owner.plan, isTrialing(owner));
+function ownerCanPublish(owner: { plan: PlanId }): boolean {
+  return canPublishPortfolio(owner.plan);
 }
 
 /**
@@ -465,7 +460,6 @@ export async function indexablePortfolios(
       slug: portfolios.slug,
       updatedAt: portfolios.updatedAt,
       plan: users.plan,
-      trialEndsAt: users.trialEndsAt,
     })
     .from(portfolios)
     .innerJoin(users, eq(users.id, portfolios.userId))

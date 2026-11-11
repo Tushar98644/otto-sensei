@@ -118,12 +118,11 @@ describe("plan perk", () => {
     expect(planCopy("free").features.some((line) => /portfolio/i.test(line))).toBe(false);
   });
 
-  it("builds on any paid plan, a trial included, and publishes only on a paid one", () => {
+  it("builds and publishes on any paid plan, a trial included", () => {
     expect(canBuildPortfolio("free")).toBe(false);
     expect(canBuildPortfolio("pro")).toBe(true);
-    expect(canPublishPortfolio("pro", true)).toBe(false);
-    expect(canPublishPortfolio("pro", false)).toBe(true);
-    expect(canPublishPortfolio("max", false)).toBe(true);
-    expect(canPublishPortfolio("free", false)).toBe(false);
+    expect(canPublishPortfolio("pro")).toBe(true);
+    expect(canPublishPortfolio("max")).toBe(true);
+    expect(canPublishPortfolio("free")).toBe(false);
   });
 });

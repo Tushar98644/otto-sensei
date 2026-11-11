@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { PORTFOLIO_LINES, portfolioFacts, publishNote, saveLabel, viewsLabel } from "./lines";
+import { PORTFOLIO_LINES, portfolioFacts, PUBLISH_NOTE, saveLabel, viewsLabel } from "./lines";
 
 const words = (line: string) => line.trim().split(/\s+/).length;
 
@@ -28,14 +28,13 @@ describe("Otto's portfolio lines", () => {
     expect(portfolioFacts({ projects: 0, jobs: 0, skills: 0 })).toBe("");
   });
 
-  it("words the top bar's views, save state and trial note plainly", () => {
+  it("words the top bar's views, save state and publish note plainly", () => {
     expect(viewsLabel(0)).toBe("No views yet");
     expect(viewsLabel(1)).toBe("1 view");
     expect(viewsLabel(1284)).toBe("1,284 views");
     expect(saveLabel(true, false)).toBe("Saving…");
     expect(saveLabel(false, false)).toBe("All changes saved");
     expect(saveLabel(false, true)).toBe("Saved to your live page");
-    expect(publishNote("November 12")).toContain("after your trial ends on November 12");
-    expect(publishNote(null)).toContain("Publishing comes with paid Pro");
+    expect(PUBLISH_NOTE).toContain("Publishing comes with Pro");
   });
 });

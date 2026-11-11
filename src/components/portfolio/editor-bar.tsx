@@ -8,12 +8,10 @@ import { Badge } from "@/components/ui/badge";
 import { Button, buttonClasses } from "@/components/ui/button";
 import { Menu } from "@/components/ui/menu";
 import { StatusPill } from "@/components/ui/status";
-import { isTrialing } from "@/config/plans";
 import { canPublishPortfolio } from "@/lib/portfolio/plan";
 import { portfolioPath, type Portfolio } from "@/lib/portfolio/types";
-import { trialEndDay } from "@/lib/usage-copy";
 import { useContentStore } from "./content/content-store";
-import { publishNote, saveLabel, viewsLabel } from "./lines";
+import { PUBLISH_NOTE, saveLabel, viewsLabel } from "./lines";
 import { setPublished, usePortfolioStore } from "./portfolio-store";
 import { usePortfolioUrl } from "./use-portfolio-url";
 
@@ -30,18 +28,13 @@ export function EditorBar({ portfolio, onPreview }: EditorBarProps) {
   const { user } = useMe();
   const saving = usePortfolioStore((state) => state.saving);
   const writing = useContentStore((state) => state.saving || state.dirty);
-  // A trial builds and previews; going live waits for the first Pro payment.
-  const trialing = user !== null && isTrialing(user);
-  const canPublish = user === null || canPublishPortfolio(user.plan, trialing);
+  const canPublish = user === null || canPublishPortfolio(user.plan);
   const url = usePortfolioUrl(portfolio.slug);
   const href = url || portfolioPath(portfolio.slug);
   const { copied, copy } = useCopyLink();
   const noteId = useId();
   const { published, views } = portfolio;
-  const note =
-    !published && !canPublish
-      ? publishNote(user?.trialEndsAt ? trialEndDay(user.trialEndsAt) : null)
-      : null;
+  const note = !published && !canPublish ? PUBLISH_NOTE : null;
 
   const main = published ? (
     <Button variant="secondary" onClick={() => copy(url)} disabled={!url} className="min-w-32">

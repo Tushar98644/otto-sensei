@@ -1,7 +1,6 @@
 import { fail, ok } from "@/lib/api/respond";
 import { rejectCrossSite, rejectNonJson } from "@/lib/auth/route-guards";
 import { getCurrentUser } from "@/lib/auth/session";
-import type { SessionUser } from "@/lib/auth/types";
 import { readJson } from "@/lib/http";
 import { log } from "@/lib/log";
 import { refreshPortfolioPages } from "@/lib/portfolio/cache";
@@ -14,7 +13,6 @@ import {
   type SaveResult,
 } from "@/lib/portfolio/records";
 import { SLUG_MESSAGES } from "@/lib/portfolio/slug";
-import { trialEndDay } from "@/lib/usage-copy";
 import {
   CreatePortfolioSchema,
   UpdatePortfolioSchema,
@@ -26,7 +24,7 @@ import { NEEDS_PLAN, NO_PORTFOLIO, NO_STORE, SIGN_IN, writeLimited } from "./lim
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-function answer(result: SaveResult, user: SessionUser, createdStatus = 200): Response {
+function answer(result: SaveResult, createdStatus = 200): Response {
   switch (result.status) {
     case "saved": {
       // Before answering, so the owner's "Open page" never lands on the old copy.
@@ -43,18 +41,11 @@ function answer(result: SaveResult, user: SessionUser, createdStatus = 200): Res
       return fail("bad_request", SLUG_MESSAGES.taken, 400);
     case "needs_portfolio_plan":
       return fail("upgrade_required", NEEDS_PLAN, 402);
-    case "needs_paid_plan":
-      return fail("forbidden", publishAfterTrial(user), 403);
     case "not_found":
       return fail("not_found", NO_PORTFOLIO, 404);
     case "no_user":
       return fail("unauthorized", SIGN_IN, 401);
   }
-}
-
-function publishAfterTrial(user: SessionUser): string {
-  const ends = user.trialEndsAt ? ` on ${trialEndDay(user.trialEndsAt, "UTC")}` : "";
-  return `Your page can go live once your trial ends and Pro starts${ends}. Until then, only you can see it.`;
 }
 
 // GET /api/portfolio: the signed-in account's portfolio, or null before it has one.
@@ -91,7 +82,7 @@ export async function POST(req: Request): Promise<Response> {
         400,
       );
     }
-    return answer(await createPortfolio(user.id, body.data), user, 201);
+    return answer(await createPortfolio(user.id, body.data), 201);
   } catch (error) {
     log.error("portfolio.create_failed", error);
     return fail("server_error", "Couldn't make your portfolio. Please try again.", 500);
@@ -116,7 +107,7 @@ export async function PATCH(req: Request): Promise<Response> {
         400,
       );
     }
-    return answer(await updatePortfolio(user.id, body.data, user), user);
+    return answer(await updatePortfolio(user.id, body.data, user));
   } catch (error) {
     log.error("portfolio.update_failed", error);
     return fail("server_error", "Couldn't save that change. Please try again.", 500);

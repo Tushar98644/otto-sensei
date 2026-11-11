@@ -36,12 +36,9 @@ export function saveLabel(saving: boolean, live: boolean): string {
   return live ? "Saved to your live page" : "All changes saved";
 }
 
-/** Why Publish is off during a trial: the page is built and previewed now, it goes live once paid. */
-export function publishNote(trialEnd: string | null): string {
-  return trialEnd
-    ? `Publishing starts with paid Pro, after your trial ends on ${trialEnd}. Until then only you can see this page.`
-    : "Publishing comes with paid Pro, and we host the page for you. Until then only you can see it.";
-}
+/** Why Publish is off: a Free account keeps its page saved but offline. */
+export const PUBLISH_NOTE =
+  "Publishing comes with Pro, and we host the page for you. Until then only you can see it.";
 
 /** The facts line for Otto's note: "3 projects · 2 jobs". */
 export function portfolioFacts(counts: { projects: number; jobs: number; skills: number }): string {

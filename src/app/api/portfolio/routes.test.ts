@@ -172,26 +172,18 @@ describe("/api/portfolio", () => {
     expect(Number(limited.headers.get("retry-after"))).toBeGreaterThan(0);
   });
 
-  it("keeps portfolios to Pro and Max, and publishing to paid plans", async () => {
+  it("keeps portfolios to Pro and Max, the trial included", async () => {
     // Free: 402, which the page answers with the trial's prompt.
     await signInFree("free@example.com");
     const free = await create({ resume: sampleResume() });
     expect(free.status).toBe(402);
     expect(await errorOf(free)).toMatchObject({ code: "upgrade_required" });
 
-    // On the trial: build and change it, but not publish.
+    // On the trial: build, change and publish it.
     const trialEnd = Date.UTC(2099, 0, 15, 12);
     const maya = await setPlan(await signInFree("maya@example.com"), "trial", trialEnd);
     expect((await create({ resume: sampleResume() })).status).toBe(201);
     expect((await patch({ allowIndexing: true })).status).toBe(200);
-    const early = await patch({ published: true });
-    expect(early.status).toBe(403);
-    expect((await errorOf(early)).message).toBe(
-      "Your page can go live once your trial ends and Pro starts on Jan 15. Until then, only you can see it.",
-    );
-
-    // The first payment ends the trial.
-    await setPlan(maya, "pro");
     expect(
       ((await (await patch({ published: true })).json()) as PortfolioSaveResponse).portfolio
         .published,

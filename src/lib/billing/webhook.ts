@@ -62,7 +62,10 @@ const EnvelopeSchema = z.object({
 
 const IdSchema = z.string().min(1).max(200);
 const ProductRef = z.union([IdSchema, z.object({ id: IdSchema })]);
-const CustomerRef = z.union([IdSchema, z.object({ id: IdSchema, email: z.string().max(320).nullish() })]);
+const CustomerRef = z.union([
+  IdSchema,
+  z.object({ id: IdSchema, email: z.string().max(320).nullish() }),
+]);
 
 // Only the fields we use, lenient where Creem leaves them out.
 const SubscriptionSchema = z.object({
@@ -107,7 +110,9 @@ export async function processWebhook(
   try {
     await verifyWebhookSignature(rawBody, headers, { secret: config.secret });
   } catch (error) {
-    log.warn("billing.webhook_invalid", { reason: error instanceof Error ? error.message : "unknown" });
+    log.warn("billing.webhook_invalid", {
+      reason: error instanceof Error ? error.message : "unknown",
+    });
     return { status: 401, message: "invalid_signature" };
   }
 
@@ -117,7 +122,9 @@ export async function processWebhook(
   // Retries keep the event id; a manual resend from the dashboard gets a new one.
   const eventId = envelope.success ? (envelope.data.id ?? headers.get("webhook-id") ?? "") : "";
   if (!envelope.success || eventId.length === 0 || eventId.length > MAX_EVENT_ID_CHARS) {
-    log.error("billing.webhook_malformed", "unreadable envelope", { eventId: eventId.slice(0, 64) });
+    log.error("billing.webhook_malformed", "unreadable envelope", {
+      eventId: eventId.slice(0, 64),
+    });
     return { status: 500, message: "malformed" };
   }
   const context: Context = { eventId, eventType: envelope.data.eventType };
@@ -199,13 +206,17 @@ function toState(
   const replaces = IdSchema.safeParse(data.metadata?.[REPLACES_METADATA_KEY]);
   const productId = typeof data.product === "string" ? data.product : data.product.id;
   const product = config.productIds.includes(productId) ? config.planForProduct(productId) : null;
-  const customer = typeof data.customer === "string" ? { id: data.customer, email: null } : data.customer;
+  const customer =
+    typeof data.customer === "string" ? { id: data.customer, email: null } : data.customer;
   // subscription.expired keeps the subscription's last status in the payload ("active"), but Creem
   // sends it because the period ended unpaid: access ends until a retried payment makes it paid.
   const status = context.eventType === "subscription.expired" ? "expired" : data.status;
   const periodEndsAt = parseTimestamp(data.current_period_end_date);
   return {
-    userId: typeof metadataUserId === "string" && metadataUserId.length <= 200 ? metadataUserId : undefined,
+    userId:
+      typeof metadataUserId === "string" && metadataUserId.length <= 200
+        ? metadataUserId
+        : undefined,
     email: customer.email ?? undefined,
     customerId: customer.id,
     subscriptionId: data.id,
@@ -216,7 +227,9 @@ function toState(
     status,
     // A scheduled cancellation keeps access until the period ends, but nothing renews.
     renewsAt:
-      status === "scheduled_cancel" ? null : (parseTimestamp(data.next_transaction_date) ?? periodEndsAt),
+      status === "scheduled_cancel"
+        ? null
+        : (parseTimestamp(data.next_transaction_date) ?? periodEndsAt),
     // The AI allowance counts in this period (src/lib/usage.ts), so a renewal starts it over.
     periodStartsAt: parseTimestamp(data.current_period_start_date),
     periodEndsAt,
@@ -225,10 +238,7 @@ function toState(
   };
 }
 
-async function report(
-  result: ApplyResult,
-  context: Context & { status: string },
-): Promise<void> {
+async function report(result: ApplyResult, context: Context & { status: string }): Promise<void> {
   if (result.outcome === "applied") {
     log.info("billing.plan_updated", {
       ...context,
@@ -263,11 +273,10 @@ async function report(
   }
 }
 
-// A published portfolio shows only while its owner is on a paid (not trial) plan, so when that
-// changes the cached page has to go now rather than within the hour.
+// A published portfolio shows only while its owner is on Pro or Max, so when that changes the
+// cached page has to go now rather than within the hour.
 async function refreshPublishedPage(result: Extract<ApplyResult, { outcome: "applied" }>) {
-  const before = canPublishPortfolio(result.before.plan, result.before.trialing);
-  if (before === canPublishPortfolio(result.plan, result.trialing)) return;
+  if (canPublishPortfolio(result.before.plan) === canPublishPortfolio(result.plan)) return;
   try {
     refreshPortfolioPages(await portfolioSlugsOf(result.userId));
   } catch (error) {
