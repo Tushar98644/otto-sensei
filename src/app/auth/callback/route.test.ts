@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { getCurrentUser } from "@/lib/auth/session";
-import { AUTH_COOKIE, cookieJar, fakeAuth, resetDb } from "@/lib/auth/test-helpers";
+import { getCurrentAccount, getCurrentUser } from "@/lib/auth/session";
+import { AUTH_COOKIE, cookieJar, fakeAuth, resetDb, signInAs } from "@/lib/auth/test-helpers";
 import { findUserById } from "@/lib/users";
 import { GET } from "./route";
 
@@ -53,5 +53,59 @@ describe("GET /auth/callback", () => {
     expect((await callback(`code=${code}`)).headers.get("location")).toBe("https://otto.test/dashboard");
     startedGoogleSignIn();
     expect((await callback(`code=${code}`)).headers.get("location")).toContain("error=google");
+  });
+});
+
+describe("GET /auth/callback after Connect GitHub", () => {
+  const back = "next=%2Fstudio%3Fstep%3Dfix%26github%3Dr1&link=github";
+
+  it("links GitHub to the signed-in account and goes back to the page", async () => {
+    const ada = await signInAs("ada@example.com");
+    startedGoogleSignIn();
+    const res = await callback(`code=${fakeAuth.issueLinkCode(ada.id, "AdaCodes")}&${back}`);
+    expect(res.headers.get("location")).toBe("https://otto.test/studio?step=fix&github=r1");
+    const account = await getCurrentAccount();
+    expect(account?.user.id).toBe(ada.id);
+    expect(account?.github).toEqual({ login: "AdaCodes", canDisconnect: true });
+  });
+
+  it("goes back to the page saying why when GitHub belongs to another account", async () => {
+    vi.spyOn(console, "info").mockImplementation(() => {});
+    const ada = await signInAs("ada@example.com");
+    const res = await callback(`${back}&error=server_error&error_code=identity_already_exists`);
+    expect(res.headers.get("location")).toBe("https://otto.test/studio?step=fix&github=r1&github_error=taken");
+    expect((await getCurrentUser())?.id).toBe(ada.id);
+  });
+
+  it("adds no message when the person cancelled at GitHub, and a plain one for anything else", async () => {
+    vi.spyOn(console, "info").mockImplementation(() => {});
+    await signInAs("ada@example.com");
+    const cancelled = await callback(`${back}&error=access_denied`);
+    expect(cancelled.headers.get("location")).toBe("https://otto.test/studio?step=fix&github=r1");
+    const stale = await callback(`${back}&code=used-already`);
+    expect(stale.headers.get("location")).toContain("github_error=failed");
+  });
+});
+
+// The app only links GitHub, but once the provider is on, a GitHub sign-in can be started by hand
+// (Supabase's authorize URL). It is treated like any new sign-in.
+describe("GET /auth/callback after a GitHub sign-in started by hand", () => {
+  it("makes an ordinary free account connected to that GitHub account", async () => {
+    startedGoogleSignIn();
+    const res = await callback(`code=${fakeAuth.issueOAuthCode("Dev@Example.com", { github: "newdev" })}`);
+    expect(res.headers.get("location")).toBe("https://otto.test/dashboard");
+    const account = await getCurrentAccount();
+    expect(account?.user).toMatchObject({ email: "dev@example.com", plan: "free" });
+    expect(account?.github).toEqual({ login: "newdev", canDisconnect: false });
+  });
+
+  it("lands in the existing account with that verified email, as Supabase links them", async () => {
+    const ada = await signInAs("ada@example.com");
+    cookieJar.clear();
+    startedGoogleSignIn();
+    await callback(`code=${fakeAuth.issueOAuthCode("ada@example.com", { github: "adacodes" })}`);
+    const account = await getCurrentAccount();
+    expect(account?.user.id).toBe(ada.id);
+    expect(account?.github).toEqual({ login: "adacodes", canDisconnect: true });
   });
 });

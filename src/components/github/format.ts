@@ -6,7 +6,7 @@ import type { Resume } from "@/lib/resume/schema";
 
 const MONTH = new Intl.DateTimeFormat("en-US", { month: "short", year: "numeric", timeZone: "UTC" });
 
-/** The GitHub username in the resume's own links, so most people never type it. */
+/** The GitHub username in the resume's own links, which makes the studio offer the import. */
 export function usernameFromResume(resume: Resume): string {
   for (const link of resume.basics.links) {
     const name = parseGitHubUsername(link.url);

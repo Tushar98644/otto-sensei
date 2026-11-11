@@ -102,7 +102,7 @@ export function ContentEditor({
       <MilestonesCard content={content} auto={auto} />
       <WritingCard content={content} auto={auto} />
       <PersonalCard content={content} auto={auto} />
-      <GitHubCard content={content} auto={auto} github={github} />
+      <GitHubCard content={content} github={github} />
     </div>
   );
 }

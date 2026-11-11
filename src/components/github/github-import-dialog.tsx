@@ -1,23 +1,24 @@
 "use client";
 
-import { useEffect, useEffectEvent, useId, useRef, type FormEvent } from "react";
+import { useEffect, useEffectEvent, useRef } from "react";
 import { useAccountGate } from "@/components/account/account-gate";
 import { OttoNote } from "@/components/mascot/otto-note";
 import { OttoWorking } from "@/components/mascot/otto-working";
 import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Dialog } from "@/components/ui/dialog";
-import { Field } from "@/components/ui/field";
-import { Input } from "@/components/ui/input";
 import { toast } from "@/components/ui/toast";
+import { isApiError } from "@/lib/api/client";
 import { addGitHubProjects, isOnResume, MAX_PROJECTS } from "@/lib/github/to-projects";
 import { GITHUB_PICK_LIMITS, type GitHubDraftResult } from "@/lib/github/types";
 import type { Resume } from "@/lib/resume/schema";
 import { useStudioStore } from "@/lib/store/resume-store";
 import { pluralize } from "@/lib/utils";
-import { GITHUB_OTTO, usernameFromResume } from "./format";
+import { GitHubStartDialog } from "./connect-step";
+import { GITHUB_OTTO } from "./format";
 import { PickStep } from "./pick-step";
 import { ReviewStep } from "./review-step";
+import { useGitHubConnection } from "./use-github-connection";
 import { useGitHubImport, type GitHubImport } from "./use-github-import";
 
 export type GitHubImportDialogProps = {
@@ -47,10 +48,10 @@ function projectCount(flow: GitHubImport): number {
 }
 
 /**
- * "Import from GitHub": a GitHub username (read from the resume's links when it has one, and
- * looked up the moment the dialog opens) → the best public work picked and drafted by itself →
- * the person keeps what they want, and only "Add" changes the resume. "Pick other repos" opens
- * the full list of repos and merged pull requests.
+ * "Import from GitHub": the connected GitHub account (connected first when there is none, looked
+ * up the moment the dialog opens) → the best public work picked and drafted by itself → the
+ * person keeps what they want, and only "Add" changes the resume. "Pick other repos" opens the
+ * full list of repos and merged pull requests.
  */
 export function GitHubImportDialog({
   resume,
@@ -59,29 +60,41 @@ export function GitHubImportDialog({
   onAdded,
 }: GitHubImportDialogProps) {
   const gate = useAccountGate();
-  const flow = useGitHubImport(resume, alreadyOnFor(resume), (error) =>
-    gate.handleApiError(error, "github"),
-  );
+  const github = useGitHubConnection(open);
+  const flow = useGitHubImport(resume, github.login, alreadyOnFor(resume), (error) => {
+    // Disconnected since the dialog opened (another tab): the first screen offers "Connect
+    // GitHub" again.
+    if (isApiError(error, "github_not_connected")) github.reload();
+    else gate.handleApiError(error, "github");
+  });
   const updateResume = useStudioStore((s) => s.updateResume);
-  const formId = useId();
   const { state } = flow;
-  // Once per opening, so going back to the name step lets the person type another one.
+  // Once per opening, so going back to the first screen doesn't look the account up again.
   const autoStarted = useRef(false);
-  const knownName = usernameFromResume(resume) !== "";
+  const login = github.login;
   const startLookup = useEffectEvent(() => void flow.lookup());
 
   useEffect(() => {
-    if (!open || autoStarted.current || !knownName) return;
+    if (!open || autoStarted.current || !login) return;
     autoStarted.current = true;
     // After this render, so the dialog is on screen before its state moves on.
     const timer = window.setTimeout(startLookup, 0);
     return () => window.clearTimeout(timer);
-  }, [open, knownName]);
+  }, [open, login]);
 
   function close() {
     flow.reset();
     autoStarted.current = false;
     onOpenChange(false);
+  }
+
+  async function disconnect() {
+    flow.reset();
+    if (await github.disconnect()) autoStarted.current = false;
+  }
+
+  async function signIn() {
+    if (await gate.requireUser("Sign in to connect your GitHub account.")) github.reload();
   }
 
   function add() {
@@ -106,11 +119,6 @@ export function GitHubImportDialog({
         : { title: `This resume already has ${MAX_PROJECTS} projects`, description: "Remove one to make room.", variant: "error" },
     );
     close();
-  }
-
-  function submitName(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    void flow.lookup();
   }
 
   const count = projectCount(flow);
@@ -212,47 +220,18 @@ export function GitHubImportDialog({
 
   return (
     <>
-      <Dialog
+      <GitHubStartDialog
         open={open}
         onOpenChange={(next) => (next ? onOpenChange(true) : close())}
-        size="sm"
-        title="Import from GitHub"
-        description="Pick public repos and merged pull requests, and Otto drafts project lines from them. No GitHub sign-in needed."
-        footer={
-          <>
-            <Button variant="ghost" onClick={close}>
-              Cancel
-            </Button>
-            <Button type="submit" form={formId} loading={state.busy === "lookup"}>
-              Find my work
-            </Button>
-          </>
-        }
-      >
-        <form id={formId} onSubmit={submitName} noValidate>
-          <Field
-            label="GitHub username"
-            hint="Your profile link works too, like github.com/octocat."
-            error={state.error}
-          >
-            <Input
-              value={flow.username}
-              onChange={(event) => flow.setUsername(event.target.value)}
-              placeholder="octocat"
-              maxLength={200}
-              autoComplete="off"
-              autoCapitalize="none"
-              autoCorrect="off"
-              spellCheck={false}
-              enterKeyHint="search"
-              data-autofocus
-            />
-          </Field>
-          {state.busy === "lookup" ? (
-            <OttoWorking task="githubLookup" size="sm" className="mt-4" />
-          ) : null}
-        </form>
-      </Dialog>
+        onClose={close}
+        github={github}
+        target={resume.id}
+        lookingUp={state.busy === "lookup"}
+        error={state.error}
+        onFind={() => void flow.lookup()}
+        onDisconnect={() => void disconnect()}
+        onSignIn={() => void signIn()}
+      />
       {dialogs}
     </>
   );

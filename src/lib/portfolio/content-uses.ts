@@ -231,7 +231,7 @@ export function contentChecklist(
     }),
     github: () => ({
       done: view.github !== null,
-      note: view.github ? `github.com/${view.github.username}` : "Add your GitHub username",
+      note: view.github ? `github.com/${view.github.username}` : "Connect your GitHub account",
     }),
   };
   return fields.map((field) => {

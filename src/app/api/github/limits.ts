@@ -5,10 +5,10 @@ import { log } from "@/lib/log";
 import { rateLimit, retryAfterHeader, waitText, type RateLimitResult } from "@/lib/rate-limit";
 import { ipBucket } from "../import/upload-limits";
 
-// Server-only. Looking a GitHub account up needs no account, so like job links it is limited per
-// network and per device. GitHub's own allowance for this server is shared by everyone, so both
-// limits sit well under what would let one person or script use it up. Drafting project lines is
-// an AI call and spends the account's "github" allowance instead (see ../metered-free).
+// Server-only. Looking up the connected GitHub account costs no allowance, so like job links it is
+// limited per network and per device. GitHub's own allowance for this server is shared by
+// everyone, so both limits sit well under what would let one person or script use it up. Drafting
+// project lines is an AI call and spends the account's "github" allowance instead (../metered-free).
 
 const HOUR_MS = 60 * 60 * 1000;
 

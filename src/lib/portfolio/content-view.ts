@@ -24,7 +24,6 @@ import {
   link,
   markParts,
   repoName,
-  resumeGitHubUsername,
   sentences,
   toSocial,
 } from "./content-rules";
@@ -215,23 +214,23 @@ export function contentView({
   }));
 
   const now_ = pick(content.now, auto.now).filter((item) => item.text);
-  const githubUsername = content.github.username ?? auto.githubUsername;
-  const githubView =
-    github && githubUsername && github.username.toLowerCase() === githubUsername.toLowerCase()
-      ? {
-          username: github.username,
-          name: github.name,
-          bio: github.bio,
-          followers: github.followers,
-          publicRepos: github.publicRepos,
-          totalStars: github.totalStars,
-          languages: github.languages,
-          repos: github.repos,
-          activity: github.activity,
-          joinedAt: github.joinedAt,
-          href: `https://github.com/${github.username}`,
-        }
-      : null;
+  // Stored numbers only ever come from the owner's connected GitHub account (content-records.ts),
+  // so they show as they are, whatever username the resume names.
+  const githubView = github
+    ? {
+        username: github.username,
+        name: github.name,
+        bio: github.bio,
+        followers: github.followers,
+        publicRepos: github.publicRepos,
+        totalStars: github.totalStars,
+        languages: github.languages,
+        repos: github.repos,
+        activity: github.activity,
+        joinedAt: github.joinedAt,
+        href: `https://github.com/${github.username}`,
+      }
+    : null;
 
   return {
     name: view.name,
@@ -341,14 +340,6 @@ export function contentView({
     github: shown("github", githubView, null),
     updatedAt: view.updatedAt,
   };
-}
-
-/** The GitHub username the page uses: the owner's, else the one on the resume. */
-export function githubUsernameFor(
-  view: Pick<PortfolioView, "github">,
-  content: PortfolioContent,
-): string | null {
-  return content.github.username ?? resumeGitHubUsername(view);
 }
 
 export type PortfolioViews = {

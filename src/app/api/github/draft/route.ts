@@ -1,13 +1,14 @@
 import { fail, ok } from "@/lib/api/respond";
 import { rejectCrossSite, rejectNonJson } from "@/lib/auth/route-guards";
-import { getCurrentUser } from "@/lib/auth/session";
+import { getCurrentAccount } from "@/lib/auth/session";
 import { draftGitHubProjects } from "@/lib/github/draft";
 import { GitHubError, newGitHubSession } from "@/lib/github/http";
 import { GitHubDraftRequestSchema, type GitHubDraftResponse } from "@/lib/github/types";
 import { readJson } from "@/lib/http";
 import { log } from "@/lib/log";
-import { takeAccountUnit, upgradeRequired } from "../../metered-free";
+import { requirePlanFeature, takeAccountUnit, upgradeRequired } from "../../metered-free";
 import { gitHubFailure } from "../limits";
+import { ownGitHubLogin } from "../ownership";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -15,7 +16,8 @@ export const maxDuration = 60;
 const GITHUB_BUDGET_MS = 15_000;
 
 // Picked repos and pull requests → drafted project entries. Never touches a resume: the dialog
-// shows the drafts and adds them only after the person confirms.
+// shows the drafts and adds them only after the person confirms. Only from the GitHub account
+// linked to this one (../ownership.ts).
 export async function POST(req: Request): Promise<Response> {
   const rejected = rejectCrossSite(req) ?? rejectNonJson(req);
   if (rejected) return rejected;
@@ -23,15 +25,21 @@ export async function POST(req: Request): Promise<Response> {
     const body = await readJson(req, GitHubDraftRequestSchema);
     if (!body.ok) return fail("bad_request", "Pick up to 4 repos and 6 pull requests, then try again.", 400);
 
-    const user = await getCurrentUser();
+    const account = await getCurrentAccount();
     const startedAt = Date.now();
     // Drafting is an AI call, so Pro and Max (and the trial) only; looking repos up stays free.
-    const unit = user ? await takeAccountUnit(user, "github", startedAt) : upgradeRequired(null, "github");
+    // The plan is checked before the connection so Free hears about Pro first.
+    if (!account) return upgradeRequired(null, "github");
+    const noPlan = requirePlanFeature(account.user, "github");
+    if (noPlan) return noPlan;
+    const login = ownGitHubLogin(account.github, body.data.username);
+    if (login instanceof Response) return login;
+    const unit = await takeAccountUnit(account.user, "github", startedAt);
     if (unit instanceof Response) return unit;
 
     const session = newGitHubSession(GITHUB_BUDGET_MS, startedAt);
     try {
-      const result = await draftGitHubProjects(session, body.data);
+      const result = await draftGitHubProjects(session, { ...body.data, username: login });
       // GitHub's own words, lightly arranged: no model call to count.
       if (!result.usedAI || result.entries.length === 0) await unit.giveBack();
       log.info("github.drafted", {
@@ -52,7 +60,7 @@ export async function POST(req: Request): Promise<Response> {
       await unit.giveBack();
       if (!(error instanceof GitHubError)) throw error;
       log.info("github.draft_failed", { reason: error.reason, calls: session.calls });
-      return gitHubFailure(error, body.data.username);
+      return gitHubFailure(error, login);
     }
   } catch (error) {
     log.error("github.draft_error", error);

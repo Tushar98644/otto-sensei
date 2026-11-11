@@ -1,10 +1,12 @@
 import { cookies } from "next/headers";
+import type { GitHubConnection } from "@/lib/github/connect";
 import { log } from "@/lib/log";
 import { authCookieOptions, isAuthCookie } from "@/lib/supabase/cookies";
 import { createSupabaseServerClient, supabaseAuthConfigured } from "@/lib/supabase/server";
 import { ensureUser, toSessionUser } from "@/lib/users";
 import { clearDevSession, getDevUser } from "./dev";
 import { devAuthActive } from "./dev-mode";
+import { devGitHubConnection, githubConnectionOf } from "./github";
 import { authErrorFields, isSignedOutError } from "./supabase-errors";
 import type { AuthMode, SessionUser } from "./types";
 
@@ -18,14 +20,23 @@ export function authMode(): AuthMode {
   return supabaseAuthConfigured() ? "supabase" : "off";
 }
 
+export type CurrentAccount = {
+  user: SessionUser;
+  // The GitHub account linked to it (./github.ts): the only one GitHub features may read.
+  github: GitHubConnection | null;
+};
+
 /**
- * The signed-in user with a fresh plan from our users row (webhooks change it), or null. Asks
+ * The signed-in account with a fresh plan from our users row (webhooks change it), or null. Asks
  * Supabase on every call (getUser, not getClaims) so a signed-out or deleted session stops working
  * at once, as the old revocable sessions did. Throws when Supabase can't answer, instead of
  * returning null, so an outage can't send every visitor through the sign-out path.
  */
-export async function getCurrentUser(): Promise<SessionUser | null> {
-  if (devAuthActive()) return getDevUser();
+export async function getCurrentAccount(): Promise<CurrentAccount | null> {
+  if (devAuthActive()) {
+    const user = await getDevUser();
+    return user ? { user, github: devGitHubConnection() } : null;
+  }
   const supabase = await createSupabaseServerClient();
   if (!supabase) return null;
   const { data, error } = await supabase.auth.getUser();
@@ -37,7 +48,15 @@ export async function getCurrentUser(): Promise<SessionUser | null> {
   const { id, email } = data.user;
   // Every sign-in method here proves an address, so a user without one isn't ours.
   if (!email) return null;
-  return toSessionUser(await ensureUser({ id, email }));
+  return {
+    user: toSessionUser(await ensureUser({ id, email })),
+    github: githubConnectionOf(data.user),
+  };
+}
+
+/** getCurrentAccount() without the linked accounts. */
+export async function getCurrentUser(): Promise<SessionUser | null> {
+  return (await getCurrentAccount())?.user ?? null;
 }
 
 /**

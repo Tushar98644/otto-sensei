@@ -9,6 +9,7 @@ import { Button, type ButtonSize, type ButtonVariant } from "@/components/ui/but
 import { toast } from "@/components/ui/toast";
 import type { Resume } from "@/lib/resume/schema";
 import { useStudioStore } from "@/lib/store/resume-store";
+import { useGitHubReturn } from "./connect-return";
 
 type Dialog = typeof import("./github-import-dialog").GitHubImportDialog;
 
@@ -56,6 +57,8 @@ export function GitHubImportButton({
       },
     );
   }
+  // Back from connecting GitHub, the dialog picks up where it left off.
+  useGitHubReturn(resumeId, open);
   // Followed only once the dialog has been opened, so typing elsewhere doesn't rerender this.
   const resume = useStudioStore((state) =>
     dialog.used && Object.hasOwn(state.resumes, resumeId) ? state.resumes[resumeId] : undefined,

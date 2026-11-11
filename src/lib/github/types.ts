@@ -66,6 +66,10 @@ export type GitHubDraftEntry = {
   bullets: string[];
 };
 
+// POST /api/github/connection: the page to come back to (checked with safeNextPath).
+export const GitHubConnectRequestSchema = z.object({ next: z.string().max(512).optional() });
+export type GitHubConnectBody = z.input<typeof GitHubConnectRequestSchema>;
+
 export const GitHubLookupRequestSchema = z.object({
   username: z.string().trim().regex(GITHUB_USERNAME, "That isn't a GitHub username."),
 });

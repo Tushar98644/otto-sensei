@@ -10,6 +10,7 @@ import {
   type SignInWithOAuthCredentials,
   type SignInWithPasswordlessCredentials,
   type User,
+  type UserIdentity,
   type UserResponse,
   type VerifyOtpParams,
 } from "@supabase/supabase-js";
@@ -80,9 +81,18 @@ type FakeMethod =
   | "signInWithOAuth"
   | "exchangeCodeForSession"
   | "signOut"
-  | "deleteUser";
+  | "deleteUser"
+  | "linkIdentity"
+  | "getUserIdentities"
+  | "unlinkIdentity";
 
-type AuthUser = { id: string; email: string };
+// `github`: the linked GitHub login. `githubOnly`: made by signing in with GitHub, so it has no
+// email identity and GitHub is its only way in.
+type AuthUser = { id: string; email: string; github: string | null; githubOnly?: boolean };
+
+// What a provider hands back to /auth/callback: a sign-in (Google, or GitHub with `github`), or
+// GitHub linked to an existing account.
+type OAuthGrant = { email: string; github?: string } | { linkTo: string; github: string };
 
 const state = {
   configured: true,
@@ -90,20 +100,42 @@ const state = {
   users: new Map<string, AuthUser>(),
   sessions: new Map<string, string>(),
   codes: new Map<string, string>(),
-  oauthCodes: new Map<string, string>(),
+  oauthCodes: new Map<string, OAuthGrant>(),
   failures: new Map<FakeMethod, AuthError>(),
   sent: [] as { email: string; code: string; shouldCreateUser: boolean | undefined }[],
   oauthStarts: [] as SignInWithOAuthCredentials[],
+  linkStarts: [] as SignInWithOAuthCredentials[],
 };
 
-function userObject({ id, email }: AuthUser): User {
+function identity(user: AuthUser, provider: string, data: Record<string, unknown>): UserIdentity {
   return {
-    id,
-    email,
+    id: String(data.sub),
+    identity_id: `${provider}-${user.id}`,
+    user_id: user.id,
+    provider,
+    identity_data: data,
+  };
+}
+
+// Shaped like Supabase's: GitHub's login sits in user_name and preferred_username.
+function identitiesOf(user: AuthUser): UserIdentity[] {
+  const list = user.githubOnly ? [] : [identity(user, "email", { sub: user.id, email: user.email })];
+  if (user.github) {
+    const login = user.github;
+    list.push(identity(user, "github", { sub: `gh-${login.toLowerCase()}`, user_name: login, preferred_username: login }));
+  }
+  return list;
+}
+
+function userObject(user: AuthUser): User {
+  return {
+    id: user.id,
+    email: user.email,
     aud: "authenticated",
     role: "authenticated",
-    app_metadata: { provider: "email" },
+    app_metadata: { provider: user.githubOnly ? "github" : "email" },
     user_metadata: {},
+    identities: identitiesOf(user),
     created_at: new Date(0).toISOString(),
   };
 }
@@ -128,11 +160,13 @@ function findByEmail(email: string): AuthUser | undefined {
   return [...state.users.values()].find((user) => user.email === email);
 }
 
-async function createAuthUser(email: string): Promise<AuthUser> {
+async function createAuthUser(email: string, githubOnly?: string): Promise<AuthUser> {
   const address = normalizeEmail(email);
   const existing = findByEmail(address);
   if (existing) return existing;
-  const user = { id: crypto.randomUUID(), email: address };
+  const user: AuthUser = githubOnly
+    ? { id: crypto.randomUUID(), email: address, github: githubOnly, githubOnly: true }
+    : { id: crypto.randomUUID(), email: address, github: null };
   await execSql("insert into auth.users (id, email) values ($1, $2)", [user.id, user.email]);
   state.users.set(user.id, user);
   return user;
@@ -151,21 +185,62 @@ function apiError(message: string, status: number, code: string): AuthApiError {
 
 type FakeServerAuth = Pick<
   ServerSupabase["auth"],
-  "getUser" | "signInWithOtp" | "verifyOtp" | "signInWithOAuth" | "exchangeCodeForSession" | "signOut"
->;
+  | "getUser"
+  | "signInWithOtp"
+  | "verifyOtp"
+  | "signInWithOAuth"
+  | "exchangeCodeForSession"
+  | "signOut"
+  | "getUserIdentities"
+  | "unlinkIdentity"
+> & {
+  // Only the OAuth overload: the app never links with an ID token.
+  linkIdentity: (credentials: SignInWithOAuthCredentials) => Promise<OAuthResponse>;
+};
+
+// The signed-in auth user, or why there is none, as getUser() reports it.
+function sessionUser(): { user: AuthUser; error: null } | { user: null; error: AuthError } {
+  const token = cookieJar.get(AUTH_COOKIE)?.value;
+  if (!token) return { user: null, error: new AuthSessionMissingError() };
+  const userId = state.sessions.get(token);
+  if (!userId) return { user: null, error: apiError("Session does not exist", 403, "session_not_found") };
+  const user = state.users.get(userId);
+  if (!user) return { user: null, error: apiError("User does not exist", 403, "user_not_found") };
+  return { user, error: null };
+}
+
+function startOAuth(path: string, credentials: SignInWithOAuthCredentials): OAuthResponse {
+  cookieJar.set(`${AUTH_COOKIE}-code-verifier`, "verifier", { httpOnly: true, path: "/" });
+  const url = new URL(`https://project.supabase.test/auth/v1${path}`);
+  url.searchParams.set("provider", credentials.provider);
+  url.searchParams.set("redirect_to", credentials.options?.redirectTo ?? "");
+  return { data: { provider: credentials.provider, url: url.toString() }, error: null };
+}
+
+// Like Supabase: a GitHub account belongs to one user, and the same verified email is one user.
+async function grantUser(grant: OAuthGrant): Promise<AuthUser | AuthError> {
+  const taken = (login: string, owner?: string) =>
+    [...state.users.values()].some((user) => user.id !== owner && user.github?.toLowerCase() === login.toLowerCase());
+  if ("linkTo" in grant) {
+    const user = state.users.get(grant.linkTo);
+    if (!user) return apiError("User not found", 404, "user_not_found");
+    if (taken(grant.github, user.id)) {
+      return apiError("Identity is already linked to another user", 422, "identity_already_exists");
+    }
+    user.github = grant.github;
+    return user;
+  }
+  const user = await createAuthUser(grant.email, grant.github);
+  if (grant.github && !user.github && !taken(grant.github)) user.github = grant.github;
+  return user;
+}
 
 const serverAuth: FakeServerAuth = {
   async getUser(): Promise<UserResponse> {
     const failure = takeFailure("getUser");
     if (failure) return { data: { user: null }, error: failure };
-    const token = cookieJar.get(AUTH_COOKIE)?.value;
-    if (!token) return { data: { user: null }, error: new AuthSessionMissingError() };
-    const userId = state.sessions.get(token);
-    if (!userId) {
-      return { data: { user: null }, error: apiError("Session does not exist", 403, "session_not_found") };
-    }
-    const user = state.users.get(userId);
-    if (!user) return { data: { user: null }, error: apiError("User does not exist", 403, "user_not_found") };
+    const { user, error } = sessionUser();
+    if (error) return { data: { user: null }, error };
     return { data: { user: userObject(user) }, error: null };
   },
 
@@ -200,23 +275,52 @@ const serverAuth: FakeServerAuth = {
     const failure = takeFailure("signInWithOAuth");
     if (failure) return { data: { provider: credentials.provider, url: null }, error: failure };
     state.oauthStarts.push(credentials);
-    cookieJar.set(`${AUTH_COOKIE}-code-verifier`, "verifier", { httpOnly: true, path: "/" });
-    const url = new URL("https://project.supabase.test/auth/v1/authorize");
-    url.searchParams.set("provider", credentials.provider);
-    url.searchParams.set("redirect_to", credentials.options?.redirectTo ?? "");
-    return { data: { provider: credentials.provider, url: url.toString() }, error: null };
+    return startOAuth("/authorize", credentials);
+  },
+
+  async linkIdentity(credentials: SignInWithOAuthCredentials): Promise<OAuthResponse> {
+    const failure = takeFailure("linkIdentity");
+    if (failure) return { data: { provider: credentials.provider, url: null }, error: failure };
+    const { error } = sessionUser();
+    if (error) return { data: { provider: credentials.provider, url: null }, error };
+    state.linkStarts.push(credentials);
+    return startOAuth("/user/identities/authorize", credentials);
+  },
+
+  async getUserIdentities() {
+    const failure = takeFailure("getUserIdentities");
+    if (failure) return { data: null, error: failure };
+    const { user, error } = sessionUser();
+    if (error) return { data: null, error };
+    return { data: { identities: identitiesOf(user) }, error: null };
+  },
+
+  async unlinkIdentity(target: UserIdentity) {
+    const failure = takeFailure("unlinkIdentity");
+    if (failure) return { data: null, error: failure };
+    const { user, error } = sessionUser();
+    if (error) return { data: null, error };
+    if (target.user_id !== user.id || target.provider !== "github" || !user.github) {
+      return { data: null, error: apiError("Identity doesn't exist", 404, "identity_not_found") };
+    }
+    if (identitiesOf(user).length < 2) {
+      return { data: null, error: apiError("User must have at least 1 identity after unlinking", 422, "single_identity_not_deletable") };
+    }
+    user.github = null;
+    return { data: {}, error: null };
   },
 
   async exchangeCodeForSession(code: string): Promise<AuthTokenResponse> {
     const failure = takeFailure("exchangeCodeForSession");
     if (failure) return { data: { user: null, session: null }, error: failure };
-    const email = state.oauthCodes.get(code);
-    if (!email || !cookieJar.get(`${AUTH_COOKIE}-code-verifier`)?.value) {
+    const grant = state.oauthCodes.get(code);
+    if (!grant || !cookieJar.get(`${AUTH_COOKIE}-code-verifier`)?.value) {
       return { data: { user: null, session: null }, error: apiError("invalid flow state", 404, "flow_state_not_found") };
     }
     state.oauthCodes.delete(code);
     cookieJar.delete(`${AUTH_COOKIE}-code-verifier`);
-    const user = await createAuthUser(email);
+    const user = await grantUser(grant);
+    if (!("id" in user)) return { data: { user: null, session: null }, error: user };
     const token = startSession(user);
     return { data: { user: userObject(user), session: sessionObject(user, token) }, error: null };
   },
@@ -265,6 +369,7 @@ export const fakeAuth = {
     state.failures.clear();
     state.sent.length = 0;
     state.oauthStarts.length = 0;
+    state.linkStarts.length = 0;
   },
   /** As if NEXT_PUBLIC_SUPABASE_URL (or the secret key, for admin) weren't set. */
   setConfigured(configured: boolean, { admin = configured }: { admin?: boolean } = {}): void {
@@ -280,16 +385,31 @@ export const fakeAuth = {
   get oauthStarts(): readonly SignInWithOAuthCredentials[] {
     return state.oauthStarts;
   },
+  get linkStarts(): readonly SignInWithOAuthCredentials[] {
+    return state.linkStarts;
+  },
   lastCode(email?: string): string {
     const last = email ? state.sent.findLast((entry) => entry.email === email) : state.sent.at(-1);
     if (!last) throw new Error("fake Supabase: no code was sent");
     return last.code;
   },
-  /** What Google would hand back to /auth/callback for this address. */
-  issueOAuthCode(email: string): string {
+  /**
+   * What Google would hand back to /auth/callback for this address; with `github`, a sign-in with
+   * that GitHub account instead (a new account with GitHub as its only way in).
+   */
+  issueOAuthCode(email: string, { github }: { github?: string } = {}): string {
     const code = crypto.randomUUID();
-    state.oauthCodes.set(code, normalizeEmail(email));
+    state.oauthCodes.set(code, { email: normalizeEmail(email), github });
     return code;
+  },
+  /** What GitHub would hand back to /auth/callback after linking `login` to this account. */
+  issueLinkCode(userId: string, login: string): string {
+    const code = crypto.randomUUID();
+    state.oauthCodes.set(code, { linkTo: userId, github: login });
+    return code;
+  },
+  githubOf(userId: string): string | null {
+    return state.users.get(userId)?.github ?? null;
   },
   hasAuthUser(id: string): boolean {
     return state.users.has(id);
@@ -308,7 +428,7 @@ export async function createUser(email = "ada@example.com", now?: number): Promi
 /** A users row exactly as given, plus the auth user its foreign key needs. Not signed in. */
 export async function insertUserRow(row: typeof users.$inferInsert): Promise<void> {
   await execSql("insert into auth.users (id, email) values ($1, $2)", [row.id, row.email]);
-  state.users.set(row.id, { id: row.id, email: row.email });
+  state.users.set(row.id, { id: row.id, email: row.email, github: null });
   await (await getDb()).insert(users).values(row);
 }
 
@@ -319,6 +439,13 @@ export async function signInAs(email = "ada@example.com"): Promise<SessionUser> 
   if (!authUser) throw new Error("fake Supabase: user vanished");
   startSession(authUser);
   return user;
+}
+
+/** Links a GitHub login to the account, as "Connect GitHub" would. */
+export function linkGitHub(user: Pick<SessionUser, "id">, login: string): void {
+  const authUser = state.users.get(user.id);
+  if (!authUser) throw new Error("fake Supabase: no such user");
+  authUser.github = login;
 }
 
 const TRIAL_MS = 3 * 24 * 60 * 60 * 1000;

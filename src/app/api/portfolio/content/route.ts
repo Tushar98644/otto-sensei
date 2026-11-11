@@ -1,6 +1,6 @@
 import { fail, ok } from "@/lib/api/respond";
 import { rejectCrossSite, rejectNonJson } from "@/lib/auth/route-guards";
-import { getCurrentUser } from "@/lib/auth/session";
+import { getCurrentAccount } from "@/lib/auth/session";
 import { readJson } from "@/lib/http";
 import { log } from "@/lib/log";
 import { refreshPortfolioPages } from "@/lib/portfolio/cache";
@@ -18,18 +18,20 @@ const HOUR_MS = 60 * 60 * 1000;
 // The editor autosaves a second after typing stops, so a long session sends a lot of these.
 const SAVES_PER_HOUR = 900;
 
-// GET /api/portfolio/content: the stored document and the GitHub numbers (fetched again when stale).
+// GET /api/portfolio/content: the stored document and the GitHub numbers of the connected account
+// (fetched again when stale).
 export async function GET(): Promise<Response> {
   try {
-    const user = await getCurrentUser();
-    if (!user) return fail("unauthorized", SIGN_IN, 401, NO_STORE);
+    const account = await getCurrentAccount();
+    if (!account) return fail("unauthorized", SIGN_IN, 401, NO_STORE);
+    const { user } = account;
     const portfolio = await getPortfolio(user.id);
     if (!portfolio) return fail("not_found", NO_PORTFOLIO, 404, NO_STORE);
-    const github = await refreshGitHub(user.id);
+    const github = await refreshGitHub(user.id, account.github?.login ?? null);
     if (github?.changed) refreshPortfolioPages([github.slug]);
     const body: Omit<ContentResponse, "ok"> = {
       content: portfolio.content,
-      github: github?.github ?? portfolio.github,
+      github: github ? github.github : portfolio.github,
     };
     return ok(body, { headers: NO_STORE });
   } catch (error) {
@@ -48,8 +50,9 @@ export async function PUT(req: Request): Promise<Response> {
   const blocked = rejectCrossSite(req) ?? rejectNonJson(req);
   if (blocked) return blocked;
   try {
-    const user = await getCurrentUser();
-    if (!user) return fail("unauthorized", SIGN_IN, 401);
+    const account = await getCurrentAccount();
+    if (!account) return fail("unauthorized", SIGN_IN, 401);
+    const { user } = account;
     if (!canBuildPortfolio(user.plan)) return fail("upgrade_required", NEEDS_PLAN, 402);
     const limit = await rateLimit(`portfolio:content:user:${user.id}`, SAVES_PER_HOUR, HOUR_MS);
     if (!limit.allowed) {
@@ -75,7 +78,7 @@ export async function PUT(req: Request): Promise<Response> {
         refreshPortfolioPages([result.slug]);
         const response: Omit<ContentResponse, "ok"> = {
           content: result.content,
-          github: (await refreshGitHub(user.id))?.github ?? null,
+          github: (await refreshGitHub(user.id, account.github?.login ?? null))?.github ?? null,
         };
         return ok(response, { headers: NO_STORE });
       }

@@ -313,6 +313,64 @@ same account: Supabase links them because Google has verified the address.
 
 ---
 
+## 8c. Connect GitHub (Import from GitHub, portfolio GitHub numbers)
+
+People connect their own GitHub account before the app reads any GitHub work for them, so nobody
+can import someone else's repos or show someone else's stars. Connecting uses Supabase identity
+linking: the person signs in to GitHub once, and that GitHub account is added to their Otto
+account. It is not a way to sign in to Otto.
+
+**Until this is done** nothing breaks: "Import from GitHub" shows **Connect GitHub**, and pressing it
+says "Connecting GitHub isn't set up yet. Please try again later." Portfolios show no GitHub
+numbers. Everything else works as before.
+
+**8c-1. GitHub OAuth App** (github.com → your avatar → **Settings** → **Developer settings** →
+**OAuth Apps** → **New OAuth App**)
+
+1. **Application name:** `Otto Sensei`.
+2. **Homepage URL:** `https://www.ottosensei.com`
+3. **Authorization callback URL:** `https://wuypdybfswifundtixmt.supabase.co/auth/v1/callback`
+   (the same value Supabase shows under **Authentication** → **Sign In / Providers** → **GitHub** →
+   **Callback URL**).
+4. Leave **Enable Device Flow** off. Click **Register application**.
+5. Copy the **Client ID**. Click **Generate a new client secret** and copy it now: GitHub shows it
+   only once.
+
+**8c-2. Supabase** (**Authentication** → **Sign In / Providers**)
+
+1. Open **GitHub**: turn it on (**Enable Sign in with GitHub**), paste the **Client ID** and the
+   **Client Secret**, **Save**.
+2. In **User Signups**, turn on **Allow manual linking**, **Save**. (Off by default. In the
+   Management API it is `security_manual_linking_enabled`.)
+3. Open **Email** and check **Confirm email** is on. With it on, Supabase won't sign anyone in
+   with a GitHub email address that GitHub hasn't verified (see "GitHub sign-in" below).
+
+Nothing to add in Vercel, and step 7's **Redirect URLs** (`.../**`) already cover the way back
+(`/auth/callback`, like Google).
+
+**Check it:** sign in on the live site, open a resume's menu → **Import from GitHub** → **Connect
+GitHub**, approve on GitHub. You come back to the same page, the dialog opens again and shows
+"Connected as <your login>", then your repos.
+
+- Otto only reads public repos and pull requests, through `GITHUB_TOKEN` (10d). It never posts to
+  GitHub. Supabase asks GitHub for its default access only (profile and email addresses).
+- One GitHub account belongs to one Otto account. Connecting it to a second shows "That GitHub
+  account is already connected to another Otto Sensei account."
+- **Not you? Disconnect** (in the dialog and on the portfolio's GitHub card) removes the link and
+  takes the GitHub numbers off the portfolio page.
+- Renamed your GitHub account? Disconnect and connect again: Supabase keeps the name from the
+  moment it was linked.
+- **GitHub sign-in.** The app never shows "Continue with GitHub", but once the provider is on,
+  someone can start a GitHub sign-in by hand (Supabase's own sign-in address). The app treats it
+  like any new sign-in: Supabase uses the email GitHub has verified, so the person lands in the
+  existing account with that email, or gets a new free account connected to that GitHub. Such an
+  account can't disconnect GitHub from the app, since GitHub is its only linked sign-in.
+- **Local `bun dev`:** dev sign-in has no Supabase, so it can't link GitHub. Add
+  `DEV_GITHUB_LOGIN=your-github-name` to `.env.local` and restart: every dev account counts as
+  connected to it. Production ignores it.
+
+---
+
 ## 9. AI: OpenRouter
 
 1. openrouter.ai → **Credits** → add $10 to start.
@@ -503,9 +561,10 @@ vercel env add NEXT_PUBLIC_POSTHOG_HOST production   # only for EU: https://eu.i
 
 ## 10d. GitHub import: a read-only token (optional)
 
-"Import from GitHub" (a resume card's menu) reads public repos and merged pull requests without
-anyone's GitHub login. Without a token GitHub allows the whole server 60 calls an hour (a lookup
-uses 2, a draft up to 10, repeats within 10 minutes are free), so add one before launch:
+"Import from GitHub" (a resume card's menu) reads the public repos and merged pull requests of the
+GitHub account the person connected (step 8c), with this server's own token, not theirs. Without a
+token GitHub allows the whole server 60 calls an hour (a lookup uses 2, a draft up to 10, repeats
+within 10 minutes are free), so add one before launch:
 
 1. github.com → **Settings** → **Developer settings** → **Fine-grained tokens** → **Generate new
    token**. Repository access: **Public repositories (read-only)**. No other permissions.
@@ -517,9 +576,10 @@ vercel env add GITHUB_TOKEN production
 ```
 
 - The server only ever calls `api.github.com`, at most 10 times per request, with a 10-minute cache.
-- Portfolios show the owner's GitHub numbers (stars, repos, languages, recent activity) with 3
-  calls, refreshed at most every 6 hours per page and stored with it, so page views never call
-  GitHub.
+- Portfolios show the GitHub numbers (stars, repos, languages, recent activity) of the owner's
+  connected GitHub account only (step 8c), with 3 calls, refreshed at most every 6 hours per page
+  and stored with it, so page views never call GitHub. Numbers stored before connecting existed are
+  never shown again.
 - Each device can look up 20 names an hour and draft 12 times a day (60 and 40 per network).
 - Drafting sends the picked repos' README and pull request text to OpenRouter, with the name on
   the resume and every email, phone and link swapped for placeholders. Nothing is added until the
@@ -629,6 +689,8 @@ the Creem webhook URL (step 10). Redeploy.
 - [ ] Sign in with an email code: the email arrives from your domain, within a minute, with a
       6-digit code, and the code signs you in.
 - [ ] Sign out, then **Continue with Google**: you come back signed in, to the same account.
+- [ ] **Import from GitHub** → **Connect GitHub**: you come back to the same page, connected as
+      your GitHub name (step 8c).
 - [ ] Fix one line with Otto (proves OpenRouter and the usage counter).
 - [ ] Run a test-mode trial checkout; the account shows the Pro trial and its end date within a
       few seconds (proves the webhook). A second checkout from the same email shows $15, no trial.
@@ -680,6 +742,9 @@ the Supabase dashboard: Vercel project → **Storage** → your database → **O
 | The email has a link, not a code | The template still uses `{{ .ConfirmationURL }}` (step 6e). Fix both templates. |
 | Google sends you to the home page, signed out | The return address isn't in **Redirect URLs** (step 7). |
 | Google says `redirect_uri_mismatch` | The Google client's redirect URI isn't exactly the Supabase callback URL (step 8a.6). |
+| "Connecting GitHub isn't set up yet" | The GitHub provider or **Allow manual linking** is off in Supabase (step 8c-2). |
+| GitHub says "The redirect_uri is not associated with this application" | The OAuth App's callback URL isn't exactly the Supabase callback URL (step 8c-1.3). |
+| "GitHub didn't connect" after approving | Supabase couldn't finish the link. Supabase → **Logs** → **Auth** shows why. |
 | "Account deletion isn't available right now" | `SUPABASE_SECRET_KEY` (or `SUPABASE_SERVICE_ROLE_KEY`) is missing in Vercel. |
 | `/api/health` answers 503 | `DATABASE_URL` is missing or wrong, or the project is paused. |
 | `migrate.ts`: `password authentication failed` | Wrong password in the URL, or special characters not URL-encoded. |

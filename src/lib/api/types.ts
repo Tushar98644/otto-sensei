@@ -47,6 +47,9 @@ export type ApiErrorCode =
   | "email_unavailable"
   // 503: sign-in (Supabase) isn't configured, or account deletion has no Supabase secret key.
   | "auth_unavailable"
+  // 403: a GitHub feature for an account that has no GitHub connected, or asked about a GitHub
+  // account other than the connected one. The client offers "Connect GitHub" again.
+  | "github_not_connected"
   | "server_error";
 
 export type ApiErrorBody = { ok: false; error: { code: ApiErrorCode; message: string } };

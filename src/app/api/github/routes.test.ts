@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ApiErrorBody } from "@/lib/api/types";
-import { cookieJar, jsonRequest, resetDb, signInAs, signInOnTrial } from "@/lib/auth/test-helpers";
+import { cookieJar, jsonRequest, linkGitHub, resetDb, signInAs, signInOnTrial } from "@/lib/auth/test-helpers";
 import { resetEnvForTests } from "@/lib/env";
 import { clearGitHubCache } from "@/lib/github/cache";
 import { installFakeGitHub, json, rawPull, rawRepo, searchResult, type FakeGitHub } from "@/lib/github/testing";
@@ -39,14 +39,55 @@ afterEach(() => {
   resetEnvForTests();
 });
 
+// Signed in, with "octocat" connected as this account's GitHub.
+async function connectedAs(login = "octocat", email = "octo@example.com") {
+  const user = await signInAs(email);
+  linkGitHub(user, login);
+  return user;
+}
+
 describe("POST /api/github/lookup", () => {
-  it("lists public work without any account", async () => {
+  beforeEach(async () => {
+    await connectedAs();
+  });
+
+  it("lists the connected account's public work", async () => {
     github = installFakeGitHub(standard);
-    const res = await lookup(jsonRequest("/api/github/lookup", { username: "octocat" }));
+    const res = await lookup(jsonRequest("/api/github/lookup", { username: "OctoCat" }));
     expect(res.status).toBe(200);
     const body = (await res.json()) as GitHubLookupResponse;
     expect(body.profile.repos.map((repo) => repo.fullName)).toEqual(["octocat/ledger-lint"]);
     expect(body.profile.pulls.map((pull) => pull.number)).toEqual([101]);
+  });
+
+  it("needs a signed-in account", async () => {
+    github = installFakeGitHub(standard);
+    cookieJar.clear();
+    const res = await lookup(jsonRequest("/api/github/lookup", { username: "octocat" }));
+    expect(res.status).toBe(401);
+    expect(github.calls).toHaveLength(0);
+  });
+
+  it("refuses an account with no GitHub connected, before calling GitHub", async () => {
+    github = installFakeGitHub(standard);
+    await signInAs("plain@example.com");
+    const res = await lookup(jsonRequest("/api/github/lookup", { username: "octocat" }));
+    expect(res.status).toBe(403);
+    expect(await errorOf(res)).toEqual({
+      code: "github_not_connected",
+      message: "Connect your GitHub account to import its projects.",
+    });
+    expect(github.calls).toHaveLength(0);
+  });
+
+  it("refuses anyone else's GitHub account, before calling GitHub", async () => {
+    github = installFakeGitHub(standard);
+    const res = await lookup(jsonRequest("/api/github/lookup", { username: "torvalds" }));
+    expect(res.status).toBe(403);
+    const error = await errorOf(res);
+    expect(error.code).toBe("github_not_connected");
+    expect(error.message).toContain("octocat");
+    expect(github.calls).toHaveLength(0);
   });
 
   it("turns away a name that isn't a GitHub username before calling GitHub", async () => {
@@ -58,6 +99,7 @@ describe("POST /api/github/lookup", () => {
 
   it("says plainly when the account doesn't exist", async () => {
     github = installFakeGitHub(() => undefined);
+    await connectedAs("nobody-here", "nobody@example.com");
     const res = await lookup(jsonRequest("/api/github/lookup", { username: "nobody-here" }));
     expect(res.status).toBe(404);
     expect((await errorOf(res)).message).toContain("nobody-here");
@@ -82,11 +124,14 @@ describe("POST /api/github/lookup", () => {
 
   it("limits lookups per network across devices", async () => {
     github = installFakeGitHub(standard);
+    // A fresh device each time: the per-device limit can't be what stops it.
     for (let i = 0; i < GITHUB_LIMITS.lookup.ip; i++) {
       cookieJar.clear();
+      await connectedAs();
       await lookup(jsonRequest("/api/github/lookup", { username: "octocat" }, { ip: "198.51.100.4" }));
     }
     cookieJar.clear();
+    await connectedAs();
     const res = await lookup(jsonRequest("/api/github/lookup", { username: "octocat" }, { ip: "198.51.100.4" }));
     expect(res.status).toBe(429);
   });
@@ -104,7 +149,7 @@ describe("POST /api/github/lookup", () => {
 describe("POST /api/github/draft", () => {
   // Drafting is an AI call: Pro, Max or the trial. Looking repos up stays free (above).
   beforeEach(async () => {
-    await signInOnTrial("octo@example.com");
+    linkGitHub(await signInOnTrial("octo@example.com"), "octocat");
   });
 
   it("drafts entries and never touches a resume", async () => {
@@ -117,6 +162,21 @@ describe("POST /api/github/draft", () => {
     expect(body.usedAI).toBe(false);
     expect(body.entries.map((entry) => entry.name)).toEqual(["ledger-lint", "Contributions to vercel/next.js"]);
     expect(body.entries[0]?.bullets).toContain("40 stars on GitHub");
+  });
+
+  it("drafts only from the connected account: none connected, or another one, is a 403", async () => {
+    github = installFakeGitHub(standard);
+    const others = { username: "torvalds", repos: ["torvalds/linux"] };
+    const res = await draft(jsonRequest("/api/github/draft", others));
+    expect(res.status).toBe(403);
+    expect((await errorOf(res)).code).toBe("github_not_connected");
+
+    await signInOnTrial("new@example.com");
+    const unconnected = await draft(
+      jsonRequest("/api/github/draft", { username: "octocat", repos: ["octocat/ledger-lint"] }),
+    );
+    expect(unconnected.status).toBe(403);
+    expect(github.calls).toHaveLength(0);
   });
 
   it("answers 404 when nothing picked is still on GitHub", async () => {

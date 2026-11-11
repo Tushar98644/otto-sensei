@@ -1,21 +1,22 @@
 "use client";
 
 import { RefreshCw } from "lucide-react";
-import { useId, useState } from "react";
+import { useState } from "react";
+import { useGitHubReturn } from "@/components/github/connect-return";
+import { ConnectedAs } from "@/components/github/connect-step";
+import { useGitHubConnection } from "@/components/github/use-github-connection";
+import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { toast } from "@/components/ui/toast";
 import { api, isApiError } from "@/lib/api/client";
-import { GITHUB_USERNAME, parseGitHubUsername } from "@/lib/github/username";
 import type { GitHubStats, PortfolioContent } from "@/lib/portfolio/content";
-import type { AutoContent } from "@/lib/portfolio/content-view";
 import { compactNumber } from "@/lib/portfolio/metrics";
-import { editContent, flushContent, setGitHub } from "./content-store";
-import { AutoNote } from "./fields";
+import { setGitHub } from "./content-store";
 import { SectionCard, ShowRow } from "./section-card";
 
 const ago = new Intl.RelativeTimeFormat("en", { numeric: "auto" });
+// What the way back from "Connect GitHub" names on this page (see connect-return.ts).
+const RETURN_TARGET = "portfolio";
 
 function since(iso: string | null, now = Date.now()): string {
   if (!iso) return "no public activity lately";
@@ -23,29 +24,34 @@ function since(iso: string | null, now = Date.now()): string {
   return `active ${ago.format(days, "day")}`;
 }
 
+/**
+ * The page's GitHub numbers. They come only from the GitHub account the owner connected, never a
+ * typed username, so a page can't show someone else's stars as its owner's.
+ */
 export function GitHubCard({
   content,
-  auto,
   github,
 }: {
   content: PortfolioContent;
-  auto: AutoContent;
   github: GitHubStats | null;
 }) {
-  const id = useId();
-  const [draft, setDraft] = useState<string | null>(null);
+  const connection = useGitHubConnection(true);
   const [busy, setBusy] = useState(false);
-  const username = content.github.username ?? auto.githubUsername ?? "";
-  const value = draft ?? username;
-  const bad =
-    draft !== null &&
-    draft.trim() !== "" &&
-    !GITHUB_USERNAME.test(parseGitHubUsername(draft) ?? "");
+  const { state } = connection;
+  const connected = state.status === "ready" ? state.connection : null;
+
+  useGitHubReturn(RETURN_TARGET, (error) => {
+    if (!error) {
+      toast({
+        title: "GitHub connected",
+        description: "Your page can show your GitHub numbers now.",
+        variant: "success",
+      });
+    }
+  });
 
   async function refresh() {
-    // The username has to be saved first, or the server fetches the old one.
     setBusy(true);
-    await flushContent();
     try {
       const answer = await api.refreshPortfolioGitHub();
       setGitHub(answer.github);
@@ -60,61 +66,67 @@ export function GitHubCard({
     }
   }
 
+  async function disconnect() {
+    if (await connection.disconnect()) setGitHub(null);
+  }
+
+  const meta = github
+    ? `★ ${compactNumber(github.totalStars)} · ${github.publicRepos} repos · ${since(github.activity.lastActiveAt)}`
+    : connected
+      ? "Not loaded yet"
+      : state.status === "ready"
+        ? "Not connected"
+        : undefined;
+
   return (
-    <SectionCard
-      title="GitHub"
-      meta={
-        github
-          ? `★ ${compactNumber(github.totalStars)} · ${github.publicRepos} repos · ${since(github.activity.lastActiveAt)}`
-          : username
-            ? "Not loaded yet"
-            : "No username"
-      }
-    >
-      <div className="flex flex-col gap-1.5">
-        <div className="flex items-baseline justify-between gap-3">
-          <Label htmlFor={id}>Username</Label>
-          <AutoNote
-            auto={content.github.username === null && auto.githubUsername !== null}
-            onReset={
-              content.github.username !== null && auto.githubUsername
-                ? () => editContent((c) => ({ ...c, github: { username: null } }))
-                : undefined
-            }
-          />
-        </div>
-        <div className="flex gap-2">
-          <Input
-            id={id}
-            value={value}
-            placeholder="octocat"
-            autoComplete="off"
-            spellCheck={false}
-            invalid={bad}
-            onChange={(event) => {
-              const text = event.currentTarget.value;
-              setDraft(text);
-              const name = parseGitHubUsername(text);
-              if (text.trim() === "") editContent((c) => ({ ...c, github: { username: null } }));
-              else if (name) editContent((c) => ({ ...c, github: { username: name } }));
-            }}
-            onBlur={() => setDraft(null)}
-          />
-          <Button
-            variant="secondary"
-            loading={busy}
-            disabled={!username}
-            onClick={() => void refresh()}
-          >
-            <RefreshCw className="size-4" />
-            Refresh
-          </Button>
-        </div>
-        <p className="text-sm/5 text-subtle">
-          {bad
-            ? "That isn't a GitHub username."
-            : "Public repos, stars, languages and recent activity, read without your GitHub login and refreshed every few hours."}
-        </p>
+    <SectionCard title="GitHub" meta={meta}>
+      <div className="flex flex-col gap-2" aria-live="polite">
+        {connected ? (
+          <>
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <ConnectedAs
+                connection={connected}
+                busy={connection.busy === "disconnect"}
+                onDisconnect={() => void disconnect()}
+              />
+              <Button variant="secondary" loading={busy} onClick={() => void refresh()}>
+                <RefreshCw className="size-4" />
+                Refresh
+              </Button>
+            </div>
+            <p className="text-sm/5 text-subtle">
+              Public repos, stars, languages and recent activity from your connected account,
+              refreshed every few hours.
+            </p>
+          </>
+        ) : state.status === "ready" ? (
+          <>
+            <p className="text-sm/6 text-muted">
+              Connect your GitHub to show your stars, repos and languages. Only your own account can
+              be shown.
+            </p>
+            <Button
+              variant="secondary"
+              className="self-start"
+              loading={connection.busy === "connect"}
+              onClick={() => void connection.connect(RETURN_TARGET)}
+            >
+              Connect GitHub
+            </Button>
+          </>
+        ) : state.status === "failed" ? (
+          <>
+            <p className="text-sm/6 text-muted">
+              Couldn&apos;t check your GitHub account just now.
+            </p>
+            <Button variant="secondary" className="self-start" onClick={connection.reload}>
+              Try again
+            </Button>
+          </>
+        ) : (
+          <p className="text-sm/6 text-muted">Checking your GitHub account…</p>
+        )}
+        {connection.error ? <Alert variant="error">{connection.error}</Alert> : null}
       </div>
       {github ? (
         <dl className="grid grid-cols-3 gap-3 rounded-xl bg-surface-muted p-3 text-center">

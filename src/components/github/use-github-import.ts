@@ -8,22 +8,19 @@ import {
   type GitHubLookup,
 } from "@/lib/github/types";
 import { suggestPicks } from "@/lib/github/suggest";
-import { parseGitHubUsername } from "@/lib/github/username";
 import type { Resume } from "@/lib/resume/schema";
-import { contactOf, usernameFromResume } from "./format";
+import { contactOf } from "./format";
 
-// State for the "Import from GitHub" dialog: name → (pick) → review. A username already on the
-// resume is looked up as soon as the dialog opens, the best repos are picked and drafted by
-// themselves, and the person lands on the drafts to say which to keep; "Pick other repos" goes
-// back to choosing. Nothing reaches the resume here; the dialog adds the kept entries only when
-// the person confirms.
+// State for the "Import from GitHub" dialog: name → (pick) → review. The connected GitHub account
+// is looked up as soon as the dialog opens, the best repos are picked and drafted by themselves,
+// and the person lands on the drafts to say which to keep; "Pick other repos" goes back to
+// choosing. Nothing reaches the resume here; the dialog adds the kept entries only when the
+// person confirms.
 
 export type GitHubImportStep = "name" | "pick" | "review";
 
 type State = {
   step: GitHubImportStep;
-  // null until the person types, so the field shows the name from the resume's links.
-  typed: string | null;
   profile: GitHubLookup | null;
   repos: string[];
   pulls: number[];
@@ -35,7 +32,6 @@ type State = {
 };
 
 type Action =
-  | { type: "type"; value: string }
   | { type: "start"; busy: "lookup" | "draft" }
   | { type: "failed"; error: string }
   | { type: "found"; profile: GitHubLookup; repos: string[]; pulls: number[] }
@@ -48,7 +44,6 @@ type Action =
 
 const INITIAL: State = {
   step: "name",
-  typed: null,
   profile: null,
   repos: [],
   pulls: [],
@@ -65,8 +60,6 @@ function toggle<T>(list: readonly T[], value: T, limit: number): T[] {
 
 function reducer(state: State, action: Action): State {
   switch (action.type) {
-    case "type":
-      return { ...state, typed: action.value, error: null };
     case "start":
       return { ...state, busy: action.busy, error: null };
     case "failed":
@@ -115,20 +108,21 @@ function messageOf(error: unknown, fallback: string): string {
 export type GitHubImport = ReturnType<typeof useGitHubImport>;
 
 /**
- * `alreadyOn` names drafted entries the resume already lists; they start unticked so a second
- * import doesn't add the same project twice.
+ * `login` is the connected GitHub account, the only one the server reads. `alreadyOn` names
+ * drafted entries the resume already lists; they start unticked so a second import doesn't add
+ * the same project twice.
  */
 export function useGitHubImport(
   resume: Resume,
+  login: string | null,
   alreadyOn: (draft: GitHubDraftResult) => string[],
-  // Sees every failed draft first, e.g. to offer the next plan at the monthly limit.
-  onDraftError?: (error: unknown) => void,
+  // Sees every failed lookup and draft after its message is set, e.g. to offer the next plan at
+  // the monthly limit or "Connect GitHub" again.
+  onError?: (error: unknown) => void,
 ) {
   const [state, dispatch] = useReducer(reducer, INITIAL);
   // Answers that arrive after the person went back or closed the dialog are dropped.
   const run = useRef(0);
-
-  const username = state.typed ?? usernameFromResume(resume);
 
   async function draftPicks(profile: GitHubLookup, repos: string[], pulls: number[], id: number) {
     dispatch({ type: "start", busy: "draft" });
@@ -144,29 +138,23 @@ export function useGitHubImport(
     } catch (error) {
       if (id === run.current) {
         dispatch({ type: "failed", error: messageOf(error, "Otto couldn't draft those projects. Try again.") });
-        onDraftError?.(error);
+        onError?.(error);
       }
     }
   }
 
   async function lookup() {
-    const name = parseGitHubUsername(username);
-    if (!name) {
-      dispatch({
-        type: "failed",
-        error: username.trim()
-          ? "That isn't a GitHub username. Use the name in your profile link, like github.com/octocat."
-          : "Type your GitHub username, like octocat.",
-      });
-      return;
-    }
+    if (!login) return;
     const id = ++run.current;
     dispatch({ type: "start", busy: "lookup" });
     let profile: GitHubLookup;
     try {
-      profile = (await api.githubLookup({ username: name })).profile;
+      profile = (await api.githubLookup({ username: login })).profile;
     } catch (error) {
-      if (id === run.current) dispatch({ type: "failed", error: messageOf(error, "Couldn't read GitHub. Try again.") });
+      if (id === run.current) {
+        dispatch({ type: "failed", error: messageOf(error, "Couldn't read GitHub. Try again.") });
+        onError?.(error);
+      }
       return;
     }
     if (id !== run.current) return;
@@ -184,8 +172,6 @@ export function useGitHubImport(
 
   return {
     state,
-    username,
-    setUsername: (value: string) => dispatch({ type: "type", value }),
     lookup,
     draft,
     toggleRepo: (fullName: string) => dispatch({ type: "toggleRepo", fullName }),

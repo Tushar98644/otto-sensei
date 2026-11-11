@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { PLANS, PRO_TRIAL, type Feature } from "@/config/plans";
 import type { ApiErrorBody } from "@/lib/api/types";
-import { cookieJar, jsonRequest, resetDb, setPlan, signInAs } from "@/lib/auth/test-helpers";
+import { cookieJar, jsonRequest, linkGitHub, resetDb, setPlan, signInAs } from "@/lib/auth/test-helpers";
 import type { SessionUser } from "@/lib/auth/types";
 import { resetEnvForTests } from "@/lib/env";
 import { installFakeGitHub, json, rawRepo, type FakeGitHub } from "@/lib/github/testing";
@@ -96,8 +96,11 @@ const CALLS: Call[] = [
   },
   {
     feature: "github",
-    send: () =>
-      githubDraft(jsonRequest("/api/github/draft", { username: "octocat", repos: ["octocat/ledger-lint"] })),
+    // Drafts read only the connected GitHub account, so every account here has octocat connected.
+    send: (user) => {
+      if (user) linkGitHub(user, "octocat");
+      return githubDraft(jsonRequest("/api/github/draft", { username: "octocat", repos: ["octocat/ledger-lint"] }));
+    },
     message: "GitHub drafts come with Pro. Try Pro free for 3 days.",
   },
 ];

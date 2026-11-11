@@ -40,7 +40,7 @@ If a library API is unclear, read its type definitions in `node_modules/<pkg>/` 
 | Missing env | Behavior |
 |---|---|
 | `OPENROUTER_API_KEY` | Import uses `heuristicParse()`. Fix and tailor return deterministic demo results. The UI shows a small "Demo mode" note. |
-| Supabase (any env) | Development: dev sign-in (`src/lib/auth/dev.ts`): request-code returns the code as `devCode` and the form shows it; verify sets a signed, revocable `otto_dev_session` cookie; Google is disabled. `DEV_AUTH=supabase` switches development to real Supabase. Production: request-code and Google answer 503 `auth_unavailable` ("Sign-in isn't set up yet"); everything signed-out still works. |
+| Supabase (any env) | Development: dev sign-in (`src/lib/auth/dev.ts`): request-code returns the code as `devCode` and the form shows it; verify sets a signed, revocable `otto_dev_session` cookie; Google is disabled. `DEV_AUTH=supabase` switches development to real Supabase. Production: request-code and Google answer 503 `auth_unavailable` ("Sign-in isn't set up yet"); everything signed-out still works. Dev sign-in can't link GitHub: `DEV_GITHUB_LOGIN` makes every dev account connected to that login. |
 | `DATABASE_URL` / `POSTGRES_URL` | Development: the local `.pglite/` folder (PGlite, migrated on first use), which is also used whenever dev sign-in is on, so test accounts never reach a real database. Production: `getDb()` throws. Tests: an in-memory PGlite per file (`vitest.setup.ts`). |
 | Creem keys | `billingMode()` is `"mock"` in development (upgrade flips the plan locally, Pro or Max; a new account's Pro monthly checkout starts a local 3-day trial) and `"disabled"` in production. Pro yearly/weekly, each Max option and the trial show only while their product id is set (`CREEM_PRO_YEARLY_PRODUCT_ID` / `_WEEKLY_`, `CREEM_MAX_MONTHLY_PRODUCT_ID` / `_YEARLY_` / `_WEEKLY_`, `CREEM_PRO_TRIAL_PRODUCT_ID`). `CREEM_TEST_MODE` (default true) picks test-api.creem.io. |
 | `GITHUB_TOKEN` | Import from GitHub still works, at GitHub's shared 60 calls an hour for the server. |
@@ -68,7 +68,7 @@ If a library API is unclear, read its type definitions in `node_modules/<pkg>/` 
 | `src/lib/supabase/*` | `createSupabaseServerClient()` (request cookies), `createSupabaseAdminClient()` (secret key), `updateSession()` for the proxy, auth cookie options |
 | `src/lib/http.ts` | `clientIp()`, `readJson(req, schema)`, `getDeviceId()` |
 | `src/lib/api/types.ts`, `respond.ts`, `client.ts` | Request schemas (each feature's own sit in its `validation.ts`, re-exported here), response types, `ok()`/`fail()`, browser `api` client + `ApiClientError` |
-| `src/lib/auth/*` | `SessionUser`, `AuthMode`, `getCurrentUser`/`clearSession`/`authMode`, `requestLoginCode`/`verifyLoginCode` (Supabase email OTP, or dev codes), `googleSignInUrl`/`finishOAuthSignIn`, `deleteAuthUser`, `AuthError`, route guards |
+| `src/lib/auth/*` | `SessionUser`, `AuthMode`, `getCurrentUser`/`getCurrentAccount` (the user plus the linked GitHub login, `github.ts`)/`clearSession`/`authMode`, `requestLoginCode`/`verifyLoginCode` (Supabase email OTP, or dev codes), `googleSignInUrl`/`finishOAuthSignIn`, `deleteAuthUser`, `AuthError`, route guards |
 | `src/lib/usage.ts`, `src/lib/rate-limit.ts` | `getUsage`/`getUsageState`/`consumeUsage`/`refundUsage`, `resolvePeriod`, `rateLimit` (stubs) |
 | `src/lib/billing/*` | `billingMode()` (`"creem" \| "mock" \| "disabled"`), `createCheckoutUrl`, `createPortalUrl`, `handleWebhook`, `trialAvailableFor`, `BillingError`. `creem.ts` is the only file that calls Creem; `trial.ts` (one trial per person), `entitlements.ts` (status to plan), `webhook.ts`, `intervals.ts` (product ids), `testing.ts` (fake Creem API for tests) |
 | `src/lib/store/resume-store.ts` | zustand studio store: `useStudioStore`, `useStudioHydrated`, `useActiveResume`, `useActiveReport`, `useResumeList`, `STUDIO_STEPS`, `STEP_LABELS` |
@@ -123,7 +123,8 @@ All route handlers: `export const runtime = "nodejs"`; respond only via `ok()`/`
 | `GET /api/resumes`, `PUT/DELETE /api/resumes/[id]` | Cloud backup | Sign-in; a new resume past Free's 1 is 402 |
 | `GET/POST/PATCH /api/applications`, `GET/PATCH/DELETE /api/applications/[id]` | Applications tracker; GET of one is its thread (timeline, opening, letters and answers, prep counts) for `/dashboard/applications/[id]` | Sign-in; POST and PATCH Pro (GET and DELETE open on Free) |
 | `GET/PUT /api/profile` | Work profile | Sign-in; PUT Pro |
-| `POST /api/github/lookup`, `POST /api/github/draft` | Public repos and merged PRs by username; drafted project lines | Anyone; per device and IP |
+| `POST /api/github/lookup`, `POST /api/github/draft` | Public repos and merged PRs of the connected GitHub account; drafted project lines | Sign-in with GitHub connected, own login only (else 403 `github_not_connected`); lookup per device and IP, draft Pro |
+| `GET/POST/DELETE /api/github/connection` | The connected GitHub account; start connecting (Supabase `linkIdentity`, back through `/auth/callback?link=github`); disconnect (`unlinkIdentity`, also drops the portfolio's GitHub numbers) | Sign-in |
 | `GET/POST /api/share`, `PATCH/DELETE /api/share/[id]` | Share links (one live link per resume) | Sign-in; POST Pro |
 | `GET/PATCH /api/notifications`, `GET/PUT /api/notifications/settings` | Bell notifications; reminder email switch (`chosen`: the account has saved one) | Sign-in |
 | `GET/PUT /api/setup` | First-login step answered or skipped, Home "Get set up" list hidden (`src/lib/setup`) | Sign-in, any plan |

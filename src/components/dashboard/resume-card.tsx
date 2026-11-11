@@ -22,6 +22,7 @@ import { useRouter } from "next/navigation";
 import { useId, useMemo, useState } from "react";
 import { useProTools } from "@/components/account/pro-tools";
 import { openFeaturePrompt } from "@/components/account/upgrade-prompt";
+import { useGitHubReturn } from "@/components/github/connect-return";
 import { OttoCheer } from "@/components/mascot/otto-cheer";
 import { portfolioFrom } from "@/components/portfolio/route";
 import { useShareResume } from "@/components/share/use-share-resume";
@@ -118,6 +119,8 @@ export function ResumeCard({
       },
     );
   }
+  // Back from connecting GitHub, the dialog picks up where it left off.
+  useGitHubReturn(resume.id, openGitHub);
   // GitHub drafts are Pro: on Free the menu item offers the trial instead of a dialog that stops
   // at its last step.
   const githubLocked = useProTools() === false;

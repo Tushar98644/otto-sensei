@@ -4,14 +4,10 @@ import { lockUser } from "@/db/locks";
 import { portfolios } from "@/db/schema";
 import { fetchGitHubStats } from "@/lib/github/profile";
 import { GitHubError } from "@/lib/github/http";
-import { parseStoredStats } from "@/lib/github/stats";
+import { parseStoredStats, storedStats } from "@/lib/github/stats";
 import { log } from "@/lib/log";
-import { emptyResume } from "@/lib/resume/schema";
-import { ResumeSchema } from "@/lib/resume/validation";
-import { parseStoredContent, type GitHubStats, type PortfolioContent } from "./content";
-import { githubUsernameFor } from "./content-view";
+import type { GitHubStats, PortfolioContent } from "./content";
 import { portfolioSlugsOf } from "./records";
-import { portfolioView } from "./view";
 
 // Server-only. The content half of a portfolio (src/lib/portfolio/content.ts): saving the owner's
 // document and keeping its GitHub numbers fresh.
@@ -51,10 +47,13 @@ export type GitHubRefresh = { github: GitHubStats | null; changed: boolean; slug
 
 /**
  * Fetches the page's GitHub numbers again when they're older than GITHUB_STALE_MS (or always with
- * `force`). Keeps the old copy when GitHub is busy; clears it when there's no username any more.
+ * `force`). Only ever for `login`, the GitHub account the owner connected (null when none): a
+ * username on the resume or typed into the editor could be anyone's. Keeps the old copy when
+ * GitHub is busy; clears it when nothing is connected.
  */
 export async function refreshGitHub(
   userId: string,
+  login: string | null,
   { force = false, now = Date.now() }: { force?: boolean; now?: number } = {},
 ): Promise<GitHubRefresh | null> {
   const db = await getDb();
@@ -62,45 +61,41 @@ export async function refreshGitHub(
     .select({
       id: portfolios.id,
       slug: portfolios.slug,
-      snapshot: portfolios.snapshot,
-      content: portfolios.content,
       github: portfolios.github,
       checkedAt: portfolios.githubCheckedAt,
-      createdAt: portfolios.createdAt,
     })
     .from(portfolios)
     .where(eq(portfolios.userId, userId))
     .limit(1);
   if (!row) return null;
   const stored = parseStoredStats(row.github);
-  const parsed = ResumeSchema.safeParse(row.snapshot);
-  const resume = parsed.success ? parsed.data : emptyResume(row.createdAt);
-  const view = portfolioView(resume, { showEmail: false, showPhone: false, hiddenSections: [] });
-  const username = githubUsernameFor(view, parseStoredContent(row.content));
+  const clear = async (): Promise<GitHubRefresh> => {
+    if (row.github !== null) {
+      await db
+        .update(portfolios)
+        .set({ github: null, githubCheckedAt: now })
+        .where(eq(portfolios.id, row.id));
+    }
+    return { github: null, changed: stored !== null, slug: row.slug };
+  };
 
-  if (!username) {
-    if (stored === null) return { github: null, changed: false, slug: row.slug };
-    await db
-      .update(portfolios)
-      .set({ github: null, githubCheckedAt: now })
-      .where(eq(portfolios.id, row.id));
-    return { github: null, changed: true, slug: row.slug };
-  }
-  const sameUser = stored?.username.toLowerCase() === username.toLowerCase();
+  if (!login) return clear();
+  const sameUser = stored?.username.toLowerCase() === login.toLowerCase();
   const fresh = sameUser && row.checkedAt !== null && now - row.checkedAt < GITHUB_STALE_MS;
   if (fresh && !force) return { github: stored, changed: false, slug: row.slug };
 
   let github: GitHubStats | null;
   try {
-    github = await fetchGitHubStats(username, now);
+    github = await fetchGitHubStats(login, now);
   } catch (error) {
     if (!(error instanceof GitHubError)) throw error;
     log.info("portfolio.github_unavailable", { reason: error.reason });
-    return { github: sameUser ? stored : null, changed: false, slug: row.slug };
+    // Another account's numbers never stay up while GitHub is busy.
+    return sameUser ? { github: stored, changed: false, slug: row.slug } : clear();
   }
   await db
     .update(portfolios)
-    .set({ github: github as unknown as Record<string, unknown> | null, githubCheckedAt: now })
+    .set({ github: github ? storedStats(github) : null, githubCheckedAt: now })
     .where(eq(portfolios.id, row.id));
   return { github, changed: true, slug: row.slug };
 }

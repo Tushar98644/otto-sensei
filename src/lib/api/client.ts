@@ -1,4 +1,6 @@
+import type { GitHubConnectionResponse } from "@/lib/github/connect";
 import type {
+  GitHubConnectBody,
   GitHubDraftBody,
   GitHubDraftResponse,
   GitHubLookupBody,
@@ -254,6 +256,12 @@ export const api = {
   workProfile: () => request<WorkProfileResponse>("/api/profile", { cache: "no-store" }),
   saveWorkProfile: (body: WorkProfileBody) =>
     request<WorkProfileResponse>("/api/profile", postJson(body, "PUT")),
+  githubConnection: () =>
+    request<GitHubConnectionResponse>("/api/github/connection", { cache: "no-store" }),
+  connectGitHub: (body: GitHubConnectBody) =>
+    request<UrlResponse>("/api/github/connection", postJson(body)),
+  disconnectGitHub: () =>
+    request<GitHubConnectionResponse>("/api/github/connection", { method: "DELETE" }),
   githubLookup: (body: GitHubLookupBody) =>
     request<GitHubLookupResponse>("/api/github/lookup", postJson(body)),
   githubDraft: (body: GitHubDraftBody) =>

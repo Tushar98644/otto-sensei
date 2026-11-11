@@ -1,6 +1,6 @@
 import { fail, ok } from "@/lib/api/respond";
 import { rejectCrossSite } from "@/lib/auth/route-guards";
-import { getCurrentUser } from "@/lib/auth/session";
+import { getCurrentAccount } from "@/lib/auth/session";
 import { log } from "@/lib/log";
 import { refreshPortfolioPages } from "@/lib/portfolio/cache";
 import type { GitHubRefreshResponse } from "@/lib/portfolio/content";
@@ -15,13 +15,15 @@ const HOUR_MS = 60 * 60 * 1000;
 // Without a token GitHub allows this server 60 calls an hour in all, and a refresh costs three.
 const REFRESHES_PER_HOUR = 6;
 
-// POST /api/portfolio/github: fetches the page's GitHub numbers again now.
+// POST /api/portfolio/github: fetches the page's GitHub numbers again now, from the connected
+// GitHub account only.
 export async function POST(req: Request): Promise<Response> {
   const blocked = rejectCrossSite(req);
   if (blocked) return blocked;
   try {
-    const user = await getCurrentUser();
-    if (!user) return fail("unauthorized", SIGN_IN, 401);
+    const account = await getCurrentAccount();
+    if (!account) return fail("unauthorized", SIGN_IN, 401);
+    const { user } = account;
     const limit = await rateLimit(`portfolio:github:user:${user.id}`, REFRESHES_PER_HOUR, HOUR_MS);
     if (!limit.allowed) {
       return fail(
@@ -31,7 +33,7 @@ export async function POST(req: Request): Promise<Response> {
         retryAfterHeader(limit.retryAfterMs),
       );
     }
-    const result = await refreshGitHub(user.id, { force: true });
+    const result = await refreshGitHub(user.id, account.github?.login ?? null, { force: true });
     if (!result) return fail("not_found", NO_PORTFOLIO, 404);
     if (result.changed) refreshPortfolioPages([result.slug]);
     const body: Omit<GitHubRefreshResponse, "ok"> = { github: result.github };

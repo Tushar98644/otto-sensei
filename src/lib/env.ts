@@ -38,6 +38,9 @@ const EnvSchema = z.object({
   DEV_AUTH: optionalString,
   // Development only: signs dev-mode session cookies. Falls back to a fixed dev secret.
   AUTH_SECRET: optionalString,
+  // Development only, with dev sign-in: every dev account counts as connected to this GitHub
+  // login (src/lib/auth/github.ts), since dev sign-in has no Supabase to link a real one.
+  DEV_GITHUB_LOGIN: optionalString,
   // Creem (merchant of record) payments. The API key and webhook secret belong to one Creem
   // environment: test keys only work against the test API, live keys only against the live one.
   CREEM_API_KEY: optionalString,
