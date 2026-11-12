@@ -26,9 +26,11 @@ export type IssueChipProps = {
 };
 
 export function wantsOtto(issues: readonly LintIssue[]): boolean {
-  return issues.some(
-    (issue) => issue.severity === "high" && !NOT_FOR_OTTO.has(issue.id),
-  );
+  return issues.some((issue) => issue.severity === "high" && !NOT_FOR_OTTO.has(issue.id));
+}
+
+export function ottoCanFix(issues: readonly LintIssue[]): boolean {
+  return issues.some((issue) => !NOT_FOR_OTTO.has(issue.id));
 }
 
 export function IssueChip({ issues, text, onFix, onSetText }: IssueChipProps) {

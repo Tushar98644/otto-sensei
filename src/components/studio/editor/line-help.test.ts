@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { LintIssue, LintIssueId, LintSeverity } from "@/lib/lint/types";
-import { wantsOtto } from "./line-help";
+import { ottoCanFix, wantsOtto } from "./line-help";
 
 const issue = (id: LintIssueId, severity: LintSeverity = "high"): LintIssue => ({
   id,
@@ -21,5 +21,15 @@ describe("wantsOtto", () => {
     expect(wantsOtto([issue("duplicate")])).toBe(false);
     expect(wantsOtto([issue("no-number", "low")])).toBe(false);
     expect(wantsOtto([])).toBe(false);
+  });
+});
+
+describe("ottoCanFix", () => {
+  it("offers Fix with Otto only on lines with something Otto can rewrite", () => {
+    expect(ottoCanFix([issue("no-result")])).toBe(true);
+    expect(ottoCanFix([issue("no-number", "low")])).toBe(true);
+    expect(ottoCanFix([issue("punctuation", "low")])).toBe(false);
+    expect(ottoCanFix([issue("duplicate")])).toBe(false);
+    expect(ottoCanFix([])).toBe(false);
   });
 });

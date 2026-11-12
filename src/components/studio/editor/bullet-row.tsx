@@ -9,7 +9,6 @@ import { LivePill } from "@/components/ui/live-pill";
 import { StatusPill } from "@/components/ui/status";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/components/ui/toast";
-import { VoiceButton } from "@/components/ui/voice-button";
 import { setBulletText, type BulletSection } from "@/lib/resume/ops";
 import { newBullet, type Bullet } from "@/lib/resume/schema";
 import { cn, pluralize } from "@/lib/utils";
@@ -31,14 +30,13 @@ import { useOpenFix } from "./fix-launcher";
 import { addLineButtonId, bulletDeleteId, bulletInputId, editThenFocus } from "./focus";
 import { HIDDEN_LABEL, HiddenChip, HideToggle } from "./hidden-chip";
 import { BULLET_LIMITS, CHAR_LIMITS } from "./limits";
-import { IssueChip, wantsOtto } from "./line-help";
+import { IssueChip, ottoCanFix, wantsOtto } from "./line-help";
 import { LINE_FLASH_LABEL, useLineFlash } from "./line-flash";
 import { LineDescription, LineTip, useLineLint } from "./lint-notes";
 import { ICON_ACTION_CLASSES, MoveButtons } from "./move-buttons";
 import { editLines, getResume, useBulletIssues, useIsLinted } from "./use-editor";
 
 const SHOWN_ON_FOCUS = "sr-only group-focus-within/line:not-sr-only pointer-coarse:not-sr-only";
-const SHOWN_WHILE_LISTENING = "has-data-listening:not-sr-only";
 
 export type BulletRowProps = {
   resumeId: string;
@@ -73,6 +71,7 @@ export const BulletRow = memo(function BulletRow({
   const linted = useIsLinted(resumeId, bullet.id);
   const lint = useLineLint(issues, hasText && linted);
   const flagged = !hidden && lint !== null && wantsOtto(lint);
+  const fixable = !hidden && lint !== null && ottoCanFix(lint);
 
   function edit(update: (bullets: Bullet[]) => Bullet[]) {
     editLines(resumeId, section, (resume) => editBullets(resume, { section, parentId }, update));
@@ -208,7 +207,11 @@ export const BulletRow = memo(function BulletRow({
           onChange={handleChange}
           onKeyDown={handleKeyDown}
           onPaste={handlePaste}
-          className={cn("flex-1 border-b-0 focus-visible:shadow-none", hidden && "text-muted")}
+          className={cn(
+            "flex-1 border-b-0 focus-visible:shadow-none",
+            hidden && "text-muted",
+            flagged && "-mx-1.5 rounded-md bg-highlight px-1.5",
+          )}
         />
         <div className="flex h-6 shrink-0 items-center max-sm:mb-2.5 max-sm:empty:hidden sm:mt-2 sm:w-36 sm:justify-end">
           {flashed ? (
@@ -241,29 +244,22 @@ export const BulletRow = memo(function BulletRow({
         <LineDescription id={lintId} issues={lint} />
       )}
       {/* not-sr-only resets padding and margin, so the spacing lives on the inner row. */}
-      <div className={cn(!flagged && SHOWN_ON_FOCUS, SHOWN_WHILE_LISTENING)}>
+      <div className={cn(!flagged && SHOWN_ON_FOCUS)}>
         <div className="flex flex-col gap-1 pt-2 pb-1">
           <div className="flex items-center gap-1">
-            <Button
-              variant="ghost"
-              size="sm"
-              disabled={!hasText}
-              aria-describedby={`${labelId} ${ownerHeadingId}`}
-              onClick={() => openFix(bullet.id)}
-              className="-ml-3 max-sm:h-11"
-            >
-              <OttoMark tone="line" small className="size-5 text-ink" />
-              Fix with Otto
-            </Button>
-            <span className={cn("flex", flagged && SHOWN_ON_FOCUS, SHOWN_WHILE_LISTENING)}>
-              <VoiceButton
-                size="icon"
-                value={bullet.text}
-                maxLength={CHAR_LIMITS.bullet}
+            {fixable ? (
+              <Button
+                variant="ghost"
+                size="sm"
+                disabled={!hasText}
                 aria-describedby={`${labelId} ${ownerHeadingId}`}
-                onDictate={setText}
-              />
-            </span>
+                onClick={() => openFix(bullet.id)}
+                className="-ml-3 max-sm:h-11"
+              >
+                <OttoMark tone="line" small className="size-5 text-ink" />
+                Fix with Otto
+              </Button>
+            ) : null}
             <div className={cn("flex flex-1 justify-end", flagged && SHOWN_ON_FOCUS)}>
               <div className="-mr-2 flex items-center">
                 <MoveButtons
