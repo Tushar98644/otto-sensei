@@ -1,12 +1,15 @@
+import { checkContent } from "@/lib/ai/moderation";
 import { fail, NO_STORE, ok } from "@/lib/api/respond";
 import { rejectCrossSite, rejectNonJson } from "@/lib/auth/route-guards";
 import { getCurrentUser } from "@/lib/auth/session";
 import { readJson } from "@/lib/http";
 import { log } from "@/lib/log";
 import { listShares, saveShare } from "@/lib/share/records";
+import { shareSnapshot, snapshotText } from "@/lib/share/snapshot";
 import { SHARE_LIMITS, type ShareResponse, type SharesResponse } from "@/lib/share/types";
 import { CreateShareSchema } from "@/lib/share/validation";
 import { requireProTool } from "../pro-tools";
+import { pageBlocked } from "../public-pages";
 import { SIGN_IN } from "./messages";
 import { writeLimited } from "./write-limit";
 
@@ -49,6 +52,8 @@ export async function POST(req: Request): Promise<Response> {
         400,
       );
     }
+    const text = snapshotText(shareSnapshot(body.data.resume));
+    if (!(await checkContent([text], { source: "share.create" })).allowed) return pageBlocked();
     const result = await saveShare(user.id, body.data);
     if (result.status === "no_user") return fail("unauthorized", SIGN_IN, 401);
     if (result.status === "limit_reached") {

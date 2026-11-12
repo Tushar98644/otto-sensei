@@ -2,8 +2,14 @@ import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from "vites
 import { z } from "zod";
 import { resetEnvForTests } from "@/lib/env";
 import { billedTokens, jsonSchemaFor, runStructured, type StructuredRequest } from "./client";
+import { checkContent } from "./moderation";
 import { metered } from "./token-meter";
 import { AIError } from "./types";
+
+vi.mock("./moderation", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("./moderation")>()),
+  checkContent: vi.fn(),
+}));
 
 const fetchMock = vi.fn<(input: string | URL | Request, init?: RequestInit) => Promise<Response>>();
 vi.stubGlobal("fetch", fetchMock);
@@ -59,6 +65,7 @@ beforeEach(() => {
   process.env.OPENROUTER_API_KEY = "sk-or-test";
   useModel("anthropic/claude-opus-5.5");
   fetchMock.mockReset();
+  vi.mocked(checkContent).mockReset().mockResolvedValue({ allowed: true, categories: [] });
   vi.spyOn(console, "warn").mockImplementation(() => {});
   vi.spyOn(console, "error").mockImplementation(() => {});
 });
@@ -201,6 +208,32 @@ describe("runStructured answers", () => {
   it("maps a reply without choices to invalid_output", async () => {
     respond(200, { id: "gen-test", choices: [] });
     await expect(runStructured(request())).rejects.toMatchObject({ code: "invalid_output" });
+  });
+});
+
+describe("runStructured safety check", () => {
+  const Lines = z.object({ lines: z.array(z.object({ text: z.string(), note: z.string() })) });
+  const output = { lines: [{ text: "Ran the blog", note: "Shows ownership" }] };
+
+  it("checks every piece of text Otto wrote before returning it", async () => {
+    respond(200, completion(JSON.stringify(output)));
+    await expect(runStructured({ ...request(), schema: Lines })).resolves.toEqual(output);
+    expect(checkContent).toHaveBeenCalledWith(["Ran the blog", "Shows ownership"], { source: "ai.fix" });
+  });
+
+  it("refuses an answer the safety check blocks, without retrying", async () => {
+    vi.mocked(checkContent).mockResolvedValueOnce({ allowed: false, categories: ["S12"] });
+    respond(200, completion('{"answer":"explicit"}'));
+    const error = await runStructured(request({ task: "letter" })).catch((caught: unknown) => caught);
+    expect(error).toBeInstanceOf(AIError);
+    expect(error).toMatchObject({ code: "refused" });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("doesn't check imports, which only sort the person's own resume", async () => {
+    respond(200, completion('{"answer":"ok"}'));
+    await runStructured(request({ task: "structure" }));
+    expect(checkContent).not.toHaveBeenCalled();
   });
 });
 

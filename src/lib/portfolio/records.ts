@@ -168,22 +168,33 @@ export type SaveResult =
   | { status: "slug_taken" }
   | { status: "needs_portfolio_plan" }
   | { status: "not_found" }
-  | { status: "no_user" };
+  | { status: "no_user" }
+  | { status: "changed" };
+
+// `version` is the updatedAt the caller checked the page at (null: no page yet); undefined skips it.
+export function pageMoved(
+  version: number | null | undefined,
+  row: { updatedAt: number } | undefined,
+): boolean {
+  return version !== undefined && (row?.updatedAt ?? null) !== version;
+}
 
 export async function createPortfolio(
   userId: string,
   { resume, slug: wanted, template }: CreatePortfolioInput,
   now = Date.now(),
+  version?: number | null,
 ): Promise<SaveResult> {
   const snapshot = shareSnapshot(resume);
   const db = await getDb();
   return db.transaction(async (tx): Promise<SaveResult> => {
     if (!(await lockUser(tx, userId))) return { status: "no_user" };
     const [existing] = await tx
-      .select({ id: portfolios.id })
+      .select({ id: portfolios.id, updatedAt: portfolios.updatedAt })
       .from(portfolios)
       .where(eq(portfolios.userId, userId))
       .limit(1);
+    if (pageMoved(version, existing)) return { status: "changed" };
     if (existing) {
       const [row] = await tx
         .update(portfolios)
@@ -231,6 +242,7 @@ export async function updatePortfolio(
   patch: PortfolioPatch,
   owner: PortfolioOwner,
   now = Date.now(),
+  version?: number | null,
 ): Promise<SaveResult> {
   const { plan } = owner;
   if (!canBuildPortfolio(plan)) return { status: "needs_portfolio_plan" };
@@ -243,6 +255,7 @@ export async function updatePortfolio(
       .where(eq(portfolios.userId, userId))
       .limit(1);
     if (!current) return { status: "not_found" };
+    if (pageMoved(version, current)) return { status: "changed" };
 
     const changes: Partial<typeof portfolios.$inferInsert> = { updatedAt: now };
     const touched = [current.slug];
@@ -310,10 +323,29 @@ async function keepRedirect(tx: Tx, current: Row, now: number): Promise<void> {
   await tx.delete(portfolioRedirects).where(and(mine, notInArray(portfolioRedirects.slug, kept)));
 }
 
+export type Follower = { published: boolean; updatedAt: number };
+
+export async function followerOf(userId: string, resumeId: string): Promise<Follower | null> {
+  const db = await getDb();
+  const [row] = await db
+    .select({ published: portfolios.published, updatedAt: portfolios.updatedAt })
+    .from(portfolios)
+    .where(
+      and(
+        eq(portfolios.userId, userId),
+        eq(portfolios.resumeId, resumeId),
+        eq(portfolios.sync, true),
+      ),
+    )
+    .limit(1);
+  return row ?? null;
+}
+
 export async function followResume(
   userId: string,
   resume: Resume,
   now = Date.now(),
+  version?: number,
 ): Promise<string | null> {
   const db = await getDb();
   const [row] = await db
@@ -326,6 +358,7 @@ export async function followResume(
         eq(portfolios.sync, true),
         // A late retry of an older version must not roll the page back.
         lt(sql`coalesce((${portfolios.snapshot} ->> 'updatedAt')::bigint, 0)`, resume.updatedAt),
+        version === undefined ? undefined : eq(portfolios.updatedAt, version),
       ),
     )
     .returning({ slug: portfolios.slug });

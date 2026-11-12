@@ -12,15 +12,18 @@ import {
   updatePortfolio,
   type SaveResult,
 } from "@/lib/portfolio/records";
+import { liveParts, patchParts, screenedWrite, type Blocked } from "@/lib/portfolio/screen";
 import { SLUG_MESSAGES } from "@/lib/portfolio/slug";
 import { type PortfolioResponse, type PortfolioSaveResponse } from "@/lib/portfolio/types";
 import { CreatePortfolioSchema, UpdatePortfolioSchema } from "@/lib/portfolio/validation";
+import { shareSnapshot } from "@/lib/share/snapshot";
+import { pageBlocked, pageChanged } from "../public-pages";
 import { NEEDS_PLAN, NO_PORTFOLIO, SIGN_IN, writeLimited } from "./limits";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-function answer(result: SaveResult, createdStatus = 200): Response {
+function answer(result: SaveResult | Blocked, createdStatus = 200): Response {
   switch (result.status) {
     case "saved": {
       // Before answering, so the owner's "Open page" never lands on the old copy.
@@ -41,6 +44,10 @@ function answer(result: SaveResult, createdStatus = 200): Response {
       return fail("not_found", NO_PORTFOLIO, 404);
     case "no_user":
       return fail("unauthorized", SIGN_IN, 401);
+    case "blocked":
+      return pageBlocked();
+    case "changed":
+      return pageChanged();
   }
 }
 
@@ -74,7 +81,14 @@ export async function POST(req: Request): Promise<Response> {
         400,
       );
     }
-    return answer(await createPortfolio(user.id, body.data), 201);
+    const { resume } = body.data;
+    const result = await screenedWrite(
+      user.id,
+      "portfolio.create",
+      (current) => liveParts(current, { snapshot: shareSnapshot(resume) }),
+      (version) => createPortfolio(user.id, body.data, Date.now(), version),
+    );
+    return answer(result, 201);
   } catch (error) {
     log.error("portfolio.create_failed", error);
     return fail("server_error", "Couldn't make your portfolio. Please try again.", 500);
@@ -98,7 +112,13 @@ export async function PATCH(req: Request): Promise<Response> {
         400,
       );
     }
-    return answer(await updatePortfolio(user.id, body.data, user));
+    const result = await screenedWrite(
+      user.id,
+      "portfolio.update",
+      (current) => patchParts(current, body.data),
+      (version) => updatePortfolio(user.id, body.data, user, Date.now(), version),
+    );
+    return answer(result);
   } catch (error) {
     log.error("portfolio.update_failed", error);
     return fail("server_error", "Couldn't save that change. Please try again.", 500);

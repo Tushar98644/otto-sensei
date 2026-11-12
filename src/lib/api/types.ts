@@ -34,6 +34,7 @@ export type ApiErrorCode =
   | "parse_failed"
   | "ai_unavailable"
   | "ai_refused"
+  | "content_blocked"
   | "no_speech"
   | "billing_unavailable"
   | "plan_change_failed"

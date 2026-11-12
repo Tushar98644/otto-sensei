@@ -157,6 +157,11 @@ export default function PrivacyPage() {
         detect abuse.
       </p>
       <p>
+        <strong>Safety checks:</strong> text Otto writes, and the text of pages you publish (your
+        portfolio and shared resume links), is checked by a safety model through OpenRouter, with
+        data collection turned off, to block sexual or explicit content.
+      </p>
+      <p>
         The recruiter checks, the editor and PDF downloads don&apos;t use AI. Line checks and PDFs
         are made right in your browser.
       </p>

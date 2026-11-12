@@ -7,29 +7,32 @@ import { GitHubError } from "@/lib/github/http";
 import { parseStoredStats, storedStats } from "@/lib/github/stats";
 import { log } from "@/lib/log";
 import type { GitHubStats, PortfolioContent } from "./content";
-import { portfolioSlugsOf } from "./records";
+import { pageMoved, portfolioSlugsOf } from "./records";
 
 export const GITHUB_STALE_MS = 6 * 60 * 60 * 1000;
 
 export type SaveContentResult =
   | { status: "saved"; content: PortfolioContent; slug: string }
   | { status: "not_found" }
-  | { status: "no_user" };
+  | { status: "no_user" }
+  | { status: "changed" };
 
 export async function saveContent(
   userId: string,
   content: PortfolioContent,
   now = Date.now(),
+  version?: number | null,
 ): Promise<SaveContentResult> {
   const db = await getDb();
   return db.transaction(async (tx): Promise<SaveContentResult> => {
     if (!(await lockUser(tx, userId))) return { status: "no_user" };
     const [current] = await tx
-      .select({ id: portfolios.id, slug: portfolios.slug })
+      .select({ id: portfolios.id, slug: portfolios.slug, updatedAt: portfolios.updatedAt })
       .from(portfolios)
       .where(eq(portfolios.userId, userId))
       .limit(1);
     if (!current) return { status: "not_found" };
+    if (pageMoved(version, current)) return { status: "changed" };
     await tx
       .update(portfolios)
       .set({ content, updatedAt: now })

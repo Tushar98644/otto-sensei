@@ -8,8 +8,10 @@ import { SaveContentSchema, type ContentResponse } from "@/lib/portfolio/content
 import { refreshGitHub, saveContent } from "@/lib/portfolio/content-records";
 import { canBuildPortfolio } from "@/lib/portfolio/plan";
 import { getPortfolio } from "@/lib/portfolio/records";
+import { liveParts, screenedWrite } from "@/lib/portfolio/screen";
 import { rateLimit, retryAfterHeader, waitText } from "@/lib/rate-limit";
 import { HOUR_MS } from "@/lib/time";
+import { pageBlocked, pageChanged } from "../../public-pages";
 import { NEEDS_PLAN, NO_PORTFOLIO, SIGN_IN } from "../limits";
 
 export const runtime = "nodejs";
@@ -68,7 +70,13 @@ export async function PUT(req: Request): Promise<Response> {
         400,
       );
     }
-    const result = await saveContent(user.id, body.data.content);
+    const { content } = body.data;
+    const result = await screenedWrite(
+      user.id,
+      "portfolio.content",
+      (current) => liveParts(current, { content }),
+      (version) => saveContent(user.id, content, Date.now(), version),
+    );
     switch (result.status) {
       case "saved": {
         refreshPortfolioPages([result.slug]);
@@ -82,6 +90,10 @@ export async function PUT(req: Request): Promise<Response> {
         return fail("not_found", NO_PORTFOLIO, 404);
       case "no_user":
         return fail("unauthorized", SIGN_IN, 401);
+      case "blocked":
+        return pageBlocked();
+      case "changed":
+        return pageChanged();
     }
   } catch (error) {
     log.error("portfolio.content_save_failed", error);

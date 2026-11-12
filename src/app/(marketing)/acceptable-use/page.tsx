@@ -50,8 +50,9 @@ export default function AcceptableUsePage() {
       <h2>How we enforce it</h2>
       <p>
         The AI is instructed to write only professional job-search text and to refuse or leave out
-        anything this policy forbids. We may remove content that breaks this policy, and suspend or
-        close the account that created it.
+        anything this policy forbids. Automated safety checks also block sexual or explicit content
+        in what Otto writes and on public pages (portfolios and shared resume links). We may remove
+        content that breaks this policy, and suspend or close the account that created it.
       </p>
 
       <h2>The AI behind it</h2>

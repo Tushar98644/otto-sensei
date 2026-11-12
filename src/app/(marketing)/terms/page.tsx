@@ -91,8 +91,10 @@ export default function TermsPage() {
         </li>
       </ul>
       <p>
-        The AI is set up to refuse such requests and leave such material out. We may remove content
-        that breaks this rule and suspend or close the account that asked for it. Our{" "}
+        The AI is set up to refuse such requests and leave such material out. Automated safety
+        checks also block sexual or explicit content in what Otto writes and on pages you publish.
+        We may remove content that breaks this rule and suspend or close the account that asked for
+        it. Our{" "}
         <Link href={ROUTES.acceptableUse}>acceptable use policy</Link> has the full list.
       </p>
 

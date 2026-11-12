@@ -13,6 +13,10 @@ import { claimAiRead } from "./import/ai-reads";
 import { takeAccountUnit } from "./metered-free";
 
 vi.mock("next/headers", async () => (await import("@/lib/auth/test-helpers")).nextHeadersMock);
+vi.mock("@/lib/ai/moderation", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/ai/moderation")>()),
+  checkContent: async () => ({ allowed: true, categories: [] }),
+}));
 
 const NOW = Date.UTC(2026, 10, 7, 12);
 const DEC_1 = Date.UTC(2026, 11, 1);

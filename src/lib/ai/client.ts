@@ -8,6 +8,7 @@ import {
   type AICallFields,
   type CallFailure,
 } from "./errors";
+import { checkContent, textsOf } from "./moderation";
 import { noteTokens } from "./token-meter";
 import { AIError } from "./types";
 
@@ -283,6 +284,13 @@ function logUsage(response: ChatResponse, fields: AICallFields, durationMs: numb
   });
 }
 
+// Import only sorts the person's own resume; public pages are checked when they're published.
+async function screenOutput(task: AITask, output: unknown): Promise<void> {
+  if (task === "structure") return;
+  const verdict = await checkContent(textsOf(output), { source: `ai.${task}` });
+  if (!verdict.allowed) throw new AIError("refused", "The AI answer failed the safety check");
+}
+
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
@@ -303,7 +311,9 @@ export async function runStructured<T>(
     const outcome = await attemptOnce(body, apiKey, deadline, fields);
     if (outcome.ok) {
       logUsage(outcome.response, fields, Date.now() - started);
-      return readOutput(outcome.response, request.schema, fields);
+      const output = readOutput(outcome.response, request.schema, fields);
+      await screenOutput(request.task, output);
+      return output;
     }
     const { failure } = outcome;
     const wait = failure.retryable && attempt < MAX_ATTEMPTS
