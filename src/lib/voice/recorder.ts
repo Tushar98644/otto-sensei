@@ -1,10 +1,5 @@
 import { isApiError } from "@/lib/api/client";
-
-export const VOICE_LABELS = {
-  start: "Speak instead of typing",
-  stop: "Stop recording",
-  sending: "Turning speech into text…",
-} as const;
+import type { VoiceProblem } from "./problems";
 
 export const MAX_RECORDING_MS = 120_000;
 // Too short to hold a word, and speech models make up text for near-silent clips.
@@ -12,12 +7,6 @@ const MIN_RECORDING_MS = 500;
 const AUDIO_TYPES = ["audio/webm;codecs=opus", "audio/mp4", "audio/ogg"];
 // Speech needs little; this keeps 2 minutes near 1 MB, well under hosting body limits.
 const AUDIO_BITS_PER_SECOND = 64_000;
-
-export type VoicePhase = "idle" | "starting" | "recording" | "sending";
-
-export type VoiceProblemCode =
-  "mic-blocked" | "no-mic" | "no-speech" | "sign-in" | "too-many" | "failed";
-export type VoiceProblem = { code: VoiceProblemCode; message?: string };
 
 export type VoiceClip = { audio: Blob; seconds: number };
 
@@ -197,32 +186,4 @@ export function problemFromError(error: unknown): VoiceProblem {
   if (isApiError(error, "rate_limited")) return { code: "too-many", message: error.message };
   if (isApiError(error, "no_speech")) return { code: "no-speech" };
   return { code: "failed" };
-}
-
-export type VoiceProblemCopy = { title: string; description: string };
-
-export function voiceProblemCopy({ code, message }: VoiceProblem): VoiceProblemCopy {
-  switch (code) {
-    case "mic-blocked":
-      return {
-        title: "Otto can't hear you",
-        description: "Allow the microphone in your browser to talk to Otto.",
-      };
-    case "no-mic":
-      return {
-        title: "Otto can't reach your microphone",
-        description: "Check it's plugged in and not used by another app, then try again.",
-      };
-    case "no-speech":
-      return {
-        title: "Otto didn't catch anything",
-        description: "Try again a little closer to the mic.",
-      };
-    case "sign-in":
-      return { title: "Sign in first", description: message ?? "Sign in to talk to Otto." };
-    case "too-many":
-      return { title: "Take a short break", description: message ?? "Try again in a few minutes." };
-    case "failed":
-      return { title: "Couldn't turn that into text", description: "Try again, or type instead." };
-  }
 }

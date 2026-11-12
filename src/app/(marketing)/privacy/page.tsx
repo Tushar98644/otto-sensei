@@ -170,10 +170,13 @@ export default function PrivacyPage() {
         uploaded. The job post eligibility check also runs in your browser, with no AI.
       </p>
       <p>
-        <strong>Voice typing:</strong> when you press a microphone button, your browser records
-        only while it&apos;s on. The clip goes to our speech-to-text provider through OpenRouter,
-        with data collection turned off, to turn it into text. We don&apos;t store the audio, only
-        the text you keep.
+        <strong>Voice typing:</strong> when you press a microphone button, your browser listens only
+        while it&apos;s on. In Chrome, Edge and Safari, the browser&apos;s own speech service
+        (Google in Chrome, Microsoft in Edge, Apple in Safari) turns your speech into text, under
+        that company&apos;s privacy policy. In other browsers, or when that service isn&apos;t
+        available, the browser records a clip that goes to our speech-to-text provider through
+        OpenRouter, with data collection turned off. We never store the audio, only the text you
+        keep.
       </p>
       <p>
         &quot;Import from GitHub&quot; reads only public data from GitHub (your repos and merged

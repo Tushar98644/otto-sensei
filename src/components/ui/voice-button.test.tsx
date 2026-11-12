@@ -1,7 +1,6 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { VoicePhase } from "@/lib/voice/recorder";
-import { VOICE_LABELS } from "@/lib/voice/recorder";
+import { VOICE_LABELS, type VoicePhase } from "@/lib/voice/dictation";
 import { toast } from "./toast";
 import { VoiceButton } from "./voice-button";
 import { VoiceInput, VoiceTextarea } from "./voice-field";
@@ -36,7 +35,7 @@ beforeEach(() => {
 });
 
 describe("VoiceButton", () => {
-  it("renders nothing where the browser can't record", () => {
+  it("renders nothing where the browser can't hear you at all", () => {
     fake.supported = false;
     expect(renderToStaticMarkup(<VoiceButton value="" onDictate={() => {}} />)).toBe("");
     const box = renderToStaticMarkup(
@@ -58,11 +57,20 @@ describe("VoiceButton", () => {
     fake.phase = "recording";
     fake.startedAt = Date.UTC(2026, 10, 12, 9);
     const html = renderToStaticMarkup(<VoiceButton value="" onDictate={() => {}} />);
-    expect(html).toContain(`aria-label="${VOICE_LABELS.stop}"`);
+    expect(html).toContain(`aria-label="${VOICE_LABELS.recording}"`);
     expect(html).toContain('aria-pressed="true"');
     expect(html).toContain('data-listening="true"');
     expect(html).toContain("motion-safe:animate-pulse");
     expect(html).toContain(">0:00</span>");
+  });
+
+  it("shows a pressed, pulsing state without a time while the browser listens", () => {
+    fake.phase = "listening";
+    const html = renderToStaticMarkup(<VoiceButton value="" onDictate={() => {}} />);
+    expect(html).toContain(`aria-label="${VOICE_LABELS.listening}"`);
+    expect(html).toContain('aria-pressed="true"');
+    expect(html).toContain("motion-safe:animate-pulse");
+    expect(html).not.toContain(":00</span>");
   });
 
   it("shows a calm busy state while the clip turns into text", () => {
@@ -89,6 +97,7 @@ describe("VoiceButton", () => {
     renderToStaticMarkup(<VoiceButton value="Hello" maxLength={14} onDictate={onDictate} />);
     fake.onText("world and more");
     expect(onDictate).toHaveBeenCalledWith("Hello world");
+    expect(fake.stop).toHaveBeenCalledOnce();
     expect(toast).toHaveBeenCalledWith(expect.objectContaining({ title: "This box is full" }));
   });
 });

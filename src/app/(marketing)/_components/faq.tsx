@@ -24,7 +24,7 @@ const FAQ: readonly FaqItem[] = [
   {
     question: "Can I talk instead of typing?",
     answer:
-      "Yes. The boxes where you write for Otto have a microphone, including Otto's questions when he fixes a line. Sign in, press it and speak, then press it again when you're done. It works in any modern browser. Otto turns your recording into text and keeps only the text.",
+      "Yes. The boxes where you write for Otto have a microphone, including Otto's questions when he fixes a line. Press it and speak, then press it again when you're done. It works in any modern browser. In some browsers, like Brave and Firefox, you'll need to be signed in. Otto keeps only the text.",
   },
   {
     question: "Do I need an account?",

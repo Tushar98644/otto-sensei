@@ -7,70 +7,13 @@ import {
   MAX_RECORDING_MS,
   problemFromError,
   startVoice,
-  voiceProblemCopy,
   type VoiceClip,
   type VoiceDeps,
   type VoiceEvents,
-  type VoiceProblem,
   type VoiceSession,
 } from "./recorder";
-
-class FakeTrack {
-  stopped = false;
-  stop() {
-    this.stopped = true;
-  }
-}
-
-class FakeStream {
-  tracks = [new FakeTrack()];
-  getTracks() {
-    return this.tracks;
-  }
-  get released() {
-    return this.tracks.every((track) => track.stopped);
-  }
-}
-
-class FakeRecorder {
-  static made: FakeRecorder[] = [];
-  static supported = new Set(["audio/webm;codecs=opus", "audio/mp4", "audio/ogg"]);
-  static isTypeSupported(type: string) {
-    return FakeRecorder.supported.has(type);
-  }
-
-  state: "inactive" | "recording" = "inactive";
-  mimeType: string;
-  ondataavailable: ((event: { data: Blob }) => void) | null = null;
-  onstop: (() => void) | null = null;
-  onerror: (() => void) | null = null;
-  bytes = "spoken words";
-
-  constructor(
-    readonly stream: FakeStream,
-    readonly options?: { mimeType?: string; audioBitsPerSecond?: number },
-  ) {
-    this.mimeType = options?.mimeType ?? "audio/webm";
-    FakeRecorder.made.push(this);
-  }
-
-  start() {
-    this.state = "recording";
-  }
-
-  // A real recorder hands over its data and stops a moment later, not inside stop().
-  stop() {
-    this.state = "inactive";
-    void Promise.resolve().then(() => {
-      this.ondataavailable?.({ data: new Blob([this.bytes], { type: this.mimeType }) });
-      this.onstop?.();
-    });
-  }
-}
-
-async function flush() {
-  for (let i = 0; i < 10; i++) await Promise.resolve();
-}
+import type { VoiceProblem } from "./problems";
+import { FakeRecorder, FakeStream, flush } from "./test-helpers";
 
 type Log = { events: string[]; texts: string[]; problems: VoiceProblem[] };
 
@@ -107,11 +50,7 @@ function deps(): VoiceDeps {
   };
 }
 
-function lastRecorder(): FakeRecorder {
-  const recorder = FakeRecorder.made.at(-1);
-  if (!recorder) throw new Error("no recorder was made");
-  return recorder;
-}
+const lastRecorder = () => FakeRecorder.last();
 
 async function record(events: VoiceEvents, seconds = 3): Promise<VoiceSession> {
   session = startVoice(deps(), events);
@@ -122,8 +61,7 @@ async function record(events: VoiceEvents, seconds = 3): Promise<VoiceSession> {
 
 beforeEach(() => {
   vi.useFakeTimers({ now: Date.UTC(2026, 10, 12, 9) });
-  FakeRecorder.made = [];
-  FakeRecorder.supported = new Set(["audio/webm;codecs=opus", "audio/mp4", "audio/ogg"]);
+  FakeRecorder.reset();
   stream = new FakeStream();
   getUserMedia = vi.fn<VoiceDeps["getUserMedia"]>(async () => stream as unknown as MediaStream);
   transcribe = vi.fn<Transcribe>(async () => "led the team of five");
@@ -346,25 +284,6 @@ describe("problemFromError", () => {
       code: "failed",
     });
     expect(problemFromError(new Error("boom"))).toEqual({ code: "failed" });
-  });
-});
-
-describe("voiceProblemCopy", () => {
-  it("says each problem in plain words", () => {
-    expect(voiceProblemCopy({ code: "mic-blocked" }).description).toBe(
-      "Allow the microphone in your browser to talk to Otto.",
-    );
-    expect(voiceProblemCopy({ code: "no-speech" })).toEqual({
-      title: "Otto didn't catch anything",
-      description: "Try again a little closer to the mic.",
-    });
-    expect(voiceProblemCopy({ code: "failed" })).toEqual({
-      title: "Couldn't turn that into text",
-      description: "Try again, or type instead.",
-    });
-    expect(
-      voiceProblemCopy({ code: "sign-in", message: "Sign in to talk to Otto." }).description,
-    ).toBe("Sign in to talk to Otto.");
   });
 });
 

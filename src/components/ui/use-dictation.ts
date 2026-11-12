@@ -11,14 +11,14 @@ import {
 import { useMe } from "@/components/account/use-me";
 import { api } from "@/lib/api/client";
 import {
-  canRecord,
-  startVoice,
-  voiceProblemCopy,
-  type VoiceClip,
+  canDictate,
+  isListening,
+  startDictation,
+  type DictationSession,
   type VoicePhase,
-  type VoiceProblem,
-  type VoiceSession,
-} from "@/lib/voice/recorder";
+} from "@/lib/voice/dictation";
+import { voiceProblemCopy, type VoiceProblem } from "@/lib/voice/problems";
+import type { VoiceClip } from "@/lib/voice/recorder";
 import { toast } from "./toast";
 
 export type Dictation = {
@@ -31,7 +31,7 @@ export type Dictation = {
 };
 
 const subscribe = () => () => {};
-const browserSupports = () => canRecord(window);
+const browserSupports = () => canDictate(window);
 const serverSupports = () => false;
 
 // The server and hydration both say no, so the button appears after mount without a mismatch.
@@ -52,9 +52,9 @@ export function useDictation(onText: (text: string) => void): Dictation {
   const { me } = useMe();
   const [phase, setPhase] = useState<VoicePhase>("idle");
   const [startedAt, setStartedAt] = useState<number | null>(null);
-  const session = useRef<VoiceSession | null>(null);
+  const session = useRef<DictationSession | null>(null);
   const onTextRef = useRef(onText);
-  const listening = phase === "starting" || phase === "recording";
+  const listening = isListening(phase);
 
   useLayoutEffect(() => {
     onTextRef.current = onText;
@@ -76,7 +76,7 @@ export function useDictation(onText: (text: string) => void): Dictation {
     if (!listening) return;
     function onKeyDown(event: KeyboardEvent) {
       if (event.key !== "Escape" || event.isComposing) return;
-      // Captured first, so Escape stops recording without also closing the dialog around it.
+      // Captured first, so Escape stops listening without also closing the dialog around it.
       event.preventDefault();
       event.stopPropagation();
       stopOnEscape();
@@ -86,26 +86,15 @@ export function useDictation(onText: (text: string) => void): Dictation {
   }, [listening]);
 
   function start() {
-    // Saves talking for a minute only to hear sign-in is needed.
-    if (me && !me.user) {
-      reportVoiceProblem({ code: "sign-in" });
-      return;
-    }
     const mine = () => session.current === started;
-    const started = startVoice(
+    const started = startDictation(
+      window,
+      { signedOut: Boolean(me && !me.user), transcribe },
       {
-        getUserMedia: (constraints) => navigator.mediaDevices.getUserMedia(constraints),
-        Recorder: MediaRecorder,
-        transcribe,
-      },
-      {
-        onRecording: (at) => {
+        onPhase: (next, at) => {
           if (!mine()) return;
-          setStartedAt(at);
-          setPhase("recording");
-        },
-        onSending: () => {
-          if (mine()) setPhase("sending");
+          setPhase(next);
+          setStartedAt(at ?? null);
         },
         onText: (text) => {
           if (mine()) onTextRef.current(text);
@@ -119,6 +108,7 @@ export function useDictation(onText: (text: string) => void): Dictation {
         },
       },
     );
+    if (!started) return;
     session.current = started;
     setPhase("starting");
   }

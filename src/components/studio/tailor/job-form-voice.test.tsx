@@ -1,6 +1,6 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
-import { VOICE_LABELS } from "@/lib/voice/recorder";
+import { VOICE_LABELS } from "@/lib/voice/dictation";
 import { JobForm } from "./job-form";
 import type { TailorDraft } from "./session";
 

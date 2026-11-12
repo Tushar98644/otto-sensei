@@ -3,8 +3,9 @@
 import { Mic } from "lucide-react";
 import { useEffect, useLayoutEffect, useRef, useState, type ComponentProps } from "react";
 import { cn } from "@/lib/utils";
-import { elapsedText, VOICE_LABELS } from "@/lib/voice/recorder";
+import { isListening, VOICE_LABELS, type VoicePhase } from "@/lib/voice/dictation";
 import { appendDictation } from "@/lib/voice/join";
+import { elapsedText } from "@/lib/voice/recorder";
 import { Button } from "./button";
 import { Spinner } from "./spinner";
 import { toast } from "./toast";
@@ -35,7 +36,7 @@ export function VoiceButton({
   const latest = useRef(value);
   const dictation = useDictation(take);
   const { phase, startedAt } = dictation;
-  const listening = phase === "starting" || phase === "recording";
+  const listening = isListening(phase);
   const sending = phase === "sending";
 
   useLayoutEffect(() => {
@@ -55,6 +56,7 @@ export function VoiceButton({
       onDictate(next);
     }
     if (full) {
+      dictation.stop();
       toast({
         title: "This box is full",
         description: "Some of what you said didn't fit. Cut a few words to add more.",
@@ -72,9 +74,7 @@ export function VoiceButton({
       size={size}
       aria-pressed={listening}
       aria-disabled={sending || undefined}
-      aria-label={
-        sending ? VOICE_LABELS.sending : listening ? VOICE_LABELS.stop : VOICE_LABELS.start
-      }
+      aria-label={labelFor(phase)}
       data-listening={listening || undefined}
       data-sending={sending || undefined}
       onClick={dictation.toggle}
@@ -105,6 +105,13 @@ export function VoiceButton({
       {sending ? <Spinner /> : <Mic />}
     </Button>
   );
+}
+
+function labelFor(phase: VoicePhase): string {
+  if (phase === "idle") return VOICE_LABELS.start;
+  if (phase === "listening") return VOICE_LABELS.listening;
+  if (phase === "sending") return VOICE_LABELS.sending;
+  return VOICE_LABELS.recording;
 }
 
 function Elapsed({ since }: { since: number }) {
