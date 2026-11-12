@@ -106,6 +106,8 @@ If the tree is clean, `vercel --prod --yes` from `web/` is the same thing.
 
 **What happens on Vercel:** the build command is `bun scripts/migrate.ts --deploy && bun run build`, so new files in `supabase/migrations/` are applied to the production database before the new code goes live. Never edit a migration that has already run; add a new, later-dated file.
 
+**Database space (Supabase Free caps it at 500 MB):** Postgres keeps the space left by updated or deleted rows inside the table file. After any migration or clean-up that rewrites or deletes thousands of job rows, run `vacuum full public.jobs;` once in the Supabase SQL editor (the jobs tab pauses about a minute). On 2026-11-13 the jobs file was 331 MB holding 57 MB of real data; that vacuum is what fixed it. Check with: `select pg_size_pretty(sum(pg_column_size(j.*))) as real_data, pg_size_pretty(pg_table_size('public.jobs')) as file_size from public.jobs j;`
+
 **Quirk:** the CLI often ends with `Error: fetch failed` after printing the Production URL. The deploy is usually fine. Always trust `vercel inspect <url> --wait`, not that line.
 
 **Smoke check after every deploy:**
