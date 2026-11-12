@@ -3,7 +3,7 @@ import { getDb } from "@/db/client";
 import { rateLimits } from "@/db/schema";
 import { TRANSCRIBE_MODEL } from "@/lib/ai/transcribe";
 import type { ApiErrorBody, TranscribeResponse } from "@/lib/api/types";
-import { cookieJar, resetDb, signInAs } from "@/lib/auth/test-helpers";
+import { cookieJar, resetDb, setPlan, signInAs } from "@/lib/auth/test-helpers";
 import { resetEnvForTests } from "@/lib/env";
 import { DAY_MS } from "@/lib/time";
 import { TRANSCRIBE_LIMITS } from "./limits";
@@ -175,7 +175,7 @@ describe("POST /api/transcribe", () => {
   });
 
   it(`allows ${TRANSCRIBE_LIMITS.burst.calls} clips per 10 minutes, then asks for a break`, async () => {
-    await signInAs();
+    await setPlan(await signInAs(), "pro");
     const fetch = providerAnswers(200, { text: SPOKEN });
     for (let i = 0; i < TRANSCRIBE_LIMITS.burst.calls; i++)
       expect((await POST(clip())).status).toBe(200);
@@ -193,20 +193,24 @@ describe("POST /api/transcribe", () => {
     expect((await POST(clip())).status).toBe(200);
   });
 
-  it(`stops at ${TRANSCRIBE_LIMITS.daily.calls} clips a day`, async () => {
-    const user = await signInAs();
+  it.each([
+    ["free", 5, "You've used today's 5 voice clips. Try again in 15 hours. Pro has 30 a day."],
+    ["pro", 30, "You've used today's 30 voice clips. Try again in 15 hours."],
+    ["max", 60, "You've used today's 60 voice clips. Try again in 15 hours."],
+  ] as const)("stops %s at %i clips a day", async (plan, perDay, message) => {
+    const signedIn = await signInAs();
+    const user = plan === "free" ? signedIn : await setPlan(signedIn, plan);
+    expect(TRANSCRIBE_LIMITS.daily.calls[plan]).toBe(perDay);
     const db = await getDb();
     await db.insert(rateLimits).values({
       key: `transcribe:day:user:${user.id}`,
       windowStart: Math.floor(NOW / DAY_MS) * DAY_MS,
-      count: TRANSCRIBE_LIMITS.daily.calls,
+      count: perDay,
     });
     const fetch = providerAnswers(200, { text: SPOKEN });
     const res = await POST(clip());
     expect(res.status).toBe(429);
-    expect((await errorOf(res)).message).toBe(
-      "You've used voice typing a lot today. Try again in 15 hours.",
-    );
+    expect((await errorOf(res)).message).toBe(message);
     expect(fetch).not.toHaveBeenCalled();
   });
 

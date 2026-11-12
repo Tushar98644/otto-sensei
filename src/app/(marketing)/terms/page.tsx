@@ -13,6 +13,7 @@ import {
   PRO_TRIAL,
 } from "@/config/plans";
 import { tokensInWords } from "@/lib/ai-budget-copy";
+import { TRANSCRIBE_LIMITS } from "@/app/api/transcribe/limits";
 import { LegalPage } from "../_components/legal-page";
 import { formatUsd } from "../_components/plan-features";
 
@@ -94,8 +95,7 @@ export default function TermsPage() {
         The AI is set up to refuse such requests and leave such material out. Automated safety
         checks also block sexual or explicit content in what Otto writes and on pages you publish.
         We may remove content that breaks this rule and suspend or close the account that asked for
-        it. Our{" "}
-        <Link href={ROUTES.acceptableUse}>acceptable use policy</Link> has the full list.
+        it. Our <Link href={ROUTES.acceptableUse}>acceptable use policy</Link> has the full list.
       </p>
 
       <h2>Plans and their limits</h2>
@@ -159,6 +159,13 @@ export default function TermsPage() {
         {PLANS.pro.name}, {tokensInWords(AI_TOKEN_BUDGETS.max)} on {PLANS.max.name},{" "}
         {tokensInWords(AI_TOKEN_BUDGETS.trial)} on the trial) that covers full use of the limits
         above and only stops automated or abusive use.
+      </p>
+      <p>
+        Voice typing is free and unlimited in browsers with built-in speech (Chrome, Edge and
+        Safari). In other browsers, like Brave and Firefox, it uses our speech service: up to{" "}
+        {TRANSCRIBE_LIMITS.daily.calls.free} clips a day on Free,{" "}
+        {TRANSCRIBE_LIMITS.daily.calls.pro} on {PLANS.pro.name} and the trial, and{" "}
+        {TRANSCRIBE_LIMITS.daily.calls.max} on {PLANS.max.name}, each up to 2 minutes.
       </p>
 
       <h2>Payments and cancelling</h2>

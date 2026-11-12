@@ -1,3 +1,4 @@
+import type { PlanId } from "@/config/plans";
 import { audioFormat, transcribeAudio, type AudioFormat } from "@/lib/ai/transcribe";
 import { AIError, type AIErrorCode } from "@/lib/ai/types";
 import { fail, ok } from "@/lib/api/respond";
@@ -41,7 +42,7 @@ export async function POST(req: Request): Promise<Response> {
     const user = await getCurrentUser();
     if (!user) return fail("unauthorized", SIGN_IN, 401);
     if (!aiEnabled()) return fail("ai_unavailable", FAILED, 502);
-    const limited = await limitTranscribes(user.id);
+    const limited = await limitTranscribes(user.id, user.plan);
     if (limited) return limited;
 
     const clip = await readClip(req);
@@ -71,8 +72,9 @@ export async function POST(req: Request): Promise<Response> {
   }
 }
 
-async function limitTranscribes(userId: string): Promise<Response | null> {
+async function limitTranscribes(userId: string, plan: PlanId): Promise<Response | null> {
   const { burst, daily } = TRANSCRIBE_LIMITS;
+  const perDay = daily.calls[plan];
   const short = await rateLimit(`transcribe:user:${userId}`, burst.calls, burst.windowMs);
   if (!short.allowed) {
     log.warn("transcribe.burst_limited");
@@ -81,11 +83,12 @@ async function limitTranscribes(userId: string): Promise<Response | null> {
       short.retryAfterMs,
     );
   }
-  const day = await rateLimit(`transcribe:day:user:${userId}`, daily.calls, daily.windowMs);
+  const day = await rateLimit(`transcribe:day:user:${userId}`, perDay, daily.windowMs);
   if (!day.allowed) {
-    log.warn("transcribe.daily_limited");
+    log.warn("transcribe.daily_limited", { plan });
+    const more = plan === "free" ? ` Pro has ${daily.calls.pro} a day.` : "";
     return tooMany(
-      `You've used voice typing a lot today. Try again in ${waitLong(day.retryAfterMs)}.`,
+      `You've used today's ${perDay} voice clips. Try again in ${waitLong(day.retryAfterMs)}.${more}`,
       day.retryAfterMs,
     );
   }
