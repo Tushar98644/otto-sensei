@@ -1,6 +1,6 @@
 # Handoff: working on Otto Sensei from a new laptop
 
-How to set up, check, ship and deploy Otto Sensei, plus the house rules and open to-dos. Written for the owner and for any Claude session on a new machine. Last updated 2026-11-12, when production was commit `08d8330`.
+How to set up, check, ship and deploy Otto Sensei, plus the house rules and open to-dos. Written for the owner and for any Claude session on a new machine. Last updated 2026-11-12. To see what is live: `vercel ls --prod`.
 
 Other docs: [README.md](README.md) (run locally; links here), [SETUP.md](SETUP.md) (every service, step by step), [ARCHITECTURE.md](ARCHITECTURE.md) (how the code fits), [DESIGN.md](DESIGN.md) (UI rules), [.env.example](.env.example) (every variable).
 
@@ -81,12 +81,19 @@ All three must pass with zero errors. `--maxWorkers=2` keeps an 8 GB machine res
 
 ## 5. Deploying to production
 
-Production deploys are done from the CLI, not by a git push. Claude runs them after each change is gated and pushed; the owner doesn't have to.
-
-**The safe way: deploy from a clean copy of the last commit.** Vercel uploads the folder as it is, so any unfinished edits would ship. A temporary worktree avoids that:
+**A push to `main` deploys production automatically** (Vercel's GitHub connection, seen working 2026-11-12: those deploys carry the alias `otto-sensei-git-main-…`). So the normal flow is gate → commit → push, then confirm the deploy:
 
 ```bash
 git push
+vercel ls --prod | head -2                # newest production deployment
+vercel inspect <that url> --wait          # must say "status ● Ready"
+```
+
+Then run the smoke check below. Claude does this after every change; the owner doesn't have to.
+
+**Deploying without a push** (for example if the GitHub connection is off): deploy from a clean copy of the last commit. The CLI uploads the folder as it is, so any unfinished edits would ship. A temporary worktree avoids that:
+
+```bash
 WT=/tmp/otto-deploy
 git worktree add --detach "$WT" HEAD
 cp -R .vercel "$WT/"
