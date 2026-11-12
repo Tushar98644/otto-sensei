@@ -11,6 +11,7 @@ export type PageParts = {
   snapshot?: Resume;
   content?: PortfolioContent;
   github?: GitHubStats | null;
+  publishing?: boolean;
 };
 
 export type Blocked = { status: "blocked" };
@@ -28,7 +29,8 @@ export function pageTexts(parts: PageParts): string[] {
 }
 
 export async function pageAllowed(parts: PageParts, source: string): Promise<boolean> {
-  return (await checkContent(pageTexts(parts), { source })).allowed;
+  return (await checkContent(pageTexts(parts), { source, thorough: parts.publishing === true }))
+    .allowed;
 }
 
 export function patchParts(current: Portfolio | null, patch: PortfolioPatch): PageParts | null {
@@ -44,6 +46,7 @@ export function patchParts(current: Portfolio | null, patch: PortfolioPatch): Pa
       snapshot: snapshot ?? current.snapshot,
       content: current.content,
       github: current.github,
+      publishing: true,
     };
   }
   return snapshot || slug ? { snapshot, slug } : null;

@@ -195,24 +195,33 @@ export const BulletRow = memo(function BulletRow({
           hidden && "border-dashed",
         )}
       >
-        <Textarea
-          id={inputId}
-          variant="line"
-          autoResize
-          value={bullet.text}
-          maxLength={CHAR_LIMITS.bullet}
-          aria-labelledby={`${labelId} ${ownerHeadingId}`}
-          aria-describedby={lint || hidden ? lintId : undefined}
-          placeholder="What did you do, and what changed because of it?"
-          onChange={handleChange}
-          onKeyDown={handleKeyDown}
-          onPaste={handlePaste}
-          className={cn(
-            "flex-1 border-b-0 focus-visible:shadow-none",
-            hidden && "text-muted",
-            flagged && "-mx-1.5 rounded-md bg-highlight px-1.5",
-          )}
-        />
+        <div className="relative grid min-w-0 flex-1">
+          {flagged ? (
+            <div
+              aria-hidden
+              className="pointer-events-none col-start-1 row-start-1 py-2.5 text-base wrap-break-word whitespace-pre-wrap text-transparent sm:text-sm"
+            >
+              <span className="bg-highlight box-decoration-clone">{bullet.text}</span>
+            </div>
+          ) : null}
+          <Textarea
+            id={inputId}
+            variant="line"
+            autoResize
+            value={bullet.text}
+            maxLength={CHAR_LIMITS.bullet}
+            aria-labelledby={`${labelId} ${ownerHeadingId}`}
+            aria-describedby={lint || hidden ? lintId : undefined}
+            placeholder="What did you do, and what changed because of it?"
+            onChange={handleChange}
+            onKeyDown={handleKeyDown}
+            onPaste={handlePaste}
+            className={cn(
+              "col-start-1 row-start-1 border-b-0 focus-visible:shadow-none",
+              hidden && "text-muted",
+            )}
+          />
+        </div>
         <div className="flex h-6 shrink-0 items-center max-sm:mb-2.5 max-sm:empty:hidden sm:mt-2 sm:w-36 sm:justify-end">
           {flashed ? (
             <span aria-hidden className="flex">

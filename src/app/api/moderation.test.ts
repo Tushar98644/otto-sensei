@@ -57,7 +57,12 @@ async function errorOf(res: Response): Promise<ApiErrorBody["error"]> {
   return ((await res.json()) as ApiErrorBody).error;
 }
 
-function send(handler: (req: Request) => Promise<Response>, method: string, path: string, body: unknown) {
+function send(
+  handler: (req: Request) => Promise<Response>,
+  method: string,
+  path: string,
+  body: unknown,
+) {
   return handler(
     new Request(`http://localhost${path}`, {
       method,
@@ -69,12 +74,17 @@ function send(handler: (req: Request) => Promise<Response>, method: string, path
 
 async function proWithPortfolio() {
   const user = await setPlan(await signInAs("maya@example.com"), "pro");
-  expect((await createPortfolio(jsonRequest("/api/portfolio", { resume: sampleResume() }))).status).toBe(201);
+  expect(
+    (await createPortfolio(jsonRequest("/api/portfolio", { resume: sampleResume() }))).status,
+  ).toBe(201);
   return user;
 }
 
 function logs(): string {
-  return JSON.stringify([...vi.mocked(console.warn).mock.calls, ...vi.mocked(console.info).mock.calls]);
+  return JSON.stringify([
+    ...vi.mocked(console.warn).mock.calls,
+    ...vi.mocked(console.info).mock.calls,
+  ]);
 }
 
 beforeEach(async () => {
@@ -119,11 +129,12 @@ describe("what Otto writes", () => {
 
   it("still answers when the safety model times out", async () => {
     await signInAs("free@example.com");
+    suggestion = "Ran the sexual health clinic blog";
     guard = () => Promise.reject(new DOMException("timed out", "TimeoutError"));
 
     const res = await fixRoute(jsonRequest("/api/fix", FIX_BODY));
     expect(res.status).toBe(200);
-    expect(((await res.json()) as FixResponse).result.suggestion).toBe("Ran the company blog");
+    expect(((await res.json()) as FixResponse).result.suggestion).toBe(suggestion);
     expect(logs()).toContain("moderation.unavailable");
   });
 });
@@ -146,7 +157,9 @@ describe("public pages", () => {
   it("publishes a clean portfolio after checking its whole page", async () => {
     const user = await proWithPortfolio();
     guard = flagsExplicit;
-    expect((await send(patchPortfolio, "PATCH", "/api/portfolio", { published: true })).status).toBe(200);
+    expect(
+      (await send(patchPortfolio, "PATCH", "/api/portfolio", { published: true })).status,
+    ).toBe(200);
     expect(await getPortfolio(user.id)).toMatchObject({ published: true });
     expect(checked.join("\n")).toContain("I build fast, friendly web apps.");
     expect(checked.join("\n")).toContain("maya-chen");
@@ -158,7 +171,9 @@ describe("public pages", () => {
     guard = flagsExplicit;
     await send(putContent, "PUT", "/api/portfolio/content", { content: { pitch: "Draft pitch" } });
     expect(checked).toHaveLength(0);
-    expect((await send(patchPortfolio, "PATCH", "/api/portfolio", { published: true })).status).toBe(200);
+    expect(
+      (await send(patchPortfolio, "PATCH", "/api/portfolio", { published: true })).status,
+    ).toBe(200);
     checked.length = 0;
 
     const blocked = await send(putContent, "PUT", "/api/portfolio/content", {
@@ -175,7 +190,9 @@ describe("public pages", () => {
     expect((await getPortfolio(user.id))?.snapshot.summary).toBe(SUMMARY);
 
     checked.length = 0;
-    expect((await send(patchPortfolio, "PATCH", "/api/portfolio", { template: "reel" })).status).toBe(200);
+    expect(
+      (await send(patchPortfolio, "PATCH", "/api/portfolio", { template: "reel" })).status,
+    ).toBe(200);
     expect(checked).toHaveLength(0);
   });
 
@@ -199,7 +216,9 @@ describe("public pages", () => {
 
   it("keeps the last checked copy live when a synced resume edit is blocked", async () => {
     const user = await proWithPortfolio();
-    expect((await send(patchPortfolio, "PATCH", "/api/portfolio", { published: true })).status).toBe(200);
+    expect(
+      (await send(patchPortfolio, "PATCH", "/api/portfolio", { published: true })).status,
+    ).toBe(200);
     guard = flagsExplicit;
     const edited = sampleResume({ summary: `A ${EXPLICIT}`, updatedAt: 9_000 });
 
@@ -226,7 +245,18 @@ describe("public pages", () => {
     expect(await errorOf(res)).toEqual({ code: "content_blocked", message: PAGE_BLOCKED });
     expect(await listShares(user.id)).toEqual([]);
 
-    expect((await createShare(jsonRequest("/api/share", { resume: sampleResume() }))).status).toBe(201);
+    expect((await createShare(jsonRequest("/api/share", { resume: sampleResume() }))).status).toBe(
+      201,
+    );
     expect(checked.at(-1)).not.toContain("+1 415 555 0100");
+  });
+});
+
+describe("word pre-check on what Otto writes", () => {
+  it("doesn't call the safety model for an ordinary line", async () => {
+    await signInAs("free@example.com");
+    const res = await fixRoute(jsonRequest("/api/fix", FIX_BODY));
+    expect(res.status).toBe(200);
+    expect(checked).toHaveLength(0);
   });
 });

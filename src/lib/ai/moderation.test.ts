@@ -1,9 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { resetEnvForTests } from "@/lib/env";
-import { checkContent, MODERATION_MODEL, parseVerdict, textsOf } from "./moderation";
+import { checkContent, mightBeSexual, MODERATION_MODEL, parseVerdict, textsOf } from "./moderation";
 
 const fetchMock = vi.fn<(input: string | URL | Request, init?: RequestInit) => Promise<Response>>();
-const CONTEXT = { source: "test.route" };
+const CONTEXT = { source: "test.route", thorough: true };
 const SECRET_LINE = "Jane Doe, jane@example.com, wrote the secret line";
 
 function guardReply(content: string): Response {
@@ -83,7 +83,9 @@ describe("checkContent", () => {
       allowed: true,
       categories: [],
     });
-    expect(String(fetchMock.mock.calls[0]?.[0])).toBe("https://openrouter.ai/api/v1/chat/completions");
+    expect(String(fetchMock.mock.calls[0]?.[0])).toBe(
+      "https://openrouter.ai/api/v1/chat/completions",
+    );
     expect(sentBody()).toMatchObject({
       model: MODERATION_MODEL,
       messages: [{ role: "user", content: "Ran the blog\nWrote the newsletter" }],
@@ -95,7 +97,10 @@ describe("checkContent", () => {
 
   it("blocks sexual content and logs only the category ids", async () => {
     guardSays("unsafe\nS12");
-    expect(await checkContent([SECRET_LINE], CONTEXT)).toEqual({ allowed: false, categories: ["S12"] });
+    expect(await checkContent([SECRET_LINE], CONTEXT)).toEqual({
+      allowed: false,
+      categories: ["S12"],
+    });
     expect(logged()).toContain("moderation.blocked");
     expect(logged()).toContain("S12");
     expect(logged()).toContain("test.route");
@@ -104,7 +109,10 @@ describe("checkContent", () => {
 
   it("allows privacy flags, which every resume trips, but logs them", async () => {
     guardSays("unsafe\nS7");
-    expect(await checkContent([SECRET_LINE], CONTEXT)).toEqual({ allowed: true, categories: ["S7"] });
+    expect(await checkContent([SECRET_LINE], CONTEXT)).toEqual({
+      allowed: true,
+      categories: ["S7"],
+    });
     expect(logged()).toContain("moderation.flagged");
     expect(logged()).not.toContain("secret line");
   });
@@ -119,11 +127,27 @@ describe("checkContent", () => {
   });
 
   it.each([
-    ["a timeout", () => fetchMock.mockRejectedValueOnce(new DOMException("timed out", "TimeoutError")), "timeout"],
-    ["a network error", () => fetchMock.mockRejectedValueOnce(new TypeError("fetch failed")), "network"],
-    ["a provider error", () => fetchMock.mockResolvedValueOnce(new Response("{}", { status: 503 })), "503"],
+    [
+      "a timeout",
+      () => fetchMock.mockRejectedValueOnce(new DOMException("timed out", "TimeoutError")),
+      "timeout",
+    ],
+    [
+      "a network error",
+      () => fetchMock.mockRejectedValueOnce(new TypeError("fetch failed")),
+      "network",
+    ],
+    [
+      "a provider error",
+      () => fetchMock.mockResolvedValueOnce(new Response("{}", { status: 503 })),
+      "503",
+    ],
     ["a malformed answer", () => guardSays("Sure, here is my analysis"), "malformed"],
-    ["an empty reply", () => fetchMock.mockResolvedValueOnce(Response.json({ choices: [] })), "malformed"],
+    [
+      "an empty reply",
+      () => fetchMock.mockResolvedValueOnce(Response.json({ choices: [] })),
+      "malformed",
+    ],
   ])("fails open on %s and logs it", async (_label, arrange, reason) => {
     arrange();
     expect(await checkContent([SECRET_LINE], CONTEXT)).toEqual({ allowed: true, categories: [] });
@@ -152,5 +176,36 @@ describe("checkContent", () => {
     fetchMock.mockImplementation(async () => guardReply("safe"));
     await checkContent(["x".repeat(20_000)], CONTEXT);
     expect(fetchMock).toHaveBeenCalledTimes(3);
+  });
+});
+
+describe("word pre-check", () => {
+  const QUICK = { source: "test.quick" };
+
+  it("skips the safety model for ordinary writing", async () => {
+    expect(await checkContent(["Grew followers 3x in 6 months", "magna cum laude"], QUICK)).toEqual(
+      {
+        allowed: true,
+        categories: [],
+      },
+    );
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("sends text with sexual words to the safety model", async () => {
+    guardSays("unsafe\nS12");
+    expect(await checkContent(["an explicit sex scene"], QUICK)).toMatchObject({ allowed: false });
+    expect(fetchMock).toHaveBeenCalledOnce();
+  });
+
+  it("always checks when thorough", async () => {
+    guardSays("safe");
+    await checkContent(["Grew followers 3x"], { source: "test.publish", thorough: true });
+    expect(fetchMock).toHaveBeenCalledOnce();
+  });
+
+  it("matches whole words only", () => {
+    expect(mightBeSexual("Lived in Essex and Sussex; analysis of analytics")).toBe(false);
+    expect(mightBeSexual("NSFW")).toBe(true);
   });
 });

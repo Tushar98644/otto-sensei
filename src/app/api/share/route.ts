@@ -53,7 +53,8 @@ export async function POST(req: Request): Promise<Response> {
       );
     }
     const text = snapshotText(shareSnapshot(body.data.resume));
-    if (!(await checkContent([text], { source: "share.create" })).allowed) return pageBlocked();
+    if (!(await checkContent([text], { source: "share.create", thorough: true })).allowed)
+      return pageBlocked();
     const result = await saveShare(user.id, body.data);
     if (result.status === "no_user") return fail("unauthorized", SIGN_IN, 401);
     if (result.status === "limit_reached") {

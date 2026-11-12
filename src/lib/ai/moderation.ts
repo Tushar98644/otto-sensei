@@ -4,7 +4,8 @@ import { log } from "@/lib/log";
 
 export const MODERATION_MODEL = "meta-llama/llama-guard-4-12b";
 
-export type ModerationContext = { source: string };
+// thorough skips the word pre-check: first publish and share links, where a miss is public.
+export type ModerationContext = { source: string; thorough?: boolean };
 export type Verdict = { allowed: boolean; categories: string[] };
 
 const ENDPOINT = "https://openrouter.ai/api/v1/chat/completions";
@@ -16,6 +17,14 @@ const CHUNK_CHARS = 8_000;
 const PARALLEL_CHUNKS = 4;
 
 const ALLOWED: Verdict = { allowed: true, categories: [] };
+
+// Only text with sexual words reaches the safety model, so normal writing pays no delay or cost.
+const SEXUAL_WORDS =
+  /\b(?:sex(?:ual\w*|y|t\w*)?|nsfw|porn\w*|xxx|nude\w*|naked|erotic\w*|orgasm\w*|genital\w*|penis\w*|vagina\w*|breasts?|nipples?|masturbat\w*|fetish\w*|bdsm|kink\w*|horny|arous\w*|intercourse|blowjob\w*|handjob\w*|dick\w*|cock\w*|puss(?:y|ies)|boobs?|tits?|anal|onlyfans|camgirl\w*|webcam\w*|escort\w*|stripper\w*|stripclub\w*|hooker\w*|prostitut\w*|incest\w*|rape\w*|molest\w*|pedo\w*|underage|hentai|seduc\w*|lust\w*|slut\w*|whore\w*)\b/i;
+
+export function mightBeSexual(text: string): boolean {
+  return SEXUAL_WORDS.test(text);
+}
 
 const VERDICT = /^(safe|unsafe)\b([\s\S]*)$/i;
 const CATEGORY = /\bS\d{1,2}\b/g;
@@ -58,7 +67,10 @@ function chunksOf(text: string): string[] {
 }
 
 function failureReason(error: unknown): string {
-  if (error instanceof DOMException && (error.name === "TimeoutError" || error.name === "AbortError")) {
+  if (
+    error instanceof DOMException &&
+    (error.name === "TimeoutError" || error.name === "AbortError")
+  ) {
     return "timeout";
   }
   if (error instanceof SyntaxError) return "malformed";
@@ -89,7 +101,9 @@ async function classify(
     });
     if (!res.ok) return unavailable({ status: res.status });
     const reply = ReplySchema.safeParse(await res.json());
-    const verdict = reply.success ? parseVerdict(reply.data.choices[0]!.message?.content ?? "") : null;
+    const verdict = reply.success
+      ? parseVerdict(reply.data.choices[0]!.message?.content ?? "")
+      : null;
     return verdict ?? unavailable({ reason: "malformed" });
   } catch (error) {
     return unavailable({ reason: failureReason(error) });
@@ -107,6 +121,7 @@ export async function checkContent(
     .filter(Boolean)
     .join("\n");
   if (!text || !apiKey) return ALLOWED;
+  if (!context.thorough && !mightBeSexual(text)) return ALLOWED;
 
   const chunks = chunksOf(text);
   const verdicts: Verdict[] = [];
