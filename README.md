@@ -2,7 +2,7 @@
 
 Resume checker and editor with an otter guide. Upload a resume, see what a recruiter's software reads, fix weak lines, tailor to a job, download a PDF for free.
 
-Design and contracts: [ARCHITECTURE.md](ARCHITECTURE.md). Going live: [SETUP.md](SETUP.md). Every env var: [.env.example](.env.example).
+Design and contracts: [ARCHITECTURE.md](ARCHITECTURE.md). Going live: [SETUP.md](SETUP.md). New laptop, deploys and house rules: [HANDOFF.md](HANDOFF.md). Every env var: [.env.example](.env.example).
 
 ## Run locally
 
