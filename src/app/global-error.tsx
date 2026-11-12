@@ -7,6 +7,7 @@ import { ROUTES } from "@/components/site/routes";
 import { Button, buttonClasses } from "@/components/ui/button";
 import { BRAND } from "@/config/brand";
 import { reportClientError } from "@/lib/observability/browser";
+import { reloadForStaleBuild } from "@/lib/observability/stale-build";
 import "./globals.css";
 
 export default function GlobalError({
@@ -17,7 +18,7 @@ export default function GlobalError({
   retry: () => void;
 }) {
   useEffect(() => {
-    reportClientError(error);
+    if (!reloadForStaleBuild(error)) reportClientError(error);
   }, [error]);
 
   return (

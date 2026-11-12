@@ -129,7 +129,7 @@ function SidebarLink({
   return (
     <Link
       href={item.href}
-      prefetch={intent}
+      prefetch={item.eager || intent}
       onMouseEnter={showIntent}
       onFocus={showIntent}
       onTouchStart={showIntent}

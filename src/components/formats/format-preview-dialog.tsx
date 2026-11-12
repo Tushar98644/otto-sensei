@@ -3,13 +3,14 @@
 import { Button } from "@/components/ui/button";
 import { Dialog } from "@/components/ui/dialog";
 import type { TemplateInfo } from "@/lib/pdf/templates";
-import { FormatImage } from "./format-image";
+import { FormatImage, PREVIEW_SIZES } from "./format-image";
 
 export type FormatPreviewDialogProps = {
   info: TemplateInfo | null;
   onClose: () => void;
   actionLabel: string;
   ready: boolean;
+  opening?: boolean;
   onUse: (info: TemplateInfo) => void;
 };
 
@@ -18,6 +19,7 @@ export function FormatPreviewDialog({
   onClose,
   actionLabel,
   ready,
+  opening = false,
   onUse,
 }: FormatPreviewDialogProps) {
   return (
@@ -35,7 +37,7 @@ export function FormatPreviewDialog({
             <Button variant="ghost" onClick={onClose}>
               Close
             </Button>
-            <Button onClick={() => onUse(info)} disabled={!ready} data-autofocus>
+            <Button onClick={() => onUse(info)} disabled={!ready} loading={opening} data-autofocus>
               {actionLabel}
             </Button>
           </>
@@ -46,7 +48,8 @@ export function FormatPreviewDialog({
         <div className="rounded-xl bg-surface-muted p-3 sm:p-6">
           <FormatImage
             info={info}
-            sizes="(min-width: 672px) 36rem, 90vw"
+            sizes={PREVIEW_SIZES}
+            decoding="sync"
             className="mx-auto max-h-[65dvh] w-auto max-w-full shadow-card"
           />
         </div>

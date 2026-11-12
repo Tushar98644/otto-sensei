@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useCallback } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { unlockProTool } from "@/components/account/pro-tools";
 import { ROUTES } from "@/components/site/routes";
 import { isProTemplate, templateOf, withTemplate } from "@/lib/pdf/templates";
@@ -12,6 +12,7 @@ import { formatTarget, sampleWithFormat } from "./apply-format";
 export type ApplyFormat = {
   ready: boolean;
   target: Resume | null;
+  opening: TemplateId | null;
   apply: (id: TemplateId) => Promise<void>;
 };
 
@@ -19,10 +20,19 @@ export function useApplyFormat(): ApplyFormat {
   const router = useRouter();
   const ready = useStudioHydrated();
   const target = useStudioStore(formatTarget);
+  const [opening, setOpening] = useState<TemplateId | null>(null);
+
+  useEffect(() => {
+    router.prefetch(ROUTES.studio);
+  }, [router]);
 
   const apply = useCallback(
     async (id: TemplateId) => {
-      if (isProTemplate(id) && !(await unlockProTool("formats"))) return;
+      setOpening(id);
+      if (isProTemplate(id) && !(await unlockProTool("formats"))) {
+        setOpening(null);
+        return;
+      }
       // Read at click time: cloud sync may have changed the list since the last render.
       const store = useStudioStore.getState();
       const resume = formatTarget(store);
@@ -38,5 +48,5 @@ export function useApplyFormat(): ApplyFormat {
     [router],
   );
 
-  return { ready, target, apply };
+  return { ready, target, opening, apply };
 }

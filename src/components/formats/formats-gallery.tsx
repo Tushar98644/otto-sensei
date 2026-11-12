@@ -1,20 +1,37 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useProTools } from "@/components/account/pro-tools";
 import { resumeLabel } from "@/components/studio/resume-label";
 import { isProTemplate, TEMPLATE_INFO, TEMPLATE_LIST, templateOf } from "@/lib/pdf/templates";
 import type { TemplateId } from "@/lib/resume/schema";
 import { FormatCard } from "./format-card";
+import { preloadFormatPreview } from "./format-image";
 import { FormatPreviewDialog } from "./format-preview-dialog";
 import { useApplyFormat } from "./use-apply-format";
 
+function preloadAllPreviews(): void {
+  for (const info of TEMPLATE_LIST) preloadFormatPreview(info.id);
+}
+
+function usePreloadPreviewsWhenIdle(): void {
+  useEffect(() => {
+    if ("requestIdleCallback" in window) {
+      const handle = requestIdleCallback(preloadAllPreviews, { timeout: 2000 });
+      return () => cancelIdleCallback(handle);
+    }
+    const handle = setTimeout(preloadAllPreviews, 1000);
+    return () => clearTimeout(handle);
+  }, []);
+}
+
 export function FormatsGallery() {
-  const { ready, target, apply } = useApplyFormat();
+  const { ready, target, opening, apply } = useApplyFormat();
   const [previewId, setPreviewId] = useState<TemplateId | null>(null);
   const free = useProTools() === false;
   const current = target ? templateOf(target) : null;
   const actionLabel = target || !ready ? "Use this format" : "Try it with a sample";
+  usePreloadPreviewsWhenIdle();
 
   return (
     <div className="flex flex-col gap-6">
@@ -37,7 +54,8 @@ export function FormatsGallery() {
               inUse={current === info.id}
               pro={free && isProTemplate(info.id)}
               actionLabel={actionLabel}
-              ready={ready}
+              ready={ready && opening === null}
+              opening={opening === info.id}
               onUse={() => void apply(info.id)}
               onPreview={() => setPreviewId(info.id)}
             />
@@ -48,7 +66,8 @@ export function FormatsGallery() {
         info={previewId ? TEMPLATE_INFO[previewId] : null}
         onClose={() => setPreviewId(null)}
         actionLabel={actionLabel}
-        ready={ready}
+        ready={ready && opening === null}
+        opening={opening !== null && opening === previewId}
         onUse={(info) => void apply(info.id)}
       />
     </div>

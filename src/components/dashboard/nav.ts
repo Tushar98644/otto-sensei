@@ -21,6 +21,8 @@ export type AppNavItem = {
   icon: LucideIcon;
   pro?: boolean;
   tour?: string;
+  // Prefetch on view instead of intent; only for pages that load no data.
+  eager?: boolean;
 };
 
 export const APP_NAV: readonly AppNavItem[] = [
@@ -49,7 +51,7 @@ export const APP_NAV: readonly AppNavItem[] = [
     tour: "dashboard-interview",
   },
   { href: PORTFOLIO_ROUTE, label: "Portfolio", icon: Globe, pro: true, tour: "dashboard-portfolio" },
-  { href: ROUTES.dashboardFormats, label: "Formats", icon: LayoutTemplate },
+  { href: ROUTES.dashboardFormats, label: "Formats", icon: LayoutTemplate, eager: true },
 ];
 
 export const APP_NAV_FOOTER: readonly AppNavItem[] = [

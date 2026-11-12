@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { FolderCard } from "@/components/ui/folder-card";
 import type { TemplateInfo } from "@/lib/pdf/templates";
-import { FormatImage } from "./format-image";
+import { CARD_SIZES, FormatImage, preloadFormatPreview } from "./format-image";
 
 export type FormatCardProps = {
   info: TemplateInfo;
@@ -14,11 +14,10 @@ export type FormatCardProps = {
   pro?: boolean;
   actionLabel: string;
   ready: boolean;
+  opening?: boolean;
   onUse: () => void;
   onPreview: () => void;
 };
-
-const SIZES = "(min-width: 1280px) 18rem, (min-width: 640px) 45vw, 100vw";
 
 export function FormatCard({
   info,
@@ -26,12 +25,19 @@ export function FormatCard({
   pro = false,
   actionLabel,
   ready,
+  opening = false,
   onUse,
   onPreview,
 }: FormatCardProps) {
   const titleId = useId();
+  const preview = () => preloadFormatPreview(info.id);
   return (
-    <article aria-labelledby={titleId} className="h-full">
+    <article
+      aria-labelledby={titleId}
+      onPointerEnter={preview}
+      onFocus={preview}
+      className="h-full"
+    >
       <FolderCard
         tab={<span id={titleId}>{info.name}</span>}
         tone={inUse ? "forest" : "plain"}
@@ -53,7 +59,7 @@ export function FormatCard({
           onClick={onPreview}
           className="h-48 cursor-zoom-in overflow-hidden rounded-xl bg-surface-muted px-5 pt-5"
         >
-          <FormatImage info={info} sizes={SIZES} className="shadow-card" />
+          <FormatImage info={info} sizes={CARD_SIZES} className="shadow-card" />
         </button>
         <div className="flex flex-1 flex-col gap-1">
           <p className="text-sm/6 text-pretty text-ink">{info.bestFor}</p>
@@ -63,7 +69,13 @@ export function FormatCard({
           </p>
         </div>
         <div className="flex items-center gap-1">
-          <Button size="sm" onClick={onUse} disabled={!ready} aria-describedby={titleId}>
+          <Button
+            size="sm"
+            onClick={onUse}
+            disabled={!ready}
+            loading={opening}
+            aria-describedby={titleId}
+          >
             {actionLabel}
           </Button>
           <Button size="sm" variant="ghost" onClick={onPreview} aria-describedby={titleId}>
