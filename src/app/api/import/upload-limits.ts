@@ -2,8 +2,8 @@ import { ANON_LIMITS, IP_LIMITS } from "@/config/plans";
 import { limitNetworkThenDevice, type LimitScope } from "@/lib/api/limits";
 import { fail } from "@/lib/api/respond";
 import { log } from "@/lib/log";
-import { retryAfterHeader, waitText, type RateLimitResult } from "@/lib/rate-limit";
-import { DAY_MS, HOUR_MS } from "@/lib/time";
+import { retryAfterHeader, waitLong, type RateLimitResult } from "@/lib/rate-limit";
+import { DAY_MS } from "@/lib/time";
 
 export type UploadKind = "import" | "check";
 
@@ -31,10 +31,4 @@ function tooMany(kind: UploadKind, scope: LimitScope, result: RateLimitResult): 
     429,
     retryAfterHeader(result.retryAfterMs),
   );
-}
-
-function waitLong(ms: number): string {
-  if (ms < HOUR_MS) return waitText(ms);
-  const hours = Math.ceil(ms / HOUR_MS);
-  return hours === 1 ? "1 hour" : `${hours} hours`;
 }

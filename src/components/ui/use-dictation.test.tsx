@@ -1,7 +1,7 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { toast } from "./toast";
-import { reportDictationError, useVoiceSupported } from "./use-dictation";
+import { reportVoiceProblem, useVoiceSupported } from "./use-dictation";
 import { VoiceButton } from "./voice-button";
 
 vi.mock("./toast", () => ({ toast: vi.fn() }));
@@ -21,9 +21,9 @@ describe("useDictation on the server", () => {
   });
 });
 
-describe("reportDictationError", () => {
+describe("reportVoiceProblem", () => {
   it("turns a blocked microphone into a plain error toast", () => {
-    reportDictationError("not-allowed");
+    reportVoiceProblem({ code: "mic-blocked" });
     expect(toast).toHaveBeenCalledWith({
       title: "Otto can't hear you",
       description: "Allow the microphone in your browser to talk to Otto.",
@@ -31,15 +31,10 @@ describe("reportDictationError", () => {
     });
   });
 
-  it("tells you when it heard nothing", () => {
-    reportDictationError("no-speech");
+  it("shows the server's words when sign-in is needed", () => {
+    reportVoiceProblem({ code: "sign-in", message: "Sign in to talk to Otto." });
     expect(toast).toHaveBeenCalledWith(
-      expect.objectContaining({ title: "Otto didn't hear anything", variant: "error" }),
+      expect.objectContaining({ description: "Sign in to talk to Otto.", variant: "error" }),
     );
-  });
-
-  it("stays quiet when the session was stopped on purpose", () => {
-    reportDictationError("aborted");
-    expect(toast).not.toHaveBeenCalled();
   });
 });

@@ -1,16 +1,16 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
-import { VOICE_LABELS } from "@/lib/voice/dictation";
+import { VOICE_LABELS } from "@/lib/voice/recorder";
 import { JobForm } from "./job-form";
 import type { TailorDraft } from "./session";
 
-const fake = vi.hoisted(() => ({ onText: (() => {}) as (chunk: string) => void }));
+const fake = vi.hoisted(() => ({ onText: (() => {}) as (text: string) => void }));
 
 vi.mock("@/components/ui/use-dictation", () => ({
   useVoiceSupported: () => true,
-  useDictation: (onText: (chunk: string) => void) => {
+  useDictation: (onText: (text: string) => void) => {
     fake.onText = onText;
-    return { supported: true, listening: false, toggle() {}, stop() {}, cancel() {} };
+    return { supported: true, phase: "idle", startedAt: null, toggle() {}, stop() {}, cancel() {} };
   },
 }));
 

@@ -165,10 +165,10 @@ export default function PrivacyPage() {
         uploaded. The job post eligibility check also runs in your browser, with no AI.
       </p>
       <p>
-        <strong>Voice typing:</strong> when you press a microphone button, your browser turns your
-        speech into text with its own speech service (Google in Chrome, Microsoft in Edge, Apple in
-        Safari), under that company&apos;s privacy policy. Otto receives only the text, never the
-        audio. The browser listens only while the microphone button is on.
+        <strong>Voice typing:</strong> when you press a microphone button, your browser records
+        only while it&apos;s on. The clip goes to our speech-to-text provider through OpenRouter,
+        with data collection turned off, to turn it into text. We don&apos;t store the audio, only
+        the text you keep.
       </p>
       <p>
         &quot;Import from GitHub&quot; reads only public data from GitHub (your repos and merged

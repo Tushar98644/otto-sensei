@@ -88,6 +88,7 @@ import type {
   SummaryResponse,
   TailorRequestBody,
   TailorResponse,
+  TranscribeResponse,
   UpdateApplicationBody,
   UrlResponse,
   VerifyCodeResponse,
@@ -159,6 +160,12 @@ function fileForm(file: Blob, filename?: string): FormData {
   return form;
 }
 
+function clipForm(clip: Blob, seconds: number): FormData {
+  const form = fileForm(clip, `speech.${/^\w+\/(\w+)/.exec(clip.type)?.[1] ?? "audio"}`);
+  form.append("seconds", seconds.toFixed(1));
+  return form;
+}
+
 export const api = {
   importFile: (file: File, { reader }: { reader?: "ai" } = {}) =>
     request<ImportResponse>(reader === "ai" ? "/api/import?reader=ai" : "/api/import", {
@@ -169,6 +176,12 @@ export const api = {
   checkFile: (file: Blob, filename: string) =>
     request<CheckResponse>("/api/check", { method: "POST", body: fileForm(file, filename) }),
   fix: (body: FixRequestBody) => request<FixResponse>("/api/fix", postJson(body)),
+  transcribe: (clip: Blob, seconds: number, signal?: AbortSignal) =>
+    request<TranscribeResponse>("/api/transcribe", {
+      method: "POST",
+      body: clipForm(clip, seconds),
+      signal,
+    }),
   tailor: (body: TailorRequestBody) => request<TailorResponse>("/api/tailor", postJson(body)),
   letter: (body: LetterRequestBody) => request<LetterResponse>("/api/letter", postJson(body)),
   answer: (body: AnswerRequestBody) => request<AnswerResponse>("/api/answer", postJson(body)),

@@ -1,14 +1,16 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import type { VoicePhase } from "@/lib/voice/recorder";
+import { VOICE_LABELS } from "@/lib/voice/recorder";
 import { toast } from "./toast";
-import { VOICE_LABELS } from "@/lib/voice/dictation";
 import { VoiceButton } from "./voice-button";
 import { VoiceInput, VoiceTextarea } from "./voice-field";
 
 const fake = vi.hoisted(() => ({
   supported: true,
-  listening: false,
-  onText: (() => {}) as (chunk: string) => void,
+  phase: "idle" as VoicePhase,
+  startedAt: null as number | null,
+  onText: (() => {}) as (text: string) => void,
   toggle: () => {},
   stop: () => {},
   cancel: () => {},
@@ -16,7 +18,7 @@ const fake = vi.hoisted(() => ({
 
 vi.mock("./use-dictation", () => ({
   useVoiceSupported: () => fake.supported,
-  useDictation: (onText: (chunk: string) => void) => {
+  useDictation: (onText: (text: string) => void) => {
     fake.onText = onText;
     return fake;
   },
@@ -26,14 +28,15 @@ vi.mock("./toast", () => ({ toast: vi.fn() }));
 
 beforeEach(() => {
   fake.supported = true;
-  fake.listening = false;
+  fake.phase = "idle";
+  fake.startedAt = null;
   fake.stop = vi.fn();
   fake.cancel = vi.fn();
   vi.mocked(toast).mockClear();
 });
 
 describe("VoiceButton", () => {
-  it("renders nothing where the browser can't listen", () => {
+  it("renders nothing where the browser can't record", () => {
     fake.supported = false;
     expect(renderToStaticMarkup(<VoiceButton value="" onDictate={() => {}} />)).toBe("");
     const box = renderToStaticMarkup(
@@ -43,7 +46,7 @@ describe("VoiceButton", () => {
     expect(box).not.toContain("pr-12");
   });
 
-  it("offers to listen, as an unpressed toggle", () => {
+  it("offers to record, as an unpressed toggle", () => {
     const html = renderToStaticMarkup(<VoiceButton value="" onDictate={() => {}} />);
     expect(html).toContain(`aria-label="${VOICE_LABELS.start}"`);
     expect(html).toContain('aria-pressed="false"');
@@ -51,32 +54,41 @@ describe("VoiceButton", () => {
     expect(html).toContain('type="button"');
   });
 
-  it("shows a pressed, pulsing state while listening", () => {
-    fake.listening = true;
+  it("shows a pressed, pulsing state with the time while recording", () => {
+    fake.phase = "recording";
+    fake.startedAt = Date.UTC(2026, 10, 12, 9);
     const html = renderToStaticMarkup(<VoiceButton value="" onDictate={() => {}} />);
     expect(html).toContain(`aria-label="${VOICE_LABELS.stop}"`);
     expect(html).toContain('aria-pressed="true"');
     expect(html).toContain('data-listening="true"');
     expect(html).toContain("motion-safe:animate-pulse");
+    expect(html).toContain(">0:00</span>");
   });
 
-  it("appends what was said, and a quick second result builds on the first", () => {
+  it("shows a calm busy state while the clip turns into text", () => {
+    fake.phase = "sending";
+    const html = renderToStaticMarkup(<VoiceButton value="" onDictate={() => {}} />);
+    expect(html).toContain(`aria-label="${VOICE_LABELS.sending}"`);
+    expect(html).toContain('aria-pressed="false"');
+    expect(html).toContain('aria-disabled="true"');
+    expect(html).toContain(`>${VOICE_LABELS.sending}</span>`);
+    expect(html).toContain("animate-spin");
+    expect(html).not.toContain("motion-safe:animate-pulse");
+    expect(html).not.toMatch(/<button[^>]* disabled=""/);
+  });
+
+  it("appends what was said to what's already there", () => {
     const onDictate = vi.fn();
     renderToStaticMarkup(<VoiceButton value="Led the team." onDictate={onDictate} />);
-    fake.onText("cut costs by half");
-    fake.onText("in six months");
-    expect(onDictate.mock.calls).toEqual([
-      ["Led the team. Cut costs by half"],
-      ["Led the team. Cut costs by half in six months"],
-    ]);
+    fake.onText("cut costs by half in six months");
+    expect(onDictate).toHaveBeenCalledWith("Led the team. Cut costs by half in six months");
   });
 
-  it("stops listening and says so when the box is full", () => {
+  it("keeps what fits and says so when the box is full", () => {
     const onDictate = vi.fn();
     renderToStaticMarkup(<VoiceButton value="Hello" maxLength={14} onDictate={onDictate} />);
     fake.onText("world and more");
     expect(onDictate).toHaveBeenCalledWith("Hello world");
-    expect(fake.stop).toHaveBeenCalledOnce();
     expect(toast).toHaveBeenCalledWith(expect.objectContaining({ title: "This box is full" }));
   });
 });

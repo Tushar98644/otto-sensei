@@ -2,6 +2,7 @@ import { lt, sql } from "drizzle-orm";
 import { getDb } from "@/db/client";
 import { rateLimits } from "@/db/schema";
 import { log } from "@/lib/log";
+import { HOUR_MS } from "@/lib/time";
 
 export type RateLimitResult = {
   allowed: boolean;
@@ -55,6 +56,12 @@ export function retryAfterHeader(retryAfterMs: number): Record<string, string> {
 export function waitText(retryAfterMs: number): string {
   const minutes = Math.max(1, Math.ceil(retryAfterMs / 60_000));
   return minutes === 1 ? "1 minute" : `${minutes} minutes`;
+}
+
+export function waitLong(retryAfterMs: number): string {
+  if (retryAfterMs < HOUR_MS) return waitText(retryAfterMs);
+  const hours = Math.ceil(retryAfterMs / HOUR_MS);
+  return hours === 1 ? "1 hour" : `${hours} hours`;
 }
 
 async function pruneOldWindows(now: number): Promise<void> {

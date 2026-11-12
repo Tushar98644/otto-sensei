@@ -24,7 +24,7 @@ const FAQ: readonly FaqItem[] = [
   {
     question: "Can I talk instead of typing?",
     answer:
-      "Yes. The boxes where you write for Otto have a microphone, and so does each resume line. Press it and speak. It works in Chrome, Edge and Safari, but not in Firefox. Your browser turns your voice into text, and only the text reaches us.",
+      "Yes. The boxes where you write for Otto have a microphone, including Otto's questions when he fixes a line. Sign in, press it and speak, then press it again when you're done. It works in any modern browser. Otto turns your recording into text and keeps only the text.",
   },
   {
     question: "Do I need an account?",

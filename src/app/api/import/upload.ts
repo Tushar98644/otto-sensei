@@ -4,6 +4,7 @@ import type { ApiErrorCode } from "@/lib/api/types";
 import { rejectCrossSite } from "@/lib/auth/route-guards";
 import { runRecruiterChecks } from "@/lib/checks/recruiter";
 import type { RecruiterReport } from "@/lib/checks/types";
+import { readBody } from "@/lib/http";
 import { log } from "@/lib/log";
 import { extractDocument, ParseError, type Extraction } from "@/lib/parse";
 import type { ParseErrorCode } from "@/lib/parse/types";
@@ -87,35 +88,4 @@ async function readUpload(req: Request): Promise<File | Response> {
   if (file.size === 0) return fail("bad_request", "That file is empty. Choose your resume and try again.", 400);
   if (file.size > UPLOAD_LIMITS.maxBytes) return fail("too_large", TOO_LARGE, 413);
   return file;
-}
-
-type BodyRead = { ok: true; bytes: Uint8Array<ArrayBuffer> } | { ok: false; reason: "too_large" | "unreadable" };
-
-// Off Vercel nothing caps a body and chunked uploads declare no length, so stop reading early.
-async function readBody(req: Request, maxBytes: number): Promise<BodyRead> {
-  if (!req.body) return { ok: true, bytes: new Uint8Array(0) };
-  const reader = req.body.getReader();
-  const chunks: Uint8Array[] = [];
-  let size = 0;
-  try {
-    for (;;) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      size += value.byteLength;
-      if (size > maxBytes) {
-        await reader.cancel().catch(() => undefined);
-        return { ok: false, reason: "too_large" };
-      }
-      chunks.push(value);
-    }
-  } catch {
-    return { ok: false, reason: "unreadable" };
-  }
-  const bytes = new Uint8Array(size);
-  let offset = 0;
-  for (const chunk of chunks) {
-    bytes.set(chunk, offset);
-    offset += chunk.byteLength;
-  }
-  return { ok: true, bytes };
 }

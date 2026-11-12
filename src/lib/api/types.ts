@@ -34,6 +34,7 @@ export type ApiErrorCode =
   | "parse_failed"
   | "ai_unavailable"
   | "ai_refused"
+  | "no_speech"
   | "billing_unavailable"
   | "plan_change_failed"
   | "email_unavailable"
@@ -58,6 +59,8 @@ export type ImportResponse = {
 };
 
 export type CheckResponse = { ok: true; report: RecruiterReport };
+
+export type TranscribeResponse = { ok: true; text: string };
 
 export const FixRequestSchema = z.object({
   bullet: z.string().trim().min(1).max(TEXT_LIMITS.bulletChars),

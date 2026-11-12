@@ -117,6 +117,7 @@ All route handlers: `export const runtime = "nodejs"`; respond only via `ok()`/`
 | `POST /api/draft` | "Build with Otto" first draft | Anyone; per device and IP |
 | `POST /api/job` | Read a job post from its link | Anyone |
 | `POST /api/fix`, `POST /api/summary` | Fix a line; write or tighten the summary | Sign-in; "fix" allowance |
+| `POST /api/transcribe` | Voice typing: a recorded clip (multipart `file` + `seconds`, at most 5 MB and 125 s) to text through OpenRouter (`openai/whisper-large-v3-turbo`, `data_collection: "deny"`); returns `{ text }`, or 422 `no_speech` when nothing was heard. Audio and text are never stored or logged | Sign-in, any plan, not counted against allowances; 20 per 10 minutes and 150 a day per account |
 | `POST /api/tailor` | Tailor to a job post | Sign-in; "tailor" allowance |
 | `POST /api/letter`, `POST /api/answer`, `POST /api/interview` | Cover letter, application answer, interview prep pack (saved on the application) | Sign-in; "letter" allowance |
 | `GET /api/interview/[id]` | An application's job details and saved prep pack | Sign-in, own rows |

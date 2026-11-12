@@ -58,3 +58,35 @@ export async function getDeviceId(): Promise<string> {
   });
   return id;
 }
+
+export type BodyRead =
+  { ok: true; bytes: Uint8Array<ArrayBuffer> } | { ok: false; reason: "too_large" | "unreadable" };
+
+// Off Vercel nothing caps a body and chunked uploads declare no length, so stop reading early.
+export async function readBody(req: Request, maxBytes: number): Promise<BodyRead> {
+  if (!req.body) return { ok: true, bytes: new Uint8Array(0) };
+  const reader = req.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let size = 0;
+  try {
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      size += value.byteLength;
+      if (size > maxBytes) {
+        await reader.cancel().catch(() => undefined);
+        return { ok: false, reason: "too_large" };
+      }
+      chunks.push(value);
+    }
+  } catch {
+    return { ok: false, reason: "unreadable" };
+  }
+  const bytes = new Uint8Array(size);
+  let offset = 0;
+  for (const chunk of chunks) {
+    bytes.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  return { ok: true, bytes };
+}
