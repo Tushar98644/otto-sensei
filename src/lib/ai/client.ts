@@ -135,7 +135,7 @@ function requestBody<T>(request: StructuredRequest<T>, model: string) {
   };
 }
 
-export const AI_MAX_PRICE = { prompt: 0.1, completion: 0.25 } as const;
+export const AI_MAX_PRICE = { prompt: 0.1, completion: 0.3 } as const;
 
 function retryAfterMs(headers: Headers, now: number): number | null {
   const value = headers.get("retry-after");

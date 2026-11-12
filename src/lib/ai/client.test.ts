@@ -134,7 +134,7 @@ describe("runStructured request", () => {
         require_parameters: true,
         data_collection: "deny",
         sort: "price",
-        max_price: { prompt: 0.1, completion: 0.25 },
+        max_price: { prompt: 0.1, completion: 0.3 },
       },
     });
   });
