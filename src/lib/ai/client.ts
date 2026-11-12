@@ -68,7 +68,9 @@ const ChatResponseSchema = z.object({
       z.object({
         finish_reason: z.string().nullish(),
         native_finish_reason: z.string().nullish(),
-        message: z.object({ content: ContentSchema.nullish(), refusal: z.string().nullish() }).nullish(),
+        message: z
+          .object({ content: ContentSchema.nullish(), refusal: z.string().nullish() })
+          .nullish(),
       }),
     )
     .nullish(),
@@ -127,9 +129,13 @@ function requestBody<T>(request: StructuredRequest<T>, model: string) {
       // Resume text is personal data: never send it to providers that may train on it.
       data_collection: "deny",
       sort: "price",
+      // US$ per million tokens: caps the worst case if the cheapest endpoints are down.
+      max_price: AI_MAX_PRICE,
     },
   };
 }
+
+export const AI_MAX_PRICE = { prompt: 0.1, completion: 0.25 } as const;
 
 function retryAfterMs(headers: Headers, now: number): number | null {
   const value = headers.get("retry-after");
@@ -174,13 +180,16 @@ async function attemptOnce(
     raw = await res.text();
   } catch (error) {
     // Accepted and still running (and billed) upstream; a retry would pay twice.
-    return { ok: false, failure: { ...thrownFailure(error, fields), retryable: false }, retryAfterMs: null };
+    return {
+      ok: false,
+      failure: { ...thrownFailure(error, fields), retryable: false },
+      retryAfterMs: null,
+    };
   }
   let json: unknown = null;
   try {
     json = JSON.parse(raw);
-  } catch {
-  }
+  } catch {}
   noteTokens(billedTokens(json));
 
   if (!res.ok) {
@@ -208,7 +217,10 @@ async function attemptOnce(
   }
   if (parsed.data.choices?.[0]?.finish_reason === "error") {
     log.warn("ai.unavailable", { ...fields, status: 200, finishReason: "error" });
-    const failure = { error: new AIError("unavailable", "The AI model failed mid-answer"), retryable: true };
+    const failure = {
+      error: new AIError("unavailable", "The AI model failed mid-answer"),
+      retryable: true,
+    };
     return { ok: false, failure, retryAfterMs: null };
   }
   return { ok: true, response: parsed.data };
@@ -316,9 +328,10 @@ export async function runStructured<T>(
       return output;
     }
     const { failure } = outcome;
-    const wait = failure.retryable && attempt < MAX_ATTEMPTS
-      ? nextWait(attempt, outcome.retryAfterMs, deadline)
-      : null;
+    const wait =
+      failure.retryable && attempt < MAX_ATTEMPTS
+        ? nextWait(attempt, outcome.retryAfterMs, deadline)
+        : null;
     if (wait === null) {
       if (failure.status === 503) {
         log.error("ai.no_provider", failure.error, { ...fields, attempts: attempt });

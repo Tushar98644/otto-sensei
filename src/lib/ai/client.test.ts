@@ -19,7 +19,14 @@ type Answer = z.infer<typeof Answer>;
 const BodySchema = z.record(z.string(), z.unknown());
 
 function request(overrides: Partial<StructuredRequest<Answer>> = {}): StructuredRequest<Answer> {
-  return { task: "fix", system: "SYSTEM", user: "USER", schema: Answer, effort: "low", ...overrides };
+  return {
+    task: "fix",
+    system: "SYSTEM",
+    user: "USER",
+    schema: Answer,
+    effort: "low",
+    ...overrides,
+  };
 }
 
 function respond(status: number, body: unknown, headers: Record<string, string> = {}) {
@@ -37,9 +44,18 @@ function completion(content: string | null, choice: Record<string, unknown> = {}
     provider: "Anthropic",
     model: "anthropic/claude-opus-5.5",
     choices: [
-      { finish_reason: "stop", native_finish_reason: "end_turn", message: { role: "assistant", content }, ...choice },
+      {
+        finish_reason: "stop",
+        native_finish_reason: "end_turn",
+        message: { role: "assistant", content },
+        ...choice,
+      },
     ],
-    usage: { prompt_tokens: 120, completion_tokens: 40, prompt_tokens_details: { cached_tokens: 0 } },
+    usage: {
+      prompt_tokens: 120,
+      completion_tokens: 40,
+      prompt_tokens_details: { cached_tokens: 0 },
+    },
   };
 }
 
@@ -94,7 +110,10 @@ describe("runStructured request", () => {
       model: "anthropic/claude-opus-5.5",
       max_tokens: 4_000,
       messages: [
-        { role: "system", content: [{ type: "text", text: "SYSTEM", cache_control: { type: "ephemeral" } }] },
+        {
+          role: "system",
+          content: [{ type: "text", text: "SYSTEM", cache_control: { type: "ephemeral" } }],
+        },
         { role: "user", content: "USER" },
       ],
       response_format: {
@@ -102,11 +121,21 @@ describe("runStructured request", () => {
         json_schema: {
           name: "fix",
           strict: true,
-          schema: { type: "object", properties: { answer: { type: "string" } }, required: ["answer"], additionalProperties: false },
+          schema: {
+            type: "object",
+            properties: { answer: { type: "string" } },
+            required: ["answer"],
+            additionalProperties: false,
+          },
         },
       },
       reasoning: { effort: "low", exclude: true },
-      provider: { require_parameters: true, data_collection: "deny", sort: "price" },
+      provider: {
+        require_parameters: true,
+        data_collection: "deny",
+        sort: "price",
+        max_price: { prompt: 0.1, completion: 0.25 },
+      },
     });
   });
 
@@ -174,7 +203,17 @@ describe("runStructured answers", () => {
   });
 
   it("joins content sent as text parts", async () => {
-    respond(200, completion(null, { message: { content: [{ type: "text", text: '{"answer":' }, { type: "text", text: '"ok"}' }] } }));
+    respond(
+      200,
+      completion(null, {
+        message: {
+          content: [
+            { type: "text", text: '{"answer":' },
+            { type: "text", text: '"ok"}' },
+          ],
+        },
+      }),
+    );
     await expect(runStructured(request())).resolves.toEqual({ answer: "ok" });
   });
 
@@ -218,13 +257,17 @@ describe("runStructured safety check", () => {
   it("checks every piece of text Otto wrote before returning it", async () => {
     respond(200, completion(JSON.stringify(output)));
     await expect(runStructured({ ...request(), schema: Lines })).resolves.toEqual(output);
-    expect(checkContent).toHaveBeenCalledWith(["Ran the blog", "Shows ownership"], { source: "ai.fix" });
+    expect(checkContent).toHaveBeenCalledWith(["Ran the blog", "Shows ownership"], {
+      source: "ai.fix",
+    });
   });
 
   it("refuses an answer the safety check blocks, without retrying", async () => {
     vi.mocked(checkContent).mockResolvedValueOnce({ allowed: false, categories: ["S12"] });
     respond(200, completion('{"answer":"explicit"}'));
-    const error = await runStructured(request({ task: "letter" })).catch((caught: unknown) => caught);
+    const error = await runStructured(request({ task: "letter" })).catch(
+      (caught: unknown) => caught,
+    );
     expect(error).toBeInstanceOf(AIError);
     expect(error).toMatchObject({ code: "refused" });
     expect(fetchMock).toHaveBeenCalledTimes(1);
@@ -252,7 +295,10 @@ describe("runStructured errors and retries", () => {
   });
 
   it("maps a moderation block to refused and never logs the flagged text", async () => {
-    respond(403, apiError(403, "Flagged", { reasons: ["harassment"], flagged_input: "Jane Doe, 555-0100" }));
+    respond(
+      403,
+      apiError(403, "Flagged", { reasons: ["harassment"], flagged_input: "Jane Doe, 555-0100" }),
+    );
     await expect(runStructured(request())).rejects.toMatchObject({ code: "refused" });
     const logged = JSON.stringify(vi.mocked(console.warn).mock.calls);
     expect(logged).toContain("harassment");
@@ -278,7 +324,8 @@ describe("runStructured errors and retries", () => {
   });
 
   it("gives up after three rate-limited attempts", async () => {
-    for (let i = 0; i < 3; i++) respond(429, apiError(429, "Rate limit exceeded"), { "retry-after": "0" });
+    for (let i = 0; i < 3; i++)
+      respond(429, apiError(429, "Rate limit exceeded"), { "retry-after": "0" });
     await expect(runStructured(request())).rejects.toMatchObject({ code: "rate_limited" });
     expect(fetchMock).toHaveBeenCalledTimes(3);
   });
@@ -303,7 +350,9 @@ describe("runStructured errors and retries", () => {
           init?.signal?.addEventListener("abort", () => reject(init.signal?.reason));
         }),
     );
-    await expect(runStructured(request(), { deadlineMs: 30 })).rejects.toMatchObject({ code: "unavailable" });
+    await expect(runStructured(request(), { deadlineMs: 30 })).rejects.toMatchObject({
+      code: "unavailable",
+    });
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
@@ -314,9 +363,13 @@ describe("runStructured errors and retries", () => {
   });
 
   it("retries when the in-flight spending budget is full", async () => {
-    respond(402, apiError(402, "In-flight budget exhausted", { limit_source: "openrouter_in_flight_budget" }), {
-      "retry-after": "0",
-    });
+    respond(
+      402,
+      apiError(402, "In-flight budget exhausted", { limit_source: "openrouter_in_flight_budget" }),
+      {
+        "retry-after": "0",
+      },
+    );
     respond(200, completion('{"answer":"ok"}'));
     await expect(runStructured(request())).resolves.toEqual({ answer: "ok" });
     expect(fetchMock).toHaveBeenCalledTimes(2);
@@ -339,12 +392,15 @@ describe("runStructured errors and retries", () => {
 
   it("doesn't start a retry that couldn't finish before the deadline", async () => {
     respond(502, apiError(502, "Provider returned error"), { "retry-after": "0" });
-    await expect(runStructured(request(), { deadlineMs: 5_000 })).rejects.toMatchObject({ code: "unavailable" });
+    await expect(runStructured(request(), { deadlineMs: 5_000 })).rejects.toMatchObject({
+      code: "unavailable",
+    });
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
   it("flags a model no provider can serve as a setup error", async () => {
-    for (let i = 0; i < 3; i++) respond(503, apiError(503, "No available providers"), { "retry-after": "0" });
+    for (let i = 0; i < 3; i++)
+      respond(503, apiError(503, "No available providers"), { "retry-after": "0" });
     await expect(runStructured(request())).rejects.toMatchObject({ code: "unavailable" });
     expect(fetchMock).toHaveBeenCalledTimes(3);
     const events = vi.mocked(console.error).mock.calls.map(([line]) => String(line));
@@ -354,15 +410,22 @@ describe("runStructured errors and retries", () => {
   it("never logs the API key from a header error", async () => {
     process.env.OPENROUTER_API_KEY = "sk-or-secret-123";
     resetEnvForTests();
-    fetchMock.mockRejectedValue(new TypeError('Headers.append: "Bearer sk-or-secret-123" is an invalid header value.'));
+    fetchMock.mockRejectedValue(
+      new TypeError('Headers.append: "Bearer sk-or-secret-123" is an invalid header value.'),
+    );
     await runStructured(request()).catch(() => undefined);
-    const logged = JSON.stringify([vi.mocked(console.warn).mock.calls, vi.mocked(console.error).mock.calls]);
+    const logged = JSON.stringify([
+      vi.mocked(console.warn).mock.calls,
+      vi.mocked(console.error).mock.calls,
+    ]);
     expect(logged).not.toContain("sk-or-secret");
   });
 
   it("doesn't retry when the wait would pass the deadline", async () => {
     respond(503, apiError(503, "No available providers"), { "retry-after": "3" });
-    await expect(runStructured(request(), { deadlineMs: 1_000 })).rejects.toMatchObject({ code: "unavailable" });
+    await expect(runStructured(request(), { deadlineMs: 1_000 })).rejects.toMatchObject({
+      code: "unavailable",
+    });
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 });
@@ -379,7 +442,9 @@ describe("runStructured billed tokens", () => {
   it("reports prompt plus completion, or the provider's own total when it sends one", async () => {
     respond(200, completion('{"answer":"ok"}'));
     expect(await billed(() => runStructured(request()))).toBe(160);
-    expect(billedTokens({ usage: { prompt_tokens: 100, completion_tokens: 50, total_tokens: 175 } })).toBe(175);
+    expect(
+      billedTokens({ usage: { prompt_tokens: 100, completion_tokens: 50, total_tokens: 175 } }),
+    ).toBe(175);
   });
 
   it("counts every billed attempt, including a refused or cut-off answer", async () => {
