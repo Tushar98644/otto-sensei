@@ -196,7 +196,11 @@ export async function rankJobs(db: Db, request: RankRequest): Promise<RankResult
       };
     });
     const start = (request.page - 1) * JOB_PAGE_SIZE;
-    const [stats, saved] = await Promise.all([jobStats(db), savedCount(db, request.userId)]);
+    const [counts, saved] = await Promise.all([
+      readStoredCounts(db),
+      savedCount(db, request.userId),
+    ]);
+    const stats = counts ?? (await jobStats(db));
     return {
       jobs: ranked.slice(start, start + JOB_PAGE_SIZE),
       page: request.page,

@@ -231,4 +231,25 @@ describe("match index", () => {
     expect(other.jobs).toHaveLength(1);
     expect(await db.select().from(matchCache)).toHaveLength(2);
   });
+
+  it("gives Saved the stored open-job count instead of counting per request", async () => {
+    await ingest([raw("1"), raw("2")]);
+    const db = await getDb();
+    const user = await createUser("ada@example.com");
+    await db
+      .update(jobs)
+      .set({ closedAt: NOW, closeReason: "gone" })
+      .where(eq(jobs.externalId, "2"));
+    const saved = await rankJobs(db, {
+      userId: user.id,
+      view: "saved",
+      profile: { skills: ["Go"], titles: ["Backend Engineer"], years: 4 },
+      filters: DEFAULT_FILTERS,
+      page: 1,
+      workProfile: null,
+      deviceTimeZone: "",
+      now: NOW,
+    });
+    expect(saved).toMatchObject({ openJobs: 2, checkedAt: NOW });
+  });
 });

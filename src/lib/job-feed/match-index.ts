@@ -355,6 +355,7 @@ async function indexedPool(
       : sql`case when cardinality(m.places) = 0 then 1::float8
           when m.places && ${textArrayLiteral(accepted)}::text[] then ${ORDER_LIMITS.placeMatch}::float8
           else ${ORDER_LIMITS.placeMiss}::float8 end`;
+  // The window counts hold every scored row, so they carry only what ranks: wide rows spilled to disk.
   const pooled = rowsOf<{
     id: string;
     grp: string;
@@ -369,8 +370,7 @@ async function indexedPool(
   }>(
     await db.execute(sql`
       with scored as (
-        select m.id, m.grp, m.places, m.uk_sponsor, m.h1b_year, m.posted_at,
-          m.family, m.occ, m.zone,
+        select m.id, m.posted_at,
           (h.overlap + ${ORDER_LIMITS.familyWeight}::float8 * k.kind)
             * case ${gap} when 0 then 1::float8 when 1 then ${ORDER_LIMITS.oneUp}::float8
                 when -1 then ${ORDER_LIMITS.oneDown}::float8 else ${ORDER_LIMITS.farLevel}::float8 end
@@ -383,12 +383,18 @@ async function indexedPool(
         ) h
         cross join lateral (select ${kindSql} as kind) k
         where ${and(...conditions)}
+      ),
+      ranked as (
+        select id, score, near, posted_at,
+          (count(*) over ())::int as groups, (count(*) filter (where near) over ())::int as near_groups
+        from scored
+        order by near desc, score desc, posted_at desc, id
+        limit ${query.limit ?? CANDIDATE_POOL}::int
       )
-      select id::text as id, grp, places, uk_sponsor, h1b_year, family, occ, zone,
-        (count(*) over ())::int as groups, (count(*) filter (where near) over ())::int as near_groups
-      from scored
-      order by near desc, score desc, posted_at desc, id
-      limit ${query.limit ?? CANDIDATE_POOL}::int
+      select r.id::text as id, m.grp, m.places, m.uk_sponsor, m.h1b_year, m.family, m.occ, m.zone,
+        r.groups, r.near_groups
+      from ranked r join ${jobMatch} m on m.id = r.id
+      order by r.near desc, r.score desc, r.posted_at desc, r.id
     `),
   );
   if (pooled.length === 0) return { openings: [], groups: 0, source: "index" };
