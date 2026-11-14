@@ -57,6 +57,8 @@ export function Popover({
   const triggerRef = useRef<HTMLButtonElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
   const [open, setOpen] = useState(false);
+  // Unmounted on toggle, not beforetoggle, so the browser can still hand focus back to the trigger.
+  const [mounted, setMounted] = useState(false);
   const [session, setSession] = useState(0);
 
   const close = useCallback(() => panelRef.current?.hidePopover(), []);
@@ -74,8 +76,13 @@ export function Popover({
     if (opening) {
       place(triggerRef.current, event.currentTarget, align);
       setSession((count) => count + 1);
+      setMounted(true);
     }
     setOpen(opening);
+  }
+
+  function handleToggle(event: ToggleEvent<HTMLDivElement>) {
+    if (event.newState === "closed") setMounted(false);
   }
 
   return (
@@ -99,13 +106,14 @@ export function Popover({
         role="group"
         aria-label={label}
         onBeforeToggle={handleBeforeToggle}
+        onToggle={handleToggle}
         className={cn(
           "inset-auto m-0 w-80 animate-pop overflow-y-auto overscroll-contain rounded-xl bg-surface p-1.5 text-ink shadow-float ring-1 ring-ink/6",
           className,
         )}
       >
         <PopoverContext value={context}>
-          <Fragment key={session}>{children}</Fragment>
+          {mounted ? <Fragment key={session}>{children}</Fragment> : null}
         </PopoverContext>
       </div>
     </>

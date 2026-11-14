@@ -5,7 +5,7 @@ import { designKey } from "@/lib/pdf/design";
 import type { PdfPageSize } from "@/lib/pdf/page-size";
 import { templateOf } from "@/lib/pdf/templates";
 import type { Resume, TemplateId } from "@/lib/resume/schema";
-import { renderPdfCached } from "./pdf-cache";
+import { renderPdfCached, type RenderedPdf } from "./pdf-cache";
 
 export type PdfFile = {
   blob: Blob;
@@ -27,6 +27,16 @@ export function pdfKey(resume: Resume, pageSize: PdfPageSize): string {
   return `${resume.id}:${resume.updatedAt}:${pageSize}:${templateOf(resume)}`;
 }
 
+// The same cached file keeps its URL, so the preview doesn't load it again.
+export function pdfFileFor(
+  shown: PdfFile | null,
+  { blob, pages }: RenderedPdf,
+  key: string,
+): PdfFile {
+  if (shown?.blob === blob) return { ...shown, key, pages };
+  return { blob, key, pages, url: URL.createObjectURL(blob) };
+}
+
 function whenIdle(task: () => void): () => void {
   if (typeof window.requestIdleCallback === "function") {
     const handle = window.requestIdleCallback(task, { timeout: 1000 });
@@ -41,6 +51,7 @@ export function useResumePdf(resume: Resume, pageSize: PdfPageSize): ResumePdf {
   const [failedKey, setFailedKey] = useState<string | null>(null);
   const [attempt, setAttempt] = useState(0);
   const rendered = useRef<{ version: string; template: TemplateId; design: string } | null>(null);
+  const latest = useRef<PdfFile | null>(null);
   const template = templateOf(resume);
   const design = designKey(resume);
 
@@ -62,7 +73,9 @@ export function useResumePdf(resume: Resume, pageSize: PdfPageSize): ResumePdf {
             ({ blob, pages }) => {
               if (cancelled) return;
               rendered.current = { version, template, design };
-              setFile({ blob, key, pages, url: URL.createObjectURL(blob) });
+              const next = pdfFileFor(latest.current, { blob, pages }, key);
+              latest.current = next;
+              setFile(next);
               setFailedKey(null);
             },
             (error: unknown) => {

@@ -8,7 +8,8 @@ import type { Resume } from "@/lib/resume/schema";
 
 export type RenderedPdf = { blob: Blob; pages: number };
 
-const MAX_FILES = 6;
+// Room for a fit plan's probes (up to 6) beside the preview it started from.
+const MAX_FILES = 8;
 const files = new Map<string, Promise<RenderedPdf>>();
 
 export function pdfContentKey(resume: Resume, pageSize: PdfPageSize): string {

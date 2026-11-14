@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { flushSync } from "react-dom";
 import { Eyebrow } from "@/components/ui/eyebrow";
+import type { Resume } from "@/lib/resume/schema";
 import { useStudioStore } from "@/lib/store/resume-store";
 import { cn } from "@/lib/utils";
 import { entryFieldId, sectionDomId } from "./focus";
@@ -14,10 +15,22 @@ import { useSettled } from "./use-settled";
 
 const READING_LINE_PX = 160;
 
+// The selector runs on every store change, so an unchanged resume is a lookup.
+const outlines = new WeakMap<Resume, string>();
+
+function outlineJson(resume: Resume): string {
+  let json = outlines.get(resume);
+  if (json === undefined) {
+    json = JSON.stringify(fixOutline(resume, lintOf(resume).byBullet));
+    outlines.set(resume, json);
+  }
+  return json;
+}
+
 function useOutline(resumeId: string): OutlineSection[] {
   const json = useStudioStore((state) => {
     const resume = pickResume(state, resumeId);
-    return resume ? JSON.stringify(fixOutline(resume, lintOf(resume).byBullet)) : "[]";
+    return resume ? outlineJson(resume) : "[]";
   });
   const settled = useSettled(json, SETTLE_MS);
   return useMemo(() => JSON.parse(settled) as OutlineSection[], [settled]);

@@ -3,11 +3,14 @@ import type { TailorResult } from "@/lib/ai/types";
 import { emptyResume } from "@/lib/resume/schema";
 import {
   EMPTY_DRAFT,
+  flushTailorSession,
   loadDraft,
   loadResult,
   peekQueuedJob,
   queueJobForTailor,
+  queueTailorSession,
   sameRun,
+  saveTailorResult,
   saveTailorSession,
   type SavedResult,
   type TailorDraft,
@@ -58,12 +61,16 @@ let storage: Storage;
 
 beforeEach(() => {
   storage = memoryStorage();
-  vi.stubGlobal("window", { sessionStorage: storage });
+  vi.stubGlobal("window", { sessionStorage: storage, addEventListener: () => {} });
 });
 
 afterEach(() => {
+  flushTailorSession();
+  vi.useRealTimers();
   vi.unstubAllGlobals();
 });
+
+const stored = () => JSON.parse(storage.getItem("otto-tailor-v1") ?? "null") as unknown;
 
 describe("tailor session", () => {
   it("starts empty", () => {
@@ -212,6 +219,59 @@ describe("tailor session", () => {
       choices: { requirements: { r2: { kind: "no" } }, reorder: {}, useSummary: false },
       answers: [{ id: "a1", question: "Why?", text: "Fine.", warnings: ["Check it."], demo: false }],
     });
+  });
+
+  it("writes the same JSON as before, and a changed result in full", () => {
+    const draft = { title: "Designer", company: "Canva", text: "Post" };
+    saveTailorSession(draft, saved);
+    expect(stored()).toEqual({ version: 1, draft, last: saved });
+    const patched = { ...saved, copyId: "copy-1" };
+    saveTailorSession(draft, patched);
+    expect(stored()).toEqual({ version: 1, draft, last: patched });
+    saveTailorSession(draft, null);
+    expect(stored()).toEqual({ version: 1, draft, last: null });
+  });
+
+  it("writes typing in the post after a pause, and reads it back at once", () => {
+    vi.useFakeTimers();
+    saveTailorSession(EMPTY_DRAFT, saved);
+    const typed = { title: "Designer", company: "Canva", text: "A longer post" };
+    queueTailorSession({ ...typed, text: "A long" }, saved);
+    queueTailorSession(typed, saved);
+    expect(stored()).toEqual({ version: 1, draft: EMPTY_DRAFT, last: saved });
+    expect(loadDraft()).toEqual(typed);
+    expect(loadResult("resume-1")).toEqual(saved);
+    vi.advanceTimersByTime(400);
+    expect(stored()).toEqual({ version: 1, draft: typed, last: saved });
+
+    const more = { ...typed, text: "A longer post, edited" };
+    queueTailorSession(more, saved);
+    flushTailorSession();
+    expect(stored()).toEqual({ version: 1, draft: more, last: saved });
+  });
+
+  it("writes a queued draft when the page is hidden", async () => {
+    const listeners = new Map<string, () => void>();
+    vi.stubGlobal("window", {
+      sessionStorage: storage,
+      addEventListener: (type: string, listener: () => void) => listeners.set(type, listener),
+    });
+    vi.resetModules();
+    const fresh = await import("./session");
+    const typed = { title: "", company: "", text: "Typed just before closing the tab" };
+    fresh.queueTailorSession(typed, null);
+    expect(stored()).toBeNull();
+    listeners.get("pagehide")?.();
+    expect(stored()).toEqual({ version: 1, draft: typed, last: null });
+  });
+
+  it("saves a result that lands next to the newest draft, not the post that was sent", () => {
+    const typedSince = { title: "Designer", company: "Canva", text: "Edited while Otto worked" };
+    saveTailorSession(saved.job, null);
+    queueTailorSession(typedSince, null);
+    saveTailorResult(saved);
+    expect(stored()).toEqual({ version: 1, draft: typedSince, last: saved });
+    expect(loadResult("resume-1")).toEqual(saved);
   });
 
   it("reads a result saved before requirements existed", () => {

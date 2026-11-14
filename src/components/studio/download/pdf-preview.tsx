@@ -1,13 +1,14 @@
 "use client";
 
 import { Eye } from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { buttonClasses } from "@/components/ui/button";
 import { LivePill } from "@/components/ui/live-pill";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { PdfPageSize } from "@/lib/pdf/page-size";
 import { cn } from "@/lib/utils";
 import { useMediaQuery } from "../use-media-query";
+import { addFrame, dropHiddenFrames, showFrame, type FrameView } from "./pdf-frames";
 
 // Phones and tablets can't show a PDF inline (Android downloads, iOS shows page one as an image).
 export function useInlinePdfPreview(): boolean {
@@ -32,18 +33,29 @@ const LOAD_FALLBACK_MS = 1500;
 const FADE_MS = 200;
 
 export function PdfFrame({ url, pageSize, updating, className }: PdfFrameProps) {
-  const [frames, setFrames] = useState<string[]>(url ? [url] : []);
-  const [shown, setShown] = useState<string | null>(null);
+  const [{ frames, shown }, setView] = useState<FrameView>(() => ({
+    frames: url ? [url] : [],
+    shown: null,
+  }));
   const newest = frames.at(-1) ?? null;
-  if (url && url !== newest) {
-    setFrames((list) => [...list.filter((frame) => frame === shown), url]);
-  }
+  if (url && url !== newest) setView((view) => addFrame(view, url));
+
+  const timers = useRef<number[]>([]);
+  useEffect(() => {
+    const pending = timers.current;
+    return () => {
+      for (const timer of pending.splice(0)) window.clearTimeout(timer);
+    };
+  }, [newest]);
 
   const reveal = useCallback((frame: string) => {
-    window.setTimeout(() => {
-      setShown(frame);
-      window.setTimeout(() => setFrames((list) => list.filter((f) => f === frame)), FADE_MS);
-    }, PAINT_MS);
+    const later = (ms: number, run: () => void) => {
+      timers.current.push(window.setTimeout(run, ms));
+    };
+    later(PAINT_MS, () => {
+      setView((view) => showFrame(view, frame));
+      later(FADE_MS, () => setView((view) => dropHiddenFrames(view, frame)));
+    });
   }, []);
 
   useEffect(() => {

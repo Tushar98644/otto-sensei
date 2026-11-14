@@ -3,22 +3,31 @@
 import { ChevronDown, FileText, Plus } from "lucide-react";
 import { useRef } from "react";
 import { Separator } from "@/components/ui/separator";
-import { useActiveResume, useResumeList, useStudioStore } from "@/lib/store/resume-store";
+import { useResumeList, useStudioStore } from "@/lib/store/resume-store";
 import { Popover, usePopover } from "./popover";
 import { resumeLabel } from "./resume-label";
 import { ResumeSwitcherItem } from "./resume-switcher-item";
 import { useNow } from "./use-now";
 
+type StudioState = ReturnType<typeof useStudioStore.getState>;
+
+// A string, not the resume, so typing in the editor doesn't re-render the switcher.
+function activeLabel(state: StudioState): string | null {
+  const resume = state.activeId ? state.resumes[state.activeId] : undefined;
+  return resume ? resumeLabel(resume) : null;
+}
+
 export function ResumeSwitcher() {
-  const active = useActiveResume();
+  const label = useStudioStore(activeLabel);
+  const activeId = useStudioStore((s) => s.activeId);
   const count = useStudioStore((s) => s.order.length);
   if (count === 0) return null;
-  const title = active ? resumeLabel(active) : "Choose a resume";
+  const title = label ?? "Choose a resume";
 
   return (
     <Popover
       label="Your resumes"
-      triggerLabel={active ? `Current resume: ${title}. Switch resume` : title}
+      triggerLabel={label !== null ? `Current resume: ${title}. Switch resume` : title}
       triggerClassName="inline-flex h-11 max-w-full min-w-0 items-center gap-2 rounded-xl border border-border-control bg-surface px-3.5 text-sm font-medium text-ink shadow-control transition hover:border-border-control-hover hover:bg-surface-hover aria-expanded:bg-surface-hover"
       trigger={
         <>
@@ -28,7 +37,7 @@ export function ResumeSwitcher() {
         </>
       }
     >
-      <SwitcherPanel activeId={active?.id ?? null} />
+      <SwitcherPanel activeId={label !== null ? activeId : null} />
     </Popover>
   );
 }

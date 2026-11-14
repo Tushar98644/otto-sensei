@@ -18,7 +18,6 @@ import { takeStepJump } from "@/components/studio/tailor/jump";
 import {
   STEP_LABELS,
   useActiveReport,
-  useActiveResume,
   useStudioHydrated,
   useStudioStore,
   type StudioStep,
@@ -74,11 +73,14 @@ export function StudioShell() {
 }
 
 function StudioSteps() {
-  const resume = useActiveResume();
+  // A boolean, not the resume, so typing in the editor doesn't re-render the stepper.
+  const hasResume = useStudioStore((s) =>
+    s.activeId ? Object.hasOwn(s.resumes, s.activeId) : false,
+  );
   const report = useActiveReport();
   const savedStep = useStudioStore((s) => s.step);
   const setStep = useStudioStore((s) => s.setStep);
-  const context: StepContext = { hasResume: resume !== null, hasReport: report !== null };
+  const context: StepContext = { hasResume, hasReport: report !== null };
   const step = resolveStep(savedStep, context);
   const next = adjacentStep(step, 1, context);
   const visibleStep = useDeferredValue(step);

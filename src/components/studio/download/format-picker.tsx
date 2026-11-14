@@ -36,15 +36,24 @@ export function FormatPicker({ resume, className }: FormatPickerProps) {
   const tryPro = useTryProLabel();
   const locked = (id: TemplateId) => pro === false && isProTemplate(id);
   const pageSize = usePageSize();
-  const resting = useRef(0);
+  const stopPreparing = useRef(() => {});
+
+  function stop() {
+    stopPreparing.current();
+    stopPreparing.current = () => {};
+  }
 
   function prepare(id: TemplateId) {
-    window.clearTimeout(resting.current);
+    stop();
     if (id === current || locked(id)) return;
-    resting.current = window.setTimeout(
-      () => preparePdf(printedResume(withTemplate(resume, id), pro), pageSize),
-      REST_MS,
-    );
+    let cancel = () => {};
+    const timer = window.setTimeout(() => {
+      cancel = preparePdf(printedResume(withTemplate(resume, id), pro), pageSize);
+    }, REST_MS);
+    stopPreparing.current = () => {
+      window.clearTimeout(timer);
+      cancel();
+    };
   }
 
   async function choose(id: TemplateId) {
@@ -61,8 +70,11 @@ export function FormatPicker({ resume, className }: FormatPickerProps) {
           <label
             key={info.id}
             className="relative"
-            onPointerEnter={() => prepare(info.id)}
-            onPointerLeave={() => window.clearTimeout(resting.current)}
+            onPointerEnter={(event) => {
+              // A tap picks the format at once, so only a resting mouse or pen renders ahead.
+              if (event.pointerType !== "touch") prepare(info.id);
+            }}
+            onPointerLeave={stop}
           >
             <input
               type="radio"

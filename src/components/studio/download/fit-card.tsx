@@ -16,11 +16,10 @@ import {
   type FitPlan,
 } from "@/lib/pdf/fit";
 import type { PdfPageSize } from "@/lib/pdf/page-size";
-import { countBlobPages } from "@/lib/pdf/pages";
-import { renderResumePdf } from "@/lib/pdf/render";
 import type { Resume } from "@/lib/resume/schema";
 import { useStudioStore } from "@/lib/store/resume-store";
 import { pluralize } from "@/lib/utils";
+import { renderPdfCached } from "./pdf-cache";
 import type { ResumePdf } from "./use-resume-pdf";
 
 const FIT_LABEL = "Hid lines to fit one page";
@@ -114,8 +113,11 @@ export function FitCard({ resume, pdf, pageSize }: FitCardProps) {
     }
     setPhase({ kind: "planning" });
     try {
-      const plan = await planFit(resume, lines, async (candidate) =>
-        countBlobPages(await renderResumePdf(candidate, { pageSize })),
+      // Cached by content, so the preview after "Hide" reuses the probe that fit.
+      const plan = await planFit(
+        resume,
+        lines,
+        async (candidate) => (await renderPdfCached(candidate, pageSize)).pages,
       );
       const shown = plan.fits ? lines.slice(0, plan.count + SPARE_LINES) : lines;
       const picked = new Set(

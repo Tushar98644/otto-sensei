@@ -10,7 +10,9 @@ export type EditorLint = {
 
 export const NO_ISSUES: readonly LintIssue[] = Object.freeze([]);
 
-const byResume = new WeakMap<Resume, EditorLint>();
+type Linted = { editor: EditorLint; raw: ResumeLint };
+
+const byResume = new WeakMap<Resume, Linted>();
 let previous: EditorLint | null = null;
 
 function sameIssues(a: readonly LintIssue[], b: readonly LintIssue[]): boolean {
@@ -38,22 +40,29 @@ function sameTotals(a: ResumeLint["totals"], b: ResumeLint["totals"]): boolean {
   );
 }
 
-export function lintOf(resume: Resume): EditorLint {
+function linted(resume: Resume): Linted {
   const cached = byResume.get(resume);
   if (cached) return cached;
-  const fresh = lintResume(resume);
+  const raw = lintResume(resume);
   const byBullet = new Map<string, readonly LintIssue[]>();
-  for (const [bulletId, issues] of Object.entries(fresh.byBullet)) {
+  for (const [bulletId, issues] of Object.entries(raw.byBullet)) {
     const before = previous?.byBullet.get(bulletId);
     if (before && sameIssues(before, issues)) byBullet.set(bulletId, before);
     else byBullet.set(bulletId, issues.length > 0 ? issues : NO_ISSUES);
   }
-  const totals =
-    previous && sameTotals(previous.totals, fresh.totals) ? previous.totals : fresh.totals;
-  const lint: EditorLint = { byBullet, totals };
-  byResume.set(resume, lint);
-  previous = lint;
-  return lint;
+  const totals = previous && sameTotals(previous.totals, raw.totals) ? previous.totals : raw.totals;
+  const entry: Linted = { editor: { byBullet, totals }, raw };
+  byResume.set(resume, entry);
+  previous = entry.editor;
+  return entry;
+}
+
+export function lintOf(resume: Resume): EditorLint {
+  return linted(resume).editor;
+}
+
+export function resumeLintOf(resume: Resume): ResumeLint {
+  return linted(resume).raw;
 }
 
 export function bulletIssues(resume: Resume, bulletId: string): readonly LintIssue[] {

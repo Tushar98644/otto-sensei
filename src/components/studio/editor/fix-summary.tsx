@@ -1,11 +1,13 @@
 "use client";
 
 import { Info, TriangleExclamationPoint } from "lucide-react";
-import { useMemo } from "react";
+import { memo, useMemo } from "react";
 import { FixFirst, type FixFirstEntry } from "@/components/studio/fix-first";
 import { openTarget, targetLabel } from "@/components/studio/review/open-target";
 import { Button } from "@/components/ui/button";
 import { reviewResume, type ReviewItem } from "@/lib/lint/review";
+import type { Resume } from "@/lib/resume/schema";
+import { resumeLintOf } from "./lint-cache";
 import { useResumeValue } from "./use-editor";
 import { useSettled } from "./use-settled";
 
@@ -14,8 +16,19 @@ const REVIEW_SETTLE_MS = 800;
 export function FixSummary({ resumeId }: { resumeId: string }) {
   const resume = useResumeValue(resumeId, (current) => current, undefined);
   const settled = useSettled(resume, REVIEW_SETTLE_MS);
-  const review = useMemo(() => (settled ? reviewResume(settled) : null), [settled]);
-  if (!review || review.items.length === 0) return null;
+  return settled ? <SettledSummary resumeId={resumeId} resume={settled} /> : null;
+}
+
+// Memoized so typing re-renders only FixSummary until the resume settles.
+const SettledSummary = memo(function SettledSummary({
+  resumeId,
+  resume,
+}: {
+  resumeId: string;
+  resume: Resume;
+}) {
+  const review = useMemo(() => reviewResume(resume, resumeLintOf(resume)), [resume]);
+  if (review.items.length === 0) return null;
 
   const items: FixFirstEntry[] = review.top.map((item) => ({
     key: item.id,
@@ -34,7 +47,7 @@ export function FixSummary({ resumeId }: { resumeId: string }) {
       footer={rest.length > 0 ? <MoreToCheck resumeId={resumeId} items={rest} /> : null}
     />
   );
-}
+});
 
 function MoreToCheck({ resumeId, items }: { resumeId: string; items: readonly ReviewItem[] }) {
   return (

@@ -10,6 +10,7 @@ import {
 } from "react";
 import { cn } from "@/lib/utils";
 import { controlClasses } from "./input";
+import { fitToContent, insertsOneCharacter } from "./textarea-fit";
 
 export type TextareaVariant = "box" | "line";
 
@@ -29,7 +30,6 @@ export function Textarea({
   variant = "box",
   rows,
   ref,
-  onInput,
   "aria-invalid": ariaInvalid,
   ...props
 }: TextareaProps) {
@@ -49,10 +49,6 @@ export function Textarea({
       ref={mergedRef}
       rows={rows ?? (autoResize ? 1 : 4)}
       aria-invalid={invalid || ariaInvalid || undefined}
-      onInput={(event) => {
-        onInput?.(event);
-        if (autoResize && !supportsFieldSizing()) fitToContent(event.currentTarget);
-      }}
       className={cn(
         controlClasses,
         "block px-3.5 py-2.5",
@@ -64,14 +60,19 @@ export function Textarea({
   );
 }
 
+// Callers are controlled, so this runs once per change, after React commits it and before paint.
 function useAutoResize(
   ref: RefObject<HTMLTextAreaElement | null>,
   enabled: boolean,
   value: ComponentProps<"textarea">["value"],
 ) {
+  const fitted = useRef<string | null>(null);
   useLayoutEffect(() => {
     const element = ref.current;
-    if (enabled && element && !supportsFieldSizing()) fitToContent(element);
+    if (!enabled || !element || supportsFieldSizing()) return;
+    const typed = fitted.current !== null && insertsOneCharacter(fitted.current, element.value);
+    fitted.current = element.value;
+    fitToContent(element, typed);
   }, [ref, enabled, value]);
 
   useLayoutEffect(() => {
@@ -95,14 +96,6 @@ let fieldSizingSupported: boolean | undefined;
 function supportsFieldSizing(): boolean {
   fieldSizingSupported ??= typeof CSS !== "undefined" && CSS.supports("field-sizing", "content");
   return fieldSizingSupported;
-}
-
-function fitToContent(element: HTMLTextAreaElement) {
-  const scrollY = window.scrollY;
-  element.style.height = "auto";
-  element.style.height = `${element.scrollHeight + element.offsetHeight - element.clientHeight}px`;
-  // Collapsing to "auto" for a moment can shorten the page and clamp the scroll position.
-  if (window.scrollY !== scrollY) window.scrollTo({ top: scrollY });
 }
 
 function assignRef<T>(ref: Ref<T> | undefined, node: T | null) {

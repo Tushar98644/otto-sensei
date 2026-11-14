@@ -1,13 +1,21 @@
 "use client";
 
-import { useEffect, useRef, useState, type ReactNode, type RefObject } from "react";
+import {
+  useCallback,
+  useEffect,
+  useEffectEvent,
+  useRef,
+  useState,
+  type ReactNode,
+  type RefObject,
+} from "react";
 import { useAccountGate } from "@/components/account/account-gate";
-import { patchMe, useMe } from "@/components/account/use-me";
+import { useMe } from "@/components/account/use-me";
 import { OTTO } from "@/components/mascot/lines";
 import type { UsagePeriod } from "@/config/plans";
 import { budgetReachedText } from "@/lib/ai-budget-copy";
 import { api, isApiError, isBudgetReached } from "@/lib/api/client";
-import { newId, type Resume } from "@/lib/resume/schema";
+import type { Resume } from "@/lib/resume/schema";
 import {
   clearQueuedJob,
   loadResult,
@@ -17,6 +25,7 @@ import {
   type SavedResult,
   type TailorDraft,
 } from "./session";
+import { forgetTailorTask, startTailorTask, tailorTaskFor, type TailorTask } from "./tailor-task";
 
 export const MIN_POST_CHARS = 80;
 const MAX_LINK_CHARS = 2048;
@@ -56,13 +65,44 @@ function errorMessage(
 export function useTailorRun(source: Resume): TailorRun {
   const gate = useAccountGate();
   const { me } = useMe();
-  const [last, setLast] = useState<SavedResult | null>(() => loadResult(source.id));
-  const [loading, setLoading] = useState(false);
+  // A run started before this workspace mounted (the step was left and opened again) is adopted.
+  const [task, setTask] = useState(() => tailorTaskFor(source.id));
+  const [last, setLast] = useState<SavedResult | null>(() => task?.done ?? loadResult(source.id));
   const [error, setError] = useState<string | null>(null);
   const busy = useRef(false);
 
+  function report(caught: unknown) {
+    if (!gate.handleApiError(caught, "tailor"))
+      setError(errorMessage(caught, me?.usage?.tailor.limit, me?.period));
+  }
+
+  const settle = useEffectEvent(
+    (settled: TailorTask, saved: SavedResult | null, caught: unknown) => {
+      forgetTailorTask(source.id, settled);
+      setTask(null);
+      if (saved) setLast(saved);
+      else report(caught);
+    },
+  );
+
+  useEffect(() => {
+    if (!task) return;
+    let live = true;
+    task.promise.then(
+      (saved) => {
+        if (live) settle(task, saved, null);
+      },
+      (caught: unknown) => {
+        if (live) settle(task, null, caught);
+      },
+    );
+    return () => {
+      live = false;
+    };
+  }, [task]);
+
   async function start(job: TailorDraft) {
-    if (busy.current) return;
+    if (busy.current || task) return;
     if (last && sameRun(last, source, job)) {
       setError(null);
       return;
@@ -71,36 +111,26 @@ export function useTailorRun(source: Resume): TailorRun {
     setError(null);
     try {
       if (!(await gate.requireUser(OTTO.signIn.reason("tailor")))) return;
-      setLoading(true);
-      const response = await api.tailor({
-        resume: source,
-        job: { text: job.text.trim(), title: job.title.trim(), company: job.company.trim() },
-      });
-      patchMe({ usage: response.usage });
-      setLast({
-        id: newId(),
-        sourceId: source.id,
-        sourceUpdatedAt: source.updatedAt,
-        job,
-        result: response.result,
-        demo: response.demo === true,
-      });
+      setTask(startTailorTask(source, job));
     } catch (caught) {
-      if (!gate.handleApiError(caught, "tailor"))
-        setError(errorMessage(caught, me?.usage?.tailor.limit, me?.period));
+      report(caught);
     } finally {
       busy.current = false;
-      setLoading(false);
     }
   }
 
+  const update = useCallback(
+    (id: string, patch: ResultPatch) =>
+      setLast((current) => (current?.id === id ? { ...current, ...patch } : current)),
+    [],
+  );
+
   return {
     last,
-    loading,
+    loading: task !== null && task.done === null,
     error,
     start,
-    update: (id, patch) =>
-      setLast((current) => (current?.id === id ? { ...current, ...patch } : current)),
+    update,
     clear: () => {
       setLast(null);
       setError(null);

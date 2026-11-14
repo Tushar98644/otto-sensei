@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { lintResume } from "@/lib/lint/bullets";
+import { reviewResume } from "@/lib/lint/review";
 import { setBulletText } from "@/lib/resume/ops";
 import {
   emptyResume,
@@ -9,7 +10,14 @@ import {
   newExtraSection,
   type Resume,
 } from "@/lib/resume/schema";
-import { bulletIssues, extraNeedsWork, lintOf, NO_ISSUES, sectionNeedsWork } from "./lint-cache";
+import {
+  bulletIssues,
+  extraNeedsWork,
+  lintOf,
+  NO_ISSUES,
+  resumeLintOf,
+  sectionNeedsWork,
+} from "./lint-cache";
 
 function sample(): { resume: Resume; weak: string; strong: string; other: string } {
   const weak = newBullet("Responsible for managing the company website");
@@ -50,6 +58,15 @@ describe("lintOf", () => {
     const afterFix = lintOf(fixed);
     expect(afterFix.byBullet.get(weak)).toBe(NO_ISSUES);
     expect(afterFix.totals.withIssues).toBe(before.totals.withIssues - 1);
+  });
+
+  it("hands a review the lint it already has, so the review doesn't lint again", () => {
+    const { resume } = sample();
+    const lint = resumeLintOf(resume);
+    expect(resumeLintOf(resume)).toBe(lint);
+    expect(lint).toEqual(lintResume(resume));
+    expect(lintOf(resume).totals).toEqual(lint.totals);
+    expect(reviewResume(resume, lint)).toEqual(reviewResume(resume));
   });
 
   it("counts the lines that need work in one section", () => {

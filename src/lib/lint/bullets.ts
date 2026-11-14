@@ -147,6 +147,25 @@ function analyze(text: string, context: LintContext = WORK): Analysis {
   };
 }
 
+const MAX_ANALYSES = 1_000;
+const analyses = new Map<string, Analysis>();
+
+// Typing re-lints every line, so the browser keeps recent results; servers keep no resume text.
+function analyzeOnce(text: string, context: LintContext): Analysis {
+  if (typeof window === "undefined") return analyze(text, context);
+  const key = `${context.kind}|${context.ended ? 1 : 0}|${text}`;
+  const hit = analyses.get(key);
+  if (hit) {
+    analyses.delete(key);
+    analyses.set(key, hit);
+    return hit;
+  }
+  const fresh = analyze(text, context);
+  analyses.set(key, fresh);
+  if (analyses.size > MAX_ANALYSES) analyses.delete(analyses.keys().next().value as string);
+  return fresh;
+}
+
 export function lintBullet(text: string, context: LintContext = WORK): LintIssue[] {
   return analyze(text, context).issues;
 }
@@ -197,7 +216,7 @@ export function lintResume(resume: Resume): ResumeLint {
   const refs = listBullets(resume);
   const lines = refs.map((ref) => ({
     id: ref.bulletId,
-    ...analyze(ref.text, contexts.get(ref.bulletId) ?? WORK),
+    ...analyzeOnce(ref.text, contexts.get(ref.bulletId) ?? WORK),
   }));
   const duplicates = findDuplicates(lines.map((line) => line.words));
   const punctuation = new Map<string, LintIssue>();
@@ -231,7 +250,7 @@ export function lintResume(resume: Resume): ResumeLint {
 }
 
 export function lintSummary(summary: string): LintIssue[] {
-  return analyze(summary, OTHER).issues.filter(
+  return analyzeOnce(summary, OTHER).issues.filter(
     (issue) => issue.id === "stock-phrase" || issue.id === "first-person",
   );
 }

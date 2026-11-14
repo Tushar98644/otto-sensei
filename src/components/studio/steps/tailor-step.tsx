@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useState } from "react";
 import { Pencil } from "lucide-react";
 import { useProTools } from "@/components/account/pro-tools";
 import { useMe } from "@/components/account/use-me";
@@ -16,13 +16,14 @@ import { JobForm } from "@/components/studio/tailor/job-form";
 import { buildScreener } from "@/components/studio/tailor/screener";
 import {
   EMPTY_DRAFT,
+  flushTailorSession,
   loadDraft,
   peekQueuedJob,
-  saveTailorSession,
+  queueTailorSession,
   type TailorDraft,
 } from "@/components/studio/tailor/session";
 import { TailorResults } from "@/components/studio/tailor/tailor-results";
-import { useTailorRun } from "@/components/studio/tailor/use-tailor";
+import { useTailorRun, type ResultPatch } from "@/components/studio/tailor/use-tailor";
 import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -35,6 +36,9 @@ import { useActiveResume, useStudioStore } from "@/lib/store/resume-store";
 import { thisPeriod } from "@/lib/usage-copy";
 
 const PRELOAD_DELAY_MS = 2_000;
+
+// Editing the post re-renders the workspace on each keystroke; the results below don't change.
+const Results = memo(TailorResults);
 
 function useUsageNote(): string | null {
   const { user, me, loading } = useMe();
@@ -75,8 +79,19 @@ function TailorWorkspace({ source, baseTitle }: { source: Resume; baseTitle: str
   );
 
   useEffect(() => {
-    saveTailorSession(draft, run.last);
+    queueTailorSession(draft, run.last);
   }, [draft, run.last]);
+  // Leaving the step writes the queued draft at once.
+  useEffect(() => flushTailorSession, []);
+
+  const { update } = run;
+  const lastId = last?.id ?? null;
+  const patchLast = useCallback(
+    (patch: ResultPatch) => {
+      if (lastId) update(lastId, patch);
+    },
+    [update, lastId],
+  );
 
   let otto: string = OTTO.tailor.intro;
   if (run.loading) otto = OTTO.tailor.working;
@@ -88,6 +103,14 @@ function TailorWorkspace({ source, baseTitle }: { source: Resume; baseTitle: str
   const jobName = last
     ? jobLabel(last.job.title || last.result.job.title, last.job.company || last.result.job.company)
     : "";
+  const location = draft.posting?.location ?? "";
+  const eligibility = useMemo(
+    () =>
+      folded && draft.text.trim() ? (
+        <EligibilityCard location={location} text={draft.text} />
+      ) : null,
+    [folded, location, draft.text],
+  );
 
   return (
     <div className="mx-auto flex w-full max-w-3xl flex-col gap-6">
@@ -146,18 +169,14 @@ function TailorWorkspace({ source, baseTitle }: { source: Resume; baseTitle: str
               Compare again to update them for the post as it is now.
             </Alert>
           ) : null}
-          <TailorResults
+          <Results
             key={last.id}
             source={source}
             saved={last}
             choices={choices}
             screener={screener}
-            onPatch={(patch) => run.update(last.id, patch)}
-            beforeApply={
-              folded && draft.text.trim() ? (
-                <EligibilityCard location={draft.posting?.location ?? ""} text={draft.text} />
-              ) : null
-            }
+            onPatch={patchLast}
+            beforeApply={eligibility}
           />
           <Button
             variant="ghost"

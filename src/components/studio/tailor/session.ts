@@ -2,7 +2,7 @@ import { TEXT_LIMITS } from "@/config/plans";
 import type { TailorResult } from "@/lib/ai/types";
 import { sameJobUrl } from "@/lib/applications/thread";
 import type { JobPosting, JobSource } from "@/lib/api/types";
-import { readJsonItem, removeItem, writeJsonItem } from "@/lib/browser-storage";
+import { readJsonItem, removeItem, writeItem, writeJsonItem } from "@/lib/browser-storage";
 import type { Resume } from "@/lib/resume/schema";
 import type { ScreeningQuestion } from "@/lib/ats/types";
 import type { RequirementChoice, TailorChoices } from "./apply";
@@ -39,6 +39,12 @@ export const MAX_SAVED_ANSWERS = 5;
 type Saved = { version: 1; draft: TailorDraft; last: SavedResult | null };
 
 const STORAGE_KEY = "otto-tailor-v1";
+const DRAFT_SAVE_MS = 400;
+
+let queued: Saved | null = null;
+let queuedTimer: ReturnType<typeof setTimeout> | null = null;
+let flushesOnHide = false;
+const resultJson = new WeakMap<SavedResult, string>();
 
 export const EMPTY_DRAFT: TailorDraft = { title: "", company: "", text: "" };
 
@@ -218,6 +224,7 @@ function toSavedResult(last: SavedResult): SavedResult {
 }
 
 function read(): Saved | null {
+  if (queued) return queued;
   const saved = readJsonItem(STORAGE_KEY, "session") as Partial<Saved> | null;
   const draft = saved?.version === 1 ? toDraft(saved.draft) : null;
   if (!saved || !draft) return null;
@@ -298,11 +305,55 @@ export function loadResult(sourceId: string): SavedResult | null {
   return last?.sourceId === sourceId ? last : null;
 }
 
-export function saveTailorSession(draft: TailorDraft, last: SavedResult | null): void {
-  const saved: Saved = {
+function savedOf(draft: TailorDraft, last: SavedResult | null): Saved {
+  return {
     version: 1,
     draft: { ...draft, text: draft.text.slice(0, TEXT_LIMITS.jobPostChars * 2) },
     last,
   };
-  writeJsonItem(STORAGE_KEY, saved, "session");
+}
+
+// A result runs to tens of KB and rarely changes while the post is typed, so its JSON is kept.
+function write({ draft, last }: Saved): void {
+  try {
+    let json = "null";
+    if (last) {
+      json = resultJson.get(last) ?? JSON.stringify(last);
+      resultJson.set(last, json);
+    }
+    const draftJson = JSON.stringify(draft);
+    writeItem(STORAGE_KEY, `{"version":1,"draft":${draftJson},"last":${json}}`, "session");
+  } catch {}
+}
+
+function dropQueued(): void {
+  if (queuedTimer !== null) clearTimeout(queuedTimer);
+  queuedTimer = null;
+  queued = null;
+}
+
+export function saveTailorSession(draft: TailorDraft, last: SavedResult | null): void {
+  dropQueued();
+  write(savedOf(draft, last));
+}
+
+// Typing in the post writes at most every DRAFT_SAVE_MS; loadDraft and loadResult see it at once.
+export function queueTailorSession(draft: TailorDraft, last: SavedResult | null): void {
+  queued = savedOf(draft, last);
+  queuedTimer ??= setTimeout(flushTailorSession, DRAFT_SAVE_MS);
+  if (!flushesOnHide && typeof window !== "undefined") {
+    flushesOnHide = true;
+    window.addEventListener("pagehide", flushTailorSession);
+  }
+}
+
+export function flushTailorSession(): void {
+  const next = queued;
+  dropQueued();
+  if (next) write(next);
+}
+
+// Saved the moment it lands, even after the step was left, beside the newest draft.
+export function saveTailorResult(last: SavedResult): void {
+  saveTailorSession(loadDraft(), last);
 }
