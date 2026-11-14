@@ -1,14 +1,16 @@
+import { after } from "next/server";
 import { fail, NO_STORE, ok } from "@/lib/api/respond";
 import { rejectCrossSite, rejectNonJson } from "@/lib/auth/route-guards";
 import { getCurrentAccount } from "@/lib/auth/session";
 import { readJson } from "@/lib/http";
 import { log } from "@/lib/log";
 import { refreshPortfolioPages } from "@/lib/portfolio/cache";
-import { SaveContentSchema, type ContentResponse } from "@/lib/portfolio/content";
-import { refreshGitHub, saveContent } from "@/lib/portfolio/content-records";
+import type { ContentResponse } from "@/lib/portfolio/content";
+import { getContentPage, refreshGitHub, saveContent } from "@/lib/portfolio/content-records";
+import { SaveContentSchema } from "@/lib/portfolio/content-validation";
 import { canBuildPortfolio } from "@/lib/portfolio/plan";
-import { getPortfolio } from "@/lib/portfolio/records";
-import { liveParts, screenedWrite } from "@/lib/portfolio/screen";
+import { getPageState } from "@/lib/portfolio/records";
+import { liveParts, screenedWriteWith } from "@/lib/portfolio/screen";
 import { rateLimit, retryAfterHeader, waitText } from "@/lib/rate-limit";
 import { HOUR_MS } from "@/lib/time";
 import { pageBlocked, pageChanged } from "../../public-pages";
@@ -24,13 +26,16 @@ export async function GET(): Promise<Response> {
     const account = await getCurrentAccount();
     if (!account) return fail("unauthorized", SIGN_IN, 401, NO_STORE);
     const { user } = account;
-    const portfolio = await getPortfolio(user.id);
-    if (!portfolio) return fail("not_found", NO_PORTFOLIO, 404, NO_STORE);
-    const github = await refreshGitHub(user.id, account.github?.login ?? null);
+    const page = await getContentPage(user.id);
+    if (!page) return fail("not_found", NO_PORTFOLIO, 404, NO_STORE);
+    const github = await refreshGitHub(user.id, account.github?.login ?? null, {
+      row: page.github,
+      later: after,
+    });
     if (github?.changed) refreshPortfolioPages([github.slug]);
     const body: Omit<ContentResponse, "ok"> = {
-      content: portfolio.content,
-      github: github ? github.github : portfolio.github,
+      content: page.content,
+      github: github?.github ?? null,
     };
     return ok(body, { headers: NO_STORE });
   } catch (error) {
@@ -71,7 +76,8 @@ export async function PUT(req: Request): Promise<Response> {
       );
     }
     const { content } = body.data;
-    const result = await screenedWrite(
+    const result = await screenedWriteWith(
+      getPageState,
       user.id,
       "portfolio.content",
       (current) => liveParts(current, { content }),
@@ -79,10 +85,15 @@ export async function PUT(req: Request): Promise<Response> {
     );
     switch (result.status) {
       case "saved": {
-        refreshPortfolioPages([result.slug]);
+        const github = await refreshGitHub(user.id, account.github?.login ?? null, {
+          row: result.github,
+          later: after,
+        });
+        // A draft isn't served, so only a live page (or new GitHub numbers) needs a fresh copy.
+        if (result.published || github?.changed) refreshPortfolioPages([result.slug]);
         const response: Omit<ContentResponse, "ok"> = {
           content: result.content,
-          github: (await refreshGitHub(user.id, account.github?.login ?? null))?.github ?? null,
+          github: github?.github ?? null,
         };
         return ok(response, { headers: NO_STORE });
       }

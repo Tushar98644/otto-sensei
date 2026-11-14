@@ -14,6 +14,14 @@ const nextConfig: NextConfig = {
   // Bundling breaks these: they read their own files (WASM, data) or sockets at runtime.
   serverExternalPackages: ["postgres", "@electric-sql/pglite", "mammoth", "unpdf"],
   outputFileTracingExcludes: { "*": ["node_modules/@electric-sql/pglite/**"] },
+  // react-pdf code that never runs in the browser (about 116 KB gzip); see src/lib/pdf/shims.
+  turbopack: {
+    resolveAlias: {
+      "@react-pdf/reconciler": { browser: "./src/lib/pdf/shims/reconciler.ts" },
+      "@react-pdf/hyphenate/en-us": { browser: "./src/lib/pdf/shims/hyphenate-en-us.ts" },
+      "brotli/decompress.js": { browser: "./src/lib/pdf/shims/brotli-decompress.ts" },
+    },
+  },
   poweredByHeader: false,
   // Tabs open across a deploy reload once instead of requesting code that no longer exists.
   deploymentId: process.env.VERCEL_DEPLOYMENT_ID?.trim() || undefined,
@@ -43,6 +51,9 @@ export default sentryDsn
       telemetry: false,
       // Turbopack writes client chunks outside the plugin's default glob.
       widenClientFileUpload: true,
+      // Errors only: tracing, the Pages Router it pulls in, and the route list it names spans with stay out.
+      bundleSizeOptimizations: { excludeTracing: true, excludeDebugStatements: true },
+      routeManifestInjection: false,
       sourcemaps: { disable: !sentryAuthToken, deleteSourcemapsAfterUpload: true },
       release: {
         name: commit,

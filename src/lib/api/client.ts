@@ -1,4 +1,6 @@
 import type { GitHubConnectionResponse } from "@/lib/github/connect";
+import { JOBS_PREFETCH_HEADER } from "@/lib/job-feed/prefetch-header";
+import type { ImpressionBatchInput } from "@/lib/job-feed/types";
 import type {
   GitHubConnectBody,
   GitHubDraftBody,
@@ -14,6 +16,12 @@ import type {
   ReminderSettingsResponse,
 } from "@/lib/notifications/types";
 import type { Resume } from "@/lib/resume/schema";
+import type {
+  KnownResumes,
+  PutResumeOptions,
+  PutResumeResult,
+  ResumeList,
+} from "@/lib/sync/api-types";
 import type { AccountSetupChange, AccountSetupResponse } from "@/lib/setup/types";
 import type {
   CreateShareBody,
@@ -77,11 +85,9 @@ import type {
   LetterRequestBody,
   LetterResponse,
   MeResponse,
-  PutResumeResponse,
   ReferralClaimResponse,
   ReferralSummaryResponse,
   RequestCodeResponse,
-  ResumesResponse,
   SavedJobResponse,
   SavedJobsResponse,
   SummaryRequestBody,
@@ -201,8 +207,13 @@ export const api = {
     request<EmptyOk>(`/api/writings/${encodeURIComponent(id)}`, { method: "DELETE", keepalive }),
   summary: (body: SummaryRequestBody) => request<SummaryResponse>("/api/summary", postJson(body)),
   readJob: (body: JobRequestBody) => request<JobResponse>("/api/job", postJson(body)),
-  jobMatches: (body: JobMatchesRequestBody) =>
-    request<JobMatchesResponse>("/api/jobs/matches", postJson(body)),
+  jobMatches: (body: JobMatchesRequestBody, { prefetch = false }: { prefetch?: boolean } = {}) =>
+    request<JobMatchesResponse>("/api/jobs/matches", {
+      ...postJson(body),
+      ...(prefetch
+        ? { headers: { "content-type": "application/json", [JOBS_PREFETCH_HEADER]: "1" } }
+        : {}),
+    }),
   jobPost: (id: string) =>
     request<JobPostResponse>(`/api/jobs/${encodeURIComponent(id)}`, { cache: "no-store" }),
   savedJobs: () => request<SavedJobsResponse>("/api/jobs/saved", { cache: "no-store" }),
@@ -218,6 +229,8 @@ export const api = {
     }),
   jobEvent: (body: MatchActionInput) =>
     request<EmptyOk>("/api/jobs/events", { ...postJson(body), keepalive: true }),
+  jobImpressions: (body: ImpressionBatchInput) =>
+    request<EmptyOk>("/api/jobs/events", { ...postJson(body), keepalive: true }),
   me: () => request<MeResponse>("/api/me", { cache: "no-store" }),
   requestCode: (email: string) =>
     request<RequestCodeResponse>("/api/auth/request-code", postJson({ email })),
@@ -226,11 +239,14 @@ export const api = {
   googleSignIn: (next: string) =>
     request<GoogleSignInResponse>("/api/auth/google", postJson({ next })),
   logout: () => request<EmptyOk>("/api/auth/logout", { method: "POST" }),
-  listResumes: () => request<ResumesResponse>("/api/resumes", { cache: "no-store" }),
-  putResume: (resume: Resume) =>
-    request<PutResumeResponse>(
-      `/api/resumes/${encodeURIComponent(resume.id)}`,
-      postJson(resume, "PUT"),
+  listResumes: (known?: KnownResumes) =>
+    known
+      ? request<ResumeList>("/api/resumes", postJson({ known }))
+      : request<ResumeList>("/api/resumes", { cache: "no-store" }),
+  putResume: (resume: Resume, { base, keepalive = false }: PutResumeOptions = {}) =>
+    request<PutResumeResult>(
+      `/api/resumes/${encodeURIComponent(resume.id)}${base === undefined ? "" : `?base=${base}`}`,
+      { ...postJson(resume, "PUT"), keepalive },
     ),
   deleteResume: (id: string) =>
     request<EmptyOk>(`/api/resumes/${encodeURIComponent(id)}`, { method: "DELETE" }),

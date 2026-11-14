@@ -2,6 +2,7 @@
 
 import type { QueryClient } from "@tanstack/react-query";
 import { PORTFOLIO_ROUTE } from "@/components/portfolio/route";
+import { preloadPortfolio } from "@/components/portfolio/screens";
 import { ROUTES } from "@/components/site/routes";
 import { hasProTools } from "@/config/plans";
 import type { SessionUser } from "@/lib/auth/types";
@@ -30,7 +31,10 @@ const PAGES: Record<string, Prefetch> = {
     client.prefetchQuery(writingsQuery(user.id)),
     client.prefetchQuery(applicationsQuery(user.id)),
   ],
+  // Both start now: matches wait only for the work profile, never the applications list.
   [ROUTES.dashboardJobs]: (client, user) => [
+    client.prefetchQuery(workProfileQuery(user.id)),
+    client.prefetchQuery(applicationsQuery(user.id)),
     import("./jobs/prefetch-matches").then(({ prefetchMatches }) =>
       prefetchMatches(client, user.id),
     ),
@@ -45,7 +49,10 @@ const PAGES: Record<string, Prefetch> = {
     client.prefetchQuery(prepPacksQuery(user.id)),
     client.prefetchQuery(applicationsQuery(user.id)),
   ],
-  [PORTFOLIO_ROUTE]: (client, user) => [client.prefetchQuery(portfolioQuery(user.id))],
+  [PORTFOLIO_ROUTE]: (client, user) => [
+    client.prefetchQuery(portfolioQuery(user.id)),
+    preloadPortfolio(client, user),
+  ],
 };
 
 export function prefetchPageData(href: string, user: SessionUser | null): void {

@@ -3,7 +3,7 @@
 import { useMemo, useRef, useState } from "react";
 import { errorMessage } from "@/components/account/errors";
 import { useProTools, useTryProLabel } from "@/components/account/pro-tools";
-import { useMe } from "@/components/account/use-me";
+import { useSessionUserId } from "@/components/account/session-user";
 import { saveLookingForChoice, useWorkProfile } from "@/components/eligibility/use-work-profile";
 import { OTTO } from "@/components/mascot/lines";
 import { OttoNote } from "@/components/mascot/otto-note";
@@ -54,8 +54,7 @@ export function JobsPage() {
   const resumes = useResumeList();
   const actions = useStudioActions();
   const work = useWorkProfile();
-  const { user } = useMe();
-  const userId = user?.id ?? null;
+  const userId = useSessionUserId();
   const { items: applications, status: applicationsStatus } = useApplications();
   const now = useNow();
   const listRef = useRef<HTMLDivElement>(null);
@@ -91,6 +90,17 @@ export function JobsPage() {
   const data: JobMatchesResponse | null =
     state.status === "ready" ? state.data : state.status === "loading" ? state.previous : null;
   const pageJobIds = useMemo(() => data?.jobs.map((job) => job.id) ?? null, [data]);
+  const labels = useMemo(
+    () =>
+      new Map(
+        (data?.jobs ?? []).map((job) => {
+          const copy = tailoredFor(resumes, job);
+          const applied = appliedFor(applications, job);
+          return [job.id, { applied, tailoredTitle: copy ? resumeTitle(copy) : null }] as const;
+        }),
+      ),
+    [data, resumes, applications],
+  );
   const prompts = useAppliedPrompts({
     userId,
     applications,
@@ -252,14 +262,14 @@ export function JobsPage() {
         ) : (
           <ul aria-busy={state.status === "loading"} className="flex flex-col gap-4">
             {data.jobs.map((job) => {
-              const copy = tailoredFor(resumes, job);
+              const label = labels.get(job.id);
               return (
                 <JobCard
                   key={job.id}
                   job={job}
                   now={now}
-                  applied={appliedFor(applications, job)}
-                  tailoredTitle={copy ? resumeTitle(copy) : null}
+                  applied={label?.applied ?? null}
+                  tailoredTitle={label?.tailoredTitle ?? null}
                   logging={busy?.id === job.id && busy.action === "apply"}
                   tailoring={busy?.id === job.id && busy.action === "tailor"}
                   onTailor={(target) => void tailor(target)}

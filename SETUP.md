@@ -143,7 +143,7 @@ add `NEXT_PUBLIC_APP_URL` yourself.
 
 > **Usually nothing to do here (owner's choice, 2026-11-08):** every production deploy creates and
 > updates the tables itself. vercel.json's build command runs `bun scripts/migrate.ts --deploy`
-> before `next build`, using the database URL the Supabase integration put in Vercel. Preview
+> after `next build` succeeds, using the database URL the Supabase integration put in Vercel. Preview
 > builds and builds without a database skip it. The steps below are only for running it by hand.
 
 `vercel env pull` replaces `.env.local`, which holds your OpenRouter key today. Back it up first:
@@ -529,7 +529,8 @@ vercel env add SENTRY_PROJECT production            # optional, with the token: 
 - Errors only: no performance tracing, no session replay. Each release is the Git commit.
 - `bun dev` sends nothing, even with a DSN in `.env.local`. To test reporting on your laptop, add
   `NEXT_PUBLIC_SENTRY_DEV=1` too.
-- Landing and policy pages don't load Sentry until the visitor moves into the app.
+- Landing, pricing, policy, portfolio and share pages don't load Sentry until the visitor moves into
+  the app or something breaks there; errors from before it loads are still sent.
 
 ---
 
@@ -639,9 +640,10 @@ for 05:40 UTC. `POST /api/cron/jobs` (Bearer `CRON_SECRET`) still runs a 4-minut
   email per run, covering all its newly due applications. Snooze moves the date 3 days on; Done or
   any other status clears it.
 - Reminder emails are opt-in: nobody gets one until they turn **Email me too** on in **Reminders**
-  on the Account page. Each email has one-click **Done** and **Snooze 3 days** per application and
-  a one-click **Unsubscribe**, all signed with `CRON_SECRET` (a new secret retires old links), plus
-  the mail app's own one-click unsubscribe header. The bell keeps working either way.
+  on the Account page. Each email has **Done** and **Snooze 3 days** per application and an
+  **Unsubscribe**, all signed with `CRON_SECRET` (a new secret retires old links); each opens a page
+  that acts only when its one button is pressed, so mail scanners that open links change nothing.
+  The mail app's own one-click unsubscribe header still works. The bell keeps working either way.
 - Cleanup and follow-ups stop after about 45 seconds and pick up the rest the next day. Running one
   twice does no harm. Run one by hand with
   `curl -X POST -H "Authorization: Bearer $CRON_SECRET" https://<your-domain>/api/cron/cleanup`.
@@ -750,3 +752,7 @@ the Supabase dashboard: Vercel project → **Storage** → your database → **O
 | `/api/health` answers 503 | `DATABASE_URL` is missing or wrong, or the project is paused. |
 | `migrate.ts`: `password authentication failed` | Wrong password in the URL, or special characters not URL-encoded. |
 | `migrate.ts`: `getaddrinfo ENOTFOUND db.<ref>.supabase.co` | That's the IPv6-only direct URL. Use the **Session pooler** string (step 3). |
+| `migrate.ts`: `... needs a session connection (port 5432), not the transaction pooler` | The build only has the 6543 pooler URL, and a `-- no-transaction` file needs a session. Add `POSTGRES_URL_NON_POOLING` (the **Session pooler** string, port 5432) to Vercel production and redeploy. |
+| `migrate.ts`: `a lock it needs was still taken after 6 tries` | Something held that table for about 2 minutes (a long query, or a `vacuum full` in the SQL editor). Nothing from that file was applied. Deploy again. |
+| `migrate.ts`: `canceling statement due to statement timeout` | A statement in the first file not marked `done` ran over 2 minutes, and nothing from that file was applied. Start that file with `set local statement_timeout = '10min';` and deploy again. |
+| `migrate.ts`: `left an unusable index` | An earlier `create index concurrently` stopped part-way. Run the `drop index concurrently public.<name>;` it names in the SQL editor, then deploy again. |

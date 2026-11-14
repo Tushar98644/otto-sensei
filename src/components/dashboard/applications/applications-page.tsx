@@ -24,7 +24,8 @@ import { STATUS_NAMES, type ApplicationStatus } from "@/lib/applications/status"
 import { browserStorage } from "@/lib/browser-storage";
 import { resumeTitle } from "@/lib/resume/ops";
 import { useResumeList } from "@/lib/store/resume-store";
-import { ApplicationDialog, type ApplicationDialogTarget } from "./application-dialog";
+import { LazyApplicationDialog } from "../lazy-dialogs";
+import type { ApplicationDialogTarget } from "./application-dialog";
 import { ApplicationFilters } from "./application-filters";
 import { ApplicationRow } from "./application-row";
 import { ApplicationsBoard } from "./board/applications-board";
@@ -94,10 +95,11 @@ export function ApplicationsPage() {
   const shown = useMemo(() => filterApplications(items, filter), [items, filter]);
   const stale = useMemo(() => (now === 0 ? [] : waitingTooLong(items, now)), [items, now]);
   const totals = useMemo(() => tally(items), [items]);
-  const waiting = useMemo(
-    () => toApplyItems(extras.savedJobs, resumes, items).length,
+  const toApply = useMemo(
+    () => toApplyItems(extras.savedJobs, resumes, items),
     [extras.savedJobs, resumes, items],
   );
+  const waiting = toApply.length;
 
   const linkedIndex = linked ? shown.findIndex((application) => application.id === linked) : -1;
   const visibleRows = Math.max(rows, linkedIndex + 1);
@@ -223,7 +225,7 @@ export function ApplicationsPage() {
               <ApplicationsBoard
                 applications={items}
                 resumes={resumes}
-                savedJobs={extras.savedJobs}
+                toApply={toApply}
                 writings={extras.writings}
                 now={now}
                 pro={pro}
@@ -287,7 +289,7 @@ export function ApplicationsPage() {
         </>
       )}
 
-      <ApplicationDialog target={dialog} resumes={resumes} onClose={() => setDialog(null)} />
+      <LazyApplicationDialog target={dialog} resumes={resumes} onClose={() => setDialog(null)} />
     </div>
   );
 }

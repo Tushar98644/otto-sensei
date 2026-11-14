@@ -58,16 +58,22 @@ bun dev                                       # http://localhost:3000
 
 ## 3. The gate: run before every commit
 
-CI (`.github/workflows/ci.yml`) runs the same checks plus `next build` on every push. Run them locally first:
+CI (`.github/workflows/ci.yml`) runs the same checks as parallel jobs on every push that changes more than Markdown (a newer push cancels the run it replaces). Run them locally first:
 
 ```bash
 printf '{ "extends": "./tsconfig.json", "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx"], "exclude": ["node_modules", ".next"] }' > tsconfig.gate.json
 bunx tsc -p tsconfig.gate.json --noEmit; rm tsconfig.gate.json   # types (skips stale .next types)
-bunx eslint .                                                    # lint
+bun run lint                                                     # lint; warnings fail too
 bunx vitest run --maxWorkers=2                                   # ~290 files, ~3,700 tests
 ```
 
-All three must pass with zero errors. `--maxWorkers=2` keeps an 8 GB machine responsive; raise it on a bigger laptop.
+All three must pass with zero errors and zero warnings. `--maxWorkers=2` keeps an 8 GB machine responsive; raise it on a bigger laptop.
+
+CI adds these. None of them blocks a deploy (Vercel builds and ships every push to `main`), so read a red run and fix it:
+- **Route types:** `next typegen` runs before `tsc`, so CI also checks page and route exports the way `next build` does.
+- **knip** (`knip.json`): unused files and dependencies.
+- **squawk** (`.squawk.toml`, `scripts/migrations-check.sh`) on each new file in `supabase/migrations/`, from its own workflow (`.github/workflows/migrations.yml`) so a quick second push can't cancel it: it flags locking or breaking statements such as dropped columns and constraints added without `not valid`. Put `-- squawk-ignore <rule>` above one that is deliberate.
+- **Bundle budget** (`scripts/bundle-check.sh`, from `next analyze`): fails when a page's first-load JS grows more than 10 KB past `scripts/bundle-baseline.json`, all its JS more than 50 KB, or a page has no baseline yet. When the growth is intended, commit that run's `bundle-routes` artifact as `scripts/bundle-baseline.json`, or run `bash scripts/bundle-check.sh --update` (a full production compile, so nothing else heavy at the same time) and commit the file.
 
 ---
 
@@ -104,9 +110,13 @@ git worktree remove --force "$WT" && git worktree prune
 
 If the tree is clean, `vercel --prod --yes` from `web/` is the same thing.
 
-**What happens on Vercel:** the build command is `bun scripts/migrate.ts --deploy && bun run build`, so new files in `supabase/migrations/` are applied to the production database before the new code goes live. Never edit a migration that has already run; add a new, later-dated file.
+**What happens on Vercel:** the build command is `bun run build && bun scripts/migrate.ts --deploy`, so new files in `supabase/migrations/` are applied to the production database after `next build` succeeds and before the new code goes live. A failed build never touches the database, and a failed migration fails the deploy, so the old code keeps serving. The old code still runs for the short time between the migration and the switch-over, so make breaking changes in two deploys: first ship code that no longer needs the old shape (it stops reading the column or table, or reads both the old and the new value format), then drop it, tighten its constraint or rewrite its rows in a later migration. The build itself still sees the old schema, so a prerendered page that reads a new table or column shows its fallback until its hourly refresh (the job counts on home and pricing, the portfolio sitemap). Never edit a migration that has already run; add a new, later-dated file.
+
+**Writing a migration:** each file runs in one transaction under the runner's lock, with a 5-second lock timeout (a busy table is tried 6 times over about 2 minutes, then the build fails and nothing from that file is applied) and a 2-minute timeout per statement (start the file with `set local statement_timeout = '10min';` if it needs longer). On `jobs` or `match_events`: build an index with `create index concurrently if not exists ...` in a file whose first line is `-- no-transaction` and that holds only that statement (it needs `POSTGRES_URL_NON_POOLING` or `DIRECT_DATABASE_URL`, not the 6543 pooler); add a CHECK or foreign key as `not valid` in one file and `validate constraint` in a later one; and rewrite rows with one UPDATE that sets every changed column, since each UPDATE pass copies the whole table.
 
 **Database space (Supabase Free caps it at 500 MB):** Postgres keeps the space left by updated or deleted rows inside the table file. After any migration or clean-up that rewrites or deletes thousands of job rows, run `vacuum full public.jobs;` once in the Supabase SQL editor (the jobs tab pauses about a minute). On 2026-11-13 the jobs file was 331 MB holding 57 MB of real data; that vacuum is what fixed it. Check with: `select pg_size_pretty(sum(pg_column_size(j.*))) as real_data, pg_size_pretty(pg_table_size('public.jobs')) as file_size from public.jobs j;`
+
+Bumping `NORMALIZE_VERSION` (`src/lib/job-feed/normalize.ts`) counts as such a rewrite: every job row is rewritten on its board's next read. The day after, compare the two numbers above (each daily jobs run also prints `jobsFileMb` and `jobsDeadRows` in its stats) and vacuum if the file is far bigger than the data. When only a column SQL can compute changed (like the keys in `20261111000600_short_job_keys.sql`), backfill it with one UPDATE in a migration instead of bumping.
 
 **Quirk:** the CLI often ends with `Error: fetch failed` after printing the Production URL. The deploy is usually fine. Always trust `vercel inspect <url> --wait`, not that line.
 
@@ -123,6 +133,7 @@ curl -s -o /dev/null -w '%{http_code}\n' https://www.ottosensei.com/dashboard   
 - Preview build (to test a risky change): `vercel --yes` (no `--prod`). Previews sit behind Vercel login.
 - Changed an environment variable in the Vercel dashboard? Redeploy: a build only sees values that existed when it ran.
 - Rollback: `vercel rollback` (or "Promote" an older deployment in the dashboard).
+- Tabs left open on a build from before 2026-11-14 save the studio in the old format. A resume deleted or released in such a tab can come back once a newer tab merges that save. It stops when the old tabs reload; nothing is lost.
 - Changing production settings and secrets in Vercel, Supabase, Creem or OpenRouter dashboards is the owner's job.
 
 ---
@@ -131,9 +142,9 @@ curl -s -o /dev/null -w '%{http_code}\n' https://www.ottosensei.com/dashboard   
 
 - **Supabase auth:** email sign-in sends a **6-digit code**, valid 600 s (Auth → Email templates and OTP settings; `scripts/email-templates.ts` can read and set them with a `SUPABASE_ACCESS_TOKEN`). JWT signing keys are ECC (P-256). The app uses the new publishable and secret keys.
 - **Database safety:** every table has Row Level Security on with no policies. Only our server touches the database, so the public key can read and write nothing.
-- **OpenRouter routing** (`src/lib/ai/client.ts`): `require_parameters: true`, `data_collection: "deny"`, `sort: "price"`, `max_price` $0.10 in / $0.30 out per million tokens. About 10 servers qualify; Wafer is normally picked.
-- **Safety checks** (`src/lib/ai/moderation.ts`): a word pre-check, then Llama Guard only when sexual words show up. It blocks S3, S4 and S12, and fails open. First portfolio publish and share links are always checked in full.
-- **Voice typing:** built-in browser speech in Chrome, Edge and Safari (free). Brave, Firefox and Opera, or any failure, record a clip for `/api/transcribe` (Whisper through OpenRouter). Limits: 2-minute clips, 5 a day on Free, 30 on Pro and the trial, 60 on Max.
+- **OpenRouter routing** (`src/lib/ai/client.ts`): `require_parameters: true`, `data_collection: "deny"`, `sort: "price"`, `max_price` $0.10 in / $0.30 out per million tokens. About 10 servers qualify; Wafer is normally picked. Every answer logs one `ai.usage` line in Vercel (counts only: task, model, provider, attempt, `durationMs`, input, output and reasoning tokens), so check each host's speed there before changing the routing or reasoning settings.
+- **Safety checks** (`src/lib/ai/moderation.ts`): a word pre-check, then Llama Guard only when sexual words show up. It blocks S3, S4 and S12, and fails open. First portfolio publish and share links are always checked in full; a resume edit syncing into a live portfolio goes to Llama Guard only when its new lines have such words.
+- **Voice typing:** built-in browser speech in Chrome, Edge and Safari (free). Brave, Firefox and Opera, or any failure, record a clip for `/api/transcribe` (Whisper through OpenRouter). Limits: 2-minute clips, 5 a day on Free, 30 on Pro and the trial, 60 on Max; clips turned away before transcribing, or lost to a provider outage, don't use one up.
 - **Creem:** fees are 3.9% + $0.40 per payment, so Pro monthly nets $14.02 and Max monthly $27.47. It's still in test mode.
 
 ---

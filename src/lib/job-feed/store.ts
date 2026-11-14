@@ -1,5 +1,17 @@
-import { and, count, eq, gt, inArray, isNull, lt, notInArray, or, sql } from "drizzle-orm";
-import type { PgInsertValue } from "drizzle-orm/pg-core";
+import {
+  and,
+  count,
+  eq,
+  gt,
+  inArray,
+  isNull,
+  lt,
+  notInArray,
+  or,
+  sql,
+  type SQL,
+} from "drizzle-orm";
+import type { PgInsertValue, PgUpdateSetSource } from "drizzle-orm/pg-core";
 import type { Db } from "@/db/client";
 import { applications, jobBoards, jobSkills, jobs, savedJobs } from "@/db/schema";
 import { DAY_MS } from "@/lib/time";
@@ -11,6 +23,7 @@ import {
   type NormalizedJob,
 } from "./normalize";
 import type { RawJob } from "./parsers";
+import { rowsOf } from "./records";
 import { SOURCE_INFO } from "./sources";
 import { BOARD_SOURCES, FEED_SOURCES, type BoardSeed, type JobSourceId } from "./types";
 
@@ -80,6 +93,50 @@ function contentColumns(job: NormalizedJob) {
   };
 }
 
+// The type each content column is sent as when a changed job is rewritten; search comes from searchText.
+const REWRITE_TYPES = {
+  company: "text",
+  title: "text",
+  location: "text",
+  remote: "boolean",
+  employmentType: "text",
+  seniority: "text",
+  family: "text",
+  occupation: "text",
+  minYears: "integer",
+  postedAt: "bigint",
+  validThrough: "bigint",
+  url: "text",
+  description: "text",
+  rulesText: "text",
+  keywords: "text[]",
+  dedupeKey: "text",
+  groupKey: "text",
+  evergreen: "boolean",
+  contentHash: "text",
+} as const satisfies Record<Exclude<keyof NormalizedJob, "externalId" | "searchText">, string>;
+
+const REWRITE_KEYS = Object.keys(REWRITE_TYPES) as (keyof typeof REWRITE_TYPES)[];
+
+const REWRITE_COLUMNS = sql.join(
+  ["id", "search_text", ...REWRITE_KEYS.map((key) => jobs[key].name)].map((name) =>
+    sql.identifier(name),
+  ),
+  sql`, `,
+);
+
+const REWRITE_SET: PgUpdateSetSource<typeof jobs> = {
+  ...Object.fromEntries(REWRITE_KEYS.map((key) => [key, sql`v.${sql.identifier(jobs[key].name)}`])),
+  search: sql`to_tsvector('simple', v.search_text)`,
+};
+
+function rewriteRow({ id, job }: { id: string; job: NormalizedJob }): SQL {
+  const cells = REWRITE_KEYS.map(
+    (key) => sql`${sql.param(job[key], jobs[key])}::${sql.raw(REWRITE_TYPES[key])}`,
+  );
+  return sql`(${id}::uuid, ${job.searchText}::text, ${sql.join(cells, sql`, `)})`;
+}
+
 export async function syncBoards(
   db: Db,
   seeds: readonly BoardSeed[],
@@ -96,6 +153,7 @@ export async function syncBoards(
       .onConflictDoUpdate({
         target: [jobBoards.source, jobBoards.token],
         set: { company: sql`excluded.company` },
+        setWhere: sql`${jobBoards.company} is distinct from excluded.company`,
       });
   }
   let dropped = 0;
@@ -168,6 +226,7 @@ export async function saveJobs(
 
     const seenIds: string[] = [];
     const additions: NormalizedJob[] = [];
+    const changed: { id: string; job: NormalizedJob }[] = [];
     for (const raw of fresh) {
       const known = existing.get(raw.externalId);
       if (!known) {
@@ -176,16 +235,16 @@ export async function saveJobs(
       }
       seenIds.push(known.id);
       if (known.hash === contentHash(raw)) continue;
-      await tx
+      changed.push({ id: known.id, job: normalizeJob(raw, now, boilerplate, textChars) });
+    }
+    for (const part of chunks(changed)) {
+      const rewritten = await tx
         .update(jobs)
-        .set({
-          ...contentColumns(normalizeJob(raw, now, boilerplate, textChars)),
-          board: scope.board,
-          lastSeenAt: now,
-          updatedAt: now,
-        })
-        .where(eq(jobs.id, known.id));
-      stats.updated += 1;
+        .set({ ...REWRITE_SET, board: scope.board, lastSeenAt: now, updatedAt: now })
+        .from(sql`(values ${sql.join(part.map(rewriteRow), sql`, `)}) as v(${REWRITE_COLUMNS})`)
+        .where(sql`${jobs.id} = v.id`)
+        .returning({ id: jobs.id });
+      stats.updated += rewritten.length;
     }
 
     for (const part of chunks(seenIds, 500)) {
@@ -378,6 +437,22 @@ export async function tidyJobs(db: Db, now: number): Promise<TidyStats> {
   return { expired: expired.length, aged: aged.length, deleted, trimmed };
 }
 
+export type JobsFileStats = { jobsFileMb: number; jobsDeadRows: number };
+
+// Rewritten rows leave space the file keeps until a vacuum full, and the 500 MB database cap counts it.
+export async function jobsFileStats(db: Db): Promise<JobsFileStats> {
+  try {
+    const [row] = rowsOf<{ mb: number; dead: number }>(
+      await db.execute(sql`
+        select round(pg_table_size('public.jobs'::regclass) / 1048576.0, 1)::float8 as mb,
+          coalesce((select n_dead_tup from pg_stat_user_tables where relid = 'public.jobs'::regclass), 0)::int as dead`),
+    );
+    return { jobsFileMb: row?.mb ?? -1, jobsDeadRows: row?.dead ?? -1 };
+  } catch {
+    return { jobsFileMb: -1, jobsDeadRows: -1 };
+  }
+}
+
 const MIN_SKILL_WEIGHT = 0.05;
 
 export async function refreshSkillWeights(db: Db, now: number): Promise<number> {
@@ -395,6 +470,7 @@ export async function refreshSkillWeights(db: Db, now: number): Promise<number> 
     updatedAt: now,
   }));
   await db.transaction(async (tx) => {
+    // eslint-disable-next-line drizzle/enforce-delete-with-where -- job_skills is rebuilt from scratch every run
     await tx.delete(jobSkills);
     for (const part of chunks(rows, 500)) await tx.insert(jobSkills).values(part);
   });

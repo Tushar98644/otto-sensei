@@ -43,6 +43,19 @@ export function Lazy<P extends object>({
     return () => window.clearTimeout(timer);
   }, [loader, wanted]);
 
+  // A failed download is tried again on the next click or key press, not only after a reload.
+  useEffect(() => {
+    if (!wanted || state.status !== "failed") return;
+    const retry = () => void loader.load().catch(() => {});
+    const options = { capture: true } as const;
+    window.addEventListener("pointerdown", retry, options);
+    window.addEventListener("keydown", retry, options);
+    return () => {
+      window.removeEventListener("pointerdown", retry, options);
+      window.removeEventListener("keydown", retry, options);
+    };
+  }, [loader, wanted, state.status]);
+
   if (!wanted || state.status !== "ready") return null;
   const Component = state.value;
   return <Component {...props} />;

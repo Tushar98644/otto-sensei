@@ -10,7 +10,8 @@ import { ResumeSchema } from "@/lib/resume/validation";
 import { parseStoredStats } from "@/lib/github/stats";
 import { shareSnapshot } from "@/lib/share/snapshot";
 import { DAY_MS, HOUR_MS } from "@/lib/time";
-import { parseStoredContent, type PortfolioContentView } from "./content";
+import type { PortfolioContentView } from "./content";
+import { parseStoredContent } from "./content-validation";
 import { contentView } from "./content-view";
 import { canBuildPortfolio, canPublishPortfolio } from "./plan";
 import { normalizeSlug, numberedSlug, SLUG_MESSAGES, slugProblem, suggestSlug } from "./slug";
@@ -73,6 +74,24 @@ export async function getPortfolio(userId: string): Promise<Portfolio | null> {
   const db = await getDb();
   const [row] = await db.select().from(portfolios).where(eq(portfolios.userId, userId)).limit(1);
   return row ? toPortfolio(row) : null;
+}
+
+type PageState = { published: boolean; updatedAt: number };
+
+export async function getPageState(userId: string): Promise<PageState | null> {
+  const db = await getDb();
+  const [row] = await db
+    .select({ published: portfolios.published, updatedAt: portfolios.updatedAt })
+    .from(portfolios)
+    .where(eq(portfolios.userId, userId))
+    .limit(1);
+  return row ?? null;
+}
+
+// A page already at a reserved address keeps working: the list only stops new pages taking one.
+function servableSlug(slug: string): boolean {
+  const problem = slugProblem(slug);
+  return problem === null || problem === "reserved";
 }
 
 export async function portfolioSlugsOf(userId: string): Promise<string[]> {
@@ -323,12 +342,17 @@ async function keepRedirect(tx: Tx, current: Row, now: number): Promise<void> {
   await tx.delete(portfolioRedirects).where(and(mine, notInArray(portfolioRedirects.slug, kept)));
 }
 
-export type Follower = { published: boolean; updatedAt: number };
+// The stored snapshot is as saved, unchecked: only compared with the next one.
+export type Follower = { published: boolean; updatedAt: number; snapshot: unknown };
 
 export async function followerOf(userId: string, resumeId: string): Promise<Follower | null> {
   const db = await getDb();
   const [row] = await db
-    .select({ published: portfolios.published, updatedAt: portfolios.updatedAt })
+    .select({
+      published: portfolios.published,
+      updatedAt: portfolios.updatedAt,
+      snapshot: portfolios.snapshot,
+    })
     .from(portfolios)
     .where(
       and(
@@ -365,6 +389,31 @@ export async function followResume(
   return row?.slug ?? null;
 }
 
+// For a save that changed nothing public: the copy is marked current, so an older save still on its way can't land.
+export async function markFollowed(
+  userId: string,
+  resume: Resume,
+  version: number,
+): Promise<boolean> {
+  const db = await getDb();
+  const rows = await db
+    .update(portfolios)
+    .set({
+      snapshot: sql`jsonb_set(${portfolios.snapshot}, '{updatedAt}', ${JSON.stringify(resume.updatedAt)}::jsonb)`,
+    })
+    .where(
+      and(
+        eq(portfolios.userId, userId),
+        eq(portfolios.resumeId, resume.id),
+        eq(portfolios.sync, true),
+        lt(sql`coalesce((${portfolios.snapshot} ->> 'updatedAt')::bigint, 0)`, resume.updatedAt),
+        eq(portfolios.updatedAt, version),
+      ),
+    )
+    .returning({ id: portfolios.id });
+  return rows.length > 0;
+}
+
 export type PublicPortfolio = {
   id: string;
   ownerId: string;
@@ -385,8 +434,7 @@ export async function findPublicPortfolio(
   slug: string,
   now = Date.now(),
 ): Promise<PublicPortfolioResult> {
-  const problem = slugProblem(slug);
-  if (problem !== null && problem !== "reserved") return { status: "missing" };
+  if (!servableSlug(slug)) return { status: "missing" };
   const db = await getDb();
   const [row] = await db
     .select({ portfolio: portfolios, plan: users.plan })
@@ -457,12 +505,11 @@ export async function indexablePortfolios(
     .innerJoin(users, eq(users.id, portfolios.userId))
     .where(and(eq(portfolios.published, true), eq(portfolios.allowIndexing, true)))
     .orderBy(desc(portfolios.updatedAt), portfolios.slug);
-  const servable = (slug: string) => {
-    const problem = slugProblem(slug);
-    return normalizeSlug(slug) === slug && (problem === null || problem === "reserved");
-  };
   return rows
-    .filter((row) => ownerCanPublish(row) && servable(row.slug))
+    .filter(
+      (row) =>
+        ownerCanPublish(row) && normalizeSlug(row.slug) === row.slug && servableSlug(row.slug),
+    )
     .slice(0, limit)
     .map(({ slug, updatedAt }) => ({ slug, updatedAt }));
 }
@@ -470,7 +517,7 @@ export async function indexablePortfolios(
 export async function findViewTarget(
   slug: string,
 ): Promise<{ id: string; ownerId: string } | null> {
-  if (slugProblem(slug) !== null) return null;
+  if (!servableSlug(slug)) return null;
   const db = await getDb();
   const [row] = await db
     .select({ id: portfolios.id, ownerId: portfolios.userId })

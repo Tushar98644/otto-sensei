@@ -1,0 +1,137 @@
+[
+  {
+    "route": "/",
+    "initial_kb": 213,
+    "total_kb": 422
+  },
+  {
+    "route": "/_global-error",
+    "initial_kb": 186,
+    "total_kb": 339
+  },
+  {
+    "route": "/_not-found",
+    "initial_kb": 202,
+    "total_kb": 405
+  },
+  {
+    "route": "/acceptable-use",
+    "initial_kb": 202,
+    "total_kb": 405
+  },
+  {
+    "route": "/account",
+    "initial_kb": 297,
+    "total_kb": 504
+  },
+  {
+    "route": "/dashboard",
+    "initial_kb": 343,
+    "total_kb": 1096
+  },
+  {
+    "route": "/dashboard/account",
+    "initial_kb": 327,
+    "total_kb": 1035
+  },
+  {
+    "route": "/dashboard/applications",
+    "initial_kb": 315,
+    "total_kb": 1115
+  },
+  {
+    "route": "/dashboard/applications/[id]",
+    "initial_kb": 305,
+    "total_kb": 1470
+  },
+  {
+    "route": "/dashboard/applications/[id]/prep",
+    "initial_kb": 302,
+    "total_kb": 1026
+  },
+  {
+    "route": "/dashboard/formats",
+    "initial_kb": 282,
+    "total_kb": 1006
+  },
+  {
+    "route": "/dashboard/interview",
+    "initial_kb": 282,
+    "total_kb": 1092
+  },
+  {
+    "route": "/dashboard/interview/[id]",
+    "initial_kb": 302,
+    "total_kb": 1026
+  },
+  {
+    "route": "/dashboard/jobs",
+    "initial_kb": 324,
+    "total_kb": 1032
+  },
+  {
+    "route": "/dashboard/letters",
+    "initial_kb": 307,
+    "total_kb": 1468
+  },
+  {
+    "route": "/dashboard/portfolio",
+    "initial_kb": 283,
+    "total_kb": 1007
+  },
+  {
+    "route": "/dashboard/resumes",
+    "initial_kb": 326,
+    "total_kb": 1077
+  },
+  {
+    "route": "/dashboard/trash",
+    "initial_kb": 280,
+    "total_kb": 1004
+  },
+  {
+    "route": "/login",
+    "initial_kb": 209,
+    "total_kb": 412
+  },
+  {
+    "route": "/p/[slug]",
+    "initial_kb": 232,
+    "total_kb": 578
+  },
+  {
+    "route": "/pricing",
+    "initial_kb": 210,
+    "total_kb": 414
+  },
+  {
+    "route": "/privacy",
+    "initial_kb": 202,
+    "total_kb": 405
+  },
+  {
+    "route": "/refunds",
+    "initial_kb": 202,
+    "total_kb": 405
+  },
+  {
+    "route": "/reminder",
+    "initial_kb": 204,
+    "total_kb": 407
+  },
+  {
+    "route": "/s/[slug]",
+    "initial_kb": 214,
+    "total_kb": 785
+  },
+  {
+    "route": "/studio",
+    "initial_kb": 300,
+    "total_kb": 1213
+  },
+  {
+    "route": "/terms",
+    "initial_kb": 202,
+    "total_kb": 405
+  }
+]
