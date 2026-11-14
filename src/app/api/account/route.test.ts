@@ -14,7 +14,14 @@ import {
   resetDb,
   signInAs as signInFake,
 } from "@/lib/auth/test-helpers";
-import { installFakePaddle, paddleSignature, subscriptionEvent, type FakePaddle } from "@/lib/billing/testing";
+import { signBillingId } from "@/lib/billing/paddle-sign";
+import {
+  installFakePaddle,
+  paddleId,
+  paddleSignature,
+  subscriptionEvent,
+  type FakePaddle,
+} from "@/lib/billing/testing";
 import { resetEnvForTests } from "@/lib/env";
 import type { Resume } from "@/lib/resume/schema";
 import { consumeUsage } from "@/lib/usage";
@@ -29,10 +36,14 @@ const NOW = Date.UTC(2026, 10, 6, 12);
 const WEBHOOK_SECRET = "pdl_ntfset_otto_account_test_secret";
 const CANCEL_FAILED =
   "We couldn't cancel your subscription, so your account wasn't deleted. Try again, or email us.";
+const SUB_1 = paddleId("sub", 1);
+const SUB_2 = paddleId("sub", 2);
+const CTM_1 = paddleId("ctm", 1);
+const PRICE = paddleId("pri", "ottopro");
 
 function useBilling(mode: "paddle" | "mock") {
   vi.stubEnv("PADDLE_API_KEY", mode === "paddle" ? "pdl_sdbx_apikey_test" : undefined);
-  vi.stubEnv("PADDLE_PRO_MONTHLY_PRICE_ID", "pri_otto_pro");
+  vi.stubEnv("PADDLE_PRO_MONTHLY_PRICE_ID", PRICE);
   vi.stubEnv("PADDLE_WEBHOOK_SECRET", WEBHOOK_SECRET);
   vi.stubEnv("NEXT_PUBLIC_PADDLE_CLIENT_TOKEN", "test_otto_client_token");
   resetEnvForTests();
@@ -57,8 +68,8 @@ const DATA = { id: "r1" } as unknown as Resume;
 const PRO = {
   plan: "pro",
   planStatus: "active",
-  billingCustomerId: "ctm_1",
-  billingSubscriptionId: "sub_1",
+  billingCustomerId: CTM_1,
+  billingSubscriptionId: SUB_1,
 } satisfies Partial<typeof users.$inferInsert>;
 
 const cancels = () =>
@@ -150,12 +161,12 @@ describe("DELETE /api/account with a subscription", () => {
   it("cancels the Paddle subscription right away first, then deletes the account", async () => {
     useBilling("paddle");
     const user = await signInAs("ada@example.com", PRO);
-    paddle.subscriptions.push({ id: "sub_1", customer: "ctm_1", price: "pri_otto_pro", status: "active" });
+    paddle.subscriptions.push({ id: SUB_1, customer: CTM_1, price: PRICE, status: "active" });
 
     const res = await DELETE();
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ ok: true });
-    expect(paddle.callsTo("POST /subscriptions/sub_1/cancel")[0]?.body).toEqual({ effective_from: "immediately" });
+    expect(paddle.callsTo(`POST /subscriptions/${SUB_1}/cancel`)[0]?.body).toEqual({ effective_from: "immediately" });
     expect(await userExists(user.id)).toBe(false);
     await expect(getCurrentUser()).resolves.toBeNull();
   });
@@ -166,11 +177,11 @@ describe("DELETE /api/account with a subscription", () => {
       vi.spyOn(console, level).mockImplementation(() => undefined),
     );
     const user = await signInAs("ada@example.com", PRO);
-    paddle.subscriptions.push({ id: "sub_1", customer: "ctm_1", price: "pri_otto_pro", status: "active" });
+    paddle.subscriptions.push({ id: SUB_1, customer: CTM_1, price: PRICE, status: "active" });
     const db = await getDb();
     const resume = { userId: user.id, id: "r1", data: DATA, createdAt: NOW, updatedAt: NOW };
     await db.insert(resumes).values(resume);
-    paddle.failNext("POST /subscriptions/sub_1/cancel", 503);
+    paddle.failNext(`POST /subscriptions/${SUB_1}/cancel`, 503);
 
     const res = await DELETE();
     expect(res.status).toBe(502);
@@ -179,7 +190,7 @@ describe("DELETE /api/account with a subscription", () => {
       error: { code: "billing_unavailable", message: CANCEL_FAILED },
     });
     expect(await db.select().from(users).where(eq(users.id, user.id))).toMatchObject([
-      { plan: "pro", planStatus: "active", billingSubscriptionId: "sub_1" },
+      { plan: "pro", planStatus: "active", billingSubscriptionId: SUB_1 },
     ]);
     expect(await db.select().from(resumes).where(eq(resumes.userId, user.id))).toHaveLength(1);
     await expect(getCurrentUser()).resolves.toMatchObject({ id: user.id });
@@ -193,8 +204,8 @@ describe("DELETE /api/account with a subscription", () => {
     useBilling("paddle");
     vi.spyOn(console, "error").mockImplementation(() => undefined);
     const user = await signInAs("ada@example.com", PRO);
-    paddle.subscriptions.push({ id: "sub_1", customer: "ctm_1", price: "pri_otto_pro", status: "active" });
-    paddle.failNext("POST /subscriptions/sub_1/cancel", 503);
+    paddle.subscriptions.push({ id: SUB_1, customer: CTM_1, price: PRICE, status: "active" });
+    paddle.failNext(`POST /subscriptions/${SUB_1}/cancel`, 503);
 
     expect((await DELETE()).status).toBe(502);
     expect((await DELETE()).status).toBe(200);
@@ -204,10 +215,10 @@ describe("DELETE /api/account with a subscription", () => {
   it("deletes the account when Paddle refuses the cancel because the subscription already ended", async () => {
     useBilling("paddle");
     const user = await signInAs("ada@example.com", PRO);
-    paddle.subscriptions.push({ id: "sub_1", customer: "ctm_1", price: "pri_otto_pro", status: "canceled" });
+    paddle.subscriptions.push({ id: SUB_1, customer: CTM_1, price: PRICE, status: "canceled" });
 
     expect((await DELETE()).status).toBe(200);
-    expect(paddle.callsTo("GET /subscriptions/sub_1")).toHaveLength(1);
+    expect(paddle.callsTo(`GET /subscriptions/${SUB_1}`)).toHaveLength(1);
     expect(await userExists(user.id)).toBe(false);
   });
 
@@ -215,11 +226,101 @@ describe("DELETE /api/account with a subscription", () => {
     useBilling("paddle");
     vi.spyOn(console, "error").mockImplementation(() => undefined);
     const user = await signInAs("ada@example.com", PRO);
-    paddle.subscriptions.push({ id: "sub_1", customer: "ctm_1", price: "pri_otto_pro", status: "active" });
-    paddle.failNext("POST /subscriptions/sub_1/cancel", 400, 1, "subscription_locked_renewal");
+    paddle.subscriptions.push({ id: SUB_1, customer: CTM_1, price: PRICE, status: "active" });
+    paddle.failNext(`POST /subscriptions/${SUB_1}/cancel`, 400, 1, "subscription_locked_renewal");
 
     expect((await DELETE()).status).toBe(502);
     expect(await userExists(user.id)).toBe(true);
+  });
+
+  it("answers 503 and keeps everything in production when there's no Paddle key to cancel with", async () => {
+    useBilling("paddle");
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("PADDLE_API_KEY", undefined);
+    resetEnvForTests();
+    const sinks = (["info", "warn", "error"] as const).map((level) =>
+      vi.spyOn(console, level).mockImplementation(() => undefined),
+    );
+    const user = await signInAs("ada@example.com", PRO);
+    const db = await getDb();
+    await db.insert(resumes).values({ userId: user.id, id: "r1", data: DATA, createdAt: NOW, updatedAt: NOW });
+
+    const res = await DELETE();
+    expect(res.status).toBe(503);
+    expect(await res.json()).toEqual({
+      ok: false,
+      error: {
+        code: "billing_unavailable",
+        message:
+          "We can't cancel your subscription right now, so your account wasn't deleted. Email us and we'll do it.",
+      },
+    });
+    expect(await db.select().from(users).where(eq(users.id, user.id))).toMatchObject([
+      { plan: "pro", planStatus: "active", billingSubscriptionId: SUB_1 },
+    ]);
+    expect(await db.select().from(resumes).where(eq(resumes.userId, user.id))).toHaveLength(1);
+    expect(fakeAuth.hasAuthUser(user.id)).toBe(true);
+    await expect(getCurrentUser()).resolves.toMatchObject({ id: user.id });
+    expect(paddle.calls).toEqual([]);
+
+    const output = JSON.stringify(sinks.flatMap((sink) => sink.mock.calls));
+    expect(output).toContain("billing_not_configured");
+    expect(output).not.toContain("ada@example.com");
+  });
+
+  it("deletes in production without a Paddle key when nothing at Paddle can charge", async () => {
+    useBilling("paddle");
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("PADDLE_API_KEY", undefined);
+    resetEnvForTests();
+    vi.spyOn(console, "info").mockImplementation(() => undefined);
+    const user = await signInAs("ada@example.com", { ...PRO, planStatus: "canceled", plan: "free" });
+
+    expect((await DELETE()).status).toBe(200);
+    expect(await userExists(user.id)).toBe(false);
+    expect(paddle.calls).toEqual([]);
+  });
+
+  it("deletes an account holding ids left over from Creem without sending them to Paddle", async () => {
+    useBilling("paddle");
+    const creem = ["cust_3kKw0VQ8bY1lN3m9", "sub_7Hq2LmPz9XcV4bN1"];
+    const user = await signInAs("ada@example.com", {
+      ...PRO,
+      billingCustomerId: creem[0],
+      billingSubscriptionId: creem[1],
+    });
+
+    expect((await DELETE()).status).toBe(200);
+    expect(await userExists(user.id)).toBe(false);
+    expect(paddle.calls.map((call) => `${call.method} ${call.path}`)).toEqual(["GET /customers"]);
+    const sent = JSON.stringify(paddle.calls.map((call) => [call.path, call.query.toString(), call.body]));
+    for (const id of creem) expect(sent).not.toContain(id);
+  });
+
+  it("cancels a Paddle subscription found by email for an account still holding Creem ids", async () => {
+    useBilling("paddle");
+    const user = await signInAs("ada@example.com", {
+      ...PRO,
+      billingCustomerId: "cust_3kKw0VQ8bY1lN3m9",
+      billingSubscriptionId: "sub_7Hq2LmPz9XcV4bN1",
+    });
+    paddle.customers.push({ id: CTM_1, email: "ada@example.com" });
+    paddle.subscriptions.push({ id: SUB_1, customer: CTM_1, price: PRICE, status: "active" });
+
+    expect((await DELETE()).status).toBe(200);
+    expect(cancels()).toEqual([SUB_1]);
+    expect(await userExists(user.id)).toBe(false);
+  });
+
+  it("keeps the account when Paddle can't find the subscription: it may be on the other environment", async () => {
+    useBilling("paddle");
+    const errors = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const user = await signInAs("ada@example.com", PRO);
+
+    expect((await DELETE()).status).toBe(502);
+    expect(await userExists(user.id)).toBe(true);
+    expect(paddle.callsTo(`POST /subscriptions/${SUB_1}/cancel`)).toHaveLength(1);
+    expect(JSON.stringify(errors.mock.calls)).toContain("billing.cancel_not_found");
   });
 
   it("downgrades and deletes in mock mode, a trial included", async () => {
@@ -245,29 +346,29 @@ describe("DELETE /api/account with a subscription", () => {
 
   it("also cancels a subscription the stored ids no longer point to", async () => {
     useBilling("paddle");
-    const user = await signInAs("ada@example.com", { ...PRO, billingSubscriptionId: "sub_2" });
+    const user = await signInAs("ada@example.com", { ...PRO, billingSubscriptionId: SUB_2 });
     paddle.subscriptions.push(
-      { id: "sub_1", customer: "ctm_1", price: "pri_otto_pro", status: "active" },
-      { id: "sub_2", customer: "ctm_1", price: "pri_otto_pro", status: "active" },
+      { id: SUB_1, customer: CTM_1, price: PRICE, status: "active" },
+      { id: SUB_2, customer: CTM_1, price: PRICE, status: "active" },
     );
 
     expect((await DELETE()).status).toBe(200);
-    expect(cancels().sort()).toEqual(["sub_1", "sub_2"]);
+    expect(cancels().sort()).toEqual([SUB_1, SUB_2]);
     expect(await userExists(user.id)).toBe(false);
   });
 
   it("answers Paddle's later cancellation webhook with 200, so it isn't retried", async () => {
     useBilling("paddle");
     const user = await signInAs("ada@example.com", PRO);
-    paddle.subscriptions.push({ id: "sub_1", customer: "ctm_1", price: "pri_otto_pro", status: "active" });
+    paddle.subscriptions.push({ id: SUB_1, customer: CTM_1, price: PRICE, status: "active" });
     expect((await DELETE()).status).toBe(200);
 
     const payload = subscriptionEvent("subscription.canceled", {
-      id: "sub_1",
-      customer: "ctm_1",
+      id: SUB_1,
+      customer: CTM_1,
       status: "canceled",
-      price: "pri_otto_pro",
-      customData: { user_id: user.id },
+      price: PRICE,
+      customData: { user_id: user.id, user_sig: signBillingId(user.id, WEBHOOK_SECRET) },
     });
     const res = await webhook(
       new Request("https://otto.example/api/billing/webhook", {

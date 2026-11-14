@@ -59,6 +59,11 @@ async function cancelReplaced(replacement: Replacement, now: number): Promise<bo
     subscriptionId: replacement.replacedSubscriptionId,
     replacedBy: replacement.subscriptionId,
     attempt: replacement.attempts + 1,
+    // A refused second trial is recorded as replaced by itself.
+    reason:
+      replacement.subscriptionId === replacement.replacedSubscriptionId
+        ? "trial_reused"
+        : "replaced",
   };
   const attempted = { attempts: sql`${trialReplacements.attempts} + 1` };
   const row = eq(trialReplacements.replacedSubscriptionId, replacement.replacedSubscriptionId);

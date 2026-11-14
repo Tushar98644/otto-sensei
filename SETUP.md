@@ -444,7 +444,7 @@ key**, name `otto-sensei`. Give it only these permissions:
 | Permission | Read | Write | Used for |
 |---|---|---|---|
 | Customers | yes | yes | Finding or creating the customer for a checkout; the webhook's email fallback |
-| Transactions | yes | yes | Creating each checkout |
+| Transactions | yes | yes | Creating each checkout, and cancelling the customer's older unpaid ones |
 | Subscriptions | yes | yes | Plan changes, finding live subscriptions, cancelling on account deletion |
 | Customer portal sessions | | yes | **Manage billing** |
 
@@ -510,10 +510,12 @@ real money. Changed a value? Redeploy: the pricing page and the client token are
 nobody has paid. Delete the Creem webhook endpoint, then remove the old variables
 (`vercel env rm CREEM_API_KEY production`, and the same for `CREEM_WEBHOOK_SECRET`,
 `CREEM_TEST_MODE` and every `CREEM_*_PRODUCT_ID`). Accounts may still be on Pro or Max from Creem
-test checkouts: once the Paddle build is live, `bun scripts/reset-creem-plans.ts` against the
-production database (the `.env.local` from step 5, like `bun scripts/migrate.ts`) prints how many
-(it changes nothing), and the same command with `--apply` moves them back to Free and clears their
-Creem ids. It prints counts only, never emails.
+test checkouts: as soon as the Paddle sandbox build first deploys, run
+`bun scripts/reset-creem-plans.ts` against the production database (the `.env.local` from step 5,
+like `bun scripts/migrate.ts`). It prints how many accounts still hold Creem ids and changes
+nothing. Then run it again with `--apply`: that moves them back to Free and clears their Creem ids.
+Paddle ids are never touched in this mode, so it is safe to run again. It prints counts only, never
+emails; `--help` lists both modes.
 
 **7. Test it** (sandbox, on the deployed app). Card `4242 4242 4242 4242`, any name, any future
 date, CVC `100`. Other sandbox cards: `4000 0038 0000 0446` asks for 3-D Secure,
@@ -558,13 +560,22 @@ from sandbox), then:
    sandbox, cancel each of them in the sandbox dashboard (**Subscriptions**, or **Customers** →
    the customer → the subscription → **Cancel subscription**), immediately; each cancel reaches the
    app and moves that account to Free. Check the list is empty, then go straight to the next step.
-7. Replace the values in Vercel (`vercel env rm NAME production`, then `vercel env add NAME
+7. In the sandbox dashboard, deactivate the sandbox webhook destination (**Events** →
+   **Notifications**), so no sandbox checkout can reach the app any more.
+8. **Clear the sandbox billing ids, right before the switch.** Sandbox and live ids look exactly
+   alike, so the live build would try to manage sandbox ones on the live account (a cancel there
+   answers "not found", and account deletion would be refused). Against the production database:
+   `bun scripts/reset-creem-plans.ts --go-live` prints how many accounts hold any billing state
+   (it changes nothing), then `bun scripts/reset-creem-plans.ts --go-live --apply` moves every one
+   of them to Free and clears their billing ids and trial replacements. Counts only, never emails.
+   Go straight to the next step. This is the only time `--go-live --apply` is ever run: once
+   production is on live, it would move paying customers to Free while Paddle keeps charging them.
+9. Replace the values in Vercel (`vercel env rm NAME production`, then `vercel env add NAME
    production`): the live API key (`pdl_live_apikey_...`), the live webhook secret, the `live_...`
-   client token, the five live price ids and `PADDLE_ENVIRONMENT=live`. Redeploy.
-8. In the sandbox dashboard, deactivate the sandbox webhook destination (**Events** →
-   **Notifications**): production now checks the live secret, so its deliveries only fail.
-9. Before telling anyone: one real checkout on the live site with a 100% discount code, then
-   cancel that subscription and archive the discount.
+   client token, the five live price ids and `PADDLE_ENVIRONMENT=live`. Redeploy. From now on,
+   never roll production back to a build made with the sandbox values.
+10. Before telling anyone: one real checkout on the live site with a 100% discount code, then
+    cancel that subscription and archive the discount.
 
 **Mock billing.** In `bun dev` with no Paddle keys every option is offered and nothing is charged:
 a new account's first Pro monthly checkout starts a local 3-day trial, anything else switches the

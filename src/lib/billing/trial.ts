@@ -23,9 +23,12 @@ export async function recordTrialHistory(
     .onConflictDoNothing();
 }
 
-export async function isTrialEligible(user: Pick<SessionUser, "id" | "email" | "plan">): Promise<boolean> {
+export async function isTrialEligible(
+  user: Pick<SessionUser, "id" | "email" | "plan">,
+  conn?: Db | Tx,
+): Promise<boolean> {
   if (user.plan !== "free") return false;
-  const db = await getDb();
+  const db = conn ?? (await getDb());
   const [row] = await db
     .select({
       planStatus: users.planStatus,

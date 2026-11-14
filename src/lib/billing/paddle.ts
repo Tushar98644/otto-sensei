@@ -4,6 +4,7 @@ import { normalizeEmail } from "@/lib/auth/policy";
 import { env } from "@/lib/env";
 import { log } from "@/lib/log";
 import { BillingError } from "./errors";
+import { signBillingId } from "./paddle-sign";
 
 const API_URL = {
   sandbox: "https://sandbox-api.paddle.com",
@@ -18,11 +19,20 @@ const READ_RETRY_BUDGET_MS = 2_000;
 const PAGE_SIZE = "200";
 const PORTAL_SUBSCRIPTION_LIMIT = 25;
 const LIVE_STATUSES = "active,trialing,past_due,paused";
+const OPEN_TRANSACTION_STATUSES = "draft,ready";
 const REFUSED_STATUSES: ReadonlySet<number> = new Set([400, 404, 409, 422]);
 const ERROR_CODE = /^[a-z0-9_]{1,64}$/;
 const CUSTOMER_ID = /\bctm_[a-z\d]{26}\b/;
+const PADDLE_ID = /^(sub|ctm|txn|pri)_[a-z0-9]{26}$/;
 
 export const REPLACES_METADATA_KEY = "replaces_subscription_id";
+
+export type PaddleIdKind = "sub" | "ctm" | "txn" | "pri";
+
+// Anything else (an old Creem id, say) is nothing at Paddle, so it is never sent there.
+export function isPaddleId(kind: PaddleIdKind, id: string | null | undefined): id is string {
+  return typeof id === "string" && id.startsWith(`${kind}_`) && PADDLE_ID.test(id);
+}
 
 type Operation = "checkout" | "portal" | "cancel" | "lookup" | "change_plan";
 
@@ -67,6 +77,15 @@ const CustomerList = z.object({
 });
 const TransactionResponse = z.object({
   data: z.object({ checkout: z.object({ url: z.url().nullish() }).nullish() }),
+});
+const TransactionList = z.object({
+  data: z.array(
+    z.object({
+      id: z.string(),
+      customer_id: z.string().nullable(),
+      subscription_id: z.string().nullable(),
+    }),
+  ),
 });
 const PortalResponse = z.object({
   data: z.object({ urls: z.object({ general: z.object({ overview: z.url() }) }) }),
@@ -211,6 +230,9 @@ export async function getPaddleSubscription(id: string): Promise<PaddleSubscript
 }
 
 async function readSubscription(id: string, operation: Operation): Promise<PaddleSubscription> {
+  if (!isPaddleId("sub", id)) {
+    throw new BillingError("no_subscription", "Not a Paddle subscription id", { operation });
+  }
   const response = await request(
     operation,
     { method: "GET", path: `/subscriptions/${segment(id)}` },
@@ -233,6 +255,10 @@ export async function endPaddleSubscription(id: string): Promise<CancelOutcome> 
 }
 
 async function cancelSubscription(id: string, immediately: boolean): Promise<CancelOutcome> {
+  if (!isPaddleId("sub", id)) {
+    log.warn("billing.cancel_skipped", { operation: "cancel", reason: "not_a_paddle_id" });
+    return "already_ended";
+  }
   try {
     await send(
       {
@@ -244,9 +270,18 @@ async function cancelSubscription(id: string, immediately: boolean): Promise<Can
     );
     return "cancelled";
   } catch (error) {
-    const status = error instanceof PaddleFailure ? error.info.status : undefined;
-    if (status === undefined || !REFUSED_STATUSES.has(status)) {
+    const info = error instanceof PaddleFailure ? error.info : {};
+    if (info.status === undefined || !REFUSED_STATUSES.has(info.status)) {
       throw providerFailure("cancel", error);
+    }
+    // Sandbox and live ids look alike, so a 404 may mean this build talks to the other environment.
+    if (info.status === 404) {
+      log.error("billing.cancel_not_found", "Paddle has no such subscription", {
+        operation: "cancel",
+        subscriptionId: id,
+        environment: env().PADDLE_ENVIRONMENT,
+        requestId: info.requestId,
+      });
     }
   }
   // An earlier timed-out cancel may have gone through before its webhook: Paddle's status decides.
@@ -269,6 +304,12 @@ async function cancelSubscription(id: string, immediately: boolean): Promise<Can
 }
 
 export async function changePaddlePlan(subscriptionId: string, priceId: string): Promise<void> {
+  if (!isPaddleId("sub", subscriptionId)) {
+    throw new BillingError("no_subscription", "Not a Paddle subscription id", {
+      operation: "change_plan",
+    });
+  }
+  assertPriceId(priceId);
   await request(
     "change_plan",
     {
@@ -288,7 +329,7 @@ export async function listLivePaddleSubscriptions(q: {
   email?: string | null;
 }): Promise<PaddleSubscription[]> {
   const customerIds = new Set<string>();
-  if (q.customerId) customerIds.add(q.customerId);
+  if (isPaddleId("ctm", q.customerId)) customerIds.add(q.customerId);
   if (q.email) {
     const byEmail = await customerWithEmail(normalizeEmail(q.email), "lookup");
     if (byEmail) customerIds.add(byEmail);
@@ -316,7 +357,8 @@ async function customerWithEmail(email: string, operation: Operation): Promise<s
     { method: "GET", path: "/customers", query: { email } },
     CustomerList,
   );
-  return list.data.find((customer) => normalizeEmail(customer.email) === email)?.id ?? null;
+  const found = list.data.find((customer) => normalizeEmail(customer.email) === email)?.id;
+  return isPaddleId("ctm", found) ? found : null;
 }
 
 async function customerFor(email: string): Promise<string> {
@@ -349,7 +391,14 @@ export async function createPaddleCheckout(input: {
   trial: boolean;
   replacesSubscriptionId?: string;
 }): Promise<{ url: string; customerId: string }> {
-  const customerId = input.customerId ?? (await customerFor(input.email));
+  const secret = env().PADDLE_WEBHOOK_SECRET;
+  if (!secret) throw new BillingError("unavailable", "PADDLE_WEBHOOK_SECRET is not set");
+  assertPriceId(input.priceId);
+  const replaces = input.replacesSubscriptionId;
+  const customerId = isPaddleId("ctm", input.customerId)
+    ? input.customerId
+    : await customerFor(input.email);
+  await cancelOpenCheckouts(customerId);
   const transaction = await request(
     "checkout",
     {
@@ -360,8 +409,9 @@ export async function createPaddleCheckout(input: {
         customer_id: customerId,
         custom_data: {
           user_id: input.userId,
-          ...(input.replacesSubscriptionId
-            ? { [REPLACES_METADATA_KEY]: input.replacesSubscriptionId }
+          user_sig: signBillingId(input.userId, secret),
+          ...(replaces
+            ? { [REPLACES_METADATA_KEY]: replaces, replaces_sig: signBillingId(replaces, secret) }
             : {}),
         },
       },
@@ -383,8 +433,69 @@ export async function createPaddleCheckout(input: {
   return { url: url.toString(), customerId };
 }
 
+// A checkout link stays payable after it's made: an older one paid later would be a second subscription.
+async function cancelOpenCheckouts(customerId: string): Promise<void> {
+  let open: z.infer<typeof TransactionList>["data"];
+  try {
+    const list = await send(
+      {
+        method: "GET",
+        path: "/transactions",
+        query: { customer_id: customerId, status: OPEN_TRANSACTION_STATUSES },
+      },
+      TransactionList,
+    );
+    open = list.data;
+  } catch (error) {
+    openCheckoutNotCancelled("list", error);
+    return;
+  }
+  // A card update or a renewal belongs to a subscription; only this customer's checkouts for a new one end.
+  const stale = open.filter(
+    (transaction) =>
+      transaction.customer_id === customerId &&
+      transaction.subscription_id === null &&
+      isPaddleId("txn", transaction.id),
+  );
+  for (const { id } of stale) {
+    try {
+      await send(
+        { method: "PATCH", path: `/transactions/${segment(id)}`, body: { status: "canceled" } },
+        Anything,
+      );
+      log.info("billing.open_checkout_cancelled", { operation: "checkout", transactionId: id });
+    } catch (error) {
+      openCheckoutNotCancelled("cancel", error, id);
+    }
+  }
+}
+
+function openCheckoutNotCancelled(step: "list" | "cancel", error: unknown, transactionId?: string) {
+  const failure = error instanceof PaddleFailure ? error : null;
+  log.warn("billing.open_checkout_cancel_failed", {
+    operation: "checkout",
+    step,
+    transactionId,
+    kind: failure?.kind ?? (error instanceof BillingError ? error.code : "unknown"),
+    status: failure?.info.status,
+    providerCode: failure?.info.code,
+    requestId: failure?.info.requestId,
+  });
+}
+
+function assertPriceId(priceId: string): void {
+  if (!isPaddleId("pri", priceId)) {
+    throw new BillingError("unavailable", "The price id is not a Paddle price id (pri_...)");
+  }
+}
+
 export async function paddlePortalUrl(customerId: string, subscriptionIds: string[]): Promise<string> {
-  const ids = subscriptionIds.slice(0, PORTAL_SUBSCRIPTION_LIMIT);
+  if (!isPaddleId("ctm", customerId)) {
+    throw new BillingError("no_subscription", "Not a Paddle customer id", { operation: "portal" });
+  }
+  const ids = subscriptionIds
+    .filter((id) => isPaddleId("sub", id))
+    .slice(0, PORTAL_SUBSCRIPTION_LIMIT);
   const session = await request(
     "portal",
     {

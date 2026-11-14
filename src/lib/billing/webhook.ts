@@ -14,6 +14,7 @@ import {
   type ApplyResult,
   type SubscriptionState,
 } from "./entitlements";
+import { verifyBillingId } from "./paddle-sign";
 import { settleReplacement } from "./replacements";
 
 // Paddle redelivers any non-2xx for about two days on live, so only retryable failures get a 5xx.
@@ -26,6 +27,7 @@ export type WebhookConfig = {
   secret: string | undefined;
   priceIds: readonly string[];
   planForPrice: (priceId: string) => PricePlan | null | undefined;
+  trialPriceId?: string | null;
   customerEmail?: (customerId: string) => Promise<string | null>;
 };
 
@@ -33,7 +35,10 @@ const MAX_BODY_CHARS = 256 * 1024;
 const MAX_EVENT_ID_CHARS = 255;
 const MAX_SIGNATURE_CHARS = 2048;
 const SIGNATURE_TOLERANCE_MS = 5 * 60 * 1000;
-const REPLACES_KEY = "replaces_subscription_id";
+const SIGNED_KEYS = [
+  { id: "user_id", sig: "user_sig" },
+  { id: "replaces_subscription_id", sig: "replaces_sig" },
+] as const;
 
 // Status decides the plan, not the event name; Paddle doesn't deliver in order.
 const SUBSCRIPTION_EVENTS: ReadonlySet<string> = new Set([
@@ -47,6 +52,11 @@ const SUBSCRIPTION_EVENTS: ReadonlySet<string> = new Set([
   "subscription.canceled",
 ]);
 const TRANSACTION_COMPLETED = "transaction.completed";
+// Refunds, credits and chargebacks change no plan; they're logged for the owner to act on.
+const ADJUSTMENT_EVENTS: ReadonlySet<string> = new Set([
+  "adjustment.created",
+  "adjustment.updated",
+]);
 // A subscription's first transaction is its checkout; renewals and plan changes have other origins.
 const CHECKOUT_ORIGINS: ReadonlySet<string> = new Set(["web", "api"]);
 
@@ -68,12 +78,13 @@ const SubscriptionSchema = z.object({
   items: z
     .array(
       z.object({
-        price: z.object({ id: IdSchema }),
+        price: z.object({ id: IdSchema, trial_period: z.unknown().nullish() }),
         trial_dates: z.object({ ends_at: TimestampSchema }).nullish(),
       }),
     )
     .max(100),
   scheduled_change: z.object({ action: z.string().max(50) }).nullish(),
+  first_billed_at: TimestampSchema,
   next_billed_at: TimestampSchema,
   current_billing_period: z
     .object({ starts_at: TimestampSchema, ends_at: TimestampSchema })
@@ -92,8 +103,18 @@ const TransactionSchema = z.object({
     .max(100),
 });
 
+const AdjustmentSchema = z.object({
+  id: IdSchema,
+  action: z.string().min(1).max(50),
+  status: z.string().min(1).max(50),
+  transaction_id: IdSchema.nullish(),
+  subscription_id: IdSchema.nullish(),
+});
+
 type SubscriptionData = z.infer<typeof SubscriptionSchema>;
+type CustomData = z.infer<typeof CustomDataSchema>;
 type Context = { eventId: string; eventType: string };
+type TrustedIds = { userId: string | undefined; replacesSubscriptionId: string | null };
 type SignatureCheck = "valid" | "missing" | "malformed" | "mismatch" | "stale";
 
 export async function processWebhook(
@@ -128,7 +149,10 @@ export async function processWebhook(
     eventType: envelope.data.event_type,
   };
   if (context.eventType === TRANSACTION_COMPLETED) {
-    return recordCheckout(envelope.data.data, context, config, now);
+    return recordCheckout(envelope.data.data, context, { ...config, secret: config.secret }, now);
+  }
+  if (ADJUSTMENT_EVENTS.has(context.eventType)) {
+    return recordAdjustment(envelope.data.data, context, now);
   }
   if (!SUBSCRIPTION_EVENTS.has(context.eventType)) {
     log.info("billing.webhook_ignored", { ...context, reason: "event_type" });
@@ -137,7 +161,11 @@ export async function processWebhook(
   const parsed = SubscriptionSchema.safeParse(envelope.data.data);
   if (!parsed.success) return malformed(parsed.error, context);
 
-  const state = toState(parsed.data, parseTimestamp(envelope.data.occurred_at), config);
+  const ids = trustedIds(parsed.data.custom_data, config.secret, {
+    ...context,
+    subscriptionId: parsed.data.id,
+  });
+  const state = toState(parsed.data, parseTimestamp(envelope.data.occurred_at), config, ids);
   let result: ApplyResult;
   try {
     result = await applySubscriptionState(state, context, now, {
@@ -147,7 +175,16 @@ export async function processWebhook(
     log.error("billing.webhook_failed", error, context);
     return { status: 500, message: "retry" };
   }
-  await report(result, { ...context, status: state.status });
+  if (result.outcome === "rejected") {
+    log.warn("billing.trial_reused", {
+      ...context,
+      userId: result.userId,
+      subscriptionId: state.subscriptionId,
+    });
+    await cancelReusedTrial(state.subscriptionId, context, now);
+    return { status: 200, message: "ignored" };
+  }
+  await report(result, { ...context, status: state.status, subscriptionId: state.subscriptionId });
   const replaced = state.replacesSubscriptionId;
   if (replaced) {
     let settled: boolean;
@@ -186,10 +223,32 @@ function checkSignature(
   return Math.abs(now - Number(ts) * 1000) > SIGNATURE_TOLERANCE_MS ? "stale" : "valid";
 }
 
+// Paddle.js lets anyone set custom_data, so an id counts only with the signature our server added.
+function trustedIds(
+  customData: CustomData,
+  secret: string,
+  fields: Context & Record<string, string>,
+): TrustedIds {
+  const unsigned: string[] = [];
+  const [userId, replaces] = SIGNED_KEYS.map(({ id, sig }) => {
+    const value = customData?.[id];
+    if (value === undefined || value === null) return null;
+    const valid = IdSchema.safeParse(value);
+    if (valid.success && verifyBillingId(valid.data, customData?.[sig], secret)) return valid.data;
+    unsigned.push(id);
+    return null;
+  });
+  if (unsigned.length > 0) {
+    log.warn("billing.unsigned_custom_data", { ...fields, keys: unsigned.join(",") });
+  }
+  return { userId: userId ?? undefined, replacesSubscriptionId: replaces ?? null };
+}
+
 function toState(
   data: SubscriptionData,
   eventAt: number | null,
   config: WebhookConfig,
+  ids: TrustedIds,
 ): SubscriptionState {
   const ours = data.items.find((item) => config.priceIds.includes(item.price.id));
   const price = ours ? (config.planForPrice(ours.price.id) ?? null) : null;
@@ -199,10 +258,12 @@ function toState(
     cancelling && (data.status === "active" || data.status === "trialing")
       ? "scheduled_cancel"
       : data.status;
-  const userId = data.custom_data?.user_id;
-  const replaces = IdSchema.safeParse(data.custom_data?.[REPLACES_KEY]);
+  const onTrialPrice =
+    ours !== undefined &&
+    ((config.trialPriceId && ours.price.id === config.trialPriceId) ||
+      hasTrialPeriod(ours.price.trial_period));
   return {
-    userId: typeof userId === "string" && userId.length <= 200 ? userId : undefined,
+    userId: ids.userId,
     customerId: data.customer_id,
     subscriptionId: data.id,
     pricePlan: price?.plan ?? null,
@@ -213,8 +274,21 @@ function toState(
     periodEndsAt: parseTimestamp(data.current_billing_period?.ends_at),
     trialEndsAt: trialEndOf(data, ours),
     eventAt,
-    replacesSubscriptionId: replaces.success ? replaces.data : null,
+    replacesSubscriptionId: ids.replacesSubscriptionId,
+    unpaidTrial:
+      data.status === "trialing" || (data.status === "past_due" && onTrialPrice && neverPaid(data)),
   };
+}
+
+// A trial whose first charge failed is past_due in its first billed period; a renewal moves the period on.
+function neverPaid(data: SubscriptionData): boolean {
+  const firstBilled = parseTimestamp(data.first_billed_at);
+  const periodStart = parseTimestamp(data.current_billing_period?.starts_at);
+  return firstBilled === null || periodStart === null || periodStart <= firstBilled;
+}
+
+function hasTrialPeriod(trialPeriod: unknown): boolean {
+  return trialPeriod !== null && trialPeriod !== undefined;
 }
 
 function trialEndOf(
@@ -236,7 +310,7 @@ function trialEndOf(
 async function recordCheckout(
   object: unknown,
   context: Context,
-  config: WebhookConfig,
+  config: WebhookConfig & { secret: string },
   now: number,
 ): Promise<WebhookResult> {
   const parsed = TransactionSchema.safeParse(object);
@@ -252,23 +326,19 @@ async function recordCheckout(
   const item = transaction.items.find((candidate) => config.priceIds.includes(candidate.price.id));
   const price = item ? config.planForPrice(item.price.id) : null;
   if (!item || !price) return ignore("other_product");
-  const metadataUserId = transaction.custom_data?.user_id;
+  const ids = trustedIds(transaction.custom_data, config.secret, {
+    ...context,
+    transactionId: transaction.id,
+  });
   try {
-    const userId = await findBillingUserId({
-      userId:
-        typeof metadataUserId === "string" && metadataUserId.length <= 200
-          ? metadataUserId
-          : undefined,
-      customerId,
-      subscriptionId,
-    });
+    const userId = await findBillingUserId({ userId: ids.userId, customerId, subscriptionId });
     if (!userId) return ignore("no_user");
     // Keyed by subscription, so a replay with a new event id still counts once.
     if (!(await claimBillingEvent(`checkout:${subscriptionId}`, context.eventType, now))) {
       log.info("billing.webhook_duplicate", context);
       return { status: 200, message: "duplicate" };
     }
-    const trial = item.price.trial_period !== null && item.price.trial_period !== undefined;
+    const trial = hasTrialPeriod(item.price.trial_period);
     captureServerEvent(
       userId,
       "checkout_completed",
@@ -283,13 +353,57 @@ async function recordCheckout(
   return { status: 200, message: "applied" };
 }
 
+async function recordAdjustment(
+  object: unknown,
+  context: Context,
+  now: number,
+): Promise<WebhookResult> {
+  const parsed = AdjustmentSchema.safeParse(object);
+  if (!parsed.success) return malformed(parsed.error, context);
+  const adjustment = parsed.data;
+  try {
+    if (!(await claimBillingEvent(context.eventId, context.eventType, now))) {
+      log.info("billing.webhook_duplicate", context);
+      return { status: 200, message: "duplicate" };
+    }
+  } catch (error) {
+    log.error("billing.webhook_failed", error, context);
+    return { status: 500, message: "retry" };
+  }
+  log.warn("billing.adjustment", {
+    ...context,
+    action: adjustment.action,
+    status: adjustment.status,
+    adjustmentId: adjustment.id,
+    transactionId: adjustment.transaction_id ?? null,
+    subscriptionId: adjustment.subscription_id ?? null,
+  });
+  return { status: 200, message: "applied" };
+}
+
+// A failed cancel keeps its trial_replacements row for the daily cron, so Paddle needn't redeliver.
+async function cancelReusedTrial(
+  subscriptionId: string,
+  context: Context,
+  now: number,
+): Promise<void> {
+  try {
+    await settleReplacement(subscriptionId, now);
+  } catch (error) {
+    log.error("billing.replace_cancel_failed", error, { ...context, subscriptionId });
+  }
+}
+
 function malformed(error: z.ZodError, context: Context): WebhookResult {
   const path = error.issues[0]?.path.map(String).join(".") || "object";
   log.error("billing.webhook_malformed", `invalid ${path}`, context);
   return { status: 500, message: "malformed" };
 }
 
-async function report(result: ApplyResult, context: Context & { status: string }): Promise<void> {
+async function report(
+  result: Exclude<ApplyResult, { outcome: "rejected" }>,
+  context: Context & { status: string; subscriptionId: string },
+): Promise<void> {
   if (result.outcome === "applied") {
     log.info("billing.plan_updated", {
       ...context,
@@ -297,6 +411,13 @@ async function report(result: ApplyResult, context: Context & { status: string }
       plan: result.plan,
       trialing: result.trialing,
     });
+    if (result.otherLiveSubscriptionId) {
+      log.error("billing.second_live_subscription", "a second live subscription took over", {
+        ...context,
+        userId: result.userId,
+        otherSubscriptionId: result.otherLiveSubscriptionId,
+      });
+    }
     await refreshPublishedPage(result);
     return;
   }
@@ -305,6 +426,14 @@ async function report(result: ApplyResult, context: Context & { status: string }
     return;
   }
   const fields = { ...context, reason: result.reason };
+  if (result.reason === "unsigned") {
+    log.error(
+      "billing.unsigned_subscription",
+      "a subscription without our signed id was not applied",
+      fields,
+    );
+    return;
+  }
   const paidWithoutUser = result.reason === "no_user" && planForStatus(context.status) === "paid";
   if (paidWithoutUser || result.reason === "unknown_status") {
     log.warn("billing.webhook_ignored", fields);

@@ -1,6 +1,6 @@
 import { createHmac } from "node:crypto";
 import { vi } from "vitest";
-import type { PaddleSubscription } from "./paddle";
+import type { PaddleIdKind, PaddleSubscription } from "./paddle";
 
 const AT = "2026-11-08T10:00:00.000Z";
 const NEXT = "2026-12-08T10:00:00.000Z";
@@ -8,7 +8,19 @@ const TRIAL_END = "2026-11-11T10:00:00.000Z";
 
 type Status = PaddleSubscription["status"];
 
+// A well-formed Paddle id: the prefix and 26 lowercase letters or digits.
+export function paddleId(kind: PaddleIdKind, name: string | number): string {
+  return `${kind}_${String(name).padStart(26, "0")}`;
+}
+
 export type FakeCustomer = { id: string; email: string };
+export type FakeTransaction = {
+  id: string;
+  customer: string;
+  status: "draft" | "ready" | "billed" | "paid" | "completed" | "canceled" | "past_due";
+  subscription?: string | null;
+  customData?: Record<string, unknown> | null;
+};
 export type FakeSubscription = {
   id: string;
   customer: string;
@@ -31,6 +43,7 @@ type Failure = { status: number; left: number; code?: string; detail?: string };
 export type FakePaddle = {
   customers: FakeCustomer[];
   subscriptions: FakeSubscription[];
+  transactions: FakeTransaction[];
   calls: FakeCall[];
   failNext: (route: string, status: number, times?: number, code?: string, detail?: string) => void;
   callsTo: (route: string) => FakeCall[];
@@ -79,14 +92,26 @@ function subscriptionEntity(subscription: FakeSubscription) {
   };
 }
 
+function transactionEntity(transaction: FakeTransaction) {
+  return {
+    id: transaction.id,
+    status: transaction.status,
+    customer_id: transaction.customer,
+    subscription_id: transaction.subscription ?? null,
+    custom_data: transaction.customData ?? null,
+    checkout: { url: `https://otto.example/checkout?_ptxn=${transaction.id}` },
+  };
+}
+
 export function installFakePaddle(): FakePaddle {
   const failures = new Map<string, Failure>();
   let created = 0;
-  let transactions = 0;
+  let made = 0;
   let sessions = 0;
   const fake: FakePaddle = {
     customers: [],
     subscriptions: [],
+    transactions: [],
     calls: [],
     failNext: (route, status, times = 1, code, detail) =>
       failures.set(route, { status, left: times, code, detail }),
@@ -140,7 +165,7 @@ export function installFakePaddle(): FakePaddle {
         );
       }
       created += 1;
-      const customer = { id: `ctm_${String(created).padStart(26, "0")}`, email };
+      const customer = { id: paddleId("ctm", created), email };
       fake.customers.push(customer);
       return json({ data: { ...customer, status: "active" }, meta }, 201);
     }
@@ -201,22 +226,36 @@ export function installFakePaddle(): FakePaddle {
       return json({ data: subscriptionEntity(found), meta });
     }
     if (route === "POST /transactions") {
-      transactions += 1;
-      const id = `txn_${transactions}`;
-      return json(
-        {
-          data: {
-            id,
-            status: "draft",
-            customer_id: body?.customer_id,
-            custom_data: body?.custom_data,
-            items: body?.items,
-            checkout: { url: `https://otto.example/checkout?_ptxn=${id}` },
-          },
-          meta,
-        },
-        201,
-      );
+      made += 1;
+      const transaction: FakeTransaction = {
+        id: paddleId("txn", made),
+        customer: String(body?.customer_id),
+        status: "draft",
+        customData: body?.custom_data as Record<string, unknown> | undefined,
+      };
+      fake.transactions.push(transaction);
+      return json({ data: { ...transactionEntity(transaction), items: body?.items }, meta }, 201);
+    }
+    if (route === "GET /transactions") {
+      const customers = url.searchParams.get("customer_id")?.split(",");
+      const statuses = url.searchParams.get("status")?.split(",");
+      const data = fake.transactions
+        .filter((candidate) => !customers || customers.includes(candidate.customer))
+        .filter((candidate) => !statuses || statuses.includes(candidate.status))
+        .map(transactionEntity);
+      return json({ data, meta: { ...meta, pagination: { per_page: 30, has_more: false } } });
+    }
+    const updated = /^PATCH \/transactions\/([^/]+)$/.exec(route);
+    if (updated) {
+      const found = fake.transactions.find((candidate) => candidate.id === updated[1]);
+      if (!found) return paddleError(404, "entity_not_found");
+      if (body?.status === "canceled") {
+        if (found.status !== "draft" && found.status !== "ready") {
+          return paddleError(400, "transaction_immutable");
+        }
+        found.status = "canceled";
+      }
+      return json({ data: transactionEntity(found), meta });
     }
     return paddleError(404, "not_found", `No fake for ${route}`);
   }

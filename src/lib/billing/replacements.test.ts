@@ -7,8 +7,14 @@ import { runCleanup } from "@/lib/cron/cleanup";
 import { resetEnvForTests } from "@/lib/env";
 import { BillingError } from "./errors";
 import { cancelPaddleSubscription, getPaddleSubscription, type PaddleSubscription } from "./paddle";
+import { signBillingId } from "./paddle-sign";
 import { processWebhook, type WebhookConfig } from "./webhook";
-import { paddleHeaders, subscriptionEvent, type WebhookSubscription } from "./webhook-testing";
+import {
+  paddleHeaders,
+  subscriptionEvent,
+  WEBHOOK_TEST_SECRET,
+  type WebhookSubscription,
+} from "./webhook-testing";
 
 vi.mock("@/lib/billing/paddle", () => ({
   cancelPaddleSubscription: vi.fn(),
@@ -18,11 +24,12 @@ vi.mock("@/lib/billing/paddle", () => ({
 const cancel = vi.mocked(cancelPaddleSubscription);
 const read = vi.mocked(getPaddleSubscription);
 
-const SECRET = "pdl_ntfset_replacement_test_secret";
+const SECRET = WEBHOOK_TEST_SECRET;
 const TRIAL_END = "2026-11-11T10:00:00.000Z";
 
 const CONFIG: WebhookConfig = {
   secret: SECRET,
+  trialPriceId: "pri_pro_trial",
   priceIds: ["pri_pro_month", "pri_pro_trial", "pri_max_month"],
   planForPrice: (id) =>
     id === "pri_max_month"
@@ -115,6 +122,7 @@ afterEach(() => {
 
 describe("a Pro trial replaced by Max", () => {
   it("moves the row to Max and cancels the trial right away, once, however often Paddle says so", async () => {
+    const error = vi.spyOn(console, "error");
     const user = await trialist();
     const body = maxEvent("subscription.created", user, { id: "evt_max_1", occurredAt: 2_000 });
     expect(await deliver(body)).toEqual({ status: 200, message: "applied" });
@@ -141,6 +149,8 @@ describe("a Pro trial replaced by Max", () => {
       message: "applied",
     });
     expect(cancel).toHaveBeenCalledTimes(1);
+    // The trial being replaced is expected to be live, so this is no second subscription.
+    expect(error).not.toHaveBeenCalled();
   });
 
   it("also settles when the new subscription already has a cancel scheduled", async () => {
@@ -272,7 +282,41 @@ describe("a Pro trial replaced by Max", () => {
     expect(cancel).not.toHaveBeenCalled();
   });
 
+  it("cancels nothing for a replaces_subscription_id without our signature, even the buyer's own trial", async () => {
+    const error = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    const forgeries = [
+      () => undefined,
+      () => "0".repeat(64),
+      () => signBillingId("sub_trial", "pdl_ntfset_someone_else"),
+      (userId: string) => signBillingId(userId, SECRET),
+    ];
+    for (const [index, forge] of forgeries.entries()) {
+      await resetDb();
+      const user = await trialist();
+      const custom_data = {
+        user_id: user.id,
+        replaces_subscription_id: "sub_trial",
+        replaces_sig: forge(user.id),
+      };
+      const event = { id: `evt_unsigned_${index}` };
+      const body = maxEvent("subscription.created", user, event, { custom_data });
+      expect(await deliver(body)).toEqual({ status: 200, message: "applied" });
+      expect(await reload(user.id)).toMatchObject({
+        plan: "max",
+        billingSubscriptionId: "sub_max",
+      });
+      expect(await replacements()).toEqual([]);
+    }
+    expect(cancel).not.toHaveBeenCalled();
+    expect(JSON.stringify(warn.mock.calls)).toContain("billing.unsigned_custom_data");
+    expect(JSON.stringify(warn.mock.calls)).toContain("replaces_subscription_id");
+    // Untrusted, the trial still running beside Max is a second live subscription.
+    expect(JSON.stringify(error.mock.calls)).toContain("billing.second_live_subscription");
+  });
+
   it("never cancels a subscription named in custom_data that the buyer isn't on", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
     const user = await trialist();
     const forged = { user_id: user.id, replaces_subscription_id: "sub_someone_else" };
     for (const eventType of ["subscription.created", "subscription.updated"]) {

@@ -16,6 +16,8 @@ export const runtime = "nodejs";
 
 const CANCEL_FAILED_MESSAGE =
   "We couldn't cancel your subscription, so your account wasn't deleted. Try again, or email us.";
+const CANCEL_UNAVAILABLE_MESSAGE =
+  "We can't cancel your subscription right now, so your account wasn't deleted. Email us and we'll do it.";
 const AUTH_DELETE_FAILED_MESSAGE =
   "Your resumes and data are deleted, but we couldn't finish closing your sign-in. Try again in a minute.";
 
@@ -39,8 +41,14 @@ export async function DELETE(): Promise<Response> {
       billing = await cancelSubscriptionForDeletion(user);
     } catch (error) {
       if (!(error instanceof BillingError)) throw error;
-      log.error("account.delete_blocked", error, { userId: user.id, reason: "cancel_failed" });
-      return fail("billing_unavailable", CANCEL_FAILED_MESSAGE, 502);
+      const unavailable = error.code === "unavailable";
+      log.error("account.delete_blocked", error, {
+        userId: user.id,
+        reason: unavailable ? "billing_not_configured" : "cancel_failed",
+      });
+      return unavailable
+        ? fail("billing_unavailable", CANCEL_UNAVAILABLE_MESSAGE, 503)
+        : fail("billing_unavailable", CANCEL_FAILED_MESSAGE, 502);
     }
 
     // The public page is cached; it must stop showing once the rows are gone.

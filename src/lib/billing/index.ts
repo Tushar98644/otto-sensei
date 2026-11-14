@@ -30,6 +30,7 @@ import {
   changePaddlePlan,
   createPaddleCheckout,
   endPaddleSubscription,
+  isPaddleId,
   listLivePaddleSubscriptions,
   paddlePortalUrl,
   type PaddleSubscription,
@@ -162,7 +163,7 @@ async function existingSubscription(
     if (!(error instanceof BillingError)) throw error;
     const subscriptionId = record ? chargeableSubscriptionId(record) : null;
     const customerId = record?.billingCustomerId;
-    if (!subscriptionId || !customerId) return null;
+    if (!isPaddleId("sub", subscriptionId) || !isPaddleId("ctm", customerId)) return null;
     return { subscriptionId, customerId, status: record?.planStatus ?? "unknown", liveCount: null };
   }
 }
@@ -199,11 +200,13 @@ export async function createPortalUrl(user: SessionUser): Promise<string> {
     return "/account?portal=mock";
   }
   const customerId = await getBillingCustomerId(user.id);
-  if (!customerId) throw new BillingError("no_subscription", "User has no billing customer");
+  if (!isPaddleId("ctm", customerId)) {
+    throw new BillingError("no_subscription", "User has no Paddle customer");
+  }
   return paddlePortalUrl(customerId, []);
 }
 
-export type DeletionCancelResult = "none" | "cancelled" | "already_ended" | "not_configured";
+export type DeletionCancelResult = "none" | "cancelled" | "already_ended";
 
 // Call before deleting the account, and keep it if this throws so the user can try again.
 export async function cancelSubscriptionForDeletion(
@@ -215,17 +218,14 @@ export async function cancelSubscriptionForDeletion(
   if (billingMode() === "mock") {
     return record.plan !== "free" && (await mockCancel(user.id, now)) ? "cancelled" : "none";
   }
-  const stored = chargeableSubscriptionId(record);
-  if (!stored && record.billingCustomerId === null && record.billingSubscriptionId === null)
-    return "none";
+  if (record.billingCustomerId === null && record.billingSubscriptionId === null) return "none";
+  const chargeable = chargeableSubscriptionId(record);
+  // An old Creem id is never sent to Paddle, but the same-email lookup below still runs for it.
+  const stored = isPaddleId("sub", chargeable) ? chargeable : null;
   if (!env().PADDLE_API_KEY) {
     if (!stored) return "none";
-    log.warn("billing.cancel_skipped", {
-      userId: user.id,
-      reason: "not_configured",
-      status: record.planStatus,
-    });
-    return "not_configured";
+    // Only production gets here (billing is mocked elsewhere); deleting would leave Paddle charging.
+    throw new BillingError("unavailable", "PADDLE_API_KEY is not set");
   }
   const subscriptionIds = new Set(stored ? [stored] : []);
   for (const live of await otherLiveSubscriptions(user, record))
@@ -268,5 +268,6 @@ export async function handleWebhook(
     secret: env().PADDLE_WEBHOOK_SECRET,
     priceIds: paidPriceIds(),
     planForPrice,
+    trialPriceId: trialPriceId(),
   });
 }

@@ -1,11 +1,12 @@
 import { and, eq, isNull, lte, ne, or } from "drizzle-orm";
 import type { BillingInterval, PaidPlanId, PlanId } from "@/config/plans";
-import { getDb, type Db } from "@/db/client";
+import { getDb, type Db, type Tx } from "@/db/client";
+import { lockUser } from "@/db/locks";
 import { billingEvents, trialReplacements, users, type UserRow } from "@/db/schema";
 import { normalizeEmail } from "@/lib/auth/policy";
 import { carryUsageOver, type PeriodAccount } from "@/lib/usage";
 import { isUserId } from "@/lib/users";
-import { recordTrialHistory } from "./trial";
+import { isTrialEligible, recordTrialHistory } from "./trial";
 
 type StatusGrant = "paid" | "free";
 
@@ -46,6 +47,8 @@ export type SubscriptionState = {
   trialEndsAt?: number | null;
   eventAt: number | null;
   replacesSubscriptionId?: string | null;
+  // Trialing, or past_due on the trial price: a trial nobody has paid for, one per person.
+  unpaidTrial?: boolean;
 };
 
 export type WebhookSource = { eventId: string; eventType: string };
@@ -55,7 +58,7 @@ export type ApplyOptions = {
 };
 
 export type IgnoreReason =
-  "unknown_status" | "no_user" | "other_product" | "superseded" | "replaced";
+  "unknown_status" | "no_user" | "other_product" | "superseded" | "replaced" | "unsigned";
 
 export type ApplyResult =
   | {
@@ -64,9 +67,12 @@ export type ApplyResult =
       plan: PlanId;
       trialing: boolean;
       before: { plan: PlanId; trialing: boolean };
+      // A different live subscription the user was on before this one took over.
+      otherLiveSubscriptionId: string | null;
     }
   | { outcome: "duplicate" }
-  | { outcome: "ignored"; reason: IgnoreReason };
+  | { outcome: "ignored"; reason: IgnoreReason }
+  | { outcome: "rejected"; reason: "trial_reused"; userId: string };
 
 export type UserLookup = {
   userId?: string;
@@ -84,6 +90,7 @@ export function findUserQuery(db: Db, lookup: UserLookup) {
       email: users.email,
       plan: users.plan,
       planInterval: users.planInterval,
+      planStatus: users.planStatus,
       planRenewsAt: users.planRenewsAt,
       trialEndsAt: users.trialEndsAt,
       planPeriodStartsAt: users.planPeriodStartsAt,
@@ -152,6 +159,8 @@ export async function applySubscriptionState(
   if (!user) return { outcome: "ignored", reason: "no_user" };
   // Other prices in the same Paddle account must not grant a plan.
   const own = user.billingSubscriptionId === state.subscriptionId;
+  // Paddle reuses a customer for any checkout typing their email, so a new subscription needs our signed id.
+  if (!own && state.userId !== user.id) return { outcome: "ignored", reason: "unsigned" };
   if (state.pricePlan === null && !own) {
     return { outcome: "ignored", reason: "other_product" };
   }
@@ -161,6 +170,15 @@ export async function applySubscriptionState(
     plan === "free" ? null : (state.priceInterval ?? user.planInterval);
   const trialEndsAt = trialEndFor(state, user, plan);
   const before = { plan: user.plan, trialing: user.plan !== "free" && user.trialEndsAt !== null };
+  const tracked = chargeableSubscriptionId(user);
+  // A paid replacement's own trial stays live until it's cancelled, so it's no second subscription.
+  const otherLiveSubscriptionId =
+    plan !== "free" &&
+    tracked !== null &&
+    tracked !== state.subscriptionId &&
+    tracked !== state.replacesSubscriptionId
+      ? tracked
+      : null;
   const periodOf = (reported: number | null, stored: number | null) =>
     plan === "free" ? null : (reported ?? (own ? stored : null));
   const after: PeriodAccount = {
@@ -181,6 +199,22 @@ export async function applySubscriptionState(
       .onConflictDoNothing()
       .returning({ id: billingEvents.id });
     if (recorded.length === 0) return { outcome: "duplicate" };
+    if (plan !== "free" && state.unpaidTrial) {
+      if (!(await lockUser(tx, user.id))) return { outcome: "ignored", reason: "no_user" };
+      if (!(await mayTrial(tx, user.id, state.subscriptionId))) {
+        // Nothing on the user; the row keeps its later events out and lets the cron retry the cancel.
+        await tx
+          .insert(trialReplacements)
+          .values({
+            replacedSubscriptionId: state.subscriptionId,
+            subscriptionId: state.subscriptionId,
+            userId: user.id,
+            createdAt: now,
+          })
+          .onConflictDoNothing();
+        return { outcome: "rejected", reason: "trial_reused", userId: user.id };
+      }
+    }
     const updated = await tx
       .update(users)
       .set({
@@ -247,8 +281,25 @@ export async function applySubscriptionState(
       plan,
       trialing: plan !== "free" && trialEndsAt !== null,
       before,
+      otherLiveSubscriptionId,
     };
   });
+}
+
+// Read under the row lock, so the parallel created and trialing events of one trial agree.
+async function mayTrial(tx: Tx, userId: string, subscriptionId: string): Promise<boolean> {
+  const [row] = await tx
+    .select({
+      id: users.id,
+      email: users.email,
+      plan: users.plan,
+      billingSubscriptionId: users.billingSubscriptionId,
+    })
+    .from(users)
+    .where(eq(users.id, userId))
+    .limit(1);
+  if (!row) return false;
+  return row.billingSubscriptionId === subscriptionId || (await isTrialEligible(row, tx));
 }
 
 // Once per key: false when it was already claimed.

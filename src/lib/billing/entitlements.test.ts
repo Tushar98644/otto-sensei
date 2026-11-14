@@ -2,7 +2,7 @@ import { eq, sql } from "drizzle-orm";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { PLANS } from "@/config/plans";
 import { getDb } from "@/db/client";
-import { billingEvents, trialReplacements, users, type UserRow } from "@/db/schema";
+import { billingEvents, trialHistory, trialReplacements, users, type UserRow } from "@/db/schema";
 import { insertUserRow, resetDb } from "@/lib/auth/test-helpers";
 import { addMonths, consumeUsage, getUsage } from "@/lib/usage";
 import { toSessionUser } from "@/lib/users";
@@ -17,6 +17,7 @@ import {
   planForStatus,
   type SubscriptionState,
 } from "./entitlements";
+import { emailFingerprint } from "./trial";
 
 const NOW = Date.UTC(2026, 10, 6, 12);
 const RENEWS_AT = Date.UTC(2026, 11, 6, 12);
@@ -195,24 +196,28 @@ describe("finding the user", () => {
     expect(result).toMatchObject({ outcome: "applied", userId: user.id });
   });
 
-  it("falls back to the stored customer id", async () => {
+  it("won't let a new subscription in by the stored customer id alone, only with our signed id", async () => {
     const user = await createUser({ billingCustomerId: "ctm_known" });
-    const result = await applySubscriptionState(
-      subscription({ customerId: "ctm_known" }),
-      source(),
-      NOW,
-    );
-    expect(result).toMatchObject({ outcome: "applied", userId: user.id });
+    const unsigned = subscription({ customerId: "ctm_known" });
+    expect(await applySubscriptionState(unsigned, source(), NOW)).toEqual({
+      outcome: "ignored",
+      reason: "unsigned",
+    });
+    expect(await reload(user.id)).toMatchObject({ plan: "free", billingSubscriptionId: null });
+
+    const signed = await applySubscriptionState({ ...unsigned, userId: user.id }, source(), NOW);
+    expect(signed).toMatchObject({ outcome: "applied", userId: user.id });
   });
 
-  it("falls back to the email, ignoring case and spaces", async () => {
+  it("matches the email ignoring case and spaces, but an email match alone grants nothing", async () => {
     const user = await createUser({ email: "ada@example.com" });
     const result = await applySubscriptionState(
       subscription({ email: "  Ada@Example.COM " }),
       source(),
       NOW,
     );
-    expect(result).toMatchObject({ outcome: "applied", userId: user.id });
+    expect(result).toEqual({ outcome: "ignored", reason: "unsigned" });
+    expect((await reload(user.id))?.plan).toBe("free");
   });
 
   it("reads the email only when no id matched and the status grants a plan", async () => {
@@ -227,14 +232,12 @@ describe("finding the user", () => {
     ).toEqual({ outcome: "ignored", reason: "no_user" });
     expect(resolveEmail).not.toHaveBeenCalled();
 
-    expect(await applySubscriptionState(state, source(), NOW, { resolveEmail })).toMatchObject({
-      outcome: "applied",
-      userId: user.id,
+    expect(await applySubscriptionState(state, source(), NOW, { resolveEmail })).toEqual({
+      outcome: "ignored",
+      reason: "unsigned",
     });
     expect(resolveEmail).toHaveBeenCalledExactlyOnceWith("ctm_new");
-
-    await applySubscriptionState(state, source(), NOW, { resolveEmail });
-    expect(resolveEmail).toHaveBeenCalledTimes(1);
+    expect((await reload(user.id))?.plan).toBe("free");
   });
 
   it("ignores subscriptions it can't match to anyone", async () => {
@@ -605,6 +608,140 @@ describe("trial replacements", () => {
       });
     }
     expect(await replaced()).toEqual([]);
+  });
+});
+
+describe("one trial per person", () => {
+  const unpaidTrial = (overrides: Partial<SubscriptionState> = {}) =>
+    subscription({ status: "trialing", unpaidTrial: true, ...overrides });
+
+  it("refuses an unpaid trial to someone who had one, recording only the event and the cancel to do", async () => {
+    const db = await getDb();
+    const user = await createUser({
+      planStatus: "canceled",
+      billingCustomerId: "ctm_old",
+      billingSubscriptionId: "sub_old",
+    });
+    const event = source();
+    expect(
+      await applySubscriptionState(
+        unpaidTrial({ userId: user.id, subscriptionId: "sub_again" }),
+        event,
+        NOW,
+      ),
+    ).toEqual({ outcome: "rejected", reason: "trial_reused", userId: user.id });
+    expect(await reload(user.id)).toEqual(user);
+    expect(await db.select().from(trialHistory)).toEqual([]);
+    expect(await db.select().from(trialReplacements)).toEqual([
+      {
+        replacedSubscriptionId: "sub_again",
+        subscriptionId: "sub_again",
+        userId: user.id,
+        attempts: 0,
+        createdAt: NOW,
+        cancelledAt: null,
+      },
+    ]);
+    expect((await db.select().from(billingEvents)).map((row) => row.id)).toEqual([event.eventId]);
+
+    const paid = subscription({ userId: user.id, subscriptionId: "sub_again" });
+    expect(await applySubscriptionState(paid, source(), NOW)).toEqual({
+      outcome: "ignored",
+      reason: "replaced",
+    });
+  });
+
+  it("refuses it to a paying user and to an email already in the trial history", async () => {
+    const paying = await createUser({
+      plan: "pro",
+      planStatus: "active",
+      billingSubscriptionId: "sub_paid",
+    });
+    expect(
+      await applySubscriptionState(unpaidTrial({ userId: paying.id }), source(), NOW),
+    ).toMatchObject({ outcome: "rejected" });
+    expect(await reload(paying.id)).toEqual(paying);
+
+    const returning = await createUser();
+    const db = await getDb();
+    await db
+      .insert(trialHistory)
+      .values({ emailHash: emailFingerprint(returning.email), kind: "paid", createdAt: 1 });
+    expect(
+      await applySubscriptionState(
+        unpaidTrial({ userId: returning.id, status: "past_due" }),
+        source(),
+        NOW,
+      ),
+    ).toMatchObject({ outcome: "rejected" });
+    expect(await reload(returning.id)).toEqual(returning);
+  });
+
+  it("grants a first trial, and every later event of that same subscription", async () => {
+    const user = await createUser();
+    const trial = unpaidTrial({ userId: user.id, subscriptionId: "sub_first" });
+    expect(await applySubscriptionState(trial, source(), NOW)).toMatchObject({
+      outcome: "applied",
+      trialing: true,
+    });
+    for (const status of ["trialing", "scheduled_cancel", "past_due"]) {
+      expect(
+        await applySubscriptionState({ ...trial, status, userId: undefined }, source(), NOW),
+      ).toMatchObject({ outcome: "applied", userId: user.id });
+    }
+    expect(await reload(user.id)).toMatchObject({ plan: "pro", planStatus: "past_due" });
+    expect(await (await getDb()).select().from(trialReplacements)).toEqual([]);
+  });
+
+  it("doesn't check a subscription that isn't an unpaid trial", async () => {
+    const user = await createUser({ planStatus: "canceled", billingSubscriptionId: "sub_old" });
+    expect(
+      await applySubscriptionState(subscription({ userId: user.id }), source(), NOW),
+    ).toMatchObject({ outcome: "applied", plan: "pro" });
+  });
+});
+
+describe("a second live subscription", () => {
+  it("is named when a paid grant takes over from a different live one", async () => {
+    const user = await createUser({
+      plan: "pro",
+      planStatus: "past_due",
+      billingSubscriptionId: "sub_live",
+    });
+    expect(
+      await applySubscriptionState(
+        subscription({ userId: user.id, subscriptionId: "sub_new", pricePlan: "max" }),
+        source(),
+        NOW,
+      ),
+    ).toMatchObject({ outcome: "applied", plan: "max", otherLiveSubscriptionId: "sub_live" });
+  });
+
+  it("isn't for the same subscription, an ended one, a trial being replaced or a downgrade", async () => {
+    const same = await createUser({
+      plan: "pro",
+      planStatus: "active",
+      billingSubscriptionId: "s1",
+    });
+    const ended = await createUser({ planStatus: "canceled", billingSubscriptionId: "s2" });
+    const trialist = await createUser({
+      plan: "pro",
+      planStatus: "trialing",
+      trialEndsAt: NOW + 1000,
+      billingSubscriptionId: "s3",
+    });
+    const states = [
+      subscription({ userId: same.id, subscriptionId: "s1", pricePlan: "max" }),
+      subscription({ userId: ended.id, subscriptionId: "s2_new" }),
+      subscription({ userId: trialist.id, subscriptionId: "s3_max", replacesSubscriptionId: "s3" }),
+      subscription({ userId: same.id, subscriptionId: "s1", status: "canceled" }),
+    ];
+    for (const state of states) {
+      expect(await applySubscriptionState(state, source(), NOW)).toMatchObject({
+        outcome: "applied",
+        otherLiveSubscriptionId: null,
+      });
+    }
   });
 });
 

@@ -5,7 +5,7 @@ import { users } from "@/db/schema";
 import { getCurrentUser } from "@/lib/auth/session";
 import type { SessionUser } from "@/lib/auth/types";
 import { insertUserRow, resetDb } from "@/lib/auth/test-helpers";
-import { installFakePaddle } from "@/lib/billing/testing";
+import { installFakePaddle, paddleId } from "@/lib/billing/testing";
 import { resetEnvForTests } from "@/lib/env";
 import { rateLimit } from "@/lib/rate-limit";
 import { toSessionUser } from "@/lib/users";
@@ -22,7 +22,12 @@ const currentUser = vi.mocked(getCurrentUser);
 const limiter = vi.mocked(rateLimit);
 
 const SECRET = "pdl_ntfset_otto_route_test_secret";
-const PRICE_ID = "pri_otto_pro";
+const PRICE_ID = paddleId("pri", "ottopro");
+const TRIAL_PRICE_ID = paddleId("pri", "ottotrial");
+const MAX_PRICE_ID = paddleId("pri", "ottomax");
+const SUB_1 = paddleId("sub", 1);
+const CTM_1 = paddleId("ctm", 1);
+const TXN_1 = paddleId("txn", 1);
 
 type UserRow = typeof users.$inferSelect;
 
@@ -175,8 +180,8 @@ describe("POST /api/billing/checkout", () => {
 describe("POST /api/billing/checkout with Paddle", () => {
   beforeEach(() => {
     vi.stubEnv("PADDLE_API_KEY", "pdl_sdbx_apikey_test");
-    vi.stubEnv("PADDLE_PRO_TRIAL_PRICE_ID", "pri_otto_trial");
-    vi.stubEnv("PADDLE_MAX_MONTHLY_PRICE_ID", "pri_otto_max");
+    vi.stubEnv("PADDLE_PRO_TRIAL_PRICE_ID", TRIAL_PRICE_ID);
+    vi.stubEnv("PADDLE_MAX_MONTHLY_PRICE_ID", MAX_PRICE_ID);
     resetEnvForTests();
   });
 
@@ -188,8 +193,8 @@ describe("POST /api/billing/checkout with Paddle", () => {
       planInterval: "month",
       planStatus,
       trialEndsAt: planStatus === "trialing" ? Date.now() + 86_400_000 : null,
-      billingCustomerId: "ctm_1",
-      billingSubscriptionId: "sub_1",
+      billingCustomerId: CTM_1,
+      billingSubscriptionId: SUB_1,
     });
 
   it("returns our checkout page for a new account, on the trial", async () => {
@@ -198,10 +203,10 @@ describe("POST /api/billing/checkout with Paddle", () => {
     const res = await checkout(checkoutRequest());
     expect(await res.json()).toEqual({
       ok: true,
-      url: "https://otto.example/checkout?_ptxn=txn_1&plan=pro&trial=1",
+      url: `https://otto.example/checkout?_ptxn=${TXN_1}&plan=pro&trial=1`,
     });
     expect(paddle.callsTo("POST /transactions")[0]?.body).toMatchObject({
-      items: [{ price_id: "pri_otto_trial", quantity: 1 }],
+      items: [{ price_id: TRIAL_PRICE_ID, quantity: 1 }],
       custom_data: { user_id: user.id },
     });
     expect((await reload(user.id))?.plan).toBe("free");
@@ -210,21 +215,21 @@ describe("POST /api/billing/checkout with Paddle", () => {
   it("sends someone on the Pro trial to a Max checkout instead of failing", async () => {
     const paddle = installFakePaddle();
     await subscriber("trialing");
-    paddle.subscriptions.push({ id: "sub_1", customer: "ctm_1", price: "pri_otto_trial", status: "trialing" });
+    paddle.subscriptions.push({ id: SUB_1, customer: CTM_1, price: TRIAL_PRICE_ID, status: "trialing" });
     const res = await checkout(checkoutRequest({ plan: "max", interval: "month" }));
     expect(await res.json()).toEqual({
       ok: true,
-      url: "https://otto.example/checkout?_ptxn=txn_1&plan=max",
+      url: `https://otto.example/checkout?_ptxn=${TXN_1}&plan=max`,
     });
-    expect(paddle.callsTo("PATCH /subscriptions/sub_1")).toEqual([]);
+    expect(paddle.callsTo(`PATCH /subscriptions/${SUB_1}`)).toEqual([]);
   });
 
   it("says plainly why Paddle refused a plan change", async () => {
     vi.spyOn(console, "error").mockImplementation(() => undefined);
     const paddle = installFakePaddle();
     await subscriber("active");
-    paddle.subscriptions.push({ id: "sub_1", customer: "ctm_1", price: PRICE_ID, status: "active" });
-    paddle.failNext("PATCH /subscriptions/sub_1", 400, 1, "subscription_update_when_canceled");
+    paddle.subscriptions.push({ id: SUB_1, customer: CTM_1, price: PRICE_ID, status: "active" });
+    paddle.failNext(`PATCH /subscriptions/${SUB_1}`, 400, 1, "subscription_update_when_canceled");
     const res = await checkout(checkoutRequest({ plan: "max", interval: "month" }));
     expect(res.status).toBe(409);
     expect(await res.json()).toEqual({
@@ -240,7 +245,7 @@ describe("POST /api/billing/checkout with Paddle", () => {
   it("asks a subscriber whose renewal failed to fix the card first", async () => {
     const paddle = installFakePaddle();
     await subscriber("past_due");
-    paddle.subscriptions.push({ id: "sub_1", customer: "ctm_1", price: PRICE_ID, status: "past_due" });
+    paddle.subscriptions.push({ id: SUB_1, customer: CTM_1, price: PRICE_ID, status: "past_due" });
     const res = await checkout(checkoutRequest({ plan: "max", interval: "month" }));
     expect(res.status).toBe(409);
     expect(await res.json()).toMatchObject({ ok: false, error: { code: "plan_change_failed" } });
@@ -302,11 +307,11 @@ describe("POST /api/billing/portal with Paddle", () => {
 
   it("returns a fresh Paddle portal session for the stored customer, within the link limit", async () => {
     const paddle = installFakePaddle();
-    const user = await signIn({ plan: "pro", planStatus: "active", billingCustomerId: "ctm_1", billingSubscriptionId: "sub_1" });
+    const user = await signIn({ plan: "pro", planStatus: "active", billingCustomerId: CTM_1, billingSubscriptionId: SUB_1 });
     const res = await portal();
     expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({ ok: true, url: "https://customer-portal.paddle.test/ctm_1" });
-    expect(paddle.callsTo("POST /customers/ctm_1/portal-sessions")).toHaveLength(1);
+    expect(await res.json()).toEqual({ ok: true, url: `https://customer-portal.paddle.test/${CTM_1}` });
+    expect(paddle.callsTo(`POST /customers/${CTM_1}/portal-sessions`)).toHaveLength(1);
     expect(limiter).toHaveBeenCalledWith(`billing:user:${user.id}`, 20, 60 * 60 * 1000);
   });
 
@@ -315,6 +320,15 @@ describe("POST /api/billing/portal with Paddle", () => {
     await signIn();
     const res = await portal();
     expect(res.status).toBe(400);
+    expect(paddle.calls).toEqual([]);
+  });
+
+  it("has nothing to manage for a customer left over from Creem, and doesn't ask Paddle", async () => {
+    const paddle = installFakePaddle();
+    await signIn({ plan: "pro", planStatus: "active", billingCustomerId: "cust_3kKw0VQ8bY1lN3m9" });
+    const res = await portal();
+    expect(res.status).toBe(400);
+    expect(await res.json()).toMatchObject({ ok: false, error: { code: "bad_request" } });
     expect(paddle.calls).toEqual([]);
   });
 });
