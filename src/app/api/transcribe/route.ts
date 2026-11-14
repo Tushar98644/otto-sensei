@@ -1,5 +1,10 @@
 import type { PlanId } from "@/config/plans";
-import { audioFormat, transcribeAudio, type AudioFormat } from "@/lib/ai/transcribe";
+import {
+  audioFormat,
+  transcribeAudio,
+  type AudioFormat,
+  type Transcript,
+} from "@/lib/ai/transcribe";
 import { AIError, type AIErrorCode } from "@/lib/ai/types";
 import { fail, ok } from "@/lib/api/respond";
 import type { ApiErrorCode, TranscribeResponse } from "@/lib/api/types";
@@ -8,7 +13,8 @@ import { getCurrentUser } from "@/lib/auth/session";
 import { aiEnabled } from "@/lib/env";
 import { readBody } from "@/lib/http";
 import { log } from "@/lib/log";
-import { rateLimit, retryAfterHeader, waitLong } from "@/lib/rate-limit";
+import { giveBackRateLimit, rateLimit, retryAfterHeader, waitLong } from "@/lib/rate-limit";
+import { DAY_MS } from "@/lib/time";
 import { TRANSCRIBE_LIMITS } from "./limits";
 
 export const runtime = "nodejs";
@@ -32,6 +38,14 @@ const AI_FAILURES: Record<AIErrorCode, { code: ApiErrorCode; status: number; mes
   invalid_output: { code: "ai_unavailable", status: 502, message: FAILED },
 };
 
+// Outages and limits are given back freely; refusals and rejected audio only 3 times a day.
+const FREE_GIVE_BACKS: ReadonlySet<AIErrorCode> = new Set<AIErrorCode>([
+  "unavailable",
+  "rate_limited",
+  "too_long",
+]);
+const CAPPED_GIVE_BACKS_PER_DAY = 3;
+
 type Clip = { bytes: Uint8Array; format: AudioFormat; seconds: number };
 
 export async function POST(req: Request): Promise<Response> {
@@ -42,14 +56,28 @@ export async function POST(req: Request): Promise<Response> {
     const user = await getCurrentUser();
     if (!user) return fail("unauthorized", SIGN_IN, 401);
     if (!aiEnabled()) return fail("ai_unavailable", FAILED, 502);
-    const limited = await limitTranscribes(user.id, user.plan);
-    if (limited) return limited;
+    const tooFast = await limitBurst(user.id);
+    if (tooFast) return tooFast;
 
     const clip = await readClip(req);
     if (clip instanceof Response) return clip;
+    // Only a clip that passed the checks counts toward the day.
+    const countedAt = Date.now();
+    const usedUp = await limitDaily(user.id, user.plan, countedAt);
+    if (usedUp) return usedUp;
 
     const startedAt = Date.now();
-    const { text, seconds } = await transcribeAudio(clip.bytes, clip.format);
+    let transcript: Transcript;
+    try {
+      transcript = await transcribeAudio(clip.bytes, clip.format);
+    } catch (error) {
+      if (!(error instanceof AIError)) throw error;
+      const givenBack = await giveClipBack(user.id, error.code, countedAt);
+      log.warn("transcribe.ai_failed", { code: error.code, givenBack });
+      const failure = AI_FAILURES[error.code];
+      return fail(failure.code, failure.message, failure.status);
+    }
+    const { text, seconds } = transcript;
     log.info("transcribe.completed", {
       bytes: clip.bytes.byteLength,
       format: clip.format,
@@ -62,37 +90,54 @@ export async function POST(req: Request): Promise<Response> {
     const response: Omit<TranscribeResponse, "ok"> = { text };
     return ok(response);
   } catch (error) {
-    if (error instanceof AIError) {
-      log.warn("transcribe.ai_failed", { code: error.code });
-      const failure = AI_FAILURES[error.code];
-      return fail(failure.code, failure.message, failure.status);
-    }
     log.error("transcribe.failed", error);
     return fail("server_error", "Something went wrong. Please try again.", 500);
   }
 }
 
-async function limitTranscribes(userId: string, plan: PlanId): Promise<Response | null> {
-  const { burst, daily } = TRANSCRIBE_LIMITS;
-  const perDay = daily.calls[plan];
+const dayKey = (userId: string) => `transcribe:day:user:${userId}`;
+
+async function limitBurst(userId: string): Promise<Response | null> {
+  const { burst } = TRANSCRIBE_LIMITS;
   const short = await rateLimit(`transcribe:user:${userId}`, burst.calls, burst.windowMs);
-  if (!short.allowed) {
-    log.warn("transcribe.burst_limited");
-    return tooMany(
-      `That's a lot of voice typing at once. Try again in ${waitLong(short.retryAfterMs)}.`,
-      short.retryAfterMs,
-    );
+  if (short.allowed) return null;
+  log.warn("transcribe.burst_limited");
+  return tooMany(
+    `That's a lot of voice typing at once. Try again in ${waitLong(short.retryAfterMs)}.`,
+    short.retryAfterMs,
+  );
+}
+
+async function limitDaily(userId: string, plan: PlanId, now: number): Promise<Response | null> {
+  const { daily } = TRANSCRIBE_LIMITS;
+  const perDay = daily.calls[plan];
+  const day = await rateLimit(dayKey(userId), perDay, daily.windowMs, now);
+  if (day.allowed) return null;
+  log.warn("transcribe.daily_limited", { plan });
+  const more = plan === "free" ? ` Pro has ${daily.calls.pro} a day.` : "";
+  return tooMany(
+    `You've used today's ${perDay} voice clips. Try again in ${waitLong(day.retryAfterMs)}.${more}`,
+    day.retryAfterMs,
+  );
+}
+
+async function giveClipBack(
+  userId: string,
+  code: AIErrorCode,
+  countedAt: number,
+): Promise<boolean> {
+  try {
+    if (!FREE_GIVE_BACKS.has(code)) {
+      const key = `transcribe:give_back:user:${userId}`;
+      const cap = await rateLimit(key, CAPPED_GIVE_BACKS_PER_DAY, DAY_MS, countedAt);
+      if (!cap.allowed) return false;
+    }
+    await giveBackRateLimit(dayKey(userId), TRANSCRIBE_LIMITS.daily.windowMs, countedAt);
+    return true;
+  } catch (error) {
+    log.warn("transcribe.give_back_failed", {}, error);
+    return false;
   }
-  const day = await rateLimit(`transcribe:day:user:${userId}`, perDay, daily.windowMs);
-  if (!day.allowed) {
-    log.warn("transcribe.daily_limited", { plan });
-    const more = plan === "free" ? ` Pro has ${daily.calls.pro} a day.` : "";
-    return tooMany(
-      `You've used today's ${perDay} voice clips. Try again in ${waitLong(day.retryAfterMs)}.${more}`,
-      day.retryAfterMs,
-    );
-  }
-  return null;
 }
 
 function tooMany(message: string, retryAfterMs: number): Response {

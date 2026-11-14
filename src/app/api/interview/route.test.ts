@@ -10,7 +10,14 @@ import type {
   InterviewRequestBody,
   InterviewResponse,
 } from "@/lib/api/types";
-import { cookieJar, jsonRequest, resetDb, signInAs, signInOnTrial } from "@/lib/auth/test-helpers";
+import {
+  cookieJar,
+  fakeAuth,
+  jsonRequest,
+  resetDb,
+  signInAs,
+  signInOnTrial,
+} from "@/lib/auth/test-helpers";
 import { resetEnvForTests } from "@/lib/env";
 import type { InterviewPrep } from "@/lib/insights/prep";
 import { getPrep, savePrep } from "@/lib/insights/prep-store";
@@ -98,6 +105,16 @@ describe("POST /api/interview", () => {
     const stored = (await loaded.json()) as InterviewPrepResponse;
     expect(stored.target).toMatchObject({ id, company: "Contoso", jobUrl: "https://example.com/jobs/1" });
     expect(stored.prep).toEqual(json.result.prep);
+  });
+
+  it("asks Supabase who's calling once, though it saves the pack after the AI answers", async () => {
+    const user = await signInOnTrial(undefined, TRIAL_END);
+    const id = await newApplication(user.id);
+    const getUser = vi.spyOn(fakeAuth.server, "getUser");
+    const res = await POST(jsonRequest("/api/interview", body(id)));
+    expect(((await res.json()) as InterviewResponse).result.saved).toBe(true);
+    expect(getUser).toHaveBeenCalledOnce();
+    getUser.mockRestore();
   });
 
   it("still hands over the pack when the application is gone", async () => {

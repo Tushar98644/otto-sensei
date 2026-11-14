@@ -28,9 +28,14 @@ export async function findUserById(id: string): Promise<UserRow | null> {
 
 export type AuthIdentity = { id: string; email: string };
 
-export async function ensureUser(identity: AuthIdentity, now = Date.now()): Promise<UserRow> {
+// `known` is this id's row (or null for none) when the caller has already read it.
+export async function ensureUser(
+  identity: AuthIdentity,
+  now = Date.now(),
+  known?: UserRow | null,
+): Promise<UserRow> {
   const email = normalizeEmail(identity.email);
-  const existing = await findUserById(identity.id);
+  const existing = known === undefined ? await findUserById(identity.id) : known;
   if (existing?.email === email) return existing;
   const db = await getDb();
   const [row] = await db

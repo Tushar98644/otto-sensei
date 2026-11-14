@@ -151,6 +151,19 @@ describe("refusing at the budget", () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
+  it("still turns away a bad request first, and the burst limit before both", async () => {
+    withAIKey();
+    const user = await setPlan(await signInAs("pro@example.com"), "pro");
+    await useTokens(user, monthKey(NOW), AI_TOKEN_BUDGETS.pro);
+    const bad = () => fixRoute(jsonRequest("/api/fix", { bullet: 42 }));
+    expect((await bad()).status).toBe(400);
+    expect((await errorOf(await fix())).reason).toBe("ai_budget");
+    for (let i = 0; i < 30; i++) await fix();
+    expect((await errorOf(await bad())).code).toBe("rate_limited");
+    expect((await errorOf(await fix())).code).toBe("rate_limited");
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
   it("lets a call that starts just under the budget finish over it", async () => {
     withAIKey();
     const user = await setPlan(await signInAs("max@example.com"), "max");

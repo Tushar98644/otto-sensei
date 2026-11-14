@@ -1,5 +1,5 @@
 import { eq } from "drizzle-orm";
-import { beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { getDb } from "@/db/client";
 import { applications, resumes, resumeTombstones, usage, users } from "@/db/schema";
 import { execSql } from "@/db/testing";
@@ -60,6 +60,10 @@ async function countRows(userId: string) {
 
 beforeEach(resetDb);
 
+afterEach(() => {
+  vi.restoreAllMocks();
+});
+
 describe("ensureUser", () => {
   it("creates a free account for the auth user with the normalized address, then reuses it", async () => {
     const identity = await authUser("ada@example.com");
@@ -96,6 +100,21 @@ describe("ensureUser", () => {
 
   it("refuses an id Supabase Auth doesn't know", async () => {
     await expect(ensureUser({ id: crypto.randomUUID(), email: "ghost@example.com" })).rejects.toThrow();
+  });
+
+  it("trusts a row the caller already read, found or not, instead of reading again", async () => {
+    const ada = await authUser("ada@example.com");
+    const grace = await authUser("grace@example.com");
+    const known = await ensureUser(ada, NOW);
+    const reads = vi.spyOn(await getDb(), "select");
+
+    expect(await ensureUser(ada, NOW + 1, known)).toBe(known);
+    expect(await ensureUser({ ...ada, email: "ada@new.example" }, NOW + 2, known)).toMatchObject({
+      email: "ada@new.example",
+      createdAt: NOW,
+    });
+    expect(await ensureUser(grace, NOW, null)).toMatchObject({ id: grace.id, plan: "free" });
+    expect(reads).not.toHaveBeenCalled();
   });
 });
 

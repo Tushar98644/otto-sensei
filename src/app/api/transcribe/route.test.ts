@@ -1,3 +1,4 @@
+import { and, eq } from "drizzle-orm";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { getDb } from "@/db/client";
 import { rateLimits } from "@/db/schema";
@@ -43,6 +44,20 @@ async function errorOf(res: Response): Promise<ApiErrorBody["error"]> {
   const body = (await res.json()) as ApiErrorBody;
   expect(body.ok).toBe(false);
   return body.error;
+}
+
+async function clipsCounted(userId: string, at = NOW): Promise<number | null> {
+  const db = await getDb();
+  const [row] = await db
+    .select({ count: rateLimits.count })
+    .from(rateLimits)
+    .where(
+      and(
+        eq(rateLimits.key, `transcribe:day:user:${userId}`),
+        eq(rateLimits.windowStart, Math.floor(at / DAY_MS) * DAY_MS),
+      ),
+    );
+  return row?.count ?? null;
 }
 
 beforeEach(async () => {
@@ -212,6 +227,51 @@ describe("POST /api/transcribe", () => {
     expect(res.status).toBe(429);
     expect((await errorOf(res)).message).toBe(message);
     expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it("counts a clip toward the day only once it passes the checks", async () => {
+    const user = await signInAs();
+    const fetch = providerAnswers(200, { text: SPOKEN });
+    for (let i = 0; i < TRANSCRIBE_LIMITS.daily.calls.free + 1; i++) {
+      expect((await POST(clip({ seconds: "180" }))).status).toBe(413);
+      expect((await POST(clip({ type: "text/plain", name: "notes.txt" }))).status).toBe(415);
+    }
+    expect(await clipsCounted(user.id)).toBeNull();
+    expect((await POST(clip())).status).toBe(200);
+    expect(await clipsCounted(user.id)).toBe(1);
+    expect(fetch).toHaveBeenCalledOnce();
+  });
+
+  it("gives the clip back when the provider is down, so an outage never uses up the day", async () => {
+    const user = await signInAs();
+    const down = providerAnswers(503, { error: { code: 503, message: "No provider" } });
+    for (let i = 0; i < TRANSCRIBE_LIMITS.daily.calls.free + 2; i++) {
+      expect((await POST(clip())).status).toBe(502);
+    }
+    expect(await clipsCounted(user.id)).toBe(0);
+    down.mockImplementation(async () => Response.json({ text: SPOKEN }));
+    expect((await POST(clip())).status).toBe(200);
+    expect(await clipsCounted(user.id)).toBe(1);
+  });
+
+  it("gives back audio the provider rejected only 3 times a day", async () => {
+    const user = await signInAs();
+    providerAnswers(400, { error: { code: 400, message: "Unsupported format" } });
+    for (let i = 0; i < 5; i++) expect((await POST(clip())).status).toBe(502);
+    expect(await clipsCounted(user.id)).toBe(2);
+  });
+
+  it("gives a clip back to the day it was counted in", async () => {
+    const user = await signInAs();
+    const lastSecond = Date.UTC(2026, 10, 12, 23, 59, 59, 500);
+    vi.setSystemTime(lastSecond);
+    vi.spyOn(globalThis, "fetch").mockImplementation(async () => {
+      vi.setSystemTime(lastSecond + 1_000);
+      return Response.json({ error: { code: 503, message: "No provider" } }, { status: 503 });
+    });
+    expect((await POST(clip())).status).toBe(502);
+    expect(await clipsCounted(user.id, lastSecond)).toBe(0);
+    expect(await clipsCounted(user.id, lastSecond + 1_000)).toBeNull();
   });
 
   it.each([

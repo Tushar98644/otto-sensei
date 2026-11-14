@@ -357,6 +357,18 @@ describe("weekly subscribers", () => {
     expect((await getUsage(weekly(), NOV)).tailor).toEqual({ used: 0, limit: 40 });
     expect((await getUsage(pro, NOV)).tailor.limit).toBe(PLANS.pro.limits.tailor);
   });
+
+  it("report the unit just taken, with its row's invite extras and the other features' counts", async () => {
+    const db = await getDb();
+    await db.insert(usage).values([
+      { subject: pro.id, feature: "tailor", period: weekKey(WEEK_END), count: 5, bonus: 2 },
+      { subject: pro.id, feature: "letter", period: weekKey(WEEK_END), count: 3 },
+    ]);
+    const taken = await consumeUsage(weekly(), "tailor", NOV);
+    expect(taken.allowed).toBe(true);
+    expect(taken.usage.tailor).toEqual({ used: 6, limit: 40 });
+    expect(taken.usage.letter.used).toBe(3);
+  });
 });
 
 describe("billing months", () => {

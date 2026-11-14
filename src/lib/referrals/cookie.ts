@@ -48,17 +48,20 @@ export async function claimFromCookie(
   return outcome;
 }
 
-export async function noteReferralCheck(now = Date.now()): Promise<void> {
+// Returns the user when it had to look one up (null if signed out), so the caller needn't ask again.
+export async function noteReferralCheck(now = Date.now()): Promise<SessionUser | null | undefined> {
+  let user: SessionUser | null | undefined;
   try {
     const cookie = await readRefCookie();
-    if (!cookie) return;
-    const user = await getCurrentUser();
+    if (!cookie) return undefined;
+    user = await getCurrentUser();
     if (user) {
       await claimFromCookie(user, { checked: true }, now);
-      return;
+      return user;
     }
     if (cookie.stage !== "checked") await writeRefCookie({ code: cookie.code, stage: "checked" });
   } catch (error) {
     log.warn("referral.check_note_failed", {}, error);
   }
+  return user;
 }

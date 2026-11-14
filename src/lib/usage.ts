@@ -294,19 +294,25 @@ export async function consumeUsage(
   const limits = planLimits(user.plan, period.kind);
   const limit = limits[feature];
   const withBonus = isPaidPlan(user.plan);
-  let allowed = false;
-  if (limit > 0) {
-    allowed =
-      period.kind === "week"
-        ? await db.transaction(async (tx) => {
-            if (!(await takeUnit(tx, user.id, feature, period.key, limit, withBonus))) return false;
-            await countTowardMonth(tx, user.id, feature, now);
-            return true;
-          })
-        : await takeUnit(db, user.id, feature, period.key, limit, withBonus);
-  }
-  const rows = await periodCounts(db, user.id, period.key);
-  return { allowed, usage: toSnapshot(limits, rows, withBonus), period: publicPeriod(period) };
+  const take = () =>
+    period.kind === "week"
+      ? db.transaction(async (tx) => {
+          const row = await takeUnit(tx, user.id, feature, period.key, limit, withBonus);
+          if (row) await countTowardMonth(tx, user.id, feature, now);
+          return row;
+        })
+      : takeUnit(db, user.id, feature, period.key, limit, withBonus);
+  // The other counts are read beside the take; the taken row's own count comes back with it.
+  const [taken, rows] = await Promise.all([
+    limit > 0 ? take() : null,
+    periodCounts(db, user.id, period.key),
+  ]);
+  const counts = taken ? [...rows.filter((row) => row.feature !== feature), taken] : rows;
+  return {
+    allowed: taken !== null,
+    usage: toSnapshot(limits, counts, withBonus),
+    period: publicPeriod(period),
+  };
 }
 
 async function takeUnit(
@@ -316,9 +322,9 @@ async function takeUnit(
   key: string,
   limit: number,
   withBonus: boolean,
-): Promise<boolean> {
+): Promise<CountRow | null> {
   const cap = withBonus ? sql`${limit} + ${usage.bonus}` : sql`${limit}`;
-  const taken = await db
+  const [taken] = await db
     .insert(usage)
     .values({ subject: userId, feature, period: key, count: 1 })
     .onConflictDoUpdate({
@@ -326,8 +332,8 @@ async function takeUnit(
       set: { count: sql`${usage.count} + 1` },
       setWhere: sql`${usage.count} < ${cap}`,
     })
-    .returning({ count: usage.count });
-  return taken.length > 0;
+    .returning({ feature: usage.feature, count: usage.count, bonus: usage.bonus });
+  return taken ?? null;
 }
 
 async function countTowardMonth(db: Db, userId: string, feature: Feature, now: number) {

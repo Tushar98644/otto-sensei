@@ -1,10 +1,20 @@
-import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  afterEach,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  vi,
+  type MockInstance,
+} from "vitest";
 import { ANON_LIMITS, IP_LIMITS, PRO_TRIAL, UPLOAD_LIMITS } from "@/config/plans";
 import { structureResume } from "@/lib/ai/structure";
 import { AIError } from "@/lib/ai/types";
 import type { ApiErrorBody, ImportResponse } from "@/lib/api/types";
-import { cookieJar, resetDb, signInAs, signInOnTrial } from "@/lib/auth/test-helpers";
+import { cookieJar, fakeAuth, resetDb, signInAs, signInOnTrial } from "@/lib/auth/test-helpers";
 import { resetEnvForTests } from "@/lib/env";
+import { REF_COOKIE } from "@/lib/referrals/referrals";
 import { getUsage } from "@/lib/usage";
 import {
   blankPdf,
@@ -50,6 +60,10 @@ async function errorOf(res: Response): Promise<ApiErrorBody["error"]> {
   const body = (await res.json()) as ApiErrorBody;
   expect(body.ok).toBe(false);
   return body.error;
+}
+
+function completedLog(info: MockInstance<typeof console.info>): unknown {
+  return info.mock.calls.findLast(([message]) => message === "[info] import.completed")?.[1];
 }
 
 beforeAll(async () => {
@@ -342,11 +356,39 @@ describe("AI reads of uploads", () => {
     expect((await getUsage(maya)).import.used).toBe(0);
   });
 
+  it("never asks Supabase who's uploading when the rules read is good", async () => {
+    await signInOnTrial("maya@example.com");
+    const getUser = vi.spyOn(fakeAuth.server, "getUser");
+    const info = vi.spyOn(console, "info").mockImplementation(() => {});
+    expect(await read(await POST(upload(cleanFile())))).toMatchObject({ readWell: true });
+    expect(getUser).not.toHaveBeenCalled();
+    expect(completedLog(info)).toMatchObject({ signedIn: true, sessionChecked: false });
+    getUser.mockRestore();
+    info.mockRestore();
+  });
+
+  it("asks once for an AI read, also when the invite check already asked", async () => {
+    await signInOnTrial("maya@example.com");
+    const getUser = vi.spyOn(fakeAuth.server, "getUser");
+    const info = vi.spyOn(console, "info").mockImplementation(() => {});
+    expect((await read(await POST(upload(weakFile)))).usedAI).toBe(true);
+    expect(getUser).toHaveBeenCalledOnce();
+    cookieJar.set(REF_COOKIE, "zzzz9999");
+    expect((await read(await POST(upload(weakFile)))).usedAI).toBe(true);
+    expect(getUser).toHaveBeenCalledTimes(2);
+    expect(completedLog(info)).toMatchObject({ signedIn: true, sessionChecked: true });
+    getUser.mockRestore();
+    info.mockRestore();
+  });
+
   it("reads a good file with the AI when asked to (Let Otto re-read it)", async () => {
     const maya = await signInOnTrial("maya@example.com");
     const body = await read(await POST(upload(cleanFile(), { reader: "ai" })));
     expect(body).toMatchObject({ usedAI: true, basicReader: false, readWell: false });
-    expect(structureResume).toHaveBeenLastCalledWith(expect.any(String), NOW, { ai: true });
+    expect(structureResume).toHaveBeenLastCalledWith(expect.any(String), NOW, {
+      ai: true,
+      deadline: NOW + 55_000,
+    });
     expect((await getUsage(maya)).import.used).toBe(1);
   });
 

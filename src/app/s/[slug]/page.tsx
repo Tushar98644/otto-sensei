@@ -8,7 +8,7 @@ import { ResumeWeb } from "@/components/share/resume-web";
 import { SharePageFrame } from "@/components/share/share-page-frame";
 import { ShareUnavailable } from "@/components/share/share-unavailable";
 import { BRAND } from "@/config/brand";
-import { getCurrentUser } from "@/lib/auth/session";
+import { currentUserIdHint } from "@/lib/auth/session";
 import { log } from "@/lib/log";
 import { waitText } from "@/lib/rate-limit";
 import { ipFromHeaders, openSharePage } from "@/lib/share/page";
@@ -48,9 +48,10 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   };
 }
 
+// Only decides whether a view counts, so the locally checked JWT is enough.
 async function ownerIsReading(ownerId: string): Promise<boolean> {
   try {
-    return (await getCurrentUser())?.id === ownerId;
+    return (await currentUserIdHint()) === ownerId;
   } catch {
     return false;
   }

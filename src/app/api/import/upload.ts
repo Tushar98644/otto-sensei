@@ -2,6 +2,7 @@ import { UPLOAD_LIMITS } from "@/config/plans";
 import { fail } from "@/lib/api/respond";
 import type { ApiErrorCode } from "@/lib/api/types";
 import { rejectCrossSite } from "@/lib/auth/route-guards";
+import type { SessionUser } from "@/lib/auth/types";
 import { runRecruiterChecks } from "@/lib/checks/recruiter";
 import type { RecruiterReport } from "@/lib/checks/types";
 import { readBody } from "@/lib/http";
@@ -36,6 +37,8 @@ export type CheckedUpload = {
   report: RecruiterReport;
   bytes: number;
   startedAt: number;
+  // Set only when the invite check had to look the user up.
+  user?: SessionUser | null;
 };
 
 export async function checkUpload(req: Request, kind: UploadKind): Promise<CheckedUpload | Response> {
@@ -61,8 +64,8 @@ export async function checkUpload(req: Request, kind: UploadKind): Promise<Check
     return fail(code, message, status);
   }
   const report = runRecruiterChecks(extraction, startedAt);
-  await noteReferralCheck();
-  return { extraction, report, bytes: file.size, startedAt };
+  const user = await noteReferralCheck();
+  return { extraction, report, bytes: file.size, startedAt, user };
 }
 
 async function readUpload(req: Request): Promise<File | Response> {

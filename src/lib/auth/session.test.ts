@@ -4,8 +4,17 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { getDb } from "@/db/client";
 import { users } from "@/db/schema";
 import { execSql } from "@/db/testing";
-import { clearSession, getCurrentUser } from "./session";
-import { AUTH_COOKIE, cookieJar, fakeAuth, resetDb, signInAs } from "./test-helpers";
+import { clearSession, currentUserIdHint, getCurrentUser, hasSessionCookie } from "./session";
+import {
+  AUTH_COOKIE,
+  cookieJar,
+  createUser,
+  fakeAccessToken,
+  fakeAuth,
+  resetDb,
+  setPlan,
+  signInAs,
+} from "./test-helpers";
 
 vi.mock("next/headers", async () => (await import("@/lib/auth/test-helpers")).nextHeadersMock);
 
@@ -70,11 +79,81 @@ describe("getCurrentUser", () => {
   });
 
   it("throws instead of signing anyone out when Supabase can't answer", async () => {
-    vi.spyOn(console, "warn").mockImplementation(() => {});
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
     await signInAs("ada@example.com");
     fakeAuth.failNext("getUser", new AuthRetryableFetchError("fetch failed", 0));
     await expect(getCurrentUser()).rejects.toThrow("Supabase Auth is unavailable");
+    expect(warn).toHaveBeenCalledWith("[warn] auth.get_user_failed", {
+      reason: "AuthRetryableFetchError",
+      status: 0,
+      durationMs: expect.any(Number),
+    });
     await expect(getCurrentUser()).resolves.toMatchObject({ email: "ada@example.com" });
+  });
+
+  it("reads our row while Supabase is still checking the session, and only once", async () => {
+    const user = await signInAs("ada@example.com");
+    const getUser = fakeAuth.server.getUser;
+    const answered = Promise.withResolvers<void>();
+    vi.spyOn(fakeAuth.server, "getUser").mockImplementationOnce(async () => {
+      await answered.promise;
+      return getUser();
+    });
+    const reads = vi.spyOn(await getDb(), "select");
+
+    const pending = getCurrentUser();
+    await vi.waitFor(() => expect(reads).toHaveBeenCalledOnce());
+    answered.resolve();
+    await expect(pending).resolves.toMatchObject({ id: user.id, email: "ada@example.com" });
+    expect(reads).toHaveBeenCalledOnce();
+  });
+
+  it("uses that early row only for the account Supabase confirms", async () => {
+    const ada = await signInAs("ada@example.com");
+    const grace = await setPlan(await createUser("grace@example.com"), "pro");
+    const { data } = await fakeAuth.server.getSession();
+    if (!data.session) throw new Error("expected a session");
+    for (const token of [fakeAccessToken(grace.id), "not-a-jwt", "a.b.c"]) {
+      vi.spyOn(fakeAuth.server, "getSession").mockResolvedValueOnce({
+        data: { session: { ...data.session, access_token: token } },
+        error: null,
+      });
+      await expect(getCurrentUser()).resolves.toMatchObject({ id: ada.id, plan: "free" });
+    }
+  });
+});
+
+describe("currentUserIdHint", () => {
+  it("reads the id from the token without asking Supabase, so it doesn't see a revoked session", async () => {
+    expect(await currentUserIdHint()).toBeNull();
+    const user = await signInAs("ada@example.com");
+    const getUser = vi.spyOn(fakeAuth.server, "getUser");
+    expect(await currentUserIdHint()).toBe(user.id);
+    expect(getUser).not.toHaveBeenCalled();
+
+    const token = cookieJar.get(AUTH_COOKIE)?.value ?? "";
+    await clearSession();
+    cookieJar.set(AUTH_COOKIE, token);
+    await expect(getCurrentUser()).resolves.toBeNull();
+    expect(await currentUserIdHint()).toBe(user.id);
+  });
+
+  it("returns null for a token Supabase never issued, or with sign-in off", async () => {
+    cookieJar.set(AUTH_COOKIE, "garbage");
+    expect(await currentUserIdHint()).toBeNull();
+    await signInAs("ada@example.com");
+    fakeAuth.setConfigured(false);
+    expect(await currentUserIdHint()).toBeNull();
+  });
+});
+
+describe("hasSessionCookie", () => {
+  it("sees a session cookie, but not the one a Google sign-in leaves halfway", async () => {
+    expect(await hasSessionCookie()).toBe(false);
+    cookieJar.set(`${AUTH_COOKIE}-code-verifier`, "verifier");
+    expect(await hasSessionCookie()).toBe(false);
+    cookieJar.set(`${AUTH_COOKIE}.0`, "chunk");
+    expect(await hasSessionCookie()).toBe(true);
   });
 });
 

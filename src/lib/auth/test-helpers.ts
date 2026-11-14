@@ -1,10 +1,12 @@
 import {
   AuthApiError,
+  AuthInvalidJwtError,
   AuthSessionMissingError,
   type AuthError,
   type AuthOtpResponse,
   type AuthResponse,
   type AuthTokenResponse,
+  type JwtPayload,
   type OAuthResponse,
   type Session,
   type SignInWithOAuthCredentials,
@@ -84,6 +86,8 @@ const state = {
   adminConfigured: true,
   users: new Map<string, AuthUser>(),
   sessions: new Map<string, string>(),
+  // Every token ever handed out: like a JWT, it keeps its claims after the session ends.
+  issued: new Map<string, string>(),
   codes: new Map<string, string>(),
   oauthCodes: new Map<string, OAuthGrant>(),
   failures: new Map<FakeMethod, AuthError>(),
@@ -159,6 +163,7 @@ async function createAuthUser(email: string, githubOnly?: string): Promise<AuthU
 function startSession(user: AuthUser): string {
   const token = crypto.randomUUID();
   state.sessions.set(token, user.id);
+  state.issued.set(token, user.id);
   cookieJar.set(AUTH_COOKIE, token, { httpOnly: true, sameSite: "lax", path: "/" });
   return token;
 }
@@ -170,6 +175,8 @@ function apiError(message: string, status: number, code: string): AuthApiError {
 type FakeServerAuth = Pick<
   ServerSupabase["auth"],
   | "getUser"
+  | "getSession"
+  | "getClaims"
   | "signInWithOtp"
   | "verifyOtp"
   | "signInWithOAuth"
@@ -189,6 +196,33 @@ function sessionUser(): { user: AuthUser; error: null } | { user: null; error: A
   const user = state.users.get(userId);
   if (!user) return { user: null, error: apiError("User does not exist", 403, "user_not_found") };
   return { user, error: null };
+}
+
+const JWT_HEADER = { alg: "ES256", kid: "test", typ: "JWT" };
+
+function claimsOf(userId: string): JwtPayload {
+  const iat = Math.floor(Date.now() / 1000);
+  return {
+    iss: "https://project.supabase.test/auth/v1",
+    sub: userId,
+    aud: "authenticated",
+    exp: iat + 3600,
+    iat,
+    role: "authenticated",
+    aal: "aal1",
+    session_id: "test-session",
+  };
+}
+
+// Shaped like Supabase's access token, unsigned: the code under test only reads its claims.
+export function fakeAccessToken(userId: string): string {
+  const part = (value: object) => Buffer.from(JSON.stringify(value)).toString("base64url");
+  return `${part(JWT_HEADER)}.${part(claimsOf(userId))}.unsigned`;
+}
+
+function issuedUserId(): string | null {
+  const token = cookieJar.get(AUTH_COOKIE)?.value;
+  return token ? (state.issued.get(token) ?? null) : null;
 }
 
 function startOAuth(path: string, credentials: SignInWithOAuthCredentials): OAuthResponse {
@@ -223,6 +257,24 @@ const serverAuth: FakeServerAuth = {
     const { user, error } = sessionUser();
     if (error) return { data: { user: null }, error };
     return { data: { user: userObject(user) }, error: null };
+  },
+
+  // Like Supabase: reads the cookie only, so a session ended elsewhere still shows up here.
+  async getSession() {
+    const userId = issuedUserId();
+    if (!userId) return { data: { session: null }, error: null };
+    const user = state.users.get(userId) ?? { id: userId, email: "", github: null };
+    return { data: { session: sessionObject(user, fakeAccessToken(userId)) }, error: null };
+  },
+
+  async getClaims() {
+    if (!cookieJar.get(AUTH_COOKIE)?.value) return { data: null, error: null };
+    const userId = issuedUserId();
+    if (!userId) return { data: null, error: new AuthInvalidJwtError("Invalid JWT signature") };
+    return {
+      data: { claims: claimsOf(userId), header: JWT_HEADER, signature: new Uint8Array() },
+      error: null,
+    };
   },
 
   async signInWithOtp(credentials: SignInWithPasswordlessCredentials): Promise<AuthOtpResponse> {
@@ -344,6 +396,7 @@ export const fakeAuth = {
     state.adminConfigured = true;
     state.users.clear();
     state.sessions.clear();
+    state.issued.clear();
     state.codes.clear();
     state.oauthCodes.clear();
     state.failures.clear();
@@ -357,6 +410,10 @@ export const fakeAuth = {
   },
   failNext(method: FakeMethod, error: AuthError): void {
     state.failures.set(method, error);
+  },
+  // What createSupabaseServerClient() hands out, for counting calls with vi.spyOn.
+  get server(): FakeServerAuth {
+    return serverAuth;
   },
   get sent(): readonly { email: string; code: string; shouldCreateUser: boolean | undefined }[] {
     return state.sent;

@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { getDb } from "@/db/client";
 import { rateLimits } from "@/db/schema";
 import { resetDb } from "@/lib/auth/test-helpers";
-import { rateLimit, retryAfterHeader, waitText } from "./rate-limit";
+import { giveBackRateLimit, rateLimit, retryAfterHeader, waitText } from "./rate-limit";
 
 const MINUTE = 60_000;
 const DAY = 24 * 60 * MINUTE;
@@ -57,6 +57,34 @@ describe("rateLimit", () => {
 
   it("rejects a window that isn't positive", async () => {
     await expect(rateLimit("test:e", 5, 0, WINDOW_START + 1)).rejects.toThrow(RangeError);
+    await expect(giveBackRateLimit("test:e", 0, WINDOW_START + 1)).rejects.toThrow(RangeError);
+  });
+});
+
+describe("giveBackRateLimit", () => {
+  it("returns a call to its own window, so the next one is allowed again", async () => {
+    for (let i = 1; i <= 2; i++) await rateLimit("test:f", 2, MINUTE, WINDOW_START + i);
+    await giveBackRateLimit("test:f", MINUTE, WINDOW_START + 2);
+    expect((await rateLimit("test:f", 2, MINUTE, WINDOW_START + 3)).allowed).toBe(true);
+    expect((await rateLimit("test:f", 2, MINUTE, WINDOW_START + 4)).allowed).toBe(false);
+  });
+
+  it("never credits the next window or goes below zero", async () => {
+    await rateLimit("test:g", 1, MINUTE, WINDOW_START + 1);
+    await rateLimit("test:g", 1, MINUTE, WINDOW_START + MINUTE + 1);
+    await Promise.all([1, 2, 3].map(() => giveBackRateLimit("test:g", MINUTE, WINDOW_START + 2)));
+    expect((await rateLimit("test:g", 1, MINUTE, WINDOW_START + MINUTE + 2)).allowed).toBe(false);
+    expect(await rateLimit("test:g", 1, MINUTE, WINDOW_START + 3)).toMatchObject({
+      allowed: true,
+      remaining: 0,
+    });
+  });
+
+  it("finds a very long key the way rateLimit stored it", async () => {
+    const key = `test:${"x".repeat(5_000)}`;
+    await rateLimit(key, 1, MINUTE, WINDOW_START + 1);
+    await giveBackRateLimit(key, MINUTE, WINDOW_START + 1);
+    expect((await rateLimit(key, 1, MINUTE, WINDOW_START + 2)).allowed).toBe(true);
   });
 });
 

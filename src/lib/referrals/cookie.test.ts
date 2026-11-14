@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { PLANS } from "@/config/plans";
 import { getDb } from "@/db/client";
 import { referrals } from "@/db/schema";
-import { cookieJar, createUser, resetDb, signInAs } from "@/lib/auth/test-helpers";
+import { cookieJar, createUser, fakeAuth, resetDb, signInAs } from "@/lib/auth/test-helpers";
 import type { SessionUser } from "@/lib/auth/types";
 import { getUsage } from "@/lib/usage";
 import { claimFromCookie, noteReferralCheck } from "./cookie";
@@ -29,14 +29,18 @@ beforeEach(async () => {
 });
 
 describe("noteReferralCheck", () => {
-  it("does nothing without an invite cookie", async () => {
-    await noteReferralCheck();
+  it("does nothing without an invite cookie, not even asking who's checking", async () => {
+    await signInAs("maya@example.com");
+    const getUser = vi.spyOn(fakeAuth.server, "getUser");
+    await expect(noteReferralCheck()).resolves.toBeUndefined();
     expect(cookieJar.has(REF_COOKIE)).toBe(false);
+    expect(getUser).not.toHaveBeenCalled();
+    vi.restoreAllMocks();
   });
 
   it("marks a signed-out check, which pays out at sign-up", async () => {
     cookieJar.set(REF_COOKIE, code);
-    await noteReferralCheck();
+    await expect(noteReferralCheck()).resolves.toBeNull();
     expect(cookieJar.get(REF_COOKIE)?.value).toBe(`${code}.c`);
     expect(cookieJar.get(REF_COOKIE)?.httpOnly).toBe(false);
 
@@ -52,7 +56,7 @@ describe("noteReferralCheck", () => {
     expect(await claimFromCookie(maya, { checked: false })).toBe("pending");
     expect(cookieJar.get(REF_COOKIE)?.value).toBe(`${code}.j`);
 
-    await noteReferralCheck();
+    await expect(noteReferralCheck()).resolves.toMatchObject({ id: maya.id });
     expect(await linked(maya.id)).toBe("rewarded");
     expect(cookieJar.get(REF_COOKIE)?.value).toBe("");
     expect((await getUsage({ ...maya, plan: "pro" })).tailor.limit).toBe(
@@ -67,13 +71,13 @@ describe("noteReferralCheck", () => {
     expect(cookieJar.get(REF_COOKIE)?.value).toBe("");
   });
 
-  it("never fails the check it runs after", async () => {
+  it("never fails the check it runs after, and still hands back who it looked up", async () => {
     cookieJar.set(REF_COOKIE, code);
-    await signInAs("maya@example.com");
+    const maya = await signInAs("maya@example.com");
     const db = await getDb();
     vi.spyOn(db, "transaction").mockRejectedValueOnce(new Error("database is down"));
     vi.spyOn(console, "warn").mockImplementation(() => undefined);
-    await expect(noteReferralCheck()).resolves.toBeUndefined();
+    await expect(noteReferralCheck()).resolves.toMatchObject({ id: maya.id });
     vi.restoreAllMocks();
   });
 });

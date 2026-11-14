@@ -1,4 +1,4 @@
-import { lt, sql } from "drizzle-orm";
+import { and, eq, gt, lt, sql } from "drizzle-orm";
 import { getDb } from "@/db/client";
 import { rateLimits } from "@/db/schema";
 import { log } from "@/lib/log";
@@ -22,8 +22,7 @@ export async function rateLimit(
   windowMs: number,
   now = Date.now(),
 ): Promise<RateLimitResult> {
-  if (!(windowMs > 0)) throw new RangeError("rateLimit: windowMs must be positive");
-  const windowStart = Math.floor(now / windowMs) * windowMs;
+  const windowStart = windowStartOf(now, windowMs);
   const count = await countInDb(key.slice(0, MAX_KEY_LENGTH), windowStart, now);
 
   const allowed = count <= limit;
@@ -32,6 +31,26 @@ export async function rateLimit(
     remaining: Math.max(0, limit - count),
     retryAfterMs: allowed ? 0 : windowStart + windowMs - now,
   };
+}
+
+// Use the `now` the call was counted with, so a late give-back can't credit the next window.
+export async function giveBackRateLimit(key: string, windowMs: number, now: number): Promise<void> {
+  const db = await getDb();
+  await db
+    .update(rateLimits)
+    .set({ count: sql`${rateLimits.count} - 1` })
+    .where(
+      and(
+        eq(rateLimits.key, key.slice(0, MAX_KEY_LENGTH)),
+        eq(rateLimits.windowStart, windowStartOf(now, windowMs)),
+        gt(rateLimits.count, 0),
+      ),
+    );
+}
+
+function windowStartOf(now: number, windowMs: number): number {
+  if (!(windowMs > 0)) throw new RangeError("rateLimit: windowMs must be positive");
+  return Math.floor(now / windowMs) * windowMs;
 }
 
 async function countInDb(key: string, windowStart: number, now: number): Promise<number> {

@@ -2,6 +2,7 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import { supabaseConfig } from "@/lib/env";
 import { authCookieOptions, isAuthCookie } from "./cookies";
+import { fetchWithDeadline } from "./deadline";
 
 // Server components can't write cookies, so expired tokens are refreshed here during navigation.
 
@@ -31,6 +32,7 @@ export async function updateSession(request: NextRequest): Promise<SessionUpdate
         for (const [key, value] of Object.entries(headers)) response.headers.set(key, value);
       },
     },
+    global: { fetch: fetchWithDeadline() },
   });
 
   // Nothing may run between creating the client and this call (Supabase's guide).

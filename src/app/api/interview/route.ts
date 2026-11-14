@@ -20,11 +20,13 @@ const COPY: MeteredCopy = {
   tooLong: "That job post or resume is too long for Otto. Try a shorter job post.",
 };
 
-async function saveForCaller(applicationId: string, prep: InterviewPrep): Promise<boolean> {
+async function saveForCaller(
+  userId: string,
+  applicationId: string,
+  prep: InterviewPrep,
+): Promise<boolean> {
   try {
-    const user = await getCurrentUser();
-    if (!user) return false;
-    const saved = await savePrep(user.id, applicationId, prep);
+    const saved = await savePrep(userId, applicationId, prep);
     if (!saved) log.info("interview.application_gone");
     return saved;
   } catch (error) {
@@ -55,13 +57,13 @@ export async function POST(req: Request): Promise<Response> {
     feature: "letter",
     schema: InterviewRequestSchema,
     copy: COPY,
-    run: async ({ applicationId, resume, job }): Promise<InterviewResult> => {
+    run: async ({ applicationId, resume, job }, user): Promise<InterviewResult> => {
       const prep = await prepareInterview(resume, {
         jobText: job.text,
         jobTitle: job.title,
         company: job.company,
       });
-      return { prep, saved: await saveForCaller(applicationId, prep) };
+      return { prep, saved: await saveForCaller(user.id, applicationId, prep) };
     },
   });
 }

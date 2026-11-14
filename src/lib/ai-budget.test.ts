@@ -19,6 +19,15 @@ import {
 } from "@/lib/usage";
 import { checkAiBudget, recordAiTokens, spendAiTokens } from "./ai-budget";
 
+const request = vi.hoisted(() => ({ open: false, after: [] as Array<() => Promise<void>> }));
+vi.mock("next/server", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("next/server")>()),
+  after: (task: () => Promise<void>) => {
+    if (!request.open) throw new Error("`after` was called outside a request scope");
+    request.after.push(task);
+  },
+}));
+
 const NOV = Date.UTC(2026, 10, 15, 12);
 const DEC = Date.UTC(2026, 11, 1, 0, 0, 1);
 const MINUTE = 60_000;
@@ -43,6 +52,8 @@ async function storedTokens(user: SessionUser, period: string): Promise<number |
 }
 
 beforeEach(async () => {
+  request.open = false;
+  request.after = [];
   await resetDb();
   free = await createUser("free@example.com");
   pro = {
@@ -185,6 +196,20 @@ describe("spendAiTokens", () => {
     });
     await expect(failing).rejects.toThrow("cut off");
     expect(await storedTokens(pro, cycleKey(P_START))).toBe(5_000);
+  });
+
+  it("saves the charge once the answer is out, in a request", async () => {
+    request.open = true;
+    const result = await spendAiTokens(pro, NOV, async () => {
+      noteTokens(700);
+      return "sent";
+    });
+    expect(result).toBe("sent");
+    expect(await storedTokens(pro, cycleKey(P_START))).toBeNull();
+
+    expect(request.after).toHaveLength(1);
+    await Promise.all(request.after.map((task) => task()));
+    expect(await storedTokens(pro, cycleKey(P_START))).toBe(700);
   });
 
   it("records nothing when no AI call reported tokens, as in demo mode", async () => {

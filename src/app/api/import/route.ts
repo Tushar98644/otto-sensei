@@ -3,7 +3,7 @@ import { AIError } from "@/lib/ai/types";
 import { trackStructureCall } from "@/lib/analytics/ai";
 import { fail, ok } from "@/lib/api/respond";
 import type { ImportResponse } from "@/lib/api/types";
-import { getCurrentUser } from "@/lib/auth/session";
+import { getCurrentUser, hasSessionCookie } from "@/lib/auth/session";
 import { linkedInProfileText } from "@/lib/linkedin/profile-pdf";
 import { log } from "@/lib/log";
 import type { Extraction } from "@/lib/parse";
@@ -14,8 +14,9 @@ import { claimAiRead, NO_AI_READ, type AiRead } from "./ai-reads";
 import { checkUpload } from "./upload";
 
 export const runtime = "nodejs";
-// Structuring may call Claude, whose own deadline is 50 seconds.
+// The AI read must finish 55 s after the request started; the rest is room for saving and refunds.
 export const maxDuration = 60;
+const AI_READ_BY_MS = 55_000;
 
 export async function POST(req: Request): Promise<Response> {
   try {
@@ -23,7 +24,8 @@ export async function POST(req: Request): Promise<Response> {
     const upload = await checkUpload(req, "import");
     if (upload instanceof Response) return upload;
     const { extraction, report, bytes, startedAt } = upload;
-    const user = await getCurrentUser();
+    // Only an AI read needs the account, so a good rules read never waits on Supabase.
+    let user = upload.user;
     const source = readableText(extraction);
 
     let read: AiRead = NO_AI_READ;
@@ -36,9 +38,17 @@ export async function POST(req: Request): Promise<Response> {
       } else {
         const rules = await structureResume(source.text, startedAt, { ai: false });
         weakSigns = weakReadSigns(source.text, rules.resume, source.layout);
-        if (askedForAI || weakSigns.length > 0) read = await claimAiRead(user, startedAt);
+        if (askedForAI || weakSigns.length > 0) {
+          if (user === undefined) user = await getCurrentUser();
+          read = await claimAiRead(user, startedAt);
+        }
         structured = read.useAI
-          ? await read.spend(() => structureResume(source.text, startedAt, { ai: true }))
+          ? await read.spend(() =>
+              structureResume(source.text, startedAt, {
+                ai: true,
+                deadline: startedAt + AI_READ_BY_MS,
+              }),
+            )
           : rules;
       }
     } catch (error) {
@@ -54,6 +64,7 @@ export async function POST(req: Request): Promise<Response> {
 
     if (read.useAI && !structured.usedAI) await read.giveBack();
     const readWell = source !== null && weakSigns.length === 0 && !askedForAI;
+    const signedIn = user === undefined ? await hasSessionCookie() : user !== null;
     log.info("import.completed", {
       kind: extraction.kind,
       pages: extraction.pageCount,
@@ -65,7 +76,9 @@ export async function POST(req: Request): Promise<Response> {
       readWell,
       weakSigns: weakSigns.join(","),
       askedForAI,
-      signedIn: user !== null,
+      signedIn,
+      // When false, signedIn only means a session cookie came with the upload.
+      sessionChecked: user !== undefined,
       durationMs: Date.now() - startedAt,
     });
     if (read.useAI) trackStructureCall(structuring, structured.usedAI);

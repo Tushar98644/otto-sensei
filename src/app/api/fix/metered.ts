@@ -29,7 +29,7 @@ export type MeteredRoute<S extends z.ZodType, R> = {
   feature: Feature;
   schema: S;
   copy: MeteredCopy;
-  run: (input: z.output<S>) => Promise<R>;
+  run: (input: z.output<S>, user: SessionUser) => Promise<R>;
 };
 
 const CALLS_PER_MINUTE: Record<Feature, number> = {
@@ -76,7 +76,12 @@ export async function runMetered<S extends z.ZodType, R>(
     const missing = requirePlanFeature(user, feature);
     if (missing) return missing;
 
-    const burst = await rateLimit(`${feature}:user:${user.id}`, CALLS_PER_MINUTE[feature], MINUTE_MS);
+    const now = Date.now();
+    // Looked up together; the budget's answer still comes after validation, in the order above.
+    const [burst, budget] = await Promise.all([
+      rateLimit(`${feature}:user:${user.id}`, CALLS_PER_MINUTE[feature], MINUTE_MS),
+      checkAiBudget(user, now),
+    ]);
     if (!burst.allowed) {
       log.warn(`${feature}.burst_limited`, { plan: user.plan });
       return fail(
@@ -93,15 +98,13 @@ export async function runMetered<S extends z.ZodType, R>(
       return fail("bad_request", copy.invalid, 400);
     }
 
-    const now = Date.now();
-    const budget = await checkAiBudget(user, now);
     if (!budget.allowed) return budgetReached(user, budget.period, now);
     const { allowed, usage, period } = await consumeUsage(user, feature, now);
     if (!allowed) return limitReached(user, feature, period, now);
 
     const call = { userId: user.id, path: new URL(req.url).pathname, feature, startedAt: Date.now() };
     try {
-      const result = await spendAiTokens(user, now, () => route.run(body.data));
+      const result = await spendAiTokens(user, now, () => route.run(body.data, user));
       trackMeteredCall(call);
       return ok({ result, usage, demo: !aiEnabled() });
     } catch (error) {

@@ -1,4 +1,5 @@
 import { and, eq, sql } from "drizzle-orm";
+import { after } from "next/server";
 import { aiTokenBudget, isPaidPlan, type UsagePeriod } from "@/config/plans";
 import { getDb, type Db } from "@/db/client";
 import { usage } from "@/db/schema";
@@ -57,10 +58,18 @@ export function spendAiTokens<T>(
 ): Promise<T> {
   return metered(work, async (tokens) => {
     if (tokens === 0) return;
+    const record = async () => {
+      try {
+        await recordAiTokens(user, tokens, now);
+      } catch (error) {
+        log.error("ai_budget.record_failed", error, { userId: user.id, tokens });
+      }
+    };
+    // The budget is soft, so the write waits until the answer is out; outside a request it runs now.
     try {
-      await recordAiTokens(user, tokens, now);
-    } catch (error) {
-      log.error("ai_budget.record_failed", error, { userId: user.id, tokens });
+      after(record);
+    } catch {
+      await record();
     }
   });
 }

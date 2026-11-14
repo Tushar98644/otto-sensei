@@ -3,6 +3,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { cookies } from "next/headers";
 import { supabaseConfig } from "@/lib/env";
 import { authCookieOptions } from "./cookies";
+import { fetchWithDeadline } from "./deadline";
 
 // Never cache it across requests: it carries one visitor's session.
 
@@ -29,5 +30,6 @@ export async function createSupabaseServerClient(): Promise<ServerSupabase | nul
         }
       },
     },
+    global: { fetch: fetchWithDeadline() },
   });
 }
