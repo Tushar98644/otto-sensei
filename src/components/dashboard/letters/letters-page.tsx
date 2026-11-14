@@ -19,6 +19,7 @@ import { api } from "@/lib/api/client";
 import { useResumeList, useStudioHydrated } from "@/lib/store/resume-store";
 import { pluralize } from "@/lib/utils";
 import type { WritingKind } from "@/lib/writings/schema";
+import { LazyWriteDialog } from "../lazy-dialogs";
 import { NewResumeMenu } from "../new-resume-menu";
 import { useStudioActions } from "../use-studio-actions";
 import { useApplications } from "../applications/use-applications";
@@ -38,7 +39,7 @@ import { LETTER_FILTER_NAMES, LetterFilters } from "./letter-filters";
 import { LetterRow } from "./letter-row";
 import { useLetterPdf } from "./use-letter-pdf";
 import { useWritings } from "./use-writings";
-import { WriteDialog, type Written } from "./write-dialog";
+import type { Written } from "./write-dialog";
 
 const count = new Intl.NumberFormat("en-US");
 const PAGE_ROWS = 50;
@@ -288,16 +289,17 @@ export function LettersPage() {
         </section>
       )}
 
-      {composer ? (
-        <WriteDialog
-          key={composer.key}
-          kind={composer.kind}
-          open={composer.open}
+      {/* Free accounts can't write here, so they skip loading the dialog's code. */}
+      {locked && composer === null ? null : (
+        <LazyWriteDialog
+          key={composer?.key}
+          kind={composer?.kind ?? "letter"}
+          open={composer?.open ?? false}
           resumes={resumes}
-          onClose={() => setComposer({ ...composer, open: false })}
+          onClose={() => setComposer((current) => current && { ...current, open: false })}
           onWritten={written}
         />
-      ) : null}
+      )}
       {viewer && viewing ? (
         <LetterDialog
           key={viewer.key}

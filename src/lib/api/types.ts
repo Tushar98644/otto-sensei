@@ -1,7 +1,9 @@
 import { z } from "zod";
 import {
   BILLING_INTERVALS,
+  DRAFT_LIMITS,
   PAID_PLANS,
+  SUMMARY_IMPROVE_CHARS,
   TEXT_LIMITS,
   type BillingInterval,
   type PaidPlanId,
@@ -129,7 +131,6 @@ export type InterviewResponse = {
 export type InterviewPrepResponse = { ok: true; target: PrepTarget; prep: InterviewPrep | null };
 export type InterviewPacksResponse = { ok: true; packs: PrepSummary[] };
 
-export const SUMMARY_IMPROVE_CHARS = { min: 15, max: 3_000 } as const;
 export const SummaryRequestSchema = z.discriminatedUnion("mode", [
   z.object({ mode: z.literal("write"), resume: ResumeSchema }),
   z.object({
@@ -217,7 +218,6 @@ export type { ApplicationThread } from "@/lib/applications/thread";
 export type ApplicationThreadResponse = { ok: true; thread: ApplicationThread };
 export type BulkApplicationsResponse = { ok: true; applications: Application[] };
 
-export const DRAFT_LIMITS = { jobs: 6, notesPerJob: 4, noteChars: 400 } as const;
 export const DraftJobSchema = z.object({
   company: z.string().trim().max(200),
   title: z.string().trim().min(1).max(200),

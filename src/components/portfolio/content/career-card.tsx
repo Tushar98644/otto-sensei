@@ -4,8 +4,8 @@ import { useState } from "react";
 import { Input } from "@/components/ui/input";
 import {
   CONTENT_LIMITS as L,
-  JobExtraSchema,
-  SchoolExtraSchema,
+  emptyJobExtra,
+  emptySchoolExtra,
   type JobExtra,
   type PortfolioContent,
   type PortfolioContentView,
@@ -24,7 +24,7 @@ function patchJob(id: string, patch: Partial<JobExtra>, undo?: string) {
       ...current,
       jobs: {
         ...current.jobs,
-        [id]: { ...(current.jobs[id] ?? JobExtraSchema.parse({})), ...patch },
+        [id]: { ...(current.jobs[id] ?? emptyJobExtra()), ...patch },
       },
     }),
     undo,
@@ -37,7 +37,7 @@ function patchSchool(id: string, patch: Partial<SchoolExtra>, undo?: string) {
       ...current,
       schools: {
         ...current.schools,
-        [id]: { ...(current.schools[id] ?? SchoolExtraSchema.parse({})), ...patch },
+        [id]: { ...(current.schools[id] ?? emptySchoolExtra()), ...patch },
       },
     }),
     undo,

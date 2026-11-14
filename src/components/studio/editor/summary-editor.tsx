@@ -7,7 +7,7 @@ import { OttoMark } from "@/components/site/otto-mark";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { VoiceTextarea } from "@/components/ui/voice-field";
-import { SUMMARY_IMPROVE_CHARS } from "@/lib/api/types";
+import { SUMMARY_IMPROVE_CHARS } from "@/config/plans";
 import { listBullets } from "@/lib/resume/ops";
 import type { Resume } from "@/lib/resume/schema";
 import { SUMMARY_INPUT_ID } from "./focus";

@@ -23,9 +23,9 @@ import { savedJobText } from "@/lib/insights/saved-job";
 import { resumeTitle } from "@/lib/resume/ops";
 import { useResumeList, useStudioHydrated } from "@/lib/store/resume-store";
 import { pluralize } from "@/lib/utils";
-import { WriteDialog } from "../../letters/write-dialog";
+import { LazyApplicationDialog, LazyWriteDialog } from "../../lazy-dialogs";
 import { useStudioActions } from "../../use-studio-actions";
-import { ApplicationDialog, type ApplicationDialogTarget } from "../application-dialog";
+import type { ApplicationDialogTarget } from "../application-dialog";
 import { FollowUpChip } from "../follow-up-chip";
 import { StatusMenu } from "../status-menu";
 import {
@@ -304,7 +304,7 @@ export function ApplicationHub({ applicationId }: { applicationId: string }) {
         </>
       ) : null}
 
-      <ApplicationDialog
+      <LazyApplicationDialog
         target={dialog}
         resumes={resumes}
         onClose={() => {
@@ -312,33 +312,38 @@ export function ApplicationHub({ applicationId }: { applicationId: string }) {
           reload();
         }}
       />
-      {writing && application ? (
-        <WriteDialog
-          key={writing.key}
+      {/* Free accounts can't write here, so they skip loading the dialog's code. */}
+      {pro === false && writing === null ? null : (
+        <LazyWriteDialog
+          key={writing?.key}
           kind="letter"
-          open={writing.open}
+          open={writing !== null && writing.open && application !== null}
           resumes={resumes}
-          start={{
-            applicationId: application.id,
-            resumeId: sent?.id ?? null,
-            draft: {
-              title: application.role,
-              company: application.company,
-              link: thread?.job?.url || application.jobUrl,
-              text: savedJobText(copy),
-              paste: savedJobText(copy) !== "",
-            },
-          }}
-          onClose={() => setWriting({ ...writing, open: false })}
+          start={
+            application
+              ? {
+                  applicationId: application.id,
+                  resumeId: sent?.id ?? null,
+                  draft: {
+                    title: application.role,
+                    company: application.company,
+                    link: thread?.job?.url || application.jobUrl,
+                    text: savedJobText(copy),
+                    paste: savedJobText(copy) !== "",
+                  },
+                }
+              : undefined
+          }
+          onClose={() => setWriting((current) => current && { ...current, open: false })}
           onWritten={(written) => {
-            setWriting({ ...writing, open: false });
+            setWriting((current) => current && { ...current, open: false });
             if (written.kind === "saved") {
               reload();
               toast({ title: "Letter kept with this application", variant: "success" });
             }
           }}
         />
-      ) : null}
+      )}
     </div>
   );
 }

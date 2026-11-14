@@ -1,5 +1,6 @@
 import type { Resume } from "@/lib/resume/schema";
-import { byRound, type InterviewPrep, type PrepQuestion, type PrepRound, type PrepTarget } from "./prep";
+import type { InterviewPrep, PrepQuestion, PrepTarget } from "./prep";
+import { byRound, type PrepRound } from "./prep-rounds";
 import { savedJobText, savedJobUrl } from "./saved-job";
 
 export type PrepJobSource =

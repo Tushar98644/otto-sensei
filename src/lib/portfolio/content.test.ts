@@ -2,12 +2,20 @@ import { describe, expect, it } from "vitest";
 import {
   CONTENT_LIMITS,
   emptyContent,
-  parseStoredContent,
-  PortfolioContentSchema,
+  emptyJobExtra,
+  emptySchoolExtra,
+  newProjectEntry,
   PORTFOLIO_CONTENT_VERSION,
   saveableContent,
   webHref,
 } from "./content";
+import {
+  JobExtraSchema,
+  parseStoredContent,
+  PortfolioContentSchema,
+  ProjectEntrySchema,
+  SchoolExtraSchema,
+} from "./content-validation";
 import { jordanContent } from "./fixtures/jordan";
 
 const oldUpload = {
@@ -30,7 +38,7 @@ describe("portfolio content contract", () => {
 
   it("keeps the fixture whole: every field the designs use is in it", () => {
     const content = jordanContent();
-    expect(PortfolioContentSchema.safeParse(content).success).toBe(true);
+    expect(PortfolioContentSchema.parse(content)).toStrictEqual(content);
     expect(content.projects).toHaveLength(7);
   });
 
@@ -110,5 +118,37 @@ describe("portfolio content contract", () => {
     expect(saved.testimonials).toEqual([]);
     expect(saved.jobs.e1?.website).toBe("");
     expect(PortfolioContentSchema.safeParse(saved).success).toBe(true);
+  });
+});
+
+describe("plain defaults, built without zod for the editor", () => {
+  it("match what the schema fills in", () => {
+    expect(emptyContent()).toStrictEqual(PortfolioContentSchema.parse({}));
+    expect(newProjectEntry("gh:jordanellis/tally")).toStrictEqual(
+      ProjectEntrySchema.parse({ id: "gh:jordanellis/tally" }),
+    );
+    expect(newProjectEntry("c:1", "New project")).toStrictEqual(
+      ProjectEntrySchema.parse({ id: "c:1", name: "New project" }),
+    );
+    expect(emptyJobExtra()).toStrictEqual(JobExtraSchema.parse({}));
+    expect(emptySchoolExtra()).toStrictEqual(SchoolExtraSchema.parse({}));
+  });
+
+  it("hand out fresh objects every time", () => {
+    const first = emptyContent();
+    first.projects.push(newProjectEntry("c:1"));
+    first.github.username = "jordanellis";
+    first.hidden.push("talks");
+    expect(emptyContent()).toStrictEqual(PortfolioContentSchema.parse({}));
+    expect(newProjectEntry("c:2").details).not.toBe(newProjectEntry("c:2").details);
+  });
+
+  it("refuses a project id the save would refuse", () => {
+    const longest = `gh:${"a".repeat(CONTENT_LIMITS.entryId - 3)}`;
+    expect(newProjectEntry(longest).id).toBe(longest);
+    expect(ProjectEntrySchema.safeParse({ id: longest }).success).toBe(true);
+    expect(() => newProjectEntry(`${longest}a`)).toThrow(RangeError);
+    expect(ProjectEntrySchema.safeParse({ id: `${longest}a` }).success).toBe(false);
+    expect(() => newProjectEntry("")).toThrow(RangeError);
   });
 });

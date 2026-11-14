@@ -9,7 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import {
   CONTENT_LIMITS as L,
   DEVICE_FRAMES,
-  ProjectEntrySchema,
+  newProjectEntry,
   type DeviceFrame,
   type GitHubStats,
   type PortfolioContent,
@@ -93,7 +93,7 @@ function saveRows(
 ) {
   editContent((current) => {
     const kept = current.projects.filter((entry) => !rows.some((row) => row.id === entry.id));
-    const entries = rows.map((row) => row.entry ?? ProjectEntrySchema.parse({ id: row.id }));
+    const entries = rows.map((row) => row.entry ?? newProjectEntry(row.id));
     return { ...current, projects: [...change(entries), ...kept].slice(0, L.projects) };
   }, undo);
 }
@@ -210,10 +210,7 @@ export function ProjectsCard({
             size="sm"
             variant="secondary"
             onClick={() =>
-              saveRows(rows, (entries) => [
-                ...entries,
-                ProjectEntrySchema.parse({ id: `gh:${repo.fullName}` }),
-              ])
+              saveRows(rows, (entries) => [...entries, newProjectEntry(`gh:${repo.fullName}`)])
             }
           >
             <Plus className="size-4" />
@@ -230,7 +227,7 @@ export function ProjectsCard({
           onClick={() =>
             saveRows(rows, (entries) => [
               ...entries,
-              ProjectEntrySchema.parse({ id: `c:${crypto.randomUUID()}`, name: "New project" }),
+              newProjectEntry(`c:${crypto.randomUUID()}`, "New project"),
             ])
           }
         >

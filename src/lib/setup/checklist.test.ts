@@ -10,10 +10,10 @@ import {
   reminderPromptShows,
   setupItems,
   setupProgress,
-  weakLineState,
   workRightsSet,
   type SetupFacts,
 } from "./checklist";
+import { weakLineState } from "./weak-line";
 
 const STRONG = "Cut checkout errors 38% by rewriting the payment retry logic";
 const WARNING = "Responsible for managing the company website";

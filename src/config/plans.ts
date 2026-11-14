@@ -171,6 +171,8 @@ export const EMAIL_LIMITS = { loginCodesPerHour: 5 } as const;
 // Vercel rejects bodies over 4.5 MB before our code runs; leave room for multipart overhead.
 export const UPLOAD_LIMITS = { maxBytes: 4 * 1024 * 1024, maxPages: 6 } as const;
 export const TEXT_LIMITS = { resumeChars: 40_000, jobPostChars: 20_000, bulletChars: 600 } as const;
+export const DRAFT_LIMITS = { jobs: 6, notesPerJob: 4, noteChars: 400 } as const;
+export const SUMMARY_IMPROVE_CHARS = { min: 15, max: 3_000 } as const;
 
 export type Usage = { used: number; limit: number };
 export type UsageSnapshot = Record<Feature, Usage>;

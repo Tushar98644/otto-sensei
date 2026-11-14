@@ -2,8 +2,8 @@
 
 import { useEffect, useEffectEvent, useRef, useState, type ReactNode } from "react";
 import { ACCOUNT_OTTO } from "@/components/account/copy";
+import { LazyUpgradeDialog } from "@/components/account/lazy-dialogs";
 import { SignInForm } from "@/components/account/sign-in-form";
-import { UpgradeDialog } from "@/components/account/upgrade-dialog";
 import { useBillingRedirect } from "@/components/account/use-billing-redirect";
 import { useMe } from "@/components/account/use-me";
 import { useOttoLoadingScreen } from "@/components/mascot/otto-loading-screen";
@@ -135,7 +135,7 @@ export function AccountView() {
     <>
       {content}
       {/* Outside the branches: it must stay mounted through sign-in to reach checkout. */}
-      <UpgradeDialog
+      <LazyUpgradeDialog
         open={upgradeOpen}
         plan={arrival.plan ?? undefined}
         interval={arrival.interval ?? undefined}

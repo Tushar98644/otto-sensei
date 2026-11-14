@@ -3,7 +3,7 @@
 import { MessageSquare } from "lucide-react";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
-import { FeedbackDialog } from "./feedback-dialog";
+import { LazyFeedbackDialog } from "./lazy-feedback-dialog";
 
 export function FeedbackButton({ className }: { className?: string }) {
   const [open, setOpen] = useState(false);
@@ -20,7 +20,7 @@ export function FeedbackButton({ className }: { className?: string }) {
         <MessageSquare className="size-4" aria-hidden />
         Send feedback
       </button>
-      <FeedbackDialog open={open} onOpenChange={setOpen} />
+      <LazyFeedbackDialog open={open} onOpenChange={setOpen} />
     </>
   );
 }

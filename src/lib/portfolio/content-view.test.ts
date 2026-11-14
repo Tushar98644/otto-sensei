@@ -1,12 +1,7 @@
 import { describe, expect, it } from "vitest";
-import {
-  CONTENT_SECTIONS,
-  emptyContent,
-  PortfolioContentSchema,
-  ProjectEntrySchema,
-  type PortfolioContent,
-} from "./content";
+import { CONTENT_SECTIONS, emptyContent, type PortfolioContent } from "./content";
 import { contentChecklist, contentUsesFor, hiddenFields, REFERENCE_USES } from "./content-uses";
+import { PortfolioContentSchema, ProjectEntrySchema } from "./content-validation";
 import {
   autoContent,
   contentView,

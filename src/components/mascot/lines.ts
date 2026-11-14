@@ -10,6 +10,7 @@ import {
 import { trialHeadline, trialOffer } from "@/lib/billing/prices";
 import { resetSentence, thisPeriod } from "@/lib/usage-copy";
 import { pluralize } from "@/lib/utils";
+import { OTTO_ERRORS } from "./error-lines";
 
 type CheckCounts = { fail: number; warn: number; pass: number };
 type BeforeAfter = { before: number; after: number };
@@ -240,14 +241,7 @@ export const OTTO = {
     trial: `Try all my AI help with ${trialOffer()}. Cancel before it ends and you pay nothing.`,
     trialStarted: (endsOn: string) => `Your Pro trial runs until ${endsOn}. Let's get to work.`,
   },
-  errors: {
-    generic: "Something went wrong on my end. Mind trying that again?",
-    aiUnavailable:
-      "I'm stuck on that one. Try again in a minute. Most hiccups like this won't count against you.",
-    offline: "You seem to be offline. Your work is saved in this browser.",
-    rateLimited: "That's a lot at once. Give me a minute to catch up.",
-    notFound: "I looked everywhere, but this page isn't here.",
-  },
+  errors: OTTO_ERRORS,
   empty: {
     noResumes: "No resumes here yet. Upload one, or start fresh with me.",
   },

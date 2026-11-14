@@ -1,6 +1,7 @@
 import { emptyResume, type Resume } from "@/lib/resume/schema";
 import {
-  PortfolioContentSchema,
+  emptyContent,
+  newProjectEntry,
   type GitHubStats,
   type PortfolioContent,
   type PortfolioContentView,
@@ -230,7 +231,8 @@ export function jordanV2Resume(): Resume {
 }
 
 export function jordanContent(): PortfolioContent {
-  return PortfolioContentSchema.parse({
+  return {
+    ...emptyContent(),
     pitch:
       "I build fast, calm software for teams that move money and data, from the Postgres schema to the last pixel.",
     intro:
@@ -268,7 +270,7 @@ export function jordanContent(): PortfolioContent {
     ],
     projects: [
       {
-        id: "tally",
+        ...newProjectEntry("tally"),
         category: "Open source · analytics",
         years: "2024 — Now",
         featured: true,
@@ -287,7 +289,7 @@ export function jordanContent(): PortfolioContent {
         device: "laptop",
       },
       {
-        id: "shiftboard",
+        ...newProjectEntry("shiftboard"),
         category: "SaaS · side business",
         years: "2025 — Now",
         featured: true,
@@ -305,7 +307,7 @@ export function jordanContent(): PortfolioContent {
         device: "phone",
       },
       {
-        id: "quayside",
+        ...newProjectEntry("quayside"),
         category: "Open source · monitoring",
         years: "2025 — Now",
         line: "Open-source status pages and uptime checks for small teams.",
@@ -320,7 +322,7 @@ export function jordanContent(): PortfolioContent {
         device: "laptop",
       },
       {
-        id: "platform9",
+        ...newProjectEntry("platform9"),
         category: "PWA · transit",
         years: "2022",
         line: "Live Lisbon metro departures that still work underground.",
@@ -332,7 +334,7 @@ export function jordanContent(): PortfolioContent {
         device: "phone",
       },
       {
-        id: "pgsnap",
+        ...newProjectEntry("pgsnap"),
         category: "Open source · CLI",
         years: "2023",
         line: "Snapshot and branch Postgres databases for tests in seconds.",
@@ -342,7 +344,7 @@ export function jordanContent(): PortfolioContent {
         tech: ["Go", "PostgreSQL", "ZFS"],
       },
       {
-        id: "inkwell",
+        ...newProjectEntry("inkwell"),
         category: "Open source · publishing",
         years: "2021 — Now",
         line: "A markdown-first blog engine that builds a whole site in under a second.",
@@ -352,7 +354,7 @@ export function jordanContent(): PortfolioContent {
         tech: ["Go", "Markdown", "HTML"],
       },
       {
-        id: "tab",
+        ...newProjectEntry("tab"),
         category: "Hackathon · winner",
         years: "2024",
         line: "Snap a restaurant receipt, tap who had what, and everyone gets a payment link.",
@@ -426,20 +428,30 @@ export function jordanContent(): PortfolioContent {
         kind: "launch",
         date: "2026",
         title: "Tally passes 4,000 GitHub stars",
+        place: "",
         detail: "Open source",
+        result: "",
+        url: "",
       },
       {
         id: "m2",
         kind: "launch",
         date: "2025",
         title: "Quayside 1.0 released",
+        place: "",
         detail: "Open source",
+        result: "",
+        url: "",
       },
       {
         id: "m3",
         kind: "talk",
         date: "2025",
         title: "Speaker: Postgres as a queue, Lisbon Node meetup",
+        place: "",
+        detail: "",
+        result: "",
+        url: "",
       },
       {
         id: "m4",
@@ -447,20 +459,29 @@ export function jordanContent(): PortfolioContent {
         date: "2024",
         title: "Best Fintech Hack, Lisbon Hack Week",
         place: "Lisbon",
+        detail: "",
         result: "1st of 120",
+        url: "",
       },
       {
         id: "m5",
         kind: "award",
         date: "2024",
         title: "Engineering award for the payouts rebuild",
+        place: "",
         detail: "Voted by the engineering team at work",
+        result: "",
+        url: "",
       },
       {
         id: "m6",
         kind: "press",
         date: "2023",
         title: "pgsnap featured in a Postgres weekly newsletter",
+        place: "",
+        detail: "",
+        result: "",
+        url: "",
       },
     ],
     talks: [
@@ -470,6 +491,8 @@ export function jordanContent(): PortfolioContent {
         event: "Lisbon Node meetup",
         date: "Oct 2025",
         place: "Lisbon, Portugal",
+        url: "",
+        recording: "",
         slides: "https://jordanellis.dev/talks/postgres-queue",
       },
       {
@@ -478,7 +501,9 @@ export function jordanContent(): PortfolioContent {
         event: "Payments engineering day",
         date: "May 2026",
         place: "Amsterdam, Netherlands",
+        url: "",
         recording: "https://jordanellis.dev/talks/idempotency",
+        slides: "",
       },
       {
         id: "t3",
@@ -486,6 +511,8 @@ export function jordanContent(): PortfolioContent {
         event: "Open source evening",
         date: "Feb 2026",
         place: "Lisbon, Portugal",
+        url: "",
+        recording: "",
         slides: "https://jordanellis.dev/talks/self-hosted-analytics",
       },
       {
@@ -494,7 +521,9 @@ export function jordanContent(): PortfolioContent {
         event: "Berlin frontend meetup",
         date: "Mar 2022",
         place: "Berlin, Germany",
+        url: "",
         recording: "https://jordanellis.dev/talks/offline-first",
+        slides: "",
       },
     ],
     writing: [
@@ -504,6 +533,7 @@ export function jordanContent(): PortfolioContent {
         url: "https://jordanellis.dev/writing/postgres-queue",
         date: "Sep 2026",
         minutes: 8,
+        publisher: "",
       },
       {
         id: "w2",
@@ -511,6 +541,7 @@ export function jordanContent(): PortfolioContent {
         url: "https://jordanellis.dev/writing/idempotency",
         date: "Jun 2026",
         minutes: 11,
+        publisher: "",
       },
       {
         id: "w3",
@@ -518,6 +549,7 @@ export function jordanContent(): PortfolioContent {
         url: "https://jordanellis.dev/writing/offline-first",
         date: "Jan 2026",
         minutes: 9,
+        publisher: "",
       },
       {
         id: "w4",
@@ -525,6 +557,7 @@ export function jordanContent(): PortfolioContent {
         url: "https://jordanellis.dev/writing/status-pages",
         date: "Oct 2025",
         minutes: 6,
+        publisher: "",
       },
       {
         id: "w5",
@@ -532,6 +565,7 @@ export function jordanContent(): PortfolioContent {
         url: "https://jordanellis.dev/writing/small-script",
         date: "Apr 2025",
         minutes: 7,
+        publisher: "",
       },
       {
         id: "w6",
@@ -539,6 +573,7 @@ export function jordanContent(): PortfolioContent {
         url: "https://jordanellis.dev/writing/labour-cost",
         date: "Nov 2024",
         minutes: 5,
+        publisher: "",
       },
     ],
     testimonials: [
@@ -548,6 +583,7 @@ export function jordanContent(): PortfolioContent {
           "Jordan is the engineer you hand the scary migration to. He ships it, writes it up, and nobody gets paged.",
         name: "Maya Okafor",
         role: "VP Engineering, Ledgerly",
+        url: "",
       },
       {
         id: "q2",
@@ -555,6 +591,7 @@ export function jordanContent(): PortfolioContent {
           "He turned our checkout from a guess into a measured system. Conversion went up and stayed up.",
         name: "Tomás Ferreira",
         role: "Product Lead, Tripwise",
+        url: "",
       },
       {
         id: "q3",
@@ -562,6 +599,7 @@ export function jordanContent(): PortfolioContent {
           "His RFCs are the docs we actually read. Half of our runbooks started as something Jordan wrote down.",
         name: "Lena Hoffmann",
         role: "Staff Engineer, Tripwise",
+        url: "",
       },
     ],
     interests: [
@@ -602,21 +640,29 @@ export function jordanContent(): PortfolioContent {
         kind: "book",
         title: "Designing Data-Intensive Applications",
         by: "Martin Kleppmann",
+        url: "",
       },
       {
         id: "b2",
         kind: "book",
         title: "The Pragmatic Programmer",
         by: "David Thomas, Andrew Hunt",
+        url: "",
       },
-      { id: "b3", kind: "album", title: "Kind of Blue", by: "Miles Davis" },
-      { id: "b4", kind: "book", title: "A Philosophy of Software Design", by: "John Ousterhout" },
-      { id: "b5", kind: "book", title: "Thinking in Systems", by: "Donella H. Meadows" },
-      { id: "b6", kind: "album", title: "In Rainbows", by: "Radiohead" },
-      { id: "b7", kind: "book", title: "The Design of Everyday Things", by: "Don Norman" },
-      { id: "b8", kind: "album", title: "Blue", by: "Joni Mitchell" },
+      { id: "b3", kind: "album", title: "Kind of Blue", by: "Miles Davis", url: "" },
+      {
+        id: "b4",
+        kind: "book",
+        title: "A Philosophy of Software Design",
+        by: "John Ousterhout",
+        url: "",
+      },
+      { id: "b5", kind: "book", title: "Thinking in Systems", by: "Donella H. Meadows", url: "" },
+      { id: "b6", kind: "album", title: "In Rainbows", by: "Radiohead", url: "" },
+      { id: "b7", kind: "book", title: "The Design of Everyday Things", by: "Don Norman", url: "" },
+      { id: "b8", kind: "album", title: "Blue", by: "Joni Mitchell", url: "" },
     ],
-  });
+  };
 }
 
 export function jordanGitHub(): GitHubStats {

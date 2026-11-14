@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { PLANS, type UsagePeriod } from "@/config/plans";
+import { OTTO_ERRORS } from "./error-lines";
 import { OTTO } from "./lines";
 
 const WEEK: UsagePeriod = { kind: "week", resetsAt: Date.UTC(2026, 10, 14, 12) };
@@ -249,5 +250,9 @@ describe("OTTO lines", () => {
   it("turns a failure reason into a full sentence", () => {
     expect(OTTO.upload.failed("No text found")).toBe("Hmm, I couldn't read that. No text found.");
     expect(OTTO.upload.failed("")).toBe("Hmm, I couldn't read that. Want to try another file?");
+  });
+
+  it("keeps the error lines in one place, which the root error page reads on its own", () => {
+    expect(OTTO.errors).toBe(OTTO_ERRORS);
   });
 });

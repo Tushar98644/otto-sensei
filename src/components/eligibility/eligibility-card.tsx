@@ -1,8 +1,8 @@
 "use client";
 
 import { useId, useMemo, useState, type ReactNode } from "react";
+import { LazySignInDialog } from "@/components/account/lazy-dialogs";
 import { useProTools, useTryProLabel } from "@/components/account/pro-tools";
-import { SignInDialog } from "@/components/account/sign-in-dialog";
 import { openUpgradePrompt } from "@/components/account/upgrade-prompt";
 import { OTTO } from "@/components/mascot/lines";
 import { useNow } from "@/components/studio/use-now";
@@ -181,7 +181,7 @@ export function EligibilityCard({ location, text }: EligibilityCardProps) {
           saved={work.updatedAt !== null}
         />
       ) : null}
-      <SignInDialog
+      <LazySignInDialog
         open={signingIn}
         onOpenChange={setSigningIn}
         reason="Sign in to save a work profile. Otto checks job posts against it."

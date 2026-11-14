@@ -10,8 +10,9 @@ import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { VoiceInput } from "@/components/ui/voice-field";
 import { useAccountGate } from "@/components/account/account-gate";
+import { DRAFT_LIMITS } from "@/config/plans";
 import { api, isApiError } from "@/lib/api/client";
-import { DRAFT_LIMITS, type DraftRequestBody } from "@/lib/api/types";
+import type { DraftRequestBody } from "@/lib/api/types";
 import type { Resume } from "@/lib/resume/schema";
 
 export type GuidedDraftProps = {

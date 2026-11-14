@@ -13,7 +13,7 @@ import Link from "next/link";
 import { useState } from "react";
 import { signedOutNote } from "@/components/account/copy";
 import { refreshMe, useMe } from "@/components/account/use-me";
-import { FeedbackDialog } from "@/components/feedback/feedback-dialog";
+import { LazyFeedbackDialog } from "@/components/feedback/lazy-feedback-dialog";
 import { accountSectionHref } from "@/components/setup/links";
 import { ROUTES } from "@/components/site/routes";
 import { Badge } from "@/components/ui/badge";
@@ -69,7 +69,7 @@ export function AccountMenu({ onSignIn }: AccountMenuProps) {
       >
         <AccountPanel user={user} onFeedback={() => setFeedbackOpen(true)} />
       </Popover>
-      <FeedbackDialog open={feedbackOpen} onOpenChange={setFeedbackOpen} />
+      <LazyFeedbackDialog open={feedbackOpen} onOpenChange={setFeedbackOpen} />
     </>
   );
 }

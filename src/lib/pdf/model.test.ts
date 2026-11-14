@@ -1,36 +1,53 @@
 import { describe, expect, it } from "vitest";
 import { emptyResume, newBullet, newExperience, type Resume } from "@/lib/resume/schema";
-import { emailLink, webLink } from "./links";
+import { emailLink, plainText, webLink } from "./links";
 import { buildPdfModel } from "./model";
 import { defaultPageSize, isPdfPageSize } from "./page-size";
+import { toPdfLine } from "./text";
 
 function resume(patch: Partial<Resume> = {}): Resume {
   return { ...emptyResume(0), ...patch };
 }
 
+const line = (value: string) => toPdfLine(value);
+
 describe("webLink", () => {
   it("shows a short address and links the full one", () => {
-    expect(webLink(" https://www.linkedin.com/in/maya/ ")).toEqual({
+    expect(webLink(" https://www.linkedin.com/in/maya/ ", line)).toEqual({
       text: "linkedin.com/in/maya",
       href: "https://www.linkedin.com/in/maya/",
     });
   });
 
   it("adds https to a bare domain", () => {
-    expect(webLink("github.com/maya")).toEqual({ text: "github.com/maya", href: "https://github.com/maya" });
+    expect(webLink("github.com/maya", line)).toEqual({ text: "github.com/maya", href: "https://github.com/maya" });
   });
 
   it("never links anything but the web", () => {
-    expect(webLink("javascript:alert(1)")?.href).toBeNull();
-    expect(webLink("my portfolio")).toEqual({ text: "my portfolio", href: null });
-    expect(webLink("   ")).toBeNull();
+    expect(webLink("javascript:alert(1)", line)?.href).toBeNull();
+    expect(webLink("my portfolio", line)).toEqual({ text: "my portfolio", href: null });
+    expect(webLink("   ", line)).toBeNull();
+  });
+
+  it("shows the text the given cleaner returns", () => {
+    expect(webLink("https://example.com/a", (value) => value.toUpperCase())).toEqual({
+      text: "EXAMPLE.COM/A",
+      href: "https://example.com/a",
+    });
   });
 });
 
 describe("emailLink", () => {
   it("links a valid address and leaves anything else as text", () => {
-    expect(emailLink("maya@example.com")).toEqual({ text: "maya@example.com", href: "mailto:maya@example.com" });
-    expect(emailLink("maya at example")).toEqual({ text: "maya at example", href: null });
+    expect(emailLink("maya@example.com", line)).toEqual({ text: "maya@example.com", href: "mailto:maya@example.com" });
+    expect(emailLink("maya at example", line)).toEqual({ text: "maya at example", href: null });
+  });
+});
+
+describe("plainText", () => {
+  it("keeps cleaned text and drops blanks", () => {
+    expect(plainText("  Lisbon\t", line)).toEqual({ text: "Lisbon", href: null });
+    expect(plainText(" \n ", line)).toBeNull();
   });
 });
 

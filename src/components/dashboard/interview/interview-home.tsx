@@ -20,7 +20,7 @@ import { useResumeList } from "@/lib/store/resume-store";
 import { pluralize } from "@/lib/utils";
 import { useApplications } from "../applications/use-applications";
 import { formatDay } from "../applications/view";
-import { PrepareDialog } from "./prepare-dialog";
+import { LazyPrepareDialog } from "../lazy-dialogs";
 import { usePrepPacks } from "./use-prep-packs";
 import { interviewHref, waitingForPrep } from "./view";
 
@@ -147,16 +147,14 @@ export function InterviewHome() {
         </>
       )}
 
-      {dialog ? (
-        <PrepareDialog
-          key={dialog.key}
-          open={dialog.open}
-          applications={applications.items}
-          resumes={resumes}
-          packs={packs.items}
-          onClose={() => setDialog({ ...dialog, open: false })}
-        />
-      ) : null}
+      <LazyPrepareDialog
+        key={dialog?.key}
+        open={dialog?.open ?? false}
+        applications={applications.items}
+        resumes={resumes}
+        packs={packs.items}
+        onClose={() => setDialog((current) => current && { ...current, open: false })}
+      />
       <LazyUpgradeDialog open={upgradeOpen} onOpenChange={setUpgradeOpen} feature="letter" />
     </div>
   );

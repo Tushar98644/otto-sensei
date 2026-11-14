@@ -15,10 +15,9 @@ import {
   ownResumes,
   setupItems,
   setupProgress,
-  weakLineState,
   type SetupItemId,
-  type WeakLineState,
 } from "@/lib/setup/checklist";
+import { weakLineState, type WeakLineState } from "@/lib/setup/weak-line";
 import { useResumeList } from "@/lib/store/resume-store";
 import { useFirstLoadPending } from "@/lib/sync/use-cloud-sync";
 import { cn } from "@/lib/utils";

@@ -2,6 +2,9 @@ import { z } from "zod";
 import { TEXT_LIMITS } from "@/config/plans";
 import { ApplicationIdSchema } from "@/lib/applications/validation";
 import { ResumeSchema } from "@/lib/resume/validation";
+import { DEFAULT_ROUND, PREP_ROUNDS } from "./prep-rounds";
+
+export { byRound, DEFAULT_ROUND, PREP_ROUNDS, type PrepRound } from "./prep-rounds";
 
 export const PREP_LIMITS = {
   questions: 8,
@@ -18,11 +21,6 @@ export const PREP_LIMITS = {
   partChars: 400,
   jobFieldChars: 200,
 } as const;
-
-export const PREP_ROUNDS = ["opening", "fit", "skills", "behavioural", "closing"] as const;
-export type PrepRound = (typeof PREP_ROUNDS)[number];
-
-export const DEFAULT_ROUND: PrepRound = "fit";
 
 const text = (max: number) => z.string().max(max);
 
@@ -84,10 +82,6 @@ const InterviewPrepV1Schema = z.object({
 export type PrepQuestion = z.infer<typeof PrepQuestionSchema>;
 export type StarStory = z.infer<typeof StarStorySchema>;
 export type InterviewPrep = z.infer<typeof InterviewPrepSchema>;
-
-export function byRound<T extends Pick<PrepQuestion, "round">>(questions: readonly T[]): T[] {
-  return [...questions].sort((a, b) => PREP_ROUNDS.indexOf(a.round) - PREP_ROUNDS.indexOf(b.round));
-}
 
 export function readPrep(value: unknown): InterviewPrep | null {
   if (value === null || value === undefined) return null;

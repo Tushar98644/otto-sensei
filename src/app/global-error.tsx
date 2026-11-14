@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
-import { OTTO } from "@/components/mascot/lines";
+import { OTTO_ERRORS } from "@/components/mascot/error-lines";
 import { Otto } from "@/components/mascot/otto";
 import { ROUTES } from "@/components/site/routes";
 import { Button, buttonClasses } from "@/components/ui/button";
@@ -37,7 +37,7 @@ export default function GlobalError({
               Something went wrong
             </h1>
             <p className="mt-6 max-w-md text-lg/7 text-muted">
-              {OTTO.errors.generic} Your work is saved in this browser.
+              {OTTO_ERRORS.generic} Your work is saved in this browser.
             </p>
             <div className="mt-8 flex w-full flex-col justify-center gap-3 sm:w-auto sm:flex-row">
               <Button size="lg" onClick={retry}>
