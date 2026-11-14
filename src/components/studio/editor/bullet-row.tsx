@@ -84,7 +84,12 @@ export const BulletRow = memo(function BulletRow({
   }
 
   function setText(text: string) {
-    editLines(resumeId, section, (resume) => setBulletText(resume, bullet.id, text));
+    // A line break typed after a space becomes that same space, so nothing changed.
+    editLines(resumeId, section, (resume) =>
+      bulletsOf(resume, { section, parentId })?.find((line) => line.id === bullet.id)?.text === text
+        ? resume
+        : setBulletText(resume, bullet.id, text),
+    );
   }
 
   function handleChange(event: ChangeEvent<HTMLTextAreaElement>) {

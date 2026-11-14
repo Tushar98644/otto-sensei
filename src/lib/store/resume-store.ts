@@ -2,8 +2,9 @@
 
 import { useEffect, useSyncExternalStore } from "react";
 import { create } from "zustand";
-import { createJSONStorage, persist, type StateStorage } from "zustand/middleware";
+import { persist } from "zustand/middleware";
 import { useShallow } from "zustand/react/shallow";
+import { browserStorage } from "@/lib/browser-storage";
 import type { RecruiterReport } from "@/lib/checks/types";
 import {
   cleanTitle,
@@ -19,6 +20,7 @@ import {
   addVersion,
   adoptState,
   cleanVersionName,
+  CONFLICT_VERSION_NAMES,
   EMPTY_HISTORY,
   freshTrash,
   isSaved,
@@ -34,11 +36,15 @@ import {
 } from "./history";
 import {
   migrateStudio,
-  quotaSafe,
   sanitizeArchive,
   STUDIO_STORAGE_KEY,
   STUDIO_STORE_VERSION,
+  type PersistedStudio,
+  type Removals,
+  type SavedStudio,
 } from "./persisted";
+import { createStudioStorage } from "./studio-storage";
+import { mergeSaves, sameStudio } from "./tab-merge";
 
 export const STUDIO_STEPS = ["upload", "review", "fix", "tailor", "download"] as const;
 export type StudioStep = (typeof STUDIO_STEPS)[number];
@@ -80,7 +86,11 @@ type StudioState = {
     meta: TailorCopyMeta,
     apply: (copy: Resume) => Resume,
   ) => string | null;
-  mergeFromCloud: (cloud: Resume[], deletedIds?: readonly string[]) => Resume[];
+  mergeFromCloud: (
+    cloud: Resume[],
+    deletedIds?: readonly string[],
+    conflicted?: ReadonlySet<string>,
+  ) => Resume[];
   clearAll: () => void;
 
   undo: (id: string) => boolean;
@@ -97,11 +107,9 @@ type StudioState = {
   emptyTrash: () => void;
 };
 
-const noopStorage: StateStorage = {
-  getItem: () => null,
-  setItem: () => {},
-  removeItem: () => {},
-};
+const SAVE_DELAY_MS = 400;
+const SAVE_MAX_WAIT_MS = 2_000;
+const NO_CONFLICTS: ReadonlySet<string> = new Set();
 
 const initialData = {
   resumes: {} as Record<string, Resume>,
@@ -116,7 +124,24 @@ const initialData = {
 };
 
 type StudioData = typeof initialData;
-type PersistedStudio = Omit<StudioData, "history">;
+
+function persistedOf(s: StudioData): PersistedStudio {
+  return {
+    resumes: s.resumes,
+    order: s.order,
+    activeId: s.activeId,
+    reports: s.reports,
+    exportReports: s.exportReports,
+    step: s.step,
+    versions: s.versions,
+    trash: s.trash,
+  };
+}
+
+// Never older than the copy it changes, so an edit on a device with a slow clock is still newer.
+function editedAt(resume: Resume, now = Date.now()): number {
+  return Math.max(now, resume.updatedAt + 1);
+}
 
 function omitKeys<T>(record: Record<string, T>, ids: ReadonlySet<string>): Record<string, T> {
   if (![...ids].some((id) => Object.hasOwn(record, id))) return record;
@@ -141,6 +166,16 @@ function withoutResumes(s: StudioData, ids: ReadonlySet<string>): StudioData {
   };
 }
 
+const studioStorage = createStudioStorage({
+  area: () => browserStorage(),
+  version: STUDIO_STORE_VERSION,
+  delayMs: SAVE_DELAY_MS,
+  maxWaitMs: SAVE_MAX_WAIT_MS,
+  migrate: migrateStudio,
+  absorb: (theirs, base, removed) => absorbOtherTab(theirs, base, removed),
+  warn: (message) => console.warn(`[studio] ${message}`),
+});
+
 export const useStudioStore = create<StudioState>()(
   persist(
     (set, get) => {
@@ -152,7 +187,10 @@ export const useStudioStore = create<StudioState>()(
         if (!moved) return false;
         const others = Object.values(s.resumes);
         set({
-          resumes: { ...s.resumes, [id]: adoptState(moved.resume, current, others, Date.now()) },
+          resumes: {
+            ...s.resumes,
+            [id]: adoptState(moved.resume, current, others, editedAt(current)),
+          },
           history: { ...s.history, [id]: moved.history },
         });
         return true;
@@ -174,23 +212,22 @@ export const useStudioStore = create<StudioState>()(
             };
           }),
 
-        updateResume: (id, updater, options) =>
-          set((s) => {
-            const current = s.resumes[id];
-            if (!current) return s;
-            const next = updater(current);
-            const now = Date.now();
-            return {
-              resumes: { ...s.resumes, [id]: touch(next, now) },
-              history:
-                next === current
-                  ? s.history
-                  : {
-                      ...s.history,
-                      [id]: recordEdit(s.history[id] ?? EMPTY_HISTORY, current, options, now),
-                    },
-            };
-          }),
+        // An updater that changes nothing leaves the resume, its date and storage alone.
+        updateResume: (id, updater, options) => {
+          const s = get();
+          const current = s.resumes[id];
+          if (!current) return;
+          const next = updater(current);
+          if (next === current) return;
+          const now = Date.now();
+          set({
+            resumes: { ...s.resumes, [id]: touch(next, editedAt(current, now)) },
+            history: {
+              ...s.history,
+              [id]: recordEdit(s.history[id] ?? EMPTY_HISTORY, current, options, now),
+            },
+          });
+        },
 
         removeResume: (id) => set((s) => withoutResumes(s, new Set([id]))),
 
@@ -222,9 +259,14 @@ export const useStudioStore = create<StudioState>()(
           return copy.id;
         },
 
-        setActive: (id) => set((s) => (s.resumes[id] ? { activeId: id } : s)),
+        setActive: (id) => {
+          const s = get();
+          if (s.resumes[id] && s.activeId !== id) set({ activeId: id });
+        },
 
-        setStep: (step) => set({ step }),
+        setStep: (step) => {
+          if (get().step !== step) set({ step });
+        },
 
         setExportReport: (id, report) =>
           set((s) => ({ exportReports: { ...s.exportReports, [id]: report } })),
@@ -249,17 +291,31 @@ export const useStudioStore = create<StudioState>()(
           return copy.id;
         },
 
-        mergeFromCloud: (cloud, deletedIds = []) => {
+        mergeFromCloud: (cloud, deletedIds = [], conflicted = NO_CONFLICTS) => {
           const deleted = new Set(deletedIds);
           const local = get().resumes;
           const live = cloud.filter((r) => !deleted.has(r.id));
           const cloudById = new Map(live.map((r) => [r.id, r]));
           const incoming = live.filter((r) => !local[r.id] || r.updatedAt > local[r.id]!.updatedAt);
           const gone = new Set(Object.keys(local).filter((id) => deleted.has(id)));
-          if (incoming.length || gone.size) {
+          const now = Date.now();
+          // Changed on two devices before they synced: the copy that loses becomes a saved version.
+          const losers = live.flatMap((r) => {
+            const here = local[r.id];
+            if (!here || !conflicted.has(r.id) || here.updatedAt === r.updatedAt) return [];
+            return r.updatedAt > here.updatedAt
+              ? [newVersion(here, CONFLICT_VERSION_NAMES.here, now, true)]
+              : [newVersion(r, CONFLICT_VERSION_NAMES.elsewhere, now, true)];
+          });
+          if (incoming.length || gone.size || losers.length) {
             set((s) => {
               const kept: StudioData = gone.size ? withoutResumes(s, gone) : s;
               const activeId = kept.activeId ?? incoming[0]?.id ?? null;
+              let versions = kept.versions;
+              for (const version of losers) {
+                const id = version.resume.id;
+                versions = { ...versions, [id]: addVersion(versions[id] ?? [], version) };
+              }
               return {
                 resumes: {
                   ...kept.resumes,
@@ -267,7 +323,7 @@ export const useStudioStore = create<StudioState>()(
                 },
                 reports: kept.reports,
                 exportReports: kept.exportReports,
-                versions: kept.versions,
+                versions,
                 // Undoing past a newer cloud copy would bring back what was changed there.
                 history: omitKeys(kept.history, new Set(incoming.map((r) => r.id))),
                 order: [
@@ -286,7 +342,11 @@ export const useStudioStore = create<StudioState>()(
           });
         },
 
-        clearAll: () => set({ ...initialData }),
+        // Saved at once: clearing is for a computer someone else may use next.
+        clearAll: () => {
+          set({ ...initialData });
+          studioStorage.flush();
+        },
 
         undo: (id) => applyMove(id, undoMove),
 
@@ -316,7 +376,12 @@ export const useStudioStore = create<StudioState>()(
                 saved,
                 newVersion(current, `Before restoring “${version.name}”`, now, true),
               );
-          const restored = adoptState(version.resume, current, Object.values(s.resumes), now);
+          const restored = adoptState(
+            version.resume,
+            current,
+            Object.values(s.resumes),
+            editedAt(current, now),
+          );
           set({
             resumes: { ...s.resumes, [id]: restored },
             versions: { ...s.versions, [id]: kept },
@@ -414,24 +479,33 @@ export const useStudioStore = create<StudioState>()(
               ...sanitizeArchive(persisted, Date.now()),
             }
           : current,
-      storage: createJSONStorage(() =>
-        typeof window === "undefined" ? noopStorage : quotaSafe(window.localStorage),
-      ),
+      storage: studioStorage,
       // Rehydrated in useStudioHydrated() so server and first client render match.
       skipHydration: true,
-      partialize: (s): PersistedStudio => ({
-        resumes: s.resumes,
-        order: s.order,
-        activeId: s.activeId,
-        reports: s.reports,
-        exportReports: s.exportReports,
-        step: s.step,
-        versions: s.versions,
-        trash: s.trash,
-      }),
+      partialize: (s) => persistedOf(s),
     },
   ),
 );
+
+function absorbOtherTab(
+  theirs: SavedStudio | null,
+  base: SavedStudio | null,
+  removed: Removals,
+): PersistedStudio | null {
+  const s = useStudioStore.getState();
+  const mine = persistedOf(s);
+  const { state, replaced, extra } = mergeSaves(mine, base, theirs, removed, Date.now());
+  // Undoing past another tab's copy would bring back what was changed there.
+  if (!sameStudio(state, mine)) {
+    useStudioStore.setState({ ...state, history: omitKeys(s.history, replaced) });
+  }
+  return extra ? state : null;
+}
+
+// Saves now instead of after the pause, for sign-out on a shared computer.
+export function flushStudio(): void {
+  studioStorage.flush();
+}
 
 const subscribeHydration = (onChange: () => void) =>
   useStudioStore.persist.onFinishHydration(onChange);

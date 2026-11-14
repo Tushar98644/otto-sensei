@@ -115,13 +115,22 @@ export function addVersion(
   versions: readonly ResumeVersion[],
   version: ResumeVersion,
 ): ResumeVersion[] {
-  const next = [version, ...versions];
-  while (next.length > VERSION_LIMIT) {
-    const oldestAuto = next.findLastIndex((v) => v.auto);
-    next.splice(oldestAuto > 0 ? oldestAuto : next.length - 1, 1);
-  }
-  return next;
+  return capVersions([version, ...versions]);
 }
+
+export function capVersions(versions: ResumeVersion[]): ResumeVersion[] {
+  while (versions.length > VERSION_LIMIT) {
+    const oldestAuto = versions.findLastIndex((v) => v.auto);
+    versions.splice(oldestAuto > 0 ? oldestAuto : versions.length - 1, 1);
+  }
+  return versions;
+}
+
+// The copy that lost when a resume changed on two devices before they synced.
+export const CONFLICT_VERSION_NAMES = {
+  here: "Edits on this device",
+  elsewhere: "Edits from another device",
+} as const;
 
 export function versionToDrop(versions: readonly ResumeVersion[]): ResumeVersion | null {
   if (versions.length < VERSION_LIMIT) return null;

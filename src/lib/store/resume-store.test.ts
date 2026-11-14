@@ -509,3 +509,220 @@ describe("persisted state, version 2", () => {
     }
   });
 });
+
+describe("edits that change nothing", () => {
+  it("leave the resume, its date and every listener alone", () => {
+    const cv = resume("CV", 1_000);
+    store().addResume(cv);
+    const listener = vi.fn();
+    const unsubscribe = useStudioStore.subscribe(listener);
+
+    store().updateResume(cv.id, (r) => r);
+    store().updateResume("missing", (r) => ({ ...r, title: "Nope" }));
+    store().setActive(cv.id);
+    store().setActive("missing");
+    store().setStep(store().step);
+    unsubscribe();
+
+    expect(listener).not.toHaveBeenCalled();
+    expect(store().resumes[cv.id]).toBe(cv);
+    expect(store().history[cv.id]).toBeUndefined();
+  });
+
+  it("date an edit after the copy it changes, even when this clock is behind", () => {
+    const ahead = Date.now() + 60_000;
+    const cv = resume("From a fast clock", ahead);
+    store().addResume(cv);
+    store().updateResume(cv.id, (r) => ({ ...r, title: "Edited here" }));
+    expect(store().resumes[cv.id]?.updatedAt).toBe(ahead + 1);
+  });
+});
+
+describe("mergeFromCloud with a resume changed on two devices", () => {
+  it("keeps this device's copy as a saved version when the cloud's is newer", () => {
+    const cv = resume("Edited here", 2_000);
+    store().addResume(cv);
+    const cloud = { ...cv, title: "Edited elsewhere", updatedAt: 3_000 };
+
+    expect(store().mergeFromCloud([cloud], [], new Set([cv.id]))).toEqual([]);
+
+    expect(store().resumes[cv.id]?.title).toBe("Edited elsewhere");
+    const [kept] = store().versions[cv.id] ?? [];
+    expect(kept?.name).toBe("Edits on this device");
+    expect(kept?.auto).toBe(true);
+    expect(kept?.resume.title).toBe("Edited here");
+  });
+
+  it("keeps the cloud's copy as a saved version when this device's is newer", () => {
+    const cv = resume("Edited here", 4_000);
+    store().addResume(cv);
+    const cloud = { ...cv, title: "Edited elsewhere", updatedAt: 3_000 };
+
+    expect(store().mergeFromCloud([cloud], [], new Set([cv.id]))).toEqual([cv]);
+
+    expect(store().resumes[cv.id]).toBe(cv);
+    expect(store().versions[cv.id]?.[0]?.name).toBe("Edits from another device");
+    expect(store().versions[cv.id]?.[0]?.resume.title).toBe("Edited elsewhere");
+  });
+
+  it("keeps nothing extra for a resume that wasn't changed on both", () => {
+    const cv = resume("CV", 1_000);
+    store().addResume(cv);
+    store().mergeFromCloud([{ ...cv, title: "Newer", updatedAt: 2_000 }]);
+    expect(store().versions[cv.id]).toBeUndefined();
+  });
+});
+
+type Tab = typeof import("./resume-store");
+
+// One browser: tabs share localStorage, and each hears the others' saves.
+function browser() {
+  const values = new Map<string, string>();
+  const listeners: ((event: { key: string | null }) => void)[] = [];
+  const win = {
+    localStorage: {
+      getItem: (key: string) => values.get(key) ?? null,
+      setItem: (key: string, value: string) => {
+        values.set(key, value);
+      },
+      removeItem: (key: string) => {
+        values.delete(key);
+      },
+    },
+    addEventListener: (type: string, listener: (event: { key: string | null }) => void) => {
+      if (type === "storage") listeners.push(listener);
+    },
+    removeEventListener: () => {},
+  };
+  const announce = () => {
+    for (const listener of listeners) listener({ key: "otto-studio-v1" });
+  };
+  const open = async (): Promise<Tab> => {
+    vi.stubGlobal("window", win);
+    vi.resetModules();
+    const tab = await import("./resume-store");
+    await tab.useStudioStore.persist.rehydrate();
+    return tab;
+  };
+  return { win, values, announce, open };
+}
+
+function savedStudio(resumes: Resume[]): string {
+  return JSON.stringify({
+    state: {
+      resumes: Object.fromEntries(resumes.map((r) => [r.id, r])),
+      order: resumes.map((r) => r.id),
+      activeId: resumes[0]?.id ?? null,
+      reports: {},
+      exportReports: {},
+      step: "fix",
+      versions: {},
+      trash: [],
+    },
+    version: 2,
+  });
+}
+
+describe("two tabs of one browser", () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.unstubAllGlobals();
+  });
+
+  it("an old tab's click keeps the version and trash a newer tab saved", async () => {
+    const { values, open } = browser();
+    const cv = resume("CV", 1_000);
+    const other = resume("Other", 1_000);
+    values.set("otto-studio-v1", savedStudio([cv, other]));
+    const old = await open();
+    const fresh = await open();
+
+    fresh.useStudioStore.getState().saveVersion(cv.id, "Keep me");
+    fresh.useStudioStore.getState().trashResume(other.id);
+    fresh.flushStudio();
+    // The old tab missed that save, as a frozen tab does, and then a resume card is clicked.
+    old.useStudioStore.getState().setActive(other.id);
+    old.useStudioStore.getState().setStep("tailor");
+    old.flushStudio();
+
+    const next = (await open()).useStudioStore.getState();
+    expect(next.versions[cv.id]?.map((v) => v.name)).toEqual(["Keep me"]);
+    expect(next.trash.map((t) => t.resume.id)).toEqual([other.id]);
+    expect(next.resumes[other.id]).toBeUndefined();
+    expect(old.useStudioStore.getState().versions[cv.id]).toHaveLength(1);
+    expect(old.useStudioStore.getState().activeId).toBe(cv.id);
+  });
+
+  it("shows another tab's save at once, and drops undo steps that would bring back older text", async () => {
+    const { values, announce, open } = browser();
+    const cv = resume("CV", 1_000);
+    values.set("otto-studio-v1", savedStudio([cv]));
+    const a = await open();
+    const b = await open();
+    a.useStudioStore.getState().updateResume(cv.id, (r) => ({ ...r, title: "Typed in A" }));
+    a.flushStudio();
+    announce();
+
+    b.useStudioStore.getState().updateResume(cv.id, (r) => ({ ...r, summary: "Typed in B" }));
+    expect(b.useStudioStore.getState().resumes[cv.id]?.title).toBe("Typed in A");
+    b.flushStudio();
+    announce();
+
+    expect(a.useStudioStore.getState().resumes[cv.id]?.summary).toBe("Typed in B");
+    expect(a.useStudioStore.getState().undo(cv.id)).toBe(false);
+  });
+
+  it("keeps edits made in two tabs at once, signed out, when both save", async () => {
+    const { values, open } = browser();
+    const first = resume("First", 1_000);
+    const second = resume("Second", 1_000);
+    values.set("otto-studio-v1", savedStudio([first, second]));
+    const a = await open();
+    const b = await open();
+
+    a.useStudioStore.getState().updateResume(first.id, (r) => ({ ...r, summary: "From A" }));
+    b.useStudioStore.getState().updateResume(second.id, (r) => ({ ...r, summary: "From B" }));
+    a.flushStudio();
+    b.flushStudio();
+
+    const next = (await open()).useStudioStore.getState();
+    expect(next.resumes[first.id]?.summary).toBe("From A");
+    expect(next.resumes[second.id]?.summary).toBe("From B");
+  });
+
+  it("clears every tab when one deletes the account's studio", async () => {
+    const { values, announce, open } = browser();
+    values.set("otto-studio-v1", savedStudio([resume("CV", 1_000)]));
+    const a = await open();
+    const b = await open();
+    a.useStudioStore.getState().clearAll();
+    a.useStudioStore.persist.clearStorage();
+    announce();
+
+    expect(b.useStudioStore.getState().resumes).toEqual({});
+    vi.advanceTimersByTime(5_000);
+    expect(values.has("otto-studio-v1")).toBe(false);
+  });
+
+  it("writes the studio once a burst of typing pauses", async () => {
+    const { win, values, open } = browser();
+    const cv = resume("CV", 1_000);
+    values.set("otto-studio-v1", savedStudio([cv]));
+    const tab = await open();
+    const setItem = vi.spyOn(win.localStorage, "setItem");
+
+    for (let i = 0; i < 20; i++) {
+      tab.useStudioStore.getState().updateResume(cv.id, (r) => ({ ...r, summary: `${i}` }));
+      vi.advanceTimersByTime(50);
+    }
+    expect(setItem).not.toHaveBeenCalled();
+
+    vi.advanceTimersByTime(400);
+    expect(setItem).toHaveBeenCalledTimes(1);
+    expect(JSON.parse(values.get("otto-studio-v1")!).state.resumes[cv.id].summary).toBe("19");
+  });
+});

@@ -65,7 +65,10 @@ export function editList<K extends ListKey>(
   key: K,
   update: (items: Resume[K]) => Resume[K],
 ): void {
-  editSection(resumeId, key, (resume) => withList(resume, key, update(resume[key])));
+  editSection(resumeId, key, (resume) => {
+    const items = update(resume[key]);
+    return items === resume[key] ? resume : withList(resume, key, items);
+  });
 }
 
 // `fallback` must be a primitive or module constant; a fresh object would never settle.

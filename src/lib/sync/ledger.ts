@@ -11,10 +11,18 @@ export type SyncLedger = {
   bury: (id: string, owner: string) => void;
   unbury: (id: string, owner: string) => void;
   buried: (owner: string) => string[];
+  // The version this browser last knew the account to hold, so a reload can tell unsynced edits.
+  syncedAt: (id: string) => number | undefined;
+  markSynced: (entries: readonly (readonly [string, number])[]) => void;
+  refresh: () => void;
 };
 
 type Tombstone = { id: string; owner: string };
-type LedgerData = { owners: Map<string, string>; tombstones: Tombstone[] };
+type LedgerData = {
+  owners: Map<string, string>;
+  tombstones: Tombstone[];
+  synced: Map<string, number>;
+};
 
 const STORAGE_KEY = "otto-sync-v1";
 const MAX_TOMBSTONES = 200;
@@ -27,6 +35,7 @@ export function createLedger(storage: LedgerStorage | null): SyncLedger {
     const draft = read(storage) ?? {
       owners: new Map(data.owners),
       tombstones: [...data.tombstones],
+      synced: new Map(data.synced),
     };
     const changed = mutate(draft);
     data = draft;
@@ -51,6 +60,7 @@ export function createLedger(storage: LedgerStorage | null): SyncLedger {
         for (const id of ids) {
           if (draft.owners.get(id) === owner) continue;
           draft.owners.set(id, owner);
+          draft.synced.delete(id);
           changed = true;
         }
         return changed;
@@ -58,7 +68,10 @@ export function createLedger(storage: LedgerStorage | null): SyncLedger {
     forget: (ids) =>
       update((draft) => {
         let changed = false;
-        for (const id of ids) changed = draft.owners.delete(id) || changed;
+        for (const id of ids) {
+          changed = draft.owners.delete(id) || changed;
+          changed = draft.synced.delete(id) || changed;
+        }
         return changed;
       }),
     retain: (ids) =>
@@ -68,11 +81,15 @@ export function createLedger(storage: LedgerStorage | null): SyncLedger {
         for (const id of [...draft.owners.keys()]) {
           if (!keep.has(id)) changed = draft.owners.delete(id) || changed;
         }
+        for (const id of [...draft.synced.keys()]) {
+          if (!keep.has(id)) changed = draft.synced.delete(id) || changed;
+        }
         return changed;
       }),
     bury: (id, owner) =>
       update((draft) => {
         draft.owners.delete(id);
+        draft.synced.delete(id);
         draft.tombstones = [
           ...draft.tombstones.filter((t) => t.id !== id || t.owner !== owner),
           { id, owner },
@@ -86,11 +103,25 @@ export function createLedger(storage: LedgerStorage | null): SyncLedger {
         return draft.tombstones.length !== before;
       }),
     buried: (owner) => data.tombstones.filter((t) => t.owner === owner).map((t) => t.id),
+    syncedAt: (id) => data.synced.get(id),
+    markSynced: (entries) =>
+      update((draft) => {
+        let changed = false;
+        for (const [id, at] of entries) {
+          if (draft.synced.get(id) === at) continue;
+          draft.synced.set(id, at);
+          changed = true;
+        }
+        return changed;
+      }),
+    refresh: () => {
+      data = read(storage) ?? data;
+    },
   };
 }
 
 function emptyData(): LedgerData {
-  return { owners: new Map(), tombstones: [] };
+  return { owners: new Map(), tombstones: [], synced: new Map() };
 }
 
 function read(storage: LedgerStorage | null): LedgerData | null {
@@ -102,6 +133,7 @@ function read(storage: LedgerStorage | null): LedgerData | null {
     return {
       owners: new Map(pairs(parsed, "owners")),
       tombstones: pairs(parsed, "tombstones").map(([id, owner]) => ({ id, owner })),
+      synced: new Map(versionPairs(parsed)),
     };
   } catch {
     return null;
@@ -117,20 +149,34 @@ function write(storage: LedgerStorage | null, data: LedgerData) {
         v: 1,
         owners: [...data.owners],
         tombstones: data.tombstones.map((t) => [t.id, t.owner]),
+        synced: [...data.synced],
       }),
     );
   } catch {}
 }
 
-function pairs(value: unknown, key: string): [string, string][] {
+function listOf(value: unknown, key: string): unknown[] {
   if (typeof value !== "object" || value === null) return [];
   const list: unknown = (value as Record<string, unknown>)[key];
-  if (!Array.isArray(list)) return [];
-  return list.filter(
+  return Array.isArray(list) ? list : [];
+}
+
+function pairs(value: unknown, key: string): [string, string][] {
+  return listOf(value, key).filter(
     (pair: unknown): pair is [string, string] =>
       Array.isArray(pair) &&
       pair.length === 2 &&
       typeof pair[0] === "string" &&
       typeof pair[1] === "string",
+  );
+}
+
+function versionPairs(value: unknown): [string, number][] {
+  return listOf(value, "synced").filter(
+    (pair: unknown): pair is [string, number] =>
+      Array.isArray(pair) &&
+      pair.length === 2 &&
+      typeof pair[0] === "string" &&
+      typeof pair[1] === "number",
   );
 }

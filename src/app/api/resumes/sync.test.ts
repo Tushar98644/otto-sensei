@@ -1,14 +1,20 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ApiClientError } from "@/lib/api/client";
-import type { ApiErrorBody, EmptyOk, PutResumeResponse, ResumesResponse } from "@/lib/api/types";
+import type { ApiErrorBody, EmptyOk, ResumesResponse } from "@/lib/api/types";
 import { cookieJar, resetDb, setPlan, signInAs } from "@/lib/auth/test-helpers";
 import { emptyResume, type Resume } from "@/lib/resume/schema";
 import type { useStudioStore } from "@/lib/store/resume-store";
+import type {
+  KnownResumes,
+  PutResumeOptions,
+  PutResumeResult,
+  ResumeList,
+} from "@/lib/sync/api-types";
 import { startCloudSync, type CloudSync, type SyncApi } from "@/lib/sync/cloud-sync";
 import { createLedger, type LedgerStorage } from "@/lib/sync/ledger";
 
 import { DELETE, PUT } from "./[id]/route";
-import { GET } from "./route";
+import { GET, POST } from "./route";
 
 vi.mock("next/headers", async () => (await import("@/lib/auth/test-helpers")).nextHeadersMock);
 
@@ -27,14 +33,23 @@ async function unwrap<T>(res: Response): Promise<T> {
 
 function routeApi() {
   return {
-    listResumes: vi.fn(async () => unwrap<ResumesResponse>(await GET())),
-    putResume: vi.fn(async (resume: Resume) => {
-      const req = new Request(`http://localhost/api/resumes/${resume.id}`, {
+    listResumes: vi.fn(async (known?: KnownResumes) => {
+      if (!known) return unwrap<ResumeList>(await GET());
+      const req = new Request("http://localhost/api/resumes", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ known }),
+      });
+      return unwrap<ResumeList>(await POST(req));
+    }),
+    putResume: vi.fn(async (resume: Resume, options?: PutResumeOptions) => {
+      const query = options?.base === undefined ? "" : `?base=${options.base}`;
+      const req = new Request(`http://localhost/api/resumes/${resume.id}${query}`, {
         method: "PUT",
         headers: { "content-type": "application/json" },
         body: JSON.stringify(resume),
       });
-      return unwrap<PutResumeResponse>(await PUT(req, context(resume.id)));
+      return unwrap<PutResumeResult>(await PUT(req, context(resume.id)));
     }),
     deleteResume: vi.fn(async (id: string) => {
       const req = new Request(`http://localhost/api/resumes/${id}`, { method: "DELETE" });
@@ -186,5 +201,65 @@ describe("resume deletions across devices", () => {
 
     await phoneSession.flush();
     expect(uploadedIds(phone.api)).toEqual([cv.id]);
+  });
+});
+
+describe("a resume edited on two devices before they synced", () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  async function syncedOnBoth() {
+    const { laptop, phone } = await signedInDevices();
+    const cv = { ...emptyResume(1_000), title: "CV" };
+    laptop.store.getState().addResume(cv);
+    const laptopSession = laptop.startSession();
+    await laptopSession.flush();
+    const phoneSession = phone.startSession();
+    await phoneSession.flush();
+    return { laptop, phone, laptopSession, phoneSession, cv };
+  }
+
+  const summaryOf = async (id: string) =>
+    (await unwrap<ResumesResponse>(await GET())).resumes.find((r) => r.id === id)?.summary;
+
+  it("keeps the phone's offline edit as a saved version instead of losing it", async () => {
+    const { laptop, phone, laptopSession, phoneSession, cv } = await syncedOnBoth();
+    vi.useFakeTimers({ toFake: ["Date"] });
+    const now = Date.now();
+
+    vi.setSystemTime(now + 1_000);
+    phone.store.getState().updateResume(cv.id, (r) => ({ ...r, summary: "Written offline on the phone" }));
+    vi.setSystemTime(now + 2_000);
+    laptop.store.getState().updateResume(cv.id, (r) => ({ ...r, summary: "Written on the laptop" }));
+    await laptopSession.flush();
+    await phoneSession.flush();
+    expect(await summaryOf(cv.id)).toBe("Written on the laptop");
+
+    await phoneSession.flush();
+    const state = phone.store.getState();
+    expect(state.resumes[cv.id]?.summary).toBe("Written on the laptop");
+    expect(state.versions[cv.id]?.[0]?.name).toBe("Edits on this device");
+    expect(state.versions[cv.id]?.[0]?.resume.summary).toBe("Written offline on the phone");
+  });
+
+  it("keeps the laptop's edit when a phone with its clock ahead saves over it", async () => {
+    const { laptop, phone, laptopSession, phoneSession, cv } = await syncedOnBoth();
+    vi.useFakeTimers({ toFake: ["Date"] });
+    const now = Date.now();
+
+    vi.setSystemTime(now + 10 * 60_000);
+    phone.store.getState().updateResume(cv.id, (r) => ({ ...r, summary: "Phone, clock ahead" }));
+    vi.setSystemTime(now + 1_000);
+    laptop.store.getState().updateResume(cv.id, (r) => ({ ...r, summary: "Written on the laptop" }));
+    await laptopSession.flush();
+    await phoneSession.flush();
+    expect(await summaryOf(cv.id)).toBe("Written on the laptop");
+
+    await phoneSession.flush();
+    expect(await summaryOf(cv.id)).toBe("Phone, clock ahead");
+    const kept = phone.store.getState().versions[cv.id]?.[0];
+    expect(kept?.name).toBe("Edits from another device");
+    expect(kept?.resume.summary).toBe("Written on the laptop");
   });
 });

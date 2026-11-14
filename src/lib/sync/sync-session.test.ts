@@ -7,11 +7,13 @@ function fakeSync(): CloudSync & { stopped: boolean } {
     stopped: false,
     flush: vi.fn(async () => {}),
     refresh: vi.fn(async () => {}),
+    leave: vi.fn(() => {}),
+    retryRefused: vi.fn(() => {}),
     stop: vi.fn(() => {
       sync.stopped = true;
     }),
     isStopped: () => sync.stopped,
-    firstPass: Promise.resolve(),
+    firstLoad: Promise.resolve(),
   };
   return sync;
 }

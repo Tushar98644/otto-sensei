@@ -7,6 +7,7 @@ import { readJson } from "@/lib/http";
 import { log } from "@/lib/log";
 import { syncPortfolioWith } from "@/lib/portfolio/sync";
 import { ResumeSchema } from "@/lib/resume/validation";
+import type { PutResumeResult } from "@/lib/sync/api-types";
 import { proToolRequired } from "../../pro-tools";
 import { deleteBackup, MAX_RESUMES_PER_USER, saveBackup } from "../backups";
 
@@ -18,9 +19,16 @@ const SIGN_IN = "Sign in to sync your resumes.";
 const EMPTY: Omit<EmptyOk, "ok"> = {};
 const SAVED: Omit<PutResumeResponse, "ok"> = { deleted: false };
 const DELETED: Omit<PutResumeResponse, "ok"> = { deleted: true };
+const STALE: Omit<PutResumeResult, "ok"> = { deleted: false, stale: true };
 
 function isResumeId(id: string): boolean {
   return ResumeSchema.shape.id.safeParse(id).success;
+}
+
+// The account's version this edit was made on (?base=); older clients send none.
+function baseOf(req: Request): number | undefined {
+  const raw = new URL(req.url).searchParams.get("base");
+  return raw !== null && /^\d{1,15}$/.test(raw) ? Number(raw) : undefined;
 }
 
 export async function PUT(req: Request, { params }: Context): Promise<Response> {
@@ -41,7 +49,7 @@ export async function PUT(req: Request, { params }: Context): Promise<Response> 
     }
 
     const planLimit = resumeLimit(user.plan);
-    const { status, bytes } = await saveBackup(user.id, body.data, Date.now(), planLimit);
+    const { status, bytes } = await saveBackup(user.id, body.data, Date.now(), planLimit, baseOf(req));
     if (status === "no_user") {
       log.info("resumes.write_after_account_deleted");
       return fail("unauthorized", SIGN_IN, 401);
@@ -53,9 +61,9 @@ export async function PUT(req: Request, { params }: Context): Promise<Response> 
     if (status === "limit_reached") {
       log.info("resumes.limit_reached", { max: MAX_RESUMES_PER_USER });
       return fail(
-        "bad_request",
+        "limit_reached",
         `You can keep up to ${MAX_RESUMES_PER_USER} resumes. Delete one to save another.`,
-        400,
+        429,
       );
     }
     if (status === "plan_limit") return proToolRequired(user, "resumes");
@@ -65,7 +73,7 @@ export async function PUT(req: Request, { params }: Context): Promise<Response> 
     }
     if (status === "stale") log.info("resumes.stale_write");
     else await syncPortfolioWith(user.id, body.data);
-    return ok(SAVED);
+    return ok(status === "stale" ? STALE : SAVED);
   } catch (error) {
     log.error("resumes.save_failed", error);
     return fail("server_error", "Couldn't save your resume. Please try again.", 500);

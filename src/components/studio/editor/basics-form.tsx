@@ -17,8 +17,15 @@ export const BasicsForm = memo(function BasicsForm({ resumeId }: { resumeId: str
   const [checkEmail, setCheckEmail] = useState(false);
   if (!basics) return null;
 
+  // An email field drops a trailing space, so typing one can change nothing.
   function update(patch: BasicsText) {
-    editResume(resumeId, (resume) => ({ ...resume, basics: { ...resume.basics, ...patch } }));
+    editResume(resumeId, (resume) =>
+      Object.entries(patch).every(
+        ([key, value]) => resume.basics[key as keyof BasicsText] === value,
+      )
+        ? resume
+        : { ...resume, basics: { ...resume.basics, ...patch } },
+    );
   }
 
   const email = basics.email.trim();

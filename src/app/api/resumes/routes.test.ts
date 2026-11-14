@@ -17,7 +17,7 @@ import {
   TOMBSTONE_MAX_AGE_MS,
 } from "./backups";
 import { DELETE, PUT } from "./[id]/route";
-import { GET } from "./route";
+import { GET, POST } from "./route";
 
 vi.mock("next/headers", async () => (await import("@/lib/auth/test-helpers")).nextHeadersMock);
 
@@ -27,8 +27,14 @@ function resume(overrides: Partial<Resume> = {}): Resume {
 
 const context = (id: string) => ({ params: Promise.resolve({ id }) });
 
-function put(body: unknown, id: string, contentType = "application/json"): Promise<Response> {
-  const req = new Request(`http://localhost/api/resumes/${encodeURIComponent(id)}`, {
+function put(
+  body: unknown,
+  id: string,
+  contentType = "application/json",
+  base?: number,
+): Promise<Response> {
+  const query = base === undefined ? "" : `?base=${base}`;
+  const req = new Request(`http://localhost/api/resumes/${encodeURIComponent(id)}${query}`, {
     method: "PUT",
     headers: { "content-type": contentType },
     body: JSON.stringify(body),
@@ -37,6 +43,16 @@ function put(body: unknown, id: string, contentType = "application/json"): Promi
 }
 
 const save = (item: Resume) => put(item, item.id);
+
+function listSince(body: unknown, contentType = "application/json"): Promise<Response> {
+  return POST(
+    new Request("http://localhost/api/resumes", {
+      method: "POST",
+      headers: { "content-type": contentType },
+      body: JSON.stringify(body),
+    }),
+  );
+}
 
 function remove(id: string): Promise<Response> {
   return DELETE(new Request(`http://localhost/api/resumes/${encodeURIComponent(id)}`, { method: "DELETE" }), context(id));
@@ -184,9 +200,9 @@ describe("/api/resumes", () => {
     }
 
     const extra = await save(resume({ updatedAt: 99_000 }));
-    expect(extra.status).toBe(400);
+    expect(extra.status).toBe(429);
     expect(await errorOf(extra)).toEqual({
-      code: "bad_request",
+      code: "limit_reached",
       message: "You can keep up to 50 resumes. Delete one to save another.",
     });
 
@@ -417,5 +433,88 @@ describe("/api/resumes deletions", () => {
     expect(ids.has(item.id)).toBe(true);
     expect(ids.has(`t-${String(MAX_TOMBSTONES_PER_USER - 1).padStart(4, "0")}`)).toBe(false);
     expect(ids.has("t-0000")).toBe(true);
+  });
+});
+
+describe("/api/resumes edits and the copy they were made on", () => {
+  it("writes an edit made on the account's current copy", async () => {
+    await signIn("ada@example.com");
+    const first = resume({ title: "First", updatedAt: 2_000 });
+    await save(first);
+    const res = await put({ ...first, title: "Second", updatedAt: 3_000 }, first.id, "application/json", 2_000);
+    expect(await saved(res)).toEqual({ ok: true, deleted: false });
+    expect((await list())[0]?.title).toBe("Second");
+  });
+
+  it("says when the account moved on since, and writes nothing", async () => {
+    await signIn("ada@example.com");
+    const first = resume({ title: "First", updatedAt: 2_000 });
+    await save(first);
+    await save({ ...first, title: "From the laptop", updatedAt: 3_000 });
+
+    const fromPhone = { ...first, title: "From the phone", updatedAt: 9_000 };
+    const stale = { ok: true, deleted: false, stale: true };
+    expect(await saved(await put(fromPhone, first.id, "application/json", 2_000))).toEqual(stale);
+    expect(await saved(await save({ ...first, title: "Late", updatedAt: 2_500 }))).toEqual(stale);
+    expect((await list())[0]?.title).toBe("From the laptop");
+  });
+
+  it("takes the copy it already holds, sent again, as saved and writes nothing", async () => {
+    await signIn("ada@example.com");
+    const first = resume({ title: "First", updatedAt: 2_000 });
+    await save(first);
+    const edited = { ...first, title: "Edited", updatedAt: 3_000 };
+    const savedNow = { ok: true, deleted: false };
+    expect(await saved(await put(edited, first.id, "application/json", 2_000))).toEqual(savedNow);
+
+    const again = { ...edited, title: "Same version, other text" };
+    expect(await saved(await put(again, first.id, "application/json", 2_000))).toEqual(savedNow);
+    expect(await saved(await save(again))).toEqual(savedNow);
+    expect((await list())[0]?.title).toBe("Edited");
+  });
+
+  it("saves a new resume whatever base it names, and ignores a base that isn't a version", async () => {
+    await signIn("ada@example.com");
+    const item = resume();
+    expect(await saved(await put(item, item.id, "application/json", 123))).toEqual({ ok: true, deleted: false });
+    const req = new Request(`http://localhost/api/resumes/${item.id}?base=soon`, {
+      method: "PUT",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ ...item, title: "Edited", updatedAt: 5_000 }),
+    });
+    expect(await saved(await PUT(req, context(item.id)))).toEqual({ ok: true, deleted: false });
+    expect((await list())[0]?.title).toBe("Edited");
+  });
+});
+
+describe("POST /api/resumes", () => {
+  it("sends in full only the resumes whose version differs from the browser's", async () => {
+    await signIn("ada@example.com");
+    const same = resume({ title: "Same", updatedAt: 2_000 });
+    const changed = resume({ title: "Changed", updatedAt: 3_000 });
+    const onlyThere = resume({ title: "Only in the account", updatedAt: 4_000 });
+    const deleted = resume({ title: "Deleted" });
+    for (const item of [same, changed, onlyThere, deleted]) await save(item);
+    await remove(deleted.id);
+
+    const res = await listSince({ known: { [same.id]: 2_000, [changed.id]: 1_000, "not-hers": 5 } });
+
+    expect(res.status).toBe(200);
+    expect(res.headers.get("Cache-Control")).toBe("no-store");
+    expect(await res.json()).toEqual({
+      ok: true,
+      resumes: [onlyThere, changed],
+      unchanged: [same.id],
+      deletedIds: [deleted.id],
+    });
+  });
+
+  it("needs a session and a valid list", async () => {
+    expect((await listSince({ known: {} })).status).toBe(401);
+    await signIn("ada@example.com");
+    expect((await listSince({ known: { a: -1 } })).status).toBe(400);
+    const tooMany = Object.fromEntries(Array.from({ length: 201 }, (_, i) => [`id-${i}`, 1]));
+    expect((await listSince({ known: tooMany })).status).toBe(400);
+    expect((await listSince({ known: {} }, "text/plain")).status).toBe(415);
   });
 });
