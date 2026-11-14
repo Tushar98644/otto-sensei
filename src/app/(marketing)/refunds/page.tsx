@@ -8,7 +8,7 @@ import { LegalPage } from "../_components/legal-page";
 
 export const metadata: Metadata = pageMetadata({
   title: "Refund policy",
-  description: `A full refund within 7 days of your first ${BRAND.name} Pro or Max payment, and you can cancel anytime.`,
+  description: `${BRAND.name} Pro and Max payments aren't refunded. You can cancel anytime and you won't be charged again.`,
   path: ROUTES.refunds,
 });
 
@@ -16,49 +16,34 @@ export default function RefundsPage() {
   const mailto = `mailto:${BRAND.supportEmail}`;
   return (
     <LegalPage title="Refund policy">
-      <p>
-        We want Pro and Max to be worth it. If they aren&apos;t, here&apos;s how refunds and cancelling work.
-      </p>
+      <p>Here&apos;s how payments and cancelling work on Pro and Max.</p>
 
-      <h2>7-day refund on your first payment</h2>
+      <h2>Payments aren&apos;t refunded</h2>
       <p>
-        If you&apos;re not happy with your plan, email us within 7 days of your first payment and
-        we&apos;ll refund it in full. You don&apos;t need a reason.
-      </p>
-      <p>
-        This covers your first payment only. Later payments aren&apos;t refunded, but
-        you can cancel anytime so you&apos;re not charged again.
+        We don&apos;t refund payments for Pro or Max, including the first one. Try the{" "}
+        {PRO_TRIAL.days}-day Pro trial or the Free plan first to see if it&apos;s right for you.
       </p>
 
       <h2>Cancel anytime</h2>
       <p>
         Cancel from your <Link href={ROUTES.account}>account page</Link> whenever you like. You keep
-        your plan until the end of the period you&apos;ve paid for, then your account moves to the Free
-        plan. Your resumes stay yours either way.
+        your plan until the end of the period you&apos;ve paid for, then your account moves to the
+        Free plan. Your resumes stay yours either way.
       </p>
       <p>
         On the {PRO_TRIAL.days}-day Pro trial nothing is charged. Cancel before the trial ends and
-        you won&apos;t pay anything; otherwise your first Pro payment is taken when it ends, and the
-        7 days above start from that payment.
+        you won&apos;t pay anything; otherwise your first Pro payment is taken when it ends.
       </p>
-
-      <h2>How to ask for a refund</h2>
-      <ol>
-        <li>
-          Email <a href={mailto}>{BRAND.supportEmail}</a> from the address you sign in with, within
-          7 days of your first payment.
-        </li>
-        <li>We refund the payment through Creem, our merchant of record.</li>
-        <li>
-          The money goes back to your original payment method. It can take a few business days to
-          show up, depending on your bank.
-        </li>
-      </ol>
 
       <h2>Deleting your account</h2>
       <p>
-        Deleting your account cancels your paid plan right away, and you won&apos;t be charged again. It ends
-        at that moment rather than at the end of the period you&apos;ve paid for.
+        Deleting your account cancels your paid plan right away, and you won&apos;t be charged
+        again. It ends at that moment rather than at the end of the period you&apos;ve paid for.
+      </p>
+
+      <h2>Questions about a charge</h2>
+      <p>
+        Email <a href={mailto}>{BRAND.supportEmail}</a> from the address you sign in with.
       </p>
 
       <p>This policy doesn&apos;t affect any rights you have under consumer laws where you live.</p>

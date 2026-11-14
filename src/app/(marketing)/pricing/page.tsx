@@ -20,6 +20,8 @@ import { appUrl } from "@/lib/env";
 import { countClaim } from "@/lib/job-feed/counts";
 import { loadJobCounts } from "@/lib/job-feed/live-counts";
 import { softwareJsonLd } from "@/lib/seo/json-ld";
+import { cn } from "@/lib/utils";
+import { displayItalic } from "../_components/display-italic";
 import { type FaqItem, FaqList } from "../_components/faq-list";
 import { formatUsd } from "../_components/plan-features";
 import { PricingPlans } from "../_components/pricing-plans";
@@ -84,8 +86,9 @@ const billingFaq = (weeklyOnSale: boolean): readonly FaqItem[] => [
     question: "Can I get a refund?",
     answer: (
       <>
-        Yes. If a paid plan isn&apos;t right for you, ask within 7 days of your first payment for a
-        full refund. See the <TextLink href={ROUTES.refunds}>refund policy</TextLink>.
+        No. Payments aren&apos;t refunded, but you can cancel anytime from your account page and you
+        won&apos;t be charged again. See the{" "}
+        <TextLink href={ROUTES.refunds}>refund policy</TextLink>.
       </>
     ),
   },
@@ -117,7 +120,8 @@ export default async function PricingPage() {
       <JsonLd data={softwareJsonLd(offer, appUrl())} />
       <div className="mx-auto flex max-w-3xl flex-col items-center text-center">
         <h1 className="font-display text-5xl/none font-normal tracking-tight text-ink sm:text-7xl/none">
-          Free for the basics. <em className="block">More when the hunt gets busy.</em>
+          Free for the basics.{" "}
+          <em className={cn("block", displayItalic.className)}>More when the hunt gets busy.</em>
         </h1>
         <p className="mt-6 max-w-xl text-lg/7 text-muted sm:text-xl/8">
           Checking, fixing and downloading one resume as a PDF is free, with {PLANS.free.limits.fix}{" "}
