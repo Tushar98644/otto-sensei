@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { CaptureResult } from "posthog-js";
+import type { CaptureResult } from "posthog-js/dist/module.slim.js";
 
 const sdk = vi.hoisted(() => {
   const state = { distinctId: "anon-device-1", identified: false };
@@ -22,7 +22,7 @@ const sdk = vi.hoisted(() => {
 
 const config = vi.hoisted(() => ({ key: "phc_test" as string | undefined }));
 
-vi.mock("posthog-js", () => ({ default: sdk }));
+vi.mock("posthog-js/dist/module.slim.js", () => ({ default: sdk }));
 vi.mock("./config", () => ({
   posthogKey: () => config.key,
   posthogHost: () => "https://us.i.posthog.com",

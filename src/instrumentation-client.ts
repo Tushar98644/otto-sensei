@@ -1,12 +1,11 @@
-import { loadSentry } from "@/lib/observability/browser";
+import { holdEarlyErrors, loadSentrySoon } from "@/lib/observability/browser";
+import { isAppPage } from "@/lib/observability/pages";
 
-const MARKETING_PATHS = new Set(["/", "/pricing", "/privacy", "/terms", "/refunds"]);
+holdEarlyErrors();
 
-const wanted = (path: string) => !MARKETING_PATHS.has(path);
+if (isAppPage(window.location.pathname)) loadSentrySoon();
 
-if (wanted(window.location.pathname)) void loadSentry();
-
-export function onRouterTransitionStart(href: string, navigationType: string): void {
-  if (!wanted(new URL(href, window.location.origin).pathname)) return;
-  void loadSentry().then((Sentry) => Sentry?.captureRouterTransitionStart(href, navigationType));
+// Navigation spans are off, so this only brings the SDK in once the visitor moves into the app.
+export function onRouterTransitionStart(href: string): void {
+  if (isAppPage(new URL(href, window.location.origin).pathname)) loadSentrySoon();
 }

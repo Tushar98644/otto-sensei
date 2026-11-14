@@ -5,8 +5,17 @@ const sdk = vi.hoisted(() => ({
   init: vi.fn(),
   captureException: vi.fn(),
   captureRequestError: vi.fn(),
+  flush: vi.fn(async () => true),
 }));
 vi.mock("@sentry/nextjs", () => sdk);
+
+const scheduled = vi.hoisted(() => ({ tasks: [] as Promise<unknown>[], outsideRequest: false }));
+vi.mock("next/server", () => ({
+  after: (task: Promise<unknown>) => {
+    if (scheduled.outsideRequest) throw new Error("`after` was called outside a request scope");
+    scheduled.tasks.push(task);
+  },
+}));
 
 const DSN = "https://public@o0.ingest.sentry.io/0";
 const REQUEST = { path: "/api/draft", method: "POST", headers: {} };
@@ -14,6 +23,8 @@ const CONTEXT = { routerKind: "App Router", routePath: "/api/draft", routeType: 
 
 beforeEach(() => {
   vi.resetModules();
+  scheduled.tasks = [];
+  scheduled.outsideRequest = false;
   vi.spyOn(console, "error").mockImplementation(() => undefined);
   vi.spyOn(console, "info").mockImplementation(() => undefined);
   for (const name of [
@@ -53,6 +64,7 @@ describe("when Sentry is off", () => {
     expect(sdk.init).not.toHaveBeenCalled();
     expect(sdk.captureException).not.toHaveBeenCalled();
     expect(sdk.captureRequestError).not.toHaveBeenCalled();
+    expect(scheduled.tasks).toHaveLength(0);
   });
 
   it("keeps the browser off without the public DSN, even with a server DSN", async () => {
@@ -135,6 +147,44 @@ describe("when Sentry is on", () => {
     const sent = sdk.captureException.mock.calls[0]?.[0];
     expect(sent).toBeInstanceOf(Error);
     expect((sent as Error).message).toBe("import.failed");
+  });
+
+  it("sends at once and keeps the function alive until the report is out", async () => {
+    let finish: (sent: boolean) => void = () => {};
+    sdk.flush.mockImplementationOnce(() => new Promise<boolean>((resolve) => (finish = resolve)));
+    const { reportError } = await import("./report");
+    reportError("billing.webhook_failed", new Error("boom"));
+
+    expect(scheduled.tasks).toHaveLength(1);
+    await vi.waitFor(() => expect(sdk.captureException).toHaveBeenCalledTimes(1));
+    expect(sdk.flush).toHaveBeenCalledWith(2_000);
+
+    let done = false;
+    const kept = scheduled.tasks[0]?.then(() => (done = true));
+    await settle();
+    expect(done).toBe(false);
+    finish(true);
+    await kept;
+    expect(done).toBe(true);
+  });
+
+  it("still sends outside a request, where after() can't be used", async () => {
+    scheduled.outsideRequest = true;
+    const { reportError } = await import("./report");
+    reportError("cron.jobs_failed", new Error("boom"));
+
+    await vi.waitFor(() => expect(sdk.flush).toHaveBeenCalledTimes(1));
+    expect(sdk.captureException).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps a Sentry failure away from the caller", async () => {
+    sdk.captureException.mockImplementationOnce(() => {
+      throw new Error("transport down");
+    });
+    const { reportError } = await import("./report");
+    reportError("draft.failed", new Error("boom"));
+
+    await expect(scheduled.tasks[0]).resolves.toBe(false);
   });
 
   it("forwards errors that escape a request", async () => {

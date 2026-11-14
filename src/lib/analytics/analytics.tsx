@@ -3,21 +3,22 @@
 import { usePathname } from "next/navigation";
 import { useEffect, useSyncExternalStore } from "react";
 import { useMe } from "@/components/account/use-me";
+import { isAppPage } from "@/lib/observability/pages";
 import { analyticsEnabled, identifyUser, resetUser, startAnalytics } from "./client";
 
 const noChanges = () => () => {};
 
-const ACCOUNT_PAGES = /^\/(?:studio|dashboard|account|login)(?:\/|$)/;
-
 export function Analytics() {
   const enabled = useSyncExternalStore(noChanges, analyticsEnabled, () => false);
   const pathname = usePathname();
+  const onAppPage = enabled && isAppPage(pathname);
 
+  // Elsewhere the SDK loads with the page's first event, and most of those pages send none.
   useEffect(() => {
-    if (enabled) startAnalytics();
-  }, [enabled]);
+    if (onAppPage) startAnalytics();
+  }, [onAppPage]);
 
-  return enabled && ACCOUNT_PAGES.test(pathname) ? <IdentitySync /> : null;
+  return onAppPage ? <IdentitySync /> : null;
 }
 
 function IdentitySync() {

@@ -1,4 +1,4 @@
-import type { BeforeSendFn, PostHog, PostHogConfig } from "posthog-js";
+import type { BeforeSendFn, PostHog, PostHogConfig } from "posthog-js/dist/module.slim.js";
 import type { PlanId } from "@/config/plans";
 import { posthogHost, posthogKey } from "./config";
 import type { ClientEvent, ClientEventProps, EventArgs } from "./events";
@@ -65,7 +65,8 @@ function load(): Promise<PostHog | null> {
   const key = posthogKey();
   if (!key || !analyticsEnabled()) return Promise.resolve(null);
   loading = whenIdle()
-    .then(() => import("posthog-js"))
+    // The slim build leaves out every extension CONFIG turns off; it is a dist path, so recheck it on upgrades.
+    .then(() => import("posthog-js/dist/module.slim.js"))
     .then(({ default: posthog }) => {
       posthog.init(key, { ...CONFIG, api_host: posthogHost() });
       attempt(posthog, applyIdentity);
