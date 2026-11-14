@@ -24,7 +24,13 @@ import {
 } from "./match";
 import { MAJOR_GROUPS, OCCUPATIONS, occupationOf, readTitle } from "./occupations";
 import { matchCacheKey, readMatchCache, writeMatchCache } from "./match-cache";
-import { poolOpenings, readStoredCounts, type PooledOpening } from "./match-index";
+import {
+  indexWeights,
+  poolOpenings,
+  readStoredCounts,
+  type PooledOpening,
+  type StoredCounts,
+} from "./match-index";
 import {
   capPerCompany,
   closeness,
@@ -51,6 +57,7 @@ import {
 } from "./records";
 import {
   JOB_PAGE_SIZE,
+  MAX_JOB_PAGE,
   type JobFilters,
   type JobMatchesResponse,
   type LookingFor,
@@ -115,9 +122,17 @@ export type RankRequest = {
   now: number;
   free?: boolean;
   cache?: boolean;
+  // Already read by the caller; left out, they're read here.
+  counts?: StoredCounts | null;
+  // Writes the answer doesn't wait for (the day's cache); without it they're awaited here.
+  defer?: (write: () => Promise<void>) => void;
 };
 
 export type RankResult = Omit<JobMatchesResponse, "ok" | "requestId" | "resumeHash">;
+
+function storedCounts(db: Db, request: RankRequest): Promise<StoredCounts | null> {
+  return request.counts === undefined ? readStoredCounts(db) : Promise.resolve(request.counts);
+}
 
 type Check = (
   row: { location: string; rulesText: string },
@@ -197,7 +212,7 @@ export async function rankJobs(db: Db, request: RankRequest): Promise<RankResult
     });
     const start = (request.page - 1) * JOB_PAGE_SIZE;
     const [counts, saved] = await Promise.all([
-      readStoredCounts(db),
+      storedCounts(db, request),
       savedCount(db, request.userId),
     ]);
     const stats = counts ?? (await jobStats(db));
@@ -219,8 +234,8 @@ export async function rankJobs(db: Db, request: RankRequest): Promise<RankResult
     };
   }
 
-  const counts = await readStoredCounts(db);
-  const cacheKey =
+  const counts = await storedCounts(db, request);
+  const keyFor = (page: number) =>
     request.cache && counts
       ? matchCacheKey({
           variant: MATCH_VARIANT,
@@ -228,16 +243,18 @@ export async function rankJobs(db: Db, request: RankRequest): Promise<RankResult
           now,
           plan: request.free ? "free" : "pro",
           profileHash: profileHash(request.profile),
-          inputs: [filters, lookingFor, request.page, request.workProfile, request.deviceTimeZone],
+          inputs: [filters, lookingFor, page, request.workProfile, request.deviceTimeZone],
         })
       : null;
+  const cacheKey = keyFor(request.page);
   if (cacheKey) {
     const hit = await readMatchCache<RankResult>(db, request.userId, cacheKey);
     if (hit) return withSaved(db, request.userId, hit);
   }
 
+  // The index keeps the weights it was built with; if it can't be read, poolOpenings falls back too.
   const [weights, stats] = await Promise.all([
-    skillWeights(db),
+    counts ? indexWeights(db, counts).catch(() => skillWeights(db)) : skillWeights(db),
     counts ? Promise.resolve(counts) : jobStats(db),
   ]);
   const weight = (skill: string) => weights.get(skill) ?? DEFAULT_SKILL_WEIGHT;
@@ -318,24 +335,40 @@ export async function rankJobs(db: Db, request: RankRequest): Promise<RankResult
   }));
   const firstSeen = new Map(kept.map((item) => [item.job.id, item.firstSeenAt]));
 
-  const start = (request.page - 1) * JOB_PAGE_SIZE;
-  const result: RankResult = {
-    jobs: ranked.slice(start, start + JOB_PAGE_SIZE),
-    page: request.page,
+  const strong = ranked.filter((job) => job.match.label === "strong").length;
+  const newToday = ranked.filter((job) => (firstSeen.get(job.id) ?? 0) >= now - DAY_MS).length;
+  const pageOf = (page: number): RankResult => ({
+    jobs: ranked.slice((page - 1) * JOB_PAGE_SIZE, page * JOB_PAGE_SIZE),
+    page,
     pageSize: JOB_PAGE_SIZE,
     total: ranked.length,
     matching: Math.max(pool.groups, ranked.length),
     capped: pool.groups > CANDIDATE_POOL,
-    strong: ranked.filter((job) => job.match.label === "strong").length,
-    newToday: ranked.filter((job) => (firstSeen.get(job.id) ?? 0) >= now - DAY_MS).length,
+    strong,
+    newToday,
     savedCount: 0,
     openJobs: stats.openJobs,
     checkedAt: stats.checkedAt,
     profileReady,
     ...shown,
     variant: MATCH_VARIANT,
-  };
-  if (cacheKey) await writeMatchCache(db, request.userId, cacheKey, result, now);
+  });
+  const result = pageOf(request.page);
+  if (cacheKey) {
+    // Next goes to the following page of this same ranking, so it's kept now too.
+    const next = request.page + 1;
+    const nextKey =
+      !request.free && next <= MAX_JOB_PAGE && ranked.length > request.page * JOB_PAGE_SIZE
+        ? keyFor(next)
+        : null;
+    const entries = [
+      { key: cacheKey, value: result },
+      ...(nextKey ? [{ key: nextKey, value: pageOf(next) }] : []),
+    ];
+    const write = () => writeMatchCache(db, request.userId, entries, now);
+    if (request.defer) request.defer(write);
+    else await write();
+  }
   return withSaved(db, request.userId, result);
 }
 

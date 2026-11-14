@@ -7,6 +7,8 @@ export const runtime = "nodejs";
 
 const MAX_QUERY_CHARS = 60;
 const RESULTS = 8;
+// Same answer for everyone from fixed data, so Vercel's CDN may keep it near each region too.
+const CACHE = "public, max-age=86400, s-maxage=604800, stale-while-revalidate=86400";
 
 export async function GET(req: Request): Promise<Response> {
   const query = (new URL(req.url).searchParams.get("q") ?? "").trim();
@@ -16,7 +18,7 @@ export async function GET(req: Request): Promise<Response> {
     const response: Omit<OccupationSearchResponse, "ok"> = {
       occupations: query ? searchOccupations(query, RESULTS) : [],
     };
-    return ok(response, { headers: { "Cache-Control": "public, max-age=86400" } });
+    return ok(response, { headers: { "Cache-Control": CACHE } });
   } catch (error) {
     log.error("jobs.occupation_search_failed", error);
     return fail("server_error", "Search didn't work. Please try again.", 500);

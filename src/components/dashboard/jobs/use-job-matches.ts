@@ -1,7 +1,7 @@
 "use client";
 
-import { keepPreviousData, skipToken, useQuery } from "@tanstack/react-query";
-import { useCallback, useMemo } from "react";
+import { keepPreviousData, skipToken, useQuery, type Query } from "@tanstack/react-query";
+import { useCallback, useEffect, useMemo } from "react";
 import { useNow } from "@/components/studio/use-now";
 import { api } from "@/lib/api/client";
 import type { JobMatchesRequestBody, JobMatchesResponse } from "@/lib/api/types";
@@ -26,21 +26,69 @@ export type JobMatchesState =
   | { status: "ready"; data: JobMatchesResponse }
   | { status: "error"; error: unknown };
 
+export type SavedMark = { jobId: string; saved: boolean; savedCount: number };
+
 const IDLE_KEY = [...JOB_MATCHES, "idle"] as const;
+
+function marked(data: JobMatchesResponse, mark: SavedMark): JobMatchesResponse {
+  return {
+    ...data,
+    savedCount: mark.savedCount,
+    jobs: data.jobs.map((job) => (job.id === mark.jobId ? { ...job, saved: mark.saved } : job)),
+  };
+}
 
 export function patchJobMatches(
   queryKey: readonly unknown[],
   change: (data: JobMatchesResponse) => JobMatchesResponse,
+  mark: SavedMark,
 ): void {
   const client = getQueryClient();
-  const target = client.getQueryCache().find({ queryKey, exact: true });
-  const other = (query: unknown) => query !== target;
+  const cache = client.getQueryCache();
+  const target = cache.find({ queryKey, exact: true });
+  const savedList = (query: Query) =>
+    query !== target && (query.queryKey[2] as { view?: unknown } | undefined)?.view === "saved";
+  // A Saved list gains or loses the job, so it loads again; a Matches list only flips its flag.
   client.removeQueries({
     queryKey: JOB_MATCHES,
-    predicate: (query) => other(query) && query.getObserversCount() === 0,
+    predicate: (query) => savedList(query) && query.getObserversCount() === 0,
   });
-  void client.invalidateQueries({ queryKey: JOB_MATCHES, predicate: other });
+  void client.invalidateQueries({ queryKey: JOB_MATCHES, predicate: savedList });
+  for (const query of cache.findAll({ queryKey: JOB_MATCHES })) {
+    const data = query.state.data as JobMatchesResponse | undefined;
+    if (query === target || savedList(query) || !data) continue;
+    client.setQueryData(query.queryKey, marked(data, mark), {
+      updatedAt: query.state.dataUpdatedAt,
+    });
+  }
   client.setQueryData<JobMatchesResponse>(queryKey, (data) => (data ? change(data) : data));
+}
+
+// Hover prefetches aren't logged as seen (JOBS_PREFETCH_HEADER), so the page logs them once shown.
+const unseen = new Set<string>();
+
+export async function prefetchedMatches(body: JobMatchesRequestBody): Promise<JobMatchesResponse> {
+  const data = await api.jobMatches(body, { prefetch: true });
+  if (data.requestId) unseen.add(data.requestId);
+  return data;
+}
+
+export function noteShown(data: JobMatchesResponse): void {
+  const { requestId, resumeHash } = data;
+  if (!requestId || !resumeHash || !unseen.delete(requestId) || data.jobs.length === 0) return;
+  void api
+    .jobImpressions({
+      kind: "impressions",
+      requestId,
+      variant: data.variant,
+      resumeHash,
+      jobs: data.jobs.map((job) => ({
+        jobId: job.id,
+        position: job.position,
+        label: job.match.label,
+      })),
+    })
+    .catch(() => undefined);
 }
 
 function matchesBody(
@@ -104,6 +152,7 @@ export function useJobMatches({
     [userId, body, workProfile],
   );
   const query = useQuery(
+    // eslint-disable-next-line @tanstack/query/exhaustive-deps -- queryKey is built from body above
     {
       queryKey: queryKey ?? IDLE_KEY,
       queryFn: body && queryKey ? () => api.jobMatches(body) : skipToken,
@@ -115,8 +164,8 @@ export function useJobMatches({
   const { refetch } = query;
   const retry = useCallback(() => void refetch(), [refetch]);
   const patch = useCallback(
-    (change: (data: JobMatchesResponse) => JobMatchesResponse) => {
-      if (queryKey) patchJobMatches(queryKey, change);
+    (change: (data: JobMatchesResponse) => JobMatchesResponse, mark: SavedMark) => {
+      if (queryKey) patchJobMatches(queryKey, change, mark);
     },
     [queryKey],
   );
@@ -127,6 +176,11 @@ export function useJobMatches({
     state = { status: "error", error: query.error };
   } else if (query.data && !query.isPlaceholderData) state = { status: "ready", data: query.data };
   else state = { status: "loading", previous: query.data ?? null };
+
+  const shown = state.status === "ready" ? state.data : null;
+  useEffect(() => {
+    if (shown) noteShown(shown);
+  }, [shown]);
 
   return { state, retry, patch, profile, lookingFor };
 }

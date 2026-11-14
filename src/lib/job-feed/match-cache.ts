@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { and, eq } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import type { Db } from "@/db/client";
 import { matchCache } from "@/db/schema";
 import { log } from "@/lib/log";
@@ -44,17 +44,17 @@ export async function readMatchCache<T>(db: Db, userId: string, key: string): Pr
 export async function writeMatchCache(
   db: Db,
   userId: string,
-  key: string,
-  value: unknown,
+  entries: readonly { key: string; value: unknown }[],
   now: number,
 ): Promise<void> {
+  if (entries.length === 0) return;
   try {
     await db
       .insert(matchCache)
-      .values({ userId, key, value, createdAt: now })
+      .values(entries.map(({ key, value }) => ({ userId, key, value, createdAt: now })))
       .onConflictDoUpdate({
         target: [matchCache.userId, matchCache.key],
-        set: { value, createdAt: now },
+        set: { value: sql.raw(`excluded.${matchCache.value.name}`), createdAt: now },
       });
   } catch (error) {
     log.warn("jobs.cache_write_failed", {}, error);

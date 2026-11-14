@@ -22,7 +22,7 @@ export const RETENTION = {
   anyNotificationsMs: 365 * DAY_MS,
   // Creem stops redelivering a webhook after a day, so an id this old can never arrive again.
   billingEventsMs: 400 * DAY_MS,
-  impressionsMs: 90 * DAY_MS,
+  impressionsMs: 30 * DAY_MS,
   matchCacheMs: MATCH_CACHE_MAX_AGE_MS,
 } as const;
 

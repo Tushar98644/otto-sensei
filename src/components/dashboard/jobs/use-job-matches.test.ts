@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { JobMatchesResponse } from "@/lib/api/types";
+import type { JobMatchesResponse, MatchedJob } from "@/lib/api/types";
 import { deviceTimeZone } from "@/lib/eligibility/options";
 import { emptyWorkProfile } from "@/lib/eligibility/profile";
 import { lookingForOf } from "@/lib/job-feed/looking-for";
@@ -16,21 +16,40 @@ vi.mock("@/components/account/use-me", () => ({
   signedInUserId: () => "ada",
   subscribeToMe: () => () => {},
 }));
+const api = vi.hoisted(() => ({
+  jobMatches: vi.fn(),
+  jobImpressions: vi.fn(async () => ({ ok: true })),
+}));
+vi.mock("@/lib/api/client", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/api/client")>()),
+  api,
+}));
 
 const { getQueryClient } = await import("@/lib/queries/client");
-const { openingMatchesRequest, patchJobMatches } = await import("./use-job-matches");
+const { noteShown, openingMatchesRequest, patchJobMatches, prefetchedMatches } =
+  await import("./use-job-matches");
 
 const DAY_MS = 24 * 60 * 60 * 1_000;
 const NOW = Date.UTC(2026, 10, 11, 15, 30);
+const REQUEST_ID = "6f9619ff-8b86-4d01-b42d-00c04fc964ff";
 
-function answer(savedCount: number): JobMatchesResponse {
+function job(id: string, position: number, saved = false): MatchedJob {
+  return {
+    id,
+    position,
+    saved,
+    match: { label: "good", found: [], missing: [], reason: "", notes: [], blocked: false },
+  } as unknown as MatchedJob;
+}
+
+function answer(savedCount: number, jobs: MatchedJob[] = []): JobMatchesResponse {
   return {
     ok: true,
-    jobs: [],
+    jobs,
     page: 1,
     pageSize: 20,
-    total: 0,
-    matching: 0,
+    total: jobs.length,
+    matching: jobs.length,
     capped: false,
     strong: 0,
     newToday: 0,
@@ -40,11 +59,14 @@ function answer(savedCount: number): JobMatchesResponse {
     profileReady: false,
     lookingFor: null,
     variant: "v1",
+    requestId: null,
+    resumeHash: null,
   } as unknown as JobMatchesResponse;
 }
 
 beforeEach(() => {
   getQueryClient().clear();
+  vi.clearAllMocks();
 });
 
 describe("openingMatchesRequest", () => {
@@ -74,20 +96,93 @@ describe("openingMatchesRequest", () => {
 });
 
 describe("patchJobMatches", () => {
-  it("changes the answer on screen and drops the others, whose counts are now wrong", () => {
+  const work = { profile: emptyWorkProfile(), lookingFor: NO_CHOICE };
+  const keys = () => {
+    const matches = openingMatchesRequest(createSampleResume(NOW), work, NOW)!;
+    return {
+      shown: queryKeys.jobMatches("ada", matches, work.profile),
+      page2: queryKeys.jobMatches("ada", { ...matches, page: 2 }, work.profile),
+      saved: queryKeys.jobMatches("ada", { ...matches, view: "saved" }, work.profile),
+    };
+  };
+
+  it("changes the answer on screen, flips the job in other Matches pages, and drops Saved", () => {
     const client = getQueryClient();
-    const resume = createSampleResume(NOW);
-    const work = { profile: emptyWorkProfile(), lookingFor: NO_CHOICE };
-    const matches = openingMatchesRequest(resume, work, NOW)!;
-    const saved = { ...matches, view: "saved" as const };
-    const shownKey = queryKeys.jobMatches("ada", matches, work.profile);
-    const otherKey = queryKeys.jobMatches("ada", saved, work.profile);
-    client.setQueryData(shownKey, answer(2));
-    client.setQueryData(otherKey, answer(2));
+    const key = keys();
+    client.setQueryData(key.shown, answer(2, [job("a", 1), job("b", 2)]));
+    client.setQueryData(key.page2, answer(2, [job("b", 21), job("c", 22)]), { updatedAt: 1_000 });
+    client.setQueryData(key.saved, answer(2));
 
-    patchJobMatches(shownKey, (data) => ({ ...data, savedCount: 3 }));
+    const mark = { jobId: "b", saved: true, savedCount: 3 };
+    patchJobMatches(key.shown, (data) => ({ ...data, savedCount: 3 }), mark);
 
-    expect(client.getQueryData<JobMatchesResponse>(shownKey)?.savedCount).toBe(3);
-    expect(client.getQueryData(otherKey)).toBeUndefined();
+    expect(client.getQueryData<JobMatchesResponse>(key.shown)?.savedCount).toBe(3);
+    const page2 = client.getQueryState<JobMatchesResponse>(key.page2);
+    expect(page2?.data?.savedCount).toBe(3);
+    expect(page2?.data?.jobs.map((item) => [item.id, item.saved])).toEqual([
+      ["b", true],
+      ["c", false],
+    ]);
+    expect(page2?.dataUpdatedAt).toBe(1_000);
+    expect(client.getQueryData(key.saved)).toBeUndefined();
+  });
+
+  it("puts every list back when the save fails", () => {
+    const client = getQueryClient();
+    const key = keys();
+    const before = answer(2, [job("a", 1)]);
+    client.setQueryData(key.shown, before);
+    client.setQueryData(key.page2, answer(2, [job("a", 21)]));
+
+    patchJobMatches(key.shown, (data) => ({ ...data, savedCount: 3 }), {
+      jobId: "a",
+      saved: true,
+      savedCount: 3,
+    });
+    patchJobMatches(key.shown, () => before, { jobId: "a", saved: false, savedCount: 2 });
+
+    expect(client.getQueryData(key.shown)).toEqual(before);
+    const page2 = client.getQueryData<JobMatchesResponse>(key.page2);
+    expect(page2?.savedCount).toBe(2);
+    expect(page2?.jobs[0]?.saved).toBe(false);
+  });
+});
+
+describe("impressions of a prefetched page", () => {
+  const body = () =>
+    openingMatchesRequest(
+      createSampleResume(NOW),
+      { profile: emptyWorkProfile(), lookingFor: NO_CHOICE },
+      NOW,
+    )!;
+  const prefetched = (requestId: string | null) => ({
+    ...answer(0, [job("a", 1), job("b", 2)]),
+    requestId,
+    resumeHash: requestId ? "hash-of-resume" : null,
+  });
+
+  it("asks as a prefetch, then logs the page once, when it's shown", async () => {
+    api.jobMatches.mockResolvedValueOnce(prefetched(REQUEST_ID));
+    const data = await prefetchedMatches(body());
+    expect(api.jobMatches).toHaveBeenCalledWith(body(), { prefetch: true });
+
+    noteShown(data);
+    noteShown({ ...data, savedCount: 1 });
+    expect(api.jobImpressions).toHaveBeenCalledExactlyOnceWith({
+      kind: "impressions",
+      requestId: REQUEST_ID,
+      variant: "v1",
+      resumeHash: "hash-of-resume",
+      jobs: [
+        { jobId: "a", position: 1, label: "good" },
+        { jobId: "b", position: 2, label: "good" },
+      ],
+    });
+  });
+
+  it("leaves pages the server already logged, and Saved, alone", () => {
+    noteShown(prefetched(REQUEST_ID));
+    noteShown(prefetched(null));
+    expect(api.jobImpressions).not.toHaveBeenCalled();
   });
 });

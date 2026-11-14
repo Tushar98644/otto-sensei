@@ -12,7 +12,6 @@ import { undoToast } from "@/components/ui/undo-toast";
 import type { Application } from "@/lib/applications/schema";
 import { STATUS_NAMES } from "@/lib/applications/status";
 import { copyLetter, writingsByApplication } from "@/lib/applications/thread";
-import type { SavedJob } from "@/lib/job-feed/types";
 import type { Resume } from "@/lib/resume/schema";
 import { cn } from "@/lib/utils";
 import type { Writing } from "@/lib/writings/schema";
@@ -37,10 +36,10 @@ import {
   createBody,
   planDrop,
   planStatus,
-  toApplyItems,
   type BoardCard,
   type BoardColumn,
   type Move,
+  type ToApplyItem,
 } from "./board";
 import { BoardCardView, CardGhost, type CardAction } from "./board-card";
 import { MovePopover, type MoveAnswer, type MoveAsk } from "./move-popover";
@@ -66,7 +65,7 @@ function sentAt(): number {
 export type ApplicationsBoardProps = {
   applications: readonly Application[];
   resumes: readonly Resume[];
-  savedJobs: readonly SavedJob[];
+  toApply: readonly ToApplyItem[];
   writings: readonly Writing[];
   now: number;
   pro: boolean | null;
@@ -76,7 +75,7 @@ export type ApplicationsBoardProps = {
 export function ApplicationsBoard({
   applications,
   resumes,
-  savedJobs,
+  toApply,
   writings,
   now,
   pro,
@@ -92,10 +91,6 @@ export function ApplicationsBoard({
   const [ask, setAsk] = useState<MoveAsk | null>(null);
   const [shown, setShown] = useState<Partial<Record<BoardColumn, number>>>({});
 
-  const toApply = useMemo(
-    () => toApplyItems(savedJobs, resumes, applications),
-    [savedJobs, resumes, applications],
-  );
   const columns = useMemo(
     () => boardColumns(applications, toApply, resumes, now),
     [applications, toApply, resumes, now],

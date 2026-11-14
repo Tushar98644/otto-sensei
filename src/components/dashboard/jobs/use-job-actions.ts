@@ -22,7 +22,7 @@ import { formatDay } from "../applications/view";
 import type { StudioActions } from "../use-studio-actions";
 import type { OpenedJobRef } from "./applied-prompt";
 import { logJobApplied } from "./job-actions";
-import type { JobView } from "./use-job-matches";
+import type { JobView, SavedMark } from "./use-job-matches";
 import { answerAppliedPrompt, rememberOpenedJob } from "./use-opened-jobs";
 import { readsLink, tailoredFor } from "./view";
 
@@ -33,7 +33,7 @@ type JobActionsInput = {
   resumes: Resume[];
   applications: Application[];
   userId: string | null;
-  patch: (change: (data: JobMatchesResponse) => JobMatchesResponse) => void;
+  patch: (change: (data: JobMatchesResponse) => JobMatchesResponse, mark: SavedMark) => void;
   actions: StudioActions;
 };
 
@@ -120,15 +120,19 @@ export function useJobActions({
       return;
     }
     const save = !job.saved;
+    const mark = (saved: boolean, savedCount: number) => ({ jobId: job.id, saved, savedCount });
     const show = (saved: boolean, savedCount: number) =>
-      patch((current) => ({
-        ...current,
-        savedCount,
-        jobs:
-          view === "saved" && !saved
-            ? current.jobs.filter((item) => item.id !== job.id)
-            : current.jobs.map((item) => (item.id === job.id ? { ...item, saved } : item)),
-      }));
+      patch(
+        (current) => ({
+          ...current,
+          savedCount,
+          jobs:
+            view === "saved" && !saved
+              ? current.jobs.filter((item) => item.id !== job.id)
+              : current.jobs.map((item) => (item.id === job.id ? { ...item, saved } : item)),
+        }),
+        mark(saved, savedCount),
+      );
     const before = data;
     show(save, Math.max(0, (data?.savedCount ?? 0) + (save ? 1 : -1)));
     const previous = saveQueue.current.get(job.id) ?? Promise.resolve();
@@ -138,7 +142,7 @@ export function useJobActions({
         if (res.saved) note(job, "save");
         show(res.saved, res.savedCount);
       } catch (error) {
-        if (before) patch(() => before);
+        if (before) patch(() => before, mark(job.saved, before.savedCount));
         toast({
           title: save ? "Couldn't save it" : "Couldn't remove it",
           description: errorMessage(error),

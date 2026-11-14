@@ -4,11 +4,16 @@ import { getDb } from "@/db/client";
 import { companyVisa, jobs, matchCache } from "@/db/schema";
 import { emptyWorkProfile } from "@/lib/eligibility/profile";
 import { createUser, resetDb } from "@/lib/auth/test-helpers";
-import { poolOpenings, readStoredCounts, rebuildMatchIndex } from "./match-index";
+import {
+  poolOpenings,
+  readStoredCounts,
+  rebuildMatchIndex,
+  type StoredCounts,
+} from "./match-index";
 import type { RawJob } from "./parsers";
 import { rankJobs } from "./rank";
 import { refreshSkillWeights, saveJobs, syncBoards } from "./store";
-import { DEFAULT_FILTERS } from "./types";
+import { DEFAULT_FILTERS, type JobFilters } from "./types";
 
 const DAY = 24 * 60 * 60 * 1_000;
 const NOW = Date.UTC(2026, 10, 9, 6);
@@ -132,6 +137,36 @@ describe("match index", () => {
     expect(remote.openings.map((item) => item.row.location)).toEqual(["Remote · United States"]);
   });
 
+  it("finds an opening by the words of any of its open copies", async () => {
+    const text = "Own accounts with Salesforce and HubSpot.\nThis role is based in {place}.";
+    await ingest([
+      raw("uk", {
+        title: "Account Executive - London",
+        location: "London, United Kingdom",
+        remote: false,
+        text: text.replace("{place}", "London"),
+      }),
+      raw("us", {
+        title: "Account Executive - Remote US",
+        location: "Remote · United States",
+        remote: true,
+        text: text.replace("{place}", "New York"),
+      }),
+    ]);
+    const db = await getDb();
+    const counts = await readStoredCounts(db);
+    const sales = { ...QUERY, skills: ["Salesforce", "HubSpot"], families: ["sales" as const] };
+    const shown = async (filters: Partial<JobFilters>, stored: StoredCounts | null = counts) => {
+      const query = { ...sales, filters: { ...DEFAULT_FILTERS, ...filters } };
+      const pool = await poolOpenings(db, query, stored, NOW);
+      return pool.openings.map((item) => item.row.location);
+    };
+    expect(await shown({ q: "london" })).toEqual(["London, United Kingdom"]);
+    expect(await shown({ place: "united states" })).toEqual(["Remote · United States"]);
+    expect(await shown({ q: "berlin" })).toEqual([]);
+    expect(await shown({ q: "london" }, null)).toEqual(await shown({ q: "london" }));
+  });
+
   it("puts a place the card names first and a far level last", async () => {
     await ingest([
       raw("de", { title: "Backend Engineer", location: "Berlin, Germany", remote: false }),
@@ -230,6 +265,65 @@ describe("match index", () => {
     });
     expect(other.jobs).toHaveLength(1);
     expect(await db.select().from(matchCache)).toHaveLength(2);
+  });
+
+  it("keeps the next page with a ranked one, so Next is read from the cache", async () => {
+    await ingest(Array.from({ length: 25 }, (_, i) => raw(String(i))));
+    const db = await getDb();
+    const user = await createUser("ada@example.com");
+    const request = {
+      userId: user.id,
+      view: "matches" as const,
+      profile: { skills: ["Go", "PostgreSQL"], titles: ["Backend Engineer"], years: 4 },
+      filters: DEFAULT_FILTERS,
+      page: 1,
+      workProfile: null,
+      deviceTimeZone: "",
+      now: NOW,
+      cache: true,
+    };
+    const first = await rankJobs(db, request);
+    expect(first).toMatchObject({ page: 1, total: 25 });
+    expect(first.jobs).toHaveLength(20);
+    expect(await db.select().from(matchCache)).toHaveLength(2);
+
+    await db.update(jobs).set({ closedAt: NOW, closeReason: "gone" });
+    const second = await rankJobs(db, { ...request, page: 2 });
+    expect(second).toMatchObject({ page: 2, total: 25 });
+    expect(second.jobs.map((job) => job.position)).toEqual([21, 22, 23, 24, 25]);
+    expect(new Set([...first.jobs, ...second.jobs].map((job) => job.id)).size).toBe(25);
+    expect(await db.select().from(matchCache)).toHaveLength(2);
+
+    const free = await createUser("grace@example.com");
+    await db.update(jobs).set({ closedAt: null, closeReason: null });
+    await rankJobs(db, { ...request, userId: free.id, free: true });
+    const kept = await db.select().from(matchCache).where(eq(matchCache.userId, free.id));
+    expect(kept).toHaveLength(1);
+  });
+
+  it("hands the cache write to the caller when asked, with the counts it already read", async () => {
+    await ingest([raw("1"), raw("2")]);
+    const db = await getDb();
+    const user = await createUser("ada@example.com");
+    const writes: (() => Promise<void>)[] = [];
+    const result = await rankJobs(db, {
+      userId: user.id,
+      view: "matches",
+      profile: { skills: ["Go", "PostgreSQL"], titles: ["Backend Engineer"], years: 4 },
+      filters: DEFAULT_FILTERS,
+      page: 1,
+      workProfile: null,
+      deviceTimeZone: "",
+      now: NOW,
+      cache: true,
+      counts: await readStoredCounts(db),
+      defer: (write) => writes.push(write),
+    });
+    expect(result.jobs).toHaveLength(2);
+    expect(writes).toHaveLength(1);
+    expect(await db.select().from(matchCache)).toHaveLength(0);
+    await writes[0]!();
+    expect(await db.select().from(matchCache)).toHaveLength(1);
   });
 
   it("gives Saved the stored open-job count instead of counting per request", async () => {

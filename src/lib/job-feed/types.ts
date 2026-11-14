@@ -1,5 +1,6 @@
 import type { z } from "zod";
 import type {
+  ImpressionBatchSchema,
   JobFiltersSchema,
   JobMatchesRequestSchema,
   LookingForChoiceSchema,
@@ -233,6 +234,7 @@ export const NOT_FIT_LABELS: Record<NotFitReason, string> = {
 export const ASKED_APPLIED_ANSWERS = ["yes", "not_yet"] as const;
 export type AskedAppliedAnswer = (typeof ASKED_APPLIED_ANSWERS)[number];
 export type MatchActionInput = z.input<typeof MatchActionSchema>;
+export type ImpressionBatchInput = z.input<typeof ImpressionBatchSchema>;
 
 export type JobPostResponse = {
   ok: true;

@@ -9,6 +9,7 @@ import { saveWorkProfile } from "@/lib/eligibility/records";
 import { emptyWorkProfile } from "@/lib/eligibility/profile";
 import type { RawJob } from "@/lib/job-feed/parsers";
 import { saveJobs, syncBoards } from "@/lib/job-feed/store";
+import { JOBS_PREFETCH_HEADER } from "@/lib/job-feed/prefetch-header";
 import type { JobMatchesRequestBody } from "@/lib/job-feed/types";
 import { GET as getProfile } from "../profile/route";
 import type { LookingForResponse, WorkProfileResponse } from "@/lib/api/types";
@@ -18,6 +19,15 @@ import { POST as matches } from "./matches/route";
 import { DELETE as unsave, PUT as save } from "./saved/[id]/route";
 
 vi.mock("next/headers", async () => (await import("@/lib/auth/test-helpers")).nextHeadersMock);
+// Outside a request after() throws, as Next's does; a test can hold the work it was handed instead.
+const scheduled = vi.hoisted(() => ({ tasks: null as (() => Promise<unknown>)[] | null }));
+vi.mock("next/server", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("next/server")>()),
+  after: (task: () => Promise<unknown>) => {
+    if (!scheduled.tasks) throw new Error("`after` was called outside a request scope.");
+    scheduled.tasks.push(task);
+  },
+}));
 
 const signInAs = async (email?: string) => setPlan(await signInFree(email), "pro");
 
@@ -361,6 +371,84 @@ describe("POST /api/jobs/matches", () => {
     expect(actions).toHaveLength(4);
     cookieJar.clear();
     expect((await sendEvent({ ...action, kind: "open" })).status).toBe(401);
+  });
+
+  it("answers first and writes the impressions after, in a request", async () => {
+    await signInAs();
+    await seedJobs();
+    scheduled.tasks = [];
+    try {
+      const res = await call({ profile: PROFILE });
+      expect(res.status).toBe(200);
+      const db = await getDb();
+      expect(await db.select().from(matchEvents)).toHaveLength(0);
+      expect(scheduled.tasks).toHaveLength(1);
+      for (const task of scheduled.tasks) await task();
+      const body = (await res.json()) as JobMatchesResponse;
+      const logged = await db.select().from(matchEvents);
+      expect(logged).toHaveLength(3);
+      expect(logged.every((row) => row.requestId === body.requestId)).toBe(true);
+    } finally {
+      scheduled.tasks = null;
+    }
+  });
+
+  it("logs a hover prefetch only when the Jobs tab shows it", async () => {
+    await signInAs();
+    await seedJobs();
+    const res = await call(
+      { profile: PROFILE },
+      { "content-type": "application/json", [JOBS_PREFETCH_HEADER]: "1" },
+    );
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as JobMatchesResponse;
+    expect(body.requestId).toMatch(/^[0-9a-f-]{36}$/);
+    expect(body.resumeHash).toBeTruthy();
+    const db = await getDb();
+    expect(await db.select().from(matchEvents)).toHaveLength(0);
+
+    const shown = {
+      kind: "impressions",
+      requestId: body.requestId,
+      variant: body.variant,
+      resumeHash: body.resumeHash,
+      jobs: body.jobs.map((job) => ({
+        jobId: job.id,
+        position: job.position,
+        label: job.match.label,
+      })),
+    };
+    expect((await sendEvent(shown)).status).toBe(200);
+    const logged = await db.select().from(matchEvents).orderBy(matchEvents.position);
+    expect(logged.map((row) => [row.kind, row.requestId, row.position, row.label])).toEqual([
+      ["impression", body.requestId, 1, "strong"],
+      ["impression", body.requestId, 2, "strong"],
+      ["impression", body.requestId, 3, "good"],
+    ]);
+    expect((await sendEvent({ ...shown, jobs: [] })).status).toBe(400);
+    const tooMany = Array.from({ length: 21 }, () => shown.jobs[0]);
+    expect((await sendEvent({ ...shown, jobs: tooMany })).status).toBe(400);
+    expect((await sendEvent({ ...shown, requestId: null })).status).toBe(400);
+    expect(await db.select().from(matchEvents)).toHaveLength(3);
+  });
+
+  it("takes only a few impression batches a minute, while actions still go through", async () => {
+    await signInAs();
+    const batch = {
+      kind: "impressions",
+      requestId: crypto.randomUUID(),
+      variant: "occupation-v3",
+      resumeHash: "abcdefgh12345678",
+      jobs: [{ jobId: crypto.randomUUID(), position: 1, label: "good" }],
+    };
+    for (let i = 0; i < 20; i++) expect((await sendEvent(batch)).status).toBe(200);
+    const refused = await sendEvent(batch);
+    expect(refused.status).toBe(429);
+    expect(refused.headers.get("retry-after")).toBeTruthy();
+    const db = await getDb();
+    expect(await db.select().from(matchEvents)).toHaveLength(20);
+    const open = { kind: "open", jobId: batch.jobs[0]!.jobId, requestId: batch.requestId };
+    expect((await sendEvent(open)).status).toBe(200);
   });
 
   it("refuses saves for unknown jobs, signed-out callers and other websites", async () => {

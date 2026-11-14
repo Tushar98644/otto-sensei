@@ -1,7 +1,7 @@
 import type { z } from "zod";
 import type { Db } from "@/db/client";
 import { matchEvents } from "@/db/schema";
-import type { MatchedJob } from "./types";
+import type { MatchedJob, MatchLabel } from "./types";
 import type { MatchActionSchema } from "./validation";
 
 export type ImpressionContext = {
@@ -12,10 +12,16 @@ export type ImpressionContext = {
   now: number;
 };
 
+export type ShownJob = { jobId: string; position: number; label: MatchLabel | null };
+
+export function shownJobs(jobs: readonly MatchedJob[]): ShownJob[] {
+  return jobs.map((job) => ({ jobId: job.id, position: job.position, label: job.match.label }));
+}
+
 export async function logImpressions(
   db: Db,
   context: ImpressionContext,
-  jobs: readonly MatchedJob[],
+  jobs: readonly ShownJob[],
 ): Promise<void> {
   if (jobs.length === 0) return;
   await db.insert(matchEvents).values(
@@ -24,9 +30,9 @@ export async function logImpressions(
       userId: context.userId,
       requestId: context.requestId,
       kind: "impression" as const,
-      jobId: job.id,
+      jobId: job.jobId,
       position: job.position,
-      label: job.match.label,
+      label: job.label,
       variant: context.variant,
       resumeHash: context.resumeHash,
       createdAt: context.now,

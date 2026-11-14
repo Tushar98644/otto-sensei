@@ -39,20 +39,71 @@ function copyJob(copy: Resume): { jobId: string | null; jobUrl: string } {
   };
 }
 
-function newest(list: readonly Application[]): Application | null {
-  let best: Application | null = null;
-  for (const item of list) if (!best || item.appliedAt > best.appliedAt) best = item;
-  return best;
+type ApplicationIndex = {
+  byId: Map<string, Application>;
+  byJob: Map<string, Application>;
+  byResume: Map<string, Application>;
+  byUrl: Map<string, Application>;
+};
+
+type CopyIndex = { byJob: Map<string, Resume>; byUrl: Map<string, Resume> };
+
+// Built once per list, so labelling many jobs reads each link once instead of once per job.
+const applicationIndexes = new WeakMap<readonly Application[], ApplicationIndex>();
+const copyIndexes = new WeakMap<readonly Resume[], CopyIndex>();
+
+function indexApplications(applications: readonly Application[]): ApplicationIndex {
+  const known = applicationIndexes.get(applications);
+  if (known) return known;
+  const index: ApplicationIndex = {
+    byId: new Map(),
+    byJob: new Map(),
+    byResume: new Map(),
+    byUrl: new Map(),
+  };
+  const newest = (map: Map<string, Application>, key: string, application: Application) => {
+    const best = map.get(key);
+    if (!best || application.appliedAt > best.appliedAt) map.set(key, application);
+  };
+  for (const application of applications) {
+    if (!index.byId.has(application.id)) index.byId.set(application.id, application);
+    if (application.jobId !== null) newest(index.byJob, application.jobId, application);
+    if (application.resumeId !== null) newest(index.byResume, application.resumeId, application);
+    const url = normalizeJobUrl(application.jobUrl);
+    if (url) newest(index.byUrl, url, application);
+  }
+  applicationIndexes.set(applications, index);
+  return index;
+}
+
+function indexCopies(resumes: readonly Resume[]): CopyIndex {
+  const known = copyIndexes.get(resumes);
+  if (known) return known;
+  const index: CopyIndex = { byJob: new Map(), byUrl: new Map() };
+  const copies = resumes
+    .filter((resume) => resume.tailor !== null)
+    .sort((a, b) => b.updatedAt - a.updatedAt);
+  for (const copy of copies) {
+    const { jobId, jobUrl } = copyJob(copy);
+    if (jobId && !index.byJob.has(jobId)) index.byJob.set(jobId, copy);
+    const url = normalizeJobUrl(jobUrl);
+    if (url && !index.byUrl.has(url)) index.byUrl.set(url, copy);
+  }
+  copyIndexes.set(resumes, index);
+  return index;
+}
+
+function byUrl<T>(map: Map<string, T>, url: string | null | undefined): T | null {
+  const key = normalizeJobUrl(url ?? "");
+  return key ? (map.get(key) ?? null) : null;
 }
 
 export function applicationForJob(
   applications: readonly Application[],
   job: JobRef,
 ): Application | null {
-  return (
-    newest(applications.filter((application) => application.jobId === job.id)) ??
-    newest(applications.filter((application) => sameJobUrl(application.jobUrl, job.url)))
-  );
+  const index = indexApplications(applications);
+  return index.byJob.get(job.id) ?? byUrl(index.byUrl, job.url);
 }
 
 export function applicationForCopy(
@@ -60,25 +111,18 @@ export function applicationForCopy(
   copy: Resume,
 ): Application | null {
   if (!copy.tailor) return null;
-  const sent = newest(applications.filter((application) => application.resumeId === copy.id));
-  if (sent) return sent;
+  const index = indexApplications(applications);
   const { jobId, jobUrl } = copyJob(copy);
-  if (jobId) {
-    const linked = newest(applications.filter((application) => application.jobId === jobId));
-    if (linked) return linked;
-  }
-  return newest(applications.filter((application) => sameJobUrl(application.jobUrl, jobUrl)));
+  return (
+    index.byResume.get(copy.id) ??
+    (jobId ? index.byJob.get(jobId) : undefined) ??
+    byUrl(index.byUrl, jobUrl)
+  );
 }
 
 export function copyForJob(resumes: readonly Resume[], job: JobRef): Resume | null {
-  const copies = resumes
-    .filter((resume) => resume.tailor !== null)
-    .sort((a, b) => b.updatedAt - a.updatedAt);
-  return (
-    copies.find((copy) => copyJob(copy).jobId === job.id) ??
-    copies.find((copy) => sameJobUrl(copyJob(copy).jobUrl, job.url)) ??
-    null
-  );
+  const index = indexCopies(resumes);
+  return index.byJob.get(job.id) ?? byUrl(index.byUrl, job.url);
 }
 
 export function copyForApplication(
@@ -94,10 +138,9 @@ export function applicationForWriting(
   applications: readonly Application[],
   writing: Pick<Writing, "applicationId" | "jobUrl">,
 ): Application | null {
-  if (writing.applicationId) {
-    return applications.find((application) => application.id === writing.applicationId) ?? null;
-  }
-  return newest(applications.filter((application) => sameJobUrl(application.jobUrl, writing.jobUrl)));
+  const index = indexApplications(applications);
+  if (writing.applicationId) return index.byId.get(writing.applicationId) ?? null;
+  return byUrl(index.byUrl, writing.jobUrl);
 }
 
 export function writingsForApplication(

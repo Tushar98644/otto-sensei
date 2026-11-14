@@ -1,5 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { SessionUser } from "@/lib/auth/types";
+import { emptyWorkProfile } from "@/lib/eligibility/profile";
+import { createSampleResume } from "@/lib/resume/sample";
+import { useStudioStore } from "@/lib/store/resume-store";
 
 vi.mock("@tanstack/react-query", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@tanstack/react-query")>()),
@@ -19,6 +22,13 @@ const api = vi.hoisted(() => ({
   shares: vi.fn(async () => ({ ok: true, links: [] })),
   interviewPacks: vi.fn(async () => ({ ok: true, packs: [] })),
   portfolio: vi.fn(async () => ({ ok: true, portfolio: null })),
+  workProfile: vi.fn(async () => ({
+    ok: true,
+    profile: emptyWorkProfile(),
+    updatedAt: null,
+    lookingFor: null,
+  })),
+  jobMatches: vi.fn(async () => ({ ok: true, jobs: [], requestId: null, resumeHash: null })),
 }));
 vi.mock("@/lib/api/client", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/api/client")>()),
@@ -39,6 +49,7 @@ const settle = () => new Promise((resolve) => setTimeout(resolve, 0));
 beforeEach(() => {
   getQueryClient().clear();
   vi.clearAllMocks();
+  useStudioStore.getState().clearAll();
 });
 
 describe("prefetchPageData", () => {
@@ -76,5 +87,15 @@ describe("prefetchPageData", () => {
     expect(api.shares).toHaveBeenCalledTimes(1);
     expect(api.interviewPacks).toHaveBeenCalledTimes(1);
     expect(api.portfolio).toHaveBeenCalledTimes(1);
+  });
+
+  it("asks for Jobs' matches as a prefetch once the work profile is in, not after applications", async () => {
+    api.listApplications.mockImplementationOnce(() => new Promise<never>(() => {}));
+    useStudioStore.getState().addResume(createSampleResume(Date.now()));
+    prefetchPageData("/dashboard/jobs", user("pro"));
+    await vi.waitFor(() => expect(api.jobMatches).toHaveBeenCalledTimes(1));
+    expect(api.jobMatches.mock.calls[0]?.at(-1)).toEqual({ prefetch: true });
+    expect(api.workProfile).toHaveBeenCalledTimes(1);
+    expect(api.listApplications).toHaveBeenCalledTimes(1);
   });
 });

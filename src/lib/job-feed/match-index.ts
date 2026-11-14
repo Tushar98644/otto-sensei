@@ -12,6 +12,7 @@ import {
   CANDIDATE_POOL,
   DEFAULT_SKILL_WEIGHT,
   EVERGREEN_AFTER_MS,
+  GROUP,
   jobCounts,
   matchableConditions,
   matchCandidates,
@@ -70,6 +71,10 @@ async function skillTable(db: Db, builtAt: number): Promise<SkillTable> {
   const table = { ids, weights, maxSid: Math.max(0, ...ids.values()) };
   skillCache = { builtAt, table };
   return table;
+}
+
+export async function indexWeights(db: Db, counts: StoredCounts): Promise<Map<string, number>> {
+  return (await skillTable(db, counts.builtAt)).weights;
 }
 
 const intArray = (values: readonly number[]) => `{${values.join(",")}}`;
@@ -277,15 +282,14 @@ export type PoolQuery = MatchQuery & {
 const floatArray = (values: readonly number[]) =>
   `{${values.map((value) => value.toFixed(4)).join(",")}}`;
 
+// One search-index scan per text, joined by group: an OR join per opening could only loop.
 function textMatch(filters: JobFilters): SQL | null {
   const queries = [filters.q, filters.place].flatMap((text) => wordsQuery(text) ?? []);
   if (queries.length === 0) return null;
   return and(
     ...queries.map(
-      (
-        query,
-      ) => sql`exists (select 1 from ${jobs} j where (j.id = m.id or (m.grp = j.group_key and j.group_key <> ''))
-        and j.closed_at is null and j.search @@ to_tsquery('simple', ${query}))`,
+      (query) => sql`m.grp in (select ${GROUP} from ${jobs}
+        where ${jobs.closedAt} is null and ${jobs.search} @@ to_tsquery('simple', ${query}))`,
     ),
   )!;
 }

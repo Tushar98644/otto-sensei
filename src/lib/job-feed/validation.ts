@@ -3,6 +3,7 @@ import { isCountryCode } from "@/lib/eligibility/places";
 import {
   ASKED_APPLIED_ANSWERS,
   DEFAULT_FILTERS,
+  JOB_PAGE_SIZE,
   LEVELS,
   LOOKING_FOR_LIMITS,
   MATCH_PROFILE_LIMITS,
@@ -107,3 +108,21 @@ export const MatchActionSchema = z
   .refine((event) => (event.kind === "asked_applied") === (event.answer !== null), {
     message: "An answer goes with “did you apply?” and nothing else",
   });
+
+// The page a prefetch loaded, logged once the Jobs tab shows it.
+export const ImpressionBatchSchema = z.object({
+  kind: z.literal("impressions"),
+  requestId: z.uuid(),
+  variant: z.string().regex(/^[a-z0-9-]{1,40}$/),
+  resumeHash: z.string().regex(/^[A-Za-z0-9_-]{8,64}$/),
+  jobs: z
+    .array(
+      z.object({
+        jobId: z.uuid(),
+        position: z.number().int().min(1).max(1_000),
+        label: z.enum(["strong", "good", "stretch"]).nullable(),
+      }),
+    )
+    .min(1)
+    .max(JOB_PAGE_SIZE),
+});

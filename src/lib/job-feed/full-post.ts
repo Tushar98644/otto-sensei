@@ -35,20 +35,29 @@ function targetOf(job: Stored, url: URL): JobTarget | null {
 
 export type FullPost = { text: string; posting: Omit<JobPosting, "text"> | null };
 
+function liveTarget(job: Stored): JobTarget | null {
+  if (!SOURCE_INFO[job.source].liveText || job.closed) return null;
+  if (job.source !== "jobicy" && !job.board) return null;
+  try {
+    return targetOf(job, new URL(job.url));
+  } catch {
+    return null;
+  }
+}
+
+// Whether readFullPost asks the board, so a null posting means that read failed.
+export function readsLive(job: Stored): boolean {
+  return liveTarget(job) !== null;
+}
+
 export async function fullPostText(job: Stored, now = Date.now()): Promise<string> {
   return (await readFullPost(job, now)).text;
 }
 
 export async function readFullPost(job: Stored, now = Date.now()): Promise<FullPost> {
   const kept: FullPost = { text: job.description, posting: null };
-  if (!SOURCE_INFO[job.source].liveText || job.closed) return kept;
-  let target: JobTarget | null = null;
-  try {
-    target = targetOf(job, new URL(job.url));
-  } catch {
-    return kept;
-  }
-  if (!target || (job.source !== "jobicy" && !job.board)) return kept;
+  const target = liveTarget(job);
+  if (!target) return kept;
   const started = Date.now();
   try {
     const { text, ...posting } = await readJob(target, now, FULL_POST_BUDGET_MS);

@@ -10,7 +10,7 @@ Rules that apply to every source we use:
 - Reads go through the app's SSRF-safe transport (`src/lib/jobs/fetch.ts`), say who we are (`OttoResumeBot/1.0`), send no cookies, and keep a per-host pace (`HOST_SPACING_MS` in `src/lib/job-feed/ingest.ts`).
 - Matching is rule-based on our own server. Job text never goes to the AI unless the person presses "Tailor my resume", which is the same as pasting the link themselves.
 - JobPosting structured data (`/jobs/[id]`) only where the terms allow republishing, and only with the complete post read live; every other job only links out.
-- **No job text is stored for a source whose post can be read again** (every company board, and Jobicy). Ingest reads the whole post once, keeps what matching needs (skills, kind of role, level, years asked, place, the work-rights lines) and drops the text. `/jobs/[id]` and the Tailor step read the post again through the same reader as a pasted link (`src/lib/job-feed/full-post.ts` → `src/lib/jobs/read.ts`), cached a day; when that read fails, the page shows the job's facts and the link; Tailor reads the job's link itself, uses the server's read as its backup, and asks for the text only when both fail. Himalayas (its pages refuse bots) and Remote OK (no single-job call) keep up to 6,000 characters, which Tailor uses as the post.
+- **No job text is stored for a source whose post can be read again** (every company board, and Jobicy). Ingest reads the whole post once, keeps what matching needs (skills, kind of role, level, years asked, place, the work-rights lines) and drops the text. `/jobs/[id]` and the Tailor step read the post again through the same reader as a pasted link (`src/lib/job-feed/full-post.ts` → `src/lib/jobs/read.ts`), cached a day (a failed read isn't kept, so the next request asks the board again); when that read fails, the page shows the job's facts and the link; Tailor reads the job's link itself, uses the server's read as its backup, and asks for the text only when both fail. Himalayas (its pages refuse bots) and Remote OK (no single-job call) keep up to 6,000 characters, which Tailor uses as the post.
 
 ## Used
 
@@ -75,7 +75,7 @@ Company facts for the job card ("Listed as a UK visa sponsor") and the work-righ
 | A board is read again after | `INGEST_LIMITS.refreshAfterMs` | 20 hours. A full pass of all 605 boards is about 1,100 s of reads (measured from one laptop, 2026-11-10), so with 4 workers and the 240 s daily budget every board is read at least every 2 days |
 | Openings one match request ranks | `CANDIDATE_POOL` | the best 300 by skill-weighted overlap, out of every open job (Free: 60, to show 5) |
 | Narrow table matching reads | `job_match` (`match-index.ts`) | one row per matchable opening, rebuilt after each ingest |
-| A Matches page is reused for | `match_cache` | the day, until the next ingest, or until the resume, "Looking for", work profile or plan changes |
+| A Matches page is reused for | `match_cache` | the day, until the next ingest, or until the resume, "Looking for", work profile or plan changes. A Pro ranking also keeps the next page, so Next reads the cache |
 | Public `/jobs` and `/jobs/[id]` data | `public-cache.ts` | a day, dropped when the ingest finishes |
-| Jobs-tab impressions kept | `RETENTION.impressionsMs` | 90 days (actions are kept) |
+| Jobs-tab impressions kept | `RETENTION.impressionsMs` | 30 days (actions are kept) |
 | Hidden from Matches (still on `/jobs`) | `isFillerTitle`, `EVERGREEN_AFTER_MS` | "General application", "Talent community" and similar posts, and posts open 120+ days |
