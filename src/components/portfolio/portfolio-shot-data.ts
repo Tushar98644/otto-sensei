@@ -1,6 +1,3 @@
-import { getImageProps } from "next/image";
-import { preload } from "react-dom";
-
 const WIDTHS = [480, 800, 1200, 1600] as const;
 export const SHOT_WIDTH = 1600;
 
@@ -23,22 +20,4 @@ export function shotSrc(id: PortfolioShotId): string {
 export function shotLoader(id: PortfolioShotId) {
   return ({ width }: { width: number }) =>
     `/portfolio-shots/${id}-${WIDTHS.find((w) => w >= width) ?? SHOT_WIDTH}.webp`;
-}
-
-// For a shot inside a closed tab: fetched quietly during page load so opening the tab is instant.
-export function preloadShot(id: PortfolioShotId, sizes: string): void {
-  const { props } = getImageProps({
-    src: shotSrc(id),
-    loader: shotLoader(id),
-    width: SHOT_WIDTH,
-    height: SHOT_HEIGHTS[id],
-    sizes,
-    alt: "",
-  });
-  preload(props.src, {
-    as: "image",
-    imageSrcSet: props.srcSet,
-    imageSizes: props.sizes,
-    fetchPriority: "low",
-  });
 }

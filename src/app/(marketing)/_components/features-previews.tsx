@@ -1,7 +1,6 @@
 import type { ReactNode } from "react";
 import { FormatImage } from "@/components/formats/format-image";
-import { PortfolioShot } from "@/components/portfolio/portfolio-shot";
-import { preloadShot } from "@/components/portfolio/portfolio-shot-data";
+import { PortfolioShot, PreloadShot } from "@/components/portfolio/portfolio-shot";
 import { PORTFOLIO_ROUTE } from "@/components/portfolio/route";
 import { ROUTES } from "@/components/site/routes";
 import { Badge } from "@/components/ui/badge";
@@ -35,6 +34,7 @@ function ResumesPreview() {
           <FormatImage
             info={TEMPLATE_INFO[item.id]}
             sizes="(min-width: 1024px) 12rem, 30vw"
+            loading="lazy"
             className="rounded-lg ring-1 ring-border"
           />
           <div className="min-w-0">
@@ -141,8 +141,12 @@ function InterviewPreview() {
 
 const PORTFOLIO_SIZES = "(min-width: 1024px) 40rem, 90vw";
 
+// Rendered beside the tabs: the Portfolio tab starts closed, so nothing inside it mounts yet.
+export function PreloadPortfolioPreview() {
+  return <PreloadShot id="reel" sizes={PORTFOLIO_SIZES} />;
+}
+
 function PortfolioPreview() {
-  preloadShot("reel", PORTFOLIO_SIZES);
   return (
     <div className="overflow-hidden rounded-xl ring-1 ring-border">
       <p className="truncate bg-surface px-3 py-2 font-mono text-xs text-muted">

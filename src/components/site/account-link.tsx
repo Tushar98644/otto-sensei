@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { buttonClasses } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { IntentLink } from "./intent-link";
 import { MAIN_NAV, ROUTES, SIGN_IN_LINK } from "./routes";
 import { DASHBOARD_LINK, useSignedIn } from "./use-account-link";
 
@@ -35,9 +36,12 @@ export function HeaderActions() {
       <Link href={SIGN_IN_LINK.href} className={cn(NAV_LINK_CLASSES, "hidden md:inline-flex")}>
         {SIGN_IN_LINK.label}
       </Link>
-      <Link href={ROUTES.studio} className={buttonClasses({ size: "sm", className: "max-md:h-12 pointer-coarse:h-12" })}>
+      <IntentLink
+        href={ROUTES.studio}
+        className={buttonClasses({ size: "sm", className: "max-md:h-12 pointer-coarse:h-12" })}
+      >
         Check my resume
-      </Link>
+      </IntentLink>
     </>
   );
 }

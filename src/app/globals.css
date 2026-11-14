@@ -357,6 +357,13 @@
     overflow: hidden;
   }
 
+  /* The home page sets this on touch screens instead of starting Lenis; Next keeps page changes instant. */
+  @media (pointer: coarse) and (prefers-reduced-motion: no-preference) {
+    html[data-scroll-behavior="smooth"] {
+      scroll-behavior: smooth;
+    }
+  }
+
   body {
     @apply bg-background font-sans text-ink antialiased;
   }
@@ -643,6 +650,34 @@
   to {
     translate: 0 var(--pan, 0);
   }
+}
+
+/* lenis/dist/lenis.css (MIT), kept here so the home page loads no stylesheet of its own. */
+html.lenis,
+html.lenis body {
+  height: auto;
+}
+
+.lenis:not(.lenis-autoToggle).lenis-stopped {
+  overflow: clip;
+}
+
+.lenis [data-lenis-prevent],
+.lenis [data-lenis-prevent-wheel],
+.lenis [data-lenis-prevent-touch],
+.lenis [data-lenis-prevent-vertical],
+.lenis [data-lenis-prevent-horizontal] {
+  overscroll-behavior: contain;
+}
+
+.lenis.lenis-smooth iframe {
+  pointer-events: none;
+}
+
+.lenis.lenis-autoToggle {
+  transition-property: overflow;
+  transition-duration: 1ms;
+  transition-behavior: allow-discrete;
 }
 
 *,

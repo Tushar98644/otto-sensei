@@ -33,6 +33,7 @@ export default function NotFound() {
             </Link>
             <Link
               href={ROUTES.studio}
+              prefetch={false}
               className={buttonClasses({ variant: "secondary", size: "lg" })}
             >
               Check my resume

@@ -27,10 +27,17 @@ export type FormatImageProps = {
   info: TemplateInfo;
   sizes: string;
   decoding?: "async" | "sync";
+  loading?: "lazy" | "eager";
   className?: string;
 };
 
-export function FormatImage({ info, sizes, decoding = "async", className }: FormatImageProps) {
+export function FormatImage({
+  info,
+  sizes,
+  decoding = "async",
+  loading,
+  className,
+}: FormatImageProps) {
   return (
     // eslint-disable-next-line @next/next/no-img-element -- pre-sized WebP; the preload must match this srcset
     <img
@@ -40,6 +47,7 @@ export function FormatImage({ info, sizes, decoding = "async", className }: Form
       width={WIDTH}
       height={HEIGHT}
       decoding={decoding}
+      loading={loading}
       alt={`Page 1 of a sample resume in the ${info.name} format`}
       className={cn("h-auto w-full bg-surface", className)}
     />

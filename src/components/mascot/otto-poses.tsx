@@ -43,10 +43,13 @@ const TILT_MOTION: PartMotion = {
   origin: { transformBox: "view-box", transformOrigin: "100px 100px" },
 };
 
+// Under the same variant as an animate-* class, so it wins over the count in that class's shorthand.
+export const PLAY_TWICE = "motion-safe:[animation-iteration-count:2]";
+
 export function moving(o: DrawOptions, motion: PartMotion | undefined, part: ReactNode): ReactNode {
   if (!o.lively || !motion) return part;
   return (
-    <g className={motion.idle} style={motion.origin}>
+    <g className={o.settle ? `${motion.idle} ${PLAY_TWICE}` : motion.idle} style={motion.origin}>
       <g className={motion.lively || undefined} style={motion.origin}>
         {part}
       </g>

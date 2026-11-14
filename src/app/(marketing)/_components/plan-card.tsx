@@ -1,5 +1,5 @@
 import { Check } from "lucide-react";
-import Link from "next/link";
+import { IntentLink } from "@/components/site/intent-link";
 import { Badge } from "@/components/ui/badge";
 import { buttonClasses } from "@/components/ui/button";
 import { PLANS, type AllowancePeriod, type PlanId } from "@/config/plans";
@@ -86,7 +86,7 @@ export function PlanCard({
           ) : null}
         </p>
         {price.comparison ? <p className="mt-1 text-sm text-muted">{price.comparison}</p> : null}
-        <Link
+        <IntentLink
           href={cta.href}
           className={buttonClasses({
             variant: featured ? "primary" : "secondary",
@@ -95,7 +95,7 @@ export function PlanCard({
           })}
         >
           {cta.label}
-        </Link>
+        </IntentLink>
         <p className="mt-3 text-center text-sm text-subtle">{note ?? copy.note}</p>
         {priceNote ? <p className="mt-1 text-center text-sm text-muted">{priceNote}</p> : null}
       </div>

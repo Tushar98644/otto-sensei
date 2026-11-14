@@ -4,7 +4,7 @@ import { drawOtto } from "./draw-otto";
 import type { OttoPose } from "./otto-poses";
 import { OTTO_VIEWBOX } from "./palette";
 
-export { OTTO_POSES, PEEK_EDGE_Y, type OttoPose } from "./otto-poses";
+export { OTTO_POSES, PEEK_EDGE_Y, PLAY_TWICE, type OttoPose } from "./otto-poses";
 
 export type OttoProps = {
   pose?: OttoPose;
@@ -13,6 +13,8 @@ export type OttoProps = {
   title?: string;
   animated?: boolean;
   lively?: boolean;
+  // With lively: his slow loop plays twice, then he rests on a blink.
+  settle?: boolean;
   delay?: number;
 };
 
@@ -23,6 +25,7 @@ export function Otto({
   title = "Otto the otter",
   animated = true,
   lively = false,
+  settle = false,
   delay,
 }: OttoProps) {
   return (
@@ -36,7 +39,7 @@ export function Otto({
       style={delay === undefined ? undefined : ({ "--otto-delay": `${delay}s` } as CSSProperties)}
     >
       <title>{title}</title>
-      {drawOtto(pose, { animated, lively, themed: true })}
+      {drawOtto(pose, { animated, lively, settle, themed: true })}
     </svg>
   );
 }

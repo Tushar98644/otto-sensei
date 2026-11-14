@@ -6,7 +6,7 @@ import { ROUTES } from "@/components/site/routes";
 import { Badge } from "@/components/ui/badge";
 import { Panel, Window } from "@/components/ui/panel";
 import { Tab, TabList, TabPanel, Tabs } from "@/components/ui/tabs";
-import { FEATURE_PREVIEWS } from "./features-previews";
+import { FEATURE_PREVIEWS, PreloadPortfolioPreview } from "./features-previews";
 import { Section, SectionHeader } from "./section";
 
 type Feature = { text: string; section?: string };
@@ -96,6 +96,7 @@ export function FeaturesOverview() {
           })}
         </div>
       </Tabs>
+      <PreloadPortfolioPreview />
     </Section>
   );
 }

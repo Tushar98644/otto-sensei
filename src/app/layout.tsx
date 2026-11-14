@@ -11,12 +11,8 @@ import "./globals.css";
 
 const inter = Inter({ subsets: ["latin"], display: "swap", variable: "--font-inter" });
 
-const garamond = EB_Garamond({
-  subsets: ["latin"],
-  style: ["normal", "italic"],
-  display: "swap",
-  variable: "--font-garamond",
-});
+// The italic face is declared only where headings use it: (marketing)/_components/display-italic.ts.
+const garamond = EB_Garamond({ subsets: ["latin"], display: "swap", variable: "--font-garamond" });
 
 export const metadata: Metadata = {
   metadataBase: new URL(appUrl()),

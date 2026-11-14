@@ -1,11 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState, type Ref } from "react";
 import { OttoNote } from "@/components/mascot/otto-note";
 import { ROUTES } from "@/components/site/routes";
-import { buttonClasses } from "@/components/ui/button";
-import { Spinner } from "@/components/ui/spinner";
+import { Button, buttonClasses } from "@/components/ui/button";
 import { SNOOZE_DAYS } from "@/lib/applications/follow-up";
 import type { FollowUpActionResponse } from "@/lib/notifications/types";
 
@@ -13,14 +12,31 @@ export type ReminderRequest =
   | { kind: "done" | "snooze"; u: string; a: string; t: string }
   | { kind: "unsubscribe"; u: string; t: string };
 
-type Outcome =
-  | { kind: "working" }
-  | { kind: "done"; message: string }
-  | { kind: "failed"; message: string };
+type State = { kind: "ready" } | { kind: "working" } | { kind: "settled"; message: string };
+
+type Confirm = { message: string; label: string };
+
+export const MISSING_PART = "That link is missing a part. Open your applications instead.";
+
+// Mail scanners open (and some run) every link in an email, so nothing is sent until this press.
+export const REMINDER_CONFIRM: Record<ReminderRequest["kind"], Confirm> = {
+  done: {
+    message: "Followed up on this one? Mark it done and I'll stop reminding you.",
+    label: "Mark done",
+  },
+  snooze: {
+    message: `Not ready to follow up yet? I'll remind you again in ${SNOOZE_DAYS} days.`,
+    label: `Snooze ${SNOOZE_DAYS} days`,
+  },
+  unsubscribe: {
+    message: "Turn off reminder emails? Your reminders stay in the bell in your dashboard.",
+    label: "Turn off reminder emails",
+  },
+};
 
 const DAY = new Intl.DateTimeFormat("en-US", { weekday: "long", month: "short", day: "numeric" });
 
-async function send(request: ReminderRequest): Promise<string> {
+export async function sendReminderAction(request: ReminderRequest): Promise<string> {
   if (request.kind === "unsubscribe") {
     const query = new URLSearchParams({ u: request.u, t: request.t });
     const res = await fetch(`/api/notifications/unsubscribe?${query.toString()}`, { method: "POST" });
@@ -49,46 +65,59 @@ async function send(request: ReminderRequest): Promise<string> {
     : `Snoozed for ${SNOOZE_DAYS} days. I'll remind you about ${name} on ${DAY.format(body.followUpAt)}.`;
 }
 
-export function ReminderAction({ request }: { request: ReminderRequest | null }) {
-  const [outcome, setOutcome] = useState<Outcome>(
-    request
-      ? { kind: "working" }
-      : { kind: "failed", message: "That link is missing a part. Open your applications instead." },
+function ApplicationsLink({ ref }: { ref?: Ref<HTMLAnchorElement> }) {
+  return (
+    <Link
+      ref={ref}
+      href={ROUTES.dashboardApplications}
+      className={buttonClasses({ variant: "secondary" })}
+    >
+      Open your applications
+    </Link>
   );
+}
 
+function ReminderConfirm({ request }: { request: ReminderRequest }) {
+  const [state, setState] = useState<State>({ kind: "ready" });
+  const linkRef = useRef<HTMLAnchorElement>(null);
+  const settled = state.kind === "settled";
+  const confirm = REMINDER_CONFIRM[request.kind];
+
+  // The pressed button goes away, so focus moves to what replaces it instead of the page.
   useEffect(() => {
-    if (!request) return;
-    let cancelled = false;
-    send(request)
-      .then((message) => {
-        if (!cancelled) setOutcome({ kind: "done", message });
-      })
-      .catch((error: unknown) => {
-        if (!cancelled) {
-          setOutcome({
-            kind: "failed",
-            message: error instanceof Error ? error.message : "That didn't go through.",
-          });
-        }
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [request]);
+    if (settled) linkRef.current?.focus();
+  }, [settled]);
 
-  if (outcome.kind === "working") {
-    return (
-      <p role="status" className="flex items-center gap-2 text-base/7 text-muted">
-        <Spinner />
-        Saving that
-      </p>
+  function press() {
+    setState({ kind: "working" });
+    sendReminderAction(request).then(
+      (message) => setState({ kind: "settled", message }),
+      (error: unknown) =>
+        setState({
+          kind: "settled",
+          message: error instanceof Error ? error.message : "That didn't go through.",
+        }),
     );
   }
+
   return (
-    <OttoNote message={outcome.message}>
-      <Link href={ROUTES.dashboardApplications} className={buttonClasses({ variant: "secondary" })}>
-        Open your applications
-      </Link>
+    <OttoNote message={settled ? state.message : confirm.message}>
+      {settled ? (
+        <ApplicationsLink ref={linkRef} />
+      ) : (
+        <Button loading={state.kind === "working"} onClick={press}>
+          {confirm.label}
+        </Button>
+      )}
+    </OttoNote>
+  );
+}
+
+export function ReminderAction({ request }: { request: ReminderRequest | null }) {
+  if (request) return <ReminderConfirm request={request} />;
+  return (
+    <OttoNote message={MISSING_PART}>
+      <ApplicationsLink />
     </OttoNote>
   );
 }

@@ -5,6 +5,7 @@ import { OTTO_COLORS as C, OUTLINE } from "./palette";
 export type DrawOptions = {
   animated: boolean;
   lively?: boolean;
+  settle?: boolean;
   themed: boolean;
 };
 

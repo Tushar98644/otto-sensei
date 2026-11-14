@@ -1,6 +1,6 @@
 import { BriefcaseBusiness, Check, Plus } from "lucide-react";
 import type { CSSProperties, ReactNode } from "react";
-import { Otto } from "@/components/mascot/otto";
+import { Otto, PLAY_TWICE } from "@/components/mascot/otto";
 import type { Resume, TemplateId } from "@/lib/resume/schema";
 import { cn } from "@/lib/utils";
 import { ResumeThumbnail } from "./resume-thumbnail";
@@ -31,10 +31,15 @@ export function CheckArt({ resume }: { resume: Resume }) {
       >
         <div className="relative">
           <ResumeThumbnail resume={resume} standIn className={PAGE} />
-          <div className="absolute inset-x-0 top-1 h-4 bg-highlight opacity-0 mix-blend-multiply motion-safe:animate-scene-scan" />
+          <div
+            className={cn(
+              "absolute inset-x-0 top-1 h-4 bg-highlight opacity-0 mix-blend-multiply motion-safe:animate-scene-scan",
+              PLAY_TWICE,
+            )}
+          />
         </div>
       </div>
-      <Otto pose="read" size={100} lively className="absolute right-1/8 -bottom-1" />
+      <Otto pose="read" size={100} lively settle className="absolute right-1/8 -bottom-1" />
     </Stage>
   );
 }
@@ -61,7 +66,7 @@ function KeywordChip({ have, className }: { have: boolean; className?: string })
 export function TailorArt() {
   return (
     <Stage delay={-3.4}>
-      <Otto pose="point" size={100} lively className="absolute -bottom-1 left-2" />
+      <Otto pose="point" size={100} lively settle className="absolute -bottom-1 left-2" />
       <div
         className={cn(
           "absolute top-9 right-5 w-40 rounded-lg bg-surface p-3 shadow-page group-hover/action:-translate-y-1",
@@ -81,11 +86,17 @@ export function TailorArt() {
           <span className="grid">
             <KeywordChip
               have={false}
-              className="col-start-1 row-start-1 motion-safe:animate-scene-keyword-out"
+              className={cn(
+                "col-start-1 row-start-1 motion-safe:animate-scene-keyword-out",
+                PLAY_TWICE,
+              )}
             />
             <KeywordChip
               have
-              className="col-start-1 row-start-1 opacity-0 motion-safe:animate-scene-keyword-in"
+              className={cn(
+                "col-start-1 row-start-1 opacity-0 motion-safe:animate-scene-keyword-in",
+                PLAY_TWICE,
+              )}
             />
           </span>
         </div>
@@ -118,14 +129,14 @@ export function FormatsArt({ resume }: { resume: Resume }) {
       {FAN.map((page) => (
         <div key={page.template} className={cn("absolute w-20", MOVE, page.className)}>
           <div
-            className="motion-safe:animate-scene-float"
+            className={cn("motion-safe:animate-scene-float", PLAY_TWICE)}
             style={{ "--scene-delay": `${page.float}s` } as CSSProperties}
           >
             <ResumeThumbnail resume={resume} template={page.template} standIn className={PAGE} />
           </div>
         </div>
       ))}
-      <Otto pose="think" size={100} lively className="absolute right-3 -bottom-1" />
+      <Otto pose="think" size={100} lively settle className="absolute right-3 -bottom-1" />
     </Stage>
   );
 }

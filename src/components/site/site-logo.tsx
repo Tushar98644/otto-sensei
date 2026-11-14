@@ -13,6 +13,7 @@ export function SiteLogo({ className, compact = false }: SiteLogoProps) {
   return (
     <Link
       href={ROUTES.home}
+      prefetch={false}
       className={cn(
         "inline-flex h-12 items-center gap-2 rounded-lg sm:h-11",
         compact ? "min-w-0" : "shrink-0",

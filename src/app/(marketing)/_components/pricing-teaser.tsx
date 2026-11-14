@@ -5,6 +5,8 @@ import { buttonClasses } from "@/components/ui/button";
 import { PLANS } from "@/config/plans";
 import { billingOffer, trialOffered } from "@/lib/billing/intervals";
 import { countClaim, type JobCounts } from "@/lib/job-feed/counts";
+import { cn } from "@/lib/utils";
+import { displayItalic } from "./display-italic";
 import { PricingPlans } from "./pricing-plans";
 import { Section, SectionHeader } from "./section";
 
@@ -17,7 +19,8 @@ export function PricingTeaser({ jobCounts }: { jobCounts: JobCounts }) {
         eyebrow="Pricing"
         title={
           <>
-            Free for the basics. <em className="block">More when the hunt gets busy.</em>
+            Free for the basics.{" "}
+            <em className={cn("block", displayItalic.className)}>More when the hunt gets busy.</em>
           </>
         }
       >

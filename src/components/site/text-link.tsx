@@ -1,10 +1,9 @@
-import Link from "next/link";
-import type { ComponentProps } from "react";
 import { cn } from "@/lib/utils";
+import { IntentLink, type IntentLinkProps } from "./intent-link";
 
-export function TextLink({ className, ...props }: ComponentProps<typeof Link>) {
+export function TextLink({ className, ...props }: IntentLinkProps) {
   return (
-    <Link
+    <IntentLink
       {...props}
       className={cn(
         "rounded-sm font-medium text-ink underline decoration-border-strong underline-offset-4 transition-colors hover:decoration-ink",

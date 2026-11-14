@@ -1,5 +1,7 @@
 import { Squiggle } from "@/components/doodles/doodles";
 import { Eyebrow } from "@/components/ui/eyebrow";
+import { cn } from "@/lib/utils";
+import { displayItalic } from "./display-italic";
 import { HeroDemo } from "./hero-demo";
 import { PrimaryCta } from "./primary-cta";
 
@@ -14,7 +16,7 @@ export function Hero() {
             className="mt-4 font-display text-5xl/none font-normal tracking-tight text-ink sm:text-7xl/none lg:text-8xl/none"
           >
             See your resume{" "}
-            <em className="block">
+            <em className={cn("block", displayItalic.className)}>
               the way{" "}
               <span className="relative whitespace-nowrap">
                 recruiters

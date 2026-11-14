@@ -7,6 +7,8 @@ import { buttonClasses } from "@/components/ui/button";
 import { PRO_TRIAL } from "@/config/plans";
 import { trialOffered } from "@/lib/billing/intervals";
 import { PORTFOLIO_TEMPLATE_INFO } from "@/lib/portfolio/templates";
+import { cn } from "@/lib/utils";
+import { displayItalic } from "./display-italic";
 import { Section, SectionHeader } from "./section";
 
 const SHOWN: readonly PortfolioShotId[] = ["bento", "dock", "reel"];
@@ -19,7 +21,8 @@ export function PortfolioShowcase() {
         eyebrow="Portfolio · hosted for you"
         title={
           <>
-            A real portfolio, <em className="block">live at your own link.</em>
+            A real portfolio,{" "}
+            <em className={cn("block", displayItalic.className)}>live at your own link.</em>
           </>
         }
       >
