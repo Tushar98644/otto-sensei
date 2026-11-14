@@ -506,6 +506,33 @@ set. Until then production shows "email us". `PADDLE_ENVIRONMENT` defaults to `s
 `live` (or `production`) uses Paddle's live API, so a missing or mistyped value can never take
 real money. Changed a value? Redeploy: the pricing page and the client token are built in.
 
+**Check the catalog** (it only reads). Vercel can't show production values stored as Secret (its
+default there) and Paddle shows a key only once, so the check has its own read-only key and a local
+file. On the step 2 page make a second API key, `otto-sensei-catalog`, with only **Prices** read and
+**Products** read. Then create `.env.paddle.local` (git and `vercel --prod` both leave it out) with
+the values you gave Vercel, but that key as `PADDLE_API_KEY`, leaving out any price you didn't set:
+
+```bash
+PADDLE_ENVIRONMENT=sandbox
+PADDLE_API_KEY=pdl_sdbx_apikey_...
+NEXT_PUBLIC_PADDLE_CLIENT_TOKEN=test_...
+PADDLE_PRO_MONTHLY_PRICE_ID=pri_...
+PADDLE_PRO_TRIAL_PRICE_ID=pri_...
+PADDLE_PRO_YEARLY_PRICE_ID=pri_...
+PADDLE_MAX_MONTHLY_PRICE_ID=pri_...
+PADDLE_MAX_YEARLY_PRICE_ID=pri_...
+```
+
+Run it with `bun --env-file=.env.paddle.local scripts/check-paddle-catalog.ts`. It asks Paddle for
+each price and its product, and checks that the price is active, bills every month or year as its
+variable says, costs what `PRICES_USD` says in USD with tax added on top (excluding tax) and has no
+country prices; that only the trial price has a trial (3 days, card required, nothing charged);
+that no two variables share an id; and that each plan has its own active product, named for the
+plan, with tax category SaaS. It also checks that the API key, the client token and
+`PADDLE_ENVIRONMENT` are all sandbox or all live. Each line says `ok` or `problem` (keys are never
+printed), and any problem fails it: fix them before testing. Run it again after any price change,
+and in step 8 before the live redeploy.
+
 **Moving off Creem** (once, the first time Paddle goes in): Creem only ever ran in test mode, so
 nobody has paid. Delete the Creem webhook endpoint, then remove the old variables
 (`vercel env rm CREEM_API_KEY production`, and the same for `CREEM_WEBHOOK_SECRET`,
@@ -572,8 +599,9 @@ from sandbox), then:
    production is on live, it would move paying customers to Free while Paddle keeps charging them.
 9. Replace the values in Vercel (`vercel env rm NAME production`, then `vercel env add NAME
    production`): the live API key (`pdl_live_apikey_...`), the live webhook secret, the `live_...`
-   client token, the five live price ids and `PADDLE_ENVIRONMENT=live`. Redeploy. From now on,
-   never roll production back to a build made with the sandbox values.
+   client token, the five live price ids and `PADDLE_ENVIRONMENT=live`. Run the catalog check
+   (step 6) on them, with a live `otto-sensei-catalog` key, and fix every problem, then redeploy.
+   From now on, never roll production back to a build made with the sandbox values.
 10. Before telling anyone: one real checkout on the live site with a 100% discount code, then
     cancel that subscription and archive the discount.
 
@@ -692,12 +720,13 @@ vercel env add GITHUB_TOKEN production
 
 ```
 Vercel Cron    → /api/cron/cleanup     04:17 UTC daily → old rate-limit windows, tombstones, notifications
+               → /api/cron/trial-reminders 13:30 UTC daily → bell notification (+ email) a day before a trial ends
                → /api/cron/follow-ups  14:00 UTC daily → bell notification (+ email) per account
 GitHub Actions → POST /api/cron/jobs, 05:40 UTC daily, called until every board and feed is read
                  (scripts/jobs-ingest-ci.ts does the same in one run, given a database URL)
 ```
 
-The two Vercel schedules are in `vercel.json`. They only run on the production deployment, and only
+The three Vercel schedules are in `vercel.json`. They only run on the production deployment, and only
 once `CRON_SECRET` is set: without it every call answers 401 and nothing happens.
 
 The daily job read runs in GitHub Actions (`.github/workflows/jobs-ingest.yml`) because a Vercel run
@@ -743,6 +772,11 @@ for 05:40 UTC. `POST /api/cron/jobs` (Bearer `CRON_SECRET`) still runs a 4-minut
   **Unsubscribe**, all signed with `CRON_SECRET` (a new secret retires old links); each opens a page
   that acts only when its one button is pressed, so mail scanners that open links change nothing.
   The mail app's own one-click unsubscribe header still works. The bell keeps working either way.
+- Trial reminders: Paddle sends no reminder before a trial of 7 days or fewer ends, so every
+  trialist gets one bell note and one email (whatever their reminder setting: it's a billing notice)
+  12 to 36 hours before the trial ends (later, if a failed run missed it, while an hour is left),
+  with the end date, the price after it and a link to cancel on `/account`. Set `CRON_SECRET` (and
+  Resend, for the email) before real trials start.
 - Cleanup and follow-ups stop after about 45 seconds and pick up the rest the next day. Running one
   twice does no harm. Run one by hand with
   `curl -X POST -H "Authorization: Bearer $CRON_SECRET" https://<your-domain>/api/cron/cleanup`.

@@ -5,7 +5,7 @@ import type {
   ReminderSettingsSchema,
 } from "./validation";
 
-export const NOTIFICATION_KINDS = ["application_follow_up"] as const;
+export const NOTIFICATION_KINDS = ["application_follow_up", "trial_ending"] as const;
 export type NotificationKind = (typeof NOTIFICATION_KINDS)[number];
 
 export const NOTIFICATION_LIMITS = {

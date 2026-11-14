@@ -2,7 +2,7 @@
   {
     "route": "/",
     "initial_kb": 213,
-    "total_kb": 422
+    "total_kb": 421
   },
   {
     "route": "/_global-error",
@@ -26,8 +26,8 @@
   },
   {
     "route": "/checkout",
-    "initial_kb": 206,
-    "total_kb": 409
+    "initial_kb": 207,
+    "total_kb": 411
   },
   {
     "route": "/dashboard",
@@ -62,7 +62,7 @@
   {
     "route": "/dashboard/interview",
     "initial_kb": 282,
-    "total_kb": 1092
+    "total_kb": 1091
   },
   {
     "route": "/dashboard/interview/[id]",
@@ -81,7 +81,7 @@
   },
   {
     "route": "/dashboard/portfolio",
-    "initial_kb": 283,
+    "initial_kb": 282,
     "total_kb": 1007
   },
   {
@@ -107,7 +107,7 @@
   {
     "route": "/pricing",
     "initial_kb": 210,
-    "total_kb": 414
+    "total_kb": 413
   },
   {
     "route": "/privacy",

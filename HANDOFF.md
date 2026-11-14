@@ -18,7 +18,7 @@ Other docs: [README.md](README.md) (run locally; links here), [SETUP.md](SETUP.m
 | Payments | Paddle Billing, our merchant of record (**sandbox** until the live account is approved); checkout opens on `/checkout` |
 | Sign-in emails | Resend, through Supabase's SMTP settings |
 | Daily jobs feed | GitHub Action `jobs-ingest.yml` at 05:40 UTC calls `/api/cron/jobs` |
-| Other crons | `vercel.json`: `/api/cron/cleanup` (04:17 UTC), `/api/cron/follow-ups` (14:00 UTC) |
+| Other crons | `vercel.json`: `/api/cron/cleanup` (04:17 UTC), `/api/cron/trial-reminders` (13:30 UTC), `/api/cron/follow-ups` (14:00 UTC) |
 
 **Not in git, so copy these by hand from the old laptop:**
 - `web/.env.local`: holds `OPENROUTER_API_KEY` and `RESEND_API_KEY`. Copy it over USB or a password manager, never through chat, email or git.
@@ -186,6 +186,7 @@ Everything lives in `src/config/plans.ts`. Change numbers there, never in copy.
 - [ ] **Paddle sandbox** (SETUP.md §10, steps 1 to 7): create the five prices (the trial one included), the API key, the client-side token, the default payment link `https://www.ottosensei.com/checkout` and the webhook destination; put the values in Vercel with `PADDLE_ENVIRONMENT=sandbox` and redeploy; run the test checkouts.
 - [ ] **Leave Creem:** as soon as the Paddle sandbox build first deploys, delete the Creem webhook endpoint, run `bun scripts/reset-creem-plans.ts` (counts only) and then `bun scripts/reset-creem-plans.ts --apply` against production, remove every `CREEM_*` variable from Vercel, then close the Creem account.
 - [ ] **Paddle live** (SETUP.md §10, step 8): sign up at vendors.paddle.com, submit `ottosensei.com` for website approval, finish account verification, add payout details, set Retain payment recovery to cancel, repeat the sandbox steps in live. Then, back to back: cancel every sandbox subscription (their plans would otherwise outlive the switch), deactivate the sandbox webhook destination, run `bun scripts/reset-creem-plans.ts --go-live` (counts only) and then `bun scripts/reset-creem-plans.ts --go-live --apply` against production (sandbox ids look exactly like live ones, so every account's billing ids are cleared), switch Vercel to the live values with `PADDLE_ENVIRONMENT=live` and redeploy, then one live checkout with a 100% discount code. Never roll back to a sandbox build after that, and never run `--go-live --apply` again (it would move paying customers to Free while Paddle keeps charging them).
+- [ ] **Paddle catalog check** (SETUP.md §10, step 6): make the read-only `otto-sensei-catalog` key (Prices and Products read), put it and the Paddle values you gave Vercel in `.env.paddle.local`, and run `bun --env-file=.env.paddle.local scripts/check-paddle-catalog.ts` once the sandbox values are in Vercel, again with the live values and a live key right before the live redeploy, and after any price change. It only reads; fix every `problem` line.
 - [ ] **Terms name the seller:** Paddle's website review wants the terms to name the business or sole-proprietor behind Otto Sensei. They say "Otto Sensei" today; add the legal name if it differs.
 - [ ] **Test a payment:** a Max upgrade during a Pro trial.
 - [ ] **Calendar:** renew the Paddle API key before it expires (sandbox and live).

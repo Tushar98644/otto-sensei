@@ -60,7 +60,7 @@ export function followUpNotice(list: readonly DueApplication[], now: number): Fo
   };
 }
 
-function escapeHtml(text: string): string {
+export function escapeHtml(text: string): string {
   return text
     .replaceAll("&", "&amp;")
     .replaceAll("<", "&lt;")
@@ -97,11 +97,11 @@ export type FollowUpEmailInput = {
 // PNG: email clients don't show inline SVG. Drawn at 2x (96px), shown at 48px.
 export const OTTO_HEAD_EMAIL_PATH = "/email/otto-head.png";
 
-const INK = "#12241d";
-const MUTED = "#475850";
-const FOREST = "#0e3b2e";
-const RULE = "#dbe4de";
-const FONT = "-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif";
+export const INK = "#12241d";
+export const MUTED = "#475850";
+export const FOREST = "#0e3b2e";
+export const RULE = "#dbe4de";
+export const FONT = "-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif";
 
 const SNOOZE_LABEL = `Snooze ${SNOOZE_DAYS} days`;
 

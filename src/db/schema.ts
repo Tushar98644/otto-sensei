@@ -215,6 +215,16 @@ export const notificationSettings = pgTable("notification_settings", {
   updatedAt: epochMs("updated_at").notNull(),
 });
 
+export const trialReminders = pgTable(
+  "trial_reminders",
+  {
+    userId: uuid("user_id").notNull(),
+    trialEndsAt: epochMs("trial_ends_at").notNull(),
+    createdAt: epochMs("created_at").notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.userId, t.trialEndsAt] })],
+);
+
 export const accountSetup = pgTable("account_setup", {
   userId: uuid("user_id").primaryKey(),
   stepAt: epochMs("step_at"),
