@@ -74,7 +74,7 @@ export function PrepForm({ target, resumes, onDone, onCancel }: PrepFormProps) {
         job: { text, title: target.role, company: target.company },
       });
       void refreshMe();
-      forgetPrepPacks();
+      forgetPrepPacks(target.id, result.saved);
       onDone(result.prep, result.saved);
     } catch (caught) {
       setError({

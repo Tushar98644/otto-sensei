@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useSyncExternalStore } from "react";
+import { useSessionUserId } from "@/components/account/session-user";
 import { useMe } from "@/components/account/use-me";
 import { api } from "@/lib/api/client";
 import { readJsonItem, writeJsonItem } from "@/lib/browser-storage";
@@ -105,16 +106,15 @@ export type AccountSetupState =
     };
 
 export function useAccountSetup(): AccountSetupState {
-  const { user, loading } = useMe();
+  const { loading } = useMe();
+  const userId = useSessionUserId();
   const current = useSyncExternalStore(subscribe, () => snapshot, () => IDLE);
-  const userId = user?.id ?? null;
 
   useEffect(() => {
     if (userId && (snapshot.userId !== userId || snapshot.status === "idle")) void load(userId);
   }, [userId]);
 
-  if (loading) return { status: "unknown" };
-  if (!userId) return { status: "signed_out" };
+  if (!userId) return loading ? { status: "unknown" } : { status: "signed_out" };
   if (current.userId !== userId || current.status === "idle") {
     return {
       status: "loading",

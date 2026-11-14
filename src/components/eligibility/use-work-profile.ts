@@ -1,6 +1,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
+import { useSessionUserId } from "@/components/account/session-user";
 import { useMe } from "@/components/account/use-me";
 import { api } from "@/lib/api/client";
 import type { WorkProfile } from "@/lib/eligibility/profile";
@@ -61,13 +62,12 @@ export type WorkProfileState =
     };
 
 export function useWorkProfile(): WorkProfileState {
-  const { user, loading } = useMe();
-  const userId = user?.id ?? null;
+  const { loading } = useMe();
+  const userId = useSessionUserId();
   const client = useAppQueryClient();
   const query = useQuery({ ...workProfileQuery(userId ?? ""), enabled: userId !== null }, client);
 
-  if (loading) return { status: "unknown" };
-  if (!userId) return { status: "signed_out" };
+  if (!userId) return loading ? { status: "unknown" } : { status: "signed_out" };
   if (query.data) return { status: "ready", userId, ...query.data };
   if (query.isError && query.fetchStatus === "idle") {
     return { status: "error", retry: () => void query.refetch() };

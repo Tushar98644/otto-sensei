@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useSyncExternalStore } from "react";
-import { useMe } from "@/components/account/use-me";
+import { useSessionUserId } from "@/components/account/session-user";
 import { api } from "@/lib/api/client";
 import type { Notification } from "@/lib/notifications/types";
 
@@ -102,8 +102,7 @@ export type NotificationsState =
     };
 
 export function useNotifications(): NotificationsState {
-  const { user } = useMe();
-  const userId = user?.id ?? null;
+  const userId = useSessionUserId();
   const snapshot = useSyncExternalStore(
     subscribe,
     () => state,

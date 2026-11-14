@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { useMe } from "@/components/account/use-me";
+import { useSessionUserId } from "@/components/account/session-user";
 import { isApiError } from "@/lib/api/client";
 import { getQueryClient, useAppQueryClient } from "@/lib/queries/client";
 import { SHARES } from "@/lib/queries/keys";
@@ -21,8 +21,7 @@ const newestFirst = (a: SharedLink, b: SharedLink) =>
   b.createdAt - a.createdAt || b.id.localeCompare(a.id);
 
 export function useShares(enabled = true): SharesState {
-  const { user } = useMe();
-  const userId = user?.id ?? null;
+  const userId = useSessionUserId();
   const client = useAppQueryClient();
   const query = useQuery(
     { ...sharesQuery(userId ?? ""), enabled: enabled && userId !== null },

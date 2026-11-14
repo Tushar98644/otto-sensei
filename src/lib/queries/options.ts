@@ -20,6 +20,8 @@ export type WorkProfileData = {
 const MAX_APPLICATION_PAGES =
   Math.ceil(APPLICATION_LIMITS.perUser / APPLICATION_LIMITS.pageSize) + 1;
 
+export const APPLICATIONS_STALE_MS = 5 * MINUTE;
+
 export async function fetchAllApplications(): Promise<Application[]> {
   const items: Application[] = [];
   let cursor: string | null = null;
@@ -36,6 +38,7 @@ export const savedJobsQuery = (userId: string) =>
   queryOptions({
     queryKey: queryKeys.savedJobs(userId),
     queryFn: async () => (await api.savedJobs()).jobs,
+    staleTime: 5 * MINUTE,
   });
 
 export const writingsQuery = (userId: string) =>
@@ -45,12 +48,14 @@ export const writingsQuery = (userId: string) =>
       const res = await api.writings();
       return { items: res.writings, total: res.total };
     },
+    staleTime: 5 * MINUTE,
   });
 
 export const prepPacksQuery = (userId: string) =>
   queryOptions({
     queryKey: queryKeys.prepPacks(userId),
     queryFn: async () => (await api.interviewPacks()).packs,
+    staleTime: 5 * MINUTE,
   });
 
 export const sharesQuery = (userId: string) =>

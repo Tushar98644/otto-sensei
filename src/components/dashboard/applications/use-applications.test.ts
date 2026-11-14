@@ -32,6 +32,8 @@ const {
   changeApplication,
   commitDelete,
   hideApplication,
+  markPrepped,
+  removeApplication,
   restoreApplication,
 } = await import("./use-applications");
 
@@ -205,5 +207,44 @@ describe("the list and changes made while it loads", () => {
       .mockResolvedValueOnce(page([first]));
     expect(await getQueryClient().fetchQuery(applicationsQuery(USER))).toEqual([first, second]);
     expect(api.listApplications).toHaveBeenNthCalledWith(2, "next");
+  });
+});
+
+describe("how often the list is fetched", () => {
+  it("stays fresh for 5 minutes and asks again when the tab comes back after that", () => {
+    const options = applicationsQuery(USER);
+    expect(options.staleTime).toBe(5 * 60_000);
+    expect(options.refetchOnWindowFocus).toBe(true);
+  });
+
+  it("marks one application as prepped without fetching the list again", () => {
+    const prepped = application();
+    const other = application({ company: "Linear" });
+    getQueryClient().setQueryData(KEY, [prepped, other]);
+    markPrepped(prepped.id);
+    expect(shown()).toEqual([{ ...prepped, hasPrep: true }, other]);
+    expect(api.listApplications).not.toHaveBeenCalled();
+  });
+
+  it("reloads the prep packs once a deleted application took its pack with it, and only then", async () => {
+    const packs = queryKeys.prepPacks(USER);
+    const stale = () => getQueryClient().getQueryState(packs)?.isInvalidated;
+    const prepped = application({ hasPrep: true });
+    const plain = application({ company: "Linear" });
+    api.deleteApplication.mockResolvedValue({ ok: true });
+
+    getQueryClient().setQueryData(packs, []);
+    await removeApplication(plain);
+    hideApplication(plain);
+    await commitDelete(plain, { keepalive: false });
+    expect(stale()).toBe(false);
+
+    await removeApplication(prepped);
+    expect(stale()).toBe(true);
+
+    getQueryClient().setQueryData(packs, []);
+    hideApplication(prepped);
+    await commitDelete(prepped, { keepalive: false });
+    expect(stale()).toBe(true);
   });
 });

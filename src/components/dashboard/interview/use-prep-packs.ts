@@ -2,7 +2,8 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { useCallback } from "react";
-import { useMe } from "@/components/account/use-me";
+import { useSessionUserId } from "@/components/account/session-user";
+import { markPrepped } from "@/components/dashboard/applications/use-applications";
 import type { PrepSummary } from "@/lib/insights/prep";
 import { getQueryClient, useAppQueryClient } from "@/lib/queries/client";
 import { APPLICATIONS, PREP_PACKS } from "@/lib/queries/keys";
@@ -16,15 +17,16 @@ export type PrepPacksState = {
 
 const NONE: PrepSummary[] = [];
 
-export function forgetPrepPacks(): void {
+// A saved pack changes only the application's hasPrep; an unsaved one means the application is gone.
+export function forgetPrepPacks(applicationId: string, saved: boolean): void {
   const client = getQueryClient();
   void client.invalidateQueries({ queryKey: PREP_PACKS });
-  void client.invalidateQueries({ queryKey: APPLICATIONS });
+  if (saved) markPrepped(applicationId);
+  else void client.invalidateQueries({ queryKey: APPLICATIONS });
 }
 
 export function usePrepPacks(): PrepPacksState {
-  const { user } = useMe();
-  const userId = user?.id ?? "";
+  const userId = useSessionUserId() ?? "";
   const client = useAppQueryClient();
   const query = useQuery({ ...prepPacksQuery(userId), enabled: userId !== "" }, client);
   const { refetch } = query;

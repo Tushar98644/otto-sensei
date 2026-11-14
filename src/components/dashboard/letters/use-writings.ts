@@ -2,7 +2,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { useCallback, useMemo } from "react";
-import { useMe } from "@/components/account/use-me";
+import { useSessionUserId } from "@/components/account/session-user";
 import { getQueryClient, useAppQueryClient } from "@/lib/queries/client";
 import { WRITINGS } from "@/lib/queries/keys";
 import { writingsQuery } from "@/lib/queries/options";
@@ -36,8 +36,7 @@ export function forgetWritings(): void {
 }
 
 export function useWritings(): WritingsState {
-  const { user } = useMe();
-  const userId = user?.id ?? "";
+  const userId = useSessionUserId() ?? "";
   const client = useAppQueryClient();
   const query = useQuery({ ...writingsQuery(userId), enabled: userId !== "" }, client);
   const { refetch } = query;

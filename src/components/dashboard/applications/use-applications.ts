@@ -2,15 +2,20 @@
 
 import { queryOptions, useQuery } from "@tanstack/react-query";
 import { useCallback } from "react";
-import { signedInUserId, useMe } from "@/components/account/use-me";
+import { useSessionUserId } from "@/components/account/session-user";
+import { signedInUserId } from "@/components/account/use-me";
 import { api, isApiError } from "@/lib/api/client";
 import type { Application, CreateApplicationBody, UpdateApplicationBody } from "@/lib/api/types";
 import { firstFollowUpAt, FOLLOW_UP_DAYS } from "@/lib/applications/follow-up";
 import { APPLICATION_LIMITS, cleanLine, normalizeJobUrl } from "@/lib/applications/schema";
 import { isStage, stageAfter } from "@/lib/applications/status";
 import { getQueryClient, useAppQueryClient } from "@/lib/queries/client";
-import { APPLICATIONS, queryKeys } from "@/lib/queries/keys";
-import { fetchAllApplications, type ReminderSettingsData } from "@/lib/queries/options";
+import { APPLICATIONS, PREP_PACKS, queryKeys } from "@/lib/queries/keys";
+import {
+  APPLICATIONS_STALE_MS,
+  fetchAllApplications,
+  type ReminderSettingsData,
+} from "@/lib/queries/options";
 import { sortApplications, upsertApplication, withoutApplication } from "./view";
 
 export type ApplicationsStatus = "loading" | "ready" | "error";
@@ -35,6 +40,9 @@ export const applicationsQuery = (userId: string) =>
       replay = [];
       return merged.filter((item) => !hidden.has(item.id));
     },
+    staleTime: APPLICATIONS_STALE_MS,
+    // Every change made here patches the cache; coming back to the tab picks up other devices'.
+    refetchOnWindowFocus: true,
   });
 
 function apply(change: Change) {
@@ -130,11 +138,17 @@ export async function changeApplication(
   }
 }
 
+// The prep pack lives on the application's row, so it goes with it.
+function forgetPrepOf(application: Application): void {
+  if (application.hasPrep) void getQueryClient().invalidateQueries({ queryKey: PREP_PACKS });
+}
+
 export async function removeApplication(application: Application): Promise<void> {
   apply((items) => withoutApplication(items, application.id));
   try {
     await created(application.id);
     await api.deleteApplication(application.id);
+    forgetPrepOf(application);
   } catch (error) {
     apply((items) => upsertApplication(items, application));
     throw error;
@@ -151,6 +165,12 @@ export function restoreApplication(application: Application): void {
   apply((items) => upsertApplication(items, application));
 }
 
+export function markPrepped(id: string): void {
+  apply((items) =>
+    items.map((item): Application => (item.id === id ? { ...item, hasPrep: true } : item)),
+  );
+}
+
 export async function commitDelete(
   application: Application,
   options: { keepalive: boolean },
@@ -159,6 +179,7 @@ export async function commitDelete(
     await created(application.id);
     await api.deleteApplication(application.id, options);
     hidden.delete(application.id);
+    forgetPrepOf(application);
   } catch (error) {
     restoreApplication(application);
     throw error;
@@ -193,8 +214,7 @@ export function useApplications(): {
   items: Application[];
   retry: () => void;
 } {
-  const { user } = useMe();
-  const userId = user?.id ?? null;
+  const userId = useSessionUserId();
   const client = useAppQueryClient();
   const query = useQuery({ ...applicationsQuery(userId ?? ""), enabled: userId !== null }, client);
   const { refetch } = query;
