@@ -39,8 +39,15 @@ import { VerticalBlurShader } from "three/examples/jsm/shaders/VerticalBlurShade
 import { coverRect } from "../data";
 import { useInViewport } from "../motion";
 import { useReel } from "../root";
-import { animate, type Controls, SpringValue } from "../spring";
-import { cleanRenderer, cleanScene, modelLoader, removeLights, throttle } from "./three";
+import { afterFrame, animate, type Controls, SpringValue } from "../spring";
+import {
+  cleanRenderer,
+  cleanScene,
+  loadModel,
+  onContextLost,
+  removeLights,
+  throttle,
+} from "./three";
 
 // Ported from HamishMW/portfolio components/model/model.jsx (MIT, see ../LICENSE.txt).
 
@@ -158,14 +165,18 @@ export default function Model({
     r.render(s, camera.current);
   }, [blurShadow, rotationX, rotationY]);
 
+  // Both tilt springs, the screen fade and the device's entrance can move in one frame; it draws once.
+  const invalidate = useCallback(() => afterFrame(renderFrame), [renderFrame]);
+
   useEffect(() => {
     const box = container.current;
-    if (!box || !canvas.current) return;
+    const element = canvas.current;
+    if (!box || !element) return;
     const { clientWidth, clientHeight } = box;
 
     try {
       renderer.current = new WebGLRenderer({
-        canvas: canvas.current,
+        canvas: element,
         alpha: true,
         antialias: false,
         powerPreference: "high-performance",
@@ -275,14 +286,16 @@ export default function Model({
     verticalBlurMaterial.current = new ShaderMaterial(VerticalBlurShader);
     verticalBlurMaterial.current.depthTest = false;
 
-    const unsubscribeX = rotationX.on(renderFrame);
-    const unsubscribeY = rotationY.on(renderFrame);
+    const unsubscribeX = rotationX.on(invalidate);
+    const unsubscribeY = rotationY.on(invalidate);
+    const stopWatching = onContextLost(element, () => failRef.current());
 
     const ownScene = scene.current;
     const ownRenderer = renderer.current;
     const ownTargets = [renderTarget.current, renderTargetBlur.current];
     const ownLights = lights.current;
     return () => {
+      stopWatching();
       for (const target of ownTargets) target.dispose();
       removeLights(ownLights);
       cleanScene(ownScene);
@@ -350,7 +363,7 @@ export default function Model({
           modelGroup={modelGroup}
           show={show}
           showDelay={showDelay}
-          renderFrame={renderFrame}
+          invalidate={invalidate}
           index={index}
           setLoaded={setLoaded}
           onLoad={onLoad}
@@ -371,7 +384,7 @@ function Device({
   renderer,
   model,
   modelGroup,
-  renderFrame,
+  invalidate,
   index,
   showDelay,
   setLoaded,
@@ -382,7 +395,7 @@ function Device({
   renderer: RefObject<WebGLRenderer | null>;
   model: DeviceModel;
   modelGroup: RefObject<Group | null>;
-  renderFrame: () => void;
+  invalidate: () => void;
   index: number;
   showDelay: number;
   setLoaded: (loaded: boolean) => void;
@@ -420,15 +433,15 @@ function Device({
       let loadFullResTexture: Loaded["loadFullResTexture"] = async () => {};
       let playAnimation: Loaded["playAnimation"] = () => undefined;
 
-      const [screen, gltf] = await Promise.all([
+      const [screen, device] = await Promise.all([
         screenTextures(texture, model.width, model.height),
-        modelLoader().loadAsync(url),
+        loadModel(url),
       ]);
       if (cancelled || !modelGroup.current) return { loadFullResTexture, playAnimation };
 
-      modelGroup.current.add(gltf.scene);
+      modelGroup.current.add(device);
 
-      gltf.scene.traverse((object: Object3D) => {
+      device.traverse((object: Object3D) => {
         const node = object as Mesh;
         if (node.material) (node.material as ScreenMaterial).color = new Color(0x1f2025);
 
@@ -446,7 +459,7 @@ function Device({
             animate(1, 0, {
               onUpdate: (value) => {
                 (placeholderScreen.material as ScreenMaterial).opacity = value;
-                renderFrame();
+                invalidate();
               },
             });
           };
@@ -455,7 +468,7 @@ function Device({
 
       const targetPosition = new Vector3(position.x, position.y, position.z);
 
-      if (reduceMotion) gltf.scene.position.set(...targetPosition.toArray());
+      if (reduceMotion) device.position.set(...targetPosition.toArray());
 
       if (model.animation === "spring-up") {
         playAnimation = () => {
@@ -464,7 +477,7 @@ function Device({
             targetPosition.y - 1,
             targetPosition.z,
           );
-          gltf.scene.position.set(...startPosition.toArray());
+          device.position.set(...startPosition.toArray());
           return animate(startPosition.y, targetPosition.y, {
             type: "spring",
             delay: 300 * index + showDelay,
@@ -474,8 +487,8 @@ function Device({
             restSpeed: 0.0001,
             restDelta: 0.0001,
             onUpdate: (value) => {
-              gltf.scene.position.y = value;
-              renderFrame();
+              device.position.y = value;
+              invalidate();
             },
           });
         };
@@ -483,10 +496,10 @@ function Device({
 
       if (model.animation === "laptop-open") {
         playAnimation = () => {
-          const frameNode = gltf.scene.children.find((node) => node.name === MeshType.Frame);
+          const frameNode = device.children.find((node) => node.name === MeshType.Frame);
           const startRotation = new Vector3(MathUtils.degToRad(90), 0, 0);
           const endRotation = new Vector3(0, 0, 0);
-          gltf.scene.position.set(...targetPosition.toArray());
+          device.position.set(...targetPosition.toArray());
           frameNode?.rotation.set(...startRotation.toArray());
           return animate(startRotation.x, endRotation.x, {
             type: "spring",
@@ -497,7 +510,7 @@ function Device({
             restDelta: 0.0001,
             onUpdate: (value) => {
               if (frameNode) frameNode.rotation.x = value;
-              renderFrame();
+              invalidate();
             },
           });
         };
@@ -514,7 +527,7 @@ function Device({
         onLoad?.();
         if (!reduceMotion) animation = playAnimation();
         await loadFullResTexture();
-        if (reduceMotion) renderFrame();
+        if (reduceMotion) invalidate();
       } catch {
         if (!cancelled) onFail();
       }

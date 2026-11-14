@@ -1,5 +1,5 @@
-import { describe, expect, it } from "vitest";
-import { cubicBezier, spring, tweenAt } from "./spring";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterFrame, animate, cubicBezier, spring, SpringValue, tweenAt } from "./spring";
 
 function settle(solver: ReturnType<typeof spring>, step = 1000 / 60, limit = 20_000) {
   const values: number[] = [];
@@ -54,5 +54,85 @@ describe("tween", () => {
     expect(ease(0)).toBe(0);
     expect(ease(1)).toBe(1);
     expect(ease(0.5)).toBeCloseTo(0.774, 2);
+  });
+});
+
+describe("frame loop", () => {
+  let queue: FrameRequestCallback[] = [];
+  let now = 0;
+  const frame = () => {
+    now += 1000 / 60;
+    const callbacks = queue;
+    queue = [];
+    for (const callback of callbacks) callback(now);
+    return callbacks.length;
+  };
+  const settle = () => {
+    for (let frames = 0; queue.length > 0 && frames < 5000; frames += 1) frame();
+  };
+
+  beforeEach(() => {
+    queue = [];
+    vi.stubGlobal("requestAnimationFrame", (callback: FrameRequestCallback) =>
+      queue.push(callback),
+    );
+  });
+  afterEach(() => {
+    settle();
+    vi.unstubAllGlobals();
+  });
+
+  it("steps both tilt springs in one frame callback and draws once a frame", () => {
+    const config = { stiffness: 40, damping: 20, mass: 1.4, restSpeed: 0.001 };
+    const tiltX = new SpringValue(0, config);
+    const tiltY = new SpringValue(0, config);
+    const draw = vi.fn();
+    const invalidate = () => afterFrame(draw);
+    tiltX.on(invalidate);
+    tiltY.on(invalidate);
+    tiltX.set(0.25);
+    tiltY.set(-0.25);
+    expect(queue).toHaveLength(1);
+    let frames = 0;
+    while (queue.length > 0 && frames < 5000) {
+      const drawn = draw.mock.calls.length;
+      expect(frame()).toBe(1);
+      expect(draw.mock.calls.length - drawn).toBeLessThanOrEqual(1);
+      frames += 1;
+    }
+    expect(draw.mock.calls.length).toBeGreaterThan(30);
+    expect(tiltX.get()).toBe(0.25);
+    expect(tiltY.get()).toBe(-0.25);
+  });
+
+  it("draws once for a redraw asked for outside a frame", () => {
+    const draw = vi.fn();
+    afterFrame(draw);
+    afterFrame(draw);
+    expect(queue).toHaveLength(1);
+    frame();
+    expect(draw).toHaveBeenCalledTimes(1);
+  });
+
+  it("never updates an animation stopped before its first frame", () => {
+    const onUpdate = vi.fn();
+    animate(0, 1, { onUpdate }).stop();
+    settle();
+    expect(onUpdate).not.toHaveBeenCalled();
+  });
+
+  it("keeps the other animations going when one of them throws", () => {
+    const reportError = vi.fn();
+    vi.stubGlobal("reportError", reportError);
+    const onUpdate = vi.fn();
+    animate(0, 1, {
+      onUpdate: () => {
+        throw new Error("broken");
+      },
+    });
+    animate(0, 1, { onUpdate });
+    settle();
+    expect(reportError).toHaveBeenCalledTimes(1);
+    expect(onUpdate).toHaveBeenLastCalledWith(1);
   });
 });

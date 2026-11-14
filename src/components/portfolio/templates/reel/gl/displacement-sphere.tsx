@@ -19,7 +19,7 @@ import { Transition, useInViewport } from "../motion";
 import { useReel } from "../root";
 import { SpringValue } from "../spring";
 import { fragmentShader, vertexShader } from "./sphere-shaders";
-import { cleanRenderer, cleanScene, removeLights, throttle } from "./three";
+import { cleanRenderer, cleanScene, onContextLost, removeLights, throttle } from "./three";
 
 // Ported from HamishMW/portfolio displacement-sphere.jsx (MIT, see ../LICENSE.txt).
 
@@ -90,10 +90,12 @@ export default function DisplacementSphere({ onFail }: { onFail: () => void }) {
     sphere.current = new Mesh(geometry, material);
     sphere.current.position.z = 0;
     scene.current.add(sphere.current);
+    const stopWatching = onContextLost(canvas, () => failRef.current());
 
     const ownScene = scene.current;
     const ownRenderer = renderer.current;
     return () => {
+      stopWatching();
       cleanScene(ownScene);
       cleanRenderer(ownRenderer);
       renderer.current = null;

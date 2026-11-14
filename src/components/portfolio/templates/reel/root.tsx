@@ -15,14 +15,24 @@ import {
 
 export type ReelMode = "ssr" | "live" | "lite" | "still";
 export type ReelTheme = "dark" | "light";
+type ReelSize = { width: number; height: number };
 
 type ReelState = {
   theme: ReelTheme;
   toggleTheme: () => void;
   mode: ReelMode;
-  size: { width: number; height: number };
+  size: ReelSize;
   reduceMotion: boolean;
 };
+
+export function reelMode(root: Element, reduceMotion: boolean): ReelMode {
+  if (root.closest("[data-pf-still]")) return "still";
+  // Reduced motion gets the pre-rendered stills, the same picture the canvases would hold, without three.js.
+  return reduceMotion || root.closest("[inert]") ? "lite" : "live";
+}
+
+export const keepSize = (current: ReelSize, next: ReelSize): ReelSize =>
+  current.width === next.width && current.height === next.height ? current : next;
 
 const ReelContext = createContext<ReelState>({
   theme: "dark",
@@ -41,25 +51,30 @@ export function ReelRoot({ children }: { children: ReactNode }) {
   const screen = useRef<HTMLDivElement>(null);
   const [theme, setTheme] = useState<ReelTheme>("dark");
   const [mode, setMode] = useState<ReelMode>("ssr");
-  const [size, setSize] = useState({ width: 1280, height: 800 });
+  const [size, setSize] = useState<ReelSize>({ width: 1280, height: 800 });
   const [reduceMotion, setReduceMotion] = useState(false);
 
   // Layout effect, so the first painted frame already has the right theme and mode.
   useLayoutEffect(() => {
     const root = ref.current;
     if (!root) return;
-    setMode(root.closest("[data-pf-still]") ? "still" : root.closest("[inert]") ? "lite" : "live");
+    const motion = window.matchMedia("(prefers-reduced-motion: reduce)");
+    setMode(reelMode(root, motion.matches));
+    setReduceMotion(motion.matches);
     try {
       if (window.localStorage.getItem(THEME_KEY) === "light") setTheme("light");
     } catch {}
 
-    const motion = window.matchMedia("(prefers-reduced-motion: reduce)");
-    const onMotion = () => setReduceMotion(motion.matches);
-    onMotion();
+    const onMotion = () => {
+      setMode(reelMode(root, motion.matches));
+      setReduceMotion(motion.matches);
+    };
     motion.addEventListener("change", onMotion);
 
-    const measure = () =>
-      setSize({ width: root.clientWidth, height: screen.current?.offsetHeight || innerHeight });
+    const measure = () => {
+      const next = { width: root.clientWidth, height: screen.current?.offsetHeight || innerHeight };
+      setSize((current) => keepSize(current, next));
+    };
     measure();
     const observer = new ResizeObserver(measure);
     observer.observe(root);

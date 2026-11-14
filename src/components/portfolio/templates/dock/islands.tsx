@@ -4,18 +4,19 @@ import { House, Moon, Sun } from "lucide-react";
 import { useEffect, useRef, type MouseEvent } from "react";
 import type { SocialKind } from "@/lib/portfolio/content";
 import { SocialIcon } from "../icons";
+import { flickerGrid, flickerStill } from "./flicker";
 
 // Ported from dillionverma/portfolio (MIT, see ./LICENSE.txt).
 
-function rgbaPrefix(color: string): string {
+function solidColor(color: string): string {
   const probe = document.createElement("canvas");
   probe.width = probe.height = 1;
   const ctx = probe.getContext("2d");
-  if (!ctx) return "rgba(0, 0, 0,";
+  if (!ctx) return "rgb(0, 0, 0)";
   ctx.fillStyle = color;
   ctx.fillRect(0, 0, 1, 1);
   const [r, g, b] = ctx.getImageData(0, 0, 1, 1).data;
-  return `rgba(${r}, ${g}, ${b},`;
+  return `rgb(${r}, ${g}, ${b})`;
 }
 
 export function FlickeringGrid({
@@ -37,69 +38,55 @@ export function FlickeringGrid({
     const canvas = canvasRef.current;
     const ctx = canvas?.getContext("2d");
     if (!container || !canvas || !ctx) return;
-    const still =
-      window.matchMedia("(prefers-reduced-motion: reduce)").matches ||
-      container.closest("[data-pf-still]") !== null;
-    let cols = 0;
-    let rows = 0;
-    let squares = new Float32Array(0);
-    let dpr = 1;
+    const still = flickerStill(
+      container,
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches,
+    );
+    const grid = flickerGrid(ctx, { squareSize, gridGap, flickerChance, maxOpacity });
     let frame = 0;
     let visible = true;
-    let last = 0;
+    let size = "";
     let lastColor = "";
-    let base = "rgba(0, 0, 0,";
+    let fill = "rgb(0, 0, 0)";
 
+    const color = () => {
+      const next = getComputedStyle(container).color;
+      if (next !== lastColor) {
+        lastColor = next;
+        fill = solidColor(next);
+      }
+      return fill;
+    };
     const setup = () => {
-      dpr = window.devicePixelRatio || 1;
+      const dpr = window.devicePixelRatio || 1;
       const { clientWidth: width, clientHeight: height } = container;
-      canvas.width = width * dpr;
-      canvas.height = height * dpr;
-      canvas.style.width = `${width}px`;
-      canvas.style.height = `${height}px`;
-      cols = Math.floor(width / (squareSize + gridGap));
-      rows = Math.floor(height / (squareSize + gridGap));
-      squares = new Float32Array(cols * rows).map(() => Math.random() * maxOpacity);
-    };
-    const draw = () => {
-      const color = getComputedStyle(container).color;
-      if (color !== lastColor) {
-        lastColor = color;
-        base = rgbaPrefix(color);
+      const next = `${width}x${height}@${dpr}`;
+      if (next !== size) {
+        size = next;
+        canvas.width = width * dpr;
+        canvas.height = height * dpr;
+        canvas.style.width = `${width}px`;
+        canvas.style.height = `${height}px`;
+        grid.resize(width, height, dpr);
       }
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      for (let i = 0; i < cols; i += 1) {
-        for (let j = 0; j < rows; j += 1) {
-          ctx.fillStyle = `${base}${squares[i * rows + j]})`;
-          ctx.fillRect(
-            i * (squareSize + gridGap) * dpr,
-            j * (squareSize + gridGap) * dpr,
-            squareSize * dpr,
-            squareSize * dpr,
-          );
-        }
-      }
+      // The first notification comes after the dock has applied a saved theme, which a still grid needs.
+      grid.recolor(color());
     };
+    // A restored context comes back blank with default state, and frames only redraw what flickered.
+    const restore = () => grid.paint(color());
     const tick = (time: number) => {
-      const delta = (time - last) / 1000;
-      last = time;
-      for (let i = 0; i < squares.length; i += 1) {
-        if (Math.random() < flickerChance * delta) squares[i] = Math.random() * maxOpacity;
-      }
-      draw();
+      grid.tick(time, color());
       if (visible) frame = requestAnimationFrame(tick);
     };
 
     setup();
-    draw();
-    const resize = new ResizeObserver(() => {
-      setup();
-      draw();
-    });
+    const resize = new ResizeObserver(setup);
     resize.observe(container);
+    canvas.addEventListener("contextrestored", restore);
     const seen = new IntersectionObserver(([entry]) => {
       visible = entry?.isIntersecting ?? false;
       cancelAnimationFrame(frame);
+      grid.pause();
       if (visible && !still) frame = requestAnimationFrame(tick);
     });
     seen.observe(canvas);
@@ -107,6 +94,7 @@ export function FlickeringGrid({
       cancelAnimationFrame(frame);
       resize.disconnect();
       seen.disconnect();
+      canvas.removeEventListener("contextrestored", restore);
     };
   }, [squareSize, gridGap, flickerChance, maxOpacity]);
 

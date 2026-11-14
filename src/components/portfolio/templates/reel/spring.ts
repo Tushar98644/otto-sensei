@@ -108,6 +108,49 @@ export function tweenAt(from: number, to: number, t: number): { value: number; d
 
 export type Controls = { stop: () => void };
 
+type FrameStep = (now: number) => void;
+
+let frameSteps: FrameStep[] = [];
+const redraws = new Set<() => void>();
+let frameId = 0;
+
+function runFrame(now: number) {
+  frameId = 0;
+  const steps = frameSteps;
+  frameSteps = [];
+  for (const step of steps) {
+    try {
+      step(now);
+    } catch (error) {
+      reportError(error);
+    }
+  }
+  const pending = [...redraws];
+  redraws.clear();
+  for (const redraw of pending) {
+    try {
+      redraw();
+    } catch (error) {
+      reportError(error);
+    }
+  }
+}
+
+function requestFrame() {
+  if (frameId === 0) frameId = requestAnimationFrame(runFrame);
+}
+
+function onNextFrame(step: FrameStep) {
+  frameSteps.push(step);
+  requestFrame();
+}
+
+// Runs once after this frame's animation steps, however many of them asked for it.
+export function afterFrame(redraw: () => void) {
+  redraws.add(redraw);
+  requestFrame();
+}
+
 export function animate(
   from: number,
   to: number,
@@ -120,7 +163,6 @@ export function animate(
 ): Controls {
   const { delay = 0, onUpdate, onComplete, type, ...springOptions } = options;
   const solver = type === "spring" ? spring(from, to, springOptions) : null;
-  let frame = 0;
   let start: number | null = null;
   let stopped = false;
   const step = (now: number) => {
@@ -128,19 +170,18 @@ export function animate(
     start ??= now;
     const t = now - start - delay;
     if (t < 0) {
-      frame = requestAnimationFrame(step);
+      onNextFrame(step);
       return;
     }
     const state = solver ? solver.at(t) : tweenAt(from, to, t);
     onUpdate(state.value);
     if (state.done) onComplete?.();
-    else frame = requestAnimationFrame(step);
+    else onNextFrame(step);
   };
-  frame = requestAnimationFrame(step);
+  onNextFrame(step);
   return {
     stop() {
       stopped = true;
-      cancelAnimationFrame(frame);
     },
   };
 }
