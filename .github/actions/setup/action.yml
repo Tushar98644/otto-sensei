@@ -1,0 +1,19 @@
+name: Set up
+description: Bun and Node at the versions CI uses, then dependencies from bun.lock with Bun's download cache restored.
+
+runs:
+  using: composite
+  steps:
+    - uses: oven-sh/setup-bun@v2
+      with:
+        bun-version: 1.2.20
+    - uses: actions/setup-node@v4
+      with:
+        node-version: 24
+    - uses: actions/cache@v4
+      with:
+        path: ~/.bun/install/cache
+        key: bun-${{ runner.os }}-${{ hashFiles('bun.lock') }}
+        restore-keys: bun-${{ runner.os }}-
+    - run: bun install --frozen-lockfile
+      shell: bash

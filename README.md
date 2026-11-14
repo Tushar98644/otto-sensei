@@ -30,7 +30,7 @@ bun run test       # in-memory Postgres (PGlite) per test file, fake Supabase Au
 bun run build
 ```
 
-CI ([.github/workflows/ci.yml](.github/workflows/ci.yml)) runs the same four. GitHub only reads `.github/` at a repo root, so it runs once this folder is its own repo.
+CI ([.github/workflows/ci.yml](.github/workflows/ci.yml)) runs the first three as parallel jobs, plus knip and a per-page JS budget from `next analyze`; [migrations.yml](.github/workflows/migrations.yml) runs squawk on new migrations ([HANDOFF.md](HANDOFF.md) section 3). Vercel's own build on every push stands in for `bun run build`.
 
 ## Deploy
 

@@ -1,3 +1,4 @@
+import "server-only";
 import type { ExtractTablesWithRelations } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT, PgTransaction } from "drizzle-orm/pg-core";
 import { drizzle } from "drizzle-orm/postgres-js";

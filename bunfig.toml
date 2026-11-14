@@ -1,0 +1,2 @@
+# Lets bun scripts load server modules that start with import "server-only".
+preload = ["./scripts/bun-preload.ts"]

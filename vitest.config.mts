@@ -3,7 +3,13 @@ import { defineConfig } from "vitest/config";
 
 export default defineConfig({
   resolve: {
-    alias: { "@": fileURLToPath(new URL("./src", import.meta.url)) },
+    alias: {
+      "@": fileURLToPath(new URL("./src", import.meta.url)),
+      // Next swaps "server-only" for this empty module on the server; tests run outside Next.
+      "server-only": fileURLToPath(
+        new URL("./node_modules/next/dist/compiled/server-only/empty.js", import.meta.url),
+      ),
+    },
   },
   test: {
     environment: "node",

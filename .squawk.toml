@@ -1,0 +1,11 @@
+# The runner wraps each file in a transaction with lock and statement timeouts; scripts/migrations-check.sh lints "-- no-transaction" files without this.
+assume_in_transaction = true
+excluded_rules = [
+  "require-concurrent-index-creation",
+  "require-concurrent-index-deletion",
+  "require-concurrent-reindex",
+  "require-lock-timeout",
+  "require-statement-timeout",
+  "prefer-bigint-over-int",
+  "prefer-bigint-over-smallint",
+]

@@ -1,0 +1,28 @@
+name: Migrations
+
+# Kept out of ci.yml, where a newer push cancels the run, so every push that adds a migration gets linted.
+on:
+  push:
+    branches: [main]
+    paths: ["supabase/migrations/**"]
+  pull_request:
+    paths: ["supabase/migrations/**"]
+
+permissions:
+  contents: read
+
+jobs:
+  squawk:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.2.20
+      - name: Lint new migrations
+        env:
+          BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
+        run: bash scripts/migrations-check.sh "$BASE"

@@ -1,0 +1,6 @@
+{
+  "$schema": "https://unpkg.com/knip@6/schema.json",
+  "entry": ["scripts/**/*.{ts,tsx,mjs}"],
+  "ignore": ["public/**"],
+  "ignoreDependencies": ["server-only", "@react-pdf/reconciler", "@react-pdf/hyphenate"]
+}
