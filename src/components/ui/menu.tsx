@@ -6,10 +6,12 @@ import {
   useId,
   useRef,
   useState,
+  useSyncExternalStore,
   type KeyboardEvent,
   type ReactNode,
   type ToggleEvent,
 } from "react";
+import { flushSync } from "react-dom";
 import { cn } from "@/lib/utils";
 
 export type MenuAction = {
@@ -38,6 +40,10 @@ const GUTTER_PX = 12;
 const OFFSET_PX = 6;
 const MIN_BELOW_PX = 260;
 
+const noChanges = () => () => {};
+const onClient = () => true;
+const onServer = () => false;
+
 const ITEM =
   "flex min-h-10 w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-sm text-ink transition-colors -outline-offset-2 hover:bg-ink/5 disabled:pointer-events-none disabled:text-subtle pointer-coarse:min-h-11";
 
@@ -55,6 +61,8 @@ export function Menu({
   const panelRef = useRef<HTMLDivElement>(null);
   const startAt = useRef<"first" | "last">("first");
   const [open, setOpen] = useState(false);
+  // Server HTML has no items or listeners yet, so the trigger opens nothing before hydration.
+  const hydrated = useSyncExternalStore(noChanges, onClient, onServer);
 
   useEffect(() => {
     if (!open) return;
@@ -74,11 +82,15 @@ export function Menu({
   }
 
   function handleBeforeToggle(event: ToggleEvent<HTMLDivElement>) {
-    if (event.newState === "open") place(triggerRef.current, event.currentTarget, align);
+    if (event.newState !== "open") return;
+    place(triggerRef.current, event.currentTarget, align);
+    // A closed menu has no items: commit them before the panel shows and handleToggle focuses one.
+    flushSync(() => setOpen(true));
   }
 
   function handleToggle(event: ToggleEvent<HTMLDivElement>) {
     const opened = event.newState === "open";
+    // Closing waits for this event: focus has already moved out of the panel, so the items can go.
     setOpen(opened);
     if (!opened) return;
     const list = itemsInPanel();
@@ -123,7 +135,7 @@ export function Menu({
       <button
         ref={triggerRef}
         type="button"
-        popoverTarget={menuId}
+        popoverTarget={hydrated ? menuId : undefined}
         aria-haspopup="menu"
         aria-expanded={open}
         aria-controls={menuId}
@@ -148,13 +160,19 @@ export function Menu({
           className,
         )}
       >
-        {items.map((entry, index) =>
-          entry === "separator" ? (
-            <div key={`separator-${index}`} role="separator" className="-mx-1.5 my-1.5 h-px bg-border" />
-          ) : (
-            <MenuItemButton key={entry.label} action={entry} onSelect={() => select(entry)} />
-          ),
-        )}
+        {open
+          ? items.map((entry, index) =>
+              entry === "separator" ? (
+                <div
+                  key={`separator-${index}`}
+                  role="separator"
+                  className="-mx-1.5 my-1.5 h-px bg-border"
+                />
+              ) : (
+                <MenuItemButton key={entry.label} action={entry} onSelect={() => select(entry)} />
+              ),
+            )
+          : null}
       </div>
     </>
   );

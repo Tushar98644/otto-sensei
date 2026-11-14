@@ -116,6 +116,7 @@ const CLASSES = [
   "page-miniature",
   "@container",
   "aspect-17/22",
+  "[content-visibility:auto]",
   "shadow-page",
   "group-hover/card:shadow-page-lift",
   "motion-safe:animate-otto-page",

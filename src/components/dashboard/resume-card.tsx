@@ -134,12 +134,13 @@ export function ResumeCard({
         className="h-full"
         bodyClassName="flex flex-col p-2"
       >
+        {/* Keep the fixed height: content-visibility sizes off-screen cards by it. */}
         <button
           type="button"
           tabIndex={-1}
           aria-hidden
           onClick={open}
-          className="relative h-44 overflow-hidden rounded-xl bg-surface-muted px-8 pt-6 sm:h-48"
+          className="relative h-44 overflow-hidden rounded-xl bg-surface-muted px-8 pt-6 [content-visibility:auto] sm:h-48"
         >
           <ResumeThumbnail
             resume={resume}
