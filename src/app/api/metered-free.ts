@@ -1,5 +1,4 @@
 import {
-  allowancePeriodFor,
   FEATURE_LABELS,
   nextPlan,
   PLANS,
@@ -93,9 +92,8 @@ export function limitMessage(user: SessionUser, feature: Feature, period: UsageP
     return `${used} ${PLANS[user.plan].name} has ${monthly} ${perPeriod("month")}. ${resetSentence(period, "UTC")}`;
   }
   const next = nextPlan(user.plan);
-  const nextPeriod = next ? allowancePeriodFor(next, user.planInterval) : period.kind;
   const more = next
-    ? ` ${PLANS[next].name} has ${planLimits(next, nextPeriod)[feature]} ${perPeriod(nextPeriod)}.`
+    ? ` ${PLANS[next].name} has ${planLimits(next, "month")[feature]} ${perPeriod("month")}.`
     : ` ${resetSentence(period, "UTC")}`;
   return `${used}${more}`;
 }

@@ -10,7 +10,6 @@ import {
 export const INTERVAL_NAMES: Record<BillingInterval, string> = {
   month: "Monthly",
   year: "Yearly",
-  week: "Weekly",
 };
 
 const usd = new Intl.NumberFormat("en-US", {
@@ -62,7 +61,6 @@ export function priceSentence(plan: PaidPlanId, interval: BillingInterval): stri
       ? `${price} once a year, about ${perMonth(plan)} a month. ${savings}% less than paying monthly.`
       : `${price} once a year.`;
   }
-  if (interval === "week") return `${price} a week, for a short, busy search. Cancel anytime.`;
   return `${price} a month. Cancel anytime.`;
 }
 

@@ -26,16 +26,13 @@ describe("PlanPerks", () => {
     }
   });
 
-  it("lists weekly limits for a weekly option, next to the plan below", () => {
-    const pro = text(renderToStaticMarkup(<PlanPerks plan="pro" interval="week" />));
-    expect(pro).toContain("38 tailored versions a week");
-    expect(pro).toContain("188 line fixes a week");
-    expect(pro).not.toContain("150 tailored versions");
-
-    const max = text(renderToStaticMarkup(<PlanPerks plan="max" interval="week" />));
-    expect(max).toContain("75 tailored versions a week");
-    expect(max).toContain("Pro has 38.");
-    expect(max).toContain("Limits reset each billing week");
+  it("lists Max's monthly limits on either option, next to Pro's", () => {
+    for (const interval of ["month", "year"] as const) {
+      const max = text(renderToStaticMarkup(<PlanPerks plan="max" interval={interval} />));
+      expect(max).toContain("300 tailored versions a month");
+      expect(max).toContain("Pro has 150.");
+      expect(max).not.toMatch(/a week/);
+    }
   });
 
   it("offers the trial's own allowance first, then Pro's, and says nothing is charged", () => {

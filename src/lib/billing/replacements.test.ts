@@ -5,19 +5,37 @@ import { trialReplacements, users } from "@/db/schema";
 import { insertUserRow, resetDb } from "@/lib/auth/test-helpers";
 import { runCleanup } from "@/lib/cron/cleanup";
 import { resetEnvForTests } from "@/lib/env";
-import { handleWebhook } from "./index";
-import { creemSignature, installFakeCreem, subscriptionEvent, type FakeCreem } from "./testing";
+import { BillingError } from "./errors";
+import { cancelPaddleSubscription, getPaddleSubscription, type PaddleSubscription } from "./paddle";
+import { processWebhook, type WebhookConfig } from "./webhook";
+import { paddleHeaders, subscriptionEvent, type WebhookSubscription } from "./webhook-testing";
 
-const SECRET = "whsec_replacement_test_secret";
+vi.mock("@/lib/billing/paddle", () => ({
+  cancelPaddleSubscription: vi.fn(),
+  getPaddleSubscription: vi.fn(),
+}));
+
+const cancel = vi.mocked(cancelPaddleSubscription);
+const read = vi.mocked(getPaddleSubscription);
+
+const SECRET = "pdl_ntfset_replacement_test_secret";
 const TRIAL_END = "2026-11-11T10:00:00.000Z";
-const CANCEL_TRIAL = "POST /v1/subscriptions/sub_trial/cancel";
 
-let creem: FakeCreem;
+const CONFIG: WebhookConfig = {
+  secret: SECRET,
+  priceIds: ["pri_pro_month", "pri_pro_trial", "pri_max_month"],
+  planForPrice: (id) =>
+    id === "pri_max_month"
+      ? { plan: "max", interval: "month" }
+      : id.startsWith("pri_pro")
+        ? { plan: "pro", interval: "month" }
+        : null,
+};
 
 type Row = typeof users.$inferSelect;
 
-async function deliver(body: string) {
-  return handleWebhook(body, new Headers({ "creem-signature": creemSignature(body, SECRET) }));
+function deliver(body: string) {
+  return processWebhook(body, paddleHeaders(body, SECRET), CONFIG);
 }
 
 async function reload(id: string): Promise<Row | undefined> {
@@ -38,53 +56,67 @@ async function trialist(): Promise<Row> {
     planInterval: "month",
     planStatus: "trialing",
     trialEndsAt: Date.parse(TRIAL_END),
-    billingCustomerId: "cust_1",
+    billingCustomerId: "ctm_1",
     billingSubscriptionId: "sub_trial",
     createdAt: 1,
     updatedAt: 1,
   });
-  creem.subscriptions.push(
-    { id: "sub_trial", customer: "cust_1", product: "prod_pro_trial", status: "trialing" },
-    { id: "sub_max", customer: "cust_1", product: "prod_max_month", status: "active" },
-  );
   return (await reload(id))!;
 }
 
-function maxEvent(eventType: string, user: Row, event: { id?: string; createdAt?: number } = {}) {
+function maxEvent(
+  eventType: string,
+  user: Row,
+  event: { id?: string; occurredAt?: number } = {},
+  subscription: WebhookSubscription = {},
+) {
   return subscriptionEvent(
     eventType,
     {
       id: "sub_max",
-      status: "active",
-      product: "prod_max_month",
-      metadata: { user_id: user.id, replaces_subscription_id: "sub_trial" },
+      price_id: "pri_max_month",
+      custom_data: { user_id: user.id, replaces_subscription_id: "sub_trial" },
+      ...subscription,
     },
     event,
   );
 }
 
+function paddleTrial(status: PaddleSubscription["status"]): PaddleSubscription {
+  return {
+    id: "sub_trial",
+    status,
+    customer_id: "ctm_1",
+    items: [{ price: { id: "pri_pro_trial" } }],
+    scheduled_change: null,
+    next_billed_at: null,
+    current_billing_period: null,
+    custom_data: null,
+  };
+}
+
+const refused = () =>
+  new BillingError("refused", "Paddle refused", { providerStatus: 400, providerCode: "x" });
+
 beforeEach(async () => {
-  vi.stubEnv("CREEM_API_KEY", "creem_test_123");
-  vi.stubEnv("CREEM_WEBHOOK_SECRET", SECRET);
-  vi.stubEnv("CREEM_PRO_MONTHLY_PRODUCT_ID", "prod_pro_month");
-  vi.stubEnv("CREEM_PRO_TRIAL_PRODUCT_ID", "prod_pro_trial");
-  vi.stubEnv("CREEM_MAX_MONTHLY_PRODUCT_ID", "prod_max_month");
+  vi.stubEnv("PADDLE_API_KEY", "pdl_sdbx_apikey_test");
   resetEnvForTests();
-  creem = installFakeCreem();
+  cancel.mockReset();
+  cancel.mockResolvedValue(undefined);
+  read.mockReset();
   await resetDb();
 });
 
 afterEach(() => {
   vi.restoreAllMocks();
-  vi.unstubAllGlobals();
   vi.unstubAllEnvs();
   resetEnvForTests();
 });
 
 describe("a Pro trial replaced by Max", () => {
-  it("moves the row to Max and cancels the trial right away, once, however often Creem says so", async () => {
+  it("moves the row to Max and cancels the trial right away, once, however often Paddle says so", async () => {
     const user = await trialist();
-    const body = maxEvent("subscription.active", user, { id: "evt_max_1", createdAt: 2_000 });
+    const body = maxEvent("subscription.created", user, { id: "evt_max_1", occurredAt: 2_000 });
     expect(await deliver(body)).toEqual({ status: 200, message: "applied" });
     expect(await reload(user.id)).toMatchObject({
       plan: "max",
@@ -92,130 +124,164 @@ describe("a Pro trial replaced by Max", () => {
       trialEndsAt: null,
       billingSubscriptionId: "sub_max",
     });
-    expect(creem.callsTo(CANCEL_TRIAL)).toHaveLength(1);
-    expect(creem.callsTo(CANCEL_TRIAL)[0]?.body).toEqual({ mode: "immediate" });
+    expect(cancel).toHaveBeenCalledExactlyOnceWith("sub_trial", { immediately: true });
     expect(await replacements()).toMatchObject([
       {
         replacedSubscriptionId: "sub_trial",
         subscriptionId: "sub_max",
         userId: user.id,
         attempts: 1,
+        cancelledAt: expect.any(Number),
       },
     ]);
-    expect((await replacements())[0]?.cancelledAt).toEqual(expect.any(Number));
 
     expect(await deliver(body)).toEqual({ status: 200, message: "duplicate" });
-    expect(await deliver(maxEvent("subscription.paid", user, { createdAt: 3_000 }))).toMatchObject({
+    expect(await deliver(maxEvent("subscription.updated", user, { occurredAt: 3_000 }))).toEqual({
       status: 200,
+      message: "applied",
     });
-    expect(creem.callsTo(CANCEL_TRIAL)).toHaveLength(1);
-    expect(creem.callsTo("POST /v1/subscriptions/sub_max")).toEqual([]);
+    expect(cancel).toHaveBeenCalledTimes(1);
   });
 
-  it("does the same from checkout.completed, whose metadata sits on the checkout", async () => {
+  it("also settles when the new subscription already has a cancel scheduled", async () => {
     const user = await trialist();
-    const body = JSON.stringify({
-      id: "evt_checkout_max",
-      eventType: "checkout.completed",
-      created_at: 2_000,
-      object: {
-        id: "ch_1",
-        object: "checkout",
-        product: { id: "prod_max_month", object: "product" },
-        customer: { id: "cust_1", object: "customer", email: "ada@example.com" },
-        subscription: {
-          id: "sub_max",
-          object: "subscription",
-          product: "prod_max_month",
-          customer: "cust_1",
-          status: "active",
-        },
-        status: "completed",
-        metadata: { user_id: user.id, replaces_subscription_id: "sub_trial" },
+    const body = maxEvent(
+      "subscription.created",
+      user,
+      {},
+      {
+        scheduled_change: { action: "cancel" },
       },
-    });
-    expect(await deliver(body)).toEqual({ status: 200, message: "applied" });
-    expect((await reload(user.id))?.plan).toBe("max");
-    expect(creem.callsTo(CANCEL_TRIAL)).toHaveLength(1);
+    );
+    expect(await deliver(body)).toMatchObject({ message: "applied" });
+    expect((await reload(user.id))?.planStatus).toBe("scheduled_cancel");
+    expect(cancel).toHaveBeenCalledTimes(1);
   });
 
-  it("asks Creem to redeliver when the cancel fails, and the redelivery finishes it", async () => {
+  it("asks Paddle to redeliver when the cancel fails, and the redelivery finishes it", async () => {
     const error = vi.spyOn(console, "error").mockImplementation(() => undefined);
     const user = await trialist();
-    const body = maxEvent("subscription.active", user, { id: "evt_max_1" });
-    creem.failNext(CANCEL_TRIAL, 503);
+    const body = maxEvent("subscription.created", user, { id: "evt_max_1" });
+    cancel.mockRejectedValueOnce(new BillingError("provider_error", "Paddle is down"));
     expect(await deliver(body)).toEqual({ status: 500, message: "retry" });
     expect((await reload(user.id))?.plan).toBe("max");
     expect(await replacements()).toMatchObject([{ attempts: 1, cancelledAt: null }]);
     expect(JSON.stringify(error.mock.calls)).toContain("billing.replace_cancel_failed");
 
     expect(await deliver(body)).toEqual({ status: 200, message: "duplicate" });
-    expect(creem.callsTo(CANCEL_TRIAL)).toHaveLength(2);
+    expect(cancel).toHaveBeenCalledTimes(2);
     expect(await replacements()).toMatchObject([{ attempts: 2, cancelledAt: expect.any(Number) }]);
   });
 
   it("leaves a cancel that kept failing to the daily cleanup", async () => {
     vi.spyOn(console, "error").mockImplementation(() => undefined);
     const user = await trialist();
-    creem.failNext(CANCEL_TRIAL, 500);
-    expect(await deliver(maxEvent("subscription.active", user))).toMatchObject({ status: 500 });
+    cancel.mockRejectedValueOnce(new BillingError("provider_error", "Paddle is down"));
+    expect(await deliver(maxEvent("subscription.created", user))).toMatchObject({ status: 500 });
 
     const outcome = await runCleanup({ now: Date.now(), deadline: Date.now() + 30_000 });
     expect(outcome.stats.replacedTrials).toBe(1);
     expect(outcome.failed).toEqual([]);
-    expect(creem.callsTo(CANCEL_TRIAL)).toHaveLength(2);
-    expect(
-      (await runCleanup({ now: Date.now(), deadline: Date.now() + 30_000 })).stats.replacedTrials,
-    ).toBe(0);
-    expect(creem.callsTo(CANCEL_TRIAL)).toHaveLength(2);
+    expect(cancel).toHaveBeenCalledTimes(2);
+    const again = await runCleanup({ now: Date.now(), deadline: Date.now() + 30_000 });
+    expect(again.stats.replacedTrials).toBe(0);
+    expect(cancel).toHaveBeenCalledTimes(2);
   });
 
-  it("treats a trial Creem already ended as done", async () => {
+  it("treats a trial Paddle already ended as done", async () => {
     const user = await trialist();
-    creem.subscriptions[0]!.status = "canceled";
-    creem.failNext(CANCEL_TRIAL, 400);
-    expect(await deliver(maxEvent("subscription.active", user))).toEqual({
+    cancel.mockRejectedValueOnce(refused());
+    read.mockResolvedValueOnce(paddleTrial("canceled"));
+    expect(await deliver(maxEvent("subscription.created", user))).toEqual({
       status: 200,
       message: "applied",
     });
+    expect(read).toHaveBeenCalledWith("sub_trial");
     expect(await replacements()).toMatchObject([{ cancelledAt: expect.any(Number) }]);
+  });
+
+  it("keeps trying when Paddle refuses and the trial is still running", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const user = await trialist();
+    cancel.mockRejectedValueOnce(refused());
+    read.mockResolvedValueOnce(paddleTrial("trialing"));
+    expect(await deliver(maxEvent("subscription.created", user))).toEqual({
+      status: 500,
+      message: "retry",
+    });
+    expect(await replacements()).toMatchObject([{ attempts: 1, cancelledAt: null }]);
+  });
+
+  it("waits without an API key instead of losing the cancel", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    vi.stubEnv("PADDLE_API_KEY", "");
+    resetEnvForTests();
+    const user = await trialist();
+    expect(await deliver(maxEvent("subscription.created", user))).toEqual({
+      status: 500,
+      message: "retry",
+    });
+    expect(cancel).not.toHaveBeenCalled();
+    expect(await replacements()).toMatchObject([{ attempts: 0, cancelledAt: null }]);
   });
 
   it("never lets the replaced trial's own events change the plan again", async () => {
     const user = await trialist();
-    await deliver(maxEvent("subscription.active", user, { createdAt: 2_000 }));
+    await deliver(maxEvent("subscription.created", user, { occurredAt: 2_000 }));
     const trialEvent = (eventType: string, status: string) =>
       subscriptionEvent(
         eventType,
-        { id: "sub_trial", status, product: "prod_pro_trial", metadata: { user_id: user.id } },
-        { createdAt: 3_000 },
+        {
+          id: "sub_trial",
+          status,
+          price_id: "pri_pro_trial",
+          custom_data: { user_id: user.id },
+          trial_ends_at: status === "trialing" ? TRIAL_END : null,
+        },
+        { occurredAt: 3_000 },
       );
-    expect(await deliver(trialEvent("subscription.trialing", "trialing"))).toEqual({
-      status: 200,
-      message: "ignored",
-    });
-    expect(await deliver(trialEvent("subscription.paid", "active"))).toEqual({
-      status: 200,
-      message: "ignored",
-    });
-    expect(await deliver(trialEvent("subscription.canceled", "canceled"))).toEqual({
-      status: 200,
-      message: "ignored",
-    });
+    for (const [eventType, status] of [
+      ["subscription.trialing", "trialing"],
+      ["subscription.activated", "active"],
+      ["subscription.canceled", "canceled"],
+    ] as const) {
+      expect(await deliver(trialEvent(eventType, status))).toEqual({
+        status: 200,
+        message: "ignored",
+      });
+    }
     expect(await reload(user.id)).toMatchObject({ plan: "max", billingSubscriptionId: "sub_max" });
   });
 
-  it("cancels nothing until the new plan is active", async () => {
+  it("cancels nothing until the new plan is paid for", async () => {
+    vi.spyOn(console, "warn").mockImplementation(() => undefined);
     const user = await trialist();
-    const unfinished = subscriptionEvent("subscription.update", {
-      id: "sub_max",
-      status: "incomplete",
-      product: "prod_max_month",
-      metadata: { user_id: user.id, replaces_subscription_id: "sub_trial" },
-    });
-    expect(await deliver(unfinished)).toEqual({ status: 200, message: "ignored" });
+    const overdue = maxEvent("subscription.past_due", user, {}, { status: "past_due" });
+    expect(await deliver(overdue)).toMatchObject({ status: 200 });
+    const stranger = maxEvent(
+      "subscription.created",
+      user,
+      {},
+      {
+        id: "sub_other",
+        price_id: "pri_ebook",
+      },
+    );
+    expect(await deliver(stranger)).toEqual({ status: 200, message: "ignored" });
     expect(await replacements()).toEqual([]);
-    expect(creem.callsTo(CANCEL_TRIAL)).toEqual([]);
-    expect((await reload(user.id))?.plan).toBe("pro");
+    expect(cancel).not.toHaveBeenCalled();
+  });
+
+  it("never cancels a subscription named in custom_data that the buyer isn't on", async () => {
+    const user = await trialist();
+    const forged = { user_id: user.id, replaces_subscription_id: "sub_someone_else" };
+    for (const eventType of ["subscription.created", "subscription.updated"]) {
+      expect(await deliver(maxEvent(eventType, user, {}, { custom_data: forged }))).toEqual({
+        status: 200,
+        message: "applied",
+      });
+    }
+    expect(await replacements()).toEqual([]);
+    expect(cancel).not.toHaveBeenCalled();
   });
 });

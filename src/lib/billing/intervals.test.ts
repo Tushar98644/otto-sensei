@@ -1,12 +1,14 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { BILLING_INTERVALS } from "@/config/plans";
 import { resetEnvForTests } from "@/lib/env";
 import {
   billingOffer,
   offeredIntervals,
-  paidProductIds,
-  planForProduct,
-  productId,
+  paidPriceIds,
+  planForPrice,
+  priceId,
   trialOffered,
+  trialPriceId,
 } from "./intervals";
 
 function useEnv(values: Record<string, string | undefined>) {
@@ -14,18 +16,21 @@ function useEnv(values: Record<string, string | undefined>) {
   resetEnvForTests();
 }
 
-const LIVE = { CREEM_API_KEY: "key_test", CREEM_WEBHOOK_SECRET: "whsec_test" };
+const LIVE = {
+  PADDLE_API_KEY: "pdl_sdbx_apikey_test",
+  PADDLE_WEBHOOK_SECRET: "pdl_ntfset_test",
+  NEXT_PUBLIC_PADDLE_CLIENT_TOKEN: "test_token",
+};
 
 const NONE = {
-  CREEM_API_KEY: undefined,
-  CREEM_WEBHOOK_SECRET: undefined,
-  CREEM_PRO_MONTHLY_PRODUCT_ID: undefined,
-  CREEM_PRO_YEARLY_PRODUCT_ID: undefined,
-  CREEM_PRO_WEEKLY_PRODUCT_ID: "",
-  CREEM_MAX_MONTHLY_PRODUCT_ID: undefined,
-  CREEM_MAX_YEARLY_PRODUCT_ID: undefined,
-  CREEM_MAX_WEEKLY_PRODUCT_ID: undefined,
-  CREEM_PRO_TRIAL_PRODUCT_ID: undefined,
+  PADDLE_API_KEY: undefined,
+  PADDLE_WEBHOOK_SECRET: undefined,
+  NEXT_PUBLIC_PADDLE_CLIENT_TOKEN: undefined,
+  PADDLE_PRO_MONTHLY_PRICE_ID: undefined,
+  PADDLE_PRO_YEARLY_PRICE_ID: "",
+  PADDLE_MAX_MONTHLY_PRICE_ID: undefined,
+  PADDLE_MAX_YEARLY_PRICE_ID: undefined,
+  PADDLE_PRO_TRIAL_PRICE_ID: undefined,
 };
 
 afterEach(() => {
@@ -36,88 +41,85 @@ afterEach(() => {
 describe("billing intervals", () => {
   it("in development without payment keys, offers every plan and option (mock checkout)", () => {
     useEnv(NONE);
-    expect(billingOffer()).toEqual({
-      pro: ["month", "year", "week"],
-      max: ["month", "year", "week"],
-    });
-    expect(paidProductIds()).toEqual([]);
+    expect(billingOffer()).toEqual({ pro: [...BILLING_INTERVALS], max: [...BILLING_INTERVALS] });
+    expect(paidPriceIds()).toEqual([]);
   });
 
-  it("with real checkout, offers Pro monthly alone, and no Max, until more products are set", () => {
-    useEnv({ ...NONE, ...LIVE, CREEM_PRO_MONTHLY_PRODUCT_ID: "prod_month" });
+  it("with real checkout, offers Pro monthly alone, and no Max, until more prices are set", () => {
+    useEnv({ ...NONE, ...LIVE, PADDLE_PRO_MONTHLY_PRICE_ID: "pri_month" });
     expect(offeredIntervals("pro")).toEqual(["month"]);
     expect(offeredIntervals("max")).toEqual([]);
     expect(billingOffer()).toEqual({ pro: ["month"], max: [] });
-    expect(paidProductIds()).toEqual(["prod_month"]);
+    expect(paidPriceIds()).toEqual(["pri_month"]);
   });
 
-  it("adds yearly and weekly in a fixed order, each with its own product", () => {
+  it("adds yearly once its price is set", () => {
     useEnv({
       ...NONE,
       ...LIVE,
-      CREEM_PRO_MONTHLY_PRODUCT_ID: "prod_month",
-      CREEM_PRO_YEARLY_PRODUCT_ID: "prod_year",
-      CREEM_PRO_WEEKLY_PRODUCT_ID: "prod_week",
+      PADDLE_PRO_MONTHLY_PRICE_ID: "pri_month",
+      PADDLE_PRO_YEARLY_PRICE_ID: "pri_year",
     });
-    expect(offeredIntervals()).toEqual(["month", "year", "week"]);
-    expect(productId("pro", "year")).toBe("prod_year");
-    expect(paidProductIds()).toEqual(["prod_month", "prod_year", "prod_week"]);
+    expect(offeredIntervals()).toEqual(["month", "year"]);
+    expect(priceId("pro", "year")).toBe("pri_year");
+    expect(paidPriceIds()).toEqual(["pri_month", "pri_year"]);
 
-    useEnv({ CREEM_PRO_YEARLY_PRODUCT_ID: undefined });
-    expect(offeredIntervals()).toEqual(["month", "week"]);
+    useEnv({ PADDLE_PRO_YEARLY_PRICE_ID: undefined });
+    expect(offeredIntervals()).toEqual(["month"]);
   });
 
-  it("offers each Max option only once its product is set, and maps products to plans", () => {
+  it("offers each Max option only once its price is set, and maps prices to plans", () => {
     useEnv({
       ...NONE,
       ...LIVE,
-      CREEM_PRO_MONTHLY_PRODUCT_ID: "prod_pro",
-      CREEM_MAX_YEARLY_PRODUCT_ID: "prod_max_year",
+      PADDLE_PRO_MONTHLY_PRICE_ID: "pri_pro",
+      PADDLE_MAX_YEARLY_PRICE_ID: "pri_max_year",
     });
     expect(offeredIntervals("max")).toEqual(["year"]);
-    useEnv({ CREEM_MAX_MONTHLY_PRODUCT_ID: "prod_max" });
+    useEnv({ PADDLE_MAX_MONTHLY_PRICE_ID: "pri_max" });
     expect(offeredIntervals("max")).toEqual(["month", "year"]);
-    expect(planForProduct("prod_pro")).toEqual({ plan: "pro", interval: "month" });
-    expect(planForProduct("prod_max_year")).toEqual({ plan: "max", interval: "year" });
-    expect(planForProduct("prod_someone_else")).toBeNull();
-    expect(planForProduct(null)).toBeNull();
-    expect(paidProductIds()).toEqual(["prod_pro", "prod_max", "prod_max_year"]);
+    expect(planForPrice("pri_pro")).toEqual({ plan: "pro", interval: "month" });
+    expect(planForPrice("pri_max_year")).toEqual({ plan: "max", interval: "year" });
+    expect(planForPrice("pri_someone_else")).toBeNull();
+    expect(planForPrice(null)).toBeNull();
+    expect(planForPrice("")).toBeNull();
+    expect(paidPriceIds()).toEqual(["pri_pro", "pri_max", "pri_max_year"]);
   });
 
-  it("maps every product to its plan and billing interval, so weekly ones get weekly allowances", () => {
+  it("maps every price to exactly one plan and billing interval", () => {
     useEnv({
       ...NONE,
       ...LIVE,
-      CREEM_PRO_MONTHLY_PRODUCT_ID: "prod_pro_month",
-      CREEM_PRO_YEARLY_PRODUCT_ID: "prod_pro_year",
-      CREEM_PRO_WEEKLY_PRODUCT_ID: "prod_pro_week",
-      CREEM_MAX_MONTHLY_PRODUCT_ID: "prod_max_month",
-      CREEM_MAX_YEARLY_PRODUCT_ID: "prod_max_year",
-      CREEM_MAX_WEEKLY_PRODUCT_ID: "prod_max_week",
+      PADDLE_PRO_MONTHLY_PRICE_ID: "pri_pro_month",
+      PADDLE_PRO_YEARLY_PRICE_ID: "pri_pro_year",
+      PADDLE_MAX_MONTHLY_PRICE_ID: "pri_max_month",
+      PADDLE_MAX_YEARLY_PRICE_ID: "pri_max_year",
     });
-    expect(
-      paidProductIds().map((id) => [id, planForProduct(id)]),
-    ).toEqual([
-      ["prod_pro_month", { plan: "pro", interval: "month" }],
-      ["prod_pro_year", { plan: "pro", interval: "year" }],
-      ["prod_pro_week", { plan: "pro", interval: "week" }],
-      ["prod_max_month", { plan: "max", interval: "month" }],
-      ["prod_max_year", { plan: "max", interval: "year" }],
-      ["prod_max_week", { plan: "max", interval: "week" }],
+    expect(paidPriceIds().map((id) => [id, planForPrice(id)])).toEqual([
+      ["pri_pro_month", { plan: "pro", interval: "month" }],
+      ["pri_pro_year", { plan: "pro", interval: "year" }],
+      ["pri_max_month", { plan: "max", interval: "month" }],
+      ["pri_max_year", { plan: "max", interval: "year" }],
     ]);
   });
 
-  it("offers the trial only once its product is set, and maps it to Pro monthly", () => {
-    useEnv({ ...NONE, ...LIVE, CREEM_PRO_MONTHLY_PRODUCT_ID: "prod_pro_month" });
+  it("offers the trial only once its price is set, and maps it to Pro monthly", () => {
+    useEnv({ ...NONE, ...LIVE, PADDLE_PRO_MONTHLY_PRICE_ID: "pri_pro_month" });
     expect(trialOffered()).toBe(false);
-    useEnv({ CREEM_PRO_TRIAL_PRODUCT_ID: "prod_pro_trial" });
+    useEnv({ PADDLE_PRO_TRIAL_PRICE_ID: "pri_pro_trial" });
     expect(trialOffered()).toBe(true);
-    expect(planForProduct("prod_pro_trial")).toEqual({ plan: "pro", interval: "month" });
-    expect(paidProductIds()).toEqual(["prod_pro_month", "prod_pro_trial"]);
+    expect(trialPriceId()).toBe("pri_pro_trial");
+    expect(planForPrice("pri_pro_trial")).toEqual({ plan: "pro", interval: "month" });
+    expect(paidPriceIds()).toEqual(["pri_pro_month", "pri_pro_trial"]);
     expect(billingOffer()).toEqual({ pro: ["month"], max: [] });
   });
 
-  it("offers the trial in mock checkout, with no products at all", () => {
+  it("offers no trial while payments are switched off in production", () => {
+    useEnv({ ...NONE, NODE_ENV: "production", PADDLE_PRO_TRIAL_PRICE_ID: "pri_pro_trial" });
+    expect(trialOffered()).toBe(false);
+  });
+
+  it("offers the trial in mock checkout, with no prices at all", () => {
     useEnv(NONE);
     expect(trialOffered()).toBe(true);
   });

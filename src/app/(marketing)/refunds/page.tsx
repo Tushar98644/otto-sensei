@@ -5,10 +5,11 @@ import { ROUTES } from "@/components/site/routes";
 import { BRAND } from "@/config/brand";
 import { PRO_TRIAL } from "@/config/plans";
 import { LegalPage } from "../_components/legal-page";
+import { PADDLE_BUYER_HELP_URL, PADDLE_REFUND_POLICY_URL } from "../_components/merchant";
 
 export const metadata: Metadata = pageMetadata({
   title: "Refund policy",
-  description: `${BRAND.name} Pro and Max payments aren't refunded. You can cancel anytime and you won't be charged again.`,
+  description: `Refunds for ${BRAND.name} Pro and Max are handled by Paddle, our merchant of record, under its refund policy. Cancel anytime and you won't be charged again.`,
   path: ROUTES.refunds,
 });
 
@@ -16,12 +17,21 @@ export default function RefundsPage() {
   const mailto = `mailto:${BRAND.supportEmail}`;
   return (
     <LegalPage title="Refund policy">
-      <p>Here&apos;s how payments and cancelling work on Pro and Max.</p>
+      <p>Here&apos;s how payments, refunds and cancelling work on Pro and Max.</p>
 
-      <h2>Payments aren&apos;t refunded</h2>
+      <h2>Who you pay</h2>
       <p>
-        We don&apos;t refund payments for Pro or Max, including the first one. Try the{" "}
-        {PRO_TRIAL.days}-day Pro trial or the Free plan first to see if it&apos;s right for you.
+        Our order process is conducted by our online reseller Paddle.com. Paddle.com is the Merchant
+        of Record for all our orders. Paddle charges your card, sends your receipts and handles
+        refund requests.
+      </p>
+
+      <h2>Refunds</h2>
+      <p>
+        Refund requests are handled by Paddle under its{" "}
+        <a href={PADDLE_REFUND_POLICY_URL}>buyer refund policy</a>. To ask for one, use the link in
+        the receipt Paddle emailed you, or look up your order at{" "}
+        <a href={PADDLE_BUYER_HELP_URL}>paddle.net</a>.
       </p>
 
       <h2>Cancel anytime</h2>
@@ -43,7 +53,9 @@ export default function RefundsPage() {
 
       <h2>Questions about a charge</h2>
       <p>
-        Email <a href={mailto}>{BRAND.supportEmail}</a> from the address you sign in with.
+        Email <a href={mailto}>{BRAND.supportEmail}</a> from the address you sign in with. For a
+        payment itself, you can also contact Paddle at{" "}
+        <a href={PADDLE_BUYER_HELP_URL}>paddle.net</a>.
       </p>
 
       <p>This policy doesn&apos;t affect any rights you have under consumer laws where you live.</p>

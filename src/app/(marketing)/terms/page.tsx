@@ -15,6 +15,7 @@ import {
 import { tokensInWords } from "@/lib/ai-budget-copy";
 import { TRANSCRIBE_LIMITS } from "@/app/api/transcribe/limits";
 import { LegalPage } from "../_components/legal-page";
+import { PADDLE_REFUND_POLICY_URL } from "../_components/merchant";
 import { formatUsd } from "../_components/plan-features";
 
 export const metadata: Metadata = pageMetadata({
@@ -183,22 +184,27 @@ export default function TermsPage() {
           a portfolio can be built and previewed, but it goes public only on a paid plan.
         </li>
         <li>
-          Payments are processed by Creem, our merchant of record, and their checkout terms apply to
-          the purchase.
+          Our order process is conducted by our online reseller Paddle.com. Paddle.com is the
+          Merchant of Record for all our orders. Paddle charges your card, sends your receipts and
+          handles sales tax or VAT, and its checkout terms apply to the purchase.
         </li>
         <li>
           A paid plan renews every period you picked until you cancel. Cancel anytime from your{" "}
           <Link href={ROUTES.account}>account page</Link>, and you keep it until the end of the
-          period you paid for. Moving between Pro and Max changes your subscription in place, with
-          the difference charged or refunded. If you drop to Free, your published portfolio goes
-          offline, and its data is kept in case you come back.
+          period you paid for. Moving between Pro and Max changes your subscription in place, so
+          you&apos;re never billed twice: moving up charges the difference for the rest of the
+          period right away, and moving down turns what&apos;s left into credit toward your next
+          payments. If you drop to Free, your published portfolio goes offline, and its data is kept
+          in case you come back.
         </li>
         <li>
           Prices and limits may change. If your plan&apos;s price or limits change, we&apos;ll email
           you before the change applies to you, so you can cancel first if you prefer.
         </li>
         <li>
-          Refunds are covered by our <Link href={ROUTES.refunds}>refund policy</Link>.
+          Refund requests are handled by Paddle under its{" "}
+          <a href={PADDLE_REFUND_POLICY_URL}>refund policy</a>. Our{" "}
+          <Link href={ROUTES.refunds}>refund page</Link> explains how to ask.
         </li>
       </ul>
 

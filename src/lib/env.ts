@@ -9,6 +9,8 @@ const optionalString = z.preprocess(emptyToUndefined, z.string().optional());
 const stringWithDefault = (fallback: string) =>
   z.preprocess(emptyToUndefined, z.string().default(fallback));
 
+type PaddleEnvironment = "sandbox" | "live";
+
 const EnvSchema = z.object({
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
   NEXT_PUBLIC_APP_URL: optionalString,
@@ -28,23 +30,24 @@ const EnvSchema = z.object({
   DEV_AUTH: optionalString,
   AUTH_SECRET: optionalString,
   DEV_GITHUB_LOGIN: optionalString,
-  CREEM_API_KEY: optionalString,
-  CREEM_WEBHOOK_SECRET: optionalString,
-  // Anything but "false" or "0" means test mode, so a missing value can't take real money.
-  CREEM_TEST_MODE: z.preprocess(
+  PADDLE_API_KEY: optionalString,
+  PADDLE_WEBHOOK_SECRET: optionalString,
+  // Only an explicit "live" (or "production") takes real money; anything else is the sandbox.
+  PADDLE_ENVIRONMENT: z.preprocess(
     emptyToUndefined,
     z
       .string()
-      .default("true")
-      .transform((value) => !["false", "0", "no", "off"].includes(value.trim().toLowerCase())),
+      .default("sandbox")
+      .transform((value): PaddleEnvironment =>
+        ["live", "production"].includes(value.trim().toLowerCase()) ? "live" : "sandbox",
+      ),
   ),
-  CREEM_PRO_MONTHLY_PRODUCT_ID: optionalString,
-  CREEM_PRO_YEARLY_PRODUCT_ID: optionalString,
-  CREEM_PRO_WEEKLY_PRODUCT_ID: optionalString,
-  CREEM_MAX_MONTHLY_PRODUCT_ID: optionalString,
-  CREEM_MAX_YEARLY_PRODUCT_ID: optionalString,
-  CREEM_MAX_WEEKLY_PRODUCT_ID: optionalString,
-  CREEM_PRO_TRIAL_PRODUCT_ID: optionalString,
+  NEXT_PUBLIC_PADDLE_CLIENT_TOKEN: optionalString,
+  PADDLE_PRO_MONTHLY_PRICE_ID: optionalString,
+  PADDLE_PRO_YEARLY_PRICE_ID: optionalString,
+  PADDLE_MAX_MONTHLY_PRICE_ID: optionalString,
+  PADDLE_MAX_YEARLY_PRICE_ID: optionalString,
+  PADDLE_PRO_TRIAL_PRICE_ID: optionalString,
   GITHUB_TOKEN: optionalString,
   CRON_SECRET: optionalString,
   RESEND_API_KEY: optionalString,

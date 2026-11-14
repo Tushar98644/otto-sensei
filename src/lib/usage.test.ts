@@ -8,26 +8,24 @@ import type { SessionUser } from "@/lib/auth/types";
 import { log } from "@/lib/log";
 import {
   addMonths,
+  AI_TOKENS,
   billingMonth,
-  billingWeekEnd,
   carryUsageOver,
   consumeUsage,
   cycleKey,
   getUsage,
   getUsageState,
-  isoWeekEnd,
   monthKey,
   monthWindow,
   refundUsage,
   TRIAL_PERIOD_KEY,
-  WEEK_MS,
-  weekKey,
 } from "./usage";
 
 const NOV = Date.UTC(2026, 10, 15, 12);
 const DEC = Date.UTC(2026, 11, 1, 0, 0, 1);
 const RENEWS_AT = Date.UTC(2026, 10, 19, 9, 30, 15, 123);
-const WEEK_END = Date.UTC(2026, 10, 19, 9, 30);
+// How weekly plans keyed their rows before they were removed.
+const OLD_WEEK_KEY = "week:2026-11-19T09:30:00.000Z";
 const MINUTE = 60_000;
 const HOUR = 60 * MINUTE;
 const DAY_MS = 24 * HOUR;
@@ -82,27 +80,6 @@ describe("periods", () => {
   it("uses UTC calendar months", () => {
     expect(monthKey(Date.UTC(2026, 0, 31, 23, 59, 59))).toBe("2026-01");
     expect(monthKey(Date.UTC(2026, 11, 1))).toBe("2026-12");
-  });
-
-  it("lines billing weeks up with the renewal date, to the minute, on both sides of it", () => {
-    expect(billingWeekEnd(RENEWS_AT, NOV)).toBe(WEEK_END);
-    expect(billingWeekEnd(RENEWS_AT, WEEK_END - 1)).toBe(WEEK_END);
-    expect(billingWeekEnd(RENEWS_AT, WEEK_END)).toBe(WEEK_END + WEEK_MS);
-    expect(billingWeekEnd(RENEWS_AT, WEEK_END + 3 * HOUR)).toBe(WEEK_END + WEEK_MS);
-    expect(billingWeekEnd(RENEWS_AT, WEEK_END - WEEK_MS - 1)).toBe(WEEK_END - WEEK_MS);
-  });
-
-  it("falls back to ISO weeks, Monday to Monday in UTC", () => {
-    const monday = Date.UTC(2026, 10, 16);
-    expect(isoWeekEnd(NOV)).toBe(monday);
-    expect(isoWeekEnd(monday - 1)).toBe(monday);
-    expect(isoWeekEnd(monday)).toBe(monday + WEEK_MS);
-    expect(isoWeekEnd(Date.UTC(2026, 10, 18, 23))).toBe(monday + WEEK_MS);
-  });
-
-  it("keys weekly rows apart from monthly ones", () => {
-    expect(weekKey(WEEK_END)).toBe("week:2026-11-19T09:30:00.000Z");
-    expect(weekKey(WEEK_END)).not.toMatch(/^\d{4}-\d{2}$/);
   });
 });
 
@@ -242,132 +219,58 @@ describe("refundUsage", () => {
   });
 });
 
-describe("weekly subscribers", () => {
-  const weekly = (overrides: Partial<SessionUser> = {}): SessionUser => ({
+describe("rows left from weekly plans", () => {
+  const dated = (overrides: Partial<SessionUser> = {}): SessionUser => ({
     ...pro,
-    planInterval: "week",
-    planRenewsAt: RENEWS_AT,
+    planInterval: "month",
+    planRenewsAt: P_END,
+    planPeriodStartsAt: P_START,
+    planPeriodEndsAt: P_END,
     ...overrides,
   });
 
-  async function useUp(user: SessionUser, feature: Feature, now = NOV) {
-    const limit = (await getUsage(user, now))[feature].limit;
-    await consumeTimes(user, feature, limit, now);
-    return limit;
+  async function oldWeek(user: SessionUser, count: number, bonus = 0) {
+    const db = await getDb();
+    const features = [...FEATURES, AI_TOKENS];
+    await db
+      .insert(usage)
+      .values(features.map((feature) => ({ subject: user.id, feature, period: OLD_WEEK_KEY, count, bonus })));
   }
 
-  it("get the weekly limits for the billing week ending at the renewal", async () => {
-    for (const plan of ["pro", "max"] as const) {
-      const state = await getUsageState(weekly({ plan }), NOV);
-      expect(state.period).toEqual({ kind: "week", resetsAt: WEEK_END });
-      for (const feature of FEATURES) {
-        expect(state.usage[feature]).toEqual({ used: 0, limit: PLANS[plan].weeklyLimits[feature] });
-      }
+  it("count for nothing on a paid plan, dated or not, nor on Free", async () => {
+    vi.spyOn(log, "warn").mockImplementation(() => {});
+    const undated: SessionUser = { ...pro, planInterval: "month", planRenewsAt: RENEWS_AT };
+    const yearly = dated({ planInterval: "year" });
+    await oldWeek(pro, 30, 2);
+    await oldWeek(free, 1, 2);
+
+    for (const user of [dated(), undated, yearly]) {
+      const state = await getUsageState(user, NOV);
+      expect(state.period.kind).toBe("month");
+      expect(state.usage.tailor).toEqual({ used: 0, limit: PLANS.pro.limits.tailor });
+      expect(state.aiBudget).toEqual({ used: 0, limit: 5_000_000 });
     }
-    expect(PLANS.pro.weeklyLimits).toEqual({ tailor: 38, letter: 38, fix: 188, import: 25, draft: 13, github: 13 });
-    expect(PLANS.max.weeklyLimits).toEqual({ tailor: 75, letter: 75, fix: 500, import: 75, draft: 38, github: 38 });
+    expect((await getUsageState(free, NOV)).usage.fix).toEqual({ used: 0, limit: PLANS.free.limits.fix });
   });
 
-  it("leave monthly, yearly and Free on the calendar month", async () => {
-    for (const user of [pro, { ...pro, planInterval: "month" as const }, { ...pro, planInterval: "year" as const }]) {
-      const state = await getUsageState({ ...user, planRenewsAt: RENEWS_AT }, NOV);
-      expect(state.period).toEqual({ kind: "month", resetsAt: DEC - 1000 });
-      expect(state.usage.tailor.limit).toBe(PLANS.pro.limits.tailor);
-    }
-    const state = await getUsageState({ ...free, planInterval: "week" }, NOV);
-    expect(state.period.kind).toBe("month");
-    expect(state.usage.tailor.limit).toBe(0);
+  it("are left alone while the month's allowance is used and given back", async () => {
+    await oldWeek(pro, 30, 2);
+    await oldWeek(free, 1);
+    const taken = await consumeUsage(dated(), "tailor", NOV);
+    expect(taken).toMatchObject({ allowed: true, usage: { tailor: { used: 1, limit: PLANS.pro.limits.tailor } } });
+    await consumeTimes(free, "fix", PLANS.free.limits.fix);
+    expect((await consumeUsage(free, "fix", NOV)).allowed).toBe(false);
+    await refundUsage(dated(), "tailor", NOV);
+    expect(await storedCount(pro, "tailor", NOV, cycleKey(P_START))).toBe(0);
+    expect(await storedCount(pro, "tailor", NOV, OLD_WEEK_KEY)).toBe(30);
+    expect(await storedCount(free, "fix", NOV, OLD_WEEK_KEY)).toBe(1);
   });
 
-  it("use ISO weeks when there is no renewal date (mock billing)", async () => {
-    const user = weekly({ planRenewsAt: null });
-    expect((await getUsageState(user, NOV)).period).toEqual({ kind: "week", resetsAt: isoWeekEnd(NOV) });
-    await consumeUsage(user, "fix", NOV);
-    expect(await storedCount(user, "fix", NOV, weekKey(isoWeekEnd(NOV)))).toBe(1);
-  });
-
-  it("stop at the weekly limit and start over when the billing week ends", async () => {
-    const user = weekly();
-    const limit = await useUp(user, "tailor");
-    expect(limit).toBe(38);
-    const blocked = await consumeUsage(user, "tailor", NOV);
-    expect(blocked).toMatchObject({ allowed: false, usage: { tailor: { used: 38, limit: 38 } } });
-    expect(blocked.period).toEqual({ kind: "week", resetsAt: WEEK_END });
-    expect((await consumeUsage(user, "tailor", WEEK_END - 1)).allowed).toBe(false);
-
-    const nextWeek = await consumeUsage(user, "tailor", WEEK_END);
-    expect(nextWeek.allowed).toBe(true);
-    expect(nextWeek.usage.tailor.used).toBe(1);
-    expect(nextWeek.period.resetsAt).toBe(WEEK_END + WEEK_MS);
-  });
-
-  it("let exactly the weekly limit through under parallel calls", async () => {
-    const user = weekly();
-    const results = await Promise.all(Array.from({ length: 45 }, () => consumeUsage(user, "tailor", NOV)));
-    expect(results.filter((result) => result.allowed)).toHaveLength(38);
-    expect(await storedCount(user, "tailor", NOV, weekKey(WEEK_END))).toBe(38);
-    expect(await storedCount(user, "tailor", NOV)).toBe(38);
-  });
-
-  it("keep a started week running when the renewal date moves or is cleared", async () => {
-    await useUp(weekly(), "tailor");
-    for (const planRenewsAt of [null, RENEWS_AT + 3 * 24 * HOUR, RENEWS_AT - 2 * 24 * HOUR]) {
-      const moved = weekly({ planRenewsAt });
-      const blocked = await consumeUsage(moved, "tailor", NOV);
-      expect(blocked.allowed).toBe(false);
-      expect(blocked.period.resetsAt).toBe(WEEK_END);
-    }
-    const later = weekly({ planRenewsAt: RENEWS_AT + 3 * 24 * HOUR });
-    const next = await consumeUsage(later, "tailor", WEEK_END);
-    expect(next.allowed).toBe(true);
-    expect(next.period.resetsAt).toBe(WEEK_END + 3 * 24 * HOUR);
-  });
-
-  it("never get a fresh allowance from switching back and forth", async () => {
-    const monthly: SessionUser = { ...pro, planInterval: "month" };
-    await consumeTimes(monthly, "tailor", 10);
-
-    const intoWeekly = await consumeUsage(weekly(), "tailor", NOV);
-    expect(intoWeekly.usage.tailor).toEqual({ used: 1, limit: 38 });
-    await consumeTimes(weekly(), "tailor", 37);
-    expect((await consumeUsage(weekly(), "tailor", NOV)).allowed).toBe(false);
-
-    expect((await getUsage(monthly, NOV)).tailor).toEqual({ used: 48, limit: 150 });
-    await consumeTimes(monthly, "tailor", 102);
-    expect((await consumeUsage(monthly, "tailor", NOV)).allowed).toBe(false);
-
-    expect((await consumeUsage(weekly(), "tailor", NOV)).allowed).toBe(false);
-    expect((await getUsage(weekly(), NOV)).tailor).toEqual({ used: 38, limit: 38 });
-  });
-
-  it("refund to both the week and the month", async () => {
-    const user = weekly();
-    await consumeTimes(user, "letter", 2);
-    await refundUsage(user, "letter", NOV);
-    expect(await storedCount(user, "letter", NOV, weekKey(WEEK_END))).toBe(1);
-    expect(await storedCount(user, "letter", NOV)).toBe(1);
-    await Promise.all([1, 2, 3].map(() => refundUsage(user, "letter", NOV)));
-    expect(await storedCount(user, "letter", NOV, weekKey(WEEK_END))).toBe(0);
-    expect(await storedCount(user, "letter", NOV)).toBe(0);
-  });
-
-  it("add invite bonuses stored on the week's row to the weekly limit", async () => {
-    const db = await getDb();
-    await db.insert(usage).values({ subject: pro.id, feature: "tailor", period: weekKey(WEEK_END), count: 0, bonus: 2 });
-    expect((await getUsage(weekly(), NOV)).tailor).toEqual({ used: 0, limit: 40 });
-    expect((await getUsage(pro, NOV)).tailor.limit).toBe(PLANS.pro.limits.tailor);
-  });
-
-  it("report the unit just taken, with its row's invite extras and the other features' counts", async () => {
-    const db = await getDb();
-    await db.insert(usage).values([
-      { subject: pro.id, feature: "tailor", period: weekKey(WEEK_END), count: 5, bonus: 2 },
-      { subject: pro.id, feature: "letter", period: weekKey(WEEK_END), count: 3 },
-    ]);
-    const taken = await consumeUsage(weekly(), "tailor", NOV);
-    expect(taken.allowed).toBe(true);
-    expect(taken.usage.tailor).toEqual({ used: 6, limit: 40 });
-    expect(taken.usage.letter.used).toBe(3);
+  it("aren't carried into a new billing month", async () => {
+    await oldWeek(pro, 30, 2);
+    const max = dated({ plan: "max", planPeriodStartsAt: NOV - HOUR, planPeriodEndsAt: addMonths(NOV - HOUR, 1) });
+    await carryUsageOver(await getDb(), dated(), max, NOV);
+    expect((await getUsage(max, NOV)).tailor).toEqual({ used: 0, limit: PLANS.max.limits.tailor });
   });
 });
 
@@ -583,14 +486,8 @@ describe("carryUsageOver", () => {
     expect((await getUsage(renewed, P_END + MINUTE)).fix.used).toBe(0);
   });
 
-  it("carries a week's uses and Free's invite extras into a monthly plan", async () => {
+  it("carries Free's invite extras into a monthly plan", async () => {
     const db = await getDb();
-    const weekly: SessionUser = { ...pro, planInterval: "week", planRenewsAt: RENEWS_AT };
-    await consumeTimes(weekly, "tailor", 3, NOV);
-    const toMonthly = monthly(periodFrom(NOV));
-    await carryUsageOver(db, weekly, toMonthly, NOV);
-    expect((await getUsage(toMonthly, NOV)).tailor.used).toBe(3);
-
     await db.insert(usage).values({ subject: free.id, feature: "tailor", period: monthKey(NOV), bonus: 3 });
     const bought: SessionUser = { ...free, plan: "pro", planInterval: "month", ...periodFrom(NOV) };
     await carryUsageOver(db, free, bought, NOV);

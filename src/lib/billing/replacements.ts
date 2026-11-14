@@ -3,10 +3,10 @@ import { getDb } from "@/db/client";
 import { trialReplacements } from "@/db/schema";
 import { env } from "@/lib/env";
 import { log } from "@/lib/log";
-import { cancelCreemSubscription } from "./creem";
 import { BillingError } from "./errors";
+import { cancelPaddleSubscription, getPaddleSubscription } from "./paddle";
 
-// Creem won't change a trialing subscription's product, so another plan is its own checkout.
+// A plan bought during the trial is its own subscription; the trial is cancelled once it's paid.
 
 type Replacement = typeof trialReplacements.$inferSelect;
 
@@ -62,12 +62,12 @@ async function cancelReplaced(replacement: Replacement, now: number): Promise<bo
   };
   const attempted = { attempts: sql`${trialReplacements.attempts} + 1` };
   const row = eq(trialReplacements.replacedSubscriptionId, replacement.replacedSubscriptionId);
-  if (!env().CREEM_API_KEY) {
-    log.error("billing.replace_cancel_failed", new Error("CREEM_API_KEY is not set"), fields);
+  if (!env().PADDLE_API_KEY) {
+    log.error("billing.replace_cancel_failed", new Error("PADDLE_API_KEY is not set"), fields);
     return false;
   }
   try {
-    const result = await cancelCreemSubscription(replacement.replacedSubscriptionId);
+    const result = await cancelTrial(replacement.replacedSubscriptionId);
     await db
       .update(trialReplacements)
       .set({ ...attempted, cancelledAt: now })
@@ -79,5 +79,18 @@ async function cancelReplaced(replacement: Replacement, now: number): Promise<bo
     await db.update(trialReplacements).set(attempted).where(row);
     log.error("billing.replace_cancel_failed", error, fields);
     return false;
+  }
+}
+
+async function cancelTrial(subscriptionId: string): Promise<"cancelled" | "already_ended"> {
+  try {
+    await cancelPaddleSubscription(subscriptionId, { immediately: true });
+    return "cancelled";
+  } catch (error) {
+    if (!(error instanceof BillingError) || error.code !== "refused") throw error;
+    // Paddle refuses to cancel a subscription that has already ended.
+    const current = await getPaddleSubscription(subscriptionId);
+    if (current.status === "canceled") return "already_ended";
+    throw error;
   }
 }

@@ -41,24 +41,12 @@ const monthlyLimits = `Pro and Max limits reset each month, when your plan renew
 const trialLimits = `The ${PRO_TRIAL.days}-day Pro trial has its own allowance for the whole trial: ${FEATURES.map(
   (feature) => `${count.format(PRO_TRIAL.limits[feature])} ${FEATURE_LABELS[feature]}`,
 ).join(", ")}.`;
-const weeklyLimits = `Weekly plans count each billing week instead: ${FEATURES.map(
-  (feature) =>
-    `${FEATURE_LABELS[feature]}: ${count.format(PLANS.pro.weeklyLimits[feature])} on Pro, ${count.format(PLANS.max.weeklyLimits[feature])} on Max`,
-).join("; ")}.`;
 const uploadsNote =
   "Uploads always work: on Free, or past the AI reads, the basic reader reads them instead.";
 
-function limitsAnswer(weeklyOnSale: boolean): string {
-  return [
-    freeLimits,
-    monthlyLimits,
-    ...(weeklyOnSale ? [weeklyLimits] : []),
-    trialLimits,
-    uploadsNote,
-  ].join(" ");
-}
+const limitsAnswer = [freeLimits, monthlyLimits, trialLimits, uploadsNote].join(" ");
 
-const billingFaq = (weeklyOnSale: boolean): readonly FaqItem[] => [
+const billingFaq: readonly FaqItem[] = [
   {
     question: "How does the Pro trial work?",
     answer: `New accounts can try Pro for ${PRO_TRIAL.days} days, once per person. You add a card at checkout and nothing is charged during the trial. When it ends, Pro starts at ${planPriceLabel(PRO_TRIAL.plan, PRO_TRIAL.interval)}. Cancel anytime before the trial ends and you pay nothing. During the trial you can build and preview a portfolio; it goes public once Pro starts.`,
@@ -70,7 +58,7 @@ const billingFaq = (weeklyOnSale: boolean): readonly FaqItem[] => [
   {
     question: "Who handles payments?",
     answer:
-      "Creem, our merchant of record. They process your payment, send your receipts and handle sales tax or VAT. We never see your full card number.",
+      "Paddle, our merchant of record. They process your payment, send your receipts and handle sales tax or VAT, and your card statement shows the charge under Paddle's name. We never see your full card number.",
   },
   {
     question: "Will I pay tax on top?",
@@ -86,20 +74,20 @@ const billingFaq = (weeklyOnSale: boolean): readonly FaqItem[] => [
     question: "Can I get a refund?",
     answer: (
       <>
-        No. Payments aren&apos;t refunded, but you can cancel anytime from your account page and you
-        won&apos;t be charged again. See the{" "}
+        Refund requests are handled by Paddle, our merchant of record, under its refund policy. You
+        can also cancel anytime from your account page and you won&apos;t be charged again. See our{" "}
         <TextLink href={ROUTES.refunds}>refund policy</TextLink>.
       </>
     ),
   },
   {
     question: "What are the limits?",
-    answer: limitsAnswer(weeklyOnSale),
+    answer: limitsAnswer,
   },
   {
     question: "Can I switch between Pro and Max?",
     answer:
-      "Yes, from your account page. Your subscription changes in place and you pay or get back the difference, so you're never billed twice.",
+      "Yes, from your account page. Your subscription changes in place, so you're never billed twice: moving up charges the difference for the rest of the period right away, and moving down turns what's left into credit toward your next payments.",
   },
   {
     question: "What happens to my resumes if I cancel?",
@@ -160,7 +148,7 @@ export default async function PricingPage() {
         >
           Billing questions
         </h2>
-        <FaqList items={billingFaq(renewals.includes("week"))} className="lg:col-span-2" />
+        <FaqList items={billingFaq} className="lg:col-span-2" />
       </section>
     </div>
   );

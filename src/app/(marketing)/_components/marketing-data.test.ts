@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { FEATURES, PLANS, PRO_TRIAL } from "@/config/plans";
+import { BILLING_INTERVALS, FEATURES, PLANS, PRICES_USD, PRO_TRIAL } from "@/config/plans";
 import {
   FREE_BASICS,
   formatUsd,
@@ -59,37 +59,35 @@ describe("plan copy", () => {
     expect(PRO_TRIAL).toMatchObject({ plan: "pro", interval: "month", days: 3, priceUsd: 0 });
   });
 
-  it("lists the weekly numbers a week for weekly Pro and Max, and keeps Free monthly", () => {
-    expect(planCopy("pro", "week").features).toEqual([
-      "38 tailored versions a week",
-      "38 cover letters, answers and interview prep a week",
-      "188 line fixes a week",
+  it("lists the monthly numbers a month for Pro and Max, and keeps Free monthly during a trial", () => {
+    expect(planCopy("pro", "month").features).toEqual([
+      "150 tailored versions a month",
+      "150 cover letters, answers and interview prep a month",
+      "750 line fixes a month",
       "AI reads of an uploaded resume",
       "Build with Otto drafts",
       "GitHub project drafts",
       ...PRO_TOOLS,
       "A hosted portfolio site made from your resume, in all 8 designs",
     ]);
-    expect(planCopy("pro", "week").lead).toBe("Everything in Free, plus:");
-    expect(planCopy("max", "week").features).toContain("75 tailored versions a week");
-    expect(planCopy("max", "week").features).toContain("500 line fixes a week");
-    expect(planCopy("max", "week").features.join(" ")).not.toMatch(/a month/);
-    expect(planCopy("free", "week")).toEqual(planCopy("free", "month"));
-    expect(limitLine("free", "tailor", "week")).toBe("0 tailored versions a month");
-    expect(limitLine("free", "fix", "week")).toBe("3 line fixes a month");
+    expect(planCopy("max", "month").lead).toBe("Everything in Pro, with more each month:");
+    expect(planCopy("max", "month").features).toContain("300 tailored versions a month");
+    expect(planCopy("max", "month").features).toContain("2,000 line fixes a month");
+    expect(planCopy("max", "month").features.join(" ")).not.toMatch(/week/);
+    expect(planCopy("free", "trial")).toEqual(planCopy("free", "month"));
+    expect(limitLine("free", "fix", "trial")).toBe("3 line fixes a month");
   });
 
-  it("gives weekly plans a quarter of the monthly limit, rounded up", () => {
-    for (const plan of ["pro", "max"] as const) {
-      for (const feature of FEATURES) {
-        expect(PLANS[plan].weeklyLimits[feature]).toBe(Math.ceil(PLANS[plan].limits[feature] / 4));
-      }
-    }
+  it("has no weekly plans or prices", () => {
+    expect(BILLING_INTERVALS).toEqual(["month", "year"]);
+    for (const plan of PLAN_ORDER) expect(Object.keys(PLANS[plan])).not.toContain("weeklyLimits");
+    expect(Object.keys(PRICES_USD.pro)).toEqual(["month", "year"]);
+    expect(Object.keys(PRICES_USD.max)).toEqual(["month", "year"]);
   });
 
   it("never claims unlimited use or fair use", () => {
     for (const plan of PLAN_ORDER) {
-      for (const period of ["month", "week", "trial"] as const) {
+      for (const period of ["month", "trial"] as const) {
         const copy = planCopy(plan, period);
         for (const line of [copy.summary, copy.lead ?? "", ...copy.features, ...trialLines()]) {
           expect(line).not.toMatch(/unlimited|fair use/i);

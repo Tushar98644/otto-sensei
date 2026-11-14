@@ -8,33 +8,33 @@ import {
 import { env } from "@/lib/env";
 import { billingMode } from "./mode";
 
-export function productId(plan: PaidPlanId, interval: BillingInterval): string | undefined {
+function priceIds(): Record<PaidPlanId, Partial<Record<BillingInterval, string>>> {
   const e = env();
-  if (plan === "max") {
-    if (interval === "year") return e.CREEM_MAX_YEARLY_PRODUCT_ID;
-    if (interval === "week") return e.CREEM_MAX_WEEKLY_PRODUCT_ID;
-    return e.CREEM_MAX_MONTHLY_PRODUCT_ID;
-  }
-  if (interval === "year") return e.CREEM_PRO_YEARLY_PRODUCT_ID;
-  if (interval === "week") return e.CREEM_PRO_WEEKLY_PRODUCT_ID;
-  return e.CREEM_PRO_MONTHLY_PRODUCT_ID;
+  return {
+    pro: { month: e.PADDLE_PRO_MONTHLY_PRICE_ID, year: e.PADDLE_PRO_YEARLY_PRICE_ID },
+    max: { month: e.PADDLE_MAX_MONTHLY_PRICE_ID, year: e.PADDLE_MAX_YEARLY_PRICE_ID },
+  };
 }
 
-export function trialProductId(): string | undefined {
-  return env().CREEM_PRO_TRIAL_PRODUCT_ID;
+export function priceId(plan: PaidPlanId, interval: BillingInterval): string | undefined {
+  return priceIds()[plan][interval];
+}
+
+export function trialPriceId(): string | undefined {
+  return env().PADDLE_PRO_TRIAL_PRICE_ID;
 }
 
 export function offeredIntervals(plan: PaidPlanId = "pro"): BillingInterval[] {
   if (billingMode() === "mock") return [...BILLING_INTERVALS];
   return BILLING_INTERVALS.filter(
     (interval) =>
-      (plan === "pro" && interval === "month") || productId(plan, interval) !== undefined,
+      (plan === "pro" && interval === "month") || priceId(plan, interval) !== undefined,
   );
 }
 
 export function trialOffered(): boolean {
   const mode = billingMode();
-  return mode === "mock" || (mode === "creem" && trialProductId() !== undefined);
+  return mode === "mock" || (mode === "paddle" && trialPriceId() !== undefined);
 }
 
 export type BillingOffer = Record<PaidPlanId, BillingInterval[]>;
@@ -45,19 +45,19 @@ export function billingOffer(): BillingOffer {
 
 export type ProductPlan = { plan: PaidPlanId; interval: BillingInterval };
 
-export function planForProduct(id: string | null | undefined): ProductPlan | null {
+export function planForPrice(id: string | null | undefined): ProductPlan | null {
   if (!id) return null;
-  if (id === trialProductId()) return { plan: PRO_TRIAL.plan, interval: PRO_TRIAL.interval };
+  if (id === trialPriceId()) return { plan: PRO_TRIAL.plan, interval: PRO_TRIAL.interval };
   for (const plan of PAID_PLANS) {
-    const interval = BILLING_INTERVALS.find((candidate) => productId(plan, candidate) === id);
+    const interval = BILLING_INTERVALS.find((candidate) => priceId(plan, candidate) === id);
     if (interval) return { plan, interval };
   }
   return null;
 }
 
-export function paidProductIds(): string[] {
+export function paidPriceIds(): string[] {
   return [
-    ...PAID_PLANS.flatMap((plan) => BILLING_INTERVALS.map((interval) => productId(plan, interval))),
-    trialProductId(),
+    ...PAID_PLANS.flatMap((plan) => BILLING_INTERVALS.map((interval) => priceId(plan, interval))),
+    trialPriceId(),
   ].filter((id): id is string => id !== undefined);
 }

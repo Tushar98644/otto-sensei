@@ -3,7 +3,7 @@ import { PLANS, type UsagePeriod } from "@/config/plans";
 import { OTTO_ERRORS } from "./error-lines";
 import { OTTO } from "./lines";
 
-const WEEK: UsagePeriod = { kind: "week", resetsAt: Date.UTC(2026, 10, 14, 12) };
+const CALENDAR: UsagePeriod = { kind: "month", resetsAt: Date.UTC(2026, 10, 14, 12) };
 const TRIAL: UsagePeriod = { kind: "trial", resetsAt: Date.UTC(2026, 10, 11, 12) };
 const MONTH: UsagePeriod = { kind: "month", resetsAt: Date.UTC(2026, 11, 17, 12), renews: true };
 
@@ -68,7 +68,7 @@ const SAMPLES: Record<string, unknown[][]> = {
     ["draft"],
     ["github"],
     ["fix", 1000],
-    ["letter", 1000, WEEK],
+    ["letter", 1000, CALENDAR],
     ["letter", 1000, MONTH],
     ["fix", 0],
     ["tailor", 10, TRIAL],
@@ -99,7 +99,7 @@ const SAMPLES: Record<string, unknown[][]> = {
     ["letter", 27, 30],
     ["import", 1000, 1000],
     ["fix", Number.NaN, 5],
-    ["letter", 70, 75, WEEK],
+    ["letter", 70, 75, CALENDAR],
     ["letter", 270, 300, MONTH],
     ["fix", 45, 50, TRIAL],
   ],
@@ -234,17 +234,17 @@ describe("OTTO lines", () => {
     );
   });
 
-  it("names the reset: the renewal for a month, the day for a week", () => {
+  it("names the reset: the renewal for a billing month, the day for a calendar month", () => {
     expect(OTTO.limit.reached("tailor", 15)).toBe(
       "You've used this month's 15 tailored versions. They reset when your plan renews.",
     );
     expect(OTTO.limit.reached("tailor", 60, MONTH)).toMatch(
       /^You've used this month's 60 tailored versions\. They reset on Dec 1[78], when your plan renews\.$/,
     );
-    expect(OTTO.limit.reached("tailor", 15, WEEK)).toMatch(
-      /^You've used this week's 15 tailored versions\. They reset on Nov 1[45]\.$/,
+    expect(OTTO.limit.reached("tailor", 15, CALENDAR)).toMatch(
+      /^You've used this month's 15 tailored versions\. They reset on Nov 1[45]\.$/,
     );
-    expect(OTTO.limit.near("fix", 70, 75, WEEK)).toMatch(/used\. They reset on Nov 1[45]\.$/);
+    expect(OTTO.limit.near("fix", 70, 75, CALENDAR)).toMatch(/used\. They reset on Nov 1[45]\.$/);
   });
 
   it("turns a failure reason into a full sentence", () => {

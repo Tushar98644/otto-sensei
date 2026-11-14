@@ -20,7 +20,7 @@ export const RETENTION = {
   tombstonesMs: TOMBSTONE_MAX_AGE_MS,
   readNotificationsMs: 90 * DAY_MS,
   anyNotificationsMs: 365 * DAY_MS,
-  // Creem stops redelivering a webhook after a day, so an id this old can never arrive again.
+  // Paddle stops retrying a webhook after about two days, so an id this old can never arrive again.
   billingEventsMs: 400 * DAY_MS,
   impressionsMs: 30 * DAY_MS,
   matchCacheMs: MATCH_CACHE_MAX_AGE_MS,

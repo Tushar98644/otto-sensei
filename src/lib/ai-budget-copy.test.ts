@@ -5,7 +5,6 @@ import { aiBudgetLine, budgetReachedText, tokenCount, tokensInWords } from "./ai
 const MONTHLY = { kind: "month", resetsAt: Date.UTC(2026, 11, 4, 9, 30), renews: true } as const;
 const YEARLY = { kind: "month", resetsAt: Date.UTC(2026, 11, 4, 9, 30), renews: false } as const;
 const TRIAL = { kind: "trial", resetsAt: Date.UTC(2026, 10, 14, 12) } as const;
-const WEEK = { kind: "week", resetsAt: Date.UTC(2026, 10, 19, 9, 30) } as const;
 
 describe("AI budget copy", () => {
   it("writes token counts short and round", () => {
@@ -36,9 +35,6 @@ describe("AI budget copy", () => {
     );
     expect(budgetReachedText(YEARLY, "UTC")).toBe(
       "You've used this month's AI budget. It resets on Dec 4.",
-    );
-    expect(budgetReachedText(WEEK, "UTC")).toBe(
-      "You've used this week's AI budget. It resets on Nov 19.",
     );
     expect(budgetReachedText(null)).toBe(
       "You've used this month's AI budget. It resets when your plan renews.",

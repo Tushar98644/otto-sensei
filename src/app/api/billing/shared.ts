@@ -57,8 +57,24 @@ function refusalReason(
   { providerCode, providerStatus }: BillingErrorDetails,
   action: Action | "change_plan",
 ): [status: number, reason: string] {
-  if (providerCode === "subscription_not_active") {
+  const code = providerCode ?? "";
+  if (code.startsWith("subscription_locked")) {
+    return [
+      409,
+      "your subscription is busy with a renewal or another change. Try again in a little while.",
+    ];
+  }
+  if (/^subscription_update_when_|not_active|_canceled$|_past_due$/.test(code)) {
     return [409, "your subscription isn't active right now. Refresh the page and try again."];
+  }
+  if (code.includes("declined")) {
+    return [
+      409,
+      "your card was declined for the difference. Update your card in Manage billing, then try again.",
+    ];
+  }
+  if (code === "transaction_default_checkout_url_not_set") {
+    return [502, "payments aren't set up right on our side. Please try again later."];
   }
   if (providerStatus === 401 || providerStatus === 403) {
     return [502, "payments aren't set up right on our side. Please try again later."];
@@ -90,7 +106,7 @@ export function billingFailure(error: unknown, action: Action): Response {
   return fail("server_error", "Something went wrong. Please try again.", 500);
 }
 
-// Each link is a Creem API call: one account mustn't use up the rate limit all customers share.
+// Each link is a Paddle API call: one account mustn't use up the rate limit all customers share.
 const LINKS_PER_HOUR = 20;
 
 export async function limitBillingLinks(userId: string): Promise<Response | null> {

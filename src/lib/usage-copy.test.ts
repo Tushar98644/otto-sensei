@@ -11,7 +11,6 @@ import {
   trialEndDay,
 } from "./usage-copy";
 
-const WEEK = { kind: "week", resetsAt: Date.UTC(2026, 10, 19, 9, 30) } as const;
 const MONTHLY = { kind: "month", resetsAt: Date.UTC(2026, 11, 17, 9, 30), renews: true } as const;
 const YEARLY = { kind: "month", resetsAt: Date.UTC(2026, 11, 17, 9, 30), renews: false } as const;
 const CALENDAR = { kind: "month", resetsAt: Date.UTC(2026, 11, 1) } as const;
@@ -41,12 +40,8 @@ describe("usage period copy", () => {
     expect(resetSentence(null)).toBe("They reset when your plan renews.");
   });
 
-  it("writes the week and the day it starts over for weekly periods", () => {
-    expect(thisPeriod(WEEK)).toBe("this week");
-    expect(perPeriod("week")).toBe("a week");
-    expect(resetDay(WEEK, "UTC")).toBe("Nov 19");
-    expect(resetSentence(WEEK, "UTC")).toBe("They reset on Nov 19.");
-    expect(resetDay({ kind: "week", resetsAt: Date.UTC(2026, 10, 19, 23) }, "Asia/Tokyo")).toBe("Nov 20");
+  it("writes the reset day in the reader's time zone", () => {
+    expect(resetDay({ kind: "month", resetsAt: Date.UTC(2026, 10, 19, 23) }, "Asia/Tokyo")).toBe("Nov 20");
   });
 
   it("writes a trial as its own period that ends with the trial", () => {
@@ -62,7 +57,6 @@ describe("usage period copy", () => {
   it("states each billing option's reset rule, and keeps the two promises", () => {
     expect(resetRule("month")).toBe("Limits reset each month, when your plan renews.");
     expect(resetRule("year")).toBe("Limits reset each month, on the day of the month your plan started.");
-    expect(resetRule("week")).toBe("Limits reset each billing week, when the plan renews.");
     expect(PLAN_PROMISES).toBe(
       "Uploads always work, read by the basic reader past the AI reads. PDF downloads stay free on every plan.",
     );

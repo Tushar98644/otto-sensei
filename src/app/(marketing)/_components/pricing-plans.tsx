@@ -5,7 +5,6 @@ import { useMe } from "@/components/account/use-me";
 import { ROUTES } from "@/components/site/routes";
 import { TextLink } from "@/components/site/text-link";
 import {
-  allowancePeriodFor,
   BILLING_INTERVALS,
   isTrialing,
   PLAN_ORDER,
@@ -45,7 +44,6 @@ export type PricingPlansProps = {
 const PERIOD: Record<BillingInterval, { short: string; spoken: string }> = {
   month: { short: "/month", spoken: "per month" },
   year: { short: "/year", spoken: "per year" },
-  week: { short: "/week", spoken: "per week" },
 };
 
 export function PricingPlans({
@@ -150,7 +148,6 @@ export function PricingPlans({
               headingAs={headingAs}
               featured={plan === "pro"}
               price={price}
-              allowance={allowancePeriodFor(plan, interval)}
               cta={endsTrial ? { ...cta, label: "Start Max now" } : cta}
               priceNote={note}
               jobCounts={jobCounts}

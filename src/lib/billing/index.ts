@@ -9,14 +9,6 @@ import type { SessionUser } from "@/lib/auth/types";
 import { env } from "@/lib/env";
 import { log } from "@/lib/log";
 import {
-  cancelCreemSubscription,
-  changeCreemPlan,
-  createCreemCheckoutUrl,
-  createCreemPortalUrl,
-  findLiveSubscriptions,
-  type LiveSubscription,
-} from "./creem";
-import {
   chargeableSubscriptionId,
   getBillingCustomerId,
   getBillingRecord,
@@ -26,14 +18,22 @@ import {
 import { BillingError } from "./errors";
 import {
   offeredIntervals,
-  paidProductIds,
-  planForProduct,
-  productId,
+  paidPriceIds,
+  planForPrice,
+  priceId,
   trialOffered,
-  trialProductId,
+  trialPriceId,
 } from "./intervals";
 import { mockCancel, mockSubscribe } from "./mock";
 import { billingMode } from "./mode";
+import {
+  changePaddlePlan,
+  createPaddleCheckout,
+  endPaddleSubscription,
+  listLivePaddleSubscriptions,
+  paddlePortalUrl,
+  type PaddleSubscription,
+} from "./paddle";
 import { isTrialEligible } from "./trial";
 import { processWebhook } from "./webhook";
 
@@ -56,6 +56,12 @@ export function planChangeRoute(
   return "portal";
 }
 
+// Paddle has no "scheduled_cancel" status: it is an active subscription with a cancel scheduled.
+function ourStatus(subscription: PaddleSubscription): string {
+  const cancelling = subscription.scheduled_change?.action === "cancel";
+  return subscription.status === "active" && cancelling ? "scheduled_cancel" : subscription.status;
+}
+
 export async function trialAvailableFor(user: SessionUser): Promise<boolean> {
   return trialOffered() && (await isTrialEligible(user));
 }
@@ -68,7 +74,7 @@ export async function createCheckoutUrl(
   const mode = billingMode();
   if (mode === "disabled") throw new BillingError("unavailable", "Billing is not configured");
   if (!offeredIntervals(plan).includes(interval)) {
-    throw new BillingError("unavailable", `No ${plan} product is set for "${interval}"`);
+    throw new BillingError("unavailable", `No ${plan} price is set for "${interval}"`);
   }
   // A second checkout would start a second subscription and charge the user twice.
   if (user.plan === plan) {
@@ -80,28 +86,33 @@ export async function createCheckoutUrl(
     await mockSubscribe(user.id, plan, interval, { trial });
     return `/account?checkout=success&plan=${plan}${trial ? "&trial=1" : ""}`;
   }
-  const existing = await existingSubscription(user);
+  const record = await getBillingRecord(user.id);
+  const existing = await existingSubscription(user, record);
   if (existing) {
-    const target = productId(plan, interval);
+    const target = priceId(plan, interval);
     const route =
       user.plan !== "free" && target ? planChangeRoute(existing.status, user) : "portal";
     const fields = { userId: user.id, from: user.plan, to: plan, status: existing.status };
     if (route === "in_place" && target) {
-      await changeCreemPlan(existing.subscriptionId, target);
+      await changePaddlePlan(existing.subscriptionId, target);
       log.info("billing.plan_change_requested", fields);
       return `/account?checkout=success&plan=${plan}`;
     }
     if (route === "replace_trial" && target) {
       if (existing.liveCount === null) {
-        throw new BillingError("provider_error", "Creem subscription lookup failed", {
+        throw new BillingError("provider_error", "Paddle subscription lookup failed", {
           operation: "lookup",
         });
       }
       if (existing.liveCount === 1) {
-        const url = await createCreemCheckoutUrl(user, target, {
+        const { url } = await createPaddleCheckout({
+          userId: user.id,
+          email: user.email,
+          customerId: existing.customerId,
+          priceId: target,
           plan,
           trial: false,
-          replaces: existing.subscriptionId,
+          replacesSubscriptionId: existing.subscriptionId,
         });
         log.info("billing.trial_replacement_started", {
           ...fields,
@@ -115,21 +126,33 @@ export async function createCheckoutUrl(
       throw new BillingError("payment_overdue", "The subscription's last payment failed");
     }
     log.info("billing.checkout_redirected", { userId: user.id, status: existing.status });
-    return createCreemPortalUrl(existing.customerId);
+    return paddlePortalUrl(existing.customerId, [existing.subscriptionId]);
   }
-  const product = trial ? trialProductId() : productId(plan, interval);
-  if (!product) throw new BillingError("unavailable", `No ${plan} product is set for "${interval}"`);
-  return createCreemCheckoutUrl(user, product, { plan, trial });
+  const price = trial ? trialPriceId() : priceId(plan, interval);
+  if (!price) throw new BillingError("unavailable", `No ${plan} price is set for "${interval}"`);
+  const { url } = await createPaddleCheckout({
+    userId: user.id,
+    email: user.email,
+    customerId: record?.billingCustomerId ?? null,
+    priceId: price,
+    plan,
+    trial,
+  });
+  return url;
 }
+
+type LiveSubscription = { subscriptionId: string; customerId: string; status: string };
 
 type ExistingSubscription = LiveSubscription & {
   liveCount: number | null;
 };
 
-async function existingSubscription(user: SessionUser): Promise<ExistingSubscription | null> {
-  const record = await getBillingRecord(user.id);
+async function existingSubscription(
+  user: SessionUser,
+  record: BillingRecord | null,
+): Promise<ExistingSubscription | null> {
   try {
-    const live = await findLiveSubscriptions(lookupFor(user, record));
+    const live = await ourLiveSubscriptions(user, record);
     const stored = live.find(
       (candidate) => candidate.subscriptionId === record?.billingSubscriptionId,
     );
@@ -144,12 +167,27 @@ async function existingSubscription(user: SessionUser): Promise<ExistingSubscrip
   }
 }
 
-function lookupFor(user: SessionUser, record: BillingRecord | null) {
-  return {
-    email: user.email,
+// The stored subscription, or any on one of our prices, under the stored or the same-email customer.
+async function ourLiveSubscriptions(
+  user: SessionUser,
+  record: BillingRecord | null,
+): Promise<LiveSubscription[]> {
+  const prices = new Set(paidPriceIds());
+  const found = await listLivePaddleSubscriptions({
     customerId: record?.billingCustomerId ?? null,
-    subscriptionId: record?.billingSubscriptionId ?? null,
-  };
+    email: user.email,
+  });
+  return found
+    .filter(
+      (subscription) =>
+        subscription.id === record?.billingSubscriptionId ||
+        subscription.items.some((item) => prices.has(item.price.id)),
+    )
+    .map((subscription) => ({
+      subscriptionId: subscription.id,
+      customerId: subscription.customer_id,
+      status: ourStatus(subscription),
+    }));
 }
 
 export async function createPortalUrl(user: SessionUser): Promise<string> {
@@ -162,7 +200,7 @@ export async function createPortalUrl(user: SessionUser): Promise<string> {
   }
   const customerId = await getBillingCustomerId(user.id);
   if (!customerId) throw new BillingError("no_subscription", "User has no billing customer");
-  return createCreemPortalUrl(customerId);
+  return paddlePortalUrl(customerId, []);
 }
 
 export type DeletionCancelResult = "none" | "cancelled" | "already_ended" | "not_configured";
@@ -180,7 +218,7 @@ export async function cancelSubscriptionForDeletion(
   const stored = chargeableSubscriptionId(record);
   if (!stored && record.billingCustomerId === null && record.billingSubscriptionId === null)
     return "none";
-  if (!env().CREEM_API_KEY) {
+  if (!env().PADDLE_API_KEY) {
     if (!stored) return "none";
     log.warn("billing.cancel_skipped", {
       userId: user.id,
@@ -196,7 +234,7 @@ export async function cancelSubscriptionForDeletion(
 
   let cancelled = false;
   for (const subscriptionId of subscriptionIds) {
-    cancelled = (await cancelCreemSubscription(subscriptionId)) === "cancelled" || cancelled;
+    cancelled = (await endPaddleSubscription(subscriptionId)) === "cancelled" || cancelled;
     await markSubscriptionCancelled(user.id, subscriptionId, now);
   }
   const result = cancelled ? "cancelled" : "already_ended";
@@ -214,7 +252,7 @@ async function otherLiveSubscriptions(
   record: BillingRecord,
 ): Promise<LiveSubscription[]> {
   try {
-    return await findLiveSubscriptions(lookupFor(user, record));
+    return await ourLiveSubscriptions(user, record);
   } catch (error) {
     if (!(error instanceof BillingError)) throw error;
     log.error("billing.lookup_failed", error, { userId: user.id, reason: "account_deleted" });
@@ -227,8 +265,8 @@ export async function handleWebhook(
   headers: Headers,
 ): Promise<{ status: number; message: string }> {
   return processWebhook(rawBody, headers, {
-    secret: env().CREEM_WEBHOOK_SECRET,
-    productIds: paidProductIds(),
-    planForProduct,
+    secret: env().PADDLE_WEBHOOK_SECRET,
+    priceIds: paidPriceIds(),
+    planForPrice,
   });
 }

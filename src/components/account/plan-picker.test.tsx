@@ -22,11 +22,6 @@ describe("PlanPicker", () => {
     expect(yearly).toContain("Pro $120/year");
     expect(yearly).toContain("Max $232/year");
     expect(yearly).not.toMatch(/month|Reference price/);
-
-    const weekly = text("week");
-    expect(weekly).toContain("Pro $6/week");
-    expect(weekly).toContain("Max $12/week");
-    expect(weekly).not.toMatch(/Reference price/);
   });
 
   it("strikes a reference price through on monthly only, and only when switched on", () => {
@@ -37,9 +32,9 @@ describe("PlanPicker", () => {
   });
 
   it("shows monthly for a plan not sold at the picked option", () => {
-    const weekly = text("week", { pro: ["month", "week"], max: ["month"] });
-    expect(weekly).toContain("Pro $6/week");
-    expect(weekly).toContain(
+    const yearly = text("year", { pro: ["month", "year"], max: ["month"] });
+    expect(yearly).toContain("Pro $120/year");
+    expect(yearly).toContain(
       SHOW_REFERENCE_PRICES ? "Max Reference price $60 $29/month" : "Max $29/month",
     );
   });

@@ -9,7 +9,7 @@ import type { ApiErrorBody, FixRequestBody, FixResponse } from "@/lib/api/types"
 import { cookieJar, jsonRequest, resetDb, signInAs, signInOnTrial } from "@/lib/auth/test-helpers";
 import type { SessionUser } from "@/lib/auth/types";
 import { resetEnvForTests } from "@/lib/env";
-import { consumeUsage, getUsage, monthKey, weekKey } from "@/lib/usage";
+import { addMonths, consumeUsage, cycleKey, getUsage, monthKey } from "@/lib/usage";
 
 import { POST } from "./route";
 
@@ -240,20 +240,34 @@ describe("POST /api/fix", () => {
     );
   });
 
-  it("stops weekly Pro at the weekly limit, quoting weekly Max, until the billing week ends", async () => {
+  it("stops yearly Pro at the month's limit, quoting monthly Max, until its month of the year ends", async () => {
     const user = await signInAs();
-    const renewsAt = Date.UTC(2026, 10, 10, 9, 30);
+    const yearStart = Date.UTC(2026, 0, 10, 9, 30);
+    const monthStart = Date.UTC(2026, 9, 10, 9, 30);
+    const monthEnd = Date.UTC(2026, 10, 10, 9, 30);
     const db = await getDb();
     await db
       .update(users)
-      .set({ plan: "pro", planInterval: "week", planRenewsAt: renewsAt, trialEndsAt: null })
+      .set({
+        plan: "pro",
+        planInterval: "year",
+        planRenewsAt: addMonths(yearStart, 12),
+        planPeriodStartsAt: yearStart,
+        planPeriodEndsAt: addMonths(yearStart, 12),
+        trialEndsAt: null,
+      })
       .where(eq(users.id, user.id));
     await db
       .insert(usage)
-      .values({ subject: user.id, feature: "fix", period: weekKey(renewsAt), count: PLANS.pro.weeklyLimits.fix });
+      .values({ subject: user.id, feature: "fix", period: cycleKey(monthStart), count: PLANS.pro.limits.fix });
     const res = await fix();
     expect(res.status).toBe(429);
-    expect(res.headers.get("Retry-After")).toBe(String((renewsAt - Date.UTC(2026, 10, 7, 12)) / 1000));
-    expect((await errorOf(res)).message).toBe("You've used this week's 188 line fixes. Max has 500 a week.");
+    expect(res.headers.get("Retry-After")).toBe(String((monthEnd - Date.UTC(2026, 10, 7, 12)) / 1000));
+    expect((await errorOf(res)).message).toBe(
+      `You've used this month's ${PLANS.pro.limits.fix} line fixes. Max has ${PLANS.max.limits.fix} a month.`,
+    );
+
+    vi.setSystemTime(monthEnd);
+    expect((await fix()).status).toBe(200);
   });
 });

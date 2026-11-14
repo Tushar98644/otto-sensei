@@ -25,6 +25,11 @@
     "total_kb": 504
   },
   {
+    "route": "/checkout",
+    "initial_kb": 206,
+    "total_kb": 409
+  },
+  {
     "route": "/dashboard",
     "initial_kb": 343,
     "total_kb": 1096

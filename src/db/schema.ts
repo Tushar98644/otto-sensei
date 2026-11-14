@@ -51,7 +51,7 @@ export const users = pgTable(
       .default("free"),
     planStatus: text("plan_status"),
     planRenewsAt: epochMs("plan_renews_at"),
-    planInterval: text("plan_interval", { enum: ["month", "year", "week"] }),
+    planInterval: text("plan_interval", { enum: ["month", "year"] }),
     trialEndsAt: epochMs("trial_ends_at"),
     planPeriodStartsAt: epochMs("plan_period_starts_at"),
     planPeriodEndsAt: epochMs("plan_period_ends_at"),

@@ -7,36 +7,28 @@ import { carryUsageOver, type PeriodAccount } from "@/lib/usage";
 import { isUserId } from "@/lib/users";
 import { recordTrialHistory } from "./trial";
 
-type StatusGrant = "paid" | "free" | null;
+type StatusGrant = "paid" | "free";
 
+// Paddle's statuses, plus scheduled_cancel for a subscription whose cancel is pending.
 const PLAN_BY_STATUS: Record<string, StatusGrant> = {
   trialing: "paid",
   active: "paid",
   past_due: "paid",
   scheduled_cancel: "paid",
   canceled: "free",
-  expired: "free",
   paused: "free",
-  unpaid: "free",
-  incomplete: null,
 };
 
-function isKnownStatus(status: string): boolean {
-  return Object.hasOwn(PLAN_BY_STATUS, status);
-}
-
-const ENDED_STATUSES: ReadonlySet<string> = new Set(["canceled", "expired"]);
-
 export function isEndedStatus(status: string): boolean {
-  return ENDED_STATUSES.has(status);
+  return status === "canceled";
 }
 
 export function isLiveStatus(status: string): boolean {
-  return !isEndedStatus(status) && status !== "incomplete";
+  return !isEndedStatus(status);
 }
 
-export function planForStatus(status: string): StatusGrant {
-  return isKnownStatus(status) ? (PLAN_BY_STATUS[status] ?? null) : null;
+export function planForStatus(status: string): StatusGrant | null {
+  return Object.hasOwn(PLAN_BY_STATUS, status) ? (PLAN_BY_STATUS[status] ?? null) : null;
 }
 
 export type SubscriptionState = {
@@ -44,25 +36,26 @@ export type SubscriptionState = {
   email?: string;
   customerId: string;
   subscriptionId: string;
-  productPlan: PaidPlanId | null;
-  productInterval: BillingInterval | null;
+  pricePlan: PaidPlanId | null;
+  priceInterval: BillingInterval | null;
   status: string;
   renewsAt: number | null;
   periodStartsAt: number | null;
   periodEndsAt: number | null;
+  // Undefined keeps what is stored for the same subscription.
+  trialEndsAt?: number | null;
   eventAt: number | null;
   replacesSubscriptionId?: string | null;
 };
 
 export type WebhookSource = { eventId: string; eventType: string };
 
+export type ApplyOptions = {
+  resolveEmail?: (customerId: string) => Promise<string | null>;
+};
+
 export type IgnoreReason =
-  | "unknown_status"
-  | "no_change"
-  | "no_user"
-  | "other_product"
-  | "superseded"
-  | "replaced";
+  "unknown_status" | "no_user" | "other_product" | "superseded" | "replaced";
 
 export type ApplyResult =
   | {
@@ -75,7 +68,12 @@ export type ApplyResult =
   | { outcome: "duplicate" }
   | { outcome: "ignored"; reason: IgnoreReason };
 
-type UserLookup = Pick<SubscriptionState, "userId" | "email" | "customerId" | "subscriptionId">;
+export type UserLookup = {
+  userId?: string;
+  email?: string;
+  customerId: string;
+  subscriptionId: string;
+};
 
 const LOOKUP_LIMIT = 10;
 
@@ -96,7 +94,7 @@ export function findUserQuery(db: Db, lookup: UserLookup) {
     .from(users)
     .where(
       or(
-        // Metadata is free text to Creem; a value that isn't a uuid can't be one of our ids.
+        // custom_data is free-form at Paddle; a value that isn't a uuid can't be one of our ids.
         lookup.userId && isUserId(lookup.userId) ? eq(users.id, lookup.userId) : undefined,
         eq(users.billingSubscriptionId, lookup.subscriptionId),
         eq(users.billingCustomerId, lookup.customerId),
@@ -106,23 +104,27 @@ export function findUserQuery(db: Db, lookup: UserLookup) {
     .limit(LOOKUP_LIMIT);
 }
 
-async function findUser(db: Db, state: SubscriptionState) {
-  const email = state.email ? normalizeEmail(state.email) : undefined;
-  const lookup = { ...state, email };
-  const rows = await findUserQuery(db, lookup);
+async function findUser(db: Db, lookup: UserLookup) {
+  const email = lookup.email ? normalizeEmail(lookup.email) : undefined;
+  const rows = await findUserQuery(db, { ...lookup, email });
   return (
-    rows.find((row) => state.userId !== undefined && row.id === state.userId) ??
-    rows.find((row) => row.billingSubscriptionId === state.subscriptionId) ??
-    rows.find((row) => row.billingCustomerId === state.customerId) ??
+    rows.find((row) => lookup.userId !== undefined && row.id === lookup.userId) ??
+    rows.find((row) => row.billingSubscriptionId === lookup.subscriptionId) ??
+    rows.find((row) => row.billingCustomerId === lookup.customerId) ??
     rows.find((row) => email !== undefined && row.email === email) ??
     null
   );
+}
+
+export async function findBillingUserId(lookup: UserLookup): Promise<string | null> {
+  return (await findUser(await getDb(), lookup))?.id ?? null;
 }
 
 type FoundUser = NonNullable<Awaited<ReturnType<typeof findUser>>>;
 
 function trialEndFor(state: SubscriptionState, user: FoundUser, plan: PlanId): number | null {
   if (plan === "free" || state.status === "active") return null;
+  if (state.trialEndsAt !== undefined) return state.trialEndsAt;
   if (state.status === "trialing") {
     return state.periodEndsAt ?? state.renewsAt ?? user.trialEndsAt ?? null;
   }
@@ -133,26 +135,30 @@ export async function applySubscriptionState(
   state: SubscriptionState,
   source: WebhookSource,
   now = Date.now(),
+  options: ApplyOptions = {},
 ): Promise<ApplyResult> {
   const grant = planForStatus(state.status);
-  if (grant === null) {
-    return { outcome: "ignored", reason: isKnownStatus(state.status) ? "no_change" : "unknown_status" };
-  }
+  if (grant === null) return { outcome: "ignored", reason: "unknown_status" };
 
   const db = await getDb();
   // A late "trialing" or first payment on the replaced trial would otherwise overwrite its plan.
   if (await isReplaced(db, state.subscriptionId)) return { outcome: "ignored", reason: "replaced" };
-  const user = await findUser(db, state);
+  let user = await findUser(db, state);
+  // Paddle's subscription events carry no email, so it's read only when nothing else matched.
+  if (!user && grant === "paid" && !state.email && options.resolveEmail) {
+    const email = await options.resolveEmail(state.customerId);
+    if (email) user = await findUser(db, { ...state, email });
+  }
   if (!user) return { outcome: "ignored", reason: "no_user" };
-  // Other products on the same Creem store must not grant a plan.
+  // Other prices in the same Paddle account must not grant a plan.
   const own = user.billingSubscriptionId === state.subscriptionId;
-  if (state.productPlan === null && !own) {
+  if (state.pricePlan === null && !own) {
     return { outcome: "ignored", reason: "other_product" };
   }
   const plan: PlanId =
-    grant === "free" ? "free" : (state.productPlan ?? (user.plan === "free" ? "pro" : user.plan));
+    grant === "free" ? "free" : (state.pricePlan ?? (user.plan === "free" ? "pro" : user.plan));
   const planInterval: BillingInterval | null =
-    plan === "free" ? null : (state.productInterval ?? user.planInterval);
+    plan === "free" ? null : (state.priceInterval ?? user.planInterval);
   const trialEndsAt = trialEndFor(state, user, plan);
   const before = { plan: user.plan, trialing: user.plan !== "free" && user.trialEndsAt !== null };
   const periodOf = (reported: number | null, stored: number | null) =>
@@ -197,7 +203,7 @@ export async function applySubscriptionState(
           plan === "free"
             ? or(eq(users.plan, "free"), eq(users.billingSubscriptionId, state.subscriptionId))
             : undefined,
-          // Creem retries for up to a day, so an older event must not undo a newer one.
+          // Paddle doesn't deliver in order, so an older event must not undo a newer one.
           state.eventAt === null
             ? undefined
             : or(
@@ -211,8 +217,15 @@ export async function applySubscriptionState(
       .returning({ id: users.id, email: users.email });
     const [row] = updated;
     if (!row) return { outcome: "ignored", reason: "superseded" };
+    const paying =
+      plan !== "free" &&
+      trialEndsAt === null &&
+      (state.status === "active" || state.status === "scheduled_cancel");
+    // Paddle.js can set custom_data in the browser, so only the trial this user is on gets cancelled.
     const replaces =
-      state.status === "active" && plan !== "free" ? state.replacesSubscriptionId : null;
+      paying && state.replacesSubscriptionId === user.billingSubscriptionId
+        ? state.replacesSubscriptionId
+        : null;
     if (replaces && replaces !== state.subscriptionId) {
       await tx
         .insert(trialReplacements)
@@ -226,7 +239,7 @@ export async function applySubscriptionState(
     }
     await carryUsageOver(tx, user, after, now);
     if (plan !== "free") {
-      await recordTrialHistory(tx, row.email, state.status === "trialing" ? "trial" : "paid", now);
+      await recordTrialHistory(tx, row.email, trialEndsAt === null ? "paid" : "trial", now);
     }
     return {
       outcome: "applied",
@@ -236,6 +249,21 @@ export async function applySubscriptionState(
       before,
     };
   });
+}
+
+// Once per key: false when it was already claimed.
+export async function claimBillingEvent(
+  id: string,
+  type: string,
+  now = Date.now(),
+): Promise<boolean> {
+  const db = await getDb();
+  const claimed = await db
+    .insert(billingEvents)
+    .values({ id, type, receivedAt: now })
+    .onConflictDoNothing()
+    .returning({ id: billingEvents.id });
+  return claimed.length > 0;
 }
 
 async function isReplaced(db: Db, subscriptionId: string): Promise<boolean> {

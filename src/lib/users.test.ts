@@ -136,7 +136,7 @@ describe("toSessionUser", () => {
       toSessionUser({
         ...row,
         plan: "pro",
-        planInterval: "week",
+        planInterval: "year",
         planRenewsAt: NOW + 1000,
         billingCustomerId: "cus_1",
       }),
@@ -144,7 +144,7 @@ describe("toSessionUser", () => {
       id: row.id,
       email: "linus@example.com",
       plan: "pro",
-      planInterval: "week",
+      planInterval: "year",
       planRenewsAt: NOW + 1000,
       trialEndsAt: null,
       planPeriodStartsAt: null,

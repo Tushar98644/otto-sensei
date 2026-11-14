@@ -4,6 +4,7 @@ import { pageMetadata } from "@/components/site/page-metadata";
 import { ROUTES } from "@/components/site/routes";
 import { BRAND } from "@/config/brand";
 import { LegalPage } from "../_components/legal-page";
+import { PADDLE_PRIVACY_URL } from "../_components/merchant";
 
 export const metadata: Metadata = pageMetadata({
   title: "Privacy policy",
@@ -79,7 +80,7 @@ export default function PrivacyPage() {
         </li>
         <li>
           <strong>Plan and billing status.</strong> If you subscribe or start a trial, we store your
-          plan and the subscription details Creem sends us, such as whether it&apos;s active, when
+          plan and the subscription details Paddle sends us, such as whether it&apos;s active, when
           your trial ends and when it renews. We never see your full card number.
         </li>
         <li>
@@ -187,10 +188,28 @@ export default function PrivacyPage() {
 
       <h2>Payments</h2>
       <p>
-        Creem handles payments as our merchant of record. They collect your payment details (also
-        for a trial with nothing charged, so the plan can start when it ends), charge you, send
-        receipts and handle sales tax, under their own privacy policy.
+        Paddle (Paddle.com) handles payments as our merchant of record. Paddle collects your payment
+        details (also for a trial with nothing charged, so the plan can start when it ends), charges
+        you, sends receipts and handles sales tax, under its own{" "}
+        <a href={PADDLE_PRIVACY_URL}>privacy policy</a>. The checkout page loads Paddle&apos;s
+        checkout from Paddle, which may use its own cookies there.
       </p>
+      <ul>
+        <li>
+          <strong>What we send Paddle:</strong> when you start a checkout, your account email, our
+          random id for your account and the plan you picked, so the payment is linked to your
+          account. When you start a checkout or delete your account, we also look up that email at
+          Paddle, so you&apos;re never charged for a second subscription and every one is cancelled.
+        </li>
+        <li>
+          <strong>What Paddle sends us:</strong> your subscription&apos;s plan and status, its
+          billing period, when it renews or your trial ends, a pending cancellation, and
+          Paddle&apos;s ids for you and your subscription. If a payment can&apos;t be matched to an
+          account by those, we ask Paddle for the email on it. Its payment notices may also carry
+          the card&apos;s type, last four digits, expiry date and holder name, which we don&apos;t
+          store. Paddle never sends us your full card number.
+        </li>
+      </ul>
 
       <h2>Cookies and local storage</h2>
       <p>We use only what the app needs to work:</p>
@@ -212,6 +231,11 @@ export default function PrivacyPage() {
           <strong>Local storage</strong> (not a cookie) keeps your resumes, your progress and which
           tours you&apos;ve seen on your device until you delete them or clear your browser data.
         </li>
+        <li>
+          <strong>Paddle&apos;s checkout</strong>, only on the checkout page, may set its own
+          cookies to run the payment and prevent fraud, under Paddle&apos;s{" "}
+          <a href={PADDLE_PRIVACY_URL}>privacy policy</a>.
+        </li>
       </ul>
       <p>
         We don&apos;t use ads or tracking cookies. For the usage events above, a random id is kept
@@ -230,7 +254,7 @@ export default function PrivacyPage() {
           the AI features above.
         </li>
         <li>
-          <strong>Creem</strong> processes payments as our merchant of record.
+          <strong>Paddle</strong> processes payments as our merchant of record and online reseller.
         </li>
         <li>
           <strong>Supabase</strong> hosts our database and runs sign-in, including your sign-in

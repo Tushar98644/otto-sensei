@@ -9,7 +9,7 @@ describe("PricingPlans", () => {
   it("shows monthly prices (struck-through references only when switched on) and the Rezi line on Pro only", () => {
     const html = text(
       renderToStaticMarkup(
-        <PricingPlans offer={{ pro: ["month", "year", "week"], max: ["month", "year"] }} />,
+        <PricingPlans offer={{ pro: ["month", "year"], max: ["month", "year"] }} />,
       ),
     );
     if (SHOW_REFERENCE_PRICES) {
@@ -27,5 +27,8 @@ describe("PricingPlans", () => {
     expect(html.match(/Less than a pizza a month\./g)).toHaveLength(1);
     expect(html).toContain("1 resume");
     expect(html).toContain("Classic and Compact formats");
+    expect(html).toContain("Monthly");
+    expect(html).toContain("Yearly");
+    expect(html).not.toMatch(/weekly|\/week/i);
   });
 });

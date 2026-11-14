@@ -8,12 +8,12 @@ You will end up with:
 ```
 Browser → Vercel (app, US East iad1) → Supabase (database + sign-in, US East)
                                      → Resend (sign-in emails, through Supabase)
-                                     → Google (sign-in), OpenRouter (AI), Creem (payments)
+                                     → Google (sign-in), OpenRouter (AI), Paddle (payments)
 ```
 
 What you need: accounts at vercel.com, supabase.com, resend.com (plus a domain you can add DNS
-records to), console.cloud.google.com, openrouter.ai and creem.io. On your laptop: `bun`
-and the Vercel CLI (`bun add -g vercel`).
+records to), console.cloud.google.com, openrouter.ai and paddle.com (a sandbox account first, at
+sandbox-vendors.paddle.com). On your laptop: `bun` and the Vercel CLI (`bun add -g vercel`).
 
 All commands run in this folder (`projects/resume-app/web`).
 
@@ -388,10 +388,12 @@ changing one, check quality and cost with `bun scripts/ai-smoke.ts` (a few cents
 
 ---
 
-## 10. Payments: Creem
+## 10. Payments: Paddle
 
-Creem is the merchant of record: it runs checkout, charges the card, adds sales tax or VAT, sends
-receipts and hosts the billing portal. The app only stores the plan its webhooks report.
+Paddle is the merchant of record (our online reseller): it runs the checkout, charges the card,
+adds sales tax or VAT, sends receipts and hosts the customer portal. The checkout itself opens on
+our own `/checkout` page, which loads Paddle.js (Paddle has no fully hosted checkout for web apps).
+The app only stores the plan its webhooks report.
 
 **What's free and what's paid.** Free (no card, no time limit) has everything that costs no AI
 call: uploads read by the basic reader, the recruiter view, editing, formats, PDF downloads, the
@@ -400,85 +402,171 @@ Jobs tab and its matching, and the application tracker. On AI it has only 3 line
 tailoring, letters, answers, interview prep, Build with Otto, GitHub drafts, AI reading of uploads)
 and the portfolio need Pro or Max. New accounts start Pro with a **3-day trial, nothing charged,
 card required**, then $15/month; one trial per person (by email, kept even after the account is
-deleted). A trial has its own small allowance (`PRO_TRIAL` in `src/config/plans.ts`) and can build
-a portfolio but not publish it until the first payment.
+deleted). A trial has its own small allowance (`PRO_TRIAL` in `src/config/plans.ts`). Plans are
+monthly or yearly; there are no weekly plans.
 
-Work in **Test Mode** first (toggle at the bottom of Creem's left sidebar). Test and live are
-separate: their own API key, webhook secret and products. Do every step below once in test mode,
-and again in live mode when you switch.
+**Sandbox first.** Paddle has two separate accounts that share nothing: **sandbox**
+(sandbox-vendors.paddle.com, test cards only, no approval needed) and **live**
+(vendors.paddle.com). Products, prices, keys, the client token, the default payment link and the
+webhook all exist once in each. Do steps 1 to 7 in sandbox now; step 8 repeats them in live.
 
-**1. Create the 7 products.** **Products** → **Create product**, each one **Subscription**
-(recurring), currency **USD**, tax category **SaaS**:
+**1. Products and prices.** **Catalog** → **Products** → **New product**: one product called
+**Otto Sensei Pro** and one called **Otto Sensei Max** (tax category **SaaS**; buyers see the name
+on the checkout and their receipts). On each, **New price**, currency **USD**, tax mode
+**excluding tax** (tax is added at checkout, as the pricing page says):
 
-| # | Name | Price | Billing period | Trial | Variable |
+| # | Product | Price | Billing period | Trial | Variable |
 |---|---|---|---|---|---|
-| 1 | Pro | $15 | Monthly | none | `CREEM_PRO_MONTHLY_PRODUCT_ID` (required) |
-| 2 | Pro (3-day free trial) | $15 | Monthly | **Trial period on, 3 days, Free** | `CREEM_PRO_TRIAL_PRODUCT_ID` |
-| 3 | Pro yearly | $120 | Yearly | none | `CREEM_PRO_YEARLY_PRODUCT_ID` |
-| 4 | Pro weekly | $6 | Custom: every 1 week | none | `CREEM_PRO_WEEKLY_PRODUCT_ID` |
-| 5 | Max | $29 | Monthly | none | `CREEM_MAX_MONTHLY_PRODUCT_ID` |
-| 6 | Max yearly | $232 | Yearly | none | `CREEM_MAX_YEARLY_PRODUCT_ID` |
-| 7 | Max weekly | $12 | Custom: every 1 week | none | `CREEM_MAX_WEEKLY_PRODUCT_ID` |
+| 1 | Pro | $15.00 | Every 1 month | none | `PADDLE_PRO_MONTHLY_PRICE_ID` (required) |
+| 2 | Pro | $15.00 | Every 1 month | **3 days, payment method required, no trial price** | `PADDLE_PRO_TRIAL_PRICE_ID` |
+| 3 | Pro | $120.00 | Every 1 year | none | `PADDLE_PRO_YEARLY_PRICE_ID` |
+| 4 | Max | $29.00 | Every 1 month | none | `PADDLE_MAX_MONTHLY_PRICE_ID` |
+| 5 | Max | $232.00 | Every 1 year | none | `PADDLE_MAX_YEARLY_PRICE_ID` |
 
-- Product 2 is the one new accounts check out on: **Trial period** on, length **3** days, type
-  **Free** (no trial price). Creem saves the card at checkout and charges $15 when the 3 days end,
-  unless the person cancels first. Everyone who has trialed or paid before is sent to product 1
-  instead, so the trial is once per person. Without product 2 there is simply no trial.
-- Weekly: in the API this is `billing_period: "custom"`, `recurring_interval: "week"`,
-  `recurring_interval_count: 1`.
-- Copy each product id (`prod_...`) from its page. Each option shows on the pricing page, the
-  upgrade dialog and the account page only while its id is set (Pro monthly is required; Max needs
-  at least one of its three). The webhook maps each id to its plan and billing period, which sets
-  the allowance (weekly products get the weekly limits), so every variable must hold a product with
-  exactly that period, and no two variables the same id.
-- The app shows `PRICES_USD` from `src/config/plans.ts`; Creem charges what the product says.
+- Price 2 is the one new accounts check out on. Paddle saves the card at checkout and charges $15
+  when the 3 days end, unless the person cancels first. Everyone who has trialed or paid before is
+  sent to price 1 instead, so the trial is once per person. Without price 2 there is simply no
+  trial.
+- Copy each **price** id (`pri_...`), not the product id (`pro_...`). Each option shows on the
+  pricing page, the upgrade dialog and the account page only while its id is set (Pro monthly is
+  required; Max needs at least one of its two). The webhook maps each price id to its plan and
+  billing period, which sets the allowance, so every variable must hold a price with exactly that
+  period, and no two variables the same id. Don't create weekly prices.
+- The app shows `PRICES_USD` from `src/config/plans.ts`; Paddle charges what the price says.
   Change both together, then redeploy (the pricing page is built with them).
-- **Settings** → billing: set the default cancellation to **at the end of the billing period**, so
+- Cancelling needs no setting: Paddle's portal cancels at the end of the billing period, so
   someone who cancels keeps what they paid for (the terms say so). The app itself cancels right
-  away only when an account is deleted.
+  away only when an account is deleted, or when a trial is replaced by another plan.
 
-**2. API key.** **Developers** → **API keys** → copy the key → `CREEM_API_KEY`.
+**2. API key.** **My account** → **Settings** → **Authentication** → **API keys** → **New API
+key**, name `otto-sensei`. Give it only these permissions:
 
-**3. Webhook.** **Developers** → **Webhooks** → add an endpoint:
+| Permission | Read | Write | Used for |
+|---|---|---|---|
+| Customers | yes | yes | Finding or creating the customer for a checkout; the webhook's email fallback |
+| Transactions | yes | yes | Creating each checkout |
+| Subscriptions | yes | yes | Plan changes, finding live subscriptions, cancelling on account deletion |
+| Customer portal sessions | | yes | **Manage billing** |
 
-- URL: `https://otto-sensei.vercel.app/api/billing/webhook` (your domain, if you have one).
-- Events: `checkout.completed`, `subscription.active`, `subscription.trialing`,
-  `subscription.paid`, `subscription.update`, `subscription.scheduled_cancel`,
-  `subscription.past_due`, `subscription.unpaid`, `subscription.paused`, `subscription.canceled`,
-  `subscription.expired`. (Others are answered 200 and ignored.)
-- Copy the signing secret → `CREEM_WEBHOOK_SECRET`. Every delivery is checked against it (the
-  `creem-signature` header, an HMAC-SHA256 of the body); a wrong one gets 401.
+Set an expiry (at most a year) and put the renewal date in your calendar: with an expired key,
+checkout, **Manage billing** and account deletion fail until a new key is in Vercel. Copy the key
+(`pdl_sdbx_apikey_...` in sandbox, `pdl_live_apikey_...` in live; shown once) →
+`PADDLE_API_KEY`.
 
-**4. Put them into Vercel.**
+**3. Client-side token.** Same page → **Client-side tokens** → **New client-side token**, name
+`otto-sensei-web`. Copy it (`test_...` in sandbox, `live_...` in live) →
+`NEXT_PUBLIC_PADDLE_CLIENT_TOKEN`. It is safe in the browser (it can only open checkouts and
+preview prices). It is built into the page, so redeploy after changing it.
+
+**4. Default payment link.** **Checkout** → **Checkout configuration**, expand **Default payment
+link**: `https://<your app>/checkout`, for example `https://www.ottosensei.com/checkout`. **Save**.
+
+- Paddle builds every checkout link from it (`/checkout?_ptxn=txn_...`) and uses it in its own
+  emails, for example to update a card. Without it every checkout fails with
+  `transaction_default_checkout_url_not_set`.
+- `/checkout` loads Paddle.js, opens the checkout, and sends the buyer back to the account page
+  (`/account?checkout=success`, or `checkout=cancelled` if they close it). It works signed out
+  and isn't indexed.
+- It must be a real domain, not localhost. Sandbox accepts any domain; live only an approved one
+  (step 8). Because checkout always opens there, try sandbox payments on the deployed app; `bun dev`
+  uses mock billing (below).
+
+**5. Webhook.** **Events** → **Notifications** → **New destination**:
+
+- Notification type **URL**: `https://<your app>/api/billing/webhook`. API version **1**.
+- Usage type: **platform and simulation** in sandbox (so the simulator works), **platform** only
+  in live.
+- Events: `subscription.created`, `subscription.trialing`, `subscription.activated`,
+  `subscription.updated`, `subscription.past_due`, `subscription.paused`, `subscription.resumed`,
+  `subscription.canceled` and `transaction.completed`. (Others are answered 200 and ignored.)
+- **Save**, open the destination and copy its **secret key** (`pdl_ntfset_...`) →
+  `PADDLE_WEBHOOK_SECRET`. Every delivery's `Paddle-Signature` header (an HMAC-SHA256 of its
+  timestamp and body) is checked against it; a wrong one, or one more than 5 minutes old, gets 401.
+- Don't delete and recreate the destination later: a new one has a new secret.
+- Vercel doesn't filter webhooks. If a firewall is ever put in front of the app, allow Paddle's
+  webhook IPs (the current list is at `https://api.paddle.com/ips`) on `/api/billing/webhook`.
+
+**6. Put them into Vercel.**
 
 ```bash
-vercel env add CREEM_API_KEY production
-vercel env add CREEM_WEBHOOK_SECRET production
-vercel env add CREEM_TEST_MODE production              # true now (test-api.creem.io); false with live keys
-vercel env add CREEM_PRO_MONTHLY_PRODUCT_ID production
-vercel env add CREEM_PRO_TRIAL_PRODUCT_ID production
-vercel env add CREEM_PRO_YEARLY_PRODUCT_ID production
-vercel env add CREEM_PRO_WEEKLY_PRODUCT_ID production
-vercel env add CREEM_MAX_MONTHLY_PRODUCT_ID production
-vercel env add CREEM_MAX_YEARLY_PRODUCT_ID production
-vercel env add CREEM_MAX_WEEKLY_PRODUCT_ID production
+vercel env add PADDLE_API_KEY production
+vercel env add PADDLE_WEBHOOK_SECRET production
+vercel env add NEXT_PUBLIC_PADDLE_CLIENT_TOKEN production
+vercel env add PADDLE_ENVIRONMENT production            # sandbox now; live with the live values
+vercel env add PADDLE_PRO_MONTHLY_PRICE_ID production
+vercel env add PADDLE_PRO_TRIAL_PRICE_ID production
+vercel env add PADDLE_PRO_YEARLY_PRICE_ID production
+vercel env add PADDLE_MAX_MONTHLY_PRICE_ID production
+vercel env add PADDLE_MAX_YEARLY_PRICE_ID production
+vercel --prod
 ```
 
-Checkout turns on only when the key, the webhook secret and Pro monthly are all set. Until then
-production shows "email us". `CREEM_TEST_MODE` defaults to `true`: a missing value can never take
-real money. Going live: live key, live webhook secret, live product ids, `CREEM_TEST_MODE=false`,
-redeploy.
+Checkout turns on only when the key, the webhook secret, the client token and Pro monthly are all
+set. Until then production shows "email us". `PADDLE_ENVIRONMENT` defaults to `sandbox`: only
+`live` (or `production`) uses Paddle's live API, so a missing or mistyped value can never take
+real money. Changed a value? Redeploy: the pricing page and the client token are built in.
 
-**5. Test it** (test mode, card `4111 1111 1111 1111`, any future date and CVC):
+**Moving off Creem** (once, the first time Paddle goes in): Creem only ever ran in test mode, so
+nobody has paid. Delete the Creem webhook endpoint, then remove the old variables
+(`vercel env rm CREEM_API_KEY production`, and the same for `CREEM_WEBHOOK_SECRET`,
+`CREEM_TEST_MODE` and every `CREEM_*_PRODUCT_ID`). Accounts may still be on Pro or Max from Creem
+test checkouts: once the Paddle build is live, `bun scripts/reset-creem-plans.ts` against the
+production database (the `.env.local` from step 5, like `bun scripts/migrate.ts`) prints how many
+(it changes nothing), and the same command with `--apply` moves them back to Free and clears their
+Creem ids. It prints counts only, never emails.
 
-- A new account → **Try Pro for 3 days** → checkout says nothing is due today. Back on the
+**7. Test it** (sandbox, on the deployed app). Card `4242 4242 4242 4242`, any name, any future
+date, CVC `100`. Other sandbox cards: `4000 0038 0000 0446` asks for 3-D Secure,
+`4000 0000 0000 0002` is declined, `4000 0027 6000 3184` pays once and then fails (past due).
+
+- A new account → **Try Pro for 3 days** → the checkout says nothing is due today. Back on the
   account page it shows "Pro trial until <date>" within a few seconds (`subscription.trialing`).
-- Cancel it from **Manage billing**: the account drops to Free. Checking out again now shows the
-  normal $15/month, no trial.
-- Pro to Max: the subscription moves in place (`POST /v1/subscriptions/{id}/upgrade`, prorated and
-  charged right away), so nobody is billed twice.
+- Start a checkout and close it without paying: you're back on the account page and it says the
+  checkout was cancelled.
+- **Manage billing** opens Paddle's portal (invoices, card, cancel). Cancel there: the plan stays
+  until the trial or the paid period ends, with no renewal date shown.
+- Delete the account from the account page: its sandbox subscription shows **Canceled** in
+  Paddle at once. Sign up again with the same email: checkout now shows $15/month and no trial.
+- Pro to Max on a paid Pro plan changes the subscription in place, prorated and charged right
+  away, so nobody is billed twice. During a Pro trial, Max is its own checkout, and the trial is
+  cancelled the moment Max starts.
+- **Events** → **Simulations** sends sample events. They carry made-up ids, so the app
+  answers 200 and changes no account.
 
-**Mock billing.** In `bun dev` with no Creem key every option is offered and nothing is charged:
+**8. Going live.** Sign up at vendors.paddle.com (the live account is new; nothing carries over
+from sandbox), then:
+
+1. **Website approval** (**My account** → **Settings** → **Website approval**): submit
+   `ottosensei.com` (`www.` is covered; any other subdomain needs its own). Paddle reviews the live
+   HTTPS site: a clear product description, pricing that matches the catalog, Terms, Refund policy
+   and Privacy policy linked from every page (the footer links all three, and they name Paddle),
+   the business or sole-proprietor name in the terms, and contact details reachable from the home
+   page. Live checkout won't open on a domain that isn't approved.
+2. **Account verification** (**Get started** → **Verify your account**), by an admin: personal
+   details (date of birth, home address), the business's legal name and address, the website and
+   what you sell. It usually takes minutes once the domain is approved.
+3. **Payouts** (**Business account** → **Payouts** → **Payout settings**): add the bank or Payoneer
+   details. Paddle pays out monthly once the balance is over $100 (the minimum; you can raise it).
+4. **Payment recovery** (**Retain** → **Payment recovery**): when retries run out, **cancel** the
+   subscription rather than pause it. A paused one drops the account to Free but stays open in
+   Paddle, and the app has no way to resume it.
+5. Repeat steps 1 to 5 in the live account (the same five prices, the default payment link on the
+   approved domain, the webhook with **platform** usage).
+6. **End the sandbox plans, right before the switch.** Anyone who checked out while production
+   ran on sandbox (you, testers, or anyone using Paddle's public test card) has Pro or Max from a
+   sandbox subscription that the live account can't see or end. While production still runs on
+   sandbox, cancel each of them in the sandbox dashboard (**Subscriptions**, or **Customers** →
+   the customer → the subscription → **Cancel subscription**), immediately; each cancel reaches the
+   app and moves that account to Free. Check the list is empty, then go straight to the next step.
+7. Replace the values in Vercel (`vercel env rm NAME production`, then `vercel env add NAME
+   production`): the live API key (`pdl_live_apikey_...`), the live webhook secret, the `live_...`
+   client token, the five live price ids and `PADDLE_ENVIRONMENT=live`. Redeploy.
+8. In the sandbox dashboard, deactivate the sandbox webhook destination (**Events** →
+   **Notifications**): production now checks the live secret, so its deliveries only fail.
+9. Before telling anyone: one real checkout on the live site with a 100% discount code, then
+   cancel that subscription and archive the discount.
+
+**Mock billing.** In `bun dev` with no Paddle keys every option is offered and nothing is charged:
 a new account's first Pro monthly checkout starts a local 3-day trial, anything else switches the
 plan at once, and **Manage billing** switches back to Free.
 
@@ -495,9 +583,9 @@ quietly; the rest of the app runs the same.
 
 | Variable | Turns on | Step |
 |---|---|---|
-| `CREEM_PRO_TRIAL_PRODUCT_ID` | The free 3-day Pro trial for new accounts | 10 |
-| `CREEM_PRO_YEARLY_PRODUCT_ID`, `CREEM_PRO_WEEKLY_PRODUCT_ID` | Yearly ($120) and weekly ($6) Pro | 10 |
-| `CREEM_MAX_MONTHLY_PRODUCT_ID`, `_MAX_YEARLY_`, `_MAX_WEEKLY_PRODUCT_ID` | The Max plan ($29/month, $232/year, $12/week) | 10 |
+| `PADDLE_PRO_TRIAL_PRICE_ID` | The free 3-day Pro trial for new accounts | 10 |
+| `PADDLE_PRO_YEARLY_PRICE_ID` | Yearly Pro ($120) | 10 |
+| `PADDLE_MAX_MONTHLY_PRICE_ID`, `PADDLE_MAX_YEARLY_PRICE_ID` | The Max plan ($29/month, $232/year) | 10 |
 | `NEXT_PUBLIC_SENTRY_DSN` (+ `SENTRY_AUTH_TOKEN`, `SENTRY_ORG`, `SENTRY_PROJECT`) | Error reports (+ readable stack traces) | 10b |
 | `NEXT_PUBLIC_POSTHOG_KEY` (+ `NEXT_PUBLIC_POSTHOG_HOST` for EU) | Funnel events | 10c |
 | `GITHUB_TOKEN` | Higher GitHub limits for Import from GitHub and portfolio GitHub numbers | 10d |
@@ -681,7 +769,8 @@ the values that existed when it was built.
 **Custom domain** (optional): `vercel domains add ottosensei.com`, follow the DNS instructions, then
 update the same address everywhere it was typed: `NEXT_PUBLIC_APP_URL` in Vercel, **Site URL** and
 **Redirect URLs** in Supabase (step 7), **Authorized JavaScript origins** in Google (step 8a), and
-the Creem webhook URL (step 10). Redeploy.
+in Paddle (step 10) the default payment link, the webhook destination's URL and, in live, a
+**Website approval** for the new domain. Redeploy.
 
 ---
 
@@ -695,10 +784,11 @@ the Creem webhook URL (step 10). Redeploy.
 - [ ] **Import from GitHub** → **Connect GitHub**: you come back to the same page, connected as
       your GitHub name (step 8c).
 - [ ] Fix one line with Otto (proves OpenRouter and the usage counter).
-- [ ] Run a test-mode trial checkout; the account shows the Pro trial and its end date within a
-      few seconds (proves the webhook). A second checkout from the same email shows $15, no trial.
+- [ ] Run a sandbox trial checkout (card `4242 4242 4242 4242`, CVC `100`); the account shows the
+      Pro trial and its end date within a few seconds (proves the webhook).
 - [ ] Delete that test account from the account page; it disappears from Supabase
-      **Authentication** → **Users**, and its Creem test subscription shows canceled.
+      **Authentication** → **Users**, and its Paddle sandbox subscription shows canceled. Sign up
+      again with the same email: checkout shows $15, no trial.
 - [ ] Supabase **Project Settings** → **API Keys**: the secret key exists only in Vercel and your
       `.env.local`.
 - [ ] Vercel **Settings** → **Cron Jobs**: press **Run** on all three jobs; each log line ends in

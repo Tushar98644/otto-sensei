@@ -6,7 +6,7 @@ import { referralCodes, referrals, users } from "@/db/schema";
 import { createUser, resetDb } from "@/lib/auth/test-helpers";
 import type { SessionUser } from "@/lib/auth/types";
 import { resetEnvForTests } from "@/lib/env";
-import { consumeUsage, getUsage } from "@/lib/usage";
+import { addMonths, consumeUsage, getUsage } from "@/lib/usage";
 import { claimReferral, ensureReferralCode, referralSummary } from "./records";
 import { CLAIM_WINDOW_MS, MAX_REWARDED_REFERRALS, REFERRAL_BONUS } from "./referrals";
 
@@ -249,25 +249,30 @@ describe("referralSummary", () => {
     });
   });
 
-  it("puts a weekly subscriber's extras on their billing week, and the friend's on their month", async () => {
-    const renewsAt = Date.UTC(2026, 10, 19, 9, 30);
+  it("puts a yearly subscriber's extras on their month of the year, and the friend's on their month", async () => {
+    const yearStart = Date.UTC(2026, 0, 31, 9, 30);
+    const yearly = {
+      plan: "pro",
+      planInterval: "year",
+      planPeriodStartsAt: yearStart,
+      planPeriodEndsAt: addMonths(yearStart, 12),
+      planRenewsAt: addMonths(yearStart, 12),
+    } as const;
     const db = await getDb();
-    await db
-      .update(users)
-      .set({ plan: "pro", planInterval: "week", planRenewsAt: renewsAt })
-      .where(eq(users.id, owner.id));
-    const weeklyOwner: SessionUser = { ...owner, plan: "pro", planInterval: "week", planRenewsAt: renewsAt };
+    await db.update(users).set(yearly).where(eq(users.id, owner.id));
+    const yearlyOwner: SessionUser = { ...owner, ...yearly };
     const maya = await friend();
     expect(
       await claimReferral({ userId: maya.id, code, deviceId: device(), checked: true }, NOV),
     ).toBe("rewarded");
 
-    expect((await getUsage(weeklyOwner, NOV)).fix.limit).toBe(PLANS.pro.weeklyLimits.fix + REFERRAL_BONUS.fix);
+    expect((await getUsage(yearlyOwner, NOV)).fix.limit).toBe(PLANS.pro.limits.fix + REFERRAL_BONUS.fix);
     expect((await getUsage(onPro(maya), NOV)).fix.limit).toBe(PLANS.pro.limits.fix + REFERRAL_BONUS.fix);
     expect(await referralSummary(owner.id, null, NOV)).toMatchObject({
       thisPeriod: REFERRAL_BONUS,
-      period: "week",
+      period: "month",
     });
-    expect((await getUsage(weeklyOwner, renewsAt)).fix.limit).toBe(PLANS.pro.weeklyLimits.fix);
+    const nextMonth = Date.UTC(2026, 10, 30, 9, 30);
+    expect((await getUsage(yearlyOwner, nextMonth)).fix.limit).toBe(PLANS.pro.limits.fix);
   });
 });

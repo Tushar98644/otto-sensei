@@ -2,11 +2,11 @@ import { eq } from "drizzle-orm";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { AI_TOKEN_BUDGETS, FEATURES, PLANS, PRO_TRIAL } from "@/config/plans";
 import { getDb } from "@/db/client";
-import { users } from "@/db/schema";
+import { usage, users } from "@/db/schema";
 import { clearSession } from "@/lib/auth/session";
 import { AUTH_COOKIE, cookieJar, fakeAuth, resetDb, signInAs, signInOnTrial } from "@/lib/auth/test-helpers";
 import { recordTrialHistory } from "@/lib/billing/trial";
-import { billingWeekEnd, consumeUsage } from "@/lib/usage";
+import { consumeUsage } from "@/lib/usage";
 import { GET } from "./route";
 
 vi.mock("next/headers", async () => (await import("@/lib/auth/test-helpers")).nextHeadersMock);
@@ -36,7 +36,7 @@ describe("GET /api/me", () => {
       aiBudget: null,
       billing: {
         mode: "mock",
-        offer: { pro: ["month", "year", "week"], max: ["month", "year", "week"] },
+        offer: { pro: ["month", "year"], max: ["month", "year"] },
         trial: true,
       },
       auth: { mode: "supabase" },
@@ -68,7 +68,7 @@ describe("GET /api/me", () => {
       aiBudget: null,
       billing: {
         mode: "mock",
-        offer: { pro: ["month", "year", "week"], max: ["month", "year", "week"] },
+        offer: { pro: ["month", "year"], max: ["month", "year"] },
         trial: true,
       },
       auth: { mode: "supabase" },
@@ -91,20 +91,34 @@ describe("GET /api/me", () => {
     expect(body.billing.trial).toBe(false);
   });
 
-  it("counts a weekly subscriber's usage per billing week, with its reset time", async () => {
+  it("counts a paid plan per billing month, ignoring rows left from weekly plans", async () => {
     const user = await signInAs("ada@example.com");
-    const renewsAt = Date.now() + 2 * 86_400_000;
+    const minute = Math.floor(Date.now() / 60_000) * 60_000;
+    const periodStartsAt = minute - 86_400_000;
+    const periodEndsAt = minute + 29 * 86_400_000;
+    const paid = {
+      plan: "max",
+      planInterval: "month",
+      planRenewsAt: periodEndsAt,
+      planPeriodStartsAt: periodStartsAt,
+      planPeriodEndsAt: periodEndsAt,
+    } as const;
     const db = await getDb();
+    await db.update(users).set(paid).where(eq(users.id, user.id));
     await db
-      .update(users)
-      .set({ plan: "max", planInterval: "week", planRenewsAt: renewsAt })
-      .where(eq(users.id, user.id));
-    await consumeUsage({ ...user, plan: "max", planInterval: "week", planRenewsAt: renewsAt }, "tailor");
+      .insert(usage)
+      .values({
+        subject: user.id,
+        feature: "tailor",
+        period: "week:2026-11-19T09:30:00.000Z",
+        count: 30,
+      });
+    await consumeUsage({ ...user, ...paid }, "tailor");
 
     const body = await (await GET()).json();
-    expect(body.user).toMatchObject({ plan: "max", planInterval: "week" });
-    expect(body.period).toEqual({ kind: "week", resetsAt: billingWeekEnd(renewsAt, Date.now()) });
-    expect(body.usage.tailor).toEqual({ used: 1, limit: PLANS.max.weeklyLimits.tailor });
+    expect(body.user).toMatchObject({ plan: "max", planInterval: "month" });
+    expect(body.period).toEqual({ kind: "month", resetsAt: periodEndsAt, renews: true });
+    expect(body.usage.tailor).toEqual({ used: 1, limit: PLANS.max.limits.tailor });
   });
 
   it("tells the sign-in form when Supabase isn't set up", async () => {

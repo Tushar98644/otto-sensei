@@ -5,13 +5,12 @@ import { users } from "@/db/schema";
 import { getCurrentUser } from "@/lib/auth/session";
 import type { SessionUser } from "@/lib/auth/types";
 import { insertUserRow, resetDb } from "@/lib/auth/test-helpers";
-import { creemSignature, installFakeCreem } from "@/lib/billing/testing";
+import { installFakePaddle } from "@/lib/billing/testing";
 import { resetEnvForTests } from "@/lib/env";
 import { rateLimit } from "@/lib/rate-limit";
 import { toSessionUser } from "@/lib/users";
 import { POST as checkout } from "./checkout/route";
 import { POST as portal } from "./portal/route";
-import { POST as webhook } from "./webhook/route";
 
 vi.mock("@/lib/auth/session", () => ({ getCurrentUser: vi.fn() }));
 vi.mock("@/lib/rate-limit", async (importOriginal) => ({
@@ -22,9 +21,8 @@ vi.mock("@/lib/rate-limit", async (importOriginal) => ({
 const currentUser = vi.mocked(getCurrentUser);
 const limiter = vi.mocked(rateLimit);
 
-const SECRET = "whsec_otto_route_test_secret";
-const OTHER_SECRET = "whsec_not_the_configured_one";
-const PRODUCT_ID = "prod_otto_pro";
+const SECRET = "pdl_ntfset_otto_route_test_secret";
+const PRICE_ID = "pri_otto_pro";
 
 type UserRow = typeof users.$inferSelect;
 
@@ -62,9 +60,10 @@ async function reload(id: string): Promise<UserRow | undefined> {
 }
 
 beforeEach(async () => {
-  vi.stubEnv("CREEM_API_KEY", undefined);
-  vi.stubEnv("CREEM_PRO_MONTHLY_PRODUCT_ID", PRODUCT_ID);
-  vi.stubEnv("CREEM_WEBHOOK_SECRET", SECRET);
+  vi.stubEnv("PADDLE_API_KEY", undefined);
+  vi.stubEnv("PADDLE_PRO_MONTHLY_PRICE_ID", PRICE_ID);
+  vi.stubEnv("PADDLE_WEBHOOK_SECRET", SECRET);
+  vi.stubEnv("NEXT_PUBLIC_PADDLE_CLIENT_TOKEN", "test_otto_client_token");
   resetEnvForTests();
   currentUser.mockReset();
   currentUser.mockResolvedValue(null);
@@ -121,7 +120,7 @@ describe("POST /api/billing/checkout", () => {
 
   it("answers 503 when payments are switched off", async () => {
     vi.stubEnv("NODE_ENV", "production");
-    vi.stubEnv("CREEM_WEBHOOK_SECRET", undefined);
+    vi.stubEnv("PADDLE_WEBHOOK_SECRET", undefined);
     resetEnvForTests();
     const user = await signIn();
     const res = await checkout(checkoutRequest());
@@ -158,7 +157,7 @@ describe("POST /api/billing/checkout", () => {
     expect(text).not.toContain("/srv/otto/secrets");
   });
 
-  it("in mock checkout, sells yearly and weekly without any product set", async () => {
+  it("in mock checkout, sells yearly without any price set", async () => {
     const user = await signIn();
     const res = await checkout(checkoutRequest({ interval: "year" }));
     expect(res.status).toBe(200);
@@ -173,11 +172,11 @@ describe("POST /api/billing/checkout", () => {
   });
 });
 
-describe("POST /api/billing/checkout with Creem", () => {
+describe("POST /api/billing/checkout with Paddle", () => {
   beforeEach(() => {
-    vi.stubEnv("CREEM_API_KEY", "creem_test_123");
-    vi.stubEnv("CREEM_PRO_TRIAL_PRODUCT_ID", "prod_otto_trial");
-    vi.stubEnv("CREEM_MAX_MONTHLY_PRODUCT_ID", "prod_otto_max");
+    vi.stubEnv("PADDLE_API_KEY", "pdl_sdbx_apikey_test");
+    vi.stubEnv("PADDLE_PRO_TRIAL_PRICE_ID", "pri_otto_trial");
+    vi.stubEnv("PADDLE_MAX_MONTHLY_PRICE_ID", "pri_otto_max");
     resetEnvForTests();
   });
 
@@ -189,35 +188,43 @@ describe("POST /api/billing/checkout with Creem", () => {
       planInterval: "month",
       planStatus,
       trialEndsAt: planStatus === "trialing" ? Date.now() + 86_400_000 : null,
-      billingCustomerId: "cust_1",
+      billingCustomerId: "ctm_1",
       billingSubscriptionId: "sub_1",
     });
 
-  it("sends someone on the Pro trial to a Max checkout instead of failing", async () => {
-    const creem = installFakeCreem();
-    await subscriber("trialing");
-    creem.subscriptions.push({
-      id: "sub_1",
-      customer: "cust_1",
-      product: "prod_otto_trial",
-      status: "trialing",
+  it("returns our checkout page for a new account, on the trial", async () => {
+    const paddle = installFakePaddle();
+    const user = await signIn();
+    const res = await checkout(checkoutRequest());
+    expect(await res.json()).toEqual({
+      ok: true,
+      url: "https://otto.example/checkout?_ptxn=txn_1&plan=pro&trial=1",
     });
-    const res = await checkout(checkoutRequest({ plan: "max", interval: "month" }));
-    expect(await res.json()).toEqual({ ok: true, url: "https://checkout.creem.test/ch_1" });
-    expect(creem.callsTo("POST /v1/subscriptions/sub_1/upgrade")).toEqual([]);
+    expect(paddle.callsTo("POST /transactions")[0]?.body).toMatchObject({
+      items: [{ price_id: "pri_otto_trial", quantity: 1 }],
+      custom_data: { user_id: user.id },
+    });
+    expect((await reload(user.id))?.plan).toBe("free");
   });
 
-  it("says plainly why Creem refused a plan change", async () => {
-    vi.spyOn(console, "error").mockImplementation(() => undefined);
-    const creem = installFakeCreem();
-    await subscriber("active");
-    creem.subscriptions.push({
-      id: "sub_1",
-      customer: "cust_1",
-      product: PRODUCT_ID,
-      status: "active",
+  it("sends someone on the Pro trial to a Max checkout instead of failing", async () => {
+    const paddle = installFakePaddle();
+    await subscriber("trialing");
+    paddle.subscriptions.push({ id: "sub_1", customer: "ctm_1", price: "pri_otto_trial", status: "trialing" });
+    const res = await checkout(checkoutRequest({ plan: "max", interval: "month" }));
+    expect(await res.json()).toEqual({
+      ok: true,
+      url: "https://otto.example/checkout?_ptxn=txn_1&plan=max",
     });
-    creem.failNext("POST /v1/subscriptions/sub_1/upgrade", 400, 1, "subscription_not_active");
+    expect(paddle.callsTo("PATCH /subscriptions/sub_1")).toEqual([]);
+  });
+
+  it("says plainly why Paddle refused a plan change", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const paddle = installFakePaddle();
+    await subscriber("active");
+    paddle.subscriptions.push({ id: "sub_1", customer: "ctm_1", price: PRICE_ID, status: "active" });
+    paddle.failNext("PATCH /subscriptions/sub_1", 400, 1, "subscription_update_when_canceled");
     const res = await checkout(checkoutRequest({ plan: "max", interval: "month" }));
     expect(res.status).toBe(409);
     expect(await res.json()).toEqual({
@@ -226,6 +233,32 @@ describe("POST /api/billing/checkout with Creem", () => {
         code: "plan_change_failed",
         message:
           "We couldn't change your plan: your subscription isn't active right now. Refresh the page and try again.",
+      },
+    });
+  });
+
+  it("asks a subscriber whose renewal failed to fix the card first", async () => {
+    const paddle = installFakePaddle();
+    await subscriber("past_due");
+    paddle.subscriptions.push({ id: "sub_1", customer: "ctm_1", price: PRICE_ID, status: "past_due" });
+    const res = await checkout(checkoutRequest({ plan: "max", interval: "month" }));
+    expect(res.status).toBe(409);
+    expect(await res.json()).toMatchObject({ ok: false, error: { code: "plan_change_failed" } });
+    expect(paddle.calls.filter((call) => call.method !== "GET")).toEqual([]);
+  });
+
+  it("answers 503 when Paddle can't be reached", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const paddle = installFakePaddle();
+    await signIn();
+    paddle.failNext("POST /transactions", 502);
+    const res = await checkout(checkoutRequest());
+    expect(res.status).toBe(503);
+    expect(await res.json()).toEqual({
+      ok: false,
+      error: {
+        code: "billing_unavailable",
+        message: "We couldn't reach our payment provider. Please try again in a minute.",
       },
     });
   });
@@ -259,66 +292,29 @@ describe("POST /api/billing/portal", () => {
   });
 });
 
-describe("POST /api/billing/webhook", () => {
-  function deliver(payload: string, secret = SECRET): Promise<Response> {
-    return webhook(
-      new Request("https://otto.example/api/billing/webhook", {
-        method: "POST",
-        headers: { "content-type": "application/json", "creem-signature": creemSignature(payload, secret) },
-        body: payload,
-      }),
-    );
-  }
-
-  async function activePayload() {
-    sequence += 1;
-    const id = crypto.randomUUID();
-    await insertUserRow({
-      id,
-      email: `buyer${sequence}@example.com`,
-      plan: "free",
-      createdAt: 1,
-      updatedAt: 1,
-    });
-    const payload = JSON.stringify(
-      {
-        id: `evt_${sequence}`,
-        eventType: "subscription.paid",
-        created_at: Date.now(),
-        object: {
-          id: "sub_1",
-          object: "subscription",
-          product: { id: PRODUCT_ID, object: "product" },
-          customer: { id: "cust_1", object: "customer", email: `buyer${sequence}@example.com` },
-          status: "active",
-          metadata: { user_id: id },
-        },
-      },
-      null,
-      2,
-    );
-    return { id, payload };
-  }
-
-  it("verifies the raw body and updates the plan, without a session", async () => {
-    const { id, payload } = await activePayload();
-    const res = await deliver(payload);
-
-    expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({ ok: true, message: "applied" });
-    expect((await reload(id))?.plan).toBe("pro");
-    expect(currentUser).not.toHaveBeenCalled();
+describe("POST /api/billing/portal with Paddle", () => {
+  beforeEach(() => {
+    vi.stubEnv("PADDLE_API_KEY", "pdl_sdbx_apikey_test");
+    resetEnvForTests();
   });
 
-  it("rejects a bad signature with 401", async () => {
-    const { id, payload } = await activePayload();
-    const res = await deliver(payload, OTHER_SECRET);
+  afterEach(() => vi.unstubAllGlobals());
 
-    expect(res.status).toBe(401);
-    expect(await res.json()).toEqual({
-      ok: false,
-      error: { code: "unauthorized", message: "invalid_signature" },
-    });
-    expect((await reload(id))?.plan).toBe("free");
+  it("returns a fresh Paddle portal session for the stored customer, within the link limit", async () => {
+    const paddle = installFakePaddle();
+    const user = await signIn({ plan: "pro", planStatus: "active", billingCustomerId: "ctm_1", billingSubscriptionId: "sub_1" });
+    const res = await portal();
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ ok: true, url: "https://customer-portal.paddle.test/ctm_1" });
+    expect(paddle.callsTo("POST /customers/ctm_1/portal-sessions")).toHaveLength(1);
+    expect(limiter).toHaveBeenCalledWith(`billing:user:${user.id}`, 20, 60 * 60 * 1000);
+  });
+
+  it("says when there's no billing account to manage", async () => {
+    const paddle = installFakePaddle();
+    await signIn();
+    const res = await portal();
+    expect(res.status).toBe(400);
+    expect(paddle.calls).toEqual([]);
   });
 });

@@ -14,7 +14,7 @@ import {
   resetDb,
   signInAs as signInFake,
 } from "@/lib/auth/test-helpers";
-import { creemSignature, installFakeCreem, subscriptionEvent, type FakeCreem } from "@/lib/billing/testing";
+import { installFakePaddle, paddleSignature, subscriptionEvent, type FakePaddle } from "@/lib/billing/testing";
 import { resetEnvForTests } from "@/lib/env";
 import type { Resume } from "@/lib/resume/schema";
 import { consumeUsage } from "@/lib/usage";
@@ -23,17 +23,18 @@ import { DELETE } from "./route";
 
 vi.mock("next/headers", async () => (await import("@/lib/auth/test-helpers")).nextHeadersMock);
 
-let creem: FakeCreem;
+let paddle: FakePaddle;
 
 const NOW = Date.UTC(2026, 10, 6, 12);
-const WEBHOOK_SECRET = "whsec_otto_account_test_secret";
+const WEBHOOK_SECRET = "pdl_ntfset_otto_account_test_secret";
 const CANCEL_FAILED =
   "We couldn't cancel your subscription, so your account wasn't deleted. Try again, or email us.";
 
-function useBilling(mode: "creem" | "mock") {
-  vi.stubEnv("CREEM_API_KEY", mode === "creem" ? "creem_test_123" : undefined);
-  vi.stubEnv("CREEM_PRO_MONTHLY_PRODUCT_ID", "prod_otto_pro");
-  vi.stubEnv("CREEM_WEBHOOK_SECRET", WEBHOOK_SECRET);
+function useBilling(mode: "paddle" | "mock") {
+  vi.stubEnv("PADDLE_API_KEY", mode === "paddle" ? "pdl_sdbx_apikey_test" : undefined);
+  vi.stubEnv("PADDLE_PRO_MONTHLY_PRICE_ID", "pri_otto_pro");
+  vi.stubEnv("PADDLE_WEBHOOK_SECRET", WEBHOOK_SECRET);
+  vi.stubEnv("NEXT_PUBLIC_PADDLE_CLIENT_TOKEN", "test_otto_client_token");
   resetEnvForTests();
 }
 
@@ -56,14 +57,14 @@ const DATA = { id: "r1" } as unknown as Resume;
 const PRO = {
   plan: "pro",
   planStatus: "active",
-  billingCustomerId: "cust_1",
+  billingCustomerId: "ctm_1",
   billingSubscriptionId: "sub_1",
 } satisfies Partial<typeof users.$inferInsert>;
 
 const cancels = () =>
-  creem.calls
+  paddle.calls
     .filter((call) => call.method === "POST" && call.path.endsWith("/cancel"))
-    .map((call) => call.path.split("/")[3]);
+    .map((call) => call.path.split("/")[2]);
 
 async function userExists(id: string): Promise<boolean> {
   const db = await getDb();
@@ -72,7 +73,7 @@ async function userExists(id: string): Promise<boolean> {
 
 beforeEach(async () => {
   useBilling("mock");
-  creem = installFakeCreem();
+  paddle = installFakePaddle();
   await resetDb();
   cookieJar.clear();
 });
@@ -146,30 +147,30 @@ describe("DELETE /api/account", () => {
 });
 
 describe("DELETE /api/account with a subscription", () => {
-  it("cancels the Creem subscription right away first, then deletes the account", async () => {
-    useBilling("creem");
+  it("cancels the Paddle subscription right away first, then deletes the account", async () => {
+    useBilling("paddle");
     const user = await signInAs("ada@example.com", PRO);
-    creem.subscriptions.push({ id: "sub_1", customer: "cust_1", product: "prod_otto_pro", status: "active" });
+    paddle.subscriptions.push({ id: "sub_1", customer: "ctm_1", price: "pri_otto_pro", status: "active" });
 
     const res = await DELETE();
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ ok: true });
-    expect(creem.callsTo("POST /v1/subscriptions/sub_1/cancel")[0]?.body).toEqual({ mode: "immediate" });
+    expect(paddle.callsTo("POST /subscriptions/sub_1/cancel")[0]?.body).toEqual({ effective_from: "immediately" });
     expect(await userExists(user.id)).toBe(false);
     await expect(getCurrentUser()).resolves.toBeNull();
   });
 
   it("keeps the account and the session when the cancel fails", async () => {
-    useBilling("creem");
+    useBilling("paddle");
     const sinks = (["info", "warn", "error"] as const).map((level) =>
       vi.spyOn(console, level).mockImplementation(() => undefined),
     );
     const user = await signInAs("ada@example.com", PRO);
-    creem.subscriptions.push({ id: "sub_1", customer: "cust_1", product: "prod_otto_pro", status: "active" });
+    paddle.subscriptions.push({ id: "sub_1", customer: "ctm_1", price: "pri_otto_pro", status: "active" });
     const db = await getDb();
     const resume = { userId: user.id, id: "r1", data: DATA, createdAt: NOW, updatedAt: NOW };
     await db.insert(resumes).values(resume);
-    creem.failNext("POST /v1/subscriptions/sub_1/cancel", 503);
+    paddle.failNext("POST /subscriptions/sub_1/cancel", 503);
 
     const res = await DELETE();
     expect(res.status).toBe(502);
@@ -189,15 +190,36 @@ describe("DELETE /api/account with a subscription", () => {
   });
 
   it("deletes the account on a retry once the cancel goes through", async () => {
-    useBilling("creem");
+    useBilling("paddle");
     vi.spyOn(console, "error").mockImplementation(() => undefined);
     const user = await signInAs("ada@example.com", PRO);
-    creem.subscriptions.push({ id: "sub_1", customer: "cust_1", product: "prod_otto_pro", status: "active" });
-    creem.failNext("POST /v1/subscriptions/sub_1/cancel", 503);
+    paddle.subscriptions.push({ id: "sub_1", customer: "ctm_1", price: "pri_otto_pro", status: "active" });
+    paddle.failNext("POST /subscriptions/sub_1/cancel", 503);
 
     expect((await DELETE()).status).toBe(502);
     expect((await DELETE()).status).toBe(200);
     expect(await userExists(user.id)).toBe(false);
+  });
+
+  it("deletes the account when Paddle refuses the cancel because the subscription already ended", async () => {
+    useBilling("paddle");
+    const user = await signInAs("ada@example.com", PRO);
+    paddle.subscriptions.push({ id: "sub_1", customer: "ctm_1", price: "pri_otto_pro", status: "canceled" });
+
+    expect((await DELETE()).status).toBe(200);
+    expect(paddle.callsTo("GET /subscriptions/sub_1")).toHaveLength(1);
+    expect(await userExists(user.id)).toBe(false);
+  });
+
+  it("keeps the account when Paddle refuses to cancel a subscription that is still live", async () => {
+    useBilling("paddle");
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const user = await signInAs("ada@example.com", PRO);
+    paddle.subscriptions.push({ id: "sub_1", customer: "ctm_1", price: "pri_otto_pro", status: "active" });
+    paddle.failNext("POST /subscriptions/sub_1/cancel", 400, 1, "subscription_locked_renewal");
+
+    expect((await DELETE()).status).toBe(502);
+    expect(await userExists(user.id)).toBe(true);
   });
 
   it("downgrades and deletes in mock mode, a trial included", async () => {
@@ -209,24 +231,24 @@ describe("DELETE /api/account with a subscription", () => {
 
     expect((await DELETE()).status).toBe(200);
     expect(await userExists(user.id)).toBe(false);
-    expect(creem.calls).toEqual([]);
+    expect(paddle.calls).toEqual([]);
   });
 
-  it("never calls Creem for a free user", async () => {
-    useBilling("creem");
+  it("never calls Paddle for a free user", async () => {
+    useBilling("paddle");
     const user = await signInAs("ada@example.com");
 
     expect((await DELETE()).status).toBe(200);
     expect(await userExists(user.id)).toBe(false);
-    expect(creem.calls).toEqual([]);
+    expect(paddle.calls).toEqual([]);
   });
 
   it("also cancels a subscription the stored ids no longer point to", async () => {
-    useBilling("creem");
+    useBilling("paddle");
     const user = await signInAs("ada@example.com", { ...PRO, billingSubscriptionId: "sub_2" });
-    creem.subscriptions.push(
-      { id: "sub_1", customer: "cust_1", product: "prod_otto_pro", status: "active" },
-      { id: "sub_2", customer: "cust_1", product: "prod_otto_pro", status: "active" },
+    paddle.subscriptions.push(
+      { id: "sub_1", customer: "ctm_1", price: "pri_otto_pro", status: "active" },
+      { id: "sub_2", customer: "ctm_1", price: "pri_otto_pro", status: "active" },
     );
 
     expect((await DELETE()).status).toBe(200);
@@ -234,24 +256,25 @@ describe("DELETE /api/account with a subscription", () => {
     expect(await userExists(user.id)).toBe(false);
   });
 
-  it("answers Creem's later cancellation webhook with 200, so it isn't retried", async () => {
-    useBilling("creem");
+  it("answers Paddle's later cancellation webhook with 200, so it isn't retried", async () => {
+    useBilling("paddle");
     const user = await signInAs("ada@example.com", PRO);
-    creem.subscriptions.push({ id: "sub_1", customer: "cust_1", product: "prod_otto_pro", status: "active" });
+    paddle.subscriptions.push({ id: "sub_1", customer: "ctm_1", price: "pri_otto_pro", status: "active" });
     expect((await DELETE()).status).toBe(200);
 
     const payload = subscriptionEvent("subscription.canceled", {
       id: "sub_1",
+      customer: "ctm_1",
       status: "canceled",
-      product: "prod_otto_pro",
-      metadata: { user_id: user.id },
+      price: "pri_otto_pro",
+      customData: { user_id: user.id },
     });
     const res = await webhook(
       new Request("https://otto.example/api/billing/webhook", {
         method: "POST",
         headers: {
           "content-type": "application/json",
-          "creem-signature": creemSignature(payload, WEBHOOK_SECRET),
+          "paddle-signature": paddleSignature(payload, WEBHOOK_SECRET),
         },
         body: payload,
       }),

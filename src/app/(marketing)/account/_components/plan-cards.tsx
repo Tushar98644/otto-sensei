@@ -14,7 +14,6 @@ import { Badge } from "@/components/ui/badge";
 import { Button, buttonClasses } from "@/components/ui/button";
 import { Card, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import {
-  allowancePeriodFor,
   isTrialing,
   nextPlan,
   PAID_PLANS,
@@ -27,7 +26,7 @@ import {
 } from "@/config/plans";
 import { endsTrialSentence, planPrice, trialHeadline, trialSentence } from "@/lib/billing/prices";
 import type { BillingMode } from "@/lib/billing/types";
-import { periodNoun, trialEndDay } from "@/lib/usage-copy";
+import { trialEndDay } from "@/lib/usage-copy";
 
 type Offer = Record<PaidPlanId, BillingInterval[]>;
 
@@ -74,7 +73,7 @@ export function UpgradeCard({ plan, interval: current, mode, offer, trial = fals
           {onTrial
             ? `${trialSentence()} Otto's AI help, with its limits written down.`
             : plan === "free"
-              ? `Much more of Otto's AI help every ${periodNoun(allowancePeriodFor(target, interval))}, for a busy job hunt. Cancel anytime.`
+              ? "Much more of Otto's AI help every month, for a busy job hunt. Cancel anytime."
               : endsTrial
                 ? endsTrialSentence(target, interval)
                 : "Even more for a long, busy search. Your subscription changes in place."}

@@ -1,83 +1,100 @@
-import { verifyWebhookSignature } from "creem/webhooks";
+import { createHmac, timingSafeEqual } from "node:crypto";
 import { z } from "zod";
+import type { BillingInterval, PaidPlanId } from "@/config/plans";
 import { captureServerEvent } from "@/lib/analytics/server";
 import { log } from "@/lib/log";
 import { refreshPortfolioPages } from "@/lib/portfolio/cache";
 import { canPublishPortfolio } from "@/lib/portfolio/plan";
 import { portfolioSlugsOf } from "@/lib/portfolio/records";
-import { REPLACES_METADATA_KEY } from "./creem";
 import {
   applySubscriptionState,
+  claimBillingEvent,
+  findBillingUserId,
   planForStatus,
   type ApplyResult,
   type SubscriptionState,
 } from "./entitlements";
-import type { ProductPlan } from "./intervals";
 import { settleReplacement } from "./replacements";
 
-// Creem redelivers any non-2xx up to 5 times in a day, so only retryable failures get a 5xx.
+// Paddle redelivers any non-2xx for about two days on live, so only retryable failures get a 5xx.
 
 export type WebhookResult = { status: number; message: string };
 
+type PricePlan = { plan: PaidPlanId; interval: BillingInterval };
+
 export type WebhookConfig = {
   secret: string | undefined;
-  productIds: readonly string[];
-  planForProduct: (productId: string | null | undefined) => ProductPlan | null;
+  priceIds: readonly string[];
+  planForPrice: (priceId: string) => PricePlan | null | undefined;
+  customerEmail?: (customerId: string) => Promise<string | null>;
 };
 
 const MAX_BODY_CHARS = 256 * 1024;
 const MAX_EVENT_ID_CHARS = 255;
+const MAX_SIGNATURE_CHARS = 2048;
+const SIGNATURE_TOLERANCE_MS = 5 * 60 * 1000;
+const REPLACES_KEY = "replaces_subscription_id";
 
-// Status decides the plan, not the event name; checkout.completed may arrive first.
+// Status decides the plan, not the event name; Paddle doesn't deliver in order.
 const SUBSCRIPTION_EVENTS: ReadonlySet<string> = new Set([
-  "subscription.active",
-  "subscription.paid",
+  "subscription.created",
   "subscription.trialing",
-  "subscription.update",
-  "subscription.canceled",
-  "subscription.scheduled_cancel",
+  "subscription.activated",
+  "subscription.updated",
   "subscription.past_due",
-  "subscription.unpaid",
-  "subscription.expired",
   "subscription.paused",
+  "subscription.resumed",
+  "subscription.canceled",
 ]);
-const CHECKOUT_COMPLETED = "checkout.completed";
+const TRANSACTION_COMPLETED = "transaction.completed";
+// A subscription's first transaction is its checkout; renewals and plan changes have other origins.
+const CHECKOUT_ORIGINS: ReadonlySet<string> = new Set(["web", "api"]);
 
 const EnvelopeSchema = z.object({
-  id: z.string().max(MAX_EVENT_ID_CHARS).nullish(),
-  eventType: z.string().min(1).max(100),
-  created_at: z.number().int().nonnegative().nullish(),
-  object: z.unknown(),
+  event_id: z.string().min(1).max(MAX_EVENT_ID_CHARS),
+  event_type: z.string().min(1).max(100),
+  occurred_at: z.string().max(64).nullish(),
+  data: z.unknown(),
 });
 
 const IdSchema = z.string().min(1).max(200);
-const ProductRef = z.union([IdSchema, z.object({ id: IdSchema })]);
-const CustomerRef = z.union([
-  IdSchema,
-  z.object({ id: IdSchema, email: z.string().max(320).nullish() }),
-]);
+const TimestampSchema = z.string().max(64).nullish();
+const CustomDataSchema = z.record(z.string(), z.unknown()).nullish();
 
 const SubscriptionSchema = z.object({
   id: IdSchema,
   status: z.string().min(1).max(50),
-  product: ProductRef,
-  customer: CustomerRef,
-  current_period_start_date: z.string().max(64).nullish(),
-  current_period_end_date: z.string().max(64).nullish(),
-  next_transaction_date: z.string().max(64).nullish(),
-  metadata: z.record(z.string(), z.unknown()).nullish(),
+  customer_id: IdSchema,
+  items: z
+    .array(
+      z.object({
+        price: z.object({ id: IdSchema }),
+        trial_dates: z.object({ ends_at: TimestampSchema }).nullish(),
+      }),
+    )
+    .max(100),
+  scheduled_change: z.object({ action: z.string().max(50) }).nullish(),
+  next_billed_at: TimestampSchema,
+  current_billing_period: z
+    .object({ starts_at: TimestampSchema, ends_at: TimestampSchema })
+    .nullish(),
+  custom_data: CustomDataSchema,
 });
 
-const CheckoutSchema = z.object({
-  product: ProductRef.nullish(),
-  customer: CustomerRef.nullish(),
-  metadata: z.record(z.string(), z.unknown()).nullish(),
-  subscription: z.union([IdSchema, z.record(z.string(), z.unknown())]).nullish(),
+const TransactionSchema = z.object({
+  id: IdSchema,
+  origin: z.string().max(100).nullish(),
+  customer_id: IdSchema.nullish(),
+  subscription_id: IdSchema.nullish(),
+  custom_data: CustomDataSchema,
+  items: z
+    .array(z.object({ price: z.object({ id: IdSchema, trial_period: z.unknown().nullish() }) }))
+    .max(100),
 });
 
 type SubscriptionData = z.infer<typeof SubscriptionSchema>;
-type Parsed = { data: SubscriptionData } | { invalid: string } | null;
 type Context = { eventId: string; eventType: string };
+type SignatureCheck = "valid" | "missing" | "malformed" | "mismatch" | "stale";
 
 export async function processWebhook(
   rawBody: string,
@@ -93,46 +110,39 @@ export async function processWebhook(
     log.warn("billing.webhook_too_large", { chars: rawBody.length });
     return { status: 413, message: "too_large" };
   }
-  try {
-    await verifyWebhookSignature(rawBody, headers, { secret: config.secret });
-  } catch (error) {
-    log.warn("billing.webhook_invalid", {
-      reason: error instanceof Error ? error.message : "unknown",
-    });
+  const signature = checkSignature(rawBody, headers.get("paddle-signature"), config.secret, now);
+  if (signature !== "valid") {
+    log.warn("billing.webhook_invalid", { reason: signature });
     return { status: 401, message: "invalid_signature" };
   }
 
-  const envelope = EnvelopeSchema.safeParse(parseJson(rawBody));
-  // Retries keep the event id; a manual resend from the dashboard gets a new one.
-  const eventId = envelope.success ? (envelope.data.id ?? headers.get("webhook-id") ?? "") : "";
-  if (!envelope.success || eventId.length === 0 || eventId.length > MAX_EVENT_ID_CHARS) {
-    log.error("billing.webhook_malformed", "unreadable envelope", {
-      eventId: eventId.slice(0, 64),
-    });
+  const json = parseJson(rawBody);
+  const envelope = EnvelopeSchema.safeParse(json);
+  if (!envelope.success) {
+    log.error("billing.webhook_malformed", "unreadable envelope", { eventId: eventIdOf(json) });
     return { status: 500, message: "malformed" };
   }
-  const context: Context = { eventId, eventType: envelope.data.eventType };
-  const isCheckout = context.eventType === CHECKOUT_COMPLETED;
-  if (!isCheckout && !SUBSCRIPTION_EVENTS.has(context.eventType)) {
+  // event_id stays the same across retries; notification_id changes on every delivery.
+  const context: Context = {
+    eventId: envelope.data.event_id,
+    eventType: envelope.data.event_type,
+  };
+  if (context.eventType === TRANSACTION_COMPLETED) {
+    return recordCheckout(envelope.data.data, context, config, now);
+  }
+  if (!SUBSCRIPTION_EVENTS.has(context.eventType)) {
     log.info("billing.webhook_ignored", { ...context, reason: "event_type" });
     return { status: 200, message: "ignored" };
   }
-  const parsed = isCheckout
-    ? subscriptionOfCheckout(envelope.data.object)
-    : readSubscription(envelope.data.object);
-  if (parsed === null) {
-    log.info("billing.webhook_ignored", { ...context, reason: "no_subscription" });
-    return { status: 200, message: "ignored" };
-  }
-  if ("invalid" in parsed) {
-    log.error("billing.webhook_malformed", `invalid ${parsed.invalid}`, context);
-    return { status: 500, message: "malformed" };
-  }
+  const parsed = SubscriptionSchema.safeParse(envelope.data.data);
+  if (!parsed.success) return malformed(parsed.error, context);
 
-  const state = toState(parsed.data, context, envelope.data.created_at ?? null, config);
+  const state = toState(parsed.data, parseTimestamp(envelope.data.occurred_at), config);
   let result: ApplyResult;
   try {
-    result = await applySubscriptionState(state, context, now);
+    result = await applySubscriptionState(state, context, now, {
+      resolveEmail: config.customerEmail,
+    });
   } catch (error) {
     log.error("billing.webhook_failed", error, context);
     return { status: 500, message: "retry" };
@@ -154,64 +164,129 @@ export async function processWebhook(
     : { status: 200, message: result.outcome === "duplicate" ? "duplicate" : "ignored" };
 }
 
-function readSubscription(object: unknown): Parsed {
-  const result = SubscriptionSchema.safeParse(object);
-  if (result.success) return { data: result.data };
-  return { invalid: result.error.issues[0]?.path.map(String).join(".") || "object" };
-}
-
-function subscriptionOfCheckout(object: unknown): Parsed {
-  const checkout = CheckoutSchema.safeParse(object);
-  if (!checkout.success) {
-    return { invalid: checkout.error.issues[0]?.path.map(String).join(".") || "object" };
+function checkSignature(
+  rawBody: string,
+  header: string | null,
+  secret: string,
+  now: number,
+): SignatureCheck {
+  if (!header) return "missing";
+  if (header.length > MAX_SIGNATURE_CHARS) return "malformed";
+  let ts: string | undefined;
+  const signatures: Buffer[] = [];
+  for (const part of header.split(";")) {
+    const [key, value = ""] = part.split("=", 2).map((piece) => piece.trim());
+    if (key === "ts") ts = value;
+    // Paddle sends one h1 per secret while a secret is being rotated.
+    if (key === "h1" && /^[0-9a-f]{64}$/i.test(value)) signatures.push(Buffer.from(value, "hex"));
   }
-  const { subscription, product, customer, metadata } = checkout.data;
-  if (subscription === null || subscription === undefined || typeof subscription === "string") {
-    return null;
-  }
-  return readSubscription({
-    ...subscription,
-    product: product ?? subscription.product,
-    customer: customer ?? subscription.customer,
-    metadata: subscription.metadata ?? metadata,
-  });
+  if (!ts || !/^\d{1,12}$/.test(ts) || signatures.length === 0) return "malformed";
+  const expected = createHmac("sha256", secret).update(`${ts}:${rawBody}`).digest();
+  if (!signatures.some((candidate) => timingSafeEqual(candidate, expected))) return "mismatch";
+  return Math.abs(now - Number(ts) * 1000) > SIGNATURE_TOLERANCE_MS ? "stale" : "valid";
 }
 
 function toState(
   data: SubscriptionData,
-  context: Context,
-  createdAt: number | null,
+  eventAt: number | null,
   config: WebhookConfig,
 ): SubscriptionState {
-  const metadataUserId = data.metadata?.user_id;
-  const replaces = IdSchema.safeParse(data.metadata?.[REPLACES_METADATA_KEY]);
-  const productId = typeof data.product === "string" ? data.product : data.product.id;
-  const product = config.productIds.includes(productId) ? config.planForProduct(productId) : null;
-  const customer =
-    typeof data.customer === "string" ? { id: data.customer, email: null } : data.customer;
-  // subscription.expired still carries the last status ("active"), but it means access ended.
-  const status = context.eventType === "subscription.expired" ? "expired" : data.status;
-  const periodEndsAt = parseTimestamp(data.current_period_end_date);
+  const ours = data.items.find((item) => config.priceIds.includes(item.price.id));
+  const price = ours ? (config.planForPrice(ours.price.id) ?? null) : null;
+  const cancelling = data.scheduled_change?.action === "cancel";
+  // Paddle has no such status: a cancel is pending on an active or trialing subscription.
+  const status =
+    cancelling && (data.status === "active" || data.status === "trialing")
+      ? "scheduled_cancel"
+      : data.status;
+  const userId = data.custom_data?.user_id;
+  const replaces = IdSchema.safeParse(data.custom_data?.[REPLACES_KEY]);
   return {
-    userId:
-      typeof metadataUserId === "string" && metadataUserId.length <= 200
-        ? metadataUserId
-        : undefined,
-    email: customer.email ?? undefined,
-    customerId: customer.id,
+    userId: typeof userId === "string" && userId.length <= 200 ? userId : undefined,
+    customerId: data.customer_id,
     subscriptionId: data.id,
-    productPlan: product?.plan ?? null,
-    productInterval: product?.interval ?? null,
+    pricePlan: price?.plan ?? null,
+    priceInterval: price?.interval ?? null,
     status,
-    renewsAt:
-      status === "scheduled_cancel"
-        ? null
-        : (parseTimestamp(data.next_transaction_date) ?? periodEndsAt),
-    periodStartsAt: parseTimestamp(data.current_period_start_date),
-    periodEndsAt,
-    eventAt: createdAt,
+    renewsAt: status === "scheduled_cancel" ? null : parseTimestamp(data.next_billed_at),
+    periodStartsAt: parseTimestamp(data.current_billing_period?.starts_at),
+    periodEndsAt: parseTimestamp(data.current_billing_period?.ends_at),
+    trialEndsAt: trialEndOf(data, ours),
+    eventAt,
     replacesSubscriptionId: replaces.success ? replaces.data : null,
   };
+}
+
+function trialEndOf(
+  data: SubscriptionData,
+  item: SubscriptionData["items"][number] | undefined,
+): number | null | undefined {
+  if (data.status === "active") return null;
+  if (data.status !== "trialing") return undefined;
+  const dated =
+    item?.trial_dates ?? data.items.find((candidate) => candidate.trial_dates)?.trial_dates;
+  return (
+    parseTimestamp(dated?.ends_at) ??
+    parseTimestamp(data.next_billed_at) ??
+    parseTimestamp(data.current_billing_period?.ends_at) ??
+    undefined
+  );
+}
+
+async function recordCheckout(
+  object: unknown,
+  context: Context,
+  config: WebhookConfig,
+  now: number,
+): Promise<WebhookResult> {
+  const parsed = TransactionSchema.safeParse(object);
+  if (!parsed.success) return malformed(parsed.error, context);
+  const transaction = parsed.data;
+  const ignore = (reason: string): WebhookResult => {
+    log.info("billing.webhook_ignored", { ...context, reason });
+    return { status: 200, message: "ignored" };
+  };
+  const { subscription_id: subscriptionId, customer_id: customerId } = transaction;
+  if (!subscriptionId || !customerId) return ignore("no_subscription");
+  if (!CHECKOUT_ORIGINS.has(transaction.origin ?? "")) return ignore("not_checkout");
+  const item = transaction.items.find((candidate) => config.priceIds.includes(candidate.price.id));
+  const price = item ? config.planForPrice(item.price.id) : null;
+  if (!item || !price) return ignore("other_product");
+  const metadataUserId = transaction.custom_data?.user_id;
+  try {
+    const userId = await findBillingUserId({
+      userId:
+        typeof metadataUserId === "string" && metadataUserId.length <= 200
+          ? metadataUserId
+          : undefined,
+      customerId,
+      subscriptionId,
+    });
+    if (!userId) return ignore("no_user");
+    // Keyed by subscription, so a replay with a new event id still counts once.
+    if (!(await claimBillingEvent(`checkout:${subscriptionId}`, context.eventType, now))) {
+      log.info("billing.webhook_duplicate", context);
+      return { status: 200, message: "duplicate" };
+    }
+    const trial = item.price.trial_period !== null && item.price.trial_period !== undefined;
+    captureServerEvent(
+      userId,
+      "checkout_completed",
+      { plan: price.plan, trial },
+      { set: { plan: price.plan } },
+    );
+    log.info("billing.checkout_completed", { ...context, userId, plan: price.plan, trial });
+  } catch (error) {
+    log.error("billing.webhook_failed", error, context);
+    return { status: 500, message: "retry" };
+  }
+  return { status: 200, message: "applied" };
+}
+
+function malformed(error: z.ZodError, context: Context): WebhookResult {
+  const path = error.issues[0]?.path.map(String).join(".") || "object";
+  log.error("billing.webhook_malformed", `invalid ${path}`, context);
+  return { status: 500, message: "malformed" };
 }
 
 async function report(result: ApplyResult, context: Context & { status: string }): Promise<void> {
@@ -222,14 +297,6 @@ async function report(result: ApplyResult, context: Context & { status: string }
       plan: result.plan,
       trialing: result.trialing,
     });
-    if (result.plan !== "free" && context.eventType === CHECKOUT_COMPLETED) {
-      captureServerEvent(
-        result.userId,
-        "checkout_completed",
-        { plan: result.plan, trial: result.trialing },
-        { set: { plan: result.plan } },
-      );
-    }
     await refreshPublishedPage(result);
     return;
   }
@@ -261,6 +328,11 @@ function parseJson(text: string): unknown {
   } catch {
     return undefined;
   }
+}
+
+function eventIdOf(json: unknown): string {
+  if (typeof json !== "object" || json === null || !("event_id" in json)) return "";
+  return typeof json.event_id === "string" ? json.event_id.slice(0, 64) : "";
 }
 
 function parseTimestamp(value: string | null | undefined): number | null {

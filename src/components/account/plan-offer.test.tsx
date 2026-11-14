@@ -5,7 +5,7 @@ import { perMonth, yearlySavingsPercent } from "@/lib/billing/prices";
 import { PlanOffer } from "./plan-offer";
 import { upgradeOffer, type Offer } from "./upgrade-offer";
 
-const ALL: Offer = { pro: ["month", "year", "week"], max: ["month", "year", "week"] };
+const ALL: Offer = { pro: ["month", "year"], max: ["month", "year"] };
 const usd = (amount: number) => `$${amount}`;
 
 function render(
@@ -67,11 +67,8 @@ describe("PlanOffer", () => {
     expect(text).not.toContain("Try Pro for");
     expect(text).toContain("Upgrade to Pro");
     expect(text).toContain("Limits reset each month, on the day of the month your plan started.");
-
-    const weekly = render("free", "week").text;
-    expect(weekly).toContain(`${usd(PRICES_USD.pro.week)} /week`);
-    expect(weekly).toContain("38 tailored versions a week");
-    expect(weekly).toContain("Limits reset each billing week, when the plan renews.");
+    expect(text).toContain("150 tailored versions a month");
+    expect(text).not.toMatch(/weekly|\/week|a week/i);
   });
 
   it("shows Pro its plan as current, with Max to buy", () => {

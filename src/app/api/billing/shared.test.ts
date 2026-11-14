@@ -9,7 +9,7 @@ async function answer(error: unknown, action: "checkout" | "portal" = "checkout"
 }
 
 const refused = (details: BillingErrorDetails) =>
-  new BillingError("refused", "Creem refused", details);
+  new BillingError("refused", "Paddle refused", details);
 
 describe("billingFailure", () => {
   it("explains a refused plan change in plain words, never as an outage", async () => {
@@ -18,7 +18,7 @@ describe("billingFailure", () => {
         refused({
           operation: "change_plan",
           providerStatus: 400,
-          providerCode: "subscription_not_active",
+          providerCode: "subscription_update_when_canceled",
         }),
       ),
     ).toEqual({
@@ -35,7 +35,43 @@ describe("billingFailure", () => {
     expect(unknown.message).not.toContain("reach");
   });
 
-  it("names our side for auth errors and asks for a minute when Creem is rate limiting", async () => {
+  it("names Paddle's busy subscriptions and declined cards in plain words", async () => {
+    expect(
+      await answer(
+        refused({ operation: "change_plan", providerStatus: 400, providerCode: "subscription_locked_renewal" }),
+      ),
+    ).toEqual({
+      status: 409,
+      code: "plan_change_failed",
+      message:
+        "We couldn't change your plan: your subscription is busy with a renewal or another change. Try again in a little while.",
+    });
+    expect(
+      await answer(
+        refused({ operation: "change_plan", providerStatus: 400, providerCode: "subscription_update_when_past_due" }),
+      ),
+    ).toMatchObject({ status: 409, code: "plan_change_failed" });
+    expect(
+      (
+        await answer(
+          refused({ operation: "change_plan", providerStatus: 400, providerCode: "subscription_payment_declined" }),
+        )
+      ).message,
+    ).toBe(
+      "We couldn't change your plan: your card was declined for the difference. Update your card in Manage billing, then try again.",
+    );
+    expect(
+      await answer(
+        refused({ operation: "checkout", providerStatus: 400, providerCode: "transaction_default_checkout_url_not_set" }),
+      ),
+    ).toEqual({
+      status: 502,
+      code: "billing_unavailable",
+      message: "We couldn't start checkout: payments aren't set up right on our side. Please try again later.",
+    });
+  });
+
+  it("names our side for auth errors and asks for a minute when Paddle is rate limiting", async () => {
     expect(await answer(refused({ operation: "change_plan", providerStatus: 401 }))).toMatchObject({
       status: 502,
       message:
@@ -56,7 +92,7 @@ describe("billingFailure", () => {
 
   it('keeps "couldn\'t reach" for network and 5xx failures only', async () => {
     expect(
-      await answer(new BillingError("provider_error", "Creem change_plan request failed")),
+      await answer(new BillingError("provider_error", "Paddle change_plan request failed")),
     ).toEqual({
       status: 503,
       code: "billing_unavailable",

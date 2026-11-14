@@ -44,7 +44,6 @@ export function websiteJsonLd(base: string): JsonLdData {
 const INTERVALS: Record<BillingInterval, { name: string; duration: string; unit: string }> = {
   month: { name: "monthly", duration: "P1M", unit: "month" },
   year: { name: "yearly", duration: "P1Y", unit: "year" },
-  week: { name: "weekly", duration: "P1W", unit: "week" },
 };
 
 export function softwareJsonLd(offer: BillingOffer, base: string): JsonLdData {

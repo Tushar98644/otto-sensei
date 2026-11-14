@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { appUrl, resetEnvForTests } from "./env";
+import { appUrl, env, resetEnvForTests } from "./env";
 
 function useEnv(values: Record<string, string | undefined>) {
   for (const [name, value] of Object.entries(values)) vi.stubEnv(name, value);
@@ -70,5 +70,26 @@ describe("appUrl", () => {
     useEnv({ NODE_ENV: "production", VERCEL_PROJECT_PRODUCTION_URL: "otto-resume.vercel.app" });
     expect(appUrl()).toBe("https://otto-resume.vercel.app");
     expect(warn).not.toHaveBeenCalled();
+  });
+});
+
+describe("PADDLE_ENVIRONMENT", () => {
+  it("is the sandbox unless it plainly says live, so a missing or mistyped value never takes real money", () => {
+    const cases: [string | undefined, "sandbox" | "live"][] = [
+      [undefined, "sandbox"],
+      ["", "sandbox"],
+      ["sandbox", "sandbox"],
+      ["prod", "sandbox"],
+      ["true", "sandbox"],
+      ["live", "live"],
+      [" LIVE ", "live"],
+      ["Production", "live"],
+    ];
+    const environmentOf = (value: string | undefined) => {
+      vi.stubEnv("PADDLE_ENVIRONMENT", value);
+      resetEnvForTests();
+      return env().PADDLE_ENVIRONMENT;
+    };
+    expect(cases.map(([value]) => [value, environmentOf(value)])).toEqual(cases);
   });
 });

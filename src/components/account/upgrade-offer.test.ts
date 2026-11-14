@@ -97,17 +97,22 @@ describe("upgradeOffer", () => {
     expect(
       upgradeOffer({ current: "free", offer, picked: "month", trial: false }).intervals,
     ).toEqual(["month", "year"]);
-    expect(upgradeOffer({ current: "free", offer, picked: "week", trial: false }).interval).toBe(
-      "month",
-    );
+    expect(
+      upgradeOffer({
+        current: "free",
+        offer: { pro: ["month"], max: ["month"] },
+        picked: "year",
+        trial: false,
+      }).interval,
+    ).toBe("month");
     const yearly = upgradeOffer({ current: "free", offer, picked: "year", trial: false });
     expect(yearly.cards.map((card) => [card.plan, card.interval])).toEqual([
       ["pro", "month"],
       ["max", "year"],
     ]);
-    const all: Offer = { pro: ["month", "year", "week"], max: ["month"] };
+    const all: Offer = { pro: ["month", "year"], max: ["month"] };
     expect(
-      upgradeOffer({ current: "pro", offer: all, picked: "week", trial: false }).intervals,
+      upgradeOffer({ current: "pro", offer: all, picked: "year", trial: false }).intervals,
     ).toEqual(["month"]);
   });
 });

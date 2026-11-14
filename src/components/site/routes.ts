@@ -21,10 +21,7 @@ export const ROUTES = {
   acceptableUse: "/acceptable-use",
 } as const;
 
-export function upgradeHref(
-  plan: "pro" | "max",
-  interval: "month" | "year" | "week" = "month",
-): string {
+export function upgradeHref(plan: "pro" | "max", interval: "month" | "year" = "month"): string {
   return `${ROUTES.upgrade}&plan=${plan}&interval=${interval}`;
 }
 
@@ -46,4 +43,4 @@ export const FOOTER_NAV: readonly NavLink[] = [
   { href: ROUTES.acceptableUse, label: "Acceptable use" },
 ];
 
-export const LEGAL_LAST_UPDATED = "2026-11-11";
+export const LEGAL_LAST_UPDATED = "2026-11-14";

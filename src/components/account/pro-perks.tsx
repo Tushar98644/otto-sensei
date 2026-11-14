@@ -1,6 +1,5 @@
 import { Check } from "lucide-react";
 import {
-  allowancePeriodFor,
   FEATURE_LABELS,
   FEATURES,
   FREE_APPLICATIONS,
@@ -38,11 +37,9 @@ function Perk({ title, detail }: { title: string; detail: string }) {
 }
 
 export function PlanPerks({ plan, interval = "month", trial = false, className }: PlanPerksProps) {
-  const period = allowancePeriodFor(plan, interval);
-  const limits = planLimits(plan, period);
+  const limits = planLimits(plan, "month");
   const belowId = plan === "max" ? "pro" : "free";
-  const belowPeriod = allowancePeriodFor(belowId, interval);
-  const below = planLimits(belowId, belowPeriod);
+  const below = planLimits(belowId, "month");
   return (
     <div className={cn("flex flex-col gap-3", className)}>
       <ul className="flex flex-col gap-3">
@@ -52,15 +49,15 @@ export function PlanPerks({ plan, interval = "month", trial = false, className }
             title={
               trial
                 ? `${count.format(PRO_TRIAL.limits[feature])} ${FEATURE_LABELS[feature]} ${perPeriod("trial")}`
-                : `${count.format(limits[feature])} ${FEATURE_LABELS[feature]} ${perPeriod(period)}`
+                : `${count.format(limits[feature])} ${FEATURE_LABELS[feature]} ${perPeriod("month")}`
             }
             detail={
               trial
-                ? `Then ${count.format(limits[feature])} ${perPeriod(period)} on ${PLANS[plan].name}.`
+                ? `Then ${count.format(limits[feature])} ${perPeriod("month")} on ${PLANS[plan].name}.`
                 : below[feature] === 0
                   ? `Not on ${PLANS[belowId].name}.`
                   : belowId === "free"
-                    ? `${PLANS.free.name} has ${count.format(below[feature])} ${perPeriod(belowPeriod)}.`
+                    ? `${PLANS.free.name} has ${count.format(below[feature])} ${perPeriod("month")}.`
                     : `${PLANS[belowId].name} has ${count.format(below[feature])}.`
             }
           />

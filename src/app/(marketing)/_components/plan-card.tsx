@@ -2,7 +2,7 @@ import { Check } from "lucide-react";
 import { IntentLink } from "@/components/site/intent-link";
 import { Badge } from "@/components/ui/badge";
 import { buttonClasses } from "@/components/ui/button";
-import { PLANS, type AllowancePeriod, type PlanId } from "@/config/plans";
+import { PLANS, type PlanId } from "@/config/plans";
 import type { JobCounts } from "@/lib/job-feed/counts";
 import { cn } from "@/lib/utils";
 import { planCopy } from "./plan-features";
@@ -28,7 +28,6 @@ export type PlanCardProps = {
   headingAs?: "h2" | "h3";
   featured?: boolean;
   price: PlanPrice;
-  allowance?: AllowancePeriod;
   cta: { href: string; label: string };
   priceNote?: string | null;
   note?: string;
@@ -41,7 +40,6 @@ export function PlanCard({
   headingAs: Heading = "h3",
   featured = false,
   price,
-  allowance = "month",
   cta,
   priceNote,
   note,
@@ -49,7 +47,7 @@ export function PlanCard({
   className,
 }: PlanCardProps) {
   const plan = PLANS[planId];
-  const copy = planCopy(planId, allowance, jobCounts);
+  const copy = planCopy(planId, "month", jobCounts);
   return (
     <div
       className={cn(

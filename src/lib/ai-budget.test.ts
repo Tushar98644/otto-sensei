@@ -15,7 +15,6 @@ import {
   getUsageState,
   monthKey,
   TRIAL_PERIOD_KEY,
-  weekKey,
 } from "@/lib/usage";
 import { checkAiBudget, recordAiTokens, spendAiTokens } from "./ai-budget";
 
@@ -83,7 +82,6 @@ describe("aiTokenBudget", () => {
     expect(aiTokenBudget("pro", "month")).toBe(5_000_000);
     expect(aiTokenBudget("max", "month")).toBe(10_000_000);
     expect(aiTokenBudget("pro", "trial")).toBe(500_000);
-    expect(aiTokenBudget("max", "week")).toBe(2_500_000);
     expect(aiTokenBudget("free", "month")).toBeNull();
   });
 });
@@ -111,13 +109,17 @@ describe("recordAiTokens", () => {
     expect(await checkAiBudget(free, NOV)).toMatchObject({ allowed: true });
   });
 
-  it("puts a weekly plan's tokens on its week, with a quarter budget, and on the calendar month", async () => {
-    const renewsAt = NOV + 2 * 24 * HOUR;
-    const weekly: SessionUser = { ...pro, planInterval: "week", planRenewsAt: renewsAt };
-    await recordAiTokens(weekly, 4_000, NOV);
-    expect(await storedTokens(weekly, weekKey(renewsAt))).toBe(4_000);
-    expect(await storedTokens(weekly, monthKey(NOV))).toBe(4_000);
-    expect((await getUsageState(weekly, NOV)).aiBudget).toEqual({ used: 4_000, limit: 1_250_000 });
+  it("puts a plan without a stored period on the calendar month, never on a week", async () => {
+    vi.spyOn(log, "warn").mockImplementation(() => {});
+    const undated: SessionUser = { ...pro, planPeriodStartsAt: null, planPeriodEndsAt: null };
+    await recordAiTokens(undated, 4_000, NOV);
+    const db = await getDb();
+    const rows = await db
+      .select({ period: usage.period })
+      .from(usage)
+      .where(eq(usage.feature, AI_TOKENS));
+    expect(rows).toEqual([{ period: monthKey(NOV) }]);
+    expect((await getUsageState(undated, NOV)).aiBudget).toEqual({ used: 4_000, limit: 5_000_000 });
   });
 });
 
@@ -131,6 +133,18 @@ describe("checkAiBudget", () => {
     await recordAiTokens(pro, 12_000, NOV);
     expect((await checkAiBudget(pro, NOV)).allowed).toBe(false);
     expect((await getUsageState(pro, NOV)).aiBudget).toEqual({ used: 5_000_000, limit: 5_000_000 });
+  });
+
+  it("ignores tokens left on a week's row from the old weekly plans", async () => {
+    const db = await getDb();
+    await db.insert(usage).values({
+      subject: pro.id,
+      feature: AI_TOKENS,
+      period: "week:2026-11-19T09:30:00.000Z",
+      count: AI_TOKEN_BUDGETS.pro,
+    });
+    expect((await checkAiBudget(pro, NOV)).allowed).toBe(true);
+    expect((await getUsageState(pro, NOV)).aiBudget).toEqual({ used: 0, limit: 5_000_000 });
   });
 
   it("starts over at the period boundary, not on the 1st", async () => {

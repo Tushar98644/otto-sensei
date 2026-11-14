@@ -43,9 +43,7 @@ export function UsageCard({ me, plan }: { me: Me; plan: PlanId }) {
         <CardDescription>
           {trialEndsAt
             ? `Your ${PLANS[plan].name} trial ends on ${trialEndDay(trialEndsAt)}. Then the full ${PLANS[plan].name} allowance starts, and resets each time your plan renews.`
-            : period?.kind === "week"
-              ? `Your ${PLANS[plan].name} weekly allowance resets ${resetWhen(period)}.`
-              : `Your ${PLANS[plan].name} allowance resets ${resetWhen(period)}.`}{" "}
+            : `Your ${PLANS[plan].name} allowance resets ${resetWhen(period)}.`}{" "}
           Uploads past the AI reads still work, read by the basic reader.
         </CardDescription>
       </CardHeader>

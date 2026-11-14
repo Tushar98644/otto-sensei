@@ -4,6 +4,7 @@ import {
   FREE_APPLICATIONS,
   FREE_JOB_MATCHES,
   FREE_TEMPLATES,
+  isPaidPlan,
   PLANS,
   planLimits,
   RESUME_LIMITS,
@@ -30,7 +31,7 @@ export { PLAN_ORDER } from "@/config/plans";
 const count = new Intl.NumberFormat("en-US");
 
 function periodOf(plan: PlanId, period: AllowancePeriod): AllowancePeriod {
-  return PLANS[plan].weeklyLimits ? period : "month";
+  return isPaidPlan(plan) ? period : "month";
 }
 
 export function limitLine(

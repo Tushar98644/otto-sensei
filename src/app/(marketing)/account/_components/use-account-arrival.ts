@@ -14,7 +14,7 @@ export type AccountArrival = {
   portalMock: boolean;
 };
 
-const ARRIVAL_PARAMS = ["upgrade", "plan", "interval", "checkout", "portal"] as const;
+const ARRIVAL_PARAMS = ["upgrade", "plan", "interval", "checkout", "trial", "portal"] as const;
 
 function oneOf<T extends string>(value: string | null, options: readonly T[]): T | null {
   return value !== null && (options as readonly string[]).includes(value) ? (value as T) : null;

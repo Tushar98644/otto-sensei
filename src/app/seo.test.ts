@@ -27,7 +27,7 @@ describe("sitemap", () => {
 
   it("leaves out noindex pages: the studio, sign-in and the signed-in app", () => {
     const paths = entries.map((entry) => pathOf(entry.url));
-    for (const path of ["/studio", "/login", "/account", "/dashboard", "/reminder"]) {
+    for (const path of ["/studio", "/login", "/account", "/dashboard", "/reminder", "/checkout"]) {
       expect(paths).not.toContain(path);
     }
   });

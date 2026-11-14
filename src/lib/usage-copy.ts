@@ -4,7 +4,7 @@ type PeriodLike = UsagePeriod | AllowancePeriod | null | undefined;
 
 function kindOf(period: PeriodLike): AllowancePeriod {
   const kind = typeof period === "string" ? period : period?.kind;
-  return kind === "week" || kind === "trial" ? kind : "month";
+  return kind === "trial" ? kind : "month";
 }
 
 export function periodNoun(period: PeriodLike): AllowancePeriod {
@@ -39,7 +39,6 @@ export function resetSentence(period: UsagePeriod | null | undefined, timeZone?:
 }
 
 export function resetRule(interval: BillingInterval): string {
-  if (interval === "week") return "Limits reset each billing week, when the plan renews.";
   if (interval === "year") return "Limits reset each month, on the day of the month your plan started.";
   return "Limits reset each month, when your plan renews.";
 }

@@ -72,7 +72,6 @@ function mockPeriod(
   now: number,
 ): Pick<PeriodAccount, "planPeriodStartsAt" | "planPeriodEndsAt"> {
   if (trialEndsAt !== null) return { planPeriodStartsAt: now, planPeriodEndsAt: trialEndsAt };
-  if (interval === "week") return { planPeriodStartsAt: null, planPeriodEndsAt: null };
   const running =
     before.plan !== "free" &&
     before.trialEndsAt == null &&

@@ -138,7 +138,7 @@ describe("no pictures, and dates", () => {
 describe("plan perk", () => {
   it("lists the portfolio on Pro, and not on Free (portfolios are Pro and Max)", () => {
     expect(planCopy("pro").features.some((line) => /portfolio site/i.test(line))).toBe(true);
-    expect(planCopy("pro", "week").features.some((line) => /portfolio site/i.test(line))).toBe(
+    expect(planCopy("pro", "month").features.some((line) => /portfolio site/i.test(line))).toBe(
       true,
     );
     expect(planCopy("free").features.some((line) => /portfolio/i.test(line))).toBe(false);

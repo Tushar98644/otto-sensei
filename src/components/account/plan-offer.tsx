@@ -4,7 +4,6 @@ import { Check } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
-  allowancePeriodFor,
   FEATURE_LABELS,
   PLANS,
   planLimits,
@@ -35,7 +34,6 @@ const HIGHLIGHTS: readonly Feature[] = ["tailor", "letter", "fix"];
 const SPOKEN: Record<BillingInterval, string> = {
   month: "per month",
   year: "per year",
-  week: "per week",
 };
 
 export type PlanOfferProps = {
@@ -104,7 +102,7 @@ function PlanOfferCard({
 }) {
   const { plan, interval } = card;
   const name = PLANS[plan].name;
-  const period = card.trial ? "trial" : allowancePeriodFor(plan, interval);
+  const period = card.trial ? "trial" : "month";
   const limits = card.trial ? PRO_TRIAL.limits : planLimits(plan, period);
   const savings = interval === "year" ? yearlySavingsPercent(plan) : 0;
   const note = card.trial

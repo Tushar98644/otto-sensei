@@ -30,7 +30,6 @@ type Plan = {
   name: string;
   priceUsd: number;
   limits: Record<Feature, number>;
-  weeklyLimits: Record<Feature, number> | null;
 };
 
 export const PLANS = {
@@ -39,21 +38,18 @@ export const PLANS = {
     name: "Free",
     priceUsd: 0,
     limits: { tailor: 0, letter: 0, fix: 3, import: 0, draft: 0, github: 0 },
-    weeklyLimits: null,
   },
   pro: {
     id: "pro",
     name: "Pro",
     priceUsd: 15,
     limits: { tailor: 150, letter: 150, fix: 750, import: 100, draft: 50, github: 50 },
-    weeklyLimits: { tailor: 38, letter: 38, fix: 188, import: 25, draft: 13, github: 13 },
   },
   max: {
     id: "max",
     name: "Max",
     priceUsd: 29,
     limits: { tailor: 300, letter: 300, fix: 2000, import: 300, draft: 150, github: 150 },
-    weeklyLimits: { tailor: 75, letter: 75, fix: 500, import: 75, draft: 38, github: 38 },
   },
 } as const satisfies Record<PlanId, Plan>;
 
@@ -91,16 +87,12 @@ export function nextPlan(plan: PlanId): PaidPlanId | null {
   return null;
 }
 
-// Creem charges what each product says: change prices here and in Creem together.
-export type BillingInterval = "month" | "year" | "week";
-export const BILLING_INTERVALS = [
-  "month",
-  "year",
-  "week",
-] as const satisfies readonly BillingInterval[];
+// Paddle charges what each price says: change prices here and in Paddle together.
+export type BillingInterval = "month" | "year";
+export const BILLING_INTERVALS = ["month", "year"] as const satisfies readonly BillingInterval[];
 export const PRICES_USD: Record<PaidPlanId, Record<BillingInterval, number>> = {
-  pro: { month: PLANS.pro.priceUsd, year: 120, week: 6 },
-  max: { month: PLANS.max.priceUsd, year: 232, week: 12 },
+  pro: { month: PLANS.pro.priceUsd, year: 120 },
+  max: { month: PLANS.max.priceUsd, year: 232 },
 };
 
 // Off: never-charged reference prices can count as a misleading discount (EU/UK/US rules).
@@ -114,28 +106,16 @@ export function referenceDiscountPercent(plan: PaidPlanId): number {
 // From Rezi's own pricing page, checked 2026-11-08.
 export const PRO_PRICE_COMPARISON = { name: "Rezi Pro", priceUsd: 29 } as const;
 
-export type AllowancePeriod = "month" | "week" | "trial";
-
-export function allowancePeriodFor(
-  plan: PlanId,
-  interval: BillingInterval | null | undefined,
-  trialing = false,
-): AllowancePeriod {
-  if (!isPaidPlan(plan)) return "month";
-  if (trialing) return "trial";
-  return interval === "week" ? "week" : "month";
-}
+export type AllowancePeriod = "month" | "trial";
 
 export function planLimits(plan: PlanId, period: AllowancePeriod): Record<Feature, number> {
   if (!isPaidPlan(plan)) return PLANS.free.limits;
-  if (period === "trial") return PRO_TRIAL.limits;
-  return (period === "week" ? PLANS[plan].weeklyLimits : null) ?? PLANS[plan].limits;
+  return period === "trial" ? PRO_TRIAL.limits : PLANS[plan].limits;
 }
 
 export function aiTokenBudget(plan: PlanId, period: AllowancePeriod): number | null {
   if (!isPaidPlan(plan)) return null;
-  if (period === "trial") return AI_TOKEN_BUDGETS.trial;
-  return period === "week" ? Math.ceil(AI_TOKEN_BUDGETS[plan] / 4) : AI_TOKEN_BUDGETS[plan];
+  return period === "trial" ? AI_TOKEN_BUDGETS.trial : AI_TOKEN_BUDGETS[plan];
 }
 
 export function planIncludes(plan: PlanId, feature: Feature): boolean {

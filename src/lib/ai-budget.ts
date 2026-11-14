@@ -1,20 +1,20 @@
 import { and, eq, sql } from "drizzle-orm";
 import { after } from "next/server";
 import { aiTokenBudget, isPaidPlan, type UsagePeriod } from "@/config/plans";
-import { getDb, type Db } from "@/db/client";
+import { getDb } from "@/db/client";
 import { usage } from "@/db/schema";
 import { metered } from "@/lib/ai/token-meter";
 import type { SessionUser } from "@/lib/auth/types";
 import { log } from "@/lib/log";
-import { AI_TOKENS, monthKey, publicPeriod, resolvePeriod } from "@/lib/usage";
+import { AI_TOKENS, publicPeriod, resolvePeriod } from "@/lib/usage";
 
 export type BudgetCheck = { allowed: boolean; period: UsagePeriod };
 
 export async function checkAiBudget(user: SessionUser, now = Date.now()): Promise<BudgetCheck> {
-  const db = await getDb();
-  const period = await resolvePeriod(db, user, now, { quiet: true });
+  const period = resolvePeriod(user, now, { quiet: true });
   const budget = aiTokenBudget(user.plan, period.kind);
   if (budget === null) return { allowed: true, period: publicPeriod(period) };
+  const db = await getDb();
   const [row] = await db
     .select({ count: usage.count })
     .from(usage)
@@ -32,19 +32,11 @@ export async function recordAiTokens(
   now = Date.now(),
 ): Promise<void> {
   if (tokens <= 0 || !isPaidPlan(user.plan)) return;
+  const { key } = resolvePeriod(user, now, { quiet: true });
   const db = await getDb();
-  const period = await resolvePeriod(db, user, now, { quiet: true });
-  if (period.kind !== "week") return addTokens(db, user.id, period.key, tokens);
-  await db.transaction(async (tx) => {
-    await addTokens(tx, user.id, period.key, tokens);
-    await addTokens(tx, user.id, monthKey(now), tokens);
-  });
-}
-
-async function addTokens(db: Db, userId: string, key: string, tokens: number): Promise<void> {
   await db
     .insert(usage)
-    .values({ subject: userId, feature: AI_TOKENS, period: key, count: tokens })
+    .values({ subject: user.id, feature: AI_TOKENS, period: key, count: tokens })
     .onConflictDoUpdate({
       target: [usage.subject, usage.feature, usage.period],
       set: { count: sql`${usage.count} + ${tokens}` },

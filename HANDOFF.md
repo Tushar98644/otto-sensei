@@ -1,6 +1,6 @@
 # Handoff: working on Otto Sensei from a new laptop
 
-How to set up, check, ship and deploy Otto Sensei, plus the house rules and open to-dos. Written for the owner and for any Claude session on a new machine. Last updated 2026-11-12. To see what is live: `vercel ls --prod`.
+How to set up, check, ship and deploy Otto Sensei, plus the house rules and open to-dos. Written for the owner and for any Claude session on a new machine. Last updated 2026-11-14. To see what is live: `vercel ls --prod`.
 
 Other docs: [README.md](README.md) (run locally; links here), [SETUP.md](SETUP.md) (every service, step by step), [ARCHITECTURE.md](ARCHITECTURE.md) (how the code fits), [DESIGN.md](DESIGN.md) (UI rules), [.env.example](.env.example) (every variable).
 
@@ -15,7 +15,7 @@ Other docs: [README.md](README.md) (run locally; links here), [SETUP.md](SETUP.m
 | Hosting | Vercel project `otto-sensei`, team `tushar98644s-projects`, region `iad1` |
 | Database + sign-in | Supabase project ref `wuypdybfswifundtixmt` |
 | AI | OpenRouter: GLM 5.3 Flash (writing), Llama Guard 4 (safety), Whisper large v3 turbo (voice fallback) |
-| Payments | Creem, our merchant of record (still in **test mode**) |
+| Payments | Paddle Billing, our merchant of record (**sandbox** until the live account is approved); checkout opens on `/checkout` |
 | Sign-in emails | Resend, through Supabase's SMTP settings |
 | Daily jobs feed | GitHub Action `jobs-ingest.yml` at 05:40 UTC calls `/api/cron/jobs` |
 | Other crons | `vercel.json`: `/api/cron/cleanup` (04:17 UTC), `/api/cron/follow-ups` (14:00 UTC) |
@@ -134,7 +134,7 @@ curl -s -o /dev/null -w '%{http_code}\n' https://www.ottosensei.com/dashboard   
 - Changed an environment variable in the Vercel dashboard? Redeploy: a build only sees values that existed when it ran.
 - Rollback: `vercel rollback` (or "Promote" an older deployment in the dashboard).
 - Tabs left open on a build from before 2026-11-14 save the studio in the old format. A resume deleted or released in such a tab can come back once a newer tab merges that save. It stops when the old tabs reload; nothing is lost.
-- Changing production settings and secrets in Vercel, Supabase, Creem or OpenRouter dashboards is the owner's job.
+- Changing production settings and secrets in Vercel, Supabase, Paddle or OpenRouter dashboards is the owner's job.
 
 ---
 
@@ -145,7 +145,7 @@ curl -s -o /dev/null -w '%{http_code}\n' https://www.ottosensei.com/dashboard   
 - **OpenRouter routing** (`src/lib/ai/client.ts`): `require_parameters: true`, `data_collection: "deny"`, `sort: "price"`, `max_price` $0.10 in / $0.30 out per million tokens. About 10 servers qualify; Wafer is normally picked. Every answer logs one `ai.usage` line in Vercel (counts only: task, model, provider, attempt, `durationMs`, input, output and reasoning tokens), so check each host's speed there before changing the routing or reasoning settings.
 - **Safety checks** (`src/lib/ai/moderation.ts`): a word pre-check, then Llama Guard only when sexual words show up. It blocks S3, S4 and S12, and fails open. First portfolio publish and share links are always checked in full; a resume edit syncing into a live portfolio goes to Llama Guard only when its new lines have such words.
 - **Voice typing:** built-in browser speech in Chrome, Edge and Safari (free). Brave, Firefox and Opera, or any failure, record a clip for `/api/transcribe` (Whisper through OpenRouter). Limits: 2-minute clips, 5 a day on Free, 30 on Pro and the trial, 60 on Max; clips turned away before transcribing, or lost to a provider outage, don't use one up.
-- **Creem:** fees are 3.9% + $0.40 per payment, so Pro monthly nets $14.02 and Max monthly $27.47. It's still in test mode.
+- **Paddle:** fees are 5% + 50¢ per transaction, so Pro monthly ($15) nets $13.75, Pro yearly ($120) $113.50, Max monthly ($29) $27.05 and Max yearly ($232) $219.90 (on the price before tax, before any currency conversion). Payouts are monthly once the balance is over $100. Sandbox and live are separate accounts with their own keys, prices and webhook (SETUP.md §10); production runs on sandbox until live is approved. The API key expires (a year at most): renew it before then.
 
 ---
 
@@ -183,8 +183,12 @@ Everything lives in `src/config/plans.ts`. Change numbers there, never in copy.
 ## 9. Open to-dos (owner)
 
 - [ ] **GitHub connect:** create a GitHub OAuth App (callback `https://wuypdybfswifundtixmt.supabase.co/auth/v1/callback`, homepage `https://www.ottosensei.com`), turn on the GitHub provider in Supabase, and turn on "Allow manual linking" (SETUP.md §8c). Until then, GitHub import answers 503.
-- [ ] **Creem:** request the account re-review (the NSFW policy is live), add the payout account, finish KYC, then switch to live mode.
+- [ ] **Paddle sandbox** (SETUP.md §10, steps 1 to 7): create the five prices (the trial one included), the API key, the client-side token, the default payment link `https://www.ottosensei.com/checkout` and the webhook destination; put the values in Vercel with `PADDLE_ENVIRONMENT=sandbox` and redeploy; run the test checkouts.
+- [ ] **Leave Creem:** delete the Creem webhook endpoint, run `bun scripts/reset-creem-plans.ts` (counts only) and then with `--apply` against production, remove every `CREEM_*` variable from Vercel, then close the Creem account.
+- [ ] **Paddle live** (SETUP.md §10, step 8): sign up at vendors.paddle.com, submit `ottosensei.com` for website approval, finish account verification, add payout details, set Retain payment recovery to cancel, repeat the sandbox steps in live, cancel every sandbox subscription right before switching (their plans would otherwise outlive the switch), switch Vercel to the live values with `PADDLE_ENVIRONMENT=live`, deactivate the sandbox webhook destination, then one live checkout with a 100% discount code.
+- [ ] **Terms name the seller:** Paddle's website review wants the terms to name the business or sole-proprietor behind Otto Sensei. They say "Otto Sensei" today; add the legal name if it differs.
 - [ ] **Test a payment:** a Max upgrade during a Pro trial.
+- [ ] **Calendar:** renew the Paddle API key before it expires (sandbox and live).
 - [ ] **Test voice by hand:** Chrome (words appear live) and Brave signed in (record about 3 s, text appears).
 - [ ] **Search Console:** open "Crawled – currently not indexed" and request indexing for `/` and `/pricing` if listed.
 - [ ] **Optional:** disable the legacy anon and service_role keys in Supabase, then revoke the legacy HS256 key.
@@ -195,6 +199,7 @@ Everything lives in `src/config/plans.ts`. Change numbers there, never in copy.
 
 ## 10. What shipped recently (newest first)
 
+- Payments moved from Creem to Paddle Billing: checkout opens on our own `/checkout` page, plans are monthly or yearly only, and the terms, privacy and refund pages name Paddle as merchant of record (refunds follow Paddle's buyer refund policy).
 - AI price cap ($0.10 / $0.30 per million tokens) and voice limits per plan.
 - Voice typing: built-in speech first, server fallback for Brave, Firefox and Opera; a mic in every box that feeds Otto.
 - Safety checks on what Otto writes and on public pages.

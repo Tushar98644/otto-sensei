@@ -23,8 +23,8 @@ import {
 describe("plan prices", () => {
   it("are the owner's numbers", () => {
     expect(PRICES_USD).toEqual({
-      pro: { month: 15, year: 120, week: 6 },
-      max: { month: 29, year: 232, week: 12 },
+      pro: { month: 15, year: 120 },
+      max: { month: 29, year: 232 },
     });
   });
 
@@ -32,7 +32,6 @@ describe("plan prices", () => {
     for (const plan of PAID_PLANS) {
       expect(planPriceLabel(plan, "month")).toBe(`$${PRICES_USD[plan].month}/month`);
       expect(planPriceLabel(plan, "year")).toBe(`$${PRICES_USD[plan].year}/year`);
-      expect(planPriceLabel(plan, "week")).toBe(`$${PRICES_USD[plan].week}/week`);
     }
   });
 
@@ -43,7 +42,9 @@ describe("plan prices", () => {
       );
       expect(yearlySavingsPercent(plan)).toBe(Math.max(0, expected));
       if (expected > 0) expect(priceSentence(plan, "year")).toContain(`${expected}% less`);
-      expect(priceSentence(plan, "week")).toMatch(/^\$\d+(\.\d{2})? a week/);
+      expect(priceSentence(plan, "month")).toBe(
+        `$${PRICES_USD[plan].month} a month. Cancel anytime.`,
+      );
     }
     expect(yearlySavingsPercent("pro")).toBe(33);
     expect(perMonth("pro")).toBe("$10");
@@ -54,7 +55,7 @@ describe("pricing page lines", () => {
   it("names every renewal period on offer", () => {
     expect(renewalPeriods(["month"])).toBe("month");
     expect(renewalPeriods(["month", "year"])).toBe("month or year");
-    expect(renewalPeriods(["month", "year", "week"])).toBe("month, year or week");
+    expect(renewalPeriods([])).toBe("month");
   });
 });
 
