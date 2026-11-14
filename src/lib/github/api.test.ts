@@ -1,9 +1,18 @@
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { resetEnvForTests } from "@/lib/env";
 import { fetchReadme, lookupProfile } from "./api";
 import { clearGitHubCache } from "./cache";
 import { GitHubError, MAX_CALLS_PER_REQUEST, newGitHubSession } from "./http";
-import { installFakeGitHub, json, rawPull, rawRepo, searchResult, text, type FakeGitHub } from "./testing";
+import {
+  holdFakeGitHub,
+  installFakeGitHub,
+  json,
+  rawPull,
+  rawRepo,
+  searchResult,
+  text,
+  type FakeGitHub,
+} from "./testing";
 
 const REPOS = [
   rawRepo("octocat/small-tool", { stargazers_count: 3, description: "A tiny CLI" }),
@@ -74,6 +83,20 @@ describe("lookupProfile", () => {
     expect(session.calls).toBe(2);
   });
 
+  it("asks for repos and merged pull requests together", async () => {
+    const held = holdFakeGitHub(standard);
+    github = held;
+    const profile = lookupProfile(newGitHubSession(15_000), "octocat");
+    await vi.waitFor(() =>
+      expect(held.calls.map((call) => new URL(call.url).pathname)).toEqual([
+        "/users/octocat/repos",
+        "/search/issues",
+      ]),
+    );
+    held.release();
+    expect((await profile).repos).toHaveLength(3);
+  });
+
   it("only ever calls api.github.com, with the API version and a User-Agent", async () => {
     github = installFakeGitHub(standard);
     await lookupProfile(newGitHubSession(15_000), "octocat");
@@ -110,6 +133,17 @@ describe("lookupProfile", () => {
     github = installFakeGitHub(() => undefined);
     await expect(lookupProfile(newGitHubSession(15_000), "nobody-here")).rejects.toMatchObject({
       reason: "not_found",
+    });
+  });
+
+  it("reports the repo list's failure before a busy search, as one call at a time did", async () => {
+    github = installFakeGitHub((url) =>
+      url.pathname === "/search/issues"
+        ? json({ message: "slow down" }, { status: 429 })
+        : json({ message: "boom" }, { status: 502 }),
+    );
+    await expect(lookupProfile(newGitHubSession(15_000), "octocat")).rejects.toMatchObject({
+      reason: "unavailable",
     });
   });
 

@@ -14,6 +14,7 @@ import {
 import { getPortfolio } from "@/lib/portfolio/records";
 import { sampleResume } from "@/lib/portfolio/testing";
 import { PORTFOLIO_LIMITS, type PortfolioSaveResponse } from "@/lib/portfolio/types";
+import type { Resume } from "@/lib/resume/schema";
 import { PUT as putResume } from "../resumes/[id]/route";
 import { GET, PATCH, POST } from "./route";
 import { GET as checkSlug } from "./slug/route";
@@ -21,10 +22,9 @@ import { POST as countView } from "./views/route";
 
 vi.mock("next/headers", async () => (await import("@/lib/auth/test-helpers")).nextHeadersMock);
 
-const dropped = vi.hoisted(() => ({ tags: [] as string[], paths: [] as string[] }));
+const dropped = vi.hoisted(() => ({ tags: [] as string[] }));
 vi.mock("next/cache", () => ({
   revalidateTag: (tag: string) => void dropped.tags.push(tag),
-  revalidatePath: (path: string) => void dropped.paths.push(path),
   unstable_cache: <T>(load: () => Promise<T>) => load,
 }));
 
@@ -70,7 +70,6 @@ describe("/api/portfolio", () => {
     await resetDb();
     cookieJar.clear();
     dropped.tags.length = 0;
-    dropped.paths.length = 0;
   });
 
   it("needs a signed-in account", async () => {
@@ -105,8 +104,7 @@ describe("/api/portfolio", () => {
     dropped.tags.length = 0;
     const live = await patch({ published: true });
     expect(live.status).toBe(200);
-    expect(dropped.tags).toContain("portfolio:maya-chen");
-    expect(dropped.paths).toContain("/p/maya-chen");
+    expect(dropped.tags).toEqual(["portfolio:maya-chen"]);
 
     dropped.tags.length = 0;
     const down = await patch({ published: false });
@@ -233,21 +231,29 @@ describe("/api/portfolio", () => {
     expect((await getPortfolio(maya.id))?.views).toBe(1);
   });
 
-  it("follows the resume's cloud backups while in sync", async () => {
+  it("follows the resume's cloud backups while in sync, dropping the cached copy once live", async () => {
     const maya = await signInAs("maya@example.com");
     await create({ resume: sampleResume() });
     dropped.tags.length = 0;
+    const backUp = (resume: Resume) =>
+      putResume(
+        new Request(`http://localhost/api/resumes/${resume.id}`, {
+          method: "PUT",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify(resume),
+        }),
+        { params: Promise.resolve({ id: resume.id }) },
+      );
     const edited = sampleResume({ summary: "Edited in the studio.", updatedAt: 9_000 });
-    const res = await putResume(
-      new Request(`http://localhost/api/resumes/${edited.id}`, {
-        method: "PUT",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify(edited),
-      }),
-      { params: Promise.resolve({ id: edited.id }) },
-    );
-    expect(res.status).toBe(200);
+    expect((await backUp(edited)).status).toBe(200);
     expect((await getPortfolio(maya.id))?.snapshot.summary).toBe("Edited in the studio.");
-    expect(dropped.tags).toContain("portfolio:maya-chen");
+    expect(dropped.tags).toEqual([]);
+
+    await patch({ published: true });
+    dropped.tags.length = 0;
+    const again = sampleResume({ summary: "Edited again.", updatedAt: 10_000 });
+    expect((await backUp(again)).status).toBe(200);
+    expect((await getPortfolio(maya.id))?.snapshot.summary).toBe("Edited again.");
+    expect(dropped.tags).toEqual(["portfolio:maya-chen"]);
   });
 });

@@ -1,9 +1,9 @@
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { resetEnvForTests } from "@/lib/env";
 import { clearGitHubCache } from "./cache";
 import { fetchGitHubStats } from "./profile";
 import { githubStatsFrom } from "./stats";
-import { installFakeGitHub, json, rawRepo, type FakeGitHub } from "./testing";
+import { holdFakeGitHub, installFakeGitHub, json, rawRepo, type FakeGitHub } from "./testing";
 import type { GitHubRepo } from "./types";
 
 const NOW = Date.UTC(2026, 10, 8, 12);
@@ -121,6 +121,15 @@ describe("fetching them", () => {
     expect(github.calls).toHaveLength(3);
   });
 
+  it("asks for the profile, repos and events together", async () => {
+    const held = holdFakeGitHub(standard);
+    github = held;
+    const stats = fetchGitHubStats("octocat", NOW);
+    await vi.waitFor(() => expect(held.calls).toHaveLength(3));
+    held.release();
+    expect(await stats).toMatchObject({ username: "Octocat", totalStars: 12 });
+  });
+
   it("sends GITHUB_TOKEN when it's set", async () => {
     process.env.GITHUB_TOKEN = "ghp_test";
     resetEnvForTests();
@@ -144,5 +153,24 @@ describe("fetching them", () => {
         : standard(url),
     );
     expect((await fetchGitHubStats("octocat", NOW))?.activity.events90d).toBe(0);
+  });
+
+  it("still answers null for a missing account when its other reads fail too", async () => {
+    github = installFakeGitHub((url) =>
+      url.pathname === "/users/nobody/events/public"
+        ? json({ message: "busy" }, { status: 502 })
+        : undefined,
+    );
+    expect(await fetchGitHubStats("nobody", NOW)).toBeNull();
+  });
+
+  it("reports the profile's failure first, as one call at a time did", async () => {
+    github = installFakeGitHub((url) => {
+      if (url.pathname === "/users/octocat") return json({ message: "boom" }, { status: 502 });
+      if (url.pathname === "/users/octocat/repos")
+        return json({ message: "slow" }, { status: 429 });
+      return standard(url);
+    });
+    await expect(fetchGitHubStats("octocat", NOW)).rejects.toMatchObject({ reason: "unavailable" });
   });
 });

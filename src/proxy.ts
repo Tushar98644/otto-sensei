@@ -17,9 +17,9 @@ function devSession(request: NextRequest): SessionUpdate {
   return { response: NextResponse.next(), signedIn: Boolean(request.cookies.get(DEV_SESSION_COOKIE)?.value) };
 }
 
-// API routes refresh the session themselves; refreshing here too would double it.
+// API routes refresh the session themselves; refreshing here too would double it. Portfolios (/p/) never read it.
 export const config = {
   matcher: [
-    "/((?!_next/static|_next/image|favicon\\.ico|icon|apple-icon|opengraph-image|robots\\.txt|sitemap\\.xml|api/|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|txt|xml|woff2?|ttf|otf)$).*)",
+    "/((?!_next/static|_next/image|favicon\\.ico|icon|apple-icon|opengraph-image|robots\\.txt|sitemap\\.xml|api/|p/|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|txt|xml|woff2?|ttf|otf)$).*)",
   ],
 };

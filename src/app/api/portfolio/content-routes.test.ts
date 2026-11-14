@@ -14,7 +14,13 @@ import {
   signInAs,
 } from "@/lib/auth/test-helpers";
 import { clearGitHubCache } from "@/lib/github/cache";
-import { installFakeGitHub, json, rawRepo, type FakeGitHub } from "@/lib/github/testing";
+import {
+  holdFakeGitHub,
+  installFakeGitHub,
+  json,
+  rawRepo,
+  type FakeGitHub,
+} from "@/lib/github/testing";
 import {
   emptyContent,
   type ContentResponse,
@@ -28,13 +34,26 @@ import { POST as refreshGitHub } from "./github/route";
 import { DELETE as deletePortfolio, PATCH, POST } from "./route";
 
 vi.mock("next/headers", async () => (await import("@/lib/auth/test-helpers")).nextHeadersMock);
+
+const purged = vi.hoisted(() => [] as string[]);
 vi.mock("next/cache", () => ({
-  revalidateTag: () => {},
-  revalidatePath: () => {},
+  revalidateTag: (tag: string) => void purged.push(tag),
   unstable_cache: <T>(load: () => Promise<T>) => load,
 }));
 
+const later = vi.hoisted(() => [] as (() => unknown)[]);
+vi.mock("next/server", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("next/server")>()),
+  after: (task: () => unknown) => void later.push(task),
+}));
+
+vi.mock("@/lib/portfolio/records", async (importOriginal) => {
+  const records = await importOriginal<typeof import("@/lib/portfolio/records")>();
+  return { ...records, getPortfolio: vi.fn(records.getPortfolio) };
+});
+
 let github: FakeGitHub;
+let stars = 42;
 
 const put = (content: unknown) =>
   putContent(
@@ -49,6 +68,15 @@ async function errorOf(res: Response) {
   return ((await res.json()) as ApiErrorBody).error;
 }
 
+function mayaOnGitHub(url: URL) {
+  if (url.pathname === "/users/mayachen")
+    return json({ login: "mayachen", followers: 5, public_repos: 1 });
+  if (url.pathname === "/users/mayachen/repos")
+    return json([rawRepo("mayachen/otto-resume", { stargazers_count: stars })]);
+  if (url.pathname === "/users/mayachen/events/public") return json([]);
+  return undefined;
+}
+
 async function proWithPortfolio(email = "maya@example.com") {
   const user = await setPlan(await signInAs(email), "pro");
   const made = await POST(jsonRequest("/api/portfolio", { resume: sampleResume() }));
@@ -60,14 +88,10 @@ beforeEach(async () => {
   await resetDb();
   cookieJar.clear();
   clearGitHubCache();
-  github = installFakeGitHub((url) => {
-    if (url.pathname === "/users/mayachen")
-      return json({ login: "mayachen", followers: 5, public_repos: 1 });
-    if (url.pathname === "/users/mayachen/repos")
-      return json([rawRepo("mayachen/otto-resume", { stargazers_count: 42 })]);
-    if (url.pathname === "/users/mayachen/events/public") return json([]);
-    return undefined;
-  });
+  purged.length = 0;
+  later.length = 0;
+  stars = 42;
+  github = installFakeGitHub(mayaOnGitHub);
 });
 
 afterEach(() => {
@@ -122,6 +146,25 @@ describe("/api/portfolio/content", () => {
     expect((await put({ pitch: "x".repeat(500) })).status).toBe(400);
     expect((await getPortfolio((await signInAs("maya@example.com")).id))?.content.pitch).toBeNull();
   });
+
+  it("loads and saves without reading or parsing the whole page", async () => {
+    linkGitHub(await proWithPortfolio(), "mayachen");
+    vi.mocked(getPortfolio).mockClear();
+    expect((await getContent()).status).toBe(200);
+    expect((await put({ pitch: "Hi" })).status).toBe(200);
+    expect(getPortfolio).not.toHaveBeenCalled();
+  });
+
+  it("drops the cached page on a save only while the page is live", async () => {
+    await proWithPortfolio();
+    purged.length = 0;
+    expect((await put({ pitch: "Draft" })).status).toBe(200);
+    expect(purged).toEqual([]);
+    expect((await publish()).status).toBe(200);
+    purged.length = 0;
+    expect((await put({ pitch: "Live" })).status).toBe(200);
+    expect(purged).toEqual(["portfolio:maya-chen"]);
+  });
 });
 
 const publish = () =>
@@ -172,6 +215,72 @@ describe("a portfolio's GitHub numbers", () => {
     );
     expect(res.status).toBe(200);
     expect(await publicGitHub()).toBeNull();
+  });
+
+  it("show at once when only old, and are fetched again after the answer", async () => {
+    const maya = await proWithPortfolio();
+    linkGitHub(maya, "mayachen");
+    await getContent();
+    await publish();
+    const db = await getDb();
+    const old = Date.now() - 7 * 60 * 60 * 1000;
+    await db.update(portfolios).set({ githubCheckedAt: old }).where(eq(portfolios.userId, maya.id));
+    clearGitHubCache();
+    stars = 50;
+    const calls = github.calls.length;
+
+    const loaded = (await (await getContent()).json()) as ContentResponse;
+    expect(loaded.github?.totalStars).toBe(42);
+    expect(github.calls).toHaveLength(calls);
+    expect(later).toHaveLength(1);
+
+    purged.length = 0;
+    for (const task of later.splice(0)) await task();
+    expect(github.calls.length).toBeGreaterThan(calls);
+    expect(purged).toEqual(["portfolio:maya-chen"]);
+    expect((await publicGitHub())?.totalStars).toBe(50);
+    const saved = (await (await put({ pitch: "Hi" })).json()) as ContentResponse;
+    expect(saved.github?.totalStars).toBe(50);
+  });
+
+  it("are fetched again once, however many loads and saves find them old meanwhile", async () => {
+    const maya = await proWithPortfolio();
+    linkGitHub(maya, "mayachen");
+    await getContent();
+    const db = await getDb();
+    const old = Date.now() - 7 * 60 * 60 * 1000;
+    await db.update(portfolios).set({ githubCheckedAt: old }).where(eq(portfolios.userId, maya.id));
+    clearGitHubCache();
+    github.restore();
+    const held = holdFakeGitHub(mayaOnGitHub);
+    github = held;
+
+    expect((await getContent()).status).toBe(200);
+    expect((await put({ pitch: "Hi" })).status).toBe(200);
+    expect((await put({ pitch: "Hi there" })).status).toBe(200);
+    expect(later).toHaveLength(3);
+    const refreshing = Promise.all(later.splice(0).map((task) => task()));
+    await vi.waitFor(() => expect(held.calls).toHaveLength(3));
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(held.calls).toHaveLength(3);
+    held.release();
+    await refreshing;
+    expect(held.calls).toHaveLength(3);
+  });
+
+  it("from another account are never shown, however old they are", async () => {
+    const maya = await proWithPortfolio();
+    linkGitHub(maya, "mayachen");
+    await getContent();
+    const db = await getDb();
+    const old = Date.now() - 7 * 60 * 60 * 1000;
+    await db.update(portfolios).set({ githubCheckedAt: old }).where(eq(portfolios.userId, maya.id));
+    linkGitHub(maya, "someone-else");
+
+    const loaded = (await (await getContent()).json()) as ContentResponse;
+    expect(loaded.github).toBeNull();
+    expect(later).toHaveLength(0);
+    expect((await getPortfolio(maya.id))?.github).toBeNull();
   });
 
   it("saved before connecting was required are never shown", async () => {

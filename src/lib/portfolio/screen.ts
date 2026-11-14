@@ -1,5 +1,6 @@
-import { checkContent, textsOf } from "@/lib/ai/moderation";
+import { checkContent, mightBeSexual, textsOf } from "@/lib/ai/moderation";
 import type { Resume } from "@/lib/resume/schema";
+import { ResumeSchema } from "@/lib/resume/validation";
 import { shareSnapshot, snapshotText } from "@/lib/share/snapshot";
 import type { GitHubStats, PortfolioContent } from "./content";
 import { getPortfolio } from "./records";
@@ -33,6 +34,21 @@ export async function pageAllowed(parts: PageParts, source: string): Promise<boo
     .allowed;
 }
 
+// Only lines the live copy was checked with count as seen: email, phone and link labels never are.
+function checkedLines(live: unknown): Set<string> {
+  const parsed = ResumeSchema.safeParse(live);
+  return new Set(parsed.success ? snapshotText(parsed.data).split("\n") : []);
+}
+
+// The live copy passed when it went live, so only new lines can send a synced edit to the model.
+export async function syncAllowed(live: unknown, next: Resume, source: string): Promise<boolean> {
+  const seen = checkedLines(live);
+  const added = snapshotText(next)
+    .split("\n")
+    .filter((line) => !seen.has(line));
+  return !mightBeSexual(added.join("\n")) || pageAllowed({ snapshot: next }, source);
+}
+
 export function patchParts(current: Portfolio | null, patch: PortfolioPatch): PageParts | null {
   if (!current) return null;
   const publishing = patch.published === true && !current.published;
@@ -52,19 +68,35 @@ export function patchParts(current: Portfolio | null, patch: PortfolioPatch): Pa
   return snapshot || slug ? { snapshot, slug } : null;
 }
 
-export function liveParts(current: Portfolio | null, parts: PageParts): PageParts | null {
+export function liveParts(
+  current: { published: boolean } | null,
+  parts: PageParts,
+): PageParts | null {
   return current?.published ? parts : null;
 }
 
-// Each try checks the page as it is now and writes only if nothing changed it since.
-export async function screenedWrite<R extends { status: string }>(
+export function screenedWrite<R extends { status: string }>(
   userId: string,
   source: string,
   partsFor: (current: Portfolio | null) => PageParts | null,
   write: (version: number | null) => Promise<R>,
 ): Promise<R | Blocked> {
+  return screenedWriteWith(getPortfolio, userId, source, partsFor, write);
+}
+
+// Each try checks the page as it is now and writes only if nothing changed it since.
+export async function screenedWriteWith<
+  P extends { updatedAt: number },
+  R extends { status: string },
+>(
+  load: (userId: string) => Promise<P | null>,
+  userId: string,
+  source: string,
+  partsFor: (current: P | null) => PageParts | null,
+  write: (version: number | null) => Promise<R>,
+): Promise<R | Blocked> {
   for (let attempt = 1; ; attempt++) {
-    const current = await getPortfolio(userId);
+    const current = await load(userId);
     const parts = partsFor(current);
     if (parts && !(await pageAllowed(parts, source))) return { status: "blocked" };
     const result = await write(current?.updatedAt ?? null);

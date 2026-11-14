@@ -1,10 +1,11 @@
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { resetEnvForTests } from "@/lib/env";
 import { clearGitHubCache } from "./cache";
 import { draftGitHubProjects } from "./draft";
 import { MAX_CALLS_PER_REQUEST, newGitHubSession } from "./http";
 import {
   aiAnswer,
+  holdFakeGitHub,
   installFakeGitHub,
   isAIEndpoint,
   json,
@@ -152,6 +153,23 @@ describe("draftGitHubProjects without AI", () => {
     expect(result.entries.map((entry) => entry.key)).toEqual(["repo:octocat/ledger-lint"]);
     expect(result.missing).toBe(2);
     expect(fake.paths().some((path) => path.startsWith("/repos/vercel/"))).toBe(false);
+  });
+
+  it("reads the repos and the merged pull requests together", async () => {
+    const held = holdFakeGitHub(github);
+    fake = held;
+    const result = draftGitHubProjects(newGitHubSession(15_000), request());
+    await vi.waitFor(() =>
+      expect(held.calls.map((call) => new URL(call.url).pathname)).toEqual([
+        "/users/octocat/repos",
+        "/search/issues",
+      ]),
+    );
+    held.release();
+    expect((await result).entries.map((entry) => entry.key)).toEqual([
+      "repo:octocat/ledger-lint",
+      "pulls:vercel/next.js",
+    ]);
   });
 
   it("stays inside the GitHub call budget at the most a person can pick", async () => {

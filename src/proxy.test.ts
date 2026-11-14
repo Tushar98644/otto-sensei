@@ -96,16 +96,19 @@ describe("proxy", () => {
     expect(res.headers.get("cache-control")).toContain("no-store");
   });
 
-  it("runs on pages, but not on assets or API routes, which ask Supabase themselves", () => {
+  it("runs on pages, but not on assets, API routes or public portfolios, which never need it", () => {
     const runsOn = (url: string) => unstable_doesMiddlewareMatch({ config, url });
     for (const url of [
       "/",
       "/dashboard",
       "/dashboard/jobs",
+      "/dashboard/portfolio",
       "/studio?step=fix",
       "/auth/callback",
       "/s/abc123def456",
       "/apiary",
+      "/pricing",
+      "/privacy",
     ]) {
       expect(runsOn(url), url).toBe(true);
     }
@@ -127,6 +130,10 @@ describe("proxy", () => {
       "/robots.txt",
       "/sitemap.xml",
       "/favicon.ico",
+      "/p/maya-chen",
+      "/p/maya-chen?_rsc=1x2y3",
+      "/p/maya-chen/opengraph-image",
+      "/p/maya-chen/opengraph-image-abc123",
     ]) {
       expect(runsOn(url), url).toBe(false);
     }

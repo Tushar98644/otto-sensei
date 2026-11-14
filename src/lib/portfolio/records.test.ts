@@ -1,7 +1,7 @@
 import { eq } from "drizzle-orm";
 import { beforeEach, describe, expect, it } from "vitest";
 import { getDb } from "@/db/client";
-import { users } from "@/db/schema";
+import { portfolios, users } from "@/db/schema";
 import { createUser as createFreeUser, resetDb, setPlan } from "@/lib/auth/test-helpers";
 import {
   checkSlug,
@@ -11,6 +11,7 @@ import {
   findViewTarget,
   followResume,
   getPortfolio,
+  indexablePortfolios,
   portfolioSlugsOf,
   updatePortfolio,
   type SaveResult,
@@ -231,6 +232,23 @@ describe("portfolio records", () => {
       await followResume(user.id, sampleResume({ summary: "Later", updatedAt: 9_000 })),
     ).toBeNull();
     expect((await getPortfolio(user.id))?.snapshot.summary).toBe("New intro.");
+  });
+
+  it("keeps serving, listing and counting a live page whose address became reserved", async () => {
+    const user = await createUser();
+    const portfolio = saved(await createPortfolio(user.id, { resume: sampleResume() }));
+    saved(await updatePortfolio(user.id, { published: true, allowIndexing: true }, PRO));
+    await (
+      await getDb()
+    )
+      .update(portfolios)
+      .set({ slug: "support" })
+      .where(eq(portfolios.id, portfolio.id));
+
+    expect((await findPublicPortfolio("support")).status).toBe("ok");
+    expect((await indexablePortfolios(10)).map((page) => page.slug)).toEqual(["support"]);
+    expect(await findViewTarget("support")).toEqual({ id: portfolio.id, ownerId: user.id });
+    expect(await findViewTarget("Support")).toBeNull();
   });
 
   it("counts views of published pages only, without keeping anything about the visitor", async () => {

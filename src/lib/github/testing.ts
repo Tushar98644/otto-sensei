@@ -10,16 +10,37 @@ export type FakeGitHub = {
 };
 
 export function installFakeGitHub(handler: FakeHandler): FakeGitHub {
+  return fakeGitHub(handler, () => true).fake;
+}
+
+type HeldGitHub = FakeGitHub & { release: () => void };
+
+// Every answer waits for release(), so a test can see which calls were under way together.
+export function holdFakeGitHub(handler: FakeHandler): HeldGitHub {
+  let open = false;
+  const { fake, waiting } = fakeGitHub(handler, () => open);
+  return {
+    ...fake,
+    release: () => {
+      open = true;
+      for (const answer of waiting.splice(0)) answer();
+    },
+  };
+}
+
+function fakeGitHub(handler: FakeHandler, isOpen: () => boolean) {
   const calls: FakeCall[] = [];
+  const waiting: (() => void)[] = [];
   const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = new URL(input instanceof Request ? input.url : String(input));
     const headers = new Headers(init?.headers);
     const body = typeof init?.body === "string" ? init.body : "";
     calls.push({ url: url.href, headers, body });
+    if (!isOpen()) await new Promise<void>((resolve) => waiting.push(resolve));
     return handler(url, headers, body) ?? json({ message: "Not Found" }, { status: 404 });
   });
   vi.stubGlobal("fetch", fetchMock);
-  return {
+  const fake: FakeGitHub = {
     calls,
     paths: () => calls.map((call) => {
       const url = new URL(call.url);
@@ -27,6 +48,7 @@ export function installFakeGitHub(handler: FakeHandler): FakeGitHub {
     }),
     restore: () => vi.unstubAllGlobals(),
   };
+  return { fake, waiting };
 }
 
 export function json(body: unknown, init: ResponseInit = {}): Response {

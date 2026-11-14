@@ -191,13 +191,24 @@ function withoutBody(pull: PullRecord): GitHubPull {
   return { id, number, title, url, repo, mergedAt };
 }
 
+// Reads that ran together still fail in the order they would have one after another.
+export function settledValue<T>(result: PromiseSettledResult<T>): T {
+  if (result.status === "rejected") throw result.reason;
+  return result.value;
+}
+
 export async function lookupProfile(session: GitHubSession, username: string): Promise<GitHubLookup> {
-  const repos = await fetchRepos(session, username);
+  const [repoRead, pullRead] = await Promise.allSettled([
+    fetchRepos(session, username),
+    fetchMergedPulls(session, username),
+  ]);
+  const repos = settledValue(repoRead);
   let pulls: PullRecord[] = [];
   let pullsUnavailable = false;
-  try {
-    pulls = await fetchMergedPulls(session, username);
-  } catch (error) {
+  if (pullRead.status === "fulfilled") {
+    pulls = pullRead.value;
+  } else {
+    const error: unknown = pullRead.reason;
     if (!(error instanceof GitHubError) || error.reason === "over_budget") throw error;
     pullsUnavailable = true;
   }

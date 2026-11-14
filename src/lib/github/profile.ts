@@ -1,5 +1,5 @@
 import type { GitHubStats } from "@/lib/portfolio/content";
-import { fetchRepos } from "./api";
+import { fetchRepos, settledValue } from "./api";
 import { cachedGet, GitHubError, jsonOf, MAX_JSON_BYTES, newGitHubSession } from "./http";
 import {
   GitHubEventJson,
@@ -26,29 +26,34 @@ function parseEvents(body: string, truncated: boolean): GitHubEvent[] {
   });
 }
 
+function eventsOf(result: PromiseSettledResult<GitHubEvent[] | null>): GitHubEvent[] {
+  if (result.status === "fulfilled") return result.value ?? [];
+  const error: unknown = result.reason;
+  if (!(error instanceof GitHubError) || error.reason === "over_budget") throw error;
+  return [];
+}
+
+// The reads only need the name, so they run together; a missing account still answers null.
 export async function fetchGitHubStats(
   username: string,
   now = Date.now(),
 ): Promise<GitHubStats | null> {
   const session = newGitHubSession(BUDGET_MS);
   const name = encodeURIComponent(username.toLowerCase());
-  const user = await cachedGet(session, `/users/${name}`, {
-    accept: "application/vnd.github+json",
-    maxBytes: 64 * 1024,
-    parse: parseUser,
-  });
-  if (user === null) return null;
-  const repos = await fetchRepos(session, username);
-  let events: GitHubEvent[] = [];
-  try {
-    events =
-      (await cachedGet(session, `/users/${name}/events/public?per_page=100`, {
-        accept: "application/vnd.github+json",
-        maxBytes: MAX_JSON_BYTES,
-        parse: parseEvents,
-      })) ?? [];
-  } catch (error) {
-    if (!(error instanceof GitHubError) || error.reason === "over_budget") throw error;
-  }
-  return githubStatsFrom(user, repos, events, now);
+  const [user, repos, events] = await Promise.allSettled([
+    cachedGet(session, `/users/${name}`, {
+      accept: "application/vnd.github+json",
+      maxBytes: 64 * 1024,
+      parse: parseUser,
+    }),
+    fetchRepos(session, username),
+    cachedGet(session, `/users/${name}/events/public?per_page=100`, {
+      accept: "application/vnd.github+json",
+      maxBytes: MAX_JSON_BYTES,
+      parse: parseEvents,
+    }),
+  ]);
+  const profile = settledValue(user);
+  if (profile === null) return null;
+  return githubStatsFrom(profile, settledValue(repos), eventsOf(events), now);
 }

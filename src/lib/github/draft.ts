@@ -12,6 +12,7 @@ import {
   fetchMergedPulls,
   fetchReadme,
   fetchRepos,
+  settledValue,
   type LanguageShare,
   type PullRecord,
 } from "./api";
@@ -112,8 +113,12 @@ async function repoItem(session: GitHubSession, repo: GitHubRepo): Promise<RepoI
 async function pickItems(session: GitHubSession, request: GitHubDraftRequest): Promise<Picked> {
   const wantedRepos = unique(request.repos, (name) => name.toLowerCase());
   const wantedPulls = unique(request.pulls, (id) => id);
-  const repos = wantedRepos.length ? await fetchRepos(session, request.username) : [];
-  const pulls = wantedPulls.length ? await fetchMergedPulls(session, request.username) : [];
+  const [repoRead, pullRead] = await Promise.allSettled([
+    wantedRepos.length ? fetchRepos(session, request.username) : [],
+    wantedPulls.length ? fetchMergedPulls(session, request.username) : [],
+  ]);
+  const repos = settledValue(repoRead);
+  const pulls = settledValue(pullRead);
 
   const pickedRepos = wantedRepos.flatMap((name) => {
     const repo = repos.find((candidate) => candidate.fullName.toLowerCase() === name.toLowerCase());
