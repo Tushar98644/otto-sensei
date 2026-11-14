@@ -1,15 +1,24 @@
 "use client";
 
 import { Maximize2, Monitor, Smartphone } from "lucide-react";
-import { useCallback, useRef, useState, type CSSProperties } from "react";
+import {
+  memo,
+  Suspense,
+  useCallback,
+  useDeferredValue,
+  useRef,
+  useState,
+  type CSSProperties,
+} from "react";
 import { Button } from "@/components/ui/button";
 import type { PortfolioContentView } from "@/lib/portfolio/content";
+import { PORTFOLIO_TEMPLATE_INFO } from "@/lib/portfolio/templates";
 import { portfolioPath, type PortfolioTemplateId } from "@/lib/portfolio/types";
 import type { PortfolioView } from "@/lib/portfolio/view";
 import { cn } from "@/lib/utils";
 import { previewFit, type PreviewWidth } from "./preview-frame";
 import { templateFontClasses } from "./templates/fonts";
-import { PORTFOLIO_TEMPLATES } from "./templates/registry";
+import { LazyTemplate } from "./templates/lazy";
 
 type PortfolioPreviewProps = {
   view: PortfolioView;
@@ -42,7 +51,7 @@ function useBoxSize() {
 }
 
 // Only the page is inert, not the scroll box: an inert box let the wheel fall to the editor.
-export function PortfolioPreview({
+export const PortfolioPreview = memo(function PortfolioPreview({
   view,
   content,
   template,
@@ -52,9 +61,11 @@ export function PortfolioPreview({
   const [picked, setPicked] = useState<PreviewWidth | null>(null);
   const [paneRef, pane] = useBoxSize();
   const [scrollerRef, box] = useBoxSize();
+  // A design whose code is still on its way leaves the last one on screen until it arrives.
+  const shown = useDeferredValue(template);
   const width: PreviewWidth =
     picked ?? (pane.width > 0 && pane.width < NARROW_PANE ? "phone" : "desktop");
-  const { Component, name } = PORTFOLIO_TEMPLATES[template];
+  const { name, colors } = PORTFOLIO_TEMPLATE_INFO[shown];
   const { page, zoom } = previewFit(width, box.width);
   const screen = zoom > 0 ? box.height / zoom : 0;
   const phone = width === "phone";
@@ -113,34 +124,44 @@ export function PortfolioPreview({
             </div>
           )}
           <div className="relative min-h-0 flex-1 contain-layout">
-            <div
-              key={`${template}-${width}`}
-              ref={scrollerRef}
-              tabIndex={0}
-              role="region"
-              aria-label={`Preview of your page in ${name}. Scroll to see all of it.`}
-              className="absolute inset-0 overflow-x-hidden overflow-y-auto overscroll-contain -outline-offset-2"
-            >
-              {zoom > 0 ? (
+            <Suspense
+              fallback={
                 <div
-                  inert
-                  className={cn("flex flex-col", templateFontClasses(template))}
-                  style={
-                    {
-                      zoom,
-                      width: page,
-                      minHeight: screen,
-                      "--pf-screen": `${screen}px`,
-                    } as CSSProperties
-                  }
-                >
-                  <Component view={view} content={content} />
-                </div>
-              ) : null}
-            </div>
+                  aria-hidden
+                  className="absolute inset-0"
+                  style={{ backgroundColor: colors.background }}
+                />
+              }
+            >
+              <div
+                key={`${shown}-${width}`}
+                ref={scrollerRef}
+                tabIndex={0}
+                role="region"
+                aria-label={`Preview of your page in ${name}. Scroll to see all of it.`}
+                className="absolute inset-0 overflow-x-hidden overflow-y-auto overscroll-contain -outline-offset-2"
+              >
+                {zoom > 0 ? (
+                  <div
+                    inert
+                    className={cn("flex flex-col", templateFontClasses(shown))}
+                    style={
+                      {
+                        zoom,
+                        width: page,
+                        minHeight: screen,
+                        "--pf-screen": `${screen}px`,
+                      } as CSSProperties
+                    }
+                  >
+                    <LazyTemplate id={shown} view={view} content={content} />
+                  </div>
+                ) : null}
+              </div>
+            </Suspense>
           </div>
         </div>
       </div>
     </section>
   );
-}
+});

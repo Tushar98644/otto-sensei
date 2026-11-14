@@ -1,7 +1,16 @@
 "use client";
 
 import { ChevronLeft, ChevronRight, Monitor, Smartphone, X } from "lucide-react";
-import { useId, useLayoutEffect, useMemo, useRef, useState, type SyntheticEvent } from "react";
+import {
+  Suspense,
+  useEffect,
+  useId,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  type SyntheticEvent,
+} from "react";
 import { Button } from "@/components/ui/button";
 import { jordanPage } from "@/lib/portfolio/fixtures/jordan";
 import { PORTFOLIO_TEMPLATE_INFO, templateOrder } from "@/lib/portfolio/templates";
@@ -10,7 +19,7 @@ import { cn } from "@/lib/utils";
 import type { TemplateSample } from "./live-template";
 import { PreviewSourceNote, PreviewSourceSwitch, usePreviewSource } from "./preview-source";
 import { templateFontClasses } from "./templates/fonts";
-import { PORTFOLIO_TEMPLATES } from "./templates/registry";
+import { LazyTemplate, preloadTemplate } from "./templates/lazy";
 
 type Width = "desktop" | "phone";
 
@@ -35,11 +44,18 @@ export function FullPortfolioPreview({
   const [width, setWidth] = useState<Width>("desktop");
   const choice = usePreviewSource(own);
   const data = useMemo(() => choice.sample ?? jordanPage(), [choice.sample]);
-  const { Component } = PORTFOLIO_TEMPLATES[id];
-  const { name, description } = PORTFOLIO_TEMPLATE_INFO[id];
+  const { name, description, colors } = PORTFOLIO_TEMPLATE_INFO[id];
   const order = templateOrder(PORTFOLIO_TEMPLATE_IDS);
   const at = order.indexOf(id);
   const count = order.length;
+  const before = order[(at - 1 + count) % count];
+  const after = order[(at + 1) % count];
+
+  // The designs the arrows lead to are fetched now, so stepping shows no empty page.
+  useEffect(() => {
+    if (before) preloadTemplate(before);
+    if (after) preloadTemplate(after);
+  }, [before, after]);
 
   useLayoutEffect(() => {
     const dialog = dialogRef.current;
@@ -145,17 +161,27 @@ export function FullPortfolioPreview({
                 "mx-auto max-w-sm overflow-hidden ring-1 ring-border md:rounded-3xl",
             )}
           >
-            <div
-              key={`${id}-${width}-${choice.source}`}
-              className={cn(
-                // One screen is the window less the header (4rem) and the page bar (2.5rem).
-                "flex h-full flex-col overflow-y-auto [--pf-screen:calc(100dvh-6.5rem)]",
-                width === "phone" && "md:[--pf-screen:calc(100dvh-9.5rem)]",
-                templateFontClasses(id),
-              )}
+            <Suspense
+              fallback={
+                <div
+                  aria-hidden
+                  className="h-full"
+                  style={{ backgroundColor: colors.background }}
+                />
+              }
             >
-              <Component view={data.view} content={data.content} />
-            </div>
+              <div
+                key={`${id}-${width}-${choice.source}`}
+                className={cn(
+                  // One screen is the window less the header (4rem) and the page bar (2.5rem).
+                  "flex h-full flex-col overflow-y-auto [--pf-screen:calc(100dvh-6.5rem)]",
+                  width === "phone" && "md:[--pf-screen:calc(100dvh-9.5rem)]",
+                  templateFontClasses(id),
+                )}
+              >
+                <LazyTemplate id={id} view={data.view} content={data.content} />
+              </div>
+            </Suspense>
           </div>
         </div>
       </div>

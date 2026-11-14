@@ -38,6 +38,8 @@ export const useContentStore = create<ContentState>()(() => ({
 let timer: ReturnType<typeof setTimeout> | null = null;
 // Each edit bumps it; a save's answer only replaces what's shown if nothing changed since.
 let revision = 0;
+let running: Promise<void> | null = null;
+let rerun = false;
 
 export async function loadContent(owner: string, { force = false } = {}): Promise<void> {
   const state = useContentStore.getState();
@@ -55,9 +57,7 @@ export async function loadContent(owner: string, { force = false } = {}): Promis
   }
 }
 
-async function save({ keepalive = false } = {}): Promise<void> {
-  if (timer) clearTimeout(timer);
-  timer = null;
+async function send(keepalive: boolean): Promise<void> {
   const { content, dirty } = useContentStore.getState();
   if (!dirty) return;
   const sent = revision;
@@ -82,6 +82,30 @@ async function save({ keepalive = false } = {}): Promise<void> {
   } finally {
     useContentStore.setState({ saving: false });
   }
+}
+
+// One save at a time, so an older copy can't land after a newer one; a page being left can't wait.
+function save({ keepalive = false } = {}): Promise<void> {
+  if (timer) clearTimeout(timer);
+  timer = null;
+  if (running && keepalive) return send(true);
+  if (running) {
+    rerun = true;
+    return running;
+  }
+  running = (async () => {
+    try {
+      let leaving = keepalive;
+      do {
+        rerun = false;
+        await send(leaving);
+        leaving = false;
+      } while (rerun);
+    } finally {
+      running = null;
+    }
+  })();
+  return running;
 }
 
 export async function flushContent({ keepalive = false } = {}): Promise<void> {

@@ -1,6 +1,15 @@
 "use client";
 
-import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
+import {
+  lazy,
+  Suspense,
+  useCallback,
+  useDeferredValue,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { OttoNote } from "@/components/mascot/otto-note";
 import { resumeLabel } from "@/components/studio/resume-label";
 import { Alert } from "@/components/ui/alert";
@@ -48,9 +57,12 @@ export function PortfolioEditor({ portfolio, resumes, offer, onOfferDone }: Port
   const rich = usePortfolioContent(portfolio, shown);
   const view = rich.page.view;
   const own = useMemo(() => ({ view, content: rich.page.content }), [view, rich.page.content]);
+  // A keystroke commits first; the previews redraw the page in the background after it.
+  const preview = useDeferredValue(own);
   const sections = useMemo(() => sectionsWithContent(shown), [shown]);
   const [tab, setTab] = useState<EditorTab>("design");
   const [full, setFull] = useState<PortfolioTemplateId | null>(null);
+  const expand = useCallback(() => setFull(portfolio.template), [portfolio.template]);
   const panelRef = useRef<HTMLDivElement>(null);
   const bodyRef = useRef<HTMLDivElement>(null);
   const scrolled = useRef(new Map<EditorTab, number>());
@@ -94,7 +106,7 @@ export function PortfolioEditor({ portfolio, resumes, offer, onOfferDone }: Port
       data-workspace
       className="flex flex-col gap-5 max-lg:pb-24 lg:h-dvh lg:gap-4 lg:px-6 lg:pt-4 lg:pb-6"
     >
-      <EditorBar portfolio={portfolio} onPreview={() => setFull(portfolio.template)} />
+      <EditorBar portfolio={portfolio} onPreview={expand} />
 
       <div className="flex flex-col gap-6 lg:min-h-0 lg:flex-1 lg:flex-row">
         <div
@@ -148,7 +160,7 @@ export function PortfolioEditor({ portfolio, resumes, offer, onOfferDone }: Port
                   <TemplatePicker
                     value={portfolio.template}
                     onChange={(template) => void savePortfolio({ template })}
-                    own={own}
+                    own={preview}
                   />
                 </div>
               </TabPanel>
@@ -191,11 +203,11 @@ export function PortfolioEditor({ portfolio, resumes, offer, onOfferDone }: Port
 
         <div className="hidden lg:flex lg:min-h-0 lg:min-w-0 lg:flex-1 lg:flex-col">
           <PortfolioPreview
-            view={view}
-            content={rich.page.content}
+            view={preview.view}
+            content={preview.content}
             template={portfolio.template}
             slug={portfolio.slug}
-            onExpand={() => setFull(portfolio.template)}
+            onExpand={expand}
           />
         </div>
       </div>

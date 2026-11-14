@@ -115,6 +115,7 @@ export function EditorBar({ portfolio, onPreview }: EditorBarProps) {
                   icon: EyeOff,
                   description: "Visitors see the page is down. You can undo.",
                   tone: "danger",
+                  disabled: saving,
                   onSelect: () => void setPublished(false),
                 },
               ]}

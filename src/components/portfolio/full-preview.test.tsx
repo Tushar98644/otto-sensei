@@ -1,5 +1,5 @@
 import { renderToStaticMarkup } from "react-dom/server";
-import { describe, expect, it } from "vitest";
+import { beforeAll, describe, expect, it } from "vitest";
 import { emptyContent } from "@/lib/portfolio/content";
 import { contentView } from "@/lib/portfolio/content-view";
 import { jordanContent, jordanGitHub, jordanV2Resume } from "@/lib/portfolio/fixtures/jordan";
@@ -8,6 +8,7 @@ import { PORTFOLIO_TEMPLATE_IDS } from "@/lib/portfolio/types";
 import { portfolioView } from "@/lib/portfolio/view";
 import { FullPortfolioPreview } from "./full-preview";
 import type { TemplateSample } from "./live-template";
+import { loadTemplate } from "./templates/lazy";
 
 const noop = () => {};
 
@@ -44,10 +45,25 @@ function samsPage(full: boolean): TemplateSample {
 
 const SAMPLE_NOTE = "Sample page:</span> Jordan Ellis, a made-up person";
 
+describe("FullPortfolioPreview before a design's code is here", () => {
+  it("shows the bar and fills the page with the design's background until it arrives", () => {
+    const html = draw("bento");
+    expect(html).toContain("Bento");
+    expect(html).toContain("Try Pro for 3 days");
+    expect(html).toContain(`background-color:${PORTFOLIO_TEMPLATE_INFO.bento.colors.background}`);
+    expect(html).not.toContain('class="pf-bento"');
+  });
+});
+
 describe("FullPortfolioPreview", () => {
+  beforeAll(async () => {
+    await Promise.all(PORTFOLIO_TEMPLATE_IDS.map((id) => loadTemplate(id)));
+  });
+
   it("draws every design at full size, with its place in the set and the way to go live", () => {
     templateOrder(PORTFOLIO_TEMPLATE_IDS).forEach((id, index) => {
       const html = draw(id);
+      expect(html).toContain(`class="pf-${id}"`);
       expect(html).toContain(PORTFOLIO_TEMPLATE_INFO[id].name);
       expect(html).toContain(`${index + 1} of ${PORTFOLIO_TEMPLATE_IDS.length}`);
       expect(html).toContain("Jordan Ellis");

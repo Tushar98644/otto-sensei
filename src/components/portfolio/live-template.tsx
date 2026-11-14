@@ -8,7 +8,7 @@ import type { PortfolioView } from "@/lib/portfolio/view";
 import { cn } from "@/lib/utils";
 import { LIVE_HEIGHT, LIVE_WIDTH } from "./live-size";
 import { templateFontClasses } from "./templates/fonts";
-import { PORTFOLIO_TEMPLATES } from "./templates/registry";
+import { LazyTemplate } from "./templates/lazy";
 
 export type TemplateSample = { view: PortfolioView; content: PortfolioContentView };
 
@@ -22,7 +22,6 @@ export function LiveTemplate({
   scale: number;
 }) {
   const data = useMemo(() => sample ?? jordanPage(), [sample]);
-  const { Component } = PORTFOLIO_TEMPLATES[id];
   return (
     // The transform makes this box the containing block for a template's fixed parts.
     <div
@@ -42,7 +41,7 @@ export function LiveTemplate({
         } as CSSProperties
       }
     >
-      <Component view={data.view} content={data.content} />
+      <LazyTemplate id={id} view={data.view} content={data.content} />
     </div>
   );
 }

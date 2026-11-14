@@ -74,6 +74,7 @@ export async function makePortfolio(resume: Resume): Promise<Portfolio | null> {
 }
 
 let latestSave = 0;
+let queue: Promise<unknown> = Promise.resolve();
 
 function withSettings(portfolio: Portfolio, patch: UpdatePortfolioBody): Portfolio {
   const next = { ...portfolio };
@@ -94,8 +95,11 @@ export async function savePortfolio(patch: UpdatePortfolioBody): Promise<boolean
   const mine = ++latestSave;
   putPortfolio(withSettings(before, patch));
   usePortfolioStore.setState({ saving: true });
+  // Sent one after another, or a quick "Take down" could commit before the publish it follows.
+  const sent = queue.then(() => api.updatePortfolio(patch));
+  queue = sent.catch(() => undefined);
   try {
-    const { portfolio } = await api.updatePortfolio(patch);
+    const { portfolio } = await sent;
     if (mine === latestSave) putPortfolio(portfolio);
     return true;
   } catch (error) {

@@ -1,18 +1,46 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useRef, type ReactNode } from "react";
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+  type ComponentType,
+  type ReactNode,
+} from "react";
 import { useMe } from "@/components/account/use-me";
+import type { StepLoader } from "@/components/studio/step-loader";
 import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { Resume } from "@/lib/resume/schema";
 import { useResumeList, useStudioHydrated } from "@/lib/store/resume-store";
-import { PortfolioEditor } from "./portfolio-editor";
 import { PortfolioStart } from "./portfolio-start";
-import { PortfolioUpgrade } from "./portfolio-upgrade";
 import { makePortfolio, usePortfolio, usePortfolioStore } from "./portfolio-store";
 import { PORTFOLIO_ROUTE } from "./route";
+import { editorLoader, upgradeLoader } from "./screens";
+import { preloadTemplate } from "./templates/lazy";
+
+// Fetched as soon as the plan says which screen it is, so the download overlaps the portfolio's.
+function useLoaded<P extends object>(loader: StepLoader<ComponentType<P>>, wanted: boolean) {
+  const state = useSyncExternalStore(loader.subscribe, loader.getState, loader.getState);
+  const [failure, setFailure] = useState<{ error: unknown } | null>(null);
+
+  useEffect(() => {
+    if (!wanted || loader.getState().status === "ready") return;
+    let live = true;
+    loader.load().catch((error: unknown) => {
+      if (live) setFailure({ error });
+    });
+    return () => {
+      live = false;
+    };
+  }, [loader, wanted]);
+
+  return { Component: state.status === "ready" ? state.value : null, failure };
+}
 
 export function portfolioCandidates(resumes: readonly Resume[]): Resume[] {
   return [...resumes].sort(
@@ -36,6 +64,15 @@ function Screen({ children }: { children: ReactNode }) {
   );
 }
 
+function Loading() {
+  return (
+    <div className="grid gap-6 lg:grid-cols-5" aria-busy>
+      <Skeleton className="h-96 rounded-2xl lg:col-span-2" />
+      <Skeleton className="h-96 rounded-2xl lg:col-span-3" />
+    </div>
+  );
+}
+
 export type PortfolioPageProps = {
   fromResumeId: string | null;
 };
@@ -51,9 +88,16 @@ export function PortfolioPage({ fromResumeId }: PortfolioPageProps) {
   const { status, error, portfolio, retry } = usePortfolio();
   const saving = usePortfolioStore((state) => state.saving);
   const handled = useRef(false);
+  const editor = useLoaded(editorLoader, userId !== null && !locked);
+  const upgrade = useLoaded(upgradeLoader, locked);
+  const template = portfolio?.template ?? null;
 
   const ready = hydrated && userId !== null && status === "ready";
   const from = fromResumeId ? (resumes.find((resume) => resume.id === fromResumeId) ?? null) : null;
+
+  useEffect(() => {
+    if (template && !locked) preloadTemplate(template);
+  }, [template, locked]);
 
   useEffect(() => {
     if (!ready || handled.current || !fromResumeId || locked) return;
@@ -83,17 +127,16 @@ export function PortfolioPage({ fromResumeId }: PortfolioPageProps) {
   if (!ready || (saving && !portfolio)) {
     return (
       <Screen>
-        <div className="grid gap-6 lg:grid-cols-5" aria-busy>
-          <Skeleton className="h-96 rounded-2xl lg:col-span-2" />
-          <Skeleton className="h-96 rounded-2xl lg:col-span-3" />
-        </div>
+        <Loading />
       </Screen>
     );
   }
   if (locked) {
+    if (upgrade.failure) throw upgrade.failure.error;
+    const Upgrade = upgrade.Component;
     return (
       <Screen>
-        <PortfolioUpgrade portfolio={portfolio} candidates={candidates} />
+        {Upgrade ? <Upgrade portfolio={portfolio} candidates={candidates} /> : <Loading />}
       </Screen>
     );
   }
@@ -104,8 +147,17 @@ export function PortfolioPage({ fromResumeId }: PortfolioPageProps) {
       </Screen>
     );
   }
+  if (editor.failure) throw editor.failure.error;
+  const Editor = editor.Component;
+  if (!Editor) {
+    return (
+      <Screen>
+        <Loading />
+      </Screen>
+    );
+  }
   return (
-    <PortfolioEditor
+    <Editor
       portfolio={portfolio}
       resumes={candidates}
       offer={from && from.id !== portfolio.resumeId ? from : null}

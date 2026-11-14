@@ -7,6 +7,7 @@ import type { PortfolioTemplateId } from "@/lib/portfolio/types";
 import { cn } from "@/lib/utils";
 import { LIVE_WIDTH } from "./live-size";
 import type { TemplateSample } from "./live-template";
+import { preloadTemplate } from "./templates/lazy";
 
 const LiveTemplate = lazy(() =>
   import("./live-template").then((module) => ({ default: module.LiveTemplate })),
@@ -31,14 +32,18 @@ export function TemplatePreview({
   useEffect(() => {
     const card = frame.current?.closest("label, button, a, li") ?? frame.current;
     if (!card || wanted) return;
-    const want = () => setWanted(true);
+    // Fetched with the live view's code, and warm by the time the card is picked.
+    const want = () => {
+      preloadTemplate(id);
+      setWanted(true);
+    };
     card.addEventListener("pointerenter", want);
     card.addEventListener("focusin", want);
     return () => {
       card.removeEventListener("pointerenter", want);
       card.removeEventListener("focusin", want);
     };
-  }, [wanted]);
+  }, [wanted, id]);
 
   useEffect(() => {
     const box = frame.current;

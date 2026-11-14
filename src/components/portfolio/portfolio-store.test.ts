@@ -1,0 +1,134 @@
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { emptyContent } from "@/lib/portfolio/content";
+import { jordanV2Resume } from "@/lib/portfolio/fixtures/jordan";
+import type { Portfolio, PortfolioSaveResponse } from "@/lib/portfolio/types";
+import { queryKeys } from "@/lib/queries/keys";
+
+vi.mock("@tanstack/react-query", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@tanstack/react-query")>()),
+  isServer: false,
+}));
+const api = vi.hoisted(() => ({ updatePortfolio: vi.fn() }));
+vi.mock("@/lib/api/client", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/api/client")>()),
+  api,
+}));
+vi.mock("@/components/account/use-me", () => ({
+  signedInUserId: () => "ada",
+  subscribeToMe: () => () => {},
+  useMe: () => ({ user: null, me: null }),
+}));
+const toast = vi.hoisted(() => vi.fn());
+vi.mock("@/components/ui/toast", () => ({ toast, dismissToast: vi.fn() }));
+
+const { ApiClientError } = await import("@/lib/api/client");
+const { getQueryClient } = await import("@/lib/queries/client");
+const { savePortfolio, setPublished, usePortfolioStore } = await import("./portfolio-store");
+
+const KEY = queryKeys.portfolio("ada");
+
+function portfolio(change: Partial<Portfolio> = {}): Portfolio {
+  return {
+    id: "portfolio-1",
+    resumeId: "resume-1",
+    slug: "ada-lovelace",
+    snapshot: jordanV2Resume(),
+    versionAt: 1_000,
+    content: emptyContent(),
+    github: null,
+    views: 0,
+    createdAt: 1_000,
+    updatedAt: 1_000,
+    publishedAt: null,
+    template: "navy",
+    showEmail: false,
+    showPhone: false,
+    hiddenSections: [],
+    sync: true,
+    published: false,
+    allowIndexing: false,
+    ...change,
+  };
+}
+
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+  const promise = new Promise<T>((yes) => {
+    resolve = yes;
+  });
+  return { promise, resolve };
+}
+
+const saved = (change: Partial<Portfolio>): PortfolioSaveResponse => ({
+  ok: true,
+  portfolio: portfolio(change),
+  created: false,
+});
+const shown = () => getQueryClient().getQueryData<Portfolio | null>(KEY);
+const settle = () => new Promise((resolve) => setTimeout(resolve, 0));
+
+beforeEach(() => {
+  getQueryClient().clear();
+  getQueryClient().setQueryData(KEY, portfolio());
+  usePortfolioStore.setState({ saving: false });
+  vi.clearAllMocks();
+});
+
+describe("savePortfolio", () => {
+  it("sends a quick Take down only after the publish it follows, so the page ends up down", async () => {
+    const publish = deferred<PortfolioSaveResponse>();
+    api.updatePortfolio
+      .mockReturnValueOnce(publish.promise)
+      .mockResolvedValueOnce(saved({ published: false }));
+    const up = setPublished(true);
+    expect(shown()?.published).toBe(true);
+    const down = setPublished(false);
+    expect(shown()?.published).toBe(false);
+    await settle();
+    expect(api.updatePortfolio).toHaveBeenCalledTimes(1);
+
+    publish.resolve(saved({ published: true }));
+    await Promise.all([up, down]);
+    expect(api.updatePortfolio.mock.calls).toEqual([[{ published: true }], [{ published: false }]]);
+    expect(shown()?.published).toBe(false);
+    expect(usePortfolioStore.getState().saving).toBe(false);
+    expect(toast.mock.calls.map(([options]) => options.title)).toEqual([
+      "Your page is live",
+      "Your page is down",
+    ]);
+  });
+
+  it("keeps the newest choice on screen while older answers come back", async () => {
+    const first = deferred<PortfolioSaveResponse>();
+    api.updatePortfolio
+      .mockReturnValueOnce(first.promise)
+      .mockResolvedValueOnce(saved({ template: "reel" }));
+    const a = savePortfolio({ template: "dock" });
+    const b = savePortfolio({ template: "reel" });
+    expect(shown()?.template).toBe("reel");
+
+    first.resolve(saved({ template: "dock" }));
+    await a;
+    expect(shown()?.template).toBe("reel");
+    expect(usePortfolioStore.getState().saving).toBe(true);
+    await b;
+    expect(api.updatePortfolio.mock.calls).toEqual([
+      [{ template: "dock" }],
+      [{ template: "reel" }],
+    ]);
+    expect(shown()?.template).toBe("reel");
+    expect(usePortfolioStore.getState().saving).toBe(false);
+  });
+
+  it("still sends the next change after one fails, and puts back what the failed one showed", async () => {
+    api.updatePortfolio
+      .mockResolvedValueOnce(saved({ template: "dock" }))
+      .mockRejectedValueOnce(new ApiClientError("server_error", "No", 500))
+      .mockResolvedValueOnce(saved({ template: "dock", showEmail: true }));
+    expect(await savePortfolio({ template: "dock" })).toBe(true);
+    expect(await savePortfolio({ template: "reel" })).toBe(false);
+    expect(shown()?.template).toBe("dock");
+    expect(await savePortfolio({ showEmail: true })).toBe(true);
+    expect(shown()).toMatchObject({ template: "dock", showEmail: true });
+  });
+});
