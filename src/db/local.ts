@@ -1,5 +1,5 @@
 import path from "node:path";
-import { PGlite } from "@electric-sql/pglite";
+import { PGlite, type Transaction } from "@electric-sql/pglite";
 import { drizzle } from "drizzle-orm/pglite";
 import { log } from "@/lib/log";
 import type { Db } from "./client";
@@ -41,13 +41,14 @@ async function open(): Promise<Db> {
   const done = new Set(applied.rows.map((row) => row.version));
   for (const migration of readMigrations()) {
     if (done.has(migration.version)) continue;
-    await client.transaction(async (tx) => {
-      await tx.exec(migration.sql);
-      await tx.query(
+    const apply = async (db: PGlite | Transaction) => {
+      await db.exec(migration.sql);
+      await db.query(
         "insert into supabase_migrations.schema_migrations (version, name, statements) values ($1, $2, $3)",
         [migration.version, migration.name, [migration.sql]],
       );
-    });
+    };
+    await (migration.transaction ? client.transaction(apply) : apply(client));
     log.info("db.local_migrated", { file: migration.file });
   }
   await client.exec(AUTH_USER_SHIM_TRIGGER);

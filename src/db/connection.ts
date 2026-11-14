@@ -13,7 +13,7 @@ function first(env: EnvLike, names: readonly string[]): string | undefined {
 }
 
 export const POOLED_URL_VARS = ["DATABASE_URL", "POSTGRES_URL"] as const;
-// Migrations take a session-level lock, so prefer a connection not pooled per transaction.
+// Migrations that run outside a transaction need a session, so prefer a connection not pooled per transaction.
 export const DIRECT_URL_VARS = [
   "DIRECT_DATABASE_URL",
   "POSTGRES_URL_NON_POOLING",
@@ -26,6 +26,11 @@ export function pooledDatabaseUrl(env: EnvLike = process.env): string | undefine
 
 export function directDatabaseUrl(env: EnvLike = process.env): string | undefined {
   return first(env, DIRECT_URL_VARS);
+}
+
+// Supabase's transaction pooler listens on 6543; its session pooler and the direct host on 5432.
+export function isTransactionPooler(url: string): boolean {
+  return new URL(url).port === "6543";
 }
 
 const LOCAL_HOSTS = new Set(["localhost", "127.0.0.1", "::1", "[::1]"]);

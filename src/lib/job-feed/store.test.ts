@@ -1,6 +1,9 @@
-import { and, desc, eq } from "drizzle-orm";
+import type { PGlite } from "@electric-sql/pglite";
+import { and, desc, eq, getTableColumns, sql } from "drizzle-orm";
+import { drizzle } from "drizzle-orm/pglite";
 import { beforeEach, describe, expect, it } from "vitest";
-import { getDb } from "@/db/client";
+import { getDb, type Db } from "@/db/client";
+import * as schema from "@/db/schema";
 import { applications, jobBoards, jobs, savedJobs } from "@/db/schema";
 import { createUser, resetDb } from "@/lib/auth/test-helpers";
 import type { RawJob } from "./parsers";
@@ -88,6 +91,75 @@ describe("job store", () => {
     expect(one).toMatchObject({ lastSeenAt: NOW, missedRuns: 0 });
     const [board] = await db.select().from(jobBoards).where(eq(jobBoards.token, "acme"));
     expect(board).toMatchObject({ lastStatus: "ok", openJobs: 2, lastFetchedAt: NOW + DAY });
+  });
+
+  it("rewrites changed jobs to exactly what a fresh read stores, one statement per chunk", async () => {
+    const base = await getDb();
+    const statements: string[] = [];
+    const db: Db = drizzle((base as unknown as { $client: PGlite }).$client, {
+      schema,
+      logger: { logQuery: (query) => statements.push(query) },
+    });
+    const posts = Array.from({ length: 5 }, (_, i) =>
+      raw(String(i), {
+        text: `Ship C++, C# and Node.js services. Job ${i} pays "well"; it's remote.`,
+      }),
+    );
+    const bookkeeping = new Set([
+      "id",
+      "firstSeenAt",
+      "lastSeenAt",
+      "missedRuns",
+      "createdAt",
+      "updatedAt",
+    ]);
+    const content = Object.fromEntries(
+      Object.entries(getTableColumns(jobs)).filter(([key]) => !bookkeeping.has(key)),
+    );
+    await saveJobs(db, ACME, posts, NOW, { snapshot: true });
+    const fresh = await db.select(content).from(jobs).orderBy(jobs.externalId);
+    await db.update(jobs).set({
+      title: "Old",
+      keywords: [],
+      search: sql`''::tsvector`,
+      groupKey: "",
+      remote: false,
+      contentHash: "stale",
+    });
+
+    const chunk = STORE_LIMITS.writeChunk;
+    Object.assign(STORE_LIMITS, { writeChunk: 2 });
+    statements.length = 0;
+    try {
+      expect(await saveJobs(db, ACME, posts, NOW + DAY, { snapshot: true })).toMatchObject({
+        added: 0,
+        updated: 5,
+        seen: 5,
+      });
+    } finally {
+      Object.assign(STORE_LIMITS, { writeChunk: chunk });
+    }
+    expect(statements.filter((query) => query.includes("from (values")).length).toBe(3);
+    expect(await db.select(content).from(jobs).orderBy(jobs.externalId)).toEqual(fresh);
+    expect(
+      await db.select({ lastSeenAt: jobs.lastSeenAt, updatedAt: jobs.updatedAt }).from(jobs),
+    ).toEqual(Array.from({ length: 5 }, () => ({ lastSeenAt: NOW + DAY, updatedAt: NOW + DAY })));
+  });
+
+  it("leaves a board's row alone while its company name stays the same", async () => {
+    const db = await getDb();
+    const version = async () =>
+      (
+        await db
+          .select({ xmin: sql<string>`xmin::text` })
+          .from(jobBoards)
+          .where(eq(jobBoards.token, "acme"))
+      )[0]?.xmin;
+    const first = await version();
+    await syncBoards(db, SEEDS, NOW + DAY);
+    expect(await version()).toBe(first);
+    await syncBoards(db, [{ ...SEEDS[0]!, company: "Acme Labs" }], NOW + DAY);
+    expect(await version()).not.toBe(first);
   });
 
   it("closes a job missing from two reads in a row, and reopens it if it comes back", async () => {

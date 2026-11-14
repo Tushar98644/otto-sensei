@@ -77,7 +77,7 @@ export function dedupeKey(company: string, title: string, location: string): str
   return shortKey(`${name}|${role}|${place}`);
 }
 
-// Bump when normalizing writes something new, so every job is rewritten on its next read.
+// Bump when normalizing writes something new: every job row is then rewritten (HANDOFF.md §5, database space).
 const NORMALIZE_VERSION = "5";
 
 export function contentHash(job: RawJob): string {

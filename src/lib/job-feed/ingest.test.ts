@@ -1,7 +1,7 @@
 import { eq } from "drizzle-orm";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { getDb } from "@/db/client";
-import { jobBoards, jobs } from "@/db/schema";
+import { jobBoards, jobMatch, jobs } from "@/db/schema";
 import { resetDb } from "@/lib/auth/test-helpers";
 import { fakeNet } from "@/lib/jobs/test-network";
 import { boardUrl, paceKey, runJobsIngest } from "./ingest";
@@ -116,6 +116,59 @@ describe("runJobsIngest", () => {
     }
     const [gone] = await db.select().from(jobBoards).where(eq(jobBoards.token, "gone"));
     expect(gone).toMatchObject({ lastStatus: "not_found", failures: 1 });
+    expect(outcome.stats.jobsFileMb).toBeGreaterThanOrEqual(0);
+    expect(outcome.stats.jobsDeadRows).toBeGreaterThanOrEqual(0);
+  });
+
+  it("refreshes due visa registers before any board, so the same call's match index has them", async () => {
+    const registers: Record<string, string> = {
+      "https://www.gov.uk/api/content/government/publications/register-of-licensed-sponsors-workers":
+        JSON.stringify({
+          details: {
+            attachments: [
+              {
+                url: "https://assets.publishing.service.gov.uk/media/sponsors.csv",
+                content_type: "text/csv",
+              },
+            ],
+          },
+        }),
+      "https://assets.publishing.service.gov.uk/media/sponsors.csv": [
+        "Organisation Name,Town/City,County,Type & Rating,Route",
+        "Vercel UK Limited,London,,Worker (A rating),Skilled Worker",
+        ...Array.from(
+          { length: 10_000 },
+          (_, i) => `Firm ${i} Ltd,Leeds,,Worker (A rating),Skilled Worker`,
+        ),
+      ].join("\n"),
+      "https://www.uscis.gov/archive/h-1b-employer-data-hub-files":
+        '<a href="/sites/default/files/document/data/h1b_datahubexport-2023.csv">FY2023</a>',
+      "https://www.uscis.gov/sites/default/files/document/data/h1b_datahubexport-2023.csv": [
+        '"Fiscal Year",Employer,"Initial Approval","Continuing Approval"',
+        '2023,"VERCEL INC",3,4',
+      ].join("\n"),
+    };
+    let boardReadsFirst = -1;
+    vi.stubGlobal("fetch", async (url: string) => {
+      if (boardReadsFirst === -1) boardReadsFirst = fakeNet.requests.length;
+      const body = registers[url];
+      return body === undefined ? new Response("", { status: 404 }) : new Response(body);
+    });
+    try {
+      const outcome = await runJobsIngest(context(), { ...OPTIONS, visa: true, feeds: false });
+      expect(outcome.stats.visa).toBeGreaterThan(0);
+      expect(boardReadsFirst).toBe(0);
+      expect(outcome.stats.boards).toBe(6);
+      const db = await getDb();
+      const vercel = await db
+        .select({ ukSponsor: jobMatch.ukSponsor, h1bYear: jobMatch.h1bYear })
+        .from(jobMatch)
+        .where(eq(jobMatch.company, "Vercel"));
+      expect(vercel.length).toBeGreaterThan(0);
+      expect(vercel).toEqual(vercel.map(() => ({ ukSponsor: true, h1bYear: 2023 })));
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
 
   it("skips boards read in the last 20 hours, so a second run is cheap", async () => {

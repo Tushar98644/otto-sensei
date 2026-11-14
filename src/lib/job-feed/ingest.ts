@@ -25,6 +25,7 @@ import { BOARD_SEEDS } from "./seeds";
 import {
   boardFailed,
   FEED_TOKEN,
+  jobsFileStats,
   refreshSkillWeights,
   saveJobs,
   syncBoards,
@@ -289,6 +290,18 @@ async function readFeeds(
   }
 }
 
+async function refreshVisaIfDue(db: Db, deadline: number): Promise<number> {
+  const checkedAt = await visaCheckedAt(db);
+  if (checkedAt !== null && Date.now() - checkedAt < VISA_REFRESH_AFTER_MS) return -1;
+  if (Date.now() >= deadline) return -1;
+  try {
+    return (await refreshVisaRegisters(db, Date.now())).companies;
+  } catch (error) {
+    log.warn("jobs.visa_registers_failed", {}, error);
+    return -1;
+  }
+}
+
 export async function runJobsIngest(
   { now, deadline }: CronContext,
   options: IngestOptions = {},
@@ -309,6 +322,8 @@ export async function runJobsIngest(
   };
   const failed: string[] = [];
 
+  // First, so slow register downloads only shorten the board reads and the closing rebuild has the new facts.
+  const visa = options.visa === false ? -1 : await refreshVisaIfDue(db, deadline);
   totals.closed += await syncBoards(db, seeds, now);
   const company = new Map(seeds.map((seed) => [`${seed.ats}:${seed.token}`, seed.company]));
   const queue = (
@@ -386,15 +401,6 @@ export async function runJobsIngest(
 
   const tidy = await tidyJobs(db, Date.now());
   const skills = await refreshSkillWeights(db, Date.now());
-  let visa = -1;
-  const visaAt = options.visa === false ? Date.now() : await visaCheckedAt(db);
-  if ((visaAt === null || Date.now() - visaAt >= VISA_REFRESH_AFTER_MS) && Date.now() < deadline) {
-    try {
-      visa = (await refreshVisaRegisters(db, Date.now())).companies;
-    } catch (error) {
-      log.warn("jobs.visa_registers_failed", {}, error);
-    }
-  }
   // Last, so the match index, stored counts and every cached match list name this run.
   const indexed = await rebuildMatchIndex(db, Date.now());
   return {
@@ -405,6 +411,7 @@ export async function runJobsIngest(
       visa,
       indexed: indexed ?? -1,
       boardsLeft: queue.length,
+      ...(await jobsFileStats(db)),
     },
     complete: !stopped,
     failed,

@@ -1,10 +1,15 @@
 import { fileURLToPath } from "node:url";
 import postgres from "postgres";
-import { connectionTarget, DIRECT_URL_VARS, directDatabaseUrl } from "../src/db/connection";
-import { MIGRATION_HISTORY_DDL, readMigrations } from "../src/db/migration-files";
+import {
+  connectionTarget,
+  DIRECT_URL_VARS,
+  directDatabaseUrl,
+  isTransactionPooler,
+} from "../src/db/connection";
+import { readMigrations } from "../src/db/migration-files";
+import { migrate } from "../src/db/migrator";
 
 const MIGRATIONS_DIR = fileURLToPath(new URL("../supabase/migrations", import.meta.url));
-const LOCK_ID = 727_001;
 
 function hostOf(url: string): string {
   return new URL(url).host;
@@ -29,39 +34,24 @@ async function main() {
     process.exit(1);
   }
   const target = connectionTarget(rawUrl);
-  // One connection, so the advisory lock and every migration share a session.
-  const sql = postgres(target.url, { ssl: target.ssl, max: 1, prepare: false, onnotice: () => {} });
+  // One connection, never recycled, so a file run outside a transaction keeps its session lock.
+  const sql = postgres(target.url, {
+    ssl: target.ssl,
+    max: 1,
+    max_lifetime: 0,
+    prepare: false,
+    onnotice: () => {},
+  });
   console.log(`Database: ${hostOf(target.url)}`);
+  const transactionPooler = isTransactionPooler(target.url);
+  if (transactionPooler) {
+    console.warn(
+      "This is the transaction pooler (port 6543). Files marked -- no-transaction need DIRECT_DATABASE_URL or POSTGRES_URL_NON_POOLING (port 5432).",
+    );
+  }
 
   try {
-    await sql`select pg_advisory_lock(${LOCK_ID})`;
-    await sql.unsafe(MIGRATION_HISTORY_DDL);
-
-    const rows = await sql<
-      { version: string }[]
-    >`select version from supabase_migrations.schema_migrations`;
-    const applied = new Set(rows.map((row) => row.version));
-    const all = readMigrations(MIGRATIONS_DIR);
-    const pending = all.filter((migration) => !applied.has(migration.version));
-
-    for (const migration of all) {
-      console.log(`${applied.has(migration.version) ? "applied" : "pending"}  ${migration.file}`);
-    }
-    if (statusOnly || pending.length === 0) {
-      console.log(pending.length === 0 ? "Up to date." : `${pending.length} pending.`);
-      return;
-    }
-
-    for (const migration of pending) {
-      await sql.begin(async (tx) => {
-        // Without parameters this goes over the simple query protocol, which takes many statements.
-        await tx.unsafe(migration.sql);
-        await tx`insert into supabase_migrations.schema_migrations (version, name, statements)
-          values (${migration.version}, ${migration.name}, ${tx.array([migration.sql])})`;
-      });
-      console.log(`done     ${migration.file}`);
-    }
-    console.log(`Applied ${pending.length} migration${pending.length === 1 ? "" : "s"}.`);
+    await migrate(sql, readMigrations(MIGRATIONS_DIR), { statusOnly, transactionPooler });
   } finally {
     await sql.end({ timeout: 5 });
   }

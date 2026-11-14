@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { appPoolOptions, connectionTarget, directDatabaseUrl, pooledDatabaseUrl } from "./connection";
+import {
+  appPoolOptions,
+  connectionTarget,
+  directDatabaseUrl,
+  isTransactionPooler,
+  pooledDatabaseUrl,
+} from "./connection";
 
 const POOLED = "postgresql://postgres.abc:pw@aws-0-us-east-1.pooler.supabase.com:6543/postgres";
 const DIRECT = "postgresql://postgres:pw@db.abc.supabase.co:5432/postgres";
@@ -23,6 +29,15 @@ describe("directDatabaseUrl", () => {
     expect(directDatabaseUrl({ POSTGRES_URL_NON_POOLING: DIRECT, DATABASE_URL: POOLED })).toBe(DIRECT);
     expect(directDatabaseUrl({ DATABASE_URL: POOLED })).toBe(POOLED);
     expect(directDatabaseUrl({ POSTGRES_URL: POOLED })).toBe(POOLED);
+  });
+});
+
+describe("isTransactionPooler", () => {
+  it("knows Supabase's transaction pooler by its port, not the session pooler or direct host", () => {
+    expect(isTransactionPooler(POOLED)).toBe(true);
+    expect(isTransactionPooler(POOLED.replace(":6543", ":5432"))).toBe(false);
+    expect(isTransactionPooler(DIRECT)).toBe(false);
+    expect(isTransactionPooler("postgres://me@localhost/otto")).toBe(false);
   });
 });
 
