@@ -128,8 +128,29 @@ export function unwrapKnown(text: string, sources: readonly string[]): string {
   });
 }
 
-export function clichesIn(text: string): string[] {
-  return CLICHES.filter(({ pattern }) => pattern.test(text)).map(({ label }) => label);
+const CLICHE_SCANS = CLICHES.map(({ label, pattern }) => ({
+  label,
+  scan: new RegExp(pattern.source, `${pattern.flags}g`),
+}));
+const NEXT_WORD = /^[\s-]+([\p{L}\p{N}]+)/u;
+
+function spaced(text: string): string {
+  return ` ${(text.toLowerCase().match(/[\p{L}\p{N}]+/gu) ?? []).join(" ")} `;
+}
+
+// A stock word inside a term the resume itself uses ("dynamic pricing") is the person's own.
+function ownTerm(text: string, hit: RegExpExecArray, sources: () => string): boolean {
+  const next = NEXT_WORD.exec(text.slice(hit.index + hit[0].length))?.[1];
+  if (!next || next.length < 3 || STOP.has(next.toLowerCase())) return false;
+  return sources().includes(spaced(`${hit[0]} ${next}`));
+}
+
+export function clichesIn(text: string, sources: readonly string[] = []): string[] {
+  let joined: string | undefined;
+  const haystack = () => (joined ??= spaced(sources.join("\n")));
+  return CLICHE_SCANS.filter(({ scan }) =>
+    Array.from(text.matchAll(scan)).some((hit) => !ownTerm(text, hit, haystack)),
+  ).map(({ label }) => label);
 }
 
 export function unbackedIn(text: string, sources: readonly string[] = []): string[] {
@@ -144,13 +165,14 @@ export function unbackedIn(text: string, sources: readonly string[] = []): strin
 export function dropClichedSentences(
   paragraphs: readonly string[],
   minWords: number,
+  sources: readonly string[] = [],
 ): { paragraphs: string[]; dropped: number } {
   let dropped = 0;
   const kept = paragraphs
     .map((paragraph) =>
       sentencesOf(paragraph)
         .filter((sentence) => {
-          const cliched = clichesIn(sentence).length > 0;
+          const cliched = clichesIn(sentence, sources).length > 0;
           if (cliched) dropped += 1;
           return !cliched;
         })
@@ -260,7 +282,7 @@ export function checkProse(
   return {
     paragraphs: masked,
     words: wordCount(text),
-    cliches: clichesIn(text),
+    cliches: clichesIn(text, sources),
     upgrades: upgradedVerbs(text, resumeLines),
     unbacked: unbackedIn(text, sources),
     maskedNumbers: text.split(NUMBER_PLACEHOLDER).length - before,

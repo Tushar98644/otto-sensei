@@ -70,6 +70,29 @@ describe("clichesIn and dropClichedSentences", () => {
     });
     expect(dropClichedSentences(paragraphs, 40)).toEqual({ paragraphs, dropped: 0 });
   });
+
+  it("leaves a stock word inside a term the resume uses, but not the stock phrase itself", () => {
+    const sources = [
+      "Built the dynamic pricing engine\nSpearheaded the move to AWS\nPassionate about clean code",
+    ];
+    expect(clichesIn("I built the dynamic pricing engine.", sources)).toEqual([]);
+    expect(clichesIn("I built the dynamic pricing engine.")).toEqual(["dynamic"]);
+    expect(clichesIn("I built the dynamic-pricing engine.", sources)).toEqual([]);
+    expect(clichesIn("I thrive on a dynamic team.", sources)).toEqual(["dynamic"]);
+    expect(clichesIn("I spearheaded the move to AWS.", sources)).toEqual(["spearheaded"]);
+    expect(clichesIn("I'm passionate about clean code.", sources)).toEqual(["passionate"]);
+    expect(clichesIn("I built the dynamic pricing engine with a dynamic team.", sources)).toEqual([
+      "dynamic",
+    ]);
+  });
+
+  it("keeps the sentences that hold the resume's own terms", () => {
+    const paragraphs = ["I built the dynamic pricing engine. I'm passionate about it."];
+    expect(dropClichedSentences(paragraphs, 3, ["Built the dynamic pricing engine"])).toEqual({
+      paragraphs: ["I built the dynamic pricing engine."],
+      dropped: 1,
+    });
+  });
 });
 
 describe("upgradedVerbs", () => {

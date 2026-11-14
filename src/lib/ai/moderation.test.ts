@@ -208,4 +208,63 @@ describe("word pre-check", () => {
     expect(mightBeSexual("Lived in Essex and Sussex; analysis of analytics")).toBe(false);
     expect(mightBeSexual("NSFW")).toBe(true);
   });
+
+  const HARMLESS = [
+    "Moved billing to CockroachDB",
+    "Ran Lustre storage for the HPC cluster",
+    "Polished the luster of the brand",
+    "BA English, Dickinson College",
+    "Sales associate, Dick's Sporting Goods",
+    "Thesis on Charles Dickens",
+    "Reported to Sarah Dickson",
+    "Built a pedometer app",
+    "Rapeseed oil supply chain",
+    "Shipped a webcam SDK for video calls",
+    "Wire stripper and crimper certified",
+    "Breast cancer research coordinator",
+    "Designed the cocktail menu",
+    "Wrote cockpit software for regional jets",
+    "Worked with Lee Cockburn on the audit",
+    "Shift lead at Kinko's",
+    "Restored a brass sextant",
+    "Patient escort in the emergency department",
+    "Escorted visitors through secure labs",
+    "Marketing intern at Naked Wines",
+    "Buyer for Hooker Furniture",
+    "Call 555-XXX-XXXX or (XXX) XXX-XXXX",
+  ];
+
+  it.each(HARMLESS)("skips the safety model for %s", (text) => {
+    expect(mightBeSexual(text)).toBe(false);
+  });
+
+  it.each([
+    "suck my cock",
+    "dick pics",
+    "pure lust",
+    "a lustful look",
+    "pedophile ring",
+    "rape fantasy",
+    "a kinky night",
+    "caught sexting",
+    "naked photos",
+    "webcam sex shows",
+    "strippers all night",
+    "escorts for hire",
+    "her breasts",
+    "hookers and blow",
+    "xxx videos",
+    "XXX-rated",
+  ])("still sends %s to the safety model", (text) => {
+    expect(mightBeSexual(text)).toBe(true);
+  });
+
+  it("doesn't check a resume synced into a live page for job and company words", async () => {
+    const resume = HARMLESS.join("\n");
+    expect(await checkContent([resume], { source: "portfolio.sync" })).toEqual({
+      allowed: true,
+      categories: [],
+    });
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
 });

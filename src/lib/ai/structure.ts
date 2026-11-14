@@ -18,7 +18,7 @@ import {
 } from "@/lib/resume/schema";
 import { ResumeSchema } from "@/lib/resume/validation";
 import { bulletText, findLinks, headingTitle } from "@/lib/resume/sections";
-import { runStructured } from "./client";
+import { MIN_ATTEMPT_MS, runStructured } from "./client";
 import { novelWordShare } from "./guards";
 import { STRUCTURE_SYSTEM_PROMPT } from "./prompts";
 import { createRedactor, looksLikePersonName, type Redactor } from "./redact";
@@ -377,10 +377,16 @@ function acceptedResume(parsed: ParsedResume, text: string, now: number): Resume
   return checked.data;
 }
 
+type StructureOptions = {
+  ai?: boolean;
+  // When the AI read must be done by (ms since epoch), so it fits the request's own time limit.
+  deadline?: number;
+};
+
 export async function structureResume(
   text: string,
   now = Date.now(),
-  { ai = true }: { ai?: boolean } = {},
+  { ai = true, deadline }: StructureOptions = {},
 ): Promise<StructureResult> {
   if (text.length > TEXT_LIMITS.resumeChars) {
     throw new AIError("too_long", `Resume text is over ${TEXT_LIMITS.resumeChars} characters`);
@@ -389,15 +395,24 @@ export async function structureResume(
     return { resume: heuristicParse(text, now), usedAI: false };
   }
   const fallback = heuristicParse(text, now);
+  const deadlineMs = deadline === undefined ? undefined : deadline - Date.now();
+  // A call cut off at the deadline is still billed, so a read that can't finish isn't started.
+  if (deadlineMs !== undefined && deadlineMs < MIN_ATTEMPT_MS) {
+    log.warn("ai.structure_fallback", { reason: "no_time" });
+    return { resume: fallback, usedAI: false };
+  }
   const redactor = importRedactor(fallback.basics);
   try {
-    const parsed = await runStructured({
-      task: "structure",
-      system: STRUCTURE_SYSTEM_PROMPT,
-      user: tag("resume", redactor.redact(text)),
-      schema: ParsedResumeSchema,
-      effort: "low",
-    });
+    const parsed = await runStructured(
+      {
+        task: "structure",
+        system: STRUCTURE_SYSTEM_PROMPT,
+        user: tag("resume", redactor.redact(text)),
+        schema: ParsedResumeSchema,
+        effort: "low",
+      },
+      { deadlineMs },
+    );
     const resume = acceptedResume(restoreParsed(parsed, redactor, text), text, now);
     return { resume: withHiddenContact(resume, fallback.basics, redactor), usedAI: true };
   } catch (error) {

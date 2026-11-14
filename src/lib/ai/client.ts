@@ -37,7 +37,7 @@ const MAX_TOKENS: Record<AITask, number> = {
 // Routes have maxDuration = 60 and work around the call, so all attempts share this deadline.
 const DEADLINE_MS = 50_000;
 // A call cut off at the deadline is still billed, so a retry only starts if it can finish.
-const MIN_ATTEMPT_MS = 15_000;
+export const MIN_ATTEMPT_MS = 15_000;
 const MAX_ATTEMPTS = 3;
 const RETRY_BASE_MS = 400;
 const MAX_RETRY_WAIT_MS = 4_000;
@@ -281,12 +281,18 @@ function readOutput<T>(response: ChatResponse, schema: z.ZodType<T>, fields: AIC
   return checked.data;
 }
 
-function logUsage(response: ChatResponse, fields: AICallFields, durationMs: number) {
-  if (env().NODE_ENV !== "development") return;
+// Counts only, never text: each host's speed and token use, to judge the routing by.
+function logUsage(
+  response: ChatResponse,
+  fields: AICallFields,
+  attempt: number,
+  durationMs: number,
+) {
   const usage = response.usage;
   log.info("ai.usage", {
     ...fields,
     provider: response.provider ?? null,
+    attempt,
     durationMs,
     inputTokens: usage?.prompt_tokens ?? 0,
     outputTokens: usage?.completion_tokens ?? 0,
@@ -322,7 +328,7 @@ export async function runStructured<T>(
     const started = Date.now();
     const outcome = await attemptOnce(body, apiKey, deadline, fields);
     if (outcome.ok) {
-      logUsage(outcome.response, fields, Date.now() - started);
+      logUsage(outcome.response, fields, attempt, Date.now() - started);
       const output = readOutput(outcome.response, request.schema, fields);
       await screenOutput(request.task, output);
       return output;

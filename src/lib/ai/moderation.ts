@@ -18,9 +18,9 @@ const PARALLEL_CHUNKS = 4;
 
 const ALLOWED: Verdict = { allowed: true, categories: [] };
 
-// Only text with sexual words reaches the safety model, so normal writing pays no delay or cost.
+// Only text with sexual words reaches the safety model; lookarounds skip job words like CockroachDB.
 const SEXUAL_WORDS =
-  /\b(?:sex(?:ual\w*|y|t\w*)?|nsfw|porn\w*|xxx|nude\w*|naked|erotic\w*|orgasm\w*|genital\w*|penis\w*|vagina\w*|breasts?|nipples?|masturbat\w*|fetish\w*|bdsm|kink\w*|horny|arous\w*|intercourse|blowjob\w*|handjob\w*|dick\w*|cock\w*|puss(?:y|ies)|boobs?|tits?|anal|onlyfans|camgirl\w*|webcam\w*|escort\w*|stripper\w*|stripclub\w*|hooker\w*|prostitut\w*|incest\w*|rape\w*|molest\w*|pedo\w*|underage|hentai|seduc\w*|lust\w*|slut\w*|whore\w*)\b/i;
+  /\b(?:sex(?:ual\w*|y|t(?!ant|et|on|ile|uple)\w*)?|nsfw|porn\w*|(?<!x[\s.()-]*)xxx(?![\s.()-]*x)|nude\w*|naked(?!\s+(?:wines?|eye))|erotic\w*|orgasm\w*|genital\w*|penis\w*|vagina\w*|breasts?(?!\s+(?:cancer|care|health|imaging|screening|surg\w*|oncolog\w*|milk|pump))|nipples?|masturbat\w*|fetish\w*|bdsm|kink(?!o)\w*|horny|arous\w*|intercourse|blowjob\w*|handjob\w*|dick(?!ens|inson|son|ies|ey|erson|['’]s\b)\w*|cock(?!roach|tail|pit|burn|atoo|ney)\w*|puss(?:y|ies)|boobs?|tits?|anal|onlyfans|camgirl\w*|webcam\s*(?:girl|boy|model|show|sex)\w*|(?<!(?:patient|security|police)[\s-])escort(?!ed|ing)\w*|(?<!(?:wire|cable|paint|insulation)[\s-])stripper\w*|stripclub\w*|hooker(?!\s+furniture)\w*|prostitut\w*|incest\w*|rape(?!seed)\w*|molest\w*|pedo(?!met|log|dont)\w*|underage|hentai|seduc\w*|lust(?!r|er)\w*|slut\w*|whore\w*)\b/i;
 
 export function mightBeSexual(text: string): boolean {
   return SEXUAL_WORDS.test(text);

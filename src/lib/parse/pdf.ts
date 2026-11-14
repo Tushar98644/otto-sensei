@@ -1,6 +1,7 @@
 import { getResolvedPDFJS } from "unpdf";
 import { UPLOAD_LIMITS } from "@/config/plans";
 import { log } from "@/lib/log";
+import { countPdfImages } from "./pdf-images";
 import { groupRows, hasColumnGutter, rowText, type LayoutItem } from "./pdf-layout";
 import { countIconGlyphs, countWords, hasReadableText, toLines } from "./text";
 import {
@@ -21,12 +22,13 @@ type PageLayout = {
   width: number;
   height: number;
   items: LayoutItem[];
-  images: number;
   links: PdfLinkTarget[];
 };
 
 const MAX_LINKS = 40;
 const MAX_LINK_LENGTH = 500;
+// Pages are never painted, so only a Type3 font's glyph pictures get decoded; this caps each one.
+const MAX_IMAGE_PIXELS = 1_000_000;
 
 export type ExtractPdfOptions = {
   maxPages?: number;
@@ -55,6 +57,7 @@ export async function extractPdf(
     data: data.slice(),
     useSystemFonts: true,
     verbosity: pdfjs.VerbosityLevel.ERRORS,
+    maxImageSize: MAX_IMAGE_PIXELS,
   });
   try {
     const pdf = await withDeadline(task.promise, deadline);
@@ -64,12 +67,11 @@ export async function extractPdf(
         `That PDF has more than ${maxPages} pages. Upload just your resume.`,
       );
     }
-    const imageOps = imagePaintOps(pdfjs.OPS);
     const pages: PageLayout[] = [];
     for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber++) {
-      pages.push(await withDeadline(readPage(pdf, pageNumber, imageOps), deadline));
+      pages.push(await withDeadline(readPage(pdf, pageNumber), deadline));
     }
-    return buildExtraction(pages);
+    return buildExtraction(pages, countPdfImages(data));
   } catch (error) {
     throw toParseError(error);
   } finally {
@@ -77,17 +79,12 @@ export async function extractPdf(
   }
 }
 
-async function readPage(
-  pdf: PdfDocument,
-  pageNumber: number,
-  imageOps: ReadonlySet<number>,
-): Promise<PageLayout> {
+async function readPage(pdf: PdfDocument, pageNumber: number): Promise<PageLayout> {
   const page = await pdf.getPage(pageNumber);
   try {
     const viewport = page.getViewport({ scale: 1 });
-    const [content, operators, annotations] = await Promise.all([
+    const [content, annotations] = await Promise.all([
       page.getTextContent(),
-      page.getOperatorList(),
       page.getAnnotations({ intent: "display" }),
     ]);
     const items: LayoutItem[] = [];
@@ -95,32 +92,16 @@ async function readPage(
       const item = toLayoutItem(raw, viewport.transform);
       if (item) items.push(item);
     }
-    let images = 0;
-    for (const fn of operators.fnArray) if (imageOps.has(fn)) images++;
     return {
       pageNumber,
       width: viewport.width,
       height: viewport.height,
       items,
-      images,
       links: webLinks(annotations, items, viewport.transform),
     };
   } finally {
     page.cleanup();
   }
-}
-
-// Solid-colour masks are left out: pdf.js turns 1x1 masks into plain fills.
-function imagePaintOps(ops: PdfJs["OPS"]): ReadonlySet<number> {
-  return new Set([
-    ops.paintImageXObject,
-    ops.paintImageXObjectRepeat,
-    ops.paintInlineImageXObject,
-    ops.paintInlineImageXObjectGroup,
-    ops.paintImageMaskXObject,
-    ops.paintImageMaskXObjectGroup,
-    ops.paintImageMaskXObjectRepeat,
-  ]);
 }
 
 function toLayoutItem(
@@ -146,16 +127,14 @@ function toLayoutItem(
   };
 }
 
-function buildExtraction(pages: PageLayout[]): Extraction {
+function buildExtraction(pages: PageLayout[], imageCount: number): Extraction {
   const pdfPages: PdfPage[] = [];
   const pageTexts: string[] = [];
   let columnLayout = false;
-  let imageCount = 0;
   for (const page of pages) {
     const rows = groupRows(page.items);
     pageTexts.push(rows.map((row) => rowText(row.items)).join("\n"));
     columnLayout ||= hasColumnGutter(rows, page.width);
-    imageCount += page.images;
     pdfPages.push({
       pageNumber: page.pageNumber,
       width: round(page.width),

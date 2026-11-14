@@ -29,8 +29,7 @@ export const QUESTION_CHARS = { min: 8, max: 500 } as const;
 const JOB_FIELD_CHARS = 200;
 const LETTER_FLOOR_WORDS = 110;
 const ANSWER_FLOOR_WORDS = 45;
-// Two calls fit the route's 60 seconds: a retry only starts with enough time left to finish.
-const FIRST_DEADLINE_MS = 30_000;
+// One budget for both calls: the first may use all of it, and a retry starts only if it can finish.
 const TOTAL_DEADLINE_MS = 50_000;
 const MIN_RETRY_MS = 15_000;
 
@@ -87,6 +86,15 @@ function needsRetry(check: ProseCheck): boolean {
   );
 }
 
+// polish() drops stock-phrase sentences, so a draft that stays full length without them is kept.
+function clichesDropCleanly(check: ProseCheck, range: Range, sources: readonly string[]): boolean {
+  if (check.upgrades.length > 0 || check.unbacked.length > 0 || check.maskedNumbers > 0) {
+    return false;
+  }
+  const { paragraphs, dropped } = dropClichedSentences(check.paragraphs, range.min, sources);
+  return dropped > 0 && paragraphs.length === check.paragraphs.length;
+}
+
 type DraftRequest<T> = {
   task: AITask;
   system: string;
@@ -106,9 +114,13 @@ async function draft<T>(request: DraftRequest<T>, prepared: Prepared): Promise<P
     const paragraphs = request.paragraphs(output).map((text) => prepared.redactor.restore(text));
     return checkProse(paragraphs, prepared.sources, prepared.lines);
   };
-  const first = await call(request.user, FIRST_DEADLINE_MS);
+  const first = await call(request.user, TOTAL_DEADLINE_MS);
   const left = TOTAL_DEADLINE_MS - (Date.now() - started);
   if (!needsRetry(first) || left < MIN_RETRY_MS) return first;
+  if (clichesDropCleanly(first, request.range, prepared.sources)) {
+    log.info(`${request.task}.retry_skipped`, { cliches: first.cliches.length });
+    return first;
+  }
 
   const notes = retryNotes(first, request.range).map((note) => `- ${note}`);
   log.info(`${request.task}.retry`, {
@@ -146,7 +158,7 @@ function warningsFor(text: string, prepared: Prepared, blankHint: string): strin
   for (const phrase of unbackedIn(text, prepared.sources)) {
     warnings.push(`Check “${phrase}”: only you know that. Keep it if it's true.`);
   }
-  const cliches = clichesIn(text);
+  const cliches = clichesIn(text, prepared.sources);
   if (cliches.length) {
     const phrases = cliches.map((phrase) => `“${phrase}”`).join(", ");
     warnings.push(`Swap ${phrases} for your own words. Recruiters skim past it.`);
@@ -154,8 +166,13 @@ function warningsFor(text: string, prepared: Prepared, blankHint: string): strin
   return warnings;
 }
 
-function polish(check: ProseCheck, range: Range, floor: number): string[] {
-  const { paragraphs } = dropClichedSentences(check.paragraphs, floor);
+function polish(
+  check: ProseCheck,
+  range: Range,
+  floor: number,
+  sources: readonly string[],
+): string[] {
+  const { paragraphs } = dropClichedSentences(check.paragraphs, floor, sources);
   const clipped = clipToWords(paragraphs, range.max);
   if (wordCount(clipped.join(" ")) === 0) {
     throw new AIError("invalid_output", "The AI model returned empty text");
@@ -200,6 +217,7 @@ export async function writeCoverLetter(
         ),
         LETTER_WORDS,
         LETTER_FLOOR_WORDS,
+        prepared.sources,
       )
     : demoLetter(resume, prepared.job);
   const body = paragraphs.join("\n\n");
@@ -245,6 +263,7 @@ export async function answerQuestion(
         ),
         ANSWER_WORDS,
         ANSWER_FLOOR_WORDS,
+        prepared.sources,
       )
     : demoAnswer(resume, prepared.job, asked);
   const answer = paragraphs.join("\n\n");

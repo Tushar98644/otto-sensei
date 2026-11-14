@@ -4,12 +4,12 @@ import { resetEnvForTests } from "@/lib/env";
 import { heuristicParse } from "@/lib/resume/heuristic-parse";
 import { DEFAULT_SECTION_ORDER, type Resume } from "@/lib/resume/schema";
 import { ResumeSchema } from "@/lib/resume/validation";
-import { jsonSchemaFor, type StructuredRequest } from "./client";
+import { jsonSchemaFor, type RunOptions, type StructuredRequest } from "./client";
 import { structureResume } from "./structure";
 import { AIError } from "./types";
 
 const runStructured = vi.hoisted(() =>
-  vi.fn<(request: StructuredRequest<unknown>) => Promise<unknown>>(),
+  vi.fn<(request: StructuredRequest<unknown>, options?: RunOptions) => Promise<unknown>>(),
 );
 vi.mock("./client", async (importOriginal) => ({
   ...(await importOriginal<typeof import("./client")>()),
@@ -504,6 +504,34 @@ describe("structureResume extra sections", () => {
       expect.stringContaining("ai.structure_rejected"),
       expect.objectContaining({ reason: "unfaithful" }),
     );
+  });
+});
+
+describe("structureResume time budget", () => {
+  it("gives the AI read only the time the request has left", async () => {
+    runStructured.mockResolvedValueOnce(parsedJane());
+    const { usedAI } = await structureResume(TEXT, NOW, { deadline: Date.now() + 40_000 });
+    expect(usedAI).toBe(true);
+    const deadlineMs = runStructured.mock.calls[0]?.[1]?.deadlineMs ?? 0;
+    expect(deadlineMs).toBeGreaterThan(35_000);
+    expect(deadlineMs).toBeLessThanOrEqual(40_000);
+  });
+
+  it("keeps the rule-based read, without paying for a call, when too little time is left", async () => {
+    const result = await structureResume(TEXT, NOW, { deadline: Date.now() + 10_000 });
+    expect(result.usedAI).toBe(false);
+    expect(runStructured).not.toHaveBeenCalled();
+    expect(result.resume.basics.name).toBe("Jane Doe");
+    expect(console.warn).toHaveBeenCalledWith(
+      expect.stringContaining("ai.structure_fallback"),
+      expect.objectContaining({ reason: "no_time" }),
+    );
+  });
+
+  it("leaves the client's own deadline in place when the caller sets none", async () => {
+    runStructured.mockResolvedValueOnce(parsedJane());
+    await structureResume(TEXT, NOW);
+    expect(runStructured.mock.calls[0]?.[1]).toEqual({ deadlineMs: undefined });
   });
 });
 

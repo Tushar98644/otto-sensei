@@ -5,9 +5,19 @@ import {
   PDFName,
   PDFString,
   StandardFonts,
+  beginText,
+  concatTransformationMatrix,
+  drawObject,
+  endText,
+  moveText,
+  popGraphicsState,
+  pushGraphicsState,
   rgb,
+  setFontAndSize,
+  showText,
   type PDFFont,
   type PDFPage,
+  type PDFRef,
 } from "pdf-lib";
 
 const LETTER: [number, number] = [612, 792];
@@ -190,6 +200,83 @@ export async function noTextPdf(): Promise<Uint8Array> {
   page.drawLine({ start: { x: 50, y: 560 }, end: { x: 560, y: 560 }, thickness: 2 });
   page.drawCircle({ x: 300, y: 300, size: 60, borderWidth: 3 });
   return doc.save();
+}
+
+type RawImage = {
+  width: number;
+  height: number;
+  stencil?: boolean;
+  glyph?: boolean;
+  onPages?: readonly number[];
+};
+
+// Like a printed emoji: a Type3 font whose one glyph paints the picture.
+function drawGlyphImage(doc: PDFDocument, page: PDFPage, image: PDFRef, i: number) {
+  const { context } = doc;
+  const proc = context.register(
+    context.stream("1000 0 0 0 1000 1000 d1 q 1000 0 0 1000 0 0 cm /Xg Do Q"),
+  );
+  const font = context.register(
+    context.obj({
+      Type: "Font",
+      Subtype: "Type3",
+      FontBBox: [0, 0, 1000, 1000],
+      FontMatrix: [0.001, 0, 0, 0.001, 0, 0],
+      CharProcs: { g1: proc },
+      Encoding: { Type: "Encoding", Differences: [1, "g1"] },
+      FirstChar: 1,
+      LastChar: 1,
+      Widths: [1000],
+      Resources: { XObject: { Xg: image } },
+    }),
+  );
+  page.node.setFontDictionary(PDFName.of(`T${i}`), font);
+  page.pushOperators(
+    beginText(),
+    setFontAndSize(`T${i}`, 12),
+    moveText(50 + i * 50, 700),
+    showText(PDFHexString.of("01")),
+    endText(),
+  );
+}
+
+// Image streams with a declared size but almost no data: fine to count, never to decode.
+export async function imagesPdf(
+  images: readonly RawImage[],
+  { pages = 1, objectStreams = true }: { pages?: number; objectStreams?: boolean } = {},
+): Promise<{ bytes: Uint8Array; ids: number[] }> {
+  const doc = await PDFDocument.create();
+  const font = await doc.embedFont(StandardFonts.Helvetica);
+  const sheets = Array.from({ length: pages }, () => doc.addPage(LETTER));
+  sheets[0]?.drawText("Jane Doe, Senior Software Engineer", { x: 50, y: 740, size: 12, font });
+  const ids = images.map(({ width, height, stencil = false, glyph = false, ...image }, i) => {
+    const dict = stencil
+      ? { ImageMask: true, BitsPerComponent: 1 }
+      : { ColorSpace: "DeviceRGB", BitsPerComponent: 8 };
+    const ref = doc.context.register(
+      doc.context.stream(new Uint8Array(16), {
+        Type: "XObject",
+        Subtype: "Image",
+        Width: width,
+        Height: height,
+        ...dict,
+      }),
+    );
+    if (glyph && sheets[0]) drawGlyphImage(doc, sheets[0], ref, i);
+    for (const index of image.onPages ?? (glyph ? [] : [0])) {
+      const sheet = sheets[index];
+      if (!sheet) continue;
+      sheet.node.setXObject(PDFName.of(`Im${i}`), ref);
+      sheet.pushOperators(
+        pushGraphicsState(),
+        concatTransformationMatrix(40, 0, 0, 40, 50 + i * 50, 600),
+        drawObject(`Im${i}`),
+        popGraphicsState(),
+      );
+    }
+    return ref.objectNumber;
+  });
+  return { bytes: await doc.save({ useObjectStreams: objectStreams }), ids };
 }
 
 export async function blankPdf(pages: number): Promise<Uint8Array> {

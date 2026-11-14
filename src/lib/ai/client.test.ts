@@ -430,6 +430,60 @@ describe("runStructured errors and retries", () => {
   });
 });
 
+describe("runStructured usage log", () => {
+  function reasoned(content: string) {
+    const reply = completion(content);
+    return {
+      ...reply,
+      usage: { ...reply.usage, completion_tokens_details: { reasoning_tokens: 25 } },
+    };
+  }
+
+  it("logs one counts-only line per answer in production, with the host, attempt and time", async () => {
+    vi.stubEnv("NODE_ENV", "production");
+    const info = vi.spyOn(console, "info").mockImplementation(() => {});
+    try {
+      respond(429, apiError(429, "Rate limit exceeded"), { "retry-after": "0" });
+      respond(200, reasoned('{"answer":"Ran the Jane Doe fan club"}'));
+      await runStructured(request({ user: "Jane Doe, jane@example.com" }));
+    } finally {
+      vi.unstubAllEnvs();
+    }
+
+    const lines = info.mock.calls.map(([line]) => String(line));
+    const usage = lines.filter((line) => line.includes('"ai.usage"'));
+    expect(usage).toHaveLength(1);
+    expect(JSON.parse(usage[0] ?? "{}")).toEqual({
+      ts: expect.any(String),
+      level: "info",
+      event: "ai.usage",
+      task: "fix",
+      model: "anthropic/claude-opus-5.5",
+      provider: "Anthropic",
+      attempt: 2,
+      durationMs: expect.any(Number),
+      inputTokens: 120,
+      outputTokens: 40,
+      reasoningTokens: 25,
+      cacheReadTokens: 0,
+      cacheWriteTokens: 0,
+    });
+    expect(lines.join("\n")).not.toMatch(/Jane Doe|jane@example\.com|SYSTEM|gen-test/);
+  });
+
+  it("logs the usage of an answer that is cut off, which is still billed", async () => {
+    const info = vi.spyOn(console, "info").mockImplementation(() => {});
+    respond(200, completion('{"answer":"o', { finish_reason: "length" }));
+    await expect(runStructured(request({ task: "tailor" }))).rejects.toMatchObject({
+      code: "invalid_output",
+    });
+    expect(info).toHaveBeenCalledWith(
+      "[info] ai.usage",
+      expect.objectContaining({ task: "tailor", attempt: 1, outputTokens: 40 }),
+    );
+  });
+});
+
 describe("runStructured billed tokens", () => {
   async function billed(run: () => Promise<unknown>): Promise<number> {
     let tokens = -1;

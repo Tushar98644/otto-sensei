@@ -1,6 +1,13 @@
-import { describe, expect, it } from "vitest";
+import { getResolvedPDFJS } from "unpdf";
+import { describe, expect, it, vi } from "vitest";
 import { extractPdf } from "./pdf";
-import { cleanResumePdf, linkedContactPdf, noTextPdf, twoColumnPdf } from "./test-fixtures";
+import {
+  cleanResumePdf,
+  imagesPdf,
+  linkedContactPdf,
+  noTextPdf,
+  twoColumnPdf,
+} from "./test-fixtures";
 
 describe("extractPdf", () => {
   it("reads a single-column resume top to bottom", async () => {
@@ -58,6 +65,23 @@ describe("extractPdf", () => {
       columnLayout: false,
       imageCount: 0,
     });
+  });
+
+  it("counts pictures without painting pages, so a huge one is never decoded", async () => {
+    const pdfjs = await getResolvedPDFJS();
+    const probe = pdfjs.getDocument({ data: await cleanResumePdf() });
+    const page = await (await probe.promise).getPage(1);
+    const paint = vi.spyOn(Object.getPrototypeOf(page) as typeof page, "getOperatorList");
+    await probe.destroy();
+    try {
+      const { bytes } = await imagesPdf([{ width: 30_000, height: 30_000 }]);
+      const extraction = await extractPdf(bytes);
+      expect(extraction.signals.imageCount).toBe(1);
+      expect(extraction.lines).toEqual(["Jane Doe, Senior Software Engineer"]);
+      expect(paint).not.toHaveBeenCalled();
+    } finally {
+      paint.mockRestore();
+    }
   });
 
   it("leaves the caller's buffer intact", async () => {

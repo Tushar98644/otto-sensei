@@ -3,12 +3,12 @@ import { TEXT_LIMITS } from "@/config/plans";
 import { resetEnvForTests } from "@/lib/env";
 import { resumeToText } from "@/lib/resume/ops";
 import { emptyResume, type Resume } from "@/lib/resume/schema";
-import type { StructuredRequest } from "./client";
+import type { RunOptions, StructuredRequest } from "./client";
 import { AIError, type WritingInput } from "./types";
 import { answerQuestion, assembleLetter, writeCoverLetter } from "./writing";
 
 const runStructured = vi.hoisted(() =>
-  vi.fn<(request: StructuredRequest<unknown>) => Promise<unknown>>(),
+  vi.fn<(request: StructuredRequest<unknown>, options?: RunOptions) => Promise<unknown>>(),
 );
 vi.mock("./client", () => ({ runStructured }));
 
@@ -45,6 +45,9 @@ const CLEAN = [
   "I like to keep services small and easy to reason about, and I said so in every review. I also run the weekly on-call rotation for 6 services, so I care about clear alerts, calm handovers and fixes that stay fixed. Most weeks the rotation is quiet, and when it isn't, the notes we keep make the next incident shorter. I write those notes so the next person can act on them without asking me first.",
   "Your post talks about Go services in production, which is the work I like most and want to keep doing. I'd be glad to talk about the role, and about how the billing rebuild went, including the parts that didn't go to plan the first time.",
 ];
+const FULL = CLEAN.map((paragraph, i) =>
+  i === 1 ? `${paragraph} The runbooks stay short, current and easy to follow.` : paragraph,
+);
 
 function useKey(key: string | null) {
   if (key) process.env.OPENROUTER_API_KEY = key;
@@ -130,6 +133,51 @@ describe("writeCoverLetter", () => {
     expect(result.letter).not.toContain("thrilled");
     expect(result.words).toBeLessThanOrEqual(250);
     expect(result.letter.endsWith("Best regards,\nSam Rivera")).toBe(true);
+  });
+
+  it("gives the first draft the whole time budget", async () => {
+    runStructured.mockResolvedValueOnce({ paragraphs: CLEAN });
+    await writeCoverLetter(makeResume(), JOB);
+    expect(runStructured.mock.calls[0]?.[1]).toEqual({ deadlineMs: 50_000 });
+  });
+
+  it("drops a stock-phrase sentence instead of paying for a second draft", async () => {
+    const info = vi.spyOn(console, "info").mockImplementation(() => {});
+    runStructured.mockResolvedValueOnce({
+      paragraphs: [`${FULL[0]} I'm excited to bring that work to Kestrel Labs.`, ...FULL.slice(1)],
+    });
+    const result = await writeCoverLetter(makeResume(), JOB);
+    expect(runStructured).toHaveBeenCalledTimes(1);
+    expect(info).toHaveBeenCalledWith("[info] letter.retry_skipped", { cliches: 1 });
+    info.mockRestore();
+    expect(result.letter).toBe(assembleLetter(FULL, "Sam Rivera", "Kestrel Labs"));
+    expect(result.words).toBe(157);
+    expect(result.warnings).toEqual([]);
+  });
+
+  it.each([
+    ["would leave it too short", [`I'm excited to apply. ${CLEAN[0]}`, ...CLEAN.slice(1)]],
+    ["would empty a paragraph", [...FULL, "I'm excited to hear from you."]],
+  ])("still asks for a second draft when dropping the stock phrase %s", async (_label, first) => {
+    runStructured
+      .mockResolvedValueOnce({ paragraphs: first })
+      .mockResolvedValueOnce({ paragraphs: FULL });
+    const result = await writeCoverLetter(makeResume(), JOB);
+    expect(runStructured).toHaveBeenCalledTimes(2);
+    expect(runStructured.mock.calls[1]?.[0].user).toContain('stock phrases: "excited to"');
+    expect(runStructured.mock.calls[1]?.[1]?.deadlineMs).toBeGreaterThanOrEqual(15_000);
+    expect(result.letter).toBe(assembleLetter(FULL, "Sam Rivera", "Kestrel Labs"));
+  });
+
+  it("keeps the resume's own terms, even when they hold a stock word", async () => {
+    const resume = makeResume();
+    resume.experience[0]?.bullets.push({ id: "b4", text: "Built the dynamic pricing engine" });
+    const own = `${FULL[0]} I also built the dynamic pricing engine.`;
+    runStructured.mockResolvedValueOnce({ paragraphs: [own, ...FULL.slice(1)] });
+    const result = await writeCoverLetter(resume, JOB);
+    expect(runStructured).toHaveBeenCalledTimes(1);
+    expect(result.letter).toContain("I also built the dynamic pricing engine.");
+    expect(result.warnings).toEqual([]);
   });
 
   it("refuses an over-long post before calling the AI", async () => {
