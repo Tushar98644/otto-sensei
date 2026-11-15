@@ -63,7 +63,7 @@ const POINTS: readonly Point[] = [
   },
   {
     title: "Straight from the company",
-    text: "Jobs come from company job boards and remote job sites, read every day. Each one links to the original post.",
+    text: "Jobs come from companies' own careers pages and public job feeds, read every day. Each one links to the original post.",
   },
 ];
 
@@ -78,9 +78,9 @@ export function JobsShowcase({ jobCounts }: { jobCounts: JobCounts }) {
           open ? `${open} open jobs, ranked for your resume` : "Open jobs, ranked for your resume"
         }
       >
-        Otto reads company job boards every day and puts the jobs that fit your resume first, with a
-        plain reason for each. Free shows your top {FREE_JOB_MATCHES}; Pro matches you against all
-        of them.
+        Otto reads companies&apos; careers pages every day and puts the jobs that fit your resume first,
+        with a plain reason for each. Free shows your top {FREE_JOB_MATCHES}; Pro matches you
+        against all of them.
       </SectionHeader>
       <Panel className="mt-12 sm:mt-16">
         <ul role="list" aria-label="Example matches" className="flex flex-col gap-3 sm:gap-4">

@@ -12,6 +12,9 @@ type Action = "checkout" | "portal";
 const OVERDUE_MESSAGE =
   "We couldn't change your plan: your last payment didn't go through. Update your card in Manage billing, then try again.";
 
+export const CHANGE_NOT_OFFERED_MESSAGE =
+  "In the app a plan only moves up from Pro to Max, on the billing period you already have. To move to Pro, or between monthly and yearly, cancel from your account page and pick the new plan once your current period ends.";
+
 function failureFor(error: BillingError, action: Action): Failure {
   switch (error.code) {
     case "unavailable":
@@ -34,6 +37,8 @@ function failureFor(error: BillingError, action: Action): Failure {
       };
     case "already_subscribed":
       return { code: "bad_request", status: 400, message: "You're already on that plan." };
+    case "change_not_offered":
+      return { code: "plan_change_failed", status: 409, message: CHANGE_NOT_OFFERED_MESSAGE };
     case "payment_overdue":
       return { code: "plan_change_failed", status: 409, message: OVERDUE_MESSAGE };
     case "refused":

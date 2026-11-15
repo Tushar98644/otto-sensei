@@ -16,8 +16,8 @@ export function JobsHeader() {
         Jobs
       </h1>
       <p className="mt-2 max-w-prose text-base/7 text-muted">
-        Open jobs from company job boards and remote job sites, ordered by how closely each post
-        matches your resume. Each one links to the original post.
+        Open jobs from companies&apos; careers pages and public job feeds, ordered by how closely each
+        post matches your resume. Each one links to the original post.
       </p>
     </header>
   );

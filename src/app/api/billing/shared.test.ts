@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { BillingError, type BillingErrorDetails } from "@/lib/billing";
-import { billingFailure } from "./shared";
+import { billingFailure, CHANGE_NOT_OFFERED_MESSAGE } from "./shared";
 
 async function answer(error: unknown, action: "checkout" | "portal" = "checkout") {
   const res = billingFailure(error, action);
@@ -106,6 +106,14 @@ describe("billingFailure", () => {
       code: "plan_change_failed",
       message:
         "We couldn't change your plan: your last payment didn't go through. Update your card in Manage billing, then try again.",
+    });
+  });
+
+  it("explains that only Pro to Max on the same billing period changes in the app", async () => {
+    expect(await answer(new BillingError("change_not_offered", "max to pro"))).toEqual({
+      status: 409,
+      code: "plan_change_failed",
+      message: CHANGE_NOT_OFFERED_MESSAGE,
     });
   });
 });

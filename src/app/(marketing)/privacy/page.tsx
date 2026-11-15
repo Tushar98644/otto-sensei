@@ -67,7 +67,7 @@ export default function PrivacyPage() {
           the skills, job titles and years of experience it reads from your resume, never the resume
           itself or your contact details. We use them for that one request and don&apos;t store them
           or send them to an AI. If you save a job, we store which one and when. The jobs themselves
-          come from public job boards, each linked to its original post.
+          come from companies&apos; public careers pages and job feeds, each linked to its original post.
         </li>
         <li>
           <strong>Files you upload.</strong> We read them in memory to pull out the text and run the

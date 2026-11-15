@@ -1,5 +1,7 @@
 import {
+  isPaidPlan,
   isTrialing,
+  PLAN_ORDER,
   PLANS,
   PRO_TRIAL,
   type BillingInterval,
@@ -80,6 +82,14 @@ export async function createCheckoutUrl(
   // A second checkout would start a second subscription and charge the user twice.
   if (user.plan === plan) {
     throw new BillingError("already_subscribed", `User is already on ${PLANS[plan].name}`);
+  }
+  // A paid plan only moves up in the app, on the billing period already paid for.
+  if (isPaidPlan(user.plan) && !isTrialing(user)) {
+    const down = PLAN_ORDER.indexOf(plan) < PLAN_ORDER.indexOf(user.plan);
+    const otherPeriod = user.planInterval !== null && interval !== user.planInterval;
+    if (down || otherPeriod) {
+      throw new BillingError("change_not_offered", `No in-app change from ${user.plan} to ${plan}`);
+    }
   }
   const trial =
     plan === PRO_TRIAL.plan && interval === PRO_TRIAL.interval && (await trialAvailableFor(user));

@@ -67,6 +67,47 @@ describe("upgradeOffer", () => {
     expect(paying.cards.some((card) => card.endsTrial)).toBe(false);
   });
 
+  it("keeps a paying plan on the billing period it has; the trial may pick either", () => {
+    const yearly = upgradeOffer({
+      current: "pro",
+      offer: BOTH,
+      picked: "month",
+      trial: false,
+      currentInterval: "year",
+    });
+    expect(yearly.intervals).toEqual(["year"]);
+    expect(yearly.cards.map((card) => [card.plan, card.interval])).toEqual([
+      ["pro", "year"],
+      ["max", "year"],
+    ]);
+    const monthly = upgradeOffer({
+      current: "pro",
+      offer: BOTH,
+      picked: "year",
+      trial: false,
+      currentInterval: "month",
+    });
+    expect(monthly.intervals).toEqual(["month"]);
+    expect(monthly.interval).toBe("month");
+    const noYearlyMax = upgradeOffer({
+      current: "pro",
+      offer: { pro: ["month", "year"], max: ["month"] },
+      picked: "year",
+      trial: false,
+      currentInterval: "year",
+    });
+    expect(noYearlyMax.cards).toEqual([]);
+    const trialing = upgradeOffer({
+      current: "pro",
+      offer: BOTH,
+      picked: "year",
+      trial: false,
+      onTrial: true,
+      currentInterval: "month",
+    });
+    expect(trialing.intervals).toEqual(["month", "year"]);
+  });
+
   it("has nothing for Max, nor for Pro while Max isn't on sale", () => {
     expect(
       upgradeOffer({ current: "max", offer: BOTH, picked: "month", trial: false }).cards,

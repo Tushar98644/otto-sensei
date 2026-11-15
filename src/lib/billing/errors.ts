@@ -2,6 +2,7 @@ export type BillingErrorCode =
   | "unavailable"
   | "no_subscription"
   | "already_subscribed"
+  | "change_not_offered"
   | "refused"
   | "payment_overdue"
   | "provider_error";

@@ -38,20 +38,34 @@ export type UpgradeCardProps = {
   trial?: boolean;
 };
 
-export function UpgradeCard({ plan, interval: current, mode, offer, trial = false }: UpgradeCardProps) {
+export function UpgradeCard({
+  plan,
+  interval: current,
+  mode,
+  offer,
+  trial = false,
+}: UpgradeCardProps) {
   const checkout = useBillingRedirect("checkout");
   const { user } = useMe();
   const endsTrial = plan !== "free" && user !== null && isTrialing(user);
+  // A paid plan moves up only on the billing period it already has.
+  const lockedTo = plan !== "free" && !endsTrial ? current : null;
   const above = PAID_PLANS.filter(
-    (candidate) => PLAN_ORDER.indexOf(candidate) > PLAN_ORDER.indexOf(plan) && offer[candidate].length > 0,
+    (candidate) =>
+      PLAN_ORDER.indexOf(candidate) > PLAN_ORDER.indexOf(plan) &&
+      (lockedTo ? offer[candidate].includes(lockedTo) : offer[candidate].length > 0),
   );
   const suggested = nextPlan(plan);
   const [picked, setPicked] = useState<PaidPlanId | null>(null);
   const [pickedInterval, setPickedInterval] = useState<BillingInterval>(current ?? "month");
   const target =
-    picked && above.includes(picked) ? picked : suggested && above.includes(suggested) ? suggested : above[0];
+    picked && above.includes(picked)
+      ? picked
+      : suggested && above.includes(suggested)
+        ? suggested
+        : above[0];
   if (!target) return null;
-  const intervals = offer[target];
+  const intervals = lockedTo ? [lockedTo] : offer[target];
   const interval = intervals.includes(pickedInterval) ? pickedInterval : (intervals[0] ?? "month");
   const name = PLANS[target].name;
   const onTrial =
@@ -88,7 +102,12 @@ export function UpgradeCard({ plan, interval: current, mode, offer, trial = fals
             interval={interval}
             offer={offer}
           />
-          <IntervalPicker plan={target} intervals={intervals} value={interval} onChange={setPickedInterval} />
+          <IntervalPicker
+            plan={target}
+            intervals={intervals}
+            value={interval}
+            onChange={setPickedInterval}
+          />
         </>
       )}
       <PlanPerks plan={target} interval={interval} trial={onTrial} />
@@ -119,7 +138,13 @@ export function UpgradeCard({ plan, interval: current, mode, offer, trial = fals
   );
 }
 
-export function BillingCard({ mode, trialEndsAt = null }: { mode: BillingMode; trialEndsAt?: number | null }) {
+export function BillingCard({
+  mode,
+  trialEndsAt = null,
+}: {
+  mode: BillingMode;
+  trialEndsAt?: number | null;
+}) {
   const portal = useBillingRedirect("portal");
   return (
     <Card>

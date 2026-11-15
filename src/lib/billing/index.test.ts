@@ -34,7 +34,10 @@ const PADDLE = {
   PADDLE_PRO_TRIAL_PRICE_ID: PRO_TRIAL,
 } as const;
 const MAX = { PADDLE_MAX_MONTHLY_PRICE_ID: MAX_MONTH, PADDLE_MAX_YEARLY_PRICE_ID: MAX_YEAR };
-const CREEM = { billingCustomerId: "cust_3kKw0VQ8bY1lN3m9", billingSubscriptionId: "sub_7Hq2LmPz9XcV4bN1" };
+const CREEM = {
+  billingCustomerId: "cust_3kKw0VQ8bY1lN3m9",
+  billingSubscriptionId: "sub_7Hq2LmPz9XcV4bN1",
+};
 const DAY_MS = 86_400_000;
 
 const ctm = (name: string | number) => paddleId("ctm", name);
@@ -47,7 +50,9 @@ type Row = typeof users.$inferSelect;
 let sequence = 0;
 let paddle: FakePaddle;
 
-async function createUser(overrides: Partial<typeof users.$inferInsert> = {}): Promise<SessionUser> {
+async function createUser(
+  overrides: Partial<typeof users.$inferInsert> = {},
+): Promise<SessionUser> {
   sequence += 1;
   const row = {
     id: crypto.randomUUID(),
@@ -72,13 +77,16 @@ function useEnv(values: Record<string, string | undefined>) {
   resetEnvForTests();
 }
 
-const usePaddle = (extra: Record<string, string | undefined> = {}) => useEnv({ ...PADDLE, ...extra });
+const usePaddle = (extra: Record<string, string | undefined> = {}) =>
+  useEnv({ ...PADDLE, ...extra });
 
 const writes = () => paddle.calls.filter((call) => call.method !== "GET");
 const transactionBody = () =>
   paddle.callsTo("POST /transactions").at(-1)?.body as Record<string, unknown> | undefined;
 const sentAnywhere = (value: string) =>
-  paddle.calls.some((call) => `${call.path}?${call.query.toString()} ${JSON.stringify(call.body ?? "")}`.includes(value));
+  paddle.calls.some((call) =>
+    `${call.path}?${call.query.toString()} ${JSON.stringify(call.body ?? "")}`.includes(value),
+  );
 
 beforeEach(async () => {
   useEnv({
@@ -122,7 +130,9 @@ describe("mock mode", () => {
   it("starts a new account on the trial: Pro, trialing, ending in 3 days, written down once", async () => {
     const user = await createUser();
     const before = Date.now();
-    expect(await createCheckoutUrl(user, "pro", "month")).toBe("/account?checkout=success&plan=pro&trial=1");
+    expect(await createCheckoutUrl(user, "pro", "month")).toBe(
+      "/account?checkout=success&plan=pro&trial=1",
+    );
     const row = await reload(user.id);
     expect(row).toMatchObject({ plan: "pro", planInterval: "month", planStatus: "mock_trialing" });
     expect(row?.trialEndsAt).toBeGreaterThanOrEqual(before + 3 * DAY_MS);
@@ -132,19 +142,35 @@ describe("mock mode", () => {
 
   it("gives someone who already had a trial the plain plan, and Max or yearly never trial", async () => {
     const returning = await createUser({ planStatus: "mock_cancelled" });
-    expect(await createCheckoutUrl(returning, "pro", "month")).toBe("/account?checkout=success&plan=pro");
-    expect(await reload(returning.id)).toMatchObject({ plan: "pro", planStatus: "mock_active", trialEndsAt: null });
+    expect(await createCheckoutUrl(returning, "pro", "month")).toBe(
+      "/account?checkout=success&plan=pro",
+    );
+    expect(await reload(returning.id)).toMatchObject({
+      plan: "pro",
+      planStatus: "mock_active",
+      trialEndsAt: null,
+    });
 
     const fresh = await createUser();
-    expect(await createCheckoutUrl(fresh, "max", "year")).toBe("/account?checkout=success&plan=max");
-    expect(await reload(fresh.id)).toMatchObject({ plan: "max", planInterval: "year", trialEndsAt: null });
+    expect(await createCheckoutUrl(fresh, "max", "year")).toBe(
+      "/account?checkout=success&plan=max",
+    );
+    expect(await reload(fresh.id)).toMatchObject({
+      plan: "max",
+      planInterval: "year",
+      trialEndsAt: null,
+    });
   });
 
   it("portal downgrades a subscribed user and ends the trial; it refuses someone who never subscribed", async () => {
     const user = await createUser();
     await createCheckoutUrl(user, "pro", "month");
     expect(await createPortalUrl(user)).toBe("/account?portal=mock");
-    expect(await reload(user.id)).toMatchObject({ plan: "free", trialEndsAt: null, planStatus: "mock_cancelled" });
+    expect(await reload(user.id)).toMatchObject({
+      plan: "free",
+      trialEndsAt: null,
+      planStatus: "mock_cancelled",
+    });
     expect(await trialAvailableFor(toSessionUser((await reload(user.id))!))).toBe(false);
 
     const never = await createUser();
@@ -153,7 +179,9 @@ describe("mock mode", () => {
 
   it("refuses a second checkout for the plan the user is on", async () => {
     const user = await createUser({ plan: "pro", planStatus: "mock_active" });
-    await expect(createCheckoutUrl(user, "pro")).rejects.toMatchObject({ code: "already_subscribed" });
+    await expect(createCheckoutUrl(user, "pro")).rejects.toMatchObject({
+      code: "already_subscribed",
+    });
   });
 });
 
@@ -180,7 +208,10 @@ describe("trial eligibility", () => {
     const again = await createUser({ email: `  ${trialed.email.toUpperCase()} ` });
     expect(await trialAvailableFor({ ...again, email: trialed.email.toUpperCase() })).toBe(false);
 
-    const paidBefore = await createUser({ planStatus: "canceled", billingSubscriptionId: sub("old") });
+    const paidBefore = await createUser({
+      planStatus: "canceled",
+      billingSubscriptionId: sub("old"),
+    });
     expect(await trialAvailableFor(paidBefore)).toBe(false);
 
     const paying = await createUser({ plan: "pro", planStatus: "active" });
@@ -229,8 +260,17 @@ describe("paddle mode", () => {
 
   it("checks out under the stored customer once the old subscription has ended", async () => {
     usePaddle();
-    const user = await createUser({ planStatus: "canceled", billingCustomerId: ctm(7), billingSubscriptionId: sub(7) });
-    paddle.subscriptions.push({ id: sub(7), customer: ctm(7), price: PRO_MONTH, status: "canceled" });
+    const user = await createUser({
+      planStatus: "canceled",
+      billingCustomerId: ctm(7),
+      billingSubscriptionId: sub(7),
+    });
+    paddle.subscriptions.push({
+      id: sub(7),
+      customer: ctm(7),
+      price: PRO_MONTH,
+      status: "canceled",
+    });
     await createCheckoutUrl(user, "pro", "month");
     expect(transactionBody()?.customer_id).toBe(ctm(7));
     expect(paddle.callsTo("POST /customers")).toEqual([]);
@@ -242,18 +282,29 @@ describe("paddle mode", () => {
     const user = await createUser({ email: "twice@example.com" });
     expect(await createCheckoutUrl(user, "pro", "month")).toBe(`${link(1)}&plan=pro&trial=1`);
     expect(await createCheckoutUrl(user, "pro", "month")).toBe(`${link(2)}&plan=pro&trial=1`);
-    expect(paddle.callsTo("GET /transactions").map((call) => call.query.get("customer_id"))).toEqual([ctm(1), ctm(1)]);
+    expect(
+      paddle.callsTo("GET /transactions").map((call) => call.query.get("customer_id")),
+    ).toEqual([ctm(1), ctm(1)]);
     expect(paddle.callsTo("PATCH /transactions").map((call) => [call.path, call.body])).toEqual([
       [`/transactions/${paddleId("txn", 1)}`, { status: "canceled" }],
     ]);
-    expect(paddle.transactions.map((transaction) => transaction.status)).toEqual(["canceled", "draft"]);
+    expect(paddle.transactions.map((transaction) => transaction.status)).toEqual([
+      "canceled",
+      "draft",
+    ]);
   });
 
   it("uses the customer Paddle names when another checkout created it a moment ago", async () => {
     usePaddle();
     const user = await createUser();
     const named = `ctm_${"9".repeat(26)}`;
-    paddle.failNext("POST /customers", 409, 1, "customer_already_exists", `conflicts with customer of id ${named}`);
+    paddle.failNext(
+      "POST /customers",
+      409,
+      1,
+      "customer_already_exists",
+      `conflicts with customer of id ${named}`,
+    );
     await createCheckoutUrl(user, "pro", "month");
     expect(transactionBody()?.customer_id).toBe(named);
   });
@@ -269,8 +320,12 @@ describe("paddle mode", () => {
   it("checks out the yearly or Max price only once it's set, never on the trial", async () => {
     usePaddle();
     const user = await createUser();
-    await expect(createCheckoutUrl(user, "pro", "year")).rejects.toMatchObject({ code: "unavailable" });
-    await expect(createCheckoutUrl(user, "max", "month")).rejects.toMatchObject({ code: "unavailable" });
+    await expect(createCheckoutUrl(user, "pro", "year")).rejects.toMatchObject({
+      code: "unavailable",
+    });
+    await expect(createCheckoutUrl(user, "max", "month")).rejects.toMatchObject({
+      code: "unavailable",
+    });
     usePaddle({ PADDLE_PRO_YEARLY_PRICE_ID: PRO_YEAR, PADDLE_MAX_MONTHLY_PRICE_ID: MAX_MONTH });
     expect(await createCheckoutUrl(user, "pro", "year")).toBe(`${link(1)}&plan=pro`);
     expect(transactionBody()?.items).toEqual([{ price_id: PRO_YEAR, quantity: 1 }]);
@@ -279,8 +334,13 @@ describe("paddle mode", () => {
   });
 
   it("refuses a price id that isn't Paddle's (a Creem product left in the env) before writing anything", async () => {
-    usePaddle({ PADDLE_PRO_MONTHLY_PRICE_ID: "prod_6dKbCreemPro", PADDLE_PRO_TRIAL_PRICE_ID: undefined });
-    await expect(createCheckoutUrl(await createUser(), "pro", "month")).rejects.toMatchObject({ code: "unavailable" });
+    usePaddle({
+      PADDLE_PRO_MONTHLY_PRICE_ID: "prod_6dKbCreemPro",
+      PADDLE_PRO_TRIAL_PRICE_ID: undefined,
+    });
+    await expect(createCheckoutUrl(await createUser(), "pro", "month")).rejects.toMatchObject({
+      code: "unavailable",
+    });
     expect(paddle.calls.filter((call) => call.method !== "GET")).toEqual([]);
     expect(sentAnywhere("prod_6dKbCreemPro")).toBe(false);
   });
@@ -295,12 +355,32 @@ describe("paddle mode", () => {
       billingSubscriptionId: sub(1),
     });
     paddle.subscriptions.push({ id: sub(1), customer: ctm(1), price: PRO_MONTH, status: "active" });
-    expect(await createCheckoutUrl(user, "max", "month")).toBe("/account?checkout=success&plan=max");
+    expect(await createCheckoutUrl(user, "max", "month")).toBe(
+      "/account?checkout=success&plan=max",
+    );
     expect(paddle.callsTo(`PATCH /subscriptions/${sub(1)}`)[0]?.body).toEqual({
       items: [{ price_id: MAX_MONTH, quantity: 1 }],
       proration_billing_mode: "prorated_immediately",
     });
     expect(paddle.callsTo("POST /transactions")).toEqual([]);
+  });
+
+  it("refuses Max to Pro and a switch between monthly and yearly, before asking Paddle anything", async () => {
+    usePaddle({ ...MAX, PADDLE_PRO_YEARLY_PRICE_ID: PRO_YEAR });
+    const paid = { planStatus: "active", billingCustomerId: ctm(1), billingSubscriptionId: sub(1) };
+    const max = await createUser({ plan: "max", planInterval: "month", ...paid });
+    const pro = await createUser({ plan: "pro", planInterval: "month", ...paid });
+    const yearly = await createUser({ plan: "pro", planInterval: "year", ...paid });
+    await expect(createCheckoutUrl(max, "pro", "month")).rejects.toMatchObject({
+      code: "change_not_offered",
+    });
+    await expect(createCheckoutUrl(pro, "max", "year")).rejects.toMatchObject({
+      code: "change_not_offered",
+    });
+    await expect(createCheckoutUrl(yearly, "max", "month")).rejects.toMatchObject({
+      code: "change_not_offered",
+    });
+    expect(paddle.calls).toEqual([]);
   });
 
   it("finds the subscription under the same-email customer too, and only on our prices", async () => {
@@ -332,10 +412,22 @@ describe("paddle mode", () => {
 
     it("still finds a Paddle subscription under the same email", async () => {
       usePaddle(MAX);
-      const user = await createUser({ plan: "pro", planStatus: "active", email: "ada@example.com", ...CREEM });
+      const user = await createUser({
+        plan: "pro",
+        planStatus: "active",
+        email: "ada@example.com",
+        ...CREEM,
+      });
       paddle.customers.push({ id: ctm("ada"), email: "ada@example.com" });
-      paddle.subscriptions.push({ id: sub("ada"), customer: ctm("ada"), price: PRO_MONTH, status: "active" });
-      expect(await createCheckoutUrl(user, "max", "month")).toBe("/account?checkout=success&plan=max");
+      paddle.subscriptions.push({
+        id: sub("ada"),
+        customer: ctm("ada"),
+        price: PRO_MONTH,
+        status: "active",
+      });
+      expect(await createCheckoutUrl(user, "max", "month")).toBe(
+        "/account?checkout=success&plan=max",
+      );
       expect(paddle.callsTo("GET /subscriptions")[0]?.query.get("customer_id")).toBe(ctm("ada"));
     });
 
@@ -372,7 +464,12 @@ describe("paddle mode", () => {
     it("opens a checkout for Max that names and signs the trial to cancel, and never changes the trial", async () => {
       usePaddle(MAX);
       const user = await trialist();
-      paddle.subscriptions.push({ id: sub("trial"), customer: ctm(1), price: PRO_TRIAL, status: "trialing" });
+      paddle.subscriptions.push({
+        id: sub("trial"),
+        customer: ctm(1),
+        price: PRO_TRIAL,
+        status: "trialing",
+      });
       expect(await createCheckoutUrl(user, "max", "year")).toBe(`${link(1)}&plan=max`);
       expect(transactionBody()).toEqual({
         items: [{ price_id: MAX_YEAR, quantity: 1 }],
@@ -393,7 +490,13 @@ describe("paddle mode", () => {
       usePaddle(MAX);
       const user = await trialist();
       const cancel = { action: "cancel" as const, effective_at: "2026-11-11T10:00:00.000Z" };
-      paddle.subscriptions.push({ id: sub("trial"), customer: ctm(1), price: PRO_TRIAL, status: "trialing", scheduledChange: cancel });
+      paddle.subscriptions.push({
+        id: sub("trial"),
+        customer: ctm(1),
+        price: PRO_TRIAL,
+        status: "trialing",
+        scheduledChange: cancel,
+      });
       expect(await createCheckoutUrl(user, "max", "month")).toBe(`${link(1)}&plan=max`);
 
       const paid = await trialist({
@@ -403,9 +506,17 @@ describe("paddle mode", () => {
         billingCustomerId: ctm(2),
         billingSubscriptionId: sub("paid"),
       });
-      paddle.subscriptions.push({ id: sub("paid"), customer: ctm(2), price: PRO_MONTH, status: "active", scheduledChange: cancel });
+      paddle.subscriptions.push({
+        id: sub("paid"),
+        customer: ctm(2),
+        price: PRO_MONTH,
+        status: "active",
+        scheduledChange: cancel,
+      });
       expect(await createCheckoutUrl(paid, "max", "month")).toBe(portal(ctm(2)));
-      expect(paddle.callsTo(`POST /customers/${ctm(2)}/portal-sessions`)[0]?.body).toEqual({ subscription_ids: [sub("paid")] });
+      expect(paddle.callsTo(`POST /customers/${ctm(2)}/portal-sessions`)[0]?.body).toEqual({
+        subscription_ids: [sub("paid")],
+      });
       expect(paddle.callsTo("POST /transactions")).toHaveLength(1);
       expect(paddle.callsTo("PATCH /subscriptions")).toEqual([]);
     });
@@ -426,7 +537,9 @@ describe("paddle mode", () => {
       usePaddle(MAX);
       const user = await trialist();
       paddle.failNext("GET /customers", 500, 10);
-      await expect(createCheckoutUrl(user, "max", "month")).rejects.toMatchObject({ code: "provider_error" });
+      await expect(createCheckoutUrl(user, "max", "month")).rejects.toMatchObject({
+        code: "provider_error",
+      });
       expect(paddle.callsTo("POST /transactions")).toEqual([]);
     });
   });
@@ -439,8 +552,15 @@ describe("paddle mode", () => {
       billingCustomerId: ctm(1),
       billingSubscriptionId: sub(1),
     });
-    paddle.subscriptions.push({ id: sub(1), customer: ctm(1), price: PRO_MONTH, status: "past_due" });
-    await expect(createCheckoutUrl(user, "max", "month")).rejects.toMatchObject({ code: "payment_overdue" });
+    paddle.subscriptions.push({
+      id: sub(1),
+      customer: ctm(1),
+      price: PRO_MONTH,
+      status: "past_due",
+    });
+    await expect(createCheckoutUrl(user, "max", "month")).rejects.toMatchObject({
+      code: "payment_overdue",
+    });
     expect(writes()).toEqual([]);
   });
 
@@ -458,12 +578,20 @@ describe("paddle mode", () => {
     paddle.failNext(route, 400, 1, "subscription_locked_renewal");
     await expect(createCheckoutUrl(user, "max", "month")).rejects.toMatchObject({
       code: "refused",
-      details: { operation: "change_plan", providerStatus: 400, providerCode: "subscription_locked_renewal" },
+      details: {
+        operation: "change_plan",
+        providerStatus: 400,
+        providerCode: "subscription_locked_renewal",
+      },
     });
     paddle.failNext(route, 502);
-    await expect(createCheckoutUrl(user, "max", "month")).rejects.toMatchObject({ code: "provider_error" });
+    await expect(createCheckoutUrl(user, "max", "month")).rejects.toMatchObject({
+      code: "provider_error",
+    });
     paddle.failNext(route, 0);
-    await expect(createCheckoutUrl(user, "max", "month")).rejects.toMatchObject({ code: "provider_error" });
+    await expect(createCheckoutUrl(user, "max", "month")).rejects.toMatchObject({
+      code: "provider_error",
+    });
     expect(paddle.callsTo(route)).toHaveLength(3);
   });
 
@@ -510,13 +638,19 @@ describe("paddle mode", () => {
   it("falls back to the stored subscription when Paddle can't list them, and reports provider errors", async () => {
     vi.spyOn(console, "error").mockImplementation(() => undefined);
     usePaddle();
-    const user = await createUser({ planStatus: "paused", billingCustomerId: ctm(1), billingSubscriptionId: sub(1) });
+    const user = await createUser({
+      planStatus: "paused",
+      billingCustomerId: ctm(1),
+      billingSubscriptionId: sub(1),
+    });
     paddle.failNext("GET /customers", 500, 3);
     expect(await createCheckoutUrl(user, "pro", "month")).toBe(portal(ctm(1)));
 
     const fresh = await createUser();
     paddle.failNext("POST /transactions", 500);
-    await expect(createCheckoutUrl(fresh, "pro", "month")).rejects.toMatchObject({ code: "provider_error" });
+    await expect(createCheckoutUrl(fresh, "pro", "month")).rejects.toMatchObject({
+      code: "provider_error",
+    });
     expect(paddle.callsTo("POST /transactions")).toHaveLength(1);
   });
 
@@ -532,10 +666,16 @@ describe("paddle mode", () => {
 
   it("opens the customer portal for the stored customer, and has none for someone who never paid", async () => {
     usePaddle();
-    const user = await createUser({ plan: "pro", billingCustomerId: ctm(7), billingSubscriptionId: sub(7) });
+    const user = await createUser({
+      plan: "pro",
+      billingCustomerId: ctm(7),
+      billingSubscriptionId: sub(7),
+    });
     expect(await createPortalUrl(user)).toBe(portal(ctm(7)));
     expect(paddle.callsTo(`POST /customers/${ctm(7)}/portal-sessions`)[0]?.body).toEqual({});
-    await expect(createPortalUrl(await createUser())).rejects.toMatchObject({ code: "no_subscription" });
+    await expect(createPortalUrl(await createUser())).rejects.toMatchObject({
+      code: "no_subscription",
+    });
   });
 
   it("never logs the customer's email when checkout fails", async () => {
@@ -544,7 +684,13 @@ describe("paddle mode", () => {
       vi.spyOn(console, level).mockImplementation(() => undefined),
     );
     const user = await createUser({ email: "secret.person@example.com" });
-    paddle.failNext("POST /customers", 400, 1, "invalid_field", "email secret.person@example.com is invalid");
+    paddle.failNext(
+      "POST /customers",
+      400,
+      1,
+      "invalid_field",
+      "email secret.person@example.com is invalid",
+    );
     await expect(createCheckoutUrl(user, "pro", "month")).rejects.toMatchObject({
       code: "refused",
       details: { operation: "checkout", providerStatus: 400, providerCode: "invalid_field" },
@@ -576,10 +722,20 @@ describe("cancelSubscriptionForDeletion", () => {
       { id: sub(2), customer: ctm(2), price: PRO_TRIAL, status: "trialing" },
     );
     expect(await cancelSubscriptionForDeletion(user)).toBe("cancelled");
-    expect(paddle.callsTo(`POST /subscriptions/${sub(1)}/cancel`)[0]?.body).toEqual({ effective_from: "immediately" });
-    expect(paddle.callsTo(`POST /subscriptions/${sub(2)}/cancel`)[0]?.body).toEqual({ effective_from: "immediately" });
-    expect(paddle.callsTo("GET /subscriptions")[0]?.query.get("customer_id")).toBe(`${ctm(1)},${ctm(2)}`);
-    expect(await reload(user.id)).toMatchObject({ plan: "free", planStatus: "canceled", trialEndsAt: null });
+    expect(paddle.callsTo(`POST /subscriptions/${sub(1)}/cancel`)[0]?.body).toEqual({
+      effective_from: "immediately",
+    });
+    expect(paddle.callsTo(`POST /subscriptions/${sub(2)}/cancel`)[0]?.body).toEqual({
+      effective_from: "immediately",
+    });
+    expect(paddle.callsTo("GET /subscriptions")[0]?.query.get("customer_id")).toBe(
+      `${ctm(1)},${ctm(2)}`,
+    );
+    expect(await reload(user.id)).toMatchObject({
+      plan: "free",
+      planStatus: "canceled",
+      trialEndsAt: null,
+    });
   });
 
   it("does nothing for someone who never subscribed", async () => {
@@ -597,9 +753,16 @@ describe("cancelSubscriptionForDeletion", () => {
 
     // Paid through Paddle, but the webhook that stores the new ids hasn't arrived yet.
     paddle.customers.push({ id: ctm("ada"), email: "ada@example.com" });
-    paddle.subscriptions.push({ id: sub("ada"), customer: ctm("ada"), price: PRO_MONTH, status: "active" });
+    paddle.subscriptions.push({
+      id: sub("ada"),
+      customer: ctm("ada"),
+      price: PRO_MONTH,
+      status: "active",
+    });
     expect(await cancelSubscriptionForDeletion(user)).toBe("cancelled");
-    expect(paddle.callsTo(`POST /subscriptions/${sub("ada")}/cancel`)[0]?.body).toEqual({ effective_from: "immediately" });
+    expect(paddle.callsTo(`POST /subscriptions/${sub("ada")}/cancel`)[0]?.body).toEqual({
+      effective_from: "immediately",
+    });
     expect(sentAnywhere(CREEM.billingCustomerId)).toBe(false);
     expect(sentAnywhere(CREEM.billingSubscriptionId)).toBe(false);
   });
@@ -607,7 +770,12 @@ describe("cancelSubscriptionForDeletion", () => {
   it("treats a refused cancel as done when Paddle says it already ended", async () => {
     usePaddle();
     const user = await subscriber();
-    paddle.subscriptions.push({ id: sub(1), customer: ctm(1), price: PRO_MONTH, status: "canceled" });
+    paddle.subscriptions.push({
+      id: sub(1),
+      customer: ctm(1),
+      price: PRO_MONTH,
+      status: "canceled",
+    });
     expect(await cancelSubscriptionForDeletion(user)).toBe("already_ended");
     expect(paddle.callsTo(`GET /subscriptions/${sub(1)}`)).toHaveLength(1);
   });
@@ -617,8 +785,19 @@ describe("cancelSubscriptionForDeletion", () => {
     usePaddle();
     const user = await subscriber({ planStatus: "scheduled_cancel" });
     const cancel = { action: "cancel" as const, effective_at: "2026-12-08T10:00:00.000Z" };
-    paddle.subscriptions.push({ id: sub(1), customer: ctm(1), price: PRO_MONTH, status: "active", scheduledChange: cancel });
-    paddle.failNext(`POST /subscriptions/${sub(1)}/cancel`, 400, 1, "subscription_locked_pending_changes");
+    paddle.subscriptions.push({
+      id: sub(1),
+      customer: ctm(1),
+      price: PRO_MONTH,
+      status: "active",
+      scheduledChange: cancel,
+    });
+    paddle.failNext(
+      `POST /subscriptions/${sub(1)}/cancel`,
+      400,
+      1,
+      "subscription_locked_pending_changes",
+    );
     expect(await cancelSubscriptionForDeletion(user)).toBe("already_ended");
     expect(await reload(user.id)).toMatchObject({ plan: "free", planStatus: "canceled" });
   });
@@ -629,14 +808,22 @@ describe("cancelSubscriptionForDeletion", () => {
     const user = await subscriber();
     paddle.subscriptions.push({ id: sub(1), customer: ctm(1), price: PRO_MONTH, status: "active" });
     paddle.failNext(`POST /subscriptions/${sub(1)}/cancel`, 400, 1, "subscription_locked_renewal");
-    await expect(cancelSubscriptionForDeletion(user)).rejects.toMatchObject({ code: "provider_error" });
+    await expect(cancelSubscriptionForDeletion(user)).rejects.toMatchObject({
+      code: "provider_error",
+    });
     paddle.failNext(`POST /subscriptions/${sub(1)}/cancel`, 503);
-    await expect(cancelSubscriptionForDeletion(user)).rejects.toMatchObject({ code: "provider_error" });
+    await expect(cancelSubscriptionForDeletion(user)).rejects.toMatchObject({
+      code: "provider_error",
+    });
     expect(paddle.callsTo(`POST /subscriptions/${sub(1)}/cancel`)).toHaveLength(2);
     expect((await reload(user.id))?.plan).toBe("pro");
 
     // Sandbox and live ids look alike: a 404 must never pass for "already ended".
-    const missing = await subscriber({ email: "gone@example.com", billingCustomerId: ctm("gone"), billingSubscriptionId: sub("gone") });
+    const missing = await subscriber({
+      email: "gone@example.com",
+      billingCustomerId: ctm("gone"),
+      billingSubscriptionId: sub("gone"),
+    });
     await expect(cancelSubscriptionForDeletion(missing)).rejects.toMatchObject({ code: "refused" });
     expect((await reload(missing.id))?.plan).toBe("pro");
     expect(JSON.stringify(errors.mock.calls)).toContain("billing.cancel_not_found");
@@ -654,21 +841,29 @@ describe("cancelSubscriptionForDeletion", () => {
   it("refuses in production without an API key while a Paddle subscription could still charge", async () => {
     usePaddle({ NODE_ENV: "production", PADDLE_API_KEY: undefined });
     const user = await subscriber();
-    await expect(cancelSubscriptionForDeletion(user)).rejects.toMatchObject({ code: "unavailable" });
+    await expect(cancelSubscriptionForDeletion(user)).rejects.toMatchObject({
+      code: "unavailable",
+    });
     expect(await reload(user.id)).toMatchObject({ plan: "pro", planStatus: "active" });
     expect(paddle.calls).toEqual([]);
   });
 
   it("goes ahead in production without an API key when nothing at Paddle can charge", async () => {
     usePaddle({ NODE_ENV: "production", PADDLE_API_KEY: undefined });
-    expect(await cancelSubscriptionForDeletion(await subscriber({ planStatus: "canceled" }))).toBe("none");
+    expect(await cancelSubscriptionForDeletion(await subscriber({ planStatus: "canceled" }))).toBe(
+      "none",
+    );
     expect(await cancelSubscriptionForDeletion(await subscriber(CREEM))).toBe("none");
     expect(await cancelSubscriptionForDeletion(await createUser())).toBe("none");
     expect(paddle.calls).toEqual([]);
   });
 
   it("downgrades locally in mock mode", async () => {
-    const user = await subscriber({ planStatus: "mock_trialing", billingCustomerId: null, billingSubscriptionId: null });
+    const user = await subscriber({
+      planStatus: "mock_trialing",
+      billingCustomerId: null,
+      billingSubscriptionId: null,
+    });
     expect(await cancelSubscriptionForDeletion(user)).toBe("cancelled");
     expect(await reload(user.id)).toMatchObject({ plan: "free", planStatus: "mock_cancelled" });
   });
@@ -681,7 +876,9 @@ describe("cancelSubscriptionForDeletion", () => {
     const user = await subscriber();
     paddle.subscriptions.push({ id: sub(1), customer: ctm(1), price: PRO_MONTH, status: "active" });
     paddle.failNext(`POST /subscriptions/${sub(1)}/cancel`, 502);
-    await expect(cancelSubscriptionForDeletion(user)).rejects.toMatchObject({ code: "provider_error" });
+    await expect(cancelSubscriptionForDeletion(user)).rejects.toMatchObject({
+      code: "provider_error",
+    });
     await cancelSubscriptionForDeletion(user);
     const output = JSON.stringify(sinks.flatMap((sink) => sink.mock.calls));
     expect(output).toContain("billing.subscription_cancelled");

@@ -54,12 +54,14 @@ describe("legal pages under Paddle", () => {
     expect(text(terms)).toContain("you keep it until the end of the period you paid for");
   });
 
-  it("terms describe a plan change as Paddle prorates it, never as money paid back", () => {
-    expect(text(terms)).toContain("moving up charges the difference for the rest of the period");
-    expect(text(terms)).toContain(
-      "moving down turns what's left into credit toward your next payments",
+  it("terms offer only Pro to Max on the same billing period, never money paid back", () => {
+    const body = text(terms);
+    expect(body).toContain(
+      "You can move up from Pro to Max on the billing period you already have",
     );
-    expect(text(terms)).not.toMatch(/refunded|get back the difference/i);
+    expect(body).toContain("the difference for the rest of the period is charged right away");
+    expect(body).toContain("To move to Pro, or between monthly and yearly, cancel");
+    expect(body).not.toMatch(/moving down|into credit|refunded|get back the difference/i);
   });
 
   it("the refund page defers to Paddle's buyer refund policy and promises nothing of its own", () => {
@@ -111,9 +113,12 @@ describe("pricing billing questions", () => {
     expect(body).not.toContain("Can I get a refund? No");
   });
 
-  it("describe switching between Pro and Max as credit, not money back", async () => {
+  it("offer only Pro to Max on the same billing period, never money back", async () => {
     const body = text(renderToStaticMarkup(await PricingPage()));
-    expect(body).toContain("moving down turns what's left into credit toward your next payments");
-    expect(body).not.toMatch(/get back the difference|refunded/i);
+    expect(body).toContain(
+      "You can move up from Pro to Max on your account page, on the billing period you already have.",
+    );
+    expect(body).toContain("To move to Pro, or between monthly and yearly, cancel");
+    expect(body).not.toMatch(/moving down|into credit|get back the difference|refunded/i);
   });
 });

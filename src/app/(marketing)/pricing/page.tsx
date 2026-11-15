@@ -87,7 +87,7 @@ const billingFaq: readonly FaqItem[] = [
   {
     question: "Can I switch between Pro and Max?",
     answer:
-      "Yes, from your account page. Your subscription changes in place, so you're never billed twice: moving up charges the difference for the rest of the period right away, and moving down turns what's left into credit toward your next payments.",
+      "You can move up from Pro to Max on your account page, on the billing period you already have. Your subscription changes in place, so you're never billed twice: you pay the difference for the rest of the period right away. To move to Pro, or between monthly and yearly, cancel from your account page and pick the new plan once your current period ends.",
   },
   {
     question: "What happens to my resumes if I cancel?",

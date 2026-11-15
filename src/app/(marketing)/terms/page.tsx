@@ -155,11 +155,10 @@ export default function TermsPage() {
       <p>
         At a limit that feature pauses until your limits reset (on Free, at the start of the next
         month; on a monthly plan, at your next renewal; on a yearly plan, on the next monthly reset
-        day; on the trial, until Pro starts), or until you move to a bigger plan. Moving between Pro
-        and Max, or between monthly and yearly, between renewals doesn&apos;t reset a limit: what
-        you used this month counts on the new plan. Uploads never stop: past the AI reads, the basic
-        reader reads your file instead. Editing, recruiter checks and PDF downloads have no limit on
-        any plan.
+        day; on the trial, until Pro starts), or until you move to a bigger plan. Moving up from Pro
+        to Max between renewals doesn&apos;t reset a limit: what you used this month counts on the
+        new plan. Uploads never stop: past the AI reads, the basic reader reads your file instead.
+        Editing, recruiter checks and PDF downloads have no limit on any plan.
       </p>
       <p>
         Each paid plan also has a monthly AI budget ({tokensInWords(AI_TOKEN_BUDGETS.pro)} tokens on{" "}
@@ -197,11 +196,12 @@ export default function TermsPage() {
         <li>
           A paid plan renews every period you picked until you cancel. Cancel anytime from your{" "}
           <Link href={ROUTES.account}>account page</Link>, and you keep it until the end of the
-          period you paid for. Moving between Pro and Max changes your subscription in place, so
-          you&apos;re never billed twice: moving up charges the difference for the rest of the
-          period right away, and moving down turns what&apos;s left into credit toward your next
-          payments. If you drop to Free, your published portfolio goes offline, and its data is kept
-          in case you come back.
+          period you paid for. You can move up from Pro to Max on the billing period you already
+          have: your subscription changes in place, so you&apos;re never billed twice, and the
+          difference for the rest of the period is charged right away. To move to Pro, or between
+          monthly and yearly, cancel and pick the new plan once your current period ends. If you
+          drop to Free, your published portfolio goes offline, and its data is kept in case you come
+          back.
         </li>
         <li>
           Prices and limits may change. If your plan&apos;s price or limits change, we&apos;ll email

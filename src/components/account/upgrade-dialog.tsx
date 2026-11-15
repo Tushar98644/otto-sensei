@@ -86,6 +86,7 @@ export function UpgradeDialog({
     picked: pickedInterval ?? user?.planInterval ?? "month",
     trial: trialOnOffer,
     onTrial,
+    currentInterval: user?.planInterval ?? null,
   });
   const buyable = offer.cards.filter((card) => !card.current);
   const target =
@@ -155,7 +156,9 @@ export function UpgradeDialog({
         (current === "max"
           ? ACCOUNT_OTTO.alreadyMax
           : `You're on ${PLANS[current].name}, the biggest plan on sale here. Email us if you need more.`),
-      title: feature ? `You've reached ${thisPeriod(period)}'s limit` : `You're on ${PLANS[current].name}`,
+      title: feature
+        ? `You've reached ${thisPeriod(period)}'s limit`
+        : `You're on ${PLANS[current].name}`,
       description: feature
         ? `It resets ${resetWhen(period)}. Need more before then? Email us.`
         : undefined,
