@@ -62,6 +62,7 @@
   --animate-fade-in: fade-in 200ms ease-out backwards;
   /* Ends invisible, so reduced motion (which jumps to the end) only sees it go. */
   --animate-fade-out: fade-out 250ms ease-in forwards;
+  --animate-reveal-late: reveal-late 200ms ease-out 12s backwards;
   --animate-pop: pop 200ms cubic-bezier(0.2, 0.9, 0.3, 1.2) backwards;
   --animate-draw: draw 700ms ease-out backwards;
   --animate-highlight-in: highlight-in 300ms ease-out backwards;
@@ -127,6 +128,14 @@
 
   @keyframes fade-out {
     to {
+      opacity: 0;
+    }
+  }
+
+  /* Hidden, not just transparent, while it waits: nothing can focus or read it before then. */
+  @keyframes reveal-late {
+    from {
+      visibility: hidden;
       opacity: 0;
     }
   }
@@ -437,6 +446,11 @@
     .animate-spin {
       animation-duration: 1.5s !important;
       animation-iteration-count: infinite !important;
+    }
+
+    /* A late reveal is a wait, not motion: it keeps the delay from --animate-reveal-late. */
+    .animate-reveal-late {
+      animation-delay: 12s !important;
     }
   }
 }

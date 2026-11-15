@@ -1,13 +1,14 @@
-// Sets up a Paddle account for the app and writes the values to .env.paddle.local. bun --env-file=.env.paddle.local scripts/paddle-setup.ts
+// Sets up a Paddle account for the app and writes the values back to its env file. bun --env-file=.env.paddle.local scripts/paddle-setup.ts (live: .env.paddle.live.local)
 import { chmodSync, existsSync, readFileSync, writeFileSync } from "node:fs";
 import { PRICES_USD, PRO_TRIAL, type PaidPlanId } from "../src/config/plans";
 
-const ENV_FILE = ".env.paddle.local";
+const live = /^(live|production)$/i.test((process.env.PADDLE_ENVIRONMENT ?? "").trim());
+// Live values go to their own file, so the sandbox ones stay usable for testing.
+const ENV_FILE = live ? ".env.paddle.live.local" : ".env.paddle.local";
 const APP_URL = (process.env.PADDLE_SETUP_APP_URL ?? "https://www.ottosensei.com").replace(
   /\/$/,
   "",
 );
-const live = /^(live|production)$/i.test((process.env.PADDLE_ENVIRONMENT ?? "").trim());
 const BASE = live ? "https://api.paddle.com" : "https://sandbox-api.paddle.com";
 const KEY = (process.env.PADDLE_SETUP_API_KEY ?? "").trim();
 const EVENTS = [

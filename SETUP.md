@@ -415,7 +415,8 @@ Products, Prices, Client-side tokens, Notification settings and Checkout setting
 `.env.paddle.local` as `PADDLE_SETUP_API_KEY` (with `PADDLE_ENVIRONMENT=sandbox` or `live`), and run
 `bun --env-file=.env.paddle.local scripts/paddle-setup.ts`. It does steps 1, 3, 4 and 5 (finding
 anything already there instead of making it twice) and writes every value into that file, printing
-ids only. You still make the app's own key (step 2) and put the values into Vercel (step 6).
+ids only. For live, use `.env.paddle.live.local` instead (`PADDLE_ENVIRONMENT=live`), so the
+sandbox values stay usable. You still make the app's own key (step 2) and put the values into Vercel (step 6).
 
 **1. Products and prices.** **Catalog** → **Products** → **New product**: one product called
 **Otto Sensei Pro** and one called **Otto Sensei Max** (tax category **SaaS**; buyers see the name
