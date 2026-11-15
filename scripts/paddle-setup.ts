@@ -193,10 +193,18 @@ async function main() {
   console.log(`webhook  ${APP_URL}/api/billing/webhook  (secret saved)`);
   values.NEXT_PUBLIC_PADDLE_CLIENT_TOKEN = await ensureClientToken();
   console.log(`token    client-side token  (saved)`);
-  await paddle("PATCH", "/settings/checkout-url", { default_url: `${APP_URL}/checkout` });
-  console.log(`checkout default payment link  ${APP_URL}/checkout`);
   writeEnv(values);
   console.log(`Wrote ${ENV_FILE}. Nothing secret was printed.`);
+  try {
+    await paddle("PATCH", "/settings/checkout-url", { default_url: `${APP_URL}/checkout` });
+    console.log(`checkout default payment link  ${APP_URL}/checkout`);
+  } catch (error) {
+    if (!String(error).includes("checkout_url_domain_not_approved")) throw error;
+    console.log(
+      "checkout default payment link  NOT SET: Paddle hasn't approved the domain yet. Run this again once it has.",
+    );
+    process.exitCode = 2;
+  }
 }
 
 main().catch((error: unknown) => {
