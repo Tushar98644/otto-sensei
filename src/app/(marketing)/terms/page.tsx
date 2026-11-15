@@ -39,6 +39,12 @@ export default function TermsPage() {
         it, you agree to them. We kept them short and plain on purpose.
       </p>
 
+      <h2>Who we are</h2>
+      <p>
+        {BRAND.name} is the business that runs this site and sells its plans, and the party these
+        terms are with. You can reach us at <a href={mailto}>{BRAND.supportEmail}</a>.
+      </p>
+
       <h2>The service</h2>
       <p>
         {BRAND.name} lets you check, edit and tailor your resume and download it as a PDF. We
