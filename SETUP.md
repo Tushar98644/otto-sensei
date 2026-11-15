@@ -410,6 +410,13 @@ monthly or yearly; there are no weekly plans.
 (vendors.paddle.com). Products, prices, keys, the client token, the default payment link and the
 webhook all exist once in each. Do steps 1 to 7 in sandbox now; step 8 repeats them in live.
 
+**The quick way.** Make one API key named `otto-sensei-setup` (step 2's page) with read and write on
+Products, Prices, Client-side tokens, Notification settings and Checkout settings, put it in
+`.env.paddle.local` as `PADDLE_SETUP_API_KEY` (with `PADDLE_ENVIRONMENT=sandbox` or `live`), and run
+`bun --env-file=.env.paddle.local scripts/paddle-setup.ts`. It does steps 1, 3, 4 and 5 (finding
+anything already there instead of making it twice) and writes every value into that file, printing
+ids only. You still make the app's own key (step 2) and put the values into Vercel (step 6).
+
 **1. Products and prices.** **Catalog** → **Products** → **New product**: one product called
 **Otto Sensei Pro** and one called **Otto Sensei Max** (tax category **SaaS**; buyers see the name
 on the checkout and their receipts). On each, **New price**, currency **USD**, tax mode
