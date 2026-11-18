@@ -5,6 +5,7 @@ import { errorMessage } from "@/components/account/errors";
 import { LookingForCard } from "@/components/dashboard/jobs/looking-for-card";
 import { defaultResumeId } from "@/components/dashboard/jobs/view";
 import { saveLookingForChoice, useWorkProfile } from "@/components/eligibility/use-work-profile";
+import { SECTION_SCROLL } from "@/components/settings/sections";
 import { useNow } from "@/components/studio/use-now";
 import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -56,10 +57,10 @@ export function LookingForSettingsCard() {
       id={ACCOUNT_SECTIONS.lookingFor}
       aria-labelledby={titleId}
       role="region"
-      className="scroll-mt-24"
+      className={SECTION_SCROLL}
     >
       <CardHeader>
-        <CardTitle as="h2" id={titleId}>
+        <CardTitle as="h3" id={titleId}>
           Looking for
         </CardTitle>
         <CardDescription>

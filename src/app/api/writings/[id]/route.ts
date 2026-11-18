@@ -4,11 +4,18 @@ import { getCurrentUser } from "@/lib/auth/session";
 import { readJson } from "@/lib/http";
 import { log } from "@/lib/log";
 import { deleteWriting, updateWriting } from "@/lib/writings/records";
-import { type WritingResponse } from "@/lib/writings/schema";
+import { textLimit, type WritingKind, type WritingResponse } from "@/lib/writings/schema";
 import { UpdateWritingSchema, WritingIdSchema } from "@/lib/writings/validation";
 import { NOT_FOUND, SIGN_IN, writeLimited } from "../shared";
 
 export const runtime = "nodejs";
+
+const count = new Intl.NumberFormat("en-US");
+const KIND_NAMES: Record<WritingKind, string> = {
+  letter: "letter",
+  answer: "answer",
+  outreach: "email",
+};
 
 type Context = { params: Promise<{ id: string }> };
 
@@ -26,12 +33,19 @@ export async function PATCH(req: Request, { params }: Context): Promise<Response
     const body = await readJson(req, UpdateWritingSchema);
     if (!body.ok) {
       log.info("writings.bad_request", { reason: body.message });
-      return fail("bad_request", "That edit couldn't be saved. Keep it under 5,000 characters.", 400);
+      return fail("bad_request", "That edit couldn't be saved. Make it shorter and try again.", 400);
     }
-    const result = await updateWriting(user.id, id, body.data.text);
+    const result = await updateWriting(user.id, id, body.data);
     if (result.status === "not_found") return fail("not_found", NOT_FOUND, 404);
+    if (result.status === "not_outreach") {
+      return fail("bad_request", "Only outreach messages have a subject and a note.", 400);
+    }
     if (result.status === "too_long") {
-      return fail("bad_request", "That answer is too long to keep. Cut it under 3,000 characters.", 400);
+      return fail(
+        "bad_request",
+        `That ${KIND_NAMES[result.kind]} is too long to keep. Cut it under ${count.format(textLimit(result.kind))} characters.`,
+        400,
+      );
     }
     const response: Omit<WritingResponse, "ok"> = { writing: result.writing };
     return ok(response, { headers: NO_STORE });

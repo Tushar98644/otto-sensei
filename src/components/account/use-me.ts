@@ -3,6 +3,7 @@
 import { usePathname } from "next/navigation";
 import { useEffect, useSyncExternalStore } from "react";
 import { ROUTES } from "@/components/site/routes";
+import { SEO_PATHS } from "@/lib/seo-pages/paths";
 import { api } from "@/lib/api/client";
 import type { PlanId } from "@/config/plans";
 import type { MeResponse } from "@/lib/api/types";
@@ -30,6 +31,7 @@ const SALES_PATHS: ReadonlySet<string> = new Set([
   ROUTES.terms,
   ROUTES.refunds,
   ROUTES.acceptableUse,
+  SEO_PATHS.jobMatch,
 ]);
 
 let state: MeState = SERVER_STATE;

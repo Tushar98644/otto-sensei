@@ -1,6 +1,8 @@
 "use client";
 
 import { Download, ScanText } from "lucide-react";
+import { useRef, useState } from "react";
+import { InviteOffer, inviteToOffer } from "@/components/referrals/invite-prompt";
 import { Alert } from "@/components/ui/alert";
 import { Button, buttonClasses } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
@@ -48,6 +50,17 @@ export function DownloadActions({
   showPreviewLink,
 }: DownloadActionsProps) {
   const ready = pdf.file !== null && pdf.isCurrent && !formatPending;
+  const [inviteUrl, setInviteUrl] = useState<string | null>(null);
+  const downloadLink = useRef<HTMLAnchorElement>(null);
+
+  // The link's own download goes ahead; the invite, if any, shows up beside it after.
+  function downloaded() {
+    track("pdf_downloaded", { page_size: pageSize });
+    void inviteToOffer().then((url) => {
+      if (url) setInviteUrl(url);
+    });
+  }
+
   return (
     <>
       <SendCheckCard resume={resume} />
@@ -80,9 +93,10 @@ export function DownloadActions({
         <div className="flex flex-col gap-3">
           {ready && pdf.file ? (
             <a
+              ref={downloadLink}
               href={pdf.file.url}
               download={fileName}
-              onClick={() => track("pdf_downloaded", { page_size: pageSize })}
+              onClick={downloaded}
               className={buttonClasses({ size: "lg", className: "w-full" })}
             >
               <Download />
@@ -93,6 +107,13 @@ export function DownloadActions({
               {pdf.file ? "Updating your PDF" : "Making your PDF"}
             </Button>
           )}
+          <InviteOffer
+            url={inviteUrl}
+            onDismiss={() => {
+              setInviteUrl(null);
+              downloadLink.current?.focus();
+            }}
+          />
           <WordDownload resume={resume} pageSize={pageSize} fileName={fileName} />
           <ShareLinkButton resume={resume} />
           {showPreviewLink && pdf.file ? (

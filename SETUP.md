@@ -637,7 +637,9 @@ quietly; the rest of the app runs the same.
 | `NEXT_PUBLIC_POSTHOG_KEY` (+ `NEXT_PUBLIC_POSTHOG_HOST` for EU) | Funnel events | 10c |
 | `GITHUB_TOKEN` | Higher GitHub limits for Import from GitHub and portfolio GitHub numbers | 10d |
 | `CRON_SECRET` | Daily cleanup, follow-up reminders (bell), and clearing /jobs after the daily job read (also a GitHub secret) | 10e |
-| `RESEND_API_KEY`, `EMAIL_FROM` | Reminder emails (needs `CRON_SECRET`) | 10e |
+| `RESEND_API_KEY`, `EMAIL_FROM` | Reminder emails, the weekly jobs email and tips (needs `CRON_SECRET`) | 10e |
+| `EMAIL_POSTAL_ADDRESS` | A postal address (a PO box or virtual mailbox is fine) shown in the footer of optional emails. Tip emails stay off until it's set | 10e |
+| `OPTIONAL_EMAILS_PER_DAY` | Optional, default 25: the daily allowance shared by tips and the weekly jobs email, kept under Resend's free quota next to sign-in codes. Raise it on a paid Resend plan; 0 stops optional emails | 10e |
 
 ---
 

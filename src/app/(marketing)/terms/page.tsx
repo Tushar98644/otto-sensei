@@ -125,7 +125,9 @@ export default function TermsPage() {
         limits per month, reset on the day of the month the plan started (in a shorter month, on its
         last day: a plan started on the 31st resets on the 30th of a 30-day month). The Pro trial
         has its own smaller limits for the whole trial. Unused ones don&apos;t carry over. Invite
-        extras add to the current month or trial, on Pro and Max. Your account page shows the date
+        extras add to the current month or trial. On Free, the extra line fixes count that calendar
+        month; the extra tailored versions count once you start a trial or upgrade that month, and
+        extras you haven&apos;t used move with you when you do. Your account page shows the date
         your limits next reset.
       </p>
       <table>

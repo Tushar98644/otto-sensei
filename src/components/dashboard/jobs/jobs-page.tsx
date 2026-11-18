@@ -25,7 +25,7 @@ import { resumeTitle } from "@/lib/resume/ops";
 import { jobsWorkPromptShows } from "@/lib/setup/checklist";
 import { useResumeList, useStudioHydrated } from "@/lib/store/resume-store";
 import { useApplications } from "../applications/use-applications";
-import { LazyOutreachDialog } from "../lazy-dialogs";
+import { LazyOutreachDialog } from "./lazy-outreach-dialog";
 import { useStudioActions } from "../use-studio-actions";
 import { AppliedAnnouncer, AppliedStrip } from "./applied-question";
 import { JobCard } from "./job-card";
@@ -37,6 +37,7 @@ import {
   MoreWithPro,
   NoFilterMatches,
   NoResumeYet,
+  WeeklyJobsPrompt,
 } from "./jobs-page-parts";
 import { LookingForCard } from "./looking-for-card";
 import { useJobActions } from "./use-job-actions";
@@ -292,6 +293,10 @@ export function JobsPage() {
             })}
           </ul>
         )}
+
+        {userId && data && view === "matches" && data.jobs.length > 0 ? (
+          <WeeklyJobsPrompt userId={userId} focusAfter={listRef} />
+        ) : null}
 
         {data && locked && data.openJobs > 0 ? (
           <MoreWithPro

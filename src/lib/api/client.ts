@@ -9,6 +9,8 @@ import type {
   GitHubLookupResponse,
 } from "@/lib/github/types";
 import type {
+  EmailChoicesBody,
+  EmailChoicesResponse,
   MarkNotificationsReadBody,
   MarkNotificationsReadResponse,
   NotificationsResponse,
@@ -43,10 +45,13 @@ import type {
 } from "@/lib/portfolio/content";
 import type {
   CreateWritingBody,
+  OutreachLookup,
+  OutreachWritingResponse,
   UpdateWritingBody,
   WritingResponse,
   WritingsResponse,
 } from "@/lib/writings/schema";
+import type { WritingStyleBody, WritingStyleResponse } from "@/lib/writing-style/schema";
 import type {
   AnswerRequestBody,
   AnswerResponse,
@@ -209,6 +214,10 @@ export const api = {
     request<WritingResponse>(`/api/writings/${encodeURIComponent(id)}`, postJson(body, "PATCH")),
   deleteWriting: (id: string, { keepalive = false }: { keepalive?: boolean } = {}) =>
     request<EmptyOk>(`/api/writings/${encodeURIComponent(id)}`, { method: "DELETE", keepalive }),
+  outreachWriting: (lookup: OutreachLookup) =>
+    request<OutreachWritingResponse>(`/api/writings/outreach?${new URLSearchParams(lookup)}`, {
+      cache: "no-store",
+    }),
   summary: (body: SummaryRequestBody) => request<SummaryResponse>("/api/summary", postJson(body)),
   readJob: (body: JobRequestBody) => request<JobResponse>("/api/job", postJson(body)),
   jobMatches: (body: JobMatchesRequestBody, { prefetch = false }: { prefetch?: boolean } = {}) =>
@@ -311,10 +320,17 @@ export const api = {
   accountSetup: () => request<AccountSetupResponse>("/api/setup", { cache: "no-store" }),
   saveAccountSetup: (body: AccountSetupChange) =>
     request<AccountSetupResponse>("/api/setup", postJson(body, "PUT")),
+  writingStyle: () => request<WritingStyleResponse>("/api/writing-style", { cache: "no-store" }),
+  saveWritingStyle: (body: WritingStyleBody) =>
+    request<WritingStyleResponse>("/api/writing-style", postJson(body, "PUT")),
   reminderSettings: () =>
     request<ReminderSettingsResponse>("/api/notifications/settings", { cache: "no-store" }),
   saveReminderSettings: (body: ReminderSettingsBody) =>
     request<ReminderSettingsResponse>("/api/notifications/settings", postJson(body, "PUT")),
+  emailChoices: () =>
+    request<EmailChoicesResponse>("/api/notifications/emails", { cache: "no-store" }),
+  saveEmailChoices: (body: EmailChoicesBody) =>
+    request<EmailChoicesResponse>("/api/notifications/emails", postJson(body, "PUT")),
   shares: () => request<SharesResponse>("/api/share", { cache: "no-store" }),
   share: (body: CreateShareBody) => request<ShareResponse>("/api/share", postJson(body)),
   updateShare: (id: string, body: UpdateShareBody) =>

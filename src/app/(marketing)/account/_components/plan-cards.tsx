@@ -74,7 +74,7 @@ export function UpgradeCard({
     <Card>
       <CardHeader>
         <div className="flex items-baseline justify-between gap-3">
-          <CardTitle as="h2">{onTrial ? trialHeadline() : `Go ${name}`}</CardTitle>
+          <CardTitle as="h3">{onTrial ? trialHeadline() : `Go ${name}`}</CardTitle>
           <p className="flex items-baseline gap-1.5 text-ink">
             <ReferencePrice plan={target} interval={interval} className="text-base" />
             <span className="text-2xl font-semibold lining-nums tabular-nums">
@@ -149,7 +149,7 @@ export function BillingCard({
   return (
     <Card>
       <CardHeader>
-        <CardTitle as="h2">Billing</CardTitle>
+        <CardTitle as="h3">Billing</CardTitle>
         <CardDescription>
           {trialEndsAt
             ? `Nothing is charged during your trial. Cancel before ${trialEndDay(trialEndsAt)} and you won't pay anything.`

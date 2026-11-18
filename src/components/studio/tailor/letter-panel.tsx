@@ -7,6 +7,7 @@ import { usePageSize } from "@/components/studio/download/use-page-size";
 import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { copyText } from "@/components/ui/copy-text";
 import { toast } from "@/components/ui/toast";
 import { wordCount } from "@/lib/ai/writing-guards";
 import { letterFileName } from "@/lib/pdf/letter";
@@ -26,19 +27,6 @@ export type LetterPanelProps = {
   onEdit: (text: string) => void;
   onSettle: () => void;
 };
-
-export async function copyText(text: string, what: string): Promise<void> {
-  try {
-    await navigator.clipboard.writeText(text);
-    toast({ title: "Copied", description: `Paste the ${what} where it goes.`, variant: "success" });
-  } catch {
-    toast({
-      title: "Couldn't copy",
-      description: "Select the text in the box and copy it from there.",
-      variant: "error",
-    });
-  }
-}
 
 export function LetterPanel({
   letter,

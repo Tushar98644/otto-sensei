@@ -9,14 +9,23 @@ import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/ca
 import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
-import { toast } from "@/components/ui/toast";
 import { BRAND } from "@/config/brand";
 import { PLANS, type PlanId } from "@/config/plans";
 import { api } from "@/lib/api/client";
 import { REFERRAL_BONUS, type ReferralSummary } from "@/lib/referrals/referrals";
+import { useCopyLink } from "./use-copy-link";
 
-const SHARE_TEXT = `I use ${BRAND.name} to see what hiring software reads in my resume. Sign up with my link and we both get extra help.`;
-const COPIED_MS = 2_000;
+const SHARE_TEXT = `I use ${BRAND.name} to see what hiring software reads in my resume. Sign up with my link and check yours, and we both get ${REFERRAL_BONUS.fix} more line fixes.`;
+
+export function extrasNote(plan: PlanId, period: ReferralSummary["period"]): string {
+  if (plan === "free") {
+    return `On Free, each friend adds ${REFERRAL_BONUS.fix} line fixes to that month's ${PLANS.free.limits.fix}. Tailoring comes with Pro, so the ${REFERRAL_BONUS.tailor} tailored versions wait: start a trial or upgrade that month and every extra you haven't used moves with you.`;
+  }
+  if (period === "trial") {
+    return "Extras add to your trial's limits, and the ones you haven't used carry into your first paid month.";
+  }
+  return `Extras add to your ${PLANS[plan].name} limits.`;
+}
 
 type Load =
   | { status: "loading" }
@@ -41,7 +50,7 @@ export function InviteCard({ plan }: { plan: PlanId }) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle as="h2">Invite friends</CardTitle>
+        <CardTitle as="h3">Your invite link</CardTitle>
         <CardDescription>
           When a friend signs up with your link and checks a resume, you each get{" "}
           {REFERRAL_BONUS.fix} more line fixes and {REFERRAL_BONUS.tailor} more tailored versions
@@ -80,28 +89,9 @@ export function InviteCard({ plan }: { plan: PlanId }) {
 
 function InviteDetails({ summary, plan }: { summary: ReferralSummary; plan: PlanId }) {
   const shareable = useSyncExternalStore(noSubscription, canShare, () => false);
-  const [copied, setCopied] = useState(false);
   const { url, joined, checked, rewarded, maxRewarded, thisPeriod: extras, period } = summary;
+  const { copied, copy } = useCopyLink(url, "Select it and copy it yourself.");
   const full = rewarded >= maxRewarded;
-
-  useEffect(() => {
-    if (!copied) return;
-    const timer = window.setTimeout(() => setCopied(false), COPIED_MS);
-    return () => window.clearTimeout(timer);
-  }, [copied]);
-
-  async function copy() {
-    try {
-      await navigator.clipboard.writeText(url);
-      setCopied(true);
-    } catch {
-      toast({
-        title: "Couldn't copy the link",
-        description: "Select it and copy it yourself.",
-        variant: "error",
-      });
-    }
-  }
 
   async function share() {
     try {
@@ -160,11 +150,7 @@ function InviteDetails({ summary, plan }: { summary: ReferralSummary; plan: Plan
           invites.
         </p>
       ) : null}
-      <p className="text-sm/6 text-muted">
-        {plan === "free"
-          ? "Extras add to Pro and Max limits, so they count once you're on one."
-          : `Extras add to your ${PLANS[plan].name} limits too.`}
-      </p>
+      <p className="text-sm/6 text-muted">{extrasNote(plan, period)}</p>
     </div>
   );
 }

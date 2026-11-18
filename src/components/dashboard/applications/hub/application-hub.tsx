@@ -22,8 +22,12 @@ import { copyLetter, type ApplicationThread } from "@/lib/applications/thread";
 import { savedJobText } from "@/lib/insights/saved-job";
 import { resumeTitle } from "@/lib/resume/ops";
 import { useResumeList, useStudioHydrated } from "@/lib/store/resume-store";
-import { pluralize } from "@/lib/utils";
-import { LazyApplicationDialog, LazyWriteDialog } from "../../lazy-dialogs";
+import type { Writing } from "@/lib/writings/schema";
+import type { OutreachJob } from "../../jobs/outreach-saved";
+import { LazyOutreachDialog } from "../../jobs/lazy-outreach-dialog";
+import { LazyWriteDialog } from "../../letters/lazy-write-dialog";
+import { LazyApplicationDialog } from "../lazy-application-dialog";
+import { defaultResume } from "../../letters/entries";
 import { useStudioActions } from "../../use-studio-actions";
 import type { ApplicationDialogTarget } from "../application-dialog";
 import { FollowUpChip } from "../follow-up-chip";
@@ -36,15 +40,8 @@ import {
   useApplications,
 } from "../use-applications";
 import { formatDay, prepHref, sentLabel } from "../view";
-import {
-  hubLetters,
-  JobCard,
-  LettersCard,
-  NotesCard,
-  PrepCard,
-  ResumeSentCard,
-  TimelineCard,
-} from "./hub-sections";
+import { hubLetters, hubTally, LettersCard, withWriting } from "./hub-letters";
+import { JobCard, NotesCard, PrepCard, ResumeSentCard, TimelineCard } from "./hub-sections";
 import { nextStepLine, timelineSteps } from "./timeline";
 
 type Load =
@@ -65,6 +62,7 @@ export function ApplicationHub({ applicationId }: { applicationId: string }) {
   const [attempt, setAttempt] = useState(0);
   const [dialog, setDialog] = useState<ApplicationDialogTarget | null>(null);
   const [writing, setWriting] = useState<{ key: number; open: boolean } | null>(null);
+  const [outreach, setOutreach] = useState<OutreachJob | null>(null);
 
   useEffect(() => {
     let live = true;
@@ -87,6 +85,14 @@ export function ApplicationHub({ applicationId }: { applicationId: string }) {
   }, [applicationId, attempt]);
 
   const reload = useCallback(() => setAttempt((count) => count + 1), []);
+  // An outreach message shows here as soon as it saves, and again after each edit.
+  const keepWriting = useCallback((writing: Writing) => {
+    setLoad((current) =>
+      current.status === "ready"
+        ? { status: "ready", thread: { ...current.thread, writings: withWriting(current.thread.writings, writing) } }
+        : current,
+    );
+  }, []);
 
   const thread = load.status === "ready" ? load.thread : null;
   const application: Application | null =
@@ -139,6 +145,23 @@ export function ApplicationHub({ applicationId }: { applicationId: string }) {
     setWriting((current) => ({ key: (current?.key ?? 0) + 1, open: true }));
   }
 
+  // A kept message opens on any plan; only writing one takes Pro.
+  function writeOutreach() {
+    if (pro === false && !letters.some((letter) => letter.kind === "outreach")) {
+      openFeaturePrompt("letter");
+      return;
+    }
+    if (!application) return;
+    setOutreach({
+      id: thread?.job?.id ?? null,
+      title: thread?.job?.title || application.role,
+      company: thread?.job?.company || application.company,
+      url: thread?.job?.url || application.jobUrl,
+      applicationId: application.id,
+      post: savedJobText(copy),
+    });
+  }
+
   function remove(target: Application) {
     hideApplication(target);
     router.push(ROUTES.dashboardApplications);
@@ -165,7 +188,7 @@ export function ApplicationHub({ applicationId }: { applicationId: string }) {
   const facts = application
     ? [
         STATUS_NAMES[application.status],
-        letters.length > 0 ? pluralize(letters.length, "letter or answer", "letters and answers") : null,
+        letters.length > 0 ? hubTally(letters) : null,
         thread?.prep ? "prep ready" : null,
       ]
         .filter(Boolean)
@@ -270,7 +293,13 @@ export function ApplicationHub({ applicationId }: { applicationId: string }) {
                 pro={pro}
                 onPrepare={() => prepare(application)}
               />
-              <LettersCard letters={letters} now={now} pro={pro} onWrite={write} />
+              <LettersCard
+                letters={letters}
+                now={now}
+                pro={pro}
+                onWrite={write}
+                onOutreach={writeOutreach}
+              />
               <NotesCard
                 notes={application.notes}
                 onEdit={() => setDialog({ kind: "edit", application })}
@@ -304,6 +333,14 @@ export function ApplicationHub({ applicationId }: { applicationId: string }) {
         </>
       ) : null}
 
+      {pro === false && outreach === null ? null : (
+        <LazyOutreachDialog
+          job={outreach}
+          resume={outreach ? (sent ?? defaultResume(resumes)) : null}
+          onClose={() => setOutreach(null)}
+          onSaved={keepWriting}
+        />
+      )}
       <LazyApplicationDialog
         target={dialog}
         resumes={resumes}

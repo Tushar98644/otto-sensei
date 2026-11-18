@@ -94,7 +94,7 @@ export function problemMessage(
   switch (problem.kind) {
     case "limit":
       if (problem.budget) return budgetReachedText(period);
-      return plan === "free" ? OTTO.limit.freeUsed("fix") : OTTO.limit.reached("fix", limit, period);
+      return plan === "free" ? OTTO.limit.freeUsed("fix", limit) : OTTO.limit.reached("fix", limit, period);
     case "signin":
       return signedIn ? OTTO.fix.signedInAgain : OTTO.signIn.reason("fix");
     case "error":

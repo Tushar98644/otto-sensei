@@ -2,7 +2,7 @@
 
 import { ChevronDown, Copy, Download } from "lucide-react";
 import { useState } from "react";
-import { copyText } from "@/components/studio/tailor/letter-panel";
+import { copyText } from "@/components/ui/copy-text";
 import { downloadBlob } from "@/components/studio/tailor/jump";
 import { Button } from "@/components/ui/button";
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";

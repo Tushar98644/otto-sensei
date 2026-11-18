@@ -7,6 +7,8 @@ import type { CronResponse } from "@/lib/cron/run";
 import { resetEnvForTests } from "@/lib/env";
 import { GET as cleanup, POST as cleanupPost } from "./cleanup/route";
 import { GET as followUps } from "./follow-ups/route";
+import { GET as jobEmails, POST as jobEmailsPost } from "./job-emails/route";
+import { GET as tipEmails, POST as tipEmailsPost } from "./tip-emails/route";
 
 const SECRET = "cron-secret-for-tests-0123456789";
 const DAY = 24 * 60 * 60 * 1_000;
@@ -90,5 +92,38 @@ describe("/api/cron/*", () => {
       stats: { users: 1, applications: 1, emailsSent: 0, emailsSkipped: 1 },
     });
     expect(await (await getDb()).select().from(notifications)).toHaveLength(1);
+  });
+
+  it("refuses the email jobs without the exact secret", async () => {
+    for (const run of [jobEmails, jobEmailsPost, tipEmails, tipEmailsPost]) {
+      for (const authorization of [undefined, "", `Bearer ${SECRET}x`, SECRET]) {
+        const res = await run(call("/api/cron/job-emails", authorization));
+        expect(res.status).toBe(401);
+        expect(((await res.json()) as ApiErrorBody).error.code).toBe("unauthorized");
+      }
+    }
+  });
+
+  it("runs the weekly jobs and tips emails, and holds them while email isn't set up", async () => {
+    await createUser("new@example.com", Date.now() - 3 * DAY);
+
+    const jobs = await jobEmails(call("/api/cron/job-emails", `Bearer ${SECRET}`));
+    expect(jobs.status).toBe(200);
+    expect(jobs.headers.get("cache-control")).toBe("no-store");
+    expect((await jobs.json()) as CronResponse).toMatchObject({
+      ok: true,
+      job: "job_emails",
+      complete: true,
+      stats: { emailOff: 1, emailsSent: 0 },
+    });
+
+    const tips = await tipEmails(call("/api/cron/tip-emails", `Bearer ${SECRET}`));
+    expect(tips.status).toBe(200);
+    expect((await tips.json()) as CronResponse).toMatchObject({
+      ok: true,
+      job: "tip_emails",
+      complete: true,
+      stats: { emailOff: 1, no_resume: 0 },
+    });
   });
 });

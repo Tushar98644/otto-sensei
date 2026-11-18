@@ -3,7 +3,7 @@
 import { Copy, Download, PanelsTopLeft } from "lucide-react";
 import { useId, useState } from "react";
 import { DemoNote } from "@/components/studio/demo-note";
-import { copyText } from "@/components/studio/tailor/letter-panel";
+import { copyText } from "@/components/ui/copy-text";
 import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Dialog } from "@/components/ui/dialog";

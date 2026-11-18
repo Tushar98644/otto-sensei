@@ -1,3 +1,5 @@
+import { SEO_PATHS } from "@/lib/seo-pages/paths";
+
 export const ROUTES = {
   home: "/",
   studio: "/studio",
@@ -37,10 +39,13 @@ export const SIGN_IN_LINK: NavLink = { href: ROUTES.login, label: "Sign in" };
 
 export const FOOTER_NAV: readonly NavLink[] = [
   { href: ROUTES.pricing, label: "Pricing" },
+  { href: SEO_PATHS.jobMatch, label: "Job match check" },
+  { href: SEO_PATHS.resumeTemplates, label: "Resume templates" },
+  { href: SEO_PATHS.ats, label: "ATS guides" },
   { href: ROUTES.privacy, label: "Privacy" },
   { href: ROUTES.terms, label: "Terms" },
   { href: ROUTES.refunds, label: "Refunds" },
   { href: ROUTES.acceptableUse, label: "Acceptable use" },
 ];
 
-export const LEGAL_LAST_UPDATED = "2026-11-14";
+export const LEGAL_LAST_UPDATED = "2026-11-18";

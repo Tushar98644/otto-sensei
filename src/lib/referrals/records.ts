@@ -13,6 +13,7 @@ import {
   CODE_LENGTH,
   MAX_REWARDED_REFERRALS,
   REFERRAL_BONUS,
+  homeLinkFor,
   inboxKey,
   invitePath,
   type BonusFeature,
@@ -91,6 +92,27 @@ export async function ensureReferralCode(
     }
   }
   throw new Error("Couldn't mint a unique invite code");
+}
+
+// Read only, so a visit to someone's public page never makes them a code.
+async function referralCodeOf(userId: string): Promise<string | null> {
+  const db = await getDb();
+  const [row] = await db
+    .select({ code: referralCodes.code })
+    .from(referralCodes)
+    .where(eq(referralCodes.userId, userId))
+    .limit(1);
+  return row?.code ?? null;
+}
+
+// Never fails the page it's for: without a code the link just goes home.
+export async function ownerHomeLink(ownerId: string): Promise<string> {
+  try {
+    return homeLinkFor(await referralCodeOf(ownerId));
+  } catch (error) {
+    log.warn("referral.owner_code_failed", {}, error);
+    return homeLinkFor(null);
+  }
 }
 
 type ReferralRow = typeof referrals.$inferSelect;

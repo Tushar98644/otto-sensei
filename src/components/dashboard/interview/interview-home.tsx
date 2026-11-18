@@ -20,7 +20,7 @@ import { useResumeList } from "@/lib/store/resume-store";
 import { pluralize } from "@/lib/utils";
 import { useApplications } from "../applications/use-applications";
 import { formatDay } from "../applications/view";
-import { LazyPrepareDialog } from "../lazy-dialogs";
+import { LazyPrepareDialog } from "./lazy-prepare-dialog";
 import { usePrepPacks } from "./use-prep-packs";
 import { interviewHref, waitingForPrep } from "./view";
 

@@ -17,6 +17,17 @@ export const ReminderSettingsSchema = z
     "Nothing to change.",
   );
 
+export const EmailChoicesSchema = z
+  .object({
+    jobEmails: z.boolean().optional(),
+    tipEmails: z.boolean().optional(),
+    jobPromptClosed: z.literal(true).optional(),
+  })
+  .refine(
+    (body) => body.jobEmails !== undefined || body.tipEmails !== undefined || body.jobPromptClosed,
+    "Nothing to change.",
+  );
+
 export const FollowUpActionSchema = z.object({
   u: z.uuid(),
   a: z.uuid(),

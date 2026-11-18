@@ -206,8 +206,8 @@ export const OTTO = {
         ? `${COMES_WITH_PRO[feature]} ${trialHeadline()}.`
         : `You've used ${thisPeriod(period)}'s ${whole(limit)} ${SHORT_LABELS[feature]}. ` +
           resetSentence(period),
-    freeUsed: (feature: Feature) =>
-      `You've used this month's ${count.format(PLANS.free.limits[feature])} ${SHORT_LABELS[feature]}. ` +
+    freeUsed: (feature: Feature, limit: number = PLANS.free.limits[feature]) =>
+      `You've used this month's ${count.format(limit)} ${SHORT_LABELS[feature]}. ` +
       `${PLANS.pro.name} has ${count.format(PLANS.pro.limits[feature])} a month.`,
     none: (feature: Feature, trial = true) =>
       trial ? `${COMES_WITH_PRO[feature]} ${trialHeadline()}.` : COMES_WITH_PRO[feature],

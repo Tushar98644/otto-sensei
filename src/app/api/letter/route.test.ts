@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { PRO_TRIAL } from "@/config/plans";
 import { AIError } from "@/lib/ai/types";
-import { writeCoverLetter } from "@/lib/ai/writing";
+import { answerQuestion, writeCoverLetter } from "@/lib/ai/writing";
 import type {
   AnswerRequestBody,
   AnswerResponse,
@@ -14,6 +14,8 @@ import type { SessionUser } from "@/lib/auth/types";
 import { resetEnvForTests } from "@/lib/env";
 import { createSampleResume } from "@/lib/resume/sample";
 import { consumeUsage, getUsage } from "@/lib/usage";
+import { saveWritingStyle } from "@/lib/writing-style/records";
+import type { WritingStyleBody } from "@/lib/writing-style/schema";
 
 import { POST as answerPost } from "../answer/route";
 import { POST } from "./route";
@@ -21,11 +23,23 @@ import { POST } from "./route";
 vi.mock("next/headers", async () => (await import("@/lib/auth/test-helpers")).nextHeadersMock);
 vi.mock("@/lib/ai/writing", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/ai/writing")>();
-  return { ...actual, writeCoverLetter: vi.fn(actual.writeCoverLetter) };
+  return {
+    ...actual,
+    writeCoverLetter: vi.fn(actual.writeCoverLetter),
+    answerQuestion: vi.fn(actual.answerQuestion),
+  };
 });
 
 const TRIAL_END = Date.UTC(2099, 0, 15, 12);
 const NOW = Date.UTC(2026, 10, 7, 12, 0, 0, 7);
+
+const STYLE: WritingStyleBody = {
+  tone: "warm",
+  length: "shorter",
+  spelling: "uk",
+  signOff: "Kind regards",
+  notes: "Keep it plain.",
+};
 
 const JOB_POST =
   "We're hiring a Senior Product Marketing Manager to lead launches for our B2B analytics suite. " +
@@ -99,6 +113,16 @@ describe("POST /api/letter", () => {
     expect((await getUsage(user)).letter.used).toBe(1);
   });
 
+  it("writes in the account's saved style", async () => {
+    const user = await signIn();
+    await saveWritingStyle(user.id, STYLE);
+    const res = await letter();
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as LetterResponse;
+    expect(body.result.letter).toMatch(/\n\nKind regards,\n[^\n]+$/);
+    expect(vi.mocked(writeCoverLetter).mock.lastCall?.[2]).toMatchObject(STYLE);
+  });
+
   it("answers 429 limit_reached after the trial's letters", async () => {
     const user = await signIn();
     for (let i = 0; i < PRO_TRIAL.limits.letter; i++) await consumeUsage(user, "letter");
@@ -145,6 +169,13 @@ describe("POST /api/answer", () => {
     expect(body.demo).toBe(true);
     expect(body.result.answer).toContain("Why do you want to work here?");
     expect(body.usage.letter.used).toBe(2);
+  });
+
+  it("answers in the account's saved style", async () => {
+    const user = await signIn();
+    await saveWritingStyle(user.id, STYLE);
+    expect((await answer()).status).toBe(200);
+    expect(vi.mocked(answerQuestion).mock.lastCall?.[3]).toMatchObject(STYLE);
   });
 
   it("rejects a missing or too-short question without spending anything", async () => {

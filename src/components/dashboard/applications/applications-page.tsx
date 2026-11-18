@@ -24,7 +24,7 @@ import { STATUS_NAMES, type ApplicationStatus } from "@/lib/applications/status"
 import { browserStorage } from "@/lib/browser-storage";
 import { resumeTitle } from "@/lib/resume/ops";
 import { useResumeList } from "@/lib/store/resume-store";
-import { LazyApplicationDialog } from "../lazy-dialogs";
+import { LazyApplicationDialog } from "./lazy-application-dialog";
 import type { ApplicationDialogTarget } from "./application-dialog";
 import { ApplicationFilters } from "./application-filters";
 import { ApplicationRow } from "./application-row";

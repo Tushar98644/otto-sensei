@@ -4,12 +4,13 @@ import type { LetterFilter } from "./entries";
 
 const count = new Intl.NumberFormat("en-US");
 
-export const LETTER_FILTERS: readonly LetterFilter[] = ["all", "letter", "answer"];
+export const LETTER_FILTERS: readonly LetterFilter[] = ["all", "letter", "answer", "outreach"];
 
 export const LETTER_FILTER_NAMES: Record<LetterFilter, string> = {
   all: "All",
   letter: "Letters",
   answer: "Answers",
+  outreach: "Messages",
 };
 
 export function LetterFilters({

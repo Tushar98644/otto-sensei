@@ -1,3 +1,6 @@
+import { existsSync } from "node:fs";
+import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { eq } from "drizzle-orm";
 import { beforeEach, describe, expect, it } from "vitest";
 import { LEGAL_LAST_UPDATED } from "@/components/site/routes";
@@ -6,7 +9,10 @@ import { users } from "@/db/schema";
 import { createUser, resetDb, setPlan } from "@/lib/auth/test-helpers";
 import { createPortfolio, updatePortfolio } from "@/lib/portfolio/records";
 import { sampleResume } from "@/lib/portfolio/testing";
+import { COMPETITORS_CHECKED } from "@/lib/seo-pages/compare";
+import { SEO_PAGES_UPDATED } from "@/lib/seo-pages/paths";
 import { absoluteUrl } from "@/lib/seo/urls";
+import { GET } from "./llms.txt/route";
 import portfolioSitemap from "./p/sitemap";
 import robots from "./robots";
 import sitemap from "./sitemap";
@@ -14,15 +20,60 @@ import sitemap from "./sitemap";
 const PRO = { plan: "pro" } as const;
 const pathOf = (url: string) => new URL(url).pathname;
 
+const ATS_SYSTEMS = [
+  "greenhouse",
+  "ashby",
+  "workday",
+  "icims",
+  "taleo",
+  "successfactors",
+  "smartrecruiters",
+  "workable",
+  "jobvite",
+  "teamtailor",
+];
+// Guides with one sourced note: served, but kept out of search until they have more.
+const THIN_GUIDES = ["/ats/lever", "/ats/bamboohr", "/ats/recruitee"];
+const COMPARISONS = ["jobscan", "rezi", "kickresume"];
+const GUIDES = [
+  "/resume-templates",
+  "/ats",
+  ...ATS_SYSTEMS.map((id) => `/ats/${id}`),
+  "/compare",
+  ...COMPARISONS.map((slug) => `/compare/${slug}`),
+];
+const LEGAL = ["/privacy", "/terms", "/refunds", "/acceptable-use"];
+const APP = fileURLToPath(new URL(".", import.meta.url));
+
+// The page file Next serves for a path, dynamic segments included.
+function pageFileFor(path: string): string | undefined {
+  const parts = path.split("/").filter(Boolean);
+  const candidates = [
+    join(APP, "(marketing)", ...parts, "page.tsx"),
+    join(APP, "(marketing)", ...parts.slice(0, -1), "[system]", "page.tsx"),
+    join(APP, "(marketing)", ...parts.slice(0, -1), "[competitor]", "page.tsx"),
+  ];
+  return candidates.find((file) => existsSync(file));
+}
+
 describe("sitemap", () => {
   const entries = sitemap();
 
   it("lists the indexable public pages, written as their canonical tags write them", () => {
     expect(entries.map((entry) => entry.url)).toEqual(
-      ["/", "/pricing", "/privacy", "/terms", "/refunds", "/acceptable-use"].map((path) =>
-        absoluteUrl(path),
-      ),
+      ["/", "/pricing", "/job-match", ...GUIDES, ...LEGAL].map((path) => absoluteUrl(path)),
     );
+  });
+
+  it("lists each page once, and every guide and comparison has a page to serve it", () => {
+    const paths = entries.map((entry) => pathOf(entry.url));
+    expect(new Set(paths).size).toBe(paths.length);
+    for (const path of [...GUIDES, ...THIN_GUIDES]) expect(pageFileFor(path), path).toBeDefined();
+  });
+
+  it("leaves out the guides kept out of search", () => {
+    const paths = entries.map((entry) => pathOf(entry.url));
+    for (const path of THIN_GUIDES) expect(paths).not.toContain(path);
   });
 
   it("leaves out noindex pages: the studio, sign-in and the signed-in app", () => {
@@ -32,15 +83,29 @@ describe("sitemap", () => {
     }
   });
 
-  it("dates only the legal pages, with the date they show", () => {
+  it("dates the guides and legal pages with the date their content last changed", () => {
     const dated = entries.filter((entry) => entry.lastModified);
-    expect(dated.map((entry) => pathOf(entry.url))).toEqual([
-      "/privacy",
-      "/terms",
-      "/refunds",
-      "/acceptable-use",
-    ]);
-    for (const entry of dated) expect(entry.lastModified).toBe(LEGAL_LAST_UPDATED);
+    expect(dated.map((entry) => pathOf(entry.url))).toEqual([...GUIDES, ...LEGAL]);
+    for (const entry of dated) {
+      const path = pathOf(entry.url);
+      const day = LEGAL.includes(path)
+        ? LEGAL_LAST_UPDATED
+        : path.startsWith("/compare")
+          ? COMPETITORS_CHECKED
+          : SEO_PAGES_UPDATED;
+      expect(entry.lastModified, path).toBe(day);
+    }
+  });
+});
+
+describe("llms.txt", () => {
+  it("serves the site summary as plain text, linking the sitemap's guides", async () => {
+    const response = GET();
+    expect(response.headers.get("content-type")).toBe("text/plain; charset=utf-8");
+    const text = await response.text();
+    expect(text.startsWith("# Otto Sensei\n")).toBe(true);
+    for (const path of GUIDES) expect(text).toContain(`(${absoluteUrl(path)})`);
+    for (const path of THIN_GUIDES) expect(text).not.toContain(`(${absoluteUrl(path)})`);
   });
 });
 

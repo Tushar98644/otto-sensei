@@ -1,11 +1,17 @@
 "use client";
 
-import { Lock } from "lucide-react";
+import { Lock, Mail } from "lucide-react";
+import Link from "next/link";
+import { useEffect, useId, useRef, useState, type RefObject } from "react";
+import { errorMessage } from "@/components/account/errors";
 import { openUpgradePrompt } from "@/components/account/upgrade-prompt";
 import { OTTO } from "@/components/mascot/lines";
 import { Otto } from "@/components/mascot/otto";
+import { saveEmailChoices, useEmailChoices } from "@/components/notifications/use-email-choices";
+import { accountSectionHref } from "@/components/setup/links";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { toast } from "@/components/ui/toast";
 import { NewResumeMenu } from "../new-resume-menu";
 import type { StudioActions } from "../use-studio-actions";
 
@@ -141,6 +147,83 @@ export function MoreWithPro({
         </div>
         <Button onClick={() => openUpgradePrompt("jobs")} className="shrink-0">
           {tryPro}
+        </Button>
+      </div>
+    </section>
+  );
+}
+
+// Asked once: turning it on, or "No thanks", closes it for good (the Account page keeps the switch).
+export function WeeklyJobsPrompt({
+  userId,
+  focusAfter,
+}: {
+  userId: string;
+  focusAfter: RefObject<HTMLElement | null>;
+}) {
+  const titleId = useId();
+  const { data } = useEmailChoices(userId);
+  const [on, setOn] = useState(false);
+  const doneRef = useRef<HTMLParagraphElement>(null);
+
+  // The pressed button goes away, so focus moves to what replaces it.
+  useEffect(() => {
+    if (on) doneRef.current?.focus();
+  }, [on]);
+
+  if (on) {
+    return (
+      <p
+        ref={doneRef}
+        tabIndex={-1}
+        role="status"
+        className="rounded-2xl bg-surface px-4 py-4 text-sm/6 text-muted outline-none sm:px-6"
+      >
+        The weekly jobs email is on. Change it any time in{" "}
+        <Link href={accountSectionHref("reminders")} className="font-medium text-ink underline">
+          your account settings
+        </Link>
+        .
+      </p>
+    );
+  }
+  if (!data || !data.emailAvailable || data.jobEmails || data.jobPromptClosed) return null;
+
+  // Shown at once; a failed save brings the card back with the reason.
+  async function answer(jobEmails: boolean) {
+    if (jobEmails) setOn(true);
+    else focusAfter.current?.focus();
+    try {
+      await saveEmailChoices(userId, jobEmails ? { jobEmails: true } : { jobPromptClosed: true });
+    } catch (error) {
+      setOn(false);
+      toast({ title: "Couldn't save that", description: errorMessage(error), variant: "error" });
+    }
+  }
+
+  return (
+    <section
+      aria-labelledby={titleId}
+      className="flex flex-col items-start gap-4 rounded-2xl bg-surface px-4 py-5 sm:flex-row sm:items-center sm:justify-between sm:px-6"
+    >
+      <div className="flex min-w-0 gap-3">
+        <Mail className="mt-1 size-4 shrink-0 text-subtle" aria-hidden />
+        <div className="min-w-0">
+          <h2 id={titleId} className="text-base/6 font-medium text-ink">
+            Get new matches by email
+          </h2>
+          <p className="mt-1 text-sm/6 text-pretty text-muted">
+            Once a week, when new jobs match your resume, Otto emails you the closest few. Turn it
+            off any time.
+          </p>
+        </div>
+      </div>
+      <div className="flex shrink-0 gap-2">
+        <Button variant="ghost" size="sm" onClick={() => void answer(false)}>
+          No thanks
+        </Button>
+        <Button size="sm" onClick={() => void answer(true)}>
+          Email me weekly
         </Button>
       </div>
     </section>

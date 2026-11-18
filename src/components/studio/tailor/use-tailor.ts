@@ -39,6 +39,7 @@ export type TailorRun = {
   start: (job: TailorDraft) => Promise<void>;
   update: (id: string, patch: ResultPatch) => void;
   clear: () => void;
+  signIn: () => Promise<boolean>;
   dialogs: ReactNode;
 };
 
@@ -135,6 +136,7 @@ export function useTailorRun(source: Resume): TailorRun {
       setLast(null);
       setError(null);
     },
+    signIn: () => gate.requireUser(OTTO.signIn.reason("tailor")),
     dialogs: gate.dialogs,
   };
 }

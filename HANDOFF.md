@@ -18,7 +18,7 @@ Other docs: [README.md](README.md) (run locally; links here), [SETUP.md](SETUP.m
 | Payments | Paddle Billing, our merchant of record (**sandbox** until the live account is approved); checkout opens on `/checkout` |
 | Sign-in emails | Resend, through Supabase's SMTP settings |
 | Daily jobs feed | GitHub Action `jobs-ingest.yml` at 05:40 UTC calls `/api/cron/jobs` |
-| Other crons | `vercel.json`: `/api/cron/cleanup` (04:17 UTC), `/api/cron/trial-reminders` (13:30 UTC), `/api/cron/follow-ups` (14:00 UTC) |
+| Other crons | `vercel.json`: `/api/cron/cleanup` (04:17 UTC), `/api/cron/job-emails` (08:30 UTC, the weekly jobs email), `/api/cron/trial-reminders` (13:30 UTC), `/api/cron/follow-ups` (14:00 UTC), `/api/cron/tip-emails` (14:45 UTC) |
 
 **Not in git, so copy these by hand from the old laptop:**
 - `web/.env.local`: holds `OPENROUTER_API_KEY` and `RESEND_API_KEY`. Copy it over USB or a password manager, never through chat, email or git.

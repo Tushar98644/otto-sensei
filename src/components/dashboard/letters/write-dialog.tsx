@@ -7,8 +7,9 @@ import { useMe } from "@/components/account/use-me";
 import { OTTO } from "@/components/mascot/lines";
 import { OttoNote } from "@/components/mascot/otto-note";
 import { OttoWorking } from "@/components/mascot/otto-working";
+import { WritingStyleHint } from "@/components/settings/writing-style-hint";
 import { JobForm } from "@/components/studio/tailor/job-form";
-import { writingAllowance } from "@/components/studio/tailor/screener";
+import { writingAllowance } from "@/components/studio/tailor/writing-allowance";
 import type { TailorDraft } from "@/components/studio/tailor/session";
 import { useWriting } from "@/components/studio/tailor/use-writing";
 import { Alert } from "@/components/ui/alert";
@@ -26,14 +27,17 @@ import { WRITING_LIMITS, type Writing, type WritingKind } from "@/lib/writings/s
 import { useStudioActions } from "../use-studio-actions";
 import { defaultResume, type LetterEntry } from "./entries";
 
+export type WriteKind = Exclude<WritingKind, "outreach">;
+
 export type Written =
   | { kind: "saved"; writing: Writing; show: boolean }
   | { kind: "unsaved"; entry: LetterEntry; show: boolean };
 
 const EMPTY_DRAFT: TailorDraft = { title: "", company: "", text: "", link: "" };
+const DRAFT_FIELDS = ["title", "company", "text", "link"] as const;
 const NO_RESUME = emptyResume(0);
 
-const COPY: Record<WritingKind, { title: string; note: string; label: string; icon: LucideIcon }> = {
+const COPY: Record<WriteKind, { title: string; note: string; label: string; icon: LucideIcon }> = {
   letter: {
     title: "Write a cover letter",
     note: OTTO.letters.write,
@@ -49,7 +53,7 @@ const COPY: Record<WritingKind, { title: string; note: string; label: string; ic
 };
 
 export type WriteDialogProps = {
-  kind: WritingKind;
+  kind: WriteKind;
   open: boolean;
   resumes: readonly Resume[];
   onClose: () => void;
@@ -76,6 +80,12 @@ export function WriteDialog({ kind, open, resumes, onClose, onWritten, start }: 
   const writing = useWriting(resume ?? NO_RESUME, draft);
   const copy = COPY[kind];
   const busy = writing.busy !== null || saving;
+  const started = start?.draft ?? EMPTY_DRAFT;
+  // Following the style link leaves the page, which would drop what's typed here and a letter still being written.
+  const keepPage =
+    busy ||
+    question.trim() !== "" ||
+    DRAFT_FIELDS.some((field) => (draft[field] ?? "") !== (started[field] ?? ""));
   const allowance = loading
     ? null
     : writingAllowance(user?.plan, me?.usage?.letter, me?.period, me?.billing.trial !== false);
@@ -145,31 +155,34 @@ export function WriteDialog({ kind, open, resumes, onClose, onWritten, start }: 
       >
         {resume ? (
           <div className="flex flex-col gap-6">
-            {picking && resumes.length > 1 ? (
-              <Field label="Resume to write from">
-                <Select value={resume.id} onChange={(event) => setResumeId(event.target.value)}>
-                  {resumes.map((item) => (
-                    <option key={item.id} value={item.id}>
-                      {item.tailor ? `${resumeTitle(item)} (tailored)` : resumeTitle(item)}
-                    </option>
-                  ))}
-                </Select>
-              </Field>
-            ) : (
-              <p className="text-sm/6 text-muted">
-                Written from <span className="font-medium text-ink">{resumeTitle(resume)}</span>,
-                {start?.resumeId === resume.id ? " the version you sent." : " the resume you edited last."}{" "}
-                {resumes.length > 1 ? (
-                  <button
-                    type="button"
-                    className="font-medium text-ink underline decoration-border-strong underline-offset-4"
-                    onClick={() => setPicking(true)}
-                  >
-                    Use another resume
-                  </button>
-                ) : null}
-              </p>
-            )}
+            <div className="flex flex-col gap-2">
+              {picking && resumes.length > 1 ? (
+                <Field label="Resume to write from">
+                  <Select value={resume.id} onChange={(event) => setResumeId(event.target.value)}>
+                    {resumes.map((item) => (
+                      <option key={item.id} value={item.id}>
+                        {item.tailor ? `${resumeTitle(item)} (tailored)` : resumeTitle(item)}
+                      </option>
+                    ))}
+                  </Select>
+                </Field>
+              ) : (
+                <p className="text-sm/6 text-muted">
+                  Written from <span className="font-medium text-ink">{resumeTitle(resume)}</span>,
+                  {start?.resumeId === resume.id ? " the version you sent." : " the resume you edited last."}{" "}
+                  {resumes.length > 1 ? (
+                    <button
+                      type="button"
+                      className="font-medium text-ink underline decoration-border-strong underline-offset-4"
+                      onClick={() => setPicking(true)}
+                    >
+                      Use another resume
+                    </button>
+                  ) : null}
+                </p>
+              )}
+              <WritingStyleHint linked={!keepPage} />
+            </div>
 
             {kind === "answer" ? (
               <Field

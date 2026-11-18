@@ -50,11 +50,33 @@ export default function PrivacyPage() {
           it with that application. Nobody else sees it.
         </li>
         <li>
+          <strong>Letters and messages you keep.</strong> When you write a cover letter, an
+          application answer or an outreach message while signed in, we store it with the company,
+          job title and job link it was for and the title of the resume it came from, so you can
+          find it again under Letters and messages. Edits you make to an outreach message are saved
+          as you type. Otto doesn&apos;t look anyone up, but what you type into a message, such as
+          the name of the person you&apos;re writing to, is saved with it. Deleting one deletes it.
+          Nobody else sees them.
+        </li>
+        <li>
           <strong>Reminders.</strong> When you mark a job applied, we store a follow-up date (7 days
           later unless you pick another number). When it comes, we add a note to your dashboard. We
           email you about it only if you turn reminder emails on on your account page. We store the
           note, whether you&apos;ve read it, the date, and your reminder settings. Read notes are
           deleted after 90 days, unread ones after a year.
+        </li>
+        <li>
+          <strong>Other emails from Otto.</strong> We store your choices for the weekly email of new
+          job matches (off unless you turn it on) and for tips and reminders (on unless you turn
+          them off), and when you answered the Jobs tab&apos;s question about the weekly email. For
+          the weekly email we store when the last one went out and when we last looked for new
+          matches; it uses your resume and work profile the way the Jobs tab does, and leaves out
+          jobs you saved or applied to. To pick a tip we look at what you&apos;ve done in Otto
+          lately, such as whether you&apos;ve added a resume or used a line fix this month, and we
+          keep a record of which tips we sent you and when (never the email&apos;s text), so none
+          goes twice. While a trial runs, and only if tips are on, we keep a copy of its end date so
+          we can tell when it ended. Every one of these emails has a one-click unsubscribe link, and
+          your account page has the switches.
         </li>
         <li>
           <strong>Your work profile.</strong> If you fill it in, we store the country you live in,
@@ -63,11 +85,17 @@ export default function PrivacyPage() {
           your browser, and on our server when ranking the Jobs tab. Nobody else sees it.
         </li>
         <li>
+          <strong>Your writing style.</strong> If you set one, we store the tone, length, spelling
+          and sign-off you pick and any notes you write for Otto. They shape your cover letters,
+          application answers and outreach messages. Nobody else sees them.
+        </li>
+        <li>
           <strong>Jobs you match and save.</strong> To rank open jobs for you, your browser sends
           the skills, job titles and years of experience it reads from your resume, never the resume
           itself or your contact details. We use them for that one request and don&apos;t store them
           or send them to an AI. If you save a job, we store which one and when. The jobs themselves
-          come from companies&apos; public careers pages and job feeds, each linked to its original post.
+          come from companies&apos; public careers pages and job feeds, each linked to its original
+          post.
         </li>
         <li>
           <strong>Files you upload.</strong> We read them in memory to pull out the text and run the
@@ -96,7 +124,10 @@ export default function PrivacyPage() {
         <li>
           <strong>Invites.</strong> Your invite code, which account joined through whose link, and
           the device cookie ids (below) of the browsers used, so nobody can invite themselves.
-          Inviters only see counts, never who joined.
+          Inviters only see counts, never who joined. Once you have an invite link, the &ldquo;Made
+          with Otto Sensei&rdquo; link at the foot of your share links carries your invite code, so
+          people who sign up from there count as your invites. The code alone doesn&apos;t say who
+          you are.
         </li>
         <li>
           <strong>Abuse-prevention counters.</strong> To stop abuse, we count requests per IP
@@ -134,8 +165,9 @@ export default function PrivacyPage() {
           the summary you asked Otto to tighten.
         </li>
         <li>
-          <strong>Tailoring, cover letters, outreach messages and application answers:</strong>{" "}
-          your resume, the job post and, for an answer, the question.
+          <strong>Tailoring, cover letters, outreach messages and application answers:</strong> your
+          resume, the job post, for an answer the question, and your writing style if you set one
+          (with any contact details in your notes replaced by placeholders).
         </li>
         <li>
           <strong>Interview prep:</strong> your resume and the job post.
@@ -261,7 +293,8 @@ export default function PrivacyPage() {
           sessions.
         </li>
         <li>
-          <strong>Resend</strong> delivers our sign-in and reminder emails.
+          <strong>Resend</strong> delivers our sign-in codes, reminders, the weekly jobs email and
+          tips.
         </li>
         <li>
           <strong>Google</strong>, only if you choose to sign in with your Google account.
@@ -290,8 +323,8 @@ export default function PrivacyPage() {
       <h2>How long we keep data</h2>
       <ul>
         <li>
-          Account data, resume backups, logged applications, interview prep and your work profile:
-          until you delete them or your account.
+          Account data, resume backups, logged applications, interview prep, your work profile and
+          your writing style: until you delete them or your account.
         </li>
         <li>Share links: until you turn the link off or delete your account.</li>
         <li>Saved jobs: until you remove them, or 30 days after the job closes.</li>
@@ -303,6 +336,16 @@ export default function PrivacyPage() {
         </li>
         <li>Abuse-prevention counters: about two days.</li>
         <li>Uploaded files: not kept at all.</li>
+        <li>
+          Your email choices and the record of which tips we sent: until you delete your account.
+        </li>
+        <li>
+          A copy of your trial&apos;s end date: 30 days after the trial ends, or until you turn tips
+          off.
+        </li>
+        <li>
+          Letters, answers and outreach messages you keep: until you delete them or your account.
+        </li>
       </ul>
 
       <h2>Your choices</h2>
@@ -314,10 +357,10 @@ export default function PrivacyPage() {
         <li>
           Delete your account from your <Link href={ROUTES.account}>account page</Link>. This
           removes your email, sign-in record, resume backups, logged applications and their prep,
-          work profile, saved jobs, share links, reminders, invite records, feedback and usage
-          records right away, and signs you out on every device. Deleting your account cancels your
-          paid plan or trial right away, and you won&apos;t be charged again. Only the trial
-          fingerprint above stays.
+          work profile, writing style, letters and messages, saved jobs, share links, reminders and
+          email choices, invite records, feedback and usage records right away, and signs you out on
+          every device. Deleting your account cancels your paid plan or trial right away, and you
+          won&apos;t be charged again. Only the trial fingerprint above stays.
         </li>
         <li>
           Ask us for a copy of your data, or to correct or delete it, by emailing{" "}

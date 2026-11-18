@@ -10,13 +10,21 @@ import { useOttoLoadingScreen } from "@/components/mascot/otto-loading-screen";
 import { WorkProfileCard } from "@/components/eligibility/work-profile-card";
 import { OttoNote } from "@/components/mascot/otto-note";
 import { ReminderSettingsCard } from "@/components/notifications/reminder-settings-card";
+import { InviteCard } from "@/components/referrals/invite-card";
+import { SectionNav } from "@/components/settings/section-nav";
+import {
+  accountSections,
+  SETTINGS_CONTENT,
+  SETTINGS_LAYOUT,
+  type AccountGroup,
+} from "@/components/settings/sections";
+import { SettingsGroup } from "@/components/settings/settings-group";
+import { WritingStyleCard } from "@/components/settings/writing-style-card";
 import { LookingForSettingsCard } from "@/components/setup/looking-for-settings-card";
 import { useScrollToSection } from "@/components/setup/use-scroll-to-section";
-import { InviteCard } from "@/components/referrals/invite-card";
 import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Eyebrow } from "@/components/ui/eyebrow";
 import { Spinner } from "@/components/ui/spinner";
 import { nextPlan, PLAN_ORDER, PLANS, type PaidPlanId, type PlanId } from "@/config/plans";
 import { AccountSkeleton } from "./account-skeleton";
@@ -28,7 +36,8 @@ import { useAccountArrival } from "./use-account-arrival";
 import { useUpgradeWatch } from "./use-upgrade-watch";
 import { UsageCard } from "./usage-card";
 
-const above = (plan: PlanId, target: PlanId) => PLAN_ORDER.indexOf(target) > PLAN_ORDER.indexOf(plan);
+const above = (plan: PlanId, target: PlanId) =>
+  PLAN_ORDER.indexOf(target) > PLAN_ORDER.indexOf(plan);
 
 const ACTIVATION_SCREEN_MS = 10_000;
 
@@ -53,10 +62,13 @@ export function AccountView() {
     bought ? `Setting up your ${PLANS[bought].name} plan` : "Setting up your new plan",
   );
   const wanted: PaidPlanId | null = arrival.plan ?? nextPlan(user?.plan ?? "free");
-  const wantsUpgrade = upgradeRequested && !loading && wanted !== null && above(user?.plan ?? "free", wanted);
+  const wantsUpgrade =
+    upgradeRequested && !loading && wanted !== null && above(user?.plan ?? "free", wanted);
   const offered = wanted !== null && (me?.billing.offer[wanted].length ?? 0) > 0;
-  const straightToCheckout = wantsUpgrade && user !== null && me?.billing.mode !== "disabled" && offered;
+  const straightToCheckout =
+    wantsUpgrade && user !== null && me?.billing.mode !== "disabled" && offered;
   const upgradeOpen = wantsUpgrade && !straightToCheckout;
+  const checkingOut = straightToCheckout && checkout.pending ? wanted : null;
 
   useScrollToSection(!loading && user !== null);
 
@@ -77,6 +89,7 @@ export function AccountView() {
   } else if (!me) {
     content = (
       <Alert
+        data-narrow
         variant="error"
         title="Couldn't load your account"
         action={
@@ -90,43 +103,72 @@ export function AccountView() {
     );
   } else if (!user) {
     content = (
-      <Card className="gap-6 sm:gap-6">
+      <Card data-narrow className="gap-6 sm:gap-6">
         <OttoNote live={false} message={ACCOUNT_OTTO.signedOut} />
         <SignInForm />
       </Card>
     );
   } else {
     const paid = user.plan !== "free";
+    const sections = accountSections({ paid });
+    const groups: Record<AccountGroup, ReactNode> = {
+      profile: <ProfileCard user={user} />,
+      writingStyle: <WritingStyleCard />,
+      jobSearch: (
+        <>
+          <WorkProfileCard />
+          <LookingForSettingsCard />
+        </>
+      ),
+      notifications: <ReminderSettingsCard />,
+      plan: (
+        <>
+          <UsageCard me={me} plan={user.plan} />
+          {user.plan === "max" ? null : (
+            <UpgradeCard
+              plan={user.plan}
+              interval={user.planInterval}
+              mode={me.billing.mode}
+              offer={me.billing.offer}
+              trial={me.billing.trial === true}
+            />
+          )}
+          {paid ? (
+            <BillingCard mode={me.billing.mode} trialEndsAt={user.trialEndsAt ?? null} />
+          ) : null}
+        </>
+      ),
+      invite: <InviteCard plan={user.plan} />,
+      danger: <DeleteAccountCard isPro={paid} />,
+    };
     content = (
-      <div className="flex flex-col gap-3">
-        {straightToCheckout && checkout.pending && wanted ? (
-          <p role="status" className="flex items-center gap-2 text-sm text-muted">
-            <Spinner />
-            Taking you to checkout for {PLANS[wanted].name}
-          </p>
-        ) : null}
-        {backFromCheckout ? (
-          <UpgradeStatus plan={user.plan} trialEndsAt={user.trialEndsAt} target={bought} watch={watch} />
-        ) : null}
-        <ProfileCard user={user} />
-        <Eyebrow className="mt-3 px-1">Your job search</Eyebrow>
-        <WorkProfileCard />
-        <LookingForSettingsCard />
-        <ReminderSettingsCard />
-        <Eyebrow className="mt-3 px-1">Plan and account</Eyebrow>
-        <UsageCard me={me} plan={user.plan} />
-        {user.plan === "max" ? null : (
-          <UpgradeCard
-            plan={user.plan}
-            interval={user.planInterval}
-            mode={me.billing.mode}
-            offer={me.billing.offer}
-            trial={me.billing.trial === true}
-          />
-        )}
-        {paid ? <BillingCard mode={me.billing.mode} trialEndsAt={user.trialEndsAt ?? null} /> : null}
-        <InviteCard plan={user.plan} />
-        <DeleteAccountCard isPro={paid} />
+      <div className={SETTINGS_LAYOUT}>
+        <SectionNav sections={sections} />
+        <div className={SETTINGS_CONTENT}>
+          {checkingOut || backFromCheckout ? (
+            <div className="-mb-6 flex flex-col gap-3">
+              {checkingOut ? (
+                <p role="status" className="flex items-center gap-2 text-sm text-muted">
+                  <Spinner />
+                  Taking you to checkout for {PLANS[checkingOut].name}
+                </p>
+              ) : null}
+              {backFromCheckout ? (
+                <UpgradeStatus
+                  plan={user.plan}
+                  trialEndsAt={user.trialEndsAt}
+                  target={bought}
+                  watch={watch}
+                />
+              ) : null}
+            </div>
+          ) : null}
+          {sections.map((section) => (
+            <SettingsGroup key={section.id} section={section}>
+              {groups[section.key]}
+            </SettingsGroup>
+          ))}
+        </div>
       </div>
     );
   }

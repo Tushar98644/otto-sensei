@@ -44,6 +44,11 @@ export function invitePath(code: string): string {
   return `/?${REF_PARAM}=${code}`;
 }
 
+// A public page's link home, carrying its owner's invite when they have one.
+export function homeLinkFor(code: string | null): string {
+  return code ? invitePath(code) : "/";
+}
+
 // Not httpOnly on purpose: the browser reads it. The server trusts the code, never the stage.
 export const REF_COOKIE = "otto_ref";
 export const REF_COOKIE_MAX_AGE_S = 30 * 24 * 60 * 60;

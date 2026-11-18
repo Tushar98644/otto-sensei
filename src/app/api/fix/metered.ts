@@ -100,7 +100,7 @@ export async function runMetered<S extends z.ZodType, R>(
 
     if (!budget.allowed) return budgetReached(user, budget.period, now);
     const { allowed, usage, period } = await consumeUsage(user, feature, now);
-    if (!allowed) return limitReached(user, feature, period, now);
+    if (!allowed) return limitReached(user, feature, period, now, usage[feature].limit);
 
     const call = { userId: user.id, path: new URL(req.url).pathname, feature, startedAt: Date.now() };
     try {

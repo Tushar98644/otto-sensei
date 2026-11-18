@@ -95,26 +95,34 @@ describe("getUsage", () => {
 });
 
 describe("Free", () => {
-  it("takes no unit for anything but line fixes, and an invite bonus doesn't open AI on it", async () => {
+  it("takes no unit for anything but line fixes, and leaves no row behind", async () => {
     for (const feature of FEATURES.filter((candidate) => candidate !== "fix")) {
-      expect((await consumeUsage(free, feature, NOV)).allowed).toBe(false);
+      const result = await consumeUsage(free, feature, NOV);
+      expect(result.allowed).toBe(false);
+      expect(result.usage[feature]).toEqual({ used: 0, limit: 0 });
+      expect(await storedCount(free, feature)).toBeNull();
     }
+  });
+
+  it("keeps tailoring shut on Free even with invite extras, which wait to move up", async () => {
     const db = await getDb();
     await db.insert(usage).values({ subject: free.id, feature: "tailor", period: monthKey(NOV), bonus: 2 });
+    expect((await getUsage(free, NOV)).tailor).toEqual({ used: 0, limit: 0 });
     const result = await consumeUsage(free, "tailor", NOV);
     expect(result.allowed).toBe(false);
     expect(result.usage.tailor).toEqual({ used: 0, limit: 0 });
+    expect(await storedCount(free, "tailor")).toBe(0);
   });
 
-  it("takes 3 line fixes a calendar month, with no invite extras on top", async () => {
+  it("takes 3 line fixes a calendar month, plus invite extras on top", async () => {
     const db = await getDb();
     await db.insert(usage).values({ subject: free.id, feature: "fix", period: monthKey(NOV), bonus: 10 });
-    await consumeTimes(free, "fix", PLANS.free.limits.fix);
+    await consumeTimes(free, "fix", PLANS.free.limits.fix + 10);
     const blocked = await consumeUsage(free, "fix", NOV);
     expect(blocked.allowed).toBe(false);
-    expect(blocked.usage.fix).toEqual({ used: 3, limit: 3 });
+    expect(blocked.usage.fix).toEqual({ used: 13, limit: 13 });
     expect(blocked.period).toEqual({ kind: "month", resetsAt: Date.UTC(2026, 11, 1) });
-    expect(await storedCount(free, "fix")).toBe(3);
+    expect(await storedCount(free, "fix")).toBe(13);
 
     expect((await consumeUsage(free, "fix", DEC)).allowed).toBe(true);
     expect((await getUsage(free, DEC)).fix).toEqual({ used: 1, limit: 3 });
@@ -510,5 +518,63 @@ describe("carryUsageOver", () => {
     const paid: SessionUser = { ...trial, trialEndsAt: null, ...periodFrom(TRIAL_END) };
     await carryUsageOver(db, trial, paid, TRIAL_END + MINUTE);
     expect((await getUsage(paid, TRIAL_END + MINUTE)).tailor.used).toBe(0);
+  });
+
+  it("carries Free's invite extras into a trial, and on into the first paid month", async () => {
+    const db = await getDb();
+    await db.insert(usage).values([
+      { subject: free.id, feature: "fix", period: monthKey(NOV), bonus: 10 },
+      { subject: free.id, feature: "tailor", period: monthKey(NOV), bonus: 2 },
+    ]);
+    const trialing: SessionUser = { ...free, plan: "pro", planInterval: "month", trialEndsAt: TRIAL_END, planRenewsAt: TRIAL_END };
+    await carryUsageOver(db, free, trialing, NOV);
+    await carryUsageOver(db, free, trialing, NOV);
+    expect((await getUsage(trialing, NOV)).fix).toEqual({ used: 0, limit: PRO_TRIAL.limits.fix + 10 });
+    expect((await getUsage(trialing, NOV)).tailor).toEqual({ used: 0, limit: PRO_TRIAL.limits.tailor + 2 });
+
+    await consumeTimes(trialing, "tailor", PRO_TRIAL.limits.tailor + 1, NOV);
+    const paid: SessionUser = { ...trialing, trialEndsAt: null, ...periodFrom(TRIAL_END) };
+    await carryUsageOver(db, trialing, paid, TRIAL_END + MINUTE);
+    const usageNow = await getUsage(paid, TRIAL_END + MINUTE);
+    expect(usageNow.tailor).toEqual({ used: 0, limit: PLANS.pro.limits.tailor + 1 });
+    expect(usageNow.fix).toEqual({ used: 0, limit: PLANS.pro.limits.fix + 10 });
+  });
+
+  it("moves up only the invite extras Free hasn't spent", async () => {
+    const db = await getDb();
+    await db.insert(usage).values([
+      { subject: free.id, feature: "fix", period: monthKey(NOV), bonus: 10 },
+      { subject: free.id, feature: "tailor", period: monthKey(NOV), bonus: 2 },
+    ]);
+    await consumeTimes(free, "fix", PLANS.free.limits.fix + 4);
+    const bought: SessionUser = { ...free, plan: "pro", planInterval: "month", ...periodFrom(NOV) };
+    await carryUsageOver(db, free, bought, NOV);
+    const usageNow = await getUsage(bought, NOV);
+    expect(usageNow.fix).toEqual({ used: 0, limit: PLANS.pro.limits.fix + 6 });
+    expect(usageNow.tailor).toEqual({ used: 0, limit: PLANS.pro.limits.tailor + 2 });
+    expect((await getUsage(free, NOV)).fix).toEqual({ used: 7, limit: 7 });
+  });
+
+  it("moves Free's extras instead of copying them, so a lapsed trial can't spend them twice", async () => {
+    const db = await getDb();
+    await db.insert(usage).values([
+      { subject: free.id, feature: "fix", period: monthKey(NOV), bonus: 10 },
+      { subject: free.id, feature: "tailor", period: monthKey(NOV), bonus: 2 },
+    ]);
+    await consumeTimes(free, "fix", PLANS.free.limits.fix + 4);
+    const trialing: SessionUser = { ...free, plan: "pro", planInterval: "month", trialEndsAt: TRIAL_END, planRenewsAt: TRIAL_END };
+    await carryUsageOver(db, free, trialing, NOV);
+    await consumeTimes(trialing, "fix", PRO_TRIAL.limits.fix + 6, NOV);
+    expect((await consumeUsage(trialing, "fix", NOV)).allowed).toBe(false);
+
+    await carryUsageOver(db, trialing, free, NOV + HOUR);
+    expect((await getUsage(free, NOV + HOUR)).fix).toEqual({ used: 7, limit: 7 });
+    expect((await consumeUsage(free, "fix", NOV + HOUR)).allowed).toBe(false);
+
+    const bought: SessionUser = { ...free, plan: "pro", planInterval: "month", ...periodFrom(NOV + 2 * HOUR) };
+    await carryUsageOver(db, free, bought, NOV + 2 * HOUR);
+    const usageNow = await getUsage(bought, NOV + 2 * HOUR);
+    expect(usageNow.fix).toEqual({ used: 0, limit: PLANS.pro.limits.fix });
+    expect(usageNow.tailor).toEqual({ used: 0, limit: PLANS.pro.limits.tailor });
   });
 });

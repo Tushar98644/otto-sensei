@@ -91,13 +91,13 @@ describe("POST /api/fix", () => {
     expect((await fix()).status).toBe(200);
   });
 
-  it("keeps Free at 3 fixes even with invite extras", async () => {
+  it("adds invite extras to Free's 3 fixes", async () => {
     const user = await signInAs("free@example.com");
     const db = await getDb();
     await db.insert(usage).values({ subject: user.id, feature: "fix", period: monthKey(NOW), bonus: 10 });
-    for (let i = 0; i < PLANS.free.limits.fix; i++) expect((await fix()).status).toBe(200);
+    for (let i = 0; i < PLANS.free.limits.fix + 10; i++) expect((await fix()).status).toBe(200);
     expect((await fix()).status).toBe(429);
-    expect((await getUsage(user)).fix).toEqual({ used: 3, limit: 3 });
+    expect((await getUsage(user)).fix).toEqual({ used: 13, limit: 13 });
   });
 
   it("returns Otto's demo fix and the allowance after counting it", async () => {

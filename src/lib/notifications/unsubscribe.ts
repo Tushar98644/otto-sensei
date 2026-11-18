@@ -1,35 +1,51 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { cronSecret } from "@/lib/cron/auth";
 import { appUrl } from "@/lib/env";
-import type { FollowUpAction } from "./types";
+import { EMAIL_LISTS, type EmailList, type FollowUpAction } from "./types";
 
 // RFC 8058 posts carry no session, so the signed link proves the account.
 
 export const UNSUBSCRIBE_PATH = "/api/notifications/unsubscribe";
 
-// A label in the signed text keeps these tokens from ever matching another use of the secret.
-function sign(secret: string, userId: string): Buffer {
-  return createHmac("sha256", secret).update(`email-reminders:unsubscribe:v1:${userId}`).digest();
+// A label in the signed text keeps these tokens from ever matching another use of the secret, or another list.
+function sign(secret: string, userId: string, list: EmailList): Buffer {
+  return createHmac("sha256", secret).update(`email-${list}:unsubscribe:v1:${userId}`).digest();
 }
 
-export function unsubscribeToken(userId: string): string | null {
+export function unsubscribeToken(userId: string, list: EmailList = "reminders"): string | null {
   const secret = cronSecret();
-  return secret ? sign(secret, userId).toString("base64url") : null;
+  return secret ? sign(secret, userId, list).toString("base64url") : null;
 }
 
-export function verifyUnsubscribeToken(userId: string, token: string): boolean {
+export function verifyUnsubscribeToken(
+  userId: string,
+  token: string,
+  list: EmailList = "reminders",
+): boolean {
   const secret = cronSecret();
   if (!secret || !/^[A-Za-z0-9_-]{43}$/.test(token)) return false;
-  return timingSafeEqual(Buffer.from(token, "base64url"), sign(secret, userId));
+  return timingSafeEqual(Buffer.from(token, "base64url"), sign(secret, userId, list));
 }
 
-export function unsubscribeUrl(userId: string): string | null {
-  const token = unsubscribeToken(userId);
+export function isEmailList(value: string): value is EmailList {
+  return (EMAIL_LISTS as readonly string[]).includes(value);
+}
+
+// Follow-up reminder links carry no list, as they did before there were others.
+export function unsubscribeUrl(userId: string, list: EmailList = "reminders"): string | null {
+  const token = unsubscribeToken(userId, list);
   if (!token) return null;
   const url = new URL(UNSUBSCRIBE_PATH, appUrl());
   url.searchParams.set("u", userId);
   url.searchParams.set("t", token);
+  if (list !== "reminders") url.searchParams.set("l", list);
   return url.toString();
+}
+
+export function listUnsubscribeHeaders(url: string | null): Record<string, string> {
+  return url
+    ? { "List-Unsubscribe": `<${url}>`, "List-Unsubscribe-Post": "List-Unsubscribe=One-Click" }
+    : {};
 }
 
 export const EMAIL_ACTION_PATH = "/reminder";

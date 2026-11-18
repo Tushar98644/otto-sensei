@@ -21,14 +21,14 @@ export function SiteFooter() {
             </a>
           ) : null}
         </div>
-        <nav aria-label="Footer">
-          <ul className="grid grid-cols-2 gap-x-8 sm:flex sm:gap-x-6">
+        <nav aria-label="Footer" className="min-w-0">
+          <ul className="grid grid-cols-2 gap-x-8 sm:flex sm:flex-wrap sm:justify-end sm:gap-x-6">
             {FOOTER_NAV.map((link) => (
               <li key={link.href}>
                 <Link
                   href={link.href}
                   prefetch={false}
-                  className="inline-flex min-h-12 items-center text-sm text-muted transition-colors hover:text-ink sm:min-h-11"
+                  className="inline-flex min-h-12 items-center text-sm whitespace-nowrap text-muted transition-colors hover:text-ink sm:min-h-11"
                 >
                   {link.label}
                 </Link>

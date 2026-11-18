@@ -26,6 +26,7 @@ const SENSITIVE_KEYS = new Set([
   "cookie",
   "cookies",
   "jobpost",
+  "notes",
   "otp",
   "prompt",
   "resume",

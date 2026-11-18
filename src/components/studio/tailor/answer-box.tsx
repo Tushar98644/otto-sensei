@@ -10,7 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { VoiceTextarea } from "@/components/ui/voice-field";
 import { wordCount } from "@/lib/ai/writing-guards";
 import { DemoNote } from "../demo-note";
-import { copyText } from "./letter-panel";
+import { copyText } from "@/components/ui/copy-text";
 import type { SavedAnswer } from "./session";
 import type { Writing } from "./use-writing";
 

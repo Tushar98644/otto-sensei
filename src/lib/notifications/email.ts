@@ -12,7 +12,8 @@ export type EmailMessage = {
   tags?: { name: string; value: string }[];
 };
 
-export type BatchResult = { sent: number; failed: number };
+// refused: Resend answered that it took none of the batch, so nothing went out and it can be tried again.
+export type BatchResult = { sent: number; failed: number; refused?: true };
 
 export type EmailSender = {
   // The same idempotency key within 24 hours never sends twice, so a retry is safe.
@@ -34,7 +35,15 @@ export function emailConfigured(): boolean {
   return emailConfig() !== null;
 }
 
-type Attempt = { ok: true; result: BatchResult } | { ok: false; retry: boolean; reason: string };
+// The sender's postal address for the footer of optional emails, which US law asks of promotional ones.
+export function senderPostalAddress(): string | null {
+  const address = process.env.EMAIL_POSTAL_ADDRESS?.replace(/\s+/g, " ").trim().slice(0, 200);
+  return address || null;
+}
+
+type Attempt =
+  | { ok: true; result: BatchResult }
+  | { ok: false; retry: boolean; refused: boolean; reason: string };
 
 export function emailSender(): EmailSender | null {
   const config = emailConfig();
@@ -50,7 +59,10 @@ export function emailSender(): EmailSender | null {
       );
       if (error) {
         const status = error.statusCode ?? 0;
-        return { ok: false, retry: status === 0 || status === 429 || status >= 500, reason: error.name };
+        // A 409 can mean an earlier try with this key is still going through.
+        const refused = status >= 400 && status < 500 && status !== 409;
+        const retry = status === 0 || status === 429 || status >= 500;
+        return { ok: false, retry, refused, reason: error.name };
       }
       const errors = data.errors ?? [];
       // Not the messages themselves: they can quote the address they rejected.
@@ -59,7 +71,7 @@ export function emailSender(): EmailSender | null {
       return { ok: true, result: { sent: data.data.length, failed } };
     } catch (error) {
       log.warn("email.batch_request_failed", {}, error);
-      return { ok: false, retry: true, reason: "network" };
+      return { ok: false, retry: true, refused: false, reason: "network" };
     }
   }
 
@@ -68,13 +80,15 @@ export function emailSender(): EmailSender | null {
       if (messages.length === 0) return { sent: 0, failed: 0 };
       if (messages.length > EMAIL_BATCH_MAX) throw new RangeError("sendBatch: too many messages");
       let outcome = await attempt(messages, idempotencyKey);
+      let refused = !outcome.ok && outcome.refused;
       if (!outcome.ok && outcome.retry) {
         await new Promise((resolve) => setTimeout(resolve, RETRY_DELAY_MS));
         outcome = await attempt(messages, idempotencyKey);
+        refused &&= !outcome.ok && outcome.refused;
       }
       if (outcome.ok) return outcome.result;
       log.warn("email.batch_failed", { reason: outcome.reason, messages: messages.length });
-      return { sent: 0, failed: messages.length };
+      return { sent: 0, failed: messages.length, ...(refused ? { refused: true as const } : {}) };
     },
   };
 }

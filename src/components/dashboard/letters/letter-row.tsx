@@ -3,7 +3,7 @@
 import { Copy, Download, Ellipsis, ExternalLink, PanelsTopLeft, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useId } from "react";
-import { copyText } from "@/components/studio/tailor/letter-panel";
+import { copyText } from "@/components/ui/copy-text";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonClasses } from "@/components/ui/button";
 import { Menu, type MenuEntry } from "@/components/ui/menu";
@@ -12,7 +12,13 @@ import { STATUS_NAMES } from "@/lib/applications/status";
 import { applicationHref } from "@/lib/applications/thread";
 import { StatusIcon } from "../applications/status-menu";
 import { formatDay } from "../applications/view";
-import type { LetterEntry } from "./entries";
+import { KIND_NAMES, type LetterEntry } from "./entries";
+
+const UNNAMED: Record<LetterEntry["kind"], string> = {
+  letter: "Cover letter",
+  answer: "Answer",
+  outreach: "Outreach message",
+};
 
 export type LetterRowProps = {
   entry: LetterEntry;
@@ -39,7 +45,9 @@ export function LetterRow({
 }: LetterRowProps) {
   const titleId = useId();
   const letter = entry.kind === "letter";
-  const name = entry.company || entry.role || (letter ? "Cover letter" : "Answer");
+  const kind = KIND_NAMES[entry.kind];
+  const name = entry.company || entry.role || UNNAMED[entry.kind];
+  const subject = entry.outreach?.subject ?? "";
   const saved = entry.writingId !== null || entry.copyId !== null;
   const meta = [source ? `From “${source}”` : null, formatDay(entry.createdAt, now)]
     .filter(Boolean)
@@ -76,7 +84,7 @@ export function LetterRow({
               <ExternalLink aria-hidden />
             </a>
           ) : null}
-          <Badge className="shrink-0">{letter ? "Letter" : "Answer"}</Badge>
+          <Badge className="shrink-0">{kind.label}</Badge>
           {saved ? null : (
             <Badge variant="warn" className="shrink-0">
               Not saved
@@ -100,6 +108,7 @@ export function LetterRow({
         {entry.question ? (
           <p className="mt-1 line-clamp-1 text-sm/6 text-muted">{entry.question}</p>
         ) : null}
+        {subject ? <p className="mt-1 line-clamp-1 text-sm/6 text-muted">{subject}</p> : null}
         <p className="mt-1 text-xs/5 text-subtle">{meta}</p>
       </div>
 
@@ -111,10 +120,10 @@ export function LetterRow({
           variant="ghost"
           size="sm"
           aria-describedby={titleId}
-          onClick={() => void copyText(entry.text, letter ? "letter" : "answer")}
+          onClick={() => void copyText(entry.text, kind.copy)}
         >
           <Copy aria-hidden />
-          Copy
+          {entry.kind === "outreach" ? "Copy email" : "Copy"}
         </Button>
         <Menu
           label={`Actions for ${name}`}

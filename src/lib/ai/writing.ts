@@ -4,10 +4,17 @@ import { aiEnabled } from "@/lib/env";
 import { log } from "@/lib/log";
 import { listBullets, resumeToText } from "@/lib/resume/ops";
 import type { Resume } from "@/lib/resume/schema";
+import {
+  DEFAULT_WRITING_STYLE,
+  STYLE_LIMITS,
+  type WritingLength,
+  type WritingStyleBody,
+  type WritingTone,
+} from "@/lib/writing-style/schema";
 import { runStructured, type AITask } from "./client";
 import { ANSWER_SYSTEM_PROMPT, LETTER_SYSTEM_PROMPT, OUTREACH_SYSTEM_PROMPT } from "./prompts";
 import { redactResume, redactorFor, type Redactor } from "./redact";
-import { clip, clipWords, MAX_RESUME_CHARS, oneLine, tag } from "./text";
+import { clip, clipWords, MAX_RESUME_CHARS, oneLine, tag, type DataTag } from "./text";
 import {
   AIError,
   type AnswerResult,
@@ -58,16 +65,79 @@ const OutreachOutputSchema = z.object({
 });
 
 type Range = { readonly min: number; readonly max: number };
+type Piece = "letter" | "answer" | "outreach";
+type Lengths = { range: Range; floor: number };
+
+// The shorter style's asked word counts, with the same room above them as the standard ones.
+const SHORTER: Record<
+  Piece,
+  { part: string; min: number; max: number; cap: number; floor: number }
+> = {
+  letter: { part: "the body", min: 110, max: 150, cap: 180, floor: 80 },
+  answer: { part: "the answer", min: 45, max: 90, cap: 110, floor: 35 },
+  outreach: { part: "the email body", min: 45, max: 80, cap: 110, floor: 35 },
+};
+
+const STANDARD: Record<Piece, Lengths> = {
+  letter: { range: LETTER_WORDS, floor: LETTER_FLOOR_WORDS },
+  answer: { range: ANSWER_WORDS, floor: ANSWER_FLOOR_WORDS },
+  outreach: { range: OUTREACH_WORDS, floor: OUTREACH_FLOOR_WORDS },
+};
+
+function lengthsFor(piece: Piece, length: WritingLength): Lengths {
+  if (length === "standard") return STANDARD[piece];
+  const { min, cap, floor } = SHORTER[piece];
+  return { range: { min, max: cap }, floor };
+}
+
+const TONE_LINES: Record<WritingTone, string | null> = {
+  natural: null,
+  warm: "Tone: warm. Friendly and personal, still professional.",
+  direct: "Tone: direct. Short sentences, straight to the point.",
+  formal:
+    'Tone: formal. Polished and traditional, with no contractions: write "I am" and "I would", never "I\'m" or "I\'d".',
+};
+
+const UK_SPELLING =
+  'Spelling: British English, such as "organise", "colour" and "centre", and "CV" for a resume.';
+
+const TAG_START =
+  /<(?=\s*\/?\s*(?:style|resume|role|line|answers|experience|job_post|question)\b)/gi;
+const ANY_TAG = /<\s*\/?\s*[a-z][\w-]*\b[^>]*>/gi;
+const NUMBER_AND_WORD =
+  /(?<![\p{L}\p{N}.,])[$€£¥]?(\d+(?:[.,]\d+)*)(?:%|\+|[kKmMbBx](?![\p{L}\p{N}]))?[\s-]+(\p{L}+)/gu;
 
 type Prepared = {
   job: WritingInput;
   shownText: string;
   redactor: Redactor;
   sources: string[];
+  noteNumbers: ReadonlySet<string>;
   lines: string[];
+  shownNotes: string;
 };
 
-function prepare(resume: Resume, input: WritingInput): Prepared {
+// Swaps the "<" instead of deleting the tag, so the text around it can't join into a new one.
+function defuseTags(text: string): string {
+  return text.replace(TAG_START, "‹");
+}
+
+function numbersWithWord(text: string): { digits: string; key: string }[] {
+  return Array.from(text.matchAll(NUMBER_AND_WORD), (match) => {
+    const digits = (match[1] ?? "").replace(/,/g, "");
+    return { digits, key: `${digits} ${(match[2] ?? "").toLowerCase()}` };
+  });
+}
+
+// A number from the notes is backed only beside the same word, so "under 150 words" can't back "150 customers".
+function factSources(text: string, prepared: Prepared): string[] {
+  const backed = numbersWithWord(text)
+    .filter(({ key }) => prepared.noteNumbers.has(key))
+    .map(({ digits }) => digits);
+  return backed.length ? [...prepared.sources, backed.join(" ")] : prepared.sources;
+}
+
+function prepare(resume: Resume, input: WritingInput, style: WritingStyleBody): Prepared {
   const job: WritingInput = {
     jobText: input.jobText.trim(),
     jobTitle: clip(oneLine(input.jobTitle), JOB_FIELD_CHARS),
@@ -83,7 +153,41 @@ function prepare(resume: Resume, input: WritingInput): Prepared {
   const lines = [...listBullets(resume).map((bullet) => bullet.text), resume.summary];
   const redactor = redactorFor(resume);
   const shownText = resumeToText(redactResume(resume, redactor));
-  return { job, shownText, redactor, sources: [resumeText, job.jobTitle, job.company], lines };
+  const notes = clip(style.notes, STYLE_LIMITS.notes);
+  // The notes stay out of sources, so a phrase they name, such as "I learned", is still checked.
+  const noteNumbers = new Set(numbersWithWord(notes).map(({ key }) => key));
+  const untagged = defuseTags(notes.replace(ANY_TAG, " ")).replace(/[ \t]{2,}/g, " ");
+  const shownNotes = redactor.redact(untagged).trim();
+  const sources = [resumeText, job.jobTitle, job.company];
+  return { job, shownText, redactor, sources, noteNumbers, lines, shownNotes };
+}
+
+// Sent only when it says something, so a default style sends the same message as no style.
+function styleBlock(style: WritingStyleBody, piece: Piece, prepared: Prepared): string {
+  const shorter = SHORTER[piece];
+  const lines = [
+    TONE_LINES[style.tone],
+    style.length === "shorter" &&
+      `Length: shorter. Write ${shorter.part} in about ${shorter.min} to ${shorter.max} words.`,
+    style.spelling === "uk" && UK_SPELLING,
+    prepared.shownNotes && `The person's notes, in their own words:\n${prepared.shownNotes}`,
+  ].filter((line): line is string => Boolean(line));
+  return lines.length ? `<style>\n${lines.join("\n")}\n</style>` : "";
+}
+
+// A resume, post or question can't open or close a <style> block or a data tag of its own.
+function dataTag(name: DataTag, body: string): string {
+  return tag(name, defuseTags(body));
+}
+
+function userMessage(parts: readonly string[]): string {
+  return parts.filter(Boolean).join("\n\n");
+}
+
+function closingLine(signOff: string, fallback: string): string {
+  const own = oneLine(signOff).replace(/[\s,]+$/u, "");
+  if (!own) return `${fallback},`;
+  return /[.!?]$/u.test(own) ? own : `${own},`;
 }
 
 function postText(job: WritingInput): string {
@@ -133,7 +237,8 @@ async function draft<T>(request: DraftRequest<T>, prepared: Prepared): Promise<D
       { deadlineMs },
     );
     const paragraphs = request.paragraphs(output).map((text) => prepared.redactor.restore(text));
-    return { check: checkProse(paragraphs, prepared.sources, prepared.lines), output };
+    const sources = factSources(paragraphs.join("\n\n"), prepared);
+    return { check: checkProse(paragraphs, sources, prepared.lines), output };
   };
   const firstDraft = await call(request.user, TOTAL_DEADLINE_MS);
   const first = firstDraft.check;
@@ -202,26 +307,33 @@ function polish(
   return clipped;
 }
 
-function letterMessage(resumeText: string, job: WritingInput): string {
-  return [tag("resume", resumeText), tag("job_post", postText(job)), "Write the cover letter."]
-    .join("\n\n");
+function letterMessage(prepared: Prepared, style: string): string {
+  return userMessage([
+    dataTag("resume", prepared.shownText),
+    dataTag("job_post", postText(prepared.job)),
+    style,
+    "Write the cover letter.",
+  ]);
 }
 
 export function assembleLetter(
   paragraphs: readonly string[],
   name: string,
   company: string,
+  signOff = "",
 ): string {
   const greeting = company ? `Dear ${company} team,` : "Dear hiring team,";
-  const signOff = name ? `Best regards,\n${name}` : "Best regards,";
-  return [greeting, ...paragraphs, signOff].join("\n\n");
+  const closing = closingLine(signOff, "Best regards");
+  return [greeting, ...paragraphs, name ? `${closing}\n${name}` : closing].join("\n\n");
 }
 
 export async function writeCoverLetter(
   resume: Resume,
   input: WritingInput,
+  style: WritingStyleBody = DEFAULT_WRITING_STYLE,
 ): Promise<CoverLetterResult> {
-  const prepared = prepare(resume, input);
+  const prepared = prepare(resume, input, style);
+  const { range, floor } = lengthsFor("letter", style.length);
   const name = oneLine(resume.basics.name);
   const company = prepared.job.company;
   const paragraphs = aiEnabled()
@@ -230,45 +342,48 @@ export async function writeCoverLetter(
           {
             task: "letter",
             system: LETTER_SYSTEM_PROMPT,
-            user: letterMessage(prepared.shownText, prepared.job),
+            user: letterMessage(prepared, styleBlock(style, "letter", prepared)),
             schema: LetterOutputSchema,
             paragraphs: (output) => output.paragraphs,
-            range: LETTER_WORDS,
+            range,
           },
           prepared,
         ).then((drafted) => drafted.check),
-        LETTER_WORDS,
-        LETTER_FLOOR_WORDS,
+        range,
+        floor,
         prepared.sources,
       )
     : demoLetter(resume, prepared.job);
   const body = paragraphs.join("\n\n");
   return {
-    letter: assembleLetter(paragraphs, name, company),
+    letter: assembleLetter(paragraphs, name, company, style.signOff),
     words: wordCount(body),
     warnings: warningsFor(body, prepared, "before you send it. Otto never guesses numbers."),
   };
 }
 
-function answerMessage(resumeText: string, job: WritingInput, question: string): string {
-  return [
-    tag("resume", resumeText),
-    tag("job_post", postText(job)),
-    tag("question", question),
+function answerMessage(prepared: Prepared, question: string, style: string): string {
+  return userMessage([
+    dataTag("resume", prepared.shownText),
+    dataTag("job_post", postText(prepared.job)),
+    dataTag("question", question),
+    style,
     "Draft the answer.",
-  ].join("\n\n");
+  ]);
 }
 
 export async function answerQuestion(
   resume: Resume,
   input: WritingInput,
   question: string,
+  style: WritingStyleBody = DEFAULT_WRITING_STYLE,
 ): Promise<AnswerResult> {
   const asked = clip(oneLine(question), QUESTION_CHARS.max);
   if (asked.length < QUESTION_CHARS.min) {
     throw new AIError("invalid_output", "There is no question to answer");
   }
-  const prepared = prepare(resume, input);
+  const prepared = prepare(resume, input, style);
+  const { range, floor } = lengthsFor("answer", style.length);
   const shownQuestion = prepared.redactor.redact(asked);
   const paragraphs = aiEnabled()
     ? polish(
@@ -276,15 +391,15 @@ export async function answerQuestion(
           {
             task: "answer",
             system: ANSWER_SYSTEM_PROMPT,
-            user: answerMessage(prepared.shownText, prepared.job, shownQuestion),
+            user: answerMessage(prepared, shownQuestion, styleBlock(style, "answer", prepared)),
             schema: AnswerOutputSchema,
             paragraphs: (output) => output.answer.split(/\n\s*\n/),
-            range: ANSWER_WORDS,
+            range,
           },
           prepared,
         ).then((drafted) => drafted.check),
-        ANSWER_WORDS,
-        ANSWER_FLOOR_WORDS,
+        range,
+        floor,
         prepared.sources,
       )
     : demoAnswer(resume, prepared.job, asked);
@@ -296,15 +411,23 @@ export async function answerQuestion(
   };
 }
 
-function outreachMessage(resumeText: string, job: WritingInput): string {
-  return [tag("resume", resumeText), tag("job_post", postText(job)), "Write the message."].join(
-    "\n\n",
-  );
+function outreachMessage(prepared: Prepared, style: string): string {
+  return userMessage([
+    dataTag("resume", prepared.shownText),
+    dataTag("job_post", postText(prepared.job)),
+    style,
+    "Write the message.",
+  ]);
 }
 
-function assembleOutreach(paragraphs: readonly string[], name: string): string {
-  const signOff = name ? `Best,\n${name}` : "Best,";
-  return ["Hi [first name],", ...paragraphs, signOff].join("\n\n");
+function assembleOutreach(
+  paragraphs: readonly string[],
+  name: string,
+  style: WritingStyleBody,
+): string {
+  const greeting = style.tone === "formal" ? "Dear [first name]," : "Hi [first name],";
+  const closing = closingLine(style.signOff, "Best");
+  return [greeting, ...paragraphs, name ? `${closing}\n${name}` : closing].join("\n\n");
 }
 
 type OutreachParts = { subject: string; email: string[]; note: string };
@@ -319,11 +442,12 @@ function finishOutreach(
   subject: string,
   note: string,
   prepared: Prepared,
+  lengths: Lengths,
 ): OutreachParts {
   const { sources, lines, job } = prepared;
-  const body = polish(email, OUTREACH_WORDS, OUTREACH_FLOOR_WORDS, sources);
-  const subjectCheck = checkProse([subject], sources, lines);
-  const noteCheck = checkProse([note], sources, lines);
+  const body = polish(email, lengths.range, lengths.floor, sources);
+  const subjectCheck = checkProse([subject], factSources(subject, prepared), lines);
+  const noteCheck = checkProse([note], factSources(note, prepared), lines);
   const shownSubject = clip(oneLine(subjectCheck.paragraphs[0] ?? ""), SUBJECT_CHARS);
   const shownNote = oneLine(noteCheck.paragraphs.join(" "));
   return {
@@ -345,12 +469,17 @@ function fallbackNote(body: readonly string[], job: WritingInput): string {
   const first = sentencesOf(body[0] ?? "")[0]?.trim() ?? "";
   if (first && first.length <= NOTE_BUDGET) return first;
   const role = job.jobTitle ? `the ${job.jobTitle} role` : "your open role";
-  const line = `I'm applying for ${role}${job.company ? ` at ${job.company}` : ""} and would be glad to connect.`;
+  const line = `I am applying for ${role}${job.company ? ` at ${job.company}` : ""} and would be glad to connect.`;
   return clipWords(line, NOTE_BUDGET);
 }
 
-export async function writeOutreach(resume: Resume, input: WritingInput): Promise<OutreachResult> {
-  const prepared = prepare(resume, input);
+export async function writeOutreach(
+  resume: Resume,
+  input: WritingInput,
+  style: WritingStyleBody = DEFAULT_WRITING_STYLE,
+): Promise<OutreachResult> {
+  const prepared = prepare(resume, input, style);
+  const lengths = lengthsFor("outreach", style.length);
   const name = oneLine(resume.basics.name);
   let parts: OutreachParts;
   if (aiEnabled()) {
@@ -358,15 +487,15 @@ export async function writeOutreach(resume: Resume, input: WritingInput): Promis
       {
         task: "outreach",
         system: OUTREACH_SYSTEM_PROMPT,
-        user: outreachMessage(prepared.shownText, prepared.job),
+        user: outreachMessage(prepared, styleBlock(style, "outreach", prepared)),
         schema: OutreachOutputSchema,
         paragraphs: (result) => result.email,
-        range: OUTREACH_WORDS,
+        range: lengths.range,
       },
       prepared,
     );
     const restore = (text: string) => prepared.redactor.restore(text);
-    parts = finishOutreach(check, restore(output.subject), restore(output.note), prepared);
+    parts = finishOutreach(check, restore(output.subject), restore(output.note), prepared, lengths);
   } else {
     parts = demoOutreach(resume, prepared.job);
   }
@@ -379,7 +508,7 @@ export async function writeOutreach(resume: Resume, input: WritingInput): Promis
   );
   return {
     subject: parts.subject,
-    email: assembleOutreach(parts.email, name),
+    email: assembleOutreach(parts.email, name, style),
     note: `${NOTE_GREETING}${parts.note}`,
     words: wordCount(body),
     warnings,

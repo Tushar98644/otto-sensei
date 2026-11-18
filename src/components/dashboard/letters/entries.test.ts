@@ -8,10 +8,12 @@ import {
   filterEntries,
   jobLine,
   kindCounts,
+  kindsTally,
   letterEntries,
   letterResume,
   sourceTitle,
   studioTarget,
+  withChange,
 } from "./entries";
 
 function resume(id: string, updatedAt: number, patch: Partial<Resume> = {}): Resume {
@@ -92,9 +94,55 @@ describe("the letters list", () => {
       [copy("c1", "Dear Fabrikam team,", 6_000)],
     );
     expect(entries.map((entry) => entry.copyId)).toEqual(["c1", null]);
-    expect(kindCounts(entries)).toEqual({ all: 2, letter: 1, answer: 1 });
+    expect(kindCounts(entries)).toEqual({ all: 2, letter: 1, answer: 1, outreach: 0 });
     expect(filterEntries(entries, "answer").map((entry) => entry.key)).toEqual(["writing:w1"]);
     expect(filterEntries(entries, "all")).toHaveLength(2);
+  });
+
+  it("lists outreach messages with their subject and note, never linked to a copy", () => {
+    const outreach = { subject: "Designer at Northwind", note: "Hi [first name], hello.", jobId: null };
+    const entries = letterEntries(
+      [
+        writing("w1", { kind: "outreach", text: "Dear Fabrikam team,", outreach, createdAt: 8_000 }),
+        writing("w2", { createdAt: 7_000 }),
+        writing("w3", { kind: "outreach", text: "Hi there,", outreach, createdAt: 2_000 }),
+      ],
+      [copy("c1", "Dear Fabrikam team,", 6_000)],
+    );
+    expect(entries.map((entry) => [entry.key, entry.kind, entry.copyId])).toEqual([
+      ["writing:w1", "outreach", null],
+      ["writing:w2", "letter", null],
+      ["copy:c1", "letter", "c1"],
+      ["writing:w3", "outreach", null],
+    ]);
+    expect(entries[0]?.outreach).toEqual(outreach);
+    expect(entries[1]).not.toHaveProperty("outreach");
+    const counts = kindCounts(entries);
+    expect(counts).toEqual({ all: 4, letter: 2, answer: 0, outreach: 2 });
+    expect(filterEntries(entries, "outreach").map((entry) => entry.key)).toEqual([
+      "writing:w1",
+      "writing:w3",
+    ]);
+    expect(kindsTally(counts)).toBe("2 letters and 2 outreach messages");
+    expect(kindsTally({ all: 3, letter: 1, answer: 1, outreach: 1 })).toBe(
+      "1 letter, 1 answer and 1 outreach message",
+    );
+    expect(kindsTally({ all: 1, letter: 0, answer: 1, outreach: 0 })).toBe("1 answer");
+  });
+
+  it("shows an edit to a message before the server has it, and leaves a letter's parts alone", () => {
+    const message = writing("w1", {
+      kind: "outreach",
+      text: "Hi [first name],",
+      outreach: { subject: "Hello", note: "A note", jobId: "job-1" },
+    });
+    expect(withChange(message, { subject: "Hello again", note: "" })).toMatchObject({
+      text: "Hi [first name],",
+      outreach: { subject: "Hello again", note: "", jobId: "job-1" },
+    });
+    expect(withChange(message, { text: "Hi Sam," }).outreach?.subject).toBe("Hello");
+    const letter = writing("w2", {});
+    expect(withChange(letter, { text: "Dear team," })).toEqual({ ...letter, text: "Dear team," });
   });
 
   it("names the job with whatever is known", () => {

@@ -101,7 +101,7 @@ export function UpgradeDialog({
     limitLine =
       current === "free"
         ? planIncludes("free", feature)
-          ? OTTO.limit.freeUsed(feature)
+          ? OTTO.limit.freeUsed(feature, me?.usage?.[feature].limit)
           : OTTO.limit.none(feature, trialOnOffer)
         : budget
           ? budgetReachedText(period)

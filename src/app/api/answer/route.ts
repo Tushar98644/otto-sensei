@@ -2,6 +2,7 @@ import { answerQuestion } from "@/lib/ai/writing";
 import { AnswerRequestSchema } from "@/lib/api/types";
 import { rejectCrossSite } from "@/lib/auth/route-guards";
 import { log } from "@/lib/log";
+import { readWritingStyle } from "@/lib/writing-style/records";
 import { runMetered, type MeteredCopy } from "../fix/metered";
 
 export const runtime = "nodejs";
@@ -25,11 +26,12 @@ export async function POST(req: Request): Promise<Response> {
     feature: "letter",
     schema: AnswerRequestSchema,
     copy: COPY,
-    run: ({ resume, job, question }) =>
+    run: async ({ resume, job, question }, user) =>
       answerQuestion(
         resume,
         { jobText: job.text, jobTitle: job.title, company: job.company },
         question,
+        await readWritingStyle(user.id),
       ),
   });
 }

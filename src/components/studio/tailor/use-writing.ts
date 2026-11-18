@@ -11,7 +11,7 @@ import { budgetReachedText } from "@/lib/ai-budget-copy";
 import { api, isApiError, isBudgetReached } from "@/lib/api/client";
 import { newId, type Resume } from "@/lib/resume/schema";
 import type { LineTarget } from "./apply";
-import { lineQuestion } from "./screener";
+import { lineQuestion } from "./line-question";
 import type { SavedAnswer, SavedWriting, TailorDraft } from "./session";
 
 export type WritingTask = "letter" | "answer" | "outreach" | "line";

@@ -1,5 +1,3 @@
-import { OTTO } from "@/components/mascot/lines";
-import type { PlanId, Usage, UsagePeriod } from "@/config/plans";
 import type { TailorRequirement, TailorResult } from "@/lib/ai/types";
 import { droppedSupport, verbsAdded } from "@/lib/ai/writing-guards";
 import type { Resume } from "@/lib/resume/schema";
@@ -26,8 +24,10 @@ import {
   type RequirementRow,
   type ScreenerCounts,
 } from "@/lib/tailor/requirements";
-import { resetSentence, thisPeriod } from "@/lib/usage-copy";
 import { screenerOptions, screenerResume, type TailorChoices } from "./apply";
+
+export { lineQuestion } from "./line-question";
+export { writingAllowance } from "./writing-allowance";
 
 export type Screener = {
   rows: RequirementRow[];
@@ -70,9 +70,6 @@ export function buildScreener(
   };
 }
 
-export function lineQuestion(requirement: TailorRequirement): string {
-  return `${requirement.ask} Where, and what did you do?`;
-}
 
 export function missingName(requirement: TailorRequirement, line: string): string | null {
   const [first] = requirement.terms;
@@ -104,18 +101,3 @@ export function hasBlank(line: string): boolean {
   return /\[[^\]\n]*\]/u.test(line);
 }
 
-export function writingAllowance(
-  plan: PlanId | null | undefined,
-  usage: Usage | null | undefined,
-  period?: UsagePeriod | null,
-  trial = true,
-): string | null {
-  if (!plan) return OTTO.limit.none("letter", trial);
-  if (!usage) return null;
-  if (usage.limit === 0) return OTTO.limit.none("letter", trial);
-  const left = Math.max(0, usage.limit - usage.used);
-  if (left === 0) {
-    return `No cover letters, messages or answers left ${thisPeriod(period)}. ${resetSentence(period)}`;
-  }
-  return `${left} of ${usage.limit} cover letters, messages and answers left ${thisPeriod(period)}.`;
-}

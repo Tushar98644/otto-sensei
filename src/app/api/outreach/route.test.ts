@@ -5,6 +5,8 @@ import { cookieJar, jsonRequest, resetDb, signInOnTrial } from "@/lib/auth/test-
 import { resetEnvForTests } from "@/lib/env";
 import { createSampleResume } from "@/lib/resume/sample";
 import { consumeUsage, getUsage } from "@/lib/usage";
+import { saveWritingStyle } from "@/lib/writing-style/records";
+import { DEFAULT_WRITING_STYLE } from "@/lib/writing-style/schema";
 import { POST } from "./route";
 
 vi.mock("next/headers", async () => (await import("@/lib/auth/test-helpers")).nextHeadersMock);
@@ -69,6 +71,13 @@ describe("POST /api/outreach", () => {
     expect(json.result.note.startsWith("Hi [first name], ")).toBe(true);
     expect(json.usage.letter).toEqual({ used: 1, limit: PRO_TRIAL.limits.letter });
     expect((await getUsage(user)).letter.used).toBe(1);
+  });
+
+  it("signs off in the account's saved style", async () => {
+    const user = await signInOnTrial("ada@example.com", TRIAL_END);
+    await saveWritingStyle(user.id, { ...DEFAULT_WRITING_STYLE, signOff: "Cheers," });
+    const json = (await (await send()).json()) as OutreachResponse;
+    expect(json.result.email).toMatch(/\n\nCheers,\n[^\n]+$/);
   });
 
   it("rejects a post that's too short without spending anything", async () => {

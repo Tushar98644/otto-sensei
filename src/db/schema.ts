@@ -29,11 +29,12 @@ import {
   SENIORITIES,
 } from "@/lib/job-feed/types";
 import type { InterviewPrep } from "@/lib/insights/prep";
-import { NOTIFICATION_KINDS } from "@/lib/notifications/types";
+import { NOTIFICATION_KINDS, TIP_EMAIL_KINDS } from "@/lib/notifications/types";
 import { PORTFOLIO_TEMPLATE_IDS } from "@/lib/portfolio/types";
 import { REFERRAL_BLOCK_REASONS, REFERRAL_STATUSES } from "@/lib/referrals/referrals";
 import type { Resume } from "@/lib/resume/schema";
 import { SETUP_STEP_OUTCOMES } from "@/lib/setup/types";
+import { SPELLINGS, WRITING_LENGTHS, WRITING_TONES } from "@/lib/writing-style/schema";
 import { WRITING_KINDS } from "@/lib/writings/schema";
 
 // Mirrors supabase/migrations (which own FKs and RLS): change both together.
@@ -213,6 +214,22 @@ export const notificationSettings = pgTable("notification_settings", {
   emailReminders: boolean("email_reminders").notNull().default(false),
   followUpDays: integer("follow_up_days").notNull().default(7),
   updatedAt: epochMs("updated_at").notNull(),
+  jobEmails: boolean("job_emails").notNull().default(false),
+  tipEmails: boolean("tip_emails").notNull().default(true),
+  jobsEmailedAt: epochMs("jobs_emailed_at"),
+  jobsCheckedAt: epochMs("jobs_checked_at"),
+  jobPromptClosedAt: epochMs("job_prompt_closed_at"),
+  remindersChosen: boolean("reminders_chosen").notNull().default(true),
+});
+
+export const writingStyles = pgTable("writing_styles", {
+  userId: uuid("user_id").primaryKey(),
+  tone: text("tone", { enum: WRITING_TONES }).notNull().default("natural"),
+  length: text("length", { enum: WRITING_LENGTHS }).notNull().default("standard"),
+  spelling: text("spelling", { enum: SPELLINGS }).notNull().default("us"),
+  signOff: text("sign_off").notNull().default(""),
+  notes: text("notes").notNull().default(""),
+  updatedAt: epochMs("updated_at").notNull(),
 });
 
 export const trialReminders = pgTable(
@@ -224,6 +241,23 @@ export const trialReminders = pgTable(
   },
   (t) => [primaryKey({ columns: [t.userId, t.trialEndsAt] })],
 );
+
+export const emailLog = pgTable(
+  "email_log",
+  {
+    userId: uuid("user_id").notNull(),
+    kind: text("kind", { enum: TIP_EMAIL_KINDS }).notNull(),
+    occasion: text("occasion").notNull(),
+    createdAt: epochMs("created_at").notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.userId, t.kind, t.occasion] })],
+);
+
+export const trialWatch = pgTable("trial_watch", {
+  userId: uuid("user_id").primaryKey(),
+  trialEndsAt: epochMs("trial_ends_at").notNull(),
+  seenAt: epochMs("seen_at").notNull(),
+});
 
 export const accountSetup = pgTable("account_setup", {
   userId: uuid("user_id").primaryKey(),
@@ -486,6 +520,9 @@ export const writings = pgTable(
     jobUrl: text("job_url").notNull().default(""),
     question: text("question").notNull().default(""),
     body: text("body").notNull(),
+    subject: text("subject").notNull().default(""),
+    note: text("note").notNull().default(""),
+    jobId: uuid("job_id"),
     warnings: jsonb("warnings").$type<string[]>().notNull().default([]),
     demo: boolean("demo").notNull().default(false),
     applicationId: uuid("application_id"),

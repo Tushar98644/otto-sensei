@@ -11,6 +11,7 @@ import { BRAND } from "@/config/brand";
 import { currentUserIdHint } from "@/lib/auth/session";
 import { log } from "@/lib/log";
 import { waitText } from "@/lib/rate-limit";
+import { ownerHomeLink } from "@/lib/referrals/records";
 import { ipFromHeaders, openSharePage } from "@/lib/share/page";
 import { readerKey, recordView } from "@/lib/share/records";
 import { sharePath } from "@/lib/share/types";
@@ -72,6 +73,7 @@ export default async function SharedResumePage({ params }: Props) {
     return <ShareUnavailable reason="busy" wait={waitText(page.retryAfterMs)} />;
   }
   const { share } = page;
+  const homeLink = ownerHomeLink(share.ownerId);
 
   const requestHeaders = await headers();
   const userAgent = requestHeaders.get("user-agent");
@@ -87,7 +89,7 @@ export default async function SharedResumePage({ params }: Props) {
   }
 
   return (
-    <SharePageFrame>
+    <SharePageFrame homeHref={await homeLink}>
       <div className="flex items-center justify-between gap-4">
         <p className="min-w-0 truncate text-sm/5 text-subtle">
           Resume · Updated {UPDATED.format(share.resume.updatedAt)}

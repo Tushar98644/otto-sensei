@@ -1,6 +1,7 @@
 "use client";
 
-import { memo, useCallback, useEffect, useMemo, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import dynamic from "next/dynamic";
 import { Pencil } from "lucide-react";
 import { useProTools } from "@/components/account/pro-tools";
 import { useMe } from "@/components/account/use-me";
@@ -22,6 +23,7 @@ import {
   queueTailorSession,
   type TailorDraft,
 } from "@/components/studio/tailor/session";
+import { tailorIncluded } from "@/components/studio/tailor/tailor-access";
 import { TailorResults } from "@/components/studio/tailor/tailor-results";
 import { useTailorRun, type ResultPatch } from "@/components/studio/tailor/use-tailor";
 import { Alert } from "@/components/ui/alert";
@@ -40,14 +42,23 @@ const PRELOAD_DELAY_MS = 2_000;
 // Editing the post re-renders the workspace on each keystroke; the results below don't change.
 const Results = memo(TailorResults);
 
+// Only Free accounts and signed-out visitors need the word check, so it loads when first shown.
+const FreeMatch = dynamic(
+  () => import("@/components/studio/tailor/free-match").then((module) => module.FreeMatch),
+  { loading: () => <OttoWorking task="tailor" /> },
+);
+
+const FREE_OTTO = "Here's each skill this post names, and where your resume shows it.";
+const FREE_NOTE =
+  "Free shows which skills the post names and where you show them. Tailoring comes with Pro.";
+
 function useUsageNote(): string | null {
   const { user, me, loading } = useMe();
   if (loading) return null;
-  const trial = me?.billing.trial !== false;
-  if (!user) return OTTO.limit.none("tailor", trial);
+  if (!user) return FREE_NOTE;
   const usage = me?.usage?.tailor;
   if (!usage) return null;
-  if (usage.limit === 0) return OTTO.limit.none("tailor", trial);
+  if (usage.limit === 0) return FREE_NOTE;
   const left = Math.max(0, usage.limit - usage.used);
   return `${left} of ${usage.limit} tailored versions left ${thisPeriod(me?.period)}.`;
 }
@@ -63,6 +74,10 @@ function TailorWorkspace({ source, baseTitle }: { source: Resume; baseTitle: str
     queued ? { ...EMPTY_DRAFT, link: queued.link } : loadDraft(),
   );
   const [editingPost, setEditingPost] = useState(false);
+  // The post a Free account last compared, shown with the free word check instead of a paywall.
+  const [freeJob, setFreeJob] = useState<TailorDraft | null>(null);
+  const pro = useProTools();
+  const { user } = useMe();
   const run = useTailorRun(source);
   const usageNote = useUsageNote();
   const last = run.last;
@@ -93,16 +108,46 @@ function TailorWorkspace({ source, baseTitle }: { source: Resume; baseTitle: str
     [update, lastId],
   );
 
+  // Once a sign-in shows the plan includes tailoring, the free check makes way for the real one.
+  const free = pro === true ? null : freeJob;
+
   let otto: string = OTTO.tailor.intro;
   if (run.loading) otto = OTTO.tailor.working;
   else if (run.error) otto = run.error;
+  else if (free) otto = FREE_OTTO;
   else if (screener) otto = OTTO.tailor.screener(screener.counts.must, screener.counts.nice);
 
-  const postChanged = run.last !== null && run.last.job.text.trim() !== draft.text.trim();
-  const folded = Boolean(last && screener) && !editingPost && !run.loading && !postChanged;
-  const jobName = last
-    ? jobLabel(last.job.title || last.result.job.title, last.job.company || last.result.job.company)
-    : "";
+  const shownJob = free ?? run.last?.job ?? null;
+  const postChanged = shownJob !== null && shownJob.text.trim() !== draft.text.trim();
+  const folded =
+    Boolean(free ?? (last && screener)) && !editingPost && !run.loading && !postChanged;
+  let jobName = "";
+  if (free) jobName = jobLabel(free.title, free.company);
+  else if (last) {
+    jobName = jobLabel(
+      last.job.title || last.result.job.title,
+      last.job.company || last.result.job.company,
+    );
+  }
+
+  async function compare() {
+    setEditingPost(false);
+    const job = draft;
+    if (await tailorIncluded()) {
+      setFreeJob(null);
+      void run.start(job);
+    } else {
+      setFreeJob(job);
+    }
+  }
+  // Signing in re-renders the workspace before it resolves, so the compare that follows sees the account.
+  const compareNow = useRef(compare);
+  useEffect(() => {
+    compareNow.current = compare;
+  });
+  async function signInAndCompare() {
+    if (await run.signIn()) void compareNow.current();
+  }
   const location = draft.posting?.location ?? "";
   const eligibility = useMemo(
     () =>
@@ -142,17 +187,39 @@ function TailorWorkspace({ source, baseTitle }: { source: Resume; baseTitle: str
         <JobForm
           draft={draft}
           onChange={setDraft}
-          onSubmit={() => {
-            setEditingPost(false);
-            void run.start(draft);
-          }}
+          onSubmit={() => void compare()}
           busy={run.loading}
           note={usageNote}
           queued={queued}
         />
       </Card>
       {run.loading ? <OttoWorking task="tailor" /> : null}
-      {last && choices && screener ? (
+      {free ? (
+        <>
+          {postChanged ? (
+            <Alert variant="warn" title="This check is for the post you compared before">
+              Compare again to check the post as it is now.
+            </Alert>
+          ) : null}
+          <FreeMatch
+            source={source}
+            jobText={free.text}
+            onSignIn={user ? undefined : () => void signInAndCompare()}
+          />
+          <Button
+            variant="ghost"
+            onClick={() => {
+              run.clear();
+              setFreeJob(null);
+              setDraft(EMPTY_DRAFT);
+              setEditingPost(false);
+            }}
+            className="self-start"
+          >
+            Start over with another job
+          </Button>
+        </>
+      ) : last && choices && screener ? (
         <>
           <TrackView
             event="screener_viewed"
@@ -182,6 +249,7 @@ function TailorWorkspace({ source, baseTitle }: { source: Resume; baseTitle: str
             variant="ghost"
             onClick={() => {
               run.clear();
+              setFreeJob(null);
               setDraft(EMPTY_DRAFT);
               setEditingPost(false);
             }}

@@ -3,11 +3,13 @@ import { PRO_TRIAL } from "@/config/plans";
 import { tailorResume } from "@/lib/ai/tailor";
 import { AIError, type TailorResult } from "@/lib/ai/types";
 import type { ApiErrorBody, TailorRequestBody, TailorResponse } from "@/lib/api/types";
-import { cookieJar, jsonRequest, resetDb, signInOnTrial } from "@/lib/auth/test-helpers";
+import { getDb } from "@/db/client";
+import { usage } from "@/db/schema";
+import { cookieJar, jsonRequest, resetDb, signInAs, signInOnTrial } from "@/lib/auth/test-helpers";
 import type { SessionUser } from "@/lib/auth/types";
 import { resetEnvForTests } from "@/lib/env";
 import { createSampleResume } from "@/lib/resume/sample";
-import { consumeUsage, getUsage } from "@/lib/usage";
+import { consumeUsage, getUsage, monthKey } from "@/lib/usage";
 
 import { POST } from "./route";
 
@@ -142,5 +144,17 @@ describe("POST /api/tailor", () => {
     expect((await tailor()).status).toBe(502);
 
     expect((await getUsage(user)).tailor.used).toBe(0);
+  });
+
+  it("points Free to Pro even with invite extras, which wait for the trial or an upgrade", async () => {
+    const user = await signInAs("free@example.com");
+    const db = await getDb();
+    await db.insert(usage).values({ subject: user.id, feature: "tailor", period: monthKey(NOW), bonus: 2 });
+    const calls = vi.mocked(tailorResume).mock.calls.length;
+    const res = await tailor();
+    expect(res.status).toBe(402);
+    expect((await errorOf(res)).code).toBe("upgrade_required");
+    expect(vi.mocked(tailorResume).mock.calls).toHaveLength(calls);
+    expect((await getUsage(user)).tailor).toEqual({ used: 0, limit: 0 });
   });
 });

@@ -49,8 +49,8 @@ export async function takeAccountUnit(
   if (missing) return missing;
   const budget = await checkAiBudget(user, now);
   if (!budget.allowed) return budgetReached(user, budget.period, now);
-  const { allowed, period } = await consumeUsage(user, feature, now);
-  if (!allowed) return limitReached(user, feature, period, now);
+  const { allowed, usage, period } = await consumeUsage(user, feature, now);
+  if (!allowed) return limitReached(user, feature, period, now, usage[feature].limit);
   return {
     giveBack: () => refundUsage(user, feature, now),
     spend: (work) => spendAiTokens(user, now, work),
@@ -73,19 +73,25 @@ export function limitReached(
   feature: Feature,
   period: UsagePeriod,
   now: number,
+  limit = planLimits(user.plan, period.kind)[feature],
 ): Response {
   if (!planIncludes(user.plan, feature)) return upgradeRequired(user, feature);
   log.info(`${feature}.limit_reached`, { plan: user.plan, period: period.kind });
   return fail(
     "limit_reached",
-    limitMessage(user, feature, period),
+    limitMessage(user, feature, period, limit),
     429,
     retryAfterHeader(Math.max(0, period.resetsAt - now)),
   );
 }
 
-export function limitMessage(user: SessionUser, feature: Feature, period: UsagePeriod): string {
-  const limit = planLimits(user.plan, period.kind)[feature];
+// The limit passed in includes invite extras, so the message counts what the person really had.
+export function limitMessage(
+  user: SessionUser,
+  feature: Feature,
+  period: UsagePeriod,
+  limit = planLimits(user.plan, period.kind)[feature],
+): string {
   const used = `You've used ${thisPeriod(period)}'s ${limit} ${FEATURE_LABELS[feature]}.`;
   if (period.kind === "trial") {
     const monthly = planLimits(user.plan, "month")[feature];

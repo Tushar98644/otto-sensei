@@ -24,7 +24,7 @@ export async function GET(): Promise<Response> {
     log.error("writings.list_failed", error);
     return fail(
       "server_error",
-      "Couldn't load your letters and answers. Please try again.",
+      "Couldn't load your letters and messages. Please try again.",
       500,
       NO_STORE,
     );
@@ -52,7 +52,7 @@ export async function POST(req: Request): Promise<Response> {
       log.info("writings.limit_reached", { max: WRITING_LIMITS.perUser });
       return fail(
         "bad_request",
-        `You can keep up to ${count.format(WRITING_LIMITS.perUser)} letters and answers. Delete some old ones to save more.`,
+        `You can keep up to ${count.format(WRITING_LIMITS.perUser)} letters, answers and messages. Delete some old ones to save more.`,
         400,
       );
     }
@@ -60,6 +60,6 @@ export async function POST(req: Request): Promise<Response> {
     return ok(response, { status: 201 });
   } catch (error) {
     log.error("writings.create_failed", error);
-    return fail("server_error", "Couldn't save that letter. Please try again.", 500);
+    return fail("server_error", "Couldn't save that. Please try again.", 500);
   }
 }

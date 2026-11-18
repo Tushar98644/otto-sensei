@@ -17,9 +17,8 @@ import { toast } from "@/components/ui/toast";
 import { undoToast } from "@/components/ui/undo-toast";
 import { api } from "@/lib/api/client";
 import { useResumeList, useStudioHydrated } from "@/lib/store/resume-store";
-import { pluralize } from "@/lib/utils";
-import type { WritingKind } from "@/lib/writings/schema";
-import { LazyWriteDialog } from "../lazy-dialogs";
+import { outreachChange, type OutreachFields } from "../jobs/outreach-saved";
+import { LazyWriteDialog } from "./lazy-write-dialog";
 import { NewResumeMenu } from "../new-resume-menu";
 import { useStudioActions } from "../use-studio-actions";
 import { useApplications } from "../applications/use-applications";
@@ -27,19 +26,23 @@ import {
   entryApplication,
   filterEntries,
   jobLine,
+  KIND_NAMES,
   kindCounts,
+  kindsTally,
   letterEntries,
   sourceTitle,
   studioTarget,
+  withChange,
   type LetterEntry,
   type LetterFilter,
 } from "./entries";
 import { LetterDialog } from "./letter-dialog";
 import { LETTER_FILTER_NAMES, LetterFilters } from "./letter-filters";
 import { LetterRow } from "./letter-row";
+import { fieldsOfEntry, OutreachView } from "./outreach-view";
 import { useLetterPdf } from "./use-letter-pdf";
 import { useWritings } from "./use-writings";
-import type { Written } from "./write-dialog";
+import type { WriteKind, Written } from "./write-dialog";
 
 const count = new Intl.NumberFormat("en-US");
 const PAGE_ROWS = 50;
@@ -60,7 +63,7 @@ export function LettersPage() {
   const [upgradeOpen, setUpgradeOpen] = useState(false);
   const [filter, setFilter] = useState<LetterFilter>("all");
   const [rows, setRows] = useState(PAGE_ROWS);
-  const [composer, setComposer] = useState<Opening<{ kind: WritingKind }> | null>(null);
+  const [composer, setComposer] = useState<Opening<{ kind: WriteKind }> | null>(null);
   const [viewer, setViewer] = useState<Opening<{ entryKey: string }> | null>(null);
   const [unsaved, setUnsaved] = useState<LetterEntry[]>([]);
   const openings = useRef(0);
@@ -74,7 +77,7 @@ export function LettersPage() {
   const viewing = viewer ? entries.find((entry) => entry.key === viewer.entryKey) : undefined;
   const ready = hydrated && writings.status === "ready";
 
-  function start(kind: WritingKind) {
+  function start(kind: WriteKind) {
     if (locked) {
       setUpgradeOpen(true);
       return;
@@ -102,8 +105,12 @@ export function LettersPage() {
     setRows(PAGE_ROWS);
   }
 
+  // A message is about the job, not the resume, so it has no studio step to open.
+  const studioFor = (entry: LetterEntry) =>
+    entry.kind === "outreach" ? null : studioTarget(entry, resumes);
+
   function openInStudio(entry: LetterEntry) {
-    const target = studioTarget(entry, resumes);
+    const target = studioFor(entry);
     if (target) actions.open(target.id, target.step);
   }
 
@@ -131,6 +138,22 @@ export function LettersPage() {
     }
   }
 
+  async function saveOutreach(entry: LetterEntry, fields: OutreachFields): Promise<boolean> {
+    const before = writings.items.find((item) => item.id === entry.writingId);
+    const change = outreachChange(fields, fieldsOfEntry(entry));
+    if (!before?.outreach || !change) return true;
+    writings.replace(withChange(before, change));
+    try {
+      const { writing } = await api.editWriting(before.id, change);
+      writings.replace(writing);
+      return true;
+    } catch (error) {
+      writings.replace(before);
+      toast({ title: "Couldn't save your edit", description: errorMessage(error), variant: "error" });
+      return false;
+    }
+  }
+
   function remove(entry: LetterEntry) {
     if (viewer?.entryKey === entry.key) setViewer({ ...viewer, open: false });
     const saved = writings.items.find((item) => item.id === entry.writingId);
@@ -139,7 +162,7 @@ export function LettersPage() {
     const local = !saved && entry.copyId === null;
     if (local) setUnsaved((list) => list.filter((item) => item.key !== entry.key));
     undoToast({
-      title: entry.kind === "letter" ? "Letter deleted" : "Answer deleted",
+      title: `${KIND_NAMES[entry.kind].label} deleted`,
       description: jobLine(entry) || undefined,
       onUndo: () => {
         if (saved) writings.restore(saved);
@@ -164,12 +187,12 @@ export function LettersPage() {
       <header className="flex flex-wrap items-end justify-between gap-x-6 gap-y-4">
         <div className="min-w-0">
           <h1 className="font-display text-4xl/10 font-normal tracking-tight text-ink sm:text-5xl/13">
-            Cover letters
+            Letters and messages
           </h1>
           <p className="mt-2 max-w-prose text-base/7 text-muted">
             {ready && entries.length > 0
-              ? `${tally(counts)}, each written for one job.`
-              : "Cover letters and answers to application questions, written only from your resume and the job post."}
+              ? `${kindsTally(counts)}, each written for one job.`
+              : "Cover letters, answers to application questions and outreach messages, written only from your resume and the job post."}
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -233,7 +256,7 @@ export function LettersPage() {
       ) : (
         <section aria-labelledby="letters-heading" className="flex flex-col gap-4">
           <h2 id="letters-heading" className="sr-only">
-            Your letters and answers
+            Your letters, answers and messages
           </h2>
           <div className="-mx-4 overflow-x-auto px-4 sm:mx-0 sm:px-0">
             <LetterFilters filter={filter} counts={counts} onChange={pickFilter} />
@@ -256,7 +279,7 @@ export function LettersPage() {
                     source={sourceTitle(entry, resumes)}
                     application={entryApplication(entry, applications.items, resumes)}
                     now={now}
-                    canOpenInStudio={studioTarget(entry, resumes) !== null}
+                    canOpenInStudio={studioFor(entry) !== null}
                     onOpen={() => view(entry.key)}
                     onDownload={() => void pdf.download(entry)}
                     onOpenInStudio={() => openInStudio(entry)}
@@ -300,7 +323,17 @@ export function LettersPage() {
           onWritten={written}
         />
       )}
-      {viewer && viewing ? (
+      {viewer && viewing?.kind === "outreach" ? (
+        <OutreachView
+          key={viewer.key}
+          entry={viewing}
+          open={viewer.open}
+          source={sourceTitle(viewing, resumes)}
+          now={now}
+          onClose={() => setViewer({ ...viewer, open: false })}
+          onSave={saveOutreach}
+        />
+      ) : viewer && viewing ? (
         <LetterDialog
           key={viewer.key}
           entry={viewing}
@@ -318,15 +351,6 @@ export function LettersPage() {
       <LazyUpgradeDialog open={upgradeOpen} onOpenChange={setUpgradeOpen} feature="letter" />
     </div>
   );
-}
-
-function tally(counts: Record<LetterFilter, number>): string {
-  return [
-    counts.letter ? pluralize(counts.letter, "letter") : null,
-    counts.answer ? pluralize(counts.answer, "answer") : null,
-  ]
-    .filter(Boolean)
-    .join(" and ");
 }
 
 function LoadingState() {

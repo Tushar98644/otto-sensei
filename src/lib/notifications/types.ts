@@ -1,5 +1,6 @@
 import type { z } from "zod";
 import type {
+  EmailChoicesSchema,
   FollowUpActionSchema,
   MarkNotificationsReadSchema,
   ReminderSettingsSchema,
@@ -36,6 +37,17 @@ export type ReminderSettingsResponse = {
   emailAvailable: boolean;
   chosen: boolean;
 } & ReminderSettings;
+
+// Each list has its own signed unsubscribe link: follow-up reminders, the weekly jobs email, and tips.
+export const EMAIL_LISTS = ["reminders", "jobs", "tips"] as const;
+export type EmailList = (typeof EMAIL_LISTS)[number];
+
+export const TIP_EMAIL_KINDS = ["no_resume", "fixes_back", "trial_ended", "win_back"] as const;
+export type TipEmailKind = (typeof TIP_EMAIL_KINDS)[number];
+
+export type EmailChoices = { jobEmails: boolean; tipEmails: boolean; jobPromptClosed: boolean };
+export type EmailChoicesBody = z.input<typeof EmailChoicesSchema>;
+export type EmailChoicesResponse = { ok: true; emailAvailable: boolean } & EmailChoices;
 
 export const FOLLOW_UP_ACTIONS = ["done", "snooze"] as const;
 export type FollowUpAction = (typeof FOLLOW_UP_ACTIONS)[number];

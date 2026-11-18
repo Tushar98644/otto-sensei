@@ -2,7 +2,13 @@ import type { Application } from "@/lib/applications/schema";
 import { applicationForCopy, applicationForWriting } from "@/lib/applications/thread";
 import { resumeTitle } from "@/lib/resume/ops";
 import { emptyResume, type Resume } from "@/lib/resume/schema";
-import type { Writing, WritingKind } from "@/lib/writings/schema";
+import { pluralize } from "@/lib/utils";
+import type {
+  OutreachParts,
+  UpdateWritingBody,
+  Writing,
+  WritingKind,
+} from "@/lib/writings/schema";
 
 export type LetterEntry = {
   key: string;
@@ -20,9 +26,17 @@ export type LetterEntry = {
   writingId: string | null;
   copyId: string | null;
   applicationId: string | null;
+  // Outreach messages only: the email is the text.
+  outreach?: OutreachParts;
 };
 
 export type LetterFilter = "all" | WritingKind;
+
+export const KIND_NAMES: Record<WritingKind, { one: string; label: string; copy: string }> = {
+  letter: { one: "letter", label: "Letter", copy: "letter" },
+  answer: { one: "answer", label: "Answer", copy: "answer" },
+  outreach: { one: "message", label: "Message", copy: "email" },
+};
 
 const same = (a: string, b: string) => a.trim() === b.trim();
 
@@ -47,6 +61,7 @@ function fromWriting(writing: Writing, copies: readonly Resume[]): LetterEntry {
     writingId: writing.id,
     copyId: copy?.id ?? null,
     applicationId: writing.applicationId,
+    ...(writing.outreach ? { outreach: writing.outreach } : {}),
   };
 }
 
@@ -94,8 +109,36 @@ export function filterEntries(entries: readonly LetterEntry[], filter: LetterFil
 }
 
 export function kindCounts(entries: readonly LetterEntry[]): Record<LetterFilter, number> {
-  const letters = entries.filter((entry) => entry.kind === "letter").length;
-  return { all: entries.length, letter: letters, answer: entries.length - letters };
+  const counts: Record<LetterFilter, number> = { all: entries.length, letter: 0, answer: 0, outreach: 0 };
+  for (const entry of entries) counts[entry.kind] += 1;
+  return counts;
+}
+
+export function kindsTally(counts: Record<LetterFilter, number>): string {
+  const parts = [
+    counts.letter ? pluralize(counts.letter, "letter") : null,
+    counts.answer ? pluralize(counts.answer, "answer") : null,
+    counts.outreach ? pluralize(counts.outreach, "outreach message") : null,
+  ].filter((part) => part !== null);
+  const last = parts.pop();
+  return parts.length > 0 ? `${parts.join(", ")} and ${last}` : (last ?? "");
+}
+
+// The saved message as it will be once an edit lands, shown while the edit is on its way.
+export function withChange(writing: Writing, change: UpdateWritingBody): Writing {
+  return {
+    ...writing,
+    text: change.text ?? writing.text,
+    ...(writing.outreach
+      ? {
+          outreach: {
+            ...writing.outreach,
+            subject: change.subject ?? writing.outreach.subject,
+            note: change.note ?? writing.outreach.note,
+          },
+        }
+      : {}),
+  };
 }
 
 export function entryApplication(

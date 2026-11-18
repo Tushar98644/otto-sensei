@@ -3,6 +3,8 @@
 import { useId } from "react";
 import { errorMessage } from "@/components/account/errors";
 import { useMe } from "@/components/account/use-me";
+import { SECTION_SCROLL } from "@/components/settings/sections";
+import { ACCOUNT_SECTIONS } from "@/components/setup/links";
 import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -12,6 +14,7 @@ import { toast } from "@/components/ui/toast";
 import { FOLLOW_UP_DAY_CHOICES, SNOOZE_DAYS } from "@/lib/applications/follow-up";
 import type { ReminderSettings } from "@/lib/notifications/types";
 import { cn } from "@/lib/utils";
+import { saveEmailChoices, useEmailChoices, type EmailChoicesData } from "./use-email-choices";
 import { saveReminderSettings, useReminderSettings } from "./use-reminder-settings";
 
 const SEGMENT = cn(
@@ -49,10 +52,15 @@ export function ReminderSettingsCard() {
   }
 
   return (
-    <Card id="reminders" aria-labelledby={titleId} role="region" className="scroll-mt-24">
+    <Card
+      id={ACCOUNT_SECTIONS.reminders}
+      aria-labelledby={titleId}
+      role="region"
+      className={SECTION_SCROLL}
+    >
       <CardHeader>
-        <CardTitle as="h2" id={titleId}>
-          Reminders
+        <CardTitle as="h3" id={titleId}>
+          Reminders and emails
         </CardTitle>
         <CardDescription>
           When you mark a job applied, Otto sets a reminder to follow up and shows it in the bell
@@ -66,11 +74,14 @@ export function ReminderSettingsCard() {
             onChange={(followUpDays) => void save({ followUpDays })}
           />
           {settings.emailAvailable ? (
-            <EmailChoice
+            <OnOffChoice
+              label="Email me follow-up reminders"
+              hint="Off until you turn it on. At most one email a day, with one-click Done, Snooze and Unsubscribe."
               value={settings.emailReminders}
               onChange={(emailReminders) => void save({ emailReminders })}
             />
           ) : null}
+          <OtherEmails userId={userId} />
         </div>
       ) : query.isError && query.fetchStatus === "idle" ? (
         <Alert
@@ -118,10 +129,78 @@ function DelayChoice({ value, onChange }: { value: number; onChange: (days: numb
   );
 }
 
-function EmailChoice({
+type ListChange = Partial<Pick<EmailChoicesData, "jobEmails" | "tipEmails">>;
+
+function savedTitle(change: ListChange, saved: EmailChoicesData): string {
+  if (change.jobEmails !== undefined) {
+    return saved.jobEmails ? "Weekly jobs email is on." : "Weekly jobs email is off.";
+  }
+  return saved.tipEmails ? "Tips and reminders are on." : "Tips and reminders are off.";
+}
+
+function OtherEmails({ userId }: { userId: string }) {
+  const query = useEmailChoices(userId);
+  const choices = query.data;
+
+  async function save(change: ListChange) {
+    try {
+      const saved = await saveEmailChoices(userId, change);
+      toast({ title: savedTitle(change, saved), variant: "success" });
+    } catch (error) {
+      toast({ title: "Couldn't save that", description: errorMessage(error), variant: "error" });
+    }
+  }
+
+  if (choices) {
+    if (!choices.emailAvailable) return null;
+    return (
+      <div className="flex flex-col gap-5 border-t border-border pt-5">
+        <OnOffChoice
+          label="Weekly jobs email"
+          hint="New jobs that match your resume, at most once a week. Off until you turn it on."
+          value={choices.jobEmails}
+          onChange={(jobEmails) => void save({ jobEmails })}
+        />
+        <OnOffChoice
+          label="Tips and reminders"
+          hint="A few short emails, like when Free's line fixes come back or after a trial ends. On until you turn it off."
+          value={choices.tipEmails}
+          onChange={(tipEmails) => void save({ tipEmails })}
+        />
+      </div>
+    );
+  }
+  if (query.isError && query.fetchStatus === "idle") {
+    return (
+      <Alert
+        variant="error"
+        title="Couldn't load your email settings"
+        action={
+          <Button variant="secondary" onClick={() => void query.refetch()}>
+            Try again
+          </Button>
+        }
+      >
+        Check your connection, then try again.
+      </Alert>
+    );
+  }
+  return (
+    <div className="flex flex-col gap-5 border-t border-border pt-5">
+      <Skeleton className="h-11 w-full" />
+      <Skeleton className="h-11 w-full" />
+    </div>
+  );
+}
+
+function OnOffChoice({
+  label,
+  hint,
   value,
   onChange,
 }: {
+  label: string;
+  hint: string;
   value: boolean;
   onChange: (value: boolean) => void;
 }) {
@@ -130,18 +209,17 @@ function EmailChoice({
     <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
       <div className="flex flex-col gap-0.5">
         <span id={`${id}-label`} className="text-sm font-medium text-ink">
-          Email me too
+          {label}
         </span>
         <span id={`${id}-hint`} className="text-sm text-muted">
-          Off until you turn it on. At most one email a day, with one-click Done, Snooze and
-          Unsubscribe.
+          {hint}
         </span>
       </div>
       <div
         role="radiogroup"
         aria-labelledby={`${id}-label`}
         aria-describedby={`${id}-hint`}
-        className="grid grid-cols-2 gap-1 rounded-xl bg-surface-muted p-1 sm:w-48"
+        className="grid shrink-0 grid-cols-2 gap-1 rounded-xl bg-surface-muted p-1 sm:w-48"
       >
         {[
           { on: true, label: "On" },

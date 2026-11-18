@@ -139,11 +139,12 @@ export async function readReminderSettings(
     .select({
       emailReminders: notificationSettings.emailReminders,
       followUpDays: notificationSettings.followUpDays,
+      chosen: notificationSettings.remindersChosen,
     })
     .from(notificationSettings)
     .where(eq(notificationSettings.userId, userId))
     .limit(1);
-  return row ? { ...row, chosen: true } : { ...DEFAULT_SETTINGS, chosen: false };
+  return row ?? { ...DEFAULT_SETTINGS, chosen: false };
 }
 
 export async function readEmailReminders(userId: string): Promise<boolean | null> {
@@ -162,6 +163,7 @@ export async function saveReminderSettings(
     const set = {
       ...(change.emailReminders === undefined ? {} : { emailReminders: change.emailReminders }),
       ...(change.followUpDays === undefined ? {} : { followUpDays: change.followUpDays }),
+      remindersChosen: true,
       updatedAt: now,
     };
     const [row] = await tx

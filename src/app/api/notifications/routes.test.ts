@@ -5,13 +5,16 @@ import { notifications } from "@/db/schema";
 import type { ApiErrorBody } from "@/lib/api/types";
 import { cookieJar, createUser, resetDb, signInAs } from "@/lib/auth/test-helpers";
 import { resetEnvForTests } from "@/lib/env";
+import { readEmailChoices, saveEmailChoices } from "@/lib/notifications/choices";
 import type {
+  EmailChoicesResponse,
   MarkNotificationsReadResponse,
   NotificationsResponse,
   ReminderSettingsResponse,
 } from "@/lib/notifications/types";
 import { readEmailReminders, setEmailReminders } from "@/lib/notifications/records";
-import { unsubscribeToken } from "@/lib/notifications/unsubscribe";
+import { unsubscribeToken, unsubscribeUrl } from "@/lib/notifications/unsubscribe";
+import { GET as getEmails, PUT as putEmails } from "./emails/route";
 import { GET, PATCH } from "./route";
 import { GET as getSettings, PUT as putSettings } from "./settings/route";
 import { GET as openUnsubscribe, POST as unsubscribe } from "./unsubscribe/route";
@@ -169,6 +172,23 @@ describe("/api/notifications/settings", () => {
       expect(await errorCode(await put(body))).toBe("bad_request");
     }
   });
+
+  it("leaves the reminder choice unmade when only the jobs or tips emails are answered", async () => {
+    const maya = await signInAs("maya@example.com");
+    await saveEmailChoices(maya.id, { jobPromptClosed: true });
+    await saveEmailChoices(maya.id, { tipEmails: false });
+    expect((await (await getSettings()).json()) as ReminderSettingsResponse).toMatchObject({
+      emailReminders: false,
+      followUpDays: 7,
+      chosen: false,
+    });
+
+    await put({ emailReminders: false });
+    await saveEmailChoices(maya.id, { jobEmails: true });
+    expect((await (await getSettings()).json()) as ReminderSettingsResponse).toMatchObject({
+      chosen: true,
+    });
+  });
 });
 
 describe("/api/notifications/unsubscribe", () => {
@@ -229,8 +249,156 @@ describe("/api/notifications/unsubscribe", () => {
   });
 
   it("sends a plain visit to the Account page's switch without changing anything", async () => {
-    const res = openUnsubscribe();
+    const maya = await createUser("maya@example.com");
+    await setEmailReminders(maya.id, true);
+    const res = openUnsubscribe(
+      new Request(
+        `http://localhost/api/notifications/unsubscribe?u=${maya.id}&t=${unsubscribeToken(maya.id)}`,
+      ),
+    );
     expect(res.status).toBe(303);
     expect(res.headers.get("location")).toBe("https://otto.test/dashboard/account#reminders");
+    expect(await remindersOf(maya.id)).toBe(true);
+  });
+
+  it("turns off only the list its link was signed for", async () => {
+    const maya = await createUser("maya@example.com");
+    await setEmailReminders(maya.id, true);
+    await saveEmailChoices(maya.id, { jobEmails: true });
+
+    const jobs = await oneClick(`u=${maya.id}&t=${unsubscribeToken(maya.id, "jobs")}&l=jobs`);
+    expect(jobs.status).toBe(200);
+    expect(await readEmailChoices(maya.id)).toMatchObject({ jobEmails: false, tipEmails: true });
+    expect(await remindersOf(maya.id)).toBe(true);
+
+    const tips = await oneClick(`u=${maya.id}&t=${unsubscribeToken(maya.id, "tips")}&l=tips`);
+    expect(tips.status).toBe(200);
+    expect(await readEmailChoices(maya.id)).toMatchObject({ jobEmails: false, tipEmails: false });
+    expect(await remindersOf(maya.id)).toBe(true);
+  });
+
+  it("refuses a token signed for another list, or a list it doesn't know", async () => {
+    const maya = await createUser("maya@example.com");
+    await setEmailReminders(maya.id, true);
+    await saveEmailChoices(maya.id, { jobEmails: true });
+    for (const query of [
+      `u=${maya.id}&t=${unsubscribeToken(maya.id, "tips")}&l=jobs`,
+      `u=${maya.id}&t=${unsubscribeToken(maya.id, "jobs")}`,
+      `u=${maya.id}&t=${unsubscribeToken(maya.id)}&l=tips`,
+      `u=${maya.id}&t=${unsubscribeToken(maya.id, "jobs")}&l=everything`,
+    ]) {
+      expect((await oneClick(query)).status).toBe(400);
+    }
+    expect(await readEmailChoices(maya.id)).toMatchObject({ jobEmails: true, tipEmails: true });
+    expect(await remindersOf(maya.id)).toBe(true);
+  });
+
+  it("shows a confirm page for a list's link and changes nothing until it is pressed", async () => {
+    const maya = await createUser("maya@example.com");
+    await saveEmailChoices(maya.id, { jobEmails: true });
+    const link = unsubscribeUrl(maya.id, "jobs")!;
+    expect(new URL(link).searchParams.get("l")).toBe("jobs");
+
+    const visit = openUnsubscribe(new Request(link));
+    expect(visit.status).toBe(200);
+    expect(visit.headers.get("content-type")).toBe("text/html; charset=utf-8");
+    expect(visit.headers.get("cache-control")).toBe("no-store");
+    const html = await visit.text();
+    expect(html).toContain("Stop the weekly email");
+    const action = /action="([^"]+)"/.exec(html)?.[1]?.replaceAll("&amp;", "&");
+    expect(action).toMatch(/^\/api\/notifications\/unsubscribe\?/);
+    expect((await readEmailChoices(maya.id))?.jobEmails).toBe(true);
+
+    const pressed = await unsubscribe(new Request(`http://localhost${action}`, { method: "POST" }));
+    expect(pressed.status).toBe(200);
+    expect(await pressed.text()).toContain("You won&#39;t get the weekly jobs email any more.");
+    expect((await readEmailChoices(maya.id))?.jobEmails).toBe(false);
+
+    const forged = openUnsubscribe(
+      new Request(
+        `http://localhost/api/notifications/unsubscribe?u=${maya.id}&t=${"A".repeat(43)}&l=tips`,
+      ),
+    );
+    expect(forged.status).toBe(400);
+    expect(await forged.text()).toContain("That link isn&#39;t valid any more.");
+  });
+});
+
+describe("/api/notifications/emails", () => {
+  beforeEach(async () => {
+    await resetDb();
+    cookieJar.clear();
+  });
+
+  afterEach(() => {
+    delete process.env.RESEND_API_KEY;
+    delete process.env.EMAIL_FROM;
+    resetEnvForTests();
+  });
+
+  function save(body: unknown, headers: Record<string, string> = JSON_TYPE) {
+    return putEmails(
+      new Request("http://localhost/api/notifications/emails", {
+        method: "PUT",
+        headers,
+        body: JSON.stringify(body),
+      }),
+    );
+  }
+
+  it("needs a signed-in account", async () => {
+    expect((await getEmails()).status).toBe(401);
+    expect((await save({ jobEmails: true })).status).toBe(401);
+  });
+
+  it("starts with the weekly jobs email off and tips on, and saves each choice", async () => {
+    await signInAs("maya@example.com");
+    expect((await (await getEmails()).json()) as EmailChoicesResponse).toEqual({
+      ok: true,
+      jobEmails: false,
+      tipEmails: true,
+      jobPromptClosed: false,
+      emailAvailable: false,
+    });
+
+    process.env.RESEND_API_KEY = "re_test";
+    process.env.EMAIL_FROM = "Otto Sensei <otto@example.com>";
+    resetEnvForTests();
+    const tipsOff = (await (await save({ tipEmails: false })).json()) as EmailChoicesResponse;
+    expect(tipsOff).toMatchObject({
+      jobEmails: false,
+      tipEmails: false,
+      jobPromptClosed: false,
+      emailAvailable: true,
+    });
+
+    const jobsOn = (await (await save({ jobEmails: true })).json()) as EmailChoicesResponse;
+    expect(jobsOn).toMatchObject({ jobEmails: true, tipEmails: false, jobPromptClosed: true });
+
+    const jobsOff = (await (await save({ jobEmails: false })).json()) as EmailChoicesResponse;
+    expect(jobsOff).toMatchObject({ jobEmails: false, jobPromptClosed: true });
+    expect((await (await getSettings()).json()) as ReminderSettingsResponse).toMatchObject({
+      emailReminders: false,
+      followUpDays: 7,
+    });
+  });
+
+  it("closes the Jobs tab's card without turning the email on", async () => {
+    await signInAs("maya@example.com");
+    const closed = (await (await save({ jobPromptClosed: true })).json()) as EmailChoicesResponse;
+    expect(closed).toMatchObject({ jobEmails: false, tipEmails: true, jobPromptClosed: true });
+  });
+
+  it("rejects bad bodies and non-JSON requests", async () => {
+    await signInAs("maya@example.com");
+    for (const body of [
+      {},
+      { jobEmails: "yes" },
+      { jobPromptClosed: false },
+      { tipEmails: null },
+    ]) {
+      expect(await errorCode(await save(body))).toBe("bad_request");
+    }
+    expect((await save({ jobEmails: true }, { "content-type": "text/plain" })).status).toBe(415);
   });
 });

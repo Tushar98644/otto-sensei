@@ -4,6 +4,8 @@ import { useId } from "react";
 import { useProTools, useTryProLabel } from "@/components/account/pro-tools";
 import { openUpgradePrompt } from "@/components/account/upgrade-prompt";
 import { OTTO } from "@/components/mascot/lines";
+import { SECTION_SCROLL } from "@/components/settings/sections";
+import { ACCOUNT_SECTIONS } from "@/components/setup/links";
 import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -19,9 +21,14 @@ export function WorkProfileCard() {
   if (work.status === "unknown" || work.status === "signed_out") return null;
 
   return (
-    <Card id="work-profile" aria-labelledby={titleId} role="region" className="scroll-mt-24">
+    <Card
+      id={ACCOUNT_SECTIONS.work}
+      aria-labelledby={titleId}
+      role="region"
+      className={SECTION_SCROLL}
+    >
       <CardHeader>
-        <CardTitle as="h2" id={titleId}>
+        <CardTitle as="h3" id={titleId}>
           Where you can work
         </CardTitle>
         <CardDescription>

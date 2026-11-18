@@ -79,8 +79,27 @@ describe("emailSender", () => {
       error: { name: "invalid_from_address", statusCode: 422, message: "Bad from" },
       headers: null,
     });
-    expect(await emailSender()!.sendBatch([MESSAGE], "k")).toEqual({ sent: 0, failed: 1 });
+    expect(await emailSender()!.sendBatch([MESSAGE], "k")).toEqual({ sent: 0, failed: 1, refused: true });
     expect(send).toHaveBeenCalledTimes(1);
+  });
+
+  it("says a batch was refused only when every try was turned away", async () => {
+    vi.useFakeTimers();
+    const quota = {
+      data: null,
+      error: { name: "daily_quota_exceeded", statusCode: 429, message: "Quota" },
+      headers: null,
+    };
+    send.mockResolvedValue(quota);
+    const overQuota = emailSender()!.sendBatch([MESSAGE], "k");
+    await vi.runAllTimersAsync();
+    expect(await overQuota).toEqual({ sent: 0, failed: 1, refused: true });
+
+    send.mockReset();
+    send.mockRejectedValueOnce(new Error("socket hang up")).mockResolvedValueOnce(quota);
+    const unknown = emailSender()!.sendBatch([MESSAGE], "k");
+    await vi.runAllTimersAsync();
+    expect(await unknown).toEqual({ sent: 0, failed: 1 });
   });
 
   it("sends nothing for an empty batch", async () => {

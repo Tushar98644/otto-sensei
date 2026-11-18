@@ -6,7 +6,7 @@ import type { Resume } from "@/lib/resume/schema";
 import { AnswerBox } from "./answer-box";
 import { LetterPanel } from "./letter-panel";
 import { APPLY_KIT_ID } from "./letter-request";
-import { writingAllowance } from "./screener";
+import { writingAllowance } from "./writing-allowance";
 import type { SavedAnswer, SavedWriting } from "./session";
 import type { Writing } from "./use-writing";
 

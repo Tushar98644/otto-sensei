@@ -37,7 +37,7 @@ export function UsageCard({ me, plan }: { me: Me; plan: PlanId }) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle as="h2">
+        <CardTitle as="h3">
           {trialEndsAt ? "Your trial" : sentenceCase(thisPeriod(period))}
         </CardTitle>
         <CardDescription>
@@ -89,7 +89,7 @@ function FreeUsageCard({ me }: { me: Me }) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle as="h2">Otto&apos;s AI help</CardTitle>
+        <CardTitle as="h3">Otto&apos;s AI help</CardTitle>
         <CardDescription>
           Free has {PLANS.free.limits.fix} line fixes a month with Otto, plus the basic reader, the
           recruiter view, editing, PDFs, a few job matches and one tracked application. More line

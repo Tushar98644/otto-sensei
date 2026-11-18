@@ -47,13 +47,13 @@ function captureInvite(): boolean {
   return true;
 }
 
-const EXTRAS = `${REFERRAL_BONUS.fix} more line fixes and ${REFERRAL_BONUS.tailor} more tailored versions on top of your current limits`;
+const EXTRAS = `${REFERRAL_BONUS.fix} more line fixes, plus ${REFERRAL_BONUS.tailor} tailored versions on Pro or Max`;
 
 function announce(outcome: ReferralClaimOutcome) {
   if (outcome === "rewarded") {
     toast({
       title: "You and your friend got extras",
-      description: `${EXTRAS}, for each of you.`,
+      description: `You each get ${EXTRAS}.`,
       variant: "success",
     });
   } else if (outcome === "pending") {
