@@ -11,7 +11,13 @@ import {
   type UsagePeriod,
   type UsageSnapshot,
 } from "@/config/plans";
-import type { AnswerResult, CoverLetterResult, FixResult, TailorResult } from "@/lib/ai/types";
+import type {
+  AnswerResult,
+  CoverLetterResult,
+  FixResult,
+  OutreachResult,
+  TailorResult,
+} from "@/lib/ai/types";
 import type { Application } from "@/lib/applications/schema";
 import type { ApplicationThread } from "@/lib/applications/thread";
 import type { ScreeningQuestion } from "@/lib/ats/types";
@@ -108,6 +114,15 @@ export type AnswerRequestBody = z.input<typeof AnswerRequestSchema>;
 export type AnswerResponse = {
   ok: true;
   result: AnswerResult;
+  usage: UsageSnapshot;
+  demo: boolean;
+};
+
+export const OutreachRequestSchema = TailorRequestSchema;
+export type OutreachRequestBody = z.input<typeof OutreachRequestSchema>;
+export type OutreachResponse = {
+  ok: true;
+  result: OutreachResult;
   usage: UsageSnapshot;
   demo: boolean;
 };

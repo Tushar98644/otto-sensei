@@ -5,7 +5,7 @@ import { resumeToText } from "@/lib/resume/ops";
 import { emptyResume, type Resume } from "@/lib/resume/schema";
 import type { RunOptions, StructuredRequest } from "./client";
 import { AIError, type WritingInput } from "./types";
-import { answerQuestion, assembleLetter, writeCoverLetter } from "./writing";
+import { answerQuestion, assembleLetter, NOTE_CHARS, writeCoverLetter, writeOutreach } from "./writing";
 
 const runStructured = vi.hoisted(() =>
   vi.fn<(request: StructuredRequest<unknown>, options?: RunOptions) => Promise<unknown>>(),
@@ -229,5 +229,76 @@ describe("answerQuestion", () => {
     expect(result.warnings).toEqual([
       "Fill in [Add your own reason here.] with your own words before you send it.",
     ]);
+  });
+});
+
+describe("writeOutreach", () => {
+  const EMAIL = [
+    "I'm applying for the Senior Backend Engineer role at Kestrel Labs. At Mapline I rebuilt the billing service in Go, cutting p99 latency by 40%.",
+    "I also run the weekly on-call rotation for 6 services, so I care about clear alerts and fixes that stay fixed.",
+    "Would you be open to a short call next week? If you're not the right person, could you point me to who is?",
+  ];
+
+  it("sends the resume and post as data and adds the greeting, sign-off and note greeting", async () => {
+    runStructured.mockResolvedValueOnce({
+      subject: "Senior Backend Engineer: Go billing work at Mapline",
+      email: EMAIL,
+      note: "Applying for the Senior Backend Engineer role. I rebuilt Mapline's billing service in Go.",
+    });
+    const result = await writeOutreach(makeResume(), JOB);
+
+    const sent = runStructured.mock.calls[0]?.[0];
+    expect(sent).toMatchObject({ task: "outreach", effort: "low" });
+    expect(sent?.user).toContain("<job_post>\nJob title: Senior Backend Engineer\nCompany: Kestrel Labs\n");
+    expect(sent?.user).not.toContain("Sam Rivera");
+    expect(result.subject).toBe("Senior Backend Engineer: Go billing work at Mapline");
+    expect(result.email.startsWith("Hi [first name],\n\nI'm applying")).toBe(true);
+    expect(result.email.endsWith("Best,\nSam Rivera")).toBe(true);
+    expect(result.note).toBe(
+      "Hi [first name], Applying for the Senior Backend Engineer role. I rebuilt Mapline's billing service in Go.",
+    );
+    expect(result.warnings).toEqual([]);
+    expect(runStructured).toHaveBeenCalledTimes(1);
+  });
+
+  it("replaces a subject or note with an invented number or upgraded verb instead of shipping it", async () => {
+    runStructured.mockResolvedValueOnce({
+      subject: "Backend role: cut latency 3x at Mapline",
+      email: EMAIL,
+      note: "I led the quarterly customer newsletter at Mapline and cut costs by 75%.",
+    });
+    const result = await writeOutreach(makeResume(), JOB);
+    expect(result.subject).toBe("Senior Backend Engineer at Kestrel Labs");
+    expect(result.note).toBe(
+      "Hi [first name], I'm applying for the Senior Backend Engineer role at Kestrel Labs.",
+    );
+    expect(result.note.length).toBeLessThanOrEqual(NOTE_CHARS);
+    expect(result.warnings).toEqual([]);
+  });
+
+  it("keeps the closing ask when the email runs a little over the prompt's length", async () => {
+    const long = [
+      `${EMAIL[0]} ${"I also kept the billing service small and easy to reason about. ".repeat(6)}`,
+      EMAIL[1],
+      EMAIL[2],
+    ];
+    runStructured.mockResolvedValueOnce({ subject: "Backend role", email: long, note: "Applying for the role." });
+    const result = await writeOutreach(makeResume(), JOB);
+    expect(result.email).toContain("could you point me to who is?");
+  });
+
+  it("falls back to the role for an empty subject", async () => {
+    runStructured.mockResolvedValueOnce({ subject: "  ", email: EMAIL, note: "Applying for the role." });
+    const result = await writeOutreach(makeResume(), JOB);
+    expect(result.subject).toBe("Senior Backend Engineer at Kestrel Labs");
+  });
+
+  it("writes a demo message from the resume's own lines without a key", async () => {
+    useKey(null);
+    const result = await writeOutreach(makeResume(), JOB);
+    expect(runStructured).not.toHaveBeenCalled();
+    expect(result.subject).toBe("Senior Backend Engineer at Kestrel Labs");
+    expect(result.email).toContain("rebuilt the billing service in Go");
+    expect(result.note.startsWith("Hi [first name], ")).toBe(true);
   });
 });

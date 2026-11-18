@@ -85,6 +85,8 @@ import type {
   LetterRequestBody,
   LetterResponse,
   MeResponse,
+  OutreachRequestBody,
+  OutreachResponse,
   ReferralClaimResponse,
   ReferralSummaryResponse,
   RequestCodeResponse,
@@ -191,6 +193,8 @@ export const api = {
   tailor: (body: TailorRequestBody) => request<TailorResponse>("/api/tailor", postJson(body)),
   letter: (body: LetterRequestBody) => request<LetterResponse>("/api/letter", postJson(body)),
   answer: (body: AnswerRequestBody) => request<AnswerResponse>("/api/answer", postJson(body)),
+  outreach: (body: OutreachRequestBody) =>
+    request<OutreachResponse>("/api/outreach", postJson(body)),
   interview: (body: InterviewRequestBody) =>
     request<InterviewResponse>("/api/interview", postJson(body)),
   interviewPrep: (applicationId: string) =>

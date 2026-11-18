@@ -25,7 +25,7 @@ export type AccountUnit = {
 const COMES_WITH_PRO: Record<Feature, string> = {
   fix: "More line fixes and summaries come with Pro.",
   tailor: "Tailoring comes with Pro.",
-  letter: "Cover letters, answers and interview prep come with Pro.",
+  letter: "Cover letters, outreach messages, answers and interview prep come with Pro.",
   import: "AI reading of uploads comes with Pro.",
   draft: "Build with Otto comes with Pro.",
   github: "GitHub drafts come with Pro.",

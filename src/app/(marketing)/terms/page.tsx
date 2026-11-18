@@ -86,8 +86,8 @@ export default function TermsPage() {
 
       <h2>The AI writing tools</h2>
       <p>
-        The AI tools (line fixes, tailoring, summaries, cover letters, answers to application
-        questions, interview prep and Build with Otto) are for job-search writing only.
+        The AI tools (line fixes, tailoring, summaries, cover letters, outreach messages, answers to
+        application questions, interview prep and Build with Otto) are for job-search writing only.
       </p>
       <ul>
         <li>

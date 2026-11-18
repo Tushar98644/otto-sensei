@@ -134,8 +134,8 @@ export default function PrivacyPage() {
           the summary you asked Otto to tighten.
         </li>
         <li>
-          <strong>Tailoring, cover letters and application answers:</strong> your resume, the job
-          post and, for an answer, the question.
+          <strong>Tailoring, cover letters, outreach messages and application answers:</strong>{" "}
+          your resume, the job post and, for an answer, the question.
         </li>
         <li>
           <strong>Interview prep:</strong> your resume and the job post.

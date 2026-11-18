@@ -50,3 +50,21 @@ export function demoAnswer(resume: Resume, job: WritingInput, question: string):
   const intro = `This is a sample answer to “${question}” for the ${roleName(job)}.`;
   return [`${intro} ${fact} [Add your own reason here.]`];
 }
+
+export function demoOutreach(
+  resume: Resume,
+  job: WritingInput,
+): { subject: string; email: string[]; note: string } {
+  const [first] = topLines(resume);
+  const fact = first
+    ? `${first.role ? `As ${first.role}, I` : "I"} ${lowerFirst(first.line)}.`
+    : "My resume has the details of my work so far.";
+  return {
+    subject: `${job.jobTitle || "The open role"}${job.company ? ` at ${job.company}` : ""}`,
+    email: [
+      `I'm applying for the ${roleName(job)}. ${fact}`,
+      "This is a sample message from Otto's demo mode. Would you be open to a short call next week?",
+    ],
+    note: `I'm applying for the ${roleName(job)} and would be glad to connect.`,
+  };
+}

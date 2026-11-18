@@ -12,7 +12,7 @@ import { checkContent, textsOf } from "./moderation";
 import { noteTokens } from "./token-meter";
 import { AIError } from "./types";
 
-export type AITask = "structure" | "fix" | "tailor" | "letter" | "answer";
+export type AITask = "structure" | "fix" | "tailor" | "letter" | "answer" | "outreach";
 export type Effort = "low" | "medium";
 
 export type StructuredRequest<T> = {
@@ -33,6 +33,7 @@ const MAX_TOKENS: Record<AITask, number> = {
   fix: 4_000,
   letter: 4_000,
   answer: 3_000,
+  outreach: 3_000,
 };
 // Routes have maxDuration = 60 and work around the call, so all attempts share this deadline.
 const DEADLINE_MS = 50_000;

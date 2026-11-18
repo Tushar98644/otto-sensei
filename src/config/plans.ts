@@ -17,7 +17,7 @@ export const FEATURES: readonly Feature[] = [
 export const FEATURE_LABELS: Record<Feature, string> = {
   fix: "line fixes",
   tailor: "tailored versions",
-  letter: "cover letters, answers and interview prep",
+  letter: "cover letters, outreach messages, answers and interview prep",
   import: "AI reads of an uploaded resume",
   draft: "Build with Otto drafts",
   github: "GitHub project drafts",

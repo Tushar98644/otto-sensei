@@ -14,13 +14,22 @@ import type { LineTarget } from "./apply";
 import { lineQuestion } from "./screener";
 import type { SavedAnswer, SavedWriting, TailorDraft } from "./session";
 
-export type WritingTask = "letter" | "answer" | "line";
+export type WritingTask = "letter" | "answer" | "outreach" | "line";
+
+export type OutreachDraft = {
+  subject: string;
+  email: string;
+  note: string;
+  warnings: string[];
+  demo: boolean;
+};
 
 export type Writing = {
   busy: WritingTask | null;
   error: { task: WritingTask; message: string } | null;
   letter: (resume: Resume) => Promise<SavedWriting | null>;
   answer: (resume: Resume, question: string) => Promise<SavedAnswer | null>;
+  outreach: (resume: Resume) => Promise<OutreachDraft | null>;
   line: (
     requirement: TailorRequirement,
     target: LineTarget,
@@ -113,6 +122,13 @@ export function useWriting(source: Resume, job: TailorDraft): Writing {
           warnings,
           demo: response.demo === true,
         };
+      }),
+    outreach: (resume) =>
+      run("outreach", "letter", async () => {
+        const response = await api.outreach({ resume, job: jobOf(job) });
+        patchMe({ usage: response.usage });
+        const { subject, email, note, warnings } = response.result;
+        return { subject, email, note, warnings, demo: response.demo === true };
       }),
     line: (requirement, target, what) =>
       run("line", "fix", async () => {

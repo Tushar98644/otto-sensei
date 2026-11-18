@@ -5,11 +5,17 @@ import { log } from "@/lib/log";
 import { listBullets, resumeToText } from "@/lib/resume/ops";
 import type { Resume } from "@/lib/resume/schema";
 import { runStructured, type AITask } from "./client";
-import { ANSWER_SYSTEM_PROMPT, LETTER_SYSTEM_PROMPT } from "./prompts";
+import { ANSWER_SYSTEM_PROMPT, LETTER_SYSTEM_PROMPT, OUTREACH_SYSTEM_PROMPT } from "./prompts";
 import { redactResume, redactorFor, type Redactor } from "./redact";
-import { clip, MAX_RESUME_CHARS, oneLine, tag } from "./text";
-import { AIError, type AnswerResult, type CoverLetterResult, type WritingInput } from "./types";
-import { demoAnswer, demoLetter } from "./writing-demo";
+import { clip, clipWords, MAX_RESUME_CHARS, oneLine, tag } from "./text";
+import {
+  AIError,
+  type AnswerResult,
+  type CoverLetterResult,
+  type OutreachResult,
+  type WritingInput,
+} from "./types";
+import { demoAnswer, demoLetter, demoOutreach } from "./writing-demo";
 import {
   checkProse,
   clichesIn,
@@ -17,6 +23,7 @@ import {
   dropClichedSentences,
   problemScore,
   retryNotes,
+  sentencesOf,
   unbackedIn,
   upgradedVerbs,
   wordCount,
@@ -26,9 +33,16 @@ import {
 export const LETTER_WORDS = { min: 150, max: 250 } as const;
 export const ANSWER_WORDS = { min: 60, max: 150 } as const;
 export const QUESTION_CHARS = { min: 8, max: 500 } as const;
+// The prompt asks for 60 to 120 words; the cap leaves room so clipping never drops the closing ask.
+const OUTREACH_WORDS = { min: 60, max: 150 } as const;
+const SUBJECT_CHARS = 90;
+// LinkedIn's limit for a free account's invitation note.
+export const NOTE_CHARS = 200;
 const JOB_FIELD_CHARS = 200;
 const LETTER_FLOOR_WORDS = 110;
 const ANSWER_FLOOR_WORDS = 45;
+const OUTREACH_FLOOR_WORDS = 45;
+const NOTE_GREETING = "Hi [first name], ";
 // One budget for both calls: the first may use all of it, and a retry starts only if it can finish.
 const TOTAL_DEADLINE_MS = 50_000;
 const MIN_RETRY_MS = 15_000;
@@ -37,6 +51,11 @@ const LetterOutputSchema = z.object({
   paragraphs: z.array(z.string()).describe("The letter body: 3 short paragraphs."),
 });
 const AnswerOutputSchema = z.object({ answer: z.string() });
+const OutreachOutputSchema = z.object({
+  subject: z.string(),
+  email: z.array(z.string()).describe("The email body: 2 or 3 short paragraphs."),
+  note: z.string(),
+});
 
 type Range = { readonly min: number; readonly max: number };
 
@@ -104,22 +123,25 @@ type DraftRequest<T> = {
   range: Range;
 };
 
-async function draft<T>(request: DraftRequest<T>, prepared: Prepared): Promise<ProseCheck> {
+type Drafted<T> = { check: ProseCheck; output: T };
+
+async function draft<T>(request: DraftRequest<T>, prepared: Prepared): Promise<Drafted<T>> {
   const started = Date.now();
-  const call = async (user: string, deadlineMs: number) => {
+  const call = async (user: string, deadlineMs: number): Promise<Drafted<T>> => {
     const output = await runStructured(
       { task: request.task, system: request.system, user, schema: request.schema, effort: "low" },
       { deadlineMs },
     );
     const paragraphs = request.paragraphs(output).map((text) => prepared.redactor.restore(text));
-    return checkProse(paragraphs, prepared.sources, prepared.lines);
+    return { check: checkProse(paragraphs, prepared.sources, prepared.lines), output };
   };
-  const first = await call(request.user, TOTAL_DEADLINE_MS);
+  const firstDraft = await call(request.user, TOTAL_DEADLINE_MS);
+  const first = firstDraft.check;
   const left = TOTAL_DEADLINE_MS - (Date.now() - started);
-  if (!needsRetry(first) || left < MIN_RETRY_MS) return first;
+  if (!needsRetry(first) || left < MIN_RETRY_MS) return firstDraft;
   if (clichesDropCleanly(first, request.range, prepared.sources)) {
     log.info(`${request.task}.retry_skipped`, { cliches: first.cliches.length });
-    return first;
+    return firstDraft;
   }
 
   const notes = retryNotes(first, request.range).map((note) => `- ${note}`);
@@ -134,12 +156,12 @@ async function draft<T>(request: DraftRequest<T>, prepared: Prepared): Promise<P
     // The notes quote resume lines, which can hold a link or an email.
     const notesText = prepared.redactor.redact(retry.join("\n"));
     const second = await call(`${request.user}\n\n${notesText}`, left);
-    const better = problemScore(second, request.range) < problemScore(first, request.range);
-    return better ? second : first;
+    const better = problemScore(second.check, request.range) < problemScore(first, request.range);
+    return better ? second : firstDraft;
   } catch (error) {
     if (!(error instanceof AIError)) throw error;
     log.warn(`${request.task}.retry_failed`, { code: error.code });
-    return first;
+    return firstDraft;
   }
 }
 
@@ -214,7 +236,7 @@ export async function writeCoverLetter(
             range: LETTER_WORDS,
           },
           prepared,
-        ),
+        ).then((drafted) => drafted.check),
         LETTER_WORDS,
         LETTER_FLOOR_WORDS,
         prepared.sources,
@@ -260,7 +282,7 @@ export async function answerQuestion(
             range: ANSWER_WORDS,
           },
           prepared,
-        ),
+        ).then((drafted) => drafted.check),
         ANSWER_WORDS,
         ANSWER_FLOOR_WORDS,
         prepared.sources,
@@ -271,5 +293,95 @@ export async function answerQuestion(
     answer,
     words: wordCount(answer),
     warnings: warningsFor(answer, prepared, "with your own words before you send it."),
+  };
+}
+
+function outreachMessage(resumeText: string, job: WritingInput): string {
+  return [tag("resume", resumeText), tag("job_post", postText(job)), "Write the message."].join(
+    "\n\n",
+  );
+}
+
+function assembleOutreach(paragraphs: readonly string[], name: string): string {
+  const signOff = name ? `Best,\n${name}` : "Best,";
+  return ["Hi [first name],", ...paragraphs, signOff].join("\n\n");
+}
+
+type OutreachParts = { subject: string; email: string[]; note: string };
+
+function hasProblems(check: ProseCheck): boolean {
+  return needsRetry(check) || check.placeholders.length > 0;
+}
+
+// A subject or note with an invented number, an upgraded verb or a stock phrase is replaced, not shipped with a warning.
+function finishOutreach(
+  email: ProseCheck,
+  subject: string,
+  note: string,
+  prepared: Prepared,
+): OutreachParts {
+  const { sources, lines, job } = prepared;
+  const body = polish(email, OUTREACH_WORDS, OUTREACH_FLOOR_WORDS, sources);
+  const subjectCheck = checkProse([subject], sources, lines);
+  const noteCheck = checkProse([note], sources, lines);
+  const shownSubject = clip(oneLine(subjectCheck.paragraphs[0] ?? ""), SUBJECT_CHARS);
+  const shownNote = oneLine(noteCheck.paragraphs.join(" "));
+  return {
+    subject: shownSubject && !hasProblems(subjectCheck) ? shownSubject : fallbackSubject(job),
+    email: body,
+    note: shownNote && !hasProblems(noteCheck) ? shownNote : fallbackNote(body, job),
+  };
+}
+
+function fallbackSubject(job: WritingInput): string {
+  const role = job.jobTitle || "The open role";
+  return clip(job.company ? `${role} at ${job.company}` : role, SUBJECT_CHARS);
+}
+
+const NOTE_BUDGET = NOTE_CHARS - NOTE_GREETING.length;
+
+// The email's first sentence when it fits the note, or a plain line naming the role.
+function fallbackNote(body: readonly string[], job: WritingInput): string {
+  const first = sentencesOf(body[0] ?? "")[0]?.trim() ?? "";
+  if (first && first.length <= NOTE_BUDGET) return first;
+  const role = job.jobTitle ? `the ${job.jobTitle} role` : "your open role";
+  const line = `I'm applying for ${role}${job.company ? ` at ${job.company}` : ""} and would be glad to connect.`;
+  return clipWords(line, NOTE_BUDGET);
+}
+
+export async function writeOutreach(resume: Resume, input: WritingInput): Promise<OutreachResult> {
+  const prepared = prepare(resume, input);
+  const name = oneLine(resume.basics.name);
+  let parts: OutreachParts;
+  if (aiEnabled()) {
+    const { check, output } = await draft(
+      {
+        task: "outreach",
+        system: OUTREACH_SYSTEM_PROMPT,
+        user: outreachMessage(prepared.shownText, prepared.job),
+        schema: OutreachOutputSchema,
+        paragraphs: (result) => result.email,
+        range: OUTREACH_WORDS,
+      },
+      prepared,
+    );
+    const restore = (text: string) => prepared.redactor.restore(text);
+    parts = finishOutreach(check, restore(output.subject), restore(output.note), prepared);
+  } else {
+    parts = demoOutreach(resume, prepared.job);
+  }
+  const body = parts.email.join("\n\n");
+  // The note's length is shown live in the dialog, so a warning here would go stale as the person edits it.
+  const warnings = warningsFor(
+    `${parts.subject}.\n\n${body}\n\n${parts.note}`,
+    prepared,
+    "before you send it.",
+  );
+  return {
+    subject: parts.subject,
+    email: assembleOutreach(parts.email, name),
+    note: `${NOTE_GREETING}${parts.note}`,
+    words: wordCount(body),
+    warnings,
   };
 }

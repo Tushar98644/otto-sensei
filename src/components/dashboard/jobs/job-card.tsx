@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowUpRight, Bookmark, BookmarkCheck, ScanSearch, ThumbsDown } from "lucide-react";
+import { ArrowUpRight, Bookmark, BookmarkCheck, ScanSearch, Send, ThumbsDown } from "lucide-react";
 import Link from "next/link";
 import { useId, useRef, useState } from "react";
 import { Badge } from "@/components/ui/badge";
@@ -36,6 +36,7 @@ export type JobCardProps = {
   onToggleSave: (job: MatchedJob) => void;
   onMarkApplied: (job: MatchedJob) => void;
   onOpen?: (job: MatchedJob) => void;
+  onOutreach?: (job: MatchedJob) => void;
   asking?: boolean;
   onAnswer?: (job: MatchedJob, answer: AskedAppliedAnswer) => void;
   onNotFit?: (job: MatchedJob, reason: NotFitReason) => void;
@@ -59,6 +60,7 @@ export function JobCard({
   onToggleSave,
   onMarkApplied,
   onOpen,
+  onOutreach,
   asking = false,
   onAnswer,
   onNotFit,
@@ -127,6 +129,12 @@ export function JobCard({
               Tailor my resume
             </Button>
           )}
+          {onOutreach && !job.closed ? (
+            <Button variant="secondary" size="sm" onClick={() => onOutreach(job)}>
+              <Send aria-hidden />
+              Outreach message
+            </Button>
+          ) : null}
           <Button
             variant="secondary"
             size="sm"

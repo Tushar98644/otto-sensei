@@ -162,13 +162,13 @@ describe("the add-a-line helpers", () => {
 
   it("shows the letter allowance on paid plans, and what Pro adds on Free or signed out", () => {
     expect(writingAllowance(null, null)).toBe(
-      "Letters, answers and interview prep come with Pro. Try Pro for 3 days.",
+      "Letters, outreach messages, answers and interview prep come with Pro. Try Pro for 3 days.",
     );
     expect(writingAllowance("free", { used: 0, limit: 0 }, null, false)).toBe(
-      "Letters, answers and interview prep come with Pro.",
+      "Letters, outreach messages, answers and interview prep come with Pro.",
     );
     expect(writingAllowance("pro", { used: 2, limit: 100 })).toBe(
-      "98 of 100 cover letters and answers left this month.",
+      "98 of 100 cover letters, messages and answers left this month.",
     );
     expect(writingAllowance("pro", { used: 100, limit: 100 })).toContain("No cover letters");
   });

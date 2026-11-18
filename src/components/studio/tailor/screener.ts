@@ -115,7 +115,7 @@ export function writingAllowance(
   if (usage.limit === 0) return OTTO.limit.none("letter", trial);
   const left = Math.max(0, usage.limit - usage.used);
   if (left === 0) {
-    return `No cover letters or answers left ${thisPeriod(period)}. ${resetSentence(period)}`;
+    return `No cover letters, messages or answers left ${thisPeriod(period)}. ${resetSentence(period)}`;
   }
-  return `${left} of ${usage.limit} cover letters and answers left ${thisPeriod(period)}.`;
+  return `${left} of ${usage.limit} cover letters, messages and answers left ${thisPeriod(period)}.`;
 }

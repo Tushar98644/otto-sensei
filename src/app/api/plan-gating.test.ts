@@ -14,6 +14,7 @@ import { POST as fix } from "./fix/route";
 import { POST as githubDraft } from "./github/draft/route";
 import { POST as interview } from "./interview/route";
 import { POST as letter } from "./letter/route";
+import { POST as outreach } from "./outreach/route";
 import { POST as summary } from "./summary/route";
 import { POST as tailor } from "./tailor/route";
 
@@ -47,7 +48,12 @@ const CALLS: Call[] = [
   {
     feature: "letter",
     send: () => letter(jsonRequest("/api/letter", { resume: createSampleResume(NOW), job })),
-    message: "Cover letters, answers and interview prep come with Pro. Try Pro for 3 days.",
+    message: "Cover letters, outreach messages, answers and interview prep come with Pro. Try Pro for 3 days.",
+  },
+  {
+    feature: "letter",
+    send: () => outreach(jsonRequest("/api/outreach", { resume: createSampleResume(NOW), job })),
+    message: "Cover letters, outreach messages, answers and interview prep come with Pro. Try Pro for 3 days.",
   },
   {
     feature: "letter",
@@ -55,7 +61,7 @@ const CALLS: Call[] = [
       answer(
         jsonRequest("/api/answer", { resume: createSampleResume(NOW), job, question: "Why do you want this role?" }),
       ),
-    message: "Cover letters, answers and interview prep come with Pro. Try Pro for 3 days.",
+    message: "Cover letters, outreach messages, answers and interview prep come with Pro. Try Pro for 3 days.",
   },
   {
     feature: "letter",
@@ -75,7 +81,7 @@ const CALLS: Call[] = [
       const applicationId = created?.status === "created" ? created.application.id : crypto.randomUUID();
       return interview(jsonRequest("/api/interview", { applicationId, resume: createSampleResume(NOW), job }));
     },
-    message: "Cover letters, answers and interview prep come with Pro. Try Pro for 3 days.",
+    message: "Cover letters, outreach messages, answers and interview prep come with Pro. Try Pro for 3 days.",
   },
   {
     feature: "draft",

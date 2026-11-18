@@ -28,7 +28,7 @@ function asSentence(text: string) {
 const SIGN_IN_REASONS: Record<Feature, string> = {
   fix: `Sign in to fix lines with me. On Free you get ${PLANS.free.limits.fix} a month.`,
   tailor: `Sign in, then try ${trialOffer()} to tailor with me.`,
-  letter: `Sign in, then try ${trialOffer()} for letters and answers.`,
+  letter: `Sign in, then try ${trialOffer()} for letters, messages and answers.`,
   import: `Sign in, then try ${trialOffer()} for AI reads.`,
   draft: `Sign in, then try ${trialOffer()} to build drafts with me.`,
   github: `Sign in, then try ${trialOffer()} to draft from GitHub.`,
@@ -37,7 +37,7 @@ const SIGN_IN_REASONS: Record<Feature, string> = {
 const COMES_WITH_PRO: Record<Feature, string> = {
   fix: "More line fixes come with Pro.",
   tailor: "Tailoring comes with Pro.",
-  letter: "Letters, answers and interview prep come with Pro.",
+  letter: "Letters, outreach messages, answers and interview prep come with Pro.",
   import: "AI reading of uploads comes with Pro.",
   draft: "Building drafts with me comes with Pro.",
   github: "GitHub drafts come with Pro.",
@@ -225,6 +225,7 @@ export const OTTO = {
     summary: "Otto is thinking up a summary.",
     letter: "Otto is writing your cover letter.",
     answer: "Otto is drafting your answer.",
+    outreach: "Otto is writing your message.",
     interview: "Otto is building your interview prep.",
     draft: "Otto is writing your first draft.",
     githubLookup: "Otto is looking up your public work on GitHub.",

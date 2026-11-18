@@ -71,6 +71,14 @@ export type AnswerResult = {
   warnings: string[];
 };
 
+export type OutreachResult = {
+  subject: string;
+  email: string;
+  note: string;
+  words: number;
+  warnings: string[];
+};
+
 export type AIErrorCode = "refused" | "rate_limited" | "unavailable" | "invalid_output" | "too_long";
 
 export class AIError extends Error {

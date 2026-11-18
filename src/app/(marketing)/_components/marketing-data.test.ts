@@ -62,7 +62,7 @@ describe("plan copy", () => {
   it("lists the monthly numbers a month for Pro and Max, and keeps Free monthly during a trial", () => {
     expect(planCopy("pro", "month").features).toEqual([
       "150 tailored versions a month",
-      "150 cover letters, answers and interview prep a month",
+      "150 cover letters, outreach messages, answers and interview prep a month",
       "750 line fixes a month",
       "AI reads of an uploaded resume",
       "Build with Otto drafts",

@@ -17,6 +17,7 @@ const TASK_POSE: Record<OttoTask, OttoPose> = {
   summary: "think",
   letter: "think",
   answer: "think",
+  outreach: "think",
   draft: "think",
   interview: "point",
   githubLookup: "point",

@@ -12,7 +12,7 @@ import { useNow } from "@/components/studio/use-now";
 import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/toast";
-import type { JobMatchesResponse } from "@/lib/api/types";
+import type { JobMatchesResponse, MatchedJob } from "@/lib/api/types";
 import { roleOptions } from "@/lib/job-feed/looking-for";
 import {
   DEFAULT_FILTERS,
@@ -25,6 +25,7 @@ import { resumeTitle } from "@/lib/resume/ops";
 import { jobsWorkPromptShows } from "@/lib/setup/checklist";
 import { useResumeList, useStudioHydrated } from "@/lib/store/resume-store";
 import { useApplications } from "../applications/use-applications";
+import { LazyOutreachDialog } from "../lazy-dialogs";
 import { useStudioActions } from "../use-studio-actions";
 import { AppliedAnnouncer, AppliedStrip } from "./applied-question";
 import { JobCard } from "./job-card";
@@ -110,6 +111,7 @@ export function JobsPage() {
   });
   const { busy, note, tailor, openTailored, toggleSave, markApplied, openJob, answerApplied } =
     useJobActions({ data, view, resume, resumes, applications, userId, patch, actions });
+  const [outreach, setOutreach] = useState<MatchedJob | null>(null);
 
   function changeFilters(next: Partial<JobFilters>) {
     setChosen({ ...filters, ...next });
@@ -277,6 +279,7 @@ export function JobsPage() {
                   onToggleSave={toggleSave}
                   onMarkApplied={(target) => void markApplied(target)}
                   onOpen={openJob}
+                  onOutreach={setOutreach}
                   asking={askingIds.has(job.id)}
                   onAnswer={(target, answer) => void answerApplied(target, answer)}
                   onNotFit={
@@ -301,6 +304,11 @@ export function JobsPage() {
           <JobsPager page={page} pages={pages} onGo={goTo} />
         ) : null}
       </div>
+      <LazyOutreachDialog
+        job={outreach}
+        resume={outreach ? (tailoredFor(resumes, outreach) ?? resume) : null}
+        onClose={() => setOutreach(null)}
+      />
     </div>
   );
 }
