@@ -51,7 +51,7 @@ describe("PlanOffer", () => {
     expect(text).toContain(`Pro Most popular ${usd(PRICES_USD.pro.month)} /month per month`);
     expect(text).toContain(`Max ${usd(PRICES_USD.max.month)} /month per month`);
     expect(text).toContain("Try Pro for 3 days");
-    expect(text).toContain(`$0 for 3 days, then ${usd(PRICES_USD.pro.month)} a month.`);
+    expect(text).toContain(`$1 for 3 days, then ${usd(PRICES_USD.pro.month)} a month.`);
     expect(text).not.toMatch(/free for|try pro free/i);
     expect(text).toContain("Upgrade to Max");
     expect(text).toContain("Everything in Pro, with more:");

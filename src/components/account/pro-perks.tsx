@@ -11,6 +11,7 @@ import {
   type BillingInterval,
   type PaidPlanId,
 } from "@/config/plans";
+import { trialPrice } from "@/lib/billing/prices";
 import { TEMPLATE_IDS } from "@/lib/resume/schema";
 import { perPeriod, PLAN_PROMISES, resetRule } from "@/lib/usage-copy";
 import { cn, pluralize } from "@/lib/utils";
@@ -83,7 +84,7 @@ export function PlanPerks({ plan, interval = "month", trial = false, className }
       </ul>
       <p className="text-xs text-muted">
         {trial
-          ? `Nothing is charged for ${PRO_TRIAL.days} days. Cancel before the trial ends and you pay nothing.`
+          ? `${trialPrice()} for ${PRO_TRIAL.days} days. Cancel before the trial ends and you pay nothing more.`
           : resetRule(interval)}{" "}
         {PLAN_PROMISES}
       </p>

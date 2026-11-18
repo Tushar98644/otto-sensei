@@ -400,8 +400,8 @@ call: uploads read by the basic reader, the recruiter view, editing, formats, PD
 Jobs tab and its matching, and the application tracker. On AI it has only 3 line fixes a month
 (summaries count as fixes; `PLANS.free.limits.fix`). Every other AI feature (more line fixes,
 tailoring, letters, answers, interview prep, Build with Otto, GitHub drafts, AI reading of uploads)
-and the portfolio need Pro or Max. New accounts start Pro with a **3-day trial, nothing charged,
-card required**, then $15/month; one trial per person (by email, kept even after the account is
+and the portfolio need Pro or Max. New accounts start Pro with a **3-day trial for $1 (charged at
+checkout), card required**, then $15/month; one trial per person (by email, kept even after the account is
 deleted). A trial has its own small allowance (`PRO_TRIAL` in `src/config/plans.ts`). Plans are
 monthly or yearly; there are no weekly plans.
 
@@ -426,7 +426,7 @@ on the checkout and their receipts). On each, **New price**, currency **USD**, t
 | # | Product | Price | Billing period | Trial | Variable |
 |---|---|---|---|---|---|
 | 1 | Pro | $15.00 | Every 1 month | none | `PADDLE_PRO_MONTHLY_PRICE_ID` (required) |
-| 2 | Pro | $15.00 | Every 1 month | **3 days, payment method required, no trial price** | `PADDLE_PRO_TRIAL_PRICE_ID` |
+| 2 | Pro | $15.00 | Every 1 month | **3 days, payment method required, trial price $1.00** | `PADDLE_PRO_TRIAL_PRICE_ID` |
 | 3 | Pro | $120.00 | Every 1 year | none | `PADDLE_PRO_YEARLY_PRICE_ID` |
 | 4 | Max | $29.00 | Every 1 month | none | `PADDLE_MAX_MONTHLY_PRICE_ID` |
 | 5 | Max | $232.00 | Every 1 year | none | `PADDLE_MAX_YEARLY_PRICE_ID` |
@@ -455,6 +455,7 @@ key**, name `otto-sensei`. Give it only these permissions:
 | Transactions | yes | yes | Creating each checkout, and cancelling the customer's older unpaid ones |
 | Subscriptions | yes | yes | Plan changes, finding live subscriptions, cancelling on account deletion |
 | Customer portal sessions | | yes | **Manage billing** |
+| Adjustments | yes | yes | Refunding the $1 trial charge when a second trial by the same person is cancelled |
 
 Set an expiry (at most a year) and put the renewal date in your calendar: with an expired key,
 checkout, **Manage billing** and account deletion fail until a new key is in Vercel. Copy the key
@@ -534,7 +535,7 @@ PADDLE_MAX_YEARLY_PRICE_ID=pri_...
 Run it with `bun --env-file=.env.paddle.local scripts/check-paddle-catalog.ts`. It asks Paddle for
 each price and its product, and checks that the price is active, bills every month or year as its
 variable says, costs what `PRICES_USD` says in USD with tax added on top (excluding tax) and has no
-country prices; that only the trial price has a trial (3 days, card required, nothing charged);
+country prices; that only the trial price has a trial (3 days, card required, $1 charged at checkout);
 that no two variables share an id; and that each plan has its own active product, named for the
 plan, with tax category SaaS. It also checks that the API key, the client token and
 `PADDLE_ENVIRONMENT` are all sandbox or all live. Each line says `ok` or `problem` (keys are never
@@ -630,7 +631,7 @@ quietly; the rest of the app runs the same.
 
 | Variable | Turns on | Step |
 |---|---|---|
-| `PADDLE_PRO_TRIAL_PRICE_ID` | The free 3-day Pro trial for new accounts | 10 |
+| `PADDLE_PRO_TRIAL_PRICE_ID` | The $1, 3-day Pro trial for new accounts | 10 |
 | `PADDLE_PRO_YEARLY_PRICE_ID` | Yearly Pro ($120) | 10 |
 | `PADDLE_MAX_MONTHLY_PRICE_ID`, `PADDLE_MAX_YEARLY_PRICE_ID` | The Max plan ($29/month, $232/year) | 10 |
 | `NEXT_PUBLIC_SENTRY_DSN` (+ `SENTRY_AUTH_TOKEN`, `SENTRY_ORG`, `SENTRY_PROJECT`) | Error reports (+ readable stack traces) | 10b |

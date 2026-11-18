@@ -76,6 +76,10 @@ export function endsTrialSentence(plan: PaidPlanId, interval: BillingInterval): 
   return `Ends your ${PLANS[PRO_TRIAL.plan].name} trial today and starts ${PLANS[plan].name} at ${planPriceLabel(plan, interval)}.`;
 }
 
+export function trialPrice(): string {
+  return usd.format(PRO_TRIAL.priceUsd);
+}
+
 export function trialSentence(): string {
   const { days, interval, plan, priceUsd } = PRO_TRIAL;
   return `${usd.format(priceUsd)} for ${days} days, then ${planPrice(plan, interval)} a ${interval}. Cancel anytime before the trial ends.`;

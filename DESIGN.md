@@ -244,7 +244,7 @@ The owner asked for HeyAmara's candidate-board pattern (2026-11-09), drawn in ou
 
 ### Portfolio (`portfolio/*`, `/dashboard/portfolio` and `/p/[slug]`, new 2026-11-08)
 
-Your resume as a personal web page. One per account, Pro and Max (a trial builds and previews, publishing waits for the first payment). The editor is a workspace (redesigned 2026-11-09, owner: "not proper, not scrolling, cluttered"):
+Your resume as a personal web page. One per account, Pro and Max (a trial builds and previews, publishing waits for the first full-price payment). The editor is a workspace (redesigned 2026-11-09, owner: "not proper, not scrolling, cluttered"):
 
 ```text
  Portfolio  (Draft) /p/maya-chen · All changes saved                  [Open page] [...] [Publish]

@@ -28,7 +28,7 @@ import { PricingPlans } from "../_components/pricing-plans";
 
 export const metadata: Metadata = pageMetadata({
   title: "Pricing",
-  description: `Checking, fixing and downloading one resume as a PDF is free, with ${PLANS.free.limits.fix} line fixes a month from Otto. Pro adds the rest of Otto's AI help, every format, Word downloads, the full list of job matches and the full tracker for ${formatUsd(PLANS.pro.priceUsd)} a month (${PLANS.pro.limits.tailor} tailored versions, ${PLANS.pro.limits.fix} line fixes), starting with a ${PRO_TRIAL.days}-day trial; Max is ${formatUsd(PLANS.max.priceUsd)} for more. Cancel anytime.`,
+  description: `Checking, fixing and downloading one resume as a PDF is free, with ${PLANS.free.limits.fix} line fixes a month from Otto. Pro adds the rest of Otto's AI help, every format, Word downloads, the full list of job matches and the full tracker for ${formatUsd(PLANS.pro.priceUsd)} a month (${PLANS.pro.limits.tailor} tailored versions, ${PLANS.pro.limits.fix} line fixes), starting with a ${PRO_TRIAL.days}-day trial for ${formatUsd(PRO_TRIAL.priceUsd)}; Max is ${formatUsd(PLANS.max.priceUsd)} for more. Cancel anytime.`,
   path: ROUTES.pricing,
 });
 
@@ -49,7 +49,7 @@ const limitsAnswer = [freeLimits, monthlyLimits, trialLimits, uploadsNote].join(
 const billingFaq: readonly FaqItem[] = [
   {
     question: "How does the Pro trial work?",
-    answer: `New accounts can try Pro for ${PRO_TRIAL.days} days, once per person. You add a card at checkout and nothing is charged during the trial. When it ends, Pro starts at ${planPriceLabel(PRO_TRIAL.plan, PRO_TRIAL.interval)}. Cancel anytime before the trial ends and you pay nothing. During the trial you can build and preview a portfolio; it goes public once Pro starts.`,
+    answer: `New accounts can try Pro for ${PRO_TRIAL.days} days, once per person. You add a card at checkout and pay ${formatUsd(PRO_TRIAL.priceUsd)} (plus any tax) when the trial starts. When it ends, Pro starts at ${planPriceLabel(PRO_TRIAL.plan, PRO_TRIAL.interval)}. Cancel anytime before the trial ends and you pay nothing more. During the trial you can build and preview a portfolio; it goes public once Pro starts.`,
   },
   {
     question: "What stays free?",

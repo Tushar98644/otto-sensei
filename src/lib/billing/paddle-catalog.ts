@@ -439,7 +439,7 @@ function priceProblems(entry: Slot, price: CatalogPrice): string[] {
 function describe(entry: Slot, price: CatalogPrice): string {
   const charge = `${money(price.unit_price.amount, price.unit_price.currency_code)} ${every({ interval: entry.interval, frequency: 1 })} plus tax`;
   const trial = price.trial_period
-    ? `after a ${lasting(price.trial_period)} trial, card required`
+    ? `after a ${lasting(price.trial_period)} trial charging ${money(price.trial_period.unit_price?.amount ?? "0", price.trial_period.unit_price?.currency_code ?? CURRENCY)}, card required`
     : "no trial";
   return `active, ${charge}, ${trial}`;
 }

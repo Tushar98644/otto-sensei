@@ -8,7 +8,11 @@ import { insertUserRow, resetDb } from "@/lib/auth/test-helpers";
 import { resetEnvForTests } from "@/lib/env";
 import { refreshPortfolioPages } from "@/lib/portfolio/cache";
 import { BillingError } from "./errors";
-import { cancelPaddleSubscription } from "./paddle";
+import {
+  cancelPaddleSubscription,
+  completedPaddleTransactions,
+  refundPaddleTransaction,
+} from "./paddle";
 import { signBillingId } from "./paddle-sign";
 import { retryPendingReplacements } from "./replacements";
 import { emailFingerprint } from "./trial";
@@ -28,11 +32,15 @@ vi.mock("@/lib/portfolio/cache", () => ({ refreshPortfolioPages: vi.fn() }));
 vi.mock("@/lib/billing/paddle", () => ({
   cancelPaddleSubscription: vi.fn(),
   getPaddleSubscription: vi.fn(),
+  completedPaddleTransactions: vi.fn(async () => ["txn_trial"]),
+  refundPaddleTransaction: vi.fn(async () => undefined),
 }));
 
 const captured = vi.mocked(captureServerEvent);
 const refreshed = vi.mocked(refreshPortfolioPages);
 const cancel = vi.mocked(cancelPaddleSubscription);
+const refund = vi.mocked(refundPaddleTransaction);
+const completed = vi.mocked(completedPaddleTransactions);
 
 const SECRET = WEBHOOK_TEST_SECRET;
 const PRO_MONTH = "pri_pro_month";
@@ -100,6 +108,9 @@ beforeEach(async () => {
   captured.mockReset();
   refreshed.mockReset();
   cancel.mockReset();
+  refund.mockReset();
+  completed.mockReset();
+  completed.mockResolvedValue(["txn_trial"]);
   cancel.mockResolvedValue(undefined);
   await resetDb();
 });
@@ -758,6 +769,9 @@ describe("one trial per person", () => {
     expect(await pendingCancels()).toMatchObject([
       { replacedSubscriptionId: "sub_2", userId: user.id, cancelledAt: expect.any(Number) },
     ]);
+    // A paid trial's charge goes back in full when the trial is refused.
+    expect(completed).toHaveBeenCalledExactlyOnceWith("sub_2");
+    expect(refund).toHaveBeenCalledExactlyOnceWith("txn_trial");
     const reused = logged("warn", "billing.trial_reused");
     for (const id of ["evt_again", user.id, "sub_2"]) expect(reused).toContain(id);
     expect(logged("warn")).not.toContain(user.email);
@@ -797,6 +811,50 @@ describe("one trial per person", () => {
     expect(await reload(user.id)).toEqual(user);
     expect(cancel).toHaveBeenCalledExactlyOnceWith("sub_2", { immediately: true });
     expect(error).not.toHaveBeenCalled();
+  });
+
+  it("still refuses a second trial when its refund fails, logs it, and lets a later delivery refund it", async () => {
+    vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    vi.spyOn(console, "info").mockImplementation(() => undefined);
+    const error = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    refund.mockRejectedValueOnce(new BillingError("refused", "Paddle refused the refund request"));
+    const user = await createUser();
+    await hadTrial(user.email);
+    expect(await deliver(subscriptionEvent("subscription.created", trialOf(user)))).toEqual({
+      status: 200,
+      message: "ignored",
+    });
+    expect(cancel).toHaveBeenCalledExactlyOnceWith("sub_2", { immediately: true });
+    expect(error.mock.calls.flat().join(" ")).toContain("billing.reused_trial_refund_failed");
+    const paid = transactionEvent("transaction.completed", {
+      id: "txn_trial",
+      subscription_id: "sub_2",
+      customer_id: "ctm_2",
+      price_id: PRO_TRIAL,
+      trial: true,
+    });
+    expect(await deliver(paid)).toEqual({ status: 200, message: "ignored" });
+    expect(refund.mock.calls).toEqual([["txn_trial"], ["txn_trial"]]);
+  });
+
+  it("refunds a refused trial's charge that completes after the cancel, once however often it's delivered", async () => {
+    vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    vi.spyOn(console, "info").mockImplementation(() => undefined);
+    completed.mockResolvedValue([]);
+    const user = await createUser();
+    await hadTrial(user.email);
+    await deliver(subscriptionEvent("subscription.created", trialOf(user)));
+    expect(refund).not.toHaveBeenCalled();
+    const paid = transactionEvent("transaction.completed", {
+      id: "txn_late",
+      subscription_id: "sub_2",
+      customer_id: "ctm_2",
+      price_id: PRO_TRIAL,
+      trial: true,
+    });
+    expect(await deliver(paid)).toEqual({ status: 200, message: "ignored" });
+    expect(await deliver(paid)).toEqual({ status: 200, message: "ignored" });
+    expect(refund).toHaveBeenCalledExactlyOnceWith("txn_late");
   });
 
   it("also refuses a trial that went past_due unpaid, or has a cancel scheduled", async () => {
@@ -862,6 +920,34 @@ describe("one trial per person", () => {
     });
     expect(cancel).not.toHaveBeenCalled();
     expect(await pendingCancels()).toEqual([]);
+  });
+
+  it("treats a paid trial whose first full charge failed as unpaid, though its $1 was billed", async () => {
+    vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    const user = await createUser();
+    await hadTrial(user.email);
+    const started = "2026-11-08T10:00:00.000Z";
+    const conversionFailed = trialOf(user, {
+      status: "past_due",
+      trial_ends_at: null,
+      started_at: started,
+      first_billed_at: started,
+      current_billing_period: { starts_at: TRIAL_END, ends_at: NEXT_MONTH },
+    });
+    expect(await deliver(event("subscription.past_due", conversionFailed))).toMatchObject({
+      message: "ignored",
+    });
+    const renewedLater = trialOf(user, {
+      id: "sub_6",
+      status: "past_due",
+      trial_ends_at: null,
+      started_at: started,
+      first_billed_at: started,
+      current_billing_period: { starts_at: NEXT_MONTH, ends_at: "2027-01-11T10:00:00.000Z" },
+    });
+    expect(await deliver(event("subscription.past_due", renewedLater))).toMatchObject({
+      message: "applied",
+    });
   });
 
   it("still lets a past_due paid price through for someone who once trialed", async () => {

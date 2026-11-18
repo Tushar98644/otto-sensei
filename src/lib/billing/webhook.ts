@@ -1,8 +1,9 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { z } from "zod";
-import type { BillingInterval, PaidPlanId } from "@/config/plans";
+import { PRO_TRIAL, type BillingInterval, type PaidPlanId } from "@/config/plans";
 import { captureServerEvent } from "@/lib/analytics/server";
 import { log } from "@/lib/log";
+import { DAY_MS, HOUR_MS } from "@/lib/time";
 import { refreshPortfolioPages } from "@/lib/portfolio/cache";
 import { canPublishPortfolio } from "@/lib/portfolio/plan";
 import { portfolioSlugsOf } from "@/lib/portfolio/records";
@@ -15,7 +16,7 @@ import {
   type SubscriptionState,
 } from "./entitlements";
 import { verifyBillingId } from "./paddle-sign";
-import { settleReplacement } from "./replacements";
+import { isRefusedTrial, refundRefusedTrial, settleReplacement } from "./replacements";
 
 // Paddle redelivers any non-2xx for about two days on live, so only retryable failures get a 5xx.
 
@@ -84,6 +85,7 @@ const SubscriptionSchema = z.object({
     )
     .max(100),
   scheduled_change: z.object({ action: z.string().max(50) }).nullish(),
+  started_at: TimestampSchema,
   first_billed_at: TimestampSchema,
   next_billed_at: TimestampSchema,
   current_billing_period: z
@@ -276,15 +278,26 @@ function toState(
     eventAt,
     replacesSubscriptionId: ids.replacesSubscriptionId,
     unpaidTrial:
-      data.status === "trialing" || (data.status === "past_due" && onTrialPrice && neverPaid(data)),
+      data.status === "trialing" ||
+      (data.status === "past_due" && onTrialPrice && neverPaid(data, ours)),
   };
 }
 
-// A trial whose first charge failed is past_due in its first billed period; a renewal moves the period on.
-function neverPaid(data: SubscriptionData): boolean {
-  const firstBilled = parseTimestamp(data.first_billed_at);
+// A trial whose first full charge failed is past_due in the period that starts when the trial ends.
+// A paid trial bills its fee at checkout, so first_billed_at alone can't mark that period.
+function neverPaid(
+  data: SubscriptionData,
+  item: SubscriptionData["items"][number] | undefined,
+): boolean {
   const periodStart = parseTimestamp(data.current_billing_period?.starts_at);
-  return firstBilled === null || periodStart === null || periodStart <= firstBilled;
+  const firstBilled = parseTimestamp(data.first_billed_at);
+  const started = parseTimestamp(data.started_at);
+  const trialEnd =
+    parseTimestamp(item?.trial_dates?.ends_at) ??
+    (started === null ? null : started + PRO_TRIAL.days * DAY_MS);
+  const firstFull = Math.max(firstBilled ?? -Infinity, trialEnd ?? -Infinity);
+  if (periodStart === null || !Number.isFinite(firstFull)) return true;
+  return periodStart <= firstFull + HOUR_MS;
 }
 
 function hasTrialPeriod(trialPeriod: unknown): boolean {
@@ -322,6 +335,17 @@ async function recordCheckout(
   };
   const { subscription_id: subscriptionId, customer_id: customerId } = transaction;
   if (!subscriptionId || !customerId) return ignore("no_subscription");
+  // A refused second trial's charge can complete after the trial was cancelled, so it's refunded here too.
+  try {
+    const refusedUser = await isRefusedTrial(subscriptionId);
+    if (refusedUser) {
+      await refundRefusedTrial(subscriptionId, refusedUser, [transaction.id], now);
+      return ignore("refused_trial");
+    }
+  } catch (error) {
+    log.error("billing.webhook_failed", error, context);
+    return { status: 500, message: "retry" };
+  }
   if (!CHECKOUT_ORIGINS.has(transaction.origin ?? "")) return ignore("not_checkout");
   const item = transaction.items.find((candidate) => config.priceIds.includes(candidate.price.id));
   const price = item ? config.planForPrice(item.price.id) : null;

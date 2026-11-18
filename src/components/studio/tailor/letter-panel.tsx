@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { copyText } from "@/components/ui/copy-text";
 import { toast } from "@/components/ui/toast";
+import { liveWarnings } from "@/lib/ai/warning-text";
 import { wordCount } from "@/lib/ai/writing-guards";
 import { letterFileName } from "@/lib/pdf/letter";
 import { renderLetterPdf } from "@/lib/pdf/render";
@@ -41,6 +42,7 @@ export function LetterPanel({
   const pageSize = usePageSize();
   const [rendering, setRendering] = useState(false);
   const busy = writing.busy === "letter";
+  const checks = letter ? liveWarnings(letter.warnings, letter.text) : [];
   const failed = writing.error?.task === "letter" ? writing.error.message : null;
 
   async function download(text: string) {
@@ -80,10 +82,10 @@ export function LetterPanel({
       {letter ? (
         <>
           {letter.demo ? <DemoNote /> : null}
-          {letter.warnings.length ? (
+          {checks.length ? (
             <Alert variant="warn" title="Check before you send it">
               <ul className="flex list-disc flex-col gap-1 pl-4">
-                {letter.warnings.map((warning) => (
+                {checks.map((warning) => (
                   <li key={warning}>{warning}</li>
                 ))}
               </ul>

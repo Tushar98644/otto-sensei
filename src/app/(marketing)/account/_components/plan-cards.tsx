@@ -152,7 +152,7 @@ export function BillingCard({
         <CardTitle as="h3">Billing</CardTitle>
         <CardDescription>
           {trialEndsAt
-            ? `Nothing is charged during your trial. Cancel before ${trialEndDay(trialEndsAt)} and you won't pay anything.`
+            ? `Cancel before ${trialEndDay(trialEndsAt)} and Pro won't start, so you won't pay anything more.`
             : "Update your card, get invoices, or cancel your plan."}
         </CardDescription>
       </CardHeader>

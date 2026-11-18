@@ -56,7 +56,7 @@ describe("plan copy", () => {
   it("writes the trial's allowance for the whole trial", () => {
     expect(trialLines()).toContain(`${PRO_TRIAL.limits.tailor} tailored versions during the trial`);
     expect(trialLines()).toContain(`${PRO_TRIAL.limits.fix} line fixes during the trial`);
-    expect(PRO_TRIAL).toMatchObject({ plan: "pro", interval: "month", days: 3, priceUsd: 0 });
+    expect(PRO_TRIAL).toMatchObject({ plan: "pro", interval: "month", days: 3, priceUsd: 1 });
   });
 
   it("lists the monthly numbers a month for Pro and Max, and keeps Free monthly during a trial", () => {

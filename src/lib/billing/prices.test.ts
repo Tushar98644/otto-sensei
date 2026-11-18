@@ -89,7 +89,7 @@ describe("reference prices and savings", () => {
     expect(trialOffer()).toBe("Pro for 3 days");
     expect(trialHeadline()).toBe("Try Pro for 3 days");
     expect(trialSentence()).toBe(
-      "$0 for 3 days, then $15 a month. Cancel anytime before the trial ends.",
+      "$1 for 3 days, then $15 a month. Cancel anytime before the trial ends.",
     );
     for (const line of [trialHeadline(), trialSentence(), endsTrialSentence("max", "month")]) {
       expect(line).not.toMatch(/free/i);

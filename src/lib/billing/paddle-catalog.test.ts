@@ -61,6 +61,8 @@ function recurring(
   };
 }
 
+const TRIAL_CHARGE = String(Math.round(PRO_TRIAL.priceUsd * 100));
+
 function goodPrices(): Record<keyof typeof IDS, CatalogPrice> {
   return {
     PADDLE_PRO_MONTHLY_PRICE_ID: recurring(
@@ -75,7 +77,7 @@ function goodPrices(): Record<keyof typeof IDS, CatalogPrice> {
         interval: "day",
         frequency: PRO_TRIAL.days,
         requires_payment_method: true,
-        unit_price: null,
+        unit_price: { amount: TRIAL_CHARGE, currency_code: "USD" },
       },
     },
     PADDLE_PRO_YEARLY_PRICE_ID: recurring(
@@ -128,7 +130,7 @@ describe("checkCatalog", () => {
     expect(checks.map((check) => check.message)).toEqual([
       "Environment: sandbox (PADDLE_ENVIRONMENT, the API key and the client token agree).",
       `Pro monthly (${IDS.PADDLE_PRO_MONTHLY_PRICE_ID}): active, ${dollars(PRICES_USD.pro.month)} every month plus tax, no trial.`,
-      `Pro trial (${IDS.PADDLE_PRO_TRIAL_PRICE_ID}): active, ${dollars(PRICES_USD.pro.month)} every month plus tax, after a ${PRO_TRIAL.days}-day trial, card required.`,
+      `Pro trial (${IDS.PADDLE_PRO_TRIAL_PRICE_ID}): active, ${dollars(PRICES_USD.pro.month)} every month plus tax, after a ${PRO_TRIAL.days}-day trial charging ${dollars(PRO_TRIAL.priceUsd)}, card required.`,
       `Pro yearly (${IDS.PADDLE_PRO_YEARLY_PRICE_ID}): active, ${dollars(PRICES_USD.pro.year)} every year plus tax, no trial.`,
       `Max monthly (${IDS.PADDLE_MAX_MONTHLY_PRICE_ID}): active, ${dollars(PRICES_USD.max.month)} every month plus tax, no trial.`,
       `Max yearly (${IDS.PADDLE_MAX_YEARLY_PRICE_ID}): active, ${dollars(PRICES_USD.max.year)} every year plus tax, no trial.`,
@@ -226,7 +228,7 @@ describe("checkCatalog", () => {
     ]);
   });
 
-  it("reports a trial of the wrong length, one without a card, and one that charges", () => {
+  it("reports a trial of the wrong length, one without a card, and one that charges the wrong amount", () => {
     const checks = checkCatalog(
       config(),
       lookups({
@@ -235,7 +237,7 @@ describe("checkCatalog", () => {
             interval: "week",
             frequency: 1,
             requires_payment_method: false,
-            unit_price: { amount: "100", currency_code: "USD" },
+            unit_price: { amount: "250", currency_code: "USD" },
           },
         },
       }),
@@ -244,11 +246,11 @@ describe("checkCatalog", () => {
     expect(problems(checks)).toEqual([
       `${where}: its trial is 1 week, not ${PRO_TRIAL.days} days (PRO_TRIAL in src/config/plans.ts).`,
       `${where}: its trial doesn't ask for a card; it must (payment method required).`,
-      `${where}: it charges USD 1.00 during the trial; the trial must be free.`,
+      `${where}: it charges USD 2.50 during the trial, not ${dollars(PRO_TRIAL.priceUsd)}.`,
     ]);
   });
 
-  it("accepts a trial that leaves the card rule and the trial charge to Paddle's defaults", () => {
+  it("accepts a trial that leaves the card rule to Paddle's default", () => {
     const checks = checkCatalog(
       config(),
       lookups({
@@ -257,12 +259,31 @@ describe("checkCatalog", () => {
             interval: "day",
             frequency: PRO_TRIAL.days,
             requires_payment_method: null,
-            unit_price: { amount: "0", currency_code: "USD" },
+            unit_price: { amount: TRIAL_CHARGE, currency_code: "USD" },
           },
         },
       }),
     );
     expect(problems(checks)).toEqual([]);
+  });
+
+  it("reports a free trial now that the trial costs money", () => {
+    const checks = checkCatalog(
+      config(),
+      lookups({
+        PADDLE_PRO_TRIAL_PRICE_ID: {
+          trial_period: {
+            interval: "day",
+            frequency: PRO_TRIAL.days,
+            requires_payment_method: true,
+            unit_price: null,
+          },
+        },
+      }),
+    );
+    expect(problems(checks)).toEqual([
+      `Pro trial (${IDS.PADDLE_PRO_TRIAL_PRICE_ID}): it charges USD 0.00 during the trial, not ${dollars(PRO_TRIAL.priceUsd)}.`,
+    ]);
   });
 
   it("reports a trial on a price that isn't the trial price", () => {

@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Field } from "@/components/ui/field";
 import { Textarea } from "@/components/ui/textarea";
 import { VoiceTextarea } from "@/components/ui/voice-field";
+import { liveWarnings } from "@/lib/ai/warning-text";
 import { wordCount } from "@/lib/ai/writing-guards";
 import { DemoNote } from "../demo-note";
 import { copyText } from "@/components/ui/copy-text";
@@ -35,6 +36,7 @@ type AnswerItemProps = {
 
 function AnswerItem({ answer, onEdit, onSettle, onRemove }: AnswerItemProps) {
   const labelId = useId();
+  const checks = liveWarnings(answer.warnings, answer.text);
   return (
     <li className="flex flex-col gap-3 border-t border-border pt-4">
       <div className="flex items-start justify-between gap-3">
@@ -46,9 +48,7 @@ function AnswerItem({ answer, onEdit, onSettle, onRemove }: AnswerItemProps) {
         </Button>
       </div>
       {answer.demo ? <DemoNote /> : null}
-      {answer.warnings.length ? (
-        <Alert variant="warn">{answer.warnings.join(" ")}</Alert>
-      ) : null}
+      {checks.length ? <Alert variant="warn">{checks.join(" ")}</Alert> : null}
       <Textarea
         aria-labelledby={labelId}
         autoResize

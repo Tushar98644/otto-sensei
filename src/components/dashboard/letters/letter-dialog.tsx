@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog } from "@/components/ui/dialog";
 import { Eyebrow } from "@/components/ui/eyebrow";
 import { Textarea } from "@/components/ui/textarea";
+import { liveWarnings } from "@/lib/ai/warning-text";
 import { wordCount } from "@/lib/ai/writing-guards";
 import { textLimit } from "@/lib/writings/schema";
 import { formatDay } from "../applications/view";
@@ -52,6 +53,7 @@ export function LetterDialog({
   const [text, setText] = useState(entry.text);
   const [save, setSave] = useState<SaveState>("idle");
   const letter = entry.kind === "letter";
+  const checks = liveWarnings(entry.warnings, text);
   const kept = entry.writingId !== null || entry.copyId !== null;
   const changed = text.trim() !== "" && text.trim() !== entry.text.trim();
 
@@ -129,10 +131,10 @@ export function LetterDialog({
           </Alert>
         )}
         {entry.demo ? <DemoNote /> : null}
-        {entry.warnings.length ? (
+        {checks.length ? (
           <Alert variant="warn" title="Check before you send it">
             <ul className="flex list-disc flex-col gap-1 pl-4">
-              {entry.warnings.map((warning) => (
+              {checks.map((warning) => (
                 <li key={warning}>{warning}</li>
               ))}
             </ul>

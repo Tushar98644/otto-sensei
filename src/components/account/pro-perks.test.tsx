@@ -35,13 +35,13 @@ describe("PlanPerks", () => {
     }
   });
 
-  it("offers the trial's own allowance first, then Pro's, and says nothing is charged", () => {
+  it("offers the trial's own allowance first, then Pro's, and says what the trial costs", () => {
     const trial = text(renderToStaticMarkup(<PlanPerks plan="pro" trial />));
     expect(trial).toContain("10 tailored versions during the trial");
     expect(trial).toContain("Then 150 a month on Pro.");
     expect(trial).toContain("50 line fixes during the trial");
     expect(trial).toContain("It goes public once Pro starts.");
-    expect(trial).toContain("Nothing is charged for 3 days.");
+    expect(trial).toContain("$1 for 3 days. Cancel before the trial ends and you pay nothing more.");
     expect(trial).not.toMatch(/unlimited/i);
   });
 });

@@ -221,7 +221,7 @@ export default function PrivacyPage() {
       <h2>Payments</h2>
       <p>
         Paddle (Paddle.com) handles payments as our merchant of record. Paddle collects your payment
-        details (also for a trial with nothing charged, so the plan can start when it ends), charges
+        details (also for the trial, so the plan can start when it ends), charges
         you, sends receipts and handles sales tax, under its own{" "}
         <a href={PADDLE_PRIVACY_URL}>privacy policy</a>. The checkout page loads Paddle&apos;s
         checkout from Paddle, which may use its own cookies there.

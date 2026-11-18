@@ -1,10 +1,16 @@
 import { and, asc, eq, isNull, sql } from "drizzle-orm";
 import { getDb } from "@/db/client";
-import { trialReplacements } from "@/db/schema";
+import { billingEvents, trialReplacements } from "@/db/schema";
 import { env } from "@/lib/env";
 import { log } from "@/lib/log";
+import { claimBillingEvent } from "./entitlements";
 import { BillingError } from "./errors";
-import { cancelPaddleSubscription, getPaddleSubscription } from "./paddle";
+import {
+  cancelPaddleSubscription,
+  completedPaddleTransactions,
+  getPaddleSubscription,
+  refundPaddleTransaction,
+} from "./paddle";
 
 // A plan bought during the trial is its own subscription; the trial is cancelled once it's paid.
 
@@ -78,6 +84,9 @@ async function cancelReplaced(replacement: Replacement, now: number): Promise<bo
       .set({ ...attempted, cancelledAt: now })
       .where(row);
     log.info("billing.replaced_trial_cancelled", { ...fields, result });
+    if (fields.reason === "trial_reused") {
+      await refundRefusedTrial(fields.subscriptionId, fields.userId, undefined, now);
+    }
     return true;
   } catch (error) {
     if (!(error instanceof BillingError)) throw error;
@@ -98,4 +107,47 @@ async function cancelTrial(subscriptionId: string): Promise<"cancelled" | "alrea
     if (current.status === "canceled") return "already_ended";
     throw error;
   }
+}
+
+// Refunds each completed charge of a refused second trial once, whether the cancel or Paddle's
+// transaction.completed gets there first; a failed refund frees its claim and is logged for a refund by hand.
+export async function refundRefusedTrial(
+  subscriptionId: string,
+  userId: string,
+  known?: readonly string[],
+  now = Date.now(),
+): Promise<number> {
+  const fields = { userId, subscriptionId };
+  let ids: readonly string[];
+  try {
+    ids = known ?? (await completedPaddleTransactions(subscriptionId));
+  } catch (error) {
+    log.error("billing.reused_trial_refund_failed", error, fields);
+    return 0;
+  }
+  const db = await getDb();
+  let refunded = 0;
+  for (const transactionId of ids) {
+    const claim = `refund:${transactionId}`;
+    if (!(await claimBillingEvent(claim, "trial_refund", now))) continue;
+    try {
+      await refundPaddleTransaction(transactionId);
+      refunded += 1;
+      log.info("billing.reused_trial_refunded", { ...fields, transactionId });
+    } catch (error) {
+      await db.delete(billingEvents).where(eq(billingEvents.id, claim));
+      log.error("billing.reused_trial_refund_failed", error, { ...fields, transactionId });
+    }
+  }
+  return refunded;
+}
+
+export async function isRefusedTrial(subscriptionId: string): Promise<string | null> {
+  const db = await getDb();
+  const [row] = await db
+    .select({ userId: trialReplacements.userId, by: trialReplacements.subscriptionId })
+    .from(trialReplacements)
+    .where(eq(trialReplacements.replacedSubscriptionId, subscriptionId))
+    .limit(1);
+  return row && row.by === subscriptionId ? row.userId : null;
 }

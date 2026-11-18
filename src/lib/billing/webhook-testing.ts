@@ -47,6 +47,7 @@ export type WebhookSubscription = {
   price_id?: string | string[];
   custom_data?: Record<string, unknown> | null;
   scheduled_change?: { action: string; effective_at?: string | null } | null;
+  started_at?: string | null;
   first_billed_at?: string | null;
   next_billed_at?: string | null;
   current_billing_period?: { starts_at: string; ends_at: string } | null;
@@ -104,6 +105,7 @@ export function subscriptionEvent(
         trial_dates: trialEndsAt ? { starts_at: PERIOD_START, ends_at: trialEndsAt } : null,
       })),
       scheduled_change: subscription.scheduled_change ?? null,
+      started_at: subscription.started_at ?? null,
       first_billed_at: firstBilledAt,
       next_billed_at:
         subscription.next_billed_at === undefined ? PERIOD_END : subscription.next_billed_at,

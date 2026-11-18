@@ -23,7 +23,7 @@ import {
 } from "@/config/plans";
 import type { SessionUser } from "@/lib/auth/types";
 import { budgetReachedText } from "@/lib/ai-budget-copy";
-import { trialHeadline } from "@/lib/billing/prices";
+import { trialHeadline, trialPrice } from "@/lib/billing/prices";
 import { resetWhen, thisPeriod } from "@/lib/usage-copy";
 import { BillingNote } from "./billing-note";
 import { ACCOUNT_OTTO, SUPPORT_MAILTO } from "./copy";
@@ -210,7 +210,7 @@ export function UpgradeDialog({
       description: !upgrading
         ? "Cancel anytime from your account."
         : onTrial
-          ? `Your ${PLANS[PRO_TRIAL.plan].name} trial ends the moment the new plan starts, so you're never billed for both.`
+          ? `Your ${PLANS[PRO_TRIAL.plan].name} trial ends the moment the new plan starts, so ${PLANS[PRO_TRIAL.plan].name} never bills after it. The ${trialPrice()} trial charge isn't taken off the new plan.`
           : "Your subscription changes in place: you pay only the difference, never twice.",
       body: pitch,
       size,

@@ -6,7 +6,13 @@ import { insertUserRow, resetDb } from "@/lib/auth/test-helpers";
 import { runCleanup } from "@/lib/cron/cleanup";
 import { resetEnvForTests } from "@/lib/env";
 import { BillingError } from "./errors";
-import { cancelPaddleSubscription, getPaddleSubscription, type PaddleSubscription } from "./paddle";
+import {
+  cancelPaddleSubscription,
+  getPaddleSubscription,
+  completedPaddleTransactions,
+  refundPaddleTransaction,
+  type PaddleSubscription,
+} from "./paddle";
 import { signBillingId } from "./paddle-sign";
 import { processWebhook, type WebhookConfig } from "./webhook";
 import {
@@ -19,10 +25,14 @@ import {
 vi.mock("@/lib/billing/paddle", () => ({
   cancelPaddleSubscription: vi.fn(),
   getPaddleSubscription: vi.fn(),
+  completedPaddleTransactions: vi.fn(async () => ["txn_trial"]),
+  refundPaddleTransaction: vi.fn(async () => undefined),
 }));
 
 const cancel = vi.mocked(cancelPaddleSubscription);
 const read = vi.mocked(getPaddleSubscription);
+const refund = vi.mocked(refundPaddleTransaction);
+const completed = vi.mocked(completedPaddleTransactions);
 
 const SECRET = WEBHOOK_TEST_SECRET;
 const TRIAL_END = "2026-11-11T10:00:00.000Z";
@@ -109,6 +119,9 @@ beforeEach(async () => {
   vi.stubEnv("PADDLE_API_KEY", "pdl_sdbx_apikey_test");
   resetEnvForTests();
   cancel.mockReset();
+  refund.mockReset();
+  completed.mockReset();
+  completed.mockResolvedValue(["txn_trial"]);
   cancel.mockResolvedValue(undefined);
   read.mockReset();
   await resetDb();
@@ -151,6 +164,8 @@ describe("a Pro trial replaced by Max", () => {
     expect(cancel).toHaveBeenCalledTimes(1);
     // The trial being replaced is expected to be live, so this is no second subscription.
     expect(error).not.toHaveBeenCalled();
+    // Only a refused second trial gets its charge back; a trial replaced by Max was used.
+    expect(refund).not.toHaveBeenCalled();
   });
 
   it("also settles when the new subscription already has a cancel scheduled", async () => {

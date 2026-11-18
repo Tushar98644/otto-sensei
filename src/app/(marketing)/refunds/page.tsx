@@ -6,6 +6,7 @@ import { BRAND } from "@/config/brand";
 import { PRO_TRIAL } from "@/config/plans";
 import { LegalPage } from "../_components/legal-page";
 import { PADDLE_BUYER_HELP_URL, PADDLE_REFUND_POLICY_URL } from "../_components/merchant";
+import { formatUsd } from "../_components/plan-features";
 
 export const metadata: Metadata = pageMetadata({
   title: "Refund policy",
@@ -41,8 +42,9 @@ export default function RefundsPage() {
         Free plan. Your resumes stay yours either way.
       </p>
       <p>
-        On the {PRO_TRIAL.days}-day Pro trial nothing is charged. Cancel before the trial ends and
-        you won&apos;t pay anything; otherwise your first Pro payment is taken when it ends.
+        The {PRO_TRIAL.days}-day Pro trial costs {formatUsd(PRO_TRIAL.priceUsd)}, charged when it
+        starts. Cancel before the trial ends and you won&apos;t pay anything more; otherwise your
+        first Pro payment is taken when it ends.
       </p>
 
       <h2>Deleting your account</h2>

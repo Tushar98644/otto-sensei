@@ -7,7 +7,7 @@ import {
   RESUME_LIMITS,
   type UsagePeriod,
 } from "@/config/plans";
-import { trialHeadline, trialOffer } from "@/lib/billing/prices";
+import { trialHeadline, trialOffer, trialPrice } from "@/lib/billing/prices";
 import { resetSentence, thisPeriod } from "@/lib/usage-copy";
 import { pluralize } from "@/lib/utils";
 import { OTTO_ERRORS } from "./error-lines";
@@ -239,7 +239,7 @@ export const OTTO = {
   },
   upgrade: {
     done: (plan: string) => `You're on ${plan} now. Your new limits apply straight away.`,
-    trial: `Try all my AI help with ${trialOffer()}. Cancel before it ends and you pay nothing.`,
+    trial: `Try all my AI help: ${trialOffer()}, ${trialPrice()}. Cancel before it ends to pay nothing more.`,
     trialStarted: (endsOn: string) => `Your Pro trial runs until ${endsOn}. Let's get to work.`,
   },
   errors: OTTO_ERRORS,

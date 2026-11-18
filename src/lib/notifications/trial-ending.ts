@@ -81,7 +81,7 @@ export function trialEndingEmail(input: TrialEndingEmailInput): EmailMessage {
   const lead = `A quick heads-up: your ${name} trial ends on ${when}.`;
   const charge = `After that, ${name} costs ${price} (in US dollars, plus any sales tax or VAT where you live) until you cancel. If you'd like to keep ${name}, there's nothing to do.`;
   const cancel =
-    "If you don't want to continue, you can cancel anytime before then from your account page, and you won't be charged.";
+    "If you don't want to continue, you can cancel anytime before then from your account page, and you won't be charged anything more.";
   const signOff = `${BRAND.mascotName}, from ${BRAND.name}`;
   const footer = `You're getting this because your ${name} trial is about to end. It's a billing notice, so it comes even if reminder emails are off.`;
 

@@ -36,6 +36,7 @@ import {
   wordCount,
   type ProseCheck,
 } from "./writing-guards";
+import { clicheWarning, fillInWarning, unbackedWarning, verbWarning } from "./warning-text";
 
 export const LETTER_WORDS = { min: 150, max: 250 } as const;
 export const ANSWER_WORDS = { min: 60, max: 150 } as const;
@@ -278,18 +279,15 @@ function quoted(text: string): string {
 function warningsFor(text: string, prepared: Prepared, blankHint: string): string[] {
   const warnings: string[] = [];
   const blanks = [...new Set(text.match(/\[[^\]\n]+\]/g) ?? [])];
-  if (blanks.length) warnings.push(`Fill in ${blanks.join(", ")} ${blankHint}`);
+  if (blanks.length) warnings.push(fillInWarning(blanks, blankHint));
   for (const upgrade of upgradedVerbs(text, prepared.lines)) {
-    warnings.push(`Check “${upgrade.verb}”. Your resume says ${quoted(upgrade.line)}.`);
+    warnings.push(verbWarning(upgrade.verb, quoted(upgrade.line)));
   }
   for (const phrase of unbackedIn(text, prepared.sources)) {
-    warnings.push(`Check “${phrase}”: only you know that. Keep it if it's true.`);
+    warnings.push(unbackedWarning(phrase));
   }
   const cliches = clichesIn(text, prepared.sources);
-  if (cliches.length) {
-    const phrases = cliches.map((phrase) => `“${phrase}”`).join(", ");
-    warnings.push(`Swap ${phrases} for your own words. Recruiters skim past it.`);
-  }
+  if (cliches.length) warnings.push(clicheWarning(cliches));
   return warnings;
 }
 

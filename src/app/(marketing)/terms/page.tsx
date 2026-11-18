@@ -185,8 +185,9 @@ export default function TermsPage() {
           you live.
         </li>
         <li>
-          New accounts can have a {PRO_TRIAL.days}-day Pro trial with nothing charged, once per
-          person. You add a card at checkout. When the trial ends, Pro starts at{" "}
+          New accounts can have a {PRO_TRIAL.days}-day Pro trial for {formatUsd(PRO_TRIAL.priceUsd)}
+          , once per person. You add a card at checkout, and the {formatUsd(PRO_TRIAL.priceUsd)}{" "}
+          (plus any taxes) is charged when the trial starts. When the trial ends, Pro starts at{" "}
           {formatUsd(PRICES_USD.pro.month)} a month unless you cancel before then. During the trial
           a portfolio can be built and previewed, but it goes public only on a paid plan.
         </li>

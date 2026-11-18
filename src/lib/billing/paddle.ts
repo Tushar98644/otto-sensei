@@ -34,7 +34,7 @@ export function isPaddleId(kind: PaddleIdKind, id: string | null | undefined): i
   return typeof id === "string" && id.startsWith(`${kind}_`) && PADDLE_ID.test(id);
 }
 
-type Operation = "checkout" | "portal" | "cancel" | "lookup" | "change_plan";
+type Operation = "checkout" | "portal" | "cancel" | "lookup" | "change_plan" | "refund";
 
 export type PaddleSubscription = {
   id: string;
@@ -431,6 +431,45 @@ export async function createPaddleCheckout(input: {
   url.searchParams.set("plan", input.plan);
   if (input.trial) url.searchParams.set("trial", "1");
   return { url: url.toString(), customerId };
+}
+
+export async function completedPaddleTransactions(subscriptionId: string): Promise<string[]> {
+  const list = await request(
+    "refund",
+    {
+      method: "GET",
+      path: "/transactions",
+      query: { subscription_id: subscriptionId, status: "completed" },
+    },
+    TransactionList,
+  );
+  return list.data.map(({ id }) => id).filter((id) => isPaddleId("txn", id));
+}
+
+export async function refundPaddleTransaction(transactionId: string): Promise<void> {
+  assertTransactionId(transactionId);
+  await request(
+    "refund",
+    {
+      method: "POST",
+      path: "/adjustments",
+      body: {
+        action: "refund",
+        type: "full",
+        transaction_id: transactionId,
+        reason: "This account had already used its trial, so the new trial was cancelled.",
+      },
+    },
+    Anything,
+  );
+}
+
+function assertTransactionId(id: string): void {
+  if (!isPaddleId("txn", id)) {
+    throw new BillingError("provider_error", "That isn't a Paddle transaction id", {
+      operation: "refund",
+    });
+  }
 }
 
 // A checkout link stays payable after it's made: an older one paid later would be a second subscription.

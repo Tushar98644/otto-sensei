@@ -10,6 +10,7 @@ import { copyText } from "@/components/ui/copy-text";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { liveWarnings, needsFirstName } from "@/lib/ai/warning-text";
 import { WRITING_LIMITS } from "@/lib/writings/schema";
 import type { OutreachField } from "./outreach-saved";
 
@@ -26,17 +27,27 @@ export type OutreachFieldsProps = {
 
 export function OutreachFields({ message, onEdit, onSettle, subjectRef }: OutreachFieldsProps) {
   const noteOver = message.note.length > NOTE_CHARS;
+  const firstName = needsFirstName(message.subject, message.email, message.note);
+  const checks = liveWarnings(
+    message.warnings,
+    [message.subject, message.email, message.note].join("\n"),
+    ["[first name]"],
+  );
   return (
     <>
       {message.demo ? <DemoNote /> : null}
-      <Alert variant="warn" title="Check before you send it">
-        <ul className="flex list-disc flex-col gap-1 pl-4">
-          <li>Swap [first name] for the name of the person you&apos;re writing to.</li>
-          {message.warnings.map((warning) => (
-            <li key={warning}>{warning}</li>
-          ))}
-        </ul>
-      </Alert>
+      {firstName || checks.length ? (
+        <Alert variant="warn" title="Check before you send it">
+          <ul className="flex list-disc flex-col gap-1 pl-4">
+            {firstName ? (
+              <li>Swap [first name] for the name of the person you&apos;re writing to.</li>
+            ) : null}
+            {checks.map((warning) => (
+              <li key={warning}>{warning}</li>
+            ))}
+          </ul>
+        </Alert>
+      ) : null}
 
       <div className="flex flex-col gap-2">
         <Field label="Email subject">

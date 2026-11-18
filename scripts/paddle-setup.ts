@@ -83,9 +83,28 @@ async function ensureProduct(plan: PaidPlanId): Promise<string> {
   return created.id;
 }
 
-function matches(price: Entity, spec: PriceSpec): boolean {
+const TRIAL_PERIOD = {
+  interval: "day",
+  frequency: PRO_TRIAL.days,
+  requires_payment_method: true,
+  unit_price:
+    PRO_TRIAL.priceUsd > 0 ? { amount: cents(PRO_TRIAL.priceUsd), currency_code: "USD" } : null,
+};
+
+type TrialPeriod = {
+  interval?: string;
+  frequency?: number;
+  unit_price?: { amount?: string } | null;
+} | null;
+
+function trialCharge(trial: TrialPeriod): string {
+  return trial?.unit_price?.amount ?? "0";
+}
+
+// Everything but the trial's own charge, which a PATCH can put right on the same price.
+function matchesPlan(price: Entity, spec: PriceSpec): boolean {
   const cycle = price.billing_cycle as { interval?: string; frequency?: number } | null;
-  const trial = price.trial_period as { interval?: string; frequency?: number } | null;
+  const trial = price.trial_period as TrialPeriod;
   const unit = price.unit_price as { amount?: string; currency_code?: string } | null;
   return (
     cycle?.interval === spec.interval &&
@@ -97,10 +116,24 @@ function matches(price: Entity, spec: PriceSpec): boolean {
   );
 }
 
+function matches(price: Entity, spec: PriceSpec): boolean {
+  if (!matchesPlan(price, spec)) return false;
+  return (
+    !spec.trial || trialCharge(price.trial_period as TrialPeriod) === cents(PRO_TRIAL.priceUsd)
+  );
+}
+
 async function ensurePrice(productId: string, spec: PriceSpec): Promise<string> {
   const existing = await list(`/prices?product_id=${productId}&status=active&per_page=200`);
   const found = existing.find((price) => matches(price, spec));
   if (found) return found.id;
+  // The trial price keeps its id when only its charge changed, so checkouts and the webhook still know it.
+  const recharge = spec.trial ? existing.find((price) => matchesPlan(price, spec)) : undefined;
+  if (recharge) {
+    await paddle("PATCH", `/prices/${recharge.id}`, { trial_period: TRIAL_PERIOD });
+    console.log(`Trial price ${recharge.id} now charges USD ${PRO_TRIAL.priceUsd} for the trial.`);
+    return recharge.id;
+  }
   const label = `${spec.interval === "month" ? "Monthly" : "Yearly"}${spec.trial ? `, ${PRO_TRIAL.days}-day trial` : ""}`;
   const created = await paddle<Entity>("POST", "/prices", {
     product_id: productId,
@@ -108,9 +141,7 @@ async function ensurePrice(productId: string, spec: PriceSpec): Promise<string> 
     name: label,
     unit_price: { amount: cents(PRICES_USD[spec.plan][spec.interval]), currency_code: "USD" },
     billing_cycle: { interval: spec.interval, frequency: 1 },
-    trial_period: spec.trial
-      ? { interval: "day", frequency: PRO_TRIAL.days, requires_payment_method: true }
-      : null,
+    trial_period: spec.trial ? TRIAL_PERIOD : null,
     tax_mode: "external",
     quantity: { minimum: 1, maximum: 1 },
     custom_data: { otto_price: spec.env },
