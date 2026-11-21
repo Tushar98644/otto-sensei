@@ -5,6 +5,8 @@ import { OttoNote } from "@/components/mascot/otto-note";
 import { pageMetadata } from "@/components/site/page-metadata";
 import { ROUTES } from "@/components/site/routes";
 import { TextLink } from "@/components/site/text-link";
+import { trialOffered } from "@/lib/billing/intervals";
+import { loginHeading } from "./_components/login-heading";
 import { LoginForm } from "./_components/login-form";
 
 export const metadata = pageMetadata({
@@ -14,10 +16,16 @@ export const metadata = pageMetadata({
   noindex: true,
 });
 
-export default function LoginPage() {
+type LoginPageProps = { searchParams: Promise<Record<string, string | string[] | undefined>> };
+
+export default async function LoginPage({ searchParams }: LoginPageProps) {
+  const { next } = await searchParams;
+  const heading = loginHeading(typeof next === "string" ? next : null, trialOffered());
   return (
     <div className="mx-auto flex w-full max-w-lg flex-col gap-8 px-4 py-16 sm:py-24">
-      <h1 className="font-display text-5xl/none font-normal tracking-tight text-ink">Sign in</h1>
+      <h1 className="font-display text-4xl/10 font-normal tracking-tight text-balance text-ink sm:text-5xl/13">
+        {heading}
+      </h1>
       <OttoNote live={false} message={ACCOUNT_OTTO.login} />
       <Suspense fallback={<SignInFormSkeleton />}>
         <LoginForm />

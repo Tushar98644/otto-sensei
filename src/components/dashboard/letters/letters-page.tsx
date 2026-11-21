@@ -1,10 +1,11 @@
 "use client";
 
-import { MessageSquareText, PenLine } from "lucide-react";
+import { PenLine } from "lucide-react";
 import { useMemo, useRef, useState } from "react";
 import { errorMessage } from "@/components/account/errors";
 import { useProTools, useTryProLabel } from "@/components/account/pro-tools";
 import { LazyUpgradeDialog } from "@/components/account/lazy-dialogs";
+import { useMe } from "@/components/account/use-me";
 import { OTTO } from "@/components/mascot/lines";
 import { OttoNote } from "@/components/mascot/otto-note";
 import { saveLetterOnCopy } from "@/components/studio/tailor/copy-letter";
@@ -40,9 +41,11 @@ import { LetterDialog } from "./letter-dialog";
 import { LETTER_FILTER_NAMES, LetterFilters } from "./letter-filters";
 import { LetterRow } from "./letter-row";
 import { fieldsOfEntry, OutreachView } from "./outreach-view";
+import { SampleLetter } from "./sample-letter";
 import { useLetterPdf } from "./use-letter-pdf";
+import { useSavedJobs } from "./use-saved-jobs";
 import { useWritings } from "./use-writings";
-import type { WriteKind, Written } from "./write-dialog";
+import type { Written } from "./write-dialog";
 
 const count = new Intl.NumberFormat("en-US");
 const PAGE_ROWS = 50;
@@ -58,12 +61,15 @@ export function LettersPage() {
   const now = useNow();
   const actions = useStudioActions();
   const pdf = useLetterPdf(resumes);
-  const locked = useProTools() === false;
+  const pro = useProTools();
+  const locked = pro === false;
+  const { loading: planLoading } = useMe();
   const tryPro = useTryProLabel();
+  const savedJobs = useSavedJobs(pro === true);
   const [upgradeOpen, setUpgradeOpen] = useState(false);
   const [filter, setFilter] = useState<LetterFilter>("all");
   const [rows, setRows] = useState(PAGE_ROWS);
-  const [composer, setComposer] = useState<Opening<{ kind: WriteKind }> | null>(null);
+  const [composer, setComposer] = useState<Opening<object> | null>(null);
   const [viewer, setViewer] = useState<Opening<{ entryKey: string }> | null>(null);
   const [unsaved, setUnsaved] = useState<LetterEntry[]>([]);
   const openings = useRef(0);
@@ -77,13 +83,13 @@ export function LettersPage() {
   const viewing = viewer ? entries.find((entry) => entry.key === viewer.entryKey) : undefined;
   const ready = hydrated && writings.status === "ready";
 
-  function start(kind: WriteKind) {
+  function start() {
     if (locked) {
       setUpgradeOpen(true);
       return;
     }
     openings.current += 1;
-    setComposer({ kind, key: openings.current, open: true });
+    setComposer({ key: openings.current, open: true });
   }
 
   function view(entryKey: string) {
@@ -139,9 +145,24 @@ export function LettersPage() {
   }
 
   async function saveOutreach(entry: LetterEntry, fields: OutreachFields): Promise<boolean> {
-    const before = writings.items.find((item) => item.id === entry.writingId);
     const change = outreachChange(fields, fieldsOfEntry(entry));
-    if (!before?.outreach || !change) return true;
+    if (!change) return true;
+    if (entry.writingId === null) {
+      setUnsaved((list) =>
+        list.map((item) =>
+          item.key === entry.key && item.outreach
+            ? {
+                ...item,
+                text: change.text ?? item.text,
+                outreach: { ...item.outreach, subject: change.subject ?? item.outreach.subject, note: change.note ?? item.outreach.note },
+              }
+            : item,
+        ),
+      );
+      return true;
+    }
+    const before = writings.items.find((item) => item.id === entry.writingId);
+    if (!before?.outreach) return true;
     writings.replace(withChange(before, change));
     try {
       const { writing } = await api.editWriting(before.id, change);
@@ -187,7 +208,7 @@ export function LettersPage() {
       <header className="flex flex-wrap items-end justify-between gap-x-6 gap-y-4">
         <div className="min-w-0">
           <h1 className="font-display text-4xl/10 font-normal tracking-tight text-ink sm:text-5xl/13">
-            Letters and messages
+            Letters
           </h1>
           <p className="mt-2 max-w-prose text-base/7 text-muted">
             {ready && entries.length > 0
@@ -195,30 +216,24 @@ export function LettersPage() {
               : "Cover letters, answers to application questions and outreach messages, written only from your resume and the job post."}
           </p>
         </div>
-        <div className="flex flex-wrap gap-2">
-          <Button variant="secondary" onClick={() => start("answer")}>
-            <MessageSquareText aria-hidden />
-            Answer a question
-          </Button>
-          <Button onClick={() => start("letter")}>
+        {pro === true && ready && entries.length > 0 ? (
+          <Button onClick={start}>
             <PenLine aria-hidden />
-            Write a letter
+            Write
           </Button>
-        </div>
+        ) : null}
       </header>
 
-      {locked ? (
-        <OttoNote live={false} message={OTTO.limit.none("letter", false)}>
+      {locked && ready ? (
+        <OttoNote
+          live={false}
+          message={entries.length > 0 ? OTTO.letters.lockedKept : OTTO.letters.locked}
+        >
           <Button onClick={() => setUpgradeOpen(true)}>{tryPro}</Button>
-          {entries.length > 0 ? (
-            <p className="text-sm/6 text-muted">
-              What you wrote before stays here to read, copy and edit.
-            </p>
-          ) : null}
         </OttoNote>
       ) : null}
 
-      {!ready && writings.status !== "error" ? (
+      {(!ready || (entries.length === 0 && planLoading)) && writings.status !== "error" ? (
         <LoadingState />
       ) : writings.status === "error" ? (
         <Alert
@@ -233,7 +248,9 @@ export function LettersPage() {
           Check your connection, then try again.
         </Alert>
       ) : entries.length === 0 ? (
-        locked ? null : resumes.length === 0 ? (
+        locked ? (
+          <SampleLetter />
+        ) : resumes.length === 0 ? (
           <div className="rounded-2xl bg-surface p-6 sm:p-8">
             <OttoNote live={false} message={OTTO.letters.noResume}>
               <NewResumeMenu actions={actions} />
@@ -242,13 +259,9 @@ export function LettersPage() {
         ) : (
           <div className="rounded-2xl bg-surface p-6 sm:p-8">
             <OttoNote live={false} message={OTTO.letters.empty}>
-              <Button onClick={() => start("letter")}>
+              <Button onClick={start}>
                 <PenLine aria-hidden />
-                Write your first letter
-              </Button>
-              <Button variant="secondary" onClick={() => start("answer")}>
-                <MessageSquareText aria-hidden />
-                Answer a question
+                Start writing
               </Button>
             </OttoNote>
           </div>
@@ -316,9 +329,11 @@ export function LettersPage() {
       {locked && composer === null ? null : (
         <LazyWriteDialog
           key={composer?.key}
-          kind={composer?.kind ?? "letter"}
+          kind="letter"
           open={composer?.open ?? false}
           resumes={resumes}
+          applications={applications.items}
+          savedJobs={savedJobs}
           onClose={() => setComposer((current) => current && { ...current, open: false })}
           onWritten={written}
         />

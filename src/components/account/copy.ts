@@ -10,6 +10,19 @@ export const ACCOUNT_OTTO = {
   alreadyMax: "You're on Max, the biggest plan. Email us if you need more.",
 } as const;
 
+export const UPGRADE_SIGN_IN_TITLE = {
+  trial: "Sign in to start your trial",
+  upgrade: "Sign in to upgrade",
+} as const;
+
+export function backFromUpgradeToast(plan: string): string {
+  return `You're on ${plan}. Let's pick up where you left off.`;
+}
+
+export function alreadyOnPlanToast(plan: string): string {
+  return `You're already on ${plan}.`;
+}
+
 export const SESSION_ENDED_REASON = "You were signed out. Sign in again to keep going.";
 
 export function signedOutNote(kept: number): string {

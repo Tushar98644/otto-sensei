@@ -1,10 +1,13 @@
 import { Check } from "lucide-react";
 import { IntentLink } from "@/components/site/intent-link";
+import { ROUTES } from "@/components/site/routes";
+import { TextLink } from "@/components/site/text-link";
 import { Badge } from "@/components/ui/badge";
 import { buttonClasses } from "@/components/ui/button";
 import { PLANS, type PlanId } from "@/config/plans";
 import type { JobCounts } from "@/lib/job-feed/counts";
 import { cn } from "@/lib/utils";
+import type { PlanBadge, PlanCta } from "./plan-ctas";
 import { planCopy } from "./plan-features";
 
 export function plansPanelClasses(count: number): string {
@@ -20,17 +23,16 @@ export type PlanPrice = {
   spoken: string;
   reference?: string;
   badge?: string;
-  comparison?: string;
 };
 
 export type PlanCardProps = {
   planId: PlanId;
   headingAs?: "h2" | "h3";
-  featured?: boolean;
+  badge?: PlanBadge | null;
   price: PlanPrice;
-  cta: { href: string; label: string };
-  priceNote?: string | null;
-  note?: string;
+  cta: PlanCta | null;
+  manage?: boolean;
+  notes?: readonly string[];
   jobCounts?: JobCounts;
   className?: string;
 };
@@ -38,11 +40,11 @@ export type PlanCardProps = {
 export function PlanCard({
   planId,
   headingAs: Heading = "h3",
-  featured = false,
+  badge = null,
   price,
   cta,
-  priceNote,
-  note,
+  manage = false,
+  notes = [],
   jobCounts,
   className,
 }: PlanCardProps) {
@@ -59,7 +61,7 @@ export function PlanCard({
         <Heading className="font-display text-3xl/9 font-normal text-ink sm:text-4xl/10">
           {plan.name}
         </Heading>
-        {featured ? <Badge variant="ink">Most popular</Badge> : null}
+        {badge ? <Badge variant={badge.tone}>{badge.label}</Badge> : null}
       </div>
       <p className="mt-2 text-base/7 text-muted">{copy.summary}</p>
       <div className="mt-6">
@@ -83,19 +85,34 @@ export function PlanCard({
             </Badge>
           ) : null}
         </p>
-        {price.comparison ? <p className="mt-1 text-sm text-muted">{price.comparison}</p> : null}
-        <IntentLink
-          href={cta.href}
-          className={buttonClasses({
-            variant: featured ? "primary" : "secondary",
-            size: "lg",
-            className: "mt-6 w-full",
-          })}
-        >
-          {cta.label}
-        </IntentLink>
-        <p className="mt-3 text-center text-sm text-subtle">{note ?? copy.note}</p>
-        {priceNote ? <p className="mt-1 text-center text-sm text-muted">{priceNote}</p> : null}
+        {cta ? (
+          <IntentLink
+            href={cta.href}
+            className={buttonClasses({
+              variant: cta.primary ? "primary" : "secondary",
+              size: "lg",
+              className: "mt-6 w-full",
+            })}
+          >
+            {cta.label}
+          </IntentLink>
+        ) : manage ? (
+          <p className="mt-6 flex h-12 items-center justify-center text-base">
+            <TextLink href={ROUTES.dashboardAccount}>Manage your plan</TextLink>
+          </p>
+        ) : null}
+        {notes.map((line, index) => (
+          <p
+            key={line}
+            className={cn(
+              "text-center text-sm text-subtle",
+              index === 0 ? "mt-3" : "mt-1",
+              !cta && !manage && index === 0 && "mt-6",
+            )}
+          >
+            {line}
+          </p>
+        ))}
       </div>
       <div className="mt-6 border-t border-border pt-6">
         {copy.lead ? <p className="mb-3 text-base font-medium text-ink">{copy.lead}</p> : null}
@@ -107,6 +124,7 @@ export function PlanCard({
             </li>
           ))}
         </ul>
+        <p className="mt-4 text-sm/6 text-muted tabular-nums">{copy.quota}</p>
       </div>
     </div>
   );

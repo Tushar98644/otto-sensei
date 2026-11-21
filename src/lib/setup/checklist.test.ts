@@ -4,8 +4,10 @@ import { NO_CHOICE } from "@/lib/job-feed/types";
 import { emptyResume, type Resume } from "@/lib/resume/schema";
 import {
   checklistShows,
+  defaultsDue,
   jobsWorkPromptShows,
   lookingForSet,
+  newestUpload,
   ownResumes,
   reminderPromptShows,
   setupItems,
@@ -13,6 +15,7 @@ import {
   workRightsSet,
   type SetupFacts,
 } from "./checklist";
+import type { SetupGuess } from "./types";
 import { weakLineState } from "./weak-line";
 
 const STRONG = "Cut checkout errors 38% by rewriting the payment retry logic";
@@ -56,6 +59,18 @@ describe("what counts as done", () => {
     ).toBe(true);
   });
 
+  it("doesn't count the home region Otto set on its own until it is confirmed", () => {
+    const guess: SetupGuess = { country: "PT", from: "resume", region: "eu" };
+    const guessed = profile({ country: "PT", rights: { ...profile().rights, eu: "authorized" } });
+    expect(workRightsSet(guessed, guess)).toBe(false);
+    expect(workRightsSet(guessed, null)).toBe(true);
+    const visa = { ...guessed, rights: { ...guessed.rights, us: "sponsorship" as const } };
+    expect(workRightsSet(visa, guess)).toBe(true);
+    expect(workRightsSet({ ...guessed, country: "ES" }, guess)).toBe(true);
+    const answered = { ...guessed, rights: { ...guessed.rights, eu: "sponsorship" as const } };
+    expect(workRightsSet(answered, guess)).toBe(true);
+  });
+
   it("counts any picked or confirmed part of Looking for, but not the remote switch alone", () => {
     expect(lookingForSet(NO_CHOICE)).toBe(false);
     expect(lookingForSet({ ...NO_CHOICE, remote: true })).toBe(false);
@@ -85,6 +100,35 @@ describe("what counts as done", () => {
       "mine",
       "older",
     ]);
+  });
+});
+
+describe("when the first-login guesses are due", () => {
+  const upload = resume("upload", [STRONG], { updatedAt: 3 });
+  const typed = resume("typed", [STRONG], { source: "scratch", updatedAt: 5 });
+  const copy = resume("copy", [STRONG], {
+    source: "tailored",
+    updatedAt: 9,
+    tailor: {
+      baseResumeId: "upload",
+      jobTitle: "Engineer",
+      company: "Northwind",
+      keywords: [],
+      createdAt: 0,
+    },
+  });
+
+  it("guesses Looking for from an upload, never one typed from scratch or tailored", () => {
+    expect(newestUpload(ownResumes([typed, upload, copy]))?.id).toBe("upload");
+    expect(newestUpload(ownResumes([typed, copy]))).toBeNull();
+  });
+
+  it("runs the place once, and Looking for once an upload is there", () => {
+    expect(defaultsDue({ defaultsAt: null, lookingForAt: null }, [])).toBe(true);
+    expect(defaultsDue({ defaultsAt: 1, lookingForAt: null }, [])).toBe(false);
+    expect(defaultsDue({ defaultsAt: 1, lookingForAt: null }, [typed])).toBe(false);
+    expect(defaultsDue({ defaultsAt: 1, lookingForAt: null }, [upload])).toBe(true);
+    expect(defaultsDue({ defaultsAt: 1, lookingForAt: 2 }, [upload])).toBe(false);
   });
 });
 
@@ -161,6 +205,17 @@ describe("setupItems", () => {
     expect(setupProgress(items)).toEqual({ done: 3, total: 5 });
   });
 
+  it("keeps Where you can work open while Otto's guess is unconfirmed", () => {
+    const work = {
+      profile: profile({ country: "DE", rights: { ...profile().rights, eu: "authorized" } }),
+      lookingFor: NO_CHOICE,
+    };
+    const done = (guess: SetupGuess | null) =>
+      setupItems(facts({ work, guess })).find((item) => item.id === "work")?.done;
+    expect(done({ country: "DE", from: "resume", region: "eu" })).toBe(false);
+    expect(done(null)).toBe(true);
+  });
+
   it("leaves Pro tools out on Free, and reminders out where email can't be sent", () => {
     expect(setupItems(facts({ pro: false })).map((item) => item.id)).toEqual([
       "resume",
@@ -209,6 +264,15 @@ describe("contextual prompts", () => {
     expect(jobsWorkPromptShows({ pro: false, locked: false, profile: profile() })).toBe(false);
     expect(jobsWorkPromptShows({ pro: true, locked: true, profile: profile() })).toBe(false);
     expect(jobsWorkPromptShows({ pro: true, locked: false, profile: null })).toBe(false);
+  });
+
+  it("Jobs keeps asking while the only answer is the region Otto guessed", () => {
+    const guessed = profile({ country: "GB", rights: { ...profile().rights, uk: "authorized" } });
+    const guess: SetupGuess = { country: "GB", from: "device", region: "uk" };
+    expect(jobsWorkPromptShows({ pro: true, locked: false, profile: guessed, guess })).toBe(true);
+    expect(jobsWorkPromptShows({ pro: true, locked: false, profile: guessed, guess: null })).toBe(
+      false,
+    );
   });
 
   it("Applications offers reminder emails after the first one, until answered", () => {

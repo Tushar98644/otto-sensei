@@ -5,7 +5,7 @@ import { AccountView } from "@/app/(marketing)/account/_components/account-view"
 
 export const metadata: Metadata = { title: "Account" };
 
-// data-dashboard tells the settings layout to clear the dashboard's phone bar and make room for its sidebar.
+// data-dashboard tells the account's sections to clear the dashboard's phone bar when a link scrolls to one.
 export default function DashboardAccountPage() {
   return (
     <div data-dashboard className="flex flex-col gap-8 has-data-narrow:max-w-2xl">

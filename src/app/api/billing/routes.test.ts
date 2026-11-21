@@ -214,6 +214,36 @@ describe("POST /api/billing/checkout", () => {
     expect(res.status).toBe(400);
     expect(await res.json()).toMatchObject({ ok: false, error: { code: "bad_request" } });
   });
+
+  it("in mock checkout, carries the page the upgrade started on back to Account", async () => {
+    await signIn();
+    const res = await checkout(checkoutRequest({ next: "/studio?step=tailor" }));
+    expect(await res.json()).toEqual({
+      ok: true,
+      url: "/account?checkout=success&plan=pro&trial=1&next=%2Fstudio%3Fstep%3Dtailor",
+    });
+  });
+
+  it("drops a next that isn't a page on this site, and still sells the plan", async () => {
+    for (const next of ["https://evil.example", "//evil.example", "/account", "/\t/evil", ""]) {
+      await resetDb();
+      await signIn();
+      const res = await checkout(checkoutRequest({ next }));
+      expect(res.status, next).toBe(200);
+      expect(await res.json(), next).toEqual({
+        ok: true,
+        url: "/account?checkout=success&plan=pro&trial=1",
+      });
+    }
+  });
+
+  it("refuses a next that isn't text or is far too long", async () => {
+    await signIn();
+    for (const next of [42, `/${"a".repeat(600)}`]) {
+      const res = await checkout(checkoutRequest({ next }));
+      expect(res.status).toBe(400);
+    }
+  });
 });
 
 describe("POST /api/billing/checkout with Dodo", () => {
@@ -338,6 +368,26 @@ describe("POST /api/billing/checkout with Dodo", () => {
       [`POST /subscriptions/${SUB_1}/change-plan`, changeBody(MAX_MONTH, "full_immediately")],
     ]);
     expect(dodo.callsTo("POST /checkouts")).toEqual([]);
+  });
+
+  it("puts the page the upgrade started on in Dodo's return link", async () => {
+    await signIn();
+    await checkout(checkoutRequest({ next: "/dashboard/jobs" }));
+    expect(dodo.callsTo("POST /checkouts")[0]?.body).toMatchObject({
+      return_url: `${APP_URL}/api/billing/return?plan=pro&trial=1&next=%2Fdashboard%2Fjobs`,
+      cancel_url: `${APP_URL}/account?checkout=cancelled`,
+    });
+  });
+
+  it("carries the page the upgrade started on through an in-place change too", async () => {
+    await subscriber("trialing");
+    const res = await checkout(
+      checkoutRequest({ plan: "max", interval: "month", next: "/studio" }),
+    );
+    expect(await res.json()).toEqual({
+      ok: true,
+      url: "/account?checkout=success&plan=max&next=%2Fstudio",
+    });
   });
 
   it("moves a paying Pro subscriber to Max on the same billing cycle", async () => {

@@ -5,9 +5,11 @@ import {
   billingEvents,
   matchCache,
   matchEvents,
+  meteredResults,
   notifications,
   rateLimits,
   resumeTombstones,
+  usagePasses,
 } from "@/db/schema";
 import { retryPendingReplacements } from "@/lib/billing/replacements";
 import { MATCH_CACHE_MAX_AGE_MS } from "@/lib/job-feed/match-cache";
@@ -141,6 +143,37 @@ export async function runCleanup({ now, deadline }: CronContext): Promise<CronOu
           .delete(matchCache)
           .where(sql`(${matchCache.userId}, ${matchCache.key}) in ${stale}`)
           .returning({ key: matchCache.key });
+        return deleted.length;
+      },
+    },
+    {
+      name: "usagePasses",
+      run: async () => {
+        const { userId, feature, subject } = usagePasses;
+        const stale = db
+          .select({ userId, feature, subject })
+          .from(usagePasses)
+          .where(lt(usagePasses.expiresAt, now))
+          .limit(CLEANUP_BATCH);
+        const deleted = await db
+          .delete(usagePasses)
+          .where(sql`(${userId}, ${feature}, ${subject}) in ${stale}`)
+          .returning({ subject });
+        return deleted.length;
+      },
+    },
+    {
+      name: "meteredResults",
+      run: async () => {
+        const stale = db
+          .select({ userId: meteredResults.userId, key: meteredResults.requestKey })
+          .from(meteredResults)
+          .where(lt(meteredResults.expiresAt, now))
+          .limit(CLEANUP_BATCH);
+        const deleted = await db
+          .delete(meteredResults)
+          .where(sql`(${meteredResults.userId}, ${meteredResults.requestKey}) in ${stale}`)
+          .returning({ key: meteredResults.requestKey });
         return deleted.length;
       },
     },

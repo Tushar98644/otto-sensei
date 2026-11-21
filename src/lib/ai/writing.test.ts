@@ -303,6 +303,30 @@ describe("writeOutreach", () => {
     expect(result.email).toContain("rebuilt the billing service in Go");
     expect(result.note.startsWith("Hi [first name], ")).toBe(true);
   });
+
+  it("asks for a follow-up on an application, and falls back to a follow-up subject and note", async () => {
+    runStructured.mockResolvedValueOnce({ subject: "  ", email: EMAIL, note: "" });
+    const result = await writeOutreach(makeResume(), JOB, undefined, { followUpDays: 9 });
+    const sent = runStructured.mock.calls[0]?.[0];
+    expect(sent?.user).toContain("This message is a follow-up, not a cold message");
+    expect(sent?.user).toContain("applied for this job 9 days ago");
+    expect(sent?.user.endsWith("Write the follow-up.")).toBe(true);
+    expect(result.subject).toBe("Following up: Senior Backend Engineer at Kestrel Labs");
+
+    runStructured.mockResolvedValueOnce({ subject: "Backend role", email: EMAIL, note: "Applying." });
+    await writeOutreach(makeResume(), JOB);
+    const first = runStructured.mock.calls[1]?.[0];
+    expect(first?.user).not.toContain("follow-up");
+    expect(first?.user.endsWith("Write the message.")).toBe(true);
+  });
+
+  it("writes a demo follow-up without a key", async () => {
+    useKey(null);
+    const result = await writeOutreach(makeResume(), JOB, undefined, { followUpDays: 9 });
+    expect(runStructured).not.toHaveBeenCalled();
+    expect(result.subject).toBe("Following up: Senior Backend Engineer at Kestrel Labs");
+    expect(result.email).toContain("I applied for the Senior Backend Engineer at Kestrel Labs recently");
+  });
 });
 
 describe("writing style", () => {

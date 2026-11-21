@@ -2,21 +2,25 @@
 
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo } from "react";
-import { roomForResume, useProTools } from "@/components/account/pro-tools";
-import { openUpgradePrompt } from "@/components/account/upgrade-prompt";
+import {
+  askForResumeRoom,
+  noRoomForResume,
+  roomForResume,
+  unlockFeature,
+  useProTools,
+} from "@/components/account/pro-tools";
 import { OTTO } from "@/components/mascot/lines";
 import { ROUTES } from "@/components/site/routes";
 import { requestGuidedDraft } from "@/components/studio/upload/guided-start";
+import { openSample } from "@/components/studio/upload/sample-start";
 import { handOffUpload, UPLOAD_ACCEPT } from "@/components/studio/upload/upload-handoff";
 import {
   LOCAL_IMPORT_ACCEPT,
   type LocalImportKind,
 } from "@/components/studio/upload/local-import-kinds";
 import { toast } from "@/components/ui/toast";
-import { RESUME_LIMITS } from "@/config/plans";
 import { track } from "@/lib/analytics/client";
 import { useStudioStore, type StudioStep } from "@/lib/store/resume-store";
-import { createSampleResume } from "@/lib/resume/sample";
 import { emptyResume } from "@/lib/resume/schema";
 
 // Some mobile browsers ignore a click on a detached input, so it joins the document meanwhile.
@@ -70,9 +74,9 @@ export function useStudioActions() {
   // The picker must open inside the click, so the room is checked after the file is picked.
   const importLocal = useCallback(
     (kind: LocalImportKind) =>
-      chooseFile(LOCAL_IMPORT_ACCEPT[kind], (file) => {
+      chooseFile(LOCAL_IMPORT_ACCEPT[kind], function read(file) {
         void (async () => {
-          if (!(await roomForResume())) return;
+          if (!(await roomForResume(() => read(file)))) return;
           const { LocalImportError, readLocalImport } =
             await import("@/components/studio/upload/local-import");
           try {
@@ -96,38 +100,47 @@ export function useStudioActions() {
     () => ({
       open,
       upload: () => {
-        if (pro === false && useStudioStore.getState().order.length >= RESUME_LIMITS.free) {
-          openUpgradePrompt("resumes");
+        const handOff = (file: File) => {
+          handOffUpload(file);
+          go("upload");
+        };
+        if (pro === false && noRoomForResume()) {
+          // "Replace it" opens the picker in its own click; the old resume goes once a file is chosen.
+          askForResumeRoom((replaceOld) =>
+            chooseFile(UPLOAD_ACCEPT, (file) => {
+              if (replaceOld()) handOff(file);
+            }),
+          );
           return;
         }
         chooseFile(UPLOAD_ACCEPT, (file) => {
-          void roomForResume().then((room) => {
-            if (!room) return;
-            handOffUpload(file);
-            go("upload");
+          void roomForResume(() => handOff(file)).then((room) => {
+            if (room) handOff(file);
           });
         });
       },
+      // Free has no drafts, so the trial is offered before the questions, not after them.
       guided: () =>
-        void roomForResume().then((room) => {
-          if (!room) return;
+        void (async () => {
+          if (!(await unlockFeature("draft")) || !(await roomForResume())) return;
           requestGuidedDraft();
           go("upload");
-        }),
+        })(),
       linkedin: () => importLocal("linkedin"),
       jsonResume: () => importLocal("jsonresume"),
-      scratch: () =>
-        void roomForResume().then((room) => {
-          if (!room) return;
+      scratch: () => {
+        const start = () => {
           addResume(emptyResume());
           go("fix");
-        }),
-      sample: () =>
-        void roomForResume().then((room) => {
-          if (!room) return;
-          addResume(createSampleResume());
-          go("fix");
-        }),
+        };
+        void roomForResume(start).then((room) => {
+          if (room) start();
+        });
+      },
+      sample: () => {
+        openSample();
+        go("fix");
+      },
     }),
     [addResume, go, importLocal, open, pro],
   );

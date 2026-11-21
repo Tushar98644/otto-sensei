@@ -21,7 +21,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useId, useMemo, useState } from "react";
 import { useProTools } from "@/components/account/pro-tools";
-import { openFeaturePrompt } from "@/components/account/upgrade-prompt";
+import { openFeaturePrompt, openUpgradePrompt } from "@/components/account/upgrade-prompt";
 import { useGitHubReturn } from "@/components/github/connect-return";
 import { OttoCheer } from "@/components/mascot/otto-cheer";
 import { portfolioFrom } from "@/components/portfolio/route";
@@ -47,6 +47,7 @@ import { SOURCE_TABS, tailoredJob } from "./library";
 import { linesChip, reportChip } from "./resume-status";
 import { ResumeThumbnail } from "./resume-thumbnail";
 import type { StudioActions } from "./use-studio-actions";
+import { useTailorLocked } from "./use-tailor-locked";
 
 type GitHubDialog = typeof import("@/components/github/github-import-dialog").GitHubImportDialog;
 
@@ -108,7 +109,9 @@ export function ResumeCard({
     );
   }
   useGitHubReturn(resume.id, openGitHub);
-  const githubLocked = useProTools() === false;
+  // Free only, never while the plan loads: each locked action opens the trial before any work.
+  const locked = useProTools() === false;
+  const tailorLocked = useTailorLocked();
   const share = useShareResume(resume);
   const router = useRouter();
   const report = useStudioStore((s) => s.reports[resume.id]);
@@ -210,13 +213,15 @@ export function ResumeCard({
                 {
                   label: "Tailor to a job",
                   icon: Target,
-                  onSelect: () => actions.open(resume.id, "tailor"),
+                  pro: tailorLocked,
+                  onSelect: () =>
+                    tailorLocked ? openFeaturePrompt("tailor") : actions.open(resume.id, "tailor"),
                 },
                 {
                   label: "Import from GitHub",
                   icon: FolderGit,
-                  description: githubLocked ? "Comes with Pro" : undefined,
-                  onSelect: () => (githubLocked ? openFeaturePrompt("github") : openGitHub()),
+                  pro: locked,
+                  onSelect: () => (locked ? openFeaturePrompt("github") : openGitHub()),
                 },
                 "separator",
                 {
@@ -224,12 +229,14 @@ export function ResumeCard({
                   icon: Download,
                   onSelect: () => actions.open(resume.id, "download"),
                 },
-                { label: "Copy share link", icon: Link2, onSelect: share.share },
+                { label: "Copy share link", icon: Link2, pro: locked, onSelect: share.share },
                 { label: "Share link settings", icon: Settings2, onSelect: share.open },
                 {
                   label: "Make my portfolio",
                   icon: Globe,
-                  onSelect: () => router.push(portfolioFrom(resume.id)),
+                  pro: locked,
+                  onSelect: () =>
+                    locked ? openUpgradePrompt("portfolio") : router.push(portfolioFrom(resume.id)),
                 },
                 {
                   label: "Export JSON",

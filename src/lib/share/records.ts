@@ -187,6 +187,34 @@ export async function revokeShare(userId: string, id: string, now = Date.now()):
   });
 }
 
+export type ResumeShare = { slug: string; showContact: boolean; email: string; phone: string };
+
+// The live link of one resume, with the contact it would show, for the owner's portfolio to point at.
+export async function findResumeShare(
+  userId: string,
+  resumeId: string,
+): Promise<ResumeShare | null> {
+  const db = await getDb();
+  const [row] = await db
+    .select({
+      slug: shares.slug,
+      showContact: shares.showContact,
+      email: sql<string | null>`${shares.snapshot} -> 'basics' ->> 'email'`,
+      phone: sql<string | null>`${shares.snapshot} -> 'basics' ->> 'phone'`,
+    })
+    .from(shares)
+    .where(and(live(userId), eq(shares.resumeId, resumeId), isNotNull(shares.snapshot)))
+    .orderBy(desc(shares.createdAt), desc(shares.id))
+    .limit(1);
+  if (!row) return null;
+  return {
+    slug: row.slug,
+    showContact: row.showContact,
+    email: row.email?.trim() ?? "",
+    phone: row.phone?.trim() ?? "",
+  };
+}
+
 export type PublicShare = {
   id: string;
   ownerId: string;

@@ -31,9 +31,14 @@ export type StudioStorageOptions = {
   warn: (message: string) => void;
 };
 
+// "failed": the last save didn't fit in storage, or storage is blocked.
+export type LocalSave = "pending" | "saved" | "failed";
+
 export type StudioStorage = PersistStorage<PersistedStudio> & {
   flush: () => void;
   sync: () => void;
+  saveState: () => LocalSave;
+  subscribeSaves: (listener: () => void) => () => void;
 };
 
 const FULL_WARNINGS = [
@@ -59,6 +64,16 @@ export function createStudioStorage(options: StudioStorageOptions): StudioStorag
   let dueBy = 0;
   let listening = false;
   let tight: { trash: unknown; versions: unknown; level: number } | null = null;
+  let lostWrite = false;
+  let reported: LocalSave = "saved";
+  const saveListeners = new Set<() => void>();
+
+  function report() {
+    const next: LocalSave = pending ? "pending" : lostWrite ? "failed" : "saved";
+    if (next === reported) return;
+    reported = next;
+    for (const listener of saveListeners) listener();
+  }
 
   function area(): Area | null {
     try {
@@ -111,6 +126,7 @@ export function createStudioStorage(options: StudioStorageOptions): StudioStorag
     if (back && !pending) {
       pending = { state: back, version: options.version };
       schedule();
+      report();
     }
   }
 
@@ -139,7 +155,10 @@ export function createStudioStorage(options: StudioStorageOptions): StudioStorag
 
   function write(key: string, value: StorageValue<PersistedStudio>) {
     const storage = area();
-    if (!storage) return;
+    if (!storage) {
+      lostWrite = true;
+      return;
+    }
     const removed = removalsSince(
       known?.state ?? null,
       value.state,
@@ -164,8 +183,10 @@ export function createStudioStorage(options: StudioStorageOptions): StudioStorag
       tight = level > 0 ? { trash, versions, level } : null;
       known = { raw, state: value.state, removed };
       last = value.state;
+      lostWrite = false;
       return;
     }
+    lostWrite = true;
     options.warn("storage is full; the studio wasn't saved");
   }
 
@@ -178,6 +199,7 @@ export function createStudioStorage(options: StudioStorageOptions): StudioStorag
     const value = pending;
     pending = null;
     write(name, value);
+    report();
   }
 
   function schedule() {
@@ -220,7 +242,11 @@ export function createStudioStorage(options: StudioStorageOptions): StudioStorag
     },
     setItem(key, value) {
       name = key;
-      if (!area()) return;
+      if (!area()) {
+        lostWrite = true;
+        report();
+        return;
+      }
       listen();
       if (absorbing) {
         if (pending) pending = value;
@@ -231,6 +257,7 @@ export function createStudioStorage(options: StudioStorageOptions): StudioStorag
       if (latest && sameStudio(latest, value.state)) return;
       pending = value;
       schedule();
+      report();
     },
     removeItem(key) {
       name = key;
@@ -242,8 +269,16 @@ export function createStudioStorage(options: StudioStorageOptions): StudioStorag
         area()?.removeItem(key);
       } catch {}
       known = { raw: null, state: null, removed: {} };
+      report();
     },
     flush,
     sync,
+    saveState: () => reported,
+    subscribeSaves(listener) {
+      saveListeners.add(listener);
+      return () => {
+        saveListeners.delete(listener);
+      };
+    },
   };
 }

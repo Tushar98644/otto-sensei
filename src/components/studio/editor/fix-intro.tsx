@@ -9,8 +9,8 @@ import { OttoMark } from "@/components/site/otto-mark";
 import { Button } from "@/components/ui/button";
 import type { ResumeLint } from "@/lib/lint/types";
 import { pluralize } from "@/lib/utils";
-import { useOpenFix } from "./fix-launcher";
-import { useFirstWeakLine, useLintTotals, useResumeValue } from "./use-editor";
+import { useOpenFix, useStartFixAll } from "./fix-launcher";
+import { useLintTotals, useResumeValue, useWeakLines } from "./use-editor";
 
 type Totals = ResumeLint["totals"];
 
@@ -24,29 +24,42 @@ function totalsMeta({ bullets, withIssues, withNumbers }: Totals): string {
 
 export const FixIntro = memo(function FixIntro({ resumeId }: { resumeId: string }) {
   const totals = useLintTotals(resumeId);
-  const firstWeak = useFirstWeakLine(resumeId);
+  const weak = useWeakLines(resumeId);
   const github = useResumeValue(resumeId, offersGitHubImport, false);
   const openFix = useOpenFix();
+  const startFixAll = useStartFixAll();
   const lines = totals && totals.bullets > 0 ? totals : null;
+  const { firstId, count } = weak;
+  const settled = count > 0 || lines?.withIssues === 0;
 
   return (
     <OttoNote
       live={false}
       meta={lines ? totalsMeta(lines) : undefined}
-      message={lines ? OTTO.fix.manyIssues(lines.withIssues) : OTTO.fix.intro}
+      message={settled ? OTTO.fix.manyIssues(count) : OTTO.fix.intro}
     >
-      {firstWeak || github ? (
+      {firstId || github ? (
         <>
-          {firstWeak ? (
-            <Button variant="secondary" onClick={() => openFix(firstWeak)}>
-              <OttoMark tone="line" small className="size-5 text-ink" />
-              Fix the first weak line
+          {firstId && count > 1 ? (
+            <>
+              <Button onClick={startFixAll}>
+                <OttoMark tone="line" small className="size-5" />
+                {`Fix ${count} lines with Otto`}
+              </Button>
+              <Button variant="secondary" onClick={() => openFix(firstId)}>
+                One at a time
+              </Button>
+            </>
+          ) : firstId ? (
+            <Button onClick={() => openFix(firstId)}>
+              <OttoMark tone="line" small className="size-5" />
+              Fix it with Otto
             </Button>
           ) : null}
           {github ? (
             <GitHubImportButton
               resumeId={resumeId}
-              variant={firstWeak ? "ghost" : "secondary"}
+              variant={firstId ? "ghost" : "secondary"}
               label="Add projects from my GitHub"
             />
           ) : null}

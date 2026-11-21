@@ -8,6 +8,7 @@ import { letterEmail, type EmailLinks } from "./layout";
 // Titles, companies and places come from job posts: capped, and escaped by the layout or here.
 
 export type DigestJob = {
+  id: string;
   title: string;
   company: string;
   location: string;
@@ -27,6 +28,15 @@ export type WeeklyJobsEmailInput = {
 
 const count = new Intl.NumberFormat("en-US");
 const TEXT_CHARS = 120;
+const TAILOR_LABEL = "Tailor your resume";
+const POST_LABEL = "View the post";
+
+// The Jobs tab opens the job ready to tailor; the employer's page stays one link away.
+export function tailorUrl(jobsUrl: string, jobId: string): string {
+  const url = new URL(jobsUrl);
+  url.searchParams.set("tailor", jobId);
+  return url.toString();
+}
 
 function clip(text: string): string {
   const clean = text.replace(/\s+/g, " ").trim();
@@ -61,13 +71,19 @@ export function weeklyJobsEmail(input: WeeklyJobsEmailInput): EmailMessage {
   const items = input.jobs.map((job) => ({
     title: clip(job.title),
     detail: detailOf(job),
-    url: job.url,
+    tailor: tailorUrl(input.jobsUrl, job.id),
+    post: job.url,
   }));
-  const text = items.map((item) => `- ${item.title}\n  ${item.detail}\n  ${item.url}`).join("\n");
+  const text = items
+    .map(
+      (item) =>
+        `- ${item.title}\n  ${item.detail}\n  ${TAILOR_LABEL}: ${item.tailor}\n  ${POST_LABEL}: ${item.post}`,
+    )
+    .join("\n");
   const html = `<ul style="margin:0 0 16px;padding-left:20px">${items
     .map(
       (item) =>
-        `<li style="margin:0 0 12px"><a href="${escapeHtml(item.url)}" style="color:${INK};font-weight:600">${escapeHtml(item.title)}</a><br><span style="color:${MUTED};font-size:14px">${escapeHtml(item.detail)}</span></li>`,
+        `<li style="margin:0 0 12px"><a href="${escapeHtml(item.tailor)}" style="color:${INK};font-weight:600">${escapeHtml(item.title)}</a><br><span style="color:${MUTED};font-size:14px">${escapeHtml(item.detail)}</span><br><span style="font-size:14px"><a href="${escapeHtml(item.tailor)}" style="color:${INK};font-weight:600">${TAILOR_LABEL}</a> <span style="color:${MUTED}">·</span> <a href="${escapeHtml(item.post)}" style="color:${MUTED}">${POST_LABEL}</a></span></li>`,
     )
     .join("")}</ul>`;
   const upsell =
@@ -82,7 +98,7 @@ export function weeklyJobsEmail(input: WeeklyJobsEmailInput): EmailMessage {
     tag: "weekly_jobs",
     lead: [leadOf(found, items.length)],
     middle: { text, html },
-    after: ["Each link opens the original post.", ...upsell],
+    after: upsell,
     button: { label: input.free ? "Open Jobs" : "See all your matches", url: input.jobsUrl },
     reason: "You get this because you turned on the weekly jobs email.",
     links: input.links,

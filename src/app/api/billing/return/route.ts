@@ -1,3 +1,4 @@
+import { upgradeReturnPath } from "@/components/account/upgrade-return";
 import { ROUTES } from "@/components/site/routes";
 import { PAID_PLANS } from "@/config/plans";
 import { NO_STORE } from "@/lib/api/respond";
@@ -23,8 +24,11 @@ export function returnTarget(params: URLSearchParams): string {
   const plan = PAID_PLANS.find((id) => id === one(params, "plan"));
   if (!plan) return ROUTES.account;
   if (!PAID_STATUSES.has(statusOf(params))) return `${ROUTES.account}?checkout=cancelled`;
-  const trial = one(params, "trial") === "1" ? "&trial=1" : "";
-  return `${ROUTES.account}?checkout=success&plan=${plan}${trial}`;
+  const query = new URLSearchParams({ checkout: "success", plan });
+  if (one(params, "trial") === "1") query.set("trial", "1");
+  const next = upgradeReturnPath(one(params, "next"));
+  if (next) query.set("next", next);
+  return `${ROUTES.account}?${query}`;
 }
 
 function loggableStatus(status: string): string {

@@ -91,6 +91,7 @@ const SAMPLES: Record<string, unknown[][]> = {
     ["jobs"],
     ["share"],
     ["eligibility"],
+    ["portfolio"],
     ["resumes", false],
   ],
   "upgrade.trialStarted": [["Nov 11"]],

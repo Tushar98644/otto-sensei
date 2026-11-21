@@ -81,12 +81,17 @@ describe("portfolio template registry", () => {
 
 describe.each(PORTFOLIO_TEMPLATE_IDS)("the %s template", (id) => {
   const { Component, credit } = PORTFOLIO_TEMPLATES[id];
-  const render = (data: { view: PortfolioView; content: PortfolioContentView }, footer?: string) =>
+  const render = (
+    data: { view: PortfolioView; content: PortfolioContentView },
+    footer?: string,
+    resumeHref?: string,
+  ) =>
     renderToStaticMarkup(
       <Component
         view={data.view}
         content={data.content}
         footer={footer ? <span>{footer}</span> : undefined}
+        resumeHref={resumeHref}
       />,
     );
 
@@ -103,6 +108,14 @@ describe.each(PORTFOLIO_TEMPLATE_IDS)("the %s template", (id) => {
     expect(html).not.toContain(`href="${credit.href}"`);
     expect(render(onlyAName("Ada Lovelace"), "Made with Otto")).toContain("Made with Otto");
     expect(html).not.toContain("Made with Otto");
+  });
+
+  it("links the owner's shared resume only when there is one", () => {
+    const html = render(onlyAName("Ada Lovelace"), undefined, "/s/AbCdEfGhJkLmNp");
+    expect(html).toMatch(/<a[^>]*href="\/s\/AbCdEfGhJkLmNp"/);
+    expect(html).toContain("Resume");
+    expect(html).not.toMatch(/<(section|article|ul)[^>]*>\s*<\/\1>/);
+    expect(render(onlyAName("Ada Lovelace"))).not.toContain("/s/");
   });
 
   it("scopes every rule of its stylesheet to its own root", () => {

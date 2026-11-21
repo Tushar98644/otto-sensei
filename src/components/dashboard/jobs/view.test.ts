@@ -6,10 +6,12 @@ import {
   appliedFor,
   checkedLabel,
   defaultResumeId,
+  matchingResumeId,
   placeLine,
   postedLabel,
   readsLink,
   tailoredFor,
+  tailorLink,
 } from "./view";
 
 const NOW = new Date(2026, 10, 8, 15).getTime();
@@ -31,6 +33,31 @@ describe("Jobs tab helpers", () => {
     expect(defaultResumeId(list)).toBe("new");
     expect(defaultResumeId([resume("copy", 9, "https://x.com/j/1")])).toBe("copy");
     expect(defaultResumeId([])).toBeNull();
+  });
+
+  it("keeps the resume picked last time while it's still here", () => {
+    const list = [resume("own", 5), resume("other", 1)];
+    expect(matchingResumeId(list, "other")).toBe("other");
+    expect(matchingResumeId(list, "deleted")).toBe("own");
+    expect(matchingResumeId(list, null)).toBe("own");
+  });
+
+  it("reads a job id from the ?tailor= link and gives back the address without it", () => {
+    const id = "6F9619FF-8B86-4D01-B42D-00C04FC964FF";
+    const at = (query: string) => tailorLink(`https://otto.test/dashboard/jobs${query}`);
+    expect(at(`?tailor=${id}`)).toEqual({ jobId: id.toLowerCase(), rest: "/dashboard/jobs" });
+    expect(at(`?a=1&tailor=${id}&tailor=x#top`)).toEqual({
+      jobId: id.toLowerCase(),
+      rest: "/dashboard/jobs?a=1#top",
+    });
+    expect(at("")).toBeNull();
+    expect(at("?a=1")).toBeNull();
+    for (const bad of ["", "../account", `${id}x`]) {
+      expect(at(`?tailor=${encodeURIComponent(bad)}`)).toEqual({
+        jobId: null,
+        rest: "/dashboard/jobs",
+      });
+    }
   });
 
   it("finds a tailored copy and a tracker entry by the job's link", () => {

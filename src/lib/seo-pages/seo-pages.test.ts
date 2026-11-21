@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { FOOTER_NAV } from "@/components/site/routes";
+import { FOOTER_GROUPS, FOOTER_NAV } from "@/components/site/routes";
 import { BRAND } from "@/config/brand";
 import { PRICES_USD, PRO_PRICE_COMPARISON } from "@/config/plans";
 import { HIRING_SYSTEMS } from "@/lib/ats/systems";
@@ -16,8 +16,18 @@ import {
   isAtsId,
   isIndexed,
   readsFiles,
+  topTip,
 } from "./ats";
-import { COMPETITORS, COMPETITORS_CHECKED, REZI_PRO_USD, competitorBySlug } from "./compare";
+import {
+  COMPETITORS,
+  COMPETITORS_CHECKED,
+  type CompareCell,
+  REZI_PRO_USD,
+  bothHaveFreePlans,
+  choices,
+  competitorBySlug,
+  ottoReasons,
+} from "./compare";
 import { breadcrumbJsonLd } from "./json-ld";
 import { llmsTxt } from "./llms";
 import { RELATED, atsGuidePage, comparePage, seoPages } from "./pages";
@@ -30,13 +40,15 @@ const PROMISES =
   /you will (?:pass|get)|beat the ats|ats[- ]proof|100% ats|guaranteed? (?:an? )?(?:interview|job|pass)/i;
 const DISPARAGING = /\b(?:worse|terrible|scam|overpriced|rip-?off|useless|bad)\b/i;
 
+const cellText = (cell: CompareCell | undefined) => `${cell?.answer ?? ""} ${cell?.detail ?? ""}`;
+
 function allCompareText(): string {
   return COMPETITORS.flatMap((c) => [
     c.summary,
     c.pickThem,
     c.pickOtto,
     ...c.strengths,
-    ...c.rows.flatMap((row) => [row.label, row.otto, row.them]),
+    ...c.rows.flatMap((row) => [row.label, cellText(row.otto), cellText(row.them)]),
     ...c.differences.flatMap((note) => [note.title, note.text]),
     ...c.extras.flatMap((note) => [note.title, note.text]),
   ]).join("\n");
@@ -79,6 +91,47 @@ describe("ATS guides", () => {
         expect(new URL(source.url).protocol).toBe("https:");
         expect(source.topics.length).toBeGreaterThan(0);
       }
+    }
+  });
+
+  it("gives each source on a page its own label, by topic when two share a name", () => {
+    for (const guide of ATS_GUIDES) {
+      const labels = guideSources(guide).map((source) => source.label);
+      expect(new Set(labels).size, guide.name).toBe(labels.length);
+    }
+    expect(guideSources(atsGuide("workday")).map((source) => source.label)).toEqual([
+      "Workday docs on how it reads your file",
+      "Workday docs on screening questions",
+      "Workday HiredScore release notes",
+    ]);
+    expect(guideSources(atsGuide("taleo")).map((source) => source.label)).toEqual([
+      "Oracle Taleo docs on how recruiters search it and how it reads your file",
+      "Oracle Taleo docs on screening questions",
+      "Oracle Taleo docs on screening questions (2)",
+    ]);
+    expect(guideSources(atsGuide("lever"))).toEqual([
+      { ...HIRING_SYSTEMS.lever.notes[0]?.source, topics: ["ai"] },
+    ]);
+    expect(guideSources(atsGuide("workday")).map((source) => Boolean(source.byTopic))).toEqual([
+      true,
+      true,
+      false,
+    ]);
+  });
+
+  it("leads each index card with a tip that changes the resume, and reads on its own", () => {
+    expect(topTip(atsGuide("workday"))).toBe("Check every field it fills in before you submit.");
+    expect(topTip(atsGuide("greenhouse"))).toBe(
+      "Use one column under 2.5 MB, with contact details in the main text.",
+    );
+    expect(HIRING_SYSTEMS.recruitee.notes[0]?.todo).toMatch(/^Answer these /);
+    expect(topTip(atsGuide("recruitee"))).toBe(
+      "Answer screening questions truthfully, and the same way every time.",
+    );
+    expect(topTip(atsGuide("bamboohr"))).toBe(HIRING_SYSTEMS.bamboohr.notes[0]?.todo);
+    for (const guide of ATS_GUIDES) {
+      expect(topTip(guide), guide.name).not.toBe("");
+      expect(topTip(guide), guide.name).not.toMatch(/\b(?:these|those)\b/i);
     }
   });
 
@@ -140,11 +193,45 @@ describe("comparisons", () => {
   it("says what each competitor does well, and stays neutral", () => {
     for (const competitor of COMPETITORS) {
       expect(competitor.strengths.length, competitor.name).toBeGreaterThanOrEqual(3);
-      expect(competitor.pickThem).toContain(competitor.name);
       expect(competitor.differences.length, competitor.name).toBeGreaterThan(0);
     }
     expect(allCompareText()).not.toMatch(DISPARAGING);
     expect(allCompareText()).not.toMatch(PROMISES);
+  });
+
+  it("writes each pick as the end of “Pick <name> if”, Otto first", () => {
+    for (const competitor of COMPETITORS) {
+      const [otto, them] = choices(competitor);
+      expect(otto).toEqual({ name: BRAND.shortName, clause: competitor.pickOtto });
+      expect(them).toEqual({ name: competitor.name, clause: competitor.pickThem });
+      for (const clause of [competitor.pickOtto, competitor.pickThem]) {
+        expect(clause, competitor.name).toMatch(/^you[ ']/);
+        expect(clause.endsWith("."), competitor.name).toBe(true);
+      }
+      expect(bothHaveFreePlans(competitor), competitor.name).toBe(true);
+    }
+  });
+
+  it("opens every cell with a short answer the detail doesn't repeat", () => {
+    for (const competitor of COMPETITORS) {
+      for (const row of competitor.rows) {
+        for (const cell of [row.otto, row.them]) {
+          const words = cell.answer.split(/\s+/).length;
+          expect(words, `${competitor.name} ${row.label}: ${cell.answer}`).toBeGreaterThanOrEqual(2);
+          expect(words, `${competitor.name} ${row.label}: ${cell.answer}`).toBeLessThanOrEqual(4);
+          expect(cell.detail?.startsWith(cell.answer), cell.answer).not.toBe(true);
+        }
+      }
+    }
+  });
+
+  it("gives Otto about four reasons per comparison, differences first", () => {
+    for (const competitor of COMPETITORS) {
+      const reasons = ottoReasons(competitor);
+      expect(reasons.length, competitor.name).toBeGreaterThanOrEqual(3);
+      expect(reasons.length, competitor.name).toBeLessThanOrEqual(4);
+      expect(reasons.slice(0, competitor.differences.length)).toEqual(competitor.differences);
+    }
   });
 
   it("keeps Otto-only facts apart from claims about the other product", () => {
@@ -162,10 +249,10 @@ describe("comparisons", () => {
     expect(jobscan.sources.map((source) => source.url)).toContain(
       "https://www.jobscan.co/jobscan-tutorial",
     );
-    expect(jobscan.rows.find((row) => row.label === "Score")?.them).toContain(
+    expect(cellText(jobscan.rows.find((row) => row.label === "Score")?.them)).toContain(
       "only when the post asks for an advanced degree",
     );
-    expect(jobscan.rows.find((row) => row.label === "Hiring systems")?.them).toContain(
+    expect(cellText(jobscan.rows.find((row) => row.label === "Hiring systems")?.them)).toContain(
       "when it recognizes",
     );
   });
@@ -181,8 +268,8 @@ describe("comparisons", () => {
   it("writes Otto's prices from the plan config and Rezi's from the same check as pricing", () => {
     expect(REZI_PRO_USD).toBe(PRO_PRICE_COMPARISON.priceUsd);
     const paid = competitorBySlug("jobscan")?.rows.find((row) => row.label === "Paid plans");
-    expect(paid?.otto).toContain(`$${PRICES_USD.pro.month} a month`);
-    expect(paid?.otto).toContain(`$${PRICES_USD.max.month} a month`);
+    expect(paid?.otto.answer).toBe(`Pro: $${PRICES_USD.pro.month} a month`);
+    expect(paid?.otto.detail).toContain(`$${PRICES_USD.max.month} a month`);
   });
 });
 
@@ -225,8 +312,15 @@ describe("public SEO pages", () => {
     expect(copy).not.toMatch(LOCAL_ONLY);
   });
 
-  it("links the ATS guides from the site footer", () => {
-    expect(FOOTER_NAV.map((link) => link.href)).toContain(SEO_PATHS.ats);
+  it("links the guides from the site footer, grouped as product, guides and legal", () => {
+    expect(FOOTER_GROUPS.map((group) => group.title)).toEqual(["Product", "Guides", "Legal"]);
+    const guides = FOOTER_GROUPS.find((group) => group.title === "Guides")?.links ?? [];
+    expect(guides.map((link) => link.href)).toEqual([
+      SEO_PATHS.resumeTemplates,
+      SEO_PATHS.ats,
+      SEO_PATHS.compare,
+    ]);
+    expect(FOOTER_NAV).toEqual(FOOTER_GROUPS.flatMap((group) => group.links));
   });
 
   it("titles the templates page with what it shows: how many formats are free", () => {

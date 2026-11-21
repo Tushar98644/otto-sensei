@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { weeklyJobsEmail, type DigestJob } from "./weekly-jobs-email";
+import { tailorUrl, weeklyJobsEmail, type DigestJob } from "./weekly-jobs-email";
 
 const links = {
   ottoHeadUrl: "https://otto.test/email/otto-head.png",
@@ -8,6 +8,7 @@ const links = {
 };
 
 const job = (overrides: Partial<DigestJob> = {}): DigestJob => ({
+  id: "job-1",
   title: "Backend Engineer",
   company: "Acme",
   location: "Berlin, Germany",
@@ -28,7 +29,7 @@ const email = (found: number, jobs: DigestJob[], free = false) =>
   });
 
 describe("weeklyJobsEmail", () => {
-  it("says how many are new, lists each with its place and source, and links the posts", () => {
+  it("says how many are new, lists each with its place and source, and links each to tailoring", () => {
     const message = email(12, [
       job(),
       job({ title: "Platform Engineer", remote: false, location: "Remote - US" }),
@@ -41,7 +42,14 @@ describe("weeklyJobsEmail", () => {
       "- Backend Engineer\n  Acme · Remote · Berlin, Germany · via Greenhouse",
     );
     expect(message.text).toContain("  Acme · Remote - US · via Greenhouse");
+    expect(message.text).toContain(
+      "  Tailor your resume: https://otto.test/dashboard/jobs?tailor=job-1\n  View the post: https://job-boards.greenhouse.io/acme/jobs/1",
+    );
+    expect(message.html).toContain(
+      '<a href="https://otto.test/dashboard/jobs?tailor=job-1" style="color:#12241d;font-weight:600">Backend Engineer</a>',
+    );
     expect(message.html).toContain('href="https://job-boards.greenhouse.io/acme/jobs/1"');
+    expect(message.text).not.toContain("Each link opens the original post.");
     expect(message.headers).toEqual({
       "List-Unsubscribe": `<${links.unsubscribeUrl}>`,
       "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
@@ -69,5 +77,11 @@ describe("weeklyJobsEmail", () => {
       "On Free, the Jobs tab shows your closest 5. Pro shows every match.",
     );
     expect(email(3, [job()], true).text).not.toContain("Pro shows every match");
+  });
+
+  it("keeps a job id with odd characters inside the tailor link", () => {
+    expect(tailorUrl("https://otto.test/dashboard/jobs", "a&b c")).toBe(
+      "https://otto.test/dashboard/jobs?tailor=a%26b+c",
+    );
   });
 });

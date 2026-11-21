@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useId, type ReactNode } from "react";
+import { useEffect, useId, useMemo, type ReactNode } from "react";
 import { useMe } from "@/components/account/use-me";
 import { OTTO } from "@/components/mascot/lines";
 import { OttoNote } from "@/components/mascot/otto-note";
@@ -9,6 +9,8 @@ import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Dialog } from "@/components/ui/dialog";
 import { PLANS, type PlanId, type UsagePeriod } from "@/config/plans";
+import { useStudioStore } from "@/lib/store/resume-store";
+import { pluralize } from "@/lib/utils";
 import { DemoNote } from "../demo-note";
 import {
   answerInputId,
@@ -19,26 +21,21 @@ import {
   Suggestion,
   updateButtonId,
 } from "./fix-dialog-parts";
-import { FixLauncherContext } from "./fix-launcher";
+import { weakLinesLeft } from "./fix-queue";
 import { fixAllowanceText, hasPlaceholders, problemMessage } from "./fix-text";
-import { useBulletIssues } from "./use-editor";
-import { useFixFlow, type FixFlow, type FixReady, type FixState } from "./use-fix-flow";
+import { lintOf } from "./lint-cache";
+import { pickResume, useBulletIssues } from "./use-editor";
+import type { FixFlow, FixReady, FixState } from "./use-fix-flow";
 
-export function FixDialogProvider({
-  resumeId,
-  children,
-}: {
-  resumeId: string;
-  children: ReactNode;
-}) {
-  const flow = useFixFlow(resumeId);
-  return (
-    <FixLauncherContext value={flow.open}>
-      {children}
-      <FixDialog flow={flow} resumeId={resumeId} />
-      {flow.dialogs}
-    </FixLauncherContext>
-  );
+function useLinesLeft(resumeId: string, state: FixState, seen: readonly string[]): number {
+  const currentId = state.status === "closed" ? null : state.target.bulletId;
+  const skip = useMemo(() => new Set(seen), [seen]);
+  return useStudioStore((store) => {
+    const resume = currentId ? pickResume(store, resumeId) : undefined;
+    return resume && currentId
+      ? weakLinesLeft(resume, lintOf(resume).byBullet, currentId, skip)
+      : 0;
+  });
 }
 
 type ReadyView = { lineGood: boolean; asking: boolean; blanks: boolean };
@@ -77,10 +74,12 @@ function ottoLine(
   }
 }
 
-function ottoMeta(state: FixState): string | undefined {
-  if (state.status !== "ready" || state.result.questions.length === 0) return undefined;
-  const count = state.result.questions.length;
-  return `${count} ${count === 1 ? "question" : "questions"}`;
+function ottoMeta(state: FixState, left: number): string | undefined {
+  const count = state.status === "ready" ? state.result.questions.length : 0;
+  const parts: string[] = [];
+  if (count > 0) parts.push(pluralize(count, "question"));
+  if (left > 0) parts.push(`${pluralize(left, "line")} to go after this`);
+  return parts.length > 0 ? parts.join(" · ") : undefined;
 }
 
 function readyFocusId(baseId: string, state: FixReady): string {
@@ -90,7 +89,12 @@ function readyFocusId(baseId: string, state: FixReady): string {
   return view.blanks ? `${baseId}-edit` : `${baseId}-use`;
 }
 
-function FixDialog({ flow, resumeId }: { flow: FixFlow; resumeId: string }) {
+// After a limit or a lost session, the next line would fail the same way.
+function canMoveOn(state: FixState, left: number): boolean {
+  return left > 0 && !(state.status === "failed" && state.problem.kind !== "error");
+}
+
+export function FixDialog({ flow, resumeId }: { flow: FixFlow; resumeId: string }) {
   const { state } = flow;
   const lineIssues = useBulletIssues(
     resumeId,
@@ -101,6 +105,8 @@ function FixDialog({ flow, resumeId }: { flow: FixFlow; resumeId: string }) {
   const limit = me?.usage?.fix.limit ?? PLANS.free.limits.fix;
   const period = me?.period ?? null;
   const plan = user?.plan ?? null;
+  const left = useLinesLeft(resumeId, state, flow.seen);
+  const next = canMoveOn(state, left);
 
   const result = state.status === "ready" ? state.result : null;
   const focusId = state.status === "ready" ? readyFocusId(baseId, state) : null;
@@ -125,9 +131,14 @@ function FixDialog({ flow, resumeId }: { flow: FixFlow; resumeId: string }) {
     if (refineProblem) document.getElementById(updateButtonId(baseId))?.focus();
   }, [refineProblem, baseId]);
 
+  const lineGood = state.status === "ready" && readyView(state).lineGood;
   const keep = (
-    <Button id={`${baseId}-keep`} variant="ghost" onClick={flow.close}>
-      Keep mine
+    <Button
+      id={`${baseId}-keep`}
+      variant={lineGood && next ? "primary" : "ghost"}
+      onClick={next ? flow.skipLine : flow.close}
+    >
+      {next ? (lineGood ? "Next line" : "Keep mine & next") : "Keep mine"}
     </Button>
   );
   let content: ReactNode = null;
@@ -160,6 +171,7 @@ function FixDialog({ flow, resumeId }: { flow: FixFlow; resumeId: string }) {
           period={period}
           plan={plan}
           signedIn={user !== null}
+          next={next}
           allowance={fixAllowanceText(
             me?.usage?.fix ?? state.usage.fix,
             plan,
@@ -168,7 +180,7 @@ function FixDialog({ flow, resumeId }: { flow: FixFlow; resumeId: string }) {
           )}
         />
       );
-      footer = <ReadyFooter flow={flow} state={state} baseId={baseId} keep={keep} />;
+      footer = <ReadyFooter flow={flow} state={state} baseId={baseId} keep={keep} next={next} />;
       break;
   }
 
@@ -187,7 +199,7 @@ function FixDialog({ flow, resumeId }: { flow: FixFlow; resumeId: string }) {
       {state.status === "closed" ? null : (
         <div aria-busy={state.status === "loading" || undefined} className="flex flex-col gap-5">
           {/* One note for all states: live regions only announce changes to existing text. */}
-          <OttoNote size="sm" meta={ottoMeta(state)} message={otto} />
+          <OttoNote size="sm" meta={ottoMeta(state, left)} message={otto} />
           <OriginalLine
             text={state.target.text}
             marks={lineIssues.flatMap((issue) => (issue.match ? [issue.match] : []))}
@@ -210,7 +222,9 @@ function ReadyContent({
   plan,
   signedIn,
   allowance,
+  next,
 }: ReadyProps & {
+  next: boolean;
   limit: number;
   period: UsagePeriod | null;
   plan: PlanId | null;
@@ -230,7 +244,7 @@ function ReadyContent({
           id={`${baseId}-draft`}
           value={draft}
           onChange={flow.setDraft}
-          onSubmit={() => flow.apply(draft)}
+          onSubmit={() => flow.apply(draft, next ? "next" : "close")}
         />
       )}
       {view.asking && draft === null ? (
@@ -254,17 +268,29 @@ function ReadyContent({
   );
 }
 
-function ReadyFooter({ flow, state, baseId, keep }: ReadyProps & { keep: ReactNode }) {
+function ReadyFooter({
+  flow,
+  state,
+  baseId,
+  keep,
+  next,
+}: ReadyProps & { keep: ReactNode; next: boolean }) {
   const view = readyView(state);
   const { draft, refining, result } = state;
+  const then = next ? "next" : "close";
+  const useLabel = next ? "Use & next" : "Use this line";
   if (view.lineGood) return keep;
 
   if (draft !== null) {
     return (
       <>
         {keep}
-        <Button id={`${baseId}-use`} onClick={() => flow.apply(draft)} disabled={!draft.trim()}>
-          Use this line
+        <Button
+          id={`${baseId}-use`}
+          onClick={() => flow.apply(draft, then)}
+          disabled={!draft.trim()}
+        >
+          {useLabel}
         </Button>
       </>
     );
@@ -283,11 +309,11 @@ function ReadyFooter({ flow, state, baseId, keep }: ReadyProps & { keep: ReactNo
       </Button>
       <Button
         id={`${baseId}-use`}
-        onClick={() => flow.apply(result.suggestion)}
+        onClick={() => flow.apply(result.suggestion, then)}
         disabled={view.blanks || refining}
         aria-describedby={view.blanks ? `${baseId}-hint` : undefined}
       >
-        Use this line
+        {useLabel}
       </Button>
     </>
   );

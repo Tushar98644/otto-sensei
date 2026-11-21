@@ -1,7 +1,7 @@
 "use client";
 
-import { MessageSquareText, PenLine, Upload, type LucideIcon } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { MessageSquareText, PenLine, Send, Upload, type LucideIcon } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { errorMessage } from "@/components/account/errors";
 import { useMe } from "@/components/account/use-me";
 import { OTTO } from "@/components/mascot/lines";
@@ -20,14 +20,19 @@ import { Select } from "@/components/ui/select";
 import { toast } from "@/components/ui/toast";
 import { VoiceTextarea } from "@/components/ui/voice-field";
 import { api } from "@/lib/api/client";
-import { normalizeJobUrl } from "@/lib/applications/schema";
+import type { Application } from "@/lib/applications/schema";
+import type { SavedJob } from "@/lib/job-feed/types";
 import { resumeTitle } from "@/lib/resume/ops";
-import { emptyResume, newId, type Resume } from "@/lib/resume/schema";
+import { emptyResume, type Resume } from "@/lib/resume/schema";
 import { WRITING_LIMITS, type Writing, type WritingKind } from "@/lib/writings/schema";
 import { useStudioActions } from "../use-studio-actions";
 import { defaultResume, type LetterEntry } from "./entries";
+import { KindPicker } from "./kind-picker";
+import { unsavedEntry, writeBody, type WriteResult } from "./write-save";
+import { ANOTHER_JOB, TargetPicker, WriteRow } from "./write-target-section";
+import { firstTarget, readTargetPost, writeTargets, type WriteTarget } from "./write-targets";
 
-export type WriteKind = Exclude<WritingKind, "outreach">;
+export type WriteKind = WritingKind;
 
 export type Written =
   | { kind: "saved"; writing: Writing; show: boolean }
@@ -36,19 +41,33 @@ export type Written =
 const EMPTY_DRAFT: TailorDraft = { title: "", company: "", text: "", link: "" };
 const DRAFT_FIELDS = ["title", "company", "text", "link"] as const;
 const NO_RESUME = emptyResume(0);
+const NO_APPLICATIONS: Application[] = [];
+const NO_JOBS: SavedJob[] = [];
 
-const COPY: Record<WriteKind, { title: string; note: string; label: string; icon: LucideIcon }> = {
+const COPY: Record<
+  WriteKind,
+  { title: string; note: string; label: string; icon: LucideIcon; unkept: string }
+> = {
   letter: {
     title: "Write a cover letter",
     note: OTTO.letters.write,
     label: "Write my letter",
     icon: PenLine,
+    unkept: "Couldn't keep this letter",
   },
   answer: {
     title: "Answer an application question",
     note: OTTO.letters.answer,
     label: "Draft my answer",
     icon: MessageSquareText,
+    unkept: "Couldn't keep this answer",
+  },
+  outreach: {
+    title: "Write an outreach message",
+    note: OTTO.letters.outreach,
+    label: "Write my message",
+    icon: Send,
+    unkept: "Couldn't keep this message",
   },
 };
 
@@ -56,30 +75,77 @@ export type WriteDialogProps = {
   kind: WriteKind;
   open: boolean;
   resumes: readonly Resume[];
+  // Offered in the For list; left out when `start` already names the job.
+  applications?: readonly Application[];
+  savedJobs?: readonly SavedJob[];
   onClose: () => void;
   onWritten: (written: Written) => void;
   start?: { draft: TailorDraft; resumeId: string | null; applicationId: string };
 };
 
-export function WriteDialog({ kind, open, resumes, onClose, onWritten, start }: WriteDialogProps) {
+function resumeNote(resume: Resume, picked: string | null, target: WriteTarget | null, sent?: string | null) {
+  if (resume.id === sent || (target?.resumeNote === "sent" && resume.id === target.resumeId)) {
+    return ", the version you sent.";
+  }
+  if (target?.resumeNote === "tailored" && resume.id === target.resumeId) {
+    return ", the copy tailored to this job.";
+  }
+  return resume.id === picked ? "." : ", the resume you edited last.";
+}
+
+export function WriteDialog({
+  kind: firstKind,
+  open,
+  resumes,
+  applications = NO_APPLICATIONS,
+  savedJobs = NO_JOBS,
+  onClose,
+  onWritten,
+  start,
+}: WriteDialogProps) {
   const { user, me, loading } = useMe();
   const actions = useStudioActions();
+  const [kind, setKind] = useState(firstKind);
   const [draft, setDraft] = useState(start?.draft ?? EMPTY_DRAFT);
   const [question, setQuestion] = useState("");
   const [questionError, setQuestionError] = useState<string | null>(null);
   const [resumeId, setResumeId] = useState<string | null>(start?.resumeId ?? null);
   const [picking, setPicking] = useState(false);
+  const [picked, setPicked] = useState<string | null>(null);
+  // Posts read for a picked job, so writing again doesn't read the post again.
+  const [posts, setPosts] = useState<Readonly<Record<string, string>>>({});
+  const [pasteFor, setPasteFor] = useState<{ value: string; note: string } | null>(null);
+  const [reading, setReading] = useState(false);
   const [saving, setSaving] = useState(false);
   const questionRef = useRef<HTMLTextAreaElement>(null);
+  const queued = useRef<string | null>(null);
   const openRef = useRef(open);
   useEffect(() => {
     openRef.current = open;
   }, [open]);
 
-  const resume = resumes.find((item) => item.id === resumeId) ?? defaultResume(resumes);
-  const writing = useWriting(resume ?? NO_RESUME, draft);
+  const targets = useMemo(
+    () => (start ? [] : writeTargets(applications, savedJobs, resumes)),
+    [start, applications, savedJobs, resumes],
+  );
+  const target =
+    picked === ANOTHER_JOB
+      ? null
+      : (targets.find((item) => item.value === picked) ?? (picked === null ? firstTarget(targets) : null));
+  const pasting = target !== null && (target.post.kind === "paste" || pasteFor?.value === target.value);
+  const known = target && !pasting ? (target.post.kind === "saved" ? target.post.text : posts[target.value]) : undefined;
+  const job: TailorDraft =
+    target && !pasting
+      ? { title: target.title, company: target.company, link: target.url, text: known ?? "" }
+      : target
+        ? { ...draft, title: draft.title || target.title, company: draft.company || target.company }
+        : draft;
+
+  const targetResume = target?.resumeId ? resumes.find((item) => item.id === target.resumeId) : undefined;
+  const resume = resumes.find((item) => item.id === resumeId) ?? targetResume ?? defaultResume(resumes);
+  const writing = useWriting(resume ?? NO_RESUME, job);
   const copy = COPY[kind];
-  const busy = writing.busy !== null || saving;
+  const busy = writing.busy !== null || saving || reading;
   const started = start?.draft ?? EMPTY_DRAFT;
   // Following the style link leaves the page, which would drop what's typed here and a letter still being written.
   const keepPage =
@@ -90,53 +156,96 @@ export function WriteDialog({ kind, open, resumes, onClose, onWritten, start }: 
     ? null
     : writingAllowance(user?.plan, me?.usage?.letter, me?.period, me?.billing.trial !== false);
 
-  async function write() {
-    if (!resume || busy) return;
-    const asked = question.trim();
-    if (kind === "answer" && asked.length < WRITING_LIMITS.question.min) {
-      setQuestionError("Paste the question from the application first.");
-      questionRef.current?.focus();
+  // A post read for the picked job lands in state first, so the write sends it.
+  useEffect(() => {
+    if (queued.current === null || queued.current !== target?.value || !known) return;
+    queued.current = null;
+    void write();
+  });
+
+  function questionReady(): boolean {
+    if (kind !== "answer" || question.trim().length >= WRITING_LIMITS.question.min) return true;
+    setQuestionError("Paste the question from the application first.");
+    questionRef.current?.focus();
+    return false;
+  }
+
+  function pick(value: string) {
+    queued.current = null;
+    setPicked(value);
+    setPasteFor(null);
+    setDraft(EMPTY_DRAFT);
+  }
+
+  function edit(next: TailorDraft) {
+    setDraft(next);
+    // Once something is typed, jobs that load later never swap the form for the list.
+    if (picked === null && target === null) setPicked(ANOTHER_JOB);
+  }
+
+  async function writeFor(chosen: WriteTarget) {
+    if (!resume || busy || !questionReady()) return;
+    if (known) {
+      void write();
       return;
     }
-    const result =
-      kind === "letter" ? await writing.letter(resume) : await writing.answer(resume, asked);
-    if (!result) return;
+    setReading(true);
+    let failure: string | null = null;
+    let text = "";
+    try {
+      text = await readTargetPost(chosen.post);
+    } catch (caught) {
+      failure = errorMessage(caught);
+    } finally {
+      setReading(false);
+    }
+    if (!text) {
+      setPasteFor({
+        value: chosen.value,
+        note: `${failure ?? "That post is too short to write from."} Paste the job post below instead.`,
+      });
+      setDraft({ title: chosen.title, company: chosen.company, link: chosen.url, text: "", paste: true });
+      return;
+    }
+    queued.current = chosen.value;
+    setPosts((current) => ({ ...current, [chosen.value]: text }));
+  }
 
-    const body = {
-      kind,
-      resumeId: resume.id,
-      resumeTitle: resumeTitle(resume),
-      company: draft.company.trim(),
-      role: draft.title.trim(),
-      jobUrl: normalizeJobUrl(draft.posting?.url ?? draft.link ?? "") ?? "",
-      question: kind === "answer" ? asked : "",
-      text: result.text,
-      warnings: result.warnings,
-      demo: result.demo,
-      applicationId: start?.applicationId ?? null,
-    };
+  async function produce(from: Resume, asked: string): Promise<WriteResult | null> {
+    if (kind === "letter") {
+      const letter = await writing.letter(from);
+      return letter && { kind: "letter", ...letter };
+    }
+    if (kind === "answer") {
+      const answer = await writing.answer(from, asked);
+      return answer && { kind: "answer", ...answer };
+    }
+    const draft = await writing.outreach(from);
+    return draft && { kind: "outreach", draft };
+  }
+
+  async function write() {
+    if (!resume || writing.busy !== null || saving || !questionReady()) return;
+    const result = await produce(resume, question.trim());
+    if (!result) return;
+    const body = writeBody(
+      result,
+      {
+        title: job.title,
+        company: job.company,
+        url: job.posting?.url ?? job.link ?? "",
+        jobId: target?.jobId ?? null,
+        applicationId: target?.applicationId ?? start?.applicationId ?? null,
+      },
+      { id: resume.id, title: resumeTitle(resume) },
+    );
     setSaving(true);
     try {
       const { writing: saved } = await api.saveWriting(body);
       onWritten({ kind: "saved", writing: saved, show: openRef.current });
     } catch (error) {
-      toast({
-        title: kind === "letter" ? "Couldn't keep this letter" : "Couldn't keep this answer",
-        description: errorMessage(error),
-        variant: "error",
-      });
-      onWritten({
-        kind: "unsaved",
-        show: openRef.current,
-        entry: {
-          ...body,
-          key: `new:${newId()}`,
-          createdAt: Date.now(),
-          writingId: null,
-          copyId: null,
-          applicationId: body.applicationId,
-        },
-      });
+      toast({ title: COPY[body.kind].unkept, description: errorMessage(error), variant: "error" });
+      onWritten({ kind: "unsaved", show: openRef.current, entry: unsavedEntry(body, Date.now()) });
     } finally {
       setSaving(false);
     }
@@ -155,6 +264,17 @@ export function WriteDialog({ kind, open, resumes, onClose, onWritten, start }: 
       >
         {resume ? (
           <div className="flex flex-col gap-6">
+            {start ? null : (
+              <KindPicker
+                kind={kind}
+                disabled={busy}
+                onChange={(next) => {
+                  setKind(next);
+                  setQuestionError(null);
+                }}
+              />
+            )}
+
             <div className="flex flex-col gap-2">
               {picking && resumes.length > 1 ? (
                 <Field label="Resume to write from">
@@ -168,8 +288,8 @@ export function WriteDialog({ kind, open, resumes, onClose, onWritten, start }: 
                 </Field>
               ) : (
                 <p className="text-sm/6 text-muted">
-                  Written from <span className="font-medium text-ink">{resumeTitle(resume)}</span>,
-                  {start?.resumeId === resume.id ? " the version you sent." : " the resume you edited last."}{" "}
+                  Written from <span className="font-medium text-ink">{resumeTitle(resume)}</span>
+                  {resumeNote(resume, resumeId, target, start?.resumeId)}{" "}
                   {resumes.length > 1 ? (
                     <button
                       type="button"
@@ -184,12 +304,12 @@ export function WriteDialog({ kind, open, resumes, onClose, onWritten, start }: 
               <WritingStyleHint linked={!keepPage} />
             </div>
 
+            {targets.length > 0 ? (
+              <TargetPicker targets={targets} target={target} disabled={busy} onPick={pick} />
+            ) : null}
+
             {kind === "answer" ? (
-              <Field
-                label="The question"
-                hint="Paste it as the application asks it."
-                error={questionError}
-              >
+              <Field label="The question" hint="Paste it as the application asks it." error={questionError}>
                 <VoiceTextarea
                   ref={questionRef}
                   value={question}
@@ -208,17 +328,29 @@ export function WriteDialog({ kind, open, resumes, onClose, onWritten, start }: 
               </Field>
             ) : null}
 
-            <JobForm
-              draft={draft}
-              onChange={setDraft}
-              onSubmit={() => void write()}
-              busy={busy}
-              note={allowance}
-              action={{ label: copy.label, icon: copy.icon }}
-              checks={false}
-            />
+            {target && !pasting ? (
+              <WriteRow action={copy} busy={busy} note={allowance} onWrite={() => void writeFor(target)} />
+            ) : (
+              <>
+                {target && pasteFor?.value === target.value ? <Alert role="note">{pasteFor.note}</Alert> : null}
+                <JobForm
+                  key={target?.value ?? ANOTHER_JOB}
+                  draft={job}
+                  onChange={edit}
+                  onSubmit={() => void write()}
+                  busy={busy}
+                  note={allowance}
+                  action={{ label: copy.label, icon: copy.icon }}
+                  checks={false}
+                />
+              </>
+            )}
 
-            {writing.busy !== null ? <OttoWorking task={kind} size="sm" /> : null}
+            {reading ? (
+              <OttoWorking task="job" size="sm" />
+            ) : writing.busy !== null ? (
+              <OttoWorking task={kind} size="sm" />
+            ) : null}
             {writing.error ? <Alert variant="error">{writing.error.message}</Alert> : null}
           </div>
         ) : (

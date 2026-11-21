@@ -2,8 +2,13 @@ import type { ReactElement } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { cookieJar, resetDb, signInAs } from "@/lib/auth/test-helpers";
 import type { SessionUser } from "@/lib/auth/types";
+import { REQUEST_PATH_HEADER } from "@/lib/request-path";
 
-vi.mock("next/headers", async () => (await import("@/lib/auth/test-helpers")).nextHeadersMock);
+const request = vi.hoisted(() => ({ headers: new Headers() }));
+vi.mock("next/headers", async () => ({
+  ...(await import("@/lib/auth/test-helpers")).nextHeadersMock,
+  headers: async () => request.headers,
+}));
 vi.mock("@/components/dashboard/app-shell", () => ({ AppShell: () => null }));
 vi.mock("@/lib/billing", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/billing")>()),
@@ -35,7 +40,19 @@ beforeEach(async () => {
   await resetDb();
   cookieJar.clear();
   usage.fails = false;
+  request.headers = new Headers();
 });
+
+async function redirectFor(asked?: string): Promise<string> {
+  request.headers = new Headers(asked === undefined ? {} : { [REQUEST_PATH_HEADER]: asked });
+  const failure: unknown = await DashboardLayout({ children: null }).then(
+    () => null,
+    (error: unknown) => error,
+  );
+  const digest = (failure as { digest?: string } | null)?.digest ?? "";
+  const url = digest.split(";").find((part) => part.startsWith("/api/auth/expired"));
+  return url ?? "";
+}
 
 describe("the dashboard layout", () => {
   it("hands the shell the answer GET /api/me would give, so the browser needn't ask", async () => {
@@ -60,5 +77,25 @@ describe("the dashboard layout", () => {
     await expect(DashboardLayout({ children: null })).rejects.toMatchObject({
       digest: expect.stringContaining("/api/auth/expired?next=%2Fdashboard"),
     });
+  });
+
+  it("brings them back to the page and query they asked for, after sign-in", async () => {
+    expect(await redirectFor("/dashboard/jobs?resume=r1")).toBe(
+      `/api/auth/expired?next=${encodeURIComponent("/dashboard/jobs?resume=r1")}`,
+    );
+    expect(await redirectFor("/dashboard/portfolio")).toBe(
+      `/api/auth/expired?next=${encodeURIComponent("/dashboard/portfolio")}`,
+    );
+  });
+
+  it("falls back to Home when the asked-for page isn't a dashboard page", async () => {
+    for (const asked of [
+      undefined,
+      "/studio",
+      "https://evil.example/dashboard",
+      "//evil.example",
+    ]) {
+      expect(await redirectFor(asked), String(asked)).toBe("/api/auth/expired?next=%2Fdashboard");
+    }
   });
 });

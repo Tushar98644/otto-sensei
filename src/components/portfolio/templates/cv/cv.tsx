@@ -1,4 +1,4 @@
-import { Globe, Mail, MapPin, Phone } from "lucide-react";
+import { FileText, Globe, Mail, MapPin, Phone } from "lucide-react";
 import type { CSSProperties, ReactNode } from "react";
 import type { SocialKind } from "@/lib/portfolio/content";
 import { SocialIcon } from "../icons";
@@ -68,12 +68,15 @@ function iconFor(kind: SocialKind) {
   return <SocialIcon kind={kind} />;
 }
 
-export function CvTemplate({ view, content, footer }: PortfolioTemplateProps) {
+export function CvTemplate({ view, content, footer, resumeHref }: PortfolioTemplateProps) {
   const name = nameOf(view);
   const about = view.headline || content.pitch;
   const place = content.location?.label || view.location;
   const socials = content.socials.filter((social) => social.kind !== "email");
   const links: ContactLink[] = [
+    ...(resumeHref
+      ? [{ label: "Resume", href: resumeHref, text: "Resume", icon: <FileText aria-hidden /> }]
+      : []),
     ...socials
       .filter((social) => social.kind === "website")
       .map((social) => ({

@@ -1,9 +1,10 @@
+import { ArrowRight } from "lucide-react";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { OttoNote } from "@/components/mascot/otto-note";
 import { IntentLink } from "@/components/site/intent-link";
 import { pageMetadata } from "@/components/site/page-metadata";
 import { ROUTES } from "@/components/site/routes";
+import { buttonClasses } from "@/components/ui/button";
 import type { HiringNote } from "@/lib/ats/types";
 import {
   ATS_GUIDES,
@@ -18,9 +19,10 @@ import {
   TOPIC_TITLES,
   topicList,
 } from "@/lib/seo-pages/ats";
+import type { SystemNames } from "@/lib/seo-pages/job-link";
 import { ATS_INDEX_PAGE, atsGuidePage } from "@/lib/seo-pages/pages";
 import { SEO_PATHS, atsPath } from "@/lib/seo-pages/paths";
-import { pluralize } from "@/lib/utils";
+import { cn } from "@/lib/utils";
 import {
   Breadcrumbs,
   CheckCta,
@@ -30,6 +32,7 @@ import {
   PAGE_CLASSES,
   PageIntro,
 } from "../_components/guide-parts";
+import { JobLinkCheck } from "../_components/job-link-check";
 
 export const dynamicParams = false;
 
@@ -49,7 +52,13 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   return pageMetadata(atsGuidePage(await guideFor(params)));
 }
 
-function NoteRow({ note }: { note: HiringNote }) {
+const SYSTEM_NAMES = Object.fromEntries(
+  ATS_GUIDES.map((guide) => [guide.id, guide.name]),
+) as SystemNames;
+
+const SMALL_TITLE_CLASSES = "font-sans text-lg/7 font-medium tracking-tight text-ink";
+
+function NoteRow({ note, sourceLabel }: { note: HiringNote; sourceLabel: string }) {
   return (
     <li className="flex flex-col gap-2 py-6">
       <p className="text-base/7 text-pretty text-ink">{note.fact}</p>
@@ -60,17 +69,48 @@ function NoteRow({ note }: { note: HiringNote }) {
       <p className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm/6 text-subtle">
         {note.optIn ? <span>Only if the employer turns it on</span> : null}
         <span>
-          Source: <ExternalLink href={note.source.url}>{note.source.label}</ExternalLink>
+          Source: <ExternalLink href={note.source.url}>{sourceLabel}</ExternalLink>
         </span>
       </p>
     </li>
   );
 }
 
+function SideCta({ name }: { name: string }) {
+  return (
+    <section
+      aria-labelledby="side-cta-title"
+      className="mb-10 hidden rounded-2xl bg-surface-muted p-6 lg:block"
+    >
+      <h2 id="side-cta-title" className={SMALL_TITLE_CLASSES}>
+        Applying through {name}?
+      </h2>
+      <p className="mt-1 text-sm/6 text-pretty text-muted">
+        See which of the job&apos;s skills your resume shows. Free, no sign-in.
+      </p>
+      <IntentLink
+        href={SEO_PATHS.jobMatch}
+        className={buttonClasses({ variant: "secondary", className: "mt-4 w-full" })}
+      >
+        Match my resume to a job
+        <ArrowRight />
+      </IntentLink>
+      <IntentLink
+        href={ROUTES.studio}
+        className={cn(LINK_CLASSES, "mt-2 inline-flex min-h-9 items-center text-sm/6")}
+      >
+        Check my resume
+      </IntentLink>
+    </section>
+  );
+}
+
 export default async function AtsGuidePage({ params }: Props) {
   const guide = await guideFor(params);
   const sources = guideSources(guide);
+  const labels = new Map(sources.map((source) => [source.url, source.label]));
   const others = ATS_GUIDES.filter((other) => other.id !== guide.id);
+  const count = guide.notes.length;
   return (
     <div className={PAGE_CLASSES}>
       <Breadcrumbs
@@ -83,7 +123,9 @@ export default async function AtsGuidePage({ params }: Props) {
       <PageIntro eyebrow="ATS guide" title={guideHeadline(guide)}>
         <p>{guide.what}</p>
         <p className="text-base/7 text-subtle">
-          {pluralize(guide.notes.length, "sourced note")}, each linked to the page it comes from.
+          {count === 1
+            ? "1 sourced note, linked to the page it comes from."
+            : `${count} sourced notes, each linked to the page it comes from.`}{" "}
           Employers set {guide.name} up in different ways, so not every note applies to every job.
         </p>
       </PageIntro>
@@ -91,16 +133,11 @@ export default async function AtsGuidePage({ params }: Props) {
       <div className="mt-12 grid gap-16 sm:mt-16 lg:grid-cols-3 lg:gap-12">
         <div className="flex flex-col gap-16 lg:col-span-2">
           <section aria-labelledby="spot-title" className="rounded-3xl bg-surface-muted p-6 sm:p-8">
-            <h2 id="spot-title" className="text-lg/7 font-medium tracking-tight text-ink">
+            <h2 id="spot-title" className={SMALL_TITLE_CLASSES}>
               How to tell a job uses {guide.name}
             </h2>
             <p className="mt-2 text-base/7 text-pretty text-muted">{guide.spot}</p>
-            <OttoNote
-              size="sm"
-              live={false}
-              className="mt-6"
-              message={`Paste a job link in my studio's Tailor step. If I can tell the job uses ${guide.name}, I say so and show these notes beside it.`}
-            />
+            <JobLinkCheck className="mt-6" system={guide.id} names={SYSTEM_NAMES} />
           </section>
 
           {readsFiles(guide) ? null : (
@@ -126,7 +163,11 @@ export default async function AtsGuidePage({ params }: Props) {
               </h2>
               <ul role="list" className="mt-6 divide-y divide-border border-y border-border">
                 {section.notes.map((note) => (
-                  <NoteRow key={note.fact} note={note} />
+                  <NoteRow
+                    key={note.fact}
+                    note={note}
+                    sourceLabel={labels.get(note.source.url) ?? note.source.label}
+                  />
                 ))}
               </ul>
             </section>
@@ -161,7 +202,8 @@ export default async function AtsGuidePage({ params }: Props) {
                 <li key={source.url} className="flex flex-col">
                   <ExternalLink href={source.url}>{source.label}</ExternalLink>
                   <span className="text-sm/6 text-pretty text-subtle">
-                    {new URL(source.url).hostname} · on {topicList(source.topics)}
+                    {new URL(source.url).hostname}
+                    {source.byTopic ? null : ` · on ${topicList(source.topics)}`}
                   </span>
                 </li>
               ))}
@@ -169,11 +211,12 @@ export default async function AtsGuidePage({ params }: Props) {
           </section>
         </div>
 
-        <aside aria-labelledby="more-title" className="lg:sticky lg:top-24 lg:self-start">
-          <h2 id="more-title" className="text-lg/7 font-medium tracking-tight text-ink">
+        <aside aria-label="Next steps and more guides" className="lg:sticky lg:top-24 lg:self-start">
+          <SideCta name={guide.name} />
+          <h2 id="more-title" className={SMALL_TITLE_CLASSES}>
             More ATS guides
           </h2>
-          <ul role="list" className="mt-3 grid grid-cols-2 gap-x-6 lg:grid-cols-1">
+          <ul role="list" aria-labelledby="more-title" className="mt-3 grid grid-cols-2 gap-x-6">
             {others.map((other) => (
               <li key={other.id}>
                 <IntentLink

@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useAccountGate } from "@/components/account/account-gate";
+import { useAccountGate, useResumeAfterSignIn } from "@/components/account/account-gate";
 import { patchMe } from "@/components/account/use-me";
 import { OTTO } from "@/components/mascot/lines";
 import { toast } from "@/components/ui/toast";
@@ -12,9 +12,11 @@ import type { FixResponse } from "@/lib/api/types";
 import { findBullet, setBulletText } from "@/lib/resume/ops";
 import { EDIT_LABELS } from "@/lib/store/resume-store";
 import { recallFix, rememberFix } from "./fix-memory";
+import { nextWeakLine } from "./fix-queue";
 import { buildAnswers, fixErrorMessage, type FixAnswer, type FixProblem } from "./fix-text";
 import { flashLine } from "./line-flash";
 import { CHAR_LIMITS } from "./limits";
+import { lintOf } from "./lint-cache";
 import { editResume, getResume } from "./use-editor";
 
 export type FixTarget = {
@@ -44,6 +46,7 @@ export type FixState =
 type Outcome = { response: FixResponse } | { problem: FixProblem };
 
 const CLOSED: FixState = { status: "closed" };
+const NONE_SEEN: readonly string[] = [];
 
 function readyState(target: FixTarget, response: FixResponse): FixReady {
   return {
@@ -62,6 +65,7 @@ function readyState(target: FixTarget, response: FixResponse): FixReady {
 export function useFixFlow(resumeId: string) {
   const gate = useAccountGate();
   const [state, setState] = useState<FixState>(CLOSED);
+  const [seen, setSeen] = useState<readonly string[]>(NONE_SEEN);
   const gateRef = useRef(gate);
   const requestRef = useRef(0);
   const busyRef = useRef(false);
@@ -125,7 +129,7 @@ export function useFixFlow(resumeId: string) {
         return null;
       }
       const signedIn = await gateRef.current
-        .requireUser(OTTO.signIn.reason("fix"))
+        .requireUser(OTTO.signIn.reason("fix"), { kind: `fix:${resumeId}`, ids: { bulletId } })
         .catch(() => false);
       return signedIn
         ? { bulletId, text, role: { title: line.roleTitle, company: line.company } }
@@ -148,11 +152,47 @@ export function useFixFlow(resumeId: string) {
     [targetFor, fetchSuggestion],
   );
 
+  useResumeAfterSignIn(`fix:${resumeId}`, ({ bulletId }) => {
+    if (bulletId) void open(bulletId);
+  });
+
   const close = useCallback(() => {
     requestRef.current += 1;
     busyRef.current = false;
+    setSeen(NONE_SEEN);
     setState(CLOSED);
   }, []);
+
+  // The bumped request id drops the old line's answer and stops here if the dialog closes.
+  async function moveOn(fromId: string) {
+    const token = ++requestRef.current;
+    const skip = new Set([...seen, fromId]);
+    setSeen([...skip]);
+    const signedIn = await gateRef.current
+      .requireUser(OTTO.signIn.reason("fix"))
+      .catch(() => false);
+    for (;;) {
+      if (requestRef.current !== token) return;
+      const resume = signedIn ? getResume(resumeId) : undefined;
+      const nextId = resume ? nextWeakLine(resume, lintOf(resume).byBullet, fromId, skip) : null;
+      if (!nextId) {
+        close();
+        return;
+      }
+      const target = await targetFor(nextId);
+      if (requestRef.current !== token) return;
+      if (target) {
+        await fetchSuggestion(target);
+        return;
+      }
+      skip.add(nextId);
+      setSeen([...skip]);
+    }
+  }
+
+  function skipLine() {
+    if (state.status !== "closed") void moveOn(state.target.bulletId);
+  }
 
   function retry() {
     if (state.status === "failed") void fetchSuggestion(state.target);
@@ -174,7 +214,7 @@ export function useFixFlow(resumeId: string) {
     });
   }
 
-  function apply(text: string) {
+  function apply(text: string, then: "close" | "next" = "close") {
     if (state.status !== "ready") return;
     const line = text.trim().slice(0, CHAR_LIMITS.bullet);
     if (!line) return;
@@ -182,8 +222,9 @@ export function useFixFlow(resumeId: string) {
     editResume(resumeId, (resume) => setBulletText(resume, bulletId, line), {
       label: EDIT_LABELS.fix,
     });
-    close();
     flashLine(bulletId);
+    if (then === "next") void moveOn(bulletId);
+    else close();
   }
 
   function setAnswer(index: number, value: string) {
@@ -209,8 +250,10 @@ export function useFixFlow(resumeId: string) {
 
   return {
     state,
+    seen,
     open,
     close,
+    skipLine,
     retry,
     refine,
     apply,

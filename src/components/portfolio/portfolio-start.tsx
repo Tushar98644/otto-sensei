@@ -1,62 +1,125 @@
 "use client";
 
-import { Globe } from "lucide-react";
-import { useId, useState } from "react";
+import { lazy, Suspense, useId, useMemo, useState } from "react";
 import { NewResumeMenu } from "@/components/dashboard/new-resume-menu";
 import { useStudioActions } from "@/components/dashboard/use-studio-actions";
 import { Otto } from "@/components/mascot/otto";
+import { OttoNote } from "@/components/mascot/otto-note";
 import { resumeLabel, tailoredLabel } from "@/components/studio/resume-label";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
+import type { PortfolioTemplateId } from "@/lib/portfolio/types";
 import type { Resume } from "@/lib/resume/schema";
 import { PORTFOLIO_LINES } from "./lines";
 import { makePortfolio, usePortfolioStore } from "./portfolio-store";
+import { PreviewSourceBar, usePreviewSource } from "./preview-source";
+import { pageSample } from "./sample";
+import { TemplateGallery } from "./template-gallery";
 
-export function PortfolioStart({ candidates }: { candidates: readonly Resume[] }) {
-  const selectId = useId();
+const FullPortfolioPreview = lazy(() =>
+  import("./full-preview").then((module) => ({ default: module.FullPortfolioPreview })),
+);
+
+function NoResumes() {
   const actions = useStudioActions();
-  const saving = usePortfolioStore((state) => state.saving);
-  const [picked, setPicked] = useState<string | null>(null);
-  const resume = candidates.find((item) => item.id === picked) ?? candidates[0] ?? null;
-
   return (
     <section className="flex flex-col items-center rounded-3xl bg-surface px-6 py-12 text-center sm:py-16">
       <Otto pose="wave" size={128} title="Otto the otter, waving" className="size-28 sm:size-32" />
-      <h2 className="mt-6 font-sans text-lg/7 font-medium text-ink">Your resume, as a web page</h2>
-      <p className="mt-2 max-w-md text-sm/6 text-pretty text-muted">
-        {resume ? PORTFOLIO_LINES.start : PORTFOLIO_LINES.noResumes} All eight designs come with Pro
-        and Max.
-      </p>
-      {resume ? (
-        <div className="mt-6 flex w-full max-w-sm flex-col gap-3 text-left">
-          {candidates.length > 1 ? (
-            <div className="flex flex-col gap-2">
-              <Label htmlFor={selectId}>Make it from</Label>
-              <Select
-                id={selectId}
-                value={resume.id}
-                onChange={(event) => setPicked(event.currentTarget.value)}
-              >
-                {candidates.map((item) => (
-                  <option key={item.id} value={item.id}>
-                    {[resumeLabel(item), tailoredLabel(item)].filter(Boolean).join(" · ")}
-                  </option>
-                ))}
-              </Select>
-            </div>
-          ) : null}
-          <Button size="lg" loading={saving} onClick={() => void makePortfolio(resume)}>
-            <Globe aria-hidden />
-            Make my portfolio
+      <h2 className="mt-6 font-sans text-lg/7 font-medium text-ink">No resume yet</h2>
+      <p className="mt-2 max-w-md text-sm/6 text-pretty text-muted">{PORTFOLIO_LINES.noResumes}</p>
+      <div className="mt-6">
+        <NewResumeMenu actions={actions} />
+      </div>
+    </section>
+  );
+}
+
+export function PortfolioStart({ candidates }: { candidates: readonly Resume[] }) {
+  const selectId = useId();
+  const saving = usePortfolioStore((state) => state.saving);
+  const [picked, setPicked] = useState<string | null>(null);
+  const [full, setFull] = useState<PortfolioTemplateId | null>(null);
+  const [chosen, setChosen] = useState<PortfolioTemplateId | null>(null);
+  const resume = candidates.find((item) => item.id === picked) ?? candidates[0] ?? null;
+  const own = useMemo(() => (resume ? pageSample(null, [resume]) : null), [resume]);
+  const choice = usePreviewSource(own);
+
+  if (!resume) return <NoResumes />;
+
+  const choose = (template: PortfolioTemplateId) => {
+    if (saving) return;
+    setChosen(template);
+    void makePortfolio(resume, template);
+  };
+
+  return (
+    <section className="rounded-3xl bg-surface px-5 py-8 sm:px-8 sm:py-10">
+      <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+        <div className="max-w-2xl">
+          <h2 className="font-sans text-2xl/8 font-medium tracking-tight text-ink">
+            Pick a design
+          </h2>
+          <p className="mt-2 text-base/7 text-pretty text-muted">
+            You can switch designs any time. Nothing goes live until you publish.
+          </p>
+        </div>
+        {candidates.length > 1 ? (
+          <div className="flex w-full flex-col gap-2 sm:max-w-xs">
+            <Label htmlFor={selectId}>Make it from</Label>
+            <Select
+              id={selectId}
+              value={resume.id}
+              onChange={(event) => setPicked(event.currentTarget.value)}
+            >
+              {candidates.map((item) => (
+                <option key={item.id} value={item.id}>
+                  {[resumeLabel(item), tailoredLabel(item)].filter(Boolean).join(" · ")}
+                </option>
+              ))}
+            </Select>
+          </div>
+        ) : null}
+      </div>
+
+      <OttoNote
+        size="sm"
+        className="mt-8"
+        message={choice.source === "own" ? PORTFOLIO_LINES.pick : PORTFOLIO_LINES.pickThin}
+      />
+
+      <PreviewSourceBar choice={choice} className="mt-6" />
+
+      <TemplateGallery
+        className="mt-4"
+        sample={choice.sample}
+        onPreview={setFull}
+        action={(id, name) => (
+          <Button
+            variant="secondary"
+            size="sm"
+            className="shrink-0"
+            disabled={saving && chosen !== id}
+            loading={saving && chosen === id}
+            onClick={() => choose(id)}
+            aria-label={`Use this design: ${name}`}
+          >
+            Use this design
           </Button>
-          <p className="text-center text-sm/5 text-subtle">Nothing goes live until you publish.</p>
-        </div>
-      ) : (
-        <div className="mt-6">
-          <NewResumeMenu actions={actions} />
-        </div>
-      )}
+        )}
+      />
+
+      {full ? (
+        <Suspense fallback={null}>
+          <FullPortfolioPreview
+            id={full}
+            own={own}
+            onChange={setFull}
+            onClose={() => setFull(null)}
+            action={{ label: "Use this design", onSelect: () => choose(full) }}
+          />
+        </Suspense>
+      ) : null}
     </section>
   );
 }

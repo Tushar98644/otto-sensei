@@ -1,7 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { roomForResume } from "@/components/account/pro-tools";
+import { useMemo, useState, type ReactNode } from "react";
+import { roomForCopyOf } from "@/components/account/pro-tools";
 import { useNow } from "@/components/studio/use-now";
 import { Lazy, lazyComponent, useOpenedOnce } from "@/components/ui/lazy";
 import { toast } from "@/components/ui/toast";
@@ -22,6 +22,7 @@ export type ResumeGridProps = {
   actions: StudioActions;
   onShowBase?: (id: string) => void;
   cheer?: boolean;
+  end?: ReactNode;
   className?: string;
 };
 
@@ -31,6 +32,7 @@ export function ResumeGrid({
   actions,
   onShowBase,
   cheer,
+  end,
   className,
 }: ResumeGridProps) {
   const now = useNow();
@@ -42,7 +44,7 @@ export function ResumeGrid({
   const copies = useMemo(() => tailoredCounts(all), [all]);
 
   async function duplicate(resume: Resume) {
-    if (!(await roomForResume())) return;
+    if (!(await roomForCopyOf(resume))) return;
     const id = duplicateResume(resume.id);
     const copy = id ? useStudioStore.getState().resumes[id] : undefined;
     if (copy) toast({ title: "Copy made", description: resumeTitle(copy), variant: "success" });
@@ -74,6 +76,8 @@ export function ResumeGrid({
             </li>
           );
         })}
+        {/* A single column on phones leaves no row to fill. */}
+        {end ? <li className="hidden flex-col sm:flex">{end}</li> : null}
       </ul>
 
       <Lazy

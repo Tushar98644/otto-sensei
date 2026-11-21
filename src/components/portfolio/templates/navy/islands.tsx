@@ -25,7 +25,7 @@ export function NavScroll() {
 
 export type NavLink = { href: string; label: string };
 
-export function NavMenu({ links }: { links: NavLink[] }) {
+export function NavMenu({ links, resumeHref }: { links: NavLink[]; resumeHref: string | null }) {
   const [open, setOpen] = useState(false);
   const button = useRef<HTMLButtonElement>(null);
 
@@ -67,6 +67,11 @@ export function NavMenu({ links }: { links: NavLink[] }) {
               </li>
             ))}
           </ol>
+          {resumeHref ? (
+            <a className="btn resume-link" href={resumeHref} tabIndex={open ? 0 : -1}>
+              Resume
+            </a>
+          ) : null}
         </nav>
       </aside>
     </div>

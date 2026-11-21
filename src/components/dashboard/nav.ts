@@ -17,7 +17,6 @@ import { TRASH_ROUTE } from "./trash/trash-route";
 export type AppNavItem = {
   href: string;
   label: string;
-  short?: string;
   icon: LucideIcon;
   pro?: boolean;
   tour?: string;
@@ -28,21 +27,14 @@ export type AppNavItem = {
 export const APP_NAV: readonly AppNavItem[] = [
   { href: ROUTES.dashboard, label: "Home", icon: House },
   { href: ROUTES.dashboardResumes, label: "Resumes", icon: FileText, tour: "dashboard-library" },
-  {
-    href: ROUTES.dashboardLetters,
-    label: "Cover letters",
-    short: "Letters",
-    icon: Mail,
-    pro: true,
-  },
   { href: ROUTES.dashboardJobs, label: "Jobs", icon: Search, tour: "dashboard-jobs" },
   {
     href: ROUTES.dashboardApplications,
     label: "Applications",
-    short: "Tracker",
     icon: BriefcaseBusiness,
     tour: "dashboard-applications",
   },
+  { href: ROUTES.dashboardLetters, label: "Letters", icon: Mail, pro: true },
   {
     href: ROUTES.dashboardInterview,
     label: "Interview prep",
@@ -51,10 +43,10 @@ export const APP_NAV: readonly AppNavItem[] = [
     tour: "dashboard-interview",
   },
   { href: PORTFOLIO_ROUTE, label: "Portfolio", icon: Globe, pro: true, tour: "dashboard-portfolio" },
-  { href: ROUTES.dashboardFormats, label: "Formats", icon: LayoutTemplate, eager: true },
 ];
 
 export const APP_NAV_FOOTER: readonly AppNavItem[] = [
+  { href: ROUTES.dashboardFormats, label: "Formats", icon: LayoutTemplate, eager: true },
   { href: TRASH_ROUTE, label: "Recently deleted", icon: Trash2 },
 ];
 
@@ -77,6 +69,7 @@ export function isCurrent(item: AppNavItem, pathname: string): boolean {
   return pathname === item.href || pathname.startsWith(`${item.href}/`);
 }
 
-export function showsProBadge(item: AppNavItem, proTools: boolean | null): boolean {
+// Free only: while the plan loads (null) nothing is marked, so paid accounts never see it flash.
+export function showsProMark(item: { pro?: boolean }, proTools: boolean | null): boolean {
   return item.pro === true && proTools === false;
 }

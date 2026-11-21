@@ -1,17 +1,39 @@
+import type { Resume } from "@/lib/resume/schema";
 import { STUDIO_STEPS, type StudioStep } from "@/lib/store/resume-store";
 
-export type StepStatus = "available" | "disabled" | "skipped";
+export type StepStatus = "available" | "disabled" | "hidden";
 
 export type StepContext = {
   hasResume: boolean;
   hasReport: boolean;
+  hasTailored: boolean;
 };
 
 export function stepStatus(step: StudioStep, context: StepContext): StepStatus {
   if (step === "upload") return "available";
   if (!context.hasResume) return "disabled";
-  if (step === "review" && !context.hasReport) return "skipped";
+  // Only an uploaded file has a recruiter view; samples, scratch and imports never will.
+  if (step === "review" && !context.hasReport) return "hidden";
   return "available";
+}
+
+export function visibleSteps(context: StepContext): StudioStep[] {
+  return STUDIO_STEPS.filter((step) => stepStatus(step, context) !== "hidden");
+}
+
+export function stepDone(step: StudioStep, current: StudioStep, context: StepContext): boolean {
+  if (step === current || stepStatus(step, context) !== "available") return false;
+  if (step === "tailor") return context.hasTailored;
+  return STUDIO_STEPS.indexOf(step) < STUDIO_STEPS.indexOf(current);
+}
+
+export function hasTailoredCopy(
+  resumes: Readonly<Record<string, Resume>>,
+  activeId: string | null,
+): boolean {
+  if (!activeId) return false;
+  if (resumes[activeId]?.tailor) return true;
+  return Object.values(resumes).some((resume) => resume.tailor?.baseResumeId === activeId);
 }
 
 export function adjacentStep(

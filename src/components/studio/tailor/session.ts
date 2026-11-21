@@ -248,16 +248,38 @@ export type QueuedJob = {
   readLink: boolean;
   jobId?: string;
   posting?: ReadJob;
+  // false: show the post read from the link and wait for the Compare press.
+  compare?: boolean;
 };
 
 const QUEUE_KEY = "otto-tailor-queued-v1";
 const JOB_REF_KEY = "otto-tailor-job-ref-v1";
 
+let queuedVersion = 0;
+const queueListeners = new Set<() => void>();
+
+// Lets an open Tailor step pick up a job queued while it shows, such as from a /studio?job= link.
+export function subscribeQueuedJob(listener: () => void): () => void {
+  queueListeners.add(listener);
+  return () => queueListeners.delete(listener);
+}
+
+export function queuedJobVersion(): number {
+  return queuedVersion;
+}
+
+// Ties the tailored copy to its Jobs entry, so the tracker can link the two.
+export function rememberJobRef(job: Pick<QueuedJob, "jobId" | "link">): void {
+  if (job.jobId) writeJsonItem(JOB_REF_KEY, { id: job.jobId, link: job.link }, "session");
+  else removeItem(JOB_REF_KEY, "session");
+}
+
 export function queueJobForTailor(job: QueuedJob): void {
   const queued = { ...job, text: job.text.slice(0, TEXT_LIMITS.jobPostChars) };
   if (!writeJsonItem(QUEUE_KEY, queued, "session")) return;
-  if (job.jobId) writeJsonItem(JOB_REF_KEY, { id: job.jobId, link: job.link }, "session");
-  else removeItem(JOB_REF_KEY, "session");
+  rememberJobRef(job);
+  queuedVersion += 1;
+  for (const listener of queueListeners) listener();
 }
 
 export function queuedJobIdFor(link: string | undefined): string | null {
@@ -289,6 +311,7 @@ export function peekQueuedJob(): QueuedJob | null {
     postedAt: typeof job.postedAt === "number" ? job.postedAt : null,
     readLink: job.readLink,
     ...(posting ? { posting } : {}),
+    ...(job.compare === false ? { compare: false } : {}),
   };
 }
 
@@ -356,4 +379,10 @@ export function flushTailorSession(): void {
 // Saved the moment it lands, even after the step was left, beside the newest draft.
 export function saveTailorResult(last: SavedResult): void {
   saveTailorSession(loadDraft(), last);
+}
+
+// A post handed over from another page wins over a job still queued from Jobs.
+export function setTailorDraft(draft: TailorDraft): void {
+  clearQueuedJob();
+  saveTailorSession(draft, read()?.last ?? null);
 }

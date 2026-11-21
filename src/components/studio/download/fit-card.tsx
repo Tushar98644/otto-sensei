@@ -19,10 +19,10 @@ import type { PdfPageSize } from "@/lib/pdf/page-size";
 import type { Resume } from "@/lib/resume/schema";
 import { useStudioStore } from "@/lib/store/resume-store";
 import { pluralize } from "@/lib/utils";
+import { FIT_LABEL } from "./fit-offer";
 import { renderPdfCached } from "./pdf-cache";
 import type { ResumePdf } from "./use-resume-pdf";
 
-const FIT_LABEL = "Hid lines to fit one page";
 const SPARE_LINES = 4;
 
 type Phase =
@@ -75,9 +75,14 @@ function ReviewList({
   );
 }
 
-export type FitCardProps = { resume: Resume; pdf: ResumePdf; pageSize: PdfPageSize };
+export type FitCardProps = {
+  resume: Resume;
+  pdf: ResumePdf;
+  pageSize: PdfPageSize;
+  standDown: boolean;
+};
 
-export function FitCard({ resume, pdf, pageSize }: FitCardProps) {
+export function FitCard({ resume, pdf, pageSize, standDown }: FitCardProps) {
   const updateResume = useStudioStore((s) => s.updateResume);
   const [phase, setPhase] = useState<Phase>({ kind: "idle" });
   const pages = pdf.file && pdf.isCurrent ? pdf.file.pages : null;
@@ -85,7 +90,11 @@ export function FitCard({ resume, pdf, pageSize }: FitCardProps) {
   const fits = pages !== null && pages <= 1;
   const active = phase.kind !== "idle" && phase.kind !== "failed";
   const wantsPlan =
-    compact && pages !== null && pages > 1 && (phase.kind === "idle" || phase.kind === "tightened");
+    !standDown &&
+    compact &&
+    pages !== null &&
+    pages > 1 &&
+    (phase.kind === "idle" || phase.kind === "tightened");
   const planned = useRef(false);
   const planNow = useEffectEvent(() => void findLines());
   useEffect(() => {
@@ -95,6 +104,8 @@ export function FitCard({ resume, pdf, pageSize }: FitCardProps) {
     return () => window.clearTimeout(timer);
   }, [wantsPlan]);
 
+  const choosing = phase.kind === "planning" || phase.kind === "review" || phase.kind === "hidden";
+  if (standDown && !choosing) return null;
   if (pages === null && !active) return null;
   if (fits && !active) return null;
 

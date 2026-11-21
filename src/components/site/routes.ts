@@ -23,8 +23,13 @@ export const ROUTES = {
   acceptableUse: "/acceptable-use",
 } as const;
 
-export function upgradeHref(plan: "pro" | "max", interval: "month" | "year" = "month"): string {
-  return `${ROUTES.upgrade}&plan=${plan}&interval=${interval}`;
+export function upgradeHref(
+  plan: "pro" | "max",
+  interval: "month" | "year" = "month",
+  next?: string | null,
+): string {
+  const back = next ? `&next=${encodeURIComponent(next)}` : "";
+  return `${ROUTES.upgrade}&plan=${plan}&interval=${interval}${back}`;
 }
 
 export type NavLink = { href: string; label: string };
@@ -37,15 +42,35 @@ export const MAIN_NAV: readonly NavLink[] = [
 
 export const SIGN_IN_LINK: NavLink = { href: ROUTES.login, label: "Sign in" };
 
-export const FOOTER_NAV: readonly NavLink[] = [
-  { href: ROUTES.pricing, label: "Pricing" },
-  { href: SEO_PATHS.jobMatch, label: "Job match check" },
-  { href: SEO_PATHS.resumeTemplates, label: "Resume templates" },
-  { href: SEO_PATHS.ats, label: "ATS guides" },
-  { href: ROUTES.privacy, label: "Privacy" },
-  { href: ROUTES.terms, label: "Terms" },
-  { href: ROUTES.refunds, label: "Refunds" },
-  { href: ROUTES.acceptableUse, label: "Acceptable use" },
+export type NavGroup = { title: string; links: readonly NavLink[] };
+
+export const FOOTER_GROUPS: readonly NavGroup[] = [
+  {
+    title: "Product",
+    links: [
+      { href: SEO_PATHS.jobMatch, label: "Job match check" },
+      { href: ROUTES.pricing, label: "Pricing" },
+    ],
+  },
+  {
+    title: "Guides",
+    links: [
+      { href: SEO_PATHS.resumeTemplates, label: "Resume templates" },
+      { href: SEO_PATHS.ats, label: "ATS guides" },
+      { href: SEO_PATHS.compare, label: "Comparisons" },
+    ],
+  },
+  {
+    title: "Legal",
+    links: [
+      { href: ROUTES.privacy, label: "Privacy" },
+      { href: ROUTES.terms, label: "Terms" },
+      { href: ROUTES.refunds, label: "Refunds" },
+      { href: ROUTES.acceptableUse, label: "Acceptable use" },
+    ],
+  },
 ];
+
+export const FOOTER_NAV: readonly NavLink[] = FOOTER_GROUPS.flatMap((group) => group.links);
 
 export const LEGAL_LAST_UPDATED = "2026-11-20";

@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { getDb } from "@/db/client";
 import { portfolios, users } from "@/db/schema";
 import { createUser as createFreeUser, resetDb, setPlan } from "@/lib/auth/test-helpers";
+import { revokeShare, saveShare, updateShareOptions } from "@/lib/share/records";
 import {
   checkSlug,
   countView,
@@ -130,6 +131,38 @@ describe("portfolio records", () => {
     expect(page.portfolio.view.phone).toBeNull();
     expect(page.portfolio.view.experience).toEqual([]);
     expect(page.portfolio.allowIndexing).toBe(true);
+  });
+
+  it("links the owner's shared resume, unless that link shows contact the page keeps off", async () => {
+    const user = await createUser();
+    saved(await createPortfolio(user.id, { resume: sampleResume() }));
+    saved(await updatePortfolio(user.id, { published: true }, PRO));
+    const href = async () => {
+      const page = await findPublicPortfolio("maya-chen");
+      if (page.status !== "ok") throw new Error("expected the page");
+      return page.portfolio.resumeHref;
+    };
+    const share = async (id: string) => {
+      const result = await saveShare(user.id, {
+        resume: sampleResume({ id }),
+        showContact: false,
+        allowIndexing: false,
+      });
+      if (result.status !== "saved") throw new Error(`expected saved, got ${result.status}`);
+      return result.link;
+    };
+    expect(await href()).toBeNull();
+    await share("resume-2");
+    expect(await href()).toBeNull();
+
+    const link = await share("resume-1");
+    expect(await href()).toBe(`/s/${link.slug}`);
+    await updateShareOptions(user.id, link.id, { showContact: true });
+    expect(await href()).toBeNull();
+    saved(await updatePortfolio(user.id, { showEmail: true, showPhone: true }, PRO));
+    expect(await href()).toBe(`/s/${link.slug}`);
+    await revokeShare(user.id, link.id);
+    expect(await href()).toBeNull();
   });
 
   it("draws the public page without pictures", async () => {

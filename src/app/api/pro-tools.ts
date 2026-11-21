@@ -13,6 +13,7 @@ export const PRO_TOOL_MESSAGES: Record<ProTool, string> = {
   jobs: "Filters, saved jobs and every match come with Pro.",
   share: "Share links come with Pro.",
   eligibility: "The work-rights check comes with Pro.",
+  portfolio: "Portfolios come with Pro.",
 };
 
 export function proToolRequired(user: SessionUser | null, tool: ProTool): Response {

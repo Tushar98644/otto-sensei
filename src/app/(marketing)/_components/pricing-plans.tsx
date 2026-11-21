@@ -5,11 +5,8 @@ import { useMe } from "@/components/account/use-me";
 import { ROUTES } from "@/components/site/routes";
 import { TextLink } from "@/components/site/text-link";
 import {
-  BILLING_INTERVALS,
-  isTrialing,
-  PLAN_ORDER,
+  isPaidPlan,
   PRICES_USD,
-  PRO_TRIAL,
   REFERENCE_MONTHLY_USD,
   referenceDiscountPercent,
   SHOW_REFERENCE_PRICES,
@@ -17,20 +14,12 @@ import {
   type PaidPlanId,
   type PlanId,
 } from "@/config/plans";
-import {
-  endsTrialSentence,
-  INTERVAL_NAMES,
-  perMonth,
-  pizzaLine,
-  proComparison,
-  trialSentence,
-  yearlySavingsPercent,
-} from "@/lib/billing/prices";
+import { INTERVAL_NAMES, yearlySavingsPercent } from "@/lib/billing/prices";
 import type { JobCounts } from "@/lib/job-feed/counts";
 import { cn } from "@/lib/utils";
 import { PlanCard, plansPanelClasses, type PlanPrice } from "./plan-card";
-import { planCta } from "./plan-ctas";
-import { formatUsd } from "./plan-features";
+import { planCards, type PlanViewer } from "./plan-ctas";
+import { formatUsd, plansOnSale } from "./plan-features";
 
 export type PricingPlansProps = {
   offer: Record<PaidPlanId, readonly BillingInterval[]>;
@@ -46,6 +35,41 @@ const PERIOD: Record<BillingInterval, { short: string; spoken: string }> = {
   year: { short: "/year", spoken: "per year" },
 };
 
+// Phones stack the lead card first, so desktop puts each card back in plan order.
+const DESKTOP_ORDER: Record<PlanId, string> = {
+  free: "lg:order-1",
+  pro: "lg:order-2",
+  max: "lg:order-3",
+};
+
+export function usePlanViewer(): { viewer: PlanViewer | null; trial: boolean | null } {
+  const { me, user } = useMe();
+  if (!user) return { viewer: null, trial: me ? me.billing.trial === true : null };
+  return {
+    viewer: {
+      plan: user.plan,
+      interval: user.planInterval,
+      trialEndsAt: user.trialEndsAt ?? null,
+      cancelScheduled: me?.billing.cancelScheduled === true,
+    },
+    trial: me?.billing.trial === true,
+  };
+}
+
+function priceOf(plan: PlanId, interval: BillingInterval): PlanPrice {
+  if (!isPaidPlan(plan)) return { amount: formatUsd(0), ...periodOf("month") };
+  const price: PlanPrice = { amount: formatUsd(PRICES_USD[plan][interval]), ...periodOf(interval) };
+  if (interval === "month" && SHOW_REFERENCE_PRICES) {
+    price.reference = formatUsd(REFERENCE_MONTHLY_USD[plan]);
+    price.badge = `${referenceDiscountPercent(plan)}% off`;
+  }
+  if (interval === "year") {
+    const savings = yearlySavingsPercent(plan);
+    if (savings > 0) price.badge = `Save ${savings}% vs monthly`;
+  }
+  return price;
+}
+
 export function PricingPlans({
   offer,
   trial: trialOnSale = false,
@@ -55,52 +79,22 @@ export function PricingPlans({
   className,
 }: PricingPlansProps) {
   const name = useId();
-  const { me, user } = useMe();
-  const trial = me ? me.billing.trial === true : trialOnSale;
-  const proTrialing = user !== null && user.plan === "pro" && isTrialing(user);
-  const intervals = BILLING_INTERVALS.filter((interval) =>
-    (["pro", "max"] as const).some((plan) => offer[plan].includes(interval)),
-  );
+  const { viewer, trial } = usePlanViewer();
   const [picked, setPicked] = useState<BillingInterval>("month");
-  const plans = PLAN_ORDER.filter((plan) => plan === "free" || offer[plan].length > 0);
-
-  function priceFor(plan: PlanId): {
-    price: PlanPrice;
-    interval: BillingInterval;
-    note: string | null;
-  } {
-    if (plan === "free") {
-      return {
-        price: { amount: formatUsd(0), ...periodOf("month") },
-        interval: "month",
-        note: null,
-      };
-    }
-    const interval = offer[plan].includes(picked) ? picked : "month";
-    const price: PlanPrice = {
-      amount: formatUsd(PRICES_USD[plan][interval]),
-      ...periodOf(interval),
-    };
-    let note: string | null = null;
-    if (interval === "month") {
-      if (SHOW_REFERENCE_PRICES) {
-        price.reference = formatUsd(REFERENCE_MONTHLY_USD[plan]);
-        price.badge = `${referenceDiscountPercent(plan)}% off`;
-      }
-      if (plan === "pro") {
-        price.comparison = proComparison() ?? undefined;
-        note = pizzaLine();
-      }
-    }
-    if (interval === "year") {
-      const savings = yearlySavingsPercent(plan);
-      if (savings > 0) price.badge = `Save ${savings}% vs monthly`;
-      note = `About ${perMonth(plan)} a month, instead of ${formatUsd(PRICES_USD[plan].month * 12)} a year paid monthly.`;
-    } else if (picked !== interval) {
-      note = `Sold monthly only, for now.`;
-    }
-    return { price, interval, note };
-  }
+  const plans = plansOnSale(offer);
+  const { cards, intervals, first } = planCards({
+    plans,
+    offer,
+    picked,
+    trial: trial ?? trialOnSale,
+    viewer,
+  });
+  const ordered = first
+    ? [
+        ...cards.filter((card) => card.plan === first),
+        ...cards.filter((card) => card.plan !== first),
+      ]
+    : cards;
 
   return (
     <div className={cn("flex flex-col gap-6", className)}>
@@ -136,31 +130,20 @@ export function PricingPlans({
         </div>
       ) : null}
       <div className={plansPanelClasses(plans.length)}>
-        {plans.map((plan) => {
-          const { price, interval, note } = priceFor(plan);
-          const onTrial = trial && plan === PRO_TRIAL.plan && interval === PRO_TRIAL.interval;
-          const endsTrial = proTrialing && plan === "max";
-          const cta = planCta(plan, interval, onTrial);
-          return (
-            <PlanCard
-              key={plan}
-              planId={plan}
-              headingAs={headingAs}
-              featured={plan === "pro"}
-              price={price}
-              cta={endsTrial ? { ...cta, label: "Start Max now" } : cta}
-              priceNote={note}
-              jobCounts={jobCounts}
-              note={
-                onTrial
-                  ? trialSentence()
-                  : endsTrial
-                    ? endsTrialSentence("max", interval)
-                    : undefined
-              }
-            />
-          );
-        })}
+        {ordered.map((card) => (
+          <PlanCard
+            key={card.plan}
+            planId={card.plan}
+            headingAs={headingAs}
+            badge={card.badge}
+            price={priceOf(card.plan, card.interval)}
+            cta={card.cta}
+            manage={card.manage}
+            notes={card.notes}
+            jobCounts={jobCounts}
+            className={first ? DESKTOP_ORDER[card.plan] : undefined}
+          />
+        ))}
       </div>
       <p className="text-center text-sm text-muted">
         Fair limits on every AI feature, all listed in the{" "}

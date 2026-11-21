@@ -3,11 +3,11 @@ import { pageMetadata } from "@/components/site/page-metadata";
 import { BRAND } from "@/config/brand";
 import { TrackView } from "@/lib/analytics/track-view";
 import { loadJobCounts } from "@/lib/job-feed/live-counts";
-import { AiScreening } from "./_components/ai-screening";
 import { Faq } from "./_components/faq";
 import { FeaturesOverview } from "./_components/features-overview";
 import { FinalCta } from "./_components/final-cta";
 import { Hero } from "./_components/hero";
+import { HomeUpload } from "./_components/home-upload";
 import { HowItWorks } from "./_components/how-it-works";
 import { JobsShowcase } from "./_components/jobs-showcase";
 import { PortfolioShowcase } from "./_components/portfolio-showcase";
@@ -32,14 +32,14 @@ export default async function HomePage() {
       <WebsiteJsonLd />
       <TrackView event="landing_viewed" />
       <SmoothScroll />
+      <HomeUpload />
       <Hero />
-      <AiScreening />
-      <FeaturesOverview />
       <HowItWorks />
+      <FeaturesOverview />
       <JobsShowcase jobCounts={jobCounts} />
       <PortfolioShowcase />
       <WontDo />
-      <PricingTeaser jobCounts={jobCounts} />
+      <PricingTeaser />
       <Faq />
       <FinalCta />
     </>

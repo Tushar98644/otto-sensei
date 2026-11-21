@@ -1,57 +1,79 @@
 "use client";
 
-import { Download, ScanText } from "lucide-react";
+import { ChevronDown, Download } from "lucide-react";
 import { useRef, useState } from "react";
+import { useProTools } from "@/components/account/pro-tools";
 import { InviteOffer, inviteToOffer } from "@/components/referrals/invite-prompt";
+import { useShareResume } from "@/components/share/use-share-resume";
 import { Alert } from "@/components/ui/alert";
 import { Button, buttonClasses } from "@/components/ui/button";
-import { Card, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Menu } from "@/components/ui/menu";
+import { Spinner } from "@/components/ui/spinner";
 import { track } from "@/lib/analytics/client";
-import type { PdfPageSize } from "@/lib/pdf/page-size";
+import { PAGE_SIZE_LABELS, type PdfPageSize } from "@/lib/pdf/page-size";
+import { TEMPLATE_INFO, templateOf } from "@/lib/pdf/templates";
 import type { Resume } from "@/lib/resume/schema";
-import { DesignControls } from "./design-controls";
-import { FitCard } from "./fit-card";
-import { FormatPicker } from "./format-picker";
-import { PageSizeToggle } from "./page-size-toggle";
-import { PdfPreviewLink } from "./pdf-preview";
-import { PlainTextCopy } from "./plain-text-copy";
-import { SendCheckCard } from "./send-check";
-import { ShareLinkButton } from "./share-link-button";
-import type { ExportCheck } from "./use-export-check";
-import { setPageSize } from "./use-page-size";
+import { pluralize } from "@/lib/utils";
+import { downloadMenuItems } from "./download-menu";
+import { FitOffer, type NearFitState } from "./fit-offer";
+import { OpenJob } from "./open-job";
+import { copyPlainText, PlainTextDetails } from "./plain-text-copy";
 import type { ResumePdf } from "./use-resume-pdf";
-import { WordDownload } from "./word-download";
+import { useWordDownload } from "./word-download";
 
 export type DownloadActionsProps = {
   resume: Resume;
   printed: Resume;
-  formatPending: boolean;
+  ready: boolean;
   pdf: ResumePdf;
-  check: ExportCheck;
   pageSize: PdfPageSize;
   fileName: string;
   changedCharacters: string[];
-  showPreviewLink: boolean;
+  fit: NearFitState;
 };
+
+const MAIN = "min-w-0 flex-1 rounded-r-none focus-visible:z-10";
+const MORE = "-ml-px w-12 rounded-l-none px-0 focus-visible:z-10";
 
 function quoteList(chars: string[]): string {
   return chars.map((char) => `“${char}”`).join(", ");
 }
 
+function openPreview(url: string) {
+  window.open(url, "_blank", "noopener");
+}
+
 export function DownloadActions({
   resume,
   printed,
-  formatPending,
+  ready,
   pdf,
-  check,
   pageSize,
   fileName,
   changedCharacters,
-  showPreviewLink,
+  fit,
 }: DownloadActionsProps) {
-  const ready = pdf.file !== null && pdf.isCurrent && !formatPending;
   const [inviteUrl, setInviteUrl] = useState<string | null>(null);
   const downloadLink = useRef<HTMLAnchorElement>(null);
+  const pro = useProTools();
+  const share = useShareResume(resume);
+  const word = useWordDownload(resume, pageSize, fileName);
+  const file = ready ? pdf.file : null;
+  const items = downloadMenuItems({
+    pro,
+    wordBuilding: word.building,
+    previewUrl: file?.url ?? null,
+    onWord: word.download,
+    onCopyText: () => void copyPlainText(resume),
+    onShare: share.share,
+    onPreview: openPreview,
+  });
+  const meta = file
+    ? `${pluralize(file.pages, "page")} · ${PAGE_SIZE_LABELS[pageSize]} · ${TEMPLATE_INFO[templateOf(printed)].name}`
+    : pdf.failed
+      ? "Not made yet."
+      : "Putting it together.";
 
   // The link's own download goes ahead; the invite, if any, shows up beside it after.
   function downloaded() {
@@ -62,79 +84,70 @@ export function DownloadActions({
   }
 
   return (
-    <>
-      <SendCheckCard resume={resume} />
-      <Card>
-        <CardHeader>
-          <CardTitle as="h2">Your PDF</CardTitle>
-        </CardHeader>
-        <FormatPicker resume={resume} />
-        <PageSizeToggle value={pageSize} onChange={setPageSize} />
-        {changedCharacters.length ? (
-          <Alert variant="warn" title="A few characters look different">
-            The PDF fonts can&apos;t show {quoteList(changedCharacters.slice(0, 8))}
-            {changedCharacters.length > 8 ? " and a few more" : ""}, so they were swapped for close
-            matches or left out. Check that your name and links still look right.
-          </Alert>
-        ) : null}
-        {pdf.failed ? (
-          <Alert
-            variant="error"
-            title="Your PDF didn't come out"
-            action={
-              <Button variant="secondary" onClick={pdf.retry}>
-                Try again
-              </Button>
-            }
-          >
-            Something went wrong while making it. Your resume is safe in this browser.
-          </Alert>
-        ) : null}
-        <div className="flex flex-col gap-3">
-          {ready && pdf.file ? (
+    <Card>
+      <CardHeader>
+        <CardTitle as="h2">Your PDF</CardTitle>
+        <CardDescription aria-live="polite">{meta}</CardDescription>
+      </CardHeader>
+      {changedCharacters.length ? (
+        <Alert variant="warn" title="A few characters look different">
+          The PDF fonts can&apos;t show {quoteList(changedCharacters.slice(0, 8))}
+          {changedCharacters.length > 8 ? " and a few more" : ""}, so they were swapped for close
+          matches or left out. Check that your name and links still look right.
+        </Alert>
+      ) : null}
+      {pdf.failed ? (
+        <Alert
+          variant="error"
+          title="Your PDF didn't come out"
+          action={
+            <Button variant="secondary" onClick={pdf.retry}>
+              Try again
+            </Button>
+          }
+        >
+          Something went wrong while making it. Your resume is safe in this browser.
+        </Alert>
+      ) : null}
+      <FitOffer fit={fit} />
+      <div className="flex flex-col gap-3">
+        <div className="flex">
+          {file ? (
             <a
               ref={downloadLink}
-              href={pdf.file.url}
+              href={file.url}
               download={fileName}
               onClick={downloaded}
-              className={buttonClasses({ size: "lg", className: "w-full" })}
+              className={buttonClasses({ size: "lg", className: MAIN })}
             >
               <Download />
               Download PDF, free
             </a>
           ) : (
-            <Button size="lg" loading={!pdf.failed} disabled className="w-full">
-              {pdf.file ? "Updating your PDF" : "Making your PDF"}
+            <Button size="lg" loading={!pdf.failed} disabled className={MAIN}>
+              {pdf.failed ? "Download PDF, free" : pdf.file ? "Updating your PDF" : "Making your PDF"}
             </Button>
           )}
-          <InviteOffer
-            url={inviteUrl}
-            onDismiss={() => {
-              setInviteUrl(null);
-              downloadLink.current?.focus();
-            }}
+          <Menu
+            label="More ways to save or share"
+            triggerLabel="More ways to save or share"
+            trigger={word.building ? <Spinner className="size-5" /> : <ChevronDown aria-hidden />}
+            triggerClassName={buttonClasses({ size: "lg", className: MORE })}
+            align="end"
+            items={items}
           />
-          <WordDownload resume={resume} pageSize={pageSize} fileName={fileName} />
-          <ShareLinkButton resume={resume} />
-          {showPreviewLink && pdf.file ? (
-            <PdfPreviewLink url={pdf.file.url} className="w-full" />
-          ) : null}
-          <Button
-            variant="secondary"
-            onClick={check.run}
-            loading={check.checking}
-            disabled={!ready}
-            className="w-full"
-          >
-            <ScanText />
-            Check my new PDF
-          </Button>
-          {check.error ? <Alert variant="error">{check.error}</Alert> : null}
         </div>
-        <PlainTextCopy resume={resume} />
-      </Card>
-      <FitCard resume={printed} pdf={pdf} pageSize={pageSize} />
-      <DesignControls resume={resume} />
-    </>
+        <InviteOffer
+          url={inviteUrl}
+          onDismiss={() => {
+            setInviteUrl(null);
+            downloadLink.current?.focus();
+          }}
+        />
+        <OpenJob key={resume.id} resume={resume} />
+      </div>
+      <PlainTextDetails resume={resume} />
+      {share.dialog}
+    </Card>
   );
 }

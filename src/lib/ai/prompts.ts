@@ -131,3 +131,13 @@ What to write:
   - Paragraph 2, only when the resume has it: one more resume fact that matches what the post asks for most, with what came of it, as the resume says it.
   - Last paragraph: one small, easy ask, such as "Would you be open to a short call next week?" or "If you're not the right person, could you point me to who is?" Never ask for a job or a referral outright, and don't mention attachments.
 - note: a LinkedIn connection note of 80 to 170 characters, one or two sentences, with no greeting (one is added for you): the role and the one resume fact that fits best. Ask for nothing beyond connecting.`;
+
+// Sent with the outreach prompt's request when the person already applied and is following up.
+export function outreachFollowUpRules(days: number): string {
+  const ago = `${days} ${days === 1 ? "day" : "days"} ago`;
+  return `This message is a follow-up, not a cold message: the person applied for this job ${ago} and hasn't heard back. It goes to whoever reads applications, such as the recruiter or the hiring manager. Never write the number of days anywhere. The message rules change like this:
+- subject: 4 to 9 words that say it follows up on the application and name the role, such as "Following up on my Product marketing application".
+- email, paragraph 1: one sentence saying they applied for the role recently and are still keen on it, then the single resume fact that fits this job best.
+- email, last paragraph: one polite question about the next step, such as "Is there anything else I can send while you review applications?" Don't sound impatient, don't apologize for writing, and don't ask for a job.
+- note: says they applied for the role and would be glad to connect, with the one resume fact that fits best.`;
+}

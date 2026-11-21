@@ -16,11 +16,12 @@ import type { SessionUser } from "@/lib/auth/types";
 import { cn } from "@/lib/utils";
 import { useHoverIntent } from "./hover-intent";
 import { LinkPending } from "./link-pending";
-import { isCurrent, PHONE_MORE, PHONE_TABS, showsProBadge, type AppNavItem } from "./nav";
+import { isCurrent, PHONE_MORE, PHONE_TABS, showsProMark, type AppNavItem } from "./nav";
 import { prefetchPageData } from "./prefetch";
 
+// flex-auto, not flex-1: sized by its label, so "Applications" fits beside the others at 360px.
 const SEGMENT =
-  "relative flex h-10 min-w-0 flex-1 items-center justify-center gap-2 rounded-lg px-2 text-sm font-medium transition-colors -outline-offset-2 max-sm:px-1 max-sm:text-xs";
+  "relative flex h-10 min-w-0 flex-auto items-center justify-center gap-2 rounded-lg px-2 text-sm font-medium transition-colors -outline-offset-2 max-sm:px-1 max-sm:text-xs";
 const CURRENT = "bg-surface text-ink shadow-control";
 const IDLE = "text-muted hover:text-ink aria-expanded:text-ink";
 
@@ -68,7 +69,7 @@ export function MobileBar({ user }: { user: SessionUser }) {
               label: item.label,
               icon: item.icon,
               checked: isCurrent(item, pathname),
-              description: showsProBadge(item, proTools) ? "Comes with Pro" : undefined,
+              pro: showsProMark(item, proTools),
               onSelect: () => router.push(item.href),
             }))}
           />
@@ -103,14 +104,7 @@ function PhoneTab({
     >
       <LinkPending variant="bar" />
       <item.icon className="hidden size-4 shrink-0 sm:block" aria-hidden />
-      {item.short ? (
-        <>
-          <span className="truncate md:hidden">{item.short}</span>
-          <span className="truncate max-md:hidden">{item.label}</span>
-        </>
-      ) : (
-        <span className="truncate">{item.label}</span>
-      )}
+      <span className="truncate">{item.label}</span>
     </Link>
   );
 }

@@ -72,6 +72,13 @@ export const portfolioQuery = (userId: string) =>
     staleTime: 5 * MINUTE,
   });
 
+export const billingHistoryQuery = (userId: string, planState: string) =>
+  queryOptions({
+    queryKey: queryKeys.billingHistory(userId, planState),
+    queryFn: async () => (await api.billingHistory()).history,
+    staleTime: 5 * MINUTE,
+  });
+
 export const reminderSettingsQuery = (userId: string) =>
   queryOptions({
     queryKey: queryKeys.reminderSettings(userId),

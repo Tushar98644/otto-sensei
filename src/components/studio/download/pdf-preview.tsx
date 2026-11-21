@@ -1,8 +1,6 @@
 "use client";
 
-import { Eye } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { buttonClasses } from "@/components/ui/button";
 import { LivePill } from "@/components/ui/live-pill";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { PdfPageSize } from "@/lib/pdf/page-size";
@@ -93,19 +91,5 @@ export function PdfFrame({ url, pageSize, updating, className }: PdfFrameProps) 
         </LivePill>
       ) : null}
     </div>
-  );
-}
-
-export function PdfPreviewLink({ url, className }: { url: string; className?: string }) {
-  return (
-    <a
-      href={url}
-      target="_blank"
-      rel="noopener"
-      className={buttonClasses({ variant: "secondary", className })}
-    >
-      <Eye />
-      Preview
-    </a>
   );
 }

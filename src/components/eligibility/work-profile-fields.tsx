@@ -101,7 +101,7 @@ export function WorkProfileFields({
             />
           ))}
         </div>
-        {rightsNote ? <p className="mt-3 text-sm text-muted">{rightsNote}</p> : null}
+        {rightsNote ? <div className="mt-3 text-sm text-muted">{rightsNote}</div> : null}
       </div>
 
       <div

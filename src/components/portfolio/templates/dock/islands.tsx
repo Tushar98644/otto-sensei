@@ -1,6 +1,6 @@
 "use client";
 
-import { House, Moon, Sun } from "lucide-react";
+import { FileText, House, Moon, Sun } from "lucide-react";
 import { useEffect, useRef, type MouseEvent } from "react";
 import type { SocialKind } from "@/lib/portfolio/content";
 import { SocialIcon } from "../icons";
@@ -105,13 +105,21 @@ export function FlickeringGrid({
   );
 }
 
-export type DockLink = { href: string; label: string; kind: SocialKind | "home" };
+export type DockLink = { href: string; label: string; kind: SocialKind | "home" | "resume" };
 
 const BASE = 40;
 const MAGNIFIED = 60;
 const DISTANCE = 100;
 
-export function Dock({ home, socials }: { home: DockLink; socials: DockLink[] }) {
+export function Dock({
+  home,
+  resume,
+  socials,
+}: {
+  home: DockLink;
+  resume: DockLink | null;
+  socials: DockLink[];
+}) {
   const bar = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -160,7 +168,13 @@ export function Dock({ home, socials }: { home: DockLink; socials: DockLink[] })
           aria-label={link.label}
           {...(external ? { target: "_blank", rel: "noopener noreferrer nofollow ugc" } : {})}
         >
-          {link.kind === "home" ? <House aria-hidden /> : <SocialIcon kind={link.kind} />}
+          {link.kind === "home" ? (
+            <House aria-hidden />
+          ) : link.kind === "resume" ? (
+            <FileText aria-hidden />
+          ) : (
+            <SocialIcon kind={link.kind} />
+          )}
         </a>
         <span className="tip" aria-hidden>
           {link.label}
@@ -173,6 +187,7 @@ export function Dock({ home, socials }: { home: DockLink; socials: DockLink[] })
     <div className="dock-bar">
       <div ref={bar} className="dock" onMouseMove={magnify} onMouseLeave={reset}>
         {item(home)}
+        {resume ? item(resume) : null}
         {socials.length > 0 ? <div className="dock-sep" /> : null}
         {socials.map(item)}
         <div className="dock-sep" />

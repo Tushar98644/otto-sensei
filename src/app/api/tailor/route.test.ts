@@ -4,7 +4,8 @@ import { tailorResume } from "@/lib/ai/tailor";
 import { AIError, type TailorResult } from "@/lib/ai/types";
 import type { ApiErrorBody, TailorRequestBody, TailorResponse } from "@/lib/api/types";
 import { getDb } from "@/db/client";
-import { usage } from "@/db/schema";
+import { meteredResults, usage } from "@/db/schema";
+import { REQUEST_ID_HEADER, RESULT_TTL_MS, RESUME_HEADER } from "@/lib/api/request-id";
 import { cookieJar, jsonRequest, resetDb, signInAs, signInOnTrial } from "@/lib/auth/test-helpers";
 import type { SessionUser } from "@/lib/auth/types";
 import { resetEnvForTests } from "@/lib/env";
@@ -36,6 +37,23 @@ function body(overrides: Partial<TailorRequestBody["job"]> = {}): TailorRequestB
 }
 
 const tailor = (payload: unknown = body()) => POST(jsonRequest("/api/tailor", payload));
+
+const REQUEST_ID = "6f1d0c3a-2b4e-4f5a-8c9d-0e1f2a3b4c5d";
+const SENT = body();
+const OTHER_JOB: TailorRequestBody = { ...SENT, job: { ...SENT.job, company: "Northwind" } };
+
+function tailorWithId(payload: TailorRequestBody = SENT, id = REQUEST_ID): Promise<Response> {
+  const req = jsonRequest("/api/tailor", payload);
+  req.headers.set(REQUEST_ID_HEADER, id);
+  return POST(req);
+}
+
+function resumeRun(payload: TailorRequestBody = SENT, id: string | null = REQUEST_ID): Promise<Response> {
+  const req = jsonRequest("/api/tailor", payload);
+  if (id) req.headers.set(REQUEST_ID_HEADER, id);
+  req.headers.set(RESUME_HEADER, "1");
+  return POST(req);
+}
 
 async function signIn(email = "ada@example.com"): Promise<SessionUser> {
   const user = await signInOnTrial(email, TRIAL_END);
@@ -156,5 +174,77 @@ describe("POST /api/tailor", () => {
     expect((await errorOf(res)).code).toBe("upgrade_required");
     expect(vi.mocked(tailorResume).mock.calls).toHaveLength(calls);
     expect((await getUsage(user)).tailor).toEqual({ used: 0, limit: 0 });
+  });
+});
+
+describe("POST /api/tailor after a reload", () => {
+  it("hands back the paid result for the same request id without charging or calling the AI again", async () => {
+    const user = await signIn();
+    const first = (await (await tailorWithId()).json()) as TailorResponse;
+    expect(first.usage.tailor.used).toBe(1);
+    const calls = vi.mocked(tailorResume).mock.calls.length;
+
+    const again = await tailorWithId();
+    expect(again.status).toBe(200);
+    const replayed = (await again.json()) as TailorResponse;
+    expect(replayed.result).toEqual(first.result);
+    expect(replayed.demo).toBe(first.demo);
+    expect(replayed.usage.tailor.used).toBe(1);
+    expect(vi.mocked(tailorResume).mock.calls).toHaveLength(calls);
+    expect((await getUsage(user)).tailor.used).toBe(1);
+  });
+
+  it("runs and charges a new id, another job under the same id, and the same id after ten minutes", async () => {
+    const user = await signIn();
+    await tailorWithId();
+    await tailorWithId(SENT, "0a1b2c3d-4e5f-4a6b-8c7d-9e0f1a2b3c4d");
+    await tailorWithId(OTHER_JOB);
+    expect((await getUsage(user)).tailor.used).toBe(3);
+
+    vi.setSystemTime(NOW + RESULT_TTL_MS + 1);
+    await tailorWithId();
+    expect((await getUsage(user)).tailor.used).toBe(4);
+  });
+
+  it("never hands one account's result to another", async () => {
+    await signIn("ada@example.com");
+    await tailorWithId();
+    const bob = await signIn("bob@example.com");
+    const calls = vi.mocked(tailorResume).mock.calls.length;
+    expect((await tailorWithId()).status).toBe(200);
+    expect(vi.mocked(tailorResume).mock.calls).toHaveLength(calls + 1);
+    expect((await getUsage(bob)).tailor.used).toBe(1);
+  });
+
+  it("keeps nothing for a failed or refused run, so the same id runs again", async () => {
+    const user = await signIn();
+    vi.mocked(tailorResume).mockRejectedValueOnce(new AIError("unavailable", "timed out"));
+    expect((await tailorWithId()).status).toBe(502);
+    expect(await (await getDb()).select().from(meteredResults)).toEqual([]);
+
+    expect((await tailorWithId()).status).toBe(200);
+    expect((await getUsage(user)).tailor.used).toBe(1);
+
+    for (let i = 1; i < PRO_TRIAL.limits.tailor; i++) await consumeUsage(user, "tailor");
+    expect((await tailorWithId(OTHER_JOB)).status).toBe(429);
+    expect(await (await getDb()).select().from(meteredResults)).toHaveLength(1);
+  });
+
+  it("picks up a paid run after a reload without charging, and never starts one", async () => {
+    const user = await signIn();
+    const first = (await (await tailorWithId()).json()) as TailorResponse;
+    const calls = vi.mocked(tailorResume).mock.calls.length;
+
+    const picked = await resumeRun();
+    expect(picked.status).toBe(200);
+    expect(((await picked.json()) as TailorResponse).result).toEqual(first.result);
+
+    for (const res of [await resumeRun(OTHER_JOB), await resumeRun(SENT, "0a1b2c3d-4e5f-4a6b-8c7d-9e0f1a2b3c4d"), await resumeRun(SENT, null)]) {
+      expect(res.status).toBe(404);
+      expect((await errorOf(res)).code).toBe("not_found");
+    }
+    expect(vi.mocked(tailorResume).mock.calls).toHaveLength(calls);
+    expect((await getUsage(user)).tailor.used).toBe(1);
+    expect(await (await getDb()).select().from(meteredResults)).toHaveLength(1);
   });
 });

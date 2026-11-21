@@ -3,8 +3,9 @@
 import { useSyncExternalStore } from "react";
 import type { Feature, ProTool } from "@/config/plans";
 import { LazyUpgradeDialog } from "./lazy-dialogs";
+import type { ReplaceOffer } from "./upgrade-dialog";
 
-type Prompt = { open: boolean; tool?: ProTool; feature?: Feature };
+type Prompt = { open: boolean; tool?: ProTool; feature?: Feature; replace?: ReplaceOffer };
 
 const CLOSED: Prompt = { open: false };
 let prompt: Prompt = CLOSED;
@@ -22,8 +23,8 @@ function subscribe(listener: () => void) {
   };
 }
 
-export function openUpgradePrompt(tool: ProTool): void {
-  setPrompt({ open: true, tool });
+export function openUpgradePrompt(tool: ProTool, replace?: ReplaceOffer): void {
+  setPrompt({ open: true, tool, replace });
 }
 
 export function openFeaturePrompt(feature: Feature): void {
@@ -42,6 +43,7 @@ export function UpgradePromptHost() {
       onOpenChange={(open) => setPrompt({ ...prompt, open })}
       tool={current.tool}
       feature={current.feature}
+      replace={current.replace}
     />
   );
 }

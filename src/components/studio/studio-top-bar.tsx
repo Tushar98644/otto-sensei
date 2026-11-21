@@ -10,6 +10,7 @@ import { useStudioStore } from "@/lib/store/resume-store";
 import { AccountMenu } from "./account-menu";
 import { HistoryControls } from "./history/history-controls";
 import { ResumeSwitcher } from "./resume-switcher";
+import { SaveStatus } from "./save-status";
 
 export type StudioTopBarProps = {
   hydrated: boolean;
@@ -22,7 +23,7 @@ export function StudioTopBar({ hydrated, onSignIn }: StudioTopBarProps) {
   const { user } = useMe();
   return (
     <header className="sticky top-0 z-30 bg-surface-muted">
-      <div className="mx-auto flex h-16 w-full max-w-5xl items-center gap-2 px-4 sm:gap-4 sm:px-6">
+      <div className="mx-auto flex h-14 w-full max-w-6xl items-center gap-2 px-4 sm:h-16 sm:gap-4 sm:px-6">
         <Link
           href={user ? ROUTES.dashboard : ROUTES.home}
           aria-label={`${BRAND.name} home`}
@@ -36,7 +37,12 @@ export function StudioTopBar({ hydrated, onSignIn }: StudioTopBarProps) {
         <div className="flex min-w-0 flex-1">
           {hydrated ? <ResumeSwitcher /> : <Skeleton className="h-11 w-40 rounded-lg" />}
         </div>
-        {hydrated ? <HistoryControls resumeId={activeId} /> : null}
+        {hydrated ? (
+          <div className="flex shrink-0 items-center gap-1 sm:gap-2">
+            <SaveStatus resumeId={activeId} />
+            <HistoryControls resumeId={activeId} />
+          </div>
+        ) : null}
         <AccountMenu onSignIn={onSignIn} />
       </div>
     </header>

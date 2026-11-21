@@ -17,7 +17,7 @@ import {
   APPLICATION_STATUSES,
   type StatusEvent,
 } from "@/lib/applications/status";
-import { WORK_RIGHTS } from "@/lib/eligibility/profile";
+import { WORK_REGIONS, WORK_RIGHTS } from "@/lib/eligibility/profile";
 import { FEEDBACK_KINDS } from "@/lib/feedback/types";
 import {
   ASKED_APPLIED_ANSWERS,
@@ -33,7 +33,7 @@ import { EMAIL_LOG_KINDS, NOTIFICATION_KINDS } from "@/lib/notifications/types";
 import { PORTFOLIO_TEMPLATE_IDS } from "@/lib/portfolio/types";
 import { REFERRAL_BLOCK_REASONS, REFERRAL_STATUSES } from "@/lib/referrals/referrals";
 import type { Resume } from "@/lib/resume/schema";
-import { SETUP_STEP_OUTCOMES } from "@/lib/setup/types";
+import { COUNTRY_SOURCES, SETUP_STEP_OUTCOMES } from "@/lib/setup/types";
 import { SPELLINGS, WRITING_LENGTHS, WRITING_TONES } from "@/lib/writing-style/schema";
 import { WRITING_KINDS } from "@/lib/writings/schema";
 
@@ -91,6 +91,37 @@ export const rateLimits = pgTable(
   (t) => [
     primaryKey({ columns: [t.key, t.windowStart] }),
     index("rate_limits_window_idx").on(t.windowStart),
+  ],
+);
+
+export const usagePasses = pgTable(
+  "usage_passes",
+  {
+    userId: uuid("user_id").notNull(),
+    feature: text("feature").notNull(),
+    subject: text("subject").notNull(),
+    usesLeft: integer("uses_left").notNull(),
+    expiresAt: epochMs("expires_at").notNull(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.userId, t.feature, t.subject] }),
+    index("usage_passes_expires_idx").on(t.expiresAt),
+  ],
+);
+
+export const meteredResults = pgTable(
+  "metered_results",
+  {
+    userId: uuid("user_id").notNull(),
+    requestKey: text("request_key").notNull(),
+    result: jsonb("result"),
+    demo: boolean("demo").notNull().default(false),
+    startedAt: epochMs("started_at").notNull(),
+    expiresAt: epochMs("expires_at").notNull(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.userId, t.requestKey] }),
+    index("metered_results_expires_idx").on(t.expiresAt),
   ],
 );
 
@@ -162,6 +193,8 @@ export const applications = pgTable(
     jobId: uuid("job_id"),
     statusHistory: jsonb("status_history").$type<StatusEvent[]>().notNull().default([]),
     interviewAt: epochMs("interview_at"),
+    // The interview day last reminded, so a moved interview is reminded again.
+    interviewRemindedFor: epochMs("interview_reminded_for"),
     createdAt: epochMs("created_at").notNull(),
     updatedAt: epochMs("updated_at").notNull(),
   },
@@ -200,6 +233,7 @@ export const notifications = pgTable(
     title: text("title").notNull(),
     body: text("body").notNull().default(""),
     link: text("link"),
+    applicationId: uuid("application_id"),
     readAt: epochMs("read_at"),
     createdAt: epochMs("created_at").notNull(),
   },
@@ -264,6 +298,11 @@ export const accountSetup = pgTable("account_setup", {
   stepAt: epochMs("step_at"),
   stepOutcome: text("step_outcome", { enum: SETUP_STEP_OUTCOMES }),
   checklistHiddenAt: epochMs("checklist_hidden_at"),
+  defaultsAt: epochMs("defaults_at"),
+  lookingForAt: epochMs("looking_for_at"),
+  countryGuess: text("country_guess"),
+  countryFrom: text("country_from", { enum: COUNTRY_SOURCES }),
+  regionGuess: text("region_guess", { enum: WORK_REGIONS }),
   createdAt: epochMs("created_at").notNull(),
   updatedAt: epochMs("updated_at").notNull(),
 });

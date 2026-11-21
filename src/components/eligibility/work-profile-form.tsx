@@ -2,10 +2,13 @@
 
 import { useEffect, useEffectEvent, useRef, useState, type ReactNode } from "react";
 import { errorMessage } from "@/components/account/errors";
+import { confirmSetupGuess, useSetupGuess } from "@/components/setup/use-account-setup";
 import { Button } from "@/components/ui/button";
 import { api } from "@/lib/api/client";
 import { deviceTimeZone } from "@/lib/eligibility/options";
-import type { WorkProfile } from "@/lib/eligibility/profile";
+import type { WorkProfile, WorkRegion } from "@/lib/eligibility/profile";
+import { moveHomeRegion } from "@/lib/setup/guess";
+import { countryHint, guessedRegion, homeRegionNote } from "@/lib/setup/hints";
 import { storeWorkProfile } from "./use-work-profile";
 import { WorkProfileFields } from "./work-profile-fields";
 
@@ -30,6 +33,10 @@ export function WorkProfileForm({ userId, initial, saved, footer }: WorkProfileF
   const [typeError, setTypeError] = useState<string | null>(null);
   const timer = useRef<number | undefined>(undefined);
   const pending = useRef<WorkProfile | null>(null);
+  const guess = useSetupGuess();
+  // Undefined until the country changes here; till then the home region is the one Otto guessed.
+  const [moved, setMoved] = useState<WorkRegion | null | undefined>(undefined);
+  const home = moved === undefined ? guessedRegion(guess, draft) : moved;
 
   async function save(profile: WorkProfile) {
     pending.current = null;
@@ -37,6 +44,7 @@ export function WorkProfileForm({ userId, initial, saved, footer }: WorkProfileF
     try {
       const res = await api.saveWorkProfile(profile);
       storeWorkProfile(userId, res.profile, res.updatedAt);
+      void confirmSetupGuess(userId);
       setFailure(null);
       setSaveState("saved");
     } catch (error) {
@@ -54,7 +62,14 @@ export function WorkProfileForm({ userId, initial, saved, footer }: WorkProfileF
   useEffect(() => () => flushOnLeave(), []);
 
   function patch(next: Partial<WorkProfile>) {
-    const profile = { ...draft, ...next };
+    let profile = { ...draft, ...next };
+    if (next.country !== undefined && next.country !== draft.country) {
+      const result = moveHomeRegion({ rights: draft.rights, auto: home }, next.country);
+      profile = { ...profile, rights: result.rights };
+      setMoved(result.auto);
+    } else if (home && next.rights && next.rights[home] !== draft.rights[home]) {
+      setMoved(null);
+    }
     setDraft(profile);
     window.clearTimeout(timer.current);
     if (!profile.fullTime && !profile.contract) {
@@ -79,7 +94,24 @@ export function WorkProfileForm({ userId, initial, saved, footer }: WorkProfileF
 
   return (
     <form onSubmit={(event) => event.preventDefault()} noValidate className="flex flex-col gap-6">
-      <WorkProfileFields value={draft} onChange={patch} typeError={typeError} />
+      <WorkProfileFields
+        value={draft}
+        onChange={patch}
+        typeError={typeError}
+        countryHint={countryHint(guess, draft.country)}
+        rightsNote={
+          home && draft.rights[home] === "authorized" ? (
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+              <p>{homeRegionNote(home)}</p>
+              {guess && moved === undefined ? (
+                <Button variant="ghost" size="sm" onClick={() => void confirmSetupGuess(userId)}>
+                  Looks right
+                </Button>
+              ) : null}
+            </div>
+          ) : undefined
+        }
+      />
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <p

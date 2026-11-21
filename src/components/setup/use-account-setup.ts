@@ -6,13 +6,19 @@ import { useMe } from "@/components/account/use-me";
 import { api } from "@/lib/api/client";
 import { readJsonItem, writeJsonItem } from "@/lib/browser-storage";
 import type { WeakLineTarget } from "@/lib/setup/checklist";
-import { NO_SETUP, type AccountSetup, type SetupStepOutcome } from "@/lib/setup/types";
+import {
+  NO_SETUP,
+  type AccountSetup,
+  type SetupDefaults,
+  type SetupDefaultsResponse,
+  type SetupGuess,
+} from "@/lib/setup/types";
 
 type Load = "idle" | "loading" | "ready" | "error";
 
-type Local = { stepAt: number | null; checklistHiddenAt: number | null; weakLine: WeakLineTarget | null };
+type Local = { checklistHiddenAt: number | null; weakLine: WeakLineTarget | null };
 
-const NO_LOCAL: Local = { stepAt: null, checklistHiddenAt: null, weakLine: null };
+const NO_LOCAL: Local = { checklistHiddenAt: null, weakLine: null };
 
 type Snapshot = {
   userId: string | null;
@@ -53,7 +59,6 @@ function readLocal(userId: string): Local {
   if (value === null) return NO_LOCAL;
   const line = value.weakLine as Record<string, unknown> | null | undefined;
   return {
-    stepAt: time(value.stepAt),
     checklistHiddenAt: time(value.checklistHiddenAt),
     weakLine:
       line && typeof line.resumeId === "string" && typeof line.bulletId === "string"
@@ -99,10 +104,11 @@ export type AccountSetupState =
   | {
       status: "loading" | "ready" | "error";
       userId: string;
-      stepAt: number | null;
       checklistHiddenAt: number | null;
       weakLine: WeakLineTarget | null;
-      localStepAt: number | null;
+      defaultsAt: number | null;
+      lookingForAt: number | null;
+      guess: SetupGuess | null;
     };
 
 export function useAccountSetup(): AccountSetupState {
@@ -119,21 +125,28 @@ export function useAccountSetup(): AccountSetupState {
     return {
       status: "loading",
       userId,
-      stepAt: null,
       checklistHiddenAt: null,
       weakLine: null,
-      localStepAt: null,
+      defaultsAt: null,
+      lookingForAt: null,
+      guess: null,
     };
   }
   const { remote, local } = current;
   return {
     status: current.status,
     userId,
-    stepAt: remote.stepAt ?? local.stepAt,
     checklistHiddenAt: remote.checklistHiddenAt ?? local.checklistHiddenAt,
     weakLine: local.weakLine,
-    localStepAt: local.stepAt,
+    defaultsAt: remote.defaultsAt,
+    lookingForAt: remote.lookingForAt,
+    guess: remote.guess,
   };
+}
+
+export function useSetupGuess(): SetupGuess | null {
+  const setup = useAccountSetup();
+  return "guess" in setup ? setup.guess : null;
 }
 
 async function save(userId: string, change: Parameters<typeof api.saveAccountSetup>[0]) {
@@ -143,15 +156,6 @@ async function save(userId: string, change: Parameters<typeof api.saveAccountSet
   } catch {}
 }
 
-export function recordSetupStep(userId: string, outcome: SetupStepOutcome): Promise<void> {
-  const now = Date.now();
-  if (snapshot.userId === userId) {
-    setSnapshot({ ...snapshot, remote: { ...snapshot.remote, stepAt: now, stepOutcome: outcome } });
-  }
-  writeLocal(userId, { stepAt: now });
-  return save(userId, { step: outcome });
-}
-
 export function setChecklistHidden(userId: string, hidden: boolean): Promise<void> {
   const at = hidden ? Date.now() : null;
   if (snapshot.userId === userId) {
@@ -159,6 +163,21 @@ export function setChecklistHidden(userId: string, hidden: boolean): Promise<voi
   }
   writeLocal(userId, { checklistHiddenAt: at });
   return save(userId, { checklist: hidden ? "hidden" : "shown" });
+}
+
+export function confirmSetupGuess(userId: string): Promise<void> {
+  if (snapshot.userId !== userId || snapshot.remote.guess === null) return Promise.resolve();
+  setSnapshot({ ...snapshot, remote: { ...snapshot.remote, guess: null } });
+  return save(userId, { guess: "confirmed" });
+}
+
+export async function sendSetupDefaults(
+  userId: string,
+  body: SetupDefaults,
+): Promise<SetupDefaultsResponse> {
+  const res = await api.saveSetupDefaults(body);
+  if (snapshot.userId === userId) setSnapshot({ ...snapshot, remote: res.setup });
+  return res;
 }
 
 export function rememberWeakLine(userId: string, target: WeakLineTarget): void {

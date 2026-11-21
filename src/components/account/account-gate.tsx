@@ -1,16 +1,31 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import {
+  useCallback,
+  useEffect,
+  useEffectEvent,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import { OTTO } from "@/components/mascot/lines";
 import { toast } from "@/components/ui/toast";
 import type { Feature } from "@/config/plans";
 import { api, isApiError, isBudgetReached } from "@/lib/api/client";
 import { SESSION_ENDED_REASON } from "./copy";
 import { LazySignInDialog, LazyUpgradeDialog } from "./lazy-dialogs";
+import {
+  clearPendingAction,
+  savePendingAction,
+  takePendingAction,
+  type PendingAction,
+} from "./pending-action";
 import { refreshMe, useMe } from "./use-me";
 
 export type AccountGate = {
-  requireUser: (reason: string) => Promise<boolean>;
+  // Google reloads the page, so `action` is kept for useResumeAfterSignIn to run once the user is back.
+  requireUser: (reason: string, action?: PendingAction) => Promise<boolean>;
   handleApiError: (error: unknown, feature: Feature) => boolean;
   dialogs: ReactNode;
 };
@@ -32,17 +47,19 @@ export function useAccountGate(): AccountGate {
   const [signIn, setSignIn] = useState<SignInPrompt>({ open: false });
   const [upgrade, setUpgrade] = useState<UpgradePrompt>({ open: false });
   const waiting = useRef<Array<(signedIn: boolean) => void>>([]);
+  const action = useRef<PendingAction | null>(null);
 
   const settle = useCallback((signedIn: boolean) => {
     const resolvers = waiting.current;
     waiting.current = [];
+    action.current = null;
     for (const resolve of resolvers) resolve(signedIn);
   }, []);
 
   useEffect(() => () => settle(false), [settle]);
 
   const requireUser = useCallback(
-    async (reason: string) => {
+    async (reason: string, pending?: PendingAction) => {
       if (user) return true;
       if (loading && (await signedInNow())) {
         void refreshMe();
@@ -50,6 +67,7 @@ export function useAccountGate(): AccountGate {
       }
       return new Promise<boolean>((resolve) => {
         waiting.current.push(resolve);
+        action.current = pending ?? null;
         setSignIn({ open: true, reason });
       });
     },
@@ -73,21 +91,33 @@ export function useAccountGate(): AccountGate {
     [user],
   );
 
+  // Back from Google's page (bfcache) the dialog is still open; closing it or using the code ends that try.
+  const forgetSaved = useCallback(() => {
+    if (action.current) clearPendingAction();
+  }, []);
+
   const handleSignInOpenChange = useCallback(
     (open: boolean) => {
       setSignIn((prompt) => ({ ...prompt, open }));
-      if (!open) settle(false);
+      if (open) return;
+      forgetSaved();
+      settle(false);
     },
-    [settle],
+    [settle, forgetSaved],
   );
+
+  const handleGoogleRedirect = useCallback(() => {
+    if (action.current) savePendingAction(action.current);
+  }, []);
 
   const handleSignedIn = useCallback(() => {
     const someoneWaiting = waiting.current.length > 0;
+    forgetSaved();
     settle(true);
     if (!someoneWaiting) {
       toast({ title: "You're signed in.", description: "Try that again now.", variant: "success" });
     }
-  }, [settle]);
+  }, [settle, forgetSaved]);
 
   const handleUpgradeOpenChange = useCallback(
     (open: boolean) => setUpgrade((prompt) => ({ ...prompt, open })),
@@ -102,6 +132,7 @@ export function useAccountGate(): AccountGate {
           onOpenChange={handleSignInOpenChange}
           reason={signIn.reason}
           onSignedIn={handleSignedIn}
+          onGoogleRedirect={handleGoogleRedirect}
         />
         <LazyUpgradeDialog
           open={upgrade.open}
@@ -111,11 +142,34 @@ export function useAccountGate(): AccountGate {
         />
       </>
     ),
-    [signIn, upgrade, handleSignInOpenChange, handleSignedIn, handleUpgradeOpenChange],
+    [
+      signIn,
+      upgrade,
+      handleSignInOpenChange,
+      handleSignedIn,
+      handleGoogleRedirect,
+      handleUpgradeOpenChange,
+    ],
   );
 
   return useMemo(
     () => ({ requireUser, handleApiError, dialogs }),
     [requireUser, handleApiError, dialogs],
   );
+}
+
+// Runs the click that asked for sign-in once more, by itself, when the user is back from Google.
+export function useResumeAfterSignIn(
+  kind: string,
+  replay: (ids: Record<string, string>) => void,
+): void {
+  const signedIn = useMe().user !== null;
+  const run = useEffectEvent(replay);
+  useEffect(() => {
+    if (!signedIn) return;
+    const ids = takePendingAction(kind);
+    if (!ids) return;
+    toast({ title: OTTO.signIn.done, variant: "success" });
+    run(ids);
+  }, [kind, signedIn]);
 }

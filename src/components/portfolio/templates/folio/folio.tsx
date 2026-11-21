@@ -38,7 +38,7 @@ function introLines(pitch: string, about: readonly string[]): boolean {
   return pitch !== "" && !first.startsWith(pitch.trim());
 }
 
-export function FolioTemplate({ view, content, footer }: PortfolioTemplateProps) {
+export function FolioTemplate({ view, content, footer, resumeHref }: PortfolioTemplateProps) {
   const name = nameOf(view);
   const lead = content.pitch || view.headline;
   const showLead = introLines(lead, content.about);
@@ -69,8 +69,13 @@ export function FolioTemplate({ view, content, footer }: PortfolioTemplateProps)
           Based in {place}.
         </p>
       ) : null}
-      {content.socials.length > 0 ? (
+      {content.socials.length > 0 || resumeHref ? (
         <ul className="connect animated-list in" style={next()}>
+          {resumeHref ? (
+            <li>
+              <a href={resumeHref}>Resume</a>
+            </li>
+          ) : null}
           {content.socials.map((social) => (
             <li key={social.href}>
               <OutLink href={social.href} className="ext">

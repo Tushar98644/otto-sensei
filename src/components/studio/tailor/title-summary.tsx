@@ -1,9 +1,9 @@
 "use client";
 
 import { CircleCheck, TriangleExclamationPoint } from "lucide-react";
-import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { TITLE_SECTION_ID } from "@/lib/tailor/reasons";
 import type { SummaryCheck, TitleCheck } from "@/lib/tailor/title-checks";
+import { ResultSection } from "./result-section";
 import { SummaryChoice } from "./summary-choice";
 
 export type TitleSummaryProps = {
@@ -42,12 +42,19 @@ export function TitleSummary({
   useSummary,
   onUseSummary,
 }: TitleSummaryProps) {
+  const off = [
+    title && title.status !== "match" ? "title" : null,
+    summary.status !== "match" ? "summary" : null,
+  ].filter((part): part is string => part !== null);
+  let meta = `Your ${off.join(" and ")} could fit this job better`;
+  if (off.length === 0) {
+    meta = title ? "Your title and summary fit this job" : "Your summary fits this job";
+  }
   return (
-    <Card id={TITLE_SECTION_ID} className="scroll-mt-24">
-      <CardHeader>
-        <CardTitle as="h2">The top of your resume</CardTitle>
-        <CardDescription>A recruiter reads your title and summary before any line.</CardDescription>
-      </CardHeader>
+    <ResultSection id={TITLE_SECTION_ID} title="The top of your resume" meta={meta}>
+      <p className="text-sm text-muted">
+        A recruiter reads your title and summary before any line.
+      </p>
       <ul className="divide-y divide-border border-y border-border">
         {title ? (
           <CheckLine ok={title.status === "match"} label="Job title" text={title.text} />
@@ -68,6 +75,6 @@ export function TitleSummary({
           />
         </div>
       ) : null}
-    </Card>
+    </ResultSection>
   );
 }

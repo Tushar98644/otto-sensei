@@ -71,6 +71,12 @@ describe("outreach dialog helpers", () => {
     ).toBeNull();
   });
 
+  it("keeps a follow-up apart from the first message and never opens that one for it", () => {
+    const followUp = { ...JOB, applicationId: "app-1", followUp: { days: 9 } };
+    expect(outreachKey(followUp)).toBe(`follow-up:job:${JOB.id}`);
+    expect(outreachLookup(followUp)).toBeNull();
+  });
+
   it("saves a message with its job, resume and application, and reads one back", () => {
     expect(outreachBody({ ...JOB, applicationId: "app-1" }, RESUME, DRAFT)).toEqual({
       kind: "outreach",

@@ -4,6 +4,7 @@ import { rejectCrossSite, rejectNonJson } from "@/lib/auth/route-guards";
 import { getCurrentUser } from "@/lib/auth/session";
 import { readJson } from "@/lib/http";
 import { log } from "@/lib/log";
+import { refreshOwnerPortfolio } from "@/lib/portfolio/cache";
 import { revokeShare, updateShareOptions } from "@/lib/share/records";
 import { type ShareResponse } from "@/lib/share/types";
 import { UpdateShareSchema } from "@/lib/share/validation";
@@ -38,6 +39,7 @@ export async function PATCH(req: Request, { params }: Context): Promise<Response
     }
     const link = await updateShareOptions(user.id, id, body.data);
     if (!link) return fail("not_found", NOT_FOUND, 404);
+    await refreshOwnerPortfolio(user.id);
     const response: Omit<ShareResponse, "ok"> = { link, created: false };
     return ok(response, { headers: NO_STORE });
   } catch (error) {
@@ -53,7 +55,7 @@ export async function DELETE(req: Request, { params }: Context): Promise<Respons
     const user = await getCurrentUser();
     if (!user) return fail("unauthorized", SIGN_IN, 401);
     const { id } = await params;
-    if (isShareId(id)) await revokeShare(user.id, id);
+    if (isShareId(id) && (await revokeShare(user.id, id))) await refreshOwnerPortfolio(user.id);
     return ok({});
   } catch (error) {
     log.error("share.revoke_failed", error);

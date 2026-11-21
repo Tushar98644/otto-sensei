@@ -1,7 +1,8 @@
 "use client";
 
 import { ArrowLeft, CreditCard } from "lucide-react";
-import { useState, type ReactNode } from "react";
+import { useId, useState, type ReactNode } from "react";
+import { flushSync } from "react-dom";
 import { OTTO } from "@/components/mascot/lines";
 import { OttoNote } from "@/components/mascot/otto-note";
 import { upgradeHref } from "@/components/site/routes";
@@ -22,15 +23,19 @@ import {
 import type { SessionUser } from "@/lib/auth/types";
 import { budgetReachedText } from "@/lib/ai-budget-copy";
 import { trialHeadline } from "@/lib/billing/prices";
+import { TRASH_DAYS } from "@/lib/store/history";
 import { resetWhen, thisPeriod } from "@/lib/usage-copy";
 import { BillingNote } from "./billing-note";
-import { ACCOUNT_OTTO, SUPPORT_MAILTO } from "./copy";
+import { ACCOUNT_OTTO, alreadyOnPlanToast, SUPPORT_MAILTO, UPGRADE_SIGN_IN_TITLE } from "./copy";
 import { PlanOffer } from "./plan-offer";
 import { SignInForm } from "./sign-in-form";
 import { PAYMENT_ISSUE_NOTICE, resumeFirstNotice, trialUpgradeNotice } from "./trial-upgrade";
 import { afterUpgradeSignIn, upgradeOffer } from "./upgrade-offer";
+import { returnPathHere } from "./upgrade-return";
 import { useBillingRedirect } from "./use-billing-redirect";
 import { useMe } from "./use-me";
+
+export type ReplaceOffer = { title: string; onReplace: () => void };
 
 export type UpgradeDialogProps = {
   open: boolean;
@@ -40,6 +45,10 @@ export type UpgradeDialogProps = {
   tool?: ProTool;
   plan?: PaidPlanId;
   interval?: BillingInterval;
+  replace?: ReplaceOffer;
+  // Where to go back once the plan is active; without it, the page the dialog opened on.
+  next?: string | null;
+  startAtSignIn?: boolean;
 };
 
 type Stage = "pitch" | "sign-in";
@@ -61,17 +70,22 @@ export function UpgradeDialog({
   tool,
   plan,
   interval,
+  replace,
+  next,
+  startAtSignIn = false,
 }: UpgradeDialogProps) {
   const { me, user, loading } = useMe();
   const checkout = useBillingRedirect("checkout");
   const portal = useBillingRedirect("portal");
-  const [stage, setStage] = useState<Stage>("pitch");
+  const firstStage: Stage = startAtSignIn ? "sign-in" : "pitch";
+  const [stage, setStage] = useState<Stage>(firstStage);
+  const [startedOn, setStartedOn] = useState<string | null>(null);
   const [chosen, setChosen] = useState<PaidPlanId | null>(plan ?? null);
   const [pickedInterval, setPickedInterval] = useState<BillingInterval | null>(interval ?? null);
   const [wasOpen, setWasOpen] = useState(open);
   if (open !== wasOpen) {
     setWasOpen(open);
-    if (open) setStage("pitch");
+    if (open) setStage(firstStage);
   }
 
   const mode = me?.billing.mode;
@@ -108,22 +122,52 @@ export function UpgradeDialog({
           : OTTO.limit.reached(feature, me?.usage?.[feature].limit, period);
   }
   const close = () => onOpenChange(false);
+  const replaceNoteId = useId();
+  const replacing = tool === "resumes" && current === "free" ? (replace ?? null) : null;
+  const replaceNote = replacing ? (
+    <p id={replaceNoteId} className="text-sm/6 text-muted">
+      {`Or replace “${replacing.title}” with the new one. The old one waits in Recently deleted for ${TRASH_DAYS} days, in this browser only.`}
+    </p>
+  ) : null;
+  // Closed first: the modal leaves the page inert, and the replacement may open a file picker there.
+  const replaceKey = replacing ? (
+    <Button
+      variant="secondary"
+      aria-describedby={replaceNoteId}
+      onClick={() => {
+        flushSync(close);
+        replacing.onReplace();
+      }}
+    >
+      Replace it
+    </Button>
+  ) : null;
+
+  const back = next ?? startedOn;
 
   function choose(card: { plan: PaidPlanId; interval: BillingInterval }) {
     setChosen(card.plan);
-    if (user) void checkout.go(card.plan, card.interval);
-    else setStage("sign-in");
+    const from = next ?? returnPathHere();
+    if (user) {
+      void checkout.go(card.plan, card.interval, from);
+      return;
+    }
+    setStartedOn(from);
+    setStage("sign-in");
   }
 
   function handleSignedIn(signedIn: SessionUser) {
     setStage("pitch");
-    const next = afterUpgradeSignIn(signedIn.plan, target?.plan ?? null);
-    if (next === "already") {
-      toast({ title: `You're already on ${PLANS[signedIn.plan].name}.`, variant: "success" });
+    const step = afterUpgradeSignIn(signedIn.plan, target?.plan ?? null);
+    if (step === "already") {
+      // A host that names next goes back there and says this on the way.
+      if (!next) {
+        toast({ title: alreadyOnPlanToast(PLANS[signedIn.plan].name), variant: "success" });
+      }
       close();
       return;
     }
-    if (next === "checkout" && target) void checkout.go(target.plan, target.interval);
+    if (step === "checkout" && target) void checkout.go(target.plan, target.interval, back);
   }
 
   const billingOff = mode === "disabled";
@@ -140,6 +184,7 @@ export function UpgradeDialog({
         disabled={loading}
       />
       <BillingNote mode={mode} />
+      {replaceNote}
     </div>
   );
   const size: DialogSize = offer.cards.length > 1 ? "lg" : "sm";
@@ -177,12 +222,12 @@ export function UpgradeDialog({
   } else if (stage === "sign-in" && !user && !billingOff) {
     view = {
       message: ACCOUNT_OTTO.upgradeSignIn,
-      title: target.trial ? "Sign in to start your trial" : "Sign in to upgrade",
+      title: target.trial ? UPGRADE_SIGN_IN_TITLE.trial : UPGRADE_SIGN_IN_TITLE.upgrade,
       description: "Use Google or a 6-digit email code. No password.",
       body: (
         <SignInForm
           autoFocus
-          next={upgradeHref(target.plan, target.interval)}
+          next={upgradeHref(target.plan, target.interval, back)}
           onSignedIn={handleSignedIn}
         />
       ),
@@ -199,9 +244,11 @@ export function UpgradeDialog({
       message: limitLine ?? notice,
       title: paymentIssue ? "Update your card" : `Upgrade to ${PLANS[target.plan].name}`,
       description: limitLine ? notice : undefined,
+      body: replaceNote ?? undefined,
       footer: (
         <>
           {notNow}
+          {replaceKey}
           <Button onClick={() => void portal.go()} loading={portal.pending} data-autofocus>
             <CreditCard />
             Manage billing
@@ -236,12 +283,16 @@ export function UpgradeDialog({
           <Button variant="secondary" onClick={close}>
             Close
           </Button>
+          {replaceKey}
           <a href={SUPPORT_MAILTO} className={buttonClasses()} data-autofocus>
             Email us
           </a>
         </>
       ) : (
-        notNow
+        <>
+          {notNow}
+          {replaceKey}
+        </>
       ),
     };
   }

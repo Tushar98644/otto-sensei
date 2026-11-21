@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { lintResume } from "@/lib/lint/bullets";
 import { emptyResume, type Resume } from "@/lib/resume/schema";
-import { fixOutline } from "./outline";
+import { fixOutline, READING_LINE_PX, readingLine } from "./outline";
 
 function resume(): Resume {
   const base = emptyResume(0);
@@ -58,5 +58,22 @@ describe("fixOutline", () => {
     expect(byKey.projects?.entries).toEqual([{ id: "p", label: "New project", needWork: 1 }]);
     expect(byKey.education?.entries).toEqual([{ id: "s", label: "BSc · MIT", needWork: 0 }]);
     expect(byKey.skills).toEqual({ key: "skills", label: "Skills", needWork: 0, entries: [] });
+  });
+});
+
+describe("readingLine", () => {
+  it("stays near the top while there is page left to scroll", () => {
+    expect(readingLine(900, 2000)).toBe(READING_LINE_PX);
+    expect(readingLine(900, 580)).toBe(READING_LINE_PX);
+  });
+
+  it("slides down near the bottom, so the last section can still be the one being read", () => {
+    expect(readingLine(900, 300)).toBe(440);
+    expect(readingLine(900, 0)).toBe(740);
+    expect(readingLine(900, -20)).toBe(740);
+  });
+
+  it("never rises above the top line in a short window", () => {
+    expect(readingLine(240, 0)).toBe(READING_LINE_PX);
   });
 });

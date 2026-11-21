@@ -1,12 +1,20 @@
 import { describe, expect, it } from "vitest";
-import { PORTFOLIO_LINES, portfolioFacts, PUBLISH_NOTE, saveLabel, viewsLabel } from "./lines";
+import {
+  PORTFOLIO_LINES,
+  portfolioFacts,
+  PUBLISH_NOTE,
+  resumeLinkLine,
+  saveLabel,
+  viewsLabel,
+} from "./lines";
 
 const words = (line: string) => line.trim().split(/\s+/).length;
 
 describe("Otto's portfolio lines", () => {
   it("keep to 18 words, like every Otto line", () => {
     const lines = [
-      PORTFOLIO_LINES.start,
+      PORTFOLIO_LINES.pick,
+      PORTFOLIO_LINES.pickThin,
       PORTFOLIO_LINES.draft,
       PORTFOLIO_LINES.live(0),
       PORTFOLIO_LINES.live(1),
@@ -36,5 +44,11 @@ describe("Otto's portfolio lines", () => {
     expect(saveLabel(false, false)).toBe("All changes saved");
     expect(saveLabel(false, true)).toBe("Saved to your live page");
     expect(PUBLISH_NOTE).toContain("Publishing comes with Pro");
+  });
+
+  it("says whether the page links the shared resume, and why not", () => {
+    expect(resumeLinkLine({ href: "/s/abc", shared: true })).toMatch(/links to your shared resume/);
+    expect(resumeLinkLine({ href: null, shared: true })).toMatch(/contact details this page hides/);
+    expect(resumeLinkLine({ href: null, shared: false })).toMatch(/^Share this resume/);
   });
 });

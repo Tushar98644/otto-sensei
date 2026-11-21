@@ -3,7 +3,7 @@ import Link from "next/link";
 import { pageMetadata } from "@/components/site/page-metadata";
 import { ROUTES } from "@/components/site/routes";
 import { BRAND } from "@/config/brand";
-import { LegalPage } from "../_components/legal-page";
+import { LegalPage, type LegalSection } from "../_components/legal-page";
 import { MERCHANT } from "../_components/merchant";
 
 export const metadata: Metadata = pageMetadata({
@@ -12,17 +12,20 @@ export const metadata: Metadata = pageMetadata({
   path: ROUTES.privacy,
 });
 
-export default function PrivacyPage() {
-  const mailto = `mailto:${BRAND.supportEmail}`;
-  return (
-    <LegalPage title="Privacy policy">
-      <p>
-        {BRAND.name} helps you check and improve your resume. This page explains what we collect,
-        why, and who else sees it. The short version: we collect as little as we can, we never sell
-        your data, and you can delete it whenever you like.
-      </p>
+const MAILTO = `mailto:${BRAND.supportEmail}`;
 
-      <h2>What we collect</h2>
+const SUMMARY = [
+  "We don't sell your data or share it for advertising, and we don't use ads or tracking cookies.",
+  "Your resumes are saved in your browser. If you sign in, we also keep a backup so you can open them on other devices.",
+  "Each AI feature sends only the text it needs, when you use it. We tell OpenRouter to use only providers that don't train on it.",
+  `Payments go through ${MERCHANT.name}. We never see your full card number.`,
+  "Deleting your account removes your account data right away. If you've had a trial or paid, only a one-way fingerprint of your email stays, so each person gets the Pro trial once.",
+];
+
+const SECTIONS: readonly LegalSection[] = [
+  {
+    title: "What we collect",
+    body: (
       <ul>
         <li>
           <strong>Your email address,</strong> if you sign in, either with Google or with a code we
@@ -146,182 +149,207 @@ export default function PrivacyPage() {
           or Global Privacy Control, we send none at all.
         </li>
       </ul>
-
-      <h2>How Otto uses AI</h2>
-      <p>
-        Otto uses AI models (by default Z.ai&apos;s GLM) through OpenRouter. Each feature sends only
-        the text it needs, and only when you use it:
-      </p>
-      <ul>
-        <li>
-          <strong>Importing a resume:</strong> the text of the file, to sort it into sections.
-        </li>
-        <li>
-          <strong>Fixing a line:</strong> the line, its job title and company, and your answers to
-          Otto&apos;s questions.
-        </li>
-        <li>
-          <strong>Writing your summary:</strong> your resume without its contact details, or only
-          the summary you asked Otto to tighten.
-        </li>
-        <li>
-          <strong>Tailoring, cover letters, outreach messages and application answers:</strong> your
-          resume, the job post, for an answer the question, and your writing style if you set one
-          (with any contact details in your notes replaced by placeholders).
-        </li>
-        <li>
-          <strong>Interview prep:</strong> your resume and the job post.
-        </li>
-        <li>
-          <strong>&quot;Build with Otto&quot;:</strong> the job you want and what you wrote about
-          each job, never your name.
-        </li>
-        <li>
-          <strong>Import from GitHub:</strong> the description, README and pull request text of the
-          repos and pull requests you pick.
-        </li>
-      </ul>
-      <p>
-        Before any of this goes to the AI, Otto replaces your name, email, phone number and links
-        with placeholders, and puts them back afterwards. It spots them by their usual patterns, so
-        an unusual format can slip through. OpenRouter passes the text to the model&apos;s provider
-        and sends back the result. We tell OpenRouter to use only providers that don&apos;t train on
-        this data. Providers may keep it for a limited time under their own policies, for example to
-        detect abuse.
-      </p>
-      <p>
-        <strong>Safety checks:</strong> text Otto writes, and the text of pages you publish (your
-        portfolio and shared resume links), is checked by a safety model through OpenRouter, with
-        data collection turned off, to block sexual or explicit content.
-      </p>
-      <p>
-        The recruiter checks, the editor and PDF downloads don&apos;t use AI. Line checks and PDFs
-        are made right in your browser.
-      </p>
-      <p>
-        A LinkedIn data export or a JSON Resume file you import is read in your browser and never
-        uploaded. The job post eligibility check also runs in your browser, with no AI.
-      </p>
-      <p>
-        <strong>Voice typing:</strong> when you press a microphone button, your browser listens only
-        while it&apos;s on. In Chrome, Edge and Safari, the browser&apos;s own speech service
-        (Google in Chrome, Microsoft in Edge, Apple in Safari) turns your speech into text, under
-        that company&apos;s privacy policy. In other browsers, or when that service isn&apos;t
-        available, the browser records a clip that goes to our speech-to-text provider through
-        OpenRouter, with data collection turned off. We never store the audio, only the text you
-        keep.
-      </p>
-      <p>
-        &quot;Import from GitHub&quot; reads only public data from GitHub (your repos and merged
-        pull requests) by the username you type, without your GitHub login. Nothing is added to your
-        resume until you confirm. We don&apos;t store the GitHub data: a server keeps it in memory
-        for up to an hour, so a second look doesn&apos;t ask GitHub again.
-      </p>
-
-      <h2>Payments</h2>
-      <p>
-        {MERCHANT.disclosure} Checkout happens on the {MERCHANT.name} site, not ours. There,{" "}
-        {MERCHANT.name} collects your payment details and billing address (also for the trial, so
-        the plan can start when it ends) under its own{" "}
-        <a href={MERCHANT.privacyUrl}>privacy policy</a>.
-      </p>
-      <ul>
-        <li>
-          <strong>What we send {MERCHANT.name}:</strong> when you start a checkout, your account
-          email, our random id for your account and the plan you picked, so the payment is linked to
-          your account. When you start a checkout or delete your account, we also look up that email
-          at {MERCHANT.name}, so you&apos;re never charged for a second subscription and every one
-          is cancelled.
-        </li>
-        <li>
-          <strong>What {MERCHANT.name} sends us:</strong> your subscription&apos;s plan and status,
-          its billing period, when it renews or your trial ends, a pending cancellation, and the ids{" "}
-          {MERCHANT.name} uses for you, your subscription and your payments. Its notices also carry
-          the name, email and billing address on the order and the card&apos;s network and last four
-          digits. We use that email only to match a payment to your account, and we don&apos;t store
-          any of these. {MERCHANT.name} never sends us your full card number.
-        </li>
-      </ul>
-
-      <h2>Cookies and local storage</h2>
-      <p>We use only what the app needs to work:</p>
-      <ul>
-        <li>
-          <strong>Sign-in cookies</strong> keep you signed in. They renew while you use the app and
-          are removed when you sign out.
-        </li>
-        <li>
-          <strong>A device cookie</strong> holds a random id that limits free uploads and checks per
-          device. It isn&apos;t linked to your name or email, and it lasts a year.
-        </li>
-        <li>
-          <strong>An invite cookie</strong> holds a friend&apos;s invite code for 30 days after you
-          open their link, so the invite still counts if you sign up later. It&apos;s removed once
-          the invite is settled.
-        </li>
-        <li>
-          <strong>Local storage</strong> (not a cookie) keeps your resumes, your progress and which
-          tours you&apos;ve seen on your device until you delete them or clear your browser data.
-        </li>
-        <li>
-          <strong>The {MERCHANT.name} checkout</strong> runs on its own site, which may set its own
-          cookies there to run the payment and prevent fraud, under the {MERCHANT.name}{" "}
-          <a href={MERCHANT.privacyUrl}>privacy policy</a>. Our site sets no payment cookies.
-        </li>
-      </ul>
-      <p>
-        We don&apos;t use ads or tracking cookies. For the usage events above, a random id is kept
-        in local storage so your steps can be counted together, across visits. It isn&apos;t linked
-        to your name or email, and clearing your browser data removes it.
-      </p>
-
-      <h2>Who we share data with</h2>
-      <p>
-        We don&apos;t sell your data or share it for advertising. We only use these providers to run{" "}
-        {BRAND.name}:
-      </p>
-      <ul>
-        <li>
-          <strong>OpenRouter</strong> and the AI model provider it routes to process resume text for
-          the AI features above.
-        </li>
-        <li>
-          <strong>{MERCHANT.name}</strong> processes payments as our merchant of record and online
-          reseller.
-        </li>
-        <li>
-          <strong>Supabase</strong> hosts our database and runs sign-in, including your sign-in
-          sessions.
-        </li>
-        <li>
-          <strong>Resend</strong> delivers our sign-in codes, reminders, the weekly jobs email, tips
-          and notices about your account.
-        </li>
-        <li>
-          <strong>Google</strong>, only if you choose to sign in with your Google account.
-        </li>
-        <li>
-          <strong>GitHub</strong> receives the username you look up, only if you use Import from
-          GitHub.
-        </li>
-        <li>
-          <strong>Vercel</strong> hosts the app itself.
-        </li>
-        <li>
-          <strong>Sentry</strong> receives error reports when something breaks, with emails, phone
-          numbers and resume text removed first.
-        </li>
-        <li>
-          <strong>PostHog</strong> receives the usage events above, so we can see which steps help
-          and where people get stuck.
-        </li>
-      </ul>
-      <p>
-        These providers may process data outside your country, including in the United States. We
-        may also share information if the law requires it.
-      </p>
-
-      <h2>How long we keep data</h2>
+    ),
+  },
+  {
+    title: "How Otto uses AI",
+    body: (
+      <>
+        <p>
+          Otto uses AI models (by default Z.ai&apos;s GLM) through OpenRouter. Each feature sends
+          only the text it needs, and only when you use it:
+        </p>
+        <ul>
+          <li>
+            <strong>Importing a resume:</strong> the text of the file, to sort it into sections.
+          </li>
+          <li>
+            <strong>Fixing a line:</strong> the line, its job title and company, and your answers to
+            Otto&apos;s questions.
+          </li>
+          <li>
+            <strong>Writing your summary:</strong> your resume without its contact details, or only
+            the summary you asked Otto to tighten.
+          </li>
+          <li>
+            <strong>Tailoring, cover letters, outreach messages and application answers:</strong>{" "}
+            your resume, the job post, for an answer the question, and your writing style if you set
+            one (with any contact details in your notes replaced by placeholders).
+          </li>
+          <li>
+            <strong>Interview prep:</strong> your resume and the job post.
+          </li>
+          <li>
+            <strong>&quot;Build with Otto&quot;:</strong> the job you want and what you wrote about
+            each job, never your name.
+          </li>
+          <li>
+            <strong>Import from GitHub:</strong> the description, README and pull request text of
+            the repos and pull requests you pick.
+          </li>
+        </ul>
+        <p>
+          Before any of this goes to the AI, Otto replaces your name, email, phone number and links
+          with placeholders, and puts them back afterwards. It spots them by their usual patterns,
+          so an unusual format can slip through. OpenRouter passes the text to the model&apos;s
+          provider and sends back the result. We tell OpenRouter to use only providers that
+          don&apos;t train on this data. Providers may keep it for a limited time under their own
+          policies, for example to detect abuse.
+        </p>
+        <p>
+          <strong>Safety checks:</strong> text Otto writes, and the text of pages you publish (your
+          portfolio and shared resume links), is checked by a safety model through OpenRouter, with
+          data collection turned off, to block sexual or explicit content.
+        </p>
+        <p>
+          The recruiter checks, the editor and PDF downloads don&apos;t use AI. Line checks and PDFs
+          are made right in your browser.
+        </p>
+        <p>
+          A LinkedIn data export or a JSON Resume file you import is read in your browser and never
+          uploaded. The job post eligibility check also runs in your browser, with no AI.
+        </p>
+        <p>
+          <strong>Voice typing:</strong> when you press a microphone button, your browser listens
+          only while it&apos;s on. In Chrome, Edge and Safari, the browser&apos;s own speech service
+          (Google in Chrome, Microsoft in Edge, Apple in Safari) turns your speech into text, under
+          that company&apos;s privacy policy. In other browsers, or when that service isn&apos;t
+          available, the browser records a clip that goes to our speech-to-text provider through
+          OpenRouter, with data collection turned off. We never store the audio, only the text you
+          keep.
+        </p>
+        <p>
+          &quot;Import from GitHub&quot; reads only public data from GitHub (your repos and merged
+          pull requests) by the username you type, without your GitHub login. Nothing is added to
+          your resume until you confirm. We don&apos;t store the GitHub data: a server keeps it in
+          memory for up to an hour, so a second look doesn&apos;t ask GitHub again.
+        </p>
+      </>
+    ),
+  },
+  {
+    title: "Payments",
+    body: (
+      <>
+        <p>
+          {MERCHANT.disclosure} Checkout happens on the {MERCHANT.name} site, not ours. There,{" "}
+          {MERCHANT.name} collects your payment details and billing address (also for the trial, so
+          the plan can start when it ends) under its own{" "}
+          <a href={MERCHANT.privacyUrl}>privacy policy</a>.
+        </p>
+        <ul>
+          <li>
+            <strong>What we send {MERCHANT.name}:</strong> when you start a checkout, your account
+            email, our random id for your account and the plan you picked, so the payment is linked
+            to your account. When you start a checkout or delete your account, we also look up that
+            email at {MERCHANT.name}, so you&apos;re never charged for a second subscription and
+            every one is cancelled.
+          </li>
+          <li>
+            <strong>What {MERCHANT.name} sends us:</strong> your subscription&apos;s plan and
+            status, its billing period, when it renews or your trial ends, a pending cancellation,
+            and the ids {MERCHANT.name} uses for you, your subscription and your payments. Its
+            notices also carry the name, email and billing address on the order and the card&apos;s
+            network and last four digits. We use that email only to match a payment to your account,
+            and we don&apos;t store any of these. {MERCHANT.name} never sends us your full card
+            number.
+          </li>
+        </ul>
+      </>
+    ),
+  },
+  {
+    title: "Cookies and local storage",
+    body: (
+      <>
+        <p>We use only what the app needs to work:</p>
+        <ul>
+          <li>
+            <strong>Sign-in cookies</strong> keep you signed in. They renew while you use the app
+            and are removed when you sign out.
+          </li>
+          <li>
+            <strong>A device cookie</strong> holds a random id that limits free uploads and checks
+            per device. It isn&apos;t linked to your name or email, and it lasts a year.
+          </li>
+          <li>
+            <strong>An invite cookie</strong> holds a friend&apos;s invite code for 30 days after
+            you open their link, so the invite still counts if you sign up later. It&apos;s removed
+            once the invite is settled.
+          </li>
+          <li>
+            <strong>Local storage</strong> (not a cookie) keeps your resumes, your progress and
+            which tours you&apos;ve seen on your device until you delete them or clear your browser
+            data.
+          </li>
+          <li>
+            <strong>The {MERCHANT.name} checkout</strong> runs on its own site, which may set its
+            own cookies there to run the payment and prevent fraud, under the {MERCHANT.name}{" "}
+            <a href={MERCHANT.privacyUrl}>privacy policy</a>. Our site sets no payment cookies.
+          </li>
+        </ul>
+        <p>
+          We don&apos;t use ads or tracking cookies. For the usage events above, a random id is kept
+          in local storage so your steps can be counted together, across visits. It isn&apos;t
+          linked to your name or email, and clearing your browser data removes it.
+        </p>
+      </>
+    ),
+  },
+  {
+    title: "Who we share data with",
+    body: (
+      <>
+        <p>
+          We don&apos;t sell your data or share it for advertising. We only use these providers to
+          run {BRAND.name}:
+        </p>
+        <ul>
+          <li>
+            <strong>OpenRouter</strong> and the AI model provider it routes to process resume text
+            for the AI features above.
+          </li>
+          <li>
+            <strong>{MERCHANT.name}</strong> processes payments as our merchant of record and online
+            reseller.
+          </li>
+          <li>
+            <strong>Supabase</strong> hosts our database and runs sign-in, including your sign-in
+            sessions.
+          </li>
+          <li>
+            <strong>Resend</strong> delivers our sign-in codes, reminders, the weekly jobs email,
+            tips and notices about your account.
+          </li>
+          <li>
+            <strong>Google</strong>, only if you choose to sign in with your Google account.
+          </li>
+          <li>
+            <strong>GitHub</strong> receives the username you look up, only if you use Import from
+            GitHub.
+          </li>
+          <li>
+            <strong>Vercel</strong> hosts the app itself.
+          </li>
+          <li>
+            <strong>Sentry</strong> receives error reports when something breaks, with emails, phone
+            numbers and resume text removed first.
+          </li>
+          <li>
+            <strong>PostHog</strong> receives the usage events above, so we can see which steps help
+            and where people get stuck.
+          </li>
+        </ul>
+        <p>
+          These providers may process data outside your country, including in the United States. We
+          may also share information if the law requires it.
+        </p>
+      </>
+    ),
+  },
+  {
+    title: "How long we keep data",
+    body: (
       <ul>
         <li>
           Account data, resume backups, logged applications, interview prep, your work profile and
@@ -348,8 +376,11 @@ export default function PrivacyPage() {
           Letters, answers and outreach messages you keep: until you delete them or your account.
         </li>
       </ul>
-
-      <h2>Your choices</h2>
+    ),
+  },
+  {
+    title: "Your choices",
+    body: (
       <ul>
         <li>
           Delete any resume in the studio whenever you like. Its backup goes right away; the copy in
@@ -365,27 +396,52 @@ export default function PrivacyPage() {
         </li>
         <li>
           Ask us for a copy of your data, or to correct or delete it, by emailing{" "}
-          <a href={mailto}>{BRAND.supportEmail}</a>. You can also complain to your local data
+          <a href={MAILTO}>{BRAND.supportEmail}</a>. You can also complain to your local data
           protection authority.
         </li>
       </ul>
-
-      <h2>Children</h2>
+    ),
+  },
+  {
+    title: "Children",
+    body: (
       <p>
         {BRAND.name} isn&apos;t meant for anyone under 16, and we don&apos;t knowingly collect their
         data.
       </p>
-
-      <h2>Changes to this policy</h2>
+    ),
+  },
+  {
+    title: "Changes to this policy",
+    body: (
       <p>
         If we change this policy, we&apos;ll update the date at the top. If a change affects how we
         use your data, we&apos;ll email signed-in users before it takes effect.
       </p>
-
-      <h2>Contact</h2>
+    ),
+  },
+  {
+    title: "Contact",
+    body: (
       <p>
-        Questions about privacy? Email <a href={mailto}>{BRAND.supportEmail}</a>.
+        Questions about privacy? Email <a href={MAILTO}>{BRAND.supportEmail}</a>.
       </p>
-    </LegalPage>
+    ),
+  },
+];
+
+export default function PrivacyPage() {
+  return (
+    <LegalPage
+      title="Privacy policy"
+      intro={
+        <p>
+          {BRAND.name} helps you check and improve your resume. This page explains what we collect,
+          why, and who else sees it.
+        </p>
+      }
+      summary={SUMMARY}
+      sections={SECTIONS}
+    />
   );
 }

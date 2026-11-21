@@ -1,7 +1,8 @@
 import { COUNTRY_CODES, findPlaces, isCountryCode, rightsRegionOf } from "@/lib/eligibility/places";
-import type { WorkRegion, WorkRight, WorkRights } from "@/lib/eligibility/profile";
+import type { WorkRegion, WorkRights } from "@/lib/eligibility/profile";
+import type { CountrySource } from "./types";
 
-export type CountryGuess = { code: string; from: "resume" | "device" };
+export type CountryGuess = { code: string; from: CountrySource };
 
 export function countryInLocation(location: string): string | null {
   for (const found of findPlaces(location)) {
@@ -86,15 +87,4 @@ export function moveHomeRegion(draft: RightsDraft, country: string): RightsDraft
     return { rights, auto: region };
   }
   return { rights, auto: null };
-}
-
-export function answerRegion(
-  draft: RightsDraft,
-  region: WorkRegion,
-  value: WorkRight | null,
-): RightsDraft {
-  return {
-    rights: { ...draft.rights, [region]: value },
-    auto: draft.auto === region ? null : draft.auto,
-  };
 }

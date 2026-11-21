@@ -37,9 +37,9 @@ function ResumesPreview() {
             loading="lazy"
             className="rounded-lg ring-1 ring-border"
           />
-          <div className="min-w-0">
-            <p className="truncate text-xs font-medium text-ink">{item.title}</p>
-            <p className="truncate text-xs text-muted">
+          <div className="min-w-0 text-xs text-pretty wrap-break-word">
+            <p className="font-medium text-ink sm:truncate">{item.title}</p>
+            <p className="text-muted sm:truncate">
               {TEMPLATE_INFO[item.id].name} · {item.meta}
             </p>
           </div>

@@ -2,7 +2,6 @@
 
 import { useShallow } from "zustand/react/shallow";
 import type { LintIssue, ResumeLint } from "@/lib/lint/types";
-import { firstWeakLine } from "@/lib/lint/weak-lines";
 import type { BulletSection } from "@/lib/resume/ops";
 import {
   extrasOf,
@@ -14,6 +13,7 @@ import {
 } from "@/lib/resume/schema";
 import { useStudioStore, type EditOptions } from "@/lib/store/resume-store";
 import { extraCount } from "./extras";
+import { weakLines } from "./fix-queue";
 import { extraNeedsWork, lintOf, NO_ISSUES, sectionNeedsWork } from "./lint-cache";
 import { includeSection, isBulletSection, sectionCount } from "./sections";
 
@@ -107,13 +107,19 @@ export function useIsLinted(resumeId: string, bulletId: string): boolean {
   });
 }
 
-export function useFirstWeakLine(resumeId: string): string | null {
-  return useStudioStore((state) => {
-    const resume = pickResume(state, resumeId);
-    if (!resume) return null;
-    const { byBullet } = lintOf(resume);
-    return firstWeakLine(resume, (bulletId) => byBullet.get(bulletId));
-  });
+export type WeakLineSummary = { count: number; firstId: string | null };
+
+const NO_WEAK_LINES: WeakLineSummary = { count: 0, firstId: null };
+
+export function useWeakLines(resumeId: string): WeakLineSummary {
+  return useStudioStore(
+    useShallow((state) => {
+      const resume = pickResume(state, resumeId);
+      if (!resume) return NO_WEAK_LINES;
+      const lines = weakLines(resume, lintOf(resume).byBullet);
+      return { count: lines.length, firstId: lines[0]?.bulletId ?? null };
+    }),
+  );
 }
 
 export function useLintTotals(resumeId: string): ResumeLint["totals"] | null {

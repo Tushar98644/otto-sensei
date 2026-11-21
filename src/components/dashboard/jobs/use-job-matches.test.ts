@@ -26,7 +26,7 @@ vi.mock("@/lib/api/client", async (importOriginal) => ({
 }));
 
 const { getQueryClient } = await import("@/lib/queries/client");
-const { noteShown, openingMatchesRequest, patchJobMatches, prefetchedMatches } =
+const { noteShown, openingMatchesRequest, pageFilters, patchJobMatches, prefetchedMatches } =
   await import("./use-job-matches");
 
 const DAY_MS = 24 * 60 * 60 * 1_000;
@@ -86,6 +86,21 @@ describe("openingMatchesRequest", () => {
     expect(openingMatchesRequest(resume, { profile, lookingFor: NO_CHOICE }, NOW + 60_000)).toEqual(
       body,
     );
+  });
+
+  it("opens with the filters remembered from the last visit, as the page asks for them", () => {
+    const resume = createSampleResume(NOW);
+    const memory = { q: "react", postedWithin: 7, eligibleOnly: true, resumeId: null } as const;
+    const blank = { profile: emptyWorkProfile(), lookingFor: NO_CHOICE };
+    expect(openingMatchesRequest(resume, blank, NOW, memory)?.filters).toEqual({
+      ...DEFAULT_FILTERS,
+      q: "react",
+      postedWithin: 7,
+    });
+    const started = { ...blank, profile: { ...emptyWorkProfile(), country: "DE" } };
+    const body = openingMatchesRequest(resume, started, NOW, memory);
+    expect(body?.filters).toEqual(pageFilters(memory, started.profile));
+    expect(body?.filters?.eligibleOnly).toBe(true);
   });
 
   it("asks nothing without a resume", () => {

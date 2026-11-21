@@ -1,8 +1,12 @@
+import { ArrowRight } from "lucide-react";
 import type { Metadata } from "next";
+import { Otto } from "@/components/mascot/otto";
 import { JobMatchTool } from "@/components/match-check/job-match-tool";
+import { IntentLink } from "@/components/site/intent-link";
 import { pageMetadata } from "@/components/site/page-metadata";
 import { ROUTES } from "@/components/site/routes";
 import { TextLink } from "@/components/site/text-link";
+import { buttonClasses } from "@/components/ui/button";
 import { Eyebrow } from "@/components/ui/eyebrow";
 import { Panel } from "@/components/ui/panel";
 import { candidateCount } from "@/lib/match-check/vocabulary";
@@ -10,13 +14,12 @@ import { SEO_PATHS } from "@/lib/seo-pages/paths";
 import { cn } from "@/lib/utils";
 import { displayItalic } from "../_components/display-italic";
 import { type FaqItem, FaqList } from "../_components/faq-list";
-import { FinalCta } from "../_components/final-cta";
 import { SECTION_TITLE_CLASSES } from "../_components/section";
 
 export const metadata: Metadata = pageMetadata({
   title: "Free resume to job match check",
   description:
-    "Paste your resume and a job post to see which skills, tools and licences the post names, where your resume shows each one and which are missing. Counts, not a made-up score. Free, no sign-in, nothing stored.",
+    "Paste your resume and a job post or its link to see which skills, tools and licences the post names, where your resume shows each one and which are missing. Counts, not a made-up score. Free, no sign-in, nothing stored.",
   path: SEO_PATHS.jobMatch,
 });
 
@@ -50,7 +53,7 @@ const faq: readonly FaqItem[] = [
   {
     question: "Is my resume stored?",
     answer:
-      "No. Pasted text is checked in your browser and never leaves it. An uploaded file goes to our server so its text can be read, the way hiring software reads it, and is then thrown away. You don't need an account.",
+      "No. Pasted text is checked in your browser and never leaves it. An uploaded file goes to our server so its text can be read, the way hiring software reads it, and is then thrown away. A job link goes to our server too, which opens the post and sends its text back. You don't need an account.",
   },
   {
     question: "How is this different from tailoring?",
@@ -93,7 +96,42 @@ export default function JobMatchPage() {
           <FaqList items={faq} className="lg:col-span-2" />
         </section>
       </div>
-      <FinalCta />
+      <ClosingPanel />
     </>
+  );
+}
+
+// The check above is this page's main action, so the studio link here is a second one.
+function ClosingPanel() {
+  return (
+    <section aria-labelledby="job-match-end-title" className="py-24 sm:py-32">
+      <div className="container-page">
+        <div className="flex flex-col items-center rounded-3xl bg-surface-muted px-6 py-16 text-center sm:py-24">
+          <Otto
+            pose="read"
+            size={144}
+            title="Otto the otter, reading a resume"
+            className="size-28 sm:size-36"
+          />
+          <h2 id="job-match-end-title" className={cn("mt-8", SECTION_TITLE_CLASSES)}>
+            See what the software sees.
+          </h2>
+          <IntentLink
+            href={ROUTES.studio}
+            className={buttonClasses({
+              variant: "secondary",
+              size: "lg",
+              className: "mt-8 w-full sm:w-auto",
+            })}
+          >
+            Check my resume
+            <ArrowRight />
+          </IntentLink>
+          <p className="mt-3 text-sm text-subtle">
+            Checking and PDFs are free. Pro and Max add more help from Otto.
+          </p>
+        </div>
+      </div>
+    </section>
   );
 }

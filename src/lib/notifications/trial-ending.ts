@@ -19,7 +19,7 @@ export type TrialEnding = {
 
 export type TrialEndingNotice = { title: string; body: string; link: string };
 
-function zoneOf(timeZone: string | null): string {
+export function zoneOf(timeZone: string | null): string {
   return timeZone && isTimeZone(timeZone) ? timeZone : "UTC";
 }
 

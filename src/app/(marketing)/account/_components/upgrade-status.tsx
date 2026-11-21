@@ -1,28 +1,43 @@
+import { ArrowRight } from "lucide-react";
+import Link from "next/link";
 import { SUPPORT_MAILTO } from "@/components/account/copy";
 import { OTTO } from "@/components/mascot/lines";
+import { ROUTES } from "@/components/site/routes";
 import { Alert } from "@/components/ui/alert";
-import { Button } from "@/components/ui/button";
+import { Button, buttonClasses } from "@/components/ui/button";
 import { BRAND } from "@/config/brand";
-import { PLAN_ORDER, PLANS, type PlanId } from "@/config/plans";
+import { PLANS, type PlanId } from "@/config/plans";
 import { trialEndDay } from "@/lib/usage-copy";
-import type { UpgradeWatch } from "./use-upgrade-watch";
+import { planArrived, type UpgradeWatch } from "./use-upgrade-watch";
 
 export function UpgradeStatus({
   plan,
   trialEndsAt,
   target,
   watch,
+  next = null,
 }: {
   plan: PlanId;
   trialEndsAt?: number | null;
   target: PlanId | null;
   watch: UpgradeWatch;
+  next?: string | null;
 }) {
-  const arrived = target ? PLAN_ORDER.indexOf(plan) >= PLAN_ORDER.indexOf(target) : plan !== "free";
-  if (arrived && plan !== "free" && trialEndsAt) {
-    return <Alert variant="success">{OTTO.upgrade.trialStarted(trialEndDay(trialEndsAt))}</Alert>;
+  if (planArrived(plan, target)) {
+    const onward = (
+      <Link href={next ?? ROUTES.dashboard} className={buttonClasses()}>
+        {next ? "Pick up where you left off" : "Go to your dashboard"}
+        <ArrowRight />
+      </Link>
+    );
+    return (
+      <Alert variant="success" action={onward}>
+        {plan !== "free" && trialEndsAt
+          ? OTTO.upgrade.trialStarted(trialEndDay(trialEndsAt))
+          : OTTO.upgrade.done(PLANS[plan].name)}
+      </Alert>
+    );
   }
-  if (arrived) return <Alert variant="success">{OTTO.upgrade.done(PLANS[plan].name)}</Alert>;
 
   if (watch.state === "gave-up") {
     return (
@@ -37,7 +52,7 @@ export function UpgradeStatus({
       >
         {plan === "free"
           ? "Payments can take a few minutes to reach us. Check again soon, or email "
-          : `Payments can take a few minutes to reach us, so check again soon. If your card was declined, you stay on ${PLANS[plan].name}: update your card in Manage billing below and try again, or email `}
+          : `Payments can take a few minutes to reach us, so check again soon. If your card was declined, you stay on ${PLANS[plan].name}: update your card below and try again, or email `}
         <a href={SUPPORT_MAILTO} className="font-medium break-all underline underline-offset-4">
           {BRAND.supportEmail}
         </a>

@@ -1,8 +1,9 @@
-import { and, count, desc, eq, inArray, isNull, sql, type SQL } from "drizzle-orm";
+import { and, count, desc, eq, getTableColumns, inArray, isNull, sql, type SQL } from "drizzle-orm";
 import { getDb, type Db, type Tx } from "@/db/client";
 import { lockUser } from "@/db/locks";
-import { notifications, notificationSettings, users } from "@/db/schema";
-import { FOLLOW_UP_DAYS } from "@/lib/applications/follow-up";
+import { applications, notifications, notificationSettings, users } from "@/db/schema";
+import { FOLLOW_UP_DAYS, followUpState } from "@/lib/applications/follow-up";
+import type { ApplicationStatus } from "@/lib/applications/status";
 import {
   isInAppPath,
   NOTIFICATION_LIMITS,
@@ -13,7 +14,10 @@ import {
 
 // Every query is filtered by user_id, so a guessed id never reads or marks another account's rows.
 
-type Row = typeof notifications.$inferSelect;
+type Row = typeof notifications.$inferSelect & {
+  status: ApplicationStatus | null;
+  followUpAt: number | null;
+};
 
 function toNotification(row: Row): Notification {
   return {
@@ -24,7 +28,24 @@ function toNotification(row: Row): Notification {
     link: row.link !== null && isInAppPath(row.link) ? row.link : null,
     readAt: row.readAt,
     createdAt: row.createdAt,
+    applicationId: row.status === null ? null : row.applicationId,
+    followUpDue: false,
   };
+}
+
+// Rows come newest first; an older reminder about the same follow-up keeps its text but not its buttons.
+function withFollowUps(rows: readonly Row[], now: number): Notification[] {
+  const offered = new Set<string>();
+  return rows.map((row) => {
+    const item = toNotification(row);
+    const id = item.applicationId;
+    if (row.kind !== "application_follow_up" || id === null || offered.has(id) || row.status === null) {
+      return item;
+    }
+    if (followUpState({ status: row.status, followUpAt: row.followUpAt }, now) !== "due") return item;
+    offered.add(id);
+    return { ...item, followUpDue: true };
+  });
 }
 
 async function unreadCount(db: Db, userId: string): Promise<number> {
@@ -40,17 +61,29 @@ export type NotificationList = { notifications: Notification[]; unread: number }
 export async function listNotifications(
   userId: string,
   limit: number = NOTIFICATION_LIMITS.listed,
+  now = Date.now(),
 ): Promise<NotificationList> {
   const db = await getDb();
   return db.transaction(
     async (tx) => {
       const rows = await tx
-        .select()
+        .select({
+          ...getTableColumns(notifications),
+          status: applications.status,
+          followUpAt: applications.followUpAt,
+        })
         .from(notifications)
+        .leftJoin(
+          applications,
+          and(
+            eq(applications.id, notifications.applicationId),
+            eq(applications.userId, notifications.userId),
+          ),
+        )
         .where(eq(notifications.userId, userId))
         .orderBy(desc(notifications.createdAt), desc(notifications.id))
         .limit(limit);
-      return { notifications: rows.map(toNotification), unread: await unreadCount(tx, userId) };
+      return { notifications: withFollowUps(rows, now), unread: await unreadCount(tx, userId) };
     },
     { isolationLevel: "repeatable read", accessMode: "read only" },
   );
@@ -76,6 +109,7 @@ export type NewNotification = {
   title: string;
   body: string;
   link: string | null;
+  applicationId?: string | null;
 };
 
 // The caller's transaction must already hold the user's row lock (lockUser).
@@ -95,6 +129,7 @@ export async function insertNotification(
     title: notification.title.slice(0, NOTIFICATION_LIMITS.title),
     body: notification.body.slice(0, NOTIFICATION_LIMITS.body),
     link: notification.link,
+    applicationId: notification.applicationId ?? null,
     createdAt: now,
   });
   return id;

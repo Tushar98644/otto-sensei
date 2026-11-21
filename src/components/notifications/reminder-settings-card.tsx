@@ -64,7 +64,8 @@ export function ReminderSettingsCard() {
         </CardTitle>
         <CardDescription>
           When you mark a job applied, Otto sets a reminder to follow up and shows it in the bell
-          on your dashboard. Each one has Done and Snooze {SNOOZE_DAYS} days.
+          on your dashboard, with Done and Snooze {SNOOZE_DAYS} days. The day before an interview,
+          Otto reminds you there too.
         </CardDescription>
       </CardHeader>
       {settings ? (
@@ -75,8 +76,8 @@ export function ReminderSettingsCard() {
           />
           {settings.emailAvailable ? (
             <OnOffChoice
-              label="Email me follow-up reminders"
-              hint="Off until you turn it on. At most one email a day, with one-click Done, Snooze and Unsubscribe."
+              label="Email me reminders"
+              hint="Follow-ups and interviews, at most one email a day, with one-click Done, Snooze and Unsubscribe. Off until you turn it on."
               value={settings.emailReminders}
               onChange={(emailReminders) => void save({ emailReminders })}
             />

@@ -9,6 +9,7 @@ import {
   columnOf,
   createBody,
   daysInStage,
+  firstTab,
   initials,
   isOverdue,
   menuStatuses,
@@ -17,6 +18,7 @@ import {
   planDrop,
   planStatus,
   readView,
+  stageAge,
   stepColumn,
   toApplyItems,
   writeView,
@@ -176,6 +178,52 @@ describe("the board's columns", () => {
     expect(talkingCard && isOverdue(talkingCard, now)).toBe(false);
     expect(offerCard && isOverdue(offerCard, now)).toBe(false);
     expect(first && needsAction(first, 0)).toBe(false);
+  });
+
+  it("puts upcoming interviews on top of Interviewing, soonest first", () => {
+    const now = new Date(2026, 10, 21, 9).getTime();
+    const at = (date: number) => new Date(2026, 10, date, 12).getTime();
+    const columns = boardColumns(
+      [
+        app("recent", { status: "interview", statusChangedAt: now - DAY }),
+        app("later", { status: "interview", statusChangedAt: now - 9 * DAY, interviewAt: at(30) }),
+        app("past", { status: "interview", statusChangedAt: now - 2 * DAY, interviewAt: at(19) }),
+        app("soon", { status: "interview", statusChangedAt: now - 8 * DAY, interviewAt: at(23) }),
+      ],
+      [],
+      [],
+      now,
+    );
+    expect(columns.interview.map((card) => card.key)).toEqual([
+      "application:soon",
+      "application:later",
+      "application:recent",
+      "application:past",
+    ]);
+  });
+
+  it("says Today on a fresh card and opens phones on a column with cards", () => {
+    const now = 10 * DAY + 5;
+    const fresh: BoardCard = {
+      kind: "application",
+      key: "f",
+      application: app("f", { statusChangedAt: 10 * DAY }),
+      copy: null,
+    };
+    const older: BoardCard = {
+      kind: "application",
+      key: "o",
+      application: app("o", { statusChangedAt: 6 * DAY }),
+      copy: null,
+    };
+    const item = toApplyItems([saved(JOB_A, { savedAt: 7 * DAY })], [], [])[0]!;
+    expect(stageAge(fresh, now)).toBe("Today");
+    expect(stageAge(older, now)).toBe("4d in stage");
+    expect(stageAge({ kind: "to_apply", key: "j", item }, now)).toBe("3d waiting");
+    const empty = { to_apply: [], applied: [], interview: [], offer: [], closed: [] };
+    expect(firstTab(empty)).toBe("applied");
+    expect(firstTab({ ...empty, offer: [older] })).toBe("offer");
+    expect(firstTab({ ...empty, to_apply: [fresh], applied: [older] })).toBe("applied");
   });
 });
 

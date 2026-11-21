@@ -1,4 +1,4 @@
-import { ArrowUpRight, Film, Lightbulb, Mic, Newspaper } from "lucide-react";
+import { ArrowUpRight, FileText, Film, Lightbulb, Mic, Newspaper } from "lucide-react";
 import type { CSSProperties, ReactNode } from "react";
 import type { ContentProject } from "@/lib/portfolio/content";
 import { SocialIcon } from "../icons";
@@ -118,7 +118,7 @@ function YearList({ items }: { items: readonly ListItem[] }) {
   );
 }
 
-export function ProseTemplate({ view, content, footer }: PortfolioTemplateProps) {
+export function ProseTemplate({ view, content, footer, resumeHref }: PortfolioTemplateProps) {
   const name = nameOf(view);
   const lead = content.pitch || view.headline;
   const showLead = lead !== "" && !(content.about[0] ?? "").trim().startsWith(lead.trim());
@@ -188,6 +188,12 @@ export function ProseTemplate({ view, content, footer }: PortfolioTemplateProps)
               <a href="#pf-prose-writing" title="Writing">
                 <span className="label">Writing</span>
                 <Newspaper className="icon-sm" aria-hidden />
+              </a>
+            ) : null}
+            {resumeHref ? (
+              <a href={resumeHref} title="Resume">
+                <span className="label">Resume</span>
+                <FileText className="icon-sm" aria-hidden />
               </a>
             ) : null}
             {socials.slice(0, NAV_SOCIALS).map((social) => (

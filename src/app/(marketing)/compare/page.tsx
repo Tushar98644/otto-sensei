@@ -5,7 +5,7 @@ import { pageMetadata } from "@/components/site/page-metadata";
 import { ROUTES } from "@/components/site/routes";
 import { Panel } from "@/components/ui/panel";
 import { BRAND } from "@/config/brand";
-import { COMPETITORS, COMPETITORS_CHECKED, compareTitle } from "@/lib/seo-pages/compare";
+import { COMPETITORS, COMPETITORS_CHECKED, choices, compareTitle } from "@/lib/seo-pages/compare";
 import { COMPARE_INDEX_PAGE, RELATED, calendarDate } from "@/lib/seo-pages/pages";
 import { comparePath } from "@/lib/seo-pages/paths";
 import {
@@ -15,6 +15,7 @@ import {
   PageIntro,
   RelatedLinks,
 } from "../ats/_components/guide-parts";
+import { ChoiceLine } from "./_components/choice-line";
 
 export const metadata: Metadata = pageMetadata(COMPARE_INDEX_PAGE);
 
@@ -49,7 +50,7 @@ export default function CompareIndexPage() {
               <li key={competitor.slug}>
                 <IntentLink
                   href={comparePath(competitor.slug)}
-                  className="group flex h-full flex-col gap-2 rounded-2xl bg-surface p-5 transition-colors hover:bg-surface-hover sm:p-6"
+                  className="group flex h-full flex-col gap-4 rounded-2xl bg-surface p-5 transition-colors hover:bg-surface-hover sm:p-6"
                 >
                   <span className="flex items-center justify-between gap-3">
                     <span className="text-lg/7 font-medium tracking-tight text-ink">
@@ -60,7 +61,11 @@ export default function CompareIndexPage() {
                       className="size-4 shrink-0 text-muted transition-transform group-hover:translate-x-0.5"
                     />
                   </span>
-                  <span className="text-sm/6 text-pretty text-muted">{competitor.summary}</span>
+                  {choices(competitor).map((choice) => (
+                    <span key={choice.name} className="text-sm/6 text-pretty text-muted">
+                      <ChoiceLine choice={choice} />
+                    </span>
+                  ))}
                 </IntentLink>
               </li>
             ))}

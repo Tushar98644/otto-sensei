@@ -2,8 +2,12 @@ import { pluralize } from "@/lib/utils";
 
 const count = new Intl.NumberFormat("en-US");
 
+export const PORTFOLIO_ABOUT =
+  "A portfolio site made from your resume, hosted for you at your own link.";
+
 export const PORTFOLIO_LINES = {
-  start: "Pick a resume and I'll turn it into a web page you can send anyone.",
+  pick: "Pick a design and I'll fill it in from your resume. Open one to see it with yours.",
+  pickThin: "These show a sample with every part filled in. Pick one and I'll fill it from yours.",
   draft: "I filled this in from your resume. Nothing goes live until you publish.",
   live: (views: number) =>
     views > 0
@@ -17,6 +21,13 @@ export const PORTFOLIO_LINES = {
   previewsSample: "These show a sample page. Add a resume and I'll draw each design with yours.",
   previewsThin: "These show a sample page with every part filled in. Switch to yours any time.",
 } as const;
+
+export function resumeLinkLine(link: { href: string | null; shared: boolean }): string {
+  if (link.href) return "Your page links to your shared resume, so visitors can read it in full.";
+  if (link.shared)
+    return "Your shared resume shows contact details this page hides, so the page leaves the link out.";
+  return "Share this resume and your page links to it, so visitors can read it in full.";
+}
 
 export function viewsLabel(views: number): string {
   if (views <= 0) return "No views yet";

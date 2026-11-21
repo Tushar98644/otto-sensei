@@ -45,7 +45,7 @@ const STEPS: readonly Step[] = [
     otto: "cheer",
     name: "Free PDF",
     caption:
-      "Download a clean PDF that hiring software can read, then check it again. Free, always.",
+      "Download a clean PDF for free, then check it again. Every format reads top to bottom, with headings on their own lines, on Letter or A4.",
     moment: <DownloadMoment />,
   },
 ];

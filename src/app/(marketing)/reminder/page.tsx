@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { ReminderAction, type ReminderRequest } from "./_components/reminder-action";
+import { reminderJob } from "./records";
 
 export const metadata: Metadata = {
   title: "Reminder",
@@ -19,10 +20,11 @@ export default async function ReminderPage({ searchParams }: Props) {
       : action === "unsubscribe"
         ? { kind: "unsubscribe", u: one(params.u), t: one(params.t) }
         : null;
+  const job = await reminderJob(request);
   return (
     <div className="mx-auto flex w-full max-w-lg flex-col gap-8 px-4 py-16 sm:py-24">
       <h1 className="font-display text-5xl/none font-normal tracking-tight text-ink">Reminders</h1>
-      <ReminderAction request={request} />
+      <ReminderAction request={request} job={job} />
     </div>
   );
 }

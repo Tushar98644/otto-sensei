@@ -68,6 +68,7 @@ export async function createCheckoutUrl(
   user: SessionUser,
   plan: PaidPlanId = "pro",
   interval: BillingInterval = "month",
+  next: string | null = null,
 ): Promise<string> {
   const mode = billingMode();
   if (mode === "disabled") throw new BillingError("unavailable", "Billing is not configured");
@@ -83,7 +84,7 @@ export async function createCheckoutUrl(
     plan === PRO_TRIAL.plan && interval === PRO_TRIAL.interval && (await trialAvailableFor(user));
   if (mode === "mock") {
     await mockSubscribe(user.id, plan, interval, { trial });
-    return `/account?checkout=success&plan=${plan}${trial ? "&trial=1" : ""}`;
+    return upgradedPath(plan, trial, next);
   }
   const record = await getBillingRecord(user.id);
   const existing = await existingSubscription(user, record);
@@ -96,7 +97,7 @@ export async function createCheckoutUrl(
       refuseChangeNotOffered(user, plan, interval);
       await changePlan(existing.subscriptionId, target, { fromTrial: false });
       log.info("billing.plan_change_requested", fields);
-      return `/account?checkout=success&plan=${plan}`;
+      return upgradedPath(plan, false, next);
     }
     if (route === "upgrade_trial" && target) {
       if (existing.liveCount === null) {
@@ -108,7 +109,7 @@ export async function createCheckoutUrl(
       if (existing.liveCount === 1) {
         await changePlan(existing.subscriptionId, target, { fromTrial: true });
         log.info("billing.trial_upgrade_requested", fields);
-        return `/account?checkout=success&plan=${plan}`;
+        return upgradedPath(plan, false, next);
       }
     }
     if (route === "fix_payment") {
@@ -129,8 +130,16 @@ export async function createCheckoutUrl(
     plan,
     interval,
     trial,
+    next,
   });
   return url;
+}
+
+function upgradedPath(plan: PaidPlanId, trial: boolean, next: string | null): string {
+  const query = new URLSearchParams({ checkout: "success", plan });
+  if (trial) query.set("trial", "1");
+  if (next) query.set("next", next);
+  return `/account?${query}`;
 }
 
 // A paid plan only moves up in the app, on the billing period already paid for.

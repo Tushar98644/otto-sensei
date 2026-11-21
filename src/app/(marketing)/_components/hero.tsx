@@ -2,8 +2,8 @@ import { Squiggle } from "@/components/doodles/doodles";
 import { Eyebrow } from "@/components/ui/eyebrow";
 import { cn } from "@/lib/utils";
 import { displayItalic } from "./display-italic";
+import { HeroCta } from "./hero-cta";
 import { HeroDemo } from "./hero-demo";
-import { PrimaryCta } from "./primary-cta";
 
 export function Hero() {
   return (
@@ -29,8 +29,7 @@ export function Hero() {
             <span className="sm:block">Upload your file and see what hiring software reads.</span>{" "}
             <span className="sm:block">Otto helps you fix weak lines. Downloads are free.</span>
           </p>
-          <PrimaryCta className="mt-8" />
-          <p className="mt-3 text-sm text-subtle">No signup needed.</p>
+          <HeroCta />
         </div>
         <HeroDemo className="mt-10" />
       </div>

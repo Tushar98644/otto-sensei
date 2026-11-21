@@ -48,8 +48,13 @@ export type CloudSyncOptions = {
   onSessionExpired?: () => void;
   onDeletedElsewhere?: (detail: DeletedElsewhere) => void;
   onConflict?: (ids: string[]) => void;
+  // Something backupOf() reads may have changed.
+  onBackupChange?: () => void;
   warn?: (message: string, error?: unknown) => void;
 };
+
+// "local": kept only in this browser, never sent (another account's, refused, or no room on the plan).
+export type Backup = "saving" | "saved" | "failed" | "local";
 
 export type CloudSync = {
   flush: () => Promise<void>;
@@ -57,6 +62,7 @@ export type CloudSync = {
   // The page is hiding or closing: sends every unsaved edit at once, outliving the page.
   leave: () => void;
   retryRefused: () => void;
+  backupOf: (id: string) => Backup;
   stop: () => void;
   isStopped: () => boolean;
   // Settles once the account has been read (or that failed): what's shown no longer changes.
@@ -168,6 +174,7 @@ export function startCloudSync(options: CloudSyncOptions): CloudSync {
   const debounceMs = options.debounceMs ?? DEFAULT_DEBOUNCE_MS;
   const maxWaitMs = options.maxWaitMs ?? DEFAULT_MAX_WAIT_MS;
   const warn = options.warn ?? defaultWarn;
+  const changed = () => options.onBackupChange?.();
 
   const remote = new Map<string, number>();
   const refused = new Map<string, number>();
@@ -214,6 +221,7 @@ export function startCloudSync(options: CloudSyncOptions): CloudSync {
     }
     // Another tab uploads its own edits.
     if (!elsewhere) scheduleEdit();
+    changed();
   });
 
   function fromCloud(change: () => void) {
@@ -286,6 +294,7 @@ export function startCloudSync(options: CloudSyncOptions): CloudSync {
     if (!(await pushDeletions(user))) return false;
     if (!(await pushChanges(user))) return false;
     failures = 0;
+    changed();
     // A save came back stale: read the account again before trying that resume once more.
     if (!loaded) schedule(RETRY_BASE_MS);
     return true;
@@ -363,6 +372,7 @@ export function startCloudSync(options: CloudSyncOptions): CloudSync {
     loaded = true;
     loadedAt = Date.now();
     settleFirstLoad();
+    changed();
     return true;
   }
 
@@ -389,6 +399,7 @@ export function startCloudSync(options: CloudSyncOptions): CloudSync {
     const base: PutResumeOptions = { base: remote.get(resume.id) };
     const flight = { at: resume.updatedAt, keepalive };
     sending.set(resume.id, flight);
+    changed();
     const ours = unanswered.get(resume.id) ?? new Set<number>();
     unanswered.set(resume.id, ours.add(resume.updatedAt));
     const sent = keepalive
@@ -405,6 +416,7 @@ export function startCloudSync(options: CloudSyncOptions): CloudSync {
       .then((saved) => settle(resume, saved))
       .finally(() => {
         if (sending.get(resume.id) === flight) sending.delete(resume.id);
+        changed();
       });
   }
 
@@ -425,6 +437,7 @@ export function startCloudSync(options: CloudSyncOptions): CloudSync {
     else if (REFUSED.has(error.code)) refused.set(resume.id, resume.updatedAt);
     else return false;
     warn(`the account refused a resume (${error.code})`);
+    changed();
     return true;
   }
 
@@ -499,6 +512,7 @@ export function startCloudSync(options: CloudSyncOptions): CloudSync {
     warn(message, error);
     failures += 1;
     schedule(Math.min(RETRY_MAX_MS, RETRY_BASE_MS * 2 ** (failures - 1)));
+    changed();
     return false;
   }
 
@@ -509,6 +523,7 @@ export function startCloudSync(options: CloudSyncOptions): CloudSync {
     timer = undefined;
     unsubscribe();
     settleFirstLoad();
+    changed();
   }
 
   function refresh(maxAgeMs: number): Promise<void> {
@@ -520,10 +535,30 @@ export function startCloudSync(options: CloudSyncOptions): CloudSync {
   function retryRefused() {
     if (noRoom.size === 0) return;
     noRoom.clear();
+    changed();
     void flush();
+  }
+
+  function backupOf(id: string): Backup {
+    const resume = store.getState().resumes[id];
+    if (!userId || stopped || !resume) return "local";
+    const { updatedAt } = resume;
+    if (sending.get(id)?.at === updatedAt) return "saving";
+    if (remote.get(id) === updatedAt || ledger.syncedAt(id) === updatedAt) return "saved";
+    if (!isChanged(resume, userId)) return "local";
+    return failures > 0 ? "failed" : "saving";
   }
 
   if (userId) void flush();
 
-  return { flush, refresh, leave, retryRefused, stop, isStopped: () => stopped, firstLoad };
+  return {
+    flush,
+    refresh,
+    leave,
+    retryRefused,
+    backupOf,
+    stop,
+    isStopped: () => stopped,
+    firstLoad,
+  };
 }

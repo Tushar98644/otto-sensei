@@ -9,6 +9,7 @@ import { useMe } from "@/components/account/use-me";
 import { GitHubOffer } from "@/components/github/github-offer";
 import { OTTO } from "@/components/mascot/lines";
 import { OttoNote } from "@/components/mascot/otto-note";
+import { ROUTES } from "@/components/site/routes";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { StatusPill } from "@/components/ui/status";
@@ -30,6 +31,7 @@ import { HiringSystemsPanel } from "../review/hiring-systems-panel";
 import { openTarget, targetLabel } from "../review/open-target";
 import { ReadTextPanel } from "../review/read-text-panel";
 import { reviewItemDomId, WordsChecks } from "../review/words-checks";
+import { STEP_BAR_CLASSES } from "../step-bar";
 import { useMediaQuery } from "../use-media-query";
 
 const SIDE_BY_SIDE = "(min-width: 64rem)";
@@ -122,7 +124,7 @@ export function ReviewStep() {
               Read with the basic reader.{" "}
               {upgradeTo ? (
                 <Link
-                  href={upgradeLink(me, upgradeTo)}
+                  href={upgradeLink(me, upgradeTo, ROUTES.studio)}
                   className="font-medium text-ink underline decoration-border-strong underline-offset-4 hover:decoration-ink"
                 >
                   {(user?.plan ?? "free") === "free" && me?.billing.trial !== false
@@ -186,14 +188,14 @@ export function ReviewStep() {
       <HiringSystemsPanel />
 
       {scanned ? null : (
-        <div className="sticky bottom-[max(0.75rem,env(safe-area-inset-bottom))] z-10 flex items-center gap-1 self-end rounded-2xl bg-surface p-1.5 shadow-float ring-1 ring-ink/5 max-sm:w-full">
+        <div data-tour-edge className={STEP_BAR_CLASSES}>
           <Button variant="ghost" onClick={() => setStep("tailor")}>
-            <span>
-              Skip<span className="max-sm:sr-only"> to tailor</span>
-            </span>
+            Skip to tailor
           </Button>
           <Button onClick={() => setStep("fix")} className="flex-1 sm:flex-none">
-            Next: Fix my lines
+            <span>
+              Next: Fix<span className="max-sm:sr-only"> my</span> lines
+            </span>
             <ArrowRight />
           </Button>
         </div>

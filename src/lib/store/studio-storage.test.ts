@@ -241,3 +241,43 @@ describe("createStudioStorage", () => {
     expect(Object.keys(absorbed.mock.calls[0]![0]?.resumes ?? {})).toEqual([theirs.id]);
   });
 });
+
+describe("createStudioStorage's save state", () => {
+  it("is pending through the pause, then saved, and tells listeners each time", () => {
+    const { storage } = setup();
+    const listener = vi.fn();
+    storage.subscribeSaves(listener);
+    storage.getItem(KEY);
+    expect(storage.saveState()).toBe("saved");
+
+    const cv = emptyResume(1);
+    storage.setItem(KEY, value(studio([titled(cv, "One")])));
+    storage.setItem(KEY, value(studio([titled(cv, "Two")])));
+    expect(storage.saveState()).toBe("pending");
+    expect(listener).toHaveBeenCalledOnce();
+
+    vi.advanceTimersByTime(400);
+    expect(storage.saveState()).toBe("saved");
+    expect(listener).toHaveBeenCalledTimes(2);
+  });
+
+  it("is failed when nothing fits in storage, or storage is blocked", () => {
+    const { storage } = setup({ limit: 100 });
+    storage.getItem(KEY);
+    storage.setItem(KEY, value(studio([emptyResume(1)])));
+    storage.flush();
+    expect(storage.saveState()).toBe("failed");
+
+    const blocked = createStudioStorage({
+      area: () => null,
+      version: 2,
+      delayMs: 400,
+      maxWaitMs: 2_000,
+      migrate: (state) => state,
+      absorb: () => null,
+      warn: () => {},
+    });
+    blocked.setItem(KEY, value(studio([emptyResume(1)])));
+    expect(blocked.saveState()).toBe("failed");
+  });
+});

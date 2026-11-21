@@ -34,6 +34,20 @@ export const REMINDER_CONFIRM: Record<ReminderRequest["kind"], Confirm> = {
   },
 };
 
+export type ReminderJob = { company: string; role: string };
+
+export function confirmMessage(kind: ReminderRequest["kind"], job: ReminderJob | null): string {
+  const company = job?.company.trim();
+  if (!company || kind === "unsubscribe") return REMINDER_CONFIRM[kind].message;
+  const role = job?.role.trim();
+  if (kind === "snooze") {
+    return `Not ready to follow up with ${company} yet? I'll remind you again in ${SNOOZE_DAYS} days.`;
+  }
+  return role
+    ? `Followed up with ${company} about the ${role} job? Mark it done and I'll stop reminding you.`
+    : `Followed up with ${company}? Mark it done and I'll stop reminding you.`;
+}
+
 const DAY = new Intl.DateTimeFormat("en-US", { weekday: "long", month: "short", day: "numeric" });
 
 export async function sendReminderAction(request: ReminderRequest): Promise<string> {
@@ -77,7 +91,7 @@ function ApplicationsLink({ ref }: { ref?: Ref<HTMLAnchorElement> }) {
   );
 }
 
-function ReminderConfirm({ request }: { request: ReminderRequest }) {
+function ReminderConfirm({ request, job }: { request: ReminderRequest; job: ReminderJob | null }) {
   const [state, setState] = useState<State>({ kind: "ready" });
   const linkRef = useRef<HTMLAnchorElement>(null);
   const settled = state.kind === "settled";
@@ -101,7 +115,7 @@ function ReminderConfirm({ request }: { request: ReminderRequest }) {
   }
 
   return (
-    <OttoNote message={settled ? state.message : confirm.message}>
+    <OttoNote message={settled ? state.message : confirmMessage(request.kind, job)}>
       {settled ? (
         <ApplicationsLink ref={linkRef} />
       ) : (
@@ -113,8 +127,14 @@ function ReminderConfirm({ request }: { request: ReminderRequest }) {
   );
 }
 
-export function ReminderAction({ request }: { request: ReminderRequest | null }) {
-  if (request) return <ReminderConfirm request={request} />;
+export function ReminderAction({
+  request,
+  job = null,
+}: {
+  request: ReminderRequest | null;
+  job?: ReminderJob | null;
+}) {
+  if (request) return <ReminderConfirm request={request} job={job} />;
   return (
     <OttoNote message={MISSING_PART}>
       <ApplicationsLink />

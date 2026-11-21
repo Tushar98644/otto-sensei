@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useEffectEvent, useState } from "react";
 import { OTTO } from "@/components/mascot/lines";
 import { api, isApiError } from "@/lib/api/client";
 import type { RecruiterReport } from "@/lib/checks/types";
@@ -13,8 +13,15 @@ export type ExportCheck = {
   original: RecruiterReport | null;
   checking: boolean;
   error: string | null;
+  // A check will start on its own once the PDF settles.
+  queued: boolean;
   run: () => Promise<void>;
 };
+
+// Waits out quick format and color flips, so only the PDF someone settles on is sent.
+const AUTO_CHECK_PAUSE_MS = 2_000;
+// Checks have a daily per-device limit, so a long run of small changes stops checking on its own.
+export const MAX_AUTO_CHECKS = 3;
 
 function errorMessage(error: unknown): string {
   if (isApiError(error, "rate_limited")) return OTTO.errors.rateLimited;
@@ -30,12 +37,29 @@ function useOriginalReport(resume: Resume): RecruiterReport | null {
   return own ?? base;
 }
 
+export function shouldAutoCheck(state: {
+  fileKey: string | null;
+  fresh: boolean;
+  checking: boolean;
+  failed: boolean;
+  autoRuns: number;
+}): boolean {
+  return (
+    state.fileKey !== null &&
+    !state.fresh &&
+    !state.checking &&
+    !state.failed &&
+    state.autoRuns < MAX_AUTO_CHECKS
+  );
+}
+
 export function useExportCheck(resume: Resume, file: PdfFile | null, fileName: string): ExportCheck {
   const stored = useStudioStore((s) => s.exportReports[resume.id] ?? null);
   const setExportReport = useStudioStore((s) => s.setExportReport);
   const original = useOriginalReport(resume);
   const [checking, setChecking] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [autoRuns, setAutoRuns] = useState(0);
 
   async function run() {
     if (!file || checking) return;
@@ -54,5 +78,23 @@ export function useExportCheck(resume: Resume, file: PdfFile | null, fileName: s
   }
 
   const report = stored && stored.checkedAt >= resume.updatedAt ? stored : null;
-  return { report, original, checking, error, run };
+  const fileKey = file?.key ?? null;
+  const queued = shouldAutoCheck({
+    fileKey,
+    fresh: report !== null,
+    checking,
+    failed: error !== null,
+    autoRuns,
+  });
+  const runOnItsOwn = useEffectEvent(() => {
+    setAutoRuns((count) => count + 1);
+    void run();
+  });
+  useEffect(() => {
+    if (!queued) return;
+    const timer = window.setTimeout(runOnItsOwn, AUTO_CHECK_PAUSE_MS);
+    return () => window.clearTimeout(timer);
+  }, [queued, fileKey]);
+
+  return { report, original, checking, error, queued, run };
 }

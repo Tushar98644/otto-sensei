@@ -118,7 +118,10 @@ export type AnswerResponse = {
   demo: boolean;
 };
 
-export const OutreachRequestSchema = TailorRequestSchema;
+// followUp: the person applied that many days ago, so the message follows up on the application.
+export const OutreachRequestSchema = TailorRequestSchema.extend({
+  followUp: z.object({ days: z.number().int().min(1).max(36_500) }).optional(),
+});
 export type OutreachRequestBody = z.input<typeof OutreachRequestSchema>;
 export type OutreachResponse = {
   ok: true;
@@ -264,6 +267,8 @@ export type UrlResponse = { ok: true; url: string };
 export const CheckoutRequestSchema = z.object({
   plan: z.enum(PAID_PLANS).default("pro"),
   interval: z.enum(BILLING_INTERVALS).default("month"),
+  // The page to go back to once the plan is active; the route keeps it only if it is a page on this site.
+  next: z.string().max(512).optional(),
 });
 export type CheckoutRequestBody = z.input<typeof CheckoutRequestSchema>;
 

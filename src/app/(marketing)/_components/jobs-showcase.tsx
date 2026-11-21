@@ -1,14 +1,11 @@
-import { ArrowRight } from "lucide-react";
-import Link from "next/link";
 import { ROUTES } from "@/components/site/routes";
 import { Badge } from "@/components/ui/badge";
-import { buttonClasses } from "@/components/ui/button";
 import { Panel } from "@/components/ui/panel";
 import { StatusPill } from "@/components/ui/status";
 import { FREE_JOB_MATCHES } from "@/config/plans";
 import { countClaim, type JobCounts } from "@/lib/job-feed/counts";
 import { MATCH_LABELS } from "@/lib/job-feed/types";
-import { Section, SectionHeader } from "./section";
+import { Section, SectionHeader, SectionLink } from "./section";
 
 type ExampleJob = {
   title: string;
@@ -122,13 +119,7 @@ export function JobsShowcase({ jobCounts }: { jobCounts: JobCounts }) {
           </li>
         ))}
       </ul>
-      <Link
-        href={ROUTES.dashboardJobs}
-        className={buttonClasses({ variant: "ghost", className: "mt-6 -ml-5" })}
-      >
-        Find my matches
-        <ArrowRight />
-      </Link>
+      <SectionLink href={ROUTES.dashboardJobs}>Find my matches</SectionLink>
     </Section>
   );
 }

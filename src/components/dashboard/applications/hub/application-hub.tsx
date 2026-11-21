@@ -1,17 +1,19 @@
 "use client";
 
-import { ArrowLeft, PenLine, Trash2 } from "lucide-react";
+import { ArrowLeft, CalendarPlus, MessagesSquare, PenLine, Trash2 } from "lucide-react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useCallback, useEffect, useEffectEvent, useMemo, useState } from "react";
 import { errorMessage } from "@/components/account/errors";
 import { useProTools } from "@/components/account/pro-tools";
 import { openFeaturePrompt } from "@/components/account/upgrade-prompt";
 import { OttoNote } from "@/components/mascot/otto-note";
 import { ROUTES } from "@/components/site/routes";
+import { downloadBlob } from "@/components/studio/tailor/jump";
 import { useNow } from "@/components/studio/use-now";
 import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import { ProMark } from "@/components/ui/pro-mark";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "@/components/ui/toast";
 import { undoToast } from "@/components/ui/undo-toast";
@@ -20,8 +22,10 @@ import type { Application } from "@/lib/applications/schema";
 import { nextStep, STATUS_NAMES, type ApplicationStatus } from "@/lib/applications/status";
 import { copyLetter, type ApplicationThread } from "@/lib/applications/thread";
 import { savedJobText } from "@/lib/insights/saved-job";
+import { WRITE_FOLLOW_UP, WRITE_PARAM } from "@/lib/notifications/links";
 import { resumeTitle } from "@/lib/resume/ops";
 import { useResumeList, useStudioHydrated } from "@/lib/store/resume-store";
+import { DAY_MS } from "@/lib/time";
 import type { Writing } from "@/lib/writings/schema";
 import type { OutreachJob } from "../../jobs/outreach-saved";
 import { LazyOutreachDialog } from "../../jobs/lazy-outreach-dialog";
@@ -39,7 +43,8 @@ import {
   restoreApplication,
   useApplications,
 } from "../use-applications";
-import { formatDay, prepHref, sentLabel } from "../view";
+import { daysUntil, formatDay, interviewLabel, prepareHref, prepHref, sentLabel } from "../view";
+import { icsFileName, interviewIcs } from "./calendar";
 import { hubLetters, hubTally, LettersCard, withWriting } from "./hub-letters";
 import { JobCard, NotesCard, PrepCard, ResumeSentCard, TimelineCard } from "./hub-sections";
 import { nextStepLine, timelineSteps } from "./timeline";
@@ -63,6 +68,7 @@ export function ApplicationHub({ applicationId }: { applicationId: string }) {
   const [dialog, setDialog] = useState<ApplicationDialogTarget | null>(null);
   const [writing, setWriting] = useState<{ key: number; open: boolean } | null>(null);
   const [outreach, setOutreach] = useState<OutreachJob | null>(null);
+  const followUpAsked = useSearchParams().get(WRITE_PARAM) === WRITE_FOLLOW_UP;
 
   useEffect(() => {
     let live = true;
@@ -133,8 +139,29 @@ export function ApplicationHub({ applicationId }: { applicationId: string }) {
   }
 
   function prepare(target: Application) {
-    if (pro === false) openFeaturePrompt("letter");
-    else router.push(prepHref(target.id));
+    // A kept pack opens on any plan; only making one takes Pro.
+    if (thread?.prep) router.push(prepHref(target.id));
+    else if (pro === false) openFeaturePrompt("letter");
+    else router.push(prepareHref(target));
+  }
+
+  function addToCalendar(target: Application) {
+    if (target.interviewAt === null) return;
+    const ics = interviewIcs(
+      {
+        id: target.id,
+        company: target.company,
+        role: target.role,
+        jobUrl: target.jobUrl,
+        interviewAt: target.interviewAt,
+        prepUrl: `${window.location.origin}${prepHref(target.id)}`,
+      },
+      Date.now(),
+    );
+    downloadBlob(
+      new Blob([ics], { type: "text/calendar;charset=utf-8" }),
+      icsFileName(target.company),
+    );
   }
 
   function write() {
@@ -146,12 +173,13 @@ export function ApplicationHub({ applicationId }: { applicationId: string }) {
   }
 
   // A kept message opens on any plan; only writing one takes Pro.
-  function writeOutreach() {
-    if (pro === false && !letters.some((letter) => letter.kind === "outreach")) {
+  function writeOutreach(followUp = false) {
+    if (pro === false && (followUp || !letters.some((letter) => letter.kind === "outreach"))) {
       openFeaturePrompt("letter");
       return;
     }
     if (!application) return;
+    const days = Math.max(1, Math.floor((Date.now() - application.appliedAt) / DAY_MS));
     setOutreach({
       id: thread?.job?.id ?? null,
       title: thread?.job?.title || application.role,
@@ -159,8 +187,24 @@ export function ApplicationHub({ applicationId }: { applicationId: string }) {
       url: thread?.job?.url || application.jobUrl,
       applicationId: application.id,
       post: savedJobText(copy),
+      ...(followUp ? { followUp: { days } } : {}),
     });
   }
+
+  // A reminder's "Write it for me" lands here; the link opens the writer once, then leaves the address.
+  const answerFollowUpLink = useEffectEvent(() => {
+    const url = new URL(window.location.href);
+    url.searchParams.delete(WRITE_PARAM);
+    window.history.replaceState(window.history.state, "", `${url.pathname}${url.search}${url.hash}`);
+    if (application?.status === "applied") writeOutreach(true);
+  });
+  const ready = hydrated && thread !== null && application !== null && pro !== null;
+  useEffect(() => {
+    if (!ready || !followUpAsked) return;
+    // Next patches replaceState in its own mount effect, which runs after this one: wait a tick.
+    const timer = window.setTimeout(() => answerFollowUpLink(), 0);
+    return () => window.clearTimeout(timer);
+  }, [ready, followUpAsked]);
 
   function remove(target: Application) {
     hideApplication(target);
@@ -181,6 +225,11 @@ export function ApplicationHub({ applicationId }: { applicationId: string }) {
   }
 
   const next = application ? nextStep(application.status) : null;
+  const passed =
+    application !== null &&
+    application.interviewAt !== null &&
+    now > 0 &&
+    daysUntil(application.interviewAt, now) < 0;
   const titles = useMemo(
     () => new Map(resumes.map((resume) => [resume.id, { title: resumeTitle(resume) }])),
     [resumes],
@@ -215,8 +264,10 @@ export function ApplicationHub({ applicationId }: { applicationId: string }) {
                 {[
                   application.role,
                   `Applied ${formatDay(application.appliedAt, now || application.appliedAt)}`,
-                  application.interviewAt
-                    ? `Interview ${formatDay(application.interviewAt, now || application.interviewAt)}`
+                  application.interviewAt && application.status === "interview"
+                    ? now > 0
+                      ? interviewLabel(application.interviewAt, now)
+                      : `Interview ${formatDay(application.interviewAt, application.interviewAt)}`
                     : null,
                 ]
                   .filter(Boolean)
@@ -279,7 +330,41 @@ export function ApplicationHub({ applicationId }: { applicationId: string }) {
             message={nextStepLine(application, thread.prep !== null, now)}
           >
             {application.status === "applied" ? (
-              <FollowUpChip application={application} now={now} />
+              <FollowUpChip
+                application={application}
+                now={now}
+                onWrite={() => writeOutreach(true)}
+              />
+            ) : null}
+            {application.status === "interview" ? (
+              <>
+                {passed ? null : (
+                  <Button
+                    variant={pro === false && !thread.prep ? "secondary" : "primary"}
+                    size="sm"
+                    onClick={() => prepare(application)}
+                  >
+                    <MessagesSquare aria-hidden />
+                    {thread.prep ? "Open prep" : "Prepare"}
+                    {pro === false && !thread.prep ? <ProMark /> : null}
+                  </Button>
+                )}
+                {application.interviewAt !== null && now > 0 && !passed ? (
+                  <Button variant="ghost" size="sm" onClick={() => addToCalendar(application)}>
+                    <CalendarPlus aria-hidden />
+                    Add to calendar
+                  </Button>
+                ) : application.interviewAt === null || passed ? (
+                  <Button
+                    variant={passed ? "secondary" : "ghost"}
+                    size="sm"
+                    onClick={() => setDialog({ kind: "edit", application, focus: "interview" })}
+                  >
+                    <CalendarPlus aria-hidden />
+                    {passed ? "Add the next interview day" : "Add the interview day"}
+                  </Button>
+                ) : null}
+              </>
             ) : null}
           </OttoNote>
 
@@ -298,7 +383,7 @@ export function ApplicationHub({ applicationId }: { applicationId: string }) {
                 now={now}
                 pro={pro}
                 onWrite={write}
-                onOutreach={writeOutreach}
+                onOutreach={() => writeOutreach()}
               />
               <NotesCard
                 notes={application.notes}

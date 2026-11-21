@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { buttonClasses } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { useHeroCtaInView } from "./hero-cta-in-view";
 import { IntentLink } from "./intent-link";
 import { MAIN_NAV, ROUTES, SIGN_IN_LINK } from "./routes";
 import { DASHBOARD_LINK, useSignedIn } from "./use-account-link";
@@ -23,10 +24,18 @@ export function MainNavLinks() {
   );
 }
 
+// 40px to sit lightly in the phone header; the ::after keeps a 44px tap area.
+const HEADER_KEY = buttonClasses({
+  size: "sm",
+  className: "max-md:h-10 pointer-coarse:h-10 after:absolute after:inset-x-0 after:-inset-y-0.5",
+});
+
 export function HeaderActions() {
-  if (useSignedIn()) {
+  const signedIn = useSignedIn();
+  const heroCtaInView = useHeroCtaInView();
+  if (signedIn) {
     return (
-      <Link href={DASHBOARD_LINK.href} className={buttonClasses({ size: "sm", className: "max-md:h-12 pointer-coarse:h-12" })}>
+      <Link href={DASHBOARD_LINK.href} className={HEADER_KEY}>
         {DASHBOARD_LINK.label}
       </Link>
     );
@@ -38,7 +47,7 @@ export function HeaderActions() {
       </Link>
       <IntentLink
         href={ROUTES.studio}
-        className={buttonClasses({ size: "sm", className: "max-md:h-12 pointer-coarse:h-12" })}
+        className={cn(HEADER_KEY, heroCtaInView && "invisible opacity-0")}
       >
         Check my resume
       </IntentLink>

@@ -17,10 +17,10 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { Resume } from "@/lib/resume/schema";
 import { useResumeList, useStudioHydrated } from "@/lib/store/resume-store";
-import { PortfolioStart } from "./portfolio-start";
+import { PORTFOLIO_ABOUT } from "./lines";
 import { makePortfolio, usePortfolio, usePortfolioStore } from "./portfolio-store";
 import { PORTFOLIO_ROUTE } from "./route";
-import { editorLoader, upgradeLoader } from "./screens";
+import { editorLoader, startLoader, upgradeLoader } from "./screens";
 import { preloadTemplate } from "./templates/lazy";
 
 // Fetched as soon as the plan says which screen it is, so the download overlaps the portfolio's.
@@ -55,9 +55,7 @@ function Screen({ children }: { children: ReactNode }) {
         <h1 className="font-display text-4xl/10 font-normal tracking-tight text-ink sm:text-5xl/13">
           Portfolio
         </h1>
-        <p className="mt-3 max-w-prose text-base/7 text-pretty text-muted">
-          Your resume as a personal web page, with your projects up front.
-        </p>
+        <p className="mt-3 max-w-prose text-base/7 text-pretty text-muted">{PORTFOLIO_ABOUT}</p>
       </header>
       {children}
     </div>
@@ -90,6 +88,10 @@ export function PortfolioPage({ fromResumeId }: PortfolioPageProps) {
   const handled = useRef(false);
   const editor = useLoaded(editorLoader, userId !== null && !locked);
   const upgrade = useLoaded(upgradeLoader, locked);
+  const start = useLoaded(
+    startLoader,
+    userId !== null && !locked && !(status === "ready" && portfolio !== null),
+  );
   const template = portfolio?.template ?? null;
 
   const ready = hydrated && userId !== null && status === "ready";
@@ -141,11 +143,9 @@ export function PortfolioPage({ fromResumeId }: PortfolioPageProps) {
     );
   }
   if (!portfolio) {
-    return (
-      <Screen>
-        <PortfolioStart candidates={candidates} />
-      </Screen>
-    );
+    if (start.failure) throw start.failure.error;
+    const Start = start.Component;
+    return <Screen>{Start ? <Start candidates={candidates} /> : <Loading />}</Screen>;
   }
   if (editor.failure) throw editor.failure.error;
   const Editor = editor.Component;

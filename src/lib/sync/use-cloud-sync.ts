@@ -13,6 +13,7 @@ import {
   knownVersions,
   releaseBackedUp,
   startCloudSync,
+  type Backup,
   type SyncApi,
 } from "./cloud-sync";
 import { createLedger } from "./ledger";
@@ -70,6 +71,19 @@ const syncApi: SyncApi = {
 
 let restartedAt = 0;
 
+const backupListeners = new Set<() => void>();
+
+function backupChanged() {
+  for (const listener of backupListeners) listener();
+}
+
+function subscribeBackup(listener: () => void) {
+  backupListeners.add(listener);
+  return () => {
+    backupListeners.delete(listener);
+  };
+}
+
 // A 401 while /api/me still has the same user (signed out and back in elsewhere): back up again.
 function restartAfterExpiry(userId: string | null) {
   void refreshMe().then(() => {
@@ -77,6 +91,7 @@ function restartAfterExpiry(userId: string | null) {
     if (Date.now() - restartedAt < RESTART_GAP_MS) return;
     restartedAt = Date.now();
     session.acquire(userId);
+    backupChanged();
   });
 }
 
@@ -100,9 +115,18 @@ const session = createSyncSession(
           title: "Resume changed on two devices",
           description: "We kept both. The other copy is in its saved versions.",
         }),
+      onBackupChange: backupChanged,
     }),
   REREAD_AFTER_MS,
 );
+
+export function useBackup(resumeId: string | null): Backup {
+  return useSyncExternalStore(
+    subscribeBackup,
+    () => (resumeId ? (session.current()?.backupOf(resumeId) ?? "local") : "local"),
+    () => "local",
+  );
+}
 
 const FIRST_READ_MAX_MS = 6_000;
 let firstReadDone = false;
@@ -150,6 +174,7 @@ export function useCloudSync(signedInAs?: string): void {
     // Merging before localStorage has loaded would treat the user's resumes as missing.
     if (!hydrated) return;
     const sync = session.acquire(userId);
+    backupChanged();
     let cap: ReturnType<typeof setTimeout> | undefined;
     if (userId && !firstReadDone) {
       cap = setTimeout(finishFirstRead, FIRST_READ_MAX_MS);
@@ -207,6 +232,7 @@ export async function signOutAndRelease(userId: string): Promise<{ kept: number 
   try {
     if (!useStudioStore.persist.hasHydrated()) await useStudioStore.persist.rehydrate();
     session.end();
+    backupChanged();
     const ledger = createLedger(browserStorage());
     const { kept } = releaseBackedUp({ userId, store: useStudioStore, ledger, cloud });
     // Trash lives only in this browser, so the next person could restore it.

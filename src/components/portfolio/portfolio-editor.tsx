@@ -26,6 +26,7 @@ import { PortfolioPreview } from "./portfolio-preview";
 import { savePortfolio, usePortfolioStore } from "./portfolio-store";
 import { SettingsCard } from "./settings-card";
 import { TemplatePicker } from "./template-picker";
+import { useResumeLink } from "./use-resume-link";
 import { VisibilityCard } from "./visibility-card";
 
 const FullPortfolioPreview = lazy(() =>
@@ -60,6 +61,7 @@ export function PortfolioEditor({ portfolio, resumes, offer, onOfferDone }: Port
   // A keystroke commits first; the previews redraw the page in the background after it.
   const preview = useDeferredValue(own);
   const sections = useMemo(() => sectionsWithContent(shown), [shown]);
+  const resumeLink = useResumeLink(portfolio, shown);
   const [tab, setTab] = useState<EditorTab>("design");
   const [full, setFull] = useState<PortfolioTemplateId | null>(null);
   const expand = useCallback(() => setFull(portfolio.template), [portfolio.template]);
@@ -185,6 +187,8 @@ export function PortfolioEditor({ portfolio, resumes, offer, onOfferDone }: Port
                   sections={sections}
                   email={shown.basics.email.trim()}
                   phone={shown.basics.phone.trim()}
+                  resumeLink={resumeLink}
+                  source={source}
                   disabled={false}
                 />
               </TabPanel>
@@ -207,6 +211,7 @@ export function PortfolioEditor({ portfolio, resumes, offer, onOfferDone }: Port
             content={preview.content}
             template={portfolio.template}
             slug={portfolio.slug}
+            resumeHref={resumeLink.href}
             onExpand={expand}
           />
         </div>
@@ -218,6 +223,7 @@ export function PortfolioEditor({ portfolio, resumes, offer, onOfferDone }: Port
             id={full}
             own={own}
             note={full === portfolio.template ? "In use on your page." : "Not on your page yet."}
+            resumeHref={resumeLink.href}
             action={
               full === portfolio.template
                 ? null

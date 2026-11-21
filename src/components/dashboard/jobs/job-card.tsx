@@ -1,11 +1,20 @@
 "use client";
 
-import { ArrowUpRight, Bookmark, BookmarkCheck, ScanSearch, Send, ThumbsDown } from "lucide-react";
+import {
+  ArrowUpRight,
+  Bookmark,
+  BookmarkCheck,
+  Ellipsis,
+  ScanSearch,
+  Send,
+  ThumbsDown,
+} from "lucide-react";
 import Link from "next/link";
 import { useId, useRef, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonClasses } from "@/components/ui/button";
-import { Menu } from "@/components/ui/menu";
+import { Menu, type MenuEntry } from "@/components/ui/menu";
+import { ProMark } from "@/components/ui/pro-mark";
 import { StatusPill } from "@/components/ui/status";
 import { STATUS_NAMES } from "@/lib/applications/status";
 import type { Application } from "@/lib/applications/schema";
@@ -14,7 +23,6 @@ import { sourceCredit } from "@/lib/job-feed/sources";
 import {
   MATCH_LABELS,
   NOT_FIT_LABELS,
-  NOT_FIT_REASONS,
   type AskedAppliedAnswer,
   type JobMatch,
   type MatchedJob,
@@ -22,6 +30,7 @@ import {
 } from "@/lib/job-feed/types";
 import { StatusIcon } from "../applications/status-menu";
 import { CardAppliedQuestion } from "./applied-question";
+import { NotFitQuestion } from "./not-fit-question";
 import { placeLine, postedLabel } from "./view";
 
 export type JobCardProps = {
@@ -31,6 +40,7 @@ export type JobCardProps = {
   tailoredTitle: string | null;
   logging: boolean;
   tailoring: boolean;
+  free: boolean;
   onTailor: (job: MatchedJob) => void;
   onOpenTailored: (job: MatchedJob) => void;
   onToggleSave: (job: MatchedJob) => void;
@@ -55,6 +65,7 @@ export function JobCard({
   tailoredTitle,
   logging,
   tailoring,
+  free,
   onTailor,
   onOpenTailored,
   onToggleSave,
@@ -65,12 +76,24 @@ export function JobCard({
   onAnswer,
   onNotFit,
 }: JobCardProps) {
-  const [notFit, setNotFit] = useState<NotFitReason | null>(null);
+  const [notFit, setNotFit] = useState<NotFitReason | "asking" | null>(null);
   const titleRef = useRef<HTMLHeadingElement>(null);
   const titleId = useId();
   const reasonId = useId();
   const posted = postedLabel(job.postedAt, now);
   const place = placeLine(job);
+  const more: MenuEntry[] = [];
+  if (onOutreach && !job.closed) {
+    more.push({
+      label: "Write an outreach message",
+      icon: Send,
+      pro: free,
+      onSelect: () => onOutreach(job),
+    });
+  }
+  if (onNotFit && notFit === null) {
+    more.push({ label: "Not a fit", icon: ThumbsDown, onSelect: () => setNotFit("asking") });
+  }
 
   return (
     <li>
@@ -129,12 +152,6 @@ export function JobCard({
               Tailor my resume
             </Button>
           )}
-          {onOutreach && !job.closed ? (
-            <Button variant="secondary" size="sm" onClick={() => onOutreach(job)}>
-              <Send aria-hidden />
-              Outreach message
-            </Button>
-          ) : null}
           <Button
             variant="secondary"
             size="sm"
@@ -143,6 +160,7 @@ export function JobCard({
           >
             {job.saved ? <BookmarkCheck aria-hidden /> : <Bookmark aria-hidden />}
             {job.saved ? "Saved" : "Save"}
+            {free && !job.saved ? <ProMark /> : null}
           </Button>
           {applied ? (
             <Link
@@ -167,35 +185,6 @@ export function JobCard({
               Mark applied
             </Button>
           )}
-          {onNotFit ? (
-            notFit ? (
-              <p className="px-2 text-sm text-muted" role="status">
-                Noted: {NOT_FIT_LABELS[notFit].toLowerCase()}. Thanks.
-              </p>
-            ) : (
-              <Menu
-                label={`Why ${job.title} isn't a fit`}
-                triggerClassName={buttonClasses({
-                  variant: "ghost",
-                  size: "sm",
-                  className: "text-muted hover:text-ink",
-                })}
-                trigger={
-                  <>
-                    <ThumbsDown aria-hidden />
-                    Not a fit
-                  </>
-                }
-                items={NOT_FIT_REASONS.map((reason) => ({
-                  label: NOT_FIT_LABELS[reason],
-                  onSelect: () => {
-                    setNotFit(reason);
-                    onNotFit(job, reason);
-                  },
-                }))}
-              />
-            )
-          ) : null}
           {/* A plain followed link: Remote OK's terms ask for one. */}
           <a
             href={job.url}
@@ -211,7 +200,40 @@ export function JobCard({
             <ArrowUpRight aria-hidden />
             <span className="sr-only">(opens {job.company}&apos;s posting in a new tab)</span>
           </a>
+          {more.length > 0 ? (
+            <Menu
+              label={`More for ${job.title}`}
+              align="end"
+              triggerLabel={`More for ${job.title}`}
+              triggerClassName={buttonClasses({
+                variant: "ghost",
+                size: "icon-sm",
+                className: "text-muted hover:text-ink",
+              })}
+              trigger={<Ellipsis aria-hidden />}
+              items={more}
+            />
+          ) : null}
         </div>
+
+        {notFit === "asking" && onNotFit ? (
+          <NotFitQuestion
+            title={job.title}
+            onPick={(reason) => {
+              setNotFit(reason);
+              onNotFit(job, reason);
+              titleRef.current?.focus();
+            }}
+            onCancel={() => {
+              setNotFit(null);
+              titleRef.current?.focus();
+            }}
+          />
+        ) : notFit && notFit !== "asking" ? (
+          <p className="text-sm/6 text-muted" role="status">
+            Noted: {NOT_FIT_LABELS[notFit].toLowerCase()}. Thanks.
+          </p>
+        ) : null}
 
         {onAnswer ? (
           <CardAppliedQuestion

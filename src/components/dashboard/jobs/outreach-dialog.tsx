@@ -30,6 +30,21 @@ const MIN_POST_CHARS = 80;
 
 const TITLE = "Write an outreach message";
 
+const WORDS = {
+  first: {
+    title: TITLE,
+    written: "Your outreach message",
+    otto: "I'll write a short email and a LinkedIn note from your resume and this job, nothing made up.",
+    write: "Write my message",
+  },
+  followUp: {
+    title: "Write a follow-up",
+    written: "Your follow-up",
+    otto: "I'll write a short follow-up and a LinkedIn note from your resume and this job, nothing made up.",
+    write: "Write my follow-up",
+  },
+};
+
 export type OutreachDialogProps = {
   job: OutreachJob | null;
   resume: Resume | null;
@@ -188,6 +203,7 @@ function OutreachFlow({
   const source = kept?.resumeTitle || (resume ? resumeTitle(resume) : "");
   const role = job.title.trim() || "this role";
   const company = job.company.trim();
+  const words = job.followUp ? WORDS.followUp : WORDS.first;
 
   async function write() {
     if (!resume || busy || waiting) return;
@@ -205,7 +221,7 @@ function OutreachFlow({
     const sent = post.text;
     onPending(true);
     try {
-      const result = await writing.outreach(resume);
+      const result = await writing.outreach(resume, job.followUp);
       if (!result) return;
       actions.written(
         jobKey,
@@ -277,16 +293,12 @@ function OutreachFlow({
           onClose();
         }}
         size="lg"
-        title={message ? "Your outreach message" : TITLE}
+        title={message ? words.written : words.title}
         illustration={
           <OttoNote
             size="sm"
             live={false}
-            message={
-              noResume
-                ? OTTO.letters.noResume
-                : "I'll write a short email and a LinkedIn note from your resume and this job, nothing made up."
-            }
+            message={noResume ? OTTO.letters.noResume : words.otto}
           />
         }
       >
@@ -311,8 +323,10 @@ function OutreachFlow({
                     , from <span className="font-medium text-ink">{source}</span>
                   </>
                 ) : null}
-                . Send it to the hiring manager, someone on the team, or a founder at a small
-                company.
+                .{" "}
+                {job.followUp
+                  ? `You applied ${job.followUp.days} ${job.followUp.days === 1 ? "day" : "days"} ago. Send it to the recruiter or the hiring manager.`
+                  : "Send it to the hiring manager, someone on the team, or a founder at a small company."}
               </p>
               <WritingStyleHint linked={!(keepPage || busy)} />
             </div>
@@ -339,7 +353,7 @@ function OutreachFlow({
                   onClick={() => void write()}
                 >
                   <Send aria-hidden />
-                  Write my message
+                  {words.write}
                 </Button>
                 {allowance ? <p className="text-sm text-pretty text-muted">{allowance}</p> : null}
               </div>

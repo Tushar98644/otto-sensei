@@ -6,10 +6,11 @@ import { Eyebrow } from "@/components/ui/eyebrow";
 import type { RequirementImportance } from "@/lib/ai/types";
 import type { LineTarget, RequirementChoice } from "./apply";
 import { RequirementRowItem } from "./requirement-row";
+import { ResultSection } from "./result-section";
 import type { Screener } from "./screener";
 import type { Writing } from "./use-writing";
 
-export const REQUIREMENTS_ID = "tailor-requirements";
+const REQUIREMENTS_ID = "tailor-requirements";
 
 const GROUPS: { importance: RequirementImportance; title: string }[] = [
   { importance: "must", title: "Must-haves" },
@@ -55,17 +56,19 @@ export function ScreenerView({
   }
 
   return (
-    <Card id={REQUIREMENTS_ID} className="scroll-mt-24">
-      <CardHeader>
-        <Eyebrow>AI screener view</Eyebrow>
-        <CardTitle as="h2" aria-live="polite" className="tabular-nums">
+    <ResultSection
+      id={REQUIREMENTS_ID}
+      title="Requirements, one by one"
+      meta={
+        <span aria-live="polite" className="tabular-nums">
           {headline}
-        </CardTitle>
-        <CardDescription className="max-w-prose">
-          Tools such as HiredScore and Ashby check each requirement on its own. This is that check,
-          done in the open. It isn&apos;t any tool&apos;s exact grade.
-        </CardDescription>
-      </CardHeader>
+        </span>
+      }
+    >
+      <p className="max-w-prose text-sm text-muted">
+        Tools such as HiredScore and Ashby check each requirement on its own. This is that check,
+        done in the open. It isn&apos;t any tool&apos;s exact grade.
+      </p>
       {GROUPS.map(({ importance, title }) => {
         const group = rows.filter((row) => row.importance === importance);
         if (group.length === 0) return null;
@@ -92,6 +95,6 @@ export function ScreenerView({
           </section>
         );
       })}
-    </Card>
+    </ResultSection>
   );
 }

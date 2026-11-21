@@ -5,6 +5,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { OttoMark } from "@/components/site/otto-mark";
 import { Button } from "@/components/ui/button";
 import { BRAND } from "@/config/brand";
+import { fitsBand, placeTip, visibleBand, type Placement } from "./place";
 import type { StopShape, TourStop } from "./tours";
 import "./tour.css";
 
@@ -19,8 +20,8 @@ export type StartTourOptions = {
 const MAX_TIPS = 3;
 const REVEAL_ATTRIBUTE = "data-otto-tour-reveal";
 const SCREEN_TIMEOUT_MS = 6_000;
-const GAP_PX = 12;
-const EDGE_PX = 16;
+// Bars that stay on screen while the page scrolls; the step bars carry data-tour-edge.
+const EDGE_SELECTOR = "header, nav, [data-tour-edge]";
 const RING: Record<StopShape, { padding: number; radius: string }> = {
   card: { padding: 6, radius: "rounded-3xl" },
   control: { padding: 4, radius: "rounded-2xl" },
@@ -52,8 +53,9 @@ export function startTour({
     ended = true;
     clearReveal();
     document.removeEventListener("keydown", onKeyDown);
-    root.unmount();
     host.remove();
+    // end() can run in a React cleanup, where unmounting another root at once makes React warn.
+    queueMicrotask(() => root.unmount());
     onEnd({ finished, reached, total: stops.length });
   }
 
@@ -113,7 +115,8 @@ export function startTour({
     reached = Math.max(reached, at + 1);
     clearReveal();
     if (stop.reveal) target.closest(".sr-only")?.setAttribute(REVEAL_ATTRIBUTE, "");
-    if (!inView(target)) {
+    const box = target.getBoundingClientRect();
+    if (!fitsBand(box, bandAround(target, box))) {
       const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
       target.scrollIntoView({ block: "center", behavior: reduce ? "auto" : "smooth" });
     }
@@ -147,11 +150,9 @@ type TipProps = {
   onSkip: () => void;
 };
 
-type Place = { top: number; left: number; ring: DOMRect };
-
 function Tip({ stop, target, position, total, onBack, onNext, onSkip }: TipProps) {
   const card = useRef<HTMLDivElement>(null);
-  const [place, setPlace] = useState<Place | null>(null);
+  const [place, setPlace] = useState<Placement | null>(null);
   const last = position === total;
   const ring = RING[stop.shape];
 
@@ -159,9 +160,18 @@ function Tip({ stop, target, position, total, onBack, onNext, onSkip }: TipProps
     let frame = 0;
     const measure = () => {
       frame = 0;
-      const box = card.current;
-      if (!box) return;
-      setPlace(placeBeside(target.getBoundingClientRect(), box.getBoundingClientRect()));
+      const tip = card.current;
+      if (!tip) return;
+      const box = target.getBoundingClientRect();
+      setPlace(
+        placeTip({
+          target: box,
+          tip: tip.getBoundingClientRect(),
+          band: bandAround(target, box),
+          viewWidth: window.innerWidth,
+          ringPadding: ring.padding,
+        }),
+      );
     };
     const schedule = () => {
       if (!frame) frame = window.requestAnimationFrame(measure);
@@ -174,7 +184,7 @@ function Tip({ stop, target, position, total, onBack, onNext, onSkip }: TipProps
       window.removeEventListener("scroll", schedule, { capture: true });
       window.removeEventListener("resize", schedule);
     };
-  }, [target]);
+  }, [target, ring.padding]);
 
   return (
     <>
@@ -182,12 +192,7 @@ function Tip({ stop, target, position, total, onBack, onNext, onSkip }: TipProps
         <div
           aria-hidden
           className={`pointer-events-none fixed z-40 ring-2 ring-ink ${ring.radius}`}
-          style={{
-            top: place.ring.top - ring.padding,
-            left: place.ring.left - ring.padding,
-            width: place.ring.width + ring.padding * 2,
-            height: place.ring.height + ring.padding * 2,
-          }}
+          style={place.ring}
         />
       ) : null}
       <div
@@ -197,7 +202,9 @@ function Tip({ stop, target, position, total, onBack, onNext, onSkip }: TipProps
         aria-labelledby="otto-tip-title"
         aria-describedby="otto-tip-body"
         className="fixed z-50 w-[min(22rem,calc(100vw-2rem))] animate-pop rounded-2xl bg-surface p-5 shadow-float ring-1 ring-ink/6"
-        style={place ? { top: place.top, left: place.left } : { top: 0, left: 0, visibility: "hidden" }}
+        style={
+          place ? { top: place.top, left: place.left } : { top: 0, left: 0, visibility: "hidden" }
+        }
       >
         <div className="flex items-start gap-3">
           <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-surface ring-1 ring-border">
@@ -211,7 +218,11 @@ function Tip({ stop, target, position, total, onBack, onNext, onSkip }: TipProps
             <p id="otto-tip-title" className="mt-1 text-base/6 font-semibold text-ink">
               {stop.title}
             </p>
-            <p id="otto-tip-body" aria-live="polite" className="mt-1 text-sm/6 text-pretty text-muted">
+            <p
+              id="otto-tip-body"
+              aria-live="polite"
+              className="mt-1 text-sm/6 text-pretty text-muted"
+            >
               {stop.body}
             </p>
           </div>
@@ -238,22 +249,17 @@ function Tip({ stop, target, position, total, onBack, onNext, onSkip }: TipProps
   );
 }
 
-function placeBeside(target: DOMRect, tip: DOMRect): Place {
-  const viewW = window.innerWidth;
-  const viewH = window.innerHeight;
-  const below = target.bottom + GAP_PX;
-  const above = target.top - GAP_PX - tip.height;
-  let top: number;
-  if (below + tip.height <= viewH - EDGE_PX) top = below;
-  else if (above >= EDGE_PX) top = above;
-  else top = Math.max(EDGE_PX, viewH - EDGE_PX - tip.height);
-  const left = Math.min(Math.max(EDGE_PX, target.left), Math.max(EDGE_PX, viewW - EDGE_PX - tip.width));
-  return { top, left, ring: target };
-}
-
-function inView(element: Element): boolean {
-  const box = element.getBoundingClientRect();
-  return box.top >= 0 && box.bottom <= window.innerHeight;
+// The part of the screen no sticky bar covers; a bar holding the target doesn't count.
+function bandAround(target: Element, box: DOMRect) {
+  const edges: DOMRect[] = [];
+  for (const element of document.querySelectorAll(EDGE_SELECTOR)) {
+    if (element.contains(target)) continue;
+    const { position } = window.getComputedStyle(element);
+    if (position !== "sticky" && position !== "fixed") continue;
+    const edge = element.getBoundingClientRect();
+    if (edge.height > 0) edges.push(edge);
+  }
+  return visibleBand(edges, box, window.innerHeight);
 }
 
 function clearReveal() {

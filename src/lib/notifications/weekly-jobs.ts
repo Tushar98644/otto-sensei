@@ -85,8 +85,8 @@ async function defaultResume(db: Db, userId: string): Promise<Resume | null> {
 }
 
 function toDigestJob(job: MatchedJob): DigestJob {
-  const { title, company, location, remote, source, url } = job;
-  return { title, company, location, remote, source, url };
+  const { id, title, company, location, remote, source, url } = job;
+  return { id, title, company, location, remote, source, url };
 }
 
 // New means Otto first read it after the last email: a feed's post date can be older than the day it was read.

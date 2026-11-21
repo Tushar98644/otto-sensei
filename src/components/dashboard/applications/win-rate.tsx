@@ -66,7 +66,8 @@ export function WinRate({
         </div>
       </FolderCard>
 
-      {byVersion.length > 0 ? <ByVersion stats={byVersion} /> : null}
+      {/* One version would only repeat the win rate above. */}
+      {byVersion.length > 1 ? <ByVersion stats={byVersion} /> : null}
     </section>
   );
 }

@@ -4,9 +4,12 @@ import { emptyResume, type Resume } from "@/lib/resume/schema";
 import { ResumeSchema } from "@/lib/resume/validation";
 import {
   applyTailorChoices,
+  changeLines,
   confirmedSkills,
   defaultChoices,
+  describeChanges,
   lineTargets,
+  NO_CHANGES,
   reorderPlans,
   screenerOptions,
   screenerResume,
@@ -34,7 +37,14 @@ function resume(): Resume {
         ],
       },
     ],
-    projects: [{ id: "proj", name: "Ledger", link: "", bullets: [{ id: "p1", text: "Wrote a toy ledger." }] }],
+    projects: [
+      {
+        id: "proj",
+        name: "Ledger",
+        link: "",
+        bullets: [{ id: "p1", text: "Wrote a toy ledger." }],
+      },
+    ],
     skills: [{ id: "k", label: "", items: ["TypeScript", "SQL"] }],
   };
 }
@@ -78,7 +88,10 @@ function withLines(): TailorChoices {
   return {
     ...none,
     requirements: {
-      r1: { kind: "line", line: { id: "n1", parentId: "job", text: "Set up staging with Terraform" } },
+      r1: {
+        kind: "line",
+        line: { id: "n1", parentId: "job", text: "Set up staging with Terraform" },
+      },
       r2: { kind: "line", line: { id: "n2", parentId: "job", text: "Mentored two new hires" } },
       r3: { kind: "line", line: { id: "n3", parentId: "proj", text: "Rewrote the ledger in Go" } },
     },
@@ -121,7 +134,13 @@ describe("applyTailorChoices", () => {
 
   it("adds confirmed lines: must-haves at the top of their job, nice-to-haves at the end", () => {
     const next = applyTailorChoices(resume(), result(), withLines());
-    expect(next.experience[0]?.bullets.map((bullet) => bullet.id)).toEqual(["n1", "n2", "c", "b", "a"]);
+    expect(next.experience[0]?.bullets.map((bullet) => bullet.id)).toEqual([
+      "n1",
+      "n2",
+      "c",
+      "b",
+      "a",
+    ]);
     expect(next.projects[0]?.bullets.map((bullet) => bullet.text)).toEqual([
       "Wrote a toy ledger.",
       "Rewrote the ledger in Go",
@@ -153,8 +172,13 @@ describe("applyTailorChoices", () => {
 
   it("never grows a skill group or a job past the schema limits", () => {
     const full = resume();
-    full.skills = [{ id: "k", label: "", items: Array.from({ length: 100 }, (_, i) => `Skill ${i}`) }];
-    full.experience[0]!.bullets = Array.from({ length: 40 }, (_, i) => ({ id: `x${i}`, text: `Line ${i}` }));
+    full.skills = [
+      { id: "k", label: "", items: Array.from({ length: 100 }, (_, i) => `Skill ${i}`) },
+    ];
+    full.experience[0]!.bullets = Array.from({ length: 40 }, (_, i) => ({
+      id: `x${i}`,
+      text: `Line ${i}`,
+    }));
     const next = applyTailorChoices(full, result({ bulletOrder: [] }), withLines());
     expect(next.skills[0]?.items).toHaveLength(100);
     expect(next.experience[0]?.bullets).toHaveLength(40);
@@ -207,10 +231,12 @@ describe("tailorMeta", () => {
       company: "Acme",
       keywords: ["TypeScript", "Terraform"],
     });
-    expect(tailorMeta(result(), { title: "", company: "" }, "  Dear Shopify team,  ").coverLetter).toBe(
-      "Dear Shopify team,",
-    );
-    expect(tailorMeta(result(), { title: "", company: "" }, "x".repeat(6_000)).coverLetter).toHaveLength(5_000);
+    expect(
+      tailorMeta(result(), { title: "", company: "" }, "  Dear Shopify team,  ").coverLetter,
+    ).toBe("Dear Shopify team,");
+    expect(
+      tailorMeta(result(), { title: "", company: "" }, "x".repeat(6_000)).coverLetter,
+    ).toHaveLength(5_000);
   });
 
   it("saves the post, its link and the requirements on the copy", () => {
@@ -247,7 +273,10 @@ describe("tailorMeta", () => {
   it("caps what it saves so the copy still passes the resume schema", () => {
     const long = result({
       requirements: Array.from({ length: 50 }, (_, i) =>
-        requirement(`r${i}`, { text: "y".repeat(400), terms: Array.from({ length: 12 }, () => "z".repeat(150)) }),
+        requirement(`r${i}`, {
+          text: "y".repeat(400),
+          terms: Array.from({ length: 12 }, () => "z".repeat(150)),
+        }),
       ),
     });
     const meta = tailorMeta(long, { title: "", company: "", text: "x".repeat(25_000) });
@@ -256,7 +285,11 @@ describe("tailorMeta", () => {
     expect(meta.requirements?.[0]?.text).toHaveLength(300);
     expect(meta.requirements?.[0]?.terms).toHaveLength(8);
     expect(meta.requirements?.[0]?.terms[0]).toHaveLength(100);
-    const copy = { ...resume(), source: "tailored" as const, tailor: { ...meta, baseResumeId: "base", createdAt: 0 } };
+    const copy = {
+      ...resume(),
+      source: "tailored" as const,
+      tailor: { ...meta, baseResumeId: "base", createdAt: 0 },
+    };
     expect(ResumeSchema.safeParse(copy).success).toBe(true);
   });
 
@@ -284,5 +317,37 @@ describe("summarizeChoices", () => {
       reorderedJobs: 1,
       summary: true,
     });
+  });
+});
+
+describe("changeLines", () => {
+  it("names each change in a short line", () => {
+    expect(changeLines({ lines: 1, skills: 2, reorderedJobs: 1, summary: true })).toEqual([
+      "Adds 1 line you confirmed",
+      "Adds 2 skills to your Skills section",
+      "Puts your best lines first in 1 job",
+      "Uses the new summary",
+    ]);
+  });
+
+  it("is empty when nothing is picked", () => {
+    expect(changeLines({ lines: 0, skills: 0, reorderedJobs: 0, summary: false })).toEqual([]);
+  });
+});
+
+describe("describeChanges", () => {
+  it("puts the changes in one sentence for the step bar", () => {
+    expect(describeChanges({ lines: 2, skills: 0, reorderedJobs: 1, summary: true })).toBe(
+      "The copy adds 2 lines you confirmed, puts your best lines first in 1 job and uses the new summary. Your original stays the same.",
+    );
+    expect(describeChanges({ lines: 0, skills: 3, reorderedJobs: 0, summary: false })).toBe(
+      "The copy adds 3 skills to your Skills section. Your original stays the same.",
+    );
+  });
+
+  it("says so when nothing is picked", () => {
+    expect(describeChanges({ lines: 0, skills: 0, reorderedJobs: 0, summary: false })).toBe(
+      NO_CHANGES,
+    );
   });
 });

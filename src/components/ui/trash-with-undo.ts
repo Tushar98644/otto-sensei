@@ -1,6 +1,6 @@
 "use client";
 
-import { roomForResume } from "@/components/account/pro-tools";
+import { roomForCopyOf } from "@/components/account/pro-tools";
 import { resumeTitle } from "@/lib/resume/ops";
 import { useStudioStore } from "@/lib/store/resume-store";
 import { undoToast } from "./undo-toast";
@@ -15,7 +15,7 @@ export function trashWithUndo(id: string): boolean {
     description: resumeTitle(resume),
     // Restored under a new id: the account backup won't take a deleted one.
     onUndo: () =>
-      void roomForResume().then((room) => {
+      void roomForCopyOf(resume).then((room) => {
         if (!room) return;
         const state = useStudioStore.getState();
         const restored = state.restoreFromTrash(id);

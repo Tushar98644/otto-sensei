@@ -8,11 +8,8 @@ import {
 import {
   endsTrialSentence,
   perMonth,
-  PIZZA_MAX_USD,
-  pizzaLine,
   planPriceLabel,
   priceSentence,
-  proComparison,
   renewalPeriods,
   trialHeadline,
   trialOffer,
@@ -71,11 +68,6 @@ describe("reference prices and savings", () => {
     expect(yearlySavingsPercent("max")).toBe(33);
   });
 
-  it("says Pro costs less than a pizza only while it does", () => {
-    expect(pizzaLine()).toBe("Less than a pizza a month.");
-    expect(PRICES_USD.pro.month).toBeLessThanOrEqual(PIZZA_MAX_USD);
-  });
-
   it("says what buying Max on the Pro trial does, priced for the picked option", () => {
     expect(endsTrialSentence("max", "month")).toBe(
       "Ends your Pro trial today and starts Max at $29/month.",
@@ -94,9 +86,5 @@ describe("reference prices and savings", () => {
     for (const line of [trialHeadline(), trialSentence(), endsTrialSentence("max", "month")]) {
       expect(line).not.toMatch(/free/i);
     }
-  });
-
-  it("compares Pro with Rezi Pro only while it's about half the price", () => {
-    expect(proComparison()).toBe("About half the price of Rezi Pro ($29/mo)");
   });
 });

@@ -6,6 +6,7 @@ import {
   LogIn,
   LogOut,
   MessageSquare,
+  Search,
   SlidersHorizontal,
   UserRound,
 } from "lucide-react";
@@ -13,6 +14,10 @@ import Link from "next/link";
 import { useState } from "react";
 import { signedOutNote } from "@/components/account/copy";
 import { refreshMe, useMe } from "@/components/account/use-me";
+import {
+  openCommandPalette,
+  useCommandPaletteAvailable,
+} from "@/components/dashboard/command-palette-store";
 import { LazyFeedbackDialog } from "@/components/feedback/lazy-feedback-dialog";
 import { accountSectionHref } from "@/components/setup/links";
 import { ROUTES } from "@/components/site/routes";
@@ -77,6 +82,7 @@ export function AccountMenu({ onSignIn }: AccountMenuProps) {
 function AccountPanel({ user, onFeedback }: { user: SessionUser; onFeedback: () => void }) {
   const { close } = usePopover();
   const [signingOut, setSigningOut] = useState(false);
+  const searchable = useCommandPaletteAvailable();
   const plan = PLANS[user.plan];
 
   async function signOut() {
@@ -105,13 +111,26 @@ function AccountPanel({ user, onFeedback }: { user: SessionUser; onFeedback: () 
         <Badge variant={user.plan === "free" ? "neutral" : "ink"}>{plan.name} plan</Badge>
       </div>
       <Separator />
+      {searchable ? (
+        <button
+          type="button"
+          className={ITEM}
+          onClick={() => {
+            close();
+            openCommandPalette();
+          }}
+        >
+          <Search className="size-4 text-muted" aria-hidden />
+          Search
+        </button>
+      ) : null}
       <Link href={ROUTES.dashboard} className={ITEM} onClick={close}>
         <LayoutDashboard className="size-4 text-muted" aria-hidden />
         Dashboard
       </Link>
       <Link href={ROUTES.dashboardAccount} className={ITEM} onClick={close}>
         <UserRound className="size-4 text-muted" aria-hidden />
-        Account and plan
+        Account
       </Link>
       <Link href={accountSectionHref("work")} className={ITEM} onClick={close}>
         <SlidersHorizontal className="size-4 text-muted" aria-hidden />

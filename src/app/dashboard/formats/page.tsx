@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { FormatsGallery } from "@/components/formats/formats-gallery";
+import { FormatsLead } from "@/components/formats/formats-lead";
 import { OTTO } from "@/components/mascot/lines";
 import { OttoNote } from "@/components/mascot/otto-note";
 
@@ -12,10 +13,7 @@ export default function FormatsPage() {
         <h1 className="font-display text-4xl/10 font-normal tracking-tight text-ink sm:text-5xl/13">
           Formats
         </h1>
-        <p className="mt-3 max-w-prose text-base/7 text-pretty text-muted">
-          Six looks for one resume. Classic and Compact are free; the other four come with Pro.
-          Hiring software reads every one cleanly.
-        </p>
+        <FormatsLead />
         <OttoNote live={false} message={OTTO.formats.tip} className="mt-5" />
       </header>
       <FormatsGallery />

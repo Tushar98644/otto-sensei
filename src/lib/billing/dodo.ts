@@ -77,7 +77,8 @@ export function dodoKeyMatchesEnvironment(key: string, environment: DodoEnvironm
   return key.startsWith(KEY_PREFIX[environment]);
 }
 
-type Operation = "checkout" | "portal" | "cancel" | "lookup" | "change_plan" | "refund";
+type Operation =
+  "checkout" | "portal" | "cancel" | "lookup" | "change_plan" | "refund" | "history" | "invoice";
 
 const Page = <T extends z.ZodType>(item: T) => z.object({ items: z.array(item) });
 
@@ -91,6 +92,31 @@ const PaymentPage = Page(
     subscription_ids: z.array(z.string()).nullish(),
   }),
 );
+const HistoryText = z.string().max(64).nullish();
+const HistoryPayment = z.object({
+  payment_id: z.string().max(200),
+  status: HistoryText,
+  customer: z.object({ customer_id: z.string().max(200) }),
+  subscription_id: z.string().max(200).nullish(),
+  total_amount: z.number().int().nonnegative(),
+  currency: z.string().max(10),
+  created_at: z.string().max(64),
+  charge_type: HistoryText,
+  refund_status: HistoryText,
+  card_last_four: HistoryText,
+  card_network: HistoryText,
+  card_exp_month: HistoryText,
+  card_exp_year: HistoryText,
+  metadata: z.record(z.string(), z.unknown()).nullish(),
+});
+export type DodoPayment = z.infer<typeof HistoryPayment>;
+const HistoryPaymentPage = Page(HistoryPayment);
+const SubscriptionCharge = DodoSubscriptionSchema.extend({
+  recurring_pre_tax_amount: z.number().int().nonnegative().nullish(),
+  currency: z.string().max(10).nullish(),
+  tax_inclusive: z.boolean().nullish(),
+});
+export type DodoSubscriptionCharge = z.infer<typeof SubscriptionCharge>;
 const CheckoutResponse = z.object({ checkout_url: z.string().nullish() });
 const PortalResponse = z.object({ link: z.string().nullish() });
 const Anything = z.unknown();
@@ -116,6 +142,10 @@ type Call = {
 };
 
 async function send<T>(call: Call, schema: z.ZodType<T>): Promise<T> {
+  return parse(await fetchOk(call), schema);
+}
+
+async function fetchOk(call: Call): Promise<Response> {
   const { DODO_API_KEY: key, DODO_ENVIRONMENT: environment } = env();
   if (!key) throw new BillingError("unavailable", "DODO_API_KEY is not set");
   // A key of the other mode gets a 401 on every call, so nothing is sent with it.
@@ -147,7 +177,7 @@ async function send<T>(call: Call, schema: z.ZodType<T>): Promise<T> {
       }
       throw new DodoFailure(timedOut ? "timeout" : "network");
     }
-    if (response.ok) return parse(response, schema);
+    if (response.ok) return response;
     const busy = response.status === 429 || response.status >= 500;
     const delay = busy ? nextDelay(delays, started) : null;
     if (delay !== null) {
@@ -437,6 +467,7 @@ export type CheckoutInput = {
   plan: PaidPlanId;
   interval: BillingInterval;
   trial: boolean;
+  next?: string | null;
   replacesSubscriptionId?: string;
 };
 
@@ -469,7 +500,7 @@ export async function createCheckout(input: CheckoutInput): Promise<{ url: strin
             ? { [REPLACES_METADATA_KEY]: replaces, replaces_sig: signBillingId(replaces, secret) }
             : {}),
         },
-        return_url: checkoutReturnUrl(input.plan, input.trial),
+        return_url: checkoutReturnUrl(input.plan, input.trial, input.next ?? null),
         cancel_url: `${appUrl()}/account?checkout=cancelled`,
         feature_flags: {
           allow_customer_editing_email: false,
@@ -494,9 +525,10 @@ export async function createCheckout(input: CheckoutInput): Promise<{ url: strin
   return { url };
 }
 
-function checkoutReturnUrl(plan: PaidPlanId, trial: boolean): string {
+function checkoutReturnUrl(plan: PaidPlanId, trial: boolean, next: string | null): string {
   const query = new URLSearchParams({ plan });
   if (trial) query.set("trial", "1");
+  if (next) query.set("next", next);
   return `${appUrl()}/api/billing/return?${query}`;
 }
 
@@ -575,4 +607,74 @@ export async function refundPayment(paymentId: string): Promise<RefundOutcome> {
     });
     return "already_refunded";
   }
+}
+
+const HISTORY_LIMIT = 24;
+const INVOICE_MAX_BYTES = 5 * 1024 * 1024;
+
+// Newest first. Dodo filters by customer, and a payment it files under another is still dropped.
+export async function customerPayments(customerId: string): Promise<DodoPayment[]> {
+  if (!isDodoId("cus", customerId)) return [];
+  const page = await request(
+    "history",
+    {
+      method: "GET",
+      path: "/payments",
+      query: { customer_id: customerId, page_size: String(PAGE_SIZE) },
+    },
+    HistoryPaymentPage,
+  );
+  warnIfFull(page.items, "history", "payments");
+  return page.items
+    .filter(
+      (payment) =>
+        payment.customer.customer_id === customerId && isDodoId("pay", payment.payment_id),
+    )
+    .sort((a, b) => (Date.parse(b.created_at) || 0) - (Date.parse(a.created_at) || 0))
+    .slice(0, HISTORY_LIMIT);
+}
+
+export async function getPayment(paymentId: string): Promise<DodoPayment> {
+  if (!isDodoId("pay", paymentId)) {
+    throw new BillingError("refused", "Not a Dodo payment id", {
+      operation: "invoice",
+      reason: "not_found",
+    });
+  }
+  return request(
+    "invoice",
+    { method: "GET", path: `/payments/${segment(paymentId)}` },
+    HistoryPayment,
+  );
+}
+
+export async function getSubscriptionCharge(id: string): Promise<DodoSubscriptionCharge> {
+  if (!isDodoId("sub", id)) throw notASubscription("history");
+  return request(
+    "history",
+    { method: "GET", path: `/subscriptions/${segment(id)}` },
+    SubscriptionCharge,
+  );
+}
+
+// Only for a payment already checked to be the account's own.
+export async function paymentInvoicePdf(paymentId: string): Promise<Uint8Array<ArrayBuffer>> {
+  if (!isDodoId("pay", paymentId)) {
+    throw new BillingError("provider_error", "Not a Dodo payment id", { operation: "invoice" });
+  }
+  let response: Response;
+  try {
+    response = await fetchOk({ method: "GET", path: `/invoices/payments/${segment(paymentId)}` });
+  } catch (error) {
+    throw providerFailure("invoice", error);
+  }
+  const bytes = new Uint8Array(await response.arrayBuffer());
+  const isPdf = new TextDecoder().decode(bytes.subarray(0, 5)) === "%PDF-";
+  if (!isPdf || bytes.length > INVOICE_MAX_BYTES) {
+    log.error("billing.provider_failed", "invoice that isn't a PDF", { operation: "invoice" });
+    throw new BillingError("provider_error", "Dodo returned no invoice PDF", {
+      operation: "invoice",
+    });
+  }
+  return bytes;
 }

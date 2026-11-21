@@ -8,10 +8,13 @@ import {
   loadResult,
   peekQueuedJob,
   queueJobForTailor,
+  queuedJobVersion,
   queueTailorSession,
   sameRun,
   saveTailorResult,
   saveTailorSession,
+  setTailorDraft,
+  subscribeQueuedJob,
   type SavedResult,
   type TailorDraft,
 } from "./session";
@@ -188,7 +191,12 @@ describe("tailor session", () => {
       ...saved,
       demo: true,
       choices: {
-        requirements: { r1: { kind: "line", line: { id: "new-1", parentId: "job-1", text: "Drew the app in Figma" } } },
+        requirements: {
+          r1: {
+            kind: "line",
+            line: { id: "new-1", parentId: "job-1", text: "Drew the app in Figma" },
+          },
+        },
         reorder: { "job-1": false },
         useSummary: true,
       },
@@ -206,9 +214,16 @@ describe("tailor session", () => {
         draft: EMPTY_DRAFT,
         last: {
           ...full,
-          choices: { requirements: { r1: { kind: "maybe" }, r2: { kind: "no" } }, reorder: { a: "yes" }, useSummary: false },
+          choices: {
+            requirements: { r1: { kind: "maybe" }, r2: { kind: "no" } },
+            reorder: { a: "yes" },
+            useSummary: false,
+          },
           letter: { text: 4 },
-          answers: [{ id: "a1", question: "Why?", text: "Fine.", warnings: [3, "Check it."] }, { id: 2 }],
+          answers: [
+            { id: "a1", question: "Why?", text: "Fine.", warnings: [3, "Check it."] },
+            { id: 2 },
+          ],
           copyId: 9,
         },
       }),
@@ -217,7 +232,9 @@ describe("tailor session", () => {
       ...saved,
       demo: true,
       choices: { requirements: { r2: { kind: "no" } }, reorder: {}, useSummary: false },
-      answers: [{ id: "a1", question: "Why?", text: "Fine.", warnings: ["Check it."], demo: false }],
+      answers: [
+        { id: "a1", question: "Why?", text: "Fine.", warnings: ["Check it."], demo: false },
+      ],
     });
   });
 
@@ -277,7 +294,10 @@ describe("tailor session", () => {
   it("reads a result saved before requirements existed", () => {
     const old: Partial<TailorResult> = { ...result };
     delete old.requirements;
-    storage.setItem("otto-tailor-v1", JSON.stringify({ version: 1, draft: EMPTY_DRAFT, last: { ...saved, result: old } }));
+    storage.setItem(
+      "otto-tailor-v1",
+      JSON.stringify({ version: 1, draft: EMPTY_DRAFT, last: { ...saved, result: old } }),
+    );
     expect(loadResult("resume-1")?.result.requirements).toEqual([]);
   });
 });
@@ -303,7 +323,13 @@ describe("queued job from the Jobs tab", () => {
     updatedAt: Date.UTC(2026, 10, 6),
     closesAt: null,
     questions: [
-      { label: "Can you work in the US?", required: true, kind: "yes_no" as const, options: ["Yes", "No"], optionCount: 2 },
+      {
+        label: "Can you work in the US?",
+        required: true,
+        kind: "yes_no" as const,
+        options: ["Yes", "No"],
+        optionCount: 2,
+      },
     ],
   };
 
@@ -317,6 +343,36 @@ describe("queued job from the Jobs tab", () => {
     const queued = peekQueuedJob();
     expect(queued?.posting).toBeUndefined();
     expect(queued?.text).toBe(job.text);
+  });
+
+  it("tells an open Tailor step about each job queued while it shows", () => {
+    const heard = vi.fn();
+    const stop = subscribeQueuedJob(heard);
+    const before = queuedJobVersion();
+    queueJobForTailor(job);
+    queueJobForTailor(job);
+    expect(heard).toHaveBeenCalledTimes(2);
+    expect(queuedJobVersion()).toBe(before + 2);
+    stop();
+    queueJobForTailor(job);
+    expect(heard).toHaveBeenCalledTimes(2);
+  });
+
+  it("keeps a link that should wait for the Compare press, and nothing else", () => {
+    queueJobForTailor({ ...job, compare: false });
+    expect(peekQueuedJob()?.compare).toBe(false);
+    queueJobForTailor({ ...job, compare: true });
+    expect(peekQueuedJob()).not.toHaveProperty("compare");
+  });
+
+  it("gives way to a post handed over from another page, and keeps the last result", () => {
+    saveTailorSession(EMPTY_DRAFT, saved);
+    queueJobForTailor(job);
+    const handed: TailorDraft = { title: "", company: "", text: "A pasted job post.", paste: true };
+    setTailorDraft(handed);
+    expect(peekQueuedJob()).toBeNull();
+    expect(loadDraft()).toEqual(handed);
+    expect(loadResult("resume-1")).toEqual(saved);
   });
 });
 

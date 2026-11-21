@@ -10,10 +10,10 @@ import type { LintIssue, LintIssueId } from "@/lib/lint/types";
 import { cn } from "@/lib/utils";
 import { Popover, usePopover } from "../popover";
 import { useLineStepper } from "./entry-lines";
+import { ottoCanFix } from "./fix-queue";
 import { CHIP_LABELS } from "./lint-notes";
 
 const ENTRY_LEVEL: LintIssueId = "no-result";
-const NOT_FOR_OTTO: ReadonlySet<LintIssueId> = new Set(["duplicate", "punctuation"]);
 
 const CHIP_CLASSES =
   "relative inline-flex h-6 shrink-0 cursor-pointer items-center gap-1 rounded-full px-2 text-xs font-medium whitespace-nowrap transition-shadow after:absolute after:-inset-x-1 after:-inset-y-2.5 hover:ring-1 hover:ring-ink/20 aria-expanded:ring-1 aria-expanded:ring-ink/30 [&_svg]:size-3.5 [&_svg]:shrink-0";
@@ -24,14 +24,6 @@ export type IssueChipProps = {
   onFix: () => void;
   onSetText: (text: string) => void;
 };
-
-export function wantsOtto(issues: readonly LintIssue[]): boolean {
-  return issues.some((issue) => issue.severity === "high" && !NOT_FOR_OTTO.has(issue.id));
-}
-
-export function ottoCanFix(issues: readonly LintIssue[]): boolean {
-  return issues.some((issue) => !NOT_FOR_OTTO.has(issue.id));
-}
 
 export function IssueChip({ issues, text, onFix, onSetText }: IssueChipProps) {
   const top = issues.find((issue) => issue.id !== ENTRY_LEVEL);
@@ -69,7 +61,7 @@ export function IssueChip({ issues, text, onFix, onSetText }: IssueChipProps) {
 function LineHelp({ issues, text, onFix, onSetText }: IssueChipProps) {
   const { close } = usePopover();
   const example = issues.map((issue) => ISSUE_HELP[issue.id].example).find(Boolean) ?? null;
-  const ottoCanHelp = issues.some((issue) => !NOT_FOR_OTTO.has(issue.id));
+  const ottoCanHelp = ottoCanFix(issues);
   const stopNeeded = issues.some((issue) => issue.id === "punctuation")
     ? lineEnding(text) !== "stop"
     : null;

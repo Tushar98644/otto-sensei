@@ -1,6 +1,7 @@
 "use client";
 
-import { Columns3, List, Plus } from "lucide-react";
+import { ArrowRight, Columns3, List, Plus } from "lucide-react";
+import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { errorMessage } from "@/components/account/errors";
 import { roomForApplication, useProTools, useTryProLabel } from "@/components/account/pro-tools";
@@ -9,10 +10,11 @@ import { OTTO } from "@/components/mascot/lines";
 import { Otto } from "@/components/mascot/otto";
 import { OttoNote } from "@/components/mascot/otto-note";
 import { ReminderPrompt } from "@/components/setup/reminder-prompt";
+import { ROUTES } from "@/components/site/routes";
 import { useNow } from "@/components/studio/use-now";
 import { FREE_APPLICATIONS } from "@/config/plans";
 import { Alert } from "@/components/ui/alert";
-import { Button } from "@/components/ui/button";
+import { Button, buttonClasses } from "@/components/ui/button";
 import { FolderCard } from "@/components/ui/folder-card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "@/components/ui/toast";
@@ -45,7 +47,10 @@ import {
   filterApplications,
   filterCounts,
   FILTER_NAMES,
+  notInOtto,
+  outsideLine,
   sentLabel,
+  upcomingFirst,
   type ApplicationFilter,
 } from "./view";
 import { WinRate } from "./win-rate";
@@ -92,7 +97,11 @@ export function ApplicationsPage() {
     [resumes],
   );
   const counts = useMemo(() => filterCounts(items), [items]);
-  const shown = useMemo(() => filterApplications(items, filter), [items, filter]);
+  const shown = useMemo(
+    () => upcomingFirst(filterApplications(items, filter), now),
+    [items, filter, now],
+  );
+  const outside = notInOtto(shown);
   const stale = useMemo(() => (now === 0 ? [] : waitingTooLong(items, now)), [items, now]);
   const totals = useMemo(() => tally(items), [items]);
   const toApply = useMemo(
@@ -100,6 +109,7 @@ export function ApplicationsPage() {
     [extras.savedJobs, resumes, items],
   );
   const waiting = toApply.length;
+  const empty = status === "ready" && items.length === 0 && waiting === 0;
 
   const linkedIndex = linked ? shown.findIndex((application) => application.id === linked) : -1;
   const visibleRows = Math.max(rows, linkedIndex + 1);
@@ -173,18 +183,18 @@ export function ApplicationsPage() {
           <p className="mt-2 max-w-prose text-base/7 text-muted">
             {status === "ready" && items.length > 0
               ? `${formatCount(totals.applications, "application")}, ${formatCount(totals.interviews, "interview")} so far. Counted from your own record only.`
-              : "Log the jobs you apply to and the resume you sent. See which version gets interviews."}
+              : "Every job from saved to offer, and which resume gets you interviews."}
           </p>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
-          {status === "ready" && (items.length > 0 || waiting > 0) ? (
-            <ViewToggle view={view} onChange={pickView} />
-          ) : null}
-          <Button onClick={() => void add()}>
-            <Plus aria-hidden />
-            Add application
-          </Button>
-        </div>
+        {empty ? null : (
+          <div className="flex flex-wrap items-center gap-2">
+            {status === "ready" ? <ViewToggle view={view} onChange={pickView} /> : null}
+            <Button variant={full ? "secondary" : "primary"} onClick={() => void add()}>
+              <Plus aria-hidden />
+              Add application
+            </Button>
+          </div>
+        )}
       </header>
 
       {full ? (
@@ -207,7 +217,7 @@ export function ApplicationsPage() {
         >
           Check your connection, then try again.
         </Alert>
-      ) : items.length === 0 && waiting === 0 ? (
+      ) : empty ? (
         <EmptyState onAdd={() => void add()} />
       ) : (
         <>
@@ -252,8 +262,9 @@ export function ApplicationsPage() {
                         <ApplicationRow
                           key={application.id}
                           application={application}
-                          sent={sentLabel(application, versions)}
+                          sent={application.resumeId ? sentLabel(application, versions) : null}
                           now={now}
+                          pro={pro}
                           onStatus={(target, next) => setStatus(target, next)}
                           onEdit={(target) => edit(target)}
                           onDelete={remove}
@@ -268,6 +279,11 @@ export function ApplicationsPage() {
                           >
                             Show {Math.min(PAGE_ROWS, shown.length - visibleRows)} more
                           </Button>
+                        </li>
+                      ) : null}
+                      {outside > 0 ? (
+                        <li className="py-3 text-xs/5 text-subtle">
+                          {outsideLine(outside, shown.length)}
                         </li>
                       ) : null}
                     </ul>
@@ -329,13 +345,16 @@ function EmptyState({ onAdd }: { onAdd: () => void }) {
         Your applications will live here
       </h2>
       <p className="mt-2 max-w-sm text-sm/6 text-pretty text-muted">
-        Log each job and the resume version you sent. Otto counts the interviews per version, from
-        your numbers only.
+        Jobs you save and resumes you tailor land in To apply. Move each one on as you hear back.
       </p>
-      <div className="mt-6">
-        <Button onClick={onAdd}>
+      <div className="mt-6 flex flex-wrap justify-center gap-2">
+        <Link href={ROUTES.dashboardJobs} className={buttonClasses()}>
+          Find jobs
+          <ArrowRight aria-hidden />
+        </Link>
+        <Button variant="secondary" onClick={onAdd}>
           <Plus aria-hidden />
-          Add your first application
+          Add manually
         </Button>
       </div>
     </section>

@@ -4,9 +4,10 @@ import type {
   FollowUpActionSchema,
   MarkNotificationsReadSchema,
   ReminderSettingsSchema,
+  SessionFollowUpActionSchema,
 } from "./validation";
 
-export const NOTIFICATION_KINDS = ["application_follow_up", "trial_ending"] as const;
+export const NOTIFICATION_KINDS = ["application_follow_up", "trial_ending", "interview_soon"] as const;
 export type NotificationKind = (typeof NOTIFICATION_KINDS)[number];
 
 export const NOTIFICATION_LIMITS = {
@@ -24,6 +25,9 @@ export type Notification = {
   link: string | null;
   readAt: number | null;
   createdAt: number;
+  applicationId: string | null;
+  // Only on the newest row about a follow-up that is still due, so Done and Snooze show once.
+  followUpDue: boolean;
 };
 
 export type NotificationsResponse = { ok: true; notifications: Notification[]; unread: number };
@@ -58,6 +62,7 @@ export type EmailChoicesResponse = { ok: true; emailAvailable: boolean } & Email
 export const FOLLOW_UP_ACTIONS = ["done", "snooze"] as const;
 export type FollowUpAction = (typeof FOLLOW_UP_ACTIONS)[number];
 export type FollowUpActionBody = z.input<typeof FollowUpActionSchema>;
+export type SessionFollowUpActionBody = z.input<typeof SessionFollowUpActionSchema>;
 export type FollowUpActionResponse = {
   ok: true;
   company: string;

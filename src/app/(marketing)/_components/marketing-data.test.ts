@@ -1,13 +1,13 @@
 import { describe, expect, it } from "vitest";
 import { BILLING_INTERVALS, FEATURES, PLANS, PRICES_USD, PRO_TRIAL } from "@/config/plans";
 import {
-  FREE_BASICS,
   formatUsd,
   limitLine,
   planCopy,
   PLAN_ORDER,
-  PRO_TOOLS,
-  trialLines,
+  plansOnSale,
+  proTools,
+  quotaLine,
 } from "./plan-features";
 import { DEMO_CHECKS, DEMO_PERSON, PARSED_LINES } from "./recruiter-demo-data";
 
@@ -16,66 +16,73 @@ describe("plan copy", () => {
     expect(PLAN_ORDER).toEqual(["free", "pro", "max"]);
   });
 
-  it("lists exactly what Free has, and puts the rest on Pro", () => {
-    expect(planCopy("free").features).toEqual([
-      "Upload a resume, read by the basic reader (no AI)",
-      "The recruiter view: what hiring software reads",
-      "Edit and fix every line by hand",
-      "3 line fixes a month with Otto",
-      "1 resume",
-      "Classic and Compact formats",
-      "PDF download",
-      "Your 5 closest job matches",
-      "1 tracked application, with a follow-up reminder",
-    ]);
-    expect(planCopy("free").features.join(" ")).not.toMatch(/tracker|jobs|share|word|AI help/i);
-    expect(planCopy("pro").features).toEqual(expect.arrayContaining([...PRO_TOOLS]));
-    expect(PRO_TOOLS.join(" ")).toMatch(/All 6 formats and up to 50 resumes/);
-    expect(PRO_TOOLS.join(" ")).toMatch(/Word \(\.docx\) downloads/);
-    expect(PRO_TOOLS.join(" ")).toMatch(/Track every application/);
-    expect(PRO_TOOLS.join(" ")).toMatch(/Every match from [0-9,]+\+ open jobs/);
-    expect(PRO_TOOLS.join(" ")).toMatch(/Share links/);
+  it("gives every card 5 or 6 outcomes, with the numbers in one quota line", () => {
+    for (const plan of PLAN_ORDER) {
+      const { features } = planCopy(plan);
+      expect(features.length).toBeGreaterThanOrEqual(5);
+      expect(features.length).toBeLessThanOrEqual(6);
+      expect(features.join(" ")).not.toMatch(
+        /AI reads of an uploaded resume|Build with Otto drafts|GitHub project drafts/,
+      );
+    }
   });
 
-  it("lists Free's basics and Pro's and Max's real numbers from PLANS", () => {
-    expect(planCopy("free").features).toEqual(FREE_BASICS);
-    expect(planCopy("free").features.join(" ")).toMatch(/recruiter view/);
-    expect(planCopy("pro").features).toContain(
-      `${PLANS.pro.limits.tailor} tailored versions a month`,
-    );
+  it("lists what Free has and puts the rest on Pro", () => {
+    expect(planCopy("free").features).toEqual([
+      "Upload a resume and see what hiring software reads",
+      "Fix every line by hand, or with Otto",
+      "Download a clean PDF in Classic or Compact",
+      "Your 5 closest job matches",
+      "Track 1 application, with a follow-up reminder",
+    ]);
+    expect(planCopy("free").quota).toBe("1 resume · 3 line fixes a month from Otto");
+    expect(planCopy("free").features.join(" ")).not.toMatch(/tracker|share|word|AI help/i);
+    expect(planCopy("pro").features).toEqual([
+      "Otto tailors your resume to each job",
+      "Cover letters, outreach and interview prep from Otto",
+      ...proTools(),
+    ]);
+    expect(proTools().join(" ")).toMatch(/All 6 formats, up to 50 resumes and Word downloads/);
+    expect(proTools().join(" ")).toMatch(/Every match from [0-9,]+\+ open jobs/);
+    expect(proTools().join(" ")).toMatch(/Track every application/);
+    expect(proTools().join(" ")).toMatch(/Share links, and a portfolio site in all 8 designs/);
     expect(planCopy("pro", "month").lead).toBe("Everything in Free, plus:");
-    expect(planCopy("pro").features.join(" ")).toMatch(/portfolio site/i);
-    expect(planCopy("max").features).toContain(
-      `${PLANS.max.limits.fix.toLocaleString("en-US")} line fixes a month`,
+  });
+
+  it("writes Pro's and Max's quota lines from PLANS", () => {
+    expect(planCopy("pro").quota).toBe(
+      `${PLANS.pro.limits.tailor} tailored versions · ${PLANS.pro.limits.letter} letters and prep · ${PLANS.pro.limits.fix} line fixes a month`,
     );
-    expect(planCopy("pro").features.length).toBeGreaterThanOrEqual(FEATURES.length);
-    expect(planCopy("pro").features).toContain("AI reads of an uploaded resume");
-    expect(planCopy("max").features).toHaveLength(3);
+    expect(planCopy("max").quota).toBe(
+      "300 tailored versions · 300 letters and prep · 2,000 line fixes a month",
+    );
+    expect(planCopy("max").quota).not.toMatch(/week/);
+  });
+
+  it("says how much more Max gives, worked out from PLANS", () => {
+    expect(planCopy("max", "month").lead).toBe("Everything in Pro, with more each month:");
+    expect(planCopy("max").features).toEqual([
+      "Twice the tailored versions",
+      "Twice the cover letters, outreach and interview prep",
+      "Over twice the line fixes",
+      "3 times the uploads read by AI",
+      "3 times the drafts from your notes and GitHub",
+    ]);
   });
 
   it("writes the trial's allowance for the whole trial", () => {
-    expect(trialLines()).toContain(`${PRO_TRIAL.limits.tailor} tailored versions during the trial`);
-    expect(trialLines()).toContain(`${PRO_TRIAL.limits.fix} line fixes during the trial`);
+    expect(quotaLine("pro", "trial")).toBe(
+      `${PRO_TRIAL.limits.tailor} tailored versions · ${PRO_TRIAL.limits.letter} letters and prep · ${PRO_TRIAL.limits.fix} line fixes during the trial`,
+    );
     expect(PRO_TRIAL).toMatchObject({ plan: "pro", interval: "month", days: 3, priceUsd: 1 });
-  });
-
-  it("lists the monthly numbers a month for Pro and Max, and keeps Free monthly during a trial", () => {
-    expect(planCopy("pro", "month").features).toEqual([
-      "150 tailored versions a month",
-      "150 cover letters, outreach messages, answers and interview prep a month",
-      "750 line fixes a month",
-      "AI reads of an uploaded resume",
-      "Build with Otto drafts",
-      "GitHub project drafts",
-      ...PRO_TOOLS,
-      "A hosted portfolio site made from your resume, in all 8 designs",
-    ]);
-    expect(planCopy("max", "month").lead).toBe("Everything in Pro, with more each month:");
-    expect(planCopy("max", "month").features).toContain("300 tailored versions a month");
-    expect(planCopy("max", "month").features).toContain("2,000 line fixes a month");
-    expect(planCopy("max", "month").features.join(" ")).not.toMatch(/week/);
     expect(planCopy("free", "trial")).toEqual(planCopy("free", "month"));
     expect(limitLine("free", "fix", "trial")).toBe("3 line fixes a month");
+    expect(limitLine("pro", "tailor")).toBe("150 tailored versions a month");
+  });
+
+  it("shows Free plus each paid plan that is on sale", () => {
+    expect(plansOnSale({ pro: ["month"], max: ["month", "year"] })).toEqual(["free", "pro", "max"]);
+    expect(plansOnSale({ pro: ["month"], max: [] })).toEqual(["free", "pro"]);
   });
 
   it("has no weekly plans or prices", () => {
@@ -89,7 +96,7 @@ describe("plan copy", () => {
     for (const plan of PLAN_ORDER) {
       for (const period of ["month", "trial"] as const) {
         const copy = planCopy(plan, period);
-        for (const line of [copy.summary, copy.lead ?? "", ...copy.features, ...trialLines()]) {
+        for (const line of [copy.summary, copy.lead ?? "", copy.quota, ...copy.features]) {
           expect(line).not.toMatch(/unlimited|fair use/i);
         }
       }

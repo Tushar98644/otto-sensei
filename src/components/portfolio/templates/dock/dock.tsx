@@ -142,7 +142,7 @@ function SectionHead({ pill, title, text }: { pill: string; title: string; text:
   );
 }
 
-export function DockTemplate({ view, content, footer }: PortfolioTemplateProps) {
+export function DockTemplate({ view, content, footer, resumeHref }: PortfolioTemplateProps) {
   const name = nameOf(view);
   const first = content.first || name;
   const skills = [...new Set(allSkills(view))];
@@ -418,7 +418,11 @@ export function DockTemplate({ view, content, footer }: PortfolioTemplateProps) 
         </div>
       </div>
       <footer className="foot">{footer ? <div className="credit">{footer}</div> : null}</footer>
-      <Dock home={{ href: "#pf-dock-top", label: "Home", kind: "home" }} socials={dockSocials} />
+      <Dock
+        home={{ href: "#pf-dock-top", label: "Home", kind: "home" }}
+        resume={resumeHref ? { href: resumeHref, label: "Resume", kind: "resume" } : null}
+        socials={dockSocials}
+      />
     </div>
   );
 }

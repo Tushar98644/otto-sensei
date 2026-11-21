@@ -8,7 +8,7 @@ vi.mock("@tanstack/react-query", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@tanstack/react-query")>()),
   isServer: false,
 }));
-const api = vi.hoisted(() => ({ updatePortfolio: vi.fn() }));
+const api = vi.hoisted(() => ({ updatePortfolio: vi.fn(), createPortfolio: vi.fn() }));
 vi.mock("@/lib/api/client", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/api/client")>()),
   api,
@@ -23,7 +23,8 @@ vi.mock("@/components/ui/toast", () => ({ toast, dismissToast: vi.fn() }));
 
 const { ApiClientError } = await import("@/lib/api/client");
 const { getQueryClient } = await import("@/lib/queries/client");
-const { savePortfolio, setPublished, usePortfolioStore } = await import("./portfolio-store");
+const { makePortfolio, savePortfolio, setPublished, usePortfolioStore } =
+  await import("./portfolio-store");
 
 const KEY = queryKeys.portfolio("ada");
 
@@ -130,5 +131,18 @@ describe("savePortfolio", () => {
     expect(shown()?.template).toBe("dock");
     expect(await savePortfolio({ showEmail: true })).toBe(true);
     expect(shown()).toMatchObject({ template: "dock", showEmail: true });
+  });
+});
+
+describe("makePortfolio", () => {
+  it("makes the page in the design picked from the gallery, or the default without one", async () => {
+    getQueryClient().setQueryData(KEY, null);
+    api.createPortfolio.mockResolvedValue({ ...saved({ template: "reel" }), created: true });
+    const resume = jordanV2Resume();
+    expect(await makePortfolio(resume, "reel")).toMatchObject({ template: "reel" });
+    expect(shown()?.template).toBe("reel");
+    await makePortfolio(resume);
+    expect(api.createPortfolio.mock.calls).toEqual([[{ resume, template: "reel" }], [{ resume }]]);
+    expect(usePortfolioStore.getState().saving).toBe(false);
   });
 });

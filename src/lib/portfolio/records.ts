@@ -8,12 +8,14 @@ import { rateLimit } from "@/lib/rate-limit";
 import { emptyResume, type Resume } from "@/lib/resume/schema";
 import { ResumeSchema } from "@/lib/resume/validation";
 import { parseStoredStats } from "@/lib/github/stats";
+import { findResumeShare } from "@/lib/share/records";
 import { shareSnapshot } from "@/lib/share/snapshot";
 import { DAY_MS, HOUR_MS } from "@/lib/time";
 import type { PortfolioContentView } from "./content";
 import { parseStoredContent } from "./content-validation";
 import { contentView } from "./content-view";
 import { canBuildPortfolio, canPublishPortfolio } from "./plan";
+import { resumeHrefFor } from "./resume-link";
 import { normalizeSlug, numberedSlug, SLUG_MESSAGES, slugProblem, suggestSlug } from "./slug";
 import {
   DEFAULT_PORTFOLIO_SETTINGS,
@@ -423,6 +425,7 @@ export type PublicPortfolio = {
   content: PortfolioContentView;
   allowIndexing: boolean;
   updatedAt: number;
+  resumeHref: string | null;
 };
 
 export type PublicPortfolioResult =
@@ -450,6 +453,7 @@ export async function findPublicPortfolio(
       showPhone: portfolio.showPhone,
       hiddenSections: sectionsOf(portfolio),
     });
+    const share = await findResumeShare(portfolio.userId, portfolio.resumeId);
     return {
       status: "ok",
       portfolio: {
@@ -466,6 +470,7 @@ export async function findPublicPortfolio(
         }),
         allowIndexing: portfolio.allowIndexing,
         updatedAt: portfolio.updatedAt,
+        resumeHref: resumeHrefFor(share, portfolio),
       },
     };
   }

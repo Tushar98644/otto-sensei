@@ -17,15 +17,16 @@ import {
 import { billingOffer, trialOffered } from "@/lib/billing/intervals";
 import { planPriceLabel, renewalPeriods } from "@/lib/billing/prices";
 import { appUrl } from "@/lib/env";
-import { countClaim } from "@/lib/job-feed/counts";
 import { loadJobCounts } from "@/lib/job-feed/live-counts";
 import { softwareJsonLd } from "@/lib/seo/json-ld";
 import { cn } from "@/lib/utils";
 import { displayItalic } from "../_components/display-italic";
 import { type FaqItem, FaqList } from "../_components/faq-list";
 import { MERCHANT } from "../_components/merchant";
-import { formatUsd } from "../_components/plan-features";
+import { formatUsd, plansOnSale } from "../_components/plan-features";
 import { PricingPlans } from "../_components/pricing-plans";
+import { ClosingPanel } from "./_components/closing-panel";
+import { PlanTable } from "./_components/plan-table";
 
 export const metadata: Metadata = pageMetadata({
   title: "Pricing",
@@ -101,7 +102,8 @@ export const revalidate = 3600;
 export default async function PricingPage() {
   const offer = billingOffer();
   const jobCounts = await loadJobCounts();
-  const open = countClaim(jobCounts.open);
+  const trial = trialOffered();
+  const plans = plansOnSale(offer);
   const renewals = [...new Set(PAID_PLANS.flatMap((plan) => offer[plan]))];
   return (
     <div className="container-page pt-16 pb-24 sm:pt-24 sm:pb-32">
@@ -111,17 +113,15 @@ export default async function PricingPage() {
           Free for the basics.{" "}
           <em className={cn("block", displayItalic.className)}>More when the hunt gets busy.</em>
         </h1>
-        <p className="mt-6 max-w-xl text-lg/7 text-muted sm:text-xl/8">
-          Checking, fixing and downloading one resume as a PDF is free, with {PLANS.free.limits.fix}{" "}
-          line fixes a month from Otto. Pro and Max add much more of Otto&apos;s AI help each month,
-          with the numbers written down, plus every format, Word downloads, every match from{" "}
-          {open ? `${open} open jobs` : "open jobs"} and the full tracker.
+        <p className="mt-6 max-w-xl text-lg/7 text-pretty text-muted sm:text-xl/8">
+          Checking, fixing and downloading are free. Pro adds Otto&apos;s AI help, every job match
+          and the tracker.
         </p>
       </div>
 
       <PricingPlans
         offer={offer}
-        trial={trialOffered()}
+        trial={trial}
         headingAs="h2"
         otto={<Otto pose="point" size={96} />}
         jobCounts={jobCounts}
@@ -138,6 +138,8 @@ export default async function PricingPage() {
         until you cancel.
       </p>
 
+      <PlanTable plans={plans} className="mt-24 sm:mt-32" />
+
       <section
         aria-labelledby="billing-faq-title"
         className="mt-24 grid gap-12 sm:mt-32 lg:grid-cols-3"
@@ -150,6 +152,8 @@ export default async function PricingPage() {
         </h2>
         <FaqList items={billingFaq} className="lg:col-span-2" />
       </section>
+
+      <ClosingPanel offer={offer} trial={trial} className="mt-24 sm:mt-32" />
     </div>
   );
 }

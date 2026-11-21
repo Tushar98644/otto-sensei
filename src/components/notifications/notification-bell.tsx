@@ -9,6 +9,7 @@ import { Button, buttonClasses } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { isInAppPath, type Notification } from "@/lib/notifications/types";
 import { cn } from "@/lib/utils";
+import { FollowUpActions } from "./follow-up-actions";
 import { timeAgo } from "./time-ago";
 import { forgetFresh, markAllSeen, useNotifications } from "./use-notifications";
 
@@ -168,6 +169,7 @@ function NotificationRow({
   now: number;
   onNavigate: () => void;
 }) {
+  const titleId = useId();
   const content = (
     <>
       <span
@@ -175,7 +177,7 @@ function NotificationRow({
         className={cn("mt-1.5 size-2 shrink-0 rounded-full", isNew ? "bg-primary" : "bg-transparent")}
       />
       <span className="min-w-0 flex-1">
-        <span className="block text-sm/5 font-medium text-pretty text-ink">
+        <span id={titleId} className="block text-sm/5 font-medium text-pretty text-ink">
           {isNew ? <span className="sr-only">New: </span> : null}
           {item.title}
         </span>
@@ -192,6 +194,8 @@ function NotificationRow({
     </>
   );
   const link = item.link !== null && isInAppPath(item.link) ? item.link : null;
+  const followUp =
+    item.kind === "application_follow_up" && item.followUpDue ? item.applicationId : null;
   return (
     <li>
       {link ? (
@@ -201,6 +205,9 @@ function NotificationRow({
       ) : (
         <div className={ROW}>{content}</div>
       )}
+      {followUp ? (
+        <FollowUpActions applicationId={followUp} describedBy={titleId} onNavigate={onNavigate} />
+      ) : null}
     </li>
   );
 }

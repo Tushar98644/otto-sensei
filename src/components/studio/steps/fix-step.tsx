@@ -27,7 +27,7 @@ export function FixStep() {
   if (!resumeId) return <NoResumeOpen />;
 
   return (
-    <div className="mx-auto flex w-full max-w-3xl flex-col gap-6 lg:grid lg:max-w-none lg:grid-cols-[14rem_minmax(0,1fr)] lg:items-start lg:gap-8">
+    <div className="mx-auto flex w-full max-w-3xl flex-col gap-6 lg:grid lg:max-w-5xl lg:grid-cols-[14rem_minmax(0,1fr)] lg:items-start lg:gap-8">
       <h2 className="sr-only">{STEP_LABELS.fix}</h2>
       <FixOutline key={`outline-${resumeId}`} resumeId={resumeId} />
       <div className="flex min-w-0 flex-col gap-6">
@@ -35,7 +35,7 @@ export function FixStep() {
           key={resumeId}
           resumeId={resumeId}
           intro={
-            <div className="flex flex-col gap-6">
+            <div className="flex flex-col gap-3">
               <FixIntro resumeId={resumeId} />
               <FixSummary resumeId={resumeId} />
             </div>

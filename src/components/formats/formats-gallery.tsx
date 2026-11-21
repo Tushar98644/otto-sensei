@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useId, useState } from "react";
 import { useProTools } from "@/components/account/pro-tools";
 import { resumeLabel } from "@/components/studio/resume-label";
+import { Select } from "@/components/ui/select";
 import { isProTemplate, TEMPLATE_INFO, TEMPLATE_LIST, templateOf } from "@/lib/pdf/templates";
-import type { TemplateId } from "@/lib/resume/schema";
+import type { Resume, TemplateId } from "@/lib/resume/schema";
 import { FormatCard } from "./format-card";
 import { preloadFormatPreview } from "./format-image";
 import { FormatPreviewDialog } from "./format-preview-dialog";
@@ -26,26 +27,30 @@ function usePreloadPreviewsWhenIdle(): void {
 }
 
 export function FormatsGallery() {
-  const { ready, target, opening, apply } = useApplyFormat();
+  const { ready, resumes, target, pick, opening, apply } = useApplyFormat();
   const [previewId, setPreviewId] = useState<TemplateId | null>(null);
   const free = useProTools() === false;
   const current = target ? templateOf(target) : null;
-  const actionLabel = target || !ready ? "Use this format" : "Try it with a sample";
+  const actionFor = (id: TemplateId) => (id === current ? "Download" : "Use this format");
   usePreloadPreviewsWhenIdle();
 
   return (
     <div className="flex flex-col gap-6">
-      <p className="min-h-6 text-sm/6 text-muted">
-        {!ready ? null : target ? (
-          <>
+      <div className="min-h-11">
+        {!ready ? null : target && resumes.length > 1 ? (
+          <ResumePicker resumes={resumes} target={target} onPick={pick} />
+        ) : target ? (
+          <p className="py-2.5 text-sm/6 text-muted">
             Picking a format applies it to{" "}
             <span className="font-medium text-ink">{resumeLabel(target)}</span> and opens the
             download step.
-          </>
+          </p>
         ) : (
-          "No resume yet. Try any format with a sample resume, then swap in your own."
+          <p className="py-2.5 text-sm/6 text-muted">
+            No resume yet. Pick a format, then add your resume or try it with a sample.
+          </p>
         )}
-      </p>
+      </div>
       <ul className="grid gap-6 sm:grid-cols-2 xl:grid-cols-3">
         {TEMPLATE_LIST.map((info) => (
           <li key={info.id}>
@@ -53,10 +58,10 @@ export function FormatsGallery() {
               info={info}
               inUse={current === info.id}
               pro={free && isProTemplate(info.id)}
-              actionLabel={actionLabel}
+              actionLabel={actionFor(info.id)}
               ready={ready && opening === null}
               opening={opening === info.id}
-              onUse={() => void apply(info.id)}
+              onUse={() => apply(info.id)}
               onPreview={() => setPreviewId(info.id)}
             />
           </li>
@@ -64,12 +69,46 @@ export function FormatsGallery() {
       </ul>
       <FormatPreviewDialog
         info={previewId ? TEMPLATE_INFO[previewId] : null}
+        pro={previewId ? free && isProTemplate(previewId) : false}
         onClose={() => setPreviewId(null)}
-        actionLabel={actionLabel}
+        actionLabel={previewId ? actionFor(previewId) : "Use this format"}
         ready={ready && opening === null}
         opening={opening !== null && opening === previewId}
-        onUse={(info) => void apply(info.id)}
+        onUse={(info) => apply(info.id)}
       />
+    </div>
+  );
+}
+
+type ResumePickerProps = {
+  resumes: readonly Resume[];
+  target: Resume;
+  onPick: (id: string) => void;
+};
+
+function ResumePicker({ resumes, target, onPick }: ResumePickerProps) {
+  const id = useId();
+  return (
+    <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
+      <label htmlFor={id} className="text-sm/6 font-medium text-ink">
+        Apply to
+      </label>
+      <Select
+        id={id}
+        value={target.id}
+        onChange={(event) => onPick(event.target.value)}
+        aria-describedby={`${id}-hint`}
+        className="sm:w-72"
+      >
+        {resumes.map((resume) => (
+          <option key={resume.id} value={resume.id}>
+            {resumeLabel(resume)}
+          </option>
+        ))}
+      </Select>
+      <p id={`${id}-hint`} className="text-sm/6 text-muted">
+        Picking a format applies it to this resume and opens the download step.
+      </p>
     </div>
   );
 }

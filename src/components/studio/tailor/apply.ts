@@ -11,6 +11,7 @@ import {
 } from "@/lib/resume/schema";
 import type { TailorCopyMeta } from "@/lib/store/resume-store";
 import type { ScreenerOptions } from "@/lib/tailor/requirements";
+import { pluralize } from "@/lib/utils";
 
 const MAX_KEYWORDS = 60;
 const MAX_TERM_CHARS = 100;
@@ -248,4 +249,24 @@ export function summarizeChoices(
     ).length,
     summary: choices.useSummary && result.summary.trim() !== "",
   };
+}
+
+export function changeLines({ lines, skills, reorderedJobs, summary }: ChangeSummary): string[] {
+  return [
+    lines ? `Adds ${pluralize(lines, "line")} you confirmed` : null,
+    skills ? `Adds ${pluralize(skills, "skill")} to your Skills section` : null,
+    reorderedJobs ? `Puts your best lines first in ${pluralize(reorderedJobs, "job")}` : null,
+    summary ? "Uses the new summary" : null,
+  ].filter((line): line is string => line !== null);
+}
+
+export const NO_CHANGES =
+  "No changes picked. The copy keeps your lines as they are, labeled for this job.";
+
+export function describeChanges(changes: ChangeSummary): string {
+  const parts = changeLines(changes).map((line) => line.charAt(0).toLowerCase() + line.slice(1));
+  if (parts.length === 0) return NO_CHANGES;
+  const sentence =
+    parts.length > 1 ? `${parts.slice(0, -1).join(", ")} and ${parts.at(-1)}` : (parts[0] ?? "");
+  return `The copy ${sentence}. Your original stays the same.`;
 }

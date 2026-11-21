@@ -2,11 +2,13 @@
 
 import { Button } from "@/components/ui/button";
 import { Dialog } from "@/components/ui/dialog";
+import { ProMark } from "@/components/ui/pro-mark";
 import type { TemplateInfo } from "@/lib/pdf/templates";
 import { FormatImage, PREVIEW_SIZES } from "./format-image";
 
 export type FormatPreviewDialogProps = {
   info: TemplateInfo | null;
+  pro?: boolean;
   onClose: () => void;
   actionLabel: string;
   ready: boolean;
@@ -16,6 +18,7 @@ export type FormatPreviewDialogProps = {
 
 export function FormatPreviewDialog({
   info,
+  pro = false,
   onClose,
   actionLabel,
   ready,
@@ -29,7 +32,12 @@ export function FormatPreviewDialog({
         if (!open) onClose();
       }}
       size="lg"
-      title={info?.name ?? ""}
+      title={
+        <span className="flex items-center gap-2">
+          {info?.name}
+          {pro ? <ProMark /> : null}
+        </span>
+      }
       description={info?.description}
       footer={
         info ? (
@@ -50,7 +58,7 @@ export function FormatPreviewDialog({
             info={info}
             sizes={PREVIEW_SIZES}
             decoding="sync"
-            className="mx-auto max-h-[65dvh] w-auto max-w-full shadow-card"
+            className="mx-auto max-h-[65dvh] w-auto max-w-full shadow-page"
           />
         </div>
       ) : null}

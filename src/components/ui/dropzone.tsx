@@ -36,6 +36,8 @@ export function Dropzone({
     const guard = (event: globalThis.DragEvent) => {
       const transfer = event.dataTransfer;
       if (!transfer || !transfer.types.includes("Files")) return;
+      // Something else on the page, such as the dashboard's drop-anywhere, already took it.
+      if (event.defaultPrevented) return;
       if (event.target instanceof Node && zoneRef.current?.contains(event.target)) return;
       event.preventDefault();
       transfer.dropEffect = "none";

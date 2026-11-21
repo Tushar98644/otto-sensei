@@ -6,24 +6,34 @@ import { OTTO } from "@/components/mascot/lines";
 import { Otto } from "@/components/mascot/otto";
 import { OttoCheer } from "@/components/mascot/otto-cheer";
 import { OttoNote } from "@/components/mascot/otto-note";
-import { DownloadActions } from "@/components/studio/download/download-actions";
-import { ExportCheckResult } from "@/components/studio/download/export-check-result";
 import { ApplicationCard } from "@/components/studio/download/application-card";
+import { DesignCard } from "@/components/studio/download/design-controls";
+import { DownloadActions } from "@/components/studio/download/download-actions";
+import { FitCard } from "@/components/studio/download/fit-card";
+import { useNearFit } from "@/components/studio/download/fit-offer";
 import { LetterCard } from "@/components/studio/download/letter-card";
+import { printedResume } from "@/components/studio/download/pdf-cache";
 import { PdfFrame, useInlinePdfPreview } from "@/components/studio/download/pdf-preview";
+import { SendCheckCard } from "@/components/studio/download/send-check";
 import { useExportCheck, type ExportCheck } from "@/components/studio/download/use-export-check";
 import { usePageSize } from "@/components/studio/download/use-page-size";
-import { forgetFreshCopy, isFreshCopy } from "@/components/studio/tailor/fresh-copy";
 import { useResumePdf, type ResumePdf } from "@/components/studio/download/use-resume-pdf";
+import { forgetFreshCopy, isFreshCopy } from "@/components/studio/tailor/fresh-copy";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { buildPdfModel } from "@/lib/pdf/model";
+import type { PdfPageSize } from "@/lib/pdf/page-size";
 import { isProTemplate, templateOf } from "@/lib/pdf/templates";
-import { printedResume } from "@/components/studio/download/pdf-cache";
 import { suggestedFileName } from "@/lib/resume/ops";
 import type { Resume } from "@/lib/resume/schema";
 import { useActiveResume, useStudioStore } from "@/lib/store/resume-store";
 import { cn, pluralize } from "@/lib/utils";
+
+// The preview sticks 16px below the 64px top bar and stays clear of the bottom of the screen.
+const FIT_SCREEN: Record<PdfPageSize, string> = {
+  LETTER: "max-w-[calc((100dvh_-_6rem)*17/22)]",
+  A4: "max-w-[calc((100dvh_-_6rem)*210/297)]",
+};
 
 function ottoLine(pdf: ResumePdf, check: ExportCheck): string {
   if (pdf.failed) return OTTO.errors.generic;
@@ -43,10 +53,13 @@ function DownloadWorkspace({ resume }: { resume: Resume }) {
   const pageSize = usePageSize();
   const pro = useProTools();
   const printed = useMemo(() => printedResume(resume, pro), [resume, pro]);
+  // Until the plan is known a Pro format isn't shown either: the PDF viewer has its own download button.
   const formatPending = pro === null && isProTemplate(templateOf(resume));
   const pdf = useResumePdf(printed, pageSize);
   const fileName = suggestedFileName(resume);
-  const check = useExportCheck(printed, pdf.isCurrent ? pdf.file : null, fileName);
+  const pdfReady = pdf.isCurrent && !formatPending && pdf.file !== null;
+  const check = useExportCheck(printed, pdfReady ? pdf.file : null, fileName);
+  const fit = useNearFit(printed, pdf, pageSize);
   const inline = useInlinePdfPreview();
   const changedCharacters = useMemo(() => buildPdfModel(resume).changedCharacters, [resume]);
   const otto = ottoLine(pdf, check);
@@ -59,37 +72,39 @@ function DownloadWorkspace({ resume }: { resume: Resume }) {
         <OttoNote message={otto} className="flex-1" />
         {freshId === resume.id ? <OttoCheer /> : null}
       </div>
-      <div className={cn("grid gap-6", inline && "lg:grid-cols-5")}>
+      <div className={cn("grid gap-6", inline && "md:grid-cols-2 lg:grid-cols-5")}>
         <div
           className={cn(
-            "flex flex-col gap-6",
-            inline &&
-              "lg:sticky lg:top-6 lg:col-span-2 lg:col-start-4 lg:row-start-1 lg:self-start",
+            "flex min-w-0 flex-col gap-6",
+            inline && "md:col-start-2 md:row-start-1 lg:col-span-2 lg:col-start-4",
           )}
         >
+          <DesignCard resume={resume} printed={printed} pageSize={pageSize} />
           <DownloadActions
             resume={resume}
             printed={printed}
-            formatPending={formatPending}
+            ready={pdfReady}
             pdf={pdf}
-            check={check}
             pageSize={pageSize}
             fileName={fileName}
             changedCharacters={changedCharacters}
-            showPreviewLink={!inline}
+            fit={fit}
           />
-          {check.report ? (
-            <ExportCheckResult report={check.report} original={check.original} />
-          ) : null}
+          <FitCard resume={printed} pdf={pdf} pageSize={pageSize} standDown={fit.handling} />
+          <SendCheckCard resume={resume} check={check} pdfReady={pdfReady} />
           <LetterCard resume={printed} pageSize={pageSize} />
           <ApplicationCard resume={resume} />
         </div>
         {inline ? (
-          <section aria-label="PDF preview" className="lg:col-span-3 lg:col-start-1 lg:row-start-1">
+          <section
+            aria-label="PDF preview"
+            className="md:sticky md:top-20 md:col-start-1 md:row-start-1 md:self-start lg:col-span-3"
+          >
             <PdfFrame
-              url={pdf.file?.url ?? null}
+              url={formatPending ? null : (pdf.file?.url ?? null)}
               pageSize={pageSize}
               updating={!pdf.isCurrent && !pdf.failed}
+              className={cn("mx-auto", FIT_SCREEN[pageSize])}
             />
           </section>
         ) : null}

@@ -3,8 +3,8 @@ import { getDb } from "@/db/client";
 import { accountSetup } from "@/db/schema";
 import type { ApiErrorBody } from "@/lib/api/types";
 import { cookieJar, resetDb, signInAs } from "@/lib/auth/test-helpers";
-import { saveAccountSetup } from "@/lib/setup/records";
-import type { AccountSetupResponse } from "@/lib/setup/types";
+import { saveAccountSetup, saveSetupDefaults } from "@/lib/setup/records";
+import { NO_SETUP, type AccountSetupResponse } from "@/lib/setup/types";
 import { deleteUserData } from "@/lib/users";
 import { GET, PUT } from "./route";
 
@@ -44,13 +44,9 @@ describe("/api/setup", () => {
     expect((await put({ step: "skipped" })).status).toBe(401);
   });
 
-  it("starts with nothing answered or hidden", async () => {
+  it("starts with nothing answered, hidden or guessed", async () => {
     await signInAs("ines@example.com");
-    expect(await setupOf(await GET())).toEqual({
-      stepAt: null,
-      stepOutcome: null,
-      checklistHiddenAt: null,
-    });
+    expect(await setupOf(await GET())).toEqual(NO_SETUP);
   });
 
   it("remembers the step on a Free account, and changes only what it is sent", async () => {
@@ -75,17 +71,27 @@ describe("/api/setup", () => {
     await signInAs("ines@example.com");
     await put({ step: "saved", checklist: "hidden" });
     await signInAs("tomas@example.com");
-    expect(await setupOf(await GET())).toEqual({
-      stepAt: null,
-      stepOutcome: null,
-      checklistHiddenAt: null,
+    expect(await setupOf(await GET())).toEqual(NO_SETUP);
+  });
+
+  it("confirms Otto's guess without touching anything else", async () => {
+    const user = await signInAs("ines@example.com");
+    const guessed = await saveSetupDefaults(user.id, {
+      place: { country: "GB", from: "device", timeZone: "Europe/London" },
     });
+    expect(guessed).toMatchObject({ setup: { guess: { country: "GB", region: "uk" } } });
+    await put({ checklist: "hidden" });
+    const confirmed = await setupOf(await put({ guess: "confirmed" }));
+    expect(confirmed).toMatchObject({ guess: null, defaultsAt: expect.any(Number) });
+    expect(confirmed.checklistHiddenAt).toEqual(expect.any(Number));
+    expect(await setupOf(await GET())).toMatchObject({ guess: null });
   });
 
   it("rejects empty or unknown changes and non-JSON or cross-site requests", async () => {
     await signInAs("ines@example.com");
     expect(await errorCode(await put({}))).toBe("bad_request");
     expect(await errorCode(await put({ step: "later" }))).toBe("bad_request");
+    expect(await errorCode(await put({ guess: "rejected" }))).toBe("bad_request");
     expect((await put({ step: "saved" }, { "content-type": "text/plain" })).status).toBe(415);
     expect(
       (

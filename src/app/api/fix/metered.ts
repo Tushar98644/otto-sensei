@@ -1,5 +1,5 @@
 import type { z } from "zod";
-import type { Feature } from "@/config/plans";
+import type { Feature, UsageSnapshot } from "@/config/plans";
 import { checkAiBudget, spendAiTokens } from "@/lib/ai-budget";
 import { AIError, type AIErrorCode } from "@/lib/ai/types";
 import { trackMeteredCall } from "@/lib/analytics/ai";
@@ -11,12 +11,21 @@ import type { SessionUser } from "@/lib/auth/types";
 import { aiEnabled } from "@/lib/env";
 import { readJson } from "@/lib/http";
 import { log } from "@/lib/log";
+import {
+  claimRun,
+  dropRun,
+  isResume,
+  readRequestId,
+  requestKey,
+  saveResult,
+} from "@/lib/metered-results";
 import { rateLimit, retryAfterHeader, waitText } from "@/lib/rate-limit";
 import { DAY_MS, MINUTE_MS } from "@/lib/time";
-import { consumeUsage, refundUsage } from "@/lib/usage";
+import { consumeUsage, getUsage, refundUsage } from "@/lib/usage";
+import { openPass, returnPass, takePass } from "@/lib/usage-passes";
 import { budgetReached, limitReached, requirePlanFeature } from "../metered-free";
 
-// Order matters: sign-in, plan, burst limit, validation, AI budget, allowance, then the call.
+// Order matters: sign-in, plan, burst limit, validation, stored result, AI budget, allowance, then the call.
 
 export type MeteredCopy = {
   signIn: string;
@@ -25,11 +34,25 @@ export type MeteredCopy = {
   tooLong: string;
 };
 
+export type FollowUp<I, R> = {
+  subject: (input: I) => string;
+  isFollowUp: (input: I) => boolean;
+  opensPass: (result: R) => boolean;
+};
+
 export type MeteredRoute<S extends z.ZodType, R> = {
   feature: Feature;
   schema: S;
   copy: MeteredCopy;
   run: (input: z.output<S>, user: SessionUser) => Promise<R>;
+  // Calls that ride on the unit an earlier call on the same subject took, like answers to Otto's questions.
+  followUp?: FollowUp<z.output<S>, R>;
+};
+
+type Unit = {
+  usage: UsageSnapshot;
+  giveBack: () => Promise<void>;
+  opensPass: (() => Promise<void>) | null;
 };
 
 const CALLS_PER_MINUTE: Record<Feature, number> = {
@@ -47,6 +70,8 @@ const BILLED_REFUNDS_PER_DAY = 3;
 
 const AI_UNAVAILABLE = "Otto couldn't finish that right now. Try again in a minute.";
 const NOT_COUNTED = " It won't count against your allowance.";
+const STILL_RUNNING = "Otto is still working on this. Try again in a minute.";
+const NOTHING_TO_RESUME = "There's nothing to pick up for this one. Start it again.";
 
 const AI_FAILURES: Record<
   AIErrorCode,
@@ -98,22 +123,49 @@ export async function runMetered<S extends z.ZodType, R>(
       return fail("bad_request", copy.invalid, 400);
     }
 
-    if (!budget.allowed) return budgetReached(user, budget.period, now);
-    const { allowed, usage, period } = await consumeUsage(user, feature, now);
-    if (!allowed) return limitReached(user, feature, period, now, usage[feature].limit);
+    const requestId = readRequestId(req);
+    const resume = isResume(req);
+    const claim = requestId
+      ? await claimRun<R>(user.id, requestKey(feature, requestId, body.data), now, { resume })
+      : null;
+    if (claim?.kind === "done") {
+      log.info(`${feature}.result_replayed`, { plan: user.plan });
+      return ok({ result: claim.result, usage: await getUsage(user, now), demo: claim.demo });
+    }
+    if (claim?.kind === "busy") {
+      log.info(`${feature}.still_running`, { plan: user.plan });
+      return fail("rate_limited", STILL_RUNNING, 429, retryAfterHeader(MINUTE_MS));
+    }
+    if (resume) {
+      log.info(`${feature}.nothing_to_resume`, { plan: user.plan });
+      return fail("not_found", NOTHING_TO_RESUME, 404);
+    }
 
-    const call = { userId: user.id, path: new URL(req.url).pathname, feature, startedAt: Date.now() };
+    const runKey = claim?.kind === "run" ? claim.key : null;
+    let kept = false;
     try {
-      const result = await spendAiTokens(user, now, () => route.run(body.data, user));
-      trackMeteredCall(call);
-      return ok({ result, usage, demo: !aiEnabled() });
-    } catch (error) {
-      trackMeteredCall(call, error);
-      const refunded = await refund(user, feature, now, error);
-      if (!(error instanceof AIError)) throw error;
-      log.warn(`${feature}.ai_failed`, { code: error.code, refunded });
-      const failure = AI_FAILURES[error.code];
-      return fail(failure.code, failure.message(copy, refunded), failure.status);
+      if (!budget.allowed) return budgetReached(user, budget.period, now);
+      const unit = await takeUnit(user, route, body.data, now);
+      if (unit instanceof Response) return unit;
+
+      const call = { userId: user.id, path: new URL(req.url).pathname, feature, startedAt: Date.now() };
+      try {
+        const result = await spendAiTokens(user, now, () => route.run(body.data, user));
+        trackMeteredCall(call);
+        const demo = !aiEnabled();
+        if (runKey) kept = await keep(user, feature, () => saveResult(user.id, runKey, result, demo, now));
+        if (unit.opensPass && route.followUp?.opensPass(result)) await keep(user, feature, unit.opensPass);
+        return ok({ result, usage: unit.usage, demo });
+      } catch (error) {
+        trackMeteredCall(call, error);
+        const refunded = await refund(user, feature, now, error, unit.giveBack);
+        if (!(error instanceof AIError)) throw error;
+        log.warn(`${feature}.ai_failed`, { code: error.code, refunded });
+        const failure = AI_FAILURES[error.code];
+        return fail(failure.code, failure.message(copy, refunded), failure.status);
+      }
+    } finally {
+      if (runKey && !kept) await keep(user, feature, () => dropRun(user.id, runKey));
     }
   } catch (error) {
     log.error(`${feature}.failed`, error);
@@ -121,7 +173,46 @@ export async function runMetered<S extends z.ZodType, R>(
   }
 }
 
-async function refund(user: SessionUser, feature: Feature, now: number, cause: unknown): Promise<boolean> {
+// A follow-up with a live pass on its subject uses the pass; anything else takes a unit.
+async function takeUnit<S extends z.ZodType, R>(
+  user: SessionUser,
+  route: MeteredRoute<S, R>,
+  input: z.output<S>,
+  now: number,
+): Promise<Unit | Response> {
+  const { feature, followUp } = route;
+  const pass = followUp ? { userId: user.id, feature, subject: followUp.subject(input) } : null;
+  if (pass && followUp?.isFollowUp(input) && (await takePass(pass, now))) {
+    log.info(`${feature}.follow_up`, { plan: user.plan });
+    return { usage: await getUsage(user, now), giveBack: () => returnPass(pass), opensPass: null };
+  }
+  const { allowed, usage, period } = await consumeUsage(user, feature, now);
+  if (!allowed) return limitReached(user, feature, period, now, usage[feature].limit);
+  return {
+    usage,
+    giveBack: () => refundUsage(user, feature, now),
+    opensPass: pass ? () => openPass(pass, now) : null,
+  };
+}
+
+// Bookkeeping after the answer is ready must never cost the person that answer.
+async function keep(user: SessionUser, feature: Feature, write: () => Promise<void>): Promise<boolean> {
+  try {
+    await write();
+    return true;
+  } catch (error) {
+    log.error(`${feature}.bookkeeping_failed`, error, { userId: user.id });
+    return false;
+  }
+}
+
+async function refund(
+  user: SessionUser,
+  feature: Feature,
+  now: number,
+  cause: unknown,
+  giveBack: () => Promise<void>,
+): Promise<boolean> {
   try {
     if (!(cause instanceof AIError && UNBILLED_FAILURES.has(cause.code))) {
       const cap = await rateLimit(`refund:${feature}:user:${user.id}`, BILLED_REFUNDS_PER_DAY, DAY_MS, now);
@@ -130,7 +221,7 @@ async function refund(user: SessionUser, feature: Feature, now: number, cause: u
         return false;
       }
     }
-    await refundUsage(user, feature, now);
+    await giveBack();
     return true;
   } catch (error) {
     log.error("usage.refund_failed", error, { feature, userId: user.id });

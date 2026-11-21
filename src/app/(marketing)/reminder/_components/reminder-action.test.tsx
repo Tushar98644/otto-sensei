@@ -3,6 +3,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import ReminderPage from "../page";
 import {
+  confirmMessage,
   MISSING_PART,
   REMINDER_CONFIRM,
   ReminderAction,
@@ -138,6 +139,38 @@ describe("sendReminderAction", () => {
     await expect(sendReminderAction(REQUESTS.unsubscribe)).rejects.toThrow(
       "That unsubscribe link isn't valid.",
     );
+  });
+});
+
+describe("confirmMessage", () => {
+  const job = { company: "Northwind", role: "Product Designer" };
+
+  it("names the company and role it's asking about", () => {
+    expect(confirmMessage("done", job)).toBe(
+      "Followed up with Northwind about the Product Designer job? Mark it done and I'll stop reminding you.",
+    );
+    expect(confirmMessage("done", { company: "Northwind", role: " " })).toBe(
+      "Followed up with Northwind? Mark it done and I'll stop reminding you.",
+    );
+    expect(confirmMessage("snooze", job)).toBe(
+      "Not ready to follow up with Northwind yet? I'll remind you again in 3 days.",
+    );
+  });
+
+  it("falls back to the plain question when the job can't be read", () => {
+    for (const kind of ["done", "snooze", "unsubscribe"] as const) {
+      expect(confirmMessage(kind, null)).toBe(REMINDER_CONFIRM[kind].message);
+    }
+    expect(confirmMessage("done", { company: "", role: "Designer" })).toBe(
+      REMINDER_CONFIRM.done.message,
+    );
+    expect(confirmMessage("unsubscribe", job)).toBe(REMINDER_CONFIRM.unsubscribe.message);
+  });
+
+  it("shows the job on the confirm screen", () => {
+    const html = renderToStaticMarkup(<ReminderAction request={REQUESTS.done} job={job} />);
+    expect(text(html)).toContain("Followed up with Northwind about the Product Designer job?");
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 });
 

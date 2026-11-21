@@ -120,6 +120,7 @@ p:last-child, p:last-of-type { margin: 0; }
 .sidebar li { position: relative; margin: 0 auto 20px; counter-increment: item 1; font-size: clamp(var(--fz-sm), 4cqi, var(--fz-lg)); }
 .sidebar li::before { content: "0" counter(item) "."; display: block; margin-bottom: 5px; color: var(--green); font-size: var(--fz-sm); }
 .sidebar li a { width: 100%; padding: 3px 20px 20px; }
+.sidebar .resume-link { margin: 10% auto 0; width: max-content; padding: 18px 50px; font-size: var(--fz-sm); }
 :scope[data-menu="open"] .content { filter: blur(5px) brightness(0.7); transition: var(--transition); pointer-events: none; user-select: none; }
 
 /* Fixed side elements (side.js, social.js, email.js) */

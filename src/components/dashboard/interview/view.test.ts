@@ -1,7 +1,14 @@
 import { describe, expect, it } from "vitest";
 import type { Application } from "@/lib/applications/schema";
 import { emptyResume, type Resume } from "@/lib/resume/schema";
-import { findByLink, interviewHref, prepChoices, prepPickerChoices, waitingForPrep } from "./view";
+import {
+  findByLink,
+  interviewDayLine,
+  interviewHref,
+  prepChoices,
+  prepPickerChoices,
+  waitingForPrep,
+} from "./view";
 
 function application(id: string, patch: Partial<Application> = {}): Application {
   return {
@@ -29,17 +36,43 @@ function application(id: string, patch: Partial<Application> = {}): Application 
 describe("interview prep lists", () => {
   it("links each pack to its own page under Interview prep", () => {
     expect(interviewHref("0b9f")).toBe("/dashboard/interview/0b9f");
+    expect(interviewHref("0b9f", { start: true })).toBe("/dashboard/interview/0b9f?start=1");
   });
 
-  it("lists interviews without a pack, the latest to reach the stage first", () => {
+  it("lists interviews without a pack, the soonest first, then undated, then past ones", () => {
+    const now = new Date(2026, 10, 21, 9).getTime();
+    const on = (day: number) => new Date(2026, 10, day, 12).getTime();
     const list = [
-      application("a", { status: "interview", statusChangedAt: 2_000 }),
-      application("b", { status: "interview", statusChangedAt: 5_000 }),
-      application("c", { status: "interview", statusChangedAt: 9_000 }),
-      application("d", { status: "applied", statusChangedAt: 9_500 }),
+      application("later", { status: "interview", interviewAt: on(28) }),
+      application("undated-old", { status: "interview", statusChangedAt: 2_000 }),
+      application("today", { status: "interview", interviewAt: on(21) }),
+      application("undated-new", { status: "interview", statusChangedAt: 5_000 }),
+      application("past", { status: "interview", interviewAt: on(14) }),
+      application("lately", { status: "interview", interviewAt: on(19) }),
+      application("prepped", { status: "interview", interviewAt: on(22) }),
+      application("applied", { status: "applied", interviewAt: on(22) }),
     ];
-    expect(waitingForPrep(list, [{ applicationId: "c" }]).map((item) => item.id)).toEqual(["b", "a"]);
+    expect(waitingForPrep(list, [{ applicationId: "prepped" }], now).map((item) => item.id)).toEqual([
+      "today",
+      "later",
+      "undated-new",
+      "undated-old",
+      "lately",
+      "past",
+    ]);
     expect(waitingForPrep([], [])).toEqual([]);
+  });
+
+  it("names the interview day, not the day the card moved", () => {
+    const now = new Date(2026, 10, 21, 9).getTime();
+    const on = (month: number, day: number, year = 2026) => new Date(year, month, day, 12).getTime();
+    expect(interviewDayLine(on(10, 21), now)).toBe("Interview today");
+    expect(interviewDayLine(on(10, 22), now)).toBe("Interview tomorrow");
+    expect(interviewDayLine(on(10, 28), now)).toBe("Interview Nov 28");
+    expect(interviewDayLine(on(0, 6, 2027), now)).toBe("Interview Jan 6, 2027");
+    expect(interviewDayLine(on(10, 18), now)).toBe("Interview was Nov 18");
+    expect(interviewDayLine(null, now)).toBe("No interview day set yet");
+    expect(interviewDayLine(on(10, 28), 0)).toBe("Interview Nov 28");
   });
 
   it("offers interviews first in the picker, then the newest applications", () => {

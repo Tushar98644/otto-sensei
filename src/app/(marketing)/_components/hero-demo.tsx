@@ -3,6 +3,8 @@ import { Otto } from "@/components/mascot/otto";
 import { Eyebrow } from "@/components/ui/eyebrow";
 import { LivePill } from "@/components/ui/live-pill";
 import { Panel, Window } from "@/components/ui/panel";
+import { HeroDemoViews } from "./hero-demo-views";
+import { HomeDropCue } from "./home-upload";
 import { DEMO_FILE_NAME, DEMO_PERSON, PARSED_LINES } from "./recruiter-demo-data";
 import { ResumeMock } from "./resume-mock";
 import { MomentCaption } from "./section";
@@ -16,41 +18,45 @@ const MARKED = new Set<string>(DEMO_PERSON.skills);
 export function HeroDemo({ className }: { className?: string }) {
   return (
     <figure className={className}>
-      <Panel className="pb-8 sm:pb-10 lg:pt-8">
-        <div className="relative grid gap-6 lg:grid-cols-2 lg:gap-16">
-          <div className="max-sm:hidden">
-            <Eyebrow>What you see</Eyebrow>
-            <ResumeMock className="mt-3 -rotate-1" />
-          </div>
-
-          <div>
-            <Eyebrow>What hiring software reads</Eyebrow>
-            <div className="relative mt-3">
-              <Otto
-                pose="peek"
-                size={128}
-                title="Otto the otter, peeking over the window"
-                className="absolute -top-11 right-4 z-10 size-20 motion-safe:animate-otto-peek sm:-top-18 sm:right-8 sm:size-32"
-              />
-              <Window title={DEMO_FILE_NAME} meta="Plain text">
-                <ParsedText />
-              </Window>
-              <LivePill
-                announce={false}
-                style={{ animationDelay: `${PILL_AT_MS}ms` }}
-                className="absolute right-6 -bottom-4"
-              >
-                Skills mixed into jobs
-              </LivePill>
-            </div>
-          </div>
-
+      <Panel className="relative pb-8 sm:pb-10 lg:pt-8">
+        <HeroDemoViews
+          see={
+            <>
+              <Eyebrow className="max-sm:sr-only">What you see</Eyebrow>
+              <ResumeMock className="-rotate-1 sm:mt-3" />
+            </>
+          }
+          reads={
+            <>
+              <Eyebrow className="max-sm:sr-only">What hiring software reads</Eyebrow>
+              <div className="relative sm:mt-3">
+                <Otto
+                  pose="peek"
+                  size={128}
+                  title="Otto the otter, peeking over the window"
+                  className="absolute -top-11 right-4 z-10 size-20 motion-safe:animate-otto-peek sm:-top-18 sm:right-8 sm:size-32"
+                />
+                <Window title={DEMO_FILE_NAME} meta="Plain text">
+                  <ParsedText />
+                </Window>
+                <LivePill
+                  announce={false}
+                  style={{ animationDelay: `${PILL_AT_MS}ms` }}
+                  className="absolute right-6 -bottom-4"
+                >
+                  Skills mixed into jobs
+                </LivePill>
+              </div>
+            </>
+          }
+        >
           <Arrow className="absolute top-1/3 left-1/2 w-16 -translate-x-1/2 text-ink max-lg:hidden" />
           <Bubble
             fillClassName="fill-surface-muted"
             className="absolute bottom-10 left-1/2 w-14 -translate-x-1/2 text-ink max-lg:hidden"
           />
-        </div>
+        </HeroDemoViews>
+        <HomeDropCue />
       </Panel>
       <figcaption>
         <MomentCaption title="Example resume">

@@ -5,6 +5,7 @@ import { errorMessage } from "@/components/account/errors";
 import { useProTools } from "@/components/account/pro-tools";
 import { useMe } from "@/components/account/use-me";
 import { OttoNote } from "@/components/mascot/otto-note";
+import { JobsEmailSwitch } from "@/components/notifications/jobs-email-switch";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/toast";
 import { reminderPromptShows } from "@/lib/setup/checklist";
@@ -45,6 +46,7 @@ export function ReminderPrompt({ applications }: { applications: number }) {
           No thanks
         </Button>
       </OttoNote>
+      {user ? <JobsEmailSwitch userId={user.id} className="mt-4 border-t border-border pt-4" /> : null}
     </div>
   );
 }

@@ -1,10 +1,10 @@
 "use client";
 
-import { CircleCheck, Maximize2 } from "lucide-react";
+import { ArrowRight, Maximize2 } from "lucide-react";
 import { useId } from "react";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { FolderCard } from "@/components/ui/folder-card";
+import { ProMark } from "@/components/ui/pro-mark";
 import type { TemplateInfo } from "@/lib/pdf/templates";
 import { CARD_SIZES, FormatImage, preloadFormatPreview } from "./format-image";
 
@@ -36,7 +36,7 @@ export function FormatCard({
       aria-labelledby={titleId}
       onPointerEnter={preview}
       onFocus={preview}
-      className="h-full"
+      className="group/format h-full"
     >
       <FolderCard
         tab={<span id={titleId}>{info.name}</span>}
@@ -45,9 +45,7 @@ export function FormatCard({
           inUse ? (
             <span className="text-xs/4 font-medium text-ink">In use</span>
           ) : pro ? (
-            <Badge variant="ink" className="h-5 px-1.5">
-              Pro
-            </Badge>
+            <ProMark />
           ) : null
         }
         className="h-full"
@@ -56,27 +54,28 @@ export function FormatCard({
         <button
           type="button"
           tabIndex={-1}
+          aria-hidden
           onClick={onPreview}
           className="h-48 cursor-zoom-in overflow-hidden rounded-xl bg-surface-muted px-5 pt-5"
         >
-          <FormatImage info={info} sizes={CARD_SIZES} className="shadow-card" />
+          <FormatImage
+            info={info}
+            sizes={CARD_SIZES}
+            className="shadow-page transition-[translate,box-shadow] duration-300 ease-out group-hover/format:-translate-y-1 group-hover/format:shadow-page-lift"
+          />
         </button>
-        <div className="flex flex-1 flex-col gap-1">
-          <p className="text-sm/6 text-pretty text-ink">{info.bestFor}</p>
-          <p className="flex items-center gap-1.5 text-xs/5 text-muted">
-            <CircleCheck className="size-3.5 shrink-0 text-pass" aria-hidden />
-            Reads cleanly in hiring software
-          </p>
-        </div>
+        <p className="flex-1 text-sm/6 text-pretty text-ink">{info.bestFor}</p>
         <div className="flex items-center gap-1">
           <Button
             size="sm"
+            variant={inUse ? "primary" : "secondary"}
             onClick={onUse}
             disabled={!ready}
             loading={opening}
             aria-describedby={titleId}
           >
             {actionLabel}
+            {inUse ? <ArrowRight /> : null}
           </Button>
           <Button size="sm" variant="ghost" onClick={onPreview} aria-describedby={titleId}>
             <Maximize2 />

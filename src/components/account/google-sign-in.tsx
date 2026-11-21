@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { api } from "@/lib/api/client";
+import type { AuthMode } from "@/lib/auth/types";
 import { errorMessage } from "./errors";
 import { useMe } from "./use-me";
 
@@ -10,12 +11,17 @@ export type GoogleSignInProps = {
   next?: string;
   disabled?: boolean;
   onError: (message: string) => void;
+  // Called just before the browser leaves for Google, so the page can keep what it was about to do.
+  onRedirect?: () => void;
 };
 
-export function GoogleSignIn({ next, disabled = false, onError }: GoogleSignInProps) {
+export function googleUnavailable(mode: AuthMode | undefined): boolean {
+  return mode === "dev" || mode === "off";
+}
+
+export function GoogleSignIn({ next, disabled = false, onError, onRedirect }: GoogleSignInProps) {
   const [pending, setPending] = useState(false);
-  const mode = useMe().me?.auth.mode;
-  const unavailable = mode === "dev" || mode === "off";
+  const unavailable = googleUnavailable(useMe().me?.auth.mode);
 
   // Back from Google restores this page from bfcache, spinner and all.
   useEffect(() => {
@@ -31,6 +37,7 @@ export function GoogleSignIn({ next, disabled = false, onError }: GoogleSignInPr
     setPending(true);
     try {
       const { url } = await api.googleSignIn(next ?? `${window.location.pathname}${window.location.search}`);
+      onRedirect?.();
       window.location.assign(url);
     } catch (failure) {
       setPending(false);
@@ -40,14 +47,18 @@ export function GoogleSignIn({ next, disabled = false, onError }: GoogleSignInPr
 
   const button = (
     <Button
-      variant="secondary"
       loading={pending}
       disabled={disabled || unavailable}
       aria-describedby={unavailable ? "google-unavailable" : undefined}
       onClick={() => void start()}
       className="w-full"
     >
-      <GoogleMark />
+      {/* Google's mark goes on white; Button's spinner hides only bare icons, so the disc is dropped here. */}
+      {pending ? null : (
+        <span className="grid size-5 place-items-center rounded-full bg-surface" aria-hidden="true">
+          <GoogleMark />
+        </span>
+      )}
       Continue with Google
     </Button>
   );
@@ -64,7 +75,7 @@ export function GoogleSignIn({ next, disabled = false, onError }: GoogleSignInPr
 
 function GoogleMark() {
   return (
-    <svg viewBox="0 0 48 48" aria-hidden="true" className="size-4.5">
+    <svg viewBox="0 0 48 48" aria-hidden="true" className="size-3.5">
       <path
         fill="#EA4335"
         d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"

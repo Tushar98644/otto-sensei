@@ -1,15 +1,12 @@
-import { ArrowRight } from "lucide-react";
-import Link from "next/link";
 import { PORTFOLIO_ROUTE } from "@/components/portfolio/route";
 import { PortfolioShot } from "@/components/portfolio/portfolio-shot";
 import type { PortfolioShotId } from "@/components/portfolio/portfolio-shot-data";
-import { buttonClasses } from "@/components/ui/button";
 import { PRO_TRIAL } from "@/config/plans";
 import { trialOffered } from "@/lib/billing/intervals";
 import { PORTFOLIO_TEMPLATE_INFO } from "@/lib/portfolio/templates";
 import { cn } from "@/lib/utils";
 import { displayItalic } from "./display-italic";
-import { Section, SectionHeader } from "./section";
+import { Section, SectionHeader, SectionLink } from "./section";
 
 const SHOWN: readonly PortfolioShotId[] = ["bento", "dock", "reel"];
 
@@ -48,13 +45,7 @@ export function PortfolioShowcase() {
           );
         })}
       </ul>
-      <Link
-        href={PORTFOLIO_ROUTE}
-        className={buttonClasses({ variant: "ghost", className: "mt-6 -ml-5" })}
-      >
-        Make my portfolio
-        <ArrowRight />
-      </Link>
+      <SectionLink href={PORTFOLIO_ROUTE}>Make my portfolio</SectionLink>
     </Section>
   );
 }

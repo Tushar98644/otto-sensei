@@ -23,7 +23,7 @@ export function RecentlyDeletedLink() {
         Recently deleted
       </Link>
       <span>
-        {pluralize(count, "resume")}, kept for {TRASH_DAYS} days
+        {pluralize(count, "resume")}, kept in this browser for {TRASH_DAYS} days
       </span>
     </p>
   );

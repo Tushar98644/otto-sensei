@@ -48,7 +48,7 @@ describe("PlanOffer", () => {
 
   it("shows Free both plans for the picked option, Pro most popular with the trial", () => {
     const { text, html } = render("free", "month", { trial: true });
-    expect(text).toContain(`Pro Most popular ${usd(PRICES_USD.pro.month)} /month per month`);
+    expect(text).toContain(`Pro Recommended ${usd(PRICES_USD.pro.month)} /month per month`);
     expect(text).toContain(`Max ${usd(PRICES_USD.max.month)} /month per month`);
     expect(text).toContain("Try Pro for 3 days");
     expect(text).toContain(`$1 for 3 days, then ${usd(PRICES_USD.pro.month)} a month.`);
@@ -60,7 +60,7 @@ describe("PlanOffer", () => {
 
   it("follows the picked billing option: yearly prices and savings, no trial", () => {
     const { text } = render("free", "year", { trial: true });
-    expect(text).toContain(`Pro Most popular ${usd(PRICES_USD.pro.year)} /year per year`);
+    expect(text).toContain(`Pro Recommended ${usd(PRICES_USD.pro.year)} /year per year`);
     expect(text).toContain(`Max ${usd(PRICES_USD.max.year)} /year per year`);
     expect(text).toContain(`Save ${yearlySavingsPercent("pro")}%`);
     expect(text).toContain(`About ${perMonth("max")} a month.`);
@@ -75,7 +75,7 @@ describe("PlanOffer", () => {
     const { text } = render("pro", "month");
     expect(text).toContain("Pro Current plan");
     expect(text).not.toContain("Upgrade to Pro");
-    expect(text).not.toContain("Most popular");
+    expect(text).not.toContain("Recommended");
     expect(text).toContain("Upgrade to Max");
   });
 
@@ -84,7 +84,7 @@ describe("PlanOffer", () => {
     expect(text).toContain("Monthly");
     expect(text).toContain("Yearly");
     expect(text).not.toContain("Weekly");
-    expect(text).toContain(`Pro Most popular ${usd(PRICES_USD.pro.month)} /month`);
+    expect(text).toContain(`Pro Recommended ${usd(PRICES_USD.pro.month)} /month`);
     expect(text).toContain("Sold monthly only, for now.");
     expect(text).toContain(`Max ${usd(PRICES_USD.max.year)} /year`);
 

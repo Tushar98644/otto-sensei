@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { AiScreening } from "@/app/(marketing)/_components/ai-screening";
+import { HeroCta } from "@/app/(marketing)/_components/hero-cta";
 import { PricingPlans } from "@/app/(marketing)/_components/pricing-plans";
 import { PrimaryCta } from "@/app/(marketing)/_components/primary-cta";
 import NotFound from "@/app/not-found";
@@ -58,7 +58,7 @@ describe("links to the studio", () => {
   it.each([
     ["the header button", <HeaderActions key="header" />],
     ["the hero and closing button", <PrimaryCta key="cta" />],
-    ["the AI screening list", <AiScreening key="ai" />],
+    ["the hero's button and job match line", <HeroCta key="hero" />],
     ["the Free plan card", <PricingPlans key="plans" offer={{ pro: ["month"], max: ["month"] }} />],
     ["the 404 page", <NotFound key="404" />],
   ])("leave the studio's code alone until someone reaches for %s", (_, node) => {

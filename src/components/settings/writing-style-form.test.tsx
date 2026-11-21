@@ -27,7 +27,15 @@ describe("WritingStyleForm", () => {
     expect(html).toMatch(/checked="" value="warm"/);
     expect(html).toMatch(/checked="" value="uk"/);
     expect(html).toMatch(/checked="" value="standard"/);
-    expect(text(html)).toContain("Warm Friendly and personal, still professional.");
+    expect(text(html)).toContain("Warm Direct Formal Friendly and personal, still professional.");
+  });
+
+  it("shows each choice as segments, with only the picked one's description under it", () => {
+    const words = text(render({ ...DEFAULT_WRITING_STYLE, tone: "direct", length: "shorter" }));
+    expect(words).toContain("Natural Warm Direct Formal Short sentences, straight to the point.");
+    expect(words).toContain("Standard Shorter About 140 words for a letter, 80 for a message.");
+    expect(words).toContain("US English UK English organize, color, résumé");
+    expect(words).not.toContain("Friendly and personal");
   });
 
   it("says where the style is used and that Otto still won't make things up", () => {
@@ -39,32 +47,31 @@ describe("WritingStyleForm", () => {
     expect(words).toContain("Mention I&#x27;m open to relocating");
   });
 
-  it("keeps Save and Reset off until there's something to save or reset", () => {
+  it("saves on its own, with a quiet status instead of a Save button", () => {
     const html = render(DEFAULT_WRITING_STYLE);
-    expect(html).toMatch(/<button type="submit" disabled=""[^>]*>Save style<\/button>/);
-    expect(html).toMatch(/<button aria-disabled="true"[^>]*>.*Reset to default<\/button>/);
+    expect(html).not.toContain('type="submit"');
+    expect(text(html)).not.toContain("Save style");
+    expect(html).toMatch(/<p role="status"[^>]*>Changes save as you go\.<\/p>/);
+    expect(html).toMatch(/<button (?=[^>]*aria-disabled="true")(?=[^>]*type="button")[^>]*>.*Reset to default<\/button>/);
     expect(text(html)).toContain("0/500");
-    expect(text(html)).not.toContain("Unsaved changes");
   });
 
   it("lets a custom style go back to the default", () => {
     const html = render({ ...DEFAULT_WRITING_STYLE, notes: "Keep it modest." });
-    expect(html).toMatch(/<button aria-disabled="false"[^>]*>.*Reset to default<\/button>/);
+    expect(html).toMatch(/<button (?=[^>]*aria-disabled="false")(?=[^>]*type="button")[^>]*>.*Reset to default<\/button>/);
     expect(html).toContain('placeholder="Best regards"');
     expect(html).toContain('maxLength="40"');
     expect(text(html)).toContain("15/500");
   });
 
-  it("waits disabled at full size, with nothing picked, while the saved style loads", () => {
+  it("waits disabled, with nothing picked, while the saved style loads", () => {
     const loading = render(null);
-    const loaded = render(DEFAULT_WRITING_STYLE);
     expect(loading).toContain('aria-busy="true"');
     expect(loading).not.toContain("checked=");
     expect(loading.match(/<fieldset disabled=""/g)).toHaveLength(3);
     expect(loading).toMatch(/<input disabled=""[^>]*placeholder="Best regards"/);
     expect(loading).toMatch(/<textarea disabled=""/);
-    expect(loading).toMatch(/<button type="submit" disabled=""[^>]*>Save style<\/button>/);
-    expect(loading).toMatch(/<button aria-disabled="true"[^>]*>.*Reset to default<\/button>/);
-    expect(text(loading)).toBe(text(loaded));
+    expect(loading).toMatch(/<button (?=[^>]*aria-disabled="true")(?=[^>]*type="button")[^>]*>.*Reset to default<\/button>/);
+    expect(text(loading)).not.toContain("Plain and friendly");
   });
 });

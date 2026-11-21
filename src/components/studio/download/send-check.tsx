@@ -9,7 +9,9 @@ import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import type { Resume } from "@/lib/resume/schema";
 import type { SendCheckItem } from "@/lib/sendcheck";
 import { pluralize } from "@/lib/utils";
+import { checkSummary, ExportCheckResult } from "./export-check-result";
 import { openSendCheckTarget } from "./jump";
+import type { ExportCheck } from "./use-export-check";
 import { useSendCheck } from "./use-send-check";
 
 const FIRST_SHOWN = 4;
@@ -60,10 +62,14 @@ function Item({
   );
 }
 
-export function SendCheckCard({ resume }: { resume: Resume }) {
+export type SendCheckCardProps = { resume: Resume; check: ExportCheck; pdfReady: boolean };
+
+export function SendCheckCard({ resume, check, pdfReady }: SendCheckCardProps) {
   const { items, okCount, markOk, restore } = useSendCheck(resume);
   const [showAll, setShowAll] = useState(false);
   const titleRef = useRef<HTMLHeadingElement>(null);
+  const pdfHeadingId = useId();
+  const wordsHeadingId = useId();
   const shown = showAll ? items : items.slice(0, FIRST_SHOWN);
   const more = items.length - shown.length;
 
@@ -83,38 +89,57 @@ export function SendCheckCard({ resume }: { resume: Resume }) {
         <CardTitle as="h2" ref={titleRef} tabIndex={-1} className="outline-none">
           Before you send it
         </CardTitle>
-        <p aria-live="polite" className="flex items-center gap-2 text-sm text-muted">
-          {items.length === 0 ? (
-            <>
-              <CircleCheck className="size-4 shrink-0 text-pass" />
-              Dates, tool names, company names and blanks all check out.
-            </>
-          ) : (
-            `${pluralize(items.length, "thing")} a recruiter might notice.`
-          )}
-        </p>
       </CardHeader>
-      {items.length > 0 ? (
-        <ul className="flex flex-col gap-3">
-          {shown.map((item) => (
-            <Item key={item.id} item={item} resume={resume} onOk={ok} />
-          ))}
-        </ul>
-      ) : null}
-      {more > 0 || okCount > 0 ? (
-        <div className="flex flex-wrap gap-2">
-          {more > 0 ? (
-            <Button variant="ghost" size="sm" onClick={() => setShowAll(true)}>
-              Show {more} more
-            </Button>
-          ) : null}
-          {okCount > 0 ? (
-            <Button variant="ghost" size="sm" onClick={restore} className="text-muted">
-              Show {pluralize(okCount, "item")} marked correct
-            </Button>
-          ) : null}
+      <section aria-labelledby={pdfHeadingId} className="flex flex-col gap-2">
+        <h3 id={pdfHeadingId} className="text-sm font-medium text-ink">
+          What hiring software reads
+        </h3>
+        <p aria-live="polite" className="sr-only">
+          {checkSummary(check)}
+        </p>
+        <ExportCheckResult check={check} ready={pdfReady} />
+      </section>
+      <section
+        aria-labelledby={wordsHeadingId}
+        className="flex flex-col gap-3 border-t border-border pt-4"
+      >
+        <div className="flex flex-col gap-1">
+          <h3 id={wordsHeadingId} className="text-sm font-medium text-ink">
+            What a recruiter might notice
+          </h3>
+          <p aria-live="polite" className="flex items-center gap-2 text-sm text-muted">
+            {items.length === 0 ? (
+              <>
+                <CircleCheck className="size-4 shrink-0 text-pass" />
+                Dates, tool names, company names and blanks all check out.
+              </>
+            ) : (
+              `${pluralize(items.length, "thing")} to look at before you send it.`
+            )}
+          </p>
         </div>
-      ) : null}
+        {items.length > 0 ? (
+          <ul className="flex flex-col gap-3">
+            {shown.map((item) => (
+              <Item key={item.id} item={item} resume={resume} onOk={ok} />
+            ))}
+          </ul>
+        ) : null}
+        {more > 0 || okCount > 0 ? (
+          <div className="flex flex-wrap gap-2">
+            {more > 0 ? (
+              <Button variant="ghost" size="sm" onClick={() => setShowAll(true)}>
+                Show {more} more
+              </Button>
+            ) : null}
+            {okCount > 0 ? (
+              <Button variant="ghost" size="sm" onClick={restore} className="text-muted">
+                Show {pluralize(okCount, "item")} marked correct
+              </Button>
+            ) : null}
+          </div>
+        ) : null}
+      </section>
     </Card>
   );
 }

@@ -12,6 +12,27 @@ export function defaultResumeId(resumes: readonly Resume[]): string | null {
   return newest(resumes.filter((resume) => resume.tailor === null)) ?? newest(resumes);
 }
 
+export function matchingResumeId(resumes: readonly Resume[], picked: string | null): string | null {
+  return picked && resumes.some((resume) => resume.id === picked)
+    ? picked
+    : defaultResumeId(resumes);
+}
+
+const JOB_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const TAILOR_PARAM = "tailor";
+
+// The weekly email links to /dashboard/jobs?tailor=<job id>; `rest` is the address without it.
+export function tailorLink(href: string): { jobId: string | null; rest: string } | null {
+  const url = new URL(href);
+  if (!url.searchParams.has(TAILOR_PARAM)) return null;
+  const value = url.searchParams.get(TAILOR_PARAM) ?? "";
+  url.searchParams.delete(TAILOR_PARAM);
+  return {
+    jobId: JOB_ID.test(value) ? value.toLowerCase() : null,
+    rest: `${url.pathname}${url.search}${url.hash}`,
+  };
+}
+
 type JobKey = { id?: string; url: string };
 
 export function tailoredFor(resumes: readonly Resume[], job: JobKey): Resume | null {

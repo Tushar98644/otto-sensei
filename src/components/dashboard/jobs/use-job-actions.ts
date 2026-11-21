@@ -14,7 +14,7 @@ import type {
   MatchActionInput,
   MatchedJob,
 } from "@/lib/api/types";
-import type { AskedAppliedAnswer } from "@/lib/job-feed/types";
+import type { AskedAppliedAnswer, FeedJob } from "@/lib/job-feed/types";
 import type { Resume } from "@/lib/resume/schema";
 import { commitDelete, hideApplication } from "../applications/use-applications";
 import { forgetSavedJobs } from "../applications/board/use-board-extras";
@@ -35,6 +35,7 @@ type JobActionsInput = {
   userId: string | null;
   patch: (change: (data: JobMatchesResponse) => JobMatchesResponse, mark: SavedMark) => void;
   actions: StudioActions;
+  free: boolean;
 };
 
 export function useJobActions({
@@ -46,6 +47,7 @@ export function useJobActions({
   userId,
   patch,
   actions,
+  free,
 }: JobActionsInput) {
   const [busy, setBusy] = useState<{ id: string; action: "apply" | "tailor" } | null>(null);
   const saveQueue = useRef(new Map<string, Promise<void>>());
@@ -73,6 +75,22 @@ export function useJobActions({
       .catch(() => undefined);
   }
 
+  function startTailor(job: FeedJob, text: string, posting: QueuedJob["posting"]) {
+    if (!resume) return;
+    queueJobForTailor({
+      link: job.url,
+      title: job.title,
+      company: job.company,
+      location: job.location,
+      text,
+      postedAt: job.postedAt,
+      readLink: readsLink(job),
+      jobId: job.id,
+      posting,
+    });
+    actions.open(resume.id, "tailor");
+  }
+
   async function tailor(job: MatchedJob) {
     if (!resume) return;
     note(job, "tailor");
@@ -94,18 +112,45 @@ export function useJobActions({
         return;
       }
     }
-    queueJobForTailor({
-      link: job.url,
-      title: job.title,
-      company: job.company,
-      location: job.location,
-      text,
-      postedAt: job.postedAt,
-      readLink: readsLink(job),
-      jobId: job.id,
-      posting,
-    });
-    actions.open(resume.id, "tailor");
+    startTailor(job, text, posting);
+  }
+
+  function closedToast() {
+    toast({ title: "That job has closed", description: "Your other matches are below." });
+  }
+
+  // A link from an email names a job that may not be on this page, so it's read by its id.
+  async function tailorById(id: string) {
+    if (!resume) return;
+    const shown = data?.jobs.find((item) => item.id === id);
+    if (shown) {
+      if (tailoredFor(resumes, shown)) openTailored(shown);
+      else if (shown.closed) closedToast();
+      else await tailor(shown);
+      return;
+    }
+    setBusy({ id, action: "tailor" });
+    try {
+      const post = await api.jobPost(id);
+      const copy = tailoredFor(resumes, post.job);
+      if (copy) {
+        actions.open(copy.id, "fix");
+        return;
+      }
+      if (post.job.closed) {
+        setBusy(null);
+        closedToast();
+        return;
+      }
+      startTailor(post.job, post.text, post.posting ?? undefined);
+    } catch (error) {
+      setBusy(null);
+      toast({
+        title: "Couldn't open that job",
+        description: errorMessage(error),
+        variant: "error",
+      });
+    }
   }
 
   function openTailored(job: MatchedJob) {
@@ -115,7 +160,7 @@ export function useJobActions({
 
   // Clicks on one job queue up so a quick save-unsave reaches the server in order.
   function toggleSave(job: MatchedJob) {
-    if (data?.locked && !job.saved) {
+    if (free && !job.saved) {
       openUpgradePrompt("jobs");
       return;
     }
@@ -201,5 +246,15 @@ export function useJobActions({
     note(job, "asked_applied", { answer });
   }
 
-  return { busy, note, tailor, openTailored, toggleSave, markApplied, openJob, answerApplied };
+  return {
+    busy,
+    note,
+    tailor,
+    tailorById,
+    openTailored,
+    toggleSave,
+    markApplied,
+    openJob,
+    answerApplied,
+  };
 }

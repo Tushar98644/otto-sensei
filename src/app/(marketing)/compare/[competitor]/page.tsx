@@ -1,23 +1,28 @@
-import { Check } from "lucide-react";
+import { ArrowRight, Check } from "lucide-react";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { IntentLink } from "@/components/site/intent-link";
 import { pageMetadata } from "@/components/site/page-metadata";
 import { ROUTES } from "@/components/site/routes";
+import { buttonClasses } from "@/components/ui/button";
 import { BRAND } from "@/config/brand";
 import {
   COMPETITORS,
   COMPETITORS_CHECKED,
+  type CompareCell,
   type CompareNote,
   type Competitor,
+  bothHaveFreePlans,
+  choices,
   compareTitle,
   competitorBySlug,
+  ottoReasons,
 } from "@/lib/seo-pages/compare";
 import { COMPARE_INDEX_PAGE, RELATED, calendarDate, comparePage } from "@/lib/seo-pages/pages";
-import { comparePath } from "@/lib/seo-pages/paths";
+import { SEO_PATHS, comparePath } from "@/lib/seo-pages/paths";
 import {
   Breadcrumbs,
-  CheckCta,
+  CheckButtons,
   ExternalLink,
   H2_CLASSES,
   LINK_CLASSES,
@@ -25,6 +30,7 @@ import {
   PageIntro,
   RelatedLinks,
 } from "../../ats/_components/guide-parts";
+import { ChoiceLine } from "../_components/choice-line";
 
 export const dynamicParams = false;
 
@@ -41,6 +47,42 @@ async function competitorFor(params: Props["params"]): Promise<Competitor> {
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   return pageMetadata(comparePage(await competitorFor(params)));
+}
+
+function Verdict({ competitor }: { competitor: Competitor }) {
+  return (
+    <section
+      aria-labelledby="verdict-title"
+      className="mt-10 max-w-3xl rounded-3xl bg-surface-muted p-6 sm:p-8"
+    >
+      <h2
+        id="verdict-title"
+        className="font-sans text-xs/4 font-medium tracking-widest text-subtle uppercase"
+      >
+        The short answer
+      </h2>
+      <ul role="list" className="mt-4 flex flex-col gap-2 text-base/7 text-pretty text-muted">
+        {choices(competitor).map((choice) => (
+          <li key={choice.name}>
+            <ChoiceLine choice={choice} />
+          </li>
+        ))}
+        {bothHaveFreePlans(competitor) ? (
+          <li>Both have a free plan, so you can try each one before you pay.</li>
+        ) : null}
+      </ul>
+      <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
+        <IntentLink
+          href={SEO_PATHS.jobMatch}
+          className={buttonClasses({ size: "lg", className: "w-full sm:w-auto" })}
+        >
+          Run the free match check
+          <ArrowRight />
+        </IntentLink>
+        <p className="text-sm/6 text-subtle">No sign-in needed.</p>
+      </div>
+    </section>
+  );
 }
 
 function NoteList({
@@ -69,9 +111,19 @@ function NoteList({
   );
 }
 
+function GlanceCell({ name, cell }: { name: string; cell: CompareCell }) {
+  return (
+    <dd className="flex flex-col gap-1 text-base/7 text-pretty text-muted md:col-span-2">
+      <span className="text-xs/4 font-medium tracking-widest text-subtle uppercase md:sr-only">
+        {name}
+      </span>
+      <p className="font-medium text-ink">{cell.answer}</p>
+      {cell.detail ? <p>{cell.detail}</p> : null}
+    </dd>
+  );
+}
+
 function AtAGlance({ competitor }: { competitor: Competitor }) {
-  const column = "flex flex-col gap-1 text-base/7 text-pretty text-muted md:col-span-2";
-  const label = "text-xs/4 font-medium tracking-widest text-subtle uppercase md:sr-only";
   return (
     <section aria-labelledby="glance-title">
       <h2 id="glance-title" className={H2_CLASSES}>
@@ -90,17 +142,39 @@ function AtAGlance({ competitor }: { competitor: Competitor }) {
           {competitor.rows.map((row) => (
             <div key={row.label} className="grid gap-3 py-6 md:grid-cols-5 md:gap-8">
               <dt className="text-lg/7 font-medium tracking-tight text-ink">{row.label}</dt>
-              <dd className={column}>
-                <span className={label}>{BRAND.name}</span>
-                {row.otto}
-              </dd>
-              <dd className={column}>
-                <span className={label}>{competitor.name}</span>
-                {row.them}
-              </dd>
+              <GlanceCell name={BRAND.name} cell={row.otto} />
+              <GlanceCell name={competitor.name} cell={row.them} />
             </div>
           ))}
         </dl>
+      </div>
+    </section>
+  );
+}
+
+function WhichSuits({ competitor }: { competitor: Competitor }) {
+  const [otto, them] = choices(competitor);
+  return (
+    <section aria-labelledby="pick-title">
+      <h2 id="pick-title" className={H2_CLASSES}>
+        Which one suits you
+      </h2>
+      <div className="mt-6 rounded-3xl bg-surface-muted p-3 sm:p-6">
+        <div className="grid gap-3 md:grid-cols-2">
+          {[them, otto].map((choice) => (
+            <div key={choice.name} className="flex flex-col gap-2 rounded-2xl bg-surface p-4 sm:p-6">
+              <h3 className="text-lg/7 font-medium tracking-tight text-ink">{choice.name}</h3>
+              <p className="text-base/7 text-pretty text-muted">If {choice.clause}</p>
+            </div>
+          ))}
+        </div>
+        <div className="flex flex-col gap-4 px-1 pt-6 pb-3 sm:px-0 sm:pb-0">
+          <p className="max-w-prose text-base/7 text-pretty text-ink">
+            Try {BRAND.shortName} on your own resume. Matching it to a job and checking it are free,
+            with no card.
+          </p>
+          <CheckButtons />
+        </div>
       </div>
     </section>
   );
@@ -122,19 +196,27 @@ export default async function ComparePage({ params }: Props) {
       />
       <PageIntro eyebrow="Compare" title={title}>
         <p>{competitor.summary}</p>
-        <p className="text-base/7 text-subtle">
-          Everything about {competitor.name} here comes from its own website, checked on{" "}
-          <time dateTime={COMPETITORS_CHECKED}>{checked}</time>. Prices and plans change, so check
-          the{" "}
-          <a href="#sources-title" className={LINK_CLASSES}>
-            sources
-          </a>{" "}
-          before you decide.
-        </p>
       </PageIntro>
 
-      <div className="mt-12 flex max-w-5xl flex-col gap-24 sm:mt-16 sm:gap-32">
+      <Verdict competitor={competitor} />
+
+      <p className="mt-6 max-w-3xl text-sm/6 text-pretty text-subtle">
+        Everything about {competitor.name} here comes from its own website, checked on{" "}
+        <time dateTime={COMPETITORS_CHECKED}>{checked}</time>. Prices and plans change, so check the{" "}
+        <a href="#sources-title" className={LINK_CLASSES}>
+          sources
+        </a>{" "}
+        before you decide.
+      </p>
+
+      <div className="mt-24 flex max-w-5xl flex-col gap-24 sm:mt-32 sm:gap-32">
         <AtAGlance competitor={competitor} />
+
+        <NoteList
+          id="reasons-title"
+          title={`Why pick ${BRAND.name}`}
+          notes={ottoReasons(competitor)}
+        />
 
         <section aria-labelledby="strengths-title">
           <h2 id="strengths-title" className={H2_CLASSES}>
@@ -150,35 +232,7 @@ export default async function ComparePage({ params }: Props) {
           </ul>
         </section>
 
-        <NoteList
-          id="differences-title"
-          title={`Where ${BRAND.name} is different`}
-          notes={competitor.differences}
-        />
-
-        <NoteList id="extras-title" title={`Also in ${BRAND.name}`} notes={competitor.extras} />
-
-        <section aria-labelledby="pick-title">
-          <h2 id="pick-title" className={H2_CLASSES}>
-            Which one suits you
-          </h2>
-          <div className="mt-6 grid gap-3 rounded-3xl bg-surface-muted p-3 sm:p-6 md:grid-cols-2">
-            {[
-              { name: competitor.name, text: competitor.pickThem },
-              { name: BRAND.name, text: competitor.pickOtto },
-            ].map((pick) => (
-              <div
-                key={pick.name}
-                className="flex flex-col gap-2 rounded-2xl bg-surface p-4 sm:p-6"
-              >
-                <h3 className="text-lg/7 font-medium tracking-tight text-ink">{pick.name}</h3>
-                <p className="text-base/7 text-pretty text-muted">{pick.text}</p>
-              </div>
-            ))}
-          </div>
-        </section>
-
-        <CheckCta title={`Try ${BRAND.name} on your resume`} />
+        <WhichSuits competitor={competitor} />
 
         <section aria-labelledby="sources-title" className="scroll-mt-24">
           <h2 id="sources-title" className={H2_CLASSES}>

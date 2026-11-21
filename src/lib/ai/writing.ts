@@ -12,7 +12,12 @@ import {
   type WritingTone,
 } from "@/lib/writing-style/schema";
 import { runStructured, type AITask } from "./client";
-import { ANSWER_SYSTEM_PROMPT, LETTER_SYSTEM_PROMPT, OUTREACH_SYSTEM_PROMPT } from "./prompts";
+import {
+  ANSWER_SYSTEM_PROMPT,
+  LETTER_SYSTEM_PROMPT,
+  OUTREACH_SYSTEM_PROMPT,
+  outreachFollowUpRules,
+} from "./prompts";
 import { redactResume, redactorFor, type Redactor } from "./redact";
 import { clip, clipWords, MAX_RESUME_CHARS, oneLine, tag, type DataTag } from "./text";
 import {
@@ -409,12 +414,13 @@ export async function answerQuestion(
   };
 }
 
-function outreachMessage(prepared: Prepared, style: string): string {
+function outreachMessage(prepared: Prepared, style: string, followUpDays: number | null): string {
   return userMessage([
     dataTag("resume", prepared.shownText),
     dataTag("job_post", postText(prepared.job)),
     style,
-    "Write the message.",
+    followUpDays === null ? "" : outreachFollowUpRules(followUpDays),
+    followUpDays === null ? "Write the message." : "Write the follow-up.",
   ]);
 }
 
@@ -441,6 +447,7 @@ function finishOutreach(
   note: string,
   prepared: Prepared,
   lengths: Lengths,
+  followUp: boolean,
 ): OutreachParts {
   const { sources, lines, job } = prepared;
   const body = polish(email, lengths.range, lengths.floor, sources);
@@ -449,34 +456,39 @@ function finishOutreach(
   const shownSubject = clip(oneLine(subjectCheck.paragraphs[0] ?? ""), SUBJECT_CHARS);
   const shownNote = oneLine(noteCheck.paragraphs.join(" "));
   return {
-    subject: shownSubject && !hasProblems(subjectCheck) ? shownSubject : fallbackSubject(job),
+    subject:
+      shownSubject && !hasProblems(subjectCheck) ? shownSubject : fallbackSubject(job, followUp),
     email: body,
-    note: shownNote && !hasProblems(noteCheck) ? shownNote : fallbackNote(body, job),
+    note: shownNote && !hasProblems(noteCheck) ? shownNote : fallbackNote(body, job, followUp),
   };
 }
 
-function fallbackSubject(job: WritingInput): string {
+function fallbackSubject(job: WritingInput, followUp: boolean): string {
   const role = job.jobTitle || "The open role";
-  return clip(job.company ? `${role} at ${job.company}` : role, SUBJECT_CHARS);
+  const subject = job.company ? `${role} at ${job.company}` : role;
+  return clip(followUp ? `Following up: ${subject}` : subject, SUBJECT_CHARS);
 }
 
 const NOTE_BUDGET = NOTE_CHARS - NOTE_GREETING.length;
 
 // The email's first sentence when it fits the note, or a plain line naming the role.
-function fallbackNote(body: readonly string[], job: WritingInput): string {
+function fallbackNote(body: readonly string[], job: WritingInput, followUp: boolean): string {
   const first = sentencesOf(body[0] ?? "")[0]?.trim() ?? "";
   if (first && first.length <= NOTE_BUDGET) return first;
   const role = job.jobTitle ? `the ${job.jobTitle} role` : "your open role";
-  const line = `I am applying for ${role}${job.company ? ` at ${job.company}` : ""} and would be glad to connect.`;
+  const line = `${followUp ? "I applied" : "I am applying"} for ${role}${job.company ? ` at ${job.company}` : ""} and would be glad to connect.`;
   return clipWords(line, NOTE_BUDGET);
 }
 
+// followUpDays: the person already applied that many days ago, so it follows up instead of opening.
 export async function writeOutreach(
   resume: Resume,
   input: WritingInput,
   style: WritingStyleBody = DEFAULT_WRITING_STYLE,
+  { followUpDays = null }: { followUpDays?: number | null } = {},
 ): Promise<OutreachResult> {
   const prepared = prepare(resume, input, style);
+  const followUp = followUpDays !== null;
   const lengths = lengthsFor("outreach", style.length);
   const name = oneLine(resume.basics.name);
   let parts: OutreachParts;
@@ -485,7 +497,7 @@ export async function writeOutreach(
       {
         task: "outreach",
         system: OUTREACH_SYSTEM_PROMPT,
-        user: outreachMessage(prepared, styleBlock(style, "outreach", prepared)),
+        user: outreachMessage(prepared, styleBlock(style, "outreach", prepared), followUpDays),
         schema: OutreachOutputSchema,
         paragraphs: (result) => result.email,
         range: lengths.range,
@@ -493,9 +505,16 @@ export async function writeOutreach(
       prepared,
     );
     const restore = (text: string) => prepared.redactor.restore(text);
-    parts = finishOutreach(check, restore(output.subject), restore(output.note), prepared, lengths);
+    parts = finishOutreach(
+      check,
+      restore(output.subject),
+      restore(output.note),
+      prepared,
+      lengths,
+      followUp,
+    );
   } else {
-    parts = demoOutreach(resume, prepared.job);
+    parts = demoOutreach(resume, prepared.job, followUp);
   }
   const body = parts.email.join("\n\n");
   // The note's length is shown live in the dialog, so a warning here would go stale as the person edits it.

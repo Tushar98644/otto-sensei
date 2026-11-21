@@ -1,13 +1,15 @@
 import { eq } from "drizzle-orm";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { getDb } from "@/db/client";
 import { applications } from "@/db/schema";
 import type { ApiErrorBody } from "@/lib/api/types";
-import { createUser, resetDb } from "@/lib/auth/test-helpers";
+import { cookieJar, createUser, resetDb, signInAs } from "@/lib/auth/test-helpers";
 import { resetEnvForTests } from "@/lib/env";
 import type { FollowUpActionResponse } from "@/lib/notifications/types";
 import { followUpActionUrl } from "@/lib/notifications/unsubscribe";
 import { POST } from "./route";
+
+vi.mock("next/headers", async () => (await import("@/lib/auth/test-helpers")).nextHeadersMock);
 
 const DAY = 24 * 60 * 60 * 1_000;
 
@@ -54,6 +56,7 @@ const followUpOf = async (id: string) =>
 describe("POST /api/notifications/follow-up", () => {
   beforeEach(async () => {
     await resetDb();
+    cookieJar.clear();
     process.env.CRON_SECRET = "test-cron-secret-0123456789";
     process.env.NEXT_PUBLIC_APP_URL = "https://otto.test";
     resetEnvForTests();
@@ -117,5 +120,34 @@ describe("POST /api/notifications/follow-up", () => {
     resetEnvForTests();
     expect(followUpActionUrl(maya.id, id, "done")).toBeNull();
     expect((await send(bodyFrom(link))).status).toBe(400);
+  });
+
+  it("acts for the signed-in account from the bell, with no token", async () => {
+    const maya = await signInAs("maya@example.com");
+    const id = await seed(maya.id);
+    const res = await send({ a: id, act: "done" });
+    expect(res.status).toBe(200);
+    expect(await res.json()).toMatchObject({ ok: true, company: "Stripe", followUpAt: null });
+    expect(await followUpOf(id)).toBeNull();
+  });
+
+  it("never lets the bell reach another account's application, or a half-signed body through", async () => {
+    const sam = await createUser("sam@example.com");
+    const theirs = await seed(sam.id);
+    const maya = await signInAs("maya@example.com");
+    expect((await send({ a: theirs, act: "done" })).status).toBe(404);
+    expect(await followUpOf(theirs)).not.toBeNull();
+
+    const own = await seed(maya.id);
+    const signed = bodyFrom(followUpActionUrl(maya.id, own, "done"));
+    for (const body of [{ a: own, act: "done", t: signed.t }, { a: own, act: "done", u: maya.id }]) {
+      const res = await send(body);
+      expect(res.status).toBe(400);
+      expect(((await res.json()) as ApiErrorBody).error.code).toBe("bad_request");
+    }
+    expect(await followUpOf(own)).not.toBeNull();
+
+    cookieJar.clear();
+    expect((await send({ a: own, act: "done" })).status).toBe(401);
   });
 });

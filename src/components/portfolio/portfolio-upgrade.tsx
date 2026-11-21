@@ -10,60 +10,18 @@ import { Button } from "@/components/ui/button";
 import { Eyebrow } from "@/components/ui/eyebrow";
 import { PRO_TRIAL } from "@/config/plans";
 import { trialSentence } from "@/lib/billing/prices";
-import { emptyContent } from "@/lib/portfolio/content";
-import { contentView } from "@/lib/portfolio/content-view";
 import { suggestSlug } from "@/lib/portfolio/slug";
-import { PORTFOLIO_TEMPLATE_INFO, templateOrder } from "@/lib/portfolio/templates";
-import {
-  PORTFOLIO_TEMPLATE_IDS,
-  portfolioPath,
-  type Portfolio,
-  type PortfolioTemplateId,
-} from "@/lib/portfolio/types";
-import { portfolioView } from "@/lib/portfolio/view";
+import { portfolioPath, type Portfolio, type PortfolioTemplateId } from "@/lib/portfolio/types";
 import type { Resume } from "@/lib/resume/schema";
-import type { TemplateSample } from "./live-template";
 import { PORTFOLIO_LINES } from "./lines";
 import { PreviewSourceBar, usePreviewSource } from "./preview-source";
+import { pageSample } from "./sample";
+import { TemplateGallery } from "./template-gallery";
 import { usePortfolioUrl } from "./use-portfolio-url";
-import { TemplatePreview } from "./template-preview";
 
 const FullPortfolioPreview = lazy(() =>
   import("./full-preview").then((module) => ({ default: module.FullPortfolioPreview })),
 );
-
-export function freeSample(
-  portfolio: Portfolio | null,
-  candidates: readonly Resume[],
-): TemplateSample | null {
-  const source = portfolio
-    ? (candidates.find((resume) => resume.id === portfolio.resumeId) ?? null)
-    : null;
-  const resume = portfolio
-    ? portfolio.sync && source
-      ? source
-      : portfolio.snapshot
-    : (candidates[0] ?? null);
-  if (!resume) return null;
-  const view = portfolioView(
-    resume,
-    portfolio
-      ? {
-          showEmail: portfolio.showEmail,
-          showPhone: portfolio.showPhone,
-          hiddenSections: portfolio.hiddenSections,
-        }
-      : { showEmail: false, showPhone: false, hiddenSections: [] },
-  );
-  return {
-    view,
-    content: contentView({
-      view,
-      content: portfolio?.content ?? emptyContent(),
-      github: portfolio?.github ?? null,
-    }),
-  };
-}
 
 export function PortfolioUpgrade({
   portfolio,
@@ -77,7 +35,7 @@ export function PortfolioUpgrade({
   const [full, setFull] = useState<PortfolioTemplateId | null>(null);
   const tryLabel = useTryProLabel();
   const trial = me?.billing.trial === true;
-  const own = useMemo(() => freeSample(portfolio, candidates), [portfolio, candidates]);
+  const own = useMemo(() => pageSample(portfolio, candidates), [portfolio, candidates]);
   const choice = usePreviewSource(own);
   const slug = portfolio?.slug ?? suggestSlug(own?.view.name ?? "");
   const url = usePortfolioUrl(slug).replace(/^https?:\/\//, "") || portfolioPath(slug);
@@ -93,7 +51,7 @@ export function PortfolioUpgrade({
           <p className="mt-2 text-base/7 text-pretty text-muted">
             {portfolio
               ? "Portfolios come with Pro and Max. Your page and its settings are kept, so it comes back as it was."
-              : "Not your resume as a web page: a portfolio site with your projects, work, writing and links, in one of eight designs."}
+              : "Your projects, work, writing and links in one of eight designs, filled in from your resume."}
           </p>
           <ul className="mt-4 flex flex-col gap-2 text-sm/6 text-ink">
             <li className="flex gap-2">
@@ -136,44 +94,23 @@ export function PortfolioUpgrade({
 
       <PreviewSourceBar choice={choice} className="mt-6" />
 
-      <ul className="mt-4 grid gap-x-6 gap-y-8 sm:grid-cols-2 xl:grid-cols-3">
-        {templateOrder(PORTFOLIO_TEMPLATE_IDS).map((id) => {
-          const { name, description } = PORTFOLIO_TEMPLATE_INFO[id];
-          return (
-            <li key={id} className="flex flex-col gap-3">
-              <button
-                type="button"
-                onClick={() => setFull(id)}
-                aria-label={`Preview ${name} full page`}
-                className="group relative block rounded-xl text-left focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
-              >
-                <TemplatePreview
-                  id={id}
-                  sample={choice.sample}
-                  sizes="(min-width: 1280px) 30vw, (min-width: 640px) 45vw, 90vw"
-                  className="transition-shadow group-hover:ring-2 group-hover:ring-ink/20"
-                />
-              </button>
-              <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <p className="text-sm/6 font-medium text-ink">{name}</p>
-                  <p className="text-sm/5 text-muted">{description}</p>
-                </div>
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  className="shrink-0"
-                  onClick={() => setFull(id)}
-                  aria-label={`Preview ${name} full page`}
-                >
-                  <Expand aria-hidden />
-                  Full page
-                </Button>
-              </div>
-            </li>
-          );
-        })}
-      </ul>
+      <TemplateGallery
+        className="mt-4"
+        sample={choice.sample}
+        onPreview={setFull}
+        action={(id, name) => (
+          <Button
+            variant="secondary"
+            size="sm"
+            className="shrink-0"
+            onClick={() => setFull(id)}
+            aria-label={`Preview ${name} full page`}
+          >
+            <Expand aria-hidden />
+            Full page
+          </Button>
+        )}
+      />
 
       {full ? (
         <Suspense fallback={null}>

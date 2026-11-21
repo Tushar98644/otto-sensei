@@ -3,7 +3,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 import { ROUTES } from "@/components/site/routes";
 import { HIRING_SYSTEMS } from "@/lib/ats/systems";
-import { ATS_IDS, atsGuide, guideHeadline } from "@/lib/seo-pages/ats";
+import { ATS_IDS, atsGuide, guideHeadline, topTip } from "@/lib/seo-pages/ats";
 import { COMPETITORS } from "@/lib/seo-pages/compare";
 import { seoPages } from "@/lib/seo-pages/pages";
 import { SEO_PATHS, atsPath } from "@/lib/seo-pages/paths";
@@ -73,6 +73,59 @@ describe("ATS guide pages", () => {
     expect(html).toContain(`href="${ROUTES.studio}"`);
   });
 
+  it("names each button by where it goes", async () => {
+    const html = await render(guide("workday"));
+    const links = [...html.matchAll(/(<a [^>]*>)([\s\S]*?)<\/a>/g)].map((match) => ({
+      href: hrefOf(match[1] ?? ""),
+      label: text(match[2] ?? "").trim(),
+    }));
+    const hrefsOf = (label: string) =>
+      new Set(links.filter((link) => link.label === label).map((link) => link.href));
+    expect(hrefsOf("Match my resume to a job")).toEqual(new Set([SEO_PATHS.jobMatch]));
+    expect(hrefsOf("Check my resume")).toEqual(new Set([ROUTES.studio]));
+    expect(text(html)).not.toContain("Check your resume free");
+  });
+
+  it("checks a job link right in the how-to-tell panel and hands it to the match check", async () => {
+    const html = await render(guide("workday"));
+    const panel = html.slice(html.indexOf('id="spot-title"'), html.indexOf('id="file-title"'));
+    const form = /<form[^>]*>/.exec(panel)?.[0] ?? "";
+    expect(form).toContain(`action="${SEO_PATHS.jobMatch}"`);
+    expect(panel).toMatch(/<input[^>]*name="job"/);
+    expect(text(panel)).toContain("Check my resume against this job");
+    expect(text(panel)).toContain("Paste a job link and I'll tell you if the job uses Workday.");
+    expect(text(panel)).not.toContain("Tailor step");
+  });
+
+  it("sets small titles in sans, never small serif", async () => {
+    const html = await render(guide("workday"));
+    for (const id of ["spot-title", "more-title", "side-cta-title"]) {
+      const tag = new RegExp(`<h2 id="${id}" class="([^"]*)"`).exec(html)?.[1] ?? "";
+      expect(tag, id).toContain("font-sans");
+    }
+  });
+
+  it("puts a match check at the top of the sidebar", async () => {
+    const html = await render(guide("workday"));
+    const aside = html.slice(html.indexOf("<aside"));
+    expect(aside.indexOf('id="side-cta-title"')).toBeLessThan(aside.indexOf('id="more-title"'));
+    expect(aside).toContain(`href="${SEO_PATHS.jobMatch}"`);
+  });
+
+  it("labels two sources with the same name by what each covers", async () => {
+    const words = text(await render(guide("workday")));
+    expect(words).toContain("Source: Workday docs on how it reads your file");
+    expect(words).toContain("Workday docs on screening questions");
+    expect(words).not.toContain("doc.workday.com · on how it reads your file");
+    expect(words).not.toContain("doc.workday.com · on screening questions");
+    expect(words).toContain(
+      "Workday HiredScore release notes (opens in a new tab) doc.workday.com · on AI matching",
+    );
+    expect(text(await render(guide("greenhouse")))).toContain(
+      "my.greenhouse.com · on how people review applicants",
+    );
+  });
+
   it("says so when Otto has nothing sourced on how a system reads files", async () => {
     expect(text(await render(guide("lever")))).toContain(
       "Otto's notes don't cover how Lever reads files yet",
@@ -100,10 +153,14 @@ describe("ATS guide pages", () => {
     expect(words).not.toContain("How Lever reads your resume");
   });
 
-  it("links every guide from the index", async () => {
+  it("links every guide from the index, each with its best tip and no thin counts", async () => {
     const html = await render(<AtsGuidesPage />);
     checkPage(html);
     for (const id of Object.keys(HIRING_SYSTEMS)) expect(html).toContain(`href="/ats/${id}"`);
+    const words = text(html);
+    for (const id of ATS_IDS) expect(words).toContain(topTip(atsGuide(id)));
+    expect(words).not.toContain("1 sourced note");
+    expect(words).toContain(`${HIRING_SYSTEMS.greenhouse.notes.length} sourced notes`);
   });
 });
 
@@ -116,16 +173,35 @@ describe("comparison pages", () => {
     expect(words).toContain(`Otto Sensei vs ${competitor.name}`);
     expect(words).toContain("November 18, 2026");
     for (const row of competitor.rows) {
-      expect(words).toContain(row.otto);
-      expect(words).toContain(row.them);
+      for (const cell of [row.otto, row.them]) {
+        expect(words).toContain(cell.answer);
+        if (cell.detail) expect(words).toContain(cell.detail);
+      }
     }
     for (const strength of competitor.strengths) expect(words).toContain(strength);
     for (const note of [...competitor.differences, ...competitor.extras]) {
       expect(words).toContain(note.text);
     }
-    expect(words).toContain("Also in Otto Sensei");
     for (const source of competitor.sources) expect(html).toContain(`href="${source.url}"`);
     expect(words).toContain(`${competitor.name} is a trademark of its owner`);
+  });
+
+  it.each(COMPETITORS.map((c) => c.slug))("%s says why Otto before the details", async (slug) => {
+    const competitor = COMPETITORS.find((c) => c.slug === slug)!;
+    const html = await render(comparison(slug));
+    const words = text(html);
+    const at = (needle: string) => words.indexOf(needle);
+    expect(at(`Pick Otto if ${competitor.pickOtto}`)).toBeGreaterThan(-1);
+    expect(at(`Pick ${competitor.name} if ${competitor.pickThem}`)).toBeGreaterThan(-1);
+    expect(at("Run the free match check")).toBeGreaterThan(-1);
+    expect(at("Run the free match check")).toBeLessThan(at("At a glance"));
+    expect(at("Why pick Otto Sensei")).toBeLessThan(at(`What ${competitor.name} does well`));
+    expect(words).not.toContain("Also in Otto Sensei");
+    const verdict = html.slice(html.indexOf('id="verdict-title"'), html.indexOf('id="glance-title"'));
+    expect(verdict).toContain(`href="${SEO_PATHS.jobMatch}"`);
+    const pick = html.slice(html.indexOf('id="pick-title"'), html.indexOf('id="sources-title"'));
+    expect(pick).toContain(`href="${SEO_PATHS.jobMatch}"`);
+    expect(pick).toContain(`href="${ROUTES.studio}"`);
   });
 
   it("refuses a product it hasn't checked", async () => {
@@ -139,10 +215,15 @@ describe("comparison pages", () => {
     expect(meta.openGraph?.title).toBe("Otto Sensei vs Rezi");
   });
 
-  it("links every comparison from the index", async () => {
+  it("links every comparison from the index, with who should pick which", async () => {
     const html = await render(<CompareIndexPage />);
     checkPage(html);
-    for (const { slug } of COMPETITORS) expect(html).toContain(`href="/compare/${slug}"`);
+    const words = text(html);
+    for (const competitor of COMPETITORS) {
+      expect(html).toContain(`href="/compare/${competitor.slug}"`);
+      expect(words).toContain(`Pick Otto if ${competitor.pickOtto}`);
+      expect(words).toContain(`Pick ${competitor.name} if ${competitor.pickThem}`);
+    }
   });
 });
 
@@ -159,7 +240,9 @@ describe("resume templates page", () => {
     expect(html.match(/>Use this format</g)).toHaveLength(TEMPLATE_LIST.length);
     for (const info of TEMPLATE_LIST) {
       expect(html).toContain(`Use this format<span class="sr-only">: ${info.name}</span>`);
+      expect(html).toContain(`aria-label="See the full ${info.name} page"`);
     }
+    expect(words).not.toMatch(/offers Pro first/i);
     expect(words).not.toMatch(/reads every one/i);
     expect(html.match(/>Free</g)).toHaveLength(2);
     expect(html.match(/>Pro</g)).toHaveLength(TEMPLATE_LIST.length - 2);

@@ -3,6 +3,7 @@ import { unstable_doesMiddlewareMatch } from "next/experimental/testing/server";
 import { NextRequest } from "next/server";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { resetEnvForTests } from "@/lib/env";
+import { REQUEST_PATH_HEADER } from "@/lib/request-path";
 import { config, proxy } from "./proxy";
 
 type ServerClientOptions = Parameters<typeof createServerClient>[2];
@@ -94,6 +95,35 @@ describe("proxy", () => {
     expect(res.headers.get("location")).toBe("https://otto.test/dashboard");
     expect(res.cookies.get(COOKIE)?.value).toBe("fresh");
     expect(res.headers.get("cache-control")).toContain("no-store");
+  });
+
+  it("tells the dashboard layout which page was asked for, whatever the browser sent", async () => {
+    const asked = (cookie?: string) => {
+      const req = visit("/dashboard/jobs?resume=r1", cookie);
+      req.headers.set(REQUEST_PATH_HEADER, "/somewhere-else");
+      return proxy(req);
+    };
+    const header = `x-middleware-request-${REQUEST_PATH_HEADER}`;
+    expect((await asked()).headers.get(header)).toBe("/dashboard/jobs?resume=r1");
+    supabase.claims = null;
+    expect((await asked(`${COOKIE}=expired`)).headers.get(header)).toBe(
+      "/dashboard/jobs?resume=r1",
+    );
+    supabase.refreshTo = "fresh";
+    supabase.claims = { sub: "6f1c1b7e-8a3c-4c39-9a51-8f4c6b0f2d11" };
+    const refreshed = await asked(`${COOKIE}=stale`);
+    expect(refreshed.headers.get(header)).toBe("/dashboard/jobs?resume=r1");
+    expect(refreshed.cookies.get(COOKIE)?.value).toBe("fresh");
+  });
+
+  it("tells the layout the same with dev sign-in", async () => {
+    vi.stubEnv("NODE_ENV", "development");
+    resetEnvForTests();
+    const res = await proxy(visit("/dashboard/portfolio", "otto_dev_session=token"));
+    expect(res.headers.get(`x-middleware-request-${REQUEST_PATH_HEADER}`)).toBe(
+      "/dashboard/portfolio",
+    );
+    expect(supabase.created).toBe(0);
   });
 
   it("runs on pages, but not on assets, API routes or public portfolios, which never need it", () => {

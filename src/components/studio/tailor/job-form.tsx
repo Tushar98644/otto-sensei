@@ -16,8 +16,10 @@ import { TEXT_LIMITS } from "@/config/plans";
 import { DAY_MS } from "@/lib/time";
 import { cn } from "@/lib/utils";
 import { HiringSystemNotes } from "./hiring-system-notes";
+import { RecentJobs } from "./recent-jobs-row";
 import type { QueuedJob, ReadJob, TailorDraft } from "./session";
-import { MIN_POST_CHARS, useJobLink } from "./use-tailor";
+import { useJobLink } from "./use-job-link";
+import { MIN_POST_CHARS } from "./use-tailor";
 
 export { MIN_POST_CHARS };
 
@@ -34,6 +36,9 @@ export type JobFormProps = {
   queued?: QueuedJob | null;
   action?: { label: string; icon: LucideIcon };
   checks?: boolean;
+  onPageLink?: () => void;
+  // A pick sends the job at once, so only Tailor shows them, not the letter dialog.
+  recent?: boolean;
 };
 
 const COMPARE = { label: "Compare with my resume", icon: ScanSearch };
@@ -186,7 +191,10 @@ function PasteFields({
         <details open={openOptions} className="group">
           <summary className="flex min-h-11 w-fit cursor-pointer list-none items-center gap-1 text-sm text-muted hover:text-ink">
             More options
-            <ChevronDown aria-hidden className="size-4 transition-transform group-open:rotate-180" />
+            <ChevronDown
+              aria-hidden
+              className="size-4 transition-transform group-open:rotate-180"
+            />
           </summary>
           <div className="mt-3 grid gap-4 sm:grid-cols-2">
             <Field label="Job title" optional>
@@ -245,7 +253,7 @@ function PasteFields({
 }
 
 export function JobForm(props: JobFormProps) {
-  const { onSubmit, busy, note, action = COMPARE, checks = true } = props;
+  const { onSubmit, busy, note, action = COMPARE, checks = true, recent = false } = props;
   // Refs come out first: React's lint treats every field of an object holding refs as a ref.
   const { linkRef, postRef, ...job } = useJobLink(props);
 
@@ -262,11 +270,7 @@ export function JobForm(props: JobFormProps) {
         <Field
           label="Job link"
           error={job.linkError}
-          hint={
-            job.linkError
-              ? null
-              : "Paste the link and Otto reads it at once. Works with most job sites, but not LinkedIn or Indeed."
-          }
+          hint={job.linkError ? null : "Paste the link and Otto reads it at once."}
         >
           <Input
             ref={linkRef}
@@ -302,6 +306,9 @@ export function JobForm(props: JobFormProps) {
           </Button>
         )}
       </form>
+      {recent && !job.posting && !job.pasting && !job.reading ? (
+        <RecentJobs onPick={job.open} disabled={busy} />
+      ) : null}
 
       <p aria-live="polite" className="sr-only">
         {job.status}
@@ -314,7 +321,9 @@ export function JobForm(props: JobFormProps) {
             onPasteInstead={job.pasteInstead}
             checks={checks}
           />
-          {checks ? <EligibilityCard location={job.posting.location} text={props.draft.text} /> : null}
+          {checks ? (
+            <EligibilityCard location={job.posting.location} text={props.draft.text} />
+          ) : null}
           <SubmitRow busy={busy} note={note} onClick={onSubmit} action={action} />
         </>
       ) : null}

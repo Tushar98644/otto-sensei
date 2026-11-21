@@ -50,7 +50,7 @@ export function ResumeUpload({ state, invalid, onFile, onReject }: ResumeUploadP
         maxBytes={UPLOAD_LIMITS.maxBytes}
         disabled={reading}
         label="Upload your resume, a PDF or Word file"
-        className={invalid ? "min-h-72 border-fail" : "min-h-72"}
+        className={invalid ? "min-h-40 border-fail sm:min-h-72" : "min-h-40 sm:min-h-72"}
       >
         {state.status === "reading" ? (
           <p className="flex items-center gap-2 text-sm text-ink" role="status">

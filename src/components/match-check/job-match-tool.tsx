@@ -1,96 +1,106 @@
 "use client";
 
-import { ArrowRight, ClipboardPaste, FileUp, ScanSearch, ShieldCheck } from "lucide-react";
-import dynamic from "next/dynamic";
-import { useRouter } from "next/navigation";
-import { useEffect, useRef, useState, type FormEvent } from "react";
+import { FileText, RotateCcw, ScanSearch, ShieldCheck } from "lucide-react";
+import { useEffect, useEffectEvent, useRef, useState, type FormEvent } from "react";
 import { OttoNote } from "@/components/mascot/otto-note";
-import { IntentLink } from "@/components/site/intent-link";
-import { ROUTES } from "@/components/site/routes";
 import { Alert } from "@/components/ui/alert";
-import { Button, buttonClasses } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
-import { Field } from "@/components/ui/field";
-import { Tab, TabList, TabPanel, Tabs } from "@/components/ui/tabs";
-import { Textarea } from "@/components/ui/textarea";
-import { PLANS, TEXT_LIMITS } from "@/config/plans";
+import { Button } from "@/components/ui/button";
+import { TEXT_LIMITS } from "@/config/plans";
 import type { MatchCheck } from "@/lib/match-check/check";
 import { matchOtto } from "@/lib/match-check/copy";
-import { cn } from "@/lib/utils";
+import { JOB_MATCH_PARAM } from "@/lib/seo-pages/paths";
+import {
+  jobDraft,
+  jobLinkParam,
+  postProblem,
+  privacyNote,
+  resumeProblem,
+  type JobMode,
+  type ResumeMode,
+} from "./inputs";
+import { JobPostCard } from "./job-post-card";
 import { MatchResult } from "./match-result";
-import { readResumeFile, ResumeUpload, type UploadState } from "./resume-upload";
+import type { StudioHandoff } from "./open-studio";
+import { ResumeCard } from "./resume-card";
+import { readResumeFile, type UploadState } from "./resume-upload";
+import type { SampleTexts } from "./sample";
+import { StudioCta } from "./studio-cta";
+import { TextHint } from "./text-hint";
+import { useJobLink } from "./use-job-link";
 
-type Mode = "paste" | "upload";
-type Result = { check: MatchCheck; resume: string; job: string; file: File | null };
-
-const MIN_RESUME_CHARS = 100;
-const MIN_POST_CHARS = 80;
+type Result = { check: MatchCheck; resume: string; job: string; handoff: StudioHandoff };
+type Typed = { mode: ResumeMode; resume: string; jobMode: JobMode; job: string };
 
 const loadChecker = () => import("@/lib/match-check/from-text");
-// The studio's store loads only on intent, so the page itself stays light.
-const loadOpener = () => import("./open-studio");
-
-// Mounts only once a Free account with a resume already saved hands over another file.
-const UpgradeHost = dynamic(() =>
-  import("@/components/account/upgrade-prompt").then((module) => module.UpgradePromptHost),
-);
-
-function resumeProblem(mode: Mode, text: string, upload: UploadState): string | null {
-  if (mode === "upload") {
-    if (upload.status === "reading") return "Wait a moment while Otto reads your file.";
-    return upload.status === "read" ? null : "Choose your resume file, or paste the text instead.";
-  }
-  const length = text.trim().length;
-  if (length === 0) return "Paste your resume first.";
-  if (length < MIN_RESUME_CHARS) return "That's a bit short. Paste your whole resume.";
-  if (length > TEXT_LIMITS.resumeChars)
-    return "That's longer than a resume. Paste just your resume.";
-  return null;
-}
-
-function postProblem(text: string): string | null {
-  const length = text.trim().length;
-  if (length === 0) return "Paste the job post first.";
-  if (length < MIN_POST_CHARS)
-    return "That's a bit short. Paste the whole job post, not just the title.";
-  if (length > TEXT_LIMITS.jobPostChars) {
-    return `That's over ${TEXT_LIMITS.jobPostChars.toLocaleString("en-US")} characters. Cut the company intro or the benefits.`;
-  }
-  return null;
-}
-
-function Counter({ length, max }: { length: number; max: number }) {
-  return (
-    <span className={cn("tabular-nums", length > max && "font-medium text-fail-ink")}>
-      {length.toLocaleString("en-US")} / {max.toLocaleString("en-US")}
-    </span>
-  );
-}
+const loadSample = () => import("./sample");
 
 export function JobMatchTool() {
-  const [mode, setMode] = useState<Mode>("paste");
+  const [mode, setMode] = useState<ResumeMode>("paste");
   const [resumeText, setResumeText] = useState("");
   const [upload, setUpload] = useState<UploadState>({ status: "idle" });
+  const [jobMode, setJobMode] = useState<JobMode>("paste");
   const [jobText, setJobText] = useState("");
+  const [sample, setSample] = useState<SampleTexts | null>(null);
+  const [typed, setTyped] = useState<Typed | null>(null);
   const [submitted, setSubmitted] = useState(false);
   const [checking, setChecking] = useState(false);
   const [result, setResult] = useState<Result | null>(null);
   const [failed, setFailed] = useState(false);
   const resumeRef = useRef<HTMLTextAreaElement>(null);
   const jobRef = useRef<HTMLTextAreaElement>(null);
+  const linkRef = useRef<HTMLInputElement>(null);
   const resultRef = useRef<HTMLDivElement>(null);
   const uploadId = useRef(0);
+  const focusPost = useRef(false);
+
+  function showPost() {
+    focusPost.current = true;
+    setJobMode("paste");
+  }
+
+  const reader = useJobLink({
+    onRead: setJobText,
+    onPost: (text) => {
+      setJobText(text);
+      showPost();
+    },
+  });
 
   const resumeError = submitted ? resumeProblem(mode, resumeText, upload) : null;
   const jobError = submitted ? postProblem(jobText) : null;
   const resumeUsed = mode === "upload" ? (upload.status === "read" ? upload.text : "") : resumeText;
   const stale = result !== null && (result.resume !== resumeUsed || result.job !== jobText);
+  const usingSample =
+    sample !== null && mode === "paste" && resumeText === sample.resume && jobText === sample.job;
 
   useEffect(() => {
     if (!result) return;
     resultRef.current?.scrollIntoView({ block: "start" });
     resultRef.current?.focus({ preventScroll: true });
   }, [result]);
+
+  useEffect(() => {
+    if (!focusPost.current) return;
+    focusPost.current = false;
+    jobRef.current?.focus();
+  });
+
+  function readPastedLink(link: string) {
+    setJobMode("link");
+    reader.edit(link);
+    void reader.readLink(link);
+  }
+
+  // Guide pages link here with ?job=<link>, so the post is read before the resume is in.
+  const prefill = useEffectEvent(readPastedLink);
+  useEffect(() => {
+    // A tick later, so a client-side arrival has already put its address in the bar.
+    const timer = window.setTimeout(() => {
+      const link = jobLinkParam(new URLSearchParams(window.location.search).get(JOB_MATCH_PARAM));
+      if (link) prefill(link);
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, []);
 
   async function readFile(file: File) {
     const id = ++uploadId.current;
@@ -99,28 +109,12 @@ export function JobMatchTool() {
     if (id === uploadId.current) setUpload(next);
   }
 
-  async function check(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    setSubmitted(true);
-    if (resumeProblem(mode, resumeText, upload)) {
-      if (mode === "paste") resumeRef.current?.focus();
-      return;
-    }
-    if (postProblem(jobText)) {
-      jobRef.current?.focus();
-      return;
-    }
+  async function run(resume: string, job: string, handoff: StudioHandoff) {
     setChecking(true);
     setFailed(false);
     try {
       const { matchCheckFromText } = await loadChecker();
-      const file = mode === "upload" && upload.status === "read" ? upload.file : null;
-      setResult({
-        check: matchCheckFromText(resumeUsed, jobText),
-        resume: resumeUsed,
-        job: jobText,
-        file,
-      });
+      setResult({ check: matchCheckFromText(resume, job), resume, job, handoff });
     } catch {
       setFailed(true);
     } finally {
@@ -128,107 +122,158 @@ export function JobMatchTool() {
     }
   }
 
-  const resumeLength = resumeText.trim().length;
-  const jobLength = jobText.trim().length;
+  async function check(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setSubmitted(true);
+    const needsRead =
+      jobMode === "link" &&
+      reader.read?.ok !== true &&
+      (reader.link.trim() !== "" || jobText.trim() === "");
+    if (resumeProblem(mode, resumeText, upload)) {
+      // The link is read meanwhile, so the post is ready by the time the resume is.
+      if (needsRead) void reader.readLink();
+      if (mode === "paste") resumeRef.current?.focus();
+      return;
+    }
+    let job = jobText;
+    let read = reader.latest;
+    if (needsRead) {
+      setChecking(true);
+      const outcome = await reader.readLink();
+      setChecking(false);
+      if (!outcome) {
+        linkRef.current?.focus();
+        return;
+      }
+      job = outcome.text;
+      read = outcome.read;
+    }
+    if (postProblem(job)) {
+      if (jobMode === "paste") jobRef.current?.focus();
+      else linkRef.current?.focus();
+      return;
+    }
+    const file = mode === "upload" && upload.status === "read" ? upload.file : null;
+    const draft = jobDraft(job, read);
+    await run(
+      resumeUsed,
+      job,
+      file
+        ? { file, job: draft }
+        : { text: resumeUsed, sample: resumeUsed === sample?.resume, job: draft },
+    );
+  }
+
+  async function trySample() {
+    try {
+      const texts = (await loadSample()).sampleTexts();
+      const own =
+        resumeText.trim() !== "" ||
+        jobText.trim() !== "" ||
+        mode === "upload" ||
+        jobMode === "link";
+      setTyped(own ? { mode, resume: resumeText, jobMode, job: jobText } : null);
+      // Stops a link still being read from replacing the sample post when it lands.
+      reader.edit(reader.link);
+      setSample(texts);
+      setMode("paste");
+      setJobMode("paste");
+      setResumeText(texts.resume);
+      setJobText(texts.job);
+      setSubmitted(false);
+      await run(texts.resume, texts.job, {
+        text: texts.resume,
+        sample: true,
+        job: jobDraft(texts.job, null),
+      });
+    } catch {
+      setFailed(true);
+    }
+  }
+
+  function leaveSample() {
+    setMode(typed?.mode ?? "paste");
+    setResumeText(typed?.resume ?? "");
+    setJobMode(typed?.jobMode ?? "paste");
+    setJobText(typed?.job ?? "");
+    setTyped(null);
+    setResult(null);
+    setSubmitted(false);
+    resumeRef.current?.focus();
+  }
 
   return (
     <div className="flex flex-col gap-6 sm:gap-8">
-      <form onSubmit={(event) => void check(event)} noValidate className="flex flex-col gap-6">
-        <div className="grid gap-3 sm:gap-6 lg:grid-cols-2">
-          <Card>
-            <Tabs
-              value={mode}
-              onValueChange={(value) => setMode(value === "upload" ? "upload" : "paste")}
+      <form onSubmit={(event) => void check(event)} noValidate className="flex flex-col gap-4">
+        <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-2">
+          <p className="flex items-start gap-2 text-sm text-muted">
+            <ShieldCheck className="mt-0.5 size-4 shrink-0 text-pass" aria-hidden />
+            {privacyNote(mode, jobMode)}
+          </p>
+          {usingSample ? (
+            <Button variant="ghost" size="sm" onClick={leaveSample}>
+              <RotateCcw />
+              {typed ? "Put back my text" : "Clear the sample"}
+            </Button>
+          ) : (
+            <Button
+              variant="secondary"
+              size="sm"
+              onPointerEnter={() => void loadSample().catch(() => undefined)}
+              onFocus={() => void loadSample().catch(() => undefined)}
+              onClick={() => void trySample()}
             >
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <h2 className="text-base/6 font-semibold text-ink">Your resume</h2>
-                <TabList aria-label="How to add your resume">
-                  <Tab value="paste">
-                    <ClipboardPaste aria-hidden />
-                    Paste text
-                  </Tab>
-                  <Tab value="upload" onFocus={() => void import("@/lib/api/client")}>
-                    <FileUp aria-hidden />
-                    Upload a file
-                  </Tab>
-                </TabList>
-              </div>
-              <TabPanel value="paste" tabIndex={-1}>
-                <Field
-                  label="Resume text"
-                  hideLabel
-                  error={resumeError}
-                  hint={
-                    <span className="flex flex-wrap justify-between gap-x-4 gap-y-1">
-                      <span>Copy it from your file or your profile, headings and all.</span>
-                      <Counter length={resumeLength} max={TEXT_LIMITS.resumeChars} />
-                    </span>
-                  }
-                >
-                  <Textarea
-                    ref={resumeRef}
-                    value={resumeText}
-                    rows={12}
-                    spellCheck={false}
-                    placeholder="Paste your resume here"
-                    className="min-h-72"
-                    onFocus={() => void loadChecker()}
-                    onChange={(event) => setResumeText(event.target.value)}
-                  />
-                </Field>
-              </TabPanel>
-              <TabPanel value="upload" tabIndex={-1}>
-                <ResumeUpload
-                  state={upload}
-                  invalid={resumeError !== null}
-                  onFile={(file) => void readFile(file)}
-                  onReject={(message) => setUpload({ status: "failed", message })}
-                />
-                {resumeError && upload.status !== "failed" ? (
-                  <p role="alert" className="mt-2 text-sm font-medium text-fail-ink">
-                    {resumeError}
-                  </p>
-                ) : null}
-              </TabPanel>
-            </Tabs>
-          </Card>
-          <Card>
-            <h2 className="text-base/6 font-semibold text-ink">The job post</h2>
-            <Field
-              label="Job post text"
-              hideLabel
-              error={jobError}
-              hint={
-                <span className="flex flex-wrap justify-between gap-x-4 gap-y-1">
-                  <span>Paste all of it: duties, requirements and nice-to-haves.</span>
-                  <Counter length={jobLength} max={TEXT_LIMITS.jobPostChars} />
-                </span>
-              }
-            >
-              <Textarea
-                ref={jobRef}
-                value={jobText}
-                rows={12}
-                spellCheck={false}
-                placeholder="Paste the job post here"
-                className="min-h-72"
-                onFocus={() => void loadChecker()}
-                onChange={(event) => setJobText(event.target.value)}
-              />
-            </Field>
-          </Card>
+              <FileText />
+              Try with a sample
+            </Button>
+          )}
         </div>
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+        <div className="grid gap-3 sm:gap-6 lg:grid-cols-2">
+          <ResumeCard
+            mode={mode}
+            onModeChange={setMode}
+            text={resumeText}
+            onTextChange={setResumeText}
+            error={resumeError}
+            hint={
+              <TextHint
+                text="Copy it from your file or your profile, headings and all."
+                length={resumeText.trim().length}
+                max={TEXT_LIMITS.resumeChars}
+              />
+            }
+            textRef={resumeRef}
+            upload={upload}
+            onFile={(file) => void readFile(file)}
+            onReject={(message) => setUpload({ status: "failed", message })}
+            onFocus={() => void loadChecker()}
+          />
+          <JobPostCard
+            mode={jobMode}
+            onModeChange={setJobMode}
+            text={jobText}
+            onTextChange={setJobText}
+            error={jobError}
+            hint={
+              <TextHint
+                text="Paste all of it: duties, requirements and nice-to-haves."
+                length={jobText.trim().length}
+                max={TEXT_LIMITS.jobPostChars}
+              />
+            }
+            textRef={jobRef}
+            linkRef={linkRef}
+            reader={reader}
+            onFocus={() => void loadChecker()}
+            onShowText={showPost}
+            onPasteLink={readPastedLink}
+          />
+        </div>
+        <div className="max-sm:sticky max-sm:bottom-[max(0.75rem,env(safe-area-inset-bottom))] max-sm:z-10 max-sm:rounded-2xl max-sm:bg-surface max-sm:p-1.5 max-sm:shadow-float max-sm:ring-1 max-sm:ring-ink/5 sm:mt-2">
           <Button type="submit" size="lg" loading={checking} className="w-full sm:w-auto">
             <ScanSearch />
             Check the match
           </Button>
-          <p className="flex items-start gap-2 text-sm text-muted">
-            <ShieldCheck className="mt-0.5 size-4 shrink-0 text-pass" aria-hidden />
-            {mode === "paste"
-              ? "Pasted text is checked in your browser and never leaves it."
-              : "The job post is checked in your browser. Nothing is stored."}
-          </p>
         </div>
       </form>
 
@@ -249,66 +294,9 @@ export function JobMatchTool() {
               Check the match again to update it.
             </Alert>
           ) : null}
-          <MatchResult check={result.check} footer={<StudioCta file={result.file} />} />
+          <MatchResult check={result.check} footer={<StudioCta handoff={result.handoff} />} />
         </div>
       ) : null}
-    </div>
-  );
-}
-
-function StudioCta({ file }: { file: File | null }) {
-  const router = useRouter();
-  const [opening, setOpening] = useState(false);
-  const [upgrade, setUpgrade] = useState(false);
-
-  function prepare() {
-    router.prefetch(ROUTES.studio);
-    void loadOpener().catch(() => undefined);
-  }
-
-  async function openWith(handed: File) {
-    setOpening(true);
-    try {
-      const { openStudioWithFile } = await loadOpener();
-      if (await openStudioWithFile(handed)) {
-        router.push(ROUTES.studio);
-        return;
-      }
-      setUpgrade(true);
-      setOpening(false);
-    } catch {
-      window.location.assign(ROUTES.studio);
-    }
-  }
-
-  return (
-    <div className="flex flex-col gap-3 rounded-2xl bg-surface-muted p-4 sm:p-6">
-      <p className="text-base/6 font-semibold text-ink">Fix these lines with Otto</p>
-      <p className="max-w-prose text-sm/6 text-muted">
-        {file
-          ? "The free studio opens with your file. "
-          : "Upload your resume in the free studio. "}
-        See what hiring software reads, fix lines by hand or with Otto ({PLANS.free.limits.fix} line
-        fixes a month free) and download a clean PDF. On Pro, Otto tailors your resume to this job.
-      </p>
-      {file ? (
-        <Button
-          loading={opening}
-          className="self-start"
-          onPointerEnter={prepare}
-          onFocus={prepare}
-          onClick={() => void openWith(file)}
-        >
-          Fix these lines with Otto
-          <ArrowRight />
-        </Button>
-      ) : (
-        <IntentLink href={ROUTES.studio} className={buttonClasses({ className: "self-start" })}>
-          Fix these lines with Otto
-          <ArrowRight />
-        </IntentLink>
-      )}
-      {upgrade ? <UpgradeHost /> : null}
     </div>
   );
 }

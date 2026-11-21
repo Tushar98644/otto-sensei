@@ -1,17 +1,13 @@
-import { ArrowRight } from "lucide-react";
-import Link from "next/link";
 import { ROUTES } from "@/components/site/routes";
-import { buttonClasses } from "@/components/ui/button";
-import { PLANS } from "@/config/plans";
-import { billingOffer, trialOffered } from "@/lib/billing/intervals";
-import { countClaim, type JobCounts } from "@/lib/job-feed/counts";
+import { FEATURE_LABELS, PLANS, PRO_TRIAL } from "@/config/plans";
+import { trialOffered } from "@/lib/billing/intervals";
+import { planPrice, trialPrice } from "@/lib/billing/prices";
 import { cn } from "@/lib/utils";
 import { displayItalic } from "./display-italic";
-import { PricingPlans } from "./pricing-plans";
-import { Section, SectionHeader } from "./section";
+import { Section, SectionHeader, SectionLink } from "./section";
 
-export function PricingTeaser({ jobCounts }: { jobCounts: JobCounts }) {
-  const open = countClaim(jobCounts.open);
+export function PricingTeaser() {
+  const { free, pro } = PLANS;
   return (
     <Section labelledBy="pricing-teaser-title">
       <SectionHeader
@@ -23,25 +19,21 @@ export function PricingTeaser({ jobCounts }: { jobCounts: JobCounts }) {
             <em className={cn("block", displayItalic.className)}>More when the hunt gets busy.</em>
           </>
         }
-      >
-        Checking, fixing and downloading one resume as a PDF never costs a thing, and Free comes
-        with {PLANS.free.limits.fix} line fixes a month from Otto. More of Otto&apos;s AI help,
-        every match from {open ? `${open} open jobs` : "open jobs"} and the full tracker come with
-        Pro.
-      </SectionHeader>
-      <PricingPlans
-        offer={billingOffer()}
-        trial={trialOffered()}
-        jobCounts={jobCounts}
-        className="mt-12 sm:mt-16"
       />
-      <Link
-        href={ROUTES.pricing}
-        className={buttonClasses({ variant: "ghost", className: "mt-6 -ml-5" })}
-      >
-        See pricing details
-        <ArrowRight />
-      </Link>
+      <ul role="list" className="mt-8 flex max-w-prose flex-col gap-3 text-lg/7 text-muted">
+        <li>
+          <strong className="font-medium text-ink">{free.name}:</strong> check, fix and download one
+          resume as a PDF, with {free.limits.fix} {FEATURE_LABELS.fix} a month from Otto.
+        </li>
+        <li>
+          <strong className="font-medium text-ink">
+            {pro.name}, {planPrice("pro", "month")} a month:
+          </strong>{" "}
+          tailoring, cover letters, every job match and the full tracker.{" "}
+          {trialOffered() ? `Try ${PRO_TRIAL.days} days for ${trialPrice()}.` : "Cancel anytime."}
+        </li>
+      </ul>
+      <SectionLink href={ROUTES.pricing}>See pricing</SectionLink>
     </Section>
   );
 }

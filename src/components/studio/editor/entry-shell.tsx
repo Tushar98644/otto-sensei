@@ -8,6 +8,8 @@ import { cn } from "@/lib/utils";
 import { DIMMED_CLASSES, HiddenChip, HideToggle } from "./hidden-chip";
 import { ICON_ACTION_CLASSES, MoveButtons } from "./move-buttons";
 import { removeWithUndo } from "./remove-with-undo";
+import { RowMenu } from "./row-menu";
+import { useTouchLayout } from "./touch";
 
 export type EntryDetails = {
   content: ReactNode;
@@ -37,7 +39,7 @@ export type EntryShellProps = {
 };
 
 const REVEAL_CLASSES =
-  "opacity-0 transition-opacity group-hover/entry:opacity-100 focus-within:opacity-100 pointer-coarse:opacity-100";
+  "opacity-0 transition-opacity group-hover/entry:opacity-100 focus-within:opacity-100";
 
 export function EntryShell({
   resumeId,
@@ -60,6 +62,7 @@ export function EntryShell({
   children,
 }: EntryShellProps) {
   const [detailsOpen, setDetailsOpen] = useState(() => !details?.complete);
+  const layout = useTouchLayout();
   const detailsId = useId();
   const Heading = headingLevel === 5 ? "h5" : "h4";
   const onRail = rail !== undefined;
@@ -123,33 +126,49 @@ export function EntryShell({
                 aria-controls={detailsId}
                 aria-describedby={headingId}
                 onClick={toggleDetails}
-                className="text-muted hover:text-ink max-sm:-ml-4 max-sm:h-11 sm:mt-1"
+                className="text-muted hover:text-ink max-sm:-ml-3 max-sm:h-11 sm:mt-1"
               >
                 {detailsOpen ? "Hide details" : "Edit details"}
                 <ChevronDown className={cn("transition-transform", detailsOpen && "rotate-180")} />
               </Button>
             ) : null}
-            <div className={cn("ml-auto flex items-center", REVEAL_CLASSES)}>
-              <MoveButtons
-                label={title}
-                canMoveUp={canMoveUp}
-                canMoveDown={canMoveDown}
-                onMove={onMove}
-              />
-              {onToggleHidden ? (
-                <HideToggle label={title} hidden={hidden} onToggle={onToggleHidden} />
-              ) : null}
-              <Button
-                id={removeId}
-                variant="ghost"
-                size="icon"
-                aria-label={`Remove ${title}`}
-                onClick={remove}
-                className={ICON_ACTION_CLASSES}
-              >
-                <Trash />
-              </Button>
-            </div>
+            {layout === "fine" ? (
+              <div className={cn("ml-auto flex items-center", REVEAL_CLASSES)}>
+                <MoveButtons
+                  label={title}
+                  canMoveUp={canMoveUp}
+                  canMoveDown={canMoveDown}
+                  onMove={onMove}
+                />
+                {onToggleHidden ? (
+                  <HideToggle label={title} hidden={hidden} onToggle={onToggleHidden} />
+                ) : null}
+                <Button
+                  id={removeId}
+                  variant="ghost"
+                  size="icon"
+                  aria-label={`Remove ${title}`}
+                  onClick={remove}
+                  className={ICON_ACTION_CLASSES}
+                >
+                  <Trash />
+                </Button>
+              </div>
+            ) : (
+              <div className="ml-auto flex items-center">
+                <RowMenu
+                  label={title}
+                  triggerId={removeId}
+                  canMoveUp={canMoveUp}
+                  canMoveDown={canMoveDown}
+                  onMove={onMove}
+                  hidden={hidden}
+                  onToggleHidden={onToggleHidden}
+                  removeLabel="Remove"
+                  onRemove={remove}
+                />
+              </div>
+            )}
           </div>
         </div>
         {details ? (

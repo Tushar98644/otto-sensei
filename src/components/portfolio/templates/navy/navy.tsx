@@ -119,7 +119,7 @@ function Card({ project }: { project: ContentProject }) {
   );
 }
 
-export function NavyTemplate({ view, content, footer }: PortfolioTemplateProps) {
+export function NavyTemplate({ view, content, footer, resumeHref }: PortfolioTemplateProps) {
   const name = nameOf(view);
   const initial = (content.initials || name).charAt(0).toUpperCase();
   const socials = content.socials.filter((social) => social.kind !== "email");
@@ -206,8 +206,15 @@ export function NavyTemplate({ view, content, footer }: PortfolioTemplateProps) 
                 </li>
               ))}
             </ol>
+            {resumeHref ? (
+              <div className="resume" style={i(links.length)}>
+                <a className="btn-small" href={resumeHref}>
+                  Resume
+                </a>
+              </div>
+            ) : null}
           </div>
-          <NavMenu links={links} />
+          <NavMenu links={links} resumeHref={resumeHref ?? null} />
         </nav>
       </header>
 

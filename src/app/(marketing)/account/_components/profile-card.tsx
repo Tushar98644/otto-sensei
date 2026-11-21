@@ -4,24 +4,20 @@ import { LogOut } from "lucide-react";
 import { useState } from "react";
 import { signedOutNote } from "@/components/account/copy";
 import { errorMessage } from "@/components/account/errors";
-import { PlanBadge } from "@/components/account/plan-badge";
 import { patchMe, refreshMe } from "@/components/account/use-me";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
+import { Card, CardTitle } from "@/components/ui/card";
 import { toast } from "@/components/ui/toast";
-import { PLANS } from "@/config/plans";
-import type { SessionUser } from "@/lib/auth/types";
-import { planPriceLabel } from "@/lib/billing/prices";
-import { trialEndDay } from "@/lib/usage-copy";
+import type { AuthMode, SessionUser } from "@/lib/auth/types";
 import { signOutAndRelease } from "@/lib/sync/use-cloud-sync";
 
-export function ProfileCard({
-  user,
-  cancelScheduled = false,
-}: {
-  user: SessionUser;
-  cancelScheduled?: boolean;
-}) {
+export function signInMethod(mode: AuthMode): string {
+  return mode === "supabase"
+    ? "You sign in with Google or a 6-digit code sent to this email. No password."
+    : "You sign in with a 6-digit code sent to this email. No password.";
+}
+
+export function ProfileCard({ user, authMode }: { user: SessionUser; authMode: AuthMode }) {
   const [signingOut, setSigningOut] = useState(false);
 
   async function signOut() {
@@ -38,20 +34,14 @@ export function ProfileCard({
   }
 
   return (
-    <Card>
+    <Card id="profile" role="region" aria-labelledby="profile-title">
+      <CardTitle as="h2" id="profile-title">
+        Email and sign-in
+      </CardTitle>
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex min-w-0 flex-col items-start gap-1.5">
-          <p className="text-sm text-muted">Signed in as</p>
+        <div className="flex min-w-0 flex-col gap-1">
           <p className="font-medium break-all text-ink">{user.email}</p>
-          <PlanBadge plan={user.plan} />
-          {user.plan !== "free" && user.trialEndsAt ? (
-            <p className="text-sm text-muted">
-              {PLANS[user.plan].name} trial until {trialEndDay(user.trialEndsAt)}.{" "}
-              {cancelScheduled
-                ? "It's set to end then, and you won't be charged again."
-                : `Then ${planPriceLabel(user.plan, user.planInterval ?? "month")}, unless you cancel before.`}
-            </p>
-          ) : null}
+          <p className="text-sm/6 text-muted">{signInMethod(authMode)}</p>
         </div>
         <Button
           variant="secondary"

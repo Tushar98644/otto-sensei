@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useId, useMemo, useRef, useState } from "react";
 import { useProTools, useTryProLabel } from "@/components/account/pro-tools";
 import { LazyUpgradeDialog } from "@/components/account/lazy-dialogs";
+import { useMe } from "@/components/account/use-me";
 import { OTTO } from "@/components/mascot/lines";
 import { OttoNote } from "@/components/mascot/otto-note";
 import { useNow } from "@/components/studio/use-now";
@@ -21,8 +22,9 @@ import { pluralize } from "@/lib/utils";
 import { useApplications } from "../applications/use-applications";
 import { formatDay } from "../applications/view";
 import { LazyPrepareDialog } from "./lazy-prepare-dialog";
+import { SamplePack } from "./sample-pack";
 import { usePrepPacks } from "./use-prep-packs";
-import { interviewHref, waitingForPrep } from "./view";
+import { interviewDayLine, interviewHref, waitingForPrep } from "./view";
 
 const count = new Intl.NumberFormat("en-US");
 
@@ -31,17 +33,20 @@ export function InterviewHome() {
   const packs = usePrepPacks();
   const applications = useApplications();
   const resumes = useResumeList();
-  const locked = useProTools() === false;
+  const pro = useProTools();
+  const locked = pro === false;
+  const { loading: planLoading } = useMe();
   const tryPro = useTryProLabel();
   const [upgradeOpen, setUpgradeOpen] = useState(false);
   const [dialog, setDialog] = useState<{ key: number; open: boolean } | null>(null);
   const openings = useRef(0);
 
   const waiting = useMemo(
-    () => (locked ? [] : waitingForPrep(applications.items, packs.items)),
-    [locked, applications.items, packs.items],
+    () => (locked ? [] : waitingForPrep(applications.items, packs.items, now)),
+    [locked, applications.items, packs.items, now],
   );
   const ready = packs.status === "ready" && applications.status !== "loading";
+  const empty = ready && packs.items.length === 0 && waiting.length === 0;
 
   function start() {
     if (locked) {
@@ -65,18 +70,20 @@ export function InterviewHome() {
               : "For each job you interview for: likely questions, stories from your own resume lines, and questions to ask them."}
           </p>
         </div>
-        <Button onClick={start}>
-          <Plus aria-hidden />
-          Prepare for a job
-        </Button>
+        {pro === true && ready && !empty ? (
+          <Button onClick={start}>
+            <Plus aria-hidden />
+            Prepare for a job
+          </Button>
+        ) : null}
       </header>
 
-      {locked ? (
-        <OttoNote live={false} message={OTTO.limit.none("letter", false)}>
+      {locked && ready ? (
+        <OttoNote
+          live={false}
+          message={packs.items.length > 0 ? OTTO.interview.lockedKept : OTTO.interview.locked}
+        >
           <Button onClick={() => setUpgradeOpen(true)}>{tryPro}</Button>
-          {packs.items.length > 0 ? (
-            <p className="text-sm/6 text-muted">The prep you made before stays here to read.</p>
-          ) : null}
         </OttoNote>
       ) : null}
 
@@ -92,10 +99,12 @@ export function InterviewHome() {
         >
           Check your connection, then try again.
         </Alert>
-      ) : !ready ? (
+      ) : !ready || (empty && planLoading) ? (
         <LoadingState />
-      ) : packs.items.length === 0 && waiting.length === 0 ? (
-        locked ? null : (
+      ) : empty ? (
+        locked ? (
+          <SamplePack />
+        ) : (
           <div className="rounded-2xl bg-surface p-6 sm:p-8">
             <OttoNote live={false} message={OTTO.interview.empty}>
               <Button onClick={start}>
@@ -214,12 +223,10 @@ function WaitingRow({ application, now }: { application: Application; now: numbe
         {application.role ? (
           <p className="truncate text-sm/5 text-muted">{application.role}</p>
         ) : null}
-        <p className="mt-1 text-xs/5 text-subtle">
-          Moved to interview {formatDay(application.statusChangedAt, now)}
-        </p>
+        <p className="mt-1 text-xs/5 text-subtle">{interviewDayLine(application.interviewAt, now)}</p>
       </div>
       <Link
-        href={interviewHref(application.id)}
+        href={interviewHref(application.id, { start: true })}
         aria-describedby={titleId}
         className={buttonClasses({ size: "sm", className: "self-start md:self-auto" })}
       >

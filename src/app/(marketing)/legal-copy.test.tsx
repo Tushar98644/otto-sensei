@@ -1,6 +1,6 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
-import { PRO_TRIAL } from "@/config/plans";
+import { PLANS, PRO_TRIAL, RESUME_LIMITS, type Feature } from "@/config/plans";
 import { JOB_COUNTS_FALLBACK } from "@/lib/job-feed/counts";
 import { MERCHANT } from "./_components/merchant";
 import AcceptableUsePage from "./acceptable-use/page";
@@ -178,6 +178,102 @@ describe("legal pages under Dodo Payments", () => {
       "Deleting your account cancels your paid plan or trial right away, and you won't be charged again.",
     );
     expect(body).toContain("we'll email signed-in users before it takes effect");
+  });
+});
+
+const shortVersion = (html: string) => {
+  const start = html.indexOf('id="short-version"');
+  return start === -1 ? null : html.slice(start, html.indexOf("</section>", start));
+};
+const bullets = (html: string) => html.match(/<li/g)?.length ?? 0;
+
+describe("legal pages you can scan", () => {
+  it("open terms and privacy with a short version of 3 to 5 facts", () => {
+    for (const html of [terms, privacy]) {
+      const summary = shortVersion(html);
+      expect(summary).not.toBeNull();
+      expect(bullets(summary!)).toBeGreaterThanOrEqual(3);
+      expect(bullets(summary!)).toBeLessThanOrEqual(5);
+    }
+    expect(text(shortVersion(terms)!)).toContain(
+      "Your resumes and anything you write or upload stay yours.",
+    );
+    expect(text(shortVersion(privacy)!)).toContain(
+      "We don't sell your data or share it for advertising",
+    );
+  });
+
+  it("give every section an anchor that the contents link to", () => {
+    for (const html of [terms, privacy, refunds, acceptableUse]) {
+      const ids = [...html.matchAll(/<h2 id="([^"]+)"/g)].map((match) => match[1]);
+      const links = new Set([...html.matchAll(/href="#([^"]+)"/g)].map((match) => match[1]));
+      expect(ids.length).toBeGreaterThan(3);
+      expect(new Set(ids).size).toBe(ids.length);
+      for (const id of ids) expect(links).toContain(id);
+    }
+    expect(terms).toContain('id="plans-and-their-limits"');
+    expect(privacy).toContain('id="what-we-collect"');
+  });
+
+  it("show Free beside Pro, Max and the trial in the limits table", () => {
+    const head = text(terms.slice(terms.indexOf("<thead"), terms.indexOf("</thead>"))).trim();
+    expect(head).toBe("Each month Free Pro Max Pro trial, in total");
+    // The trial header may break only after its comma, so it never takes 3 lines.
+    expect(terms).toContain("Pro\u00a0trial, in\u00a0total");
+    const row = (label: string) => {
+      const at = terms.indexOf(`>${label}</th>`);
+      return text(terms.slice(at + 1, terms.indexOf("</tr>", at))).trim();
+    };
+    const limits = (feature: Feature) =>
+      [PLANS.free, PLANS.pro, PLANS.max, PRO_TRIAL]
+        .map((plan): number => plan.limits[feature])
+        .map((value) => (value > 0 ? value.toLocaleString("en-US") : "– None"))
+        .join(" ");
+    expect(row("Line fixes")).toBe(`Line fixes ${limits("fix")}`);
+    expect(row("Tailored versions")).toBe(`Tailored versions ${limits("tailor")}`);
+    expect(row("Tailored versions")).toContain("– None");
+  });
+
+  it("list what each plan includes as bullets, not one long paragraph", () => {
+    const plans = terms.slice(
+      terms.indexOf('id="plans-and-their-limits"'),
+      terms.indexOf('id="payments-and-cancelling"'),
+    );
+    const body = text(plans);
+    expect(body).toContain(
+      `(summary help counts as one), ${RESUME_LIMITS.free} resume, the Classic and Compact formats`,
+    );
+    expect(body).toContain(`up to ${RESUME_LIMITS.paid} resumes, Word downloads`);
+    expect(body).toContain("Free: line fixes reset at the start of each calendar month (UTC).");
+    expect(bullets(plans)).toBeGreaterThanOrEqual(8);
+  });
+});
+
+describe("the refund page", () => {
+  it("says how the charge shows on a card statement before anything else, as /pricing does", async () => {
+    const statement =
+      "your card statement shows the charge under their name, starting with DODOPAY.";
+    expect(text(refunds)).toContain(`Dodo Payments is our merchant of record, and ${statement}`);
+    expect(text(await pricingHtml())).toContain(statement);
+    expect(refunds.indexOf("your card statement shows")).toBeLessThan(
+      refunds.indexOf('id="short-version"'),
+    );
+  });
+
+  it("puts a 3-point short version and Manage billing above the merchant disclosure", () => {
+    const summary = shortVersion(refunds);
+    expect(summary).not.toBeNull();
+    expect(bullets(summary!)).toBe(3);
+    const body = text(summary!);
+    expect(body).toContain("Cancel anytime from your account page.");
+    expect(body).toContain(`The ${PRO_TRIAL.days}-day Pro trial costs ${trialFee}`);
+    expect(body).toContain(
+      "To ask for a refund, contact Dodo Payments through its buyer help page",
+    );
+    expect(hrefs(summary!)).toContain(BUYER_HELP);
+    expect(hrefs(summary!)).toContain("/account#plan");
+    expect(body).toContain("Manage billing");
+    expect(refunds.indexOf("Manage billing")).toBeLessThan(refunds.indexOf(DISCLOSURE));
   });
 });
 

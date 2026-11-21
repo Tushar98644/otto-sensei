@@ -6,6 +6,7 @@ import { ROUTES } from "@/components/site/routes";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonClasses } from "@/components/ui/button";
 import { copyText } from "@/components/ui/copy-text";
+import { ProMark } from "@/components/ui/pro-mark";
 import type { Resume } from "@/lib/resume/schema";
 import { pluralize } from "@/lib/utils";
 import type { Writing } from "@/lib/writings/schema";
@@ -85,12 +86,7 @@ export function LettersCard({
 }) {
   const meta = letters.length ? hubTally(letters) : undefined;
   const messaged = letters.some((letter) => letter.kind === "outreach");
-  const proBadge =
-    pro === false ? (
-      <Badge variant="ink" className="h-5 px-1.5">
-        Pro
-      </Badge>
-    ) : null;
+  const proBadge = pro === false ? <ProMark /> : null;
   return (
     <HubCard id="letters" title="Letters and messages" meta={meta}>
       {letters.length > 0 ? (

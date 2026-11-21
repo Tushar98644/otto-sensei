@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useResumeList, useStudioHydrated } from "@/lib/store/resume-store";
 import { pluralize } from "@/lib/utils";
+import { AddResumeTile } from "./add-resume-tile";
 import {
   FILTER_LABELS,
   filterCounts,
@@ -21,6 +22,8 @@ import { cardId } from "./resume-card";
 import { ResumeGrid } from "./resume-grid";
 import { useStudioActions, type StudioActions } from "./use-studio-actions";
 import { RecentlyDeletedLink } from "./trash/recently-deleted-link";
+
+const storedLine = "Saved in this browser and backed up to your account.";
 
 function reveal(resumeId: string) {
   const card = document.getElementById(cardId(resumeId));
@@ -73,11 +76,12 @@ export function ResumesPage() {
           </h1>
           <p className="mt-2 max-w-prose text-base/7 text-muted">
             {hydrated && resumes.length > 0
-              ? `${pluralize(resumes.length, "resume")}${tailored > 0 ? `, ${tailored} tailored to a job` : ""}. Kept in this browser and backed up to your account.`
-              : "Everything in this browser and your account backup."}
+              ? `${pluralize(resumes.length, "resume")}${tailored > 0 ? `, ${tailored} tailored to a job` : ""}. ${storedLine}`
+              : storedLine}
           </p>
         </div>
-        <NewResumeMenu actions={actions} align="end" />
+        {/* From lg the sidebar holds the New resume menu. */}
+        <NewResumeMenu actions={actions} align="end" className="lg:hidden" />
       </header>
 
       {!hydrated ? (
@@ -99,7 +103,13 @@ export function ResumesPage() {
             {narrowed ? `${pluralize(shown.length, "resume")} shown of ${resumes.length}` : ""}
           </p>
           {shown.length > 0 ? (
-            <ResumeGrid resumes={shown} all={resumes} actions={actions} onShowBase={showBase} />
+            <ResumeGrid
+              resumes={shown}
+              all={resumes}
+              actions={actions}
+              onShowBase={showBase}
+              end={narrowed ? null : <AddResumeTile actions={actions} />}
+            />
           ) : (
             <div className="rounded-2xl bg-surface p-6 sm:p-8">
               <OttoNote
@@ -159,7 +169,6 @@ function LoadingGrid() {
       <span className="sr-only" role="status">
         Loading your resumes
       </span>
-      <Skeleton className="h-11 w-full max-w-md rounded-xl" />
       <ul className="grid gap-x-5 gap-y-8 sm:grid-cols-2 xl:grid-cols-3" aria-hidden>
         {[0, 1, 2].map((index) => (
           <li key={index} className="flex flex-col">

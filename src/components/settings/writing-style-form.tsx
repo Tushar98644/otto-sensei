@@ -1,13 +1,13 @@
 "use client";
 
-import { RotateCcw } from "lucide-react";
-import { useId, useState, type FormEvent } from "react";
+import { CircleCheck, RotateCcw } from "lucide-react";
+import { useEffect, useEffectEvent, useId, useRef, useState } from "react";
 import { errorMessage } from "@/components/account/errors";
 import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { toast } from "@/components/ui/toast";
+import { Spinner } from "@/components/ui/spinner";
 import { VoiceTextarea } from "@/components/ui/voice-field";
 import { cn } from "@/lib/utils";
 import {
@@ -24,14 +24,19 @@ import {
 } from "@/lib/writing-style/schema";
 import { bodyOf, DEFAULT_BODY, draftAfterSave, sameStyle, tidyStyle } from "./writing-style-draft";
 
-const OPTION = cn(
-  "flex cursor-pointer items-start gap-3 rounded-xl border border-border-control bg-surface p-3.5 transition-colors hover:border-border-control-hover",
-  "has-checked:border-ink has-checked:bg-surface-muted has-checked:ring-1 has-checked:ring-ink",
+const SEGMENT = cn(
+  "flex h-9 flex-1 cursor-pointer items-center justify-center rounded-lg px-3 text-sm whitespace-nowrap text-muted pointer-coarse:h-11 sm:flex-none",
+  "hover:text-ink has-checked:bg-surface has-checked:font-medium has-checked:text-ink",
+  "has-checked:shadow-control has-checked:ring-1 has-checked:ring-ink/5",
   "has-focus-visible:outline-2 has-focus-visible:outline-offset-2 has-focus-visible:outline-ink",
-  "has-disabled:cursor-default has-disabled:opacity-60 has-disabled:hover:border-border-control",
+  "has-disabled:cursor-default has-disabled:opacity-60 has-disabled:hover:text-muted",
 );
 
 const NOTES_WARN_AT = 50;
+// Picks save at once; typing waits for a pause, and leaving the field or the page sends it straight away.
+const TYPING_PAUSE_MS = 800;
+
+type SaveState = "idle" | "saving" | "saved" | "error";
 
 export function WritingStyleForm({
   saved,
@@ -43,72 +48,114 @@ export function WritingStyleForm({
   const [draft, setDraft] = useState<WritingStyleBody>(() =>
     saved ? bodyOf(saved) : DEFAULT_BODY,
   );
-  const [saving, setSaving] = useState(false);
+  const [state, setState] = useState<SaveState>("idle");
   const [error, setError] = useState<string | null>(null);
+  const held = useRef<WritingStyleBody | null>(saved ? bodyOf(saved) : null);
+  const waiting = useRef<{ body: WritingStyleBody; timer: number } | null>(null);
+  const sending = useRef(false);
+  const queued = useRef<WritingStyleBody | null>(null);
   const pending = saved === null;
-  const dirty = saved !== null && !sameStyle(draft, saved);
   const resetOff = pending || isDefaultStyle(draft);
   const notesLeft = STYLE_LIMITS.notes - draft.notes.length;
 
-  function change(patch: Partial<WritingStyleBody>) {
-    setDraft((current) => ({ ...current, ...patch }));
-  }
-
-  async function submit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (!dirty || saving) return;
-    setSaving(true);
+  async function send(body: WritingStyleBody) {
+    if (sending.current) {
+      queued.current = body;
+      return;
+    }
+    if (held.current && sameStyle(body, held.current)) {
+      setState((current) => (current === "saving" ? "saved" : current));
+      return;
+    }
+    sending.current = true;
+    setState("saving");
     setError(null);
-    const sent = tidyStyle(draft);
+    const sent = tidyStyle(body);
     try {
       const next = await onSave(sent);
+      held.current = bodyOf(next);
       setDraft((current) => draftAfterSave(current, sent, next));
-      toast({
-        title: "Writing style saved.",
-        description: "Otto uses it from your next letter, answer or message.",
-        variant: "success",
-      });
+      setState("saved");
     } catch (caught) {
       setError(errorMessage(caught));
+      setState("error");
     } finally {
-      setSaving(false);
+      sending.current = false;
     }
+    const later = queued.current;
+    queued.current = null;
+    if (later) await send(later);
   }
+
+  function flush() {
+    const next = waiting.current;
+    if (!next) return;
+    window.clearTimeout(next.timer);
+    waiting.current = null;
+    void send(next.body);
+  }
+
+  function change(patch: Partial<WritingStyleBody>, pause = TYPING_PAUSE_MS) {
+    const body = { ...draft, ...patch };
+    setDraft(body);
+    setState("saving");
+    if (waiting.current) window.clearTimeout(waiting.current.timer);
+    waiting.current = {
+      body,
+      timer: window.setTimeout(() => {
+        waiting.current = null;
+        void send(body);
+      }, pause),
+    };
+  }
+
+  const flushNow = useEffectEvent(flush);
+  useEffect(() => {
+    const onHide = () => flushNow();
+    window.addEventListener("pagehide", onHide);
+    return () => {
+      window.removeEventListener("pagehide", onHide);
+      flushNow();
+    };
+  }, []);
 
   return (
     <form
       noValidate
       aria-busy={pending || undefined}
-      onSubmit={(event) => void submit(event)}
+      onSubmit={(event) => {
+        event.preventDefault();
+        flush();
+      }}
       className="flex flex-col gap-6"
     >
       <p className="text-sm/6 text-muted">
         Used for your cover letters, application answers and outreach messages. Otto follows it, but
         your work history still comes only from your resume, and Otto never makes anything up.
       </p>
-      <Choices
+      <Segments
         legend="Tone"
         options={WRITING_TONES}
         labels={TONE_CHOICES}
         value={pending ? null : draft.tone}
         disabled={pending}
-        onChange={(tone) => change({ tone })}
+        onChange={(tone) => change({ tone }, 0)}
       />
-      <Choices
+      <Segments
         legend="Length"
         options={WRITING_LENGTHS}
         labels={LENGTH_CHOICES}
         value={pending ? null : draft.length}
         disabled={pending}
-        onChange={(length) => change({ length })}
+        onChange={(length) => change({ length }, 0)}
       />
-      <Choices
+      <Segments
         legend="Spelling"
         options={SPELLINGS}
         labels={SPELLING_CHOICES}
         value={pending ? null : draft.spelling}
         disabled={pending}
-        onChange={(spelling) => change({ spelling })}
+        onChange={(spelling) => change({ spelling }, 0)}
       />
       <Field label="Sign-off" optional hint="Ends your cover letters and messages.">
         <Input
@@ -118,6 +165,7 @@ export function WritingStyleForm({
           placeholder="Best regards"
           autoComplete="off"
           onChange={(event) => change({ signOff: event.target.value })}
+          onBlur={flush}
         />
       </Field>
       <div className="flex flex-col gap-1">
@@ -142,7 +190,8 @@ export function WritingStyleForm({
             rows={3}
             maxLength={STYLE_LIMITS.notes}
             onChange={(event) => change({ notes: event.target.value })}
-            onDictate={(notes) => change({ notes })}
+            onDictate={(notes) => change({ notes }, 0)}
+            onBlur={flush}
           />
         </Field>
         <p className="sr-only" aria-live="polite">
@@ -154,7 +203,7 @@ export function WritingStyleForm({
           variant="error"
           title="Couldn't save your writing style"
           action={
-            <Button type="submit" variant="secondary">
+            <Button variant="secondary" onClick={() => void send(draft)}>
               Try again
             </Button>
           }
@@ -162,28 +211,48 @@ export function WritingStyleForm({
           {error}
         </Alert>
       ) : null}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-        <Button type="submit" disabled={!dirty} loading={saving} className="w-full sm:w-auto">
-          Save style
-        </Button>
+      <div className="flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-between">
         <Button
           variant="ghost"
           aria-disabled={resetOff}
           onClick={() => {
-            if (!resetOff) change(DEFAULT_BODY);
+            if (!resetOff) change(DEFAULT_BODY, 0);
           }}
-          className="w-full aria-disabled:cursor-not-allowed aria-disabled:opacity-45 aria-disabled:hover:bg-transparent sm:w-auto"
+          className="w-full aria-disabled:cursor-not-allowed aria-disabled:opacity-45 aria-disabled:hover:bg-transparent sm:-ml-4 sm:w-auto"
         >
           <RotateCcw />
           Reset to default
         </Button>
-        {dirty ? <p className="text-sm text-muted max-sm:text-center">Unsaved changes</p> : null}
+        <SaveStatus state={state} />
       </div>
     </form>
   );
 }
 
-function Choices<T extends string>({
+function SaveStatus({ state }: { state: SaveState }) {
+  return (
+    <p
+      role="status"
+      className="flex min-h-6 items-center gap-1.5 text-sm text-muted max-sm:justify-center"
+    >
+      {state === "saving" ? (
+        <>
+          <Spinner className="size-3.5" />
+          Saving…
+        </>
+      ) : state === "saved" ? (
+        <>
+          <CircleCheck aria-hidden className="size-4 text-pass" />
+          Saved
+        </>
+      ) : state === "idle" ? (
+        "Changes save as you go."
+      ) : null}
+    </p>
+  );
+}
+
+function Segments<T extends string>({
   legend,
   options,
   labels,
@@ -199,27 +268,32 @@ function Choices<T extends string>({
   onChange: (value: T) => void;
 }) {
   const name = useId();
+  const hintId = useId();
   return (
-    <fieldset disabled={disabled} className="flex min-w-0 flex-col gap-2">
+    <fieldset
+      disabled={disabled}
+      aria-describedby={hintId}
+      className="flex min-w-0 flex-col gap-2"
+    >
       <legend className="mb-2 text-sm font-medium text-ink">{legend}</legend>
-      <div className="grid gap-2 sm:grid-cols-2">
+      <div className="flex w-full gap-1 overflow-x-auto rounded-xl bg-surface-muted p-1 sm:w-fit">
         {options.map((option) => (
-          <label key={option} className={OPTION}>
+          <label key={option} className={SEGMENT}>
             <input
               type="radio"
               name={name}
               value={option}
               checked={value === option}
               onChange={() => onChange(option)}
-              className="mt-0.5 size-4 shrink-0 accent-ink focus-visible:outline-none"
+              className="sr-only"
             />
-            <span className="flex min-w-0 flex-col gap-0.5">
-              <span className="text-sm font-medium text-ink">{labels[option].label}</span>
-              <span className="text-sm text-muted">{labels[option].hint}</span>
-            </span>
+            {labels[option].label}
           </label>
         ))}
       </div>
+      <p id={hintId} className="min-h-6 text-sm text-muted">
+        {value ? labels[value].hint : null}
+      </p>
     </fieldset>
   );
 }

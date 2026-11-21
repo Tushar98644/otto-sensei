@@ -9,11 +9,9 @@ import { cn } from "@/lib/utils";
 import { entryFieldId, sectionDomId } from "./focus";
 import { lintOf } from "./lint-cache";
 import { SETTLE_MS } from "./lint-notes";
-import { fixOutline, type OutlineSection } from "./outline";
+import { fixOutline, readingLine, type OutlineSection } from "./outline";
 import { pickResume } from "./use-editor";
 import { useSettled } from "./use-settled";
-
-const READING_LINE_PX = 160;
 
 // The selector runs on every store change, so an unchanged resume is a lookup.
 const outlines = new WeakMap<Resume, string>();
@@ -47,13 +45,18 @@ function useReading(outline: readonly OutlineSection[]): string {
     const measure = () => {
       frame = 0;
       let current = "";
+      const page = document.documentElement;
+      const line = readingLine(
+        window.innerHeight,
+        page.scrollHeight - window.innerHeight - window.scrollY,
+      );
       for (const section of outline) {
         const element = document.getElementById(sectionDomId(section.key));
-        if (!element || element.getBoundingClientRect().top > READING_LINE_PX) continue;
+        if (!element || element.getBoundingClientRect().top > line) continue;
         current = section.key;
         for (const entry of section.entries) {
           const card = entryCard(entry.id);
-          if (card && card.getBoundingClientRect().top <= READING_LINE_PX) {
+          if (card && card.getBoundingClientRect().top <= line) {
             current = `${section.key} ${entry.id}`;
           }
         }
@@ -176,7 +179,7 @@ function PhoneSections({
   return (
     <nav
       aria-label="Jump to a section"
-      className="sticky top-16 z-20 -mx-4 bg-surface-muted px-4 py-2 sm:-mx-6 sm:px-6 lg:hidden"
+      className="sticky top-14 z-20 -mx-4 bg-surface-muted px-4 py-2 sm:top-16 sm:-mx-6 sm:px-6 lg:hidden"
     >
       <div
         ref={rowRef}

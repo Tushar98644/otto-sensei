@@ -1,4 +1,6 @@
+import { AuthApiError } from "@supabase/supabase-js";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { ShareOwnerBarSlot } from "@/components/share/owner-bar-slot";
 import { SharePageFrame } from "@/components/share/share-page-frame";
 import { cookieJar, createUser, fakeAuth, resetDb, signInAs } from "@/lib/auth/test-helpers";
 import { emptyResume } from "@/lib/resume/schema";
@@ -37,6 +39,13 @@ function linkIn(node: unknown): Element | null {
   return element.props.href === undefined ? linkIn(element.props.children) : element;
 }
 
+function ofType(node: unknown, type: unknown): Element | null {
+  if (Array.isArray(node)) return node.map((child) => ofType(child, type)).find(Boolean) ?? null;
+  const element = node as Element | null;
+  if (!element?.props) return null;
+  return element.type === type ? element : ofType(element.props.children, type);
+}
+
 async function countedViews(ownerId: string): Promise<number> {
   vi.mocked(openSharePage).mockResolvedValue({
     status: "ok",
@@ -53,10 +62,14 @@ beforeEach(async () => {
 });
 
 describe("the share page", () => {
-  it("skips the owner's own view without asking Supabase before it renders", async () => {
+  it("skips the owner's own view, and asks Supabase only to show the owner their bar", async () => {
     const owner = await signInAs("ada@example.com");
-    const getUser = vi.spyOn(fakeAuth.server, "getUser");
     expect(await countedViews(owner.id)).toBe(0);
+    const getUser = vi.spyOn(fakeAuth.server, "getUser");
+    await signInAs("grace@example.com");
+    expect(await countedViews(owner.id)).toBe(1);
+    cookieJar.clear();
+    expect(await countedViews(owner.id)).toBe(1);
     expect(getUser).not.toHaveBeenCalled();
     getUser.mockRestore();
   });
@@ -66,6 +79,26 @@ describe("the share page", () => {
     expect(await countedViews(owner.id)).toBe(1);
     await signInAs("grace@example.com");
     expect(await countedViews(owner.id)).toBe(1);
+  });
+
+  it("shows the owner their bar, and nobody else", async () => {
+    const owner = await signInAs("ada@example.com");
+    vi.mocked(openSharePage).mockResolvedValue({
+      status: "ok",
+      share: { id: "share-1", ownerId: owner.id, resume: emptyResume(), allowIndexing: false },
+    });
+    const bar = async () =>
+      ofType(
+        await SharedResumePage({ params: Promise.resolve({ slug: "abcdefghjk" }) }),
+        ShareOwnerBarSlot,
+      );
+    expect((await bar())?.props).toEqual({ ownerId: owner.id, slug: "abcdefghjk" });
+    fakeAuth.failNext("getUser", new AuthApiError("Session does not exist", 403, "session_not_found"));
+    expect(await bar()).toBeNull();
+    await signInAs("grace@example.com");
+    expect(await bar()).toBeNull();
+    cookieJar.clear();
+    expect(await bar()).toBeNull();
   });
 
   it("links home with the owner's invite once they have one, and nothing else about them", async () => {

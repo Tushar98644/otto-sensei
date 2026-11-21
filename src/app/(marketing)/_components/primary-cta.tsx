@@ -1,17 +1,42 @@
+"use client";
+
 import { ArrowRight } from "lucide-react";
 import { IntentLink } from "@/components/site/intent-link";
 import { ROUTES } from "@/components/site/routes";
 import { buttonClasses } from "@/components/ui/button";
+import { Spinner } from "@/components/ui/spinner";
 import { cn } from "@/lib/utils";
+import { pickResumeFile, preloadOpener, useHomeUpload } from "./home-picker";
 
-export function PrimaryCta({ className }: { className?: string }) {
+export type PrimaryCtaProps = {
+  id?: string;
+  className?: string;
+  // A resume this browser already holds: the button goes back to it instead of asking for a file.
+  savedTitle?: string | null;
+};
+
+// A link to the studio until the home page hydrates, then the file picker; a modified click still opens the studio.
+export function PrimaryCta({ id, className, savedTitle }: PrimaryCtaProps) {
+  const { opening } = useHomeUpload();
+  const picks = !savedTitle;
   return (
     <IntentLink
+      id={id}
       href={ROUTES.studio}
-      className={buttonClasses({ size: "lg", className: cn("w-full sm:w-auto", className) })}
+      aria-busy={opening ? true : undefined}
+      onMouseEnter={picks ? preloadOpener : undefined}
+      onTouchStart={picks ? preloadOpener : undefined}
+      onFocus={picks ? preloadOpener : undefined}
+      onNavigate={(event) => {
+        if (picks && pickResumeFile()) event.preventDefault();
+      }}
+      className={buttonClasses({
+        size: "lg",
+        className: cn("w-full max-w-full sm:w-auto sm:max-w-md", className),
+      })}
     >
-      Check my resume
-      <ArrowRight />
+      {savedTitle ? <span className="truncate">Continue with {savedTitle}</span> : "Check my resume"}
+      {opening ? <Spinner className="size-5" /> : <ArrowRight />}
     </IntentLink>
   );
 }

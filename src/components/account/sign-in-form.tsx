@@ -15,7 +15,7 @@ import { api, isApiError } from "@/lib/api/client";
 import type { SessionUser } from "@/lib/auth/types";
 import { cn } from "@/lib/utils";
 import { errorMessage } from "./errors";
-import { GoogleSignIn } from "./google-sign-in";
+import { GoogleSignIn, googleUnavailable } from "./google-sign-in";
 import { SignInTerms } from "./sign-in-terms";
 import {
   CODE_LENGTH,
@@ -25,7 +25,7 @@ import {
   looksLikeEmail,
 } from "./sign-in-rules";
 import { useCooldown } from "./use-cooldown";
-import { patchMe, refreshMe } from "./use-me";
+import { patchMe, refreshMe, useMe } from "./use-me";
 
 type Step = "email" | "code" | "done";
 type Pending = "send" | "resend" | "verify";
@@ -42,6 +42,7 @@ function placementOf(failure: unknown): ErrorPlacement {
 
 export type SignInFormProps = {
   onSignedIn?: (user: SessionUser) => void;
+  onGoogleRedirect?: () => void;
   next?: string;
   initialError?: string;
   autoFocus?: boolean;
@@ -50,11 +51,14 @@ export type SignInFormProps = {
 
 export function SignInForm({
   onSignedIn,
+  onGoogleRedirect,
   next,
   initialError,
   autoFocus = false,
   className,
 }: SignInFormProps) {
+  // Google is the faster way in, so it takes the forest key; email does only when Google can't work.
+  const emailVariant = googleUnavailable(useMe().me?.auth.mode) ? "primary" : "secondary";
   const [step, setStep] = useState<Step>("email");
   const [email, setEmail] = useState("");
   const [code, setCode] = useState("");
@@ -193,6 +197,7 @@ export function SignInForm({
             next={next}
             disabled={pending !== null}
             onError={(message) => showError(message, undefined, "form")}
+            onRedirect={onGoogleRedirect}
           />
           <div className="flex items-center gap-3 text-xs text-subtle" aria-hidden="true">
             <span className="h-px flex-1 bg-border" />
@@ -221,7 +226,12 @@ export function SignInForm({
             />
           </Field>
           {formAlert}
-          <Button type="submit" loading={pending === "send"} className="w-full">
+          <Button
+            type="submit"
+            variant={emailVariant}
+            loading={pending === "send"}
+            className="w-full"
+          >
             Email me a code
           </Button>
           <SignInTerms />

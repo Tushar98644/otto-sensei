@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import type { Feature } from "@/config/plans";
 import type { SessionUser } from "@/lib/auth/types";
 import { PAYMENT_ISSUE_NOTICE, trialUpgradeNotice } from "./trial-upgrade";
-import { UpgradeDialog } from "./upgrade-dialog";
+import { UpgradeDialog, type UpgradeDialogProps } from "./upgrade-dialog";
 import type { Me } from "./use-me";
 
 const mocks = vi.hoisted(() => ({ me: null as Me | null }));
@@ -21,6 +21,7 @@ function dialog(
   user: Partial<SessionUser>,
   billing: Partial<Me["billing"]> = {},
   feature?: Feature,
+  props: Partial<UpgradeDialogProps> = {},
 ) {
   mocks.me = {
     user: {
@@ -37,7 +38,9 @@ function dialog(
     billing: { mode: "dodo", offer: OFFER, trial: false, ...billing },
     auth: { mode: "supabase" },
   };
-  return renderToStaticMarkup(<UpgradeDialog open onOpenChange={() => {}} feature={feature} />)
+  return renderToStaticMarkup(
+    <UpgradeDialog open onOpenChange={() => {}} feature={feature} {...props} />,
+  )
     .replace(/<[^>]+>/g, " ")
     .replace(/&#x27;/g, "'")
     .replace(/\s+/g, " ");
@@ -80,5 +83,68 @@ describe("UpgradeDialog", () => {
     expect(body).toContain(PAYMENT_ISSUE_NOTICE);
     expect(body).toContain("Manage billing");
     expect(body).not.toContain("Upgrade to");
+  });
+
+  it("at Free's resume limit, offers to replace the one resume next to the trial", () => {
+    const replace = { title: "Ada CV", onReplace: () => {} };
+    const body = dialog({ plan: "free" }, { trial: true }, undefined, { tool: "resumes", replace });
+    expect(body).toContain("Free keeps 1 resume.");
+    expect(body).toContain("Or replace “Ada CV” with the new one.");
+    expect(body).toContain("Recently deleted for 30 days, in this browser only.");
+    expect(body).toContain("Replace it");
+
+    expect(dialog({ plan: "free" }, {}, undefined, { tool: "resumes" })).not.toContain("Replace it");
+    expect(dialog(ON_TRIAL, {}, undefined, { tool: "resumes", replace })).not.toContain("Replace it");
+  });
+
+  it("on hold at Free's resume limit, still offers the replacement beside Manage billing", () => {
+    const replace = { title: "Ada CV", onReplace: () => {} };
+    const body = dialog({ plan: "free" }, { paymentIssue: true }, undefined, { tool: "resumes", replace });
+    expect(body).toContain("Manage billing");
+    expect(body).toContain("Replace it");
+  });
+});
+
+function signedOutDialog({ startAtSignIn = false, trial = true } = {}) {
+  mocks.me = {
+    user: null,
+    usage: null,
+    period: null,
+    aiBudget: null,
+    billing: { mode: "dodo", offer: OFFER, trial },
+    auth: { mode: "supabase" },
+  };
+  return renderToStaticMarkup(
+    <UpgradeDialog
+      open
+      onOpenChange={() => {}}
+      plan="pro"
+      interval="month"
+      next="/studio"
+      startAtSignIn={startAtSignIn}
+    />,
+  )
+    .replace(/<[^>]+>/g, " ")
+    .replace(/&#x27;/g, "'")
+    .replace(/\s+/g, " ");
+}
+
+describe("UpgradeDialog signed out", () => {
+  it("sent with a plan, opens straight on sign-in for the trial", () => {
+    const body = signedOutDialog({ startAtSignIn: true });
+    expect(body).toContain("Sign in to start your trial");
+    expect(body).toContain("Use Google or a 6-digit email code. No password.");
+    expect(body).toContain("Continue with Google");
+    expect(body).toContain("Back");
+  });
+
+  it("without a trial on offer, calls it signing in to upgrade", () => {
+    expect(signedOutDialog({ startAtSignIn: true, trial: false })).toContain("Sign in to upgrade");
+  });
+
+  it("opened from a page, shows the plans first", () => {
+    const body = signedOutDialog();
+    expect(body).not.toContain("Sign in to start your trial");
+    expect(body).toContain("Not now");
   });
 });

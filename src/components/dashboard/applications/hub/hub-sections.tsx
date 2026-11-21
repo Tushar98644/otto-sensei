@@ -12,6 +12,7 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonClasses } from "@/components/ui/button";
+import { ProMark } from "@/components/ui/pro-mark";
 import type { Application } from "@/lib/applications/schema";
 import { STATUS_NAMES } from "@/lib/applications/status";
 import type { ApplicationThread } from "@/lib/applications/thread";
@@ -136,7 +137,11 @@ export function PrepCard({
           </p>
           <Link
             href={prepHref(application.id)}
-            className={buttonClasses({ size: "sm", className: "self-start" })}
+            className={buttonClasses({
+              variant: application.status === "interview" ? "secondary" : "primary",
+              size: "sm",
+              className: "self-start",
+            })}
           >
             <MessagesSquare aria-hidden />
             Open prep
@@ -149,19 +154,10 @@ export function PrepCard({
               ? "Likely questions for this job, stories from your own lines, and questions to ask them."
               : "When an interview is booked, prep for it starts from this job and the resume you sent."}
           </p>
-          <Button
-            variant={application.status === "interview" ? "primary" : "secondary"}
-            size="sm"
-            className="self-start"
-            onClick={onPrepare}
-          >
+          <Button variant="secondary" size="sm" className="self-start" onClick={onPrepare}>
             <MessagesSquare aria-hidden />
             Prepare for this interview
-            {pro === false ? (
-              <Badge variant="ink" className="h-5 px-1.5">
-                Pro
-              </Badge>
-            ) : null}
+            {pro === false ? <ProMark /> : null}
           </Button>
         </>
       )}

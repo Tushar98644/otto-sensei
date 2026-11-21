@@ -1,11 +1,15 @@
 import { describe, expect, it } from "vitest";
 import { createSampleResume } from "@/lib/resume/sample";
-import { DASHBOARD_COPY, dashboardStops, STUDIO_COPY, studioStops } from "./stops";
+import { DASHBOARD_COPY, dashboardStops, setupStopCopy, STUDIO_COPY, studioStops } from "./stops";
 
 const words = (text: string) => text.trim().split(/\s+/).length;
 
 describe("tour copy", () => {
-  const all = [...Object.values(STUDIO_COPY), ...Object.values(DASHBOARD_COPY)];
+  const all = [
+    ...Object.values(STUDIO_COPY),
+    ...Object.values(DASHBOARD_COPY),
+    ...[1, 3, 4, 5].map(setupStopCopy),
+  ];
 
   it("keeps Otto's lines short and calm", () => {
     for (const { title, body } of all) {
@@ -60,5 +64,15 @@ describe("dashboardStops", () => {
       "win-rate",
     ]);
     expect(new Set(stops.map((stop) => stop.screen)).size).toBe(1);
+  });
+
+  it("counts the setup steps the card really shows", () => {
+    const body = (setupSteps: number | null) =>
+      dashboardStops({ setupSteps }).find((stop) => stop.id === "setup")?.body;
+    expect(body(3)).toContain("Your 3 setup steps tick themselves off.");
+    expect(body(4)).toContain("Your 4 setup steps");
+    expect(body(1)).toContain("Your 1 setup step ticks itself off.");
+    expect(body(null)).not.toMatch(/\d|five/i);
+    expect(dashboardStops().find((stop) => stop.id === "setup")?.body).toBe(body(null));
   });
 });

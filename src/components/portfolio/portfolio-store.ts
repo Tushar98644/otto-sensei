@@ -7,7 +7,7 @@ import { toast } from "@/components/ui/toast";
 import { UNDO_MS } from "@/components/ui/undo-toast";
 import { api, isApiError } from "@/lib/api/client";
 import type { UpdatePortfolioBody } from "@/lib/api/types";
-import type { Portfolio } from "@/lib/portfolio/types";
+import type { Portfolio, PortfolioTemplateId } from "@/lib/portfolio/types";
 import { getQueryClient, useAppQueryClient } from "@/lib/queries/client";
 import { PORTFOLIO } from "@/lib/queries/keys";
 import { portfolioQuery } from "@/lib/queries/options";
@@ -55,10 +55,13 @@ export function messageOf(error: unknown): string {
   return "Something went wrong. Please try again.";
 }
 
-export async function makePortfolio(resume: Resume): Promise<Portfolio | null> {
+export async function makePortfolio(
+  resume: Resume,
+  template?: PortfolioTemplateId,
+): Promise<Portfolio | null> {
   usePortfolioStore.setState({ saving: true });
   try {
-    const { portfolio } = await api.createPortfolio({ resume });
+    const { portfolio } = await api.createPortfolio(template ? { resume, template } : { resume });
     putPortfolio(portfolio);
     return portfolio;
   } catch (error) {

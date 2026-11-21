@@ -25,7 +25,7 @@ function tsxFiles(entry: string): string[] {
   const full = path.join(root, entry);
   if (statSync(full).isFile()) return [full];
   return readdirSync(full, { recursive: true, encoding: "utf8" })
-    .filter((name) => name.endsWith(".tsx"))
+    .filter((name) => name.endsWith(".tsx") && !name.endsWith(".test.tsx"))
     .map((name) => path.join(full, name));
 }
 

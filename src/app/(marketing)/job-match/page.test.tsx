@@ -17,4 +17,12 @@ describe("the job match page", () => {
     expect(html).toContain("What the check does");
     expect(html).not.toMatch(/\d+\s*%|₹|lakh|crore/i);
   });
+
+  it("takes a link, offers a sample and keeps the check the only primary action", () => {
+    const html = renderToStaticMarkup(<JobMatchPage />);
+    expect(html).toContain("Paste a link");
+    expect(html).toContain("Try with a sample");
+    expect(html.match(/from-primary-top/g)).toHaveLength(1);
+    expect(html).toMatch(/<a[^>]*href="\/studio"[^>]*>Check my resume/);
+  });
 });

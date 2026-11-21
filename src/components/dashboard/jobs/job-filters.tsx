@@ -1,21 +1,16 @@
 "use client";
 
-import { Search, X } from "lucide-react";
+import { ChevronDown, Search, SlidersHorizontal, X } from "lucide-react";
 import { useEffect, useId, useRef, useState } from "react";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
-import {
-  LEVEL_LABELS,
-  LEVELS,
-  ROLE_FAMILIES,
-  ROLE_LABELS,
-  type JobFilters,
-  type Level,
-  type RoleFamily,
-} from "@/lib/job-feed/types";
+import type { JobFilters } from "@/lib/job-feed/types";
 import { resumeTitle } from "@/lib/resume/ops";
 import type { Resume } from "@/lib/resume/schema";
 import { cn } from "@/lib/utils";
+import { activeFilterCount, type FilterMemory } from "./filter-memory";
 import type { JobView } from "./use-job-matches";
 
 const count = new Intl.NumberFormat("en-US");
@@ -25,22 +20,16 @@ const SEGMENT =
   "flex h-9 shrink-0 items-center gap-1.5 rounded-lg px-3 text-sm font-medium text-muted -outline-offset-2 transition-colors hover:text-ink aria-pressed:bg-surface aria-pressed:text-ink aria-pressed:shadow-control pointer-coarse:h-10";
 const CHECKBOX = "flex min-h-11 items-center gap-2 text-sm text-ink";
 
-function DelayedInput({
-  value,
-  onCommit,
-  label,
-  placeholder,
-  icon,
-}: {
-  value: string;
-  onCommit: (value: string) => void;
-  label: string;
-  placeholder: string;
-  icon?: boolean;
-}) {
+function SearchInput({ value, onCommit }: { value: string; onCommit: (value: string) => void }) {
   const [text, setText] = useState(value);
+  const [shown, setShown] = useState(value);
   const inputRef = useRef<HTMLInputElement>(null);
   const latest = useRef(onCommit);
+  // A search remembered from an earlier visit, or cleared elsewhere, lands after the first render.
+  if (value !== shown) {
+    setShown(value);
+    if (text.trim() !== value.trim()) setText(value);
+  }
   useEffect(() => {
     latest.current = onCommit;
   });
@@ -52,12 +41,10 @@ function DelayedInput({
 
   return (
     <div className="relative min-w-0 flex-1">
-      {icon ? (
-        <Search
-          aria-hidden
-          className="pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-muted"
-        />
-      ) : null}
+      <Search
+        aria-hidden
+        className="pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-muted"
+      />
       <Input
         ref={inputRef}
         type="search"
@@ -72,20 +59,16 @@ function DelayedInput({
             onCommit("");
           }
         }}
-        placeholder={placeholder}
-        aria-label={label}
+        placeholder="Search titles, companies, skills or places"
+        aria-label="Search jobs"
         autoComplete="off"
         spellCheck={false}
-        className={cn(
-          "[&::-webkit-search-cancel-button]:appearance-none",
-          icon && "pl-10",
-          text && "pr-11",
-        )}
+        className={cn("pl-10 [&::-webkit-search-cancel-button]:appearance-none", text && "pr-11")}
       />
       {text ? (
         <button
           type="button"
-          aria-label={`Clear ${label.toLowerCase()}`}
+          aria-label="Clear search jobs"
           onClick={() => {
             setText("");
             onCommit("");
@@ -108,7 +91,8 @@ export type JobFiltersBarProps = {
   onView: (view: JobView) => void;
   savedCount: number;
   filters: JobFilters;
-  onFilters: (patch: Partial<JobFilters>) => void;
+  onFilters: (patch: Partial<Omit<FilterMemory, "resumeId">>) => void;
+  onRemote: ((remote: boolean) => void) | null;
   profileReady: boolean;
 };
 
@@ -121,123 +105,126 @@ export function JobFiltersBar({
   savedCount,
   filters,
   onFilters,
+  onRemote,
   profileReady,
 }: JobFiltersBarProps) {
   const ids = useId();
+  const [open, setOpen] = useState(false);
+  const active = activeFilterCount(filters);
+
   return (
     <div className="flex flex-col gap-3">
-      <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
-        <div role="group" aria-label="Show" className="flex w-max gap-1 rounded-xl bg-surface-strong p-1">
-          <button type="button" aria-pressed={view === "matches"} onClick={() => onView("matches")} className={SEGMENT}>
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+        <div
+          role="group"
+          aria-label="Show"
+          className="flex w-max gap-1 rounded-xl bg-surface-strong p-1"
+        >
+          <button
+            type="button"
+            aria-pressed={view === "matches"}
+            onClick={() => onView("matches")}
+            className={SEGMENT}
+          >
             Best matches
           </button>
-          <button type="button" aria-pressed={view === "saved"} onClick={() => onView("saved")} className={SEGMENT}>
+          <button
+            type="button"
+            aria-pressed={view === "saved"}
+            onClick={() => onView("saved")}
+            className={SEGMENT}
+          >
             Saved
             <span className="text-xs text-muted tabular-nums">{count.format(savedCount)}</span>
           </button>
         </div>
-        <label htmlFor={`${ids}-resume`} className="sr-only">
-          Resume to match
-        </label>
-        <Select
-          id={`${ids}-resume`}
-          value={resumeId ?? ""}
-          onChange={(event) => onResume(event.target.value)}
-          className="lg:ml-auto lg:w-72"
-        >
-          {resumes.map((resume) => (
-            <option key={resume.id} value={resume.id}>
-              {`Matching: ${resumeTitle(resume)}`}
-            </option>
-          ))}
-        </Select>
+        {view === "matches" ? (
+          <div className="flex min-w-0 flex-1 gap-2">
+            <SearchInput value={filters.q} onCommit={(q) => onFilters({ q })} />
+            <Button
+              variant="secondary"
+              aria-expanded={open}
+              aria-controls={`${ids}-panel`}
+              onClick={() => setOpen((current) => !current)}
+            >
+              <SlidersHorizontal aria-hidden />
+              Filters
+              {active > 0 ? (
+                <span className="text-xs text-muted tabular-nums">
+                  {count.format(active)}
+                  <span className="sr-only"> on</span>
+                </span>
+              ) : null}
+              <ChevronDown
+                aria-hidden
+                className={cn("text-muted transition-transform", open && "rotate-180")}
+              />
+            </Button>
+          </div>
+        ) : null}
       </div>
 
-      {view === "matches" ? (
-        <>
-          <div className="flex flex-col gap-2 sm:flex-row">
-            <DelayedInput
-              value={filters.q}
-              onCommit={(q) => onFilters({ q })}
-              label="Search jobs"
-              placeholder="Search titles, companies or skills"
-              icon
-            />
-            <div className="sm:w-56">
-              <DelayedInput
-                value={filters.place}
-                onCommit={(place) => onFilters({ place })}
-                label="Location"
-                placeholder="City or country"
-              />
+      <div id={`${ids}-panel`}>
+        {view === "matches" && open ? (
+          <div className="grid gap-3 rounded-2xl bg-surface p-4 sm:grid-cols-2 sm:p-6">
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor={`${ids}-posted`}>Posted</Label>
+              <Select
+                id={`${ids}-posted`}
+                value={filters.postedWithin === null ? "" : String(filters.postedWithin)}
+                onChange={(event) => {
+                  const value = event.target.value;
+                  onFilters({ postedWithin: value === "7" ? 7 : value === "30" ? 30 : null });
+                }}
+              >
+                <option value="">Any time</option>
+                <option value="7">In the last 7 days</option>
+                <option value="30">In the last 30 days</option>
+              </Select>
+            </div>
+            {resumes.length > 1 ? (
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor={`${ids}-resume`}>Resume to match</Label>
+                <Select
+                  id={`${ids}-resume`}
+                  value={resumeId ?? ""}
+                  onChange={(event) => onResume(event.target.value)}
+                >
+                  {resumes.map((resume) => (
+                    <option key={resume.id} value={resume.id}>
+                      {resumeTitle(resume)}
+                    </option>
+                  ))}
+                </Select>
+              </div>
+            ) : null}
+            <div className="flex flex-wrap gap-x-6 sm:col-span-2">
+              {onRemote ? (
+                <label className={CHECKBOX}>
+                  <input
+                    type="checkbox"
+                    checked={filters.remote}
+                    onChange={(event) => onRemote(event.target.checked)}
+                    className="size-4 accent-ink"
+                  />
+                  Remote only
+                </label>
+              ) : null}
+              {profileReady ? (
+                <label className={CHECKBOX}>
+                  <input
+                    type="checkbox"
+                    checked={filters.eligibleOnly}
+                    onChange={(event) => onFilters({ eligibleOnly: event.target.checked })}
+                    className="size-4 accent-ink"
+                  />
+                  Only jobs I can take
+                </label>
+              ) : null}
             </div>
           </div>
-          <div className="grid gap-2 sm:grid-cols-3">
-            <Select
-              aria-label="Role"
-              value={filters.role ?? ""}
-              onChange={(event) => onFilters({ role: (event.target.value || null) as RoleFamily | null })}
-            >
-              <option value="">Any role</option>
-              {ROLE_FAMILIES.map((role) => (
-                <option key={role} value={role}>
-                  {ROLE_LABELS[role]}
-                </option>
-              ))}
-            </Select>
-            <Select
-              aria-label="Seniority"
-              value={filters.level ?? ""}
-              onChange={(event) => onFilters({ level: (event.target.value || null) as Level | null })}
-            >
-              <option value="">Any level</option>
-              {LEVELS.map((level) => (
-                <option key={level} value={level}>
-                  {LEVEL_LABELS[level]}
-                </option>
-              ))}
-            </Select>
-            <Select
-              aria-label="Posted"
-              value={filters.postedWithin === null ? "" : String(filters.postedWithin)}
-              onChange={(event) => {
-                const value = event.target.value;
-                onFilters({ postedWithin: value === "7" ? 7 : value === "30" ? 30 : null });
-              }}
-            >
-              <option value="">Posted any time</option>
-              <option value="7">Posted in the last 7 days</option>
-              <option value="30">Posted in the last 30 days</option>
-            </Select>
-          </div>
-          <div className="flex flex-wrap gap-x-6">
-            <label className={CHECKBOX}>
-              <input
-                type="checkbox"
-                checked={filters.remote}
-                onChange={(event) => onFilters({ remote: event.target.checked })}
-                className="size-4 accent-ink"
-              />
-              Remote only
-            </label>
-            <label className={CHECKBOX}>
-              <input
-                type="checkbox"
-                checked={filters.eligibleOnly}
-                onChange={(event) => onFilters({ eligibleOnly: event.target.checked })}
-                aria-describedby={profileReady ? undefined : `${ids}-eligible`}
-                className="size-4 accent-ink"
-              />
-              Only jobs I can take
-            </label>
-            {profileReady ? null : (
-              <p id={`${ids}-eligible`} className="flex min-h-11 items-center text-sm text-subtle">
-                Needs where you can work first.
-              </p>
-            )}
-          </div>
-        </>
-      ) : null}
+        ) : null}
+      </div>
     </div>
   );
 }

@@ -3,7 +3,15 @@
 import type { PlanId } from "@/config/plans";
 import type { ApplicationStatus } from "@/lib/applications/status";
 
-export type ImportSource = "pdf" | "docx" | "linkedin" | "jsonresume" | "draft" | "scratch" | "sample";
+export type ImportSource =
+  | "pdf"
+  | "docx"
+  | "linkedin"
+  | "jsonresume"
+  | "draft"
+  | "scratch"
+  | "sample"
+  | "paste";
 
 type NoProps = Record<string, never>;
 

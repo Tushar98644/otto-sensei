@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { useAccountGate } from "@/components/account/account-gate";
+import { useAccountGate, useResumeAfterSignIn } from "@/components/account/account-gate";
 import { patchMe, useMe } from "@/components/account/use-me";
 import { PLANS, type UsageSnapshot } from "@/config/plans";
 import { api, isApiError, isBudgetReached } from "@/lib/api/client";
@@ -55,7 +55,9 @@ export function useSummaryHelp(resumeId: string, focusInput: () => void) {
     if (!resume || busyRef.current) return;
     busyRef.current = true;
     try {
-      const signedIn = await gateRef.current.requireUser(SIGN_IN_REASON).catch(() => false);
+      const signedIn = await gateRef.current
+        .requireUser(SIGN_IN_REASON, { kind: `summary:${resumeId}`, ids: { mode } })
+        .catch(() => false);
       if (!signedIn) return;
       const id = ++requestRef.current;
       const original = resume.summary;
@@ -93,6 +95,10 @@ export function useSummaryHelp(resumeId: string, focusInput: () => void) {
       busyRef.current = false;
     }
   }
+
+  useResumeAfterSignIn(`summary:${resumeId}`, ({ mode }) => {
+    if (mode === "write" || mode === "improve") void ask(mode);
+  });
 
   function close() {
     requestRef.current += 1;

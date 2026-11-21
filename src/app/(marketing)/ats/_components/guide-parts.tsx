@@ -109,26 +109,32 @@ export function CheckCta({
         {title}
       </h2>
       <p className="mt-4 max-w-prose text-base/7 text-pretty text-muted">{children}</p>
-      <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center">
-        <IntentLink
-          href={SEO_PATHS.jobMatch}
-          className={buttonClasses({ size: "lg", className: "w-full sm:w-auto" })}
-        >
-          Check your resume free
-          <ArrowRight />
-        </IntentLink>
-        <IntentLink
-          href={ROUTES.studio}
-          className={buttonClasses({
-            variant: "secondary",
-            size: "lg",
-            className: "w-full sm:w-auto",
-          })}
-        >
-          See what hiring software reads
-        </IntentLink>
-      </div>
+      <CheckButtons className="mt-8" />
     </section>
+  );
+}
+
+export function CheckButtons({ className }: { className?: string }) {
+  return (
+    <div className={cn("flex flex-col gap-3 sm:flex-row sm:items-center", className)}>
+      <IntentLink
+        href={SEO_PATHS.jobMatch}
+        className={buttonClasses({ size: "lg", className: "w-full sm:w-auto" })}
+      >
+        Match my resume to a job
+        <ArrowRight />
+      </IntentLink>
+      <IntentLink
+        href={ROUTES.studio}
+        className={buttonClasses({
+          variant: "secondary",
+          size: "lg",
+          className: "w-full sm:w-auto",
+        })}
+      >
+        Check my resume
+      </IntentLink>
+    </div>
   );
 }
 

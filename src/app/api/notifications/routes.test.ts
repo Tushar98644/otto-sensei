@@ -1,7 +1,7 @@
 import { eq } from "drizzle-orm";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { getDb } from "@/db/client";
-import { notifications } from "@/db/schema";
+import { applications, notifications } from "@/db/schema";
 import type { ApiErrorBody } from "@/lib/api/types";
 import { cookieJar, createUser, resetDb, signInAs } from "@/lib/auth/test-helpers";
 import { resetEnvForTests } from "@/lib/env";
@@ -23,7 +23,12 @@ vi.mock("next/headers", async () => (await import("@/lib/auth/test-helpers")).ne
 
 const JSON_TYPE = { "content-type": "application/json" };
 
-async function seed(userId: string, createdAt: number, readAt: number | null = null) {
+async function seed(
+  userId: string,
+  createdAt: number,
+  readAt: number | null = null,
+  applicationId: string | null = null,
+) {
   const id = crypto.randomUUID();
   await (await getDb()).insert(notifications).values({
     id,
@@ -32,8 +37,25 @@ async function seed(userId: string, createdAt: number, readAt: number | null = n
     title: `Notice ${createdAt}`,
     body: "Stripe hasn't replied in 3 weeks. Mark it as no reply?",
     link: "/dashboard/applications",
+    applicationId,
     readAt,
     createdAt,
+  });
+  return id;
+}
+
+async function seedApplication(userId: string, followUpAt: number) {
+  const id = crypto.randomUUID();
+  const now = Date.now();
+  await (await getDb()).insert(applications).values({
+    id,
+    userId,
+    company: "Stripe",
+    appliedAt: now - 10 * 24 * 60 * 60 * 1_000,
+    statusChangedAt: now,
+    followUpAt,
+    createdAt: now,
+    updatedAt: now,
   });
   return id;
 }
@@ -91,6 +113,30 @@ describe("/api/notifications", () => {
       link: "/dashboard/applications",
       readAt: null,
     });
+  });
+
+  it("offers Done and Snooze only on the newest row about a follow-up that is still due", async () => {
+    const other = await createUser("other@example.com");
+    const theirs = await seedApplication(other.id, Date.now() - 60_000);
+    const maya = await signInAs("maya@example.com");
+    const due = await seedApplication(maya.id, Date.now() - 60_000);
+    const later = await seedApplication(maya.id, Date.now() + 60_000);
+    await seed(maya.id, 1_000, null, due);
+    await seed(maya.id, 2_000, null, due);
+    await seed(maya.id, 3_000, null, later);
+    await seed(maya.id, 4_000, null, crypto.randomUUID());
+    await seed(maya.id, 5_000, null, theirs);
+
+    const body = (await (await GET()).json()) as NotificationsResponse;
+    expect(
+      body.notifications.map((item) => [item.createdAt, item.applicationId, item.followUpDue]),
+    ).toEqual([
+      [5_000, null, false],
+      [4_000, null, false],
+      [3_000, later, false],
+      [2_000, due, true],
+      [1_000, due, false],
+    ]);
   });
 
   it("marks chosen ones, or all, as read, never another account's", async () => {

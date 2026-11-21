@@ -8,6 +8,7 @@ import {
   sortResumes,
   tailoredCounts,
   tailoredJob,
+  toolbarParts,
 } from "./library";
 
 function resume(
@@ -48,6 +49,33 @@ describe("filterCounts", () => {
   it("counts every resume once under All and once under its source", () => {
     expect(filterCounts(all)).toEqual({ all: 4, import: 1, tailored: 1, sample: 1, scratch: 1 });
     expect(filterCounts([])).toEqual({ all: 0, import: 0, tailored: 0, sample: 0, scratch: 0 });
+  });
+});
+
+describe("toolbarParts", () => {
+  const plain = { query: "", filter: "all", sort: "edited" } as const;
+  const none = { filters: false, search: false };
+
+  it("shows nothing for a few resumes from one source", () => {
+    expect(toolbarParts(filterCounts([sample]), plain)).toEqual(none);
+    const uploads = [1, 2, 3, 4].map((at) => resume(`Resume ${at}`, at));
+    expect(toolbarParts(filterCounts(uploads), plain)).toEqual(none);
+  });
+
+  it("shows the filters from 2 sources, and search and sort from 5 resumes", () => {
+    const mixed = filterCounts([sample, designer]);
+    expect(toolbarParts(mixed, plain)).toEqual({ filters: true, search: false });
+    const uploads = filterCounts([1, 2, 3, 4, 5].map((at) => resume(`Resume ${at}`, at)));
+    expect(toolbarParts(uploads, plain)).toEqual({ filters: false, search: true });
+    const many = filterCounts([...all, sample]);
+    expect(toolbarParts(many, plain)).toEqual({ filters: true, search: true });
+  });
+
+  it("keeps a control that is in use, so nothing narrows the list out of sight", () => {
+    const counts = filterCounts([sample]);
+    expect(toolbarParts(counts, { ...plain, filter: "import" }).filters).toBe(true);
+    expect(toolbarParts(counts, { ...plain, query: "x" }).search).toBe(true);
+    expect(toolbarParts(counts, { ...plain, sort: "name" }).search).toBe(true);
   });
 });
 

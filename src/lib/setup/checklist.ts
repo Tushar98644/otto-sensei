@@ -1,14 +1,21 @@
 import { WORK_REGIONS, type WorkProfile } from "@/lib/eligibility/profile";
 import type { LookingForChoice } from "@/lib/job-feed/types";
 import type { Resume } from "@/lib/resume/schema";
+import { onlyGuessedRights } from "./hints";
+import type { SetupGuess } from "./types";
 import type { WeakLineState } from "./weak-line";
 
 export type { WeakLineState, WeakLineTarget } from "./weak-line";
 
 export type SetupItemId = "resume" | "work" | "looking_for" | "weak_line" | "reminders";
 
-export function workRightsSet(profile: WorkProfile): boolean {
-  return profile.country !== "" && WORK_REGIONS.some((region) => profile.rights[region] !== null);
+// The home region Otto set to Yes on its own doesn't count until the person confirms it.
+export function workRightsSet(profile: WorkProfile, guess: SetupGuess | null = null): boolean {
+  return (
+    profile.country !== "" &&
+    WORK_REGIONS.some((region) => profile.rights[region] !== null) &&
+    !onlyGuessedRights(guess, profile)
+  );
 }
 
 export function lookingForSet(choice: LookingForChoice): boolean {
@@ -24,10 +31,22 @@ export function ownResumes(resumes: readonly Resume[]): Resume[] {
     .sort((a, b) => b.updatedAt - a.updatedAt);
 }
 
+// An upload, never a resume typed from scratch, whose half-typed title would be a poor guess.
+export function newestUpload(own: readonly Resume[]): Resume | null {
+  return own.find((resume) => resume.source === "import" && resume.tailor === null) ?? null;
+}
+
+export type DefaultsDue = { defaultsAt: number | null; lookingForAt: number | null };
+
+export function defaultsDue(due: DefaultsDue, own: readonly Resume[]): boolean {
+  return due.defaultsAt === null || (due.lookingForAt === null && newestUpload(own) !== null);
+}
+
 export type SetupFacts = {
   pro: boolean;
   ownResumes: number;
   work: { profile: WorkProfile; lookingFor: LookingForChoice } | null;
+  guess?: SetupGuess | null;
   weakLine: WeakLineState;
   reminders: { available: boolean; chosen: boolean } | null;
 };
@@ -37,7 +56,7 @@ export type SetupItem = { id: SetupItemId; done: boolean };
 export function setupItems(facts: SetupFacts): SetupItem[] {
   const items: SetupItem[] = [{ id: "resume", done: facts.ownResumes > 0 }];
   if (facts.work && facts.pro) {
-    items.push({ id: "work", done: workRightsSet(facts.work.profile) });
+    items.push({ id: "work", done: workRightsSet(facts.work.profile, facts.guess) });
   }
   if (facts.work) items.push({ id: "looking_for", done: lookingForSet(facts.work.lookingFor) });
   items.push({ id: "weak_line", done: facts.weakLine.status === "done" });
@@ -59,12 +78,14 @@ export function jobsWorkPromptShows({
   pro,
   locked,
   profile,
+  guess = null,
 }: {
   pro: boolean;
   locked: boolean;
   profile: WorkProfile | null;
+  guess?: SetupGuess | null;
 }): boolean {
-  return pro && !locked && profile !== null && !workRightsSet(profile);
+  return pro && !locked && profile !== null && !workRightsSet(profile, guess);
 }
 
 export function reminderPromptShows({

@@ -6,11 +6,13 @@ import { jordanV2Resume } from "@/lib/portfolio/fixtures/jordan";
 import type { Portfolio } from "@/lib/portfolio/types";
 import { queryKeys } from "@/lib/queries/keys";
 
-const { PortfolioEditor, PortfolioUpgrade } = vi.hoisted(() => ({
+const { PortfolioEditor, PortfolioStart, PortfolioUpgrade } = vi.hoisted(() => ({
   PortfolioEditor: () => null,
+  PortfolioStart: () => null,
   PortfolioUpgrade: () => null,
 }));
 vi.mock("./portfolio-editor", () => ({ PortfolioEditor }));
+vi.mock("./portfolio-start", () => ({ PortfolioStart }));
 vi.mock("./portfolio-upgrade", () => ({ PortfolioUpgrade }));
 const loadTemplate = vi.hoisted(() => vi.fn(async () => () => null));
 vi.mock("./templates/lazy", () => ({ loadTemplate }));
@@ -20,7 +22,7 @@ vi.mock("@/lib/api/client", async (importOriginal) => ({
   api,
 }));
 
-const { editorLoader, preloadPortfolio, upgradeLoader } = await import("./screens");
+const { editorLoader, preloadPortfolio, startLoader, upgradeLoader } = await import("./screens");
 
 const user = (plan: SessionUser["plan"]) =>
   ({ id: "ada", email: "ada@example.com", plan }) as SessionUser;
@@ -70,10 +72,11 @@ describe("preloadPortfolio, on the sidebar link's hover", () => {
     expect(api.portfolio).not.toHaveBeenCalled();
   });
 
-  it("asks for the page when it isn't cached, and loads no design before there is one", async () => {
+  it("asks for the page when it isn't cached, and fetches the design gallery before there is one", async () => {
     api.portfolio.mockResolvedValue({ ok: true, portfolio: null });
     await preloadPortfolio(client, user("pro"));
     expect(api.portfolio).toHaveBeenCalledTimes(1);
     expect(loadTemplate).not.toHaveBeenCalled();
+    expect(startLoader.getState()).toEqual({ status: "ready", value: PortfolioStart });
   });
 });

@@ -11,11 +11,18 @@ export type SignInDialogProps = {
   onOpenChange: (open: boolean) => void;
   reason?: string;
   onSignedIn?: () => void;
+  onGoogleRedirect?: () => void;
 };
 
 const DEFAULT_REASON = `A free account lets ${BRAND.mascotName} fix lines and tailor your resume.`;
 
-export function SignInDialog({ open, onOpenChange, reason, onSignedIn }: SignInDialogProps) {
+export function SignInDialog({
+  open,
+  onOpenChange,
+  reason,
+  onSignedIn,
+  onGoogleRedirect,
+}: SignInDialogProps) {
   return (
     <Dialog
       open={open}
@@ -26,6 +33,7 @@ export function SignInDialog({ open, onOpenChange, reason, onSignedIn }: SignInD
       illustration={<OttoNote size="sm" live={false} message={ACCOUNT_OTTO.signInDialog} />}
     >
       <SignInForm
+        onGoogleRedirect={onGoogleRedirect}
         onSignedIn={() => {
           onSignedIn?.();
           onOpenChange(false);

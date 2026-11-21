@@ -32,9 +32,11 @@ const TO_APPLICATIONS: BackLink = { href: ROUTES.dashboardApplications, label: "
 export function InterviewPrepPage({
   applicationId,
   back = TO_APPLICATIONS,
+  autoStart = false,
 }: {
   applicationId: string;
   back?: BackLink;
+  autoStart?: boolean;
 }) {
   const hydrated = useStudioHydrated();
   const resumes = useResumeList();
@@ -180,6 +182,7 @@ export function InterviewPrepPage({
           resumes={resumes}
           onDone={done}
           onCancel={prep ? () => setRemaking(false) : undefined}
+          autoStart={autoStart}
         />
       ) : null}
     </div>

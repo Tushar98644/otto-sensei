@@ -109,6 +109,11 @@ export function setupList(): Element | null {
   return tagged("dashboard-setup");
 }
 
+export function setupStepCount(): number | null {
+  const steps = Number(setupList()?.getAttribute("data-setup-steps"));
+  return Number.isInteger(steps) && steps > 0 ? steps : null;
+}
+
 export function sectionLink(id: "jobs" | "applications" | "interview" | "portfolio"): Element | null {
   return tagged(`dashboard-${id}`);
 }

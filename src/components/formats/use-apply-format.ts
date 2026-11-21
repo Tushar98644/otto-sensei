@@ -2,24 +2,26 @@
 
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
-import { unlockProTool } from "@/components/account/pro-tools";
 import { ROUTES } from "@/components/site/routes";
-import { isProTemplate, templateOf, withTemplate } from "@/lib/pdf/templates";
 import type { Resume, TemplateId } from "@/lib/resume/schema";
-import { useStudioHydrated, useStudioStore } from "@/lib/store/resume-store";
-import { formatTarget, sampleWithFormat } from "./apply-format";
+import { useResumeList, useStudioHydrated, useStudioStore } from "@/lib/store/resume-store";
+import { formatTarget, openFormat } from "./apply-format";
 
 export type ApplyFormat = {
   ready: boolean;
+  resumes: readonly Resume[];
   target: Resume | null;
+  pick: (id: string) => void;
   opening: TemplateId | null;
-  apply: (id: TemplateId) => Promise<void>;
+  apply: (id: TemplateId) => void;
 };
 
 export function useApplyFormat(): ApplyFormat {
   const router = useRouter();
   const ready = useStudioHydrated();
-  const target = useStudioStore(formatTarget);
+  const resumes = useResumeList();
+  const [picked, setPicked] = useState<string | null>(null);
+  const target = useStudioStore((s) => formatTarget(s, picked));
   const [opening, setOpening] = useState<TemplateId | null>(null);
 
   useEffect(() => {
@@ -27,26 +29,14 @@ export function useApplyFormat(): ApplyFormat {
   }, [router]);
 
   const apply = useCallback(
-    async (id: TemplateId) => {
+    (id: TemplateId) => {
       setOpening(id);
-      if (isProTemplate(id) && !(await unlockProTool("formats"))) {
-        setOpening(null);
-        return;
-      }
       // Read at click time: cloud sync may have changed the list since the last render.
-      const store = useStudioStore.getState();
-      const resume = formatTarget(store);
-      if (resume) {
-        if (store.activeId !== resume.id) store.setActive(resume.id);
-        if (templateOf(resume) !== id) store.updateResume(resume.id, (r) => withTemplate(r, id));
-      } else {
-        store.addResume(sampleWithFormat(id));
-      }
-      store.setStep("download");
+      openFormat(useStudioStore.getState(), id, picked);
       router.push(ROUTES.studio);
     },
-    [router],
+    [router, picked],
   );
 
-  return { ready, target, opening, apply };
+  return { ready, resumes, target, pick: setPicked, opening, apply };
 }

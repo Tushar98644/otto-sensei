@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { emptyWorkProfile } from "@/lib/eligibility/profile";
 import {
-  answerRegion,
   countryInLocation,
   countryOfTimeZone,
   guessCountry,
@@ -62,13 +61,13 @@ describe("the work right that comes with living there", () => {
   });
 
   it("never guesses over an answer the person gave", () => {
-    const answered = answerRegion(moveHomeRegion(blank(), "PT"), "eu", "sponsorship");
-    expect(answered.auto).toBeNull();
+    const inPortugal = moveHomeRegion(blank(), "PT");
+    const answered = { rights: { ...inPortugal.rights, eu: "sponsorship" as const }, auto: null };
     expect(moveHomeRegion(answered, "GB").rights).toMatchObject({
       eu: "sponsorship",
       uk: "authorized",
     });
-    const ownUk = answerRegion(blank(), "uk", "sponsorship");
+    const ownUk = { rights: { ...blank().rights, uk: "sponsorship" as const }, auto: null };
     expect(moveHomeRegion(ownUk, "GB")).toMatchObject({ auto: null, rights: { uk: "sponsorship" } });
   });
 });

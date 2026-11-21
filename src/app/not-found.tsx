@@ -28,15 +28,14 @@ export default function NotFound() {
             {OTTO.errors.notFound} The link may be old or mistyped.
           </p>
           <div className="mt-8 flex w-full flex-col justify-center gap-3 sm:w-auto sm:flex-row">
-            <Link href={ROUTES.home} className={buttonClasses({ size: "lg" })}>
-              Go to the home page
+            <Link href={ROUTES.studio} prefetch={false} className={buttonClasses({ size: "lg" })}>
+              Check my resume
             </Link>
             <Link
-              href={ROUTES.studio}
-              prefetch={false}
+              href={ROUTES.home}
               className={buttonClasses({ variant: "secondary", size: "lg" })}
             >
-              Check my resume
+              Go to the home page
             </Link>
           </div>
         </div>

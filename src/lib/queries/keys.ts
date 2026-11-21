@@ -12,6 +12,7 @@ export const PORTFOLIO = ["portfolio"] as const;
 export const REMINDER_SETTINGS = ["reminder-settings"] as const;
 export const WORK_PROFILE = ["work-profile"] as const;
 export const JOB_MATCHES = ["job-matches"] as const;
+export const BILLING_HISTORY = ["billing-history"] as const;
 
 export const queryKeys = {
   applications: (userId: string) => [...APPLICATIONS, userId] as const,
@@ -22,6 +23,9 @@ export const queryKeys = {
   portfolio: (userId: string) => [...PORTFOLIO, userId] as const,
   reminderSettings: (userId: string) => [...REMINDER_SETTINGS, userId] as const,
   workProfile: (userId: string) => [...WORK_PROFILE, userId] as const,
+  // A plan change shows up in /api/me first, so the plan's state is part of the key.
+  billingHistory: (userId: string, planState: string) =>
+    [...BILLING_HISTORY, userId, planState] as const,
   // The server also reads the saved work profile ("Likely blocked"), so it's part of the key.
   jobMatches: (userId: string, body: JobMatchesRequestBody, workProfile: WorkProfile | null) =>
     [...JOB_MATCHES, userId, body, workProfile] as const,

@@ -13,6 +13,8 @@ import {
 } from "react";
 import { flushSync } from "react-dom";
 import { cn } from "@/lib/utils";
+import { Kbd } from "./kbd";
+import { ProMark } from "./pro-mark";
 
 export type MenuAction = {
   label: string;
@@ -22,6 +24,8 @@ export type MenuAction = {
   tone?: "default" | "danger";
   checked?: boolean;
   disabled?: boolean;
+  pro?: boolean;
+  shortcut?: string;
 };
 
 export type MenuEntry = MenuAction | "separator";
@@ -31,6 +35,7 @@ export type MenuProps = {
   trigger: ReactNode;
   triggerLabel?: string;
   triggerClassName?: string;
+  triggerId?: string;
   items: readonly MenuEntry[];
   align?: "start" | "end";
   className?: string;
@@ -52,6 +57,7 @@ export function Menu({
   trigger,
   triggerLabel,
   triggerClassName,
+  triggerId,
   items,
   align = "start",
   className,
@@ -134,6 +140,7 @@ export function Menu({
     <>
       <button
         ref={triggerRef}
+        id={triggerId}
         type="button"
         popoverTarget={hydrated ? menuId : undefined}
         aria-haspopup="menu"
@@ -215,6 +222,12 @@ function MenuItemButton({ action, onSelect }: { action: MenuAction; onSelect: ()
           </span>
         ) : null}
       </span>
+      {action.pro ? <ProMark className={cn(action.description && "mt-0.5")} /> : null}
+      {action.shortcut ? (
+        <Kbd aria-hidden className="pointer-coarse:hidden">
+          {action.shortcut}
+        </Kbd>
+      ) : null}
       {radio ? (
         <Check
           aria-hidden

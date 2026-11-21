@@ -9,6 +9,7 @@ function fakeSync(): CloudSync & { stopped: boolean } {
     refresh: vi.fn(async () => {}),
     leave: vi.fn(() => {}),
     retryRefused: vi.fn(() => {}),
+    backupOf: () => "local" as const,
     stop: vi.fn(() => {
       sync.stopped = true;
     }),

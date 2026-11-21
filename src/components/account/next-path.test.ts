@@ -42,6 +42,12 @@ describe("safeNextPath", () => {
   it("resolves dot segments the way the browser will", () => {
     expect(safeNextPath("/studio/../account")).toBe("/account");
   });
+
+  it("rejects dot segments that collapse to another site", () => {
+    expect(safeNextPath("/.//evil.example")).toBe("/dashboard");
+    expect(safeNextPath("/x/..//evil.example")).toBe("/dashboard");
+    expect(safeNextPath("/./\\evil.example")).toBe("/dashboard");
+  });
 });
 
 describe("loginHref", () => {

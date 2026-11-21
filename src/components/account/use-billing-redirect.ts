@@ -27,26 +27,31 @@ export function useBillingRedirect(destination: BillingDestination) {
     return () => window.removeEventListener("pageshow", onPageShow);
   }, []);
 
-  const go = useCallback(async (plan?: PaidPlanId, interval?: BillingInterval) => {
-    setPending(true);
-    if (destination === "checkout") track("upgrade_clicked");
-    try {
-      const { url } =
-        destination === "checkout" ? await api.checkout(plan, interval) : await api.portal();
-      window.location.assign(url);
-    } catch (error) {
-      setPending(false);
-      const changingPlan = isApiError(error, "plan_change_failed");
-      toast({
-        title: changingPlan ? "Couldn't change your plan" : FAILURE_TITLES[destination],
-        description: errorMessage(error),
-        variant: "error",
-      });
-      if (changingPlan || isApiError(error, "bad_request") || isApiError(error, "unauthorized")) {
-        void refreshMe();
+  const go = useCallback(
+    async (plan?: PaidPlanId, interval?: BillingInterval, next?: string | null) => {
+      setPending(true);
+      if (destination === "checkout") track("upgrade_clicked");
+      try {
+        const { url } =
+          destination === "checkout"
+            ? await api.checkout(plan, interval, next)
+            : await api.portal();
+        window.location.assign(url);
+      } catch (error) {
+        setPending(false);
+        const changingPlan = isApiError(error, "plan_change_failed");
+        toast({
+          title: changingPlan ? "Couldn't change your plan" : FAILURE_TITLES[destination],
+          description: errorMessage(error),
+          variant: "error",
+        });
+        if (changingPlan || isApiError(error, "bad_request") || isApiError(error, "unauthorized")) {
+          void refreshMe();
+        }
       }
-    }
-  }, [destination]);
+    },
+    [destination],
+  );
 
   return { go, pending };
 }

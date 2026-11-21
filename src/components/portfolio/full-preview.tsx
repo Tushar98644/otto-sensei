@@ -29,6 +29,7 @@ export function FullPortfolioPreview({
   own,
   action,
   note = "Preview only: not live yet.",
+  resumeHref = null,
   onChange,
   onClose,
 }: {
@@ -36,6 +37,7 @@ export function FullPortfolioPreview({
   own: TemplateSample | null;
   action: { label: string; onSelect: () => void } | null;
   note?: string;
+  resumeHref?: string | null;
   onChange: (id: PortfolioTemplateId) => void;
   onClose: () => void;
 }) {
@@ -179,7 +181,12 @@ export function FullPortfolioPreview({
                   templateFontClasses(id),
                 )}
               >
-                <LazyTemplate id={id} view={data.view} content={data.content} />
+                <LazyTemplate
+                  id={id}
+                  view={data.view}
+                  content={data.content}
+                  resumeHref={choice.source === "own" ? resumeHref : null}
+                />
               </div>
             </Suspense>
           </div>

@@ -455,7 +455,7 @@ allowlist empty: Vercel's outgoing addresses change.
 | Subscriptions | Write | Finding live subscriptions, plan changes, cancelling on account deletion and for a refused second trial |
 | Refunds | Write | Refunding the $1 of a refused second trial, and the charges of a subscription paid for an account already deleted |
 | Customers | Read | The same-email lookup and the **Manage billing** portal link |
-| Payments | Read | Finding the payments to refund: a refused trial's $1, or a deleted account's charges |
+| Payments | Read | Finding the payments to refund: a refused trial's $1, or a deleted account's charges; the account page's billing history and invoice PDFs (`GET /invoices/payments/{id}`) |
 | Products | Read | The catalog check (step 8) |
 | Disputes | Read | Reading disputes; the app only logs dispute webhooks today |
 

@@ -73,7 +73,8 @@ export const TOPIC_TITLES: Record<NoteTopic, string> = {
 };
 
 export type GuideSection = { topic: NoteTopic; title: string; notes: readonly HiringNote[] };
-export type GuideSource = { label: string; url: string; topics: NoteTopic[] };
+// byTopic: the label already names the topics, because another source on the page shares its name.
+export type GuideSource = { label: string; url: string; topics: NoteTopic[]; byTopic?: boolean };
 
 export type AtsGuide = HiringSystem & GuideIntro & { sections: readonly GuideSection[] };
 
@@ -101,7 +102,29 @@ export function guideSources(guide: Pick<HiringSystem, "notes">): GuideSource[] 
     if (!entry.topics.includes(topic)) entry.topics.push(topic);
     seen.set(source.url, entry);
   }
-  return [...seen.values()];
+  const sources = [...seen.values()];
+  const shared = (label: string) => sources.filter((source) => source.label === label).length > 1;
+  const named = sources.map((source) =>
+    shared(source.label)
+      ? { ...source, label: `${source.label} on ${topicList(source.topics)}`, byTopic: true }
+      : source,
+  );
+  return named.map((source, index) => {
+    const earlier = named.slice(0, index).filter((other) => other.label === source.label);
+    return earlier.length ? { ...source, label: `${source.label} (${earlier.length + 1})` } : source;
+  });
+}
+
+// Screening advice is the same on every system, so a card leads with what changes your resume.
+const TIP_ORDER: readonly NoteTopic[] = ["file", "search", "ai", "review", "screening"];
+
+// A card shows the tip without the fact before it, so "these" or "those" would point at nothing.
+const LEANS_ON_FACT = /\b(?:these|those)\b/i;
+
+export function topTip(guide: Pick<HiringSystem, "notes">): string {
+  const notes = TIP_ORDER.flatMap((topic) => guide.notes.filter((note) => note.topic === topic));
+  const note = notes.find((entry) => !LEANS_ON_FACT.test(entry.todo)) ?? notes[0];
+  return note?.todo.replace(/^Answer these\b/, "Answer screening questions") ?? "";
 }
 
 export function readsFiles(guide: AtsGuide): boolean {

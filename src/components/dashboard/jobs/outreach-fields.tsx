@@ -127,7 +127,7 @@ export function OutreachFields({ message, onEdit, onSettle, subjectRef }: Outrea
 
 const SAVE_LINES: Record<"saving" | "saved", string> = {
   saving: "Saving…",
-  saved: "Saved to Letters and messages",
+  saved: "Saved to Letters",
 };
 
 export function OutreachSaveStatus({

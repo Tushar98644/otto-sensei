@@ -11,7 +11,7 @@ import { CertificationsEditor } from "./certifications-editor";
 import { EducationEditor } from "./education-editor";
 import { ExperienceEditor } from "./experience-editor";
 import { ExtrasArea } from "./extras-editor";
-import { FixDialogProvider } from "./fix-dialog";
+import { FixDialogProvider } from "./fix-provider";
 import { sectionDomId } from "./focus";
 import { CHAR_LIMITS } from "./limits";
 import { useFlashAnnouncement } from "./line-flash";

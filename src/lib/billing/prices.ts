@@ -1,7 +1,6 @@
 import {
   PLANS,
   PRICES_USD,
-  PRO_PRICE_COMPARISON,
   PRO_TRIAL,
   type BillingInterval,
   type PaidPlanId,
@@ -33,18 +32,6 @@ export function yearlySavingsPercent(plan: PaidPlanId): number {
 
 export function perMonth(plan: PaidPlanId): string {
   return usd.format(Math.round((PRICES_USD[plan].year / 12) * 100) / 100);
-}
-
-export function proComparison(): string | null {
-  const ratio = PRICES_USD.pro.month / PRO_PRICE_COMPARISON.priceUsd;
-  if (ratio < 0.4 || ratio > 0.6) return null;
-  return `About half the price of ${PRO_PRICE_COMPARISON.name} (${usd.format(PRO_PRICE_COMPARISON.priceUsd)}/mo)`;
-}
-
-export const PIZZA_MAX_USD = 20;
-
-export function pizzaLine(): string | null {
-  return PRICES_USD.pro.month <= PIZZA_MAX_USD ? "Less than a pizza a month." : null;
 }
 
 export function renewalPeriods(intervals: readonly BillingInterval[]): string {

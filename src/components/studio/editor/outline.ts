@@ -98,3 +98,10 @@ export function fixOutline(resume: Resume, byBullet: IssuesById): OutlineSection
   }
   return sections;
 }
+
+export const READING_LINE_PX = 160;
+
+// Near the bottom the last sections can never reach the reading line, so it slides down to meet them.
+export function readingLine(viewportPx: number, leftToScrollPx: number): number {
+  return Math.max(READING_LINE_PX, viewportPx - READING_LINE_PX - Math.max(0, leftToScrollPx));
+}

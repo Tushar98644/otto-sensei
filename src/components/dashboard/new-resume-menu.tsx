@@ -10,6 +10,8 @@ import {
   Plus,
   WandSparkles,
 } from "lucide-react";
+import type { ReactNode } from "react";
+import { useProTools } from "@/components/account/pro-tools";
 import { buttonClasses, type ButtonSize } from "@/components/ui/button";
 import { Menu } from "@/components/ui/menu";
 import { cn } from "@/lib/utils";
@@ -20,20 +22,34 @@ export type NewResumeMenuProps = {
   size?: ButtonSize;
   align?: "start" | "end";
   className?: string;
+  trigger?: ReactNode;
+  triggerClassName?: string;
 };
 
-export function NewResumeMenu({ actions, size = "md", align = "start", className }: NewResumeMenuProps) {
+export function NewResumeMenu({
+  actions,
+  size = "md",
+  align = "start",
+  className,
+  trigger,
+  triggerClassName,
+}: NewResumeMenuProps) {
+  const draftsNeedPro = useProTools() === false;
   return (
     <Menu
       label="New resume"
       align={align}
-      triggerClassName={buttonClasses({ size, className: cn("pr-3", className) })}
+      triggerClassName={
+        triggerClassName ?? buttonClasses({ size, className: cn("pr-3", className) })
+      }
       trigger={
-        <>
-          <Plus aria-hidden />
-          <span className="flex-1 text-left">New resume</span>
-          <ChevronDown aria-hidden className="text-white/70" />
-        </>
+        trigger ?? (
+          <>
+            <Plus aria-hidden />
+            <span className="flex-1 text-left">New resume</span>
+            <ChevronDown aria-hidden className="text-white/70" />
+          </>
+        )
       }
       className="w-80"
       items={[
@@ -47,6 +63,7 @@ export function NewResumeMenu({ actions, size = "md", align = "start", className
           label: "Build with Otto",
           description: "No resume yet? Answer a few questions for a first draft.",
           icon: WandSparkles,
+          pro: draftsNeedPro,
           onSelect: actions.guided,
         },
         {

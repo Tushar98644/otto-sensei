@@ -4,9 +4,11 @@ import {
   billingEvents,
   matchCache,
   matchEvents,
+  meteredResults,
   notifications,
   rateLimits,
   resumeTombstones,
+  usagePasses,
 } from "@/db/schema";
 import { createUser, resetDb } from "@/lib/auth/test-helpers";
 import { CLEANUP_BATCH, RETENTION, runCleanup } from "./cleanup";
@@ -69,6 +71,14 @@ describe("runCleanup", () => {
       { userId: maya.id, key: "k".repeat(32), value: {}, createdAt: NOW - RETENTION.matchCacheMs - 1 },
       { userId: maya.id, key: "n".repeat(32), value: {}, createdAt: NOW - 60_000 },
     ]);
+    await db.insert(usagePasses).values([
+      { userId: maya.id, feature: "fix", subject: "old", usesLeft: 3, expiresAt: NOW - 1 },
+      { userId: maya.id, feature: "fix", subject: "new", usesLeft: 3, expiresAt: NOW + 60_000 },
+    ]);
+    await db.insert(meteredResults).values([
+      { userId: maya.id, requestKey: "old", result: {}, startedAt: NOW - DAY, expiresAt: NOW - 1 },
+      { userId: maya.id, requestKey: "new", result: {}, startedAt: NOW, expiresAt: NOW + 60_000 },
+    ]);
 
     const first = await runCleanup(context());
     expect(first).toEqual({
@@ -80,6 +90,8 @@ describe("runCleanup", () => {
         impressions: 1,
         replacedTrials: 0,
         matchCache: 1,
+        usagePasses: 1,
+        meteredResults: 1,
       },
       complete: true,
       failed: [],
@@ -93,6 +105,8 @@ describe("runCleanup", () => {
       [oldSave.id, newImpression.id].sort(),
     );
     expect((await db.select().from(matchCache)).map((row) => row.key)).toEqual(["n".repeat(32)]);
+    expect((await db.select().from(usagePasses)).map((row) => row.subject)).toEqual(["new"]);
+    expect((await db.select().from(meteredResults)).map((row) => row.requestKey)).toEqual(["new"]);
 
     const second = await runCleanup(context());
     expect(second.stats).toEqual({
@@ -103,6 +117,8 @@ describe("runCleanup", () => {
       impressions: 0,
       replacedTrials: 0,
       matchCache: 0,
+      usagePasses: 0,
+      meteredResults: 0,
     });
   });
 

@@ -1,4 +1,4 @@
-import { ArrowUpRight, Library, Mail, PenLine, PencilRuler, Shapes } from "lucide-react";
+import { ArrowUpRight, FileText, Library, Mail, PenLine, PencilRuler, Shapes } from "lucide-react";
 import type { CSSProperties, ReactNode } from "react";
 import type { ContentShelfItem } from "@/lib/portfolio/content";
 import { Marked, nameOf, OutLink, TemplateStyle, unbroken } from "../parts";
@@ -164,7 +164,7 @@ function Records({ items }: { items: readonly ContentShelfItem[] }) {
   );
 }
 
-export function PaperTemplate({ view, content, footer }: PortfolioTemplateProps) {
+export function PaperTemplate({ view, content, footer, resumeHref }: PortfolioTemplateProps) {
   const name = nameOf(view);
   const socials = content.socials.filter((social) => social.kind !== "email");
   const lead = content.pitch || view.headline;
@@ -489,10 +489,15 @@ export function PaperTemplate({ view, content, footer }: PortfolioTemplateProps)
 
       <footer className="footer">
         <div className="footer-grid hairline-top">
-          {socials.length > 0 || content.email ? (
+          {socials.length > 0 || content.email || resumeHref ? (
             <div>
               <h2 className="footer-label">Contact</h2>
               <ul className="tree">
+                {resumeHref ? (
+                  <li>
+                    <a href={resumeHref}>Resume</a>
+                  </li>
+                ) : null}
                 {socials.map((social) => (
                   <li key={social.href}>
                     <OutLink href={social.href}>
@@ -562,7 +567,9 @@ export function PaperTemplate({ view, content, footer }: PortfolioTemplateProps)
         <a href="#pf-paper-top" className="dock-item" aria-label="Home">
           <span className="dock-avatar">{content.initials}</span>
         </a>
-        {cards.length > 0 || content.email ? <span className="dock-rule" aria-hidden /> : null}
+        {cards.length > 0 || content.email || resumeHref ? (
+          <span className="dock-rule" aria-hidden />
+        ) : null}
         {cards.map((card) => (
           <a
             key={card.id}
@@ -579,6 +586,11 @@ export function PaperTemplate({ view, content, footer }: PortfolioTemplateProps)
             )}
           </a>
         ))}
+        {resumeHref ? (
+          <a href={resumeHref} className="dock-item" aria-label="Resume">
+            <FileText aria-hidden />
+          </a>
+        ) : null}
         {content.email ? (
           <a href={`mailto:${content.email}`} className="dock-item" aria-label="Email">
             <Mail aria-hidden />

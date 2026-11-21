@@ -8,6 +8,7 @@ import { roomForApplication } from "@/components/account/pro-tools";
 import { OTTO } from "@/components/mascot/lines";
 import { OttoNote } from "@/components/mascot/otto-note";
 import { OttoWorking } from "@/components/mascot/otto-working";
+import { useNow } from "@/components/studio/use-now";
 import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Dialog } from "@/components/ui/dialog";
@@ -36,9 +37,10 @@ type Manual = { company: string; role: string; note: string };
 
 export function PrepareDialog({ open, applications, resumes, packs, onClose }: PrepareDialogProps) {
   const router = useRouter();
+  const now = useNow();
   const choices = useMemo(() => prepPickerChoices(applications, resumes), [applications, resumes]);
   const [picked, setPicked] = useState(() => {
-    const waiting = waitingForPrep(applications, packs)[0];
+    const waiting = waitingForPrep(applications, packs, now)[0];
     return waiting ? `application:${waiting.id}` : (choices[0]?.value ?? "");
   });
   const [link, setLink] = useState("");
@@ -53,7 +55,7 @@ export function PrepareDialog({ open, applications, resumes, packs, onClose }: P
   const chosen = choices.find((choice) => choice.value === picked) ?? choices[0];
 
   function go(applicationId: string) {
-    router.push(interviewHref(applicationId));
+    router.push(interviewHref(applicationId, { start: true }));
     onClose();
   }
 

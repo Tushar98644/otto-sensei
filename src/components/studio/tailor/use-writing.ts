@@ -29,7 +29,7 @@ export type Writing = {
   error: { task: WritingTask; message: string } | null;
   letter: (resume: Resume) => Promise<SavedWriting | null>;
   answer: (resume: Resume, question: string) => Promise<SavedAnswer | null>;
-  outreach: (resume: Resume) => Promise<OutreachDraft | null>;
+  outreach: (resume: Resume, followUp?: { days: number }) => Promise<OutreachDraft | null>;
   line: (
     requirement: TailorRequirement,
     target: LineTarget,
@@ -123,9 +123,9 @@ export function useWriting(source: Resume, job: TailorDraft): Writing {
           demo: response.demo === true,
         };
       }),
-    outreach: (resume) =>
+    outreach: (resume, followUp) =>
       run("outreach", "letter", async () => {
-        const response = await api.outreach({ resume, job: jobOf(job) });
+        const response = await api.outreach({ resume, job: jobOf(job), followUp });
         patchMe({ usage: response.usage });
         const { subject, email, note, warnings } = response.result;
         return { subject, email, note, warnings, demo: response.demo === true };

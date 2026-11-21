@@ -14,6 +14,7 @@ import type { SavedJob } from "@/lib/job-feed/types";
 import { resumeTitle } from "@/lib/resume/ops";
 import type { Resume } from "@/lib/resume/schema";
 import { DAY_MS } from "@/lib/time";
+import { upcomingFirst } from "../view";
 
 export const BOARD_COLUMNS = ["to_apply", "applied", "interview", "offer", "closed"] as const;
 export type BoardColumn = (typeof BOARD_COLUMNS)[number];
@@ -98,6 +99,12 @@ export function daysInStage(card: BoardCard, now: number): number {
   return Math.max(0, Math.floor((now - since) / DAY_MS));
 }
 
+export function stageAge(card: BoardCard, now: number): string {
+  const days = daysInStage(card, now);
+  if (days === 0) return "Today";
+  return card.kind === "to_apply" ? `${days}d waiting` : `${days}d in stage`;
+}
+
 export function needsAction(card: BoardCard, now: number): boolean {
   return (
     card.kind === "application" &&
@@ -128,7 +135,7 @@ export function boardColumns(
   const sorted = [...applications].sort(
     (a, b) => b.statusChangedAt - a.statusChangedAt || (a.id < b.id ? 1 : -1),
   );
-  for (const application of sorted) {
+  for (const application of upcomingFirst(sorted, now)) {
     columns[columnOf(application.status)].push({
       kind: "application",
       key: `application:${application.id}`,
@@ -142,6 +149,14 @@ export function boardColumns(
     if (urgent.length > 0) columns[name] = [...urgent, ...list.filter((card) => !needsAction(card, now))];
   }
   return columns;
+}
+
+export const TO_APPLY_HINT = "Jobs you save and resumes you tailor land here.";
+
+// Phones show one column: open on Applied, or the first one with something in it.
+export function firstTab(columns: Record<BoardColumn, readonly BoardCard[]>): BoardColumn {
+  if (columns.applied.length > 0) return "applied";
+  return BOARD_COLUMNS.find((name) => columns[name].length > 0) ?? "applied";
 }
 
 export function cardColumn(card: BoardCard): BoardColumn {

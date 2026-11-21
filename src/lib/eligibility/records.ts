@@ -16,7 +16,7 @@ export type StoredWorkProfile = {
 export type SaveWorkProfileResult =
   { status: "saved"; stored: StoredWorkProfile } | { status: "no_user" };
 
-function toStored(row: Row): StoredWorkProfile {
+export function toStored(row: Row): StoredWorkProfile {
   return {
     profile: {
       country: row.country,

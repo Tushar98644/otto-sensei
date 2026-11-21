@@ -1,40 +1,23 @@
 "use client";
 
 import { useEffect, useEffectEvent, useRef, useState, type ReactNode } from "react";
-import { ACCOUNT_OTTO } from "@/components/account/copy";
+import { alreadyOnPlanToast, backFromUpgradeToast } from "@/components/account/copy";
 import { LazyUpgradeDialog } from "@/components/account/lazy-dialogs";
-import { SignInForm } from "@/components/account/sign-in-form";
 import { useBillingRedirect } from "@/components/account/use-billing-redirect";
 import { useMe } from "@/components/account/use-me";
 import { useOttoLoadingScreen } from "@/components/mascot/otto-loading-screen";
-import { WorkProfileCard } from "@/components/eligibility/work-profile-card";
-import { OttoNote } from "@/components/mascot/otto-note";
-import { ReminderSettingsCard } from "@/components/notifications/reminder-settings-card";
-import { InviteCard } from "@/components/referrals/invite-card";
-import { SectionNav } from "@/components/settings/section-nav";
-import {
-  accountSections,
-  SETTINGS_CONTENT,
-  SETTINGS_LAYOUT,
-  type AccountGroup,
-} from "@/components/settings/sections";
-import { SettingsGroup } from "@/components/settings/settings-group";
-import { WritingStyleCard } from "@/components/settings/writing-style-card";
-import { LookingForSettingsCard } from "@/components/setup/looking-for-settings-card";
 import { useScrollToSection } from "@/components/setup/use-scroll-to-section";
 import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
 import { Spinner } from "@/components/ui/spinner";
 import { nextPlan, PLAN_ORDER, PLANS, type PaidPlanId, type PlanId } from "@/config/plans";
+import { AccountSignIn } from "./account-sign-in";
 import { AccountSkeleton } from "./account-skeleton";
-import { DeleteAccountCard } from "./delete-account-card";
-import { BillingCard, UpgradeCard } from "./plan-cards";
-import { ProfileCard } from "./profile-card";
+import { AccountTabs } from "./account-tabs";
 import { UpgradeStatus } from "./upgrade-status";
 import { useAccountArrival } from "./use-account-arrival";
-import { useUpgradeWatch } from "./use-upgrade-watch";
-import { UsageCard } from "./usage-card";
+import { useUpgradeReturn } from "./use-upgrade-return";
+import { planArrived, useUpgradeWatch } from "./use-upgrade-watch";
 
 const above = (plan: PlanId, target: PlanId) =>
   PLAN_ORDER.indexOf(target) > PLAN_ORDER.indexOf(plan);
@@ -45,12 +28,15 @@ export function AccountView() {
   const { me, user, loading, refresh } = useMe();
   const arrival = useAccountArrival();
   const [upgradeRequested, setUpgradeRequested] = useState(arrival.upgrade);
+  // A sign-in in the dialog goes on to checkout from there, so the page doesn't start a second one.
+  const [checkoutFromPage, setCheckoutFromPage] = useState<boolean | null>(null);
+  if (checkoutFromPage === null && !loading && me) setCheckoutFromPage(user !== null);
   const checkout = useBillingRedirect("checkout");
   const backFromCheckout = arrival.checkout === "success";
   const bought = arrival.plan;
-  const watch = useUpgradeWatch(
-    backFromCheckout && user !== null && (bought ? above(user.plan, bought) : user.plan === "free"),
-  );
+  const arrivedPlan = backFromCheckout && user && planArrived(user.plan, bought) ? user.plan : null;
+  const watch = useUpgradeWatch(backFromCheckout && user !== null && arrivedPlan === null);
+  const goingBack = arrivedPlan !== null && arrival.next !== null;
   const [patient, setPatient] = useState(true);
   useEffect(() => {
     if (!backFromCheckout) return;
@@ -58,10 +44,19 @@ export function AccountView() {
     return () => window.clearTimeout(timer);
   }, [backFromCheckout]);
   useOttoLoadingScreen(
-    backFromCheckout && patient && (loading || watch.state === "checking"),
+    backFromCheckout && patient && (loading || watch.state === "checking" || goingBack),
     bought ? `Setting up your ${PLANS[bought].name} plan` : "Setting up your new plan",
   );
   const wanted: PaidPlanId | null = arrival.plan ?? nextPlan(user?.plan ?? "free");
+  const alreadyOn = arrival.upgrade && user && planArrived(user.plan, wanted) ? user.plan : null;
+  useUpgradeReturn(
+    arrival.next,
+    arrivedPlan
+      ? backFromUpgradeToast(PLANS[arrivedPlan].name)
+      : alreadyOn
+        ? alreadyOnPlanToast(PLANS[alreadyOn].name)
+        : null,
+  );
   const wantsUpgrade =
     upgradeRequested && !loading && wanted !== null && above(user?.plan ?? "free", wanted);
   const offered = wanted !== null && (me?.billing.offer[wanted].length ?? 0) > 0;
@@ -73,7 +68,8 @@ export function AccountView() {
     user?.plan === "free" &&
     me?.billing.mode !== "disabled" &&
     offered &&
-    !portalFirst;
+    !portalFirst &&
+    checkoutFromPage === true;
   const upgradeOpen = wantsUpgrade && !straightToCheckout;
   const checkingOut = straightToCheckout && checkout.pending ? wanted : null;
 
@@ -81,7 +77,7 @@ export function AccountView() {
 
   const started = useRef(false);
   const startCheckout = useEffectEvent(() => {
-    if (wanted) void checkout.go(wanted, arrival.interval ?? "month");
+    if (wanted) void checkout.go(wanted, arrival.interval ?? "month", arrival.next);
   });
   useEffect(() => {
     if (!straightToCheckout || started.current) return;
@@ -110,58 +106,26 @@ export function AccountView() {
     );
   } else if (!user) {
     content = (
-      <Card data-narrow className="gap-6 sm:gap-6">
-        <OttoNote live={false} message={ACCOUNT_OTTO.signedOut} />
-        <SignInForm />
-      </Card>
+      <AccountSignIn
+        billing={me.billing}
+        plan={arrival.upgrade ? wanted : null}
+        interval={arrival.interval}
+        next={arrival.next}
+        autoFocus={!upgradeOpen}
+        onSignedIn={() => {
+          setCheckoutFromPage(true);
+          setUpgradeRequested(arrival.upgrade);
+        }}
+      />
     );
   } else {
-    const paid = user.plan !== "free";
-    const paymentIssue = me.billing.paymentIssue === true;
-    const billed = paid || paymentIssue;
-    const sections = accountSections({ paid: billed });
-    const groups: Record<AccountGroup, ReactNode> = {
-      profile: <ProfileCard user={user} cancelScheduled={me.billing.cancelScheduled === true} />,
-      writingStyle: <WritingStyleCard />,
-      jobSearch: (
-        <>
-          <WorkProfileCard />
-          <LookingForSettingsCard />
-        </>
-      ),
-      notifications: <ReminderSettingsCard />,
-      plan: (
-        <>
-          <UsageCard me={me} plan={user.plan} />
-          {user.plan === "max" || paymentIssue ? null : (
-            <UpgradeCard
-              plan={user.plan}
-              interval={user.planInterval}
-              mode={me.billing.mode}
-              offer={me.billing.offer}
-              trial={me.billing.trial === true}
-              cancelScheduled={me.billing.cancelScheduled === true}
-            />
-          )}
-          {billed ? (
-            <BillingCard
-              mode={me.billing.mode}
-              trialEndsAt={user.trialEndsAt ?? null}
-              paymentIssue={paymentIssue}
-              cancelScheduled={me.billing.cancelScheduled === true}
-            />
-          ) : null}
-        </>
-      ),
-      invite: <InviteCard plan={user.plan} />,
-      danger: <DeleteAccountCard isPro={paid} />,
-    };
     content = (
-      <div className={SETTINGS_LAYOUT}>
-        <SectionNav sections={sections} />
-        <div className={SETTINGS_CONTENT}>
-          {checkingOut || backFromCheckout ? (
-            <div className="-mb-6 flex flex-col gap-3">
+      <AccountTabs
+        me={me}
+        user={user}
+        notice={
+          checkingOut || backFromCheckout ? (
+            <div className="flex flex-col gap-3">
               {checkingOut ? (
                 <p role="status" className="flex items-center gap-2 text-sm text-muted">
                   <Spinner />
@@ -174,17 +138,13 @@ export function AccountView() {
                   trialEndsAt={user.trialEndsAt}
                   target={bought}
                   watch={watch}
+                  next={arrival.next}
                 />
               ) : null}
             </div>
-          ) : null}
-          {sections.map((section) => (
-            <SettingsGroup key={section.id} section={section}>
-              {groups[section.key]}
-            </SettingsGroup>
-          ))}
-        </div>
-      </div>
+          ) : null
+        }
+      />
     );
   }
 
@@ -196,6 +156,8 @@ export function AccountView() {
         open={upgradeOpen}
         plan={arrival.plan ?? undefined}
         interval={arrival.interval ?? undefined}
+        next={arrival.next}
+        startAtSignIn={!user && arrival.plan !== null}
         onOpenChange={(open) => {
           if (!open) setUpgradeRequested(false);
         }}

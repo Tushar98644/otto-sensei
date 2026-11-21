@@ -51,6 +51,7 @@ const TOOL_COMES_WITH_PRO: Record<ProTool, string> = {
   jobs: "Filters, saved jobs and every match come with Pro.",
   share: "Share links come with Pro.",
   eligibility: "Checking where a job can hire from comes with Pro.",
+  portfolio: "A portfolio site at your own link comes with Pro.",
 };
 
 const SHORT_LABELS: Record<Feature, string> = {
@@ -148,15 +149,19 @@ export const OTTO = {
   landing: {
     hello: `Hi, I'm ${BRAND.mascotName}. I read resumes the way hiring software does.`,
   },
+  home: {
+    first: "Upload your resume and I'll show you what hiring software reads.",
+    sampleOnly: "That's the sample. Now drop in yours.",
+    returning: "Pick up where you left off, or tailor a resume to a new job.",
+  },
   upload: {
-    idle: "Drop your resume here, PDF or Word. I'll show you what hiring software reads.",
+    idle: "I'll show you what hiring software reads from your file, and what to fix first.",
     reading: "Glasses on. Reading your resume now.",
     failed: (reason: string) =>
       reason.trim()
         ? `Hmm, I couldn't read that. ${asSentence(reason)}`
         : "Hmm, I couldn't read that. Want to try another file?",
     scratch: "No resume yet? No problem. We'll build one together, a section at a time.",
-    sample: "No file handy? Try a sample resume to see how it works.",
   },
   review: {
     intro: "This is exactly what hiring software reads from your file. Let's check it.",
@@ -171,20 +176,27 @@ export const OTTO = {
     asking: "Quick question first. I only use facts you give me, never made-up numbers.",
     manyIssues: (count: number) => {
       const n = whole(count);
-      return n === 0
-        ? "Every line reads well. Nothing to fix here."
-        : `${pluralize(n, "line")} could be stronger. Start with one. It gets easier.`;
+      if (n === 0) return "Every line reads well. Nothing to fix here.";
+      return n === 1
+        ? "1 line could be stronger. Let's fix it together."
+        : `${n} lines could be stronger. I can take them all at once, or one at a time.`;
     },
     working: "Working on a stronger version. One moment.",
     suggestion: "Here's a stronger version. Keep it, edit it, or skip it.",
     signedInAgain: "You're signed in again. Try that once more and I'll take a look.",
+    allWorking: "Rewriting your weak lines now. Check each one as it comes in.",
+    allReview: "Here are your new lines. Accept the ones that are true.",
+    allAsking: "Some lines need a fact only you know. Answer below and I'll finish them.",
+    allStopped: "I stopped there. The lines I didn't reach stay as they are.",
+    allDone: "That's every line. Nothing left to accept.",
   },
   tailor: {
     intro: "Paste a job link. I'll show what it asks for and what you already have.",
     needsPost: "Paste the job link first. If it won't open, paste the job text.",
-    working: "Reading the job post. Glasses back on.",
+    working: "Glasses on. This takes up to a minute. You can leave this step, I'll keep going.",
     screener: tailorScreener,
     done: "Your tailored copy is ready. Your original stays untouched.",
+    cancelled: "Stopped. It may still count as 1 tailored version, since I had already started.",
   },
   download: {
     ready: "Your PDF is ready. Free, like always.",
@@ -259,14 +271,19 @@ export const OTTO = {
       "I couldn't find any skills in this resume. Add a skills section and I'll match again.",
   },
   letters: {
-    empty: "No letters yet. Paste a job link and I'll write one from your resume.",
+    empty: "Nothing written yet. Pick a job and I'll write a letter, an answer or an outreach message.",
     noResume: "I need a resume to write from. Add one, then come back here.",
-    write: "Paste the job link. I'll write about 200 words from your resume, nothing made up.",
-    answer: "Paste the question and the job link. I'll draft a short answer from your resume.",
+    write: "I'll write about 200 words from your resume and this job, nothing made up.",
+    answer: "Paste the question. I'll draft a short answer from your resume and this job.",
+    outreach: "I'll write a short email and a LinkedIn note from your resume and this job.",
+    locked: "With Pro, I write cover letters, answers and outreach messages from your resume. Here's an example.",
+    lockedKept: "Writing new ones comes with Pro. What you wrote before stays here to read, copy and edit.",
   },
   interview: {
     empty: "No prep yet. Pick an application or paste a job link and I'll start.",
     pick: "Pick the job. A pasted link joins your Applications, marked as an interview.",
+    locked: "With Pro, I prep you for each interview from your own resume lines. Here's an example.",
+    lockedKept: "Making new prep comes with Pro. The prep you made before stays here to read.",
   },
   demoMode: "Demo mode: AI is off, so my suggestions are samples, not real rewrites.",
 } as const satisfies Record<string, Line | Record<string, Line>>;

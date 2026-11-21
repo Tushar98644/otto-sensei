@@ -21,7 +21,12 @@ import {
   PageIntro,
   RelatedLinks,
 } from "../ats/_components/guide-parts";
-import { FormatUpgradeHost, UseFormatButton } from "./use-format-button";
+import {
+  FormatPreviewHost,
+  type PreviewFormat,
+  PreviewFormatButton,
+  UseFormatButton,
+} from "./use-format-button";
 
 export const metadata: Metadata = pageMetadata(RESUME_TEMPLATES_PAGE);
 
@@ -29,6 +34,10 @@ const freeFormats = FREE_TEMPLATES.map((id) => TEMPLATE_INFO[id].name).join(" an
 const proCount = TEMPLATE_IDS.length - FREE_TEMPLATES.length;
 const fallback = TEMPLATE_INFO[DEFAULT_TEMPLATE].name;
 const IMAGE_SIZES = "(min-width: 1024px) 20rem, (min-width: 640px) 45vw, 100vw";
+const PREVIEW_FORMATS: readonly PreviewFormat[] = TEMPLATE_LIST.map((info) => ({
+  info,
+  pro: isProTemplate(info.id),
+}));
 
 const COMMON: readonly { title: string; text: string }[] = [
   {
@@ -72,8 +81,7 @@ const FAQ: readonly FaqItem[] = [
   },
   {
     question: "Can I use my own resume?",
-    answer:
-      "Yes. Upload a PDF or Word file in the studio, or start from scratch. “Use this format” applies the format to the resume you have open, or to a sample if you don't have one yet. A Pro format offers Pro first.",
+    answer: `Yes. Upload a PDF or Word file in the studio, or start from scratch. “Use this format” applies the format to the resume you have open. With none open, the studio asks for your resume with the format already chosen. You can try a ${PLANS.pro.name} format on ${PLANS.free.name}; it downloads in ${fallback} until you have ${PLANS.pro.name}.`,
   },
 ];
 
@@ -98,7 +106,7 @@ export default function ResumeTemplatesPage() {
         <p>
           Each one copies a widely used resume layout, and each PDF is tested by reading it back.{" "}
           {freeFormats} are free to download as PDFs; the other {proCount} come with{" "}
-          {PLANS.pro.name}.
+          {PLANS.pro.name}, and you can try them on your resume first.
         </p>
       </PageIntro>
       <OttoNote live={false} message={OTTO.formats.tip} className="mt-8 max-w-2xl" />
@@ -116,7 +124,7 @@ export default function ResumeTemplatesPage() {
                 <li key={info.id} id={info.id} className="scroll-mt-24">
                   <article
                     aria-labelledby={titleId}
-                    className="flex h-full flex-col gap-4 rounded-2xl bg-surface p-4 sm:p-5"
+                    className="group relative flex h-full flex-col gap-4 rounded-2xl bg-surface p-4 sm:p-5"
                   >
                     <div className="flex items-center justify-between gap-3">
                       <h3 id={titleId} className="text-lg/7 font-medium tracking-tight text-ink">
@@ -128,14 +136,16 @@ export default function ResumeTemplatesPage() {
                         <Badge>{PLANS.free.name}</Badge>
                       )}
                     </div>
-                    <div className="h-56 overflow-hidden rounded-xl bg-surface-muted px-6 pt-6">
-                      <FormatImage
-                        info={info}
-                        sizes={IMAGE_SIZES}
-                        loading={index < 3 ? "eager" : "lazy"}
-                        className="shadow-page"
-                      />
-                    </div>
+                    <PreviewFormatButton id={info.id} name={info.name}>
+                      <span className="block h-56 overflow-hidden rounded-xl bg-surface-muted px-6 pt-6">
+                        <FormatImage
+                          info={info}
+                          sizes={IMAGE_SIZES}
+                          loading={index < 3 ? "eager" : "lazy"}
+                          className="shadow-page transition-[translate,box-shadow] duration-300 ease-out group-hover:-translate-y-1 group-hover:shadow-page-lift"
+                        />
+                      </span>
+                    </PreviewFormatButton>
                     <div className="flex flex-1 flex-col gap-2">
                       <p className="text-base/6 font-medium text-pretty text-ink">{info.bestFor}</p>
                       <p className="text-sm/6 text-pretty text-muted">{info.description}</p>
@@ -147,7 +157,7 @@ export default function ResumeTemplatesPage() {
             })}
           </ul>
         </Panel>
-        <FormatUpgradeHost />
+        <FormatPreviewHost formats={PREVIEW_FORMATS} />
       </section>
 
       <section aria-labelledby="common-title" className="mt-24 sm:mt-32">

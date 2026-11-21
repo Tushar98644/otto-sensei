@@ -4,6 +4,7 @@ import { rejectCrossSite, rejectNonJson } from "@/lib/auth/route-guards";
 import { getCurrentUser } from "@/lib/auth/session";
 import { readJson } from "@/lib/http";
 import { log } from "@/lib/log";
+import { refreshOwnerPortfolio } from "@/lib/portfolio/cache";
 import { listShares, saveShare } from "@/lib/share/records";
 import { shareSnapshot, snapshotText } from "@/lib/share/snapshot";
 import { SHARE_LIMITS, type ShareResponse, type SharesResponse } from "@/lib/share/types";
@@ -64,6 +65,7 @@ export async function POST(req: Request): Promise<Response> {
         429,
       );
     }
+    await refreshOwnerPortfolio(user.id);
     const response: Omit<ShareResponse, "ok"> = { link: result.link, created: result.created };
     return ok(response, { status: result.created ? 201 : 200, headers: NO_STORE });
   } catch (error) {

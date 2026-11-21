@@ -37,6 +37,13 @@ describe("GET /api/auth/expired", () => {
     expect(cookieJar.get(AUTH_COOKIE)?.value).not.toBe("");
   });
 
+  it("keeps the asked-for page and its query on the way to sign in", async () => {
+    const res = await GET(request("/dashboard/jobs?resume=r1"));
+    expect(res.headers.get("location")).toBe(
+      "https://otto.test/login?next=%2Fdashboard%2Fjobs%3Fresume%3Dr1",
+    );
+  });
+
   it("only redirects within the site", async () => {
     const res = await GET(request("https://evil.example/phish"));
     expect(res.headers.get("location")).toBe("https://otto.test/login?next=%2Fdashboard");

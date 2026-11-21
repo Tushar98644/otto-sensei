@@ -4,7 +4,9 @@ import { Globe } from "lucide-react";
 import { useState } from "react";
 import { WorkProfileDialog } from "@/components/eligibility/work-profile-dialog";
 import { Button } from "@/components/ui/button";
-import type { WorkProfile } from "@/lib/eligibility/profile";
+import { REGION_NAMES, type WorkProfile } from "@/lib/eligibility/profile";
+import { guessedRegion } from "@/lib/setup/hints";
+import { confirmSetupGuess, useSetupGuess } from "./use-account-setup";
 
 export type JobsWorkPromptProps = {
   due: boolean;
@@ -15,6 +17,8 @@ export type JobsWorkPromptProps = {
 
 export function JobsWorkPrompt({ due, userId, profile, saved }: JobsWorkPromptProps) {
   const [open, setOpen] = useState(false);
+  const guess = useSetupGuess();
+  const guessed = guessedRegion(guess, profile);
   return (
     <>
       {due ? (
@@ -22,17 +26,22 @@ export function JobsWorkPrompt({ due, userId, profile, saved }: JobsWorkPromptPr
           <p className="flex min-w-0 grow basis-72 items-center gap-2 py-1 text-sm/6 text-muted">
             <Globe aria-hidden className="size-4 shrink-0 text-subtle" />
             <span>
-              Add where you can work, and Jobs flags posts that say they can&apos;t hire you.
+              {guessed
+                ? `Otto set Yes for ${REGION_NAMES[guessed]} because you seem to live there. Check it, and add any visa needs.`
+                : "Add where you can work, and Jobs flags posts that say they can't hire you."}
             </span>
           </p>
           <Button variant="ghost" size="sm" onClick={() => setOpen(true)}>
-            Add where you can work
+            {guessed ? "Check where you can work" : "Add where you can work"}
           </Button>
         </div>
       ) : null}
       <WorkProfileDialog
         open={open}
-        onOpenChange={setOpen}
+        onOpenChange={(next) => {
+          setOpen(next);
+          if (!next) void confirmSetupGuess(userId);
+        }}
         userId={userId}
         profile={profile}
         saved={saved}

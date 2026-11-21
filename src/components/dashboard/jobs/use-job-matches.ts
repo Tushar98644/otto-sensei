@@ -6,15 +6,16 @@ import { useNow } from "@/components/studio/use-now";
 import { api } from "@/lib/api/client";
 import type { JobMatchesRequestBody, JobMatchesResponse } from "@/lib/api/types";
 import { deviceTimeZone } from "@/lib/eligibility/options";
-import type { WorkProfile } from "@/lib/eligibility/profile";
+import { isProfileStarted, type WorkProfile } from "@/lib/eligibility/profile";
 import { lookingForOf } from "@/lib/job-feed/looking-for";
 import { matchProfileOf } from "@/lib/job-feed/profile";
-import { DEFAULT_FILTERS, type JobFilters, type LookingForChoice } from "@/lib/job-feed/types";
+import type { JobFilters, LookingForChoice } from "@/lib/job-feed/types";
 import { getQueryClient, useAppQueryClient } from "@/lib/queries/client";
 import { JOB_MATCHES, queryKeys } from "@/lib/queries/keys";
 import { JOB_MATCHES_STALE_MS } from "@/lib/queries/options";
 import type { Resume } from "@/lib/resume/schema";
 import { DAY_MS } from "@/lib/time";
+import { memoryFilters, NO_MEMORY, type FilterMemory } from "./filter-memory";
 
 // Only the resume's skills, titles and years are sent (matchProfileOf).
 
@@ -97,17 +98,25 @@ function matchesBody(
   return { ...request, deviceTimeZone: deviceTimeZone() };
 }
 
+export function pageFilters(memory: FilterMemory, work: WorkProfile | null): JobFilters {
+  return memoryFilters(memory, {
+    remote: work?.remoteOnly === true,
+    profileReady: work !== null && isProfileStarted(work),
+  });
+}
+
 export function openingMatchesRequest(
   resume: Resume | null,
   work: { profile: WorkProfile; lookingFor: LookingForChoice },
   now: number,
+  memory: FilterMemory = NO_MEMORY,
 ): JobMatchesRequestBody | null {
   if (!resume) return null;
   const profile = matchProfileOf(resume, Math.floor(now / DAY_MS) * DAY_MS);
   return matchesBody({
     view: "matches",
     profile,
-    filters: { ...DEFAULT_FILTERS, remote: work.profile.remoteOnly === true },
+    filters: pageFilters(memory, work.profile),
     page: 1,
     lookingFor: lookingForOf(profile, work.profile, work.lookingFor),
   });

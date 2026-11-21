@@ -7,7 +7,7 @@ import {
   type ApplicationStatus,
   type StatusEvent,
 } from "@/lib/applications/status";
-import { formatDay } from "../view";
+import { daysUntil, formatDay, interviewDay } from "../view";
 
 export type TimelineStep = {
   status: ApplicationStatus;
@@ -49,11 +49,24 @@ export function timelineSteps(application: Timed, history: readonly StatusEvent[
   return steps;
 }
 
+function interviewLine(at: number, hasPrep: boolean, now: number): string {
+  const days = daysUntil(at, now);
+  if (days < 0) return "How did the interview go? Move it on here when you hear back.";
+  const when =
+    days === 0 ? "today" : days === 1 ? "tomorrow" : `${interviewDay(at, now)}, in ${days} days`;
+  return hasPrep
+    ? `Your interview is ${when}. Your prep is ready to practice out loud.`
+    : `Your interview is ${when}. I can make prep from this job and your resume.`;
+}
+
 export function nextStepLine(
-  application: Pick<Application, "status" | "followUpAt">,
+  application: Pick<Application, "status" | "followUpAt" | "interviewAt">,
   hasPrep: boolean,
   now: number,
 ): string {
+  if (application.status === "interview" && application.interviewAt !== null && now > 0) {
+    return interviewLine(application.interviewAt, hasPrep, now);
+  }
   switch (application.status) {
     case "applied": {
       const state = now === 0 ? "none" : followUpState(application, now);

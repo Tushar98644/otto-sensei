@@ -9,6 +9,7 @@ import { openSharePage, PAGE_OPENS_PER_MINUTE } from "./page";
 import {
   VIEW_LIMITS,
   findPublicShare,
+  findResumeShare,
   listShares,
   newSlug,
   readerKey,
@@ -187,6 +188,25 @@ describe("share records", () => {
 
     await updateShareOptions(user.id, link.id, { showContact: true });
     expect((await findPublicShare(link.slug))?.resume.basics.email).toBe("maya@example.com");
+  });
+
+  it("finds one resume's live link with the contact it would show, for its owner only", async () => {
+    const user = await createUser();
+    const other = await createUser("grace@example.com");
+    expect(await findResumeShare(user.id, "resume-1")).toBeNull();
+    const { link } = await saved(user.id);
+    expect(await findResumeShare(user.id, "resume-1")).toEqual({
+      slug: link.slug,
+      showContact: false,
+      email: "maya@example.com",
+      phone: "+1 415 555 0100",
+    });
+    expect(await findResumeShare(user.id, "resume-2")).toBeNull();
+    expect(await findResumeShare(other.id, "resume-1")).toBeNull();
+    await updateShareOptions(user.id, link.id, { showContact: true });
+    expect((await findResumeShare(user.id, "resume-1"))?.showContact).toBe(true);
+    await revokeShare(user.id, link.id);
+    expect(await findResumeShare(user.id, "resume-1")).toBeNull();
   });
 
   it("finds nothing for a malformed or unknown slug", async () => {

@@ -5,19 +5,55 @@ import { applicationForCopy } from "@/lib/applications/thread";
 import type { PrepSummary } from "@/lib/insights/prep";
 import { resumeTitle } from "@/lib/resume/ops";
 import type { Resume } from "@/lib/resume/schema";
+import { DAY_MS } from "@/lib/time";
+import { formatDay } from "../applications/view";
 
-export function interviewHref(applicationId: string): string {
-  return `${ROUTES.dashboardInterview}/${encodeURIComponent(applicationId)}`;
+export const PREP_START_PARAM = "start";
+
+// With start, the prep page begins making the pack as soon as it knows the resume and the job.
+export function interviewHref(applicationId: string, { start = false } = {}): string {
+  const href = `${ROUTES.dashboardInterview}/${encodeURIComponent(applicationId)}`;
+  return start ? `${href}?${PREP_START_PARAM}=1` : href;
+}
+
+function dayOf(timestamp: number): number {
+  return new Date(timestamp).setHours(0, 0, 0, 0);
+}
+
+function daysFrom(now: number, timestamp: number): number {
+  return Math.round((dayOf(timestamp) - dayOf(now)) / DAY_MS);
+}
+
+// Upcoming interviews first, soonest on top; then those with no day yet; past ones last.
+function waitRank(application: Application, now: number): number {
+  if (application.interviewAt === null) return 1;
+  return now === 0 || daysFrom(now, application.interviewAt) >= 0 ? 0 : 2;
 }
 
 export function waitingForPrep(
   applications: readonly Application[],
   packs: readonly Pick<PrepSummary, "applicationId">[],
+  now = 0,
 ): Application[] {
   const prepared = new Set(packs.map((pack) => pack.applicationId));
   return applications
     .filter((application) => application.status === "interview" && !prepared.has(application.id))
-    .sort((a, b) => b.statusChangedAt - a.statusChangedAt);
+    .sort((a, b) => {
+      const rank = waitRank(a, now) - waitRank(b, now);
+      if (rank !== 0) return rank;
+      if (a.interviewAt === null || b.interviewAt === null) return b.statusChangedAt - a.statusChangedAt;
+      return waitRank(a, now) === 0 ? a.interviewAt - b.interviewAt : b.interviewAt - a.interviewAt;
+    });
+}
+
+export function interviewDayLine(interviewAt: number | null, now: number): string {
+  if (interviewAt === null) return "No interview day set yet";
+  const day = formatDay(interviewAt, now || interviewAt);
+  if (now === 0) return `Interview ${day}`;
+  const days = daysFrom(now, interviewAt);
+  if (days === 0) return "Interview today";
+  if (days === 1) return "Interview tomorrow";
+  return days > 0 ? `Interview ${day}` : `Interview was ${day}`;
 }
 
 export function prepChoices(applications: readonly Application[]): Application[] {

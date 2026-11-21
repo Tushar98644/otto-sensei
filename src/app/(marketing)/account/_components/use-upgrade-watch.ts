@@ -2,8 +2,14 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { refreshMe } from "@/components/account/use-me";
+import { PLAN_ORDER, type PlanId } from "@/config/plans";
 
 const RECHECK_DELAYS_MS = [2_000, 3_000, 5_000, 8_000, 13_000, 21_000];
+
+// A return that names no plan counts any paid plan as the one bought.
+export function planArrived(plan: PlanId, target: PlanId | null): boolean {
+  return target ? PLAN_ORDER.indexOf(plan) >= PLAN_ORDER.indexOf(target) : plan !== "free";
+}
 
 export type UpgradeWatch = {
   state: "idle" | "checking" | "gave-up";

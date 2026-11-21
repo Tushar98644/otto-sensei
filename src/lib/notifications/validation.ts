@@ -34,3 +34,11 @@ export const FollowUpActionSchema = z.object({
   act: z.enum(FOLLOW_UP_ACTIONS),
   t: z.string().regex(/^[A-Za-z0-9_-]{43}$/),
 });
+
+// From the bell, signed in: strict, so a signed body with a bad token can never fall through to it.
+export const SessionFollowUpActionSchema = z.strictObject({
+  a: z.uuid(),
+  act: z.enum(FOLLOW_UP_ACTIONS),
+});
+
+export const FollowUpRequestSchema = z.union([FollowUpActionSchema, SessionFollowUpActionSchema]);

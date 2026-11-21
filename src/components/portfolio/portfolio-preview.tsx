@@ -25,6 +25,7 @@ type PortfolioPreviewProps = {
   content: PortfolioContentView;
   template: PortfolioTemplateId;
   slug: string;
+  resumeHref: string | null;
   onExpand: () => void;
 };
 
@@ -56,6 +57,7 @@ export const PortfolioPreview = memo(function PortfolioPreview({
   content,
   template,
   slug,
+  resumeHref,
   onExpand,
 }: PortfolioPreviewProps) {
   const [picked, setPicked] = useState<PreviewWidth | null>(null);
@@ -154,7 +156,12 @@ export const PortfolioPreview = memo(function PortfolioPreview({
                       } as CSSProperties
                     }
                   >
-                    <LazyTemplate id={shown} view={view} content={content} />
+                    <LazyTemplate
+                      id={shown}
+                      view={view}
+                      content={content}
+                      resumeHref={resumeHref}
+                    />
                   </div>
                 ) : null}
               </div>

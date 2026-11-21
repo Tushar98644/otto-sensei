@@ -1,12 +1,12 @@
 "use client";
 
-import { Info, TriangleExclamationPoint } from "lucide-react";
-import { memo, useMemo } from "react";
-import { FixFirst, type FixFirstEntry } from "@/components/studio/fix-first";
+import { ChevronDown, Info, ListChecks, TriangleExclamationPoint } from "lucide-react";
+import { memo, useId, useMemo, useState } from "react";
 import { openTarget, targetLabel } from "@/components/studio/review/open-target";
 import { Button } from "@/components/ui/button";
 import { reviewResume, type ReviewItem } from "@/lib/lint/review";
 import type { Resume } from "@/lib/resume/schema";
+import { cn, pluralize } from "@/lib/utils";
 import { resumeLintOf } from "./lint-cache";
 import { useResumeValue } from "./use-editor";
 import { useSettled } from "./use-settled";
@@ -27,60 +27,71 @@ const SettledSummary = memo(function SettledSummary({
   resumeId: string;
   resume: Resume;
 }) {
+  const [open, setOpen] = useState(false);
+  const listId = useId();
   const review = useMemo(() => reviewResume(resume, resumeLintOf(resume)), [resume]);
   if (review.items.length === 0) return null;
-
-  const items: FixFirstEntry[] = review.top.map((item) => ({
-    key: item.id,
-    title: item.title,
-    reason: item.reason,
-    action: item.target
-      ? { label: targetLabel(item.target), onClick: () => openTarget(resumeId, item.target) }
-      : undefined,
-  }));
-  const rest = review.items.filter((item) => !review.top.includes(item));
+  const items = [...review.top, ...review.items.filter((item) => !review.top.includes(item))];
 
   return (
-    <FixFirst
-      items={items}
-      description="Across your whole resume, most important first."
-      footer={rest.length > 0 ? <MoreToCheck resumeId={resumeId} items={rest} /> : null}
-    />
+    <div className="flex flex-col pl-12">
+      <Button
+        variant="ghost"
+        size="sm"
+        aria-expanded={open}
+        aria-controls={listId}
+        onClick={() => setOpen((value) => !value)}
+        className="-ml-3 self-start text-muted hover:text-ink max-sm:h-11"
+      >
+        <ListChecks />
+        {`${pluralize(items.length, "thing")} worth a look`}
+        <span aria-hidden className="text-subtle">
+          ·
+        </span>
+        {open ? "Hide" : "Show"}
+        <ChevronDown className={cn("transition-transform", open && "rotate-180")} />
+      </Button>
+      <ul
+        id={listId}
+        hidden={!open}
+        className="mt-2 flex flex-col divide-y divide-border rounded-2xl bg-surface px-4"
+      >
+        {open
+          ? items.map((item) => <ReviewRow key={item.id} resumeId={resumeId} item={item} />)
+          : null}
+      </ul>
+    </div>
   );
 });
 
-function MoreToCheck({ resumeId, items }: { resumeId: string; items: readonly ReviewItem[] }) {
+function ReviewRow({ resumeId, item }: { resumeId: string; item: ReviewItem }) {
+  const high = item.severity === "high";
+  const Icon = high ? TriangleExclamationPoint : Info;
   return (
-    <div className="flex flex-col gap-1">
-      <p className="text-sm font-medium text-ink">Also worth a look</p>
-      <ul className="flex flex-col">
-        {items.map((item) => {
-          const high = item.severity === "high";
-          const Icon = high ? TriangleExclamationPoint : Info;
-          return (
-            <li key={item.id} className="flex min-h-9 items-center gap-2 text-sm">
-              <Icon
-                aria-hidden
-                className={high ? "size-4 shrink-0 text-warn" : "size-4 shrink-0 text-subtle"}
-              />
-              <span className="min-w-0 flex-1 text-pretty text-muted">
-                <span className="sr-only">{high ? "Needs work: " : "Tip: "}</span>
-                {item.title}
-              </span>
-              {item.target ? (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => openTarget(resumeId, item.target)}
-                  className="-mr-3 shrink-0"
-                >
-                  {targetLabel(item.target)}
-                </Button>
-              ) : null}
-            </li>
-          );
-        })}
-      </ul>
-    </div>
+    <li className="flex flex-col gap-2 py-3 sm:flex-row sm:items-start sm:gap-4">
+      <div className="flex min-w-0 flex-1 gap-2.5">
+        <Icon
+          aria-hidden
+          className={cn("mt-1 size-4 shrink-0", high ? "text-warn" : "text-subtle")}
+        />
+        <div className="flex min-w-0 flex-col gap-0.5">
+          <p className="text-sm/6 font-medium text-pretty text-ink">
+            <span className="sr-only">{high ? "Needs work: " : "Tip: "}</span>
+            {item.title}
+          </p>
+          <p className="text-sm/6 text-pretty text-muted">{item.reason}</p>
+        </div>
+      </div>
+      {item.target ? (
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => openTarget(resumeId, item.target)}
+          className="shrink-0 self-start max-sm:ml-3"
+        >
+          {targetLabel(item.target)}
+        </Button>
+      ) : null}
+    </li>
   );
 }

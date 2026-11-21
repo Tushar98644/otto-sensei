@@ -754,6 +754,16 @@ describe("createCheckout", () => {
     });
   });
 
+  it("adds the page to go back to after the plan, and keeps it out of the metadata", async () => {
+    await checkoutFor({ productId: PRO_TRIAL, trial: true, next: "/studio?step=tailor" });
+    const body = dodo.checkouts[0]?.body;
+    expect(body).toMatchObject({
+      return_url: `${APP}/api/billing/return?plan=pro&trial=1&next=%2Fstudio%3Fstep%3Dtailor`,
+      cancel_url: `${APP}/account?checkout=cancelled`,
+    });
+    expect(JSON.stringify(body?.metadata)).not.toContain("studio");
+  });
+
   it("signs the trial it replaces", async () => {
     const trial = dodoId("sub", "trial");
     await checkoutFor({ productId: MAX_MONTH, plan: "max", replacesSubscriptionId: trial });

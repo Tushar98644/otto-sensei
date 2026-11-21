@@ -85,6 +85,22 @@ export function markAllSeen(userId: string) {
   api.markNotificationsRead({ all: true }).catch(() => undefined);
 }
 
+// Done or Snooze from anywhere takes the buttons off that application's bell row at once.
+export function settleFollowUp(applicationId: string) {
+  if (!state.items.some((item) => item.applicationId === applicationId && item.followUpDue)) return;
+  setState({
+    ...state,
+    items: state.items.map((item) =>
+      item.applicationId === applicationId ? { ...item, followUpDue: false } : item,
+    ),
+  });
+}
+
+// An undone Done or Snooze is due again, which only the server's list can say.
+export function reloadNotifications() {
+  if (state.userId && state.status === "ready") void loadNotifications(state.userId);
+}
+
 export function forgetFresh() {
   if (state.fresh.size > 0) setState({ ...state, fresh: NONE });
 }

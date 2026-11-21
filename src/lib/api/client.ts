@@ -1,3 +1,5 @@
+import type { BillingHistoryResponse } from "@/lib/billing/history-types";
+import { REQUEST_ID_HEADER, RESUME_HEADER, type MeteredRun } from "@/lib/api/request-id";
 import type { GitHubConnectionResponse } from "@/lib/github/connect";
 import { JOBS_PREFETCH_HEADER } from "@/lib/job-feed/prefetch-header";
 import type { ImpressionBatchInput } from "@/lib/job-feed/types";
@@ -11,11 +13,13 @@ import type {
 import type {
   EmailChoicesBody,
   EmailChoicesResponse,
+  FollowUpActionResponse,
   MarkNotificationsReadBody,
   MarkNotificationsReadResponse,
   NotificationsResponse,
   ReminderSettingsBody,
   ReminderSettingsResponse,
+  SessionFollowUpActionBody,
 } from "@/lib/notifications/types";
 import type { Resume } from "@/lib/resume/schema";
 import type {
@@ -24,7 +28,12 @@ import type {
   PutResumeResult,
   ResumeList,
 } from "@/lib/sync/api-types";
-import type { AccountSetupChange, AccountSetupResponse } from "@/lib/setup/types";
+import type {
+  AccountSetupChange,
+  AccountSetupResponse,
+  SetupDefaults,
+  SetupDefaultsResponse,
+} from "@/lib/setup/types";
 import type {
   CreateShareBody,
   ShareResponse,
@@ -166,6 +175,13 @@ const postJson = (body: unknown, method = "POST"): RequestInit => ({
   body: JSON.stringify(body),
 });
 
+function withRun(init: RequestInit, run: MeteredRun): RequestInit {
+  const headers = new Headers(init.headers);
+  headers.set(REQUEST_ID_HEADER, run.id);
+  if (run.resume) headers.set(RESUME_HEADER, "1");
+  return { ...init, headers };
+}
+
 function fileForm(file: Blob, filename?: string): FormData {
   const form = new FormData();
   if (filename) form.append("file", file, filename);
@@ -195,7 +211,8 @@ export const api = {
       body: clipForm(clip, seconds),
       signal,
     }),
-  tailor: (body: TailorRequestBody) => request<TailorResponse>("/api/tailor", postJson(body)),
+  tailor: (body: TailorRequestBody, run: MeteredRun) =>
+    request<TailorResponse>("/api/tailor", withRun(postJson(body), run)),
   letter: (body: LetterRequestBody) => request<LetterResponse>("/api/letter", postJson(body)),
   answer: (body: AnswerRequestBody) => request<AnswerResponse>("/api/answer", postJson(body)),
   outreach: (body: OutreachRequestBody) =>
@@ -291,15 +308,18 @@ export const api = {
   checkout: (
     plan: CheckoutRequestBody["plan"] = "pro",
     interval: CheckoutRequestBody["interval"] = "month",
+    next?: string | null,
   ) =>
     request<UrlResponse>(
       "/api/billing/checkout",
-      postJson({ plan, interval } satisfies CheckoutRequestBody),
+      postJson({ plan, interval, ...(next ? { next } : {}) } satisfies CheckoutRequestBody),
     ),
   feedback: (body: FeedbackRequestBody) => request<EmptyOk>("/api/feedback", postJson(body)),
   referrals: () => request<ReferralSummaryResponse>("/api/referrals", { cache: "no-store" }),
   claimReferral: () => request<ReferralClaimResponse>("/api/referrals/claim", postJson({})),
   portal: () => request<UrlResponse>("/api/billing/portal", { method: "POST" }),
+  billingHistory: () =>
+    request<BillingHistoryResponse>("/api/billing/history", { cache: "no-store" }),
   deleteAccount: () => request<EmptyOk>("/api/account", { method: "DELETE" }),
   workProfile: () => request<WorkProfileResponse>("/api/profile", { cache: "no-store" }),
   saveWorkProfile: (body: WorkProfileBody) =>
@@ -317,9 +337,13 @@ export const api = {
   notifications: () => request<NotificationsResponse>("/api/notifications", { cache: "no-store" }),
   markNotificationsRead: (body: MarkNotificationsReadBody) =>
     request<MarkNotificationsReadResponse>("/api/notifications", postJson(body, "PATCH")),
+  followUpAction: (body: SessionFollowUpActionBody) =>
+    request<FollowUpActionResponse>("/api/notifications/follow-up", postJson(body)),
   accountSetup: () => request<AccountSetupResponse>("/api/setup", { cache: "no-store" }),
   saveAccountSetup: (body: AccountSetupChange) =>
     request<AccountSetupResponse>("/api/setup", postJson(body, "PUT")),
+  saveSetupDefaults: (body: SetupDefaults) =>
+    request<SetupDefaultsResponse>("/api/setup/defaults", postJson(body)),
   writingStyle: () => request<WritingStyleResponse>("/api/writing-style", { cache: "no-store" }),
   saveWritingStyle: (body: WritingStyleBody) =>
     request<WritingStyleResponse>("/api/writing-style", postJson(body, "PUT")),

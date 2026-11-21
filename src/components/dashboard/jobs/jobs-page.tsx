@@ -3,31 +3,31 @@
 import { useMemo, useRef, useState } from "react";
 import { errorMessage } from "@/components/account/errors";
 import { useProTools, useTryProLabel } from "@/components/account/pro-tools";
+import { openFeaturePrompt } from "@/components/account/upgrade-prompt";
 import { useSessionUserId } from "@/components/account/session-user";
 import { saveLookingForChoice, useWorkProfile } from "@/components/eligibility/use-work-profile";
 import { OTTO } from "@/components/mascot/lines";
 import { OttoNote } from "@/components/mascot/otto-note";
 import { JobsWorkPrompt } from "@/components/setup/jobs-work-prompt";
+import { useSetupGuess } from "@/components/setup/use-account-setup";
 import { useNow } from "@/components/studio/use-now";
 import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import { Spinner } from "@/components/ui/spinner";
 import { toast } from "@/components/ui/toast";
 import type { JobMatchesResponse, MatchedJob } from "@/lib/api/types";
+import { isProfileStarted } from "@/lib/eligibility/profile";
 import { roleOptions } from "@/lib/job-feed/looking-for";
-import {
-  DEFAULT_FILTERS,
-  MAX_JOB_PAGE,
-  NO_CHOICE,
-  type JobFilters,
-  type LookingForChoice,
-} from "@/lib/job-feed/types";
+import { MAX_JOB_PAGE, NO_CHOICE, type LookingForChoice } from "@/lib/job-feed/types";
 import { resumeTitle } from "@/lib/resume/ops";
 import { jobsWorkPromptShows } from "@/lib/setup/checklist";
 import { useResumeList, useStudioHydrated } from "@/lib/store/resume-store";
+import { useFirstLoadPending } from "@/lib/sync/use-cloud-sync";
 import { useApplications } from "../applications/use-applications";
 import { LazyOutreachDialog } from "./lazy-outreach-dialog";
 import { useStudioActions } from "../use-studio-actions";
 import { AppliedAnnouncer, AppliedStrip } from "./applied-question";
+import { CLEARED, searchedOrNarrowed, type FilterMemory } from "./filter-memory";
 import { JobCard } from "./job-card";
 import { JobFiltersBar } from "./job-filters";
 import {
@@ -40,16 +40,14 @@ import {
   WeeklyJobsPrompt,
 } from "./jobs-page-parts";
 import { LookingForCard } from "./looking-for-card";
+import { rememberFilters, useFilterMemory } from "./use-filter-memory";
 import { useJobActions } from "./use-job-actions";
-import { useJobMatches, type JobView } from "./use-job-matches";
+import { pageFilters, useJobMatches, type JobView } from "./use-job-matches";
 import { useAppliedPrompts } from "./use-opened-jobs";
-import { appliedFor, checkedLabel, defaultResumeId, moreWithProCopy, tailoredFor } from "./view";
+import { useTailorLink } from "./use-tailor-link";
+import { appliedFor, checkedLabel, matchingResumeId, moreWithProCopy, tailoredFor } from "./view";
 
 const count = new Intl.NumberFormat("en-US");
-
-function sameFilters(a: JobFilters, b: JobFilters): boolean {
-  return JSON.stringify(a) === JSON.stringify(b);
-}
 
 export function JobsPage() {
   const hydrated = useStudioHydrated();
@@ -57,27 +55,24 @@ export function JobsPage() {
   const actions = useStudioActions();
   const work = useWorkProfile();
   const userId = useSessionUserId();
+  const loadingResumes = useFirstLoadPending(userId);
   const { items: applications, status: applicationsStatus } = useApplications();
   const now = useNow();
   const listRef = useRef<HTMLDivElement>(null);
   const tryPro = useTryProLabel();
   const pro = useProTools();
+  const guess = useSetupGuess();
 
-  const [picked, setPicked] = useState<string | null>(null);
+  const memory = useFilterMemory(userId);
   const [view, setView] = useState<JobView>("matches");
-  const [chosen, setChosen] = useState<JobFilters | null>(null);
   const [page, setPage] = useState(1);
-  const [resetKey, setResetKey] = useState(0);
 
-  const resumeId =
-    picked && resumes.some((resume) => resume.id === picked) ? picked : defaultResumeId(resumes);
+  const resumeId = matchingResumeId(resumes, memory.resumeId);
   const resume = resumes.find((item) => item.id === resumeId) ?? null;
   const profileSettled = work.status !== "unknown" && work.status !== "loading";
-  const remoteDefault = work.status === "ready" && work.profile.remoteOnly === true;
-  const filters = useMemo(
-    () => chosen ?? { ...DEFAULT_FILTERS, remote: remoteDefault },
-    [chosen, remoteDefault],
-  );
+  const workProfile = work.status === "ready" ? work.profile : null;
+  const profileReady = workProfile !== null && isProfileStarted(workProfile);
+  const filters = useMemo(() => pageFilters(memory, workProfile), [memory, workProfile]);
   const choice = work.status === "ready" ? work.lookingFor : NO_CHOICE;
   const [savingChoice, setSavingChoice] = useState(false);
   const { state, retry, patch, profile, lookingFor } = useJobMatches({
@@ -87,10 +82,12 @@ export function JobsPage() {
     filters,
     page,
     choice,
-    workProfile: work.status === "ready" ? work.profile : null,
+    workProfile,
   });
   const data: JobMatchesResponse | null =
     state.status === "ready" ? state.data : state.status === "loading" ? state.previous : null;
+  const locked = data?.locked === true;
+  const free = pro === false || locked;
   const pageJobIds = useMemo(() => data?.jobs.map((job) => job.id) ?? null, [data]);
   const labels = useMemo(
     () =>
@@ -110,18 +107,33 @@ export function JobsPage() {
     pageJobIds,
     now,
   });
-  const { busy, note, tailor, openTailored, toggleSave, markApplied, openJob, answerApplied } =
-    useJobActions({ data, view, resume, resumes, applications, userId, patch, actions });
+  const {
+    busy,
+    note,
+    tailor,
+    tailorById,
+    openTailored,
+    toggleSave,
+    markApplied,
+    openJob,
+    answerApplied,
+  } = useJobActions({ data, view, resume, resumes, applications, userId, patch, actions, free });
   const [outreach, setOutreach] = useState<MatchedJob | null>(null);
+  // On a new device the resumes arrive from the cloud after hydration, and the link needs one.
+  useTailorLink(hydrated && !loadingResumes, (id) => void tailorById(id));
 
-  function changeFilters(next: Partial<JobFilters>) {
-    setChosen({ ...filters, ...next });
+  function changeFilters(next: Partial<FilterMemory>) {
+    rememberFilters(userId, next);
     setPage(1);
+  }
+
+  function writeOutreach(job: MatchedJob) {
+    if (free) openFeaturePrompt("letter");
+    else setOutreach(job);
   }
 
   async function changeLookingFor(next: LookingForChoice) {
     if (work.status !== "ready") return;
-    if (chosen) setChosen({ ...chosen, remote: next.remote });
     setPage(1);
     setSavingChoice(true);
     try {
@@ -140,7 +152,7 @@ export function JobsPage() {
 
   if (hydrated && resumes.length === 0) return <NoResumeYet actions={actions} />;
 
-  const filtered = !sameFilters(filters, { ...DEFAULT_FILTERS, remote: remoteDefault });
+  const filtered = !locked && searchedOrNarrowed(filters);
   let message: string | null = null;
   if (data) {
     if (data.openJobs === 0) message = OTTO.jobs.noJobs;
@@ -150,7 +162,6 @@ export function JobsPage() {
       message = OTTO.jobs.noSkills;
     else message = OTTO.jobs.found(data.matching, data.total, data.strong, data.newToday);
   }
-  const locked = data?.locked === true;
   if (data && locked && data.openJobs > 0) {
     message = OTTO.jobs.found(data.matching, data.jobs.length, 0, 0);
   }
@@ -164,6 +175,8 @@ export function JobsPage() {
     ? Math.min(MAX_JOB_PAGE, Math.max(1, Math.ceil(data.total / data.pageSize)))
     : 1;
   const askingIds = new Set(prompts.onCard.map((entry) => entry.jobId));
+  const openingOffPage =
+    busy?.action === "tailor" && !(data?.jobs.some((job) => job.id === busy.id) ?? false);
 
   return (
     <div className="flex flex-col gap-8">
@@ -187,13 +200,9 @@ export function JobsPage() {
 
       {locked ? null : (
         <JobFiltersBar
-          key={resetKey}
           resumes={resumes}
           resumeId={resumeId}
-          onResume={(id) => {
-            setPicked(id);
-            setPage(1);
-          }}
+          onResume={(id) => changeFilters({ resumeId: id })}
           view={view}
           onView={(next) => {
             setView(next);
@@ -202,7 +211,12 @@ export function JobsPage() {
           savedCount={data?.savedCount ?? 0}
           filters={filters}
           onFilters={changeFilters}
-          profileReady={data?.profileReady ?? false}
+          onRemote={
+            work.status === "ready"
+              ? (remote) => void changeLookingFor({ ...choice, remote })
+              : null
+          }
+          profileReady={profileReady}
         />
       )}
 
@@ -210,7 +224,7 @@ export function JobsPage() {
         <JobsWorkPrompt
           due={
             view === "matches" &&
-            jobsWorkPromptShows({ pro, locked, profile: work.profile })
+            jobsWorkPromptShows({ pro, locked, profile: work.profile, guess })
           }
           userId={work.userId}
           profile={work.profile}
@@ -219,6 +233,15 @@ export function JobsPage() {
       ) : null}
 
       <div ref={listRef} tabIndex={-1} className="flex scroll-mt-24 flex-col gap-4 outline-none">
+        {openingOffPage ? (
+          <p
+            role="status"
+            className="flex items-center gap-2 rounded-2xl bg-surface px-4 py-3 text-sm/6 text-muted sm:px-6"
+          >
+            <Spinner />
+            Opening that job in Tailor…
+          </p>
+        ) : null}
         <AppliedAnnouncer onCard={prompts.onCard} offPage={prompts.offPage} />
         <AppliedStrip
           jobs={prompts.offPage}
@@ -254,13 +277,7 @@ export function JobsPage() {
           <LoadingCards />
         ) : data.jobs.length === 0 ? (
           filtered && view === "matches" ? (
-            <NoFilterMatches
-              onClear={() => {
-                setChosen({ ...DEFAULT_FILTERS, remote: remoteDefault });
-                setResetKey((n) => n + 1);
-                setPage(1);
-              }}
-            />
+            <NoFilterMatches onClear={() => changeFilters(CLEARED)} />
           ) : null
         ) : (
           <ul aria-busy={state.status === "loading"} className="flex flex-col gap-4">
@@ -275,12 +292,13 @@ export function JobsPage() {
                   tailoredTitle={label?.tailoredTitle ?? null}
                   logging={busy?.id === job.id && busy.action === "apply"}
                   tailoring={busy?.id === job.id && busy.action === "tailor"}
+                  free={free}
                   onTailor={(target) => void tailor(target)}
                   onOpenTailored={openTailored}
                   onToggleSave={toggleSave}
                   onMarkApplied={(target) => void markApplied(target)}
                   onOpen={openJob}
-                  onOutreach={setOutreach}
+                  onOutreach={writeOutreach}
                   asking={askingIds.has(job.id)}
                   onAnswer={(target, answer) => void answerApplied(target, answer)}
                   onNotFit={
@@ -309,11 +327,13 @@ export function JobsPage() {
           <JobsPager page={page} pages={pages} onGo={goTo} />
         ) : null}
       </div>
-      <LazyOutreachDialog
-        job={outreach}
-        resume={outreach ? (tailoredFor(resumes, outreach) ?? resume) : null}
-        onClose={() => setOutreach(null)}
-      />
+      {free ? null : (
+        <LazyOutreachDialog
+          job={outreach}
+          resume={outreach ? (tailoredFor(resumes, outreach) ?? resume) : null}
+          onClose={() => setOutreach(null)}
+        />
+      )}
     </div>
   );
 }

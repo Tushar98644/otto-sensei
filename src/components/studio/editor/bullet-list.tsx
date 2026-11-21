@@ -83,26 +83,29 @@ export function BulletList({
           ))}
         </ul>
       ) : null}
-      <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1">
+      {/* The row, not each key, is pulled left, so a key that wraps lines up with the first. */}
+      <div className="mt-2 -ml-4 flex flex-wrap items-center gap-x-3 gap-y-1">
         <Button
           id={addLineButtonId(parentId)}
           variant="ghost"
           size="sm"
           onClick={add}
           disabled={full}
-          className="-ml-4 text-muted hover:text-ink max-sm:h-11"
+          className="text-muted hover:text-ink max-sm:h-11"
         >
           <Plus />
           {addLabel}
         </Button>
         {actions}
         {full ? (
-          <p className="text-sm text-muted">{`That's the most lines this can hold (${max}).`}</p>
+          <p className="pl-4 text-sm text-muted">{`That's the most lines this can hold (${max}).`}</p>
         ) : null}
       </div>
       {ticks ? (
-        <div className="mt-1 empty:hidden">
-          <EntryChecks lines={lines} ownerHeadingId={ownerHeadingId} ended={ended} />
+        <div className="sr-only group-focus-within/entry:not-sr-only">
+          <div className="pt-1 empty:hidden">
+            <EntryChecks lines={lines} ownerHeadingId={ownerHeadingId} ended={ended} />
+          </div>
         </div>
       ) : null}
     </div>

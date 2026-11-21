@@ -98,22 +98,33 @@ export async function saveBackup(
   const status = await db.transaction(async (tx): Promise<SaveStatus> => {
     if (!(await lockUser(tx, userId))) return "no_user";
     // After the lock, in its own statement: one taken with it would read from before the wait.
-    const [checks] = rowsOf<{ buried: boolean; stored: number | null; total: number }>(
+    const [checks] = rowsOf<{
+      buried: boolean;
+      stored: number | null;
+      storedSample: boolean | null;
+      total: number;
+      samples: number;
+    }>(
       await tx.execute(sql`
         select
           exists (select 1 from ${resumeTombstones} t where t.user_id = ${userId} and t.id = ${resume.id}) as buried,
           (select r.updated_at::float8 from ${resumes} r where r.user_id = ${userId} and r.id = ${resume.id}) as stored,
-          (select count(*)::int from ${resumes} r where r.user_id = ${userId}) as total
+          (select coalesce(r.data->>'source' = 'sample', false) from ${resumes} r where r.user_id = ${userId} and r.id = ${resume.id}) as "storedSample",
+          (select count(*)::int from ${resumes} r where r.user_id = ${userId}) as total,
+          (select count(*)::int from ${resumes} r where r.user_id = ${userId} and r.data->>'source' = 'sample') as samples
       `),
     );
     if (checks?.buried) return "deleted";
     const stored = checks?.stored ?? null;
     // The same copy sent twice (a retry, or again as the page closed) is already saved.
     if (stored === resume.updatedAt) return "saved";
-    if (stored === null) {
-      const total = checks?.total ?? 0;
-      if (total >= MAX_RESUMES_PER_USER) return "limit_reached";
-      if (total >= planLimit) return "plan_limit";
+    const total = checks?.total ?? 0;
+    if (stored === null && total >= MAX_RESUMES_PER_USER) return "limit_reached";
+    // Samples get a count of their own, so one never takes Free's slot; a copy changing kind counts as new.
+    const sample = resume.source === "sample";
+    if (stored === null || checks?.storedSample !== sample) {
+      const samples = checks?.samples ?? 0;
+      if ((sample ? samples : total - samples) >= planLimit) return "plan_limit";
     }
     const newer = sql`excluded.updated_at >= ${resumes.updatedAt}`;
     const written = await tx

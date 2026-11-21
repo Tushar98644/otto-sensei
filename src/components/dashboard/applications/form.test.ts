@@ -4,8 +4,10 @@ import { createSampleResume } from "@/lib/resume/sample";
 import type { Resume } from "@/lib/resume/schema";
 import {
   emptyForm,
+  fillFromPost,
   formFromApplication,
   fromDateInput,
+  needsRead,
   patchFrom,
   prefillFor,
   switchResume,
@@ -46,6 +48,7 @@ function values(overrides: Partial<ApplicationFormValues> = {}): ApplicationForm
     jobUrl: "",
     appliedOn: toDateInput(NOW),
     status: "applied",
+    interviewOn: "",
     notes: "",
     ...overrides,
   };
@@ -112,6 +115,7 @@ describe("prefillFor", () => {
       jobUrl: "",
       appliedOn: "2026-11-07",
       status: "applied",
+      interviewOn: "",
       notes: "",
     });
   });
@@ -243,5 +247,64 @@ describe("patchFrom", () => {
       resumeId: null,
       resumeTitle: "",
     });
+  });
+
+  it("sends the interview day only when it moved to another day", () => {
+    const booked = {
+      ...original,
+      status: "interview" as const,
+      interviewAt: new Date(2026, 10, 20, 9).getTime(),
+    };
+    const same = validateForm(formFromApplication(booked), titles, NOW);
+    expect(same.ok && patchFrom(booked, same.body)).toEqual({});
+    const moved = validateForm(
+      { ...formFromApplication(booked), interviewOn: "2026-11-21" },
+      titles,
+      NOW,
+    );
+    expect(moved.ok && patchFrom(booked, moved.body)).toEqual({
+      interviewAt: new Date(2026, 10, 21, 12).getTime(),
+    });
+    const cleared = validateForm({ ...formFromApplication(booked), interviewOn: "" }, titles, NOW);
+    expect(cleared.ok && patchFrom(booked, cleared.body)).toEqual({ interviewAt: null });
+  });
+});
+
+describe("the interview day", () => {
+  const titles = new Map<string, string>();
+
+  it("is kept only for an interview, at local noon", () => {
+    expect(
+      validateForm(values({ status: "interview", interviewOn: "2026-11-20" }), titles, NOW),
+    ).toMatchObject({ ok: true, body: { interviewAt: new Date(2026, 10, 20, 12).getTime() } });
+    const applied = validateForm(values({ interviewOn: "2026-11-20" }), titles, NOW);
+    expect(applied.ok && "interviewAt" in applied.body).toBe(false);
+  });
+
+  it("refuses a day that doesn't exist or is over a year away", () => {
+    expect(
+      validateForm(values({ status: "interview", interviewOn: "2026-02-30" }), titles, NOW),
+    ).toMatchObject({ ok: false, errors: { interviewOn: "Pick the interview day." } });
+    expect(
+      validateForm(values({ status: "interview", interviewOn: "2028-01-01" }), titles, NOW),
+    ).toMatchObject({ ok: false, errors: { interviewOn: "Pick a day within the next year." } });
+  });
+});
+
+describe("filling the form from a job post", () => {
+  it("fills only the fields still empty", () => {
+    const post = { company: "Stripe", role: "Product Manager" };
+    expect(fillFromPost(values({ company: "", role: "" }), post)).toMatchObject(post);
+    expect(fillFromPost(values({ company: "Stripe Inc", role: "" }), post)).toMatchObject({
+      company: "Stripe Inc",
+      role: "Product Manager",
+    });
+  });
+
+  it("reads a link only when it's a real link and something is missing", () => {
+    expect(needsRead({ company: "", role: "", jobUrl: "stripe.com/jobs/1" })).toBe(true);
+    expect(needsRead({ company: "Stripe", role: "PM", jobUrl: "stripe.com/jobs/1" })).toBe(false);
+    expect(needsRead({ company: "", role: "", jobUrl: "" })).toBe(false);
+    expect(needsRead({ company: "", role: "", jobUrl: "not a link" })).toBe(false);
   });
 });

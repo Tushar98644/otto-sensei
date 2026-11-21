@@ -7,10 +7,12 @@ import { UpgradePromptHost } from "@/components/account/upgrade-prompt";
 import { useMe, type Me } from "@/components/account/use-me";
 import { useOttoLoadingScreen } from "@/components/mascot/otto-loading-screen";
 import { DashboardTour } from "@/components/onboarding/dashboard-tour";
-import { FirstRunSetup } from "@/components/setup/first-run-setup";
+import { SetupDefaults } from "@/components/setup/setup-defaults";
 import { ROUTES } from "@/components/site/routes";
 import type { SessionUser } from "@/lib/auth/types";
 import { useCloudSync, useFirstLoadPending } from "@/lib/sync/use-cloud-sync";
+import { CommandPaletteHost } from "./command-palette-host";
+import { FileDropOverlay } from "./file-drop-overlay";
 import { MobileBar } from "./mobile-bar";
 import { Sidebar } from "./sidebar";
 import { useStudioActions } from "./use-studio-actions";
@@ -51,7 +53,9 @@ export function AppShell({
           </main>
         </div>
         <DashboardTour />
-        <FirstRunSetup />
+        <SetupDefaults />
+        <CommandPaletteHost actions={actions} />
+        <FileDropOverlay />
         <UpgradePromptHost />
       </div>
     </SessionUserProvider>

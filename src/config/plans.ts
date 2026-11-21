@@ -122,7 +122,15 @@ export function planIncludes(plan: PlanId, feature: Feature): boolean {
   return PLANS[plan].limits[feature] > 0;
 }
 
-export type ProTool = "resumes" | "formats" | "word" | "tracker" | "jobs" | "share" | "eligibility";
+export type ProTool =
+  | "resumes"
+  | "formats"
+  | "word"
+  | "tracker"
+  | "jobs"
+  | "share"
+  | "eligibility"
+  | "portfolio";
 
 export const RESUME_LIMITS = { free: 1, paid: 50 } as const;
 export const FREE_APPLICATIONS = 1;

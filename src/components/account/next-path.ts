@@ -22,6 +22,8 @@ export function safeNextPath(
   }
   // Catches tricks the checks above miss, e.g. "/\t/host": browsers drop the tab and see "//host".
   if (url.origin !== BASE) return fallback;
+  // Dot segments can collapse to "//host" ("/.//host", "/x/..//host"), which browsers read as another site.
+  if (url.pathname.startsWith("//") || url.pathname.startsWith("/\\")) return fallback;
   if (url.pathname === "/login" || url.pathname.startsWith("/login/")) return fallback;
   return `${url.pathname}${url.search}${url.hash}`;
 }

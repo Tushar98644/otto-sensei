@@ -50,7 +50,7 @@ function drawnOf(project: ContentProject): DrawnContent {
   };
 }
 
-export function ReelTemplate({ view, content, footer }: PortfolioTemplateProps) {
+export function ReelTemplate({ view, content, footer, resumeHref }: PortfolioTemplateProps) {
   const name = nameOf(view);
   const disciplines =
     content.disciplines.length > 0 ? content.disciplines : view.headline ? [view.headline] : [];
@@ -78,6 +78,7 @@ export function ReelTemplate({ view, content, footer }: PortfolioTemplateProps) 
     firstProject ? { label: "Projects", href: firstProject } : null,
     about.length > 0 ? { label: "Details", href: "#pf-reel-details" } : null,
     roles.length > 0 ? { label: "Experience", href: "#pf-reel-experience" } : null,
+    resumeHref ? { label: "Resume", href: resumeHref } : null,
     hello ? { label: "Contact", href: hello } : null,
   ].filter((link): link is ReelNavLink => link !== null);
 

@@ -254,12 +254,14 @@ describe("/api/resumes", () => {
 });
 
 describe("Free's resume limit", () => {
+  const own = (overrides: Partial<Resume> = {}) => resume({ source: "import", ...overrides });
+
   it(`refuses a new resume past ${RESUME_LIMITS.free} on Free with the trial prompt`, async () => {
     await signIn("ada@example.com", "free");
-    const first = resume({ title: "First" });
+    const first = own({ title: "First" });
     expect(await saved(await save(first))).toEqual({ ok: true, deleted: false });
 
-    const second = await save(resume({ title: "Second" }));
+    const second = await save(own({ title: "Second" }));
     expect(second.status).toBe(402);
     expect(await errorOf(second)).toEqual({
       code: "upgrade_required",
@@ -272,7 +274,37 @@ describe("Free's resume limit", () => {
     expect(await list()).toEqual([edited]);
 
     await remove(first.id);
-    expect((await save(resume({ title: "Another" }))).status).toBe(200);
+    expect((await save(own({ title: "Another" }))).status).toBe(200);
+  });
+
+  it("keeps a sample beside Free's one resume, in a slot of its own", async () => {
+    await signIn("ada@example.com", "free");
+    const sample = resume({ updatedAt: 2_000 });
+    const mine = own({ title: "Mine" });
+    expect((await save(sample)).status).toBe(200);
+    expect((await save(mine)).status).toBe(200);
+    expect(await list()).toEqual([sample, mine]);
+
+    expect((await save(own({ title: "Another of mine" }))).status).toBe(402);
+    expect((await save(resume({ title: "Second sample" }))).status).toBe(402);
+    expect(await list()).toHaveLength(2);
+  });
+
+  it("checks a copy that changes kind like a new one, so it can't slip past either count", async () => {
+    await signIn("ada@example.com", "free");
+    const sample = resume({ updatedAt: 2_000 });
+    const mine = own({ title: "Mine" });
+    await save(sample);
+    await save(mine);
+
+    expect((await save({ ...sample, source: "import", updatedAt: 3_000 })).status).toBe(402);
+    expect((await save({ ...mine, source: "sample", updatedAt: 3_000 })).status).toBe(402);
+    expect(await list()).toEqual([sample, mine]);
+
+    const edited = { ...sample, title: "Sample, edited", updatedAt: 4_000 };
+    expect((await save(edited)).status).toBe(200);
+    await remove(mine.id);
+    expect((await save({ ...edited, source: "import", updatedAt: 5_000 })).status).toBe(200);
   });
 
   it("takes more resumes on the trial and on Pro", async () => {
@@ -288,7 +320,7 @@ describe("Free's resume limit", () => {
 
   it("keeps every resume usable on Free after a paid plan ends, but adds no more", async () => {
     const user = await signIn("ada@example.com", "trial");
-    const kept = [resume({ updatedAt: 3_000 }), resume({ updatedAt: 2_000 }), resume({ updatedAt: 1_500 })];
+    const kept = [own({ updatedAt: 3_000 }), own({ updatedAt: 2_000 }), own({ updatedAt: 1_500 })];
     for (const item of kept) await save(item);
     const db = await getDb();
     await db.update(users).set({ plan: "free", planStatus: "canceled", trialEndsAt: null }).where(eq(users.id, user.id));
@@ -297,7 +329,7 @@ describe("Free's resume limit", () => {
     const edited = { ...kept[2]!, title: "Still mine", updatedAt: 5_000 };
     expect((await save(edited)).status).toBe(200);
     expect((await list())[0]).toEqual(edited);
-    expect((await save(resume({ updatedAt: 6_000 }))).status).toBe(402);
+    expect((await save(own({ updatedAt: 6_000 }))).status).toBe(402);
     expect(await list()).toHaveLength(3);
   });
 });

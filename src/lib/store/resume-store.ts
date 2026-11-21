@@ -43,7 +43,7 @@ import {
   type Removals,
   type SavedStudio,
 } from "./persisted";
-import { createStudioStorage } from "./studio-storage";
+import { createStudioStorage, type LocalSave } from "./studio-storage";
 import { mergeSaves, sameStudio } from "./tab-merge";
 
 export const STUDIO_STEPS = ["upload", "review", "fix", "tailor", "download"] as const;
@@ -505,6 +505,10 @@ function absorbOtherTab(
 // Saves now instead of after the pause, for sign-out on a shared computer.
 export function flushStudio(): void {
   studioStorage.flush();
+}
+
+export function useLocalSave(): LocalSave {
+  return useSyncExternalStore(studioStorage.subscribeSaves, studioStorage.saveState, () => "saved");
 }
 
 const subscribeHydration = (onChange: () => void) =>

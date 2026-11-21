@@ -4,11 +4,12 @@ import { notFound } from "next/navigation";
 import { after } from "next/server";
 import { cache } from "react";
 import { DownloadPdfButton } from "@/components/share/download-pdf-button";
+import { ShareOwnerBarSlot } from "@/components/share/owner-bar-slot";
 import { ResumeWeb } from "@/components/share/resume-web";
 import { SharePageFrame } from "@/components/share/share-page-frame";
 import { ShareUnavailable } from "@/components/share/share-unavailable";
 import { BRAND } from "@/config/brand";
-import { currentUserIdHint } from "@/lib/auth/session";
+import { currentUserIdHint, getCurrentUser } from "@/lib/auth/session";
 import { log } from "@/lib/log";
 import { waitText } from "@/lib/rate-limit";
 import { ownerHomeLink } from "@/lib/referrals/records";
@@ -58,6 +59,15 @@ async function ownerIsReading(ownerId: string): Promise<boolean> {
   }
 }
 
+// The owner bar shows the link's stats and settings, so it waits for the live session, not the JWT alone.
+async function ownerIsSignedIn(ownerId: string): Promise<boolean> {
+  try {
+    return (await getCurrentUser())?.id === ownerId;
+  } catch {
+    return false;
+  }
+}
+
 const UPDATED = new Intl.DateTimeFormat("en-US", {
   month: "short",
   day: "numeric",
@@ -77,19 +87,20 @@ export default async function SharedResumePage({ params }: Props) {
 
   const requestHeaders = await headers();
   const userAgent = requestHeaders.get("user-agent");
-  if (countsAsView({ userAgent, prefetch: isPrefetch(requestHeaders) })) {
-    if (!(await ownerIsReading(share.ownerId))) {
-      const reader = readerKey(ipFromHeaders(requestHeaders), userAgent ?? "");
-      after(() =>
-        recordView(share.id, reader).catch((error: unknown) => {
-          log.warn("share.view_not_counted", { shareId: share.id }, error);
-        }),
-      );
-    }
+  const owner = await ownerIsReading(share.ownerId);
+  if (!owner && countsAsView({ userAgent, prefetch: isPrefetch(requestHeaders) })) {
+    const reader = readerKey(ipFromHeaders(requestHeaders), userAgent ?? "");
+    after(() =>
+      recordView(share.id, reader).catch((error: unknown) => {
+        log.warn("share.view_not_counted", { shareId: share.id }, error);
+      }),
+    );
   }
+  const ownerBar = owner && (await ownerIsSignedIn(share.ownerId));
 
   return (
     <SharePageFrame homeHref={await homeLink}>
+      {ownerBar ? <ShareOwnerBarSlot ownerId={share.ownerId} slug={slug} /> : null}
       <div className="flex items-center justify-between gap-4">
         <p className="min-w-0 truncate text-sm/5 text-subtle">
           Resume · Updated {UPDATED.format(share.resume.updatedAt)}

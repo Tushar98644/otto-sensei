@@ -1,7 +1,7 @@
 import { eq } from "drizzle-orm";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { getDb } from "@/db/client";
-import { applications, notifications } from "@/db/schema";
+import { applications, notifications, workProfiles } from "@/db/schema";
 import type { ApplicationStatus } from "@/lib/applications/status";
 import { createUser, resetDb, setPlan } from "@/lib/auth/test-helpers";
 import { resetEnvForTests } from "@/lib/env";
@@ -10,7 +10,8 @@ import { setEmailReminders } from "@/lib/notifications/records";
 import { deleteUserData } from "@/lib/users";
 import { runFollowUps } from "./follow-ups";
 
-const DAY = 24 * 60 * 60 * 1_000;
+const HOUR = 60 * 60 * 1_000;
+const DAY = 24 * HOUR;
 const NOW = Date.UTC(2026, 10, 8, 14, 0, 0);
 const context = () => ({ now: NOW, deadline: Date.now() + 30_000 });
 
@@ -21,6 +22,7 @@ type Seed = {
   followUpInDays?: number | null;
   status?: ApplicationStatus;
   remindedAt?: number | null;
+  interviewAt?: number | null;
 };
 
 async function seed(userId: string, rows: Seed[]): Promise<string[]> {
@@ -46,6 +48,7 @@ async function seed(userId: string, rows: Seed[]): Promise<string[]> {
       statusChangedAt: sent,
       remindedAt: row.remindedAt ?? null,
       followUpAt,
+      interviewAt: row.interviewAt ?? null,
       createdAt: sent,
       updatedAt: sent,
     });
@@ -69,7 +72,18 @@ async function proUser(email: string) {
 }
 
 async function notificationsOf(userId: string) {
-  return (await getDb()).select().from(notifications).where(eq(notifications.userId, userId));
+  const rows = await (await getDb())
+    .select()
+    .from(notifications)
+    .where(eq(notifications.userId, userId));
+  return rows.sort((a, b) => b.createdAt - a.createdAt);
+}
+
+async function interview(userId: string, company: string, interviewAt: number): Promise<string> {
+  const [id] = await seed(userId, [
+    { company, role: "Backend Engineer", appliedDaysAgo: 20, status: "interview", interviewAt },
+  ]);
+  return id!;
 }
 
 describe("runFollowUps", () => {
@@ -86,7 +100,7 @@ describe("runFollowUps", () => {
     resetEnvForTests();
   });
 
-  it("reminds once per account about every follow-up that came due, and emails it", async () => {
+  it("gives each follow-up that came due its own bell row, and emails them together", async () => {
     const maya = await proUser("maya@example.com");
     await setEmailReminders(maya.id, true);
     const [stripe] = await seed(maya.id, [
@@ -103,19 +117,30 @@ describe("runFollowUps", () => {
     const outcome = await runFollowUps(context(), { sender });
 
     expect(outcome).toEqual({
-      stats: { users: 1, applications: 3, emailsSent: 1, emailsFailed: 0, emailsSkipped: 0 },
+      stats: {
+        users: 1,
+        applications: 3,
+        interviews: 0,
+        emailsSent: 1,
+        emailsFailed: 0,
+        emailsSkipped: 0,
+      },
       complete: true,
       failed: [],
     });
-    const [notice, ...others] = await notificationsOf(maya.id);
-    expect(others).toHaveLength(0);
-    expect(notice).toMatchObject({
+    const rows = await notificationsOf(maya.id);
+    expect(rows.map((row) => row.title)).toEqual([
+      "Time to follow up with Asana?",
+      "Time to follow up with Stripe?",
+      "Time to follow up with Linear?",
+    ]);
+    expect(rows[1]).toMatchObject({
       kind: "application_follow_up",
-      title: "3 applications are ready for a follow-up",
-      body: "Asana, Stripe and 1 more are ready for a follow-up. A short note can help.",
-      link: "/dashboard/applications",
+      body: "It's been 9 days since you applied to Stripe. A short follow-up can help.",
+      link: `/dashboard/applications/${stripe}`,
+      applicationId: stripe,
       readAt: null,
-      createdAt: NOW,
+      createdAt: NOW - 1,
     });
 
     const reminded = await (
@@ -148,6 +173,9 @@ describe("runFollowUps", () => {
       ),
     );
     expect(email!.text).toContain("Snooze 3 days: https://otto.test/reminder?do=snooze");
+    expect(email!.text).toContain(
+      `Write it for me: https://otto.test/dashboard/applications/${stripe}?write=follow-up`,
+    );
     expect(email!.text).toContain("https://otto.test/dashboard/applications");
     expect(email!.text).toContain("https://otto.test/reminder?do=unsubscribe");
     expect(email!.text).toContain("https://otto.test/dashboard/account#reminders");
@@ -259,6 +287,28 @@ describe("runFollowUps", () => {
     });
     expect(await notificationsOf(free.id)).toHaveLength(1);
     expect(sender.calls).toHaveLength(1);
+    // The writer is a Pro tool, and a reminder never sells.
+    expect(sender.calls[0]!.messages[0]!.text).not.toContain("Write it for me");
+  });
+
+  it("folds more than three follow-ups into one bell row", async () => {
+    const maya = await proUser("maya@example.com");
+    await seed(maya.id, [
+      { company: "Stripe", appliedDaysAgo: 9 },
+      { company: "Linear", appliedDaysAgo: 8 },
+      { company: "Figma", appliedDaysAgo: 10 },
+      { company: "Notion", appliedDaysAgo: 11 },
+    ]);
+
+    await runFollowUps(context(), { sender: null });
+
+    const rows = await notificationsOf(maya.id);
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({
+      title: "4 applications are ready for a follow-up",
+      link: "/dashboard/applications",
+      applicationId: null,
+    });
   });
 
   it("finds nothing for a deleted account", async () => {
@@ -269,5 +319,99 @@ describe("runFollowUps", () => {
     const outcome = await runFollowUps(context(), { sender: null });
     expect(outcome.stats.users).toBe(0);
     expect(await (await getDb()).select().from(notifications)).toHaveLength(0);
+  });
+
+  it("reminds the day before an interview, once, in the bell and the reminder email", async () => {
+    const maya = await proUser("maya@example.com");
+    await setEmailReminders(maya.id, true);
+    const tomorrow = Date.UTC(2026, 10, 9, 12);
+    const stripe = await interview(maya.id, "Stripe", tomorrow);
+    await interview(maya.id, "Later", Date.UTC(2026, 10, 10, 12));
+    await interview(maya.id, "Past", NOW - HOUR);
+    await seed(maya.id, [
+      { company: "Applied", appliedDaysAgo: 2, followUpInDays: 3, interviewAt: tomorrow },
+      { company: "Offer", appliedDaysAgo: 30, status: "offer", interviewAt: tomorrow },
+    ]);
+    const sender = fakeSender();
+
+    const outcome = await runFollowUps(context(), { sender });
+
+    expect(outcome.stats).toMatchObject({ users: 1, applications: 0, interviews: 1, emailsSent: 1 });
+    const rows = await notificationsOf(maya.id);
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({
+      kind: "interview_soon",
+      title: "Your interview with Stripe is tomorrow",
+      body: "For the Backend Engineer role. Go over the likely questions in your prep before you go.",
+      link: `/dashboard/applications/${stripe}/prep?start=1`,
+      applicationId: stripe,
+    });
+    const [email] = sender.calls[0]!.messages;
+    expect(email).toMatchObject({
+      to: "maya@example.com",
+      subject: "Your interview with Stripe is tomorrow",
+      tags: [{ name: "kind", value: "interview_soon" }],
+    });
+    expect(email!.text).toContain(
+      `Open your prep: https://otto.test/dashboard/applications/${stripe}/prep?start=1`,
+    );
+
+    expect((await runFollowUps(context(), { sender })).stats.users).toBe(0);
+    expect(sender.calls).toHaveLength(1);
+  });
+
+  it("reminds again when the interview moves, and keeps it in the bell when emails are off", async () => {
+    const maya = await proUser("maya@example.com");
+    const stripe = await interview(maya.id, "Stripe", Date.UTC(2026, 10, 9, 12));
+    const sender = fakeSender();
+    await runFollowUps(context(), { sender });
+
+    await (await getDb())
+      .update(applications)
+      .set({ interviewAt: Date.UTC(2026, 10, 9, 16) })
+      .where(eq(applications.id, stripe));
+    const moved = await runFollowUps(context(), { sender });
+
+    expect(moved.stats).toMatchObject({ users: 1, interviews: 1, emailsSkipped: 1 });
+    expect(await notificationsOf(maya.id)).toHaveLength(2);
+    expect(sender.calls).toHaveLength(0);
+  });
+
+  it("says the day in the account's own time zone", async () => {
+    const maya = await proUser("maya@example.com");
+    await (await getDb()).insert(workProfiles).values({
+      userId: maya.id,
+      timeZone: "America/Los_Angeles",
+      createdAt: NOW,
+      updatedAt: NOW,
+    });
+    await interview(maya.id, "Stripe", Date.UTC(2026, 10, 9, 1));
+
+    await runFollowUps(context(), { sender: null });
+
+    const [row] = await notificationsOf(maya.id);
+    expect(row?.title).toBe("Your interview with Stripe is today");
+  });
+
+  it("sends one email with the interview first and the follow-up after it", async () => {
+    const maya = await proUser("maya@example.com");
+    await setEmailReminders(maya.id, true);
+    const figma = await interview(maya.id, "Figma", Date.UTC(2026, 10, 9, 12));
+    await seed(maya.id, [{ company: "Stripe", appliedDaysAgo: 9 }]);
+    const sender = fakeSender();
+
+    const outcome = await runFollowUps(context(), { sender });
+
+    expect(outcome.stats).toMatchObject({ users: 1, applications: 1, interviews: 1, emailsSent: 1 });
+    expect((await notificationsOf(maya.id)).map((row) => row.kind)).toEqual([
+      "interview_soon",
+      "application_follow_up",
+    ]);
+    expect(sender.calls[0]!.messages).toHaveLength(1);
+    const [email] = sender.calls[0]!.messages;
+    expect(email!.subject).toBe("Your interview with Figma is tomorrow");
+    expect(email!.text.indexOf("Figma")).toBeLessThan(email!.text.indexOf("Stripe"));
+    expect(email!.text).toContain(`/dashboard/applications/${figma}/prep?start=1`);
+    expect(email!.text).toContain("Open your applications: https://otto.test/dashboard/applications");
   });
 });

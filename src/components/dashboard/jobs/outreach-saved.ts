@@ -16,6 +16,8 @@ export type OutreachJob = {
   applicationId?: string | null;
   // The post's text when it is already at hand, such as the one a tailored copy was made from.
   post?: string;
+  // Set when the person applied that many days ago and wants a follow-up rather than a first message.
+  followUp?: { days: number };
 };
 
 export type OutreachFields = Pick<OutreachDraft, "subject" | "email" | "note">;
@@ -24,13 +26,16 @@ export type OutreachField = keyof OutreachFields;
 const oneLine = (value: string) => value.replace(/\s+/g, " ").trim();
 
 export function outreachKey(job: OutreachJob): string {
+  if (job.followUp) return `follow-up:${outreachKey({ ...job, followUp: undefined })}`;
   if (job.id) return `job:${job.id}`;
   if (job.url.trim()) return `url:${job.url.trim()}`;
   if (job.applicationId) return `application:${job.applicationId}`;
   return `name:${oneLine(job.company).toLowerCase()}|${oneLine(job.title).toLowerCase()}`;
 }
 
+// A follow-up is always a new message, so it never opens the first one.
 export function outreachLookup(job: OutreachJob): OutreachLookup | null {
+  if (job.followUp) return null;
   const lookup = { job: job.id ?? "", application: job.applicationId ?? "" };
   return lookup.job || lookup.application ? lookup : null;
 }

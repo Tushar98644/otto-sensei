@@ -1,26 +1,55 @@
 "use client";
 
+import { Link2 } from "lucide-react";
+import { useShareResume } from "@/components/share/use-share-resume";
+import { Button } from "@/components/ui/button";
 import {
   PORTFOLIO_SECTION_LABELS,
   type Portfolio,
   type PortfolioSection,
 } from "@/lib/portfolio/types";
+import type { Resume } from "@/lib/resume/schema";
 import { CheckRow, EditorSection } from "./check-row";
+import { resumeLinkLine } from "./lines";
 import { savePortfolio } from "./portfolio-store";
+import type { ResumeLink } from "./use-resume-link";
 
 type VisibilityCardProps = {
   portfolio: Portfolio;
   sections: readonly PortfolioSection[];
   email: string;
   phone: string;
+  resumeLink: ResumeLink;
+  source: Resume | null;
   disabled: boolean;
 };
+
+function ShareAction({ resume, shared }: { resume: Resume; shared: boolean }) {
+  const share = useShareResume(resume);
+  return (
+    <div>
+      {shared ? (
+        <Button variant="secondary" size="sm" onClick={share.open}>
+          Link settings
+        </Button>
+      ) : (
+        <Button variant="secondary" size="sm" onClick={share.share}>
+          <Link2 aria-hidden />
+          Share this resume
+        </Button>
+      )}
+      {share.dialog}
+    </div>
+  );
+}
 
 export function VisibilityCard({
   portfolio,
   sections,
   email,
   phone,
+  resumeLink,
+  source,
   disabled,
 }: VisibilityCardProps) {
   const hidden = new Set(portfolio.hiddenSections);
@@ -89,6 +118,9 @@ export function VisibilityCard({
             />
           </div>
         </fieldset>
+      </EditorSection>
+      <EditorSection title="Resume link" description={resumeLinkLine(resumeLink)}>
+        {source ? <ShareAction resume={source} shared={resumeLink.shared} /> : null}
       </EditorSection>
     </div>
   );

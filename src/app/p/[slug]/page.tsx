@@ -87,7 +87,11 @@ export default async function PublicPortfolioPage({ params }: Props) {
       className={cn("flex min-h-dvh flex-col", templateFontClasses(portfolio.template))}
     >
       {jsonLd ? <JsonLd data={jsonLd} /> : null}
-      <Component view={portfolio.view} content={portfolio.content} />
+      <Component
+        view={portfolio.view}
+        content={portfolio.content}
+        resumeHref={portfolio.resumeHref}
+      />
       <PortfolioViewBeacon slug={portfolio.slug} />
     </main>
   );

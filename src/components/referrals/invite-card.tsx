@@ -48,9 +48,11 @@ export function InviteCard({ plan }: { plan: PlanId }) {
   useEffect(fetchSummary, [fetchSummary]);
 
   return (
-    <Card>
+    <Card id="invite" role="region" aria-labelledby="invite-title">
       <CardHeader>
-        <CardTitle as="h3">Your invite link</CardTitle>
+        <CardTitle as="h2" id="invite-title">
+          Invite friends
+        </CardTitle>
         <CardDescription>
           When a friend signs up with your link and checks a resume, you each get{" "}
           {REFERRAL_BONUS.fix} more line fixes and {REFERRAL_BONUS.tailor} more tailored versions

@@ -838,3 +838,55 @@ describe("startCloudSync with edits on two devices", () => {
     expect(cloud.get(cv.id)?.title).toBe("From a clock running ahead");
   });
 });
+
+describe("startCloudSync's backup status", () => {
+  it("is saving until the edit reaches the account, then saved", async () => {
+    const mine = resume("Draft", 1_000);
+    store().addResume(mine);
+    const { api } = fakeAccount();
+    const onBackupChange = vi.fn();
+    const sync = start(api, createLedger(memoryStorage()), USER, undefined, undefined, {
+      onBackupChange,
+    });
+    expect(sync.backupOf(mine.id)).toBe("saving");
+    await sync.flush();
+    expect(sync.backupOf(mine.id)).toBe("saved");
+
+    onBackupChange.mockClear();
+    store().updateResume(mine.id, (r) => ({ ...r, title: "Edited" }));
+    expect(onBackupChange).toHaveBeenCalled();
+    expect(sync.backupOf(mine.id)).toBe("saving");
+    await vi.advanceTimersByTimeAsync(DEBOUNCE_MS);
+    expect(sync.backupOf(mine.id)).toBe("saved");
+  });
+
+  it("says the backup failed until a retry gets through", async () => {
+    const mine = resume("Draft", 1_000);
+    store().addResume(mine);
+    const { api, queueFailure } = fakeAccount();
+    queueFailure("putResume", new ApiClientError("network_error", "Offline.", 0));
+    const sync = start(api, createLedger(memoryStorage()));
+    await sync.flush();
+    expect(sync.backupOf(mine.id)).toBe("failed");
+
+    await vi.advanceTimersByTimeAsync(5_000);
+    expect(sync.backupOf(mine.id)).toBe("saved");
+  });
+
+  it("is local for a resume the account turned away, signed out, or once stopped", async () => {
+    const old = resume("Old", 1_000);
+    const extra = resume("Second resume", 1_000);
+    store().addResume(old);
+    store().addResume(extra);
+    const { api, queueFailure } = fakeAccount([old]);
+    queueFailure("putResume", new ApiClientError("upgrade_required", "Try Pro.", 402));
+    const sync = start(api, createLedger(memoryStorage()));
+    await sync.flush();
+    expect(sync.backupOf(extra.id)).toBe("local");
+    expect(sync.backupOf(old.id)).toBe("saved");
+
+    sync.stop();
+    expect(sync.backupOf(old.id)).toBe("local");
+    expect(start(api, createLedger(memoryStorage()), null).backupOf(old.id)).toBe("local");
+  });
+});

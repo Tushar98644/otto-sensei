@@ -134,7 +134,7 @@ function PixelHeart() {
   );
 }
 
-export function BentoTemplate({ view, content, footer }: PortfolioTemplateProps) {
+export function BentoTemplate({ view, content, footer, resumeHref }: PortfolioTemplateProps) {
   const name = nameOf(view);
   const socials = content.socials.filter((social) => social.kind !== "email");
   const buttons = [
@@ -210,10 +210,10 @@ export function BentoTemplate({ view, content, footer }: PortfolioTemplateProps)
           </Tile>
         ) : null}
 
-        {content.email || location || socials.length > 0 ? (
+        {content.email || location || socials.length > 0 || resumeHref ? (
           <Tile className="t-contact contact pad-lg">
             <h2 className="title">Let&rsquo;s start working together!</h2>
-            {content.email || location ? (
+            {content.email || location || resumeHref ? (
               <address>
                 <h3 className="label">Contact Details</h3>
                 {content.email ? (
@@ -222,6 +222,11 @@ export function BentoTemplate({ view, content, footer }: PortfolioTemplateProps)
                   </p>
                 ) : null}
                 {location ? <p>{country || location.label}</p> : null}
+                {resumeHref ? (
+                  <p className="email">
+                    <a href={resumeHref}>Resume</a>
+                  </p>
+                ) : null}
               </address>
             ) : null}
             {socials.length > 0 ? (

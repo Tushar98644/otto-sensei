@@ -73,6 +73,15 @@ describe("POST /api/outreach", () => {
     expect((await getUsage(user)).letter.used).toBe(1);
   });
 
+  it("writes a follow-up on an application, and refuses a day count that isn't one", async () => {
+    const user = await signInOnTrial("ada@example.com", TRIAL_END);
+    const json = (await (await send({ ...body(), followUp: { days: 9 } })).json()) as OutreachResponse;
+    expect(json.result.subject).toBe("Following up: Senior Product Marketing Manager at Contoso");
+    const bad = await send({ ...body(), followUp: { days: 0 } });
+    expect(bad.status).toBe(400);
+    expect((await getUsage(user)).letter.used).toBe(1);
+  });
+
   it("signs off in the account's saved style", async () => {
     const user = await signInOnTrial("ada@example.com", TRIAL_END);
     await saveWritingStyle(user.id, { ...DEFAULT_WRITING_STYLE, signOff: "Cheers," });

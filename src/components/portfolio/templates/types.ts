@@ -8,6 +8,7 @@ export type PortfolioTemplateProps = {
   view: PortfolioView;
   content: PortfolioContentView;
   footer?: ReactNode;
+  resumeHref?: string | null;
 };
 
 export type PortfolioTemplate = PortfolioTemplateInfo & {

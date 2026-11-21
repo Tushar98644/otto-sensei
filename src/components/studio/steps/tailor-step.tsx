@@ -1,8 +1,17 @@
 "use client";
 
-import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  memo,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
 import dynamic from "next/dynamic";
 import { Pencil } from "lucide-react";
+import { useResumeAfterSignIn } from "@/components/account/account-gate";
 import { useProTools } from "@/components/account/pro-tools";
 import { useMe } from "@/components/account/use-me";
 import { EligibilityCard } from "@/components/eligibility/eligibility-card";
@@ -20,12 +29,20 @@ import {
   flushTailorSession,
   loadDraft,
   peekQueuedJob,
+  queuedJobVersion,
   queueTailorSession,
+  subscribeQueuedJob,
   type TailorDraft,
 } from "@/components/studio/tailor/session";
+import { SkipBar } from "@/components/studio/tailor/skip-bar";
 import { tailorIncluded } from "@/components/studio/tailor/tailor-access";
 import { TailorResults } from "@/components/studio/tailor/tailor-results";
-import { useTailorRun, type ResultPatch } from "@/components/studio/tailor/use-tailor";
+import { TailorWait } from "@/components/studio/tailor/tailor-wait";
+import {
+  compareActionKind,
+  useTailorRun,
+  type ResultPatch,
+} from "@/components/studio/tailor/use-tailor";
 import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -67,6 +84,8 @@ function jobLabel(title: string, company: string): string {
   const parts = [title.trim(), company.trim()].filter(Boolean);
   return parts.length > 0 ? parts.join(" · ") : "The job post you pasted";
 }
+
+const noQueue = () => 0;
 
 function TailorWorkspace({ source, baseTitle }: { source: Resume; baseTitle: string | null }) {
   const [queued] = useState(peekQueuedJob);
@@ -114,9 +133,11 @@ function TailorWorkspace({ source, baseTitle }: { source: Resume; baseTitle: str
   let otto: string = OTTO.tailor.intro;
   if (run.loading) otto = OTTO.tailor.working;
   else if (run.error) otto = run.error;
+  else if (run.cancelled) otto = OTTO.tailor.cancelled;
   else if (free) otto = FREE_OTTO;
   else if (screener) otto = OTTO.tailor.screener(screener.counts.must, screener.counts.nice);
 
+  const showingResults = !free && Boolean(last && choices && screener);
   const shownJob = free ?? run.last?.job ?? null;
   const postChanged = shownJob !== null && shownJob.text.trim() !== draft.text.trim();
   const folded =
@@ -148,6 +169,7 @@ function TailorWorkspace({ source, baseTitle }: { source: Resume; baseTitle: str
   async function signInAndCompare() {
     if (await run.signIn()) void compareNow.current();
   }
+  useResumeAfterSignIn(compareActionKind(source.id), () => void compareNow.current());
   const location = draft.posting?.location ?? "";
   const eligibility = useMemo(
     () =>
@@ -191,9 +213,13 @@ function TailorWorkspace({ source, baseTitle }: { source: Resume; baseTitle: str
           busy={run.loading}
           note={usageNote}
           queued={queued}
+          onPageLink={() => setEditingPost(true)}
+          recent
         />
       </Card>
-      {run.loading ? <OttoWorking task="tailor" /> : null}
+      {run.loading && run.startedAt !== null ? (
+        <TailorWait startedAt={run.startedAt} onCancel={run.cancel} />
+      ) : null}
       {free ? (
         <>
           {postChanged ? (
@@ -259,6 +285,7 @@ function TailorWorkspace({ source, baseTitle }: { source: Resume; baseTitle: str
           </Button>
         </>
       ) : null}
+      {showingResults ? null : <SkipBar />}
       {run.dialogs}
     </div>
   );
@@ -272,6 +299,8 @@ export function TailorStep() {
   const setStep = useStudioStore((s) => s.setStep);
   const pro = useProTools();
   const pageSize = usePageSize();
+  // A job handed over while the step shows starts a fresh workspace, which reads it like Jobs does.
+  const queueVersion = useSyncExternalStore(subscribeQueuedJob, queuedJobVersion, noQueue);
 
   useEffect(() => {
     const timer = window.setTimeout(preloadPdfRenderer, PRELOAD_DELAY_MS);
@@ -303,5 +332,7 @@ export function TailorStep() {
   // Tailoring a copy would stack two jobs' changes, so work from the original while it exists.
   const source = base ?? active;
   const baseTitle = base ? base.title || "your original resume" : null;
-  return <TailorWorkspace key={source.id} source={source} baseTitle={baseTitle} />;
+  return (
+    <TailorWorkspace key={`${source.id}:${queueVersion}`} source={source} baseTitle={baseTitle} />
+  );
 }

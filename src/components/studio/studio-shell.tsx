@@ -24,7 +24,13 @@ import {
 } from "@/lib/store/resume-store";
 import { useCloudSync, useFirstLoadPending } from "@/lib/sync/use-cloud-sync";
 import { createStepLoader, type StepLoader } from "./step-loader";
-import { adjacentStep, resolveStep, stepsToPreload, type StepContext } from "./step-state";
+import {
+  adjacentStep,
+  hasTailoredCopy,
+  resolveStep,
+  stepsToPreload,
+  type StepContext,
+} from "./step-state";
 import { StepSkeleton, StudioSkeleton } from "./studio-skeleton";
 import { StudioStepper } from "./studio-stepper";
 import { StudioTopBar } from "./studio-top-bar";
@@ -62,7 +68,7 @@ export function StudioShell() {
       <StudioTopBar hydrated={hydrated} onSignIn={signIn} />
       <main
         id="main"
-        className="mx-auto flex w-full max-w-5xl flex-1 flex-col px-4 pt-4 pb-16 sm:px-6 sm:pt-6"
+        className="mx-auto flex w-full max-w-6xl flex-1 flex-col px-4 pt-4 pb-16 sm:px-6 sm:pt-6"
       >
         {hydrated ? <StudioSteps /> : <StudioSkeleton />}
       </main>
@@ -77,10 +83,11 @@ function StudioSteps() {
   const hasResume = useStudioStore((s) =>
     s.activeId ? Object.hasOwn(s.resumes, s.activeId) : false,
   );
+  const hasTailored = useStudioStore((s) => hasTailoredCopy(s.resumes, s.activeId));
   const report = useActiveReport();
   const savedStep = useStudioStore((s) => s.step);
   const setStep = useStudioStore((s) => s.setStep);
-  const context: StepContext = { hasResume, hasReport: report !== null };
+  const context: StepContext = { hasResume, hasReport: report !== null, hasTailored };
   const step = resolveStep(savedStep, context);
   const next = adjacentStep(step, 1, context);
   const visibleStep = useDeferredValue(step);

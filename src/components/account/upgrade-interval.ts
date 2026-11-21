@@ -7,8 +7,12 @@ export function upgradeInterval(me: Me | null | undefined, plan: PaidPlanId): Bi
   return current && me?.billing.offer[plan].includes(current) ? current : "month";
 }
 
-export function upgradeLink(me: Me | null | undefined, plan: PaidPlanId): string {
+export function upgradeLink(
+  me: Me | null | undefined,
+  plan: PaidPlanId,
+  next?: string | null,
+): string {
   const user = me?.user;
   if (plan === "max" && user?.plan === "pro" && isTrialing(user)) return ROUTES.pricing;
-  return upgradeHref(plan, upgradeInterval(me, plan));
+  return upgradeHref(plan, upgradeInterval(me, plan), next);
 }

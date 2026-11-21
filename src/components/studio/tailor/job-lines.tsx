@@ -3,11 +3,11 @@
 import { ArrowUpRight, TriangleExclamationPoint } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import type { JobLine } from "@/lib/tailor/reasons";
 import { pluralize } from "@/lib/utils";
+import { ResultSection } from "./result-section";
 
-export const JOB_LINES_ID = "tailor-lines";
+const JOB_LINES_ID = "tailor-lines";
 const SHOWN = 4;
 
 export type JobLinesProps = {
@@ -22,19 +22,15 @@ export function JobLines({ lines, unrelated, addedIds, onJump }: JobLinesProps) 
   if (lines.length === 0) return null;
   const shown = all ? lines : lines.slice(0, SHOWN);
   const weak = lines.filter((line) => line.problem).length;
+  const meta = `${pluralize(lines.length, "line")} ${lines.length === 1 ? "shows" : "show"} what this post asks for${weak > 0 ? ` · ${weak} could say it better` : ""}`;
   return (
-    <Card id={JOB_LINES_ID} className="scroll-mt-24">
-      <CardHeader>
-        <CardTitle as="h2">Your lines for this job</CardTitle>
-        <CardDescription>
-          {pluralize(lines.length, "line")} {lines.length === 1 ? "shows" : "show"} what this post
-          asks for
-          {weak > 0 ? `, and ${weak} of them could say it better.` : "."}
-          {unrelated > 0
-            ? ` ${pluralize(unrelated, "other line")} ${unrelated === 1 ? "shows" : "show"} nothing it asks for; ${unrelated === 1 ? "it" : "they"} can stay, lower down.`
-            : ""}
-        </CardDescription>
-      </CardHeader>
+    <ResultSection id={JOB_LINES_ID} title="Your lines for this job" meta={meta}>
+      {unrelated > 0 ? (
+        <p className="text-sm text-muted">
+          {pluralize(unrelated, "other line")} {unrelated === 1 ? "shows" : "show"} nothing it asks
+          for; {unrelated === 1 ? "it" : "they"} can stay, lower down.
+        </p>
+      ) : null}
       <ul className="divide-y divide-border border-y border-border">
         {shown.map((line) => (
           <li key={line.bulletId} className="flex flex-col gap-2 py-4">
@@ -89,6 +85,6 @@ export function JobLines({ lines, unrelated, addedIds, onJump }: JobLinesProps) 
           {all ? "Show fewer" : `Show all ${lines.length} lines`}
         </Button>
       ) : null}
-    </Card>
+    </ResultSection>
   );
 }

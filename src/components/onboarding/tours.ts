@@ -31,13 +31,8 @@ export function studioTourEligible({ step, hasResume, hasReport }: StudioTourSta
 export type DashboardTourState = {
   pathname: string;
   hydrated: boolean;
-  setupStep?: "wait" | "show" | "skip";
 };
 
-export function dashboardTourEligible({
-  pathname,
-  hydrated,
-  setupStep = "skip",
-}: DashboardTourState): boolean {
-  return hydrated && pathname === ROUTES.dashboard && setupStep === "skip";
+export function dashboardTourEligible({ pathname, hydrated }: DashboardTourState): boolean {
+  return hydrated && pathname === ROUTES.dashboard;
 }

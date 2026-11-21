@@ -1,4 +1,7 @@
+import { ArrowRight } from "lucide-react";
+import Link from "next/link";
 import type { ReactNode } from "react";
+import { buttonClasses } from "@/components/ui/button";
 import { Eyebrow } from "@/components/ui/eyebrow";
 import { cn } from "@/lib/utils";
 
@@ -57,6 +60,16 @@ export function SectionHeader({
         <p className="mt-4 max-w-prose text-lg/7 text-muted sm:text-xl/8">{children}</p>
       ) : null}
     </div>
+  );
+}
+
+// A ghost key whose label lines up with the text above: -ml-4.25 takes back its px-4 and 1px border.
+export function SectionLink({ href, children }: { href: string; children: ReactNode }) {
+  return (
+    <Link href={href} className={buttonClasses({ variant: "ghost", className: "mt-6 -ml-4.25" })}>
+      {children}
+      <ArrowRight />
+    </Link>
   );
 }
 
