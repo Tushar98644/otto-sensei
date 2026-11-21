@@ -12,15 +12,19 @@ import {
   FILTER_LABELS,
   filterCounts,
   libraryView,
+  toolbarParts,
   type LibraryFilter,
   type LibrarySort,
 } from "./library";
+import { AddResumeTile } from "./add-resume-tile";
 import { LibraryToolbar } from "./library-toolbar";
 import { NewResumeMenu } from "./new-resume-menu";
 import { cardId } from "./resume-card";
 import { ResumeGrid } from "./resume-grid";
 import { useStudioActions, type StudioActions } from "./use-studio-actions";
 import { RecentlyDeletedLink } from "./trash/recently-deleted-link";
+
+const STORED = "Saved in this browser and backed up to your account.";
 
 function reveal(resumeId: string) {
   const card = document.getElementById(cardId(resumeId));
@@ -38,6 +42,7 @@ export function ResumesPage() {
   const [filter, setFilter] = useState<LibraryFilter>("all");
   const [sort, setSort] = useState<LibrarySort>("edited");
   const counts = useMemo(() => filterCounts(resumes), [resumes]);
+  const parts = toolbarParts(counts, { query, filter, sort });
   const shown = useMemo(
     () => libraryView(resumes, { query, filter, sort }),
     [resumes, query, filter, sort],
@@ -73,11 +78,14 @@ export function ResumesPage() {
           </h1>
           <p className="mt-2 max-w-prose text-base/7 text-muted">
             {hydrated && resumes.length > 0
-              ? `${pluralize(resumes.length, "resume")}${tailored > 0 ? `, ${tailored} tailored to a job` : ""}. Kept in this browser and backed up to your account.`
-              : "Everything in this browser and your account backup."}
+              ? `${pluralize(resumes.length, "resume")}${tailored > 0 ? `, ${tailored} tailored to a job` : ""}. ${STORED}`
+              : STORED}
           </p>
         </div>
-        <NewResumeMenu actions={actions} align="end" />
+        {/* From lg the sidebar holds the New resume menu. */}
+        <div className="lg:hidden">
+          <NewResumeMenu actions={actions} align="end" />
+        </div>
       </header>
 
       {!hydrated ? (
@@ -94,12 +102,19 @@ export function ResumesPage() {
             sort={sort}
             onSortChange={setSort}
             counts={counts}
+            parts={parts}
           />
           <p aria-live="polite" className="sr-only">
             {narrowed ? `${pluralize(shown.length, "resume")} shown of ${resumes.length}` : ""}
           </p>
           {shown.length > 0 ? (
-            <ResumeGrid resumes={shown} all={resumes} actions={actions} onShowBase={showBase} />
+            <ResumeGrid
+              resumes={shown}
+              all={resumes}
+              actions={actions}
+              onShowBase={showBase}
+              end={narrowed ? null : <AddResumeTile actions={actions} />}
+            />
           ) : (
             <div className="rounded-2xl bg-surface p-6 sm:p-8">
               <OttoNote

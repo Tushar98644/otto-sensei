@@ -9,7 +9,7 @@ import { ROUTES } from "@/components/site/routes";
 import { formatRelativeTime } from "@/components/studio/relative-time";
 import { tailoredLabel } from "@/components/studio/resume-label";
 import { useNow } from "@/components/studio/use-now";
-import { Button, buttonClasses } from "@/components/ui/button";
+import { Button } from "@/components/ui/button";
 import { Dialog } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "@/components/ui/toast";
@@ -67,8 +67,8 @@ export function TrashPage() {
             Recently deleted
           </h1>
           <p className="mt-2 max-w-prose text-base/7 text-muted">
-            Deleted resumes wait here for {TRASH_DAYS} days, in this browser only. Restoring one
-            brings it back as a new copy.
+            Deleting a resume removes its account backup right away. This browser keeps it here
+            for {TRASH_DAYS} days, or until you sign out. Restoring brings it back as a new copy.
           </p>
         </div>
         {hydrated && entries.length > 0 ? (
@@ -88,17 +88,7 @@ export function TrashPage() {
         </div>
       ) : entries.length === 0 ? (
         <div className="rounded-2xl bg-surface p-6 sm:p-8">
-          <OttoNote
-            live={false}
-            message={`Nothing here. Resumes you delete wait here for ${TRASH_DAYS} days.`}
-          >
-            <Link
-              href={ROUTES.dashboardResumes}
-              className={buttonClasses({ variant: "secondary" })}
-            >
-              Back to resumes
-            </Link>
-          </OttoNote>
+          <OttoNote live={false} message="No deleted resumes right now." />
         </div>
       ) : (
         <section aria-label="Deleted resumes" className="rounded-2xl bg-surface px-4 sm:px-6">

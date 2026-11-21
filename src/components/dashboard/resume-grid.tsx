@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import { roomForResume } from "@/components/account/pro-tools";
 import { useNow } from "@/components/studio/use-now";
 import { Lazy, lazyComponent, useOpenedOnce } from "@/components/ui/lazy";
@@ -22,6 +22,7 @@ export type ResumeGridProps = {
   actions: StudioActions;
   onShowBase?: (id: string) => void;
   cheer?: boolean;
+  end?: ReactNode;
   className?: string;
 };
 
@@ -31,6 +32,7 @@ export function ResumeGrid({
   actions,
   onShowBase,
   cheer,
+  end,
   className,
 }: ResumeGridProps) {
   const now = useNow();
@@ -74,6 +76,7 @@ export function ResumeGrid({
             </li>
           );
         })}
+        {end ? <li className="flex flex-col">{end}</li> : null}
       </ul>
 
       <Lazy

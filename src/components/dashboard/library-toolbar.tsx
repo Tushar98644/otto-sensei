@@ -13,6 +13,7 @@ import {
   SORT_LABELS,
   type LibraryFilter,
   type LibrarySort,
+  type ToolbarParts,
 } from "./library";
 
 export type LibraryToolbarProps = {
@@ -23,6 +24,7 @@ export type LibraryToolbarProps = {
   sort: LibrarySort;
   onSortChange: (sort: LibrarySort) => void;
   counts: Record<LibraryFilter, number>;
+  parts: ToolbarParts;
 };
 
 const count = new Intl.NumberFormat("en-US");
@@ -35,51 +37,63 @@ export function LibraryToolbar({
   sort,
   onSortChange,
   counts,
+  parts,
 }: LibraryToolbarProps) {
+  if (!parts.filters && !parts.search) return null;
   return (
     <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
-      <div className="-mx-4 overflow-x-auto px-4 sm:mx-0 sm:px-0">
-        <div role="group" aria-label="Show" className="flex w-max gap-1 rounded-xl bg-surface-strong p-1">
-          {LIBRARY_FILTERS.map((item) => {
-            const selected = item === filter;
-            if (item !== "all" && counts[item] === 0 && !selected) return null;
-            return (
-              <button
-                key={item}
-                type="button"
-                aria-pressed={selected}
-                onClick={() => onFilterChange(item)}
-                className="flex h-9 shrink-0 items-center gap-1.5 rounded-lg px-3 text-sm font-medium text-muted transition-colors -outline-offset-2 hover:text-ink aria-pressed:bg-surface aria-pressed:text-ink aria-pressed:shadow-control pointer-coarse:h-10"
-              >
-                {FILTER_LABELS[item]}
-                <span className="text-xs text-muted tabular-nums">{count.format(counts[item])}</span>
-              </button>
-            );
-          })}
+      {parts.filters ? (
+        <div className="-mx-4 overflow-x-auto px-4 sm:mx-0 sm:px-0">
+          <div
+            role="group"
+            aria-label="Show"
+            className="flex w-max gap-1 rounded-xl bg-surface-strong p-1"
+          >
+            {LIBRARY_FILTERS.map((item) => {
+              const selected = item === filter;
+              if (item !== "all" && counts[item] === 0 && !selected) return null;
+              return (
+                <button
+                  key={item}
+                  type="button"
+                  aria-pressed={selected}
+                  onClick={() => onFilterChange(item)}
+                  className="flex h-9 shrink-0 items-center gap-1.5 rounded-lg px-3 text-sm font-medium text-muted transition-colors -outline-offset-2 hover:text-ink aria-pressed:bg-surface aria-pressed:text-ink aria-pressed:shadow-control pointer-coarse:h-10"
+                >
+                  {FILTER_LABELS[item]}
+                  <span className="text-xs text-muted tabular-nums">
+                    {count.format(counts[item])}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
         </div>
-      </div>
+      ) : null}
 
-      <div className="flex gap-2">
-        <SearchField value={query} onChange={onQueryChange} />
-        <Menu
-          label="Sort resumes"
-          align="end"
-          triggerLabel={`Sort by ${SORT_LABELS[sort].toLowerCase()}. Change order`}
-          triggerClassName={buttonClasses({ variant: "secondary", className: "px-3.5" })}
-          trigger={
-            <>
-              <ArrowDownUp aria-hidden className="text-muted" />
-              <span className="max-sm:sr-only">{SORT_LABELS[sort]}</span>
-              <ChevronDown aria-hidden className="text-muted" />
-            </>
-          }
-          items={LIBRARY_SORTS.map((item) => ({
-            label: SORT_LABELS[item],
-            checked: item === sort,
-            onSelect: () => onSortChange(item),
-          }))}
-        />
-      </div>
+      {parts.search ? (
+        <div className="flex gap-2">
+          <SearchField value={query} onChange={onQueryChange} />
+          <Menu
+            label="Sort resumes"
+            align="end"
+            triggerLabel={`Sort by ${SORT_LABELS[sort].toLowerCase()}. Change order`}
+            triggerClassName={buttonClasses({ variant: "secondary", className: "px-3.5" })}
+            trigger={
+              <>
+                <ArrowDownUp aria-hidden className="text-muted" />
+                <span className="max-sm:sr-only">{SORT_LABELS[sort]}</span>
+                <ChevronDown aria-hidden className="text-muted" />
+              </>
+            }
+            items={LIBRARY_SORTS.map((item) => ({
+              label: SORT_LABELS[item],
+              checked: item === sort,
+              onSelect: () => onSortChange(item),
+            }))}
+          />
+        </div>
+      ) : null}
     </div>
   );
 }

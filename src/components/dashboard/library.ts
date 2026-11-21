@@ -38,6 +38,23 @@ export function filterCounts(resumes: readonly Resume[]): Record<LibraryFilter, 
   return counts;
 }
 
+// Below this many resumes, search and sort only take up room.
+export const LIBRARY_SEARCH_FROM = 5;
+
+export type ToolbarParts = { filters: boolean; search: boolean };
+
+// A control in use stays, so a search or filter never keeps narrowing the list out of sight.
+export function toolbarParts(
+  counts: Record<LibraryFilter, number>,
+  { query, filter, sort }: LibraryQuery,
+): ToolbarParts {
+  const sources = LIBRARY_FILTERS.filter((item) => item !== "all" && counts[item] > 0).length;
+  return {
+    filters: sources >= 2 || filter !== "all",
+    search: counts.all >= LIBRARY_SEARCH_FROM || query !== "" || sort !== "edited",
+  };
+}
+
 function fold(text: string): string {
   return text.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase().replace(/\s+/g, " ").trim();
 }
