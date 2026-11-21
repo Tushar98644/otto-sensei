@@ -5,6 +5,7 @@ import { resetEnvForTests } from "@/lib/env";
 import { clearGitHubCache } from "@/lib/github/cache";
 import { installFakeGitHub, json, rawPull, rawRepo, searchResult, type FakeGitHub } from "@/lib/github/testing";
 import type { GitHubDraftResponse, GitHubLookupResponse } from "@/lib/github/types";
+import { freezeClock } from "@/lib/timing-testing";
 import { POST as draft } from "./draft/route";
 import { GITHUB_LIMITS } from "./limits";
 import { POST as lookup } from "./lookup/route";
@@ -112,6 +113,7 @@ describe("POST /api/github/lookup", () => {
   });
 
   it("limits lookups per device", async () => {
+    freezeClock();
     github = installFakeGitHub(standard);
     for (let i = 0; i < GITHUB_LIMITS.lookup.device; i++) {
       expect((await lookup(jsonRequest("/api/github/lookup", { username: "octocat" }))).status).toBe(200);
@@ -122,6 +124,7 @@ describe("POST /api/github/lookup", () => {
   });
 
   it("limits lookups per network across devices", async () => {
+    freezeClock();
     github = installFakeGitHub(standard);
     for (let i = 0; i < GITHUB_LIMITS.lookup.ip; i++) {
       cookieJar.clear();

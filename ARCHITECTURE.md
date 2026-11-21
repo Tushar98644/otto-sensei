@@ -138,7 +138,7 @@ All route handlers: `export const runtime = "nodejs"`; respond only via `ok()`/`
 | `POST /api/feedback` | "Send feedback" | Anyone; per device, IP and account |
 | `GET /api/referrals`, `POST /api/referrals/claim` | Invite link and counts; credit the `otto_ref` cookie's invite | Sign-in |
 | `POST /api/jobs/matches` | Open jobs ranked for one resume (or the saved ones), with filters and pages; body is `matchProfileOf(resume)`, never the resume. The day's cache and the impressions are written after the answer (`after()`) | Sign-in, 60 a minute per account; Pro (Free gets `locked: true` and the counts only) |
-| `GET /api/jobs/[id]` | One job's text, read live and kept a day (never a failed board read), for the tailor flow's backup | Sign-in |
+| `GET /api/jobs/[id]` | One job's text, read live and kept a day (never a failed board read: after one, that server instance answers the stored text for 15 minutes before asking the board again), for the tailor flow's backup | Sign-in, 120 an hour per account |
 | `GET /api/jobs/saved`, `PUT/DELETE /api/jobs/saved/[id]` | The saved jobs (the board's To apply column); save or forget a job (500 per account) | Sign-in; PUT Pro |
 | `GET/POST/PATCH /api/portfolio` | The account's one portfolio: load, make from a resume (or point at another), change address, template, what shows, sync, publish; every write drops the cached page | Sign-in; 120 writes an hour |
 | `GET /api/portfolio/slug?value=` | Address as it would be saved, and whether it's free | Sign-in; 30 a minute |

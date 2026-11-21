@@ -3,6 +3,7 @@ import { afterAll, describe, expect, it } from "vitest";
 import { PORTFOLIO_TEMPLATE_IDS } from "@/lib/portfolio/types";
 import { LOCAL_ONLY_DDL } from "./local-schema";
 import { readMigrations } from "./migration-files";
+import { MIGRATIONS_TIMEOUT_MS } from "./test-template";
 
 const VERSION = "20261108006000";
 
@@ -15,7 +16,7 @@ const MOVES = {
   signal: "navy",
 } as const;
 
-describe("reference templates migration", () => {
+describe("reference templates migration", { timeout: MIGRATIONS_TIMEOUT_MS }, () => {
   const client = new PGlite();
   afterAll(() => client.close());
 

@@ -2,6 +2,7 @@ import { PGlite } from "@electric-sql/pglite";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { LOCAL_ONLY_DDL } from "./local-schema";
 import { readMigrations } from "./migration-files";
+import { MIGRATIONS_TIMEOUT_MS } from "./test-template";
 
 const RESET = "20261120000100";
 const PADDLE_CUSTOMER = "ctm_01m7ewg4gtc04daxv580v9wx3x";
@@ -20,7 +21,7 @@ describe("reset Paddle plans migration", () => {
     for (const migration of migrations.filter((m) => m.version < RESET)) {
       await client.exec(migration.sql);
     }
-  });
+  }, MIGRATIONS_TIMEOUT_MS);
 
   const addUser = async (fields: Record<string, string | number | null>) => {
     const id = crypto.randomUUID();

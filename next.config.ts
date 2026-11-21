@@ -13,7 +13,12 @@ const securityHeaders = [
   },
 ];
 
+// E2E's own output folder (e2e/server.ts); its tsconfig only extends ours, so next dev leaves tsconfig.json alone.
+const distDir = process.env.OTTO_NEXT_DIST_DIR?.trim() || undefined;
+
 const nextConfig: NextConfig = {
+  distDir,
+  ...(distDir ? { typescript: { tsconfigPath: "tsconfig.e2e.json" } } : {}),
   // Bundling breaks these: they read their own files (WASM, data) or sockets at runtime.
   serverExternalPackages: ["postgres", "@electric-sql/pglite", "mammoth", "unpdf"],
   outputFileTracingExcludes: { "*": ["node_modules/@electric-sql/pglite/**"] },

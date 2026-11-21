@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { cpuMs } from "@/lib/timing-testing";
 import { flightJsonLd, flightPayload } from "./next-flight";
 import { postingFromHtml } from "./read";
 import { htmlPage, LONG_POST } from "./test-fixtures";
@@ -54,9 +55,7 @@ describe("flightJsonLd", () => {
 
   it("stays linear on an object that never closes", () => {
     const hostile = '{"@context":' + "{".repeat(200_000);
-    const started = performance.now();
-    expect(flightJsonLd([hostile], 5)).toEqual([]);
-    expect(performance.now() - started).toBeLessThan(1000);
+    expect(cpuMs(() => expect(flightJsonLd([hostile], 5)).toEqual([]))).toBeLessThan(1000);
   });
 });
 

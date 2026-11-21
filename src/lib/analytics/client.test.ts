@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { CaptureResult } from "posthog-js/dist/module.slim.js";
+import { WAIT_FOR_IMPORT } from "@/lib/timing-testing";
 
 const sdk = vi.hoisted(() => {
   const state = { distinctId: "anon-device-1", identified: false };
@@ -47,6 +48,9 @@ async function loadClient(): Promise<Client> {
 async function settle() {
   for (let i = 0; i < 5; i++) await new Promise((resolve) => setTimeout(resolve, 0));
 }
+
+// The SDK arrives through a dynamic import, which a busy machine can hold up for longer than a few ticks.
+const sdkLoaded = () => vi.waitFor(() => expect(sdk.init).toHaveBeenCalled(), WAIT_FOR_IMPORT);
 
 beforeEach(() => {
   vi.resetModules();
@@ -105,7 +109,7 @@ describe("init", () => {
   it("turns off autocapture, recordings, pageviews and cookies", async () => {
     const client = await loadClient();
     client.startAnalytics();
-    await settle();
+    await sdkLoaded();
     expect(sdk.init).toHaveBeenCalledOnce();
     const [key, options] = sdk.init.mock.calls[0] ?? [];
     expect(key).toBe("phc_test");
@@ -126,7 +130,7 @@ describe("init", () => {
   it("scrubs what the SDK adds before anything is sent", async () => {
     const client = await loadClient();
     client.startAnalytics();
-    await settle();
+    await sdkLoaded();
     const options = sdk.init.mock.calls[0]?.[1] as { before_send: (event: CaptureResult) => CaptureResult };
     const event = {
       uuid: "e1",
@@ -152,7 +156,7 @@ describe("track", () => {
   it("sends the event with its props once the SDK is up", async () => {
     const client = await loadClient();
     client.track("recruiter_view_seen", { checks: 12, problems: 3, warnings: 2 });
-    await settle();
+    await sdkLoaded();
     expect(sdk.capture).toHaveBeenCalledWith("recruiter_view_seen", { checks: 12, problems: 3, warnings: 2 });
   });
 
@@ -160,7 +164,7 @@ describe("track", () => {
     const client = await loadClient();
     const sneaky = { source: "pdf", email: "jane@example.com" } as unknown as { source: "pdf" };
     client.track("resume_imported", sneaky);
-    await settle();
+    await sdkLoaded();
     expect(sdk.capture).toHaveBeenCalledWith("resume_imported", { source: "pdf" });
   });
 
@@ -169,7 +173,7 @@ describe("track", () => {
     client.startAnalytics();
     client.track("landing_viewed");
     client.track("upgrade_clicked");
-    await settle();
+    await sdkLoaded();
     expect(sdk.init).toHaveBeenCalledOnce();
     expect(sdk.capture).toHaveBeenCalledTimes(2);
   });
@@ -179,7 +183,7 @@ describe("identity", () => {
   it("identifies by user id only and counts one sign-in", async () => {
     const client = await loadClient();
     client.identifyUser("user-1", "free");
-    await settle();
+    await sdkLoaded();
     expect(sdk.identify).toHaveBeenCalledWith("user-1", { plan: "free" });
     expect(sdk.capture).toHaveBeenCalledWith("signed_in", { plan: "free" });
 
@@ -193,7 +197,7 @@ describe("identity", () => {
     const client = await loadClient();
     client.identifyUser("user-1", "pro");
     client.startAnalytics();
-    await settle();
+    await sdkLoaded();
     expect(sdk.init).toHaveBeenCalledOnce();
     expect(sdk.identify).toHaveBeenCalledOnce();
     expect(sdk.identify).toHaveBeenCalledWith("user-1", { plan: "pro" });
@@ -204,7 +208,7 @@ describe("identity", () => {
     sdk.state.identified = true;
     const client = await loadClient();
     client.resetUser();
-    await settle();
+    await sdkLoaded();
     expect(sdk.reset).toHaveBeenCalledOnce();
     expect(sdk.state.distinctId).toBe("anon-device-2");
   });
@@ -212,7 +216,7 @@ describe("identity", () => {
   it("leaves an anonymous visitor's id alone", async () => {
     const client = await loadClient();
     client.resetUser();
-    await settle();
+    await sdkLoaded();
     expect(sdk.reset).not.toHaveBeenCalled();
   });
 
@@ -221,7 +225,7 @@ describe("identity", () => {
     sdk.state.identified = true;
     const client = await loadClient();
     client.identifyUser("user-2", "free");
-    await settle();
+    await sdkLoaded();
     expect(sdk.reset).toHaveBeenCalledOnce();
     expect(sdk.identify).toHaveBeenCalledWith("user-2", { plan: "free" });
   });

@@ -5,6 +5,7 @@ import { resetBilling } from "@/lib/billing/billing-reset";
 import type { Db } from "./client";
 import { LOCAL_ONLY_DDL } from "./local-schema";
 import { readMigrations } from "./migration-files";
+import { MIGRATIONS_TIMEOUT_MS } from "./test-template";
 import * as schema from "./schema";
 
 const RESET = "20261121000100";
@@ -127,7 +128,7 @@ describe("reset Dodo test billing migration", () => {
     expect(reset.transaction).toBe(true);
     await client.exec(reset.sql);
     migrated = await dump(client);
-  });
+  }, MIGRATIONS_TIMEOUT_MS);
 
   it("moves every account with billing state to Free and leaves mock, hand-set and plain Free plans alone", () => {
     const touched = migrated.users.filter((u) => u.touched).map((u) => u.id);

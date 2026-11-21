@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { WAIT_FOR_IMPORT } from "@/lib/timing-testing";
 
 const sdk = vi.hoisted(() => ({
   init: vi.fn(),
@@ -41,6 +42,12 @@ function stubWindow(pathname: string) {
 
 const settle = () => new Promise((resolve) => setTimeout(resolve, 20));
 
+// The SDK failing to load, as a blocked or dropped chunk does; the wait ends once that import has been tried.
+const broken = vi.fn(() => {
+  throw new TypeError("Failed to fetch dynamically imported module");
+});
+const failedToLoad = () => vi.waitFor(() => expect(broken).toHaveBeenCalled(), WAIT_FOR_IMPORT);
+
 beforeEach(() => {
   vi.resetModules();
   vi.stubEnv("NODE_ENV", "production");
@@ -62,7 +69,7 @@ describe("early errors", () => {
     const error = new TypeError("boom");
     page.fire("error", { error });
 
-    await vi.waitFor(() => expect(sdk.captureException).toHaveBeenCalledTimes(1));
+    await vi.waitFor(() => expect(sdk.captureException).toHaveBeenCalledTimes(1), WAIT_FOR_IMPORT);
     expect(sdk.init).toHaveBeenCalledOnce();
     expect(sdk.captureException).toHaveBeenCalledWith(error, {
       mechanism: { handled: false, type: "auto.browser.global_handlers.onerror" },
@@ -78,7 +85,7 @@ describe("early errors", () => {
     const reason = new Error("save failed");
     page.fire("unhandledrejection", { reason });
 
-    await vi.waitFor(() => expect(sdk.captureException).toHaveBeenCalledTimes(1));
+    await vi.waitFor(() => expect(sdk.captureException).toHaveBeenCalledTimes(1), WAIT_FOR_IMPORT);
     expect(sdk.captureException).toHaveBeenCalledWith(reason, {
       mechanism: { handled: false, type: "auto.browser.global_handlers.onunhandledrejection" },
     });
@@ -100,19 +107,17 @@ describe("early errors", () => {
     const page = stubWindow("/dashboard");
     const { holdEarlyErrors } = await import("./browser");
     holdEarlyErrors();
-    vi.doMock("./sentry-browser", () => {
-      throw new TypeError("Failed to fetch dynamically imported module");
-    });
+    vi.doMock("./sentry-browser", broken);
     const first = new Error("first");
     page.fire("error", { error: first });
-    await settle();
+    await failedToLoad();
     expect(sdk.init).not.toHaveBeenCalled();
 
     vi.doMock("./sentry-browser", () => sdk);
     const second = new Error("second");
     page.fire("error", { error: second });
 
-    await vi.waitFor(() => expect(sdk.captureException).toHaveBeenCalledTimes(2));
+    await vi.waitFor(() => expect(sdk.captureException).toHaveBeenCalledTimes(2), WAIT_FOR_IMPORT);
     expect(sdk.captureException.mock.calls.map(([sent]) => sent)).toEqual([first, second]);
   });
 
@@ -120,17 +125,18 @@ describe("early errors", () => {
     const page = stubWindow("/p/jane");
     const { holdEarlyErrors, reportClientError } = await import("./browser");
     holdEarlyErrors();
-    vi.doMock("./sentry-browser", () => {
-      throw new TypeError("Failed to fetch dynamically imported module");
-    });
+    vi.doMock("./sentry-browser", broken);
     for (let i = 0; i < 12; i += 1) page.fire("error", { error: new Error(`error ${i}`) });
-    await settle();
+    await failedToLoad();
 
     vi.doMock("./sentry-browser", () => sdk);
     const shown = new Error("render failed");
     reportClientError(shown);
 
-    await vi.waitFor(() => expect(sdk.captureException).toHaveBeenCalledWith(shown));
+    await vi.waitFor(
+      () => expect(sdk.captureException).toHaveBeenCalledWith(shown),
+      WAIT_FOR_IMPORT,
+    );
     expect(sdk.captureException).toHaveBeenCalledTimes(11);
   });
 
@@ -140,7 +146,10 @@ describe("early errors", () => {
     const error = new Error("render failed");
     reportClientError(error);
 
-    await vi.waitFor(() => expect(sdk.captureException).toHaveBeenCalledWith(error));
+    await vi.waitFor(
+      () => expect(sdk.captureException).toHaveBeenCalledWith(error),
+      WAIT_FOR_IMPORT,
+    );
     expect(sdk.init).toHaveBeenCalledWith({ dsn: "https://public@o0.ingest.sentry.io/0" });
   });
 });
@@ -155,7 +164,7 @@ describe("startup", () => {
     expect(sdk.init).not.toHaveBeenCalled();
 
     page.runIdle();
-    await vi.waitFor(() => expect(sdk.init).toHaveBeenCalledOnce());
+    await vi.waitFor(() => expect(sdk.init).toHaveBeenCalledOnce(), WAIT_FOR_IMPORT);
   });
 
   it("leaves public pages alone until the visitor moves into the app", async () => {
@@ -175,19 +184,17 @@ describe("startup", () => {
 
   it("tries again on the next move into the app when the SDK fails to load", async () => {
     const page = stubWindow("/studio");
-    vi.doMock("./sentry-browser", () => {
-      throw new TypeError("Failed to fetch dynamically imported module");
-    });
+    vi.doMock("./sentry-browser", broken);
     const { onRouterTransitionStart } = await import("@/instrumentation-client");
     page.runIdle();
-    await settle();
+    await failedToLoad();
     expect(sdk.init).not.toHaveBeenCalled();
 
     vi.doMock("./sentry-browser", () => sdk);
     onRouterTransitionStart("/dashboard");
     expect(page.win.requestIdleCallback).toHaveBeenCalledTimes(2);
     page.runIdle();
-    await vi.waitFor(() => expect(sdk.init).toHaveBeenCalledOnce());
+    await vi.waitFor(() => expect(sdk.init).toHaveBeenCalledOnce(), WAIT_FOR_IMPORT);
   });
 
   it("falls back to a timer where idle callbacks don't exist", async () => {

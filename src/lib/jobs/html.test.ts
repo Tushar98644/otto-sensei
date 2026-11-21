@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { cpuMs } from "@/lib/timing-testing";
 import { attribute, decodeEntities, htmlToText, scanPage } from "./html";
 import { htmlPage, jsonLdScript } from "./test-fixtures";
 
@@ -48,10 +49,11 @@ describe("htmlToText", () => {
 
   it("stays linear on hostile input", () => {
     const hostile = "<script>".repeat(50_000) + "<a href='".repeat(50_000) + "<".repeat(200_000);
-    const started = performance.now();
-    htmlToText(hostile);
-    scanPage(hostile);
-    expect(performance.now() - started).toBeLessThan(2_000);
+    const spent = cpuMs(() => {
+      htmlToText(hostile);
+      scanPage(hostile);
+    });
+    expect(spent).toBeLessThan(2_000);
   });
 });
 

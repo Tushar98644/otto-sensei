@@ -1,5 +1,6 @@
 import { DrizzleQueryError } from "drizzle-orm";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { WAIT_FOR_IMPORT } from "@/lib/timing-testing";
 
 const sdk = vi.hoisted(() => ({
   init: vi.fn(),
@@ -121,7 +122,7 @@ describe("when Sentry is on", () => {
       email: "maya@example.com",
     });
 
-    await vi.waitFor(() => expect(sdk.captureException).toHaveBeenCalledTimes(1));
+    await vi.waitFor(() => expect(sdk.captureException).toHaveBeenCalledTimes(1), WAIT_FOR_IMPORT);
     expect(sdk.captureException).toHaveBeenCalledWith(error, {
       tags: { route: "/api/draft", status: "502", "log.event": "draft.failed" },
     });
@@ -135,7 +136,7 @@ describe("when Sentry is on", () => {
       new DrizzleQueryError("insert ...", ["maya@example.com"], cause),
     );
 
-    await vi.waitFor(() => expect(sdk.captureException).toHaveBeenCalledTimes(1));
+    await vi.waitFor(() => expect(sdk.captureException).toHaveBeenCalledTimes(1), WAIT_FOR_IMPORT);
     expect(sdk.captureException.mock.calls[0]?.[0]).toBe(cause);
   });
 
@@ -143,7 +144,7 @@ describe("when Sentry is on", () => {
     const { reportError } = await import("./report");
     reportError("import.failed", { resumeText: "Maya Chen ..." });
 
-    await vi.waitFor(() => expect(sdk.captureException).toHaveBeenCalledTimes(1));
+    await vi.waitFor(() => expect(sdk.captureException).toHaveBeenCalledTimes(1), WAIT_FOR_IMPORT);
     const sent = sdk.captureException.mock.calls[0]?.[0];
     expect(sent).toBeInstanceOf(Error);
     expect((sent as Error).message).toBe("import.failed");
@@ -156,7 +157,7 @@ describe("when Sentry is on", () => {
     reportError("billing.webhook_failed", new Error("boom"));
 
     expect(scheduled.tasks).toHaveLength(1);
-    await vi.waitFor(() => expect(sdk.captureException).toHaveBeenCalledTimes(1));
+    await vi.waitFor(() => expect(sdk.captureException).toHaveBeenCalledTimes(1), WAIT_FOR_IMPORT);
     expect(sdk.flush).toHaveBeenCalledWith(2_000);
 
     let done = false;
@@ -173,7 +174,7 @@ describe("when Sentry is on", () => {
     const { reportError } = await import("./report");
     reportError("cron.jobs_failed", new Error("boom"));
 
-    await vi.waitFor(() => expect(sdk.flush).toHaveBeenCalledTimes(1));
+    await vi.waitFor(() => expect(sdk.flush).toHaveBeenCalledTimes(1), WAIT_FOR_IMPORT);
     expect(sdk.captureException).toHaveBeenCalledTimes(1);
   });
 

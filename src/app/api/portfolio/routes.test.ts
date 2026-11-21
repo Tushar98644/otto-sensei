@@ -15,6 +15,7 @@ import { getPortfolio } from "@/lib/portfolio/records";
 import { sampleResume } from "@/lib/portfolio/testing";
 import { PORTFOLIO_LIMITS, type PortfolioSaveResponse } from "@/lib/portfolio/types";
 import type { Resume } from "@/lib/resume/schema";
+import { freezeClock } from "@/lib/timing-testing";
 import { PUT as putResume } from "../resumes/[id]/route";
 import { GET, PATCH, POST } from "./route";
 import { GET as checkSlug } from "./slug/route";
@@ -149,6 +150,7 @@ describe("/api/portfolio", () => {
   });
 
   it("checks an address while the owner types, within a limit", async () => {
+    freezeClock();
     await signInAs("maya@example.com");
     const free = (await (await slugCheck("Maya Chen")).json()) as {
       slug: string;

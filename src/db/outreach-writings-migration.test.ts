@@ -2,6 +2,7 @@ import { PGlite } from "@electric-sql/pglite";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { LOCAL_ONLY_DDL } from "./local-schema";
 import { readMigrations, type MigrationFile } from "./migration-files";
+import { MIGRATIONS_TIMEOUT_MS } from "./test-template";
 
 const WIDEN = "20261118000200";
 const VALIDATE = "20261118000210";
@@ -28,7 +29,7 @@ describe("outreach writings migration", () => {
        values ($1, $2, 'pro', 1, 1)`,
       [userId, email],
     );
-  });
+  }, MIGRATIONS_TIMEOUT_MS);
 
   const insert = (kind: string, extra: Record<string, unknown> = {}) => {
     const columns = [

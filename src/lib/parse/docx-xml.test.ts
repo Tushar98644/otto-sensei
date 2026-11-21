@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { cpuMs } from "@/lib/timing-testing";
 import {
   countElements,
   countPictures,
@@ -38,9 +39,7 @@ describe("stripFallbacks", () => {
 
   it("stays fast on a part full of unclosed fallbacks", () => {
     const xml = "<mc:Fallback>x".repeat(200_000);
-    const started = performance.now();
-    stripFallbacks(xml);
-    expect(performance.now() - started).toBeLessThan(500);
+    expect(cpuMs(() => stripFallbacks(xml))).toBeLessThan(500);
   });
 });
 
@@ -110,29 +109,23 @@ describe("hasBrokenTags", () => {
 describe("parts full of unclosed tags", () => {
   const unclosed = (name: string) => `<w:${name} `.repeat(Math.floor(1_800_000 / (name.length + 4)));
 
-  function elapsed(run: () => unknown): number {
-    const started = performance.now();
-    run();
-    return performance.now() - started;
-  }
-
   it("reads soft breaks in linear time", () => {
-    expect(elapsed(() => lineBreaksAsText(unclosed("br")))).toBeLessThan(500);
+    expect(cpuMs(() => lineBreaksAsText(unclosed("br")))).toBeLessThan(500);
   });
 
   it("reads header text in linear time", () => {
-    expect(elapsed(() => partText(unclosed("br")))).toBeLessThan(500);
-    expect(elapsed(() => partText(unclosed("instrText")))).toBeLessThan(500);
+    expect(cpuMs(() => partText(unclosed("br")))).toBeLessThan(500);
+    expect(cpuMs(() => partText(unclosed("instrText")))).toBeLessThan(500);
   });
 
   it("reads the column count in linear time", () => {
-    expect(elapsed(() => hasMultipleColumns(unclosed("cols")))).toBeLessThan(500);
+    expect(cpuMs(() => hasMultipleColumns(unclosed("cols")))).toBeLessThan(500);
   });
 
   it("finds broken tags in linear time", () => {
-    expect(elapsed(() => expect(hasBrokenTags(unclosed("br"))).toBe(true))).toBeLessThan(500);
+    expect(cpuMs(() => expect(hasBrokenTags(unclosed("br"))).toBe(true))).toBeLessThan(500);
     const fine = `<w:p><w:r><w:t>Line</w:t></w:r></w:p>`.repeat(50_000);
-    expect(elapsed(() => expect(hasBrokenTags(fine)).toBe(false))).toBeLessThan(500);
+    expect(cpuMs(() => expect(hasBrokenTags(fine)).toBe(false))).toBeLessThan(500);
   });
 
   it("still reads well-formed tags the same way", () => {

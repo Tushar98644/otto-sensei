@@ -2,6 +2,7 @@ import { PGlite } from "@electric-sql/pglite";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { LOCAL_ONLY_DDL } from "./local-schema";
 import { readMigrations, type MigrationFile } from "./migration-files";
+import { MIGRATIONS_TIMEOUT_MS } from "./test-template";
 
 const MOVE = "20261115000100";
 const VALIDATE = "20261115000110";
@@ -21,7 +22,7 @@ describe("no weekly plans migration", () => {
     await client.exec(LOCAL_ONLY_DDL);
     for (const migration of migrations.filter((m) => m.version < MOVE))
       await client.exec(migration.sql);
-  });
+  }, MIGRATIONS_TIMEOUT_MS);
 
   const addUser = async (interval: string | null, usagePeriod?: string) => {
     const id = crypto.randomUUID();

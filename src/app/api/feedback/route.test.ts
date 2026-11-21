@@ -4,6 +4,7 @@ import { getDb } from "@/db/client";
 import { feedback } from "@/db/schema";
 import type { ApiErrorBody } from "@/lib/api/types";
 import { cookieJar, fakeAuth, jsonRequest, resetDb, signInAs } from "@/lib/auth/test-helpers";
+import { freezeClock } from "@/lib/timing-testing";
 import { AuthRetryableFetchError } from "@supabase/supabase-js";
 import { POST } from "./route";
 
@@ -83,6 +84,7 @@ describe("POST /api/feedback", () => {
   });
 
   it("limits one browser to 10 notes an hour", async () => {
+    freezeClock();
     for (let i = 0; i < 10; i++) {
       expect((await POST(jsonRequest("/api/feedback", NOTE))).status).toBe(200);
     }

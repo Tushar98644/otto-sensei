@@ -3,6 +3,7 @@ import type { SessionUser } from "@/lib/auth/types";
 import { emptyWorkProfile } from "@/lib/eligibility/profile";
 import { createSampleResume } from "@/lib/resume/sample";
 import { useStudioStore } from "@/lib/store/resume-store";
+import { WAIT_FOR_IMPORT } from "@/lib/timing-testing";
 
 vi.mock("@tanstack/react-query", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@tanstack/react-query")>()),
@@ -93,7 +94,7 @@ describe("prefetchPageData", () => {
     api.listApplications.mockImplementationOnce(() => new Promise<never>(() => {}));
     useStudioStore.getState().addResume(createSampleResume(Date.now()));
     prefetchPageData("/dashboard/jobs", user("pro"));
-    await vi.waitFor(() => expect(api.jobMatches).toHaveBeenCalledTimes(1));
+    await vi.waitFor(() => expect(api.jobMatches).toHaveBeenCalledTimes(1), WAIT_FOR_IMPORT);
     expect(api.jobMatches.mock.calls[0]?.at(-1)).toEqual({ prefetch: true });
     expect(api.workProfile).toHaveBeenCalledTimes(1);
     expect(api.listApplications).toHaveBeenCalledTimes(1);

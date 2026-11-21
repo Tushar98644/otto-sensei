@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { emptyResume, type Resume } from "@/lib/resume/schema";
+import { cpuMs } from "@/lib/timing-testing";
 import { lintBullet, lintContexts, lintResume, lintSummary } from "./bullets";
 import type { LintIssueId } from "./types";
 
@@ -579,10 +580,10 @@ describe("lintResume", () => {
         return `${verb} the ${i}-${j} service for ${j * 7} teams across ${i + 2} regions in 2024`;
       }),
     );
-    const started = performance.now();
-    const lint = lintResume(resume({ experience }));
-    expect(lint.totals.bullets).toBe(1_600);
-    expect(performance.now() - started).toBeLessThan(2_000);
+    const spent = cpuMs(() =>
+      expect(lintResume(resume({ experience })).totals.bullets).toBe(1_600),
+    );
+    expect(spent).toBeLessThan(2_000);
   });
 });
 
