@@ -2,7 +2,7 @@
 
 import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useRef } from "react";
-import { DEFAULT_NEXT_PATH, safeNextPath } from "@/components/account/next-path";
+import { DEFAULT_NEXT_PATH, safeNextPath, withPageHash } from "@/components/account/next-path";
 import { SignInForm } from "@/components/account/sign-in-form";
 import { SignInFormSkeleton } from "@/components/account/sign-in-form-skeleton";
 import { useMe } from "@/components/account/use-me";
@@ -26,7 +26,8 @@ export function LoginForm() {
     (fallback: string) => {
       if (leaving.current) return;
       leaving.current = true;
-      router.replace(safeNextPath(requestedNext, fallback));
+      const target = safeNextPath(requestedNext, fallback);
+      router.replace(requestedNext ? withPageHash(target, window.location.hash) : target);
     },
     [router, requestedNext],
   );

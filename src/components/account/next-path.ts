@@ -32,3 +32,9 @@ export function loginHref(next?: string): string {
   const path = next ? safeNextPath(next, "") : "";
   return path ? `/login?next=${encodeURIComponent(path)}` : "/login";
 }
+
+// The server never sees #section, so after a redirect to /login it lives only in the login page's own URL.
+export function withPageHash(path: string, hash: string): string {
+  if (!hash || hash === "#" || path.includes("#")) return path;
+  return safeNextPath(`${path}${hash}`, path);
+}

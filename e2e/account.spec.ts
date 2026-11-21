@@ -217,8 +217,7 @@ test.describe("account tabs", () => {
     await expect(region(page, "Email and sign-in")).toContainText(email);
   });
 
-  // Product bug: sign-in drops #reminders (next= carries no anchor), so the visitor lands at the top of the account page.
-  test.fixme("signed out, a reminder email's settings link still lands on the reminders after sign-in", async ({
+  test("signed out, a reminder email's settings link still lands on the reminders after sign-in", async ({
     page,
   }) => {
     const email = uniqueEmail("email-link");

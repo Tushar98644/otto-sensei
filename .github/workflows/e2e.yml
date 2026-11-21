@@ -1,0 +1,50 @@
+name: E2E
+
+# A full browser run takes about 25 runner minutes, so it runs on pull requests, nightly on main and by hand, not on every push.
+on:
+  pull_request:
+    paths-ignore: ["**/*.md"]
+  schedule:
+    - cron: "40 20 * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: e2e-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  NEXT_TELEMETRY_DISABLED: 1
+
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup
+      - uses: actions/cache@v4
+        id: browsers
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('bun.lock') }}
+      - if: steps.browsers.outputs.cache-hit != 'true'
+        run: bunx playwright install --with-deps chromium
+      - if: steps.browsers.outputs.cache-hit == 'true'
+        run: bunx playwright install-deps chromium
+      - run: bun run test:e2e --shard=${{ matrix.shard }}/2
+      - uses: actions/upload-artifact@v4
+        if: ${{ failure() }}
+        with:
+          name: playwright-report-${{ matrix.shard }}
+          path: |
+            playwright-report/
+            test-results/
+          if-no-files-found: ignore
+          retention-days: 14
