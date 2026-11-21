@@ -11,7 +11,7 @@ export function prepAllowance(
   const left = Math.max(0, usage.limit - usage.used);
   const pool = `${count.format(usage.limit)} ${FEATURE_LABELS.letter}`;
   if (left === 0) return `You've used all ${pool} ${thisPeriod(period)}. ${resetSentence(period)}`;
-  return `Uses 1 of your ${count.format(left)} left ${thisPeriod(period)}, shared with letters and messages.`;
+  return `Uses 1 of your ${pool} ${thisPeriod(period)}. ${count.format(left)} left.`;
 }
 
 export type StartFacts = {

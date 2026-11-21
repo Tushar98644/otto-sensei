@@ -1,7 +1,7 @@
 "use client";
 
 import { useId, type ReactNode } from "react";
-import { Card, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   ACCENT_COLORS,
   ACCENT_LABELS,
@@ -39,12 +39,10 @@ const FORMAT_FONT: Record<TemplateId, DesignFont> = {
   minimal: "serif",
 };
 
-// A fixed name column, so every control starts at the same left edge.
-const ROW = "flex min-w-0 flex-wrap items-center gap-x-4 gap-y-2";
-const ROW_NAME = "w-24 shrink-0 text-sm font-medium text-ink";
+const PAIR = "w-fit grid-cols-2";
 
 const OPTION =
-  "flex h-9 cursor-pointer items-center justify-center gap-2 rounded-lg px-3 text-sm font-medium text-muted transition-colors duration-150 ease-out pointer-coarse:h-11 peer-checked:bg-surface peer-checked:text-ink peer-checked:shadow-control peer-checked:ring-1 peer-checked:ring-ink/5 peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-ink hover:text-ink";
+  "flex h-11 cursor-pointer items-center justify-center gap-2 rounded-lg px-3 text-sm font-medium text-muted transition-colors peer-checked:bg-surface peer-checked:text-ink peer-checked:shadow-control peer-checked:ring-1 peer-checked:ring-ink/5 peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-ink hover:text-ink";
 
 type Choice<T extends string> = { value: T; label: ReactNode };
 
@@ -54,22 +52,21 @@ function Segmented<T extends string>({
   value,
   choices,
   onChange,
+  className,
 }: {
   legend: string;
   hint?: string;
   value: T;
   choices: readonly Choice<T>[];
   onChange: (value: T) => void;
+  className?: string;
 }) {
   const name = useId();
   const hintId = `${name}-hint`;
   return (
-    <fieldset className={ROW} aria-describedby={hint ? hintId : undefined}>
-      <legend className="sr-only">{legend}</legend>
-      <span aria-hidden className={ROW_NAME}>
-        {legend}
-      </span>
-      <div className="grid w-44 grid-cols-2 gap-1 rounded-xl bg-surface-muted p-1">
+    <fieldset className="flex min-w-0 flex-col gap-1.5" aria-describedby={hint ? hintId : undefined}>
+      <legend className="mb-1.5 text-sm font-medium text-ink">{legend}</legend>
+      <div className={cn("grid gap-1 rounded-xl bg-surface-muted p-1", className)}>
         {choices.map((choice) => (
           <label key={choice.value} className="relative min-w-0">
             <input
@@ -85,7 +82,7 @@ function Segmented<T extends string>({
         ))}
       </div>
       {hint ? (
-        <p id={hintId} className="sr-only">
+        <p id={hintId} className="text-sm text-muted">
           {hint}
         </p>
       ) : null}
@@ -96,7 +93,7 @@ function Segmented<T extends string>({
 type AccentValue = DesignAccent | "format";
 
 const ACCENT_CHOICES: readonly { value: AccentValue; color: string | null; label: string }[] = [
-  { value: "format", color: null, label: "Format's own" },
+  { value: "format", color: null, label: "The format's own" },
   ...DESIGN_ACCENTS.map((value) => ({
     value,
     color: ACCENT_COLORS[value],
@@ -115,13 +112,11 @@ function ColorPicker({
   const hintId = `${name}-hint`;
   const current = ACCENT_CHOICES.find((choice) => choice.value === value) ?? ACCENT_CHOICES[0]!;
   return (
-    <fieldset className={ROW} aria-describedby={hintId}>
-      <legend className="sr-only">Color</legend>
-      <span aria-hidden className={cn(ROW_NAME, "flex flex-col")}>
-        Color
-        <span className="font-normal text-muted">{current.label}</span>
-      </span>
-      <div className="-ml-1.5 flex flex-wrap pointer-coarse:-ml-2">
+    <fieldset className="flex flex-col gap-1.5" aria-describedby={hintId}>
+      <legend className="mb-1.5 text-sm font-medium text-ink">
+        Color <span className="font-normal text-muted">· {current.label}</span>
+      </legend>
+      <div className="-mx-1.5 flex flex-wrap">
         {ACCENT_CHOICES.map((choice) => (
           <label key={choice.value} className="relative" title={choice.label}>
             <input
@@ -133,7 +128,7 @@ function ColorPicker({
               aria-label={choice.label}
               className="peer sr-only"
             />
-            <span className="flex size-10 cursor-pointer items-center justify-center rounded-full transition-colors duration-150 ease-out pointer-coarse:size-11 peer-checked:ring-2 peer-checked:ring-ink peer-checked:ring-inset peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-ink hover:bg-surface-muted">
+            <span className="flex size-11 cursor-pointer items-center justify-center rounded-full transition-colors peer-checked:ring-2 peer-checked:ring-ink peer-checked:ring-inset peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-ink hover:bg-surface-muted">
               <span
                 aria-hidden
                 className={cn(
@@ -146,7 +141,7 @@ function ColorPicker({
           </label>
         ))}
       </div>
-      <p id={hintId} className="sr-only">
+      <p id={hintId} className="text-sm text-muted">
         Colors the headings and lines. Everything else stays black.
       </p>
     </fieldset>
@@ -200,33 +195,39 @@ export function DesignCard({ resume, printed, pageSize }: DesignCardProps) {
     <Card>
       <CardHeader>
         <CardTitle as="h2">Design</CardTitle>
+        <CardDescription>
+          Saved with this resume. Hiring software reads every choice the same way.
+        </CardDescription>
       </CardHeader>
       <FormatPicker resume={resume} />
-      <div className="flex flex-col gap-3">
-        <ColorPicker
-          value={accent}
-          onChange={(value) => set({ accent: value === "format" ? undefined : value })}
-        />
+      <ColorPicker
+        value={accent}
+        onChange={(value) => set({ accent: value === "format" ? undefined : value })}
+      />
+      <div className="flex flex-wrap gap-x-3 gap-y-4">
         <Segmented
           legend="Font"
           value={font}
           choices={FONT_CHOICES}
           onChange={(value) => set({ font: value === formatFont ? undefined : value })}
+          className={PAIR}
         />
         <Segmented
           legend="Spacing"
           value={density}
           choices={DENSITY_CHOICES}
           onChange={(value) => set({ density: value === "normal" ? undefined : value })}
-        />
-        <Segmented
-          legend="Page size"
-          hint="Letter for the US and Canada, A4 almost everywhere else."
-          value={pageSize}
-          choices={PAGE_SIZE_CHOICES}
-          onChange={setPageSize}
+          className={PAIR}
         />
       </div>
+      <Segmented
+        legend="Page size"
+        hint="Letter for the US and Canada, A4 almost everywhere else."
+        value={pageSize}
+        choices={PAGE_SIZE_CHOICES}
+        onChange={setPageSize}
+        className={PAIR}
+      />
     </Card>
   );
 }

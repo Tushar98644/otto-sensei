@@ -31,27 +31,22 @@ export function RecentResumes({ resumes, onOpen, disabled = false }: RecentResum
       <ul className="flex flex-col divide-y divide-border overflow-hidden rounded-2xl bg-surface">
         {shown.map((resume) => {
           const tailored = tailoredLabel(resume);
-          const title = resumeLabel(resume);
-          const name = resume.basics.name.trim();
           return (
             <li key={resume.id}>
               <button
                 type="button"
                 onClick={() => onOpen(resume.id)}
                 disabled={disabled}
-                className="flex min-h-16 w-full items-center gap-3 px-4 py-3 text-left -outline-offset-2 transition-colors duration-150 ease-out hover:bg-surface-hover disabled:pointer-events-none disabled:opacity-60 sm:px-5"
+                className="flex min-h-14 w-full items-center gap-3 px-4 py-3 text-left -outline-offset-2 transition-colors hover:bg-surface-muted disabled:pointer-events-none disabled:opacity-60"
               >
                 <FileText className="size-5 shrink-0 text-muted" aria-hidden />
                 <span className="flex min-w-0 flex-1 flex-col gap-1">
-                  <span title={title} className="truncate text-sm font-medium text-ink">
-                    {title}
+                  <span className="truncate text-sm font-medium text-ink">
+                    {resumeLabel(resume)}
                   </span>
-                  <span className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm/5 text-muted">
+                  <span className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted">
                     {tailored ? <Badge className="max-w-full truncate">{tailored}</Badge> : null}
-                    <span>
-                      {name && name !== title ? `${name} · ` : null}
-                      Edited {formatRelativeTime(resume.updatedAt, now)}
-                    </span>
+                    <span>Edited {formatRelativeTime(resume.updatedAt, now)}</span>
                   </span>
                 </span>
                 <ChevronRight className="size-4 shrink-0 text-subtle" aria-hidden />

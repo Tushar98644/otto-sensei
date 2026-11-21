@@ -20,7 +20,7 @@ export function PaymentMethodCard({ state }: { state: BillingHistoryState }) {
       <CardTitle as="h2" id="payment-method-title">
         Payment method
       </CardTitle>
-      <div className="flex flex-wrap items-center justify-between gap-4">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         {state.status === "loading" ? (
           <Skeleton aria-hidden className="h-11 w-56" />
         ) : (
@@ -45,7 +45,12 @@ export function PaymentMethodCard({ state }: { state: BillingHistoryState }) {
             )}
           </div>
         )}
-        <Button variant="secondary" onClick={() => void portal.go()} loading={portal.pending}>
+        <Button
+          variant="secondary"
+          onClick={() => void portal.go()}
+          loading={portal.pending}
+          className="w-full sm:w-auto"
+        >
           Update card
         </Button>
       </div>

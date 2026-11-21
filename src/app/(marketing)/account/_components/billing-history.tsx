@@ -168,14 +168,14 @@ export function BillingHistoryCard({ state }: { state: BillingHistoryState }) {
             <tbody className="divide-y divide-border border-t border-border">
               {rows.map((row) => (
                 <tr key={row.key}>
-                  <td className="py-3 pr-4 whitespace-nowrap text-muted tabular-nums">
+                  <td className="py-2.5 pr-4 whitespace-nowrap text-muted tabular-nums">
                     {billingDate(row.at)}
                   </td>
-                  <td className="py-3 pr-4 text-ink">{row.item}</td>
-                  <td className="py-3 text-right whitespace-nowrap">
+                  <td className="py-2.5 pr-4 text-ink">{row.item}</td>
+                  <td className="py-2.5 text-right whitespace-nowrap">
                     <Amount row={row} />
                   </td>
-                  <td className="py-3 pl-6">
+                  <td className="py-2.5 pl-6">
                     <StatusPill status={row.status} />
                   </td>
                   <td className="py-1 text-right">

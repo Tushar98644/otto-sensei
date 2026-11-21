@@ -148,8 +148,7 @@ export function JobFiltersBar({
               onClick={() => setOpen((current) => !current)}
             >
               <SlidersHorizontal aria-hidden />
-              {/* Icon-only on phones, so the search keeps room for its placeholder. */}
-              <span className="sr-only sm:not-sr-only">Filters</span>
+              Filters
               {active > 0 ? (
                 <span className="text-xs text-muted tabular-nums">
                   {count.format(active)}

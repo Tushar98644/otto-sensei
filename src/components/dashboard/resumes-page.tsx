@@ -69,19 +69,19 @@ export function ResumesPage() {
 
   return (
     <div className="flex flex-col gap-8">
-      <header className="flex flex-col gap-3">
-        <div className="flex items-center justify-between gap-4">
+      <header className="flex flex-wrap items-end justify-between gap-x-6 gap-y-4">
+        <div className="min-w-0">
           <h1 className="font-display text-4xl/10 font-normal tracking-tight text-ink sm:text-5xl/13">
             Resumes
           </h1>
-          {/* From lg the sidebar holds the New resume menu. */}
-          <NewResumeMenu actions={actions} align="end" className="lg:hidden" />
+          <p className="mt-2 max-w-prose text-base/7 text-muted">
+            {hydrated && resumes.length > 0
+              ? `${pluralize(resumes.length, "resume")}${tailored > 0 ? `, ${tailored} tailored to a job` : ""}. ${storedLine}`
+              : storedLine}
+          </p>
         </div>
-        <p className="max-w-prose text-base/7 text-muted">
-          {hydrated && resumes.length > 0
-            ? `${pluralize(resumes.length, "resume")}${tailored > 0 ? `, ${tailored} tailored to a job` : ""}. ${storedLine}`
-            : storedLine}
-        </p>
+        {/* From lg the sidebar holds the New resume menu. */}
+        <NewResumeMenu actions={actions} align="end" className="lg:hidden" />
       </header>
 
       {!hydrated ? (

@@ -12,6 +12,7 @@ import {
   formatCount,
   interviewRate,
   MIN_FOR_RATE,
+  rateHeadline,
   statsByVersion,
   swingNote,
   tally,
@@ -59,13 +60,13 @@ export function WinRate({
           />
           <Stat label="Offers" value={counts.offers} note={ofAll(counts)} />
         </dl>
-        <p className="border-t border-border px-4 py-4 text-sm/6 text-pretty text-muted sm:px-6">
-          {swingNote(counts)}
-        </p>
+        <div className="flex flex-col gap-1 border-t border-border p-5 sm:p-6">
+          <p className="text-base/7 text-pretty text-ink">{rateHeadline(counts)}</p>
+          <p className="text-sm/6 text-pretty text-muted">{swingNote(counts)}</p>
+        </div>
       </FolderCard>
 
-      {/* One version would only repeat the numbers above. */}
-      {byVersion.length > 1 ? <ByVersion stats={byVersion} /> : null}
+      {byVersion.length > 0 ? <ByVersion stats={byVersion} /> : null}
     </section>
   );
 }

@@ -25,25 +25,7 @@ import type { Resume } from "@/lib/resume/schema";
 import { prepAllowance, startsByItself } from "./prep-start";
 
 const MIN_POST_CHARS = 80;
-const QUIET_LINK =
-  "font-medium text-ink underline decoration-border-strong underline-offset-4 hover:decoration-ink";
-const ROW = "flex flex-col gap-1 py-4 sm:flex-row sm:items-baseline sm:gap-6";
-const TERM = "w-24 shrink-0 text-subtle";
-
-function hostOf(url: string): string {
-  try {
-    return new URL(url).hostname.replace(/^www\./, "");
-  } catch {
-    return "";
-  }
-}
-
-// An upload titled after its file ("maya") reads better as the person's own name.
-function storySource(resume: Resume): string {
-  const title = resumeTitle(resume);
-  const name = resume.basics.name.trim();
-  return name && name.toLowerCase().includes(title.toLowerCase()) ? name : title;
-}
+const QUIET_LINK = "font-medium text-ink underline decoration-border-strong underline-offset-4";
 
 type PrepFormProps = {
   target: PrepTarget;
@@ -186,145 +168,120 @@ export function PrepForm({ target, resumes, onDone, onCancel, autoStart = false 
     );
   }
 
-  const sent = resume.id === target.resumeId;
-  const host = hostOf(source.kind === "link" ? source.url : "");
-
-  const resumeValue = (
-    <>
-      <span className="font-medium text-ink">{storySource(resume)}</span>
-      {sent ? <span className="text-muted">, the version you sent</span> : null}
-    </>
+  const resumeLine = (
+    <p className="text-sm/6 text-muted">
+      Stories come from <span className="font-medium text-ink">{resumeTitle(resume)}</span>
+      {resume.id === target.resumeId ? ", the version you sent." : "."}{" "}
+      {resumes.length > 1 ? (
+        <button type="button" className={QUIET_LINK} onClick={() => change("resume")}>
+          Use another resume
+        </button>
+      ) : null}
+    </p>
   );
 
-  const jobValue =
-    source.kind === "saved" ? (
-      "Saved with your tailored copy"
-    ) : source.kind === "link" && host ? (
-      <>
-        I&apos;ll read it from{" "}
-        <a href={source.url} target="_blank" rel="noopener noreferrer" className={QUIET_LINK}>
-          {host}
-          <span className="sr-only"> (opens in a new tab)</span>
-        </a>
-      </>
-    ) : (
-      "I'll read it from its link"
-    );
+  const jobLine = needsPaste ? null : (
+    <p className="text-sm/6 text-muted">
+      {source.kind === "saved"
+        ? "Using the job post saved with your tailored copy."
+        : "I'll read the job post from its link."}{" "}
+      <button type="button" className={QUIET_LINK} onClick={() => change("paste")}>
+        Paste it instead
+      </button>
+    </p>
+  );
 
   if (auto || deciding || busy) {
     return (
-      <div className="flex flex-col gap-5 rounded-2xl bg-surface p-5 sm:p-6">
+      <div className="flex flex-col gap-5 rounded-2xl bg-surface p-4 sm:p-6">
         <OttoWorking
           task={run?.phase === "reading" ? "job" : "interview"}
           delayMs={deciding ? undefined : 0}
         />
-        <div className="flex flex-col gap-1 text-sm/6 text-muted">
-          <p>Stories from {resumeValue}.</p>
-          {needsPaste ? null : <p>{jobValue}.</p>}
-          {allowance ? <p className="text-subtle">{allowance}</p> : null}
+        <div className="flex flex-col gap-1">
+          {resumeLine}
+          {jobLine}
+          {allowance ? <p className="text-sm/6 text-subtle">{allowance}</p> : null}
         </div>
       </div>
     );
   }
 
   return (
-    <form onSubmit={submit} className="flex flex-col rounded-2xl bg-surface p-5 sm:p-6">
+    <form onSubmit={submit} className="flex flex-col gap-6">
       <OttoNote
         message="I'll ask what an interviewer would, round by round, and outline stories from your own lines."
         live={false}
       />
-      {stoppedLate ? (
-        <Alert role="note" className="mt-6">
-          Stopped waiting for that prep. It had already started, so it still counts toward your allowance.
-        </Alert>
-      ) : null}
-      <dl className="mt-6 divide-y divide-border border-y border-border text-sm/6">
-        <div className={ROW}>
-          <dt className={TERM}>Resume</dt>
-          <dd className="min-w-0 flex-1">
-            {picking && resumes.length > 1 ? (
-              <Field
-                label="Resume to build stories from"
-                hideLabel
-                hint={sent ? "The version you sent." : undefined}
-              >
-                <Select value={resume.id} onChange={(event) => setResumeId(event.target.value)}>
-                  {resumes.map((item) => (
-                    <option key={item.id} value={item.id}>
-                      {resumeTitle(item)}
-                    </option>
-                  ))}
-                </Select>
-              </Field>
-            ) : (
-              <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
-                <p className="text-ink">{resumeValue}</p>
-                {resumes.length > 1 ? (
-                  <button type="button" className={QUIET_LINK} onClick={() => change("resume")}>
-                    Use another resume
-                  </button>
-                ) : null}
-              </div>
-            )}
-          </dd>
-        </div>
-        <div className={ROW}>
-          <dt className={TERM}>Job post</dt>
-          <dd className="min-w-0 flex-1">
-            {needsPaste ? (
-              <Field
-                label="The job post"
-                hideLabel
-                hint={linkNote || "Paste the whole post: what they do, what they ask for."}
-                error={
-                  pasted.trim() !== "" && pastedTooShort
-                    ? "That's too short to be a job post. Paste all of it."
-                    : undefined
-                }
-              >
-                <VoiceTextarea
-                  value={pasted}
-                  onChange={(event) => setPasted(event.target.value)}
-                  onDictate={setPasted}
-                  rows={8}
-                  maxLength={TEXT_LIMITS.jobPostChars}
-                  placeholder="About the role…"
-                />
-              </Field>
-            ) : (
-              <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
-                <p className="text-ink">{jobValue}</p>
-                <button type="button" className={QUIET_LINK} onClick={() => change("paste")}>
-                  Paste it instead
-                </button>
-              </div>
-            )}
-          </dd>
-        </div>
-      </dl>
+      <div className="flex flex-col gap-5 rounded-2xl bg-surface p-4 sm:p-6">
+        {stoppedLate ? (
+          <Alert role="note">
+            Stopped waiting for that prep. It had already started, so it still counts toward your allowance.
+          </Alert>
+        ) : null}
+        {picking && resumes.length > 1 ? (
+          <Field
+            label="Resume to build stories from"
+            hint={resume.id === target.resumeId ? "The version you sent." : undefined}
+          >
+            <Select value={resume.id} onChange={(event) => setResumeId(event.target.value)}>
+              {resumes.map((item) => (
+                <option key={item.id} value={item.id}>
+                  {resumeTitle(item)}
+                </option>
+              ))}
+            </Select>
+          </Field>
+        ) : (
+          resumeLine
+        )}
 
-      {error ? (
-        <Alert variant="error" className="mt-6">
-          {error.message}{" "}
-          {error.upgrade && upgradeTo ? (
-            <Link href={upgradeLink(me, upgradeTo)} className="font-medium underline">
-              Upgrade to {PLANS[upgradeTo].name}
-            </Link>
-          ) : null}
-        </Alert>
-      ) : null}
+        {needsPaste ? (
+          <Field
+            label="The job post"
+            hint={linkNote || "Paste the whole post: what they do, what they ask for."}
+            error={
+              pasted.trim() !== "" && pastedTooShort
+                ? "That's too short to be a job post. Paste all of it."
+                : undefined
+            }
+          >
+            <VoiceTextarea
+              value={pasted}
+              onChange={(event) => setPasted(event.target.value)}
+              onDictate={setPasted}
+              rows={8}
+              maxLength={TEXT_LIMITS.jobPostChars}
+              placeholder="About the role…"
+            />
+          </Field>
+        ) : (
+          jobLine
+        )}
 
-      <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        {allowance ? <p className="text-sm/6 text-subtle">{allowance}</p> : <span />}
-        <div className="flex flex-wrap items-center justify-end gap-2">
-          {onCancel ? (
-            <Button type="button" variant="ghost" onClick={onCancel}>
-              Keep the current one
+        {error ? (
+          <Alert variant="error">
+            {error.message}{" "}
+            {error.upgrade && upgradeTo ? (
+              <Link href={upgradeLink(me, upgradeTo)} className="font-medium underline">
+                Upgrade to {PLANS[upgradeTo].name}
+              </Link>
+            ) : null}
+          </Alert>
+        ) : null}
+
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          {allowance ? <p className="text-sm/6 text-subtle">{allowance}</p> : <span />}
+          <div className="flex flex-wrap items-center justify-end gap-2">
+            {onCancel ? (
+              <Button type="button" variant="ghost" onClick={onCancel}>
+                Keep the current one
+              </Button>
+            ) : null}
+            <Button type="submit" disabled={pastedTooShort}>
+              Make my prep
             </Button>
-          ) : null}
-          <Button type="submit" disabled={pastedTooShort} className="max-sm:flex-1">
-            Make my prep
-          </Button>
+          </div>
         </div>
       </div>
     </form>

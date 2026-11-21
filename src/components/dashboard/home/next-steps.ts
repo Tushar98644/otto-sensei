@@ -124,7 +124,6 @@ export function fixTarget(own: readonly Resume[], setupLine: WeakLineTarget | nu
   return null;
 }
 
-const DAY_MS = 24 * 60 * 60 * 1000;
 const weekday = new Intl.DateTimeFormat("en-US", { weekday: "short", month: "short", day: "numeric" });
 
 export function interviewDay(at: number, now: number): string {
@@ -132,6 +131,5 @@ export function interviewDay(at: number, now: number): string {
   const day = startOfDay(at);
   if (day === today) return "Today";
   if (day === dayAfter(today, 1)) return "Tomorrow";
-  const days = Math.round((day - today) / DAY_MS);
-  return days > 1 ? `${weekday.format(at)} · in ${days} days` : weekday.format(at);
+  return weekday.format(at);
 }

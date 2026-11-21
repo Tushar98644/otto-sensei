@@ -15,13 +15,13 @@ import { ChosenFormatNote, useChosenFormat } from "@/components/formats/chosen-f
 import { OTTO } from "@/components/mascot/lines";
 import { OttoNote } from "@/components/mascot/otto-note";
 import { OttoWorking } from "@/components/mascot/otto-working";
-import { Button, buttonClasses } from "@/components/ui/button";
+import { Button } from "@/components/ui/button";
 import { Dropzone } from "@/components/ui/dropzone";
 import { checkFile, formatBytes } from "@/components/ui/file-check";
 import { RESUME_LIMITS, UPLOAD_LIMITS } from "@/config/plans";
 import { track } from "@/lib/analytics/client";
 import { api, isApiError } from "@/lib/api/client";
-import { uploadTitle } from "@/lib/resume/ops";
+import { titleFromFileName } from "@/lib/resume/ops";
 import { emptyResume, type Resume } from "@/lib/resume/schema";
 import { useResumeList, useStudioStore } from "@/lib/store/resume-store";
 import { noteReadByRules, noteReadWell } from "../import-notes";
@@ -84,7 +84,7 @@ export function UploadStep() {
       if (!mounted.current) return;
       if (readWell) noteReadWell(resume.id, file);
       else if (!usedAI) noteReadByRules(resume.id, basicReader === true);
-      addResume({ ...resume, title: uploadTitle(resume, file.name) }, report);
+      addResume({ ...resume, title: titleFromFileName(file.name) || resume.title }, report);
       track("resume_imported", { source: report.kind });
       setStep("review");
     } catch (error) {
@@ -195,7 +195,7 @@ export function UploadStep() {
           maxBytes={UPLOAD_LIMITS.maxBytes}
           disabled={reading}
           label="Upload your resume, a PDF or Word file"
-          className="group/drop min-h-60 gap-4 py-12 hover:bg-surface-hover max-sm:min-h-52 max-sm:py-10"
+          className="min-h-56"
         >
           {state.status === "reading" ? (
             <OttoWorking
@@ -207,25 +207,14 @@ export function UploadStep() {
             />
           ) : (
             <>
-              <FileUp className="size-7 text-ink" strokeWidth={1.5} aria-hidden />
-              <div className="flex flex-col gap-1">
-                <p className="text-base/6 font-medium text-ink pointer-coarse:hidden">
-                  Drop your resume here
-                </p>
-                <p className="text-sm/6 text-muted">
-                  PDF or Word (.docx), up to {formatBytes(UPLOAD_LIMITS.maxBytes)}
-                </p>
-              </div>
-              {/* The whole zone is the button; this key only shows where to press. */}
-              <span
-                aria-hidden
-                className={buttonClasses({
-                  className:
-                    "group-hover/drop:from-primary-hover-top group-hover/drop:to-primary-hover",
-                })}
-              >
-                Choose a file
-              </span>
+              <FileUp className="size-6 text-ink" aria-hidden />
+              <p className="font-medium text-ink">
+                <span className="pointer-coarse:hidden">Drop your resume here, or choose a file</span>
+                <span className="hidden pointer-coarse:inline">Choose a file</span>
+              </p>
+              <p className="text-sm text-muted">
+                PDF or Word (.docx), up to {formatBytes(UPLOAD_LIMITS.maxBytes)}
+              </p>
             </>
           )}
         </Dropzone>

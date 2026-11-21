@@ -114,7 +114,7 @@ describe("AccountView signed out", () => {
   it("on a plain visit, is a sign-in like /login with no dialog", () => {
     const body = page(null);
     expect(body).toContain("Sign in");
-    expect(body).toContain("I'll show your plan, this month's usage and your billing once you're in.");
+    expect(body).toContain("Sign in to see your plan and what you've used this month.");
     expect(body).toContain("Continue with Google");
     expect(body).not.toContain("[upgrade dialog]");
     expect(body).not.toContain("Sign in to start your trial");
@@ -209,8 +209,7 @@ describe("AccountView plan section", () => {
 
   it("on plain Free, offers the upgrade and no card or cancel", () => {
     const body = page({ plan: "free" });
-    expect(body).toContain("Free includes the recruiter view, editing, PDF downloads");
-    expect(body).not.toContain("Current plan");
+    expect(body).toContain("Current plan");
     expect(body).toContain("Upgrade to Pro");
     expect(body).toContain("Compare plans");
     expect(body).not.toContain("Update card");
@@ -229,8 +228,7 @@ describe("AccountView plan section", () => {
       { cancelScheduled: true },
     );
     expect(body).toContain("Ends Nov 23");
-    expect(body).toContain("Nothing more to pay");
-    expect(body).toContain("Pro won't start after your trial. Resume it before the trial ends to keep Pro.");
+    expect(body).toContain("Your trial ends on Nov 23 and Pro won't start, so you won't pay anything more.");
     expect(body).toContain("Resume trial");
     expect(body).not.toMatch(/Cancel trial|Change plan|Pay yearly instead|Need more\?/);
   });
@@ -240,7 +238,7 @@ describe("AccountView plan section", () => {
     expect(body).toContain("Trial");
     expect(body).toContain("$15 /month from Nov 23");
     expect(body).toContain(
-      "You paid $1 for the trial. We remind you the day before Pro starts, and you can cancel until then.",
+      "You paid $1 for the trial. On Nov 23 Pro starts at $15 a month. We remind you the day before.",
     );
     expect(body).toContain("Change plan");
     expect(body).toContain("Cancel trial");

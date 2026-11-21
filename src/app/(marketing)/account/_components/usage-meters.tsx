@@ -56,16 +56,13 @@ function Meter({ feature, usage, period }: { feature: Feature; usage: Usage; per
   const label = METER_LABELS[feature];
   return (
     <div className="flex min-w-0 flex-col gap-2">
-      {/* Phones put the count beside the label, so three meters stay one short list. */}
-      <div className="flex items-baseline justify-between gap-3 sm:flex-col sm:items-start sm:justify-start sm:gap-2">
-        <p className="text-sm font-medium text-ink">{label}</p>
-        <p aria-hidden className="flex shrink-0 items-baseline gap-1.5">
-          <span className="font-display text-2xl/8 text-ink lining-nums tabular-nums sm:text-3xl/9">
-            {count.format(usage.used)}
-          </span>
-          <span className="text-sm text-muted tabular-nums">of {count.format(usage.limit)}</span>
-        </p>
-      </div>
+      <p className="text-sm font-medium text-ink">{label}</p>
+      <p aria-hidden className="flex items-baseline gap-1.5">
+        <span className="font-display text-3xl/9 text-ink lining-nums tabular-nums">
+          {count.format(usage.used)}
+        </span>
+        <span className="text-sm text-muted tabular-nums">of {count.format(usage.limit)}</span>
+      </p>
       <Progress
         hideLabel
         size="sm"
@@ -105,15 +102,15 @@ export function UsageMeters({
         <p className="text-sm text-subtle">{usageWindow(period)}</p>
       </div>
       {usage ? (
-        <div className={cn("grid gap-4 sm:gap-6", free ? "sm:max-w-xs" : "sm:grid-cols-3")}>
+        <div className={cn("grid gap-6", free ? "sm:max-w-xs" : "sm:grid-cols-3")}>
           {main.map((feature) => (
             <Meter key={feature} feature={feature} usage={usage[feature]} period={period} />
           ))}
         </div>
       ) : (
-        <div aria-hidden className={cn("grid gap-4 sm:gap-6", free ? "sm:max-w-xs" : "sm:grid-cols-3")}>
+        <div aria-hidden className={cn("grid gap-6", free ? "sm:max-w-xs" : "sm:grid-cols-3")}>
           {main.map((feature) => (
-            <Skeleton key={feature} className="h-12 w-full sm:h-24" />
+            <Skeleton key={feature} className="h-24 w-full" />
           ))}
         </div>
       )}

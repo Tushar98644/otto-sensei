@@ -5,7 +5,6 @@ import { useId, useState, type ReactNode } from "react";
 import { flushSync } from "react-dom";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { HOLD_FOCUS } from "./focus-hold";
 import { DIMMED_CLASSES, HiddenChip, HideToggle } from "./hidden-chip";
 import { ICON_ACTION_CLASSES, MoveButtons } from "./move-buttons";
 import { removeWithUndo } from "./remove-with-undo";
@@ -64,7 +63,6 @@ export function EntryShell({
 }: EntryShellProps) {
   const [detailsOpen, setDetailsOpen] = useState(() => !details?.complete);
   const layout = useTouchLayout();
-  const pointerFine = layout === "fine";
   const detailsId = useId();
   const Heading = headingLevel === 5 ? "h5" : "h4";
   const onRail = rail !== undefined;
@@ -88,14 +86,13 @@ export function EntryShell({
     <li
       data-rail={rail}
       className={cn(
-        "flex scroll-mt-36 flex-col gap-4 rounded-2xl bg-surface-muted p-4 not-first:mt-3 sm:p-5 lg:scroll-mt-24 xl:scroll-mt-36",
+        "flex scroll-mt-36 flex-col gap-4 rounded-2xl bg-surface-muted p-4 not-first:mt-3 sm:p-5 lg:scroll-mt-24",
         continues && "rounded-t-none pt-0 not-first:mt-0 sm:pt-0",
         "[&:has(+[data-rail=continue])]:rounded-b-none [&:has(+[data-rail=continue])]:pb-0 sm:[&:has(+[data-rail=continue])]:pb-0",
       )}
     >
       {lead}
       <div
-        {...HOLD_FOCUS}
         className={cn(
           "group/entry flex flex-col gap-4",
           onRail && "border-l border-border-strong/40 pl-4 sm:pl-6",
@@ -129,11 +126,7 @@ export function EntryShell({
                 aria-controls={detailsId}
                 aria-describedby={headingId}
                 onClick={toggleDetails}
-                className={cn(
-                  "text-muted hover:text-ink max-sm:-ml-3 max-sm:h-11 sm:mt-1",
-                  // With a mouse the key ends the row and the tools appear to its left, so it never floats.
-                  pointerFine && "sm:order-last",
-                )}
+                className="text-muted hover:text-ink max-sm:-ml-3 max-sm:h-11 sm:mt-1"
               >
                 {detailsOpen ? "Hide details" : "Edit details"}
                 <ChevronDown className={cn("transition-transform", detailsOpen && "rotate-180")} />

@@ -66,15 +66,13 @@ export function FormatCard({
         </button>
         <p className="flex-1 text-sm/6 text-pretty text-ink">{info.bestFor}</p>
         <div className="flex items-center gap-1">
-          {/* Ghost on the rest, so the grid holds one key that stands out: the format in use. */}
           <Button
             size="sm"
-            variant={inUse ? "primary" : "ghost"}
+            variant={inUse ? "primary" : "secondary"}
             onClick={onUse}
             disabled={!ready}
             loading={opening}
             aria-describedby={titleId}
-            className={inUse ? undefined : "-ml-3"}
           >
             {actionLabel}
             {inUse ? <ArrowRight /> : null}

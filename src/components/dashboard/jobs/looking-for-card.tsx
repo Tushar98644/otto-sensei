@@ -34,7 +34,7 @@ export type LookingForCardProps = {
   saving: boolean;
   onChange: (next: LookingForChoice) => void;
   tone?: "card" | "plain";
-  note?: string | null;
+  note?: string;
 };
 
 const DEFAULT_NOTE =
@@ -175,7 +175,7 @@ export function LookingForCard({
       aria-busy={saving}
       className={
         tone === "card"
-          ? "flex flex-col gap-1 rounded-2xl bg-surface px-5 py-2.5 sm:px-6"
+          ? "flex flex-col gap-1 rounded-2xl bg-surface px-4 py-3 sm:px-6"
           : "flex flex-col gap-1"
       }
     >
@@ -200,22 +200,14 @@ export function LookingForCard({
           triggerClassName={TRIGGER}
           trigger={
             <>
-              {/* One text run, so a long name wraps like a sentence instead of in columns. */}
-              <span className="text-left">
-                {role}
-                {note ? (
-                  <span className="hidden font-normal text-muted sm:inline"> ({note})</span>
-                ) : null}
-              </span>
-              <ChevronDown aria-hidden className="size-3.5 shrink-0 text-subtle" />
+              {role}
+              {note ? <span className="font-normal text-muted">({note})</span> : null}
+              <ChevronDown aria-hidden className="size-3.5 text-subtle" />
             </>
           }
           items={roleItems}
         />
-        {/* On phones the place starts its own line, where a leading dot would dangle. */}
-        <span aria-hidden className="hidden sm:inline">
-          ·
-        </span>
+        <span aria-hidden>·</span>
         <Menu
           label="Place"
           triggerLabel={`Place: ${placeLine(value)}. Change it`}
@@ -229,9 +221,7 @@ export function LookingForCard({
           items={placeItems}
         />
       </div>
-      {footnote === null ? null : (
-        <p className="text-xs/5 text-subtle">{footnote} Job names from O*NET® and ESCO.</p>
-      )}
+      <p className="text-xs/5 text-subtle">{footnote} Job names from O*NET® and ESCO.</p>
       <OccupationSearch
         open={searching}
         onOpenChange={setSearching}

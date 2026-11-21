@@ -37,6 +37,7 @@ export function CommandPalette({ open, onOpenChange, actions }: CommandPalettePr
       open={open}
       onOpenChange={onOpenChange}
       title="Search"
+      description="Go to a page or a resume, or paste a job link to tailor to it."
       className="gap-3"
     >
       <PaletteBody actions={actions} onClose={() => onOpenChange(false)} />

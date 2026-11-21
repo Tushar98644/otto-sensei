@@ -46,7 +46,7 @@ export const FixIntro = memo(function FixIntro({ resumeId }: { resumeId: string 
                 <OttoMark tone="line" small className="size-5" />
                 {`Fix ${count} lines with Otto`}
               </Button>
-              <Button variant="ghost" onClick={() => openFix(firstId)}>
+              <Button variant="secondary" onClick={() => openFix(firstId)}>
                 One at a time
               </Button>
             </>

@@ -66,7 +66,8 @@ const FreeMatch = dynamic(
 );
 
 const FREE_OTTO = "Here's each skill this post names, and where your resume shows it.";
-const FREE_NOTE = "Free checks the post's skills against yours. Tailoring comes with Pro.";
+const FREE_NOTE =
+  "Free shows which skills the post names and where you show them. Tailoring comes with Pro.";
 
 function useUsageNote(): string | null {
   const { user, me, loading } = useMe();
@@ -214,7 +215,6 @@ function TailorWorkspace({ source, baseTitle }: { source: Resume; baseTitle: str
           queued={queued}
           onPageLink={() => setEditingPost(true)}
           recent
-          linkKey="Compare"
         />
       </Card>
       {run.loading && run.startedAt !== null ? (

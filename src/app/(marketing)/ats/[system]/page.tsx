@@ -122,7 +122,7 @@ export default async function AtsGuidePage({ params }: Props) {
       />
       <PageIntro eyebrow="ATS guide" title={guideHeadline(guide)}>
         <p>{guide.what}</p>
-        <p className="text-sm/6 text-subtle">
+        <p className="text-base/7 text-subtle">
           {count === 1
             ? "1 sourced note, linked to the page it comes from."
             : `${count} sourced notes, each linked to the page it comes from.`}{" "}

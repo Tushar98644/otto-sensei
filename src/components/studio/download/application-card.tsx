@@ -10,9 +10,9 @@ import { prepHref } from "@/components/dashboard/applications/view";
 import { ROUTES } from "@/components/site/routes";
 import { requestLetterFor } from "@/components/studio/tailor/letter-request";
 import { loadResult } from "@/components/studio/tailor/session";
+import { Badge } from "@/components/ui/badge";
 import { Button, buttonClasses } from "@/components/ui/button";
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { ProMark } from "@/components/ui/pro-mark";
 import { STATUS_NAMES } from "@/lib/applications/status";
 import { applicationHref, copyLetter } from "@/lib/applications/thread";
 import type { Resume } from "@/lib/resume/schema";
@@ -33,14 +33,11 @@ function FindAJobCard() {
         </CardDescription>
       </CardHeader>
       <div className="flex flex-wrap items-center gap-2">
-        <Button variant="secondary" onClick={() => setStep("tailor")} className="max-sm:px-3">
+        <Button variant="secondary" onClick={() => setStep("tailor")}>
           <Target aria-hidden />
           Tailor to a job
         </Button>
-        <Link
-          href={ROUTES.dashboardJobs}
-          className={buttonClasses({ variant: "ghost", className: "max-sm:px-3" })}
-        >
+        <Link href={ROUTES.dashboardJobs} className={buttonClasses({ variant: "ghost" })}>
           <Search aria-hidden />
           See matching jobs
         </Link>
@@ -59,7 +56,11 @@ function TailoredCopyCard({ resume }: { resume: Resume }) {
   const job = [resume.tailor.jobTitle, resume.tailor.company].filter(Boolean).join(" at ");
   const letter = copyLetter(resume) !== "";
   const tailoredHere = loadResult(resume.tailor.baseResumeId)?.copyId === resume.id;
-  const proBadge = locked ? <ProMark /> : null;
+  const proBadge = locked ? (
+    <Badge variant="ink" className="h-5 px-1.5">
+      Pro
+    </Badge>
+  ) : null;
 
   function writeLetter() {
     requestLetterFor(resume.id);

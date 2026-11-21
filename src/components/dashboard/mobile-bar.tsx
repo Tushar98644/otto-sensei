@@ -21,7 +21,7 @@ import { prefetchPageData } from "./prefetch";
 
 // flex-auto, not flex-1: sized by its label, so "Applications" fits beside the others at 360px.
 const SEGMENT =
-  "relative flex h-10 min-w-0 flex-auto items-center justify-center gap-2 rounded-lg px-2 text-sm font-medium transition-colors duration-150 ease-out -outline-offset-2 pointer-coarse:h-11 max-sm:px-1 max-sm:text-xs";
+  "relative flex h-10 min-w-0 flex-auto items-center justify-center gap-2 rounded-lg px-2 text-sm font-medium transition-colors -outline-offset-2 max-sm:px-1 max-sm:text-xs";
 const CURRENT = "bg-surface text-ink shadow-control";
 const IDLE = "text-muted hover:text-ink aria-expanded:text-ink";
 

@@ -8,7 +8,6 @@ import { DIMMED_CLASSES, HiddenChip } from "./hidden-chip";
 import { removeWithUndo } from "./remove-with-undo";
 import { SectionMenu, type SectionOptions } from "./section-menu";
 import { SectionTitleForm } from "./section-title-form";
-import { useTouchLayout } from "./touch";
 
 export type { SectionOptions } from "./section-menu";
 
@@ -45,9 +44,6 @@ export function SectionCard({
   const toggleRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const hidden = options?.hidden === true;
-  // Touch screens get one ⋯ menu that also moves the section, instead of a row of keys.
-  const touch = useTouchLayout() !== "fine" && options?.move !== undefined;
-  const shownActions = touch ? null : actions;
 
   function backToView(focus: "toggle" | "menu" | null) {
     flushSync(() => setMode("view"));
@@ -57,12 +53,6 @@ export function SectionCard({
 
   function startRename() {
     flushSync(() => setMode("rename"));
-  }
-
-  function moveBy(delta: -1 | 1) {
-    // A moved section drops focus: render now, then hand it back to the menu's trigger.
-    flushSync(() => options?.move?.onMove(delta));
-    menuRef.current?.querySelector("button")?.focus();
   }
 
   function askToRemove() {
@@ -76,7 +66,7 @@ export function SectionCard({
     <section
       id={sectionId}
       aria-labelledby={titleId}
-      className="group/section scroll-mt-36 rounded-2xl bg-surface lg:scroll-mt-24 xl:scroll-mt-36"
+      className="group/section scroll-mt-36 rounded-2xl bg-surface lg:scroll-mt-24"
     >
       <div className="flex items-center gap-1 px-2 py-2 sm:px-4 sm:py-3">
         {mode === "rename" && options?.rename ? (
@@ -129,9 +119,9 @@ export function SectionCard({
             </button>
           </h3>
         )}
-        {shownActions || options ? (
+        {actions || options ? (
           <div className="flex shrink-0 items-center opacity-0 transition-opacity group-hover/section:opacity-100 focus-within:opacity-100 pointer-coarse:opacity-100">
-            {shownActions}
+            {actions}
             {options ? (
               <div ref={menuRef} className="flex">
                 <SectionMenu
@@ -139,7 +129,6 @@ export function SectionCard({
                   options={options}
                   onRename={startRename}
                   onRemove={askToRemove}
-                  onMove={touch ? moveBy : undefined}
                 />
               </div>
             ) : null}

@@ -6,7 +6,7 @@ import type { PrepSummary } from "@/lib/insights/prep";
 import { resumeTitle } from "@/lib/resume/ops";
 import type { Resume } from "@/lib/resume/schema";
 import { DAY_MS } from "@/lib/time";
-import { interviewLabel } from "../applications/view";
+import { formatDay } from "../applications/view";
 
 export const PREP_START_PARAM = "start";
 
@@ -47,7 +47,13 @@ export function waitingForPrep(
 }
 
 export function interviewDayLine(interviewAt: number | null, now: number): string {
-  return interviewAt === null ? "No interview day set yet" : interviewLabel(interviewAt, now);
+  if (interviewAt === null) return "No interview day set yet";
+  const day = formatDay(interviewAt, now || interviewAt);
+  if (now === 0) return `Interview ${day}`;
+  const days = daysFrom(now, interviewAt);
+  if (days === 0) return "Interview today";
+  if (days === 1) return "Interview tomorrow";
+  return days > 0 ? `Interview ${day}` : `Interview was ${day}`;
 }
 
 export function prepChoices(applications: readonly Application[]): Application[] {

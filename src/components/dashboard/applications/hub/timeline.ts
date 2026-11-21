@@ -7,7 +7,7 @@ import {
   type ApplicationStatus,
   type StatusEvent,
 } from "@/lib/applications/status";
-import { daysUntil, formatDay, interviewWhen } from "../view";
+import { formatDay } from "../view";
 
 export type TimelineStep = {
   status: ApplicationStatus;
@@ -50,7 +50,7 @@ export function timelineSteps(application: Timed, history: readonly StatusEvent[
 }
 
 export function nextStepLine(
-  application: Pick<Application, "status" | "followUpAt"> & { interviewAt?: number | null },
+  application: Pick<Application, "status" | "followUpAt">,
   hasPrep: boolean,
   now: number,
 ): string {
@@ -63,16 +63,10 @@ export function nextStepLine(
       }
       return "Waiting to hear back. Move it on here when they reply.";
     }
-    case "interview": {
-      const at = application.interviewAt ?? null;
-      if (at !== null && now > 0 && daysUntil(at, now) < 0) {
-        return `Your interview was ${interviewWhen(at, now)}. Move it on here when you hear back.`;
-      }
-      const lead = at !== null && now > 0 ? `Interview ${interviewWhen(at, now)}.` : "You have an interview.";
+    case "interview":
       return hasPrep
-        ? `${lead} Your prep is ready. Practice your answers out loud before the day.`
-        : `${lead} I can make prep from this job and the resume you sent.`;
-    }
+        ? "Your prep is ready. Practice your answers out loud before the day."
+        : "You have an interview. I can make prep from this job and the resume you sent.";
     case "offer":
       return "You have an offer. Read it closely and take the time you need.";
     case "rejected":

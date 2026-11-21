@@ -18,7 +18,6 @@ import { pluralize } from "@/lib/utils";
 import { downloadMenuItems } from "./download-menu";
 import { FitOffer, type NearFitState } from "./fit-offer";
 import { OpenJob } from "./open-job";
-import { openPdfPreview, PdfPeek } from "./pdf-preview";
 import { copyPlainText, PlainTextDetails } from "./plain-text-copy";
 import type { ResumePdf } from "./use-resume-pdf";
 import { useWordDownload } from "./word-download";
@@ -32,8 +31,6 @@ export type DownloadActionsProps = {
   fileName: string;
   changedCharacters: string[];
   fit: NearFitState;
-  // Where the page has no preview column, the card shows the top of page one.
-  peek: boolean;
 };
 
 const MAIN = "min-w-0 flex-1 rounded-r-none focus-visible:z-10";
@@ -41,6 +38,10 @@ const MORE = "-ml-px w-12 rounded-l-none px-0 focus-visible:z-10";
 
 function quoteList(chars: string[]): string {
   return chars.map((char) => `“${char}”`).join(", ");
+}
+
+function openPreview(url: string) {
+  window.open(url, "_blank", "noopener");
 }
 
 export function DownloadActions({
@@ -52,7 +53,6 @@ export function DownloadActions({
   fileName,
   changedCharacters,
   fit,
-  peek,
 }: DownloadActionsProps) {
   const [inviteUrl, setInviteUrl] = useState<string | null>(null);
   const downloadLink = useRef<HTMLAnchorElement>(null);
@@ -67,7 +67,7 @@ export function DownloadActions({
     onWord: word.download,
     onCopyText: () => void copyPlainText(resume),
     onShare: share.share,
-    onPreview: openPdfPreview,
+    onPreview: openPreview,
   });
   const meta = file
     ? `${pluralize(file.pages, "page")} · ${PAGE_SIZE_LABELS[pageSize]} · ${TEMPLATE_INFO[templateOf(printed)].name}`
@@ -85,13 +85,6 @@ export function DownloadActions({
 
   return (
     <Card>
-      {peek ? (
-        <PdfPeek
-          page={printed}
-          url={file?.url ?? null}
-          updating={pdf.file !== null && !pdf.isCurrent && !pdf.failed}
-        />
-      ) : null}
       <CardHeader>
         <CardTitle as="h2">Your PDF</CardTitle>
         <CardDescription aria-live="polite">{meta}</CardDescription>

@@ -122,15 +122,6 @@ export function ResumeCard({
   const showJob = job !== null && resume.title.trim() !== defaultTailoredTitle(resume);
   const chips = [reportChip(report), linesChip(lint)].filter((chip) => chip !== null);
   const format = TEMPLATE_INFO[templateOf(resume)].name;
-  const person = resume.basics.name.trim();
-  // A title like "maya" or "Stripe PM" says less than the name on the page, so the meta line adds it.
-  const meta = [
-    person && person.toLowerCase() !== title.toLowerCase() ? person : null,
-    format,
-    `Edited ${formatRelativeTime(resume.updatedAt, now)}`,
-  ]
-    .filter(Boolean)
-    .join(" · ");
   const sentWith = useCopyApplication(resume);
   const marks = [
     copyLetter(resume) ? "Cover letter" : null,
@@ -163,11 +154,11 @@ export function ResumeCard({
 
         <div className="flex flex-1 flex-col gap-3 px-2 pt-4 pb-2">
           <div className="min-w-0">
-            <h3 id={titleId} title={title} className="truncate text-base/6 font-medium text-ink">
+            <h3 id={titleId} className="truncate text-base/6 font-medium text-ink">
               {title}
             </h3>
-            <p title={meta} className="mt-0.5 line-clamp-2 text-sm/5 text-subtle">
-              {meta}
+            <p className="mt-0.5 truncate text-sm/5 text-subtle">
+              {format} · Edited {formatRelativeTime(resume.updatedAt, now)}
             </p>
             {showJob ? (
               <p className="mt-1.5 flex min-w-0 items-center gap-1.5 text-sm/5 text-muted">

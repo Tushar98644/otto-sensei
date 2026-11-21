@@ -1,7 +1,6 @@
 "use client";
 
 import { BellRing, Check, Clock, X } from "lucide-react";
-import type { ReactNode } from "react";
 import { errorMessage } from "@/components/account/errors";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -9,7 +8,6 @@ import { toast } from "@/components/ui/toast";
 import { undoToast } from "@/components/ui/undo-toast";
 import { followUpState, SNOOZE_DAYS, snoozedUntil } from "@/lib/applications/follow-up";
 import type { Application } from "@/lib/applications/schema";
-import { cn } from "@/lib/utils";
 import { changeApplication } from "./use-applications";
 import { formatDay } from "./view";
 
@@ -17,13 +15,10 @@ export function FollowUpChip({
   application,
   now,
   describedBy,
-  lead,
 }: {
   application: Application;
   now: number;
   describedBy?: string;
-  // Where the note already says it's due, the lead action replaces the "Follow up now" badge.
-  lead?: ReactNode;
 }) {
   const state = now === 0 ? "none" : followUpState(application, now);
   if (state === "none" || application.followUpAt === null) return null;
@@ -58,13 +53,11 @@ export function FollowUpChip({
 
   if (state === "due") {
     return (
-      <div className={cn("flex flex-wrap items-center", lead ? "gap-2" : "gap-1")}>
-        {lead ?? (
-          <Badge variant="warn">
-            <BellRing aria-hidden className="text-warn" />
-            Follow up now
-          </Badge>
-        )}
+      <div className="flex flex-wrap items-center gap-1">
+        <Badge variant="warn">
+          <BellRing aria-hidden className="text-warn" />
+          Follow up now
+        </Badge>
         <Button
           variant="ghost"
           size="sm"

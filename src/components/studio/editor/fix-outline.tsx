@@ -78,7 +78,7 @@ function useReading(outline: readonly OutlineSection[]): string {
   return reading;
 }
 
-export function goTo(sectionKey: string, entryId?: string) {
+function goTo(sectionKey: string, entryId?: string) {
   const section = document.getElementById(sectionDomId(sectionKey));
   if (!section) return;
   const toggle = section.querySelector<HTMLButtonElement>("h3 button[aria-expanded]");
@@ -101,77 +101,68 @@ function Count({ value }: { value: number }) {
   );
 }
 
-export function OutlineNav({ resumeId, className }: { resumeId: string; className?: string }) {
+export function FixOutline({ resumeId }: { resumeId: string }) {
   const outline = useOutline(resumeId);
   const reading = useReading(outline);
   const [readingSection = "", readingEntry = ""] = reading.split(" ");
 
   return (
-    <nav
-      aria-label="Resume sections"
-      className={cn(
-        "sticky top-20 max-h-[calc(100dvh-6rem)] self-start overflow-y-auto overscroll-contain rounded-2xl bg-surface p-2",
-        className,
-      )}
-    >
-      <Eyebrow className="px-2.5 pt-2 pb-1">Your resume</Eyebrow>
-      <ul className="flex flex-col">
-        {outline.map((section) => (
-          <li key={section.key}>
-            <button
-              type="button"
-              onClick={() => goTo(section.key)}
-              aria-current={readingSection === section.key && !readingEntry ? "true" : undefined}
-              className={cn(
-                "flex min-h-9 w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-left text-sm font-medium text-ink transition-colors hover:bg-surface-muted",
-                readingSection === section.key && !readingEntry && "bg-surface-muted",
-              )}
-            >
-              <span className="min-w-0 truncate">{section.label}</span>
-              <Count value={section.needWork} />
-            </button>
-            {section.entries.length > 0 ? (
-              <ul className="mb-1 flex flex-col">
-                {section.entries.map((entry) => (
-                  <li key={entry.id}>
-                    <button
-                      type="button"
-                      onClick={() => goTo(section.key, entry.id)}
-                      title={entry.label}
-                      aria-current={readingEntry === entry.id ? "true" : undefined}
-                      className={cn(
-                        "flex min-h-8 w-full items-center gap-2 rounded-lg py-1 pr-2.5 pl-5 text-left text-sm/5 text-muted transition-colors hover:bg-surface-muted hover:text-ink",
-                        readingEntry === entry.id && "bg-surface-muted text-ink",
-                      )}
-                    >
-                      <span className="line-clamp-2 min-w-0 break-words">{entry.label}</span>
-                      <Count value={entry.needWork} />
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            ) : null}
-          </li>
-        ))}
-      </ul>
-    </nav>
+    <>
+      <PhoneSections outline={outline} current={readingSection} />
+      <nav
+        aria-label="Resume sections"
+        className="sticky top-20 hidden max-h-[calc(100dvh-6rem)] self-start overflow-y-auto overscroll-contain rounded-2xl bg-surface p-2 lg:block"
+      >
+        <Eyebrow className="px-2.5 pt-2 pb-1">Your resume</Eyebrow>
+        <ul className="flex flex-col">
+          {outline.map((section) => (
+            <li key={section.key}>
+              <button
+                type="button"
+                onClick={() => goTo(section.key)}
+                aria-current={readingSection === section.key && !readingEntry ? "true" : undefined}
+                className={cn(
+                  "flex min-h-9 w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-left text-sm font-medium text-ink transition-colors hover:bg-surface-muted",
+                  readingSection === section.key && !readingEntry && "bg-surface-muted",
+                )}
+              >
+                <span className="min-w-0 truncate">{section.label}</span>
+                <Count value={section.needWork} />
+              </button>
+              {section.entries.length > 0 ? (
+                <ul className="mb-1 flex flex-col">
+                  {section.entries.map((entry) => (
+                    <li key={entry.id}>
+                      <button
+                        type="button"
+                        onClick={() => goTo(section.key, entry.id)}
+                        aria-current={readingEntry === entry.id ? "true" : undefined}
+                        className={cn(
+                          "flex min-h-8 w-full items-center gap-2 rounded-lg py-1 pr-2.5 pl-5 text-left text-sm/5 text-muted transition-colors hover:bg-surface-muted hover:text-ink",
+                          readingEntry === entry.id && "bg-surface-muted text-ink",
+                        )}
+                      >
+                        <span className="line-clamp-2 min-w-0 break-words">{entry.label}</span>
+                        <Count value={entry.needWork} />
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
+            </li>
+          ))}
+        </ul>
+      </nav>
+    </>
   );
-}
-
-export function SectionsRow({ resumeId, className }: { resumeId: string; className?: string }) {
-  const outline = useOutline(resumeId);
-  const [current = ""] = useReading(outline).split(" ");
-  return <PhoneSections outline={outline} current={current} className={className} />;
 }
 
 function PhoneSections({
   outline,
   current,
-  className,
 }: {
   outline: readonly OutlineSection[];
   current: string;
-  className?: string;
 }) {
   const rowRef = useRef<HTMLDivElement>(null);
 
@@ -188,10 +179,7 @@ function PhoneSections({
   return (
     <nav
       aria-label="Jump to a section"
-      className={cn(
-        "sticky top-14 z-20 -mx-4 bg-surface-muted px-4 py-2 sm:top-16 sm:-mx-6 sm:px-6",
-        className,
-      )}
+      className="sticky top-14 z-20 -mx-4 bg-surface-muted px-4 py-2 sm:top-16 sm:-mx-6 sm:px-6 lg:hidden"
     >
       <div
         ref={rowRef}

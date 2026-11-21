@@ -107,12 +107,8 @@ function AccountPanel({ user, onFeedback }: { user: SessionUser; onFeedback: () 
     <div className="flex flex-col gap-1">
       <div className="flex flex-col gap-2 px-3 pt-2 pb-3">
         <p className="text-xs text-muted">Signed in as</p>
-        <p title={user.email} className="truncate text-sm font-medium text-ink">
-          {user.email}
-        </p>
-        <Badge variant={user.plan === "free" ? "neutral" : "ink"}>
-          {plan.name} {user.trialEndsAt ? "trial" : "plan"}
-        </Badge>
+        <p className="truncate text-sm font-medium text-ink">{user.email}</p>
+        <Badge variant={user.plan === "free" ? "neutral" : "ink"}>{plan.name} plan</Badge>
       </div>
       <Separator />
       {searchable ? (

@@ -1,7 +1,7 @@
 import { Suspense } from "react";
 import { ACCOUNT_OTTO } from "@/components/account/copy";
 import { SignInFormSkeleton } from "@/components/account/sign-in-form-skeleton";
-import { SignInScreen } from "@/components/account/sign-in-screen";
+import { OttoNote } from "@/components/mascot/otto-note";
 import { pageMetadata } from "@/components/site/page-metadata";
 import { ROUTES } from "@/components/site/routes";
 import { TextLink } from "@/components/site/text-link";
@@ -22,24 +22,18 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
   const { next } = await searchParams;
   const heading = loginHeading(typeof next === "string" ? next : null, trialOffered());
   return (
-    <div className="px-4 py-16 sm:py-24">
-      <SignInScreen
-        title={heading}
-        message={ACCOUNT_OTTO.login}
-        footer={
-          <>
-            Only checking a resume?{" "}
-            <TextLink href={ROUTES.studio} className="whitespace-nowrap">
-              Open the studio
-            </TextLink>
-            . No account needed.
-          </>
-        }
-      >
-        <Suspense fallback={<SignInFormSkeleton />}>
-          <LoginForm />
-        </Suspense>
-      </SignInScreen>
+    <div className="mx-auto flex w-full max-w-lg flex-col gap-8 px-4 py-16 sm:py-24">
+      <h1 className="font-display text-4xl/10 font-normal tracking-tight text-balance text-ink sm:text-5xl/13">
+        {heading}
+      </h1>
+      <OttoNote live={false} message={ACCOUNT_OTTO.login} />
+      <Suspense fallback={<SignInFormSkeleton />}>
+        <LoginForm />
+      </Suspense>
+      <p className="text-sm text-balance text-muted">
+        Only checking a resume? <TextLink href={ROUTES.studio}>Open the studio</TextLink>. No
+        account needed.
+      </p>
     </div>
   );
 }

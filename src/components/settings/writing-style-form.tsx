@@ -129,9 +129,9 @@ export function WritingStyleForm({
       }}
       className="flex flex-col gap-6"
     >
-      <p className="max-w-prose text-sm/6 text-pretty text-muted">
-        Used for your cover letters, application answers and outreach messages. Your work history
-        still comes only from your resume, and Otto never makes anything up.
+      <p className="text-sm/6 text-muted">
+        Used for your cover letters, application answers and outreach messages. Otto follows it, but
+        your work history still comes only from your resume, and Otto never makes anything up.
       </p>
       <Segments
         legend="Tone"
@@ -157,12 +157,7 @@ export function WritingStyleForm({
         disabled={pending}
         onChange={(spelling) => change({ spelling }, 0)}
       />
-      <Field
-        label="Sign-off"
-        optional
-        hint="Ends your cover letters and messages."
-        className="sm:max-w-sm"
-      >
+      <Field label="Sign-off" optional hint="Ends your cover letters and messages.">
         <Input
           value={draft.signOff}
           disabled={pending}

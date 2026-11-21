@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowDown, ArrowUp, Ellipsis, Eye, EyeOff, Pencil, Trash } from "lucide-react";
+import { Ellipsis, Eye, EyeOff, Pencil, Trash } from "lucide-react";
 import { buttonClasses } from "@/components/ui/button";
 import { Menu, type MenuEntry } from "@/components/ui/menu";
 import { ICON_ACTION_CLASSES } from "./move-buttons";
@@ -15,7 +15,6 @@ export type SectionOptions = {
   hidden?: boolean;
   onToggleHidden?: () => void;
   remove?: { confirm: string | null; run: () => void; resumeId: string };
-  move?: { canMoveUp: boolean; canMoveDown: boolean; onMove: (delta: -1 | 1) => void };
 };
 
 export type SectionMenuProps = {
@@ -23,20 +22,13 @@ export type SectionMenuProps = {
   options: SectionOptions;
   onRename: () => void;
   onRemove: () => void;
-  onMove?: (delta: -1 | 1) => void;
 };
 
-export function SectionMenu({ title, options, onRename, onRemove, onMove }: SectionMenuProps) {
-  const { onToggleHidden, move } = options;
+export function SectionMenu({ title, options, onRename, onRemove }: SectionMenuProps) {
+  const { onToggleHidden } = options;
   const hidden = options.hidden === true;
   const items: MenuEntry[] = [];
   if (options.rename) items.push({ label: "Rename section", icon: Pencil, onSelect: onRename });
-  if (move && onMove) {
-    items.push(
-      { label: "Move up", icon: ArrowUp, disabled: !move.canMoveUp, onSelect: () => onMove(-1) },
-      { label: "Move down", icon: ArrowDown, disabled: !move.canMoveDown, onSelect: () => onMove(1) },
-    );
-  }
   if (onToggleHidden) {
     items.push(
       hidden

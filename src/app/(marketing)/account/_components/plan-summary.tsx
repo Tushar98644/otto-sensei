@@ -28,8 +28,7 @@ import {
   type PlanView,
 } from "./plan-copy";
 
-export function PlanPill({ pill }: { pill: Pill | null }) {
-  if (!pill) return null;
+export function PlanPill({ pill }: { pill: Pill }) {
   switch (pill.tone) {
     case "live":
       return (

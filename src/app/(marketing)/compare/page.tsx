@@ -29,9 +29,12 @@ export default function CompareIndexPage() {
         ]}
       />
       <PageIntro eyebrow="Compare" title={`How ${BRAND.name} compares`}>
-        <p>What each resume tool does well, what its plans include, and where Otto differs.</p>
-        <p className="text-sm/6 text-subtle">
-          From each product&apos;s own website, checked on{" "}
+        <p>
+          Plain, side-by-side comparisons with other resume tools: what each one does well, what its
+          plans include, and where Otto is different.
+        </p>
+        <p className="text-base/7 text-subtle">
+          Facts about each product come from its own website, checked on{" "}
           <time dateTime={COMPETITORS_CHECKED}>{calendarDate(COMPETITORS_CHECKED)}</time>, with
           links to every source.
         </p>

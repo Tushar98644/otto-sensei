@@ -48,19 +48,19 @@ type Point = { title: string; text: string };
 const POINTS: readonly Point[] = [
   {
     title: "Matched to your resume",
-    text: "Each job shows what it asks for that your resume has, and what it doesn't.",
+    text: "Each job shows what it asks for that your resume has, and what it doesn't. The closest matches come first.",
   },
   {
     title: "Visa and work rights, checked",
-    text: "On Pro, posts that say they can't hire you are marked, and listed visa sponsors say so.",
+    text: "On Pro, tell Otto where you can work and posts that say they can't hire you are marked. Companies on the public US H-1B and UK sponsor registers say so.",
   },
   {
-    title: "Your role, level and place",
-    text: "Otto guesses them from your resume to start. Change them any time.",
+    title: "The role, level and place you want",
+    text: "Pick a role, a level and a place, or remote only. Otto guesses them from your resume to start.",
   },
   {
     title: "Straight from the company",
-    text: "From careers pages and public job feeds, read every day, each linked to its post.",
+    text: "Jobs come from companies' own careers pages and public job feeds, read every day. Each one links to the original post.",
   },
 ];
 
@@ -75,31 +75,28 @@ export function JobsShowcase({ jobCounts }: { jobCounts: JobCounts }) {
           open ? `${open} open jobs, ranked for your resume` : "Open jobs, ranked for your resume"
         }
       >
-        The ones that fit your resume come first, each with a plain reason. Free shows your top{" "}
-        {FREE_JOB_MATCHES}; Pro shows every match.
+        Otto reads companies&apos; careers pages every day and puts the jobs that fit your resume first,
+        with a plain reason for each. Free shows your top {FREE_JOB_MATCHES}; Pro matches you
+        against all of them.
       </SectionHeader>
       <Panel className="mt-12 sm:mt-16">
         <ul role="list" aria-label="Example matches" className="flex flex-col gap-3 sm:gap-4">
           {EXAMPLES.map((job) => (
-            <li key={job.title} className="flex flex-col gap-3 rounded-2xl bg-surface p-5 sm:p-6">
-              <div className="flex flex-wrap items-start justify-between gap-x-6 gap-y-2">
-                <div className="min-w-0">
-                  <h3 className="text-base/6 font-semibold text-pretty text-ink">
-                    {job.title} · {job.company}
-                  </h3>
-                  <p className="mt-0.5 text-sm/6 text-muted">
-                    {job.where}
-                    {job.visa ? <span className="text-subtle"> · {job.visa}</span> : null}
-                  </p>
-                </div>
-                <div className="flex flex-wrap items-center gap-2">
-                  {job.match === "strong" ? (
-                    <StatusPill status="pass">{MATCH_LABELS.strong}</StatusPill>
-                  ) : (
-                    <Badge>{MATCH_LABELS[job.match]}</Badge>
-                  )}
-                  {job.blocked ? <StatusPill status="fail">Likely blocked</StatusPill> : null}
-                </div>
+            <li key={job.title} className="flex flex-col gap-3 rounded-2xl bg-surface p-4 sm:p-6">
+              <div>
+                <h3 className="text-base/6 font-semibold text-pretty text-ink">
+                  {job.title} · {job.company}
+                </h3>
+                <p className="text-sm/6 text-muted">{job.where}</p>
+                {job.visa ? <p className="text-sm/6 text-subtle">{job.visa}</p> : null}
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                {job.match === "strong" ? (
+                  <StatusPill status="pass">{MATCH_LABELS.strong}</StatusPill>
+                ) : (
+                  <Badge>{MATCH_LABELS[job.match]}</Badge>
+                )}
+                {job.blocked ? <StatusPill status="fail">Likely blocked</StatusPill> : null}
               </div>
               <div className="flex flex-col gap-1">
                 <p className="text-sm/6 text-pretty text-ink">{job.reason}</p>
@@ -111,11 +108,14 @@ export function JobsShowcase({ jobCounts }: { jobCounts: JobCounts }) {
           ))}
         </ul>
       </Panel>
-      <ul role="list" className="mt-10 grid gap-x-8 gap-y-6 sm:grid-cols-2 lg:mt-12 lg:grid-cols-4">
+      <ul
+        role="list"
+        className="mt-10 grid gap-x-8 gap-y-8 border-t border-border pt-10 sm:grid-cols-2"
+      >
         {POINTS.map(({ title, text }) => (
-          <li key={title} className="flex flex-col gap-1">
-            <h3 className="text-base/7 font-medium text-ink">{title}</h3>
-            <p className="text-base/7 text-pretty text-muted">{text}</p>
+          <li key={title} className="flex flex-col gap-2">
+            <h3 className="text-lg/7 font-medium tracking-tight text-ink">{title}</h3>
+            <p className="max-w-prose text-base/7 text-muted">{text}</p>
           </li>
         ))}
       </ul>

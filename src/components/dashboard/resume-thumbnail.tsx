@@ -299,33 +299,24 @@ export const ResumeThumbnail = memo(function ResumeThumbnail({
           className="absolute top-0 left-0 page-miniature overflow-hidden"
           style={{ ...pdfStyleToCss(theme.styles.page), overflowWrap: "break-word" }}
         >
-          <PageContent model={model} theme={theme} />
+          <Header model={model} theme={theme} />
+          {model.sections.map((section) => (
+            <div key={section.key} style={pdfStyleToCss(theme.styles.section)}>
+              <SectionTitle title={section.title} theme={theme} />
+              <SectionBody section={section} theme={theme} />
+            </div>
+          ))}
+          {(model.extras ?? []).map((section) => (
+            <div key={`extra-${section.id}`} style={pdfStyleToCss(theme.styles.section)}>
+              <SectionTitle title={section.title} theme={theme} />
+              <ExtraBody section={section} theme={theme} />
+            </div>
+          ))}
         </div>
       )}
     </div>
   );
 });
-
-// The page's flow (header, then one block per section); the studio's live preview pages it.
-export function PageContent({ model, theme }: Styled & { model: PdfModel }) {
-  return (
-    <>
-      <Header model={model} theme={theme} />
-      {model.sections.map((section) => (
-        <div key={section.key} style={pdfStyleToCss(theme.styles.section)}>
-          <SectionTitle title={section.title} theme={theme} />
-          <SectionBody section={section} theme={theme} />
-        </div>
-      ))}
-      {(model.extras ?? []).map((section) => (
-        <div key={`extra-${section.id}`} style={pdfStyleToCss(theme.styles.section)}>
-          <SectionTitle title={section.title} theme={theme} />
-          <ExtraBody section={section} theme={theme} />
-        </div>
-      ))}
-    </>
-  );
-}
 
 function BlankPage() {
   return (

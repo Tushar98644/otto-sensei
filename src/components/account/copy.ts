@@ -2,10 +2,9 @@ import { BRAND } from "@/config/brand";
 
 export const ACCOUNT_OTTO = {
   signInDialog: "Use Google or a 6-digit email code, then we're back where you left off.",
-  login: "Use Google, or I'll email you a code. No password to remember.",
-  signedOut: "I'll show your plan, this month's usage and your billing once you're in.",
+  login: "Use Google, or I'll email you a 6-digit code. No password to remember.",
+  signedOut: "Sign in to see your plan and what you've used this month.",
   upgradePitch: "Tailoring, letters and line fixes each month, for a busy job hunt.",
-  trialPitch: "All my AI help on your real job hunt: tailoring, letters, interview prep and line fixes.",
   upgradeSignIn: "Sign in first. Then I'll take you straight to checkout.",
   billingOff: "Payments aren't switched on yet, but you can still email us about a plan.",
   alreadyMax: "You're on Max, the biggest plan. Email us if you need more.",

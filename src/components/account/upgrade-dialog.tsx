@@ -110,14 +110,13 @@ export function UpgradeDialog({
     null;
   const period = me?.period;
   let limitLine: string | null = null;
-  // The plan panel names the trial, so Otto only says why the dialog opened.
-  if (tool && current === "free") limitLine = OTTO.limit.tool(tool, false);
+  if (tool && current === "free") limitLine = OTTO.limit.tool(tool, trialOnOffer);
   else if (feature) {
     limitLine =
       current === "free"
         ? planIncludes("free", feature)
           ? OTTO.limit.freeUsed(feature, me?.usage?.[feature].limit)
-          : OTTO.limit.none(feature, false)
+          : OTTO.limit.none(feature, trialOnOffer)
         : budget
           ? budgetReachedText(period)
           : OTTO.limit.reached(feature, me?.usage?.[feature].limit, period);
@@ -188,8 +187,9 @@ export function UpgradeDialog({
       {replaceNote}
     </div>
   );
+  const size: DialogSize = offer.cards.length > 1 ? "lg" : "sm";
   const notNow = (
-    <Button variant="ghost" onClick={close}>
+    <Button variant="secondary" onClick={close}>
       Not now
     </Button>
   );
@@ -263,7 +263,7 @@ export function UpgradeDialog({
         ? (limitLine ?? ACCOUNT_OTTO.billingOff)
         : limitLine && upgrading
           ? `${limitLine} ${PLANS[target.plan].name} has more.`
-          : (limitLine ?? (target.trial ? ACCOUNT_OTTO.trialPitch : ACCOUNT_OTTO.upgradePitch)),
+          : (limitLine ?? (target.trial ? OTTO.upgrade.trial : ACCOUNT_OTTO.upgradePitch)),
       title: upgrading
         ? `Upgrade to ${PLANS[target.plan].name}`
         : offer.cards.length > 1
@@ -272,14 +272,12 @@ export function UpgradeDialog({
             ? trialHeadline()
             : `Upgrade to ${PLANS[target.plan].name}`,
       description: !upgrading
-        ? target.trial
-          ? undefined
-          : "Cancel anytime from your account."
+        ? "Cancel anytime from your account."
         : onTrial
           ? trialUpgradeNotice(target.plan, target.interval)
           : "Your subscription changes in place: you pay only the difference, never twice.",
       body: pitch,
-      size: "md",
+      size,
       footer: billingOff ? (
         <>
           <Button variant="secondary" onClick={close}>

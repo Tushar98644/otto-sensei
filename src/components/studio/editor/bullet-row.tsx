@@ -27,7 +27,6 @@ import {
 import { useOpenFix } from "./fix-launcher";
 import { ottoCanFix, wantsOtto } from "./fix-queue";
 import { addLineButtonId, bulletDeleteId, bulletInputId, editThenFocus } from "./focus";
-import { HOLD_FOCUS } from "./focus-hold";
 import { HIDDEN_LABEL, HiddenChip } from "./hidden-chip";
 import { BULLET_LIMITS, CHAR_LIMITS } from "./limits";
 import { LINE_FLASH_LABEL, useLineFlash } from "./line-flash";
@@ -37,7 +36,7 @@ import { LineDescription, LineTip, useLineLint } from "./lint-notes";
 import { useTouchLayout } from "./touch";
 import { editLines, getResume, useBulletIssues, useIsLinted } from "./use-editor";
 
-const SHOWN_ON_FOCUS = "sr-only group-data-focused/line:not-sr-only";
+const SHOWN_ON_FOCUS = "sr-only group-focus-within/line:not-sr-only";
 
 export type BulletRowProps = {
   resumeId: string;
@@ -220,7 +219,7 @@ export const BulletRow = memo(function BulletRow({
   };
 
   return (
-    <li className="group/line" {...HOLD_FOCUS}>
+    <li className="group/line">
       <label id={labelId} htmlFor={inputId} className="sr-only">
         {`Line ${position}`}
       </label>

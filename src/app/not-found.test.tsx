@@ -8,7 +8,7 @@ const decode = (value: string) =>
   value.replaceAll("&amp;", "&").replaceAll("&quot;", '"').replaceAll("&#x27;", "'");
 
 describe("the 404 page", () => {
-  it("leads with checking a resume, keeps the home page as a quiet second key, and never shows the header's copy of the first", () => {
+  it("leads with checking a resume, and keeps the home page as the second key", () => {
     const html = renderToStaticMarkup(<NotFound />);
     const main = html.slice(html.indexOf("<main"), html.indexOf("</main>"));
     const keys = [...main.matchAll(/<a([^>]*)>([^<]+)</g)].map(([, attributes = "", label]) => ({
@@ -20,11 +20,9 @@ describe("the 404 page", () => {
       { href: ROUTES.studio, className: buttonClasses({ size: "lg" }), label: "Check my resume" },
       {
         href: ROUTES.home,
-        className: buttonClasses({ variant: "ghost", size: "lg" }),
+        className: buttonClasses({ variant: "secondary", size: "lg" }),
         label: "Go to the home page",
       },
     ]);
-    const header = html.slice(html.indexOf("<header"), html.indexOf("</header>"));
-    expect(header).not.toContain("Check my resume");
   });
 });

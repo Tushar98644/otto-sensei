@@ -1,7 +1,6 @@
 "use client";
 
-import { ArrowRight, Columns3, List, Plus } from "lucide-react";
-import Link from "next/link";
+import { Columns3, List, Plus } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { errorMessage } from "@/components/account/errors";
 import { roomForApplication, useProTools, useTryProLabel } from "@/components/account/pro-tools";
@@ -10,12 +9,11 @@ import { OTTO } from "@/components/mascot/lines";
 import { Otto } from "@/components/mascot/otto";
 import { OttoNote } from "@/components/mascot/otto-note";
 import { ReminderPrompt } from "@/components/setup/reminder-prompt";
-import { ROUTES } from "@/components/site/routes";
 import { useNow } from "@/components/studio/use-now";
 import { FREE_APPLICATIONS } from "@/config/plans";
 import { Alert } from "@/components/ui/alert";
-import { Button, buttonClasses } from "@/components/ui/button";
-import { ProMark } from "@/components/ui/pro-mark";
+import { Button } from "@/components/ui/button";
+import { FolderCard } from "@/components/ui/folder-card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "@/components/ui/toast";
 import { undoToast } from "@/components/ui/undo-toast";
@@ -24,7 +22,6 @@ import type { Application } from "@/lib/applications/schema";
 import { formatCount, tally, type VersionInfo } from "@/lib/applications/stats";
 import { STATUS_NAMES, type ApplicationStatus } from "@/lib/applications/status";
 import { browserStorage } from "@/lib/browser-storage";
-import { cn } from "@/lib/utils";
 import { resumeTitle } from "@/lib/resume/ops";
 import { useResumeList } from "@/lib/store/resume-store";
 import { LazyApplicationDialog } from "./lazy-application-dialog";
@@ -47,9 +44,8 @@ import {
   applicationAnchor,
   filterApplications,
   filterCounts,
-  outsideLine,
+  FILTER_NAMES,
   sentLabel,
-  upcomingFirst,
   type ApplicationFilter,
 } from "./view";
 import { WinRate } from "./win-rate";
@@ -96,11 +92,7 @@ export function ApplicationsPage() {
     [resumes],
   );
   const counts = useMemo(() => filterCounts(items), [items]);
-  const shown = useMemo(
-    () => upcomingFirst(filterApplications(items, filter), now),
-    [items, filter, now],
-  );
-  const outside = useMemo(() => shown.filter((application) => !application.resumeId).length, [shown]);
+  const shown = useMemo(() => filterApplications(items, filter), [items, filter]);
   const stale = useMemo(() => (now === 0 ? [] : waitingTooLong(items, now)), [items, now]);
   const totals = useMemo(() => tally(items), [items]);
   const toApply = useMemo(
@@ -171,8 +163,6 @@ export function ApplicationsPage() {
     });
   }
 
-  const empty = status === "ready" && items.length === 0 && waiting === 0;
-
   return (
     <div className="flex flex-col gap-8">
       <header className="flex flex-wrap items-end justify-between gap-x-6 gap-y-4">
@@ -180,25 +170,21 @@ export function ApplicationsPage() {
           <h1 className="font-display text-4xl/10 font-normal tracking-tight text-ink sm:text-5xl/13">
             Applications
           </h1>
-          {status === "loading" ? (
-            <Skeleton aria-hidden className="mt-3 h-5 w-64 max-w-full" />
-          ) : status === "ready" && items.length > 0 ? (
-            <p className="mt-2 text-base/7 text-muted tabular-nums">
-              {formatCount(totals.applications, "application")},{" "}
-              {formatCount(totals.interviews, "interview")} so far.
-            </p>
-          ) : null}
+          <p className="mt-2 max-w-prose text-base/7 text-muted">
+            {status === "ready" && items.length > 0
+              ? `${formatCount(totals.applications, "application")}, ${formatCount(totals.interviews, "interview")} so far. Counted from your own record only.`
+              : "Log the jobs you apply to and the resume you sent. See which version gets interviews."}
+          </p>
         </div>
-        {status === "ready" && !empty ? (
-          <div className="flex flex-wrap items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          {status === "ready" && (items.length > 0 || waiting > 0) ? (
             <ViewToggle view={view} onChange={pickView} />
-            <Button variant={full ? "secondary" : "primary"} onClick={() => void add()}>
-              <Plus aria-hidden />
-              Add application
-              {full ? <ProMark /> : null}
-            </Button>
-          </div>
-        ) : null}
+          ) : null}
+          <Button onClick={() => void add()}>
+            <Plus aria-hidden />
+            Add application
+          </Button>
+        </div>
       </header>
 
       {full ? (
@@ -221,7 +207,7 @@ export function ApplicationsPage() {
         >
           Check your connection, then try again.
         </Alert>
-      ) : empty ? (
+      ) : items.length === 0 && waiting === 0 ? (
         <EmptyState onAdd={() => void add()} />
       ) : (
         <>
@@ -251,16 +237,23 @@ export function ApplicationsPage() {
             ) : (
               <>
                 <ApplicationFilters filter={filter} counts={counts} onChange={pickFilter} />
-                <div className="rounded-2xl bg-surface px-4 sm:px-6">
+                <FolderCard
+                  tab={FILTER_NAMES[filter]}
+                  tabEnd={
+                    <span className="text-xs text-subtle tabular-nums">
+                      {formatCount(shown.length, "shown", "shown")}
+                    </span>
+                  }
+                  bodyClassName="px-4 py-0 sm:px-6"
+                >
                   {shown.length > 0 ? (
                     <ul className="divide-y divide-border">
                       {shown.slice(0, visibleRows).map((application) => (
                         <ApplicationRow
                           key={application.id}
                           application={application}
-                          sent={application.resumeId ? sentLabel(application, versions) : null}
+                          sent={sentLabel(application, versions)}
                           now={now}
-                          pro={pro}
                           onStatus={(target, next) => setStatus(target, next)}
                           onEdit={(target) => edit(target)}
                           onDelete={remove}
@@ -286,10 +279,7 @@ export function ApplicationsPage() {
                       </Button>
                     </div>
                   )}
-                </div>
-                {outside > 0 ? (
-                  <p className="-mt-1 text-sm/5 text-subtle">{outsideLine(outside, shown.length)}</p>
-                ) : null}
+                </FolderCard>
               </>
             )}
           </section>
@@ -332,22 +322,20 @@ function EmptyState({ onAdd }: { onAdd: () => void }) {
   return (
     <section
       aria-labelledby="empty-applications"
-      className="flex flex-col items-center rounded-3xl bg-surface px-6 py-12 text-center sm:py-16"
+      className="flex flex-col items-center rounded-3xl bg-surface px-6 py-14 text-center sm:py-20"
     >
-      <Otto pose="point" size={112} />
+      <Otto pose="point" size={128} />
       <h2 id="empty-applications" className="mt-6 font-sans text-lg/7 font-medium text-ink">
         Your applications will live here
       </h2>
       <p className="mt-2 max-w-sm text-sm/6 text-pretty text-muted">
-        Jobs you save and resumes you tailor land here, ready to track to an offer.
+        Log each job and the resume version you sent. Otto counts the interviews per version, from
+        your numbers only.
       </p>
-      <div className="mt-6 flex flex-wrap items-center justify-center gap-2">
-        <Link href={ROUTES.dashboardJobs} className={buttonClasses()}>
-          Find jobs
-          <ArrowRight aria-hidden />
-        </Link>
-        <Button variant="ghost" onClick={onAdd}>
-          Add manually
+      <div className="mt-6">
+        <Button onClick={onAdd}>
+          <Plus aria-hidden />
+          Add your first application
         </Button>
       </div>
     </section>
@@ -360,17 +348,18 @@ function LoadingState() {
       <span className="sr-only" role="status">
         Loading your applications
       </span>
-      <div aria-hidden className="flex flex-col gap-2 md:flex-row">
-        {[0, 1, 2, 3, 4].map((index) => (
-          <Skeleton
-            key={index}
-            className={cn(
-              "h-72 flex-1 rounded-2xl bg-surface-hover md:min-w-0",
-              index > 0 && "max-md:hidden",
-            )}
-          />
-        ))}
+      <div aria-hidden className="flex flex-col">
+        <Skeleton className="h-8 w-28 rounded-t-xl rounded-b-none" />
+        <div className="grid grid-cols-3 gap-px overflow-hidden rounded-2xl rounded-tl-none bg-border">
+          {[0, 1, 2].map((index) => (
+            <div key={index} className="flex flex-col gap-2 bg-surface p-4 sm:p-6">
+              <Skeleton className="h-5 w-20" />
+              <Skeleton className="h-10 w-12" />
+            </div>
+          ))}
+        </div>
       </div>
+      <Skeleton aria-hidden className="h-64 rounded-2xl bg-surface" />
     </div>
   );
 }

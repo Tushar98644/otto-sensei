@@ -53,7 +53,7 @@ export function PlanCard({
   return (
     <div
       className={cn(
-        "flex flex-col rounded-2xl bg-surface p-5 sm:p-6 lg:row-span-4 lg:grid lg:grid-rows-subgrid lg:gap-0",
+        "flex flex-col rounded-2xl bg-surface p-6 sm:p-8 lg:row-span-4 lg:grid lg:grid-rows-subgrid lg:gap-0",
         className,
       )}
     >

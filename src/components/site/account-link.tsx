@@ -30,7 +30,7 @@ const HEADER_KEY = buttonClasses({
   className: "max-md:h-10 pointer-coarse:h-10 after:absolute after:inset-x-0 after:-inset-y-0.5",
 });
 
-export function HeaderActions({ cta = true }: { cta?: boolean }) {
+export function HeaderActions() {
   const signedIn = useSignedIn();
   const heroCtaInView = useHeroCtaInView();
   if (signedIn) {
@@ -45,28 +45,12 @@ export function HeaderActions({ cta = true }: { cta?: boolean }) {
       <Link href={SIGN_IN_LINK.href} className={cn(NAV_LINK_CLASSES, "hidden md:inline-flex")}>
         {SIGN_IN_LINK.label}
       </Link>
-      {cta ? <HeaderCta hidden={heroCtaInView} /> : null}
+      <IntentLink
+        href={ROUTES.studio}
+        className={cn(HEADER_KEY, heroCtaInView && "invisible opacity-0")}
+      >
+        Check my resume
+      </IntentLink>
     </>
-  );
-}
-
-// Folds to no width while hidden, so "Sign in" sits at the edge instead of beside a gap.
-function HeaderCta({ hidden }: { hidden: boolean }) {
-  return (
-    <div
-      className={cn(
-        "grid transition-[grid-template-columns] duration-200 ease-out motion-reduce:transition-none",
-        hidden ? "grid-cols-[0fr]" : "grid-cols-[1fr]",
-      )}
-    >
-      <div className="min-w-0 overflow-x-clip [overflow-clip-margin:4px]">
-        <IntentLink
-          href={ROUTES.studio}
-          className={cn(HEADER_KEY, hidden && "invisible translate-y-1 opacity-0")}
-        >
-          Check my resume
-        </IntentLink>
-      </div>
-    </div>
   );
 }

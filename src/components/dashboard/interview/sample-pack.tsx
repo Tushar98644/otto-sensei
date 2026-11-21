@@ -1,4 +1,4 @@
-import { useId, type ReactNode } from "react";
+import { useId } from "react";
 import { Speaker } from "@/components/dashboard/applications/prep/speech";
 import { StarScript } from "@/components/dashboard/applications/prep/star-script";
 import { FolderCard } from "@/components/ui/folder-card";
@@ -34,25 +34,24 @@ const SAMPLE_STORY: StarStory = {
   result: "It reached 1,200 paying teams and $1.4M in yearly revenue in its first 12 months.",
 };
 
-// The pack fades out partway, so the offer under it reads as the rest of the page.
-export function SamplePack({ children }: { children?: ReactNode }) {
+export function SamplePack() {
   const headingId = useId();
   return (
-    <section aria-labelledby={headingId} className="max-w-3xl">
+    <section aria-labelledby={headingId} className="flex flex-col gap-4">
       <FolderCard
         tab="Example"
         tabEnd={<span className="text-xs text-subtle">Jordan Ellis, a sample resume</span>}
-        bodyClassName="p-5 sm:p-10"
+        bodyClassName="p-5 sm:p-8"
       >
-        <div className="flex flex-col gap-1">
-          <h2 id={headingId} className="font-sans text-lg/7 font-medium text-ink">
-            Prep for {SAMPLE_JOB}
-          </h2>
-          <p className="text-sm/6 text-muted">
-            Likely questions round by round, and stories outlined from the resume&apos;s own lines.
-          </p>
-        </div>
-        <div className="mt-8 max-h-56 overflow-hidden mask-b-from-40% sm:max-h-96">
+        <div className="flex flex-col gap-8 mask-b-from-75%">
+          <div className="flex flex-col gap-1">
+            <h2 id={headingId} className="font-sans text-lg/7 font-medium text-ink">
+              Prep for {SAMPLE_JOB}
+            </h2>
+            <p className="text-sm/6 text-muted">
+              Likely questions round by round, and stories outlined from the resume&apos;s own lines.
+            </p>
+          </div>
           <ol className="flex flex-col gap-6">
             <SampleQuestion index={0} />
             <SampleQuestion index={1} />
@@ -67,7 +66,6 @@ export function SamplePack({ children }: { children?: ReactNode }) {
             <SampleQuestion index={2} />
           </ol>
         </div>
-        {children ? <div className="mt-2">{children}</div> : null}
       </FolderCard>
     </section>
   );

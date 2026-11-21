@@ -6,7 +6,6 @@ import {
   CreditCard,
   LifeBuoy,
   LogOut,
-  MessageSquare,
   Search,
   SlidersHorizontal,
   UserRound,
@@ -19,12 +18,11 @@ import { errorMessage } from "@/components/account/errors";
 import { useProTools } from "@/components/account/pro-tools";
 import { LazyUpgradeDialog } from "@/components/account/lazy-dialogs";
 import { patchMe, refreshMe, type Me } from "@/components/account/use-me";
-import { LazyFeedbackDialog } from "@/components/feedback/lazy-feedback-dialog";
+import { FeedbackButton } from "@/components/feedback/feedback-button";
 import { NotificationBell } from "@/components/notifications/notification-bell";
 import { accountSectionHref } from "@/components/setup/links";
 import { OttoMark } from "@/components/site/otto-mark";
 import { ROUTES } from "@/components/site/routes";
-import { useNow } from "@/components/studio/use-now";
 import { Menu } from "@/components/ui/menu";
 import { ProMark } from "@/components/ui/pro-mark";
 import { Spinner } from "@/components/ui/spinner";
@@ -40,7 +38,7 @@ import { useHoverIntent } from "./hover-intent";
 import { NewResumeMenu } from "./new-resume-menu";
 import { LinkPending } from "./link-pending";
 import { APP_NAV, APP_NAV_FOOTER, isCurrent, showsProMark, type AppNavItem } from "./nav";
-import { offerLabel, planSlip } from "./plan-slip";
+import { offerLabel } from "./plan-slip";
 import { prefetchPageData } from "./prefetch";
 import { SidebarPlan } from "./sidebar-plan";
 import type { StudioActions } from "./use-studio-actions";
@@ -61,9 +59,7 @@ export function Sidebar({
   const pathname = usePathname();
   const resumeCount = useStudioStore((s) => s.order.length);
   const proTools = useProTools();
-  const now = useNow();
   const [upgradeOpen, setUpgradeOpen] = useState(false);
-  const slip = planSlip(user, me?.billing, now);
   const next = nextPlan(user.plan);
   const nextOnSale = next !== null && (me?.billing.offer[next].length ?? 0) > 0;
   const upgrade: Upgrade | null =
@@ -109,25 +105,24 @@ export function Sidebar({
       </nav>
 
       <div className="mt-auto flex flex-col gap-3 pt-6">
-        <nav aria-label="More pages" className="flex flex-col gap-0.5">
-          {APP_NAV_FOOTER.map((item) => (
-            <SidebarLink
-              key={item.href}
-              item={item}
-              user={user}
-              pathname={pathname}
-              pro={false}
-              count={null}
-              quiet
-            />
-          ))}
-        </nav>
-        <SidebarPlan slip={slip} onUpgrade={() => setUpgradeOpen(true)} />
-        <AccountRow
-          user={user}
-          upgrade={upgrade}
-          trialLeft={slip?.kind === "trial" ? slip.label : null}
-        />
+        <div className="flex flex-col gap-0.5">
+          <nav aria-label="More pages" className="flex flex-col gap-0.5">
+            {APP_NAV_FOOTER.map((item) => (
+              <SidebarLink
+                key={item.href}
+                item={item}
+                user={user}
+                pathname={pathname}
+                pro={false}
+                count={null}
+                quiet
+              />
+            ))}
+          </nav>
+          <FeedbackButton className="font-normal" />
+        </div>
+        <SidebarPlan user={user} me={me} onUpgrade={() => setUpgradeOpen(true)} />
+        <AccountRow user={user} upgrade={upgrade} />
       </div>
       {nextOnSale ? <LazyUpgradeDialog open={upgradeOpen} onOpenChange={setUpgradeOpen} /> : null}
     </aside>
@@ -186,25 +181,15 @@ function SidebarLink({
   );
 }
 
-function planLine(user: SessionUser, trialLeft: string | null): string {
+function planLine(user: SessionUser): string {
   if (user.plan === "free") return "Free plan";
   const name = PLANS[user.plan].name;
-  if (!user.trialEndsAt) return name;
-  return trialLeft ? `${name} trial · ${trialLeft.replace(/^Trial /, "")}` : `${name} trial`;
+  return user.trialEndsAt ? `${name} trial` : name;
 }
 
-function AccountRow({
-  user,
-  upgrade,
-  trialLeft,
-}: {
-  user: SessionUser;
-  upgrade: Upgrade | null;
-  trialLeft: string | null;
-}) {
+function AccountRow({ user, upgrade }: { user: SessionUser; upgrade: Upgrade | null }) {
   const router = useRouter();
   const [signingOut, setSigningOut] = useState(false);
-  const [feedbackOpen, setFeedbackOpen] = useState(false);
   const shortcut = useCommandPaletteShortcut();
 
   async function signOut() {
@@ -222,81 +207,71 @@ function AccountRow({
   }
 
   return (
-    <>
-      <Menu
-        label="Account"
-        triggerLabel={`Account menu for ${user.email}`}
-        triggerClassName="flex h-12 w-full items-center gap-2.5 rounded-lg px-2 text-left transition-colors hover:bg-ink/5 aria-expanded:bg-ink/5"
-        className="w-64"
-        trigger={
-          <>
-            <span
-              aria-hidden
-              className="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary text-sm font-medium text-white uppercase"
-            >
-              {user.email.trim().charAt(0)}
-            </span>
-            <span className="min-w-0 flex-1" title={user.email}>
-              <span className="block truncate text-sm/5 font-medium text-ink">{user.email}</span>
-              <span className="block truncate text-xs/4 text-subtle tabular-nums">
-                {planLine(user, trialLeft)}
-              </span>
-            </span>
-            {signingOut ? (
-              <Spinner className="text-muted" />
-            ) : (
-              <ChevronsUpDown aria-hidden className="size-4 shrink-0 text-muted" />
-            )}
-          </>
-        }
-        items={[
-          ...(upgrade
-            ? [
-                { label: upgrade.label, icon: CircleArrowUp, onSelect: upgrade.open },
-                "separator" as const,
-              ]
-            : []),
-          {
-            label: "Search",
-            icon: Search,
-            shortcut: shortcut || undefined,
-            onSelect: openCommandPalette,
-          },
-          {
-            label: "Account",
-            icon: UserRound,
-            onSelect: () => router.push(ROUTES.dashboardAccount),
-          },
-          {
-            label: "Work rights & preferences",
-            icon: SlidersHorizontal,
-            onSelect: () => router.push(accountSectionHref("work")),
-          },
-          {
-            label: "Plans and pricing",
-            icon: CreditCard,
-            onSelect: () => router.push(ROUTES.pricing),
-          },
-          {
-            label: `Help: ${BRAND.supportEmail}`,
-            icon: LifeBuoy,
-            onSelect: () => window.location.assign(`mailto:${BRAND.supportEmail}`),
-          },
-          {
-            label: "Send feedback",
-            icon: MessageSquare,
-            onSelect: () => setFeedbackOpen(true),
-          },
-          "separator",
-          {
-            label: signingOut ? "Signing out…" : "Sign out",
-            icon: LogOut,
-            disabled: signingOut,
-            onSelect: () => void signOut(),
-          },
-        ]}
-      />
-      <LazyFeedbackDialog open={feedbackOpen} onOpenChange={setFeedbackOpen} />
-    </>
+    <Menu
+      label="Account"
+      triggerLabel={`Account menu for ${user.email}`}
+      triggerClassName="flex h-12 w-full items-center gap-2.5 rounded-lg px-2 text-left transition-colors hover:bg-ink/5 aria-expanded:bg-ink/5"
+      className="w-64"
+      trigger={
+        <>
+          <span
+            aria-hidden
+            className="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary text-sm font-medium text-white uppercase"
+          >
+            {user.email.trim().charAt(0)}
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="block truncate text-sm/5 font-medium text-ink">{user.email}</span>
+            <span className="block truncate text-xs/4 text-subtle">{planLine(user)}</span>
+          </span>
+          {signingOut ? (
+            <Spinner className="text-muted" />
+          ) : (
+            <ChevronsUpDown aria-hidden className="size-4 shrink-0 text-muted" />
+          )}
+        </>
+      }
+      items={[
+        ...(upgrade
+          ? [
+              { label: upgrade.label, icon: CircleArrowUp, onSelect: upgrade.open },
+              "separator" as const,
+            ]
+          : []),
+        {
+          label: "Search",
+          icon: Search,
+          shortcut: shortcut || undefined,
+          onSelect: openCommandPalette,
+        },
+        {
+          label: "Account",
+          icon: UserRound,
+          onSelect: () => router.push(ROUTES.dashboardAccount),
+        },
+        {
+          label: "Work rights & preferences",
+          icon: SlidersHorizontal,
+          onSelect: () => router.push(accountSectionHref("work")),
+        },
+        {
+          label: "Plans and pricing",
+          icon: CreditCard,
+          onSelect: () => router.push(ROUTES.pricing),
+        },
+        {
+          label: `Help: ${BRAND.supportEmail}`,
+          icon: LifeBuoy,
+          onSelect: () => window.location.assign(`mailto:${BRAND.supportEmail}`),
+        },
+        "separator",
+        {
+          label: signingOut ? "Signing out…" : "Sign out",
+          icon: LogOut,
+          disabled: signingOut,
+          onSelect: () => void signOut(),
+        },
+      ]}
+    />
   );
 }

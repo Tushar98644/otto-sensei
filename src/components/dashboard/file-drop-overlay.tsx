@@ -4,6 +4,7 @@ import { FileUp } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useEffectEvent, useState } from "react";
 import { OTTO_ERRORS } from "@/components/mascot/error-lines";
+import { openStudioWithFile } from "@/components/match-check/open-studio";
 import { ROUTES } from "@/components/site/routes";
 import { toast } from "@/components/ui/toast";
 import { carriesFiles, DROP_HINT, droppedResume } from "./drop-upload";
@@ -25,8 +26,6 @@ export function FileDropOverlay() {
     // At Free's limit, "Replace it" in the trial prompt runs this again.
     const open = async (): Promise<void> => {
       try {
-        // Loaded on drop: the hand-off pulls in the upgrade dialog and the importer, which every dashboard page would otherwise carry.
-        const { openStudioWithFile } = await import("@/components/match-check/open-studio");
         if (await openStudioWithFile(file, () => void open())) router.push(ROUTES.studio);
       } catch {
         toast({

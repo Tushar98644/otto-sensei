@@ -1,6 +1,6 @@
 "use client";
 
-import { HERO_CTA_ID } from "@/components/site/page-cta";
+import { HERO_CTA_ID } from "@/components/site/hero-cta-in-view";
 import { ROUTES } from "@/components/site/routes";
 import { TextLink } from "@/components/site/text-link";
 import { SEO_PATHS } from "@/lib/seo-pages/paths";

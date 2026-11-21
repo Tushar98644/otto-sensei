@@ -104,8 +104,9 @@ export default function ResumeTemplatesPage() {
         }
       >
         <p>
-          {freeFormats} are free. Try the other {proCount} on your resume first; they come with{" "}
-          {PLANS.pro.name}.
+          Each one copies a widely used resume layout, and each PDF is tested by reading it back.{" "}
+          {freeFormats} are free to download as PDFs; the other {proCount} come with{" "}
+          {PLANS.pro.name}, and you can try them on your resume first.
         </p>
       </PageIntro>
       <OttoNote live={false} message={OTTO.formats.tip} className="mt-8 max-w-2xl" />

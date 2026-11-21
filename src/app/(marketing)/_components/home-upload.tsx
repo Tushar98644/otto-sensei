@@ -1,6 +1,7 @@
 "use client";
 
 import { FileUp } from "lucide-react";
+import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef } from "react";
 import { ROUTES } from "@/components/site/routes";
@@ -17,6 +18,11 @@ import {
   updateHomeUpload,
   useHomeUpload,
 } from "./home-picker";
+
+// Mounts only once a Free account with a resume already saved hands over another file.
+const UpgradeHost = dynamic(() =>
+  import("@/components/account/upgrade-prompt").then((module) => module.UpgradePromptHost),
+);
 
 export type Picked = { file: File } | { problem: string } | null;
 
@@ -42,10 +48,14 @@ export async function openHomeFile(picked: Picked, go: (href: string) => void): 
   }
   updateHomeUpload({ opening: picked.file.name });
   try {
-    const { handFileToStudio } = await loadOpener();
-    await handFileToStudio(picked.file);
-    // Opening stays set until the page goes away, so a slow navigation never takes a second file.
-    go(ROUTES.studio);
+    const { openStudioWithFile } = await loadOpener();
+    // Replacing the saved resume in the upgrade dialog opens this file after all.
+    if (await openStudioWithFile(picked.file, () => void openHomeFile(picked, go))) {
+      // Opening stays set until the page goes away, so a slow navigation never takes a second file.
+      go(ROUTES.studio);
+      return;
+    }
+    updateHomeUpload({ opening: null, upgrade: true });
   } catch {
     window.location.assign(ROUTES.studio);
   }
@@ -59,7 +69,7 @@ function carriesFiles(event: DragEvent): boolean {
 export function HomeUpload() {
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
-  const { opening } = useHomeUpload();
+  const { opening, upgrade } = useHomeUpload();
 
   useEffect(() => {
     setHomePicker(inputRef.current);
@@ -132,6 +142,7 @@ export function HomeUpload() {
       <p role="status" className="sr-only">
         {opening ? `Opening ${opening} in the studio.` : ""}
       </p>
+      {upgrade ? <UpgradeHost /> : null}
     </>
   );
 }

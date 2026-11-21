@@ -84,20 +84,4 @@ describe("Otto's next step", () => {
     expect(lines[1]).toMatch(/prep is ready/);
     for (const line of lines) expect(line.split(/\s+/).length).toBeLessThanOrEqual(18);
   });
-
-  it("names the interview day, then asks how it went once it's past", () => {
-    const now = new Date(2026, 10, 21, 9).getTime();
-    const monday = new Date(2026, 10, 23, 12).getTime();
-    const lines = [
-      nextStepLine({ status: "interview", followUpAt: null, interviewAt: monday }, false, now),
-      nextStepLine({ status: "interview", followUpAt: null, interviewAt: monday }, true, now),
-      nextStepLine({ status: "interview", followUpAt: null, interviewAt: now - 2 * DAY }, false, now),
-    ];
-    expect(lines[0]).toBe(
-      "Interview Mon · in 2 days. I can make prep from this job and the resume you sent.",
-    );
-    expect(lines[1]).toMatch(/^Interview Mon · in 2 days\. Your prep is ready/);
-    expect(lines[2]).toBe("Your interview was Thu · 2 days ago. Move it on here when you hear back.");
-    for (const line of lines) expect(line.split(/\s+/).length).toBeLessThanOrEqual(18);
-  });
 });

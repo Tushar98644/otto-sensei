@@ -2,12 +2,11 @@
 
 import { MessagesSquare, Plus } from "lucide-react";
 import Link from "next/link";
-import { useId, useMemo, useRef, useState, type ReactNode } from "react";
-import { useProTools } from "@/components/account/pro-tools";
+import { useId, useMemo, useRef, useState } from "react";
+import { useProTools, useTryProLabel } from "@/components/account/pro-tools";
 import { LazyUpgradeDialog } from "@/components/account/lazy-dialogs";
 import { useMe } from "@/components/account/use-me";
 import { OTTO } from "@/components/mascot/lines";
-import { Otto } from "@/components/mascot/otto";
 import { OttoNote } from "@/components/mascot/otto-note";
 import { useNow } from "@/components/studio/use-now";
 import { Alert } from "@/components/ui/alert";
@@ -22,7 +21,6 @@ import { useResumeList } from "@/lib/store/resume-store";
 import { pluralize } from "@/lib/utils";
 import { useApplications } from "../applications/use-applications";
 import { formatDay } from "../applications/view";
-import { offerLabel } from "../plan-slip";
 import { LazyPrepareDialog } from "./lazy-prepare-dialog";
 import { SamplePack } from "./sample-pack";
 import { usePrepPacks } from "./use-prep-packs";
@@ -37,8 +35,8 @@ export function InterviewHome() {
   const resumes = useResumeList();
   const pro = useProTools();
   const locked = pro === false;
-  const { me, loading: planLoading } = useMe();
-  const tryPro = offerLabel(me?.billing.trial === true);
+  const { loading: planLoading } = useMe();
+  const tryPro = useTryProLabel();
   const [upgradeOpen, setUpgradeOpen] = useState(false);
   const [dialog, setDialog] = useState<{ key: number; open: boolean } | null>(null);
   const openings = useRef(0);
@@ -69,19 +67,22 @@ export function InterviewHome() {
           <p className="mt-2 max-w-prose text-base/7 text-muted">
             {ready && packs.items.length > 0
               ? `${pluralize(packs.items.length, "prep pack")}, one per job, built from your own resume lines.`
-              : "For each interview: likely questions, stories from your own lines and what to ask."}
+              : "For each job you interview for: likely questions, stories from your own resume lines, and questions to ask them."}
           </p>
         </div>
         {pro === true && ready && !empty ? (
-          <Button variant={waiting.length > 0 ? "secondary" : "primary"} onClick={start}>
+          <Button onClick={start}>
             <Plus aria-hidden />
             Prepare for a job
           </Button>
         ) : null}
       </header>
 
-      {locked && ready && packs.items.length > 0 ? (
-        <OttoNote live={false} message={OTTO.interview.lockedKept}>
+      {locked && ready ? (
+        <OttoNote
+          live={false}
+          message={packs.items.length > 0 ? OTTO.interview.lockedKept : OTTO.interview.locked}
+        >
           <Button onClick={() => setUpgradeOpen(true)}>{tryPro}</Button>
         </OttoNote>
       ) : null}
@@ -102,39 +103,32 @@ export function InterviewHome() {
         <LoadingState />
       ) : empty ? (
         locked ? (
-          <SamplePack>
-            <OttoNote live={false} message={OTTO.interview.locked}>
-              <Button onClick={() => setUpgradeOpen(true)}>{tryPro}</Button>
-            </OttoNote>
-          </SamplePack>
+          <SamplePack />
         ) : (
-          <EmptyStart>
-            <Button onClick={start}>
-              <Plus aria-hidden />
-              Prepare for a job
-            </Button>
-          </EmptyStart>
+          <div className="rounded-2xl bg-surface p-6 sm:p-8">
+            <OttoNote live={false} message={OTTO.interview.empty}>
+              <Button onClick={start}>
+                <Plus aria-hidden />
+                Prepare for a job
+              </Button>
+            </OttoNote>
+          </div>
         )
       ) : (
         <>
           {waiting.length > 0 ? (
-            <section aria-labelledby="waiting-heading">
-              <h2 id="waiting-heading" className="sr-only">
+            <section aria-labelledby="waiting-heading" className="flex flex-col gap-4">
+              <h2 id="waiting-heading" className="font-sans text-lg/7 font-medium text-ink">
                 Interviews without prep
               </h2>
               <FolderCard
-                tab="Interviews without prep"
+                tab="Interview stage"
                 tabEnd={<Tally value={waiting.length} />}
                 bodyClassName="px-4 py-0 sm:px-6"
               >
                 <ul className="divide-y divide-border">
-                  {waiting.map((application, index) => (
-                    <WaitingRow
-                      key={application.id}
-                      application={application}
-                      now={now}
-                      first={index === 0}
-                    />
+                  {waiting.map((application) => (
+                    <WaitingRow key={application.id} application={application} now={now} />
                   ))}
                 </ul>
               </FolderCard>
@@ -142,12 +136,12 @@ export function InterviewHome() {
           ) : null}
 
           {packs.items.length > 0 ? (
-            <section aria-labelledby="packs-heading">
-              <h2 id="packs-heading" className="sr-only">
+            <section aria-labelledby="packs-heading" className="flex flex-col gap-4">
+              <h2 id="packs-heading" className="font-sans text-lg/7 font-medium text-ink">
                 Your prep
               </h2>
               <FolderCard
-                tab="Your prep"
+                tab="Prep packs"
                 tabEnd={<Tally value={packs.items.length} />}
                 bodyClassName="px-4 py-0 sm:px-6"
               >
@@ -175,26 +169,8 @@ export function InterviewHome() {
   );
 }
 
-// One row needs no count beside it.
 function Tally({ value }: { value: number }) {
-  if (value < 2) return null;
   return <span className="text-xs text-subtle tabular-nums">{count.format(value)}</span>;
-}
-
-function EmptyStart({ children }: { children: ReactNode }) {
-  return (
-    <section
-      aria-labelledby="interview-empty"
-      className="flex flex-col items-center rounded-3xl bg-surface px-6 py-12 text-center sm:py-16"
-    >
-      <Otto pose="think" size={112} />
-      <h2 id="interview-empty" className="mt-6 font-sans text-lg/7 font-medium text-ink">
-        Your interview prep will live here
-      </h2>
-      <p className="mt-2 max-w-sm text-sm/6 text-pretty text-muted">{OTTO.interview.empty}</p>
-      <div className="mt-6 flex flex-wrap items-center justify-center gap-2">{children}</div>
-    </section>
-  );
 }
 
 function PackRow({ pack, now }: { pack: PrepSummary; now: number }) {
@@ -236,15 +212,7 @@ function PackRow({ pack, now }: { pack: PrepSummary; now: number }) {
   );
 }
 
-function WaitingRow({
-  application,
-  now,
-  first,
-}: {
-  application: Application;
-  now: number;
-  first: boolean;
-}) {
+function WaitingRow({ application, now }: { application: Application; now: number }) {
   const titleId = useId();
   return (
     <li className="flex flex-col gap-3 py-4 md:flex-row md:items-center md:gap-6">
@@ -260,11 +228,7 @@ function WaitingRow({
       <Link
         href={interviewHref(application.id, { start: true })}
         aria-describedby={titleId}
-        className={buttonClasses({
-          variant: first ? "primary" : "secondary",
-          size: "sm",
-          className: "self-start md:self-auto",
-        })}
+        className={buttonClasses({ size: "sm", className: "self-start md:self-auto" })}
       >
         <MessagesSquare aria-hidden />
         Prepare

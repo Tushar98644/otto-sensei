@@ -1,5 +1,6 @@
 import type { Application } from "@/lib/applications/schema";
 import { applicationForJob, copyForJob } from "@/lib/applications/thread";
+import { countClaim } from "@/lib/job-feed/counts";
 import { SOURCE_INFO } from "@/lib/job-feed/sources";
 import { EMPLOYMENT_LABELS, type FeedJob } from "@/lib/job-feed/types";
 import type { Resume } from "@/lib/resume/schema";
@@ -88,13 +89,17 @@ export function checkedLabel(checkedAt: number | null, now: number): string | nu
 
 const count = new Intl.NumberFormat("en-US");
 
-// Otto's line already says how many were found, so the title names only what Free isn't seeing.
-export function moreWithProCopy(shown: number, matching: number): { title: string; body: string } {
-  const more = matching - shown;
-  const narrows = "narrows them by remote, level, posting date and where each job can hire.";
-  if (more <= 0) return { title: "Narrow your matches with Pro", body: `Pro ${narrows}` };
+export function moreWithProCopy(
+  shown: number,
+  matching: number,
+  openJobs: number,
+): { title: string; body: string } {
+  const open = countClaim(openJobs) ?? count.format(openJobs);
   return {
-    title: `${count.format(more)} more ${more === 1 ? "match comes" : "matches come"} with Pro`,
-    body: `Pro shows every match, and ${narrows}`,
+    title:
+      matching > shown
+        ? `Your top ${shown} of ${count.format(matching)} matches`
+        : `Your ${shown === 1 ? "match" : `${shown} matches`} so far`,
+    body: `Pro shows every match from ${open} open jobs, and narrows them by remote, level, posting date and where each job can hire.`,
   };
 }

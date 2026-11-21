@@ -118,12 +118,6 @@ const SectionSlot = memo(function SectionSlot({
           editResume(resumeId, (resume) =>
             setSectionHidden(resume, sectionKey, !isSectionHidden(resume, sectionKey)),
           ),
-        move: {
-          canMoveUp: !isFirst,
-          canMoveDown: !isLast,
-          onMove: (delta) =>
-            editResume(resumeId, (resume) => moveSection(resume, sectionKey, delta)),
-        },
       }}
       status={
         needWork > 0 ? (

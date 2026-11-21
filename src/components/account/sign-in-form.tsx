@@ -46,8 +46,6 @@ export type SignInFormProps = {
   next?: string;
   initialError?: string;
   autoFocus?: boolean;
-  // A page that centres its heading centres the fine print under the form too.
-  centered?: boolean;
   className?: string;
 };
 
@@ -57,7 +55,6 @@ export function SignInForm({
   next,
   initialError,
   autoFocus = false,
-  centered = false,
   className,
 }: SignInFormProps) {
   // Google is the faster way in, so it takes the forest key; email does only when Google can't work.
@@ -237,7 +234,7 @@ export function SignInForm({
           >
             Email me a code
           </Button>
-          <SignInTerms className={centered ? "text-center text-balance" : undefined} />
+          <SignInTerms />
         </form>
       ) : null}
 

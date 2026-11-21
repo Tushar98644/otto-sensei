@@ -4,7 +4,7 @@ import { formatsLead } from "./formats-lead";
 describe("formatsLead", () => {
   it("tells Free which formats are free and that the others can be tried first", () => {
     expect(formatsLead(true)).toBe(
-      "One resume, 6 looks. Classic and Compact are free, and you can try the rest on your resume first.",
+      "One resume, 6 looks. Classic and Compact are free. The other 4 come with Pro, and you can try them on your resume first.",
     );
   });
 

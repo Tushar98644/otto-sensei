@@ -56,15 +56,15 @@ export type UseFormatButtonProps = {
   name: string;
 };
 
-// Sits above the card-wide preview button, so it keeps its own clicks; -ml-3.25 lines its label up with the text.
+// Sits above the card-wide preview button, so it keeps its own clicks.
 export function UseFormatButton({ id, name }: UseFormatButtonProps) {
   const { opening, prepare, open } = useOpenFormat();
   return (
     <Button
-      variant="ghost"
+      variant="secondary"
       size="sm"
       loading={opening === id}
-      className="relative z-10 -ml-3.25 self-start"
+      className="relative z-10 self-start"
       onPointerEnter={prepare}
       onFocus={prepare}
       onClick={() => void open(id)}

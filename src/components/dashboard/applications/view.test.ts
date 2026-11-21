@@ -4,13 +4,9 @@ import {
   filterApplications,
   filterCounts,
   formatDay,
-  interviewLabel,
   latestFor,
-  outsideLine,
-  prepareHref,
   sentLabel,
   sortApplications,
-  upcomingFirst,
   upsertApplication,
   withoutApplication,
 } from "./view";
@@ -123,47 +119,5 @@ describe("formatDay", () => {
     const now = new Date(2026, 10, 7).getTime();
     expect(formatDay(new Date(2026, 9, 12).getTime(), now)).toBe("Oct 12");
     expect(formatDay(new Date(2025, 11, 30).getTime(), now)).toBe("Dec 30, 2025");
-  });
-});
-
-describe("interview dates", () => {
-  const now = new Date(2026, 10, 21, 9).getTime();
-  const day = (date: number) => new Date(2026, 10, date, 12).getTime();
-
-  it("reads as a weekday within a week and a date further out", () => {
-    expect(interviewLabel(day(23), now)).toBe("Interview Mon · in 2 days");
-    expect(interviewLabel(day(21), now)).toBe("Interview today");
-    expect(interviewLabel(day(22), now)).toBe("Interview tomorrow");
-    expect(interviewLabel(day(30), now)).toBe("Interview Nov 30 · in 9 days");
-    expect(interviewLabel(day(19), now)).toBe("Interview Thu · 2 days ago");
-    expect(interviewLabel(day(23), 0)).toBe("Interview Nov 23");
-  });
-
-  it("puts upcoming interviews first, soonest on top, and keeps the rest in order", () => {
-    const list = [
-      app("a"),
-      app("later", { status: "interview", interviewAt: day(30) }),
-      app("past", { status: "interview", interviewAt: day(19) }),
-      app("soon", { status: "interview", interviewAt: day(23) }),
-      app("b"),
-    ];
-    expect(ids(upcomingFirst(list, now))).toEqual(["soon", "later", "a", "past", "b"]);
-    expect(ids(upcomingFirst(list, 0))).toEqual(["a", "later", "past", "soon", "b"]);
-  });
-});
-
-describe("outsideLine", () => {
-  it("says once how many rows went out with a resume not in Otto", () => {
-    expect(outsideLine(1, 1)).toBe("Sent with a resume not in Otto.");
-    expect(outsideLine(6, 6)).toBe("All of these were sent with a resume not in Otto.");
-    expect(outsideLine(1, 4)).toBe("1 of these was sent with a resume not in Otto.");
-    expect(outsideLine(3, 4)).toBe("3 of these were sent with a resume not in Otto.");
-  });
-});
-
-describe("prepareHref", () => {
-  it("starts prep when there's none yet and opens a pack that exists", () => {
-    expect(prepareHref({ id: "a b", hasPrep: false })).toBe("/dashboard/applications/a%20b/prep?start=1");
-    expect(prepareHref({ id: "a", hasPrep: true })).toBe("/dashboard/applications/a/prep");
   });
 });
