@@ -7,10 +7,20 @@ export type BillingErrorCode =
   | "payment_overdue"
   | "provider_error";
 
+export type BillingRefusalReason =
+  | "busy"
+  | "inactive"
+  | "declined"
+  | "misconfigured"
+  | "not_found"
+  | "rate_limited"
+  | "has_subscription";
+
 export type BillingErrorDetails = {
   operation?: string;
   providerStatus?: number;
   providerCode?: string;
+  reason?: BillingRefusalReason;
 };
 
 export class BillingError extends Error {

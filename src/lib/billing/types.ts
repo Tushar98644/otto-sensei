@@ -1,1 +1,1 @@
-export type BillingMode = "paddle" | "mock" | "disabled";
+export type BillingMode = "dodo" | "mock" | "disabled";

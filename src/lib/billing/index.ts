@@ -11,6 +11,14 @@ import type { SessionUser } from "@/lib/auth/types";
 import { env } from "@/lib/env";
 import { log } from "@/lib/log";
 import {
+  changePlan,
+  createCheckout,
+  endSubscription,
+  listLiveSubscriptions,
+  portalUrl,
+} from "./dodo";
+import { internalStatus, isDodoId } from "./dodo-status";
+import {
   chargeableSubscriptionId,
   getBillingCustomerId,
   getBillingRecord,
@@ -20,49 +28,36 @@ import {
 import { BillingError } from "./errors";
 import {
   offeredIntervals,
-  paidPriceIds,
-  planForPrice,
-  priceId,
+  paidProductIds,
+  planForProduct,
+  productId,
   trialOffered,
-  trialPriceId,
+  trialProductId,
 } from "./intervals";
 import { mockCancel, mockSubscribe } from "./mock";
 import { billingMode } from "./mode";
-import {
-  changePaddlePlan,
-  createPaddleCheckout,
-  endPaddleSubscription,
-  isPaddleId,
-  listLivePaddleSubscriptions,
-  paddlePortalUrl,
-  type PaddleSubscription,
-} from "./paddle";
 import { isTrialEligible } from "./trial";
 import { processWebhook } from "./webhook";
 
 export type { BillingMode } from "./types";
-export { BillingError, type BillingErrorCode, type BillingErrorDetails } from "./errors";
+export {
+  BillingError,
+  type BillingErrorCode,
+  type BillingErrorDetails,
+  type BillingRefusalReason,
+} from "./errors";
 export { billingOffer, offeredIntervals } from "./intervals";
 
 export { billingMode } from "./mode";
 
-export type PlanChangeRoute = "in_place" | "replace_trial" | "fix_payment" | "portal";
+export type PlanChangeRoute = "in_place" | "upgrade_trial" | "fix_payment" | "portal";
 
-export function planChangeRoute(
-  status: string,
-  user: Pick<SessionUser, "plan" | "trialEndsAt">,
-): PlanChangeRoute {
+// Dodo refuses a plan change while a cancel is scheduled, so that goes to the portal to resume first.
+export function planChangeRoute(status: string): PlanChangeRoute {
   if (status === "active") return "in_place";
-  if (status === "trialing") return "replace_trial";
-  if (status === "scheduled_cancel" && isTrialing(user)) return "replace_trial";
+  if (status === "trialing") return "upgrade_trial";
   if (status === "past_due") return "fix_payment";
   return "portal";
-}
-
-// Paddle has no "scheduled_cancel" status: it is an active subscription with a cancel scheduled.
-function ourStatus(subscription: PaddleSubscription): string {
-  const cancelling = subscription.scheduled_change?.action === "cancel";
-  return subscription.status === "active" && cancelling ? "scheduled_cancel" : subscription.status;
 }
 
 export async function trialAvailableFor(user: SessionUser): Promise<boolean> {
@@ -77,7 +72,7 @@ export async function createCheckoutUrl(
   const mode = billingMode();
   if (mode === "disabled") throw new BillingError("unavailable", "Billing is not configured");
   if (!offeredIntervals(plan).includes(interval)) {
-    throw new BillingError("unavailable", `No ${plan} price is set for "${interval}"`);
+    throw new BillingError("unavailable", `No ${plan} product is set for "${interval}"`);
   }
   // A second checkout would start a second subscription and charge the user twice.
   if (user.plan === plan) {
@@ -100,36 +95,25 @@ export async function createCheckoutUrl(
   const record = await getBillingRecord(user.id);
   const existing = await existingSubscription(user, record);
   if (existing) {
-    const target = priceId(plan, interval);
-    const route =
-      user.plan !== "free" && target ? planChangeRoute(existing.status, user) : "portal";
+    const target = productId(plan, interval);
+    const route = user.plan !== "free" && target ? planChangeRoute(existing.status) : "portal";
     const fields = { userId: user.id, from: user.plan, to: plan, status: existing.status };
     if (route === "in_place" && target) {
-      await changePaddlePlan(existing.subscriptionId, target);
+      await changePlan(existing.subscriptionId, target, { fromTrial: false });
       log.info("billing.plan_change_requested", fields);
       return `/account?checkout=success&plan=${plan}`;
     }
-    if (route === "replace_trial" && target) {
+    if (route === "upgrade_trial" && target) {
       if (existing.liveCount === null) {
-        throw new BillingError("provider_error", "Paddle subscription lookup failed", {
+        throw new BillingError("provider_error", "Dodo subscription lookup failed", {
           operation: "lookup",
         });
       }
+      // The trial ends now and the new plan is charged in full; a second live one goes to the portal.
       if (existing.liveCount === 1) {
-        const { url } = await createPaddleCheckout({
-          userId: user.id,
-          email: user.email,
-          customerId: existing.customerId,
-          priceId: target,
-          plan,
-          trial: false,
-          replacesSubscriptionId: existing.subscriptionId,
-        });
-        log.info("billing.trial_replacement_started", {
-          ...fields,
-          replaces: existing.subscriptionId,
-        });
-        return url;
+        await changePlan(existing.subscriptionId, target, { fromTrial: true });
+        log.info("billing.trial_upgrade_requested", fields);
+        return `/account?checkout=success&plan=${plan}`;
       }
     }
     if (route === "fix_payment") {
@@ -137,16 +121,18 @@ export async function createCheckoutUrl(
       throw new BillingError("payment_overdue", "The subscription's last payment failed");
     }
     log.info("billing.checkout_redirected", { userId: user.id, status: existing.status });
-    return paddlePortalUrl(existing.customerId, [existing.subscriptionId]);
+    return portalUrl(existing.customerId);
   }
-  const price = trial ? trialPriceId() : priceId(plan, interval);
-  if (!price) throw new BillingError("unavailable", `No ${plan} price is set for "${interval}"`);
-  const { url } = await createPaddleCheckout({
+  const product = trial ? trialProductId() : productId(plan, interval);
+  if (!product)
+    throw new BillingError("unavailable", `No ${plan} product is set for "${interval}"`);
+  const { url } = await createCheckout({
     userId: user.id,
     email: user.email,
     customerId: record?.billingCustomerId ?? null,
-    priceId: price,
+    productId: product,
     plan,
+    interval,
     trial,
   });
   return url;
@@ -173,31 +159,32 @@ async function existingSubscription(
     if (!(error instanceof BillingError)) throw error;
     const subscriptionId = record ? chargeableSubscriptionId(record) : null;
     const customerId = record?.billingCustomerId;
-    if (!isPaddleId("sub", subscriptionId) || !isPaddleId("ctm", customerId)) return null;
+    if (!isDodoId("sub", subscriptionId) || !isDodoId("cus", customerId)) return null;
     return { subscriptionId, customerId, status: record?.planStatus ?? "unknown", liveCount: null };
   }
 }
 
-// The stored subscription, or any on one of our prices, under the stored or the same-email customer.
+// The stored subscription, or any on one of our products, under the stored or the same-email customer.
 async function ourLiveSubscriptions(
   user: SessionUser,
   record: BillingRecord | null,
 ): Promise<LiveSubscription[]> {
-  const prices = new Set(paidPriceIds());
-  const found = await listLivePaddleSubscriptions({
+  const products = new Set(paidProductIds());
+  const found = await listLiveSubscriptions({
     customerId: record?.billingCustomerId ?? null,
     email: user.email,
   });
   return found
     .filter(
       (subscription) =>
-        subscription.id === record?.billingSubscriptionId ||
-        subscription.items.some((item) => prices.has(item.price.id)),
+        subscription.subscription_id === record?.billingSubscriptionId ||
+        products.has(subscription.product_id),
     )
     .map((subscription) => ({
-      subscriptionId: subscription.id,
-      customerId: subscription.customer_id,
-      status: ourStatus(subscription),
+      subscriptionId: subscription.subscription_id,
+      customerId: subscription.customer.customer_id,
+      // Pending has no status word of ours; it routes to the portal like any other.
+      status: internalStatus(subscription) ?? subscription.status,
     }));
 }
 
@@ -210,10 +197,10 @@ export async function createPortalUrl(user: SessionUser): Promise<string> {
     return "/account?portal=mock";
   }
   const customerId = await getBillingCustomerId(user.id);
-  if (!isPaddleId("ctm", customerId)) {
-    throw new BillingError("no_subscription", "User has no Paddle customer");
+  if (!isDodoId("cus", customerId)) {
+    throw new BillingError("no_subscription", "User has no Dodo customer");
   }
-  return paddlePortalUrl(customerId, []);
+  return portalUrl(customerId);
 }
 
 export type DeletionCancelResult = "none" | "cancelled" | "already_ended";
@@ -228,14 +215,13 @@ export async function cancelSubscriptionForDeletion(
   if (billingMode() === "mock") {
     return record.plan !== "free" && (await mockCancel(user.id, now)) ? "cancelled" : "none";
   }
-  if (record.billingCustomerId === null && record.billingSubscriptionId === null) return "none";
   const chargeable = chargeableSubscriptionId(record);
-  // An old Creem id is never sent to Paddle, but the same-email lookup below still runs for it.
-  const stored = isPaddleId("sub", chargeable) ? chargeable : null;
-  if (!env().PADDLE_API_KEY) {
+  // Old Paddle ids never go to Dodo; a checkout paid before its webhook stores nothing, so the lookup always runs.
+  const stored = isDodoId("sub", chargeable) ? chargeable : null;
+  if (!env().DODO_API_KEY) {
     if (!stored) return "none";
-    // Only production gets here (billing is mocked elsewhere); deleting would leave Paddle charging.
-    throw new BillingError("unavailable", "PADDLE_API_KEY is not set");
+    // Only production gets here (billing is mocked elsewhere); deleting would leave Dodo charging.
+    throw new BillingError("unavailable", "DODO_API_KEY is not set");
   }
   const subscriptionIds = new Set(stored ? [stored] : []);
   for (const live of await otherLiveSubscriptions(user, record))
@@ -244,7 +230,7 @@ export async function cancelSubscriptionForDeletion(
 
   let cancelled = false;
   for (const subscriptionId of subscriptionIds) {
-    cancelled = (await endPaddleSubscription(subscriptionId)) === "cancelled" || cancelled;
+    cancelled = (await endSubscription(subscriptionId)) === "cancelled" || cancelled;
     await markSubscriptionCancelled(user.id, subscriptionId, now);
   }
   const result = cancelled ? "cancelled" : "already_ended";
@@ -274,10 +260,12 @@ export async function handleWebhook(
   rawBody: string,
   headers: Headers,
 ): Promise<{ status: number; message: string }> {
+  const e = env();
   return processWebhook(rawBody, headers, {
-    secret: env().PADDLE_WEBHOOK_SECRET,
-    priceIds: paidPriceIds(),
-    planForPrice,
-    trialPriceId: trialPriceId(),
+    secret: e.DODO_WEBHOOK_SECRET,
+    signingSecret: e.BILLING_SIGNING_SECRET,
+    productIds: paidProductIds(),
+    planForProduct,
+    trialProductId: trialProductId(),
   });
 }

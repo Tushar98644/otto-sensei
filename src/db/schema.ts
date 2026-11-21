@@ -29,7 +29,7 @@ import {
   SENIORITIES,
 } from "@/lib/job-feed/types";
 import type { InterviewPrep } from "@/lib/insights/prep";
-import { NOTIFICATION_KINDS, TIP_EMAIL_KINDS } from "@/lib/notifications/types";
+import { EMAIL_LOG_KINDS, NOTIFICATION_KINDS } from "@/lib/notifications/types";
 import { PORTFOLIO_TEMPLATE_IDS } from "@/lib/portfolio/types";
 import { REFERRAL_BLOCK_REASONS, REFERRAL_STATUSES } from "@/lib/referrals/referrals";
 import type { Resume } from "@/lib/resume/schema";
@@ -246,7 +246,7 @@ export const emailLog = pgTable(
   "email_log",
   {
     userId: uuid("user_id").notNull(),
-    kind: text("kind", { enum: TIP_EMAIL_KINDS }).notNull(),
+    kind: text("kind", { enum: EMAIL_LOG_KINDS }).notNull(),
     occasion: text("occasion").notNull(),
     createdAt: epochMs("created_at").notNull(),
   },

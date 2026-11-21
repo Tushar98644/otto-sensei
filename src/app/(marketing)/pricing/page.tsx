@@ -23,6 +23,7 @@ import { softwareJsonLd } from "@/lib/seo/json-ld";
 import { cn } from "@/lib/utils";
 import { displayItalic } from "../_components/display-italic";
 import { type FaqItem, FaqList } from "../_components/faq-list";
+import { MERCHANT } from "../_components/merchant";
 import { formatUsd } from "../_components/plan-features";
 import { PricingPlans } from "../_components/pricing-plans";
 
@@ -57,8 +58,7 @@ const billingFaq: readonly FaqItem[] = [
   },
   {
     question: "Who handles payments?",
-    answer:
-      "Paddle, our merchant of record. They process your payment, send your receipts and handle sales tax or VAT, and your card statement shows the charge under Paddle's name. We never see your full card number.",
+    answer: `${MERCHANT.name}, our merchant of record. They process your payment on their own checkout page, send your receipts and handle sales tax or VAT, and your card statement shows the charge under their name, starting with ${MERCHANT.statementPrefix}. We never see your full card number.`,
   },
   {
     question: "Will I pay tax on top?",
@@ -74,8 +74,9 @@ const billingFaq: readonly FaqItem[] = [
     question: "Can I get a refund?",
     answer: (
       <>
-        Refund requests are handled by Paddle, our merchant of record, under its refund policy. You
-        can also cancel anytime from your account page and you won&apos;t be charged again. See our{" "}
+        Refund requests are handled by {MERCHANT.name}, our merchant of record, under its{" "}
+        <TextLink href={MERCHANT.buyerTermsUrl}>buyer terms</TextLink>. You can also cancel anytime
+        from your account page and you won&apos;t be charged again. See our{" "}
         <TextLink href={ROUTES.refunds}>refund policy</TextLink>.
       </>
     ),
@@ -86,8 +87,7 @@ const billingFaq: readonly FaqItem[] = [
   },
   {
     question: "Can I switch between Pro and Max?",
-    answer:
-      "You can move up from Pro to Max on your account page, on the billing period you already have. Your subscription changes in place, so you're never billed twice: you pay the difference for the rest of the period right away. To move to Pro, or between monthly and yearly, cancel from your account page and pick the new plan once your current period ends.",
+    answer: `You can move up from Pro to Max on your account page, on the billing period you already have. Your subscription changes in place, so you're never billed twice: you pay the difference for the rest of the period right away. On the Pro trial, starting Max ends the trial and charges the full Max price (plus any tax) to your card on file right away; the ${formatUsd(PRO_TRIAL.priceUsd)} trial charge isn't taken off. To move to Pro, or between monthly and yearly, cancel from your account page and pick the new plan once your current period ends.`,
   },
   {
     question: "What happens to my resumes if I cancel?",

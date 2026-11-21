@@ -5,12 +5,12 @@ import { ROUTES } from "@/components/site/routes";
 import { BRAND } from "@/config/brand";
 import { PRO_TRIAL } from "@/config/plans";
 import { LegalPage } from "../_components/legal-page";
-import { PADDLE_BUYER_HELP_URL, PADDLE_REFUND_POLICY_URL } from "../_components/merchant";
+import { MERCHANT } from "../_components/merchant";
 import { formatUsd } from "../_components/plan-features";
 
 export const metadata: Metadata = pageMetadata({
   title: "Refund policy",
-  description: `Refunds for ${BRAND.name} Pro and Max are handled by Paddle, our merchant of record, under its refund policy. Cancel anytime and you won't be charged again.`,
+  description: `Refunds for ${BRAND.name} Pro and Max are handled by ${MERCHANT.name}, our merchant of record, under its buyer terms. Cancel anytime and you won't be charged again.`,
   path: ROUTES.refunds,
 });
 
@@ -21,18 +21,18 @@ export default function RefundsPage() {
       <p>Here&apos;s how payments, refunds and cancelling work on Pro and Max.</p>
 
       <h2>Who you pay</h2>
+      <p>{MERCHANT.disclosure}</p>
       <p>
-        Our order process is conducted by our online reseller Paddle.com. Paddle.com is the Merchant
-        of Record for all our orders. Paddle charges your card, sends your receipts and handles
-        refund requests.
+        After each payment, {MERCHANT.name} emails you a receipt with a link to download your
+        invoice.
       </p>
 
       <h2>Refunds</h2>
       <p>
-        Refund requests are handled by Paddle under its{" "}
-        <a href={PADDLE_REFUND_POLICY_URL}>buyer refund policy</a>. To ask for one, use the link in
-        the receipt Paddle emailed you, or look up your order at{" "}
-        <a href={PADDLE_BUYER_HELP_URL}>paddle.net</a>.
+        Refund requests are handled by {MERCHANT.name} under its{" "}
+        <a href={MERCHANT.buyerTermsUrl}>buyer terms</a>. To ask for one, contact {MERCHANT.name}{" "}
+        through its <a href={MERCHANT.buyerHelpUrl}>buyer help page</a>, or email us from the
+        address you sign in with and we&apos;ll pass your request on.
       </p>
 
       <h2>Cancel anytime</h2>
@@ -44,7 +44,9 @@ export default function RefundsPage() {
       <p>
         The {PRO_TRIAL.days}-day Pro trial costs {formatUsd(PRO_TRIAL.priceUsd)}, charged when it
         starts. Cancel before the trial ends and you won&apos;t pay anything more; otherwise your
-        first Pro payment is taken when it ends.
+        first Pro payment is taken when it ends. If you start Max during the trial, the full Max
+        price is charged right away and the {formatUsd(PRO_TRIAL.priceUsd)} trial charge isn&apos;t
+        taken off.
       </p>
 
       <h2>Deleting your account</h2>
@@ -56,8 +58,8 @@ export default function RefundsPage() {
       <h2>Questions about a charge</h2>
       <p>
         Email <a href={mailto}>{BRAND.supportEmail}</a> from the address you sign in with. For a
-        payment itself, you can also contact Paddle at{" "}
-        <a href={PADDLE_BUYER_HELP_URL}>paddle.net</a>.
+        payment itself, you can also contact {MERCHANT.name} through its{" "}
+        <a href={MERCHANT.buyerHelpUrl}>buyer help page</a>.
       </p>
 
       <p>This policy doesn&apos;t affect any rights you have under consumer laws where you live.</p>

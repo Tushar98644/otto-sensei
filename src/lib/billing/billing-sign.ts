@@ -1,6 +1,6 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 
-// Paddle.js can set custom_data in the browser, so the webhook trusts only ids our server signed.
+// Anyone can put ids in checkout metadata, so the webhook trusts only ids our server signed.
 export function signBillingId(id: string, secret: string): string {
   return createHmac("sha256", secret).update(`otto-billing:${id}`).digest("hex");
 }

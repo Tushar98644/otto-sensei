@@ -1,9 +1,9 @@
-// Read-only: checks the Paddle prices and keys in the env against the app. bun --env-file=.env.paddle.local scripts/check-paddle-catalog.ts
-import { catalogConfig, runCatalogCheck } from "../src/lib/billing/paddle-catalog";
+// Read-only: checks the Dodo products, webhook endpoint and keys in the env against the app. bun --env-file=.env.dodo.local scripts/check-dodo-catalog.ts
+import { catalogConfig, runCatalogCheck } from "../src/lib/billing/dodo-catalog";
 
 async function main() {
-  const config = catalogConfig();
-  console.log(`Paddle ${config.environment} catalog`);
+  const config = catalogConfig({ appUrl: process.env.DODO_SETUP_APP_URL });
+  console.log(`Dodo Payments ${config.environment} mode catalog for ${config.appUrl}`);
   const checks = await runCatalogCheck(config);
   for (const check of checks) console.log(`${check.ok ? "ok     " : "problem"}  ${check.message}`);
   const problems = checks.filter((check) => !check.ok).length;
@@ -16,6 +16,6 @@ async function main() {
 }
 
 main().catch((error: unknown) => {
-  console.error(error instanceof Error ? error.message : error);
+  console.error(error instanceof Error ? error.message : "The check stopped before it finished.");
   process.exit(1);
 });

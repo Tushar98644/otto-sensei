@@ -1,23 +1,15 @@
 import { withSentryConfig } from "@sentry/nextjs/config";
 import type { NextConfig } from "next";
 
-const permissionsPolicy = (payment: string) =>
-  `camera=(), microphone=(self), geolocation=(), payment=${payment}`;
-
 const securityHeaders = [
   { key: "Strict-Transport-Security", value: "max-age=63072000; includeSubDomains; preload" },
   { key: "X-Content-Type-Options", value: "nosniff" },
   { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
   { key: "X-Frame-Options", value: "DENY" },
   // Voice typing needs the microphone on our own pages; embeds still get none.
-  { key: "Permissions-Policy", value: permissionsPolicy("()") },
-];
-
-// Apple Pay and Google Pay run inside Paddle's checkout frame, which only /checkout loads.
-const checkoutHeaders = [
   {
     key: "Permissions-Policy",
-    value: permissionsPolicy('(self "https://buy.paddle.com" "https://sandbox-buy.paddle.com")'),
+    value: "camera=(), microphone=(self), geolocation=(), payment=()",
   },
 ];
 
@@ -38,11 +30,7 @@ const nextConfig: NextConfig = {
   deploymentId: process.env.VERCEL_DEPLOYMENT_ID?.trim() || undefined,
   experimental: { staleTimes: { dynamic: 30 } },
   async headers() {
-    // The last entry wins for a key both set, so the /checkout override comes after the global one.
-    return [
-      { source: "/:path*", headers: securityHeaders },
-      { source: "/checkout", headers: checkoutHeaders },
-    ];
+    return [{ source: "/:path*", headers: securityHeaders }];
   },
   async redirects() {
     return [

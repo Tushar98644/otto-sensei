@@ -15,7 +15,7 @@ import {
 import { tokensInWords } from "@/lib/ai-budget-copy";
 import { TRANSCRIBE_LIMITS } from "@/app/api/transcribe/limits";
 import { LegalPage } from "../_components/legal-page";
-import { PADDLE_REFUND_POLICY_URL } from "../_components/merchant";
+import { MERCHANT } from "../_components/merchant";
 import { formatUsd } from "../_components/plan-features";
 
 export const metadata: Metadata = pageMetadata({
@@ -192,27 +192,34 @@ export default function TermsPage() {
           a portfolio can be built and previewed, but it goes public only on a paid plan.
         </li>
         <li>
-          Our order process is conducted by our online reseller Paddle.com. Paddle.com is the
-          Merchant of Record for all our orders. Paddle charges your card, sends your receipts and
-          handles sales tax or VAT, and its checkout terms apply to the purchase.
+          {MERCHANT.disclosure} Its <a href={MERCHANT.buyerTermsUrl}>buyer terms</a> also apply to
+          the purchase.
         </li>
         <li>
           A paid plan renews every period you picked until you cancel. Cancel anytime from your{" "}
           <Link href={ROUTES.account}>account page</Link>, and you keep it until the end of the
           period you paid for. You can move up from Pro to Max on the billing period you already
           have: your subscription changes in place, so you&apos;re never billed twice, and the
-          difference for the rest of the period is charged right away. To move to Pro, or between
-          monthly and yearly, cancel and pick the new plan once your current period ends. If you
-          drop to Free, your published portfolio goes offline, and its data is kept in case you come
-          back.
+          difference for the rest of the period is charged right away. During the Pro trial you can
+          start Max instead: the trial ends at once, the full Max price for the period you pick
+          (plus any taxes) is charged right away to your card on file, and the{" "}
+          {formatUsd(PRO_TRIAL.priceUsd)} trial charge isn&apos;t taken off. To move to Pro, or
+          between monthly and yearly, cancel and pick the new plan once your current period ends. If
+          you drop to Free, your published portfolio goes offline, and its data is kept in case you
+          come back.
+        </li>
+        <li>
+          If a payment fails when your plan renews or your trial ends, you keep the plan for a few
+          days while the payment is tried again. If it still fails, your account moves to Free until
+          you update your card from your account page and the payment goes through.
         </li>
         <li>
           Prices and limits may change. If your plan&apos;s price or limits change, we&apos;ll email
           you before the change applies to you, so you can cancel first if you prefer.
         </li>
         <li>
-          Refund requests are handled by Paddle under its{" "}
-          <a href={PADDLE_REFUND_POLICY_URL}>refund policy</a>. Our{" "}
+          Refund requests are handled by {MERCHANT.name} under its{" "}
+          <a href={MERCHANT.buyerTermsUrl}>buyer terms</a>. Our{" "}
           <Link href={ROUTES.refunds}>refund page</Link> explains how to ask.
         </li>
       </ul>

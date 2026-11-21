@@ -4,7 +4,14 @@ import { AI_TOKEN_BUDGETS, FEATURES, PLANS, PRO_TRIAL } from "@/config/plans";
 import { getDb } from "@/db/client";
 import { usage, users } from "@/db/schema";
 import { clearSession } from "@/lib/auth/session";
-import { AUTH_COOKIE, cookieJar, fakeAuth, resetDb, signInAs, signInOnTrial } from "@/lib/auth/test-helpers";
+import {
+  AUTH_COOKIE,
+  cookieJar,
+  fakeAuth,
+  resetDb,
+  signInAs,
+  signInOnTrial,
+} from "@/lib/auth/test-helpers";
 import { recordTrialHistory } from "@/lib/billing/trial";
 import { consumeUsage } from "@/lib/usage";
 import { GET } from "./route";
@@ -15,8 +22,13 @@ vi.mock("@/lib/billing", async (importOriginal) => ({
   billingMode: () => "mock",
 }));
 
-const usageOf = (limits: Record<(typeof FEATURES)[number], number>, used: Partial<Record<string, number>> = {}) =>
-  Object.fromEntries(FEATURES.map((feature) => [feature, { used: used[feature] ?? 0, limit: limits[feature] }]));
+const usageOf = (
+  limits: Record<(typeof FEATURES)[number], number>,
+  used: Partial<Record<string, number>> = {},
+) =>
+  Object.fromEntries(
+    FEATURES.map((feature) => [feature, { used: used[feature] ?? 0, limit: limits[feature] }]),
+  );
 
 beforeEach(async () => {
   await resetDb();
@@ -38,6 +50,8 @@ describe("GET /api/me", () => {
         mode: "mock",
         offer: { pro: ["month", "year"], max: ["month", "year"] },
         trial: true,
+        paymentIssue: false,
+        cancelScheduled: false,
       },
       auth: { mode: "supabase" },
     });
@@ -70,6 +84,8 @@ describe("GET /api/me", () => {
         mode: "mock",
         offer: { pro: ["month", "year"], max: ["month", "year"] },
         trial: true,
+        paymentIssue: false,
+        cancelScheduled: false,
       },
       auth: { mode: "supabase" },
     });
@@ -105,14 +121,12 @@ describe("GET /api/me", () => {
     } as const;
     const db = await getDb();
     await db.update(users).set(paid).where(eq(users.id, user.id));
-    await db
-      .insert(usage)
-      .values({
-        subject: user.id,
-        feature: "tailor",
-        period: "week:2026-11-19T09:30:00.000Z",
-        count: 30,
-      });
+    await db.insert(usage).values({
+      subject: user.id,
+      feature: "tailor",
+      period: "week:2026-11-19T09:30:00.000Z",
+      count: 30,
+    });
     await consumeUsage({ ...user, ...paid }, "tailor");
 
     const body = await (await GET()).json();

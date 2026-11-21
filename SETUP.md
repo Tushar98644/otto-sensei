@@ -8,12 +8,13 @@ You will end up with:
 ```
 Browser → Vercel (app, US East iad1) → Supabase (database + sign-in, US East)
                                      → Resend (sign-in emails, through Supabase)
-                                     → Google (sign-in), OpenRouter (AI), Paddle (payments)
+                                     → Google (sign-in), OpenRouter (AI), Dodo Payments (payments)
 ```
 
 What you need: accounts at vercel.com, supabase.com, resend.com (plus a domain you can add DNS
-records to), console.cloud.google.com, openrouter.ai and paddle.com (a sandbox account first, at
-sandbox-vendors.paddle.com). On your laptop: `bun` and the Vercel CLI (`bun add -g vercel`).
+records to), console.cloud.google.com, openrouter.ai and dodopayments.com (test mode first; the same
+account goes live once Dodo verifies it). On your laptop: `bun` and the Vercel CLI
+(`bun add -g vercel`).
 
 All commands run in this folder (`projects/resume-app/web`).
 
@@ -388,12 +389,15 @@ changing one, check quality and cost with `bun scripts/ai-smoke.ts` (a few cents
 
 ---
 
-## 10. Payments: Paddle
+## 10. Payments: Dodo Payments
 
-Paddle is the merchant of record (our online reseller): it runs the checkout, charges the card,
-adds sales tax or VAT, sends receipts and hosts the customer portal. The checkout itself opens on
-our own `/checkout` page, which loads Paddle.js (Paddle has no fully hosted checkout for web apps).
-The app only stores the plan its webhooks report.
+Dodo Payments is the merchant of record (our online reseller): it runs the checkout page, charges
+the card, adds sales tax or VAT, sends receipts and invoices, and hosts the customer portal.
+Checkout is Dodo's own hosted page: the app asks Dodo for a checkout link and sends the buyer
+there, so no payment script ever runs on our site. Dodo sends the buyer back to
+`/api/billing/return`, which drops the email and ids Dodo adds to the address and opens
+`/account?checkout=success` (or `checkout=cancelled`). The app only stores the plan its webhooks
+report.
 
 **What's free and what's paid.** Free (no card, no time limit) has everything that costs no AI
 call: uploads read by the basic reader, the recruiter view, editing, formats, PDF downloads, the
@@ -401,220 +405,469 @@ Jobs tab and its matching, and the application tracker. On AI it has only 3 line
 (summaries count as fixes; `PLANS.free.limits.fix`). Every other AI feature (more line fixes,
 tailoring, letters, answers, interview prep, Build with Otto, GitHub drafts, AI reading of uploads)
 and the portfolio need Pro or Max. New accounts start Pro with a **3-day trial for $1 (charged at
-checkout), card required**, then $15/month; one trial per person (by email, kept even after the account is
-deleted). A trial has its own small allowance (`PRO_TRIAL` in `src/config/plans.ts`). Plans are
-monthly or yearly; there are no weekly plans.
+checkout), card required**, then $15/month; one trial per person (by email, kept even after the
+account is deleted). A trial has its own small allowance (`PRO_TRIAL` in `src/config/plans.ts`).
+Plans are monthly or yearly; there are no weekly plans.
 
-**Sandbox first.** Paddle has two separate accounts that share nothing: **sandbox**
-(sandbox-vendors.paddle.com, test cards only, no approval needed) and **live**
-(vendors.paddle.com). Products, prices, keys, the client token, the default payment link and the
-webhook all exist once in each. Do steps 1 to 7 in sandbox now; step 8 repeats them in live.
+**Test mode first.** One Dodo account has two modes, **test** and **live**, switched with the
+**Live Mode** toggle in the dashboard sidebar. Products, API keys and webhook endpoints belong to
+one mode (a product copied to live gets a new id). Test keys (`dodo_test_...`) only work on
+`test.dodopayments.com`, live keys (`dodo_live_...`) only on `live.dodopayments.com`. The business
+profile, bank account and verification are shared. Do steps 1 to 11 in test mode; step 12 goes
+live.
 
-**The quick way.** Make one API key named `otto-sensei-setup` (step 2's page) with read and write on
-Products, Prices, Client-side tokens, Notification settings and Checkout settings, put it in
-`.env.paddle.local` as `PADDLE_SETUP_API_KEY` (with `PADDLE_ENVIRONMENT=sandbox` or `live`), and run
-`bun --env-file=.env.paddle.local scripts/paddle-setup.ts`. It does steps 1, 3, 4 and 5 (finding
-anything already there instead of making it twice) and writes every value into that file, printing
-ids only. For live, use `.env.paddle.live.local` instead (`PADDLE_ENVIRONMENT=live`), so the
-sandbox values stay usable. You still make the app's own key (step 2) and put the values into Vercel (step 6).
+**1. Account.** Sign up at dodopayments.com and pick the account type that matches you:
+**Individual** (an Indian individual must give a PAN) or **Registered Entity** (a sole proprietor
+with a GSTIN registers as one). The payout bank account's holder must match it. Then set the brand:
+**Settings** → **Business** → **Brands** → the brand's **...** → **Edit**: brand name `Otto Sensei`,
+support email `hello@ottosensei.com`, the logo. In the business profile set the statement
+descriptor, for example `DODOPAY_OTTOSENSEI` (Dodo's default is `DODOPAY_` plus up to 14 letters of
+the business name; the pricing page tells buyers their statement starts with `DODOPAY`).
 
-**1. Products and prices.** **Catalog** → **Products** → **New product**: one product called
-**Otto Sensei Pro** and one called **Otto Sensei Max** (tax category **SaaS**; buyers see the name
-on the checkout and their receipts). On each, **New price**, currency **USD**, tax mode
-**excluding tax** (tax is added at checkout, as the pricing page says):
+**2. Dashboard settings.** Dodo keeps these in the dashboard only, so no test or script can check
+them. Walk this list in test mode now and again in live mode (step 12); `scripts/dodo-setup.ts`
+prints the same list.
 
-| # | Product | Price | Billing period | Trial | Variable |
-|---|---|---|---|---|---|
-| 1 | Pro | $15.00 | Every 1 month | none | `PADDLE_PRO_MONTHLY_PRICE_ID` (required) |
-| 2 | Pro | $15.00 | Every 1 month | **3 days, payment method required, trial price $1.00** | `PADDLE_PRO_TRIAL_PRICE_ID` |
-| 3 | Pro | $120.00 | Every 1 year | none | `PADDLE_PRO_YEARLY_PRICE_ID` |
-| 4 | Max | $29.00 | Every 1 month | none | `PADDLE_MAX_MONTHLY_PRICE_ID` |
-| 5 | Max | $232.00 | Every 1 year | none | `PADDLE_MAX_YEARLY_PRICE_ID` |
+| Where | Setting | Why |
+|---|---|---|
+| **Settings** → **Pricing** | **Adaptive Currency** off | Buyers pay the USD price plus tax, as the pricing page says, with no 2-4% currency fee on top. |
+| **Settings** → **Subscriptions** (customer portal) | **Allow Cancellation at Next Billing Date** on. **Allow Immediate Cancellation**, **Allow Subscription Updates** and **Allow Subscription Pause** off | The terms promise the plan lasts to the end of the paid period. Plan changes happen in the app, and the app can't resume a pause. |
+| **Settings** → **Subscriptions** | **Allow Multiple Subscriptions** off | A second subscription fails with `CUSTOMER_HAS_EXISTING_SUBSCRIPTION` instead of charging twice. Checkout links can't be cancelled and stay payable for 24 hours. |
+| **Settings** → **Subscriptions** | **Subscription Grace Period** on, **3 days**, ending in **on hold**; **Payment Retries** on | A failed renewal keeps the plan for 3 days (`past_due`) while Dodo retries. After that the subscription is on hold and the account is on Free until the card is fixed. |
+| **Settings** → **Subscriptions** | **Prevent Trial Misuse** off | The app alone decides who gets the trial (one per person, by email). Dodo's check also strips plus-aliases, so it could charge $15 to someone the app offered $1. |
+| **Settings** → **Communication** → **Email** → **Customer Emails** | **Subscription Trial Ending** off. Keep Payment Succeeded, Subscription Plan Changed, Refund Successful, Subscription Cancelled, Subscription Set to Cancel and Upcoming Renewal Reminder on | For a trial under 7 days Dodo sends "trial ending" the moment the trial starts. The app sends its own reminder 12 to 36 hours before the end (step 10e). |
+| Disputes | **Visa RDR** on (the default, $100 threshold) | Visa disputes of $100 or less (every price we have) are refunded automatically: an $18 fee instead of a $30 chargeback, and the chargeback rate stays under the 0.5% at which Dodo can end the account. They arrive as `dispute.lost` with `is_resolved_by_rdr`, which the app logs. |
 
-- Price 2 is the one new accounts check out on. Paddle saves the card at checkout and charges $15
-  when the 3 days end, unless the person cancels first. Everyone who has trialed or paid before is
-  sent to price 1 instead, so the trial is once per person. Without price 2 there is simply no
-  trial.
-- Copy each **price** id (`pri_...`), not the product id (`pro_...`). Each option shows on the
-  pricing page, the upgrade dialog and the account page only while its id is set (Pro monthly is
-  required; Max needs at least one of its two). The webhook maps each price id to its plan and
-  billing period, which sets the allowance, so every variable must hold a price with exactly that
-  period, and no two variables the same id. Don't create weekly prices.
-- The app shows `PRICES_USD` from `src/config/plans.ts`; Paddle charges what the price says.
-  Change both together, then redeploy (the pricing page is built with them).
-- Cancelling needs no setting: Paddle's portal cancels at the end of the billing period, so
-  someone who cancels keeps what they paid for (the terms say so). The app itself cancels right
-  away only when an account is deleted, or when a trial is replaced by another plan.
+Payment Failed and Subscription Renewal Failed emails are off by default. Turning them on tells
+buyers to fix their card during the grace days; that is the owner's call.
 
-**2. API key.** **My account** → **Settings** → **Authentication** → **API keys** → **New API
-key**, name `otto-sensei`. Give it only these permissions:
+**3. API keys.** **Developer** → **API Keys** → **Create New Key**, in the mode you are in. Each key
+gets None, Read or Write per resource. Copy it at once: Dodo shows it only once. Leave the IP
+allowlist empty: Vercel's outgoing addresses change.
 
-| Permission | Read | Write | Used for |
-|---|---|---|---|
-| Customers | yes | yes | Finding or creating the customer for a checkout; the webhook's email fallback |
-| Transactions | yes | yes | Creating each checkout, and cancelling the customer's older unpaid ones |
-| Subscriptions | yes | yes | Plan changes, finding live subscriptions, cancelling on account deletion |
-| Customer portal sessions | | yes | **Manage billing** |
-| Adjustments | yes | yes | Refunding the $1 trial charge when a second trial by the same person is cancelled |
+- `otto-sensei-setup`: **Write** on Products and Webhooks. Only for `scripts/dodo-setup.ts` on your
+  laptop (step 4); never put it in Vercel.
+- `otto-sensei`, the app's key (`DODO_API_KEY`), with only these:
 
-Set an expiry (at most a year) and put the renewal date in your calendar: with an expired key,
-checkout, **Manage billing** and account deletion fail until a new key is in Vercel. Copy the key
-(`pdl_sdbx_apikey_...` in sandbox, `pdl_live_apikey_...` in live; shown once) →
-`PADDLE_API_KEY`.
+| Resource | Access | Used for |
+|---|---|---|
+| Checkout Sessions | Write | Creating each checkout link |
+| Subscriptions | Write | Finding live subscriptions, plan changes, cancelling on account deletion and for a refused second trial |
+| Refunds | Write | Refunding the $1 of a refused second trial, and the charges of a subscription paid for an account already deleted |
+| Customers | Read | The same-email lookup and the **Manage billing** portal link |
+| Payments | Read | Finding the payments to refund: a refused trial's $1, or a deleted account's charges |
+| Products | Read | The catalog check (step 8) |
+| Disputes | Read | Reading disputes; the app only logs dispute webhooks today |
 
-**3. Client-side token.** Same page → **Client-side tokens** → **New client-side token**, name
-`otto-sensei-web`. Copy it (`test_...` in sandbox, `live_...` in live) →
-`NEXT_PUBLIC_PADDLE_CLIENT_TOKEN`. It is safe in the browser (it can only open checkouts and
-preview prices). It is built into the page, so redeploy after changing it.
+The portal link is a POST under Customers. If **Manage billing** says "payments aren't set up right
+on our side" (Dodo answered `INSUFFICIENT_PERMISSION`), give Customers **Write** too.
 
-**4. Default payment link.** **Checkout** → **Checkout configuration**, expand **Default payment
-link**: `https://<your app>/checkout`, for example `https://www.ottosensei.com/checkout`. **Save**.
-
-- Paddle builds every checkout link from it (`/checkout?_ptxn=txn_...`) and uses it in its own
-  emails, for example to update a card. Without it every checkout fails with
-  `transaction_default_checkout_url_not_set`.
-- `/checkout` loads Paddle.js, opens the checkout, and sends the buyer back to the account page
-  (`/account?checkout=success`, or `checkout=cancelled` if they close it). It works signed out
-  and isn't indexed.
-- It must be a real domain, not localhost. Sandbox accepts any domain; live only an approved one
-  (step 8). Because checkout always opens there, try sandbox payments on the deployed app; `bun dev`
-  uses mock billing (below).
-
-**5. Webhook.** **Events** → **Notifications** → **New destination**:
-
-- Notification type **URL**: `https://<your app>/api/billing/webhook`. API version **1**.
-- Usage type: **platform and simulation** in sandbox (so the simulator works), **platform** only
-  in live.
-- Events: `subscription.created`, `subscription.trialing`, `subscription.activated`,
-  `subscription.updated`, `subscription.past_due`, `subscription.paused`, `subscription.resumed`,
-  `subscription.canceled` and `transaction.completed`. (Others are answered 200 and ignored.)
-- **Save**, open the destination and copy its **secret key** (`pdl_ntfset_...`) →
-  `PADDLE_WEBHOOK_SECRET`. Every delivery's `Paddle-Signature` header (an HMAC-SHA256 of its
-  timestamp and body) is checked against it; a wrong one, or one more than 5 minutes old, gets 401.
-- Don't delete and recreate the destination later: a new one has a new secret.
-- Vercel doesn't filter webhooks. If a firewall is ever put in front of the app, allow Paddle's
-  webhook IPs (the current list is at `https://api.paddle.com/ips`) on `/api/billing/webhook`.
-
-**6. Put them into Vercel.**
+**4. Products and webhook: the setup script.** Put the setup key in a local file (git ignores every
+`.env*` file except `.env.example`, and `vercel --prod` leaves it out):
 
 ```bash
-vercel env add PADDLE_API_KEY production
-vercel env add PADDLE_WEBHOOK_SECRET production
-vercel env add NEXT_PUBLIC_PADDLE_CLIENT_TOKEN production
-vercel env add PADDLE_ENVIRONMENT production            # sandbox now; live with the live values
-vercel env add PADDLE_PRO_MONTHLY_PRICE_ID production
-vercel env add PADDLE_PRO_TRIAL_PRICE_ID production
-vercel env add PADDLE_PRO_YEARLY_PRICE_ID production
-vercel env add PADDLE_MAX_MONTHLY_PRICE_ID production
-vercel env add PADDLE_MAX_YEARLY_PRICE_ID production
-vercel --prod
+# .env.dodo.local
+DODO_ENVIRONMENT=test
+DODO_SETUP_API_KEY=dodo_test_...
+# DODO_SETUP_APP_URL=https://www.ottosensei.com   (the default; it must be https)
 ```
 
-Checkout turns on only when the key, the webhook secret, the client token and Pro monthly are all
-set. Until then production shows "email us". `PADDLE_ENVIRONMENT` defaults to `sandbox`: only
-`live` (or `production`) uses Paddle's live API, so a missing or mistyped value can never take
-real money. Changed a value? Redeploy: the pricing page and the client token are built in.
+Then run `bun --env-file=.env.dodo.local scripts/dodo-setup.ts`. It:
 
-**Check the catalog** (it only reads). Vercel can't show production values stored as Secret (its
-default there) and Paddle shows a key only once, so the check has its own read-only key and a local
-file. On the step 2 page make a second API key, `otto-sensei-catalog`, with only **Prices** read and
-**Products** read. Then create `.env.paddle.local` (git and `vercel --prod` both leave it out) with
-the values you gave Vercel, but that key as `PADDLE_API_KEY`, leaving out any price you didn't set:
+- refuses a key that isn't `dodo_test_...` or `dodo_live_...`, a key from the other mode than
+  `DODO_ENVIRONMENT`, and an app address that isn't https;
+- finds our five products by their `otto_plan`, `otto_interval` and `otto_trial` metadata, creates
+  any that is missing, and updates one that drifted from the spec (the id stays; existing
+  subscriptions keep their old price);
+- creates the webhook endpoint `<app address>/api/billing/webhook` (or turns it back on, or fixes
+  its event list), reads its secret and checks that it starts with `whsec_`;
+- writes `DODO_ENVIRONMENT`, the five `DODO_*_PRODUCT_ID` values and `DODO_WEBHOOK_SECRET` into the
+  same file (mode 600), each as soon as it is known, and prints ids only, never a key or a secret;
+- prints the dashboard checklist (step 2) and the next steps.
+
+Running it again finds everything instead of making it twice. Exit code 2 means a product still
+doesn't match after the update: read its `warning` lines. For live (step 12) use
+`.env.dodo.live.local` with `DODO_ENVIRONMENT=live` and a live setup key, so the test values stay
+usable.
+
+The products, all in USD with tax added on top (not tax-inclusive), tax category SaaS, no
+purchasing-power pricing, discounts or add-ons, and a 20-year subscription period (Dodo ends a
+subscription when its period runs out, so it gets the longest one):
+
+| Variable | Product | Price | Bills every | Trial |
+|---|---|---|---|---|
+| `DODO_PRO_MONTHLY_PRODUCT_ID` (required) | Otto Sensei Pro (monthly) | $15.00 | 1 month | none |
+| `DODO_PRO_TRIAL_PRODUCT_ID` | Otto Sensei Pro (monthly, 3-day trial) | $15.00 | 1 month | **3 days, $1.00 charged at checkout** (`trial_amount` 100) |
+| `DODO_PRO_YEARLY_PRODUCT_ID` | Otto Sensei Pro (yearly) | $120.00 | 1 year | none |
+| `DODO_MAX_MONTHLY_PRODUCT_ID` | Otto Sensei Max (monthly) | $29.00 | 1 month | none |
+| `DODO_MAX_YEARLY_PRODUCT_ID` | Otto Sensei Max (yearly) | $232.00 | 1 year | none |
+
+- The trial product is the one new accounts check out on. A paid trial always needs a card: Dodo
+  charges $1 plus tax at checkout and $15 when the 3 days end, unless the person cancels first.
+  Everyone who has trialed or paid before gets Pro monthly instead, so the trial is once per
+  person. Without the trial product there is simply no trial.
+- Dodo sets a paid trial on a product, not per checkout, which is why the trial is its own product.
+  The app never sends `trial_period_days` with a checkout: that would override the product's trial.
+- Each option shows on the pricing page, the upgrade dialog and the account page only while its id
+  is set (Pro monthly is required; Max needs at least one of its two). The webhook maps each product
+  id to its plan and billing period, which sets the allowance, so no two variables may hold the
+  same id. Don't create weekly products.
+- The app shows `PRICES_USD` from `src/config/plans.ts`; Dodo charges what the product says. Change
+  both together: edit `plans.ts`, run the setup script again (it updates the products in place),
+  then redeploy.
+- Cancelling needs no code: the portal cancels at the next billing date (step 2), so someone who
+  cancels keeps what they paid for. The app itself cancels at once only when an account is deleted
+  or a second trial is refused.
+
+**5. The webhook endpoint** (made by step 4; **Developer** → **Webhooks** shows it):
+
+- URL `https://<your app>/api/billing/webhook`, with exactly these 23 events: the 12
+  `subscription.*` events (`active`, `renewed`, `updated`, `plan_changed`, `past_due`, `on_hold`,
+  `paused`, `unpaused`, `cancelled`, `expired`, `failed`, `update_payment_method`),
+  `payment.succeeded`, `payment.failed`, `refund.succeeded`, `refund.failed`, and the 7 `dispute.*`
+  events (`opened`, `challenged`, `accepted`, `cancelled`, `expired`, `won`, `lost`). Others are
+  answered 200 and ignored. Never leave the list empty: an endpoint with no events picked receives
+  every event.
+- Its signing secret (`whsec_...`, on the endpoint's **Overview** tab) is `DODO_WEBHOOK_SECRET`.
+  Deliveries follow Standard Webhooks: `webhook-signature` is an HMAC-SHA256 of the `webhook-id`,
+  the `webhook-timestamp` and the body. A wrong signature, or one more than 5 minutes off, gets
+  401. A `webhook-id` already applied gets 200 `duplicate`.
+- Dodo retries any answer that isn't 2xx, up to 8 times over about 27 hours. The endpoint's
+  **Logs** show each message and our answer, and can replay it.
+- Don't delete and recreate the endpoint: a new one has a new secret. To change the secret, use
+  **Rotate secret** (the old one keeps working for 24 hours), then put the new one in Vercel and
+  redeploy within that day.
+- Dodo's sending addresses change, so there is no IP allowlist: the signature is the only check.
+- Test and live each have their own endpoint and secret.
+- If the endpoint exists before the Dodo build runs in production, disable it in **Developer** →
+  **Webhooks** until the cutover (step 10): the old build turns every delivery away, and Dodo keeps
+  retrying. Running the setup script again turns it back on.
+
+**6. The signing secret.** Make one with `openssl rand -hex 32` → `BILLING_SIGNING_SECRET`. The app
+puts the account id in each checkout's metadata (`user_id`) with an HMAC of it made with this secret
+(`user_sig`), and trusts an account id from a webhook only with that signature: anyone could
+otherwise build a Dodo payment link carrying someone else's id. Production keeps one value for test
+and live; your laptop gets its own (step 9). Changing it only drops the signature from later events of existing subscriptions, which still match
+by their subscription id.
+
+**7. Put them into Vercel** (production only: leave billing unset on preview deployments, since Dodo
+reviews every new domain a checkout returns to):
 
 ```bash
-PADDLE_ENVIRONMENT=sandbox
-PADDLE_API_KEY=pdl_sdbx_apikey_...
-NEXT_PUBLIC_PADDLE_CLIENT_TOKEN=test_...
-PADDLE_PRO_MONTHLY_PRICE_ID=pri_...
-PADDLE_PRO_TRIAL_PRICE_ID=pri_...
-PADDLE_PRO_YEARLY_PRICE_ID=pri_...
-PADDLE_MAX_MONTHLY_PRICE_ID=pri_...
-PADDLE_MAX_YEARLY_PRICE_ID=pri_...
+vercel env add DODO_ENVIRONMENT production              # test now; live in step 12
+vercel env add DODO_API_KEY production                  # the otto-sensei key, not the setup key
+vercel env add DODO_WEBHOOK_SECRET production
+vercel env add BILLING_SIGNING_SECRET production
+vercel env add DODO_PRO_MONTHLY_PRODUCT_ID production
+vercel env add DODO_PRO_TRIAL_PRODUCT_ID production
+vercel env add DODO_PRO_YEARLY_PRODUCT_ID production
+vercel env add DODO_MAX_MONTHLY_PRODUCT_ID production
+vercel env add DODO_MAX_YEARLY_PRODUCT_ID production
 ```
 
-Run it with `bun --env-file=.env.paddle.local scripts/check-paddle-catalog.ts`. It asks Paddle for
-each price and its product, and checks that the price is active, bills every month or year as its
-variable says, costs what `PRICES_USD` says in USD with tax added on top (excluding tax) and has no
-country prices; that only the trial price has a trial (3 days, card required, $1 charged at checkout);
-that no two variables share an id; and that each plan has its own active product, named for the
-plan, with tax category SaaS. It also checks that the API key, the client token and
-`PADDLE_ENVIRONMENT` are all sandbox or all live. Each line says `ok` or `problem` (keys are never
-printed), and any problem fails it: fix them before testing. Run it again after any price change,
-and in step 8 before the live redeploy.
+| Variable | Value |
+|---|---|
+| `DODO_ENVIRONMENT` | `test` or `live`. Only `live` (or `live_mode`, `production`) uses Dodo's live API; anything else, or nothing, is test mode, so a typo never takes real money |
+| `DODO_API_KEY` | The `otto-sensei` key (step 3): `dodo_test_...` or `dodo_live_...`, matching `DODO_ENVIRONMENT` |
+| `DODO_WEBHOOK_SECRET` | The endpoint's `whsec_...` secret (step 5) |
+| `BILLING_SIGNING_SECRET` | Step 6 |
+| `DODO_PRO_MONTHLY_PRODUCT_ID` and the other four | The `pdt_...` ids the setup script wrote (step 4); test and live ids differ |
 
-**Moving off Creem** (once, the first time Paddle goes in): Creem only ever ran in test mode, so
-nobody has paid. Delete the Creem webhook endpoint, then remove the old variables
-(`vercel env rm CREEM_API_KEY production`, and the same for `CREEM_WEBHOOK_SECRET`,
-`CREEM_TEST_MODE` and every `CREEM_*_PRODUCT_ID`). Accounts may still be on Pro or Max from Creem
-test checkouts: as soon as the Paddle sandbox build first deploys, run
-`bun scripts/reset-creem-plans.ts` against the production database (the `.env.local` from step 5,
-like `bun scripts/migrate.ts`). It prints how many accounts still hold Creem ids and changes
-nothing. Then run it again with `--apply`: that moves them back to Free and clears their Creem ids.
-Paddle ids are never touched in this mode, so it is safe to run again. It prints counts only, never
-emails; `--help` lists both modes.
+They take effect with the next deploy (step 10). Billing turns on (`/api/me` answers
+`billing.mode: "dodo"`) only when `DODO_API_KEY`, `DODO_WEBHOOK_SECRET`, `BILLING_SIGNING_SECRET`
+and `DODO_PRO_MONTHLY_PRODUCT_ID` are all set and the key's prefix matches `DODO_ENVIRONMENT`.
+Until then production shows "email us". A key from the other mode keeps billing off and logs
+`billing.key_environment_mismatch`. `NEXT_PUBLIC_APP_URL` builds the return and cancel addresses,
+so it must be the domain Dodo approved. Changed a value? Redeploy: the pricing page is built with
+the product ids.
 
-**7. Test it** (sandbox, on the deployed app). Card `4242 4242 4242 4242`, any name, any future
-date, CVC `100`. Other sandbox cards: `4000 0038 0000 0446` asks for 3-D Secure,
-`4000 0000 0000 0002` is declined, `4000 0027 6000 3184` pays once and then fails (past due).
+**8. Check the catalog** (it only reads). Add the app key and the signing secret to the same file,
+the values you gave Vercel:
 
-- A new account → **Try Pro for 3 days** → the checkout says nothing is due today. Back on the
-  account page it shows "Pro trial until <date>" within a few seconds (`subscription.trialing`).
-- Start a checkout and close it without paying: you're back on the account page and it says the
-  checkout was cancelled.
-- **Manage billing** opens Paddle's portal (invoices, card, cancel). Cancel there: the plan stays
-  until the trial or the paid period ends, with no renewal date shown.
-- Delete the account from the account page: its sandbox subscription shows **Canceled** in
-  Paddle at once. Sign up again with the same email: checkout now shows $15/month and no trial.
-- Pro to Max on a paid Pro plan changes the subscription in place, prorated and charged right
-  away, so nobody is billed twice. During a Pro trial, Max is its own checkout, and the trial is
-  cancelled the moment Max starts.
-- **Events** → **Simulations** sends sample events. They carry made-up ids, so the app
-  answers 200 and changes no account.
+```bash
+# also in .env.dodo.local
+DODO_API_KEY=dodo_test_...
+BILLING_SIGNING_SECRET=...
+```
 
-**8. Going live.** Sign up at vendors.paddle.com (the live account is new; nothing carries over
-from sandbox), then:
+Run `bun --env-file=.env.dodo.local scripts/check-dodo-catalog.ts`. It sends only GETs and checks:
 
-1. **Website approval** (**My account** → **Settings** → **Website approval**): submit
-   `ottosensei.com` (`www.` is covered; any other subdomain needs its own). Paddle reviews the live
-   HTTPS site: a clear product description, pricing that matches the catalog, Terms, Refund policy
-   and Privacy policy linked from every page (the footer links all three, and they name Paddle),
-   the business or sole-proprietor name in the terms, and contact details reachable from the home
-   page. Live checkout won't open on a domain that isn't approved.
-2. **Account verification** (**Get started** → **Verify your account**), by an admin: personal
-   details (date of birth, home address), the business's legal name and address, the website and
-   what you sell. It usually takes minutes once the domain is approved.
-3. **Payouts** (**Business account** → **Payouts** → **Payout settings**): add the bank or Payoneer
-   details. Paddle pays out monthly once the balance is over $100 (the minimum; you can raise it).
-4. **Payment recovery** (**Retain** → **Payment recovery**): when retries run out, **cancel** the
-   subscription rather than pause it. A paused one drops the account to Free but stays open in
-   Paddle, and the app has no way to resume it.
-5. Repeat steps 1 to 5 in the live account (the same five prices, the default payment link on the
-   approved domain, the webhook with **platform** usage).
-6. **End the sandbox plans, right before the switch.** Anyone who checked out while production
-   ran on sandbox (you, testers, or anyone using Paddle's public test card) has Pro or Max from a
-   sandbox subscription that the live account can't see or end. While production still runs on
-   sandbox, cancel each of them in the sandbox dashboard (**Subscriptions**, or **Customers** →
-   the customer → the subscription → **Cancel subscription**), immediately; each cancel reaches the
-   app and moves that account to Free. Check the list is empty, then go straight to the next step.
-7. In the sandbox dashboard, deactivate the sandbox webhook destination (**Events** →
-   **Notifications**), so no sandbox checkout can reach the app any more.
-8. **Clear the sandbox billing ids, right before the switch.** Sandbox and live ids look exactly
-   alike, so the live build would try to manage sandbox ones on the live account (a cancel there
-   answers "not found", and account deletion would be refused). Against the production database:
-   `bun scripts/reset-creem-plans.ts --go-live` prints how many accounts hold any billing state
-   (it changes nothing), then `bun scripts/reset-creem-plans.ts --go-live --apply` moves every one
-   of them to Free and clears their billing ids and trial replacements. Counts only, never emails.
-   Go straight to the next step. This is the only time `--go-live --apply` is ever run: once
-   production is on live, it would move paying customers to Free while Paddle keeps charging them.
-9. Replace the values in Vercel (`vercel env rm NAME production`, then `vercel env add NAME
-   production`): the live API key (`pdl_live_apikey_...`), the live webhook secret, the `live_...`
-   client token, the five live price ids and `PADDLE_ENVIRONMENT=live`. Run the catalog check
-   (step 6) on them, with a live `otto-sensei-catalog` key, and fix every problem, then redeploy.
-   From now on, never roll production back to a build made with the sandbox values.
-10. Before telling anyone: one real checkout on the live site with a 100% discount code, then
-    cancel that subscription and archive the discount.
+- the key is from the mode `DODO_ENVIRONMENT` names, the webhook secret is `whsec_` plus base64,
+  and the signing secret has at least 32 characters;
+- Pro monthly is set, at least one Max id is set, no id is used twice, and every id is a Dodo
+  product id (`pdt_...`), not a leftover Paddle `pri_...`;
+- each product is active and recurring, in USD, priced at `PRICES_USD`, billed every 1 month or 1
+  year as its variable says, runs 20 years, has tax added on top and tax category SaaS, has no
+  purchasing-power or localized pricing, discounts or add-ons, and is named for its plan; only the
+  trial product has a trial (3 days, $1, card required);
+- the app address has exactly one webhook endpoint, it is on, it gets every event the app needs,
+  and its secret equals `DODO_WEBHOOK_SECRET`.
 
-**Mock billing.** In `bun dev` with no Paddle keys every option is offered and nothing is charged:
+Each line says `ok` or `problem` (keys and secrets are never printed), and any problem fails it:
+fix them before testing. The app key has no Webhooks access, so the endpoint lines come out as a
+note; the setup script already checked the endpoint when it ran. Run the check again after any
+change, and in step 12 before the live redeploy.
+
+**9. Test-mode spike: settle what Dodo doesn't document.** Several rules in the code come from Dodo's
+docs alone. Before the cutover, run real test-mode flows once and settle every point below. If an
+answer breaks the design (for example, a paid trial has no recognizable trial window), stop and fix
+the code before step 10.
+
+How:
+
+- Put the test values in `.env.local` (`DODO_ENVIRONMENT=test`, the app key from step 3, the five
+  product ids from step 4, and a new `BILLING_SIGNING_SECRET` from `openssl rand -hex 32`) and start
+  `bun dev`. With them set, `bun dev` uses Dodo's test mode instead of mock billing; take them out
+  again afterwards.
+- Never reuse production's signing secret on your laptop. Production cancels and refunds a
+  subscription signed for an account its database doesn't have, so with a shared secret it would
+  cancel every checkout you make locally. With separate secrets, an event that reaches the other
+  side arrives unsigned and is only logged.
+- Forward Dodo's events to your laptop: `bun install -g dodopayments-cli`, then
+  `dodo wh listen http://localhost:3000/api/billing/webhook` (test keys only). The CLI adds its own
+  relay endpoint under **Developer** → **Webhooks**: put that endpoint's secret in `.env.local` as
+  `DODO_WEBHOOK_SECRET` and restart `bun dev`. The relay rewrites the JSON, so a forwarded event can
+  fail the signature check (`billing.webhook_invalid`) even with the headers intact; then read the
+  raw payloads from the endpoint's **Logs** instead.
+- Turn on **Test Mode Emails** (**Settings** → **Communication**) to see what buyers receive
+  (subjects start `[TEST MODE]`, at most 100 a week).
+- Add test funds to the wallet: refunds come out of the balance, in test mode too.
+- Cards: `4242 4242 4242 4242`, any future date (for example 06/32), CVC `123`. Renewals fail with
+  `4000 0000 0000 0341`.
+- Save sanitized payloads (no emails, names, addresses or keys) in a new file,
+  `src/lib/billing/dodo-fixtures.ts`, and load them in the billing tests. Write each answer under its item below and in the PR.
+
+Each item says what the code assumes today and where to change it if Dodo does something else.
+
+- [ ] **Id shapes.** The real `sub_`, `cus_`, `pay_`, `pdt_` and `ref_` ids: length and characters.
+  Today: 8 to 64 letters and digits after the prefix, and never a Paddle-shaped `sub_` (26 lowercase
+  letters or digits; the Paddle reset relies on that). Change: `isDodoId` in `dodo-status.ts`,
+  `dodoId` in `dodo-testing.ts`.
+- [ ] **Key prefixes.** Today: `dodo_test_` and `dodo_live_`; any other key leaves billing off.
+  Change: `dodoKeyMatchesEnvironment` in `dodo.ts`, `keyEnvironment` in `dodo-catalog.ts`.
+- [ ] **The $1 trial.** Which events a trial checkout sends, in what order, and the subscription's
+  `previous_billing_date`, `next_billing_date`, `created_at` and `trial_period_days` during the trial
+  and after the first full charge. Does the $1.00 subscription minimum accept `trial_amount` 100 with
+  no tax? Today: a trial is `trial_period_days` above 0 and a first billing period no longer than
+  that (plus an hour), starting no later than that after `created_at` (does a `keep_cycle` plan
+  change move `previous_billing_date`?), it ends at `next_billing_date`, and
+  `billing.trial_not_detected` warns when a trial-product subscription isn't seen as one. Change:
+  `inTrialWindow` and `trialEndOf` in `dodo-status.ts`. If Dodo refuses $1, raise
+  `PRO_TRIAL.priceUsd` and every "$1" in the copy and tests.
+- [ ] **Timestamps.** Today: ISO 8601 with `Z` and microseconds; a time with no zone is read as UTC.
+  Change: `toMs` in `dodo-status.ts` and its copy in `dodo-events.ts`.
+- [ ] **The trial's payment.** Today: `payment.succeeded` with `charge_type` `new`, carrying the
+  checkout metadata (`plan`, `interval`, `trial`) as strings; otherwise the `checkout_completed`
+  event never fires (the refused-trial refund doesn't depend on it). A plan change's charge is
+  `plan_change`. Change: `recordPayment` in `webhook.ts`.
+- [ ] **The return address.** Which `status` Dodo adds for a paid trial, a full-price plan, a
+  declined card, 3-D Secure and an abandoned checkout, and whether it joins its own parameters with
+  `&`. Today: `active`, `succeeded`, `pending` and `processing` mean paid, anything else cancelled;
+  `billing.checkout_returned` logs each status seen. Also: must the return address be on the
+  approved domain, and does the checkout ask for a name when only the email is sent? Change:
+  `PAID_STATUSES` in `src/app/api/billing/return/route.ts`.
+- [ ] **Multiple subscriptions off.** Open two checkout links before paying either. Does
+  `CUSTOMER_HAS_EXISTING_SUBSCRIPTION` come when the link is made or at payment? Today: it is shown
+  as "You're already on that plan."; if Dodo only refuses at payment, the buyer sees Dodo's own
+  error page. Change: `REASON_BY_CODE` in `dodo.ts`.
+- [ ] **Plan changes.** Pro monthly to Max monthly with `prorated_immediately_keep_cycle` (expect
+  the prorated difference now and the same renewal date). Trial to Max monthly and to Max yearly
+  with `full_immediately` (expect the trial to end, the full price charged now, the $1 not credited,
+  `subscription.plan_changed` with the dates on the new period, and `trial_period_days` 0). A
+  declined card with `on_payment_failure: prevent_change` (expect the trial unchanged and
+  `payment.failed` with `charge_type` `plan_change`). A plan change while a cancel is scheduled
+  (which refusal code and HTTP status). Does `change-plan` answer 200 with an empty body? Change:
+  `changePlan` in `dodo.ts`, `planChangeRoute` in `index.ts`.
+- [ ] **Cancel at the period end.** Set `cancel_at_next_billing_date` true, then false: which events
+  come (expected: `subscription.updated`), and is the period end `cancelled` or `expired`? Can the
+  portal resume a scheduled cancel, update the card and show invoices, and does a card update bring
+  an `on_hold` subscription back? Today: a scheduled cancel is `scheduled_cancel`; the account page
+  and upgrade dialog say "Your trial is set to end. Resume it in Manage billing, then start Max." and
+  their button opens the portal. If the portal can't resume, change that copy (`resumeFirstNotice`
+  in `trial-upgrade.ts`) and `planChangeRoute`.
+- [ ] **Immediate cancel** (`PATCH` `status: cancelled`, as account deletion does): which events,
+  and which HTTP status and code for an already-cancelled subscription and for a `pending` one.
+  Today: a refused cancel is read back, and an ended subscription or one already set to end counts
+  as done; if a pending one can't be cancelled, deleting that account stays blocked until it settles.
+  Change: `cancelSubscription` in `dodo.ts`.
+- [ ] **Refund of the $1.** The `refund.succeeded` payload and the code for a second refund. Today:
+  `PAYMENT_ALREADY_REFUNDED`, `PAYMENT_HAS_BEEN_REFUNDED`, `EXISTING_REFUND_REQUEST_PROCESSING` and
+  `NOTHING_TO_REFUND` count as done. Change: `refundPayment` in `dodo.ts`.
+- [ ] **A failed renewal** with `4000 0000 0000 0341` (the charge when the trial ends is the first
+  one; move `next_billing_date` in test mode if Dodo allows it). Expect `subscription.past_due` and
+  the plan kept for 3 days, then `subscription.on_hold` and Free. Do the dates stay on the trial
+  window during the grace days? Do the grace period and retries cover the first full charge after a
+  trial? Today: past due inside the trial window still counts as an unpaid trial; on hold is Free
+  but still cancelled on account deletion. Change: `internalStatus` in `dodo-status.ts`,
+  `PLAN_BY_STATUS` in `entitlements.ts`.
+- [ ] **Webhook delivery.** Header names (`webhook-id`, `webhook-timestamp`, `webhook-signature`
+  with space-separated `v1,` entries) and a `whsec_` secret. Does a dashboard replay reuse the
+  `webhook-id`? Do the events of one action share a timestamp? During **Rotate secret**, does Dodo
+  sign with both secrets? Today: dedupe by `webhook-id`, order by the envelope `timestamp`. Change:
+  `verifyWebhook` and `readEnvelope` in `dodo-events.ts`.
+- [ ] **Payload fields.** Every subscription payload (pending and failed ones too) has
+  `subscription_id`, `product_id` and `customer.customer_id`; payments have `payment_id`; refunds
+  `refund_id`, `payment_id`, `status`, `is_partial`; disputes `dispute_id`, `payment_id`,
+  `dispute_status`, `dispute_stage`, `amount`, `currency`. Metadata strings come back unchanged.
+  Today: a payload missing one gets 500 `malformed`, and Dodo retries it for about a day. Change:
+  the schemas in `dodo-status.ts` and `dodo-events.ts`.
+- [ ] **API details.** The error body is `{code, message}`; which HTTP status each refusal uses;
+  lists are `{items}` with `page_size` up to 100; does `page_number` start at 0 or 1; is
+  `GET /customers?email=` an exact match; does `GET /products?archived=true` list only archived
+  products; does `GET /webhooks` accept `limit=100`; the portal link call (`send_email=false`)
+  answers `link`. Change: `dodo.ts`, `dodo-catalog.ts`.
+- [ ] **Products.** Did `POST /products` take `trial_amount` 100 and the 20-year period? Does
+  `PATCH /products` take `addons: []` and `pricing_mode: null`? Change: `productSpec` in
+  `dodo-catalog.ts`, `scripts/dodo-setup.ts`.
+- [ ] **Emails.** What a trialist receives from Dodo with Trial Ending off, and whether Payment
+  Succeeded carries the invoice link the refund page mentions. Change: step 2, or the refund page.
+- [ ] **What Dodo sends about the buyer.** The privacy page says Dodo's notices carry name, email,
+  billing address and card network and last four, and that the app stores none of them. Change:
+  `src/app/(marketing)/privacy/page.tsx`.
+
+**10. Cutover from the Paddle sandbox** (once, with the deploy that brings the Dodo code):
+
+1. In the Paddle sandbox, deactivate the notification destination (**Events** → **Notifications**),
+   so the old deployment can't write Paddle ids while the new build runs. Cancelling the sandbox
+   subscriptions is optional: no money moves.
+2. In Vercel, remove the nine Paddle variables from production (and preview and development, if
+   they are there): `vercel env rm PADDLE_API_KEY production`, and the same for
+   `PADDLE_WEBHOOK_SECRET`, `PADDLE_ENVIRONMENT`, `NEXT_PUBLIC_PADDLE_CLIENT_TOKEN`,
+   `PADDLE_PRO_MONTHLY_PRICE_ID`, `PADDLE_PRO_TRIAL_PRICE_ID`, `PADDLE_PRO_YEARLY_PRICE_ID`,
+   `PADDLE_MAX_MONTHLY_PRICE_ID` and `PADDLE_MAX_YEARLY_PRICE_ID`. The app no longer reads them.
+   Add the Dodo test values (step 7).
+3. Make sure the test-mode endpoint points at `https://www.ottosensei.com/api/billing/webhook` and is
+   on: run the setup script again (step 4).
+4. Push. The build applies `20261120000100_reset_paddle_plans.sql`: every account holding a Paddle
+   sandbox id (`ctm_` or `sub_` plus 26 lowercase letters or digits) moves to Free with every billing
+   field cleared, and its trial reminders and trial-watch rows go, along with the Paddle trial
+   replacements and all trial history (nobody ever paid, and old rows would keep the owner's and
+   testers' emails from the Dodo trial). Every account's trial usage counts go back to zero, invite
+   extras kept, so a new trial doesn't start used up. Mock plans and plans set by hand stay.
+5. Signed in, `/api/me` answers `billing.mode: "dodo"`. Against the production database (the
+   `.env.local` from step 5), `bun scripts/reset-billing.ts --paddle` counts accounts still holding
+   a Paddle id: it should say 0. `--paddle --apply` clears any that remain; it never touches Dodo
+   ids.
+
+Rollback before going live: revert the deploy and put the Paddle variables back; the reset sandbox
+rows stay reset, which is fine for test data. After going live there is no way back to Paddle.
+
+Creem ran in test mode only, before Paddle; its plans were reset by
+`20261116000200_reset_creem_plans.sql`. Remove any `CREEM_*` variable still in Vercel.
+
+**11. Test it end to end** (test mode, on the production domain, right after step 10). Keep this phase
+short: until going live, anyone with a public test card can get Pro (the go-live reset clears it).
+
+- A new account → **Try Pro for 3 days** → the checkout says $1 plus tax today, then $15/month. Back
+  on the account page it shows "Pro trial until <date>" within a few seconds; that date is Dodo's
+  next billing date, and the trial reminder goes out the day before.
+- Start a checkout and leave Dodo's page without paying: the account page says the checkout was
+  cancelled.
+- During the trial, **Start Max now**: no checkout page opens; the card on file is charged the full
+  Max price at once (the $1 isn't credited), the trial ends and the account shows Max.
+- On a paid Pro plan, move to Max: the same subscription changes in place, the prorated difference
+  is charged now and the renewal date stays.
+- **Manage billing** opens Dodo's portal. Cancel there: the plan stays until the trial or the paid
+  period ends, with no renewal date shown, then the account is on Free. Until then the upgrade card
+  asks to resume it in **Manage billing** and offers no charge.
+- Delete the account from the account page: its subscription shows cancelled in Dodo at once. Sign up
+  again with the same email: checkout now shows $15/month and no trial.
+- A refused second trial: open a trial checkout and leave it unpaid; in another window pay a trial
+  with the same email, then cancel that subscription at once from the Dodo dashboard; now pay the
+  first checkout. The app cancels the new trial and refunds its $1 exactly once.
+- A failed renewal (`4000 0000 0000 0341`): the plan stays for 3 days (`past_due`), then the account
+  is on Free (`on_hold`) until the card is updated in **Manage billing**, which the account page
+  shows with "Your last payment didn't go through" and no upgrade offer.
+- Replay a delivery from the endpoint's **Logs**: the app answers `duplicate`. A request with a wrong
+  signature gets 401.
+- The logs show no `billing.unsigned_subscription`, `billing.unsigned_custom_data`,
+  `billing.second_live_subscription` or `billing.trial_not_detected`.
+
+**12. Going live.**
+
+1. **Compliance, early** (long lead time). Email compliance@dodopayments.com:
+   - The category pre-check. Dodo often reviews AI writing tools, outreach tools and resume and
+     hiring tools, and it prohibits scraping and mass outreach. Explain where the jobs feed comes
+     from (public job board APIs, JOB-SOURCES.md), that outreach drafts are sent by the user one at
+     a time, and that the app never promises jobs or interviews.
+   - The merchant-of-record sentence and the refund wording, for approval: Dodo's terms want the
+     reseller notice "in a form agreed with Dodo Payments". The sentence lives in one place,
+     `MERCHANT.disclosure` in `src/app/(marketing)/_components/merchant.ts`, and the terms, refund,
+     privacy and pricing pages all read it. The refund page defers to Dodo's buyer terms and promises
+     nothing of its own. After any change, bump `LEGAL_LAST_UPDATED` in
+     `src/components/site/routes.ts`.
+2. **Website.** A visitor with no account must reach: pricing with the billing period, the terms,
+   the privacy policy, the refund and cancellation policy, and a contact address. The footer links
+   all of them, and they name Dodo Payments. The live site must match the verification form
+   (product description, pricing, how it is delivered); give the public home page as the product
+   address, never a sign-in page. Sales may only run on the approved site, so billing stays off on
+   previews and other domains.
+3. **Verification** (dashboard, in order): Product Information → Identity Verification (KYC through
+   Persona: a government ID and a selfie, 3 tries) → Business Verification (KYB, Registered Entity
+   only) → Bank Verification. Most reviews take 1 to 3 business days; a failed form can be appealed
+   once. Live payments turn on when every form is approved; payouts also need Dodo's monitoring
+   review.
+4. **Payouts** (**Settings** → **Payouts**): add a **Local** transfer payout account (no SWIFT fee).
+   Payouts run twice a month once the balance is over the minimum ($100 by default, $50 at the
+   lowest), with a $5 fee for a payout under $1,000. Refunds and disputes come out of the balance:
+   keep about $20 in it so early refunds of refused trials don't fail.
+5. **Vercel Pro.** Hobby forbids commercial use: upgrade before taking real money.
+6. **The processor-change notice.** The terms and the privacy policy promise signed-in users an email
+   before a change like this takes effect, so it goes out before going live. `--date` is the day live
+   payments start (UTC); it must be after today. Against the production database (the `.env.local`
+   from step 5, with `RESEND_API_KEY`, `EMAIL_FROM` and `NEXT_PUBLIC_APP_URL` set to the public
+   https site):
+
+   ```bash
+   bun scripts/send-processor-notice.ts --date 2026-12-01            # dry run: counts only
+   bun scripts/send-processor-notice.ts --date 2026-12-01 --apply    # sends
+   ```
+
+   - Every account with an email gets it once, whatever its email settings. Each is logged before it
+     is sent, so a rerun never emails anyone twice.
+   - A run sends at most what is left of the day's optional email allowance
+     (`OPTIONAL_EMAILS_PER_DAY`, 25 by default, shared with tips and the weekly jobs email), so run
+     it once a day until it says `Still to notify: 0`, or pass `--limit N` on a paid Resend plan.
+     Start early enough that the last one goes out before the date.
+   - First read the copy (`processorNoticeEmail` in `src/lib/notifications/processor-notice.ts`)
+     against the wording Dodo approved. Only the owner runs `--apply`.
+7. **Switch to live**, back to back:
+   1. Turn on **Live Mode** and walk step 2's settings again (Dodo says settings are shared between
+      the modes; check each anyway).
+   2. Make the live keys (step 3). Put `DODO_ENVIRONMENT=live` and the live setup key in
+      `.env.dodo.live.local`, then run `bun --env-file=.env.dodo.live.local scripts/dodo-setup.ts`.
+   3. Add the live app key and `BILLING_SIGNING_SECRET` to that file, run
+      `bun --env-file=.env.dodo.live.local scripts/check-dodo-catalog.ts`, and fix every problem.
+   4. In test mode, cancel every test subscription (they keep renewing until cancelled); each cancel
+      reaches the app and moves that account to Free. Then disable the test-mode endpoint that
+      points at production, and the CLI's relay endpoint.
+   5. Against the production database, `bun scripts/reset-billing.ts --go-live` prints how many
+      accounts hold any billing state (it changes nothing). Then
+      `bun scripts/reset-billing.ts --go-live --apply` moves every one of them to Free, clears their
+      billing fields, and deletes their trial reminders and trial-watch rows, every trial replacement
+      and all trial history; every account's trial usage counts go back to zero (invite extras
+      stay). Test and live ids look alike, so this goes by billing state, not by id.
+      It prints counts only, never emails. Go straight to the next step. **This is the only time
+      `--go-live --apply` is ever run**: once production is live, it would move paying customers to
+      Free while Dodo keeps charging them.
+   6. In Vercel production, replace (`vercel env rm NAME production`, then
+      `vercel env add NAME production`) `DODO_ENVIRONMENT` (now `live`), `DODO_API_KEY`,
+      `DODO_WEBHOOK_SECRET` and the five product ids with the live values. `BILLING_SIGNING_SECRET`
+      stays. Redeploy. From now on, never roll production back to a build made with the test values.
+8. **Live smoke test.** Start a real $1 trial with your own card (discount codes are off at
+   checkout), and check the webhook, the plan and the trial reminder. Then cancel in **Manage
+   billing**, or refund yourself from the dashboard if the balance covers it. For 48 hours, watch the
+   logs for `billing.webhook_invalid`, `billing.provider_failed`, `billing.unsigned_subscription`,
+   `billing.second_live_subscription`, `billing.reused_trial_refund_failed`,
+   `billing.orphan_subscription_cancelled`, `billing.orphan_cancel_failed`,
+   `billing.trial_not_detected`, `billing.plan_change_payment_failed` and
+   `billing.key_environment_mismatch`.
+9. **Afterwards.** Close the Paddle sandbox account and delete `.env.paddle.local` and
+   `.env.paddle.live.local`. Watch Dodo's changelog: its API has no versions and changes in place.
+   Once the in-place trial upgrade has worked live, delete the older trial-replacement flow
+   (`replaces_subscription_id`) from the code.
+
+**Mock billing.** In `bun dev` with no Dodo values every option is offered and nothing is charged:
 a new account's first Pro monthly checkout starts a local 3-day trial, anything else switches the
 plan at once, and **Manage billing** switches back to Free.
 
@@ -631,16 +884,16 @@ quietly; the rest of the app runs the same.
 
 | Variable | Turns on | Step |
 |---|---|---|
-| `PADDLE_PRO_TRIAL_PRICE_ID` | The $1, 3-day Pro trial for new accounts | 10 |
-| `PADDLE_PRO_YEARLY_PRICE_ID` | Yearly Pro ($120) | 10 |
-| `PADDLE_MAX_MONTHLY_PRICE_ID`, `PADDLE_MAX_YEARLY_PRICE_ID` | The Max plan ($29/month, $232/year) | 10 |
+| `DODO_PRO_TRIAL_PRODUCT_ID` | The $1, 3-day Pro trial for new accounts | 10 |
+| `DODO_PRO_YEARLY_PRODUCT_ID` | Yearly Pro ($120) | 10 |
+| `DODO_MAX_MONTHLY_PRODUCT_ID`, `DODO_MAX_YEARLY_PRODUCT_ID` | The Max plan ($29/month, $232/year) | 10 |
 | `NEXT_PUBLIC_SENTRY_DSN` (+ `SENTRY_AUTH_TOKEN`, `SENTRY_ORG`, `SENTRY_PROJECT`) | Error reports (+ readable stack traces) | 10b |
 | `NEXT_PUBLIC_POSTHOG_KEY` (+ `NEXT_PUBLIC_POSTHOG_HOST` for EU) | Funnel events | 10c |
 | `GITHUB_TOKEN` | Higher GitHub limits for Import from GitHub and portfolio GitHub numbers | 10d |
 | `CRON_SECRET` | Daily cleanup, follow-up reminders (bell), and clearing /jobs after the daily job read (also a GitHub secret) | 10e |
 | `RESEND_API_KEY`, `EMAIL_FROM` | Reminder emails, the weekly jobs email and tips (needs `CRON_SECRET`) | 10e |
 | `EMAIL_POSTAL_ADDRESS` | A postal address (a PO box or virtual mailbox is fine) shown in the footer of optional emails. Tip emails stay off until it's set | 10e |
-| `OPTIONAL_EMAILS_PER_DAY` | Optional, default 25: the daily allowance shared by tips and the weekly jobs email, kept under Resend's free quota next to sign-in codes. Raise it on a paid Resend plan; 0 stops optional emails | 10e |
+| `OPTIONAL_EMAILS_PER_DAY` | Optional, default 25: the daily allowance shared by tips, the weekly jobs email and the one-time processor-change notice (step 10.12), kept under Resend's free quota next to sign-in codes. Raise it on a paid Resend plan; 0 stops optional emails | 10e |
 
 ---
 
@@ -783,9 +1036,10 @@ for 05:40 UTC. `POST /api/cron/jobs` (Bearer `CRON_SECRET`) still runs a 4-minut
   **Unsubscribe**, all signed with `CRON_SECRET` (a new secret retires old links); each opens a page
   that acts only when its one button is pressed, so mail scanners that open links change nothing.
   The mail app's own one-click unsubscribe header still works. The bell keeps working either way.
-- Trial reminders: Paddle sends no reminder before a trial of 7 days or fewer ends, so every
-  trialist gets one bell note and one email (whatever their reminder setting: it's a billing notice)
-  12 to 36 hours before the trial ends (later, if a failed run missed it, while an hour is left),
+- Trial reminders: Dodo's own **Subscription Trial Ending** email is turned off (step 10.2: for a
+  trial under 7 days it goes out the moment the trial starts), so every trialist gets one bell note
+  and one email (whatever their reminder setting: it's a billing notice) 12 to 36 hours before the
+  trial ends (later, if a failed run missed it, while an hour is left),
   with the end date, the price after it and a link to cancel on `/account`. Set `CRON_SECRET` (and
   Resend, for the email) before real trials start.
 - Cleanup and follow-ups stop after about 45 seconds and pick up the rest the next day. Running one
@@ -825,8 +1079,9 @@ the values that existed when it was built.
 **Custom domain** (optional): `vercel domains add ottosensei.com`, follow the DNS instructions, then
 update the same address everywhere it was typed: `NEXT_PUBLIC_APP_URL` in Vercel, **Site URL** and
 **Redirect URLs** in Supabase (step 7), **Authorized JavaScript origins** in Google (step 8a), and
-in Paddle (step 10) the default payment link, the webhook destination's URL and, in live, a
-**Website approval** for the new domain. Redeploy.
+in Dodo (step 10) the webhook endpoint: run `scripts/dodo-setup.ts` again with `DODO_SETUP_APP_URL`
+set to the new address, then delete the old endpoint and put the new endpoint's secret in Vercel. A
+new domain is a new site for Dodo's review, so tell Dodo before checkouts return there. Redeploy.
 
 ---
 
@@ -840,11 +1095,13 @@ in Paddle (step 10) the default payment link, the webhook destination's URL and,
 - [ ] **Import from GitHub** → **Connect GitHub**: you come back to the same page, connected as
       your GitHub name (step 8c).
 - [ ] Fix one line with Otto (proves OpenRouter and the usage counter).
-- [ ] Run a sandbox trial checkout (card `4242 4242 4242 4242`, CVC `100`); the account shows the
-      Pro trial and its end date within a few seconds (proves the webhook).
+- [ ] `/api/me` (signed in) answers `billing.mode: "dodo"`, and `bun --env-file=.env.dodo.local
+      scripts/check-dodo-catalog.ts` prints no `problem` line (step 10.8).
+- [ ] Run a test-mode trial checkout (card `4242 4242 4242 4242`, any future date, CVC `123`); the
+      account shows the Pro trial and its end date within a few seconds (proves the webhook).
 - [ ] Delete that test account from the account page; it disappears from Supabase
-      **Authentication** → **Users**, and its Paddle sandbox subscription shows canceled. Sign up
-      again with the same email: checkout shows $15, no trial.
+      **Authentication** → **Users**, and its Dodo test subscription shows cancelled. Sign up again
+      with the same email: checkout shows $15, no trial.
 - [ ] Supabase **Project Settings** → **API Keys**: the secret key exists only in Vercel and your
       `.env.local`.
 - [ ] Vercel **Settings** → **Cron Jobs**: press **Run** on all three jobs; each log line ends in
@@ -895,6 +1152,10 @@ the Supabase dashboard: Vercel project → **Storage** → your database → **O
 | GitHub says "The redirect_uri is not associated with this application" | The OAuth App's callback URL isn't exactly the Supabase callback URL (step 8c-1.3). |
 | "GitHub didn't connect" after approving | Supabase couldn't finish the link. Supabase → **Logs** → **Auth** shows why. |
 | "Account deletion isn't available right now" | `SUPABASE_SECRET_KEY` (or `SUPABASE_SERVICE_ROLE_KEY`) is missing in Vercel. |
+| "Payments aren't live yet" in production | Billing is off: `DODO_API_KEY`, `DODO_WEBHOOK_SECRET`, `BILLING_SIGNING_SECRET` or `DODO_PRO_MONTHLY_PRODUCT_ID` is missing, or the key is from the other mode than `DODO_ENVIRONMENT` (the log says `billing.key_environment_mismatch`). Fix it and redeploy (step 10.7). |
+| Paid, but the plan never changes | The webhook isn't arriving or is refused. Dodo → **Developer** → **Webhooks** → the endpoint → **Logs** shows each delivery and our answer: 401 (`billing.webhook_invalid`) means the wrong `DODO_WEBHOOK_SECRET` (test and live differ) or a value changed without a redeploy; 503 (`billing.webhook_not_configured`) means the webhook or signing secret is missing or unreadable. Replay the message once it's fixed. |
+| "We couldn't open billing: payments aren't set up right on our side" | Dodo refused the app's key (`INSUFFICIENT_PERMISSION`, or an IP allowlist). Check the key's permissions (step 10.3). |
+| "We couldn't cancel your subscription, so your account wasn't deleted" | Dodo didn't confirm the cancel, so the account was kept; trying again usually works. A 404 (`billing.cancel_not_found`) usually means a test-mode id meeting the live key: the go-live reset (step 10.12) clears those. "We can't cancel your subscription right now" means `DODO_API_KEY` is missing in production. |
 | `/api/health` answers 503 | `DATABASE_URL` is missing or wrong, or the project is paused. |
 | `migrate.ts`: `password authentication failed` | Wrong password in the URL, or special characters not URL-encoded. |
 | `migrate.ts`: `getaddrinfo ENOTFOUND db.<ref>.supabase.co` | That's the IPv6-only direct URL. Use the **Session pooler** string (step 3). |

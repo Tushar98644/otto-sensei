@@ -5,11 +5,11 @@ import { log } from "@/lib/log";
 
 export const runtime = "nodejs";
 
-// Paddle calls this; the signature is the auth. Paddle only reads the status code.
+// Dodo calls this; the Standard Webhooks signature is the auth. Dodo only reads the status code.
 export async function POST(req: Request) {
   let rawBody: string;
   try {
-    // The signature covers the exact bytes Paddle sent: read them before anything parses the body.
+    // The signature covers the exact bytes Dodo sent: read them before anything parses the body.
     rawBody = await req.text();
   } catch {
     return fail("bad_request", "unreadable_body", 400);

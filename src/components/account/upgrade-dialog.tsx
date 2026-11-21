@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, CreditCard } from "lucide-react";
 import { useState, type ReactNode } from "react";
 import { OTTO } from "@/components/mascot/lines";
 import { OttoNote } from "@/components/mascot/otto-note";
@@ -14,7 +14,6 @@ import {
   PLAN_ORDER,
   planIncludes,
   PLANS,
-  PRO_TRIAL,
   type BillingInterval,
   type Feature,
   type PaidPlanId,
@@ -23,12 +22,13 @@ import {
 } from "@/config/plans";
 import type { SessionUser } from "@/lib/auth/types";
 import { budgetReachedText } from "@/lib/ai-budget-copy";
-import { trialHeadline, trialPrice } from "@/lib/billing/prices";
+import { trialHeadline } from "@/lib/billing/prices";
 import { resetWhen, thisPeriod } from "@/lib/usage-copy";
 import { BillingNote } from "./billing-note";
 import { ACCOUNT_OTTO, SUPPORT_MAILTO } from "./copy";
 import { PlanOffer } from "./plan-offer";
 import { SignInForm } from "./sign-in-form";
+import { PAYMENT_ISSUE_NOTICE, resumeFirstNotice, trialUpgradeNotice } from "./trial-upgrade";
 import { upgradeOffer } from "./upgrade-offer";
 import { useBillingRedirect } from "./use-billing-redirect";
 import { useMe } from "./use-me";
@@ -67,6 +67,7 @@ export function UpgradeDialog({
 }: UpgradeDialogProps) {
   const { me, user, loading } = useMe();
   const checkout = useBillingRedirect("checkout");
+  const portal = useBillingRedirect("portal");
   const [stage, setStage] = useState<Stage>("pitch");
   const [chosen, setChosen] = useState<PaidPlanId | null>(plan ?? null);
   const [pickedInterval, setPickedInterval] = useState<BillingInterval | null>(interval ?? null);
@@ -80,6 +81,8 @@ export function UpgradeDialog({
   const current: PlanId = user?.plan ?? "free";
   const trialOnOffer = current === "free" && me?.billing.trial === true;
   const onTrial = user !== null && isTrialing(user);
+  const paymentIssue = user !== null && me?.billing.paymentIssue === true;
+  const resumeFirst = user !== null && current !== "free" && me?.billing.cancelScheduled === true;
   const offer = upgradeOffer({
     current,
     offer: me?.billing.offer ?? { pro: ["month"], max: [] },
@@ -192,6 +195,22 @@ export function UpgradeDialog({
         </Button>
       ),
     };
+  } else if (paymentIssue || resumeFirst) {
+    const notice = paymentIssue ? PAYMENT_ISSUE_NOTICE : resumeFirstNotice(target.plan, onTrial);
+    view = {
+      message: limitLine ?? notice,
+      title: paymentIssue ? "Update your card" : `Upgrade to ${PLANS[target.plan].name}`,
+      description: limitLine ? notice : undefined,
+      footer: (
+        <>
+          {notNow}
+          <Button onClick={() => void portal.go()} loading={portal.pending} data-autofocus>
+            <CreditCard />
+            Manage billing
+          </Button>
+        </>
+      ),
+    };
   } else {
     const upgrading = current !== "free";
     view = {
@@ -210,7 +229,7 @@ export function UpgradeDialog({
       description: !upgrading
         ? "Cancel anytime from your account."
         : onTrial
-          ? `Your ${PLANS[PRO_TRIAL.plan].name} trial ends the moment the new plan starts, so ${PLANS[PRO_TRIAL.plan].name} never bills after it. The ${trialPrice()} trial charge isn't taken off the new plan.`
+          ? trialUpgradeNotice(target.plan, target.interval)
           : "Your subscription changes in place: you pay only the difference, never twice.",
       body: pitch,
       size,

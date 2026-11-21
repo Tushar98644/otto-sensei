@@ -1,4 +1,10 @@
-// Paddle is the merchant of record: its buyer policies apply to every order.
-export const PADDLE_REFUND_POLICY_URL = "https://paddle.com/legal/refund-policy";
-export const PADDLE_PRIVACY_URL = "https://www.paddle.com/legal/privacy";
-export const PADDLE_BUYER_HELP_URL = "https://paddle.net";
+// Dodo Payments resells every order as merchant of record; the disclosure stays in draft until Dodo compliance approves it (MSA 2.1).
+export const MERCHANT = {
+  name: "Dodo Payments",
+  disclosure:
+    "Our order process is conducted by our online reseller Dodo Payments, the merchant of record for all our orders. Dodo Payments handles payment, receipts, sales tax or VAT, refunds and billing support.",
+  buyerTermsUrl: "https://dodopayments.com/legal/buyer-terms",
+  privacyUrl: "https://dodopayments.com/legal/privacy-policy",
+  buyerHelpUrl: "https://dodopayments.com/support/why-has-dodo-payments-charged-me",
+  statementPrefix: "DODOPAY",
+} as const;

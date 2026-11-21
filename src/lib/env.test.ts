@@ -7,7 +7,11 @@ function useEnv(values: Record<string, string | undefined>) {
 }
 
 beforeEach(() => {
-  useEnv({ NODE_ENV: "development", NEXT_PUBLIC_APP_URL: undefined, VERCEL_PROJECT_PRODUCTION_URL: undefined });
+  useEnv({
+    NODE_ENV: "development",
+    NEXT_PUBLIC_APP_URL: undefined,
+    VERCEL_PROJECT_PRODUCTION_URL: undefined,
+  });
 });
 
 afterEach(() => {
@@ -73,23 +77,63 @@ describe("appUrl", () => {
   });
 });
 
-describe("PADDLE_ENVIRONMENT", () => {
-  it("is the sandbox unless it plainly says live, so a missing or mistyped value never takes real money", () => {
-    const cases: [string | undefined, "sandbox" | "live"][] = [
-      [undefined, "sandbox"],
-      ["", "sandbox"],
-      ["sandbox", "sandbox"],
-      ["prod", "sandbox"],
-      ["true", "sandbox"],
+describe("DODO_ENVIRONMENT", () => {
+  it("is test mode unless it plainly says live, so a missing or mistyped value never takes real money", () => {
+    const cases: [string | undefined, "test" | "live"][] = [
+      [undefined, "test"],
+      ["", "test"],
+      ["   ", "test"],
+      ["test", "test"],
+      ["test_mode", "test"],
+      ["sandbox", "test"],
+      ["livex", "test"],
+      ["prod", "test"],
+      ["true", "test"],
       ["live", "live"],
       [" LIVE ", "live"],
+      ["live_mode", "live"],
+      ["Live_Mode", "live"],
+      ["production", "live"],
       ["Production", "live"],
     ];
     const environmentOf = (value: string | undefined) => {
-      vi.stubEnv("PADDLE_ENVIRONMENT", value);
+      vi.stubEnv("DODO_ENVIRONMENT", value);
       resetEnvForTests();
-      return env().PADDLE_ENVIRONMENT;
+      return env().DODO_ENVIRONMENT;
     };
     expect(cases.map(([value]) => [value, environmentOf(value)])).toEqual(cases);
+  });
+});
+
+describe("Paddle variables", () => {
+  it("are no longer read, so values left in a deployment's env do nothing", () => {
+    useEnv({
+      PADDLE_API_KEY: "paddle_api_key_value",
+      PADDLE_ENVIRONMENT: "live",
+      NEXT_PUBLIC_PADDLE_CLIENT_TOKEN: "paddle_client_token_value",
+      PADDLE_PRO_MONTHLY_PRICE_ID: "paddle_price_value",
+    });
+    expect(Object.keys(env()).filter((name) => /paddle/i.test(name))).toEqual([]);
+  });
+});
+
+describe("Dodo variables", () => {
+  it("are optional and treat blank values as unset", () => {
+    const names = [
+      "DODO_API_KEY",
+      "DODO_WEBHOOK_SECRET",
+      "DODO_PRO_MONTHLY_PRODUCT_ID",
+      "DODO_PRO_YEARLY_PRODUCT_ID",
+      "DODO_MAX_MONTHLY_PRODUCT_ID",
+      "DODO_MAX_YEARLY_PRODUCT_ID",
+      "DODO_PRO_TRIAL_PRODUCT_ID",
+      "BILLING_SIGNING_SECRET",
+    ] as const;
+    useEnv(Object.fromEntries(names.map((name) => [name, " "])));
+    expect(names.map((name) => env()[name])).toEqual(names.map(() => undefined));
+    useEnv(Object.fromEntries(names.map((name) => [name, `${name.toLowerCase()}_value`])));
+    expect(names.map((name) => env()[name])).toEqual(
+      names.map((name) => `${name.toLowerCase()}_value`),
+    );
   });
 });

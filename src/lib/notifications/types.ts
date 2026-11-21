@@ -45,6 +45,12 @@ export type EmailList = (typeof EMAIL_LISTS)[number];
 export const TIP_EMAIL_KINDS = ["no_resume", "fixes_back", "trial_ended", "win_back"] as const;
 export type TipEmailKind = (typeof TIP_EMAIL_KINDS)[number];
 
+// One-time service notices: every account gets each once, whatever its email choices.
+export const NOTICE_EMAIL_KINDS = ["processor_notice"] as const;
+export type NoticeEmailKind = (typeof NOTICE_EMAIL_KINDS)[number];
+
+export const EMAIL_LOG_KINDS = [...TIP_EMAIL_KINDS, ...NOTICE_EMAIL_KINDS] as const;
+
 export type EmailChoices = { jobEmails: boolean; tipEmails: boolean; jobPromptClosed: boolean };
 export type EmailChoicesBody = z.input<typeof EmailChoicesSchema>;
 export type EmailChoicesResponse = { ok: true; emailAvailable: boolean } & EmailChoices;

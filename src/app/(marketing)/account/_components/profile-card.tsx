@@ -15,7 +15,13 @@ import { planPriceLabel } from "@/lib/billing/prices";
 import { trialEndDay } from "@/lib/usage-copy";
 import { signOutAndRelease } from "@/lib/sync/use-cloud-sync";
 
-export function ProfileCard({ user }: { user: SessionUser }) {
+export function ProfileCard({
+  user,
+  cancelScheduled = false,
+}: {
+  user: SessionUser;
+  cancelScheduled?: boolean;
+}) {
   const [signingOut, setSigningOut] = useState(false);
 
   async function signOut() {
@@ -40,8 +46,10 @@ export function ProfileCard({ user }: { user: SessionUser }) {
           <PlanBadge plan={user.plan} />
           {user.plan !== "free" && user.trialEndsAt ? (
             <p className="text-sm text-muted">
-              {PLANS[user.plan].name} trial until {trialEndDay(user.trialEndsAt)}. Then{" "}
-              {planPriceLabel(user.plan, user.planInterval ?? "month")}, unless you cancel before.
+              {PLANS[user.plan].name} trial until {trialEndDay(user.trialEndsAt)}.{" "}
+              {cancelScheduled
+                ? "It's set to end then, and you won't be charged again."
+                : `Then ${planPriceLabel(user.plan, user.planInterval ?? "month")}, unless you cancel before.`}
             </p>
           ) : null}
         </div>

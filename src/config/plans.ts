@@ -87,7 +87,7 @@ export function nextPlan(plan: PlanId): PaidPlanId | null {
   return null;
 }
 
-// Paddle charges what each price says: change prices here and in Paddle together.
+// Dodo charges what each product says: change prices here and in Dodo together.
 export type BillingInterval = "month" | "year";
 export const BILLING_INTERVALS = ["month", "year"] as const satisfies readonly BillingInterval[];
 export const PRICES_USD: Record<PaidPlanId, Record<BillingInterval, number>> = {

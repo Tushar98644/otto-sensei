@@ -4,7 +4,7 @@ import { pageMetadata } from "@/components/site/page-metadata";
 import { ROUTES } from "@/components/site/routes";
 import { BRAND } from "@/config/brand";
 import { LegalPage } from "../_components/legal-page";
-import { PADDLE_PRIVACY_URL } from "../_components/merchant";
+import { MERCHANT } from "../_components/merchant";
 
 export const metadata: Metadata = pageMetadata({
   title: "Privacy policy",
@@ -108,8 +108,8 @@ export default function PrivacyPage() {
         </li>
         <li>
           <strong>Plan and billing status.</strong> If you subscribe or start a trial, we store your
-          plan and the subscription details Paddle sends us, such as whether it&apos;s active, when
-          your trial ends and when it renews. We never see your full card number.
+          plan and the subscription details {MERCHANT.name} sends us, such as whether it&apos;s
+          active, when your trial ends and when it renews. We never see your full card number.
         </li>
         <li>
           <strong>Trial record.</strong> So each person gets the Pro trial only once, we keep a
@@ -220,26 +220,26 @@ export default function PrivacyPage() {
 
       <h2>Payments</h2>
       <p>
-        Paddle (Paddle.com) handles payments as our merchant of record. Paddle collects your payment
-        details (also for the trial, so the plan can start when it ends), charges
-        you, sends receipts and handles sales tax, under its own{" "}
-        <a href={PADDLE_PRIVACY_URL}>privacy policy</a>. The checkout page loads Paddle&apos;s
-        checkout from Paddle, which may use its own cookies there.
+        {MERCHANT.disclosure} Checkout happens on the {MERCHANT.name} site, not ours. There,{" "}
+        {MERCHANT.name} collects your payment details and billing address (also for the trial, so
+        the plan can start when it ends) under its own{" "}
+        <a href={MERCHANT.privacyUrl}>privacy policy</a>.
       </p>
       <ul>
         <li>
-          <strong>What we send Paddle:</strong> when you start a checkout, your account email, our
-          random id for your account and the plan you picked, so the payment is linked to your
-          account. When you start a checkout or delete your account, we also look up that email at
-          Paddle, so you&apos;re never charged for a second subscription and every one is cancelled.
+          <strong>What we send {MERCHANT.name}:</strong> when you start a checkout, your account
+          email, our random id for your account and the plan you picked, so the payment is linked to
+          your account. When you start a checkout or delete your account, we also look up that email
+          at {MERCHANT.name}, so you&apos;re never charged for a second subscription and every one
+          is cancelled.
         </li>
         <li>
-          <strong>What Paddle sends us:</strong> your subscription&apos;s plan and status, its
-          billing period, when it renews or your trial ends, a pending cancellation, and
-          Paddle&apos;s ids for you and your subscription. If a payment can&apos;t be matched to an
-          account by those, we ask Paddle for the email on it. Its payment notices may also carry
-          the card&apos;s type, last four digits, expiry date and holder name, which we don&apos;t
-          store. Paddle never sends us your full card number.
+          <strong>What {MERCHANT.name} sends us:</strong> your subscription&apos;s plan and status,
+          its billing period, when it renews or your trial ends, a pending cancellation, and the ids{" "}
+          {MERCHANT.name} uses for you, your subscription and your payments. Its notices also carry
+          the name, email and billing address on the order and the card&apos;s network and last four
+          digits. We use that email only to match a payment to your account, and we don&apos;t store
+          any of these. {MERCHANT.name} never sends us your full card number.
         </li>
       </ul>
 
@@ -264,9 +264,9 @@ export default function PrivacyPage() {
           tours you&apos;ve seen on your device until you delete them or clear your browser data.
         </li>
         <li>
-          <strong>Paddle&apos;s checkout</strong>, only on the checkout page, may set its own
-          cookies to run the payment and prevent fraud, under Paddle&apos;s{" "}
-          <a href={PADDLE_PRIVACY_URL}>privacy policy</a>.
+          <strong>The {MERCHANT.name} checkout</strong> runs on its own site, which may set its own
+          cookies there to run the payment and prevent fraud, under the {MERCHANT.name}{" "}
+          <a href={MERCHANT.privacyUrl}>privacy policy</a>. Our site sets no payment cookies.
         </li>
       </ul>
       <p>
@@ -286,15 +286,16 @@ export default function PrivacyPage() {
           the AI features above.
         </li>
         <li>
-          <strong>Paddle</strong> processes payments as our merchant of record and online reseller.
+          <strong>{MERCHANT.name}</strong> processes payments as our merchant of record and online
+          reseller.
         </li>
         <li>
           <strong>Supabase</strong> hosts our database and runs sign-in, including your sign-in
           sessions.
         </li>
         <li>
-          <strong>Resend</strong> delivers our sign-in codes, reminders, the weekly jobs email and
-          tips.
+          <strong>Resend</strong> delivers our sign-in codes, reminders, the weekly jobs email, tips
+          and notices about your account.
         </li>
         <li>
           <strong>Google</strong>, only if you choose to sign in with your Google account.

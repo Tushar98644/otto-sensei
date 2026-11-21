@@ -35,11 +35,6 @@
     "total_kb": 405
   },
   {
-    "route": "/checkout",
-    "initial_kb": 207,
-    "total_kb": 411
-  },
-  {
     "route": "/compare",
     "initial_kb": 202,
     "total_kb": 405

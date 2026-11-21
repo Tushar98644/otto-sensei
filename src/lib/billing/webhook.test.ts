@@ -7,49 +7,62 @@ import { captureServerEvent } from "@/lib/analytics/server";
 import { insertUserRow, resetDb } from "@/lib/auth/test-helpers";
 import { resetEnvForTests } from "@/lib/env";
 import { refreshPortfolioPages } from "@/lib/portfolio/cache";
-import { BillingError } from "./errors";
+import { DAY_MS, HOUR_MS } from "@/lib/time";
+import { signBillingId } from "./billing-sign";
+import { cancelSubscription, getSubscription, refundPayment, succeededPayments } from "./dodo";
+import { DodoSubscriptionSchema } from "./dodo-status";
+import { dodoId } from "./dodo-testing";
 import {
-  cancelPaddleSubscription,
-  completedPaddleTransactions,
-  refundPaddleTransaction,
-} from "./paddle";
-import { signBillingId } from "./paddle-sign";
+  AFTER_TRIAL,
+  BILLING_TEST_SIGNING_SECRET,
+  DODO_TEST_IDS,
+  DODO_TEST_PRODUCTS,
+  DODO_WEBHOOK_TEST_SECRET,
+  ON_TRIAL,
+  TEST_DATES,
+  disputeEvent,
+  dodoTime,
+  paymentEvent,
+  refundEvent,
+  standardWebhookHeaders,
+  standardWebhookSignature,
+  subscriptionEvent,
+  subscriptionPayload,
+  type SubscriptionFields,
+} from "./dodo-webhook-testing";
+import { chargeableSubscriptionId } from "./entitlements";
+import { BillingError } from "./errors";
 import { retryPendingReplacements } from "./replacements";
 import { emailFingerprint } from "./trial";
 import { processWebhook, type WebhookConfig } from "./webhook";
-import {
-  adjustmentEvent,
-  paddleHeaders,
-  paddleSignature,
-  subscriptionEvent,
-  transactionEvent,
-  WEBHOOK_TEST_SECRET,
-  type WebhookSubscription,
-} from "./webhook-testing";
 
 vi.mock("@/lib/analytics/server", () => ({ captureServerEvent: vi.fn() }));
 vi.mock("@/lib/portfolio/cache", () => ({ refreshPortfolioPages: vi.fn() }));
-vi.mock("@/lib/billing/paddle", () => ({
-  cancelPaddleSubscription: vi.fn(),
-  getPaddleSubscription: vi.fn(),
-  completedPaddleTransactions: vi.fn(async () => ["txn_trial"]),
-  refundPaddleTransaction: vi.fn(async () => undefined),
+vi.mock("@/lib/billing/dodo", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("./dodo")>()),
+  cancelSubscription: vi.fn(),
+  getSubscription: vi.fn(),
+  succeededPayments: vi.fn(),
+  refundPayment: vi.fn(),
 }));
 
 const captured = vi.mocked(captureServerEvent);
 const refreshed = vi.mocked(refreshPortfolioPages);
-const cancel = vi.mocked(cancelPaddleSubscription);
-const refund = vi.mocked(refundPaddleTransaction);
-const completed = vi.mocked(completedPaddleTransactions);
+const cancel = vi.mocked(cancelSubscription);
+const refund = vi.mocked(refundPayment);
+const payments = vi.mocked(succeededPayments);
+const lookup = vi.mocked(getSubscription);
 
-const SECRET = WEBHOOK_TEST_SECRET;
-const PRO_MONTH = "pri_pro_month";
-const PRO_TRIAL = "pri_pro_trial";
-const MAX_YEAR = "pri_max_year";
-const TRIAL_END = "2026-11-11T10:00:00.000Z";
-const NEXT_MONTH = "2026-12-11T10:00:00.000Z";
+const SECRET = DODO_WEBHOOK_TEST_SECRET;
+const SIGNING = BILLING_TEST_SIGNING_SECRET;
+const { proMonth: PRO_MONTH, proTrial: PRO_TRIAL, maxYear: MAX_YEAR } = DODO_TEST_PRODUCTS;
+const CUS = DODO_TEST_IDS.customer;
+const SUB = DODO_TEST_IDS.subscription;
+const PAY = DODO_TEST_IDS.payment;
+const PAY_TRIAL = dodoId("pay", "trial");
+const OTHER_SECRET = `whsec_${Buffer.from("someone-elses-endpoint").toString("base64")}`;
 
-const PRICES: Record<string, { plan: PaidPlanId; interval: BillingInterval }> = {
+const PRODUCTS: Record<string, { plan: PaidPlanId; interval: BillingInterval }> = {
   [PRO_MONTH]: { plan: "pro", interval: "month" },
   [PRO_TRIAL]: { plan: "pro", interval: "month" },
   [MAX_YEAR]: { plan: "max", interval: "year" },
@@ -57,16 +70,28 @@ const PRICES: Record<string, { plan: PaidPlanId; interval: BillingInterval }> = 
 
 const CONFIG: WebhookConfig = {
   secret: SECRET,
-  priceIds: Object.keys(PRICES),
-  planForPrice: (id) => PRICES[id] ?? null,
-  trialPriceId: PRO_TRIAL,
+  signingSecret: SIGNING,
+  productIds: Object.keys(PRODUCTS),
+  planForProduct: (id) => PRODUCTS[id] ?? null,
+  trialProductId: PRO_TRIAL,
 };
+
+const APPLIED = { status: 200, message: "applied" };
+const IGNORED = { status: 200, message: "ignored" };
+const DUPLICATE = { status: 200, message: "duplicate" };
+const INVALID = { status: 401, message: "invalid_signature" };
+const MALFORMED = { status: 500, message: "malformed" };
+
+const cus = (name: string | number) => dodoId("cus", name);
+const sub = (name: string | number) => dodoId("sub", name);
 
 type Row = typeof users.$inferSelect;
 
-function deliver(body: string, headers = paddleHeaders(body, SECRET), config = CONFIG) {
+function deliver(body: string, headers = standardWebhookHeaders(body, SECRET), config = CONFIG) {
   return processWebhook(body, headers, config);
 }
+
+const withId = (body: string, id: string) => standardWebhookHeaders(body, SECRET, { id });
 
 async function createUser(overrides: Partial<typeof users.$inferInsert> = {}): Promise<Row> {
   const row = {
@@ -90,8 +115,13 @@ async function recordedEvents() {
   return (await getDb()).select().from(billingEvents);
 }
 
-function event(eventType: string, subscription: WebhookSubscription = {}, at?: number | string) {
-  return subscriptionEvent(eventType, subscription, at === undefined ? {} : { occurredAt: at });
+function event(type: string, fields: SubscriptionFields = {}, at?: number | string) {
+  return subscriptionEvent(type, fields, at === undefined ? {} : { timestamp: at });
+}
+
+// A JSON body with a valid signature but a payload of our choosing.
+function rawEvent(type: string, data: unknown): string {
+  return JSON.stringify({ type, timestamp: dodoTime(Date.now()), data });
 }
 
 const tracked = (overrides: Partial<typeof users.$inferInsert> = {}) =>
@@ -99,8 +129,8 @@ const tracked = (overrides: Partial<typeof users.$inferInsert> = {}) =>
     plan: "pro",
     planInterval: "month",
     planStatus: "active",
-    billingCustomerId: "ctm_1",
-    billingSubscriptionId: "sub_1",
+    billingCustomerId: CUS,
+    billingSubscriptionId: SUB,
     ...overrides,
   });
 
@@ -108,10 +138,11 @@ beforeEach(async () => {
   captured.mockReset();
   refreshed.mockReset();
   cancel.mockReset();
+  cancel.mockResolvedValue("cancelled");
   refund.mockReset();
-  completed.mockReset();
-  completed.mockResolvedValue(["txn_trial"]);
-  cancel.mockResolvedValue(undefined);
+  refund.mockResolvedValue("refunded");
+  payments.mockReset();
+  payments.mockResolvedValue([PAY_TRIAL]);
   await resetDb();
 });
 
@@ -120,149 +151,178 @@ afterEach(() => {
 });
 
 // The calls of one log event, or every call at that level without a name.
-function logged(level: "warn" | "error", name = ""): string {
+function logged(level: "info" | "warn" | "error", name = ""): string {
   const calls = vi.mocked(console[level]).mock.calls;
   return JSON.stringify(calls.filter((call) => String(call[0]).includes(name)));
 }
 
+function loggedCount(level: "info" | "warn" | "error", name: string): number {
+  return vi.mocked(console[level]).mock.calls.filter((call) => String(call[0]).includes(name))
+    .length;
+}
+
 describe("signature", () => {
-  it("accepts a body signed with the destination's secret", async () => {
+  it("accepts a body signed with the endpoint's secret", async () => {
     const user = await createUser();
-    const body = event("subscription.activated", { custom_data: { user_id: user.id } });
-    expect(await deliver(body)).toEqual({ status: 200, message: "applied" });
+    const body = event("subscription.active", { metadata: { user_id: user.id } });
+    expect(await deliver(body)).toEqual(APPLIED);
     expect((await reload(user.id))?.plan).toBe("pro");
   });
 
-  it("answers 401 for a wrong secret, a changed body or a missing or garbled header, and changes nothing", async () => {
+  it("answers 401 for a wrong secret, a changed body, id or time, re-encoded JSON or a missing or garbled header, and changes nothing", async () => {
     vi.spyOn(console, "warn").mockImplementation(() => undefined);
     const user = await createUser();
-    const body = event("subscription.activated", { custom_data: { user_id: user.id } });
-    const invalid = { status: 401, message: "invalid_signature" };
-    expect(await deliver(body, paddleHeaders(body, "pdl_ntfset_someone_else"))).toEqual(invalid);
-    expect(await deliver(body.replace("active", "trialing"), paddleHeaders(body, SECRET))).toEqual(
-      invalid,
-    );
-    expect(await deliver(body, new Headers())).toEqual(invalid);
-    for (const header of ["h1=abc", "ts=;h1=", "ts=abc;h1=00", `ts=1;h1=${"z".repeat(64)}`]) {
-      expect(await deliver(body, new Headers({ "paddle-signature": header }))).toEqual(invalid);
+    const body = event("subscription.active", { metadata: { user_id: user.id } });
+    const good = standardWebhookHeaders(body, SECRET);
+    expect(await deliver(body, standardWebhookHeaders(body, OTHER_SECRET))).toEqual(INVALID);
+    expect(await deliver(body.replace('"active"', '"paused"'), good)).toEqual(INVALID);
+    expect(await deliver(JSON.stringify(JSON.parse(body), null, 2), good)).toEqual(INVALID);
+    expect(await deliver(body, new Headers())).toEqual(INVALID);
+    const signature = good.get("webhook-signature") ?? "";
+    for (const [name, value] of [
+      ["webhook-id", "msg_someone_else"],
+      ["webhook-id", ""],
+      ["webhook-timestamp", String(Number(good.get("webhook-timestamp")) - 1)],
+      ["webhook-timestamp", "soon"],
+      ["webhook-signature", "v1,abc"],
+      ["webhook-signature", signature.replace("v1,", "v2,")],
+      ["webhook-signature", signature.replace("v1,", "")],
+      ["webhook-signature", `v1,${"A".repeat(2048)}`],
+    ] as const) {
+      const headers = new Headers(good);
+      headers.set(name, value);
+      expect(await deliver(body, headers)).toEqual(INVALID);
     }
     expect((await reload(user.id))?.plan).toBe("free");
     expect(await recordedEvents()).toEqual([]);
   });
 
-  it("accepts any matching h1 while a secret is being rotated", async () => {
+  it("accepts any matching v1 entry while a secret is being rotated", async () => {
     const user = await createUser();
-    const body = event("subscription.activated", { custom_data: { user_id: user.id } });
-    const ts = Math.floor(Date.now() / 1000);
-    const old = paddleSignature(body, "pdl_ntfset_old_secret", ts).split(";")[1];
-    const current = paddleSignature(body, SECRET, ts).split(";")[1];
-    const header = `ts=${ts};${old};${current}`;
-    expect(await deliver(body, new Headers({ "paddle-signature": header }))).toMatchObject({
-      message: "applied",
+    const body = event("subscription.active", { metadata: { user_id: user.id } });
+    const id = "msg_rotation";
+    const timestamp = Math.floor(Date.now() / 1000);
+    const old = standardWebhookSignature(body, OTHER_SECRET, id, timestamp);
+    const current = standardWebhookSignature(body, SECRET, id, timestamp);
+    const headers = new Headers({
+      "webhook-id": id,
+      "webhook-timestamp": String(timestamp),
+      "webhook-signature": `${old} ${current}`,
     });
+    expect(await deliver(body, headers)).toEqual(APPLIED);
   });
 
   it("refuses a signature more than five minutes away from now, either way", async () => {
     vi.spyOn(console, "warn").mockImplementation(() => undefined);
     const user = await createUser();
-    const body = event("subscription.activated", { custom_data: { user_id: user.id } });
+    const body = event("subscription.active", { metadata: { user_id: user.id } });
     const now = Math.floor(Date.now() / 1000);
-    for (const ts of [now - 301, now + 301]) {
-      expect(await deliver(body, paddleHeaders(body, SECRET, ts))).toEqual({
-        status: 401,
-        message: "invalid_signature",
-      });
+    for (const timestamp of [now - 301, now + 301]) {
+      expect(await deliver(body, standardWebhookHeaders(body, SECRET, { timestamp }))).toEqual(
+        INVALID,
+      );
     }
-    expect(JSON.stringify(vi.mocked(console.warn).mock.calls)).toContain("stale");
-    expect(await deliver(body, paddleHeaders(body, SECRET, now - 290))).toMatchObject({
-      message: "applied",
-    });
+    expect(logged("warn", "billing.webhook_invalid")).toContain("stale");
+    const fresh = standardWebhookHeaders(body, SECRET, { timestamp: now - 290 });
+    expect(await deliver(body, fresh)).toEqual(APPLIED);
   });
 
-  it("answers 503 without a secret, and 413 for an oversized body before checking it", async () => {
+  it("answers 503 without a usable webhook secret or signing secret, and 413 for an oversized body before checking it", async () => {
     vi.spyOn(console, "warn").mockImplementation(() => undefined);
-    const body = event("subscription.activated");
-    expect(await deliver(body, paddleHeaders(body, SECRET), { ...CONFIG, secret: "" })).toEqual({
-      status: 503,
-      message: "not_configured",
-    });
+    const body = event("subscription.active");
+    const headers = standardWebhookHeaders(body, SECRET);
+    const notConfigured = { status: 503, message: "not_configured" };
+    for (const config of [
+      { ...CONFIG, secret: "" },
+      { ...CONFIG, secret: undefined },
+      { ...CONFIG, secret: "whsec_not base64!" },
+      { ...CONFIG, signingSecret: undefined },
+      { ...CONFIG, signingSecret: "" },
+    ]) {
+      expect(await deliver(body, headers, config)).toEqual(notConfigured);
+    }
     const huge = "x".repeat(300 * 1024);
     expect(await deliver(huge, new Headers())).toEqual({ status: 413, message: "too_large" });
+    expect(await recordedEvents()).toEqual([]);
   });
 
   it("asks for a retry when a signed body can't be read", async () => {
     vi.spyOn(console, "error").mockImplementation(() => undefined);
-    const noId = JSON.stringify({ event_type: "subscription.activated", data: {} });
-    expect(await deliver(noId)).toEqual({ status: 500, message: "malformed" });
-    expect(await deliver("not json")).toEqual({ status: 500, message: "malformed" });
-    const badObject = JSON.stringify({
-      event_id: "evt_bad",
-      event_type: "subscription.updated",
-      occurred_at: new Date().toISOString(),
-      data: { id: 7 },
-    });
-    expect(await deliver(badObject)).toEqual({ status: 500, message: "malformed" });
+    const bodies = [
+      "not json",
+      JSON.stringify({ business_id: DODO_TEST_IDS.business, data: {} }),
+      rawEvent("subscription.updated", { subscription_id: 7 }),
+      rawEvent("subscription.active", { subscription_id: SUB, status: "active" }),
+      rawEvent("payment.succeeded", { payment_id: PAY }),
+      rawEvent("payment.failed", { payment_id: 7 }),
+    ];
+    for (const body of bodies) expect(await deliver(body)).toEqual(MALFORMED);
+    expect(logged("error", "billing.webhook_malformed")).toContain("msg_");
     expect(await recordedEvents()).toEqual([]);
   });
 });
 
 describe("idempotency and order", () => {
-  it("applies an event once: a redelivery with the same event_id is a duplicate", async () => {
+  it("applies an event once: a redelivery with the same webhook-id is a duplicate", async () => {
     const user = await createUser();
-    const subscription = {
-      status: "trialing",
-      price_id: PRO_TRIAL,
-      custom_data: { user_id: user.id },
-      trial_ends_at: TRIAL_END,
-    };
-    const first = subscriptionEvent("subscription.trialing", subscription, { id: "evt_trial_1" });
-    const again = subscriptionEvent("subscription.trialing", subscription, { id: "evt_trial_1" });
-    expect(JSON.parse(first).notification_id).not.toBe(JSON.parse(again).notification_id);
-    expect(await deliver(first)).toEqual({ status: 200, message: "applied" });
-    expect(await deliver(again)).toEqual({ status: 200, message: "duplicate" });
-    expect((await recordedEvents()).map((row) => row.id)).toEqual(["evt_trial_1"]);
+    const body = event("subscription.active", {
+      product_id: PRO_TRIAL,
+      ...ON_TRIAL,
+      metadata: { user_id: user.id },
+    });
+    expect(await deliver(body, withId(body, "msg_trial_1"))).toEqual(APPLIED);
+    expect(await deliver(body, withId(body, "msg_trial_1"))).toEqual(DUPLICATE);
+    expect((await recordedEvents()).map((row) => row.id)).toEqual(["msg_trial_1"]);
   });
 
   it("ignores an older event for the same subscription, and applies one from the same moment", async () => {
     const user = await createUser();
-    const at = "2026-11-08T10:00:02.000Z";
+    const at = Date.parse("2026-11-11T10:00:02.000Z");
     const paid = event(
-      "subscription.activated",
-      { price_id: PRO_TRIAL, custom_data: { user_id: user.id } },
+      "subscription.renewed",
+      { product_id: PRO_TRIAL, ...AFTER_TRIAL, metadata: { user_id: user.id } },
       at,
     );
-    expect(await deliver(paid)).toMatchObject({ message: "applied" });
-    expect((await reload(user.id))?.billingEventAt).toBe(Date.parse(at));
-    const late = event(
-      "subscription.trialing",
-      { status: "trialing", price_id: PRO_TRIAL, trial_ends_at: TRIAL_END },
-      "2026-11-08T10:00:01.000Z",
-    );
-    expect(await deliver(late)).toEqual({ status: 200, message: "ignored" });
+    expect(await deliver(paid)).toEqual(APPLIED);
+    expect((await reload(user.id))?.billingEventAt).toBe(at);
+    const late = event("subscription.active", { product_id: PRO_TRIAL, ...ON_TRIAL }, at - 1_000);
+    expect(await deliver(late)).toEqual(IGNORED);
     expect(await reload(user.id)).toMatchObject({ planStatus: "active", trialEndsAt: null });
-    const same = event("subscription.updated", { scheduled_change: { action: "cancel" } }, at);
-    expect(await deliver(same)).toMatchObject({ message: "applied" });
+    const same = event(
+      "subscription.updated",
+      { product_id: PRO_TRIAL, ...AFTER_TRIAL, cancel_at_next_billing_date: true },
+      at,
+    );
+    expect(await deliver(same)).toEqual(APPLIED);
     expect((await reload(user.id))?.planStatus).toBe("scheduled_cancel");
   });
 
-  it("reads Paddle's microsecond timestamps", async () => {
+  it("ignores a late redelivery: the newer event already wrote the state Dodo now sends", async () => {
+    const user = await tracked({ billingEventAt: 1_000 });
+    const cancelling = { cancel_at_next_billing_date: true };
+    expect(await deliver(event("subscription.updated", cancelling, 3_000))).toEqual(APPLIED);
+    // Dodo retries the older renewal with the subscription as it is now.
+    expect(await deliver(event("subscription.renewed", cancelling, 2_000))).toEqual(IGNORED);
+    expect(await reload(user.id)).toMatchObject({
+      planStatus: "scheduled_cancel",
+      billingEventAt: 3_000,
+    });
+  });
+
+  it("reads Dodo's microsecond timestamps", async () => {
     const user = await createUser();
     const body = event(
-      "subscription.activated",
-      { custom_data: { user_id: user.id }, next_billed_at: "2026-12-08T10:00:00.654321Z" },
+      "subscription.active",
+      { metadata: { user_id: user.id }, next_billing_date: "2026-12-08T10:00:00.654321Z" },
       "2026-11-08T10:00:02.123456Z",
     );
-    expect(await deliver(body)).toMatchObject({ message: "applied" });
+    expect(await deliver(body)).toEqual(APPLIED);
     expect(await reload(user.id)).toMatchObject({
       billingEventAt: Date.parse("2026-11-08T10:00:02.123Z"),
       planRenewsAt: Date.parse("2026-12-08T10:00:00.654Z"),
     });
-    const late = event(
-      "subscription.canceled",
-      { status: "canceled", next_billed_at: null, current_billing_period: null },
-      "2026-11-08T10:00:02.122999Z",
-    );
-    expect(await deliver(late)).toEqual({ status: 200, message: "ignored" });
+    const late = event("subscription.cancelled", {}, "2026-11-08T10:00:02.122999Z");
+    expect(await deliver(late)).toEqual(IGNORED);
     expect((await reload(user.id))?.plan).toBe("pro");
   });
 
@@ -270,150 +330,156 @@ describe("idempotency and order", () => {
     vi.spyOn(console, "error").mockImplementation(() => undefined);
     const user = await tracked({ billingEventAt: Date.parse("2026-11-09T00:00:00.000Z") });
     const other = event(
-      "subscription.created",
-      { id: "sub_2", customer_id: "ctm_1", price_id: MAX_YEAR, custom_data: { user_id: user.id } },
+      "subscription.active",
+      { subscription_id: sub(2), product_id: MAX_YEAR, metadata: { user_id: user.id } },
       "2026-11-08T00:00:00.000Z",
     );
-    expect(await deliver(other)).toMatchObject({ message: "applied" });
-    expect(await reload(user.id)).toMatchObject({ plan: "max", billingSubscriptionId: "sub_2" });
+    expect(await deliver(other)).toEqual(APPLIED);
+    expect(await reload(user.id)).toMatchObject({ plan: "max", billingSubscriptionId: sub(2) });
   });
 
-  it("skips the order check for an event whose time can't be read", async () => {
-    const user = await tracked({ billingEventAt: Date.parse("2026-11-09T00:00:00.000Z") });
-    const body = event("subscription.updated", { price_id: MAX_YEAR }, "not a date");
-    expect(await deliver(body)).toMatchObject({ message: "applied" });
-    expect(await reload(user.id)).toMatchObject({
-      plan: "max",
-      billingEventAt: Date.parse("2026-11-09T00:00:00.000Z"),
-    });
+  it("skips the order check for an event whose time is missing or can't be read", async () => {
+    const stored = Date.parse("2026-11-09T00:00:00.000Z");
+    const user = await tracked({ billingEventAt: stored });
+    const unreadable = event("subscription.plan_changed", { product_id: MAX_YEAR }, "not a date");
+    expect(await deliver(unreadable)).toEqual(APPLIED);
+    expect(await reload(user.id)).toMatchObject({ plan: "max", billingEventAt: stored });
+    expect(await deliver(event("subscription.plan_changed", {}, ""))).toEqual(APPLIED);
+    expect(await reload(user.id)).toMatchObject({ plan: "pro", billingEventAt: stored });
   });
 });
 
 describe("statuses", () => {
-  it("trialing: Pro until the item's trial end, and the person is written down as having trialed", async () => {
+  it("a paid trial's first period is trialing: Pro until next_billing_date, and the person is written down as having trialed", async () => {
     const user = await createUser();
-    const body = event("subscription.created", {
-      status: "trialing",
-      price_id: PRO_TRIAL,
-      custom_data: { user_id: user.id },
-      trial_ends_at: TRIAL_END,
-      next_billed_at: NEXT_MONTH,
-      current_billing_period: { starts_at: "2026-11-08T10:00:00.000Z", ends_at: TRIAL_END },
+    const body = event("subscription.active", {
+      product_id: PRO_TRIAL,
+      ...ON_TRIAL,
+      metadata: { user_id: user.id },
     });
-    expect(await deliver(body)).toEqual({ status: 200, message: "applied" });
+    expect(await deliver(body)).toEqual(APPLIED);
     expect(await reload(user.id)).toMatchObject({
       plan: "pro",
       planInterval: "month",
       planStatus: "trialing",
-      trialEndsAt: Date.parse(TRIAL_END),
-      planRenewsAt: Date.parse(NEXT_MONTH),
-      planPeriodEndsAt: Date.parse(TRIAL_END),
-      billingCustomerId: "ctm_1",
-      billingSubscriptionId: "sub_1",
+      trialEndsAt: TEST_DATES.trialEnd,
+      planRenewsAt: TEST_DATES.trialEnd,
+      planPeriodStartsAt: TEST_DATES.start,
+      planPeriodEndsAt: TEST_DATES.trialEnd,
+      billingCustomerId: CUS,
+      billingSubscriptionId: SUB,
     });
     const [seen] = await (await getDb()).select().from(trialHistory);
     expect(seen).toMatchObject({ emailHash: emailFingerprint("ada@example.com"), kind: "trial" });
   });
 
-  it("trialing without trial dates ends the trial at the next charge", async () => {
-    const user = await createUser();
-    const body = event("subscription.trialing", {
-      status: "trialing",
-      price_id: PRO_TRIAL,
-      custom_data: { user_id: user.id },
-      next_billed_at: TRIAL_END,
+  it("the first full charge ends the trial and starts the paid period", async () => {
+    const user = await tracked({ planStatus: "trialing", trialEndsAt: TEST_DATES.trialEnd });
+    const body = event("subscription.renewed", {
+      product_id: PRO_TRIAL,
+      ...AFTER_TRIAL,
+      payment_id: PAY,
     });
-    expect(await deliver(body)).toMatchObject({ message: "applied" });
-    expect((await reload(user.id))?.trialEndsAt).toBe(Date.parse(TRIAL_END));
-  });
-
-  it("activated: the first payment ends the trial and starts the paid period", async () => {
-    const user = await tracked({ planStatus: "trialing", trialEndsAt: 5 });
-    const body = event("subscription.activated", {
-      price_id: PRO_TRIAL,
-      next_billed_at: NEXT_MONTH,
-      current_billing_period: { starts_at: TRIAL_END, ends_at: NEXT_MONTH },
-    });
-    expect(await deliver(body)).toMatchObject({ message: "applied" });
+    expect(await deliver(body)).toEqual(APPLIED);
     expect(await reload(user.id)).toMatchObject({
       plan: "pro",
       planStatus: "active",
       trialEndsAt: null,
-      planRenewsAt: Date.parse(NEXT_MONTH),
-      planPeriodStartsAt: Date.parse(TRIAL_END),
-      planPeriodEndsAt: Date.parse(NEXT_MONTH),
+      planRenewsAt: TEST_DATES.monthAfterTrial,
+      planPeriodStartsAt: TEST_DATES.trialEnd,
+      planPeriodEndsAt: TEST_DATES.monthAfterTrial,
     });
     const [seen] = await (await getDb()).select().from(trialHistory);
     expect(seen?.kind).toBe("paid");
   });
 
-  it("a cancel scheduled on an active subscription keeps the plan with nothing renewing", async () => {
+  it("a cancel at the next billing date keeps the plan with nothing renewing, and undoing it renews again", async () => {
     const user = await tracked({ planRenewsAt: 9 });
-    const body = event("subscription.updated", {
-      scheduled_change: { action: "cancel", effective_at: NEXT_MONTH },
-    });
-    expect(await deliver(body)).toMatchObject({ message: "applied" });
+    const scheduled = event("subscription.updated", { cancel_at_next_billing_date: true }, 1_000);
+    expect(await deliver(scheduled)).toEqual(APPLIED);
     expect(await reload(user.id)).toMatchObject({
       plan: "pro",
       planStatus: "scheduled_cancel",
       planRenewsAt: null,
       trialEndsAt: null,
     });
+    const resumed = event("subscription.updated", { cancel_at_next_billing_date: false }, 2_000);
+    expect(await deliver(resumed)).toEqual(APPLIED);
+    expect(await reload(user.id)).toMatchObject({
+      planStatus: "active",
+      planRenewsAt: TEST_DATES.monthEnd,
+    });
   });
 
   it("a cancel scheduled during the trial keeps the trial's end", async () => {
-    const user = await tracked({ planStatus: "trialing", trialEndsAt: Date.parse(TRIAL_END) });
+    const user = await tracked({ planStatus: "trialing", trialEndsAt: TEST_DATES.trialEnd });
     const body = event("subscription.updated", {
-      status: "trialing",
-      price_id: PRO_TRIAL,
-      trial_ends_at: TRIAL_END,
-      scheduled_change: { action: "cancel", effective_at: TRIAL_END },
-      next_billed_at: null,
+      product_id: PRO_TRIAL,
+      ...ON_TRIAL,
+      cancel_at_next_billing_date: true,
     });
-    expect(await deliver(body)).toMatchObject({ message: "applied" });
+    expect(await deliver(body)).toEqual(APPLIED);
     expect(await reload(user.id)).toMatchObject({
       plan: "pro",
       planStatus: "scheduled_cancel",
       planRenewsAt: null,
-      trialEndsAt: Date.parse(TRIAL_END),
+      trialEndsAt: TEST_DATES.trialEnd,
     });
   });
 
-  it("a scheduled pause is not a cancel", async () => {
-    const user = await tracked();
-    const body = event("subscription.updated", {
-      scheduled_change: { action: "pause", effective_at: NEXT_MONTH },
-      next_billed_at: NEXT_MONTH,
-    });
-    expect(await deliver(body)).toMatchObject({ message: "applied" });
-    expect(await reload(user.id)).toMatchObject({
-      planStatus: "active",
-      planRenewsAt: Date.parse(NEXT_MONTH),
-    });
-  });
-
-  it("past_due keeps the plan, and a failed first payment keeps the trial's allowance", async () => {
-    const user = await tracked({ planStatus: "trialing", trialEndsAt: 5 });
-    const body = event("subscription.past_due", {
-      status: "past_due",
-      price_id: PRO_TRIAL,
-      scheduled_change: { action: "cancel" },
-    });
-    expect(await deliver(body)).toMatchObject({ message: "applied" });
-    expect(await reload(user.id)).toMatchObject({
+  it("past_due keeps the plan through the grace period, and a failed first full charge keeps the trial's allowance", async () => {
+    const trialist = await tracked({ planStatus: "trialing", trialEndsAt: TEST_DATES.trialEnd });
+    const firstCharge = event("subscription.past_due", { product_id: PRO_TRIAL, ...ON_TRIAL });
+    expect(await deliver(firstCharge)).toEqual(APPLIED);
+    expect(await reload(trialist.id)).toMatchObject({
       plan: "pro",
       planStatus: "past_due",
-      trialEndsAt: 5,
+      trialEndsAt: TEST_DATES.trialEnd,
     });
+
+    const payer = await tracked({
+      email: "payer@example.com",
+      billingCustomerId: cus("payer"),
+      billingSubscriptionId: sub("payer"),
+    });
+    const renewal = event("subscription.past_due", {
+      subscription_id: sub("payer"),
+      customer: { customer_id: cus("payer") },
+      past_due_ends_at: dodoTime(TEST_DATES.monthEnd + 3 * DAY_MS),
+    });
+    expect(await deliver(renewal)).toEqual(APPLIED);
+    expect(await reload(payer.id)).toMatchObject({
+      plan: "pro",
+      planStatus: "past_due",
+      trialEndsAt: null,
+    });
+  });
+
+  it("on_hold after the grace period moves the user to Free, keeps the subscription chargeable, and a fixed card brings the plan back", async () => {
+    const user = await tracked({ planRenewsAt: 9, planPeriodEndsAt: 9 });
+    expect(await deliver(event("subscription.on_hold", {}, 1_000))).toEqual(APPLIED);
+    const held = await reload(user.id);
+    expect(held).toMatchObject({
+      plan: "free",
+      planStatus: "on_hold",
+      planInterval: null,
+      planRenewsAt: null,
+      planPeriodEndsAt: null,
+      billingSubscriptionId: SUB,
+    });
+    expect(chargeableSubscriptionId(held!)).toBe(SUB);
+    expect(await deliver(event("subscription.active", {}, 2_000))).toEqual(APPLIED);
+    expect(await reload(user.id)).toMatchObject({ plan: "pro", planStatus: "active" });
   });
 
   it.each([
     ["subscription.paused", "paused"],
-    ["subscription.canceled", "canceled"],
-  ])("%s drops the plan to Free", async (eventType, status) => {
+    ["subscription.cancelled", "canceled"],
+    ["subscription.expired", "canceled"],
+  ])("%s drops the plan to Free", async (type, status) => {
     const user = await tracked({ trialEndsAt: 5, planRenewsAt: 9, planPeriodEndsAt: 9 });
-    const body = event(eventType, { status, next_billed_at: null, current_billing_period: null });
-    expect(await deliver(body)).toMatchObject({ message: "applied" });
+    const body = event(type, { cancelled_at: dodoTime(TEST_DATES.monthEnd) });
+    expect(await deliver(body)).toEqual(APPLIED);
     expect(await reload(user.id)).toMatchObject({
       plan: "free",
       planStatus: status,
@@ -424,64 +490,148 @@ describe("statuses", () => {
     });
   });
 
-  it("resumed brings the paid plan back", async () => {
+  it("unpaused brings the paid plan back", async () => {
     const user = await tracked({ plan: "free", planInterval: null, planStatus: "paused" });
-    expect(await deliver(event("subscription.resumed"))).toMatchObject({ message: "applied" });
+    expect(await deliver(event("subscription.unpaused"))).toEqual(APPLIED);
     expect(await reload(user.id)).toMatchObject({ plan: "pro", planStatus: "active" });
   });
 
-  it("ignores a status Paddle may add later, without recording it", async () => {
+  it("ignores pending, failed and statuses Dodo may add later, without recording them", async () => {
+    vi.spyOn(console, "info").mockImplementation(() => undefined);
     vi.spyOn(console, "warn").mockImplementation(() => undefined);
     const user = await createUser();
-    const body = event("subscription.updated", {
-      status: "something_new",
-      custom_data: { user_id: user.id },
-    });
-    expect(await deliver(body)).toEqual({ status: 200, message: "ignored" });
+    for (const [type, status] of [
+      ["subscription.updated", "pending"],
+      ["subscription.failed", "failed"],
+      ["subscription.updated", "something_new"],
+    ] as const) {
+      const body = event(type, { status, metadata: { user_id: user.id } });
+      expect(await deliver(body)).toEqual(IGNORED);
+    }
     expect((await reload(user.id))?.plan).toBe("free");
     expect(await recordedEvents()).toEqual([]);
+    const warned = logged("warn", "billing.webhook_ignored");
+    expect(warned).toContain("dodo:something_new");
+    expect(warned).not.toContain("dodo:pending");
+    expect(warned).not.toContain("dodo:failed");
+    expect(logged("info", "billing.webhook_ignored")).toContain("dodo:pending");
   });
 
   it("follows a plan change from Pro to Max yearly", async () => {
     const user = await createUser();
-    const bought = event("subscription.created", { custom_data: { user_id: user.id } }, 1_000);
-    expect(await deliver(bought)).toMatchObject({ message: "applied" });
-    const upgraded = event("subscription.updated", { price_id: MAX_YEAR }, 2_000);
-    expect(await deliver(upgraded)).toMatchObject({ message: "applied" });
-    expect(await reload(user.id)).toMatchObject({ plan: "max", planInterval: "year" });
-  });
-
-  it("reads the plan from whichever item is ours", async () => {
-    const user = await createUser();
-    const body = event("subscription.created", {
-      price_id: ["pri_addon", MAX_YEAR],
-      custom_data: { user_id: user.id },
+    const bought = event("subscription.active", { metadata: { user_id: user.id } }, 1_000);
+    expect(await deliver(bought)).toEqual(APPLIED);
+    const upgraded = event(
+      "subscription.plan_changed",
+      { product_id: MAX_YEAR, next_billing_date: dodoTime(TEST_DATES.yearEnd) },
+      2_000,
+    );
+    expect(await deliver(upgraded)).toEqual(APPLIED);
+    expect(await reload(user.id)).toMatchObject({
+      plan: "max",
+      planInterval: "year",
+      planRenewsAt: TEST_DATES.yearEnd,
     });
-    expect(await deliver(body)).toMatchObject({ message: "applied" });
-    expect((await reload(user.id))?.plan).toBe("max");
   });
 
-  it("never lets another price, or someone else's subscription, take a paid plan away", async () => {
+  it.each([0, 3])(
+    "follows a trial moved to Max in place: Max at once, the trial over, written down as paid (trial_period_days %i)",
+    async (trialDays) => {
+      const user = await tracked({ planStatus: "trialing", trialEndsAt: TEST_DATES.trialEnd });
+      const changedAt = TEST_DATES.start + DAY_MS;
+      const body = event("subscription.plan_changed", {
+        product_id: MAX_YEAR,
+        trial_period_days: trialDays,
+        created_at: dodoTime(TEST_DATES.start),
+        previous_billing_date: dodoTime(changedAt),
+        next_billing_date: dodoTime(changedAt + 365 * DAY_MS),
+      });
+      expect(await deliver(body)).toEqual(APPLIED);
+      expect(await reload(user.id)).toMatchObject({
+        plan: "max",
+        planInterval: "year",
+        planStatus: "active",
+        trialEndsAt: null,
+        planPeriodStartsAt: changedAt,
+        planRenewsAt: changedAt + 365 * DAY_MS,
+        billingSubscriptionId: SUB,
+      });
+      const [seen] = await (await getDb()).select().from(trialHistory);
+      expect(seen?.kind).toBe("paid");
+      expect(await (await getDb()).select().from(trialReplacements)).toEqual([]);
+    },
+  );
+
+  it("never lets another product, or someone else's subscription, take a paid plan away", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
     const user = await tracked();
-    const other = event("subscription.created", { id: "sub_ebook", price_id: "pri_ebook" });
-    expect(await deliver(other)).toEqual({ status: 200, message: "ignored" });
-    const stale = event("subscription.canceled", { id: "sub_old", status: "canceled" });
-    expect(await deliver(stale)).toEqual({ status: 200, message: "ignored" });
-    expect(await reload(user.id)).toMatchObject({ plan: "pro", billingSubscriptionId: "sub_1" });
+    const other = event("subscription.active", {
+      subscription_id: sub("ebook"),
+      product_id: dodoId("pdt", "ebook"),
+    });
+    expect(await deliver(other)).toEqual(IGNORED);
+    const stale = event("subscription.cancelled", { subscription_id: sub("old") });
+    expect(await deliver(stale)).toEqual(IGNORED);
+    expect(await reload(user.id)).toMatchObject({ plan: "pro", billingSubscriptionId: SUB });
   });
 
-  it("keeps the paid plan when the tracked subscription moves to a price we don't list", async () => {
+  it("keeps the paid plan when the tracked subscription moves to a product we don't list", async () => {
     const user = await tracked({ plan: "max", planInterval: "year" });
-    const body = event("subscription.updated", { price_id: "pri_legacy" });
-    expect(await deliver(body)).toMatchObject({ message: "applied" });
+    const body = event("subscription.plan_changed", { product_id: dodoId("pdt", "legacy") });
+    expect(await deliver(body)).toEqual(APPLIED);
     expect(await reload(user.id)).toMatchObject({ plan: "max", planInterval: "year" });
   });
 
   it("ignores events it doesn't use", async () => {
-    for (const eventType of ["subscription.imported", "customer.created", "transaction.paid"]) {
-      expect(await deliver(event(eventType))).toEqual({ status: 200, message: "ignored" });
+    await tracked();
+    for (const type of [
+      "customer.created",
+      "license_key.created",
+      "dunning.started",
+      "subscription.created",
+      "payment.processing",
+    ]) {
+      expect(await deliver(event(type))).toEqual(IGNORED);
     }
     expect(await recordedEvents()).toEqual([]);
+  });
+
+  it("warns when a trial-product subscription isn't seen as a trial in its first days, and still applies it", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    const user = await createUser();
+    const created = Date.now() - DAY_MS;
+    const missed = event("subscription.active", {
+      product_id: PRO_TRIAL,
+      trial_period_days: 0,
+      created_at: dodoTime(created),
+      previous_billing_date: dodoTime(created),
+      next_billing_date: dodoTime(created + 30 * DAY_MS),
+      metadata: { user_id: user.id },
+    });
+    expect(await deliver(missed, withId(missed, "msg_missed"))).toEqual(APPLIED);
+    expect(await deliver(missed, withId(missed, "msg_missed"))).toEqual(DUPLICATE);
+    expect((await reload(user.id))?.planStatus).toBe("active");
+    expect(logged("warn", "billing.trial_not_detected")).toContain(SUB);
+
+    const trialist = await tracked({ email: "t@example.com", billingSubscriptionId: sub("t") });
+    const started = Date.now() - HOUR_MS;
+    const recentTrial = {
+      trial_period_days: 3,
+      created_at: dodoTime(started),
+      previous_billing_date: dodoTime(started),
+      next_billing_date: dodoTime(started + 3 * DAY_MS),
+    };
+    for (const dates of [recentTrial, AFTER_TRIAL]) {
+      const body = event("subscription.updated", {
+        subscription_id: sub("t"),
+        product_id: PRO_TRIAL,
+        ...dates,
+      });
+      expect(await deliver(body)).toEqual(APPLIED);
+    }
+    expect((await reload(trialist.id))?.planStatus).toBe("active");
+    expect(loggedCount("warn", "billing.trial_not_detected")).toBe(1);
+    expect(JSON.stringify(warn.mock.calls)).not.toContain("ada@example.com");
   });
 });
 
@@ -489,12 +639,9 @@ describe("finding the user", () => {
   it("won't take a user_id that isn't a uuid, nor let an unsigned new subscription in by customer id", async () => {
     vi.spyOn(console, "error").mockImplementation(() => undefined);
     vi.spyOn(console, "warn").mockImplementation(() => undefined);
-    const user = await createUser({ billingCustomerId: "ctm_known" });
-    const body = event("subscription.created", {
-      customer_id: "ctm_known",
-      custom_data: { user_id: "1 or 1=1" },
-    });
-    expect(await deliver(body)).toEqual({ status: 200, message: "ignored" });
+    const user = await createUser({ billingCustomerId: CUS });
+    const body = event("subscription.active", { metadata: { user_id: "1 or 1=1" } });
+    expect(await deliver(body)).toEqual(IGNORED);
     expect(await reload(user.id)).toMatchObject({ plan: "free", billingSubscriptionId: null });
   });
 
@@ -503,13 +650,16 @@ describe("finding the user", () => {
     const user = await createUser({ email: "maya@example.com" });
     const customerEmail = vi.fn(async () => "  Maya@Example.com ");
     const config = { ...CONFIG, customerEmail };
-    const paid = event("subscription.created", { id: "sub_9", customer_id: "ctm_9" });
-    expect(await deliver(paid, undefined, config)).toEqual({ status: 200, message: "ignored" });
-    expect(customerEmail).toHaveBeenCalledExactlyOnceWith("ctm_9");
+    const paid = event("subscription.active", {
+      subscription_id: sub(9),
+      customer: { customer_id: cus(9) },
+    });
+    expect(await deliver(paid, undefined, config)).toEqual(IGNORED);
+    expect(customerEmail).toHaveBeenCalledExactlyOnceWith(cus(9));
     expect(await reload(user.id)).toMatchObject({ plan: "free", billingCustomerId: null });
 
-    const ended = event("subscription.canceled", { id: "sub_x", status: "canceled" });
-    expect(await deliver(ended, undefined, config)).toEqual({ status: 200, message: "ignored" });
+    const ended = event("subscription.cancelled", { subscription_id: sub("x") });
+    expect(await deliver(ended, undefined, config)).toEqual(IGNORED);
     expect(customerEmail).toHaveBeenCalledTimes(1);
   });
 
@@ -520,52 +670,57 @@ describe("finding the user", () => {
       ...CONFIG,
       customerEmail: vi.fn(async () => Promise.reject(new Error("timeout"))),
     };
-    const body = event("subscription.created", { id: "sub_9", customer_id: "ctm_9" });
+    const body = event("subscription.active", {
+      subscription_id: sub(9),
+      customer: { customer_id: cus(9) },
+    });
     expect(await deliver(body, undefined, config)).toEqual({ status: 500, message: "retry" });
     expect(await recordedEvents()).toEqual([]);
   });
 
-  it("ignores a subscription it can't match to anyone, as the simulator's are", async () => {
+  it("ignores a subscription it can't match to anyone, as a dashboard test event's is", async () => {
     vi.spyOn(console, "warn").mockImplementation(() => undefined);
     await createUser();
-    const body = event("subscription.created", {
-      id: "sub_01simulated",
-      customer_id: "ctm_01simulated",
-      price_id: "pri_01simulated",
+    const body = event("subscription.active", {
+      subscription_id: sub("simulated"),
+      customer: { customer_id: cus("simulated") },
+      product_id: dodoId("pdt", "simulated"),
     });
-    expect(await deliver(body)).toEqual({ status: 200, message: "ignored" });
-    expect(
-      await deliver(event("subscription.created", { id: "sub_9", customer_id: "ctm_9" })),
-    ).toEqual({ status: 200, message: "ignored" });
+    expect(await deliver(body)).toEqual(IGNORED);
+    const unknownPaid = event("subscription.active", {
+      subscription_id: sub(9),
+      customer: { customer_id: cus(9) },
+    });
+    expect(await deliver(unknownPaid)).toEqual(IGNORED);
   });
 });
 
-describe("signed custom_data", () => {
-  const attackerSubscription = { id: "sub_attacker", customer_id: "ctm_attacker" };
+describe("signed metadata", () => {
+  const attacker = {
+    subscription_id: sub("attacker"),
+    customer: { customer_id: cus("attacker") },
+  };
 
-  it("ignores a user_id without our signature, so a forged one grants nobody anything", async () => {
+  it("ignores a user_id without our signature, as a payment link's metadata would carry, so it grants nobody anything", async () => {
     vi.spyOn(console, "warn").mockImplementation(() => undefined);
     const victim = await createUser();
-    const forgeries = [
+    const forgeries: Record<string, unknown>[] = [
       { user_id: victim.id, user_sig: undefined },
       { user_id: victim.id, user_sig: "0".repeat(64) },
-      { user_id: victim.id, user_sig: signBillingId(victim.id, "pdl_ntfset_someone_else") },
-      { user_id: victim.id, user_sig: signBillingId(crypto.randomUUID(), SECRET) },
-      { user_id: victim.id, user_sig: signBillingId(victim.id, SECRET).toUpperCase() },
+      { user_id: victim.id, user_sig: signBillingId(victim.id, "someone_elses_secret") },
+      { user_id: victim.id, user_sig: signBillingId(victim.id, SECRET) },
+      { user_id: victim.id, user_sig: signBillingId(crypto.randomUUID(), SIGNING) },
+      { user_id: victim.id, user_sig: signBillingId(victim.id, SIGNING).toUpperCase() },
       { user_id: victim.id, user_sig: 42 },
     ];
-    for (const [index, custom_data] of forgeries.entries()) {
-      const body = subscriptionEvent(
-        "subscription.created",
-        { ...attackerSubscription, price_id: MAX_YEAR, custom_data },
-        { id: `evt_forged_${index}` },
-      );
-      expect(await deliver(body)).toEqual({ status: 200, message: "ignored" });
+    for (const [index, metadata] of forgeries.entries()) {
+      const body = event("subscription.active", { ...attacker, product_id: MAX_YEAR, metadata });
+      expect(await deliver(body, withId(body, `msg_forged_${index}`))).toEqual(IGNORED);
     }
     expect(await reload(victim.id)).toEqual(victim);
     expect(await recordedEvents()).toEqual([]);
     const unsigned = logged("warn", "billing.unsigned_custom_data");
-    for (const index of forgeries.keys()) expect(unsigned).toContain(`evt_forged_${index}`);
+    for (const index of forgeries.keys()) expect(unsigned).toContain(`msg_forged_${index}`);
     expect(unsigned).toContain("user_id");
     expect(logged("warn")).not.toContain(victim.email);
   });
@@ -574,15 +729,12 @@ describe("signed custom_data", () => {
     vi.spyOn(console, "warn").mockImplementation(() => undefined);
     const victim = await tracked();
     const forged = { user_id: victim.id, user_sig: undefined };
-    for (const subscription of [
-      { ...attackerSubscription, price_id: MAX_YEAR, custom_data: forged },
-      { ...attackerSubscription, status: "trialing", price_id: PRO_TRIAL, custom_data: forged },
-      { ...attackerSubscription, status: "canceled", custom_data: forged },
+    for (const fields of [
+      { ...attacker, product_id: MAX_YEAR, metadata: forged },
+      { ...attacker, product_id: PRO_TRIAL, ...ON_TRIAL, metadata: forged },
+      { ...attacker, status: "cancelled", metadata: forged },
     ]) {
-      expect(await deliver(event("subscription.updated", subscription))).toEqual({
-        status: 200,
-        message: "ignored",
-      });
+      expect(await deliver(event("subscription.updated", fields))).toEqual(IGNORED);
     }
     expect(await reload(victim.id)).toEqual(victim);
     expect(cancel).not.toHaveBeenCalled();
@@ -590,122 +742,139 @@ describe("signed custom_data", () => {
 
   it("follows the stored subscription for an unsigned user_id, but a new subscription by customer id alone grants nothing", async () => {
     vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
     const named = await createUser({ email: "named@example.com" });
     const bySubscription = await createUser({
       email: "sub@example.com",
-      billingSubscriptionId: "sub_known",
+      billingSubscriptionId: sub("known"),
     });
     const byCustomer = await createUser({
-      email: "ctm@example.com",
-      billingCustomerId: "ctm_known",
+      email: "cus@example.com",
+      billingCustomerId: cus("known"),
     });
     const unsigned = { user_id: named.id, user_sig: undefined };
-    const first = event("subscription.created", { id: "sub_known", custom_data: unsigned });
-    expect(await deliver(first)).toMatchObject({ message: "applied" });
-    const second = event("subscription.created", {
-      id: "sub_other",
-      customer_id: "ctm_known",
-      custom_data: unsigned,
+    const first = event("subscription.active", {
+      subscription_id: sub("known"),
+      metadata: unsigned,
     });
-    vi.spyOn(console, "error").mockImplementation(() => undefined);
-    expect(await deliver(second)).toEqual({ status: 200, message: "ignored" });
+    expect(await deliver(first)).toEqual(APPLIED);
+    const second = event("subscription.active", {
+      subscription_id: sub("other"),
+      customer: { customer_id: cus("known") },
+      metadata: unsigned,
+    });
+    expect(await deliver(second)).toEqual(IGNORED);
     expect((await reload(bySubscription.id))?.plan).toBe("pro");
     expect(await reload(byCustomer.id)).toMatchObject({
       plan: "free",
       billingSubscriptionId: null,
     });
     expect((await reload(named.id))?.plan).toBe("free");
+    expect(logged("error", "billing.unsigned_subscription")).toContain(sub("other"));
   });
 
-  it("logs nothing when custom_data carries no ids", async () => {
+  it("logs nothing when metadata carries no ids", async () => {
     const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
     await tracked();
-    expect(await deliver(event("subscription.updated", { custom_data: null }))).toMatchObject({
-      message: "applied",
-    });
-    expect(await deliver(event("subscription.updated", { custom_data: {} }))).toMatchObject({
-      message: "applied",
-    });
+    expect(await deliver(event("subscription.updated", { metadata: null }))).toEqual(APPLIED);
+    expect(await deliver(event("subscription.updated", { metadata: {} }))).toEqual(APPLIED);
     expect(warn).not.toHaveBeenCalled();
   });
 
   it("credits a checkout only to a signed user_id", async () => {
     vi.spyOn(console, "warn").mockImplementation(() => undefined);
     const victim = await createUser();
-    const body = transactionEvent("transaction.completed", {
-      subscription_id: "sub_9",
-      customer_id: "ctm_9",
-      custom_data: { user_id: victim.id, user_sig: "f".repeat(64) },
+    const body = paymentEvent("payment.succeeded", {
+      subscription_id: sub(9),
+      customer: { customer_id: cus(9) },
+      metadata: {
+        user_id: victim.id,
+        user_sig: "f".repeat(64),
+        plan: "max",
+        interval: "year",
+        trial: "false",
+      },
     });
-    expect(await deliver(body)).toEqual({ status: 200, message: "ignored" });
+    expect(await deliver(body)).toEqual(IGNORED);
     expect(captured).not.toHaveBeenCalled();
-    expect(logged("warn", "billing.unsigned_custom_data")).toContain("txn_1");
+    expect(logged("warn", "billing.unsigned_custom_data")).toContain(PAY);
   });
 });
 
 describe("checkout_completed analytics", () => {
-  it("fires once for the transaction that started a subscription", async () => {
+  const choice = (extra: Record<string, unknown> = {}) => ({
+    plan: "max",
+    interval: "year",
+    trial: "false",
+    ...extra,
+  });
+
+  it("fires once for the payment that started a subscription, however often it's delivered", async () => {
     const user = await createUser();
-    const body = transactionEvent("transaction.completed", {
-      price_id: MAX_YEAR,
-      custom_data: { user_id: user.id },
-    });
-    expect(await deliver(body)).toEqual({ status: 200, message: "applied" });
+    const body = paymentEvent("payment.succeeded", { metadata: { user_id: user.id, ...choice() } });
+    expect(await deliver(body)).toEqual(APPLIED);
     expect(captured).toHaveBeenCalledExactlyOnceWith(
       user.id,
       "checkout_completed",
       { plan: "max", trial: false },
       { set: { plan: "max" } },
     );
-    expect(await deliver(body)).toEqual({ status: 200, message: "duplicate" });
-    const replayed = transactionEvent("transaction.completed", {
-      price_id: MAX_YEAR,
-      custom_data: { user_id: user.id },
+    expect(await deliver(body)).toEqual(DUPLICATE);
+    const replayed = paymentEvent("payment.succeeded", {
+      payment_id: dodoId("pay", "replayed"),
+      metadata: { user_id: user.id, ...choice() },
     });
-    expect(await deliver(replayed)).toEqual({ status: 200, message: "duplicate" });
+    expect(await deliver(replayed)).toEqual(DUPLICATE);
     expect(captured).toHaveBeenCalledTimes(1);
+    expect((await recordedEvents()).map((row) => row.id)).toEqual([`checkout:${SUB}`]);
     expect((await reload(user.id))?.plan).toBe("free");
   });
 
-  it("says when the checkout started a trial", async () => {
+  it("says when the checkout started a trial, as a string or a boolean", async () => {
     const user = await tracked({ plan: "free", planInterval: null, planStatus: null });
-    const body = transactionEvent("transaction.completed", {
-      origin: "web",
-      price_id: PRO_TRIAL,
-      trial: true,
-      custom_data: null,
+    const byStored = paymentEvent("payment.succeeded", {
+      metadata: choice({ plan: "pro", interval: "month", trial: "true" }),
     });
-    expect(await deliver(body)).toMatchObject({ message: "applied" });
-    expect(captured).toHaveBeenCalledWith(
-      user.id,
-      "checkout_completed",
-      { plan: "pro", trial: true },
-      { set: { plan: "pro" } },
-    );
+    expect(await deliver(byStored)).toEqual(APPLIED);
+    const bySigned = paymentEvent("payment.succeeded", {
+      subscription_id: sub(2),
+      metadata: { user_id: user.id, ...choice({ plan: "pro", interval: "month", trial: true }) },
+    });
+    expect(await deliver(bySigned)).toEqual(APPLIED);
+    expect(captured.mock.calls).toEqual([
+      [user.id, "checkout_completed", { plan: "pro", trial: true }, { set: { plan: "pro" } }],
+      [user.id, "checkout_completed", { plan: "pro", trial: true }, { set: { plan: "pro" } }],
+    ]);
   });
 
-  it("ignores renewals, other prices, one-off purchases and strangers", async () => {
+  it("ignores renewals, plan changes, other products, payments without a subscription and strangers", async () => {
     const user = await createUser();
-    const mine = { custom_data: { user_id: user.id } };
+    const mine = { user_id: user.id, ...choice() };
     const ignoredBodies = [
-      transactionEvent("transaction.completed", { ...mine, origin: "subscription_recurring" }),
-      transactionEvent("transaction.completed", { ...mine, origin: "subscription_update" }),
-      transactionEvent("transaction.completed", { ...mine, price_id: "pri_ebook" }),
-      transactionEvent("transaction.completed", { ...mine, subscription_id: null }),
-      transactionEvent("transaction.completed", { subscription_id: "sub_9", customer_id: "ctm_9" }),
-      transactionEvent("transaction.paid", mine),
+      paymentEvent("payment.succeeded", { charge_type: "renewal", metadata: mine }),
+      paymentEvent("payment.succeeded", { charge_type: "plan_change", metadata: mine }),
+      paymentEvent("payment.succeeded", { charge_type: "on_demand", metadata: mine }),
+      paymentEvent("payment.succeeded", { charge_type: null, metadata: mine }),
+      paymentEvent("payment.succeeded", { metadata: { ...mine, plan: "ebook" } }),
+      paymentEvent("payment.succeeded", { metadata: { ...mine, interval: "week" } }),
+      paymentEvent("payment.succeeded", { metadata: { user_id: user.id } }),
+      paymentEvent("payment.succeeded", { subscription_id: null, metadata: mine }),
+      paymentEvent("payment.succeeded", {
+        subscription_id: sub(9),
+        customer: { customer_id: cus(9) },
+        metadata: choice(),
+      }),
+      paymentEvent("payment.processing", { metadata: mine }),
     ];
-    for (const body of ignoredBodies) {
-      expect(await deliver(body)).toEqual({ status: 200, message: "ignored" });
-    }
+    for (const body of ignoredBodies) expect(await deliver(body)).toEqual(IGNORED);
     expect(captured).not.toHaveBeenCalled();
     expect(await recordedEvents()).toEqual([]);
   });
 
   it("is never fired by subscription events", async () => {
     const user = await createUser();
-    const body = event("subscription.created", { custom_data: { user_id: user.id } });
-    expect(await deliver(body)).toMatchObject({ message: "applied" });
+    const body = event("subscription.active", { metadata: { user_id: user.id, ...choice() } });
+    expect(await deliver(body)).toEqual(APPLIED);
     expect(captured).not.toHaveBeenCalled();
   });
 });
@@ -713,18 +882,41 @@ describe("checkout_completed analytics", () => {
 describe("published portfolios", () => {
   it("refresh when the plan crosses between paid and Free, and only then", async () => {
     const user = await createUser();
-    await deliver(event("subscription.created", { custom_data: { user_id: user.id } }, 1_000));
+    await deliver(event("subscription.active", { metadata: { user_id: user.id } }, 1_000));
     expect(refreshed).toHaveBeenCalledTimes(1);
-    await deliver(event("subscription.updated", { price_id: MAX_YEAR }, 2_000));
+    await deliver(event("subscription.plan_changed", { product_id: MAX_YEAR }, 2_000));
     expect(refreshed).toHaveBeenCalledTimes(1);
-    await deliver(event("subscription.canceled", { status: "canceled" }, 3_000));
+    await deliver(event("subscription.cancelled", {}, 3_000));
     expect(refreshed).toHaveBeenCalledTimes(2);
   });
 });
 
+describe("a declined plan-change charge", () => {
+  it("is logged once with its ids and changes no plan; other failed payments are ignored", async () => {
+    vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    const user = await tracked();
+    const declined = paymentEvent("payment.failed", { charge_type: "plan_change" });
+    expect(await deliver(declined, withId(declined, "msg_declined"))).toEqual(APPLIED);
+    expect(await deliver(declined, withId(declined, "msg_declined"))).toEqual(DUPLICATE);
+    for (const chargeType of ["renewal", "new"]) {
+      const other = paymentEvent("payment.failed", { charge_type: chargeType });
+      expect(await deliver(other)).toEqual(IGNORED);
+    }
+    expect(await reload(user.id)).toEqual(user);
+    expect(loggedCount("warn", "billing.plan_change_payment_failed")).toBe(1);
+    const text = logged("warn", "billing.plan_change_payment_failed");
+    for (const value of ["msg_declined", PAY, SUB]) expect(text).toContain(value);
+    expect(text).not.toContain("ada@example.com");
+    expect((await recordedEvents()).map((row) => row.id)).toEqual(["msg_declined"]);
+  });
+});
+
 describe("one trial per person", () => {
+  const SUB2 = sub(2);
+  const CUS2 = cus(2);
+
   beforeEach(() => {
-    vi.stubEnv("PADDLE_API_KEY", "pdl_sdbx_apikey_test");
+    vi.stubEnv("DODO_API_KEY", "dodo_test_apikey");
     resetEnvForTests();
   });
 
@@ -744,45 +936,58 @@ describe("one trial per person", () => {
     return (await getDb()).select().from(trialReplacements);
   }
 
-  const trialOf = (user: Row, subscription: WebhookSubscription = {}) => ({
-    id: "sub_2",
-    customer_id: "ctm_2",
-    status: "trialing",
-    price_id: PRO_TRIAL,
-    trial_ends_at: TRIAL_END,
-    custom_data: { user_id: user.id },
-    ...subscription,
+  const trialOf = (user: Row, fields: SubscriptionFields = {}): SubscriptionFields => ({
+    subscription_id: SUB2,
+    customer: { customer_id: CUS2 },
+    product_id: PRO_TRIAL,
+    ...ON_TRIAL,
+    metadata: { user_id: user.id },
+    ...fields,
   });
 
-  it("cancels a second trial by the same user at once, grants nothing and records nothing on them", async () => {
+  const trialCharge = (user: Row | null, paymentId = PAY_TRIAL) =>
+    paymentEvent("payment.succeeded", {
+      payment_id: paymentId,
+      subscription_id: SUB2,
+      customer: { customer_id: CUS2 },
+      metadata: {
+        ...(user ? { user_id: user.id } : {}),
+        plan: "pro",
+        interval: "month",
+        trial: "true",
+      },
+    });
+
+  it("cancels a second trial by the same user at once, refunds its charge, and grants and records nothing on them", async () => {
     vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    vi.spyOn(console, "info").mockImplementation(() => undefined);
     const user = await createUser({
       planStatus: "canceled",
-      billingCustomerId: "ctm_1",
-      billingSubscriptionId: "sub_1",
+      billingCustomerId: CUS,
+      billingSubscriptionId: SUB,
     });
     await hadTrial(user.email);
-    const body = subscriptionEvent("subscription.created", trialOf(user), { id: "evt_again" });
-    expect(await deliver(body)).toEqual({ status: 200, message: "ignored" });
+    const body = event("subscription.active", trialOf(user));
+    expect(await deliver(body, withId(body, "msg_again"))).toEqual(IGNORED);
     expect(await reload(user.id)).toEqual(user);
-    expect(cancel).toHaveBeenCalledExactlyOnceWith("sub_2", { immediately: true });
+    expect(cancel).toHaveBeenCalledExactlyOnceWith(SUB2, { immediately: true });
     expect(await pendingCancels()).toMatchObject([
-      { replacedSubscriptionId: "sub_2", userId: user.id, cancelledAt: expect.any(Number) },
+      { replacedSubscriptionId: SUB2, userId: user.id, cancelledAt: expect.any(Number) },
     ]);
     // A paid trial's charge goes back in full when the trial is refused.
-    expect(completed).toHaveBeenCalledExactlyOnceWith("sub_2");
-    expect(refund).toHaveBeenCalledExactlyOnceWith("txn_trial");
+    expect(payments).toHaveBeenCalledExactlyOnceWith(SUB2);
+    expect(refund).toHaveBeenCalledExactlyOnceWith(PAY_TRIAL);
+    expect((await recordedEvents()).map((row) => row.id)).toContain(`refund:${PAY_TRIAL}`);
     const reused = logged("warn", "billing.trial_reused");
-    for (const id of ["evt_again", user.id, "sub_2"]) expect(reused).toContain(id);
+    for (const id of ["msg_again", user.id, SUB2]) expect(reused).toContain(id);
     expect(logged("warn")).not.toContain(user.email);
 
-    for (const [eventType, status] of [
-      ["subscription.trialing", "trialing"],
-      ["subscription.activated", "active"],
-      ["subscription.canceled", "canceled"],
+    for (const [type, dates] of [
+      ["subscription.updated", ON_TRIAL],
+      ["subscription.renewed", AFTER_TRIAL],
+      ["subscription.cancelled", ON_TRIAL],
     ] as const) {
-      const later = event(eventType, trialOf(user, { status, trial_ends_at: null }));
-      expect(await deliver(later)).toEqual({ status: 200, message: "ignored" });
+      expect(await deliver(event(type, trialOf(user, dates)))).toEqual(IGNORED);
     }
     expect(await reload(user.id)).toEqual(user);
     expect(cancel).toHaveBeenCalledTimes(1);
@@ -790,227 +995,165 @@ describe("one trial per person", () => {
 
   it("cancels a trial by an email that already had one, even on a new account", async () => {
     vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    vi.spyOn(console, "info").mockImplementation(() => undefined);
     const user = await createUser({ email: "maya@example.com" });
     await hadTrial(" Maya@Example.com");
-    expect(await deliver(event("subscription.trialing", trialOf(user)))).toEqual({
-      status: 200,
-      message: "ignored",
-    });
+    expect(await deliver(event("subscription.active", trialOf(user)))).toEqual(IGNORED);
     expect(await reload(user.id)).toEqual(user);
-    expect(cancel).toHaveBeenCalledExactlyOnceWith("sub_2", { immediately: true });
+    expect(cancel).toHaveBeenCalledExactlyOnceWith(SUB2, { immediately: true });
   });
 
-  it("cancels a trial bought straight from Paddle.js by someone already paying, and keeps their plan", async () => {
+  it("cancels a second trial checkout by someone already paying, and keeps their plan", async () => {
     const error = vi.spyOn(console, "error").mockImplementation(() => undefined);
     vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    vi.spyOn(console, "info").mockImplementation(() => undefined);
     const user = await tracked();
-    expect(await deliver(event("subscription.created", trialOf(user)))).toEqual({
-      status: 200,
-      message: "ignored",
-    });
+    expect(await deliver(event("subscription.active", trialOf(user)))).toEqual(IGNORED);
     expect(await reload(user.id)).toEqual(user);
-    expect(cancel).toHaveBeenCalledExactlyOnceWith("sub_2", { immediately: true });
+    expect(cancel).toHaveBeenCalledExactlyOnceWith(SUB2, { immediately: true });
     expect(error).not.toHaveBeenCalled();
   });
 
-  it("still refuses a second trial when its refund fails, logs it, and lets a later delivery refund it", async () => {
+  it("still refuses a second trial when its refund fails, logs it, and lets a later payment.succeeded refund it", async () => {
     vi.spyOn(console, "warn").mockImplementation(() => undefined);
     vi.spyOn(console, "info").mockImplementation(() => undefined);
     const error = vi.spyOn(console, "error").mockImplementation(() => undefined);
-    refund.mockRejectedValueOnce(new BillingError("refused", "Paddle refused the refund request"));
+    refund.mockRejectedValueOnce(new BillingError("refused", "Dodo refused the refund request"));
     const user = await createUser();
     await hadTrial(user.email);
-    expect(await deliver(subscriptionEvent("subscription.created", trialOf(user)))).toEqual({
-      status: 200,
-      message: "ignored",
-    });
-    expect(cancel).toHaveBeenCalledExactlyOnceWith("sub_2", { immediately: true });
+    expect(await deliver(event("subscription.active", trialOf(user)))).toEqual(IGNORED);
+    expect(cancel).toHaveBeenCalledExactlyOnceWith(SUB2, { immediately: true });
     expect(error.mock.calls.flat().join(" ")).toContain("billing.reused_trial_refund_failed");
-    const paid = transactionEvent("transaction.completed", {
-      id: "txn_trial",
-      subscription_id: "sub_2",
-      customer_id: "ctm_2",
-      price_id: PRO_TRIAL,
-      trial: true,
-    });
-    expect(await deliver(paid)).toEqual({ status: 200, message: "ignored" });
-    expect(refund.mock.calls).toEqual([["txn_trial"], ["txn_trial"]]);
+    expect(await deliver(trialCharge(null))).toEqual(IGNORED);
+    expect(refund.mock.calls).toEqual([[PAY_TRIAL], [PAY_TRIAL]]);
   });
 
-  it("refunds a refused trial's charge that completes after the cancel, once however often it's delivered", async () => {
+  it("refunds a refused trial's charge that succeeds after the cancel, once however often it's delivered", async () => {
     vi.spyOn(console, "warn").mockImplementation(() => undefined);
     vi.spyOn(console, "info").mockImplementation(() => undefined);
-    completed.mockResolvedValue([]);
+    payments.mockResolvedValue([]);
     const user = await createUser();
     await hadTrial(user.email);
-    await deliver(subscriptionEvent("subscription.created", trialOf(user)));
+    await deliver(event("subscription.active", trialOf(user)));
     expect(refund).not.toHaveBeenCalled();
-    const paid = transactionEvent("transaction.completed", {
-      id: "txn_late",
-      subscription_id: "sub_2",
-      customer_id: "ctm_2",
-      price_id: PRO_TRIAL,
-      trial: true,
-    });
-    expect(await deliver(paid)).toEqual({ status: 200, message: "ignored" });
-    expect(await deliver(paid)).toEqual({ status: 200, message: "ignored" });
-    expect(refund).toHaveBeenCalledExactlyOnceWith("txn_late");
+    const late = dodoId("pay", "late");
+    expect(await deliver(trialCharge(user, late))).toEqual(IGNORED);
+    expect(await deliver(trialCharge(user, late))).toEqual(IGNORED);
+    expect(refund).toHaveBeenCalledExactlyOnceWith(late);
+    expect(captured).not.toHaveBeenCalled();
   });
 
-  it("also refuses a trial that went past_due unpaid, or has a cancel scheduled", async () => {
+  it("refunds exactly once when payment.succeeded comes before the subscription", async () => {
     vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    vi.spyOn(console, "info").mockImplementation(() => undefined);
     const user = await createUser();
     await hadTrial(user.email);
-    const overdue = trialOf(user, { status: "past_due", trial_ends_at: null });
-    expect(await deliver(event("subscription.past_due", overdue))).toMatchObject({
-      message: "ignored",
-    });
-    const cancelling = trialOf(user, {
-      id: "sub_3",
-      scheduled_change: { action: "cancel", effective_at: TRIAL_END },
-    });
-    expect(await deliver(event("subscription.updated", cancelling))).toMatchObject({
-      message: "ignored",
-    });
-    const unlisted = trialOf(user, {
-      id: "sub_4",
-      status: "past_due",
-      trial_period: true,
-      trial_ends_at: null,
-    });
-    const noTrialPrice = { ...CONFIG, trialPriceId: undefined };
-    expect(
-      await deliver(event("subscription.past_due", unlisted), undefined, noTrialPrice),
-    ).toMatchObject({ message: "ignored" });
-    const neverBilled = trialOf(user, {
-      id: "sub_5",
-      status: "past_due",
-      trial_ends_at: null,
-      first_billed_at: null,
-    });
-    expect(await deliver(event("subscription.past_due", neverBilled))).toMatchObject({
-      message: "ignored",
-    });
-    expect(await reload(user.id)).toEqual(user);
-    expect(cancel.mock.calls.map(([id]) => id)).toEqual(["sub_2", "sub_3", "sub_4", "sub_5"]);
+    expect(await deliver(trialCharge(user))).toEqual(APPLIED);
+    expect(refund).not.toHaveBeenCalled();
+    expect(await deliver(event("subscription.active", trialOf(user)))).toEqual(IGNORED);
+    expect(cancel).toHaveBeenCalledExactlyOnceWith(SUB2, { immediately: true });
+    expect(refund).toHaveBeenCalledExactlyOnceWith(PAY_TRIAL);
+    expect(await deliver(trialCharge(user))).toEqual(IGNORED);
+    expect(refund).toHaveBeenCalledTimes(1);
   });
 
-  it("keeps a trial-price subscription that was paid for and only later fell past_due", async () => {
+  it("keeps the claim when Dodo says the charge was already refunded", async () => {
+    vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    vi.spyOn(console, "info").mockImplementation(() => undefined);
+    refund.mockResolvedValueOnce("already_refunded");
+    const user = await createUser();
+    await hadTrial(user.email);
+    expect(await deliver(event("subscription.active", trialOf(user)))).toEqual(IGNORED);
+    expect(await deliver(trialCharge(user))).toEqual(IGNORED);
+    expect(refund).toHaveBeenCalledExactlyOnceWith(PAY_TRIAL);
+  });
+
+  it("also refuses a trial that went past_due unpaid inside its window, or has a cancel scheduled", async () => {
+    vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    vi.spyOn(console, "info").mockImplementation(() => undefined);
+    const user = await createUser();
+    await hadTrial(user.email);
+    expect(await deliver(event("subscription.past_due", trialOf(user)))).toEqual(IGNORED);
+    const cancelling = trialOf(user, {
+      subscription_id: sub(3),
+      cancel_at_next_billing_date: true,
+    });
+    expect(await deliver(event("subscription.updated", cancelling))).toEqual(IGNORED);
+    expect(await reload(user.id)).toEqual(user);
+    expect(cancel.mock.calls.map(([id]) => id)).toEqual([SUB2, sub(3)]);
+  });
+
+  it("keeps a trial-product subscription that was paid for and only later fell past_due", async () => {
     vi.spyOn(console, "warn").mockImplementation(() => undefined);
     const user = await createUser({
       planStatus: "canceled",
-      billingCustomerId: "ctm_1",
-      billingSubscriptionId: "sub_1",
+      billingCustomerId: CUS,
+      billingSubscriptionId: SUB,
     });
     await hadTrial(user.email);
-    const renewalFailed = trialOf(user, {
-      status: "past_due",
-      trial_ends_at: TRIAL_END,
-      first_billed_at: TRIAL_END,
-      current_billing_period: { starts_at: NEXT_MONTH, ends_at: "2027-01-11T10:00:00.000Z" },
-    });
-    expect(await deliver(event("subscription.past_due", renewalFailed))).toEqual({
-      status: 200,
-      message: "applied",
-    });
+    const renewalFailed = trialOf(user, AFTER_TRIAL);
+    expect(await deliver(event("subscription.past_due", renewalFailed))).toEqual(APPLIED);
     expect(await reload(user.id)).toMatchObject({
       plan: "pro",
       planStatus: "past_due",
-      billingSubscriptionId: "sub_2",
+      billingSubscriptionId: SUB2,
     });
     expect(cancel).not.toHaveBeenCalled();
     expect(await pendingCancels()).toEqual([]);
   });
 
-  it("treats a paid trial whose first full charge failed as unpaid, though its $1 was billed", async () => {
+  it("still lets a past_due paid product through for someone who once trialed", async () => {
     vi.spyOn(console, "warn").mockImplementation(() => undefined);
     const user = await createUser();
     await hadTrial(user.email);
-    const started = "2026-11-08T10:00:00.000Z";
-    const conversionFailed = trialOf(user, {
-      status: "past_due",
-      trial_ends_at: null,
-      started_at: started,
-      first_billed_at: started,
-      current_billing_period: { starts_at: TRIAL_END, ends_at: NEXT_MONTH },
+    const overdue = trialOf(user, {
+      product_id: PRO_MONTH,
+      trial_period_days: 0,
+      next_billing_date: dodoTime(TEST_DATES.monthEnd),
     });
-    expect(await deliver(event("subscription.past_due", conversionFailed))).toMatchObject({
-      message: "ignored",
-    });
-    const renewedLater = trialOf(user, {
-      id: "sub_6",
-      status: "past_due",
-      trial_ends_at: null,
-      started_at: started,
-      first_billed_at: started,
-      current_billing_period: { starts_at: NEXT_MONTH, ends_at: "2027-01-11T10:00:00.000Z" },
-    });
-    expect(await deliver(event("subscription.past_due", renewedLater))).toMatchObject({
-      message: "applied",
-    });
-  });
-
-  it("still lets a past_due paid price through for someone who once trialed", async () => {
-    vi.spyOn(console, "warn").mockImplementation(() => undefined);
-    const user = await createUser();
-    await hadTrial(user.email);
-    const overdue = trialOf(user, { status: "past_due", price_id: PRO_MONTH, trial_ends_at: null });
-    expect(await deliver(event("subscription.past_due", overdue))).toMatchObject({
-      message: "applied",
-    });
+    expect(await deliver(event("subscription.past_due", overdue))).toEqual(APPLIED);
     expect(await reload(user.id)).toMatchObject({ plan: "pro", planStatus: "past_due" });
     expect(cancel).not.toHaveBeenCalled();
   });
 
-  it("lets one first trial through when its created and trialing events arrive together", async () => {
+  it("lets one first trial through when its events arrive together, and its failed first charge stays its own", async () => {
     const user = await createUser();
-    const at = "2026-11-08T10:00:00.000Z";
-    const trial = trialOf(user, { id: "sub_1", customer_id: "ctm_1" });
+    const at = TEST_DATES.start;
+    const trial = trialOf(user, { subscription_id: SUB, customer: { customer_id: CUS } });
     const results = await Promise.all([
-      deliver(event("subscription.created", trial, at)),
-      deliver(event("subscription.trialing", trial, at)),
+      deliver(event("subscription.active", trial, at)),
+      deliver(event("subscription.updated", trial, at)),
     ]);
-    expect(results).toEqual([
-      { status: 200, message: "applied" },
-      { status: 200, message: "applied" },
-    ]);
+    expect(results).toEqual([APPLIED, APPLIED]);
     expect(await reload(user.id)).toMatchObject({
       plan: "pro",
       planStatus: "trialing",
-      billingSubscriptionId: "sub_1",
+      billingSubscriptionId: SUB,
     });
 
-    const failedCharge = trialOf(user, {
-      id: "sub_1",
-      customer_id: "ctm_1",
-      status: "past_due",
-      trial_ends_at: null,
-    });
-    expect(await deliver(event("subscription.past_due", failedCharge))).toMatchObject({
-      message: "applied",
-    });
+    expect(await deliver(event("subscription.past_due", trial))).toEqual(APPLIED);
     expect((await reload(user.id))?.planStatus).toBe("past_due");
     expect(cancel).not.toHaveBeenCalled();
     expect(await pendingCancels()).toEqual([]);
   });
 
-  it("answers 200 when the cancel fails, and leaves it to the daily retry", async () => {
+  it("answers 200 when the cancel fails, and leaves the cancel and refund to the daily retry", async () => {
     const error = vi.spyOn(console, "error").mockImplementation(() => undefined);
     vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    vi.spyOn(console, "info").mockImplementation(() => undefined);
     const user = await createUser();
     await hadTrial(user.email);
-    cancel.mockRejectedValueOnce(new BillingError("provider_error", "Paddle is down"));
-    expect(await deliver(event("subscription.created", trialOf(user)))).toEqual({
-      status: 200,
-      message: "ignored",
-    });
+    cancel.mockRejectedValueOnce(new BillingError("provider_error", "Dodo is down"));
+    expect(await deliver(event("subscription.active", trialOf(user)))).toEqual(IGNORED);
     expect(await pendingCancels()).toMatchObject([{ attempts: 1, cancelledAt: null }]);
     expect(JSON.stringify(error.mock.calls)).toContain("billing.replace_cancel_failed");
+    expect(refund).not.toHaveBeenCalled();
 
     const now = Date.now();
     expect(await retryPendingReplacements({ now, deadline: now + 30_000, limit: 10 })).toBe(1);
     expect(cancel).toHaveBeenCalledTimes(2);
     expect(await pendingCancels()).toMatchObject([{ attempts: 2, cancelledAt: now }]);
+    expect(refund).toHaveBeenCalledExactlyOnceWith(PAY_TRIAL);
     expect((await reload(user.id))?.plan).toBe("free");
   });
 
@@ -1020,12 +1163,163 @@ describe("one trial per person", () => {
     const user = await createUser();
     await hadTrial(user.email);
     cancel.mockRejectedValueOnce(new Error("socket hang up"));
-    expect(await deliver(event("subscription.created", trialOf(user)))).toEqual({
-      status: 200,
-      message: "ignored",
-    });
+    expect(await deliver(event("subscription.active", trialOf(user)))).toEqual(IGNORED);
     expect(JSON.stringify(error.mock.calls)).toContain("billing.replace_cancel_failed");
     expect(await pendingCancels()).toMatchObject([{ cancelledAt: null }]);
+  });
+});
+
+describe("a subscription signed for a deleted account", () => {
+  const SUB2 = sub(2);
+  const CUS2 = cus(2);
+  const deleted = "6f1c2b9e-3d4a-4e5f-8a7b-9c0d1e2f3a4b";
+  let current: SubscriptionFields = {};
+
+  const orphan = (fields: SubscriptionFields = {}): SubscriptionFields => ({
+    subscription_id: SUB2,
+    customer: { customer_id: CUS2 },
+    product_id: PRO_TRIAL,
+    ...ON_TRIAL,
+    metadata: { user_id: deleted },
+    ...fields,
+  });
+  const charge = (paymentId: string) =>
+    paymentEvent("payment.succeeded", {
+      payment_id: paymentId,
+      subscription_id: SUB2,
+      customer: { customer_id: CUS2 },
+      charge_type: "renewal",
+      metadata: { user_id: deleted },
+    });
+  const marked = async () =>
+    (await recordedEvents()).map((row) => row.id).filter((id) => id.startsWith("orphan:"));
+  const queued = async () => (await getDb()).select().from(trialReplacements);
+
+  beforeEach(() => {
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("DODO_API_KEY", "dodo_test_apikey");
+    resetEnvForTests();
+    current = {};
+    lookup.mockReset();
+    // Dodo's own state: active until a cancel goes through.
+    lookup.mockImplementation(async () =>
+      DodoSubscriptionSchema.parse(subscriptionPayload("subscription.active", orphan(current))),
+    );
+    cancel.mockImplementation(async () => {
+      current = { status: "cancelled" };
+      return "cancelled";
+    });
+    for (const level of ["info", "warn", "error"] as const) {
+      vi.spyOn(console, level).mockImplementation(() => undefined);
+    }
+  });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
+    resetEnvForTests();
+  });
+
+  it("is cancelled at once and its charge refunded, once however often its events come", async () => {
+    const body = event("subscription.active", orphan());
+    expect(await deliver(body, withId(body, "msg_orphan"))).toEqual(IGNORED);
+    expect(lookup).toHaveBeenCalledExactlyOnceWith(SUB2);
+    expect(cancel).toHaveBeenCalledExactlyOnceWith(SUB2, { immediately: true });
+    expect(payments).toHaveBeenCalledExactlyOnceWith(SUB2);
+    expect(refund).toHaveBeenCalledExactlyOnceWith(PAY_TRIAL);
+    expect(await marked()).toEqual([`orphan:${SUB2}`]);
+    const flagged = logged("error", "billing.orphan_subscription_cancelled");
+    for (const id of ["msg_orphan", deleted, SUB2]) expect(flagged).toContain(id);
+    for (const level of ["info", "warn", "error"] as const) {
+      expect(logged(level)).not.toContain("ada@example.com");
+    }
+
+    expect(await deliver(body, withId(body, "msg_orphan"))).toEqual(IGNORED);
+    expect(await deliver(event("subscription.renewed", orphan(AFTER_TRIAL)))).toEqual(IGNORED);
+    expect(await deliver(charge(PAY_TRIAL))).toEqual(IGNORED);
+    const late = dodoId("pay", "late");
+    expect(await deliver(charge(late))).toEqual(IGNORED);
+    expect(await deliver(charge(late))).toEqual(IGNORED);
+    expect(cancel).toHaveBeenCalledTimes(1);
+    expect(refund.mock.calls).toEqual([[PAY_TRIAL], [late]]);
+    expect(loggedCount("error", "billing.orphan_subscription_cancelled")).toBe(1);
+    expect(await (await getDb()).select().from(users)).toEqual([]);
+    expect(await queued()).toEqual([]);
+  });
+
+  it("is cancelled when it is on hold too, and Dodo's redelivery retries a cancel that failed", async () => {
+    current = { status: "on_hold" };
+    cancel.mockRejectedValueOnce(new BillingError("provider_error", "Dodo is down"));
+    const body = event("subscription.on_hold", orphan());
+    expect(await deliver(body, withId(body, "msg_hold"))).toEqual({
+      status: 500,
+      message: "retry",
+    });
+    expect(logged("error", "billing.orphan_cancel_failed")).toContain(SUB2);
+    expect(refund).not.toHaveBeenCalled();
+
+    expect(await deliver(body, withId(body, "msg_hold"))).toEqual(IGNORED);
+    expect(cancel).toHaveBeenCalledTimes(2);
+    expect(refund).toHaveBeenCalledExactlyOnceWith(PAY_TRIAL);
+  });
+
+  it("keeps its charges when Dodo says it already ended or is set to end, as after the deletion's own cancel", async () => {
+    for (const fields of [{ status: "cancelled" }, { cancel_at_next_billing_date: true }]) {
+      current = fields;
+      expect(await deliver(event("subscription.updated", orphan()))).toEqual(IGNORED);
+    }
+    expect(await deliver(charge(dodoId("pay", "earlier")))).toEqual(IGNORED);
+    expect(cancel).not.toHaveBeenCalled();
+    expect(payments).not.toHaveBeenCalled();
+    expect(refund).not.toHaveBeenCalled();
+    expect(await marked()).toEqual([]);
+    expect(loggedCount("error", "billing.orphan_subscription_cancelled")).toBe(0);
+  });
+
+  it("asks for a retry, writing nothing, when Dodo can't say whether it can still charge", async () => {
+    lookup.mockRejectedValueOnce(new BillingError("provider_error", "Dodo lookup failed"));
+    const body = event("subscription.active", orphan());
+    expect(await deliver(body, withId(body, "msg_retry"))).toEqual({
+      status: 500,
+      message: "retry",
+    });
+    expect(await marked()).toEqual([]);
+    expect(cancel).not.toHaveBeenCalled();
+    expect(await deliver(body, withId(body, "msg_retry"))).toEqual(IGNORED);
+    expect(cancel).toHaveBeenCalledExactlyOnceWith(SUB2, { immediately: true });
+  });
+
+  it("does nothing but log for an unsigned or forged user_id, or one that is pending, failed or ended", async () => {
+    const ignored = [
+      orphan({ metadata: { user_id: deleted, user_sig: undefined } }),
+      orphan({ metadata: { user_id: deleted, user_sig: "0".repeat(64) } }),
+      orphan({ metadata: { user_id: deleted, user_sig: signBillingId(deleted, OTHER_SECRET) } }),
+      orphan({ status: "pending" }),
+      orphan({ status: "failed" }),
+      orphan({ status: "cancelled" }),
+      orphan({ status: "expired" }),
+    ];
+    for (const fields of ignored) {
+      expect(await deliver(event("subscription.updated", fields))).toEqual(IGNORED);
+    }
+    expect(lookup).not.toHaveBeenCalled();
+    expect(cancel).not.toHaveBeenCalled();
+    expect(refund).not.toHaveBeenCalled();
+    expect(await marked()).toEqual([]);
+    expect(loggedCount("error", "billing.orphan_subscription_cancelled")).toBe(0);
+    expect(logged("warn", "billing.unsigned_custom_data")).toContain("user_id");
+  });
+
+  it("is only logged outside production, where another database may share the signing secret", async () => {
+    vi.stubEnv("NODE_ENV", "test");
+    resetEnvForTests();
+    expect(await deliver(event("subscription.active", orphan()))).toEqual(IGNORED);
+    expect(await deliver(charge(PAY_TRIAL))).toEqual(IGNORED);
+    expect(lookup).not.toHaveBeenCalled();
+    expect(cancel).not.toHaveBeenCalled();
+    expect(refund).not.toHaveBeenCalled();
+    expect(await marked()).toEqual([]);
+    expect(loggedCount("error", "billing.orphan_subscription_cancelled")).toBe(0);
+    expect(logged("warn", "billing.webhook_ignored")).toContain("no_user");
   });
 });
 
@@ -1033,89 +1327,109 @@ describe("a second live subscription", () => {
   it("is logged as an error when a paid grant takes over from a live one, and still applies", async () => {
     vi.spyOn(console, "error").mockImplementation(() => undefined);
     const user = await tracked();
-    const second = event("subscription.created", {
-      id: "sub_2",
-      price_id: MAX_YEAR,
-      custom_data: { user_id: user.id },
+    const second = event("subscription.active", {
+      subscription_id: sub(2),
+      product_id: MAX_YEAR,
+      metadata: { user_id: user.id },
     });
-    expect(await deliver(second)).toEqual({ status: 200, message: "applied" });
-    expect(await reload(user.id)).toMatchObject({ plan: "max", billingSubscriptionId: "sub_2" });
+    expect(await deliver(second)).toEqual(APPLIED);
+    expect(await reload(user.id)).toMatchObject({ plan: "max", billingSubscriptionId: sub(2) });
     const entry = logged("error", "billing.second_live_subscription");
-    for (const id of [user.id, "sub_1", "sub_2"]) expect(entry).toContain(id);
+    for (const id of [user.id, SUB, sub(2)]) expect(entry).toContain(id);
     expect(logged("error")).not.toContain(user.email);
   });
 
   it("isn't logged for the tracked subscription itself, or after the tracked one ended", async () => {
     const error = vi.spyOn(console, "error").mockImplementation(() => undefined);
     await tracked();
-    expect(await deliver(event("subscription.updated", { price_id: MAX_YEAR }))).toMatchObject({
-      message: "applied",
-    });
+    expect(await deliver(event("subscription.plan_changed", { product_id: MAX_YEAR }))).toEqual(
+      APPLIED,
+    );
     const ended = await tracked({
       email: "ended@example.com",
       plan: "free",
       planStatus: "canceled",
-      billingCustomerId: "ctm_old",
-      billingSubscriptionId: "sub_old",
+      billingCustomerId: cus("old"),
+      billingSubscriptionId: sub("old"),
     });
-    const fresh = event("subscription.created", {
-      id: "sub_new",
-      customer_id: "ctm_old",
-      custom_data: { user_id: ended.id },
+    const fresh = event("subscription.active", {
+      subscription_id: sub("new"),
+      customer: { customer_id: cus("old") },
+      metadata: { user_id: ended.id },
     });
-    expect(await deliver(fresh)).toMatchObject({ message: "applied" });
+    expect(await deliver(fresh)).toEqual(APPLIED);
     expect(error).not.toHaveBeenCalled();
   });
 });
 
-describe("refunds and chargebacks", () => {
-  it("logs each adjustment with its ids once, and changes no plan", async () => {
+describe("refunds and disputes", () => {
+  it("logs each refund and dispute with its ids once, and changes no plan", async () => {
     const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
     const user = await tracked();
-    const created = adjustmentEvent(
-      "adjustment.created",
-      { id: "adj_1", action: "refund", status: "pending_approval", transaction_id: "txn_7" },
-      { id: "evt_adj_1" },
-    );
-    expect(await deliver(created)).toEqual({ status: 200, message: "applied" });
-    expect(await deliver(created)).toEqual({ status: 200, message: "duplicate" });
-    const approved = adjustmentEvent(
-      "adjustment.updated",
-      { id: "adj_1", action: "refund", status: "approved", transaction_id: "txn_7" },
-      { id: "evt_adj_2" },
-    );
-    expect(await deliver(approved)).toEqual({ status: 200, message: "applied" });
-    const chargeback = adjustmentEvent(
-      "adjustment.created",
-      { id: "adj_2", action: "chargeback", status: "approved", subscription_id: null },
-      { id: "evt_adj_3" },
-    );
-    expect(await deliver(chargeback)).toEqual({ status: 200, message: "applied" });
+    const refunded = refundEvent("refund.succeeded", { payment_id: dodoId("pay", 7) });
+    expect(await deliver(refunded, withId(refunded, "msg_refund_1"))).toEqual(APPLIED);
+    expect(await deliver(refunded, withId(refunded, "msg_refund_1"))).toEqual(DUPLICATE);
+    const failed = refundEvent("refund.failed", {
+      refund_id: dodoId("ref", 2),
+      is_partial: true,
+      amount: 50,
+    });
+    expect(await deliver(failed, withId(failed, "msg_refund_2"))).toEqual(APPLIED);
+    const opened = disputeEvent("dispute.opened");
+    expect(await deliver(opened, withId(opened, "msg_dispute_1"))).toEqual(APPLIED);
+    const lost = disputeEvent("dispute.lost", { is_resolved_by_rdr: true });
+    expect(await deliver(lost, withId(lost, "msg_dispute_2"))).toEqual(APPLIED);
 
     expect(await reload(user.id)).toEqual(user);
     expect((await recordedEvents()).map((row) => row.id).sort()).toEqual([
-      "evt_adj_1",
-      "evt_adj_2",
-      "evt_adj_3",
+      "msg_dispute_1",
+      "msg_dispute_2",
+      "msg_refund_1",
+      "msg_refund_2",
     ]);
     expect(
       warn.mock.calls.filter(([line]) => String(line).includes("billing.adjustment")),
-    ).toHaveLength(3);
+    ).toHaveLength(4);
     const text = logged("warn", "billing.adjustment");
-    for (const value of ["adj_1", "adj_2", "txn_7", "sub_1", "refund", "chargeback", "approved"]) {
+    for (const value of [
+      DODO_TEST_IDS.refund,
+      dodoId("ref", 2),
+      dodoId("pay", 7),
+      DODO_TEST_IDS.dispute,
+      DODO_TEST_IDS.payment,
+      "dispute_opened",
+      "dispute_lost",
+      '"rdr":true',
+      '"partial":true',
+      "succeeded",
+      "failed",
+    ]) {
       expect(text).toContain(value);
     }
+    expect(text).not.toContain("ada@example.com");
   });
 
-  it("asks for a retry for an adjustment it can't read", async () => {
+  it("asks for a retry for a refund or dispute it can't read", async () => {
     vi.spyOn(console, "error").mockImplementation(() => undefined);
-    const body = JSON.stringify({
-      event_id: "evt_adj_bad",
-      event_type: "adjustment.created",
-      occurred_at: new Date().toISOString(),
-      data: { id: 7 },
+    expect(await deliver(rawEvent("refund.succeeded", { refund_id: 7 }))).toEqual(MALFORMED);
+    const noAmount = rawEvent("dispute.opened", {
+      dispute_id: DODO_TEST_IDS.dispute,
+      payment_id: PAY,
     });
-    expect(await deliver(body)).toEqual({ status: 500, message: "malformed" });
+    expect(await deliver(noAmount)).toEqual(MALFORMED);
     expect(await recordedEvents()).toEqual([]);
+  });
+
+  it("moves the user to Free when Dodo cancels the subscription after a dispute", async () => {
+    vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    const user = await tracked();
+    expect(await deliver(disputeEvent("dispute.opened"))).toEqual(APPLIED);
+    expect((await reload(user.id))?.plan).toBe("pro");
+    const cancelled = event("subscription.cancelled", {
+      cancelled_by: null,
+      cancelled_at: dodoTime(Date.now()),
+    });
+    expect(await deliver(cancelled)).toEqual(APPLIED);
+    expect(await reload(user.id)).toMatchObject({ plan: "free", planStatus: "canceled" });
   });
 });

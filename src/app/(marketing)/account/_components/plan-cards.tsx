@@ -8,6 +8,12 @@ import { IntervalPicker } from "@/components/account/interval-picker";
 import { PlanPicker } from "@/components/account/plan-picker";
 import { PlanPerks } from "@/components/account/pro-perks";
 import { ReferencePrice } from "@/components/account/reference-price";
+import {
+  PAYMENT_ISSUE_NOTICE,
+  resumeFirstNotice,
+  trialUpgradeButton,
+  trialUpgradeCharge,
+} from "@/components/account/trial-upgrade";
 import { useBillingRedirect } from "@/components/account/use-billing-redirect";
 import { useMe } from "@/components/account/use-me";
 import { Badge } from "@/components/ui/badge";
@@ -36,6 +42,7 @@ export type UpgradeCardProps = {
   mode: BillingMode;
   offer: Offer;
   trial?: boolean;
+  cancelScheduled?: boolean;
 };
 
 export function UpgradeCard({
@@ -44,10 +51,13 @@ export function UpgradeCard({
   mode,
   offer,
   trial = false,
+  cancelScheduled = false,
 }: UpgradeCardProps) {
   const checkout = useBillingRedirect("checkout");
+  const portal = useBillingRedirect("portal");
   const { user } = useMe();
   const endsTrial = plan !== "free" && user !== null && isTrialing(user);
+  const resumeFirst = cancelScheduled && plan !== "free";
   // A paid plan moves up only on the billing period it already has.
   const lockedTo = plan !== "free" && !endsTrial ? current : null;
   const above = PAID_PLANS.filter(
@@ -88,12 +98,14 @@ export function UpgradeCard({
             ? `${trialSentence()} Otto's AI help, with its limits written down.`
             : plan === "free"
               ? "Much more of Otto's AI help every month, for a busy job hunt. Cancel anytime."
-              : endsTrial
-                ? endsTrialSentence(target, interval)
-                : "Even more for a long, busy search. Your subscription changes in place."}
+              : resumeFirst
+                ? resumeFirstNotice(target, endsTrial)
+                : endsTrial
+                  ? `${endsTrialSentence(target, interval)} ${trialUpgradeCharge(target, interval)}`
+                  : "Even more for a long, busy search. Your subscription changes in place."}
         </CardDescription>
       </CardHeader>
-      {mode === "disabled" ? null : (
+      {mode === "disabled" || resumeFirst ? null : (
         <>
           <PlanPicker
             plans={above}
@@ -120,6 +132,15 @@ export function UpgradeCard({
           >
             Email us
           </a>
+        ) : resumeFirst ? (
+          <Button
+            onClick={() => void portal.go()}
+            loading={portal.pending}
+            className="w-full sm:w-auto"
+          >
+            <CreditCard />
+            Manage billing
+          </Button>
         ) : (
           <Button
             onClick={() => void checkout.go(target, interval)}
@@ -129,7 +150,7 @@ export function UpgradeCard({
             {onTrial
               ? `Start my ${PLANS[PRO_TRIAL.plan].name} trial`
               : endsTrial
-                ? `Start ${name} now`
+                ? trialUpgradeButton(target, interval)
                 : `Upgrade to ${name}`}
           </Button>
         )}
@@ -141,9 +162,13 @@ export function UpgradeCard({
 export function BillingCard({
   mode,
   trialEndsAt = null,
+  paymentIssue = false,
+  cancelScheduled = false,
 }: {
   mode: BillingMode;
   trialEndsAt?: number | null;
+  paymentIssue?: boolean;
+  cancelScheduled?: boolean;
 }) {
   const portal = useBillingRedirect("portal");
   return (
@@ -151,9 +176,13 @@ export function BillingCard({
       <CardHeader>
         <CardTitle as="h3">Billing</CardTitle>
         <CardDescription>
-          {trialEndsAt
-            ? `Cancel before ${trialEndDay(trialEndsAt)} and Pro won't start, so you won't pay anything more.`
-            : "Update your card, get invoices, or cancel your plan."}
+          {paymentIssue
+            ? PAYMENT_ISSUE_NOTICE
+            : trialEndsAt && cancelScheduled
+              ? `Your trial ends on ${trialEndDay(trialEndsAt)} and Pro won't start, so you won't pay anything more.`
+              : trialEndsAt
+                ? `Cancel before ${trialEndDay(trialEndsAt)} and Pro won't start, so you won't pay anything more.`
+                : "Update your card, get invoices, or cancel your plan."}
         </CardDescription>
       </CardHeader>
       {mode === "mock" ? (

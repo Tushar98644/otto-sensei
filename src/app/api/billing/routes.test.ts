@@ -5,7 +5,8 @@ import { users } from "@/db/schema";
 import { getCurrentUser } from "@/lib/auth/session";
 import type { SessionUser } from "@/lib/auth/types";
 import { insertUserRow, resetDb } from "@/lib/auth/test-helpers";
-import { installFakePaddle, paddleId } from "@/lib/billing/testing";
+import { signBillingId } from "@/lib/billing/billing-sign";
+import { dodoId, installFakeDodo, type FakeDodo } from "@/lib/billing/dodo-testing";
 import { resetEnvForTests } from "@/lib/env";
 import { rateLimit } from "@/lib/rate-limit";
 import { toSessionUser } from "@/lib/users";
@@ -21,17 +22,57 @@ vi.mock("@/lib/rate-limit", async (importOriginal) => ({
 const currentUser = vi.mocked(getCurrentUser);
 const limiter = vi.mocked(rateLimit);
 
-const SECRET = "pdl_ntfset_otto_route_test_secret";
-const PRICE_ID = paddleId("pri", "ottopro");
-const TRIAL_PRICE_ID = paddleId("pri", "ottotrial");
-const MAX_PRICE_ID = paddleId("pri", "ottomax");
-const SUB_1 = paddleId("sub", 1);
-const CTM_1 = paddleId("ctm", 1);
-const TXN_1 = paddleId("txn", 1);
+const APP_URL = "https://otto.example";
+const SIGNING_SECRET = "billing_signing_secret_for_route_tests";
+const PRO_MONTH = dodoId("pdt", "promonth");
+const PRO_TRIAL = dodoId("pdt", "protrial");
+const MAX_MONTH = dodoId("pdt", "maxmonth");
+const SUB_1 = dodoId("sub", 1);
+const CUS_1 = dodoId("cus", 1);
+// Paddle-sandbox and Creem ids that may still be stored: never sent to Dodo.
+const PADDLE_CUSTOMER = `ctm_${"a1".repeat(13)}`;
+const PADDLE_SUBSCRIPTION = `sub_${"b2".repeat(13)}`;
+const CREEM_CUSTOMER = "cust_3kKw0VQ8bY1lN3m9";
+
+const DODO_UNSET = {
+  DODO_API_KEY: undefined,
+  DODO_WEBHOOK_SECRET: undefined,
+  DODO_ENVIRONMENT: undefined,
+  BILLING_SIGNING_SECRET: undefined,
+  DODO_PRO_MONTHLY_PRODUCT_ID: undefined,
+  DODO_PRO_YEARLY_PRODUCT_ID: undefined,
+  DODO_MAX_MONTHLY_PRODUCT_ID: undefined,
+  DODO_MAX_YEARLY_PRODUCT_ID: undefined,
+  DODO_PRO_TRIAL_PRODUCT_ID: undefined,
+};
+const DODO = {
+  DODO_API_KEY: "dodo_test_apikey_for_route_tests",
+  DODO_WEBHOOK_SECRET: `whsec_${Buffer.from("otto-route-test-webhook-key").toString("base64")}`,
+  BILLING_SIGNING_SECRET: SIGNING_SECRET,
+  DODO_PRO_MONTHLY_PRODUCT_ID: PRO_MONTH,
+  DODO_PRO_TRIAL_PRODUCT_ID: PRO_TRIAL,
+  DODO_MAX_MONTHLY_PRODUCT_ID: MAX_MONTH,
+};
+
+const hosted = (n: number) =>
+  `https://test.checkout.dodopayments.com/session/cks_${String(n).padStart(21, "0")}`;
+const portalLink = (customer: string) => `https://customer-portal.dodo.test/${customer}`;
+const changeBody = (product: string, mode: string) => ({
+  product_id: product,
+  quantity: 1,
+  proration_billing_mode: mode,
+  effective_at: "immediately",
+  on_payment_failure: "prevent_change",
+});
 
 type UserRow = typeof users.$inferSelect;
 
 let sequence = 0;
+
+function useEnv(values: Record<string, string | undefined>) {
+  for (const [name, value] of Object.entries(values)) vi.stubEnv(name, value);
+  resetEnvForTests();
+}
 
 async function signIn(overrides: Partial<typeof users.$inferInsert> = {}): Promise<SessionUser> {
   sequence += 1;
@@ -50,7 +91,7 @@ async function signIn(overrides: Partial<typeof users.$inferInsert> = {}): Promi
 }
 
 function checkoutRequest(body?: unknown): Request {
-  return new Request("http://localhost/api/billing/checkout", {
+  return new Request(`${APP_URL}/api/billing/checkout`, {
     method: "POST",
     ...(body === undefined
       ? {}
@@ -65,11 +106,7 @@ async function reload(id: string): Promise<UserRow | undefined> {
 }
 
 beforeEach(async () => {
-  vi.stubEnv("PADDLE_API_KEY", undefined);
-  vi.stubEnv("PADDLE_PRO_MONTHLY_PRICE_ID", PRICE_ID);
-  vi.stubEnv("PADDLE_WEBHOOK_SECRET", SECRET);
-  vi.stubEnv("NEXT_PUBLIC_PADDLE_CLIENT_TOKEN", "test_otto_client_token");
-  resetEnvForTests();
+  useEnv({ NEXT_PUBLIC_APP_URL: APP_URL, ...DODO_UNSET });
   currentUser.mockReset();
   currentUser.mockResolvedValue(null);
   limiter.mockReset();
@@ -79,6 +116,7 @@ beforeEach(async () => {
 
 afterEach(() => {
   vi.restoreAllMocks();
+  vi.unstubAllGlobals();
   vi.unstubAllEnvs();
   resetEnvForTests();
 });
@@ -100,7 +138,10 @@ describe("POST /api/billing/checkout", () => {
     const res = await checkout(checkoutRequest());
 
     expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({ ok: true, url: "/account?checkout=success&plan=pro&trial=1" });
+    expect(await res.json()).toEqual({
+      ok: true,
+      url: "/account?checkout=success&plan=pro&trial=1",
+    });
     expect(limiter).toHaveBeenCalledWith(`billing:user:${user.id}`, 20, 60 * 60 * 1000);
     expect(await reload(user.id)).toMatchObject({ plan: "pro", planStatus: "mock_trialing" });
   });
@@ -124,9 +165,7 @@ describe("POST /api/billing/checkout", () => {
   });
 
   it("answers 503 when payments are switched off", async () => {
-    vi.stubEnv("NODE_ENV", "production");
-    vi.stubEnv("PADDLE_WEBHOOK_SECRET", undefined);
-    resetEnvForTests();
+    useEnv({ NODE_ENV: "production" });
     const user = await signIn();
     const res = await checkout(checkoutRequest());
 
@@ -162,7 +201,7 @@ describe("POST /api/billing/checkout", () => {
     expect(text).not.toContain("/srv/otto/secrets");
   });
 
-  it("in mock checkout, sells yearly without any price set", async () => {
+  it("in mock checkout, sells yearly without any product set", async () => {
     const user = await signIn();
     const res = await checkout(checkoutRequest({ interval: "year" }));
     expect(res.status).toBe(200);
@@ -177,59 +216,234 @@ describe("POST /api/billing/checkout", () => {
   });
 });
 
-describe("POST /api/billing/checkout with Paddle", () => {
+describe("POST /api/billing/checkout with Dodo", () => {
+  let dodo: FakeDodo;
+
   beforeEach(() => {
-    vi.stubEnv("PADDLE_API_KEY", "pdl_sdbx_apikey_test");
-    vi.stubEnv("PADDLE_PRO_TRIAL_PRICE_ID", TRIAL_PRICE_ID);
-    vi.stubEnv("PADDLE_MAX_MONTHLY_PRICE_ID", MAX_PRICE_ID);
-    resetEnvForTests();
+    useEnv(DODO);
+    dodo = installFakeDodo();
   });
 
-  afterEach(() => vi.unstubAllGlobals());
+  const writes = () => dodo.calls.filter((call) => call.method !== "GET");
+  const sentAnywhere = (value: string) =>
+    dodo.calls.some((call) =>
+      `${call.path}?${call.query.toString()} ${JSON.stringify(call.body ?? "")}`.includes(value),
+    );
 
-  const subscriber = (planStatus: string) =>
-    signIn({
+  const subscriber = async (
+    status: "trialing" | "active" | "past_due",
+    fake: { cancelAtNextBillingDate?: boolean } = {},
+  ) => {
+    const user = await signIn({
       plan: "pro",
       planInterval: "month",
-      planStatus,
-      trialEndsAt: planStatus === "trialing" ? Date.now() + 86_400_000 : null,
-      billingCustomerId: CTM_1,
+      planStatus: status,
+      trialEndsAt: status === "trialing" ? Date.now() + 86_400_000 : null,
+      billingCustomerId: CUS_1,
       billingSubscriptionId: SUB_1,
     });
+    dodo.customers.push({ id: CUS_1, email: user.email });
+    dodo.subscriptions.push({
+      id: SUB_1,
+      customer: CUS_1,
+      product: status === "trialing" ? PRO_TRIAL : PRO_MONTH,
+      status: status === "past_due" ? "past_due" : "active",
+      trial: status === "trialing",
+      ...fake,
+    });
+    return user;
+  };
 
-  it("returns our checkout page for a new account, on the trial", async () => {
-    const paddle = installFakePaddle();
+  it("returns Dodo's hosted checkout for a new account, on the trial", async () => {
     const user = await signIn();
     const res = await checkout(checkoutRequest());
-    expect(await res.json()).toEqual({
-      ok: true,
-      url: `https://otto.example/checkout?_ptxn=${TXN_1}&plan=pro&trial=1`,
+
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ ok: true, url: hosted(1) });
+    expect(dodo.callsTo("POST /checkouts")).toHaveLength(1);
+    expect(dodo.callsTo("POST /checkouts")[0]?.body).toEqual({
+      product_cart: [{ product_id: PRO_TRIAL, quantity: 1 }],
+      customer: { email: user.email },
+      metadata: {
+        user_id: user.id,
+        user_sig: signBillingId(user.id, SIGNING_SECRET),
+        plan: "pro",
+        interval: "month",
+        trial: "true",
+      },
+      return_url: `${APP_URL}/api/billing/return?plan=pro&trial=1`,
+      cancel_url: `${APP_URL}/account?checkout=cancelled`,
+      feature_flags: {
+        allow_customer_editing_email: false,
+        allow_discount_code: false,
+        redirect_immediately: true,
+      },
+      customization: { theme: "system" },
     });
-    expect(paddle.callsTo("POST /transactions")[0]?.body).toMatchObject({
-      items: [{ price_id: TRIAL_PRICE_ID, quantity: 1 }],
-      custom_data: { user_id: user.id },
-    });
+    expect(limiter).toHaveBeenCalledWith(`billing:user:${user.id}`, 20, 60 * 60 * 1000);
     expect((await reload(user.id))?.plan).toBe("free");
   });
 
-  it("sends someone on the Pro trial to a Max checkout instead of failing", async () => {
-    const paddle = installFakePaddle();
-    await subscriber("trialing");
-    paddle.subscriptions.push({ id: SUB_1, customer: CTM_1, price: TRIAL_PRICE_ID, status: "trialing" });
-    const res = await checkout(checkoutRequest({ plan: "max", interval: "month" }));
-    expect(await res.json()).toEqual({
-      ok: true,
-      url: `https://otto.example/checkout?_ptxn=${TXN_1}&plan=max`,
+  it("sells a returning buyer the plain plan under their stored Dodo customer", async () => {
+    const user = await signIn({
+      planStatus: "canceled",
+      billingCustomerId: CUS_1,
+      billingSubscriptionId: SUB_1,
     });
-    expect(paddle.callsTo(`PATCH /subscriptions/${SUB_1}`)).toEqual([]);
+    dodo.customers.push({ id: CUS_1, email: user.email });
+    dodo.subscriptions.push({
+      id: SUB_1,
+      customer: CUS_1,
+      product: PRO_MONTH,
+      status: "cancelled",
+    });
+    const res = await checkout(checkoutRequest({ plan: "max", interval: "month" }));
+
+    expect(await res.json()).toEqual({ ok: true, url: hosted(1) });
+    expect(dodo.callsTo("POST /checkouts")[0]?.body).toMatchObject({
+      product_cart: [{ product_id: MAX_MONTH, quantity: 1 }],
+      customer: { customer_id: CUS_1 },
+      metadata: { user_id: user.id, plan: "max", interval: "month", trial: "false" },
+      return_url: `${APP_URL}/api/billing/return?plan=max`,
+    });
   });
 
-  it("says plainly why Paddle refused a plan change", async () => {
-    vi.spyOn(console, "error").mockImplementation(() => undefined);
-    const paddle = installFakePaddle();
+  it("never sends a Paddle-shaped stored customer or subscription to Dodo", async () => {
+    const user = await signIn({
+      planStatus: "canceled",
+      billingCustomerId: PADDLE_CUSTOMER,
+      billingSubscriptionId: PADDLE_SUBSCRIPTION,
+    });
+    const res = await checkout(checkoutRequest());
+
+    expect(await res.json()).toEqual({ ok: true, url: hosted(1) });
+    expect(dodo.callsTo("POST /checkouts")[0]?.body).toMatchObject({
+      customer: { email: user.email },
+      product_cart: [{ product_id: PRO_MONTH, quantity: 1 }],
+    });
+    expect(sentAnywhere(PADDLE_CUSTOMER)).toBe(false);
+    expect(sentAnywhere(PADDLE_SUBSCRIPTION)).toBe(false);
+  });
+
+  it("upgrades someone on the Pro trial to Max in place, with no checkout page", async () => {
+    await subscriber("trialing");
+    const res = await checkout(checkoutRequest({ plan: "max", interval: "month" }));
+
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ ok: true, url: "/account?checkout=success&plan=max" });
+    expect(writes().map((call) => [`${call.method} ${call.path}`, call.body])).toEqual([
+      [`POST /subscriptions/${SUB_1}/change-plan`, changeBody(MAX_MONTH, "full_immediately")],
+    ]);
+    expect(dodo.callsTo("POST /checkouts")).toEqual([]);
+  });
+
+  it("moves a paying Pro subscriber to Max on the same billing cycle", async () => {
     await subscriber("active");
-    paddle.subscriptions.push({ id: SUB_1, customer: CTM_1, price: PRICE_ID, status: "active" });
-    paddle.failNext(`PATCH /subscriptions/${SUB_1}`, 400, 1, "subscription_update_when_canceled");
+    const res = await checkout(checkoutRequest({ plan: "max", interval: "month" }));
+
+    expect(await res.json()).toEqual({ ok: true, url: "/account?checkout=success&plan=max" });
+    expect(writes().map((call) => [`${call.method} ${call.path}`, call.body])).toEqual([
+      [
+        `POST /subscriptions/${SUB_1}/change-plan`,
+        changeBody(MAX_MONTH, "prorated_immediately_keep_cycle"),
+      ],
+    ]);
+  });
+
+  it("sends a trial that is set to end to Manage billing instead of changing it", async () => {
+    await subscriber("trialing", { cancelAtNextBillingDate: true });
+    const res = await checkout(checkoutRequest({ plan: "max", interval: "month" }));
+
+    expect(await res.json()).toEqual({ ok: true, url: portalLink(CUS_1) });
+    expect(writes().map((call) => `${call.method} ${call.path}`)).toEqual([
+      `POST /customers/${CUS_1}/customer-portal/session`,
+    ]);
+  });
+
+  it.each([
+    [
+      409,
+      "PENDING_PLAN_CHANGE_EXISTS",
+      409,
+      "your subscription is busy with a renewal or another change. Try again in a little while.",
+    ],
+    [
+      409,
+      "PLAN_CHANGE_NOT_ALLOWED_FOR_SCHEDULED_CANCELLATION",
+      409,
+      "your subscription isn't active right now. Refresh the page and try again.",
+    ],
+    [
+      422,
+      "InactiveSubscriptionPlanChangeNotSupported",
+      409,
+      "your subscription isn't active right now. Refresh the page and try again.",
+    ],
+    [
+      402,
+      "CARD_DECLINED",
+      409,
+      "your card was declined. Update your card in Manage billing, then try again.",
+    ],
+    [
+      403,
+      "INSUFFICIENT_PERMISSION",
+      502,
+      "payments aren't set up right on our side. Please try again later.",
+    ],
+    [429, undefined, 503, "our payment provider is busy. Please try again in a minute."],
+    [404, undefined, 409, "we couldn't find your subscription. Refresh the page and try again."],
+    [422, "SOMETHING_NEW", 409, "our payment provider turned the request down. Email us at"],
+  ])(
+    "says plainly why Dodo refused a plan change (%i %s)",
+    async (providerStatus, code, status, explanation) => {
+      vi.spyOn(console, "error").mockImplementation(() => undefined);
+      await subscriber("active");
+      dodo.failNext(`POST /subscriptions/${SUB_1}/change-plan`, providerStatus, 1, code);
+      const res = await checkout(checkoutRequest({ plan: "max", interval: "month" }));
+
+      expect(res.status).toBe(status);
+      const body = (await res.json()) as { ok: false; error: { code: string; message: string } };
+      expect(body.error.code).toBe("plan_change_failed");
+      expect(body.error.message.startsWith(`We couldn't change your plan: ${explanation}`)).toBe(
+        true,
+      );
+      expect(dodo.callsTo(`POST /subscriptions/${SUB_1}/change-plan`)).toHaveLength(1);
+    },
+  );
+
+  it("answers a second subscription Dodo refuses like the one we refuse ourselves", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    await signIn();
+    dodo.failNext("POST /checkouts", 409, 1, "CUSTOMER_HAS_EXISTING_SUBSCRIPTION");
+    const res = await checkout(checkoutRequest());
+
+    expect(res.status).toBe(400);
+    expect(await res.json()).toEqual({
+      ok: false,
+      error: { code: "bad_request", message: "You're already on that plan." },
+    });
+  });
+
+  it("names the missing product when Dodo can't find it at checkout", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    await signIn();
+    dodo.failNext("POST /checkouts", 404, 1, "PRODUCT_NOT_FOUND");
+    const res = await checkout(checkoutRequest());
+
+    expect(res.status).toBe(409);
+    expect(await res.json()).toEqual({
+      ok: false,
+      error: {
+        code: "billing_unavailable",
+        message:
+          "We couldn't start checkout: that plan isn't on sale right now. Refresh the page and try again.",
+      },
+    });
+  });
+
+  it("asks a subscriber whose renewal failed to fix the card first", async () => {
+    await subscriber("past_due");
     const res = await checkout(checkoutRequest({ plan: "max", interval: "month" }));
     expect(res.status).toBe(409);
     expect(await res.json()).toEqual({
@@ -237,26 +451,16 @@ describe("POST /api/billing/checkout with Paddle", () => {
       error: {
         code: "plan_change_failed",
         message:
-          "We couldn't change your plan: your subscription isn't active right now. Refresh the page and try again.",
+          "We couldn't change your plan: your last payment didn't go through. Update your card in Manage billing, then try again.",
       },
     });
+    expect(writes()).toEqual([]);
   });
 
-  it("asks a subscriber whose renewal failed to fix the card first", async () => {
-    const paddle = installFakePaddle();
-    await subscriber("past_due");
-    paddle.subscriptions.push({ id: SUB_1, customer: CTM_1, price: PRICE_ID, status: "past_due" });
-    const res = await checkout(checkoutRequest({ plan: "max", interval: "month" }));
-    expect(res.status).toBe(409);
-    expect(await res.json()).toMatchObject({ ok: false, error: { code: "plan_change_failed" } });
-    expect(paddle.calls.filter((call) => call.method !== "GET")).toEqual([]);
-  });
-
-  it("answers 503 when Paddle can't be reached", async () => {
+  it("answers 503 when Dodo can't be reached", async () => {
     vi.spyOn(console, "error").mockImplementation(() => undefined);
-    const paddle = installFakePaddle();
     await signIn();
-    paddle.failNext("POST /transactions", 502);
+    dodo.failNext("POST /checkouts", 502);
     const res = await checkout(checkoutRequest());
     expect(res.status).toBe(503);
     expect(await res.json()).toEqual({
@@ -266,6 +470,15 @@ describe("POST /api/billing/checkout with Paddle", () => {
         message: "We couldn't reach our payment provider. Please try again in a minute.",
       },
     });
+    expect(dodo.callsTo("POST /checkouts")).toHaveLength(1);
+  });
+
+  it("asks Dodo for nothing once the link limit is reached", async () => {
+    await signIn();
+    limiter.mockResolvedValue({ allowed: false, remaining: 0, retryAfterMs: 60_000 });
+    const res = await checkout(checkoutRequest());
+    expect(res.status).toBe(429);
+    expect(dodo.calls).toEqual([]);
   });
 });
 
@@ -297,38 +510,85 @@ describe("POST /api/billing/portal", () => {
   });
 });
 
-describe("POST /api/billing/portal with Paddle", () => {
+describe("POST /api/billing/portal with Dodo", () => {
+  let dodo: FakeDodo;
+
   beforeEach(() => {
-    vi.stubEnv("PADDLE_API_KEY", "pdl_sdbx_apikey_test");
-    resetEnvForTests();
+    useEnv(DODO);
+    dodo = installFakeDodo();
   });
 
-  afterEach(() => vi.unstubAllGlobals());
+  const subscriber = () =>
+    signIn({
+      plan: "pro",
+      planStatus: "active",
+      billingCustomerId: CUS_1,
+      billingSubscriptionId: SUB_1,
+    });
 
-  it("returns a fresh Paddle portal session for the stored customer, within the link limit", async () => {
-    const paddle = installFakePaddle();
-    const user = await signIn({ plan: "pro", planStatus: "active", billingCustomerId: CTM_1, billingSubscriptionId: SUB_1 });
+  it("returns a fresh Dodo portal link for the stored customer, within the link limit", async () => {
+    const user = await subscriber();
     const res = await portal();
+
     expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({ ok: true, url: `https://customer-portal.paddle.test/${CTM_1}` });
-    expect(paddle.callsTo(`POST /customers/${CTM_1}/portal-sessions`)).toHaveLength(1);
+    expect(await res.json()).toEqual({ ok: true, url: portalLink(CUS_1) });
+    const [session, ...rest] = dodo.callsTo(`POST /customers/${CUS_1}/customer-portal/session`);
+    expect(rest).toEqual([]);
+    expect(Object.fromEntries(session!.query)).toEqual({
+      return_url: `${APP_URL}/account`,
+      send_email: "false",
+    });
     expect(limiter).toHaveBeenCalledWith(`billing:user:${user.id}`, 20, 60 * 60 * 1000);
   });
 
   it("says when there's no billing account to manage", async () => {
-    const paddle = installFakePaddle();
     await signIn();
     const res = await portal();
     expect(res.status).toBe(400);
-    expect(paddle.calls).toEqual([]);
+    expect(dodo.calls).toEqual([]);
   });
 
-  it("has nothing to manage for a customer left over from Creem, and doesn't ask Paddle", async () => {
-    const paddle = installFakePaddle();
-    await signIn({ plan: "pro", planStatus: "active", billingCustomerId: "cust_3kKw0VQ8bY1lN3m9" });
-    const res = await portal();
-    expect(res.status).toBe(400);
-    expect(await res.json()).toMatchObject({ ok: false, error: { code: "bad_request" } });
-    expect(paddle.calls).toEqual([]);
+  it.each([
+    ["Paddle", PADDLE_CUSTOMER],
+    ["Creem", CREEM_CUSTOMER],
+  ])(
+    "has nothing to manage for a customer left over from %s, and doesn't ask Dodo",
+    async (_, id) => {
+      await signIn({ plan: "pro", planStatus: "active", billingCustomerId: id });
+      const res = await portal();
+      expect(res.status).toBe(400);
+      expect(await res.json()).toMatchObject({ ok: false, error: { code: "bad_request" } });
+      expect(dodo.calls).toEqual([]);
+    },
+  );
+
+  it("says Dodo couldn't find the billing account, and when payments are set up wrong", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    await subscriber();
+    const session = `POST /customers/${CUS_1}/customer-portal/session`;
+
+    dodo.failNext(session, 404);
+    const missing = await portal();
+    expect(missing.status).toBe(409);
+    expect(await missing.json()).toEqual({
+      ok: false,
+      error: {
+        code: "billing_unavailable",
+        message:
+          "We couldn't open billing: we couldn't find your billing account. Refresh the page and try again.",
+      },
+    });
+
+    dodo.failNext(session, 401);
+    const misconfigured = await portal();
+    expect(misconfigured.status).toBe(502);
+    expect(await misconfigured.json()).toEqual({
+      ok: false,
+      error: {
+        code: "billing_unavailable",
+        message:
+          "We couldn't open billing: payments aren't set up right on our side. Please try again later.",
+      },
+    });
   });
 });

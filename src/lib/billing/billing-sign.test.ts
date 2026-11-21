@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { signBillingId, verifyBillingId } from "./paddle-sign";
+import { signBillingId, verifyBillingId } from "./billing-sign";
 
 const SECRET = "pdl_ntfset_test_secret";
 const USER = "8d7f2c1e-4b3a-4c5d-9e8f-1a2b3c4d5e6f";

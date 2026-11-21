@@ -82,6 +82,7 @@ describe("planForStatus", () => {
     ["trialing", "paid"],
     ["scheduled_cancel", "paid"],
     ["paused", "free"],
+    ["on_hold", "free"],
     ["canceled", "free"],
     ["something_new", null],
     ["toString", null],
@@ -92,15 +93,49 @@ describe("planForStatus", () => {
   });
 
   it("counts everything but canceled as live", () => {
-    expect(["active", "trialing", "past_due", "paused"].every(isLiveStatus)).toBe(true);
+    expect(["active", "trialing", "past_due", "paused", "on_hold"].every(isLiveStatus)).toBe(true);
     expect(isLiveStatus("canceled")).toBe(false);
     const record = {
       plan: "free" as const,
-      billingCustomerId: "ctm_1",
+      billingCustomerId: "cus_1",
       billingSubscriptionId: "sub_1",
     };
     expect(chargeableSubscriptionId({ ...record, planStatus: "paused" })).toBe("sub_1");
+    expect(chargeableSubscriptionId({ ...record, planStatus: "on_hold" })).toBe("sub_1");
     expect(chargeableSubscriptionId({ ...record, planStatus: "canceled" })).toBeNull();
+  });
+
+  it("moves an on_hold subscription to Free but keeps it as the one to cancel", async () => {
+    const user = await createUser({
+      plan: "pro",
+      planInterval: "month",
+      planStatus: "active",
+      planRenewsAt: RENEWS_AT,
+      planPeriodStartsAt: PERIOD_STARTS_AT,
+      planPeriodEndsAt: RENEWS_AT,
+      billingCustomerId: "cus_TV52uJWWXt2yIoBBxpjaa",
+      billingSubscriptionId: "sub_Iuaq622bbmmfOGrVTqdXv",
+    });
+    const result = await applySubscriptionState(
+      subscription({
+        userId: user.id,
+        customerId: "cus_TV52uJWWXt2yIoBBxpjaa",
+        subscriptionId: "sub_Iuaq622bbmmfOGrVTqdXv",
+        status: "on_hold",
+      }),
+      source(),
+      NOW,
+    );
+    expect(result).toMatchObject({ outcome: "applied", plan: "free" });
+    const row = await reload(user.id);
+    expect(row).toMatchObject({
+      plan: "free",
+      planStatus: "on_hold",
+      planInterval: null,
+      planRenewsAt: null,
+      billingSubscriptionId: "sub_Iuaq622bbmmfOGrVTqdXv",
+    });
+    expect(row && chargeableSubscriptionId(row)).toBe("sub_Iuaq622bbmmfOGrVTqdXv");
   });
 });
 
@@ -138,12 +173,12 @@ describe("applySubscriptionState", () => {
       plan: "pro",
       planStatus: "active",
       planRenewsAt: RENEWS_AT,
-      billingCustomerId: "ctm_paid",
+      billingCustomerId: "cus_paid",
       billingSubscriptionId: "sub_paid",
     });
 
     const result = await applySubscriptionState(
-      subscription({ customerId: "ctm_paid", subscriptionId: "sub_paid", status }),
+      subscription({ customerId: "cus_paid", subscriptionId: "sub_paid", status }),
       source(),
       NOW,
     );
@@ -197,8 +232,8 @@ describe("finding the user", () => {
   });
 
   it("won't let a new subscription in by the stored customer id alone, only with our signed id", async () => {
-    const user = await createUser({ billingCustomerId: "ctm_known" });
-    const unsigned = subscription({ customerId: "ctm_known" });
+    const user = await createUser({ billingCustomerId: "cus_known" });
+    const unsigned = subscription({ customerId: "cus_known" });
     expect(await applySubscriptionState(unsigned, source(), NOW)).toEqual({
       outcome: "ignored",
       reason: "unsigned",
@@ -223,7 +258,7 @@ describe("finding the user", () => {
   it("reads the email only when no id matched and the status grants a plan", async () => {
     const user = await createUser({ email: "ada@example.com" });
     const resolveEmail = vi.fn(async () => "ADA@example.com");
-    const state = subscription({ customerId: "ctm_new", subscriptionId: "sub_new" });
+    const state = subscription({ customerId: "cus_new", subscriptionId: "sub_new" });
 
     expect(
       await applySubscriptionState({ ...state, status: "canceled" }, source(), NOW, {
@@ -236,7 +271,7 @@ describe("finding the user", () => {
       outcome: "ignored",
       reason: "unsigned",
     });
-    expect(resolveEmail).toHaveBeenCalledExactlyOnceWith("ctm_new");
+    expect(resolveEmail).toHaveBeenCalledExactlyOnceWith("cus_new");
     expect((await reload(user.id))?.plan).toBe("free");
   });
 
@@ -252,12 +287,12 @@ describe("finding the user", () => {
   });
 
   it("finds the user for a transaction the same way", async () => {
-    const user = await createUser({ billingCustomerId: "ctm_t" });
-    expect(await findBillingUserId({ customerId: "ctm_t", subscriptionId: "sub_t" })).toBe(user.id);
+    const user = await createUser({ billingCustomerId: "cus_t" });
+    expect(await findBillingUserId({ customerId: "cus_t", subscriptionId: "sub_t" })).toBe(user.id);
     expect(
-      await findBillingUserId({ userId: user.id, customerId: "ctm_x", subscriptionId: "sub_x" }),
+      await findBillingUserId({ userId: user.id, customerId: "cus_x", subscriptionId: "sub_x" }),
     ).toBe(user.id);
-    expect(await findBillingUserId({ customerId: "ctm_x", subscriptionId: "sub_x" })).toBeNull();
+    expect(await findBillingUserId({ customerId: "cus_x", subscriptionId: "sub_x" })).toBeNull();
   });
 
   it("can answer from indexes alone, never needing a table scan", async () => {
@@ -265,7 +300,7 @@ describe("finding the user", () => {
     const query = findUserQuery(db, {
       userId: crypto.randomUUID(),
       email: "ada@example.com",
-      customerId: "ctm_1",
+      customerId: "cus_1",
       subscriptionId: "sub_1",
     });
 
@@ -285,14 +320,14 @@ describe("protecting paying users", () => {
     const user = await createUser({
       plan: "pro",
       planStatus: "active",
-      billingCustomerId: "ctm_1",
+      billingCustomerId: "cus_1",
       billingSubscriptionId: "sub_paid",
     });
 
     const result = await applySubscriptionState(
       subscription({
         userId: user.id,
-        customerId: "ctm_1",
+        customerId: "cus_1",
         subscriptionId: "sub_second",
         status: "paused",
       }),
@@ -364,10 +399,10 @@ describe("idempotency", () => {
   });
 
   it("claims a key once", async () => {
-    expect(await claimBillingEvent("checkout:sub_1", "transaction.completed", NOW)).toBe(true);
-    expect(await claimBillingEvent("checkout:sub_1", "transaction.completed", NOW + 1)).toBe(false);
+    expect(await claimBillingEvent("checkout:sub_1", "payment.succeeded", NOW)).toBe(true);
+    expect(await claimBillingEvent("checkout:sub_1", "payment.succeeded", NOW + 1)).toBe(false);
     expect(await (await getDb()).select().from(billingEvents)).toEqual([
-      { id: "checkout:sub_1", type: "transaction.completed", receivedAt: NOW },
+      { id: "checkout:sub_1", type: "payment.succeeded", receivedAt: NOW },
     ]);
   });
 });
@@ -619,7 +654,7 @@ describe("one trial per person", () => {
     const db = await getDb();
     const user = await createUser({
       planStatus: "canceled",
-      billingCustomerId: "ctm_old",
+      billingCustomerId: "cus_old",
       billingSubscriptionId: "sub_old",
     });
     const event = source();

@@ -1,5 +1,5 @@
 import { count, gt } from "drizzle-orm";
-import { getDb } from "@/db/client";
+import { getDb, type Db } from "@/db/client";
 import { emailLog, notificationSettings } from "@/db/schema";
 import { HOUR_MS } from "@/lib/time";
 
@@ -13,7 +13,8 @@ const OPTIONAL_EMAILS = {
   tipsShare: 0.5,
 } as const;
 
-type OptionalList = "jobs" | "tips";
+// A service notice takes from the same allowance, so it never crowds out sign-in codes.
+type OptionalList = "jobs" | "tips" | "notices";
 
 // OPTIONAL_EMAILS_PER_DAY raises it on a paid Resend plan; 0 stops optional emails.
 function optionalEmailsPerDay(): number {
@@ -23,8 +24,12 @@ function optionalEmailsPerDay(): number {
 }
 
 // Counted from what went out lately, so a repeated run can't add more.
-export async function optionalEmailRoom(list: OptionalList, now: number): Promise<number> {
-  const db = await getDb();
+export async function optionalEmailRoom(
+  list: OptionalList,
+  now: number,
+  database?: Db,
+): Promise<number> {
+  const db = database ?? (await getDb());
   const since = now - OPTIONAL_EMAILS.windowMs;
   const [[tips], [jobs]] = await Promise.all([
     db.select({ n: count() }).from(emailLog).where(gt(emailLog.createdAt, since)),
@@ -36,6 +41,6 @@ export async function optionalEmailRoom(list: OptionalList, now: number): Promis
   const tipsSent = tips?.n ?? 0;
   const total = optionalEmailsPerDay();
   const left = Math.max(0, total - tipsSent - (jobs?.n ?? 0));
-  if (list === "jobs") return left;
+  if (list !== "tips") return left;
   return Math.min(left, Math.max(0, Math.ceil(total * OPTIONAL_EMAILS.tipsShare) - tipsSent));
 }

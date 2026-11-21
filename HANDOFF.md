@@ -1,6 +1,6 @@
 # Handoff: working on Otto Sensei from a new laptop
 
-How to set up, check, ship and deploy Otto Sensei, plus the house rules and open to-dos. Written for the owner and for any Claude session on a new machine. Last updated 2026-11-14. To see what is live: `vercel ls --prod`.
+How to set up, check, ship and deploy Otto Sensei, plus the house rules and open to-dos. Written for the owner and for any Claude session on a new machine. Last updated 2026-11-20. To see what is live: `vercel ls --prod`.
 
 Other docs: [README.md](README.md) (run locally; links here), [SETUP.md](SETUP.md) (every service, step by step), [ARCHITECTURE.md](ARCHITECTURE.md) (how the code fits), [DESIGN.md](DESIGN.md) (UI rules), [.env.example](.env.example) (every variable).
 
@@ -15,13 +15,14 @@ Other docs: [README.md](README.md) (run locally; links here), [SETUP.md](SETUP.m
 | Hosting | Vercel project `otto-sensei`, team `tushar98644s-projects`, region `iad1` |
 | Database + sign-in | Supabase project ref `wuypdybfswifundtixmt` |
 | AI | OpenRouter: GLM 5.3 Flash (writing), Llama Guard 4 (safety), Whisper large v3 turbo (voice fallback) |
-| Payments | Paddle Billing, our merchant of record (**sandbox** until the live account is approved); checkout opens on `/checkout` |
+| Payments | Dodo Payments, our merchant of record (**test mode** until Dodo verifies the account); checkout is Dodo's hosted page, which returns through `/api/billing/return` |
 | Sign-in emails | Resend, through Supabase's SMTP settings |
 | Daily jobs feed | GitHub Action `jobs-ingest.yml` at 05:40 UTC calls `/api/cron/jobs` |
 | Other crons | `vercel.json`: `/api/cron/cleanup` (04:17 UTC), `/api/cron/job-emails` (08:30 UTC, the weekly jobs email), `/api/cron/trial-reminders` (13:30 UTC), `/api/cron/follow-ups` (14:00 UTC), `/api/cron/tip-emails` (14:45 UTC) |
 
 **Not in git, so copy these by hand from the old laptop:**
 - `web/.env.local`: holds `OPENROUTER_API_KEY` and `RESEND_API_KEY`. Copy it over USB or a password manager, never through chat, email or git.
+- `web/.env.dodo.local` and `web/.env.dodo.live.local` (once they exist): the Dodo setup key, product ids and secrets that `scripts/dodo-setup.ts` and `scripts/check-dodo-catalog.ts` read (SETUP.md §10). Same rules: never through chat, email or git.
 - The parent folder `income-engine/`: strategy docs, `projects/resume-app/*.md` research, and the long progress log `projects/resume-app/.snapshots/PAUSED-2026-11-08.md`. None of it is a git repo.
 - Claude's saved memory in `~/.claude/projects/…/memory/`. The house rules below repeat what matters.
 
@@ -134,7 +135,7 @@ curl -s -o /dev/null -w '%{http_code}\n' https://www.ottosensei.com/dashboard   
 - Changed an environment variable in the Vercel dashboard? Redeploy: a build only sees values that existed when it ran.
 - Rollback: `vercel rollback` (or "Promote" an older deployment in the dashboard).
 - Tabs left open on a build from before 2026-11-14 save the studio in the old format. A resume deleted or released in such a tab can come back once a newer tab merges that save. It stops when the old tabs reload; nothing is lost.
-- Changing production settings and secrets in Vercel, Supabase, Paddle or OpenRouter dashboards is the owner's job.
+- Changing production settings and secrets in Vercel, Supabase, Dodo Payments or OpenRouter dashboards is the owner's job.
 
 ---
 
@@ -145,7 +146,17 @@ curl -s -o /dev/null -w '%{http_code}\n' https://www.ottosensei.com/dashboard   
 - **OpenRouter routing** (`src/lib/ai/client.ts`): `require_parameters: true`, `data_collection: "deny"`, `sort: "price"`, `max_price` $0.10 in / $0.30 out per million tokens. About 10 servers qualify; Wafer is normally picked. Every answer logs one `ai.usage` line in Vercel (counts only: task, model, provider, attempt, `durationMs`, input, output and reasoning tokens), so check each host's speed there before changing the routing or reasoning settings.
 - **Safety checks** (`src/lib/ai/moderation.ts`): a word pre-check, then Llama Guard only when sexual words show up. It blocks S3, S4 and S12, and fails open. First portfolio publish and share links are always checked in full; a resume edit syncing into a live portfolio goes to Llama Guard only when its new lines have such words.
 - **Voice typing:** built-in browser speech in Chrome, Edge and Safari (free). Brave, Firefox and Opera, or any failure, record a clip for `/api/transcribe` (Whisper through OpenRouter). Limits: 2-minute clips, 5 a day on Free, 30 on Pro and the trial, 60 on Max; clips turned away before transcribing, or lost to a provider outage, don't use one up.
-- **Paddle:** fees are 5% + 50¢ per transaction, so Pro monthly ($15) nets $13.75, Pro yearly ($120) $113.50, Max monthly ($29) $27.05 and Max yearly ($232) $219.90 (on the price before tax, before any currency conversion). Payouts are monthly once the balance is over $100. Sandbox and live are separate accounts with their own keys, prices and webhook (SETUP.md §10); production runs on sandbox until live is approved. The API key expires (a year at most): renew it before then.
+- **Dodo Payments:** fees are 4% + 40¢ per payment, plus 0.5% on subscriptions and 1.5% more for cards from outside the US, all taken on the total including tax. On a price with no tax added that nets:
+
+  | | US card | Other cards |
+  |---|---|---|
+  | Pro monthly ($15) | $13.93 | $13.70 |
+  | Pro yearly ($120) | $114.20 | $112.40 |
+  | Max monthly ($29) | $27.30 | $26.86 |
+  | Max yearly ($232) | $221.16 | $217.68 |
+  | The $1 trial | $0.56 | $0.54 |
+
+  Where tax is added, the percentage is taken on the total too, so Pro monthly with 20% VAT ($18) nets about $13.52. Each refund costs another $1 and gives back none of the original fees; refunds and disputes are paid from the Dodo balance, and a dispute costs a fee (Visa RDR settles one for $18 instead of a $30 chargeback). Payouts go out twice a month once the balance is over $100 (lowest setting $50), $5 per payout under $1,000. One account has two modes, test and live, each with its own keys, products and webhook endpoint (SETUP.md §10); production runs in test mode until Dodo verifies the account.
 
 ---
 
@@ -160,7 +171,7 @@ Everything lives in `src/config/plans.ts`. Change numbers there, never in copy.
 | Letters, answers, interview prep | – | 150 | 300 | 15 |
 | AI token budget (abuse guard) | – | 5M | 10M | 0.5M |
 
-- **Worst-case cost per user a month**, with every cap hit: Pro about $3.6 (you keep about $11.40 of $15), Max about $7 (you keep about $22).
+- **Worst-case cost per user a month**, with every cap hit: Pro about $3.6 (after Dodo's fees you keep about $10 of $15), Max about $7 (you keep about $20 of $29).
 - **Typical cost:** a few cents.
 - **Fixed costs** (not per user): Vercel Pro $20 a month (the free plan bans business use), Supabase Pro $25 when you upgrade, and the domain.
 
@@ -183,13 +194,18 @@ Everything lives in `src/config/plans.ts`. Change numbers there, never in copy.
 ## 9. Open to-dos (owner)
 
 - [ ] **GitHub connect:** create a GitHub OAuth App (callback `https://wuypdybfswifundtixmt.supabase.co/auth/v1/callback`, homepage `https://www.ottosensei.com`), turn on the GitHub provider in Supabase, and turn on "Allow manual linking" (SETUP.md §8c). Until then, GitHub import answers 503.
-- [ ] **Paddle sandbox** (SETUP.md §10, steps 1 to 7): create the five prices (the trial one included), the API key, the client-side token, the default payment link `https://www.ottosensei.com/checkout` and the webhook destination; put the values in Vercel with `PADDLE_ENVIRONMENT=sandbox` and redeploy; run the test checkouts.
 - [ ] **Leave Creem:** delete the Creem webhook endpoint in Creem, then remove every `CREEM_*` variable from Vercel and close the Creem account. The plans Creem test mode granted are reset by migration `20261116000200_reset_creem_plans.sql` on the Paddle deploy.
-- [ ] **Paddle live** (SETUP.md §10, step 8): sign up at vendors.paddle.com, submit `ottosensei.com` for website approval, finish account verification, add payout details, set Retain payment recovery to cancel, repeat the sandbox steps in live. Then, back to back: cancel every sandbox subscription (their plans would otherwise outlive the switch), deactivate the sandbox webhook destination, run `bun scripts/reset-creem-plans.ts --go-live` (counts only) and then `bun scripts/reset-creem-plans.ts --go-live --apply` against production (sandbox ids look exactly like live ones, so every account's billing ids are cleared), switch Vercel to the live values with `PADDLE_ENVIRONMENT=live` and redeploy, then one live checkout with a 100% discount code. Never roll back to a sandbox build after that, and never run `--go-live --apply` again (it would move paying customers to Free while Paddle keeps charging them).
-- [ ] **Paddle catalog check** (SETUP.md §10, step 6): make the read-only `otto-sensei-catalog` key (Prices and Products read), put it and the Paddle values you gave Vercel in `.env.paddle.local`, and run `bun --env-file=.env.paddle.local scripts/check-paddle-catalog.ts` once the sandbox values are in Vercel, again with the live values and a live key right before the live redeploy, and after any price change. It only reads; fix every `problem` line.
-- [x] **Terms name the seller:** decided 2026-11-15: the terms name "Otto Sensei" (not registered yet) as the business behind the site. If Paddle's verification asks for a personal legal name, or once a company is registered, put that exact name in the "Who we are" section of the terms.
-- [ ] **Test a payment:** a Max upgrade during a Pro trial.
-- [ ] **Calendar:** renew the Paddle API key before it expires (sandbox and live).
+- [ ] **Dodo account and compliance, now** (long lead times; SETUP.md §10 steps 1 and 12): open the Dodo Payments account as an Individual or a Registered Entity; email compliance@dodopayments.com the category pre-check and the draft merchant-of-record and refund wording (`MERCHANT` in `src/app/(marketing)/_components/merchant.ts`); upgrade Vercel from Hobby to Pro before taking real money.
+- [ ] **Dodo test mode** (SETUP.md §10 steps 2 to 8): the dashboard settings (Adaptive Currency off; portal cancels at the next billing date only, with no immediate cancel, plan updates or pause; Allow Multiple Subscriptions off; a 3-day grace period ending on hold, with retries; Prevent Trial Misuse off; Dodo's Trial Ending email off; Visa RDR on; brand and statement descriptor), the setup and app keys, `bun --env-file=.env.dodo.local scripts/dodo-setup.ts`, `BILLING_SIGNING_SECRET`, the Vercel values, then `bun --env-file=.env.dodo.local scripts/check-dodo-catalog.ts`.
+- [ ] **Test-mode spike** (SETUP.md §10 step 9): run each checklist item locally with `dodo wh listen`, save sanitized payloads in a new `src/lib/billing/dodo-fixtures.ts` for the tests, write the answers into SETUP.md, and fix the code wherever Dodo differs, before the cutover.
+- [ ] **Cut production over to Dodo test mode** (SETUP.md §10 steps 10 and 11): deactivate the Paddle sandbox notification destination, swap the nine `PADDLE_*` variables in Vercel for the Dodo test values, push the Dodo code (the build runs `20261120000100_reset_paddle_plans.sql`), check that `/api/me` says `dodo`, then run the end-to-end tests. Keep this phase short: anyone with a public test card can get Pro until live.
+- [ ] **Dodo verification and payouts** (SETUP.md §10 step 12): product information, KYC, KYB if an entity, the bank account; a Local payout account; keep about $20 in the Dodo balance for early refunds.
+- [ ] **Processor-change notice, before live** (SETUP.md §10 step 12.6): check the email copy against Dodo's approved wording, run `bun scripts/send-processor-notice.ts --date <go-live day>` (dry run), then add `--apply` once a day until everyone has it. The terms and privacy policy promise this email.
+- [ ] **Go live** (SETUP.md §10 step 12.7, back to back): turn on live mode and walk the dashboard settings again; run the setup and the catalog check with live keys (`.env.dodo.live.local`); cancel every Dodo test subscription and disable the test endpoint that points at production; run `bun scripts/reset-billing.ts --go-live` (counts only), then `bun scripts/reset-billing.ts --go-live --apply` against production (test and live ids look alike, so every account's billing state is cleared); put the live values in Vercel with `DODO_ENVIRONMENT=live` and redeploy. Never roll back to a test-mode build after that, and never run `--go-live --apply` again (it would move paying customers to Free while Dodo keeps charging them).
+- [ ] **Live smoke test** (SETUP.md §10 step 12.8): a real $1 trial with your own card (the webhook, the plan, the reminder), then cancel it; watch the `billing.*` logs listed there for 48 hours.
+- [ ] **After live:** close the Paddle sandbox account; delete `.env.paddle.local` and `.env.paddle.live.local`; remove any `PADDLE_*` left in Vercel preview and development; once the in-place trial-to-Max upgrade has worked live, delete the older trial-replacement flow (`replaces_subscription_id`); watch Dodo's changelog (its API has no versions).
+- [x] **Terms name the seller:** decided 2026-11-15: the terms name "Otto Sensei" (not registered yet) as the business behind the site. If Dodo's verification asks for a personal legal name, or once a company is registered, put that exact name in the "Who we are" section of the terms, matching what the verification forms say.
+- [ ] **Decide:** whether Dodo's Payment Failed and Subscription Renewal Failed emails (off by default) should tell buyers to fix their card during the 3-day grace period.
 - [ ] **Test voice by hand:** Chrome (words appear live) and Brave signed in (record about 3 s, text appears).
 - [ ] **Search Console:** open "Crawled – currently not indexed" and request indexing for `/` and `/pricing` if listed.
 - [ ] **Optional:** disable the legacy anon and service_role keys in Supabase, then revoke the legacy HS256 key.
@@ -200,6 +216,7 @@ Everything lives in `src/config/plans.ts`. Change numbers there, never in copy.
 
 ## 10. What shipped recently (newest first)
 
+- Payments move from Paddle to Dodo Payments (in test mode until Dodo verifies the account; SETUP.md §10): Dodo's hosted checkout comes back through `/api/billing/return` and the `/checkout` page is gone; Max during a trial changes the same subscription in place (the full Max price is charged at once, the $1 isn't credited); a failed renewal keeps the plan through a 3-day grace period, then the account is on Free until the card is fixed; the terms, privacy, refund and pricing pages name Dodo Payments as merchant of record and leave refunds to Dodo's buyer terms; `scripts/dodo-setup.ts`, `scripts/check-dodo-catalog.ts` and `scripts/reset-billing.ts` replace the Paddle and Creem scripts; a one-time processor-change email (`scripts/send-processor-notice.ts`) is ready and not sent yet.
 - Payments moved from Creem to Paddle Billing: checkout opens on our own `/checkout` page, plans are monthly or yearly only, and the terms, privacy and refund pages name Paddle as merchant of record (refunds follow Paddle's buyer refund policy).
 - AI price cap ($0.10 / $0.30 per million tokens) and voice limits per plan.
 - Voice typing: built-in speech first, server fallback for Brave, Firefox and Opera; a mic in every box that feeds Otto.

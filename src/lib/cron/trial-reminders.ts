@@ -15,7 +15,7 @@ import { trialEndingEmail, trialEndingNotice } from "@/lib/notifications/trial-e
 import { DAY_MS, HOUR_MS } from "@/lib/time";
 import type { CronContext, CronOutcome } from "./run";
 
-// Paddle sends no reminder before a trial of 7 days or fewer ends, so this one does, once per trial.
+// Dodo's trial-ending email is off (it goes out as a short trial starts), so this reminds once per trial.
 
 export const TRIAL_REMINDER = {
   // The day before's run reached 12 h past this run's hour: normally 12 to 36 hours' notice.
@@ -28,7 +28,7 @@ export const TRIAL_REMINDER = {
   maxBatchesPerRun: 20,
 } as const;
 
-// A Paddle trial, or a mock one in development. A trial set to cancel is "scheduled_cancel".
+// A Dodo trial, or a mock one in development. A trial set to cancel is "scheduled_cancel".
 const TRIALING = ["trialing", MOCK_STATUS.trialing];
 
 export type TrialReminderDeps = {

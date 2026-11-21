@@ -65,8 +65,10 @@ export function AccountView() {
   const wantsUpgrade =
     upgradeRequested && !loading && wanted !== null && above(user?.plan ?? "free", wanted);
   const offered = wanted !== null && (me?.billing.offer[wanted].length ?? 0) > 0;
+  // A held or ending subscription can't be upgraded, so the dialog points to Manage billing instead.
+  const portalFirst = me?.billing.paymentIssue === true || me?.billing.cancelScheduled === true;
   const straightToCheckout =
-    wantsUpgrade && user !== null && me?.billing.mode !== "disabled" && offered;
+    wantsUpgrade && user !== null && me?.billing.mode !== "disabled" && offered && !portalFirst;
   const upgradeOpen = wantsUpgrade && !straightToCheckout;
   const checkingOut = straightToCheckout && checkout.pending ? wanted : null;
 
@@ -110,9 +112,11 @@ export function AccountView() {
     );
   } else {
     const paid = user.plan !== "free";
-    const sections = accountSections({ paid });
+    const paymentIssue = me.billing.paymentIssue === true;
+    const billed = paid || paymentIssue;
+    const sections = accountSections({ paid: billed });
     const groups: Record<AccountGroup, ReactNode> = {
-      profile: <ProfileCard user={user} />,
+      profile: <ProfileCard user={user} cancelScheduled={me.billing.cancelScheduled === true} />,
       writingStyle: <WritingStyleCard />,
       jobSearch: (
         <>
@@ -124,17 +128,23 @@ export function AccountView() {
       plan: (
         <>
           <UsageCard me={me} plan={user.plan} />
-          {user.plan === "max" ? null : (
+          {user.plan === "max" || paymentIssue ? null : (
             <UpgradeCard
               plan={user.plan}
               interval={user.planInterval}
               mode={me.billing.mode}
               offer={me.billing.offer}
               trial={me.billing.trial === true}
+              cancelScheduled={me.billing.cancelScheduled === true}
             />
           )}
-          {paid ? (
-            <BillingCard mode={me.billing.mode} trialEndsAt={user.trialEndsAt ?? null} />
+          {billed ? (
+            <BillingCard
+              mode={me.billing.mode}
+              trialEndsAt={user.trialEndsAt ?? null}
+              paymentIssue={paymentIssue}
+              cancelScheduled={me.billing.cancelScheduled === true}
+            />
           ) : null}
         </>
       ),

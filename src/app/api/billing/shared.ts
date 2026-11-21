@@ -1,19 +1,32 @@
 import { BRAND } from "@/config/brand";
 import { fail } from "@/lib/api/respond";
 import type { ApiErrorCode } from "@/lib/api/types";
-import { BillingError, type BillingErrorDetails } from "@/lib/billing";
+import { BillingError, type BillingErrorDetails, type BillingRefusalReason } from "@/lib/billing";
 import { log } from "@/lib/log";
 import { rateLimit, retryAfterHeader, waitText } from "@/lib/rate-limit";
 import { HOUR_MS } from "@/lib/time";
 
 type Failure = { code: ApiErrorCode; status: number; message: string };
 type Action = "checkout" | "portal";
+type Step = Action | "change_plan";
 
 const OVERDUE_MESSAGE =
   "We couldn't change your plan: your last payment didn't go through. Update your card in Manage billing, then try again.";
 
 export const CHANGE_NOT_OFFERED_MESSAGE =
   "In the app a plan only moves up from Pro to Max, on the billing period you already have. To move to Pro, or between monthly and yearly, cancel from your account page and pick the new plan once your current period ends.";
+
+const ALREADY_SUBSCRIBED: Failure = {
+  code: "bad_request",
+  status: 400,
+  message: "You're already on that plan.",
+};
+
+const MISSING: Record<Step, string> = {
+  change_plan: "we couldn't find your subscription",
+  portal: "we couldn't find your billing account",
+  checkout: "that plan isn't on sale right now",
+};
 
 function failureFor(error: BillingError, action: Action): Failure {
   switch (error.code) {
@@ -36,7 +49,7 @@ function failureFor(error: BillingError, action: Action): Failure {
         message: "You don't have a subscription to manage yet.",
       };
     case "already_subscribed":
-      return { code: "bad_request", status: 400, message: "You're already on that plan." };
+      return ALREADY_SUBSCRIBED;
     case "change_not_offered":
       return { code: "plan_change_failed", status: 409, message: CHANGE_NOT_OFFERED_MESSAGE };
     case "payment_overdue":
@@ -46,60 +59,48 @@ function failureFor(error: BillingError, action: Action): Failure {
   }
 }
 
-function refusedFailure(details: BillingErrorDetails, action: Action): Failure {
-  const changing = details.operation === "change_plan";
+function refusedFailure({ operation, reason }: BillingErrorDetails, action: Action): Failure {
+  // The provider found a subscription our own check missed: the same answer as that check.
+  if (reason === "has_subscription") return ALREADY_SUBSCRIBED;
+  const changing = operation === "change_plan";
   const what = changing
     ? "change your plan"
     : action === "portal"
       ? "open billing"
       : "start checkout";
   const code: ApiErrorCode = changing ? "plan_change_failed" : "billing_unavailable";
-  const [status, reason] = refusalReason(details, changing ? "change_plan" : action);
-  return { code, status, message: `We couldn't ${what}: ${reason}` };
+  // An upgrade can end in a billing link, so the call that failed names what is missing.
+  const step: Step = changing ? "change_plan" : operation === "portal" ? "portal" : action;
+  const [status, explanation] = refusalCopy(reason, step);
+  return { code, status, message: `We couldn't ${what}: ${explanation}` };
 }
 
-function refusalReason(
-  { providerCode, providerStatus }: BillingErrorDetails,
-  action: Action | "change_plan",
-): [status: number, reason: string] {
-  const code = providerCode ?? "";
-  if (code.startsWith("subscription_locked")) {
-    return [
-      409,
-      "your subscription is busy with a renewal or another change. Try again in a little while.",
-    ];
+function refusalCopy(
+  reason: Exclude<BillingRefusalReason, "has_subscription"> | undefined,
+  step: Step,
+): [status: number, explanation: string] {
+  switch (reason) {
+    case "busy":
+      return [
+        409,
+        "your subscription is busy with a renewal or another change. Try again in a little while.",
+      ];
+    case "inactive":
+      return [409, "your subscription isn't active right now. Refresh the page and try again."];
+    case "declined":
+      return [409, "your card was declined. Update your card in Manage billing, then try again."];
+    case "misconfigured":
+      return [502, "payments aren't set up right on our side. Please try again later."];
+    case "rate_limited":
+      return [503, "our payment provider is busy. Please try again in a minute."];
+    case "not_found":
+      return [409, `${MISSING[step]}. Refresh the page and try again.`];
+    case undefined:
+      return [
+        409,
+        `our payment provider turned the request down. Email us at ${BRAND.supportEmail} and we'll sort it out.`,
+      ];
   }
-  if (/^subscription_update_when_|not_active|_canceled$|_past_due$/.test(code)) {
-    return [409, "your subscription isn't active right now. Refresh the page and try again."];
-  }
-  if (code.includes("declined")) {
-    return [
-      409,
-      "your card was declined for the difference. Update your card in Manage billing, then try again.",
-    ];
-  }
-  if (code === "transaction_default_checkout_url_not_set") {
-    return [502, "payments aren't set up right on our side. Please try again later."];
-  }
-  if (providerStatus === 401 || providerStatus === 403) {
-    return [502, "payments aren't set up right on our side. Please try again later."];
-  }
-  if (providerStatus === 429) {
-    return [503, "our payment provider is busy. Please try again in a minute."];
-  }
-  if (providerStatus === 404) {
-    const missing =
-      action === "change_plan"
-        ? "we couldn't find your subscription"
-        : action === "portal"
-          ? "we couldn't find your billing account"
-          : "that plan isn't on sale right now";
-    return [409, `${missing}. Refresh the page and try again.`];
-  }
-  return [
-    409,
-    `our payment provider turned the request down. Email us at ${BRAND.supportEmail} and we'll sort it out.`,
-  ];
 }
 
 export function billingFailure(error: unknown, action: Action): Response {
@@ -111,7 +112,7 @@ export function billingFailure(error: unknown, action: Action): Response {
   return fail("server_error", "Something went wrong. Please try again.", 500);
 }
 
-// Each link is a Paddle API call: one account mustn't use up the rate limit all customers share.
+// Each link is a call to the payment provider: one account mustn't use up the rate limit all customers share.
 const LINKS_PER_HOUR = 20;
 
 export async function limitBillingLinks(userId: string): Promise<Response | null> {

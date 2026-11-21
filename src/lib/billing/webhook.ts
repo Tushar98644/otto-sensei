@@ -1,123 +1,71 @@
-import { createHmac, timingSafeEqual } from "node:crypto";
-import { z } from "zod";
-import { PRO_TRIAL, type BillingInterval, type PaidPlanId } from "@/config/plans";
+import type { z } from "zod";
+import {
+  BILLING_INTERVALS,
+  PAID_PLANS,
+  PRO_TRIAL,
+  type BillingInterval,
+  type PaidPlanId,
+} from "@/config/plans";
 import { captureServerEvent } from "@/lib/analytics/server";
+import { isProduction } from "@/lib/env";
 import { log } from "@/lib/log";
 import { DAY_MS, HOUR_MS } from "@/lib/time";
 import { refreshPortfolioPages } from "@/lib/portfolio/cache";
 import { canPublishPortfolio } from "@/lib/portfolio/plan";
 import { portfolioSlugsOf } from "@/lib/portfolio/records";
+import { isUserId } from "@/lib/users";
+import {
+  DodoDisputeSchema,
+  DodoPaymentSchema,
+  DodoRefundSchema,
+  metadataIds,
+  readEnvelope,
+  toState,
+  verifyWebhook,
+  webhookKey,
+  type DodoEvent,
+  type DodoPayment,
+} from "./dodo-events";
+import { DodoSubscriptionSchema, inTrialWindow, type DodoSubscription } from "./dodo-status";
 import {
   applySubscriptionState,
   claimBillingEvent,
   findBillingUserId,
+  isLiveStatus,
   planForStatus,
   type ApplyResult,
-  type SubscriptionState,
 } from "./entitlements";
-import { verifyBillingId } from "./paddle-sign";
-import { isRefusedTrial, refundRefusedTrial, settleReplacement } from "./replacements";
+import {
+  isOrphan,
+  isRefusedTrial,
+  refundRefusedTrial,
+  settleOrphan,
+  settleReplacement,
+  type OrphanOutcome,
+} from "./replacements";
 
-// Paddle redelivers any non-2xx for about two days on live, so only retryable failures get a 5xx.
+// Dodo redelivers any non-2xx for about 27 hours, so only retryable failures get a 5xx.
 
 export type WebhookResult = { status: number; message: string };
 
-type PricePlan = { plan: PaidPlanId; interval: BillingInterval };
+type ProductPlan = { plan: PaidPlanId; interval: BillingInterval };
 
 export type WebhookConfig = {
   secret: string | undefined;
-  priceIds: readonly string[];
-  planForPrice: (priceId: string) => PricePlan | null | undefined;
-  trialPriceId?: string | null;
+  signingSecret: string | undefined;
+  productIds: readonly string[];
+  planForProduct: (productId: string) => ProductPlan | null | undefined;
+  trialProductId?: string | null;
   customerEmail?: (customerId: string) => Promise<string | null>;
 };
 
+type ReadyConfig = WebhookConfig & { secret: string; signingSecret: string };
+
 const MAX_BODY_CHARS = 256 * 1024;
-const MAX_EVENT_ID_CHARS = 255;
-const MAX_SIGNATURE_CHARS = 2048;
-const SIGNATURE_TOLERANCE_MS = 5 * 60 * 1000;
-const SIGNED_KEYS = [
-  { id: "user_id", sig: "user_sig" },
-  { id: "replaces_subscription_id", sig: "replaces_sig" },
-] as const;
+// A subscription still being set up, or one whose first charge failed: neither changes a plan.
+const QUIET_STATUSES: ReadonlySet<string> = new Set(["dodo:pending", "dodo:failed"]);
 
-// Status decides the plan, not the event name; Paddle doesn't deliver in order.
-const SUBSCRIPTION_EVENTS: ReadonlySet<string> = new Set([
-  "subscription.created",
-  "subscription.trialing",
-  "subscription.activated",
-  "subscription.updated",
-  "subscription.past_due",
-  "subscription.paused",
-  "subscription.resumed",
-  "subscription.canceled",
-]);
-const TRANSACTION_COMPLETED = "transaction.completed";
-// Refunds, credits and chargebacks change no plan; they're logged for the owner to act on.
-const ADJUSTMENT_EVENTS: ReadonlySet<string> = new Set([
-  "adjustment.created",
-  "adjustment.updated",
-]);
-// A subscription's first transaction is its checkout; renewals and plan changes have other origins.
-const CHECKOUT_ORIGINS: ReadonlySet<string> = new Set(["web", "api"]);
-
-const EnvelopeSchema = z.object({
-  event_id: z.string().min(1).max(MAX_EVENT_ID_CHARS),
-  event_type: z.string().min(1).max(100),
-  occurred_at: z.string().max(64).nullish(),
-  data: z.unknown(),
-});
-
-const IdSchema = z.string().min(1).max(200);
-const TimestampSchema = z.string().max(64).nullish();
-const CustomDataSchema = z.record(z.string(), z.unknown()).nullish();
-
-const SubscriptionSchema = z.object({
-  id: IdSchema,
-  status: z.string().min(1).max(50),
-  customer_id: IdSchema,
-  items: z
-    .array(
-      z.object({
-        price: z.object({ id: IdSchema, trial_period: z.unknown().nullish() }),
-        trial_dates: z.object({ ends_at: TimestampSchema }).nullish(),
-      }),
-    )
-    .max(100),
-  scheduled_change: z.object({ action: z.string().max(50) }).nullish(),
-  started_at: TimestampSchema,
-  first_billed_at: TimestampSchema,
-  next_billed_at: TimestampSchema,
-  current_billing_period: z
-    .object({ starts_at: TimestampSchema, ends_at: TimestampSchema })
-    .nullish(),
-  custom_data: CustomDataSchema,
-});
-
-const TransactionSchema = z.object({
-  id: IdSchema,
-  origin: z.string().max(100).nullish(),
-  customer_id: IdSchema.nullish(),
-  subscription_id: IdSchema.nullish(),
-  custom_data: CustomDataSchema,
-  items: z
-    .array(z.object({ price: z.object({ id: IdSchema, trial_period: z.unknown().nullish() }) }))
-    .max(100),
-});
-
-const AdjustmentSchema = z.object({
-  id: IdSchema,
-  action: z.string().min(1).max(50),
-  status: z.string().min(1).max(50),
-  transaction_id: IdSchema.nullish(),
-  subscription_id: IdSchema.nullish(),
-});
-
-type SubscriptionData = z.infer<typeof SubscriptionSchema>;
-type CustomData = z.infer<typeof CustomDataSchema>;
 type Context = { eventId: string; eventType: string };
-type TrustedIds = { userId: string | undefined; replacesSubscriptionId: string | null };
-type SignatureCheck = "valid" | "missing" | "malformed" | "mismatch" | "stale";
 
 export async function processWebhook(
   rawBody: string,
@@ -125,49 +73,67 @@ export async function processWebhook(
   config: WebhookConfig,
   now = Date.now(),
 ): Promise<WebhookResult> {
-  if (!config.secret) {
-    log.warn("billing.webhook_not_configured");
+  const { secret, signingSecret } = config;
+  // A secret that can't be a key would refuse every delivery as unsigned, so it counts as unset.
+  const key = secret ? webhookKey(secret) : null;
+  if (!secret || !key || !signingSecret) {
+    log.warn("billing.webhook_not_configured", {
+      secret: key !== null,
+      signingSecret: Boolean(signingSecret),
+    });
     return { status: 503, message: "not_configured" };
   }
   if (rawBody.length > MAX_BODY_CHARS) {
     log.warn("billing.webhook_too_large", { chars: rawBody.length });
     return { status: 413, message: "too_large" };
   }
-  const signature = checkSignature(rawBody, headers.get("paddle-signature"), config.secret, now);
-  if (signature !== "valid") {
-    log.warn("billing.webhook_invalid", { reason: signature });
+  const verified = verifyWebhook(rawBody, headers, secret, now);
+  if (verified.check !== "valid") {
+    log.warn("billing.webhook_invalid", { reason: verified.check });
     return { status: 401, message: "invalid_signature" };
   }
-
-  const json = parseJson(rawBody);
-  const envelope = EnvelopeSchema.safeParse(json);
-  if (!envelope.success) {
-    log.error("billing.webhook_malformed", "unreadable envelope", { eventId: eventIdOf(json) });
+  // webhook-id is signed and stays the same across Dodo's retries.
+  const envelope = readEnvelope(rawBody);
+  if (!envelope.ok) {
+    log.error("billing.webhook_malformed", `unreadable ${envelope.problem}`, {
+      eventId: verified.eventId,
+    });
     return { status: 500, message: "malformed" };
   }
-  // event_id stays the same across retries; notification_id changes on every delivery.
-  const context: Context = {
-    eventId: envelope.data.event_id,
-    eventType: envelope.data.event_type,
-  };
-  if (context.eventType === TRANSACTION_COMPLETED) {
-    return recordCheckout(envelope.data.data, context, { ...config, secret: config.secret }, now);
+  const { event } = envelope;
+  const context: Context = { eventId: verified.eventId, eventType: event.type };
+  const ready: ReadyConfig = { ...config, secret, signingSecret };
+  switch (event.kind) {
+    case "subscription":
+      return recordSubscription(event, context, ready, now);
+    case "payment_succeeded":
+      return recordPayment(event.data, context, ready, now);
+    case "payment_failed":
+      return recordPaymentFailure(event.data, context, now);
+    case "refund":
+    case "dispute":
+      return recordAdjustment(event, context, now);
+    default:
+      log.info("billing.webhook_ignored", { ...context, reason: "event_type" });
+      return { status: 200, message: "ignored" };
   }
-  if (ADJUSTMENT_EVENTS.has(context.eventType)) {
-    return recordAdjustment(envelope.data.data, context, now);
-  }
-  if (!SUBSCRIPTION_EVENTS.has(context.eventType)) {
-    log.info("billing.webhook_ignored", { ...context, reason: "event_type" });
-    return { status: 200, message: "ignored" };
-  }
-  const parsed = SubscriptionSchema.safeParse(envelope.data.data);
-  if (!parsed.success) return malformed(parsed.error, context);
+}
 
-  const ids = trustedIds(parsed.data.custom_data, config.secret, {
+// Every subscription.* event carries the subscription's current state, so its status decides.
+async function recordSubscription(
+  event: DodoEvent,
+  context: Context,
+  config: ReadyConfig,
+  now: number,
+): Promise<WebhookResult> {
+  const parsed = DodoSubscriptionSchema.safeParse(event.data);
+  if (!parsed.success) return malformed(parsed.error, context);
+  const subscription = parsed.data;
+  const ids = metadataIds(subscription.metadata, config.signingSecret, {
     ...context,
-    subscriptionId: parsed.data.id,
+    subscriptionId: subscription.subscription_id,
   });
-  const state = toState(parsed.data, parseTimestamp(envelope.data.occurred_at), config, ids);
+  const state = toState(subscription, event.eventAt, config, ids);
   let result: ApplyResult;
   try {
     result = await applySubscriptionState(state, context, now, {
@@ -186,7 +152,22 @@ export async function processWebhook(
     await cancelReusedTrial(state.subscriptionId, context, now);
     return { status: 200, message: "ignored" };
   }
+  // Accounts exist before any checkout, so in production a verified id with no row was deleted.
+  const orphanOf =
+    isProduction() &&
+    result.outcome === "ignored" &&
+    result.reason === "no_user" &&
+    ids.userId !== undefined &&
+    isUserId(ids.userId) &&
+    planForStatus(state.status) !== null &&
+    isLiveStatus(state.status)
+      ? ids.userId
+      : null;
+  if (orphanOf) return cancelOrphan(state.subscriptionId, orphanOf, context, now);
   await report(result, { ...context, status: state.status, subscriptionId: state.subscriptionId });
+  if (result.outcome === "applied") {
+    warnIfTrialMissed(subscription, event.eventAt ?? now, config, context);
+  }
   const replaced = state.replacesSubscriptionId;
   if (replaced) {
     let settled: boolean;
@@ -203,173 +184,89 @@ export async function processWebhook(
     : { status: 200, message: result.outcome === "duplicate" ? "duplicate" : "ignored" };
 }
 
-function checkSignature(
-  rawBody: string,
-  header: string | null,
-  secret: string,
-  now: number,
-): SignatureCheck {
-  if (!header) return "missing";
-  if (header.length > MAX_SIGNATURE_CHARS) return "malformed";
-  let ts: string | undefined;
-  const signatures: Buffer[] = [];
-  for (const part of header.split(";")) {
-    const [key, value = ""] = part.split("=", 2).map((piece) => piece.trim());
-    if (key === "ts") ts = value;
-    // Paddle sends one h1 per secret while a secret is being rotated.
-    if (key === "h1" && /^[0-9a-f]{64}$/i.test(value)) signatures.push(Buffer.from(value, "hex"));
-  }
-  if (!ts || !/^\d{1,12}$/.test(ts) || signatures.length === 0) return "malformed";
-  const expected = createHmac("sha256", secret).update(`${ts}:${rawBody}`).digest();
-  if (!signatures.some((candidate) => timingSafeEqual(candidate, expected))) return "mismatch";
-  return Math.abs(now - Number(ts) * 1000) > SIGNATURE_TOLERANCE_MS ? "stale" : "valid";
-}
-
-// Paddle.js lets anyone set custom_data, so an id counts only with the signature our server added.
-function trustedIds(
-  customData: CustomData,
-  secret: string,
-  fields: Context & Record<string, string>,
-): TrustedIds {
-  const unsigned: string[] = [];
-  const [userId, replaces] = SIGNED_KEYS.map(({ id, sig }) => {
-    const value = customData?.[id];
-    if (value === undefined || value === null) return null;
-    const valid = IdSchema.safeParse(value);
-    if (valid.success && verifyBillingId(valid.data, customData?.[sig], secret)) return valid.data;
-    unsigned.push(id);
-    return null;
+// Dodo has no trial status: a trial-product subscription not seen as one in its first days needs a look.
+function warnIfTrialMissed(
+  subscription: DodoSubscription,
+  at: number,
+  config: ReadyConfig,
+  context: Context,
+): void {
+  if (!config.trialProductId || subscription.product_id !== config.trialProductId) return;
+  if (subscription.status !== "active" && subscription.status !== "past_due") return;
+  if (inTrialWindow(subscription)) return;
+  const created = subscription.created_at ? Date.parse(subscription.created_at) : NaN;
+  if (!Number.isFinite(created) || at - created >= PRO_TRIAL.days * DAY_MS - HOUR_MS) return;
+  log.warn("billing.trial_not_detected", {
+    ...context,
+    subscriptionId: subscription.subscription_id,
+    status: subscription.status,
+    trialDays: subscription.trial_period_days ?? null,
   });
-  if (unsigned.length > 0) {
-    log.warn("billing.unsigned_custom_data", { ...fields, keys: unsigned.join(",") });
-  }
-  return { userId: userId ?? undefined, replacesSubscriptionId: replaces ?? null };
 }
 
-function toState(
-  data: SubscriptionData,
-  eventAt: number | null,
-  config: WebhookConfig,
-  ids: TrustedIds,
-): SubscriptionState {
-  const ours = data.items.find((item) => config.priceIds.includes(item.price.id));
-  const price = ours ? (config.planForPrice(ours.price.id) ?? null) : null;
-  const cancelling = data.scheduled_change?.action === "cancel";
-  // Paddle has no such status: a cancel is pending on an active or trialing subscription.
-  const status =
-    cancelling && (data.status === "active" || data.status === "trialing")
-      ? "scheduled_cancel"
-      : data.status;
-  const onTrialPrice =
-    ours !== undefined &&
-    ((config.trialPriceId && ours.price.id === config.trialPriceId) ||
-      hasTrialPeriod(ours.price.trial_period));
-  return {
-    userId: ids.userId,
-    customerId: data.customer_id,
-    subscriptionId: data.id,
-    pricePlan: price?.plan ?? null,
-    priceInterval: price?.interval ?? null,
-    status,
-    renewsAt: status === "scheduled_cancel" ? null : parseTimestamp(data.next_billed_at),
-    periodStartsAt: parseTimestamp(data.current_billing_period?.starts_at),
-    periodEndsAt: parseTimestamp(data.current_billing_period?.ends_at),
-    trialEndsAt: trialEndOf(data, ours),
-    eventAt,
-    replacesSubscriptionId: ids.replacesSubscriptionId,
-    unpaidTrial:
-      data.status === "trialing" ||
-      (data.status === "past_due" && onTrialPrice && neverPaid(data, ours)),
-  };
+type CheckoutChoice = { plan: PaidPlanId; interval: BillingInterval; trial: boolean };
+
+// Subscription payments carry no product, so the plan comes from the metadata our checkout set.
+function checkoutChoice(metadata: DodoPayment["metadata"]): CheckoutChoice | null {
+  const plan = PAID_PLANS.find((candidate) => candidate === metadata?.plan);
+  const interval = BILLING_INTERVALS.find((candidate) => candidate === metadata?.interval);
+  if (!plan || !interval) return null;
+  return { plan, interval, trial: metadata?.trial === true || metadata?.trial === "true" };
 }
 
-// A trial whose first full charge failed is past_due in the period that starts when the trial ends.
-// A paid trial bills its fee at checkout, so first_billed_at alone can't mark that period.
-function neverPaid(
-  data: SubscriptionData,
-  item: SubscriptionData["items"][number] | undefined,
-): boolean {
-  const periodStart = parseTimestamp(data.current_billing_period?.starts_at);
-  const firstBilled = parseTimestamp(data.first_billed_at);
-  const started = parseTimestamp(data.started_at);
-  const trialEnd =
-    parseTimestamp(item?.trial_dates?.ends_at) ??
-    (started === null ? null : started + PRO_TRIAL.days * DAY_MS);
-  const firstFull = Math.max(firstBilled ?? -Infinity, trialEnd ?? -Infinity);
-  if (periodStart === null || !Number.isFinite(firstFull)) return true;
-  return periodStart <= firstFull + HOUR_MS;
-}
-
-function hasTrialPeriod(trialPeriod: unknown): boolean {
-  return trialPeriod !== null && trialPeriod !== undefined;
-}
-
-function trialEndOf(
-  data: SubscriptionData,
-  item: SubscriptionData["items"][number] | undefined,
-): number | null | undefined {
-  if (data.status === "active") return null;
-  if (data.status !== "trialing") return undefined;
-  const dated =
-    item?.trial_dates ?? data.items.find((candidate) => candidate.trial_dates)?.trial_dates;
-  return (
-    parseTimestamp(dated?.ends_at) ??
-    parseTimestamp(data.next_billed_at) ??
-    parseTimestamp(data.current_billing_period?.ends_at) ??
-    undefined
-  );
-}
-
-async function recordCheckout(
+async function recordPayment(
   object: unknown,
   context: Context,
-  config: WebhookConfig & { secret: string },
+  config: ReadyConfig,
   now: number,
 ): Promise<WebhookResult> {
-  const parsed = TransactionSchema.safeParse(object);
+  const parsed = DodoPaymentSchema.safeParse(object);
   if (!parsed.success) return malformed(parsed.error, context);
-  const transaction = parsed.data;
+  const payment = parsed.data;
   const ignore = (reason: string): WebhookResult => {
     log.info("billing.webhook_ignored", { ...context, reason });
     return { status: 200, message: "ignored" };
   };
-  const { subscription_id: subscriptionId, customer_id: customerId } = transaction;
-  if (!subscriptionId || !customerId) return ignore("no_subscription");
-  // A refused second trial's charge can complete after the trial was cancelled, so it's refunded here too.
+  const subscriptionId = payment.subscription_id;
+  if (!subscriptionId) return ignore("no_subscription");
+  // A charge can succeed after a refused trial or a deleted account's subscription was cancelled.
   try {
     const refusedUser = await isRefusedTrial(subscriptionId);
     if (refusedUser) {
-      await refundRefusedTrial(subscriptionId, refusedUser, [transaction.id], now);
+      await refundRefusedTrial(subscriptionId, refusedUser, [payment.payment_id], now);
       return ignore("refused_trial");
+    }
+    if (await isOrphan(subscriptionId)) {
+      await refundRefusedTrial(subscriptionId, null, [payment.payment_id], now);
+      return ignore("orphan_subscription");
     }
   } catch (error) {
     log.error("billing.webhook_failed", error, context);
     return { status: 500, message: "retry" };
   }
-  if (!CHECKOUT_ORIGINS.has(transaction.origin ?? "")) return ignore("not_checkout");
-  const item = transaction.items.find((candidate) => config.priceIds.includes(candidate.price.id));
-  const price = item ? config.planForPrice(item.price.id) : null;
-  if (!item || !price) return ignore("other_product");
-  const ids = trustedIds(transaction.custom_data, config.secret, {
+  // A subscription's first payment is its checkout; renewals and plan changes have other charge types.
+  if (payment.charge_type !== "new") return ignore("not_checkout");
+  const choice = checkoutChoice(payment.metadata);
+  if (!choice) return ignore("other_product");
+  const ids = metadataIds(payment.metadata, config.signingSecret, {
     ...context,
-    transactionId: transaction.id,
+    paymentId: payment.payment_id,
   });
   try {
-    const userId = await findBillingUserId({ userId: ids.userId, customerId, subscriptionId });
+    const userId = await findBillingUserId({
+      userId: ids.userId,
+      customerId: payment.customer.customer_id,
+      subscriptionId,
+    });
     if (!userId) return ignore("no_user");
-    // Keyed by subscription, so a replay with a new event id still counts once.
+    // Keyed by subscription, so a replay with a new webhook-id still counts once.
     if (!(await claimBillingEvent(`checkout:${subscriptionId}`, context.eventType, now))) {
       log.info("billing.webhook_duplicate", context);
       return { status: 200, message: "duplicate" };
     }
-    const trial = hasTrialPeriod(item.price.trial_period);
-    captureServerEvent(
-      userId,
-      "checkout_completed",
-      { plan: price.plan, trial },
-      { set: { plan: price.plan } },
-    );
-    log.info("billing.checkout_completed", { ...context, userId, plan: price.plan, trial });
+    const { plan, trial } = choice;
+    captureServerEvent(userId, "checkout_completed", { plan, trial }, { set: { plan } });
+    log.info("billing.checkout_completed", { ...context, userId, plan, trial });
   } catch (error) {
     log.error("billing.webhook_failed", error, context);
     return { status: 500, message: "retry" };
@@ -377,14 +274,19 @@ async function recordCheckout(
   return { status: 200, message: "applied" };
 }
 
-async function recordAdjustment(
+// With prevent_change, a declined plan-change charge leaves the old plan; the owner hears of it here.
+async function recordPaymentFailure(
   object: unknown,
   context: Context,
   now: number,
 ): Promise<WebhookResult> {
-  const parsed = AdjustmentSchema.safeParse(object);
+  const parsed = DodoPaymentSchema.safeParse(object);
   if (!parsed.success) return malformed(parsed.error, context);
-  const adjustment = parsed.data;
+  const payment = parsed.data;
+  if (payment.charge_type !== "plan_change") {
+    log.info("billing.webhook_ignored", { ...context, reason: "not_plan_change" });
+    return { status: 200, message: "ignored" };
+  }
   try {
     if (!(await claimBillingEvent(context.eventId, context.eventType, now))) {
       log.info("billing.webhook_duplicate", context);
@@ -394,18 +296,64 @@ async function recordAdjustment(
     log.error("billing.webhook_failed", error, context);
     return { status: 500, message: "retry" };
   }
-  log.warn("billing.adjustment", {
+  log.warn("billing.plan_change_payment_failed", {
     ...context,
-    action: adjustment.action,
-    status: adjustment.status,
-    adjustmentId: adjustment.id,
-    transactionId: adjustment.transaction_id ?? null,
-    subscriptionId: adjustment.subscription_id ?? null,
+    paymentId: payment.payment_id,
+    subscriptionId: payment.subscription_id ?? null,
+    customerId: payment.customer.customer_id,
   });
   return { status: 200, message: "applied" };
 }
 
-// A failed cancel keeps its trial_replacements row for the daily cron, so Paddle needn't redeliver.
+// Refunds and disputes change no plan; they're logged for the owner to act on.
+async function recordAdjustment(
+  event: DodoEvent,
+  context: Context,
+  now: number,
+): Promise<WebhookResult> {
+  let fields: Record<string, string | number | boolean | null>;
+  if (event.kind === "refund") {
+    const parsed = DodoRefundSchema.safeParse(event.data);
+    if (!parsed.success) return malformed(parsed.error, context);
+    const refund = parsed.data;
+    fields = {
+      kind: "refund",
+      refundId: refund.refund_id,
+      paymentId: refund.payment_id,
+      status: refund.status,
+      partial: refund.is_partial,
+      amount: refund.amount ?? null,
+      currency: refund.currency ?? null,
+    };
+  } else {
+    const parsed = DodoDisputeSchema.safeParse(event.data);
+    if (!parsed.success) return malformed(parsed.error, context);
+    const dispute = parsed.data;
+    fields = {
+      kind: "dispute",
+      disputeId: dispute.dispute_id,
+      paymentId: dispute.payment_id,
+      status: dispute.dispute_status,
+      stage: dispute.dispute_stage,
+      amount: dispute.amount,
+      currency: dispute.currency,
+      rdr: dispute.is_resolved_by_rdr ?? null,
+    };
+  }
+  try {
+    if (!(await claimBillingEvent(context.eventId, context.eventType, now))) {
+      log.info("billing.webhook_duplicate", context);
+      return { status: 200, message: "duplicate" };
+    }
+  } catch (error) {
+    log.error("billing.webhook_failed", error, context);
+    return { status: 500, message: "retry" };
+  }
+  log.warn("billing.adjustment", { ...context, ...fields });
+  return { status: 200, message: "applied" };
+}
+
+// A failed cancel keeps its trial_replacements row for the daily cron, so Dodo needn't redeliver.
 async function cancelReusedTrial(
   subscriptionId: string,
   context: Context,
@@ -416,6 +364,33 @@ async function cancelReusedTrial(
   } catch (error) {
     log.error("billing.replace_cancel_failed", error, { ...context, subscriptionId });
   }
+}
+
+async function cancelOrphan(
+  subscriptionId: string,
+  userId: string,
+  context: Context,
+  now: number,
+): Promise<WebhookResult> {
+  const fields = { ...context, userId, subscriptionId };
+  let outcome: OrphanOutcome;
+  try {
+    outcome = await settleOrphan(subscriptionId, userId, now);
+  } catch (error) {
+    // Nothing marks a failed cancel for the cron, so Dodo's redelivery is the retry.
+    log.error("billing.orphan_cancel_failed", error, fields);
+    return { status: 500, message: "retry" };
+  }
+  if (outcome === "cancelled") {
+    log.error(
+      "billing.orphan_subscription_cancelled",
+      "a subscription signed for a deleted account was cancelled and refunded",
+      fields,
+    );
+  } else {
+    log.info("billing.webhook_ignored", { ...fields, reason: `orphan_${outcome}` });
+  }
+  return { status: 200, message: "ignored" };
 }
 
 function malformed(error: z.ZodError, context: Context): WebhookResult {
@@ -459,7 +434,8 @@ async function report(
     return;
   }
   const paidWithoutUser = result.reason === "no_user" && planForStatus(context.status) === "paid";
-  if (paidWithoutUser || result.reason === "unknown_status") {
+  const unknown = result.reason === "unknown_status" && !QUIET_STATUSES.has(context.status);
+  if (paidWithoutUser || unknown) {
     log.warn("billing.webhook_ignored", fields);
   } else {
     log.info("billing.webhook_ignored", fields);
@@ -473,23 +449,4 @@ async function refreshPublishedPage(result: Extract<ApplyResult, { outcome: "app
   } catch (error) {
     log.warn("billing.portfolio_refresh_failed", { userId: result.userId }, error);
   }
-}
-
-function parseJson(text: string): unknown {
-  try {
-    return JSON.parse(text);
-  } catch {
-    return undefined;
-  }
-}
-
-function eventIdOf(json: unknown): string {
-  if (typeof json !== "object" || json === null || !("event_id" in json)) return "";
-  return typeof json.event_id === "string" ? json.event_id.slice(0, 64) : "";
-}
-
-function parseTimestamp(value: string | null | undefined): number | null {
-  if (!value) return null;
-  const ms = Date.parse(value);
-  return Number.isFinite(ms) ? ms : null;
 }

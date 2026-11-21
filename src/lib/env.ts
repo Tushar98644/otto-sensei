@@ -9,7 +9,7 @@ const optionalString = z.preprocess(emptyToUndefined, z.string().optional());
 const stringWithDefault = (fallback: string) =>
   z.preprocess(emptyToUndefined, z.string().default(fallback));
 
-type PaddleEnvironment = "sandbox" | "live";
+type DodoEnvironment = "test" | "live";
 
 const EnvSchema = z.object({
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
@@ -30,24 +30,24 @@ const EnvSchema = z.object({
   DEV_AUTH: optionalString,
   AUTH_SECRET: optionalString,
   DEV_GITHUB_LOGIN: optionalString,
-  PADDLE_API_KEY: optionalString,
-  PADDLE_WEBHOOK_SECRET: optionalString,
-  // Only an explicit "live" (or "production") takes real money; anything else is the sandbox.
-  PADDLE_ENVIRONMENT: z.preprocess(
+  DODO_API_KEY: optionalString,
+  DODO_WEBHOOK_SECRET: optionalString,
+  // Only an explicit "live" (or "live_mode", "production") takes real money; anything else is test mode.
+  DODO_ENVIRONMENT: z.preprocess(
     emptyToUndefined,
     z
       .string()
-      .default("sandbox")
-      .transform((value): PaddleEnvironment =>
-        ["live", "production"].includes(value.trim().toLowerCase()) ? "live" : "sandbox",
+      .default("test")
+      .transform((value): DodoEnvironment =>
+        ["live", "live_mode", "production"].includes(value.trim().toLowerCase()) ? "live" : "test",
       ),
   ),
-  NEXT_PUBLIC_PADDLE_CLIENT_TOKEN: optionalString,
-  PADDLE_PRO_MONTHLY_PRICE_ID: optionalString,
-  PADDLE_PRO_YEARLY_PRICE_ID: optionalString,
-  PADDLE_MAX_MONTHLY_PRICE_ID: optionalString,
-  PADDLE_MAX_YEARLY_PRICE_ID: optionalString,
-  PADDLE_PRO_TRIAL_PRICE_ID: optionalString,
+  DODO_PRO_MONTHLY_PRODUCT_ID: optionalString,
+  DODO_PRO_YEARLY_PRODUCT_ID: optionalString,
+  DODO_MAX_MONTHLY_PRODUCT_ID: optionalString,
+  DODO_MAX_YEARLY_PRODUCT_ID: optionalString,
+  DODO_PRO_TRIAL_PRODUCT_ID: optionalString,
+  BILLING_SIGNING_SECRET: optionalString,
   GITHUB_TOKEN: optionalString,
   CRON_SECRET: optionalString,
   RESEND_API_KEY: optionalString,

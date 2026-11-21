@@ -10,7 +10,7 @@ import { isTrialEligible, recordTrialHistory } from "./trial";
 
 type StatusGrant = "paid" | "free";
 
-// Paddle's statuses, plus scheduled_cancel for a subscription whose cancel is pending.
+// The app's own status words; the billing adapter maps the provider's statuses onto them.
 const PLAN_BY_STATUS: Record<string, StatusGrant> = {
   trialing: "paid",
   active: "paid",
@@ -18,6 +18,8 @@ const PLAN_BY_STATUS: Record<string, StatusGrant> = {
   scheduled_cancel: "paid",
   canceled: "free",
   paused: "free",
+  // Payment failed after the grace period: Free, but still live, so it can still be charged.
+  on_hold: "free",
 };
 
 export function isEndedStatus(status: string): boolean {
@@ -47,7 +49,7 @@ export type SubscriptionState = {
   trialEndsAt?: number | null;
   eventAt: number | null;
   replacesSubscriptionId?: string | null;
-  // Trialing, or past_due on the trial price: a trial nobody has paid for, one per person.
+  // Trialing, or past_due before the first full charge: a trial nobody has paid for, one per person.
   unpaidTrial?: boolean;
 };
 
@@ -101,7 +103,7 @@ export function findUserQuery(db: Db, lookup: UserLookup) {
     .from(users)
     .where(
       or(
-        // custom_data is free-form at Paddle; a value that isn't a uuid can't be one of our ids.
+        // Checkout metadata is free-form; a value that isn't a uuid can't be one of our ids.
         lookup.userId && isUserId(lookup.userId) ? eq(users.id, lookup.userId) : undefined,
         eq(users.billingSubscriptionId, lookup.subscriptionId),
         eq(users.billingCustomerId, lookup.customerId),
@@ -151,15 +153,15 @@ export async function applySubscriptionState(
   // A late "trialing" or first payment on the replaced trial would otherwise overwrite its plan.
   if (await isReplaced(db, state.subscriptionId)) return { outcome: "ignored", reason: "replaced" };
   let user = await findUser(db, state);
-  // Paddle's subscription events carry no email, so it's read only when nothing else matched.
+  // An event may carry no email, so it's read only when nothing else matched.
   if (!user && grant === "paid" && !state.email && options.resolveEmail) {
     const email = await options.resolveEmail(state.customerId);
     if (email) user = await findUser(db, { ...state, email });
   }
   if (!user) return { outcome: "ignored", reason: "no_user" };
-  // Other prices in the same Paddle account must not grant a plan.
+  // Other products in the same billing account must not grant a plan.
   const own = user.billingSubscriptionId === state.subscriptionId;
-  // Paddle reuses a customer for any checkout typing their email, so a new subscription needs our signed id.
+  // A customer is reused for any checkout typing their email, so a new subscription needs our signed id.
   if (!own && state.userId !== user.id) return { outcome: "ignored", reason: "unsigned" };
   if (state.pricePlan === null && !own) {
     return { outcome: "ignored", reason: "other_product" };
@@ -237,7 +239,7 @@ export async function applySubscriptionState(
           plan === "free"
             ? or(eq(users.plan, "free"), eq(users.billingSubscriptionId, state.subscriptionId))
             : undefined,
-          // Paddle doesn't deliver in order, so an older event must not undo a newer one.
+          // Webhooks don't arrive in order, so an older event must not undo a newer one.
           state.eventAt === null
             ? undefined
             : or(
@@ -255,7 +257,7 @@ export async function applySubscriptionState(
       plan !== "free" &&
       trialEndsAt === null &&
       (state.status === "active" || state.status === "scheduled_cancel");
-    // Paddle.js can set custom_data in the browser, so only the trial this user is on gets cancelled.
+    // Anyone can set checkout metadata, so only the trial this user is on gets cancelled.
     const replaces =
       paying && state.replacesSubscriptionId === user.billingSubscriptionId
         ? state.replacesSubscriptionId
@@ -286,7 +288,7 @@ export async function applySubscriptionState(
   });
 }
 
-// Read under the row lock, so the parallel created and trialing events of one trial agree.
+// Read under the row lock, so parallel events of one new trial agree.
 async function mayTrial(tx: Tx, userId: string, subscriptionId: string): Promise<boolean> {
   const [row] = await tx
     .select({

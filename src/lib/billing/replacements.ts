@@ -3,16 +3,12 @@ import { getDb } from "@/db/client";
 import { billingEvents, trialReplacements } from "@/db/schema";
 import { env } from "@/lib/env";
 import { log } from "@/lib/log";
-import { claimBillingEvent } from "./entitlements";
+import { cancelSubscription, getSubscription, refundPayment, succeededPayments } from "./dodo";
+import { internalStatus } from "./dodo-status";
+import { claimBillingEvent, isLiveStatus } from "./entitlements";
 import { BillingError } from "./errors";
-import {
-  cancelPaddleSubscription,
-  completedPaddleTransactions,
-  getPaddleSubscription,
-  refundPaddleTransaction,
-} from "./paddle";
 
-// A plan bought during the trial is its own subscription; the trial is cancelled once it's paid.
+// A refused second trial, or a trial a separately bought plan replaced, is cancelled here; the cron retries.
 
 type Replacement = typeof trialReplacements.$inferSelect;
 
@@ -73,8 +69,8 @@ async function cancelReplaced(replacement: Replacement, now: number): Promise<bo
   };
   const attempted = { attempts: sql`${trialReplacements.attempts} + 1` };
   const row = eq(trialReplacements.replacedSubscriptionId, replacement.replacedSubscriptionId);
-  if (!env().PADDLE_API_KEY) {
-    log.error("billing.replace_cancel_failed", new Error("PADDLE_API_KEY is not set"), fields);
+  if (!env().DODO_API_KEY) {
+    log.error("billing.replace_cancel_failed", new Error("DODO_API_KEY is not set"), fields);
     return false;
   }
   try {
@@ -98,48 +94,81 @@ async function cancelReplaced(replacement: Replacement, now: number): Promise<bo
 
 async function cancelTrial(subscriptionId: string): Promise<"cancelled" | "already_ended"> {
   try {
-    await cancelPaddleSubscription(subscriptionId, { immediately: true });
-    return "cancelled";
+    return await cancelSubscription(subscriptionId, { immediately: true });
   } catch (error) {
     if (!(error instanceof BillingError) || error.code !== "refused") throw error;
-    // Paddle refuses to cancel a subscription that has already ended.
-    const current = await getPaddleSubscription(subscriptionId);
-    if (current.status === "canceled") return "already_ended";
+    // Dodo refuses to cancel a subscription that has already ended.
+    const current = await getSubscription(subscriptionId);
+    if (internalStatus(current) === "canceled" || current.status === "failed")
+      return "already_ended";
     throw error;
   }
 }
 
-// Refunds each completed charge of a refused second trial once, whether the cancel or Paddle's
-// transaction.completed gets there first; a failed refund frees its claim and is logged for a refund by hand.
+// Refunds each succeeded charge of a refused second trial once, whether the cancel or Dodo's
+// payment.succeeded gets there first; a failed refund frees its claim and is logged for a refund by hand.
 export async function refundRefusedTrial(
   subscriptionId: string,
-  userId: string,
+  userId: string | null,
   known?: readonly string[],
   now = Date.now(),
 ): Promise<number> {
   const fields = { userId, subscriptionId };
   let ids: readonly string[];
   try {
-    ids = known ?? (await completedPaddleTransactions(subscriptionId));
+    ids = known ?? (await succeededPayments(subscriptionId));
   } catch (error) {
     log.error("billing.reused_trial_refund_failed", error, fields);
     return 0;
   }
   const db = await getDb();
   let refunded = 0;
-  for (const transactionId of ids) {
-    const claim = `refund:${transactionId}`;
+  for (const paymentId of ids) {
+    const claim = `refund:${paymentId}`;
     if (!(await claimBillingEvent(claim, "trial_refund", now))) continue;
     try {
-      await refundPaddleTransaction(transactionId);
-      refunded += 1;
-      log.info("billing.reused_trial_refunded", { ...fields, transactionId });
+      // Already refunded, or a refund under way, keeps the claim: asking again would add nothing.
+      const outcome = await refundPayment(paymentId);
+      if (outcome === "refunded") refunded += 1;
+      log.info("billing.reused_trial_refunded", { ...fields, paymentId, outcome });
     } catch (error) {
       await db.delete(billingEvents).where(eq(billingEvents.id, claim));
-      log.error("billing.reused_trial_refund_failed", error, { ...fields, transactionId });
+      log.error("billing.reused_trial_refund_failed", error, { ...fields, paymentId });
     }
   }
   return refunded;
+}
+
+export type OrphanOutcome = "cancelled" | "rechecked" | "kept";
+
+const orphanKey = (subscriptionId: string) => `orphan:${subscriptionId}`;
+
+// trial_replacements rows go with the account, so a billing_events key marks the ones cancelled here.
+export async function settleOrphan(
+  subscriptionId: string,
+  userId: string | null,
+  now = Date.now(),
+): Promise<OrphanOutcome> {
+  const status = internalStatus(await getSubscription(subscriptionId));
+  const chargeable = status !== null && status !== "scheduled_cancel" && isLiveStatus(status);
+  // One that ended or is set to end without us, as after the deletion's own cancel, keeps its charges.
+  if (!chargeable && !(await isOrphan(subscriptionId))) return "kept";
+  if (chargeable) {
+    await claimBillingEvent(orphanKey(subscriptionId), "orphan_subscription", now);
+    await cancelTrial(subscriptionId);
+  }
+  await refundRefusedTrial(subscriptionId, userId, undefined, now);
+  return chargeable ? "cancelled" : "rechecked";
+}
+
+export async function isOrphan(subscriptionId: string): Promise<boolean> {
+  const db = await getDb();
+  const [row] = await db
+    .select({ id: billingEvents.id })
+    .from(billingEvents)
+    .where(eq(billingEvents.id, orphanKey(subscriptionId)))
+    .limit(1);
+  return row !== undefined;
 }
 
 export async function isRefusedTrial(subscriptionId: string): Promise<string | null> {

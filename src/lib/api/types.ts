@@ -204,7 +204,13 @@ export type MeResponse = {
   usage: UsageSnapshot | null;
   period: UsagePeriod | null;
   aiBudget?: Usage | null;
-  billing: { mode: BillingMode; offer: Record<PaidPlanId, BillingInterval[]>; trial?: boolean };
+  billing: {
+    mode: BillingMode;
+    offer: Record<PaidPlanId, BillingInterval[]>;
+    trial?: boolean;
+    paymentIssue?: boolean;
+    cancelScheduled?: boolean;
+  };
   auth: { mode: AuthMode };
 };
 

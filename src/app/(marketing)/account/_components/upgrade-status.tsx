@@ -35,11 +35,10 @@ export function UpgradeStatus({
           </Button>
         }
       >
-        Payments can take a few minutes to reach us. Check again soon, or email{" "}
-        <a
-          href={SUPPORT_MAILTO}
-          className="font-medium break-all underline underline-offset-4"
-        >
+        {plan === "free"
+          ? "Payments can take a few minutes to reach us. Check again soon, or email "
+          : `Payments can take a few minutes to reach us, so check again soon. If your card was declined, you stay on ${PLANS[plan].name}: update your card in Manage billing below and try again, or email `}
+        <a href={SUPPORT_MAILTO} className="font-medium break-all underline underline-offset-4">
           {BRAND.supportEmail}
         </a>
         .

@@ -48,4 +48,4 @@ export const FOOTER_NAV: readonly NavLink[] = [
   { href: ROUTES.acceptableUse, label: "Acceptable use" },
 ];
 
-export const LEGAL_LAST_UPDATED = "2026-11-18";
+export const LEGAL_LAST_UPDATED = "2026-11-20";
