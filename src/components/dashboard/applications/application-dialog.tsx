@@ -18,16 +18,9 @@ import { Dialog } from "@/components/ui/dialog";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
-import { Spinner } from "@/components/ui/spinner";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/components/ui/toast";
-import { api, isApiError } from "@/lib/api/client";
-import {
-  APPLICATION_LIMITS,
-  cleanLine,
-  normalizeJobUrl,
-  type Application,
-} from "@/lib/applications/schema";
+import { APPLICATION_LIMITS, type Application } from "@/lib/applications/schema";
 import { cn } from "@/lib/utils";
 import { APPLICATION_STATUSES, isApplicationStatus, STATUS_NAMES } from "@/lib/applications/status";
 import { copyJobId } from "@/lib/applications/thread";
@@ -35,9 +28,7 @@ import { resumeTitle } from "@/lib/resume/ops";
 import type { Resume } from "@/lib/resume/schema";
 import {
   emptyForm,
-  fillFromPost,
   formFromApplication,
-  needsRead,
   patchFrom,
   switchResume,
   toDateInput,
@@ -46,13 +37,12 @@ import {
   type ApplicationFormValues,
   type FormErrors,
   type JobDraft,
-  type JobPost,
 } from "./form";
 import { addApplication, changeApplication } from "./use-applications";
 
 export type ApplicationDialogTarget =
   | { kind: "add"; key: number; resumeId: string | null }
-  | { kind: "edit"; application: Application; focus?: "interview" };
+  | { kind: "edit"; application: Application };
 
 export type ApplicationDialogProps = {
   target: ApplicationDialogTarget | null;
@@ -136,70 +126,6 @@ function ApplicationForm({
     () => target.kind === "add" && values.resumeId === "" && resumes.length > 0,
   );
 
-  const [reading, setReading] = useState(false);
-  const [readNote, setReadNote] = useState<string | null>(null);
-  const lookup = useRef<{ url: string; post: Promise<JobPost | null> } | null>(null);
-
-  async function fetchPost(url: string): Promise<JobPost | null> {
-    const current = () => lookup.current?.url === url;
-    setReading(true);
-    setReadNote(null);
-    try {
-      const { posting } = await api.readJob({ url });
-      const post = { company: cleanLine(posting.company), role: cleanLine(posting.title) };
-      if (current()) {
-        setReadNote(
-          post.company
-            ? "Filled in from the post. Check it before you add it."
-            : "The post doesn't name the company. Type it below.",
-        );
-      }
-      return post;
-    } catch (error) {
-      if (current()) {
-        setReadNote(
-          isApiError(error, "network_error")
-            ? "You seem to be offline. Type the details below."
-            : "Otto couldn't read that link. Type the details below.",
-        );
-      }
-      return null;
-    } finally {
-      if (current()) setReading(false);
-    }
-  }
-
-  // One read per link: a paste, a blur and a submit for the same link share it.
-  function readPost(raw: string): Promise<JobPost | null> {
-    const url = normalizeJobUrl(raw);
-    if (!url) return Promise.resolve(null);
-    if (lookup.current?.url === url) return lookup.current.post;
-    const post = fetchPost(url);
-    lookup.current = { url, post };
-    return post;
-  }
-
-  function readInto(raw: string) {
-    if (!needsRead({ ...values, jobUrl: raw })) return;
-    const url = normalizeJobUrl(raw);
-    void readPost(raw).then((post) => {
-      if (!post) return;
-      setValues((latest) =>
-        normalizeJobUrl(latest.jobUrl) === url ? fillFromPost(latest, post) : latest,
-      );
-    });
-  }
-
-  // A read for a link that was since changed no longer fills anything or speaks.
-  function setLink(raw: string) {
-    set("jobUrl", raw);
-    if (lookup.current && normalizeJobUrl(raw) !== lookup.current.url) {
-      lookup.current = null;
-      setReading(false);
-      setReadNote(null);
-    }
-  }
-
   const missingVersion = editing?.resumeId && !byId.has(editing.resumeId) ? editing.resumeId : null;
   const versionTitles = missingVersion
     ? new Map([...titles, [missingVersion, editing?.resumeTitle ?? ""]])
@@ -269,24 +195,10 @@ function ApplicationForm({
       onClose();
       return;
     }
-    if (saving) return;
-    let ready = values;
-    // Only a missing company waits on the post; a missing title alone isn't worth the wait.
-    if (values.company.trim() === "" && needsRead(values)) {
-      setSaving(true);
-      const post = await readPost(values.jobUrl);
-      setSaving(false);
-      if (post) {
-        ready = fillFromPost(values, post);
-        setValues((latest) => fillFromPost(latest, post));
-      }
-    }
-    const result = validateForm(ready, versionTitles, Date.now());
+    const result = validateForm(values, versionTitles, Date.now());
     if (!result.ok) {
       setErrors(result.errors);
-      if (result.errors.appliedOn || result.errors.interviewOn || result.errors.notes) {
-        setMoreOpen(true);
-      }
+      if (result.errors.appliedOn || result.errors.notes) setMoreOpen(true);
       // After React has marked the fields, so the first wrong one takes focus with its message.
       requestAnimationFrame(() =>
         formRef.current?.querySelector<HTMLElement>("[aria-invalid=true]")?.focus(),
@@ -309,46 +221,9 @@ function ApplicationForm({
   }
 
   const showMore = editing !== null || moreOpen;
-  const focusInterview = target.kind === "edit" && target.focus === "interview";
 
   return (
     <form ref={formRef} onSubmit={submit} noValidate className="flex flex-col gap-5">
-      <Field
-        label="Job link"
-        optional
-        error={errors.jobUrl}
-        hint={
-          editing ? undefined : (
-            <span aria-live="polite" className="inline-flex items-center gap-1.5">
-              {reading ? <Spinner className="size-3.5" /> : null}
-              {reading
-                ? "Reading the post…"
-                : (readNote ?? "Paste it and Otto fills in the company and title.")}
-            </span>
-          )
-        }
-      >
-        <Input
-          type="url"
-          inputMode="url"
-          value={values.jobUrl}
-          onChange={(event) => setLink(event.target.value)}
-          onPaste={(event) => {
-            if (editing) return;
-            const input = event.currentTarget;
-            window.setTimeout(() => readInto(input.value), 0);
-          }}
-          onBlur={() => {
-            if (!editing) readInto(values.jobUrl);
-          }}
-          placeholder="https://"
-          maxLength={APPLICATION_LIMITS.jobUrl}
-          autoComplete="off"
-          spellCheck={false}
-          data-autofocus={values.company === "" ? true : undefined}
-        />
-      </Field>
-
       <div className="grid gap-5 sm:grid-cols-2">
         <Field label="Company" error={errors.company}>
           <Input
@@ -356,6 +231,7 @@ function ApplicationForm({
             onChange={(event) => set("company", event.target.value)}
             maxLength={APPLICATION_LIMITS.company}
             autoComplete="organization"
+            data-autofocus={values.company === "" ? true : undefined}
           />
         </Field>
         <Field label="Job title" optional error={errors.role}>
@@ -367,6 +243,19 @@ function ApplicationForm({
           />
         </Field>
       </div>
+
+      <Field label="Job link" optional error={errors.jobUrl}>
+        <Input
+          type="url"
+          inputMode="url"
+          value={values.jobUrl}
+          onChange={(event) => set("jobUrl", event.target.value)}
+          placeholder="https://"
+          maxLength={APPLICATION_LIMITS.jobUrl}
+          autoComplete="off"
+          spellCheck={false}
+        />
+      </Field>
 
       {editing ? null : (
         <Button
@@ -424,18 +313,6 @@ function ApplicationForm({
             </Select>
           </Field>
         </div>
-        {values.status === "interview" ? (
-          <div className="grid gap-5 sm:grid-cols-2">
-            <Field label="Interview day" optional error={errors.interviewOn}>
-              <Input
-                type="date"
-                value={values.interviewOn}
-                onChange={(event) => set("interviewOn", event.target.value)}
-                data-autofocus={focusInterview ? true : undefined}
-              />
-            </Field>
-          </div>
-        ) : null}
         <Field
           label="Notes"
           optional
@@ -467,7 +344,7 @@ function ApplicationForm({
         <Button
           type="submit"
           loading={saving}
-          data-autofocus={values.company !== "" && !focusInterview ? true : undefined}
+          data-autofocus={values.company !== "" ? true : undefined}
         >
           {editing ? "Done" : "Add application"}
         </Button>

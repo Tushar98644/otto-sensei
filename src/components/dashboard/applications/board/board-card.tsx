@@ -3,7 +3,6 @@
 import {
   ArrowRight,
   BellRing,
-  CalendarDays,
   CircleX,
   Clock,
   Ellipsis,
@@ -31,17 +30,18 @@ import { STATUS_NAMES, type ApplicationStatus } from "@/lib/applications/status"
 import { applicationHref } from "@/lib/applications/thread";
 import { cn } from "@/lib/utils";
 import { StatusIcon } from "../status-menu";
-import { formatDay, interviewMark, prepHref } from "../view";
+import { formatDay } from "../view";
+import { interviewHref } from "../../interview/view";
 import {
   cardColumn,
   cardName,
   COLUMN_NAMES,
+  daysInStage,
   initials,
   isOverdue,
   menuStatuses,
   needsAction,
   onward,
-  stageAge,
   type BoardCard,
   type BoardColumn,
 } from "./board";
@@ -166,7 +166,7 @@ export function BoardCardView({
         )}
       >
         {urgent ? (
-          <span className="absolute -top-2.5 right-3 inline-flex h-5 items-center gap-1 rounded-full bg-warn-soft px-1.5 text-xs font-medium text-warn-ink ring-2 ring-surface-hover">
+          <span className="absolute -top-2.5 right-9 inline-flex h-5 items-center gap-1 rounded-full bg-warn-soft px-1.5 text-xs font-medium text-warn-ink ring-2 ring-surface-hover">
             <BellRing aria-hidden className="size-3 text-warn" />
             Follow up
           </span>
@@ -196,26 +196,20 @@ export function BoardCardView({
             />
           </button>
           <div className="min-w-0 flex-1">
-            <h3 id={titleId} className="line-clamp-2 text-sm/5 font-medium break-words text-ink">
+            <h3 id={titleId} className="truncate text-sm/5 font-medium text-ink">
               {card.kind === "application" ? (
                 <Link
                   href={applicationHref(card.application.id)}
                   className="underline-offset-4 hover:underline"
                 >
-                  {company || role || name}
+                  {role || company || name}
                 </Link>
               ) : (
-                company || role || name
+                role || company || name
               )}
             </h3>
-            {role && company ? (
-              <p className="mt-0.5 line-clamp-2 text-xs/4 break-words text-muted">{role}</p>
-            ) : null}
+            {role && company ? <p className="truncate text-xs/5 text-muted">{company}</p> : null}
           </div>
-        </div>
-
-        <div className="flex items-end gap-0.5">
-          <Marks card={card} now={now} hasLetter={hasLetter} />
           {next ? (
             <button
               type="button"
@@ -227,7 +221,7 @@ export function BoardCardView({
                 variant: "ghost",
                 size: "icon-sm",
                 className:
-                  "-mb-1 ml-auto size-7 text-muted opacity-0 transition-opacity group-focus-within/card:opacity-100 group-hover/card:opacity-100 hover:text-ink pointer-coarse:hidden",
+                  "-my-0.5 size-7 text-muted opacity-0 transition-opacity group-focus-within/card:opacity-100 group-hover/card:opacity-100 hover:text-ink pointer-coarse:hidden",
               })}
             >
               <ArrowRight aria-hidden />
@@ -240,12 +234,14 @@ export function BoardCardView({
             triggerClassName={buttonClasses({
               variant: "ghost",
               size: "icon-sm",
-              className: cn("-mr-1 -mb-1 size-7 text-muted hover:text-ink", !next && "ml-auto"),
+              className: "-my-0.5 -mr-1 size-7 text-muted hover:text-ink",
             })}
             trigger={<Ellipsis aria-hidden />}
             items={menu}
           />
         </div>
+
+        <Marks card={card} now={now} hasLetter={hasLetter} />
       </article>
     </li>
   );
@@ -256,26 +252,10 @@ const MARK_LINK =
 
 function Marks({ card, now, hasLetter }: { card: BoardCard; now: number; hasLetter: boolean }) {
   const marks: { key: string; node: ReactNode }[] = [];
-  if (
-    card.kind === "application" &&
-    card.application.status === "interview" &&
-    card.application.interviewAt
-  ) {
-    const at = card.application.interviewAt;
-    marks.push({
-      key: "interview",
-      node: (
-        <Badge className="h-5 px-1.5 text-ink">
-          <CalendarDays aria-hidden className="size-3 text-muted" />
-          <span className="sr-only">Interview </span>
-          {now > 0 ? interviewMark(at, now) : formatDay(at, at)}
-        </Badge>
-      ),
-    });
-  }
   if (now > 0) {
+    const days = daysInStage(card, now);
     const overdue = isOverdue(card, now);
-    const label = stageAge(card, now);
+    const label = card.kind === "to_apply" ? `${days}d waiting` : `${days}d in stage`;
     marks.push({
       key: "days",
       node: (
@@ -300,12 +280,22 @@ function Marks({ card, now, hasLetter }: { card: BoardCard; now: number; hasLett
         ),
       });
     }
+    if (application.status === "interview" && application.interviewAt) {
+      marks.push({
+        key: "interview",
+        node: (
+          <Badge className="h-5 px-1.5">
+            On {formatDay(application.interviewAt, now || application.interviewAt)}
+          </Badge>
+        ),
+      });
+    }
     if (application.hasPrep) {
       marks.push({
         key: "prep",
         node: (
           <Link
-            href={prepHref(application.id)}
+            href={interviewHref(application.id)}
             className={MARK_LINK}
             aria-label="Open interview prep"
           >
@@ -352,7 +342,7 @@ function Marks({ card, now, hasLetter }: { card: BoardCard; now: number; hasLett
   }
   if (marks.length === 0) return null;
   return (
-    <ul aria-label="About this job" className="flex min-w-0 flex-1 flex-wrap gap-1">
+    <ul aria-label="About this job" className="flex flex-wrap gap-1">
       {marks.map((mark) => (
         <li key={mark.key}>{mark.node}</li>
       ))}
@@ -410,12 +400,10 @@ export function CardGhost({ card }: { card: BoardCard }) {
         {initials(company || cardName(card))}
       </span>
       <div className="min-w-0">
-        <p className="line-clamp-2 text-sm/5 font-medium break-words text-ink">
-          {company || role || cardName(card)}
+        <p className="truncate text-sm/5 font-medium text-ink">
+          {role || company || cardName(card)}
         </p>
-        {role && company ? (
-          <p className="mt-0.5 line-clamp-2 text-xs/4 break-words text-muted">{role}</p>
-        ) : null}
+        {role && company ? <p className="truncate text-xs/5 text-muted">{company}</p> : null}
       </div>
     </div>
   );

@@ -21,11 +21,17 @@ import { FolderCard } from "@/components/ui/folder-card";
 import { Progress } from "@/components/ui/progress";
 import { applicationHref } from "@/lib/applications/thread";
 import { pluralize } from "@/lib/utils";
-import { formatDay, prepareHref } from "../applications/view";
+import type { Application } from "@/lib/applications/schema";
+import { formatDay, prepHref } from "../applications/view";
 import type { StudioActions } from "../use-studio-actions";
 import { interviewDay, type NextStep, type SetupStepId } from "./next-steps";
 import { UploadZone } from "./upload-zone";
 import { useUpNext, type UpNext as UpNextState } from "./use-up-next";
+
+// ?start=1 makes the prep page start by itself; an existing pack just opens.
+function prepareHref(application: Pick<Application, "id" | "hasPrep">): string {
+  return application.hasPrep ? prepHref(application.id) : `${prepHref(application.id)}?start=1`;
+}
 
 type Row = {
   key: string;

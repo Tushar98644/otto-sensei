@@ -355,7 +355,7 @@ Wispr's "Saved name" pill: a change shown where it happens.
 }
 ```
 
-Use it as `<mark className="highlighter text-ink">`. It marks exactly what the software got wrong or what just changed, at most 3 per window (in the Fix lines editor, at most 3 per weak line), never on headings. On a resume line it covers only the words that triggered the note (`issue.match`), never the whole line: a whole line in lavender reads as selected text (2026-11-21). A caption or a live pill names the problem; the color never carries meaning on its own. Optional paint-on: `animate-highlight-in` (`from { background-size: 0% 100% }`, 300ms, once).
+Use it as `<mark className="highlighter text-ink">`. It marks exactly what the software got wrong or what just changed, at most 3 per window, never on headings. A caption or a live pill names the problem; the color never carries meaning on its own. Optional paint-on: `animate-highlight-in` (`from { background-size: 0% 100% }`, 300ms, once).
 
 ### Doodles (new `src/components/doodles/`, owned by the mascot task)
 

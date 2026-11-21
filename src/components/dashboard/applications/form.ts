@@ -12,7 +12,6 @@ import type { ApplicationStatus } from "@/lib/applications/status";
 import { savedJobUrl } from "@/lib/insights/saved-job";
 import { resumeTitle } from "@/lib/resume/ops";
 import type { Resume } from "@/lib/resume/schema";
-import { DAY_MS } from "@/lib/time";
 
 export type ApplicationFormValues = {
   resumeId: string;
@@ -21,11 +20,10 @@ export type ApplicationFormValues = {
   jobUrl: string;
   appliedOn: string;
   status: ApplicationStatus;
-  interviewOn: string;
   notes: string;
 };
 
-export type FormField = "company" | "role" | "jobUrl" | "appliedOn" | "interviewOn" | "notes";
+export type FormField = "company" | "role" | "jobUrl" | "appliedOn" | "notes";
 export type FormErrors = Partial<Record<FormField, string>>;
 
 export type JobDraft = {
@@ -92,30 +90,8 @@ export function emptyForm(
     ...prefillFor(resume, draft),
     appliedOn: toDateInput(now),
     status: "applied",
-    interviewOn: "",
     notes: "",
   };
-}
-
-export type JobPost = { company: string; role: string };
-
-// Fills only what is still empty, so a read never overwrites what the user typed.
-export function fillFromPost(values: ApplicationFormValues, post: JobPost): ApplicationFormValues {
-  return {
-    ...values,
-    company:
-      values.company.trim() === ""
-        ? post.company.slice(0, APPLICATION_LIMITS.company)
-        : values.company,
-    role: values.role.trim() === "" ? post.role.slice(0, APPLICATION_LIMITS.role) : values.role,
-  };
-}
-
-export function needsRead(
-  values: Pick<ApplicationFormValues, "company" | "role" | "jobUrl">,
-): boolean {
-  const url = normalizeJobUrl(values.jobUrl);
-  return url !== null && url !== "" && (values.company.trim() === "" || values.role.trim() === "");
 }
 
 export function formFromApplication(application: Application): ApplicationFormValues {
@@ -126,7 +102,6 @@ export function formFromApplication(application: Application): ApplicationFormVa
     jobUrl: application.jobUrl,
     appliedOn: toDateInput(application.appliedAt),
     status: application.status,
-    interviewOn: application.interviewAt === null ? "" : toDateInput(application.interviewAt),
     notes: application.notes,
   };
 }
@@ -175,13 +150,6 @@ export function validateForm(
   else if (appliedAt < MIN_APPLIED_AT) errors.appliedOn = "Pick a day from 2000 on.";
   if (notes.length > APPLICATION_LIMITS.notes)
     errors.notes = `Keep notes under ${APPLICATION_LIMITS.notes} characters.`;
-  const asked = values.status === "interview" && values.interviewOn !== "";
-  const interviewAt = asked ? fromDateInput(values.interviewOn) : null;
-  if (asked && interviewAt === null) errors.interviewOn = "Pick the interview day.";
-  else if (interviewAt !== null && interviewAt < MIN_APPLIED_AT)
-    errors.interviewOn = "Pick a day from 2000 on.";
-  else if (interviewAt !== null && values.interviewOn > toDateInput(now + 365 * DAY_MS))
-    errors.interviewOn = "Pick a day within the next year.";
 
   if (Object.keys(errors).length > 0 || jobUrl === null || appliedAt === null) {
     return { ok: false, errors };
@@ -201,7 +169,6 @@ export function validateForm(
       appliedAt,
       status: values.status,
       notes,
-      ...(values.status === "interview" ? { interviewAt } : {}),
     },
   };
 }
@@ -220,11 +187,5 @@ export function patchFrom(original: Application, body: ValidForm["body"]): Updat
     patch.appliedAt = body.appliedAt;
   if (body.status !== original.status) patch.status = body.status;
   if (body.notes !== original.notes) patch.notes = body.notes;
-  if (body.interviewAt !== undefined && !sameDay(body.interviewAt, original.interviewAt))
-    patch.interviewAt = body.interviewAt;
   return patch;
-}
-
-function sameDay(a: number | null, b: number | null): boolean {
-  return a === null || b === null ? a === b : toDateInput(a) === toDateInput(b);
 }

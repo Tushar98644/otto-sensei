@@ -1,22 +1,12 @@
 import { describe, expect, it } from "vitest";
 import type { Application } from "@/lib/applications/schema";
 import {
-  canPrepare,
-  daysUntil,
-  FILTER_NAMES,
   filterApplications,
   filterCounts,
   formatDay,
-  interviewLabel,
-  interviewMark,
   latestFor,
-  notInOtto,
-  outsideLine,
-  prepareHref,
   sentLabel,
   sortApplications,
-  upcomingFirst,
-  upcomingInterview,
   upsertApplication,
   withoutApplication,
 } from "./view";
@@ -129,61 +119,5 @@ describe("formatDay", () => {
     const now = new Date(2026, 10, 7).getTime();
     expect(formatDay(new Date(2026, 9, 12).getTime(), now)).toBe("Oct 12");
     expect(formatDay(new Date(2025, 11, 30).getTime(), now)).toBe("Dec 30, 2025");
-  });
-});
-
-describe("the interview day", () => {
-  // Saturday Nov 21, 2026, in the browser's own zone.
-  const now = new Date(2026, 10, 21, 9, 30).getTime();
-  const day = (date: number, hour = 12) => new Date(2026, 10, date, hour).getTime();
-
-  it("reads as a weekday and a count inside a week, a date beyond it", () => {
-    expect(interviewLabel(day(21, 23), now)).toBe("Interview today");
-    expect(interviewLabel(day(22, 0), now)).toBe("Interview tomorrow");
-    expect(interviewLabel(day(23), now)).toBe("Interview Mon · in 2 days");
-    expect(interviewLabel(day(30), now)).toBe("Interview Nov 30 · in 9 days");
-    expect(interviewLabel(day(20), now)).toBe("Interview yesterday");
-    expect(interviewLabel(day(18), now)).toBe("Interview Wed · 3 days ago");
-    expect(interviewMark(day(22), now)).toBe("Tomorrow");
-    expect(daysUntil(day(23), now)).toBe(2);
-  });
-
-  it("puts upcoming interviews first, soonest on top, and leaves the rest in order", () => {
-    const list = [
-      app("a"),
-      app("b", { status: "interview", interviewAt: day(30) }),
-      app("c", { status: "interview", interviewAt: day(18) }),
-      app("d", { status: "interview", interviewAt: day(23) }),
-      app("e", { status: "offer", interviewAt: day(22) }),
-    ];
-    expect(ids(upcomingFirst(list, now))).toEqual(["d", "b", "a", "c", "e"]);
-    expect(ids(upcomingFirst(list, 0))).toEqual(["a", "b", "c", "d", "e"]);
-    expect(
-      upcomingInterview(app("x", { status: "interview", interviewAt: day(21, 8) }), now),
-    ).toBe(true);
-  });
-});
-
-describe("prep links", () => {
-  it("starts prep only when none exists, and offers it only at the interview", () => {
-    expect(prepareHref(app("a b"))).toBe("/dashboard/applications/a%20b/prep?start=1");
-    expect(prepareHref(app("a", { hasPrep: true }))).toBe("/dashboard/applications/a/prep");
-    expect(canPrepare(app("a", { status: "interview" }))).toBe(true);
-    for (const status of ["applied", "offer", "rejected", "no_reply"] as const) {
-      expect(canPrepare(app("a", { status }))).toBe(false);
-    }
-  });
-});
-
-describe("list copy", () => {
-  it("names the Applied filter like the status chip, and counts rows sent from outside Otto", () => {
-    expect(FILTER_NAMES.applied).toBe("Applied");
-    expect(
-      notInOtto([app("a"), app("b", { resumeId: null }), app("c", { resumeId: null })]),
-    ).toBe(2);
-    expect(outsideLine(1, 1)).toBe("Sent with a resume not in Otto.");
-    expect(outsideLine(3, 3)).toBe("All of these were sent with a resume not in Otto.");
-    expect(outsideLine(1, 4)).toBe("1 of these was sent with a resume not in Otto.");
-    expect(outsideLine(1200, 1500)).toBe("1,200 of these were sent with a resume not in Otto.");
   });
 });

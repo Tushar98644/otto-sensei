@@ -1,6 +1,6 @@
 "use client";
 
-import { memo, useMemo, type ChangeEvent, type ClipboardEvent, type KeyboardEvent } from "react";
+import { memo, type ChangeEvent, type ClipboardEvent, type KeyboardEvent } from "react";
 import { flushSync } from "react-dom";
 import { OttoMark } from "@/components/site/otto-mark";
 import { Button } from "@/components/ui/button";
@@ -26,7 +26,6 @@ import {
 } from "./edits";
 import { useOpenFix } from "./fix-launcher";
 import { ottoCanFix, wantsOtto } from "./fix-queue";
-import { splitMarks } from "./fix-text";
 import { addLineButtonId, bulletDeleteId, bulletInputId, editThenFocus } from "./focus";
 import { HIDDEN_LABEL, HiddenChip } from "./hidden-chip";
 import { BULLET_LIMITS, CHAR_LIMITS } from "./limits";
@@ -73,10 +72,6 @@ export const BulletRow = memo(function BulletRow({
   const lint = useLineLint(issues, hasText && linted);
   const flagged = !hidden && lint !== null && wantsOtto(lint);
   const fixable = !hidden && lint !== null && ottoCanFix(lint);
-  const marks = useMemo(
-    () => (lint ?? []).flatMap((issue) => (issue.match ? [issue.match] : [])),
-    [lint],
-  );
   const layout = useTouchLayout();
 
   function edit(update: (bullets: Bullet[]) => Bullet[]) {
@@ -235,21 +230,12 @@ export const BulletRow = memo(function BulletRow({
         )}
       >
         <div className="relative col-start-1 row-start-1 grid min-w-0">
-          {flagged && marks.length > 0 ? (
+          {flagged ? (
             <div
               aria-hidden
               className="pointer-events-none col-start-1 row-start-1 py-2.5 text-base wrap-break-word whitespace-pre-wrap text-transparent sm:text-sm"
             >
-              {/* The margins cancel the marker's padding and slicing keeps it off wrap points, so the words wrap as in the field. */}
-              {splitMarks(bullet.text, marks).map((part, at) =>
-                part.marked ? (
-                  <mark key={at} className="-mx-0.5 highlighter text-transparent box-decoration-slice!">
-                    {part.text}
-                  </mark>
-                ) : (
-                  part.text
-                ),
-              )}
+              <span className="bg-highlight box-decoration-clone">{bullet.text}</span>
             </div>
           ) : null}
           <Textarea

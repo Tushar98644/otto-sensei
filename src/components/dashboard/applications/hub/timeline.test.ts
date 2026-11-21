@@ -1,5 +1,4 @@
 import { describe, expect, it } from "vitest";
-import type { ApplicationStatus } from "@/lib/applications/status";
 import { nextStepLine, timelineSteps } from "./timeline";
 
 const DAY = 24 * 60 * 60 * 1_000;
@@ -61,48 +60,28 @@ describe("the application's timeline", () => {
 });
 
 describe("Otto's next step", () => {
-  const step = (status: ApplicationStatus, followUpAt: number | null = null) => ({
-    status,
-    followUpAt,
-    interviewAt: null,
-  });
-
   it("names the follow-up day, or says it's due", () => {
     const now = SENT + 3 * DAY;
-    expect(nextStepLine(step("applied", SENT + 7 * DAY), false, now)).toMatch(/follow up on Oct 19/);
-    expect(nextStepLine(step("applied", SENT + DAY), false, now)).toMatch(/time to follow up/);
-    expect(nextStepLine(step("applied"), false, now)).toMatch(/Waiting/);
+    expect(nextStepLine({ status: "applied", followUpAt: SENT + 7 * DAY }, false, now)).toMatch(
+      /follow up on Oct 19/,
+    );
+    expect(nextStepLine({ status: "applied", followUpAt: SENT + DAY }, false, now)).toMatch(
+      /time to follow up/,
+    );
+    expect(nextStepLine({ status: "applied", followUpAt: null }, false, now)).toMatch(/Waiting/);
   });
 
   it("offers prep at the interview until it's made, in 18 words or fewer", () => {
     const lines = [
-      nextStepLine(step("interview"), false, SENT),
-      nextStepLine(step("interview"), true, SENT),
+      nextStepLine({ status: "interview", followUpAt: null }, false, SENT),
+      nextStepLine({ status: "interview", followUpAt: null }, true, SENT),
       ...(["offer", "rejected", "no_reply"] as const).map((status) =>
-        nextStepLine(step(status), false, SENT),
+        nextStepLine({ status, followUpAt: null }, false, SENT),
       ),
-      nextStepLine(step("applied", SENT + DAY), false, SENT + 2 * DAY),
+      nextStepLine({ status: "applied", followUpAt: SENT + DAY }, false, SENT + 2 * DAY),
     ];
     expect(lines[0]).toMatch(/make prep/);
     expect(lines[1]).toMatch(/prep is ready/);
     for (const line of lines) expect(line.split(/\s+/).length).toBeLessThanOrEqual(18);
-  });
-
-  it("names the interview day, in 18 words or fewer", () => {
-    const now = new Date(2026, 10, 21, 9).getTime();
-    const at = (date: number) => new Date(2026, 10, date, 12).getTime();
-    const line = (date: number, prep: boolean) =>
-      nextStepLine({ status: "interview", followUpAt: null, interviewAt: at(date) }, prep, now);
-    expect(line(23, false)).toBe(
-      "Your interview is Mon, in 2 days. I can make prep from this job and your resume.",
-    );
-    expect(line(22, true)).toBe(
-      "Your interview is tomorrow. Your prep is ready to practice out loud.",
-    );
-    expect(line(21, false)).toMatch(/^Your interview is today\./);
-    expect(line(19, false)).toMatch(/How did the interview go/);
-    for (const text of [line(23, false), line(30, false), line(30, true), line(19, true)]) {
-      expect(text.split(/\s+/).length).toBeLessThanOrEqual(18);
-    }
   });
 });
