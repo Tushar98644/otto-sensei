@@ -350,6 +350,40 @@ describe("protecting paying users", () => {
     expect(await reload(user.id)).toMatchObject({ plan: "pro", billingSubscriptionId: "sub_new" });
   });
 
+  it("remembers a subscription's end even when another had taken over, and never lets it grant again", async () => {
+    const user = await createUser({
+      plan: "pro",
+      planStatus: "active",
+      billingCustomerId: "cus_1",
+      billingSubscriptionId: "sub_old",
+    });
+    const old = subscription({ userId: user.id, customerId: "cus_1", subscriptionId: "sub_old" });
+    const fresh = subscription({ userId: user.id, customerId: "cus_1", subscriptionId: "sub_new" });
+    expect(await applySubscriptionState(fresh, source(), NOW)).toMatchObject({
+      outcome: "applied",
+    });
+    expect(await applySubscriptionState({ ...old, status: "canceled" }, source(), NOW)).toEqual({
+      outcome: "ignored",
+      reason: "superseded",
+    });
+    expect(
+      await applySubscriptionState({ ...old, status: "scheduled_cancel" }, source(), NOW),
+    ).toEqual({ outcome: "ignored", reason: "superseded" });
+    expect(await reload(user.id)).toMatchObject({
+      plan: "pro",
+      planStatus: "active",
+      billingSubscriptionId: "sub_new",
+    });
+    expect(
+      await applySubscriptionState({ ...fresh, status: "canceled" }, source(), NOW),
+    ).toMatchObject({ outcome: "applied", plan: "free" });
+    expect(await applySubscriptionState({ ...fresh, status: "past_due" }, source(), NOW)).toEqual({
+      outcome: "ignored",
+      reason: "superseded",
+    });
+    expect(await reload(user.id)).toMatchObject({ plan: "free", billingSubscriptionId: "sub_new" });
+  });
+
   it("ignores other prices, but follows the user's own subscription to a new price", async () => {
     const stranger = await createUser();
     expect(

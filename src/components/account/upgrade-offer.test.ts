@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { upgradeOffer, type Offer } from "./upgrade-offer";
+import { afterUpgradeSignIn, upgradeOffer, type Offer } from "./upgrade-offer";
 
 const BOTH: Offer = { pro: ["month", "year"], max: ["month", "year"] };
 
@@ -155,5 +155,22 @@ describe("upgradeOffer", () => {
     expect(
       upgradeOffer({ current: "pro", offer: all, picked: "year", trial: false }).intervals,
     ).toEqual(["month"]);
+  });
+});
+
+describe("afterUpgradeSignIn", () => {
+  it("sends only a Free account straight to checkout, where Dodo's page confirms the charge", () => {
+    expect(afterUpgradeSignIn("free", "pro")).toBe("checkout");
+    expect(afterUpgradeSignIn("free", "max")).toBe("checkout");
+  });
+
+  it("asks a Pro account, trial or paid, to pick the Max card before its saved card is charged", () => {
+    expect(afterUpgradeSignIn("pro", "max")).toBe("choose");
+  });
+
+  it("says already when the account has the plan or more, or nothing was picked", () => {
+    expect(afterUpgradeSignIn("pro", "pro")).toBe("already");
+    expect(afterUpgradeSignIn("max", "pro")).toBe("already");
+    expect(afterUpgradeSignIn("free", null)).toBe("already");
   });
 });

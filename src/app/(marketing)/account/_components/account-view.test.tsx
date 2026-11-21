@@ -104,6 +104,13 @@ describe("AccountView plan section", () => {
     const trial = { plan: "pro", planInterval: "month", trialEndsAt: TRIAL_END } as const;
     expect(page(trial, { cancelScheduled: true }, arrival)).toContain("[upgrade dialog]");
     expect(page({ plan: "free" }, { paymentIssue: true }, arrival)).toContain("[upgrade dialog]");
-    expect(page(trial, {}, arrival)).not.toContain("[upgrade dialog]");
+  });
+
+  it("sent to upgrade by a link, charges no saved card: a trial or paid plan gets the dialog, only Free goes to checkout", () => {
+    const arrival = "upgrade=1&plan=max&interval=year";
+    const trial = { plan: "pro", planInterval: "month", trialEndsAt: TRIAL_END } as const;
+    expect(page(trial, {}, arrival)).toContain("[upgrade dialog]");
+    expect(page({ plan: "pro", planInterval: "month" }, {}, arrival)).toContain("[upgrade dialog]");
+    expect(page({ plan: "free" }, {}, arrival)).not.toContain("[upgrade dialog]");
   });
 });

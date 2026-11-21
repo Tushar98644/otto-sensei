@@ -152,6 +152,10 @@ export async function applySubscriptionState(
   const db = await getDb();
   // A late "trialing" or first payment on the replaced trial would otherwise overwrite its plan.
   if (await isReplaced(db, state.subscriptionId)) return { outcome: "ignored", reason: "replaced" };
+  // Dodo never revives an ended subscription, so a paid event of one is a late retry, whatever its time.
+  if (grant === "paid" && (await hasEnded(db, state.subscriptionId))) {
+    return { outcome: "ignored", reason: "superseded" };
+  }
   let user = await findUser(db, state);
   // An event may carry no email, so it's read only when nothing else matched.
   if (!user && grant === "paid" && !state.email && options.resolveEmail) {
@@ -201,6 +205,13 @@ export async function applySubscriptionState(
       .onConflictDoNothing()
       .returning({ id: billingEvents.id });
     if (recorded.length === 0) return { outcome: "duplicate" };
+    // Kept apart from the user row, which forgets this subscription once another takes over.
+    if (isEndedStatus(state.status)) {
+      await tx
+        .insert(billingEvents)
+        .values({ id: endedKey(state.subscriptionId), type: "subscription_ended", receivedAt: now })
+        .onConflictDoNothing();
+    }
     if (plan !== "free" && state.unpaidTrial) {
       if (!(await lockUser(tx, user.id))) return { outcome: "ignored", reason: "no_user" };
       if (!(await mayTrial(tx, user.id, state.subscriptionId))) {
@@ -324,6 +335,17 @@ async function isReplaced(db: Db, subscriptionId: string): Promise<boolean> {
     .select({ id: trialReplacements.replacedSubscriptionId })
     .from(trialReplacements)
     .where(eq(trialReplacements.replacedSubscriptionId, subscriptionId))
+    .limit(1);
+  return row !== undefined;
+}
+
+const endedKey = (subscriptionId: string) => `ended:${subscriptionId}`;
+
+async function hasEnded(db: Db, subscriptionId: string): Promise<boolean> {
+  const [row] = await db
+    .select({ id: billingEvents.id })
+    .from(billingEvents)
+    .where(eq(billingEvents.id, endedKey(subscriptionId)))
     .limit(1);
   return row !== undefined;
 }

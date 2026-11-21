@@ -67,8 +67,13 @@ export function AccountView() {
   const offered = wanted !== null && (me?.billing.offer[wanted].length ?? 0) > 0;
   // A held or ending subscription can't be upgraded, so the dialog points to Manage billing instead.
   const portalFirst = me?.billing.paymentIssue === true || me?.billing.cancelScheduled === true;
+  // Only Free skips the dialog: Dodo's hosted checkout is its confirmation, while a paid plan is charged in place.
   const straightToCheckout =
-    wantsUpgrade && user !== null && me?.billing.mode !== "disabled" && offered && !portalFirst;
+    wantsUpgrade &&
+    user?.plan === "free" &&
+    me?.billing.mode !== "disabled" &&
+    offered &&
+    !portalFirst;
   const upgradeOpen = wantsUpgrade && !straightToCheckout;
   const checkingOut = straightToCheckout && checkout.pending ? wanted : null;
 

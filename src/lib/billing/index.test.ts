@@ -527,6 +527,31 @@ describe("dodo mode", () => {
       expect((await reload(user.id))?.planStatus).toBe("trialing");
     });
 
+    it("refuses monthly to yearly once Dodo says the trial has turned into paid Pro, before its webhook lands here", async () => {
+      useDodo(MAX);
+      const user = await trialist();
+      dodo.subscriptions.push({
+        id: sub("trial"),
+        customer: cus(1),
+        product: PRO_TRIAL,
+        status: "active",
+      });
+      await expect(createCheckoutUrl(user, "max", "year")).rejects.toMatchObject({
+        code: "change_not_offered",
+      });
+      expect(writes()).toEqual([]);
+
+      expect(await createCheckoutUrl(user, "max", "month")).toBe(
+        "/account?checkout=success&plan=max",
+      );
+      expect(changes()).toEqual([
+        [
+          `/subscriptions/${sub("trial")}/change-plan`,
+          changeBody(MAX_MONTH, "prorated_immediately_keep_cycle"),
+        ],
+      ]);
+    });
+
     it("sends a trial set to cancel, and a paid plan set to end, to the portal: Dodo refuses to change either", async () => {
       useDodo(MAX);
       const user = await trialist();

@@ -11,7 +11,6 @@ import { toast } from "@/components/ui/toast";
 import {
   isTrialing,
   nextPlan,
-  PLAN_ORDER,
   planIncludes,
   PLANS,
   type BillingInterval,
@@ -29,7 +28,7 @@ import { ACCOUNT_OTTO, SUPPORT_MAILTO } from "./copy";
 import { PlanOffer } from "./plan-offer";
 import { SignInForm } from "./sign-in-form";
 import { PAYMENT_ISSUE_NOTICE, resumeFirstNotice, trialUpgradeNotice } from "./trial-upgrade";
-import { upgradeOffer } from "./upgrade-offer";
+import { afterUpgradeSignIn, upgradeOffer } from "./upgrade-offer";
 import { useBillingRedirect } from "./use-billing-redirect";
 import { useMe } from "./use-me";
 
@@ -53,8 +52,6 @@ type View = {
   footer: ReactNode;
   size?: DialogSize;
 };
-
-const rank = (plan: PlanId) => PLAN_ORDER.indexOf(plan);
 
 export function UpgradeDialog({
   open,
@@ -120,12 +117,13 @@ export function UpgradeDialog({
 
   function handleSignedIn(signedIn: SessionUser) {
     setStage("pitch");
-    if (!target || rank(signedIn.plan) >= rank(target.plan)) {
+    const next = afterUpgradeSignIn(signedIn.plan, target?.plan ?? null);
+    if (next === "already") {
       toast({ title: `You're already on ${PLANS[signedIn.plan].name}.`, variant: "success" });
       close();
       return;
     }
-    void checkout.go(target.plan, target.interval);
+    if (next === "checkout" && target) void checkout.go(target.plan, target.interval);
   }
 
   const billingOff = mode === "disabled";

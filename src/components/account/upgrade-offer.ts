@@ -28,6 +28,15 @@ export type UpgradeOffer = {
 
 const rank = (plan: PlanId) => PLAN_ORDER.indexOf(plan);
 
+// Only Free goes straight on: Dodo's hosted checkout confirms it, while a paid plan is charged in place on the saved card.
+export function afterUpgradeSignIn(
+  plan: PlanId,
+  target: PaidPlanId | null,
+): "already" | "checkout" | "choose" {
+  if (!target || rank(plan) >= rank(target)) return "already";
+  return plan === "free" ? "checkout" : "choose";
+}
+
 export function upgradeOffer({
   current,
   offer,

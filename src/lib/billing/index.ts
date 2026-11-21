@@ -78,14 +78,7 @@ export async function createCheckoutUrl(
   if (user.plan === plan) {
     throw new BillingError("already_subscribed", `User is already on ${PLANS[plan].name}`);
   }
-  // A paid plan only moves up in the app, on the billing period already paid for.
-  if (isPaidPlan(user.plan) && !isTrialing(user)) {
-    const down = PLAN_ORDER.indexOf(plan) < PLAN_ORDER.indexOf(user.plan);
-    const otherPeriod = user.planInterval !== null && interval !== user.planInterval;
-    if (down || otherPeriod) {
-      throw new BillingError("change_not_offered", `No in-app change from ${user.plan} to ${plan}`);
-    }
-  }
+  if (isPaidPlan(user.plan) && !isTrialing(user)) refuseChangeNotOffered(user, plan, interval);
   const trial =
     plan === PRO_TRIAL.plan && interval === PRO_TRIAL.interval && (await trialAvailableFor(user));
   if (mode === "mock") {
@@ -99,6 +92,8 @@ export async function createCheckoutUrl(
     const route = user.plan !== "free" && target ? planChangeRoute(existing.status) : "portal";
     const fields = { userId: user.id, from: user.plan, to: plan, status: existing.status };
     if (route === "in_place" && target) {
+      // Dodo says paid, so the lock applies even while a late webhook leaves the trial showing here.
+      refuseChangeNotOffered(user, plan, interval);
       await changePlan(existing.subscriptionId, target, { fromTrial: false });
       log.info("billing.plan_change_requested", fields);
       return `/account?checkout=success&plan=${plan}`;
@@ -136,6 +131,15 @@ export async function createCheckoutUrl(
     trial,
   });
   return url;
+}
+
+// A paid plan only moves up in the app, on the billing period already paid for.
+function refuseChangeNotOffered(user: SessionUser, plan: PaidPlanId, interval: BillingInterval) {
+  const down = PLAN_ORDER.indexOf(plan) < PLAN_ORDER.indexOf(user.plan);
+  const otherPeriod = user.planInterval !== null && interval !== user.planInterval;
+  if (down || otherPeriod) {
+    throw new BillingError("change_not_offered", `No in-app change from ${user.plan} to ${plan}`);
+  }
 }
 
 type LiveSubscription = { subscriptionId: string; customerId: string; status: string };

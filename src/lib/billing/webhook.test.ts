@@ -338,6 +338,90 @@ describe("idempotency and order", () => {
     expect(await reload(user.id)).toMatchObject({ plan: "max", billingSubscriptionId: sub(2) });
   });
 
+  it("ignores a late paid event of a subscription that ended, so the next one's cancel still moves the user to Free", async () => {
+    const error = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const user = await createUser();
+    const a = { subscription_id: sub("a"), metadata: { user_id: user.id } };
+    const b = { subscription_id: sub("b"), metadata: { user_id: user.id } };
+    expect(await deliver(event("subscription.active", a, 1_000))).toEqual(APPLIED);
+    expect(await deliver(event("subscription.cancelled", a, 3_000))).toEqual(APPLIED);
+    expect(await deliver(event("subscription.active", b, 4_000))).toEqual(APPLIED);
+    const late = event("subscription.updated", { ...a, cancel_at_next_billing_date: true }, 2_000);
+    expect(await deliver(late)).toEqual(IGNORED);
+    expect(await reload(user.id)).toMatchObject({
+      plan: "pro",
+      planStatus: "active",
+      billingSubscriptionId: sub("b"),
+      billingEventAt: 4_000,
+    });
+    expect(await deliver(event("subscription.cancelled", b, 5_000))).toEqual(APPLIED);
+    expect(await reload(user.id)).toMatchObject({
+      plan: "free",
+      planStatus: "canceled",
+      billingSubscriptionId: sub("b"),
+    });
+    expect(error).not.toHaveBeenCalled();
+  });
+
+  it("keeps a Max yearly bought after Pro ended when Pro's scheduled cancel is retried late, and its on_hold still means Free", async () => {
+    const error = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const user = await createUser();
+    const { start, monthEnd, yearEnd } = TEST_DATES;
+    const s1 = { subscription_id: sub(1), metadata: { user_id: user.id } };
+    const s2 = {
+      subscription_id: sub(2),
+      product_id: MAX_YEAR,
+      created_at: dodoTime(monthEnd + HOUR_MS),
+      previous_billing_date: dodoTime(monthEnd + HOUR_MS),
+      next_billing_date: dodoTime(yearEnd),
+      metadata: { user_id: user.id },
+    };
+    expect(await deliver(event("subscription.active", s1, start))).toEqual(APPLIED);
+    const scheduled = event(
+      "subscription.updated",
+      { ...s1, cancel_at_next_billing_date: true },
+      start + 20 * DAY_MS,
+    );
+    expect(await deliver(event("subscription.cancelled", s1, monthEnd))).toEqual(APPLIED);
+    expect(await deliver(event("subscription.active", s2, monthEnd + HOUR_MS))).toEqual(APPLIED);
+    expect(await deliver(scheduled)).toEqual(IGNORED);
+    expect(await reload(user.id)).toMatchObject({
+      plan: "max",
+      planInterval: "year",
+      planStatus: "active",
+      planRenewsAt: yearEnd,
+      billingSubscriptionId: sub(2),
+    });
+    expect(await deliver(event("subscription.on_hold", s2, monthEnd + 2 * HOUR_MS))).toEqual(
+      APPLIED,
+    );
+    expect(await reload(user.id)).toMatchObject({
+      plan: "free",
+      planStatus: "on_hold",
+      billingSubscriptionId: sub(2),
+    });
+    expect(error).not.toHaveBeenCalled();
+  });
+
+  it("ignores an ended subscription's paid event however late it comes, even without a readable time", async () => {
+    const user = await createUser();
+    const a = { subscription_id: sub("a"), metadata: { user_id: user.id } };
+    const b = { subscription_id: sub("b"), metadata: { user_id: user.id } };
+    const scheduled = { ...a, cancel_at_next_billing_date: true };
+    expect(await deliver(event("subscription.active", a, 1_000))).toEqual(APPLIED);
+    expect(await deliver(event("subscription.cancelled", a, 3_000))).toEqual(APPLIED);
+    expect(await deliver(event("subscription.updated", scheduled, "not a date"))).toEqual(IGNORED);
+    expect(await reload(user.id)).toMatchObject({ plan: "free", billingSubscriptionId: sub("a") });
+    expect(await deliver(event("subscription.active", b, 4_000))).toEqual(APPLIED);
+    expect(await deliver(event("subscription.cancelled", b, 5_000))).toEqual(APPLIED);
+    expect(await deliver(event("subscription.updated", scheduled, 2_000))).toEqual(IGNORED);
+    expect(await reload(user.id)).toMatchObject({
+      plan: "free",
+      planStatus: "canceled",
+      billingSubscriptionId: sub("b"),
+    });
+  });
+
   it("skips the order check for an event whose time is missing or can't be read", async () => {
     const stored = Date.parse("2026-11-09T00:00:00.000Z");
     const user = await tracked({ billingEventAt: stored });

@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { getDb } from "@/db/client";
 import { jobs } from "@/db/schema";
 import type { JobPostResponse } from "@/lib/api/types";
@@ -6,6 +6,7 @@ import { cookieJar, resetDb, signInAs } from "@/lib/auth/test-helpers";
 import { saveJobs, syncBoards } from "@/lib/job-feed/store";
 import { GREENHOUSE_JOB } from "@/lib/jobs/test-fixtures";
 import { fakeNet } from "@/lib/jobs/test-network";
+import { HOUR_MS, MINUTE_MS } from "@/lib/time";
 import { GET } from "./route";
 
 vi.mock("next/headers", async () => (await import("@/lib/auth/test-helpers")).nextHeadersMock);
@@ -35,6 +36,7 @@ vi.mock("@/lib/job-feed/public-cache", () => ({
 
 const BOARD_API =
   "https://boards-api.greenhouse.io/v1/boards/gitlab/jobs/8638232002?questions=true";
+const NOW = Date.UTC(2026, 10, 21, 12, 30, 0);
 
 async function seedJob(): Promise<string> {
   const db = await getDb();
@@ -63,20 +65,28 @@ async function seedJob(): Promise<string> {
   return row!.id;
 }
 
+function open(id: string): Promise<Response> {
+  return GET(new Request(`http://localhost/api/jobs/${id}`), { params: Promise.resolve({ id }) });
+}
+
 async function read(id: string): Promise<JobPostResponse> {
-  const res = await GET(new Request(`http://localhost/api/jobs/${id}`), {
-    params: Promise.resolve({ id }),
-  });
+  const res = await open(id);
   expect(res.status).toBe(200);
   return (await res.json()) as JobPostResponse;
 }
 
 describe("GET /api/jobs/[id]", () => {
   beforeEach(async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(NOW);
     await resetDb();
     cookieJar.clear();
     fakeNet.reset();
     fakeNet.resolve("boards-api.greenhouse.io", "93.184.216.34");
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
   });
 
   it("doesn't keep a failed board read for the day, and keeps the next good one", async () => {
@@ -87,6 +97,7 @@ describe("GET /api/jobs/[id]", () => {
     expect(missed).toMatchObject({ text: "", posting: null });
 
     fakeNet.json(BOARD_API, GREENHOUSE_JOB);
+    vi.setSystemTime(NOW + 15 * MINUTE_MS);
     const live = await read(id);
     expect(live.text).toContain("Salary range: $120,000–$180,000 & equity.");
     expect(live.posting?.source).toBe("greenhouse");
@@ -94,5 +105,40 @@ describe("GET /api/jobs/[id]", () => {
     fakeNet.json(BOARD_API, { status: 500 }, 500);
     expect((await read(id)).text).toBe(live.text);
     expect(fakeNet.requests).toHaveLength(2);
+  });
+
+  it("asks a board that failed again only after 15 minutes, answering the stored text meanwhile", async () => {
+    await signInAs();
+    const id = await seedJob();
+    fakeNet.json(BOARD_API, { status: 500 }, 500);
+    expect(await read(id)).toMatchObject({ text: "", posting: null });
+
+    fakeNet.json(BOARD_API, GREENHOUSE_JOB);
+    for (const at of [NOW, NOW + MINUTE_MS, NOW + 15 * MINUTE_MS - 1]) {
+      vi.setSystemTime(at);
+      expect(await read(id)).toMatchObject({ text: "", posting: null });
+    }
+    expect(fakeNet.requests).toHaveLength(1);
+
+    vi.setSystemTime(NOW + 15 * MINUTE_MS);
+    expect((await read(id)).posting?.source).toBe("greenhouse");
+    expect(fakeNet.requests).toHaveLength(2);
+  });
+
+  it("caps job opens at 120 an hour per account", async () => {
+    await signInAs();
+    const id = await seedJob();
+    fakeNet.json(BOARD_API, GREENHOUSE_JOB);
+    for (let i = 0; i < 120; i++) await read(id);
+
+    const res = await open(id);
+    expect(res.status).toBe(429);
+    expect(res.headers.get("cache-control")).toBe("no-store");
+    expect(res.headers.get("retry-after")).toBe(String((HOUR_MS - (NOW % HOUR_MS)) / 1_000));
+    expect(await res.json()).toMatchObject({ ok: false, error: { code: "rate_limited" } });
+
+    await signInAs("grace@example.com");
+    expect((await read(id)).posting?.source).toBe("greenhouse");
+    expect(fakeNet.requests).toHaveLength(1);
   });
 });
