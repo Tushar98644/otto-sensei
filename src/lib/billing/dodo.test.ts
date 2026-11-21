@@ -712,7 +712,7 @@ describe("createCheckout", () => {
         allow_discount_code: false,
         redirect_immediately: true,
       },
-      customization: { theme: "system" },
+      customization: { theme: "light" },
     });
     expect(body).not.toHaveProperty("subscription_data");
     const sig = (body?.metadata as Record<string, unknown>).user_sig;

@@ -476,7 +476,8 @@ export async function createCheckout(input: CheckoutInput): Promise<{ url: strin
           allow_discount_code: false,
           redirect_immediately: true,
         },
-        customization: { theme: "system" },
+        // The site has no dark mode, so the checkout stays light too.
+        customization: { theme: "light" },
       },
     },
     CheckoutResponse,

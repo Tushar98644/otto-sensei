@@ -279,7 +279,7 @@ describe("POST /api/billing/checkout with Dodo", () => {
         allow_discount_code: false,
         redirect_immediately: true,
       },
-      customization: { theme: "system" },
+      customization: { theme: "light" },
     });
     expect(limiter).toHaveBeenCalledWith(`billing:user:${user.id}`, 20, 60 * 60 * 1000);
     expect((await reload(user.id))?.plan).toBe("free");

@@ -291,7 +291,7 @@ describe("dodo mode", () => {
         allow_discount_code: false,
         redirect_immediately: true,
       },
-      customization: { theme: "system" },
+      customization: { theme: "light" },
     });
     const call = dodo.callsTo("POST /checkouts")[0];
     expect(call?.headers.get("authorization")).toBe(`Bearer ${KEY}`);
