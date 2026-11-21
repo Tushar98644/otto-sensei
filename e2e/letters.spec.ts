@@ -1,5 +1,6 @@
 import type { Locator, Page } from "@playwright/test";
 import type { Application } from "@/lib/applications/schema";
+import { trialHeadline } from "@/lib/billing/prices";
 import type { Resume } from "@/lib/resume/schema";
 import { expect, test } from "./fixtures";
 import { sampleResume, seedResume, signIn, subscribe } from "./helpers";
@@ -16,6 +17,8 @@ const JOB = {
 const ROLE_LINE = `${JOB.title} at ${JOB.company}`;
 const DEMO_NOTE = "Demo mode: these are sample suggestions. Add an AI key for real ones.";
 const PRO_ONLY = "Letters, outreach messages, answers and interview prep come with Pro.";
+const LOCKED =
+  "With Pro, I write cover letters, answers and outreach messages from your resume. Here's an example.";
 // A page, API route or lazy dialog compiles on first use, which is slow on a cold or busy machine.
 const firstLoad = expect.configure({ timeout: 45_000 });
 
@@ -57,8 +60,13 @@ async function trackApplication(page: Page): Promise<Application> {
 async function openLetters(page: Page): Promise<void> {
   await page.goto("/dashboard/letters");
   await firstLoad(
-    page.getByRole("heading", { level: 1, name: "Letters and messages" }),
+    page.getByRole("heading", { level: 1, name: "Letters", exact: true }),
   ).toBeVisible();
+}
+
+// "Start writing" while the list is empty, "Write" in the header once it isn't.
+function writeButton(page: Page, name: "Start writing" | "Write"): Locator {
+  return page.getByRole("button", { name, exact: true });
 }
 
 function row(page: Page, name: string): Locator {
@@ -78,10 +86,14 @@ async function pasteJob(dialog: Locator, withDetails: boolean): Promise<void> {
 }
 
 async function writeLetter(page: Page, resume: Resume): Promise<Locator> {
-  await page.getByRole("button", { name: "Write a letter", exact: true }).click();
+  await writeButton(page, "Start writing").click();
   const composer = page.getByRole("dialog", { name: "Write a cover letter" });
   await firstLoad(composer).toContainText(
     `Written from ${resume.title}, the resume you edited last.`,
+  );
+  await expect(composer.getByRole("button", { name: "Cover letter", exact: true })).toHaveAttribute(
+    "aria-pressed",
+    "true",
   );
   await pasteJob(composer, true);
   await composer.getByRole("button", { name: "Write my letter" }).click();
@@ -97,13 +109,23 @@ async function replaceIn(box: Locator, from: string, to: string): Promise<void> 
   await box.fill(text.replaceAll(from, to));
 }
 
-test("a Free account is offered Pro instead of a letter", async ({ page, user }) => {
+test("a Free account sees an example letter and is offered Pro instead of writing one", async ({
+  page,
+  user,
+}) => {
   expect(user.plan).toBe("free");
   await seedResume(page, titled("Free letters"));
   await openLetters(page);
-  await firstLoad(page.getByText(PRO_ONLY)).toBeVisible();
+  await firstLoad(page.getByText(LOCKED)).toBeVisible();
+  const example = page.getByRole("region", {
+    name: "Cover letter for Senior Product Marketing Manager",
+  });
+  await expect(example).toContainText("Every fact comes from the resume. Nothing is made up.");
+  await expect(example).toContainText("reached 1,200 paying teams");
+  await expect(writeButton(page, "Start writing")).toHaveCount(0);
+  await expect(writeButton(page, "Write")).toHaveCount(0);
 
-  await page.getByRole("button", { name: "Write a letter", exact: true }).click();
+  await page.getByRole("button", { name: trialHeadline(), exact: true }).click();
   const upgrade = page.getByRole("dialog").filter({ hasText: PRO_ONLY });
   await firstLoad(upgrade).toBeVisible();
   await expect(page.getByRole("dialog", { name: "Write a cover letter" })).toHaveCount(0);
@@ -115,9 +137,10 @@ test("a Pro trial writes a cover letter from a pasted job post and keeps it", as
   await proTrial(page);
   const resume = await seedResume(page, titled("Letter source"));
   await openLetters(page);
-  await firstLoad(page.getByRole("button", { name: "Write your first letter" })).toBeVisible();
+  await firstLoad(writeButton(page, "Start writing")).toBeVisible();
+  await expect(writeButton(page, "Write")).toHaveCount(0);
 
-  await page.getByRole("button", { name: "Write a letter", exact: true }).click();
+  await writeButton(page, "Start writing").click();
   const composer = page.getByRole("dialog", { name: "Write a cover letter" });
   await firstLoad(composer).toBeVisible();
   await pasteJob(composer, true);
@@ -147,7 +170,8 @@ test("a Pro trial writes a cover letter from a pasted job post and keeps it", as
   await page.reload();
   await firstLoad(row(page, JOB.company)).toContainText(JOB.title);
   await expect(page.getByText("1 letter, each written for one job.")).toBeVisible();
-  await page.getByRole("button", { name: "Write a letter", exact: true }).click();
+  await expect(writeButton(page, "Start writing")).toHaveCount(0);
+  await writeButton(page, "Write").click();
   const again = page.getByRole("dialog", { name: "Write a cover letter" });
   await pasteJob(again, false);
   await expect(again.getByText(/^14 of 15 cover letters/)).toBeVisible();
@@ -165,7 +189,7 @@ test("a fill-in warning on a letter clears once the blank is filled, and the edi
     ),
   );
   await openLetters(page);
-  await firstLoad(page.getByRole("button", { name: "Write your first letter" })).toBeVisible();
+  await firstLoad(writeButton(page, "Start writing")).toBeVisible();
 
   const letter = await writeLetter(page, resume);
   const check = letter.getByRole("status").filter({ hasText: "Check before you send it" });
@@ -191,11 +215,23 @@ test("an answer needs the question and flags the part only you can write", async
   await proTrial(page);
   await seedResume(page, titled("Answer source"));
   await openLetters(page);
-  await firstLoad(page.getByRole("button", { name: "Write your first letter" })).toBeVisible();
-  await page.getByRole("button", { name: "Answer a question" }).first().click();
+  await firstLoad(writeButton(page, "Start writing")).toBeVisible();
+  await writeButton(page, "Start writing").click();
+  const letterComposer = page.getByRole("dialog", { name: "Write a cover letter" });
+  await firstLoad(letterComposer).toBeVisible();
+  await expect(letterComposer.getByLabel("The question")).toHaveCount(0);
+  await letterComposer
+    .getByRole("group", { name: "What to write" })
+    .getByRole("button", { name: "Answer", exact: true })
+    .click();
 
   const composer = page.getByRole("dialog", { name: "Answer an application question" });
-  await firstLoad(composer).toBeVisible();
+  await expect(composer).toBeVisible();
+  await expect(composer.getByRole("button", { name: "Answer", exact: true })).toHaveAttribute(
+    "aria-pressed",
+    "true",
+  );
+  await expect(composer.getByLabel("The question")).toBeVisible();
   await pasteJob(composer, true);
   await composer.getByRole("button", { name: "Draft my answer" }).click();
   await expect(composer.getByText("Paste the question from the application first.")).toBeVisible();
@@ -299,7 +335,7 @@ test("a Pro trial writes an outreach message, fills in the name and keeps the ed
   await write.click();
 
   const message = page.getByRole("dialog", { name: "Your outreach message" });
-  await firstLoad(message.getByText("Saved to Letters and messages")).toBeVisible();
+  await firstLoad(message.getByText("Saved to Letters", { exact: true })).toBeVisible();
   await expect(message.getByText(DEMO_NOTE)).toBeVisible();
   const subject = message.getByLabel("Email subject");
   const email = message.getByLabel("Email", { exact: true });
@@ -332,7 +368,7 @@ test("a Pro trial writes an outreach message, fills in the name and keeps the ed
   await expect(check).toHaveCount(0);
   await note.blur();
   expect((await noteSaved).ok()).toBe(true);
-  await expect(message.getByText("Saved to Letters and messages")).toBeVisible();
+  await expect(message.getByText("Saved to Letters", { exact: true })).toBeVisible();
   await message.getByRole("button", { name: "Close" }).click();
   await expect(message).toBeHidden();
 

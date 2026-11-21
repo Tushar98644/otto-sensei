@@ -42,6 +42,8 @@ const freeUsed = `You've used this month's ${FREE_FIXES} line fixes. ${PLANS.pro
 function lineFixResume(): Resume {
   return {
     ...sampleResume(),
+    // The user's own resume: the home page leaves samples out of its numbers.
+    source: "scratch",
     title: `Line fix ${Math.random().toString(36).slice(2, 8)}`,
     experience: [
       {
@@ -104,8 +106,27 @@ async function askOtto(
   return dialog;
 }
 
+type Line = (typeof LINES)[number];
+
+// With other weak lines to go, the dialog moves on to the next one instead of closing.
+async function expectMovedOn(dialog: Locator, from: Line, to: Line): Promise<void> {
+  await expect(dialog).toContainText(to.text);
+  await expect(dialog).not.toContainText(from.text);
+  await expect(ottosVersion(dialog)).toContainText(to.suggestion);
+}
+
+async function keepMineAndNext(dialog: Locator, from: Line, to: Line): Promise<void> {
+  await dialog.getByRole("button", { name: "Keep mine & next", exact: true }).click();
+  await expectMovedOn(dialog, from, to);
+}
+
 async function keepMine(dialog: Locator): Promise<void> {
-  await dialog.getByRole("button", { name: "Keep mine" }).click();
+  await dialog.getByRole("button", { name: "Keep mine", exact: true }).click();
+  await expect(dialog).toBeHidden();
+}
+
+async function closeDialog(dialog: Locator): Promise<void> {
+  await dialog.getByRole("button", { name: "Close", exact: true }).click();
   await expect(dialog).toBeHidden();
 }
 
@@ -135,6 +156,7 @@ test.describe("fixing a line with Otto", () => {
       dialog.getByText("Here's a stronger version. Keep it, edit it, or skip it."),
     ).toBeVisible();
     await expect(dialog).toContainText(weak.text);
+    await expect(dialog.getByText("3 lines to go after this")).toBeVisible();
     await expect(dialog.getByRole("listitem").filter({ hasText: weak.issue })).toBeVisible();
     const suggestion = ottosVersion(dialog);
     await expect(suggestion).toContainText(weak.suggestion);
@@ -142,8 +164,11 @@ test.describe("fixing a line with Otto", () => {
     await expect(dialog.getByRole("note")).toContainText(DEMO_NOTE);
     await expect(dialog.getByText(fixesLeft(FREE_FIXES - 1))).toBeVisible();
 
-    await dialog.getByRole("button", { name: "Use this line" }).click();
-    await expect(dialog).toBeHidden();
+    await dialog.getByRole("button", { name: "Use & next", exact: true }).click();
+    await expectMovedOn(dialog, weak, LINES[1]);
+    await expect(dialog.getByText("2 lines to go after this")).toBeVisible();
+    await expect(line(page, 1)).toHaveValue(weak.suggestion);
+    await closeDialog(dialog);
     await expect(line(page, 1)).toHaveValue(weak.suggestion);
     await expect(line(page, 2)).toHaveValue(LINES[1].text);
 
@@ -151,7 +176,7 @@ test.describe("fixing a line with Otto", () => {
     await expect(line(page, 1)).toHaveValue(weak.text);
   });
 
-  test("Keep mine, Escape and Close leave the line as it was, and reopening it costs nothing", async ({
+  test("Keep mine & next, Escape and Close leave the lines as they were, and reopening a line costs nothing", async ({
     page,
     user,
   }) => {
@@ -159,13 +184,19 @@ test.describe("fixing a line with Otto", () => {
     await seedResume(page, lineFixResume());
     await openFixStep(page);
     const [weak] = LINES;
-    const left = fixesLeft(FREE_FIXES - 1);
 
     let dialog = await askOtto(page, 1);
     await expect(ottosVersion(dialog)).toContainText(weak.suggestion);
+    await expect(dialog.getByText(fixesLeft(FREE_FIXES - 1))).toBeVisible();
+    // Moving on asks Otto about the next line, which is a fix of its own.
+    await keepMineAndNext(dialog, weak, LINES[1]);
+    const left = fixesLeft(FREE_FIXES - 2);
     await expect(dialog.getByText(left)).toBeVisible();
-    await keepMine(dialog);
     await expect(line(page, 1)).toHaveValue(weak.text);
+    await page.keyboard.press("Escape");
+    await expect(dialog).toBeHidden();
+    await expect(line(page, 1)).toHaveValue(weak.text);
+    await expect(line(page, 2)).toHaveValue(LINES[1].text);
 
     dialog = await askOtto(page, 1);
     await expect(ottosVersion(dialog)).toContainText(weak.suggestion);
@@ -174,10 +205,12 @@ test.describe("fixing a line with Otto", () => {
     await expect(dialog).toBeHidden();
     await expect(line(page, 1)).toHaveValue(weak.text);
 
-    dialog = await askOtto(page, 1);
+    // Keyboard, not the mouse: a click on another line right after a fix is lost (see the fixme test).
+    dialog = await askOtto(page, 2, { by: "keyboard" });
+    await expect(ottosVersion(dialog)).toContainText(LINES[1].suggestion);
     await expect(dialog.getByText(left)).toBeVisible();
-    await dialog.getByRole("button", { name: "Close" }).click();
-    await expect(dialog).toBeHidden();
+    await closeDialog(dialog);
+    await expect(line(page, 2)).toHaveValue(LINES[1].text);
     await expect(line(page, 1)).toHaveValue(weak.text);
   });
 
@@ -199,7 +232,8 @@ test.describe("fixing a line with Otto", () => {
     await expect(suggestion).toContainText(duty.suggestion);
     await expect(suggestion.getByText("Fill the blanks", { exact: true })).toBeVisible();
     await expect(suggestion).toContainText("Words in [brackets] are blanks for your real facts.");
-    await expect(dialog.getByRole("button", { name: "Use this line" })).toBeDisabled();
+    const use = dialog.getByRole("button", { name: "Use & next", exact: true });
+    await expect(use).toBeDisabled();
     await expect(dialog.getByText(fixesLeft(FREE_FIXES - 1))).toBeVisible();
 
     const questions = dialog.getByRole("form", { name: "A few quick questions" });
@@ -218,12 +252,15 @@ test.describe("fixing a line with Otto", () => {
     await expect(suggestion).toContainText(answered);
     await expect(suggestion.getByText("New line", { exact: true })).toBeVisible();
     await expect(questions).toBeHidden();
-    // Updating the suggestion is a second fix.
-    await expect(dialog.getByText(fixesLeft(FREE_FIXES - 2))).toBeVisible();
+    // Answering Otto's questions finishes the fix already paid for.
+    await expect(dialog.getByText(fixesLeft(FREE_FIXES - 1))).toBeVisible();
 
-    await dialog.getByRole("button", { name: "Use this line" }).click();
-    await expect(dialog).toBeHidden();
+    await use.click();
+    await expectMovedOn(dialog, duty, LINES[2]);
     await expect(line(page, 2)).toHaveValue(answered);
+    await closeDialog(dialog);
+    await expect(line(page, 2)).toHaveValue(answered);
+    await expect(line(page, 3)).toHaveValue(LINES[2].text);
   });
 
   test("Otto's version can be edited before it goes on the resume", async ({ page, user }) => {
@@ -251,8 +288,10 @@ test.describe("fixing a line with Otto", () => {
         "Change anything you like. Nothing changes on your resume until you use it.",
       ),
     ).toBeVisible();
-    await dialog.getByRole("button", { name: "Use this line" }).click();
-    await expect(dialog).toBeHidden();
+    await dialog.getByRole("button", { name: "Use & next", exact: true }).click();
+    await expectMovedOn(dialog, vague, LINES[0]);
+    await expect(line(page, 4)).toHaveValue(mine);
+    await closeDialog(dialog);
     await expect(line(page, 4)).toHaveValue(mine);
     await expect(line(page, 1)).toHaveValue(LINES[0].text);
   });
@@ -268,7 +307,7 @@ test.describe("fixing a line with Otto", () => {
 
     const dialog = await askOtto(page, 1);
     await expect(ottosVersion(dialog)).toContainText(LINES[0].suggestion);
-    await keepMine(dialog);
+    await closeDialog(dialog);
 
     await askOtto(page, 3);
     await expect(ottosVersion(fixDialog(page))).toContainText(LINES[2].suggestion);
@@ -288,12 +327,9 @@ test.describe("fixing a line with Otto", () => {
     let dialog = await askOtto(page, 1, byKeyboard);
     await expect(ottosVersion(dialog)).toContainText(LINES[0].suggestion);
     await expect(dialog.getByText(fixesLeft(2))).toBeVisible();
-    await keepMine(dialog);
-
-    dialog = await askOtto(page, 3, byKeyboard);
-    await expect(ottosVersion(dialog)).toContainText(LINES[2].suggestion);
+    await keepMineAndNext(dialog, LINES[0], LINES[1]);
     await expect(dialog.getByText(fixesLeft(1))).toBeVisible();
-    await keepMine(dialog);
+    await closeDialog(dialog);
 
     dialog = await askOtto(page, 4, byKeyboard);
     await expect(ottosVersion(dialog)).toContainText(LINES[3].suggestion);
@@ -304,9 +340,9 @@ test.describe("fixing a line with Otto", () => {
         ),
       ),
     ).toBeVisible();
-    await keepMine(dialog);
+    await closeDialog(dialog);
 
-    await fixButton(page, 2).press("Enter");
+    await fixButton(page, 3).press("Enter");
     const upgrade = page
       .getByRole("dialog")
       .filter({ has: page.getByRole("button", { name: "Not now" }) });
@@ -320,8 +356,9 @@ test.describe("fixing a line with Otto", () => {
     await expect(dialog.getByText(freeUsed)).toBeVisible();
     await expect(ottosVersion(dialog)).toBeHidden();
     await expect(dialog.getByRole("button", { name: "Try again" })).toBeVisible();
+    // With no fixes left, the next line would fail the same way, so Keep mine just closes.
     await keepMine(dialog);
-    await expect(line(page, 2)).toHaveValue(LINES[1].text);
+    await expect(line(page, 3)).toHaveValue(LINES[2].text);
 
     await page.goto("/dashboard");
     const stat = page.getByText("Line fixes left", { exact: true }).locator("xpath=..");
@@ -361,7 +398,11 @@ test.describe("fixing a line with Otto", () => {
       "Creating sales enablement materials for the sales team [result]",
     );
     await expect(dialog.getByText(fixesLeft(FREE_FIXES - 1))).toBeVisible();
-    await keepMine(dialog);
+    await dialog.getByRole("button", { name: "Keep mine & next", exact: true }).click();
+    await expect(dialog).not.toContainText(duty);
+    await expect(ottosVersion(dialog)).toBeVisible();
+    await expect(line(page, 2, owner)).toHaveValue(duty);
+    await closeDialog(dialog);
     await expect(line(page, 2, owner)).toHaveValue(duty);
   });
 });

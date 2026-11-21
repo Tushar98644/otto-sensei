@@ -34,6 +34,16 @@ function uploadFile(page: Page, file: ResumeFile) {
   return pickFile(page, page.getByRole("button", { name: DROPZONE }), file);
 }
 
+// The imports sit behind the "Other ways to start" disclosure.
+async function otherWayToStart(page: Page, name: string | RegExp): Promise<Locator> {
+  const option = page.getByRole("button", { name, exact: true });
+  if (!(await option.isVisible())) {
+    await page.getByText("Other ways to start", { exact: true }).click();
+  }
+  await expect(option).toBeVisible();
+  return option;
+}
+
 function section(page: Page, name: string): Locator {
   return page.getByRole("region", { name, exact: true });
 }
@@ -134,7 +144,7 @@ test("a Word upload is read the same way", async ({ page, user }) => {
 test("a JSON Resume import opens straight in the editor", async ({ page, user }) => {
   expect(user.plan).toBe("free");
   await openStudio(page);
-  await pickFile(page, page.getByRole("button", { name: /^Import a JSON Resume/ }), jsonResume());
+  await pickFile(page, await otherWayToStart(page, /^Import a JSON Resume/), jsonResume());
 
   await expect(basicsToggle(page)).toContainText("Riley Chen", { timeout: STEP_TIMEOUT });
   await expect(summaryBox(page)).toHaveValue(
@@ -265,7 +275,9 @@ test("the download step hands over a PDF of the edited resume", async ({ page, u
   expect(report.readText).toContain(name);
   expect(report.readText).toContain("Brightloop");
 
-  await page.getByRole("button", { name: "Check my new PDF" }).click();
-  const checked = page.getByRole("heading", { name: "Your new PDF, checked" });
-  await expect(checked).toBeVisible({ timeout: STEP_TIMEOUT });
+  // The page runs the same check on its own once the PDF settles, with no click.
+  await expect(page.getByRole("region", { name: "What hiring software reads" })).toContainText(
+    /Hiring software reads every line\. All \d+ checks passed/,
+    { timeout: STEP_TIMEOUT },
+  );
 });

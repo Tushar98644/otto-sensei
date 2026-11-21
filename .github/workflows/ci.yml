@@ -45,7 +45,7 @@ jobs:
           path: .eslintcache
           key: eslint-${{ runner.os }}-${{ hashFiles('bun.lock', 'eslint.config.mjs') }}-${{ github.sha }}
           restore-keys: eslint-${{ runner.os }}-${{ hashFiles('bun.lock', 'eslint.config.mjs') }}-
-      - run: bun run lint --cache --cache-strategy content --cache-location .eslintcache
+      - run: bun run lint
       - name: Unused files and dependencies
         if: ${{ !cancelled() }}
         run: bunx knip@6.45.1 --include files,dependencies,unlisted
