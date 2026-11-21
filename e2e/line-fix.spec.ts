@@ -205,7 +205,7 @@ test.describe("fixing a line with Otto", () => {
     await expect(dialog).toBeHidden();
     await expect(line(page, 1)).toHaveValue(weak.text);
 
-    // Keyboard, not the mouse: a click on another line right after a fix is lost (see the fixme test).
+    // Keyboard here; clicking another line right after a fix has its own test below.
     dialog = await askOtto(page, 2, { by: "keyboard" });
     await expect(ottosVersion(dialog)).toContainText(LINES[1].suggestion);
     await expect(dialog.getByText(left)).toBeVisible();
@@ -296,8 +296,7 @@ test.describe("fixing a line with Otto", () => {
     await expect(line(page, 1)).toHaveValue(LINES[0].text);
   });
 
-  // Product bug: the focused line's tip collapses on mousedown, so this button moves and the click is lost.
-  test.fixme("after closing Otto's dialog, one click on another line's Fix with Otto opens it", async ({
+  test("after closing Otto's dialog, one click on another line's Fix with Otto opens it", async ({
     page,
     user,
   }) => {
@@ -322,7 +321,7 @@ test.describe("fixing a line with Otto", () => {
     await seedResume(page, lineFixResume());
     await openFixStep(page);
 
-    // Keyboard, not the mouse: a click on another line right after a fix is lost (see the fixme test).
+    // Keyboard here; clicking another line right after a fix has its own test below.
     const byKeyboard = { by: "keyboard" } as const;
     let dialog = await askOtto(page, 1, byKeyboard);
     await expect(ottosVersion(dialog)).toContainText(LINES[0].suggestion);
