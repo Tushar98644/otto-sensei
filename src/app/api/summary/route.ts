@@ -1,4 +1,4 @@
-import { writeSummary } from "@/lib/ai/summary";
+import { nothingToSummarize, writeSummary } from "@/lib/ai/summary";
 import { SummaryRequestSchema } from "@/lib/api/types";
 import { rejectCrossSite } from "@/lib/auth/route-guards";
 import { log } from "@/lib/log";
@@ -20,5 +20,11 @@ export async function POST(req: Request): Promise<Response> {
     log.warn("summary.cross_site");
     return crossSite;
   }
-  return runMetered(req, { feature: "fix", schema: SummaryRequestSchema, copy: COPY, run: writeSummary });
+  return runMetered(req, {
+    feature: "fix",
+    schema: SummaryRequestSchema,
+    copy: COPY,
+    run: writeSummary,
+    nothingToDo: nothingToSummarize,
+  });
 }

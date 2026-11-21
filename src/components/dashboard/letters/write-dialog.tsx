@@ -19,6 +19,7 @@ import { Field } from "@/components/ui/field";
 import { Select } from "@/components/ui/select";
 import { toast } from "@/components/ui/toast";
 import { VoiceTextarea } from "@/components/ui/voice-field";
+import { oneLine } from "@/lib/ai/text";
 import { api } from "@/lib/api/client";
 import type { Application } from "@/lib/applications/schema";
 import type { SavedJob } from "@/lib/job-feed/types";
@@ -164,7 +165,7 @@ export function WriteDialog({
   });
 
   function questionReady(): boolean {
-    if (kind !== "answer" || question.trim().length >= WRITING_LIMITS.question.min) return true;
+    if (kind !== "answer" || oneLine(question).length >= WRITING_LIMITS.question.min) return true;
     setQuestionError("Paste the question from the application first.");
     questionRef.current?.focus();
     return false;

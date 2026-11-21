@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Field } from "@/components/ui/field";
 import { Textarea } from "@/components/ui/textarea";
 import { VoiceTextarea } from "@/components/ui/voice-field";
+import { oneLine } from "@/lib/ai/text";
 import { liveWarnings } from "@/lib/ai/warning-text";
 import { wordCount } from "@/lib/ai/writing-guards";
 import { DemoNote } from "../demo-note";
@@ -78,7 +79,7 @@ export function AnswerBox({ answers, writing, onAsk, onEdit, onSettle, onRemove 
 
   async function ask() {
     const text = question.trim();
-    if (text.length < QUESTION_CHARS.min) {
+    if (oneLine(text).length < QUESTION_CHARS.min) {
       setProblem("Paste the whole question from the form, such as “Why do you want to work here?”");
       return;
     }

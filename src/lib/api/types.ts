@@ -11,6 +11,7 @@ import {
   type UsagePeriod,
   type UsageSnapshot,
 } from "@/config/plans";
+import { oneLine } from "@/lib/ai/text";
 import type {
   AnswerResult,
   CoverLetterResult,
@@ -108,7 +109,7 @@ export type LetterResponse = {
 };
 
 export const AnswerRequestSchema = TailorRequestSchema.extend({
-  question: z.string().trim().min(8).max(500),
+  question: z.string().overwrite(oneLine).min(8).max(500),
 });
 export type AnswerRequestBody = z.input<typeof AnswerRequestSchema>;
 export type AnswerResponse = {

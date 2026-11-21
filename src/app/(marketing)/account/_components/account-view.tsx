@@ -28,9 +28,9 @@ export function AccountView() {
   const { me, user, loading, refresh } = useMe();
   const arrival = useAccountArrival();
   const [upgradeRequested, setUpgradeRequested] = useState(arrival.upgrade);
-  // A sign-in in the dialog goes on to checkout from there, so the page doesn't start a second one.
+  // Decided on the first settled read, a failed one too: a sign-in in the dialog goes on to checkout from there, so the page doesn't start a second one.
   const [checkoutFromPage, setCheckoutFromPage] = useState<boolean | null>(null);
-  if (checkoutFromPage === null && !loading && me) setCheckoutFromPage(user !== null);
+  if (checkoutFromPage === null && !loading) setCheckoutFromPage(user !== null);
   const checkout = useBillingRedirect("checkout");
   const backFromCheckout = arrival.checkout === "success";
   const bought = arrival.plan;

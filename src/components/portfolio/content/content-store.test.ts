@@ -9,7 +9,7 @@ vi.mock("@/lib/api/client", async (importOriginal) => ({
 const toast = vi.hoisted(() => vi.fn());
 vi.mock("@/components/ui/toast", () => ({ toast, dismissToast: vi.fn() }));
 
-const { editContent, flushContent, resetContentStore, useContentStore } =
+const { editContent, flushContent, loadContent, resetContentStore, useContentStore } =
   await import("./content-store");
 
 function deferred<T>() {
@@ -111,5 +111,71 @@ describe("content autosave", () => {
       ["Builds tools", false],
     ]);
     expect(useContentStore.getState().dirty).toBe(false);
+  });
+});
+
+describe("an edit typed while the saved content is loading", () => {
+  const onScreen = { ...emptyContent(), intro: "Intro on the page" };
+  const arrived = { ...emptyContent(), intro: "Intro from the server", about: ["Builds things"] };
+
+  beforeEach(() => {
+    resetContentStore();
+  });
+
+  it("shows on top of what's on screen, waits for the content, then is sent on top of it", async () => {
+    const load = deferred<ContentResponse>();
+    const save = deferred<ContentResponse>();
+    api.portfolioContent.mockReturnValueOnce(load.promise);
+    api.savePortfolioContent.mockReturnValueOnce(save.promise);
+    const loading = loadContent("ada", { shown: onScreen });
+    pitch("Typed early");
+    expect(useContentStore.getState()).toMatchObject({
+      status: "loading",
+      content: { intro: "Intro on the page", pitch: "Typed early" },
+      dirty: true,
+    });
+    await vi.advanceTimersByTimeAsync(SAVE_AFTER_MS);
+    expect(api.savePortfolioContent).not.toHaveBeenCalled();
+
+    load.resolve({ ok: true, content: arrived, github: null });
+    await loading;
+    expect(useContentStore.getState()).toMatchObject({
+      status: "ready",
+      content: { intro: "Intro from the server", about: ["Builds things"], pitch: "Typed early" },
+      dirty: true,
+      saving: true,
+    });
+    expect(api.savePortfolioContent.mock.calls.map(([body]) => body.content)).toEqual([
+      expect.objectContaining({
+        intro: "Intro from the server",
+        about: ["Builds things"],
+        pitch: "Typed early",
+      }),
+    ]);
+
+    save.resolve(ANSWER);
+    await vi.advanceTimersByTimeAsync(0);
+    expect(useContentStore.getState()).toMatchObject({ dirty: false, saving: false });
+  });
+
+  it("is still sent when the content fails to load", async () => {
+    api.portfolioContent.mockRejectedValueOnce(new Error("offline"));
+    api.savePortfolioContent.mockResolvedValue(ANSWER);
+    const loading = loadContent("ada", { shown: onScreen });
+    pitch("Typed early");
+    await loading;
+    await vi.advanceTimersByTimeAsync(0);
+    expect(api.savePortfolioContent.mock.calls.map(([body]) => body.content)).toEqual([
+      expect.objectContaining({ intro: "Intro on the page", pitch: "Typed early" }),
+    ]);
+    expect(useContentStore.getState()).toMatchObject({ status: "error", dirty: false });
+  });
+
+  it("leaves nothing to save when nothing was typed", async () => {
+    api.portfolioContent.mockResolvedValueOnce({ ok: true, content: arrived, github: null });
+    await loadContent("ada", { shown: onScreen });
+    await vi.advanceTimersByTimeAsync(SAVE_AFTER_MS);
+    expect(api.savePortfolioContent).not.toHaveBeenCalled();
+    expect(useContentStore.getState()).toMatchObject({ content: arrived, dirty: false });
   });
 });

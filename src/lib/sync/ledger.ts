@@ -27,19 +27,18 @@ type LedgerData = {
 const STORAGE_KEY = "otto-sync-v1";
 const MAX_TOMBSTONES = 200;
 
+// Changes a full storage couldn't save, shared so every ledger in the page, like sign-out's, sees them.
+const unsaved = new WeakMap<LedgerStorage, LedgerData>();
+
 export function createLedger(storage: LedgerStorage | null): SyncLedger {
-  let data = read(storage) ?? emptyData();
+  let data = latest(storage) ?? emptyData();
 
   // Re-reads before every write so another tab's change isn't overwritten.
   function update(mutate: (draft: LedgerData) => boolean) {
-    const draft = read(storage) ?? {
-      owners: new Map(data.owners),
-      tombstones: [...data.tombstones],
-      synced: new Map(data.synced),
-    };
+    const draft = latest(storage) ?? copy(data);
     const changed = mutate(draft);
     data = draft;
-    if (changed) write(storage, draft);
+    if (changed) save(storage, draft);
   }
 
   return {
@@ -115,13 +114,32 @@ export function createLedger(storage: LedgerStorage | null): SyncLedger {
         return changed;
       }),
     refresh: () => {
-      data = read(storage) ?? data;
+      data = latest(storage) ?? data;
     },
   };
 }
 
 function emptyData(): LedgerData {
   return { owners: new Map(), tombstones: [], synced: new Map() };
+}
+
+function copy(data: LedgerData): LedgerData {
+  return {
+    owners: new Map(data.owners),
+    tombstones: [...data.tombstones],
+    synced: new Map(data.synced),
+  };
+}
+
+function latest(storage: LedgerStorage | null): LedgerData | null {
+  const kept = storage && unsaved.get(storage);
+  return kept ? copy(kept) : read(storage);
+}
+
+function save(storage: LedgerStorage | null, data: LedgerData) {
+  if (!storage) return;
+  if (write(storage, data)) unsaved.delete(storage);
+  else unsaved.set(storage, data);
 }
 
 function read(storage: LedgerStorage | null): LedgerData | null {
@@ -140,8 +158,7 @@ function read(storage: LedgerStorage | null): LedgerData | null {
   }
 }
 
-function write(storage: LedgerStorage | null, data: LedgerData) {
-  if (!storage) return;
+function write(storage: LedgerStorage, data: LedgerData): boolean {
   try {
     storage.setItem(
       STORAGE_KEY,
@@ -152,7 +169,10 @@ function write(storage: LedgerStorage | null, data: LedgerData) {
         synced: [...data.synced],
       }),
     );
-  } catch {}
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 function listOf(value: unknown, key: string): unknown[] {

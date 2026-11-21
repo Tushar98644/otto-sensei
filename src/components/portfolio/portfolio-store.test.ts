@@ -3,6 +3,7 @@ import { emptyContent } from "@/lib/portfolio/content";
 import { jordanV2Resume } from "@/lib/portfolio/fixtures/jordan";
 import type { Portfolio, PortfolioSaveResponse } from "@/lib/portfolio/types";
 import { queryKeys } from "@/lib/queries/keys";
+import { portfolioQuery } from "@/lib/queries/options";
 
 vi.mock("@tanstack/react-query", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@tanstack/react-query")>()),
@@ -21,6 +22,7 @@ vi.mock("@/components/account/use-me", () => ({
 const toast = vi.hoisted(() => vi.fn());
 vi.mock("@/components/ui/toast", () => ({ toast, dismissToast: vi.fn() }));
 
+const { QueryObserver } = await import("@tanstack/react-query");
 const { ApiClientError } = await import("@/lib/api/client");
 const { getQueryClient } = await import("@/lib/queries/client");
 const { makePortfolio, savePortfolio, setPublished, usePortfolioStore } =
@@ -131,6 +133,35 @@ describe("savePortfolio", () => {
     expect(shown()?.template).toBe("dock");
     expect(await savePortfolio({ showEmail: true })).toBe(true);
     expect(shown()).toMatchObject({ template: "dock", showEmail: true });
+  });
+});
+
+describe("savePortfolio after a full page load", () => {
+  it("publishes when the first render asked for the portfolio before the user was known", async () => {
+    const client = getQueryClient();
+    client.clear();
+    // What usePortfolio's first render leaves: a disabled query under an empty user id.
+    const early = new QueryObserver(client, { ...portfolioQuery(""), enabled: false });
+    const stop = early.subscribe(() => {});
+    client.setQueryData(KEY, portfolio());
+    api.updatePortfolio.mockResolvedValueOnce(saved({ published: true }));
+
+    await setPublished(true);
+    stop();
+    expect(api.updatePortfolio.mock.calls).toEqual([[{ published: true }]]);
+    expect(shown()?.published).toBe(true);
+    expect(toast.mock.calls.map(([options]) => options.title)).toEqual(["Your page is live"]);
+  });
+
+  it("says so when there is no portfolio to save to yet", async () => {
+    getQueryClient().clear();
+    expect(await savePortfolio({ published: true })).toBe(false);
+    expect(api.updatePortfolio).not.toHaveBeenCalled();
+    expect(toast).toHaveBeenCalledTimes(1);
+    expect(toast).toHaveBeenCalledWith(
+      expect.objectContaining({ title: "Couldn't save that", variant: "error" }),
+    );
+    expect(usePortfolioStore.getState().saving).toBe(false);
   });
 });
 

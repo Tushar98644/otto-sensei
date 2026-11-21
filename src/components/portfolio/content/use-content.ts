@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo } from "react";
+import { useEffect, useEffectEvent, useMemo } from "react";
 import { useMe } from "@/components/account/use-me";
 import type { GitHubStats, PortfolioContent } from "@/lib/portfolio/content";
 import { portfolioViews, type PortfolioViews } from "@/lib/portfolio/content-view";
@@ -21,12 +21,14 @@ export function usePortfolioContent(portfolio: Portfolio, resume: Resume): Portf
   const storedGitHub = useContentStore((state) => state.github);
   const userId = user?.id ?? null;
 
+  const load = useEffectEvent((id: string) => loadContent(id, { shown: portfolio.content }));
   useEffect(() => {
-    if (userId) void loadContent(userId);
+    if (userId) void load(userId);
   }, [userId]);
 
   const ready = status === "ready" && owner === userId;
-  const content = ready ? stored : portfolio.content;
+  // From the start of its load the store holds the shown copy, with any edit typed meanwhile.
+  const content = status !== "idle" && owner === userId ? stored : portfolio.content;
   const github = ready ? storedGitHub : portfolio.github;
   const { showEmail, showPhone, hiddenSections } = portfolio;
   const views = useMemo(

@@ -174,6 +174,10 @@ export function demoImprove(summary: string): SummaryOption {
   return { kind: "tightened", text, warnings: [] };
 }
 
+export function nothingToSummarize(input: SummaryInput): SummaryResult | null {
+  return input.mode === "write" && !hasFacts(input.resume) ? { options: [] } : null;
+}
+
 async function write(resume: Resume): Promise<SummaryResult> {
   if (!hasFacts(resume)) return { options: [] };
   const text = factsText(resume);

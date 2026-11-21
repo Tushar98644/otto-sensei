@@ -2,14 +2,14 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { create } from "zustand";
-import { useMe } from "@/components/account/use-me";
+import { signedInUserId, useMe } from "@/components/account/use-me";
 import { toast } from "@/components/ui/toast";
 import { UNDO_MS } from "@/components/ui/undo-toast";
 import { api, isApiError } from "@/lib/api/client";
 import type { UpdatePortfolioBody } from "@/lib/api/types";
 import type { Portfolio, PortfolioTemplateId } from "@/lib/portfolio/types";
 import { getQueryClient, useAppQueryClient } from "@/lib/queries/client";
-import { PORTFOLIO } from "@/lib/queries/keys";
+import { PORTFOLIO, queryKeys } from "@/lib/queries/keys";
 import { portfolioQuery } from "@/lib/queries/options";
 import type { Resume } from "@/lib/resume/schema";
 
@@ -41,9 +41,11 @@ export function usePortfolio(): PortfolioState {
   };
 }
 
+// The signed-in user's own entry: a first render before the user is known also leaves an empty one.
 function currentPortfolio(): Portfolio | null {
-  const [entry] = getQueryClient().getQueriesData<Portfolio | null>({ queryKey: PORTFOLIO });
-  return entry?.[1] ?? null;
+  const userId = signedInUserId();
+  if (!userId) return null;
+  return getQueryClient().getQueryData<Portfolio | null>(queryKeys.portfolio(userId)) ?? null;
 }
 
 export function putPortfolio(portfolio: Portfolio | null): void {
@@ -93,7 +95,14 @@ function withSettings(portfolio: Portfolio, patch: UpdatePortfolioBody): Portfol
 
 export async function savePortfolio(patch: UpdatePortfolioBody): Promise<boolean> {
   const before = currentPortfolio();
-  if (!before) return false;
+  if (!before) {
+    toast({
+      title: "Couldn't save that",
+      description: "Your portfolio hasn't loaded yet. Please try again in a moment.",
+      variant: "error",
+    });
+    return false;
+  }
   // Only the newest answer may replace what's shown, or a late one would undo a later switch.
   const mine = ++latestSave;
   putPortfolio(withSettings(before, patch));

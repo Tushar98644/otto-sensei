@@ -25,7 +25,7 @@ import { consumeUsage, getUsage, refundUsage } from "@/lib/usage";
 import { openPass, returnPass, takePass } from "@/lib/usage-passes";
 import { budgetReached, limitReached, requirePlanFeature } from "../metered-free";
 
-// Order matters: sign-in, plan, burst limit, validation, stored result, AI budget, allowance, then the call.
+// Order matters: sign-in, plan, burst limit, validation, nothing to do, stored result, AI budget, allowance, then the call.
 
 export type MeteredCopy = {
   signIn: string;
@@ -45,6 +45,8 @@ export type MeteredRoute<S extends z.ZodType, R> = {
   schema: S;
   copy: MeteredCopy;
   run: (input: z.output<S>, user: SessionUser) => Promise<R>;
+  // The answer for input with nothing to work on, given without a call or a unit.
+  nothingToDo?: (input: z.output<S>) => R | null;
   // Calls that ride on the unit an earlier call on the same subject took, like answers to Otto's questions.
   followUp?: FollowUp<z.output<S>, R>;
 };
@@ -121,6 +123,12 @@ export async function runMetered<S extends z.ZodType, R>(
     if (!body.ok) {
       log.info(`${feature}.bad_request`, { reason: body.message });
       return fail("bad_request", copy.invalid, 400);
+    }
+
+    const empty = route.nothingToDo?.(body.data) ?? null;
+    if (empty !== null) {
+      log.info(`${feature}.nothing_to_do`, { plan: user.plan });
+      return ok({ result: empty, usage: await getUsage(user, now), demo: !aiEnabled() });
     }
 
     const requestId = readRequestId(req);

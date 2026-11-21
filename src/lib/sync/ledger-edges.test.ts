@@ -155,7 +155,7 @@ describe("createLedger with another tab", () => {
     expect(ledger.ownerOf("b")).toBe("user-1");
   });
 
-  it("doesn't throw when the storage is full", () => {
+  it("doesn't throw or lose a change when the storage is full", () => {
     const storage: LedgerStorage = {
       getItem: () => null,
       setItem: () => {
@@ -166,7 +166,69 @@ describe("createLedger with another tab", () => {
 
     expect(() => ledger.claim(["a"], "user-1")).not.toThrow();
     expect(() => ledger.bury("b", "user-1")).not.toThrow();
+    ledger.markSynced([["c", 1_000]]);
+    ledger.refresh();
+
+    expect(ledger.ownerOf("a")).toBe("user-1");
     expect(ledger.buried("user-1")).toEqual(["b"]);
+    expect(ledger.syncedAt("c")).toBe(1_000);
+  });
+});
+
+describe("createLedger when the storage is full", () => {
+  function fillableStorage(values = new Map<string, string>()) {
+    const storage = {
+      full: false,
+      getItem: (key: string) => values.get(key) ?? null,
+      setItem: (key: string, value: string) => {
+        if (storage.full) throw new Error("QuotaExceededError");
+        values.set(key, value);
+      },
+    };
+    return storage;
+  }
+
+  it("lets a ledger made later in the page, as at sign-out, see what couldn't be saved", () => {
+    const storage = fillableStorage();
+    const ledger = createLedger(storage);
+    ledger.claim(["old"], "user-1");
+
+    storage.full = true;
+    ledger.claim(["new"], "user-1");
+    ledger.bury("gone", "user-1");
+    ledger.markSynced([["new", 2_000]]);
+
+    const signingOut = createLedger(storage);
+    expect(signingOut.ownerOf("old")).toBe("user-1");
+    expect(signingOut.ownerOf("new")).toBe("user-1");
+    expect(signingOut.syncedAt("new")).toBe(2_000);
+    expect(signingOut.buried("user-1")).toEqual(["gone"]);
+
+    signingOut.forget(["new"]);
+    ledger.refresh();
+    expect(ledger.ownerOf("new")).toBeUndefined();
+    expect(ledger.ownerOf("old")).toBe("user-1");
+  });
+
+  it("saves everything it kept once the storage has room again, then reads other tabs again", () => {
+    const values = new Map<string, string>();
+    const storage = fillableStorage(values);
+    const ledger = createLedger(storage);
+
+    storage.full = true;
+    ledger.claim(["a"], "user-1");
+    ledger.bury("b", "user-1");
+    storage.full = false;
+    ledger.markSynced([["a", 1_000]]);
+
+    const reloaded = createLedger(fillableStorage(values));
+    expect(reloaded.ownerOf("a")).toBe("user-1");
+    expect(reloaded.buried("user-1")).toEqual(["b"]);
+    expect(reloaded.syncedAt("a")).toBe(1_000);
+
+    reloaded.claim(["from-there"], "user-2");
+    ledger.refresh();
+    expect(ledger.ownerOf("from-there")).toBe("user-2");
   });
 });
 

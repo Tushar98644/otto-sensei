@@ -40,26 +40,47 @@ let timer: ReturnType<typeof setTimeout> | null = null;
 let revision = 0;
 let running: Promise<void> | null = null;
 let rerun = false;
+// Edits typed while the saved content loads, replayed onto it when it arrives.
+let early: Array<(content: PortfolioContent) => PortfolioContent> = [];
 
-export async function loadContent(owner: string, { force = false } = {}): Promise<void> {
+// `shown` is what the editor shows until the answer, so edits typed meanwhile apply to it.
+export async function loadContent(
+  owner: string,
+  { force = false, shown }: { force?: boolean; shown?: PortfolioContent } = {},
+): Promise<void> {
   const state = useContentStore.getState();
   if (state.owner === owner && (state.status === "loading" || (state.status === "ready" && !force)))
     return;
-  useContentStore.setState({ status: "loading", owner, error: null });
+  early = [];
+  useContentStore.setState({
+    status: "loading",
+    owner,
+    error: null,
+    ...(shown ? { content: shown, dirty: false } : {}),
+  });
   try {
     const { content, github } = await api.portfolioContent();
     if (useContentStore.getState().owner !== owner) return;
     revision += 1;
-    useContentStore.setState({ status: "ready", content, github, dirty: false });
+    useContentStore.setState({
+      status: "ready",
+      content: early.reduce((next, edit) => edit(next), content),
+      github,
+      dirty: early.length > 0,
+    });
   } catch (error) {
     if (useContentStore.getState().owner !== owner) return;
     useContentStore.setState({ status: "error", error: isApiError(error) ? error.message : null });
   }
+  const typed = early.length > 0;
+  early = [];
+  if (typed) void save();
 }
 
 async function send(keepalive: boolean): Promise<void> {
-  const { content, dirty } = useContentStore.getState();
-  if (!dirty) return;
+  const { content, dirty, status } = useContentStore.getState();
+  // Until the saved content is known, a save could overwrite it; the load sends the edits.
+  if (!dirty || status === "loading") return;
   const sent = revision;
   useContentStore.setState({ saving: true });
   try {
@@ -120,6 +141,7 @@ export function editContent(
   const next = change(before);
   if (next === before) return;
   revision += 1;
+  if (useContentStore.getState().status === "loading") early.push(change);
   useContentStore.setState({ content: next, dirty: true });
   if (timer) clearTimeout(timer);
   timer = setTimeout(() => void save(), SAVE_AFTER_MS);
@@ -138,6 +160,7 @@ export function setGitHub(github: GitHubStats | null): void {
 export function resetContentStore(): void {
   if (timer) clearTimeout(timer);
   timer = null;
+  early = [];
   useContentStore.setState({
     status: "idle",
     owner: null,
