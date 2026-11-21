@@ -161,6 +161,42 @@ describe("readPost", () => {
     });
   });
 
+  it("reads Essential and Desirable headings, alone or with a noun", () => {
+    expect(byImportance("Essential\n- Python\nDesirable\n- Docker")).toEqual({
+      must: ["Python"],
+      nice: ["Docker"],
+      none: [],
+    });
+    expect(byImportance("Requirements\n- Python\nDesirable skills\n- Docker").nice).toEqual([
+      "Docker",
+    ]);
+  });
+
+  it("doesn't read the company's name under the title, but keeps the title and a bare skills line", () => {
+    expect(byImportance("Bookkeeper\nThistledown & Pike Accounting\nRequirements\n- Xero")).toEqual(
+      { must: ["Xero"], nice: [], none: [] },
+    );
+    expect(byImportance("Data Engineer\nSnowflake · Remote\nRequirements\n- SQL").none).toEqual([]);
+    expect(byImportance("Senior Python Developer\nHarbor Robotics · Berlin").none).toEqual([
+      "Python",
+    ]);
+    expect(byImportance("Data Engineer\nPython, Spark, Airflow").none).toEqual([
+      "Python",
+      "Spark",
+      "Airflow",
+    ]);
+    expect(byImportance("Data Engineer\nWe use Python daily").none).toEqual(["Python"]);
+  });
+
+  it("still reads a requirement in title case under the title", () => {
+    expect(
+      byImportance("Registered Nurse\nBLS Certification Required\nEpic Experience Preferred"),
+    ).toEqual({ must: ["BLS"], nice: ["Epic"], none: ["RN"] });
+    const post = readPost("Data Engineer\n5+ Years Python Experience");
+    expect(post.terms.map((term) => term.label)).toEqual(["Python"]);
+    expect(post.asks).toEqual(["5+ Years Python Experience"]);
+  });
+
   it("reads inline labels for that line only", () => {
     const post = [
       "Requirements",

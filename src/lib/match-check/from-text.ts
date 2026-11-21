@@ -23,6 +23,21 @@ function placeName(heading: string): string {
   return text === text.toUpperCase() ? text.charAt(0) + text.slice(1).toLowerCase() : text;
 }
 
+const SENTENCE_THEN_LABEL = /(?<=[.!?]) (?=[^.!?:\t]{2,40}: )/gu;
+
+// A paragraph that ends in "Skills: Go, SQL" keeps that list apart, as if it had a line of its own.
+function segments(line: string): string[] {
+  const parts: string[] = [];
+  let start = 0;
+  for (const { index } of line.matchAll(SENTENCE_THEN_LABEL)) {
+    if (!splitInlineHeading(line.slice(index + 1))) continue;
+    parts.push(line.slice(start, index));
+    start = index + 1;
+  }
+  parts.push(line.slice(start));
+  return parts;
+}
+
 // Pasted or extracted text keeps its own lines, so each match quotes the line as the person wrote it.
 export function resumeTextLines(resumeText: string): MatchLine[] {
   const lines: MatchLine[] = [];
@@ -39,19 +54,21 @@ export function resumeTextLines(resumeText: string): MatchLine[] {
       listing = kind === "skills" || languages;
       continue;
     }
-    const inline = splitInlineHeading(line);
-    const text = bulletText(line) ?? line;
-    if (inline) {
-      // The same rule as a heading on its own line: "Languages: Python, Go" is a list, "Languages: Spanish" isn't.
-      const spoken = extraKindOf(`${inline.label}:`) === "languages";
-      const inList = inline.kind === "skills" || spoken;
-      const shown = !inList || (spoken && namesLanguage(inline.rest));
-      lines.push({ text, place: placeName(inline.label), shown });
-      continue;
+    for (const part of segments(line)) {
+      const inline = splitInlineHeading(part);
+      const text = bulletText(part) ?? part;
+      if (inline) {
+        // The same rule as a heading on its own line: "Languages: Python, Go" is a list, "Languages: Spanish" isn't.
+        const spoken = extraKindOf(`${inline.label}:`) === "languages";
+        const inList = inline.kind === "skills" || spoken;
+        const shown = !inList || (spoken && namesLanguage(inline.rest));
+        lines.push({ text, place: placeName(inline.label), shown });
+        continue;
+      }
+      // Above the first heading, short lines are the name, headline and contacts.
+      const shown = place === TOP ? isProse(text) : !listing || (languages && namesLanguage(text));
+      lines.push({ text, place, shown });
     }
-    // Above the first heading, short lines are the name, headline and contacts.
-    const shown = place === TOP ? isProse(text) : !listing || (languages && namesLanguage(text));
-    lines.push({ text, place, shown });
   }
   return lines;
 }

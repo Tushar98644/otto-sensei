@@ -40,6 +40,7 @@ type Extra = { label: string; forms?: readonly string[]; exact?: boolean; langua
 const EXTRA: readonly Extra[] = [
   { label: "Patient care" },
   { label: "Cerner" },
+  { label: "Epic", exact: true },
   { label: "CPR", exact: true },
   { label: "First aid" },
   { label: "Phlebotomy" },
@@ -69,6 +70,7 @@ const EXTRA: readonly Extra[] = [
   { label: "Stata" },
   { label: "Alteryx" },
   { label: "VBA", exact: true },
+  { label: "CUDA" },
   { label: "Power Query" },
   { label: "Power Automate" },
   { label: "SharePoint" },
@@ -77,6 +79,7 @@ const EXTRA: readonly Extra[] = [
   { label: "Miro", exact: true },
   { label: "Shopify" },
   { label: "WordPress" },
+  { label: "Gong", exact: true },
   { label: "Business development" },
   { label: "Change management" },
   { label: "Risk management" },

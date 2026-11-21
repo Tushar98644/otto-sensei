@@ -30,6 +30,7 @@ export const ACRONYMS: readonly (readonly [short: string, long: string])[] = [
   ["NPS", "net promoter score"],
   ["OKR", "objectives and key results"],
   ["P&L", "profit and loss"],
+  ["PALS", "pediatric advanced life support"],
   ["PMP", "project management professional"],
   ["PPC", "pay-per-click"],
   ["QA", "quality assurance"],

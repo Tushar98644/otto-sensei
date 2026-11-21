@@ -3,7 +3,7 @@ import { clipWords, oneLine } from "@/lib/ai/text";
 import { findSkills } from "@/lib/job-feed/skills";
 import { bulletText } from "@/lib/resume/sections";
 import { findTerm, termKey } from "@/lib/tailor/keywords";
-import { textTokens } from "@/lib/tailor/tokens";
+import { termTokens, textTokens } from "@/lib/tailor/tokens";
 import { acronymForms, findCandidates } from "./vocabulary";
 
 export type Importance = "must" | "nice" | null;
@@ -42,7 +42,7 @@ const INTRO_HEADING =
 
 // Without a colon, capitals or markdown, a line is a heading only when all of it is a heading phrase.
 const QUALIFIER =
-  "(?:the|our|your|key|core|main|basic|minimum|required|preferred|desired|additional|essential|ideal|job|role|technical|tech|general)";
+  "(?:the|our|your|key|core|main|basic|minimum|required|preferred|desired|desirable|additional|essential|ideal|job|role|technical|tech|general)";
 const NOUN =
   "(?:requirements?|qualifications?|skills?|experience|competenc(?:y|ies)|criteria|knowledge|abilities|responsibilit(?:y|ies)|duties|tasks|overview|description|benefits|perks|compensation|salary|pay|location|values|culture|mission|story|team|impact|profile|background|role|opportunity|position|stack|candidate|day)";
 const PHRASES = [
@@ -50,6 +50,8 @@ const PHRASES = [
   "must[- ]haves?",
   "preferred",
   "required",
+  "essentials?",
+  "desirable",
   "bonus points(?: if you have)?",
   "pluses",
   "(?:it['’]s )?a (?:big )?plus(?: if you have)?",
@@ -123,6 +125,16 @@ function headingSection(line: string, current: Section): Section | undefined {
   return current === "intro" ? null : undefined;
 }
 
+// Under the title, a short line in title case that names more than skills is the company or the place.
+function namesCompany(line: string): boolean {
+  const text = headingText(line);
+  if (text === null || /(?:^|\s)\p{Ll}/u.test(text)) return false;
+  if ([MUST_WORDING, NICE_WORDING, YEARS, EXPERIENCE].some((asks) => asks.test(text))) return false;
+  const skills = [...findSkills(text), ...findCandidates(text).flatMap((found) => found.terms)];
+  const known = new Set(skills.flatMap(termTokens));
+  return textTokens(text).some((token) => !known.has(token.value));
+}
+
 function inlineLabel(content: string): { section: Section; rest: string } | null {
   const colon = content.indexOf(":");
   if (colon <= 0) return null;
@@ -173,6 +185,9 @@ export function readPost(jobText: string): PostRead {
   const asks: string[] = [];
   let section: Section = null;
   let order = 0;
+  // The post's top lines, until a heading or a sentence: its title, then the company and the place.
+  let header = true;
+  let title = true;
 
   const note = (label: string, forms: readonly string[], importance: Importance) => {
     const key = termKey(label);
@@ -194,6 +209,7 @@ export function readPost(jobText: string): PostRead {
     const heading = headingSection(line, section);
     if (heading !== undefined) {
       section = heading;
+      header = false;
       continue;
     }
     let content = bulletText(line) ?? line;
@@ -202,6 +218,12 @@ export function readPost(jobText: string): PostRead {
     if (label) {
       lineSection = label.section;
       content = label.rest;
+    }
+    if (header) {
+      const company = !title && !label && namesCompany(line);
+      title = false;
+      header = !label && headingText(line) !== null;
+      if (company) continue;
     }
     if (lineSection === "intro" || lineSection === "closing") continue;
 

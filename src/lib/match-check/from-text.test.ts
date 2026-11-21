@@ -43,6 +43,31 @@ describe("resumeTextLines", () => {
   });
 });
 
+describe("a paragraph that ends in a skills list", () => {
+  it("keeps the list apart, so a skill only in it is listed", () => {
+    const resume =
+      "Frontend developer building dashboards in React. Skills: JavaScript, React, Git. Languages: Spanish (native)";
+    expect(resumeTextLines(resume)).toEqual([
+      {
+        text: "Frontend developer building dashboards in React.",
+        place: "Top of your resume",
+        shown: true,
+      },
+      { text: "Skills: JavaScript, React, Git.", place: "Skills", shown: false },
+      { text: "Languages: Spanish (native)", place: "Languages", shown: true },
+    ]);
+    const check = matchCheckFromText(resume, "Requirements\n- JavaScript\n- React");
+    expect(check.rows.map((row) => [row.term, row.status])).toEqual([
+      ["JavaScript", "listed"],
+      ["React", "shown"],
+    ]);
+  });
+
+  it("doesn't split a sentence at a colon that isn't a heading", () => {
+    expect(resumeTextLines("Cut costs by 30%. Result: two more launches a year.")).toHaveLength(1);
+  });
+});
+
 describe("matchCheckFromText", () => {
   it("compares pasted resume text with a pasted post", () => {
     const check = matchCheckFromText(DESIGNER_RESUME, DESIGNER_POST);

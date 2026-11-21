@@ -16,7 +16,12 @@ export type Row = {
   p50LatencyMs: number | null;
   usdPerCall: number | null;
   totalUsd: number;
+  criteria: Record<string, number | null>;
+  // Over the cases with an output that this check graded, so errors are left out.
+  checks: Record<string, number>;
 };
+
+export type CriteriaByFeature = Readonly<Record<string, readonly string[]>>;
 
 export type RunFile = {
   version: 1;
@@ -33,20 +38,27 @@ export type RunFile = {
 
 export type Metric = "passRate" | "judgeMean" | "p50LatencyMs" | "usdPerCall";
 
-export type MetricDelta = {
-  metric: Metric;
+type Change = {
   before: number | null;
   after: number | null;
   change: number | null;
   regression: boolean;
 };
 
+export type MetricDelta = Change & { metric: Metric };
+
+export type ScoreDelta = Change & { name: string };
+
 export type RowDelta = {
   feature: string;
   model: string;
   status: "both" | "new" | "gone";
   metrics: MetricDelta[];
+  criteria: ScoreDelta[];
+  checks: ScoreDelta[];
 };
+
+const UNKNOWN: Change = { before: null, after: null, change: null, regression: false };
 
 const METRICS: readonly Metric[] = ["passRate", "judgeMean", "p50LatencyMs", "usdPerCall"];
 
@@ -82,7 +94,34 @@ function groups(results: readonly CaseResult[]): CaseResult[][] {
   return [...byKey.values()];
 }
 
-export function summarize(results: readonly CaseResult[]): Row[] {
+function criterionMeans(
+  ok: readonly CaseResult[],
+  ids: readonly string[],
+): Record<string, number | null> {
+  const scored = ok.map((result) => result.judge?.scores ?? {});
+  const names = new Set([...ids, ...scored.flatMap((scores) => Object.keys(scores))]);
+  return Object.fromEntries(
+    [...names].map((name) => [name, mean(scored.flatMap((scores) => scores[name] ?? []))]),
+  );
+}
+
+// A check that grades one output more than once passes only if every grade of that name passed.
+function checkRates(ok: readonly CaseResult[]): Record<string, number> {
+  const tally = new Map<string, { passed: number; graded: number }>();
+  for (const result of ok) {
+    const byName = new Map<string, boolean>();
+    for (const grade of result.grades) {
+      byName.set(grade.name, (byName.get(grade.name) ?? true) && grade.pass);
+    }
+    for (const [name, pass] of byName) {
+      const count = tally.get(name) ?? { passed: 0, graded: 0 };
+      tally.set(name, { passed: count.passed + (pass ? 1 : 0), graded: count.graded + 1 });
+    }
+  }
+  return Object.fromEntries([...tally].map(([name, count]) => [name, count.passed / count.graded]));
+}
+
+export function summarize(results: readonly CaseResult[], criteria: CriteriaByFeature = {}): Row[] {
   return groups(results).map((group) => {
     const ran = group.filter((result) => result.status !== "skipped");
     const ok = ran.filter((result) => result.status === "ok");
@@ -103,6 +142,8 @@ export function summarize(results: readonly CaseResult[]): Row[] {
       p50LatencyMs: median(ok.flatMap((result) => result.latencyMs ?? [])),
       usdPerCall: ran.length === 0 ? null : productUsd / ran.length,
       totalUsd: productUsd + judgeUsd,
+      criteria: criterionMeans(ok, criteria[group[0]!.feature] ?? []),
+      checks: checkRates(ok),
     };
   });
 }
@@ -147,32 +188,57 @@ function isRegression(metric: Metric, before: number, after: number): boolean {
   return before > 0 && (after - before) / before >= limit - 1e-9;
 }
 
+function changeOf(
+  metric: Metric,
+  before: number | null = null,
+  after: number | null = null,
+): Change {
+  const both = before !== null && after !== null;
+  return {
+    before,
+    after,
+    change: both ? after - before : null,
+    regression: both && isRegression(metric, before, after),
+  };
+}
+
+function scoreDeltas(
+  metric: Metric,
+  before: Readonly<Record<string, number | null>>,
+  after: Readonly<Record<string, number | null>>,
+): ScoreDelta[] {
+  const names = new Set([...Object.keys(after), ...Object.keys(before)]);
+  return [...names].map((name) => ({ name, ...changeOf(metric, before[name], after[name]) }));
+}
+
 export function compareRows(current: readonly Row[], previous: readonly Row[]): RowDelta[] {
   const key = (row: Row) => `${row.feature}\u0000${row.model}`;
   const old = new Map(previous.map((row) => [key(row), row]));
   const now = new Map(current.map((row) => [key(row), row]));
+  const unmatched = (row: Row, status: "new" | "gone"): RowDelta => ({
+    feature: row.feature,
+    model: row.model,
+    status,
+    metrics: [],
+    criteria: [],
+    checks: [],
+  });
   const deltas: RowDelta[] = current.map((row) => {
     const before = old.get(key(row));
-    if (!before) return { feature: row.feature, model: row.model, status: "new", metrics: [] };
-    const metrics = METRICS.map((metric) => {
-      const was = before[metric];
-      const is = row[metric];
-      const both = was !== null && is !== null;
-      return {
+    if (!before) return unmatched(row, "new");
+    return {
+      feature: row.feature,
+      model: row.model,
+      status: "both",
+      metrics: METRICS.map((metric) => ({
         metric,
-        before: was,
-        after: is,
-        change: both ? is - was : null,
-        regression: both && isRegression(metric, was, is),
-      };
-    });
-    return { feature: row.feature, model: row.model, status: "both", metrics };
+        ...changeOf(metric, before[metric], row[metric]),
+      })),
+      criteria: scoreDeltas("judgeMean", before.criteria, row.criteria),
+      checks: scoreDeltas("passRate", before.checks, row.checks),
+    };
   });
-  for (const row of previous) {
-    if (!now.has(key(row))) {
-      deltas.push({ feature: row.feature, model: row.model, status: "gone", metrics: [] });
-    }
-  }
+  for (const row of previous) if (!now.has(key(row))) deltas.push(unmatched(row, "gone"));
   return deltas;
 }
 
@@ -188,6 +254,9 @@ const RowSchema = z.object({
   p50LatencyMs: z.number().nullable(),
   usdPerCall: z.number().nullable(),
   totalUsd: z.number(),
+  // Older results files have neither, so every criterion and check reads as unknown there.
+  criteria: z.record(z.string(), z.number().nullable()).default({}),
+  checks: z.record(z.string(), z.number()).default({}),
 });
 
 export function readRows(json: unknown): Row[] | null {
@@ -209,18 +278,91 @@ const FORMAT: Record<Metric, (value: number | null) => string> = {
   usdPerCall: usd,
 };
 
-function changeText(delta: MetricDelta): string {
-  if (delta.change === null || delta.before === null) return FORMAT[delta.metric](delta.after);
+function changeText(delta: Change, metric: Metric): string {
+  if (delta.after === null && delta.before !== null)
+    return `- (was ${FORMAT[metric](delta.before)})`;
+  if (delta.change === null || delta.before === null) return FORMAT[metric](delta.after);
   const { change, before } = delta;
   const shown =
-    delta.metric === "passRate"
+    metric === "passRate"
       ? `${change >= 0 ? "+" : ""}${Math.round(change * 100)} pts`
-      : delta.metric === "judgeMean"
+      : metric === "judgeMean"
         ? `${change >= 0 ? "+" : ""}${change.toFixed(2)}`
         : before === 0
           ? "n/a"
           : `${change >= 0 ? "+" : ""}${Math.round((change / before) * 100)}%`;
-  return `${FORMAT[delta.metric](delta.after)} (${shown}${delta.regression ? ", REGRESSION" : ""})`;
+  return `${FORMAT[metric](delta.after)} (${shown}${delta.regression ? ", REGRESSION" : ""})`;
+}
+
+const namesOf = (records: readonly Readonly<Record<string, unknown>>[]) => [
+  ...new Set(records.flatMap((record) => Object.keys(record))),
+];
+
+const header = (first: string, columns: readonly string[]) => [
+  `| ${[first, ...columns].map(cell).join(" | ")} |`,
+  `|---|${columns.map(() => "---:").join("|")}|`,
+];
+
+const known = (values: readonly (number | null | undefined)[]) =>
+  values.some((value) => value !== null && value !== undefined);
+
+export function criteriaTable(rows: readonly Row[]): string | null {
+  const names = namesOf(rows.map((row) => row.criteria));
+  if (!known(rows.flatMap((row) => Object.values(row.criteria)))) return null;
+  return [
+    ...header("Model", names),
+    ...rows.map(
+      (row) =>
+        `| ${cell(row.model)} | ${names.map((name) => score(row.criteria[name] ?? null)).join(" | ")} |`,
+    ),
+  ].join("\n");
+}
+
+export function checksTable(rows: readonly Row[]): string | null {
+  const names = namesOf(rows.map((row) => row.checks));
+  if (names.length === 0) return null;
+  return [
+    ...header(
+      "Check",
+      rows.map((row) => row.model),
+    ),
+    ...names.map(
+      (name) =>
+        `| ${cell(name)} | ${rows.map((row) => percent(row.checks[name] ?? null)).join(" | ")} |`,
+    ),
+  ].join("\n");
+}
+
+const deltaFor = (deltas: readonly ScoreDelta[], name: string): Change =>
+  deltas.find((delta) => delta.name === name) ?? UNKNOWN;
+
+export function criteriaChangeTable(deltas: readonly RowDelta[]): string | null {
+  const both = deltas.filter((delta) => delta.status === "both");
+  const names = [...new Set(both.flatMap((delta) => delta.criteria.map((item) => item.name)))];
+  if (!known(both.flatMap((delta) => delta.criteria.map((item) => item.before)))) return null;
+  return [
+    ...header("Model", names),
+    ...both.map(
+      (delta) =>
+        `| ${cell(delta.model)} | ${names.map((name) => changeText(deltaFor(delta.criteria, name), "judgeMean")).join(" | ")} |`,
+    ),
+  ].join("\n");
+}
+
+export function checksChangeTable(deltas: readonly RowDelta[]): string | null {
+  const both = deltas.filter((delta) => delta.status === "both");
+  const names = [...new Set(both.flatMap((delta) => delta.checks.map((item) => item.name)))];
+  if (!known(both.flatMap((delta) => delta.checks.map((item) => item.before)))) return null;
+  return [
+    ...header(
+      "Check",
+      both.map((delta) => delta.model),
+    ),
+    ...names.map(
+      (name) =>
+        `| ${cell(name)} | ${both.map((delta) => changeText(deltaFor(delta.checks, name), "passRate")).join(" | ")} |`,
+    ),
+  ].join("\n");
 }
 
 export function summaryTable(rows: readonly Row[]): string {
@@ -248,14 +390,59 @@ export function compareTable(deltas: readonly RowDelta[]): string {
       continue;
     }
     lines.push(
-      `| ${delta.feature} | ${delta.model} | ${delta.metrics.map(changeText).join(" | ")} |`,
+      `| ${delta.feature} | ${delta.model} | ${delta.metrics.map((m) => changeText(m, m.metric)).join(" | ")} |`,
     );
   }
   return lines.join("\n");
 }
 
-export function regressionCount(deltas: readonly RowDelta[]): number {
-  return deltas.reduce((sum, delta) => sum + delta.metrics.filter((m) => m.regression).length, 0);
+const flaggedIn = (changes: readonly Change[]) => changes.filter((item) => item.regression).length;
+
+// "detail" counts the per-criterion and per-check changes, "summary" the summary table's.
+export function regressionCount(
+  deltas: readonly RowDelta[],
+  scope: "all" | "summary" | "detail" = "all",
+): number {
+  return deltas.reduce((sum, delta) => {
+    const summary = scope === "detail" ? 0 : flaggedIn(delta.metrics);
+    const detail = scope === "summary" ? 0 : flaggedIn([...delta.criteria, ...delta.checks]);
+    return sum + summary + detail;
+  }, 0);
+}
+
+export function regressionSummary(deltas: readonly RowDelta[]): string {
+  const total = regressionCount(deltas);
+  const detail = regressionCount(deltas, "detail");
+  const where = detail > 0 ? `, ${detail} of them per criterion or per check` : "";
+  return `${total} regression${total === 1 ? "" : "s"} flagged${where}.`;
+}
+
+function featureTables(
+  rows: readonly Row[],
+  compared: { dir: string; deltas: readonly RowDelta[] } | null,
+): string[] {
+  const criteria = criteriaTable(rows);
+  const checks = checksTable(rows);
+  const parts = [
+    criteria
+      ? `Judge score per criterion (mean, 1-5):\n\n${criteria}`
+      : "Judge score per criterion: no case was scored.",
+    checks
+      ? `Pass rate per check (share of the outputs the check graded; errors are left out):\n\n${checks}`
+      : "Pass rate per check: no output was graded.",
+  ];
+  if (!compared) return parts;
+  const criteriaChange = criteriaChangeTable(compared.deltas);
+  const checksChange = checksChangeTable(compared.deltas);
+  parts.push(
+    criteriaChange
+      ? `Change per criterion since ${compared.dir} (a drop of ${REGRESSION.judgeMean} or more is a regression):\n\n${criteriaChange}`
+      : `Change per criterion: ${compared.dir} has no scores per criterion for these models.`,
+    checksChange
+      ? `Change per check since ${compared.dir} (a drop of ${Math.round(REGRESSION.passRate * 100)} points or more is a regression):\n\n${checksChange}`
+      : `Change per check: ${compared.dir} has no pass rates per check for these models.`,
+  );
+  return parts;
 }
 
 export function markdownReport(
@@ -277,16 +464,20 @@ export function markdownReport(
     summaryTable(run.rows),
   ];
   if (compared) {
-    const flagged = regressionCount(compared.deltas);
     parts.push(
       `## Compared with ${compared.dir}`,
-      `${flagged} regression${flagged === 1 ? "" : "s"} flagged.`,
+      regressionSummary(compared.deltas),
       compareTable(compared.deltas),
     );
   }
   for (const feature of [...new Set(run.rows.map((row) => row.feature))]) {
-    parts.push(`## ${feature}`);
-    for (const row of run.rows.filter((item) => item.feature === feature)) {
+    const rows = run.rows.filter((item) => item.feature === feature);
+    const deltas = compared?.deltas.filter((delta) => delta.feature === feature) ?? [];
+    parts.push(
+      `## ${feature}`,
+      ...featureTables(rows, compared ? { dir: compared.dir, deltas } : null),
+    );
+    for (const row of rows) {
       const results = run.results.filter(
         (result) => result.feature === feature && result.model === row.model,
       );

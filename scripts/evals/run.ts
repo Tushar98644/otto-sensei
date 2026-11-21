@@ -29,6 +29,7 @@ import {
   markdownReport,
   readRows,
   regressionCount,
+  regressionSummary,
   summarize,
   summaryTable,
   type RunFile,
@@ -209,7 +210,12 @@ async function real(options: CliOptions, suites: readonly AnySuite[]): Promise<n
     console.info = info;
   }
 
-  const rows = summarize(results);
+  const rows = summarize(
+    results,
+    Object.fromEntries(
+      suites.map((suite) => [suite.name, suite.rubric.criteria.map((criterion) => criterion.id)]),
+    ),
+  );
   const run: RunFile = {
     version: 1,
     startedAt: startedAt.toISOString(),
@@ -238,7 +244,7 @@ async function real(options: CliOptions, suites: readonly AnySuite[]): Promise<n
 
   console.log(`\n${summaryTable(rows)}`);
   if (deltas) {
-    console.log(`\nCompared with ${options.compare}: ${regressionCount(deltas)} regression(s).`);
+    console.log(`\nCompared with ${options.compare}: ${regressionSummary(deltas)}`);
     console.log(compareTable(deltas));
   }
   console.log(`\nSpent $${budget.spentUsd.toFixed(4)}. Saved ${dir}/results.json and report.md.`);

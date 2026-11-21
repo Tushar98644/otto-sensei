@@ -973,18 +973,13 @@ export const CASES: readonly MatchCase[] = [
     skillsOnOwnLine("sales-ae-mid"),
     SALES_POST,
     {
-      terms: [
-        must("Salesforce", "shown"),
-        must("Gong", "shown"),
-        nice("HubSpot", "listed"),
-        nice("Outreach", "missing"),
-      ],
+      terms: [must("Salesforce", "shown"), must("Gong", "shown"), nice("HubSpot", "listed")],
       asks: [
         "3+ years closing mid-market software deals",
         "Bachelor's degree or equivalent experience",
       ],
     },
-    "Sales, mid level; the post asks for years and a degree.",
+    "Sales, mid level; the post asks for years and a degree. Outreach the tool is left unlabelled: a word check can't tell it from the everyday 'cold outreach' sales resumes are full of.",
   ),
   page(
     "new-grad-entry-level",

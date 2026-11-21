@@ -45,7 +45,26 @@ bun scripts/evals/run.ts --compare ../otto-sensei-evals/2026-11-20T10-00-00Z
 
 Exit codes: 0 ok, 1 a problem (bad options, a dry-run problem, an error), 2 a real run with `--compare` that flagged a regression.
 
-The report has one row per feature and model: cases, pass rate (the share of cases where every deterministic check passed, with errors counted as fails), mean judge score, p50 latency, cost per call (product spend per case, judge excluded), errors and skipped cases. Under it, per feature and model, it lists the failing checks and the worst cases with their reasons. With `--compare`, these changes count as regressions: pass rate down 5 points or more, judge mean down 0.25 or more, and p50 latency or cost per call up 25% or more.
+## The report
+
+The summary table has one row per feature and model: cases, pass rate (the share of cases where every deterministic check passed, with errors counted as fails), mean judge score, p50 latency, cost per call (product spend per case, judge excluded), errors and skipped cases.
+
+Each feature then gets two tables that show where models differ:
+
+- **Judge score per criterion**: one row per model and one column per rubric criterion, each the mean 1 to 5 score over the cases the judge scored. `-` means no case was scored on it.
+- **Pass rate per check**: one row per deterministic check (grade name) and one column per model. A rate counts only the outputs that check graded, since some checks apply to some cases only, so errors are left out here (they are in the summary's Errors column). When a check grades one output more than once, that output passes only if every grade passed.
+
+Under those, per model, it lists the failing checks and the worst cases with their reasons.
+
+With `--compare`, the report adds the summary's changes and, under each feature, the change per criterion and per check. These count as regressions:
+
+- pass rate, overall or for one check, down 5 points or more
+- judge mean, overall or for one criterion, down 0.25 or more
+- p50 latency or cost per call up 25% or more (latency also by at least 250 ms)
+
+Every regression counts toward exit code 2, and the report says how many came from criteria and checks. A criterion or check that only one of the two runs has is unknown on the other side: it shows the value it has, with no change and no flag.
+
+`results.json` keeps each case's scores per criterion under `results[].judge.scores`, and each summary row's means under `rows[].criteria` (criterion id to mean, or `null` when no case was scored) and pass rates under `rows[].checks` (grade name to a share from 0 to 1). Results files written before these existed still load with `--compare`: their criteria and checks read as unknown, so nothing is flagged for them.
 
 ## Cost
 
