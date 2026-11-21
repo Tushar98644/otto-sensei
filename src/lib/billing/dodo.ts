@@ -453,6 +453,8 @@ export async function createCheckout(input: CheckoutInput): Promise<{ url: strin
       path: "/checkouts",
       body: {
         product_cart: [{ product_id: input.productId, quantity: 1 }],
+        // Only applies with Adaptive Currency on: the checkout opens in USD and the buyer can still switch.
+        billing_currency: "USD",
         // With only an email, Dodo attaches its existing customer for that email.
         customer: isDodoId("cus", input.customerId)
           ? { customer_id: input.customerId }

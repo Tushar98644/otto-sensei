@@ -263,6 +263,7 @@ describe("POST /api/billing/checkout with Dodo", () => {
     expect(dodo.callsTo("POST /checkouts")).toHaveLength(1);
     expect(dodo.callsTo("POST /checkouts")[0]?.body).toEqual({
       product_cart: [{ product_id: PRO_TRIAL, quantity: 1 }],
+      billing_currency: "USD",
       customer: { email: user.email },
       metadata: {
         user_id: user.id,
@@ -302,6 +303,7 @@ describe("POST /api/billing/checkout with Dodo", () => {
     expect(await res.json()).toEqual({ ok: true, url: hosted(1) });
     expect(dodo.callsTo("POST /checkouts")[0]?.body).toMatchObject({
       product_cart: [{ product_id: MAX_MONTH, quantity: 1 }],
+      billing_currency: "USD",
       customer: { customer_id: CUS_1 },
       metadata: { user_id: user.id, plan: "max", interval: "month", trial: "false" },
       return_url: `${APP_URL}/api/billing/return?plan=max`,
@@ -320,6 +322,7 @@ describe("POST /api/billing/checkout with Dodo", () => {
     expect(dodo.callsTo("POST /checkouts")[0]?.body).toMatchObject({
       customer: { email: user.email },
       product_cart: [{ product_id: PRO_MONTH, quantity: 1 }],
+      billing_currency: "USD",
     });
     expect(sentAnywhere(PADDLE_CUSTOMER)).toBe(false);
     expect(sentAnywhere(PADDLE_SUBSCRIPTION)).toBe(false);

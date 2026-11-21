@@ -275,6 +275,7 @@ describe("dodo mode", () => {
     expect(await createCheckoutUrl(user, "pro", "month")).toBe(hosted(1));
     expect(checkoutBody()).toEqual({
       product_cart: [{ product_id: PRO_TRIAL, quantity: 1 }],
+      billing_currency: "USD",
       customer: { email: "new@example.com" },
       metadata: {
         user_id: user.id,
@@ -307,6 +308,7 @@ describe("dodo mode", () => {
     expect(await createCheckoutUrl(user, "pro", "month")).toBe(hosted(1));
     expect(checkoutBody()).toMatchObject({
       product_cart: [{ product_id: PRO_MONTH, quantity: 1 }],
+      billing_currency: "USD",
       customer: { email: "back@example.com" },
       metadata: { plan: "pro", interval: "month", trial: "false" },
       return_url: `${APP_URL}/api/billing/return?plan=pro`,
@@ -331,6 +333,7 @@ describe("dodo mode", () => {
     expect(checkoutBody()).toMatchObject({
       customer: { customer_id: cus(7) },
       product_cart: [{ product_id: PRO_MONTH, quantity: 1 }],
+      billing_currency: "USD",
     });
   });
 
@@ -354,11 +357,13 @@ describe("dodo mode", () => {
     expect(await createCheckoutUrl(user, "pro", "year")).toBe(hosted(1));
     expect(checkoutBody()).toMatchObject({
       product_cart: [{ product_id: PRO_YEAR, quantity: 1 }],
+      billing_currency: "USD",
       metadata: { plan: "pro", interval: "year", trial: "false" },
     });
     expect(await createCheckoutUrl(user, "max", "month")).toBe(hosted(2));
     expect(checkoutBody()).toMatchObject({
       product_cart: [{ product_id: MAX_MONTH, quantity: 1 }],
+      billing_currency: "USD",
       metadata: { plan: "max", interval: "month", trial: "false" },
       return_url: `${APP_URL}/api/billing/return?plan=max`,
     });

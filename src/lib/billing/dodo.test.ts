@@ -696,6 +696,7 @@ describe("createCheckout", () => {
     const body = bodyOf("POST /checkouts");
     expect(body).toEqual({
       product_cart: [{ product_id: PRO_MONTH, quantity: 1 }],
+      billing_currency: "USD",
       customer: { customer_id: CUS_1 },
       metadata: {
         user_id: "u1",
@@ -741,11 +742,13 @@ describe("createCheckout", () => {
     const [trial, max] = dodo.checkouts.map(({ body }) => body);
     expect(trial).toMatchObject({
       product_cart: [{ product_id: PRO_TRIAL, quantity: 1 }],
+      billing_currency: "USD",
       metadata: { plan: "pro", interval: "month", trial: "true" },
       return_url: `${APP}/api/billing/return?plan=pro&trial=1`,
     });
     expect(max).toMatchObject({
       product_cart: [{ product_id: MAX_YEAR, quantity: 1 }],
+      billing_currency: "USD",
       metadata: { plan: "max", interval: "year", trial: "false" },
       return_url: `${APP}/api/billing/return?plan=max`,
     });
