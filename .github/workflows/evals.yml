@@ -105,7 +105,7 @@ jobs:
             echo "No report was written; the Run evals log says why." >> "$GITHUB_STEP_SUMMARY"
           fi
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: ${{ !cancelled() && steps.key.outputs.ready == 'true' }}
         with:
           name: eval-report
