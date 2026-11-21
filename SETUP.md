@@ -1077,7 +1077,7 @@ vercel --prod
 ```
 
 Added or changed an environment variable later? Run `vercel --prod` again: a deployment only sees
-the values that existed when it was built.
+the values that existed when it was built. (Once step 11b is switched on, use **Redeploy** instead.)
 
 **Custom domain** (optional): `vercel domains add ottosensei.com`, follow the DNS instructions, then
 update the same address everywhere it was typed: `NEXT_PUBLIC_APP_URL` in Vercel, **Site URL** and
@@ -1085,6 +1085,132 @@ update the same address everywhere it was typed: `NEXT_PUBLIC_APP_URL` in Vercel
 in Dodo (step 10) the webhook endpoint: run `scripts/dodo-setup.ts` again with `DODO_SETUP_APP_URL`
 set to the new address, then delete the old endpoint and put the new endpoint's secret in Vercel. A
 new domain is a new site for Dodo's review, so tell Dodo before checkouts return there. Redeploy.
+
+---
+
+## 11b. Deploy only after CI passes (ready, switched off)
+
+Today Vercel builds and releases every push to `main` by itself within a minute or two, whether CI
+passes or not: 9 of the 86 pushes to `main` in November 2026 went live with CI failing.
+`.github/workflows/deploy.yml` is ready to change that and does nothing until you switch it on: after
+each CI run on `main` the Actions tab shows a skipped **Deploy** run, and that's all.
+
+Switched on, each time CI passes on a push to `main`, it:
+
+1. Skips if `main` has newer code by then, so re-running an old CI run never puts old code back.
+   Newer commits that only change `.md` files don't count: CI skips those, so nothing else would
+   deploy them.
+2. Waits for the **Migrations** lint when that push touched `supabase/migrations/`, and stops if it
+   failed.
+3. Runs `vercel deploy --prod` on exactly that commit. Vercel still builds it with the build command
+   in `vercel.json`, so the environment values (Secret values can't be read back, so they can't move
+   to GitHub) and `scripts/migrate.ts --deploy` stay on Vercel, as today. The run waits for the
+   build, puts the deployment URL in its summary, and fails (GitHub emails you) if the build fails.
+
+Pull requests and other branches keep their Vercel preview deployments. Previews never migrate.
+
+**Why not Vercel's Deployment Checks?** Vercel can hold a production deployment until chosen GitHub
+checks pass (project **Settings** → **Build and Deployment** → **Deployment Checks**, any plan, no
+token). It holds only the release: Vercel still builds every push straight away, and this build
+command migrates the production database, so a commit that fails CI would still change the database.
+This workflow builds nothing until CI has passed. If migrations ever leave the build command,
+Deployment Checks is the simpler switch.
+
+**Trade-offs**
+
+- Slower releases. CI took 5 to 9 minutes on `main` in November (before the browser-test job, which
+  adds a few more), then the Vercel build 1 to 2 minutes: about 7 to 12 minutes from push to live,
+  instead of 1 to 2.
+- A red CI ships nothing, urgent fixes included. Fix the cause, or **Re-run failed jobs** on a flaky
+  run: a passing re-run deploys. In an emergency `vercel --prod` from your laptop still works; it
+  skips CI and uploads the folder as it is, uncommitted changes included.
+- GitHub Actions minutes (the repo is private). CI already bills about 11 to 15 minutes per push; the
+  deploy job adds 2 to 3 (it waits while Vercel builds). At November's pace, about 4 pushes to `main`
+  a day, that's about 300 more minutes a month. GitHub Free includes $12 of Actions a month (Pro
+  $18), about 2,000 Linux minutes at $0.006 a minute, and CI alone is already close to that at this
+  pace. When the included amount runs out and no payment method is on file, GitHub blocks runs: CI,
+  and so deploys. Keep an eye on GitHub **Settings** → **Billing and licensing**, or add a payment
+  method with a budget.
+- A Vercel token that can deploy lives in GitHub secrets. Scope it to the project and let it expire.
+- The workflow finds CI by its name (`name: CI` in `ci.yml`). Rename CI and deploys stop; change
+  `workflows: [CI]` in `deploy.yml` with it.
+
+**Switch-over** (about 15 minutes, in this order)
+
+1. **Token.** [vercel.com/account/tokens](https://vercel.com/account/tokens) → name `github-deploy`,
+   **Scope**: your team, then the **otto-sensei** project (a project-scoped token; if the first
+   deploy says the token has no access, make one for the team with **All Projects** instead), expiry
+   1 year (note the date to rotate it). **Create**, and copy it now: Vercel shows it once.
+
+2. **Three secrets.** In this folder; the two ids come from `.vercel/project.json`, which
+   `vercel link` wrote in step 1, and nothing is printed:
+
+   ```bash
+   gh secret set VERCEL_TOKEN        # paste the token when asked
+   gh secret set VERCEL_ORG_ID --body "$(bun -p 'require("./.vercel/project.json").orgId')"
+   gh secret set VERCEL_PROJECT_ID --body "$(bun -p 'require("./.vercel/project.json").projectId')"
+   gh secret list                    # VERCEL_ORG_ID, VERCEL_PROJECT_ID, VERCEL_TOKEN
+   ```
+
+   Or GitHub → the repo → **Settings** → **Secrets and variables** → **Actions** → **New repository
+   secret**, three times.
+
+3. **The `vercel.json` line.** Add it under the `"$schema"` line, but don't commit yet:
+
+   ```json
+   "git": { "deploymentEnabled": { "main": false } },
+   ```
+
+   Vercel then stops building `main` by itself; every other branch still gets previews.
+
+4. **Switch on, then push straight away:**
+
+   ```bash
+   gh variable set DEPLOY_FROM_CI --body true
+   git add vercel.json && git commit -m "Deploy main only after CI passes" && git push
+   ```
+
+   Variable first: a push that lands in between is deployed twice (by Vercel and by the workflow,
+   the same commit), which is harmless, since migrations take a lock and skip what's applied. The
+   other way round, a push whose CI finishes before the variable is set isn't deployed at all.
+
+**Verify** (once CI on that commit is green)
+
+- GitHub → **Actions** → **Deploy**: a green run for that commit, with the deployment URL in its
+  summary.
+- Vercel → **Deployments**: the newest **Production** deployment is **Current**, shows `main` and
+  that commit, and its build log has the migration lines as before. It's the only deployment of that
+  commit; if Vercel also built it by itself, check that the next push makes only one.
+- `https://<your-domain>/api/health` shows `{"ok":true,"db":"up"}`, and **Settings** → **Cron Jobs**
+  still lists the jobs.
+- With Sentry (10b): the next error shows that commit as its release. If it shows none, the build
+  didn't get `VERCEL_GIT_COMMIT_SHA`; errors still arrive, only without a release.
+- The next time CI fails on `main`, its Deploy run is skipped and production stays on the last green
+  commit.
+
+**After the switch**
+
+- Changed an environment variable? Vercel → **Deployments** → the current production deployment →
+  **⋯** → **Redeploy**, which rebuilds the same commit with the new values.
+- A bad release: Vercel → the project → **Instant Rollback** (Hobby: back to the previous deployment;
+  Pro: any earlier production deployment). Vercel then stops promoting new production deployments,
+  so later Deploy runs build without going live until you undo it: **Manage** on the production
+  deployment tile, or `vercel promote <deployment-url>`. A rollback doesn't undo migrations.
+- A failed Deploy run: the error and a Vercel link are in the run's log. "Git author ... must have
+  access to the team" means the commit's author email isn't on your Vercel account (Vercel's own Git
+  builds have the same rule). A token error means it expired or lost access: make a new one,
+  `gh secret set VERCEL_TOKEN`, then **Re-run all jobs**.
+- `deploy.yml` pins the Vercel CLI (`vercel@65.12.1`) and Dependabot doesn't update it. Bump it now
+  and then.
+
+**Switch back** (Vercel deploys `main` by itself again)
+
+1. `gh variable set DEPLOY_FROM_CI --body false`
+2. Delete the `"git"` line from `vercel.json`, commit and push. Vercel builds that commit by itself.
+3. Optional: delete the token at [vercel.com/account/tokens](https://vercel.com/account/tokens), then
+   `gh secret delete VERCEL_TOKEN` (and `VERCEL_ORG_ID`, `VERCEL_PROJECT_ID`).
+
+Do 1 and 2 together: with the variable off and the line still in, nothing deploys `main`.
 
 ---
 

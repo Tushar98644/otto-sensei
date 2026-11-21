@@ -15,6 +15,7 @@ describe("parseArgs", () => {
         maxUsd: 2,
         dryRun: false,
         compare: null,
+        out: null,
         concurrency: 4,
         liftPriceCap: false,
         verbose: false,
@@ -36,6 +37,7 @@ describe("parseArgs", () => {
         "--dry-run",
         "--compare",
         "../otto-sensei-evals/2026-11-20T10-00-00Z",
+        "--out=eval-report",
         "--concurrency=2",
         "--lift-price-cap",
         "--verbose",
@@ -52,6 +54,7 @@ describe("parseArgs", () => {
         maxUsd: 0.5,
         dryRun: true,
         compare: "../otto-sensei-evals/2026-11-20T10-00-00Z",
+        out: "eval-report",
         concurrency: 2,
         liftPriceCap: true,
         verbose: true,
@@ -67,6 +70,7 @@ describe("parseArgs", () => {
     [["--models", ","], "--models is empty"],
     [["--judge"], "--judge needs a value"],
     [["--judge", "--dry-run"], "--judge needs a value"],
+    [["--out"], "--out needs a value"],
     [["--model", "lab/a"], "Unknown option --model"],
   ])("rejects %j", (argv, message) => {
     const parsed = parseArgs(argv, DEFAULTS);

@@ -154,7 +154,11 @@ function progress(result: CaseResult, budget: Budget) {
 
 async function real(options: CliOptions, suites: readonly AnySuite[]): Promise<number> {
   const apiKey = env().OPENROUTER_API_KEY;
-  if (!apiKey) throw new Error("OPENROUTER_API_KEY isn't set (bun reads it from .env.local).");
+  if (!apiKey) {
+    throw new Error(
+      "OPENROUTER_API_KEY isn't set (bun reads it from .env.local; CI passes the OPENROUTER_EVAL_KEY secret).",
+    );
+  }
   for (const name of QUIET_ENV) delete process.env[name];
   const compareWith = options.compare ? readCompare(options.compare) : null;
 
@@ -234,7 +238,7 @@ async function real(options: CliOptions, suites: readonly AnySuite[]): Promise<n
     results,
   };
   const deltas = compareWith ? compareRows(rows, compareWith) : null;
-  const dir = path.join(OUT_ROOT, stamp(startedAt));
+  const dir = options.out ? path.resolve(options.out) : path.join(OUT_ROOT, stamp(startedAt));
   mkdirSync(dir, { recursive: true });
   writeFileSync(path.join(dir, "results.json"), `${JSON.stringify(run, null, 2)}\n`);
   writeFileSync(
@@ -251,11 +255,11 @@ async function real(options: CliOptions, suites: readonly AnySuite[]): Promise<n
   return deltas && regressionCount(deltas) > 0 ? 2 : 0;
 }
 
-async function main(): Promise<number> {
-  const parsed = parseArgs(process.argv.slice(2), { model: env().AI_MODEL, judge: DEFAULT_JUDGE });
+async function start(argv: readonly string[]): Promise<number> {
+  const parsed = parseArgs(argv, { model: env().AI_MODEL, judge: DEFAULT_JUDGE });
   if (!parsed.ok) {
     console.error(parsed.error);
-    return process.argv.includes("--help") || process.argv.includes("-h") ? 0 : 1;
+    return argv.includes("--help") || argv.includes("-h") ? 0 : 1;
   }
   const suites = pickSuites(parsed.options);
   if (suites.length === 0)
@@ -263,9 +267,13 @@ async function main(): Promise<number> {
   return parsed.options.dryRun ? dry(parsed.options, suites) : real(parsed.options, suites);
 }
 
-main()
-  .then((code) => process.exit(code))
-  .catch((error: unknown) => {
+export async function main(argv: readonly string[]): Promise<number> {
+  try {
+    return await start(argv);
+  } catch (error) {
     console.error(error instanceof Error ? error.message : error);
-    process.exit(1);
-  });
+    return 1;
+  }
+}
+
+if (import.meta.main) void main(process.argv.slice(2)).then((code) => process.exit(code));

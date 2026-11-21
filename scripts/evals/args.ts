@@ -8,6 +8,7 @@ export type CliOptions = {
   maxUsd: number;
   dryRun: boolean;
   compare: string | null;
+  out: string | null;
   concurrency: number;
   liftPriceCap: boolean;
   verbose: boolean;
@@ -23,6 +24,7 @@ export const USAGE = `Usage: bun scripts/evals/run.ts [options]
   --max-usd <usd>          hard spending cap for the whole run (default 2)
   --dry-run                check cases and graders offline and print the cost estimate
   --compare <dir>          an older results folder (or its results.json) to compare with
+  --out <dir>              write results.json and report.md into this folder (default ../otto-sensei-evals/<timestamp>)
   --concurrency <n>        cases run at once per model (default 4)
   --lift-price-cap         drop the product's provider.max_price so pricier models can answer
   --verbose                keep the product's info logs`;
@@ -34,6 +36,7 @@ const VALUE_FLAGS = new Set([
   "--judge",
   "--max-usd",
   "--compare",
+  "--out",
   "--concurrency",
 ]);
 const SWITCHES = new Set(["--dry-run", "--lift-price-cap", "--verbose"]);
@@ -104,6 +107,7 @@ export function parseArgs(
       maxUsd,
       dryRun: switches.has("--dry-run"),
       compare: values.get("--compare") ?? null,
+      out: values.get("--out") ?? null,
       concurrency,
       liftPriceCap: switches.has("--lift-price-cap"),
       verbose: switches.has("--verbose"),

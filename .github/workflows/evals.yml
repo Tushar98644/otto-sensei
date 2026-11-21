@@ -1,0 +1,115 @@
+name: Evals
+
+# Real OpenRouter calls, capped by --max-usd; needs the OPENROUTER_EVAL_KEY secret (scripts/evals/README.md, "Running in CI").
+on:
+  push:
+    branches: [main]
+    paths:
+      - "src/lib/ai/**"
+      - "src/lib/tailor/**"
+      - "src/lib/match-check/**"
+      - "src/lib/writing-style/**"
+      - "src/lib/writings/schema.ts"
+      - "src/lib/evals/graders.ts"
+      - "scripts/evals/**"
+      - "scripts/match-eval/resumes.ts"
+      - ".github/workflows/evals.yml"
+      - "!**/*.md"
+      - "!**/*.test.ts"
+      - "!scripts/evals/baseline/**"
+  schedule:
+    # Mondays 06:17 UTC.
+    - cron: "17 6 * * 1"
+  workflow_dispatch:
+    inputs:
+      models:
+        description: "OpenRouter model ids, comma separated (empty: the AI_MODEL default)"
+        type: string
+        default: ""
+      feature:
+        description: "Suite name, comma list, or all"
+        type: string
+        default: all
+      max-usd:
+        description: "Hard spending cap for the run, in US$"
+        type: string
+        default: "0.50"
+
+# One run at a time; a newer one waits instead of cancelling a run that has already spent money.
+concurrency:
+  group: evals
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  evals:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - name: Check for the eval key
+        id: key
+        env:
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_EVAL_KEY }}
+        run: |
+          if [ -n "$OPENROUTER_API_KEY" ]; then
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "ready=false" >> "$GITHUB_OUTPUT"
+          echo "::notice::OPENROUTER_EVAL_KEY isn't set, so the evals were skipped and no model was called."
+          {
+            echo "## Evals skipped"
+            echo
+            echo "The repository secret \`OPENROUTER_EVAL_KEY\` isn't set, so nothing ran and no model was called."
+            echo "To turn the evals on, follow \"Running in CI\" in \`scripts/evals/README.md\`."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/checkout@v4
+        if: steps.key.outputs.ready == 'true'
+      - uses: ./.github/actions/setup
+        if: steps.key.outputs.ready == 'true'
+
+      - name: Run evals
+        if: steps.key.outputs.ready == 'true'
+        env:
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_EVAL_KEY }}
+          MODELS: ${{ inputs.models }}
+          FEATURE: ${{ inputs.feature || 'all' }}
+          MAX_USD: ${{ inputs.max-usd || '0.50' }}
+          BASELINE: scripts/evals/baseline/results.json
+        run: |
+          args=(--feature "$FEATURE" --max-usd "$MAX_USD" --out "$RUNNER_TEMP/evals")
+          if [ -n "$MODELS" ]; then args+=(--models "$MODELS"); fi
+          if [ -f "$BASELINE" ]; then
+            args+=(--compare "$BASELINE")
+          else
+            echo "::notice::No baseline at $BASELINE yet, so this run only reports."
+          fi
+          code=0
+          bun scripts/evals/run.ts "${args[@]}" || code=$?
+          if [ "$code" -eq 2 ]; then
+            echo "::error::The evals flagged a regression against $BASELINE; the job summary lists it."
+          fi
+          exit "$code"
+
+      - name: Write the report to the job summary
+        if: ${{ !cancelled() && steps.key.outputs.ready == 'true' }}
+        run: |
+          report="$RUNNER_TEMP/evals/report.md"
+          if [ -f "$report" ]; then
+            # A step's summary is capped at 1 MiB.
+            head -c 1000000 "$report" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "No report was written; the Run evals log says why." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - uses: actions/upload-artifact@v4
+        if: ${{ !cancelled() && steps.key.outputs.ready == 'true' }}
+        with:
+          name: eval-report
+          path: ${{ runner.temp }}/evals/
+          if-no-files-found: ignore
+          overwrite: true
+          retention-days: 90

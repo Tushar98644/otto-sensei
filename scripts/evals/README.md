@@ -5,7 +5,7 @@ Runs the real product AI functions (fix, tailor, letters and so on) on synthetic
 - **Deterministic checks**: schema, length limits, invented numbers, words not in the input, banned phrases. Free and exact.
 - **A blind LLM judge**: a 1 to 5 score per rubric criterion. It never sees which model wrote the output.
 
-Each run writes `results.json` and `report.md` to `../otto-sensei-evals/<timestamp>/`, next to the repo and outside it, like `scripts/match-eval.ts`.
+Each run writes `results.json` and `report.md` to `../otto-sensei-evals/<timestamp>/`, next to the repo and outside it, like `scripts/match-eval.ts`, or to the folder `--out` names. CI runs them on its own: see [Running in CI](#running-in-ci).
 
 ## Suites
 
@@ -21,13 +21,14 @@ When the product falls back to its demo or rule-based result, the case counts as
 
 ## Running
 
-Run from the repo root, so bun loads `OPENROUTER_API_KEY` from `.env.local`.
+Run from the repo root, so bun loads `OPENROUTER_API_KEY` from `.env.local`. CI has no `.env.local`: it sets `OPENROUTER_API_KEY` alone, and everything else, `AI_MODEL` included, takes its default from `src/lib/env.ts`.
 
 ```bash
 bun scripts/evals/run.ts --dry-run                       # offline: checks cases and graders, prints the cost estimate
 bun scripts/evals/run.ts --feature fix --cases 3         # a small real run on AI_MODEL
 bun scripts/evals/run.ts --models z-ai/glm-5.3-flash,lab/other-model --max-usd 1
 bun scripts/evals/run.ts --compare ../otto-sensei-evals/2026-11-20T10-00-00Z
+bun scripts/evals/run.ts --max-usd 0.50 --out scripts/evals/baseline   # record the CI baseline
 ```
 
 | Option                  | Default                      | Meaning                                                                                           |
@@ -39,6 +40,7 @@ bun scripts/evals/run.ts --compare ../otto-sensei-evals/2026-11-20T10-00-00Z
 | `--max-usd <usd>`       | `2`                          | hard cap on everything the run spends, product calls and judge together                           |
 | `--dry-run`             | off                          | no network at all: validates every suite, grades each case's `golden` output, prints the estimate |
 | `--compare <dir>`       | none                         | an older results folder (or its `results.json`); changes are shown and regressions flagged        |
+| `--out <dir>`           | a new timestamped folder     | the folder `results.json` and `report.md` go into, created if missing; overwrites what's there    |
 | `--concurrency <n>`     | `4`                          | cases in flight at once for one model                                                             |
 | `--lift-price-cap`      | off                          | drops the product's `provider.max_price` so models priced above `AI_MAX_PRICE` can answer         |
 | `--verbose`             | off                          | keeps the product's `[info]` logs                                                                 |
@@ -74,6 +76,47 @@ Every regression counts toward exit code 2, and the report says how many came fr
 - The dry-run estimate is offline. It prices product calls at the cap, an upper bound, and the judge at match-eval's figure. Estimates assume one call per case and no retries, though `letters` makes a second call when its first draft fails the product's own checks; reasoning tokens are billed as output.
 - Analytics and error-report keys are removed from the process env, so eval traffic never reaches PostHog or Sentry.
 
+## Running in CI
+
+`.github/workflows/evals.yml` runs every suite on `AI_MODEL`'s default model, with the judge on and `--max-usd 0.50`:
+
+- **On a push to `main`** that changes code the suites exercise: `src/lib/ai/**` (fix, tailor, structure, the letters and outreach writer in `writing.ts`, the prompts and the client), `src/lib/tailor/**`, `src/lib/match-check/**`, `src/lib/writing-style/**`, `src/lib/writings/schema.ts`, `src/lib/evals/graders.ts`, `scripts/evals/**`, `scripts/match-eval/resumes.ts` or the workflow itself. Markdown, `*.test.ts` and `scripts/evals/baseline/**` don't count.
+- **Every Monday** at 06:17 UTC.
+- **By hand**: Actions > Evals > Run workflow, with `models` (a comma list; empty means `AI_MODEL`'s default), `feature` (`all`, a suite or a comma list) and `max-usd`.
+
+Runs go one at a time: a newer one waits instead of cancelling one that has already spent money. The job reads the key from the repository secret `OPENROUTER_EVAL_KEY` and passes it as `OPENROUTER_API_KEY`. Without the secret the job ends green after its first step, with "Evals skipped" in the job summary: no checkout, no install, no call.
+
+A run writes `report.md` to the job summary and uploads `results.json` and `report.md` as the `eval-report` artifact, kept 90 days. The job fails when the runner exits 1 (bad inputs, an unknown model, OpenRouter's model list unreachable) or 2 (a regression, below). Cases that error don't fail it by themselves: they show in the report, and against a baseline they lower the pass rate.
+
+### The key
+
+Give CI a key of its own, never the product's, with a spending limit:
+
+1. On openrouter.ai, open Settings > API Keys and create a key, for example `otto-evals-ci`.
+2. Set its credit limit to a few dollars, say $5. OpenRouter refuses the key's calls once it has spent that, whatever `--max-usd` says. The account needs credits as well.
+3. On GitHub, open Settings > Secrets and variables > Actions > New repository secret, name it `OPENROUTER_EVAL_KEY` and paste the key. Or run `gh secret set OPENROUTER_EVAL_KEY` and paste it at the prompt.
+4. Start one run by hand to check it.
+
+To stop the evals, delete the secret (runs then end green and call nothing) or disable the workflow. Once the key's limit is spent, every case errors; raise the limit on OpenRouter.
+
+### The baseline
+
+When `scripts/evals/baseline/results.json` is committed, every run passes `--compare` with it and the job fails on exit code 2, that is when anything counts as a regression (see [The report](#the-report)). Without it, runs only report.
+
+To record the baseline, or to update it after a change you accept (a new default model, a reworded prompt, new cases):
+
+1. Run the workflow by hand on `main` with the default inputs, so the baseline has the features, model and judge the push and weekly runs use.
+2. Download that run's `eval-report` artifact and copy its `results.json` and `report.md` into `scripts/evals/baseline/`.
+3. Commit both. A change under `scripts/evals/baseline/` doesn't start a run.
+
+Locally, `bun scripts/evals/run.ts --max-usd 0.50 --out scripts/evals/baseline` records one too (it needs the key in `.env.local`), but a CI run matches what later CI runs measure. Rows are matched by feature and model, so a run on other models shows them as new and flags nothing. Latency varies from run to run: if a run flags only p50 latency, run it again before treating it as a regression.
+
+### Cost per run
+
+The dry run puts the CI run at about $0.09: $0.067 for product calls, priced at the product's cap (`AI_MAX_PRICE`), so an upper bound, and $0.022 for the judge (`anthropic/claude-haiku-5.5`, $0.10 in and $0.50 out per million tokens). `match-check` makes no product call, so it costs only its judge calls. Retries, the second letter draft and moderation calls add a little. The run prints a live estimate before it starts, and the report says what it spent.
+
+That makes the weekly run about $0.40 a month, plus about $0.09 for each push that changes the AI code. A run by hand costs about that per model; raise `max-usd` for several models or pricier ones. `bun scripts/evals/run.ts --dry-run` prints the current estimate.
+
 ## Adding a suite
 
 1. Create `scripts/evals/suites/<feature>.ts` and export a suite made with `defineSuite` from `../suite`. See `suites/fix.ts`.
@@ -91,4 +134,4 @@ A suite has:
 - `judgeInput(kase)` and `judgeOutput(output, kase)` (optional, default JSON): the text the judge reads.
 - `estimate(kase)` (optional): `{ calls, inputTokens, outputTokens }` per case for the cost estimate. Use the product's prompt constant, for example `tokensOf(FIX_SYSTEM_PROMPT)`.
 
-Tests for the harness live in `src/lib/evals/*.test.ts`, because vitest only collects tests under `src/`. They mock fetch and make no network calls.
+Tests for the harness live in `src/lib/evals/*.test.ts`, because vitest only collects tests under `src/`. They mock fetch and make no network calls. `match-check-regression.test.ts` runs the whole match-check suite on the product's real output, and `run.test.ts` runs the CLI the way CI does: `OPENROUTER_API_KEY` alone, a fake OpenRouter, `--out`, and exit code 2 on a regression.
