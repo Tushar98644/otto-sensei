@@ -850,6 +850,9 @@ short: until going live, anyone with a public test card can get Pro (the go-live
       It prints counts only, never emails. Go straight to the next step. **This is the only time
       `--go-live --apply` is ever run**: once production is live, it would move paying customers to
       Free while Dodo keeps charging them.
+      **Done on 2026-11-21**, after a test-mode check on production: migration
+      `20261121000100_reset_dodo_test_billing.sql` applied this reset in the deploy that switched
+      production back to live keys. Never run `--go-live --apply` again.
    6. In Vercel production, replace (`vercel env rm NAME production`, then
       `vercel env add NAME production`) `DODO_ENVIRONMENT` (now `live`), `DODO_API_KEY`,
       `DODO_WEBHOOK_SECRET` and the five product ids with the live values. `BILLING_SIGNING_SECRET`
