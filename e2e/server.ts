@@ -12,13 +12,51 @@ import { E2E_DIST_DIR, E2E_PORT, serverEnv } from "./env";
 
 const root = fileURLToPath(new URL("..", import.meta.url));
 const DB_PREFIX = "otto-e2e-pglite-";
+const OWNER_FILE = "owner.pid";
 
-// e2e runs one at a time (the e2e lock), so any database left here is from a run that was killed.
+function alive(pid: number): boolean {
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function ownerOf(dir: string): number | null {
+  try {
+    const pid = Number(readFileSync(path.join(dir, OWNER_FILE), "utf8"));
+    return Number.isInteger(pid) && pid > 0 ? pid : null;
+  } catch {
+    return null;
+  }
+}
+
+// One e2e server at a time shares the output folder: reuse a live one instead of starting (and cleaning up) beside it.
+const lockFile = path.join(root, E2E_DIST_DIR, "dev", "lock");
+if (existsSync(lockFile)) {
+  try {
+    const held = JSON.parse(readFileSync(lockFile, "utf8")) as { pid?: number; port?: number };
+    if (typeof held.pid === "number" && alive(held.pid)) {
+      process.stderr.write(
+        `An e2e server is already running on port ${held.port} (pid ${held.pid}). Run with E2E_PORT=${held.port} to reuse it.\n`,
+      );
+      process.exit(1);
+    }
+  } catch {
+    // An unreadable lock is next dev's to report.
+  }
+}
+
+// Only databases whose server is gone are leftovers; a live server's folder is never touched.
 for (const name of readdirSync(tmpdir())) {
-  if (name.startsWith(DB_PREFIX))
-    rmSync(path.join(tmpdir(), name), { recursive: true, force: true });
+  if (!name.startsWith(DB_PREFIX)) continue;
+  const dir = path.join(tmpdir(), name);
+  const owner = ownerOf(dir);
+  if (owner === null || !alive(owner)) rmSync(dir, { recursive: true, force: true });
 }
 const dbRoot = mkdtempSync(path.join(tmpdir(), DB_PREFIX));
+writeFileSync(path.join(dbRoot, OWNER_FILE), String(process.pid));
 
 const env = serverEnv(root, path.join(dbRoot, "db"));
 const offline = pathToFileURL(path.join(root, "e2e/offline.ts")).href;

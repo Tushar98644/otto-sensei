@@ -1,4 +1,4 @@
-import type { Browser, Page } from "@playwright/test";
+import type { Browser, Locator, Page } from "@playwright/test";
 import type { ResumesResponse } from "@/lib/api/types";
 import type { Resume } from "@/lib/resume/schema";
 import { E2E_BASE_URL } from "./env";
@@ -9,6 +9,7 @@ const JOB_TITLE = "Senior Product Marketing Manager";
 const COMPANY = "Acme Analytics";
 const COPY_TITLE = `${JOB_TITLE} at ${COMPANY}`;
 const MARKETO_LINE = "Ran Marketo nurture campaigns for trial users";
+const HEADLINE = "Must-haves proven: 3 of 7 · Nice-to-haves: 0 of 1";
 
 // The demo tailor reads this as 7 must-haves (3 shown in the sample resume, Marketo missing) and Tableau as a nice-to-have.
 const JOB_POST = `Senior Product Marketing Manager
@@ -80,6 +81,17 @@ async function pasteJobPost(page: Page, text: string, job?: { title: string; com
   await page.getByRole("textbox", { name: "Job post", exact: true }).fill(text);
 }
 
+// The results fold into sections that open from their heading.
+async function openSection(results: Locator, title: string): Promise<Locator> {
+  const heading = results.getByRole("heading", { name: title, exact: true });
+  const section = results
+    .getByRole("group")
+    .filter({ has: results.page().getByRole("heading", { name: title, exact: true }) });
+  if ((await section.getAttribute("open")) === null) await heading.click();
+  await expect(section).toHaveAttribute("open", "");
+  return section;
+}
+
 function tailorCalls(page: Page): string[] {
   const calls: string[] = [];
   page.on("request", (request) => {
@@ -114,15 +126,14 @@ test("a Pro account tailors a pasted job post, picks the changes and gets a save
   await page.getByRole("button", { name: "Compare with my resume" }).click();
 
   const results = page.getByRole("region", { name: "Tailoring results" });
-  await expect(
-    results.getByRole("heading", { name: "Must-haves proven: 3 of 7 · Nice-to-haves: 0 of 1" }),
-  ).toBeVisible({ timeout: 60_000 });
+  await expect(results.getByText(HEADLINE, { exact: true })).toBeVisible({ timeout: 60_000 });
   await expect(results.getByText(/^Demo mode: these are sample suggestions/)).toBeVisible();
   await expect(page.getByText(`${JOB_TITLE} · ${COMPANY}`, { exact: true })).toBeVisible();
   await expect(page.getByRole("textbox", { name: "Job post", exact: true })).toBeHidden();
 
   // A missing must-have: say yes and add a line in your own words.
-  await results
+  const requirements = await openSection(results, "Requirements, one by one");
+  await requirements
     .getByRole("group", { name: "Have you used Marketo?" })
     .getByRole("button", { name: "Yes" })
     .click();
@@ -134,35 +145,47 @@ test("a Pro account tailors a pasted job post, picks the changes and gets a save
   await expect(results.getByRole("textbox", { name: "Your new line" })).toHaveValue(MARKETO_LINE);
   await results.getByRole("button", { name: "Add this line" }).click();
   await expect(
-    results.getByRole("heading", { name: "Must-haves proven: 4 of 7 · Nice-to-haves: 0 of 1" }),
+    requirements.getByText("Must-haves proven: 4 of 7 · Nice-to-haves: 0 of 1", { exact: true }),
   ).toBeVisible();
   await expect(
-    results
+    requirements
       .getByRole("region", { name: "Must-haves" })
       .getByText("Your new line, for the tailored copy"),
   ).toBeVisible();
 
   // A nice-to-have the user doesn't have stays off the resume.
-  await results
+  await requirements
     .getByRole("group", { name: "Have you used Tableau?" })
     .getByRole("button", { name: "No" })
     .click();
-  await expect(results.getByText("It stays off your resume.")).toBeVisible();
+  await expect(requirements.getByText("It stays off your resume.")).toBeVisible();
 
   // Keep one job's lines in their original order.
-  await expect(results.getByRole("heading", { name: "Your best lines first" })).toBeVisible();
-  const northwind = results.getByRole("checkbox", {
+  const bestFirst = await openSection(results, "Your best lines first");
+  await expect(bestFirst.getByText("Lines move up in 3 of 3 jobs", { exact: true })).toBeVisible();
+  const northwind = bestFirst.getByRole("checkbox", {
     name: /Marketing Specialist at Northwind Analytics/,
   });
   await expect(northwind).toBeChecked();
   await northwind.uncheck();
+  await expect(bestFirst.getByText("Lines move up in 2 of 3 jobs", { exact: true })).toBeVisible();
 
+  // A sticky bar repeats the card's button while the card is scrolled away, so this stays on the card.
+  const copyCard = results
+    .locator("div")
+    .filter({ has: page.getByRole("heading", { name: "Your tailored copy", exact: true }) })
+    .filter({ has: page.getByRole("button", { name: "Create tailored version" }) });
   await expect(
-    results.getByText(
-      "The copy adds 1 line you confirmed, adds 1 skill and reorders lines in 2 jobs. Your original stays the same.",
+    copyCard.getByText(
+      "Picked for this job. Change any of it below. Your original stays the same.",
     ),
   ).toBeVisible();
-  await results.getByRole("button", { name: "Create tailored version" }).click();
+  await expect(copyCard.getByRole("listitem")).toHaveText([
+    "Adds 1 line you confirmed",
+    "Adds 1 skill to your Skills section",
+    "Puts your best lines first in 2 jobs",
+  ]);
+  await copyCard.getByRole("button", { name: "Create tailored version" }).click();
 
   await expect(
     page.getByText("Your tailored copy is ready. Your original stays untouched."),
@@ -229,9 +252,9 @@ test("tailoring results come back after a reload and warn once the post changes"
   await pasteJobPost(page, JOB_POST, { title: JOB_TITLE, company: COMPANY });
   await page.getByRole("button", { name: "Compare with my resume" }).click();
 
-  const headline = page.getByRole("heading", {
-    name: "Must-haves proven: 3 of 7 · Nice-to-haves: 0 of 1",
-  });
+  const headline = page
+    .getByRole("region", { name: "Tailoring results" })
+    .getByText(HEADLINE, { exact: true });
   await expect(headline).toBeVisible({ timeout: 60_000 });
 
   await page.reload();

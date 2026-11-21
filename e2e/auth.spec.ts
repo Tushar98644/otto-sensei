@@ -26,6 +26,23 @@ function accountMenu(page: Page, email: string) {
   return page.getByRole("button", { name: `Account menu for ${email}` });
 }
 
+type AccountTab = "Plan & billing" | "Preferences" | "Profile";
+
+function accountTab(page: Page, name: AccountTab) {
+  return page.getByRole("tablist", { name: "Account" }).getByRole("tab", { name, exact: true });
+}
+
+async function openAccountTab(page: Page, name: AccountTab) {
+  const tab = accountTab(page, name);
+  await tab.click();
+  await expect(tab).toHaveAttribute("aria-selected", "true");
+  return page.getByRole("tabpanel", { name, exact: true });
+}
+
+function signInCard(page: Page) {
+  return page.getByRole("region", { name: "Email and sign-in" });
+}
+
 async function signedInEmail(page: Page): Promise<string | null> {
   const response = await page.request.get("/api/me");
   expect(response.ok()).toBe(true);
@@ -165,7 +182,8 @@ test.describe("signing out", () => {
   }) => {
     const signedInCookies = await context.cookies();
     await page.goto("/account");
-    await page.getByRole("button", { name: "Sign out" }).click();
+    await openAccountTab(page, "Profile");
+    await signInCard(page).getByRole("button", { name: "Sign out" }).click();
     await expect(page.getByRole("button", { name: "Email me a code" })).toBeVisible();
 
     await context.addCookies(signedInCookies);
@@ -205,15 +223,19 @@ test.describe("protected pages", () => {
 test.describe("account page", () => {
   test("signed out, it offers sign-in and shows no account details @mobile", async ({ page }) => {
     await page.goto("/account");
-    await expect(page.getByRole("heading", { level: 1, name: "Your account" })).toBeVisible();
+    // Signed out, the page reads like /login: the form's heading takes the place of the page's own.
+    await expect(
+      page.getByRole("heading", { level: 1, name: "Sign in", exact: true }),
+    ).toBeVisible();
+    await expect(page.getByRole("heading", { level: 1, name: "Your account" })).toBeHidden();
     await expect(
       page.getByText("Sign in to see your plan and what you've used this month."),
     ).toBeVisible();
     await expect(emailField(page)).toBeVisible();
     await expect(page.getByRole("button", { name: "Email me a code" })).toBeVisible();
-    await expect(page.getByText("Signed in as")).toHaveCount(0);
+    await expect(page.getByRole("tablist", { name: "Account" })).toHaveCount(0);
+    await expect(page.getByRole("region", { name: /^Your plan/ })).toHaveCount(0);
     await expect(page.getByRole("button", { name: "Sign out" })).toHaveCount(0);
-    await expect(page.getByRole("heading", { level: 2, name: "Plan" })).toHaveCount(0);
   });
 
   test("signing in there shows the account in place, and signing out brings the form back @mobile", async ({
@@ -223,17 +245,23 @@ test.describe("account page", () => {
     await page.goto("/account");
     await codeField(page).fill(await requestCode(page, email));
 
-    await expect(page.getByText("Signed in as")).toBeVisible();
-    await expect(page.getByText(email, { exact: true })).toBeVisible();
+    const tabs = page.getByRole("tablist", { name: "Account" });
+    await expect(tabs).toBeVisible();
+    await expect(page.getByRole("heading", { level: 1, name: "Your account" })).toBeVisible();
+    await expect(accountTab(page, "Plan & billing")).toHaveAttribute("aria-selected", "true");
+    await expect(page.getByRole("region", { name: "Your plan: Free" })).toBeVisible();
     await expect(page).toHaveURL(/\/account$/);
 
-    await page.getByRole("button", { name: "Sign out" }).click();
+    await openAccountTab(page, "Profile");
+    await expect(signInCard(page).getByText(email, { exact: true })).toBeVisible();
+    await signInCard(page).getByRole("button", { name: "Sign out" }).click();
     await expect(
       page.getByRole("region", { name: "Notifications" }).getByText("You're signed out."),
     ).toBeVisible();
     await expect(emailField(page)).toBeVisible();
-    await expect(page.getByText("Signed in as")).toHaveCount(0);
-    await expect(page).toHaveURL(/\/account$/);
+    await expect(tabs).toHaveCount(0);
+    await expect(page.getByText(email, { exact: true })).toHaveCount(0);
+    await expect(page).toHaveURL((url) => url.pathname === "/account");
     expect(await signedInEmail(page)).toBeNull();
   });
 
@@ -243,21 +271,34 @@ test.describe("account page", () => {
   }) => {
     await page.goto("/account");
     await expect(page.getByRole("heading", { level: 1, name: "Your account" })).toBeVisible();
-    const profile = page.getByRole("region", { name: "Profile" });
-    await expect(profile.getByText("Signed in as")).toBeVisible();
-    await expect(profile.getByText(user.email, { exact: true })).toBeVisible();
-    await expect(profile.getByText("Free plan")).toBeVisible();
-    await expect(profile.getByRole("button", { name: "Sign out" })).toBeVisible();
-    for (const name of ["Plan", "Notifications", "Delete account"]) {
-      await expect(page.getByRole("heading", { level: 2, name, exact: true })).toBeVisible();
+    // It opens on the plan.
+    await expect(accountTab(page, "Plan & billing")).toHaveAttribute("aria-selected", "true");
+    const billing = page.getByRole("tabpanel", { name: "Plan & billing" });
+    const plan = billing.getByRole("region", { name: "Your plan: Free" });
+    await expect(plan).toBeVisible();
+    await expect(plan.getByText("Current plan", { exact: true })).toBeVisible();
+    await expect(
+      billing.getByRole("heading", { level: 2, name: "Usage", exact: true }),
+    ).toBeVisible();
+
+    const preferences = await openAccountTab(page, "Preferences");
+    for (const name of ["Writing style", "Job search", "Emails and reminders"]) {
+      await expect(preferences.getByRole("heading", { level: 2, name, exact: true })).toBeVisible();
     }
+
+    const profile = await openAccountTab(page, "Profile");
+    const signIn = profile.getByRole("region", { name: "Email and sign-in" });
+    await expect(signIn.getByText(user.email, { exact: true })).toBeVisible();
+    await expect(signIn.getByRole("button", { name: "Sign out" })).toBeVisible();
+    await expect(
+      profile.getByRole("heading", { level: 2, name: "Delete account", exact: true }),
+    ).toBeVisible();
     await expect(emailField(page)).toHaveCount(0);
 
     await page.goto("/dashboard/account");
     await expect(page.getByRole("heading", { level: 1, name: "Account" })).toBeVisible();
-    await expect(
-      page.getByRole("region", { name: "Profile" }).getByText(user.email, { exact: true }),
-    ).toBeVisible();
+    await openAccountTab(page, "Profile");
+    await expect(signInCard(page).getByText(user.email, { exact: true })).toBeVisible();
   });
 });
 
@@ -272,9 +313,8 @@ test.describe("session", () => {
 
     const tab = await context.newPage();
     await tab.goto("/account");
-    await expect(
-      tab.getByRole("region", { name: "Profile" }).getByText(email, { exact: true }),
-    ).toBeVisible();
+    await openAccountTab(tab, "Profile");
+    await expect(signInCard(tab).getByText(email, { exact: true })).toBeVisible();
     await tab.close();
   });
 });

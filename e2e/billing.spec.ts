@@ -1,18 +1,14 @@
 import type { Locator, Page } from "@playwright/test";
-import {
-  trialUpgradeButton,
-  trialUpgradeCharge,
-  trialUpgradeNotice,
-} from "@/components/account/trial-upgrade";
+import { maxLine } from "@/app/(marketing)/account/_components/plan-copy";
+import { trialUpgradeNotice } from "@/components/account/trial-upgrade";
 import { PLANS, type BillingInterval, type PaidPlanId, type PlanId } from "@/config/plans";
 import type { MeResponse, UrlResponse } from "@/lib/api/types";
 import {
   endsTrialSentence,
   perMonth,
   planPrice,
-  planPriceLabel,
-  priceSentence,
   trialHeadline,
+  trialPrice,
   trialSentence,
   yearlySavingsPercent,
 } from "@/lib/billing/prices";
@@ -29,8 +25,9 @@ const upgradeLink = (plan: PaidPlanId, interval: BillingInterval) =>
   `/account?upgrade=1&plan=${plan}&interval=${interval}`;
 const switchedTo = (plan: PaidPlanId) =>
   `You're on ${PLANS[plan].name} now. Your new limits apply straight away.`;
+const TRY_PRO = `Try ${PLANS.pro.name} for ${trialPrice()}`;
 
-type CheckoutRequest = { plan: PaidPlanId; interval: BillingInterval };
+type CheckoutRequest = { plan: PaidPlanId; interval: BillingInterval; next?: string };
 
 // Every checkout the page asks for, in order, so a test can tell a confirmation step from a charge.
 function watchCheckouts(page: Page): CheckoutRequest[] {
@@ -69,7 +66,7 @@ async function trialEnd(page: Page): Promise<string> {
   return trialEndDay(user.trialEndsAt, "UTC");
 }
 
-// Mock billing's Manage billing: it ends the plan on the spot.
+// Mock billing's portal: it ends the plan on the spot.
 async function cancelPlan(page: Page) {
   const response = await page.request.post("/api/billing/portal");
   expect(response.ok(), await response.text()).toBe(true);
@@ -103,20 +100,22 @@ function pricingCard(page: Page, plan: string): Locator {
     .last();
 }
 
-function planSection(page: Page, billed: boolean): Locator {
-  return page.getByRole("region", { name: billed ? "Plan and billing" : "Plan", exact: true });
-}
-
-function profileSection(page: Page): Locator {
-  return page.getByRole("region", { name: "Profile", exact: true });
-}
+const planPanel = (page: Page) => page.getByRole("tabpanel", { name: "Plan & billing" });
+const panelTitles = (page: Page) => planPanel(page).getByRole("heading", { level: 2 });
+const planSummary = (page: Page) => page.getByRole("region", { name: /^Your plan: / });
+const yourPlan = (page: Page, plan: PlanId) =>
+  page.getByRole("heading", { level: 2, name: `Your plan: ${PLANS[plan].name}`, exact: true });
+// Everything that opens the billing portal, which mock billing turns into a cancel.
+const portalButtons = (page: Page) =>
+  planPanel(page).getByRole("button", {
+    name: /^(Cancel (trial|plan)|Resume (trial|plan)|Update card)$/,
+  });
+const TEST_MODE_PAID = "Cancelling or updating your card switches you back to Free.";
 
 // Sales pages trust a hint the app leaves once it has read the account, as after a real sign-in.
 async function openAccount(page: Page, plan: PlanId) {
   await page.goto("/account");
-  await expect(
-    profileSection(page).getByText(`${PLANS[plan].name} plan`, { exact: true }),
-  ).toBeVisible();
+  await expect(yourPlan(page, plan)).toBeVisible();
 }
 
 // The radios are visually hidden inside their labels, so a person clicks the label.
@@ -126,18 +125,22 @@ async function pick(scope: Page | Locator, name: string | RegExp) {
   await expect(radio).toBeChecked();
 }
 
-// Signed out: the trial button, the plan dialog, then the dev code in the dialog's sign-in form.
+function offerCard(dialog: Locator, plan: PaidPlanId): Locator {
+  return dialog
+    .getByRole("listitem")
+    .filter({ has: dialog.page().getByRole("heading", { name: PLANS[plan].name, exact: true }) });
+}
+
+// Signed out: the trial button opens the dialog on its sign-in step, then the dev code in the dialog's form.
 async function startTrialSignedOut(page: Page) {
   await page.goto("/pricing");
   await pricingCard(page, "Pro").getByRole("link", { name: trialHeadline() }).click();
 
-  const choose = page.getByRole("dialog", { name: "Choose your plan" });
-  await expect(choose.getByText("Cancel anytime from your account.")).toBeVisible();
-  await expect(choose.getByText("No real payment. Your plan switches right away.")).toBeVisible();
-  await expect(choose.getByRole("button", { name: "Upgrade to Max" })).toBeVisible();
-  await choose.getByRole("button", { name: trialHeadline() }).click();
-
   const signInDialog = page.getByRole("dialog", { name: "Sign in to start your trial" });
+  await expect(
+    signInDialog.getByText("Sign in first. Then I'll take you straight to checkout."),
+  ).toBeVisible();
+  await expect(page.getByRole("dialog", { name: "Choose your plan" })).toHaveCount(0);
   await signInDialog.getByLabel("Email", { exact: true }).fill(uniqueEmail("pricing"));
   await signInDialog.getByRole("button", { name: "Email me a code" }).click();
   const code = await signInDialog
@@ -148,8 +151,6 @@ async function startTrialSignedOut(page: Page) {
   await landsOn(page, TRIAL_LANDING, () => signInDialog.getByLabel("6-digit code").fill(code));
 }
 
-const cardTitles = (section: Locator) => section.getByRole("heading", { level: 3 });
-const manageBilling = (page: Page) => page.getByRole("button", { name: "Manage billing" });
 const toasts = (page: Page) => page.getByRole("region", { name: "Notifications" });
 
 test.describe("pricing page", () => {
@@ -166,7 +167,7 @@ test.describe("pricing page", () => {
     );
 
     const pro = pricingCard(page, "Pro");
-    await expect(pro.getByText("Most popular")).toBeVisible();
+    await expect(pro.getByText("Recommended")).toBeVisible();
     await expect(pro.getByText(planPrice("pro", "month"), { exact: true })).toBeVisible();
     await expect(pro.getByText(trialSentence())).toBeVisible();
     await expect(pro.getByRole("link", { name: trialHeadline() })).toHaveAttribute(
@@ -221,17 +222,14 @@ test.describe("pricing page", () => {
       page.getByText(`Your Pro trial runs until ${await trialEnd(page)}. Let's get to work.`),
     ).toBeVisible();
     await expect(toasts(page).getByText("Thanks for upgrading!")).toBeVisible();
-    await expect(profileSection(page).getByText("Pro plan", { exact: true })).toBeVisible();
+    await expect(yourPlan(page, "pro")).toBeVisible();
     await expect(page).toHaveURL(/\/account$/);
   });
 
-  // Product bug: the dialog and the account page behind it both start checkout, so the second fails with an error toast.
-  test.fixme("signing in inside the upgrade dialog asks for checkout only once", async ({
-    page,
-  }) => {
+  test("signing in inside the upgrade dialog asks for checkout only once", async ({ page }) => {
     const checkouts = watchCheckouts(page);
     await startTrialSignedOut(page);
-    await expect(profileSection(page).getByText("Pro plan", { exact: true })).toBeVisible();
+    await expect(yourPlan(page, "pro")).toBeVisible();
     expect(checkouts).toEqual([{ plan: "pro", interval: "month" }]);
   });
 
@@ -268,16 +266,13 @@ test.describe("pricing page", () => {
 
     const confirm = page.getByRole("dialog", { name: "Upgrade to Max" });
     await expect(confirm.getByText(trialUpgradeNotice("max", "month"))).toBeVisible();
-    await expect(confirm.getByText("Current plan")).toBeVisible();
+    await expect(offerCard(confirm, "pro").getByText("Current plan")).toBeVisible();
     await expect(confirm.getByRole("button", { name: "Start Max now" })).toBeVisible();
     await confirm.getByRole("button", { name: "Not now" }).click();
 
     await expect(confirm).toBeHidden();
-    await expect(cardTitles(planSection(page, true))).toHaveText([
-      "Your trial",
-      "Go Max",
-      "Billing",
-    ]);
+    await expect(yourPlan(page, "pro")).toBeVisible();
+    await expect(planSummary(page).getByText(/^Trial · /)).toBeVisible();
     expect(checkouts).toEqual([]);
     expect((await me(page)).user?.plan).toBe("pro");
   });
@@ -287,7 +282,7 @@ test.describe("pricing page", () => {
     await openAccount(page, "pro");
     const checkouts = watchCheckouts(page);
     await page.goto("/pricing");
-    await pricingCard(page, "Max").getByRole("link", { name: "Get Max" }).click();
+    await pricingCard(page, "Max").getByRole("link", { name: "Upgrade to Max" }).click();
 
     const confirm = page.getByRole("dialog", { name: "Upgrade to Max" });
     await expect(
@@ -295,7 +290,9 @@ test.describe("pricing page", () => {
         "Your subscription changes in place: you pay only the difference, never twice.",
       ),
     ).toBeVisible();
-    await expect(confirm.getByText(planPrice("max", "year"), { exact: true })).toBeVisible();
+    await expect(
+      offerCard(confirm, "max").getByText(planPrice("max", "year"), { exact: true }),
+    ).toBeVisible();
     await expect(confirm.getByRole("radio")).toHaveCount(0);
     expect(checkouts).toEqual([]);
 
@@ -309,22 +306,24 @@ test.describe("pricing page", () => {
 });
 
 test.describe("account page", () => {
-  test("a new Free account is offered the Pro trial and has no Manage billing", async ({
+  test("a new Free account is offered the Pro trial and has nothing to cancel", async ({
     page,
     user,
   }) => {
     expect(user.plan).toBe("free");
     await openAccount(page, "free");
 
-    const plan = planSection(page, false);
-    await expect(cardTitles(plan)).toHaveText(["Otto's AI help", trialHeadline()]);
-    await expect(plan.getByText(trialSentence())).toBeVisible();
+    await expect(panelTitles(page)).toHaveText(["Your plan: Free", "Usage"]);
+    const plan = planSummary(page);
+    await expect(plan.getByText("Current plan", { exact: true })).toBeVisible();
+    await expect(plan.getByText(`Try ${PLANS.pro.name}: ${trialSentence()}`)).toBeVisible();
     await expect(plan.getByText("No real payment. Your plan switches right away.")).toBeVisible();
-    await expect(
-      plan.getByRole("button", { name: `Start my ${PLANS.pro.name} trial` }),
-    ).toBeVisible();
-    await expect(page.getByRole("heading", { name: "Plan and billing" })).toHaveCount(0);
-    await expect(manageBilling(page)).toHaveCount(0);
+    await expect(plan.getByRole("button", { name: TRY_PRO })).toBeVisible();
+    await expect(plan.getByRole("link", { name: "Compare plans" })).toHaveAttribute(
+      "href",
+      "/pricing",
+    );
+    await expect(portalButtons(page)).toHaveCount(0);
   });
 
   test("starting the trial from the account page", async ({ page, user }) => {
@@ -333,7 +332,7 @@ test.describe("account page", () => {
     await openAccount(page, "free");
 
     await landsOn(page, TRIAL_LANDING, () =>
-      planSection(page, false).getByRole("button", { name: "Start my Pro trial" }).click(),
+      planSummary(page).getByRole("button", { name: TRY_PRO }).click(),
     );
 
     expect(checkouts).toEqual([{ plan: "pro", interval: "month" }]);
@@ -341,40 +340,51 @@ test.describe("account page", () => {
     await expect(
       page.getByText(`Your Pro trial runs until ${ends}. Let's get to work.`),
     ).toBeVisible();
+    await expect(yourPlan(page, "pro")).toBeVisible();
     await expect(
-      profileSection(page).getByText(
-        `Pro trial until ${ends}. Then ${planPriceLabel("pro", "month")}, unless you cancel before.`,
+      planSummary(page).getByText(
+        `You paid ${trialPrice()} for the trial. On ${ends} Pro starts at ${planPrice("pro", "month")} a month. We remind you the day before.`,
       ),
     ).toBeVisible();
   });
 
-  test("picking Max or yearly changes the offer, and Max starts at once", async ({
+  test("the plan dialog: picking yearly drops the trial, picking Max changes the offer, and Max starts at once", async ({
     page,
     user,
   }) => {
     expect(user.plan).toBe("free");
     const checkouts = watchCheckouts(page);
-    await openAccount(page, "free");
-    const plan = planSection(page, false);
-    await expect(cardTitles(plan)).toHaveText(["Otto's AI help", trialHeadline()]);
+    await page.goto("/dashboard/account");
+    await expect(yourPlan(page, "free")).toBeVisible();
+    await page.getByRole("complementary").getByRole("button", { name: TRY_PRO }).click();
 
-    await pick(plan, "Yearly");
-    await expect(cardTitles(plan)).toHaveText(["Otto's AI help", "Go Pro"]);
-    await expect(plan.getByText(priceSentence("pro", "year"))).toBeVisible();
-    await expect(plan.getByRole("button", { name: "Upgrade to Pro" })).toBeVisible();
+    const choose = page.getByRole("dialog", { name: "Choose your plan" });
+    await expect(choose.getByText("Cancel anytime from your account.")).toBeVisible();
+    await expect(choose.getByText("No real payment. Your plan switches right away.")).toBeVisible();
+    const pro = offerCard(choose, "pro");
+    const max = offerCard(choose, "max");
+    await expect(pro.getByText(trialSentence())).toBeVisible();
+    await expect(pro.getByRole("button", { name: trialHeadline() })).toBeVisible();
 
-    await pick(plan, "Monthly");
-    await pick(plan, /^Max/);
-    await expect(cardTitles(plan)).toHaveText(["Otto's AI help", "Go Max"]);
-    await expect(plan.getByText(planPrice("max", "month"), { exact: true })).toBeVisible();
+    await pick(choose, "Yearly");
+    await expect(pro.getByText(planPrice("pro", "year"), { exact: true })).toBeVisible();
+    await expect(pro.getByText(`About ${perMonth("pro")} a month.`)).toBeVisible();
+    await expect(pro.getByText(trialSentence())).toHaveCount(0);
+    await expect(pro.getByRole("button", { name: "Upgrade to Pro" })).toBeVisible();
+    await expect(max.getByText(planPrice("max", "year"), { exact: true })).toBeVisible();
+
+    await pick(choose, "Monthly");
+    await expect(pro.getByRole("button", { name: trialHeadline() })).toBeVisible();
+    await expect(max.getByText(planPrice("max", "month"), { exact: true })).toBeVisible();
+    expect(checkouts).toEqual([]);
 
     await landsOn(page, landing("max"), () =>
-      plan.getByRole("button", { name: "Upgrade to Max" }).click(),
+      max.getByRole("button", { name: "Upgrade to Max" }).click(),
     );
 
     expect(checkouts).toEqual([{ plan: "max", interval: "month" }]);
     await expect(page.getByText(switchedTo("max"))).toBeVisible();
-    await expect(profileSection(page).getByText("Max plan", { exact: true })).toBeVisible();
+    await expect(yourPlan(page, "max")).toBeVisible();
   });
 
   test("an upgrade link opened in a new tab takes a Free account straight to a yearly plan, no trial", async ({
@@ -390,17 +400,22 @@ test.describe("account page", () => {
 
     expect(checkouts).toEqual([{ plan: "pro", interval: "year" }]);
     await expect(page.getByText(switchedTo("pro"))).toBeVisible();
-    const profile = profileSection(page);
-    await expect(profile.getByText("Pro plan", { exact: true })).toBeVisible();
-    await expect(profile.getByText(/trial until/)).toHaveCount(0);
-    await expect(cardTitles(planSection(page, true))).toHaveText([
-      "This month",
-      "Go Max",
-      "Billing",
+    await expect(yourPlan(page, "pro")).toBeVisible();
+    const plan = planSummary(page);
+    await expect(plan.getByText("Active", { exact: true })).toBeVisible();
+    await expect(plan.getByText("/year", { exact: true })).toBeVisible();
+    await expect(plan.getByRole("button", { name: "Cancel plan" })).toBeVisible();
+    await expect(plan.getByRole("button", { name: "Cancel trial" })).toHaveCount(0);
+    await expect(panelTitles(page)).toHaveText([
+      "Your plan: Pro",
+      "Usage",
+      "Payment method",
+      "Billing history",
     ]);
+    await expect(planPanel(page).getByText(maxLine())).toBeVisible();
   });
 
-  test("on the Pro trial: trial dates, Manage billing, and Max ends the trial", async ({
+  test("on the Pro trial: trial dates, cancel and card, and Max ends the trial", async ({
     page,
   }) => {
     await signedInOn(page, "trial");
@@ -408,72 +423,126 @@ test.describe("account page", () => {
     const checkouts = watchCheckouts(page);
     await openAccount(page, "pro");
 
-    await expect(profileSection(page).getByText(`Pro trial until ${ends}.`)).toBeVisible();
-    const plan = planSection(page, true);
-    await expect(cardTitles(plan)).toHaveText(["Your trial", "Go Max", "Billing"]);
+    const plan = planSummary(page);
+    await expect(plan.getByText("Trial · 3 days left", { exact: true })).toBeVisible();
+    await expect(plan.getByText(`from ${ends}`, { exact: true })).toBeVisible();
     await expect(
-      plan.getByText(`Cancel before ${ends} and Pro won't start, so you won't pay anything more.`),
+      plan.getByText(
+        `You paid ${trialPrice()} for the trial. On ${ends} Pro starts at ${planPrice("pro", "month")} a month. We remind you the day before.`,
+      ),
     ).toBeVisible();
-    await expect(plan.getByText("Managing billing switches you back to Free.")).toBeVisible();
-    await expect(manageBilling(page)).toBeVisible();
+    await expect(plan.getByText(TEST_MODE_PAID)).toBeVisible();
+    await expect(panelTitles(page)).toHaveText([
+      "Your plan: Pro",
+      "Usage",
+      "Payment method",
+      "Billing history",
+    ]);
+    await expect(plan.getByRole("button", { name: "Cancel trial" })).toBeVisible();
+    await expect(planPanel(page).getByRole("button", { name: "Update card" })).toBeVisible();
+
+    await plan.getByRole("button", { name: "Change plan" }).click();
+    const confirm = page.getByRole("dialog", { name: "Upgrade to Max" });
+    await expect(confirm.getByText(trialUpgradeNotice("max", "month"))).toBeVisible();
     await expect(
-      plan.getByText(`${endsTrialSentence("max", "month")} ${trialUpgradeCharge("max", "month")}`),
+      offerCard(confirm, "max").getByText(endsTrialSentence("max", "month")),
     ).toBeVisible();
+    expect(checkouts).toEqual([]);
 
     await landsOn(page, landing("max"), () =>
-      plan.getByRole("button", { name: trialUpgradeButton("max", "month") }).click(),
+      confirm.getByRole("button", { name: "Start Max now" }).click(),
     );
 
     expect(checkouts).toEqual([{ plan: "max", interval: "month" }]);
     await expect(page.getByText(switchedTo("max"))).toBeVisible();
-    await expect(profileSection(page).getByText(/trial until/)).toHaveCount(0);
+    await expect(yourPlan(page, "max")).toBeVisible();
+    await expect(planSummary(page).getByText("Active", { exact: true })).toBeVisible();
+    await expect(planSummary(page).getByRole("button", { name: "Cancel trial" })).toHaveCount(0);
   });
 
-  test("on paid Pro: Max on the same period, and Manage billing", async ({ page }) => {
+  test("on paid Pro: Max on the same period, cancel and card", async ({ page }) => {
     await signedInOn(page, "pro-monthly");
+    const checkouts = watchCheckouts(page);
     await openAccount(page, "pro");
 
-    await expect(profileSection(page).getByText(/trial until/)).toHaveCount(0);
-    const plan = planSection(page, true);
-    await expect(cardTitles(plan)).toHaveText(["This month", "Go Max", "Billing"]);
+    const plan = planSummary(page);
+    await expect(plan.getByText("Active", { exact: true })).toBeVisible();
+    await expect(plan.getByText(/^Trial/)).toHaveCount(0);
+    await expect(panelTitles(page)).toHaveText([
+      "Your plan: Pro",
+      "Usage",
+      "Payment method",
+      "Billing history",
+    ]);
+    await expect(planPanel(page).getByText(maxLine())).toBeVisible();
+    await expect(plan.getByRole("button", { name: "Cancel plan" })).toBeVisible();
+    await expect(planPanel(page).getByRole("button", { name: "Update card" })).toBeVisible();
+    await expect(plan.getByText(TEST_MODE_PAID)).toBeVisible();
+
+    await plan.getByRole("button", { name: "Change plan" }).click();
+    const confirm = page.getByRole("dialog", { name: "Upgrade to Max" });
     await expect(
-      plan.getByText("Even more for a long, busy search. Your subscription changes in place."),
+      confirm.getByText(
+        "Your subscription changes in place: you pay only the difference, never twice.",
+      ),
     ).toBeVisible();
-    await expect(plan.getByRole("group", { name: "How often to pay" })).toHaveCount(0);
-    await expect(plan.getByRole("button", { name: "Upgrade to Max" })).toBeVisible();
+    await expect(confirm.getByRole("group", { name: "How often to pay" })).toHaveCount(0);
     await expect(
-      plan.getByText("Update your card, get invoices, or cancel your plan."),
+      offerCard(confirm, "max").getByText(planPrice("max", "month"), { exact: true }),
     ).toBeVisible();
-    await expect(manageBilling(page)).toBeVisible();
+    await expect(confirm.getByRole("button", { name: "Upgrade to Max" })).toBeVisible();
+    await confirm.getByRole("button", { name: "Not now" }).click();
+    await expect(confirm).toBeHidden();
+    expect(checkouts).toEqual([]);
   });
 
-  test("on Max: no upgrade offer, only Manage billing", async ({ page }) => {
+  test("on Max: no upgrade offer, only cancel and card", async ({ page }) => {
     await signedInOn(page, "max");
     await openAccount(page, "max");
 
-    const plan = planSection(page, true);
-    await expect(cardTitles(plan)).toHaveText(["This month", "Billing"]);
-    await expect(plan.getByRole("button", { name: /^Upgrade/ })).toHaveCount(0);
-    await expect(manageBilling(page)).toBeVisible();
+    await expect(panelTitles(page)).toHaveText([
+      "Your plan: Max",
+      "Usage",
+      "Payment method",
+      "Billing history",
+    ]);
+    await expect(
+      planPanel(page).getByRole("button", { name: /^(Upgrade|Change plan|Try )/ }),
+    ).toHaveCount(0);
+    await expect(planSummary(page).getByRole("button", { name: "Cancel plan" })).toBeVisible();
+    await expect(planPanel(page).getByRole("button", { name: "Update card" })).toBeVisible();
   });
 
-  test("Manage billing in test mode moves the account back to Free, and the trial is not offered again", async ({
+  test("cancelling the trial in test mode moves the account back to Free, and the trial is not offered again", async ({
     page,
   }) => {
     await signedInOn(page, "trial");
     await openAccount(page, "pro");
 
-    await landsOn(page, "/account?portal=mock", () => manageBilling(page).click());
+    await landsOn(page, "/account?portal=mock", () =>
+      planSummary(page).getByRole("button", { name: "Cancel trial" }).click(),
+    );
 
     await expect(toasts(page).getByText("Test mode: you're back on Free.")).toBeVisible();
-    await expect(profileSection(page).getByText("Free plan", { exact: true })).toBeVisible();
-    const plan = planSection(page, false);
-    await expect(cardTitles(plan)).toHaveText(["Otto's AI help", "Go Pro"]);
-    await expect(plan.getByRole("button", { name: "Upgrade to Pro" })).toBeVisible();
-    await expect(manageBilling(page)).toHaveCount(0);
+    await expect(yourPlan(page, "free")).toBeVisible();
+    await expect(panelTitles(page)).toHaveText(["Your plan: Free", "Usage"]);
+    const plan = planSummary(page);
+    await expect(plan.getByText(trialSentence())).toHaveCount(0);
+    await expect(plan.getByRole("button", { name: TRY_PRO })).toHaveCount(0);
+    await expect(portalButtons(page)).toHaveCount(0);
+
+    await plan.getByRole("button", { name: "Upgrade to Pro" }).click();
+    const choose = page.getByRole("dialog", { name: "Choose your plan" });
+    await expect(
+      offerCard(choose, "pro").getByRole("button", { name: "Upgrade to Pro" }),
+    ).toBeVisible();
+    await expect(choose.getByRole("button", { name: trialHeadline() })).toHaveCount(0);
+    await choose.getByRole("button", { name: "Not now" }).click();
 
     await page.goto("/pricing");
-    await expect(pricingCard(page, "Pro").getByRole("link", { name: "Get Pro" })).toBeVisible();
+    await expect(
+      pricingCard(page, "Pro").getByRole("link", { name: "Upgrade to Pro" }),
+    ).toBeVisible();
     await expect(page.getByText(trialSentence())).toHaveCount(0);
   });
 });

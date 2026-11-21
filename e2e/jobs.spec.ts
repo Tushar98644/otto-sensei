@@ -101,6 +101,8 @@ function upgradeDialog(page: Page, line: RegExp): Locator {
 const TRACKER_LIMIT = /Free tracks 1 application\. Pro tracks every one\./;
 // Chrome puts a space before the link's visually hidden ": open this application".
 const APPLIED_LINK = /^Applied ?: open this application$/;
+// On Free the Save button carries a quiet Pro mark, read out as ", comes with Pro".
+const FREE_SAVE = /^Save ?, comes with Pro$/;
 
 // A background refresh can still be inside the fake feed's handler when a test ends.
 test.afterEach(async ({ page }) => {
@@ -156,15 +158,13 @@ test.describe("Jobs tab", () => {
     await expect(page.getByText(/^Pro shows every match from 1,000\+ open jobs/)).toBeVisible();
     await expect(page.getByRole("group", { name: "Show" })).toHaveCount(0);
 
-    await card.getByRole("button", { name: "Save", exact: true }).click();
+    const save = card.getByRole("button", { name: FREE_SAVE });
+    await save.click();
     const upgrade = upgradeDialog(page, /Filters, saved jobs and every match come with Pro\./);
     await expect(upgrade).toBeVisible();
     await upgrade.getByRole("button", { name: "Not now" }).click();
     await expect(upgrade).toBeHidden();
-    await expect(card.getByRole("button", { name: "Save", exact: true })).toHaveAttribute(
-      "aria-pressed",
-      "false",
-    );
+    await expect(save).toHaveAttribute("aria-pressed", "false");
   });
 
   test("Pro saves a job, finds it under Saved, and removes it again", async ({ page }) => {
@@ -280,7 +280,13 @@ test.describe("Application tracking", () => {
   test("adding an application by hand puts it on the board and in the list", async ({ page }) => {
     await signedIn(page);
     const resume = await withResume(page);
-    await page.goto("/dashboard/applications");
+    // The dialog opens "More options" only if the resumes have arrived, so they're shown first.
+    await page.goto("/dashboard");
+    await expect(page.getByRole("heading", { name: resume, exact: true })).toBeVisible(FIRST_LOAD);
+    await page
+      .getByRole("navigation", { name: "Dashboard" })
+      .getByRole("link", { name: "Applications", exact: true })
+      .click();
 
     await expect(
       page.getByRole("heading", { name: "Your applications will live here" }),

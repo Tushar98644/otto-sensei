@@ -4,6 +4,7 @@ import {
   createPortfolio,
   portfolioResume,
   proOwner,
+  type PortfolioPerson,
   publishPortfolio,
   signOut,
   skipDashboardIntro,
@@ -45,9 +46,13 @@ function contentSaved(page: Page, text: string): Promise<Response> {
 }
 
 // The way in from the app; a fresh load of the editor's own address can't save (see the fixme below).
-async function openEditor(page: Page): Promise<void> {
+async function openEditor(page: Page, owner: PortfolioPerson): Promise<void> {
   await skipDashboardIntro(page);
   await page.goto("/dashboard");
+  // The card draws only once the app runs; a click before that is a full load, the fixme's case.
+  await expect(
+    page.getByRole("button", { name: `More actions for ${owner.resume.title}` }),
+  ).toBeVisible();
   await page
     .getByRole("navigation", { name: "Dashboard" })
     .getByRole("link", { name: "Portfolio", exact: true })
@@ -55,7 +60,7 @@ async function openEditor(page: Page): Promise<void> {
   await expect(page).toHaveURL(/\/dashboard\/portfolio$/);
 }
 
-test("a Pro user makes a portfolio from the resume they pick", async ({ page }) => {
+test("a Pro user makes a portfolio from the resume and design they pick", async ({ page }) => {
   await signIn(page);
   await subscribe(page, "pro", "month");
   const older = portfolioResume("Older resume");
@@ -64,18 +69,23 @@ test("a Pro user makes a portfolio from the resume they pick", async ({ page }) 
   await seedResume(page, newer.resume);
 
   await page.goto(EDITOR);
-  await expect(page.getByRole("heading", { name: "Your resume, as a web page" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Pick a design" })).toBeVisible();
   await expect(
-    page.getByText("Nothing goes live until you publish.", { exact: true }),
+    page.getByText("You can switch designs any time. Nothing goes live until you publish.", {
+      exact: true,
+    }),
   ).toBeVisible();
   await page.getByLabel("Make it from").selectOption({ label: older.resume.title });
-  await page.getByRole("button", { name: "Make my portfolio" }).click();
+  // Paper, not the default Navy, so the page shows it was made with the picked design.
+  await page.getByRole("button", { name: "Use this design: Paper" }).click();
 
   await expect(page.getByText("Draft", { exact: true })).toBeVisible();
   await expect(
     page.getByText("I filled this in from your resume. Nothing goes live until you publish."),
   ).toBeVisible();
   await expect(page.getByRole("button", { name: "Publish" })).toBeEnabled();
+  await expect(page.getByRole("radio", { name: /Paper/ })).toBeChecked();
+  await expect(previewPane(page).getByText("Paper · as visitors see it")).toBeVisible();
 
   await editorTab(page, "Settings").click();
   await expect(page.getByLabel("Your page lives at /p/")).toHaveValue(older.slug);
@@ -114,7 +124,7 @@ test("edits to the content, design and sections show on the live page", async ({
   const pitch = `I write launch stories that sales teams reuse ${Date.now().toString(36)}.`;
 
   const loaded = contentLoaded(page);
-  await openEditor(page);
+  await openEditor(page, owner);
   await expect(page.getByText("Live", { exact: true })).toBeVisible();
   await expect(page.getByText("Saved to your live page", { exact: true })).toBeVisible();
 
@@ -173,7 +183,7 @@ test("publishing checks the address while you type", async ({ page }) => {
   await createPortfolio(page, owner.resume);
   const wanted = uniqueSlug("robin-live");
 
-  await openEditor(page);
+  await openEditor(page, owner);
   await editorTab(page, "Settings").click();
   const address = page.getByLabel("Your page lives at /p/");
   const save = page.getByRole("button", { name: "Save", exact: true });
@@ -245,7 +255,7 @@ test("changing a live page's address keeps the old one working", async ({ page, 
   await createPortfolio(page, owner.resume, { slug: before });
   await publishPortfolio(page);
 
-  await openEditor(page);
+  await openEditor(page, owner);
   await expect(liveLink(page, before)).toBeVisible();
   await editorTab(page, "Settings").click();
   await expect(
@@ -269,7 +279,7 @@ test("taking the page down shows visitors that the link doesn't work", async ({ 
   await createPortfolio(page, owner.resume);
   await publishPortfolio(page);
 
-  await openEditor(page);
+  await openEditor(page, owner);
   const [visit] = await Promise.all([
     page.waitForEvent("popup"),
     page.getByRole("link", { name: "Open page (opens in a new tab)" }).click(),
@@ -299,12 +309,15 @@ test("a Free account is offered Pro instead of the editor", async ({ page, user 
   await seedResume(page, person.resume);
 
   await page.goto(EDITOR);
+  // The sidebar carries its own Try Pro slip, so the offer is looked for on the page itself.
+  const main = page.getByRole("main");
   await expect(
-    page.getByRole("heading", { name: "A real portfolio, live at your own link" }),
+    main.getByRole("heading", { name: "A real portfolio, live at your own link" }),
   ).toBeVisible();
-  await expect(page.getByText(`/p/${person.slug}`)).toBeVisible();
-  await expect(page.getByRole("button", { name: /^Try Pro/ })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Make my portfolio" })).toHaveCount(0);
+  await expect(main.getByText(`/p/${person.slug}`)).toBeVisible();
+  await expect(main.getByRole("button", { name: /^Try Pro/ })).toBeVisible();
+  await expect(main.getByRole("button", { name: "Preview Paper full page" }).first()).toBeVisible();
+  await expect(page.getByRole("button", { name: /^Use this design/ })).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Publish" })).toHaveCount(0);
 });
 
@@ -336,7 +349,7 @@ test.fixme("an edit typed while the content is still loading is kept", async ({ 
     await route.continue();
   });
 
-  await openEditor(page);
+  await openEditor(page, owner);
   await editorTab(page, "Content").click();
   const content = page.getByRole("tabpanel", { name: "Content" });
   await content.getByText("Intro", { exact: true }).click();
