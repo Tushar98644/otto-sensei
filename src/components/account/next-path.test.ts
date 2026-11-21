@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { DEFAULT_NEXT_PATH, loginHref, safeNextPath } from "./next-path";
+import { DEFAULT_NEXT_PATH, loginHref, safeNextPath, withPageHash } from "./next-path";
 
 describe("safeNextPath", () => {
   it.each([
@@ -58,5 +58,18 @@ describe("loginHref", () => {
   it("drops unsafe or missing return paths", () => {
     expect(loginHref()).toBe("/login");
     expect(loginHref("https://evil.example")).toBe("/login");
+  });
+});
+
+describe("withPageHash", () => {
+  it("carries the login page's #section to the page it returns to", () => {
+    expect(withPageHash("/dashboard/account", "#reminders")).toBe("/dashboard/account#reminders");
+    expect(withPageHash("/account?tab=profile", "#plan")).toBe("/account?tab=profile#plan");
+  });
+
+  it("keeps a path that already names a section, or when there is none", () => {
+    expect(withPageHash("/dashboard/account#invite", "#reminders")).toBe("/dashboard/account#invite");
+    expect(withPageHash("/dashboard", "")).toBe("/dashboard");
+    expect(withPageHash("/dashboard", "#")).toBe("/dashboard");
   });
 });
