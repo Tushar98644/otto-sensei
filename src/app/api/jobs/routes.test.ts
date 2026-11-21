@@ -11,6 +11,7 @@ import type { RawJob } from "@/lib/job-feed/parsers";
 import { saveJobs, syncBoards } from "@/lib/job-feed/store";
 import { JOBS_PREFETCH_HEADER } from "@/lib/job-feed/prefetch-header";
 import type { JobMatchesRequestBody } from "@/lib/job-feed/types";
+import { freezeClock } from "@/lib/timing-testing";
 import { GET as getProfile } from "../profile/route";
 import type { LookingForResponse, WorkProfileResponse } from "@/lib/api/types";
 import { POST as event } from "./events/route";
@@ -433,6 +434,7 @@ describe("POST /api/jobs/matches", () => {
   });
 
   it("takes only a few impression batches a minute, while actions still go through", async () => {
+    freezeClock();
     await signInAs();
     const batch = {
       kind: "impressions",

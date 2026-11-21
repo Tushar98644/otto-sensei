@@ -2,7 +2,7 @@ import { NextRequest } from "next/server";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { cookieJar, fakeAccessToken } from "@/lib/auth/test-helpers";
 import { resetEnvForTests } from "@/lib/env";
-import { fetchWithDeadline } from "./deadline";
+import { AUTH_DEADLINE_MS, fetchWithDeadline } from "./deadline";
 import { updateSession } from "./proxy";
 
 vi.mock("next/headers", async () => (await import("@/lib/auth/test-helpers")).nextHeadersMock);
@@ -65,7 +65,7 @@ describe("fetchWithDeadline", () => {
     await expect(fetchWithDeadline(30)(`${SUPABASE_URL}/auth/v1/user`)).rejects.toMatchObject({
       name: "TimeoutError",
     });
-    expect(Date.now() - startedAt).toBeLessThan(1_000);
+    expect(Date.now() - startedAt).toBeLessThan(AUTH_DEADLINE_MS);
   });
 
   it("shares one deadline across calls, so a retry after it gets no fresh time", async () => {

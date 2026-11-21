@@ -58,6 +58,25 @@ jobs:
       - uses: ./.github/actions/setup
       - run: bun run test
 
+  # Browser tests against next dev on port 3100 with dev sign-in, mock billing, demo AI and a fresh local database.
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup
+      - run: bunx playwright install --with-deps chromium
+      - run: bun run test:e2e
+      - uses: actions/upload-artifact@v4
+        if: ${{ failure() }}
+        with:
+          name: playwright-report
+          path: |
+            playwright-report/
+            test-results/
+          if-no-files-found: ignore
+          retention-days: 14
+
   # Vercel builds every push, so instead of a second next build this analyzes the bundles and budgets each page's JS.
   bundle:
     runs-on: ubuntu-latest

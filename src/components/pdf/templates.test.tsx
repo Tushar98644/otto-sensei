@@ -134,6 +134,8 @@ describe("format registry", () => {
 
 describe.each(RESUME_TEMPLATE_LIST.map((template) => [template.name, template.id] as const))(
   "%s format",
+  // Some cases render several long resumes, which outlasts the 30 s default with coverage on a busy machine.
+  { timeout: 120_000 },
   (_name, id) => {
     it.each(PDF_PAGE_SIZES)("reads back top to bottom on %s", async (pageSize) => {
       const bytes = await render(withTemplate(sampleResume(), id), pageSize);

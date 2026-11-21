@@ -88,8 +88,18 @@ export default defineConfig([
     files: ["src/lib/observability/sentry-browser.ts"],
     rules: { "no-restricted-imports": "off" },
   },
+  // Playwright fixtures hand their value to a callback named use, which is not React's use().
+  {
+    files: ["e2e/**/*.ts"],
+    rules: { "react-hooks/rules-of-hooks": "off" },
+  },
   globalIgnores([
     ".next/**",
+    ".next-e2e/**",
+    "coverage/**",
+    "test-results/**",
+    "playwright-report/**",
+    "blob-report/**",
     "out/**",
     "build/**",
     "next-env.d.ts",

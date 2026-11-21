@@ -11,6 +11,7 @@ import {
   resetDb,
 } from "@/lib/auth/test-helpers";
 import { resetEnvForTests } from "@/lib/env";
+import { freezeClock } from "@/lib/timing-testing";
 import { POST as logout } from "./logout/route";
 import { POST as requestCode } from "./request-code/route";
 import { POST as verify } from "./verify/route";
@@ -114,6 +115,7 @@ describe("POST /api/auth/request-code", () => {
   });
 
   it("answers 429 with Retry-After once the address is over its hourly limit", async () => {
+    freezeClock();
     for (let i = 0; i < 5; i++) expect((await ask("ada@example.com", `10.0.0.${i}`)).status).toBe(200);
     const res = await ask("ada@example.com", "10.0.0.99");
     expect(res.status).toBe(429);
@@ -123,6 +125,7 @@ describe("POST /api/auth/request-code", () => {
   });
 
   it("limits codes per IP across addresses", async () => {
+    freezeClock();
     for (let i = 0; i < 10; i++) expect((await ask(`user${i}@example.com`, "10.1.1.1")).status).toBe(200);
     expect((await ask("one-more@example.com", "10.1.1.1")).status).toBe(429);
   });
@@ -186,6 +189,7 @@ describe("POST /api/auth/verify", () => {
   });
 
   it("limits guesses per IP", async () => {
+    freezeClock();
     for (let i = 0; i < 30; i++) {
       expect((await check(`user${i % 3}@example.com`, "123456", "192.0.2.9")).status).toBe(400);
     }
@@ -195,6 +199,7 @@ describe("POST /api/auth/verify", () => {
   });
 
   it("limits guesses per address, from any IP", async () => {
+    freezeClock();
     await ask("ada@example.com");
     for (let i = 0; i < 10; i++) {
       expect((await check("ada@example.com", "000000", `198.51.100.${i}`)).status).toBe(400);

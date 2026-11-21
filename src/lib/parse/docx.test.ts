@@ -1,5 +1,6 @@
 import JSZip from "jszip";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { cpuMsAsync } from "@/lib/timing-testing";
 import { extractDocx } from "./docx";
 import { ParseError } from "./types";
 import { buildDocx, paragraph, templateDocx } from "./test-fixtures";
@@ -93,12 +94,13 @@ describe("extractDocx", () => {
     const body = await withJunk("word/document.xml", `<w:document><w:body>${junk}`);
     expect(header.byteLength).toBeLessThan(50_000);
 
-    const started = performance.now();
-    const extraction = await extractDocx(header);
-    expect(extraction.lines).toEqual(["Sam Rivera"]);
-    expect(extraction.signals.headerFooterText).toBe("");
-    await expect(extractDocx(body)).rejects.toMatchObject({ code: "corrupt" });
-    expect(performance.now() - started).toBeLessThan(3_000);
+    const spent = await cpuMsAsync(async () => {
+      const extraction = await extractDocx(header);
+      expect(extraction.lines).toEqual(["Sam Rivera"]);
+      expect(extraction.signals.headerFooterText).toBe("");
+      await expect(extractDocx(body)).rejects.toMatchObject({ code: "corrupt" });
+    });
+    expect(spent).toBeLessThan(3_000);
   });
 
   it("rejects bytes that aren't a zip", async () => {

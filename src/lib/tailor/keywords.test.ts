@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { emptyResume, type Resume } from "@/lib/resume/schema";
+import { cpuMs } from "@/lib/timing-testing";
 import { findTerm, keywordCoverage, normalizeTerm } from "./keywords";
 
 type Case = { text: string; term: string; found: boolean };
@@ -387,9 +388,7 @@ describe("keywordCoverage", () => {
       ],
     });
     const terms = ["React", "Node.js", "PostgreSQL", "Kubernetes", "Rust", "Go", "AWS", "GraphQL"];
-    const started = performance.now();
-    const coverage = keywordCoverage(big, terms);
-    expect(coverage.matched).toBe(3);
-    expect(performance.now() - started).toBeLessThan(1_000);
+    const spent = cpuMs(() => expect(keywordCoverage(big, terms).matched).toBe(3));
+    expect(spent).toBeLessThan(1_000);
   });
 });

@@ -13,6 +13,7 @@ import {
 import { emptyResume, type Resume } from "@/lib/resume/schema";
 import { findPublicShare } from "@/lib/share/records";
 import { SHARE_LIMITS, type ShareResponse, type SharesResponse } from "@/lib/share/types";
+import { freezeClock } from "@/lib/timing-testing";
 import { DELETE, PATCH } from "./[id]/route";
 import { GET, POST } from "./route";
 
@@ -173,6 +174,7 @@ describe("/api/share", () => {
   });
 
   it("limits how many links an account makes in an hour", async () => {
+    freezeClock();
     await signInAs("maya@example.com");
     for (let index = 0; index < SHARE_LIMITS.writesPerHour; index++) {
       const res = await create({ resume: resume(`r${index % 3}`) });

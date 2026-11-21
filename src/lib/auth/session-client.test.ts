@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { getDb } from "@/db/client";
 import { resetEnvForTests } from "@/lib/env";
+import { AUTH_DEADLINE_MS } from "@/lib/supabase/deadline";
 import { getCurrentUser } from "./session";
 import { cookieJar, createUser, fakeAccessToken, resetDb } from "./test-helpers";
 import type { SessionUser } from "./types";
@@ -111,7 +112,7 @@ describe("getCurrentUser with the real Supabase client", () => {
 
     const startedAt = Date.now();
     await expect(getCurrentUser()).rejects.toThrow("Supabase Auth is unavailable");
-    expect(Date.now() - startedAt).toBeLessThan(1_000);
+    expect(Date.now() - startedAt).toBeLessThan(AUTH_DEADLINE_MS);
     expect(warn).toHaveBeenCalledWith(
       "[warn] auth.get_user_failed",
       expect.objectContaining({ reason: "AuthRetryableFetchError", status: 0 }),

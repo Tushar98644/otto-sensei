@@ -12,3 +12,8 @@ local.db*
 .vercel
 .pglite
 .uploads
+.next-e2e
+test-results
+playwright-report
+blob-report
+.claude/worktrees

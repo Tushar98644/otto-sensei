@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { cpuMs } from "@/lib/timing-testing";
 import { countPdfImages } from "./pdf-images";
 import { cleanResumePdf, imagesPdf, noTextPdf, twoColumnPdf } from "./test-fixtures";
 
@@ -71,18 +72,20 @@ describe("countPdfImages", () => {
 
   it("stays quick on junk the size of an upload", () => {
     const size = 4 * 1024 * 1024;
-    const started = Date.now();
-    expect(countPdfImages(bytes("7".repeat(size)))).toBe(0);
-    expect(countPdfImages(bytes("1 0 obj ".repeat(size / 8)))).toBe(0);
-    expect(countPdfImages(bytes(`1${" ".repeat(size / 2)}2${" ".repeat(size / 2)}`))).toBe(0);
-    expect(countPdfImages(bytes("<< /Subtype /Image >> stream\n".repeat(size / 30)))).toBe(0);
     const pages = (from: number, count: number) =>
       Array.from({ length: count }, (_, i) => `${from + i} 0 obj<</Type/Page 1 0 R>>endobj`);
-    for (const font of ["", "/Subtype /Type3 "]) {
-      const hub = `1 0 obj << ${font}${"2 0 R ".repeat(size / 12)}>> endobj\n`;
-      const file = [hub, ...pages(10, size / 80)].join("\n");
-      expect(countPdfImages(bytes(file))).toBe(0);
-    }
-    expect(Date.now() - started).toBeLessThan(2_000);
+    const hub = (font: string) => `1 0 obj << ${font}${"2 0 R ".repeat(size / 12)}>> endobj\n`;
+    const junk = [
+      "7".repeat(size),
+      "1 0 obj ".repeat(size / 8),
+      `1${" ".repeat(size / 2)}2${" ".repeat(size / 2)}`,
+      "<< /Subtype /Image >> stream\n".repeat(size / 30),
+      ...["", "/Subtype /Type3 "].map((font) => [hub(font), ...pages(10, size / 80)].join("\n")),
+    ].map(bytes);
+    const spent = cpuMs(() => {
+      for (const file of junk) expect(countPdfImages(file)).toBe(0);
+    });
+    // About half a second when linear; a quadratic pass over any of these would take minutes.
+    expect(spent).toBeLessThan(5_000);
   });
 });

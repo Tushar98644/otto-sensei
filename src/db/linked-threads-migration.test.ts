@@ -2,11 +2,12 @@ import { PGlite } from "@electric-sql/pglite";
 import { afterAll, describe, expect, it } from "vitest";
 import { LOCAL_ONLY_DDL } from "./local-schema";
 import { readMigrations } from "./migration-files";
+import { MIGRATIONS_TIMEOUT_MS } from "./test-template";
 
 const VERSION = "20261109003000";
 const DAY = 24 * 60 * 60 * 1_000;
 
-describe("linked threads migration", () => {
+describe("linked threads migration", { timeout: MIGRATIONS_TIMEOUT_MS }, () => {
   const client = new PGlite();
   afterAll(() => client.close());
 

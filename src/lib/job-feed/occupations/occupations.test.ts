@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { cpuMs } from "@/lib/timing-testing";
 import { classifyTitle, neighboursOf, occupationOf, readTitle, searchOccupations } from "./index";
 import { CUSTOM_OCCUPATIONS, CUSTOMER_SUCCESS, PRODUCT_MANAGER, TECH_NAMES } from "./tech";
 import { titleParts } from "./title";
@@ -199,8 +200,9 @@ describe("speed", () => {
   it("reads a title in well under a millisecond once built", () => {
     classifyTitle("Warm up the index");
     const titles = Array.from({ length: 2_000 }, (_, i) => `Senior Store Manager ${i} - Sydney`);
-    const started = performance.now();
-    for (const title of titles) classifyTitle(title);
-    expect((performance.now() - started) / titles.length).toBeLessThan(0.2);
+    const spent = cpuMs(() => {
+      for (const title of titles) classifyTitle(title);
+    });
+    expect(spent / titles.length).toBeLessThan(0.2);
   });
 });
