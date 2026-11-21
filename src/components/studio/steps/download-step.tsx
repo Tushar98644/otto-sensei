@@ -79,7 +79,6 @@ function DownloadWorkspace({ resume }: { resume: Resume }) {
             inline && "md:col-start-2 md:row-start-1 lg:col-span-2 lg:col-start-4",
           )}
         >
-          <DesignCard resume={resume} printed={printed} pageSize={pageSize} />
           <DownloadActions
             resume={resume}
             printed={printed}
@@ -89,8 +88,10 @@ function DownloadWorkspace({ resume }: { resume: Resume }) {
             fileName={fileName}
             changedCharacters={changedCharacters}
             fit={fit}
+            peek={!inline}
           />
           <FitCard resume={printed} pdf={pdf} pageSize={pageSize} standDown={fit.handling} />
+          <DesignCard resume={resume} printed={printed} pageSize={pageSize} />
           <SendCheckCard resume={resume} check={check} pdfReady={pdfReady} />
           <LetterCard resume={printed} pageSize={pageSize} />
           <ApplicationCard resume={resume} />
@@ -102,9 +103,11 @@ function DownloadWorkspace({ resume }: { resume: Resume }) {
           >
             <PdfFrame
               url={formatPending ? null : (pdf.file?.url ?? null)}
+              page={formatPending ? null : printed}
+              pages={pdf.isCurrent ? pdf.file?.pages : null}
               pageSize={pageSize}
               updating={!pdf.isCurrent && !pdf.failed}
-              className={cn("mx-auto", FIT_SCREEN[pageSize])}
+              className={FIT_SCREEN[pageSize]}
             />
           </section>
         ) : null}

@@ -33,7 +33,8 @@ export function LineTools({
   const label = `line ${position}`;
   return (
     <div className={cn("flex flex-1 justify-end", className)}>
-      <div className="-mr-2 flex items-center">
+      {/* The keys overhang the row, so showing them beside "Fix with Otto" doesn't move it. */}
+      <div className="-my-1 -mr-2 flex items-center">
         <MoveButtons
           label={label}
           canMoveUp={canMoveUp}

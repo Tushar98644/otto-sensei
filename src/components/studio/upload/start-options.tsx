@@ -1,7 +1,7 @@
 "use client";
 
 import { ChevronDown, ChevronRight } from "lucide-react";
-import { useRef } from "react";
+import { useId, useRef, useState } from "react";
 import { OTTO } from "@/components/mascot/lines";
 import { Button } from "@/components/ui/button";
 import { ProMark } from "@/components/ui/pro-mark";
@@ -27,8 +27,10 @@ export function StartOptions({
   guidedNeedsPro = false,
   disabled = false,
 }: StartOptionsProps) {
+  const listId = useId();
+  const [more, setMore] = useState(false);
   return (
-    <div className="flex flex-col gap-3">
+    <div className="flex flex-col gap-2">
       <div className={LIST}>
         <OptionRow
           title="No resume yet? Build with Otto"
@@ -39,53 +41,78 @@ export function StartOptions({
         />
       </div>
 
-      <details className="group">
-        <summary className="flex min-h-11 w-fit cursor-pointer list-none items-center gap-1 rounded-lg text-sm font-medium text-muted hover:text-ink [&::-webkit-details-marker]:hidden">
-          Other ways to start
-          <ChevronDown aria-hidden className="size-4 transition-transform group-open:rotate-180" />
-        </summary>
-        <ul className={cn("mt-2", LIST)}>
-          <li>
-            <FileRow
-              kind="linkedin"
-              title="Import from LinkedIn"
-              description="Use the ZIP from LinkedIn's “Get a copy of your data”. It stays on your device."
-              onFile={onLocalFile}
-              disabled={disabled}
-            />
-          </li>
-          <li>
-            <FileRow
-              kind="jsonresume"
-              title="Import a JSON Resume"
-              description="A resume.json file from jsonresume.org or another resume tool."
-              onFile={onLocalFile}
-              disabled={disabled}
-            />
-          </li>
-          <li>
-            <OptionRow
-              title="Start from scratch"
-              description={OTTO.upload.scratch}
-              onClick={onScratch}
-              disabled={disabled}
-            />
-          </li>
-        </ul>
-      </details>
-
-      <p className="flex min-h-11 flex-wrap items-center gap-x-1 text-sm text-muted">
-        No file handy?
-        <Button
-          variant="link"
-          onClick={onSample}
-          disabled={disabled}
-          className="text-muted hover:text-ink pointer-coarse:min-h-11"
+      <div className="flex flex-wrap items-center justify-between gap-x-6">
+        <button
+          type="button"
+          aria-expanded={more}
+          aria-controls={listId}
+          onClick={() => setMore((open) => !open)}
+          className="group flex min-h-11 items-center gap-1 rounded-lg text-sm font-medium text-muted transition-colors duration-150 ease-out hover:text-ink aria-expanded:text-ink"
         >
-          Try a sample resume
-        </Button>
-      </p>
+          Other ways to start
+          <ChevronDown
+            aria-hidden
+            className="size-4 transition-transform duration-150 ease-out group-aria-expanded:rotate-180 motion-reduce:transition-none"
+          />
+        </button>
+        <SampleLink onSample={onSample} disabled={disabled} className="max-sm:hidden" />
+      </div>
+
+      <ul id={listId} hidden={!more} className={LIST}>
+        <li>
+          <FileRow
+            kind="linkedin"
+            title="Import from LinkedIn"
+            description="Use the ZIP from LinkedIn's “Get a copy of your data”. It stays on your device."
+            onFile={onLocalFile}
+            disabled={disabled}
+          />
+        </li>
+        <li>
+          <FileRow
+            kind="jsonresume"
+            title="Import a JSON Resume"
+            description="A resume.json file from jsonresume.org or another resume tool."
+            onFile={onLocalFile}
+            disabled={disabled}
+          />
+        </li>
+        <li>
+          <OptionRow
+            title="Start from scratch"
+            description={OTTO.upload.scratch}
+            onClick={onScratch}
+            disabled={disabled}
+          />
+        </li>
+      </ul>
+      {/* On phones the list opens right under its toggle, so the sample link moves below it. */}
+      <SampleLink onSample={onSample} disabled={disabled} className="sm:hidden" />
     </div>
+  );
+}
+
+function SampleLink({
+  onSample,
+  disabled,
+  className,
+}: {
+  onSample: () => void;
+  disabled: boolean;
+  className: string;
+}) {
+  return (
+    <p className={cn("flex min-h-11 flex-wrap items-center gap-x-1 text-sm text-muted", className)}>
+      No file handy?
+      <Button
+        variant="link"
+        onClick={onSample}
+        disabled={disabled}
+        className="text-muted hover:text-ink pointer-coarse:min-h-11"
+      >
+        Try a sample resume
+      </Button>
+    </p>
   );
 }
 
@@ -103,7 +130,7 @@ function OptionRow({ title, description, onClick, disabled, pro = false }: Optio
       type="button"
       onClick={onClick}
       disabled={disabled}
-      className="flex min-h-16 w-full items-center gap-3 px-4 py-3 text-left -outline-offset-2 transition-colors hover:bg-surface-muted disabled:pointer-events-none disabled:opacity-60 sm:px-5"
+      className="flex min-h-16 w-full items-center gap-3 px-4 py-3 text-left -outline-offset-2 transition-colors duration-150 ease-out hover:bg-surface-hover disabled:pointer-events-none disabled:opacity-60 sm:px-5"
     >
       <span className="flex min-w-0 flex-1 flex-col gap-0.5">
         <span className="flex flex-wrap items-center gap-2 text-sm font-medium text-ink">

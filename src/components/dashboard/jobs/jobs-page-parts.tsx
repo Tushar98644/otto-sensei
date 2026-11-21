@@ -7,6 +7,7 @@ import { errorMessage } from "@/components/account/errors";
 import { openUpgradePrompt } from "@/components/account/upgrade-prompt";
 import { OTTO } from "@/components/mascot/lines";
 import { Otto } from "@/components/mascot/otto";
+import { OttoMark } from "@/components/site/otto-mark";
 import { saveEmailChoices, useEmailChoices } from "@/components/notifications/use-email-choices";
 import { accountSectionHref } from "@/components/setup/links";
 import { Button } from "@/components/ui/button";
@@ -15,16 +16,39 @@ import { toast } from "@/components/ui/toast";
 import { NewResumeMenu } from "../new-resume-menu";
 import type { StudioActions } from "../use-studio-actions";
 
-export function JobsHeader() {
+export function JobsHeader({
+  message = null,
+  loading = false,
+}: {
+  message?: string | null;
+  loading?: boolean;
+}) {
   return (
-    <header className="min-w-0">
+    <header className="flex min-w-0 flex-col gap-3">
       <h1 className="font-display text-4xl/10 font-normal tracking-tight text-ink sm:text-5xl/13">
         Jobs
       </h1>
-      <p className="mt-2 max-w-prose text-base/7 text-muted">
-        Open jobs from companies&apos; careers pages and public job feeds, ordered by how closely each
-        post matches your resume. Each one links to the original post.
-      </p>
+      {/* Mounted from the skeleton on, so a changed count is read out. */}
+      {message || loading ? (
+        <div aria-live="polite" aria-atomic>
+          {message ? (
+            <p className="flex items-start gap-2.5 text-base/7 text-pretty text-muted">
+              <span
+                aria-hidden
+                className="mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-full bg-surface ring-1 ring-border"
+              >
+                <OttoMark className="size-4.5" />
+              </span>
+              <span>
+                <span className="sr-only">Otto: </span>
+                {message}
+              </span>
+            </p>
+          ) : (
+            <Skeleton className="h-7 w-96 max-w-full rounded-lg" />
+          )}
+        </div>
+      ) : null}
     </header>
   );
 }
@@ -57,18 +81,27 @@ export function LoadingCards() {
         Loading jobs
       </span>
       {[0, 1, 2].map((index) => (
-        <div
-          key={index}
-          aria-hidden
-          className="flex flex-col gap-3 rounded-2xl bg-surface p-4 sm:p-6"
-        >
-          <Skeleton className="h-4 w-32" />
-          <Skeleton className="h-5 w-64 max-w-full" />
-          <Skeleton className="h-4 w-48" />
-          <Skeleton className="h-4 w-full" />
-          <div className="flex gap-2">
-            <Skeleton className="h-9 w-36" />
-            <Skeleton className="h-9 w-20" />
+        <div key={index} aria-hidden className="flex gap-4 rounded-2xl bg-surface p-5 sm:p-6">
+          <Skeleton className="hidden size-10 shrink-0 rounded-xl sm:block" />
+          <div className="flex min-w-0 flex-1 flex-col gap-4">
+            <div className="flex flex-col gap-3">
+              <div className="flex flex-col gap-2 sm:flex-row-reverse sm:justify-between">
+                <Skeleton className="h-7 w-28 rounded-full" />
+                <div className="flex flex-col gap-1.5 py-0.5">
+                  <Skeleton className="h-5 w-64 max-w-full" />
+                  <Skeleton className="h-4 w-80 max-w-full" />
+                </div>
+              </div>
+              <div className="flex gap-1.5">
+                <Skeleton className="h-6 w-24 rounded-full" />
+                <Skeleton className="h-6 w-20 rounded-full" />
+                <Skeleton className="h-6 w-16 rounded-full" />
+              </div>
+            </div>
+            <div className="flex gap-2">
+              <Skeleton className="h-9 w-40 rounded-lg" />
+              <Skeleton className="h-9 w-20 rounded-lg" />
+            </div>
           </div>
         </div>
       ))}
@@ -76,12 +109,12 @@ export function LoadingCards() {
   );
 }
 
-export function NoFilterMatches({ onClear }: { onClear: () => void }) {
+// Otto's line above already says why the list is empty, so this holds only the way back.
+export function EmptyListAction({ label, onClick }: { label: string; onClick: () => void }) {
   return (
-    <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-surface px-4 py-5 sm:px-6">
-      <p className="text-sm/6 text-muted">No jobs match these filters.</p>
-      <Button variant="secondary" size="sm" onClick={onClear}>
-        Clear filters
+    <div>
+      <Button variant="secondary" onClick={onClick}>
+        {label}
       </Button>
     </div>
   );
@@ -119,33 +152,26 @@ export function MoreWithPro({
   tryPro: string;
 }) {
   return (
-    <section aria-labelledby="jobs-more" className="relative flex flex-col">
-      <div
-        aria-hidden
-        className="flex flex-col gap-4 mask-[linear-gradient(to_bottom,black,transparent)]"
-      >
-        {[0, 1].map((index) => (
-          <div
-            key={index}
-            className="flex flex-col gap-3 rounded-2xl bg-surface p-4 opacity-70 sm:p-6"
+    <section aria-labelledby="jobs-more" className="flex flex-col">
+      {/* The edges of the cards Pro would show, stacked behind this one. */}
+      <div aria-hidden className="mx-8 h-2 rounded-t-2xl bg-surface/45" />
+      <div aria-hidden className="mx-4 h-2 rounded-t-2xl bg-surface/70" />
+      <div className="flex flex-col items-start gap-4 rounded-2xl bg-surface p-5 sm:flex-row sm:items-center sm:justify-between sm:p-6">
+        <div className="flex min-w-0 gap-4">
+          <span
+            aria-hidden
+            className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-surface-muted"
           >
-            <div className="h-4 w-32 rounded-full bg-surface-muted" />
-            <div className="h-5 w-64 max-w-full rounded-full bg-surface-muted" />
-            <div className="h-4 w-48 rounded-full bg-surface-muted" />
-          </div>
-        ))}
-      </div>
-      <div className="-mt-16 flex flex-col items-start gap-4 rounded-2xl bg-surface px-4 py-6 shadow-sm ring-1 ring-border sm:flex-row sm:items-center sm:justify-between sm:px-6">
-        <div className="flex min-w-0 gap-3">
-          <Lock className="mt-1 size-4 shrink-0 text-subtle" aria-hidden />
+            <Lock className="size-4 text-muted" />
+          </span>
           <div className="min-w-0">
-            <h2 id="jobs-more" className="text-base/6 font-medium text-ink">
+            <h2 id="jobs-more" className="font-sans text-base/6 font-semibold text-ink">
               {copy.title}
             </h2>
-            <p className="mt-1 text-sm/6 text-pretty text-muted">{copy.body}</p>
+            <p className="mt-0.5 max-w-prose text-sm/6 text-pretty text-muted">{copy.body}</p>
           </div>
         </div>
-        <Button onClick={() => openUpgradePrompt("jobs")} className="shrink-0">
+        <Button onClick={() => openUpgradePrompt("jobs")} className="w-full shrink-0 sm:w-auto">
           {tryPro}
         </Button>
       </div>
@@ -177,7 +203,7 @@ export function WeeklyJobsPrompt({
         ref={doneRef}
         tabIndex={-1}
         role="status"
-        className="rounded-2xl bg-surface px-4 py-4 text-sm/6 text-muted outline-none sm:px-6"
+        className="rounded-2xl bg-surface px-5 py-4 text-sm/6 text-muted outline-none sm:px-6"
       >
         The weekly jobs email is on. Change it any time in{" "}
         <Link href={accountSectionHref("reminders")} className="font-medium text-ink underline">
@@ -204,15 +230,20 @@ export function WeeklyJobsPrompt({
   return (
     <section
       aria-labelledby={titleId}
-      className="flex flex-col items-start gap-4 rounded-2xl bg-surface px-4 py-5 sm:flex-row sm:items-center sm:justify-between sm:px-6"
+      className="flex flex-col items-start gap-4 rounded-2xl bg-surface p-5 sm:flex-row sm:items-center sm:justify-between sm:p-6"
     >
-      <div className="flex min-w-0 gap-3">
-        <Mail className="mt-1 size-4 shrink-0 text-subtle" aria-hidden />
+      <div className="flex min-w-0 gap-4">
+        <span
+          aria-hidden
+          className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-surface-muted"
+        >
+          <Mail className="size-4 text-muted" />
+        </span>
         <div className="min-w-0">
-          <h2 id={titleId} className="text-base/6 font-medium text-ink">
+          <h2 id={titleId} className="font-sans text-base/6 font-semibold text-ink">
             Get new matches by email
           </h2>
-          <p className="mt-1 text-sm/6 text-pretty text-muted">
+          <p className="mt-0.5 max-w-prose text-sm/6 text-pretty text-muted">
             Once a week, when new jobs match your resume, Otto emails you the closest few. Turn it
             off any time.
           </p>

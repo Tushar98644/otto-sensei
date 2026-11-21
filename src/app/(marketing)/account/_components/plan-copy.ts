@@ -1,6 +1,7 @@
 import type { Me } from "@/components/account/use-me";
 import {
   FREE_APPLICATIONS,
+  FREE_JOB_MATCHES,
   isPaidPlan,
   isTrialing,
   PLANS,
@@ -64,11 +65,11 @@ function daysLeft(endsAt: number, now: number): string {
   return days === 1 ? "1 day left" : `${days} days left`;
 }
 
-// `now` is 0 until the browser's clock is read, and then the pill says only "Trial".
-export function planPill(view: PlanView, now: number): Pill {
+// `now` is 0 until the browser's clock is read, and then the pill says only "Trial". Free needs no pill.
+export function planPill(view: PlanView, now: number): Pill | null {
   switch (view.kind) {
     case "free":
-      return { label: "Current plan", tone: "neutral" };
+      return null;
     case "held":
       return { label: "Payment failed", tone: "fail" };
     case "trial":
@@ -104,32 +105,26 @@ export function priceParts(view: PlanView): PriceParts | null {
 export const HELD_TITLE = "Your last payment didn't go through";
 export const HELD_DETAIL = "You're on Free for now. Update your card to get your plan back.";
 
+// The pill and the price beside this line already carry the dates and amounts, so it says only what they can't.
 export function nextStep(view: PlanView): string {
   switch (view.kind) {
     case "free": {
       const tracked = FREE_APPLICATIONS === 1 ? "one tracked application" : `${FREE_APPLICATIONS} tracked applications`;
-      const base = `Free has ${PLANS.free.limits.fix} line fixes a month, plus the recruiter view, editing, PDF downloads, a few job matches and ${tracked}.`;
+      const base = `Free includes the recruiter view, editing, PDF downloads, your ${FREE_JOB_MATCHES} closest job matches and ${tracked}.`;
       return view.trialOffered ? `${base} Try ${PLANS.pro.name}: ${trialSentence()}` : base;
     }
     case "held":
       return `${HELD_TITLE}. ${HELD_DETAIL}`;
     case "trial": {
-      const day = trialEndDay(view.endsAt);
       const name = PLANS[view.plan].name;
       return view.ending
-        ? `Your trial ends on ${day} and ${name} won't start, so you won't pay anything more.`
-        : `You paid ${trialPrice()} for the trial. On ${day} ${name} starts at ${planPrice(view.plan, view.interval)} a ${view.interval}. We remind you the day before.`;
+        ? `${name} won't start after your trial. Resume it before the trial ends to keep ${name}.`
+        : `You paid ${trialPrice()} for the trial. We remind you the day before ${name} starts, and you can cancel until then.`;
     }
     case "paid": {
-      if (view.ending) {
-        return view.endsAt
-          ? `Your plan ends on ${trialEndDay(view.endsAt)}, and your account moves to Free then. You won't be charged again.`
-          : "Your plan is set to end, and your account moves to Free then. You won't be charged again.";
-      }
-      const price = `${planPrice(view.plan, view.interval)} a ${view.interval}`;
-      return view.renewsAt
-        ? `Your plan renews on ${trialEndDay(view.renewsAt)} at ${price}. Cancel anytime before then.`
-        : `Your plan renews each ${view.interval} at ${price}. Cancel anytime.`;
+      const name = PLANS[view.plan].name;
+      if (view.ending) return "When it ends, your account moves to Free. You won't be charged again.";
+      return `Cancel anytime. You keep ${name} until the end of the ${view.interval} you paid for.`;
     }
   }
 }

@@ -2,7 +2,7 @@
 
 import { ArrowRight, FilePlus, Info, Upload } from "lucide-react";
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { roomForResume } from "@/components/account/pro-tools";
 import { upgradeLink } from "@/components/account/upgrade-interval";
 import { useMe } from "@/components/account/use-me";
@@ -12,29 +12,19 @@ import { OttoNote } from "@/components/mascot/otto-note";
 import { ROUTES } from "@/components/site/routes";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
-import { StatusPill } from "@/components/ui/status";
-import { FixFirst, type FixFirstEntry } from "@/components/studio/fix-first";
-import { Tab, TabList, TabPanel, Tabs } from "@/components/ui/tabs";
 import { TrackView } from "@/lib/analytics/track-view";
 import { trialHeadline } from "@/lib/billing/prices";
-import type { RecruiterReport } from "@/lib/checks/types";
-import { MAX_TOP, reviewResume, type ResumeReview, type ReviewItem } from "@/lib/lint/review";
+import { reviewResume, type ResumeReview } from "@/lib/lint/review";
 import { nextPlan } from "@/config/plans";
 import { emptyResume } from "@/lib/resume/schema";
 import { useActiveReport, useActiveResume, useStudioStore } from "@/lib/store/resume-store";
 import { resetWhen } from "@/lib/usage-copy";
-import { pluralize } from "@/lib/utils";
 import { useReadByRules } from "../import-notes";
-import { ChecksList } from "../review/checks-list";
-import { RereadNote } from "../review/reread-note";
+import { FixList } from "../review/fix-list";
 import { HiringSystemsPanel } from "../review/hiring-systems-panel";
-import { openTarget, targetLabel } from "../review/open-target";
 import { ReadTextPanel } from "../review/read-text-panel";
-import { reviewItemDomId, WordsChecks } from "../review/words-checks";
+import { RereadNote } from "../review/reread-note";
 import { STEP_BAR_CLASSES } from "../step-bar";
-import { useMediaQuery } from "../use-media-query";
-
-const SIDE_BY_SIDE = "(min-width: 64rem)";
 
 const READ_BY_RULES_NOTE =
   process.env.NODE_ENV === "production"
@@ -49,20 +39,7 @@ export function ReviewStep() {
   const readBy = useReadByRules(resume?.id ?? null);
   const { me, user } = useMe();
   const upgradeTo = nextPlan(user?.plan ?? "free");
-  const sideBySide = useMediaQuery(SIDE_BY_SIDE);
-  const [tab, setTab] = useState("checks");
   const review = useMemo(() => (resume ? reviewResume(resume) : null), [resume]);
-
-  function showGroup(id: ReviewItem["id"]) {
-    setTab("checks");
-    window.requestAnimationFrame(() => {
-      const group = document.getElementById(reviewItemDomId(id));
-      if (!(group instanceof HTMLDetailsElement)) return;
-      group.open = true;
-      group.scrollIntoView({ block: "start" });
-      group.querySelector("summary")?.focus({ preventScroll: true });
-    });
-  }
 
   if (!resume || !report || !review) {
     return (
@@ -98,7 +75,6 @@ export function ReviewStep() {
       />
       <div className="flex flex-col gap-4">
         <OttoNote
-          meta={readMeta(report)}
           message={
             scanned ? OTTO.review.scanned : OTTO.review.overall(report.counts, wordsToFix(review))
           }
@@ -116,7 +92,6 @@ export function ReviewStep() {
             </>
           ) : null}
         </OttoNote>
-        <CountsSummary report={report} review={review} />
         {readBy === "rules_past_allowance" ? (
           <p className="flex items-start gap-2 text-sm text-muted">
             <Info className="mt-0.5 size-4 shrink-0" aria-hidden />
@@ -147,43 +122,13 @@ export function ReviewStep() {
         {scanned ? null : <GitHubOffer resumeId={resume.id} className="bg-surface" />}
       </div>
 
-      {scanned ? null : (
-        <FixFirst
-          items={fixFirstItems(report, review, resume.id, showGroup)}
-          description="The few things to change before anything else. The rest is grouped below."
-          empty={
-            <StatusPill status="pass">
-              Nothing urgent. Your file and your lines read well.
-            </StatusPill>
-          }
+      <div className="grid gap-6 lg:grid-cols-2">
+        <ReadTextPanel
+          report={report}
+          className="lg:sticky lg:top-20 lg:max-h-[calc(100dvh-6rem)] lg:self-start"
         />
-      )}
-
-      {sideBySide ? (
-        <div className="grid grid-cols-2 items-start gap-6">
-          <div className="flex flex-col gap-8">
-            {scanned ? null : <WordsChecks resumeId={resume.id} review={review} />}
-            <ChecksList checks={report.checks} title="What hiring software checks" />
-          </div>
-          <div className="sticky top-20">
-            <ReadTextPanel report={report} />
-          </div>
-        </div>
-      ) : (
-        <Tabs value={tab} onValueChange={setTab}>
-          <TabList aria-label="Recruiter view">
-            <Tab value="checks">Checks</Tab>
-            <Tab value="text">What software reads</Tab>
-          </TabList>
-          <TabPanel value="checks" className="flex flex-col gap-8">
-            {scanned ? null : <WordsChecks resumeId={resume.id} review={review} />}
-            <ChecksList checks={report.checks} title="What hiring software checks" />
-          </TabPanel>
-          <TabPanel value="text">
-            <ReadTextPanel report={report} hideHeading />
-          </TabPanel>
-        </Tabs>
-      )}
+        <FixList report={report} review={scanned ? null : review} resumeId={resume.id} />
+      </div>
 
       <HiringSystemsPanel />
 
@@ -206,68 +151,4 @@ export function ReviewStep() {
 
 function wordsToFix(review: ResumeReview): number {
   return review.items.filter((item) => item.severity === "high").length;
-}
-
-function fixFirstItems(
-  report: RecruiterReport,
-  review: ResumeReview,
-  resumeId: string,
-  showGroup: (id: ReviewItem["id"]) => void,
-): FixFirstEntry[] {
-  const file = (status: "fail" | "warn") =>
-    report.checks
-      .filter((check) => check.status === status)
-      .map((check) => ({ key: check.id, title: check.title, reason: check.fix ?? check.detail }));
-  const words = (high: boolean) =>
-    review.top
-      .filter((item) => (item.severity === "high") === high)
-      .map((item) => ({
-        key: item.id,
-        title: item.title,
-        reason: item.reason,
-        action:
-          item.lines.length + item.more > 1
-            ? {
-                label: `See the ${item.lines.length + item.more} lines`,
-                onClick: () => showGroup(item.id),
-              }
-            : {
-                label: targetLabel(item.target),
-                onClick: () => openTarget(resumeId, item.target),
-              },
-      }));
-  return [...file("fail"), ...words(true), ...file("warn"), ...words(false)].slice(0, MAX_TOP);
-}
-
-function readMeta(report: RecruiterReport): string {
-  return `read ${pluralize(report.pageCount, "page")}, ${pluralize(report.wordCount, "word")}`;
-}
-
-function CountsSummary({ report, review }: { report: RecruiterReport; review: ResumeReview }) {
-  const { fail, warn, pass } = report.counts;
-  const words = wordsToFix(review);
-  return (
-    <ul aria-label="Check results" className="flex flex-wrap gap-2">
-      {words > 0 ? (
-        <li>
-          <StatusPill status="warn">{pluralize(words, "thing")} to fix in your words</StatusPill>
-        </li>
-      ) : null}
-      {fail > 0 ? (
-        <li>
-          <StatusPill status="fail">{pluralize(fail, "problem")}</StatusPill>
-        </li>
-      ) : null}
-      {warn > 0 ? (
-        <li>
-          <StatusPill status="warn">{pluralize(warn, "warning")}</StatusPill>
-        </li>
-      ) : null}
-      {pass > 0 ? (
-        <li>
-          <StatusPill status="pass">{pluralize(pass, "file check")} passed</StatusPill>
-        </li>
-      ) : null}
-    </ul>
-  );
 }

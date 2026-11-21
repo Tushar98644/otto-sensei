@@ -7,7 +7,6 @@ import { openFeaturePrompt } from "@/components/account/upgrade-prompt";
 import { useSessionUserId } from "@/components/account/session-user";
 import { saveLookingForChoice, useWorkProfile } from "@/components/eligibility/use-work-profile";
 import { OTTO } from "@/components/mascot/lines";
-import { OttoNote } from "@/components/mascot/otto-note";
 import { JobsWorkPrompt } from "@/components/setup/jobs-work-prompt";
 import { useSetupGuess } from "@/components/setup/use-account-setup";
 import { useNow } from "@/components/studio/use-now";
@@ -31,11 +30,11 @@ import { CLEARED, searchedOrNarrowed, type FilterMemory } from "./filter-memory"
 import { JobCard } from "./job-card";
 import { JobFiltersBar } from "./job-filters";
 import {
+  EmptyListAction,
   JobsHeader,
   JobsPager,
   LoadingCards,
   MoreWithPro,
-  NoFilterMatches,
   NoResumeYet,
   WeeklyJobsPrompt,
 } from "./jobs-page-parts";
@@ -48,6 +47,8 @@ import { useTailorLink } from "./use-tailor-link";
 import { appliedFor, checkedLabel, matchingResumeId, moreWithProCopy, tailoredFor } from "./view";
 
 const count = new Intl.NumberFormat("en-US");
+// The work-rights prompt waits under the first few jobs, so the feed starts right under the filters.
+const PROMPT_AFTER = 3;
 
 export function JobsPage() {
   const hydrated = useStudioHydrated();
@@ -166,26 +167,32 @@ export function JobsPage() {
     message = OTTO.jobs.found(data.matching, data.jobs.length, 0, 0);
   }
   const checked = data ? checkedLabel(data.checkedAt, now) : null;
-  const meta = data
-    ? [`${count.format(data.openJobs)} open jobs`, checked ? `checked ${checked}` : null]
-        .filter(Boolean)
-        .join(" · ")
+  const sources = data
+    ? `${count.format(data.openJobs)} open jobs from companies' careers pages and public job feeds${checked ? `, checked ${checked}` : ""}. Each links to the original post. Job names from O*NET® and ESCO.`
     : null;
   const pages = data
     ? Math.min(MAX_JOB_PAGE, Math.max(1, Math.ceil(data.total / data.pageSize)))
     : 1;
   const askingIds = new Set(prompts.onCard.map((entry) => entry.jobId));
+  const workPrompt =
+    work.status === "ready" && pro === true && data && !locked ? (
+      <JobsWorkPrompt
+        due={view === "matches" && jobsWorkPromptShows({ pro, locked, profile: work.profile, guess })}
+        userId={work.userId}
+        profile={work.profile}
+        saved={work.updatedAt !== null}
+      />
+    ) : null;
   const openingOffPage =
     busy?.action === "tailor" && !(data?.jobs.some((job) => job.id === busy.id) ?? false);
 
   return (
-    <div className="flex flex-col gap-8">
-      <JobsHeader />
-
-      {message ? <OttoNote message={message} meta={meta} /> : null}
+    <div className="flex flex-col gap-6">
+      <JobsHeader message={message} loading={state.status !== "error"} />
 
       {lookingFor && profile && view === "matches" ? (
         <LookingForCard
+          note={null}
           value={lookingFor}
           occupation={
             data?.lookingFor?.title === lookingFor.title ? (data.occupation ?? null) : null
@@ -219,18 +226,6 @@ export function JobsPage() {
           profileReady={profileReady}
         />
       )}
-
-      {work.status === "ready" && pro === true && data && !locked ? (
-        <JobsWorkPrompt
-          due={
-            view === "matches" &&
-            jobsWorkPromptShows({ pro, locked, profile: work.profile, guess })
-          }
-          userId={work.userId}
-          profile={work.profile}
-          saved={work.updatedAt !== null}
-        />
-      ) : null}
 
       <div ref={listRef} tabIndex={-1} className="flex scroll-mt-24 flex-col gap-4 outline-none">
         {openingOffPage ? (
@@ -276,14 +271,25 @@ export function JobsPage() {
         ) : !data ? (
           <LoadingCards />
         ) : data.jobs.length === 0 ? (
-          filtered && view === "matches" ? (
-            <NoFilterMatches onClear={() => changeFilters(CLEARED)} />
-          ) : null
+          <>
+            {workPrompt}
+            {filtered && view === "matches" ? (
+              <EmptyListAction label="Clear filters" onClick={() => changeFilters(CLEARED)} />
+            ) : view === "saved" && data.openJobs > 0 ? (
+              <EmptyListAction
+                label="Show best matches"
+                onClick={() => {
+                  setView("matches");
+                  setPage(1);
+                }}
+              />
+            ) : null}
+          </>
         ) : (
           <ul aria-busy={state.status === "loading"} className="flex flex-col gap-4">
-            {data.jobs.map((job) => {
+            {data.jobs.flatMap((job, index) => {
               const label = labels.get(job.id);
-              return (
+              const card = (
                 <JobCard
                   key={job.id}
                   job={job}
@@ -308,6 +314,14 @@ export function JobsPage() {
                   }
                 />
               );
+              if (!workPrompt || index !== Math.min(PROMPT_AFTER, data.jobs.length) - 1) return [card];
+              // Keyed, so moving to another slot as the page changes keeps its dialog open.
+              return [
+                card,
+                <li key="work-prompt" className="contents">
+                  {workPrompt}
+                </li>,
+              ];
             })}
           </ul>
         )}
@@ -318,7 +332,7 @@ export function JobsPage() {
 
         {data && locked && data.openJobs > 0 ? (
           <MoreWithPro
-            copy={moreWithProCopy(data.jobs.length, data.matching, data.openJobs)}
+            copy={moreWithProCopy(data.jobs.length, data.matching)}
             tryPro={tryPro}
           />
         ) : null}
@@ -327,6 +341,7 @@ export function JobsPage() {
           <JobsPager page={page} pages={pages} onGo={goTo} />
         ) : null}
       </div>
+      {sources ? <p className="text-xs/5 text-pretty text-subtle">{sources}</p> : null}
       {free ? null : (
         <LazyOutreachDialog
           job={outreach}

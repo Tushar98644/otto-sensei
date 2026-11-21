@@ -83,7 +83,7 @@ export function PreviewSourceSwitch({
     <div
       role="group"
       aria-label="Page shown in the previews"
-      className={cn("flex shrink-0 items-center rounded-full bg-surface-muted p-0.5", className)}
+      className={cn("flex shrink-0 items-center gap-0.5 rounded-xl bg-surface-muted p-0.5", className)}
     >
       {OPTIONS.map(({ value, label }) => (
         <button
@@ -92,8 +92,8 @@ export function PreviewSourceSwitch({
           aria-pressed={source === value}
           onClick={() => setPreviewSource(value)}
           className={cn(
-            "rounded-full px-2.5 py-1 text-xs/4 font-medium whitespace-nowrap text-muted transition-colors hover:text-ink",
-            source === value && "bg-surface text-ink shadow-xs",
+            "flex h-7 items-center rounded-lg px-3 text-sm font-medium whitespace-nowrap text-muted transition-colors hover:text-ink pointer-coarse:h-9",
+            source === value && "bg-surface text-ink shadow-control ring-1 ring-ink/5",
           )}
         >
           {label}

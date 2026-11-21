@@ -9,6 +9,7 @@ import {
   type UpdateApplicationBody,
 } from "@/lib/applications/schema";
 import type { ApplicationStatus } from "@/lib/applications/status";
+import { DAY_MS } from "@/lib/time";
 import { savedJobUrl } from "@/lib/insights/saved-job";
 import { resumeTitle } from "@/lib/resume/ops";
 import type { Resume } from "@/lib/resume/schema";
@@ -20,10 +21,11 @@ export type ApplicationFormValues = {
   jobUrl: string;
   appliedOn: string;
   status: ApplicationStatus;
+  interviewOn: string;
   notes: string;
 };
 
-export type FormField = "company" | "role" | "jobUrl" | "appliedOn" | "notes";
+export type FormField = "company" | "role" | "jobUrl" | "appliedOn" | "interviewOn" | "notes";
 export type FormErrors = Partial<Record<FormField, string>>;
 
 export type JobDraft = {
@@ -90,6 +92,7 @@ export function emptyForm(
     ...prefillFor(resume, draft),
     appliedOn: toDateInput(now),
     status: "applied",
+    interviewOn: "",
     notes: "",
   };
 }
@@ -102,6 +105,7 @@ export function formFromApplication(application: Application): ApplicationFormVa
     jobUrl: application.jobUrl,
     appliedOn: toDateInput(application.appliedAt),
     status: application.status,
+    interviewOn: application.interviewAt === null ? "" : toDateInput(application.interviewAt),
     notes: application.notes,
   };
 }
@@ -150,6 +154,13 @@ export function validateForm(
   else if (appliedAt < MIN_APPLIED_AT) errors.appliedOn = "Pick a day from 2000 on.";
   if (notes.length > APPLICATION_LIMITS.notes)
     errors.notes = `Keep notes under ${APPLICATION_LIMITS.notes} characters.`;
+  const interviewing = values.status === "interview";
+  const interviewAt = interviewing && values.interviewOn ? fromDateInput(values.interviewOn) : null;
+  if (interviewing && values.interviewOn) {
+    if (interviewAt === null) errors.interviewOn = "Pick the interview day.";
+    else if (interviewAt < MIN_APPLIED_AT) errors.interviewOn = "Pick a day from 2000 on.";
+    else if (interviewAt > now + 365 * DAY_MS) errors.interviewOn = "Pick a day within the next year.";
+  }
 
   if (Object.keys(errors).length > 0 || jobUrl === null || appliedAt === null) {
     return { ok: false, errors };
@@ -169,6 +180,7 @@ export function validateForm(
       appliedAt,
       status: values.status,
       notes,
+      ...(interviewing ? { interviewAt } : {}),
     },
   };
 }
@@ -187,5 +199,9 @@ export function patchFrom(original: Application, body: ValidForm["body"]): Updat
     patch.appliedAt = body.appliedAt;
   if (body.status !== original.status) patch.status = body.status;
   if (body.notes !== original.notes) patch.notes = body.notes;
+  if (body.interviewAt !== undefined) {
+    const day = (at: number | null) => (at === null ? "" : toDateInput(at));
+    if (day(body.interviewAt) !== day(original.interviewAt)) patch.interviewAt = body.interviewAt;
+  }
   return patch;
 }

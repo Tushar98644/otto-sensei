@@ -33,37 +33,55 @@ function render(
 }
 
 describe("PlanOffer", () => {
-  it("on the Pro trial, says Max ends the trial today and at what price, before the click", () => {
+  it("on the Pro trial, offers Max now and leaves the charge to the dialog's notice", () => {
     const monthly = render("pro", "month", { onTrial: true }).text;
     expect(monthly).toContain("Start Max now");
-    expect(monthly).toContain(
-      `Ends your Pro trial today and starts Max at ${usd(PRICES_USD.max.month)}/month.`,
-    );
+    expect(monthly).not.toContain("Ends your Pro trial today");
     expect(monthly).not.toContain("Upgrade to Max");
-    expect(render("pro", "year", { onTrial: true }).text).toContain(
-      `starts Max at ${usd(PRICES_USD.max.year)}/year.`,
-    );
     expect(render("pro", "month").text).toContain("Upgrade to Max");
   });
 
-  it("shows Free both plans for the picked option, Pro most popular with the trial", () => {
+  it("puts Pro and its trial in focus for Free, with Max one quiet switch away", () => {
     const { text, html } = render("free", "month", { trial: true });
-    expect(text).toContain(`Pro Recommended ${usd(PRICES_USD.pro.month)} /month per month`);
-    expect(text).toContain(`Max ${usd(PRICES_USD.max.month)} /month per month`);
+    expect(text).toContain(`Pro ${usd(PRICES_USD.pro.month)} /month per month`);
     expect(text).toContain("Try Pro for 3 days");
     expect(text).toContain(`$1 for 3 days, then ${usd(PRICES_USD.pro.month)} a month.`);
     expect(text).not.toMatch(/free for|try pro free/i);
+    expect(text).toContain(`Need more? Max is ${usd(PRICES_USD.max.month)}/month. See Max`);
+    expect(text).not.toContain("Upgrade to Max");
+    expect(html.match(/data-autofocus/g)).toHaveLength(1);
+  });
+
+  it("opens on the plan the dialog asked for, with the trial as the way back", () => {
+    const { cards, intervals, interval } = upgradeOffer({
+      current: "free",
+      offer: ALL,
+      picked: "month",
+      trial: true,
+    });
+    const text = renderToStaticMarkup(
+      <PlanOffer
+        cards={cards}
+        intervals={intervals}
+        interval={interval}
+        onIntervalChange={() => {}}
+        onChoose={() => {}}
+        focusPlan="max"
+      />,
+    ).replace(/<[^>]+>/g, " ");
     expect(text).toContain("Upgrade to Max");
     expect(text).toContain("Everything in Pro, with more:");
-    expect(html.match(/data-autofocus/g)).toHaveLength(1);
+    expect(text.replace(/\s+/g, " ")).toContain(
+      `Pro is ${usd(PRICES_USD.pro.month)}/month, or $1 for a 3-day trial. See Pro`,
+    );
   });
 
   it("follows the picked billing option: yearly prices and savings, no trial", () => {
     const { text } = render("free", "year", { trial: true });
-    expect(text).toContain(`Pro Recommended ${usd(PRICES_USD.pro.year)} /year per year`);
-    expect(text).toContain(`Max ${usd(PRICES_USD.max.year)} /year per year`);
+    expect(text).toContain(`Pro ${usd(PRICES_USD.pro.year)} /year per year`);
     expect(text).toContain(`Save ${yearlySavingsPercent("pro")}%`);
-    expect(text).toContain(`About ${perMonth("max")} a month.`);
+    expect(text).toContain(`About ${perMonth("pro")} a month.`);
+    expect(text).toContain(`Need more? Max is ${usd(PRICES_USD.max.year)}/year.`);
     expect(text).not.toContain("Try Pro for");
     expect(text).toContain("Upgrade to Pro");
     expect(text).toContain("Limits reset each month, on the day of the month your plan started.");
@@ -71,11 +89,10 @@ describe("PlanOffer", () => {
     expect(text).not.toMatch(/weekly|\/week|a week/i);
   });
 
-  it("shows Pro its plan as current, with Max to buy", () => {
+  it("shows Pro only the plan above it", () => {
     const { text } = render("pro", "month");
-    expect(text).toContain("Pro Current plan");
     expect(text).not.toContain("Upgrade to Pro");
-    expect(text).not.toContain("Recommended");
+    expect(text).not.toContain("See Pro");
     expect(text).toContain("Upgrade to Max");
   });
 
@@ -84,9 +101,9 @@ describe("PlanOffer", () => {
     expect(text).toContain("Monthly");
     expect(text).toContain("Yearly");
     expect(text).not.toContain("Weekly");
-    expect(text).toContain(`Pro Recommended ${usd(PRICES_USD.pro.month)} /month`);
+    expect(text).toContain(`Pro ${usd(PRICES_USD.pro.month)} /month`);
     expect(text).toContain("Sold monthly only, for now.");
-    expect(text).toContain(`Max ${usd(PRICES_USD.max.year)} /year`);
+    expect(text).toContain(`Max is ${usd(PRICES_USD.max.year)}/year`);
 
     expect(
       render("free", "month", { offer: { pro: ["month"], max: ["month"] } }).text,
@@ -101,8 +118,8 @@ describe("PlanOffer", () => {
     expect(text).not.toContain("1st");
   });
 
-  it("has no buttons while payments are off", () => {
-    const { html } = render("free", "month", { buy: false });
-    expect(html).not.toContain("<button");
+  it("has no buy button while payments are off", () => {
+    const { text } = render("free", "month", { buy: false, trial: true });
+    expect(text).not.toMatch(/Try Pro for|Upgrade to/);
   });
 });

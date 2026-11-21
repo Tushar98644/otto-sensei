@@ -32,7 +32,7 @@ export function ResumeSwitcher() {
       trigger={
         <>
           <FileText className="size-4 shrink-0 text-muted" aria-hidden />
-          <span className="truncate">{title}</span>
+          <span title={title} className="truncate">{title}</span>
           <ChevronDown className="size-4 shrink-0 text-muted" aria-hidden />
         </>
       }

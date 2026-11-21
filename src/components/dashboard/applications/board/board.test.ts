@@ -9,7 +9,6 @@ import {
   columnOf,
   createBody,
   daysInStage,
-  initials,
   isOverdue,
   menuStatuses,
   needsAction,
@@ -257,14 +256,10 @@ describe("moving a card", () => {
     expect(stepColumn(waiting, "to_apply", -1)).toBe("to_apply");
   });
 
-  it("names the card and draws its initials", () => {
+  it("names the card", () => {
     expect(cardName(applied)).toBe("Company a");
     expect(cardName({ ...applied, application: app("x", { company: "", role: "Chef" }) })).toBe("Chef");
     expect(cardName(waiting)).toBe("Acme");
-    expect(initials("Northwind Traders")).toBe("NT");
-    expect(initials("acme")).toBe("AC");
-    expect(initials("  ")).toBe("?");
-    expect(initials("Café (Berlin)")).toBe("CB");
   });
 });
 

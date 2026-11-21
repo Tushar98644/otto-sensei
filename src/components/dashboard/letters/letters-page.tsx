@@ -1,12 +1,13 @@
 "use client";
 
 import { PenLine } from "lucide-react";
-import { useMemo, useRef, useState } from "react";
+import { useMemo, useRef, useState, type ReactNode } from "react";
 import { errorMessage } from "@/components/account/errors";
-import { useProTools, useTryProLabel } from "@/components/account/pro-tools";
+import { useProTools } from "@/components/account/pro-tools";
 import { LazyUpgradeDialog } from "@/components/account/lazy-dialogs";
 import { useMe } from "@/components/account/use-me";
 import { OTTO } from "@/components/mascot/lines";
+import { Otto } from "@/components/mascot/otto";
 import { OttoNote } from "@/components/mascot/otto-note";
 import { saveLetterOnCopy } from "@/components/studio/tailor/copy-letter";
 import { useNow } from "@/components/studio/use-now";
@@ -21,6 +22,7 @@ import { useResumeList, useStudioHydrated } from "@/lib/store/resume-store";
 import { outreachChange, type OutreachFields } from "../jobs/outreach-saved";
 import { LazyWriteDialog } from "./lazy-write-dialog";
 import { NewResumeMenu } from "../new-resume-menu";
+import { offerLabel } from "../plan-slip";
 import { useStudioActions } from "../use-studio-actions";
 import { useApplications } from "../applications/use-applications";
 import {
@@ -63,8 +65,8 @@ export function LettersPage() {
   const pdf = useLetterPdf(resumes);
   const pro = useProTools();
   const locked = pro === false;
-  const { loading: planLoading } = useMe();
-  const tryPro = useTryProLabel();
+  const { me, loading: planLoading } = useMe();
+  const tryPro = offerLabel(me?.billing.trial === true);
   const savedJobs = useSavedJobs(pro === true);
   const [upgradeOpen, setUpgradeOpen] = useState(false);
   const [filter, setFilter] = useState<LetterFilter>("all");
@@ -213,7 +215,7 @@ export function LettersPage() {
           <p className="mt-2 max-w-prose text-base/7 text-muted">
             {ready && entries.length > 0
               ? `${kindsTally(counts)}, each written for one job.`
-              : "Cover letters, answers to application questions and outreach messages, written only from your resume and the job post."}
+              : "Cover letters, answers and outreach messages, written only from your resume."}
           </p>
         </div>
         {pro === true && ready && entries.length > 0 ? (
@@ -224,11 +226,8 @@ export function LettersPage() {
         ) : null}
       </header>
 
-      {locked && ready ? (
-        <OttoNote
-          live={false}
-          message={entries.length > 0 ? OTTO.letters.lockedKept : OTTO.letters.locked}
-        >
+      {locked && ready && entries.length > 0 ? (
+        <OttoNote live={false} message={OTTO.letters.lockedKept}>
           <Button onClick={() => setUpgradeOpen(true)}>{tryPro}</Button>
         </OttoNote>
       ) : null}
@@ -249,22 +248,22 @@ export function LettersPage() {
         </Alert>
       ) : entries.length === 0 ? (
         locked ? (
-          <SampleLetter />
+          <SampleLetter>
+            <OttoNote live={false} message={OTTO.letters.locked}>
+              <Button onClick={() => setUpgradeOpen(true)}>{tryPro}</Button>
+            </OttoNote>
+          </SampleLetter>
         ) : resumes.length === 0 ? (
-          <div className="rounded-2xl bg-surface p-6 sm:p-8">
-            <OttoNote live={false} message={OTTO.letters.noResume}>
-              <NewResumeMenu actions={actions} />
-            </OttoNote>
-          </div>
+          <EmptyStart title="No resume yet" line={OTTO.letters.noResume}>
+            <NewResumeMenu actions={actions} />
+          </EmptyStart>
         ) : (
-          <div className="rounded-2xl bg-surface p-6 sm:p-8">
-            <OttoNote live={false} message={OTTO.letters.empty}>
-              <Button onClick={start}>
-                <PenLine aria-hidden />
-                Start writing
-              </Button>
-            </OttoNote>
-          </div>
+          <EmptyStart title="Your letters will live here" line={OTTO.letters.empty}>
+            <Button onClick={start}>
+              <PenLine aria-hidden />
+              Start writing
+            </Button>
+          </EmptyStart>
         )
       ) : (
         <section aria-labelledby="letters-heading" className="flex flex-col gap-4">
@@ -276,11 +275,6 @@ export function LettersPage() {
           </div>
           <FolderCard
             tab={LETTER_FILTER_NAMES[filter]}
-            tabEnd={
-              <span className="text-xs text-subtle tabular-nums">
-                {count.format(shown.length)} shown
-              </span>
-            }
             bodyClassName="px-4 py-0 sm:px-6"
           >
             {shown.length > 0 ? (
@@ -289,7 +283,7 @@ export function LettersPage() {
                   <LetterRow
                     key={entry.key}
                     entry={entry}
-                    source={sourceTitle(entry, resumes)}
+                    source={resumes.length > 1 ? sourceTitle(entry, resumes) : ""}
                     application={entryApplication(entry, applications.items, resumes)}
                     now={now}
                     canOpenInStudio={studioFor(entry) !== null}
@@ -365,6 +359,22 @@ export function LettersPage() {
       ) : null}
       <LazyUpgradeDialog open={upgradeOpen} onOpenChange={setUpgradeOpen} feature="letter" />
     </div>
+  );
+}
+
+function EmptyStart({ title, line, children }: { title: string; line: string; children: ReactNode }) {
+  return (
+    <section
+      aria-labelledby="letters-empty"
+      className="flex flex-col items-center rounded-3xl bg-surface px-6 py-12 text-center sm:py-16"
+    >
+      <Otto pose="read" size={112} />
+      <h2 id="letters-empty" className="mt-6 font-sans text-lg/7 font-medium text-ink">
+        {title}
+      </h2>
+      <p className="mt-2 max-w-sm text-sm/6 text-pretty text-muted">{line}</p>
+      <div className="mt-6 flex flex-wrap items-center justify-center gap-2">{children}</div>
+    </section>
   );
 }
 

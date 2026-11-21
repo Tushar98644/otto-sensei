@@ -1,4 +1,5 @@
 import { Otto } from "@/components/mascot/otto";
+import { PAGE_CTA_ATTRIBUTE } from "@/components/site/page-cta";
 import { cn } from "@/lib/utils";
 import { PrimaryCta } from "./primary-cta";
 import { SECTION_TITLE_CLASSES } from "./section";
@@ -7,7 +8,10 @@ export function FinalCta() {
   return (
     <section aria-labelledby="final-cta-title" className="py-24 sm:py-32">
       <div className="container-page">
-        <div className="flex flex-col items-center rounded-3xl bg-surface-muted px-6 py-16 text-center sm:py-24">
+        <div
+          {...{ [PAGE_CTA_ATTRIBUTE]: "" }}
+          className="flex flex-col items-center rounded-3xl bg-surface-muted px-6 py-16 text-center sm:py-24"
+        >
           <Otto
             pose="read"
             size={144}

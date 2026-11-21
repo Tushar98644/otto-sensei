@@ -1,12 +1,13 @@
 import type { Application } from "@/lib/applications/schema";
 import { APPLICATION_STATUSES, type ApplicationStatus } from "@/lib/applications/status";
+import { DAY_MS } from "@/lib/time";
 
 export type ApplicationFilter = "all" | ApplicationStatus;
 export const APPLICATION_FILTERS: readonly ApplicationFilter[] = ["all", ...APPLICATION_STATUSES];
 
 export const FILTER_NAMES: Record<ApplicationFilter, string> = {
   all: "All",
-  applied: "Waiting",
+  applied: "Applied",
   interview: "Interviewing",
   offer: "Offer",
   rejected: "Rejected",
@@ -79,6 +80,69 @@ export function formatDay(timestamp: number, now: number): string {
   return format.format(timestamp);
 }
 
+function startOfDay(timestamp: number): number {
+  const date = new Date(timestamp);
+  date.setHours(0, 0, 0, 0);
+  return date.getTime();
+}
+
+// Calendar days in the browser's own time zone; rounding absorbs a daylight-saving hour.
+export function daysUntil(timestamp: number, now: number): number {
+  return Math.round((startOfDay(timestamp) - startOfDay(now)) / DAY_MS);
+}
+
+const weekday = new Intl.DateTimeFormat("en-US", { weekday: "short" });
+
+// A weekday only within a week either way, so "Mon" never means a Monday months off.
+export function interviewWhen(at: number, now: number): string {
+  const days = daysUntil(at, now);
+  if (days === 0) return "today";
+  if (days === 1) return "tomorrow";
+  if (days === -1) return "yesterday";
+  const day = Math.abs(days) < 7 ? weekday.format(at) : formatDay(at, now);
+  return days > 0 ? `${day} · in ${days} days` : `${day} · ${-days} days ago`;
+}
+
+export function interviewLabel(at: number, now: number): string {
+  return now === 0 ? `Interview ${formatDay(at, at)}` : `Interview ${interviewWhen(at, now)}`;
+}
+
+export function upcomingInterview(
+  application: Pick<Application, "status" | "interviewAt">,
+  now: number,
+): boolean {
+  return (
+    application.status === "interview" &&
+    application.interviewAt !== null &&
+    now > 0 &&
+    daysUntil(application.interviewAt, now) >= 0
+  );
+}
+
+// Soonest interview on top; everything else keeps its order.
+export function upcomingFirst<T extends Pick<Application, "status" | "interviewAt">>(
+  list: readonly T[],
+  now: number,
+): T[] {
+  const soon = list
+    .filter((application) => upcomingInterview(application, now))
+    .sort((a, b) => (a.interviewAt ?? 0) - (b.interviewAt ?? 0));
+  if (soon.length === 0) return [...list];
+  const first = new Set(soon);
+  return [...soon, ...list.filter((application) => !first.has(application))];
+}
+
+const number = new Intl.NumberFormat("en-US");
+
+export function outsideLine(outside: number, shown: number): string {
+  if (outside === shown) {
+    return shown === 1
+      ? "Sent with a resume not in Otto."
+      : "All of these were sent with a resume not in Otto.";
+  }
+  return `${number.format(outside)} of these ${outside === 1 ? "was" : "were"} sent with a resume not in Otto.`;
+}
+
 export function sentLabel(
   application: Pick<Application, "resumeId" | "resumeTitle">,
   titles: ReadonlyMap<string, { title: string }>,
@@ -95,4 +159,9 @@ export function applicationAnchor(id: string): string {
 
 export function prepHref(id: string): string {
   return `/dashboard/applications/${encodeURIComponent(id)}/prep`;
+}
+
+// A pack that exists opens as it is; otherwise the prep page starts making one.
+export function prepareHref(application: Pick<Application, "id" | "hasPrep">): string {
+  return application.hasPrep ? prepHref(application.id) : `${prepHref(application.id)}?start=1`;
 }

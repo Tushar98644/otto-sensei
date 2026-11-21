@@ -22,7 +22,7 @@ const STEPS: readonly Step[] = [
     id: "recruiter-view",
     otto: "point",
     name: "Recruiter view",
-    caption: "See the text hiring software pulls out, with plain checks and the reason for each.",
+    caption: "See the text hiring software pulls out, with a plain reason for each check.",
     moment: <ChecksMoment />,
   },
   {
@@ -30,7 +30,7 @@ const STEPS: readonly Step[] = [
     otto: "think",
     name: "Fix lines with Otto",
     caption:
-      "Otto asks for the missing fact, then writes the line from your answer. Type it or just say it. He never makes up numbers, and you keep, edit or skip every suggestion.",
+      "Otto asks for the missing fact, then writes the line from your answer. You keep, edit or skip it.",
     moment: <LineFixerMoment />,
   },
   {
@@ -45,7 +45,7 @@ const STEPS: readonly Step[] = [
     otto: "cheer",
     name: "Free PDF",
     caption:
-      "Download a clean PDF for free, then check it again. Every format reads top to bottom, with headings on their own lines, on Letter or A4.",
+      "Every format reads top to bottom, with headings on their own lines, on Letter or A4.",
     moment: <DownloadMoment />,
   },
 ];
@@ -71,8 +71,9 @@ export function HowItWorks() {
               aria-labelledby={`${momentId(step)}-title`}
               className="scroll-mt-24"
             >
-              <Eyebrow className="mb-3 lg:hidden">
-                Step {index + 1} · {step.name}
+              {/* The caption under the panel names the step, so this only counts. */}
+              <Eyebrow className="mb-3 tabular-nums lg:hidden">
+                Step {index + 1} of {STEPS.length}
               </Eyebrow>
               <Panel>{step.moment}</Panel>
               <MomentCaption

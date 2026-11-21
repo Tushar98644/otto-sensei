@@ -46,6 +46,7 @@ function values(overrides: Partial<ApplicationFormValues> = {}): ApplicationForm
     jobUrl: "",
     appliedOn: toDateInput(NOW),
     status: "applied",
+    interviewOn: "",
     notes: "",
     ...overrides,
   };
@@ -112,6 +113,7 @@ describe("prefillFor", () => {
       jobUrl: "",
       appliedOn: "2026-11-07",
       status: "applied",
+      interviewOn: "",
       notes: "",
     });
   });
@@ -243,5 +245,22 @@ describe("patchFrom", () => {
       resumeId: null,
       resumeTitle: "",
     });
+  });
+
+  it("keeps the interview day while Interviewing, as a local noon", () => {
+    const talking: Application = { ...original, status: "interview" };
+    const result = validateForm(
+      { ...formFromApplication(talking), interviewOn: "2026-11-23" },
+      titles,
+      NOW,
+    );
+    expect(result.ok && patchFrom(talking, result.body)).toEqual({
+      interviewAt: new Date(2026, 10, 23, 12).getTime(),
+    });
+    expect(
+      validateForm({ ...formFromApplication(talking), interviewOn: "2030-01-01" }, titles, NOW),
+    ).toMatchObject({ ok: false, errors: { interviewOn: "Pick a day within the next year." } });
+    const applied = validateForm({ ...formFromApplication(original), interviewOn: "2026-11-23" }, titles, NOW);
+    expect(applied.ok && patchFrom(original, applied.body)).toEqual({});
   });
 });

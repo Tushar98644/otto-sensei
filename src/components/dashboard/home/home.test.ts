@@ -3,7 +3,6 @@ import type { SavedResult, TailorDraft } from "@/components/studio/tailor/sessio
 import type { TailorResult } from "@/lib/ai/types";
 import { emptyResume, type Resume } from "@/lib/resume/schema";
 import { homeGreeting } from "./greeting";
-import { sourceNote } from "./stats";
 import { tailorSource, unfinishedTailor } from "./tailor-draft";
 
 describe("homeGreeting", () => {
@@ -12,28 +11,14 @@ describe("homeGreeting", () => {
       title: "Welcome",
       message: "Upload your resume and I'll show you what hiring software reads.",
     });
-    expect(homeGreeting({ own: 2, samples: 1 })).toMatchObject({
-      title: "Welcome back",
-      meta: "2 resumes",
-    });
+    expect(homeGreeting({ own: 2, samples: 1 })).toMatchObject({ title: "Welcome back" });
   });
 
   it("points a sample-only account at its own file", () => {
     expect(homeGreeting({ own: 0, samples: 1 })).toEqual({
       title: "Welcome",
       message: "That's the sample. Now drop in yours.",
-      meta: "1 sample",
     });
-  });
-});
-
-describe("sourceNote", () => {
-  it("leaves samples out and never reads as a broken plural", () => {
-    expect(sourceNote(["import", "sample", "sample", "scratch", "import"])).toBe(
-      "2 uploaded · 1 from scratch",
-    );
-    expect(sourceNote(["sample"])).toBe("None yet");
-    expect(sourceNote([])).toBe("None yet");
   });
 });
 

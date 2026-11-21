@@ -68,9 +68,10 @@ describe("interview prep lists", () => {
     const on = (month: number, day: number, year = 2026) => new Date(year, month, day, 12).getTime();
     expect(interviewDayLine(on(10, 21), now)).toBe("Interview today");
     expect(interviewDayLine(on(10, 22), now)).toBe("Interview tomorrow");
-    expect(interviewDayLine(on(10, 28), now)).toBe("Interview Nov 28");
-    expect(interviewDayLine(on(0, 6, 2027), now)).toBe("Interview Jan 6, 2027");
-    expect(interviewDayLine(on(10, 18), now)).toBe("Interview was Nov 18");
+    expect(interviewDayLine(on(10, 23), now)).toBe("Interview Mon · in 2 days");
+    expect(interviewDayLine(on(10, 28), now)).toBe("Interview Nov 28 · in 7 days");
+    expect(interviewDayLine(on(0, 6, 2027), now)).toBe("Interview Jan 6, 2027 · in 46 days");
+    expect(interviewDayLine(on(10, 18), now)).toBe("Interview Wed · 3 days ago");
     expect(interviewDayLine(null, now)).toBe("No interview day set yet");
     expect(interviewDayLine(on(10, 28), 0)).toBe("Interview Nov 28");
   });

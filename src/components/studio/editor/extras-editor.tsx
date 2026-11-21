@@ -196,6 +196,11 @@ const ExtraSectionCard = memo(function ExtraSectionCard({
             ),
           ),
         remove: { confirm: question, run: remove, resumeId },
+        move: {
+          canMoveUp: index > 0,
+          canMoveDown: index < count - 1,
+          onMove: (delta) => edit((resume) => moveExtraSection(resume, sectionId, delta)),
+        },
       }}
     >
       <ExtraItems resumeId={resumeId} sectionId={sectionId} kind={meta.kind} />

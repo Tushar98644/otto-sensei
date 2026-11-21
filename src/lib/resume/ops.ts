@@ -258,6 +258,10 @@ export function titleFromFileName(fileName: string): string {
   return cleanTitle(fileName.replace(/\.[a-z0-9]{1,5}$/i, "").replace(/[_-]+/g, " "));
 }
 
+export function uploadTitle(resume: Resume, fileName: string): string {
+  return cleanTitle(resume.basics.name) || titleFromFileName(fileName) || resume.title;
+}
+
 export function copyTitle(resume: Resume): string {
   const suffix = " (copy)";
   return `${resumeTitle(resume)

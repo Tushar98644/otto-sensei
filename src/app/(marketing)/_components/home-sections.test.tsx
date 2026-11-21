@@ -2,7 +2,7 @@ import { usePathname } from "next/navigation";
 import { renderToStaticMarkup } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { HeaderActions } from "@/components/site/account-link";
-import { HERO_CTA_ID } from "@/components/site/hero-cta-in-view";
+import { HERO_CTA_ID } from "@/components/site/page-cta";
 import { trialOffered } from "@/lib/billing/intervals";
 import { FeaturesOverview } from "./features-overview";
 import { HeroCta } from "./hero-cta";
@@ -68,6 +68,11 @@ describe("the header's button", () => {
     expect(html).toContain("max-md:h-10");
   });
 
+  it("waits on the job match page too, which opens on its own tool", () => {
+    vi.mocked(usePathname).mockReturnValue("/job-match");
+    expect(renderToStaticMarkup(<HeaderActions />)).toMatch(/\binvisible\b/);
+  });
+
   it("shows straight away on every other page", () => {
     vi.mocked(usePathname).mockReturnValue("/pricing");
     const html = renderToStaticMarkup(<HeaderActions />);
@@ -77,13 +82,13 @@ describe("the header's button", () => {
 });
 
 describe("the pricing teaser", () => {
-  it("is two lines and a link, with the trial when it's on sale", () => {
+  it("is two plans side by side and a link, with the trial when it's on sale", () => {
     const html = renderToStaticMarkup(<PricingTeaser />);
     expect(html.match(/<li/g)).toHaveLength(2);
     expect(text(html)).toContain(
-      "Free: check, fix and download one resume as a PDF, with 3 line fixes a month from Otto.",
+      "Free $0 Check, fix and download one resume as a PDF, with 3 line fixes a month from Otto.",
     );
-    expect(text(html)).toContain("Pro, $15 a month: tailoring, cover letters");
+    expect(text(html)).toContain("Pro $15 /month Tailoring, cover letters");
     expect(text(html)).toContain("Try 3 days for $1.");
     expect(html).toContain('href="/pricing"');
     expect(text(html)).toContain("See pricing");

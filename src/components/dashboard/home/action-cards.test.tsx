@@ -1,7 +1,6 @@
 import type { ReactNode } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
-import { createSampleResume } from "@/lib/resume/sample";
 import type { StudioActions } from "../use-studio-actions";
 import { ActionCards } from "./action-cards";
 
@@ -17,14 +16,12 @@ vi.mock("next/link", () => ({
 
 function cards(tailorLocked: boolean): string {
   plan.tailorLocked = tailorLocked;
-  return renderToStaticMarkup(
-    <ActionCards actions={{} as StudioActions} latest={null} pageResume={createSampleResume(0)} />,
-  );
+  return renderToStaticMarkup(<ActionCards actions={{} as StudioActions} latest={null} />);
 }
 
 describe("the Home action cards", () => {
-  it("mark Tailor to a job as Pro, on the phone row and the card, only once no tailors are left", () => {
+  it("mark Tailor to a job as Pro only once no tailors are left", () => {
     expect(cards(false)).not.toContain("comes with");
-    expect(cards(true).match(/, comes with <\/span>Pro/g)).toHaveLength(2);
+    expect(cards(true).match(/, comes with <\/span>Pro/g)).toHaveLength(1);
   });
 });

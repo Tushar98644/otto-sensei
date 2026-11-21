@@ -12,6 +12,7 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonClasses } from "@/components/ui/button";
+import { ProMark } from "@/components/ui/pro-mark";
 import type { Application } from "@/lib/applications/schema";
 import { STATUS_NAMES } from "@/lib/applications/status";
 import type { ApplicationThread } from "@/lib/applications/thread";
@@ -158,9 +159,7 @@ export function PrepCard({
             <MessagesSquare aria-hidden />
             Prepare for this interview
             {pro === false ? (
-              <Badge variant="ink" className="h-5 px-1.5">
-                Pro
-              </Badge>
+              <ProMark className={application.status === "interview" ? "text-white/75" : undefined} />
             ) : null}
           </Button>
         </>
@@ -186,21 +185,25 @@ export function JobCard({
         .filter(Boolean)
         .join(" · ")
     : "";
+  // The page title already names the company and role, so only a different name is repeated here.
+  const title = job?.title && job.title !== application.role ? job.title : "";
+  const company = job?.company && job.company !== application.company ? job.company : "";
+  const facts = title || company || place || job;
   return (
     <HubCard title="The job">
-      <div className="flex flex-col gap-1">
-        <p className="text-sm/6 font-medium text-ink">
-          {job?.title || application.role || "Role not named"}
-        </p>
-        <p className="text-sm/5 text-muted">{job?.company || application.company}</p>
-        {place ? <p className="text-sm/5 text-muted">{place}</p> : null}
-        {job ? (
-          <p className="text-xs/5 text-subtle">
-            {sourceCredit(job.source)} · Posted {formatDay(job.postedAt, now || job.postedAt)}
-            {job.closed ? " · This post has closed" : ""}
-          </p>
-        ) : null}
-      </div>
+      {facts ? (
+        <div className="flex flex-col gap-1">
+          {title ? <p className="text-sm/6 font-medium text-ink">{title}</p> : null}
+          {company ? <p className="text-sm/5 text-muted">{company}</p> : null}
+          {place ? <p className="text-sm/5 text-muted">{place}</p> : null}
+          {job ? (
+            <p className="text-xs/5 text-subtle">
+              {sourceCredit(job.source)} · Posted {formatDay(job.postedAt, now || job.postedAt)}
+              {job.closed ? " · This post has closed" : ""}
+            </p>
+          ) : null}
+        </div>
+      ) : null}
       {url ? (
         <a
           href={url}

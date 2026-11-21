@@ -44,10 +44,7 @@ export function FeaturesOverview() {
         id="features-title"
         eyebrow="What's inside"
         title="Your whole job hunt, in one place"
-      >
-        One account for your resume, the jobs, and every application after it. Pick a section to see
-        it.
-      </SectionHeader>
+      />
       <Tabs defaultValue={SHOWN[0]!.href} className="mt-12 sm:mt-16">
         <div className="grid gap-4 lg:grid-cols-[14rem_minmax(0,1fr)] lg:gap-6">
           <TabList

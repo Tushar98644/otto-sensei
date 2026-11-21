@@ -26,6 +26,8 @@ export type PricingPlansProps = {
   trial?: boolean;
   headingAs?: "h2" | "h3";
   otto?: ReactNode;
+  // Pages that state the fair-use limits in their own fine print leave this line out.
+  fairUse?: boolean;
   jobCounts?: JobCounts;
   className?: string;
 };
@@ -75,6 +77,7 @@ export function PricingPlans({
   trial: trialOnSale = false,
   headingAs,
   otto,
+  fairUse = true,
   jobCounts,
   className,
 }: PricingPlansProps) {
@@ -145,10 +148,12 @@ export function PricingPlans({
           />
         ))}
       </div>
-      <p className="text-center text-sm text-muted">
-        Fair limits on every AI feature, all listed in the{" "}
-        <TextLink href={ROUTES.terms}>terms</TextLink>.
-      </p>
+      {fairUse ? (
+        <p className="text-center text-sm text-muted">
+          Fair limits on every AI feature, all listed in the{" "}
+          <TextLink href={ROUTES.terms}>terms</TextLink>.
+        </p>
+      ) : null}
     </div>
   );
 }

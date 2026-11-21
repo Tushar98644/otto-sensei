@@ -12,7 +12,7 @@ export const metadata: Metadata = { title: "Page not found" };
 export default function NotFound() {
   return (
     <div className="flex min-h-dvh flex-col">
-      <SiteHeader />
+      <SiteHeader cta={false} />
       <main id="main" className="flex flex-1 items-center">
         <div className="container-page flex flex-col items-center py-24 text-center sm:py-32">
           <Otto
@@ -31,10 +31,7 @@ export default function NotFound() {
             <Link href={ROUTES.studio} prefetch={false} className={buttonClasses({ size: "lg" })}>
               Check my resume
             </Link>
-            <Link
-              href={ROUTES.home}
-              className={buttonClasses({ variant: "secondary", size: "lg" })}
-            >
+            <Link href={ROUTES.home} className={buttonClasses({ variant: "ghost", size: "lg" })}>
               Go to the home page
             </Link>
           </div>

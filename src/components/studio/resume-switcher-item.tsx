@@ -113,7 +113,9 @@ export function ResumeSwitcherItem({
         )}
       >
         <span className="flex w-full min-w-0 items-center gap-2">
-          <span className="truncate text-sm font-medium text-ink">{title}</span>
+          <span title={title} className="truncate text-sm font-medium text-ink">
+            {title}
+          </span>
           {active ? <Check className="size-4 shrink-0 text-ink" aria-hidden /> : null}
           {active ? <span className="sr-only">(open now)</span> : null}
         </span>

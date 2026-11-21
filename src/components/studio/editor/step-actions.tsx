@@ -1,15 +1,16 @@
 "use client";
 
 import { ArrowRight } from "lucide-react";
-import { memo } from "react";
+import { memo, type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { STEP_BAR_CLASSES } from "@/components/studio/step-bar";
 import { useStudioStore } from "@/lib/store/resume-store";
 
-export const StepActions = memo(function StepActions() {
+export const StepActions = memo(function StepActions({ lead }: { lead?: ReactNode }) {
   const setStep = useStudioStore((state) => state.setStep);
   return (
     <div data-tour-edge className={STEP_BAR_CLASSES}>
+      {lead}
       <Button variant="ghost" onClick={() => setStep("download")} data-tour="studio-download">
         Skip to download
       </Button>

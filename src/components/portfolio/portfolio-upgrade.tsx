@@ -2,14 +2,13 @@
 
 import { Check, Expand } from "lucide-react";
 import { lazy, Suspense, useMemo, useState } from "react";
-import { useTryProLabel } from "@/components/account/pro-tools";
 import { LazyUpgradeDialog } from "@/components/account/lazy-dialogs";
 import { useMe } from "@/components/account/use-me";
+import { offerLabel } from "@/components/dashboard/plan-slip";
 import { OttoNote } from "@/components/mascot/otto-note";
 import { Button } from "@/components/ui/button";
-import { Eyebrow } from "@/components/ui/eyebrow";
 import { PRO_TRIAL } from "@/config/plans";
-import { trialSentence } from "@/lib/billing/prices";
+import { planPrice } from "@/lib/billing/prices";
 import { suggestSlug } from "@/lib/portfolio/slug";
 import { portfolioPath, type Portfolio, type PortfolioTemplateId } from "@/lib/portfolio/types";
 import type { Resume } from "@/lib/resume/schema";
@@ -33,8 +32,8 @@ export function PortfolioUpgrade({
   const { me } = useMe();
   const [open, setOpen] = useState(false);
   const [full, setFull] = useState<PortfolioTemplateId | null>(null);
-  const tryLabel = useTryProLabel();
   const trial = me?.billing.trial === true;
+  const tryLabel = offerLabel(trial);
   const own = useMemo(() => pageSample(portfolio, candidates), [portfolio, candidates]);
   const choice = usePreviewSource(own);
   const slug = portfolio?.slug ?? suggestSlug(own?.view.name ?? "");
@@ -44,14 +43,13 @@ export function PortfolioUpgrade({
     <section className="rounded-3xl bg-surface px-5 py-8 sm:px-8 sm:py-10">
       <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
         <div className="max-w-2xl">
-          <Eyebrow className="mb-3">Hosted for you, no setup</Eyebrow>
           <h2 className="font-sans text-2xl/8 font-medium tracking-tight text-ink">
             {portfolio ? "Your page is offline for now" : "A real portfolio, live at your own link"}
           </h2>
           <p className="mt-2 text-base/7 text-pretty text-muted">
             {portfolio
               ? "Portfolios come with Pro and Max. Your page and its settings are kept, so it comes back as it was."
-              : "Your projects, work, writing and links in one of eight designs, filled in from your resume."}
+              : "Your projects, work, writing and links in one of eight designs."}
           </p>
           <ul className="mt-4 flex flex-col gap-2 text-sm/6 text-ink">
             <li className="flex gap-2">
@@ -75,7 +73,9 @@ export function PortfolioUpgrade({
             {tryLabel}
           </Button>
           <p className="text-sm/5 text-subtle">
-            {trial ? trialSentence() : "Portfolios come with Pro and Max."}
+            {trial
+              ? `${PRO_TRIAL.days} days, then ${planPrice(PRO_TRIAL.plan, PRO_TRIAL.interval)} a ${PRO_TRIAL.interval}. Cancel anytime before it ends.`
+              : "Portfolios come with Pro and Max."}
           </p>
         </div>
       </div>
@@ -100,9 +100,9 @@ export function PortfolioUpgrade({
         onPreview={setFull}
         action={(id, name) => (
           <Button
-            variant="secondary"
+            variant="ghost"
             size="sm"
-            className="shrink-0"
+            className="shrink-0 text-muted hover:text-ink"
             onClick={() => setFull(id)}
             aria-label={`Preview ${name} full page`}
           >

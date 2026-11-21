@@ -130,21 +130,16 @@ function InviteDetails({ summary, plan }: { summary: ReferralSummary; plan: Plan
         {copied ? "Invite link copied." : ""}
       </p>
 
-      <Progress
-        size="sm"
-        label="Friends who earned you extras"
-        value={rewarded}
-        max={maxRewarded}
-        valueText={`${rewarded} of ${maxRewarded}`}
-      />
-      <p className="text-sm/6 text-muted">
-        {joined === 0
-          ? "Nobody has joined with your link yet."
-          : `${plural(joined, "friend", "friends")} joined, ${checked} checked a resume.`}{" "}
-        {full
-          ? `That's the ${maxRewarded} friends that earn you extras. New friends still get theirs.`
-          : `Extras for up to ${maxRewarded} friends.`}
-      </p>
+      {/* The meter waits for the first friend, so an empty one never sits under the link. */}
+      {joined > 0 ? (
+        <Progress
+          size="sm"
+          label="Friends who earned you extras"
+          value={rewarded}
+          max={maxRewarded}
+          valueText={`${rewarded} of ${maxRewarded}`}
+        />
+      ) : null}
       {extras.fix > 0 || extras.tailor > 0 ? (
         <p className="text-sm/6 text-ink">
           {period === "trial" ? "During your trial" : "This month"}{" "}
@@ -152,7 +147,15 @@ function InviteDetails({ summary, plan }: { summary: ReferralSummary; plan: Plan
           invites.
         </p>
       ) : null}
-      <p className="text-sm/6 text-muted">{extrasNote(plan, period)}</p>
+      <p className="text-sm/6 text-pretty text-muted">
+        {joined > 0
+          ? `${plural(joined, "friend", "friends")} joined, ${checked} checked a resume. `
+          : null}
+        {full
+          ? `That's the ${maxRewarded} friends that earn you extras. New friends still get theirs. `
+          : `Works for up to ${maxRewarded} friends. `}
+        {extrasNote(plan, period)}
+      </p>
     </div>
   );
 }

@@ -63,13 +63,25 @@ export function SectionHeader({
   );
 }
 
+export type SectionLinkProps = { href: string; children: ReactNode; aside?: ReactNode };
+
 // A ghost key whose label lines up with the text above: -ml-4.25 takes back its px-4 and 1px border.
-export function SectionLink({ href, children }: { href: string; children: ReactNode }) {
-  return (
-    <Link href={href} className={buttonClasses({ variant: "ghost", className: "mt-6 -ml-4.25" })}>
+export function SectionLink({ href, children, aside }: SectionLinkProps) {
+  const link = (
+    <Link
+      href={href}
+      className={buttonClasses({ variant: "ghost", className: cn("-ml-4.25", !aside && "mt-6") })}
+    >
       {children}
       <ArrowRight />
     </Link>
+  );
+  if (!aside) return link;
+  return (
+    <div className="mt-6 flex flex-wrap items-center gap-x-2 gap-y-1">
+      {link}
+      <p className="text-sm/5 text-subtle">{aside}</p>
+    </div>
   );
 }
 

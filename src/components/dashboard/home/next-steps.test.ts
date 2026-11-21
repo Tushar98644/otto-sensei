@@ -176,10 +176,10 @@ describe("interviewsSoon", () => {
 });
 
 describe("interviewDay", () => {
-  it("says today and tomorrow, then the weekday and date", () => {
+  it("says today and tomorrow, then the weekday and date with how far off it is", () => {
     expect(interviewDay(noon(21), NOW)).toBe("Today");
     expect(interviewDay(noon(22), NOW)).toBe("Tomorrow");
-    expect(interviewDay(noon(26), NOW)).toBe("Thu, Nov 26");
+    expect(interviewDay(noon(26), NOW)).toBe("Thu, Nov 26 · in 5 days");
   });
 });
 

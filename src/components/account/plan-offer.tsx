@@ -1,10 +1,12 @@
 "use client";
 
 import { Check } from "lucide-react";
+import { useId, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   FEATURE_LABELS,
+  PLAN_ORDER,
   PLANS,
   planLimits,
   PRO_TRIAL,
@@ -13,16 +15,16 @@ import {
   type PaidPlanId,
 } from "@/config/plans";
 import {
-  endsTrialSentence,
   perMonth,
   planPrice,
+  planPriceLabel,
   trialHeadline,
+  trialPrice,
   trialSentence,
   yearlySavingsPercent,
 } from "@/lib/billing/prices";
 import { TEMPLATE_IDS } from "@/lib/resume/schema";
 import { perPeriod, PLAN_PROMISES, resetRule } from "@/lib/usage-copy";
-import { cn } from "@/lib/utils";
 import { IntervalPicker } from "./interval-picker";
 import { ReferencePrice } from "./reference-price";
 import type { OfferCard } from "./upgrade-offer";
@@ -36,6 +38,20 @@ const SPOKEN: Record<BillingInterval, string> = {
   year: "per year",
 };
 
+function offerCta(card: OfferCard): string {
+  const name = PLANS[card.plan].name;
+  if (card.trial) return trialHeadline();
+  return card.endsTrial ? `Start ${name} now` : `Upgrade to ${name}`;
+}
+
+// Ending a trial gets no note here: the dialog's description already spells out that charge.
+function offerNote(card: OfferCard, picked: BillingInterval): string | null {
+  if (card.trial) return trialSentence();
+  if (card.endsTrial) return null;
+  if (card.interval !== picked) return "Sold monthly only, for now.";
+  return card.interval === "year" ? `About ${perMonth(card.plan)} a month.` : null;
+}
+
 export type PlanOfferProps = {
   cards: readonly OfferCard[];
   intervals: readonly BillingInterval[];
@@ -47,6 +63,7 @@ export type PlanOfferProps = {
   disabled?: boolean;
 };
 
+// One plan in focus, so the dialog has one action; any other plan is a quiet switch under it.
 export function PlanOffer({
   cards,
   intervals,
@@ -57,90 +74,97 @@ export function PlanOffer({
   pendingPlan = null,
   disabled = false,
 }: PlanOfferProps) {
-  const primary = (cards.find((card) => card.popular) ?? cards.find((card) => !card.current))?.plan;
+  const [switchedTo, setSwitchedTo] = useState<PaidPlanId | null>(null);
+  const buyable = cards.filter((card) => !card.current);
+  const wanted = switchedTo ?? focusPlan ?? cards.find((card) => card.popular)?.plan;
+  const shown = buyable.find((card) => card.plan === wanted) ?? buyable[0];
+  if (!shown) return null;
+  const others = buyable.filter((card) => card.plan !== shown.plan);
   return (
     <div className="flex flex-col gap-4">
       <IntervalPicker intervals={intervals} value={interval} onChange={onIntervalChange} />
-      <ul className={cn("grid gap-3", cards.length > 1 && "sm:grid-cols-2")}>
-        {cards.map((card) => (
-          <li key={card.plan} className="flex">
-            <PlanOfferCard
-              card={card}
-              picked={interval}
-              primary={card.plan === primary}
-              focus={card.plan === focusPlan}
-              pending={pendingPlan === card.plan}
-              disabled={disabled || (pendingPlan !== null && pendingPlan !== card.plan)}
-              onChoose={onChoose}
-            />
-          </li>
-        ))}
-      </ul>
-      <p className="text-xs text-muted">
+      <PlanPanel
+        card={shown}
+        picked={interval}
+        pending={pendingPlan === shown.plan}
+        disabled={disabled || (pendingPlan !== null && pendingPlan !== shown.plan)}
+        onChoose={onChoose}
+      />
+      {/* Keyed by place, so the switch keeps focus when it flips to the other plan. */}
+      {others.map((card, index) => (
+        <OtherPlan
+          key={index}
+          card={card}
+          shown={shown.plan}
+          disabled={pendingPlan !== null}
+          onSelect={setSwitchedTo}
+        />
+      ))}
+      <p className="text-xs/5 text-pretty text-muted">
         {resetRule(interval)} {PLAN_PROMISES}
       </p>
     </div>
   );
 }
 
-function PlanOfferCard({
+function PlanPanel({
   card,
   picked,
-  primary,
-  focus,
   pending,
   disabled,
   onChoose,
 }: {
   card: OfferCard;
   picked: BillingInterval;
-  primary: boolean;
-  focus: boolean;
   pending: boolean;
   disabled: boolean;
   onChoose?: (card: OfferCard) => void;
 }) {
+  const titleId = useId();
   const { plan, interval } = card;
   const name = PLANS[plan].name;
   const period = card.trial ? "trial" : "month";
   const limits = card.trial ? PRO_TRIAL.limits : planLimits(plan, period);
   const savings = interval === "year" ? yearlySavingsPercent(plan) : 0;
-  const note = card.trial
-    ? trialSentence()
-    : card.endsTrial
-      ? endsTrialSentence(plan, interval)
-      : interval !== picked
-        ? "Sold monthly only, for now."
-        : interval === "year"
-          ? `About ${perMonth(plan)} a month.`
-          : null;
+  const note = offerNote(card, picked);
   return (
-    <div className="flex w-full flex-col gap-4 rounded-2xl bg-surface-muted p-4 sm:p-6">
+    <section
+      aria-labelledby={titleId}
+      className="flex flex-col gap-4 rounded-2xl bg-surface-muted p-5 sm:p-6"
+    >
       <div className="flex flex-col gap-1">
-        <div className="flex flex-wrap items-center gap-2">
-          <h3 className="text-base/6 font-semibold text-ink">{name}</h3>
-          {card.current ? (
-            <Badge className="bg-surface">Current plan</Badge>
-          ) : card.popular ? (
-            <Badge variant="ink">Recommended</Badge>
-          ) : null}
+        <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+          <h3 id={titleId} className="text-base/6 font-semibold text-ink">
+            {name}
+          </h3>
+          <p className="flex flex-wrap items-baseline gap-x-1">
+            <ReferencePrice plan={plan} interval={interval} className="mr-1 text-sm" />
+            <span className="text-2xl font-semibold text-ink lining-nums tabular-nums">
+              {planPrice(plan, interval)}
+            </span>
+            <span aria-hidden="true" className="text-sm text-muted">
+              /{interval}
+            </span>
+            <span className="sr-only">{SPOKEN[interval]}</span>
+            {savings > 0 ? (
+              <Badge className="ml-1 self-center bg-surface">Save {savings}%</Badge>
+            ) : null}
+          </p>
         </div>
-        <p className="flex flex-wrap items-baseline gap-x-1 gap-y-1">
-          <ReferencePrice plan={plan} interval={interval} className="mr-1 text-sm" />
-          <span className="text-2xl font-semibold text-ink lining-nums tabular-nums">
-            {planPrice(plan, interval)}
-          </span>
-          <span aria-hidden="true" className="text-sm text-muted">
-            /{interval}
-          </span>
-          <span className="sr-only">{SPOKEN[interval]}</span>
-          {savings > 0 ? (
-            <Badge className="ml-1 self-center bg-surface">Save {savings}%</Badge>
-          ) : null}
-        </p>
-        {note ? <p className="text-sm text-muted">{note}</p> : null}
+        {note ? <p className="text-sm/6 text-pretty text-muted">{note}</p> : null}
       </div>
-      <div className="flex flex-col gap-2">
+      {onChoose ? (
+        <Button
+          className="w-full"
+          loading={pending}
+          disabled={disabled}
+          onClick={() => onChoose(card)}
+          data-autofocus
+        >
+          {offerCta(card)}
+        </Button>
+      ) : null}
+      <div className="flex flex-col gap-2 border-t border-border pt-4">
         {plan === "max" ? (
           <p className="text-sm font-medium text-ink">Everything in Pro, with more:</p>
         ) : null}
@@ -155,31 +179,48 @@ function PlanOfferCard({
           ) : null}
         </ul>
       </div>
-      {onChoose && !card.current ? (
-        <Button
-          variant={primary ? "primary" : "secondary"}
-          className="mt-auto w-full"
-          loading={pending}
-          disabled={disabled}
-          onClick={() => onChoose(card)}
-          autoFocus={focus}
-          data-autofocus={focus ? true : undefined}
-        >
-          {card.trial
-            ? trialHeadline()
-            : card.endsTrial
-              ? `Start ${name} now`
-              : `Upgrade to ${name}`}
-        </Button>
-      ) : null}
+    </section>
+  );
+}
+
+function OtherPlan({
+  card,
+  shown,
+  disabled,
+  onSelect,
+}: {
+  card: OfferCard;
+  shown: PaidPlanId;
+  disabled: boolean;
+  onSelect: (plan: PaidPlanId) => void;
+}) {
+  const name = PLANS[card.plan].name;
+  const price = planPriceLabel(card.plan, card.interval);
+  const bigger = PLAN_ORDER.indexOf(card.plan) > PLAN_ORDER.indexOf(shown);
+  const line = bigger
+    ? `Need more? ${name} is ${price}.`
+    : card.trial
+      ? `${name} is ${price}, or ${trialPrice()} for a ${PRO_TRIAL.days}-day trial.`
+      : `${name} is ${price}.`;
+  return (
+    <div className="flex flex-wrap items-center justify-between gap-x-4 text-sm/6 text-muted">
+      <p>{line}</p>
+      <Button
+        variant="link"
+        disabled={disabled}
+        onClick={() => onSelect(card.plan)}
+        className="min-h-11 px-0 text-sm"
+      >
+        See {name}
+      </Button>
     </div>
   );
 }
 
 function Highlight({ children }: { children: string }) {
   return (
-    <li className="flex items-start gap-2 text-sm text-ink">
-      <Check className="mt-0.5 size-4 shrink-0" aria-hidden />
+    <li className="flex items-start gap-2 text-sm/6 text-ink">
+      <Check className="mt-1 size-4 shrink-0 text-muted" aria-hidden />
       <span>{children}</span>
     </li>
   );

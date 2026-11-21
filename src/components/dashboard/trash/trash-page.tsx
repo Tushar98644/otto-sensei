@@ -1,10 +1,9 @@
 "use client";
 
-import { ArrowLeft, RotateCcw } from "lucide-react";
+import { ArrowLeft, RotateCcw, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { roomForCopyOf } from "@/components/account/pro-tools";
-import { OttoNote } from "@/components/mascot/otto-note";
 import { ROUTES } from "@/components/site/routes";
 import { formatRelativeTime } from "@/components/studio/relative-time";
 import { tailoredLabel } from "@/components/studio/resume-label";
@@ -54,29 +53,27 @@ export function TrashPage() {
 
   return (
     <div className="flex flex-col gap-8">
-      <header className="flex flex-wrap items-end justify-between gap-x-6 gap-y-4">
-        <div className="min-w-0">
-          <Link
-            href={ROUTES.dashboardResumes}
-            className="inline-flex min-h-11 items-center gap-1.5 rounded-lg text-sm text-muted hover:text-ink"
-          >
-            <ArrowLeft className="size-4" aria-hidden />
-            Resumes
-          </Link>
-          <h1 className="mt-2 font-display text-4xl/10 font-normal tracking-tight text-ink sm:text-5xl/13">
+      <header className="flex flex-col gap-3">
+        <Link
+          href={ROUTES.dashboardResumes}
+          className="-mb-1 inline-flex min-h-11 w-fit items-center gap-1.5 rounded-lg text-sm text-muted transition-colors duration-150 ease-out hover:text-ink"
+        >
+          <ArrowLeft className="size-4" aria-hidden />
+          Resumes
+        </Link>
+        <div className="flex items-center justify-between gap-4">
+          <h1 className="font-display text-4xl/10 font-normal tracking-tight text-ink sm:text-5xl/13">
             Recently deleted
           </h1>
-          <p className="mt-2 max-w-prose text-base/7 text-muted">
-            Deleted resumes stay in this browser for {TRASH_DAYS} days, or until you sign out.
-            They&apos;re removed from your account backup. Restoring one brings it back as a new
-            copy.
-          </p>
+          {hydrated && entries.length > 0 ? (
+            <Button variant="secondary" onClick={() => setEmptying(true)} className="shrink-0">
+              Empty trash
+            </Button>
+          ) : null}
         </div>
-        {hydrated && entries.length > 0 ? (
-          <Button variant="secondary" onClick={() => setEmptying(true)}>
-            Empty trash
-          </Button>
-        ) : null}
+        <p className="max-w-prose text-base/7 text-muted">
+          Deleted resumes stay in this browser for {TRASH_DAYS} days, or until you sign out.
+        </p>
       </header>
 
       {!hydrated ? (
@@ -88,11 +85,17 @@ export function TrashPage() {
           <Skeleton className="h-4 w-1/3" />
         </div>
       ) : entries.length === 0 ? (
-        <div className="rounded-2xl bg-surface p-6 sm:p-8">
-          <OttoNote live={false} message="No deleted resumes right now." />
+        <div className="flex items-center gap-4 rounded-2xl bg-surface p-5 sm:p-6">
+          <span
+            aria-hidden
+            className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-surface-muted"
+          >
+            <Trash2 className="size-4 text-muted" />
+          </span>
+          <p className="text-base/6 text-ink">Nothing here right now.</p>
         </div>
       ) : (
-        <section aria-label="Deleted resumes" className="rounded-2xl bg-surface px-4 sm:px-6">
+        <section aria-label="Deleted resumes" className="rounded-2xl bg-surface px-5 sm:px-6">
           <ul className="divide-y divide-border">
             {entries.map((entry) => (
               <TrashRow
@@ -176,11 +179,19 @@ function TrashRow({
   return (
     <li className="flex flex-wrap items-center gap-x-4 gap-y-3 py-4">
       <div className="min-w-0 flex-1 basis-48">
-        <p className="truncate text-base/6 font-medium text-ink">{title}</p>
-        <p className="text-sm/5 text-subtle">{meta}</p>
+        <p title={title} className="truncate text-base/6 font-medium text-ink">
+          {title}
+        </p>
+        <p className="text-sm/5 text-subtle tabular-nums">{meta}</p>
       </div>
-      <div className="flex gap-2">
-        <Button variant="secondary" size="sm" onClick={onRestore} aria-label={`Restore ${title}`}>
+      <div className="flex gap-1">
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={onRestore}
+          aria-label={`Restore ${title}`}
+          title="Brings it back as a new copy"
+        >
           <RotateCcw aria-hidden />
           Restore
         </Button>
@@ -189,6 +200,7 @@ function TrashRow({
           size="sm"
           onClick={onForget}
           aria-label={`Delete forever: ${title}`}
+          className="text-muted hover:text-ink"
         >
           Delete forever
         </Button>

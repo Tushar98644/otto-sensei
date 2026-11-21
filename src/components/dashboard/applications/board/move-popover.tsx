@@ -2,9 +2,9 @@
 
 import { CircleX, MailX, MessagesSquare } from "lucide-react";
 import { useEffect, useId, useLayoutEffect, useRef, useState, type FormEvent } from "react";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { ProMark } from "@/components/ui/pro-mark";
 import type { ApplicationStatus } from "@/lib/applications/status";
 import { fromDateInput, toDateInput } from "../form";
 import { cardName, type BoardCard } from "./board";
@@ -147,11 +147,7 @@ export function MovePopover({
             <Button type="button" variant="secondary" size="sm" onClick={() => interview(true)}>
               <MessagesSquare aria-hidden />
               Move and prepare
-              {pro === false ? (
-                <Badge variant="ink" className="h-5 px-1.5">
-                  Pro
-                </Badge>
-              ) : null}
+              {pro === false ? <ProMark /> : null}
             </Button>
           </div>
           <Button type="button" variant="ghost" size="sm" className="self-start" onClick={onCancel}>

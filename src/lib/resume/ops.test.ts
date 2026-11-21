@@ -18,6 +18,7 @@ import {
   titleKey,
   touch,
   uniqueTitle,
+  uploadTitle,
   visibleResume,
 } from "./ops";
 import { emptyResume, type Experience, type Resume } from "./schema";
@@ -526,9 +527,19 @@ describe("unique resume names", () => {
     expect(isTitleTaken("Sample resume", list, "b")).toBe(true);
   });
 
-  it("names uploads after the file", () => {
+  it("cleans a file name into a title", () => {
     expect(titleFromFileName("Maya_Chen-Resume 2024.pdf")).toBe("Maya Chen Resume 2024");
     expect(titleFromFileName(".pdf")).toBe("");
+  });
+
+  it("names uploads after the person, then the file", () => {
+    const read = (name: string) => ({
+      ...emptyResume(),
+      basics: { ...emptyResume().basics, name },
+    });
+    expect(uploadTitle(read("Maya  Chen "), "maya.pdf")).toBe("Maya Chen");
+    expect(uploadTitle(read("  "), "Maya_Chen-Resume 2024.pdf")).toBe("Maya Chen Resume 2024");
+    expect(uploadTitle(read(""), ".pdf")).toBe("My resume");
   });
 });
 

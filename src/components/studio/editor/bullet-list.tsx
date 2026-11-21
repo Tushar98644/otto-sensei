@@ -102,7 +102,7 @@ export function BulletList({
         ) : null}
       </div>
       {ticks ? (
-        <div className="sr-only group-focus-within/entry:not-sr-only">
+        <div className="sr-only group-data-focused/entry:not-sr-only">
           <div className="pt-1 empty:hidden">
             <EntryChecks lines={lines} ownerHeadingId={ownerHeadingId} ended={ended} />
           </div>

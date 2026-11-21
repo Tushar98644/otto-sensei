@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { Otto } from "@/components/mascot/otto";
 import { JobMatchTool } from "@/components/match-check/job-match-tool";
 import { IntentLink } from "@/components/site/intent-link";
+import { HERO_CTA_ID } from "@/components/site/page-cta";
 import { pageMetadata } from "@/components/site/page-metadata";
 import { ROUTES } from "@/components/site/routes";
 import { TextLink } from "@/components/site/text-link";
@@ -71,19 +72,18 @@ const faq: readonly FaqItem[] = [
 export default function JobMatchPage() {
   return (
     <>
-      <div className="container-page pt-16 sm:pt-24">
+      <div className="container-page pt-12 sm:pt-16">
         <div className="mx-auto flex max-w-3xl flex-col items-center text-center">
           <Eyebrow className="mb-4">Free, no sign-in</Eyebrow>
           <h1 className="font-display text-5xl/none font-normal tracking-tight text-ink sm:text-7xl/none">
             Does your resume{" "}
             <em className={cn("block", displayItalic.className)}>match this job?</em>
           </h1>
-          <p className="mt-6 max-w-xl text-lg/7 text-muted sm:text-xl/8">
-            See which skills the post names, where your resume shows each one, and what&apos;s
-            missing. Counts, not a made-up score.
+          <p className="mt-6 max-w-xl text-lg/7 text-balance text-muted sm:text-xl/8">
+            See which skills the post names and where your resume shows each. No made-up score.
           </p>
         </div>
-        <Panel className="mt-12 sm:mt-16">
+        <Panel id={HERO_CTA_ID} className="mt-10 sm:mt-12">
           <JobMatchTool />
         </Panel>
         <section

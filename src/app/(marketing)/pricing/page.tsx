@@ -106,16 +106,15 @@ export default async function PricingPage() {
   const plans = plansOnSale(offer);
   const renewals = [...new Set(PAID_PLANS.flatMap((plan) => offer[plan]))];
   return (
-    <div className="container-page pt-16 pb-24 sm:pt-24 sm:pb-32">
+    <div className="container-page pt-12 pb-24 sm:pt-16 sm:pb-32">
       <JsonLd data={softwareJsonLd(offer, appUrl())} />
       <div className="mx-auto flex max-w-3xl flex-col items-center text-center">
-        <h1 className="font-display text-5xl/none font-normal tracking-tight text-ink sm:text-7xl/none">
+        <h1 className="font-display text-5xl/none font-normal tracking-tight text-balance text-ink sm:text-6xl/none">
           Free for the basics.{" "}
           <em className={cn("block", displayItalic.className)}>More when the hunt gets busy.</em>
         </h1>
-        <p className="mt-6 max-w-xl text-lg/7 text-pretty text-muted sm:text-xl/8">
-          Checking, fixing and downloading are free. Pro adds Otto&apos;s AI help, every job match
-          and the tracker.
+        <p className="mt-6 text-lg/7 text-balance text-muted">
+          Pro adds Otto&apos;s AI help, every job match and the tracker.
         </p>
       </div>
 
@@ -125,15 +124,10 @@ export default async function PricingPage() {
         headingAs="h2"
         otto={<Otto pose="point" size={96} />}
         jobCounts={jobCounts}
-        className="mx-auto mt-16 max-w-6xl"
+        className="mx-auto mt-8 max-w-6xl sm:mt-12"
       />
-      <OttoNote
-        size="sm"
-        live={false}
-        message={OTTO.pricing.samePrinciples}
-        className="mx-auto mt-8 w-fit max-w-xl"
-      />
-      <p className="mt-6 text-center text-sm text-subtle">
+      {/* Sits right under the plans' fair-use line, so the two read as one block of fine print. */}
+      <p className="mx-auto mt-2 max-w-2xl text-center text-sm text-balance text-muted">
         Prices in US dollars. Taxes may apply. Paid plans renew each {renewalPeriods(renewals)}{" "}
         until you cancel.
       </p>
@@ -153,7 +147,12 @@ export default async function PricingPage() {
         <FaqList items={billingFaq} className="lg:col-span-2" />
       </section>
 
-      <ClosingPanel offer={offer} trial={trial} className="mt-24 sm:mt-32" />
+      <ClosingPanel
+        offer={offer}
+        trial={trial}
+        note={<OttoNote size="sm" live={false} message={OTTO.pricing.samePrinciples} />}
+        className="mt-24 sm:mt-32"
+      />
     </div>
   );
 }

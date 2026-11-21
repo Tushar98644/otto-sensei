@@ -6,12 +6,12 @@ const TRIAL: UsagePeriod = { kind: "trial", resetsAt: Date.UTC(2026, 10, 24, 12)
 const MONTH: UsagePeriod = { kind: "month", resetsAt: Date.UTC(2026, 11, 17, 12), renews: true };
 
 describe("prep allowance line", () => {
-  it("names the shared allowance and what is left", () => {
+  it("names what is left and that letters share it", () => {
     expect(prepAllowance({ used: 3, limit: 15 }, TRIAL)).toBe(
-      "Uses 1 of your 15 cover letters, outreach messages, answers and interview prep this trial. 12 left.",
+      "Uses 1 of your 12 left this trial, shared with letters and messages.",
     );
     expect(prepAllowance({ used: 0, limit: 150 }, MONTH)).toBe(
-      "Uses 1 of your 150 cover letters, outreach messages, answers and interview prep this month. 150 left.",
+      "Uses 1 of your 150 left this month, shared with letters and messages.",
     );
   });
 

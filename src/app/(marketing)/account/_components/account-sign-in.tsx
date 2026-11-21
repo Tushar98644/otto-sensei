@@ -2,9 +2,9 @@
 
 import { ACCOUNT_OTTO, UPGRADE_SIGN_IN_TITLE } from "@/components/account/copy";
 import { SignInForm } from "@/components/account/sign-in-form";
+import { SignInScreen } from "@/components/account/sign-in-screen";
 import { upgradeOffer } from "@/components/account/upgrade-offer";
 import type { Me } from "@/components/account/use-me";
-import { OttoNote } from "@/components/mascot/otto-note";
 import { upgradeHref } from "@/components/site/routes";
 import type { BillingInterval, PaidPlanId } from "@/config/plans";
 
@@ -42,16 +42,17 @@ export function AccountSignIn({
     : "Sign in";
 
   return (
-    <div data-sign-in className="mx-auto flex w-full max-w-lg flex-col gap-8">
-      <h1 className="font-display text-4xl/10 font-normal tracking-tight text-balance text-ink sm:text-5xl/13">
-        {title}
-      </h1>
-      <OttoNote live={false} message={card ? ACCOUNT_OTTO.upgradeSignIn : ACCOUNT_OTTO.signedOut} />
+    <SignInScreen
+      data-sign-in
+      title={title}
+      message={card ? ACCOUNT_OTTO.upgradeSignIn : ACCOUNT_OTTO.signedOut}
+    >
       <SignInForm
         autoFocus={autoFocus}
+        centered
         next={card ? upgradeHref(card.plan, card.interval, next) : undefined}
         onSignedIn={onSignedIn}
       />
-    </div>
+    </SignInScreen>
   );
 }

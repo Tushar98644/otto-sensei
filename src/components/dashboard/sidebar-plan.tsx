@@ -1,53 +1,26 @@
 "use client";
 
-import { Clock, TriangleExclamationPoint } from "lucide-react";
-import Link from "next/link";
+import { TriangleExclamationPoint } from "lucide-react";
 import { useBillingRedirect } from "@/components/account/use-billing-redirect";
-import type { Me } from "@/components/account/use-me";
-import { ROUTES } from "@/components/site/routes";
-import { useNow } from "@/components/studio/use-now";
 import { Button } from "@/components/ui/button";
-import type { SessionUser } from "@/lib/auth/types";
-import { planSlip } from "./plan-slip";
+import type { PlanSlip } from "./plan-slip";
 
+// A trial's days left ride on the account row's plan line, so only the offer and a failed payment show here.
 export function SidebarPlan({
-  user,
-  me,
+  slip,
   onUpgrade,
 }: {
-  user: SessionUser;
-  me: Me | null;
+  slip: PlanSlip | null;
   onUpgrade: () => void;
 }) {
-  const now = useNow();
   const portal = useBillingRedirect("portal");
-  const slip = planSlip(user, me?.billing, now);
-  if (!slip) return null;
+  if (!slip || slip.kind === "trial") return null;
 
   if (slip.kind === "offer") {
     return (
       <Button variant="secondary" size="sm" onClick={onUpgrade} className="w-full">
         {slip.label}
       </Button>
-    );
-  }
-
-  if (slip.kind === "trial") {
-    return (
-      <p className="flex h-9 items-center gap-2.5 px-2.5 text-sm text-muted">
-        <Clock aria-hidden className="size-4 shrink-0" />
-        <span>
-          {slip.label}
-          <span aria-hidden> · </span>
-          <Link
-            href={`${ROUTES.dashboardAccount}#plan`}
-            className="font-medium text-ink underline decoration-border-strong underline-offset-4 hover:decoration-ink"
-          >
-            Manage
-            <span className="sr-only"> your trial</span>
-          </Link>
-        </span>
-      </p>
     );
   }
 

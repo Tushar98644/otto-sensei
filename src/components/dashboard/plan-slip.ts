@@ -11,7 +11,7 @@ type SlipBilling = {
   paymentIssue?: boolean;
 };
 
-type PlanSlip = { kind: "payment" | "trial" | "offer"; label: string };
+export type PlanSlip = { kind: "payment" | "trial" | "offer"; label: string };
 
 export function offerLabel(trialOnOffer: boolean): string {
   const pro = PLANS[PRO_TRIAL.plan].name;

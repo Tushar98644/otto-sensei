@@ -1,8 +1,8 @@
 import { useSyncExternalStore } from "react";
 
-export type HomeUploadState = { dragging: boolean; opening: string | null; upgrade: boolean };
+export type HomeUploadState = { dragging: boolean; opening: string | null };
 
-const IDLE: HomeUploadState = { dragging: false, opening: null, upgrade: false };
+const IDLE: HomeUploadState = { dragging: false, opening: null };
 
 let state = IDLE;
 let picker: HTMLInputElement | null = null;
@@ -41,8 +41,8 @@ export function resetHomeUpload(): void {
   updateHomeUpload(IDLE);
 }
 
-// The studio's store loads only on intent, so the home page itself stays light.
-export const loadOpener = () => import("@/components/match-check/open-studio");
+// The studio's store loads only on intent, and its Upload step asks for room, so the upgrade dialog never loads here.
+export const loadOpener = () => import("@/components/match-check/hand-off-file");
 
 export function preloadOpener(): void {
   void loadOpener().catch(() => undefined);

@@ -1,8 +1,9 @@
 import { PORTFOLIO_ROUTE } from "@/components/portfolio/route";
 import { PortfolioShot } from "@/components/portfolio/portfolio-shot";
 import type { PortfolioShotId } from "@/components/portfolio/portfolio-shot-data";
-import { PRO_TRIAL } from "@/config/plans";
+import { PLANS, PRO_TRIAL } from "@/config/plans";
 import { trialOffered } from "@/lib/billing/intervals";
+import { trialPrice } from "@/lib/billing/prices";
 import { PORTFOLIO_TEMPLATE_INFO } from "@/lib/portfolio/templates";
 import { cn } from "@/lib/utils";
 import { displayItalic } from "./display-italic";
@@ -23,9 +24,7 @@ export function PortfolioShowcase() {
           </>
         }
       >
-        Not your resume as a web page. Pick one of eight designs and Otto fills it with your
-        projects, work, writing and links. We host it, so there&apos;s nothing to set up. It comes
-        with Pro{trialOffered() ? `, and you can start with a ${PRO_TRIAL.days}-day trial` : ""}.
+        Pick one of eight designs. Otto fills it with your projects, work and links, and we host it.
       </SectionHeader>
       <ul className="mt-12 grid gap-x-6 gap-y-8 sm:mt-16 sm:grid-cols-3">
         {SHOWN.map((id) => {
@@ -45,7 +44,16 @@ export function PortfolioShowcase() {
           );
         })}
       </ul>
-      <SectionLink href={PORTFOLIO_ROUTE}>Make my portfolio</SectionLink>
+      <SectionLink
+        href={PORTFOLIO_ROUTE}
+        aside={
+          trialOffered()
+            ? `Comes with ${PLANS.pro.name}. Try ${PRO_TRIAL.days} days for ${trialPrice()}.`
+            : `Comes with ${PLANS.pro.name}.`
+        }
+      >
+        Make my portfolio
+      </SectionLink>
     </Section>
   );
 }

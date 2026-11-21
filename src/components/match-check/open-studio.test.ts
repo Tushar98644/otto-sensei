@@ -4,6 +4,7 @@ import { setTailorDraft, type TailorDraft } from "@/components/studio/tailor/ses
 import { clearHandedUpload, handedUpload } from "@/components/studio/upload/upload-handoff";
 import { track } from "@/lib/analytics/client";
 import { useStudioStore } from "@/lib/store/resume-store";
+import { handFileToStudio } from "./hand-off-file";
 import { openStudioWith, openStudioWithFile } from "./open-studio";
 import { sampleTexts } from "./sample";
 
@@ -79,12 +80,20 @@ describe("openStudioWith", () => {
     expect(setTailorDraft).toHaveBeenCalledExactlyOnceWith(job);
   });
 
-  it("hands the home page's file to Upload and leaves Tailor alone", async () => {
+  it("hands a file to Upload on its own and leaves Tailor alone", async () => {
     const file = new File(["%PDF-1.7"], "cv.pdf", { type: "application/pdf" });
     expect(await openStudioWithFile(file)).toBe(true);
     expect(handedUpload()).toBe(file);
     expect(store().step).toBe("upload");
     expect(setTailorDraft).not.toHaveBeenCalled();
+  });
+
+  it("hands the home page's file over without asking for room, which Upload does itself", async () => {
+    const file = new File(["%PDF-1.7"], "cv.pdf", { type: "application/pdf" });
+    await handFileToStudio(file);
+    expect(handedUpload()).toBe(file);
+    expect(store().step).toBe("upload");
+    expect(roomForResume).not.toHaveBeenCalled();
   });
 
   it("changes nothing when there is no room for another resume", async () => {

@@ -65,7 +65,7 @@ export function TemplatePicker({ value, onChange, own, disabled = false }: Templ
                         </span>
                       ) : null}
                     </span>
-                    <span className="line-clamp-2 px-0.5 text-xs/5 text-muted">{description}</span>
+                    <span className="px-0.5 text-xs/5 text-pretty text-muted">{description}</span>
                   </label>
                 );
               })}

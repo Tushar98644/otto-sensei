@@ -1,6 +1,15 @@
 "use client";
 
-import { ArrowLeft, PenLine, Trash2 } from "lucide-react";
+import {
+  ArrowLeft,
+  CalendarDays,
+  CalendarPlus,
+  Ellipsis,
+  MessagesSquare,
+  PenLine,
+  Send,
+  Trash2,
+} from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -10,8 +19,11 @@ import { openFeaturePrompt } from "@/components/account/upgrade-prompt";
 import { OttoNote } from "@/components/mascot/otto-note";
 import { ROUTES } from "@/components/site/routes";
 import { useNow } from "@/components/studio/use-now";
+import { downloadBlob } from "@/components/studio/tailor/jump";
 import { Alert } from "@/components/ui/alert";
-import { Button } from "@/components/ui/button";
+import { Button, buttonClasses } from "@/components/ui/button";
+import { Menu } from "@/components/ui/menu";
+import { ProMark } from "@/components/ui/pro-mark";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "@/components/ui/toast";
 import { undoToast } from "@/components/ui/undo-toast";
@@ -20,7 +32,6 @@ import type { Application } from "@/lib/applications/schema";
 import { nextStep, STATUS_NAMES, type ApplicationStatus } from "@/lib/applications/status";
 import { copyLetter, type ApplicationThread } from "@/lib/applications/thread";
 import { savedJobText } from "@/lib/insights/saved-job";
-import { resumeTitle } from "@/lib/resume/ops";
 import { useResumeList, useStudioHydrated } from "@/lib/store/resume-store";
 import type { Writing } from "@/lib/writings/schema";
 import type { OutreachJob } from "../../jobs/outreach-saved";
@@ -39,7 +50,8 @@ import {
   restoreApplication,
   useApplications,
 } from "../use-applications";
-import { formatDay, prepHref, sentLabel } from "../view";
+import { daysUntil, formatDay, prepareHref, prepHref } from "../view";
+import { icsFileName, interviewIcs } from "./calendar";
 import { hubLetters, hubTally, LettersCard, withWriting } from "./hub-letters";
 import { JobCard, NotesCard, PrepCard, ResumeSentCard, TimelineCard } from "./hub-sections";
 import { nextStepLine, timelineSteps } from "./timeline";
@@ -134,7 +146,23 @@ export function ApplicationHub({ applicationId }: { applicationId: string }) {
 
   function prepare(target: Application) {
     if (pro === false) openFeaturePrompt("letter");
-    else router.push(prepHref(target.id));
+    else router.push(prepareHref(target));
+  }
+
+  function addToCalendar(target: Application) {
+    if (target.interviewAt === null) return;
+    const ics = interviewIcs(
+      {
+        id: target.id,
+        company: target.company,
+        role: target.role,
+        jobUrl: thread?.job?.url || target.jobUrl,
+        interviewAt: target.interviewAt,
+        prepUrl: `${window.location.origin}${prepHref(target.id)}`,
+      },
+      Date.now(),
+    );
+    downloadBlob(new Blob([ics], { type: "text/calendar;charset=utf-8" }), icsFileName(target.company));
   }
 
   function write() {
@@ -181,10 +209,6 @@ export function ApplicationHub({ applicationId }: { applicationId: string }) {
   }
 
   const next = application ? nextStep(application.status) : null;
-  const titles = useMemo(
-    () => new Map(resumes.map((resume) => [resume.id, { title: resumeTitle(resume) }])),
-    [resumes],
-  );
   const facts = application
     ? [
         STATUS_NAMES[application.status],
@@ -194,6 +218,14 @@ export function ApplicationHub({ applicationId }: { applicationId: string }) {
         .filter(Boolean)
         .join(" · ")
     : "";
+
+  const interviewing = application?.status === "interview";
+  const interviewPast =
+    application?.interviewAt != null && now > 0 && daysUntil(application.interviewAt, now) < 0;
+  // At an interview the note carries prep; a closed one keeps a pack it already has.
+  const showPrepCard =
+    application !== null &&
+    (thread?.prep != null || application.status === "applied");
 
   return (
     <div className="flex flex-col gap-8">
@@ -211,18 +243,14 @@ export function ApplicationHub({ applicationId }: { applicationId: string }) {
               <h1 className="font-display text-4xl/10 font-normal tracking-tight text-pretty text-ink sm:text-5xl/13">
                 {application.company}
               </h1>
-              <p className="mt-2 max-w-prose text-base/7 text-muted">
+              <p className="mt-2 max-w-prose text-base/7 text-pretty text-muted">
                 {[
                   application.role,
                   `Applied ${formatDay(application.appliedAt, now || application.appliedAt)}`,
-                  application.interviewAt
-                    ? `Interview ${formatDay(application.interviewAt, now || application.interviewAt)}`
-                    : null,
                 ]
                   .filter(Boolean)
                   .join(" · ")}
               </p>
-              <p className="mt-1 text-sm/5 text-subtle">Sent {sentLabel(application, titles)}</p>
             </div>
             <div className="flex flex-wrap items-center gap-2">
               <StatusMenu application={application} onChange={(status) => setStatus(application, status)} />
@@ -231,6 +259,31 @@ export function ApplicationHub({ applicationId }: { applicationId: string }) {
                   {next.label}
                 </Button>
               ) : null}
+              <Menu
+                label={`More for ${application.company}`}
+                align="end"
+                triggerLabel={`More for ${application.company}`}
+                triggerClassName={buttonClasses({
+                  variant: "ghost",
+                  size: "icon-sm",
+                  className: "text-muted hover:text-ink",
+                })}
+                trigger={<Ellipsis aria-hidden />}
+                items={[
+                  {
+                    label: "Edit details",
+                    icon: PenLine,
+                    onSelect: () => setDialog({ kind: "edit", application }),
+                  },
+                  "separator",
+                  {
+                    label: "Delete application",
+                    icon: Trash2,
+                    tone: "danger",
+                    onSelect: () => remove(application),
+                  },
+                ]}
+              />
             </div>
           </div>
         ) : null}
@@ -279,20 +332,60 @@ export function ApplicationHub({ applicationId }: { applicationId: string }) {
             message={nextStepLine(application, thread.prep !== null, now)}
           >
             {application.status === "applied" ? (
-              <FollowUpChip application={application} now={now} />
+              <FollowUpChip
+                application={application}
+                now={now}
+                lead={
+                  <Button size="sm" onClick={writeOutreach}>
+                    <Send aria-hidden />
+                    Write it for me
+                    {pro === false && !letters.some((letter) => letter.kind === "outreach") ? (
+                      <ProMark className="text-white/75" />
+                    ) : null}
+                  </Button>
+                }
+              />
+            ) : null}
+            {interviewing ? (
+              <>
+                {thread.prep === null && !interviewPast ? (
+                  <Button size="sm" onClick={() => prepare(application)}>
+                    <MessagesSquare aria-hidden />
+                    Prepare for this interview
+                    {pro === false ? <ProMark className="text-white/75" /> : null}
+                  </Button>
+                ) : null}
+                {application.interviewAt !== null && !interviewPast ? (
+                  <Button variant="ghost" size="sm" onClick={() => addToCalendar(application)}>
+                    <CalendarPlus aria-hidden />
+                    Add to calendar
+                  </Button>
+                ) : (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setDialog({ kind: "edit", application, focus: "interview" })}
+                  >
+                    <CalendarDays aria-hidden />
+                    {application.interviewAt === null ? "Add the interview day" : "Add the next interview day"}
+                  </Button>
+                )}
+              </>
             ) : null}
           </OttoNote>
 
           <div className="grid items-start gap-6 lg:grid-cols-3">
             <div className="flex flex-col gap-6 lg:col-span-2">
               <TimelineCard steps={steps} now={now} />
-              <PrepCard
-                application={application}
-                prep={thread.prep}
-                now={now}
-                pro={pro}
-                onPrepare={() => prepare(application)}
-              />
+              {showPrepCard ? (
+                <PrepCard
+                  application={application}
+                  prep={thread.prep}
+                  now={now}
+                  pro={pro}
+                  onPrepare={() => prepare(application)}
+                />
+              ) : null}
               <LettersCard
                 letters={letters}
                 now={now}
@@ -314,21 +407,6 @@ export function ApplicationHub({ applicationId }: { applicationId: string }) {
               />
               <ResumeSentCard application={application} sent={sent} onOpen={actions.open} />
             </div>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <Button variant="ghost" size="sm" onClick={() => setDialog({ kind: "edit", application })}>
-              <PenLine aria-hidden />
-              Edit details
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="text-fail-ink hover:bg-fail-soft"
-              onClick={() => remove(application)}
-            >
-              <Trash2 aria-hidden className="text-fail" />
-              Delete application
-            </Button>
           </div>
         </>
       ) : null}

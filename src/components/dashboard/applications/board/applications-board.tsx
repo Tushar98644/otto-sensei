@@ -1,12 +1,14 @@
 "use client";
 
-import { Trash2 } from "lucide-react";
+import { ArrowRight, Search, Trash2 } from "lucide-react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useCallback, useId, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import { errorMessage } from "@/components/account/errors";
 import { roomForApplication } from "@/components/account/pro-tools";
 import { openFeaturePrompt } from "@/components/account/upgrade-prompt";
-import { Button } from "@/components/ui/button";
+import { ROUTES } from "@/components/site/routes";
+import { Button, buttonClasses } from "@/components/ui/button";
 import { toast } from "@/components/ui/toast";
 import { undoToast } from "@/components/ui/undo-toast";
 import type { Application } from "@/lib/applications/schema";
@@ -24,7 +26,7 @@ import {
   hideApplication,
   restoreApplication,
 } from "../use-applications";
-import { formatDay, prepHref } from "../view";
+import { formatDay, prepareHref } from "../view";
 import {
   BOARD_COLUMNS,
   boardColumns,
@@ -34,8 +36,10 @@ import {
   COLUMN_NAMES,
   COLUMN_PAGE,
   createBody,
+  firstTab,
   planDrop,
   planStatus,
+  TO_APPLY_HINT,
   type BoardCard,
   type BoardColumn,
   type Move,
@@ -57,6 +61,14 @@ const STAGE: Record<BoardColumn, { bar: string; tint: string; over: string }> = 
 };
 
 type MoveMode = DragMode | "menu";
+
+const EMPTY_LINE: Record<BoardColumn, string> = {
+  to_apply: TO_APPLY_HINT,
+  applied: "Nothing waiting on a reply.",
+  interview: "No interviews right now.",
+  offer: "No offers yet.",
+  closed: "Nothing closed yet.",
+};
 
 function sentAt(): number {
   return Date.now();
@@ -85,16 +97,27 @@ export function ApplicationsBoard({
   const actions = useStudioActions();
   const instructionsId = useId();
   const scrollerRef = useRef<HTMLDivElement>(null);
-  const [tab, setTab] = useState<BoardColumn>("applied");
+  const tabsRef = useRef<HTMLDivElement>(null);
+  const columns = useMemo(
+    () => boardColumns(applications, toApply, resumes, now),
+    [applications, toApply, resumes, now],
+  );
+  const [tab, setTab] = useState<BoardColumn>(() => firstTab(columns, now));
   const [busyKey, setBusyKey] = useState<string | null>(null);
   const [focusKey, setFocusKey] = useState<string | null>(null);
   const [ask, setAsk] = useState<MoveAsk | null>(null);
   const [shown, setShown] = useState<Partial<Record<BoardColumn, number>>>({});
 
-  const columns = useMemo(
-    () => boardColumns(applications, toApply, resumes, now),
-    [applications, toApply, resumes, now],
-  );
+  // The phone strip scrolls inside itself, so the picked stage is brought into view there.
+  useEffect(() => {
+    const strip = tabsRef.current;
+    const picked = strip?.querySelector<HTMLElement>("[aria-pressed=true]");
+    if (!strip || !picked) return;
+    const left = picked.offsetLeft - strip.offsetLeft;
+    if (left < strip.scrollLeft || left + picked.offsetWidth > strip.scrollLeft + strip.clientWidth) {
+      strip.scrollLeft = left - 16;
+    }
+  }, [tab]);
   const letters = useMemo(
     () => writingsByApplication(applications, writings),
     [applications, writings],
@@ -113,7 +136,7 @@ export function ApplicationsBoard({
 
   function prepare(application: Application) {
     if (pro === false) openFeaturePrompt("letter");
-    else router.push(prepHref(application.id));
+    else router.push(prepareHref(application));
   }
 
   function anchorOf(card: BoardCard, point: DropPoint): { x: number; y: number } {
@@ -268,13 +291,16 @@ export function ApplicationsBoard({
     const stage = STAGE[name];
     const over = held !== null && held.target === name && canDrop(held.card, name);
     const blocked = held !== null && name !== cardColumn(held.card) && !canDrop(held.card, name);
+    const rail = cards.length === 0;
+    const headingId = `${instructionsId}-${name}`;
     return (
       <section
         key={name}
-        aria-labelledby={`${instructionsId}-${name}`}
+        aria-labelledby={headingId}
         data-drop-target={name}
         className={cn(
-          "relative flex w-full flex-col overflow-hidden rounded-2xl border border-border bg-surface-hover transition-[opacity,filter,border-color,box-shadow] md:h-[min(42rem,calc(100dvh-13rem))] md:w-76 md:shrink-0",
+          "relative flex w-full flex-col overflow-hidden rounded-2xl border border-border bg-surface-hover transition-[opacity,filter,border-color,box-shadow] duration-150 ease-out md:max-h-[min(42rem,calc(100dvh-13rem))] md:min-h-72",
+          rail ? "md:w-11 md:flex-none" : "md:max-w-76 md:min-w-46 md:flex-1",
           over && [stage.over, "shadow-card"],
           blocked && "opacity-40 grayscale",
           name !== tab && "max-md:hidden",
@@ -287,23 +313,49 @@ export function ApplicationsBoard({
             stage.tint,
           )}
         />
-        <header className="relative flex h-10 shrink-0 items-center gap-2 px-3 pt-1">
-          <span aria-hidden className={cn("h-4 w-1 rounded-full", stage.bar)} />
-          <h3 id={`${instructionsId}-${name}`} className="flex-1 text-sm/5 font-semibold text-ink">
+        <header
+          className={cn(
+            "relative flex h-11 shrink-0 items-center gap-2 px-3 pt-1",
+            rail && "md:h-auto md:flex-col md:gap-3 md:px-0 md:pt-3.5",
+          )}
+        >
+          <span aria-hidden className={cn("h-4 w-1 shrink-0 rounded-full", stage.bar)} />
+          <h3
+            id={headingId}
+            className={cn(
+              "flex-1 text-sm/5 font-semibold text-ink",
+              rail && "md:flex-none md:[writing-mode:vertical-rl]",
+            )}
+          >
             {COLUMN_NAMES[name]}
           </h3>
-          <span className="text-xs font-medium text-muted tabular-nums">
+          <span className={cn("text-xs font-medium text-muted tabular-nums", rail && "md:sr-only")}>
             {count.format(cards.length)}
           </span>
+          {rail && name === "to_apply" ? (
+            <Link
+              href={ROUTES.dashboardJobs}
+              aria-label="Find jobs"
+              title={TO_APPLY_HINT}
+              className={buttonClasses({
+                variant: "ghost",
+                size: "icon-sm",
+                className: "hidden text-muted hover:text-ink md:inline-flex",
+              })}
+            >
+              <Search aria-hidden />
+            </Link>
+          ) : null}
         </header>
-        <div className="relative flex-1 px-2 pt-2 pb-2 md:overflow-y-auto">
+        <div className={cn("relative flex-1 px-2 pt-1 pb-2 md:overflow-y-auto", rail && "md:hidden")}>
           {cards.length > 0 ? (
-            <ul className="flex flex-col gap-1">
+            <ul className="flex flex-col gap-1.5">
               {cards.slice(0, limit).map((card) => (
                 <BoardCardView
                   key={card.key}
                   card={card}
                   now={now}
+                  pro={pro}
                   hasLetter={hasLetter(card)}
                   lifted={held?.mode === "pointer" && held.card.key === card.key}
                   holding={held?.mode === "keyboard" && held.card.key === card.key}
@@ -319,10 +371,18 @@ export function ApplicationsBoard({
               ))}
             </ul>
           ) : (
-            <p className="px-1 py-3 text-center text-sm text-subtle">
-              <span aria-hidden>—</span>
-              <span className="sr-only">Nothing in {COLUMN_NAMES[name]}</span>
-            </p>
+            <div className="flex flex-col items-start gap-3 px-1 pt-1 pb-3">
+              <p className="text-sm/6 text-pretty text-muted">{EMPTY_LINE[name]}</p>
+              {name === "to_apply" ? (
+                <Link
+                  href={ROUTES.dashboardJobs}
+                  className={buttonClasses({ variant: "secondary", size: "sm" })}
+                >
+                  Find jobs
+                  <ArrowRight aria-hidden />
+                </Link>
+              ) : null}
+            </div>
           )}
           {cards.length > limit ? (
             <Button
@@ -342,14 +402,14 @@ export function ApplicationsBoard({
   return (
     <div className="flex flex-col gap-3">
       <p id={instructionsId} className="sr-only">
-        Press Space on a job&apos;s initials to pick it up. Use the arrow keys to choose a column,
+        Press Space on a job&apos;s move handle to pick it up. Use the arrow keys to choose a column,
         then Space to drop it there, or Escape to put it back. Each job&apos;s menu can move it too.
       </p>
       <p aria-live="polite" className="sr-only">
         {drag.announcement}
       </p>
 
-      <div className="-mx-4 overflow-x-auto px-4 md:hidden">
+      <div ref={tabsRef} className="-mx-4 overflow-x-auto px-4 md:hidden">
         <div
           role="group"
           aria-label="Stage"
@@ -366,9 +426,11 @@ export function ApplicationsBoard({
             >
               <span aria-hidden className={cn("h-3 w-1 rounded-full", STAGE[name].bar)} />
               {COLUMN_NAMES[name]}
-              <span className="text-xs text-muted tabular-nums">
-                {count.format(columns[name].length)}
-              </span>
+              {columns[name].length > 0 ? (
+                <span className="text-xs text-muted tabular-nums">
+                  {count.format(columns[name].length)}
+                </span>
+              ) : null}
             </button>
           ))}
         </div>
@@ -379,7 +441,8 @@ export function ApplicationsBoard({
         ref={scrollerRef}
         className="md:-mr-8 md:overflow-x-auto md:pr-8 md:pb-3 lg:-mr-[calc(max(0px,(100vw-15rem-64rem)/2)+1.5rem)] lg:pr-[calc(max(0px,(100vw-15rem-64rem)/2)+1.5rem)]"
       >
-        <div className="flex flex-col md:w-max md:flex-row md:gap-3">
+        {/* Columns share the page width and only scroll once they reach their narrowest. */}
+        <div className="flex flex-col md:min-w-min md:flex-row md:items-stretch md:gap-2">
           {BOARD_COLUMNS.map((name) => column(name))}
         </div>
       </div>

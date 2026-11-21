@@ -29,7 +29,7 @@ export function StudioStepper({ step, context, onSelect }: StudioStepperProps) {
     <nav aria-label="Studio steps">
       <div className="flex items-center justify-between gap-3 md:hidden">
         <Button
-          variant="secondary"
+          variant="ghost"
           size="icon"
           disabled={!previous}
           aria-label={previous ? `Previous step: ${STEP_LABELS[previous]}` : "Previous step"}
@@ -44,7 +44,7 @@ export function StudioStepper({ step, context, onSelect }: StudioStepperProps) {
           <span className="font-medium text-ink">{STEP_LABELS[step]}</span>
         </p>
         <Button
-          variant="secondary"
+          variant="ghost"
           size="icon"
           disabled={!next}
           aria-label={next ? `Next step: ${STEP_LABELS[next]}` : "Next step"}
@@ -92,7 +92,7 @@ function StepButton({ step, number, status, current, done, onSelect }: StepButto
       disabled={status !== "available"}
       aria-current={current ? "step" : undefined}
       onClick={() => onSelect(step)}
-      className="group flex shrink-0 items-center gap-2 rounded-lg py-2 pr-3 pl-2 text-left transition-colors hover:bg-ink/5 disabled:pointer-events-none aria-[current=step]:hover:bg-transparent"
+      className="group flex shrink-0 items-center gap-2 rounded-lg py-2 pr-3 pl-2 text-left transition-colors duration-150 ease-out hover:bg-ink/5 disabled:pointer-events-none aria-[current=step]:hover:bg-transparent"
     >
       <span
         aria-hidden

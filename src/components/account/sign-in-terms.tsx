@@ -1,10 +1,11 @@
 import type { ReactNode } from "react";
 import { ROUTES } from "@/components/site/routes";
 import { TextLink } from "@/components/site/text-link";
+import { cn } from "@/lib/utils";
 
-export function SignInTerms() {
+export function SignInTerms({ className }: { className?: string }) {
   return (
-    <p className="text-xs leading-relaxed text-muted">
+    <p className={cn("text-xs leading-relaxed text-muted", className)}>
       New here? This creates your free account. By continuing you agree to the{" "}
       <LegalLink href={ROUTES.terms}>Terms</LegalLink> and{" "}
       <LegalLink href={ROUTES.privacy}>Privacy Policy</LegalLink>.

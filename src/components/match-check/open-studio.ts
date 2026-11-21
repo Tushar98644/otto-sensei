@@ -1,26 +1,19 @@
 import { roomForResume } from "@/components/account/pro-tools";
 import { setTailorDraft, type TailorDraft } from "@/components/studio/tailor/session";
 import { openSample } from "@/components/studio/upload/sample-start";
-import { handOffUpload } from "@/components/studio/upload/upload-handoff";
 import { track } from "@/lib/analytics/client";
 import { flushStudio, useStudioStore } from "@/lib/store/resume-store";
+import { handFileToStudio, loadStudio } from "./hand-off-file";
 
 export type StudioHandoff = { job: TailorDraft } & (
   { file: File } | { text: string; sample: boolean }
 );
 
-// A write before the saved studio loads would replace it.
-async function loadStudio(): Promise<void> {
-  if (!useStudioStore.persist.hasHydrated()) await useStudioStore.persist.rehydrate();
-}
-
 // Same as the dashboard's upload button: room for the resume first, then the studio opens on Upload with the file.
 export async function openStudioWithFile(file: File, retry?: () => void): Promise<boolean> {
   await loadStudio();
   if (!(await roomForResume(retry))) return false;
-  handOffUpload(file);
-  useStudioStore.getState().setStep("upload");
-  flushStudio();
+  await handFileToStudio(file);
   return true;
 }
 

@@ -105,11 +105,14 @@ describe("Jobs tab helpers", () => {
 
 describe("moreWithProCopy", () => {
   it("says how many matches Free isn't seeing, and what Pro adds, with real numbers", () => {
-    expect(moreWithProCopy(5, 1_243, 27_828)).toEqual({
-      title: "Your top 5 of 1,243 matches",
-      body: "Pro shows every match from 27,000+ open jobs, and narrows them by remote, level, posting date and where each job can hire.",
+    expect(moreWithProCopy(5, 1_243)).toEqual({
+      title: "1,238 more matches come with Pro",
+      body: "Pro shows every match, and narrows them by remote, level, posting date and where each job can hire.",
     });
-    expect(moreWithProCopy(3, 3, 19_325).title).toBe("Your 3 matches so far");
-    expect(moreWithProCopy(1, 1, 19_325).title).toBe("Your match so far");
+    expect(moreWithProCopy(5, 6).title).toBe("1 more match comes with Pro");
+    expect(moreWithProCopy(3, 3)).toEqual({
+      title: "Narrow your matches with Pro",
+      body: "Pro narrows them by remote, level, posting date and where each job can hire.",
+    });
   });
 });

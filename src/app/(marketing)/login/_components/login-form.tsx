@@ -46,6 +46,7 @@ export function LoginForm() {
   return (
     <SignInForm
       autoFocus
+      centered
       next={safeNextPath(requestedNext, DEFAULT_NEXT_PATH)}
       initialError={googleFailed ? GOOGLE_FAILED : undefined}
       onSignedIn={() => leave(DEFAULT_NEXT_PATH)}

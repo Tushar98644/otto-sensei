@@ -14,6 +14,7 @@ import type { SavedJob } from "@/lib/job-feed/types";
 import { resumeTitle } from "@/lib/resume/ops";
 import type { Resume } from "@/lib/resume/schema";
 import { DAY_MS } from "@/lib/time";
+import { upcomingFirst, upcomingInterview } from "../view";
 
 export const BOARD_COLUMNS = ["to_apply", "applied", "interview", "offer", "closed"] as const;
 export type BoardColumn = (typeof BOARD_COLUMNS)[number];
@@ -92,6 +93,7 @@ export function toApplyItems(
 
 export const STALE_DAYS = 14;
 export const COLUMN_PAGE = 20;
+export const TO_APPLY_HINT = "Jobs you save and resumes you tailor land here.";
 
 export function daysInStage(card: BoardCard, now: number): number {
   const since = card.kind === "application" ? card.application.statusChangedAt : card.item.addedAt;
@@ -128,7 +130,7 @@ export function boardColumns(
   const sorted = [...applications].sort(
     (a, b) => b.statusChangedAt - a.statusChangedAt || (a.id < b.id ? 1 : -1),
   );
-  for (const application of sorted) {
+  for (const application of upcomingFirst(sorted, now)) {
     columns[columnOf(application.status)].push({
       kind: "application",
       key: `application:${application.id}`,
@@ -222,13 +224,17 @@ export function stepColumn(card: BoardCard, current: BoardColumn, step: 1 | -1):
   return next ?? here;
 }
 
-export function initials(name: string): string {
-  const words = name
-    .replace(/[^\p{L}\p{N}\s]/gu, " ")
-    .split(/\s+/)
-    .filter(Boolean);
-  const letters = words.length > 1 ? words[0]!.charAt(0) + words[1]!.charAt(0) : (words[0] ?? "").slice(0, 2);
-  return letters.toUpperCase() || "?";
+// Phones show one column: the one with an interview coming up, else Applied, else the first in use.
+export function firstTab(
+  columns: Record<BoardColumn, readonly BoardCard[]>,
+  now: number,
+): BoardColumn {
+  const soon = columns.interview.some(
+    (card) => card.kind === "application" && upcomingInterview(card.application, now),
+  );
+  if (soon) return "interview";
+  if (columns.applied.length > 0) return "applied";
+  return BOARD_COLUMNS.find((name) => columns[name].length > 0) ?? "applied";
 }
 
 export function cardName(card: BoardCard): string {

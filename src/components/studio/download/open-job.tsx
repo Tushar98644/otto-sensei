@@ -41,7 +41,7 @@ function OpenJobLink({ resume, job }: { resume: Resume; job: CopyJobLink }) {
       className={buttonClasses({
         variant: opened ? "ghost" : "secondary",
         size: opened ? "sm" : "md",
-        className: opened ? undefined : "w-full",
+        className: opened ? undefined : "self-start",
       })}
     >
       {opened ? "Open the job again" : "Open job to apply"}

@@ -28,7 +28,7 @@ export function SkillGapsPanel() {
 
   return (
     <section aria-labelledby="skill-gaps-heading" className="flex flex-col gap-4">
-      <h2 id="skill-gaps-heading" className="font-sans text-lg/7 font-medium text-ink">
+      <h2 id="skill-gaps-heading" className="sr-only">
         What your jobs keep asking for
       </h2>
       <FolderCard

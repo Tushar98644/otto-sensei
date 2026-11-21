@@ -104,7 +104,7 @@ const jobscan: Competitor = {
   name: "Jobscan",
   site: "https://www.jobscan.co/",
   summary:
-    "Jobscan is a resume scanner: it compares your resume with a job post and gives a match rate. Around it sit a resume builder, a job tracker, job matches, LinkedIn help, cover letters, auto-apply and interview practice.",
+    "Jobscan is a resume scanner: it compares your resume with a job post and gives a match rate.",
   rows: [
     {
       label: "What it is",

@@ -37,9 +37,8 @@ export default function AtsGuidesPage() {
         }
       >
         <p>
-          An applicant tracking system (ATS) is the software employers use to collect and sort job
-          applications. Here is what Otto has found on {ATS_GUIDES.length} of them, with a link to
-          the page behind every note.
+          An ATS is the software employers use to sort applications. Here are sourced notes on{" "}
+          {ATS_GUIDES.length}.
         </p>
       </PageIntro>
 

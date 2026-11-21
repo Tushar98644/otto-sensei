@@ -1,6 +1,12 @@
 "use client";
 
-import { ChevronDown, ScanSearch, TriangleExclamationPoint, type LucideIcon } from "lucide-react";
+import {
+  ChevronDown,
+  CircleExclamationPoint,
+  ScanSearch,
+  TriangleExclamationPoint,
+  type LucideIcon,
+} from "lucide-react";
 import { useId, useState, type FormEvent, type RefObject } from "react";
 import { EligibilityCard } from "@/components/eligibility/eligibility-card";
 import { OTTO } from "@/components/mascot/lines";
@@ -11,6 +17,7 @@ import { Button } from "@/components/ui/button";
 import { Eyebrow } from "@/components/ui/eyebrow";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { VoiceTextarea } from "@/components/ui/voice-field";
 import { TEXT_LIMITS } from "@/config/plans";
 import { DAY_MS } from "@/lib/time";
@@ -39,6 +46,8 @@ export type JobFormProps = {
   onPageLink?: () => void;
   // A pick sends the job at once, so only Tailor shows them, not the letter dialog.
   recent?: boolean;
+  // A key beside the link field, so an empty form reads as one field and one action.
+  linkKey?: string;
 };
 
 const COMPARE = { label: "Compare with my resume", icon: ScanSearch };
@@ -253,9 +262,44 @@ function PasteFields({
 }
 
 export function JobForm(props: JobFormProps) {
-  const { onSubmit, busy, note, action = COMPARE, checks = true, recent = false } = props;
+  const { onSubmit, busy, note, action = COMPARE, checks = true, recent = false, linkKey } = props;
   // Refs come out first: React's lint treats every field of an object holding refs as a ref.
   const { linkRef, postRef, ...job } = useJobLink(props);
+  const linkId = useId();
+  const linkErrorId = useId();
+  const waiting = !job.posting && !job.pasting;
+
+  const linkInput = (own: { id?: string; className?: string } = {}) => (
+    <Input
+      ref={linkRef}
+      type="url"
+      inputMode="url"
+      value={job.link}
+      autoComplete="off"
+      spellCheck={false}
+      placeholder="https://"
+      enterKeyHint="go"
+      {...own}
+      {...(own.id
+        ? {
+            "aria-invalid": job.linkError ? true : undefined,
+            "aria-describedby": job.linkError ? linkErrorId : undefined,
+          }
+        : {})}
+      onChange={(event) => job.edit(event.target.value)}
+      onPaste={(event) => {
+        const pasted = event.clipboardData.getData("text").trim();
+        if (!pasted || job.reading || busy) return;
+        const whole =
+          event.currentTarget.value.trim() === "" ||
+          /^(https?:\/\/|www\.)/i.test(pasted) ||
+          /\s/.test(pasted);
+        if (!whole) return;
+        event.preventDefault();
+        job.pasteAndRead(pasted);
+      }}
+    />
+  );
 
   return (
     <div className="flex flex-col gap-6">
@@ -265,45 +309,66 @@ export function JobForm(props: JobFormProps) {
           void job.read();
         }}
         noValidate
-        className="flex flex-col gap-4"
+        className={cn("flex flex-col", linkKey ? "gap-2" : "gap-4")}
       >
-        <Field
-          label="Job link"
-          error={job.linkError}
-          hint={job.linkError ? null : "Paste the link and Otto reads it at once."}
-        >
-          <Input
-            ref={linkRef}
-            type="url"
-            inputMode="url"
-            value={job.link}
-            autoComplete="off"
-            spellCheck={false}
-            placeholder="https://"
-            enterKeyHint="go"
-            onChange={(event) => job.edit(event.target.value)}
-            onPaste={(event) => {
-              const pasted = event.clipboardData.getData("text").trim();
-              if (!pasted || job.reading || busy) return;
-              const whole =
-                event.currentTarget.value.trim() === "" ||
-                /^(https?:\/\/|www\.)/i.test(pasted) ||
-                /\s/.test(pasted);
-              if (!whole) return;
-              event.preventDefault();
-              job.pasteAndRead(pasted);
-            }}
-          />
-        </Field>
-        {job.reading ? (
-          <OttoWorking task="job" size="sm" />
-        ) : job.posting || job.pasting || !note ? null : (
-          <p className="text-sm text-muted">{note}</p>
+        {linkKey ? (
+          <div className="flex flex-col gap-2">
+            <Label htmlFor={linkId}>Job link</Label>
+            <div className="flex gap-2">
+              {linkInput({ id: linkId, className: "min-w-0 flex-1" })}
+              {waiting ? (
+                <Button type="submit" loading={job.reading} className="shrink-0">
+                  <action.icon />
+                  {linkKey}
+                </Button>
+              ) : null}
+            </div>
+            {job.linkError ? (
+              <p
+                id={linkErrorId}
+                className="flex items-start gap-1.5 text-sm font-medium text-fail-ink"
+              >
+                <CircleExclamationPoint aria-hidden className="mt-0.5 size-4 shrink-0" />
+                <span>{job.linkError}</span>
+              </p>
+            ) : null}
+          </div>
+        ) : (
+          <Field
+            label="Job link"
+            error={job.linkError}
+            hint={job.linkError ? null : "Paste the link and Otto reads it at once."}
+          >
+            {linkInput()}
+          </Field>
         )}
-        {job.posting || job.pasting ? null : (
-          <Button variant="link" onClick={job.pasteInstead} className={QUIET_LINK}>
-            No link? Paste the job text
-          </Button>
+        {linkKey ? (
+          <>
+            {waiting ? (
+              <div className="flex flex-wrap items-center justify-between gap-x-4">
+                <Button variant="link" onClick={job.pasteInstead} className={QUIET_LINK}>
+                  No link? Paste the job text
+                </Button>
+                {note && !job.reading ? (
+                  <p className="text-sm text-subtle tabular-nums">{note}</p>
+                ) : null}
+              </div>
+            ) : null}
+            {job.reading ? <OttoWorking task="job" size="sm" /> : null}
+          </>
+        ) : (
+          <>
+            {job.reading ? (
+              <OttoWorking task="job" size="sm" />
+            ) : job.posting || job.pasting || !note ? null : (
+              <p className="text-sm text-muted">{note}</p>
+            )}
+            {job.posting || job.pasting ? null : (
+              <Button variant="link" onClick={job.pasteInstead} className={QUIET_LINK}>
+                No link? Paste the job text
+              </Button>
+            )}
+          </>
         )}
       </form>
       {recent && !job.posting && !job.pasting && !job.reading ? (
