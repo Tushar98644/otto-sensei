@@ -45,11 +45,11 @@ function contentSaved(page: Page, text: string): Promise<Response> {
   );
 }
 
-// The way in from the app; a fresh load of the editor's own address can't save (see the fixme below).
+// The way in from the app; opening the editor straight from its address has its own test below.
 async function openEditor(page: Page, owner: PortfolioPerson): Promise<void> {
   await skipDashboardIntro(page);
   await page.goto("/dashboard");
-  // The card draws only once the app runs; a click before that is a full load, the fixme's case.
+  // The card draws only once the app runs; waiting for it keeps this an in-app navigation.
   await expect(
     page.getByRole("button", { name: `More actions for ${owner.resume.title}` }),
   ).toBeVisible();
@@ -129,7 +129,7 @@ test("edits to the content, design and sections show on the live page", async ({
   await expect(page.getByText("Saved to your live page", { exact: true })).toBeVisible();
 
   await editorTab(page, "Content").click();
-  // An edit typed before the saved content arrives is dropped (see the fixme below).
+  // Waits for the saved content; typing while it loads has its own test below.
   await (await loaded).finished();
   const content = page.getByRole("tabpanel", { name: "Content" });
   await content.getByText("Intro", { exact: true }).click();
@@ -321,8 +321,7 @@ test("a Free account is offered Pro instead of the editor", async ({ page, user 
   await expect(page.getByRole("button", { name: "Publish" })).toHaveCount(0);
 });
 
-// Product bug: on a full page load the first render has no user yet, so usePortfolio caches an empty ["portfolio", ""] query, and savePortfolio reads that one and gives up without saving or saying so.
-test.fixme("Publish works after opening the editor straight from its address", async ({
+test("Publish works after opening the editor straight from its address", async ({
   page,
   user,
 }) => {
@@ -336,8 +335,7 @@ test.fixme("Publish works after opening the editor straight from its address", a
   await expect(liveLink(page, owner.slug)).toBeVisible();
 });
 
-// Product bug: the Content tab takes typing before the saved content arrives, then the arriving copy replaces the edit while the bar says it is saved.
-test.fixme("an edit typed while the content is still loading is kept", async ({ page, user }) => {
+test("an edit typed while the content is still loading is kept", async ({ page, user }) => {
   expect(user.plan).toBe("free");
   const owner = await proOwner(page);
   await createPortfolio(page, owner.resume);

@@ -125,6 +125,26 @@ function ApplicationForm({
   const [moreOpen, setMoreOpen] = useState(
     () => target.kind === "add" && values.resumeId === "" && resumes.length > 0,
   );
+  // Opened before the resumes loaded: once they arrive, pick the card's resume and keep what was typed.
+  const [hadResumes, setHadResumes] = useState(resumes.length > 0);
+  if (!hadResumes && resumes.length > 0) {
+    setHadResumes(true);
+    if (target.kind === "add" && values.resumeId === "") {
+      const resume = target.resumeId ? (byId.get(target.resumeId) ?? null) : null;
+      if (resume) {
+        const fill = emptyForm(0, resume, draft);
+        setValues((current) => ({
+          ...current,
+          resumeId: fill.resumeId,
+          company: current.company || fill.company,
+          role: current.role || fill.role,
+          jobUrl: current.jobUrl || fill.jobUrl,
+        }));
+      } else {
+        setMoreOpen(true);
+      }
+    }
+  }
 
   const missingVersion = editing?.resumeId && !byId.has(editing.resumeId) ? editing.resumeId : null;
   const versionTitles = missingVersion
