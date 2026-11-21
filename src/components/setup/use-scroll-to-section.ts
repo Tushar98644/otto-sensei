@@ -12,10 +12,10 @@ export function useScrollToSection(ready: boolean): void {
     if (!id) return;
     const startedOn = document.activeElement;
     let done = false;
-    let giveUp: number | undefined;
     const observer = new MutationObserver(() => {
       if (land()) stop();
     });
+    const giveUp = window.setTimeout(() => stop(), WAIT_MS);
     function stop() {
       done = true;
       observer.disconnect();
@@ -38,7 +38,6 @@ export function useScrollToSection(ready: boolean): void {
       if (land()) stop();
       else if (!done) observer.observe(document.body, { childList: true, subtree: true });
     }, 0);
-    giveUp = window.setTimeout(stop, WAIT_MS);
     return () => {
       window.clearTimeout(first);
       stop();
