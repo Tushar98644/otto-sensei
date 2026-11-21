@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useProTools } from "@/components/account/pro-tools";
 import { OTTO } from "@/components/mascot/lines";
-import { openStudioWithFile } from "@/components/match-check/open-studio";
 import { ROUTES } from "@/components/site/routes";
 import { UPLOAD_ACCEPT } from "@/components/studio/upload/upload-handoff";
 import { Button } from "@/components/ui/button";
@@ -23,6 +22,8 @@ export function UploadZone({ actions, hasSample }: { actions: StudioActions; has
   async function take(file: File) {
     setOpening(true);
     try {
+      // Loaded on use, so Home doesn't carry the upgrade dialog and importer up front.
+      const { openStudioWithFile } = await import("@/components/match-check/open-studio");
       if (await openStudioWithFile(file)) {
         router.push(ROUTES.studio);
         return;
