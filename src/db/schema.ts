@@ -212,10 +212,7 @@ export const applications = pgTable(
     createdAt: epochMs("created_at").notNull(),
     updatedAt: epochMs("updated_at").notNull(),
   },
-  (t) => [
-    index("applications_user_applied_idx").on(t.userId, t.appliedAt, t.id),
-    index("applications_user_resume_idx").on(t.userId, t.resumeId),
-  ],
+  (t) => [index("applications_user_applied_idx").on(t.userId, t.appliedAt, t.id)],
 );
 
 export const workProfiles = pgTable("work_profiles", {
@@ -347,18 +344,14 @@ export const shares = pgTable(
   (t) => [index("shares_user_created_idx").on(t.userId, t.createdAt, t.id)],
 );
 
-export const feedback = pgTable(
-  "feedback",
-  {
-    id: uuid("id").primaryKey(),
-    userId: uuid("user_id"),
-    kind: text("kind", { enum: FEEDBACK_KINDS }).notNull(),
-    message: text("message").notNull(),
-    pagePath: text("page_path"),
-    createdAt: epochMs("created_at").notNull(),
-  },
-  (t) => [index("feedback_created_idx").on(t.createdAt)],
-);
+export const feedback = pgTable("feedback", {
+  id: uuid("id").primaryKey(),
+  userId: uuid("user_id"),
+  kind: text("kind", { enum: FEEDBACK_KINDS }).notNull(),
+  message: text("message").notNull(),
+  pagePath: text("page_path"),
+  createdAt: epochMs("created_at").notNull(),
+});
 
 export const referralCodes = pgTable("referral_codes", {
   userId: uuid("user_id").primaryKey(),
@@ -529,33 +522,29 @@ export const savedJobs = pgTable(
   ],
 );
 
-export const portfolios = pgTable(
-  "portfolios",
-  {
-    id: uuid("id").primaryKey(),
-    userId: uuid("user_id").notNull().unique(),
-    resumeId: text("resume_id").notNull(),
-    slug: text("slug").notNull().unique(),
-    template: text("template", { enum: PORTFOLIO_TEMPLATE_IDS }).notNull().default("navy"),
-    snapshot: jsonb("snapshot").$type<Resume>().notNull(),
-    showEmail: boolean("show_email").notNull().default(false),
-    showPhone: boolean("show_phone").notNull().default(false),
-    hiddenSections: text("hidden_sections").array().notNull().default([]),
-    sync: boolean("sync").notNull().default(true),
-    published: boolean("published").notNull().default(false),
-    allowIndexing: boolean("allow_indexing").notNull().default(false),
-    content: jsonb("content").$type<Record<string, unknown>>().notNull().default({}),
-    github: jsonb("github").$type<Record<string, unknown>>(),
-    githubCheckedAt: epochMs("github_checked_at"),
-    views: integer("views").notNull().default(0),
-    viewsNoted: integer("views_noted").notNull().default(0),
-    viewsNotedAt: epochMs("views_noted_at"),
-    createdAt: epochMs("created_at").notNull(),
-    updatedAt: epochMs("updated_at").notNull(),
-    publishedAt: epochMs("published_at"),
-  },
-  (t) => [index("portfolios_user_resume_idx").on(t.userId, t.resumeId)],
-);
+export const portfolios = pgTable("portfolios", {
+  id: uuid("id").primaryKey(),
+  userId: uuid("user_id").notNull().unique(),
+  resumeId: text("resume_id").notNull(),
+  slug: text("slug").notNull().unique(),
+  template: text("template", { enum: PORTFOLIO_TEMPLATE_IDS }).notNull().default("navy"),
+  snapshot: jsonb("snapshot").$type<Resume>().notNull(),
+  showEmail: boolean("show_email").notNull().default(false),
+  showPhone: boolean("show_phone").notNull().default(false),
+  hiddenSections: text("hidden_sections").array().notNull().default([]),
+  sync: boolean("sync").notNull().default(true),
+  published: boolean("published").notNull().default(false),
+  allowIndexing: boolean("allow_indexing").notNull().default(false),
+  content: jsonb("content").$type<Record<string, unknown>>().notNull().default({}),
+  github: jsonb("github").$type<Record<string, unknown>>(),
+  githubCheckedAt: epochMs("github_checked_at"),
+  views: integer("views").notNull().default(0),
+  viewsNoted: integer("views_noted").notNull().default(0),
+  viewsNotedAt: epochMs("views_noted_at"),
+  createdAt: epochMs("created_at").notNull(),
+  updatedAt: epochMs("updated_at").notNull(),
+  publishedAt: epochMs("published_at"),
+});
 
 export const portfolioRedirects = pgTable(
   "portfolio_redirects",

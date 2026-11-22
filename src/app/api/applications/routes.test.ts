@@ -391,17 +391,19 @@ describe("PATCH /api/applications/:id", () => {
     expect(fixed).toMatchObject({ status: "interview", stageReached: "interview" });
   });
 
-  it("reads a row still on the old screening step as interviewing, before the migration runs", async () => {
-    const ada = await signIn("ada@example.com");
+  it("refuses the old screening step, which the database no longer stores either", async () => {
+    await signIn("ada@example.com");
     const application = await created(await create(body()));
     const db = await getDb();
-    await db.execute(
-      sql`update public.applications set status = 'screening', stage_reached = 'screening' where id = ${application.id}`,
-    );
-    expect((await listed())[0]).toMatchObject({ status: "interview", stageReached: "interview" });
-    const [row] = (await listApplications(ada.id, null)).applications;
-    expect(row).toMatchObject({ status: "interview", stageReached: "interview" });
+    await expect(
+      db.execute(
+        sql`update public.applications set status = 'screening' where id = ${application.id}`,
+      ),
+    ).rejects.toMatchObject({
+      cause: { message: expect.stringContaining("applications_status_check") },
+    });
     expect((await patch(application.id, { status: "screening" })).status).toBe(400);
+    expect((await listed())[0]).toMatchObject({ status: "applied", stageReached: "applied" });
   });
 
   it("moves the status time only when the status really changes", async () => {
