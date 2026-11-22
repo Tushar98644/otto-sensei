@@ -17,13 +17,22 @@ import {
   fileFromBase64,
   fillQuestion,
   highlight,
+  isEmpty,
   kept,
   settle,
   typeValue,
 } from "./apply";
 import { mountDraftButtons } from "./drafts";
 import { confirmation, formRoot, PLATFORMS, type FormPlatform } from "./platforms";
-import { planForm, wantForAnswer, type AskInput, type Planned, type Store } from "./plan";
+import {
+  fieldName,
+  leftEmpty,
+  planForm,
+  wantForAnswer,
+  type AskInput,
+  type Planned,
+  type Store,
+} from "./plan";
 import { scanQuestions, type Question } from "./scan";
 import { addWorkdayPanels } from "./workday";
 
@@ -209,20 +218,27 @@ export function createFormSession(ctx: FormContext) {
   }
 
   async function fillOnce(report: FillReport): Promise<void> {
-    if (!fill) return;
-    const first = planForm(scan(), fill, postContext());
+    const profile = fill;
+    if (!profile) return;
+    const first = planForm(scan(), profile, postContext());
     // Some forms read the resume and fill fields from it; let them before Otto fills the rest.
     if (await upload(first, report)) await settle(PARSE_WAIT_MS);
     // Workday's lists start empty: a panel per job, school and link, added with each list's own Add.
-    if (ctx.platform === "workday" && (await addWorkdayPanels(form, fill)) > 0)
+    if (ctx.platform === "workday" && (await addWorkdayPanels(form, profile)) > 0)
       await settle(PANEL_SETTLE_MS);
     const found = scan();
     questions = new Map(found.map((question) => [question.key, question]));
-    const planned = planForm(found, fill, postContext());
+    const planned = planForm(found, profile, postContext());
     // Only what this form (or this step of it) asks: a step left behind takes its questions with it.
     const asks = new Map<string, Ask>();
     const counted = new Set<string>();
-    const typed: Question[] = [];
+    const typed: Planned[] = [];
+    // The fields left to the person are this step's: Workday won't move on with one empty.
+    report.missed = [];
+    const miss = (item: Planned) => {
+      const name = fieldName(item.question, item.target, profile);
+      if (item.question.required && !report.missed.includes(name)) report.missed.push(name);
+    };
     for (const item of planned) {
       if (item.status === "protected") {
         // One question can be several controls (a list and its "other" box): count it once.
@@ -246,18 +262,19 @@ export function createFormSession(ctx: FormContext) {
         const result = await fillQuestion(item.question, item.want);
         if (result === "filled") {
           report.filled += 1;
-          if (item.question.kind === "text" || item.question.kind === "textarea")
-            typed.push(item.question);
+          if (item.question.kind === "text" || item.question.kind === "textarea") typed.push(item);
         } else if (result === "kept") report.kept += 1;
-        else if (item.question.required) report.missed.push(item.question.label);
+        else miss(item);
       }
     }
     await settle(TYPED_CHECK_MS);
-    for (const question of typed) {
-      if (kept(question.nodes[0] as unknown as HTMLElement)) continue;
+    for (const item of typed) {
+      if (kept(item.question.nodes[0] as unknown as HTMLElement)) continue;
       report.filled -= 1;
-      if (question.required) report.missed.push(question.label);
+      miss(item);
     }
+    for (const name of leftEmpty(planned, profile, isEmpty))
+      if (!report.missed.includes(name)) report.missed.push(name);
     state.asks = [...asks.values()];
     report.drafts = draftable.length;
     report.steps += 1;

@@ -248,6 +248,45 @@ async function fillDropdown(button: HTMLButtonElement, want: Want): Promise<Fiel
   return "filled";
 }
 
+// Nothing in the field yet, from the person or from the page's own read of the resume.
+export function isEmpty(question: Question): boolean {
+  const element = question.nodes[0] as unknown as HTMLElement | undefined;
+  if (!element?.isConnected) return false;
+  switch (question.kind) {
+    case "text":
+    case "textarea":
+      return !(element as HTMLInputElement).value.trim();
+    case "select": {
+      const select = element as HTMLSelectElement;
+      return !Array.from(select.options).some(
+        (option) => option.value !== "" && !option.disabled && option.value === select.value,
+      );
+    }
+    case "radio":
+    case "checkbox":
+      return !(question.nodes as unknown as HTMLInputElement[]).some((input) => input.checked);
+    case "yesno":
+      return !(question.nodes as unknown as HTMLElement[]).some(
+        (button) => button.getAttribute("aria-pressed") === "true",
+      );
+    case "combobox": {
+      const container =
+        element.closest(".select__container, [data-automation-id^='formField-']") ??
+        element.parentElement;
+      const current = container?.querySelector(
+        ".select__single-value, [data-automation-id='selectedItem']",
+      );
+      return !oneLine(current?.textContent) && !(element as HTMLInputElement).value.trim();
+    }
+    case "dropdown": {
+      const shown = oneLine(element.textContent);
+      return !shown || /^select\b|^choose\b/i.test(shown);
+    }
+    case "file":
+      return !(element as HTMLInputElement).files?.length;
+  }
+}
+
 export async function fillQuestion(question: Question, want: Want): Promise<FieldResult> {
   const element = question.nodes[0] as unknown as HTMLElement | undefined;
   if (!element || !element.isConnected) return "missed";

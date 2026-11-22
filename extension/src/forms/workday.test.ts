@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 import type { PageNode } from "../page/dom";
 import { pageFromHtml } from "../testing/mini-dom";
 import { profile } from "./fixture-profile";
-import { planForm, websiteLinks, type Planned } from "./plan";
+import { leftEmpty, planForm, websiteLinks, type Planned } from "./plan";
 import { formRoot } from "./platforms";
 import { scanQuestions } from "./scan";
 import { addPanels, panelsWanted, workdayLists, type PanelKind } from "./workday";
@@ -201,6 +201,25 @@ describe("Workday's Add buttons", () => {
       ),
     ).toBe(0);
     expect(none.pressed).toEqual([]);
+  });
+
+  it("lists the required boxes in a panel Otto added that the resume has nothing for", async () => {
+    const both = twoOfEach();
+    const [current, intern] = both.work;
+    const [bachelor, master] = both.education;
+    const fill = profile({
+      work: [current!, { ...intern!, title: "", start: { month: null, year: 2020 } }],
+      education: [bachelor!, { ...master!, degree: "" }],
+    });
+    const workday = fakeWorkday(EMPTY);
+    expect(await workday.run(fill)).toBe(6);
+    const items = workday.plan(fill);
+    expect(values(items, "Job Title")).toEqual(["Data Analyst", "missing"]);
+    expect(leftEmpty(items, fill, () => true)).toEqual([
+      "Job Title (Unbabel)",
+      "Start month (Unbabel)",
+      "Degree (Nova School of Business and Economics)",
+    ]);
   });
 
   it("presses each Add once and moves on when no panel comes", async () => {

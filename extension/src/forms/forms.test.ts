@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { pageFromHtml } from "../testing/mini-dom";
 import { formOf, profile } from "./fixture-profile";
-import { planForm, pickOption, placeKey, type Planned } from "./plan";
+import { leftEmpty, planForm, pickOption, placeKey, type Planned } from "./plan";
 import { confirmation, formPlatformOf, formRoot } from "./platforms";
 
 const GREENHOUSE = "https://job-boards.greenhouse.io/discord/jobs/8945798002";
@@ -207,6 +207,38 @@ describe("Workday", () => {
     expect(outcome(questions, "Why are you interested")).toBe("draft");
     const disclosures = plan("workday-disclosures.html", WORKDAY);
     expect(new Set(disclosures.map((item) => item.status))).toEqual(new Set(["protected"]));
+  });
+});
+
+describe("fields left to the person", () => {
+  it("lists a required field the resume has nothing for, unless something is in it already", () => {
+    const { questions } = formOf("greenhouse.html", GREENHOUSE);
+    const base = profile();
+    const fill = profile({ contact: { ...base.contact, phone: "" }, education: [] });
+    const items = planForm(questions, fill, POST);
+    expect(outcome(items, "Phone")).toBe("missing");
+    expect(outcome(items, "School")).toBe("missing");
+    // School is optional on this form, and the rest is filled, drafted or asked.
+    expect(leftEmpty(items, fill, () => true)).toEqual(["Phone"]);
+    // The page put the phone in from the resume it read.
+    expect(leftEmpty(items, fill, (question) => question.label !== "Phone")).toEqual([]);
+    expect(leftEmpty(planForm(questions, base, POST), base, () => true)).toEqual([]);
+  });
+
+  it("names Workday's date boxes by the job they belong to, and leaves a current job's end alone", () => {
+    const { questions } = formOf("workday-experience.html", WORKDAY);
+    const base = profile();
+    const fill = profile({
+      work: [{ ...base.work[0]!, start: null, title: "" }],
+      contact: { ...base.contact, portfolio: "", website: "", github: "" },
+    });
+    const items = planForm(questions, fill, POST);
+    expect(leftEmpty(items, fill, () => true)).toEqual([
+      "Job Title (Feedzai)",
+      "Start month (Feedzai)",
+      "Start year (Feedzai)",
+      "Website 1",
+    ]);
   });
 });
 

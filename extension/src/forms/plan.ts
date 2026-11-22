@@ -1,6 +1,6 @@
 import { findPlaces, rightsRegionOf } from "@/lib/eligibility/places";
 import { customAnswer, payText, type ApplyAnswers, type Pay } from "@/lib/extension/answers";
-import type { FillContact, FillDate, FillProfile } from "@/lib/extension/types";
+import type { FillContact, FillDate, FillJob, FillProfile } from "@/lib/extension/types";
 import {
   classify,
   isYesNoQuestion,
@@ -32,6 +32,8 @@ export type Planned =
   | { status: "ask"; question: Question; target: Target; store: Store; input: AskInput }
   | { status: "draft"; question: Question; target: Target }
   | { status: "protected"; question: Question; target: Target }
+  // Otto fills this from the resume, and the resume has nothing for it.
+  | { status: "missing"; question: Question; target: Target }
   | { status: "skip"; question: Question; target: Target };
 
 export type PostContext = { title: string; company: string; location: string; text: string };
@@ -165,8 +167,12 @@ function otherIfAsked(question: Question): string[] {
   return /\bother\b/i.test(question.label) ? ["other"] : [];
 }
 
+function workEntry(question: Question, fill: FillProfile): FillJob | undefined {
+  return fill.work[question.index] ?? (question.index === 0 ? fill.work[0] : undefined);
+}
+
 function workWant(question: Question, fill: FillProfile, field: WorkField): Want | null {
-  const job = fill.work[question.index] ?? (question.index === 0 ? fill.work[0] : undefined);
+  const job = workEntry(question, fill);
   if (!job) return null;
   switch (field) {
     case "company":
@@ -335,6 +341,8 @@ export function planField(
   const target = classify(question);
   const fillWith = (want: Want | null): Planned | null =>
     want ? { status: "fill", question, target, want } : null;
+  const missing: Planned = { status: "missing", question, target };
+  const skip: Planned = { status: "skip", question, target };
   const ask = (store: Store): Planned => ({
     status: "ask",
     question,
@@ -346,7 +354,7 @@ export function planField(
     case "protected":
       return { status: "protected", question, target };
     case "skip":
-      return { status: "skip", question, target };
+      return skip;
     case "free":
       return { status: "draft", question, target };
     case "resume":
@@ -354,31 +362,20 @@ export function planField(
     case "contact": {
       const value = fill.contact[target.field];
       const shown = target.field === "country" ? countryName(value) : value;
-      return fillWith(asText(question, shown)) ?? { status: "skip", question, target };
+      return fillWith(asText(question, shown)) ?? missing;
     }
     case "current":
-      return (
-        fillWith(asText(question, fill.current?.[target.field] ?? "")) ?? {
-          status: "skip",
-          question,
-          target,
-        }
-      );
-    case "work":
-      return (
-        fillWith(workWant(question, fill, target.field)) ?? { status: "skip", question, target }
-      );
+      return fillWith(asText(question, fill.current?.[target.field] ?? "")) ?? missing;
+    case "work": {
+      // A current job has no end date to give.
+      const ends = /^end/.test(target.field) && workEntry(question, fill)?.current;
+      return fillWith(workWant(question, fill, target.field)) ?? (ends ? skip : missing);
+    }
     case "school":
-      return (
-        fillWith(schoolWant(question, fill, target.field)) ?? { status: "skip", question, target }
-      );
+      return fillWith(schoolWant(question, fill, target.field)) ?? missing;
     case "link":
       return (
-        fillWith(asText(question, websiteLinks(fill.contact)[question.index] ?? "")) ?? {
-          status: "skip",
-          question,
-          target,
-        }
+        fillWith(asText(question, websiteLinks(fill.contact)[question.index] ?? "")) ?? missing
       );
     case "answer":
       return (
@@ -397,9 +394,7 @@ export function planField(
       if (saved !== null)
         return { status: "fill", question, target, want: customWant(question, saved) };
       // Only a required question is asked; an optional one stays for the person.
-      return question.required
-        ? ask({ kind: "custom", question: question.label })
-        : { status: "skip", question, target };
+      return question.required ? ask({ kind: "custom", question: question.label }) : skip;
     }
   }
 }
@@ -418,4 +413,39 @@ export function wantForAnswer(question: Question, store: Store, answer: string):
     return yesNo(question, /^y/i.test(answer));
   }
   return asText(question, answer);
+}
+
+const DATE_PARTS: Partial<Record<WorkField | SchoolField, string>> = {
+  startMonth: "Start month",
+  startYear: "Start year",
+  endMonth: "End month",
+  endYear: "End year",
+  start: "Start date",
+  end: "End date",
+};
+// Labels that only make sense beside their box: Workday's "Month" and "Year", a list's "URL".
+const BARE_LABEL = /^(?:month|year|mm|yyyy|from|to|date|url|link)?$/i;
+
+// A name for a field the person must fill, saying which job or school when the form lists several.
+export function fieldName(question: Question, target: Target, fill: FillProfile): string {
+  const bare = BARE_LABEL.test(question.label.trim());
+  if (target.kind === "link") return bare ? `Website ${question.index + 1}` : question.label;
+  if (target.kind !== "work" && target.kind !== "school") return question.label;
+  const name = (bare ? DATE_PARTS[target.field] : null) ?? question.label;
+  const job = target.kind === "work" ? workEntry(question, fill) : undefined;
+  const school = target.kind === "school" ? fill.education[question.index] : undefined;
+  const of = job ? job.company || job.title : school ? school.school || school.degree : "";
+  return of ? `${name} (${of})` : name;
+}
+
+// Required fields the resume has nothing for and nobody has filled yet: the card lists them.
+export function leftEmpty(
+  planned: readonly Planned[],
+  fill: FillProfile,
+  isEmpty: (question: Question) => boolean,
+): string[] {
+  const names = planned
+    .filter((item) => item.status === "missing" && item.question.required && isEmpty(item.question))
+    .map((item) => fieldName(item.question, item.target, fill));
+  return [...new Set(names)];
 }
