@@ -27,7 +27,7 @@ export type ResumeGridProps = {
   actions: StudioActions;
   onShowBase?: (id: string) => void;
   cheer?: boolean;
-  end?: ReactNode;
+  start?: ReactNode;
   className?: string;
 };
 
@@ -37,7 +37,7 @@ export function ResumeGrid({
   actions,
   onShowBase,
   cheer,
-  end,
+  start,
   className,
 }: ResumeGridProps) {
   const now = useNow();
@@ -61,6 +61,12 @@ export function ResumeGrid({
       <ul
         className={cn("grid grid-cols-1 gap-x-5 gap-y-8 sm:grid-cols-2 xl:grid-cols-3", className)}
       >
+        {start ? (
+          // Phones have New resume above the grid already.
+          <li className="hidden flex-col motion-safe:animate-fade-in sm:flex" style={enter(0)}>
+            {start}
+          </li>
+        ) : null}
         {resumes.map((resume, index) => {
           const baseId = resume.tailor?.baseResumeId;
           const base = baseId && baseId !== resume.id ? (byId.get(baseId) ?? null) : null;
@@ -69,7 +75,7 @@ export function ResumeGrid({
               key={resume.id}
               id={cardId(resume.id)}
               className="scroll-mt-24 motion-safe:animate-fade-in"
-              style={enter(index)}
+              style={enter(start ? index + 1 : index)}
             >
               <ResumeCard
                 resume={resume}
@@ -86,15 +92,6 @@ export function ResumeGrid({
             </li>
           );
         })}
-        {/* A single column on phones leaves no row to fill. */}
-        {end ? (
-          <li
-            className="hidden flex-col motion-safe:animate-fade-in sm:flex"
-            style={enter(resumes.length)}
-          >
-            {end}
-          </li>
-        ) : null}
       </ul>
 
       <Lazy

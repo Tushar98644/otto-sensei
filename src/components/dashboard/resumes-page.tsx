@@ -114,7 +114,7 @@ export function ResumesPage() {
               all={resumes}
               actions={actions}
               onShowBase={showBase}
-              end={narrowed ? null : <parts.AddResumeTile actions={actions} />}
+              start={narrowed ? null : <parts.AddResumeTile actions={actions} />}
             />
           ) : (
             <div className="rounded-2xl bg-surface p-6 sm:p-8">
