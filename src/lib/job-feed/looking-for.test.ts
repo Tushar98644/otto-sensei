@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { emptyWorkProfile } from "@/lib/eligibility/profile";
+import { jobPlaceTokens } from "./job-places";
 import {
   acceptedPlaces,
-  jobPlaceTokens,
   levelOf,
   lookingForOf,
   placeFit,

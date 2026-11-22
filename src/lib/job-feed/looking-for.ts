@@ -1,8 +1,6 @@
-import { fieldSaysWorldwide } from "@/lib/eligibility/cues";
 import {
   COUNTRY_CODES,
   countryName,
-  findPlaces,
   isCountryCode,
   placeContains,
   type Place,
@@ -129,25 +127,6 @@ export function lookingForOf(
     place: choice.place ?? placeFromProfile(work),
     remote: choice.remote,
   };
-}
-
-const placeCache = new Map<string, string[]>();
-const PLACE_CACHE_MAX = 20_000;
-
-export function jobPlaceTokens(location: string): string[] {
-  const key = location.trim();
-  if (!key) return [];
-  const known = placeCache.get(key);
-  if (known) return known;
-  const tokens = new Set<string>();
-  for (const spot of findPlaces(key)) {
-    tokens.add(spot.place.kind === "country" ? spot.place.code : `g:${spot.place.group}`);
-  }
-  if (tokens.size === 0 && fieldSaysWorldwide(key)) tokens.add("*");
-  const out = [...tokens].sort();
-  if (placeCache.size >= PLACE_CACHE_MAX) placeCache.clear();
-  placeCache.set(key, out);
-  return out;
 }
 
 const members = new Map<PlaceGroup, Set<string>>();

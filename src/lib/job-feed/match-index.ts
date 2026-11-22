@@ -2,7 +2,7 @@ import { and, count, desc, inArray, isNull, max, or, sql, type SQL } from "drizz
 import type { Db } from "@/db/client";
 import { companyVisa, jobBoards, jobCountsRow, jobMatch, jobs, matchSkills } from "@/db/schema";
 import { log } from "@/lib/log";
-import { jobPlaceTokens } from "./looking-for";
+import { jobPlaces, jobPlaceTokens } from "./job-places";
 import { KIND, PAST_KIND_WEIGHT } from "./match";
 import { occupationOf, readTitle } from "./occupations";
 import { familyFits } from "./roles";
@@ -170,11 +170,25 @@ export async function rebuildMatchIndex(db: Db, now: number): Promise<number | n
     if (!missingTable(error)) throw error;
   }
 
+  // Post text is read only where the location names no place: most rows never need it.
+  const unplaced = rows.filter(
+    (row) => !jobPlaceTokens(row.location).some((token) => token !== "*"),
+  );
+  const rules = new Map<string, string>();
+  for (let i = 0; i < unplaced.length; i += CHUNK) {
+    const ids = unplaced.slice(i, i + CHUNK).map((row) => row.id);
+    for (const row of await db
+      .select({ id: jobs.id, rulesText: jobs.rulesText })
+      .from(jobs)
+      .where(inArray(jobs.id, ids)))
+      rules.set(row.id, row.rulesText);
+  }
+
   type Opening = typeof jobMatch.$inferInsert;
   const openings = new Map<string, Opening & { placeSet: Set<string> }>();
   for (const row of rows) {
     const grp = row.groupKey || row.id;
-    const places = jobPlaceTokens(row.location);
+    const places = jobPlaces(row.location, rules.get(row.id) ?? "");
     const seenAt = Math.min(row.postedAt, row.firstSeenAt);
     const known = openings.get(grp);
     if (known) {
@@ -455,7 +469,9 @@ async function jobsPool(db: Db, query: PoolQuery, now: number): Promise<OpeningP
   return {
     openings: pool.rows.map((row) => {
       const copies = pool.copies.get(row.groupKey) ?? [row];
-      const places = [...new Set(copies.flatMap((copy) => jobPlaceTokens(copy.location)))].sort();
+      const places = [
+        ...new Set(copies.flatMap((copy) => jobPlaces(copy.location, copy.rulesText))),
+      ].sort();
       return { row, copies, places, visa: null, kind: null };
     }),
     groups: pool.groups,

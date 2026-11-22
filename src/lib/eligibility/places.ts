@@ -118,6 +118,7 @@ const ALIASES: Array<[string, string]> = [
   ["czech republic", "CZ"],
   ["holland", "NL"],
   ["turkey", "TR"],
+  ["china", "CN"],
   ["hong kong", "HK"],
   ["macau", "MO"],
   ["burma", "MM"],
@@ -201,13 +202,102 @@ const STATE_PATTERN = new RegExp(
 );
 const PROVINCE_SET = set(PROVINCES);
 
+// Read by the job feed only, so the eligibility check's wording stays as it was.
+const CITIES: Record<string, string> = {
+  US:
+    "alabama|alaska|arizona|arkansas|connecticut|delaware|hawaii|idaho|indiana|iowa|kansas|kentucky|" +
+    "louisiana|maine|maryland|michigan|minnesota|mississippi|missouri|montana|nebraska|nevada|" +
+    "new hampshire|north carolina|north dakota|ohio|oklahoma|oregon|pennsylvania|rhode island|" +
+    "south carolina|south dakota|tennessee|utah|vermont|virginia|west virginia|wisconsin|wyoming|" +
+    "district of columbia|washington dc|washington, d.c.|atlanta|miami|dallas|houston|phoenix|" +
+    "philadelphia|pittsburgh|portland|san diego|salt lake city|minneapolis|detroit|nashville|raleigh|" +
+    "baltimore|palo alto|mountain view|menlo park|sunnyvale|santa clara|redwood city|oakland|" +
+    "sacramento|brooklyn|manhattan|indianapolis|kansas city|st. louis|saint louis|las vegas|orlando|" +
+    "tampa|irvine|san mateo|boulder|ann arbor|cincinnati|cleveland|milwaukee|hartford|new haven|" +
+    "bridgeport|providence|honolulu|albuquerque|tucson|scottsdale|plano|fort worth|san antonio|" +
+    "jacksonville|silicon valley|lehi|bellevue|redmond|santa monica|pasadena|emeryville|stamford|" +
+    "jersey city|hoboken|reston|mclean|herndon|bethesda|des moines|omaha|boise|louisville|" +
+    "new orleans|south san francisco|cupertino|san bruno|foster city|burlingame",
+  CA: "manitoba|saskatchewan|nova scotia|new brunswick|ottawa|calgary|edmonton|winnipeg|halifax|mississauga",
+  IN:
+    "delhi|new delhi|mumbai|bombay|pune|hyderabad|chennai|kolkata|calcutta|gurgaon|gurugram|noida|" +
+    "ahmedabad|jaipur|kochi|cochin|coimbatore|chandigarh|indore|lucknow|bhubaneswar|" +
+    "thiruvananthapuram|trivandrum|visakhapatnam|nagpur|mysore|mysuru|vadodara|surat|mohali|" +
+    "karnataka|maharashtra|telangana|tamil nadu|kerala|haryana|uttar pradesh|west bengal|gujarat|" +
+    "rajasthan|andhra pradesh|odisha|goa",
+  GB: "bristol|glasgow|leeds|liverpool|belfast|cardiff|milton keynes|oxford|nottingham|sheffield",
+  IE: "galway|limerick",
+  FR: "lyon|lille|marseille|toulouse|bordeaux|nantes|cannes|montpellier|grenoble|sophia antipolis",
+  DE: "frankfurt|cologne|köln|stuttgart|düsseldorf|dusseldorf|leipzig|dresden|nuremberg|karlsruhe",
+  NL: "rotterdam|utrecht|eindhoven|the hague",
+  BE: "brussels|bruxelles|brussel|antwerp|ghent",
+  CH: "geneva|lausanne|basel|bern",
+  AT: "vienna|wien|graz",
+  IT: "milan|milano|rome|turin|torino|bologna",
+  ES: "seville|bilbao|malaga|málaga",
+  PT: "porto|braga",
+  CZ: "prague|brno",
+  PL: "krakow|kraków|wroclaw|wrocław|gdansk|gdańsk|poznan|poznań|katowice",
+  DK: "copenhagen|aarhus",
+  NO: "oslo",
+  SE: "gothenburg|malmö|malmo",
+  FI: "helsinki|tampere",
+  HU: "budapest",
+  RO: "bucharest|cluj-napoca|cluj",
+  BG: "sofia",
+  UA: "kyiv|kiev|lviv",
+  LT: "vilnius|kaunas",
+  LV: "riga",
+  EE: "tallinn",
+  HR: "zagreb",
+  RS: "belgrade",
+  SI: "ljubljana",
+  SK: "bratislava",
+  GR: "thessaloniki",
+  TR: "istanbul|ankara|izmir",
+  AM: "yerevan",
+  GE: "tbilisi",
+  AZ: "baku",
+  IL: "tel aviv|tel aviv-yafo|jerusalem|haifa|herzliya",
+  AE: "dubai|abu dhabi",
+  SA: "riyadh|jeddah",
+  QA: "doha",
+  EG: "cairo",
+  MA: "casablanca",
+  NG: "lagos|abuja",
+  KE: "nairobi",
+  GH: "accra",
+  ZA: "johannesburg|cape town|durban|pretoria",
+  MY: "kuala lumpur|penang",
+  ID: "jakarta",
+  PH: "manila|makati|cebu",
+  TH: "bangkok",
+  VN: "ho chi minh city|saigon|hanoi|da nang",
+  KR: "seoul|busan",
+  CN: "shanghai|beijing|shenzhen|guangzhou|hangzhou|chengdu|wuhan|nanjing|suzhou",
+  TW: "taipei",
+  JP: "osaka|kyoto|fukuoka|yokohama",
+  AU: "brisbane|adelaide|canberra",
+  NZ: "auckland|wellington|christchurch",
+  PK: "karachi|lahore|islamabad",
+  BD: "dhaka",
+  LK: "colombo",
+  NP: "kathmandu",
+  AR: "buenos aires",
+  CO: "bogota|bogotá|medellin|medellín",
+  UY: "montevideo",
+  MX: "guadalajara|monterrey",
+  BR: "rio de janeiro|curitiba|belo horizonte|porto alegre|florianopolis|florianópolis|recife|sao jose dos campos|são josé dos campos",
+};
+
 const AMBIGUOUS = new Set(["georgia", "jordan", "chad", "jersey"]);
 
 type NameMatcher = { pattern: RegExp; codes: Map<string, string> };
-let nameMatcher: NameMatcher | null = null;
+const nameMatchers = new Map<boolean, NameMatcher>();
 
-function namedCountries(): NameMatcher {
-  if (nameMatcher) return nameMatcher;
+function namedPlaces(cities: boolean): NameMatcher {
+  const known = nameMatchers.get(cities);
+  if (known) return known;
   const codes = new Map<string, string>();
   for (const code of COUNTRY_CODES) {
     const name = displayNames.of(code);
@@ -216,17 +306,21 @@ function namedCountries(): NameMatcher {
     }
   }
   for (const [name, code] of ALIASES) codes.set(name, code);
+  if (cities)
+    for (const [code, names] of Object.entries(CITIES))
+      for (const name of names.split("|")) codes.set(name, code);
   const names = [...codes.keys()].sort((a, b) => b.length - a.length).map(escape);
-  nameMatcher = {
+  const matcher = {
     pattern: new RegExp(`(?<![\\p{L}])(?:${names.join("|")})(?![\\p{L}])`, "giu"),
     codes,
   };
-  return nameMatcher;
+  nameMatchers.set(cities, matcher);
+  return matcher;
 }
 
 export type FoundPlace = { place: Place; index: number; text: string };
 
-export function findPlaces(line: string): FoundPlace[] {
+export function findPlaces(line: string, { cities = false } = {}): FoundPlace[] {
   const taken: Array<[number, number]> = [];
   const found: FoundPlace[] = [];
   const free = (start: number, end: number) => taken.every(([a, b]) => end <= a || start >= b);
@@ -242,7 +336,7 @@ export function findPlaces(line: string): FoundPlace[] {
     }
   };
   for (const [pattern, name] of GROUP_PATTERNS) add(pattern, group(name));
-  const names = namedCountries();
+  const names = namedPlaces(cities);
   names.pattern.lastIndex = 0;
   for (const match of line.matchAll(names.pattern)) {
     const code = names.codes.get(match[0].toLowerCase());

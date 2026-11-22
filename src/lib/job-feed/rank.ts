@@ -3,13 +3,13 @@ import type { Db } from "@/db/client";
 import { checkEligibility } from "@/lib/eligibility/check";
 import { isProfileStarted, type WorkProfile, type WorkRegion } from "@/lib/eligibility/profile";
 import { DAY_MS } from "@/lib/time";
+import { jobPlaceTokens } from "./job-places";
 import {
   acceptedPlaces,
   lookingForOf,
   placeFit,
   roleOptions,
   titleFits,
-  jobPlaceTokens,
   type PlaceFit,
 } from "./looking-for";
 import {
@@ -73,7 +73,7 @@ const COPIES_CHECKED = 6;
 const PLACES_SHOWN = 2;
 const FREE_POOL = 60;
 
-export const MATCH_VARIANT = "occupation-v4";
+export const MATCH_VARIANT = "occupation-v5";
 
 export function occupationOption(code: string | null): OccupationOption | null {
   const occupation = occupationOf(code);

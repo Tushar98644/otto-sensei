@@ -50,7 +50,7 @@ const RULES: EligibilityRule[] = [
   "work_type",
 ];
 const SEVERITY: Record<EligibilityVerdict, number> = { ok: 1, check: 2, blocked: 3 };
-const TIME_ZONE_PHRASE = /\b[\w.]+(?:\s+[\w.]+)?\s+time[- ]?zones?\b/gi;
+export const TIME_ZONE_PHRASE = /\b[\w.]+(?:\s+[\w.]+)?\s+time[- ]?zones?\b/gi;
 
 function unitsOf(text: string): Unit[] {
   const units: Unit[] = [];
@@ -105,8 +105,7 @@ function remoteCountries(location: string, spots: FoundPlace[]): Place[] {
     .split(/\s*[·•|;]\s*/)
     .filter((part) => part && !/^(?:remote|anywhere|distributed)$/i.test(part));
   const named =
-    parts.length > 0 &&
-    parts.every((part) => spots.some((spot) => bare(part) === bare(spot.text)));
+    parts.length > 0 && parts.every((part) => spots.some((spot) => bare(part) === bare(spot.text)));
   return named ? spots.map((spot) => spot.place) : [];
 }
 
@@ -201,8 +200,7 @@ export function checkEligibility(
     else if (AUTHORIZATION.test(unit.text) && !noSponsor)
       found.push(rightsVerdict("authorization", unit, places, context));
     if (noSponsor) found.push(rightsVerdict("sponsorship", unit, places, context));
-    else if (offersSponsorship(unit.text))
-      found.push(sponsorOfferVerdict(unit, places, context));
+    else if (offersSponsorship(unit.text)) found.push(sponsorOfferVerdict(unit, places, context));
     if (!fullTimeAt && FULL_TIME.test(unit.text)) fullTimeAt = unit;
     if (!contractAt && CONTRACT.test(unit.text)) contractAt = unit;
   }

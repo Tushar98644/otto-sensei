@@ -198,13 +198,17 @@ describe("match index", () => {
     expect(pool.groups).toBe(1);
   });
 
-  it("shows Remote, India only jobs open worldwide, in India, in a region with India, or unplaced", async () => {
+  it("shows Remote, India only jobs open worldwide, in India, in a region with India, or unplaced by location and post", async () => {
     await ingest([
       raw("us", { location: "Remote - US" }),
       raw("in", { location: "Remote - India" }),
       raw("ww", { location: "Remote (Worldwide)" }),
       raw("apac", { location: "Remote - APAC" }),
       raw("bare", { location: "Remote" }),
+      raw("said", {
+        location: "Remote",
+        text: "Build services in Go and PostgreSQL. This is a remote position open to candidates based in the United States and in the Pacific Timezone.",
+      }),
       raw("blr", { location: "Bengaluru, India", remote: false }),
     ]);
     const db = await getDb();
