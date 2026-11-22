@@ -8,7 +8,7 @@ alter table public.portfolios drop constraint portfolios_template_check;
 alter table public.portfolios
   add constraint portfolios_template_check
   check (template in (
-    'paper', 'dock', 'reel', 'folio', 'cv', 'prose', 'gazette', 'card', 'brutal', 'terminal', 'bento', 'navy'
+    'paper', 'gazette', 'reel', 'dock', 'folio', 'cv', 'prose', 'card', 'brutal', 'terminal', 'bento', 'navy'
   ));
 
 alter table public.portfolios alter column template set default 'navy';

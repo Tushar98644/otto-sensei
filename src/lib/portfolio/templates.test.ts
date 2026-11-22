@@ -7,7 +7,7 @@ describe("the design picker's groups", () => {
     const groups = templateGroups(PORTFOLIO_TEMPLATE_IDS);
     const listed = groups.flatMap((group) => group.ids);
     expect([...listed].sort()).toEqual([...PORTFOLIO_TEMPLATE_IDS].sort());
-    expect(groups[0]).toEqual({ label: "Our picks", ids: ["paper", "dock", "reel"] });
+    expect(groups[0]).toEqual({ label: "Our picks", ids: ["paper", "gazette", "reel"] });
     expect(listed.slice(-2)).toEqual(["bento", "navy"]);
   });
 

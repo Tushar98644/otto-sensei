@@ -27,7 +27,7 @@ export function PortfolioShowcase() {
           </>
         }
       >
-        Not your resume as a web page. Pick one of eight designs and Otto fills it with your
+        Not your resume as a web page. Pick one of twelve designs and Otto fills it with your
         projects, work, writing and links. We host it, so there&apos;s nothing to set up. It comes
         with Pro{trialOffered() ? `, and you can start with a ${PRO_TRIAL.days}-day trial` : ""}.
       </SectionHeader>
