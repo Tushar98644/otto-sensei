@@ -7,7 +7,6 @@ import { openFeaturePrompt } from "@/components/account/upgrade-prompt";
 import { useSessionUserId } from "@/components/account/session-user";
 import { saveLookingForChoice, useWorkProfile } from "@/components/eligibility/use-work-profile";
 import { OTTO } from "@/components/mascot/lines";
-import { hasTailoredCopy, JobsEmailOptIn } from "@/components/notifications/email-opt-in";
 import { JobsWorkPrompt } from "@/components/setup/jobs-work-prompt";
 import { useSetupGuess } from "@/components/setup/use-account-setup";
 import { useNow } from "@/components/studio/use-now";
@@ -327,13 +326,6 @@ export function JobsPage() {
             })}
           </ul>
         )}
-
-        {userId && data && view === "matches" && data.jobs.length > 0 ? (
-          <JobsEmailOptIn
-            userId={userId}
-            moment={data.savedCount > 0 || hasTailoredCopy(resumes)}
-          />
-        ) : null}
 
         {data && locked && data.openJobs > 0 ? (
           <MoreWithPro

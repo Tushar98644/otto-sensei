@@ -826,7 +826,7 @@ short: until going live, anyone with a public test card can get Pro (the go-live
    - Every account with an email gets it once, whatever its email settings. Each is logged before it
      is sent, so a rerun never emails anyone twice.
    - A run sends at most what is left of the day's optional email allowance
-     (`OPTIONAL_EMAILS_PER_DAY`, 25 by default, shared with tips and the weekly jobs email), so run
+     (`OPTIONAL_EMAILS_PER_DAY`, 25 by default), so run
      it once a day until it says `Still to notify: 0`, or pass `--limit N` on a paid Resend plan.
      Start early enough that the last one goes out before the date.
    - First read the copy (`processorNoticeEmail` in `src/lib/notifications/processor-notice.ts`)
@@ -894,10 +894,10 @@ quietly; the rest of the app runs the same.
 | `NEXT_PUBLIC_POSTHOG_KEY` (+ `NEXT_PUBLIC_POSTHOG_HOST` for EU) | Funnel events | 10c |
 | `GITHUB_TOKEN` | Higher GitHub limits for Import from GitHub and portfolio GitHub numbers | 10d |
 | `CRON_SECRET` | Daily cleanup, follow-up reminders (bell), and clearing /jobs after the daily job read (also a GitHub secret) | 10e |
-| `RESEND_API_KEY`, `EMAIL_FROM` | Reminder emails, the weekly jobs email and tips (needs `CRON_SECRET`) | 10e |
+| `RESEND_API_KEY`, `EMAIL_FROM` | The trial-ending email and one-time service notices; follow-ups, new matches and views are bell only | 10e |
 | `EMAIL_POSTAL_ADDRESS` | A postal address (a PO box or virtual mailbox is fine) shown in the footer of optional emails. Tip emails stay off until it's set | 10e |
 | `INBOUND_EMAIL_SECRET` (+ optional `INBOUND_ADDRESS_STYLE`, `INBOUND_DOMAIN`) | Applications that track themselves from forwarded job emails, through a Cloudflare Email Worker; addresses are `otto+<handle>@track.ottosensei.com` | workers/inbound-email/README.md |
-| `OPTIONAL_EMAILS_PER_DAY` | Optional, default 25: the daily allowance shared by tips, the weekly jobs email and the one-time processor-change notice (step 10.12), kept under Resend's free quota next to sign-in codes. Raise it on a paid Resend plan; 0 stops optional emails | 10e |
+| `OPTIONAL_EMAILS_PER_DAY` | Optional, default 25: the daily allowance for the one-time processor-change notice (step 10.12), kept under Resend's free quota next to sign-in codes. Raise it on a paid Resend plan; 0 stops optional emails | 10e |
 
 ---
 
@@ -984,12 +984,12 @@ vercel env add GITHUB_TOKEN production
 
 ---
 
-## 10e. Scheduled jobs and reminder emails (optional)
+## 10e. Scheduled jobs (optional)
 
 ```
 Vercel Cron    → /api/cron/cleanup     04:17 UTC daily → old rate-limit windows, tombstones, notifications
                → /api/cron/trial-reminders 13:30 UTC daily → bell notification (+ email) a day before a trial ends
-               → /api/cron/follow-ups  14:00 UTC daily → bell notification (+ email) per account
+               → /api/cron/follow-ups  14:00 UTC daily → bell notification per account (no email)
 GitHub Actions → POST /api/cron/jobs, 05:40 UTC daily, called until every board and feed is read
                  (scripts/jobs-ingest-ci.ts does the same in one run, given a database URL)
 ```
@@ -1018,8 +1018,8 @@ for 05:40 UTC. `POST /api/cron/jobs` (Bearer `CRON_SECRET`) still runs a 4-minut
    vercel env add CRON_SECRET production
    ```
 
-2. Reminder emails (optional; without them reminders stay in the dashboard bell). In Resend, the
-   domain from step 6a is already verified: **API Keys** → **Create API Key** → name
+2. The trial-ending email (optional; without it the notice stays in the dashboard bell). In Resend,
+   the domain from step 6a is already verified: **API Keys** → **Create API Key** → name
    `otto-reminders`, permission **Sending access**. Then:
 
    ```bash
@@ -1032,14 +1032,11 @@ for 05:40 UTC. `POST /api/cron/jobs` (Bearer `CRON_SECRET`) still runs a 4-minut
 
 - Marking a job applied sets its follow-up date by itself: 7 days after it was sent (each account
   can pick another number on the Account page), never sooner than a day after it was logged. When
-  the date comes, the job adds one bell note. Each account gets at most one notification and one
-  email per run, covering all its newly due applications. Snooze moves the date 3 days on; Done or
-  any other status clears it.
-- Reminder emails are opt-in: nobody gets one until they turn **Email me too** on in **Reminders**
-  on the Account page. Each email has **Done** and **Snooze 3 days** per application and an
-  **Unsubscribe**, all signed with `CRON_SECRET` (a new secret retires old links); each opens a page
-  that acts only when its one button is pressed, so mail scanners that open links change nothing.
-  The mail app's own one-click unsubscribe header still works. The bell keeps working either way.
+  the date comes, the job adds bell notes, covering all its newly due applications; it sends no
+  email. Snooze moves the date 3 days on; Done or any other status clears it.
+- Reminder, weekly jobs, tips and views emails are gone. Links in ones already sent (**Done**,
+  **Snooze 3 days**, **Unsubscribe**, signed with `CRON_SECRET`) still work until the secret
+  changes; each opens a page that acts only when its one button is pressed.
 - Trial reminders: Dodo's own **Subscription Trial Ending** email is turned off (step 10.2: for a
   trial under 7 days it goes out the moment the trial starts), so every trialist gets one bell note
   and one email (whatever their reminder setting: it's a billing notice) 12 to 36 hours before the

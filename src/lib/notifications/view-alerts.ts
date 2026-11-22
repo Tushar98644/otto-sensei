@@ -1,32 +1,15 @@
-import { createHash } from "node:crypto";
-import { and, asc, desc, eq, gt, inArray, isNull, lte, or, sql } from "drizzle-orm";
-import { accountSectionHref } from "@/components/setup/links";
+import { and, asc, eq, isNull, lte, or, sql } from "drizzle-orm";
 import { PORTFOLIO_ROUTE } from "@/components/portfolio/route";
 import { ROUTES } from "@/components/site/routes";
 import { getDb } from "@/db/client";
 import { lockUser } from "@/db/locks";
-import {
-  notifications,
-  notificationSettings,
-  portfolios,
-  resumes,
-  shares,
-  users,
-} from "@/db/schema";
-import { emailLink } from "@/lib/analytics/landing";
+import { portfolios, resumes, shares } from "@/db/schema";
 import type { CronContext, CronOutcome } from "@/lib/cron/run";
-import { appUrl } from "@/lib/env";
 import { log } from "@/lib/log";
 import { DAY_MS, HOUR_MS } from "@/lib/time";
-import { optionalEmailRoom } from "./budget";
-import { EMAIL_BATCH_MAX, type EmailMessage, type EmailSender } from "./email";
-import { OTTO_HEAD_EMAIL_PATH } from "./follow-up";
 import { insertNotification } from "./records";
-import { VIEW_KINDS } from "./types";
-import { unsubscribeUrl } from "./unsubscribe";
-import { viewsEmail, type ViewLine } from "./views-email";
 
-// Bell alerts when someone opens a share link or the portfolio: counts and when, never who.
+// Bell alerts when someone opens a share link or the portfolio, in the bell only: counts and when, never who.
 
 export const VIEW_ALERTS = {
   // At most one bell alert per link per day.
@@ -37,8 +20,6 @@ export const VIEW_ALERTS = {
   weekMs: 8 * DAY_MS,
   portfoliosPerBatch: 50,
   maxPortfolioBatches: 20,
-  emailsPerBatch: EMAIL_BATCH_MAX,
-  linesPerEmail: 6,
 } as const;
 
 const count = new Intl.NumberFormat("en-US");
@@ -176,164 +157,12 @@ async function notePortfolios({ now, deadline }: CronContext) {
   return { stats, complete: false };
 }
 
-type Claimed = { userId: string; email: string; lines: ViewLine[]; emailedAt: number | null };
-
-const emailCursor = sql<number>`coalesce(${notificationSettings.viewsEmailedAt}, 0)`;
-
-// Stamped under the account's lock, only while it still points where it was read.
-async function claimEmail(
-  userId: string,
-  emailedAt: number | null,
-  now: number,
-): Promise<Claimed | null> {
-  const db = await getDb();
-  return db.transaction(async (tx) => {
-    if (!(await lockUser(tx, userId))) return null;
-    const stamped = await tx
-      .update(notificationSettings)
-      .set({ viewsEmailedAt: now })
-      .where(
-        and(
-          eq(notificationSettings.userId, userId),
-          eq(notificationSettings.viewEmails, true),
-          emailedAt === null
-            ? isNull(notificationSettings.viewsEmailedAt)
-            : eq(notificationSettings.viewsEmailedAt, emailedAt),
-        ),
-      )
-      .returning({ userId: notificationSettings.userId });
-    if (stamped.length === 0) return null;
-    const [owner] = await tx.select({ email: users.email }).from(users).where(eq(users.id, userId));
-    const lines = await tx
-      .select({ kind: notifications.kind, title: notifications.title, body: notifications.body })
-      .from(notifications)
-      .where(
-        and(
-          eq(notifications.userId, userId),
-          inArray(notifications.kind, [...VIEW_KINDS]),
-          gt(notifications.createdAt, emailedAt ?? 0),
-        ),
-      )
-      .orderBy(desc(notifications.createdAt))
-      .limit(VIEW_ALERTS.linesPerEmail);
-    if (!owner || lines.length === 0) return null;
-    return { userId, email: owner.email, lines, emailedAt };
-  });
-}
-
-async function release(batch: readonly Claimed[], now: number): Promise<void> {
-  const db = await getDb();
-  for (const item of batch) {
-    await db
-      .update(notificationSettings)
-      .set({ viewsEmailedAt: item.emailedAt })
-      .where(
-        and(
-          eq(notificationSettings.userId, item.userId),
-          eq(notificationSettings.viewsEmailedAt, now),
-        ),
-      );
-  }
-}
-
-function emailFor(item: Claimed): EmailMessage {
-  const base = appUrl();
-  const at = (path: string) => new URL(path, base).toString();
-  const onlyPortfolio = item.lines.every((line) => line.kind === "portfolio_views");
-  return viewsEmail({
-    to: item.email,
-    lines: item.lines,
-    url: emailLink(
-      at(onlyPortfolio ? PORTFOLIO_ROUTE : ROUTES.dashboardResumes),
-      "views",
-      onlyPortfolio ? "portfolio" : "resumes",
-    ),
-    links: {
-      ottoHeadUrl: at(OTTO_HEAD_EMAIL_PATH),
-      settingsUrl: emailLink(at(accountSectionHref("reminders")), "views", "settings"),
-      unsubscribeUrl: unsubscribeUrl(item.userId, "views"),
-    },
-  });
-}
-
-function batchKey(claimed: readonly Claimed[], now: number): string {
-  const ids = claimed
-    .map((item) => item.userId)
-    .sort()
-    .join(",");
-  return `views-${createHash("sha256").update(`${now}:${ids}`).digest("hex").slice(0, 40)}`;
-}
-
-async function sendEmails({ now, deadline }: CronContext, sender: EmailSender) {
-  const db = await getDb();
-  const stats = { emailsSent: 0, emailsFailed: 0, released: 0 };
-  const cap = await optionalEmailRoom("views", now);
-  if (cap === 0) return { stats, complete: false };
-  // Only accounts with an alert since their last email, oldest waiting first.
-  const due = await db
-    .select({ userId: notificationSettings.userId, emailedAt: notificationSettings.viewsEmailedAt })
-    .from(notificationSettings)
-    .where(
-      and(
-        eq(notificationSettings.viewEmails, true),
-        or(
-          isNull(notificationSettings.viewsEmailedAt),
-          lte(notificationSettings.viewsEmailedAt, now - VIEW_ALERTS.shareEveryMs + 4 * HOUR_MS),
-        ),
-        sql`exists (select 1 from ${notifications} n where n.user_id = ${notificationSettings.userId} and n.kind in ('share_viewed', 'portfolio_views') and n.created_at > ${emailCursor})`,
-      ),
-    )
-    .orderBy(asc(emailCursor), asc(notificationSettings.userId))
-    .limit(cap);
-  const claimed: Claimed[] = [];
-  for (const row of due) {
-    if (Date.now() >= deadline) break;
-    const item = await claimEmail(row.userId, row.emailedAt, now);
-    if (item) claimed.push(item);
-  }
-  for (let start = 0; start < claimed.length; start += VIEW_ALERTS.emailsPerBatch) {
-    const batch = claimed.slice(start, start + VIEW_ALERTS.emailsPerBatch);
-    try {
-      const result = await sender.sendBatch(batch.map(emailFor), batchKey(batch, now));
-      stats.emailsSent += result.sent;
-      stats.emailsFailed += result.failed;
-      if (result.refused) {
-        await release(batch, now);
-        stats.released += batch.length;
-      }
-    } catch (error) {
-      log.error("cron.view_alerts.email_failed", error, { messages: batch.length });
-      stats.emailsFailed += batch.length;
-    }
-  }
-  return { stats, complete: due.length < cap };
-}
-
-export type ViewAlertDeps = { sender: EmailSender | null };
-
-export async function runViewAlerts(
-  context: CronContext,
-  { sender }: ViewAlertDeps,
-): Promise<CronOutcome> {
-  const failed: string[] = [];
-  let stats: Record<string, number> = {};
-  let complete = true;
+export async function runViewAlerts(context: CronContext): Promise<CronOutcome> {
   try {
     const notes = await notePortfolios(context);
-    stats = { ...stats, ...notes.stats };
-    complete &&= notes.complete;
+    return { stats: notes.stats, complete: notes.complete, failed: [] };
   } catch (error) {
     log.error("cron.view_alerts.portfolios_failed", error);
-    failed.push("portfolios");
+    return { stats: {}, complete: true, failed: ["portfolios"] };
   }
-  if (!sender) return { stats: { ...stats, emailOff: 1 }, complete, failed };
-  try {
-    const emails = await sendEmails(context, sender);
-    stats = { ...stats, ...emails.stats };
-    complete &&= emails.complete;
-  } catch (error) {
-    log.error("cron.view_alerts.emails_failed", error);
-    failed.push("emails");
-  }
-  return { stats, complete, failed };
 }

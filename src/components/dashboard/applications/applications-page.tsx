@@ -8,7 +8,6 @@ import { openUpgradePrompt } from "@/components/account/upgrade-prompt";
 import { OTTO } from "@/components/mascot/lines";
 import { Otto } from "@/components/mascot/otto";
 import { OttoNote } from "@/components/mascot/otto-note";
-import { RemindersEmailOptIn } from "@/components/notifications/email-opt-in";
 import { useNow } from "@/components/studio/use-now";
 import { FREE_APPLICATIONS } from "@/config/plans";
 import { Alert } from "@/components/ui/alert";
@@ -31,7 +30,7 @@ import type { ApplicationDialogTarget } from "./application-dialog";
 import { ApplicationFilters } from "./application-filters";
 import { ApplicationRow } from "./application-row";
 import { ApplicationsBoard } from "./board/applications-board";
-import { emailedCards, useEmailTracking, useOtherPromptFirst } from "./email/use-email-tracking";
+import { emailedCards, useEmailTracking } from "./email/use-email-tracking";
 import { readView, toApplyItems, writeView, type BoardView } from "./board/board";
 import { useBoardExtras } from "./board/use-board-extras";
 import { NoReplyNudge } from "./no-reply-nudge";
@@ -87,11 +86,7 @@ export function ApplicationsPage() {
   const full = pro === false && items.length >= FREE_APPLICATIONS;
   const tryPro = useTryProLabel();
   const { tracking } = useEmailTracking();
-  const promptFirst = useOtherPromptFirst(items.length);
-  // Shares the reminders card's place, after it, so the page asks one thing at a time.
-  const trackingPanel = (
-    <Lazy loader={emailTrackingPanel} wanted props={{ waiting: promptFirst }} />
-  );
+  const trackingPanel = <Lazy loader={emailTrackingPanel} wanted props={{}} />;
   const emailed = useMemo(() => emailedCards(tracking, now), [tracking, now]);
 
   const versions = useMemo(
@@ -229,7 +224,6 @@ export function ApplicationsPage() {
       ) : (
         <>
           <NoReplyNudge stale={stale} />
-          <RemindersEmailOptIn applications={items.length} />
           {trackingPanel}
 
           <section aria-labelledby="applications-heading" className="flex flex-col gap-4">

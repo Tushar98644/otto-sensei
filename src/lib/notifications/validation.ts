@@ -20,26 +20,6 @@ export const ReminderSettingsSchema = z
     "Nothing to change.",
   );
 
-export const EmailChoicesSchema = z
-  .object({
-    jobEmails: z.boolean().optional(),
-    tipEmails: z.boolean().optional(),
-    viewEmails: z.boolean().optional(),
-    jobPromptClosed: z.literal(true).optional(),
-    jobPromptSnoozed: z.literal(true).optional(),
-    viewPromptSnoozed: z.literal(true).optional(),
-  })
-  .refine(
-    (body) =>
-      body.jobEmails !== undefined ||
-      body.tipEmails !== undefined ||
-      body.viewEmails !== undefined ||
-      body.jobPromptClosed ||
-      body.jobPromptSnoozed ||
-      body.viewPromptSnoozed,
-    "Nothing to change.",
-  );
-
 export const FollowUpActionSchema = z.object({
   u: z.uuid(),
   a: z.uuid(),

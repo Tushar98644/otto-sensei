@@ -32,8 +32,6 @@ import type {
   GitHubLookupResponse,
 } from "@/lib/github/types";
 import type {
-  EmailChoicesBody,
-  EmailChoicesResponse,
   FollowUpActionResponse,
   MarkNotificationsReadBody,
   MarkNotificationsReadResponse,
@@ -445,10 +443,6 @@ export const api = {
     ),
   saveReminderSettings: (body: ReminderSettingsBody) =>
     request<ReminderSettingsResponse>("/api/notifications/settings", postJson(body, "PUT")),
-  emailChoices: () =>
-    request<EmailChoicesResponse>("/api/notifications/emails", { cache: "no-store" }),
-  saveEmailChoices: (body: EmailChoicesBody) =>
-    request<EmailChoicesResponse>("/api/notifications/emails", postJson(body, "PUT")),
   calendarFeed: (body: CalendarFeedBody = {}) =>
     request<CalendarFeedResponse>("/api/calendar", postJson(body)),
   interviewOutcome: (id: string, body: InterviewOutcomeBody) =>

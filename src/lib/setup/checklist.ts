@@ -7,7 +7,7 @@ import type { WeakLineState } from "./weak-line";
 
 export type { WeakLineState, WeakLineTarget } from "./weak-line";
 
-export type SetupItemId = "resume" | "work" | "looking_for" | "weak_line" | "reminders";
+export type SetupItemId = "resume" | "work" | "looking_for" | "weak_line";
 
 // The home region Otto set to Yes on its own doesn't count until the person confirms it.
 export function workRightsSet(profile: WorkProfile, guess: SetupGuess | null = null): boolean {
@@ -48,7 +48,6 @@ export type SetupFacts = {
   work: { profile: WorkProfile; lookingFor: LookingForChoice } | null;
   guess?: SetupGuess | null;
   weakLine: WeakLineState;
-  reminders: { available: boolean; chosen: boolean } | null;
 };
 
 export type SetupItem = { id: SetupItemId; done: boolean };
@@ -60,9 +59,6 @@ export function setupItems(facts: SetupFacts): SetupItem[] {
   }
   if (facts.work) items.push({ id: "looking_for", done: lookingForSet(facts.work.lookingFor) });
   items.push({ id: "weak_line", done: facts.weakLine.status === "done" });
-  if (facts.pro && facts.reminders?.available) {
-    items.push({ id: "reminders", done: facts.reminders.chosen });
-  }
   return items;
 }
 
@@ -86,29 +82,4 @@ export function jobsWorkPromptShows({
   guess?: SetupGuess | null;
 }): boolean {
   return pro && !locked && profile !== null && !workRightsSet(profile, guess);
-}
-
-export function reminderPromptShows({
-  pro,
-  applications,
-  reminders,
-}: {
-  pro: boolean;
-  applications: number;
-  reminders: {
-    available: boolean;
-    chosen: boolean;
-    emailReminders: boolean;
-    promptSnoozed?: boolean;
-  } | null;
-}): boolean {
-  return (
-    pro &&
-    applications > 0 &&
-    reminders !== null &&
-    reminders.available &&
-    !reminders.chosen &&
-    !reminders.emailReminders &&
-    reminders.promptSnoozed !== true
-  );
 }

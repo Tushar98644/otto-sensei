@@ -76,23 +76,19 @@ const SECTIONS: readonly LegalSection[] = [
         </li>
         <li>
           <strong>Reminders.</strong> When you mark a job applied, we store a follow-up date (7 days
-          later unless you pick another number). When it comes, we add a note to your dashboard. We
-          email you about it only if you turn reminder emails on on your account page. We store the
-          note, whether you&apos;ve read it, the date, and your reminder settings. Read notes are
-          deleted after 90 days, unread ones after a year.
+          later unless you pick another number). When it comes, we add a note to the bell on your
+          dashboard; Otto doesn&apos;t email reminders. We store the note, whether you&apos;ve read
+          it, the date, and your reminder settings. Read notes are deleted after 90 days, unread
+          ones after a year.
         </li>
         <li>
-          <strong>Other emails from Otto.</strong> We store your choices for the weekly email of new
-          job matches (off unless you turn it on) and for tips and reminders (on unless you turn
-          them off), and when you answered the Jobs tab&apos;s question about the weekly email. For
-          the weekly email we store when the last one went out and when we last looked for new
-          matches; it uses your resume and work profile the way the Jobs tab does, and leaves out
-          jobs you saved or applied to. To pick a tip we look at what you&apos;ve done in Otto
-          lately, such as whether you&apos;ve added a resume or used a line fix this month, and we
-          keep a record of which tips we sent you and when (never the email&apos;s text), so none
-          goes twice. While a trial runs, and only if tips are on, we keep a copy of its end date so
-          we can tell when it ended. Every one of these emails has a one-click unsubscribe link, and
-          your account page has the switches.
+          <strong>New matches.</strong> Once a week Otto looks for new jobs that match your resume
+          and adds a note to the bell saying how many there are. We store when the last note went
+          out and when we last looked; it uses your resume and work profile the way the Jobs tab
+          does, and leaves out jobs you saved or applied to. Otto no longer sends the weekly jobs
+          email, tips or views emails. We keep the email choices you made before and the record of
+          which tips we sent you and when (never the email&apos;s text), but they no longer do
+          anything. Emails sent before still have a working one-click unsubscribe link.
         </li>
         <li>
           <strong>Your work profile.</strong> If you fill it in, we store the country you live in,
@@ -383,8 +379,8 @@ const SECTIONS: readonly LegalSection[] = [
             sessions.
           </li>
           <li>
-            <strong>Resend</strong> delivers our sign-in codes, reminders, the weekly jobs email,
-            tips and notices about your account.
+            <strong>Resend</strong> delivers our sign-in codes and notices about your account, such
+            as a trial ending.
           </li>
           <li>
             <strong>Google</strong>, only if you choose to sign in with your Google account.

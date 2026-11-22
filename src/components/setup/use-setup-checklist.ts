@@ -17,7 +17,6 @@ import { weakLineState, type WeakLineState } from "@/lib/setup/weak-line";
 import { useResumeList } from "@/lib/store/resume-store";
 import { useFirstLoadPending } from "@/lib/sync/use-cloud-sync";
 import { rememberWeakLine, setChecklistHidden, useAccountSetup } from "./use-account-setup";
-import { useReminderChoice } from "./use-reminder-choice";
 
 export type SetupChecklist = {
   own: Resume[];
@@ -38,7 +37,6 @@ export function useSetupChecklist(): SetupChecklist | null {
   const loadingResumes = useFirstLoadPending();
   const own = useMemo(() => ownResumes(resumes), [resumes]);
   const userId = "userId" in setup ? setup.userId : null;
-  const reminders = useReminderChoice(userId, pro === true);
   const remembered = "weakLine" in setup ? setup.weakLine : null;
   const weakLine = useMemo(() => weakLineState(own, remembered), [own, remembered]);
 
@@ -47,8 +45,7 @@ export function useSetupChecklist(): SetupChecklist | null {
     pro !== null &&
     !loadingResumes &&
     (work.status === "ready" || work.status === "error") &&
-    (setup.status === "ready" || setup.status === "error") &&
-    reminders.status !== "loading";
+    (setup.status === "ready" || setup.status === "error");
   if (!settled || !userId) return null;
 
   const items = setupItems({
@@ -57,7 +54,6 @@ export function useSetupChecklist(): SetupChecklist | null {
     work: work.status === "ready" ? { profile: work.profile, lookingFor: work.lookingFor } : null,
     guess: "guess" in setup ? setup.guess : null,
     weakLine,
-    reminders: reminders.value,
   });
   const hiddenAt = "checklistHiddenAt" in setup ? setup.checklistHiddenAt : null;
 

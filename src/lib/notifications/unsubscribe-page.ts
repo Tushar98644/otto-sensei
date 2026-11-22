@@ -2,7 +2,7 @@ import { BRAND } from "@/config/brand";
 import { escapeHtml, FONT, FOREST, INK, MUTED } from "./follow-up";
 import type { EmailList } from "./types";
 
-// A plain page for the unsubscribe link in an email's footer: mail scanners open links, so leaving takes a press.
+// A plain page for the unsubscribe link in the footer of emails sent before these moved to the bell: mail scanners open links, so leaving takes a press.
 
 type ListCopy = { name: string; ask: string; press: string; done: string };
 
@@ -17,13 +17,13 @@ export const UNSUBSCRIBE_COPY: Record<EmailList, ListCopy> = {
     name: "The weekly jobs email",
     ask: "Stop the weekly email about new jobs that match your resume? The Jobs tab still shows them.",
     press: "Stop the weekly email",
-    done: "Done. You won't get the weekly jobs email any more. You can turn it back on in your account settings.",
+    done: "Done. You won't get the weekly jobs email any more. New matches show in the bell on your dashboard.",
   },
   tips: {
     name: "Tips and reminders",
     ask: "Stop tips and reminder emails, like the note when Free's line fixes come back? Billing notices about a trial still come.",
     press: "Stop tips and reminders",
-    done: "Done. You won't get tips and reminder emails any more. You can turn them back on in your account settings.",
+    done: "Done. You won't get tips and reminder emails any more.",
   },
   views: {
     name: "Views emails",
@@ -34,7 +34,7 @@ export const UNSUBSCRIBE_COPY: Record<EmailList, ListCopy> = {
 };
 
 export const INVALID_LINK =
-  "That link isn't valid any more. You can turn emails off in your account settings instead.";
+  "That link isn't valid any more. Otto no longer sends these emails; your reminders are in the bell on your dashboard.";
 
 type PageInput = {
   title: string;

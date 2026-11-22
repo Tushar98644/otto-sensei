@@ -2,16 +2,13 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useRef, useSyncExternalStore } from "react";
-import { useProTools } from "@/components/account/pro-tools";
 import { useMe } from "@/components/account/use-me";
-import { useReminderChoice } from "@/components/setup/use-reminder-choice";
 import { errorMessage } from "@/components/account/errors";
 import { toast } from "@/components/ui/toast";
 import { api } from "@/lib/api/client";
 import type { EmailTrackingAction, EmailTrackingState } from "@/lib/inbound/types";
 import { getQueryClient, useAppQueryClient } from "@/lib/queries/client";
 import { APPLICATIONS, queryKeys } from "@/lib/queries/keys";
-import { reminderPromptShows } from "@/lib/setup/checklist";
 import { DAY_MS, MINUTE_MS } from "@/lib/time";
 
 const MARKED_FOR_MS = 30 * DAY_MS;
@@ -80,16 +77,6 @@ export function useEmailTracking() {
   }, [newest]);
 
   return { tracking, loading: query.isPending && userId !== "", userId };
-}
-
-// One prompt at a time: while the reminders card waits for an answer (or might), email setup waits.
-export function useOtherPromptFirst(applications: number): boolean {
-  const pro = useProTools();
-  const { user } = useMe();
-  const asks = pro === true && applications > 0;
-  const reminders = useReminderChoice(user?.id ?? null, asks);
-  if (reminders.status === "loading") return true;
-  return reminderPromptShows({ pro: pro === true, applications, reminders: reminders.value });
 }
 
 // Cards an email changed in the last month, for the small mark on the board.

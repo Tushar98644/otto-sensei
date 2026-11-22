@@ -7,14 +7,12 @@ import { cookieJar, createUser, resetDb, signInAs } from "@/lib/auth/test-helper
 import { resetEnvForTests } from "@/lib/env";
 import { readEmailChoices, saveEmailChoices } from "@/lib/notifications/choices";
 import type {
-  EmailChoicesResponse,
   MarkNotificationsReadResponse,
   NotificationsResponse,
   ReminderSettingsResponse,
 } from "@/lib/notifications/types";
 import { readEmailReminders, setEmailReminders } from "@/lib/notifications/records";
 import { unsubscribeToken, unsubscribeUrl } from "@/lib/notifications/unsubscribe";
-import { GET as getEmails, PUT as putEmails } from "./emails/route";
 import { GET, PATCH } from "./route";
 import { GET as getSettings, PUT as putSettings } from "./settings/route";
 import { GET as openUnsubscribe, POST as unsubscribe } from "./unsubscribe/route";
@@ -380,107 +378,5 @@ describe("/api/notifications/unsubscribe", () => {
     );
     expect(forged.status).toBe(400);
     expect(await forged.text()).toContain("That link isn&#39;t valid any more.");
-  });
-});
-
-describe("/api/notifications/emails", () => {
-  beforeEach(async () => {
-    await resetDb();
-    cookieJar.clear();
-  });
-
-  afterEach(() => {
-    delete process.env.RESEND_API_KEY;
-    delete process.env.EMAIL_FROM;
-    resetEnvForTests();
-  });
-
-  function save(body: unknown, headers: Record<string, string> = JSON_TYPE) {
-    return putEmails(
-      new Request("http://localhost/api/notifications/emails", {
-        method: "PUT",
-        headers,
-        body: JSON.stringify(body),
-      }),
-    );
-  }
-
-  it("needs a signed-in account", async () => {
-    expect((await getEmails()).status).toBe(401);
-    expect((await save({ jobEmails: true })).status).toBe(401);
-  });
-
-  it("starts with the weekly jobs email off and tips on, and saves each choice", async () => {
-    await signInAs("maya@example.com");
-    expect((await (await getEmails()).json()) as EmailChoicesResponse).toEqual({
-      ok: true,
-      jobEmails: false,
-      tipEmails: true,
-      viewEmails: false,
-      jobPromptClosed: false,
-      jobPromptSnoozed: false,
-      viewPromptClosed: false,
-      viewPromptSnoozed: false,
-      emailAvailable: false,
-    });
-
-    process.env.RESEND_API_KEY = "re_test";
-    process.env.EMAIL_FROM = "Otto Sensei <otto@example.com>";
-    resetEnvForTests();
-    const tipsOff = (await (await save({ tipEmails: false })).json()) as EmailChoicesResponse;
-    expect(tipsOff).toMatchObject({
-      jobEmails: false,
-      tipEmails: false,
-      jobPromptClosed: false,
-      emailAvailable: true,
-    });
-
-    const jobsOn = (await (await save({ jobEmails: true })).json()) as EmailChoicesResponse;
-    expect(jobsOn).toMatchObject({ jobEmails: true, tipEmails: false, jobPromptClosed: true });
-
-    const jobsOff = (await (await save({ jobEmails: false })).json()) as EmailChoicesResponse;
-    expect(jobsOff).toMatchObject({ jobEmails: false, jobPromptClosed: true });
-    expect((await (await getSettings()).json()) as ReminderSettingsResponse).toMatchObject({
-      emailReminders: false,
-      followUpDays: 7,
-    });
-  });
-
-  it("closes the Jobs tab's card without turning the email on", async () => {
-    await signInAs("maya@example.com");
-    const closed = (await (await save({ jobPromptClosed: true })).json()) as EmailChoicesResponse;
-    expect(closed).toMatchObject({ jobEmails: false, tipEmails: true, jobPromptClosed: true });
-  });
-
-  it("rests a card on Not now, and answers the views card when the views email is chosen", async () => {
-    await signInAs("maya@example.com");
-    const resting = (await (
-      await save({ jobPromptSnoozed: true, viewPromptSnoozed: true })
-    ).json()) as EmailChoicesResponse;
-    expect(resting).toMatchObject({
-      jobEmails: false,
-      viewEmails: false,
-      jobPromptClosed: false,
-      jobPromptSnoozed: true,
-      viewPromptClosed: false,
-      viewPromptSnoozed: true,
-    });
-    const viewsOn = (await (await save({ viewEmails: true })).json()) as EmailChoicesResponse;
-    expect(viewsOn).toMatchObject({ viewEmails: true, viewPromptClosed: true });
-    const viewsOff = (await (await save({ viewEmails: false })).json()) as EmailChoicesResponse;
-    expect(viewsOff).toMatchObject({ viewEmails: false, viewPromptClosed: true });
-  });
-
-  it("rejects bad bodies and non-JSON requests", async () => {
-    await signInAs("maya@example.com");
-    for (const body of [
-      {},
-      { jobEmails: "yes" },
-      { jobPromptClosed: false },
-      { tipEmails: null },
-    ]) {
-      expect(await errorCode(await save(body))).toBe("bad_request");
-    }
-    expect((await save({ jobEmails: true }, { "content-type": "text/plain" })).status).toBe(415);
   });
 });

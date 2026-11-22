@@ -282,7 +282,7 @@ test.describe("account page", () => {
     ).toBeVisible();
 
     const preferences = await openAccountTab(page, "Preferences");
-    for (const name of ["Writing style", "Job search", "Emails and reminders"]) {
+    for (const name of ["Writing style", "Job search", "Reminders"]) {
       await expect(preferences.getByRole("heading", { level: 2, name, exact: true })).toBeVisible();
     }
 

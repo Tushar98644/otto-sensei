@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { interviewDay, interviewEmailLine, interviewSoonNotice } from "./interview-soon";
+import { interviewDay, interviewSoonNotice } from "./interview-soon";
 
 // The daily run is at 14:00 UTC; the board saves an interview day as local noon.
 const RUN = Date.UTC(2026, 10, 20, 14, 0, 0);
@@ -23,7 +23,12 @@ describe("interviewDay", () => {
 describe("interviewSoonNotice", () => {
   it("names the company and role and links to the prep, started", () => {
     const notice = interviewSoonNotice(
-      { id: "a1", company: "Stripe", role: "Backend Engineer", interviewAt: Date.UTC(2026, 10, 21, 12) },
+      {
+        id: "a1",
+        company: "Stripe",
+        role: "Backend Engineer",
+        interviewAt: Date.UTC(2026, 10, 21, 12),
+      },
       RUN,
       null,
     );
@@ -50,22 +55,5 @@ describe("interviewSoonNotice", () => {
     );
     expect(long.title.length).toBeLessThanOrEqual(120);
     expect(long.title).toContain("…");
-  });
-});
-
-describe("interviewEmailLine", () => {
-  it("gives the email an absolute prep link", () => {
-    expect(
-      interviewEmailLine(
-        { id: "a 1", company: "Stripe", role: "Backend Engineer", interviewAt: Date.UTC(2026, 10, 21, 12) },
-        RUN,
-        null,
-        "https://otto.test",
-      ),
-    ).toEqual({
-      title: "Your interview with Stripe is tomorrow",
-      detail: "Backend Engineer",
-      prepUrl: "https://otto.test/dashboard/applications/a%201/prep?start=1",
-    });
   });
 });

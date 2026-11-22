@@ -1,58 +1,24 @@
-import { createHash } from "node:crypto";
 import { and, asc, eq, notInArray, or, sql } from "drizzle-orm";
 import { getDb } from "@/db/client";
 import { lockUser } from "@/db/locks";
-import { applications, users, workProfiles } from "@/db/schema";
-import { ROUTES } from "@/components/site/routes";
-import { hasProTools } from "@/config/plans";
-import { emailLink } from "@/lib/analytics/landing";
-import { appUrl } from "@/lib/env";
+import { applications, workProfiles } from "@/db/schema";
 import { log } from "@/lib/log";
-import { EMAIL_BATCH_MAX, type EmailMessage, type EmailSender } from "@/lib/notifications/email";
-import {
-  followUpEmail,
-  followUpNotices,
-  OTTO_HEAD_EMAIL_PATH,
-  type DueApplication,
-} from "@/lib/notifications/follow-up";
-import {
-  interviewEmailLine,
-  interviewSoonNotice,
-  type InterviewSoon,
-} from "@/lib/notifications/interview-soon";
-import { followUpWritePath } from "@/lib/notifications/links";
-import { emailRemindersOn, insertNotification } from "@/lib/notifications/records";
-import {
-  followUpActionUrl,
-  unsubscribePageUrl,
-  unsubscribeUrl,
-} from "@/lib/notifications/unsubscribe";
+import { followUpNotices } from "@/lib/notifications/follow-up";
+import { interviewSoonNotice } from "@/lib/notifications/interview-soon";
+import { insertNotification } from "@/lib/notifications/records";
 import { HOUR_MS } from "@/lib/time";
 import type { CronContext, CronOutcome } from "./run";
 
-// Claiming is the idempotency: one statement stamps reminded_at only on unreminded rows.
+// In the bell only. Claiming is the idempotency: one statement stamps reminded_at only on unreminded rows.
 
 export const FOLLOW_UP = {
-  usersPerBatch: EMAIL_BATCH_MAX,
+  usersPerBatch: 100,
   maxBatchesPerRun: 20,
   // A day saved as local noon is 12 to 36 hours off on the daily run the day before, in every zone.
   interviewAheadMs: 36 * HOUR_MS,
 } as const;
 
-export type FollowUpDeps = {
-  sender: EmailSender | null;
-};
-
-type Claimed = {
-  userId: string;
-  email: string;
-  emailReminders: boolean;
-  canWrite: boolean;
-  timeZone: string | null;
-  due: DueApplication[];
-  interviews: InterviewSoon[];
-  notificationIds: string[];
-};
+type Claimed = { applications: number; interviews: number };
 
 // Written out rather than bound, so the planner can match each status's partial index.
 function dueIn(status: "applied" | "interview", now: number) {
@@ -86,13 +52,11 @@ async function claimForUser(userId: string, now: number): Promise<Claimed | null
   const db = await getDb();
   return db.transaction(async (tx) => {
     if (!(await lockUser(tx, userId))) return null;
-    const [owner] = await tx
-      .select({ email: users.email, plan: users.plan, timeZone: workProfiles.timeZone })
-      .from(users)
-      .leftJoin(workProfiles, eq(workProfiles.userId, users.id))
-      .where(eq(users.id, userId))
+    const [profile] = await tx
+      .select({ timeZone: workProfiles.timeZone })
+      .from(workProfiles)
+      .where(eq(workProfiles.userId, userId))
       .limit(1);
-    if (!owner) return null;
     const due = await tx
       .update(applications)
       .set({ remindedAt: now })
@@ -127,7 +91,7 @@ async function claimForUser(userId: string, now: number): Promise<Claimed | null
       )
       .sort((a, b) => a.interviewAt - b.interviewAt);
     if (due.length === 0 && interviews.length === 0) return null;
-    const timeZone = owner.timeZone || null;
+    const timeZone = profile?.timeZone || null;
     const notices = [
       ...interviews.map((item) => ({
         kind: "interview_soon" as const,
@@ -138,72 +102,17 @@ async function claimForUser(userId: string, now: number): Promise<Claimed | null
         ...notice,
       })),
     ];
-    const notificationIds: string[] = [];
     // A millisecond apart, so the bell lists them in this order: interviews, then the oldest follow-up.
     for (const [index, notice] of notices.entries()) {
-      notificationIds.push(await insertNotification(tx, { userId, ...notice }, now - index));
+      await insertNotification(tx, { userId, ...notice }, now - index);
     }
-    return {
-      userId,
-      email: owner.email,
-      emailReminders: await emailRemindersOn(tx, userId),
-      canWrite: hasProTools(owner.plan),
-      timeZone,
-      due,
-      interviews,
-      notificationIds,
-    };
+    return { applications: due.length, interviews: interviews.length };
   });
 }
 
-// Same batch, same key: a retried run inside Resend's 24-hour window can't send it twice.
-function batchKey(claimed: readonly Claimed[]): string {
-  const ids = claimed
-    .flatMap((item) => item.notificationIds)
-    .sort()
-    .join(",");
-  return `follow-up-${createHash("sha256").update(ids).digest("hex").slice(0, 40)}`;
-}
-
-function emailFor(item: Claimed, now: number): EmailMessage {
-  const base = appUrl();
-  const at = (path: string) => new URL(path, base).toString();
-  return followUpEmail({
-    to: item.email,
-    applications: item.due,
-    interviews: item.interviews.map((interview) => {
-      const line = interviewEmailLine(interview, now, item.timeZone, base);
-      return { ...line, prepUrl: emailLink(line.prepUrl, "follow_up", "prep") };
-    }),
-    now,
-    applicationsUrl: emailLink(at(ROUTES.dashboardApplications), "follow_up", "applications"),
-    settingsUrl: emailLink(at(`${ROUTES.dashboardAccount}#reminders`), "follow_up", "settings"),
-    actionUrls: (applicationId) => ({
-      done: followUpActionUrl(item.userId, applicationId, "done"),
-      snooze: followUpActionUrl(item.userId, applicationId, "snooze"),
-      write: item.canWrite
-        ? emailLink(at(followUpWritePath(applicationId)), "follow_up", "write")
-        : null,
-    }),
-    unsubscribeUrl: unsubscribeUrl(item.userId),
-    unsubscribePageUrl: unsubscribePageUrl(item.userId),
-    ottoHeadUrl: new URL(OTTO_HEAD_EMAIL_PATH, base).toString(),
-  });
-}
-
-export async function runFollowUps(
-  { now, deadline }: CronContext,
-  { sender }: FollowUpDeps,
-): Promise<CronOutcome> {
+export async function runFollowUps({ now, deadline }: CronContext): Promise<CronOutcome> {
   const db = await getDb();
-  const stats = {
-    users: 0,
-    applications: 0,
-    interviews: 0,
-    emailsSent: 0,
-    emailsFailed: 0,
-    emailsSkipped: 0,
-  };
+  const stats = { users: 0, applications: 0, interviews: 0 };
   const failed = new Set<string>();
   const skipped: string[] = [];
   let complete = false;
@@ -226,35 +135,17 @@ export async function runFollowUps(
       break;
     }
 
-    const claimed: Claimed[] = [];
     for (const { userId } of rows) {
       try {
         const result = await claimForUser(userId, now);
         if (!result) continue;
-        claimed.push(result);
         stats.users += 1;
-        stats.applications += result.due.length;
-        stats.interviews += result.interviews.length;
+        stats.applications += result.applications;
+        stats.interviews += result.interviews;
       } catch (error) {
         log.error("cron.follow_ups.claim_failed", error);
         failed.add("claim");
         skipped.push(userId);
-      }
-    }
-
-    const mail = claimed.filter((item) => item.emailReminders && item.email);
-    stats.emailsSkipped += claimed.length - (sender ? mail.length : 0);
-    if (sender && mail.length > 0) {
-      try {
-        const result = await sender.sendBatch(
-          mail.map((item) => emailFor(item, now)),
-          batchKey(mail),
-        );
-        stats.emailsSent += result.sent;
-        stats.emailsFailed += result.failed;
-      } catch (error) {
-        log.error("cron.follow_ups.email_failed", error, { messages: mail.length });
-        stats.emailsFailed += mail.length;
       }
     }
 

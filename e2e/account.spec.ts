@@ -1,6 +1,6 @@
 import type { Browser, Locator, Page, Response } from "@playwright/test";
 import type { MeResponse, ReferralSummaryResponse, ResumesResponse } from "@/lib/api/types";
-import type { EmailChoicesResponse, ReminderSettingsResponse } from "@/lib/notifications/types";
+import type { ReminderSettingsResponse } from "@/lib/notifications/types";
 import { MAX_REWARDED_REFERRALS, REFERRAL_BONUS } from "@/lib/referrals/referrals";
 import type { WritingStyleBody, WritingStyleResponse } from "@/lib/writing-style/schema";
 import { E2E_BASE_URL } from "./env";
@@ -17,7 +17,7 @@ import {
 // next dev compiles a page or API route on its first visit, which can outlast the expect timeout.
 const COMPILE = { timeout: 60_000 };
 const STUDIO_KEY = "otto-studio-v1";
-const EMAIL_ROUTES = new Set(["/api/notifications/settings", "/api/notifications/emails"]);
+const EMAIL_ROUTES = new Set(["/api/notifications/settings"]);
 
 type AccountTab = "Plan & billing" | "Preferences" | "Profile";
 
@@ -102,7 +102,7 @@ test.describe("account tabs", () => {
 
     const preferences = await openTab(page, "Preferences");
     await expect(page).toHaveURL(/\/dashboard\/account\?tab=preferences$/);
-    for (const name of ["Writing style", "Job search", "Emails and reminders"]) {
+    for (const name of ["Writing style", "Job search", "Reminders"]) {
       await expect(preferences.getByRole("heading", { level: 2, name, exact: true })).toBeVisible();
     }
     await expect(region(page, /^Your plan: /)).toHaveCount(0);
@@ -158,7 +158,7 @@ test.describe("account tabs", () => {
   const SECTION_LINKS: ReadonlyArray<{ path: string; tab: AccountTab; section: string | RegExp }> =
     [
       { path: "/dashboard/account#writing-style", tab: "Preferences", section: "Writing style" },
-      { path: "/dashboard/account#reminders", tab: "Preferences", section: "Reminders and emails" },
+      { path: "/dashboard/account#reminders", tab: "Preferences", section: "Follow-up reminders" },
       { path: "/dashboard/account#invite", tab: "Profile", section: "Invite friends" },
       { path: "/dashboard/account#delete-account", tab: "Profile", section: "Delete account" },
       { path: "/account?tab=profile#plan", tab: "Plan & billing", section: /^Your plan: / },
@@ -227,7 +227,7 @@ test.describe("account tabs", () => {
     await signInHere(page, email);
     await expect(page).toHaveURL((url) => url.pathname === "/dashboard/account", COMPILE);
     await expect(accountTab(page, "Preferences")).toHaveAttribute("aria-selected", "true");
-    await expect(region(page, "Reminders and emails")).toBeInViewport();
+    await expect(region(page, "Follow-up reminders")).toBeInViewport();
   });
 });
 
@@ -338,15 +338,7 @@ test.describe("writing style", () => {
 });
 
 function reminders(page: Page): Locator {
-  return region(page, "Reminders and emails");
-}
-
-function emailChoice(card: Locator, name: string): Locator {
-  return card.getByRole("radiogroup", { name, exact: true });
-}
-
-function onOff(card: Locator, name: string, value: "On" | "Off"): Locator {
-  return emailChoice(card, name).getByRole("radio", { name: value, exact: true });
+  return region(page, "Follow-up reminders");
 }
 
 // The e2e server has no email service; this answers as if it had one, while the settings still save for real.
@@ -361,16 +353,12 @@ async function withEmailService(page: Page) {
   );
 }
 
-test.describe("reminders and emails", () => {
-  test("the follow-up delay saves and stays after a reload, and with no email service no email choice is offered", async ({
+test.describe("reminders", () => {
+  test("the follow-up delay saves and stays after a reload, and no email choice is offered", async ({
     page,
     user,
   }) => {
     expect(user.plan).toBe("free");
-    const emailsRead = page.waitForResponse(
-      (response) => isCall(response, "GET", "/api/notifications/emails"),
-      COMPILE,
-    );
     await openAccount(page, "/dashboard/account?tab=preferences");
     const card = reminders(page);
     const delay = card.getByLabel("Remind me to follow up after");
@@ -383,7 +371,6 @@ test.describe("reminders and emails", () => {
       "14 days",
       "21 days",
     ]);
-    expect((await emailsRead).ok()).toBe(true);
     await expect(card.getByRole("radiogroup")).toHaveCount(0);
     await expect(card.getByText("Email me reminders")).toHaveCount(0);
     await expect(card.getByText("Weekly jobs email")).toHaveCount(0);
@@ -403,7 +390,7 @@ test.describe("reminders and emails", () => {
     );
   });
 
-  test("with an email service, each email can be turned on or off, and the choice stays", async ({
+  test("even with an email service, reminders stay in the bell and no email is offered", async ({
     page,
     user,
   }) => {
@@ -411,33 +398,11 @@ test.describe("reminders and emails", () => {
     await withEmailService(page);
     await openAccount(page, "/dashboard/account#reminders");
     const card = reminders(page);
-    await expect(onOff(card, "Email me reminders", "Off")).toBeChecked(COMPILE);
-    await expect(onOff(card, "Weekly jobs email", "Off")).toBeChecked(COMPILE);
-    await expect(onOff(card, "Tips and reminders", "On")).toBeChecked();
-
-    await pick(emailChoice(card, "Email me reminders"), "On");
-    await expect(toasts(page).getByText("Reminder emails are on.")).toBeVisible();
-    await pick(emailChoice(card, "Weekly jobs email"), "On");
-    await expect(toasts(page).getByText("Weekly jobs email is on.")).toBeVisible();
-    await pick(emailChoice(card, "Tips and reminders"), "Off");
-    await expect(toasts(page).getByText("Tips and reminders are off.")).toBeVisible();
-
-    // Read straight from the server, past the browser's stand-in answers.
-    const settings = await getJson<ReminderSettingsResponse>(page, "/api/notifications/settings");
-    expect(settings).toMatchObject({ emailReminders: true, followUpDays: 7 });
-    const emails = await getJson<EmailChoicesResponse>(page, "/api/notifications/emails");
-    expect(emails).toMatchObject({ jobEmails: true, tipEmails: false });
-
-    await page.reload();
-    await expect(onOff(reminders(page), "Email me reminders", "On")).toBeChecked(COMPILE);
-    await expect(onOff(reminders(page), "Weekly jobs email", "On")).toBeChecked(COMPILE);
-    await expect(onOff(reminders(page), "Tips and reminders", "Off")).toBeChecked();
-
-    await pick(emailChoice(reminders(page), "Email me reminders"), "Off");
-    await expect(toasts(page).getByText("Reminder emails are off.")).toBeVisible();
-    expect(
-      (await getJson<ReminderSettingsResponse>(page, "/api/notifications/settings")).emailReminders,
-    ).toBe(false);
+    await expect(card.getByLabel("Remind me to follow up after")).toHaveValue("7", COMPILE);
+    await expect(card.getByRole("radiogroup")).toHaveCount(0);
+    await expect(card.getByText("Email me reminders")).toHaveCount(0);
+    await expect(card.getByText("Weekly jobs email")).toHaveCount(0);
+    await expect(card.getByText("Tips and reminders")).toHaveCount(0);
   });
 });
 

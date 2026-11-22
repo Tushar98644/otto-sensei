@@ -1,16 +1,12 @@
-import { createHash } from "node:crypto";
 import { and, asc, desc, eq, inArray, isNull, lte, notInArray, or, sql } from "drizzle-orm";
-import { accountSectionHref } from "@/components/setup/links";
 import { ROUTES } from "@/components/site/routes";
 import { FREE_JOB_MATCHES, hasProTools, type PlanId } from "@/config/plans";
-import { emailLink } from "@/lib/analytics/landing";
-import { getDb, type Db } from "@/db/client";
+import { getDb, type Db, type Tx } from "@/db/client";
 import { lockUser } from "@/db/locks";
 import { applications, jobs, notificationSettings, resumes, users } from "@/db/schema";
 import { normalizeJobUrl } from "@/lib/applications/schema";
 import type { CronContext, CronOutcome } from "@/lib/cron/run";
 import { readWorkProfile } from "@/lib/eligibility/records";
-import { appUrl } from "@/lib/env";
 import { lookingForOf } from "@/lib/job-feed/looking-for";
 import { readStoredCounts, type StoredCounts } from "@/lib/job-feed/match-index";
 import { matchProfileOf } from "@/lib/job-feed/profile";
@@ -20,39 +16,34 @@ import { log } from "@/lib/log";
 import type { Resume } from "@/lib/resume/schema";
 import { ResumeSchema } from "@/lib/resume/validation";
 import { DAY_MS, HOUR_MS } from "@/lib/time";
-import { optionalEmailRoom } from "./budget";
-import { EMAIL_BATCH_MAX, type EmailMessage, type EmailSender } from "./email";
-import { OTTO_HEAD_EMAIL_PATH } from "./follow-up";
-import { unsubscribeUrl } from "./unsubscribe";
-import { weeklyJobsEmail, type DigestJob } from "./weekly-jobs-email";
+import { clip, NAME_CHARS } from "./follow-up";
+import { insertNotification } from "./records";
+import { NOTIFICATION_LIMITS } from "./types";
 
-// Ranks each opted-in account's resume the way the Jobs tab does, limited to jobs posted in the past week.
+// Once a week the bell says how many new matches the account's resume has, ranked the way the Jobs tab does them, among jobs posted in the past week.
 
 export const WEEKLY_JOBS = {
   // A little under a week, so next week's run at about the same hour still counts.
   everyMs: 7 * DAY_MS - 6 * HOUR_MS,
   // An account with nothing new is looked at again the next day, never twice in one run.
   recheckMs: 20 * HOUR_MS,
-  // The cron runs soon after the daily jobs read (05:40 UTC), so few jobs read since the last email were posted before this.
+  // The cron runs soon after the daily jobs read (05:40 UTC), so few jobs read since the last note were posted before this.
   postedWithinDays: 7,
-  listed: 5,
+  // Jobs named in the bell row; the count covers the rest.
+  named: 2,
   usersPerBatch: 20,
   maxChecksPerRun: 300,
 } as const;
 
-type WeeklyJobsDeps = { sender: EmailSender | null };
+// jobs_emailed_at keeps its name from the old email: it is when the last weekly note went out.
+type Due = { userId: string; plan: PlanId; notedAt: number | null };
 
-type Due = { userId: string; plan: PlanId; emailedAt: number | null };
-
-type Found = { found: number; jobs: DigestJob[]; free: boolean };
+type Found = { fresh: number; names: string[]; free: boolean };
 
 type Check = { kind: "found"; found: Found } | { kind: "no_resume" } | { kind: "nothing_new" };
 
-type Claimed = Found & { userId: string; email: string; emailedAt: number | null };
-
 function dueFor(now: number) {
   return and(
-    eq(notificationSettings.jobEmails, true),
     or(
       isNull(notificationSettings.jobsEmailedAt),
       lte(notificationSettings.jobsEmailedAt, now - WEEKLY_JOBS.everyMs),
@@ -63,6 +54,8 @@ function dueFor(now: number) {
     ),
   );
 }
+
+const hasResume = sql`exists (select 1 from ${resumes} where ${resumes.userId} = ${users.id})`;
 
 // The Jobs tab's default: the newest resume that isn't a tailored copy, else the newest.
 async function defaultResume(db: Db, userId: string): Promise<Resume | null> {
@@ -85,12 +78,7 @@ async function defaultResume(db: Db, userId: string): Promise<Resume | null> {
   return parsed.success ? parsed.data : null;
 }
 
-function toDigestJob(job: MatchedJob): DigestJob {
-  const { id, title, company, location, remote, source, url } = job;
-  return { id, title, company, location, remote, source, url };
-}
-
-// New means Otto first read it after the last email: a feed's post date can be older than the day it was read.
+// New means Otto first read it after the last note: a feed's post date can be older than the day it was read.
 async function firstSeenAfter(db: Db, ids: string[], since: number): Promise<Set<string>> {
   if (ids.length === 0) return new Set();
   const rows = await db
@@ -141,7 +129,7 @@ async function newMatchesFor(
     cache: false,
     counts,
   });
-  // Free sees its closest few, as on the Jobs tab; nothing an earlier email listed comes again.
+  // Free counts its closest few, as on the Jobs tab; nothing an earlier note counted comes again.
   const shown = (free ? ranked.jobs.slice(0, FREE_JOB_MATCHES) : ranked.jobs).filter(
     (job) => !job.closed && !job.match.blocked && !job.saved && /^https?:\/\//.test(job.url),
   );
@@ -149,143 +137,124 @@ async function newMatchesFor(
     firstSeenAfter(
       db,
       shown.map((job) => job.id),
-      due.emailedAt ?? 0,
+      due.notedAt ?? 0,
     ),
     appliedTo(db, due.userId),
   ]);
-  const listed = shown
-    .filter((job) => fresh.has(job.id) && !applied(job))
-    .slice(0, WEEKLY_JOBS.listed);
+  const listed = shown.filter((job) => fresh.has(job.id) && !applied(job));
   if (listed.length === 0) return { kind: "nothing_new" };
-  return { kind: "found", found: { found: ranked.matching, jobs: listed.map(toDigestJob), free } };
+  const names = listed.slice(0, WEEKLY_JOBS.named).map((job) => jobName(job));
+  return { kind: "found", found: { fresh: listed.length, names, free } };
 }
 
+function jobName(job: Pick<MatchedJob, "title" | "company">): string {
+  const title = clip(job.title, NAME_CHARS);
+  const company = clip(job.company, NAME_CHARS);
+  return company ? `${title} at ${company}` : title;
+}
+
+export function matchesNotice(found: Found): { title: string; body: string } {
+  const { fresh, names, free } = found;
+  const more = fresh - names.length;
+  const listed =
+    names.length === 0
+      ? ""
+      : more > 0
+        ? `${names.join(", ")} and ${more} more.`
+        : names.length === 2
+          ? `${names[0]} and ${names[1]}.`
+          : `${names[0]}.`;
+  const tail = free ? " On Free, Jobs shows your closest few." : "";
+  return {
+    title: `${fresh} new ${fresh === 1 ? "match" : "matches"} this week`,
+    body: clip(`${listed}${tail}`.trim(), NOTIFICATION_LIMITS.body),
+  };
+}
+
+async function settingsRow(tx: Tx, userId: string) {
+  const [row] = await tx
+    .select({
+      notedAt: notificationSettings.jobsEmailedAt,
+      checkedAt: notificationSettings.jobsCheckedAt,
+    })
+    .from(notificationSettings)
+    .where(eq(notificationSettings.userId, userId))
+    .limit(1);
+  return row ?? null;
+}
+
+// A new row leaves the follow-up reminder choice unmade, as choosing an email did.
 async function markChecked(userId: string, now: number): Promise<void> {
   const db = await getDb();
   await db
-    .update(notificationSettings)
-    .set({ jobsCheckedAt: now })
-    .where(eq(notificationSettings.userId, userId));
+    .insert(notificationSettings)
+    .values({ userId, remindersChosen: false, jobsCheckedAt: now, updatedAt: now })
+    .onConflictDoUpdate({ target: notificationSettings.userId, set: { jobsCheckedAt: now } });
 }
 
-// Stamped under the account's lock, and only while still due, so overlapping runs send it once.
-async function claim(
-  { userId, emailedAt }: Due,
-  found: Found,
-  now: number,
-): Promise<Claimed | null> {
+// Stamped under the account's lock, and only while still due, so overlapping runs ring once.
+async function claim(userId: string, found: Found, now: number): Promise<boolean> {
   const db = await getDb();
   return db.transaction(async (tx) => {
-    if (!(await lockUser(tx, userId))) return null;
-    const stamped = await tx
-      .update(notificationSettings)
-      .set({ jobsEmailedAt: now, jobsCheckedAt: now })
-      .where(and(eq(notificationSettings.userId, userId), dueFor(now)))
-      .returning({ userId: notificationSettings.userId });
-    if (stamped.length === 0) return null;
-    const [owner] = await tx
-      .select({ email: users.email })
-      .from(users)
-      .where(eq(users.id, userId))
-      .limit(1);
-    return owner ? { ...found, userId, email: owner.email, emailedAt } : null;
+    if (!(await lockUser(tx, userId))) return false;
+    const row = await settingsRow(tx, userId);
+    const due =
+      !row ||
+      ((row.notedAt === null || row.notedAt <= now - WEEKLY_JOBS.everyMs) &&
+        (row.checkedAt === null || row.checkedAt <= now - WEEKLY_JOBS.recheckMs));
+    if (!due) return false;
+    await tx
+      .insert(notificationSettings)
+      .values({
+        userId,
+        remindersChosen: false,
+        jobsEmailedAt: now,
+        jobsCheckedAt: now,
+        updatedAt: now,
+      })
+      .onConflictDoUpdate({
+        target: notificationSettings.userId,
+        set: { jobsEmailedAt: now, jobsCheckedAt: now },
+      });
+    await insertNotification(
+      tx,
+      { userId, kind: "job_matches", ...matchesNotice(found), link: ROUTES.dashboardJobs },
+      now,
+    );
+    return true;
   });
 }
 
-// Resend took none of the batch: each account gets its last email date back and is looked at again tomorrow.
-async function release(batch: readonly Claimed[], now: number): Promise<void> {
-  const db = await getDb();
-  for (const item of batch) {
-    await db
-      .update(notificationSettings)
-      .set({ jobsEmailedAt: item.emailedAt })
-      .where(
-        and(
-          eq(notificationSettings.userId, item.userId),
-          eq(notificationSettings.jobsEmailedAt, now),
-        ),
-      );
-  }
-}
-
-function emailFor(item: Claimed): EmailMessage {
-  const base = appUrl();
-  const at = (path: string) => new URL(path, base).toString();
-  return weeklyJobsEmail({
-    to: item.email,
-    found: item.found,
-    jobs: item.jobs,
-    free: item.free,
-    jobsUrl: emailLink(at(ROUTES.dashboardJobs), "weekly_jobs", "jobs"),
-    links: {
-      ottoHeadUrl: at(OTTO_HEAD_EMAIL_PATH),
-      settingsUrl: emailLink(at(accountSectionHref("reminders")), "weekly_jobs", "settings"),
-      unsubscribeUrl: unsubscribeUrl(item.userId, "jobs"),
-    },
-  });
-}
-
-function batchKey(claimed: readonly Claimed[], now: number): string {
-  const ids = claimed
-    .map((item) => item.userId)
-    .sort()
-    .join(",");
-  return `weekly-jobs-${createHash("sha256").update(`${now}:${ids}`).digest("hex").slice(0, 40)}`;
-}
-
-export async function runWeeklyJobEmails(
-  { now, deadline }: CronContext,
-  { sender }: WeeklyJobsDeps,
-): Promise<CronOutcome> {
-  const stats = {
-    checked: 0,
-    noResume: 0,
-    nothingNew: 0,
-    users: 0,
-    emailsSent: 0,
-    emailsFailed: 0,
-    emailsSkipped: 0,
-    released: 0,
-  };
-  // Nothing is stamped without a way to send it, so opting in still works once email is set up.
-  if (!sender) return { stats: { ...stats, emailOff: 1 }, complete: true, failed: [] };
+export async function runWeeklyMatches({ now, deadline }: CronContext): Promise<CronOutcome> {
+  const stats = { checked: 0, noResume: 0, nothingNew: 0, users: 0 };
   const db = await getDb();
   const counts = await readStoredCounts(db);
   const failed = new Set<string>();
   const skipped: string[] = [];
-  const cap = await optionalEmailRoom("jobs", now);
   let complete = false;
-  let refused = false;
 
-  while (stats.users < cap && stats.checked < WEEKLY_JOBS.maxChecksPerRun && !refused) {
+  while (stats.checked < WEEKLY_JOBS.maxChecksPerRun) {
     if (Date.now() >= deadline) break;
     const rows: Due[] = await db
       .select({
-        userId: notificationSettings.userId,
+        userId: users.id,
         plan: users.plan,
-        emailedAt: notificationSettings.jobsEmailedAt,
+        notedAt: notificationSettings.jobsEmailedAt,
       })
-      .from(notificationSettings)
-      .innerJoin(users, eq(users.id, notificationSettings.userId))
+      .from(users)
+      .leftJoin(notificationSettings, eq(notificationSettings.userId, users.id))
       .where(
-        and(
-          dueFor(now),
-          skipped.length > 0 ? notInArray(notificationSettings.userId, skipped) : undefined,
-        ),
+        and(hasResume, dueFor(now), skipped.length > 0 ? notInArray(users.id, skipped) : undefined),
       )
-      .orderBy(
-        sql`coalesce(${notificationSettings.jobsCheckedAt}, 0)`,
-        asc(notificationSettings.userId),
-      )
+      .orderBy(sql`coalesce(${notificationSettings.jobsCheckedAt}, 0)`, asc(users.id))
       .limit(WEEKLY_JOBS.usersPerBatch);
     if (rows.length === 0) {
       complete = true;
       break;
     }
 
-    const claimed: Claimed[] = [];
     for (const due of rows) {
-      if (Date.now() >= deadline || stats.users >= cap) break;
+      if (Date.now() >= deadline || stats.checked >= WEEKLY_JOBS.maxChecksPerRun) break;
       try {
         stats.checked += 1;
         const check = await newMatchesFor(db, due, now, counts);
@@ -294,35 +263,12 @@ export async function runWeeklyJobEmails(
           stats[check.kind === "no_resume" ? "noResume" : "nothingNew"] += 1;
           continue;
         }
-        const result = await claim(due, check.found, now);
-        if (!result) {
-          skipped.push(due.userId);
-          continue;
-        }
-        stats.users += 1;
-        if (result.email) claimed.push(result);
-        else stats.emailsSkipped += 1;
+        if (await claim(due.userId, check.found, now)) stats.users += 1;
+        else skipped.push(due.userId);
       } catch (error) {
-        log.error("cron.job_emails.user_failed", error);
+        log.error("cron.job_matches.user_failed", error);
         failed.add("match");
         skipped.push(due.userId);
-      }
-    }
-
-    for (let start = 0; start < claimed.length; start += EMAIL_BATCH_MAX) {
-      const batch = claimed.slice(start, start + EMAIL_BATCH_MAX);
-      try {
-        const result = await sender.sendBatch(batch.map(emailFor), batchKey(batch, now));
-        stats.emailsSent += result.sent;
-        stats.emailsFailed += result.failed;
-        if (result.refused) {
-          refused = true;
-          await release(batch, now);
-          stats.released += batch.length;
-        }
-      } catch (error) {
-        log.error("cron.job_emails.email_failed", error, { messages: batch.length });
-        stats.emailsFailed += batch.length;
       }
     }
   }

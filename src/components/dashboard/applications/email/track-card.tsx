@@ -40,14 +40,11 @@ import { changeLine, lastRead, setupStage, splitEvents, type SetupStage } from "
 
 export const ACTIVITY_ID = "email-updates";
 
-// Only the running status shows while another prompt on the page waits for its answer.
-export function EmailTrackingPanel({ waiting = false }: { waiting?: boolean }) {
+export function EmailTrackingPanel() {
   const { tracking, userId } = useEmailTracking();
   const [open, setOpen] = useState(false);
   if (!tracking?.available) return null;
   const { address } = tracking;
-  const working = address !== null && tracking.allowed && setupStage(address) === "working";
-  if (waiting && !working && !open) return null;
 
   if (!tracking.allowed || !address) {
     return open ? (

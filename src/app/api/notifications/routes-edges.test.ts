@@ -17,7 +17,6 @@ import type {
 import { unsubscribeToken, unsubscribeUrl } from "@/lib/notifications/unsubscribe";
 import { INVALID_LINK } from "@/lib/notifications/unsubscribe-page";
 import { deleteUserData } from "@/lib/users";
-import { GET as getEmails, PUT as putEmails } from "./emails/route";
 import { GET, PATCH } from "./route";
 import { GET as getSettings, PUT as putSettings } from "./settings/route";
 import { GET as openUnsubscribe, POST as unsubscribe } from "./unsubscribe/route";
@@ -50,8 +49,6 @@ const patch = (body: unknown, headers?: Record<string, string>) =>
   send(PATCH, "/api/notifications", "PATCH", body, headers);
 const saveSettings = (body: unknown, headers?: Record<string, string>) =>
   send(putSettings, "/api/notifications/settings", "PUT", body, headers);
-const saveEmails = (body: unknown, headers?: Record<string, string>) =>
-  send(putEmails, "/api/notifications/emails", "PUT", body, headers);
 
 async function errorOf(res: Response): Promise<ApiErrorBody["error"]> {
   return ((await res.json()) as ApiErrorBody).error;
@@ -334,73 +331,6 @@ describe("/api/notifications/settings", () => {
       "Couldn't save your reminder settings. Please try again.",
     );
     expect(await settingsRowOf(maya.id)).toBeNull();
-  });
-});
-
-describe("/api/notifications/emails", () => {
-  it("answers 401, not an error, when the account is deleted mid-request, and writes nothing", async () => {
-    await signInAs("maya@example.com");
-    deleteAccountAfterSessionCheck();
-    const read = await getEmails();
-    expect(read.status).toBe(401);
-    expect(read.headers.get("cache-control")).toBe("no-store");
-    expect(await errorOf(read)).toEqual({
-      code: "unauthorized",
-      message: "Sign in to change your emails.",
-    });
-
-    const sam = await signInAs("sam@example.com");
-    deleteAccountAfterSessionCheck();
-    const save = await saveEmails({ jobEmails: true });
-    expect(save.status).toBe(401);
-    expect((await errorOf(save)).code).toBe("unauthorized");
-    expect(await settingsRowOf(sam.id)).toBeNull();
-  });
-
-  it("refuses another website's request without saving", async () => {
-    const maya = await signInAs("maya@example.com");
-    const res = await saveEmails(
-      { jobEmails: true },
-      { ...JSON_TYPE, "sec-fetch-site": "cross-site" },
-    );
-    expect(res.status).toBe(403);
-    expect(await settingsRowOf(maya.id)).toBeNull();
-  });
-
-  it("saves several choices at once and leaves the reminder choice unmade", async () => {
-    const maya = await signInAs("maya@example.com");
-    const res = await saveEmails({ jobEmails: true, tipEmails: false, jobPromptClosed: true });
-    expect(await res.json()).toEqual({
-      ok: true,
-      jobEmails: true,
-      tipEmails: false,
-      viewEmails: false,
-      jobPromptClosed: true,
-      jobPromptSnoozed: false,
-      viewPromptClosed: false,
-      viewPromptSnoozed: false,
-      emailAvailable: false,
-    });
-    expect(await settingsRowOf(maya.id)).toMatchObject({
-      jobEmails: true,
-      tipEmails: false,
-      remindersChosen: false,
-    });
-  });
-
-  it("hides a sign-in outage or a database failure behind a retry message", async () => {
-    const maya = await signInAs("maya@example.com");
-    signInOutage();
-    await expectServerError(
-      await getEmails(),
-      "Couldn't load your email settings. Please try again.",
-    );
-    await databaseDown("transaction");
-    await expectServerError(
-      await saveEmails({ tipEmails: false }),
-      "Couldn't save your email settings. Please try again.",
-    );
-    expect(await readEmailChoices(maya.id)).toMatchObject({ tipEmails: true });
   });
 });
 

@@ -10,7 +10,7 @@ export const UP_NEXT_ROWS = 4;
 export const INTERVIEW_DAYS = 7;
 const INTERVIEW_ROWS = 2;
 
-export type SetupStepId = "work" | "looking_for" | "reminders" | "weak_line";
+export type SetupStepId = "work" | "looking_for" | "weak_line";
 
 export type FixTarget = WeakLineTarget & { title: string; lines: number; remember: boolean };
 export type TailorTarget = { resumeId: string; company: string; ran: boolean };
@@ -72,7 +72,10 @@ export function followUpsDue(applications: readonly Application[], now: number):
 export function nextSteps(facts: NextStepFacts): NextStep[] {
   const steps: NextStep[] = [];
   if (facts.ownResumes === 0) steps.push({ kind: "upload" });
-  for (const application of interviewsSoon(facts.applications, facts.now).slice(0, INTERVIEW_ROWS)) {
+  for (const application of interviewsSoon(facts.applications, facts.now).slice(
+    0,
+    INTERVIEW_ROWS,
+  )) {
     steps.push({ kind: "interview", application, prepped: application.hasPrep });
   }
   const due = followUpsDue(facts.applications, facts.now);
@@ -92,7 +95,10 @@ export function nextSteps(facts: NextStepFacts): NextStep[] {
 }
 
 // The setup's own weak line comes first, so fixing it ticks the setup row off.
-export function fixTarget(own: readonly Resume[], setupLine: WeakLineTarget | null): FixTarget | null {
+export function fixTarget(
+  own: readonly Resume[],
+  setupLine: WeakLineTarget | null,
+): FixTarget | null {
   const remembered = setupLine ? own.find((resume) => resume.id === setupLine.resumeId) : undefined;
   if (setupLine && remembered) {
     return {
@@ -124,7 +130,11 @@ export function fixTarget(own: readonly Resume[], setupLine: WeakLineTarget | nu
   return null;
 }
 
-const weekday = new Intl.DateTimeFormat("en-US", { weekday: "short", month: "short", day: "numeric" });
+const weekday = new Intl.DateTimeFormat("en-US", {
+  weekday: "short",
+  month: "short",
+  day: "numeric",
+});
 
 export function interviewDay(at: number, now: number): string {
   const today = startOfDay(now);

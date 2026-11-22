@@ -9,7 +9,6 @@ import {
   lookingForSet,
   newestUpload,
   ownResumes,
-  reminderPromptShows,
   setupItems,
   setupProgress,
   workRightsSet,
@@ -173,21 +172,14 @@ const facts = (patch: Partial<SetupFacts> = {}): SetupFacts => ({
   ownResumes: 0,
   work: { profile: profile(), lookingFor: NO_CHOICE },
   weakLine: { status: "no_resume" },
-  reminders: { available: true, chosen: false },
   ...patch,
 });
 
 describe("setupItems", () => {
-  it("lists five on Pro, a fresh account with nothing done", () => {
+  it("lists four on Pro, a fresh account with nothing done", () => {
     const items = setupItems(facts());
-    expect(items.map((item) => item.id)).toEqual([
-      "resume",
-      "work",
-      "looking_for",
-      "weak_line",
-      "reminders",
-    ]);
-    expect(setupProgress(items)).toEqual({ done: 0, total: 5 });
+    expect(items.map((item) => item.id)).toEqual(["resume", "work", "looking_for", "weak_line"]);
+    expect(setupProgress(items)).toEqual({ done: 0, total: 4 });
     expect(checklistShows(items, null)).toBe(true);
   });
 
@@ -207,7 +199,7 @@ describe("setupItems", () => {
       "work",
       "looking_for",
     ]);
-    expect(setupProgress(items)).toEqual({ done: 3, total: 5 });
+    expect(setupProgress(items)).toEqual({ done: 3, total: 4 });
   });
 
   it("keeps Where you can work open while Otto's guess is unconfirmed", () => {
@@ -221,19 +213,16 @@ describe("setupItems", () => {
     expect(done(null)).toBe(true);
   });
 
-  it("leaves Pro tools out on Free, and reminders out where email can't be sent", () => {
+  it("leaves Pro tools out on Free", () => {
     expect(setupItems(facts({ pro: false })).map((item) => item.id)).toEqual([
       "resume",
       "looking_for",
       "weak_line",
     ]);
-    expect(
-      setupItems(facts({ reminders: { available: false, chosen: false } })).map((item) => item.id),
-    ).not.toContain("reminders");
   });
 
   it("leaves out what couldn't be read instead of guessing", () => {
-    expect(setupItems(facts({ work: null, reminders: null })).map((item) => item.id)).toEqual([
+    expect(setupItems(facts({ work: null })).map((item) => item.id)).toEqual([
       "resume",
       "weak_line",
     ]);
@@ -248,7 +237,6 @@ describe("setupItems", () => {
           lookingFor: { ...NO_CHOICE, place: "c:CA" },
         },
         weakLine: { status: "done" },
-        reminders: { available: true, chosen: true },
       }),
     );
     expect(checklistShows(done, null)).toBe(false);
@@ -278,41 +266,5 @@ describe("contextual prompts", () => {
     expect(jobsWorkPromptShows({ pro: true, locked: false, profile: guessed, guess: null })).toBe(
       false,
     );
-  });
-
-  it("Applications offers reminder emails after the first one, until answered", () => {
-    const reminders = { available: true, chosen: false, emailReminders: false };
-    expect(reminderPromptShows({ pro: true, applications: 1, reminders })).toBe(true);
-    expect(reminderPromptShows({ pro: true, applications: 0, reminders })).toBe(false);
-    expect(
-      reminderPromptShows({
-        pro: true,
-        applications: 1,
-        reminders: { ...reminders, chosen: true },
-      }),
-    ).toBe(false);
-    expect(
-      reminderPromptShows({
-        pro: true,
-        applications: 1,
-        reminders: { ...reminders, emailReminders: true },
-      }),
-    ).toBe(false);
-    expect(
-      reminderPromptShows({
-        pro: true,
-        applications: 1,
-        reminders: { ...reminders, available: false },
-      }),
-    ).toBe(false);
-    expect(reminderPromptShows({ pro: false, applications: 1, reminders })).toBe(false);
-    expect(reminderPromptShows({ pro: true, applications: 1, reminders: null })).toBe(false);
-    expect(
-      reminderPromptShows({
-        pro: true,
-        applications: 1,
-        reminders: { ...reminders, promptSnoozed: true },
-      }),
-    ).toBe(false);
   });
 });

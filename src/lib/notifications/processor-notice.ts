@@ -199,7 +199,7 @@ const notified = sql`exists (select 1 from ${emailLog} where ${emailLog.userId} 
 const due = and(hasEmail, sql`not ${notified}`);
 
 async function roomFor(db: Db, limit: number | null, now: number): Promise<number> {
-  return limit ?? (await optionalEmailRoom("notices", now, db));
+  return limit ?? (await optionalEmailRoom(now, db));
 }
 
 export type NoticeCounts = { accounts: number; notified: number; pending: number; room: number };

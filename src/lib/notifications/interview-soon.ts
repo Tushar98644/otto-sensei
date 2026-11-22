@@ -13,8 +13,6 @@ export type InterviewSoonNotice = {
   applicationId: string;
 };
 
-export type InterviewEmailLine = { title: string; detail: string; prepUrl: string };
-
 const ADVICE = "Go over the likely questions in your prep before you go.";
 
 function dayKey(at: number, zone: string): string {
@@ -55,18 +53,5 @@ export function interviewSoonNotice(
     body: clip(`${role ? `For the ${role} role. ` : ""}${ADVICE}`, NOTIFICATION_LIMITS.body),
     link: interviewPrepPath(item.id),
     applicationId: item.id,
-  };
-}
-
-export function interviewEmailLine(
-  item: InterviewSoon,
-  now: number,
-  timeZone: string | null,
-  base: string,
-): InterviewEmailLine {
-  return {
-    title: titleOf(item, now, timeZone),
-    detail: clip(item.role, NAME_CHARS),
-    prepUrl: new URL(interviewPrepPath(item.id), base).toString(),
   };
 }

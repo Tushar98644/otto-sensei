@@ -27,8 +27,8 @@ export function PreferencesTab() {
       </SettingsGroup>
       <SettingsGroup
         id="notifications"
-        title="Emails and reminders"
-        description="Reminders to follow up on the jobs you apply to."
+        title="Reminders"
+        description="Reminders to follow up on the jobs you apply to, in the bell, and your interviews in your calendar."
       >
         <ReminderSettingsCard />
       </SettingsGroup>

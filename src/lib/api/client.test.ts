@@ -208,7 +208,6 @@ describe("api JSON requests", () => {
       "PUT",
       "/api/notifications/settings",
     ],
-    ["saveEmailChoices", () => api.saveEmailChoices(BODY), "PUT", "/api/notifications/emails"],
     ["share", () => api.share(BODY), "POST", "/api/share"],
     ["updateShare", () => api.updateShare("s?1", BODY), "PATCH", "/api/share/s%3F1"],
     ["createPortfolio", () => api.createPortfolio(BODY), "POST", "/api/portfolio"],
@@ -281,7 +280,6 @@ describe("api reads", () => {
     ["accountSetup", () => api.accountSetup(), "/api/setup"],
     ["writingStyle", () => api.writingStyle(), "/api/writing-style"],
     ["reminderSettings", () => api.reminderSettings(), "/api/notifications/settings"],
-    ["emailChoices", () => api.emailChoices(), "/api/notifications/emails"],
     ["shares", () => api.shares(), "/api/share"],
     ["portfolio", () => api.portfolio(), "/api/portfolio"],
     [

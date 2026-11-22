@@ -244,8 +244,7 @@ describe("sendProcessorNotice", () => {
     for (const name of ["a", "b", "c"]) await createUser(`${name}@example.com`);
     const sender = fakeSender();
     expect(await run(sender)).toMatchObject({ room: 2, sent: 2 });
-    expect(await optionalEmailRoom("tips", NOW + HOUR)).toBe(0);
-    expect(await optionalEmailRoom("jobs", NOW + HOUR)).toBe(0);
+    expect(await optionalEmailRoom(NOW + HOUR)).toBe(0);
     expect(await run(sender, { now: NOW + HOUR })).toMatchObject({ room: 0, claimed: 0 });
     expect(await run(sender, { now: NOW + 21 * HOUR })).toMatchObject({ room: 2, sent: 1 });
     expect(sender.messages).toHaveLength(3);

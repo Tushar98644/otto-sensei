@@ -15,7 +15,6 @@ import { cn } from "@/lib/utils";
 import { useApplications } from "./applications/use-applications";
 import { groupResumes } from "./group-resumes";
 import { ActionCards } from "./home/action-cards";
-import { HomeEmailOptIns } from "./home/email-opt-ins";
 import { homeGreeting } from "./home/greeting";
 import { UpNext } from "./home/up-next";
 import { recentResumes } from "./library";
@@ -67,8 +66,6 @@ export function DashboardHome() {
       </header>
 
       <UpNext actions={actions} hasSample={samples > 0} />
-
-      {loading ? null : <HomeEmailOptIns resumes={resumes} />}
 
       <ActionCards actions={actions} latest={latest} pageResume={latest ?? sample} />
 

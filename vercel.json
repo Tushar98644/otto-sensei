@@ -6,8 +6,7 @@
     { "path": "/api/cron/cleanup", "schedule": "17 4 * * *" },
     { "path": "/api/cron/trial-reminders", "schedule": "30 13 * * *" },
     { "path": "/api/cron/follow-ups", "schedule": "0 14 * * *" },
-    { "path": "/api/cron/job-emails", "schedule": "30 8 * * *" },
-    { "path": "/api/cron/tip-emails", "schedule": "45 14 * * *" },
+    { "path": "/api/cron/job-matches", "schedule": "30 8 * * *" },
     { "path": "/api/cron/view-alerts", "schedule": "15 13 * * *" },
     { "path": "/api/cron/interview-briefs", "schedule": "37 2 * * *" }
   ]

@@ -4,7 +4,6 @@ import {
   CalendarClock,
   Compass,
   Globe,
-  MailCheck,
   PenLine,
   Search,
   type LucideIcon,
@@ -65,13 +64,6 @@ const SETUP: Record<
     detail: "Add your jobs and what you did in them, then Otto marks the weak lines.",
     icon: PenLine,
     cta: "Start",
-  },
-  reminders: {
-    title: "Follow-up reminders",
-    detail: "Choose whether Otto also emails you when it's time to follow up.",
-    icon: MailCheck,
-    cta: "Set it up",
-    href: accountSectionHref("reminders"),
   },
 };
 

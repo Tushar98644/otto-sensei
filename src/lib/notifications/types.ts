@@ -1,6 +1,5 @@
 import type { z } from "zod";
 import type {
-  EmailChoicesSchema,
   FollowUpActionSchema,
   MarkNotificationsReadSchema,
   ReminderSettingsSchema,
@@ -15,6 +14,7 @@ export const NOTIFICATION_KINDS = [
   "portfolio_views",
   "interview_after",
   "interview_today",
+  "job_matches",
 ] as const;
 export type NotificationKind = (typeof NOTIFICATION_KINDS)[number];
 
@@ -61,7 +61,7 @@ export type ReminderSettingsResponse = {
   promptSnoozed: boolean;
 } & ReminderSettings;
 
-// Each list has its own signed unsubscribe link: follow-up reminders, the weekly jobs email, tips, and views.
+// Each list had its own signed unsubscribe link: follow-up reminders, the weekly jobs email, tips, and views. Links in emails already sent still work.
 export const EMAIL_LISTS = ["reminders", "jobs", "tips", "views"] as const;
 export type EmailList = (typeof EMAIL_LISTS)[number];
 
@@ -83,8 +83,6 @@ export type EmailChoices = {
   viewPromptClosed: boolean;
   viewPromptSnoozed: boolean;
 };
-export type EmailChoicesBody = z.input<typeof EmailChoicesSchema>;
-export type EmailChoicesResponse = { ok: true; emailAvailable: boolean } & EmailChoices;
 
 export const FOLLOW_UP_ACTIONS = ["done", "snooze"] as const;
 export type FollowUpAction = (typeof FOLLOW_UP_ACTIONS)[number];
