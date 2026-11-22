@@ -86,6 +86,20 @@ describe("the badge's eligibility line", () => {
     });
   });
 
+  it("reads where a Remote post says people must live", () => {
+    const line = eligibilityLine(
+      post({
+        location: "Remote",
+        text: "This is a remote position open to candidates based in the United States and in the Pacific Timezone.",
+      }),
+      INDIA,
+      LOOKING,
+      OPTIONS,
+    );
+    expect(line.tone).not.toBe("ok");
+    expect(line.text).not.toMatch(/^Open to India/);
+  });
+
   it("leads with a work-rights block over where the job is", () => {
     const us = post({
       location: "Remote · United States",

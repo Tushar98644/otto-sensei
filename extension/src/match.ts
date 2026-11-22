@@ -2,7 +2,8 @@ import { checkEligibility } from "@/lib/eligibility/check";
 import { REGION_NAMES, WORK_REGIONS, type WorkProfile } from "@/lib/eligibility/profile";
 import type { EligibilityFinding } from "@/lib/eligibility/types";
 import type { ExtensionProfile } from "@/lib/extension/types";
-import { acceptedPlaces, jobPlaceTokens, placeFit, placeLabel } from "@/lib/job-feed/looking-for";
+import { jobPlaces } from "@/lib/job-feed/job-places";
+import { acceptedPlaces, placeFit, placeLabel } from "@/lib/job-feed/looking-for";
 import type { PlaceChoice } from "@/lib/job-feed/types";
 import type { MatchCheck, MatchRow } from "@/lib/match-check/check";
 import { matchCheckFromText } from "@/lib/match-check/from-text";
@@ -125,7 +126,7 @@ export function eligibilityLine(
   )[0];
   if (blocked) return { tone: "blocked", text: blockedText(blocked), findings };
 
-  const tokens = jobPlaceTokens(post.location);
+  const tokens = jobPlaces(post.location, post.text);
   const accepted = acceptedPlaces(lookingFor.place);
   const fit = placeFit(tokens, accepted);
   if (fit === "match" && lookingFor.place !== "anywhere") {
