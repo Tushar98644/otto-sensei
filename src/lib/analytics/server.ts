@@ -56,6 +56,43 @@ export function captureServerEvent<E extends ServerEvent>(
   }
 }
 
+export type BatchEvent = {
+  event: string;
+  distinctId: string;
+  properties: Record<string, string | number | boolean>;
+};
+
+// One request to PostHog for a whole beacon, instead of one per event.
+export function captureBatch(events: readonly BatchEvent[]): void {
+  const key = posthogKey();
+  if (!key || events.length === 0) return;
+  const timestamp = new Date().toISOString();
+  const batch = events.map(({ event, distinctId, properties }) => ({
+    event,
+    distinct_id: distinctId,
+    timestamp,
+    properties: { ...cleanProps(properties), $lib: "otto-web", $geoip_disable: true },
+  }));
+  const send = async () => {
+    try {
+      const res = await fetch(`${posthogServerHost()}/batch/`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ api_key: key, batch }),
+        signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+      });
+      if (!res.ok) log.warn("analytics.batch_failed", { status: res.status });
+    } catch (error) {
+      log.warn("analytics.batch_failed", {}, error);
+    }
+  };
+  try {
+    after(send);
+  } catch {
+    void send();
+  }
+}
+
 export function resetServerAnalyticsForTests(): void {
   client = null;
 }

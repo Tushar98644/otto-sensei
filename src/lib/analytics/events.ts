@@ -1,6 +1,6 @@
 // Props are names, counts and flags only: never resume text, emails, names or file names.
 
-import type { PlanId } from "@/config/plans";
+import type { BillingInterval, PaidPlanId, PlanId } from "@/config/plans";
 import type { ApplicationStatus } from "@/lib/applications/status";
 import type { PortfolioTemplateId } from "@/lib/portfolio/types";
 import type { DashboardSection, EmailCampaign } from "./landing";
@@ -17,8 +17,9 @@ export type ClientEventProps = {
   screener_viewed: { must: number; must_proven: number; nice: number; nice_proven: number };
   pdf_downloaded: { page_size: "LETTER" | "A4" };
   docx_downloaded: NoProps;
-  signed_in: { plan: PlanId };
   upgrade_clicked: NoProps;
+  // Sign-in and sign-up are one flow, so this is anyone asking for a code or going to Google.
+  signup_started: { method: "email" | "google" };
 };
 
 export type AICallOutcome =
@@ -33,6 +34,9 @@ export type AICallOutcome =
 
 export type ServerEventProps = {
   signed_up: NoProps;
+  // The first page this browser opens signed in, once its visitor id is linked to the account.
+  signed_in: { plan: PlanId };
+  checkout_started: { plan: PaidPlanId; interval: BillingInterval };
   checkout_completed: { plan: "pro" | "max"; trial?: boolean };
   ai_call: { task: string; model: string; latency_ms: number; outcome: AICallOutcome };
   line_fixed: { demo: boolean };

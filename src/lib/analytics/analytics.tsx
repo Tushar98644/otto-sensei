@@ -1,39 +1,45 @@
 "use client";
 
-import { usePathname } from "next/navigation";
-import { useEffect, useSyncExternalStore } from "react";
+import { useParams, usePathname } from "next/navigation";
+import { useEffect, useEffectEvent, useLayoutEffect, useSyncExternalStore } from "react";
 import { useMe } from "@/components/account/use-me";
+import { setErrorUser } from "@/lib/observability/browser";
+import { sentryEnabled } from "@/lib/observability/config";
 import { isAppPage } from "@/lib/observability/pages";
-import { ActivityBeacon } from "./activity-beacon";
-import { analyticsEnabled, identifyUser, resetUser, startAnalytics } from "./client";
+import { analyticsEnabled, setPageRoute, trackPageView } from "./client";
+import { routeTemplate } from "./route-template";
+import { startVitals } from "./vitals";
 
 const noChanges = () => () => {};
 
 export function Analytics() {
   const enabled = useSyncExternalStore(noChanges, analyticsEnabled, () => false);
   const pathname = usePathname();
-  const onAppPage = enabled && isAppPage(pathname);
+  const route = routeTemplate(pathname, useParams());
 
-  // Elsewhere the SDK loads with the page's first event, and most of those pages send none.
+  useLayoutEffect(() => setPageRoute(route), [route]);
+
+  const view = useEffectEvent(() => {
+    trackPageView(route, pathname);
+    startVitals(route);
+  });
+
   useEffect(() => {
-    if (onAppPage) startAnalytics();
-  }, [onAppPage]);
+    if (enabled) view();
+  }, [enabled, pathname]);
 
-  return onAppPage ? <IdentitySync /> : null;
+  return sentryEnabled("browser") && isAppPage(pathname) ? <ErrorUser /> : null;
 }
 
-function IdentitySync() {
+function ErrorUser() {
   const { me } = useMe();
-  // A failed /api/me leaves `me` null: unknown, not signed out, so nobody is reset.
+  // A failed /api/me leaves `me` null: unknown, not signed out, so the id stays as it was.
   const known = me !== null;
   const id = me?.user?.id ?? null;
-  const plan = me?.user?.plan ?? null;
 
   useEffect(() => {
-    if (!known) return;
-    if (id && plan) identifyUser(id, plan);
-    else resetUser();
-  }, [known, id, plan]);
+    if (known) setErrorUser(id);
+  }, [known, id]);
 
-  return id ? <ActivityBeacon /> : null;
+  return null;
 }

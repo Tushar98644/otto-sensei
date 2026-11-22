@@ -1,42 +1,84 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { CaptureResult } from "posthog-js/dist/module.slim.js";
-import { WAIT_FOR_IMPORT } from "@/lib/timing-testing";
-
-const sdk = vi.hoisted(() => {
-  const state = { distinctId: "anon-device-1", identified: false };
-  return {
-    state,
-    init: vi.fn(),
-    capture: vi.fn(),
-    identify: vi.fn((id: string) => {
-      state.distinctId = id;
-      state.identified = true;
-    }),
-    reset: vi.fn(() => {
-      state.distinctId = "anon-device-2";
-      state.identified = false;
-    }),
-    get_distinct_id: vi.fn(() => state.distinctId),
-    _isIdentified: vi.fn(() => state.identified),
-  };
-});
+import type { Beacon } from "./beacon";
 
 const config = vi.hoisted(() => ({ key: "phc_test" as string | undefined }));
-
-vi.mock("posthog-js/dist/module.slim.js", () => ({ default: sdk }));
-vi.mock("./config", () => ({
-  posthogKey: () => config.key,
-  posthogHost: () => "https://us.i.posthog.com",
-}));
+vi.mock("./config", () => ({ posthogKey: () => config.key }));
 
 type Client = typeof import("./client");
 
-function stubBrowser(navigator: Record<string, unknown> = { doNotTrack: null }) {
+const UUID_V7 = /^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
+
+type Page = {
+  sent: Beacon[];
+  idle: Array<() => void>;
+  store: Map<string, string>;
+  hide: () => void;
+  answer: { identified: boolean };
+  location: { search: string; href: string; hostname: string };
+};
+
+function stubBrowser({
+  navigator = { doNotTrack: null } as Record<string, unknown>,
+  search = "",
+  referrer = "",
+  coarse = false,
+  blockStorage = false,
+} = {}): Page {
+  const store = new Map<string, string>();
+  const idle: Array<() => void> = [];
+  const listeners: Array<() => void> = [];
+  const page: Page = {
+    sent: [],
+    idle,
+    store,
+    answer: { identified: false },
+    location: { search, href: `https://otto.example/dashboard${search}`, hostname: "otto.example" },
+    hide: () => {
+      document.visibilityState = "hidden";
+      for (const listener of listeners) listener();
+    },
+  };
+  const storage = {
+    getItem: (key: string) => {
+      if (blockStorage) throw new Error("blocked");
+      return store.get(key) ?? null;
+    },
+    setItem: (key: string, value: string) => {
+      if (blockStorage) throw new Error("blocked");
+      store.set(key, value);
+    },
+    removeItem: (key: string) => void store.delete(key),
+  };
+  const document = {
+    referrer,
+    visibilityState: "visible",
+    addEventListener: (_type: string, listener: () => void) => listeners.push(listener),
+  };
+  vi.stubGlobal("document", document);
   vi.stubGlobal("window", {
     navigator,
-    requestIdleCallback: (run: () => void) => run(),
-    setTimeout: (run: () => void) => run(),
+    location: page.location,
+    localStorage: storage,
+    screen: { width: 390, height: 844 },
+    matchMedia: () => ({ matches: coarse }),
+    history: {
+      state: null,
+      replaceState: (_state: unknown, _title: string, href: string) => {
+        const url = new URL(href);
+        page.location.href = href;
+        page.location.search = url.search;
+      },
+    },
+    requestIdleCallback: (run: () => void) => idle.push(run),
   });
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (_url: string, init: RequestInit) => {
+      page.sent.push(JSON.parse(String(init.body)) as Beacon);
+      return { ok: true, json: async () => ({ ok: true, noted: true, ...page.answer }) };
+    }),
+  );
+  return page;
 }
 
 async function loadClient(): Promise<Client> {
@@ -45,188 +87,218 @@ async function loadClient(): Promise<Client> {
   return client;
 }
 
-async function settle() {
-  for (let i = 0; i < 5; i++) await new Promise((resolve) => setTimeout(resolve, 0));
-}
+const settle = () => new Promise((resolve) => setTimeout(resolve, 0));
 
-// The SDK arrives through a dynamic import, which a busy machine can hold up for longer than a few ticks.
-const sdkLoaded = () => vi.waitFor(() => expect(sdk.init).toHaveBeenCalled(), WAIT_FOR_IMPORT);
+function runIdle(page: Page) {
+  for (const run of page.idle.splice(0)) run();
+}
 
 beforeEach(() => {
   vi.resetModules();
-  vi.clearAllMocks();
-  sdk.state.distinctId = "anon-device-1";
-  sdk.state.identified = false;
   config.key = "phc_test";
-  stubBrowser();
 });
 
 afterEach(() => {
   vi.unstubAllGlobals();
+  vi.useRealTimers();
 });
 
-describe("without a key", () => {
-  it("is off and never loads the SDK", async () => {
+describe("when it may not send", () => {
+  it("sends nothing without a key", async () => {
     config.key = undefined;
+    const page = stubBrowser();
     const client = await loadClient();
     expect(client.analyticsEnabled()).toBe(false);
-    client.startAnalytics();
+    client.trackPageView("/", "/");
     client.track("landing_viewed");
-    client.identifyUser("user-1", "free");
-    await settle();
-    expect(sdk.init).not.toHaveBeenCalled();
-    expect(sdk.capture).not.toHaveBeenCalled();
+    runIdle(page);
+    expect(fetch).not.toHaveBeenCalled();
   });
-});
 
-describe("on the server", () => {
-  it("does nothing", async () => {
+  it("is off on the server", async () => {
     vi.stubGlobal("window", undefined);
     const client = await loadClient();
     expect(client.analyticsEnabled()).toBe(false);
-    client.track("landing_viewed");
-    await settle();
-    expect(sdk.init).not.toHaveBeenCalled();
   });
-});
 
-describe("Do Not Track and Global Privacy Control", () => {
   it.each([{ doNotTrack: "1" }, { doNotTrack: null, globalPrivacyControl: true }])(
-    "send nothing for %o",
+    "sends nothing for %o",
     async (navigator) => {
-      stubBrowser(navigator);
+      const page = stubBrowser({ navigator });
       const client = await loadClient();
-      client.startAnalytics();
+      client.trackPageView("/pricing", "/pricing");
       client.track("resume_imported", { source: "pdf" });
-      await settle();
-      expect(sdk.init).not.toHaveBeenCalled();
-      expect(sdk.capture).not.toHaveBeenCalled();
+      runIdle(page);
+      expect(page.idle).toHaveLength(0);
+      expect(fetch).not.toHaveBeenCalled();
     },
   );
 });
 
-describe("init", () => {
-  it("turns off autocapture, recordings, pageviews and cookies", async () => {
-    const client = await loadClient();
-    client.startAnalytics();
-    await sdkLoaded();
-    expect(sdk.init).toHaveBeenCalledOnce();
-    const [key, options] = sdk.init.mock.calls[0] ?? [];
-    expect(key).toBe("phc_test");
-    expect(options).toMatchObject({
-      api_host: "https://us.i.posthog.com",
-      autocapture: false,
-      capture_pageview: false,
-      disable_session_recording: true,
-      disable_surveys: true,
-      disable_external_dependency_loading: true,
-      respect_dnt: true,
-      persistence: "localStorage",
-      person_profiles: "identified_only",
-      save_referrer: false,
+describe("page views", () => {
+  it("sends the page template, device and the referring site's name in one idle beacon", async () => {
+    const page = stubBrowser({
+      search: "?utm_source=newsletter&utm_campaign=spring&gclid=abc",
+      referrer: "https://www.google.com/search?q=jane+doe+resume",
+      coarse: true,
     });
-  });
-
-  it("scrubs what the SDK adds before anything is sent", async () => {
     const client = await loadClient();
-    client.startAnalytics();
-    await sdkLoaded();
-    const options = sdk.init.mock.calls[0]?.[1] as { before_send: (event: CaptureResult) => CaptureResult };
-    const event = {
-      uuid: "e1",
-      event: "resume_imported",
-      properties: {
-        source: "pdf",
-        $current_url: "https://otto.example/s/secret-token?email=jane@example.com",
-        typed: "jane@example.com",
-        resume: { name: "Jane Doe" },
-      },
-      $set: { $current_url: "https://otto.example/login?next=/studio" },
-    } as unknown as CaptureResult;
-    expect(options.before_send(event)).toEqual({
-      uuid: "e1",
-      event: "resume_imported",
-      properties: { source: "pdf", $current_url: "https://otto.example/s/:token" },
-      $set: { $current_url: "https://otto.example/login" },
-    });
-  });
-});
-
-describe("track", () => {
-  it("sends the event with its props once the SDK is up", async () => {
-    const client = await loadClient();
-    client.track("recruiter_view_seen", { checks: 12, problems: 3, warnings: 2 });
-    await sdkLoaded();
-    expect(sdk.capture).toHaveBeenCalledWith("recruiter_view_seen", { checks: 12, problems: 3, warnings: 2 });
-  });
-
-  it("drops a personal value that slipped past the types", async () => {
-    const client = await loadClient();
-    const sneaky = { source: "pdf", email: "jane@example.com" } as unknown as { source: "pdf" };
-    client.track("resume_imported", sneaky);
-    await sdkLoaded();
-    expect(sdk.capture).toHaveBeenCalledWith("resume_imported", { source: "pdf" });
-  });
-
-  it("loads the SDK only once", async () => {
-    const client = await loadClient();
-    client.startAnalytics();
+    client.setPageRoute("/resume-examples/[role]");
     client.track("landing_viewed");
-    client.track("upgrade_clicked");
-    await sdkLoaded();
-    expect(sdk.init).toHaveBeenCalledOnce();
-    expect(sdk.capture).toHaveBeenCalledTimes(2);
+    client.trackPageView("/resume-examples/[role]", "/resume-examples/nurse");
+    expect(fetch).not.toHaveBeenCalled();
+
+    runIdle(page);
+    expect(page.sent).toHaveLength(1);
+    const [beacon] = page.sent;
+    expect(beacon?.visitor).toMatch(UUID_V7);
+    expect(beacon?.session).toMatch(UUID_V7);
+    expect(beacon?.linked).toBe(false);
+    expect(beacon?.items).toEqual([
+      { type: "event", event: "landing_viewed", route: "/resume-examples/[role]" },
+      {
+        type: "view",
+        route: "/resume-examples/[role]",
+        device: "Mobile",
+        referrer: "www.google.com",
+        utm: { utm_source: "newsletter", utm_campaign: "spring" },
+      },
+    ]);
+  });
+
+  it("names the referrer only for the page the visitor arrived on", async () => {
+    const page = stubBrowser({ referrer: "https://news.ycombinator.com/item?id=1" });
+    const client = await loadClient();
+    client.trackPageView("/", "/");
+    runIdle(page);
+    client.trackPageView("/pricing", "/pricing");
+    runIdle(page);
+    expect(page.sent.map((beacon) => beacon.items[0])).toEqual([
+      { type: "view", route: "/", device: "Desktop", referrer: "news.ycombinator.com" },
+      { type: "view", route: "/pricing", device: "Desktop" },
+    ]);
+  });
+
+  it("leaves our own site out as a referrer", async () => {
+    const page = stubBrowser({ referrer: "https://otto.example/pricing" });
+    const client = await loadClient();
+    client.trackPageView("/login", "/login");
+    runIdle(page);
+    expect(page.sent[0]?.items[0]).toEqual({ type: "view", route: "/login", device: "Desktop" });
+  });
+
+  it("adds the time zone on app pages and takes our email's tags off the address", async () => {
+    const page = stubBrowser({
+      search: "?utm_source=otto&utm_medium=email&utm_campaign=weekly_jobs&utm_content=tailor",
+    });
+    const client = await loadClient();
+    client.trackPageView("/dashboard/jobs", "/dashboard/jobs");
+    runIdle(page);
+    expect(page.sent[0]?.items[0]).toMatchObject({
+      type: "view",
+      route: "/dashboard/jobs",
+      timeZone: expect.any(String),
+      email: { campaign: "weekly_jobs", link: "tailor" },
+    });
+    expect(page.location.search).toBe("");
   });
 });
 
-describe("identity", () => {
-  it("identifies by user id only and counts one sign-in", async () => {
+describe("the visitor id", () => {
+  it("keeps one id across beacons and marks it linked once the server has joined it to the account", async () => {
+    const page = stubBrowser();
     const client = await loadClient();
-    client.identifyUser("user-1", "free");
-    await sdkLoaded();
-    expect(sdk.identify).toHaveBeenCalledWith("user-1", { plan: "free" });
-    expect(sdk.capture).toHaveBeenCalledWith("signed_in", { plan: "free" });
-
-    client.identifyUser("user-1", "free");
+    page.answer.identified = true;
+    client.trackPageView("/dashboard", "/dashboard");
+    runIdle(page);
     await settle();
-    expect(sdk.identify).toHaveBeenCalledOnce();
-    expect(sdk.capture).toHaveBeenCalledOnce();
+    page.answer.identified = false;
+    client.trackPageView("/dashboard/jobs", "/dashboard/jobs");
+    runIdle(page);
+
+    const [first, second] = page.sent;
+    expect(second?.visitor).toBe(first?.visitor);
+    expect([first?.linked, second?.linked]).toEqual([false, true]);
   });
 
-  it("holds an identity seen before the SDK loads", async () => {
+  it("starts a new id after signing out", async () => {
+    const page = stubBrowser();
     const client = await loadClient();
-    client.identifyUser("user-1", "pro");
-    client.startAnalytics();
-    await sdkLoaded();
-    expect(sdk.init).toHaveBeenCalledOnce();
-    expect(sdk.identify).toHaveBeenCalledOnce();
-    expect(sdk.identify).toHaveBeenCalledWith("user-1", { plan: "pro" });
-  });
-
-  it("gives a signed-out browser a fresh anonymous id", async () => {
-    sdk.state.distinctId = "user-1";
-    sdk.state.identified = true;
-    const client = await loadClient();
+    client.trackPageView("/", "/");
+    runIdle(page);
     client.resetUser();
-    await sdkLoaded();
-    expect(sdk.reset).toHaveBeenCalledOnce();
-    expect(sdk.state.distinctId).toBe("anon-device-2");
+    client.trackPageView("/", "/");
+    runIdle(page);
+    expect(page.sent[1]?.visitor).not.toBe(page.sent[0]?.visitor);
+    expect(page.sent[1]?.linked).toBe(false);
   });
 
-  it("leaves an anonymous visitor's id alone", async () => {
+  it("starts a new session after half an hour away", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(Date.UTC(2026, 10, 22, 9));
+    const page = stubBrowser();
     const client = await loadClient();
-    client.resetUser();
-    await sdkLoaded();
-    expect(sdk.reset).not.toHaveBeenCalled();
+    client.trackPageView("/", "/");
+    runIdle(page);
+    vi.setSystemTime(Date.UTC(2026, 10, 22, 9, 20));
+    client.trackPageView("/pricing", "/pricing");
+    runIdle(page);
+    vi.setSystemTime(Date.UTC(2026, 10, 22, 10));
+    client.trackPageView("/", "/");
+    runIdle(page);
+
+    const sessions = page.sent.map((beacon) => beacon.session);
+    expect(sessions[1]).toBe(sessions[0]);
+    expect(sessions[2]).not.toBe(sessions[1]);
+    expect(new Set(page.sent.map((beacon) => beacon.visitor)).size).toBe(1);
   });
 
-  it("never merges a second account into the first", async () => {
-    sdk.state.distinctId = "user-1";
-    sdk.state.identified = true;
+  it("keeps one id for the visit when storage is blocked", async () => {
+    const page = stubBrowser({ blockStorage: true });
     const client = await loadClient();
-    client.identifyUser("user-2", "free");
-    await sdkLoaded();
-    expect(sdk.reset).toHaveBeenCalledOnce();
-    expect(sdk.identify).toHaveBeenCalledWith("user-2", { plan: "free" });
+    client.trackPageView("/", "/");
+    runIdle(page);
+    client.trackPageView("/pricing", "/pricing");
+    runIdle(page);
+    expect(page.sent[0]?.visitor).toMatch(UUID_V7);
+    expect(page.sent[1]?.visitor).toBe(page.sent[0]?.visitor);
+  });
+});
+
+describe("sending", () => {
+  it("sends what is queued at once when the page is hidden", async () => {
+    const page = stubBrowser();
+    const client = await loadClient();
+    client.setPageRoute("/studio");
+    client.track("pdf_downloaded", { page_size: "A4" });
+    page.hide();
+    expect(page.sent[0]?.items).toEqual([
+      { type: "event", event: "pdf_downloaded", route: "/studio", props: { page_size: "A4" } },
+    ]);
+    runIdle(page);
+    expect(page.sent).toHaveLength(1);
+  });
+
+  it("sends web vitals straight away", async () => {
+    const page = stubBrowser();
+    const client = await loadClient();
+    client.trackVitals("/pricing", { LCP: 1200, CLS: 0.02 });
+    expect(page.sent[0]?.items).toEqual([
+      { type: "vitals", route: "/pricing", metrics: { LCP: 1200, CLS: 0.02 } },
+    ]);
+  });
+
+  it("goes to our own address as same-origin JSON that outlives the page", async () => {
+    const page = stubBrowser();
+    const client = await loadClient();
+    client.trackPageView("/", "/");
+    runIdle(page);
+    expect(fetch).toHaveBeenCalledWith("/api/activity", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: expect.any(String),
+      credentials: "same-origin",
+      keepalive: true,
+    });
   });
 });

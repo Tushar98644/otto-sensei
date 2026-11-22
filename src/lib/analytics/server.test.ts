@@ -1,11 +1,14 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const sdk = vi.hoisted(() => ({
   constructed: vi.fn(),
   captureImmediate: vi.fn<(message: unknown) => Promise<void>>(async () => {}),
 }));
 const config = vi.hoisted(() => ({ key: "phc_test" as string | undefined }));
-const scheduled = vi.hoisted(() => ({ tasks: [] as Array<() => Promise<void>>, outsideRequest: false }));
+const scheduled = vi.hoisted(() => ({
+  tasks: [] as Array<() => Promise<void>>,
+  outsideRequest: false,
+}));
 const env = vi.hoisted(() => ({ ai: true }));
 
 vi.mock("posthog-node", () => ({
@@ -31,7 +34,8 @@ vi.mock("@/lib/env", async (importOriginal) => ({
   aiEnabled: () => env.ai,
 }));
 
-const { ANONYMOUS_ID, captureServerEvent, resetServerAnalyticsForTests } = await import("./server");
+const { ANONYMOUS_ID, captureBatch, captureServerEvent, resetServerAnalyticsForTests } =
+  await import("./server");
 const { trackAICall, trackMeteredCall, trackStructureCall } = await import("./ai");
 const { AIError } = await import("@/lib/ai/types");
 
@@ -42,7 +46,8 @@ async function runScheduled() {
 
 function sent(): Array<{ distinctId: string; event: string; properties: Record<string, unknown> }> {
   return sdk.captureImmediate.mock.calls.map(
-    ([message]) => message as { distinctId: string; event: string; properties: Record<string, unknown> },
+    ([message]) =>
+      message as { distinctId: string; event: string; properties: Record<string, unknown> },
   );
 }
 
@@ -68,14 +73,24 @@ describe("captureServerEvent", () => {
     captureServerEvent("user-1", "application_logged", { status: "applied" });
     expect(sdk.captureImmediate).not.toHaveBeenCalled();
     await runScheduled();
-    expect(sdk.constructed).toHaveBeenCalledWith("phc_test", expect.objectContaining({ disableGeoip: true }));
+    expect(sdk.constructed).toHaveBeenCalledWith(
+      "phc_test",
+      expect.objectContaining({ disableGeoip: true }),
+    );
     expect(sent()).toEqual([
-      { distinctId: "user-1", event: "application_logged", properties: { status: "applied" }, disableGeoip: true },
+      {
+        distinctId: "user-1",
+        event: "application_logged",
+        properties: { status: "applied" },
+        disableGeoip: true,
+      },
     ]);
   });
 
   it("never sends an email or long text, even if a caller slips one in", async () => {
-    const sneaky = { plan: "pro", email: "jane@example.com", note: "x".repeat(500) } as unknown as { plan: "pro" };
+    const sneaky = { plan: "pro", email: "jane@example.com", note: "x".repeat(500) } as unknown as {
+      plan: "pro";
+    };
     captureServerEvent("user-1", "checkout_completed", sneaky, { set: { plan: "pro" } });
     await runScheduled();
     expect(sent()[0]?.properties).toEqual({ plan: "pro", $set: { plan: "pro" } });
@@ -109,7 +124,12 @@ describe("captureServerEvent", () => {
 });
 
 describe("trackMeteredCall", () => {
-  const call = { userId: "user-1", path: "/api/fix", feature: "fix" as const, startedAt: Date.now() - 1_200 };
+  const call = {
+    userId: "user-1",
+    path: "/api/fix",
+    feature: "fix" as const,
+    startedAt: Date.now() - 1_200,
+  };
 
   it("sends the AI call and the funnel step on success", async () => {
     trackMeteredCall(call);
@@ -119,7 +139,11 @@ describe("trackMeteredCall", () => {
     expect(ai?.properties).toMatchObject({ task: "fix", outcome: "ok" });
     expect(typeof ai?.properties.model).toBe("string");
     expect(ai?.properties.latency_ms).toBeGreaterThanOrEqual(1_200);
-    expect(step).toMatchObject({ distinctId: "user-1", event: "line_fixed", properties: { demo: false } });
+    expect(step).toMatchObject({
+      distinctId: "user-1",
+      event: "line_fixed",
+      properties: { demo: false },
+    });
   });
 
   it("names the endpoint, not the allowance it draws on", async () => {
@@ -133,7 +157,12 @@ describe("trackMeteredCall", () => {
     trackMeteredCall({ ...call, path: "/api/tailor", feature: "tailor" });
     trackMeteredCall({ ...call, path: "/api/letter", feature: "letter" });
     await runScheduled();
-    expect(sent().map((m) => m.event)).toEqual(["ai_call", "tailor_run", "ai_call", "letter_written"]);
+    expect(sent().map((m) => m.event)).toEqual([
+      "ai_call",
+      "tailor_run",
+      "ai_call",
+      "letter_written",
+    ]);
   });
 
   it("records the failure and no funnel step", async () => {
@@ -168,7 +197,10 @@ describe("trackMeteredCall", () => {
 
 describe("trackAICall", () => {
   it("counts a signed-out call without a person profile", async () => {
-    trackAICall({ userId: null, task: "draft", aiTask: "fix", startedAt: Date.now() }, new AIError("unavailable", "down"));
+    trackAICall(
+      { userId: null, task: "draft", aiTask: "fix", startedAt: Date.now() },
+      new AIError("unavailable", "down"),
+    );
     await runScheduled();
     expect(sent()[0]).toMatchObject({
       distinctId: ANONYMOUS_ID,
@@ -210,5 +242,71 @@ describe("config", () => {
     vi.stubEnv("NEXT_PUBLIC_POSTHOG_KEY", "phc_real");
     expect(actual.posthogKey()).toBeUndefined();
     vi.unstubAllEnvs();
+  });
+});
+
+describe("captureBatch", () => {
+  const posted = vi.fn<(url: string, init: RequestInit) => Promise<Response>>(
+    async () => new Response("{}"),
+  );
+
+  beforeEach(() => {
+    posted.mockClear();
+    vi.stubGlobal("fetch", posted);
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("does nothing without a key or without events", async () => {
+    captureBatch([]);
+    config.key = undefined;
+    captureBatch([{ event: "$pageview", distinctId: "v1", properties: {} }]);
+    await runScheduled();
+    expect(posted).not.toHaveBeenCalled();
+  });
+
+  it("sends a whole beacon as one batch request, scrubbed, once the response is out", async () => {
+    captureBatch([
+      {
+        event: "$pageview",
+        distinctId: "v1",
+        properties: { $pathname: "/s/abc123", note: "jane@example.com" },
+      },
+      { event: "resume_imported", distinctId: "v1", properties: { source: "pdf" } },
+    ]);
+    expect(posted).not.toHaveBeenCalled();
+    await runScheduled();
+
+    expect(posted).toHaveBeenCalledOnce();
+    const [url, init] = posted.mock.calls[0] ?? [];
+    expect(url).toBe("https://us.i.posthog.com/batch/");
+    const body = JSON.parse(String(init?.body)) as {
+      api_key: string;
+      batch: Array<{ event: string; distinct_id: string; properties: Record<string, unknown> }>;
+    };
+    expect(body.api_key).toBe("phc_test");
+    expect(
+      body.batch.map(({ event, distinct_id, properties }) => ({ event, distinct_id, properties })),
+    ).toEqual([
+      {
+        event: "$pageview",
+        distinct_id: "v1",
+        properties: { $pathname: "/s/:token", $lib: "otto-web", $geoip_disable: true },
+      },
+      {
+        event: "resume_imported",
+        distinct_id: "v1",
+        properties: { source: "pdf", $lib: "otto-web", $geoip_disable: true },
+      },
+    ]);
+  });
+
+  it("keeps a failed send away from the caller", async () => {
+    posted.mockRejectedValueOnce(new Error("down"));
+    vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    captureBatch([{ event: "$pageview", distinctId: "v1", properties: {} }]);
+    await expect(runScheduled()).resolves.toBeUndefined();
   });
 });

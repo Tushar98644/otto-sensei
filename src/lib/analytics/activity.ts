@@ -1,26 +1,15 @@
 import { lt, sql } from "drizzle-orm";
-import { z } from "zod";
 import { getDb } from "@/db/client";
 import { activeDays, userActivity } from "@/db/schema";
 import { DAY_MS } from "@/lib/time";
-import { DASHBOARD_SECTIONS, EMAIL_CAMPAIGNS } from "./landing";
+import type { DashboardSection, EmailLanding } from "./landing";
 import { trackDashboardView, trackEmailClick, trackReturn } from "./retention";
 
-export const ActivitySchema = z.strictObject({
-  section: z.enum(DASHBOARD_SECTIONS),
-  timeZone: z.string().min(1).max(64).optional(),
-  email: z
-    .strictObject({
-      campaign: z.enum(EMAIL_CAMPAIGNS),
-      link: z
-        .string()
-        .regex(/^[a-z0-9_]{1,40}$/)
-        .optional(),
-    })
-    .optional(),
-});
-
-export type Activity = z.output<typeof ActivitySchema>;
+export type Activity = {
+  section: DashboardSection;
+  timeZone?: string;
+  email?: EmailLanding;
+};
 
 const DAY_PARTS = { year: "numeric", month: "2-digit", day: "2-digit" } as const;
 

@@ -27,7 +27,7 @@ const otto = {
 };
 
 const LAZY_SDKS = {
-  regex: "^(@sentry/|posthog-js($|/))|(^|/)sentry-browser$",
+  regex: "^(@sentry/|posthog-js($|/)|web-vitals($|/))|(^|/)sentry-browser$",
   allowTypeImports: true,
   message:
     "Load it with import() when it is needed, as src/lib/observability/browser.ts does: a static import puts the SDK in the chunk of every page that reaches this file.",

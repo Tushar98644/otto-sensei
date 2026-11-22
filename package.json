@@ -30,7 +30,6 @@
     "mammoth": "^1.13.0",
     "next": "16.4.5",
     "postgres": "3.4.9",
-    "posthog-js": "^1.447.3",
     "posthog-node": "^5.63.1",
     "react": "19.3.1",
     "react-dom": "19.3.1",
@@ -39,6 +38,7 @@
     "tailwind-merge": "^3.7.0",
     "three": "0.161.0",
     "unpdf": "^2.1.0",
+    "web-vitals": "6.2.3",
     "zod": "^4.6.7",
     "zustand": "^5.1.0"
   },

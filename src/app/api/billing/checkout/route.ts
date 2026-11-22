@@ -1,5 +1,6 @@
 import { upgradeReturnPath } from "@/components/account/upgrade-return";
 import type { BillingInterval, PaidPlanId } from "@/config/plans";
+import { captureServerEvent } from "@/lib/analytics/server";
 import { fail, ok } from "@/lib/api/respond";
 import { CheckoutRequestSchema, type UrlResponse } from "@/lib/api/types";
 import { getCurrentUser } from "@/lib/auth/session";
@@ -18,6 +19,10 @@ export async function POST(req: Request) {
     const choice = await requestedChoice(req);
     if (!choice) return fail("bad_request", "Pick a plan and how often you'd like to pay.", 400);
     const url = await createCheckoutUrl(user, choice.plan, choice.interval, choice.next);
+    captureServerEvent(user.id, "checkout_started", {
+      plan: choice.plan,
+      interval: choice.interval,
+    });
     return ok({ url } satisfies Omit<UrlResponse, "ok">);
   } catch (error) {
     return billingFailure(error, "checkout");

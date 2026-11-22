@@ -1,16 +1,11 @@
 "use client";
 
-import {
-  useRef,
-  useState,
-  type ChangeEvent,
-  type FormEvent,
-  type RefObject,
-} from "react";
+import { useRef, useState, type ChangeEvent, type FormEvent, type RefObject } from "react";
 import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { track } from "@/lib/analytics/client";
 import { api, isApiError } from "@/lib/api/client";
 import type { SessionUser } from "@/lib/auth/types";
 import { cn } from "@/lib/utils";
@@ -111,6 +106,7 @@ export function SignInForm({
           : `We sent a new code to ${address}.`,
       );
       startResendCooldown();
+      if (kind === "send") track("signup_started", { method: "email" });
       if (kind === "resend") codeRef.current?.focus();
     } catch (failure) {
       const field = kind === "send" ? emailRef : undefined;
@@ -254,7 +250,8 @@ export function SignInForm({
           </p>
           {devCode ? (
             <Alert>
-              Dev mode: your code is <strong className="font-semibold tabular-nums">{devCode}</strong>
+              Dev mode: your code is{" "}
+              <strong className="font-semibold tabular-nums">{devCode}</strong>
             </Alert>
           ) : null}
           <Field
@@ -308,4 +305,3 @@ export function SignInForm({
     </div>
   );
 }
-

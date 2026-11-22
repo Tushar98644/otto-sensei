@@ -1,14 +1,26 @@
-import type { BeforeSendFn, PostHog, PostHogConfig } from "posthog-js/dist/module.slim.js";
-import type { PlanId } from "@/config/plans";
-import { posthogHost, posthogKey } from "./config";
+import { readJsonItem, removeItem, writeJsonItem } from "@/lib/browser-storage";
+import type { Beacon, BeaconItem } from "./beacon";
+import { posthogKey } from "./config";
 import type { ClientEvent, ClientEventProps, EventArgs } from "./events";
-import { cleanProps, trackingRefused } from "./privacy";
+import { dashboardSection, emailLanding, TRAFFIC_UTM_KEYS, withoutUtm } from "./landing";
+import { trackingRefused } from "./privacy";
 
-type Identity = { id: string; plan: PlanId };
+// No SDK: a small first-party beacon, which the server forwards to PostHog.
 
-let loading: Promise<PostHog | null> | null = null;
-// Held so a sign-in seen during hydration applies once the SDK is up, not racing init().
-let identity: Identity | null | undefined;
+const ENDPOINT = "/api/activity";
+const VISITOR_KEY = "otto:visitor";
+const SESSION_IDLE_MS = 30 * 60_000;
+const MAX_ITEMS = 20;
+
+type Visitor = { id: string; linked: boolean; session: string; seenAt: number };
+
+let queue: BeaconItem[] = [];
+let scheduled = false;
+let listening = false;
+let firstView = true;
+let currentRoute = "/";
+// Kept here as well, so a browser that blocks storage still has one id for the whole visit.
+let memory: Visitor | null = null;
 
 export function analyticsEnabled(): boolean {
   if (typeof window === "undefined" || !posthogKey()) return false;
@@ -16,113 +28,190 @@ export function analyticsEnabled(): boolean {
   return !trackingRefused(window.navigator, legacyDnt);
 }
 
-const scrub: BeforeSendFn = (event) => ({
-  ...event,
-  properties: cleanProps(event.properties),
-  ...(event.$set && { $set: cleanProps(event.$set) }),
-  ...(event.$set_once && { $set_once: cleanProps(event.$set_once) }),
-});
-
-const CONFIG: Partial<PostHogConfig> = {
-  defaults: "2026-05-30",
-  // Clicks and fields in the studio are a person's resume: only named events are sent.
-  autocapture: false,
-  capture_pageview: false,
-  capture_pageleave: false,
-  capture_dead_clicks: false,
-  capture_heatmaps: false,
-  capture_exceptions: false,
-  rageclick: false,
-  disable_session_recording: true,
-  disable_surveys: true,
-  disable_product_tours: true,
-  disable_conversations: true,
-  disable_web_experiments: true,
-  disable_external_dependency_loading: true,
-  advanced_disable_flags: true,
-  mask_all_text: true,
-  mask_all_element_attributes: true,
-  respect_dnt: true,
-  persistence: "localStorage",
-  person_profiles: "identified_only",
-  save_referrer: false,
-  property_denylist: ["$referrer", "$referring_domain", "$initial_referrer", "$initial_referring_domain"],
-  before_send: scrub,
-};
-
-function whenIdle(): Promise<void> {
-  return new Promise((resolve) => {
-    if (typeof window.requestIdleCallback === "function") {
-      window.requestIdleCallback(() => resolve(), { timeout: 4_000 });
-    } else {
-      window.setTimeout(resolve, 1_500);
-    }
-  });
-}
-
-function load(): Promise<PostHog | null> {
-  if (loading) return loading;
-  const key = posthogKey();
-  if (!key || !analyticsEnabled()) return Promise.resolve(null);
-  loading = whenIdle()
-    // The slim build leaves out every extension CONFIG turns off; it is a dist path, so recheck it on upgrades.
-    .then(() => import("posthog-js/dist/module.slim.js"))
-    .then(({ default: posthog }) => {
-      posthog.init(key, { ...CONFIG, api_host: posthogHost() });
-      attempt(posthog, applyIdentity);
-      return posthog;
-    })
-    .catch(() => null);
-  return loading;
-}
-
-function attempt(posthog: PostHog, run: (posthog: PostHog) => void): void {
-  try {
-    run(posthog);
-  } catch {}
-}
-
-function withPosthog(run: (posthog: PostHog) => void): void {
-  if (!analyticsEnabled()) return;
-  void load().then((posthog) => {
-    if (posthog) attempt(posthog, run);
-  });
-}
-
-export function startAnalytics(): void {
-  void load();
-}
-
-export function track<E extends ClientEvent>(event: E, ...args: EventArgs<ClientEventProps[E]>): void {
-  const [props] = args;
-  withPosthog((posthog) => posthog.capture(event, cleanProps(props)));
-}
-
-function applyIdentity(posthog: PostHog): void {
-  if (identity === undefined) return;
-  if (identity === null) {
-    if (posthog._isIdentified()) posthog.reset();
-    return;
+// Time-ordered, as PostHog expects of session ids; random enough for a visitor id too.
+function uuidv7(now: number): string {
+  const bytes = crypto.getRandomValues(new Uint8Array(16));
+  let time = now;
+  for (let index = 5; index >= 0; index -= 1) {
+    bytes[index] = time % 256;
+    time = Math.floor(time / 256);
   }
-  if (posthog.get_distinct_id() === identity.id) return;
-  // Someone else signed in on this browser without signing out: never merge two people.
-  if (posthog._isIdentified()) posthog.reset();
-  posthog.identify(identity.id, { plan: identity.plan });
-  const props: ClientEventProps["signed_in"] = { plan: identity.plan };
-  posthog.capture("signed_in", props);
+  bytes[6] = (bytes[6]! & 0x0f) | 0x70;
+  bytes[8] = (bytes[8]! & 0x3f) | 0x80;
+  const hex = Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
 }
 
-export function identifyUser(id: string, plan: PlanId): void {
-  identity = { id, plan };
-  withPosthog(applyIdentity);
+function isVisitor(value: unknown): value is Visitor {
+  if (typeof value !== "object" || value === null) return false;
+  const visitor = value as Partial<Visitor>;
+  return (
+    typeof visitor.id === "string" &&
+    typeof visitor.linked === "boolean" &&
+    typeof visitor.session === "string" &&
+    typeof visitor.seenAt === "number"
+  );
 }
 
+function visitor(now: number): Visitor {
+  const stored = readJsonItem(VISITOR_KEY);
+  const known = isVisitor(stored) ? stored : memory;
+  const next: Visitor = known
+    ? {
+        ...known,
+        session: now - known.seenAt > SESSION_IDLE_MS ? uuidv7(now) : known.session,
+        seenAt: now,
+      }
+    : { id: uuidv7(now), linked: false, session: uuidv7(now), seenAt: now };
+  memory = next;
+  writeJsonItem(VISITOR_KEY, next);
+  return next;
+}
+
+function markLinked(id: string): void {
+  const stored = readJsonItem(VISITOR_KEY);
+  if (isVisitor(stored) && stored.id === id)
+    writeJsonItem(VISITOR_KEY, { ...stored, linked: true });
+  if (memory?.id === id) memory = { ...memory, linked: true };
+}
+
+function whenIdle(run: () => void): void {
+  if (typeof window.requestIdleCallback === "function") {
+    window.requestIdleCallback(run, { timeout: 4_000 });
+  } else {
+    window.setTimeout(run, 1_500);
+  }
+}
+
+// Straight to fetch, not lib/api/client: a note like this must not drop the layout's seeded answers.
+function send(body: Beacon, visitorId: string): void {
+  fetch(ENDPOINT, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+    credentials: "same-origin",
+    keepalive: true,
+  })
+    .then((response) => (response.ok ? response.json() : null))
+    .then((answer: { identified?: boolean } | null) => {
+      if (answer?.identified) markLinked(visitorId);
+    })
+    .catch(() => {});
+}
+
+export function flushBeacon(): void {
+  scheduled = false;
+  if (queue.length === 0) return;
+  const items = queue.slice(0, MAX_ITEMS);
+  queue = [];
+  const { id, linked, session } = visitor(Date.now());
+  send({ visitor: id, linked, session, items }, id);
+}
+
+function onHidden(): void {
+  if (document.visibilityState === "hidden") flushBeacon();
+}
+
+function enqueue(item: BeaconItem): void {
+  if (!analyticsEnabled()) return;
+  queue.push(item);
+  if (!listening) {
+    listening = true;
+    document.addEventListener("visibilitychange", onHidden);
+  }
+  if (scheduled) return;
+  scheduled = true;
+  whenIdle(flushBeacon);
+}
+
+function deviceType(): "Mobile" | "Tablet" | "Desktop" {
+  if (!window.matchMedia?.("(pointer: coarse)").matches) return "Desktop";
+  return Math.min(window.screen.width, window.screen.height) < 600 ? "Mobile" : "Tablet";
+}
+
+// The other site's name only, and only for the page the visitor arrived on.
+function referrerDomain(): string | undefined {
+  try {
+    const host = new URL(document.referrer).hostname;
+    return host && host !== window.location.hostname ? host : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+function utmTags(search: string): Record<string, string> | undefined {
+  const params = new URLSearchParams(search);
+  const tags: Record<string, string> = {};
+  for (const key of TRAFFIC_UTM_KEYS) {
+    const value = params.get(key)?.slice(0, 100);
+    if (value) tags[key] = value;
+  }
+  return Object.keys(tags).length ? tags : undefined;
+}
+
+function deviceTimeZone(): string | undefined {
+  try {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone || undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+// Read once, then taken off the address, so a reload or a copied link never counts the click again.
+function takeEmailLanding() {
+  const landing = emailLanding(window.location.search);
+  if (landing)
+    window.history.replaceState(window.history.state, "", withoutUtm(window.location.href));
+  return landing;
+}
+
+// Set before the page's own effects run, so the events they send name the right page.
+export function setPageRoute(route: string): void {
+  currentRoute = route;
+}
+
+export function trackPageView(route: string, pathname: string): void {
+  if (!analyticsEnabled()) return;
+  const referrer = firstView ? referrerDomain() : undefined;
+  firstView = false;
+  const utm = utmTags(window.location.search);
+  const app = dashboardSection(pathname) !== null;
+  const email = app ? takeEmailLanding() : null;
+  enqueue({
+    type: "view",
+    route,
+    device: deviceType(),
+    ...(referrer ? { referrer } : {}),
+    ...(utm ? { utm } : {}),
+    ...(app ? { timeZone: deviceTimeZone() } : {}),
+    ...(email ? { email } : {}),
+  });
+}
+
+export function track<E extends ClientEvent>(
+  event: E,
+  ...args: EventArgs<ClientEventProps[E]>
+): void {
+  const [props] = args;
+  enqueue({ type: "event", event, route: currentRoute, ...(props ? { props } : {}) });
+}
+
+export function trackVitals(route: string, metrics: Partial<Record<string, number>>): void {
+  enqueue({ type: "vitals", route, metrics });
+  flushBeacon();
+}
+
+// A new visitor id after signing out, so whoever uses this browser next isn't counted as the same person.
 export function resetUser(): void {
-  identity = null;
-  withPosthog(applyIdentity);
+  memory = null;
+  removeItem(VISITOR_KEY);
 }
 
 export function resetAnalyticsForTests(): void {
-  loading = null;
-  identity = undefined;
+  queue = [];
+  scheduled = false;
+  listening = false;
+  firstView = true;
+  currentRoute = "/";
+  memory = null;
 }

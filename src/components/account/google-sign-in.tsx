@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { flushBeacon, track } from "@/lib/analytics/client";
 import { api } from "@/lib/api/client";
 import type { AuthMode } from "@/lib/auth/types";
 import { errorMessage } from "./errors";
@@ -36,8 +37,12 @@ export function GoogleSignIn({ next, disabled = false, onError, onRedirect }: Go
     if (pending) return;
     setPending(true);
     try {
-      const { url } = await api.googleSignIn(next ?? `${window.location.pathname}${window.location.search}`);
+      const { url } = await api.googleSignIn(
+        next ?? `${window.location.pathname}${window.location.search}`,
+      );
       onRedirect?.();
+      track("signup_started", { method: "google" });
+      flushBeacon();
       window.location.assign(url);
     } catch (failure) {
       setPending(false);

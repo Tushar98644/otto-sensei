@@ -62,6 +62,8 @@ export const EMAIL_CAMPAIGNS = [
 export type EmailCampaign = (typeof EMAIL_CAMPAIGNS)[number];
 
 export const UTM_KEYS = ["utm_source", "utm_medium", "utm_campaign", "utm_content"] as const;
+// Read from any landing for page views; only our own emails' tags are taken off the address.
+export const TRAFFIC_UTM_KEYS = [...UTM_KEYS, "utm_term"] as const;
 
 const SOURCE = "otto";
 const MEDIUM = "email";
