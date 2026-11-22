@@ -101,7 +101,7 @@ export function libraryLink(): Element | null {
 }
 
 export function winRatePanel(): Element | null {
-  const tab = byText("main span", (text) => text === "Win rate");
+  const tab = byText("main span", (text) => text === "What's working");
   return tagged("dashboard-win-rate") ?? (tab ? pageBlock(tab) : null);
 }
 
@@ -114,6 +114,8 @@ export function setupStepCount(): number | null {
   return Number.isInteger(steps) && steps > 0 ? steps : null;
 }
 
-export function sectionLink(id: "jobs" | "applications" | "interview" | "portfolio"): Element | null {
+export function sectionLink(
+  id: "jobs" | "applications" | "interview" | "portfolio",
+): Element | null {
   return tagged(`dashboard-${id}`);
 }

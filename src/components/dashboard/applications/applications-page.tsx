@@ -49,6 +49,7 @@ import {
   sentLabel,
   type ApplicationFilter,
 } from "./view";
+import { WhatsWorking } from "./whats-working";
 import { WinRate } from "./win-rate";
 
 preload(skillGapsPanel);
@@ -287,6 +288,14 @@ export function ApplicationsPage() {
             )}
           </section>
 
+          {items.length > 0 ? (
+            <WhatsWorking
+              applications={items}
+              resumes={resumes}
+              variant="page"
+              onAddApplication={() => void add()}
+            />
+          ) : null}
           {items.length > 0 ? <WinRate items={items} versions={versions} /> : null}
           <Lazy loader={skillGapsPanel} wanted props={{}} />
         </>

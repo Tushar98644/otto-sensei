@@ -50,7 +50,8 @@ export type DashboardStopId =
 // The count comes from the setup rows the Up next card really shows (3 on Free, more on Pro).
 export function setupStopCopy(steps: number | null): Copy {
   const lead = "What to do next, most important first.";
-  if (!steps || steps < 1) return { title: "Up next", body: `${lead} Each row goes once it's done.` };
+  if (!steps || steps < 1)
+    return { title: "Up next", body: `${lead} Each row goes once it's done.` };
   const tick = steps === 1 ? "step ticks itself" : "steps tick themselves";
   return { title: "Up next", body: `${lead} Your ${steps} setup ${tick} off.` };
 }
@@ -82,7 +83,7 @@ export const DASHBOARD_COPY: Record<DashboardStopId, Copy> = {
     body: "Turn your resume into a portfolio site, hosted for you at your own link.",
   },
   "win-rate": {
-    title: "Win rate",
+    title: "What's working",
     body: "Log the jobs you apply to. I'll show which resume gets you interviews.",
   },
 };
@@ -147,7 +148,9 @@ export function studioStops({
   return plan.stops.map((id) => stops[id]);
 }
 
-export function dashboardStops({ setupSteps = null }: { setupSteps?: number | null } = {}): TourStop[] {
+export function dashboardStops({
+  setupSteps = null,
+}: { setupSteps?: number | null } = {}): TourStop[] {
   const section = (id: "jobs" | "applications" | "interview" | "portfolio"): TourStop => ({
     id,
     ...DASHBOARD_COPY[id],

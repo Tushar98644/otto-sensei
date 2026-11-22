@@ -42,6 +42,7 @@ export function DashboardHome() {
   const parts = useLazy(resumeSections, true);
 
   const latest = recent[0] ?? null;
+  const tailorBase = own.find((resume) => resume.tailor === null) ?? null;
   const logged = applications.status === "ready" && applications.items.length > 0;
 
   return (
@@ -72,7 +73,14 @@ export function DashboardHome() {
       <ActionCards actions={actions} latest={latest} pageResume={latest ?? sample} />
 
       {parts && !loading && own.length > 0 ? <parts.AtAGlance own={own} actions={actions} /> : null}
-      {parts && logged ? <parts.WinRatePanel /> : null}
+      {parts && !loading && applications.status === "ready" && (own.length > 0 || logged) ? (
+        <parts.WhatsWorking
+          applications={applications.items}
+          resumes={resumes}
+          variant="home"
+          onTailor={tailorBase ? () => actions.open(tailorBase.id, "tailor") : null}
+        />
+      ) : null}
       {parts ? <parts.SkillGapCard /> : null}
 
       {loading || resumes.length > 0 ? (
