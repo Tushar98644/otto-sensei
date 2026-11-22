@@ -28,19 +28,15 @@ export const EmailChoicesSchema = z
     jobPromptClosed: z.literal(true).optional(),
     jobPromptSnoozed: z.literal(true).optional(),
     viewPromptSnoozed: z.literal(true).optional(),
-    briefEmails: z.boolean().optional(),
-    briefPromptSnoozed: z.literal(true).optional(),
   })
   .refine(
     (body) =>
       body.jobEmails !== undefined ||
       body.tipEmails !== undefined ||
       body.viewEmails !== undefined ||
-      body.briefEmails !== undefined ||
       body.jobPromptClosed ||
       body.jobPromptSnoozed ||
-      body.viewPromptSnoozed ||
-      body.briefPromptSnoozed,
+      body.viewPromptSnoozed,
     "Nothing to change.",
   );
 

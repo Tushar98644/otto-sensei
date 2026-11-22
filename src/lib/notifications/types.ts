@@ -14,6 +14,7 @@ export const NOTIFICATION_KINDS = [
   "share_viewed",
   "portfolio_views",
   "interview_after",
+  "interview_today",
 ] as const;
 export type NotificationKind = (typeof NOTIFICATION_KINDS)[number];
 
@@ -60,8 +61,8 @@ export type ReminderSettingsResponse = {
   promptSnoozed: boolean;
 } & ReminderSettings;
 
-// Each list has its own signed unsubscribe link: follow-up reminders, the weekly jobs email, tips, views and interview briefs.
-export const EMAIL_LISTS = ["reminders", "jobs", "tips", "views", "briefs"] as const;
+// Each list has its own signed unsubscribe link: follow-up reminders, the weekly jobs email, tips, and views.
+export const EMAIL_LISTS = ["reminders", "jobs", "tips", "views"] as const;
 export type EmailList = (typeof EMAIL_LISTS)[number];
 
 export const TIP_EMAIL_KINDS = ["no_resume", "fixes_back", "trial_ended", "win_back"] as const;
@@ -81,9 +82,6 @@ export type EmailChoices = {
   jobPromptSnoozed: boolean;
   viewPromptClosed: boolean;
   viewPromptSnoozed: boolean;
-  briefEmails: boolean;
-  briefPromptClosed: boolean;
-  briefPromptSnoozed: boolean;
 };
 export type EmailChoicesBody = z.input<typeof EmailChoicesSchema>;
 export type EmailChoicesResponse = { ok: true; emailAvailable: boolean } & EmailChoices;

@@ -272,10 +272,6 @@ export const notificationSettings = pgTable("notification_settings", {
   viewPromptClosedAt: epochMs("view_prompt_closed_at"),
   viewPromptSnoozedAt: epochMs("view_prompt_snoozed_at"),
   viewsEmailedAt: epochMs("views_emailed_at"),
-  interviewBriefs: boolean("interview_briefs").notNull().default(false),
-  briefPromptClosedAt: epochMs("brief_prompt_closed_at"),
-  briefPromptSnoozedAt: epochMs("brief_prompt_snoozed_at"),
-  briefsEmailedAt: epochMs("briefs_emailed_at"),
 });
 
 export const writingStyles = pgTable("writing_styles", {

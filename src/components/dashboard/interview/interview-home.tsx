@@ -4,10 +4,8 @@ import { ArrowRight, Plus } from "lucide-react";
 import { useMemo, useRef, useState, type ReactNode } from "react";
 import { useProTools, useTryProLabel } from "@/components/account/pro-tools";
 import { LazyUpgradeDialog } from "@/components/account/lazy-dialogs";
-import { useSessionUserId } from "@/components/account/session-user";
 import { useMe } from "@/components/account/use-me";
 import { CalendarFeed } from "@/components/calendar/calendar-feed";
-import { BriefEmailOptIn } from "@/components/notifications/email-opt-in";
 import { OTTO } from "@/components/mascot/lines";
 import { useNow } from "@/components/studio/use-now";
 import { Alert } from "@/components/ui/alert";
@@ -18,6 +16,7 @@ import { preload, useLazy } from "@/components/ui/lazy";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useResumeList } from "@/lib/store/resume-store";
 import { cn, pluralize } from "@/lib/utils";
+import { dayOffset } from "../applications/board/card/when";
 import { prepAllowance } from "../applications/prep/prep-start";
 import { useApplications } from "../applications/use-applications";
 import { interviewSections } from "../page-code";
@@ -81,7 +80,6 @@ export function InterviewHome() {
   const locked = pro === false;
   const { me, loading: planLoading } = useMe();
   const tryPro = useTryProLabel();
-  const userId = useSessionUserId();
   const [upgradeOpen, setUpgradeOpen] = useState(false);
   const [dialog, setDialog] = useState<{ key: number; open: boolean } | null>(null);
   const openings = useRef(0);
@@ -103,6 +101,8 @@ export function InterviewHome() {
   const [first, ...rest] = entries;
   const firstAt = first?.application.interviewAt ?? null;
   const ahead = firstAt !== null && now > 0 && new Date(firstAt).setHours(23, 59, 59, 999) >= now;
+  const briefToday =
+    Boolean(first?.pack) && firstAt !== null && now > 0 && dayOffset(firstAt, now) === 0;
 
   function start() {
     if (locked) {
@@ -188,8 +188,6 @@ export function InterviewHome() {
             </FolderCard>
           ) : null}
 
-          {first ? <BriefEmailOptIn userId={userId} moment /> : null}
-
           {first ? (
             <section aria-labelledby="interviews-heading" className="flex flex-col gap-4">
               <FolderCard
@@ -212,6 +210,12 @@ export function InterviewHome() {
                   action={action}
                   allowance={allowance}
                 />
+                {briefToday ? (
+                  <parts.TodayBrief
+                    applicationId={first.application.id}
+                    className="mx-2 mb-2 border-t border-border px-2 pt-5 pb-2 sm:px-4 lg:px-6"
+                  />
+                ) : null}
               </FolderCard>
               {rest.length > 0 ? (
                 <ul

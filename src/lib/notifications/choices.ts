@@ -15,9 +15,6 @@ const DEFAULT_CHOICES: EmailChoices = {
   jobPromptSnoozed: false,
   viewPromptClosed: false,
   viewPromptSnoozed: false,
-  briefEmails: false,
-  briefPromptClosed: false,
-  briefPromptSnoozed: false,
 };
 
 const CHOICE_COLUMNS = {
@@ -28,9 +25,6 @@ const CHOICE_COLUMNS = {
   jobSnoozedAt: notificationSettings.jobPromptSnoozedAt,
   viewClosedAt: notificationSettings.viewPromptClosedAt,
   viewSnoozedAt: notificationSettings.viewPromptSnoozedAt,
-  briefEmails: notificationSettings.interviewBriefs,
-  briefClosedAt: notificationSettings.briefPromptClosedAt,
-  briefSnoozedAt: notificationSettings.briefPromptSnoozedAt,
 };
 
 type ChoiceRow = {
@@ -41,9 +35,6 @@ type ChoiceRow = {
   jobSnoozedAt: number | null;
   viewClosedAt: number | null;
   viewSnoozedAt: number | null;
-  briefEmails: boolean;
-  briefClosedAt: number | null;
-  briefSnoozedAt: number | null;
 };
 
 function toChoices(row: ChoiceRow, now: number): EmailChoices {
@@ -55,9 +46,6 @@ function toChoices(row: ChoiceRow, now: number): EmailChoices {
     jobPromptSnoozed: promptResting(row.jobSnoozedAt, now),
     viewPromptClosed: row.viewClosedAt !== null,
     viewPromptSnoozed: promptResting(row.viewSnoozedAt, now),
-    briefEmails: row.briefEmails,
-    briefPromptClosed: row.briefClosedAt !== null,
-    briefPromptSnoozed: promptResting(row.briefSnoozedAt, now),
   };
 }
 
@@ -73,20 +61,19 @@ export async function readEmailChoices(
     .where(eq(users.id, userId))
     .limit(1);
   if (!row) return null;
-  const { jobEmails, tipEmails, viewEmails, briefEmails } = row;
-  if (jobEmails === null || tipEmails === null || viewEmails === null || briefEmails === null) {
+  if (row.jobEmails === null || row.tipEmails === null || row.viewEmails === null) {
     return DEFAULT_CHOICES;
   }
-  return toChoices({ ...row, jobEmails, tipEmails, viewEmails, briefEmails }, now);
+  return toChoices(
+    { ...row, jobEmails: row.jobEmails, tipEmails: row.tipEmails, viewEmails: row.viewEmails },
+    now,
+  );
 }
 
-type EmailChoicesChange = Partial<
-  Pick<EmailChoices, "jobEmails" | "tipEmails" | "viewEmails" | "briefEmails">
-> & {
+type EmailChoicesChange = Partial<Pick<EmailChoices, "jobEmails" | "tipEmails" | "viewEmails">> & {
   jobPromptClosed?: true;
   jobPromptSnoozed?: true;
   viewPromptSnoozed?: true;
-  briefPromptSnoozed?: true;
 };
 
 const closedOnce = (column: typeof notificationSettings.jobPromptClosedAt, now: number) =>
@@ -103,17 +90,14 @@ export async function saveEmailChoices(
     if (!(await lockUser(tx, userId))) return null;
     const jobsAnswered = change.jobPromptClosed === true || change.jobEmails !== undefined;
     const viewsAnswered = change.viewEmails !== undefined;
-    const briefsAnswered = change.briefEmails !== undefined;
     const set = {
       ...(change.jobEmails === undefined ? {} : { jobEmails: change.jobEmails }),
       ...(change.tipEmails === undefined ? {} : { tipEmails: change.tipEmails }),
       ...(change.viewEmails === undefined ? {} : { viewEmails: change.viewEmails }),
-      ...(change.briefEmails === undefined ? {} : { interviewBriefs: change.briefEmails }),
       // Views from before it was turned on were already in the bell: the first email starts now.
       ...(change.viewEmails === true ? { viewsEmailedAt: now } : {}),
       ...(change.jobPromptSnoozed ? { jobPromptSnoozedAt: now } : {}),
       ...(change.viewPromptSnoozed ? { viewPromptSnoozedAt: now } : {}),
-      ...(change.briefPromptSnoozed ? { briefPromptSnoozedAt: now } : {}),
       updatedAt: now,
     };
     const [row] = await tx
@@ -125,7 +109,6 @@ export async function saveEmailChoices(
         remindersChosen: false,
         ...(jobsAnswered ? { jobPromptClosedAt: now } : {}),
         ...(viewsAnswered ? { viewPromptClosedAt: now } : {}),
-        ...(briefsAnswered ? { briefPromptClosedAt: now } : {}),
       })
       .onConflictDoUpdate({
         target: notificationSettings.userId,
@@ -136,9 +119,6 @@ export async function saveEmailChoices(
             : {}),
           ...(viewsAnswered
             ? { viewPromptClosedAt: closedOnce(notificationSettings.viewPromptClosedAt, now) }
-            : {}),
-          ...(briefsAnswered
-            ? { briefPromptClosedAt: closedOnce(notificationSettings.briefPromptClosedAt, now) }
             : {}),
         },
       })
@@ -151,7 +131,6 @@ const STOP: Record<Exclude<EmailList, "reminders">, EmailChoicesChange> = {
   jobs: { jobEmails: false },
   tips: { tipEmails: false },
   views: { viewEmails: false },
-  briefs: { briefEmails: false },
 };
 
 // The one-click unsubscribe for each list; false when the account is gone.

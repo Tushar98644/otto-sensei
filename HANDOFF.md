@@ -19,7 +19,7 @@ Other docs: [README.md](README.md) (run locally; links here), [SETUP.md](SETUP.m
 | Sign-in emails | Resend, through Supabase's SMTP settings |
 | Daily jobs feed | GitHub Action `jobs-ingest.yml` at 05:40 UTC calls `/api/cron/jobs` |
 | Other crons | `vercel.json`: `/api/cron/cleanup` (04:17 UTC), `/api/cron/job-emails` (08:30 UTC, the weekly jobs email), `/api/cron/view-alerts` (13:15 UTC, resume and portfolio view alerts), `/api/cron/trial-reminders` (13:30 UTC), `/api/cron/follow-ups` (14:00 UTC), `/api/cron/tip-emails` (14:45 UTC), and `/api/cron/interview-briefs` once a day at 02:37 UTC as a safety net for the hourly run below |
-| Interview briefs | The Cloudflare Worker `workers/inbound-email` (the one that receives tracked email) runs `/api/cron/interview-briefs` hourly at :07 UTC from its Cron Trigger, with `Authorization: Bearer <CRON_SECRET>`: the interview-morning brief at about 7:00 local and "How did it go?" the morning after. The Worker holds `CRON_SECRET` as a secret (the same value as on Vercel) and `APP_URL` in `wrangler.toml`; setup in its README |
+| Interview briefs | The Cloudflare Worker `workers/inbound-email` (the one that receives tracked email) runs `/api/cron/interview-briefs` hourly at :07 UTC from its Cron Trigger, with `Authorization: Bearer <CRON_SECRET>`: the interview-morning brief in the bell at about 7:00 local and "How did it go?" there the morning after (in-app only, no email). The Worker holds `CRON_SECRET` as a secret (the same value as on Vercel) and `APP_URL` in `wrangler.toml`; setup in its README |
 
 **Not in git, so copy these by hand from the old laptop:**
 - `web/.env.local`: holds `OPENROUTER_API_KEY` and `RESEND_API_KEY`. Copy it over USB or a password manager, never through chat, email or git.

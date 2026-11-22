@@ -2,3 +2,4 @@
 export { FeaturedInterview, InterviewTile, PackCard } from "./interview-cards";
 export { CueCardsArt } from "./interview-art";
 export { SamplePack } from "./sample-pack";
+export { TodayBrief } from "./today-brief";

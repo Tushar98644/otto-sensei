@@ -1,4 +1,4 @@
--- Interview autopilot (src/lib/interviews/*): an interview's time, the morning brief, "How did it go?" and the calendar feed.
+-- Interview autopilot (src/lib/interviews/*): an interview's time, the morning brief and "How did it go?" in the bell, and the calendar feed.
 alter table public.applications
   -- Minutes after midnight in interview_zone; null is a day with no time set.
   add column interview_time smallint,
@@ -22,15 +22,6 @@ create index applications_interview_follow_up_idx
     and follow_up_at is not null
     and (reminded_at is null or reminded_at < follow_up_at);
 
-alter table public.notification_settings
-  -- The morning brief on interview days: off until the account turns it on.
-  add column interview_briefs boolean not null default false,
-  -- When its one-tap card was answered, and its "Not now".
-  add column brief_prompt_closed_at bigint,
-  add column brief_prompt_snoozed_at bigint,
-  -- When the last brief went out, for the optional email budget.
-  add column briefs_emailed_at bigint;
-
 -- One private calendar link per account. Only the token's hash is kept; the link is signed over feed_id, so a new id retires the old link.
 create table public.calendar_feeds (
   user_id uuid primary key references public.users (id) on delete cascade,
@@ -41,7 +32,7 @@ create table public.calendar_feeds (
 
 alter table public.calendar_feeds enable row level security;
 
--- The bell takes "How did it go?"; the next file validates the stored rows.
+-- The bell takes "How did it go?" and the interview-morning brief; the next file validates the stored rows.
 -- squawk-ignore ban-drop-constraint
 alter table public.notifications drop constraint notifications_kind_check;
 alter table public.notifications add constraint notifications_kind_check
@@ -52,6 +43,7 @@ alter table public.notifications add constraint notifications_kind_check
       'interview_soon',
       'share_viewed',
       'portfolio_views',
-      'interview_after'
+      'interview_after',
+      'interview_today'
     )
   ) not valid;

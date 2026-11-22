@@ -5,14 +5,13 @@ import { applications, notifications, workProfiles } from "@/db/schema";
 import { createUser, resetDb, setPlan } from "@/lib/auth/test-helpers";
 import { resetEnvForTests } from "@/lib/env";
 import type { InterviewPrep } from "@/lib/insights/prep";
-import { readEmailChoices, saveEmailChoices, stopEmails } from "@/lib/notifications/choices";
-import type { EmailMessage, EmailSender } from "@/lib/notifications/email";
 import { listNotifications } from "@/lib/notifications/records";
 import {
   askDue,
   briefDue,
   followUpAfter,
   runInterviewAutopilot,
+  todayNotice,
   zoneFor,
   type Candidate,
 } from "./autopilot";
@@ -34,7 +33,6 @@ function candidate(overrides: Partial<Candidate> = {}): Candidate {
     briefedFor: null,
     askedFor: null,
     profileZone: "Asia/Kolkata",
-    briefsOn: true,
     ...overrides,
   };
 }
@@ -44,7 +42,6 @@ describe("when the brief and the question are due", () => {
     expect(briefDue(candidate(), Date.UTC(2026, 10, 24, 1, 0))).toBe(false);
     expect(briefDue(candidate(), MORNING)).toBe(true);
     expect(briefDue(candidate({ briefedFor: noonIst(24) }), MORNING)).toBe(false);
-    expect(briefDue(candidate({ briefsOn: false }), MORNING)).toBe(false);
     expect(briefDue(candidate({ interviewAt: noonIst(25) }), MORNING)).toBe(false);
     // A missed morning still sends a day-only brief until noon, never after.
     expect(briefDue(candidate(), Date.UTC(2026, 10, 24, 6, 0))).toBe(true);
@@ -109,19 +106,6 @@ const PREP: InterviewPrep = {
   demo: false,
 };
 
-function fakeSender(refuse = false) {
-  const calls: { messages: EmailMessage[]; key: string }[] = [];
-  const sender: EmailSender = {
-    async sendBatch(messages, key) {
-      calls.push({ messages, key });
-      return refuse
-        ? { sent: 0, failed: messages.length, refused: true as const }
-        : { sent: messages.length, failed: 0 };
-    },
-  };
-  return { sender, calls };
-}
-
 async function profile(userId: string, timeZone: string) {
   await (
     await getDb()
@@ -158,152 +142,120 @@ async function row(id: string) {
   return found!;
 }
 
-const run = (now: number, sender: EmailSender | null) =>
-  runInterviewAutopilot({ now, deadline: Date.now() + 30_000 }, { sender });
+const run = (now: number) => runInterviewAutopilot({ now, deadline: Date.now() + 30_000 });
+
+async function bellOf(userId: string, now: number) {
+  return (await listNotifications(userId, 30, now)).notifications;
+}
+
+describe("the morning's bell row", () => {
+  it("says the company and time and points at the prep page", () => {
+    const item = { id: "a1", company: "Stripe", hasPrep: true, canPrep: true };
+    expect(todayNotice(item, "2:30 PM")).toEqual({
+      title: "Today: your interview with Stripe at 2:30 PM",
+      body: "Your strongest stories, likely questions and questions to ask are on your prep page.",
+      link: "/dashboard/interview/a1",
+      applicationId: "a1",
+    });
+    expect(todayNotice({ ...item, company: "" }, null).title).toBe("Today: your interview");
+  });
+
+  it("offers a one-click pack when there is none, and sells nothing on Free", () => {
+    const item = { id: "a1", company: "Stripe", hasPrep: false, canPrep: true };
+    expect(todayNotice(item, null).body).toContain("One click makes one");
+    expect(todayNotice({ ...item, canPrep: false }, null).body).toBe(
+      "Read the job post once more and pick two stories from your resume to tell.",
+    );
+  });
+});
 
 describe("runInterviewAutopilot", () => {
   beforeEach(async () => {
     await resetDb();
-    process.env.CRON_SECRET = "test-cron-secret-0123456789";
-    process.env.NEXT_PUBLIC_APP_URL = "https://otto.test";
     resetEnvForTests();
   });
 
   afterEach(() => {
-    delete process.env.CRON_SECRET;
-    delete process.env.NEXT_PUBLIC_APP_URL;
-    delete process.env.OPTIONAL_EMAILS_PER_DAY;
     resetEnvForTests();
   });
 
-  it("briefs today's interview and asks about yesterday's in one email, and rings the bell", async () => {
+  it("puts today's brief and yesterday's question in the bell, on top, and never twice", async () => {
     const maya = await setPlan(await createUser("maya@example.com"), "pro");
     await profile(maya.id, "Asia/Kolkata");
-    await saveEmailChoices(maya.id, { briefEmails: true });
-    const stripe = await interview(maya.id, "Stripe", noonIst(24), { prep: PREP });
+    const stripe = await interview(maya.id, "Stripe", noonIst(24), {
+      prep: PREP,
+      interviewTime: 14 * 60 + 30,
+      interviewZone: "Asia/Kolkata",
+    });
     const figma = await interview(maya.id, "Figma", noonIst(23));
-    const { sender, calls } = fakeSender();
 
-    const outcome = await run(MORNING, sender);
+    const outcome = await run(MORNING);
 
-    expect(outcome.stats).toMatchObject({ users: 1, briefs: 1, asks: 1, emailsSent: 1 });
-    const [email] = calls[0]!.messages;
-    expect(email!.to).toBe("maya@example.com");
-    expect(email!.subject).toBe("Today: your interview with Stripe");
-    expect(email!.text).toContain(
-      "Your strongest stories\n- Checkout redesign: Cut checkout from 5 steps to 2",
-    );
-    expect(email!.text).toContain("How did your interview with Figma go yesterday?");
-    expect(email!.text).toContain(`/dashboard/applications/${figma}?write=thank-you`);
-    expect(email!.text).toContain("l=briefs");
+    expect(outcome.stats).toMatchObject({ users: 1, briefs: 1, asks: 1 });
     expect((await row(stripe)).interviewBriefedFor).toBe(noonIst(24));
     expect((await row(figma)).interviewAskedFor).toBe(noonIst(23));
     // Monday 30 November, the start of that day in Kolkata.
     expect((await row(figma)).followUpAt).toBe(Date.UTC(2026, 10, 29, 18, 30));
 
-    const bell = await listNotifications(maya.id, 30, MORNING);
-    expect(bell.notifications).toHaveLength(1);
-    expect(bell.notifications[0]).toMatchObject({
+    const bell = await bellOf(maya.id, MORNING);
+    expect(bell).toHaveLength(2);
+    expect(bell[0]).toMatchObject({
+      kind: "interview_today",
+      title: "Today: your interview with Stripe at 2:30 PM",
+      applicationId: stripe,
+      link: `/dashboard/interview/${stripe}`,
+    });
+    expect(bell[1]).toMatchObject({
       kind: "interview_after",
       title: "How did your interview with Figma go?",
       applicationId: figma,
       outcomeOpen: true,
       link: `/dashboard/applications/${figma}`,
     });
-    expect(bell.notifications[0]!.body).toContain("follow up on Mon, Nov 30");
+    expect(bell[1]!.body).toContain("follow up on Mon, Nov 30");
 
-    const again = await run(MORNING + 10 * 60_000, sender);
-    expect(again.stats).toMatchObject({ users: 0, briefs: 0, asks: 0, emailsSent: 0 });
-    expect(calls).toHaveLength(1);
+    const again = await run(MORNING + 10 * 60_000);
+    expect(again.stats).toMatchObject({ users: 0, briefs: 0, asks: 0 });
+    expect(await bellOf(maya.id, MORNING)).toHaveLength(2);
   });
 
-  it("asks in the bell only, on any plan, when the email isn't turned on", async () => {
+  it("asks on any plan, on the person's own morning", async () => {
     const sam = await createUser("sam@example.com");
     await profile(sam.id, "America/New_York");
     const linear = await interview(sam.id, "Linear", Date.UTC(2026, 10, 23, 17));
-    await interview(sam.id, "Notion", Date.UTC(2026, 10, 24, 17));
-    const { sender, calls } = fakeSender();
+    const notion = await interview(sam.id, "Notion", Date.UTC(2026, 10, 24, 17));
 
     // 07:30 on 24 November in New York.
-    const outcome = await run(Date.UTC(2026, 10, 24, 12, 30), sender);
+    const outcome = await run(Date.UTC(2026, 10, 24, 12, 30));
 
-    expect(outcome.stats).toMatchObject({ asks: 1, briefs: 0, emailsSent: 0 });
-    expect(calls).toHaveLength(0);
+    expect(outcome.stats).toMatchObject({ asks: 1, briefs: 1 });
     const rows = await (
       await getDb()
     )
       .select()
       .from(notifications)
       .where(eq(notifications.userId, sam.id));
-    expect(rows.map((item) => item.applicationId)).toEqual([linear]);
+    expect(rows.map((item) => [item.kind, item.applicationId]).sort()).toEqual(
+      [
+        ["interview_after", linear],
+        ["interview_today", notion],
+      ].sort(),
+    );
+    const today = rows.find((item) => item.kind === "interview_today")!;
+    expect(today.body).not.toContain("One click");
   });
 
   it("briefs a moved interview again on its new day", async () => {
     const maya = await setPlan(await createUser("maya@example.com"), "pro");
     await profile(maya.id, "Asia/Kolkata");
-    await saveEmailChoices(maya.id, { briefEmails: true });
     const stripe = await interview(maya.id, "Stripe", noonIst(24), {
       interviewBriefedFor: noonIst(20),
     });
-    const { sender, calls } = fakeSender();
 
-    await run(MORNING, sender);
+    const outcome = await run(MORNING);
 
-    expect(calls).toHaveLength(1);
+    expect(outcome.stats).toMatchObject({ briefs: 1 });
     expect((await row(stripe)).interviewBriefedFor).toBe(noonIst(24));
-  });
-
-  it("leaves the brief for a later run when the optional email budget is spent, but still asks", async () => {
-    process.env.OPTIONAL_EMAILS_PER_DAY = "0";
-    const maya = await setPlan(await createUser("maya@example.com"), "pro");
-    await profile(maya.id, "Asia/Kolkata");
-    await saveEmailChoices(maya.id, { briefEmails: true });
-    const stripe = await interview(maya.id, "Stripe", noonIst(24));
-    const figma = await interview(maya.id, "Figma", noonIst(23));
-    const { sender, calls } = fakeSender();
-
-    const outcome = await run(MORNING, sender);
-
-    expect(outcome.stats).toMatchObject({ briefs: 0, asks: 1, emailsSent: 0 });
-    expect(calls).toHaveLength(0);
-    expect((await row(stripe)).interviewBriefedFor).toBeNull();
-    expect((await row(figma)).interviewAskedFor).toBe(noonIst(23));
-  });
-
-  it("puts the brief back when Resend takes none of the batch", async () => {
-    const maya = await setPlan(await createUser("maya@example.com"), "pro");
-    await profile(maya.id, "Asia/Kolkata");
-    await saveEmailChoices(maya.id, { briefEmails: true });
-    const stripe = await interview(maya.id, "Stripe", noonIst(24));
-
-    const outcome = await run(MORNING, fakeSender(true).sender);
-
-    expect(outcome.stats).toMatchObject({ released: 1 });
-    expect((await row(stripe)).interviewBriefedFor).toBeNull();
-  });
-
-  it("offers no prep pack or thank-you on Free", async () => {
-    const sam = await createUser("sam@example.com");
-    await profile(sam.id, "Asia/Kolkata");
-    await saveEmailChoices(sam.id, { briefEmails: true });
-    await interview(sam.id, "Stripe", noonIst(24));
-    await interview(sam.id, "Figma", noonIst(23));
-    const { sender, calls } = fakeSender();
-
-    await run(MORNING, sender);
-
-    const text = calls[0]!.messages[0]!.text;
-    expect(text).not.toContain("start=1");
-    expect(text).not.toContain("write=thank-you");
-  });
-
-  it("stops after the one-click unsubscribe, which answers its card for good", async () => {
-    const maya = await createUser("maya@example.com");
-    await saveEmailChoices(maya.id, { briefEmails: true });
-    expect(await stopEmails(maya.id, "briefs")).toBe(true);
-    expect(await readEmailChoices(maya.id)).toMatchObject({
-      briefEmails: false,
-      briefPromptClosed: true,
-    });
+    expect((await bellOf(maya.id, MORNING))[0]!.body).toContain("One click makes one");
   });
 });

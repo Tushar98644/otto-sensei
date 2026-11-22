@@ -105,9 +105,9 @@ Applications page doesn't offer email tracking at all.
 A Cron Trigger in `wrangler.toml` (`crons = ["7 * * * *"]`) wakes the Worker at minute 7 of every
 hour (UTC). Its `scheduled` handler (`src/cron.ts`) posts to `APP_URL/api/cron/interview-briefs`
 with `Authorization: Bearer <CRON_SECRET>`, the same header Vercel sends to the other crons. That
-run sends the interview-morning brief at about 7:00 on each person's clock (or two hours before an
-earlier interview) and asks "How did it go?" the morning after. Otto stamps every interview day it
-handles, so a late, repeated or retried run never sends anything twice.
+run puts the interview-morning brief in the bell at about 7:00 on each person's clock (or two hours
+before an earlier interview) and asks "How did it go?" there the morning after. It sends no email.
+Otto stamps every interview day it handles, so a late, repeated or retried run never rings twice.
 
 - `APP_URL` is a plain variable in `wrangler.toml`: `https://www.ottosensei.com`.
 - `CRON_SECRET` is a Worker secret with the same value as `CRON_SECRET` on Vercel:

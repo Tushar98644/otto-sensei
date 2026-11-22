@@ -1,6 +1,6 @@
 "use client";
 
-import { BellRing, Eye, Mail, Sunrise, type LucideIcon } from "lucide-react";
+import { BellRing, Eye, Mail, type LucideIcon } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useId, useRef, useState } from "react";
 import { errorMessage } from "@/components/account/errors";
@@ -117,61 +117,6 @@ export function viewsCardShows(choices: EmailChoicesData | undefined): boolean {
     !choices.viewPromptClosed &&
     !choices.viewPromptSnoozed,
   );
-}
-
-export function briefsCardShows(choices: EmailChoicesData | undefined): boolean {
-  return Boolean(
-    choices?.emailAvailable &&
-    !choices.briefEmails &&
-    !choices.briefPromptClosed &&
-    !choices.briefPromptSnoozed,
-  );
-}
-
-// Once an interview is logged; on any plan.
-export function BriefEmailOptIn({ userId, moment }: { userId: string | null; moment: boolean }) {
-  const { data } = useEmailChoices(userId, moment);
-  const [shown] = useAskedOnce(moment && briefsCardShows(data));
-  if (!userId || !shown) return null;
-  return (
-    <OptInCard
-      icon={Sunrise}
-      question="Email me a short brief on interview mornings?"
-      hint="At about 7:00 your time: the company, the role, your strongest stories and questions to ask. The morning after, a quick how did it go. Off until you say yes."
-      onLine="Interview morning briefs are on."
-      onAnswer={(answer) =>
-        saveEmailChoices(
-          userId,
-          answer === "yes" ? { briefEmails: true } : { briefPromptSnoozed: true },
-        )
-      }
-    />
-  );
-}
-
-// Applications asks one thing at a time: the brief once an interview is logged, else follow-up emails.
-export function ApplicationsEmailOptIn({
-  applications,
-  interviews,
-}: {
-  applications: number;
-  interviews: number;
-}) {
-  const { user } = useMe();
-  const userId = user?.id ?? null;
-  const { data } = useEmailChoices(userId, interviews > 0);
-  const [pick, setPick] = useState<"brief" | "reminders" | null>(null);
-  const next =
-    interviews > 0 && briefsCardShows(data)
-      ? "brief"
-      : data || interviews === 0
-        ? "reminders"
-        : null;
-  if (pick === null && next === "brief") setPick("brief");
-  const shown = pick ?? next;
-  if (shown === "brief") return <BriefEmailOptIn userId={userId} moment />;
-  if (shown === "reminders") return <RemindersEmailOptIn applications={applications} />;
-  return null;
 }
 
 // After the first saved job or tailored copy (the caller knows which happened).

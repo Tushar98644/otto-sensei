@@ -30,9 +30,6 @@ const START: EmailChoicesData = {
   jobPromptSnoozed: false,
   viewPromptClosed: false,
   viewPromptSnoozed: false,
-  briefEmails: false,
-  briefPromptClosed: false,
-  briefPromptSnoozed: false,
 };
 const shown = () => getQueryClient().getQueryData<EmailChoicesData>(KEY);
 

@@ -1,8 +1,10 @@
 "use client";
 
+import { TodayBrief } from "@/components/dashboard/interview/today-brief";
 import { useNow } from "@/components/studio/use-now";
 import { FolderCard } from "@/components/ui/folder-card";
 import { cn } from "@/lib/utils";
+import { dayOffset } from "../applications/board/card/when";
 import type { StudioActions } from "../use-studio-actions";
 import type { NextStep } from "./next-steps";
 import { LeadStep, SetupProgress, StepTile, stagger } from "./up-next/step-parts";
@@ -26,6 +28,15 @@ export function UpNext({ actions, hasSample }: { actions: StudioActions; hasSamp
     .filter((step) => !isUpload(step))
     .map((step) => stepView(step, state, actions, now));
   const progress = setup ? setup.progress : undefined;
+  // On the interview's day the lead carries the prep pack's brief under it.
+  const brief =
+    first?.kind === "interview" &&
+    first.prepped &&
+    first.application.interviewAt !== null &&
+    now > 0 &&
+    dayOffset(first.application.interviewAt, now) === 0
+      ? first.application.id
+      : null;
 
   return (
     <section
@@ -56,7 +67,15 @@ export function UpNext({ actions, hasSample }: { actions: StudioActions; hasSamp
               <UploadZone actions={actions} hasSample={hasSample} />
             </div>
           ) : first ? (
-            <LeadStep view={stepView(first, state, actions, now)} setup={progress} />
+            <>
+              <LeadStep view={stepView(first, state, actions, now)} setup={progress} />
+              {brief ? (
+                <TodayBrief
+                  applicationId={brief}
+                  className="mx-2 mb-2 border-t border-border px-2 pt-5 pb-2 sm:px-4 lg:px-6"
+                />
+              ) : null}
+            </>
           ) : null}
         </FolderCard>
         {others.length > 0 ? (

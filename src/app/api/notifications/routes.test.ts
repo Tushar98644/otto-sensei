@@ -410,22 +410,6 @@ describe("/api/notifications/emails", () => {
     expect((await save({ jobEmails: true })).status).toBe(401);
   });
 
-  it("turns the interview morning brief on and off, which answers its card for good, and Not now only rests it", async () => {
-    await signInAs("maya@example.com");
-    const rested = (await (
-      await save({ briefPromptSnoozed: true })
-    ).json()) as EmailChoicesResponse;
-    expect(rested).toMatchObject({
-      briefEmails: false,
-      briefPromptClosed: false,
-      briefPromptSnoozed: true,
-    });
-    const on = (await (await save({ briefEmails: true })).json()) as EmailChoicesResponse;
-    expect(on).toMatchObject({ briefEmails: true, briefPromptClosed: true });
-    const off = (await (await save({ briefEmails: false })).json()) as EmailChoicesResponse;
-    expect(off).toMatchObject({ briefEmails: false, briefPromptClosed: true, jobEmails: false });
-  });
-
   it("starts with the weekly jobs email off and tips on, and saves each choice", async () => {
     await signInAs("maya@example.com");
     expect((await (await getEmails()).json()) as EmailChoicesResponse).toEqual({
@@ -437,9 +421,6 @@ describe("/api/notifications/emails", () => {
       jobPromptSnoozed: false,
       viewPromptClosed: false,
       viewPromptSnoozed: false,
-      briefEmails: false,
-      briefPromptClosed: false,
-      briefPromptSnoozed: false,
       emailAvailable: false,
     });
 
