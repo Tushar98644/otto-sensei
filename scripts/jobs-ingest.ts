@@ -44,9 +44,17 @@ async function devServerRunning(): Promise<boolean> {
 async function main() {
   const limit = Number(flag("--limit") ?? 10);
   const minutes = Number(flag("--minutes") ?? 10);
-  if (!Number.isInteger(limit) || limit < 0 || !(minutes > 0)) {
+  // Workday sites are each their own host, so a local first read can take more at once.
+  const workers = Number(flag("--workers") ?? 4);
+  if (
+    !Number.isInteger(limit) ||
+    limit < 0 ||
+    !(minutes > 0) ||
+    !Number.isInteger(workers) ||
+    workers < 1
+  ) {
     console.error(
-      "--limit takes a whole number of boards (--limit 30), --minutes a number (--minutes 25)",
+      "--limit takes a whole number of boards (--limit 30), --minutes a number (--minutes 25), --workers a whole number (--workers 8)",
     );
     process.exit(1);
   }
@@ -70,6 +78,7 @@ async function main() {
       maxBoards: limit,
       feeds: !process.argv.includes("--no-feeds"),
       himalayasPages: 2,
+      workers,
       visa: false,
     },
   );
@@ -77,7 +86,10 @@ async function main() {
   const { stats } = outcome;
   console.log(
     `Done in ${Math.round((Date.now() - started) / 1000)}s: ${stats.boards} boards and ${stats.feeds} feeds read, ` +
-      `${stats.boardsFailed} boards failed, ${stats.added} jobs added, ${stats.duplicates} duplicates skipped.`,
+      `${stats.boardsFailed} boards failed, ${stats.added} jobs added, ${stats.duplicates} duplicates skipped` +
+      (stats.boardsPartial
+        ? `, ${stats.boardsPartial} boards with posts left for the next run.`
+        : "."),
   );
   if (outcome.failed.length > 0) console.log(`Feeds that failed: ${outcome.failed.join(", ")}`);
   console.log(

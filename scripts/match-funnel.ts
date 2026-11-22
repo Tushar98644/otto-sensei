@@ -1,4 +1,4 @@
-// What each matching step keeps for India-based personas: OTTO_PGLITE_DIR=<copy> bun scripts/match-funnel.ts [--rebuild] [--json out.json]
+// What each matching step keeps per persona: OTTO_PGLITE_DIR=<copy> bun scripts/match-funnel.ts [--set india|global] [--rebuild] [--json out.json]
 import { writeFileSync } from "node:fs";
 import { and, isNull, eq, sql } from "drizzle-orm";
 import { jobMatch, jobs, matchSkills } from "@/db/schema";
@@ -25,7 +25,9 @@ if (!process.env.OTTO_PGLITE_DIR?.trim()) {
 const DAY_MS = 24 * 60 * 60 * 1_000;
 const USER = "00000000-0000-4000-8000-000000000000";
 
-const PERSONAS: Record<string, { skills: string; titles: string[]; years: number }> = {
+type Persona = { skills: string; titles: string[]; years: number };
+
+const INDIA_PERSONAS: Record<string, Persona> = {
   "Software engineer (mid)": {
     skills:
       "Java, Spring Boot, Python, JavaScript, TypeScript, React, Node.js, SQL, MySQL, PostgreSQL, AWS, Docker, Kubernetes, Git, REST APIs, Microservices",
@@ -62,18 +64,77 @@ const PERSONAS: Record<string, { skills: string; titles: string[]; years: number
   },
 };
 
-const PLACES: Array<{ name: string; place: PlaceChoice; remote: boolean }> = [
-  { name: "Remote, India", place: "c:IN", remote: true },
-  { name: "Remote or on-site, India", place: "c:IN", remote: false },
-  { name: "Anywhere", place: "anywhere", remote: false },
+const GLOBAL_PERSONAS: Record<string, Persona> = {
+  "Software engineer": INDIA_PERSONAS["Software engineer (mid)"]!,
+  "Data analyst": {
+    skills: "SQL, Excel, Python, Pandas, Tableau, Power BI, Looker, statistics, data visualization",
+    titles: ["Data Analyst"],
+    years: 3,
+  },
+  "Product manager": {
+    skills:
+      "product management, roadmapping, Jira, SQL, A/B testing, Agile, stakeholder management, user research, analytics",
+    titles: ["Product Manager"],
+    years: 5,
+  },
+  "UI/UX designer": INDIA_PERSONAS["UI/UX designer (mid)"]!,
+  Marketing: {
+    skills:
+      "content marketing, email marketing, SEO, Google Analytics, HubSpot, social media marketing, marketing automation, campaign management, Salesforce",
+    titles: ["Marketing Manager", "Digital Marketing Manager"],
+    years: 4,
+  },
+  Nurse: {
+    skills:
+      "patient care, BLS, ACLS, Epic, electronic health records, medication administration, care planning, triage, clinical documentation",
+    titles: ["Registered Nurse"],
+    years: 4,
+  },
+  Accountant: {
+    skills:
+      "accounting, GAAP, IFRS, general ledger, accounts payable, accounts receivable, reconciliation, financial reporting, Excel, QuickBooks, SAP, month-end close",
+    titles: ["Accountant", "Senior Accountant"],
+    years: 4,
+  },
+};
+
+type Place = { name: string; place: PlaceChoice; remote: boolean; work: WorkProfile };
+
+const SPONSOR = {
+  us: "sponsorship",
+  uk: "sponsorship",
+  eu: "sponsorship",
+  ca: "sponsorship",
+} as const;
+const worker = (
+  country: string,
+  timeZone: string,
+  rights: Partial<WorkProfile["rights"]> = {},
+) => ({
+  ...emptyWorkProfile(),
+  country,
+  timeZone,
+  rights: { ...SPONSOR, ...rights },
+});
+
+const INDIA = worker("IN", "Asia/Kolkata");
+const INDIA_PLACES: Place[] = [
+  { name: "Remote, India", place: "c:IN", remote: true, work: INDIA },
+  { name: "Remote or on-site, India", place: "c:IN", remote: false, work: INDIA },
+  { name: "Anywhere", place: "anywhere", remote: false, work: INDIA },
 ];
 
-const INDIA: WorkProfile = {
-  ...emptyWorkProfile(),
-  country: "IN",
-  timeZone: "Asia/Kolkata",
-  rights: { us: "sponsorship", uk: "sponsorship", eu: "sponsorship", ca: "sponsorship" },
-};
+const COUNTRIES = [
+  { name: "US", code: "US", work: worker("US", "America/New_York", { us: "authorized" }) },
+  { name: "UK", code: "GB", work: worker("GB", "Europe/London", { uk: "authorized" }) },
+  { name: "Australia", code: "AU", work: worker("AU", "Australia/Sydney") },
+  { name: "Brazil", code: "BR", work: worker("BR", "America/Sao_Paulo") },
+  { name: "Mexico", code: "MX", work: worker("MX", "America/Mexico_City") },
+];
+const GLOBAL_PLACES: Place[] = COUNTRIES.flatMap(({ name, code, work }) => [
+  { name: `Remote or on-site, ${name}`, place: `c:${code}` as const, remote: false, work },
+  { name: `Remote, ${name}`, place: `c:${code}` as const, remote: true, work },
+]);
 
 function flag(name: string): string | null {
   const index = process.argv.indexOf(name);
@@ -110,15 +171,18 @@ async function main() {
     `${MATCH_VARIANT}: ${open?.n ?? 0} open openings, ${rows.length} in the index, fresh for ${fresh / DAY_MS} days, public count ${counts?.openJobs ?? "?"}`,
   );
 
+  const global = flag("--set") === "global";
+  const personas = global ? GLOBAL_PERSONAS : INDIA_PERSONAS;
+  const places = global ? GLOBAL_PLACES : INDIA_PLACES;
   const out: Record<string, Record<string, Record<string, number>>> = {};
-  for (const [name, persona] of Object.entries(PERSONAS)) {
+  for (const [name, persona] of Object.entries(personas)) {
     const profile: MatchProfile = {
       skills: findSkills(persona.skills),
       titles: persona.titles,
       years: persona.years,
     };
     out[name] = {};
-    for (const choice of PLACES) {
+    for (const choice of places) {
       const lookingFor = withOccupation(
         lookingForOf(profile, null, { ...NO_CHOICE, place: choice.place, remote: choice.remote }),
       );
@@ -159,13 +223,13 @@ async function main() {
         page: 1,
         workProfile: null,
         lookingFor,
-        deviceTimeZone: "Asia/Kolkata",
+        deviceTimeZone: choice.work.timeZone,
         now,
         counts,
       };
       const eligible = await rankJobs(db, {
         ...request,
-        workProfile: INDIA,
+        workProfile: choice.work,
         filters: { ...request.filters, eligibleOnly: true },
       });
       const started = performance.now();
@@ -196,10 +260,10 @@ async function main() {
   ];
   for (const [name, byPlace] of Object.entries(out)) {
     console.log(`\n${name}`);
-    console.log(["place".padEnd(26), ...columns.map((c) => c.padStart(8))].join(""));
+    console.log(["place".padEnd(30), ...columns.map((c) => c.padStart(8))].join(""));
     for (const [place, stage] of Object.entries(byPlace))
       console.log(
-        [place.padEnd(26), ...columns.map((c) => String(stage[c] ?? "").padStart(8))].join(""),
+        [place.padEnd(30), ...columns.map((c) => String(stage[c] ?? "").padStart(8))].join(""),
       );
   }
   const file = flag("--json");
