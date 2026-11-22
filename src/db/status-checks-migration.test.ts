@@ -40,7 +40,7 @@ describe("application status checks migration", () => {
     await client.query(
       `insert into public.inbound_emails (id, user_id, message_key, kind, from_status, to_status, received_at)
        values ($1, $2, $3, 'interview', $4, $5, 1)`,
-      [id, userId, "k".repeat(42) + id.slice(0, 1), from, to],
+      [id, userId, (id.replaceAll("-", "") + "k".repeat(43)).slice(0, 43), from, to],
     );
     return id;
   };
