@@ -12,8 +12,15 @@ addresses = ["otto@track.ottosensei.com"]
 [vars]
 INBOUND_URL = "https://www.ottosensei.com/api/inbound/email"
 INBOUND_DOMAINS = "track.ottosensei.com"
+# The hourly interview run calls APP_URL/api/cron/interview-briefs.
+APP_URL = "https://www.ottosensei.com"
 
 # INBOUND_EMAIL_SECRET is a secret: wrangler secret put INBOUND_EMAIL_SECRET
+# CRON_SECRET is a secret, the same value as on Vercel: wrangler secret put CRON_SECRET
+
+# Minute 7 of every hour: the interview-morning briefs and "How did it go?" the morning after.
+[triggers]
+crons = ["7 * * * *"]
 
 # No stored logs: they would hold who wrote to whom. Use "wrangler tail" to watch live.
 [observability]

@@ -1,7 +1,8 @@
+import { runInterviewBriefs } from "./cron";
 import { dohResolver, verifyAuth, type Resolver } from "./dkim";
 import { binary, parseMail } from "./mime";
 import { signedHeaders } from "./sign";
-import type { Env, IncomingEmail } from "./types";
+import type { Env, IncomingEmail, ScheduledRun } from "./types";
 
 // Mail over this is refused outright; under it, only the first part is read (the text comes first).
 export const MAX_MESSAGE_BYTES = 10 * 1024 * 1024;
@@ -94,6 +95,10 @@ export async function handleEmail(
 const worker = {
   async email(message: IncomingEmail, env: Env): Promise<void> {
     await handleEmail(message, env);
+  },
+  // Cron Triggers in wrangler.toml: the interview-morning briefs and "How did it go?", hourly.
+  async scheduled(_run: ScheduledRun, env: Env): Promise<void> {
+    await runInterviewBriefs(env);
   },
 };
 

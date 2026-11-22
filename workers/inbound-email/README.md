@@ -6,6 +6,9 @@ Cloudflare Email Worker receives that mail, turns it into plain text and a few h
 DKIM and ARC signatures, and posts it to `https://www.ottosensei.com/api/inbound/email`, signed.
 Otto reads it with rules (no AI) and moves the card on the Applications board.
 
+The same Worker also runs Otto's hourly interview run: see
+[The hourly interview run](#the-hourly-interview-run).
+
 - Mail for any other domain is refused, mail over 10 MB is refused unread, and only the first
   1 MB of anything else is read (the text comes first; attachments come last and are skipped).
 - Nothing is stored: no KV, no R2, no forwarding, no stored logs. The text goes to Otto once and
@@ -63,6 +66,7 @@ cd workers/inbound-email
 bun install
 bunx wrangler login
 bunx wrangler secret put INBOUND_EMAIL_SECRET   # paste the value from step 2
+bunx wrangler secret put CRON_SECRET            # the same value as CRON_SECRET on Vercel
 bunx wrangler deploy
 ```
 
@@ -95,6 +99,28 @@ Applications page doesn't offer email tracking at all.
    Applications page with the Gmail address that asked; press **Confirm**.
 4. To watch the Worker live: `bunx wrangler tail` in this folder (it shows each run and any error,
    never the mail).
+
+## The hourly interview run
+
+A Cron Trigger in `wrangler.toml` (`crons = ["7 * * * *"]`) wakes the Worker at minute 7 of every
+hour (UTC). Its `scheduled` handler (`src/cron.ts`) posts to `APP_URL/api/cron/interview-briefs`
+with `Authorization: Bearer <CRON_SECRET>`, the same header Vercel sends to the other crons. That
+run sends the interview-morning brief at about 7:00 on each person's clock (or two hours before an
+earlier interview) and asks "How did it go?" the morning after. Otto stamps every interview day it
+handles, so a late, repeated or retried run never sends anything twice.
+
+- `APP_URL` is a plain variable in `wrangler.toml`: `https://www.ottosensei.com`.
+- `CRON_SECRET` is a Worker secret with the same value as `CRON_SECRET` on Vercel:
+  `bunx wrangler secret put CRON_SECRET`. If you change it on Vercel, change it here too.
+- Until the secret is set, or if Otto refuses it, each run throws, so it shows as failed in the
+  Worker's cron events and in `bunx wrangler tail`. Any answer other than 200 also throws; the
+  next hour picks up what's left.
+- To check it: run `bunx wrangler tail` in this folder a little before minute 7 and watch the
+  scheduled run finish, or look for `cron.interview_briefs.done` in the Vercel logs.
+
+`vercel.json` also calls `/api/cron/interview-briefs` once a day at 02:37 UTC (about 08:00 in
+India) as a safety net, so the morning after's "How did it go?" and its follow-up still happen if
+the Worker isn't deployed or misses a run.
 
 ## Changing the secret
 

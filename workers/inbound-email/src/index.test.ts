@@ -7,6 +7,7 @@ const ENV: Env = {
   INBOUND_URL: "https://www.ottosensei.com/api/inbound/email",
   INBOUND_DOMAINS: "track.ottosensei.com, jobs.example",
   INBOUND_EMAIL_SECRET: "test-secret-that-is-long-enough-for-otto-1234",
+  APP_URL: "https://www.ottosensei.com",
 };
 const NOW = 1_763_290_000_000;
 const RAW =

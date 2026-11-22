@@ -12,4 +12,14 @@ export interface Env {
   // Comma-separated: every domain whose mail this Worker takes.
   INBOUND_DOMAINS: string;
   INBOUND_EMAIL_SECRET: string;
+  // The site the hourly interview run calls, e.g. https://www.ottosensei.com.
+  APP_URL: string;
+  // A secret, the same value as on Vercel; until it's set the hourly run fails.
+  CRON_SECRET?: string;
+}
+
+// The parts of Cloudflare's Cron Trigger API this Worker uses (ScheduledController).
+export interface ScheduledRun {
+  readonly cron: string;
+  readonly scheduledTime: number;
 }
