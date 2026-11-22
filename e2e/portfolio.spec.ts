@@ -38,6 +38,16 @@ function contentLoaded(page: Page): Promise<Response> {
   return page.waitForResponse((response) => contentPath(response, "GET"), { timeout: 60_000 });
 }
 
+// The first in-app visit to the editor compiles it on a cold dev server.
+function portfolioMade(page: Page): Promise<Response> {
+  return page.waitForResponse(
+    (response) =>
+      response.request().method() === "POST" &&
+      new URL(response.url()).pathname === "/api/portfolio",
+    { timeout: 60_000 },
+  );
+}
+
 function contentSaved(page: Page, text: string): Promise<Response> {
   return page.waitForResponse(
     (response) =>
@@ -107,8 +117,12 @@ test("Make my portfolio on a resume card opens the editor with that resume", asy
 
   await page.goto("/dashboard");
   await page.getByRole("button", { name: `More actions for ${owner.resume.title}` }).click();
+  const made = portfolioMade(page);
   await page.getByRole("menuitem", { name: "Make my portfolio" }).click();
 
+  const response = await made;
+  expect(response.ok()).toBe(true);
+  expect(response.request().postDataJSON()).toMatchObject({ resume: { id: owner.resume.id } });
   await expect(page).toHaveURL(/\/dashboard\/portfolio$/);
   await expect(page.getByText("Draft", { exact: true })).toBeVisible();
   await editorTab(page, "Settings").click();

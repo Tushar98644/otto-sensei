@@ -1,6 +1,6 @@
 import type { Locator, Page } from "@playwright/test";
+import { offerLabel } from "@/components/dashboard/plan-slip";
 import type { Application } from "@/lib/applications/schema";
-import { trialHeadline } from "@/lib/billing/prices";
 import type { Resume } from "@/lib/resume/schema";
 import { expect, test } from "./fixtures";
 import { sampleResume, seedResume, signIn, subscribe } from "./helpers";
@@ -19,6 +19,7 @@ const DEMO_NOTE = "Demo mode: these are sample suggestions. Add an AI key for re
 const PRO_ONLY = "Letters, outreach messages, answers and interview prep come with Pro.";
 const LOCKED =
   "With Pro, I write cover letters, answers and outreach messages from your resume. Here's an example.";
+const SAVED_ADDRESS = /\/dashboard\/letters\?letter=writing(%3A|:)[^&]+$/;
 // A page, API route or lazy dialog compiles on first use, which is slow on a cold or busy machine.
 const firstLoad = expect.configure({ timeout: 45_000 });
 
@@ -69,10 +70,26 @@ function writeButton(page: Page, name: "Start writing" | "Write"): Locator {
   return page.getByRole("button", { name, exact: true });
 }
 
-function row(page: Page, name: string): Locator {
+// Everything written for one job sits in one card, headed by the role.
+function group(page: Page): Locator {
   return page
-    .getByRole("listitem")
-    .filter({ has: page.getByRole("heading", { level: 3, name, exact: true }) });
+    .getByRole("region", { name: JOB.title, exact: true })
+    .filter({ hasText: JOB.company });
+}
+
+// An opened letter, answer or message replaces the list, titled by the company.
+function reader(page: Page): Locator {
+  return page.getByRole("article", { name: JOB.company, exact: true });
+}
+
+function rail(view: Locator): Locator {
+  return view.getByRole("complementary", { name: "Actions" });
+}
+
+async function backToList(page: Page): Promise<void> {
+  await reader(page).getByRole("button", { name: "All letters", exact: true }).click();
+  await expect(reader(page)).toBeHidden();
+  await expect(page).toHaveURL(/\/dashboard\/letters$/);
 }
 
 async function pasteJob(dialog: Locator, withDetails: boolean): Promise<void> {
@@ -98,8 +115,10 @@ async function writeLetter(page: Page, resume: Resume): Promise<Locator> {
   await pasteJob(composer, true);
   await composer.getByRole("button", { name: "Write my letter" }).click();
   await firstLoad(composer).toBeHidden();
-  const letter = page.getByRole("dialog", { name: ROLE_LINE });
+  const letter = reader(page);
   await firstLoad(letter).toBeVisible();
+  await expect(page).toHaveURL(SAVED_ADDRESS);
+  await expect(letter.getByText("Not saved to your account")).toHaveCount(0);
   return letter;
 }
 
@@ -118,14 +137,20 @@ test("a Free account sees an example letter and is offered Pro instead of writin
   await openLetters(page);
   await firstLoad(page.getByText(LOCKED)).toBeVisible();
   const example = page.getByRole("region", {
-    name: "Cover letter for Senior Product Marketing Manager",
+    name: "An example: cover letter for Senior Product Marketing Manager",
+    exact: true,
   });
-  await expect(example).toContainText("Every fact comes from the resume. Nothing is made up.");
+  await expect(example).toContainText("From Jordan Ellis, a sample resume. Nothing made up.");
   await expect(example).toContainText("reached 1,200 paying teams");
   await expect(writeButton(page, "Start writing")).toHaveCount(0);
   await expect(writeButton(page, "Write")).toHaveCount(0);
+  await expect(page.getByRole("button", { name: /^A letter for another job/ })).toHaveCount(0);
 
-  await page.getByRole("button", { name: trialHeadline(), exact: true }).click();
+  // The sidebar offers the same trial, so the folder's key is the one under test.
+  await page
+    .getByRole("main")
+    .getByRole("button", { name: offerLabel(true), exact: true })
+    .click();
   const upgrade = page.getByRole("dialog").filter({ hasText: PRO_ONLY });
   await firstLoad(upgrade).toBeVisible();
   await expect(page.getByRole("dialog", { name: "Write a cover letter" })).toHaveCount(0);
@@ -151,30 +176,41 @@ test("a Pro trial writes a cover letter from a pasted job post and keeps it", as
   await expect(composer).toBeHidden();
 
   const letter = await writeLetter(page, resume);
-  await expect(letter).toContainText(`From “${resume.title}”`);
+  const address = page.url();
+  await expect(letter.getByText(JOB.title, { exact: true })).toBeVisible();
+  await expect(letter.getByText(`From “${resume.title}”`, { exact: true })).toBeVisible();
   await expect(letter.getByText(DEMO_NOTE)).toBeVisible();
-  const box = letter.getByLabel("Cover letter");
+  const box = letter.getByLabel("Cover letter", { exact: true });
   await expect(box).toHaveValue(/^Dear Acme Robotics team,/);
   await expect(box).toHaveValue(/I'm applying for the Product Designer at Acme Robotics\./);
   await expect(box).toHaveValue(/Best regards,\nJordan Ellis$/);
-  await expect(letter.getByText(/^\d+ words$/)).toBeVisible();
-  await expect(letter.getByRole("button", { name: "Download PDF" })).toBeEnabled();
-  await letter.getByRole("button", { name: "Close" }).click();
-  await expect(letter).toBeHidden();
+  await expect(rail(letter).getByText(/^\d+ words$/)).toBeVisible();
+  for (const name of ["Copy letter", "Copy as email", "PDF", "Word"]) {
+    await expect(rail(letter).getByRole("button", { name, exact: true })).toBeEnabled();
+  }
+  await backToList(page);
 
-  const saved = row(page, JOB.company);
-  await expect(saved).toContainText("Letter");
-  await expect(saved).toContainText(JOB.title);
-  await expect(saved).not.toContainText("Not saved");
+  const saved = group(page);
+  await expect(saved.getByRole("button", { name: "Cover letter", exact: true })).toBeVisible();
+  await expect(saved.getByText("Not saved", { exact: true })).toHaveCount(0);
 
   await page.reload();
-  await firstLoad(row(page, JOB.company)).toContainText(JOB.title);
+  await firstLoad(
+    group(page).getByRole("button", { name: "Cover letter", exact: true }),
+  ).toBeVisible();
   await expect(page.getByText("1 letter, each written for one job.")).toBeVisible();
   await expect(writeButton(page, "Start writing")).toHaveCount(0);
   await writeButton(page, "Write").click();
   const again = page.getByRole("dialog", { name: "Write a cover letter" });
   await pasteJob(again, false);
   await expect(again.getByText(/^14 of 15 cover letters/)).toBeVisible();
+  await again.getByRole("button", { name: "Close" }).click();
+  await expect(again).toBeHidden();
+
+  await page.goto(address);
+  await firstLoad(reader(page).getByLabel("Cover letter", { exact: true })).toHaveValue(
+    /^Dear Acme Robotics team,/,
+  );
 });
 
 test("a fill-in warning on a letter clears once the blank is filled, and the edit is saved", async ({
@@ -194,20 +230,23 @@ test("a fill-in warning on a letter clears once the blank is filled, and the edi
   const letter = await writeLetter(page, resume);
   const check = letter.getByRole("status").filter({ hasText: "Check before you send it" });
   await expect(check).toContainText("Fill in [X] before you send it. Otto never guesses numbers.");
-  const box = letter.getByLabel("Cover letter");
+  const box = letter.getByLabel("Cover letter", { exact: true });
   await expect(box).toHaveValue(/I cut onboarding time for new sales hires by \[X\]%/);
 
   await replaceIn(box, "[X]", "30");
   await expect(check).toHaveCount(0);
   await box.blur();
-  await firstLoad(letter.getByText("Saved", { exact: true })).toBeVisible();
-  await letter.getByRole("button", { name: "Close" }).click();
+  await firstLoad(rail(letter).getByRole("status")).toHaveText("Saved");
+  await backToList(page);
 
   await page.reload();
-  await firstLoad(row(page, JOB.company)).toBeVisible();
-  await row(page, JOB.company).getByRole("button", { name: "Open" }).click();
-  const reopened = page.getByRole("dialog", { name: ROLE_LINE });
-  await expect(reopened.getByLabel("Cover letter")).toHaveValue(/by 30% with a self-serve tour/);
+  const item = group(page).getByRole("button", { name: "Cover letter", exact: true });
+  await firstLoad(item).toBeVisible();
+  await item.click();
+  const reopened = reader(page);
+  await expect(reopened.getByLabel("Cover letter", { exact: true })).toHaveValue(
+    /by 30% with a self-serve tour/,
+  );
   await expect(reopened.getByText("Check before you send it")).toHaveCount(0);
 });
 
@@ -242,8 +281,9 @@ test("an answer needs the question and flags the part only you can write", async
   await composer.getByRole("button", { name: "Draft my answer" }).click();
   await firstLoad(composer).toBeHidden();
 
-  const answer = page.getByRole("dialog", { name: ROLE_LINE });
+  const answer = reader(page);
   await firstLoad(answer).toContainText(question);
+  await expect(page).toHaveURL(SAVED_ADDRESS);
   const check = answer.getByRole("status").filter({ hasText: "Check before you send it" });
   await expect(check).toContainText(
     "Fill in [Add your own reason here.] with your own words before you send it.",
@@ -256,25 +296,31 @@ test("an answer needs the question and flags the part only you can write", async
   );
   await expect(check).toHaveCount(0);
   await box.blur();
-  await firstLoad(answer.getByText("Saved", { exact: true })).toBeVisible();
-  await expect(answer.getByRole("button", { name: "Download PDF" })).toHaveCount(0);
-  await answer.getByRole("button", { name: "Close" }).click();
+  await firstLoad(rail(answer).getByRole("status")).toHaveText("Saved");
+  await expect(
+    rail(answer).getByRole("button", { name: "Copy answer", exact: true }),
+  ).toBeEnabled();
+  for (const name of ["Copy as email", "PDF", "Word"]) {
+    await expect(answer.getByRole("button", { name, exact: true })).toHaveCount(0);
+  }
+  await backToList(page);
 
   await page.reload();
-  const saved = row(page, JOB.company);
-  await firstLoad(saved).toContainText("Answer");
-  await expect(saved).toContainText(question);
-  await saved.getByRole("button", { name: "Open" }).click();
-  await expect(
-    page.getByRole("dialog", { name: ROLE_LINE }).getByLabel("Answer", { exact: true }),
-  ).toHaveValue(/I have planned robot fleets with your tools in two past roles\./);
+  const item = group(page).getByRole("button", { name: question, exact: true });
+  await firstLoad(item).toBeVisible();
+  await expect(page.getByText("1 answer, each written for one job.")).toBeVisible();
+  await item.click();
+  await expect(reader(page).getByLabel("Answer", { exact: true })).toHaveValue(
+    /I have planned robot fleets with your tools in two past roles\./,
+  );
 });
 
 test("a cover letter written from a tracked application stays with it", async ({ page }) => {
   await proTrial(page);
   await seedResume(page, titled("Hub letter"));
   const application = await trackApplication(page);
-  await page.goto(`/dashboard/applications/${application.id}`);
+  const href = `/dashboard/applications/${application.id}`;
+  await page.goto(href);
   await firstLoad(page.getByRole("heading", { level: 1, name: JOB.company })).toBeVisible();
   await firstLoad(page.getByText("No letter or message yet.", { exact: false })).toBeVisible();
 
@@ -292,11 +338,22 @@ test("a cover letter written from a tracked application stays with it", async ({
 
   await page.getByRole("link", { name: "All letters and messages" }).click();
   await expect(page).toHaveURL(/\/dashboard\/letters$/);
-  const saved = row(page, JOB.company);
-  await firstLoad(saved).toContainText("Letter");
+  const saved = group(page);
+  const item = saved.getByRole("button", { name: "Cover letter", exact: true });
+  await firstLoad(item).toBeVisible();
   await expect(saved.getByRole("link", { name: /open the application/ })).toHaveAttribute(
     "href",
-    `/dashboard/applications/${application.id}`,
+    href,
+  );
+
+  await item.click();
+  const letter = reader(page);
+  await expect(letter.getByLabel("Cover letter", { exact: true })).toHaveValue(
+    /^Dear Acme Robotics team,/,
+  );
+  await expect(letter.getByRole("link", { name: /open the application/ })).toHaveAttribute(
+    "href",
+    href,
   );
 });
 
@@ -376,15 +433,16 @@ test("a Pro trial writes an outreach message, fills in the name and keeps the ed
   await page.getByRole("link", { name: "All letters and messages" }).click();
   await expect(page).toHaveURL(/\/dashboard\/letters$/);
   await page.reload();
-  await firstLoad(page.getByRole("button", { name: /^Messages/ })).toBeVisible();
-  await page.getByRole("button", { name: /^Messages/ }).click();
-  const saved = row(page, JOB.company);
-  await expect(saved).toContainText("Message");
+  const saved = group(page);
+  const item = saved.getByRole("button", { name: "Outreach message", exact: true });
+  await firstLoad(item).toBeVisible();
+  await expect(page.getByText("1 outreach message, each written for one job.")).toBeVisible();
   await expect(saved).toContainText(ROLE_LINE);
-  await saved.getByRole("button", { name: "Open" }).click();
+  await item.click();
 
-  const reopened = page.getByRole("dialog", { name: ROLE_LINE });
+  const reopened = reader(page);
+  await expect(reopened.getByLabel("Subject", { exact: true })).toHaveValue(ROLE_LINE);
   await expect(reopened.getByLabel("Email", { exact: true })).toHaveValue(/^Hi Sam,\n\n/);
-  await expect(reopened.getByLabel("LinkedIn note")).toHaveValue(/^Hi Sam, /);
+  await expect(reopened.getByLabel("LinkedIn note", { exact: true })).toHaveValue(/^Hi Sam, /);
   await expect(reopened.getByText("Check before you send it")).toHaveCount(0);
 });
