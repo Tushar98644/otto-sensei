@@ -1,5 +1,12 @@
-import type { Breadcrumb, ErrorEvent } from "@sentry/nextjs";
-import { clean, sentryDsn, sentryEnabled, type SentryRuntime } from "./config";
+import type { Breadcrumb, BrowserOptions, ErrorEvent } from "@sentry/nextjs";
+import {
+  clean,
+  SENTRY_TUNNEL,
+  sentryDsn,
+  sentryEnabled,
+  traceSampleRate,
+  type SentryRuntime,
+} from "./config";
 import { scrubBreadcrumb, scrubEvent } from "./scrub";
 
 function sentryEnvironment(): string {
@@ -31,8 +38,22 @@ const IGNORE_ERRORS: (string | RegExp)[] = [
 
 const DENY_URLS = [/^chrome-extension:\/\//, /^moz-extension:\/\//, /^safari-web-extension:\/\//];
 
+const DATA_COLLECTION = {
+  userInfo: false,
+  cookies: false,
+  httpBodies: [],
+  urlQueryParams: false,
+  graphQL: { document: false, variables: false },
+  genAI: { inputs: false, outputs: false },
+  mcp: { inputs: false, outputs: false },
+  databaseQueryData: false,
+  queues: false,
+  stackFrameVariables: false,
+} satisfies NonNullable<BrowserOptions["dataCollection"]>;
+
 export function sentryOptions(runtime: SentryRuntime) {
   const release = sentryRelease();
+  const traces = runtime === "browser" ? undefined : traceSampleRate();
   return {
     dsn: sentryDsn(runtime),
     enabled: sentryEnabled(runtime),
@@ -40,9 +61,12 @@ export function sentryOptions(runtime: SentryRuntime) {
     // Left out rather than undefined, so the release the build injected still applies.
     ...(release ? { release } : {}),
     sendDefaultPii: false,
-    // No tracesSampleRate: any number, 0 included, turns tracing on and spends the quota on spans.
+    // SDK 11 reads this, not sendDefaultPii, and collects users, cookies and bodies unless told not to.
+    dataCollection: DATA_COLLECTION,
+    // Left out when off: any number, 0 included, turns tracing on.
+    ...(traces ? { tracesSampleRate: traces } : {}),
     ignoreErrors: IGNORE_ERRORS,
-    ...(runtime === "browser" ? { denyUrls: DENY_URLS } : {}),
+    ...(runtime === "browser" ? { denyUrls: DENY_URLS, tunnel: SENTRY_TUNNEL } : {}),
     maxBreadcrumbs: 50,
     beforeSend: (event: ErrorEvent) => scrubEvent(event),
     beforeBreadcrumb: (crumb: Breadcrumb) => scrubBreadcrumb(crumb),

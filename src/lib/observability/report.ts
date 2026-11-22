@@ -11,9 +11,10 @@ export function reportError(event: string, error: unknown, fields: Fields = {}):
   const exception =
     error instanceof Error ? error : new Error(typeof error === "string" ? error : event);
   const tags = { ...safeTags(fields), "log.event": event };
+  const user = typeof fields.userId === "string" ? { user: { id: fields.userId } } : {};
   const sent = import("@sentry/nextjs")
     .then(({ captureException, flush }) => {
-      captureException(exception, { tags });
+      captureException(exception, { tags, ...user });
       return flush(FLUSH_TIMEOUT_MS);
     })
     .catch(() => false);

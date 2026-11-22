@@ -33,6 +33,7 @@ beforeEach(() => {
     "NEXT_PUBLIC_SENTRY_DSN",
     "NEXT_PUBLIC_SENTRY_DEV",
     "NEXT_RUNTIME",
+    "SENTRY_TRACES_SAMPLE_RATE",
   ]) {
     vi.stubEnv(name, "");
   }
@@ -99,11 +100,49 @@ describe("when Sentry is on", () => {
       release: "abc123",
       sendDefaultPii: false,
     });
-    expect(options).not.toHaveProperty("tracesSampleRate");
+    expect(options.tracesSampleRate).toBe(0.05);
+    expect(options.dataCollection).toMatchObject({
+      userInfo: false,
+      cookies: false,
+      httpBodies: [],
+      urlQueryParams: false,
+      stackFrameVariables: false,
+    });
+    expect(options).not.toHaveProperty("tunnel");
     expect(options.beforeSend({ message: "for maya@example.com" })).toEqual({
       message: "for [email]",
     });
     expect(options.beforeSendLog()).toBeNull();
+  });
+
+  it.each([
+    ["0.2", 0.2],
+    ["3", 1],
+    ["0", undefined],
+    ["off", undefined],
+  ])("samples server traces at SENTRY_TRACES_SAMPLE_RATE=%s", async (value, rate) => {
+    vi.stubEnv("SENTRY_TRACES_SAMPLE_RATE", value);
+    const { sentryOptions } = await import("./options");
+    expect(sentryOptions("nodejs").tracesSampleRate).toBe(rate);
+  });
+
+  it("never traces in the browser, and reports through our own address", async () => {
+    vi.stubEnv("NEXT_PUBLIC_SENTRY_DSN", DSN);
+    const { sentryOptions } = await import("./options");
+    const options = sentryOptions("browser");
+    expect(options).not.toHaveProperty("tracesSampleRate");
+    expect(options.tunnel).toBe("/api/relay");
+  });
+
+  it("names the account by its internal id when the caller passes one", async () => {
+    const { reportError } = await import("./report");
+    reportError("draft.failed", new Error("boom"), { userId: "user_1", email: "maya@example.com" });
+
+    await vi.waitFor(() => expect(sdk.captureException).toHaveBeenCalledTimes(1), WAIT_FOR_IMPORT);
+    expect(sdk.captureException.mock.calls[0]?.[1]).toEqual({
+      tags: { userId: "user_1", "log.event": "draft.failed" },
+      user: { id: "user_1" },
+    });
   });
 
   it("starts in development only with the opt-in", async () => {

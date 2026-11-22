@@ -59,6 +59,8 @@ export default sentryDsn
       authToken: sentryAuthToken,
       silent: true,
       telemetry: false,
+      // A failed release or source map upload is logged, never a failed deploy.
+      errorHandler: (error) => console.warn(`[sentry] ${error.message}`),
       // Turbopack writes client chunks outside the plugin's default glob.
       widenClientFileUpload: true,
       // Errors only: tracing, the Pages Router it pulls in, and the route list it names spans with stay out.

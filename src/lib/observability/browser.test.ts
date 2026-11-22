@@ -4,6 +4,7 @@ import { WAIT_FOR_IMPORT } from "@/lib/timing-testing";
 const sdk = vi.hoisted(() => ({
   init: vi.fn(),
   captureException: vi.fn(),
+  setUser: vi.fn(),
   sentryOptions: vi.fn(() => ({ dsn: "https://public@o0.ingest.sentry.io/0" })),
 }));
 vi.mock("./sentry-browser", () => sdk);
@@ -151,6 +152,20 @@ describe("early errors", () => {
       WAIT_FOR_IMPORT,
     );
     expect(sdk.init).toHaveBeenCalledWith({ dsn: "https://public@o0.ingest.sentry.io/0" });
+  });
+});
+
+describe("the account", () => {
+  it("names the account by id once the SDK is up, and forgets it on sign-out", async () => {
+    stubWindow("/dashboard");
+    const { reportClientError, setErrorUser } = await import("./browser");
+    setErrorUser("user_1");
+    reportClientError(new Error("render failed"));
+
+    await vi.waitFor(() => expect(sdk.init).toHaveBeenCalledOnce(), WAIT_FOR_IMPORT);
+    expect(sdk.setUser).toHaveBeenLastCalledWith({ id: "user_1" });
+    setErrorUser(null);
+    await vi.waitFor(() => expect(sdk.setUser).toHaveBeenLastCalledWith(null), WAIT_FOR_IMPORT);
   });
 });
 

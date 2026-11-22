@@ -7,6 +7,7 @@ const MAX_HELD = 10;
 
 let loading: Promise<Sdk | null> | null = null;
 let scheduled = false;
+let userId: string | null = null;
 const held: Held[] = [];
 
 function hold(error: unknown, type: string): void {
@@ -56,6 +57,7 @@ function loadSentry(): Promise<Sdk | null> {
   loading ??= import("./sentry-browser").then(
     (Sentry) => {
       Sentry.init(Sentry.sentryOptions("browser"));
+      Sentry.setUser(userId ? { id: userId } : null);
       release(Sentry);
       return Sentry;
     },
@@ -66,6 +68,12 @@ function loadSentry(): Promise<Sdk | null> {
     },
   );
   return loading;
+}
+
+// The account's internal id only, never the email; applied when the SDK loads if it isn't up yet.
+export function setErrorUser(id: string | null): void {
+  userId = id;
+  void loading?.then((Sentry) => Sentry?.setUser(id ? { id } : null));
 }
 
 export function reportClientError(error: unknown): void {

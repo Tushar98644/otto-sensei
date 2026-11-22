@@ -1,5 +1,6 @@
 import { fail, NO_STORE, ok } from "@/lib/api/respond";
 import { log } from "@/lib/log";
+import { reportError } from "@/lib/observability/report";
 import { isAuthorizedCron } from "./auth";
 
 // Vercel may deliver a call twice and a run can stop at its deadline: every job is idempotent.
@@ -41,8 +42,19 @@ export async function runCronRoute(req: Request, name: string, job: CronJob): Pr
     const durationMs = Date.now() - started;
     const fields = { job: name, complete: outcome.complete, durationMs, ...outcome.stats };
     if (outcome.failed.length > 0) {
-      log.warn(`cron.${name}.partial_failure`, { ...fields, failed: outcome.failed.join(",") });
-      return fail("server_error", `Some steps failed: ${outcome.failed.join(", ")}.`, 500, NO_STORE);
+      const failed = outcome.failed.join(",");
+      log.warn(`cron.${name}.partial_failure`, { ...fields, failed });
+      reportError(
+        `cron.${name}.partial_failure`,
+        new Error(`Cron steps failed: ${failed}`),
+        fields,
+      );
+      return fail(
+        "server_error",
+        `Some steps failed: ${outcome.failed.join(", ")}.`,
+        500,
+        NO_STORE,
+      );
     }
     log.info(`cron.${name}.done`, fields);
     const body: Omit<CronResponse, "ok"> = {
