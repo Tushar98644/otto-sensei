@@ -18,7 +18,7 @@ folder's `LICENSE.txt` do; published pages carry no credit line (owner, 2026-11-
 | Bento (`bento`) | [Ladvace/astro-bento-portfolio](https://github.com/Ladvace/astro-bento-portfolio) | (c) 2024 Gianmarco Cavallo and others | MIT | `4b74318` | `src/components/portfolio/templates/bento/` | Satoshi, Cabinet Grotesk → Figtree |
 | Blueprint (`cv`) | [ncdai/chanhdai.com](https://github.com/ncdai/chanhdai.com) | (c) 2026 Chánh Đại | MIT (name and logo excluded) | `e812f32` | `src/components/portfolio/templates/cv/` | Paper Mono → Geist Mono; ChanhDai Notes (handwriting) → Caveat |
 | Prose (`prose`) | [antfu/antfu.me](https://github.com/antfu/antfu.me) | (c) 2020-2021 Anthony Fu | MIT (code only) | `0be14a9` | `src/components/portfolio/templates/prose/` | none (Inter, DM Mono, Roboto Condensed, as the original) |
-| Folio (`folio`) | [samuelkraft/samuelkraft-next](https://github.com/samuelkraft/samuelkraft-next) | (c) 2021 Samuel Kraft | MIT | `cd73594` | `src/components/portfolio/templates/folio/` | none (Inter, as the original) |
+| Notes (`folio`) | [alanagoyal/alanagoyal](https://github.com/alanagoyal/alanagoyal) (its Notes app) | (c) 2024 Alana Goyal | MIT | `0ae715e` | `src/components/portfolio/templates/folio/` | none (the system font, as the original; Inter where there is no San Francisco) |
 | Paper (`paper`) | [CaliCastle/cali.so](https://github.com/CaliCastle/cali.so) | (c) 2022-2026 Cali Castle | MIT (application code only) | `653615f` | `src/components/portfolio/templates/paper/` | none (Geist, Geist Mono, as the original) |
 
 Some of these sites license only their code under MIT. antfu.me's words and pictures are CC
@@ -45,8 +45,6 @@ code only; none of that content is copied, and no page uses any of these people'
   (c) 2013-2017 Cole Bemis, MIT.
 - **Pixel icons** (`bento/pixel-icons.tsx`) and the nine-slice frame (`bento/frame.ts`) come from
   Ladvace/astro-bento-portfolio, under its MIT licence above.
-- **Radix Colors** (the Sand scale in `folio/styles.ts`, as used by samuelkraft-next):
-  (c) 2022 WorkOS, MIT.
 - **ArtPlum** (`prose/islands.tsx`), the braille table and footer clock (`paper/paper.tsx`,
   `paper/islands.tsx`) are ports of code from antfu/antfu.me and CaliCastle/cali.so, under their
   MIT licences above.

@@ -1,227 +1,490 @@
-import type { CSSProperties } from "react";
-import type { ContentProject } from "@/lib/portfolio/content";
-import { Marked, nameOf, OutLink, seeded, seedOf, TemplateStyle, unbroken } from "../parts";
+import { Fragment, type ReactNode } from "react";
+import type { ContentLink } from "@/lib/portfolio/content";
+import { Marked, nameOf, OutLink, TemplateStyle } from "../parts";
 import type { PortfolioTemplateProps } from "../types";
+import { NotesApp, type NoteMeta } from "./islands";
 import { FOLIO_CSS } from "./styles";
 
-// Ported from samuelkraft/samuelkraft-next (MIT, see ./LICENSE.txt).
+// Ported from alanagoyal/alanagoyal's Notes app (MIT, see ./LICENSE.txt).
 
-const BLUR_LAYERS = [
-  { blur: 0.5, solid: 80, fade: 100 },
-  { blur: 1, solid: 60, fade: 80 },
-  { blur: 1.5, solid: 40, fade: 60 },
-  { blur: 2, solid: 20, fade: 40 },
-  { blur: 3, solid: 0, fade: 20 },
-];
+type Note = NoteMeta & { body: ReactNode };
 
-const step = (index: number) => ({ "--index": index }) as CSSProperties;
+function Link({ link, children }: { link: ContentLink | null; children: ReactNode }) {
+  if (!link) return <>{children}</>;
+  return <OutLink href={link.href}>{children}</OutLink>;
+}
 
-function Graphic({ project }: { project: ContentProject }) {
-  const random = seeded(seedOf(project.name));
-  const hue = Math.floor(random() * 360);
-  const style = {
-    "--hue": hue,
-    "--hue-2": (hue + 25 + Math.floor(random() * 40)) % 360,
-    "--glow-x": `${Math.round(30 + random() * 40)}%`,
-  } as CSSProperties;
+function Section({ title, children }: { title: string; children: ReactNode }) {
   return (
-    <div className="tile" style={style}>
-      <div className="app-icon" aria-hidden>
-        {project.monogram}
-      </div>
-    </div>
+    <details open className="sec">
+      <summary>
+        <h2>{title}</h2>
+      </summary>
+      {children}
+    </details>
   );
 }
 
-function introLines(pitch: string, about: readonly string[]): boolean {
-  const first = about[0]?.trim() ?? "";
-  return pitch !== "" && !first.startsWith(pitch.trim());
+function Bullets({ items }: { items: ReactNode[] }) {
+  const shown = items.filter(Boolean);
+  if (shown.length === 0) return null;
+  return (
+    <ul>
+      {shown.map((item, index) => (
+        <li key={index}>{item}</li>
+      ))}
+    </ul>
+  );
+}
+
+function plain(...parts: (string | null | undefined)[]): string {
+  return parts.filter(Boolean).join(" ").replace(/\s+/g, " ").trim();
 }
 
 export function FolioTemplate({ view, content, footer, resumeHref }: PortfolioTemplateProps) {
   const name = nameOf(view);
-  const lead = content.pitch || view.headline;
-  const showLead = introLines(lead, content.about);
   const place = content.location?.label || view.location;
-  let index = 2;
-  const next = () => step(index++);
+  const headline = view.headline || content.headline;
+  const dated = view.updatedAt > Date.UTC(2000, 0, 1);
+  const stamp = dated
+    ? new Date(view.updatedAt).toLocaleDateString("en-US", {
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+        timeZone: "UTC",
+      })
+    : "";
+  const short = dated
+    ? new Date(view.updatedAt).toLocaleDateString("en-US", { timeZone: "UTC" })
+    : "";
+  const lower = (title: string, fallback: string) => (title || fallback).toLowerCase();
 
-  const intro = (
-    <div className="intro">
-      <div className="avatar in" aria-hidden>
-        {content.initials}
-      </div>
-      <h1 className="in" style={step(1)}>
-        {name}
-      </h1>
-      {showLead ? (
-        <p className="secondary in" style={next()}>
-          {lead}
+  const current = content.experience.filter((role) => role.current);
+  const past = content.experience.filter((role) => !role.current);
+  const notes: Note[] = [];
+
+  const aboutText = content.about.join(" ");
+  notes.push({
+    id: "about-me",
+    emoji: "📍",
+    title: "about me",
+    pinned: true,
+    preview: plain(`my name is ${name}`, aboutText),
+    text: plain(name, headline, aboutText, place),
+    body: (
+      <>
+        <p>
+          my name is <strong>{name}</strong>
+          {current.length === 0 && headline ? <>, {headline}</> : null}
         </p>
-      ) : null}
-      {content.aboutParts.map((parts, i) => (
-        <p key={i} className="secondary in" style={next()}>
-          <Marked parts={parts} mark="span" className="mark" />
-        </p>
-      ))}
-      {place ? (
-        <p className="secondary in" style={next()}>
-          Based in {place}.
-        </p>
-      ) : null}
-      {content.socials.length > 0 || resumeHref ? (
-        <ul className="connect animated-list in" style={next()}>
-          {resumeHref ? (
-            <li>
-              <a href={resumeHref}>Resume</a>
-            </li>
-          ) : null}
-          {content.socials.map((social) => (
-            <li key={social.href}>
-              <OutLink href={social.href} className="ext">
-                {social.kind === "x" ? "𝕏" : social.label}
-              </OutLink>
-            </li>
+        {content.aboutParts.map((parts, index) => (
+          <p key={index}>
+            <Marked parts={parts} />
+          </p>
+        ))}
+        {current.length > 0 || place || content.availability ? (
+          <Section title="currently">
+            <Bullets
+              items={[
+                ...current.map((role) => (
+                  <>
+                    {role.title ? `${role.title} at ` : null}
+                    <Link link={role.website}>{role.company}</Link>
+                  </>
+                )),
+                place ? <>based in {place}</> : null,
+                content.availability ? <>{content.availability.text.toLowerCase()}</> : null,
+              ]}
+            />
+          </Section>
+        ) : null}
+        {past.length > 0 || content.education.length > 0 ? (
+          <Section title="previously">
+            <Bullets
+              items={[
+                ...past.map((role) => (
+                  <>
+                    {role.title ? `${role.title} at ` : null}
+                    <Link link={role.website}>{role.company || role.title}</Link>
+                    {role.start ? ` (${role.start.replace(/\D*(\d{4}).*/, "$1")})` : null}
+                  </>
+                )),
+                ...content.education.map((school) => (
+                  <>
+                    studied {school.degree ? `${school.degree} at ` : null}
+                    <Link link={school.website}>{school.school}</Link>
+                  </>
+                )),
+              ]}
+            />
+          </Section>
+        ) : null}
+      </>
+    ),
+  });
+
+  const socials = content.socials.filter((social) => social.kind !== "email");
+  if (content.email || content.phone || socials.length > 0 || resumeHref)
+    notes.push({
+      id: "quick-links",
+      emoji: "📎",
+      title: "quick links",
+      pinned: true,
+      preview: plain(
+        content.email ? `email - ${content.email}` : null,
+        resumeHref ? "resume" : null,
+        ...socials.map((social) => `${social.label.toLowerCase()} - ${social.handle}`),
+      ),
+      text: plain(content.email, ...socials.map((social) => `${social.label} ${social.handle}`)),
+      body: (
+        <Bullets
+          items={[
+            content.email ? (
+              <>
+                email - <a href={`mailto:${content.email}`}>{content.email}</a>
+              </>
+            ) : null,
+            content.phone ? (
+              <>
+                phone - <a href={`tel:${content.phone.replace(/[^\d+]/g, "")}`}>{content.phone}</a>
+              </>
+            ) : null,
+            resumeHref ? (
+              <>
+                resume - <a href={resumeHref}>Resume</a>
+              </>
+            ) : null,
+            ...socials.map((social) => (
+              <>
+                {social.label.toLowerCase()} -{" "}
+                <OutLink href={social.href}>{social.handle || social.label}</OutLink>
+              </>
+            )),
+          ]}
+        />
+      ),
+    });
+
+  if (content.experience.length > 0)
+    notes.push({
+      id: "experience",
+      emoji: "💼",
+      title: lower(view.titles.experience, "experience"),
+      pinned: false,
+      preview: plain(
+        ...content.experience.map((role) => `${role.company || role.title} - ${role.title}`),
+      ),
+      text: plain(
+        ...content.experience.map((role) =>
+          plain(role.company, role.title, role.summary, ...role.lines),
+        ),
+      ),
+      body: content.experience.map((role) => (
+        <Section key={role.id} title={role.company || role.title}>
+          <p className="meta">
+            {[role.company ? role.title : "", role.dates, role.location]
+              .filter(Boolean)
+              .join(" · ")}
+          </p>
+          {role.summary ? <p>{role.summary}</p> : null}
+          <Bullets items={role.lines} />
+          {role.tags.length > 0 ? <p className="meta">stack: {role.tags.join(", ")}</p> : null}
+        </Section>
+      )),
+    });
+
+  if (content.projects.length > 0)
+    notes.push({
+      id: "projects",
+      emoji: "🛠️",
+      title: lower(view.titles.projects, "projects"),
+      pinned: false,
+      preview: plain(...content.projects.map((project) => project.name)),
+      text: plain(
+        ...content.projects.map((project) =>
+          plain(project.name, project.description, project.line, ...project.lines),
+        ),
+      ),
+      body: content.projects.map((project) => {
+        const lead = project.description || project.line;
+        const lines = project.lines.filter((line) => line !== lead);
+        const link = project.website ?? project.source;
+        return (
+          <Section key={project.id} title={project.name}>
+            {project.years || project.category ? (
+              <p className="meta">
+                {[project.category, project.years].filter(Boolean).join(" · ")}
+              </p>
+            ) : null}
+            {lead ? <p>{lead}</p> : null}
+            <Bullets
+              items={[
+                ...lines,
+                project.outcome || null,
+                link ? (
+                  <>
+                    <OutLink href={link.href}>{link.text}</OutLink>
+                  </>
+                ) : null,
+              ]}
+            />
+            {project.tech.length > 0 ? (
+              <p className="meta">stack: {project.tech.join(", ")}</p>
+            ) : null}
+          </Section>
+        );
+      }),
+    });
+
+  const skills = view.skills.filter((skill) => skill.items.length > 0);
+  if (skills.length > 0)
+    notes.push({
+      id: "skills",
+      emoji: "🧰",
+      title: lower(view.titles.skills, "skills"),
+      pinned: false,
+      preview: plain(...skills.flatMap((skill) => skill.items).slice(0, 12)),
+      text: plain(...skills.map((skill) => plain(skill.label, ...skill.items))),
+      body: (
+        <Bullets
+          items={skills.map((skill) => (
+            <>
+              {skill.label ? <strong>{skill.label.toLowerCase()}</strong> : null}
+              {skill.label ? " - " : null}
+              {skill.items.join(", ")}
+            </>
           ))}
-        </ul>
-      ) : null}
-    </div>
-  );
+        />
+      ),
+    });
 
-  const projectsStart = index;
-  const workStart = projectsStart + content.projects.length + 1;
-  const postsStart = workStart + content.experience.length + 1;
+  if (content.education.length > 0)
+    notes.push({
+      id: "education",
+      emoji: "🎓",
+      title: lower(view.titles.education, "education"),
+      pinned: false,
+      preview: plain(...content.education.map((school) => `${school.school} ${school.degree}`)),
+      text: plain(
+        ...content.education.map((school) => plain(school.school, school.degree, ...school.lines)),
+      ),
+      body: content.education.map((school) => (
+        <Section key={school.id} title={school.school || school.degree}>
+          <p className="meta">
+            {[school.school ? school.degree : "", school.dates].filter(Boolean).join(" · ")}
+          </p>
+          <Bullets items={school.lines} />
+        </Section>
+      )),
+    });
+
+  if (content.writing.length > 0)
+    notes.push({
+      id: "writing",
+      emoji: "✍️",
+      title: "writing",
+      pinned: false,
+      preview: plain(...content.writing.map((post) => post.title)),
+      text: plain(...content.writing.map((post) => plain(post.title, post.publisher))),
+      body: (
+        <Bullets
+          items={content.writing.map((post) => (
+            <>
+              {post.href ? <OutLink href={post.href}>{post.title}</OutLink> : post.title}
+              {[post.date, post.minutes ? `${post.minutes} min read` : ""]
+                .filter(Boolean)
+                .map((part) => ` - ${part}`)
+                .join("")}
+            </>
+          ))}
+        />
+      ),
+    });
+
+  if (content.talks.length > 0)
+    notes.push({
+      id: "talks",
+      emoji: "🎤",
+      title: "talks",
+      pinned: false,
+      preview: plain(...content.talks.map((talk) => talk.title)),
+      text: plain(...content.talks.map((talk) => plain(talk.title, talk.event, talk.place))),
+      body: (
+        <Bullets
+          items={content.talks.map((talk) => {
+            const href = talk.href ?? talk.recording ?? talk.slides;
+            return (
+              <>
+                {href ? <OutLink href={href}>{talk.title}</OutLink> : talk.title}
+                {[talk.event, talk.date].filter(Boolean).length > 0
+                  ? ` - ${[talk.event, talk.date].filter(Boolean).join(", ")}`
+                  : null}
+              </>
+            );
+          })}
+        />
+      ),
+    });
+
+  const honours = [
+    ...content.milestones.map((milestone) => ({
+      id: milestone.id,
+      title: milestone.title,
+      href: milestone.href,
+      rest: [milestone.result || milestone.detail, milestone.date].filter(Boolean).join(", "),
+    })),
+    ...view.certifications.map((cert) => ({
+      id: cert.id,
+      title: cert.name,
+      href: null,
+      rest: [cert.issuer, cert.date].filter(Boolean).join(", "),
+    })),
+  ];
+  if (honours.length > 0)
+    notes.push({
+      id: "milestones",
+      emoji: "🏆",
+      title: content.milestones.length > 0 ? "milestones" : "certifications",
+      pinned: false,
+      preview: plain(...honours.map((item) => item.title)),
+      text: plain(...honours.map((item) => plain(item.title, item.rest))),
+      body: (
+        <Bullets
+          items={honours.map((item) => (
+            <>
+              {item.href ? <OutLink href={item.href}>{item.title}</OutLink> : item.title}
+              {item.rest ? ` - ${item.rest}` : null}
+            </>
+          ))}
+        />
+      ),
+    });
+
+  if (content.now && content.now.items.length > 0)
+    notes.push({
+      id: "now",
+      emoji: "🌱",
+      title: "now",
+      pinned: false,
+      preview: plain(...content.now.items.map((item) => `${item.label}: ${item.text}`)),
+      text: plain(...content.now.items.map((item) => plain(item.label, item.text))),
+      body: (
+        <Bullets
+          items={content.now.items.map((item) => (
+            <>
+              <strong>{item.label.toLowerCase()}</strong> - {item.text}
+            </>
+          ))}
+        />
+      ),
+    });
+
+  // Kind words often name employers, so they hide along with About.
+  if (content.testimonials.length > 0 && !view.hidden.includes("about"))
+    notes.push({
+      id: "kind-words",
+      emoji: "💬",
+      title: "kind words",
+      pinned: false,
+      preview: plain(...content.testimonials.map((quote) => `"${quote.quote}"`)),
+      text: plain(...content.testimonials.map((quote) => plain(quote.quote, quote.name))),
+      body: content.testimonials.map((quote) => (
+        <blockquote key={quote.id}>
+          <p>&ldquo;{quote.quote}&rdquo;</p>
+          <p>
+            - {quote.href ? <OutLink href={quote.href}>{quote.name}</OutLink> : quote.name}
+            {quote.role ? `, ${quote.role}` : null}
+          </p>
+        </blockquote>
+      )),
+    });
+
+  if (content.shelf.length > 0)
+    notes.push({
+      id: "reading-list",
+      emoji: "📚",
+      title: "reading list",
+      pinned: false,
+      preview: plain(...content.shelf.map((item) => item.title)),
+      text: plain(...content.shelf.map((item) => plain(item.title, item.by))),
+      body: (
+        <Bullets
+          items={content.shelf.map((item) => (
+            <>
+              {item.href ? <OutLink href={item.href}>{item.title}</OutLink> : item.title}
+              {item.by ? ` by ${item.by}` : null}
+            </>
+          ))}
+        />
+      ),
+    });
+
+  if (content.interests.length > 0)
+    notes.push({
+      id: "off-the-clock",
+      emoji: "🎧",
+      title: "off the clock",
+      pinned: false,
+      preview: plain(...content.interests.map((item) => item.title)),
+      text: plain(...content.interests.map((item) => plain(item.title, item.line))),
+      body: (
+        <Bullets
+          items={content.interests.map((item) => (
+            <>
+              <strong>{item.title.toLowerCase()}</strong>
+              {item.line ? ` - ${item.line}` : null}
+            </>
+          ))}
+        />
+      ),
+    });
+
+  for (const extra of view.extras) {
+    if (extra.items.length === 0) continue;
+    notes.push({
+      id: `extra-${extra.id}`,
+      emoji: "🗂️",
+      title: extra.title.toLowerCase(),
+      pinned: false,
+      preview: plain(...extra.items.map((item) => item.title)),
+      text: plain(
+        ...extra.items.map((item) => plain(item.title, item.subtitle, item.detail, ...item.lines)),
+      ),
+      body: extra.items.map((item) => (
+        <Section key={item.id} title={item.title || item.subtitle}>
+          {[item.title ? item.subtitle : "", item.date].filter(Boolean).length > 0 ? (
+            <p className="meta">
+              {[item.title ? item.subtitle : "", item.date].filter(Boolean).join(" · ")}
+            </p>
+          ) : null}
+          {item.detail ? <p>{item.detail}</p> : null}
+          <Bullets items={item.lines} />
+        </Section>
+      )),
+    });
+  }
 
   return (
     <div className="pf-folio">
       <TemplateStyle css={FOLIO_CSS} />
-      <header className="header" aria-hidden>
-        <div className="blur">
-          {BLUR_LAYERS.map((layer) => {
-            const mask = `linear-gradient(to bottom, black 0%, black ${layer.solid}%, transparent ${layer.fade}%)`;
-            return (
-              <div
-                key={layer.blur}
-                style={{
-                  backdropFilter: `blur(${layer.blur}px)`,
-                  WebkitBackdropFilter: `blur(${layer.blur}px)`,
-                  maskImage: mask,
-                  WebkitMaskImage: mask,
-                }}
-              />
-            );
-          })}
-        </div>
-      </header>
-      <div className="main">
-        <div className="stack">
-          {intro}
-
-          {content.projects.length > 0 ? (
-            <section className="block">
-              <h2 className="in" style={step(projectsStart)}>
-                Projects
-              </h2>
-              <ul className="projects">
-                {content.projects.map((project, i) => {
-                  const href = project.website?.href ?? project.source?.href ?? null;
-                  const text = project.description || project.line;
-                  return (
-                    <li key={project.id} className="in" style={step(projectsStart + i + 1)}>
-                      <div className="card">
-                        {href ? (
-                          <OutLink href={href} className="cover" label={project.name}>
-                            <span className="sr-only">{project.name}</span>
-                          </OutLink>
-                        ) : null}
-                        <div className="graphic">
-                          <Graphic project={project} />
-                        </div>
-                        <div className="text">
-                          <h3>{project.name}</h3>
-                          {text ? <p className="secondary">{text}</p> : null}
-                        </div>
-                      </div>
-                    </li>
-                  );
-                })}
-              </ul>
-            </section>
-          ) : null}
-
-          {content.experience.length > 0 ? (
-            <section className="block">
-              <h2 className="in" style={step(workStart)}>
-                Work
-              </h2>
-              <ul className="places animated-list">
-                {content.experience.map((job, i) => {
-                  const inner = (
-                    <>
-                      <div className="place-main">
-                        <div className="logo" aria-hidden>
-                          {job.monogram}
-                        </div>
-                        <div className="place-text">
-                          <p className={job.website ? "external-arrow" : undefined}>
-                            {job.company || job.title}
-                          </p>
-                          {job.company && job.title ? (
-                            <p className="secondary">{job.title}</p>
-                          ) : null}
-                        </div>
-                      </div>
-                      {job.dates ? (
-                        <time>
-                          {job.start && job.end
-                            ? `${unbroken(job.start)} – ${unbroken(job.end)}`
-                            : job.dates}
-                        </time>
-                      ) : null}
-                    </>
-                  );
-                  return (
-                    <li key={job.id} className="in" style={step(workStart + i + 1)}>
-                      {job.website ? (
-                        <OutLink href={job.website.href} className="place">
-                          {inner}
-                        </OutLink>
-                      ) : (
-                        <div className="place">{inner}</div>
-                      )}
-                    </li>
-                  );
-                })}
-              </ul>
-            </section>
-          ) : null}
-
-          {content.writing.length > 0 ? (
-            <section className="block" style={{ gap: 7, alignItems: "flex-start" }}>
-              <h2 className="in" style={step(postsStart)}>
-                Posts
-              </h2>
-              <ol className="posts animated-list">
-                {content.writing.map((post, i) => (
-                  <li key={post.id}>
-                    <div className="in" style={step(postsStart + i + 1)}>
-                      <OutLink href={post.href} className="post">
-                        <span className="post-title">{post.title}</span>
-                        {post.date ? <time>{post.date}</time> : null}
-                      </OutLink>
-                    </div>
-                  </li>
-                ))}
-              </ol>
-            </section>
-          ) : null}
-        </div>
-        {footer ? (
-          <footer className="foot">
-            <div className="credit">{footer}</div>
-          </footer>
-        ) : null}
-      </div>
+      <h1 className="sr-only">{name}</h1>
+      <NotesApp
+        notes={notes.map(({ id, emoji, title, pinned, preview, text }) => ({
+          id,
+          emoji,
+          title,
+          pinned,
+          preview,
+          text,
+        }))}
+        bodies={notes.map((note) => (
+          <Fragment key={note.id}>{note.body}</Fragment>
+        ))}
+        updatedAt={dated ? view.updatedAt : null}
+        stamp={stamp}
+        short={short}
+        footer={footer}
+      />
     </div>
   );
 }

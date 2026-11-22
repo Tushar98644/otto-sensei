@@ -109,11 +109,12 @@ const SHOWS: Record<PortfolioTemplateId, string[]> = {
   ],
   folio: [
     "Jordan Ellis",
-    "Based in Lisbon, Portugal.",
+    "based in Lisbon, Portugal",
     "Tally",
     "Shiftboard",
     "Platform 9",
     "Ledgerly",
+    "University of Manchester",
     "Postgres is a fine queue",
     'href="mailto:hello@jordanellis.dev"',
     'href="https://tally.dev/"',
@@ -294,12 +295,16 @@ describe("rebuild details", () => {
     expect(html).toContain("<span>2026</span>");
   });
 
-  it("Folio gives every project tile an app icon drawn from its name", () => {
+  it("Notes pins about me and quick links, opens the first note and keeps the rest in the page", () => {
     const html = draw("folio", jordanV2Resume());
-    expect(html.match(/class="tile"/g)).toHaveLength(7);
-    expect(html.match(/class="app-icon"/g)).toHaveLength(7);
-    expect(html).toMatch(/class="app-icon"[^>]*>T</);
-    expect(html.match(/class="logo"/g)).toHaveLength(5);
+    expect(html).toContain("📍 about me");
+    expect(html).toContain("quick links");
+    expect(html.match(/<article/g)?.length).toBe(13);
+    expect(html.match(/<article[^>]*hidden=""/g)?.length).toBe(12);
+    expect(html).toContain('aria-current="true"');
+    expect(html).toContain('<h3 class="group">Pinned</h3>');
+    expect(html).toContain("reading list");
+    expect(html).toContain('data-open="false"');
   });
 
   it("Paper numbers its sections in order and only draws the clock with a time zone", () => {

@@ -92,14 +92,15 @@ export const PORTFOLIO_TEMPLATE_INFO: Record<PortfolioTemplateId, PortfolioTempl
   },
   folio: {
     id: "folio",
-    name: "Folio",
-    description: "A short intro, big project tiles, where you worked and your writing.",
+    name: "Notes",
+    description:
+      "Your page as a notes app: a pinned about note and quick links, then a note for each part of your work.",
     thumbnail: "/portfolio-templates/folio.webp",
-    colors: { background: "#fdfdfc", ink: "#21201c", muted: "#63635e" },
+    colors: { background: "#ffffff", ink: "#333333", muted: "#737373" },
     credit: {
-      author: "Samuel Kraft",
-      work: "samuelkraft-next",
-      href: "https://github.com/samuelkraft/samuelkraft-next",
+      author: "Alana Goyal",
+      work: "alanagoyal",
+      href: "https://github.com/alanagoyal/alanagoyal",
       licence: "MIT",
     },
   },
