@@ -65,7 +65,7 @@ export function StudioShell() {
   }
 
   return (
-    <div className="flex min-h-dvh flex-col bg-surface-muted">
+    <div data-app-shell className="flex min-h-dvh flex-col bg-surface-muted">
       <StudioTopBar hydrated={hydrated} onSignIn={signIn} />
       <main
         id="main"

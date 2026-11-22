@@ -63,7 +63,7 @@ export function AppShell({
 
   return (
     <SessionUserProvider userId={initialUser.id} me={initialMe}>
-      <div className="flex min-h-dvh bg-surface-muted">
+      <div data-app-shell className="flex min-h-dvh bg-surface-muted">
         <Sidebar user={current} me={me} actions={actions} />
         <div className="flex min-w-0 flex-1 flex-col">
           <MobileBar user={current} />

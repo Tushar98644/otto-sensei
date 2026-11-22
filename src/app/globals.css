@@ -368,6 +368,13 @@
     overflow: hidden;
   }
 
+  /* In the app on a desktop, the ends of a scroll stay put instead of rubber-banding the sidebar with the page. */
+  @media (pointer: fine) {
+    html:has([data-app-shell]) {
+      overscroll-behavior-y: none;
+    }
+  }
+
   /* The home page sets this on touch screens instead of starting Lenis; Next keeps page changes instant. */
   @media (pointer: coarse) and (prefers-reduced-motion: no-preference) {
     html[data-scroll-behavior="smooth"] {
