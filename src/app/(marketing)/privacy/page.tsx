@@ -240,8 +240,17 @@ const SECTIONS: readonly LegalSection[] = [
             <strong>What it reads:</strong> the title, company, location and text of a job post. It
             runs only on job posts on LinkedIn, Naukri, Indeed, Greenhouse, Lever, Ashby, Workday,
             SmartRecruiters and Workable, and on any other page only when you press its toolbar
-            button. It doesn&apos;t read other pages or your browsing history, and it never fills in
-            or sends an application for you.
+            button. It doesn&apos;t read other pages or your browsing history, and it never sends an
+            application for you.
+          </li>
+          <li>
+            <strong>Fill with Otto (Pro):</strong> when you press it on a Greenhouse, Lever, Ashby
+            or Workday application form, the extension fetches your name, email, phone, location,
+            links, work history, education and saved answers from your account, puts them into that
+            form and attaches your resume&apos;s PDF; it doesn&apos;t keep them. It never answers
+            self-identification or consent questions and never sends the form. Draft with Otto sends
+            that question and the job post to us. After you send a form it filled, it adds the
+            application to your board with the job&apos;s link, title and company.
           </li>
           <li>
             <strong>The match runs on your device.</strong> The extension keeps a copy of what the
