@@ -1,7 +1,8 @@
 // Dev only: Bun can't pin the address, so this re-resolves the host; never use it in production.
 
-export async function sendPinned({ url, headers, signal }) {
-  const res = await fetch(url, { headers, signal, redirect: "manual" });
+export async function sendPinned({ url, headers, signal, body }) {
+  const method = body === undefined ? "GET" : "POST";
+  const res = await fetch(url, { method, headers, body, signal, redirect: "manual" });
   const reader = res.body?.getReader();
   return {
     status: res.status,

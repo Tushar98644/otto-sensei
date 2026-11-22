@@ -14,6 +14,10 @@ export type RawJob = {
   url: string;
   text: string;
   seniority?: Seniority | null;
+  // What the hash reads instead of the fields, for a source whose list has no post (Workday).
+  hashKey?: string;
+  // A list entry without its post: it keeps a stored job seen, and never adds or rewrites one.
+  listingOnly?: boolean;
 };
 
 export class FeedShapeError extends Error {

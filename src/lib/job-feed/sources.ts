@@ -53,6 +53,13 @@ export const SOURCE_INFO: Record<JobSourceId, SourceInfo> = {
     republish: false,
     liveText: true,
   },
+  workday: {
+    name: "Workday",
+    homeUrl: "https://www.workday.com",
+    termsUrl: "https://www.workday.com/en-us/legal/site-terms.html",
+    republish: false,
+    liveText: true,
+  },
   himalayas: {
     name: "Himalayas",
     homeUrl: "https://himalayas.app",

@@ -14,6 +14,7 @@ export type PinnedRequest = {
   addresses: readonly ResolvedAddress[];
   headers: Record<string, string>;
   signal: AbortSignal;
+  body?: string;
 };
 
 export type PinnedResponse = {
@@ -55,6 +56,7 @@ export function sendPinned({
   addresses,
   headers,
   signal,
+  body,
 }: PinnedRequest): Promise<PinnedResponse> {
   return new Promise((resolve, reject) => {
     const req = request(
@@ -62,7 +64,7 @@ export function sendPinned({
         host: url.hostname.replace(/^\[|\]$/g, ""),
         port: 443,
         path: `${url.pathname}${url.search}`,
-        method: "GET",
+        method: body === undefined ? "GET" : "POST",
         headers,
         signal,
         // A fresh connection per request, so a pooled socket to an earlier host is never reused.
@@ -70,8 +72,8 @@ export function sendPinned({
         lookup: pinnedLookup(addresses),
       },
       (res) => {
-        const body = decoded(res);
-        if (!body) {
+        const stream = decoded(res);
+        if (!stream) {
           res.destroy();
           reject(Object.assign(new Error("Unsupported content encoding"), { code: "EENCODING" }));
           return;
@@ -82,12 +84,12 @@ export function sendPinned({
             const value = res.headers[name.toLowerCase()];
             return Array.isArray(value) ? value.join(", ") : (value ?? null);
           },
-          body,
+          body: stream,
           discard: () => res.destroy(),
         });
       },
     );
     req.on("error", reject);
-    req.end();
+    req.end(body);
   });
 }

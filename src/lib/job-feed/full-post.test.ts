@@ -23,7 +23,11 @@ const STORED = {
 
 beforeEach(() => {
   fakeNet.reset();
-  for (const host of ["boards-api.greenhouse.io", "bunq.recruitee.com"]) {
+  for (const host of [
+    "boards-api.greenhouse.io",
+    "bunq.recruitee.com",
+    "nvidia.wd5.myworkdayjobs.com",
+  ]) {
     fakeNet.resolve(host, "93.184.216.34");
   }
 });
@@ -50,6 +54,34 @@ describe("fullPostText", () => {
       url: "https://bunq.recruitee.com/o/security-lead",
     });
     expect(text).toContain("You know AWS and Kubernetes.");
+  });
+
+  it("reads a Workday job from its public page, the same way as a pasted link", async () => {
+    const url =
+      "https://nvidia.wd5.myworkdayjobs.com/NVIDIAExternalCareerSite/job/UK-Remote/AI-Natives-Sales-Account-Manager---UK_JR2024148";
+    const posting = {
+      "@context": "https://schema.org",
+      "@type": "JobPosting",
+      title: "AI Natives Sales Account Manager - UK",
+      hiringOrganization: { "@type": "Organization", name: "NVIDIA" },
+      datePosted: "2026-11-20",
+      description: `<p>${"Own the relationship with AI-native companies across the UK. ".repeat(8)}</p>`,
+    };
+    fakeNet.html(
+      url,
+      `<html><head><script type="application/ld+json">${JSON.stringify(posting)}</script></head><body></body></html>`,
+    );
+    const { text, posting: read } = await readFullPost({
+      ...STORED,
+      source: "workday",
+      board: "nvidia.wd5/NVIDIAExternalCareerSite",
+      externalId:
+        "nvidia/NVIDIAExternalCareerSite/job/UK-Remote/AI-Natives-Sales-Account-Manager---UK_JR2024148",
+      url,
+    });
+    expect(text).toContain("Own the relationship with AI-native companies across the UK.");
+    expect(read?.source).toBe("jsonld");
+    expect(fakeNet.urls()).toEqual([url]);
   });
 
   it("gives nothing when the board can't be read, so the page shows the job's facts", async () => {

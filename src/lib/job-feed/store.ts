@@ -45,6 +45,7 @@ const SOURCE_PRIORITY: Record<JobSourceId, number> = {
   workable: 0,
   recruitee: 0,
   personio: 0,
+  workday: 0,
   himalayas: 1,
   jobicy: 1,
   remoteok: 2,
@@ -208,7 +209,8 @@ export async function saveJobs(
         (raw) => (raw.postedAt ?? now) >= feedCutoff && (raw.validThrough ?? now) >= now,
       );
 
-  const boilerplate = snapshot ? boilerplateLines(fresh.map((raw) => raw.text)) : new Set<string>();
+  const read = fresh.filter((raw) => !raw.listingOnly).map((raw) => raw.text);
+  const boilerplate = snapshot ? boilerplateLines(read) : new Set<string>();
   const textChars = SOURCE_INFO[scope.source].liveText ? 0 : JOB_LIMITS.feedDescriptionChars;
 
   await db.transaction(async (tx) => {
@@ -230,11 +232,11 @@ export async function saveJobs(
     for (const raw of fresh) {
       const known = existing.get(raw.externalId);
       if (!known) {
-        additions.push(normalizeJob(raw, now, boilerplate, textChars));
+        if (!raw.listingOnly) additions.push(normalizeJob(raw, now, boilerplate, textChars));
         continue;
       }
       seenIds.push(known.id);
-      if (known.hash === contentHash(raw)) continue;
+      if (raw.listingOnly || known.hash === contentHash(raw)) continue;
       changed.push({ id: known.id, job: normalizeJob(raw, now, boilerplate, textChars) });
     }
     for (const part of chunks(changed)) {
@@ -351,6 +353,34 @@ export async function saveJobs(
       );
   });
   return stats;
+}
+
+export async function storedHashes(
+  db: Db,
+  source: JobSourceId,
+  externalIds: readonly string[],
+): Promise<Map<string, string>> {
+  const out = new Map<string, string>();
+  for (const part of chunks(externalIds, 500)) {
+    const rows = await db
+      .select({ externalId: jobs.externalId, hash: jobs.contentHash })
+      .from(jobs)
+      .where(and(eq(jobs.source, source), inArray(jobs.externalId, part)));
+    for (const row of rows) out.set(row.externalId, row.hash);
+  }
+  return out;
+}
+
+export async function dueAgain(
+  db: Db,
+  source: JobSourceId,
+  token: string,
+  at: number,
+): Promise<void> {
+  await db
+    .update(jobBoards)
+    .set({ lastFetchedAt: at })
+    .where(and(eq(jobBoards.source, source), eq(jobBoards.token, token)));
 }
 
 export async function boardFailed(

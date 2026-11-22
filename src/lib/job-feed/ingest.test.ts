@@ -5,6 +5,7 @@ import { jobBoards, jobMatch, jobs } from "@/db/schema";
 import { resetDb } from "@/lib/auth/test-helpers";
 import { fakeNet } from "@/lib/jobs/test-network";
 import { boardUrl, paceKey, runJobsIngest } from "./ingest";
+import { WORKDAY_LIMITS } from "./workday";
 import {
   ASHBY_BOARD,
   GREENHOUSE_BOARD,
@@ -15,12 +16,22 @@ import {
   RECRUITEE_OFFERS,
   REMOTE_OK_FEED,
   WORKABLE_ACCOUNT,
+  WORKDAY_JOB_ISRAEL,
+  WORKDAY_JOB_UK,
+  WORKDAY_LIST,
+  WORKDAY_OTHER_PAGE,
+  WORKDAY_ROBOTS,
+  WORKDAY_TARGET_NEXT,
+  WORKDAY_TARGET_PAGE,
 } from "./test-fixtures";
 
 vi.mock("node:dns", async (importOriginal) =>
   (await import("@/lib/jobs/test-network")).dnsMock(await importOriginal()),
 );
-vi.mock("@/lib/jobs/transport", async () => (await import("@/lib/jobs/test-network")).transportMock);
+vi.mock(
+  "@/lib/jobs/transport",
+  async () => (await import("@/lib/jobs/test-network")).transportMock,
+);
 
 const SEEDS = [
   { ats: "greenhouse" as const, token: "vercel", company: "Vercel" },
@@ -62,7 +73,9 @@ function internet() {
   });
   fakeNet.json("https://remoteok.com/api", REMOTE_OK_FEED);
   fakeNet.json("https://himalayas.app/jobs/api?limit=20", HIMALAYAS_PAGE);
-  fakeNet.json(`https://himalayas.app/jobs/api?limit=20&cursor=${HIMALAYAS_PAGE.nextCursor}`, { jobs: [] });
+  fakeNet.json(`https://himalayas.app/jobs/api?limit=20&cursor=${HIMALAYAS_PAGE.nextCursor}`, {
+    jobs: [],
+  });
   fakeNet.json("https://jobicy.com/api/jobs?count=100", JOBICY_PAGE);
 }
 
@@ -180,7 +193,10 @@ describe("runJobsIngest", () => {
   });
 
   it("stops at the deadline and leaves the rest for the next run", async () => {
-    const outcome = await runJobsIngest({ now: Date.now(), deadline: Date.now() - 1 }, { ...OPTIONS, feeds: false });
+    const outcome = await runJobsIngest(
+      { now: Date.now(), deadline: Date.now() - 1 },
+      { ...OPTIONS, feeds: false },
+    );
     expect(outcome.complete).toBe(false);
     expect(outcome.stats.boards).toBe(0);
     const next = await runJobsIngest(context(), { ...OPTIONS, feeds: false });
@@ -201,11 +217,168 @@ describe("runJobsIngest", () => {
   });
 });
 
+const WORKDAY_HOST = "nvidia.wd5.myworkdayjobs.com";
+const WORKDAY_API = `https://${WORKDAY_HOST}/wday/cxs/nvidia/NVIDIAExternalCareerSite`;
+const WORKDAY_SEEDS = [
+  { ats: "workday" as const, token: "nvidia.wd5/NVIDIAExternalCareerSite", company: "NVIDIA" },
+];
+const US_FACET = "2fcb99c455831013ea52fb338f2932d8";
+
+function listWorkday(targetPage: typeof WORKDAY_TARGET_PAGE) {
+  fakeNet.route(`${WORKDAY_API}/jobs`, (request) => {
+    const body = JSON.parse(request.body ?? "{}") as {
+      appliedFacets: Record<string, string[]>;
+      offset: number;
+    };
+    const countries = body.appliedFacets.locationHierarchy1;
+    const page = !countries
+      ? WORKDAY_LIST
+      : countries.includes(US_FACET)
+        ? body.offset === 0
+          ? targetPage
+          : WORKDAY_TARGET_NEXT
+        : WORKDAY_OTHER_PAGE;
+    return { headers: { "content-type": "application/json" }, body: JSON.stringify(page) };
+  });
+}
+
+function workdaySite() {
+  fakeNet.reset();
+  fakeNet.resolve(WORKDAY_HOST, "93.184.216.34");
+  fakeNet.route(`https://${WORKDAY_HOST}/robots.txt`, {
+    headers: { "content-type": "text/plain;charset=ISO-8859-1" },
+    body: WORKDAY_ROBOTS,
+  });
+  listWorkday(WORKDAY_TARGET_PAGE);
+  const post = (path: string) => `${WORKDAY_API}${path}`;
+  fakeNet.json(post(WORKDAY_TARGET_PAGE.jobPostings[0]!.externalPath), WORKDAY_JOB_UK);
+  fakeNet.json(post(WORKDAY_TARGET_PAGE.jobPostings[1]!.externalPath), {}, 404);
+  fakeNet.json(post(WORKDAY_TARGET_NEXT.jobPostings[0]!.externalPath), WORKDAY_JOB_ISRAEL);
+  fakeNet.json(post(WORKDAY_LIST.jobPostings[1]!.externalPath!), {}, 500);
+}
+
+const long = () => ({ now: Date.now(), deadline: Date.now() + 120_000 });
+const postReads = () => fakeNet.urls().filter((url) => url.includes("/job/")).length;
+
+describe("runJobsIngest on a Workday career site", () => {
+  const options = { ...OPTIONS, seeds: WORKDAY_SEEDS, feeds: false };
+
+  beforeEach(async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(NOW);
+    await resetDb();
+    workdaySite();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("checks robots.txt, lists the reader's countries first, then reads each new post", async () => {
+    const outcome = await runJobsIngest(long(), options);
+    expect(outcome).toMatchObject({ complete: true });
+    expect(outcome.stats).toMatchObject({ boards: 1, added: 2, boardsPartial: 0 });
+    expect(fakeNet.urls()[0]).toBe(`https://${WORKDAY_HOST}/robots.txt`);
+    const lists = fakeNet.requests.filter((request) => request.url.pathname.endsWith("/jobs"));
+    expect(lists.map((request) => JSON.parse(request.body!).offset)).toEqual([0, 0, 2, 0]);
+    expect(lists.every((request) => request.headers["content-type"] === "application/json")).toBe(
+      true,
+    );
+    expect(postReads()).toBe(4);
+    const db = await getDb();
+    const saved = await db
+      .select({ title: jobs.title, location: jobs.location, description: jobs.description })
+      .from(jobs)
+      .where(eq(jobs.source, "workday"));
+    expect(saved.map((job) => job.title).sort()).toEqual([
+      "AI Natives Sales Account Manager - UK",
+      "Senior Technical Trainer and Content Developer, AI Compute Systems",
+    ]);
+    expect(saved.every((job) => job.description === "")).toBe(true);
+  });
+
+  it("reads a site every other day, and a post only when it's new or its listing changed", async () => {
+    await runJobsIngest(long(), options);
+    fakeNet.requests.length = 0;
+    vi.setSystemTime(NOW + 21 * 60 * 60 * 1_000);
+    expect((await runJobsIngest(long(), options)).stats.boards).toBe(0);
+    vi.setSystemTime(NOW + 45 * 60 * 60 * 1_000);
+    const again = await runJobsIngest(long(), options);
+    expect(again.stats).toMatchObject({ boards: 1, added: 0, updated: 0, closed: 0 });
+    // The two that failed last time are tried again; the two saved ones aren't.
+    expect(postReads()).toBe(2);
+  });
+
+  it("reads a saved post again when its listing changes", async () => {
+    await runJobsIngest(long(), options);
+    const [uk, ...rest] = WORKDAY_TARGET_PAGE.jobPostings;
+    const renamed = {
+      ...WORKDAY_TARGET_PAGE,
+      jobPostings: [{ ...uk!, title: "AI Natives Sales Lead - UK" }, ...rest],
+    };
+    listWorkday(renamed);
+    fakeNet.requests.length = 0;
+    vi.setSystemTime(NOW + 45 * 60 * 60 * 1_000);
+    const again = await runJobsIngest(long(), options);
+    expect(again.stats).toMatchObject({ added: 0, updated: 1 });
+    expect(fakeNet.urls()).toContain(`${WORKDAY_API}${uk!.externalPath}`);
+  });
+
+  it("reads one post when a site lists the same job twice under one title and place", async () => {
+    const [uk, ...rest] = WORKDAY_TARGET_PAGE.jobPostings;
+    const again = { ...uk!, externalPath: `${uk!.externalPath}-1` };
+    listWorkday({ ...WORKDAY_TARGET_PAGE, total: 4, jobPostings: [uk!, again, ...rest] });
+    await runJobsIngest(long(), options);
+    expect(fakeNet.urls()).not.toContain(`${WORKDAY_API}${again.externalPath}`);
+    expect(postReads()).toBe(4);
+  });
+
+  it("leaves the posts it has no time for to the next call, which comes back to the site", async () => {
+    const limits = { ...WORKDAY_LIMITS };
+    Object.assign(WORKDAY_LIMITS, { postsPerRead: 2 });
+    try {
+      const first = await runJobsIngest(long(), options);
+      expect(first).toMatchObject({ complete: false });
+      expect(first.stats).toMatchObject({ boards: 1, boardsPartial: 1, added: 1 });
+      expect(postReads()).toBe(2);
+      const next = await runJobsIngest(long(), options);
+      expect(next.stats).toMatchObject({ boards: 1, boardsPartial: 1, added: 1 });
+      expect(postReads()).toBe(4);
+    } finally {
+      Object.assign(WORKDAY_LIMITS, limits);
+    }
+  });
+
+  it("starts no Workday read within a minute of the deadline", async () => {
+    const late = await runJobsIngest({ now: Date.now(), deadline: Date.now() + 30_000 }, options);
+    expect(late).toMatchObject({ complete: false });
+    expect(late.stats).toMatchObject({ boards: 0, boardsFailed: 0 });
+    expect(fakeNet.requests).toHaveLength(0);
+    expect((await runJobsIngest(long(), options)).stats).toMatchObject({ boards: 1, added: 2 });
+  });
+
+  it("leaves a site alone when its robots.txt disallows the job search", async () => {
+    fakeNet.route(`https://${WORKDAY_HOST}/robots.txt`, {
+      headers: { "content-type": "text/plain" },
+      body: "User-agent: *\nDisallow: /wday/\n",
+    });
+    const outcome = await runJobsIngest(long(), options);
+    expect(outcome.stats).toMatchObject({ boards: 0, boardsFailed: 1 });
+    expect(fakeNet.urls()).toEqual([`https://${WORKDAY_HOST}/robots.txt`]);
+  });
+});
+
 describe("paceKey", () => {
   it("keeps one pace for every company subdomain of a service", () => {
     const spacing = { "recruitee.com": 1_000, "api.lever.co": 1_000 };
     expect(paceKey("bunq.recruitee.com", spacing)).toBe("recruitee.com");
     expect(paceKey("api.lever.co", spacing)).toBe("api.lever.co");
     expect(paceKey("evilrecruitee.com", spacing)).toBe("evilrecruitee.com");
+  });
+
+  it("keeps a pace for each Workday tenant", () => {
+    const spacing = { "*.myworkdayjobs.com": 1_500 };
+    expect(paceKey("nvidia.wd5.myworkdayjobs.com", spacing)).toBe("nvidia.wd5.myworkdayjobs.com");
+    expect(paceKey("adobe.wd5.myworkdayjobs.com", spacing)).toBe("adobe.wd5.myworkdayjobs.com");
   });
 });

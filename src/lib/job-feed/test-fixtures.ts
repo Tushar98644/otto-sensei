@@ -34,7 +34,8 @@ export const GREENHOUSE_BOARD = {
       company_name: "Vercel",
       first_published: "2026-10-25T09:00:00-04:00",
       application_deadline: "2026-12-31",
-      content: "&lt;p&gt;Sell Vercel to growing companies. You know Salesforce and MEDDICC.&lt;/p&gt;",
+      content:
+        "&lt;p&gt;Sell Vercel to growing companies. You know Salesforce and MEDDICC.&lt;/p&gt;",
     },
     { id: 1, title: "Broken", absolute_url: null, content: "" },
   ],
@@ -43,8 +44,10 @@ export const GREENHOUSE_BOARD = {
 
 export const LEVER_POSTINGS = [
   {
-    additionalPlain: "The United States base range for this position is $87,069-$124,385 plus equity.",
-    additional: "<div>The United States base range for this position is $87,069-$124,385 plus equity.</div>",
+    additionalPlain:
+      "The United States base range for this position is $87,069-$124,385 plus equity.",
+    additional:
+      "<div>The United States base range for this position is $87,069-$124,385 plus equity.</div>",
     categories: {
       commitment: "Permanent",
       department: "Engineering",
@@ -57,8 +60,14 @@ export const LEVER_POSTINGS = [
     description: "<div><p>Spotify is looking for a backend engineer to join Platform.</p></div>",
     id: "2A55D6C9-C564-443A-BE3E-A3851DB5A93B",
     lists: [
-      { text: "What You'll Do", content: "<li>Build services in Java and Scala.</li><li>Run them on Kubernetes.</li>" },
-      { text: "Who You Are", content: "<li>You have 3+ years of experience with distributed systems.</li>" },
+      {
+        text: "What You'll Do",
+        content: "<li>Build services in Java and Scala.</li><li>Run them on Kubernetes.</li>",
+      },
+      {
+        text: "Who You Are",
+        content: "<li>You have 3+ years of experience with distributed systems.</li>",
+      },
     ],
     text: "Backend Engineer, Platform",
     country: "SE",
@@ -122,7 +131,8 @@ export const HIMALAYAS_PAGE = {
         "<p>Design our mobile app in Figma.</p><p>Run user research with patients. Must be based in the United States or Canada.</p>",
       pubDate: 1794066876,
       expiryDate: 1799250875,
-      applicationLink: "https://himalayas.app/companies/acme-health/jobs/product-designer?utm_source=api",
+      applicationLink:
+        "https://himalayas.app/companies/acme-health/jobs/product-designer?utm_source=api",
       guid: "https://himalayas.app/companies/acme-health/jobs/product-designer",
     },
   ],
@@ -177,7 +187,13 @@ export const WORKABLE_ACCOUNT = {
       function: "",
       industry: "Hospitality",
       locations: [
-        { country: "United States", countryCode: "US", city: "New York", region: "New York", hidden: false },
+        {
+          country: "United States",
+          countryCode: "US",
+          city: "New York",
+          region: "New York",
+          hidden: false,
+        },
       ],
       description:
         "<h3>Redefining how people live.</h3><p>At <strong>Blueground,</strong> we believe that when your base is reliable, the world opens up. Every year, 350 million people move between cities, yet today's housing options haven't caught up.</p><h3>What you will do</h3><ul><li>Run move-ins and maintenance for 400 apartments across Manhattan and Brooklyn.</li><li>Track turnover in Excel and Salesforce.</li><li>Hire and coach a team of six field associates.</li></ul><p>You have 3+ years of experience in property operations.</p>",
@@ -254,7 +270,13 @@ export const RECRUITEE_OFFERS = {
       description: "<p>Help bunq users by chat in Dutch and English.</p>",
       requirements: "",
     },
-    { id: 1, title: "Draft", status: "draft", slug: "draft", careers_url: "https://careers.bunq.com/o/draft" },
+    {
+      id: 1,
+      title: "Draft",
+      status: "draft",
+      slug: "draft",
+      careers_url: "https://careers.bunq.com/o/draft",
+    },
   ],
 };
 
@@ -355,9 +377,180 @@ export const JOBICY_PAGE = {
       jobType: ["Full-Time"],
       jobGeo: "Anywhere",
       jobLevel: "Senior",
-      jobDescription: "<p>Sell GitLab to enterprise accounts. You know Salesforce and MEDDPICC.</p>",
+      jobDescription:
+        "<p>Sell GitLab to enterprise accounts. You know Salesforce and MEDDPICC.</p>",
       pubDate: "2026-11-09T19:40:01+00:00",
     },
     { id: 1, jobTitle: "Broken", companyName: "Acme", url: "" },
   ],
 };
+
+// Trimmed from NVIDIA's career site (nvidia.wd5/NVIDIAExternalCareerSite), read 2026-11-22.
+const workdayFacet = (descriptor: string, id: string, count: number) => ({ descriptor, id, count });
+
+export const WORKDAY_LIST = {
+  total: 2000,
+  jobPostings: [
+    { bulletFields: ["JR2029716"] },
+    {
+      title: "DevOps and Automation Engineer – ICPE",
+      externalPath: "/job/Israel-Yokneam/DevOps-and-Automation-Engineer---ICPE_JR2025436-1",
+      locationsText: "Israel, Yokneam",
+      postedOn: "Posted Today",
+      bulletFields: ["JR2025436"],
+    },
+  ],
+  facets: [
+    {
+      facetParameter: "jobFamilyGroup",
+      descriptor: "Job Category",
+      values: [workdayFacet("Engineering", "0c40f6bd1d8f10ae43ffaefd46dc7e78", 1644)],
+    },
+    {
+      facetParameter: "locationMainGroup",
+      values: [
+        {
+          facetParameter: "locationHierarchy2",
+          descriptor: "Location Type",
+          values: [
+            workdayFacet("Office", "0c3f5f117e9a0101f6422f0fe79d0000", 2504),
+            workdayFacet("Remote", "0c3f5f117e9a0101f63dc469c3010000", 553),
+          ],
+        },
+        {
+          facetParameter: "locationHierarchy1",
+          descriptor: "Locations",
+          values: [
+            workdayFacet("Brazil", "2fcb99c455831013ea5298c9e1f63230", 1),
+            workdayFacet("India", "2fcb99c455831013ea52b82135ba3266", 236),
+            workdayFacet("Israel", "2fcb99c455831013ea52bbe14cf9326c", 386),
+            workdayFacet("United Kingdom", "2fcb99c455831013ea52f785717432d2", 35),
+            workdayFacet("United States", "2fcb99c455831013ea52fb338f2932d8", 1378),
+          ],
+        },
+        {
+          facetParameter: "locations",
+          descriptor: "Sites",
+          values: [
+            workdayFacet("UK, Remote", "91336993fab910af6d6f4954559cc126", 29),
+            workdayFacet("US, CA, Santa Clara", "91336993fab910af6d702fae0bb4c2e8", 1267),
+          ],
+        },
+      ],
+    },
+  ],
+  userAuthenticated: false,
+};
+
+export const WORKDAY_TARGET_PAGE = {
+  total: 3,
+  jobPostings: [
+    {
+      title: "AI Natives Sales Account Manager - UK",
+      externalPath: "/job/UK-Remote/AI-Natives-Sales-Account-Manager---UK_JR2024148",
+      locationsText: "UK, Remote",
+      postedOn: "Posted 2 Days Ago",
+      bulletFields: ["JR2024148"],
+    },
+    {
+      title: "Senior Software Engineer, Deep Learning Inference",
+      externalPath:
+        "/job/US-CA-Santa-Clara/Senior-Software-Engineer--Deep-Learning-Inference_JR2028811",
+      locationsText: "US, CA, Santa Clara",
+      postedOn: "Posted 30+ Days Ago",
+      bulletFields: ["JR2028811"],
+    },
+  ],
+  facets: [],
+  userAuthenticated: false,
+};
+
+export const WORKDAY_TARGET_NEXT = {
+  total: 0,
+  jobPostings: [
+    {
+      title: "Senior Technical Trainer and Content Developer, AI Compute Systems",
+      externalPath:
+        "/job/Israel-Tel-Aviv/Senior-Technical-Trainer-and-Content-Developer--AI-Compute-Systems_JR2030101",
+      locationsText: "3 Locations",
+      postedOn: "Posted Yesterday",
+      bulletFields: ["JR2030101"],
+    },
+  ],
+  facets: [],
+  userAuthenticated: false,
+};
+
+export const WORKDAY_OTHER_PAGE = {
+  total: 1,
+  jobPostings: [WORKDAY_LIST.jobPostings[1]],
+  facets: [],
+  userAuthenticated: false,
+};
+
+const NVIDIA_INTRO =
+  "<p>NVIDIA has been transforming computer graphics, PC gaming, and accelerated computing for more than 25 years. It’s a unique legacy of innovation that’s fueled by great technology—and amazing people.</p>";
+
+export const WORKDAY_JOB_UK = {
+  jobPostingInfo: {
+    id: "0c030361651510279c98d70ba7ae0000",
+    title: "AI Natives Sales Account Manager - UK",
+    jobDescription: `${NVIDIA_INTRO}<p><b>What you’ll be doing:</b></p><ul><li>Own the relationship with AI-native companies across the UK.</li><li>Build account plans in Salesforce and forecast quarterly revenue.</li></ul><p><b>What we need to see:</b></p><ul><li>8+ years of enterprise sales experience.</li></ul>`,
+    location: "UK, Remote",
+    postedOn: "Posted 2 Days Ago",
+    startDate: "2026-11-20",
+    timeType: "Full time",
+    jobReqId: "JR2024148",
+    jobPostingId: "AI-Natives-Sales-Account-Manager---UK_JR2024148",
+    jobPostingSiteId: "NVIDIAExternalCareerSite",
+    country: { descriptor: "United Kingdom", id: "29247e57dbaf46fb855b224e03170bc7" },
+    canApply: true,
+    posted: true,
+    jobRequisitionLocation: {
+      descriptor: "UK, Remote",
+      country: {
+        descriptor: "United Kingdom",
+        id: "29247e57dbaf46fb855b224e03170bc7",
+        alpha2Code: "GB",
+      },
+    },
+    externalUrl:
+      "https://nvidia.wd5.myworkdayjobs.com/NVIDIAExternalCareerSite/job/UK-Remote/AI-Natives-Sales-Account-Manager---UK_JR2024148",
+  },
+  hiringOrganization: { name: "NVIDIA Ltd.", url: "" },
+  similarJobs: [],
+  userAuthenticated: false,
+};
+
+export const WORKDAY_JOB_ISRAEL = {
+  jobPostingInfo: {
+    id: "ce47257d2428104294531f15cae30000",
+    title: "Senior Technical Trainer and Content Developer, AI Compute Systems",
+    jobDescription: `${NVIDIA_INTRO}<p>Design hands-on training for GPU clusters, Kubernetes and Slurm.</p>`,
+    location: "Hof HaCarmel Campus",
+    additionalLocations: ["Israel, Raanana", "Israel, Yokneam"],
+    postedOn: "Posted Yesterday",
+    startDate: "2026-11-21",
+    timeType: "Full time",
+    jobReqId: "JR2030101",
+    country: { descriptor: "Israel", id: "084562884af243748dad7c84c304d89a" },
+    canApply: true,
+    jobRequisitionLocation: {
+      descriptor: "Israel, Tel Aviv",
+      country: { descriptor: "Israel", id: "084562884af243748dad7c84c304d89a", alpha2Code: "IL" },
+    },
+  },
+  hiringOrganization: { name: "IL00 Mellanox Technologies, Ltd.", url: "" },
+  similarJobs: [],
+  userAuthenticated: false,
+};
+
+export const WORKDAY_ROBOTS = [
+  "Sitemap: https://nvidia.wd5.myworkdayjobs.com/NVIDIAExternalCareerSite/siteMap.xml",
+  "",
+  "User-agent: *",
+  "Allow: /NVIDIAExternalCareerSite/",
+  "Disallow: /NVIDIAExternalCareerSiteResearch/",
+  "Disallow: /talentcommunity/",
+  "Disallow: /refreshFacet/",
+].join("\n");

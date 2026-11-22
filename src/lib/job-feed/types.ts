@@ -18,6 +18,7 @@ export const JOB_SOURCES = [
   "workable",
   "recruitee",
   "personio",
+  "workday",
   "himalayas",
   "remoteok",
   "jobicy",
@@ -31,6 +32,7 @@ export const BOARD_SOURCES = [
   "workable",
   "recruitee",
   "personio",
+  "workday",
 ] as const;
 export type BoardSource = (typeof BOARD_SOURCES)[number];
 

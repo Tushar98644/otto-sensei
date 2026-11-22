@@ -81,7 +81,13 @@ export function dedupeKey(company: string, title: string, location: string): str
 const NORMALIZE_VERSION = "5";
 
 export function contentHash(job: RawJob): string {
-  const parts = [
+  const parts =
+    job.hashKey === undefined ? fieldParts(job) : [NORMALIZE_VERSION, job.company, job.hashKey];
+  return createHash("sha256").update(parts.join("\u0000")).digest("base64url").slice(0, 32);
+}
+
+function fieldParts(job: RawJob): string[] {
+  return [
     NORMALIZE_VERSION,
     job.company,
     job.title,
@@ -94,7 +100,6 @@ export function contentHash(job: RawJob): string {
     job.seniority ?? "",
     job.text,
   ];
-  return createHash("sha256").update(parts.join("\u0000")).digest("base64url").slice(0, 32);
 }
 
 const FILLER_TITLE =

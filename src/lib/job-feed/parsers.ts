@@ -8,3 +8,4 @@ export { parsePersonio } from "./parsers/personio";
 export { parseRecruitee, recruiteeJob, type RecruiteeOfferShape } from "./parsers/recruitee";
 export { parseRemoteOk } from "./parsers/remoteok";
 export { parseWorkable } from "./parsers/workable";
+export { workdayBoard, workdayListUrl, type WorkdayBoard } from "./parsers/workday";

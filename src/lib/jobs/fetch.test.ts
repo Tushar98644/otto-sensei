@@ -130,6 +130,37 @@ describe("safeFetch", () => {
     expect(JSON.parse(api.body)).toEqual({ ok: true });
   });
 
+  it("posts JSON when asked, and never replays a post on a redirect", async () => {
+    fakeNet.json("https://jobs.example.com/search", { ok: true });
+    const res = await safeFetch(new URL("https://jobs.example.com/search"), {
+      kind: "json",
+      json: { offset: 20 },
+    });
+    expect(res.body).toBe('{"ok":true}');
+    const [request] = fakeNet.requests;
+    expect(request?.body).toBe('{"offset":20}');
+    expect(request?.headers).toMatchObject({
+      "content-type": "application/json",
+      "content-length": "13",
+      "accept-language": "en-US,en;q=0.9",
+    });
+    fakeNet.redirect("https://jobs.example.com/moved", "https://jobs.example.com/search", 307);
+    const moved = safeFetch(new URL("https://jobs.example.com/moved"), { kind: "json", json: {} });
+    expect(await reasonOf(moved)).toBe("unreachable");
+    expect(fakeNet.requests).toHaveLength(2);
+    expect(fakeNet.requests.every((sent) => sent.body !== undefined)).toBe(true);
+  });
+
+  it("reads plain text, such as robots.txt", async () => {
+    fakeNet.route("https://jobs.example.com/robots.txt", {
+      headers: { "content-type": "text/plain;charset=ISO-8859-1" },
+      body: "User-agent: *",
+    });
+    const res = await safeFetch(new URL("https://jobs.example.com/robots.txt"), { kind: "text" });
+    expect(res.body).toBe("User-agent: *");
+    expect(fakeNet.requests[0]?.body).toBeUndefined();
+  });
+
   it("stops at 2 MB, whether or not the size is declared", async () => {
     const big = FETCH_LIMITS.maxBytes + 1;
     fakeNet.route("https://jobs.example.com/declared", {

@@ -14,13 +14,15 @@ export const FETCH_LIMITS = {
 } as const;
 export const USER_AGENT = "OttoResumeBot/1.0";
 
-export type FetchKind = "html" | "json" | "xml";
+export type FetchKind = "html" | "json" | "xml" | "text";
 
 export type FetchOptions = {
   kind: FetchKind;
   maxBytes?: number;
   deadline?: number;
   timeoutMs?: number;
+  // Sent as a JSON POST; a redirect is then refused rather than replayed elsewhere.
+  json?: unknown;
 };
 
 export type Fetched = { url: URL; body: string };
@@ -29,6 +31,7 @@ const MEDIA_TYPES: Record<FetchKind, readonly string[]> = {
   html: ["text/html"],
   json: ["application/json"],
   xml: ["application/xml", "text/xml"],
+  text: ["text/plain"],
 };
 const REDIRECTS = new Set([301, 302, 303, 307, 308]);
 
@@ -136,27 +139,37 @@ export async function safeFetch(
     maxBytes = FETCH_LIMITS.maxBytes,
     deadline = Number.POSITIVE_INFINITY,
     timeoutMs = FETCH_LIMITS.timeoutMs,
+    json,
   }: FetchOptions,
 ): Promise<Fetched> {
   const budget = Math.min(timeoutMs, deadline - Date.now());
   if (budget <= 0) throw new JobReadError("timeout");
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), budget);
-  const headers = {
+  const body = json === undefined ? undefined : JSON.stringify(json);
+  const headers: Record<string, string> = {
     "user-agent": USER_AGENT,
     accept: MEDIA_TYPES[kind].join(", "),
-    "accept-language": "en",
+    // Some Workday sites answer their job search with a 500 for a bare "en".
+    "accept-language": body === undefined ? "en" : "en-US,en;q=0.9",
     "accept-encoding": "gzip, deflate, br",
+    ...(body === undefined
+      ? {}
+      : {
+          "content-type": "application/json",
+          "content-length": String(Buffer.byteLength(body)),
+        }),
   };
 
   try {
     let url = toFetchableUrl(start);
     for (let redirects = 0; ; redirects++) {
       const addresses = await resolvePublic(url, controller.signal);
-      const res = await sendPinned({ url, addresses, headers, signal: controller.signal });
+      const res = await sendPinned({ url, addresses, headers, body, signal: controller.signal });
 
       if (REDIRECTS.has(res.status)) {
         res.discard();
+        if (body !== undefined) throw new JobReadError("unreachable", { detail: "post_redirect" });
         const location = res.header("location");
         if (!location)
           throw new JobReadError("unreachable", { detail: "redirect_without_location" });

@@ -25,6 +25,7 @@ function targetOf(job: Stored, url: URL): JobTarget | null {
       return { kind: "recruitee", url, company: board, slug: id };
     case "personio":
       return { kind: "personio", url, host: url.hostname, id };
+    case "workday":
     case "jobicy":
       return { kind: "page", url, greenhouseId: null, ashbyId: null };
     case "himalayas":

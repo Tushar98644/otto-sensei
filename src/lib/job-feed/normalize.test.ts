@@ -10,7 +10,7 @@ import {
   normalizeJob,
   searchWords,
 } from "./normalize";
-import { parseGreenhouse, parseHimalayas } from "./parsers";
+import { parseGreenhouse, parseHimalayas, workdayBoard } from "./parsers";
 import { matchProfileOf, yearsOfExperience } from "./profile";
 import { BOARD_SEEDS } from "./seeds";
 import { GREENHOUSE_BOARD, HIMALAYAS_PAGE } from "./test-fixtures";
@@ -170,8 +170,16 @@ describe("BOARD_SEEDS", () => {
     expect(BOARD_SEEDS.length).toBeGreaterThanOrEqual(500);
     const keys = BOARD_SEEDS.map((seed) => `${seed.ats}:${seed.token.toLowerCase()}`);
     expect(new Set(keys).size).toBe(keys.length);
+    const workdayHosts = new Set<string>();
     for (const seed of BOARD_SEEDS) {
       expect(seed.company.trim()).not.toBe("");
+      if (seed.ats === "workday") {
+        // One site per tenant host, so each host gets one request at a time.
+        const { host } = workdayBoard(seed.token);
+        expect(workdayHosts.has(host)).toBe(false);
+        workdayHosts.add(host);
+        continue;
+      }
       expect(seed.token).toMatch(/^[a-z0-9][a-z0-9._-]{0,99}$/i);
       if (seed.ats === "recruitee" || seed.ats === "personio")
         expect(seed.token).toMatch(/^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/);
