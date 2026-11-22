@@ -4,8 +4,6 @@ Postgres on Supabase in production, PGlite locally and in tests. `supabase/migra
 
 Every table has row level security on with no policies (only the server connects, as the owner), a primary key, and, when it holds an account's data, a foreign key to `users` with `on delete cascade` (`inbound_handles`: `set null`, so a released address stays held). Deleting the account (`DELETE /api/account`) deletes the `users` row and the cascades take the rest. `src/db/tables.test.ts` lists every table with how deletion reaches it and which file of the data export (`src/lib/account/data-export.ts`) holds it, or why none does; a new table fails that test until it is listed.
 
-Until `20261122010900_drop_merged_settings.sql` ships (after the release that reads `user_settings` is live), the seven old settings tables and `trial_watch` still exist, and a trigger on each copies the old app's writes into `user_settings`.
-
 ## Tables
 
 Accounts and settings

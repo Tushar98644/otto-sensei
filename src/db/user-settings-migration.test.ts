@@ -5,6 +5,7 @@ import { readMigrations, type MigrationFile } from "./migration-files";
 import { MIGRATIONS_TIMEOUT_MS } from "./test-template";
 
 const MERGE = "20261122010000";
+const DROP = "20261122010900";
 const OLD_TABLES = [
   "work_profiles",
   "notification_settings",
@@ -59,7 +60,7 @@ describe("user settings migration", () => {
     return tables;
   };
 
-  it("copies every old row and keeps copying the old app's writes", async () => {
+  it("copies every old row, keeps copying the old app's writes, and loses nothing when the old tables go", async () => {
     const ada = await addUser();
     const bo = await addUser();
     const cy = await addUser();
@@ -256,6 +257,28 @@ describe("user settings migration", () => {
       reminders_chosen: false,
       updated_at: 520,
     });
+
+    const kept = await client.query("select * from public.user_settings order by user_id");
+    expect(file(DROP).transaction).toBe(true);
+    await client.exec(file(DROP).sql);
+
+    expect(
+      (await client.query("select * from public.user_settings order by user_id")).rows,
+    ).toEqual(kept.rows);
+    const left = await client.query<{ name: string }>(
+      `select relname as name from pg_class
+       where relnamespace = 'public'::regnamespace and relname = any($1::text[])`,
+      [OLD_TABLES],
+    );
+    expect(left.rows).toEqual([]);
+    const functions = await client.query(
+      "select proname from pg_proc where proname like 'user_settings_from_%'",
+    );
+    expect(functions.rows).toEqual([]);
+    const rls = await client.query<{ on: boolean }>(
+      "select relrowsecurity as on from pg_class where oid = 'public.user_settings'::regclass",
+    );
+    expect(rls.rows[0]?.on).toBe(true);
 
     // Account deletion still takes the row with it.
     await client.query("delete from public.users where id = $1", [ada]);

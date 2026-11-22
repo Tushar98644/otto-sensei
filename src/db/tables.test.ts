@@ -74,15 +74,6 @@ const TABLES: Record<string, Table> = {
   inbound_addresses: account("email-tracking.json"),
   inbound_emails: account("email-tracking.json"),
   career_log_entries: account("career-log.json"),
-  // Copied into user_settings, which the export covers; 20261122010900 drops them once the release that reads it is live.
-  work_profiles: accountNotExported("copied into user_settings"),
-  notification_settings: accountNotExported("copied into user_settings"),
-  writing_styles: accountNotExported("copied into user_settings"),
-  account_setup: accountNotExported("copied into user_settings"),
-  career_log_settings: accountNotExported("copied into user_settings"),
-  apply_answers: accountNotExported("copied into user_settings"),
-  user_activity: accountNotExported("copied into user_settings"),
-  trial_watch: accountNotExported("never written; dropped with the others"),
 };
 
 const ON_DELETE = { c: "cascade", n: "set null" } as const;
