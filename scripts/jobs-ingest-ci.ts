@@ -57,8 +57,10 @@ async function main() {
     process.exit(1);
   }
   const minutes = Number(flag("--minutes") ?? 45);
-  if (!(minutes > 0)) {
-    console.error("--minutes takes a number, e.g. --minutes 20");
+  // A first read of the Workday sites waits on their own hosts, so it may take more at once.
+  const workers = Number(flag("--workers") ?? 4);
+  if (!(minutes > 0) || !Number.isInteger(workers) || workers < 1) {
+    console.error("--minutes takes a number, e.g. --minutes 20; --workers a whole number, e.g. 8");
     process.exit(1);
   }
 
@@ -66,7 +68,7 @@ async function main() {
   const started = Date.now();
   const outcome = await runJobsIngest(
     { now: started, deadline: started + minutes * 60_000 },
-    { db },
+    { db, workers },
   );
   const { openJobs } = await jobStats(db);
   const { stats } = outcome;
