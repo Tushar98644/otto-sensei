@@ -6,7 +6,7 @@ import { pluralize } from "@/lib/utils";
 import { type FaqItem, FaqList } from "./faq-list";
 import { Section, SectionHeader } from "./section";
 
-const FAQ: readonly FaqItem[] = [
+export const HOME_FAQ: readonly FaqItem[] = [
   {
     question: "Is it really free to download?",
     answer: `Yes. Editing, recruiter checks and PDF downloads are free, with no paywall at the last step, and Free includes ${PLANS.free.limits.fix} line fixes a month with Otto. Pro and Max add the rest of Otto's AI help, more formats, more resumes and Word downloads on top.`,
@@ -54,10 +54,13 @@ const FAQ: readonly FaqItem[] = [
 
 export function Faq() {
   return (
-    <Section labelledBy="faq-title">
+    <Section
+      labelledBy="faq-title"
+      lazySize="[contain-intrinsic-size:auto_705px] sm:[contain-intrinsic-size:auto_685px] lg:[contain-intrinsic-size:auto_585px]"
+    >
       <div className="grid gap-12 lg:grid-cols-3">
         <SectionHeader id="faq-title" title="Before you start" />
-        <FaqList items={FAQ} className="lg:col-span-2" />
+        <FaqList items={HOME_FAQ} className="lg:col-span-2" />
       </div>
     </Section>
   );

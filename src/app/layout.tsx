@@ -3,6 +3,7 @@ import { EB_Garamond, Inter } from "next/font/google";
 import type { ReactNode } from "react";
 import { LoadingScreenHost } from "@/components/mascot/otto-loading-screen";
 import { ReferralTracker } from "@/components/referrals/referral-tracker";
+import { TITLE_SUFFIX } from "@/components/site/page-metadata";
 import { Toaster } from "@/components/ui/toast";
 import { BRAND } from "@/config/brand";
 import { Analytics } from "@/lib/analytics/analytics";
@@ -18,7 +19,7 @@ export const metadata: Metadata = {
   metadataBase: new URL(appUrl()),
   title: {
     default: `${BRAND.name} - ${BRAND.tagline}`,
-    template: `%s · ${BRAND.name}`,
+    template: `%s${TITLE_SUFFIX}`,
   },
   description: BRAND.description,
   applicationName: BRAND.name,

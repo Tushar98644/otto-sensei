@@ -67,7 +67,11 @@ const POINTS: readonly Point[] = [
 export function JobsShowcase({ jobCounts }: { jobCounts: JobCounts }) {
   const open = countClaim(jobCounts.open);
   return (
-    <Section id="jobs" labelledBy="jobs-showcase-title">
+    <Section
+      id="jobs"
+      labelledBy="jobs-showcase-title"
+      lazySize="[contain-intrinsic-size:auto_1700px] sm:[contain-intrinsic-size:auto_1440px] lg:[contain-intrinsic-size:auto_1370px]"
+    >
       <SectionHeader
         id="jobs-showcase-title"
         eyebrow="Jobs · new every day"
@@ -75,8 +79,8 @@ export function JobsShowcase({ jobCounts }: { jobCounts: JobCounts }) {
           open ? `${open} open jobs, ranked for your resume` : "Open jobs, ranked for your resume"
         }
       >
-        Otto reads companies&apos; careers pages every day and puts the jobs that fit your resume first,
-        with a plain reason for each. Free shows your top {FREE_JOB_MATCHES}; Pro matches you
+        Otto reads companies&apos; careers pages every day and puts the jobs that fit your resume
+        first, with a plain reason for each. Free shows your top {FREE_JOB_MATCHES}; Pro matches you
         against all of them.
       </SectionHeader>
       <Panel className="mt-12 sm:mt-16">

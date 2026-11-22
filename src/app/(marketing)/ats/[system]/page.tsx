@@ -2,10 +2,12 @@ import { ArrowRight } from "lucide-react";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { IntentLink } from "@/components/site/intent-link";
+import { JsonLd } from "@/components/site/json-ld";
 import { pageMetadata } from "@/components/site/page-metadata";
 import { ROUTES } from "@/components/site/routes";
 import { buttonClasses } from "@/components/ui/button";
 import type { HiringNote } from "@/lib/ats/types";
+import { appUrl } from "@/lib/env";
 import {
   ATS_GUIDES,
   ATS_IDS,
@@ -20,6 +22,7 @@ import {
   topicList,
 } from "@/lib/seo-pages/ats";
 import type { SystemNames } from "@/lib/seo-pages/job-link";
+import { atsGuideJsonLd } from "@/lib/seo-pages/json-ld";
 import { ATS_INDEX_PAGE, atsGuidePage } from "@/lib/seo-pages/pages";
 import { SEO_PATHS, atsPath } from "@/lib/seo-pages/paths";
 import { cn } from "@/lib/utils";
@@ -113,6 +116,7 @@ export default async function AtsGuidePage({ params }: Props) {
   const count = guide.notes.length;
   return (
     <div className={PAGE_CLASSES}>
+      <JsonLd data={atsGuideJsonLd(guide, atsGuidePage(guide), appUrl())} />
       <Breadcrumbs
         crumbs={[
           { name: "Home", path: ROUTES.home },
@@ -211,7 +215,10 @@ export default async function AtsGuidePage({ params }: Props) {
           </section>
         </div>
 
-        <aside aria-label="Next steps and more guides" className="lg:sticky lg:top-24 lg:self-start">
+        <aside
+          aria-label="Next steps and more guides"
+          className="lg:sticky lg:top-24 lg:self-start"
+        >
           <SideCta name={guide.name} />
           <h2 id="more-title" className={SMALL_TITLE_CLASSES}>
             More ATS guides

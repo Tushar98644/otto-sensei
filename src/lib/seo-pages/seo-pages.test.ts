@@ -1,8 +1,11 @@
 import { describe, expect, it } from "vitest";
+import { fullTitle } from "@/components/site/page-metadata";
 import { FOOTER_GROUPS, FOOTER_NAV } from "@/components/site/routes";
 import { BRAND } from "@/config/brand";
-import { PRICES_USD, PRO_PRICE_COMPARISON } from "@/config/plans";
+import { FREE_TEMPLATES, PRICES_USD, PRO_PRICE_COMPARISON } from "@/config/plans";
 import { HIRING_SYSTEMS } from "@/lib/ats/systems";
+import { TEMPLATE_LIST, isProTemplate } from "@/lib/pdf/templates";
+import { SEO_LIMITS } from "@/lib/seo/limits";
 import {
   ATS_GUIDES,
   ATS_IDS,
@@ -11,6 +14,7 @@ import {
   MIN_INDEXED_NOTES,
   TOPIC_ORDER,
   atsGuide,
+  guideDescription,
   guideHeadline,
   guideSources,
   isAtsId,
@@ -28,9 +32,17 @@ import {
   competitorBySlug,
   ottoReasons,
 } from "./compare";
-import { breadcrumbJsonLd } from "./json-ld";
+import { atsGuideJsonLd, breadcrumbJsonLd, compareJsonLd, templateListJsonLd } from "./json-ld";
 import { llmsTxt } from "./llms";
-import { RELATED, atsGuidePage, comparePage, seoPages } from "./pages";
+import {
+  HOME_PAGE,
+  JOB_MATCH_PAGE,
+  RELATED,
+  atsGuidePage,
+  comparePage,
+  pricingPage,
+  seoPages,
+} from "./pages";
 import { SEO_PAGES_UPDATED, SEO_PATHS } from "./paths";
 
 const BASE = "https://www.ottosensei.com";
@@ -217,7 +229,9 @@ describe("comparisons", () => {
       for (const row of competitor.rows) {
         for (const cell of [row.otto, row.them]) {
           const words = cell.answer.split(/\s+/).length;
-          expect(words, `${competitor.name} ${row.label}: ${cell.answer}`).toBeGreaterThanOrEqual(2);
+          expect(words, `${competitor.name} ${row.label}: ${cell.answer}`).toBeGreaterThanOrEqual(
+            2,
+          );
           expect(words, `${competitor.name} ${row.label}: ${cell.answer}`).toBeLessThanOrEqual(4);
           expect(cell.detail?.startsWith(cell.answer), cell.answer).not.toBe(true);
         }
@@ -257,10 +271,12 @@ describe("comparisons", () => {
     );
   });
 
-  it("titles each comparison without repeating the brand", () => {
+  it("titles each comparison for people after an alternative, naming the brand once", () => {
     for (const competitor of COMPETITORS) {
       const page = comparePage(competitor);
-      expect(page.title).toBe(`${BRAND.name} vs ${competitor.name}`);
+      expect(page.title).toBe(
+        `${competitor.name} alternative: ${BRAND.name} vs ${competitor.name} compared`,
+      );
       expect(page.absoluteTitle).toBe(true);
     }
   });
@@ -290,15 +306,44 @@ describe("public SEO pages", () => {
     );
   });
 
-  it("gives every page a short title and a search-sized description", () => {
+  it("gives every page a title and description that fit a search result", () => {
+    const thin = ATS_GUIDES.filter((guide) => !isIndexed(guide)).map(atsGuidePage);
+    const all = [HOME_PAGE, pricingPage(true), pricingPage(false), JOB_MATCH_PAGE, ...pages];
+    for (const page of [...all, ...thin]) {
+      const title = fullTitle(page);
+      const { min, max } = SEO_LIMITS.description;
+      expect(title.length, title).toBeLessThanOrEqual(SEO_LIMITS.title);
+      expect(title.split(BRAND.name).length - 1, title).toBeLessThanOrEqual(1);
+      expect(page.description.length, page.path).toBeGreaterThanOrEqual(min);
+      expect(page.description.length, page.path).toBeLessThanOrEqual(max);
+    }
     for (const page of pages) {
-      const title = page.absoluteTitle ? page.title : `${page.title} · ${BRAND.name}`;
-      expect(title.length, page.title).toBeLessThanOrEqual(70);
-      expect(title.split(BRAND.name).length - 1, page.title).toBeLessThanOrEqual(1);
-      expect(page.description.length, page.path).toBeGreaterThanOrEqual(80);
-      expect(page.description.length, page.path).toBeLessThanOrEqual(260);
       expect([SEO_PAGES_UPDATED, COMPETITORS_CHECKED]).toContain(page.lastModified);
     }
+  });
+
+  it("gives every page its own title and description", () => {
+    const all = [HOME_PAGE, pricingPage(true), JOB_MATCH_PAGE, ...ATS_GUIDES.map(atsGuidePage)];
+    const unique = [...new Map([...all, ...pages].map((page) => [page.path, page])).values()];
+    expect(new Set(unique.map(fullTitle)).size).toBe(unique.length);
+    expect(new Set(unique.map((page) => page.description)).size).toBe(unique.length);
+  });
+
+  it("names each guide's system and its count of sourced notes in the description", () => {
+    for (const guide of ATS_GUIDES) {
+      const description = guideDescription(guide);
+      const count = guide.notes.length === 1 ? "One sourced note" : `${guide.notes.length} sourced`;
+      expect(description, guide.name).toContain(guide.name);
+      expect(description, guide.name).toContain(count);
+    }
+  });
+
+  it("prices the pricing page from the plan config, naming the trial only when it's offered", () => {
+    const withTrial = pricingPage(true).description;
+    expect(withTrial).toContain(`$${PRICES_USD.pro.month} a month`);
+    expect(withTrial).toContain(`$${PRICES_USD.max.month}`);
+    expect(withTrial).toContain("Try Pro");
+    expect(pricingPage(false).description).not.toContain("Try Pro");
   });
 
   it("uses global copy only", () => {
@@ -325,7 +370,93 @@ describe("public SEO pages", () => {
 
   it("titles the templates page with what it shows: how many formats are free", () => {
     const templates = pages.find((page) => page.path === SEO_PATHS.resumeTemplates)!;
-    expect(templates.title).toBe("Resume templates: 2 free, all one column of real text");
+    expect(templates.title).toBe("ATS resume templates: 6 formats, 2 free");
+  });
+});
+
+describe("article JSON-LD", () => {
+  const publisher = {
+    "@type": "Organization",
+    "@id": `${BASE}/#organization`,
+    name: BRAND.name,
+    url: BASE,
+    logo: { "@type": "ImageObject", url: `${BASE}/apple-icon` },
+  };
+
+  it("files each ATS guide as a tech article dated and sourced like the page", () => {
+    for (const guide of ATS_GUIDES) {
+      const page = atsGuidePage(guide);
+      const data = atsGuideJsonLd(guide, page, BASE);
+      expect(data, guide.name).toMatchObject({
+        "@context": "https://schema.org",
+        "@type": "TechArticle",
+        "@id": `${BASE}${page.path}#article`,
+        headline: guideHeadline(guide),
+        description: page.description,
+        url: `${BASE}${page.path}`,
+        mainEntityOfPage: `${BASE}${page.path}`,
+        dateModified: SEO_PAGES_UPDATED,
+        image: `${BASE}/opengraph-image`,
+        author: publisher,
+        publisher,
+        about: [{ "@type": "SoftwareApplication", name: guide.name }],
+      });
+      expect(data.citation, guide.name).toEqual(
+        guideSources(guide).map((source) => ({
+          "@type": "CreativeWork",
+          name: source.label,
+          url: source.url,
+        })),
+      );
+    }
+  });
+
+  it("files each comparison as an article about both products, citing the competitor's pages", () => {
+    for (const competitor of COMPETITORS) {
+      const page = comparePage(competitor);
+      const data = compareJsonLd(competitor, page, BASE);
+      expect(data, competitor.name).toMatchObject({
+        "@type": "Article",
+        headline: `${BRAND.name} vs ${competitor.name}`,
+        dateModified: COMPETITORS_CHECKED,
+        author: publisher,
+        about: [
+          { "@type": "WebApplication", "@id": `${BASE}/#software`, name: BRAND.name },
+          { "@type": "SoftwareApplication", name: competitor.name, url: competitor.site },
+        ],
+      });
+      expect((data.citation as { url: string }[]).map((source) => source.url)).toEqual(
+        competitor.sources.map((source) => source.url),
+      );
+    }
+  });
+
+  it("claims no rating, review or date the page doesn't show", () => {
+    const data = compareJsonLd(COMPETITORS[0]!, comparePage(COMPETITORS[0]!), BASE);
+    for (const key of ["aggregateRating", "review", "datePublished"]) {
+      expect(data).not.toHaveProperty(key);
+    }
+  });
+});
+
+describe("templateListJsonLd", () => {
+  it("lists every format in page order, each at its anchor, marked free or not", () => {
+    const formats = TEMPLATE_LIST.map((info) => ({ info, free: !isProTemplate(info.id) }));
+    const data = templateListJsonLd(formats, SEO_PATHS.resumeTemplates, BASE);
+    expect(data).toMatchObject({ "@type": "ItemList", numberOfItems: TEMPLATE_LIST.length });
+    const items = data.itemListElement as {
+      position: number;
+      item: { name: string; url: string; isAccessibleForFree: boolean };
+    }[];
+    expect(items.map((entry) => entry.position)).toEqual(
+      TEMPLATE_LIST.map((_, index) => index + 1),
+    );
+    expect(items.map((entry) => entry.item.name)).toEqual(TEMPLATE_LIST.map((info) => info.name));
+    expect(items[0]?.item.url).toBe(`${BASE}/resume-templates#${TEMPLATE_LIST[0]?.id}`);
+    const free = items.filter((entry) => entry.item.isAccessibleForFree);
+    expect(free.map((entry) => entry.item.name).sort()).toEqual(
+      FREE_TEMPLATES.map((id) => TEMPLATE_LIST.find((info) => info.id === id)?.name).sort(),
+    );
   });
 });
 
@@ -368,6 +499,10 @@ describe("llms.txt", () => {
     expect(links).toContain(BASE);
     expect(links).toContain(`${BASE}/pricing`);
     for (const link of links) expect(link?.startsWith(BASE)).toBe(true);
+  });
+
+  it("points to the full text file", () => {
+    expect(links).toContain(`${BASE}${SEO_PATHS.llmsFull}`);
   });
 
   it("says plainly what Otto won't do", () => {

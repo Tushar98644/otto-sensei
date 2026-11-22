@@ -6,8 +6,8 @@ import { BRAND } from "@/config/brand";
 import { LegalPage, type LegalSection } from "../_components/legal-page";
 
 export const metadata: Metadata = pageMetadata({
-  title: "Acceptable use policy",
-  description: `What ${BRAND.name} and its AI writing tools may and may not be used for.`,
+  title: "Acceptable use policy for the AI writing tools",
+  description: `What ${BRAND.name} and its AI writing tools may be used for: professional job-search text only. No explicit, hateful, illegal or deceptive content.`,
   path: ROUTES.acceptableUse,
 });
 

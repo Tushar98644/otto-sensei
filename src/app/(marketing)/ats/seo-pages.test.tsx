@@ -197,7 +197,10 @@ describe("comparison pages", () => {
     expect(at("Run the free match check")).toBeLessThan(at("At a glance"));
     expect(at("Why pick Otto Sensei")).toBeLessThan(at(`What ${competitor.name} does well`));
     expect(words).not.toContain("Also in Otto Sensei");
-    const verdict = html.slice(html.indexOf('id="verdict-title"'), html.indexOf('id="glance-title"'));
+    const verdict = html.slice(
+      html.indexOf('id="verdict-title"'),
+      html.indexOf('id="glance-title"'),
+    );
     expect(verdict).toContain(`href="${SEO_PATHS.jobMatch}"`);
     const pick = html.slice(html.indexOf('id="pick-title"'), html.indexOf('id="sources-title"'));
     expect(pick).toContain(`href="${SEO_PATHS.jobMatch}"`);
@@ -211,8 +214,8 @@ describe("comparison pages", () => {
   it("sets the canonical path from the slug, with the title as written", async () => {
     const meta = await compareMetadata({ params: Promise.resolve({ competitor: "rezi" }) });
     expect(meta.alternates?.canonical).toBe("/compare/rezi");
-    expect(meta.title).toEqual({ absolute: "Otto Sensei vs Rezi" });
-    expect(meta.openGraph?.title).toBe("Otto Sensei vs Rezi");
+    expect(meta.title).toEqual({ absolute: "Rezi alternative: Otto Sensei vs Rezi compared" });
+    expect(meta.openGraph?.title).toBe("Rezi alternative: Otto Sensei vs Rezi compared");
   });
 
   it("links every comparison from the index, with who should pick which", async () => {

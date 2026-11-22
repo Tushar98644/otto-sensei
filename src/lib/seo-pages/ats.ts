@@ -1,5 +1,6 @@
 import { HIRING_SYSTEMS } from "@/lib/ats/systems";
 import type { HiringNote, HiringSystem, HiringSystemId, NoteTopic } from "@/lib/ats/types";
+import { SEO_LIMITS } from "@/lib/seo/limits";
 
 type GuideIntro = {
   what: string;
@@ -111,7 +112,9 @@ export function guideSources(guide: Pick<HiringSystem, "notes">): GuideSource[] 
   );
   return named.map((source, index) => {
     const earlier = named.slice(0, index).filter((other) => other.label === source.label);
-    return earlier.length ? { ...source, label: `${source.label} (${earlier.length + 1})` } : source;
+    return earlier.length
+      ? { ...source, label: `${source.label} (${earlier.length + 1})` }
+      : source;
   });
 }
 
@@ -154,20 +157,57 @@ const TOPIC_PHRASES: Record<NoteTopic, string> = {
   review: "how people review applicants",
 };
 
-export function topicList(topics: readonly NoteTopic[]): string {
-  const phrases = topics.map((topic) => TOPIC_PHRASES[topic]);
+function joinPhrases(phrases: string[]): string {
   const last = phrases.pop() ?? "";
   return phrases.length ? `${phrases.join(", ")} and ${last}` : last;
 }
 
+export function topicList(topics: readonly NoteTopic[]): string {
+  return joinPhrases(topics.map((topic) => TOPIC_PHRASES[topic]));
+}
+
+const SHORT_TOPIC_PHRASES: Record<NoteTopic, string> = {
+  file: "file reading",
+  search: "recruiter search",
+  screening: "screening questions",
+  ai: "AI matching",
+  review: "human review",
+};
+
+// The fullest wording that fits a search result wins.
 export function guideDescription(guide: AtsGuide): string {
-  const topics = topicList(guide.sections.map((section) => section.topic));
-  const count = guide.notes.length;
-  const notes =
-    count === 1
-      ? "One sourced note, with a practical tip and its source"
-      : `${count} sourced notes, each with a practical tip and its source`;
-  return `What ${guide.name} does with your application: ${topics}. ${notes}, plus general advice for any ATS.`;
+  const topics = guide.sections.map((section) => section.topic);
+  const long = topicList(topics);
+  const short = joinPhrases(topics.map((topic) => SHORT_TOPIC_PHRASES[topic]));
+  const one = guide.notes.length === 1;
+  const sourced = one
+    ? "One sourced note, with a practical tip and its source"
+    : `${guide.notes.length} sourced notes, each with a practical tip and its source`;
+  const brief = one
+    ? "One sourced note with a practical tip"
+    : `${guide.notes.length} sourced notes with practical tips`;
+  const intros = [
+    `What the ${guide.name} ATS does with your application: ${long}.`,
+    `What ${guide.name} does with your application: ${long}.`,
+    `What the ${guide.name} ATS does with your application: ${short}.`,
+    `${guide.name} ATS guide: ${short}.`,
+  ];
+  const endings = [
+    `${sourced}, plus general advice for any ATS.`,
+    `${sourced}, plus advice for any ATS.`,
+    `${brief}, plus general advice for any ATS.`,
+    `${brief}, plus advice for any ATS.`,
+    `${sourced}.`,
+    `${brief}.`,
+  ];
+  const options = intros.flatMap((intro) => endings.map((ending) => `${intro} ${ending}`));
+  const { min, max } = SEO_LIMITS.description;
+  const fits = (text: string) => text.length <= max;
+  return (
+    options.find((text) => fits(text) && text.length >= min) ??
+    options.find(fits) ??
+    options.at(-1)!
+  );
 }
 
 // Each tip restates advice that the sourced notes in lib/ats/systems.ts give for several systems.

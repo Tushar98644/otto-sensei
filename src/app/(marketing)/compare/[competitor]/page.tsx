@@ -2,10 +2,12 @@ import { ArrowRight, Check } from "lucide-react";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { IntentLink } from "@/components/site/intent-link";
+import { JsonLd } from "@/components/site/json-ld";
 import { pageMetadata } from "@/components/site/page-metadata";
 import { ROUTES } from "@/components/site/routes";
 import { buttonClasses } from "@/components/ui/button";
 import { BRAND } from "@/config/brand";
+import { appUrl } from "@/lib/env";
 import {
   COMPETITORS,
   COMPETITORS_CHECKED,
@@ -18,6 +20,7 @@ import {
   competitorBySlug,
   ottoReasons,
 } from "@/lib/seo-pages/compare";
+import { compareJsonLd } from "@/lib/seo-pages/json-ld";
 import { COMPARE_INDEX_PAGE, RELATED, calendarDate, comparePage } from "@/lib/seo-pages/pages";
 import { SEO_PATHS, comparePath } from "@/lib/seo-pages/paths";
 import {
@@ -162,7 +165,10 @@ function WhichSuits({ competitor }: { competitor: Competitor }) {
       <div className="mt-6 rounded-3xl bg-surface-muted p-3 sm:p-6">
         <div className="grid gap-3 md:grid-cols-2">
           {[them, otto].map((choice) => (
-            <div key={choice.name} className="flex flex-col gap-2 rounded-2xl bg-surface p-4 sm:p-6">
+            <div
+              key={choice.name}
+              className="flex flex-col gap-2 rounded-2xl bg-surface p-4 sm:p-6"
+            >
               <h3 className="text-lg/7 font-medium tracking-tight text-ink">{choice.name}</h3>
               <p className="text-base/7 text-pretty text-muted">If {choice.clause}</p>
             </div>
@@ -187,6 +193,7 @@ export default async function ComparePage({ params }: Props) {
   const others = COMPETITORS.filter((other) => other.slug !== competitor.slug);
   return (
     <div className={PAGE_CLASSES}>
+      <JsonLd data={compareJsonLd(competitor, comparePage(competitor), appUrl())} />
       <Breadcrumbs
         crumbs={[
           { name: "Home", path: ROUTES.home },

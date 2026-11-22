@@ -54,7 +54,12 @@ const momentId = (step: Step) => `how-${step.id}`;
 
 export function HowItWorks() {
   return (
-    <Section id="how" labelledBy="how-title">
+    <Section
+      id="how"
+      labelledBy="how-title"
+      animated
+      lazySize="[contain-intrinsic-size:auto_3400px] sm:[contain-intrinsic-size:auto_2850px]"
+    >
       <SectionHeader id="how-title" eyebrow="How it works" title="From old file to clean PDF">
         Five steps. Stop after any of them.
       </SectionHeader>

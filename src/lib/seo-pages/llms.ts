@@ -16,17 +16,32 @@ import {
 } from "./pages";
 import { SEO_PATHS } from "./paths";
 
-type Link = { title: string; path: string; note: string };
+export type Link = { title: string; path: string; note: string };
 
 const freeFormats = FREE_TEMPLATES.map((id) => TEMPLATE_INFO[id].name).join(" and ");
 
-function linkLine(link: Link, base: string): string {
+export function linkLine(link: Link, base: string): string {
   return `- [${link.title}](${absoluteUrl(link.path, base)}): ${link.note}`;
 }
 
 function section(title: string, links: readonly Link[], base: string): string {
   return [`## ${title}`, "", ...links.map((link) => linkLine(link, base))].join("\n");
 }
+
+export const LEGAL_LINKS: readonly Link[] = [
+  {
+    title: "Privacy policy",
+    path: ROUTES.privacy,
+    note: "What is collected and where resumes are stored.",
+  },
+  { title: "Terms", path: ROUTES.terms, note: "Terms of service." },
+  { title: "Refund policy", path: ROUTES.refunds, note: "Cancelling and refunds." },
+  {
+    title: "Acceptable use",
+    path: ROUTES.acceptableUse,
+    note: "What the service may not be used for.",
+  },
+];
 
 export function llmsTxt(base: string): string {
   const main: Link[] = [
@@ -46,6 +61,11 @@ export function llmsTxt(base: string): string {
       path: RESUME_TEMPLATES_PAGE.path,
       note: RESUME_TEMPLATES_PAGE.description,
     },
+    {
+      title: "Full text",
+      path: SEO_PATHS.llmsFull,
+      note: "The guides, comparisons, pricing, plan limits and FAQs from these pages, in one plain-text file.",
+    },
   ];
   const guides: Link[] = [
     { title: "ATS guides", path: ATS_INDEX_PAGE.path, note: ATS_INDEX_PAGE.description },
@@ -61,24 +81,25 @@ export function llmsTxt(base: string): string {
       return { title: page.title, path: page.path, note: page.description };
     }),
   ];
-  const legal: Link[] = [
-    {
-      title: "Privacy policy",
-      path: ROUTES.privacy,
-      note: "What is collected and where resumes are stored.",
-    },
-    { title: "Terms", path: ROUTES.terms, note: "Terms of service." },
-    { title: "Refund policy", path: ROUTES.refunds, note: "Cancelling and refunds." },
-    {
-      title: "Acceptable use",
-      path: ROUTES.acceptableUse,
-      note: "What the service may not be used for.",
-    },
-  ];
 
   return [
     `# ${BRAND.name}`,
     "",
+    ...productOverview(),
+    "",
+    section("Main pages", main, base),
+    "",
+    section("ATS guides", guides, base),
+    "",
+    section("Comparisons", comparisons, base),
+    "",
+    section("Optional", LEGAL_LINKS, base),
+    "",
+  ].join("\n");
+}
+
+export function productOverview(): string[] {
+  return [
     `> ${BRAND.name} is a web app for job seekers. Upload a resume, see the text hiring software (an applicant tracking system, or ATS) reads from it, fix weak lines with Otto, tailor it to a job, and download a clean PDF. Checking, editing and PDF downloads are free.`,
     "",
     `Otto is the app's otter mascot and AI helper. ${BRAND.name} is made for job seekers anywhere, works in the browser, and reads resumes written in English best.`,
@@ -99,14 +120,5 @@ export function llmsTxt(base: string): string {
     "- It doesn't charge to download a PDF.",
     "- It doesn't keep uploaded files: it reads the text, then lets the file go. Resumes stay in the browser unless the user signs in to back them up.",
     "- It doesn't apply to jobs for anyone, and it doesn't promise interviews or that any hiring system will pass a resume.",
-    "",
-    section("Main pages", main, base),
-    "",
-    section("ATS guides", guides, base),
-    "",
-    section("Comparisons", comparisons, base),
-    "",
-    section("Optional", legal, base),
-    "",
-  ].join("\n");
+  ];
 }

@@ -10,8 +10,10 @@ import { createUser, resetDb, setPlan } from "@/lib/auth/test-helpers";
 import { createPortfolio, updatePortfolio } from "@/lib/portfolio/records";
 import { sampleResume } from "@/lib/portfolio/testing";
 import { COMPETITORS_CHECKED } from "@/lib/seo-pages/compare";
-import { SEO_PAGES_UPDATED } from "@/lib/seo-pages/paths";
+import { PRODUCT_PAGES_UPDATED, SEO_PAGES_UPDATED } from "@/lib/seo-pages/paths";
+import { AI_CRAWLERS } from "@/lib/seo/crawlers";
 import { absoluteUrl } from "@/lib/seo/urls";
+import { GET as getFullText } from "./llms-full.txt/route";
 import { GET } from "./llms.txt/route";
 import portfolioSitemap from "./p/sitemap";
 import robots from "./robots";
@@ -43,6 +45,7 @@ const GUIDES = [
   ...COMPARISONS.map((slug) => `/compare/${slug}`),
 ];
 const LEGAL = ["/privacy", "/terms", "/refunds", "/acceptable-use"];
+const PRODUCT = ["/", "/pricing", "/job-match"];
 const APP = fileURLToPath(new URL(".", import.meta.url));
 
 // The page file Next serves for a path, dynamic segments included.
@@ -83,17 +86,18 @@ describe("sitemap", () => {
     }
   });
 
-  it("dates the guides and legal pages with the date their content last changed", () => {
-    const dated = entries.filter((entry) => entry.lastModified);
-    expect(dated.map((entry) => pathOf(entry.url))).toEqual([...GUIDES, ...LEGAL]);
-    for (const entry of dated) {
+  it("dates every page with the day its content last changed", () => {
+    for (const entry of entries) {
       const path = pathOf(entry.url);
       const day = LEGAL.includes(path)
         ? LEGAL_LAST_UPDATED
-        : path.startsWith("/compare")
-          ? COMPETITORS_CHECKED
-          : SEO_PAGES_UPDATED;
+        : PRODUCT.includes(path)
+          ? PRODUCT_PAGES_UPDATED
+          : path.startsWith("/compare")
+            ? COMPETITORS_CHECKED
+            : SEO_PAGES_UPDATED;
       expect(entry.lastModified, path).toBe(day);
+      expect(String(entry.lastModified), path).toMatch(/^\d{4}-\d{2}-\d{2}$/);
     }
   });
 });
@@ -106,18 +110,48 @@ describe("llms.txt", () => {
     expect(text.startsWith("# Otto Sensei\n")).toBe(true);
     for (const path of GUIDES) expect(text).toContain(`(${absoluteUrl(path)})`);
     for (const path of THIN_GUIDES) expect(text).not.toContain(`(${absoluteUrl(path)})`);
+    expect(text).toContain(`(${absoluteUrl("/llms-full.txt")})`);
+  });
+});
+
+describe("llms-full.txt", () => {
+  it("serves the full text as plain text, with every indexed guide and comparison page", async () => {
+    const response = getFullText();
+    expect(response.headers.get("content-type")).toBe("text/plain; charset=utf-8");
+    const text = await response.text();
+    expect(text.startsWith("# Otto Sensei: full text\n")).toBe(true);
+    for (const path of GUIDES) expect(text).toContain(`Page: ${absoluteUrl(path)}\n`);
+    for (const path of THIN_GUIDES) expect(text).not.toContain(absoluteUrl(path));
   });
 });
 
 describe("robots", () => {
   const result = robots();
+  const rules = result.rules as {
+    userAgent: string | string[];
+    allow: string;
+    disallow: string[];
+  }[];
+  const KEPT_OUT = ["/api/", "/dashboard", "/account"];
 
   it("allows crawling but keeps out the API and the signed-in pages", () => {
-    expect(result.rules).toEqual({
-      userAgent: "*",
-      allow: "/",
-      disallow: ["/api/", "/dashboard", "/account"],
-    });
+    expect(rules[0]).toEqual({ userAgent: "*", allow: "/", disallow: KEPT_OUT });
+  });
+
+  it("names the main AI crawlers, with the same rules as everyone else", () => {
+    for (const bot of [
+      "GPTBot",
+      "OAI-SearchBot",
+      "ChatGPT-User",
+      "ClaudeBot",
+      "PerplexityBot",
+      "Google-Extended",
+      "Applebot-Extended",
+    ]) {
+      expect(AI_CRAWLERS).toContain(bot);
+    }
+    expect(rules[1]).toEqual({ userAgent: [...AI_CRAWLERS], allow: "/", disallow: KEPT_OUT });
+    expect(rules).toHaveLength(2);
   });
 
   it("points crawlers at every sitemap", () => {
@@ -125,10 +159,12 @@ describe("robots", () => {
   });
 
   it("blocks nothing a sitemap lists", () => {
-    const blocked = (result.rules as { disallow: string[] }).disallow;
+    const blocked = rules.flatMap((rule) => rule.disallow);
     const listed = [
       ...sitemap().map((entry) => pathOf(entry.url)),
       "/p/maya-chen",
+      "/llms.txt",
+      "/llms-full.txt",
       ...(result.sitemap as string[]).map(pathOf),
     ];
     for (const path of listed) {

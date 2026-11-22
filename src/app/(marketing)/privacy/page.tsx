@@ -7,8 +7,8 @@ import { LegalPage, type LegalSection } from "../_components/legal-page";
 import { MERCHANT } from "../_components/merchant";
 
 export const metadata: Metadata = pageMetadata({
-  title: "Privacy policy",
-  description: `What ${BRAND.name} collects, where your resume is stored, and who else processes it. In plain English.`,
+  title: "Privacy policy: where your resume is stored",
+  description: `What ${BRAND.name} collects, where your resume is stored and who else processes it, in plain English. No ads, no tracking cookies, no selling your data.`,
   path: ROUTES.privacy,
 });
 

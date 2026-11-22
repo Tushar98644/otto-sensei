@@ -21,8 +21,8 @@ import { MERCHANT } from "../_components/merchant";
 import { formatUsd } from "../_components/plan-features";
 
 export const metadata: Metadata = pageMetadata({
-  title: "Terms of service",
-  description: `The rules for using ${BRAND.name}, in plain English: your content stays yours, each plan's limits, prices and cancelling.`,
+  title: "Terms of service: plans, limits and cancelling",
+  description: `The rules for using ${BRAND.name}, in plain English: your content stays yours, what each plan includes and costs, its monthly limits and how to cancel.`,
   path: ROUTES.terms,
 });
 

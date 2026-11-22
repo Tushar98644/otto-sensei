@@ -5,19 +5,45 @@ import { buttonClasses } from "@/components/ui/button";
 import { Eyebrow } from "@/components/ui/eyebrow";
 import { cn } from "@/lib/utils";
 
+// Below the fold: the browser skips laying out and painting it until it nears the screen.
+export const LAZY_SECTION = "[content-visibility:auto] data-rendered:[content-visibility:visible]";
+
+// A lazy section clips its paint, so a section with no bottom padding gets room for a focus ring.
+const EDGE_ROOM = "pb-2 -mb-2";
+
+// Only Otto's looping SVG parts: one-shot entrances still finish while off screen, as before.
+export const PAUSE_OFFSCREEN = "data-offscreen:[&_svg_*]:[animation-play-state:paused]!";
+
 export type SectionProps = {
   id?: string;
   labelledBy: string;
   className?: string;
+  // Below the fold: contain-intrinsic-size classes holding the section's height until it renders.
+  lazySize?: string;
+  animated?: boolean;
   children: ReactNode;
 };
 
-export function Section({ id, labelledBy, className, children }: SectionProps) {
+export function Section({
+  id,
+  labelledBy,
+  className,
+  lazySize,
+  animated = false,
+  children,
+}: SectionProps) {
   return (
     <section
       id={id}
       aria-labelledby={labelledBy}
-      className={cn("scroll-mt-16 pt-24 sm:pt-32", className)}
+      data-lazy={lazySize ? "" : undefined}
+      data-pause={animated ? "" : undefined}
+      className={cn(
+        "scroll-mt-16 pt-24 sm:pt-32",
+        lazySize && [LAZY_SECTION, EDGE_ROOM, lazySize],
+        animated && PAUSE_OFFSCREEN,
+        className,
+      )}
     >
       <div className="container-page">{children}</div>
     </section>

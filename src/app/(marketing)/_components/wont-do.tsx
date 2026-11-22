@@ -32,7 +32,10 @@ const PLEDGES: readonly Pledge[] = [
 
 export function WontDo() {
   return (
-    <Section labelledBy="wont-do-title">
+    <Section
+      labelledBy="wont-do-title"
+      lazySize="[contain-intrinsic-size:auto_800px] sm:[contain-intrinsic-size:auto_700px] lg:[contain-intrinsic-size:auto_635px]"
+    >
       <SectionHeader id="wont-do-title" title="What Otto won’t do" />
       <ul role="list" className="mt-12 divide-y divide-border border-y border-border sm:mt-16">
         {PLEDGES.map(({ claim, reason }) => (

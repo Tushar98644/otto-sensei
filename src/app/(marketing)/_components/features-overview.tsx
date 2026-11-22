@@ -39,7 +39,11 @@ const SHOWN = APP_NAV.filter((item) => FEATURES[item.href]);
 
 export function FeaturesOverview() {
   return (
-    <Section id="features" labelledBy="features-title">
+    <Section
+      id="features"
+      labelledBy="features-title"
+      lazySize="[contain-intrinsic-size:auto_740px] sm:[contain-intrinsic-size:auto_790px]"
+    >
       <SectionHeader
         id="features-title"
         eyebrow="What's inside"

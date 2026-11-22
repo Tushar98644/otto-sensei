@@ -4,10 +4,15 @@ import { cn } from "@/lib/utils";
 import { displayItalic } from "./display-italic";
 import { HeroCta } from "./hero-cta";
 import { HeroDemo } from "./hero-demo";
+import { PAUSE_OFFSCREEN } from "./section";
 
 export function Hero() {
   return (
-    <section aria-labelledby="hero-title" className="overflow-x-clip">
+    <section
+      aria-labelledby="hero-title"
+      data-pause=""
+      className={cn("overflow-x-clip", PAUSE_OFFSCREEN)}
+    >
       <div className="container-page pt-12">
         <div className="mx-auto flex max-w-3xl flex-col items-center text-center">
           <Eyebrow>Free resume checker</Eyebrow>

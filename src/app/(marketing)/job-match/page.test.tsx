@@ -4,8 +4,8 @@ import JobMatchPage, { metadata } from "./page";
 
 describe("the job match page", () => {
   it("has its own title, description, canonical and share card", () => {
-    expect(metadata.title).toBe("Free resume to job match check");
-    expect(metadata.description).toMatch(/not a made-up score/);
+    expect(metadata.title).toBe("Free resume to job description match checker");
+    expect(metadata.description).toMatch(/which are missing. Free, no sign-in.$/);
     expect(metadata.alternates?.canonical).toBe("/job-match");
     expect(metadata.openGraph).toMatchObject({ url: "/job-match" });
   });

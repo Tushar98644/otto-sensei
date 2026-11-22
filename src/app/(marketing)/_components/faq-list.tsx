@@ -1,8 +1,14 @@
 import { Plus } from "lucide-react";
 import type { ReactNode } from "react";
+import type { FaqEntry } from "@/lib/seo/json-ld";
+import { nodeText } from "@/lib/seo/node-text";
 import { cn } from "@/lib/utils";
 
 export type FaqItem = { question: string; answer: ReactNode };
+
+export function faqEntries(items: readonly FaqItem[]): FaqEntry[] {
+  return items.map(({ question, answer }) => ({ question, answer: nodeText(answer) }));
+}
 
 export function FaqList({ items, className }: { items: readonly FaqItem[]; className?: string }) {
   return (

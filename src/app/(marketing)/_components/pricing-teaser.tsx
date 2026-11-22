@@ -9,7 +9,10 @@ import { Section, SectionHeader, SectionLink } from "./section";
 export function PricingTeaser() {
   const { free, pro } = PLANS;
   return (
-    <Section labelledBy="pricing-teaser-title">
+    <Section
+      labelledBy="pricing-teaser-title"
+      lazySize="[contain-intrinsic-size:auto_430px] sm:[contain-intrinsic-size:auto_360px]"
+    >
       <SectionHeader
         id="pricing-teaser-title"
         eyebrow="Pricing"

@@ -9,6 +9,16 @@ export type PageMetadataOptions = {
   noindex?: boolean;
 };
 
+// The root layout's title template appends this to every page title that isn't absolute.
+export const TITLE_SUFFIX = ` · ${BRAND.name}`;
+
+export function fullTitle({
+  title,
+  absoluteTitle = false,
+}: Pick<PageMetadataOptions, "title" | "absoluteTitle">): string {
+  return absoluteTitle ? title : `${title}${TITLE_SUFFIX}`;
+}
+
 // A root-level image route (src/app/opengraph-image.tsx) gets no hash suffix in its path.
 const OG_IMAGE = {
   url: "/opengraph-image",
@@ -26,7 +36,7 @@ export function pageMetadata({
   absoluteTitle = false,
   noindex = false,
 }: PageMetadataOptions): Metadata {
-  const shareTitle = absoluteTitle ? title : `${title} · ${BRAND.name}`;
+  const shareTitle = fullTitle({ title, absoluteTitle });
   return {
     title: absoluteTitle ? { absolute: title } : title,
     description,

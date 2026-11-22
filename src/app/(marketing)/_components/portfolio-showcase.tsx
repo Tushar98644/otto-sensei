@@ -12,7 +12,11 @@ const SHOWN: readonly PortfolioShotId[] = ["bento", "dock", "reel"];
 
 export function PortfolioShowcase() {
   return (
-    <Section id="portfolio" labelledBy="portfolio-showcase-title">
+    <Section
+      id="portfolio"
+      labelledBy="portfolio-showcase-title"
+      lazySize="[contain-intrinsic-size:auto_1410px] sm:[contain-intrinsic-size:auto_660px] lg:[contain-intrinsic-size:auto_700px]"
+    >
       <SectionHeader
         id="portfolio-showcase-title"
         eyebrow="Portfolio · hosted for you"

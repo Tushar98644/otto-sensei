@@ -13,8 +13,8 @@ import { MERCHANT } from "../_components/merchant";
 import { formatUsd } from "../_components/plan-features";
 
 export const metadata: Metadata = pageMetadata({
-  title: "Refund policy",
-  description: `Refunds for ${BRAND.name} Pro and Max are handled by ${MERCHANT.name}, our merchant of record, under its buyer terms. Cancel anytime and you won't be charged again.`,
+  title: "Refund policy: cancelling Pro and Max",
+  description: `Refunds for Pro and Max plans are handled by ${MERCHANT.name}, our merchant of record, under its buyer terms. Cancel anytime and you won't be charged again.`,
   path: ROUTES.refunds,
 });
 

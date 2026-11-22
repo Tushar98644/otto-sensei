@@ -1,7 +1,11 @@
+import { TITLE_SUFFIX } from "@/components/site/page-metadata";
 import { ROUTES } from "@/components/site/routes";
-import { FREE_TEMPLATES } from "@/config/plans";
+import { BRAND } from "@/config/brand";
+import { FREE_TEMPLATES, PLANS, PRO_TRIAL } from "@/config/plans";
+import { planPrice, trialPrice } from "@/lib/billing/prices";
 import { TEMPLATE_INFO } from "@/lib/pdf/templates";
 import { TEMPLATE_IDS } from "@/lib/resume/schema";
+import { SEO_LIMITS } from "@/lib/seo/limits";
 import {
   ATS_GUIDES,
   type AtsGuide,
@@ -11,7 +15,7 @@ import {
   readsFiles,
 } from "./ats";
 import { COMPETITORS, COMPETITORS_CHECKED, type Competitor, compareTitle } from "./compare";
-import { SEO_PAGES_UPDATED, SEO_PATHS, atsPath, comparePath } from "./paths";
+import { PRODUCT_PAGES_UPDATED, SEO_PAGES_UPDATED, SEO_PATHS, atsPath, comparePath } from "./paths";
 
 export type SeoPage = {
   path: string;
@@ -37,34 +41,72 @@ export function calendarDate(day: string): string {
   return longDate.format(new Date(`${day}T00:00:00Z`));
 }
 
+// A title too long for a search result keeps its keywords and drops the brand.
+function fitTitle(title: string): Pick<SeoPage, "title" | "absoluteTitle"> {
+  return `${title}${TITLE_SUFFIX}`.length <= SEO_LIMITS.title
+    ? { title }
+    : { title, absoluteTitle: true };
+}
+
+export const HOME_PAGE: SeoPage = {
+  path: ROUTES.home,
+  title: `Free ATS resume checker and builder with AI${TITLE_SUFFIX}`,
+  absoluteTitle: true,
+  description: `Free ATS resume checker: upload your resume, see the text hiring software reads, fix weak lines with ${BRAND.mascotName}'s AI help and download a clean PDF for free.`,
+  lastModified: PRODUCT_PAGES_UPDATED,
+};
+
+export function pricingPage(trial: boolean): SeoPage {
+  const { free, pro, max } = PLANS;
+  const close = trial
+    ? `Try ${pro.name} ${PRO_TRIAL.days} days for ${trialPrice()}.`
+    : "Cancel anytime.";
+  return {
+    path: ROUTES.pricing,
+    title: `Pricing and plans: ${free.name}, ${pro.name} and ${max.name}`,
+    description: `One resume is free to check, fix and download as a PDF. ${pro.name} is ${planPrice("pro", "month")} a month for tailoring, cover letters and all formats; ${max.name} is ${planPrice("max", "month")}. ${close}`,
+    lastModified: PRODUCT_PAGES_UPDATED,
+  };
+}
+
+export const JOB_MATCH_PAGE: SeoPage = {
+  path: SEO_PATHS.jobMatch,
+  title: "Free resume to job description match checker",
+  description:
+    "Paste your resume and a job post or its link to see which skills and tools the post names, which your resume shows and which are missing. Free, no sign-in.",
+  lastModified: PRODUCT_PAGES_UPDATED,
+};
+
 export const RESUME_TEMPLATES_PAGE: SeoPage = {
   path: SEO_PATHS.resumeTemplates,
-  title: `Resume templates: ${FREE_TEMPLATES.length} free, all one column of real text`,
-  description: `${TEMPLATE_IDS.length} resume formats, each one column of real text, tested by reading the PDF back. ${freeFormats} are free to download as PDFs with no paywall; the other ${TEMPLATE_IDS.length - FREE_TEMPLATES.length} come with Pro.`,
+  title: `ATS resume templates: ${TEMPLATE_IDS.length} formats, ${FREE_TEMPLATES.length} free`,
+  description: `${TEMPLATE_IDS.length} resume templates, each one column of real text, tested by reading the PDF back. ${freeFormats} are free to download as PDFs; ${TEMPLATE_IDS.length - FREE_TEMPLATES.length} more come with ${PLANS.pro.name}.`,
   lastModified: SEO_PAGES_UPDATED,
 };
 
 export const ATS_INDEX_PAGE: SeoPage = {
   path: SEO_PATHS.ats,
-  title: "ATS guides: how hiring software reads your resume",
-  description: `Sourced notes on ${ATS_GUIDES.length} applicant tracking systems, from Greenhouse and Workday to Taleo: how they read files, screen applicants and rank them with AI, linked to the pages each note comes from.`,
+  title: "ATS guides: how hiring software reads resumes",
+  description: `How ${ATS_GUIDES.length} applicant tracking systems, from Greenhouse and Workday to Taleo, read resumes, screen applicants and rank them with AI. Each note links its source.`,
   lastModified: SEO_PAGES_UPDATED,
 };
 
 export const COMPARE_INDEX_PAGE: SeoPage = {
   path: SEO_PATHS.compare,
-  title: "Compare Otto Sensei with other resume tools",
+  title: `${BRAND.name} vs ${competitorNames} compared`,
   absoluteTitle: true,
-  description: `Fair, sourced comparisons of Otto Sensei with ${competitorNames}: what each does well, what the plans include, and where they differ.`,
+  description: `Fair, sourced comparisons of ${BRAND.name} with ${competitorNames}: what each does well, what the plans include, and where they differ.`,
   lastModified: COMPETITORS_CHECKED,
 };
 
 export function atsGuidePage(guide: AtsGuide): SeoPage {
   return {
     path: atsPath(guide.id),
-    title: readsFiles(guide)
-      ? `${guide.name} ATS: how it reads your resume`
-      : `${guide.name} ATS: what it does with your application`,
+    ...fitTitle(
+      readsFiles(guide)
+        ? `${guide.name} ATS: how it reads your resume`
+        : `${guide.name} ATS: what it does with your application`,
+    ),
     description: guideDescription(guide),
     lastModified: SEO_PAGES_UPDATED,
     noindex: !isIndexed(guide),
@@ -74,9 +116,9 @@ export function atsGuidePage(guide: AtsGuide): SeoPage {
 export function comparePage(competitor: Competitor): SeoPage {
   return {
     path: comparePath(competitor.slug),
-    title: compareTitle(competitor),
+    title: `${competitor.name} alternative: ${compareTitle(competitor)} compared`,
     absoluteTitle: true,
-    description: `${compareTitle(competitor)}: what each does well, what the free and paid plans include, and where they differ. From each product's own pages, checked ${calendarDate(COMPETITORS_CHECKED)}.`,
+    description: `${compareTitle(competitor)}: what each does well, what the free and paid plans include, and where they differ. Sourced from each product's own pages.`,
     lastModified: COMPETITORS_CHECKED,
   };
 }
