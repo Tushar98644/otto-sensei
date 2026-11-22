@@ -1,10 +1,13 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { GET as listApplications } from "@/app/api/applications/route";
+import { GET as readCareerLog } from "@/app/api/career-log/route";
+import { GET as readEmailTracking } from "@/app/api/email-tracking/route";
 import { GET as readNotifications } from "@/app/api/notifications/route";
 import { GET as readWorkProfile } from "@/app/api/profile/route";
 import { saveBackup } from "@/app/api/resumes/backups";
 import { DELETE as deleteResume } from "@/app/api/resumes/[id]/route";
 import { POST as listResumes } from "@/app/api/resumes/route";
+import { GET as readSavedPosts } from "@/app/api/saved-posts/route";
 import { GET as readAccountSetup } from "@/app/api/setup/route";
 import { GET as readWritings } from "@/app/api/writings/route";
 import {
@@ -47,6 +50,9 @@ describe("dashboardSeeds", () => {
     expect(await seeds.applications).toEqual(
       await routeJson(listApplications(new Request("http://localhost/api/applications"))),
     );
+    expect(await seeds.savedPosts).toEqual(await routeJson(readSavedPosts()));
+    expect(await seeds.emailTracking).toEqual(await routeJson(readEmailTracking()));
+    expect(await seeds.careerLog).toEqual(await routeJson(readCareerLog()));
   });
 
   it("asks for the shell's and the shared reads everywhere, and only the page's own besides", async () => {
@@ -67,6 +73,12 @@ describe("dashboardSeeds", () => {
     expect(keysOf(dashboardSeeds(user, "/dashboard/jobs"))).toEqual(everywhere);
     expect(keysOf(dashboardSeeds(user, "/dashboard/portfolio"))).toEqual(
       [...everywhere, "githubConnection", "portfolio"].sort(),
+    );
+    expect(keysOf(dashboardSeeds(user, "/dashboard/applications"))).toEqual(
+      [...everywhere, "careerLog", "emailTracking", "savedPosts"].sort(),
+    );
+    expect(keysOf(dashboardSeeds(user, "/dashboard/career-log/check-in?month=2026-10"))).toEqual(
+      [...everywhere, "careerLog"].sort(),
     );
   });
 

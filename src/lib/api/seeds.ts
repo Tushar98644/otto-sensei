@@ -14,6 +14,9 @@ export type SeedKey =
   | "portfolio"
   | "shares"
   | "githubConnection"
+  | "savedPosts"
+  | "emailTracking"
+  | "careerLog"
   | "resumeVersions";
 
 // Each resolves to the route's own JSON answer, or null when the browser should ask the route itself.

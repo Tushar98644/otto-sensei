@@ -306,7 +306,10 @@ export const api = {
     request<JobPostResponse>(`/api/jobs/${encodeURIComponent(id)}`, { cache: "no-store" }),
   savedJobs: () =>
     seeded("savedJobs", () => request<SavedJobsResponse>("/api/jobs/saved", { cache: "no-store" })),
-  savedPosts: () => request<SavedPostsResponse>("/api/saved-posts", { cache: "no-store" }),
+  savedPosts: () =>
+    seeded("savedPosts", () =>
+      request<SavedPostsResponse>("/api/saved-posts", { cache: "no-store" }),
+    ),
   savedPost: (id: string) =>
     request<SavedPostResponse>(`/api/saved-posts/${encodeURIComponent(id)}`, { cache: "no-store" }),
   removeSavedPost: (id: string, { keepalive = false }: { keepalive?: boolean } = {}) =>
@@ -370,7 +373,10 @@ export const api = {
     }),
   createApplication: (body: CreateApplicationBody) =>
     request<ApplicationResponse>("/api/applications", postJson(body)),
-  emailTracking: () => request<EmailTrackingResponse>("/api/email-tracking", { cache: "no-store" }),
+  emailTracking: () =>
+    seeded("emailTracking", () =>
+      request<EmailTrackingResponse>("/api/email-tracking", { cache: "no-store" }),
+    ),
   emailTrackingAction: (body: EmailTrackingAction) =>
     request<EmailTrackingResponse>("/api/email-tracking", postJson(body)),
   checkEmailHandle: (handle: string, signal?: AbortSignal) =>
@@ -497,7 +503,8 @@ export const api = {
   ) => request<ContentResponse>("/api/portfolio/content", { ...postJson(body, "PUT"), keepalive }),
   refreshPortfolioGitHub: () =>
     request<GitHubRefreshResponse>("/api/portfolio/github", { method: "POST" }),
-  careerLog: () => request<CareerLogResponse>("/api/career-log", { cache: "no-store" }),
+  careerLog: () =>
+    seeded("careerLog", () => request<CareerLogResponse>("/api/career-log", { cache: "no-store" })),
   saveCareerEntry: (
     month: string,
     body: EntryChangeBody,
