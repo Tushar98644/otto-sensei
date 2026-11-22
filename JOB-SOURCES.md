@@ -43,6 +43,29 @@ Rules that apply to every source we use:
 
 To add a company: find its board token in its careers page links (`boards.greenhouse.io/<token>`, `jobs.lever.co/<token>`, `jobs.ashbyhq.com/<token>`, `apply.workable.com/<account>`, `<company>.recruitee.com`, `<company>.jobs.personio.de`), check the API answers with jobs, add a line to `seeds.ts`. A board removed from the file has its jobs closed on the next run.
 
+## How many jobs Otto shows
+
+The number on the Jobs tab and `/jobs` ("open jobs") is `countShownJobs` in `records.ts`: rows in `jobs` that are open (`closed_at` null), not a general-application post (`evergreen`, from `isFillerTitle`), and first posted within 90 days (`least(posted_at, first_seen_at)`, so a board's own date counts when it is earlier than our first read). It counts rows, so a job listed in three cities counts three times; matching works on openings (`job_match`, one per `group_key`). The match index stores it as `job_counts.open_jobs` after every ingest.
+
+Measured on 2026-11-22 on a full local read of every board and Workday site (89,624 rows):
+
+| Source | Open | General application | Older than 90 days | Shown | Openings |
+|---|---|---|---|---|---|
+| Workday (147 sites) | 36,203 | 63 | 1,004 | 35,136 | 33,654 |
+| Greenhouse | 30,225 | 136 | 9,782 | 20,307 | 18,370 |
+| Ashby | 13,574 | 38 | 3,509 | 10,027 | 9,509 |
+| Workable | 4,189 | 8 | 1,085 | 3,096 | 2,888 |
+| Lever | 3,839 | 9 | 2,119 | 1,711 | 1,616 |
+| Jobicy, Remote OK, Himalayas | 1,408 | 0 | 0 | 1,408 | 1,380 |
+| Recruitee, Personio | 47 | 0 | 7 | 40 | 40 |
+| **All** | **89,485** | **254** | **17,506** | **71,725** | **67,300** |
+
+- **The 90-day rule** hides 17,506 open jobs (20%), most of them long-open Greenhouse, Ashby and Lever posts; 180 days would show 80,398 and no age rule 89,231. Dropping general-application posts hides only 254.
+- **Openings by country** (match index; a post that names several countries counts in each): US 39,672 (21,827 from Workday), UK 5,388 (2,382), India 3,219 (1,101), Canada 2,676 (655), Germany 2,222 (1,018), Australia 1,441 (744), Brazil 1,114 (423), Mexico 917 (547). 1,181 openings name no place and 45 are open to anywhere.
+- **Why production showed 39,976:** the non-Workday boards alone give about 36,600 shown jobs, so production had about 3,400 Workday jobs on 2026-11-22, the day the sites were added. The first read of all 147 sites is about 44,000 post reads at 1.5 s each on at most 2 workers, about 10 days of daily runs. When it finishes the count settles at about **72,000 shown jobs (67,000 openings)**, not 100,000: that is everything the seeded boards list within the current limits.
+- **No bug found in the count.** Nothing closed wrongly (the only closes were 136 cross-source duplicates and 3 Workday posts gone), all but 7 boards answered (5 Greenhouse and Ashby tokens are gone and 2 Lever reads failed, all with no jobs), dedupe merges only the same company, title and place (89,231 open rows, 89,231 distinct keys), and the 90-day rule uses the earlier of the board's date and our first read, as documented. Workday posts give an exact start date, so their dates are real, not the list's "Posted 30+ Days Ago".
+- **What limits it:** Workday's 300 newest jobs per site (`WORKDAY_LIMITS.perBoard`). The 147 sites list 147,663 jobs; 300 a site keeps at most 38,526 of them. 600 a site would keep 66,739 (about 99,000 shown in all), 1,000 would keep 93,307, but each extra post is a 1.5 s read and the daily runs are already nearly full with Workday, so a higher cap needs more ingest time a day (a second daily run, or more calls per run). That and a longer age window are the owner's call.
+
 ## Visa registers
 
 Company facts for the job card ("Listed as a UK visa sponsor") and the work-rights check. Never a promise about one job: a licence or past petitions say a company can and did sponsor, not that it will. Checked on 2026-11-09.

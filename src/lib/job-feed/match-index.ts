@@ -124,7 +124,6 @@ export async function rebuildMatchIndex(db: Db, now: number): Promise<number | n
       groupKey: jobs.groupKey,
       company: jobs.company,
       title: jobs.title,
-      family: jobs.family,
       occupation: jobs.occupation,
       seniority: jobs.seniority,
       keywords: jobs.keywords,
@@ -199,9 +198,10 @@ export async function rebuildMatchIndex(db: Db, now: number): Promise<number | n
       continue;
     }
     const facts = visa.get(companyKey(row.company));
-    const read = row.occupation ? null : readTitle(row.title);
-    const occ = row.occupation ?? read?.occupation ?? null;
-    const family = row.family && familyFits(row.family, occ) ? row.family : (read?.family ?? null);
+    // Read again from the title, so a change to the title rules reaches every stored job.
+    const read = readTitle(row.title);
+    const occ = read.occupation ?? row.occupation;
+    const family = read.family && familyFits(read.family, occ) ? read.family : null;
     openings.set(grp, {
       id: row.id,
       grp,

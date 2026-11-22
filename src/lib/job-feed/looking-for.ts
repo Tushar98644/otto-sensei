@@ -7,7 +7,7 @@ import {
   type PlaceGroup,
 } from "@/lib/eligibility/places";
 import type { WorkProfile } from "@/lib/eligibility/profile";
-import { roleFamily, SENIORITY_RANK, seniorityForYears, seniorityOf } from "./roles";
+import { roleFamily, SENIORITY_RANK, seniorityForYears, seniorityOf, skillsFamily } from "./roles";
 import {
   NO_CHOICE,
   PLACE_GROUPS,
@@ -110,15 +110,26 @@ export function placeFromProfile(profile: WorkProfile | null): PlaceChoice {
   return placeContains(EU_GROUP, country) ? "g:eu" : `c:${country}`;
 }
 
+const NO_ROLE: RoleOption = { title: "", family: null, occupation: null };
+
+// A title that names no kind of role yields to a clear lead in the skills, then to "Any role".
+function guessedRole(
+  profile: Pick<MatchProfile, "titles"> & { skills?: readonly string[] },
+): RoleOption {
+  const options = roleOptions(profile);
+  const named = options.find((option) => option.family !== null);
+  if (named) return named;
+  const family = skillsFamily(profile.skills ?? []);
+  if (family) return { ...NO_ROLE, family };
+  return options[0] ?? NO_ROLE;
+}
+
 export function lookingForOf(
-  profile: Pick<MatchProfile, "titles" | "years">,
+  profile: Pick<MatchProfile, "titles" | "years"> & { skills?: readonly string[] },
   work: WorkProfile | null,
   choice: LookingForChoice = NO_CHOICE,
 ): LookingFor {
-  const [latest] = roleOptions(profile).filter((option) => option.family !== null);
-  const role = choice.role ??
-    latest ??
-    roleOptions(profile)[0] ?? { title: "", family: null, occupation: null };
+  const role = choice.role ?? guessedRole(profile);
   return {
     title: role.title,
     family: role.family,

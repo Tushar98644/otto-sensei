@@ -1,59 +1,90 @@
 import type { RoleFamily, Seniority } from "./types";
 
+// The role is the title's first part with a named kind ("Software Engineer, Compliance" is engineering).
 const FAMILY_RULES: readonly (readonly [RoleFamily, RegExp])[] = [
   [
     "design",
-    /\b(?:designer|design (?:lead|manager|director)|ux|ui\/ux|user research(?:er)?|design researcher|illustrator|art director)\b/,
+    /\b(?:designer|design (?:lead|manager|director)|ux|ui\/ux|user research(?:er)?|design researcher|illustrator|art director)\b|^design$/g,
   ],
   [
     "marketing",
-    /\b(?:marketing|marketer|growth (?:manager|lead|marketer)|seo|sem|content (?:writer|strategist|lead|manager|designer)|copywriter|brand (?:manager|lead|strategist)|communications|social media|demand gen\w*|lifecycle|pr manager)\b/,
+    /\b(?:marketing|marketer|growth (?:manager|lead|marketer)|seo|sem|content (?:writer|strategist|lead|manager|designer)|copywriter|brand (?:manager|lead|strategist)|communications|social media|demand gen\w*|lifecycle|pr manager)\b/g,
   ],
   [
     "sales",
-    /\b(?:sales|account (?:executive|manager)|ae|sdr|bdr|business development|account director|partnerships?|revenue|go[- ]to[- ]market|gtm)\b/,
+    /\b(?:sales(?: engineer(?:ing)?)?|presales|pre-sales|account (?:executive|manager)|ae|sdr|bdr|business development|account director|partnerships?|revenue|go[- ]to[- ]market|gtm)\b/g,
   ],
   [
     "data",
-    /\b(?:data (?:scientist|science|analyst|analytics|engineer(?:ing)?|architect)|analytics|machine learning|ml(?:ops)? engineer|ai engineer|research scientist|applied scientist|statistician|business intelligence|bi (?:analyst|developer|engineer)|quantitative|quant)\b/,
+    /\b(?:data (?:scientist|science|analyst|analytics|engineer(?:ing)?|architect)|analytics(?: engineer)?|machine learning(?: engineer(?:ing)?)?|(?:ml(?:ops)?|ai|ai\/ml|bi) engineer(?:ing)?|research scientist|applied scientist|statistician|business intelligence(?: developer| engineer)?|bi (?:analyst|developer)|quantitative|quant)\b/g,
   ],
   [
     "product",
-    /\b(?:product (?:manager|owner|lead|director|management)|pm|head of product|vp,? product|chief product)\b/,
+    /\b(?:product (?:manager|owner|lead|director|management)|pm|head of product|vp,? product|chief product)\b|^product(?: management)?$/g,
   ],
   [
     "support",
-    /\b(?:support|customer success|customer experience|success manager|implementation (?:manager|specialist|consultant)|onboarding|technical account manager|help ?desk|service desk)\b/,
+    /\b(?:support(?: engineer| specialist| analyst| technician)?|customer success(?: engineer)?|customer experience|success manager|implementation (?:manager|specialist|consultant)|onboarding|technical account manager|help ?desk|service desk)\b/g,
   ],
   [
     "people",
-    /\b(?:recruit(?:er|ing|ment)|talent|people (?:partner|operations|ops|team|business partner)|hr|human resources|sourcer)\b/,
+    /\b(?:recruit(?:er|ing|ment)|talent|people (?:partner|operations|ops|team|business partner)|hr|human resources|sourcer)\b/g,
   ],
   [
     "finance",
-    /\b(?:finance|financial|accountant|accounting|controller|fp&a|tax|payroll|treasury|audit(?:or)?|bookkeep\w*|billing specialist|accounts? (?:payable|receivable)|equity administration|stock (?:plan|administration)|credit analyst|underwrit\w*)\b/,
+    /\b(?:finance|financial|accountant|accounting|controller|fp&a|tax(?: compliance)?|payroll|treasury|audit(?:or)?|bookkeep\w*|billing specialist|accounts? (?:payable|receivable)|equity administration|stock (?:plan|administration)|credit analyst|underwrit\w*)\b/g,
   ],
   [
     "legal",
-    /\b(?:counsel|legal|lawyer|attorney|paralegal|compliance|privacy officer|kyc|aml|sanctions)\b/,
+    /\b(?:counsel|legal(?: engineer(?:ing)?)?|lawyer|attorney|paralegal|compliance|privacy officer|kyc|aml|sanctions)\b/g,
   ],
   [
     "engineering",
-    /\b(?:engineer(?:ing)?|developer|programmer|swe|sde|sre|devops|architect|full[- ]?stack|front[- ]?end|back[- ]?end|mobile|ios|android|qa|tester|test automation|cto|tech lead|technical lead)\b/,
+    /\b(?:engineer(?:ing)?|developer|programmer|swe|sde|sre|devops|architect|full[- ]?stack|front[- ]?end|back[- ]?end|ios|android|qa|tester|test automation|cto|tech lead|technical lead|systems? administrator|sysadmin|database administrator)\b/g,
   ],
+  ["operations", /\b(?:chief of staff|office manager|executive assistant)\b/g],
+];
+
+// Words that name a kind only when nothing more specific does ("Recruiting Coordinator" is people).
+const GENERIC_RULES: readonly (readonly [RoleFamily, RegExp])[] = [
   [
     "operations",
-    /\b(?:operations|ops|program manager|project manager|chief of staff|strategy|business analyst|office manager|executive assistant|coordinator|administrator)\b/,
+    /\b(?:operations|ops|program manager|project manager|strategy|business analyst|coordinator|administrator)\b/g,
   ],
-  ["marketing", /\b(?:ads|paid media|media buyer|campaigns?)\b/],
-  ["people", /\b(?:benefits|compensation|workplace)\b/],
-  ["sales", /\b(?:relationship manager|country manager|account lead)\b/],
-  ["data", /\b(?:analyst|data manager)\b/],
+  ["marketing", /\b(?:ads|paid media|media buyer|campaigns?)\b/g],
+  ["people", /\b(?:benefits|compensation|workplace)\b/g],
+  ["sales", /\b(?:relationship manager|country manager|account lead)\b/g],
+  ["data", /\b(?:analyst|data manager)\b/g],
 ];
+
+const TITLE_PARTS = /\s+[-–—|@•·:]\s+|\s+at\s+|\s*@\s*|\s*[,;|[\]{}]\s*/;
+const BRACKETED = /\(([^)]*)\)/g;
+
+type Rules = readonly (readonly [RoleFamily, RegExp])[];
+
+// Within a part the head noun wins ("Python Finance Developer" is engineering); a tie goes to the earlier rule.
+function lastNamed(text: string, rules: Rules): RoleFamily | null {
+  let best: { family: RoleFamily; end: number } | null = null;
+  for (const [family, rule] of rules) {
+    for (const match of text.matchAll(rule)) {
+      const end = match.index + match[0].length;
+      if (!best || end > best.end) best = { family, end };
+    }
+  }
+  return best?.family ?? null;
+}
 
 export function roleFamily(title: string): RoleFamily | null {
   const text = title.toLowerCase();
-  for (const [family, rule] of FAMILY_RULES) if (rule.test(text)) return family;
+  const asides = [...text.matchAll(BRACKETED)].map((match) => match[1]!);
+  const parts = [...text.replace(BRACKETED, " ").split(TITLE_PARTS), ...asides]
+    .map((part) => part.trim())
+    .filter(Boolean);
+  for (const part of parts) {
+    const family = lastNamed(part, FAMILY_RULES);
+    if (family) return family;
+  }
+  for (const [family, rule] of GENERIC_RULES) if (text.search(rule) !== -1) return family;
   return null;
 }
 
@@ -85,6 +116,203 @@ const FAMILY_OCCUPATIONS: Record<RoleFamily, readonly string[]> = {
   finance: OFFICE,
   legal: OFFICE,
 };
+
+// Skills that point at one kind of role; the rest (Python, SQL, Excel, Jira) are shared by many.
+export const SKILL_FAMILIES: Partial<Record<RoleFamily, readonly string[]>> = {
+  engineering: [
+    "Java",
+    "JavaScript",
+    "TypeScript",
+    "Go",
+    "Rust",
+    "Ruby",
+    "PHP",
+    "Kotlin",
+    "Swift",
+    "Objective-C",
+    "C",
+    "C++",
+    "C#",
+    "Elixir",
+    "Erlang",
+    "Haskell",
+    "Clojure",
+    "OCaml",
+    "Dart",
+    "Elm",
+    "Lua",
+    "Perl",
+    "Solidity",
+    "Bash",
+    "PowerShell",
+    "React",
+    "React Native",
+    "Next.js",
+    "Vue",
+    "Nuxt",
+    "Angular",
+    "Svelte",
+    "Redux",
+    "Webpack",
+    "Vite",
+    "HTML",
+    "CSS",
+    "Sass",
+    "Tailwind CSS",
+    "Storybook",
+    "Jest",
+    "Cypress",
+    "Playwright",
+    "Selenium",
+    "Three.js",
+    "WebGL",
+    "WebAssembly",
+    "iOS",
+    "Android",
+    "SwiftUI",
+    "Jetpack Compose",
+    "Flutter",
+    "Node.js",
+    "NestJS",
+    "Express.js",
+    "Django",
+    "Flask",
+    "FastAPI",
+    "Spring Boot",
+    "Ruby on Rails",
+    "Laravel",
+    ".NET",
+    "GraphQL",
+    "gRPC",
+    "REST",
+    "Microservices",
+    "Distributed systems",
+    "System design",
+    "Serverless",
+    "RabbitMQ",
+    "Kafka",
+    "Redis",
+    "PostgreSQL",
+    "MySQL",
+    "SQLite",
+    "MongoDB",
+    "DynamoDB",
+    "Cassandra",
+    "Elasticsearch",
+    "Terraform",
+    "Pulumi",
+    "Ansible",
+    "Docker",
+    "Kubernetes",
+    "Helm",
+    "CI/CD",
+    "GitHub Actions",
+    "Jenkins",
+    "CircleCI",
+    "Git",
+    "Linux",
+    "Nginx",
+    "Prometheus",
+    "Grafana",
+    "OpenTelemetry",
+    "Penetration testing",
+    "OWASP",
+    "Threat modeling",
+  ],
+  data: [
+    "R",
+    "MATLAB",
+    "Julia",
+    "Snowflake",
+    "BigQuery",
+    "Redshift",
+    "Databricks",
+    "dbt",
+    "Airflow",
+    "Spark",
+    "Flink",
+    "Hadoop",
+    "ETL",
+    "Data modeling",
+    "Data warehousing",
+    "Tableau",
+    "Looker",
+    "Power BI",
+    "Pandas",
+    "NumPy",
+    "Jupyter",
+    "Statistics",
+    "SAS",
+    "SPSS",
+    "Machine learning",
+    "Deep learning",
+    "PyTorch",
+    "TensorFlow",
+    "scikit-learn",
+    "Keras",
+    "NLP",
+    "Computer vision",
+    "Hugging Face",
+    "MLOps",
+    "Reinforcement learning",
+  ],
+  design: [
+    "Figma",
+    "Sketch",
+    "Adobe XD",
+    "Photoshop",
+    "Illustrator",
+    "InDesign",
+    "After Effects",
+    "Framer",
+    "Webflow",
+    "Prototyping",
+    "Wireframing",
+    "User research",
+    "Usability testing",
+    "Design systems",
+    "Interaction design",
+    "Motion design",
+  ],
+  product: ["Roadmapping", "Amplitude", "Mixpanel", "A/B testing"],
+  marketing: [
+    "SEO",
+    "SEM",
+    "Google Ads",
+    "Google Analytics",
+    "HubSpot",
+    "Marketo",
+    "Content marketing",
+    "Copywriting",
+    "Email marketing",
+    "Lifecycle marketing",
+    "Performance marketing",
+    "Marketing automation",
+  ],
+  sales: ["Salesforce", "Salesloft", "MEDDICC", "CRM"],
+  support: ["Zendesk", "Intercom", "Freshdesk"],
+  finance: ["Financial modeling", "FP&A", "GAAP", "IFRS", "NetSuite", "QuickBooks"],
+};
+
+const FAMILY_OF_SKILL = new Map(
+  Object.entries(SKILL_FAMILIES).flatMap(([family, skills]) =>
+    skills.map((skill) => [skill, family as RoleFamily] as const),
+  ),
+);
+
+const SKILLS_GUESS = { least: 3, lead: 2 } as const;
+
+// Only a clear lead counts: three or more skills of one kind, at least twice the next kind's.
+export function skillsFamily(skills: readonly string[]): RoleFamily | null {
+  const counts = new Map<RoleFamily, number>();
+  for (const skill of new Set(skills)) {
+    const family = FAMILY_OF_SKILL.get(skill);
+    if (family) counts.set(family, (counts.get(family) ?? 0) + 1);
+  }
+  const [first, second] = [...counts].sort((a, b) => b[1] - a[1]);
+  if (!first || first[1] < SKILLS_GUESS.least) return null;
+  return !second || first[1] >= SKILLS_GUESS.lead * second[1] ? first[0] : null;
+}
 
 export function familyFits(family: RoleFamily, occupation: string | null): boolean {
   if (occupation === null) return true;

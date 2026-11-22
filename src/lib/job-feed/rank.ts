@@ -73,7 +73,7 @@ const COPIES_CHECKED = 6;
 const PLACES_SHOWN = 2;
 const FREE_POOL = 60;
 
-export const MATCH_VARIANT = "occupation-v5";
+export const MATCH_VARIANT = "occupation-v6";
 
 export function occupationOption(code: string | null): OccupationOption | null {
   const occupation = occupationOf(code);
