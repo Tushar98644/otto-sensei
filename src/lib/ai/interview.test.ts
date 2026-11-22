@@ -558,6 +558,20 @@ describe("the technical round", () => {
     });
   });
 
+  it("waits for both calls before failing, so the meter counts each one", async () => {
+    let finished = false;
+    runStructured.mockImplementation(async (request) => {
+      if (request.task === "letter") throw new AIError("unavailable", "down");
+      await new Promise((resolve) => setTimeout(resolve, 5));
+      finished = true;
+      return TECHNICAL_OUTPUT;
+    });
+    await expect(prepareInterview(makeResume(), JOB)).rejects.toMatchObject({
+      code: "unavailable",
+    });
+    expect(finished).toBe(true);
+  });
+
   it("keeps the person's name and links out of the technical call too", async () => {
     const resume = makeResume();
     resume.basics = { ...resume.basics, name: "Priya Raman", email: "priya.raman@example.com" };

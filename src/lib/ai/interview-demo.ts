@@ -27,7 +27,9 @@ type DemoSet = {
   concepts: readonly DemoQuestion[];
   design: DemoNotes;
   coding: readonly DemoQuestion[];
-  deepDive: DemoNotes & { angles: readonly (readonly [topic: string, ask: string])[] };
+  deepDive: DemoNotes & {
+    angles: readonly (readonly [topic: string, ask: string, keys?: RegExp])[];
+  };
 };
 
 const q = (
@@ -282,12 +284,21 @@ const AI_ML: DemoSet = {
   ],
   deepDive: {
     angles: [
-      ["Measuring quality", "How did you measure quality before and after?"],
+      [
+        "Measuring quality",
+        "How did you measure quality before and after?",
+        /\bevals?\b|quality|accura|label|\btest/,
+      ],
       [
         "Latency and cost",
         "Where did the latency and cost come from, and what did you do about them?",
+        /latenc|cost|fast|cach|stream|speed/,
       ],
-      ["Failure cases", "What failure cases did you see, and how did you guard against them?"],
+      [
+        "Failure cases",
+        "What failure cases did you see, and how did you guard against them?",
+        /guard|fail|error|pii|redact|privacy|safe/,
+      ],
     ],
     covers: [
       "State the problem and the constraint in one or two sentences",
@@ -551,9 +562,18 @@ const BACKEND: DemoSet = {
       [
         "Failures and retries",
         "How did it behave when something it depended on failed, and how did retries stay safe?",
+        /retr|fail|queue|kafka|reconcil|consumer|on-call/,
       ],
-      ["Data model", "What did the data model look like, and what would you change about it now?"],
-      ["Running it in production", "How did you know it was working in production?"],
+      [
+        "Data model",
+        "What did the data model look like, and what would you change about it now?",
+        /api|schema|model|postgres|sql|grpc|data/,
+      ],
+      [
+        "Running it in production",
+        "How did you know it was working in production?",
+        /kubernetes|deploy|on-call|latency|p95|migrat|production/,
+      ],
     ],
     covers: [
       "Draw the flow: what calls what, where state lives, and what is synchronous",
@@ -779,9 +799,17 @@ const FRONTEND: DemoSet = {
   ],
   deepDive: {
     angles: [
-      ["Rendering", "How did it render, and why that way?"],
-      ["Performance", "What made it slow, and how did you measure the fix?"],
-      ["Accessibility", "How did you make sure it worked for keyboard and screen reader users?"],
+      ["Rendering", "How did it render, and why that way?", /react|component|render|next|page/],
+      [
+        "Performance",
+        "What made it slow, and how did you measure the fix?",
+        /performance|slow|load|bundle|lcp|fast/,
+      ],
+      [
+        "Accessibility",
+        "How did you make sure it worked for keyboard and screen reader users?",
+        /accessib|contrast|keyboard|focus|aria|audit/,
+      ],
     ],
     covers: [
       "Explain the component structure and where its state lived",
@@ -923,9 +951,21 @@ const DATA_SCIENCE: DemoSet = {
   ],
   deepDive: {
     angles: [
-      ["Validity", "How did you know the result was real and not noise?"],
-      ["Data quality", "What was wrong with the data, and how did you handle it?"],
-      ["Impact", "What decision changed because of it?"],
+      [
+        "Validity",
+        "How did you know the result was real and not noise?",
+        /test|experiment|a\/b|cuped/,
+      ],
+      [
+        "Data quality",
+        "What was wrong with the data, and how did you handle it?",
+        /clean|dedup|quality|sql|report/,
+      ],
+      [
+        "Impact",
+        "What decision changed because of it?",
+        /model|retention|dashboard|churn|decision/,
+      ],
     ],
     covers: [
       "State the question and the decision it fed into",
@@ -1062,9 +1102,21 @@ const PRODUCT: DemoSet = {
   coding: [],
   deepDive: {
     angles: [
-      ["Deciding what to build", "How did you decide it was the right thing to build?"],
-      ["Measuring impact", "What did you measure before and after, and what surprised you?"],
-      ["Trade-offs", "What trade-off did you make with engineering or design?"],
+      [
+        "Deciding what to build",
+        "How did you decide it was the right thing to build?",
+        /launch|roadmap|own|interview|shipped/,
+      ],
+      [
+        "Measuring impact",
+        "What did you measure before and after, and what surprised you?",
+        /cut|%|ticket|metric|grew|funded/,
+      ],
+      [
+        "Trade-offs",
+        "What trade-off did you make with engineering or design?",
+        /engineering|compliance|team|partner|risk/,
+      ],
     ],
     covers: [
       "Open with the problem and how you found it",
@@ -1114,7 +1166,11 @@ const GENERIC: Omit<DemoSet, "concepts"> = {
   deepDive: {
     angles: [
       ["How it worked", "Walk me through how it worked, end to end."],
-      ["Trade-offs", "What was the hardest trade-off, and what did you give up?"],
+      [
+        "Trade-offs",
+        "What was the hardest trade-off, and what did you give up?",
+        /engineering|compliance|team|partner|risk/,
+      ],
       ["Results", "How did you know it worked?"],
     ],
     covers: [
@@ -1199,6 +1255,22 @@ function designQuestion(resolved: ResolvedFocus, company: string): string {
   return `Let's design something together: ${prompt}. Walk me through how you'd approach it.`;
 }
 
+type Angle = DemoSet["deepDive"]["angles"][number];
+
+// Each line gets the angle its words suggest, so a latency line is asked about latency.
+function anglesFor(lines: readonly Line[], all: readonly Angle[]): Angle[] {
+  const left = [...all];
+  return lines.map((line) => {
+    const text = line.text.toLowerCase();
+    const at = Math.max(
+      0,
+      left.findIndex(([, , keys]) => keys?.test(text) ?? false),
+    );
+    const [angle] = left.length > 0 ? left.splice(at, 1) : [all[0]!];
+    return angle!;
+  });
+}
+
 // The questions the post stresses most, with one beyond the basics from mid-level up, in the order written.
 function pickConcepts(
   all: readonly DemoQuestion[],
@@ -1230,6 +1302,7 @@ export function demoTechnical(
   const conceptCount = Math.min(8, Math.max(4, 10 - deep.length - coding.length));
   const concepts = pickConcepts(set.concepts, resolved.level, post, conceptCount);
 
+  const angles = anglesFor(deep, set.deepDive.angles);
   const notes = (item: DemoNotes) => ({
     covers: [...item.covers],
     pitfalls: [...item.pitfalls],
@@ -1237,7 +1310,7 @@ export function demoTechnical(
   });
   return [
     ...deep.map((line, index): TechnicalQuestion => {
-      const [topic, ask] = set.deepDive.angles[index % set.deepDive.angles.length]!;
+      const [topic, ask] = angles[index]!;
       return {
         kind: "deep-dive",
         topic,
@@ -1263,7 +1336,7 @@ export function demoTechnical(
     })),
     {
       kind: "design",
-      topic: "Design",
+      topic: "",
       question: designQuestion(resolved, job.company),
       assume: `Assume ${scaleFor(BLUEPRINTS[resolved.focus], resolved.level)}.`,
       ...notes(set.design),

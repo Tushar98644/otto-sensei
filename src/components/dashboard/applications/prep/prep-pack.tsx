@@ -1,6 +1,6 @@
 "use client";
 
-import { Braces, MessageCircleQuestion, Play } from "lucide-react";
+import { MessageCircleQuestion, Play } from "lucide-react";
 import { useMemo, useState, type ReactNode } from "react";
 import { CueCardsArt } from "@/components/dashboard/interview/interview-art";
 import { Button } from "@/components/ui/button";
@@ -279,7 +279,7 @@ export function PrepPack({
                           "bg-lavender text-ink shadow-control ring-1 ring-ink/10",
                         )}
                       >
-                        <Braces className="size-4" />
+                        {group.number}
                       </span>
                     ) : (
                       <span

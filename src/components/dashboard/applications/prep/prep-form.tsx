@@ -76,6 +76,10 @@ function dropStartParam() {
   window.history.replaceState(null, "", `${url.pathname}${url.search}${url.hash}`);
 }
 
+function pickedLabel(guess: string | null): string {
+  return guess ? `Pick from the job (${guess})` : "Pick from the job";
+}
+
 function hostOf(url: string): string {
   try {
     return new URL(url).hostname.replace(/^www\./, "");
@@ -395,7 +399,13 @@ export function PrepForm({
                         }))
                       }
                     >
-                      <option value="auto">Pick from the job</option>
+                      <option value="auto">
+                        {pickedLabel(
+                          preview.focus === "post" || preview.focus === null
+                            ? null
+                            : FOCUS_COPY[preview.focus].label,
+                        )}
+                      </option>
                       {ROLE_FOCUSES.map((role) => (
                         <option key={role} value={role}>
                           {FOCUS_COPY[role].label}
@@ -415,7 +425,9 @@ export function PrepForm({
                           }))
                         }
                       >
-                        <option value="auto">Pick from the job</option>
+                        <option value="auto">
+                          {pickedLabel(preview.level === "post" ? null : LEVEL_COPY[preview.level])}
+                        </option>
                         {PREP_LEVELS.map((level) => (
                           <option key={level} value={level}>
                             {LEVEL_COPY[level]}

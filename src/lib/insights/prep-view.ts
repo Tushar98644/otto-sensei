@@ -175,9 +175,10 @@ export function storyUses(
 function technicalText(stop: TechnicalStop): string[] {
   const out = [`Round ${stop.number} · ${stopCopy(stop).label} (${focusLine(stop.section)})`];
   for (const { item, number } of stop.questions) {
-    out.push(
-      `${number}. [${kindLabel(stop.section.focus, item.kind)} · ${item.topic}] ${item.question}`,
-    );
+    const label = [kindLabel(stop.section.focus, item.kind), item.topic]
+      .filter(Boolean)
+      .join(" · ");
+    out.push(`${number}. [${label}] ${item.question}`);
     if (item.assume) out.push(`   ${item.assume}`);
     if (item.resume) out.push(`   From your resume: "${item.resume.line}" (${item.resume.place})`);
     if (item.covers.length > 0)

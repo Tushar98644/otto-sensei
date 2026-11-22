@@ -528,8 +528,8 @@ export async function prepareInterview(
     })),
   };
   const restore = <T>(value: T): T => redactor.restoreDeep(value);
-  // Both calls run at once, so the technical round adds no wait; either one failing fails the whole pack.
-  const [output, technicalOutput] = await Promise.all([
+  // Both calls run at once, so the technical round adds no wait; both settle first so the meter counts each one.
+  const [general, technicalCall] = await Promise.allSettled([
     runStructured({
       task: "letter",
       system: resolved ? INTERVIEW_TECHNICAL_ROLE_PROMPT : INTERVIEW_SYSTEM_PROMPT,
@@ -540,6 +540,10 @@ export async function prepareInterview(
     }).then(restore),
     resolved ? technicalRound(shown, restore, resolved) : null,
   ]);
+  if (general.status === "rejected") throw general.reason;
+  if (technicalCall.status === "rejected") throw technicalCall.reason;
+  const output = general.value;
+  const technicalOutput = technicalCall.value;
   const kept = keptStories(output.stories, prepared.lines);
   const storyIndex = new Map(kept.map((item, index) => [item.lineId, index]));
   const sources = sourcesOf(prepared.resumeText, prepared.job);

@@ -4,7 +4,6 @@ import {
   LEVEL_COPY,
   TECHNICAL_KINDS,
   type ResolvedFocus,
-  type TechnicalKind,
 } from "@/lib/insights/prep-focus";
 import { PREP_LIMITS, type TechnicalQuestion } from "@/lib/insights/prep";
 import { BLUEPRINTS, LEVEL_GUIDE, scaleFor, topicsFor } from "./interview-blueprints";
@@ -125,13 +124,6 @@ function guardedList(
 const KIND_ORDER = new Map(TECHNICAL_KINDS.map((kind, index) => [kind, index]));
 const QUESTION_END = /\p{L}.*[?.]$/u;
 const PROBE_END = /\p{L}.*\?$/u;
-const KIND_TOPIC: Record<TechnicalKind, string> = {
-  "deep-dive": "Your project",
-  concept: "Core concept",
-  design: "Design",
-  coding: "Warm-up",
-};
-
 export function cleanTechnical(
   output: TechnicalOutput,
   lines: readonly Line[],
@@ -161,9 +153,7 @@ export function cleanTechnical(
     if (line && item.kind === "deep-dive") usedLines.add(line.id);
     out.push({
       kind: item.kind,
-      topic:
-        clipWords(unwrap(item.topic).replace(/[.:;]+$/u, ""), PREP_LIMITS.topicChars) ||
-        KIND_TOPIC[item.kind],
+      topic: clipWords(unwrap(item.topic).replace(/[.:;]+$/u, ""), PREP_LIMITS.topicChars),
       question,
       assume:
         item.kind === "design"
