@@ -19,6 +19,8 @@ const EnvSchema = z.object({
   // OpenRouter slugs; each must support structured outputs and reasoning.
   AI_MODEL: stringWithDefault("z-ai/glm-5.3-flash"),
   AI_STRUCTURE_MODEL: stringWithDefault("z-ai/glm-5.3-flash"),
+  // The technical round of interview prep needs deeper knowledge than the writing model has.
+  AI_INTERVIEW_MODEL: stringWithDefault("anthropic/claude-haiku-5.5"),
   NEXT_PUBLIC_SUPABASE_URL: optionalString,
   SUPABASE_URL: optionalString,
   NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: optionalString,

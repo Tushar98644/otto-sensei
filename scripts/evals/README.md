@@ -12,12 +12,31 @@ Each run writes `results.json` and `report.md` to `../otto-sensei-evals/<timesta
 | `--feature`   | Calls                                                                             | Cases                       |
 | ------------- | --------------------------------------------------------------------------------- | --------------------------- |
 | `fix`         | `fixBullet`, as `/api/fix` does                                                   | 25                          |
+| `interview`   | `prepareInterview`, as `/api/interview` does (two calls for a technical role)     | 5                           |
 | `letters`     | `writeCoverLetter` and `writeOutreach`, as `/api/letter` and `/api/outreach` do   | 22 (13 letters, 9 outreach) |
 | `match-check` | `matchCheck` and `matchCheckFromText` (no AI call, so only the judge costs money) | 22                          |
 | `structure`   | `structureResume`, as `/api/import` does                                          | 22                          |
 | `tailor`      | `tailorResume`, as `/api/tailor` does                                             | 23                          |
 
 When the product falls back to its demo or rule-based result, the case counts as an error, not a pass, except where an empty read is the right answer (text that isn't a resume).
+
+## The interview suite
+
+Five synthetic personas, one per role family the technical round covers: AI engineer (mid), backend (senior), frontend (junior), data scientist (mid) and product manager (senior). For a technical role `prepareInterview` makes two calls at once: the general rounds on `AI_MODEL` (the model under test) and the technical round on `AI_INTERVIEW_MODEL`, which `--models` does not change. Set `AI_INTERVIEW_MODEL=<id>` to try another model for the technical round.
+
+The deterministic checks: the focus and level picked, 8 to 12 technical questions, 3 to 6 covers, 1 to 3 pitfalls and 2 probes each, one design question with its scale stated as an assumption, coding warm-ups only when the post names a coding round, at least 4 of the role's blueprint topics covered, deep-dives that cite a real resume line and share its words, no unsourced name or number in anything said about the person, questions pitched at the level, and short general rounds with no skills round beside the technical one.
+
+Each case's golden is the product's own demo pack (`demoInterview`, no AI), so `bun scripts/evals/run.ts --dry-run --feature interview` grades the demo offline, and `src/lib/evals/interview.test.ts` runs every check on it in vitest.
+
+To run it for real (paid; about $0.09 at the price caps for the 5 cases, a few cents at list prices):
+
+```bash
+bun scripts/evals/run.ts --feature interview --max-usd 0.25
+AI_INTERVIEW_MODEL=z-ai/glm-5.3 bun scripts/evals/run.ts --feature interview --lift-price-cap --max-usd 0.50
+bun scripts/evals/run.ts --feature interview --judge google/gemini-3.5-flash-lite --max-usd 0.25
+```
+
+The default judge is the same model as the default technical round, so the third line scores it with a different judge.
 
 ## Running
 
@@ -80,7 +99,7 @@ Every regression counts toward exit code 2, and the report says how many came fr
 
 `.github/workflows/evals.yml` runs every suite on `AI_MODEL`'s default model, with the judge on and `--max-usd 0.50`:
 
-- **On a push to `main`** that changes code the suites exercise: `src/lib/ai/**` (fix, tailor, structure, the letters and outreach writer in `writing.ts`, the prompts and the client), `src/lib/tailor/**`, `src/lib/match-check/**`, `src/lib/writing-style/**`, `src/lib/writings/schema.ts`, `src/lib/evals/graders.ts`, `scripts/evals/**`, `scripts/match-eval/resumes.ts` or the workflow itself. Markdown, `*.test.ts` and `scripts/evals/baseline/**` don't count.
+- **On a push to `main`** that changes code the suites exercise: `src/lib/ai/**` (fix, tailor, structure, interview prep, the letters and outreach writer in `writing.ts`, the prompts and the client), `src/lib/insights/prep*.ts`, `src/lib/tailor/**`, `src/lib/match-check/**`, `src/lib/writing-style/**`, `src/lib/writings/schema.ts`, `src/lib/evals/graders.ts`, `scripts/evals/**`, `scripts/match-eval/resumes.ts` or the workflow itself. Markdown, `*.test.ts` and `scripts/evals/baseline/**` don't count.
 - **Every Monday** at 06:17 UTC.
 - **By hand**: Actions > Evals > Run workflow, with `models` (a comma list; empty means `AI_MODEL`'s default), `feature` (`all`, a suite or a comma list) and `max-usd`.
 
@@ -113,9 +132,9 @@ Locally, `bun scripts/evals/run.ts --max-usd 0.50 --out scripts/evals/baseline` 
 
 ### Cost per run
 
-The dry run puts the CI run at about $0.09: $0.067 for product calls, priced at the product's cap (`AI_MAX_PRICE`), so an upper bound, and $0.022 for the judge (`anthropic/claude-haiku-5.5`, $0.10 in and $0.50 out per million tokens). `match-check` makes no product call, so it costs only its judge calls. Retries, the second letter draft and moderation calls add a little. The run prints a live estimate before it starts, and the report says what it spent.
+The dry run puts the CI run at about $0.18: $0.154 for product calls, priced at the product's caps (`AI_MAX_PRICE`, and `AI_INTERVIEW_MAX_PRICE` for the interview's technical round), so an upper bound, and $0.024 for the judge (`anthropic/claude-haiku-5.5`, $0.10 in and $0.50 out per million tokens). The interview suite is about half of it. `match-check` makes no product call, so it costs only its judge calls. Retries, the second letter draft and moderation calls add a little. The run prints a live estimate before it starts, and the report says what it spent.
 
-That makes the weekly run about $0.40 a month, plus about $0.09 for each push that changes the AI code. A run by hand costs about that per model; raise `max-usd` for several models or pricier ones. `bun scripts/evals/run.ts --dry-run` prints the current estimate.
+That makes the weekly run about $0.80 a month at most, plus about $0.18 for each push that changes the AI code. A run by hand costs about that per model; raise `max-usd` for several models or pricier ones. `bun scripts/evals/run.ts --dry-run` prints the current estimate.
 
 ## Adding a suite
 

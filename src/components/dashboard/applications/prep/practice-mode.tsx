@@ -20,7 +20,7 @@ import { Field } from "@/components/ui/field";
 import { Kbd } from "@/components/ui/kbd";
 import { VoiceTextarea } from "@/components/ui/voice-field";
 import type { InterviewPrep, PrepTarget } from "@/lib/insights/prep";
-import { prepRounds, ROUND_COPY } from "@/lib/insights/prep-view";
+import { practiceSteps } from "@/lib/insights/prep-view";
 import { cn } from "@/lib/utils";
 import { PracticeTimer } from "./practice-timer";
 import {
@@ -32,6 +32,7 @@ import {
 } from "./practice-store";
 import { AnswerNotes, MarkChip } from "./prep-question";
 import { ResumeSlip, StarOutline } from "./prep-story";
+import { AssumeNote, TechnicalNotes } from "./prep-technical";
 import { AskBubbles, Speaker } from "./speech";
 
 const SPOKEN =
@@ -61,13 +62,7 @@ const SEGMENT: Record<PracticeMark | "none", string> = {
 };
 
 export function PracticeMode({ prep, target, storageKey, startAt, onClose }: PracticeModeProps) {
-  const steps = useMemo(
-    () =>
-      prepRounds(prep).flatMap((group) =>
-        group.questions.map((question) => ({ ...question, roundNumber: group.number })),
-      ),
-    [prep],
-  );
+  const steps = useMemo(() => practiceSteps(prep), [prep]);
   const record = usePractice(storageKey);
   const all = useMemo(() => steps.map((_, index) => index), [steps]);
   const [queue, setQueue] = useState<number[]>(all);
@@ -88,7 +83,10 @@ export function PracticeMode({ prep, target, storageKey, startAt, onClose }: Pra
 
   const current = position < queue.length ? queue[position] : undefined;
   const step = current === undefined ? undefined : steps[current];
-  const story = step && step.item.story !== null ? prep.stories[step.item.story] : undefined;
+  const story =
+    step?.kind === "general" && step.item.story !== null
+      ? prep.stories[step.item.story]
+      : undefined;
   const role = [target.role || prep.job.title, target.company || prep.job.company]
     .filter(Boolean)
     .join(" at ");
@@ -209,7 +207,7 @@ export function PracticeMode({ prep, target, storageKey, startAt, onClose }: Pra
               <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
                 <Eyebrow className="flex flex-wrap gap-x-2">
                   <span>
-                    Round {step.roundNumber} · {ROUND_COPY[step.item.round].label}
+                    Round {step.stop} · {step.label}
                   </span>
                   <span aria-hidden>·</span>
                   <span>
@@ -224,6 +222,9 @@ export function PracticeMode({ prep, target, storageKey, startAt, onClose }: Pra
               <h2 ref={headingRef} tabIndex={-1} className={cn(SPOKEN, "mt-5")}>
                 “{step.item.question}”
               </h2>
+              {step.kind === "technical" && step.item.assume ? (
+                <AssumeNote text={step.item.assume} className="mt-5" />
+              ) : null}
 
               <Field
                 className="mt-10"
@@ -259,7 +260,11 @@ export function PracticeMode({ prep, target, storageKey, startAt, onClose }: Pra
                 hidden={!outline}
                 className="mt-6 flex flex-col gap-6 rounded-3xl bg-surface-muted p-5 motion-safe:animate-fade-in sm:p-8"
               >
-                <AnswerNotes item={step.item} story={null} checking />
+                {step.kind === "technical" ? (
+                  <TechnicalNotes item={step.item} />
+                ) : (
+                  <AnswerNotes item={step.item} story={null} checking />
+                )}
                 {story ? (
                   <div className="flex flex-col gap-4">
                     <Eyebrow>Your story · {story.title}</Eyebrow>

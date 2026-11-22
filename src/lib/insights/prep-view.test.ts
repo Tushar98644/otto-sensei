@@ -1,12 +1,13 @@
 import { describe, expect, it } from "vitest";
 import { emptyResume, type Resume } from "@/lib/resume/schema";
-import type { InterviewPrep } from "./prep";
+import type { InterviewPrep, TechnicalSection } from "./prep";
 import {
   countBlanks,
   orderedQuestions,
+  practiceSteps,
   prepJobSource,
   prepResume,
-  prepRounds,
+  prepStops,
   prepToText,
   splitBlanks,
   storyUses,
@@ -20,7 +21,14 @@ function tailored(id: string, extra: Record<string, unknown> = {}, updatedAt = 1
     ...emptyResume(updatedAt),
     id,
     source: "tailored",
-    tailor: { baseResumeId: "base", jobTitle: "Data Engineer", company: "Mapline", keywords: [], createdAt: 1, ...extra },
+    tailor: {
+      baseResumeId: "base",
+      jobTitle: "Data Engineer",
+      company: "Mapline",
+      keywords: [],
+      createdAt: 1,
+      ...extra,
+    },
     updatedAt,
   };
 }
@@ -36,7 +44,8 @@ const STORY = {
 };
 
 const PREP: InterviewPrep = {
-  version: 2,
+  version: 3,
+  technical: null,
   job: { title: "Data Engineer", company: "Mapline" },
   questions: [
     {
@@ -58,7 +67,9 @@ const QUESTION = { checking: "", followUp: "", points: [], story: null };
 
 describe("prepJobSource", () => {
   it("uses the post saved with the copy first", () => {
-    expect(prepJobSource({ jobUrl: "https://x.example/j" }, tailored("a", { jobText: POST }))).toEqual({
+    expect(
+      prepJobSource({ jobUrl: "https://x.example/j" }, tailored("a", { jobText: POST })),
+    ).toEqual({
       kind: "saved",
       text: POST.trim(),
     });
@@ -69,10 +80,12 @@ describe("prepJobSource", () => {
       kind: "link",
       url: "https://x.example/j",
     });
-    expect(prepJobSource({ jobUrl: "" }, tailored("a", { jobUrl: "https://y.example/k" }))).toEqual({
-      kind: "link",
-      url: "https://y.example/k",
-    });
+    expect(prepJobSource({ jobUrl: "" }, tailored("a", { jobUrl: "https://y.example/k" }))).toEqual(
+      {
+        kind: "link",
+        url: "https://y.example/k",
+      },
+    );
     expect(prepJobSource({ jobUrl: "" }, null)).toEqual({ kind: "paste" });
   });
 
@@ -133,8 +146,37 @@ describe("pack text", () => {
   });
 });
 
+const TECHNICAL: TechnicalSection = {
+  focus: "backend",
+  level: "senior",
+  coding: false,
+  questions: [
+    {
+      kind: "deep-dive",
+      topic: "Idempotent retries",
+      question: "You rebuilt billing in Go. How did you make retries safe to repeat?",
+      assume: "",
+      covers: ["Idempotency keys under a unique constraint", "Replay the stored result on a retry"],
+      pitfalls: ["Calling the provider before recording the attempt"],
+      probes: ["What if the worker dies mid-charge?", "How long do keys live?"],
+      resume: { line: "Rebuilt billing in Go", place: "Engineer at Acme" },
+    },
+    {
+      kind: "design",
+      topic: "Rate limiter",
+      question: "Design a rate limiter for our public API.",
+      assume: "Assume about 1 million users.",
+      covers: ["Token bucket in Redis", "Return 429 with Retry-After"],
+      pitfalls: [],
+      probes: [],
+      resume: null,
+    },
+  ],
+};
+
 describe("rounds", () => {
-  const prep: Pick<InterviewPrep, "questions" | "stories"> = {
+  const prep: Pick<InterviewPrep, "questions" | "stories" | "technical"> = {
+    technical: null,
     stories: [STORY, { ...STORY, title: "Other", line: "Other line" }],
     questions: [
       { ...QUESTION, round: "closing", question: "Anything else?" },
@@ -155,7 +197,11 @@ describe("rounds", () => {
 
   it("groups them by round, numbering only the rounds the pack has", () => {
     expect(
-      prepRounds(prep).map((group) => [group.number, group.round, group.questions.map((q) => q.number)]),
+      prepStops(prep).map((group) => [
+        group.number,
+        group.round,
+        group.questions.map((q) => q.number),
+      ]),
     ).toEqual([
       [1, "opening", [1]],
       [2, "behavioural", [2, 3]],
@@ -165,5 +211,66 @@ describe("rounds", () => {
 
   it("lists which questions each story answers", () => {
     expect(storyUses(prep)).toEqual([[], [2, 3]]);
+  });
+
+  it("runs the technical round after the opening and before the behavioural questions", () => {
+    const withTechnical = { ...prep, technical: TECHNICAL };
+    expect(
+      prepStops(withTechnical).map((group) => [
+        group.number,
+        group.round,
+        group.questions.map((q) => q.number),
+      ]),
+    ).toEqual([
+      [1, "opening", [1]],
+      [2, "technical", [2, 3]],
+      [3, "behavioural", [4, 5]],
+      [4, "closing", [6]],
+    ]);
+    expect(storyUses(withTechnical)).toEqual([[], [4, 5]]);
+    expect(
+      practiceSteps(withTechnical).map((step) => [step.number, step.stop, step.label]),
+    ).toEqual([
+      [1, 1, "Opening"],
+      [2, 2, "Technical · Project deep-dive"],
+      [3, 2, "Technical · System design"],
+      [4, 3, "Behavioural"],
+      [5, 3, "Behavioural"],
+      [6, 4, "Closing"],
+    ]);
+  });
+
+  it("puts the technical round last when the pack has only early rounds, and skips an empty one", () => {
+    const early = { ...prep, questions: prep.questions.filter((item) => item.round === "opening") };
+    expect(prepStops({ ...early, technical: TECHNICAL }).map((group) => group.round)).toEqual([
+      "opening",
+      "technical",
+    ]);
+    expect(
+      prepStops({ ...early, technical: { ...TECHNICAL, questions: [] } }).map(
+        (group) => group.round,
+      ),
+    ).toEqual(["opening"]);
+  });
+});
+
+describe("prepToText with a technical round", () => {
+  it("writes the focus, each question's notes and the resume line it builds on", () => {
+    const text = prepToText(
+      { ...PREP, technical: TECHNICAL },
+      { company: "Mapline", role: "Data Engineer" },
+    );
+    expect(text).toContain("Round 2 · Technical (Backend engineer · Senior)");
+    expect(text).toContain(
+      "2. [Project deep-dive · Idempotent retries] You rebuilt billing in Go. How did you make retries safe to repeat?",
+    );
+    expect(text).toContain('   From your resume: "Rebuilt billing in Go" (Engineer at Acme)');
+    expect(text).toContain(
+      "   What a strong answer covers:\n   - Idempotency keys under a unique constraint",
+    );
+    expect(text).toContain("   Follow-up probes:\n   - What if the worker dies mid-charge?");
+    expect(text).toContain(
+      "3. [System design · Rate limiter] Design a rate limiter for our public API.\n   Assume about 1 million users.",
+    );
   });
 });

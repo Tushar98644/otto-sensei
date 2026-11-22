@@ -12,7 +12,8 @@ import { checkContent, textsOf } from "./moderation";
 import { noteTokens } from "./token-meter";
 import { AIError } from "./types";
 
-export type AITask = "structure" | "fix" | "tailor" | "letter" | "answer" | "outreach";
+export type AITask =
+  "structure" | "fix" | "tailor" | "letter" | "answer" | "outreach" | "interview";
 export type Effort = "low" | "medium";
 
 export type StructuredRequest<T> = {
@@ -34,6 +35,7 @@ const MAX_TOKENS: Record<AITask, number> = {
   letter: 4_000,
   answer: 3_000,
   outreach: 3_000,
+  interview: 10_000,
 };
 // Routes have maxDuration = 60 and work around the call, so all attempts share this deadline.
 const DEADLINE_MS = 50_000;
@@ -100,8 +102,9 @@ export function jsonSchemaFor(schema: z.ZodType): Record<string, unknown> {
 }
 
 export function modelFor(task: AITask): string {
-  const { AI_MODEL, AI_STRUCTURE_MODEL } = env();
-  return task === "structure" ? AI_STRUCTURE_MODEL : AI_MODEL;
+  const { AI_MODEL, AI_STRUCTURE_MODEL, AI_INTERVIEW_MODEL } = env();
+  if (task === "structure") return AI_STRUCTURE_MODEL;
+  return task === "interview" ? AI_INTERVIEW_MODEL : AI_MODEL;
 }
 
 function isClaude(model: string): boolean {
@@ -131,12 +134,18 @@ function requestBody<T>(request: StructuredRequest<T>, model: string) {
       data_collection: "deny",
       sort: "price",
       // US$ per million tokens: caps the worst case if the cheapest endpoints are down.
-      max_price: AI_MAX_PRICE,
+      max_price: maxPriceFor(request.task),
     },
   };
 }
 
 export const AI_MAX_PRICE = { prompt: 0.1, completion: 0.3 } as const;
+// Claude Haiku 5.5 lists at 0.1 in and 0.5 out on every host; the headroom allows a similar model.
+export const AI_INTERVIEW_MAX_PRICE = { prompt: 0.2, completion: 1 } as const;
+
+export function maxPriceFor(task: AITask): { prompt: number; completion: number } {
+  return task === "interview" ? AI_INTERVIEW_MAX_PRICE : AI_MAX_PRICE;
+}
 
 function retryAfterMs(headers: Headers, now: number): number | null {
   const value = headers.get("retry-after");

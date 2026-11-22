@@ -3,7 +3,7 @@ import { getDb } from "@/db/client";
 import { applications, jobs, writings } from "@/db/schema";
 import { readHistory } from "@/lib/applications/status";
 import type { ApplicationThread, ThreadJob } from "@/lib/applications/thread";
-import { readPrep } from "@/lib/insights/prep";
+import { questionCount, readPrep } from "@/lib/insights/prep";
 import { toWriting } from "@/lib/writings/records";
 import { APPLICATION_COLUMNS, toApplication } from "./records";
 
@@ -15,7 +15,11 @@ export async function getApplicationThread(
 ): Promise<ApplicationThread | null> {
   const db = await getDb();
   const [row] = await db
-    .select({ ...APPLICATION_COLUMNS, statusHistory: applications.statusHistory, prep: applications.prep })
+    .select({
+      ...APPLICATION_COLUMNS,
+      statusHistory: applications.statusHistory,
+      prep: applications.prep,
+    })
     .from(applications)
     .where(and(eq(applications.userId, userId), eq(applications.id, id)))
     .limit(1);
@@ -83,7 +87,7 @@ export async function getApplicationThread(
     prep: prep
       ? {
           createdAt: prep.createdAt,
-          questions: prep.questions.length,
+          questions: questionCount(prep),
           stories: prep.stories.length,
           demo: prep.demo,
         }

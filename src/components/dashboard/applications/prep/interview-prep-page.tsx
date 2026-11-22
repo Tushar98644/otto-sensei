@@ -18,7 +18,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "@/components/ui/toast";
 import { api, isApiError } from "@/lib/api/client";
 import { applicationHref } from "@/lib/applications/thread";
-import type { InterviewPrep, PrepTarget } from "@/lib/insights/prep";
+import { questionCount, type InterviewPrep, type PrepTarget } from "@/lib/insights/prep";
 import { countBlanks, prepToText } from "@/lib/insights/prep-view";
 import { useResumeList, useStudioHydrated } from "@/lib/store/resume-store";
 import { pluralize } from "@/lib/utils";
@@ -121,7 +121,7 @@ export function InterviewPrepPage({
   const showPack = target !== null && prep !== null && remaking === false;
   const stats = prep
     ? [
-        pluralize(prep.questions.length, "question"),
+        pluralize(questionCount(prep), "question"),
         pluralize(prep.stories.length, "story", "stories"),
         countBlanks(prep) > 0 ? `${pluralize(countBlanks(prep), "blank")} to fill` : "",
       ]

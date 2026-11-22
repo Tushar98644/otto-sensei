@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowRight, FileText, Link2, type LucideIcon } from "lucide-react";
+import { ArrowRight, Braces, FileText, Link2, type LucideIcon } from "lucide-react";
 import Link from "next/link";
 import {
   useEffect,
@@ -31,6 +31,15 @@ import { VoiceTextarea } from "@/components/ui/voice-field";
 import { nextPlan, PLANS, TEXT_LIMITS } from "@/config/plans";
 import { api, isApiError } from "@/lib/api/client";
 import type { InterviewPrep, PrepTarget } from "@/lib/insights/prep";
+import {
+  AUTO_FOCUS,
+  FOCUS_COPY,
+  LEVEL_COPY,
+  PREP_LEVELS,
+  previewFocus,
+  ROLE_FOCUSES,
+  type FocusChoice,
+} from "@/lib/insights/prep-focus";
 import { prepJobSource, prepResume } from "@/lib/insights/prep-view";
 import { resumeTitle } from "@/lib/resume/ops";
 import type { Resume } from "@/lib/resume/schema";
@@ -123,6 +132,8 @@ export function PrepForm({
   const [stoppedLate, setStoppedLate] = useState(false);
   const [error, setError] = useState<{ message: string; upgrade: boolean } | null>(null);
   const [linkNote, setLinkNote] = useState("");
+  const [focus, setFocus] = useState<FocusChoice>(AUTO_FOCUS);
+  const [tuning, setTuning] = useState(false);
   const runs = useRef(0);
 
   const busy = run !== null;
@@ -182,6 +193,7 @@ export function PrepForm({
         applicationId: target.id,
         resume,
         job: { text: job.text, title: target.role, company: target.company },
+        focus,
       });
       forgetPrepPacks(target.id, result.saved);
       if (live()) onDone({ prep: result.prep, saved: result.saved, fromTitle: job.fromTitle });
@@ -252,6 +264,39 @@ export function PrepForm({
     </Fact>
   );
 
+  const knownPost =
+    source.kind === "saved" ? source.text : needsPaste && !fromTitle ? pasted : null;
+  const preview = previewFocus(target.role, knownPost);
+  const shownFocus =
+    focus.role === "auto" ? preview.focus : focus.role === "none" ? null : focus.role;
+  const shownLevel = focus.level === "auto" ? preview.level : focus.level;
+  const focusFact = (
+    <Fact icon={Braces} label="Technical round">
+      {shownFocus === "post" ? (
+        "Picked from the job post"
+      ) : shownFocus ? (
+        <>
+          <span className="font-medium">{FOCUS_COPY[shownFocus].label}</span>
+          {shownLevel === "post" ? (
+            <span className="text-muted">, level from the post</span>
+          ) : (
+            <span className="text-muted"> · {LEVEL_COPY[shownLevel]}</span>
+          )}
+        </>
+      ) : (
+        <span className="text-muted">None for this kind of role</span>
+      )}
+      {!tuning ? (
+        <>
+          {" · "}
+          <button type="button" className={QUIET_LINK} onClick={() => setTuning(true)}>
+            {shownFocus === null ? "Add one" : "Change"}
+          </button>
+        </>
+      ) : null}
+    </Fact>
+  );
+
   const host = source.kind === "link" ? hostOf(source.url) : "";
   const jobFact = needsPaste ? null : (
     <Fact icon={Link2} label="Job post">
@@ -286,6 +331,7 @@ export function PrepForm({
         <ul className="flex flex-col gap-3 border-t border-border pt-5">
           {resumeFact}
           {jobFact}
+          {focusFact}
         </ul>
         {allowance ? <p className="text-xs/5 text-subtle">{allowance}</p> : null}
       </FolderCard>
@@ -334,6 +380,54 @@ export function PrepForm({
                 resumeFact
               )}
               {jobFact}
+              {tuning ? (
+                <li className="grid gap-3 sm:grid-cols-2">
+                  <Field
+                    label="Technical round"
+                    hint="Otto reads the job title and post to pick one."
+                  >
+                    <Select
+                      value={focus.role}
+                      onChange={(event) =>
+                        setFocus((current) => ({
+                          ...current,
+                          role: event.target.value as FocusChoice["role"],
+                        }))
+                      }
+                    >
+                      <option value="auto">Pick from the job</option>
+                      {ROLE_FOCUSES.map((role) => (
+                        <option key={role} value={role}>
+                          {FOCUS_COPY[role].label}
+                        </option>
+                      ))}
+                      <option value="none">No technical round</option>
+                    </Select>
+                  </Field>
+                  {focus.role !== "none" ? (
+                    <Field label="Level" hint="Sets how deep the questions go.">
+                      <Select
+                        value={focus.level}
+                        onChange={(event) =>
+                          setFocus((current) => ({
+                            ...current,
+                            level: event.target.value as FocusChoice["level"],
+                          }))
+                        }
+                      >
+                        <option value="auto">Pick from the job</option>
+                        {PREP_LEVELS.map((level) => (
+                          <option key={level} value={level}>
+                            {LEVEL_COPY[level]}
+                          </option>
+                        ))}
+                      </Select>
+                    </Field>
+                  ) : null}
+                </li>
+              ) : (
+                focusFact
+              )}
             </ul>
 
             {needsPaste ? (

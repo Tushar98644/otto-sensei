@@ -1,19 +1,27 @@
 "use client";
 
-import { MessageCircleQuestion, Play } from "lucide-react";
+import { Braces, MessageCircleQuestion, Play } from "lucide-react";
 import { useMemo, useState, type ReactNode } from "react";
 import { CueCardsArt } from "@/components/dashboard/interview/interview-art";
 import { Button } from "@/components/ui/button";
 import { Eyebrow } from "@/components/ui/eyebrow";
 import { FolderCard } from "@/components/ui/folder-card";
-import type { InterviewPrep, PrepTarget } from "@/lib/insights/prep";
-import { prepRounds, ROUND_COPY, storyUses, type PrepRoundGroup } from "@/lib/insights/prep-view";
+import { questionCount, type InterviewPrep, type PrepTarget } from "@/lib/insights/prep";
+import {
+  focusLine,
+  practiceSteps,
+  prepStops,
+  stopCopy,
+  storyUses,
+  type PrepStop,
+} from "@/lib/insights/prep-view";
 import { cn, pluralize } from "@/lib/utils";
 import { LazyPractice } from "./lazy-practice";
 import { PracticeMeter } from "./practice-meter";
 import { usePractice } from "./practice-store";
 import { QuestionCard, storyHref, type LinkedStory } from "./prep-question";
 import { StoryCard } from "./prep-story";
+import { TechnicalCard } from "./prep-technical";
 import { AskBubbles } from "./speech";
 
 const YOUR_TURN_ID = "prep-your-turn";
@@ -24,13 +32,13 @@ const CHIP_NODE =
   "flex size-5 items-center justify-center rounded-full text-xs font-medium tabular-nums";
 const TAB_HEADING = "font-sans text-xs/4 font-medium";
 
-function roundId(group: PrepRoundGroup): string {
+function roundId(group: PrepStop): string {
   return `prep-round-${group.round}`;
 }
 
 type Practice = { open: boolean; startAt: number | null };
 
-function Agenda({ rounds, asks }: { rounds: PrepRoundGroup[]; asks: number }) {
+function Agenda({ rounds, asks }: { rounds: PrepStop[]; asks: number }) {
   return (
     <nav aria-label="Rounds" className="xl:hidden">
       <ol className="flex flex-wrap gap-2">
@@ -43,7 +51,7 @@ function Agenda({ rounds, asks }: { rounds: PrepRoundGroup[]; asks: number }) {
               <span aria-hidden className={cn(CHIP_NODE, "bg-surface text-ink")}>
                 {group.number}
               </span>
-              {ROUND_COPY[group.round].label}
+              {stopCopy(group).label}
             </a>
           </li>
         ))}
@@ -72,6 +80,7 @@ function Stop({
   eyebrow,
   title,
   about,
+  badge,
   last = false,
   children,
 }: {
@@ -80,6 +89,7 @@ function Stop({
   eyebrow: string;
   title: string;
   about: string;
+  badge?: ReactNode;
   last?: boolean;
   children: ReactNode;
 }) {
@@ -97,8 +107,11 @@ function Stop({
         </span>
         <div className="flex min-h-8 min-w-0 flex-col justify-center">
           <Eyebrow>{eyebrow}</Eyebrow>
-          <h2 className="mt-1 font-sans text-lg/7 font-medium tracking-tight text-ink">{title}</h2>
-          <p className="text-sm/6 text-muted">{about}</p>
+          <div className="mt-1 flex flex-wrap items-center gap-x-2.5 gap-y-1">
+            <h2 className="font-sans text-lg/7 font-medium tracking-tight text-ink">{title}</h2>
+            {badge}
+          </div>
+          <p className="text-sm/6 text-pretty text-muted">{about}</p>
         </div>
       </div>
       <div className="mt-5">{children}</div>
@@ -114,7 +127,7 @@ function Contents({
   total,
   onPractise,
 }: {
-  rounds: PrepRoundGroup[];
+  rounds: PrepStop[];
   asks: number;
   stories: number;
   got: number;
@@ -137,7 +150,7 @@ function Contents({
                 >
                   {group.number}
                 </span>
-                <span className="min-w-0 flex-1">{ROUND_COPY[group.round].label}</span>
+                <span className="min-w-0 flex-1">{stopCopy(group).label}</span>
                 <span className="text-xs text-subtle tabular-nums">{group.questions.length}</span>
               </a>
             </li>
@@ -195,11 +208,13 @@ export function PrepPack({
   storageKey: string;
 }) {
   const [practice, setPractice] = useState<Practice>({ open: false, startAt: null });
-  const rounds = useMemo(() => prepRounds(prep), [prep]);
+  const rounds = useMemo(() => prepStops(prep), [prep]);
   const uses = useMemo(() => storyUses(prep), [prep]);
   const record = usePractice(storageKey);
-  const total = prep.questions.length;
-  const got = prep.questions.filter((item) => record.marks[item.question] === "got").length;
+  const total = questionCount(prep);
+  const got = useMemo(() => practiceSteps(prep), [prep]).filter(
+    (step) => record.marks[step.item.question] === "got",
+  ).length;
   const startLabel =
     got === 0 ? "Start practising" : got >= total ? "Practise again" : "Keep practising";
 
@@ -257,29 +272,64 @@ export function PrepPack({
                   key={group.round}
                   id={roundId(group)}
                   node={
-                    <span
-                      className={cn(NODE, "bg-surface text-ink shadow-control ring-1 ring-border")}
-                    >
-                      {group.number}
-                    </span>
+                    group.round === "technical" ? (
+                      <span
+                        className={cn(
+                          NODE,
+                          "bg-lavender text-ink shadow-control ring-1 ring-ink/10",
+                        )}
+                      >
+                        <Braces className="size-4" />
+                      </span>
+                    ) : (
+                      <span
+                        className={cn(
+                          NODE,
+                          "bg-surface text-ink shadow-control ring-1 ring-border",
+                        )}
+                      >
+                        {group.number}
+                      </span>
+                    )
                   }
                   eyebrow={`Round ${group.number} · ${pluralize(group.questions.length, "question")}`}
-                  title={ROUND_COPY[group.round].label}
-                  about={ROUND_COPY[group.round].about}
+                  title={stopCopy(group).label}
+                  about={stopCopy(group).about}
+                  badge={
+                    group.round === "technical" ? (
+                      <span className="inline-flex h-6 items-center rounded-full bg-lavender px-2.5 text-xs font-medium text-ink">
+                        {focusLine(group.section)}
+                      </span>
+                    ) : undefined
+                  }
                   last={index === rounds.length - 1 && prep.asks.length === 0}
                 >
-                  <ol className="flex flex-col gap-5">
-                    {group.questions.map(({ item, number }) => (
-                      <QuestionCard
-                        key={item.question}
-                        item={item}
-                        number={number}
-                        total={total}
-                        story={linked(item.story)}
-                        mark={record.marks[item.question]}
-                        onPractise={() => practise(number)}
-                      />
-                    ))}
+                  <ol
+                    className={cn("flex flex-col", group.round === "technical" ? "gap-8" : "gap-5")}
+                  >
+                    {group.round === "technical"
+                      ? group.questions.map(({ item, number }) => (
+                          <TechnicalCard
+                            key={item.question}
+                            item={item}
+                            focus={group.section.focus}
+                            number={number}
+                            total={total}
+                            mark={record.marks[item.question]}
+                            onPractise={() => practise(number)}
+                          />
+                        ))
+                      : group.questions.map(({ item, number }) => (
+                          <QuestionCard
+                            key={item.question}
+                            item={item}
+                            number={number}
+                            total={total}
+                            story={linked(item.story)}
+                            mark={record.marks[item.question]}
+                            onPractise={() => practise(number)}
+                          />
+                        ))}
                   </ol>
                 </Stop>
               ))}

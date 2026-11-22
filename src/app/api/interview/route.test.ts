@@ -110,7 +110,8 @@ describe("POST /api/interview", () => {
     const json = (await res.json()) as InterviewResponse;
     expect(json.demo).toBe(true);
     expect(json.result.saved).toBe(true);
-    expect(json.result.prep.version).toBe(2);
+    expect(json.result.prep.version).toBe(3);
+    expect(json.result.prep.technical).toBeNull();
     expect(json.result.prep.questions[0]?.round).toBe("opening");
     expect(json.result.prep.questions.at(-1)?.round).toBe("closing");
     expect(json.result.prep.stories[0]?.place).toBe("Product Marketing Manager at Brightloop");
@@ -121,7 +122,11 @@ describe("POST /api/interview", () => {
     expect(loaded.status).toBe(200);
     expect(loaded.headers.get("Cache-Control")).toBe("no-store");
     const stored = (await loaded.json()) as InterviewPrepResponse;
-    expect(stored.target).toMatchObject({ id, company: "Contoso", jobUrl: "https://example.com/jobs/1" });
+    expect(stored.target).toMatchObject({
+      id,
+      company: "Contoso",
+      jobUrl: "https://example.com/jobs/1",
+    });
     expect(stored.prep).toEqual(json.result.prep);
   });
 
@@ -146,7 +151,10 @@ describe("POST /api/interview", () => {
     const user = await signInOnTrial(undefined, TRIAL_END);
     const id = await newApplication(user.id);
     const res = await POST(
-      jsonRequest("/api/interview", { ...body(id), job: { text: "Apply now.", title: "", company: "" } }),
+      jsonRequest("/api/interview", {
+        ...body(id),
+        job: { text: "Apply now.", title: "", company: "" },
+      }),
     );
     expect(res.status).toBe(400);
     expect((await getUsage(user)).letter.used).toBe(0);
@@ -181,7 +189,8 @@ describe("prep store", () => {
     const owner = await signInOnTrial("owner@example.com", TRIAL_END);
     const id = await newApplication(owner.id);
     const pack: InterviewPrep = {
-      version: 2,
+      version: 3,
+      technical: null,
       job: { title: "", company: "" },
       questions: [],
       stories: [],
@@ -195,7 +204,38 @@ describe("prep store", () => {
     await expect(savePrep(owner.id, id, { ...pack, asks: ["x".repeat(500)] })).rejects.toThrow();
   });
 
-  it("reads a pack saved before rounds as v2, and lists it", async () => {
+  it("adds a technical round for a technical role, and leaves it out when the person turns it off", async () => {
+    const user = await signInOnTrial(undefined, TRIAL_END);
+    const id = await newApplication(user.id);
+    const backend = {
+      ...body(id),
+      job: {
+        text: "We're hiring a Senior Backend Engineer for our payments API.\nWhat you bring:\n- Postgres and Kafka\n- Idempotent retries\n",
+        title: "Senior Backend Engineer",
+        company: "Contoso",
+      },
+    };
+    const made = (await (
+      await POST(jsonRequest("/api/interview", backend))
+    ).json()) as InterviewResponse;
+    expect(made.result.prep.technical).toMatchObject({
+      focus: "backend",
+      level: "senior",
+      coding: false,
+    });
+    expect(made.result.prep.technical?.questions.length).toBeGreaterThanOrEqual(8);
+    expect(made.result.prep.questions.some((item) => item.round === "skills")).toBe(false);
+
+    const off = { ...backend, focus: { role: "none" as const, level: "auto" as const } };
+    const plain = (await (
+      await POST(jsonRequest("/api/interview", off))
+    ).json()) as InterviewResponse;
+    expect(plain.result.prep.technical).toBeNull();
+    expect(plain.result.prep.questions.some((item) => item.round === "skills")).toBe(true);
+    expect((await getUsage(user)).letter.used).toBe(2);
+  });
+
+  it("reads a pack saved before rounds as v3 with no technical round, and lists it", async () => {
     const owner = await signInOnTrial("owner@example.com", TRIAL_END);
     const id = await newApplication(owner.id);
     const v1 = {
@@ -216,7 +256,8 @@ describe("prep store", () => {
     const res = await prepRequest(id);
     expect(res.status).toBe(200);
     const { prep } = (await res.json()) as InterviewPrepResponse;
-    expect(prep?.version).toBe(2);
+    expect(prep?.version).toBe(3);
+    expect(prep?.technical).toBeNull();
     expect(prep?.questions).toEqual([
       {
         round: "fit",
@@ -240,10 +281,18 @@ describe("GET /api/interview", () => {
     const newer = await newApplication(owner.id);
     await newApplication(owner.id);
     const pack: InterviewPrep = {
-      version: 2,
+      version: 3,
+      technical: null,
       job: { title: "", company: "" },
       questions: [
-        { round: "behavioural", question: "Tell me about a launch.", checking: "", followUp: "", points: [], story: null },
+        {
+          round: "behavioural",
+          question: "Tell me about a launch.",
+          checking: "",
+          followUp: "",
+          points: [],
+          story: null,
+        },
       ],
       stories: [],
       asks: [],
@@ -257,8 +306,19 @@ describe("GET /api/interview", () => {
     expect(res.headers.get("cache-control")).toBe("no-store");
     const { packs } = (await res.json()) as InterviewPacksResponse;
     expect(packs).toEqual([
-      expect.objectContaining({ applicationId: newer, createdAt: NOW, questions: 0, stories: 0, demo: false }),
-      expect.objectContaining({ applicationId: older, company: "Contoso", questions: 1, demo: true }),
+      expect.objectContaining({
+        applicationId: newer,
+        createdAt: NOW,
+        questions: 0,
+        stories: 0,
+        demo: false,
+      }),
+      expect.objectContaining({
+        applicationId: older,
+        company: "Contoso",
+        questions: 1,
+        demo: true,
+      }),
     ]);
 
     cookieJar.clear();
@@ -272,10 +332,14 @@ describe("interview prep guards and failures", () => {
     "Otto couldn't read that job post. Paste the full post (up to 20,000 characters) and try again.";
   const TOO_LONG = "That job post or resume is too long for Otto. Try a shorter job post.";
   const LOAD_FAILED = "Couldn't load your interview prep. Please try again.";
-  const CROSS_SITE: Record<string, string>[] = [{ "sec-fetch-site": "cross-site" }, { origin: "https://evil.example" }];
+  const CROSS_SITE: Record<string, string>[] = [
+    { "sec-fetch-site": "cross-site" },
+    { origin: "https://evil.example" },
+  ];
 
   const PACK: InterviewPrep = {
-    version: 2,
+    version: 3,
+    technical: null,
     job: { title: "Senior Product Marketing Manager", company: "Contoso" },
     questions: [
       {
@@ -294,7 +358,8 @@ describe("interview prep guards and failures", () => {
   };
 
   const lettersUsed = async (user: SessionUser) => (await getUsage(user)).letter.used;
-  const storedPrep = async (userId: string, id: string) => (await getPrep(userId, id))?.prep ?? null;
+  const storedPrep = async (userId: string, id: string) =>
+    (await getPrep(userId, id))?.prep ?? null;
   const prepared = () => vi.mocked(prepareInterview).mock.calls.length;
 
   function send(payload: unknown, headers: Record<string, string> = {}): Promise<Response> {
@@ -311,7 +376,10 @@ describe("interview prep guards and failures", () => {
       id: `long-job-${n}`,
       bullets: Array.from({ length: 40 }, (_, i) => ({
         id: `long-${n}-${i}`,
-        text: `Launch ${n}-${i}: ${"ran the campaign from brief to results. ".repeat(24)}`.slice(0, 1_000),
+        text: `Launch ${n}-${i}: ${"ran the campaign from brief to results. ".repeat(24)}`.slice(
+          0,
+          1_000,
+        ),
       })),
     }));
     return { ...resume, experience };
@@ -389,12 +457,15 @@ describe("interview prep guards and failures", () => {
     expect(tooLong.status).toBe(400);
     expect(await errorOf(tooLong)).toEqual({ code: "bad_request", message: TOO_LONG });
 
-    vi.mocked(prepareInterview).mockRejectedValueOnce(new AIError("invalid_output", "no usable questions"));
+    vi.mocked(prepareInterview).mockRejectedValueOnce(
+      new AIError("invalid_output", "no usable questions"),
+    );
     const broken = await send(body(id));
     expect(broken.status).toBe(502);
     expect(await errorOf(broken)).toEqual({
       code: "ai_unavailable",
-      message: "Otto couldn't finish that right now. Try again in a minute. It won't count against your allowance.",
+      message:
+        "Otto couldn't finish that right now. Try again in a minute. It won't count against your allowance.",
     });
 
     expect(await lettersUsed(user)).toBe(0);
@@ -425,7 +496,11 @@ describe("interview prep guards and failures", () => {
 
     const res = await send({
       ...body(id),
-      job: { text: `  ${JOB_POST}`, title: " Senior Product Marketing Manager ", company: " Contoso " },
+      job: {
+        text: `  ${JOB_POST}`,
+        title: " Senior Product Marketing Manager ",
+        company: " Contoso ",
+      },
     });
     expect(res.status).toBe(200);
     const json = (await res.json()) as InterviewResponse;
@@ -435,6 +510,9 @@ describe("interview prep guards and failures", () => {
       jobText: JOB_POST.trim(),
       jobTitle: "Senior Product Marketing Manager",
       company: "Contoso",
+    });
+    expect(vi.mocked(prepareInterview).mock.lastCall?.[2]).toEqual({
+      focus: { role: "auto", level: "auto" },
     });
     expect(await storedPrep(user.id, id)).toEqual(PACK);
   });
@@ -460,7 +538,10 @@ describe("interview prep guards and failures", () => {
   it("has nothing to pick up for a request id that never ran", async () => {
     const user = await signInOnTrial(undefined, TRIAL_END);
     const id = await newApplication(user.id);
-    const res = await send(body(id), { [REQUEST_ID_HEADER]: "interview-run-00000002", [RESUME_HEADER]: "1" });
+    const res = await send(body(id), {
+      [REQUEST_ID_HEADER]: "interview-run-00000002",
+      [RESUME_HEADER]: "1",
+    });
     expect(res.status).toBe(404);
     expect((await errorOf(res)).code).toBe("not_found");
     expect(await lettersUsed(user)).toBe(0);
@@ -471,7 +552,10 @@ describe("interview prep guards and failures", () => {
     const signedOut = await listPacks();
     expect(signedOut.status).toBe(401);
     expect(signedOut.headers.get("Cache-Control")).toBe("no-store");
-    expect(await errorOf(signedOut)).toEqual({ code: "unauthorized", message: "Sign in to see your interview prep." });
+    expect(await errorOf(signedOut)).toEqual({
+      code: "unauthorized",
+      message: "Sign in to see your interview prep.",
+    });
 
     await signInOnTrial(undefined, TRIAL_END);
     vi.mocked(listPreps).mockRejectedValueOnce(new Error("connection reset by peer"));

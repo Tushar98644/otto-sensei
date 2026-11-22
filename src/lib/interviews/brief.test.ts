@@ -13,7 +13,8 @@ const QUESTION: Omit<Question, "question"> = {
 };
 
 const PREP: InterviewPrep = {
-  version: 2,
+  version: 3,
+  technical: null,
   job: { title: "Product Designer", company: "Stripe" },
   questions: [
     { ...QUESTION, question: "Why Stripe?" },

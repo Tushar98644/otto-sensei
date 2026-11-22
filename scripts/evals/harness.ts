@@ -39,7 +39,7 @@ export type CaseResult = {
   output: unknown;
 };
 
-// modelFor() reads AI_MODEL and AI_STRUCTURE_MODEL from the cached env(), so this repoints every task.
+// modelFor() reads these from the cached env(); the interview's technical round stays on AI_INTERVIEW_MODEL.
 export function switchModel(model: string): () => void {
   const before = {
     AI_MODEL: process.env.AI_MODEL,

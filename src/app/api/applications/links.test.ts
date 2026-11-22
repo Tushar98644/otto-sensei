@@ -141,7 +141,10 @@ describe("the opening an application is for", () => {
   it("drops an id it doesn't know and a link that names two openings", async () => {
     await signIn();
     const ids = await seedJobs();
-    const unknown = await create({ jobId: crypto.randomUUID(), jobUrl: "https://other.example.com/9" });
+    const unknown = await create({
+      jobId: crypto.randomUUID(),
+      jobUrl: "https://other.example.com/9",
+    });
     expect(unknown.jobId).toBeNull();
     const shared = await create({ jobUrl: "https://acme.example.com/careers/shared" });
     expect(shared.jobId).toBeNull();
@@ -154,7 +157,9 @@ describe("the opening an application is for", () => {
     const ids = await seedJobs();
     const application = await create({ jobId: ids["1"] });
     const moved = await patchOne(
-      send("PATCH", `/api/applications/${application.id}`, { jobUrl: "https://other.example.com/9" }),
+      send("PATCH", `/api/applications/${application.id}`, {
+        jobUrl: "https://other.example.com/9",
+      }),
       context(application.id),
     );
     expect(((await moved.json()) as ApplicationResponse).application.jobId).toBeNull();
@@ -266,7 +271,12 @@ describe("letters and answers join their application by themselves", () => {
     expect(byName.applicationId).toBe(application.id);
     const elsewhere = await letter({ jobUrl: "https://job-boards.greenhouse.io/acme/jobs/2" });
     expect(elsewhere.applicationId).toBeNull();
-    const fromHub = await letter({ company: "", role: "", jobUrl: "", applicationId: application.id });
+    const fromHub = await letter({
+      company: "",
+      role: "",
+      jobUrl: "",
+      applicationId: application.id,
+    });
     expect(fromHub.applicationId).toBe(application.id);
     const answer = await letter({
       kind: "answer",
@@ -328,7 +338,8 @@ describe("GET /api/applications/:id", () => {
       .update(applications)
       .set({
         prep: {
-          version: 2,
+          version: 3,
+          technical: null,
           job: { title: "Backend Engineer", company: "Acme" },
           questions: [],
           stories: [],
@@ -340,7 +351,11 @@ describe("GET /api/applications/:id", () => {
       .where(eq(applications.id, application.id));
 
     const result = await threadOf(application.id);
-    expect(result.application).toMatchObject({ id: application.id, hasPrep: true, jobId: ids["1"] });
+    expect(result.application).toMatchObject({
+      id: application.id,
+      hasPrep: true,
+      jobId: ids["1"],
+    });
     expect(result.job).toMatchObject({
       id: ids["1"],
       company: "Acme",
@@ -349,7 +364,12 @@ describe("GET /api/applications/:id", () => {
       closed: false,
     });
     expect(result.writings.map((writing) => writing.id)).toEqual([old.id]);
-    expect(result.prep).toEqual({ createdAt: APPLIED_AT + DAY, questions: 0, stories: 0, demo: true });
+    expect(result.prep).toEqual({
+      createdAt: APPLIED_AT + DAY,
+      questions: 0,
+      stories: 0,
+      demo: true,
+    });
   });
 });
 

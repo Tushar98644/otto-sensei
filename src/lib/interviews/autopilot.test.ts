@@ -85,7 +85,8 @@ describe("when the brief and the question are due", () => {
 });
 
 const PREP: InterviewPrep = {
-  version: 2,
+  version: 3,
+  technical: null,
   job: { title: "Product Designer", company: "Stripe" },
   questions: [
     { round: "fit", question: "Why Stripe?", checking: "", followUp: "", points: [], story: null },

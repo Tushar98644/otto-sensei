@@ -167,6 +167,24 @@ describe("runStructured request", () => {
     resetEnvForTests();
   });
 
+  it("writes the interview's technical round on its own model, under its own price cap", async () => {
+    respond(200, completion('{"answer":"ok"}'));
+    await runStructured(request({ task: "interview" }));
+    expect(sent().body).toMatchObject({
+      model: "anthropic/claude-haiku-5.5",
+      max_tokens: 10_000,
+      provider: { max_price: { prompt: 0.2, completion: 1 } },
+    });
+
+    process.env.AI_INTERVIEW_MODEL = "google/gemini-3.5-flash-lite";
+    resetEnvForTests();
+    respond(200, completion('{"answer":"ok"}'));
+    await runStructured(request({ task: "interview" }));
+    expect(sent().body).toMatchObject({ model: "google/gemini-3.5-flash-lite" });
+    delete process.env.AI_INTERVIEW_MODEL;
+    resetEnvForTests();
+  });
+
   it("sends a plain system prompt to non-Claude models", async () => {
     useModel("google/gemini-2.5-flash");
     respond(200, completion('{"answer":"ok"}'));

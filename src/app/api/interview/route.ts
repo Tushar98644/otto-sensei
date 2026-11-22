@@ -4,7 +4,11 @@ import type { InterviewPacksResponse } from "@/lib/api/types";
 import { prepareInterview } from "@/lib/ai/interview";
 import { rejectCrossSite } from "@/lib/auth/route-guards";
 import { getCurrentUser } from "@/lib/auth/session";
-import { InterviewRequestSchema, type InterviewPrep, type InterviewResult } from "@/lib/insights/prep";
+import {
+  InterviewRequestSchema,
+  type InterviewPrep,
+  type InterviewResult,
+} from "@/lib/insights/prep";
 import { listPreps, savePrep } from "@/lib/insights/prep-store";
 import { log } from "@/lib/log";
 import { runMetered, type MeteredCopy } from "../fix/metered";
@@ -43,7 +47,12 @@ export async function GET(): Promise<Response> {
     return ok(response, { headers: NO_STORE });
   } catch (error) {
     log.error("interview.list_failed", error);
-    return fail("server_error", "Couldn't load your interview prep. Please try again.", 500, NO_STORE);
+    return fail(
+      "server_error",
+      "Couldn't load your interview prep. Please try again.",
+      500,
+      NO_STORE,
+    );
   }
 }
 
@@ -57,12 +66,12 @@ export async function POST(req: Request): Promise<Response> {
     feature: "letter",
     schema: InterviewRequestSchema,
     copy: COPY,
-    run: async ({ applicationId, resume, job }, user): Promise<InterviewResult> => {
-      const prep = await prepareInterview(resume, {
-        jobText: job.text,
-        jobTitle: job.title,
-        company: job.company,
-      });
+    run: async ({ applicationId, resume, job, focus }, user): Promise<InterviewResult> => {
+      const prep = await prepareInterview(
+        resume,
+        { jobText: job.text, jobTitle: job.title, company: job.company },
+        { focus },
+      );
       return { prep, saved: await saveForCaller(user.id, applicationId, prep) };
     },
   });

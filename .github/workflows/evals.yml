@@ -6,6 +6,7 @@ on:
     branches: [main]
     paths:
       - "src/lib/ai/**"
+      - "src/lib/insights/prep*.ts"
       - "src/lib/tailor/**"
       - "src/lib/match-check/**"
       - "src/lib/writing-style/**"

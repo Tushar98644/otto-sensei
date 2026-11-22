@@ -1,4 +1,4 @@
-import { and, desc, eq, isNotNull, sql } from "drizzle-orm";
+import { and, desc, eq, isNotNull, sql, type SQL } from "drizzle-orm";
 import { getDb } from "@/db/client";
 import { applications } from "@/db/schema";
 import {
@@ -50,10 +50,14 @@ export async function savePrep(
 }
 
 const packMadeAt = sql<number>`case when jsonb_typeof(${applications.prep}->'createdAt') = 'number' then (${applications.prep}->>'createdAt')::bigint else ${applications.createdAt} end`;
-const lengthOf = (key: "questions" | "stories") => {
-  const list = sql`${applications.prep}->${sql.raw(`'${key}'`)}`;
-  return sql<number>`case when jsonb_typeof(${list}) = 'array' then jsonb_array_length(${list}) else 0 end`.mapWith(Number);
-};
+const arrayLength = (list: SQL) =>
+  sql<number>`case when jsonb_typeof(${list}) = 'array' then jsonb_array_length(${list}) else 0 end`;
+const storiesIn = arrayLength(sql`${applications.prep}->'stories'`).mapWith(Number);
+// Packs from version 3 on keep their technical questions apart from the general rounds.
+const questionsIn =
+  sql<number>`${arrayLength(sql`${applications.prep}->'questions'`)} + ${arrayLength(sql`${applications.prep}->'technical'->'questions'`)}`.mapWith(
+    Number,
+  );
 
 export async function listPreps(userId: string, limit = PREP_LIST_LIMIT): Promise<PrepSummary[]> {
   const db = await getDb();
@@ -65,8 +69,8 @@ export async function listPreps(userId: string, limit = PREP_LIST_LIMIT): Promis
       jobUrl: applications.jobUrl,
       resumeTitle: applications.resumeTitle,
       createdAt: packMadeAt.mapWith(Number),
-      questions: lengthOf("questions"),
-      stories: lengthOf("stories"),
+      questions: questionsIn,
+      stories: storiesIn,
       demo: sql<boolean>`coalesce(${applications.prep}->'demo' = 'true'::jsonb, false)`,
     })
     .from(applications)
