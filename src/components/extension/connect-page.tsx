@@ -14,6 +14,7 @@ import { Alert } from "@/components/ui/alert";
 import { Button, buttonClasses } from "@/components/ui/button";
 import { LivePill } from "@/components/ui/live-pill";
 import { api } from "@/lib/api/client";
+import { CHROME_STORE_URL } from "@/lib/extension/store";
 import {
   PAGE_SOURCE,
   readExtensionMessage,
@@ -129,8 +130,9 @@ export function ConnectPage() {
               </Button>
             }
           >
-            Add the extension to Chrome, then come back to this tab. If you just added it, reload
-            this page.
+            {CHROME_STORE_URL
+              ? "Add the extension to Chrome, then come back to this tab. If you just added it, reload this page."
+              : "Otto for Chrome is coming soon to the Chrome Web Store. If you already have it, reload this page."}
           </Alert>
         ) : (
           <Alert

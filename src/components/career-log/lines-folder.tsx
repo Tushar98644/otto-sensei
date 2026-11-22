@@ -1,6 +1,6 @@
 "use client";
 
-import { Sparkles } from "lucide-react";
+import { FileInput } from "lucide-react";
 import { useState } from "react";
 import { useProTools } from "@/components/account/pro-tools";
 import { openFeaturePrompt } from "@/components/account/upgrade-prompt";
@@ -56,7 +56,7 @@ export function LinesFolder({ entries }: { entries: readonly CareerLogEntry[] })
           disabled={written.length === 0}
           className="max-sm:w-full"
         >
-          <Sparkles aria-hidden />
+          <FileInput aria-hidden />
           Turn my log into resume lines
         </Button>
         {written.length === 0 ? (
