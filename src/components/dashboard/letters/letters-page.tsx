@@ -18,6 +18,7 @@ import { toast } from "@/components/ui/toast";
 import { undoToast } from "@/components/ui/undo-toast";
 import { api } from "@/lib/api/client";
 import type { Application } from "@/lib/applications/schema";
+import { sameJobUrl } from "@/lib/applications/thread";
 import { resumeTitle } from "@/lib/resume/ops";
 import { useResumeList, useStudioHydrated } from "@/lib/store/resume-store";
 import { pluralize } from "@/lib/utils";
@@ -62,7 +63,8 @@ import { useOpenLetter } from "./use-open-letter";
 import { quickResume, useQuickWrite } from "./use-quick-write";
 import { useSavedJobs } from "./use-saved-jobs";
 import { useWritings } from "./use-writings";
-import type { Written } from "./write-dialog";
+import { usePostLink } from "./use-post-link";
+import type { WriteStart, Written } from "./write-dialog";
 import { writeTargets, type WriteTarget } from "./write-targets";
 
 preload(letterCards);
@@ -73,7 +75,7 @@ const READY_SHOWN = 4;
 
 // Kept mounted after closing, so focus returns before the next opening replaces it.
 type Opening<T> = T & { key: number; open: boolean };
-type Composer = { kind: WritingKind; fresh: boolean };
+type Composer = { kind: WritingKind; fresh: boolean; start?: WriteStart; autoWrite?: boolean };
 
 function groupApplication(
   group: LetterGroup,
@@ -144,6 +146,35 @@ export function LettersPage() {
     linkChecked.current = true;
     if (reader.key && !entries.some((entry) => entry.key === reader.key)) reader.forget();
   }, [loaded, entries, reader]);
+
+  // Letter pressed in Otto for Chrome: the saved post's copy, written at once only with start=1.
+  usePostLink(loaded && pro !== null, ({ post, resumeId, start }) => {
+    if (locked) {
+      setUpgradeOpen(true);
+      return;
+    }
+    openings.current += 1;
+    const applicationId =
+      applications.items.find((item) => sameJobUrl(item.jobUrl, post.url))?.id ?? null;
+    setComposer({
+      kind: "letter",
+      fresh: false,
+      key: openings.current,
+      open: true,
+      autoWrite: start,
+      start: {
+        applicationId,
+        resumeId: resumeId && resumes.some((resume) => resume.id === resumeId) ? resumeId : null,
+        draft: {
+          title: post.title,
+          company: post.company,
+          link: post.url,
+          text: post.text,
+          paste: true,
+        },
+      },
+    });
+  });
 
   function compose(kind: WritingKind, fresh = false) {
     if (locked) {
@@ -306,6 +337,8 @@ export function LettersPage() {
           resumes={resumes}
           applications={applications.items}
           savedJobs={savedJobs}
+          start={composer?.start}
+          autoWrite={composer?.autoWrite}
           onClose={() => setComposer((current) => current && { ...current, open: false })}
           onWritten={written}
         />

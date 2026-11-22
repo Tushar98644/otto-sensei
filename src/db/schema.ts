@@ -10,6 +10,7 @@ import {
   real,
   smallint,
   text,
+  unique,
   uuid,
 } from "drizzle-orm/pg-core";
 import {
@@ -18,6 +19,7 @@ import {
   type StatusEvent,
 } from "@/lib/applications/status";
 import { WORK_REGIONS, WORK_RIGHTS } from "@/lib/eligibility/profile";
+import type { JobSite } from "@/lib/extension/urls";
 import { FEEDBACK_KINDS } from "@/lib/feedback/types";
 import {
   ASKED_APPLIED_ANSWERS,
@@ -569,6 +571,46 @@ export const writings = pgTable(
     updatedAt: epochMs("updated_at").notNull(),
   },
   (t) => [index("writings_user_created_idx").on(t.userId, t.createdAt, t.id)],
+);
+
+export const extensionTokens = pgTable(
+  "extension_tokens",
+  {
+    id: uuid("id").primaryKey(),
+    userId: uuid("user_id").notNull(),
+    tokenHash: text("token_hash").notNull().unique(),
+    scope: text("scope", { enum: ["extension"] })
+      .notNull()
+      .default("extension"),
+    createdAt: epochMs("created_at").notNull(),
+    lastUsedAt: epochMs("last_used_at").notNull(),
+    expiresAt: epochMs("expires_at").notNull(),
+  },
+  (t) => [
+    index("extension_tokens_user_idx").on(t.userId, t.createdAt),
+    index("extension_tokens_expires_idx").on(t.expiresAt),
+  ],
+);
+
+export const savedPosts = pgTable(
+  "saved_posts",
+  {
+    id: uuid("id").primaryKey(),
+    userId: uuid("user_id").notNull(),
+    url: text("url").notNull(),
+    urlKey: text("url_key").notNull(),
+    site: text("site").$type<JobSite>().notNull().default("other"),
+    title: text("title").notNull().default(""),
+    company: text("company").notNull().default(""),
+    location: text("location").notNull().default(""),
+    post: text("post").notNull().default(""),
+    savedAt: epochMs("saved_at").notNull(),
+    updatedAt: epochMs("updated_at").notNull(),
+  },
+  (t) => [
+    unique("saved_posts_user_id_url_key_key").on(t.userId, t.urlKey),
+    index("saved_posts_user_saved_idx").on(t.userId, t.savedAt),
+  ],
 );
 
 export type UserRow = typeof users.$inferSelect;

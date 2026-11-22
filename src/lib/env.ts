@@ -52,6 +52,8 @@ const EnvSchema = z.object({
   CRON_SECRET: optionalString,
   RESEND_API_KEY: optionalString,
   EMAIL_FROM: optionalString,
+  // Comma-separated Chrome extension ids allowed to call /api/extension/* (the Web Store id once published).
+  OTTO_EXTENSION_IDS: optionalString,
 });
 
 export type Env = z.infer<typeof EnvSchema>;

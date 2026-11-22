@@ -99,8 +99,8 @@ export function ApplicationsPage() {
   const stale = useMemo(() => (now === 0 ? [] : waitingTooLong(items, now)), [items, now]);
   const totals = useMemo(() => tally(items), [items]);
   const toApply = useMemo(
-    () => toApplyItems(extras.savedJobs, resumes, items),
-    [extras.savedJobs, resumes, items],
+    () => toApplyItems(extras.savedJobs, resumes, items, extras.savedPosts),
+    [extras.savedJobs, resumes, items, extras.savedPosts],
   );
   const waiting = toApply.length;
 

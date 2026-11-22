@@ -1,0 +1,2 @@
+# The Chrome extension builds on its own (bun run extension:build); the site never needs it.
+/extension

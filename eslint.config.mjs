@@ -106,5 +106,6 @@ export default defineConfig([
     "local.db*",
     "public/**",
     ".claude/**",
+    "extension/dist/**",
   ]),
 ]);

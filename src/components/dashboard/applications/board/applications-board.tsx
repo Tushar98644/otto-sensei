@@ -12,6 +12,7 @@ import { undoToast } from "@/components/ui/undo-toast";
 import type { Application } from "@/lib/applications/schema";
 import { STATUS_NAMES } from "@/lib/applications/status";
 import { copyLetter, writingsByApplication } from "@/lib/applications/thread";
+import { savedPostFromHash } from "@/lib/extension/links";
 import type { Resume } from "@/lib/resume/schema";
 import { cn } from "@/lib/utils";
 import type { Writing } from "@/lib/writings/schema";
@@ -43,6 +44,7 @@ import {
 } from "./board";
 import { BoardCardView, CardGhost, type CardAction } from "./board-card";
 import { MovePopover, type MoveAnswer, type MoveAsk } from "./move-popover";
+import { hideSavedPost, removeSavedPost, restoreSavedPosts } from "./use-board-extras";
 import { useBoardDrag, type DragMode, type DropPoint } from "./use-board-drag";
 
 const count = new Intl.NumberFormat("en-US");
@@ -85,9 +87,13 @@ export function ApplicationsBoard({
   const actions = useStudioActions();
   const instructionsId = useId();
   const scrollerRef = useRef<HTMLDivElement>(null);
-  const [tab, setTab] = useState<BoardColumn>("applied");
+  const [linkedPost] = useState(() =>
+    typeof window === "undefined" ? null : savedPostFromHash(window.location.hash),
+  );
+  const [tab, setTab] = useState<BoardColumn>(linkedPost ? "to_apply" : "applied");
   const [busyKey, setBusyKey] = useState<string | null>(null);
-  const [focusKey, setFocusKey] = useState<string | null>(null);
+  // A link from Otto for Chrome (#saved-<id>) lands on that job's card.
+  const [focusKey, setFocusKey] = useState<string | null>(linkedPost ? `post:${linkedPost}` : null);
   const [ask, setAsk] = useState<MoveAsk | null>(null);
   const [shown, setShown] = useState<Partial<Record<BoardColumn, number>>>({});
 
@@ -235,10 +241,33 @@ export function ApplicationsBoard({
       case "delete":
         if (card.kind === "application") remove(card.application);
         return;
+      case "remove-post":
+        removePost(card, action.postId);
+        return;
       case "open-copy":
         actions.open(action.copyId, "download");
         return;
     }
+  }
+
+  function removePost(card: BoardCard, postId: string) {
+    const name = card.kind === "to_apply" ? card.item.company || card.item.role : "";
+    hideSavedPost(postId);
+    drag.announce(`${name || "The job"} removed from To apply.`);
+    undoToast({
+      title: "Removed from To apply",
+      description: name || undefined,
+      onUndo: restoreSavedPosts,
+      onCommit: (options) => {
+        removeSavedPost(postId, options).catch((error: unknown) =>
+          toast({
+            title: "Couldn't remove it",
+            description: errorMessage(error),
+            variant: "error",
+          }),
+        );
+      },
+    });
   }
 
   const drag = useBoardDrag({

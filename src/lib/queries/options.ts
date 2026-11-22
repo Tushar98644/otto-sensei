@@ -41,6 +41,14 @@ export const savedJobsQuery = (userId: string) =>
     staleTime: 5 * MINUTE,
   });
 
+// Saved from Otto for Chrome in another tab, so a return to this one asks again soon.
+export const savedPostsQuery = (userId: string) =>
+  queryOptions({
+    queryKey: queryKeys.savedPosts(userId),
+    queryFn: async () => (await api.savedPosts()).posts,
+    staleTime: 30_000,
+  });
+
 export const writingsQuery = (userId: string) =>
   queryOptions({
     queryKey: queryKeys.writings(userId),

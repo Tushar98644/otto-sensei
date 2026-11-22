@@ -82,9 +82,17 @@ export type WriteDialogProps = {
   savedJobs?: readonly SavedJob[];
   onClose: () => void;
   onWritten: (written: Written) => void;
-  start?: { draft: TailorDraft; resumeId: string | null; applicationId: string };
+  start?: WriteStart;
   // Opens on the paste form for a job not in the list.
   fresh?: boolean;
+  // Writes as soon as it opens: only for a press made elsewhere, such as Letter in Otto for Chrome.
+  autoWrite?: boolean;
+};
+
+export type WriteStart = {
+  draft: TailorDraft;
+  resumeId: string | null;
+  applicationId: string | null;
 };
 
 function resumeNote(resume: Resume, picked: string | null, target: WriteTarget | null, sent?: string | null) {
@@ -107,6 +115,7 @@ export function WriteDialog({
   onWritten,
   start,
   fresh = false,
+  autoWrite = false,
 }: WriteDialogProps) {
   const { user, me, loading } = useMe();
   const actions = useStudioActions();
@@ -165,6 +174,13 @@ export function WriteDialog({
   useEffect(() => {
     if (queued.current === null || queued.current !== target?.value || !known) return;
     queued.current = null;
+    void write();
+  });
+
+  const autoWrote = useRef(false);
+  useEffect(() => {
+    if (!autoWrite || autoWrote.current || !open || !resume || !job.text.trim()) return;
+    autoWrote.current = true;
     void write();
   });
 

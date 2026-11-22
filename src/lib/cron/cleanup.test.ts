@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { getDb } from "@/db/client";
 import {
   billingEvents,
+  extensionTokens,
   matchCache,
   matchEvents,
   meteredResults,
@@ -80,6 +81,16 @@ describe("runCleanup", () => {
       { userId: maya.id, requestKey: "new", result: {}, startedAt: NOW, expiresAt: NOW + 60_000 },
     ]);
 
+    const token = (hash: string, expiresAt: number) => ({
+      id: crypto.randomUUID(),
+      userId: maya.id,
+      tokenHash: hash.repeat(43),
+      createdAt: NOW - 100 * DAY,
+      lastUsedAt: NOW - 95 * DAY,
+      expiresAt,
+    });
+    await db.insert(extensionTokens).values([token("o", NOW - 1), token("n", NOW + DAY)]);
+
     const first = await runCleanup(context());
     expect(first).toEqual({
       stats: {
@@ -92,6 +103,7 @@ describe("runCleanup", () => {
         matchCache: 1,
         usagePasses: 1,
         meteredResults: 1,
+        extensionTokens: 1,
       },
       complete: true,
       failed: [],
@@ -107,6 +119,7 @@ describe("runCleanup", () => {
     expect((await db.select().from(matchCache)).map((row) => row.key)).toEqual(["n".repeat(32)]);
     expect((await db.select().from(usagePasses)).map((row) => row.subject)).toEqual(["new"]);
     expect((await db.select().from(meteredResults)).map((row) => row.requestKey)).toEqual(["new"]);
+    expect((await db.select().from(extensionTokens)).map((row) => row.tokenHash)).toEqual(["n".repeat(43)]);
 
     const second = await runCleanup(context());
     expect(second.stats).toEqual({
@@ -119,6 +132,7 @@ describe("runCleanup", () => {
       matchCache: 0,
       usagePasses: 0,
       meteredResults: 0,
+      extensionTokens: 0,
     });
   });
 

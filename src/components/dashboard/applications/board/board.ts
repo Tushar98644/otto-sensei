@@ -1,5 +1,5 @@
 import type { CreateApplicationBody } from "@/lib/api/types";
-import type { Application } from "@/lib/applications/schema";
+import { normalizeJobUrl, type Application } from "@/lib/applications/schema";
 import { followUpState } from "@/lib/applications/follow-up";
 import { APPLICATION_STATUSES, type ApplicationStatus } from "@/lib/applications/status";
 import {
@@ -9,6 +9,7 @@ import {
   copyForJob,
   copyJobId,
 } from "@/lib/applications/thread";
+import type { SavedPost } from "@/lib/extension/types";
 import { savedJobUrl } from "@/lib/insights/saved-job";
 import type { SavedJob } from "@/lib/job-feed/types";
 import { resumeTitle } from "@/lib/resume/ops";
@@ -42,19 +43,57 @@ export type ToApplyItem = {
   jobId: string | null;
   addedAt: number;
   closed: boolean;
+  // Saved from Otto for Chrome, with its own copy of the post.
+  postId?: string;
 };
 
 export type BoardCard =
   | { kind: "application"; key: string; application: Application; copy: Resume | null }
   | { kind: "to_apply"; key: string; item: ToApplyItem };
 
+const urlKey = (url: string) => normalizeJobUrl(url) || null;
+
 export function toApplyItems(
   savedJobs: readonly SavedJob[],
   resumes: readonly Resume[],
   applications: readonly Application[],
+  posts: readonly SavedPost[] = [],
 ): ToApplyItem[] {
   const items: ToApplyItem[] = [];
   const taken = new Set<string>();
+  // A post saved from the extension waits here until a saved job or an application has its link.
+  const known = new Set(
+    [...applications.map((item) => item.jobUrl), ...savedJobs.map((job) => job.url)].flatMap(
+      (url) => urlKey(url) ?? [],
+    ),
+  );
+  const copies = new Map<string, Resume>();
+  for (const copy of resumes) {
+    const key = copy.tailor ? urlKey(savedJobUrl(copy)) : null;
+    if (key && !copies.has(key)) copies.set(key, copy);
+  }
+  for (const post of posts) {
+    const key = urlKey(post.url);
+    if (!key || known.has(key)) continue;
+    known.add(key);
+    const copy = copies.get(key) ?? null;
+    if (copy) {
+      taken.add(copy.id);
+      if (applicationForCopy(applications, copy)) continue;
+    }
+    items.push({
+      key: `post:${post.id}`,
+      job: null,
+      copy,
+      company: post.company,
+      role: post.title,
+      jobUrl: post.url,
+      jobId: null,
+      addedAt: post.savedAt,
+      closed: false,
+      postId: post.id,
+    });
+  }
   for (const job of savedJobs) {
     const copy = copyForJob(resumes, job);
     if (copy) taken.add(copy.id);

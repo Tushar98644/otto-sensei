@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Application } from "@/lib/applications/schema";
+import type { SavedPost } from "@/lib/extension/types";
 import type { SavedJob } from "@/lib/job-feed/types";
 import { emptyResume, type Resume } from "@/lib/resume/schema";
 import {
@@ -124,6 +125,60 @@ describe("the To apply column", () => {
       ],
     );
     expect(items).toEqual([]);
+  });
+});
+
+function post(id: string, overrides: Partial<SavedPost> = {}): SavedPost {
+  return {
+    id,
+    url: `https://www.linkedin.com/jobs/view/${id}/`,
+    site: "linkedin",
+    title: "Platform Engineer",
+    company: "Initech",
+    location: "Remote",
+    savedAt: 4_000,
+    updatedAt: 4_000,
+    ...overrides,
+  };
+}
+
+describe("jobs saved from Otto for Chrome", () => {
+  it("wait in To apply with the copy tailored for them, newest first", () => {
+    const tailored = copy("c-post", { jobUrl: "https://www.linkedin.com/jobs/view/111111/" });
+    const items = toApplyItems(
+      [saved(JOB_A, { savedAt: 5_000 })],
+      [tailored],
+      [],
+      [post("111111", { savedAt: 6_000 }), post("222222", { savedAt: 1_000 })],
+    );
+    expect(items.map((item) => [item.key, item.copy?.id ?? null, item.postId ?? null])).toEqual([
+      ["post:111111", "c-post", "111111"],
+      [`job:${JOB_A}`, null, null],
+      ["post:222222", null, "222222"],
+    ]);
+    expect(items[0]).toMatchObject({ company: "Initech", role: "Platform Engineer", jobId: null });
+  });
+
+  it("leave once an application or a saved job has the same link", () => {
+    const items = toApplyItems(
+      [saved(JOB_A, { url: "https://www.linkedin.com/jobs/view/222222/" })],
+      [],
+      [app("1", { jobUrl: "www.linkedin.com/jobs/view/111111/" })],
+      [post("111111"), post("222222"), post("333333")],
+    );
+    expect(items.map((item) => item.key)).toEqual([`job:${JOB_A}`, "post:333333"]);
+  });
+
+  it("become an application with their link when moved on", () => {
+    const [item] = toApplyItems([], [], [], [post("111111")]);
+    expect(createBody(item!, "applied", 9_000, base)).toMatchObject({
+      company: "Initech",
+      role: "Platform Engineer",
+      jobUrl: "https://www.linkedin.com/jobs/view/111111/",
+      jobId: null,
+      resumeId: "base",
+      status: "applied",
+    });
   });
 });
 

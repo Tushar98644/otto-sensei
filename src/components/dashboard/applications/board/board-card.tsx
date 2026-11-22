@@ -38,6 +38,7 @@ export type CardAction =
   | { kind: "close" }
   | { kind: "prepare" }
   | { kind: "delete" }
+  | { kind: "remove-post"; postId: string }
   | { kind: "open-copy"; copyId: string };
 
 export type BoardCardProps = {
@@ -124,6 +125,17 @@ export function BoardCardView({
             icon: Trash2,
             tone: "danger" as const,
             onSelect: () => onAction(card, { kind: "delete" }),
+          },
+        ]
+      : []),
+    ...(card.kind === "to_apply" && card.item.postId
+      ? [
+          "separator" as const,
+          {
+            label: "Remove from To apply",
+            icon: Trash2,
+            tone: "danger" as const,
+            onSelect: () => onAction(card, { kind: "remove-post", postId: card.item.postId ?? "" }),
           },
         ]
       : []),

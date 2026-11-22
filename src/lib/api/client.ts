@@ -7,6 +7,12 @@ import {
   type ResumeVersions,
   type SeedKey,
 } from "@/lib/api/seeds";
+import type {
+  ExtensionConnectionResponse,
+  ExtensionConnectResponse,
+  SavedPostResponse,
+  SavedPostsResponse,
+} from "@/lib/extension/types";
 import type { GitHubConnectionResponse } from "@/lib/github/connect";
 import { JOBS_PREFETCH_HEADER } from "@/lib/job-feed/prefetch-header";
 import type { ImpressionBatchInput } from "@/lib/job-feed/types";
@@ -277,6 +283,19 @@ export const api = {
     request<JobPostResponse>(`/api/jobs/${encodeURIComponent(id)}`, { cache: "no-store" }),
   savedJobs: () =>
     seeded("savedJobs", () => request<SavedJobsResponse>("/api/jobs/saved", { cache: "no-store" })),
+  savedPosts: () => request<SavedPostsResponse>("/api/saved-posts", { cache: "no-store" }),
+  savedPost: (id: string) =>
+    request<SavedPostResponse>(`/api/saved-posts/${encodeURIComponent(id)}`, { cache: "no-store" }),
+  removeSavedPost: (id: string, { keepalive = false }: { keepalive?: boolean } = {}) =>
+    request<{ ok: true; removed: boolean }>(`/api/saved-posts/${encodeURIComponent(id)}`, {
+      method: "DELETE",
+      keepalive,
+    }),
+  extensionConnection: () =>
+    request<ExtensionConnectionResponse>("/api/account/extension", { cache: "no-store" }),
+  connectExtension: () => request<ExtensionConnectResponse>("/api/account/extension", postJson({})),
+  disconnectExtension: () =>
+    request<{ ok: true; revoked: number }>("/api/account/extension", { method: "DELETE" }),
   saveJob: (id: string) =>
     request<SavedJobResponse>(`/api/jobs/saved/${encodeURIComponent(id)}`, { method: "PUT" }),
   unsaveJob: (id: string) =>

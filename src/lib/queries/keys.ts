@@ -5,6 +5,7 @@ import type { WorkProfile } from "@/lib/eligibility/profile";
 
 export const APPLICATIONS = ["applications"] as const;
 export const SAVED_JOBS = ["saved-jobs"] as const;
+export const SAVED_POSTS = ["saved-posts"] as const;
 export const WRITINGS = ["writings"] as const;
 export const PREP_PACKS = ["prep-packs"] as const;
 export const SHARES = ["shares"] as const;
@@ -17,6 +18,7 @@ export const BILLING_HISTORY = ["billing-history"] as const;
 export const queryKeys = {
   applications: (userId: string) => [...APPLICATIONS, userId] as const,
   savedJobs: (userId: string) => [...SAVED_JOBS, userId] as const,
+  savedPosts: (userId: string) => [...SAVED_POSTS, userId] as const,
   writings: (userId: string) => [...WRITINGS, userId] as const,
   prepPacks: (userId: string) => [...PREP_PACKS, userId] as const,
   shares: (userId: string) => [...SHARES, userId] as const,

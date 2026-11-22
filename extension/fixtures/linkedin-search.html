@@ -1,0 +1,101 @@
+<!-- Synthetic: LinkedIn's signed-in job search with the side pane (currentJobId), modelled on its 2025-26 markup. Signed-in pages can't be saved, so try the real one signed in. -->
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>(3) Product designer jobs | LinkedIn</title>
+<style>
+  body { margin: 0; background: #f4f2ee; font: 14px/1.4 -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; color: #191919; }
+  .global-nav { height: 52px; background: #fff; border-bottom: 1px solid #e8e8e8; display: flex; align-items: center; padding: 0 24px; gap: 12px; }
+  .global-nav__logo { width: 34px; height: 34px; border-radius: 4px; background: #0a66c2; }
+  .global-nav__search { width: 280px; height: 34px; border-radius: 4px; background: #edf3f8; }
+  .jobs-search-two-pane__layout { display: grid; grid-template-columns: 420px 1fr; max-width: 1128px; margin: 24px auto; background: #fff; border-radius: 8px; overflow: hidden; box-shadow: 0 0 0 1px rgb(0 0 0 / 8%); height: calc(100vh - 100px); }
+  .jobs-search-results-list { border-right: 1px solid #e8e8e8; overflow: auto; }
+  .job-card-container { padding: 16px; border-bottom: 1px solid #e8e8e8; display: flex; gap: 12px; }
+  .job-card-container--clickable.is-active { background: #edf3f8; border-left: 2px solid #0a66c2; }
+  .job-card-logo { width: 48px; height: 48px; background: #e9e5df; border-radius: 4px; flex: none; }
+  .job-card-list__title { color: #0a66c2; font-weight: 600; font-size: 16px; }
+  .artdeco-entity-lockup__subtitle, .job-card-container__metadata-item { color: #5e5e5e; }
+  .jobs-search__job-details--container { overflow: auto; padding: 24px; }
+  .job-details-jobs-unified-top-card__company-name a { color: #191919; font-weight: 600; text-decoration: none; }
+  .job-details-jobs-unified-top-card__job-title h1 { font-size: 24px; margin: 8px 0; }
+  .tvm__text { color: #5e5e5e; }
+  .job-details-fit-level-preferences { display: flex; gap: 8px; margin: 16px 0; }
+  .job-details-fit-level-preferences button { border: 0; border-radius: 4px; background: #dbe7d9; padding: 6px 10px; font: inherit; font-weight: 600; color: #1a4d1a; }
+  .jobs-apply-button { border: 0; border-radius: 24px; background: #0a66c2; color: #fff; padding: 10px 20px; font: inherit; font-weight: 600; }
+  .jobs-description__content { border-top: 1px solid #e8e8e8; margin-top: 24px; padding-top: 8px; }
+  #job-details h2 { font-size: 20px; }
+  #job-details li { margin: 4px 0; }
+</style>
+</head>
+<body>
+<header class="global-nav"><span class="global-nav__logo"></span><span class="global-nav__search"></span></header>
+<main class="scaffold-layout__main">
+<div class="jobs-search-two-pane__layout">
+  <div class="jobs-search-results-list">
+    <ul class="scaffold-layout__list-container">
+      <li class="job-card-container job-card-container--clickable is-active" data-job-id="4000000002">
+        <span class="job-card-logo"></span>
+        <div><div class="job-card-list__title">Senior Product Designer</div><div class="artdeco-entity-lockup__subtitle">Contoso Pay</div><div class="job-card-container__metadata-item">Asia-Pacific (Remote)</div></div>
+      </li>
+      <li class="job-card-container job-card-container--clickable" data-job-id="4000000003">
+        <span class="job-card-logo"></span>
+        <div><div class="job-card-list__title">Product Designer, Growth</div><div class="artdeco-entity-lockup__subtitle">Litware</div><div class="job-card-container__metadata-item">United States (Remote)</div></div>
+      </li>
+      <li class="job-card-container job-card-container--clickable" data-job-id="4000000004">
+        <span class="job-card-logo"></span>
+        <div><div class="job-card-list__title">Design Systems Lead</div><div class="artdeco-entity-lockup__subtitle">Fabrikam</div><div class="job-card-container__metadata-item">Singapore (Hybrid)</div></div>
+      </li>
+      <li class="job-card-container job-card-container--clickable" data-job-id="4000000005">
+        <span class="job-card-logo"></span>
+        <div><div class="job-card-list__title">UX Researcher</div><div class="artdeco-entity-lockup__subtitle">Tailspin Toys</div><div class="job-card-container__metadata-item">Bengaluru, Karnataka, India (On-site)</div></div>
+      </li>
+    </ul>
+  </div>
+  <div class="jobs-search__job-details--container">
+    <div class="job-view-layout jobs-details">
+      <div class="job-details-jobs-unified-top-card__container--two-pane">
+        <div class="job-details-jobs-unified-top-card__company-name"><a href="https://www.linkedin.com/company/contoso-pay/life/">Contoso Pay</a></div>
+        <div class="t-24 job-details-jobs-unified-top-card__job-title"><h1 class="t-24 t-bold inline"><a href="/jobs/view/4000000002/">Senior Product Designer</a></h1></div>
+        <div class="job-details-jobs-unified-top-card__primary-description-container"><div class="t-black--light mt2"><span class="tvm__text tvm__text--low-emphasis">Asia-Pacific</span><span class="tvm__text tvm__text--low-emphasis"> · </span><span class="tvm__text tvm__text--low-emphasis">3 days ago</span><span class="tvm__text tvm__text--low-emphasis"> · </span><span class="tvm__text tvm__text--low-emphasis">Over 100 applicants</span></div></div>
+        <div class="job-details-fit-level-preferences"><button><span><strong>Remote</strong></span></button><button><span><strong>Full-time</strong></span></button></div>
+        <button class="jobs-apply-button">Easy Apply</button>
+      </div>
+      <div class="jobs-description__container">
+        <div class="jobs-description__content jobs-description-content">
+          <div class="jobs-box__html-content" id="job-details">
+            <h2>About the job</h2>
+            <div class="mt4">
+              <p>Contoso Pay builds the payments app small businesses across Asia run their day on. We're hiring a Senior Product Designer to lead checkout and onboarding, from first sketch to shipped pixels.</p>
+              <p><strong>What you'll do</strong></p>
+              <ul>
+                <li>Own the design of checkout and onboarding across web, iOS and Android</li>
+                <li>Plan and run user research and usability testing with merchants</li>
+                <li>Grow our design system with engineers</li>
+                <li>Prototype new ideas fast and test them before they're built</li>
+              </ul>
+              <p><strong>What we're looking for</strong></p>
+              <ul>
+                <li>5+ years designing consumer or fintech products</li>
+                <li>Expert in Figma and prototyping</li>
+                <li>Experience building and running a design system</li>
+                <li>Accessibility built into everything you ship</li>
+                <li>Enough HTML and CSS to pair with engineers</li>
+              </ul>
+              <p><strong>Nice to have</strong></p>
+              <ul>
+                <li>Framer</li>
+                <li>Motion design</li>
+              </ul>
+              <p><strong>Where you'll work</strong></p>
+              <p>This role is fully remote within APAC. We hire in India, Singapore, Australia and the Philippines, and you'll overlap a few hours a day with our team in Singapore.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</main>
+</body>
+</html>

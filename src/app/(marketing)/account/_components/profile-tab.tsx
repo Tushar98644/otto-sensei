@@ -1,6 +1,7 @@
 "use client";
 
 import type { Me } from "@/components/account/use-me";
+import { ExtensionCard } from "@/components/extension/extension-card";
 import { InviteCard } from "@/components/referrals/invite-card";
 import type { SessionUser } from "@/lib/auth/types";
 import { DeleteAccountCard } from "./delete-account-card";
@@ -13,6 +14,7 @@ export function ProfileTab({ me, user }: { me: Me; user: SessionUser }) {
   return (
     <div className="flex flex-col gap-4">
       <ProfileCard user={user} authMode={me.auth.mode} />
+      <ExtensionCard />
       <InviteCard plan={user.plan} />
       <YourDataCard />
       <DeleteAccountCard isPro={billed} />

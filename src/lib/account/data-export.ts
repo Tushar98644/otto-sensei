@@ -2,9 +2,10 @@ import { and, asc, eq } from "drizzle-orm";
 import JSZip from "jszip";
 import { BRAND } from "@/config/brand";
 import { getDb } from "@/db/client";
-import { applications, resumes, writings } from "@/db/schema";
+import { applications, resumes, savedPosts, writings } from "@/db/schema";
 import { APPLICATION_LIMITS } from "@/lib/applications/schema";
 import { STATUS_NAMES } from "@/lib/applications/status";
+import { EXTENSION_LIMITS } from "@/lib/extension/types";
 import { RESUME_LIMITS } from "@/config/plans";
 import { WRITING_LIMITS, type WritingKind } from "@/lib/writings/schema";
 
@@ -48,7 +49,7 @@ export async function buildDataExport(
   now = Date.now(),
 ): Promise<Uint8Array<ArrayBuffer>> {
   const db = await getDb();
-  const [resumeRows, writingRows, applicationRows] = await Promise.all([
+  const [resumeRows, writingRows, applicationRows, postRows] = await Promise.all([
     db
       .select({ id: resumes.id, data: resumes.data, updatedAt: resumes.updatedAt })
       .from(resumes)
@@ -88,6 +89,19 @@ export async function buildDataExport(
       .where(eq(applications.userId, userId))
       .orderBy(asc(applications.appliedAt))
       .limit(APPLICATION_LIMITS.perUser),
+    db
+      .select({
+        title: savedPosts.title,
+        company: savedPosts.company,
+        location: savedPosts.location,
+        url: savedPosts.url,
+        savedAt: savedPosts.savedAt,
+        post: savedPosts.post,
+      })
+      .from(savedPosts)
+      .where(eq(savedPosts.userId, userId))
+      .orderBy(asc(savedPosts.savedAt))
+      .limit(EXTENSION_LIMITS.savedPosts),
   ]);
 
   const zip = new JSZip();
@@ -99,6 +113,11 @@ export async function buildDataExport(
       `resumes/: ${resumeRows.length} resumes saved to your account, as JSON.`,
       `cover-letters/, application-answers/, outreach-messages/: ${writingRows.length} pieces of writing, as text.`,
       `applications.csv and applications.json: ${applicationRows.length} tracked applications.`,
+      ...(postRows.length > 0
+        ? [
+            `saved-posts.json: ${postRows.length} jobs saved from Otto for Chrome, with their posts.`,
+          ]
+        : []),
       "",
       "Resumes kept only in this browser and not backed up yet aren't included.",
       "",
@@ -149,6 +168,7 @@ export async function buildDataExport(
   ];
   zip.file("applications.csv", `${csv.join("\r\n")}\r\n`);
   zip.file("applications.json", JSON.stringify(applicationRows, null, 2));
+  if (postRows.length > 0) zip.file("saved-posts.json", JSON.stringify(postRows, null, 2));
 
   return new Uint8Array(await zip.generateAsync({ type: "arraybuffer", compression: "DEFLATE" }));
 }

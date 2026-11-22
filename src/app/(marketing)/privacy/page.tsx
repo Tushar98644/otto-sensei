@@ -228,6 +228,49 @@ const SECTIONS: readonly LegalSection[] = [
     ),
   },
   {
+    title: "Otto for Chrome",
+    body: (
+      <>
+        <p>
+          The Chrome extension shows how your resume matches a job post on the page where you read
+          it. It works like this:
+        </p>
+        <ul>
+          <li>
+            <strong>What it reads:</strong> the title, company, location and text of a job post. It
+            runs only on job posts on LinkedIn, Naukri, Indeed, Greenhouse, Lever, Ashby, Workday,
+            SmartRecruiters and Workable, and on any other page only when you press its toolbar
+            button. It doesn&apos;t read other pages or your browsing history, and it never fills in
+            or sends an application for you.
+          </li>
+          <li>
+            <strong>The match runs on your device.</strong> The extension keeps a copy of what the
+            match needs in Chrome&apos;s storage for extensions: the text of your resumes without
+            your name, email, phone and links, your work profile, where you&apos;re looking for
+            work, and which jobs you saved. It refreshes that copy every few hours. Checking a post
+            sends nothing to us.
+          </li>
+          <li>
+            <strong>Save:</strong> when you press Save, the extension sends us that job&apos;s link,
+            title, company, location and post text. We keep them with your account, so the job waits
+            on your board and Otto can still read the post if it&apos;s taken down.
+          </li>
+          <li>
+            <strong>Tailor and Letter</strong> open {BRAND.name} in a new tab with that saved post,
+            and work like the AI features above.
+          </li>
+          <li>
+            <strong>Connecting:</strong> the extension holds a random key for your account. We keep
+            only a one-way fingerprint of it, with when it was made and last used. It stops working
+            after 90 days unused, when you press Disconnect on your account page or in the
+            extension, or when you delete your account.
+          </li>
+        </ul>
+        <p>The extension shows no ads and sends no usage events.</p>
+      </>
+    ),
+  },
+  {
     title: "Payments",
     body: (
       <>
@@ -357,6 +400,10 @@ const SECTIONS: readonly LegalSection[] = [
         </li>
         <li>Share links: until you turn the link off or delete your account.</li>
         <li>Saved jobs: until you remove them, or 30 days after the job closes.</li>
+        <li>Jobs saved from Otto for Chrome: until you remove them or delete your account.</li>
+        <li>
+          The Chrome extension&apos;s key: until you disconnect it, or 90 days after its last use.
+        </li>
         <li>Reminder notes: 90 days once read, a year if never read.</li>
         <li>Sign-in codes: they work once and expire after 10 minutes.</li>
         <li>
@@ -389,10 +436,11 @@ const SECTIONS: readonly LegalSection[] = [
         <li>
           Delete your account from your <Link href={ROUTES.account}>account page</Link>. This
           removes your email, sign-in record, resume backups, logged applications and their prep,
-          work profile, writing style, letters and messages, saved jobs, share links, reminders and
-          email choices, invite records, feedback and usage records right away, and signs you out on
-          every device. Deleting your account cancels your paid plan or trial right away, and you
-          won&apos;t be charged again. Only the trial fingerprint above stays.
+          work profile, writing style, letters and messages, saved jobs, the Chrome extension&apos;s
+          connection, share links, reminders and email choices, invite records, feedback and usage
+          records right away, and signs you out on every device. Deleting your account cancels your
+          paid plan or trial right away, and you won&apos;t be charged again. Only the trial
+          fingerprint above stays.
         </li>
         <li>
           Ask us for a copy of your data, or to correct or delete it, by emailing{" "}

@@ -7,12 +7,14 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint . --max-warnings=0 --cache --cache-strategy content --cache-location .eslintcache",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsc --noEmit && tsc --noEmit -p extension",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "test:e2e": "playwright test",
-    "format": "prettier --write ."
+    "format": "prettier --write .",
+    "extension:build": "bun extension/build.ts",
+    "extension:icons": "bun extension/scripts/icons.ts"
   },
   "dependencies": {
     "@react-pdf/renderer": "^4.9.0",

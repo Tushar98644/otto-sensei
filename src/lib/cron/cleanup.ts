@@ -12,6 +12,7 @@ import {
   usagePasses,
 } from "@/db/schema";
 import { retryPendingReplacements } from "@/lib/billing/replacements";
+import { deleteExpiredExtensionTokens } from "@/lib/extension/tokens";
 import { MATCH_CACHE_MAX_AGE_MS } from "@/lib/job-feed/match-cache";
 import { log } from "@/lib/log";
 import { DAY_MS } from "@/lib/time";
@@ -177,6 +178,7 @@ export async function runCleanup({ now, deadline }: CronContext): Promise<CronOu
         return deleted.length;
       },
     },
+    { name: "extensionTokens", run: () => deleteExpiredExtensionTokens(now, CLEANUP_BATCH) },
   ];
 
   const stats: Record<string, number> = {};
