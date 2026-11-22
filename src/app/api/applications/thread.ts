@@ -3,7 +3,8 @@ import { getDb } from "@/db/client";
 import { applications, jobs, writings } from "@/db/schema";
 import { readHistory } from "@/lib/applications/status";
 import type { ApplicationThread, ThreadJob } from "@/lib/applications/thread";
-import { questionCount, readPrep } from "@/lib/insights/prep";
+import { readPrep } from "@/lib/insights/prep";
+import { questionCount } from "@/lib/insights/prep-view";
 import { toWriting } from "@/lib/writings/records";
 import { APPLICATION_COLUMNS, toApplication } from "./records";
 

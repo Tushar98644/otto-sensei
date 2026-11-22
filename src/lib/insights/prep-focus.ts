@@ -1,4 +1,3 @@
-import { z } from "zod";
 import { minYearsOf, roleFamily, seniorityOf } from "@/lib/job-feed/roles";
 
 export const ROLE_FOCUSES = [
@@ -323,11 +322,8 @@ export function codingRoundLikely(post: string): boolean {
   return CODING_ROUND.test(post);
 }
 
-export const FocusChoiceSchema = z.object({
-  role: z.enum([...ROLE_FOCUSES, "auto", "none"]).default("auto"),
-  level: z.enum([...PREP_LEVELS, "auto"]).default("auto"),
-});
-export type FocusChoice = z.output<typeof FocusChoiceSchema>;
+// Kept free of zod so the prep page can use it before anything loads; the request schema lives in prep.ts.
+export type FocusChoice = { role: RoleFocus | "auto" | "none"; level: PrepLevel | "auto" };
 
 export const AUTO_FOCUS: FocusChoice = { role: "auto", level: "auto" };
 

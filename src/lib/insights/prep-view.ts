@@ -68,6 +68,10 @@ export const ROUND_COPY: Record<PrepRound, { label: string; about: string }> = {
   closing: { label: "Closing", about: "Wrapping up, just before your questions." },
 };
 
+export function questionCount(prep: Pick<InterviewPrep, "questions" | "technical">): number {
+  return prep.questions.length + (prep.technical?.questions.length ?? 0);
+}
+
 export type NumberedQuestion = { item: PrepQuestion; number: number };
 export type NumberedTechnical = { item: TechnicalQuestion; number: number };
 

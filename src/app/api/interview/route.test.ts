@@ -225,6 +225,14 @@ describe("prep store", () => {
     });
     expect(made.result.prep.technical?.questions.length).toBeGreaterThanOrEqual(8);
     expect(made.result.prep.questions.some((item) => item.round === "skills")).toBe(false);
+    const general = made.result.prep.questions.length;
+    const listed = ((await (await listPacks()).json()) as InterviewPacksResponse).packs;
+    expect(listed).toEqual([
+      expect.objectContaining({
+        applicationId: id,
+        questions: general + (made.result.prep.technical?.questions.length ?? 0),
+      }),
+    ]);
 
     const off = { ...backend, focus: { role: "none" as const, level: "auto" as const } };
     const plain = (await (

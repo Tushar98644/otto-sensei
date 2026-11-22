@@ -1,11 +1,6 @@
 import { describe, expect, it } from "vitest";
-import {
-  byRound,
-  InterviewPrepSchema,
-  questionCount,
-  readPrep,
-  type TechnicalSection,
-} from "./prep";
+import { questionCount } from "./prep-view";
+import { byRound, InterviewPrepSchema, readPrep, type TechnicalSection } from "./prep";
 
 const STORY = {
   title: "Billing rebuild",

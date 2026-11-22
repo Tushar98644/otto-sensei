@@ -3,7 +3,6 @@ import { BLUEPRINTS, topicsFor } from "@/lib/ai/interview-blueprints";
 import { readTitle } from "@/lib/job-feed/occupations";
 import {
   codingRoundLikely,
-  FocusChoiceSchema,
   focusFromTitle,
   pickFocus,
   pickLevel,
@@ -12,6 +11,7 @@ import {
   resolveFocus,
   ROLE_FOCUSES,
 } from "./prep-focus";
+import { FocusChoiceSchema } from "./prep";
 
 const REACT_POST =
   "You'll build our React and Next.js app, own Core Web Vitals and accessibility (WCAG), and our design system.";

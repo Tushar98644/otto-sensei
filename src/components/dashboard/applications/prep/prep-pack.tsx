@@ -6,11 +6,12 @@ import { CueCardsArt } from "@/components/dashboard/interview/interview-art";
 import { Button } from "@/components/ui/button";
 import { Eyebrow } from "@/components/ui/eyebrow";
 import { FolderCard } from "@/components/ui/folder-card";
-import { questionCount, type InterviewPrep, type PrepTarget } from "@/lib/insights/prep";
+import type { InterviewPrep, PrepTarget } from "@/lib/insights/prep";
 import {
   focusLine,
   practiceSteps,
   prepStops,
+  questionCount,
   stopCopy,
   storyUses,
   type PrepStop,

@@ -2,7 +2,7 @@ import { z } from "zod";
 import { TEXT_LIMITS } from "@/config/plans";
 import { ApplicationIdSchema } from "@/lib/applications/validation";
 import { ResumeSchema } from "@/lib/resume/validation";
-import { FocusChoiceSchema, PREP_LEVELS, ROLE_FOCUSES, TECHNICAL_KINDS } from "./prep-focus";
+import { PREP_LEVELS, ROLE_FOCUSES, TECHNICAL_KINDS, type FocusChoice } from "./prep-focus";
 import { DEFAULT_ROUND, PREP_ROUNDS } from "./prep-rounds";
 
 export { byRound, DEFAULT_ROUND, PREP_ROUNDS, type PrepRound } from "./prep-rounds";
@@ -161,9 +161,10 @@ export function readPrep(value: unknown): InterviewPrep | null {
   };
 }
 
-export function questionCount(prep: Pick<InterviewPrep, "questions" | "technical">): number {
-  return prep.questions.length + (prep.technical?.questions.length ?? 0);
-}
+export const FocusChoiceSchema = z.object({
+  role: z.enum([...ROLE_FOCUSES, "auto", "none"]).default("auto"),
+  level: z.enum([...PREP_LEVELS, "auto"]).default("auto"),
+}) satisfies z.ZodType<FocusChoice>;
 
 export const InterviewRequestSchema = z.object({
   applicationId: ApplicationIdSchema,
