@@ -148,6 +148,38 @@ describe("proxy", () => {
     expect(supabase.created).toBe(0);
   });
 
+  it("serves /login's heading for where the visitor was going from that heading's static page", async () => {
+    const rewrite = "x-middleware-rewrite";
+    const jobs = await proxy(visit("/login?next=%2Fdashboard%2Fjobs"));
+    expect(jobs.headers.get(rewrite)).toBe("https://otto.test/login/jobs?next=%2Fdashboard%2Fjobs");
+    expect(jobs.headers.get("location")).toBeNull();
+    const upgrade = await proxy(
+      visit(`/login?next=${encodeURIComponent("/account?upgrade=1&plan=max")}`),
+    );
+    expect(upgrade.headers.get(rewrite)).toMatch(/^https:\/\/otto\.test\/login\/upgrade\?/);
+    for (const path of [
+      "/login",
+      "/login?next=%2Fdashboard",
+      "/login?next=https%3A%2F%2Fevil.example%2Fdashboard%2Fjobs",
+    ]) {
+      expect((await proxy(visit(path))).headers.get(rewrite), path).toBeNull();
+    }
+    expect(
+      (await proxy(visit("/pricing?next=%2Fdashboard%2Fjobs"))).headers.get(rewrite),
+    ).toBeNull();
+  });
+
+  it("keeps a refreshed session on /login's heading page", async () => {
+    supabase.refreshTo = "fresh";
+    const res = await proxy(visit("/login?next=%2Fdashboard%2Fportfolio", `${COOKIE}=stale`));
+    expect(res.headers.get("x-middleware-rewrite")).toBe(
+      "https://otto.test/login/portfolio?next=%2Fdashboard%2Fportfolio",
+    );
+    expect(res.cookies.get(COOKIE)?.value).toBe("fresh");
+    expect(res.headers.get("cache-control")).toContain("no-store");
+    expect(res.headers.get("x-middleware-request-cookie")).toContain(`${COOKIE}=fresh`);
+  });
+
   it("runs on pages, but not on assets, API routes or public portfolios, which never need it", () => {
     const runsOn = (url: string) => unstable_doesMiddlewareMatch({ config, url });
     for (const url of [

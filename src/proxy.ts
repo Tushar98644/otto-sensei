@@ -1,9 +1,16 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { loginVariant } from "@/components/account/login-heading";
 import { loginHref } from "@/components/account/next-path";
+import { ROUTES } from "@/components/site/routes";
 import { DEV_SESSION_COOKIE, devAuthActive } from "@/lib/auth/dev-mode";
 import { isWithin, requestedPathWithin, setRequestPath } from "@/lib/request-path";
 import { isAuthCookie } from "@/lib/supabase/cookies";
-import { redirectKeepingSession, updateSession, type SessionUpdate } from "@/lib/supabase/proxy";
+import {
+  redirectKeepingSession,
+  rewriteKeepingSession,
+  updateSession,
+  type SessionUpdate,
+} from "@/lib/supabase/proxy";
 
 export const DASHBOARD_PATH = "/dashboard";
 
@@ -21,6 +28,15 @@ export async function proxy(request: NextRequest) {
   const { response, signedIn } = dev ? devSession(request) : await updateSession(request);
   if (signedIn && request.nextUrl.pathname === "/") {
     return redirectKeepingSession(response, new URL(DASHBOARD_PATH, request.url));
+  }
+  // /login is static; a next that names why it asks gets that heading's own static page, at the same address.
+  const variant =
+    request.nextUrl.pathname === ROUTES.login
+      ? loginVariant(request.nextUrl.searchParams.get("next"))
+      : null;
+  if (variant) {
+    const page = new URL(`${ROUTES.login}/${variant}${request.nextUrl.search}`, request.url);
+    return rewriteKeepingSession(response, request, page);
   }
   return response;
 }

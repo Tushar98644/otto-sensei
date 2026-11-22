@@ -40,12 +40,24 @@ export async function updateSession(request: NextRequest): Promise<SessionUpdate
   return { response, signedIn: !error && Boolean(data?.claims.sub) };
 }
 
-export function redirectKeepingSession(from: NextResponse, url: URL): NextResponse {
-  const redirect = NextResponse.redirect(url);
-  for (const cookie of from.cookies.getAll()) redirect.cookies.set(cookie);
+function keepSession(from: NextResponse, to: NextResponse): NextResponse {
+  for (const cookie of from.cookies.getAll()) to.cookies.set(cookie);
   for (const header of ["cache-control", "expires", "pragma"]) {
     const value = from.headers.get(header);
-    if (value) redirect.headers.set(header, value);
+    if (value) to.headers.set(header, value);
   }
-  return redirect;
+  return to;
+}
+
+export function redirectKeepingSession(from: NextResponse, url: URL): NextResponse {
+  return keepSession(from, NextResponse.redirect(url));
+}
+
+// The request copy carries any refreshed session to the page, as NextResponse.next({ request }) does.
+export function rewriteKeepingSession(
+  from: NextResponse,
+  request: NextRequest,
+  url: URL,
+): NextResponse {
+  return keepSession(from, NextResponse.rewrite(url, { request }));
 }
