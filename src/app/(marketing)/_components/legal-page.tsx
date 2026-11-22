@@ -12,6 +12,7 @@ export type LegalPageProps = {
   summary?: readonly ReactNode[];
   action?: ReactNode;
   sections: readonly LegalSection[];
+  updated?: string;
 };
 
 export const SHORT_VERSION: ContentsEntry = { id: "short-version", title: "The short version" };
@@ -20,10 +21,7 @@ export const SHORT_VERSION: ContentsEntry = { id: "short-version", title: "The s
 const RESERVED_IDS = ["main", SHORT_VERSION.id];
 
 // A plain calendar date: format it in UTC, or zones west of UTC show the day before.
-const LAST_UPDATED_LABEL = new Intl.DateTimeFormat("en-US", {
-  dateStyle: "long",
-  timeZone: "UTC",
-}).format(new Date(`${LEGAL_LAST_UPDATED}T00:00:00Z`));
+const DATE_LABEL = new Intl.DateTimeFormat("en-US", { dateStyle: "long", timeZone: "UTC" });
 
 export function headingId(title: string): string {
   return title
@@ -69,7 +67,14 @@ function ShortVersion({ items, action }: { items: readonly ReactNode[]; action?:
   );
 }
 
-export function LegalPage({ title, intro, summary, action, sections }: LegalPageProps) {
+export function LegalPage({
+  title,
+  intro,
+  summary,
+  action,
+  sections,
+  updated = LEGAL_LAST_UPDATED,
+}: LegalPageProps) {
   const headed = withHeadingIds(sections);
   const contents: ContentsEntry[] = [
     ...(summary ? [SHORT_VERSION] : []),
@@ -90,7 +95,8 @@ export function LegalPage({ title, intro, summary, action, sections }: LegalPage
             {title}
           </h1>
           <p className="mt-3 text-sm/5 text-subtle">
-            Last updated: <time dateTime={LEGAL_LAST_UPDATED}>{LAST_UPDATED_LABEL}</time>
+            Last updated:{" "}
+            <time dateTime={updated}>{DATE_LABEL.format(new Date(`${updated}T00:00:00Z`))}</time>
           </p>
           <details className="group mt-6 border-y border-border lg:hidden">
             <summary className="flex min-h-12 cursor-pointer list-none items-center justify-between gap-3 text-sm/6 font-medium text-ink [&::-webkit-details-marker]:hidden">

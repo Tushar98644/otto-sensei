@@ -1,5 +1,5 @@
 import type { MetadataRoute } from "next";
-import { LEGAL_LAST_UPDATED, ROUTES } from "@/components/site/routes";
+import { LEGAL_LAST_UPDATED, PRIVACY_LAST_UPDATED, ROUTES } from "@/components/site/routes";
 import { seoPages } from "@/lib/seo-pages/pages";
 import { PRODUCT_PAGES_UPDATED, SEO_PATHS } from "@/lib/seo-pages/paths";
 import { absoluteUrl } from "@/lib/seo/urls";
@@ -16,7 +16,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
   const legal = [ROUTES.privacy, ROUTES.terms, ROUTES.refunds, ROUTES.acceptableUse].map(
     (path) => ({
       url: absoluteUrl(path),
-      lastModified: LEGAL_LAST_UPDATED,
+      lastModified: path === ROUTES.privacy ? PRIVACY_LAST_UPDATED : LEGAL_LAST_UPDATED,
     }),
   );
   return [...pages, ...guides, ...legal];

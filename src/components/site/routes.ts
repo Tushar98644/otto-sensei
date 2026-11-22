@@ -73,4 +73,5 @@ export const FOOTER_GROUPS: readonly NavGroup[] = [
 
 export const FOOTER_NAV: readonly NavLink[] = FOOTER_GROUPS.flatMap((group) => group.links);
 
-export const LEGAL_LAST_UPDATED = "2026-11-22";
+export const LEGAL_LAST_UPDATED = "2026-11-20";
+export const PRIVACY_LAST_UPDATED = "2026-11-22";

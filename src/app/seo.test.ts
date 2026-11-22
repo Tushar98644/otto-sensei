@@ -3,7 +3,7 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { eq } from "drizzle-orm";
 import { beforeEach, describe, expect, it } from "vitest";
-import { LEGAL_LAST_UPDATED } from "@/components/site/routes";
+import { LEGAL_LAST_UPDATED, PRIVACY_LAST_UPDATED, ROUTES } from "@/components/site/routes";
 import { getDb } from "@/db/client";
 import { users } from "@/db/schema";
 import { createUser, resetDb, setPlan } from "@/lib/auth/test-helpers";
@@ -90,7 +90,9 @@ describe("sitemap", () => {
     for (const entry of entries) {
       const path = pathOf(entry.url);
       const day = LEGAL.includes(path)
-        ? LEGAL_LAST_UPDATED
+        ? path === ROUTES.privacy
+          ? PRIVACY_LAST_UPDATED
+          : LEGAL_LAST_UPDATED
         : PRODUCT.includes(path)
           ? PRODUCT_PAGES_UPDATED
           : path.startsWith("/compare")

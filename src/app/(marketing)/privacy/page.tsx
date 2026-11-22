@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { pageMetadata } from "@/components/site/page-metadata";
-import { ROUTES } from "@/components/site/routes";
+import { PRIVACY_LAST_UPDATED, ROUTES } from "@/components/site/routes";
 import { BRAND } from "@/config/brand";
 import { LegalPage, type LegalSection } from "../_components/legal-page";
 import { MERCHANT } from "../_components/merchant";
@@ -481,6 +481,7 @@ const SECTIONS: readonly LegalSection[] = [
 export default function PrivacyPage() {
   return (
     <LegalPage
+      updated={PRIVACY_LAST_UPDATED}
       title="Privacy policy"
       intro={
         <p>
