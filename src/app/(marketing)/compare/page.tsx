@@ -6,7 +6,7 @@ import { ROUTES } from "@/components/site/routes";
 import { Panel } from "@/components/ui/panel";
 import { BRAND } from "@/config/brand";
 import { COMPETITORS, COMPETITORS_CHECKED, choices, compareTitle } from "@/lib/seo-pages/compare";
-import { COMPARE_INDEX_PAGE, RELATED, calendarDate } from "@/lib/seo-pages/pages";
+import { COMPARE_INDEX_PAGE, RELATED, calendarMonth } from "@/lib/seo-pages/pages";
 import { comparePath } from "@/lib/seo-pages/paths";
 import {
   Breadcrumbs,
@@ -34,9 +34,11 @@ export default function CompareIndexPage() {
           plans include, and where Otto is different.
         </p>
         <p className="text-base/7 text-subtle">
-          Facts about each product come from its own website, checked on{" "}
-          <time dateTime={COMPETITORS_CHECKED}>{calendarDate(COMPETITORS_CHECKED)}</time>, with
-          links to every source.
+          Facts about each product come from its own website, checked in{" "}
+          <time dateTime={COMPETITORS_CHECKED.slice(0, 7)}>
+            {calendarMonth(COMPETITORS_CHECKED)}
+          </time>
+          , with the day and a link to every source on each page.
         </p>
       </PageIntro>
 

@@ -1,6 +1,8 @@
 import type { HiringSystemId } from "@/lib/ats/types";
 
 export const SEO_PATHS = {
+  resumeBuilder: "/resume-builder",
+  resumeExamples: "/resume-examples",
   resumeTemplates: "/resume-templates",
   ats: "/ats",
   compare: "/compare",
@@ -15,8 +17,8 @@ export const JOB_MATCH_PARAM = "job";
 // Bump when the guide, template or comparison pages change in substance.
 export const SEO_PAGES_UPDATED = "2026-11-21";
 
-// Bump when the home, pricing or job match pages change in substance.
-export const PRODUCT_PAGES_UPDATED = "2026-11-21";
+// Bump when the home, pricing, job match or resume builder pages change in substance.
+export const PRODUCT_PAGES_UPDATED = "2026-11-22";
 
 export function atsPath(id: HiringSystemId): string {
   return `${SEO_PATHS.ats}/${id}`;
@@ -24,4 +26,8 @@ export function atsPath(id: HiringSystemId): string {
 
 export function comparePath(slug: string): string {
   return `${SEO_PATHS.compare}/${slug}`;
+}
+
+export function examplePath(slug: string): string {
+  return `${SEO_PATHS.resumeExamples}/${slug}`;
 }

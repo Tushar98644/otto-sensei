@@ -48,6 +48,7 @@ export const FOOTER_GROUPS: readonly NavGroup[] = [
   {
     title: "Product",
     links: [
+      { href: SEO_PATHS.resumeBuilder, label: "Resume builder" },
       { href: SEO_PATHS.jobMatch, label: "Job match check" },
       { href: ROUTES.pricing, label: "Pricing" },
     ],
@@ -55,6 +56,7 @@ export const FOOTER_GROUPS: readonly NavGroup[] = [
   {
     title: "Guides",
     links: [
+      { href: SEO_PATHS.resumeExamples, label: "Resume examples" },
       { href: SEO_PATHS.resumeTemplates, label: "Resume templates" },
       { href: SEO_PATHS.ats, label: "ATS guides" },
       { href: SEO_PATHS.compare, label: "Comparisons" },

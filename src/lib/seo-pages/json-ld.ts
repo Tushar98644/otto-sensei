@@ -129,3 +129,25 @@ export function templateListJsonLd(
     })),
   };
 }
+
+export function pageListJsonLd(
+  name: string,
+  path: string,
+  items: readonly { name: string; path: string }[],
+  base: string,
+): JsonLdData {
+  const page = absoluteUrl(path, base);
+  return {
+    "@context": "https://schema.org",
+    "@type": "ItemList",
+    "@id": `${page}#list`,
+    name,
+    numberOfItems: items.length,
+    itemListElement: items.map((item, index) => ({
+      "@type": "ListItem",
+      position: index + 1,
+      name: item.name,
+      url: absoluteUrl(item.path, base),
+    })),
+  };
+}

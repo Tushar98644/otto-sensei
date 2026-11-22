@@ -6,7 +6,7 @@ import type { PortfolioTemplateId } from "@/lib/portfolio/types";
 import type { DashboardSection, EmailCampaign } from "./landing";
 
 export type ImportSource =
-  "pdf" | "docx" | "linkedin" | "jsonresume" | "draft" | "scratch" | "sample" | "paste";
+  "pdf" | "docx" | "linkedin" | "jsonresume" | "draft" | "scratch" | "sample" | "example" | "paste";
 
 type NoProps = Record<string, never>;
 

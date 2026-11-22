@@ -32,6 +32,21 @@ describe("ResumeWeb", () => {
     expect(html).toContain(`href="mailto:jordan@example.com"`);
   });
 
+  it("nests its headings under a page's own when asked, keeping one h1 on the page", () => {
+    const html = renderToStaticMarkup(<ResumeWeb resume={sample()} headingLevel={3} />);
+    expect(html).not.toMatch(/<h[12][ >]/);
+    expect(html).toMatch(/<h3[^>]*>Jordan Ellis<\/h3>/);
+    expect(html).toMatch(/<h4 id="section-experience"/);
+    expect(html).toContain("<h5");
+  });
+
+  it("can show every address as plain text", () => {
+    const html = renderToStaticMarkup(<ResumeWeb resume={sample()} linked={false} />);
+    expect(html).not.toContain("<a ");
+    expect(html).toContain("jordanellis.dev");
+    expect(html).toContain("jordan@example.com");
+  });
+
   it("never turns a non-web address into a link", () => {
     const html = renderToStaticMarkup(<ResumeWeb resume={sample()} />);
     expect(html).not.toContain(`href="javascript:`);

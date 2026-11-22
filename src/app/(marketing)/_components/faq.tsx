@@ -2,6 +2,8 @@ import { ROUTES } from "@/components/site/routes";
 import { TextLink } from "@/components/site/text-link";
 import { FREE_APPLICATIONS, FREE_JOB_MATCHES, PLANS } from "@/config/plans";
 import { trialHeadline, trialSentence } from "@/lib/billing/prices";
+import { ROLE_EXAMPLES } from "@/lib/seo-pages/examples";
+import { SEO_PATHS } from "@/lib/seo-pages/paths";
 import { pluralize } from "@/lib/utils";
 import { type FaqItem, FaqList } from "./faq-list";
 import { Section, SectionHeader } from "./section";
@@ -47,8 +49,14 @@ export const HOME_FAQ: readonly FaqItem[] = [
   },
   {
     question: "Does it work for any job?",
-    answer:
-      "Yes, from your first job to senior roles, in any field. Tailoring works with any job post you paste in. Otto reads resumes written in English best.",
+    answer: (
+      <>
+        Yes, from your first job to senior roles, in any field. Tailoring works with any job post
+        you paste in. Otto reads resumes written in English best. The{" "}
+        <TextLink href={SEO_PATHS.resumeExamples}>resume examples</TextLink> show{" "}
+        {ROLE_EXAMPLES.length} jobs, from freshers to sales.
+      </>
+    ),
   },
 ];
 

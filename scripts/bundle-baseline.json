@@ -145,6 +145,21 @@
     "total_kb": 408
   },
   {
+    "route": "/resume-builder",
+    "initial_kb": 203,
+    "total_kb": 406
+  },
+  {
+    "route": "/resume-examples",
+    "initial_kb": 203,
+    "total_kb": 406
+  },
+  {
+    "route": "/resume-examples/[role]",
+    "initial_kb": 207,
+    "total_kb": 505
+  },
+  {
     "route": "/resume-templates",
     "initial_kb": 206,
     "total_kb": 423

@@ -8,6 +8,7 @@ import { TEMPLATE_LIST } from "@/lib/pdf/templates";
 import { SEO_LIMITS } from "@/lib/seo/limits";
 import { ATS_IDS } from "@/lib/seo-pages/ats";
 import { COMPETITORS } from "@/lib/seo-pages/compare";
+import { ROLE_EXAMPLES } from "@/lib/seo-pages/examples";
 import { Faq } from "./_components/faq";
 import { WebsiteJsonLd } from "./_components/website-json-ld";
 import { metadata as acceptableUseMetadata } from "./acceptable-use/page";
@@ -20,6 +21,9 @@ import { metadata as homeMetadata } from "./page";
 import PricingPage, { generateMetadata as pricingMetadata } from "./pricing/page";
 import { metadata as privacyMetadata } from "./privacy/page";
 import { metadata as refundsMetadata } from "./refunds/page";
+import ResumeBuilderPage, { metadata as builderMetadata } from "./resume-builder/page";
+import ExamplePage, { generateMetadata as exampleMetadata } from "./resume-examples/[role]/page";
+import ResumeExamplesPage, { metadata as examplesMetadata } from "./resume-examples/page";
 import ResumeTemplatesPage, { metadata as templatesMetadata } from "./resume-templates/page";
 import { metadata as termsMetadata } from "./terms/page";
 
@@ -86,6 +90,8 @@ const guideHtml = async (system: string) =>
   renderToStaticMarkup(await AtsGuidePage({ params: Promise.resolve({ system }) }));
 const compareHtml = async (competitor: string) =>
   renderToStaticMarkup(await ComparePage({ params: Promise.resolve({ competitor }) }));
+const exampleHtml = async (role: string) =>
+  renderToStaticMarkup(await ExamplePage({ params: Promise.resolve({ role }) }));
 
 describe("FAQ markup", () => {
   it.each([
@@ -102,6 +108,11 @@ describe("FAQ markup", () => {
     ["pricing", pricingHtml],
     ["job match", async () => renderToStaticMarkup(<JobMatchPage />)],
     ["resume templates", async () => renderToStaticMarkup(<ResumeTemplatesPage />)],
+    ["resume builder", async () => renderToStaticMarkup(<ResumeBuilderPage />)],
+    ...ROLE_EXAMPLES.map((example): [string, () => Promise<string>] => [
+      `the ${example.slug} example`,
+      () => exampleHtml(example.slug),
+    ]),
   ])("on %s quotes exactly the questions and answers the page shows", async (_, render) => {
     const html = await render();
     const shown = visibleFaq(html);
@@ -161,6 +172,36 @@ describe("page JSON-LD", () => {
     },
   );
 
+  it("the examples page lists the examples it shows, in order, at their own pages", () => {
+    const html = renderToStaticMarkup(<ResumeExamplesPage />);
+    const [list] = ofType(html, "ItemList");
+    const items = list?.itemListElement as { position: number; name: string; url: string }[];
+    expect(items.map((item) => item.position)).toEqual(ROLE_EXAMPLES.map((_, index) => index + 1));
+    for (const [index, example] of ROLE_EXAMPLES.entries()) {
+      expect(items[index]?.url).toMatch(new RegExp(`/resume-examples/${example.slug}$`));
+      expect(html).toContain(`href="/resume-examples/${example.slug}"`);
+      expect(words(html)).toContain(example.role);
+    }
+    expect(ofType(html, "BreadcrumbList")).toHaveLength(1);
+  });
+
+  it.each(ROLE_EXAMPLES.map((example) => example.slug))(
+    "the %s example shows its resume as text under the page's one h1",
+    async (slug) => {
+      const html = await exampleHtml(slug);
+      const example = ROLE_EXAMPLES.find((item) => item.slug === slug)!;
+      expect(html.match(/<h1[ >]/g)).toHaveLength(1);
+      expect(words(/<h1[^>]*>([\s\S]*?)<\/h1>/.exec(html)![1]!)).toBe(
+        `${example.role} resume example`,
+      );
+      expect(words(html)).toContain(example.resume.basics.name);
+      for (const job of example.resume.experience ?? []) {
+        for (const line of job.bullets) expect(words(html)).toContain(line);
+      }
+      expect(ofType(html, "BreadcrumbList")).toHaveLength(1);
+    },
+  );
+
   it("the templates page lists the formats it shows, in order", () => {
     const html = renderToStaticMarkup(<ResumeTemplatesPage />);
     const [list] = ofType(html, "ItemList");
@@ -184,6 +225,14 @@ async function publicMetadata(): Promise<[string, Metadata][]> {
     ["/", homeMetadata],
     ["/pricing", pricingMetadata()],
     ["/job-match", jobMatchMetadata],
+    ["/resume-builder", builderMetadata],
+    ["/resume-examples", examplesMetadata],
+    ...(await Promise.all(
+      ROLE_EXAMPLES.map(async ({ slug }): Promise<[string, Metadata]> => [
+        `/resume-examples/${slug}`,
+        await exampleMetadata({ params: Promise.resolve({ role: slug }) }),
+      ]),
+    )),
     ["/resume-templates", templatesMetadata],
     ["/ats", atsMetadata],
     ...(await Promise.all(

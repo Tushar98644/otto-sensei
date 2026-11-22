@@ -1,4 +1,10 @@
-import { Fragment, type CSSProperties, type ReactNode } from "react";
+import {
+  Fragment,
+  createElement,
+  type CSSProperties,
+  type ComponentProps,
+  type ReactNode,
+} from "react";
 import {
   bulletMark,
   contactLines,
@@ -26,6 +32,16 @@ import { cn } from "@/lib/utils";
 import { points, webStyle } from "./web-style";
 
 type Styled = { theme: TemplateTheme };
+
+// The heading level of the name; sections and entries sit one and two levels below it.
+type Level = 1 | 3;
+type Leveled = { level: Level };
+type Heading = "h1" | "h2" | "h3" | "h4" | "h5" | "h6";
+const heading = (level: number) => `h${level}` as Heading;
+
+function HeadingTag({ level, ...props }: { level: number } & ComponentProps<"h1">) {
+  return createElement(heading(level), props);
+}
 
 const HEADING: CSSProperties = { fontFamily: "inherit", fontWeight: "inherit" };
 const PAGE_SPACING = [
@@ -75,18 +91,20 @@ function Runs({ runs, theme }: Styled & { runs: readonly Run[] }) {
   );
 }
 
-function Header({ model, theme }: Styled & { model: PdfModel }) {
+function Header({ model, theme, level }: Styled & Leveled & { model: PdfModel }) {
   const { styles } = theme;
   const name = nameRuns(model, theme);
   const headline = headlineLine(model, theme);
   return (
     <header style={{ display: "flex", flexDirection: "column", ...webStyle(styles.header) }}>
       {name.length > 0 ? (
-        <h1 style={{ ...HEADING, ...webStyle(styles.name) }}>
+        <HeadingTag level={level} style={{ ...HEADING, ...webStyle(styles.name) }}>
           <Runs runs={name} theme={theme} />
-        </h1>
+        </HeadingTag>
       ) : (
-        <h1 className="sr-only">Resume</h1>
+        <HeadingTag level={level} className="sr-only">
+          Resume
+        </HeadingTag>
       )}
       {headline ? <p style={webStyle(styles.headline)}>{headline}</p> : null}
       {contactLines(model, theme).map((items, line) => (
@@ -104,13 +122,13 @@ function Header({ model, theme }: Styled & { model: PdfModel }) {
   );
 }
 
-function Row({ row, theme, heading }: Styled & { row: PlannedRow; heading: "h3" | "h4" | "p" }) {
-  const Lead = heading;
+function Row({ row, theme, lead }: Styled & { row: PlannedRow; lead: Heading | "p" }) {
+  const Lead = lead;
   return (
     <div style={{ ...ROW, ...webStyle(row.box, ["flexDirection", "justifyContent"]) }}>
       <Lead
         style={{
-          ...(heading === "p" ? {} : HEADING),
+          ...(lead === "p" ? {} : HEADING),
           ...webStyle(row.text, ["flex", "paddingRight"]),
           ...LEAD,
         }}
@@ -167,7 +185,8 @@ function Entries({
   entries,
   kind,
   theme,
-}: Styled & { entries: readonly PdfEntry[]; kind: EntryKind }) {
+  level,
+}: Styled & Leveled & { entries: readonly PdfEntry[]; kind: EntryKind }) {
   return entries.map((entry, index) => (
     <div key={entry.id} style={entrySpacing(entry, index, theme)}>
       {entryRows(entry, kind, theme).map((row, at) => (
@@ -175,7 +194,9 @@ function Entries({
           key={row.key}
           row={row}
           theme={theme}
-          heading={at > 0 ? "p" : entry.company && !entry.company.first ? "h4" : "h3"}
+          lead={
+            at > 0 ? "p" : heading(entry.company && !entry.company.first ? level + 3 : level + 2)
+          }
         />
       ))}
       {entry.note ? <p style={webStyle(theme.styles.entryNote)}>{entry.note}</p> : null}
@@ -190,7 +211,11 @@ function Entries({
 const spaced = (style: PdfStyle, index: number) =>
   webStyle(index > 0 ? style : { ...style, marginTop: 0 });
 
-function SectionBody({ section, theme }: Styled & { section: PdfSection }): ReactNode {
+function SectionBody({
+  section,
+  theme,
+  level,
+}: Styled & Leveled & { section: PdfSection }): ReactNode {
   const { styles } = theme;
   switch (section.key) {
     case "summary":
@@ -219,36 +244,47 @@ function SectionBody({ section, theme }: Styled & { section: PdfSection }): Reac
       ));
     }
     default:
-      return <Entries entries={section.entries} kind={SECTION_KINDS[section.key]} theme={theme} />;
+      return (
+        <Entries
+          entries={section.entries}
+          kind={SECTION_KINDS[section.key]}
+          theme={theme}
+          level={level}
+        />
+      );
   }
 }
 
-function ExtraBody({ section, theme }: Styled & { section: PdfExtraSection }): ReactNode {
+function ExtraBody({
+  section,
+  theme,
+  level,
+}: Styled & Leveled & { section: PdfExtraSection }): ReactNode {
   if (section.list !== null) return <p style={spaced(theme.styles.paragraph, 0)}>{section.list}</p>;
-  return <Entries entries={section.entries} kind="item" theme={theme} />;
+  return <Entries entries={section.entries} kind="item" theme={theme} level={level} />;
 }
 
-type SectionProps = Styled & { id: string; title: string; children: ReactNode };
+type SectionProps = Styled & Leveled & { id: string; title: string; children: ReactNode };
 
-function Section({ id, title, theme, children }: SectionProps) {
+function Section({ id, title, theme, level, children }: SectionProps) {
   const { styles } = theme;
-  const heading = (
-    <h2 id={id} style={{ ...HEADING, ...webStyle(styles.sectionTitle) }}>
+  const titled = (
+    <HeadingTag level={level + 1} id={id} style={{ ...HEADING, ...webStyle(styles.sectionTitle) }}>
       <Runs runs={headingRuns(title, theme)} theme={theme} />
-    </h2>
+    </HeadingTag>
   );
   const rule = <div aria-hidden style={webStyle(styles.sectionTitleRule)} />;
   return (
     <section aria-labelledby={id} style={webStyle(styles.section)}>
       {theme.headingRule === "after" ? (
         <div style={{ display: "flex", ...webStyle(styles.sectionTitleRow) }}>
-          {heading}
+          {titled}
           {rule}
         </div>
       ) : (
         <>
           {theme.headingRule === "above" ? rule : null}
-          {heading}
+          {titled}
           {theme.headingRule === "below" ? rule : null}
         </>
       )}
@@ -257,26 +293,43 @@ function Section({ id, title, theme, children }: SectionProps) {
   );
 }
 
-export type ResumeWebProps = { resume: Resume; className?: string };
+// Every address keeps its text and loses its link.
+function unlinked<T>(value: T): T {
+  if (Array.isArray(value)) return value.map(unlinked) as T;
+  if (!value || typeof value !== "object") return value;
+  return Object.fromEntries(
+    Object.entries(value).map(([key, item]) => [key, key === "href" ? null : unlinked(item)]),
+  ) as T;
+}
 
-export function ResumeWeb({ resume, className }: ResumeWebProps) {
+// headingLevel 3 nests the resume under a page's own h1 and h2; linked false suits made-up addresses.
+export type ResumeWebProps = {
+  resume: Resume;
+  className?: string;
+  headingLevel?: Level;
+  linked?: boolean;
+};
+
+export function ResumeWeb({ resume, className, headingLevel = 1, linked = true }: ResumeWebProps) {
   const theme = themeFor(resume);
-  const model = buildPdfModel(resume, { charset: "unicode" });
+  const built = buildPdfModel(resume, { charset: "unicode" });
+  const model = linked ? built : unlinked(built);
   return (
     <article
       data-format={templateOf(resume)}
       style={webStyle(theme.styles.page, PAGE_SPACING)}
       className={cn("wrap-anywhere [--pt:1.45px] sm:[--pt:1.6px]", className)}
     >
-      <Header model={model} theme={theme} />
+      <Header model={model} theme={theme} level={headingLevel} />
       {model.sections.map((section) => (
         <Section
           key={section.key}
           id={`section-${section.key}`}
           title={section.title}
           theme={theme}
+          level={headingLevel}
         >
-          <SectionBody section={section} theme={theme} />
+          <SectionBody section={section} theme={theme} level={headingLevel} />
         </Section>
       ))}
       {(model.extras ?? []).map((section) => (
@@ -285,8 +338,9 @@ export function ResumeWeb({ resume, className }: ResumeWebProps) {
           id={`section-extra-${section.id}`}
           title={section.title}
           theme={theme}
+          level={headingLevel}
         >
-          <ExtraBody section={section} theme={theme} />
+          <ExtraBody section={section} theme={theme} level={headingLevel} />
         </Section>
       ))}
     </article>

@@ -5,11 +5,15 @@ import { ROUTES } from "@/components/site/routes";
 import { HIRING_SYSTEMS } from "@/lib/ats/systems";
 import { ATS_IDS, atsGuide, guideHeadline, topTip } from "@/lib/seo-pages/ats";
 import { COMPETITORS } from "@/lib/seo-pages/compare";
-import { seoPages } from "@/lib/seo-pages/pages";
-import { SEO_PATHS, atsPath } from "@/lib/seo-pages/paths";
+import { calendarDate, seoPages } from "@/lib/seo-pages/pages";
+import { ROLE_EXAMPLES } from "@/lib/seo-pages/examples";
+import { SEO_PATHS, atsPath, examplePath } from "@/lib/seo-pages/paths";
 import { TEMPLATE_LIST } from "@/lib/pdf/templates";
 import ComparePage, { generateMetadata as compareMetadata } from "../compare/[competitor]/page";
 import CompareIndexPage from "../compare/page";
+import ResumeBuilderPage from "../resume-builder/page";
+import ExamplePage from "../resume-examples/[role]/page";
+import ResumeExamplesPage from "../resume-examples/page";
 import ResumeTemplatesPage from "../resume-templates/page";
 import AtsGuidePage, { generateMetadata as guideMetadata } from "./[system]/page";
 import AtsGuidesPage from "./page";
@@ -164,6 +168,36 @@ describe("ATS guide pages", () => {
   });
 });
 
+describe("resume builder and examples", () => {
+  it("the builder links only to known pages, under one h1", () => {
+    const html = renderToStaticMarkup(<ResumeBuilderPage />);
+    checkPage(html);
+    for (const path of [ROUTES.studio, ROUTES.pricing, SEO_PATHS.resumeExamples]) {
+      expect(html).toContain(`href="${path}"`);
+    }
+  });
+
+  it("the examples index links every example", () => {
+    const html = renderToStaticMarkup(<ResumeExamplesPage />);
+    checkPage(html);
+    for (const example of ROLE_EXAMPLES) {
+      expect(html).toContain(`href="${examplePath(example.slug)}"`);
+    }
+  });
+
+  it.each(ROLE_EXAMPLES.map((example) => example.slug))(
+    "the %s example links only to known pages, and its made-up addresses to nothing",
+    async (slug) => {
+      const html = await render(ExamplePage({ params: Promise.resolve({ role: slug }) }));
+      checkPage(html);
+      expect(html).not.toMatch(/href="[^"]*example\.com/);
+      expect(html).not.toContain("mailto:");
+      const example = ROLE_EXAMPLES.find((item) => item.slug === slug)!;
+      for (const other of example.related) expect(html).toContain(`href="${examplePath(other)}"`);
+    },
+  );
+});
+
 describe("comparison pages", () => {
   it.each(COMPETITORS.map((c) => c.slug))("%s shows both sides and its sources", async (slug) => {
     const competitor = COMPETITORS.find((c) => c.slug === slug)!;
@@ -171,7 +205,8 @@ describe("comparison pages", () => {
     checkPage(html);
     const words = text(html);
     expect(words).toContain(`Otto Sensei vs ${competitor.name}`);
-    expect(words).toContain("November 18, 2026");
+    expect(words).toContain(calendarDate(competitor.checked));
+    expect(words.includes("the ones it showed in India")).toBe(Boolean(competitor.pricedByCountry));
     for (const row of competitor.rows) {
       for (const cell of [row.otto, row.them]) {
         expect(words).toContain(cell.answer);

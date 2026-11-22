@@ -10,7 +10,6 @@ import { BRAND } from "@/config/brand";
 import { appUrl } from "@/lib/env";
 import {
   COMPETITORS,
-  COMPETITORS_CHECKED,
   type CompareCell,
   type CompareNote,
   type Competitor,
@@ -189,7 +188,7 @@ function WhichSuits({ competitor }: { competitor: Competitor }) {
 export default async function ComparePage({ params }: Props) {
   const competitor = await competitorFor(params);
   const title = compareTitle(competitor);
-  const checked = calendarDate(COMPETITORS_CHECKED);
+  const checked = calendarDate(competitor.checked);
   const others = COMPETITORS.filter((other) => other.slug !== competitor.slug);
   return (
     <div className={PAGE_CLASSES}>
@@ -209,7 +208,11 @@ export default async function ComparePage({ params }: Props) {
 
       <p className="mt-6 max-w-3xl text-sm/6 text-pretty text-subtle">
         Everything about {competitor.name} here comes from its own website, checked on{" "}
-        <time dateTime={COMPETITORS_CHECKED}>{checked}</time>. Prices and plans change, so check the{" "}
+        <time dateTime={competitor.checked}>{checked}</time>.{" "}
+        {competitor.pricedByCountry
+          ? `${competitor.name} shows each country its own prices; any here are the ones it showed in India. `
+          : null}
+        Prices and plans change, so check the{" "}
         <a href="#sources-title" className={LINK_CLASSES}>
           sources
         </a>{" "}

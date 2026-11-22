@@ -7,12 +7,16 @@ import { TEMPLATE_IDS } from "@/lib/resume/schema";
 import { absoluteUrl } from "@/lib/seo/urls";
 import { ATS_GUIDES, INDEXED_ATS_GUIDES } from "./ats";
 import { COMPETITORS } from "./compare";
+import { ROLE_EXAMPLES } from "./examples";
 import {
   ATS_INDEX_PAGE,
   COMPARE_INDEX_PAGE,
+  RESUME_BUILDER_PAGE,
+  RESUME_EXAMPLES_PAGE,
   RESUME_TEMPLATES_PAGE,
   atsGuidePage,
   comparePage,
+  examplePage,
 } from "./pages";
 import { SEO_PATHS } from "./paths";
 
@@ -52,6 +56,11 @@ export function llmsTxt(base: string): string {
       note: `What Free, Pro (${planPrice("pro", "month")} a month) and Max (${planPrice("max", "month")} a month) include, in US dollars, with every monthly limit written down.`,
     },
     {
+      title: "Resume builder",
+      path: RESUME_BUILDER_PAGE.path,
+      note: RESUME_BUILDER_PAGE.description,
+    },
+    {
       title: "Job match check",
       path: SEO_PATHS.jobMatch,
       note: "A free check of which skills and tools in a job post a resume names.",
@@ -64,8 +73,19 @@ export function llmsTxt(base: string): string {
     {
       title: "Full text",
       path: SEO_PATHS.llmsFull,
-      note: "The guides, comparisons, pricing, plan limits and FAQs from these pages, in one plain-text file.",
+      note: "The guides, examples, comparisons, pricing, plan limits and FAQs from these pages, in one plain-text file.",
     },
+  ];
+  const examples: Link[] = [
+    {
+      title: "Resume examples",
+      path: RESUME_EXAMPLES_PAGE.path,
+      note: RESUME_EXAMPLES_PAGE.description,
+    },
+    ...ROLE_EXAMPLES.map((example) => {
+      const page = examplePage(example);
+      return { title: page.title, path: page.path, note: page.description };
+    }),
   ];
   const guides: Link[] = [
     { title: "ATS guides", path: ATS_INDEX_PAGE.path, note: ATS_INDEX_PAGE.description },
@@ -88,6 +108,8 @@ export function llmsTxt(base: string): string {
     ...productOverview(),
     "",
     section("Main pages", main, base),
+    "",
+    section("Resume examples", examples, base),
     "",
     section("ATS guides", guides, base),
     "",

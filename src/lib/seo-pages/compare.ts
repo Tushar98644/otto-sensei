@@ -27,10 +27,11 @@ export type Competitor = {
   pickThem: string;
   pickOtto: string;
   sources: readonly CompareSource[];
+  // The day every fact about this product was read from its own pages.
+  checked: string;
+  // Set when the product's site shows each country its own prices; the ones here were shown in India.
+  pricedByCountry?: boolean;
 };
-
-// The day every competitor fact below was read from that competitor's own pages.
-export const COMPETITORS_CHECKED = "2026-11-18";
 
 const freeFormats = FREE_TEMPLATES.map((id) => TEMPLATE_INFO[id].name).join(" and ");
 const systemCount = Object.keys(HIRING_SYSTEMS).length;
@@ -183,6 +184,7 @@ const jobscan: Competitor = {
       url: "https://www.jobscan.co/blog/jobscan-vs-huntr/",
     },
   ],
+  checked: "2026-11-18",
 };
 
 export const REZI_PRO_USD = 29;
@@ -260,6 +262,7 @@ const rezi: Competitor = {
     { label: "Rezi pricing page", url: "https://www.rezi.ai/pricing" },
     { label: "Rezi home page", url: "https://www.rezi.ai/" },
   ],
+  checked: "2026-11-22",
 };
 
 const kickresume: Competitor = {
@@ -291,9 +294,9 @@ const kickresume: Competitor = {
       label: "Paid plans",
       otto: OTTO_SIDE.paid,
       them: {
-        answer: "Premium: $24 a month",
+        answer: "Premium, priced by country",
         detail:
-          "Or $54 every 3 months, or $96 every 12 months. It adds 40+ templates, the AI writer, the ATS resume checker, LinkedIn and PDF import, and the mobile apps.",
+          "$9 for one month, $18 for three or $48 for a year. It adds 40+ templates, the AI writer, the ATS resume checker, LinkedIn and PDF import, and the mobile apps.",
       },
     },
     {
@@ -335,9 +338,238 @@ const kickresume: Competitor = {
     { label: "Kickresume pricing page", url: "https://www.kickresume.com/en/pricing/" },
     { label: "Kickresume home page", url: "https://www.kickresume.com/en/" },
   ],
+  checked: "2026-11-22",
+  pricedByCountry: true,
 };
 
-export const COMPETITORS: readonly Competitor[] = [jobscan, rezi, kickresume];
+const resumeio: Competitor = {
+  slug: "resume-io",
+  name: "Resume.io",
+  site: "https://resume.io/",
+  summary:
+    "Resume.io is a resume and cover letter builder with an AI writer, an ATS scorer and 500+ resume examples. Around it sit a job board, recruiter matching, an auto-apply service, interview practice and a salary analyzer.",
+  rows: [
+    {
+      label: "What it is",
+      otto: OTTO_SIDE.what,
+      them: {
+        answer: "Resume and letter builder",
+        detail:
+          "With an AI writer, an ATS scorer, a job board, recruiter matching, auto-apply by its team, interview practice, a salary analyzer and courses.",
+      },
+    },
+    {
+      label: "Free plan",
+      otto: OTTO_SIDE.free,
+      them: {
+        answer: "1 resume, TXT downloads",
+        detail:
+          "One resume and one cover letter, downloads in TXT only, and limited sharing and analytics.",
+      },
+    },
+    {
+      label: "Paid plans",
+      otto: OTTO_SIDE.paid,
+      them: {
+        answer: "Weekly or yearly plans",
+        detail:
+          "Priced by country, with unlimited resumes, cover letters and PDF downloads. The plan cards say one-time payment; its FAQ says a 7-day trial becomes a monthly membership unless you cancel.",
+      },
+    },
+    {
+      label: "Downloads",
+      otto: OTTO_SIDE.downloads,
+      them: {
+        answer: "TXT only on Free",
+        detail: "PDF downloads come with a paid plan, and its templates download to Word or PDF.",
+      },
+    },
+  ],
+  strengths: [
+    "A large library: 500+ resume examples by job, and resume and cover letter templates in many styles.",
+    "Tools past the resume: a job board, interview practice, a salary analyzer and courses.",
+    "Recruiter Match, which it says sends your resume to recruiters, and Auto Apply, where its team applies to jobs for you.",
+    "A 7-day money-back guarantee, no questions asked.",
+  ],
+  differences: [
+    {
+      ...FREE_PDFS,
+      text: `${FREE_PDFS.text} Resume.io's free plan downloads in TXT only.`,
+    },
+    {
+      title: "Billed by the month",
+      text: "Otto Pro is billed monthly or yearly, and you cancel from your account. Resume.io sells a one-week or a one-year plan.",
+    },
+  ],
+  extras: [NO_SCORE, EMPLOYER_JOBS],
+  pickThem:
+    "you want a big library of designs and examples, Word downloads, or help with applying and salary talks.",
+  pickOtto:
+    "you want free PDF downloads and a plain check of what hiring software reads from your file.",
+  sources: [
+    { label: "Resume.io pricing page", url: "https://resume.io/pricing" },
+    { label: "Resume.io home page", url: "https://resume.io/" },
+  ],
+  checked: "2026-11-22",
+  pricedByCountry: true,
+};
+
+const enhancv: Competitor = {
+  slug: "enhancv",
+  name: "Enhancv",
+  site: "https://enhancv.com/",
+  summary:
+    "Enhancv is an AI resume builder with hundreds of templates, an ATS check, one-click tailoring to a job post, resume translation, AI mock interviews, a job board and a job tracker.",
+  rows: [
+    {
+      label: "What it is",
+      otto: OTTO_SIDE.what,
+      them: {
+        answer: "An AI resume builder",
+        detail:
+          "With content suggestions, an ATS check and resume feedback, tailoring with a match score, translation, a cover letter generator, interview help, a job board and a tracker.",
+      },
+    },
+    {
+      label: "Score",
+      otto: OTTO_SIDE.score,
+      them: {
+        answer: "An ATS score",
+        detail:
+          "Its resume feedback gives an ATS score, and tailoring shows a match score for a job post.",
+      },
+    },
+    {
+      label: "Free plan",
+      otto: OTTO_SIDE.free,
+      them: {
+        answer: "Free for 7 days",
+        detail:
+          "All templates and design tools, basic sections, up to 12 section items, and Enhancv branding.",
+      },
+    },
+    {
+      label: "Paid plans",
+      otto: OTTO_SIDE.paid,
+      them: {
+        answer: "Pro, priced by country",
+        detail:
+          "Billed monthly, every 3 months or every 6 months. Adds up to 300 resumes and cover letters, content suggestions, the ATS check, Pro sections and no branding.",
+      },
+    },
+    {
+      label: "Downloads",
+      otto: OTTO_SIDE.downloads,
+      them: { answer: "PDF, not Word", detail: "Its FAQ says resumes download as a PDF." },
+    },
+  ],
+  strengths: [
+    "Hundreds of templates, tens of sections and thousands of design options, including sections like Day of My Life.",
+    "Resume translation into languages such as French, German, Spanish, Arabic, Chinese, Japanese and Hindi.",
+    "One-click tailoring: paste a job ad and it shows what to add, with a match score.",
+    "A job board, a job tracker with reminders, a Chrome extension and AI mock interviews.",
+  ],
+  differences: [
+    {
+      title: "A free plan with no end date",
+      text: "Otto's Free plan has no time limit. Enhancv's Free plan is valid for 7 days.",
+    },
+    NO_SCORE,
+  ],
+  extras: [FREE_PDFS, EMPLOYER_JOBS],
+  pickThem:
+    "you want many designs and sections, resume translation, or AI mock interviews in one place.",
+  pickOtto: "you want a free plan with no time limit and plain reasons instead of a score.",
+  sources: [
+    { label: "Enhancv pricing page", url: "https://enhancv.com/pricing/" },
+    { label: "Enhancv home page", url: "https://enhancv.com/" },
+  ],
+  checked: "2026-11-22",
+  pricedByCountry: true,
+};
+
+const novoresume: Competitor = {
+  slug: "novoresume",
+  name: "Novoresume",
+  site: "https://novoresume.com/",
+  summary:
+    "Novoresume is a resume and cover letter builder with designed templates, an ATS checker and AI writing tools, sold as a subscription or as a one-month pass.",
+  rows: [
+    {
+      label: "What it is",
+      otto: OTTO_SIDE.what,
+      them: {
+        answer: "Resume and letter builder",
+        detail:
+          "With designed templates, an ATS checker that scores your file, AI writing tools and a cover letter builder on Pro.",
+      },
+    },
+    {
+      label: "Free plan",
+      otto: OTTO_SIDE.free,
+      them: {
+        answer: "1 resume, 1 page",
+        detail:
+          "8 templates, 30 colour themes, 2 AI credits a month and the ATS checker. It doesn't expire, and the PDF carries Novoresume branding.",
+      },
+    },
+    {
+      label: "Paid plans",
+      otto: OTTO_SIDE.paid,
+      them: {
+        answer: "Pro, priced by country",
+        detail:
+          "Monthly, quarterly or yearly until you cancel, or a one-month Pass charged once. Pro adds up to 144 documents of 25 pages, every template, the cover letter builder and 40 AI credits a month.",
+      },
+    },
+    {
+      label: "Downloads",
+      otto: OTTO_SIDE.downloads,
+      them: {
+        answer: "Branded PDF on Free",
+        detail:
+          "Pro removes the branding. A download that asks you to upgrade works once Pro features are swapped for free ones.",
+      },
+    },
+  ],
+  strengths: [
+    "No subscription needed: the one-month Pass charges once, with nothing to cancel.",
+    "A free plan that doesn't expire, with an ATS checker included.",
+    "Lots of design control on Pro: every template, 74 colour themes, 12 fonts, custom layouts and creative backgrounds.",
+    "A 14-day money-back guarantee on your first upgrade.",
+  ],
+  differences: [
+    {
+      title: "Free PDFs without branding",
+      text: "Otto puts no branding on the PDFs you download for free. Novoresume's free PDFs carry its branding.",
+    },
+    NO_SCORE,
+  ],
+  extras: [FREE_PDFS, EMPLOYER_JOBS],
+  pickThem:
+    "you want designed templates with colours and icons, or a one-month pass with nothing to cancel.",
+  pickOtto: "you want free PDFs without branding and plain reasons instead of a score.",
+  sources: [
+    { label: "Novoresume pricing page", url: "https://novoresume.com/pricing" },
+    { label: "Novoresume home page", url: "https://novoresume.com/" },
+  ],
+  checked: "2026-11-22",
+  pricedByCountry: true,
+};
+
+export const COMPETITORS: readonly Competitor[] = [
+  jobscan,
+  rezi,
+  kickresume,
+  resumeio,
+  enhancv,
+  novoresume,
+];
+
+// Newest first, so the index and the full text name the latest check.
+export const COMPETITORS_CHECKED = COMPETITORS.map((competitor) => competitor.checked)
+  .sort()
+  .at(-1)!;
 
 export function competitorBySlug(slug: string): Competitor | undefined {
   return COMPETITORS.find((competitor) => competitor.slug === slug);

@@ -22,23 +22,36 @@ import {
   compareTitle,
   ottoReasons,
 } from "@/lib/seo-pages/compare";
+import { ROLE_EXAMPLES, type RoleExample } from "@/lib/seo-pages/examples";
 import { LEGAL_LINKS, linkLine, productOverview } from "@/lib/seo-pages/llms";
 import {
   ATS_INDEX_PAGE,
   COMPARE_INDEX_PAGE,
   HOME_PAGE,
   JOB_MATCH_PAGE,
+  RESUME_BUILDER_PAGE,
+  RESUME_EXAMPLES_PAGE,
   RESUME_TEMPLATES_PAGE,
   atsGuidePage,
   calendarDate,
+  calendarMonth,
   comparePage,
+  exampleHeadline,
+  examplePage,
 } from "@/lib/seo-pages/pages";
 import { SEO_PAGES_UPDATED } from "@/lib/seo-pages/paths";
 import { HOME_FAQ } from "../(marketing)/_components/faq";
 import type { FaqItem } from "../(marketing)/_components/faq-list";
+import type { Note } from "../(marketing)/_components/note-rows";
 import { planCopy } from "../(marketing)/_components/plan-features";
 import { JOB_MATCH_FAQ } from "../(marketing)/job-match/faq";
 import { BILLING_FAQ } from "../(marketing)/pricing/billing-faq";
+import {
+  AUDIENCES,
+  BUILDER_FAQ,
+  BUILD_STEPS,
+  INDIA_NOTES,
+} from "../(marketing)/resume-builder/content";
 import { COMMON, TEMPLATES_FAQ } from "../(marketing)/resume-templates/content";
 
 // No live job count here: the file is built once, so it makes no claim a count could outdate.
@@ -80,6 +93,69 @@ function pricingLines(offer: BillingOffer, base: string): string[] {
     "### Billing questions",
     "",
     ...faqLines(BILLING_FAQ).map((line) => line.replace(/^### /, "#### ")),
+  ];
+}
+
+function noteLines(notes: readonly Note[]): string[] {
+  return notes.map((note) => `- ${note.title}: ${nodeText(note.text)}`);
+}
+
+function builderLines(base: string): string[] {
+  return [
+    ...pageHeader("Resume builder", RESUME_BUILDER_PAGE.path, base),
+    RESUME_BUILDER_PAGE.description,
+    "",
+    "### How it builds and checks a resume",
+    "",
+    ...noteLines(BUILD_STEPS),
+    "",
+    "### Who it's for",
+    "",
+    ...noteLines(AUDIENCES),
+    "",
+    "### Resumes for jobs in India",
+    "",
+    ...noteLines(INDIA_NOTES),
+    "",
+    ...faqLines(BUILDER_FAQ),
+  ];
+}
+
+function exampleLines(example: RoleExample, base: string): string[] {
+  return [
+    `### ${exampleHeadline(example)}`,
+    "",
+    `Page: ${absoluteUrl(examplePage(example).path, base)}`,
+    "",
+    example.intro,
+    "",
+    "#### Lines that turn duties into results",
+    "",
+    ...example.lines.flatMap((line) => [`- Before: ${line.weak}`, `  After: ${line.strong}`]),
+    "",
+    "#### Skills to show",
+    "",
+    ...example.skills.map((group) => `- ${group.label}: ${group.items.join(", ")}`),
+    `- Job titles to search: ${example.titles.join(", ")}`,
+    "",
+    "#### What to show",
+    "",
+    ...noteLines(example.tips),
+    "",
+    "#### Mistakes to skip",
+    "",
+    ...noteLines(example.mistakes),
+    "",
+    ...faqLines(example.faq).map((line) => line.replace(/^### /, "#### ")),
+  ];
+}
+
+function examplesLines(base: string): string[] {
+  return [
+    ...pageHeader("Resume examples", RESUME_EXAMPLES_PAGE.path, base),
+    `${RESUME_EXAMPLES_PAGE.description} The people, companies and numbers in them are made up.`,
+    "",
+    ...ROLE_EXAMPLES.flatMap((example) => exampleLines(example, base)),
   ];
 }
 
@@ -149,6 +225,7 @@ function comparisonLines(competitor: Competitor, base: string): string[] {
     `### ${compareTitle(competitor)}`,
     "",
     `Page: ${absoluteUrl(page.path, base)}`,
+    `Checked on ${calendarDate(competitor.checked)}.${competitor.pricedByCountry ? ` ${competitor.name} shows each country its own prices; any here are the ones it showed in India.` : ""}`,
     "",
     competitor.summary,
     "",
@@ -183,7 +260,7 @@ function comparisonLines(competitor: Competitor, base: string): string[] {
 function compareLines(base: string): string[] {
   return [
     ...pageHeader("Comparisons", COMPARE_INDEX_PAGE.path, base),
-    `${COMPARE_INDEX_PAGE.description} Facts about each product come from its own website, checked on ${calendarDate(COMPETITORS_CHECKED)}. Prices and plans change, so check the sources.`,
+    `${COMPARE_INDEX_PAGE.description} Facts about each product come from its own website, checked in ${calendarMonth(COMPETITORS_CHECKED)}; each comparison gives its own day. Prices and plans change, so check the sources.`,
     "",
     ...COMPETITORS.flatMap((competitor) => comparisonLines(competitor, base)),
   ];
@@ -202,6 +279,8 @@ export function llmsFullTxt(base: string, offer: BillingOffer): string {
     JOB_MATCH_PAGE.description,
     "",
     ...faqLines(JOB_MATCH_FAQ),
+    ...builderLines(base),
+    ...examplesLines(base),
     ...templateLines(base),
     ...atsLines(base),
     ...compareLines(base),

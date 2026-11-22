@@ -4,9 +4,12 @@ import { TEMPLATE_LIST } from "@/lib/pdf/templates";
 import { nodeText } from "@/lib/seo/node-text";
 import { ATS_GUIDES, GENERAL_ADVICE, guideHeadline, isIndexed } from "@/lib/seo-pages/ats";
 import { COMPETITORS, compareTitle } from "@/lib/seo-pages/compare";
+import { ROLE_EXAMPLES } from "@/lib/seo-pages/examples";
+import { calendarDate, exampleHeadline } from "@/lib/seo-pages/pages";
 import { HOME_FAQ } from "../(marketing)/_components/faq";
 import { JOB_MATCH_FAQ } from "../(marketing)/job-match/faq";
 import { BILLING_FAQ } from "../(marketing)/pricing/billing-faq";
+import { BUILDER_FAQ, INDIA_NOTES } from "../(marketing)/resume-builder/content";
 import { COMMON, TEMPLATES_FAQ } from "../(marketing)/resume-templates/content";
 import { llmsFullTxt } from "./full-text";
 
@@ -22,7 +25,9 @@ describe("llms-full.txt", () => {
   });
 
   it("quotes every FAQ the site shows, word for word", () => {
-    for (const item of [...HOME_FAQ, ...BILLING_FAQ, ...JOB_MATCH_FAQ, ...TEMPLATES_FAQ]) {
+    const examples = ROLE_EXAMPLES.flatMap((example) => example.faq);
+    const faqs = [...HOME_FAQ, ...BILLING_FAQ, ...JOB_MATCH_FAQ, ...TEMPLATES_FAQ, ...BUILDER_FAQ];
+    for (const item of [...faqs, ...examples]) {
       expect(text).toContain(item.question);
       expect(text).toContain(nodeText(item.answer));
     }
@@ -69,8 +74,8 @@ describe("llms-full.txt", () => {
   });
 
   it("carries every comparison: both sides, the other product's strengths and its sources", () => {
-    expect(text).toContain("checked on November 18, 2026");
     for (const competitor of COMPETITORS) {
+      expect(text).toContain(`Checked on ${calendarDate(competitor.checked)}.`);
       expect(text).toContain(`### ${compareTitle(competitor)}`);
       expect(text).toContain(competitor.summary);
       expect(text).toContain(`Pick ${competitor.name} if ${competitor.pickThem}`);
@@ -80,6 +85,16 @@ describe("llms-full.txt", () => {
       }
       for (const strength of competitor.strengths) expect(text).toContain(strength);
       for (const source of competitor.sources) expect(text).toContain(source.url);
+    }
+  });
+
+  it("carries the resume builder and every example: lines, skills, tips and mistakes", () => {
+    for (const note of INDIA_NOTES) expect(text).toContain(note.title);
+    for (const example of ROLE_EXAMPLES) {
+      expect(text).toContain(`### ${exampleHeadline(example)}`);
+      expect(text).toContain(`Page: ${BASE}/resume-examples/${example.slug}\n`);
+      for (const line of example.lines) expect(text).toContain(`After: ${line.strong}`);
+      for (const note of [...example.tips, ...example.mistakes]) expect(text).toContain(note.text);
     }
   });
 

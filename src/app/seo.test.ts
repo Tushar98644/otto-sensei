@@ -9,7 +9,8 @@ import { users } from "@/db/schema";
 import { createUser, resetDb, setPlan } from "@/lib/auth/test-helpers";
 import { createPortfolio, updatePortfolio } from "@/lib/portfolio/records";
 import { sampleResume } from "@/lib/portfolio/testing";
-import { COMPETITORS_CHECKED } from "@/lib/seo-pages/compare";
+import { COMPETITORS } from "@/lib/seo-pages/compare";
+import { ROLE_EXAMPLES } from "@/lib/seo-pages/examples";
 import { PRODUCT_PAGES_UPDATED, SEO_PAGES_UPDATED } from "@/lib/seo-pages/paths";
 import { AI_CRAWLERS } from "@/lib/seo/crawlers";
 import { absoluteUrl } from "@/lib/seo/urls";
@@ -36,8 +37,25 @@ const ATS_SYSTEMS = [
 ];
 // Guides with one sourced note: served, but kept out of search until they have more.
 const THIN_GUIDES = ["/ats/lever", "/ats/bamboohr", "/ats/recruitee"];
-const COMPARISONS = ["jobscan", "rezi", "kickresume"];
+const COMPARISONS = ["jobscan", "rezi", "kickresume", "resume-io", "enhancv", "novoresume"];
+const EXAMPLES = [
+  "software-engineer",
+  "fresher",
+  "data-analyst",
+  "frontend-developer",
+  "backend-developer",
+  "data-scientist",
+  "product-manager",
+  "ui-ux-designer",
+  "digital-marketing",
+  "business-development",
+  "hr",
+  "customer-support",
+];
 const GUIDES = [
+  "/resume-builder",
+  "/resume-examples",
+  ...EXAMPLES.map((slug) => `/resume-examples/${slug}`),
   "/resume-templates",
   "/ats",
   ...ATS_SYSTEMS.map((id) => `/ats/${id}`),
@@ -45,7 +63,7 @@ const GUIDES = [
   ...COMPARISONS.map((slug) => `/compare/${slug}`),
 ];
 const LEGAL = ["/privacy", "/terms", "/refunds", "/acceptable-use"];
-const PRODUCT = ["/", "/pricing", "/job-match"];
+const PRODUCT = ["/", "/pricing", "/job-match", "/resume-builder"];
 const APP = fileURLToPath(new URL(".", import.meta.url));
 
 // The page file Next serves for a path, dynamic segments included.
@@ -55,6 +73,7 @@ function pageFileFor(path: string): string | undefined {
     join(APP, "(marketing)", ...parts, "page.tsx"),
     join(APP, "(marketing)", ...parts.slice(0, -1), "[system]", "page.tsx"),
     join(APP, "(marketing)", ...parts.slice(0, -1), "[competitor]", "page.tsx"),
+    join(APP, "(marketing)", ...parts.slice(0, -1), "[role]", "page.tsx"),
   ];
   return candidates.find((file) => existsSync(file));
 }
@@ -89,15 +108,27 @@ describe("sitemap", () => {
   it("dates every page with the day its content last changed", () => {
     for (const entry of entries) {
       const path = pathOf(entry.url);
+      const example = ROLE_EXAMPLES.find((item) => path === `/resume-examples/${item.slug}`);
+      const competitor = COMPETITORS.find((item) => path === `/compare/${item.slug}`);
       const day = LEGAL.includes(path)
         ? path === ROUTES.privacy
           ? PRIVACY_LAST_UPDATED
           : LEGAL_LAST_UPDATED
         : PRODUCT.includes(path)
           ? PRODUCT_PAGES_UPDATED
-          : path.startsWith("/compare")
-            ? COMPETITORS_CHECKED
-            : SEO_PAGES_UPDATED;
+          : example
+            ? example.updated
+            : competitor
+              ? competitor.checked
+              : path === "/resume-examples"
+                ? ROLE_EXAMPLES.map((item) => item.updated)
+                    .sort()
+                    .at(-1)
+                : path === "/compare"
+                  ? COMPETITORS.map((item) => item.checked)
+                      .sort()
+                      .at(-1)
+                  : SEO_PAGES_UPDATED;
       expect(entry.lastModified, path).toBe(day);
       expect(String(entry.lastModified), path).toMatch(/^\d{4}-\d{2}-\d{2}$/);
     }

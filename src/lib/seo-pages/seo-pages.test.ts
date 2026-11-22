@@ -43,7 +43,8 @@ import {
   pricingPage,
   seoPages,
 } from "./pages";
-import { SEO_PAGES_UPDATED, SEO_PATHS } from "./paths";
+import { ROLE_EXAMPLES } from "./examples";
+import { PRODUCT_PAGES_UPDATED, SEO_PAGES_UPDATED, SEO_PATHS } from "./paths";
 
 const BASE = "https://www.ottosensei.com";
 const LOCAL_ONLY =
@@ -189,8 +190,10 @@ describe("comparisons", () => {
     expect(competitorBySlug("teal")).toBeUndefined();
   });
 
-  it("cites only the competitor's own https pages, checked on one stated day", () => {
-    expect(COMPETITORS_CHECKED).toBe("2026-11-18");
+  it("cites only the competitor's own https pages, each checked on a stated day", () => {
+    const days = COMPETITORS.map((competitor) => competitor.checked);
+    for (const day of days) expect(day).toMatch(/^2026-\d{2}-\d{2}$/);
+    expect(COMPETITORS_CHECKED).toBe([...days].sort().at(-1));
     for (const competitor of COMPETITORS) {
       const home = new URL(competitor.site).hostname.replace(/^www\./, "");
       expect(competitor.sources.length).toBeGreaterThan(0);
@@ -317,9 +320,13 @@ describe("public SEO pages", () => {
       expect(page.description.length, page.path).toBeGreaterThanOrEqual(min);
       expect(page.description.length, page.path).toBeLessThanOrEqual(max);
     }
-    for (const page of pages) {
-      expect([SEO_PAGES_UPDATED, COMPETITORS_CHECKED]).toContain(page.lastModified);
-    }
+    const days = [
+      SEO_PAGES_UPDATED,
+      PRODUCT_PAGES_UPDATED,
+      ...COMPETITORS.map((competitor) => competitor.checked),
+      ...ROLE_EXAMPLES.map((example) => example.updated),
+    ];
+    for (const page of pages) expect(days).toContain(page.lastModified);
   });
 
   it("gives every page its own title and description", () => {
@@ -359,8 +366,15 @@ describe("public SEO pages", () => {
 
   it("links the guides from the site footer, grouped as product, guides and legal", () => {
     expect(FOOTER_GROUPS.map((group) => group.title)).toEqual(["Product", "Guides", "Legal"]);
+    const product = FOOTER_GROUPS.find((group) => group.title === "Product")?.links ?? [];
+    expect(product.map((link) => link.href)).toEqual([
+      SEO_PATHS.resumeBuilder,
+      SEO_PATHS.jobMatch,
+      "/pricing",
+    ]);
     const guides = FOOTER_GROUPS.find((group) => group.title === "Guides")?.links ?? [];
     expect(guides.map((link) => link.href)).toEqual([
+      SEO_PATHS.resumeExamples,
       SEO_PATHS.resumeTemplates,
       SEO_PATHS.ats,
       SEO_PATHS.compare,
@@ -418,7 +432,7 @@ describe("article JSON-LD", () => {
       expect(data, competitor.name).toMatchObject({
         "@type": "Article",
         headline: `${BRAND.name} vs ${competitor.name}`,
-        dateModified: COMPETITORS_CHECKED,
+        dateModified: competitor.checked,
         author: publisher,
         about: [
           { "@type": "WebApplication", "@id": `${BASE}/#software`, name: BRAND.name },

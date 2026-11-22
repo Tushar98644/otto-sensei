@@ -1,0 +1,55 @@
+name: IndexNow
+
+# After each production deploy, tells Bing, Yandex and the other IndexNow engines which sitemap URLs
+# changed. The first run sends them all; later runs send new URLs and ones whose lastmod moved,
+# remembered in the Actions cache. Google doesn't read IndexNow: Search Console covers it.
+# A failed ping never fails anything: the next deploy sends the same URLs again.
+#
+# Variable (Settings > Secrets and variables > Actions): OTTO_APP_URL, e.g. https://www.ottosensei.com
+
+on:
+  # Vercel's GitHub integration reports each deploy as a GitHub deployment.
+  deployment_status:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: indexnow
+  cancel-in-progress: false
+
+jobs:
+  ping:
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.deployment_status.state == 'success' &&
+       github.event.deployment.environment == 'Production')
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - uses: oven-sh/setup-bun@v2
+
+      - name: Last sent URLs
+        uses: actions/cache/restore@v4
+        with:
+          path: .indexnow
+          key: indexnow-state-${{ github.run_id }}
+          restore-keys: indexnow-state-
+
+      - name: Send changed URLs
+        continue-on-error: true
+        env:
+          OTTO_APP_URL: ${{ vars.OTTO_APP_URL }}
+        run: bun scripts/indexnow.ts --state .indexnow/state.json
+
+      - name: Remember what was sent
+        if: ${{ hashFiles('.indexnow/state.json') != '' }}
+        uses: actions/cache/save@v4
+        with:
+          path: .indexnow
+          key: indexnow-state-${{ github.run_id }}
