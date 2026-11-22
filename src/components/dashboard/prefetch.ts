@@ -8,10 +8,12 @@ import { hasProTools } from "@/config/plans";
 import type { SessionUser } from "@/lib/auth/types";
 import { getQueryClient } from "@/lib/queries/client";
 import {
+  emailTrackingQuery,
   portfolioQuery,
   prepPacksQuery,
   reminderSettingsQuery,
   savedJobsQuery,
+  savedPostsQuery,
   sharesQuery,
   workProfileQuery,
   writingsQuery,
@@ -43,6 +45,8 @@ const PAGES: Record<string, Prefetch> = {
     client.prefetchQuery(applicationsQuery(user.id)),
     client.prefetchQuery(savedJobsQuery(user.id)),
     client.prefetchQuery(writingsQuery(user.id)),
+    client.prefetchQuery(savedPostsQuery(user.id)),
+    client.prefetchQuery(emailTrackingQuery(user.id)),
     ...(hasProTools(user.plan) ? [client.prefetchQuery(reminderSettingsQuery(user.id))] : []),
   ],
   [ROUTES.dashboardInterview]: (client, user) => [

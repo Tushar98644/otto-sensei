@@ -9,6 +9,7 @@ import { api } from "@/lib/api/client";
 import type { EmailTrackingAction, EmailTrackingState } from "@/lib/inbound/types";
 import { getQueryClient, useAppQueryClient } from "@/lib/queries/client";
 import { APPLICATIONS, queryKeys } from "@/lib/queries/keys";
+import { emailTrackingQuery } from "@/lib/queries/options";
 import { DAY_MS, MINUTE_MS } from "@/lib/time";
 
 const MARKED_FOR_MS = 30 * DAY_MS;
@@ -40,11 +41,9 @@ function pollEvery(state: EmailTrackingState | undefined, until: number): number
     : 120_000;
 }
 
-function emailTrackingQuery(userId: string, until: number) {
+function trackingQuery(userId: string, until: number) {
   return {
-    queryKey: queryKeys.emailTracking(userId),
-    queryFn: async () => (await api.emailTracking()).tracking,
-    staleTime: 30_000,
+    ...emailTrackingQuery(userId),
     refetchOnWindowFocus: true,
     refetchInterval: (query: { state: { data?: EmailTrackingState } }) =>
       pollEvery(query.state.data, until),
@@ -64,7 +63,7 @@ export function useEmailTracking() {
   const userId = user?.id ?? "";
   const client = useAppQueryClient();
   const until = useSyncExternalStore(subscribe, watching, () => 0);
-  const query = useQuery({ ...emailTrackingQuery(userId, until), enabled: userId !== "" }, client);
+  const query = useQuery({ ...trackingQuery(userId, until), enabled: userId !== "" }, client);
   const tracking = query.data ?? null;
   const newest = tracking?.events[0]?.id ?? null;
   const seen = useRef<string | null>(null);

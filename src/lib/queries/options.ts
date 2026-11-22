@@ -53,6 +53,14 @@ export const savedPostsQuery = (userId: string) =>
     staleTime: 30_000,
   });
 
+// The page polls it on its own schedule while someone sets it up (applications/email/use-email-tracking).
+export const emailTrackingQuery = (userId: string) =>
+  queryOptions({
+    queryKey: queryKeys.emailTracking(userId),
+    queryFn: async () => (await api.emailTracking()).tracking,
+    staleTime: 30_000,
+  });
+
 export const writingsQuery = (userId: string) =>
   queryOptions({
     queryKey: queryKeys.writings(userId),

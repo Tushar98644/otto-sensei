@@ -12,6 +12,8 @@ vi.mock("@tanstack/react-query", async (importOriginal) => ({
 const api = vi.hoisted(() => ({
   listApplications: vi.fn(async () => ({ ok: true, applications: [], nextCursor: null })),
   savedJobs: vi.fn(async () => ({ ok: true, jobs: [] })),
+  savedPosts: vi.fn(async () => ({ ok: true, posts: [] })),
+  emailTracking: vi.fn(async () => ({ ok: true, tracking: { available: false } })),
   writings: vi.fn(async () => ({ ok: true, writings: [], total: 0 })),
   reminderSettings: vi.fn(async () => ({
     ok: true,
@@ -57,7 +59,14 @@ describe("prefetchPageData", () => {
   it("asks for a page's data once, and not again while it's fresh", async () => {
     prefetchPageData("/dashboard/applications", user("pro"));
     await settle();
-    for (const call of [api.listApplications, api.savedJobs, api.writings, api.reminderSettings]) {
+    for (const call of [
+      api.listApplications,
+      api.savedJobs,
+      api.writings,
+      api.reminderSettings,
+      api.savedPosts,
+      api.emailTracking,
+    ]) {
       expect(call).toHaveBeenCalledTimes(1);
     }
 
