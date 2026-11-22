@@ -14,7 +14,7 @@ const OPTIONAL_EMAILS = {
 } as const;
 
 // A service notice takes from the same allowance, so it never crowds out sign-in codes.
-type OptionalList = "jobs" | "tips" | "notices";
+type OptionalList = "jobs" | "tips" | "notices" | "views";
 
 // OPTIONAL_EMAILS_PER_DAY raises it on a paid Resend plan; 0 stops optional emails.
 function optionalEmailsPerDay(): number {
@@ -31,16 +31,20 @@ export async function optionalEmailRoom(
 ): Promise<number> {
   const db = database ?? (await getDb());
   const since = now - OPTIONAL_EMAILS.windowMs;
-  const [[tips], [jobs]] = await Promise.all([
+  const [[tips], [jobs], [views]] = await Promise.all([
     db.select({ n: count() }).from(emailLog).where(gt(emailLog.createdAt, since)),
     db
       .select({ n: count() })
       .from(notificationSettings)
       .where(gt(notificationSettings.jobsEmailedAt, since)),
+    db
+      .select({ n: count() })
+      .from(notificationSettings)
+      .where(gt(notificationSettings.viewsEmailedAt, since)),
   ]);
   const tipsSent = tips?.n ?? 0;
   const total = optionalEmailsPerDay();
-  const left = Math.max(0, total - tipsSent - (jobs?.n ?? 0));
+  const left = Math.max(0, total - tipsSent - (jobs?.n ?? 0) - (views?.n ?? 0));
   if (list !== "tips") return left;
   return Math.min(left, Math.max(0, Math.ceil(total * OPTIONAL_EMAILS.tipsShare) - tipsSent));
 }

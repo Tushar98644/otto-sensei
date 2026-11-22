@@ -289,6 +289,7 @@ describe("/api/notifications/settings", () => {
       followUpDays: 14,
       emailAvailable: true,
       chosen: true,
+      promptSnoozed: false,
     });
     expect(await settingsRowOf(maya.id)).toMatchObject({
       emailReminders: true,
@@ -296,6 +297,20 @@ describe("/api/notifications/settings", () => {
       remindersChosen: true,
     });
     expect((await (await getSettings()).json()) as ReminderSettingsResponse).toEqual(saved);
+  });
+
+  it("rests the reminders card on Not now without making the choice", async () => {
+    const maya = await signInAs("maya@example.com");
+    const res = await saveSettings({ snoozePrompt: true });
+    expect(await res.json()).toMatchObject({ ok: true, chosen: false, promptSnoozed: true });
+    expect(await settingsRowOf(maya.id)).toMatchObject({
+      emailReminders: false,
+      remindersChosen: false,
+    });
+    expect(await (await getSettings()).json()).toMatchObject({
+      chosen: false,
+      promptSnoozed: true,
+    });
   });
 
   it("accepts the shortest and longest follow-up gaps", async () => {
@@ -359,7 +374,11 @@ describe("/api/notifications/emails", () => {
       ok: true,
       jobEmails: true,
       tipEmails: false,
+      viewEmails: false,
       jobPromptClosed: true,
+      jobPromptSnoozed: false,
+      viewPromptClosed: false,
+      viewPromptSnoozed: false,
       emailAvailable: false,
     });
     expect(await settingsRowOf(maya.id)).toMatchObject({

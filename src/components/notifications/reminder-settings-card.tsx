@@ -63,9 +63,9 @@ export function ReminderSettingsCard() {
           Reminders and emails
         </CardTitle>
         <CardDescription>
-          When you mark a job applied, Otto sets a reminder to follow up and shows it in the bell
-          on your dashboard, with Done and Snooze {SNOOZE_DAYS} days. The day before an interview,
-          Otto reminds you there too.
+          When you mark a job applied, Otto sets a reminder to follow up and shows it in the bell on
+          your dashboard, with Done and Snooze {SNOOZE_DAYS} days. The day before an interview, Otto
+          reminds you there too.
         </CardDescription>
       </CardHeader>
       {settings ? (
@@ -130,11 +130,14 @@ function DelayChoice({ value, onChange }: { value: number; onChange: (days: numb
   );
 }
 
-type ListChange = Partial<Pick<EmailChoicesData, "jobEmails" | "tipEmails">>;
+type ListChange = Partial<Pick<EmailChoicesData, "jobEmails" | "tipEmails" | "viewEmails">>;
 
 function savedTitle(change: ListChange, saved: EmailChoicesData): string {
   if (change.jobEmails !== undefined) {
     return saved.jobEmails ? "Weekly jobs email is on." : "Weekly jobs email is off.";
+  }
+  if (change.viewEmails !== undefined) {
+    return saved.viewEmails ? "Views emails are on." : "Views emails are off.";
   }
   return saved.tipEmails ? "Tips and reminders are on." : "Tips and reminders are off.";
 }
@@ -163,6 +166,12 @@ function OtherEmails({ userId }: { userId: string }) {
           onChange={(jobEmails) => void save({ jobEmails })}
         />
         <OnOffChoice
+          label="Views emails"
+          hint="When someone opens your resume link or portfolio, at most one email a day. Never who. Off until you turn it on."
+          value={choices.viewEmails}
+          onChange={(viewEmails) => void save({ viewEmails })}
+        />
+        <OnOffChoice
           label="Tips and reminders"
           hint="A few short emails, like when Free's line fixes come back or after a trial ends. On until you turn it off."
           value={choices.tipEmails}
@@ -188,6 +197,7 @@ function OtherEmails({ userId }: { userId: string }) {
   }
   return (
     <div className="flex flex-col gap-5 border-t border-border pt-5">
+      <Skeleton className="h-11 w-full" />
       <Skeleton className="h-11 w-full" />
       <Skeleton className="h-11 w-full" />
     </div>

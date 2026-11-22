@@ -12,6 +12,7 @@ import { BRAND } from "@/config/brand";
 import { trackShareViewed } from "@/lib/analytics/retention";
 import { currentUserIdHint, getCurrentUser } from "@/lib/auth/session";
 import { log } from "@/lib/log";
+import { noteShareView } from "@/lib/notifications/view-alerts";
 import { waitText } from "@/lib/rate-limit";
 import { ownerHomeLink } from "@/lib/referrals/records";
 import { ipFromHeaders, openSharePage } from "@/lib/share/page";
@@ -93,8 +94,10 @@ export default async function SharedResumePage({ params }: Props) {
     const reader = readerKey(ipFromHeaders(requestHeaders), userAgent ?? "");
     after(() =>
       recordView(share.id, reader)
-        .then((counted) => {
-          if (counted) trackShareViewed(share.ownerId);
+        .then(async (counted) => {
+          if (!counted) return;
+          trackShareViewed(share.ownerId);
+          await noteShareView(share.id, share.ownerId);
         })
         .catch((error: unknown) => {
           log.warn("share.view_not_counted", { shareId: share.id }, error);

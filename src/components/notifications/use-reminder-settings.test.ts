@@ -25,6 +25,7 @@ const KEY = queryKeys.reminderSettings("ada");
 const START: ReminderSettingsData = {
   emailAvailable: true,
   chosen: false,
+  promptSnoozed: false,
   emailReminders: false,
   followUpDays: 7,
 };
@@ -43,6 +44,7 @@ const reply = (settings: Partial<ReminderSettingsData>): ReminderSettingsRespons
   ok: true,
   emailAvailable: true,
   chosen: true,
+  promptSnoozed: false,
   emailReminders: false,
   followUpDays: 7,
   ...settings,
@@ -91,5 +93,13 @@ describe("saveReminderSettings", () => {
       [{ followUpDays: 21 }],
     ]);
     expect(shown()?.followUpDays).toBe(21);
+  });
+
+  it("rests the card on Not now without making a choice", async () => {
+    api.saveReminderSettings.mockResolvedValue(reply({ chosen: false, promptSnoozed: true }));
+    const saving = saveReminderSettings("ada", { snoozePrompt: true });
+    expect(shown()).toEqual({ ...START, promptSnoozed: true });
+    await expect(saving).resolves.toEqual({ ...START, promptSnoozed: true });
+    expect(api.saveReminderSettings).toHaveBeenCalledWith({ snoozePrompt: true });
   });
 });

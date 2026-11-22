@@ -25,6 +25,12 @@ export const UNSUBSCRIBE_COPY: Record<EmailList, ListCopy> = {
     press: "Stop tips and reminders",
     done: "Done. You won't get tips and reminder emails any more. You can turn them back on in your account settings.",
   },
+  views: {
+    name: "Views emails",
+    ask: "Stop the emails about people opening your resume links and portfolio? The bell on your dashboard still shows them.",
+    press: "Stop views emails",
+    done: "Done. You won't get views emails any more. The bell on your dashboard keeps them.",
+  },
 };
 
 export const INVALID_LINK =

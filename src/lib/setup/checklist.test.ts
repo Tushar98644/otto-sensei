@@ -53,7 +53,11 @@ describe("what counts as done", () => {
   it("needs a country and one answered region for where you can work", () => {
     expect(workRightsSet(profile())).toBe(false);
     expect(workRightsSet(profile({ country: "PT" }))).toBe(false);
-    expect(workRightsSet(profile({ timeZone: "Europe/Lisbon", rights: { ...profile().rights, eu: "authorized" } }))).toBe(false);
+    expect(
+      workRightsSet(
+        profile({ timeZone: "Europe/Lisbon", rights: { ...profile().rights, eu: "authorized" } }),
+      ),
+    ).toBe(false);
     expect(
       workRightsSet(profile({ country: "PT", rights: { ...profile().rights, us: "sponsorship" } })),
     ).toBe(true);
@@ -157,9 +161,10 @@ describe("weakLineState", () => {
   });
 
   it("starts over on the next weak line when the remembered resume is gone", () => {
-    expect(
-      weakLineState([resume("b", [WARNING])], { resumeId: "a", bulletId: "a-0" }),
-    ).toEqual({ status: "open", target: { resumeId: "b", bulletId: "b-0" } });
+    expect(weakLineState([resume("b", [WARNING])], { resumeId: "a", bulletId: "a-0" })).toEqual({
+      status: "open",
+      target: { resumeId: "b", bulletId: "b-0" },
+    });
   });
 });
 
@@ -280,7 +285,11 @@ describe("contextual prompts", () => {
     expect(reminderPromptShows({ pro: true, applications: 1, reminders })).toBe(true);
     expect(reminderPromptShows({ pro: true, applications: 0, reminders })).toBe(false);
     expect(
-      reminderPromptShows({ pro: true, applications: 1, reminders: { ...reminders, chosen: true } }),
+      reminderPromptShows({
+        pro: true,
+        applications: 1,
+        reminders: { ...reminders, chosen: true },
+      }),
     ).toBe(false);
     expect(
       reminderPromptShows({
@@ -298,5 +307,12 @@ describe("contextual prompts", () => {
     ).toBe(false);
     expect(reminderPromptShows({ pro: false, applications: 1, reminders })).toBe(false);
     expect(reminderPromptShows({ pro: true, applications: 1, reminders: null })).toBe(false);
+    expect(
+      reminderPromptShows({
+        pro: true,
+        applications: 1,
+        reminders: { ...reminders, promptSnoozed: true },
+      }),
+    ).toBe(false);
   });
 });

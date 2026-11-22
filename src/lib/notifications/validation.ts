@@ -11,9 +11,12 @@ export const ReminderSettingsSchema = z
   .object({
     emailReminders: z.boolean().optional(),
     followUpDays: z.number().int().min(FOLLOW_UP_DAYS.min).max(FOLLOW_UP_DAYS.max).optional(),
+    // "Not now" on the reminders card: no choice is made, the card just rests.
+    snoozePrompt: z.literal(true).optional(),
   })
   .refine(
-    (body) => body.emailReminders !== undefined || body.followUpDays !== undefined,
+    (body) =>
+      body.emailReminders !== undefined || body.followUpDays !== undefined || body.snoozePrompt,
     "Nothing to change.",
   );
 
@@ -21,10 +24,19 @@ export const EmailChoicesSchema = z
   .object({
     jobEmails: z.boolean().optional(),
     tipEmails: z.boolean().optional(),
+    viewEmails: z.boolean().optional(),
     jobPromptClosed: z.literal(true).optional(),
+    jobPromptSnoozed: z.literal(true).optional(),
+    viewPromptSnoozed: z.literal(true).optional(),
   })
   .refine(
-    (body) => body.jobEmails !== undefined || body.tipEmails !== undefined || body.jobPromptClosed,
+    (body) =>
+      body.jobEmails !== undefined ||
+      body.tipEmails !== undefined ||
+      body.viewEmails !== undefined ||
+      body.jobPromptClosed ||
+      body.jobPromptSnoozed ||
+      body.viewPromptSnoozed,
     "Nothing to change.",
   );
 

@@ -146,12 +146,16 @@ describe("/api/notifications", () => {
     const first = await seed(maya.id, 1_000);
     await seed(maya.id, 2_000);
 
-    const one = (await (await patch({ ids: [first, theirs] })).json()) as MarkNotificationsReadResponse;
+    const one = (await (
+      await patch({ ids: [first, theirs] })
+    ).json()) as MarkNotificationsReadResponse;
     expect(one.unread).toBe(1);
     const all = (await (await patch({ all: true })).json()) as MarkNotificationsReadResponse;
     expect(all.unread).toBe(0);
 
-    const [still] = await (await getDb())
+    const [still] = await (
+      await getDb()
+    )
       .select({ readAt: notifications.readAt })
       .from(notifications)
       .where(eq(notifications.id, theirs));
@@ -214,7 +218,13 @@ describe("/api/notifications/settings", () => {
       chosen: true,
     });
 
-    for (const body of [{ emailReminders: "no" }, {}, { followUpDays: 0 }, { followUpDays: 61 }, { followUpDays: 2.5 }]) {
+    for (const body of [
+      { emailReminders: "no" },
+      {},
+      { followUpDays: 0 },
+      { followUpDays: 61 },
+      { followUpDays: 2.5 },
+    ]) {
       expect(await errorCode(await put(body))).toBe("bad_request");
     }
   });
@@ -255,7 +265,10 @@ describe("/api/notifications/unsubscribe", () => {
     return unsubscribe(
       new Request(`http://localhost/api/notifications/unsubscribe?${query}`, {
         method: "POST",
-        headers: { "content-type": "application/x-www-form-urlencoded", "sec-fetch-site": "cross-site" },
+        headers: {
+          "content-type": "application/x-www-form-urlencoded",
+          "sec-fetch-site": "cross-site",
+        },
         body: "List-Unsubscribe=One-Click",
       }),
     );
@@ -403,7 +416,11 @@ describe("/api/notifications/emails", () => {
       ok: true,
       jobEmails: false,
       tipEmails: true,
+      viewEmails: false,
       jobPromptClosed: false,
+      jobPromptSnoozed: false,
+      viewPromptClosed: false,
+      viewPromptSnoozed: false,
       emailAvailable: false,
     });
 
@@ -433,6 +450,25 @@ describe("/api/notifications/emails", () => {
     await signInAs("maya@example.com");
     const closed = (await (await save({ jobPromptClosed: true })).json()) as EmailChoicesResponse;
     expect(closed).toMatchObject({ jobEmails: false, tipEmails: true, jobPromptClosed: true });
+  });
+
+  it("rests a card on Not now, and answers the views card when the views email is chosen", async () => {
+    await signInAs("maya@example.com");
+    const resting = (await (
+      await save({ jobPromptSnoozed: true, viewPromptSnoozed: true })
+    ).json()) as EmailChoicesResponse;
+    expect(resting).toMatchObject({
+      jobEmails: false,
+      viewEmails: false,
+      jobPromptClosed: false,
+      jobPromptSnoozed: true,
+      viewPromptClosed: false,
+      viewPromptSnoozed: true,
+    });
+    const viewsOn = (await (await save({ viewEmails: true })).json()) as EmailChoicesResponse;
+    expect(viewsOn).toMatchObject({ viewEmails: true, viewPromptClosed: true });
+    const viewsOff = (await (await save({ viewEmails: false })).json()) as EmailChoicesResponse;
+    expect(viewsOff).toMatchObject({ viewEmails: false, viewPromptClosed: true });
   });
 
   it("rejects bad bodies and non-JSON requests", async () => {

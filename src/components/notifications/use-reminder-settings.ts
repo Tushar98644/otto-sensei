@@ -26,14 +26,22 @@ export function saveReminderSettings(
   const key = queryKeys.reminderSettings(userId);
   const before = client.getQueryData<ReminderSettingsData>(key);
   if (before) {
-    client.setQueryData<ReminderSettingsData>(key, { ...before, ...change, chosen: true });
+    const { snoozePrompt, ...chosen } = change;
+    const chose = chosen.emailReminders !== undefined || chosen.followUpDays !== undefined;
+    client.setQueryData<ReminderSettingsData>(key, {
+      ...before,
+      ...chosen,
+      chosen: before.chosen || chose,
+      promptSnoozed: before.promptSnoozed || snoozePrompt === true,
+    });
   }
   const saved = queue.then(async () => {
     try {
       const res = await api.saveReminderSettings(change);
       const next: ReminderSettingsData = {
         emailAvailable: res.emailAvailable,
-        chosen: true,
+        chosen: res.chosen,
+        promptSnoozed: res.promptSnoozed,
         emailReminders: res.emailReminders,
         followUpDays: res.followUpDays,
       };

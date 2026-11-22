@@ -7,7 +7,12 @@ import {
 } from "@/components/notifications/use-reminder-settings";
 import type { ReminderSettingsBody } from "@/lib/notifications/types";
 
-export type ReminderChoice = { available: boolean; chosen: boolean; emailReminders: boolean };
+export type ReminderChoice = {
+  available: boolean;
+  chosen: boolean;
+  emailReminders: boolean;
+  promptSnoozed: boolean;
+};
 
 export function useReminderChoice(userId: string | null, enabled: boolean) {
   const query = useReminderSettings(userId, enabled);
@@ -26,6 +31,7 @@ export function useReminderChoice(userId: string | null, enabled: boolean) {
         available: query.data.emailAvailable,
         chosen: query.data.chosen,
         emailReminders: query.data.emailReminders,
+        promptSnoozed: query.data.promptSnoozed,
       }
     : null;
   return { status, value: status === "off" ? null : value, save };

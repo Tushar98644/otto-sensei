@@ -257,6 +257,12 @@ export const notificationSettings = pgTable("notification_settings", {
   jobsCheckedAt: epochMs("jobs_checked_at"),
   jobPromptClosedAt: epochMs("job_prompt_closed_at"),
   remindersChosen: boolean("reminders_chosen").notNull().default(true),
+  jobPromptSnoozedAt: epochMs("job_prompt_snoozed_at"),
+  reminderPromptSnoozedAt: epochMs("reminder_prompt_snoozed_at"),
+  viewEmails: boolean("view_emails").notNull().default(false),
+  viewPromptClosedAt: epochMs("view_prompt_closed_at"),
+  viewPromptSnoozedAt: epochMs("view_prompt_snoozed_at"),
+  viewsEmailedAt: epochMs("views_emailed_at"),
 });
 
 export const writingStyles = pgTable("writing_styles", {
@@ -322,6 +328,7 @@ export const shares = pgTable(
     allowIndexing: boolean("allow_indexing").notNull().default(false),
     views: integer("views").notNull().default(0),
     lastViewedAt: epochMs("last_viewed_at"),
+    viewAlertedAt: epochMs("view_alerted_at"),
     createdAt: epochMs("created_at").notNull(),
     updatedAt: epochMs("updated_at").notNull(),
     revokedAt: epochMs("revoked_at"),
@@ -530,6 +537,8 @@ export const portfolios = pgTable(
     github: jsonb("github").$type<Record<string, unknown>>(),
     githubCheckedAt: epochMs("github_checked_at"),
     views: integer("views").notNull().default(0),
+    viewsNoted: integer("views_noted").notNull().default(0),
+    viewsNotedAt: epochMs("views_noted_at"),
     createdAt: epochMs("created_at").notNull(),
     updatedAt: epochMs("updated_at").notNull(),
     publishedAt: epochMs("published_at"),

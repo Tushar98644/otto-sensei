@@ -7,8 +7,21 @@ import type {
   SessionFollowUpActionSchema,
 } from "./validation";
 
-export const NOTIFICATION_KINDS = ["application_follow_up", "trial_ending", "interview_soon"] as const;
+export const NOTIFICATION_KINDS = [
+  "application_follow_up",
+  "trial_ending",
+  "interview_soon",
+  "share_viewed",
+  "portfolio_views",
+] as const;
 export type NotificationKind = (typeof NOTIFICATION_KINDS)[number];
+
+// Someone opened a share link or the portfolio: counts and when, never who.
+export const VIEW_KINDS = ["share_viewed", "portfolio_views"] as const satisfies NotificationKind[];
+
+export function isViewKind(kind: NotificationKind): boolean {
+  return (VIEW_KINDS as readonly NotificationKind[]).includes(kind);
+}
 
 export const NOTIFICATION_LIMITS = {
   listed: 30,
@@ -40,10 +53,12 @@ export type ReminderSettingsResponse = {
   ok: true;
   emailAvailable: boolean;
   chosen: boolean;
+  // "Not now" on the reminders card, still resting (lib/notifications/prompts).
+  promptSnoozed: boolean;
 } & ReminderSettings;
 
-// Each list has its own signed unsubscribe link: follow-up reminders, the weekly jobs email, and tips.
-export const EMAIL_LISTS = ["reminders", "jobs", "tips"] as const;
+// Each list has its own signed unsubscribe link: follow-up reminders, the weekly jobs email, tips, and views.
+export const EMAIL_LISTS = ["reminders", "jobs", "tips", "views"] as const;
 export type EmailList = (typeof EMAIL_LISTS)[number];
 
 export const TIP_EMAIL_KINDS = ["no_resume", "fixes_back", "trial_ended", "win_back"] as const;
@@ -55,7 +70,15 @@ export type NoticeEmailKind = (typeof NOTICE_EMAIL_KINDS)[number];
 
 export const EMAIL_LOG_KINDS = [...TIP_EMAIL_KINDS, ...NOTICE_EMAIL_KINDS] as const;
 
-export type EmailChoices = { jobEmails: boolean; tipEmails: boolean; jobPromptClosed: boolean };
+export type EmailChoices = {
+  jobEmails: boolean;
+  tipEmails: boolean;
+  viewEmails: boolean;
+  jobPromptClosed: boolean;
+  jobPromptSnoozed: boolean;
+  viewPromptClosed: boolean;
+  viewPromptSnoozed: boolean;
+};
 export type EmailChoicesBody = z.input<typeof EmailChoicesSchema>;
 export type EmailChoicesResponse = { ok: true; emailAvailable: boolean } & EmailChoices;
 

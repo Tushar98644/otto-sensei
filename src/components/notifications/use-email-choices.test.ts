@@ -25,7 +25,11 @@ const START: EmailChoicesData = {
   emailAvailable: true,
   jobEmails: false,
   tipEmails: true,
+  viewEmails: false,
   jobPromptClosed: false,
+  jobPromptSnoozed: false,
+  viewPromptClosed: false,
+  viewPromptSnoozed: false,
 };
 const shown = () => getQueryClient().getQueryData<EmailChoicesData>(KEY);
 
@@ -56,5 +60,26 @@ describe("saveEmailChoices", () => {
     expect(shown()).toEqual({ ...START, tipEmails: false });
     await expect(saving).rejects.toThrow("No");
     expect(shown()).toEqual(START);
+  });
+
+  it("rests a card on Not now without choosing for the person", async () => {
+    const reply: EmailChoicesResponse = { ok: true, ...START, viewPromptSnoozed: true };
+    api.saveEmailChoices.mockResolvedValue(reply);
+    const saving = saveEmailChoices("ada", { viewPromptSnoozed: true });
+    expect(shown()).toEqual({ ...START, viewPromptSnoozed: true });
+    await expect(saving).resolves.toEqual({ ...START, viewPromptSnoozed: true });
+  });
+
+  it("closes the views card when the views email is turned on", async () => {
+    const reply: EmailChoicesResponse = {
+      ok: true,
+      ...START,
+      viewEmails: true,
+      viewPromptClosed: true,
+    };
+    api.saveEmailChoices.mockResolvedValue(reply);
+    const saving = saveEmailChoices("ada", { viewEmails: true });
+    expect(shown()).toEqual({ ...START, viewEmails: true, viewPromptClosed: true });
+    await expect(saving).resolves.toEqual({ ...START, viewEmails: true, viewPromptClosed: true });
   });
 });

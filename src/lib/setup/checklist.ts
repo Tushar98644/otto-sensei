@@ -95,7 +95,12 @@ export function reminderPromptShows({
 }: {
   pro: boolean;
   applications: number;
-  reminders: { available: boolean; chosen: boolean; emailReminders: boolean } | null;
+  reminders: {
+    available: boolean;
+    chosen: boolean;
+    emailReminders: boolean;
+    promptSnoozed?: boolean;
+  } | null;
 }): boolean {
   return (
     pro &&
@@ -103,6 +108,7 @@ export function reminderPromptShows({
     reminders !== null &&
     reminders.available &&
     !reminders.chosen &&
-    !reminders.emailReminders
+    !reminders.emailReminders &&
+    reminders.promptSnoozed !== true
   );
 }

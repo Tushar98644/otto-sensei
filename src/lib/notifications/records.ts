@@ -4,6 +4,7 @@ import { lockUser } from "@/db/locks";
 import { applications, notifications, notificationSettings, users } from "@/db/schema";
 import { FOLLOW_UP_DAYS, followUpState } from "@/lib/applications/follow-up";
 import type { ApplicationStatus } from "@/lib/applications/status";
+import { promptResting } from "./prompts";
 import {
   isInAppPath,
   NOTIFICATION_LIMITS,
@@ -39,10 +40,16 @@ function withFollowUps(rows: readonly Row[], now: number): Notification[] {
   return rows.map((row) => {
     const item = toNotification(row);
     const id = item.applicationId;
-    if (row.kind !== "application_follow_up" || id === null || offered.has(id) || row.status === null) {
+    if (
+      row.kind !== "application_follow_up" ||
+      id === null ||
+      offered.has(id) ||
+      row.status === null
+    ) {
       return item;
     }
-    if (followUpState({ status: row.status, followUpAt: row.followUpAt }, now) !== "due") return item;
+    if (followUpState({ status: row.status, followUpAt: row.followUpAt }, now) !== "due")
+      return item;
     offered.add(id);
     return { ...item, followUpDue: true };
   });
@@ -164,22 +171,54 @@ export function followUpDaysSql(userId: string): SQL<number> {
   return sql<number>`coalesce((select ${notificationSettings.followUpDays} from ${notificationSettings} where ${notificationSettings.userId} = ${userId}), ${FOLLOW_UP_DAYS.default})`;
 }
 
+export type StoredReminderSettings = ReminderSettings & { chosen: boolean; promptSnoozed: boolean };
+
 export async function readReminderSettings(
   userId: string,
-): Promise<(ReminderSettings & { chosen: boolean }) | null> {
+  now = Date.now(),
+): Promise<StoredReminderSettings | null> {
   const db = await getDb();
-  const [owner] = await db.select({ id: users.id }).from(users).where(eq(users.id, userId)).limit(1);
+  const [owner] = await db
+    .select({ id: users.id })
+    .from(users)
+    .where(eq(users.id, userId))
+    .limit(1);
   if (!owner) return null;
   const [row] = await db
     .select({
       emailReminders: notificationSettings.emailReminders,
       followUpDays: notificationSettings.followUpDays,
       chosen: notificationSettings.remindersChosen,
+      snoozedAt: notificationSettings.reminderPromptSnoozedAt,
     })
     .from(notificationSettings)
     .where(eq(notificationSettings.userId, userId))
     .limit(1);
-  return row ?? { ...DEFAULT_SETTINGS, chosen: false };
+  if (!row) return { ...DEFAULT_SETTINGS, chosen: false, promptSnoozed: false };
+  const { snoozedAt, ...settings } = row;
+  return { ...settings, promptSnoozed: promptResting(snoozedAt, now) };
+}
+
+// "Not now" on the reminders card: nothing is chosen, so the card can ask again after a rest.
+export async function snoozeReminderPrompt(userId: string, now = Date.now()): Promise<boolean> {
+  const db = await getDb();
+  return db.transaction(async (tx) => {
+    if (!(await lockUser(tx, userId))) return false;
+    await tx
+      .insert(notificationSettings)
+      .values({
+        userId,
+        ...DEFAULT_SETTINGS,
+        remindersChosen: false,
+        reminderPromptSnoozedAt: now,
+        updatedAt: now,
+      })
+      .onConflictDoUpdate({
+        target: notificationSettings.userId,
+        set: { reminderPromptSnoozedAt: now, updatedAt: now },
+      });
+    return true;
+  });
 }
 
 export async function readEmailReminders(userId: string): Promise<boolean | null> {

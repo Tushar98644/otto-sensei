@@ -9,7 +9,11 @@ import { queryKeys } from "./keys";
 
 const MINUTE = 60_000;
 
-export type ReminderSettingsData = ReminderSettings & { emailAvailable: boolean; chosen: boolean };
+export type ReminderSettingsData = ReminderSettings & {
+  emailAvailable: boolean;
+  chosen: boolean;
+  promptSnoozed: boolean;
+};
 
 export type WorkProfileData = {
   profile: WorkProfile;
@@ -95,6 +99,7 @@ export const reminderSettingsQuery = (userId: string) =>
       return {
         emailAvailable: res.emailAvailable,
         chosen: res.chosen === true,
+        promptSnoozed: res.promptSnoozed === true,
         emailReminders: res.emailReminders,
         followUpDays: res.followUpDays,
       };
