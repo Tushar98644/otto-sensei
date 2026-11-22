@@ -17,6 +17,7 @@ import { OttoNote } from "@/components/mascot/otto-note";
 import { OttoWorking } from "@/components/mascot/otto-working";
 import { Button } from "@/components/ui/button";
 import { Dropzone } from "@/components/ui/dropzone";
+import { Lazy, whenIdle } from "@/components/ui/lazy";
 import { checkFile, formatBytes } from "@/components/ui/file-check";
 import { RESUME_LIMITS, UPLOAD_LIMITS } from "@/config/plans";
 import { track } from "@/lib/analytics/client";
@@ -25,8 +26,7 @@ import { titleFromFileName } from "@/lib/resume/ops";
 import { emptyResume, type Resume } from "@/lib/resume/schema";
 import { useResumeList, useStudioStore } from "@/lib/store/resume-store";
 import { noteReadByRules, noteReadWell } from "../import-notes";
-import { GuidedDraft } from "../upload/guided-draft";
-import { clearGuidedDraft, guidedDraftRequested } from "../upload/guided-start";
+import { clearGuidedDraft, guidedDraftLoader, guidedDraftRequested } from "../upload/guided-start";
 import { clearHandedUpload, handedUpload, UPLOAD_ACCEPT } from "../upload/upload-handoff";
 import type { LocalImportKind } from "../upload/local-import-kinds";
 import { RecentResumes } from "../upload/recent-resumes";
@@ -69,6 +69,11 @@ export function UploadStep() {
 
   const reading = state.status === "reading";
   const pro = useProTools();
+
+  // Only paid plans can draft with Otto, so only they fetch the form ahead of a click.
+  useEffect(() => {
+    if (pro === true) return whenIdle(() => void guidedDraftLoader.load().catch(() => {}));
+  }, [pro]);
   const own = useOwnResumeCount();
   const full = pro === false && own >= RESUME_LIMITS.free;
   const tryPro = useTryProLabel();
@@ -132,6 +137,7 @@ export function UploadStep() {
 
   // Free has no drafts, so the trial is offered before the questions, not after them.
   async function startGuided() {
+    void guidedDraftLoader.load().catch(() => {});
     if ((await unlockFeature("draft")) && (await roomForResume())) setGuided(true);
   }
 
@@ -161,14 +167,20 @@ export function UploadStep() {
   if (guided) {
     return (
       <div className="mx-auto flex w-full max-w-3xl flex-col gap-8">
-        <GuidedDraft onDrafted={finishDraft} onCancel={() => setGuided(false)} />
+        <Lazy
+          loader={guidedDraftLoader}
+          wanted
+          props={{ onDrafted: finishDraft, onCancel: () => setGuided(false) }}
+        />
       </div>
     );
   }
 
   return (
     <div className="mx-auto flex w-full max-w-3xl flex-col gap-8">
-      <OttoNote message={full && state.status === "idle" ? OTTO.limit.tool("resumes", false) : otto}>
+      <OttoNote
+        message={full && state.status === "idle" ? OTTO.limit.tool("resumes", false) : otto}
+      >
         {retryFile ? (
           <Button variant="secondary" onClick={() => void upload(retryFile)}>
             <RotateCcw />
@@ -181,9 +193,7 @@ export function UploadStep() {
         ) : null}
       </OttoNote>
 
-      {format ? (
-        <ChosenFormatNote format={format} onSample={trySample} disabled={reading} />
-      ) : null}
+      {format ? <ChosenFormatNote format={format} onSample={trySample} disabled={reading} /> : null}
 
       <div className="flex flex-col gap-3">
         <Dropzone
@@ -209,7 +219,9 @@ export function UploadStep() {
             <>
               <FileUp className="size-6 text-ink" aria-hidden />
               <p className="font-medium text-ink">
-                <span className="pointer-coarse:hidden">Drop your resume here, or choose a file</span>
+                <span className="pointer-coarse:hidden">
+                  Drop your resume here, or choose a file
+                </span>
                 <span className="hidden pointer-coarse:inline">Choose a file</span>
               </p>
               <p className="text-sm text-muted">

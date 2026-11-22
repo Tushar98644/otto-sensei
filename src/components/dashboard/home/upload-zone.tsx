@@ -6,7 +6,6 @@ import { useState } from "react";
 import { useProTools } from "@/components/account/pro-tools";
 import { OTTO } from "@/components/mascot/lines";
 import { Otto } from "@/components/mascot/otto";
-import { openStudioWithFile } from "@/components/match-check/open-studio";
 import { ROUTES } from "@/components/site/routes";
 import { UPLOAD_ACCEPT } from "@/components/studio/upload/upload-handoff";
 import { Button } from "@/components/ui/button";
@@ -24,6 +23,8 @@ export function UploadZone({ actions, hasSample }: { actions: StudioActions; has
   async function take(file: File) {
     setOpening(true);
     try {
+      // The hand-off loads with the first file, not with the page.
+      const { openStudioWithFile } = await import("@/components/match-check/open-studio");
       if (await openStudioWithFile(file)) {
         router.push(ROUTES.studio);
         return;

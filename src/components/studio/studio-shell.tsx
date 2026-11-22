@@ -12,6 +12,7 @@ import {
 import { useAccountGate } from "@/components/account/account-gate";
 import { UpgradePromptHost } from "@/components/account/upgrade-prompt";
 import { refreshMe } from "@/components/account/use-me";
+import { PauseOffscreenLoops } from "@/components/mascot/offscreen-loops";
 import { useOttoLoadingScreen } from "@/components/mascot/otto-loading-screen";
 import { StudioTour } from "@/components/onboarding/studio-tour";
 import { takeStepJump } from "@/components/studio/tailor/jump";
@@ -74,6 +75,7 @@ export function StudioShell() {
       </main>
       {gate.dialogs}
       <UpgradePromptHost />
+      <PauseOffscreenLoops />
     </div>
   );
 }

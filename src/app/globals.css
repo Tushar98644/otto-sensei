@@ -47,9 +47,11 @@
   --shadow-key: 0 1px 2px 0 rgb(7 35 25 / 0.22), 0 2px 5px -2px rgb(7 35 25 / 0.2);
   --inset-shadow-key: inset 0 1px 0 0 rgb(255 255 255 / 0.13);
   --inset-shadow-pressed: inset 0 1px 2px 0 rgb(7 35 25 / 0.28);
-  --shadow-page: 0 0 0 1px rgb(18 36 29 / 0.05), 0 1px 2px 0 rgb(18 36 29 / 0.06),
+  --shadow-page:
+    0 0 0 1px rgb(18 36 29 / 0.05), 0 1px 2px 0 rgb(18 36 29 / 0.06),
     0 8px 18px -10px rgb(18 36 29 / 0.28);
-  --shadow-page-lift: 0 0 0 1px rgb(18 36 29 / 0.05), 0 2px 3px 0 rgb(18 36 29 / 0.06),
+  --shadow-page-lift:
+    0 0 0 1px rgb(18 36 29 / 0.05), 0 2px 3px 0 rgb(18 36 29 / 0.06),
     0 16px 28px -12px rgb(18 36 29 / 0.32);
 
   --font-page-sans: Carlito, Calibri, "Segoe UI", Helvetica, Arial, ui-sans-serif, sans-serif;
@@ -705,4 +707,27 @@ html.lenis body {
 
 *::-webkit-scrollbar {
   display: none !important;
+}
+
+/* Marked by PauseOffscreenLoops while a drawing is out of view; on screen nothing changes. */
+[data-offscreen]
+  :is(
+    [class*="animate-otto-blink"],
+    [class*="animate-otto-page"],
+    [class*="animate-otto-nod"],
+    [class*="animate-otto-point"],
+    [class*="animate-otto-chin"],
+    [class*="animate-otto-tilt"],
+    [class*="animate-scene-"]
+  ):not([class*="iteration-count"]),
+[data-offscreen]:is(
+    [class*="animate-otto-blink"],
+    [class*="animate-otto-page"],
+    [class*="animate-otto-nod"],
+    [class*="animate-otto-point"],
+    [class*="animate-otto-chin"],
+    [class*="animate-otto-tilt"],
+    [class*="animate-scene-"]
+  ):not([class*="iteration-count"]) {
+  animation-play-state: paused;
 }

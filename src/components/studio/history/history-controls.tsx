@@ -3,10 +3,14 @@
 import { History, Redo2, Undo2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { buttonClasses, Button } from "@/components/ui/button";
+import { Lazy, lazyComponent, useOpenedOnce } from "@/components/ui/lazy";
 import { Menu } from "@/components/ui/menu";
 import { historyKey, type HistoryKey } from "@/lib/store/history-keys";
 import { useHistoryStatus, useStudioStore } from "@/lib/store/resume-store";
-import { VersionsDialog } from "./versions-dialog";
+
+const versionsDialog = lazyComponent(() =>
+  import("./versions-dialog").then((m) => m.VersionsDialog),
+);
 
 const IS_MAC =
   typeof navigator !== "undefined" && /mac|iphone|ipad|ipod/i.test(navigator.userAgent);
@@ -29,6 +33,7 @@ function stepHistory(id: string, direction: HistoryKey): string | null {
 export function HistoryControls({ resumeId }: { resumeId: string | null }) {
   const status = useHistoryStatus(resumeId);
   const [versionsOpen, setVersionsOpen] = useState(false);
+  const versionsWanted = useOpenedOnce(versionsOpen);
   const [announcement, setAnnouncement] = useState("");
 
   function move(direction: HistoryKey) {
@@ -121,7 +126,11 @@ export function HistoryControls({ resumeId }: { resumeId: string | null }) {
       <p aria-live="polite" className="sr-only">
         {announcement}
       </p>
-      <VersionsDialog resumeId={resumeId} open={versionsOpen} onOpenChange={setVersionsOpen} />
+      <Lazy
+        loader={versionsDialog}
+        wanted={versionsWanted}
+        props={{ resumeId, open: versionsOpen, onOpenChange: setVersionsOpen }}
+      />
     </div>
   );
 }

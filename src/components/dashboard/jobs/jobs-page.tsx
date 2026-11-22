@@ -12,6 +12,7 @@ import { useSetupGuess } from "@/components/setup/use-account-setup";
 import { useNow } from "@/components/studio/use-now";
 import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import { lazyModule, useLazy } from "@/components/ui/lazy";
 import { Spinner } from "@/components/ui/spinner";
 import { toast } from "@/components/ui/toast";
 import type { JobMatchesResponse, MatchedJob } from "@/lib/api/types";
@@ -27,7 +28,6 @@ import { LazyOutreachDialog } from "./lazy-outreach-dialog";
 import { useStudioActions } from "../use-studio-actions";
 import { AppliedAnnouncer, AppliedStrip } from "./applied-question";
 import { CLEARED, searchedOrNarrowed, type FilterMemory } from "./filter-memory";
-import { JobCard } from "./job-card";
 import { JobFiltersBar } from "./job-filters";
 import {
   JobsHeader,
@@ -47,6 +47,9 @@ import { useAppliedPrompts } from "./use-opened-jobs";
 import { useTailorLink } from "./use-tailor-link";
 import { appliedFor, checkedLabel, matchingResumeId, moreWithProCopy, tailoredFor } from "./view";
 
+// The cards show once the matches are in, so their code downloads beside the page's.
+const jobCards = lazyModule(() => import("./job-card"), { preload: true });
+
 const count = new Intl.NumberFormat("en-US");
 
 export function JobsPage() {
@@ -58,6 +61,7 @@ export function JobsPage() {
   const loadingResumes = useFirstLoadPending(userId);
   const { items: applications, status: applicationsStatus } = useApplications();
   const now = useNow();
+  const cards = useLazy(jobCards, true);
   const listRef = useRef<HTMLDivElement>(null);
   const tryPro = useTryProLabel();
   const pro = useProTools();
@@ -284,7 +288,7 @@ export function JobsPage() {
           >
             {errorMessage(state.error)}
           </Alert>
-        ) : !data ? (
+        ) : !data || !cards ? (
           <LoadingCards />
         ) : data.jobs.length === 0 ? (
           filtered && view === "matches" ? (
@@ -295,7 +299,7 @@ export function JobsPage() {
             {data.jobs.map((job, index) => {
               const label = labels.get(job.id);
               return (
-                <JobCard
+                <cards.JobCard
                   key={job.id}
                   index={index}
                   job={job}

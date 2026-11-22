@@ -11,17 +11,20 @@ import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Eyebrow } from "@/components/ui/eyebrow";
 import { FolderCard } from "@/components/ui/folder-card";
+import { lazyModule, useLazy } from "@/components/ui/lazy";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useResumeList } from "@/lib/store/resume-store";
 import { cn, pluralize } from "@/lib/utils";
 import { prepAllowance } from "../applications/prep/prep-start";
 import { useApplications } from "../applications/use-applications";
-import { FeaturedInterview, InterviewTile, PackCard, type PrepareAction } from "./interview-cards";
-import { CueCardsArt } from "./interview-art";
+import type { PrepareAction } from "./interview-cards";
 import { LazyPrepareDialog } from "./lazy-prepare-dialog";
-import { SamplePack } from "./sample-pack";
 import { usePrepPacks } from "./use-prep-packs";
 import { interviewEntries } from "./view";
+
+// Everything past the loading state downloads beside the page's code instead of in it.
+const interviewSections = lazyModule(() => import("./interview-sections"), { preload: true });
+type Sections = typeof import("./interview-sections");
 
 const count = new Intl.NumberFormat("en-US");
 const TAB_HEADING = "font-sans text-xs/4 font-medium";
@@ -36,11 +39,13 @@ function Tally({ value, noun }: { value: number; noun: [string, string] }) {
 
 // Empty and locked states share the featured layout, so they feel like the same place.
 function Invitation({
+  art: CueCardsArt,
   eyebrow,
   title,
   detail,
   children,
 }: {
+  art: Sections["CueCardsArt"];
   eyebrow: string;
   title: string;
   detail: string;
@@ -85,7 +90,8 @@ export function InterviewHome() {
     () => packs.items.filter((pack) => !shown.has(pack.applicationId)),
     [packs.items, shown],
   );
-  const ready = packs.status === "ready" && applications.status !== "loading";
+  const parts = useLazy(interviewSections, true);
+  const ready = packs.status === "ready" && applications.status !== "loading" && parts !== null;
   const empty = ready && packs.items.length === 0 && entries.length === 0;
   const action: PrepareAction = { locked, onLocked: () => setUpgradeOpen(true) };
   const allowance = prepAllowance(me?.usage?.letter, me?.period);
@@ -135,7 +141,7 @@ export function InterviewHome() {
         >
           Check your connection, then try again.
         </Alert>
-      ) : !ready || (empty && planLoading) ? (
+      ) : !parts || !ready || (empty && planLoading) ? (
         <LoadingState />
       ) : (
         <>
@@ -146,6 +152,7 @@ export function InterviewHome() {
               bodyClassName="p-2"
             >
               <Invitation
+                art={parts.CueCardsArt}
                 eyebrow="Comes with Pro"
                 title="Practise every interview before it happens"
                 detail={packs.items.length > 0 ? OTTO.interview.lockedKept : OTTO.interview.locked}
@@ -163,6 +170,7 @@ export function InterviewHome() {
               bodyClassName="p-2"
             >
               <Invitation
+                art={parts.CueCardsArt}
                 eyebrow="No interviews yet"
                 title="Your next interview, prepped in one click"
                 detail="When an application reaches the interview stage, it waits here with a Prepare key. Or prep for any job now from its link."
@@ -191,7 +199,12 @@ export function InterviewHome() {
                 }
                 bodyClassName="p-2"
               >
-                <FeaturedInterview entry={first} now={now} action={action} allowance={allowance} />
+                <parts.FeaturedInterview
+                  entry={first}
+                  now={now}
+                  action={action}
+                  allowance={allowance}
+                />
               </FolderCard>
               {rest.length > 0 ? (
                 <ul
@@ -199,7 +212,7 @@ export function InterviewHome() {
                   className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3"
                 >
                   {rest.map((entry, index) => (
-                    <InterviewTile
+                    <parts.InterviewTile
                       key={entry.application.id}
                       entry={entry}
                       now={now}
@@ -227,13 +240,13 @@ export function InterviewHome() {
                 )}
               >
                 {otherPacks.map((pack, index) => (
-                  <PackCard key={pack.applicationId} pack={pack} now={now} index={index} />
+                  <parts.PackCard key={pack.applicationId} pack={pack} now={now} index={index} />
                 ))}
               </ul>
             </section>
           ) : null}
 
-          {locked && packs.items.length === 0 ? <SamplePack /> : null}
+          {locked && packs.items.length === 0 ? <parts.SamplePack /> : null}
         </>
       )}
 

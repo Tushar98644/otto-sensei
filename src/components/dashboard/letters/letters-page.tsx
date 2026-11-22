@@ -13,6 +13,7 @@ import { useNow } from "@/components/studio/use-now";
 import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { lazyModule, useLazy } from "@/components/ui/lazy";
 import { toast } from "@/components/ui/toast";
 import { undoToast } from "@/components/ui/undo-toast";
 import { api } from "@/lib/api/client";
@@ -28,6 +29,7 @@ import { useStudioActions } from "../use-studio-actions";
 import { useApplications } from "../applications/use-applications";
 import {
   entryApplication,
+  fieldsOfEntry,
   filterEntries,
   jobLine,
   KIND_NAMES,
@@ -41,9 +43,7 @@ import {
   type LetterEntry,
   type LetterFilter,
 } from "./entries";
-import { LetterGroupCard } from "./letter-group";
 import { LETTER_FILTERS, LetterFilters } from "./letter-filters";
-import { fieldsOfEntry, LetterReader } from "./letter-reader";
 import { LettersFolder, OtherPaths } from "./letters-parts";
 import { withRememberedPost } from "./post-memory";
 import type { QuickState } from "./quick-actions";
@@ -55,8 +55,6 @@ import {
   targetForGroup,
   type LetterGroup,
 } from "./ready";
-import { ReadyCard } from "./ready-card";
-import { SampleLetter } from "./sample-letter";
 import { LazyWriteDialog } from "./lazy-write-dialog";
 import { useLetterFiles } from "./use-letter-files";
 import { useOpenLetter } from "./use-open-letter";
@@ -65,6 +63,10 @@ import { useSavedJobs } from "./use-saved-jobs";
 import { useWritings } from "./use-writings";
 import type { Written } from "./write-dialog";
 import { writeTargets, type WriteTarget } from "./write-targets";
+
+const letterReader = lazyModule(() => import("./letter-reader"));
+// The cards show once the letters are in, so their code downloads beside the page's.
+const letterCards = lazyModule(() => import("./letters-sections"), { preload: true });
 
 const count = new Intl.NumberFormat("en-US");
 const PAGE_GROUPS = 20;
@@ -127,7 +129,11 @@ export function LettersPage() {
   const known = targets.map(withRememberedPost);
   const ready = readyTargets(known, entries);
   const viewing = reader.key ? entries.find((entry) => entry.key === reader.key) : undefined;
+  const readerCode = useLazy(letterReader, viewing !== undefined);
+  const cards = useLazy(letterCards, true);
   const loaded = hydrated && writings.status === "ready";
+  // A letter opened before the reader's code is in waits under the list's loading state.
+  const listed = loaded && cards !== null && (viewing === undefined || readerCode !== null);
   const kinds = LETTER_FILTERS.filter((item) => item !== "all" && counts[item] > 0).length;
   const allowance = planLoading
     ? null
@@ -310,7 +316,7 @@ export function LettersPage() {
     </>
   );
 
-  if (loaded && viewing) {
+  if (loaded && viewing && readerCode) {
     const target = targetForGroup(
       {
         key: viewing.key,
@@ -326,7 +332,7 @@ export function LettersPage() {
     const state = quickState(withRememberedPost(target));
     return (
       <>
-        <LetterReader
+        <readerCode.LetterReader
           key={viewing.key}
           entry={viewing}
           resume={letterResume(viewing, resumes)}
@@ -370,12 +376,12 @@ export function LettersPage() {
             Letters
           </h1>
           <p className="mt-2 max-w-prose text-base/7 text-pretty text-muted">
-            {loaded && entries.length > 0
+            {listed && entries.length > 0
               ? `${kindsTally(counts)}, each written for one job.`
               : "Cover letters, answers to application questions and outreach messages, written only from your resume and the job post."}
           </p>
         </div>
-        {pro === true && loaded && ownResume && (entries.length > 0 || showReady) ? (
+        {pro === true && listed && ownResume && (entries.length > 0 || showReady) ? (
           <Button variant="secondary" onClick={() => compose("letter")}>
             <PenLine aria-hidden />
             Write
@@ -383,7 +389,7 @@ export function LettersPage() {
         ) : null}
       </header>
 
-      {(!loaded || (entries.length === 0 && planLoading)) && writings.status !== "error" ? (
+      {(!listed || (entries.length === 0 && planLoading)) && writings.status !== "error" ? (
         <LoadingState />
       ) : writings.status === "error" ? (
         <Alert
@@ -397,6 +403,8 @@ export function LettersPage() {
         >
           Check your connection, then try again.
         </Alert>
+      ) : !cards ? (
+        <LoadingState />
       ) : (
         <>
           {locked ? (
@@ -444,7 +452,7 @@ export function LettersPage() {
               />
               <ul className="grid gap-3 sm:gap-4 lg:grid-cols-2">
                 {readyShown.map((target, index) => (
-                  <ReadyCard
+                  <cards.ReadyCard
                     key={target.value}
                     target={target}
                     application={
@@ -487,7 +495,7 @@ export function LettersPage() {
             </LettersFolder>
           ) : null}
 
-          {locked && entries.length === 0 ? <SampleLetter /> : null}
+          {locked && entries.length === 0 ? <cards.SampleLetter /> : null}
 
           {entries.length > 0 ? (
             <section aria-labelledby={writtenId} className="flex flex-col gap-3">
@@ -515,7 +523,7 @@ export function LettersPage() {
                 {groups.slice(0, shownGroups).map((group, index) => {
                   const target = withRememberedPost(targetForGroup(group, known));
                   return (
-                    <LetterGroupCard
+                    <cards.LetterGroupCard
                       key={group.key}
                       group={group}
                       application={groupApplication(group, applications.items, resumes)}

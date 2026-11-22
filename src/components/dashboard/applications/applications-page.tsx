@@ -14,6 +14,7 @@ import { FREE_APPLICATIONS } from "@/config/plans";
 import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { FolderCard } from "@/components/ui/folder-card";
+import { Lazy, lazyComponent } from "@/components/ui/lazy";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "@/components/ui/toast";
 import { undoToast } from "@/components/ui/undo-toast";
@@ -32,7 +33,6 @@ import { ApplicationsBoard } from "./board/applications-board";
 import { readView, toApplyItems, writeView, type BoardView } from "./board/board";
 import { useBoardExtras } from "./board/use-board-extras";
 import { NoReplyNudge } from "./no-reply-nudge";
-import { SkillGapsPanel } from "./skill-gaps";
 import {
   changeApplication,
   commitDelete,
@@ -49,6 +49,11 @@ import {
   type ApplicationFilter,
 } from "./view";
 import { WinRate } from "./win-rate";
+
+// Shows once this browser's resumes are read, so its code downloads beside the page's.
+const skillGapsPanel = lazyComponent(() => import("./skill-gaps").then((m) => m.SkillGapsPanel), {
+  preload: true,
+});
 
 const PAGE_ROWS = 50;
 const ANCHOR_PREFIX = applicationAnchor("");
@@ -285,7 +290,7 @@ export function ApplicationsPage() {
           </section>
 
           {items.length > 0 ? <WinRate items={items} versions={versions} /> : null}
-          <SkillGapsPanel />
+          <Lazy loader={skillGapsPanel} wanted props={{}} />
         </>
       )}
 

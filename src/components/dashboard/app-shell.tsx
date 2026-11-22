@@ -5,10 +5,11 @@ import { useEffect, type ReactNode } from "react";
 import { SessionUserProvider } from "@/components/account/session-user";
 import { UpgradePromptHost } from "@/components/account/upgrade-prompt";
 import { useMe, type Me } from "@/components/account/use-me";
+import { PauseOffscreenLoops } from "@/components/mascot/offscreen-loops";
 import { useOttoLoadingScreen } from "@/components/mascot/otto-loading-screen";
 import { DashboardTour } from "@/components/onboarding/dashboard-tour";
-import { SetupDefaults } from "@/components/setup/setup-defaults";
 import { ROUTES } from "@/components/site/routes";
+import { lazyModule, useLazy } from "@/components/ui/lazy";
 import type { SessionUser } from "@/lib/auth/types";
 import { useCloudSync, useFirstLoadPending } from "@/lib/sync/use-cloud-sync";
 import { CommandPaletteHost } from "./command-palette-host";
@@ -16,6 +17,9 @@ import { FileDropOverlay } from "./file-drop-overlay";
 import { MobileBar } from "./mobile-bar";
 import { Sidebar } from "./sidebar";
 import { useStudioActions } from "./use-studio-actions";
+
+// Draws nothing and only saves first-login guesses, so it can wait for an idle moment.
+const setupDefaults = lazyModule(() => import("@/components/setup/setup-defaults"));
 
 export function AppShell({
   initialUser,
@@ -31,6 +35,7 @@ export function AppShell({
   useOttoLoadingScreen(useFirstLoadPending(initialUser.id), "Loading your resumes");
   const { me, user, loading } = useMe();
   const actions = useStudioActions();
+  const setup = useLazy(setupDefaults, false);
 
   const signedOut = !loading && me !== null && me.user === null;
   useEffect(() => {
@@ -53,10 +58,11 @@ export function AppShell({
           </main>
         </div>
         <DashboardTour />
-        <SetupDefaults />
+        {setup ? <setup.SetupDefaults /> : null}
         <CommandPaletteHost actions={actions} />
         <FileDropOverlay />
         <UpgradePromptHost />
+        <PauseOffscreenLoops />
       </div>
     </SessionUserProvider>
   );

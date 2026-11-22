@@ -6,11 +6,12 @@ import { Otto } from "@/components/mascot/otto";
 import { OttoNote } from "@/components/mascot/otto-note";
 import { SharedLinks } from "@/components/share/shared-links";
 import { Button } from "@/components/ui/button";
+import { preload, useLazy } from "@/components/ui/lazy";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useResumeList, useStudioHydrated } from "@/lib/store/resume-store";
 import { cn, pluralize } from "@/lib/utils";
-import { AddResumeTile } from "./add-resume-tile";
 import {
+  cardId,
   FILTER_LABELS,
   filterCounts,
   libraryView,
@@ -20,10 +21,11 @@ import {
 import { WELL_HEIGHT } from "./library/paper-well";
 import { LibraryToolbar } from "./library-toolbar";
 import { NewResumeMenu } from "./new-resume-menu";
-import { cardId } from "./resume-card";
-import { ResumeGrid } from "./resume-grid";
+import { resumeSections } from "./page-code";
 import { useStudioActions, type StudioActions } from "./use-studio-actions";
 import { RecentlyDeletedLink } from "./trash/recently-deleted-link";
+
+preload(resumeSections);
 
 const storedLine = "Saved in this browser and backed up to your account.";
 
@@ -50,12 +52,14 @@ export function ResumesPage() {
     [resumes, query, filter, sort],
   );
   const narrowed = query.trim() !== "" || filter !== "all";
+  const parts = useLazy(resumeSections, true);
+  const shownCards = hydrated && parts !== null;
 
   useEffect(() => {
-    if (!hydrated) return;
+    if (!shownCards) return;
     const hash = decodeURIComponent(window.location.hash.slice(1));
     if (hash.startsWith("resume-")) reveal(hash.slice("resume-".length));
-  }, [hydrated]);
+  }, [shownCards]);
 
   function showBase(id: string) {
     setQuery("");
@@ -88,6 +92,8 @@ export function ResumesPage() {
         <LoadingGrid />
       ) : resumes.length === 0 ? (
         <EmptyLibrary actions={actions} />
+      ) : !parts ? (
+        <LoadingGrid />
       ) : (
         <section aria-label="Your resumes" className="flex flex-col gap-8">
           <LibraryToolbar
@@ -103,12 +109,12 @@ export function ResumesPage() {
             {narrowed ? `${pluralize(shown.length, "resume")} shown of ${resumes.length}` : ""}
           </p>
           {shown.length > 0 ? (
-            <ResumeGrid
+            <parts.ResumeGrid
               resumes={shown}
               all={resumes}
               actions={actions}
               onShowBase={showBase}
-              end={narrowed ? null : <AddResumeTile actions={actions} />}
+              end={narrowed ? null : <parts.AddResumeTile actions={actions} />}
             />
           ) : (
             <div className="rounded-2xl bg-surface p-6 sm:p-8">

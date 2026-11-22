@@ -43,7 +43,7 @@ import type { Resume } from "@/lib/resume/schema";
 import { useStudioStore } from "@/lib/store/resume-store";
 import { cn, pluralize } from "@/lib/utils";
 import { MarkApplied, useCopyApplication, useJustApplied } from "./applications/mark-applied";
-import { SOURCE_TABS, tailoredJob } from "./library";
+import { cardId, SOURCE_TABS, tailoredJob } from "./library";
 import { CardChips, type CardChip } from "./library/card-chips";
 import { PaperWell } from "./library/paper-well";
 import { linesChip, reportChip } from "./resume-status";
@@ -64,10 +64,6 @@ export type ResumeCardProps = {
   onShowBase?: (id: string) => void;
   cheer?: boolean;
 };
-
-export function cardId(resumeId: string): string {
-  return `resume-${resumeId}`;
-}
 
 function defaultTailoredTitle(resume: Resume): string {
   const tailor = resume.tailor;

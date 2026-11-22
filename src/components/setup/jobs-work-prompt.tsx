@@ -2,7 +2,7 @@
 
 import { Globe } from "lucide-react";
 import { useState } from "react";
-import { WorkProfileDialog } from "@/components/eligibility/work-profile-dialog";
+import { LazyWorkProfileDialog } from "@/components/eligibility/lazy-work-profile-dialog";
 import { Button } from "@/components/ui/button";
 import { REGION_NAMES, type WorkProfile } from "@/lib/eligibility/profile";
 import { guessedRegion } from "@/lib/setup/hints";
@@ -36,7 +36,7 @@ export function JobsWorkPrompt({ due, userId, profile, saved }: JobsWorkPromptPr
           </Button>
         </div>
       ) : null}
-      <WorkProfileDialog
+      <LazyWorkProfileDialog
         open={open}
         onOpenChange={(next) => {
           setOpen(next);

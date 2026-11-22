@@ -27,10 +27,20 @@ export const SORT_LABELS: Record<LibrarySort, string> = {
   name: "Name",
 };
 
+export function cardId(resumeId: string): string {
+  return `resume-${resumeId}`;
+}
+
 export type LibraryQuery = { query: string; filter: LibraryFilter; sort: LibrarySort };
 
 export function filterCounts(resumes: readonly Resume[]): Record<LibraryFilter, number> {
-  const counts: Record<LibraryFilter, number> = { all: 0, import: 0, tailored: 0, sample: 0, scratch: 0 };
+  const counts: Record<LibraryFilter, number> = {
+    all: 0,
+    import: 0,
+    tailored: 0,
+    sample: 0,
+    scratch: 0,
+  };
   for (const resume of resumes) {
     counts.all += 1;
     counts[resume.source] += 1;
@@ -92,7 +102,10 @@ export function sortResumes(resumes: readonly Resume[], sort: LibrarySort): Resu
   return indexed.map(({ resume }) => resume);
 }
 
-export function libraryView(resumes: readonly Resume[], { query, filter, sort }: LibraryQuery): Resume[] {
+export function libraryView(
+  resumes: readonly Resume[],
+  { query, filter, sort }: LibraryQuery,
+): Resume[] {
   const shown = resumes.filter(
     (resume) => (filter === "all" || resume.source === filter) && matchesQuery(resume, query),
   );

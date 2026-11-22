@@ -13,6 +13,7 @@ import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { CompanyMark } from "@/components/ui/company-mark";
 import { Eyebrow } from "@/components/ui/eyebrow";
+import { lazyModule, useLazy } from "@/components/ui/lazy";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "@/components/ui/toast";
 import { api, isApiError } from "@/lib/api/client";
@@ -23,9 +24,11 @@ import { useResumeList, useStudioHydrated } from "@/lib/store/resume-store";
 import { pluralize } from "@/lib/utils";
 import { useApplications } from "../use-applications";
 import { practiceKey } from "./practice-store";
-import { PrepForm, type PrepMade } from "./prep-form";
-import { PrepPack } from "./prep-pack";
+import type { PrepMade } from "./prep-form";
 import { PrepPrintStyles } from "./prep-print";
+
+// The form and the pack show once the prep has loaded, so their code downloads beside the page's.
+const sections = lazyModule(() => import("./prep-sections"), { preload: true });
 
 type Load =
   | { status: "loading" }
@@ -64,6 +67,7 @@ export function InterviewPrepPage({
   const now = useNow();
   const applications = useApplications();
   const [load, setLoad] = useState<Load>({ status: "loading" });
+  const parts = useLazy(sections, true);
   const [attempt, setAttempt] = useState(0);
   const [remaking, setRemaking] = useState<false | "form" | "paste">(false);
   const [unsaved, setUnsaved] = useState(false);
@@ -197,7 +201,7 @@ export function InterviewPrepPage({
         ) : null}
       </header>
 
-      {load.status === "loading" || !hydrated ? (
+      {load.status === "loading" || !hydrated || !parts ? (
         <div aria-busy className="flex flex-col">
           <span className="sr-only" role="status">
             Loading your interview prep
@@ -260,14 +264,14 @@ export function InterviewPrepPage({
               ) : null}
             </div>
           ) : null}
-          <PrepPack
+          <parts.PrepPack
             prep={prep}
             target={target}
             storageKey={practiceKey(applicationId, prep.createdAt)}
           />
         </>
       ) : target ? (
-        <PrepForm
+        <parts.PrepForm
           target={target}
           resumes={resumes}
           onDone={done}

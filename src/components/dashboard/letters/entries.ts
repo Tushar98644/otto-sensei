@@ -3,12 +3,8 @@ import { applicationForCopy, applicationForWriting } from "@/lib/applications/th
 import { resumeTitle } from "@/lib/resume/ops";
 import { emptyResume, type Resume } from "@/lib/resume/schema";
 import { pluralize } from "@/lib/utils";
-import type {
-  OutreachParts,
-  UpdateWritingBody,
-  Writing,
-  WritingKind,
-} from "@/lib/writings/schema";
+import type { OutreachParts, UpdateWritingBody, Writing, WritingKind } from "@/lib/writings/schema";
+import type { OutreachFields } from "../jobs/outreach-saved";
 
 export type LetterEntry = {
   key: string;
@@ -31,6 +27,14 @@ export type LetterEntry = {
 };
 
 export type LetterFilter = "all" | WritingKind;
+
+export function fieldsOfEntry(entry: Pick<LetterEntry, "text" | "outreach">): OutreachFields {
+  return {
+    subject: entry.outreach?.subject ?? "",
+    email: entry.text,
+    note: entry.outreach?.note ?? "",
+  };
+}
 
 export const KIND_NAMES: Record<WritingKind, { one: string; label: string; copy: string }> = {
   letter: { one: "letter", label: "Letter", copy: "letter" },
@@ -104,12 +108,20 @@ export function letterEntries(
   );
 }
 
-export function filterEntries(entries: readonly LetterEntry[], filter: LetterFilter): LetterEntry[] {
+export function filterEntries(
+  entries: readonly LetterEntry[],
+  filter: LetterFilter,
+): LetterEntry[] {
   return filter === "all" ? [...entries] : entries.filter((entry) => entry.kind === filter);
 }
 
 export function kindCounts(entries: readonly LetterEntry[]): Record<LetterFilter, number> {
-  const counts: Record<LetterFilter, number> = { all: entries.length, letter: 0, answer: 0, outreach: 0 };
+  const counts: Record<LetterFilter, number> = {
+    all: entries.length,
+    letter: 0,
+    answer: 0,
+    outreach: 0,
+  };
   for (const entry of entries) counts[entry.kind] += 1;
   return counts;
 }

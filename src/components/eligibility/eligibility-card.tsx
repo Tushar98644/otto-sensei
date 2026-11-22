@@ -21,7 +21,7 @@ import {
 } from "@/lib/eligibility/types";
 import { HOUR_MS } from "@/lib/time";
 import { useWorkProfile } from "./use-work-profile";
-import { WorkProfileDialog } from "./work-profile-dialog";
+import { LazyWorkProfileDialog } from "./lazy-work-profile-dialog";
 
 export type EligibilityCardProps = {
   location: string;
@@ -173,7 +173,7 @@ export function EligibilityCard({ location, text }: EligibilityCardProps) {
         </div>
       ) : null}
       {work.status === "ready" ? (
-        <WorkProfileDialog
+        <LazyWorkProfileDialog
           open={editing}
           onOpenChange={setEditing}
           userId={work.userId}

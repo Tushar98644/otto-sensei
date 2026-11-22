@@ -6,11 +6,9 @@ import { useEffect, useId, useRef, useState, type ToggleEvent } from "react";
 import { OttoNote } from "@/components/mascot/otto-note";
 import { ROUTES } from "@/components/site/routes";
 import { Button, buttonClasses } from "@/components/ui/button";
+import { lazyModule, useLazy } from "@/components/ui/lazy";
 import { Skeleton } from "@/components/ui/skeleton";
-import { isInAppPath, type Notification } from "@/lib/notifications/types";
 import { cn } from "@/lib/utils";
-import { FollowUpActions } from "./follow-up-actions";
-import { timeAgo } from "./time-ago";
 import { forgetFresh, markAllSeen, useNotifications } from "./use-notifications";
 
 export type NotificationBellProps = {
@@ -19,11 +17,18 @@ export type NotificationBellProps = {
   className?: string;
 };
 
+// The list sits in a closed popover, so its rows load when idle or when it opens.
+const notificationList = lazyModule(() => import("./notification-list"));
+
 const GUTTER_PX = 16;
 const OFFSET_PX = 8;
 const MIN_HEIGHT_PX = 160;
 
-export function NotificationBell({ align = "start", size = "sm", className }: NotificationBellProps) {
+export function NotificationBell({
+  align = "start",
+  size = "sm",
+  className,
+}: NotificationBellProps) {
   const notifications = useNotifications();
   const panelId = useId();
   const titleId = useId();
@@ -31,6 +36,7 @@ export function NotificationBell({ align = "start", size = "sm", className }: No
   const panelRef = useRef<HTMLDivElement>(null);
   const [open, setOpen] = useState(false);
   const [openedAt, setOpenedAt] = useState(0);
+  const list = useLazy(notificationList, open);
 
   const ready = notifications.status === "ready" ? notifications : null;
   const userId = ready?.userId ?? null;
@@ -111,11 +117,7 @@ export function NotificationBell({ align = "start", size = "sm", className }: No
           Notifications
         </h2>
         {notifications.status === "loading" ? (
-          <div aria-busy="true" className="flex flex-col gap-3 px-2.5 pt-1 pb-3">
-            <Skeleton className="h-4 w-3/4" />
-            <Skeleton className="h-4 w-full" />
-            <Skeleton className="h-4 w-2/3" />
-          </div>
+          <PanelSkeleton />
         ) : notifications.status === "error" ? (
           <div className="flex flex-col items-start gap-2 px-2.5 pb-2.5">
             <p className="text-sm/6 text-muted">Couldn&apos;t load your notifications.</p>
@@ -138,77 +140,28 @@ export function NotificationBell({ align = "start", size = "sm", className }: No
               Open applications
             </Link>
           </OttoNote>
+        ) : list ? (
+          <list.NotificationList
+            items={notifications.items}
+            fresh={notifications.fresh}
+            now={openedAt}
+            onNavigate={close}
+          />
         ) : (
-          <ul className="flex flex-col">
-            {notifications.items.map((item) => (
-              <NotificationRow
-                key={item.id}
-                item={item}
-                isNew={item.readAt === null || notifications.fresh.has(item.id)}
-                now={openedAt}
-                onNavigate={close}
-              />
-            ))}
-          </ul>
+          <PanelSkeleton />
         )}
       </div>
     </>
   );
 }
 
-const ROW = "flex gap-2.5 rounded-lg px-2.5 py-2.5 text-left -outline-offset-2";
-
-function NotificationRow({
-  item,
-  isNew,
-  now,
-  onNavigate,
-}: {
-  item: Notification;
-  isNew: boolean;
-  now: number;
-  onNavigate: () => void;
-}) {
-  const titleId = useId();
-  const content = (
-    <>
-      <span
-        aria-hidden
-        className={cn("mt-1.5 size-2 shrink-0 rounded-full", isNew ? "bg-primary" : "bg-transparent")}
-      />
-      <span className="min-w-0 flex-1">
-        <span id={titleId} className="block text-sm/5 font-medium text-pretty text-ink">
-          {isNew ? <span className="sr-only">New: </span> : null}
-          {item.title}
-        </span>
-        {item.body ? (
-          <span className="mt-0.5 block text-sm/5 text-pretty text-muted">{item.body}</span>
-        ) : null}
-        <time
-          dateTime={new Date(item.createdAt).toISOString()}
-          className="mt-1 block text-xs/4 text-subtle"
-        >
-          {now > 0 ? timeAgo(item.createdAt, now) : null}
-        </time>
-      </span>
-    </>
-  );
-  const link = item.link !== null && isInAppPath(item.link) ? item.link : null;
-  const followUp =
-    item.kind === "application_follow_up" && item.followUpDue ? item.applicationId : null;
+function PanelSkeleton() {
   return (
-    <li>
-      {link ? (
-        <Link href={link} onClick={onNavigate} className={cn(ROW, "transition-colors hover:bg-ink/5")}>
-          {content}
-        </Link>
-      ) : (
-        <div className={ROW}>{content}</div>
-      )}
-      {followUp ? (
-        <FollowUpActions applicationId={followUp} describedBy={titleId} onNavigate={onNavigate} />
-      ) : null}
-    </li>
+    <div aria-busy="true" className="flex flex-col gap-3 px-2.5 pt-1 pb-3">
+      <Skeleton className="h-4 w-3/4" />
+      <Skeleton className="h-4 w-full" />
+      <Skeleton className="h-4 w-2/3" />
+    </div>
   );
 }
 

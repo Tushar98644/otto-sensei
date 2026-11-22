@@ -3,10 +3,7 @@
 import { useState } from "react";
 import { unlockProTool } from "@/components/account/pro-tools";
 import { usePageSize } from "@/components/studio/download/use-page-size";
-import { downloadBlob } from "@/components/studio/tailor/jump";
 import { toast } from "@/components/ui/toast";
-import { letterFileName } from "@/lib/pdf/letter";
-import { renderLetterPdf } from "@/lib/pdf/render";
 import type { Resume } from "@/lib/resume/schema";
 import { letterResume, type LetterEntry } from "./entries";
 
@@ -22,8 +19,14 @@ export function useLetterFiles(resumes: readonly Resume[]) {
     if (file === "word" && !(await unlockProTool("word"))) return;
     setRendering({ key: entry.key, file });
     const resume = letterResume(entry, resumes);
-    const name = letterFileName(resume.basics.name, entry.company);
     try {
+      // The file makers load with the first download, not with the page.
+      const [{ letterFileName }, { downloadBlob }, { renderLetterPdf }] = await Promise.all([
+        import("@/lib/pdf/letter"),
+        import("@/components/studio/tailor/jump"),
+        import("@/lib/pdf/render"),
+      ]);
+      const name = letterFileName(resume.basics.name, entry.company);
       if (file === "pdf") {
         downloadBlob(await renderLetterPdf(resume, text, { pageSize }), name);
       } else {

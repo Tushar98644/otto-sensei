@@ -35,7 +35,7 @@ import { textLimit, WRITING_LIMITS } from "@/lib/writings/schema";
 import { StatusIcon } from "../applications/status-menu";
 import { outreachChange, type OutreachField, type OutreachFields } from "../jobs/outreach-saved";
 import { OutreachSend } from "../jobs/outreach-send";
-import { KIND_NAMES, type LetterEntry } from "./entries";
+import { fieldsOfEntry, KIND_NAMES, type LetterEntry } from "./entries";
 import { longDay, Paper, PaperBody, PaperHead, PaperLine } from "./letter-paper";
 import { asEmail, emailSubject } from "./ready";
 import { WRITE_ACTIONS } from "./quick-actions";
@@ -59,14 +59,6 @@ const SAVE_LINES: Record<SaveState, string> = {
   saved: "Saved",
   failed: "Not saved yet",
 };
-
-export function fieldsOfEntry(entry: Pick<LetterEntry, "text" | "outreach">): OutreachFields {
-  return {
-    subject: entry.outreach?.subject ?? "",
-    email: entry.text,
-    note: entry.outreach?.note ?? "",
-  };
-}
 
 export type ReaderAgain = {
   run: QuickRun | null;

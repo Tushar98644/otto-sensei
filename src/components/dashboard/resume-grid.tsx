@@ -10,8 +10,8 @@ import { isTitleTaken, resumeTitle } from "@/lib/resume/ops";
 import type { Resume } from "@/lib/resume/schema";
 import { useStudioStore } from "@/lib/store/resume-store";
 import { cn } from "@/lib/utils";
-import { tailoredCounts } from "./library";
-import { ResumeCard, cardId } from "./resume-card";
+import { cardId, tailoredCounts } from "./library";
+import { ResumeCard } from "./resume-card";
 import type { StudioActions } from "./use-studio-actions";
 
 // Cards arrive one after another on first paint; past the first row they come together.

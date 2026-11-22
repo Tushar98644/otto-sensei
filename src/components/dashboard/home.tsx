@@ -5,24 +5,24 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 import { OttoNote } from "@/components/mascot/otto-note";
 import { ROUTES } from "@/components/site/routes";
+import { preload, useLazy } from "@/components/ui/lazy";
 import { Skeleton } from "@/components/ui/skeleton";
 import { createSampleResume } from "@/lib/resume/sample";
 import { ownResumes } from "@/lib/setup/checklist";
 import { useResumeList } from "@/lib/store/resume-store";
 import { useFirstLoadPending } from "@/lib/sync/use-cloud-sync";
 import { cn } from "@/lib/utils";
-import { SkillGapCard } from "./applications/skill-gaps";
 import { useApplications } from "./applications/use-applications";
-import { WinRatePanel } from "./applications/win-rate-panel";
 import { groupResumes } from "./group-resumes";
 import { ActionCards } from "./home/action-cards";
-import { AtAGlance } from "./home/glance";
 import { homeGreeting } from "./home/greeting";
 import { UpNext } from "./home/up-next";
 import { recentResumes } from "./library";
 import { NewResumeMenu } from "./new-resume-menu";
-import { ResumeGrid } from "./resume-grid";
+import { resumeSections } from "./page-code";
 import { useStudioActions } from "./use-studio-actions";
+
+preload(resumeSections);
 
 const RECENT = 3;
 const count = new Intl.NumberFormat("en-US");
@@ -38,6 +38,7 @@ export function DashboardHome() {
   const recent = useMemo(() => recentResumes(resumes, RECENT), [resumes]);
   const samples = resumes.filter((resume) => resume.source === "sample").length;
   const greeting = homeGreeting({ own: loading ? 0 : ownGroups, samples: loading ? 0 : samples });
+  const parts = useLazy(resumeSections, true);
 
   const latest = recent[0] ?? null;
   const logged = applications.status === "ready" && applications.items.length > 0;
@@ -67,9 +68,9 @@ export function DashboardHome() {
 
       <ActionCards actions={actions} latest={latest} pageResume={latest ?? sample} />
 
-      {!loading && own.length > 0 ? <AtAGlance own={own} actions={actions} /> : null}
-      {logged ? <WinRatePanel /> : null}
-      <SkillGapCard />
+      {parts && !loading && own.length > 0 ? <parts.AtAGlance own={own} actions={actions} /> : null}
+      {parts && logged ? <parts.WinRatePanel /> : null}
+      {parts ? <parts.SkillGapCard /> : null}
 
       {loading || resumes.length > 0 ? (
         <section aria-labelledby="recent-heading" className="flex flex-col gap-5">
@@ -90,14 +91,14 @@ export function DashboardHome() {
               </Link>
             ) : null}
           </div>
-          {loading ? (
+          {loading || !parts ? (
             <div className="grid gap-x-5 gap-y-8 sm:grid-cols-2 xl:grid-cols-3" aria-hidden>
               {[0, 1, 2].map((index) => (
                 <Skeleton key={index} className="h-80 rounded-2xl bg-surface" />
               ))}
             </div>
           ) : (
-            <ResumeGrid resumes={recent} all={resumes} actions={actions} cheer={false} />
+            <parts.ResumeGrid resumes={recent} all={resumes} actions={actions} cheer={false} />
           )}
         </section>
       ) : null}
