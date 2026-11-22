@@ -21,6 +21,16 @@ const ENTRIES = ["background", "content", "bridge"].map((name) =>
   path.join(ROOT, "src", `${name}.ts`),
 );
 
+// OTTO_DEV_ORIGIN=http://localhost:<port> points a dev build at a dev server on another port.
+function originFor(target: BuildTarget): string {
+  const asked = process.env.OTTO_DEV_ORIGIN?.trim();
+  if (target !== "dev" || !asked) return ORIGINS[target];
+  if (!/^http:\/\/localhost:\d{2,5}$/.test(asked)) {
+    throw new Error("OTTO_DEV_ORIGIN must look like http://localhost:3314");
+  }
+  return asked;
+}
+
 async function build(target: BuildTarget): Promise<string> {
   const out = path.join(ROOT, "dist", target);
   rmSync(out, { recursive: true, force: true });
@@ -33,7 +43,7 @@ async function build(target: BuildTarget): Promise<string> {
     minify: target === "prod",
     sourcemap: target === "dev" ? "inline" : "none",
     define: {
-      __OTTO_ORIGIN__: JSON.stringify(ORIGINS[target]),
+      __OTTO_ORIGIN__: JSON.stringify(originFor(target)),
       __OTTO_DEV__: JSON.stringify(target === "dev"),
       "process.env.NODE_ENV": JSON.stringify(target === "prod" ? "production" : "development"),
     },
@@ -44,7 +54,7 @@ async function build(target: BuildTarget): Promise<string> {
   }
   writeFileSync(
     path.join(out, "manifest.json"),
-    `${JSON.stringify(manifest(target, VERSION), null, 2)}\n`,
+    `${JSON.stringify(manifest(target, VERSION, originFor(target)), null, 2)}\n`,
   );
   cpSync(path.join(ROOT, "store", "icons"), path.join(out, "icons"), {
     recursive: true,

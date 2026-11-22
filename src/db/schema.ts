@@ -629,4 +629,10 @@ export const savedPosts = pgTable(
   ],
 );
 
+export const applyAnswers = pgTable("apply_answers", {
+  userId: uuid("user_id").primaryKey(),
+  answers: jsonb("answers").$type<Record<string, unknown>>().notNull().default({}),
+  updatedAt: epochMs("updated_at").notNull(),
+});
+
 export type UserRow = typeof users.$inferSelect;

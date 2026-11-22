@@ -11,6 +11,8 @@ export function ottoUrl(path: string): string {
 
 // Match data older than this is refreshed in the background; the badge never waits for it.
 export const PROFILE_TTL_MS = 3 * 60 * 60 * 1000;
+// A filled form whose thank-you page hasn't shown in this long isn't waited for any more.
+export const PENDING_TTL_MS = 6 * 60 * 60 * 1000;
 // A visit to Otto itself (where resumes change) refreshes sooner.
 export const OTTO_VISIT_TTL_MS = 2 * 60 * 1000;
 

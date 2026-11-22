@@ -1,12 +1,20 @@
 import {
+  DEFAULT_HEARD_FROM,
+  type ApplyAnswers,
+  type ApplyAnswersPatch,
+} from "@/lib/extension/answers";
+import {
   CONNECT_PATH,
+  FILL_UPGRADE_PATH,
   letterPostPath,
   savedPostBoardPath,
   tailorPostPath,
 } from "@/lib/extension/links";
 import type { ExtensionProfile, ExtensionResume } from "@/lib/extension/types";
-import { jobSiteOf, SITE_NAMES } from "@/lib/extension/urls";
+import { canonicalJobUrl, jobSiteOf, SITE_NAMES } from "@/lib/extension/urls";
 import { chrome } from "./chrome";
+import { formPlatformOf } from "./forms/platforms";
+import { createFormSession, payFrom, type FormSession } from "./forms/session";
 import { badgeMatch, type BadgeMatch } from "./match";
 import { isTabMessage, type Request, type SaveReply, type State } from "./messages";
 import type { Page } from "./page/dom";
@@ -51,6 +59,54 @@ function deviceTimeZone(): string | undefined {
   }
 }
 
+const yesNo = (value: string | undefined): boolean | null =>
+  value === "yes" ? true : value === "no" ? false : null;
+
+// The saved-answers editor's fields, as one update; an emptied question is forgotten.
+function answersPatch(fields: Record<string, string>, saved: ApplyAnswers): ApplyAnswersPatch {
+  const workRights: ApplyAnswersPatch["workRights"] = {};
+  for (const [name, value] of Object.entries(fields)) {
+    const match = /^rights\.([A-Z]{2}|EU)\.(authorized|sponsorship)$/.exec(name);
+    if (!match) continue;
+    const key = match[1]!;
+    workRights[key] = {
+      authorized: null,
+      sponsorship: null,
+      ...workRights[key],
+      [match[2]!]: yesNo(value),
+    };
+  }
+  return {
+    noticePeriod: fields.noticePeriod?.trim() ?? saved.noticePeriod,
+    startDate: fields.startDate?.trim() ?? saved.startDate,
+    heardFrom: fields.heardFrom?.trim() || DEFAULT_HEARD_FROM,
+    relocate: yesNo(fields.relocate),
+    currentPay: payFrom(fields, "currentPay"),
+    expectedPay: payFrom(fields, "expectedPay"),
+    workRights,
+    custom: saved.custom.map((item, index) => ({
+      question: item.question,
+      answer: fields[`custom.${index}`] ?? item.answer,
+    })),
+  };
+}
+
+// Lever's and Ashby's forms and Workday's steps sit beside the post: read it from the job's own page.
+async function postFromJobPage(): Promise<JobPost | null> {
+  const canonical = canonicalJobUrl(location.href);
+  if (!canonical) return null;
+  const target = new URL(canonical);
+  if (target.origin !== location.origin || target.href === location.href) return null;
+  try {
+    const res = await fetch(target.href, { credentials: "omit" });
+    if (!res.ok) return null;
+    const doc = new DOMParser().parseFromString(await res.text(), "text/html");
+    return readPost({ root: doc.documentElement, url: target.href, title: doc.title });
+  } catch {
+    return null;
+  }
+}
+
 function pageSettled(): Promise<void> {
   const loaded =
     document.readyState === "complete"
@@ -72,6 +128,24 @@ function start() {
   let mode: Mode = "card";
   let state: State | null = null;
   let post: JobPost | null = null;
+  // The post a form belongs to when the form's page doesn't show it.
+  let formPost: JobPost | null = null;
+  let formPostFor = "";
+  let formShown = false;
+  const platform = formPlatformOf(location.href);
+  const session: FormSession | null = platform
+    ? createFormSession({
+        platform,
+        send,
+        post: () => post,
+        resumeId: () =>
+          state?.profile ? (chosenResume(state.profile, state.resumeId)?.id ?? null) : null,
+        changed: () => draw(),
+        reveal: () => {
+          if (mode === "mini" || mode === "answers") mode = "card";
+        },
+      })
+    : null;
   let key: string | null = null;
   let summoned = false;
   let busy: Busy = null;
@@ -116,11 +190,26 @@ function start() {
       saved: savedRef() !== null,
       busy,
       error,
+      form:
+        session && (session.present() || session.state.phase !== "idle")
+          ? { allowed: profile.access.fill, state: session.state }
+          : null,
     };
   }
 
   function draw() {
-    if (settled) ui.show(view(), mode);
+    if (settled) ui.show(view(), mode, session?.state.toast ?? null);
+  }
+
+  function loadFormPost() {
+    const canonical = canonicalJobUrl(location.href) ?? "";
+    if (!session || post || formPostFor === canonical || !session.present()) return;
+    formPostFor = canonical;
+    void postFromJobPage().then((found) => {
+      if (formPostFor !== canonical || !found) return;
+      formPost = found;
+      scan();
+    });
   }
 
   function savedRef() {
@@ -150,9 +239,20 @@ function start() {
   function scan() {
     lastScan = Date.now();
     if (onJobSite) {
-      const found = readPost(currentPage());
+      // Workday's apply steps reuse the job's address but show a form, not the post.
+      const applyStep = platform === "workday" && /\/apply(?:\/|$)/i.test(location.pathname);
+      const own = applyStep ? null : readPost(currentPage());
+      const canonical = canonicalJobUrl(location.href);
+      const found = own ?? (formPost && formPost.url === canonical ? formPost : null);
       if (found || !summoned) adopt(found);
       else adopt(readDeclaredPost(currentPage()));
+      if (!found) loadFormPost();
+      // A form drawn after the post (Ashby's tab, Workday's next step) brings Fill with Otto in.
+      const form = session?.present() ?? false;
+      if (form !== formShown) {
+        formShown = form;
+        draw();
+      }
     } else if (summoned && !post) {
       adopt(readDeclaredPost(currentPage()));
     }
@@ -202,7 +302,7 @@ function start() {
     if (id && then) then(id);
   }
 
-  function act({ action, value }: UiAction) {
+  function act({ action, value, fields }: UiAction) {
     const resumeId = state?.profile
       ? (chosenResume(state.profile, state.resumeId)?.id ?? null)
       : null;
@@ -224,8 +324,41 @@ function start() {
         mode = "card";
         return draw();
       case "escape":
-        if (mode === "panel") mode = "card";
+        if (mode === "panel" || mode === "answers") mode = "card";
         return draw();
+      case "fill":
+        if (!state?.profile?.access.fill) return open(FILL_UPGRADE_PATH);
+        return void session?.run();
+      case "save-asks":
+        return void session?.saveAsks(fields ?? {});
+      case "use-draft":
+        return session?.useDraft(fields?.draft ?? "");
+      case "cancel-draft":
+        return session?.cancelDraft();
+      case "answers":
+        mode = "answers";
+        draw();
+        return void session?.openAnswers();
+      case "close-answers":
+        mode = "card";
+        return draw();
+      case "save-answers": {
+        const saved = session?.state.answers?.saved;
+        if (!session || !saved) return;
+        return void session.saveAnswers(answersPatch(fields ?? {}, saved)).then((ok) => {
+          if (!ok) return;
+          mode = "card";
+          draw();
+        });
+      }
+      case "undo-applied":
+        return void session?.undo();
+      case "open-applied": {
+        const toast = session?.state.toast;
+        return toast?.kind === "applied" ? open(toast.boardPath) : undefined;
+      }
+      case "close-toast":
+        return session?.closeToast();
       case "save":
         return void run("save");
       case "tailor":

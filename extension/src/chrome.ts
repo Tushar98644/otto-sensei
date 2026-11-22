@@ -15,6 +15,12 @@ type Event<Listener> = {
   removeListener(listener: Listener): void;
 };
 
+type StorageArea = {
+  get(keys: string | string[] | null): Promise<Record<string, unknown>>;
+  set(items: Record<string, unknown>): Promise<void>;
+  remove(keys: string | string[]): Promise<void>;
+};
+
 export interface ChromeApi {
   runtime: {
     id: string;
@@ -31,16 +37,15 @@ export interface ChromeApi {
     onInstalled: Event<(details: { reason: string }) => void>;
   };
   storage: {
-    local: {
-      get(keys: string | string[] | null): Promise<Record<string, unknown>>;
-      set(items: Record<string, unknown>): Promise<void>;
-      remove(keys: string | string[]): Promise<void>;
-    };
+    local: StorageArea;
+    // Kept in memory for the browser session only: forms filled, waiting for their thank-you page.
+    session: StorageArea;
     onChanged: Event<(changes: Record<string, StorageChange>, area: string) => void>;
   };
   tabs: {
     create(properties: { url: string; active?: boolean; openerTabId?: number }): Promise<Tab>;
     sendMessage(tabId: number, message: unknown): Promise<unknown>;
+    onRemoved: Event<(tabId: number) => void>;
   };
   action: { onClicked: Event<(tab: Tab) => void> };
   scripting: {

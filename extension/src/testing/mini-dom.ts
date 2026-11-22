@@ -39,6 +39,10 @@ class MiniElement implements PageNode {
     return this.tag.toUpperCase();
   }
 
+  get parentElement(): MiniElement | null {
+    return this.parent && this.parent.tag !== "#document" ? this.parent : null;
+  }
+
   get children(): MiniElement[] {
     return this.kids.filter((kid): kid is MiniElement => kid instanceof MiniElement);
   }

@@ -22,6 +22,8 @@ const nextConfig: NextConfig = {
   // Bundling breaks these: they read their own files (WASM, data) or sockets at runtime.
   serverExternalPackages: ["postgres", "@electric-sql/pglite", "mammoth", "unpdf"],
   outputFileTracingExcludes: { "*": ["node_modules/@electric-sql/pglite/**"] },
+  // The resume PDF route draws with the same font files the browser loads from /fonts/pdf.
+  outputFileTracingIncludes: { "/api/extension/resume-file": ["./public/fonts/pdf/**/*"] },
   // react-pdf code that never runs in the browser (about 116 KB gzip); see src/lib/pdf/shims.
   turbopack: {
     resolveAlias: {

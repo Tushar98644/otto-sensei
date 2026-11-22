@@ -102,12 +102,13 @@ export function canonicalJobUrl(input: string): string | null {
     if (path) return `https://${name}/${path[1]}/${path[2]!.toLowerCase()}`;
     return clean(url);
   }
-  if (
-    site === "workday" ||
-    site === "naukri" ||
-    site === "smartrecruiters" ||
-    site === "workable"
-  ) {
+  if (site === "workday") {
+    // Each step of applying (".../apply/applyManually") is the same job.
+    url.search = "";
+    url.pathname = url.pathname.replace(/\/apply(?:\/.*)?$/i, "").replace(/\/$/, "") || "/";
+    return clean(url);
+  }
+  if (site === "naukri" || site === "smartrecruiters" || site === "workable") {
     url.search = "";
     url.pathname =
       url.pathname.replace(/\/(?:apply|application)\/?$/i, "").replace(/\/$/, "") || "/";

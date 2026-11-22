@@ -1,12 +1,31 @@
 import { CONNECT_PATH } from "@/lib/extension/links";
+import type { ApplyAnswersPatch } from "@/lib/extension/answers";
 import type {
+  ApplyAnswersResponse,
+  ExtensionApplicationResponse,
   ExtensionProfileResponse,
+  FillProfileResponse,
   SavePostBody,
   SavePostResponse,
 } from "@/lib/extension/types";
+import type { AnswerResult } from "@/lib/ai/types";
 import { chrome, type MessageSender } from "./chrome";
-import { OTTO_ORIGIN, OTTO_VISIT_TTL_MS, ottoUrl, PROFILE_TTL_MS } from "./config";
-import type { ConnectReply, Failure, Request, SaveReply, State } from "./messages";
+import { OTTO_ORIGIN, OTTO_VISIT_TTL_MS, ottoUrl, PENDING_TTL_MS, PROFILE_TTL_MS } from "./config";
+import type {
+  AnswersReply,
+  AppliedReply,
+  ArmedReply,
+  ConnectReply,
+  DraftJob,
+  DraftReply,
+  Failure,
+  FileReply,
+  FillReply,
+  Pending,
+  Request,
+  SaveReply,
+  State,
+} from "./messages";
 import { clearAccount, readStored, writeStored } from "./storage";
 
 type Called<T> = { ok: true; data: T } | Failure;
@@ -51,6 +70,53 @@ async function call<T>(path: string, init: RequestInit = {}): Promise<Called<T>>
     };
   }
   return { ok: true, data: body };
+}
+
+function base64(bytes: ArrayBuffer): string {
+  const view = new Uint8Array(bytes);
+  let text = "";
+  for (let i = 0; i < view.length; i += 0x8000) {
+    text += String.fromCharCode(...view.subarray(i, i + 0x8000));
+  }
+  return btoa(text);
+}
+
+// The resume's PDF, as base64: messages to the page carry JSON only.
+async function callFile(path: string): Promise<FileReply> {
+  const { token } = await readStored();
+  if (!token) return SIGNED_OUT;
+  let res: Response;
+  try {
+    res = await fetch(ottoUrl(path), {
+      credentials: "omit",
+      cache: "no-store",
+      headers: { authorization: `Bearer ${token}` },
+    });
+  } catch {
+    return OFFLINE;
+  }
+  if (res.status === 401) {
+    await clearAccount();
+    return SIGNED_OUT;
+  }
+  if (!res.ok || !(res.headers.get("content-type") ?? "").startsWith("application/pdf")) {
+    const body = (await res.json().catch(() => null)) as {
+      error?: { code?: string; message?: string };
+    } | null;
+    return {
+      ok: false,
+      code: body?.error?.code ?? "server_error",
+      message:
+        body?.error?.message ?? "Otto couldn't make your resume's PDF. Try again in a moment.",
+    };
+  }
+  const disposition = res.headers.get("content-disposition") ?? "";
+  const name = /filename\*=UTF-8''([^;]+)/i.exec(disposition)?.[1];
+  return {
+    ok: true,
+    base64: base64(await res.arrayBuffer()),
+    name: name ? decodeURIComponent(name) : "Resume.pdf",
+  };
 }
 
 let refreshing: Promise<boolean> | null = null;
@@ -144,6 +210,116 @@ function open(path: string, sender: MessageSender): void {
   });
 }
 
+async function fillData(resumeId: string | null, url: string): Promise<FillReply> {
+  const query = new URLSearchParams({ url });
+  if (resumeId) query.set("resume", resumeId);
+  const res = await call<FillProfileResponse>(`/api/extension/fill?${query.toString()}`);
+  return res.ok ? { ok: true, fill: res.data.fill } : res;
+}
+
+async function answers(patch: ApplyAnswersPatch | null): Promise<AnswersReply> {
+  const res = await call<ApplyAnswersResponse>(
+    "/api/extension/answers",
+    patch
+      ? {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify(patch),
+        }
+      : {},
+  );
+  return res.ok ? { ok: true, answers: res.data.answers, saved: res.data.saved } : res;
+}
+
+async function draft(
+  resumeId: string,
+  job: DraftJob,
+  question: string,
+  requestId: string,
+): Promise<DraftReply> {
+  const res = await call<{ result: AnswerResult }>("/api/extension/answer", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ resumeId, job, question, requestId }),
+  });
+  return res.ok ? { ok: true, answer: res.data.result.answer } : res;
+}
+
+const pendingKey = (tabId: number) => `pending:${tabId}`;
+
+async function readPending(tabId: number | undefined): Promise<Pending | null> {
+  if (tabId === undefined) return null;
+  const key = pendingKey(tabId);
+  const value = (await chrome.storage.session.get(key))[key] as Pending | undefined;
+  if (!value) return null;
+  if (Date.now() - value.filledAt > PENDING_TTL_MS) {
+    await chrome.storage.session.remove(key);
+    return null;
+  }
+  return value;
+}
+
+async function arm(pending: Pending, sender: MessageSender): Promise<void> {
+  const tabId = sender.tab?.id;
+  if (tabId === undefined) return;
+  const existing = await readPending(tabId);
+  // Filling the next step of the same form keeps its application id.
+  const kept = existing && existing.url === pending.url ? existing : null;
+  await chrome.storage.session.set({
+    [pendingKey(tabId)]: kept ? { ...pending, applicationId: kept.applicationId } : pending,
+  });
+}
+
+async function submitting(sender: MessageSender): Promise<void> {
+  const tabId = sender.tab?.id;
+  const pending = await readPending(tabId);
+  if (!pending || tabId === undefined) return;
+  await chrome.storage.session.set({
+    [pendingKey(tabId)]: { ...pending, submittedAt: Date.now() },
+  });
+}
+
+async function applied(sender: MessageSender): Promise<AppliedReply> {
+  const tabId = sender.tab?.id;
+  const pending = await readPending(tabId);
+  if (!pending || tabId === undefined) {
+    return {
+      ok: false,
+      code: "not_found",
+      message: "Otto has no filled form waiting in this tab.",
+    };
+  }
+  // Taken first, so a thank-you page drawn twice can't add the application twice.
+  await chrome.storage.session.remove(pendingKey(tabId));
+  const res = await call<ExtensionApplicationResponse>("/api/extension/applications", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      id: pending.applicationId,
+      url: pending.url,
+      title: pending.title,
+      company: pending.company,
+      resumeId: pending.resumeId,
+    }),
+  });
+  if (!res.ok) return res;
+  const { application, boardPath } = res.data;
+  return {
+    ok: true,
+    id: application.id,
+    company: application.company,
+    role: application.role,
+    boardPath,
+  };
+}
+
+async function undoApplied(id: string): Promise<{ ok: true } | Failure> {
+  const res = await call(`/api/extension/applications/${encodeURIComponent(id)}`, {
+    method: "DELETE",
+  });
+  return res.ok ? { ok: true } : res;
+}
+
 async function disconnect(): Promise<{ ok: true }> {
   await call("/api/extension/session", { method: "DELETE" });
   await clearAccount();
@@ -181,6 +357,30 @@ async function handle(message: Request, sender: MessageSender): Promise<unknown>
       if (profileAt === null || Date.now() - profileAt > OTTO_VISIT_TTL_MS) void refresh();
       return { ok: true };
     }
+    case "fill-data":
+      return fillData(message.resumeId, message.url);
+    case "resume-file":
+      return callFile(
+        `/api/extension/resume-file?${new URLSearchParams({ id: message.id, size: message.size }).toString()}`,
+      );
+    case "answers":
+      return answers(null);
+    case "save-answers":
+      return answers(message.patch);
+    case "draft":
+      return draft(message.resumeId, message.job, message.question, message.requestId);
+    case "arm":
+      await arm(message.pending, sender);
+      return { ok: true };
+    case "submitting":
+      await submitting(sender);
+      return { ok: true };
+    case "armed":
+      return { ok: true, pending: await readPending(sender.tab?.id) } satisfies ArmedReply;
+    case "applied":
+      return applied(sender);
+    case "undo-applied":
+      return undoApplied(message.id);
   }
 }
 
@@ -188,6 +388,10 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (!isRequest(message)) return false;
   handle(message, sender).then(sendResponse, () => sendResponse(OFFLINE));
   return true;
+});
+
+chrome.tabs.onRemoved.addListener((tabId) => {
+  void chrome.storage.session.remove(pendingKey(tabId));
 });
 
 chrome.runtime.onInstalled.addListener(({ reason }) => {

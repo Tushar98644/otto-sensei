@@ -30,6 +30,11 @@ describe("job links", () => {
     expect(
       canonicalJobUrl("https://jobs.lever.co/acme/6ED76CE8-4156-4b60-b120-403538bd66cd/apply"),
     ).toBe("https://jobs.lever.co/acme/6ed76ce8-4156-4b60-b120-403538bd66cd");
+    expect(
+      canonicalJobUrl(
+        "https://nvidia.wd5.myworkdayjobs.com/en-US/External/job/US-CA-Remote/Engineer_JR1/apply/applyManually?source=x",
+      ),
+    ).toBe("https://nvidia.wd5.myworkdayjobs.com/en-US/External/job/US-CA-Remote/Engineer_JR1");
     expect(canonicalJobUrl("https://acme.example.com/careers/42?utm_source=x&b=2&a=1#top")).toBe(
       "https://acme.example.com/careers/42?a=1&b=2",
     );

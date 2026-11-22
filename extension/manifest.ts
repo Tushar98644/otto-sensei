@@ -26,8 +26,7 @@ export const JOB_MATCHES = [
   "https://apply.workable.com/*",
 ] as const;
 
-export function manifest(target: BuildTarget, version: string) {
-  const origin = ORIGINS[target];
+export function manifest(target: BuildTarget, version: string, origin = ORIGINS[target]) {
   return {
     manifest_version: 3,
     name: target === "dev" ? "Otto for Chrome (dev)" : "Otto for Chrome",

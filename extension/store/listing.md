@@ -28,9 +28,9 @@ On any other site, press Otto's button in the toolbar: he reads the job post the
 
 The match runs on your computer. Checking a post sends nothing anywhere; only Save sends the job to your Otto account.
 
-Otto never fills in or sends an application for you, never touches LinkedIn's or Naukri's own Easy Apply, and doesn't read pages other than job posts.
+On a Greenhouse, Lever, Ashby or Workday application form, **Fill with Otto** fills it in from your resume and the answers you saved, attaches your resume's PDF (the copy tailored for that job, if you made one), and offers **Draft with Otto** beside each question to write. You check everything and press Submit yourself: Otto never sends an application, never answers self-identification or consent questions, and never touches LinkedIn's or Naukri's own Easy Apply. When the company's page thanks you, Otto adds the application to your board, with an Undo.
 
-The badge, the match, the work-rights check and Save are free. Tailor and Letter come with Otto Pro.
+The badge, the match, the work-rights check and Save are free. Tailor, Letter and Fill with Otto come with Otto Pro.
 
 Needs a free Otto Sensei account: the extension opens the connect page when you add it.
 

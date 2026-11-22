@@ -66,7 +66,10 @@ const CALLS_PER_MINUTE: Record<Feature, number> = {
   github: 10,
 };
 
-const UNBILLED_FAILURES: ReadonlySet<AIErrorCode> = new Set<AIErrorCode>(["too_long", "rate_limited"]);
+const UNBILLED_FAILURES: ReadonlySet<AIErrorCode> = new Set<AIErrorCode>([
+  "too_long",
+  "rate_limited",
+]);
 // Failures may still be billed; refunding all would let crafted input run free calls.
 const BILLED_REFUNDS_PER_DAY = 3;
 
@@ -90,15 +93,17 @@ function unavailableMessage(_copy: MeteredCopy, refunded: boolean): string {
   return refunded ? AI_UNAVAILABLE + NOT_COUNTED : AI_UNAVAILABLE;
 }
 
+// currentUser: the session by default; Otto for Chrome's token routes pass the token's account.
 export async function runMetered<S extends z.ZodType, R>(
   req: Request,
   route: MeteredRoute<S, R>,
+  currentUser: () => Promise<SessionUser | null> = getCurrentUser,
 ): Promise<Response> {
   const { feature, copy } = route;
   const notJson = rejectNonJson(req);
   if (notJson) return notJson;
   try {
-    const user = await getCurrentUser();
+    const user = await currentUser();
     if (!user) return fail("unauthorized", copy.signIn, 401);
     const missing = requirePlanFeature(user, feature);
     if (missing) return missing;
@@ -156,13 +161,20 @@ export async function runMetered<S extends z.ZodType, R>(
       const unit = await takeUnit(user, route, body.data, now);
       if (unit instanceof Response) return unit;
 
-      const call = { userId: user.id, path: new URL(req.url).pathname, feature, startedAt: Date.now() };
+      const call = {
+        userId: user.id,
+        path: new URL(req.url).pathname,
+        feature,
+        startedAt: Date.now(),
+      };
       try {
         const result = await spendAiTokens(user, now, () => route.run(body.data, user));
         trackMeteredCall(call);
         const demo = !aiEnabled();
-        if (runKey) kept = await keep(user, feature, () => saveResult(user.id, runKey, result, demo, now));
-        if (unit.opensPass && route.followUp?.opensPass(result)) await keep(user, feature, unit.opensPass);
+        if (runKey)
+          kept = await keep(user, feature, () => saveResult(user.id, runKey, result, demo, now));
+        if (unit.opensPass && route.followUp?.opensPass(result))
+          await keep(user, feature, unit.opensPass);
         return ok({ result, usage: unit.usage, demo });
       } catch (error) {
         trackMeteredCall(call, error);
@@ -204,7 +216,11 @@ async function takeUnit<S extends z.ZodType, R>(
 }
 
 // Bookkeeping after the answer is ready must never cost the person that answer.
-async function keep(user: SessionUser, feature: Feature, write: () => Promise<void>): Promise<boolean> {
+async function keep(
+  user: SessionUser,
+  feature: Feature,
+  write: () => Promise<void>,
+): Promise<boolean> {
   try {
     await write();
     return true;
@@ -223,7 +239,12 @@ async function refund(
 ): Promise<boolean> {
   try {
     if (!(cause instanceof AIError && UNBILLED_FAILURES.has(cause.code))) {
-      const cap = await rateLimit(`refund:${feature}:user:${user.id}`, BILLED_REFUNDS_PER_DAY, DAY_MS, now);
+      const cap = await rateLimit(
+        `refund:${feature}:user:${user.id}`,
+        BILLED_REFUNDS_PER_DAY,
+        DAY_MS,
+        now,
+      );
       if (!cap.allowed) {
         log.warn(`${feature}.refund_capped`, { plan: user.plan });
         return false;

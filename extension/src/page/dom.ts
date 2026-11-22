@@ -6,6 +6,7 @@ export interface PageNode {
   readonly textContent: string | null;
   readonly innerHTML: string;
   readonly children: ArrayLike<PageNode>;
+  readonly parentElement: PageNode | null;
   getAttribute(name: string): string | null;
   querySelector(selectors: string): PageNode | null;
   querySelectorAll(selectors: string): ArrayLike<PageNode>;

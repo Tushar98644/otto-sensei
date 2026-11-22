@@ -1,6 +1,7 @@
 import type { PlanId } from "@/config/plans";
 import type { WorkProfile } from "@/lib/eligibility/profile";
 import type { PlaceChoice } from "@/lib/job-feed/types";
+import type { ApplyAnswers } from "./answers";
 import type { ExtensionAccess } from "./plan";
 import type { JobSite } from "./urls";
 
@@ -73,3 +74,55 @@ export type SavedPostResponse = { ok: true; post: SavedPost & { text: string } }
 export type ExtensionConnection = { connectedAt: number; lastUsedAt: number; browsers: number };
 export type ExtensionConnectionResponse = { ok: true; connection: ExtensionConnection | null };
 export type ExtensionConnectResponse = { ok: true; token: string; expiresAt: number };
+
+// Fill with Otto: what goes into an application form, read for one job.
+export type FillDate = { month: number | null; year: number };
+export type FillJob = {
+  company: string;
+  title: string;
+  location: string;
+  start: FillDate | null;
+  end: FillDate | null;
+  current: boolean;
+  description: string;
+};
+export type FillSchool = {
+  school: string;
+  degree: string;
+  field: string;
+  start: FillDate | null;
+  end: FillDate | null;
+};
+export type FillResume = { id: string; title: string; tailored: boolean; fileName: string };
+export type FillContact = {
+  firstName: string;
+  lastName: string;
+  fullName: string;
+  email: string;
+  phone: string;
+  location: string;
+  city: string;
+  country: string;
+  linkedin: string;
+  github: string;
+  portfolio: string;
+  website: string;
+  twitter: string;
+};
+export type FillProfile = {
+  resume: FillResume;
+  contact: FillContact;
+  current: { company: string; title: string } | null;
+  work: FillJob[];
+  education: FillSchool[];
+  // What the forms get: the saved answers with the work profile's rights beneath them.
+  answers: ApplyAnswers;
+  saved: ApplyAnswers;
+};
+export type FillProfileResponse = { ok: true; fill: FillProfile };
+export type ApplyAnswersResponse = { ok: true; answers: ApplyAnswers; saved: ApplyAnswers };
+export type ExtensionApplicationResponse = {
+  ok: true;
+  application: { id: string; company: string; role: string };
+  boardPath: string;
+};

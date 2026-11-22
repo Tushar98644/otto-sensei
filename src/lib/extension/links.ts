@@ -29,3 +29,6 @@ export function tailorPostPath(postId: string, resumeId: string | null, start = 
 export function letterPostPath(postId: string, resumeId: string | null, start = true): string {
   return withPost("/dashboard/letters", postId, resumeId, start);
 }
+
+// Fill with Otto for a Free account: the app's own upgrade path, on Pro.
+export const FILL_UPGRADE_PATH = "/account?upgrade=1&plan=pro&interval=month";

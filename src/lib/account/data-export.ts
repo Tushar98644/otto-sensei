@@ -2,7 +2,7 @@ import { and, asc, eq } from "drizzle-orm";
 import JSZip from "jszip";
 import { BRAND } from "@/config/brand";
 import { getDb } from "@/db/client";
-import { applications, resumes, savedPosts, writings } from "@/db/schema";
+import { applications, applyAnswers, resumes, savedPosts, writings } from "@/db/schema";
 import { APPLICATION_LIMITS } from "@/lib/applications/schema";
 import { STATUS_NAMES } from "@/lib/applications/status";
 import { EXTENSION_LIMITS } from "@/lib/extension/types";
@@ -49,7 +49,7 @@ export async function buildDataExport(
   now = Date.now(),
 ): Promise<Uint8Array<ArrayBuffer>> {
   const db = await getDb();
-  const [resumeRows, writingRows, applicationRows, postRows] = await Promise.all([
+  const [resumeRows, writingRows, applicationRows, postRows, answerRows] = await Promise.all([
     db
       .select({ id: resumes.id, data: resumes.data, updatedAt: resumes.updatedAt })
       .from(resumes)
@@ -102,7 +102,13 @@ export async function buildDataExport(
       .where(eq(savedPosts.userId, userId))
       .orderBy(asc(savedPosts.savedAt))
       .limit(EXTENSION_LIMITS.savedPosts),
+    db
+      .select({ answers: applyAnswers.answers, updatedAt: applyAnswers.updatedAt })
+      .from(applyAnswers)
+      .where(eq(applyAnswers.userId, userId))
+      .limit(1),
   ]);
+  const answers = answerRows[0] ?? null;
 
   const zip = new JSZip();
   zip.file(
@@ -118,6 +124,9 @@ export async function buildDataExport(
             `saved-posts.json: ${postRows.length} jobs saved from Otto for Chrome, with their posts.`,
           ]
         : []),
+      ...(answers
+        ? ["apply-answers.json: the answers Otto for Chrome puts into application forms."]
+        : []),
       "",
       "Resumes kept only in this browser and not backed up yet aren't included.",
       "",
@@ -127,7 +136,10 @@ export async function buildDataExport(
   const resumeName = uniqueNamer();
   for (const row of resumeRows) {
     const title = typeof row.data.title === "string" ? row.data.title : "";
-    zip.file(`resumes/${resumeName(slug(title, "resume"), "json")}`, JSON.stringify(row.data, null, 2));
+    zip.file(
+      `resumes/${resumeName(slug(title, "resume"), "json")}`,
+      JSON.stringify(row.data, null, 2),
+    );
   }
 
   const writingName = uniqueNamer();
@@ -147,7 +159,17 @@ export async function buildDataExport(
     zip.file(`${KIND_FOLDERS[row.kind]}/${writingName(name, "txt")}`, lines.join("\n"));
   }
 
-  const header = ["Company", "Role", "Status", "Applied", "Interview", "Follow up", "Resume", "Job post", "Notes"];
+  const header = [
+    "Company",
+    "Role",
+    "Status",
+    "Applied",
+    "Interview",
+    "Follow up",
+    "Resume",
+    "Job post",
+    "Notes",
+  ];
   const csv = [
     header.join(","),
     ...applicationRows.map((row) =>
@@ -169,6 +191,7 @@ export async function buildDataExport(
   zip.file("applications.csv", `${csv.join("\r\n")}\r\n`);
   zip.file("applications.json", JSON.stringify(applicationRows, null, 2));
   if (postRows.length > 0) zip.file("saved-posts.json", JSON.stringify(postRows, null, 2));
+  if (answers) zip.file("apply-answers.json", JSON.stringify(answers, null, 2));
 
   return new Uint8Array(await zip.generateAsync({ type: "arraybuffer", compression: "DEFLATE" }));
 }

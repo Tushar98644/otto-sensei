@@ -10,10 +10,11 @@ import {
   type EligibilityTone,
 } from "../match";
 import type { JobPost } from "../page/post";
+import { answersBody, fillBlock, type FormPanel } from "./fill-view";
 import { icon } from "./icons";
 import { ottoHead } from "./otto";
 
-export type Mode = "mini" | "card" | "panel";
+export type Mode = "mini" | "card" | "panel" | "answers";
 export type Busy = "save" | "tailor" | "letter" | null;
 
 export type MatchView = {
@@ -27,6 +28,8 @@ export type MatchView = {
   saved: boolean;
   busy: Busy;
   error: string | null;
+  // On an application form Otto can fill.
+  form: FormPanel | null;
 };
 
 export type View =
@@ -94,9 +97,11 @@ function withPlan(included: boolean, glyph: Parameters<typeof icon>[0], label: s
 function actions(view: MatchView): string {
   const busy = (name: Busy) => (view.busy === name ? ' aria-busy="true"' : "");
   const any = view.busy !== null ? " disabled" : "";
+  // On a form, Fill with Otto is the one primary button.
+  const saveStyle = view.form?.allowed ? "secondary" : "primary";
   const save = view.saved
     ? `<button class="btn done" data-action="board" aria-label="Saved. Open your board">${icon("bookmarkCheck")}Saved</button>`
-    : `<button class="btn primary" data-action="save"${busy("save")}${any}>${icon("bookmark")}Save</button>`;
+    : `<button class="btn ${saveStyle}" data-action="save"${busy("save")}${any}>${icon("bookmark")}Save</button>`;
   return `<div class="actions">
     ${save}
     <button class="btn secondary" data-action="tailor"${busy("tailor")}${any}>${withPlan(view.access.tailor, "wand", "Tailor")}</button>
@@ -196,6 +201,7 @@ function matchCard(view: MatchView, mode: Mode): string {
       <div><p class="role">${esc(view.post.title)}</p>${where(view.post)}</div>
       ${skillsBlock(view)}
       ${verdict(view.match.eligibility.tone, view.match.eligibility.text)}
+      ${view.form ? fillBlock(view.form) : ""}
       ${actions(view)}
       ${status}
       ${more}
@@ -215,8 +221,16 @@ export function miniTone(view: View): EligibilityTone {
   return view.kind === "match" ? view.match.eligibility.tone : "none";
 }
 
+function answersCard(view: MatchView, form: FormPanel): string {
+  return `<section class="card open" role="region" aria-label="Otto for Chrome: your saved answers">
+    ${head("your saved answers", "card")}
+    <div class="details">${answersBody(form.state)}</div>
+  </section>`;
+}
+
 export function render(view: View, mode: Mode): string {
   if (view.kind === "hidden") return "";
+  if (mode === "answers" && view.kind === "match" && view.form) return answersCard(view, view.form);
   if (mode === "mini") {
     const label =
       view.kind === "match"

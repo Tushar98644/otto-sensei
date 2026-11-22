@@ -1,7 +1,10 @@
 import { fail, NO_STORE } from "@/lib/api/respond";
+import type { SessionUser } from "@/lib/auth/types";
+import { trialHeadline } from "@/lib/billing/prices";
 import { env, isProduction } from "@/lib/env";
 import { log } from "@/lib/log";
 import { rateLimit, retryAfterHeader, waitText } from "@/lib/rate-limit";
+import { extensionAccess } from "./plan";
 import { bearerToken, verifyExtensionToken, type TokenAuth } from "./tokens";
 
 // The unpacked dev build's id, fixed by the public key in extension/manifest.ts.
@@ -94,4 +97,27 @@ export async function extensionRoute(
       headers,
     );
   }
+}
+
+// Fill with Otto and its drafts follow the plan rule in plan.ts: Pro and Max.
+export function fillRequired(user: SessionUser, headers: Record<string, string>): Response | null {
+  if (extensionAccess(user.plan).fill) return null;
+  log.info("extension.fill_upgrade_required", { plan: user.plan });
+  return fail(
+    "upgrade_required",
+    `Fill with Otto comes with Pro. ${trialHeadline()}.`,
+    402,
+    headers,
+  );
+}
+
+// A response built elsewhere (the metered answer flow), with the extension's CORS headers added.
+export function withExtensionHeaders(res: Response, headers: Record<string, string>): Response {
+  const merged = new Headers(res.headers);
+  for (const [name, value] of Object.entries(headers)) merged.set(name, value);
+  return new Response(res.body, {
+    status: res.status,
+    statusText: res.statusText,
+    headers: merged,
+  });
 }
