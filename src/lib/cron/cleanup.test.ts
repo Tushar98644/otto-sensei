@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { getDb } from "@/db/client";
 import {
   billingEvents,
+  emailLog,
   extensionTokens,
   inboundEmails,
   inboundHandles,
@@ -9,10 +10,15 @@ import {
   matchEvents,
   meteredResults,
   notifications,
+  portfolioRedirects,
+  portfolios,
   rateLimits,
   resumeTombstones,
+  trialReminders,
+  usage,
   usagePasses,
 } from "@/db/schema";
+import type { Resume } from "@/lib/resume/schema";
 import { createUser, resetDb } from "@/lib/auth/test-helpers";
 import { HANDLE_HOLD_MS } from "@/lib/inbound/handle";
 import { CLEANUP_BATCH, RETENTION, runCleanup } from "./cleanup";
@@ -138,6 +144,11 @@ describe("runCleanup", () => {
         extensionTokens: 1,
         inboundHandles: 1,
         inboundEmails: 1,
+        matchActions: 0,
+        usagePeriods: 0,
+        emailLog: 0,
+        trialReminders: 0,
+        portfolioRedirects: 0,
         weeklyRecaps: 0,
         activeDays: 0,
       },
@@ -177,9 +188,114 @@ describe("runCleanup", () => {
       extensionTokens: 0,
       inboundHandles: 0,
       inboundEmails: 0,
+      matchActions: 0,
+      usagePeriods: 0,
+      emailLog: 0,
+      trialReminders: 0,
+      portfolioRedirects: 0,
       weeklyRecaps: 0,
       activeDays: 0,
     });
+  });
+
+  it("keeps old allowance counts, match actions, email records, trial reminders and redirects only while they matter", async () => {
+    const db = await getDb();
+    const maya = await createUser("maya@example.com");
+    const count = (period: string) => ({ subject: maya.id, feature: "tailor", period, count: 2 });
+    await db
+      .insert(usage)
+      .values([
+        count("2025-09"),
+        count("2025-10"),
+        count("2026-11"),
+        count("trial"),
+        count("cycle:2025-09-01T00:00:00.000Z"),
+        count("cycle:2026-10-15T00:00:00.000Z"),
+        count("week:2025-01-07T09:30:00.000Z"),
+      ]);
+    const action = (createdAt: number) => ({
+      id: crypto.randomUUID(),
+      userId: maya.id,
+      kind: "open" as const,
+      jobId: crypto.randomUUID(),
+      variant: "weighted-v2",
+      createdAt,
+    });
+    const oldAction = action(NOW - RETENTION.matchActionsMs - 1);
+    const recentAction = action(NOW - RETENTION.matchActionsMs + DAY);
+    await db.insert(matchEvents).values([oldAction, recentAction]);
+    await db.insert(emailLog).values([
+      {
+        userId: maya.id,
+        kind: "no_resume",
+        occasion: "old",
+        createdAt: NOW - RETENTION.tipEmailsMs - 1,
+      },
+      { userId: maya.id, kind: "no_resume", occasion: "new", createdAt: NOW - DAY },
+      {
+        userId: maya.id,
+        kind: "processor_notice",
+        occasion: "kept",
+        createdAt: NOW - RETENTION.tipEmailsMs - 1,
+      },
+      {
+        userId: maya.id,
+        kind: "processor_notice",
+        occasion: "gone",
+        createdAt: NOW - RETENTION.noticeEmailsMs - 1,
+      },
+    ]);
+    await db.insert(trialReminders).values([
+      { userId: maya.id, trialEndsAt: NOW - RETENTION.trialRemindersMs - 1, createdAt: 1 },
+      { userId: maya.id, trialEndsAt: NOW - DAY, createdAt: 1 },
+    ]);
+    const portfolioId = crypto.randomUUID();
+    await db.insert(portfolios).values({
+      id: portfolioId,
+      userId: maya.id,
+      resumeId: "r1",
+      slug: "maya-lin",
+      snapshot: {} as unknown as Resume,
+      createdAt: NOW,
+      updatedAt: NOW,
+    });
+    const redirect = (slug: string, expiresAt: number) => ({
+      slug,
+      portfolioId,
+      userId: maya.id,
+      createdAt: NOW - 90 * DAY,
+      expiresAt,
+    });
+    await db
+      .insert(portfolioRedirects)
+      .values([redirect("maya-old", NOW - 1), redirect("maya-recent", NOW + DAY)]);
+
+    const outcome = await runCleanup(context());
+    expect(outcome.stats).toMatchObject({
+      matchActions: 1,
+      usagePeriods: 3,
+      emailLog: 2,
+      trialReminders: 1,
+      portfolioRedirects: 1,
+    });
+
+    expect((await db.select().from(usage)).map((row) => row.period).sort()).toEqual([
+      "2025-10",
+      "2026-11",
+      "cycle:2026-10-15T00:00:00.000Z",
+      "trial",
+    ]);
+    expect((await db.select().from(matchEvents)).map((row) => row.id)).toEqual([recentAction.id]);
+    expect((await db.select().from(emailLog)).map((row) => row.occasion).sort()).toEqual([
+      "kept",
+      "new",
+    ]);
+    expect((await db.select().from(trialReminders)).map((row) => row.trialEndsAt)).toEqual([
+      NOW - DAY,
+    ]);
+    expect((await db.select().from(portfolioRedirects)).map((row) => row.slug)).toEqual([
+      "maya-recent",
+    ]);
   });
 
   it("drains more than one batch", async () => {

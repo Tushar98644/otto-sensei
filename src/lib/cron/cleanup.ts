@@ -1,15 +1,19 @@
-import { and, eq, isNotNull, lt, or, sql } from "drizzle-orm";
+import { and, eq, inArray, isNotNull, lt, ne, or, sql } from "drizzle-orm";
 import { TOMBSTONE_MAX_AGE_MS } from "@/app/api/resumes/backups";
 import { getDb } from "@/db/client";
 import {
   billingEvents,
+  emailLog,
   inboundEmails,
   matchCache,
   matchEvents,
   meteredResults,
   notifications,
+  portfolioRedirects,
   rateLimits,
   resumeTombstones,
+  trialReminders,
+  usage,
   usagePasses,
 } from "@/db/schema";
 import { retryPendingReplacements } from "@/lib/billing/replacements";
@@ -17,8 +21,10 @@ import { deleteExpiredExtensionTokens } from "@/lib/extension/tokens";
 import { releaseHandles } from "@/lib/inbound/handles";
 import { MATCH_CACHE_MAX_AGE_MS } from "@/lib/job-feed/match-cache";
 import { log } from "@/lib/log";
+import { NOTICE_EMAIL_KINDS, TIP_EMAIL_KINDS } from "@/lib/notifications/types";
 import { deleteOldActiveDays, deleteOldRecaps } from "@/lib/recap/records";
 import { DAY_MS } from "@/lib/time";
+import { cycleKey, monthKey } from "@/lib/usage";
 import { drain, type CronContext, type CronOutcome } from "./run";
 
 export const RETENTION = {
@@ -29,6 +35,15 @@ export const RETENTION = {
   // Dodo stops retrying a webhook after about 27 hours, so an id this old can never arrive again.
   billingEventsMs: 400 * DAY_MS,
   impressionsMs: 30 * DAY_MS,
+  // Open, save, tailor, applied, not a fit: enough to compare ranking variants over a quarter.
+  matchActionsMs: 90 * DAY_MS,
+  // Past periods' allowance counts are never read; kept as long as billing events, a yearly plan and its disputes.
+  usagePeriodsMs: 400 * DAY_MS,
+  tipEmailsMs: 90 * DAY_MS,
+  // A service notice's row is the record that the email the terms promise went out.
+  noticeEmailsMs: 730 * DAY_MS,
+  // Only a reminder near a live trial's end is ever read.
+  trialRemindersMs: 90 * DAY_MS,
   matchCacheMs: MATCH_CACHE_MAX_AGE_MS,
   // What Otto read in a job email shows for six months, then goes.
   inboundEmailsMs: 180 * DAY_MS,
@@ -197,6 +212,102 @@ export async function runCleanup({ now, deadline }: CronContext): Promise<CronOu
           .delete(inboundEmails)
           .where(sql`${inboundEmails.id} in ${stale}`)
           .returning({ id: inboundEmails.id });
+        return deleted.length;
+      },
+    },
+    {
+      name: "matchActions",
+      run: async () => {
+        const stale = db
+          .select({ id: matchEvents.id })
+          .from(matchEvents)
+          .where(
+            and(
+              lt(matchEvents.createdAt, now - RETENTION.matchActionsMs),
+              ne(matchEvents.kind, "impression"),
+            ),
+          )
+          .limit(CLEANUP_BATCH);
+        const deleted = await db
+          .delete(matchEvents)
+          .where(sql`${matchEvents.id} in ${stale}`)
+          .returning({ id: matchEvents.id });
+        return deleted.length;
+      },
+    },
+    {
+      name: "usagePeriods",
+      run: async () => {
+        const cutoff = now - RETENTION.usagePeriodsMs;
+        const iso = new Date(cutoff).toISOString();
+        // Keys sort by time within each kind: "YYYY-MM", "cycle:<start>", and the old "week:<end>".
+        const over = or(
+          and(sql`${usage.period} ~ '^[0-9]{4}-[0-9]{2}$'`, lt(usage.period, monthKey(cutoff))),
+          and(sql`${usage.period} like 'cycle:%'`, lt(usage.period, cycleKey(cutoff))),
+          and(sql`${usage.period} like 'week:%'`, lt(usage.period, `week:${iso}`)),
+        );
+        const { subject, feature, period } = usage;
+        const stale = db
+          .select({ subject, feature, period })
+          .from(usage)
+          .where(over)
+          .limit(CLEANUP_BATCH);
+        const deleted = await db
+          .delete(usage)
+          .where(sql`(${subject}, ${feature}, ${period}) in ${stale}`)
+          .returning({ period });
+        return deleted.length;
+      },
+    },
+    {
+      name: "emailLog",
+      run: async () => {
+        const { userId, kind, occasion, createdAt } = emailLog;
+        const stale = db
+          .select({ userId, kind, occasion })
+          .from(emailLog)
+          .where(
+            or(
+              and(inArray(kind, TIP_EMAIL_KINDS), lt(createdAt, now - RETENTION.tipEmailsMs)),
+              and(inArray(kind, NOTICE_EMAIL_KINDS), lt(createdAt, now - RETENTION.noticeEmailsMs)),
+            ),
+          )
+          .limit(CLEANUP_BATCH);
+        const deleted = await db
+          .delete(emailLog)
+          .where(sql`(${userId}, ${kind}, ${occasion}) in ${stale}`)
+          .returning({ kind });
+        return deleted.length;
+      },
+    },
+    {
+      name: "trialReminders",
+      run: async () => {
+        const { userId, trialEndsAt } = trialReminders;
+        const stale = db
+          .select({ userId, trialEndsAt })
+          .from(trialReminders)
+          .where(lt(trialEndsAt, now - RETENTION.trialRemindersMs))
+          .limit(CLEANUP_BATCH);
+        const deleted = await db
+          .delete(trialReminders)
+          .where(sql`(${userId}, ${trialEndsAt}) in ${stale}`)
+          .returning({ userId });
+        return deleted.length;
+      },
+    },
+    {
+      name: "portfolioRedirects",
+      run: async () => {
+        const stale = db
+          .select({ slug: portfolioRedirects.slug })
+          .from(portfolioRedirects)
+          .where(lt(portfolioRedirects.expiresAt, now))
+          .limit(CLEANUP_BATCH);
+        const deleted = await db
+          .delete(portfolioRedirects)
+          .where(sql`${portfolioRedirects.slug} in ${stale}`)
+          .returning({ slug: portfolioRedirects.slug });
         return deleted.length;
       },
     },
