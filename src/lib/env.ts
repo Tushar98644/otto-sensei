@@ -54,6 +54,18 @@ const EnvSchema = z.object({
   EMAIL_FROM: optionalString,
   // Comma-separated Chrome extension ids allowed to call /api/extension/* (the Web Store id once published).
   OTTO_EXTENSION_IDS: optionalString,
+  INBOUND_EMAIL_SECRET: optionalString,
+  // "subaddress" (default): otto+handle@track.ottosensei.com. "domain": handle@INBOUND_DOMAIN.
+  INBOUND_ADDRESS_STYLE: z.preprocess(
+    emptyToUndefined,
+    z
+      .string()
+      .default("subaddress")
+      .transform((value): "subaddress" | "domain" =>
+        value.trim().toLowerCase() === "domain" ? "domain" : "subaddress",
+      ),
+  ),
+  INBOUND_DOMAIN: optionalString,
 });
 
 export type Env = z.infer<typeof EnvSchema>;

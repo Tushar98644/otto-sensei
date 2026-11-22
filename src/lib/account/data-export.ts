@@ -6,6 +6,7 @@ import { applications, applyAnswers, resumes, savedPosts, writings } from "@/db/
 import { APPLICATION_LIMITS } from "@/lib/applications/schema";
 import { STATUS_NAMES } from "@/lib/applications/status";
 import { EXTENSION_LIMITS } from "@/lib/extension/types";
+import { trackingExport } from "@/lib/inbound/records";
 import { RESUME_LIMITS } from "@/config/plans";
 import { WRITING_LIMITS, type WritingKind } from "@/lib/writings/schema";
 
@@ -49,6 +50,7 @@ export async function buildDataExport(
   now = Date.now(),
 ): Promise<Uint8Array<ArrayBuffer>> {
   const db = await getDb();
+  const tracking = trackingExport(userId);
   const [resumeRows, writingRows, applicationRows, postRows, answerRows] = await Promise.all([
     db
       .select({ id: resumes.id, data: resumes.data, updatedAt: resumes.updatedAt })
@@ -109,6 +111,8 @@ export async function buildDataExport(
       .limit(1),
   ]);
   const answers = answerRows[0] ?? null;
+  const { address, emails } = await tracking;
+  const tracked = address !== null || emails.length > 0;
 
   const zip = new JSZip();
   zip.file(
@@ -126,6 +130,11 @@ export async function buildDataExport(
         : []),
       ...(answers
         ? ["apply-answers.json: the answers Otto for Chrome puts into application forms."]
+        : []),
+      ...(tracked
+        ? [
+            `email-tracking.json: your tracking addresses, the Gmail addresses you confirmed, and ${emails.length} job emails Otto read (what it read, never the email).`,
+          ]
         : []),
       "",
       "Resumes kept only in this browser and not backed up yet aren't included.",
@@ -192,6 +201,7 @@ export async function buildDataExport(
   zip.file("applications.json", JSON.stringify(applicationRows, null, 2));
   if (postRows.length > 0) zip.file("saved-posts.json", JSON.stringify(postRows, null, 2));
   if (answers) zip.file("apply-answers.json", JSON.stringify(answers, null, 2));
+  if (tracked) zip.file("email-tracking.json", JSON.stringify({ address, emails }, null, 2));
 
   return new Uint8Array(await zip.generateAsync({ type: "arraybuffer", compression: "DEFLATE" }));
 }

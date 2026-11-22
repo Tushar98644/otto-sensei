@@ -1,0 +1,14 @@
+From: Orbit Analytics <talent@orbitanalytics.ai>
+Subject: Thank you for applying to Orbit Analytics
+Date: Fri, 20 Nov 2026 09:00:00 +0000
+X-Forwarded-For: priya.sharma@gmail.com otto+abcdefghijklmnopqrstuvwx@track.ottosensei.com
+X-Forwarded-To: otto+abcdefghijklmnopqrstuvwx@track.ottosensei.com
+
+Hi Priya,
+
+Thank you for applying for the Data Scientist role at Orbit Analytics. We truly appreciate your interest.
+
+Unfortunately, after careful consideration, we will be moving ahead with other applicants whose experience is a closer match for this role.
+
+Best,
+Orbit Analytics Talent

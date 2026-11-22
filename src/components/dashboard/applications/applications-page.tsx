@@ -25,12 +25,13 @@ import { STATUS_NAMES, type ApplicationStatus } from "@/lib/applications/status"
 import { browserStorage } from "@/lib/browser-storage";
 import { resumeTitle } from "@/lib/resume/ops";
 import { useResumeList } from "@/lib/store/resume-store";
-import { skillGapsPanel } from "../page-code";
+import { emailActivity, emailTrackingPanel, skillGapsPanel } from "../page-code";
 import { LazyApplicationDialog } from "./lazy-application-dialog";
 import type { ApplicationDialogTarget } from "./application-dialog";
 import { ApplicationFilters } from "./application-filters";
 import { ApplicationRow } from "./application-row";
 import { ApplicationsBoard } from "./board/applications-board";
+import { emailedCards, useEmailTracking, useOtherPromptFirst } from "./email/use-email-tracking";
 import { readView, toApplyItems, writeView, type BoardView } from "./board/board";
 import { useBoardExtras } from "./board/use-board-extras";
 import { NoReplyNudge } from "./no-reply-nudge";
@@ -53,6 +54,7 @@ import { WhatsWorking } from "./whats-working";
 import { WinRate } from "./win-rate";
 
 preload(skillGapsPanel);
+preload(emailTrackingPanel);
 
 const PAGE_ROWS = 50;
 const ANCHOR_PREFIX = applicationAnchor("");
@@ -84,6 +86,13 @@ export function ApplicationsPage() {
   const opened = useRef(0);
   const full = pro === false && items.length >= FREE_APPLICATIONS;
   const tryPro = useTryProLabel();
+  const { tracking } = useEmailTracking();
+  const promptFirst = useOtherPromptFirst(items.length);
+  // Shares the reminders card's place, after it, so the page asks one thing at a time.
+  const trackingPanel = (
+    <Lazy loader={emailTrackingPanel} wanted props={{ waiting: promptFirst }} />
+  );
+  const emailed = useMemo(() => emailedCards(tracking, now), [tracking, now]);
 
   const versions = useMemo(
     () =>
@@ -212,11 +221,16 @@ export function ApplicationsPage() {
           Check your connection, then try again.
         </Alert>
       ) : items.length === 0 && waiting === 0 ? (
-        <EmptyState onAdd={() => void add()} />
+        <>
+          {trackingPanel}
+          <EmptyState onAdd={() => void add()} />
+          <Lazy loader={emailActivity} wanted={tracking !== null} props={{ applications: items }} />
+        </>
       ) : (
         <>
           <NoReplyNudge stale={stale} />
           <RemindersEmailOptIn applications={items.length} />
+          {trackingPanel}
 
           <section aria-labelledby="applications-heading" className="flex flex-col gap-4">
             <h2 id="applications-heading" className="sr-only">
@@ -231,6 +245,7 @@ export function ApplicationsPage() {
                 resumes={resumes}
                 toApply={toApply}
                 writings={extras.writings}
+                emailed={emailed}
                 now={now}
                 pro={pro}
                 onNeedsDetails={(resumeId) => {
@@ -288,6 +303,7 @@ export function ApplicationsPage() {
             )}
           </section>
 
+          <Lazy loader={emailActivity} wanted={tracking !== null} props={{ applications: items }} />
           {items.length > 0 ? (
             <WhatsWorking
               applications={items}

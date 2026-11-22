@@ -1,0 +1,16 @@
+From: Saffron Systems Recruiting <recruiting@saffronsystems.in>
+Subject: Invitation: Technical interview - Rahul / Saffron Systems @ Thu Nov 26, 2026 3pm - 4pm (IST) (rahul.verma@gmail.com)
+Date: Thu, 19 Nov 2026 10:00:00 +0000
+X-Forwarded-For: priya.sharma@gmail.com otto+abcdefghijklmnopqrstuvwx@track.ottosensei.com
+X-Forwarded-To: otto+abcdefghijklmnopqrstuvwx@track.ottosensei.com
+
+You have been invited to the following event.
+
+Technical interview - Rahul / Saffron Systems
+When: Thursday Nov 26, 2026 3pm - 4pm (IST)
+Joining info: meet.google.com/xyz-abcd-efg
+
+Calendar event:
+SUMMARY:Technical interview - Rahul / Saffron Systems
+DTSTART;TZID=Asia/Kolkata:20261126T150000
+DTEND;TZID=Asia/Kolkata:20261126T160000

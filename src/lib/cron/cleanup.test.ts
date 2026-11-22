@@ -3,6 +3,8 @@ import { getDb } from "@/db/client";
 import {
   billingEvents,
   extensionTokens,
+  inboundEmails,
+  inboundHandles,
   matchCache,
   matchEvents,
   meteredResults,
@@ -12,6 +14,7 @@ import {
   usagePasses,
 } from "@/db/schema";
 import { createUser, resetDb } from "@/lib/auth/test-helpers";
+import { HANDLE_HOLD_MS } from "@/lib/inbound/handle";
 import { CLEANUP_BATCH, RETENTION, runCleanup } from "./cleanup";
 
 const DAY = 24 * 60 * 60 * 1_000;
@@ -80,6 +83,26 @@ describe("runCleanup", () => {
       { userId: maya.id, requestKey: "old", result: {}, startedAt: NOW - DAY, expiresAt: NOW - 1 },
       { userId: maya.id, requestKey: "new", result: {}, startedAt: NOW, expiresAt: NOW + 60_000 },
     ]);
+    const email = (key: string, receivedAt: number) => ({
+      id: crypto.randomUUID(),
+      userId: maya.id,
+      messageKey: key.repeat(43),
+      kind: "applied" as const,
+      receivedAt,
+    });
+    await db
+      .insert(inboundEmails)
+      .values([email("o", NOW - RETENTION.inboundEmailsMs - 1), email("n", NOW - DAY)]);
+    const handle = (name: string, retiredAt: number) => ({
+      handle: name,
+      userId: maya.id,
+      createdAt: retiredAt - DAY,
+      retiredAt,
+      routesUntil: retiredAt,
+    });
+    await db
+      .insert(inboundHandles)
+      .values([handle("maya.old", NOW - HANDLE_HOLD_MS - 1), handle("maya.new", NOW - DAY)]);
 
     const token = (hash: string, expiresAt: number) => ({
       id: crypto.randomUUID(),
@@ -104,6 +127,8 @@ describe("runCleanup", () => {
         usagePasses: 1,
         meteredResults: 1,
         extensionTokens: 1,
+        inboundHandles: 1,
+        inboundEmails: 1,
       },
       complete: true,
       failed: [],
@@ -120,6 +145,10 @@ describe("runCleanup", () => {
     expect((await db.select().from(usagePasses)).map((row) => row.subject)).toEqual(["new"]);
     expect((await db.select().from(meteredResults)).map((row) => row.requestKey)).toEqual(["new"]);
     expect((await db.select().from(extensionTokens)).map((row) => row.tokenHash)).toEqual(["n".repeat(43)]);
+    expect((await db.select().from(inboundHandles)).map((row) => row.handle)).toEqual(["maya.new"]);
+    expect((await db.select().from(inboundEmails)).map((row) => row.messageKey)).toEqual([
+      "n".repeat(43),
+    ]);
 
     const second = await runCleanup(context());
     expect(second.stats).toEqual({
@@ -133,6 +162,8 @@ describe("runCleanup", () => {
       usagePasses: 0,
       meteredResults: 0,
       extensionTokens: 0,
+      inboundHandles: 0,
+      inboundEmails: 0,
     });
   });
 

@@ -1,0 +1,16 @@
+From: HackerRank <support@hackerrankforwork.com>
+Subject: Invitation to Saffron Systems' Coding Assessment
+Date: Tue, 17 Nov 2026 05:00:00 +0000
+X-Forwarded-For: priya.sharma@gmail.com otto+abcdefghijklmnopqrstuvwx@track.ottosensei.com
+X-Forwarded-To: otto+abcdefghijklmnopqrstuvwx@track.ottosensei.com
+
+Hi Rahul,
+
+Saffron Systems has invited you to take the Java Developer coding assessment on HackerRank.
+
+Duration: 90 minutes
+Test link: https://www.hackerrank.com/test/abc123/login
+
+Please complete the test before Nov 22, 2026.
+
+Good luck!

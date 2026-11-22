@@ -1,0 +1,20 @@
+# Otto's inbound email Worker: mail for otto+<token>@track.ottosensei.com comes here, is turned into
+# text and is posted to Otto, signed. Setup steps: README.md in this folder.
+name = "otto-inbound-email"
+main = "src/index.ts"
+compatibility_date = "2026-11-01"
+workers_dev = false
+preview_urls = false
+
+# One Email Routing rule for otto@ takes every otto+<token>@ address once Subaddressing is on.
+addresses = ["otto@track.ottosensei.com"]
+
+[vars]
+INBOUND_URL = "https://www.ottosensei.com/api/inbound/email"
+INBOUND_DOMAINS = "track.ottosensei.com"
+
+# INBOUND_EMAIL_SECRET is a secret: wrangler secret put INBOUND_EMAIL_SECRET
+
+# No stored logs: they would hold who wrote to whom. Use "wrangler tail" to watch live.
+[observability]
+enabled = false

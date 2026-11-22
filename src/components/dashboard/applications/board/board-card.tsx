@@ -45,6 +45,7 @@ export type BoardCardProps = {
   card: BoardCard;
   now: number;
   hasLetter: boolean;
+  fromEmail?: boolean;
   lifted: boolean;
   holding: boolean;
   busy: boolean;
@@ -61,6 +62,7 @@ export function BoardCardView({
   card,
   now,
   hasLetter,
+  fromEmail = false,
   lifted,
   holding,
   busy,
@@ -264,7 +266,7 @@ export function BoardCardView({
         </div>
 
         {interviewAt !== null ? <InterviewTicket at={interviewAt} now={now} /> : null}
-        <CardMarks card={card} now={now} hasLetter={hasLetter} />
+        <CardMarks card={card} now={now} hasLetter={hasLetter} fromEmail={fromEmail} />
       </article>
     </li>
   );

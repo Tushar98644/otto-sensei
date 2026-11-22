@@ -14,6 +14,7 @@ export const REMINDER_SETTINGS = ["reminder-settings"] as const;
 export const WORK_PROFILE = ["work-profile"] as const;
 export const JOB_MATCHES = ["job-matches"] as const;
 export const BILLING_HISTORY = ["billing-history"] as const;
+export const EMAIL_TRACKING = ["email-tracking"] as const;
 
 export const queryKeys = {
   applications: (userId: string) => [...APPLICATIONS, userId] as const,
@@ -25,6 +26,7 @@ export const queryKeys = {
   portfolio: (userId: string) => [...PORTFOLIO, userId] as const,
   reminderSettings: (userId: string) => [...REMINDER_SETTINGS, userId] as const,
   workProfile: (userId: string) => [...WORK_PROFILE, userId] as const,
+  emailTracking: (userId: string) => [...EMAIL_TRACKING, userId] as const,
   // A plan change shows up in /api/me first, so the plan's state is part of the key.
   billingHistory: (userId: string, planState: string) =>
     [...BILLING_HISTORY, userId, planState] as const,

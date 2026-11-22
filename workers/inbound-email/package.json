@@ -1,0 +1,12 @@
+{
+  "name": "otto-inbound-email",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "deploy": "wrangler deploy",
+    "tail": "wrangler tail"
+  },
+  "devDependencies": {
+    "wrangler": "^4.113.0"
+  }
+}

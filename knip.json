@@ -4,7 +4,8 @@
     "scripts/**/*.{ts,tsx,mjs}",
     "e2e/offline.ts",
     "extension/scripts/*.ts",
-    "extension/src/{background,content,bridge}.ts"
+    "extension/src/{background,content,bridge}.ts",
+    "workers/inbound-email/src/index.ts"
   ],
   "ignore": ["public/**"],
   "ignoreDependencies": ["server-only", "@react-pdf/reconciler", "@react-pdf/hyphenate"]

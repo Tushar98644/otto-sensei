@@ -69,16 +69,20 @@ export type ApplicationsBoardProps = {
   resumes: readonly Resume[];
   toApply: readonly ToApplyItem[];
   writings: readonly Writing[];
+  emailed?: ReadonlySet<string>;
   now: number;
   pro: boolean | null;
   onNeedsDetails: (resumeId: string | null) => void;
 };
+
+const NONE: ReadonlySet<string> = new Set();
 
 export function ApplicationsBoard({
   applications,
   resumes,
   toApply,
   writings,
+  emailed = NONE,
   now,
   pro,
   onNeedsDetails,
@@ -334,6 +338,7 @@ export function ApplicationsBoard({
                   card={card}
                   now={now}
                   hasLetter={hasLetter(card)}
+                  fromEmail={card.kind === "application" && emailed.has(card.application.id)}
                   lifted={held?.mode === "pointer" && held.card.key === card.key}
                   holding={held?.mode === "keyboard" && held.card.key === card.key}
                   busy={busyKey === card.key}

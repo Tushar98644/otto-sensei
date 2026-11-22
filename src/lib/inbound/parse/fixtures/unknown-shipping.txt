@@ -1,0 +1,7 @@
+From: ShopRight <orders@shopright.example>
+Subject: Your order has shipped
+Date: Fri, 20 Nov 2026 07:30:00 +0000
+X-Forwarded-For: priya.sharma@gmail.com otto+abcdefghijklmnopqrstuvwx@track.ottosensei.com
+X-Forwarded-To: otto+abcdefghijklmnopqrstuvwx@track.ottosensei.com
+
+Hi Priya, your order #44812 has shipped and should arrive on Tuesday, November 24.

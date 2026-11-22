@@ -53,6 +53,19 @@ const SECTIONS: readonly LegalSection[] = [
           it with that application. Nobody else sees it.
         </li>
         <li>
+          <strong>Job emails you forward to Otto.</strong> If you turn on tracking from email, you
+          pick a handle for a private address, and the emails your Gmail filter forwards to it pass
+          through Cloudflare, which hands each one to us as text with the result of its signature
+          checks. We read it with fixed rules, not AI, and keep only the sender&apos;s domain, the
+          subject, what kind of update it was, the company, job title, job link and interview date
+          we read in it, and what we changed on your board or ask you to check. We also keep your
+          handles and the Gmail address you confirm forwards to it. The rest of the email, its
+          attachments and its headers are dropped as soon as it&apos;s read; neither Cloudflare nor
+          we keep a copy. These records are deleted after six months, when you delete your account,
+          and are in your data download. A handle you change or turn off is kept from anyone else
+          for 90 days.
+        </li>
+        <li>
           <strong>Letters and messages you keep.</strong> When you write a cover letter, an
           application answer or an outreach message while signed in, we store it with the company,
           job title and job link it was for and the title of the resume it came from, so you can
@@ -382,6 +395,10 @@ const SECTIONS: readonly LegalSection[] = [
           </li>
           <li>
             <strong>Vercel</strong> hosts the app itself.
+          </li>
+          <li>
+            <strong>Cloudflare</strong> receives the job emails you forward to your Otto address and
+            passes them to us, only if you turn on tracking from email.
           </li>
           <li>
             <strong>Sentry</strong> receives error reports when something breaks, with emails, phone

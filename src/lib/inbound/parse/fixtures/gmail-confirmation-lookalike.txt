@@ -1,0 +1,9 @@
+From: Gmail Team <forwarding-noreply@gmall-support.com>
+Subject: (#987654321) Gmail Forwarding Confirmation - Receive Mail from priya.sharma@gmail.com
+Date: Mon, 16 Nov 2026 07:00:00 +0000
+
+Confirmation code: 987654321
+
+Please click the link below to confirm the request:
+
+https://mail-settings.google.com.evil.example/mail/vf-abc

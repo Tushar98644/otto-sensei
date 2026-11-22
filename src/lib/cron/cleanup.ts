@@ -3,6 +3,7 @@ import { TOMBSTONE_MAX_AGE_MS } from "@/app/api/resumes/backups";
 import { getDb } from "@/db/client";
 import {
   billingEvents,
+  inboundEmails,
   matchCache,
   matchEvents,
   meteredResults,
@@ -13,6 +14,7 @@ import {
 } from "@/db/schema";
 import { retryPendingReplacements } from "@/lib/billing/replacements";
 import { deleteExpiredExtensionTokens } from "@/lib/extension/tokens";
+import { releaseHandles } from "@/lib/inbound/handles";
 import { MATCH_CACHE_MAX_AGE_MS } from "@/lib/job-feed/match-cache";
 import { log } from "@/lib/log";
 import { DAY_MS } from "@/lib/time";
@@ -27,6 +29,8 @@ export const RETENTION = {
   billingEventsMs: 400 * DAY_MS,
   impressionsMs: 30 * DAY_MS,
   matchCacheMs: MATCH_CACHE_MAX_AGE_MS,
+  // What Otto read in a job email shows for six months, then goes.
+  inboundEmailsMs: 180 * DAY_MS,
 } as const;
 
 export const CLEANUP_BATCH = 1_000;
@@ -179,6 +183,22 @@ export async function runCleanup({ now, deadline }: CronContext): Promise<CronOu
       },
     },
     { name: "extensionTokens", run: () => deleteExpiredExtensionTokens(now, CLEANUP_BATCH) },
+    { name: "inboundHandles", run: () => releaseHandles(now, CLEANUP_BATCH) },
+    {
+      name: "inboundEmails",
+      run: async () => {
+        const stale = db
+          .select({ id: inboundEmails.id })
+          .from(inboundEmails)
+          .where(lt(inboundEmails.receivedAt, now - RETENTION.inboundEmailsMs))
+          .limit(CLEANUP_BATCH);
+        const deleted = await db
+          .delete(inboundEmails)
+          .where(sql`${inboundEmails.id} in ${stale}`)
+          .returning({ id: inboundEmails.id });
+        return deleted.length;
+      },
+    },
   ];
 
   const stats: Record<string, number> = {};

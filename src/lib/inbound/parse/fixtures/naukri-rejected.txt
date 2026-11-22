@@ -1,0 +1,14 @@
+From: Kaveri Infotech <hr@naukri.com>
+Subject: Application status update - Kaveri Infotech
+Date: Fri, 20 Nov 2026 06:15:00 +0000
+X-Forwarded-For: priya.sharma@gmail.com otto+abcdefghijklmnopqrstuvwx@track.ottosensei.com
+X-Forwarded-To: otto+abcdefghijklmnopqrstuvwx@track.ottosensei.com
+
+Dear Rahul,
+
+Thank you for applying for the role of Java Lead at Kaveri Infotech.
+
+We regret to inform you that your candidature has not been shortlisted for further rounds. We will keep your profile in our records for future openings.
+
+Regards,
+Kaveri Infotech HR

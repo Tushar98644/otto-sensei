@@ -1,0 +1,13 @@
+From: Coral Labs <jobs@corallabs.dev>
+Subject: Thanks for applying to Coral Labs
+Date: Mon, 16 Nov 2026 09:00:00 +0000
+X-Forwarded-For: priya.sharma@gmail.com otto+abcdefghijklmnopqrstuvwx@track.ottosensei.com
+X-Forwarded-To: otto+abcdefghijklmnopqrstuvwx@track.ottosensei.com
+
+Hi Sam,
+
+Thanks for applying for the Platform Engineer role at Coral Labs! We've received your application.
+
+Here's what our process looks like: a recruiter call, a technical interview and a final onsite round. If your background matches the role, we'll reach out to schedule an interview.
+
+Coral Labs

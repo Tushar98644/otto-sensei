@@ -14,6 +14,12 @@ import type {
   SavedPostsResponse,
 } from "@/lib/extension/types";
 import type { GitHubConnectionResponse } from "@/lib/github/connect";
+import type {
+  EmailTrackingAction,
+  EmailTrackingResponse,
+  HandleCheckResponse,
+  UndoEmailResponse,
+} from "@/lib/inbound/types";
 import { JOBS_PREFETCH_HEADER } from "@/lib/job-feed/prefetch-header";
 import type { ImpressionBatchInput } from "@/lib/job-feed/types";
 import type {
@@ -347,6 +353,25 @@ export const api = {
     }),
   createApplication: (body: CreateApplicationBody) =>
     request<ApplicationResponse>("/api/applications", postJson(body)),
+  emailTracking: () => request<EmailTrackingResponse>("/api/email-tracking", { cache: "no-store" }),
+  emailTrackingAction: (body: EmailTrackingAction) =>
+    request<EmailTrackingResponse>("/api/email-tracking", postJson(body)),
+  checkEmailHandle: (handle: string, signal?: AbortSignal) =>
+    request<HandleCheckResponse>(`/api/email-tracking/handle?h=${encodeURIComponent(handle)}`, {
+      cache: "no-store",
+      signal,
+    }),
+  stopEmailTracking: () =>
+    request<EmailTrackingResponse>("/api/email-tracking", { method: "DELETE" }),
+  changeFromEmail: (id: string, action: "undo" | "apply") =>
+    request<UndoEmailResponse>(
+      `/api/email-tracking/${encodeURIComponent(id)}`,
+      postJson({ action }, "PATCH"),
+    ),
+  dismissEmail: (id: string) =>
+    request<UndoEmailResponse>(`/api/email-tracking/${encodeURIComponent(id)}`, {
+      method: "DELETE",
+    }),
   updateApplication: (id: string, body: UpdateApplicationBody) =>
     request<ApplicationResponse>(
       `/api/applications/${encodeURIComponent(id)}`,

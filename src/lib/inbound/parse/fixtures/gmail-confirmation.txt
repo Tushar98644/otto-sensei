@@ -1,0 +1,31 @@
+From: Gmail Team <forwarding-noreply@google.com>
+Subject: (#123456789) Gmail Forwarding Confirmation - Receive Mail from priya.sharma@gmail.com
+Date: Mon, 16 Nov 2026 07:00:00 +0000
+
+priya.sharma@gmail.com has requested to automatically forward mail to your email
+address otto+abcdefghijklmnopqrstuvwx@track.ottosensei.com.
+
+Confirmation code: 123456789
+
+To allow priya.sharma@gmail.com to automatically forward mail to your address,
+please click the link below to confirm the request:
+
+https://mail-settings.google.com/mail/vf-%5BANGjdJ9xZq0aB1cD2eF3gH4iJ5kL6mN7oP8qR9sT0uV1wX2yZ3%5D-Gu7v8DkL0ZpQnLwYhTnA2cHlVf4
+
+If you click the link and it appears to be broken, please copy and paste it
+into a new window. If you aren't able to access the link, you can send the
+confirmation code 123456789 to priya.sharma@gmail.com.
+
+Thanks for using Gmail!
+
+Sincerely,
+
+The Gmail Team
+
+If you do not approve of this request, no further action is required.
+priya.sharma@gmail.com cannot automatically forward messages to your email address
+unless you confirm the request by clicking the link above. If you
+accidentally clicked the link, but you do not want to allow
+priya.sharma@gmail.com to automatically forward messages to your address, click
+this link to cancel this verification:
+https://mail-settings.google.com/mail/uf-%5BANGjdJ9xZq0aB1cD2eF3gH4iJ5kL6mN7oP8qR9sT0uV1wX2yZ3%5D-Gu7v8DkL0ZpQnLwYhTnA2cHlVf4

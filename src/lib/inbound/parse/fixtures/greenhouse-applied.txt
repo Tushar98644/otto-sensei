@@ -1,0 +1,17 @@
+From: Northwind Talent <no-reply@us.greenhouse-mail.io>
+Subject: Thank you for applying to Northwind
+Date: Mon, 16 Nov 2026 10:12:00 +0000
+X-Forwarded-For: priya.sharma@gmail.com otto+abcdefghijklmnopqrstuvwx@track.ottosensei.com
+X-Forwarded-To: otto+abcdefghijklmnopqrstuvwx@track.ottosensei.com
+
+Hi Priya,
+
+Thanks for applying to Northwind. Your application for the Senior Product Designer role has been received and our team will review it shortly.
+
+If your experience matches what we're looking for, a recruiter will reach out to schedule an interview.
+
+You can view the job post here: https://boards.greenhouse.io/northwind/jobs/4417201?gh_src=abc123
+
+Best,
+The Northwind Recruiting Team
+Powered by Greenhouse

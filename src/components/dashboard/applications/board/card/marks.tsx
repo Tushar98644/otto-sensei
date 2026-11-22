@@ -1,4 +1,4 @@
-import { BellRing, CircleSlash, Clock, FileText, MessagesSquare } from "lucide-react";
+import { BellRing, CircleSlash, Clock, FileText, Mail, MessagesSquare } from "lucide-react";
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { StatusIcon } from "@/components/dashboard/applications/status-menu";
@@ -24,10 +24,12 @@ export function CardMarks({
   card,
   now,
   hasLetter,
+  fromEmail = false,
 }: {
   card: BoardCard;
   now: number;
   hasLetter: boolean;
+  fromEmail?: boolean;
 }) {
   const marks: { key: string; node: ReactNode }[] = [];
   const time = stageTime(card, now);
@@ -113,6 +115,21 @@ export function CardMarks({
             Letter
           </span>
         ),
+    });
+  }
+  if (fromEmail) {
+    marks.push({
+      key: "email",
+      node: (
+        <a
+          href="#email-updates"
+          title="Changed by a job email"
+          className={cn(CHIP, TONES.quiet, TONES.link)}
+        >
+          <Mail aria-hidden />
+          From email
+        </a>
+      ),
     });
   }
   if (time && !time.late) {

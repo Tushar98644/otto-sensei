@@ -17,10 +17,13 @@ import {
 import {
   APPLICATION_STAGES,
   APPLICATION_STATUSES,
+  type ApplicationStage,
+  type ApplicationStatus,
   type StatusEvent,
 } from "@/lib/applications/status";
 import { WORK_REGIONS, WORK_RIGHTS } from "@/lib/eligibility/profile";
 import type { JobSite } from "@/lib/extension/urls";
+import { EMAIL_CHANGES, EMAIL_KINDS, EMAIL_TRUST, type HiringSystem } from "@/lib/inbound/types";
 import { FEEDBACK_KINDS } from "@/lib/feedback/types";
 import {
   ASKED_APPLIED_ANSWERS,
@@ -634,5 +637,74 @@ export const applyAnswers = pgTable("apply_answers", {
   answers: jsonb("answers").$type<Record<string, unknown>>().notNull().default({}),
   updatedAt: epochMs("updated_at").notNull(),
 });
+
+export const inboundHandles = pgTable(
+  "inbound_handles",
+  {
+    handle: text("handle").primaryKey(),
+    // Null once the account is deleted: the handle stays held from everyone else.
+    userId: uuid("user_id"),
+    createdAt: epochMs("created_at").notNull(),
+    retiredAt: epochMs("retired_at"),
+    routesUntil: epochMs("routes_until"),
+  },
+  (t) => [index("inbound_handles_user_idx").on(t.userId)],
+);
+
+export const inboundAddresses = pgTable("inbound_addresses", {
+  userId: uuid("user_id").primaryKey(),
+  createdAt: epochMs("created_at").notNull(),
+  confirmCode: text("confirm_code"),
+  confirmUrl: text("confirm_url"),
+  confirmSource: text("confirm_source"),
+  confirmAt: epochMs("confirm_at"),
+  confirmedAt: epochMs("confirmed_at"),
+  sources: text("sources").array().notNull().default([]),
+  testAt: epochMs("test_at"),
+  lastEmailAt: epochMs("last_email_at"),
+});
+
+export type CardBefore = {
+  status: ApplicationStatus;
+  stageReached: ApplicationStage;
+  statusChangedAt: number;
+  statusHistory: StatusEvent[];
+  followUpAt: number | null;
+  interviewAt: number | null;
+};
+
+export const inboundEmails = pgTable(
+  "inbound_emails",
+  {
+    id: uuid("id").primaryKey(),
+    userId: uuid("user_id").notNull(),
+    messageKey: text("message_key").notNull(),
+    sender: text("sender").notNull().default(""),
+    subject: text("subject").notNull().default(""),
+    kind: text("kind", { enum: EMAIL_KINDS }).notNull(),
+    system: text("system").$type<HiringSystem>(),
+    company: text("company").notNull().default(""),
+    role: text("role").notNull().default(""),
+    jobUrl: text("job_url").notNull().default(""),
+    sentAt: epochMs("sent_at"),
+    eventAt: epochMs("event_at"),
+    eventText: text("event_text").notNull().default(""),
+    trust: text("trust", { enum: EMAIL_TRUST }),
+    applicationId: uuid("application_id"),
+    change: text("change", { enum: EMAIL_CHANGES }).notNull().default("none"),
+    fromStatus: text("from_status", { enum: APPLICATION_STATUSES }),
+    toStatus: text("to_status", { enum: APPLICATION_STATUSES }),
+    before: jsonb("before").$type<CardBefore>(),
+    changedAt: epochMs("changed_at"),
+    receivedAt: epochMs("received_at").notNull(),
+    undoneAt: epochMs("undone_at"),
+    dismissedAt: epochMs("dismissed_at"),
+  },
+  (t) => [
+    unique("inbound_emails_user_id_message_key_key").on(t.userId, t.messageKey),
+    index("inbound_emails_user_received_idx").on(t.userId, t.receivedAt),
+    index("inbound_emails_received_idx").on(t.receivedAt),
+  ],
+);
 
 export type UserRow = typeof users.$inferSelect;

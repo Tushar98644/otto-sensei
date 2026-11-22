@@ -72,6 +72,9 @@ for (const name of [
   "DODO_MAX_YEARLY_PRODUCT_ID",
   "DODO_PRO_TRIAL_PRODUCT_ID",
   "BILLING_SIGNING_SECRET",
+  "INBOUND_EMAIL_SECRET",
+  "INBOUND_ADDRESS_STYLE",
+  "INBOUND_DOMAIN",
 ]) {
   delete process.env[name];
 }

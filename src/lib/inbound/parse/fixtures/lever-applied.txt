@@ -1,0 +1,14 @@
+From: Fernbrook <no-reply@hire.lever.co>
+Subject: Thank you for your application to Fernbrook
+Date: Mon, 16 Nov 2026 07:45:00 +0000
+X-Forwarded-For: priya.sharma@gmail.com otto+abcdefghijklmnopqrstuvwx@track.ottosensei.com
+X-Forwarded-To: otto+abcdefghijklmnopqrstuvwx@track.ottosensei.com
+
+Hi Priya,
+
+Thank you for applying for the Data Analyst position at Fernbrook. We have received your application and our team is reviewing it.
+
+You can always see the role here: https://jobs.lever.co/fernbrook/5d2c8a1e-3b7f-4c1d-9a2e-6f0b1c2d3e4f
+
+Best,
+Fernbrook Hiring Team
