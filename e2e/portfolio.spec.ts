@@ -86,16 +86,16 @@ test("a Pro user makes a portfolio from the resume and design they pick", async 
     }),
   ).toBeVisible();
   await page.getByLabel("Make it from").selectOption({ label: older.resume.title });
-  // Paper, not the default Navy, so the page shows it was made with the picked design.
-  await page.getByRole("button", { name: "Use this design: Paper" }).click();
+  // Sketchbook, not the default Navy, so the page shows it was made with the picked design.
+  await page.getByRole("button", { name: "Use this design: Sketchbook" }).click();
 
   await expect(page.getByText("Draft", { exact: true })).toBeVisible();
   await expect(
     page.getByText("I filled this in from your resume. Nothing goes live until you publish."),
   ).toBeVisible();
   await expect(page.getByRole("button", { name: "Publish" })).toBeEnabled();
-  await expect(page.getByRole("radio", { name: /Paper/ })).toBeChecked();
-  await expect(previewPane(page).getByText("Paper · as visitors see it")).toBeVisible();
+  await expect(page.getByRole("radio", { name: /Sketchbook/ })).toBeChecked();
+  await expect(previewPane(page).getByText("Sketchbook · as visitors see it")).toBeVisible();
 
   await editorTab(page, "Settings").click();
   await expect(page.getByLabel("Your page lives at /p/")).toHaveValue(older.slug);
@@ -335,10 +335,7 @@ test("a Free account is offered Pro instead of the editor", async ({ page, user 
   await expect(page.getByRole("button", { name: "Publish" })).toHaveCount(0);
 });
 
-test("Publish works after opening the editor straight from its address", async ({
-  page,
-  user,
-}) => {
+test("Publish works after opening the editor straight from its address", async ({ page, user }) => {
   expect(user.plan).toBe("free");
   const owner = await proOwner(page);
   await createPortfolio(page, owner.resume);
