@@ -41,9 +41,25 @@ export function waitingForPrep(
     .sort((a, b) => {
       const rank = waitRank(a, now) - waitRank(b, now);
       if (rank !== 0) return rank;
-      if (a.interviewAt === null || b.interviewAt === null) return b.statusChangedAt - a.statusChangedAt;
+      if (a.interviewAt === null || b.interviewAt === null)
+        return b.statusChangedAt - a.statusChangedAt;
       return waitRank(a, now) === 0 ? a.interviewAt - b.interviewAt : b.interviewAt - a.interviewAt;
     });
+}
+
+export type InterviewEntry = { application: Application; pack: PrepSummary | null };
+
+// Every application at the interview stage, in waitingForPrep's order, with its pack when it has one.
+export function interviewEntries(
+  applications: readonly Application[],
+  packs: readonly PrepSummary[],
+  now = 0,
+): InterviewEntry[] {
+  const byId = new Map(packs.map((pack) => [pack.applicationId, pack]));
+  return waitingForPrep(applications, [], now).map((application) => ({
+    application,
+    pack: byId.get(application.id) ?? null,
+  }));
 }
 
 export function interviewDayLine(interviewAt: number | null, now: number): string {

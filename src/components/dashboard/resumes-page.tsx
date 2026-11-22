@@ -1,5 +1,6 @@
 "use client";
 
+import { CloudCheck } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { Otto } from "@/components/mascot/otto";
 import { OttoNote } from "@/components/mascot/otto-note";
@@ -7,7 +8,7 @@ import { SharedLinks } from "@/components/share/shared-links";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useResumeList, useStudioHydrated } from "@/lib/store/resume-store";
-import { pluralize } from "@/lib/utils";
+import { cn, pluralize } from "@/lib/utils";
 import { AddResumeTile } from "./add-resume-tile";
 import {
   FILTER_LABELS,
@@ -16,6 +17,7 @@ import {
   type LibraryFilter,
   type LibrarySort,
 } from "./library";
+import { WELL_HEIGHT } from "./library/paper-well";
 import { LibraryToolbar } from "./library-toolbar";
 import { NewResumeMenu } from "./new-resume-menu";
 import { cardId } from "./resume-card";
@@ -24,6 +26,8 @@ import { useStudioActions, type StudioActions } from "./use-studio-actions";
 import { RecentlyDeletedLink } from "./trash/recently-deleted-link";
 
 const storedLine = "Saved in this browser and backed up to your account.";
+
+const count = new Intl.NumberFormat("en-US");
 
 function reveal(resumeId: string) {
   const card = document.getElementById(cardId(resumeId));
@@ -69,16 +73,12 @@ export function ResumesPage() {
 
   return (
     <div className="flex flex-col gap-8">
-      <header className="flex flex-wrap items-end justify-between gap-x-6 gap-y-4">
-        <div className="min-w-0">
+      <header className="flex flex-wrap items-end justify-between gap-x-6 gap-y-4 motion-safe:animate-fade-in">
+        <div className="min-w-0 flex-[1_1_20rem]">
           <h1 className="font-display text-4xl/10 font-normal tracking-tight text-ink sm:text-5xl/13">
             Resumes
           </h1>
-          <p className="mt-2 max-w-prose text-base/7 text-muted">
-            {hydrated && resumes.length > 0
-              ? `${pluralize(resumes.length, "resume")}${tailored > 0 ? `, ${tailored} tailored to a job` : ""}. ${storedLine}`
-              : storedLine}
-          </p>
+          <LibraryFacts total={hydrated ? resumes.length : 0} tailored={tailored} />
         </div>
         {/* From lg the sidebar holds the New resume menu. */}
         <NewResumeMenu actions={actions} align="end" className="lg:hidden" />
@@ -89,7 +89,7 @@ export function ResumesPage() {
       ) : resumes.length === 0 ? (
         <EmptyLibrary actions={actions} />
       ) : (
-        <section aria-label="Your resumes" className="flex flex-col gap-6">
+        <section aria-label="Your resumes" className="flex flex-col gap-8">
           <LibraryToolbar
             query={query}
             onQueryChange={setQuery}
@@ -137,6 +137,44 @@ export function ResumesPage() {
   );
 }
 
+function Fact({ value, label }: { value: number; label: string }) {
+  return (
+    <span>
+      <span className="font-medium text-ink tabular-nums">{count.format(value)}</span> {label}
+    </span>
+  );
+}
+
+function Dot() {
+  return <span aria-hidden className="size-1 shrink-0 rounded-full bg-border-strong/50" />;
+}
+
+function LibraryFacts({ total, tailored }: { total: number; tailored: number }) {
+  return (
+    <p className="mt-3 flex max-w-prose flex-wrap items-center gap-x-2.5 gap-y-1 text-base/7 text-muted">
+      {total > 0 ? (
+        <>
+          <Fact value={total} label={total === 1 ? "resume" : "resumes"} />
+          {tailored > 0 ? (
+            <>
+              <Dot />
+              <Fact value={tailored} label="tailored to a job" />
+            </>
+          ) : null}
+          <span
+            aria-hidden
+            className="size-1 shrink-0 rounded-full bg-border-strong/50 max-sm:hidden"
+          />
+        </>
+      ) : null}
+      <span className="inline-flex items-start gap-1.5 max-sm:basis-full max-sm:text-sm/6">
+        <CloudCheck aria-hidden className="mt-1.5 size-4 shrink-0 text-subtle max-sm:mt-1" />
+        {storedLine}
+      </span>
+    </p>
+  );
+}
+
 function EmptyLibrary({ actions }: { actions: StudioActions }) {
   return (
     <section
@@ -174,7 +212,7 @@ function LoadingGrid() {
           <li key={index} className="flex flex-col">
             <Skeleton className="h-8 w-28 rounded-t-xl rounded-b-none" />
             <div className="flex flex-col gap-3 rounded-2xl rounded-tl-none bg-surface p-2">
-              <div className="h-44 rounded-xl bg-surface-muted sm:h-48" />
+              <div className={cn("rounded-xl bg-surface-muted", WELL_HEIGHT)} />
               <div className="flex flex-col gap-2 px-2 pt-2 pb-3">
                 <Skeleton className="h-5 w-2/3" />
                 <Skeleton className="h-4 w-1/2" />

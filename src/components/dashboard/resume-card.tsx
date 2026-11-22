@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  ArrowRight,
   BriefcaseBusiness,
   Copy,
   CornerDownRight,
@@ -10,6 +11,7 @@ import {
   FileText,
   FolderGit,
   Globe,
+  Layers,
   Link2,
   MessagesSquare,
   PenLine,
@@ -28,24 +30,23 @@ import { portfolioFrom } from "@/components/portfolio/route";
 import { useShareResume } from "@/components/share/use-share-resume";
 import { ROUTES } from "@/components/site/routes";
 import { formatRelativeTime } from "@/components/studio/relative-time";
-import { Badge } from "@/components/ui/badge";
 import { Button, buttonClasses } from "@/components/ui/button";
 import { FolderCard } from "@/components/ui/folder-card";
 import { Menu } from "@/components/ui/menu";
-import { StatusPill } from "@/components/ui/status";
 import { toast } from "@/components/ui/toast";
 import { downloadJsonResume } from "@/lib/jsonresume/download";
 import { lintResume } from "@/lib/lint/bullets";
 import { TEMPLATE_INFO, templateOf } from "@/lib/pdf/templates";
-import { resumeTitle } from "@/lib/resume/ops";
+import { resumeTitle, titleKey } from "@/lib/resume/ops";
 import { copyLetter } from "@/lib/applications/thread";
 import type { Resume } from "@/lib/resume/schema";
 import { useStudioStore } from "@/lib/store/resume-store";
 import { cn, pluralize } from "@/lib/utils";
 import { MarkApplied, useCopyApplication, useJustApplied } from "./applications/mark-applied";
 import { SOURCE_TABS, tailoredJob } from "./library";
+import { CardChips, type CardChip } from "./library/card-chips";
+import { PaperWell } from "./library/paper-well";
 import { linesChip, reportChip } from "./resume-status";
-import { ResumeThumbnail } from "./resume-thumbnail";
 import type { StudioActions } from "./use-studio-actions";
 import { useTailorLocked } from "./use-tailor-locked";
 
@@ -72,6 +73,20 @@ function defaultTailoredTitle(resume: Resume): string {
   const tailor = resume.tailor;
   if (!tailor) return "";
   return [tailor.jobTitle || "Tailored", tailor.company].filter(Boolean).join(" at ");
+}
+
+// The person's name, when the title doesn't already say it.
+function personLine(resume: Resume, title: string): string | null {
+  const name = resume.basics.name.trim();
+  if (!name) return null;
+  return titleKey(name) === titleKey(title) ? null : name;
+}
+
+const fullDate = new Intl.DateTimeFormat("en-US", { dateStyle: "medium", timeStyle: "short" });
+
+function editedAt(timestamp: number): { dateTime?: string; title?: string } {
+  if (!Number.isFinite(timestamp)) return {};
+  return { dateTime: new Date(timestamp).toISOString(), title: fullDate.format(timestamp) };
 }
 
 export function ResumeCard({
@@ -120,13 +135,29 @@ export function ResumeCard({
   const tailored = resume.tailor !== null;
   const job = tailoredJob(resume);
   const showJob = job !== null && resume.title.trim() !== defaultTailoredTitle(resume);
-  const chips = [reportChip(report), linesChip(lint)].filter((chip) => chip !== null);
   const format = TEMPLATE_INFO[templateOf(resume)].name;
+  const person = personLine(resume, title);
   const sentWith = useCopyApplication(resume);
-  const marks = [
-    copyLetter(resume) ? "Cover letter" : null,
-    sentWith?.hasPrep ? "Interview prep" : null,
-  ].filter((mark): mark is string => mark !== null);
+  const chips: CardChip[] = [
+    ...[reportChip(report), linesChip(lint)]
+      .filter((chip) => chip !== null)
+      .map((chip) => ({ label: chip.label, tone: chip.status })),
+    ...(copies > 0
+      ? [
+          {
+            label: pluralize(copies, "tailored copy", "tailored copies"),
+            tone: "neutral" as const,
+            icon: Layers,
+          },
+        ]
+      : []),
+    ...(copyLetter(resume)
+      ? [{ label: "Cover letter", tone: "neutral" as const, icon: FileText }]
+      : []),
+    ...(sentWith?.hasPrep
+      ? [{ label: "Interview prep", tone: "neutral" as const, icon: MessagesSquare }]
+      : []),
+  ];
   const open = () => actions.open(resume.id, "fix");
 
   return (
@@ -137,66 +168,54 @@ export function ResumeCard({
         className="h-full"
         bodyClassName="flex flex-col p-2"
       >
-        {/* Keep the fixed height: content-visibility sizes off-screen cards by it. */}
-        <button
-          type="button"
-          tabIndex={-1}
-          aria-hidden
-          onClick={open}
-          className="relative h-44 overflow-hidden rounded-xl bg-surface-muted px-8 pt-6 [content-visibility:auto] sm:h-48"
-        >
-          <ResumeThumbnail
-            resume={resume}
-            className="rounded-t-xs shadow-page transition-[translate,box-shadow] duration-300 ease-out group-hover/card:-translate-y-1 group-hover/card:shadow-page-lift"
-          />
+        <PaperWell resume={resume} onOpen={open}>
           {cheer && justApplied ? <OttoCheer className="absolute right-2 -bottom-1" /> : null}
-        </button>
+        </PaperWell>
 
-        <div className="flex flex-1 flex-col gap-3 px-2 pt-4 pb-2">
+        <div className="flex flex-1 flex-col px-2 pt-4 pb-2">
           <div className="min-w-0">
-            <h3 id={titleId} className="truncate text-base/6 font-medium text-ink">
+            <h3
+              id={titleId}
+              className="line-clamp-2 text-lg/6 font-medium tracking-tight break-words text-ink"
+            >
               {title}
             </h3>
-            <p className="mt-0.5 truncate text-sm/5 text-subtle">
-              {format} · Edited {formatRelativeTime(resume.updatedAt, now)}
+            {person ? <p className="mt-1 text-sm/5 break-words text-muted">{person}</p> : null}
+            <p className="mt-2 flex flex-wrap items-center gap-x-2 text-sm/5 text-subtle">
+              <span>{format}</span>
+              <span aria-hidden className="size-0.75 rounded-full bg-subtle/60" />
+              <time {...editedAt(resume.updatedAt)}>
+                Edited {formatRelativeTime(resume.updatedAt, now)}
+              </time>
             </p>
             {showJob ? (
-              <p className="mt-1.5 flex min-w-0 items-center gap-1.5 text-sm/5 text-muted">
-                <BriefcaseBusiness aria-hidden className="size-3.5 shrink-0" />
-                <span className="truncate">{job}</span>
+              <p className="mt-2.5 flex min-w-0 items-start gap-2 text-sm/5 text-ink">
+                <BriefcaseBusiness aria-hidden className="mt-0.5 size-4 shrink-0 text-muted" />
+                <span className="line-clamp-2 min-w-0 break-words">{job}</span>
               </p>
             ) : null}
             {base ? <MadeFrom base={base} onShowBase={onShowBase} /> : null}
           </div>
 
-          {chips.length > 0 || copies > 0 || marks.length > 0 ? (
-            <div className="flex flex-wrap gap-1.5">
-              {chips.map((chip) => (
-                <StatusPill key={chip.label} status={chip.status}>
-                  {chip.label}
-                </StatusPill>
-              ))}
-              {copies > 0 ? (
-                <Badge>{pluralize(copies, "tailored copy", "tailored copies")}</Badge>
-              ) : null}
-              {marks.map((mark) => (
-                <Badge key={mark}>
-                  {mark === "Cover letter" ? <FileText aria-hidden /> : <MessagesSquare aria-hidden />}
-                  {mark}
-                </Badge>
-              ))}
+          {chips.length > 0 ? (
+            <div className="mt-4">
+              <CardChips chips={chips} />
             </div>
           ) : null}
 
-          <div className="mt-auto flex items-center gap-2 pt-1">
+          <div className="mt-auto flex items-center gap-2 pt-5">
             <Button
               size="sm"
               onClick={open}
               aria-describedby={titleId}
               data-card-open=""
-              className="px-4"
+              className="pr-3 pl-4"
             >
               Open
+              <ArrowRight
+                aria-hidden
+                className="text-white/75 transition-transform duration-200 ease-out group-hover/card:translate-x-0.5 group-hover/card:text-white"
+              />
             </Button>
             {tailored ? <MarkApplied resume={resume} describedBy={titleId} /> : null}
             <Menu
@@ -206,7 +225,7 @@ export function ResumeCard({
               triggerClassName={buttonClasses({
                 variant: "ghost",
                 size: "icon-sm",
-                className: "ml-auto text-muted hover:text-ink",
+                className: "ml-auto text-muted hover:text-ink aria-expanded:text-ink",
               })}
               trigger={<Ellipsis aria-hidden />}
               items={[
@@ -271,13 +290,13 @@ export function ResumeCard({
 }
 
 const MADE_FROM =
-  "truncate font-medium text-ink underline decoration-border-strong underline-offset-4 hover:decoration-ink";
+  "text-left font-medium break-words text-ink underline decoration-border-strong underline-offset-4 hover:decoration-ink";
 
 function MadeFrom({ base, onShowBase }: { base: Resume; onShowBase?: (id: string) => void }) {
   const name = resumeTitle(base);
   return (
-    <p className="mt-1.5 flex min-w-0 items-center gap-1.5 text-sm/5 text-muted">
-      <CornerDownRight aria-hidden className="size-3.5 shrink-0" />
+    <p className="mt-2 flex min-w-0 items-start gap-2 text-sm/5 text-muted">
+      <CornerDownRight aria-hidden className="mt-0.5 size-4 shrink-0 text-subtle" />
       <span className="shrink-0">Made from</span>
       {onShowBase ? (
         <button

@@ -2,9 +2,7 @@
 
 import {
   ArrowRight,
-  BellRing,
   CircleX,
-  Clock,
   Ellipsis,
   FileText,
   GripVertical,
@@ -15,36 +13,24 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import {
-  useEffect,
-  useId,
-  useRef,
-  type KeyboardEvent,
-  type PointerEvent,
-  type ReactNode,
-} from "react";
-import { Badge } from "@/components/ui/badge";
+import { useEffect, useId, useRef, type KeyboardEvent, type PointerEvent } from "react";
 import { buttonClasses } from "@/components/ui/button";
+import { CompanyMark } from "@/components/ui/company-mark";
 import { Menu, type MenuEntry } from "@/components/ui/menu";
 import { STATUS_NAMES, type ApplicationStatus } from "@/lib/applications/status";
 import { applicationHref } from "@/lib/applications/thread";
 import { cn } from "@/lib/utils";
-import { StatusIcon } from "../status-menu";
-import { formatDay } from "../view";
-import { interviewHref } from "../../interview/view";
 import {
   cardColumn,
   cardName,
   COLUMN_NAMES,
-  daysInStage,
-  initials,
-  isOverdue,
   menuStatuses,
-  needsAction,
   onward,
   type BoardCard,
   type BoardColumn,
 } from "./board";
+import { InterviewTicket } from "./card/interview-ticket";
+import { CardMarks } from "./card/marks";
 
 export type CardAction =
   | { kind: "column"; column: BoardColumn }
@@ -90,11 +76,8 @@ export function BoardCardView({
   const articleRef = useRef<HTMLElement>(null);
   const handleRef = useRef<HTMLButtonElement>(null);
   const name = cardName(card);
-  const company = card.kind === "application" ? card.application.company : card.item.company;
-  const role = card.kind === "application" ? card.application.role : card.item.role;
   const next = onward(card);
   const column = cardColumn(card);
-  const urgent = needsAction(card, now);
 
   useEffect(() => {
     if (!focusHandle) return;
@@ -146,12 +129,19 @@ export function BoardCardView({
       : []),
   ];
 
+  const text = cardText(card);
+  const roleId = `${titleId}-role`;
+  const interviewAt =
+    card.kind === "application" && card.application.status === "interview"
+      ? card.application.interviewAt
+      : null;
+
   return (
-    <li>
+    <li className={cn("py-0.5", ENTER)}>
       <article
         ref={articleRef}
         data-card-key={card.key}
-        aria-labelledby={titleId}
+        aria-labelledby={text.secondary ? `${titleId} ${roleId}` : titleId}
         aria-busy={busy || undefined}
         onPointerDown={(event) => onPointerDown(event, card)}
         onContextMenu={(event) => {
@@ -159,19 +149,16 @@ export function BoardCardView({
           articleRef.current?.querySelector<HTMLButtonElement>("[aria-haspopup=menu]")?.click();
         }}
         className={cn(
-          "group/card relative flex flex-col gap-2 rounded-xl bg-surface p-2.5 ring-1 ring-ink/5 transition-[opacity,box-shadow] hover:ring-ink/12 pointer-fine:cursor-grab",
-          lifted && "opacity-40",
-          holding && "ring-2 ring-ink",
+          "group/card relative flex flex-col gap-3 rounded-xl bg-surface p-3 ring-1 ring-ink/6 transition-[translate,box-shadow,opacity] duration-200 ease-out pointer-fine:cursor-grab",
+          "shadow-[0_1px_2px_rgb(18_36_29/0.04),0_3px_8px_-4px_rgb(18_36_29/0.1)]",
+          "hover:shadow-[0_2px_4px_rgb(18_36_29/0.04),0_14px_24px_-12px_rgb(18_36_29/0.28)] hover:ring-ink/8 motion-safe:hover:-translate-y-0.5",
+          holding &&
+            "shadow-[0_2px_4px_rgb(18_36_29/0.04),0_14px_24px_-12px_rgb(18_36_29/0.28)] ring-2 ring-ink hover:ring-ink motion-safe:-translate-y-0.5",
+          lifted &&
+            "bg-transparent shadow-none ring-0 outline-1 -outline-offset-1 outline-ink/20 outline-dashed hover:shadow-none motion-safe:hover:translate-y-0 [&>*]:opacity-0",
           busy && "opacity-70",
         )}
       >
-        {urgent ? (
-          <span className="absolute -top-2.5 right-9 inline-flex h-5 items-center gap-1 rounded-full bg-warn-soft px-1.5 text-xs font-medium text-warn-ink ring-2 ring-surface-hover">
-            <BellRing aria-hidden className="size-3 text-warn" />
-            Follow up
-          </span>
-        ) : null}
-
         <div className="flex items-start gap-2.5">
           <button
             ref={handleRef}
@@ -182,34 +169,53 @@ export function BoardCardView({
             aria-pressed={holding}
             onKeyDown={(event) => onHandleKeyDown(event, card)}
             onBlur={() => onHandleBlur(card)}
-            className="relative flex size-8 shrink-0 cursor-grab touch-none items-center justify-center rounded-lg bg-surface-muted text-xs font-semibold text-muted -outline-offset-2 transition-colors aria-pressed:bg-ink aria-pressed:text-white pointer-coarse:size-10"
+            className="group/handle relative -my-1 -ml-3 shrink-0 cursor-grab touch-none py-1 pl-3 outline-hidden"
           >
-            <span
-              aria-hidden
-              className="transition-opacity group-hover/card:opacity-0 group-has-[[data-drag-handle]:focus-visible]/card:opacity-0"
-            >
-              {initials(company || name)}
-            </span>
             <GripVertical
               aria-hidden
-              className="absolute size-4 opacity-0 transition-opacity group-hover/card:opacity-100 group-has-[[data-drag-handle]:focus-visible]/card:opacity-100"
+              className="absolute top-1/2 left-px size-3 -translate-y-1/2 text-subtle opacity-0 transition-opacity group-hover/card:opacity-70 group-focus-visible/handle:opacity-100 group-aria-pressed/handle:opacity-100 pointer-coarse:opacity-50"
+            />
+            <CompanyMark
+              name={text.company || name}
+              size="md"
+              className="outline-2 outline-offset-2 outline-transparent transition-[scale,outline-color] group-focus-visible/handle:outline-ink group-aria-pressed/handle:outline-transparent motion-safe:group-active/handle:scale-95"
             />
           </button>
-          <div className="min-w-0 flex-1">
-            <h3 id={titleId} className="truncate text-sm/5 font-medium text-ink">
+          <div className="min-w-0 flex-1 pt-px pointer-coarse:pr-9">
+            <h3
+              id={titleId}
+              className="line-clamp-2 pr-7 text-sm/5 font-semibold text-pretty [overflow-wrap:anywhere] text-ink pointer-coarse:pr-0"
+            >
               {card.kind === "application" ? (
                 <Link
                   href={applicationHref(card.application.id)}
-                  className="underline-offset-4 hover:underline"
+                  className="decoration-ink/30 underline-offset-4 hover:underline"
                 >
-                  {role || company || name}
+                  {text.primary}
                 </Link>
               ) : (
-                role || company || name
+                text.primary
               )}
             </h3>
-            {role && company ? <p className="truncate text-xs/5 text-muted">{company}</p> : null}
+            {text.secondary ? (
+              <p
+                id={roleId}
+                className="mt-0.5 line-clamp-3 text-[13px]/[18px] text-pretty [overflow-wrap:anywhere] text-muted"
+              >
+                {text.secondary}
+              </p>
+            ) : null}
           </div>
+        </div>
+
+        <div
+          className={cn(
+            "absolute top-2 right-2 flex items-center gap-0.5 rounded-lg transition-opacity duration-150",
+            "pointer-fine:bg-surface pointer-fine:p-0.5 pointer-fine:opacity-0 pointer-fine:shadow-control pointer-fine:ring-1 pointer-fine:ring-ink/6",
+            "group-focus-within/card:opacity-100 group-hover/card:opacity-100 has-aria-expanded:opacity-100",
+            lifted && "invisible",
+          )}
+        >
           {next ? (
             <button
               type="button"
@@ -221,10 +227,13 @@ export function BoardCardView({
                 variant: "ghost",
                 size: "icon-sm",
                 className:
-                  "-my-0.5 size-7 text-muted opacity-0 transition-opacity group-focus-within/card:opacity-100 group-hover/card:opacity-100 hover:text-ink pointer-coarse:hidden",
+                  "group/next size-6 rounded-md text-muted hover:text-ink pointer-coarse:hidden [&_svg]:size-3.5",
               })}
             >
-              <ArrowRight aria-hidden />
+              <ArrowRight
+                aria-hidden
+                className="transition-transform motion-safe:group-hover/next:translate-x-0.5"
+              />
             </button>
           ) : null}
           <Menu
@@ -234,120 +243,35 @@ export function BoardCardView({
             triggerClassName={buttonClasses({
               variant: "ghost",
               size: "icon-sm",
-              className: "-my-0.5 -mr-1 size-7 text-muted hover:text-ink",
+              className:
+                "size-6 rounded-md text-muted hover:text-ink aria-expanded:bg-surface-muted aria-expanded:text-ink pointer-coarse:size-9",
             })}
             trigger={<Ellipsis aria-hidden />}
             items={menu}
           />
         </div>
 
-        <Marks card={card} now={now} hasLetter={hasLetter} />
+        {interviewAt !== null ? <InterviewTicket at={interviewAt} now={now} /> : null}
+        <CardMarks card={card} now={now} hasLetter={hasLetter} />
       </article>
     </li>
   );
 }
 
-const MARK_LINK =
-  "rounded-md -outline-offset-1 transition-opacity hover:opacity-80 focus-visible:outline-2 focus-visible:outline-ink";
+// One entrance per card on first paint, staggered down each column; nth-child keeps the selectors exclusive.
+const ENTER =
+  "motion-safe:nth-1:animate-[fade-in_220ms_ease-out_backwards] motion-safe:nth-2:animate-[fade-in_220ms_ease-out_40ms_backwards] motion-safe:nth-3:animate-[fade-in_220ms_ease-out_80ms_backwards] motion-safe:nth-4:animate-[fade-in_220ms_ease-out_120ms_backwards] motion-safe:nth-5:animate-[fade-in_220ms_ease-out_160ms_backwards] motion-safe:nth-[n+6]:animate-[fade-in_220ms_ease-out_200ms_backwards]";
 
-function Marks({ card, now, hasLetter }: { card: BoardCard; now: number; hasLetter: boolean }) {
-  const marks: { key: string; node: ReactNode }[] = [];
-  if (now > 0) {
-    const days = daysInStage(card, now);
-    const overdue = isOverdue(card, now);
-    const label = card.kind === "to_apply" ? `${days}d waiting` : `${days}d in stage`;
-    marks.push({
-      key: "days",
-      node: (
-        <Badge variant={overdue ? "fail" : "neutral"} className="h-5 px-1.5">
-          {overdue ? <Clock aria-hidden className="size-3 text-fail" /> : null}
-          {label}
-          {overdue ? <span className="sr-only">, overdue</span> : null}
-        </Badge>
-      ),
-    });
-  }
-  if (card.kind === "application") {
-    const { application } = card;
-    if (application.status === "rejected" || application.status === "no_reply") {
-      marks.push({
-        key: "ended",
-        node: (
-          <Badge className="h-5 px-1.5">
-            <StatusIcon status={application.status} className="size-3" />
-            {STATUS_NAMES[application.status]}
-          </Badge>
-        ),
-      });
-    }
-    if (application.status === "interview" && application.interviewAt) {
-      marks.push({
-        key: "interview",
-        node: (
-          <Badge className="h-5 px-1.5">
-            On {formatDay(application.interviewAt, now || application.interviewAt)}
-          </Badge>
-        ),
-      });
-    }
-    if (application.hasPrep) {
-      marks.push({
-        key: "prep",
-        node: (
-          <Link
-            href={interviewHref(application.id)}
-            className={MARK_LINK}
-            aria-label="Open interview prep"
-          >
-            <Badge className="h-5 px-1.5">
-              <MessagesSquare aria-hidden className="size-3" />
-              Prep
-            </Badge>
-          </Link>
-        ),
-      });
-    }
-  } else if (card.item.closed) {
-    marks.push({
-      key: "closed",
-      node: (
-        <Badge variant="warn" className="h-5 px-1.5">
-          Post closed
-        </Badge>
-      ),
-    });
-  }
-  if (hasLetter) {
-    const letter = (
-      <Badge className="h-5 px-1.5">
-        <FileText aria-hidden className="size-3" />
-        Letter
-      </Badge>
-    );
-    marks.push({
-      key: "letter",
-      node:
-        card.kind === "application" ? (
-          <Link
-            href={`${applicationHref(card.application.id)}#letters`}
-            className={MARK_LINK}
-            aria-label="Open the cover letter"
-          >
-            {letter}
-          </Link>
-        ) : (
-          letter
-        ),
-    });
-  }
-  if (marks.length === 0) return null;
-  return (
-    <ul aria-label="About this job" className="flex flex-wrap gap-1">
-      {marks.map((mark) => (
-        <li key={mark.key}>{mark.node}</li>
-      ))}
-    </ul>
-  );
+function cardText(card: BoardCard) {
+  const company = (
+    card.kind === "application" ? card.application.company : card.item.company
+  ).trim();
+  const role = (card.kind === "application" ? card.application.role : card.item.role).trim();
+  return {
+    company,
+    primary: company || role || cardName(card),
+    secondary: company && role ? role : "",
+  };
 }
 
 function links(
@@ -392,18 +316,19 @@ function links(
 }
 
 export function CardGhost({ card }: { card: BoardCard }) {
-  const company = card.kind === "application" ? card.application.company : card.item.company;
-  const role = card.kind === "application" ? card.application.role : card.item.role;
+  const text = cardText(card);
   return (
-    <div className="flex items-start gap-2.5 rounded-xl bg-surface p-2.5 shadow-float ring-1 ring-ink/8 motion-safe:rotate-2">
-      <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-surface-muted text-xs font-semibold text-muted">
-        {initials(company || cardName(card))}
-      </span>
-      <div className="min-w-0">
-        <p className="truncate text-sm/5 font-medium text-ink">
-          {role || company || cardName(card)}
+    <div className="flex items-start gap-2.5 rounded-xl bg-surface p-3 shadow-float ring-1 ring-ink/8 motion-safe:scale-[1.02] motion-safe:rotate-[1.5deg]">
+      <CompanyMark name={text.company || cardName(card)} size="md" />
+      <div className="min-w-0 pt-px">
+        <p className="line-clamp-2 text-sm/5 font-semibold text-pretty [overflow-wrap:anywhere] text-ink">
+          {text.primary}
         </p>
-        {role && company ? <p className="truncate text-xs/5 text-muted">{company}</p> : null}
+        {text.secondary ? (
+          <p className="mt-0.5 line-clamp-2 text-[13px]/[18px] text-pretty [overflow-wrap:anywhere] text-muted">
+            {text.secondary}
+          </p>
+        ) : null}
       </div>
     </div>
   );

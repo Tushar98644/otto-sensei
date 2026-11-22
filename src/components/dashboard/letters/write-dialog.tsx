@@ -29,6 +29,7 @@ import { WRITING_LIMITS, type Writing, type WritingKind } from "@/lib/writings/s
 import { useStudioActions } from "../use-studio-actions";
 import { defaultResume, type LetterEntry } from "./entries";
 import { KindPicker } from "./kind-picker";
+import { rememberPost, withRememberedPost } from "./post-memory";
 import { unsavedEntry, writeBody, type WriteResult } from "./write-save";
 import { ANOTHER_JOB, TargetPicker, WriteRow } from "./write-target-section";
 import { firstTarget, readTargetPost, writeTargets, type WriteTarget } from "./write-targets";
@@ -82,6 +83,8 @@ export type WriteDialogProps = {
   onClose: () => void;
   onWritten: (written: Written) => void;
   start?: { draft: TailorDraft; resumeId: string | null; applicationId: string };
+  // Opens on the paste form for a job not in the list.
+  fresh?: boolean;
 };
 
 function resumeNote(resume: Resume, picked: string | null, target: WriteTarget | null, sent?: string | null) {
@@ -103,6 +106,7 @@ export function WriteDialog({
   onClose,
   onWritten,
   start,
+  fresh = false,
 }: WriteDialogProps) {
   const { user, me, loading } = useMe();
   const actions = useStudioActions();
@@ -112,7 +116,7 @@ export function WriteDialog({
   const [questionError, setQuestionError] = useState<string | null>(null);
   const [resumeId, setResumeId] = useState<string | null>(start?.resumeId ?? null);
   const [picking, setPicking] = useState(false);
-  const [picked, setPicked] = useState<string | null>(null);
+  const [picked, setPicked] = useState<string | null>(fresh ? ANOTHER_JOB : null);
   // Posts read for a picked job, so writing again doesn't read the post again.
   const [posts, setPosts] = useState<Readonly<Record<string, string>>>({});
   const [pasteFor, setPasteFor] = useState<{ value: string; note: string } | null>(null);
@@ -126,7 +130,7 @@ export function WriteDialog({
   }, [open]);
 
   const targets = useMemo(
-    () => (start ? [] : writeTargets(applications, savedJobs, resumes)),
+    () => (start ? [] : writeTargets(applications, savedJobs, resumes).map(withRememberedPost)),
     [start, applications, savedJobs, resumes],
   );
   const target =
@@ -229,6 +233,7 @@ export function WriteDialog({
     if (!resume || writing.busy !== null || saving || !questionReady()) return;
     const result = await produce(resume, question.trim());
     if (!result) return;
+    if (target && job.text.trim()) rememberPost(target, job.text);
     const body = writeBody(
       result,
       {

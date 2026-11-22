@@ -7,7 +7,6 @@ import { openFeaturePrompt } from "@/components/account/upgrade-prompt";
 import { useSessionUserId } from "@/components/account/session-user";
 import { saveLookingForChoice, useWorkProfile } from "@/components/eligibility/use-work-profile";
 import { OTTO } from "@/components/mascot/lines";
-import { OttoNote } from "@/components/mascot/otto-note";
 import { JobsWorkPrompt } from "@/components/setup/jobs-work-prompt";
 import { useSetupGuess } from "@/components/setup/use-account-setup";
 import { useNow } from "@/components/studio/use-now";
@@ -33,6 +32,7 @@ import { JobFiltersBar } from "./job-filters";
 import {
   JobsHeader,
   JobsPager,
+  JobsSummary,
   LoadingCards,
   MoreWithPro,
   NoFilterMatches,
@@ -178,59 +178,70 @@ export function JobsPage() {
   const openingOffPage =
     busy?.action === "tailor" && !(data?.jobs.some((job) => job.id === busy.id) ?? false);
 
+  const lookingForLine =
+    lookingFor && profile && view === "matches" ? (
+      <LookingForCard
+        tone="inset"
+        value={lookingFor}
+        occupation={data?.lookingFor?.title === lookingFor.title ? (data.occupation ?? null) : null}
+        choice={choice}
+        roles={data?.roles ?? roleOptions(profile).map((role) => ({ ...role, occupation: null }))}
+        country={work.status === "ready" ? work.profile.country : ""}
+        saving={savingChoice}
+        onChange={(next) => void changeLookingFor(next)}
+      />
+    ) : null;
+
   return (
-    <div className="flex flex-col gap-8">
+    <div className="flex flex-col gap-6 sm:gap-8">
       <JobsHeader />
 
-      {message ? <OttoNote message={message} meta={meta} /> : null}
-
-      {lookingFor && profile && view === "matches" ? (
-        <LookingForCard
-          value={lookingFor}
-          occupation={
-            data?.lookingFor?.title === lookingFor.title ? (data.occupation ?? null) : null
-          }
-          choice={choice}
-          roles={data?.roles ?? roleOptions(profile).map((role) => ({ ...role, occupation: null }))}
-          country={work.status === "ready" ? work.profile.country : ""}
-          saving={savingChoice}
-          onChange={(next) => void changeLookingFor(next)}
-        />
+      {message || lookingForLine || state.status === "loading" ? (
+        <JobsSummary
+          tab={view === "saved" ? "Saved jobs" : "Your matches"}
+          message={message}
+          meta={meta}
+          loading={state.status === "loading" && !data}
+        >
+          {lookingForLine}
+        </JobsSummary>
       ) : null}
 
-      {locked ? null : (
-        <JobFiltersBar
-          resumes={resumes}
-          resumeId={resumeId}
-          onResume={(id) => changeFilters({ resumeId: id })}
-          view={view}
-          onView={(next) => {
-            setView(next);
-            setPage(1);
-          }}
-          savedCount={data?.savedCount ?? 0}
-          filters={filters}
-          onFilters={changeFilters}
-          onRemote={
-            work.status === "ready"
-              ? (remote) => void changeLookingFor({ ...choice, remote })
-              : null
-          }
-          profileReady={profileReady}
-        />
-      )}
+      <div className="flex flex-col gap-3 empty:hidden">
+        {locked ? null : (
+          <JobFiltersBar
+            resumes={resumes}
+            resumeId={resumeId}
+            onResume={(id) => changeFilters({ resumeId: id })}
+            view={view}
+            onView={(next) => {
+              setView(next);
+              setPage(1);
+            }}
+            savedCount={data?.savedCount ?? 0}
+            filters={filters}
+            onFilters={changeFilters}
+            onRemote={
+              work.status === "ready"
+                ? (remote) => void changeLookingFor({ ...choice, remote })
+                : null
+            }
+            profileReady={profileReady}
+          />
+        )}
 
-      {work.status === "ready" && pro === true && data && !locked ? (
-        <JobsWorkPrompt
-          due={
-            view === "matches" &&
-            jobsWorkPromptShows({ pro, locked, profile: work.profile, guess })
-          }
-          userId={work.userId}
-          profile={work.profile}
-          saved={work.updatedAt !== null}
-        />
-      ) : null}
+        {work.status === "ready" && pro === true && data && !locked ? (
+          <JobsWorkPrompt
+            due={
+              view === "matches" &&
+              jobsWorkPromptShows({ pro, locked, profile: work.profile, guess })
+            }
+            userId={work.userId}
+            profile={work.profile}
+            saved={work.updatedAt !== null}
+          />
+        ) : null}
+      </div>
 
       <div ref={listRef} tabIndex={-1} className="flex scroll-mt-24 flex-col gap-4 outline-none">
         {openingOffPage ? (
@@ -281,11 +292,12 @@ export function JobsPage() {
           ) : null
         ) : (
           <ul aria-busy={state.status === "loading"} className="flex flex-col gap-4">
-            {data.jobs.map((job) => {
+            {data.jobs.map((job, index) => {
               const label = labels.get(job.id);
               return (
                 <JobCard
                   key={job.id}
+                  index={index}
                   job={job}
                   now={now}
                   applied={label?.applied ?? null}

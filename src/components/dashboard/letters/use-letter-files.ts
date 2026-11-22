@@ -1,0 +1,50 @@
+"use client";
+
+import { useState } from "react";
+import { unlockProTool } from "@/components/account/pro-tools";
+import { usePageSize } from "@/components/studio/download/use-page-size";
+import { downloadBlob } from "@/components/studio/tailor/jump";
+import { toast } from "@/components/ui/toast";
+import { letterFileName } from "@/lib/pdf/letter";
+import { renderLetterPdf } from "@/lib/pdf/render";
+import type { Resume } from "@/lib/resume/schema";
+import { letterResume, type LetterEntry } from "./entries";
+
+export type LetterFile = "pdf" | "word";
+
+// The letter as a file under the resume's own header: PDF free with Pro's letters, Word as on the Download step.
+export function useLetterFiles(resumes: readonly Resume[]) {
+  const pageSize = usePageSize();
+  const [rendering, setRendering] = useState<{ key: string; file: LetterFile } | null>(null);
+
+  async function download(entry: LetterEntry, file: LetterFile, text = entry.text) {
+    if (rendering) return;
+    if (file === "word" && !(await unlockProTool("word"))) return;
+    setRendering({ key: entry.key, file });
+    const resume = letterResume(entry, resumes);
+    const name = letterFileName(resume.basics.name, entry.company);
+    try {
+      if (file === "pdf") {
+        downloadBlob(await renderLetterPdf(resume, text, { pageSize }), name);
+      } else {
+        const { buildLetterDocxBlob, docxFileName } = await import("@/lib/docx");
+        downloadBlob(await buildLetterDocxBlob(resume, text, { pageSize }), docxFileName(name));
+      }
+    } catch (error) {
+      console.error(`Letter ${file} build failed`, error);
+      toast({
+        title: file === "pdf" ? "Your PDF didn't come out" : "Your Word file didn't come out",
+        description: "Try again, or copy the letter instead.",
+        variant: "error",
+      });
+    } finally {
+      setRendering(null);
+    }
+  }
+
+  return {
+    download: (entry: LetterEntry, file: LetterFile, text?: string) =>
+      void download(entry, file, text),
+    rendering,
+  };
+}

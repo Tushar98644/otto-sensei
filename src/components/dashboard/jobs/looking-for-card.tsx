@@ -33,7 +33,7 @@ export type LookingForCardProps = {
   country: string;
   saving: boolean;
   onChange: (next: LookingForChoice) => void;
-  tone?: "card" | "plain";
+  tone?: "card" | "plain" | "inset";
   note?: string;
 };
 
@@ -42,6 +42,10 @@ const DEFAULT_NOTE =
 
 const TRIGGER =
   "inline-flex items-center gap-0.5 rounded-lg px-1.5 py-0.5 font-medium text-ink underline decoration-ink/30 decoration-dotted underline-offset-4 transition-colors hover:bg-ink/5 pointer-coarse:py-1.5";
+
+// Inside the Jobs summary card each part is a quiet key, so the line reads as the search it is.
+const CHIP =
+  "inline-flex min-h-8 max-w-full items-center gap-1 rounded-lg bg-surface-muted px-2.5 py-1 text-left font-medium text-ink transition-colors hover:bg-surface-strong aria-expanded:bg-surface-strong pointer-coarse:min-h-10 [&>svg]:shrink-0";
 
 const COMMON_PLACES: readonly PlaceChoice[] = [
   "c:US",
@@ -128,6 +132,7 @@ export function LookingForCard({
         ]),
   ];
 
+  const trigger = tone === "inset" ? CHIP : TRIGGER;
   const role = roleName(value, occupation?.name ?? null);
   const note = value.title ? occupationNote(value.title, occupation) : null;
 
@@ -176,16 +181,24 @@ export function LookingForCard({
       className={
         tone === "card"
           ? "flex flex-col gap-1 rounded-2xl bg-surface px-4 py-3 sm:px-6"
-          : "flex flex-col gap-1"
+          : tone === "inset"
+            ? "flex flex-col gap-2"
+            : "flex flex-col gap-1"
       }
     >
       {/* A div, not a p: each Menu renders its popover panel as a div, which a p can't hold. */}
-      <div className="flex flex-wrap items-center gap-x-1 gap-y-1 text-sm/6 text-muted">
-        <span>Looking for:</span>
+      <div
+        className={
+          tone === "inset"
+            ? "flex flex-wrap items-center gap-1.5 text-sm/5 text-muted"
+            : "flex flex-wrap items-center gap-x-1 gap-y-1 text-sm/6 text-muted"
+        }
+      >
+        <span className={tone === "inset" ? "mr-1" : undefined}>Looking for:</span>
         <Menu
           label="Level"
           triggerLabel={`Level: ${value.level ? LEVEL_NAMES[value.level] : "any"}. Change it`}
-          triggerClassName={TRIGGER}
+          triggerClassName={trigger}
           trigger={
             <>
               {value.level ? LEVEL_NAMES[value.level] : "Any level"}
@@ -197,21 +210,23 @@ export function LookingForCard({
         <Menu
           label="Role"
           triggerLabel={`Role: ${role}${note ? `, read as ${note}` : ""}. Change it`}
-          triggerClassName={TRIGGER}
+          triggerClassName={trigger}
           trigger={
             <>
-              {role}
-              {note ? <span className="font-normal text-muted">({note})</span> : null}
+              <span>
+                {role}
+                {note ? <span className="font-normal text-muted"> ({note})</span> : null}
+              </span>
               <ChevronDown aria-hidden className="size-3.5 text-subtle" />
             </>
           }
           items={roleItems}
         />
-        <span aria-hidden>·</span>
+        {tone === "inset" ? null : <span aria-hidden>·</span>}
         <Menu
           label="Place"
           triggerLabel={`Place: ${placeLine(value)}. Change it`}
-          triggerClassName={TRIGGER}
+          triggerClassName={trigger}
           trigger={
             <>
               {placeLine(value)}

@@ -1,23 +1,31 @@
 "use client";
 
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Copy, Printer, RefreshCw } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { errorMessage } from "@/components/account/errors";
+import { InterviewTicket } from "@/components/dashboard/applications/board/card/interview-ticket";
+import { AddToCalendar } from "@/components/dashboard/interview/add-to-calendar";
 import { OttoCheer } from "@/components/mascot/otto-cheer";
-import { OttoNote } from "@/components/mascot/otto-note";
 import { ROUTES } from "@/components/site/routes";
+import { useNow } from "@/components/studio/use-now";
 import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import { CompanyMark } from "@/components/ui/company-mark";
+import { Eyebrow } from "@/components/ui/eyebrow";
 import { Skeleton } from "@/components/ui/skeleton";
+import { toast } from "@/components/ui/toast";
 import { api, isApiError } from "@/lib/api/client";
 import { applicationHref } from "@/lib/applications/thread";
 import type { InterviewPrep, PrepTarget } from "@/lib/insights/prep";
-import { countBlanks } from "@/lib/insights/prep-view";
+import { countBlanks, prepToText } from "@/lib/insights/prep-view";
 import { useResumeList, useStudioHydrated } from "@/lib/store/resume-store";
 import { pluralize } from "@/lib/utils";
-import { PrepForm } from "./prep-form";
+import { useApplications } from "../use-applications";
+import { practiceKey } from "./practice-store";
+import { PrepForm, type PrepMade } from "./prep-form";
 import { PrepPack } from "./prep-pack";
+import { PrepPrintStyles } from "./prep-print";
 
 type Load =
   | { status: "loading" }
@@ -28,6 +36,19 @@ type Load =
 type BackLink = { href: string; label: string };
 
 const TO_APPLICATIONS: BackLink = { href: ROUTES.dashboardApplications, label: "Applications" };
+
+async function copyPack(prep: InterviewPrep, target: PrepTarget) {
+  try {
+    await navigator.clipboard.writeText(prepToText(prep, target));
+    toast({ title: "Copied", description: "Your whole prep is on the clipboard." });
+  } catch {
+    toast({
+      title: "Couldn't copy",
+      description: "Select the text and copy it instead.",
+      variant: "error",
+    });
+  }
+}
 
 export function InterviewPrepPage({
   applicationId,
@@ -40,11 +61,14 @@ export function InterviewPrepPage({
 }) {
   const hydrated = useStudioHydrated();
   const resumes = useResumeList();
+  const now = useNow();
+  const applications = useApplications();
   const [load, setLoad] = useState<Load>({ status: "loading" });
   const [attempt, setAttempt] = useState(0);
-  const [remaking, setRemaking] = useState(false);
+  const [remaking, setRemaking] = useState<false | "form" | "paste">(false);
   const [unsaved, setUnsaved] = useState(false);
   const [justMade, setJustMade] = useState(false);
+  const [fromTitle, setFromTitle] = useState(false);
 
   useEffect(() => {
     let live = true;
@@ -71,26 +95,49 @@ export function InterviewPrepPage({
     setAttempt((count) => count + 1);
   }
 
-  function done(prep: InterviewPrep, saved: boolean) {
+  function done({ prep, saved, fromTitle: titleOnly }: PrepMade) {
     setLoad((current) => (current.status === "ready" ? { ...current, prep } : current));
     setRemaking(false);
     setUnsaved(!saved);
     setJustMade(true);
+    setFromTitle(titleOnly);
+  }
+
+  function remake(mode: "form" | "paste") {
+    setRemaking(mode);
+    setJustMade(false);
   }
 
   const target = load.status === "ready" ? load.target : null;
   const prep = load.status === "ready" ? load.prep : null;
-  const role = target ? [target.role, target.company].filter(Boolean).join(" at ") : "";
+  const company = target?.company || prep?.job.company || "";
+  const role = target?.role || prep?.job.title || "";
+  const interviewAt =
+    applications.items.find((item) => item.id === applicationId)?.interviewAt ?? null;
+  const showPack = target !== null && prep !== null && remaking === false;
+  const stats = prep
+    ? [
+        pluralize(prep.questions.length, "question"),
+        pluralize(prep.stories.length, "story", "stories"),
+        countBlanks(prep) > 0 ? `${pluralize(countBlanks(prep), "blank")} to fill` : "",
+      ]
+        .filter(Boolean)
+        .join(" · ")
+    : "";
 
   return (
-    <div className="flex flex-col gap-8">
-      <header className="flex flex-col gap-4">
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+    <div data-prep-print className="flex flex-col gap-8">
+      {showPack ? <PrepPrintStyles /> : null}
+      <header className="flex flex-col gap-6">
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-2 print:hidden">
           <Link
             href={back.href}
             className="group inline-flex w-fit items-center gap-1 text-sm font-medium text-muted hover:text-ink"
           >
-            <ArrowLeft aria-hidden className="size-4 transition-transform group-hover:-translate-x-0.5" />
+            <ArrowLeft
+              aria-hidden
+              className="size-4 transition-transform group-hover:-translate-x-0.5"
+            />
             {back.label}
           </Link>
           {target && back.href !== applicationHref(applicationId) ? (
@@ -102,26 +149,61 @@ export function InterviewPrepPage({
             </Link>
           ) : null}
         </div>
-        <div className="flex items-end justify-between gap-6">
-          <div className="min-w-0">
-            <h1 className="font-display text-4xl/10 font-normal tracking-tight text-ink sm:text-5xl/13">
-              Interview prep
+        <div className="flex items-start gap-4 sm:gap-5">
+          {company ? (
+            <CompanyMark name={company} size="lg" className="mt-1 motion-safe:animate-fade-in" />
+          ) : null}
+          <div className="min-w-0 flex-1">
+            <Eyebrow>{company ? `Interview prep · ${company}` : "Interview prep"}</Eyebrow>
+            <h1 className="mt-2 font-display text-4xl/10 font-normal tracking-tight text-balance text-ink sm:text-5xl/13">
+              {role || company || "Interview prep"}
             </h1>
-            <p className="mt-2 max-w-prose text-base/7 text-muted">
-              {role || "Your interview, round by round, with stories from your own lines."}
-            </p>
+            <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-3">
+              {interviewAt !== null ? (
+                <div className="w-fit min-w-52">
+                  <InterviewTicket at={interviewAt} now={now} />
+                </div>
+              ) : null}
+              {stats && showPack ? (
+                <p className="text-sm/5 text-muted tabular-nums">{stats}</p>
+              ) : null}
+            </div>
           </div>
-          {justMade && prep && !remaking ? <OttoCheer /> : null}
+          {justMade && showPack ? <OttoCheer className="hidden sm:block print:hidden" /> : null}
         </div>
+        {showPack && target && prep ? (
+          <div className="flex flex-wrap items-center gap-2 print:hidden">
+            {interviewAt !== null ? (
+              <AddToCalendar interview={{ applicationId, company, role, interviewAt }} size="sm" />
+            ) : null}
+            <Button variant="secondary" size="sm" onClick={() => void copyPack(prep, target)}>
+              <Copy aria-hidden />
+              Copy all
+            </Button>
+            <Button variant="secondary" size="sm" onClick={() => window.print()}>
+              <Printer aria-hidden />
+              Print or save as PDF
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => remake("form")}
+              className="text-muted hover:text-ink"
+            >
+              <RefreshCw aria-hidden />
+              Make a new one
+            </Button>
+          </div>
+        ) : null}
       </header>
 
       {load.status === "loading" || !hydrated ? (
-        <div aria-busy className="flex flex-col gap-6">
+        <div aria-busy className="flex flex-col">
           <span className="sr-only" role="status">
             Loading your interview prep
           </span>
-          <Skeleton aria-hidden className="h-10 w-80 max-w-full" />
-          <Skeleton aria-hidden className="h-64 rounded-2xl bg-surface" />
+          <Skeleton aria-hidden className="h-8 w-40 rounded-t-xl rounded-b-none" />
+          <Skeleton aria-hidden className="h-64 rounded-2xl rounded-tl-none bg-surface" />
         </div>
       ) : load.status === "missing" ? (
         <Alert
@@ -147,34 +229,42 @@ export function InterviewPrepPage({
         >
           {load.message}
         </Alert>
-      ) : target && prep && !remaking ? (
+      ) : showPack && target && prep ? (
         <>
-          <OttoNote
-            meta={`${pluralize(prep.questions.length, "question")} · ${pluralize(prep.stories.length, "story", "stories")} · ${pluralize(countBlanks(prep), "blank")} to fill`}
-            message="I'll play the interviewer. Answer out loud, then fill the blanks in your words."
-          >
-            <Button
-              variant="secondary"
-              size="sm"
-              onClick={() => {
-                setRemaking(true);
-                setJustMade(false);
-              }}
-            >
-              Make a new one
-            </Button>
-          </OttoNote>
-          {prep.demo ? (
-            <Alert variant="info" className="bg-surface" title="Demo mode">
-              This is sample prep from common questions and your own lines. No AI was used.
-            </Alert>
+          {prep.demo || unsaved || fromTitle ? (
+            <div className="flex flex-col gap-3 print:hidden">
+              {fromTitle ? (
+                <Alert
+                  variant="info"
+                  className="bg-surface"
+                  title="Made from the job title"
+                  action={
+                    <Button variant="secondary" size="sm" onClick={() => remake("paste")}>
+                      Paste the post
+                    </Button>
+                  }
+                >
+                  The job post&apos;s link wouldn&apos;t open, so these questions come from the
+                  title alone. Paste the post for sharper ones.
+                </Alert>
+              ) : null}
+              {prep.demo ? (
+                <Alert variant="info" className="bg-surface" title="Demo mode">
+                  This is sample prep from common questions and your own lines. No AI was used.
+                </Alert>
+              ) : null}
+              {unsaved ? (
+                <Alert variant="warn" title="Not saved to this application">
+                  Copy it now: it will be gone when you leave this page.
+                </Alert>
+              ) : null}
+            </div>
           ) : null}
-          {unsaved ? (
-            <Alert variant="warn" title="Not saved to this application">
-              Copy it now: it will be gone when you leave this page.
-            </Alert>
-          ) : null}
-          <PrepPack prep={prep} target={target} />
+          <PrepPack
+            prep={prep}
+            target={target}
+            storageKey={practiceKey(applicationId, prep.createdAt)}
+          />
         </>
       ) : target ? (
         <PrepForm
@@ -183,6 +273,7 @@ export function InterviewPrepPage({
           onDone={done}
           onCancel={prep ? () => setRemaking(false) : undefined}
           autoStart={autoStart}
+          startPasting={remaking === "paste"}
         />
       ) : null}
     </div>

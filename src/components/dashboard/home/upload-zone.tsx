@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useProTools } from "@/components/account/pro-tools";
 import { OTTO } from "@/components/mascot/lines";
+import { Otto } from "@/components/mascot/otto";
 import { openStudioWithFile } from "@/components/match-check/open-studio";
 import { ROUTES } from "@/components/site/routes";
 import { UPLOAD_ACCEPT } from "@/components/studio/upload/upload-handoff";
@@ -28,13 +29,24 @@ export function UploadZone({ actions, hasSample }: { actions: StudioActions; has
         return;
       }
     } catch {
-      toast({ title: "Couldn't open the studio", description: OTTO.errors.generic, variant: "error" });
+      toast({
+        title: "Couldn't open the studio",
+        description: OTTO.errors.generic,
+        variant: "error",
+      });
     }
     setOpening(false);
   }
 
   return (
-    <div className="flex flex-col gap-2">
+    <div className="relative flex flex-col gap-2 pt-11">
+      {/* Clipped just under his paws, so he rises from behind the zone's top edge. */}
+      <span
+        aria-hidden
+        className="pointer-events-none absolute top-0 right-6 h-12.5 w-20 overflow-hidden sm:right-10"
+      >
+        <Otto pose="peek" size={80} className="motion-safe:animate-otto-peek" />
+      </span>
       <Dropzone
         onFile={(file) => void take(file)}
         onReject={(message) =>
@@ -46,7 +58,9 @@ export function UploadZone({ actions, hasSample }: { actions: StudioActions; has
         label="Upload your resume, a PDF or Word file"
         className="gap-2 px-4 py-8"
       >
-        <FileUp className="size-6 text-ink" aria-hidden />
+        <span className="mb-1 flex size-11 items-center justify-center rounded-xl bg-surface shadow-control ring-1 ring-ink/8">
+          <FileUp className="size-5 text-ink" aria-hidden />
+        </span>
         <p className="font-medium text-ink">
           {opening ? "Opening the studio" : "Drop your resume here, or choose a file"}
         </p>

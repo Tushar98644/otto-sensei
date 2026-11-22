@@ -28,3 +28,11 @@ export function startsByItself({ asked, pro, usage, resumes, jobKnown }: StartFa
   if (!asked || pro !== true || !jobKnown || resumes === 0) return false;
   return !usage || usage.used < usage.limit;
 }
+
+// What Otto knows when the post can't be read: said as a fact, long enough for the request's minimum.
+export function titleOnlyPost({ role, company }: { role: string; company: string }): string | null {
+  const title = role.trim();
+  if (!title) return null;
+  const job = company.trim() ? `${title} at ${company.trim()}` : title;
+  return `${job}.\n\nOnly the job title and company are known for this job: its full post couldn't be read.`;
+}

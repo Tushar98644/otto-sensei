@@ -7,9 +7,13 @@ import {
   checkedLabel,
   defaultResumeId,
   matchingResumeId,
+  matchLead,
   placeLine,
+  placeParts,
   postedLabel,
   readsLink,
+  skillList,
+  splitLead,
   tailoredFor,
   tailorLink,
 } from "./view";
@@ -111,5 +115,42 @@ describe("moreWithProCopy", () => {
     });
     expect(moreWithProCopy(3, 3, 19_325).title).toBe("Your 3 matches so far");
     expect(moreWithProCopy(1, 1, 19_325).title).toBe("Your match so far");
+  });
+});
+
+describe("job card copy", () => {
+  it("leads with the kind-of-work sentence only when no skills were found", () => {
+    const reason = "The same occupation as yours: Web designer. Not found: Go, Rust.";
+    expect(matchLead({ found: [], missing: ["Go", "Rust"], reason })).toBe(
+      "The same occupation as yours: Web designer.",
+    );
+    expect(
+      matchLead({ found: ["Figma"], missing: [], reason: "Found in your resume: Figma." }),
+    ).toBeNull();
+    expect(
+      matchLead({
+        found: [],
+        missing: [],
+        reason: "Like an earlier role on your resume. The post names no tools to compare.",
+      }),
+    ).toBe("Like an earlier role on your resume. The post names no tools to compare.");
+  });
+
+  it("caps skill chips and counts the rest", () => {
+    expect(skillList(["a", "b", "c", "d"], 3)).toEqual({ shown: ["a", "b", "c"], more: 1 });
+    expect(skillList(["a"], 3)).toEqual({ shown: ["a"], more: 0 });
+  });
+
+  it("splits Otto's line after its first sentence", () => {
+    expect(splitLead("I found 1,114 jobs that match your resume. 4 look strong.")).toEqual({
+      lead: "I found 1,114 jobs that match your resume.",
+      rest: "4 look strong.",
+    });
+    expect(splitLead("Nothing saved yet")).toEqual({ lead: "Nothing saved yet", rest: "" });
+    expect(placeParts({ location: "Berlin", remote: true, employmentType: "contract" })).toEqual([
+      "Remote",
+      "Berlin",
+      "Contract",
+    ]);
   });
 });

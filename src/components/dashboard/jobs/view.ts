@@ -2,7 +2,7 @@ import type { Application } from "@/lib/applications/schema";
 import { applicationForJob, copyForJob } from "@/lib/applications/thread";
 import { countClaim } from "@/lib/job-feed/counts";
 import { SOURCE_INFO } from "@/lib/job-feed/sources";
-import { EMPLOYMENT_LABELS, type FeedJob } from "@/lib/job-feed/types";
+import { EMPLOYMENT_LABELS, type FeedJob, type JobMatch } from "@/lib/job-feed/types";
 import type { Resume } from "@/lib/resume/schema";
 import { DAY_MS } from "@/lib/time";
 
@@ -70,12 +70,35 @@ type Placed = Pick<FeedJob, "location" | "remote" | "employmentType"> & {
   morePlaces?: number;
 };
 
-export function placeLine(job: Placed): string {
+export function placeParts(job: Placed): string[] {
   const places = [job.location.trim(), ...(job.otherPlaces ?? [])].filter(Boolean).join(", ");
   const parts = [places && job.morePlaces ? `${places} (+${job.morePlaces})` : places];
   if (job.remote && !/\bremote\b/i.test(places)) parts.unshift("Remote");
   if (job.employmentType) parts.push(EMPLOYMENT_LABELS[job.employmentType]);
-  return parts.filter(Boolean).join(" · ");
+  return parts.filter(Boolean);
+}
+
+export function placeLine(job: Placed): string {
+  return placeParts(job).join(" · ");
+}
+
+export type SkillList = { shown: string[]; more: number };
+
+export function skillList(items: readonly string[], max: number): SkillList {
+  return { shown: items.slice(0, max), more: Math.max(0, items.length - max) };
+}
+
+// With no skills found, the reason opens with a sentence about the kind of work; the chips show the rest.
+export function matchLead(match: Pick<JobMatch, "found" | "missing" | "reason">): string | null {
+  if (match.found.length > 0) return null;
+  return match.reason.replace(/\s*Not found:.*$/s, "").trim() || null;
+}
+
+// Otto's line: the first sentence leads, the rest follows quieter.
+export function splitLead(message: string): { lead: string; rest: string } {
+  const at = message.search(/[.!?]\s/);
+  if (at === -1) return { lead: message, rest: "" };
+  return { lead: message.slice(0, at + 1), rest: message.slice(at + 2).trim() };
 }
 
 export function checkedLabel(checkedAt: number | null, now: number): string | null {

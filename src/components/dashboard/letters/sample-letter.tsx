@@ -1,8 +1,9 @@
 import { useId } from "react";
-import { FolderCard } from "@/components/ui/folder-card";
+import { Paper, PaperHead } from "./letter-paper";
 
 // Written by hand from the Jordan Ellis sample resume (lib/resume/sample.ts), so every fact is one of its lines.
 const SAMPLE_JOB = "Senior Product Marketing Manager";
+const SAMPLE_CONTACT = "jordan.ellis@example.com  ·  +1 555 014 2398  ·  Remote";
 
 const SAMPLE_LETTER: readonly string[] = [
   "Dear hiring team,",
@@ -15,20 +16,17 @@ const SAMPLE_LETTER: readonly string[] = [
 export function SampleLetter() {
   const headingId = useId();
   return (
-    <section aria-labelledby={headingId}>
-      <FolderCard
-        tab="Example"
-        tabEnd={<span className="text-xs text-subtle">Jordan Ellis, a sample resume</span>}
-        bodyClassName="p-5 sm:p-8"
-      >
-        <div className="flex flex-col gap-6 mask-b-from-60%">
-          <div className="flex flex-col gap-1">
-            <h2 id={headingId} className="font-sans text-lg/7 font-medium text-ink">
-              Cover letter for {SAMPLE_JOB}
-            </h2>
-            <p className="text-sm/6 text-muted">Every fact comes from the resume. Nothing is made up.</p>
-          </div>
-          <div className="flex max-w-prose flex-col gap-4 text-base/7 text-pretty text-ink">
+    <section aria-labelledby={headingId} className="flex flex-col gap-4">
+      <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 px-1">
+        <h2 id={headingId} className="font-sans text-base/6 font-medium text-ink">
+          An example: cover letter for {SAMPLE_JOB}
+        </h2>
+        <p className="text-sm/6 text-muted">From Jordan Ellis, a sample resume. Nothing made up.</p>
+      </div>
+      <Paper className="mask-b-from-55% lg:max-w-[46rem]">
+        <div className="flex flex-col gap-7">
+          <PaperHead name="Jordan Ellis" contact={SAMPLE_CONTACT} />
+          <div className="flex flex-col gap-5 font-display text-[1.1875rem]/8 text-pretty text-ink">
             {SAMPLE_LETTER.map((paragraph) => (
               <p key={paragraph} className="whitespace-pre-line">
                 {paragraph}
@@ -36,7 +34,7 @@ export function SampleLetter() {
             ))}
           </div>
         </div>
-      </FolderCard>
+      </Paper>
     </section>
   );
 }

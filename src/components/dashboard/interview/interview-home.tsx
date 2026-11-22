@@ -1,32 +1,67 @@
 "use client";
 
-import { MessagesSquare, Plus } from "lucide-react";
-import Link from "next/link";
-import { useId, useMemo, useRef, useState } from "react";
+import { ArrowRight, Plus } from "lucide-react";
+import { useMemo, useRef, useState, type ReactNode } from "react";
 import { useProTools, useTryProLabel } from "@/components/account/pro-tools";
 import { LazyUpgradeDialog } from "@/components/account/lazy-dialogs";
 import { useMe } from "@/components/account/use-me";
 import { OTTO } from "@/components/mascot/lines";
-import { OttoNote } from "@/components/mascot/otto-note";
 import { useNow } from "@/components/studio/use-now";
 import { Alert } from "@/components/ui/alert";
-import { Badge } from "@/components/ui/badge";
-import { Button, buttonClasses } from "@/components/ui/button";
+import { Button } from "@/components/ui/button";
+import { Eyebrow } from "@/components/ui/eyebrow";
 import { FolderCard } from "@/components/ui/folder-card";
 import { Skeleton } from "@/components/ui/skeleton";
-import type { Application } from "@/lib/applications/schema";
-import { applicationHref } from "@/lib/applications/thread";
-import type { PrepSummary } from "@/lib/insights/prep";
 import { useResumeList } from "@/lib/store/resume-store";
-import { pluralize } from "@/lib/utils";
+import { cn, pluralize } from "@/lib/utils";
+import { prepAllowance } from "../applications/prep/prep-start";
 import { useApplications } from "../applications/use-applications";
-import { formatDay } from "../applications/view";
+import { FeaturedInterview, InterviewTile, PackCard, type PrepareAction } from "./interview-cards";
+import { CueCardsArt } from "./interview-art";
 import { LazyPrepareDialog } from "./lazy-prepare-dialog";
 import { SamplePack } from "./sample-pack";
 import { usePrepPacks } from "./use-prep-packs";
-import { interviewDayLine, interviewHref, waitingForPrep } from "./view";
+import { interviewEntries } from "./view";
 
 const count = new Intl.NumberFormat("en-US");
+const TAB_HEADING = "font-sans text-xs/4 font-medium";
+
+function Tally({ value, noun }: { value: number; noun: [string, string] }) {
+  return (
+    <span className="text-xs text-subtle tabular-nums">
+      {count.format(value)} {value === 1 ? noun[0] : noun[1]}
+    </span>
+  );
+}
+
+// Empty and locked states share the featured layout, so they feel like the same place.
+function Invitation({
+  eyebrow,
+  title,
+  detail,
+  children,
+}: {
+  eyebrow: string;
+  title: string;
+  detail: string;
+  children: ReactNode;
+}) {
+  return (
+    <div className="group/art group/otto grid gap-2 motion-safe:animate-fade-in sm:grid-cols-[minmax(0,15rem)_minmax(0,1fr)] md:grid-cols-[17rem_minmax(0,1fr)]">
+      <CueCardsArt className="h-40 sm:h-full sm:min-h-48" />
+      <div className="flex min-w-0 flex-col items-start gap-4 px-2 pt-2 pb-2 sm:justify-center sm:px-4 sm:py-5 lg:px-6">
+        <div className="flex flex-col gap-2">
+          <Eyebrow>{eyebrow}</Eyebrow>
+          <p className="font-display text-2xl/8 font-normal tracking-tight text-pretty text-ink sm:text-3xl/9">
+            {title}
+          </p>
+          <p className="max-w-prose text-sm/6 text-pretty text-muted">{detail}</p>
+        </div>
+        <div className="flex w-full flex-wrap gap-2">{children}</div>
+      </div>
+    </div>
+  );
+}
 
 export function InterviewHome() {
   const now = useNow();
@@ -35,18 +70,28 @@ export function InterviewHome() {
   const resumes = useResumeList();
   const pro = useProTools();
   const locked = pro === false;
-  const { loading: planLoading } = useMe();
+  const { me, loading: planLoading } = useMe();
   const tryPro = useTryProLabel();
   const [upgradeOpen, setUpgradeOpen] = useState(false);
   const [dialog, setDialog] = useState<{ key: number; open: boolean } | null>(null);
   const openings = useRef(0);
 
-  const waiting = useMemo(
-    () => (locked ? [] : waitingForPrep(applications.items, packs.items, now)),
-    [locked, applications.items, packs.items, now],
+  const entries = useMemo(
+    () => interviewEntries(applications.items, packs.items, now),
+    [applications.items, packs.items, now],
+  );
+  const shown = useMemo(() => new Set(entries.map((entry) => entry.application.id)), [entries]);
+  const otherPacks = useMemo(
+    () => packs.items.filter((pack) => !shown.has(pack.applicationId)),
+    [packs.items, shown],
   );
   const ready = packs.status === "ready" && applications.status !== "loading";
-  const empty = ready && packs.items.length === 0 && waiting.length === 0;
+  const empty = ready && packs.items.length === 0 && entries.length === 0;
+  const action: PrepareAction = { locked, onLocked: () => setUpgradeOpen(true) };
+  const allowance = prepAllowance(me?.usage?.letter, me?.period);
+  const [first, ...rest] = entries;
+  const firstAt = first?.application.interviewAt ?? null;
+  const ahead = firstAt !== null && now > 0 && new Date(firstAt).setHours(23, 59, 59, 999) >= now;
 
   function start() {
     if (locked) {
@@ -58,34 +103,25 @@ export function InterviewHome() {
   }
 
   return (
-    <div className="flex flex-col gap-8">
+    <div className="flex flex-col gap-10">
       <header className="flex flex-wrap items-end justify-between gap-x-6 gap-y-4">
         <div className="min-w-0">
           <h1 className="font-display text-4xl/10 font-normal tracking-tight text-ink sm:text-5xl/13">
             Interview prep
           </h1>
-          <p className="mt-2 max-w-prose text-base/7 text-muted">
+          <p className="mt-2 max-w-prose text-base/7 text-pretty text-muted">
             {ready && packs.items.length > 0
               ? `${pluralize(packs.items.length, "prep pack")}, one per job, built from your own resume lines.`
               : "For each job you interview for: likely questions, stories from your own resume lines, and questions to ask them."}
           </p>
         </div>
         {pro === true && ready && !empty ? (
-          <Button onClick={start}>
+          <Button variant="secondary" onClick={start}>
             <Plus aria-hidden />
             Prepare for a job
           </Button>
         ) : null}
       </header>
-
-      {locked && ready ? (
-        <OttoNote
-          live={false}
-          message={packs.items.length > 0 ? OTTO.interview.lockedKept : OTTO.interview.locked}
-        >
-          <Button onClick={() => setUpgradeOpen(true)}>{tryPro}</Button>
-        </OttoNote>
-      ) : null}
 
       {packs.status === "error" ? (
         <Alert
@@ -101,58 +137,103 @@ export function InterviewHome() {
         </Alert>
       ) : !ready || (empty && planLoading) ? (
         <LoadingState />
-      ) : empty ? (
-        locked ? (
-          <SamplePack />
-        ) : (
-          <div className="rounded-2xl bg-surface p-6 sm:p-8">
-            <OttoNote live={false} message={OTTO.interview.empty}>
-              <Button onClick={start}>
-                <Plus aria-hidden />
-                Prepare for a job
-              </Button>
-            </OttoNote>
-          </div>
-        )
       ) : (
         <>
-          {waiting.length > 0 ? (
-            <section aria-labelledby="waiting-heading" className="flex flex-col gap-4">
-              <h2 id="waiting-heading" className="font-sans text-lg/7 font-medium text-ink">
-                Interviews without prep
-              </h2>
-              <FolderCard
-                tab="Interview stage"
-                tabEnd={<Tally value={waiting.length} />}
-                bodyClassName="px-4 py-0 sm:px-6"
+          {locked ? (
+            <FolderCard
+              tab={<h2 className={TAB_HEADING}>Interview prep</h2>}
+              tone="lavender"
+              bodyClassName="p-2"
+            >
+              <Invitation
+                eyebrow="Comes with Pro"
+                title="Practise every interview before it happens"
+                detail={packs.items.length > 0 ? OTTO.interview.lockedKept : OTTO.interview.locked}
               >
-                <ul className="divide-y divide-border">
-                  {waiting.map((application) => (
-                    <WaitingRow key={application.id} application={application} now={now} />
+                <Button onClick={() => setUpgradeOpen(true)} className="max-sm:flex-1">
+                  {tryPro}
+                  <ArrowRight aria-hidden />
+                </Button>
+              </Invitation>
+            </FolderCard>
+          ) : empty ? (
+            <FolderCard
+              tab={<h2 className={TAB_HEADING}>Interview prep</h2>}
+              tone="lavender"
+              bodyClassName="p-2"
+            >
+              <Invitation
+                eyebrow="No interviews yet"
+                title="Your next interview, prepped in one click"
+                detail="When an application reaches the interview stage, it waits here with a Prepare key. Or prep for any job now from its link."
+              >
+                <Button onClick={start} className="max-sm:flex-1">
+                  <Plus aria-hidden />
+                  Prepare for a job
+                </Button>
+              </Invitation>
+            </FolderCard>
+          ) : null}
+
+          {first ? (
+            <section aria-labelledby="interviews-heading" className="flex flex-col gap-4">
+              <FolderCard
+                tab={
+                  <h2 id="interviews-heading" className={TAB_HEADING}>
+                    {ahead ? "Next interview" : "At the interview stage"}
+                  </h2>
+                }
+                tone={locked ? "plain" : "lavender"}
+                tabEnd={
+                  entries.length > 1 ? (
+                    <Tally value={entries.length} noun={["interview", "interviews"]} />
+                  ) : null
+                }
+                bodyClassName="p-2"
+              >
+                <FeaturedInterview entry={first} now={now} action={action} allowance={allowance} />
+              </FolderCard>
+              {rest.length > 0 ? (
+                <ul
+                  aria-label="More interviews"
+                  className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3"
+                >
+                  {rest.map((entry, index) => (
+                    <InterviewTile
+                      key={entry.application.id}
+                      entry={entry}
+                      now={now}
+                      action={action}
+                      index={index}
+                    />
                   ))}
                 </ul>
-              </FolderCard>
+              ) : null}
             </section>
           ) : null}
 
-          {packs.items.length > 0 ? (
+          {otherPacks.length > 0 ? (
             <section aria-labelledby="packs-heading" className="flex flex-col gap-4">
-              <h2 id="packs-heading" className="font-sans text-lg/7 font-medium text-ink">
-                Your prep
-              </h2>
-              <FolderCard
-                tab="Prep packs"
-                tabEnd={<Tally value={packs.items.length} />}
-                bodyClassName="px-4 py-0 sm:px-6"
+              <div className="flex items-end justify-between gap-4">
+                <h2 id="packs-heading" className="font-sans text-lg/7 font-medium text-ink">
+                  {first ? "More prep packs" : "Your prep packs"}
+                </h2>
+                <Tally value={otherPacks.length} noun={["pack", "packs"]} />
+              </div>
+              <ul
+                className={cn(
+                  "grid gap-x-5 gap-y-8 sm:grid-cols-2",
+                  otherPacks.length > 2 && "xl:grid-cols-3",
+                )}
               >
-                <ul className="divide-y divide-border">
-                  {packs.items.map((pack) => (
-                    <PackRow key={pack.applicationId} pack={pack} now={now} />
-                  ))}
-                </ul>
-              </FolderCard>
+                {otherPacks.map((pack, index) => (
+                  <PackCard key={pack.applicationId} pack={pack} now={now} index={index} />
+                ))}
+              </ul>
             </section>
           ) : null}
+
+          {locked && packs.items.length === 0 ? <SamplePack /> : null}
         </>
       )}
 
@@ -169,82 +250,14 @@ export function InterviewHome() {
   );
 }
 
-function Tally({ value }: { value: number }) {
-  return <span className="text-xs text-subtle tabular-nums">{count.format(value)}</span>;
-}
-
-function PackRow({ pack, now }: { pack: PrepSummary; now: number }) {
-  const titleId = useId();
-  const meta = [
-    pluralize(pack.questions, "question"),
-    pluralize(pack.stories, "story", "stories"),
-    `Made ${formatDay(pack.createdAt, now)}`,
-  ].join(" · ");
-  return (
-    <li className="flex flex-col gap-3 py-4 md:flex-row md:items-center md:gap-6">
-      <div className="min-w-0 flex-1">
-        <div className="flex min-w-0 items-center gap-2">
-          <h3 id={titleId} className="truncate text-base/6 font-medium text-ink">
-            {pack.company}
-          </h3>
-          {pack.demo ? <Badge className="shrink-0">Demo</Badge> : null}
-        </div>
-        {pack.role ? <p className="truncate text-sm/5 text-muted">{pack.role}</p> : null}
-        <p className="mt-1 text-xs/5 text-subtle">{meta}</p>
-      </div>
-      <div className="flex flex-wrap items-center gap-2">
-        <Link
-          href={interviewHref(pack.applicationId)}
-          aria-describedby={titleId}
-          className={buttonClasses({ variant: "secondary", size: "sm" })}
-        >
-          Open
-        </Link>
-        <Link
-          href={applicationHref(pack.applicationId)}
-          aria-describedby={titleId}
-          className={buttonClasses({ variant: "ghost", size: "sm", className: "text-muted hover:text-ink" })}
-        >
-          Application
-        </Link>
-      </div>
-    </li>
-  );
-}
-
-function WaitingRow({ application, now }: { application: Application; now: number }) {
-  const titleId = useId();
-  return (
-    <li className="flex flex-col gap-3 py-4 md:flex-row md:items-center md:gap-6">
-      <div className="min-w-0 flex-1">
-        <h3 id={titleId} className="truncate text-base/6 font-medium text-ink">
-          {application.company}
-        </h3>
-        {application.role ? (
-          <p className="truncate text-sm/5 text-muted">{application.role}</p>
-        ) : null}
-        <p className="mt-1 text-xs/5 text-subtle">{interviewDayLine(application.interviewAt, now)}</p>
-      </div>
-      <Link
-        href={interviewHref(application.id, { start: true })}
-        aria-describedby={titleId}
-        className={buttonClasses({ size: "sm", className: "self-start md:self-auto" })}
-      >
-        <MessagesSquare aria-hidden />
-        Prepare
-      </Link>
-    </li>
-  );
-}
-
 function LoadingState() {
   return (
-    <div aria-busy className="flex flex-col gap-4">
+    <div aria-busy className="flex flex-col">
       <span className="sr-only" role="status">
         Loading your interview prep
       </span>
       <Skeleton aria-hidden className="h-8 w-40 rounded-t-xl rounded-b-none" />
-      <Skeleton aria-hidden className="h-48 rounded-2xl bg-surface" />
+      <Skeleton aria-hidden className="h-56 rounded-2xl rounded-tl-none bg-surface" />
     </div>
   );
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, type ReactNode } from "react";
+import { useMemo, useState, type CSSProperties, type ReactNode } from "react";
 import { roomForCopyOf } from "@/components/account/pro-tools";
 import { useNow } from "@/components/studio/use-now";
 import { Lazy, lazyComponent, useOpenedOnce } from "@/components/ui/lazy";
@@ -13,6 +13,11 @@ import { cn } from "@/lib/utils";
 import { tailoredCounts } from "./library";
 import { ResumeCard, cardId } from "./resume-card";
 import type { StudioActions } from "./use-studio-actions";
+
+// Cards arrive one after another on first paint; past the first row they come together.
+function enter(index: number): CSSProperties {
+  return { animationDelay: `${Math.min(index, 3) * 60}ms` };
+}
 
 const renameDialog = lazyComponent(() => import("./rename-dialog").then((m) => m.RenameDialog));
 
@@ -56,11 +61,16 @@ export function ResumeGrid({
       <ul
         className={cn("grid grid-cols-1 gap-x-5 gap-y-8 sm:grid-cols-2 xl:grid-cols-3", className)}
       >
-        {resumes.map((resume) => {
+        {resumes.map((resume, index) => {
           const baseId = resume.tailor?.baseResumeId;
           const base = baseId && baseId !== resume.id ? (byId.get(baseId) ?? null) : null;
           return (
-            <li key={resume.id} id={cardId(resume.id)} className="scroll-mt-24">
+            <li
+              key={resume.id}
+              id={cardId(resume.id)}
+              className="scroll-mt-24 motion-safe:animate-fade-in"
+              style={enter(index)}
+            >
               <ResumeCard
                 resume={resume}
                 base={base}
@@ -77,7 +87,14 @@ export function ResumeGrid({
           );
         })}
         {/* A single column on phones leaves no row to fill. */}
-        {end ? <li className="hidden flex-col sm:flex">{end}</li> : null}
+        {end ? (
+          <li
+            className="hidden flex-col motion-safe:animate-fade-in sm:flex"
+            style={enter(resumes.length)}
+          >
+            {end}
+          </li>
+        ) : null}
       </ul>
 
       <Lazy

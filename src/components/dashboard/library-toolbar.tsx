@@ -40,13 +40,13 @@ export function LibraryToolbar({
   const parts = toolbarParts(counts, { query, filter, sort });
   if (!parts.filters && !parts.search) return null;
   return (
-    <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
+    <div className="flex flex-col gap-3 motion-safe:animate-fade-in xl:flex-row xl:items-center xl:justify-between">
       {parts.filters ? (
         <div className="-mx-4 overflow-x-auto px-4 sm:mx-0 sm:px-0">
           <div
             role="group"
             aria-label="Show"
-            className="flex w-max gap-1 rounded-xl bg-surface-strong p-1"
+            className="flex w-max gap-1 rounded-xl bg-surface-strong p-1 shadow-[inset_0_1px_2px_rgb(18_36_29/0.06)]"
           >
             {LIBRARY_FILTERS.map((item) => {
               const selected = item === filter;
@@ -57,10 +57,10 @@ export function LibraryToolbar({
                   type="button"
                   aria-pressed={selected}
                   onClick={() => onFilterChange(item)}
-                  className="flex h-9 shrink-0 items-center gap-1.5 rounded-lg px-3 text-sm font-medium text-muted -outline-offset-2 transition-colors hover:text-ink aria-pressed:bg-surface aria-pressed:text-ink aria-pressed:shadow-control pointer-coarse:h-10"
+                  className="group/seg flex h-9 shrink-0 items-center gap-2 rounded-lg pr-2 pl-3 text-sm font-medium text-muted -outline-offset-2 transition-[color,background-color,box-shadow] duration-200 hover:bg-surface/50 hover:text-ink aria-pressed:bg-surface aria-pressed:text-ink aria-pressed:shadow-control aria-pressed:ring-1 aria-pressed:ring-ink/5 pointer-coarse:h-10"
                 >
                   {FILTER_LABELS[item]}
-                  <span className="text-xs text-muted tabular-nums">
+                  <span className="flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-xs/4 text-muted tabular-nums transition-colors group-aria-pressed/seg:bg-surface-muted group-aria-pressed/seg:text-ink">
                     {count.format(counts[item])}
                   </span>
                 </button>

@@ -17,7 +17,7 @@ const count = new Intl.NumberFormat("en-US");
 const TYPE_DELAY_MS = 350;
 
 const SEGMENT =
-  "flex h-9 shrink-0 items-center gap-1.5 rounded-lg px-3 text-sm font-medium text-muted -outline-offset-2 transition-colors hover:text-ink aria-pressed:bg-surface aria-pressed:text-ink aria-pressed:shadow-control pointer-coarse:h-10";
+  "flex h-9 shrink-0 items-center gap-1.5 rounded-lg px-3 text-sm font-medium text-muted -outline-offset-2 transition-colors hover:text-ink aria-pressed:bg-surface aria-pressed:text-ink aria-pressed:shadow-control aria-pressed:ring-1 aria-pressed:ring-ink/5 pointer-coarse:h-10";
 const CHECKBOX = "flex min-h-11 items-center gap-2 text-sm text-ink";
 
 function SearchInput({ value, onCommit }: { value: string; onCommit: (value: string) => void }) {
@@ -135,7 +135,9 @@ export function JobFiltersBar({
             className={SEGMENT}
           >
             Saved
-            <span className="text-xs text-muted tabular-nums">{count.format(savedCount)}</span>
+            <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-ink/6 px-1.5 text-xs/none text-muted tabular-nums">
+              {count.format(savedCount)}
+            </span>
           </button>
         </div>
         {view === "matches" ? (
@@ -150,7 +152,7 @@ export function JobFiltersBar({
               <SlidersHorizontal aria-hidden />
               Filters
               {active > 0 ? (
-                <span className="text-xs text-muted tabular-nums">
+                <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1.5 text-xs/none text-white tabular-nums">
                   {count.format(active)}
                   <span className="sr-only"> on</span>
                 </span>
@@ -166,7 +168,7 @@ export function JobFiltersBar({
 
       <div id={`${ids}-panel`}>
         {view === "matches" && open ? (
-          <div className="grid gap-3 rounded-2xl bg-surface p-4 sm:grid-cols-2 sm:p-6">
+          <div className="grid gap-x-6 gap-y-3 rounded-2xl bg-surface p-4 shadow-[0_1px_2px_rgb(18_36_29/0.04)] motion-safe:animate-fade-in sm:grid-cols-2 sm:p-6">
             <div className="flex flex-col gap-1.5">
               <Label htmlFor={`${ids}-posted`}>Posted</Label>
               <Select
