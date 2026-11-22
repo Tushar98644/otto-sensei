@@ -56,6 +56,7 @@ export const REFERENCE_USES = {
   magicui: ["about", "milestones", "socials"],
   bento: ["location", "socials", "github", "now", "stats"],
   cali: ["about", "writing", "shelf", "location", "socials"],
+  handDrawn: ["disciplines", "about", "stats", "socials", "github"],
 } as const satisfies Record<string, readonly ContentField[]>;
 
 export const TEMPLATE_USES: Record<string, readonly ContentField[]> = {
@@ -88,7 +89,7 @@ export const TEMPLATE_USES: Record<string, readonly ContentField[]> = {
     "shelf",
     "interests",
   ],
-  paper: ["pitch", "about", "socials", "writing", "interests", "shelf", "location"],
+  paper: ["disciplines", "about", "stats", "socials", "github", "writing", "talks", "milestones"],
 };
 
 export function contentUsesFor(templateId: string): readonly ContentField[] {

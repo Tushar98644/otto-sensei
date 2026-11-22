@@ -1,6 +1,6 @@
 MIT License
 
-Copyright (c) 2022-2026 Cali Castle
+Copyright (c) 2026 umutxyp
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -19,12 +19,3 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
-
-## Content and asset exception
-
-The MIT License above applies only to original application source code in this
-repository. It does not apply to personal writing or other authored content;
-photographs; illustrations or artwork; Cali Castle's name, identity, likeness,
-logos, branding, or personal data; or third-party assets. Those materials
-remain under their respective rights and may not be copied or reused except as
-separately permitted by their rights holders or applicable law.

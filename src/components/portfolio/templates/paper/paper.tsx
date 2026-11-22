@@ -1,602 +1,511 @@
-import { ArrowUpRight, FileText, Library, Mail, PenLine, PencilRuler, Shapes } from "lucide-react";
-import type { CSSProperties, ReactNode } from "react";
-import type { ContentShelfItem } from "@/lib/portfolio/content";
-import { Marked, nameOf, OutLink, TemplateStyle, unbroken } from "../parts";
+import type { ReactNode } from "react";
+import type { ContentProject } from "@/lib/portfolio/content";
+import { allSkills, nameOf, OutLink, safeId, TemplateStyle } from "../parts";
 import type { PortfolioTemplateProps } from "../types";
-import { FooterClock } from "./islands";
+import { Frame, Fx, ModeButtons, Reveal } from "./islands";
 import { PAPER_CSS } from "./styles";
 
-// Ported from CaliCastle/cali.so (code MIT, see ./LICENSE.txt); none of Cali's content or branding.
+// Ported from umutxyp/Personal-Website (MIT, see ./LICENSE.txt); its fox world, day and night.
 
-const delay = (ms: number) => ({ "--enter-delay": `${ms}ms` }) as CSSProperties;
+type Line = 0 | 1 | 2;
 
-const BINDINGS: [string, string][] = [
-  ["oklch(0.66 0.19 42)", "oklch(0.22 0.03 40)"],
-  ["oklch(0.3 0.02 260)", "oklch(0.9 0.01 90)"],
-  ["oklch(0.93 0.01 95)", "oklch(0.35 0.01 90)"],
-  ["oklch(0.82 0.15 95)", "oklch(0.25 0.03 90)"],
-  ["oklch(0.25 0.01 60)", "oklch(0.85 0.01 90)"],
-  ["oklch(0.62 0.01 80)", "oklch(0.97 0.005 90)"],
-  ["oklch(0.45 0.08 250)", "oklch(0.95 0.01 250)"],
-  ["oklch(0.36 0.06 20)", "oklch(0.92 0.01 60)"],
-];
-
-function hashOf(text: string): number {
-  let hash = 0;
-  for (const char of text) hash = (hash * 31 + char.charCodeAt(0)) >>> 0;
-  return hash;
+function Pic({ name, className }: { name: string; className: string }) {
+  return <span className={`pic ${className}`} data-pic={name} aria-hidden />;
 }
 
-function binding(item: { title: string; by: string }): CSSProperties {
-  const [book, ink] = BINDINGS[hashOf(item.title + item.by) % BINDINGS.length]!;
-  return { "--book": book, "--book-ink": ink } as CSSProperties;
-}
-
-const BRAILLE: Record<string, string> = {
-  a: "⠁",
-  b: "⠃",
-  c: "⠉",
-  d: "⠙",
-  e: "⠑",
-  f: "⠋",
-  g: "⠛",
-  h: "⠓",
-  i: "⠊",
-  j: "⠚",
-  k: "⠅",
-  l: "⠇",
-  m: "⠍",
-  n: "⠝",
-  o: "⠕",
-  p: "⠏",
-  q: "⠟",
-  r: "⠗",
-  s: "⠎",
-  t: "⠞",
-  u: "⠥",
-  v: "⠧",
-  w: "⠺",
-  x: "⠭",
-  y: "⠽",
-  z: "⠵",
-};
-const braille = (text: string) =>
-  [...text.toLowerCase()].map((ch) => (ch === " " ? "⠀" : (BRAILLE[ch] ?? ""))).join("");
-
-function printOf(title: string): CSSProperties {
-  const hash = hashOf(title);
-  return {
-    "--angle": `${(hash % 12) * 30}deg`,
-    "--spot": `${20 + (hash % 7) * 10}% ${25 + ((hash >> 3) % 6) * 10}%`,
-  } as CSSProperties;
-}
-
-const coordinate = (value: number, positive: string, negative: string) =>
-  `${Math.abs(value).toFixed(4)}° ${value >= 0 ? positive : negative}`;
-
-function ExternalMark() {
-  return <ArrowUpRight className="ext-mark" aria-hidden />;
-}
-
-function Tag({ index, children, at }: { index: number; children: ReactNode; at: number }) {
+function Heading({ children, line, id }: { children: string; line: Line; id?: string }) {
   return (
-    <h2 className="tag enter" style={delay(at)}>
-      <span className="tag-index" aria-hidden>
-        {String(index).padStart(2, "0")}
-      </span>
-      <span className="tag-hatch" aria-hidden />
-      <span className="tag-label">{children}</span>
-    </h2>
+    <div className="heading" id={id}>
+      <Fx className="fx-heading">
+        <h2 className="wavy">{children}</h2>
+      </Fx>
+      <Pic name={`line-${line}`} className={`strip line-${line}`} />
+    </div>
   );
 }
 
-function Icon({ monogram }: { monogram: string }) {
+function Figures({ text }: { text: string }) {
+  const parts = text
+    .split(/\s+·\s+|,\s+/)
+    .map((part) => part.trim())
+    .filter(Boolean);
+  if (parts.length === 0) return null;
   return (
-    <span className="icon" aria-hidden>
-      {monogram}
-    </span>
-  );
-}
-
-function Shelf({ items }: { items: readonly ContentShelfItem[] }) {
-  const [first, ...rest] = items;
-  if (!first) return null;
-  return (
-    <div className="shelf">
-      <div className="books">
-        <OutLink href={first.href} className="book" label={first.title}>
-          <span style={binding(first)} className="cover" aria-hidden>
-            <b>{first.title}</b>
-            {first.by}
+    <div className="figures">
+      {parts.map((part) => {
+        const [value, ...rest] = part.split(" ");
+        return (
+          <span key={part}>
+            <mark>{value}</mark> {rest.join(" ")}
           </span>
-        </OutLink>
-        {rest.map((item) => {
-          const size = {
-            "--w": `${26 + Math.min(18, Math.round(item.title.length / 3))}px`,
-            "--h": `${184 + (hashOf(item.title) % 26)}px`,
-          } as CSSProperties;
-          return (
-            <OutLink key={item.id} href={item.href} className="book" label={item.title}>
-              <span className="spine" style={{ ...binding(item), ...size }}>
-                <span className="spine-title">{item.title}</span>
-                {item.by ? <span className="spine-by">{item.by}</span> : null}
-              </span>
-            </OutLink>
-          );
-        })}
-      </div>
-      <span className="plank" aria-hidden />
-      <OutLink href={first.href} className="annotation">
-        <span>{first.title}</span>
-        {first.href ? <ExternalMark /> : null}
-      </OutLink>
+        );
+      })}
     </div>
   );
 }
 
-function Records({ items }: { items: readonly ContentShelfItem[] }) {
-  const lead = Math.floor((items.length - 1) / 2);
-  const leadItem = items[lead];
-  if (!leadItem) return null;
+function hostOf(project: ContentProject): string {
+  return project.website?.text ?? project.source?.repo ?? project.source?.text ?? "";
+}
+
+function compact(n: number): string {
+  if (n >= 1000) return `${(n / 1000).toFixed(n >= 10000 ? 0 : 1).replace(/\.0$/, "")}k`;
+  return String(n);
+}
+
+type Row = { id: string; title: string; href: string | null; meta: string; text?: string };
+
+function Rows({ rows }: { rows: Row[] }) {
   return (
-    <div className="shelf">
-      <div className="records">
-        {items.map((item, index) => (
-          <OutLink
-            key={item.id}
-            href={item.href}
-            className={index === lead ? "sleeve lead" : "sleeve"}
-            label={item.title}
-          >
-            <span style={{ display: "contents" }}>
-              {item.title}
-              {item.by ? <small>{item.by}</small> : null}
-            </span>
-          </OutLink>
-        ))}
-      </div>
-      <span className="plank" aria-hidden />
-      <OutLink href={leadItem.href} className="annotation">
-        <span>{leadItem.title}</span>
-        {leadItem.href ? <ExternalMark /> : null}
-      </OutLink>
-    </div>
+    <ul className="rows">
+      {rows.map((row) => (
+        <li key={row.id}>
+          <div className="row-head">
+            {row.href ? (
+              <OutLink href={row.href} className="row-title">
+                {row.title}
+              </OutLink>
+            ) : (
+              <span className="row-title">{row.title}</span>
+            )}
+          </div>
+          {row.text ? <p>{row.text}</p> : null}
+          {row.meta ? <p className="meta">{row.meta}</p> : null}
+        </li>
+      ))}
+    </ul>
   );
 }
 
 export function PaperTemplate({ view, content, footer, resumeHref }: PortfolioTemplateProps) {
   const name = nameOf(view);
+  const headline = view.headline || content.headline;
+  const roles = content.disciplines.length > 0 ? content.disciplines : headline ? [headline] : [];
   const socials = content.socials.filter((social) => social.kind !== "email");
-  const lead = content.pitch || view.headline;
-  const showLead = lead !== "" && !(content.about[0] ?? "").trim().startsWith(lead.trim());
-  const records = content.shelf.filter((item) => item.kind === "album");
-  const books = content.shelf.filter((item) => item.kind !== "album");
-  const allBooks = books.every((item) => item.kind === "book");
-  const location = content.location;
-  const place = location?.city || location?.label || view.location;
-
-  const cards: { id: string; label: string; sub: string; vignette: ReactNode }[] = [];
-  if (content.writing.length > 0) {
-    cards.push({
-      id: "writing",
-      label: "Writing",
-      sub: `${content.writing.length} ${content.writing.length === 1 ? "post" : "posts"}`,
-      vignette: (
-        <span className="vignette sheets" aria-hidden>
-          <span />
-          <span />
-          <span />
-        </span>
-      ),
-    });
-  }
-  if (content.projects.length > 0) {
-    cards.push({
-      id: "projects",
-      label: "Projects",
-      sub: `${content.projects.length} ${content.projects.length === 1 ? "project" : "projects"}`,
-      vignette: (
-        <span className="vignette" aria-hidden>
-          <span className="tool">
-            <svg className="guides-svg" viewBox="0 0 52 52" preserveAspectRatio="xMidYMid meet">
-              <path d="M26 0V52M0 26H52M0 0L52 52M52 0L0 52" />
-              <circle cx="26" cy="26" r="21" />
-            </svg>
-            <PencilRuler className="mark-svg" aria-hidden />
-          </span>
-        </span>
-      ),
-    });
-  }
-  if (content.shelf.length > 0) {
-    const spines = content.shelf.slice(0, 3);
-    cards.push({
-      id: "shelf",
-      label: allBooks && records.length === 0 ? "Books" : "Shelf",
-      sub: `${content.shelf.length} ${content.shelf.length === 1 ? "favourite" : "favourites"}`,
-      vignette: (
-        <span className="vignette spines" aria-hidden>
-          {spines.map((item, i) => (
-            <span key={item.id} style={{ ...binding(item), "--i": i } as CSSProperties} />
-          ))}
-        </span>
-      ),
-    });
-  }
-
-  let count = 0;
-  const next = () => ++count;
-  const sections: ReactNode[] = [];
-
-  if (content.experience.length > 0 || content.education.length > 0) {
-    const rows = [
-      ...content.experience.map((job) => ({
-        id: job.id,
-        title: job.company || job.title,
-        sub: job.company ? job.title : "",
-        href: job.website?.href ?? null,
-        dates: job.start ? `${unbroken(job.start)}—${unbroken(job.end || "now")}` : job.dates,
-      })),
-      ...content.education.map((school) => ({
-        id: school.id,
-        title: school.school || school.degree,
-        sub: school.school ? school.degree : "",
-        href: school.website?.href ?? null,
-        dates: school.start
-          ? `${unbroken(school.start)}—${unbroken(school.end || "now")}`
-          : school.dates,
-      })),
-    ];
-    sections.push(
-      <section key="experience" className="section" id="pf-paper-experience">
-        <Tag index={next()} at={120}>
-          {content.experience.length > 0 ? "Experience" : "Education"}
-        </Tag>
-        <ul className="list">
-          {rows.map((row, i) => (
-            <li key={row.id} className="enter-swing hairline-top" style={delay(150 + i * 40)}>
-              <div className="row">
-                <div className="row-text">
-                  {row.href ? (
-                    <OutLink href={row.href} className="row-title">
-                      {row.title}
-                      <ExternalMark />
-                    </OutLink>
-                  ) : (
-                    <span className="row-title">{row.title}</span>
-                  )}
-                  {row.sub ? <span className="row-sub">{row.sub}</span> : null}
-                </div>
-                {row.dates ? <span className="row-date">{row.dates}</span> : null}
-              </div>
-            </li>
-          ))}
-        </ul>
-      </section>,
-    );
-  }
-
-  if (content.writing.length > 0) {
-    const center = (Math.min(content.writing.length, 8) - 1) / 2;
-    sections.push(
-      <section key="writing" className="section" id="pf-paper-writing">
-        <Tag index={next()} at={200}>
-          Writing
-        </Tag>
-        <ul className="list focus-list">
-          {content.writing.map((post, index) => (
-            <li
-              key={post.id}
-              className="enter-swing hairline-top"
-              style={delay(240 + Math.abs(Math.min(index, 7) - center) * 50)}
-            >
-              <OutLink href={post.href} className="post">
-                <span className="pile" aria-hidden>
-                  <span className="sheet" />
-                  <span className="sheet" />
-                  <span className="thumb" style={printOf(post.title)} />
-                </span>
-                <h3 className="post-title">{post.title}</h3>
-                <span className="leader" aria-hidden />
-                {post.date ? <time>{post.date}</time> : null}
-              </OutLink>
-            </li>
-          ))}
-        </ul>
-      </section>,
-    );
-  }
-
-  if (content.projects.length > 0) {
-    sections.push(
-      <section key="projects" className="section" id="pf-paper-projects">
-        <Tag index={next()} at={260}>
-          Projects
-        </Tag>
-        <ul className="list focus-list">
-          {content.projects.map((project, i) => {
-            const href = project.website?.href ?? project.source?.href ?? null;
-            return (
-              <li key={project.id} className="enter-swing hairline-top" style={delay(280 + i * 40)}>
-                <div className="row">
-                  <div className="row-main">
-                    <Icon monogram={project.monogram} />
-                    <div className="row-text">
-                      {href ? (
-                        <OutLink href={href} className="row-title">
-                          {project.name}
-                          <ExternalMark />
-                        </OutLink>
-                      ) : (
-                        <span className="row-title">{project.name}</span>
-                      )}
-                      {project.line || project.description ? (
-                        <span className="row-sub">{project.line || project.description}</span>
-                      ) : null}
-                    </div>
-                  </div>
-                  {project.years ? <span className="row-date">{project.years}</span> : null}
-                </div>
-              </li>
-            );
-          })}
-        </ul>
-      </section>,
-    );
-  }
-
-  if (content.interests.length > 0) {
-    sections.push(
-      <section key="interests" className="section" id="pf-paper-interests">
-        <Tag index={next()} at={320}>
-          Outside work
-        </Tag>
-        <ul className="list focus-list">
-          {content.interests.map((interest, i) => (
-            <li key={interest.id} className="enter-swing hairline-top" style={delay(340 + i * 40)}>
-              <div className="row">
-                <div className="row-text">
-                  <span className="row-title">{interest.title}</span>
-                  {interest.line ? <span className="row-sub">{interest.line}</span> : null}
-                </div>
-                {interest.stat ? <span className="row-stat">{interest.stat}</span> : null}
-              </div>
-            </li>
-          ))}
-        </ul>
-      </section>,
-    );
-  }
-
-  if (records.length > 0) {
-    sections.push(
-      <section key="records" className="section" id="pf-paper-shelf">
-        <Tag index={next()} at={340}>
-          On rotation
-        </Tag>
-        <div className="enter" style={delay(360)}>
-          <Records items={records} />
-        </div>
-      </section>,
-    );
-  }
-
-  if (books.length > 0) {
-    sections.push(
-      <section
-        key="books"
-        className="section"
-        id={records.length > 0 ? undefined : "pf-paper-shelf"}
-      >
-        <Tag index={next()} at={380}>
-          {allBooks ? "Books I love" : "Favourites"}
-        </Tag>
-        <div className="enter" style={delay(420)}>
-          <Shelf items={books} />
-        </div>
-      </section>,
-    );
-  }
-
-  const index: { href: string; label: string }[] = [
-    { href: "#pf-paper-top", label: "Home" },
-    ...(content.experience.length > 0
-      ? [{ href: "#pf-paper-experience", label: "Experience" }]
-      : []),
-    ...cards.map((card) => ({ href: `#pf-paper-${card.id}`, label: card.label })),
+  const projects = [
+    ...content.projects.filter((project) => project.featured),
+    ...content.projects.filter((project) => !project.featured),
   ];
+  const [lead, ...rest] = projects;
+  const skills = allSkills(view);
+  const year =
+    view.updatedAt > Date.UTC(2000, 0, 1) ? new Date(view.updatedAt).getUTCFullYear() : null;
+  const repos = content.github
+    ? [...content.github.repos].sort((a, b) => b.stars - a.stars).slice(0, 6)
+    : [];
+  const ids = {
+    about: "pf-paper-about",
+    projects: "pf-paper-projects",
+    work: "pf-paper-work",
+    stack: "pf-paper-stack",
+  };
+
+  const sections: { key: string; title: string; id?: string; body: ReactNode }[] = [];
+  // Numbers sit in About, so hiding About hides them too.
+  const aboutShown = !view.hidden.includes("about");
+  const stats = aboutShown ? content.stats : [];
+  const about = content.aboutParts.length > 0 ? content.aboutParts : null;
+  if (about || (aboutShown && content.pitch) || stats.length > 0 || resumeHref)
+    sections.push({
+      key: "about",
+      title: "About",
+      id: ids.about,
+      body: (
+        <>
+          {about ? (
+            about.map((parts, index) => (
+              <p key={index} className="note">
+                {parts.map((part, at) =>
+                  part.mark ? <mark key={at}>{part.text}</mark> : part.text,
+                )}
+              </p>
+            ))
+          ) : aboutShown && content.pitch ? (
+            <p className="note">{content.pitch}</p>
+          ) : null}
+          {resumeHref ? (
+            <p className="more">
+              <a className="link" href={resumeHref}>
+                my resume
+              </a>
+            </p>
+          ) : null}
+          {stats.length > 0 ? (
+            <div className="stats" data-n={Math.min(stats.length, 4)}>
+              {stats.slice(0, 4).map((stat) => (
+                <div className="stat" key={`${stat.value}-${stat.label}`}>
+                  <b>
+                    <mark>{stat.value}</mark>
+                  </b>
+                  <span>{stat.label}</span>
+                </div>
+              ))}
+            </div>
+          ) : null}
+        </>
+      ),
+    });
+
+  if (lead)
+    sections.push({
+      key: "projects",
+      title: view.titles.projects || "Projects",
+      id: ids.projects,
+      body: (
+        <>
+          <div className="studio sketch">
+            <Frame />
+            <Pic name="grow-3" className="grown" />
+            <Pic name="perch" className="perch" />
+            <div className="studio-head">
+              <span className="logo" aria-hidden>
+                {lead.monogram}
+              </span>
+              <div>
+                <h3>{lead.name}</h3>
+                {hostOf(lead) || lead.category ? (
+                  <p>
+                    {lead.website || lead.source ? (
+                      <OutLink href={(lead.website ?? lead.source)!.href}>{hostOf(lead)}</OutLink>
+                    ) : null}
+                    {hostOf(lead) && lead.category ? " · " : null}
+                    {lead.category}
+                  </p>
+                ) : null}
+              </div>
+            </div>
+            {lead.description || lead.line ? <p>{lead.description || lead.line}</p> : null}
+            {lead.tech.length > 0 ? (
+              <ul className="products">
+                {lead.tech.map((tech) => (
+                  <li key={tech}>
+                    <span className="tag small">{tech}</span>
+                  </li>
+                ))}
+              </ul>
+            ) : null}
+            {lead.outcome ? <Figures text={lead.outcome} /> : null}
+          </div>
+          {rest.length > 0 ? (
+            <div className="cards">
+              {rest.map((project, index) => {
+                const href = project.website?.href ?? project.source?.href ?? null;
+                const inner = (
+                  <>
+                    <Frame />
+                    <Pic name={`grow-${index % 4}`} className="grown" />
+                    <div className="card-head">
+                      <span className="logo" aria-hidden>
+                        {project.monogram}
+                      </span>
+                      <div>
+                        <h3>{project.name}</h3>
+                        {hostOf(project) ? <span>{hostOf(project)}</span> : null}
+                      </div>
+                    </div>
+                    {project.line || project.description ? (
+                      <p>{project.line || project.description}</p>
+                    ) : null}
+                    {project.stars || project.years ? (
+                      <div className="figures">
+                        {project.stars ? (
+                          <span>
+                            <mark>{compact(project.stars)}</mark> stars
+                          </span>
+                        ) : null}
+                        {project.years ? <span>{project.years}</span> : null}
+                      </div>
+                    ) : null}
+                  </>
+                );
+                return href ? (
+                  <OutLink key={project.id} href={href} className="card sketch">
+                    {inner}
+                  </OutLink>
+                ) : (
+                  <div key={project.id} className="card sketch">
+                    {inner}
+                  </div>
+                );
+              })}
+            </div>
+          ) : null}
+        </>
+      ),
+    });
+
+  if (content.experience.length > 0)
+    sections.push({
+      key: "work",
+      title: view.titles.experience || "Work",
+      id: ids.work,
+      body: content.experience.map((role) => (
+        <article key={role.id} className="job sketch" id={safeId("pf-paper-job", role.id)}>
+          <Frame />
+          <div className="job-head">
+            <h3>
+              {role.website ? (
+                <OutLink href={role.website.href}>{role.company || role.title}</OutLink>
+              ) : (
+                role.company || role.title
+              )}
+            </h3>
+            {role.company && role.title ? <span className="role">{role.title}</span> : null}
+            {role.dates ? <span className="when">{role.dates}</span> : null}
+          </div>
+          {role.summary ? <p className="job-lead">{role.summary}</p> : null}
+          {role.lines.length > 0 ? (
+            <ul>
+              {role.lines.map((line, index) => (
+                <li key={index}>{line}</li>
+              ))}
+            </ul>
+          ) : null}
+        </article>
+      )),
+    });
+
+  if (skills.length > 0)
+    sections.push({
+      key: "stack",
+      title: "Tech stack",
+      id: ids.stack,
+      body: (
+        <ul className="stack">
+          {skills.map((skill) => (
+            <li key={skill}>{skill}</li>
+          ))}
+        </ul>
+      ),
+    });
+
+  if (content.education.length > 0)
+    sections.push({
+      key: "education",
+      title: view.titles.education || "Education",
+      body: (
+        <Rows
+          rows={content.education.map((school) => ({
+            id: school.id,
+            title: school.school || school.degree,
+            href: school.website?.href ?? null,
+            text: school.school ? school.degree : "",
+            meta: [school.dates, school.lines[0] ?? ""].filter(Boolean).join(" · "),
+          }))}
+        />
+      ),
+    });
+
+  if (repos.length > 0 && content.github)
+    sections.push({
+      key: "open-source",
+      title: "Open source",
+      body: (
+        <>
+          <ul className="rows">
+            {repos.map((repo) => (
+              <li key={repo.fullName}>
+                <div className="row-head">
+                  <OutLink href={repo.url} className="row-title">
+                    {repo.name}
+                  </OutLink>
+                  {repo.stars > 0 ? (
+                    <span className="stars">
+                      <i className="star" />
+                      {compact(repo.stars)}
+                    </span>
+                  ) : null}
+                </div>
+                {repo.description ? <p>{repo.description}</p> : null}
+              </li>
+            ))}
+          </ul>
+          <p className="more spaced">
+            <OutLink href={content.github.href} className="link">
+              all of it
+            </OutLink>
+          </p>
+        </>
+      ),
+    });
+
+  if (content.writing.length > 0)
+    sections.push({
+      key: "writing",
+      title: "Writing",
+      body: (
+        <Rows
+          rows={content.writing.map((post) => ({
+            id: post.id,
+            title: post.title,
+            href: post.href,
+            meta: [post.date, post.minutes ? `${post.minutes} min read` : "", post.publisher]
+              .filter(Boolean)
+              .join(" · "),
+          }))}
+        />
+      ),
+    });
+
+  if (content.talks.length > 0)
+    sections.push({
+      key: "talks",
+      title: "Talks",
+      body: (
+        <Rows
+          rows={content.talks.map((talk) => ({
+            id: talk.id,
+            title: talk.title,
+            href: talk.href ?? talk.recording ?? talk.slides,
+            meta: [talk.event, talk.date, talk.place].filter(Boolean).join(" · "),
+          }))}
+        />
+      ),
+    });
+
+  const honours: Row[] = [
+    ...content.milestones.map((milestone) => ({
+      id: milestone.id,
+      title: milestone.title,
+      href: milestone.href,
+      meta: [milestone.result || milestone.detail, milestone.place, milestone.date]
+        .filter(Boolean)
+        .join(" · "),
+    })),
+    ...view.certifications.map((cert) => ({
+      id: cert.id,
+      title: cert.name,
+      href: null,
+      meta: [cert.issuer, cert.date].filter(Boolean).join(" · "),
+    })),
+  ];
+  if (honours.length > 0)
+    sections.push({
+      key: "milestones",
+      title:
+        content.milestones.length > 0
+          ? "Milestones"
+          : view.titles.certifications || "Certifications",
+      body: <Rows rows={honours} />,
+    });
+
+  for (const extra of view.extras) {
+    if (extra.items.length === 0) continue;
+    sections.push({
+      key: extra.id,
+      title: extra.title,
+      body: (
+        <Rows
+          rows={extra.items.map((item) => ({
+            id: item.id,
+            title: item.title || item.subtitle,
+            href: null,
+            text: item.detail || item.lines[0] || "",
+            meta: [item.title ? item.subtitle : "", item.date].filter(Boolean).join(" · "),
+          }))}
+        />
+      ),
+    });
+  }
+
+  const nav = [
+    sections.some((section) => section.key === "about")
+      ? { href: `#${ids.about}`, label: "about" }
+      : null,
+    lead ? { href: `#${ids.projects}`, label: "work" } : null,
+    content.experience.length > 0 ? { href: `#${ids.work}`, label: "jobs" } : null,
+    skills.length > 0 ? { href: `#${ids.stack}`, label: "stack" } : null,
+  ].filter((item) => item !== null);
 
   return (
-    <div className="pf-paper" id="pf-paper-top">
+    <div className="pf-paper" data-world="fox">
       <TemplateStyle css={PAPER_CSS} />
-      <div className="grain" aria-hidden />
-      <div className="guides" aria-hidden>
-        <div className="guide l" />
-        <div className="guide r" />
-      </div>
-      <div className="fade top" aria-hidden />
-      <div className="fade bottom" aria-hidden />
-
-      <div className="column">
-        <div className="masthead">
-          <div className="intro enter">
-            <div className="name">
-              <h1>{name}</h1>
-            </div>
-            <div className="intro-text">
-              {showLead ? <p>{lead}</p> : null}
-              {content.aboutParts.map((parts, i) => (
-                <p key={i}>
-                  <Marked parts={parts} mark="span" className="mark" />
-                </p>
-              ))}
-              {socials.length > 0 || content.email ? (
-                <p>
-                  You can find me on{" "}
-                  {[
-                    ...socials.map((social) => (
-                      <OutLink key={social.href} href={social.href}>
-                        {social.label}
-                        <ExternalMark />
-                      </OutLink>
-                    )),
-                    ...(content.email
-                      ? [
-                          <a key="email" href={`mailto:${content.email}`}>
-                            {content.email}
-                          </a>,
-                        ]
-                      : []),
-                  ].flatMap((link, i, all) => [
-                    i === 0 ? null : i === all.length - 1 ? " and " : ", ",
-                    link,
-                  ])}
-                  .
-                </p>
-              ) : null}
-            </div>
-          </div>
-          <div className="portrait" aria-hidden>
-            <span className="halftone">
-              <span className="halftone-ink">{content.initials}</span>
+      <header className="header">
+        <div className="wrap">
+          <a href="#pf-paper-top" className="brand">
+            <span className="brand-mark" aria-hidden>
+              {content.initials || name.slice(0, 1)}
             </span>
-          </div>
+            <span className="brand-name">{name}</span>
+          </a>
+          {nav.length > 0 || resumeHref ? (
+            <nav className="nav" aria-label="Sections">
+              {nav.map((item) => (
+                <a key={item.href} href={item.href}>
+                  {item.label}
+                </a>
+              ))}
+              {resumeHref ? <a href={resumeHref}>Resume</a> : null}
+            </nav>
+          ) : null}
+          <ModeButtons header />
         </div>
+      </header>
 
-        {cards.length > 0 ? (
-          <nav
-            className="nav-cards"
-            style={{ "--cards": cards.length } as CSSProperties}
-            aria-label="Sections"
-          >
-            {cards.map((card, i) => (
-              <a
-                key={card.id}
-                href={`#pf-paper-${card.id}`}
-                className="nav-card enter-swing"
-                style={delay(160 + i * 40)}
-              >
-                {card.vignette}
-                <span className="nc-label">{card.label}</span>
-                <span className="nc-sub">{card.sub}</span>
-              </a>
-            ))}
-          </nav>
-        ) : null}
+      <div id="pf-paper-top">
+        <section className="hero">
+          <div className="hero-text">
+            <Fx steady>
+              <h1>{name}</h1>
+            </Fx>
+            <span className="underline" aria-hidden>
+              <i />
+              <i />
+            </span>
+            {roles.length > 0 ? (
+              <ul className="roles">
+                {roles.map((role) => (
+                  <li key={role}>{role}</li>
+                ))}
+              </ul>
+            ) : null}
+          </div>
+          <div className="scene" aria-hidden />
+        </section>
 
-        {sections}
+        <div className="wrap">
+          {socials.length > 0 || content.email ? (
+            <nav className="links" aria-label="Elsewhere">
+              {socials.map((social) => (
+                <OutLink key={social.href} href={social.href} className="tag">
+                  {social.label.toLowerCase()}
+                </OutLink>
+              ))}
+              {content.email ? (
+                <a className="tag" href={`mailto:${content.email}`}>
+                  email
+                </a>
+              ) : null}
+            </nav>
+          ) : null}
+
+          {sections.map((section, index) => (
+            <Reveal key={section.key}>
+              <section className="section">
+                <Heading line={(index % 3) as Line} id={section.id}>
+                  {section.title}
+                </Heading>
+                {section.body}
+              </section>
+            </Reveal>
+          ))}
+        </div>
       </div>
 
       <footer className="footer">
-        <div className="footer-grid hairline-top">
-          {socials.length > 0 || content.email || resumeHref ? (
-            <div>
-              <h2 className="footer-label">Contact</h2>
-              <ul className="tree">
-                {resumeHref ? (
-                  <li>
-                    <a href={resumeHref}>Resume</a>
-                  </li>
-                ) : null}
-                {socials.map((social) => (
-                  <li key={social.href}>
-                    <OutLink href={social.href}>
-                      {social.label}
-                      <ExternalMark />
-                    </OutLink>
-                  </li>
-                ))}
-                {content.email ? (
-                  <li>
-                    <a href={`mailto:${content.email}`}>Email</a>
-                  </li>
-                ) : null}
-              </ul>
-            </div>
-          ) : null}
-          <div>
-            <h2 className="footer-label">Index</h2>
-            <ul className="tree">
-              {index.map((item) => (
-                <li key={item.href}>
-                  <a href={item.href}>{item.label}</a>
-                </li>
-              ))}
-            </ul>
-          </div>
-          <div className="colophon">
-            <div>
-              <p>
-                © {view.updatedAt ? `${new Date(view.updatedAt).getUTCFullYear()} ` : ""}
-                {name}
-              </p>
-              <p className="braille" aria-hidden>
-                {braille(name)}
-              </p>
-            </div>
-            {location?.timezone || location?.coords ? (
-              <div className="stamps">
-                {location.timezone ? (
-                  <FooterClock timeZone={location.timezone} place={place} />
-                ) : null}
-                {location.coords ? (
-                  <div className="stamp" aria-hidden>
-                    <svg className="globe" viewBox="0 0 20 20">
-                      <circle cx="10" cy="10" r="9" />
-                      <ellipse cx="10" cy="10" rx="4" ry="9" />
-                      <path d="M1 10h18M1.9 6h16.2M1.9 14h16.2" />
-                    </svg>
-                    <span className="readout">
-                      <span>{coordinate(location.coords.lat, "N", "S")}</span>
-                      <span>{coordinate(location.coords.lng, "E", "W")}</span>
-                    </span>
-                  </div>
-                ) : null}
-              </div>
-            ) : null}
+        <Pic name="ground" className="ground" />
+        <div className="footer-body">
+          <div className="wrap">
+            <h4>day or night</h4>
+            <ModeButtons />
+            <p className="small">
+              {year ? `© ${year} ` : null}
+              {name} · drawn by hand, in code
+            </p>
+            {footer ? <div className="credit">{footer}</div> : null}
           </div>
         </div>
-        {footer ? (
-          <div className="ends">
-            <div className="credit">{footer}</div>
-          </div>
-        ) : null}
       </footer>
-
-      <nav className="dock" aria-label="Dock">
-        <a href="#pf-paper-top" className="dock-item" aria-label="Home">
-          <span className="dock-avatar">{content.initials}</span>
-        </a>
-        {cards.length > 0 || content.email || resumeHref ? (
-          <span className="dock-rule" aria-hidden />
-        ) : null}
-        {cards.map((card) => (
-          <a
-            key={card.id}
-            href={`#pf-paper-${card.id}`}
-            className="dock-item"
-            aria-label={card.label}
-          >
-            {card.id === "writing" ? (
-              <PenLine aria-hidden />
-            ) : card.id === "shelf" ? (
-              <Library aria-hidden />
-            ) : (
-              <Shapes aria-hidden />
-            )}
-          </a>
-        ))}
-        {resumeHref ? (
-          <a href={resumeHref} className="dock-item" aria-label="Resume">
-            <FileText aria-hidden />
-          </a>
-        ) : null}
-        {content.email ? (
-          <a href={`mailto:${content.email}`} className="dock-item" aria-label="Email">
-            <Mail aria-hidden />
-          </a>
-        ) : null}
-      </nav>
     </div>
   );
 }

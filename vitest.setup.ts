@@ -27,8 +27,10 @@ vi.mock("next/font/google", () => {
     "Geist",
     "Geist_Mono",
     "Geist_Pixel",
+    "Gochi_Hand",
     "Montserrat",
     "Roboto_Condensed",
+    "Shantell_Sans",
   ];
   return Object.fromEntries(names.map((name) => [name, font]));
 });

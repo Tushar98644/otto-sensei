@@ -6,9 +6,11 @@ import {
   Geist,
   Geist_Mono,
   Geist_Pixel,
+  Gochi_Hand,
   Inter,
   Montserrat,
   Roboto_Condensed,
+  Shantell_Sans,
 } from "next/font/google";
 import type { PortfolioTemplateId } from "@/lib/portfolio/types";
 
@@ -70,6 +72,20 @@ const caveat = Caveat({
   preload: false,
   variable: "--pf-font-caveat",
 });
+const gochiHand = Gochi_Hand({
+  subsets: ["latin"],
+  weight: "400",
+  display: "swap",
+  preload: false,
+  variable: "--pf-font-gochi",
+});
+const shantellSans = Shantell_Sans({
+  subsets: ["latin", "latin-ext"],
+  axes: ["BNCE", "INFM", "SPAC"],
+  display: "swap",
+  preload: false,
+  variable: "--pf-font-shantell",
+});
 const robotoCondensed = Roboto_Condensed({
   subsets: ["latin", "latin-ext"],
   display: "swap",
@@ -85,7 +101,7 @@ const TEMPLATE_FONTS: Record<PortfolioTemplateId, string> = {
   cv: `${geist.variable} ${geistMono.variable} ${caveat.variable}`,
   prose: `${inter.variable} ${dmMono.variable} ${robotoCondensed.variable}`,
   folio: inter.variable,
-  paper: `${geist.variable} ${geistMono.variable}`,
+  paper: `${gochiHand.variable} ${shantellSans.variable}`,
 };
 
 export function templateFontClasses(id: PortfolioTemplateId): string {

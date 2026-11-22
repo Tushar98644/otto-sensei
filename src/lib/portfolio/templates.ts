@@ -106,15 +106,15 @@ export const PORTFOLIO_TEMPLATE_INFO: Record<PortfolioTemplateId, PortfolioTempl
   },
   paper: {
     id: "paper",
-    name: "Paper",
+    name: "Sketchbook",
     description:
-      "A warm paper page: halftone initials, numbered sections, a bookshelf, a live clock.",
+      "Drawn by hand: your name in marker over a fox by the sea, inked cards and wavy underlines, by day or night.",
     thumbnail: "/portfolio-templates/paper.webp",
-    colors: { background: "#fcfbf9", ink: "#201e1b", muted: "#7a7873" },
+    colors: { background: "#e9f4fd", ink: "#14273d", muted: "#4d6379" },
     credit: {
-      author: "Cali Castle",
-      work: "cali.so",
-      href: "https://github.com/CaliCastle/cali.so",
+      author: "umutxyp",
+      work: "Personal-Website",
+      href: "https://github.com/umutxyp/Personal-Website",
       licence: "MIT",
     },
   },

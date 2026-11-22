@@ -121,15 +121,15 @@ const SHOWS: Record<PortfolioTemplateId, string[]> = {
   ],
   paper: [
     "Jordan Ellis",
+    "Postgres tinkerer",
     "Ledgerly",
     "University of Manchester",
     "Platform 9",
     "Postgres is a fine queue",
-    "Bouldering",
-    "Kind of Blue",
-    "Designing Data-Intensive Applications",
-    "38.7223° N",
+    "Kafka",
+    "measure before and after",
     'href="mailto:hello@jordanellis.dev"',
+    'href="https://github.com/jordanellis"',
   ],
 };
 
@@ -307,30 +307,16 @@ describe("rebuild details", () => {
     expect(html).toContain('data-open="false"');
   });
 
-  it("Paper numbers its sections in order and only draws the clock with a time zone", () => {
+  it("Sketchbook frames the lead project under the fox and draws the world only as its own art", () => {
     const html = draw("paper", jordanV2Resume());
-    for (const index of ["01", "02", "03", "04", "05", "06"])
-      expect(html).toContain(`<span class="tag-index" aria-hidden="true">${index}</span>`);
-    expect(html).not.toContain(">07<");
-    expect(html.match(/class="nav-card enter-swing"/g)).toHaveLength(3);
-    expect(html).toContain('href="#pf-paper-shelf"');
-    expect(html).toContain('id="pf-paper-shelf"');
-    expect(html).toContain('class="halftone-ink">JE<');
-    expect(html).toContain("--:--");
-    expect(html).toContain('class="spine"');
-    const resume = jordanV2Resume();
-    resume.basics.location = "";
-    const view = portfolioView(resume, OPEN);
-    const content = contentView({
-      view,
-      content: { ...jordanContent(), location: null },
-      github: null,
-      now: NOW,
-    });
-    const { Component } = PORTFOLIO_TEMPLATES.paper;
-    expect(renderToStaticMarkup(<Component view={view} content={content} />)).not.toContain(
-      "--:--",
-    );
+    expect(html).toContain('class="studio sketch"');
+    expect(html).toContain('data-pic="perch"');
+    expect(html.match(/class="card sketch"/g)).toHaveLength(6);
+    expect(html.match(/class="job sketch"/g)).toHaveLength(5);
+    expect(html).toContain("<mark>4.2k</mark> stars");
+    expect(html).toContain('url("/portfolio-templates/paper/light/world-0.svg")');
+    expect(html).toContain("day or night");
+    expect(html).toContain('class="stack"');
   });
 });
 

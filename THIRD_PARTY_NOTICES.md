@@ -19,14 +19,13 @@ folder's `LICENSE.txt` do; published pages carry no credit line (owner, 2026-11-
 | Blueprint (`cv`) | [ncdai/chanhdai.com](https://github.com/ncdai/chanhdai.com) | (c) 2026 Chánh Đại | MIT (name and logo excluded) | `e812f32` | `src/components/portfolio/templates/cv/` | Paper Mono → Geist Mono; ChanhDai Notes (handwriting) → Caveat |
 | Prose (`prose`) | [antfu/antfu.me](https://github.com/antfu/antfu.me) | (c) 2020-2021 Anthony Fu | MIT (code only) | `0be14a9` | `src/components/portfolio/templates/prose/` | none (Inter, DM Mono, Roboto Condensed, as the original) |
 | Notes (`folio`) | [alanagoyal/alanagoyal](https://github.com/alanagoyal/alanagoyal) (its Notes app) | (c) 2024 Alana Goyal | MIT | `0ae715e` | `src/components/portfolio/templates/folio/` | none (the system font, as the original; Inter where there is no San Francisco) |
-| Paper (`paper`) | [CaliCastle/cali.so](https://github.com/CaliCastle/cali.so) | (c) 2022-2026 Cali Castle | MIT (application code only) | `653615f` | `src/components/portfolio/templates/paper/` | none (Geist, Geist Mono, as the original) |
+| Sketchbook (`paper`) | [umutxyp/Personal-Website](https://github.com/umutxyp/Personal-Website) | (c) 2026 umutxyp | MIT | `5f8f26a` | `src/components/portfolio/templates/paper/` | none (Gochi Hand, Shantell Sans, as the original) |
 
 Some of these sites license only their code under MIT. antfu.me's words and pictures are CC
-BY-NC-SA 4.0, cali.so's licence excludes Cali Castle's writing, photos, artwork, name,
-likeness, branding and third-party covers, and chanhdai.com's trademark policy keeps Chánh Đại's
-name and logo out of its MIT grant. Prose, Paper and Blueprint take layout, styles and interaction
-code only; none of that content is copied, and no page uses any of these people's logos or marks
-(Blueprint draws the user's own initials where the original draws its logo).
+BY-NC-SA 4.0, and chanhdai.com's trademark policy keeps Chánh Đại's name and logo out of its MIT
+grant. Prose and Blueprint take layout, styles and interaction code only; none of that content is
+copied, and neither page uses either person's logo or mark (Blueprint draws the user's own initials
+where the original draws its logo).
 
 ## Other code inside the templates
 
@@ -45,9 +44,13 @@ code only; none of that content is copied, and no page uses any of these people'
   (c) 2013-2017 Cole Bemis, MIT.
 - **Pixel icons** (`bento/pixel-icons.tsx`) and the nine-slice frame (`bento/frame.ts`) come from
   Ladvace/astro-bento-portfolio, under its MIT licence above.
-- **ArtPlum** (`prose/islands.tsx`), the braille table and footer clock (`paper/paper.tsx`,
-  `paper/islands.tsx`) are ports of code from antfu/antfu.me and CaliCastle/cali.so, under their
-  MIT licences above.
+- **ArtPlum** (`prose/islands.tsx`) is a port of code from antfu/antfu.me, under its MIT licence
+  above.
+- **Sketchbook's fox world** (`public/portfolio-templates/paper/`): the scenes, strips, plants and
+  ground that umutxyp/Personal-Website `5f8f26a` paints with its `scripts/paint.py`, under its MIT
+  licence above; the fox, gulls and other animals in them are PhyloPic silhouettes under CC0 1.0 or
+  the Public Domain Mark (listed in that repo's `scripts/silhouettes/CREDITS.md`). Each picture
+  gains one rule that holds it still, and `world-0-still.svg` is the scene for still cards.
 
 ## PDF resume formats
 
