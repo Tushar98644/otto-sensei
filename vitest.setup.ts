@@ -18,6 +18,7 @@ vi.mock("next/font/google", () => {
     style: { fontFamily: "" },
   });
   const names = [
+    "Caveat",
     "Inter",
     "EB_Garamond",
     "DM_Mono",

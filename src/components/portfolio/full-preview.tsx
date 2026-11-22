@@ -30,7 +30,6 @@ export function FullPortfolioPreview({
   action,
   note = "Preview only: not live yet.",
   resumeHref = null,
-  commandMenu = true,
   onChange,
   onClose,
 }: {
@@ -39,7 +38,6 @@ export function FullPortfolioPreview({
   action: { label: string; onSelect: () => void } | null;
   note?: string;
   resumeHref?: string | null;
-  commandMenu?: boolean;
   onChange: (id: PortfolioTemplateId) => void;
   onClose: () => void;
 }) {
@@ -188,7 +186,6 @@ export function FullPortfolioPreview({
                   view={data.view}
                   content={data.content}
                   resumeHref={choice.source === "own" ? resumeHref : null}
-                  commandMenu={commandMenu}
                 />
               </div>
             </Suspense>

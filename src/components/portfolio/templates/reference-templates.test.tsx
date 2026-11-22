@@ -91,6 +91,7 @@ const SHOWS: Record<PortfolioTemplateId, string[]> = {
     "Platform 9",
     "University of Manchester",
     "Kafka",
+    "Postgres is a fine queue",
     'href="mailto:hello@jordanellis.dev"',
     'href="https://github.com/jordanellis"',
   ],
@@ -256,21 +257,30 @@ describe("rebuild details", () => {
     ).toContain("Lisbon");
   });
 
-  it("CV prints: contacts spelled out, links written under projects, and a command menu", () => {
+  it("Blueprint draws the initials in 3D, groups jobs by company and folds long lists", () => {
     const html = draw("cv", jordanV2Resume());
-    expect(html).toContain('class="print-contact"');
-    expect(html).toContain('class="url"');
-    expect(html).toContain("to open the command menu");
-    expect(html).toContain("@page { size: A4;");
-    expect(html.match(/<article/g)?.length).toBe(5 + 1 + 7);
+    expect(html).toContain('class="iso"');
+    expect(html).toContain(">30°<");
+    expect(html.match(/class="company"/g)).toHaveLength(5);
+    expect(html.match(/<details open=""/g)).toHaveLength(1);
+    expect(html.match(/class="more"/g)).toHaveLength(4);
+    expect(html).toContain("Postgres tinkerer");
+    expect(html).toContain("--:--");
+    expect(html).toContain("By the numbers");
+    expect(html).not.toContain("command menu");
+    const resume = jordanV2Resume();
+    resume.basics.location = "";
+    const view = portfolioView(resume, OPEN);
+    const content = contentView({
+      view,
+      content: { ...jordanContent(), location: null },
+      github: null,
+      now: NOW,
+    });
     const { Component } = PORTFOLIO_TEMPLATES.cv;
-    const view = portfolioView(jordanV2Resume(), OPEN);
-    const content = contentView({ view, content: jordanContent(), github: null, now: NOW });
-    const still = renderToStaticMarkup(
-      <Component view={view} content={content} commandMenu={false} />,
+    expect(renderToStaticMarkup(<Component view={view} content={content} />)).not.toContain(
+      "--:--",
     );
-    expect(still).not.toContain("command menu");
-    expect(still).not.toContain("<dialog");
   });
 
   it("Prose files projects under their kind and puts monogram chips in the intro", () => {

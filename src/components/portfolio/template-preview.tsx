@@ -17,12 +17,10 @@ export function TemplatePreview({
   id,
   sample,
   sizes,
-  commandMenu = true,
   className,
 }: {
   id: PortfolioTemplateId;
   sample: TemplateSample | null;
-  commandMenu?: boolean;
   sizes: string;
   className?: string;
 }) {
@@ -79,7 +77,7 @@ export function TemplatePreview({
       ) : null}
       {wanted && near && scale > 0 ? (
         <Suspense fallback={null}>
-          <LiveTemplate id={id} sample={sample} scale={scale} commandMenu={commandMenu} />
+          <LiveTemplate id={id} sample={sample} scale={scale} />
         </Suspense>
       ) : null}
     </div>

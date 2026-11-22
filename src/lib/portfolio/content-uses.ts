@@ -49,7 +49,7 @@ export const CONTENT_FIELD_LABELS: Record<ContentField, string> = {
 
 export const REFERENCE_USES = {
   chiangV4: ["pitch", "about", "socials", "jobHighlights"],
-  jarockiCv: ["location", "socials", "about"],
+  chanhdai: ["disciplines", "about", "location", "socials", "stats", "testimonials", "milestones"],
   antfu: ["about", "categories", "talks", "writing", "socials"],
   kraft: ["about", "location", "writing", "socials"],
   hamish: ["disciplines", "projectDetails", "socials"],
@@ -63,7 +63,17 @@ export const TEMPLATE_USES: Record<string, readonly ContentField[]> = {
   dock: ["pitch", "about", "milestones", "socials", "availability"],
   reel: ["disciplines", "projectDetails", "about", "socials"],
   bento: ["pitch", "about", "location", "socials", "github", "now"],
-  cv: ["location", "socials", "about"],
+  cv: [
+    "disciplines",
+    "about",
+    "location",
+    "socials",
+    "stats",
+    "testimonials",
+    "milestones",
+    "writing",
+    "talks",
+  ],
   prose: ["pitch", "about", "categories", "talks", "writing", "socials"],
   folio: ["pitch", "about", "location", "socials", "writing"],
   paper: ["pitch", "about", "socials", "writing", "interests", "shelf", "location"],

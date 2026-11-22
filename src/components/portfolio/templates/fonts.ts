@@ -1,4 +1,5 @@
 import {
+  Caveat,
   DM_Mono,
   Figtree,
   Fira_Code,
@@ -62,6 +63,13 @@ const dmMono = DM_Mono({
   preload: false,
   variable: "--pf-font-dm-mono",
 });
+const caveat = Caveat({
+  subsets: ["latin", "latin-ext"],
+  weight: ["400"],
+  display: "swap",
+  preload: false,
+  variable: "--pf-font-caveat",
+});
 const robotoCondensed = Roboto_Condensed({
   subsets: ["latin", "latin-ext"],
   display: "swap",
@@ -74,7 +82,7 @@ const TEMPLATE_FONTS: Record<PortfolioTemplateId, string> = {
   dock: geist.variable,
   reel: montserrat.variable,
   bento: `${figtree.variable} ${geistPixel.variable}`,
-  cv: `${geistMono.variable} ${geistPixel.variable}`,
+  cv: `${geist.variable} ${geistMono.variable} ${caveat.variable}`,
   prose: `${inter.variable} ${dmMono.variable} ${robotoCondensed.variable}`,
   folio: inter.variable,
   paper: `${geist.variable} ${geistMono.variable}`,
