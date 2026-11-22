@@ -101,6 +101,15 @@ const SECTIONS: readonly LegalSection[] = [
           your account.
         </li>
         <li>
+          <strong>Your week with Otto.</strong> To show your weekly recap, we keep the days your
+          account opened the app (the date only, never the time or the page) and a copy of each
+          week&apos;s recap, which includes the names of companies and jobs from your own
+          applications and saved jobs. We keep both for about 10 weeks. Days are recorded only where
+          usage events are allowed: if your browser sends Do Not Track or Global Privacy Control, we
+          don&apos;t record them, and the recap counts only what you saved in Otto. Both are in your
+          data download and are deleted with your account.
+        </li>
+        <li>
           <strong>Your work profile.</strong> If you fill it in, we store the country you live in,
           your time zone, where you can work without a sponsored visa, whether you want full-time or
           contract work, and whether you only want remote jobs. Otto checks job posts against it in
@@ -437,6 +446,10 @@ const SECTIONS: readonly LegalSection[] = [
           The Chrome extension&apos;s key: until you disconnect it, or 90 days after its last use.
         </li>
         <li>Reminder notes: 90 days once read, a year if never read.</li>
+        <li>
+          The days you opened the app and your weekly recaps: about 10 weeks, or until you delete
+          your account.
+        </li>
         <li>Sign-in codes: they work once and expire after 10 minutes.</li>
         <li>
           Feedback and invite records: until your account is deleted. Feedback sent while signed out

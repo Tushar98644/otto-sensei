@@ -38,6 +38,7 @@ import {
 import type { InterviewPrep } from "@/lib/insights/prep";
 import { EMAIL_LOG_KINDS, NOTIFICATION_KINDS } from "@/lib/notifications/types";
 import { PORTFOLIO_TEMPLATE_IDS } from "@/lib/portfolio/types";
+import type { Recap } from "@/lib/recap/types";
 import { REFERRAL_BLOCK_REASONS, REFERRAL_STATUSES } from "@/lib/referrals/referrals";
 import type { Resume } from "@/lib/resume/schema";
 import { COUNTRY_SOURCES, SETUP_STEP_OUTCOMES } from "@/lib/setup/types";
@@ -625,6 +626,31 @@ export const userActivity = pgTable("user_activity", {
   userId: uuid("user_id").primaryKey(),
   activeOn: date("active_on", { mode: "string" }).notNull(),
 });
+
+// Each day, in the person's own time zone, they opened an app page: the recap's days active.
+export const activeDays = pgTable(
+  "active_days",
+  {
+    userId: uuid("user_id").notNull(),
+    day: date("day", { mode: "string" }).notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.userId, t.day] }), index("active_days_day_idx").on(t.day)],
+);
+
+export const weeklyRecaps = pgTable(
+  "weekly_recaps",
+  {
+    userId: uuid("user_id").notNull(),
+    weekStart: date("week_start", { mode: "string" }).notNull(),
+    data: jsonb("data").$type<Recap>().notNull(),
+    builtAt: epochMs("built_at").notNull(),
+    seenAt: epochMs("seen_at"),
+  },
+  (t) => [
+    primaryKey({ columns: [t.userId, t.weekStart] }),
+    index("weekly_recaps_week_idx").on(t.weekStart),
+  ],
+);
 
 export const savedPosts = pgTable(
   "saved_posts",

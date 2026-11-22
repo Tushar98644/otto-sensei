@@ -17,6 +17,7 @@ import { deleteExpiredExtensionTokens } from "@/lib/extension/tokens";
 import { releaseHandles } from "@/lib/inbound/handles";
 import { MATCH_CACHE_MAX_AGE_MS } from "@/lib/job-feed/match-cache";
 import { log } from "@/lib/log";
+import { deleteOldActiveDays, deleteOldRecaps } from "@/lib/recap/records";
 import { DAY_MS } from "@/lib/time";
 import { drain, type CronContext, type CronOutcome } from "./run";
 
@@ -199,6 +200,8 @@ export async function runCleanup({ now, deadline }: CronContext): Promise<CronOu
         return deleted.length;
       },
     },
+    { name: "weeklyRecaps", run: () => deleteOldRecaps(now, CLEANUP_BATCH) },
+    { name: "activeDays", run: () => deleteOldActiveDays(now, CLEANUP_BATCH) },
   ];
 
   const stats: Record<string, number> = {};

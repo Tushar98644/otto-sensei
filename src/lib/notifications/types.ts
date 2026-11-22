@@ -16,6 +16,7 @@ export const NOTIFICATION_KINDS = [
   "interview_today",
   "job_matches",
   "career_checkin",
+  "weekly_recap",
 ] as const;
 export type NotificationKind = (typeof NOTIFICATION_KINDS)[number];
 

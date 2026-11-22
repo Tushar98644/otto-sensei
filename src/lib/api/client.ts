@@ -51,6 +51,8 @@ import type {
   ReminderSettingsResponse,
   SessionFollowUpActionBody,
 } from "@/lib/notifications/types";
+import type { RecapIndexResponse, RecapResponse, RecapSeenResponse } from "@/lib/recap/types";
+import type { EnsureRecapBody, RecapSeenBody } from "@/lib/recap/validation";
 import type { Resume } from "@/lib/resume/schema";
 import type {
   KnownResumes,
@@ -437,6 +439,11 @@ export const api = {
     request<MarkNotificationsReadResponse>("/api/notifications", postJson(body, "PATCH")),
   followUpAction: (body: SessionFollowUpActionBody) =>
     request<FollowUpActionResponse>("/api/notifications/follow-up", postJson(body)),
+  ensureRecap: (body: EnsureRecapBody) => request<RecapIndexResponse>("/api/recap", postJson(body)),
+  markRecapSeen: (body: RecapSeenBody) =>
+    request<RecapSeenResponse>("/api/recap", postJson(body, "PATCH")),
+  recap: (week: string) =>
+    request<RecapResponse>(`/api/recap/${encodeURIComponent(week)}`, { cache: "no-store" }),
   accountSetup: () =>
     seeded("accountSetup", () =>
       request<AccountSetupResponse>("/api/setup", { cache: "no-store" }),

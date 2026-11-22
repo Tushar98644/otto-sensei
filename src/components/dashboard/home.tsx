@@ -2,9 +2,10 @@
 
 import { ArrowRight } from "lucide-react";
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { Suspense, useMemo, useState } from "react";
 import { HomeCheckin } from "@/components/career-log/home-checkin";
 import { OttoNote } from "@/components/mascot/otto-note";
+import { RecapHome } from "@/components/recap/recap-home";
 import { ROUTES } from "@/components/site/routes";
 import { preload, useLazy } from "@/components/ui/lazy";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -69,6 +70,9 @@ export function DashboardHome() {
       <UpNext actions={actions} hasSample={samples > 0} />
 
       <HomeCheckin />
+      <Suspense fallback={null}>
+        <RecapHome />
+      </Suspense>
 
       <ActionCards actions={actions} latest={latest} pageResume={latest ?? sample} />
 

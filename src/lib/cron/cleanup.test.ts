@@ -55,7 +55,11 @@ describe("runCleanup", () => {
     await seedNotification(maya.id, NOW - RETENTION.anyNotificationsMs - 1, null);
     await seedNotification(maya.id, NOW - DAY, NOW);
     await db.insert(billingEvents).values([
-      { id: "evt_old", type: "subscription.active", receivedAt: NOW - RETENTION.billingEventsMs - 1 },
+      {
+        id: "evt_old",
+        type: "subscription.active",
+        receivedAt: NOW - RETENTION.billingEventsMs - 1,
+      },
       { id: "evt_new", type: "subscription.active", receivedAt: NOW - DAY },
     ]);
 
@@ -72,7 +76,12 @@ describe("runCleanup", () => {
     const newImpression = event("impression", NOW - DAY);
     await db.insert(matchEvents).values([oldImpression, oldSave, newImpression]);
     await db.insert(matchCache).values([
-      { userId: maya.id, key: "k".repeat(32), value: {}, createdAt: NOW - RETENTION.matchCacheMs - 1 },
+      {
+        userId: maya.id,
+        key: "k".repeat(32),
+        value: {},
+        createdAt: NOW - RETENTION.matchCacheMs - 1,
+      },
       { userId: maya.id, key: "n".repeat(32), value: {}, createdAt: NOW - 60_000 },
     ]);
     await db.insert(usagePasses).values([
@@ -129,6 +138,8 @@ describe("runCleanup", () => {
         extensionTokens: 1,
         inboundHandles: 1,
         inboundEmails: 1,
+        weeklyRecaps: 0,
+        activeDays: 0,
       },
       complete: true,
       failed: [],
@@ -144,7 +155,9 @@ describe("runCleanup", () => {
     expect((await db.select().from(matchCache)).map((row) => row.key)).toEqual(["n".repeat(32)]);
     expect((await db.select().from(usagePasses)).map((row) => row.subject)).toEqual(["new"]);
     expect((await db.select().from(meteredResults)).map((row) => row.requestKey)).toEqual(["new"]);
-    expect((await db.select().from(extensionTokens)).map((row) => row.tokenHash)).toEqual(["n".repeat(43)]);
+    expect((await db.select().from(extensionTokens)).map((row) => row.tokenHash)).toEqual([
+      "n".repeat(43),
+    ]);
     expect((await db.select().from(inboundHandles)).map((row) => row.handle)).toEqual(["maya.new"]);
     expect((await db.select().from(inboundEmails)).map((row) => row.messageKey)).toEqual([
       "n".repeat(43),
@@ -164,6 +177,8 @@ describe("runCleanup", () => {
       extensionTokens: 0,
       inboundHandles: 0,
       inboundEmails: 0,
+      weeklyRecaps: 0,
+      activeDays: 0,
     });
   });
 
@@ -184,7 +199,9 @@ describe("runCleanup", () => {
 
   it("starts no batch once its deadline has passed", async () => {
     const db = await getDb();
-    await db.insert(rateLimits).values({ key: "import:ip:old", windowStart: NOW - 3 * DAY, count: 1 });
+    await db
+      .insert(rateLimits)
+      .values({ key: "import:ip:old", windowStart: NOW - 3 * DAY, count: 1 });
 
     const outcome = await runCleanup({ now: NOW, deadline: 0 });
     expect(outcome.complete).toBe(false);

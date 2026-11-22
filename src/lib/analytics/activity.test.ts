@@ -1,4 +1,7 @@
+import { eq } from "drizzle-orm";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { getDb } from "@/db/client";
+import { activeDays } from "@/db/schema";
 import { cookieJar, resetDb, signInAs } from "@/lib/auth/test-helpers";
 
 const config = vi.hoisted(() => ({ key: "phc_test" as string | undefined }));
@@ -86,6 +89,16 @@ describe("recordActivity", () => {
       [user.id, "home", null],
       [user.id, "applications", 3],
     ]);
+  });
+
+  it("keeps each day for the weekly recap, the date only", async () => {
+    const user = await signInAs();
+    await recordActivity(user.id, { section: "home", timeZone: "Asia/Kolkata" }, NOON_UTC);
+    await recordActivity(user.id, { section: "jobs", timeZone: "Asia/Kolkata" }, NOON_UTC + 60_000);
+    await recordActivity(user.id, { section: "home", timeZone: "UTC" }, NOON_UTC + 86_400_000);
+    const db = await getDb();
+    const days = await db.select().from(activeDays).where(eq(activeDays.userId, user.id));
+    expect(days.map((row) => row.day).sort()).toEqual(["2026-11-22", "2026-11-23"]);
   });
 
   it("notes the email link that led here", async () => {

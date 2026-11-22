@@ -1,7 +1,7 @@
 import { lt, sql } from "drizzle-orm";
 import { z } from "zod";
 import { getDb } from "@/db/client";
-import { userActivity } from "@/db/schema";
+import { activeDays, userActivity } from "@/db/schema";
 import { DAY_MS } from "@/lib/time";
 import { DASHBOARD_SECTIONS, EMAIL_CAMPAIGNS } from "./landing";
 import { trackDashboardView, trackEmailClick, trackReturn } from "./retention";
@@ -74,6 +74,9 @@ export async function recordActivity(
   const day = calendarDay(now, activity.timeZone);
   const mark = await markActiveDay(userId, day);
   if (!mark) return;
+  // The weekly recap's days active: the date only.
+  const db = await getDb();
+  await db.insert(activeDays).values({ userId, day }).onConflictDoNothing();
   trackReturn(
     userId,
     activity.section,

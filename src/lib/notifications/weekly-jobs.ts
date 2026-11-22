@@ -58,7 +58,7 @@ function dueFor(now: number) {
 const hasResume = sql`exists (select 1 from ${resumes} where ${resumes.userId} = ${users.id})`;
 
 // The Jobs tab's default: the newest resume that isn't a tailored copy, else the newest.
-async function defaultResume(db: Db, userId: string): Promise<Resume | null> {
+export async function defaultResume(db: Db, userId: string): Promise<Resume | null> {
   const [pick] = await db
     .select({ id: resumes.id })
     .from(resumes)

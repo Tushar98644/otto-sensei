@@ -8,6 +8,7 @@ import { useMe, type Me } from "@/components/account/use-me";
 import { PauseOffscreenLoops } from "@/components/mascot/offscreen-loops";
 import { useOttoLoadingScreen } from "@/components/mascot/otto-loading-screen";
 import { DashboardTour } from "@/components/onboarding/dashboard-tour";
+import { RecapWarmup } from "@/components/recap/recap-warmup";
 import { ROUTES } from "@/components/site/routes";
 import { lazyModule, useLazy, whenIdle } from "@/components/ui/lazy";
 import { plantSeeds, type ApiSeeds } from "@/lib/api/seeds";
@@ -75,6 +76,7 @@ export function AppShell({
           </main>
         </div>
         <DashboardTour />
+        <RecapWarmup userId={initialUser.id} />
         {setup ? <setup.SetupDefaults /> : null}
         <CommandPaletteHost actions={actions} />
         <FileDropOverlay />

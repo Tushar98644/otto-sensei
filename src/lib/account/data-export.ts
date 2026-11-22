@@ -2,7 +2,15 @@ import { and, asc, eq } from "drizzle-orm";
 import JSZip from "jszip";
 import { BRAND } from "@/config/brand";
 import { getDb } from "@/db/client";
-import { applications, applyAnswers, resumes, savedPosts, writings } from "@/db/schema";
+import {
+  activeDays,
+  applications,
+  applyAnswers,
+  resumes,
+  savedPosts,
+  weeklyRecaps,
+  writings,
+} from "@/db/schema";
 import { APPLICATION_LIMITS } from "@/lib/applications/schema";
 import { careerLogJson, careerLogText } from "@/lib/career-log/export";
 import { listEntries } from "@/lib/career-log/records";
@@ -19,6 +27,10 @@ const KIND_FOLDERS: Record<WritingKind, string> = {
 };
 
 const day = (at: number) => new Date(at).toISOString().slice(0, 10);
+
+// Both are kept about 10 weeks, so these caps are never reached.
+const RECAP_EXPORT_LIMIT = 30;
+const ACTIVE_DAYS_EXPORT_LIMIT = 200;
 
 function slug(text: string, fallback: string): string {
   const cleaned = text
@@ -114,6 +126,24 @@ export async function buildDataExport(
       .where(eq(applyAnswers.userId, userId))
       .limit(1),
   ]);
+  const [recapRows, dayRows] = await Promise.all([
+    db
+      .select({
+        week: weeklyRecaps.weekStart,
+        builtAt: weeklyRecaps.builtAt,
+        recap: weeklyRecaps.data,
+      })
+      .from(weeklyRecaps)
+      .where(eq(weeklyRecaps.userId, userId))
+      .orderBy(asc(weeklyRecaps.weekStart))
+      .limit(RECAP_EXPORT_LIMIT),
+    db
+      .select({ day: activeDays.day })
+      .from(activeDays)
+      .where(eq(activeDays.userId, userId))
+      .orderBy(asc(activeDays.day))
+      .limit(ACTIVE_DAYS_EXPORT_LIMIT),
+  ]);
   const answers = answerRows[0] ?? null;
   const { address, emails } = await tracking;
   const tracked = address !== null || emails.length > 0;
@@ -145,6 +175,14 @@ export async function buildDataExport(
         ? [
             `career-log.txt and career-log.json: your career log, ${logEntries.length} ${logEntries.length === 1 ? "month" : "months"}.`,
           ]
+        : []),
+      ...(recapRows.length > 0
+        ? [
+            `weekly-recaps.json: ${recapRows.length} ${recapRows.length === 1 ? "week" : "weeks"} of Your week with Otto, as Otto counted them.`,
+          ]
+        : []),
+      ...(dayRows.length > 0
+        ? ["active-days.json: the days your account opened the app in the past 10 weeks."]
         : []),
       "",
       "Resumes kept only in this browser and not backed up yet aren't included.",
@@ -215,6 +253,11 @@ export async function buildDataExport(
   if (logEntries.length > 0) {
     zip.file("career-log.txt", careerLogText(logEntries, day(now)));
     zip.file("career-log.json", careerLogJson(logEntries));
+  }
+  if (recapRows.length > 0) zip.file("weekly-recaps.json", JSON.stringify(recapRows, null, 2));
+  if (dayRows.length > 0) {
+    const days = dayRows.map((row) => row.day);
+    zip.file("active-days.json", JSON.stringify(days, null, 2));
   }
 
   return new Uint8Array(await zip.generateAsync({ type: "arraybuffer", compression: "DEFLATE" }));
