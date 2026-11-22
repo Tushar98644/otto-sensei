@@ -260,6 +260,10 @@ export async function rankJobs(db: Db, request: RankRequest): Promise<RankResult
   const weight = (skill: string) => weights.get(skill) ?? DEFAULT_SKILL_WEIGHT;
   const families = [...person.families];
   const accepted = acceptedPlaces(lookingFor.place);
+  // Past the pages ranked here in full, each page reads the next openings in the index's own order.
+  const deep =
+    !request.free && !filters.eligibleOnly && request.page > CANDIDATE_POOL / JOB_PAGE_SIZE;
+  const offset = deep ? (request.page - 1) * JOB_PAGE_SIZE : 0;
   const pool = await poolOpenings(
     db,
     {
@@ -272,7 +276,8 @@ export async function rankJobs(db: Db, request: RankRequest): Promise<RankResult
       filters,
       weights,
       places: accepted,
-      limit: request.free ? FREE_POOL : CANDIDATE_POOL,
+      limit: request.free ? FREE_POOL : deep ? JOB_PAGE_SIZE : CANDIDATE_POOL,
+      offset,
       kinds: {
         occupations: person.occupations,
         minors: person.minors,
@@ -326,23 +331,30 @@ export async function rankJobs(db: Db, request: RankRequest): Promise<RankResult
       },
     });
   }
-  const near = scored.filter((item) => !item.far);
-  const kept = near.length > 0 ? near : scored;
-  kept.sort(compareRanked);
-  const ranked = capPerCompany(kept).map((item, index) => ({
+  // Levels two or more steps away follow every nearer one instead of being dropped.
+  const atLevel = (far: boolean) =>
+    capPerCompany(scored.filter((item) => item.far === far).sort(compareRanked));
+  const ranked = [...atLevel(false), ...atLevel(true)].map((item, index) => ({
     ...item.job,
-    position: index + 1,
+    position: offset + index + 1,
   }));
-  const firstSeen = new Map(kept.map((item) => [item.job.id, item.firstSeenAt]));
+  const firstSeen = new Map(scored.map((item) => [item.job.id, item.firstSeenAt]));
 
-  const strong = ranked.filter((job) => job.match.label === "strong").length;
-  const newToday = ranked.filter((job) => (firstSeen.get(job.id) ?? 0) >= now - DAY_MS).length;
+  const matching = Math.max(pool.groups, offset + ranked.length);
+  // A deep page's own few jobs say nothing about the whole list, so it counts none as strong or new.
+  const strong = deep ? 0 : ranked.filter((job) => job.match.label === "strong").length;
+  const newToday = deep
+    ? 0
+    : ranked.filter((job) => (firstSeen.get(job.id) ?? 0) >= now - DAY_MS).length;
   const pageOf = (page: number): RankResult => ({
-    jobs: ranked.slice((page - 1) * JOB_PAGE_SIZE, page * JOB_PAGE_SIZE),
+    jobs: deep ? ranked : ranked.slice((page - 1) * JOB_PAGE_SIZE, page * JOB_PAGE_SIZE),
     page,
     pageSize: JOB_PAGE_SIZE,
-    total: ranked.length,
-    matching: Math.max(pool.groups, ranked.length),
+    total:
+      request.free || filters.eligibleOnly
+        ? ranked.length
+        : Math.min(matching, MAX_JOB_PAGE * JOB_PAGE_SIZE),
+    matching,
     capped: pool.groups > CANDIDATE_POOL,
     strong,
     newToday,

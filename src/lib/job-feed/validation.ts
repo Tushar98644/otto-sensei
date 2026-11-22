@@ -88,7 +88,13 @@ export const MatchActionSchema = z
     kind: z.enum(["open", "save", "tailor", "applied", "not_fit", "asked_applied"]),
     jobId: z.uuid(),
     requestId: z.uuid().nullable().default(null),
-    position: z.number().int().min(1).max(1_000).nullable().default(null),
+    position: z
+      .number()
+      .int()
+      .min(1)
+      .max(MAX_JOB_PAGE * JOB_PAGE_SIZE)
+      .nullable()
+      .default(null),
     label: z.enum(["strong", "good", "stretch"]).nullable().default(null),
     variant: z
       .string()
@@ -119,7 +125,11 @@ export const ImpressionBatchSchema = z.object({
     .array(
       z.object({
         jobId: z.uuid(),
-        position: z.number().int().min(1).max(1_000),
+        position: z
+          .number()
+          .int()
+          .min(1)
+          .max(MAX_JOB_PAGE * JOB_PAGE_SIZE),
         label: z.enum(["strong", "good", "stretch"]).nullable(),
       }),
     )

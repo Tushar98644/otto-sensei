@@ -286,6 +286,7 @@ export type OpeningPool = {
 export type PoolQuery = MatchQuery & {
   places: readonly string[] | null;
   limit?: number;
+  offset?: number;
   kinds?: {
     occupations: ReadonlyMap<string, number>;
     minors: ReadonlyMap<string, number>;
@@ -341,10 +342,12 @@ async function indexedPool(
   const w = sql`${intArray(dense)}::float8[]`;
   const weightAt = (codes: string[], weights: number[], column: SQL) =>
     sql`coalesce((${floatArray(weights)}::float8[])[array_position(${textArrayLiteral(codes)}::text[], ${column})], 0)`;
+  const occWeight = weightAt(occCodes, [...kinds.occupations.values()], sql`m.occ`);
   const kindSql = sql`case when m.family is not null and ${kinds.byFamily}::boolean then
       case when m.family = any(${textArrayLiteral(families)}::text[]) then 1::float8
-        when m.family = any(${textArrayLiteral(past)}::text[]) then ${PAST_KIND_WEIGHT}::float8 else 0::float8 end
-    else greatest(${weightAt(occCodes, [...kinds.occupations.values()], sql`m.occ`)},
+        when m.family = any(${textArrayLiteral(past)}::text[]) then ${PAST_KIND_WEIGHT}::float8
+        when ${occWeight} >= 1 then 1::float8 else 0::float8 end
+    else greatest(${occWeight},
       ${weightAt(minorCodes, [...kinds.minors.values()], sql`m.occ_minor`)},
       ${weightAt(majorCodes, [...kinds.majors.values()], sql`m.occ_major`)}) end`;
   const conditions: SQL[] = [
@@ -389,7 +392,6 @@ async function indexedPool(
     occ: string | null;
     zone: number | null;
     groups: number;
-    near_groups: number;
   }>(
     await db.execute(sql`
       with scored as (
@@ -408,14 +410,13 @@ async function indexedPool(
         where ${and(...conditions)}
       ),
       ranked as (
-        select id, score, near, posted_at,
-          (count(*) over ())::int as groups, (count(*) filter (where near) over ())::int as near_groups
+        select id, score, near, posted_at, (count(*) over ())::int as groups
         from scored
         order by near desc, score desc, posted_at desc, id
-        limit ${query.limit ?? CANDIDATE_POOL}::int
+        limit ${query.limit ?? CANDIDATE_POOL}::int offset ${query.offset ?? 0}::int
       )
       select r.id::text as id, m.grp, m.places, m.uk_sponsor, m.h1b_year, m.family, m.occ, m.zone,
-        r.groups, r.near_groups
+        r.groups
       from ranked r join ${jobMatch} m on m.id = r.id
       order by r.near desc, r.score desc, r.posted_at desc, r.id
     `),
@@ -423,7 +424,8 @@ async function indexedPool(
   if (pooled.length === 0) return { openings: [], groups: 0, source: "index" };
 
   const ids = pooled.map((row) => row.id);
-  const groupKeys = pooled.map((row) => row.grp).filter((grp) => !ids.includes(grp));
+  const idSet = new Set(ids);
+  const groupKeys = pooled.map((row) => row.grp).filter((grp) => !idSet.has(grp));
   const copies = await db
     .select(CANDIDATE_COLUMNS)
     .from(jobs)
@@ -439,9 +441,10 @@ async function indexedPool(
   const byGroup = new Map<string, CandidateRow[]>();
   for (const copy of copies) {
     const grp = copy.groupKey || copy.id;
-    byGroup.set(grp, [...(byGroup.get(grp) ?? []), copy]);
+    const list = byGroup.get(grp);
+    if (list) list.push(copy);
+    else byGroup.set(grp, [copy]);
   }
-  const near = pooled[0]?.near_groups ?? 0;
   const openings: PooledOpening[] = [];
   for (const item of pooled) {
     const list = byGroup.get(item.grp) ?? [];
@@ -458,17 +461,14 @@ async function indexedPool(
       kind: { family: item.family, occupation: item.occ, zone: item.zone },
     });
   }
-  return {
-    openings,
-    groups: near > 0 ? near : (pooled[0]?.groups ?? 0),
-    source: "index",
-  };
+  return { openings, groups: pooled[0]?.groups ?? 0, source: "index" };
 }
 
 async function jobsPool(db: Db, query: PoolQuery, now: number): Promise<OpeningPool> {
   const pool = await matchCandidates(db, query, now);
+  const start = query.offset ?? 0;
   return {
-    openings: pool.rows.map((row) => {
+    openings: pool.rows.slice(start, start + (query.limit ?? pool.rows.length)).map((row) => {
       const copies = pool.copies.get(row.groupKey) ?? [row];
       const places = [
         ...new Set(copies.flatMap((copy) => jobPlaces(copy.location, copy.rulesText))),

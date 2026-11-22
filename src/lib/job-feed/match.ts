@@ -114,13 +114,15 @@ export function kindOf(
   job: Pick<MatchableJob, "title" | "family" | "occupation">,
 ): Kind {
   const family = job.family !== undefined ? job.family : roleFamily(job.title);
+  const code = job.occupation ?? null;
+  const exact = code ? (person.occupations.get(code) ?? 0) : 0;
   if (family && person.families.size > 0) {
     const weight = person.families.get(family) ?? 0;
-    return { weight, via: weight > 0 ? "family" : null };
+    if (weight > 0) return { weight, via: "family" };
+    // "Software Engineer, Marketing Technology" files under marketing but is the very same occupation.
+    return exact >= 1 ? { weight: exact, via: "same" } : { weight: 0, via: null };
   }
-  const code = job.occupation ?? null;
   if (!code) return { weight: 0, via: null };
-  const exact = person.occupations.get(code) ?? 0;
   const group = Math.max(
     person.minors.get(minorOf(code)) ?? 0,
     person.majors.get(majorOf(code)) ?? 0,

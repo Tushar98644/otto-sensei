@@ -105,7 +105,7 @@ export const POSTED_WITHIN = [7, 30] as const;
 export type PostedWithin = (typeof POSTED_WITHIN)[number];
 
 export const JOB_PAGE_SIZE = 20;
-export const MAX_JOB_PAGE = 50;
+export const MAX_JOB_PAGE = 1_000;
 
 export type FeedJob = {
   id: string;

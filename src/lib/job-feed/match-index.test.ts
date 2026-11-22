@@ -167,7 +167,7 @@ describe("match index", () => {
     expect(await shown({ q: "london" }, null)).toEqual(await shown({ q: "london" }));
   });
 
-  it("keeps only openings someone in the chosen place can take, and a far level last", async () => {
+  it("keeps only openings someone in the chosen place can take, and counts a far level but ranks it last", async () => {
     await ingest([
       raw("de", { title: "Backend Engineer", location: "Berlin, Germany", remote: false }),
       raw("us", {
@@ -195,7 +195,7 @@ describe("match index", () => {
       "Director of Engineering",
     ]);
     expect(pool.openings[0]!.row.location).toBe("Austin, TX");
-    expect(pool.groups).toBe(1);
+    expect(pool.groups).toBe(2);
   });
 
   it("shows Remote, India only jobs open worldwide, in India, in a region with India, or unplaced by location and post", async () => {
@@ -238,6 +238,70 @@ describe("match index", () => {
       "Remote - India",
     ]);
     expect(result.total).toBe(4);
+  });
+
+  it("ranks levels two steps away after every nearer one instead of dropping them", async () => {
+    await ingest([
+      raw("mid", { title: "Backend Engineer" }),
+      raw("dir", { title: "Director of Engineering", text: "Go, PostgreSQL, Kubernetes. Lead." }),
+      raw("sr", { title: "Senior Backend Engineer" }),
+    ]);
+    const db = await getDb();
+    const user = await createUser("ada@example.com");
+    const result = await rankJobs(db, {
+      userId: user.id,
+      view: "matches",
+      profile: { skills: ["Go", "PostgreSQL"], titles: ["Backend Engineer"], years: 4 },
+      filters: DEFAULT_FILTERS,
+      page: 1,
+      workProfile: null,
+      deviceTimeZone: "",
+      now: NOW,
+    });
+    expect(result.jobs.map((job) => job.title)).toEqual([
+      "Backend Engineer",
+      "Senior Backend Engineer",
+      "Director of Engineering",
+    ]);
+    expect(result.jobs[2]!.match.label).toBe("stretch");
+    expect(result).toMatchObject({ total: 3, matching: 3 });
+  });
+
+  it("pages past the closely ranked openings in the index's own order, through every match", async () => {
+    await ingest([raw("seed")]);
+    const db = await getDb();
+    await db.execute(sql`
+      insert into public.jobs (id, source, external_id, board, company, title, location, remote,
+        seniority, family, occupation, posted_at, url, rules_text, keywords, search, dedupe_key,
+        group_key, content_hash, first_seen_at, last_seen_at, created_at, updated_at)
+      select gen_random_uuid(), source, 'copy-' || n, board, company || ' ' || n, title, location,
+        remote, seniority, family, occupation, posted_at - n * 1000, url || '?n=' || n, rules_text,
+        keywords, search, dedupe_key || n, group_key || n, content_hash, first_seen_at,
+        last_seen_at, created_at, updated_at
+      from public.jobs cross join generate_series(1, 329) as n`);
+    await rebuildMatchIndex(db, NOW);
+    const user = await createUser("ada@example.com");
+    const page = (n: number) =>
+      rankJobs(db, {
+        userId: user.id,
+        view: "matches",
+        profile: { skills: ["Go", "PostgreSQL"], titles: ["Backend Engineer"], years: 4 },
+        filters: DEFAULT_FILTERS,
+        page: n,
+        workProfile: null,
+        deviceTimeZone: "",
+        now: NOW,
+      });
+    const last = await page(15);
+    const deep = await page(16);
+    expect(last.jobs.at(-1)?.position).toBe(300);
+    expect(deep.jobs.map((job) => job.position)).toEqual(
+      Array.from({ length: 20 }, (_, i) => 301 + i),
+    );
+    expect(deep).toMatchObject({ total: 330, matching: 330, strong: 0 });
+    const seen = new Set(last.jobs.map((job) => job.id));
+    expect(deep.jobs.some((job) => seen.has(job.id))).toBe(false);
+    expect((await page(17)).jobs).toHaveLength(10);
   });
 
   it("copies company visa facts in and shows them as plain lines", async () => {

@@ -327,4 +327,20 @@ describe("occupations for every kind of work", () => {
     expect(kindOf(engineer, post("Mechanical Engineer")).weight).toBe(0);
     expect(kindOf(engineer, post("Solutions Engineer")).weight).toBe(0);
   });
+
+  it("keeps a job filed under another kind of role when its occupation is the person's own", () => {
+    const engineer = personFrom(
+      { skills: ["Go"], titles: ["Software Engineer"], years: 4 },
+      null,
+      OCCUPATIONS,
+    );
+    const filed = {
+      ...post("Senior Software Engineer, Marketing Technology"),
+      family: "marketing" as const,
+    };
+    expect(filed.occupation).toBe("15-1252.00");
+    expect(kindOf(engineer, filed)).toEqual({ weight: 1, via: "same" });
+    const designer = { ...post("Product Designer"), family: "design" as const };
+    expect(kindOf(engineer, designer).weight).toBe(0);
+  });
 });
