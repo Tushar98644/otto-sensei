@@ -27,6 +27,17 @@ function dateInput(at: number): string {
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
 }
 
+const leafMonth = new Intl.DateTimeFormat("en-US", { month: "short" });
+const spokenDay = new Intl.DateTimeFormat("en-US", {
+  month: "long",
+  day: "numeric",
+  year: "numeric",
+});
+
+function escaped(text: string): string {
+  return text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
 // A new account that has already passed the first-run "What are you looking for?" step.
 async function signedIn(page: Page): Promise<void> {
   await signIn(page);
@@ -94,6 +105,11 @@ async function andSaved(page: Page, act: () => Promise<unknown>): Promise<void> 
   expect(response.ok(), `${response.request().method()} ${response.url()}`).toBe(true);
 }
 
+// Otto's line on Jobs sets its first sentence apart, so in the page text the two sentences meet with no space.
+function ottoLine(page: Page, lead: string, rest: string): Locator {
+  return page.getByText(new RegExp(`^${escaped(lead)}\\s*${escaped(rest)}$`));
+}
+
 function upgradeDialog(page: Page, line: RegExp): Locator {
   return page.getByRole("dialog").filter({ hasText: line });
 }
@@ -125,9 +141,9 @@ test.describe("Jobs tab", () => {
     await signedIn(page);
     await withResume(page);
     await page.goto("/dashboard/jobs");
-    await expect(page.getByText("No jobs here yet. The boards are read once a day.")).toBeVisible(
-      FIRST_LOAD,
-    );
+    await expect(
+      ottoLine(page, "No jobs here yet.", "The boards are read once a day."),
+    ).toBeVisible(FIRST_LOAD);
     await expect(page.getByText(/· 0 open jobs$/)).toBeVisible();
     await expect(page.getByRole("article")).toHaveCount(0);
   });
@@ -138,9 +154,10 @@ test.describe("Jobs tab", () => {
     await fakeJobFeed(page);
     await page.goto("/dashboard/jobs");
 
-    await expect(page.getByText("I found 7 matching jobs. Here are the closest 5.")).toBeVisible(
+    await expect(ottoLine(page, "I found 7 matching jobs.", "Here are the closest 5.")).toBeVisible(
       FIRST_LOAD,
     );
+    await expect(page.getByText("Your matches", { exact: true })).toBeVisible();
     await expect(page.getByText(/1,250 open jobs · checked 2 hours ago/)).toBeVisible();
     await expect(page.getByRole("article")).toHaveCount(5);
     for (const job of FEED_JOBS.slice(0, 5)) await expect(jobCard(page, job.title)).toBeVisible();
@@ -150,8 +167,13 @@ test.describe("Jobs tab", () => {
     const card = jobCard(page, top.title);
     await expect(card.getByText(top.company, { exact: true })).toBeVisible();
     await expect(card.getByText("via Greenhouse")).toBeVisible();
-    await expect(card.getByText("Strong match")).toBeVisible();
-    await expect(card.getByText(top.match.reason)).toBeVisible();
+    // The match badge is drawn twice, once for wide screens and once for phones.
+    await expect(card.getByText("Strong match").filter({ visible: true })).toBeVisible();
+    await expect(card).toHaveAccessibleDescription(top.match.reason);
+    await expect(card.getByText("Found in your resume", { exact: true })).toBeVisible();
+    for (const skill of top.match.found) {
+      await expect(card.getByText(skill, { exact: true })).toBeVisible();
+    }
     await expect(card.getByRole("link", { name: /Open job/ })).toHaveAttribute("href", top.url);
 
     await expect(page.getByRole("heading", { name: "Your top 5 of 7 matches" })).toBeVisible();
@@ -175,7 +197,7 @@ test.describe("Jobs tab", () => {
     await page.goto("/dashboard/jobs");
 
     await expect(
-      page.getByText("I found 7 jobs that match your resume. 2 look strong."),
+      ottoLine(page, "I found 7 jobs that match your resume.", "2 look strong."),
     ).toBeVisible(FIRST_LOAD);
     await expect(page.getByRole("article")).toHaveCount(7);
 
@@ -198,7 +220,10 @@ test.describe("Jobs tab", () => {
 
     await savedView.click();
     await expect(savedView).toHaveAttribute("aria-pressed", "true");
-    await expect(page.getByText("1 saved job. Closed ones stay here for 30 days.")).toBeVisible();
+    await expect(page.getByText("Saved jobs", { exact: true })).toBeVisible();
+    await expect(
+      ottoLine(page, "1 saved job.", "Closed ones stay here for 30 days."),
+    ).toBeVisible();
     await expect(page.getByRole("article")).toHaveCount(1);
     await expect(card).toBeVisible();
 
@@ -209,7 +234,7 @@ test.describe("Jobs tab", () => {
     await card.getByRole("button", { name: "Saved", exact: true }).click();
     await expect(page.getByRole("article")).toHaveCount(0);
     await expect(
-      page.getByText("Nothing saved yet. Save a job and it waits for you here."),
+      ottoLine(page, "Nothing saved yet.", "Save a job and it waits for you here."),
     ).toBeVisible();
     await expect(savedView).toHaveText(/Saved\s*0/);
     expect((await removed).ok()).toBe(true);
@@ -367,19 +392,30 @@ test.describe("Application tracking", () => {
     await page.goto("/dashboard/applications");
 
     const card = (name: string) =>
-      column(page, name).getByRole("article", { name: "Senior Product Marketer" });
+      column(page, name).getByRole("article", {
+        name: "Bluefin Analytics Senior Product Marketer",
+        exact: true,
+      });
     await expect(card("Applied")).toBeVisible(FIRST_LOAD);
     await card("Applied").getByRole("button", { name: "Move on to Interviewing" }).click();
 
     const ask = page.getByRole("dialog", { name: "Move to Interviewing" });
     await expect(ask).toBeVisible();
-    const interviewAt = Date.now() + 5 * DAY_MS;
-    await ask.getByLabel("Interview day").fill(dateInput(interviewAt));
+    const interview = new Date();
+    interview.setDate(interview.getDate() + 5);
+    await ask.getByLabel("Interview day").fill(dateInput(interview.getTime()));
     await andSaved(page, () => ask.getByRole("button", { name: "Move", exact: true }).click());
     await expect(ask).toBeHidden();
 
-    await expect(card("Interviewing")).toBeVisible();
-    await expect(card("Interviewing").getByText(`On ${day(interviewAt)}`)).toBeVisible();
+    const interviewing = card("Interviewing");
+    await expect(interviewing).toBeVisible();
+    const leaf = `^${leafMonth.format(interview).toUpperCase()}\\s*${interview.getDate()}$`;
+    await expect(interviewing.getByText(new RegExp(leaf))).toBeVisible();
+    await expect(interviewing.getByText("In 5 days", { exact: true })).toBeVisible();
+    // The calendar leaf is hidden from screen readers, which hear the full date instead.
+    await expect(
+      interviewing.getByText(`, ${spokenDay.format(interview)}`, { exact: true }),
+    ).toBeAttached();
     await expect(card("Applied")).toHaveCount(0);
 
     await card("Interviewing").getByRole("button", { name: "More for Bluefin Analytics" }).click();
@@ -434,8 +470,11 @@ test.describe("Application tracking", () => {
     await page.clock.setFixedTime(due);
     await page.goto("/dashboard/applications");
 
-    const card = column(page, "Applied").getByRole("article", { name: "Brand Marketing Manager" });
-    await expect(card.getByText("Follow up", { exact: true })).toBeVisible(FIRST_LOAD);
+    const card = column(page, "Applied").getByRole("article", {
+      name: "Halcyon Maps Brand Marketing Manager",
+      exact: true,
+    });
+    await expect(card.getByText("Time to follow up", { exact: true })).toBeVisible(FIRST_LOAD);
 
     await showList(page);
     const row = listRow(page, "Halcyon Maps");
