@@ -18,7 +18,7 @@ const NO_TRANSACTION = /^--\s*no-transaction\b/;
 export const MIGRATIONS_DIR = path.join(process.cwd(), "supabase", "migrations");
 
 export function readMigrations(dir = MIGRATIONS_DIR): MigrationFile[] {
-  return readdirSync(dir)
+  const files = readdirSync(dir)
     .filter((file) => file.endsWith(".sql"))
     .sort()
     .map((file) => {
@@ -35,6 +35,18 @@ export function readMigrations(dir = MIGRATIONS_DIR): MigrationFile[] {
         transaction: !NO_TRANSACTION.test(sql),
       };
     });
+  // The runner records versions, so a second file with the same version would be skipped silently.
+  const seen = new Map<string, string>();
+  for (const migration of files) {
+    const first = seen.get(migration.version);
+    if (first) {
+      throw new Error(
+        `Migrations ${first} and ${migration.file} share version ${migration.version}: give one a later timestamp.`,
+      );
+    }
+    seen.set(migration.version, migration.file);
+  }
+  return files;
 }
 
 export const MIGRATION_HISTORY_DDL = `

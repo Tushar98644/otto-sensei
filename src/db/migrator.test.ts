@@ -89,6 +89,17 @@ const quiet = { log: () => {}, sleep: async () => {} };
 const busyUntil = (tries: number) =>
   `do $$ begin if nextval('public.tries') < ${tries} then raise exception 'busy' using errcode = '55P03'; end if; end $$;`;
 
+describe("readMigrations", () => {
+  it("refuses two files with the same version, which the runner would skip", () => {
+    expect(() =>
+      migrations({
+        "20261122003000_active_days.sql": "select 1;",
+        "20261122003000_apply_answers.sql": "select 1;",
+      }),
+    ).toThrow(/share version 20261122003000/);
+  });
+});
+
 describe("migrate", () => {
   it("applies each pending file once, in order, under a lock timeout and a statement timeout", async () => {
     const sql = await database();
