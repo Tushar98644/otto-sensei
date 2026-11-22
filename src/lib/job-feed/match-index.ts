@@ -350,15 +350,19 @@ async function indexedPool(
     );
   const text = textMatch(filters);
   if (text) conditions.push(text);
+  const accepted = query.places;
+  // A chosen place keeps openings anyone there can take, plus those that name no place.
+  if (accepted !== null)
+    conditions.push(
+      sql`(cardinality(m.places) = 0 or m.places && ${textArrayLiteral(accepted)}::text[])`,
+    );
 
   const gap = level === null ? sql`0` : sql`(m.level - ${level}::int)`;
-  const accepted = query.places;
   const placeFactor =
     accepted === null
       ? sql`1::float8`
-      : sql`case when cardinality(m.places) = 0 then 1::float8
-          when m.places && ${textArrayLiteral(accepted)}::text[] then ${ORDER_LIMITS.placeMatch}::float8
-          else ${ORDER_LIMITS.placeMiss}::float8 end`;
+      : sql`case when m.places && ${textArrayLiteral(accepted)}::text[] then ${ORDER_LIMITS.placeMatch}::float8
+          else 1::float8 end`;
   // The window counts hold every scored row, so they carry only what ranks: wide rows spilled to disk.
   const pooled = rowsOf<{
     id: string;

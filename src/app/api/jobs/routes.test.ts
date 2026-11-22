@@ -186,7 +186,7 @@ describe("the Jobs tab on Free", () => {
       title: "Account Executive",
       family: "sales" as const,
       level: "mid" as const,
-      place: "c:US" as const,
+      place: "g:eu" as const,
       remote: true,
     };
     const preview = await ranked({ lookingFor });
@@ -274,11 +274,18 @@ describe("POST /api/jobs/matches", () => {
       country: "DE",
       rights: { us: "sponsorship", uk: null, eu: "authorized", ca: null },
     });
-    const all = await ranked();
+    const lookingFor = {
+      title: "Software Engineer",
+      family: "engineering" as const,
+      level: null,
+      place: "anywhere" as const,
+      remote: false,
+    };
+    const all = await ranked({ lookingFor });
     const platform = all.jobs.find((job) => job.title === "Platform Engineer")!;
     expect(platform.match).toMatchObject({ label: "stretch", blocked: true });
     expect(all.profileReady).toBe(true);
-    const eligible = await ranked({ filters: { eligibleOnly: true } });
+    const eligible = await ranked({ lookingFor, filters: { eligibleOnly: true } });
     expect(eligible.jobs.map((job) => job.title)).not.toContain("Platform Engineer");
   });
 
@@ -322,7 +329,7 @@ describe("POST /api/jobs/matches", () => {
     const user = await signInAs();
     await seedJobs();
     const body = await ranked();
-    expect(body).toMatchObject({ variant: "occupation-v3", matching: 3 });
+    expect(body).toMatchObject({ variant: "occupation-v4", matching: 3 });
     expect(body.requestId).toMatch(/^[0-9a-f-]{36}$/);
     const db = await getDb();
     const shown = await db.select().from(matchEvents).orderBy(matchEvents.position);
@@ -439,7 +446,7 @@ describe("POST /api/jobs/matches", () => {
     const batch = {
       kind: "impressions",
       requestId: crypto.randomUUID(),
-      variant: "occupation-v3",
+      variant: "occupation-v4",
       resumeHash: "abcdefgh12345678",
       jobs: [{ jobId: crypto.randomUUID(), position: 1, label: "good" }],
     };

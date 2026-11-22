@@ -167,7 +167,7 @@ describe("match index", () => {
     expect(await shown({ q: "london" }, null)).toEqual(await shown({ q: "london" }));
   });
 
-  it("puts a place the card names first and a far level last", async () => {
+  it("keeps only openings someone in the chosen place can take, and a far level last", async () => {
     await ingest([
       raw("de", { title: "Backend Engineer", location: "Berlin, Germany", remote: false }),
       raw("us", {
@@ -192,11 +192,48 @@ describe("match index", () => {
     );
     expect(pool.openings.map((item) => item.row.title)).toEqual([
       "Backend Engineer",
-      "Backend Engineer",
       "Director of Engineering",
     ]);
     expect(pool.openings[0]!.row.location).toBe("Austin, TX");
-    expect(pool.groups).toBe(2);
+    expect(pool.groups).toBe(1);
+  });
+
+  it("shows Remote, India only jobs open worldwide, in India, in a region with India, or unplaced", async () => {
+    await ingest([
+      raw("us", { location: "Remote - US" }),
+      raw("in", { location: "Remote - India" }),
+      raw("ww", { location: "Remote (Worldwide)" }),
+      raw("apac", { location: "Remote - APAC" }),
+      raw("bare", { location: "Remote" }),
+      raw("blr", { location: "Bengaluru, India", remote: false }),
+    ]);
+    const db = await getDb();
+    const user = await createUser("ada@example.com");
+    const result = await rankJobs(db, {
+      userId: user.id,
+      view: "matches",
+      profile: { skills: ["Go", "PostgreSQL"], titles: ["Backend Engineer"], years: 4 },
+      filters: { ...DEFAULT_FILTERS, remote: true },
+      lookingFor: {
+        title: "Backend Engineer",
+        family: "engineering",
+        occupation: null,
+        level: null,
+        place: "c:IN",
+        remote: true,
+      },
+      page: 1,
+      workProfile: null,
+      deviceTimeZone: "",
+      now: NOW,
+    });
+    expect(result.jobs.map((job) => job.location).sort()).toEqual([
+      "Remote",
+      "Remote (Worldwide)",
+      "Remote - APAC",
+      "Remote - India",
+    ]);
+    expect(result.total).toBe(4);
   });
 
   it("copies company visa facts in and shows them as plain lines", async () => {

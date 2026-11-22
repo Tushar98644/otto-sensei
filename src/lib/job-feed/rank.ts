@@ -73,7 +73,7 @@ const COPIES_CHECKED = 6;
 const PLACES_SHOWN = 2;
 const FREE_POOL = 60;
 
-export const MATCH_VARIANT = "occupation-v3";
+export const MATCH_VARIANT = "occupation-v4";
 
 export function occupationOption(code: string | null): OccupationOption | null {
   const occupation = occupationOf(code);
@@ -147,9 +147,8 @@ function pickCopy(
   const { row, visa } = opening;
   const rest = opening.copies.filter((copy) => copy.id !== row.id);
   let list = [row, ...rest];
+  const fits = (copy: CandidateRow): PlaceFit => placeFit(jobPlaceTokens(copy.location), accepted);
   if (accepted !== null && list.length > 1) {
-    const fits = (copy: CandidateRow): PlaceFit =>
-      placeFit(jobPlaceTokens(copy.location), accepted);
     const order: Record<PlaceFit, number> = { match: 0, unknown: 1, miss: 2 };
     list = [...list].sort((a, b) => order[fits(a)] - order[fits(b)]);
   }
@@ -157,6 +156,7 @@ function pickCopy(
   let hint = check ? check(shown, visa) : NO_RULES;
   if (check && hint.blocked) {
     for (const copy of list.slice(1, COPIES_CHECKED)) {
+      if (fits(copy) === "miss") break;
       const other = check(copy, visa);
       if (!other.blocked) {
         shown = copy;
@@ -286,6 +286,8 @@ export async function rankJobs(db: Db, request: RankRequest): Promise<RankResult
 
   const scored: Scored[] = [];
   for (const opening of pool.openings) {
+    const fit = placeFit(opening.places, accepted);
+    if (fit === "miss") continue;
     const { row } = opening;
     const facts = factsOf(row, opening.kind);
     if (!matchJob(person, facts)) continue;
@@ -293,7 +295,6 @@ export async function rankJobs(db: Db, request: RankRequest): Promise<RankResult
     const match = matchJob(person, facts, hint) ?? unmatched(facts, hint);
     if (filters.eligibleOnly && match.blocked) continue;
     const gap = levelGap(person.seniority, row.seniority);
-    const fit = placeFit(opening.places, accepted);
     const kind = kindOf(person, facts).weight;
     scored.push({
       match,
@@ -301,7 +302,6 @@ export async function rankJobs(db: Db, request: RankRequest): Promise<RankResult
       postedAt: row.postedAt,
       firstSeenAt: row.firstSeenAt,
       far: Math.abs(gap) >= 2,
-      demoted: fit === "miss",
       pastKind: kind >= KIND.same && kind < KIND.own,
       closeness:
         closeness(match, row.keywords, weight, kind) *
