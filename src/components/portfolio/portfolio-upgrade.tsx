@@ -97,6 +97,7 @@ export function PortfolioUpgrade({
       <TemplateGallery
         className="mt-4"
         sample={choice.sample}
+        commandMenu={false}
         onPreview={setFull}
         action={(id, name) => (
           <Button
@@ -117,6 +118,7 @@ export function PortfolioUpgrade({
           <FullPortfolioPreview
             id={full}
             own={own}
+            commandMenu={false}
             onChange={setFull}
             onClose={() => setFull(null)}
             action={{

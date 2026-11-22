@@ -11,9 +11,11 @@ export function TemplateGallery({
   sample,
   onPreview,
   action,
+  commandMenu = true,
   className,
 }: {
   sample: TemplateSample | null;
+  commandMenu?: boolean;
   onPreview: (id: PortfolioTemplateId) => void;
   action: (id: PortfolioTemplateId, name: string) => ReactNode;
   className?: string;
@@ -33,6 +35,7 @@ export function TemplateGallery({
               <TemplatePreview
                 id={id}
                 sample={sample}
+                commandMenu={commandMenu}
                 sizes="(min-width: 1280px) 30vw, (min-width: 640px) 45vw, 90vw"
                 className="transition-shadow group-hover:ring-2 group-hover:ring-ink/20"
               />

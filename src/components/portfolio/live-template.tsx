@@ -16,10 +16,12 @@ export function LiveTemplate({
   id,
   sample,
   scale,
+  commandMenu = true,
 }: {
   id: PortfolioTemplateId;
   sample: TemplateSample | null;
   scale: number;
+  commandMenu?: boolean;
 }) {
   const data = useMemo(() => sample ?? jordanPage(), [sample]);
   return (
@@ -41,7 +43,7 @@ export function LiveTemplate({
         } as CSSProperties
       }
     >
-      <LazyTemplate id={id} view={data.view} content={data.content} />
+      <LazyTemplate id={id} view={data.view} content={data.content} commandMenu={commandMenu} />
     </div>
   );
 }

@@ -68,7 +68,13 @@ function iconFor(kind: SocialKind) {
   return <SocialIcon kind={kind} />;
 }
 
-export function CvTemplate({ view, content, footer, resumeHref }: PortfolioTemplateProps) {
+export function CvTemplate({
+  view,
+  content,
+  footer,
+  resumeHref,
+  commandMenu = true,
+}: PortfolioTemplateProps) {
   const name = nameOf(view);
   const about = view.headline || content.pitch;
   const place = content.location?.label || view.location;
@@ -310,7 +316,7 @@ export function CvTemplate({ view, content, footer, resumeHref }: PortfolioTempl
             <div className="credit">{footer}</div>
           </footer>
         ) : null}
-        <CommandMenu links={menuLinks} />
+        {commandMenu ? <CommandMenu links={menuLinks} /> : null}
       </div>
     </div>
   );

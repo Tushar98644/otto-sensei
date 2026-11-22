@@ -9,6 +9,8 @@ export type PortfolioTemplateProps = {
   content: PortfolioContentView;
   footer?: ReactNode;
   resumeHref?: string | null;
+  // Off where the visitor can only look, such as a Free account's previews.
+  commandMenu?: boolean;
 };
 
 export type PortfolioTemplate = PortfolioTemplateInfo & {

@@ -263,6 +263,14 @@ describe("rebuild details", () => {
     expect(html).toContain("to open the command menu");
     expect(html).toContain("@page { size: A4;");
     expect(html.match(/<article/g)?.length).toBe(5 + 1 + 7);
+    const { Component } = PORTFOLIO_TEMPLATES.cv;
+    const view = portfolioView(jordanV2Resume(), OPEN);
+    const content = contentView({ view, content: jordanContent(), github: null, now: NOW });
+    const still = renderToStaticMarkup(
+      <Component view={view} content={content} commandMenu={false} />,
+    );
+    expect(still).not.toContain("command menu");
+    expect(still).not.toContain("<dialog");
   });
 
   it("Prose files projects under their kind and puts monogram chips in the intro", () => {
