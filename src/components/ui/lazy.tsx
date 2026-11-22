@@ -7,29 +7,19 @@ import {
   type StepLoadState,
 } from "@/components/studio/step-loader";
 
-type LazyOptions = {
-  // Starts the download as the page's code runs, for parts that show without a click.
-  preload?: boolean;
-};
-
+// Starts a download early, for parts that show without a click.
 export function preload<T>(loader: StepLoader<T>): void {
   if (typeof window !== "undefined") void loader.load().catch(() => {});
 }
 
-export function lazyModule<T>(
-  importer: () => Promise<T>,
-  { preload: early = false }: LazyOptions = {},
-): StepLoader<T> {
-  const loader = createStepLoader(importer);
-  if (early) preload(loader);
-  return loader;
+export function lazyModule<T>(importer: () => Promise<T>): StepLoader<T> {
+  return createStepLoader(importer);
 }
 
 export function lazyComponent<P extends object>(
   importer: () => Promise<ComponentType<P>>,
-  options?: LazyOptions,
 ): StepLoader<ComponentType<P>> {
-  return lazyModule(importer, options);
+  return createStepLoader(importer);
 }
 
 const IDLE_TIMEOUT_MS = 4_000;

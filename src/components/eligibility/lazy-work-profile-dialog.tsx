@@ -3,7 +3,7 @@
 import { Lazy, lazyComponent, useOpenedOnce } from "@/components/ui/lazy";
 import type { WorkProfileDialogProps } from "./work-profile-dialog";
 
-const workProfileDialog = lazyComponent(() =>
+export const workProfileDialog = lazyComponent(() =>
   import("./work-profile-dialog").then((m) => m.WorkProfileDialog),
 );
 

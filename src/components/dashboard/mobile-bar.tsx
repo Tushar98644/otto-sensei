@@ -17,6 +17,7 @@ import { cn } from "@/lib/utils";
 import { useHoverIntent } from "./hover-intent";
 import { LinkPending } from "./link-pending";
 import { isCurrent, PHONE_MORE, PHONE_TABS, showsProMark, type AppNavItem } from "./nav";
+import { preloadPageCode } from "./page-code";
 import { prefetchPageData } from "./prefetch";
 
 // flex-auto, not flex-1: sized by its label, so "Applications" fits beside the others at 360px.
@@ -57,7 +58,9 @@ export function MobileBar({ user }: { user: SessionUser }) {
           <Menu
             label="More sections"
             align="end"
-            triggerLabel={moreCurrent ? `More sections, now on ${moreCurrent.label}` : "More sections"}
+            triggerLabel={
+              moreCurrent ? `More sections, now on ${moreCurrent.label}` : "More sections"
+            }
             triggerClassName={cn(SEGMENT, moreCurrent ? CURRENT : IDLE)}
             trigger={
               <>
@@ -92,6 +95,7 @@ function PhoneTab({
   const intentHandlers = useHoverIntent(() => {
     setIntent(true);
     prefetchPageData(item.href, user);
+    preloadPageCode(item.href);
   });
   return (
     <Link

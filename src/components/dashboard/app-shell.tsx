@@ -9,12 +9,13 @@ import { PauseOffscreenLoops } from "@/components/mascot/offscreen-loops";
 import { useOttoLoadingScreen } from "@/components/mascot/otto-loading-screen";
 import { DashboardTour } from "@/components/onboarding/dashboard-tour";
 import { ROUTES } from "@/components/site/routes";
-import { lazyModule, useLazy } from "@/components/ui/lazy";
+import { lazyModule, useLazy, whenIdle } from "@/components/ui/lazy";
 import type { SessionUser } from "@/lib/auth/types";
 import { useCloudSync, useFirstLoadPending } from "@/lib/sync/use-cloud-sync";
 import { CommandPaletteHost } from "./command-palette-host";
 import { FileDropOverlay } from "./file-drop-overlay";
 import { MobileBar } from "./mobile-bar";
+import { preloadAllPageCode } from "./page-code";
 import { Sidebar } from "./sidebar";
 import { useStudioActions } from "./use-studio-actions";
 
@@ -36,6 +37,9 @@ export function AppShell({
   const { me, user, loading } = useMe();
   const actions = useStudioActions();
   const setup = useLazy(setupDefaults, false);
+
+  // Once the first page settles, the other pages' parts load, so moving between pages never waits on code.
+  useEffect(() => whenIdle(preloadAllPageCode), []);
 
   const signedOut = !loading && me !== null && me.user === null;
   useEffect(() => {

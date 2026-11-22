@@ -13,7 +13,7 @@ import { useNow } from "@/components/studio/use-now";
 import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { lazyModule, useLazy } from "@/components/ui/lazy";
+import { preload, useLazy } from "@/components/ui/lazy";
 import { toast } from "@/components/ui/toast";
 import { undoToast } from "@/components/ui/undo-toast";
 import { api } from "@/lib/api/client";
@@ -24,6 +24,7 @@ import { pluralize } from "@/lib/utils";
 import type { WritingKind } from "@/lib/writings/schema";
 import { outreachChange, type OutreachFields } from "../jobs/outreach-saved";
 import { NewResumeMenu } from "../new-resume-menu";
+import { letterCards, letterReader } from "../page-code";
 import { offerLabel } from "../plan-slip";
 import { useStudioActions } from "../use-studio-actions";
 import { useApplications } from "../applications/use-applications";
@@ -64,9 +65,7 @@ import { useWritings } from "./use-writings";
 import type { Written } from "./write-dialog";
 import { writeTargets, type WriteTarget } from "./write-targets";
 
-const letterReader = lazyModule(() => import("./letter-reader"));
-// The cards show once the letters are in, so their code downloads beside the page's.
-const letterCards = lazyModule(() => import("./letters-sections"), { preload: true });
+preload(letterCards);
 
 const count = new Intl.NumberFormat("en-US");
 const PAGE_GROUPS = 20;

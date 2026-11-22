@@ -14,7 +14,7 @@ import { FREE_APPLICATIONS } from "@/config/plans";
 import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { FolderCard } from "@/components/ui/folder-card";
-import { Lazy, lazyComponent } from "@/components/ui/lazy";
+import { Lazy, preload } from "@/components/ui/lazy";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "@/components/ui/toast";
 import { undoToast } from "@/components/ui/undo-toast";
@@ -25,6 +25,7 @@ import { STATUS_NAMES, type ApplicationStatus } from "@/lib/applications/status"
 import { browserStorage } from "@/lib/browser-storage";
 import { resumeTitle } from "@/lib/resume/ops";
 import { useResumeList } from "@/lib/store/resume-store";
+import { skillGapsPanel } from "../page-code";
 import { LazyApplicationDialog } from "./lazy-application-dialog";
 import type { ApplicationDialogTarget } from "./application-dialog";
 import { ApplicationFilters } from "./application-filters";
@@ -50,10 +51,7 @@ import {
 } from "./view";
 import { WinRate } from "./win-rate";
 
-// Shows once this browser's resumes are read, so its code downloads beside the page's.
-const skillGapsPanel = lazyComponent(() => import("./skill-gaps").then((m) => m.SkillGapsPanel), {
-  preload: true,
-});
+preload(skillGapsPanel);
 
 const PAGE_ROWS = 50;
 const ANCHOR_PREFIX = applicationAnchor("");

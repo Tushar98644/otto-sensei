@@ -47,67 +47,67 @@
   {
     "route": "/dashboard",
     "initial_kb": 335,
-    "total_kb": 1216
+    "total_kb": 1383
   },
   {
     "route": "/dashboard/account",
-    "initial_kb": 356,
-    "total_kb": 1157
+    "initial_kb": 357,
+    "total_kb": 1400
   },
   {
     "route": "/dashboard/applications",
-    "initial_kb": 318,
-    "total_kb": 1154
+    "initial_kb": 319,
+    "total_kb": 1386
   },
   {
     "route": "/dashboard/applications/[id]",
     "initial_kb": 298,
-    "total_kb": 1214
+    "total_kb": 1452
   },
   {
     "route": "/dashboard/applications/[id]/prep",
-    "initial_kb": 296,
-    "total_kb": 1142
+    "initial_kb": 297,
+    "total_kb": 1357
   },
   {
     "route": "/dashboard/formats",
-    "initial_kb": 290,
-    "total_kb": 1109
+    "initial_kb": 291,
+    "total_kb": 1352
   },
   {
     "route": "/dashboard/interview",
     "initial_kb": 290,
-    "total_kb": 1132
+    "total_kb": 1356
   },
   {
     "route": "/dashboard/interview/[id]",
-    "initial_kb": 296,
-    "total_kb": 1142
+    "initial_kb": 297,
+    "total_kb": 1357
   },
   {
     "route": "/dashboard/jobs",
-    "initial_kb": 332,
-    "total_kb": 1169
+    "initial_kb": 333,
+    "total_kb": 1402
   },
   {
     "route": "/dashboard/letters",
     "initial_kb": 307,
-    "total_kb": 1615
+    "total_kb": 1793
   },
   {
     "route": "/dashboard/portfolio",
-    "initial_kb": 287,
-    "total_kb": 1106
+    "initial_kb": 288,
+    "total_kb": 1348
   },
   {
     "route": "/dashboard/resumes",
-    "initial_kb": 313,
-    "total_kb": 1199
+    "initial_kb": 314,
+    "total_kb": 1358
   },
   {
     "route": "/dashboard/trash",
     "initial_kb": 287,
-    "total_kb": 1105
+    "total_kb": 1348
   },
   {
     "route": "/job-match",
@@ -157,7 +157,7 @@
   {
     "route": "/studio",
     "initial_kb": 295,
-    "total_kb": 1319
+    "total_kb": 1318
   },
   {
     "route": "/terms",

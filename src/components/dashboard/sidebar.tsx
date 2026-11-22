@@ -39,6 +39,7 @@ import { NewResumeMenu } from "./new-resume-menu";
 import { LinkPending } from "./link-pending";
 import { APP_NAV, APP_NAV_FOOTER, isCurrent, showsProMark, type AppNavItem } from "./nav";
 import { offerLabel } from "./plan-slip";
+import { preloadPageCode } from "./page-code";
 import { prefetchPageData } from "./prefetch";
 import { SidebarPlan } from "./sidebar-plan";
 import type { StudioActions } from "./use-studio-actions";
@@ -150,6 +151,7 @@ function SidebarLink({
   const intentHandlers = useHoverIntent(() => {
     setIntent(true);
     prefetchPageData(item.href, user);
+    preloadPageCode(item.href);
   });
   return (
     <Link

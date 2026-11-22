@@ -12,7 +12,7 @@ import { useSetupGuess } from "@/components/setup/use-account-setup";
 import { useNow } from "@/components/studio/use-now";
 import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { lazyModule, useLazy } from "@/components/ui/lazy";
+import { preload, useLazy } from "@/components/ui/lazy";
 import { Spinner } from "@/components/ui/spinner";
 import { toast } from "@/components/ui/toast";
 import type { JobMatchesResponse, MatchedJob } from "@/lib/api/types";
@@ -24,6 +24,7 @@ import { jobsWorkPromptShows } from "@/lib/setup/checklist";
 import { useResumeList, useStudioHydrated } from "@/lib/store/resume-store";
 import { useFirstLoadPending } from "@/lib/sync/use-cloud-sync";
 import { useApplications } from "../applications/use-applications";
+import { jobCards } from "../page-code";
 import { LazyOutreachDialog } from "./lazy-outreach-dialog";
 import { useStudioActions } from "../use-studio-actions";
 import { AppliedAnnouncer, AppliedStrip } from "./applied-question";
@@ -47,8 +48,7 @@ import { useAppliedPrompts } from "./use-opened-jobs";
 import { useTailorLink } from "./use-tailor-link";
 import { appliedFor, checkedLabel, matchingResumeId, moreWithProCopy, tailoredFor } from "./view";
 
-// The cards show once the matches are in, so their code downloads beside the page's.
-const jobCards = lazyModule(() => import("./job-card"), { preload: true });
+preload(jobCards);
 
 const count = new Intl.NumberFormat("en-US");
 

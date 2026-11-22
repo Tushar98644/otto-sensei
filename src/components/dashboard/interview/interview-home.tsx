@@ -11,19 +11,20 @@ import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Eyebrow } from "@/components/ui/eyebrow";
 import { FolderCard } from "@/components/ui/folder-card";
-import { lazyModule, useLazy } from "@/components/ui/lazy";
+import { preload, useLazy } from "@/components/ui/lazy";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useResumeList } from "@/lib/store/resume-store";
 import { cn, pluralize } from "@/lib/utils";
 import { prepAllowance } from "../applications/prep/prep-start";
 import { useApplications } from "../applications/use-applications";
+import { interviewSections } from "../page-code";
 import type { PrepareAction } from "./interview-cards";
 import { LazyPrepareDialog } from "./lazy-prepare-dialog";
 import { usePrepPacks } from "./use-prep-packs";
 import { interviewEntries } from "./view";
 
-// Everything past the loading state downloads beside the page's code instead of in it.
-const interviewSections = lazyModule(() => import("./interview-sections"), { preload: true });
+preload(interviewSections);
+
 type Sections = typeof import("./interview-sections");
 
 const count = new Intl.NumberFormat("en-US");
