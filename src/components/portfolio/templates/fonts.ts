@@ -68,10 +68,12 @@ const geistMono = Geist_Mono({
   preload: false,
   variable: "--pf-font-geist-mono",
 });
+// No metrics exist to size a fallback for it, so it names the stack Bento already falls back to.
 const geistPixel = Geist_Pixel({
   subsets: ["latin", "latin-ext"],
   display: "swap",
   preload: false,
+  fallback: ["ui-monospace", "monospace"],
   variable: "--pf-font-geist-pixel",
 });
 const dmMono = DM_Mono({
