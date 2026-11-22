@@ -11,6 +11,9 @@ export const prepSections = lazyModule(() => import("./applications/prep/prep-se
 export const letterCards = lazyModule(() => import("./letters/letters-sections"));
 export const letterReader = lazyModule(() => import("./letters/letter-reader"));
 export const jobCards = lazyModule(() => import("./jobs/job-card"));
+export const checkinHomeCard = lazyComponent(() =>
+  import("@/components/career-log/checkin-home-card").then((m) => m.CheckinHomeCard),
+);
 export const skillGapsPanel = lazyComponent(() =>
   import("./applications/skill-gaps").then((m) => m.SkillGapsPanel),
 );
@@ -26,7 +29,7 @@ export const emailActivity = lazyComponent(() => emailSections().then((m) => m.E
 type Loader = { load: () => Promise<unknown> };
 
 const PAGE_CODE: Record<string, readonly Loader[]> = {
-  [ROUTES.dashboard]: [resumeSections],
+  [ROUTES.dashboard]: [resumeSections, checkinHomeCard],
   [ROUTES.dashboardResumes]: [resumeSections],
   [ROUTES.dashboardInterview]: [interviewSections, prepSections],
   [ROUTES.dashboardLetters]: [letterCards, letterReader],

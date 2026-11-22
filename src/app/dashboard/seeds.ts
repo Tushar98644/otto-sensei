@@ -17,7 +17,8 @@ import { GET as readWritings } from "@/app/api/writings/route";
 import { PORTFOLIO_ROUTE } from "@/components/portfolio/route";
 import { ROUTES } from "@/components/site/routes";
 import { hasProTools } from "@/config/plans";
-import { CAREER_LOG_ROUTE, CHECKIN_ROUTE } from "@/lib/career-log/links";
+import { CAREER_LOG_ROUTE, CHECKIN_ROUTE, homeCheckinMonth } from "@/lib/career-log/links";
+import type { NotificationsResponse } from "@/lib/notifications/types";
 import type { ApiSeeds, SeedKey } from "@/lib/api/seeds";
 import type { SessionUser } from "@/lib/auth/types";
 
@@ -81,6 +82,13 @@ function seedFor(key: SeedKey, user: SessionUser): Promise<unknown> {
   return listBackupVersions(user.id).catch(() => null);
 }
 
+// Home's check-in card reads the career log, so Home brings it only when the bell has the card's note.
+async function homeCareerLog(notifications: Promise<unknown> | undefined): Promise<unknown> {
+  const bell = (await notifications) as NotificationsResponse | null;
+  if (!bell || homeCheckinMonth(bell.notifications, Date.now()) === null) return null;
+  return routeAnswer("careerLog");
+}
+
 // Started, not awaited: the page streams out at once and each answer follows in the same response.
 export function dashboardSeeds(user: SessionUser, path: string | null): ApiSeeds {
   const pathname = (path ?? "").split(/[?#]/, 1)[0] ?? "";
@@ -88,5 +96,6 @@ export function dashboardSeeds(user: SessionUser, path: string | null): ApiSeeds
   for (const key of new Set([...everyPage(user), ...pageReads(pathname, user)])) {
     seeds[key] = seedFor(key, user);
   }
+  if (pathname === ROUTES.dashboard) seeds.careerLog = homeCareerLog(seeds.notifications);
   return seeds;
 }

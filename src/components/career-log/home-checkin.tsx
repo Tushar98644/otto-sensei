@@ -1,25 +1,17 @@
 "use client";
 
-import { Lazy, lazyComponent } from "@/components/ui/lazy";
+import { checkinHomeCard } from "@/components/dashboard/page-code";
 import { useNotifications } from "@/components/notifications/use-notifications";
 import { useNow } from "@/components/studio/use-now";
-import { monthOfCheckinLink } from "@/lib/career-log/links";
-import { DAY_MS } from "@/lib/time";
+import { Lazy } from "@/components/ui/lazy";
+import { homeCheckinMonth } from "@/lib/career-log/links";
 
-// The Home card stays this long after the check-in rings, unless the month is written first.
-const SHOWN_FOR_MS = 14 * DAY_MS;
-
-const card = lazyComponent(() => import("./checkin-home-card").then((m) => m.CheckinHomeCard));
-
-// On the check-in day the bell's note brings a card to Home; its code loads only then.
+// On the check-in day the bell's note brings a card to Home; its code loads only then, or at idle with the page's parts.
 export function HomeCheckin() {
   const bell = useNotifications();
   const now = useNow();
   if (bell.status !== "ready" || now === 0) return null;
-  const note = bell.items.find(
-    (item) => item.kind === "career_checkin" && now - item.createdAt < SHOWN_FOR_MS,
-  );
-  const month = note ? monthOfCheckinLink(note.link) : null;
+  const month = homeCheckinMonth(bell.items, now);
   if (!month) return null;
-  return <Lazy loader={card} wanted props={{ month }} />;
+  return <Lazy loader={checkinHomeCard} wanted props={{ month }} />;
 }

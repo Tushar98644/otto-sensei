@@ -1,4 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { getDb } from "@/db/client";
+import { notifications } from "@/db/schema";
 import { GET as listApplications } from "@/app/api/applications/route";
 import { GET as readCareerLog } from "@/app/api/career-log/route";
 import { GET as readEmailTracking } from "@/app/api/email-tracking/route";
@@ -90,6 +92,24 @@ describe("dashboardSeeds", () => {
     }
     expect(keysOf(dashboardSeeds(user, "/dashboard/portfolio"))).not.toContain("portfolio");
     expect(keysOf(dashboardSeeds(user, "/dashboard/letters"))).toContain("writings");
+  });
+
+  it("brings Home the career log only while the bell has the check-in card's note", async () => {
+    const user = await signIn();
+    expect(await dashboardSeeds(user, "/dashboard").careerLog).toBeNull();
+    await (await getDb()).insert(notifications).values({
+      id: crypto.randomUUID(),
+      userId: user.id,
+      kind: "career_checkin",
+      title: "Your November check-in",
+      body: "",
+      link: "/dashboard/career-log/check-in?month=2026-11",
+      createdAt: Date.now(),
+    });
+    expect(await dashboardSeeds(user, "/dashboard").careerLog).toEqual(
+      await routeJson(readCareerLog()),
+    );
+    expect(keysOf(dashboardSeeds(user, "/dashboard/jobs"))).not.toContain("careerLog");
   });
 
   it("answers null when the route would refuse, so the browser asks for itself", async () => {
