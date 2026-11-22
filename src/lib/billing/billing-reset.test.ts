@@ -1,14 +1,7 @@
 import { eq, inArray } from "drizzle-orm";
 import { beforeEach, describe, expect, it } from "vitest";
 import { getDb } from "@/db/client";
-import {
-  trialHistory,
-  trialReminders,
-  trialReplacements,
-  trialWatch,
-  usage,
-  users,
-} from "@/db/schema";
+import { trialHistory, trialReminders, trialReplacements, usage, users } from "@/db/schema";
 import { insertUserRow, resetDb } from "@/lib/auth/test-helpers";
 import { TRIAL_PERIOD_KEY } from "@/lib/usage";
 import { parseResetArgs, RESET_USAGE, resetBilling } from "./billing-reset";
@@ -48,7 +41,6 @@ const ZERO = {
   users: 0,
   paidUsers: 0,
   trialReminders: 0,
-  trialWatch: 0,
   trialReplacements: 0,
   trialHistory: 0,
   trialUsage: 0,
@@ -68,7 +60,6 @@ async function addUser(
 async function addTrialRows(userId: string): Promise<void> {
   const db = await getDb();
   await db.insert(trialReminders).values({ userId, trialEndsAt: NOW + 1, createdAt: 1 });
-  await db.insert(trialWatch).values({ userId, trialEndsAt: NOW + 1, seenAt: 1 });
 }
 
 async function addTrialHistory(): Promise<void> {
@@ -91,7 +82,7 @@ async function rowOf(id: string) {
   return row;
 }
 
-async function userIdsIn(table: typeof trialReminders | typeof trialWatch): Promise<string[]> {
+async function userIdsIn(table: typeof trialReminders): Promise<string[]> {
   const rows = await (await getDb()).select({ userId: table.userId }).from(table);
   return rows.map((row) => row.userId).sort();
 }
@@ -119,11 +110,6 @@ describe("resetBilling --paddle", () => {
       planStatus: "canceled",
       billingCustomerId: `ctm_${"d4".repeat(13)}`,
     });
-    await (
-      await getDb()
-    )
-      .insert(trialWatch)
-      .values({ userId: customerOnly, trialEndsAt: NOW - 1, seenAt: 1 });
     const dodo = await addUser("d@example.com", {
       ...TRIAL,
       billingCustomerId: DODO_CUSTOMER,
@@ -173,7 +159,6 @@ describe("resetBilling --paddle", () => {
       users: 3,
       paidUsers: 2,
       trialReminders: 1,
-      trialWatch: 2,
       trialReplacements: 1,
       trialHistory: 2,
       trialUsage: 2,
@@ -186,7 +171,6 @@ describe("resetBilling --paddle", () => {
       billingSubscriptionId: SUB,
     });
     expect(await userIdsIn(trialReminders)).toEqual([trialist, dodo, mock].sort());
-    expect(await userIdsIn(trialWatch)).toEqual([trialist, customerOnly, dodo, mock].sort());
     expect(await db.select().from(trialReplacements)).toHaveLength(2);
     expect(await db.select().from(trialHistory)).toHaveLength(2);
 
@@ -213,7 +197,6 @@ describe("resetBilling --paddle", () => {
     expect(await rowOf(creem)).toMatchObject({ plan: "pro", billingCustomerId: "cust_old" });
     expect(await rowOf(never)).toMatchObject({ plan: "free", updatedAt: 1 });
     expect(await userIdsIn(trialReminders)).toEqual([dodo, mock].sort());
-    expect(await userIdsIn(trialWatch)).toEqual([dodo, mock].sort());
     expect(
       (await db.select().from(trialReplacements)).map((row) => row.replacedSubscriptionId),
     ).toEqual([DODO_SUBSCRIPTION]);
@@ -298,7 +281,6 @@ describe("resetBilling --go-live", () => {
       users: 6,
       paidUsers: 3,
       trialReminders: 2,
-      trialWatch: 2,
       trialReplacements: 2,
       trialHistory: 2,
       trialUsage: 2,
@@ -324,7 +306,6 @@ describe("resetBilling --go-live", () => {
     expect(await rowOf(comp)).toMatchObject({ plan: "max", planInterval: "month", updatedAt: 1 });
     expect(await rowOf(never)).toMatchObject({ plan: "free", updatedAt: 1 });
     expect(await userIdsIn(trialReminders)).toEqual([mock]);
-    expect(await userIdsIn(trialWatch)).toEqual([mock]);
     expect(await db.select().from(trialReplacements)).toEqual([]);
     expect(await db.select().from(trialHistory)).toEqual([]);
     const afterGoLive = await usageOf([dodoTrial, comp]);

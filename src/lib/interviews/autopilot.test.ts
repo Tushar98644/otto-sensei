@@ -1,7 +1,7 @@
 import { eq } from "drizzle-orm";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { getDb } from "@/db/client";
-import { applications, notifications, workProfiles } from "@/db/schema";
+import { applications, notifications, userSettings } from "@/db/schema";
 import { createUser, resetDb, setPlan } from "@/lib/auth/test-helpers";
 import { resetEnvForTests } from "@/lib/env";
 import type { InterviewPrep } from "@/lib/insights/prep";
@@ -111,8 +111,8 @@ async function profile(userId: string, timeZone: string) {
   await (
     await getDb()
   )
-    .insert(workProfiles)
-    .values({ userId, timeZone, createdAt: 0, updatedAt: 0 });
+    .insert(userSettings)
+    .values({ userId, timeZone, workUpdatedAt: 0, updatedAt: 0 });
 }
 
 async function interview(

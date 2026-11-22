@@ -2,7 +2,7 @@ import { createHash, createHmac, randomUUID } from "node:crypto";
 import { and, eq, gte, isNotNull, or } from "drizzle-orm";
 import { getDb } from "@/db/client";
 import { lockUser } from "@/db/locks";
-import { applications, calendarFeeds, workProfiles } from "@/db/schema";
+import { applications, calendarFeeds, userSettings } from "@/db/schema";
 import { cronSecret } from "@/lib/cron/auth";
 import { appUrl } from "@/lib/env";
 import { readStatus } from "@/lib/applications/status";
@@ -84,9 +84,9 @@ export async function feedOwner(token: string): Promise<string | null> {
 export async function feedFor(userId: string, now = Date.now()): Promise<string> {
   const db = await getDb();
   const [profile] = await db
-    .select({ timeZone: workProfiles.timeZone })
-    .from(workProfiles)
-    .where(eq(workProfiles.userId, userId))
+    .select({ timeZone: userSettings.timeZone })
+    .from(userSettings)
+    .where(eq(userSettings.userId, userId))
     .limit(1);
   const rows = await db
     .select({

@@ -1,7 +1,17 @@
 import JSZip from "jszip";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { getDb } from "@/db/client";
-import { applications, resumes, writings } from "@/db/schema";
+import {
+  applications,
+  feedback,
+  portfolios,
+  resumes,
+  savedJobs,
+  shares,
+  userSettings,
+  writings,
+} from "@/db/schema";
+import { execSql } from "@/db/testing";
 import { getCurrentUser } from "@/lib/auth/session";
 import type { SessionUser } from "@/lib/auth/types";
 import { insertUserRow, resetDb } from "@/lib/auth/test-helpers";
@@ -141,6 +151,104 @@ describe("GET /api/account/export", () => {
     const csv = await zip.file("applications.csv")?.async("string");
     expect(csv).toContain(`'=ada Labs,"Engineer, platform",Applied,2026-11-03`);
     expect(csv).toContain('"Said ""call me"""');
+  });
+
+  it("adds the settings, portfolio, share links, saved jobs and feedback when there are any", async () => {
+    const ada = await person("ada");
+    const db = await getDb();
+    await db.insert(userSettings).values({
+      userId: ada.id,
+      country: "PT",
+      timeZone: "Europe/Lisbon",
+      workUpdatedAt: AT,
+      writingSignOff: "Cheers, Ada",
+      writingUpdatedAt: AT,
+      applyAnswers: { v: 1, noticePeriod: "2 weeks" },
+      applyAnswersAt: AT,
+      updatedAt: AT,
+    });
+    await db.insert(portfolios).values({
+      id: crypto.randomUUID(),
+      userId: ada.id,
+      resumeId: "ada-1",
+      slug: "ada-lovelace",
+      snapshot: { id: "ada-1" } as unknown as Resume,
+      content: { v: 1, pitch: "I make engines think." },
+      createdAt: AT,
+      updatedAt: AT,
+    });
+    await db.insert(shares).values({
+      id: crypto.randomUUID(),
+      userId: ada.id,
+      resumeId: "ada-1",
+      slug: "AbCdEfGhIjKl",
+      snapshot: { id: "ada-1" } as unknown as Resume,
+      views: 3,
+      createdAt: AT,
+      updatedAt: AT,
+    });
+    const jobId = crypto.randomUUID();
+    await execSql(
+      `insert into public.jobs (id, source, external_id, company, title, posted_at, url, dedupe_key,
+         content_hash, first_seen_at, last_seen_at, created_at, updated_at)
+       values ($1, 'greenhouse', '1', 'Analytical Engines', 'Engineer', 1, 'https://jobs.example/1', 'd', 'h', 1, 1, 1, 1)`,
+      [jobId],
+    );
+    await db.insert(savedJobs).values({ userId: ada.id, jobId, savedAt: AT });
+    await db.insert(feedback).values({
+      id: crypto.randomUUID(),
+      userId: ada.id,
+      kind: "idea",
+      message: "A dark mode, please.",
+      createdAt: AT,
+    });
+    currentUser.mockResolvedValue(ada);
+    const zip = await JSZip.loadAsync(await (await GET(request())).arrayBuffer());
+    const json = async (name: string) =>
+      JSON.parse((await zip.file(name)?.async("string")) ?? "null");
+
+    expect(await json("settings.json")).toMatchObject({
+      country: "PT",
+      timeZone: "Europe/Lisbon",
+      writingSignOff: "Cheers, Ada",
+      followUpDays: 7,
+    });
+    expect(await json("settings.json")).not.toHaveProperty("userId");
+    expect(await json("settings.json")).not.toHaveProperty("applyAnswers");
+    expect(await json("apply-answers.json")).toEqual({
+      answers: { v: 1, noticePeriod: "2 weeks" },
+      updatedAt: AT,
+    });
+    expect(await json("portfolio.json")).toMatchObject({
+      address: "ada-lovelace",
+      content: { pitch: "I make engines think." },
+    });
+    expect(await json("portfolio.json")).not.toHaveProperty("snapshot");
+    expect(await json("share-links.json")).toEqual([
+      expect.objectContaining({ address: "AbCdEfGhIjKl", views: 3, revokedAt: null }),
+    ]);
+    expect(await json("saved-jobs.json")).toEqual([
+      {
+        title: "Engineer",
+        company: "Analytical Engines",
+        location: "",
+        url: "https://jobs.example/1",
+        savedAt: AT,
+      },
+    ]);
+    expect(await json("feedback.json")).toEqual([
+      { kind: "idea", message: "A dark mode, please.", pagePath: null, createdAt: AT },
+    ]);
+    const readme = (await zip.file("README.txt")?.async("string")) ?? "";
+    for (const name of [
+      "settings.json",
+      "portfolio.json",
+      "share-links.json",
+      "saved-jobs.json",
+      "feedback.json",
+    ]) {
+      expect(readme).toContain(name);
+    }
   });
 
   it("refuses a request from another website", async () => {

@@ -1,7 +1,7 @@
 import { eq } from "drizzle-orm";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { getDb } from "@/db/client";
-import { notifications, trialReminders, users, workProfiles } from "@/db/schema";
+import { notifications, trialReminders, users, userSettings } from "@/db/schema";
 import { execSql } from "@/db/testing";
 import { createUser, resetDb, setPlan } from "@/lib/auth/test-helpers";
 import { resetEnvForTests } from "@/lib/env";
@@ -222,8 +222,8 @@ describe("runTrialReminders", () => {
     await (
       await getDb()
     )
-      .insert(workProfiles)
-      .values({ userId: maya.id, timeZone: "Asia/Kolkata", createdAt: NOW, updatedAt: NOW });
+      .insert(userSettings)
+      .values({ userId: maya.id, timeZone: "Asia/Kolkata", workUpdatedAt: NOW, updatedAt: NOW });
     const sender = fakeSender();
 
     await runTrialReminders(context(), { sender });

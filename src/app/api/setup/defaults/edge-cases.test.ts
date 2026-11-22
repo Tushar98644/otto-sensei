@@ -2,7 +2,7 @@ import { AuthRetryableFetchError } from "@supabase/supabase-js";
 import { eq } from "drizzle-orm";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { getDb } from "@/db/client";
-import { accountSetup, users, workProfiles } from "@/db/schema";
+import { users, userSettings } from "@/db/schema";
 import { execSql } from "@/db/testing";
 import type { ApiErrorBody } from "@/lib/api/types";
 import { AUTH_COOKIE, cookieJar, fakeAuth, resetDb, signInAs } from "@/lib/auth/test-helpers";
@@ -64,22 +64,24 @@ async function errorOf(res: Response): Promise<ApiErrorBody["error"]> {
 }
 
 async function rowCounts() {
-  const db = await getDb();
+  const rows = await (await getDb()).select().from(userSettings);
   return {
-    profiles: (await db.select().from(workProfiles)).length,
-    setups: (await db.select().from(accountSetup)).length,
+    profiles: rows.filter((row) => row.workUpdatedAt !== null).length,
+    setups: rows.filter((row) => row.setupDefaultsAt !== null || row.setupLookingForAt !== null)
+      .length,
   };
 }
 
-async function failingTrigger(table: string): Promise<() => Promise<void>> {
+// Fails only the write that sets what `when` names, so each half of the save can fail alone.
+async function failingTrigger(when: string): Promise<() => Promise<void>> {
   await execSql(
-    "create function fail_write() returns trigger language plpgsql as $$ begin raise exception 'disk full'; end $$",
+    `create function fail_write() returns trigger language plpgsql as $$ begin if ${when} then raise exception 'disk full'; end if; return new; end $$`,
   );
   await execSql(
-    `create trigger fail_write before insert or update on public.${table} for each row execute function fail_write()`,
+    "create trigger fail_write before insert or update on public.user_settings for each row execute function fail_write()",
   );
   return async () => {
-    await execSql(`drop trigger fail_write on public.${table}`);
+    await execSql("drop trigger fail_write on public.user_settings");
     await execSql("drop function fail_write()");
   };
 }
@@ -97,12 +99,12 @@ describe("POST /api/setup/defaults when something fails", () => {
   it("answers a database outage with a retryable 500, and keeps the address out of the log", async () => {
     await signInAs("ines@example.com");
     const logged = vi.spyOn(console, "error").mockImplementation(() => {});
-    await execSql("alter table public.work_profiles rename to work_profiles_away");
+    await execSql("alter table public.user_settings rename to user_settings_away");
     let res: Response;
     try {
       res = await post({ place: PLACE });
     } finally {
-      await execSql("alter table public.work_profiles_away rename to work_profiles");
+      await execSql("alter table public.user_settings_away rename to user_settings");
     }
     expect(res.status).toBe(500);
     expect(res.headers.get("cache-control")).toBe("no-store");
@@ -119,7 +121,7 @@ describe("POST /api/setup/defaults when something fails", () => {
   it("keeps none of the guesses when the setup can't be marked, so the next visit fills them", async () => {
     const user = await signInAs("ines@example.com");
     vi.spyOn(console, "error").mockImplementation(() => {});
-    const restore = await failingTrigger("account_setup");
+    const restore = await failingTrigger("new.setup_defaults_at is not null");
     let res: Response;
     try {
       res = await post({ place: PLACE, lookingFor: ROLE });
@@ -139,7 +141,7 @@ describe("POST /api/setup/defaults when something fails", () => {
   it("marks nothing as done when the profile can't be written", async () => {
     await signInAs("ines@example.com");
     vi.spyOn(console, "error").mockImplementation(() => {});
-    const restore = await failingTrigger("work_profiles");
+    const restore = await failingTrigger("new.work_updated_at is not null");
     let res: Response;
     try {
       res = await post({ place: PLACE });
@@ -308,14 +310,14 @@ describe("POST /api/setup/defaults guesses", () => {
     vi.setSystemTime(Date.UTC(2026, 10, 7, 12));
     await signInAs("ines@example.com");
     const first = await saved({ place: PLACE, lookingFor: ROLE });
-    const [before] = await (await getDb()).select().from(accountSetup);
+    const [before] = await (await getDb()).select().from(userSettings);
     // Ten minutes later, so any write would leave a newer updatedAt behind.
     vi.setSystemTime(Date.UTC(2026, 10, 7, 12, 10));
     const again = await saved({
       place: { country: "GB", from: "device", timeZone: "Europe/London" },
     });
     expect(again).toEqual(first);
-    const [after] = await (await getDb()).select().from(accountSetup);
+    const [after] = await (await getDb()).select().from(userSettings);
     expect(after?.updatedAt).toBe(before?.updatedAt);
   });
 });

@@ -2,7 +2,7 @@ import { and, eq, gte, inArray, lte, or, sql } from "drizzle-orm";
 import { hasProTools } from "@/config/plans";
 import { getDb, type Tx } from "@/db/client";
 import { lockUser } from "@/db/locks";
-import { applications, users, workProfiles } from "@/db/schema";
+import { applications, users, userSettings } from "@/db/schema";
 import { AFTER_INTERVIEW_BUSINESS_DAYS } from "@/lib/applications/follow-up";
 import { applicationHref } from "@/lib/applications/thread";
 import { prepPath } from "@/lib/calendar/feed";
@@ -172,10 +172,10 @@ async function candidates(now: number): Promise<Candidate[]> {
       interviewZone: applications.interviewZone,
       briefedFor: applications.interviewBriefedFor,
       askedFor: applications.interviewAskedFor,
-      profileZone: workProfiles.timeZone,
+      profileZone: userSettings.timeZone,
     })
     .from(applications)
-    .leftJoin(workProfiles, eq(workProfiles.userId, applications.userId))
+    .leftJoin(userSettings, eq(userSettings.userId, applications.userId))
     .where(
       and(
         // Written out so the planner can use the partial index on interviews.

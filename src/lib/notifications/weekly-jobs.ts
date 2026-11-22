@@ -3,7 +3,7 @@ import { ROUTES } from "@/components/site/routes";
 import { FREE_JOB_MATCHES, hasProTools, type PlanId } from "@/config/plans";
 import { getDb, type Db, type Tx } from "@/db/client";
 import { lockUser } from "@/db/locks";
-import { applications, jobs, notificationSettings, resumes, users } from "@/db/schema";
+import { applications, jobs, resumes, users, userSettings } from "@/db/schema";
 import { normalizeJobUrl } from "@/lib/applications/schema";
 import type { CronContext, CronOutcome } from "@/lib/cron/run";
 import { readWorkProfile } from "@/lib/eligibility/records";
@@ -35,7 +35,6 @@ export const WEEKLY_JOBS = {
   maxChecksPerRun: 300,
 } as const;
 
-// jobs_emailed_at keeps its name from the old email: it is when the last weekly note went out.
 type Due = { userId: string; plan: PlanId; notedAt: number | null };
 
 type Found = { fresh: number; names: string[]; free: boolean };
@@ -44,13 +43,10 @@ type Check = { kind: "found"; found: Found } | { kind: "no_resume" } | { kind: "
 
 function dueFor(now: number) {
   return and(
+    or(isNull(userSettings.jobsNotedAt), lte(userSettings.jobsNotedAt, now - WEEKLY_JOBS.everyMs)),
     or(
-      isNull(notificationSettings.jobsEmailedAt),
-      lte(notificationSettings.jobsEmailedAt, now - WEEKLY_JOBS.everyMs),
-    ),
-    or(
-      isNull(notificationSettings.jobsCheckedAt),
-      lte(notificationSettings.jobsCheckedAt, now - WEEKLY_JOBS.recheckMs),
+      isNull(userSettings.jobsCheckedAt),
+      lte(userSettings.jobsCheckedAt, now - WEEKLY_JOBS.recheckMs),
     ),
   );
 }
@@ -174,22 +170,21 @@ export function matchesNotice(found: Found): { title: string; body: string } {
 async function settingsRow(tx: Tx, userId: string) {
   const [row] = await tx
     .select({
-      notedAt: notificationSettings.jobsEmailedAt,
-      checkedAt: notificationSettings.jobsCheckedAt,
+      notedAt: userSettings.jobsNotedAt,
+      checkedAt: userSettings.jobsCheckedAt,
     })
-    .from(notificationSettings)
-    .where(eq(notificationSettings.userId, userId))
+    .from(userSettings)
+    .where(eq(userSettings.userId, userId))
     .limit(1);
   return row ?? null;
 }
 
-// A new row leaves the follow-up reminder choice unmade, as choosing an email did.
 async function markChecked(userId: string, now: number): Promise<void> {
   const db = await getDb();
   await db
-    .insert(notificationSettings)
-    .values({ userId, remindersChosen: false, jobsCheckedAt: now, updatedAt: now })
-    .onConflictDoUpdate({ target: notificationSettings.userId, set: { jobsCheckedAt: now } });
+    .insert(userSettings)
+    .values({ userId, jobsCheckedAt: now, updatedAt: now })
+    .onConflictDoUpdate({ target: userSettings.userId, set: { jobsCheckedAt: now } });
 }
 
 // Stamped under the account's lock, and only while still due, so overlapping runs ring once.
@@ -204,17 +199,11 @@ async function claim(userId: string, found: Found, now: number): Promise<boolean
         (row.checkedAt === null || row.checkedAt <= now - WEEKLY_JOBS.recheckMs));
     if (!due) return false;
     await tx
-      .insert(notificationSettings)
-      .values({
-        userId,
-        remindersChosen: false,
-        jobsEmailedAt: now,
-        jobsCheckedAt: now,
-        updatedAt: now,
-      })
+      .insert(userSettings)
+      .values({ userId, jobsNotedAt: now, jobsCheckedAt: now, updatedAt: now })
       .onConflictDoUpdate({
-        target: notificationSettings.userId,
-        set: { jobsEmailedAt: now, jobsCheckedAt: now },
+        target: userSettings.userId,
+        set: { jobsNotedAt: now, jobsCheckedAt: now },
       });
     await insertNotification(
       tx,
@@ -239,14 +228,14 @@ export async function runWeeklyMatches({ now, deadline }: CronContext): Promise<
       .select({
         userId: users.id,
         plan: users.plan,
-        notedAt: notificationSettings.jobsEmailedAt,
+        notedAt: userSettings.jobsNotedAt,
       })
       .from(users)
-      .leftJoin(notificationSettings, eq(notificationSettings.userId, users.id))
+      .leftJoin(userSettings, eq(userSettings.userId, users.id))
       .where(
         and(hasResume, dueFor(now), skipped.length > 0 ? notInArray(users.id, skipped) : undefined),
       )
-      .orderBy(sql`coalesce(${notificationSettings.jobsCheckedAt}, 0)`, asc(users.id))
+      .orderBy(sql`coalesce(${userSettings.jobsCheckedAt}, 0)`, asc(users.id))
       .limit(WEEKLY_JOBS.usersPerBatch);
     if (rows.length === 0) {
       complete = true;

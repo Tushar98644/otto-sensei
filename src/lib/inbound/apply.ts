@@ -6,7 +6,7 @@ import {
   applications,
   inboundAddresses,
   inboundEmails,
-  workProfiles,
+  userSettings,
   type CardBefore,
 } from "@/db/schema";
 import { trackStatusChanges } from "@/lib/analytics/retention";
@@ -41,9 +41,9 @@ function messageKey(mail: InboundEmail): string {
 async function userZone(userId: string): Promise<string | null> {
   const db = await getDb();
   const [row] = await db
-    .select({ timeZone: workProfiles.timeZone })
-    .from(workProfiles)
-    .where(eq(workProfiles.userId, userId))
+    .select({ timeZone: userSettings.timeZone })
+    .from(userSettings)
+    .where(eq(userSettings.userId, userId))
     .limit(1);
   return row?.timeZone || null;
 }

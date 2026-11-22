@@ -1,7 +1,7 @@
 import { and, asc, eq, notInArray, or, sql } from "drizzle-orm";
 import { getDb } from "@/db/client";
 import { lockUser } from "@/db/locks";
-import { applications, workProfiles } from "@/db/schema";
+import { applications, userSettings } from "@/db/schema";
 import { log } from "@/lib/log";
 import { followUpNotices } from "@/lib/notifications/follow-up";
 import { interviewSoonNotice } from "@/lib/notifications/interview-soon";
@@ -53,9 +53,9 @@ async function claimForUser(userId: string, now: number): Promise<Claimed | null
   return db.transaction(async (tx) => {
     if (!(await lockUser(tx, userId))) return null;
     const [profile] = await tx
-      .select({ timeZone: workProfiles.timeZone })
-      .from(workProfiles)
-      .where(eq(workProfiles.userId, userId))
+      .select({ timeZone: userSettings.timeZone })
+      .from(userSettings)
+      .where(eq(userSettings.userId, userId))
       .limit(1);
     const due = await tx
       .update(applications)

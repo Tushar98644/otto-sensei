@@ -2,7 +2,7 @@ import { AuthRetryableFetchError } from "@supabase/supabase-js";
 import { eq } from "drizzle-orm";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { getDb } from "@/db/client";
-import { users, writingStyles } from "@/db/schema";
+import { users, userSettings } from "@/db/schema";
 import { execSql } from "@/db/testing";
 import type { ApiErrorBody } from "@/lib/api/types";
 import {
@@ -73,7 +73,7 @@ async function errorOf(res: Response): Promise<ApiErrorBody["error"]> {
 }
 
 async function styleRows() {
-  return (await getDb()).select().from(writingStyles);
+  return (await getDb()).select().from(userSettings);
 }
 
 describe("/api/writing-style when something fails", () => {
@@ -89,12 +89,12 @@ describe("/api/writing-style when something fails", () => {
   it("answers a database outage on read with a retryable 500, and keeps the address out of the log", async () => {
     await signInAs("ines@example.com");
     const logged = vi.spyOn(console, "error").mockImplementation(() => {});
-    await execSql("alter table public.writing_styles rename to writing_styles_away");
+    await execSql("alter table public.user_settings rename to user_settings_away");
     let res: Response;
     try {
       res = await GET();
     } finally {
-      await execSql("alter table public.writing_styles_away rename to writing_styles");
+      await execSql("alter table public.user_settings_away rename to user_settings");
     }
     expect(res.status).toBe(500);
     expect(res.headers.get("cache-control")).toBe("no-store");
@@ -117,13 +117,13 @@ describe("/api/writing-style when something fails", () => {
       "create function fail_write() returns trigger language plpgsql as $$ begin raise exception 'disk full'; end $$",
     );
     await execSql(
-      "create trigger fail_write before insert or update on public.writing_styles for each row execute function fail_write()",
+      "create trigger fail_write before insert or update on public.user_settings for each row execute function fail_write()",
     );
     let res: Response;
     try {
       res = await put({ ...STYLE, tone: "formal", notes: "Mention my visa status." });
     } finally {
-      await execSql("drop trigger fail_write on public.writing_styles");
+      await execSql("drop trigger fail_write on public.user_settings");
       await execSql("drop function fail_write()");
     }
     expect(res.status).toBe(500);

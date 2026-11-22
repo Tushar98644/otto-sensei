@@ -1,17 +1,17 @@
 import { eq } from "drizzle-orm";
 import { getDb } from "@/db/client";
 import { lockUser } from "@/db/locks";
-import { writingStyles } from "@/db/schema";
+import { userSettings } from "@/db/schema";
 import { isUserId } from "@/lib/users";
 import { DEFAULT_WRITING_STYLE, type WritingStyle, type WritingStyleBody } from "./schema";
 
 const COLUMNS = {
-  tone: writingStyles.tone,
-  length: writingStyles.length,
-  spelling: writingStyles.spelling,
-  signOff: writingStyles.signOff,
-  notes: writingStyles.notes,
-  updatedAt: writingStyles.updatedAt,
+  tone: userSettings.writingTone,
+  length: userSettings.writingLength,
+  spelling: userSettings.writingSpelling,
+  signOff: userSettings.writingSignOff,
+  notes: userSettings.writingNotes,
+  updatedAt: userSettings.writingUpdatedAt,
 };
 
 export async function readWritingStyle(userId: string): Promise<WritingStyle> {
@@ -19,8 +19,8 @@ export async function readWritingStyle(userId: string): Promise<WritingStyle> {
   const db = await getDb();
   const [row] = await db
     .select(COLUMNS)
-    .from(writingStyles)
-    .where(eq(writingStyles.userId, userId))
+    .from(userSettings)
+    .where(eq(userSettings.userId, userId))
     .limit(1);
   return row ?? DEFAULT_WRITING_STYLE;
 }
@@ -36,17 +36,18 @@ export async function saveWritingStyle(
   return db.transaction(async (tx) => {
     if (!(await lockUser(tx, userId))) return null;
     const set = {
-      tone: body.tone,
-      length: body.length,
-      spelling: body.spelling,
-      signOff: body.signOff,
-      notes: body.notes,
+      writingTone: body.tone,
+      writingLength: body.length,
+      writingSpelling: body.spelling,
+      writingSignOff: body.signOff,
+      writingNotes: body.notes,
+      writingUpdatedAt: now,
       updatedAt: now,
     };
     const [row] = await tx
-      .insert(writingStyles)
+      .insert(userSettings)
       .values({ userId, ...set })
-      .onConflictDoUpdate({ target: writingStyles.userId, set })
+      .onConflictDoUpdate({ target: userSettings.userId, set })
       .returning(COLUMNS);
     return row ?? null;
   });

@@ -4,7 +4,7 @@ import { ROUTES } from "@/components/site/routes";
 import { PRO_TRIAL, type BillingInterval, type PaidPlanId } from "@/config/plans";
 import { getDb } from "@/db/client";
 import { lockUser } from "@/db/locks";
-import { trialReminders, users, workProfiles } from "@/db/schema";
+import { trialReminders, users, userSettings } from "@/db/schema";
 import { emailLink } from "@/lib/analytics/landing";
 import { MOCK_STATUS } from "@/lib/billing/mock";
 import { appUrl } from "@/lib/env";
@@ -79,10 +79,10 @@ async function claimForUser(userId: string, window: Window, now: number): Promis
         plan: users.plan,
         interval: users.planInterval,
         endsAt: users.trialEndsAt,
-        timeZone: workProfiles.timeZone,
+        timeZone: userSettings.timeZone,
       })
       .from(users)
-      .leftJoin(workProfiles, eq(workProfiles.userId, users.id))
+      .leftJoin(userSettings, eq(userSettings.userId, users.id))
       .where(and(eq(users.id, userId), dueFor(window), notRemindedYet()))
       .limit(1);
     if (!row || row.plan === "free" || row.endsAt === null) return null;

@@ -844,8 +844,8 @@ short: until going live, anyone with a public test card can get Pro (the go-live
    5. Against the production database, `bun scripts/reset-billing.ts --go-live` prints how many
       accounts hold any billing state (it changes nothing). Then
       `bun scripts/reset-billing.ts --go-live --apply` moves every one of them to Free, clears their
-      billing fields, and deletes their trial reminders and trial-watch rows, every trial replacement
-      and all trial history; every account's trial usage counts go back to zero (invite extras
+      billing fields, and deletes their trial reminders, every trial replacement and all trial
+      history; every account's trial usage counts go back to zero (invite extras
       stay). Test and live ids look alike, so this goes by billing state, not by id.
       It prints counts only, never emails. Go straight to the next step. **This is the only time
       `--go-live --apply` is ever run**: once production is live, it would move paying customers to

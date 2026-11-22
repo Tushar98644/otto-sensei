@@ -1,7 +1,7 @@
 import { and, count, desc, eq, getTableColumns, inArray, isNull, sql, type SQL } from "drizzle-orm";
 import { getDb, type Db, type Tx } from "@/db/client";
 import { lockUser } from "@/db/locks";
-import { applications, notifications, notificationSettings, users } from "@/db/schema";
+import { applications, notifications, users, userSettings } from "@/db/schema";
 import { FOLLOW_UP_DAYS, followUpState } from "@/lib/applications/follow-up";
 import type { ApplicationStatus } from "@/lib/applications/status";
 import { outcomeOpen } from "@/lib/interviews/outcome";
@@ -164,11 +164,11 @@ const DEFAULT_SETTINGS: ReminderSettings = {
 async function settingsOf(db: Db, userId: string): Promise<ReminderSettings> {
   const [row] = await db
     .select({
-      emailReminders: notificationSettings.emailReminders,
-      followUpDays: notificationSettings.followUpDays,
+      emailReminders: userSettings.emailReminders,
+      followUpDays: userSettings.followUpDays,
     })
-    .from(notificationSettings)
-    .where(eq(notificationSettings.userId, userId))
+    .from(userSettings)
+    .where(eq(userSettings.userId, userId))
     .limit(1);
   return row ?? DEFAULT_SETTINGS;
 }
@@ -182,7 +182,7 @@ export async function followUpDaysOf(db: Db, userId: string): Promise<number> {
 }
 
 export function followUpDaysSql(userId: string): SQL<number> {
-  return sql<number>`coalesce((select ${notificationSettings.followUpDays} from ${notificationSettings} where ${notificationSettings.userId} = ${userId}), ${FOLLOW_UP_DAYS.default})`;
+  return sql<number>`coalesce((select ${userSettings.followUpDays} from ${userSettings} where ${userSettings.userId} = ${userId}), ${FOLLOW_UP_DAYS.default})`;
 }
 
 export type StoredReminderSettings = ReminderSettings & { chosen: boolean; promptSnoozed: boolean };
@@ -200,13 +200,13 @@ export async function readReminderSettings(
   if (!owner) return null;
   const [row] = await db
     .select({
-      emailReminders: notificationSettings.emailReminders,
-      followUpDays: notificationSettings.followUpDays,
-      chosen: notificationSettings.remindersChosen,
-      snoozedAt: notificationSettings.reminderPromptSnoozedAt,
+      emailReminders: userSettings.emailReminders,
+      followUpDays: userSettings.followUpDays,
+      chosen: userSettings.remindersChosen,
+      snoozedAt: userSettings.reminderPromptSnoozedAt,
     })
-    .from(notificationSettings)
-    .where(eq(notificationSettings.userId, userId))
+    .from(userSettings)
+    .where(eq(userSettings.userId, userId))
     .limit(1);
   if (!row) return { ...DEFAULT_SETTINGS, chosen: false, promptSnoozed: false };
   const { snoozedAt, ...settings } = row;
@@ -219,16 +219,10 @@ export async function snoozeReminderPrompt(userId: string, now = Date.now()): Pr
   return db.transaction(async (tx) => {
     if (!(await lockUser(tx, userId))) return false;
     await tx
-      .insert(notificationSettings)
-      .values({
-        userId,
-        ...DEFAULT_SETTINGS,
-        remindersChosen: false,
-        reminderPromptSnoozedAt: now,
-        updatedAt: now,
-      })
+      .insert(userSettings)
+      .values({ userId, reminderPromptSnoozedAt: now, updatedAt: now })
       .onConflictDoUpdate({
-        target: notificationSettings.userId,
+        target: userSettings.userId,
         set: { reminderPromptSnoozedAt: now, updatedAt: now },
       });
     return true;
@@ -255,12 +249,12 @@ export async function saveReminderSettings(
       updatedAt: now,
     };
     const [row] = await tx
-      .insert(notificationSettings)
+      .insert(userSettings)
       .values({ userId, ...DEFAULT_SETTINGS, ...set })
-      .onConflictDoUpdate({ target: notificationSettings.userId, set })
+      .onConflictDoUpdate({ target: userSettings.userId, set })
       .returning({
-        emailReminders: notificationSettings.emailReminders,
-        followUpDays: notificationSettings.followUpDays,
+        emailReminders: userSettings.emailReminders,
+        followUpDays: userSettings.followUpDays,
       });
     return row ?? null;
   });

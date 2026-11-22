@@ -1,7 +1,7 @@
 import { and, eq, sql } from "drizzle-orm";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { getDb } from "@/db/client";
-import { emailLog, notificationSettings } from "@/db/schema";
+import { emailLog, userSettings } from "@/db/schema";
 import { createUser, resetDb } from "@/lib/auth/test-helpers";
 import { optionalEmailRoom } from "./budget";
 import type { BatchResult, EmailMessage, EmailSender } from "./email";
@@ -198,7 +198,7 @@ describe("sendProcessorNotice", () => {
   it("emails every account once, whatever its email choices, and a rerun emails nobody again", async () => {
     const ada = await createUser("ada@example.com");
     const bo = await createUser("bo@example.com");
-    await (await getDb()).insert(notificationSettings).values({
+    await (await getDb()).insert(userSettings).values({
       userId: bo.id,
       emailReminders: false,
       tipEmails: false,

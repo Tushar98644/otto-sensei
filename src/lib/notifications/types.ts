@@ -76,16 +76,6 @@ export type NoticeEmailKind = (typeof NOTICE_EMAIL_KINDS)[number];
 
 export const EMAIL_LOG_KINDS = [...TIP_EMAIL_KINDS, ...NOTICE_EMAIL_KINDS] as const;
 
-export type EmailChoices = {
-  jobEmails: boolean;
-  tipEmails: boolean;
-  viewEmails: boolean;
-  jobPromptClosed: boolean;
-  jobPromptSnoozed: boolean;
-  viewPromptClosed: boolean;
-  viewPromptSnoozed: boolean;
-};
-
 export const FOLLOW_UP_ACTIONS = ["done", "snooze"] as const;
 export type FollowUpAction = (typeof FOLLOW_UP_ACTIONS)[number];
 export type FollowUpActionBody = z.input<typeof FollowUpActionSchema>;

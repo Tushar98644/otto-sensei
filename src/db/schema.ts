@@ -77,6 +77,79 @@ export const users = pgTable(
   ],
 );
 
+// One row of settings per account; a column at its default means that setting was never changed.
+export const userSettings = pgTable(
+  "user_settings",
+  {
+    userId: uuid("user_id").primaryKey(),
+    updatedAt: epochMs("updated_at").notNull(),
+    country: text("country").notNull().default(""),
+    timeZone: text("time_zone").notNull().default(""),
+    workUs: text("work_us", { enum: WORK_RIGHTS }),
+    workUk: text("work_uk", { enum: WORK_RIGHTS }),
+    workEu: text("work_eu", { enum: WORK_RIGHTS }),
+    workCa: text("work_ca", { enum: WORK_RIGHTS }),
+    fullTime: boolean("full_time").notNull().default(true),
+    contract: boolean("contract").notNull().default(true),
+    remoteOnly: boolean("remote_only").notNull().default(false),
+    targetTitle: text("target_title"),
+    targetFamily: text("target_family", { enum: ROLE_FAMILIES }),
+    targetOccupation: text("target_occupation"),
+    targetLevel: text("target_level", { enum: SENIORITIES }),
+    targetPlace: text("target_place"),
+    workUpdatedAt: epochMs("work_updated_at"),
+    emailReminders: boolean("email_reminders").notNull().default(false),
+    followUpDays: smallint("follow_up_days").notNull().default(7),
+    remindersChosen: boolean("reminders_chosen").notNull().default(false),
+    reminderPromptSnoozedAt: epochMs("reminder_prompt_snoozed_at"),
+    jobsNotedAt: epochMs("jobs_noted_at"),
+    jobsCheckedAt: epochMs("jobs_checked_at"),
+    jobEmails: boolean("job_emails").notNull().default(false),
+    tipEmails: boolean("tip_emails").notNull().default(true),
+    viewEmails: boolean("view_emails").notNull().default(false),
+    writingTone: text("writing_tone", { enum: WRITING_TONES }).notNull().default("natural"),
+    writingLength: text("writing_length", { enum: WRITING_LENGTHS }).notNull().default("standard"),
+    writingSpelling: text("writing_spelling", { enum: SPELLINGS }).notNull().default("us"),
+    writingSignOff: text("writing_sign_off").notNull().default(""),
+    writingNotes: text("writing_notes").notNull().default(""),
+    writingUpdatedAt: epochMs("writing_updated_at"),
+    setupStepAt: epochMs("setup_step_at"),
+    setupStepOutcome: text("setup_step_outcome", { enum: SETUP_STEP_OUTCOMES }),
+    checklistHiddenAt: epochMs("checklist_hidden_at"),
+    setupDefaultsAt: epochMs("setup_defaults_at"),
+    setupLookingForAt: epochMs("setup_looking_for_at"),
+    countryGuess: text("country_guess"),
+    countryGuessFrom: text("country_guess_from", { enum: COUNTRY_SOURCES }),
+    regionGuess: text("region_guess", { enum: WORK_REGIONS }),
+    careerCheckins: boolean("career_checkins").notNull().default(false),
+    careerEmails: boolean("career_emails").notNull().default(true),
+    careerWeek: smallint("career_week").notNull().default(1),
+    careerWeekday: smallint("career_weekday").notNull().default(1),
+    careerTimeZone: text("career_time_zone").notNull().default("UTC"),
+    careerNextOn: date("career_next_on", { mode: "string" }),
+    careerPausedUntil: date("career_paused_until", { mode: "string" }),
+    careerJobRole: text("career_job_role").notNull().default(""),
+    careerJobCompany: text("career_job_company").notNull().default(""),
+    careerLastMonth: text("career_last_month"),
+    careerLastAt: epochMs("career_last_at"),
+    careerEmailedMonth: text("career_emailed_month"),
+    careerEmailedAt: epochMs("career_emailed_at"),
+    careerPromptClosedAt: epochMs("career_prompt_closed_at"),
+    careerPromptSnoozedAt: epochMs("career_prompt_snoozed_at"),
+    applyAnswers: jsonb("apply_answers").$type<Record<string, unknown>>(),
+    applyAnswersAt: epochMs("apply_answers_at"),
+    activeOn: date("active_on", { mode: "string" }),
+  },
+  (t) => [
+    index("user_settings_career_due_idx")
+      .on(t.careerNextOn)
+      .where(sql`career_checkins`),
+    index("user_settings_career_emailed_idx")
+      .on(t.careerEmailedAt)
+      .where(sql`career_emailed_at is not null`),
+  ],
+);
+
 export const usage = pgTable(
   "usage",
   {
@@ -215,26 +288,6 @@ export const applications = pgTable(
   (t) => [index("applications_user_applied_idx").on(t.userId, t.appliedAt, t.id)],
 );
 
-export const workProfiles = pgTable("work_profiles", {
-  userId: uuid("user_id").primaryKey(),
-  country: text("country").notNull().default(""),
-  timeZone: text("time_zone").notNull().default(""),
-  workUs: text("work_us", { enum: WORK_RIGHTS }),
-  workUk: text("work_uk", { enum: WORK_RIGHTS }),
-  workEu: text("work_eu", { enum: WORK_RIGHTS }),
-  workCa: text("work_ca", { enum: WORK_RIGHTS }),
-  fullTime: boolean("full_time").notNull().default(true),
-  contract: boolean("contract").notNull().default(true),
-  remoteOnly: boolean("remote_only").notNull().default(false),
-  targetTitle: text("target_title"),
-  targetFamily: text("target_family", { enum: ROLE_FAMILIES }),
-  targetOccupation: text("target_occupation"),
-  targetLevel: text("target_level", { enum: SENIORITIES }),
-  targetPlace: text("target_place"),
-  createdAt: epochMs("created_at").notNull(),
-  updatedAt: epochMs("updated_at").notNull(),
-});
-
 export const notifications = pgTable(
   "notifications",
   {
@@ -253,35 +306,6 @@ export const notifications = pgTable(
     index("notifications_created_idx").on(t.createdAt),
   ],
 );
-
-export const notificationSettings = pgTable("notification_settings", {
-  userId: uuid("user_id").primaryKey(),
-  emailReminders: boolean("email_reminders").notNull().default(false),
-  followUpDays: integer("follow_up_days").notNull().default(7),
-  updatedAt: epochMs("updated_at").notNull(),
-  jobEmails: boolean("job_emails").notNull().default(false),
-  tipEmails: boolean("tip_emails").notNull().default(true),
-  jobsEmailedAt: epochMs("jobs_emailed_at"),
-  jobsCheckedAt: epochMs("jobs_checked_at"),
-  jobPromptClosedAt: epochMs("job_prompt_closed_at"),
-  remindersChosen: boolean("reminders_chosen").notNull().default(true),
-  jobPromptSnoozedAt: epochMs("job_prompt_snoozed_at"),
-  reminderPromptSnoozedAt: epochMs("reminder_prompt_snoozed_at"),
-  viewEmails: boolean("view_emails").notNull().default(false),
-  viewPromptClosedAt: epochMs("view_prompt_closed_at"),
-  viewPromptSnoozedAt: epochMs("view_prompt_snoozed_at"),
-  viewsEmailedAt: epochMs("views_emailed_at"),
-});
-
-export const writingStyles = pgTable("writing_styles", {
-  userId: uuid("user_id").primaryKey(),
-  tone: text("tone", { enum: WRITING_TONES }).notNull().default("natural"),
-  length: text("length", { enum: WRITING_LENGTHS }).notNull().default("standard"),
-  spelling: text("spelling", { enum: SPELLINGS }).notNull().default("us"),
-  signOff: text("sign_off").notNull().default(""),
-  notes: text("notes").notNull().default(""),
-  updatedAt: epochMs("updated_at").notNull(),
-});
 
 export const trialReminders = pgTable(
   "trial_reminders",
@@ -303,26 +327,6 @@ export const emailLog = pgTable(
   },
   (t) => [primaryKey({ columns: [t.userId, t.kind, t.occasion] })],
 );
-
-export const trialWatch = pgTable("trial_watch", {
-  userId: uuid("user_id").primaryKey(),
-  trialEndsAt: epochMs("trial_ends_at").notNull(),
-  seenAt: epochMs("seen_at").notNull(),
-});
-
-export const accountSetup = pgTable("account_setup", {
-  userId: uuid("user_id").primaryKey(),
-  stepAt: epochMs("step_at"),
-  stepOutcome: text("step_outcome", { enum: SETUP_STEP_OUTCOMES }),
-  checklistHiddenAt: epochMs("checklist_hidden_at"),
-  defaultsAt: epochMs("defaults_at"),
-  lookingForAt: epochMs("looking_for_at"),
-  countryGuess: text("country_guess"),
-  countryFrom: text("country_from", { enum: COUNTRY_SOURCES }),
-  regionGuess: text("region_guess", { enum: WORK_REGIONS }),
-  createdAt: epochMs("created_at").notNull(),
-  updatedAt: epochMs("updated_at").notNull(),
-});
 
 export const shares = pgTable(
   "shares",
@@ -610,12 +614,6 @@ export const calendarFeeds = pgTable("calendar_feeds", {
   createdAt: epochMs("created_at").notNull(),
 });
 
-// The last calendar day, in the person's own time zone, they opened an app page.
-export const userActivity = pgTable("user_activity", {
-  userId: uuid("user_id").primaryKey(),
-  activeOn: date("active_on", { mode: "string" }).notNull(),
-});
-
 // Each day, in the person's own time zone, they opened an app page: the recap's days active.
 export const activeDays = pgTable(
   "active_days",
@@ -661,12 +659,6 @@ export const savedPosts = pgTable(
     index("saved_posts_user_saved_idx").on(t.userId, t.savedAt),
   ],
 );
-
-export const applyAnswers = pgTable("apply_answers", {
-  userId: uuid("user_id").primaryKey(),
-  answers: jsonb("answers").$type<Record<string, unknown>>().notNull().default({}),
-  updatedAt: epochMs("updated_at").notNull(),
-});
 
 export const inboundHandles = pgTable(
   "inbound_handles",
@@ -758,35 +750,6 @@ export const careerLogEntries = pgTable(
     updatedAt: epochMs("updated_at").notNull(),
   },
   (t) => [unique("career_log_entries_user_id_month_key").on(t.userId, t.month)],
-);
-
-export const careerLogSettings = pgTable(
-  "career_log_settings",
-  {
-    userId: uuid("user_id").primaryKey(),
-    checkins: boolean("checkins").notNull().default(false),
-    emails: boolean("emails").notNull().default(true),
-    week: smallint("week").notNull().default(1),
-    weekday: smallint("weekday").notNull().default(1),
-    timeZone: text("time_zone").notNull().default("UTC"),
-    nextCheckinOn: date("next_checkin_on", { mode: "string" }),
-    pausedUntil: date("paused_until", { mode: "string" }),
-    jobRole: text("job_role").notNull().default(""),
-    jobCompany: text("job_company").notNull().default(""),
-    lastCheckinMonth: text("last_checkin_month"),
-    lastCheckinAt: epochMs("last_checkin_at"),
-    emailedMonth: text("emailed_month"),
-    emailedAt: epochMs("emailed_at"),
-    promptClosedAt: epochMs("prompt_closed_at"),
-    promptSnoozedAt: epochMs("prompt_snoozed_at"),
-    updatedAt: epochMs("updated_at").notNull(),
-  },
-  (t) => [
-    index("career_log_settings_due_idx")
-      .on(t.nextCheckinOn)
-      .where(sql`checkins`),
-    index("career_log_settings_emailed_idx").on(t.emailedAt),
-  ],
 );
 
 export type UserRow = typeof users.$inferSelect;

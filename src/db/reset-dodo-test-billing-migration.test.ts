@@ -27,7 +27,12 @@ const ACCOUNTS: Record<number, Record<string, string | number | null>> = {
     billing_subscription_id: DODO_SUBSCRIPTION,
     billing_event_at: 5,
   },
-  2: { plan: "max", plan_interval: "year", plan_status: "active", billing_subscription_id: "sub_2" },
+  2: {
+    plan: "max",
+    plan_interval: "year",
+    plan_status: "active",
+    billing_subscription_id: "sub_2",
+  },
   3: { plan: "free", billing_event_at: 5 },
   4: { plan: "free", plan_status: "on_hold" },
   5: { plan: "free", billing_customer_id: "cus_only" },
@@ -179,6 +184,11 @@ describe("reset Dodo test billing migration", () => {
       apply: true,
       now: 2,
     });
-    expect(await dump(client)).toEqual(migrated);
+    // trial_watch never had a writer, so the script no longer clears it; 20261122010900 drops the table.
+    const { watch: _scriptWatch, ...script } = await dump(client);
+    const { watch: _migratedWatch, ...expected } = migrated;
+    void _scriptWatch;
+    void _migratedWatch;
+    expect(script).toEqual(expected);
   });
 });

@@ -9,7 +9,7 @@ import {
   rateLimits,
   savedJobs,
   users,
-  workProfiles,
+  userSettings,
 } from "@/db/schema";
 import type {
   ApiErrorBody,
@@ -453,7 +453,7 @@ describe("PUT /api/jobs/looking-for", () => {
     await signInFree();
     expect((await lookFor(CHOICE, { "sec-fetch-site": "cross-site" })).status).toBe(403);
     expect((await lookFor(CHOICE, { "content-type": "text/plain" })).status).toBe(415);
-    expect(await (await getDb()).select().from(workProfiles)).toEqual([]);
+    expect(await (await getDb()).select().from(userSettings)).toEqual([]);
   });
 
   it("clears the choice back to nothing", async () => {
@@ -468,8 +468,8 @@ describe("PUT /api/jobs/looking-for", () => {
       await getDb()
     )
       .select()
-      .from(workProfiles)
-      .where(eq(workProfiles.userId, ada.id));
+      .from(userSettings)
+      .where(eq(userSettings.userId, ada.id));
     expect(row).toMatchObject({
       targetTitle: null,
       targetFamily: null,
@@ -490,7 +490,7 @@ describe("PUT /api/jobs/looking-for", () => {
     );
     expect(res.status).toBe(401);
     expect((await errorOf(res)).message).toBe("Sign in to keep what you're looking for.");
-    expect(await (await getDb()).select().from(workProfiles)).toEqual([]);
+    expect(await (await getDb()).select().from(userSettings)).toEqual([]);
   });
 
   it("answers 500 when sign-in can't be checked", async () => {
@@ -503,7 +503,7 @@ describe("PUT /api/jobs/looking-for", () => {
       code: "server_error",
       message: "Couldn't save that. Please try again.",
     });
-    expect(await (await getDb()).select().from(workProfiles)).toEqual([]);
+    expect(await (await getDb()).select().from(userSettings)).toEqual([]);
   });
 });
 

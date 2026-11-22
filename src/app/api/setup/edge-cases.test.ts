@@ -2,7 +2,7 @@ import { AuthRetryableFetchError } from "@supabase/supabase-js";
 import { eq } from "drizzle-orm";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { getDb } from "@/db/client";
-import { accountSetup, users } from "@/db/schema";
+import { users, userSettings } from "@/db/schema";
 import { execSql } from "@/db/testing";
 import type { ApiErrorBody } from "@/lib/api/types";
 import { AUTH_COOKIE, cookieJar, fakeAuth, resetDb, signInAs } from "@/lib/auth/test-helpers";
@@ -52,7 +52,7 @@ async function errorOf(res: Response): Promise<ApiErrorBody["error"]> {
 }
 
 async function setupRows() {
-  return (await getDb()).select().from(accountSetup);
+  return (await getDb()).select().from(userSettings);
 }
 
 const PLACE = { country: "GB", from: "device", timeZone: "Europe/London" } as const;
@@ -70,12 +70,12 @@ describe("/api/setup when something fails", () => {
   it("answers a database outage on read with a retryable 500, and keeps the address out of the log", async () => {
     await signInAs("ines@example.com");
     const logged = vi.spyOn(console, "error").mockImplementation(() => {});
-    await execSql("alter table public.account_setup rename to account_setup_away");
+    await execSql("alter table public.user_settings rename to user_settings_away");
     let res: Response;
     try {
       res = await GET();
     } finally {
-      await execSql("alter table public.account_setup_away rename to account_setup");
+      await execSql("alter table public.user_settings_away rename to user_settings");
     }
     expect(res.status).toBe(500);
     expect(res.headers.get("cache-control")).toBe("no-store");
@@ -98,13 +98,13 @@ describe("/api/setup when something fails", () => {
       "create function fail_write() returns trigger language plpgsql as $$ begin raise exception 'disk full'; end $$",
     );
     await execSql(
-      "create trigger fail_write before insert or update on public.account_setup for each row execute function fail_write()",
+      "create trigger fail_write before insert or update on public.user_settings for each row execute function fail_write()",
     );
     let res: Response;
     try {
       res = await put({ step: "saved", checklist: "hidden" });
     } finally {
-      await execSql("drop trigger fail_write on public.account_setup");
+      await execSql("drop trigger fail_write on public.user_settings");
       await execSql("drop function fail_write()");
     }
     expect(res.status).toBe(500);

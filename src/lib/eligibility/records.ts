@@ -1,11 +1,31 @@
 import { eq } from "drizzle-orm";
 import { getDb } from "@/db/client";
+import type { RowOf } from "@/db/columns";
 import { lockUser } from "@/db/locks";
-import { workProfiles } from "@/db/schema";
+import { userSettings } from "@/db/schema";
 import { NO_CHOICE, type LookingForChoice, type PlaceChoice } from "@/lib/job-feed/types";
 import { emptyWorkProfile, type WorkProfile } from "./profile";
 
-type Row = typeof workProfiles.$inferSelect;
+// The work profile's columns of user_settings, with its own saved time (null: never saved).
+export const WORK_COLUMNS = {
+  country: userSettings.country,
+  timeZone: userSettings.timeZone,
+  workUs: userSettings.workUs,
+  workUk: userSettings.workUk,
+  workEu: userSettings.workEu,
+  workCa: userSettings.workCa,
+  fullTime: userSettings.fullTime,
+  contract: userSettings.contract,
+  remoteOnly: userSettings.remoteOnly,
+  targetTitle: userSettings.targetTitle,
+  targetFamily: userSettings.targetFamily,
+  targetOccupation: userSettings.targetOccupation,
+  targetLevel: userSettings.targetLevel,
+  targetPlace: userSettings.targetPlace,
+  updatedAt: userSettings.workUpdatedAt,
+};
+
+type WorkRow = RowOf<typeof WORK_COLUMNS>;
 
 export type StoredWorkProfile = {
   profile: WorkProfile;
@@ -16,7 +36,7 @@ export type StoredWorkProfile = {
 export type SaveWorkProfileResult =
   { status: "saved"; stored: StoredWorkProfile } | { status: "no_user" };
 
-export function toStored(row: Row): StoredWorkProfile {
+export function toStored(row: WorkRow): StoredWorkProfile {
   return {
     profile: {
       country: row.country,
@@ -46,9 +66,9 @@ export function toStored(row: Row): StoredWorkProfile {
 export async function readWorkProfile(userId: string): Promise<StoredWorkProfile> {
   const db = await getDb();
   const [row] = await db
-    .select()
-    .from(workProfiles)
-    .where(eq(workProfiles.userId, userId))
+    .select(WORK_COLUMNS)
+    .from(userSettings)
+    .where(eq(userSettings.userId, userId))
     .limit(1);
   return row
     ? toStored(row)
@@ -70,13 +90,14 @@ export async function saveLookingFor(
       targetLevel: choice.level,
       targetPlace: choice.place,
       remoteOnly: choice.remote,
+      workUpdatedAt: now,
       updatedAt: now,
     };
     const [row] = await tx
-      .insert(workProfiles)
-      .values({ userId, ...values, createdAt: now })
-      .onConflictDoUpdate({ target: workProfiles.userId, set: values })
-      .returning();
+      .insert(userSettings)
+      .values({ userId, ...values })
+      .onConflictDoUpdate({ target: userSettings.userId, set: values })
+      .returning(WORK_COLUMNS);
     if (!row) throw new Error("work profile upsert returned no row");
     return { status: "saved", stored: toStored(row) };
   });
@@ -100,13 +121,14 @@ export async function saveWorkProfile(
       fullTime: profile.fullTime,
       contract: profile.contract,
       ...(profile.remoteOnly === undefined ? {} : { remoteOnly: profile.remoteOnly }),
+      workUpdatedAt: now,
       updatedAt: now,
     };
     const [row] = await tx
-      .insert(workProfiles)
-      .values({ userId, ...values, createdAt: now })
-      .onConflictDoUpdate({ target: workProfiles.userId, set: values })
-      .returning();
+      .insert(userSettings)
+      .values({ userId, ...values })
+      .onConflictDoUpdate({ target: userSettings.userId, set: values })
+      .returning(WORK_COLUMNS);
     if (!row) throw new Error("work profile upsert returned no row");
     return { status: "saved", stored: toStored(row) };
   });

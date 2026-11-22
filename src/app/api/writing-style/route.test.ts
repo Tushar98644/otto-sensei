@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { getDb } from "@/db/client";
-import { writingStyles } from "@/db/schema";
+import { userSettings } from "@/db/schema";
 import type { ApiErrorBody } from "@/lib/api/types";
 import { cookieJar, resetDb, signInAs } from "@/lib/auth/test-helpers";
 import { deleteUserData } from "@/lib/users";
@@ -75,7 +75,7 @@ describe("/api/writing-style", () => {
 
     const changed = await styleOf(await put({ ...STYLE, tone: "formal", notes: "" }));
     expect(changed).toMatchObject({ tone: "formal", notes: "", signOff: "Kind regards" });
-    expect(await (await getDb()).select().from(writingStyles)).toHaveLength(1);
+    expect(await (await getDb()).select().from(userSettings)).toHaveLength(1);
   });
 
   it("keeps each account's style to itself", async () => {
@@ -113,7 +113,7 @@ describe("/api/writing-style", () => {
     const user = await signInAs("ines@example.com");
     await put(STYLE);
     await deleteUserData(user.id);
-    expect(await (await getDb()).select().from(writingStyles)).toHaveLength(0);
+    expect(await (await getDb()).select().from(userSettings)).toHaveLength(0);
     expect(await saveWritingStyle(user.id, STYLE)).toBeNull();
   });
 });

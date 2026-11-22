@@ -35,7 +35,7 @@ async function main() {
     console.log(
       [
         `Users to reset: ${counts.users} (${counts.paidUsers} on a paid plan).`,
-        `Their trial reminders to delete: ${counts.trialReminders}. Their trial-watch rows to delete: ${counts.trialWatch}.`,
+        `Their trial reminders to delete: ${counts.trialReminders}.`,
         `Trial replacements to delete: ${counts.trialReplacements}. Trial history rows to delete: ${counts.trialHistory}.`,
         `Trial usage rows to set back to zero, invite extras kept: ${counts.trialUsage}.`,
       ].join("\n"),

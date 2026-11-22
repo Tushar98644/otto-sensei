@@ -1,14 +1,7 @@
 import { eq } from "drizzle-orm";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { getDb } from "@/db/client";
-import {
-  applications,
-  jobs,
-  notifications,
-  notificationSettings,
-  resumes,
-  savedJobs,
-} from "@/db/schema";
+import { applications, jobs, notifications, resumes, savedJobs, userSettings } from "@/db/schema";
 import { createUser, resetDb, setPlan } from "@/lib/auth/test-helpers";
 import { resetEnvForTests } from "@/lib/env";
 import type { RawJob } from "@/lib/job-feed/parsers";
@@ -107,9 +100,9 @@ async function notedAt(userId: string, at: number) {
   await (
     await getDb()
   )
-    .insert(notificationSettings)
-    .values({ userId, jobsEmailedAt: at, updatedAt: at })
-    .onConflictDoUpdate({ target: notificationSettings.userId, set: { jobsEmailedAt: at } });
+    .insert(userSettings)
+    .values({ userId, jobsNotedAt: at, updatedAt: at })
+    .onConflictDoUpdate({ target: userSettings.userId, set: { jobsNotedAt: at } });
 }
 
 async function settingsOf(userId: string) {
@@ -117,11 +110,11 @@ async function settingsOf(userId: string) {
     await getDb()
   )
     .select({
-      emailedAt: notificationSettings.jobsEmailedAt,
-      checkedAt: notificationSettings.jobsCheckedAt,
+      emailedAt: userSettings.jobsNotedAt,
+      checkedAt: userSettings.jobsCheckedAt,
     })
-    .from(notificationSettings)
-    .where(eq(notificationSettings.userId, userId));
+    .from(userSettings)
+    .where(eq(userSettings.userId, userId));
   return row;
 }
 
@@ -251,7 +244,7 @@ describe("runWeeklyMatches", () => {
     await db
       .insert(applications)
       .values({ ...applied, id: crypto.randomUUID(), jobUrl: jobUrl("1") });
-    await db.update(notificationSettings).set({ jobsEmailedAt: null, jobsCheckedAt: null });
+    await db.update(userSettings).set({ jobsNotedAt: null, jobsCheckedAt: null });
     await runWeeklyMatches(context());
     const [again] = await bellOf(user.id);
     expect(again?.body).toBe("Backend Developer at Company 2.");

@@ -1,7 +1,7 @@
 import { eq } from "drizzle-orm";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { getDb } from "@/db/client";
-import { applications, notifications, workProfiles } from "@/db/schema";
+import { applications, notifications, userSettings } from "@/db/schema";
 import type { ApplicationStatus } from "@/lib/applications/status";
 import { createUser, resetDb, setPlan } from "@/lib/auth/test-helpers";
 import { resetEnvForTests } from "@/lib/env";
@@ -312,10 +312,10 @@ describe("runFollowUps", () => {
 
   it("says the day in the account's own time zone", async () => {
     const maya = await proUser("maya@example.com");
-    await (await getDb()).insert(workProfiles).values({
+    await (await getDb()).insert(userSettings).values({
       userId: maya.id,
       timeZone: "America/Los_Angeles",
-      createdAt: NOW,
+      workUpdatedAt: NOW,
       updatedAt: NOW,
     });
     await interview(maya.id, "Stripe", Date.UTC(2026, 10, 9, 1));

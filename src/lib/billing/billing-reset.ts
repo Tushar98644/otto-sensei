@@ -15,14 +15,7 @@ import {
 } from "drizzle-orm";
 import type { PgTable } from "drizzle-orm/pg-core";
 import type { Db, Tx } from "@/db/client";
-import {
-  trialHistory,
-  trialReminders,
-  trialReplacements,
-  trialWatch,
-  usage,
-  users,
-} from "@/db/schema";
+import { trialHistory, trialReminders, trialReplacements, usage, users } from "@/db/schema";
 
 export type ResetMode = "paddle" | "go-live";
 
@@ -69,14 +62,13 @@ export const RESET_USAGE = `Usage: bun scripts/reset-billing.ts (--paddle | --go
                       plus 26 lowercase letters or digits). Changes nothing. Migration
                       20261120000100_reset_paddle_plans.sql applies the same rule on the Dodo deploy.
   --paddle --apply    Moves those accounts to Free, clears their billing fields and deletes their
-                      trial reminders and trial-watch rows, the Paddle trial replacements and all
-                      trial history, and sets every account's trial usage back to zero (invite
-                      extras stay).
+                      trial reminders, the Paddle trial replacements and all trial history, and
+                      sets every account's trial usage back to zero (invite extras stay).
   --go-live           Dry run: counts every account holding any billing state, Dodo test-mode ids
                       included (test and live ids look alike). Changes nothing.
   --go-live --apply   Moves all of them to Free, clears their billing fields and deletes their trial
-                      reminders and trial-watch rows, every trial replacement and all trial history,
-                      and sets every account's trial usage back to zero (invite extras stay).
+                      reminders, every trial replacement and all trial history, and sets every
+                      account's trial usage back to zero (invite extras stay).
                       Run it exactly once: after cancelling every Dodo test subscription and right
                       before switching DODO_ENVIRONMENT to live. Never run it after that: it would
                       move paying customers to Free while Dodo keeps charging them.
@@ -113,7 +105,6 @@ export type BillingResetCounts = {
   users: number;
   paidUsers: number;
   trialReminders: number;
-  trialWatch: number;
   trialReplacements: number;
   trialHistory: number;
   trialUsage: number;
@@ -136,7 +127,6 @@ export async function resetBilling(
       users: await tally(tx, users, target.users),
       paidUsers: await tally(tx, users, and(target.users, ne(users.plan, "free"))),
       trialReminders: await tally(tx, trialReminders, ofTargetUser(trialReminders.userId)),
-      trialWatch: await tally(tx, trialWatch, ofTargetUser(trialWatch.userId)),
       trialReplacements: await tally(tx, trialReplacements, target.replacements),
       trialHistory: await tally(tx, trialHistory, undefined),
       trialUsage: await tally(tx, usage, trialUsage),
@@ -144,7 +134,6 @@ export async function resetBilling(
     if (!apply) return counts;
     // These go first: once the users are reset, the target rule no longer finds them.
     await tx.delete(trialReminders).where(ofTargetUser(trialReminders.userId));
-    await tx.delete(trialWatch).where(ofTargetUser(trialWatch.userId));
     await tx
       .update(users)
       .set({

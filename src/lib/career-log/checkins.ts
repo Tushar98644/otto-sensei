@@ -3,7 +3,7 @@ import { and, asc, eq, gt, isNull, lte, ne, or, sql } from "drizzle-orm";
 import { accountSectionHref } from "@/components/setup/links";
 import { getDb } from "@/db/client";
 import { lockUser } from "@/db/locks";
-import { careerLogSettings, users } from "@/db/schema";
+import { users, userSettings } from "@/db/schema";
 import { emailLink } from "@/lib/analytics/landing";
 import type { CronContext, CronOutcome } from "@/lib/cron/run";
 import { appUrl } from "@/lib/env";
@@ -51,21 +51,21 @@ async function settle(
     if (!(await lockUser(tx, row.userId))) return false;
     const sent = decision.action === "send";
     const moved = await tx
-      .update(careerLogSettings)
+      .update(userSettings)
       .set({
-        nextCheckinOn: decision.next,
-        ...(sent ? { lastCheckinMonth: decision.month, lastCheckinAt: now } : {}),
+        careerNextOn: decision.next,
+        ...(sent ? { careerLastMonth: decision.month, careerLastAt: now } : {}),
       })
       .where(
         and(
-          eq(careerLogSettings.userId, row.userId),
-          eq(careerLogSettings.checkins, true),
+          eq(userSettings.userId, row.userId),
+          eq(userSettings.careerCheckins, true),
           row.nextCheckinOn === null
-            ? isNull(careerLogSettings.nextCheckinOn)
-            : eq(careerLogSettings.nextCheckinOn, row.nextCheckinOn),
+            ? isNull(userSettings.careerNextOn)
+            : eq(userSettings.careerNextOn, row.nextCheckinOn),
         ),
       )
-      .returning({ userId: careerLogSettings.userId });
+      .returning({ userId: userSettings.userId });
     if (moved.length === 0 || !sent) return false;
     await insertNotification(
       tx,
@@ -91,25 +91,25 @@ async function ringBells({ now, deadline }: CronContext) {
     if (Date.now() >= deadline) return { stats, complete: false };
     const rows: DueRow[] = await db
       .select({
-        userId: careerLogSettings.userId,
-        week: careerLogSettings.week,
-        weekday: careerLogSettings.weekday,
-        timeZone: careerLogSettings.timeZone,
-        nextCheckinOn: careerLogSettings.nextCheckinOn,
-        pausedUntil: careerLogSettings.pausedUntil,
-        lastCheckinMonth: careerLogSettings.lastCheckinMonth,
+        userId: userSettings.userId,
+        week: userSettings.careerWeek,
+        weekday: userSettings.careerWeekday,
+        timeZone: userSettings.careerTimeZone,
+        nextCheckinOn: userSettings.careerNextOn,
+        pausedUntil: userSettings.careerPausedUntil,
+        lastCheckinMonth: userSettings.careerLastMonth,
       })
-      .from(careerLogSettings)
+      .from(userSettings)
       .where(
         and(
-          eq(careerLogSettings.checkins, true),
-          lte(careerLogSettings.nextCheckinOn, horizon),
+          eq(userSettings.careerCheckins, true),
+          lte(userSettings.careerNextOn, horizon),
           after === null
             ? undefined
-            : sql`(${careerLogSettings.nextCheckinOn}, ${careerLogSettings.userId}) > (${after.on}::date, ${after.userId}::uuid)`,
+            : sql`(${userSettings.careerNextOn}, ${userSettings.userId}) > (${after.on}::date, ${after.userId}::uuid)`,
         ),
       )
-      .orderBy(asc(careerLogSettings.nextCheckinOn), asc(careerLogSettings.userId))
+      .orderBy(asc(userSettings.careerNextOn), asc(userSettings.userId))
       .limit(CHECKINS.rowsPerBatch);
     for (const row of rows) {
       stats.checked += 1;
@@ -153,20 +153,20 @@ async function claimEmail(
   return db.transaction(async (tx) => {
     if (!(await lockUser(tx, userId))) return null;
     const stamped = await tx
-      .update(careerLogSettings)
-      .set({ emailedMonth: month, emailedAt: now })
+      .update(userSettings)
+      .set({ careerEmailedMonth: month, careerEmailedAt: now })
       .where(
         and(
-          eq(careerLogSettings.userId, userId),
-          eq(careerLogSettings.checkins, true),
-          eq(careerLogSettings.emails, true),
-          eq(careerLogSettings.lastCheckinMonth, month),
+          eq(userSettings.userId, userId),
+          eq(userSettings.careerCheckins, true),
+          eq(userSettings.careerEmails, true),
+          eq(userSettings.careerLastMonth, month),
           before.month === null
-            ? isNull(careerLogSettings.emailedMonth)
-            : eq(careerLogSettings.emailedMonth, before.month),
+            ? isNull(userSettings.careerEmailedMonth)
+            : eq(userSettings.careerEmailedMonth, before.month),
         ),
       )
-      .returning({ userId: careerLogSettings.userId });
+      .returning({ userId: userSettings.userId });
     if (stamped.length === 0) return null;
     const [owner] = await tx.select({ email: users.email }).from(users).where(eq(users.id, userId));
     return owner ? { userId, email: owner.email, month, before } : null;
@@ -177,9 +177,9 @@ async function release(batch: readonly Claimed[], now: number): Promise<void> {
   const db = await getDb();
   for (const item of batch) {
     await db
-      .update(careerLogSettings)
-      .set({ emailedMonth: item.before.month, emailedAt: item.before.at })
-      .where(and(eq(careerLogSettings.userId, item.userId), eq(careerLogSettings.emailedAt, now)));
+      .update(userSettings)
+      .set({ careerEmailedMonth: item.before.month, careerEmailedAt: item.before.at })
+      .where(and(eq(userSettings.userId, item.userId), eq(userSettings.careerEmailedAt, now)));
   }
 }
 
@@ -213,24 +213,24 @@ async function sendEmails({ now, deadline }: CronContext, sender: EmailSender) {
   if (cap === 0) return { stats, complete: false };
   const due = await db
     .select({
-      userId: careerLogSettings.userId,
-      month: careerLogSettings.lastCheckinMonth,
-      emailedMonth: careerLogSettings.emailedMonth,
-      emailedAt: careerLogSettings.emailedAt,
+      userId: userSettings.userId,
+      month: userSettings.careerLastMonth,
+      emailedMonth: userSettings.careerEmailedMonth,
+      emailedAt: userSettings.careerEmailedAt,
     })
-    .from(careerLogSettings)
+    .from(userSettings)
     .where(
       and(
-        eq(careerLogSettings.checkins, true),
-        eq(careerLogSettings.emails, true),
-        gt(careerLogSettings.lastCheckinAt, now - CHECKINS.emailForMs),
+        eq(userSettings.careerCheckins, true),
+        eq(userSettings.careerEmails, true),
+        gt(userSettings.careerLastAt, now - CHECKINS.emailForMs),
         or(
-          isNull(careerLogSettings.emailedMonth),
-          ne(careerLogSettings.emailedMonth, careerLogSettings.lastCheckinMonth),
+          isNull(userSettings.careerEmailedMonth),
+          ne(userSettings.careerEmailedMonth, userSettings.careerLastMonth),
         ),
       ),
     )
-    .orderBy(asc(careerLogSettings.lastCheckinAt), asc(careerLogSettings.userId))
+    .orderBy(asc(userSettings.careerLastAt), asc(userSettings.userId))
     .limit(cap);
   const claimed: Claimed[] = [];
   for (const row of due) {

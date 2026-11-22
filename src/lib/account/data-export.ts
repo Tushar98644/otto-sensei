@@ -1,13 +1,18 @@
-import { and, asc, eq } from "drizzle-orm";
+import { and, asc, eq, getTableColumns } from "drizzle-orm";
 import JSZip from "jszip";
 import { BRAND } from "@/config/brand";
 import { getDb } from "@/db/client";
 import {
   activeDays,
   applications,
-  applyAnswers,
+  feedback,
+  jobs,
+  portfolios,
   resumes,
+  savedJobs,
   savedPosts,
+  shares,
+  userSettings,
   weeklyRecaps,
   writings,
 } from "@/db/schema";
@@ -16,6 +21,7 @@ import { careerLogJson, careerLogText } from "@/lib/career-log/export";
 import { listEntries } from "@/lib/career-log/records";
 import { STATUS_NAMES } from "@/lib/applications/status";
 import { EXTENSION_LIMITS } from "@/lib/extension/types";
+import { SAVED_JOBS_LIMIT } from "@/lib/job-feed/types";
 import { trackingExport } from "@/lib/inbound/records";
 import { RESUME_LIMITS } from "@/config/plans";
 import { WRITING_LIMITS, type WritingKind } from "@/lib/writings/schema";
@@ -31,6 +37,17 @@ const day = (at: number) => new Date(at).toISOString().slice(0, 10);
 // Both are kept about 10 weeks, so these caps are never reached.
 const RECAP_EXPORT_LIMIT = 30;
 const ACTIVE_DAYS_EXPORT_LIMIT = 200;
+// Far more than anyone makes; the caps only bound the download.
+const SHARE_EXPORT_LIMIT = 1_000;
+const FEEDBACK_EXPORT_LIMIT = 1_000;
+
+// Every setting, as stored; the answers have their own file.
+const NOT_SETTINGS = ["userId", "applyAnswers", "applyAnswersAt"] as const;
+const SETTINGS_COLUMNS = Object.fromEntries(
+  Object.entries(getTableColumns(userSettings)).filter(
+    ([key]) => !(NOT_SETTINGS as readonly string[]).includes(key),
+  ),
+) as Omit<(typeof userSettings)["_"]["columns"], (typeof NOT_SETTINGS)[number]>;
 
 function slug(text: string, fallback: string): string {
   const cleaned = text
@@ -65,7 +82,7 @@ export async function buildDataExport(
 ): Promise<Uint8Array<ArrayBuffer>> {
   const db = await getDb();
   const tracking = trackingExport(userId);
-  const [resumeRows, writingRows, applicationRows, postRows, answerRows] = await Promise.all([
+  const [resumeRows, writingRows, applicationRows, postRows, settingsRows] = await Promise.all([
     db
       .select({ id: resumes.id, data: resumes.data, updatedAt: resumes.updatedAt })
       .from(resumes)
@@ -121,9 +138,13 @@ export async function buildDataExport(
       .orderBy(asc(savedPosts.savedAt))
       .limit(EXTENSION_LIMITS.savedPosts),
     db
-      .select({ answers: applyAnswers.answers, updatedAt: applyAnswers.updatedAt })
-      .from(applyAnswers)
-      .where(eq(applyAnswers.userId, userId))
+      .select({
+        answers: userSettings.applyAnswers,
+        updatedAt: userSettings.applyAnswersAt,
+        settings: SETTINGS_COLUMNS,
+      })
+      .from(userSettings)
+      .where(eq(userSettings.userId, userId))
       .limit(1),
   ]);
   const [recapRows, dayRows] = await Promise.all([
@@ -144,7 +165,74 @@ export async function buildDataExport(
       .orderBy(asc(activeDays.day))
       .limit(ACTIVE_DAYS_EXPORT_LIMIT),
   ]);
-  const answers = answerRows[0] ?? null;
+  const [portfolioRows, shareRows, savedJobRows, feedbackRows] = await Promise.all([
+    db
+      .select({
+        address: portfolios.slug,
+        template: portfolios.template,
+        published: portfolios.published,
+        publishedAt: portfolios.publishedAt,
+        resumeId: portfolios.resumeId,
+        sync: portfolios.sync,
+        showEmail: portfolios.showEmail,
+        showPhone: portfolios.showPhone,
+        hiddenSections: portfolios.hiddenSections,
+        allowIndexing: portfolios.allowIndexing,
+        content: portfolios.content,
+        views: portfolios.views,
+        createdAt: portfolios.createdAt,
+        updatedAt: portfolios.updatedAt,
+      })
+      .from(portfolios)
+      .where(eq(portfolios.userId, userId))
+      .limit(1),
+    db
+      .select({
+        address: shares.slug,
+        resumeId: shares.resumeId,
+        showContact: shares.showContact,
+        allowIndexing: shares.allowIndexing,
+        views: shares.views,
+        lastViewedAt: shares.lastViewedAt,
+        createdAt: shares.createdAt,
+        revokedAt: shares.revokedAt,
+      })
+      .from(shares)
+      .where(eq(shares.userId, userId))
+      .orderBy(asc(shares.createdAt))
+      .limit(SHARE_EXPORT_LIMIT),
+    db
+      .select({
+        title: jobs.title,
+        company: jobs.company,
+        location: jobs.location,
+        url: jobs.url,
+        savedAt: savedJobs.savedAt,
+      })
+      .from(savedJobs)
+      .innerJoin(jobs, eq(jobs.id, savedJobs.jobId))
+      .where(eq(savedJobs.userId, userId))
+      .orderBy(asc(savedJobs.savedAt))
+      .limit(SAVED_JOBS_LIMIT),
+    db
+      .select({
+        kind: feedback.kind,
+        message: feedback.message,
+        pagePath: feedback.pagePath,
+        createdAt: feedback.createdAt,
+      })
+      .from(feedback)
+      .where(eq(feedback.userId, userId))
+      .orderBy(asc(feedback.createdAt))
+      .limit(FEEDBACK_EXPORT_LIMIT),
+  ]);
+  const settingsRow = settingsRows[0] ?? null;
+  const answers =
+    settingsRow?.answers == null
+      ? null
+      : { answers: settingsRow.answers, updatedAt: settingsRow.updatedAt };
+  const settings = settingsRow?.settings ?? null;
+  const portfolio = portfolioRows[0] ?? null;
   const { address, emails } = await tracking;
   const tracked = address !== null || emails.length > 0;
   const logEntries = await listEntries(userId);
@@ -165,6 +253,21 @@ export async function buildDataExport(
         : []),
       ...(answers
         ? ["apply-answers.json: the answers Otto for Chrome puts into application forms."]
+        : []),
+      ...(settings
+        ? [
+            "settings.json: your settings (where you can work, Looking for, reminders, writing style, career log check-ins), as Otto stores them.",
+          ]
+        : []),
+      ...(portfolio ? ["portfolio.json: your portfolio page's settings and content."] : []),
+      ...(shareRows.length > 0
+        ? [`share-links.json: ${shareRows.length} share links to your resumes, with their views.`]
+        : []),
+      ...(savedJobRows.length > 0
+        ? [`saved-jobs.json: ${savedJobRows.length} jobs saved from the Jobs tab.`]
+        : []),
+      ...(feedbackRows.length > 0
+        ? [`feedback.json: ${feedbackRows.length} feedback notes you sent.`]
         : []),
       ...(tracked
         ? [
@@ -249,6 +352,11 @@ export async function buildDataExport(
   zip.file("applications.json", JSON.stringify(applicationRows, null, 2));
   if (postRows.length > 0) zip.file("saved-posts.json", JSON.stringify(postRows, null, 2));
   if (answers) zip.file("apply-answers.json", JSON.stringify(answers, null, 2));
+  if (settings) zip.file("settings.json", JSON.stringify(settings, null, 2));
+  if (portfolio) zip.file("portfolio.json", JSON.stringify(portfolio, null, 2));
+  if (shareRows.length > 0) zip.file("share-links.json", JSON.stringify(shareRows, null, 2));
+  if (savedJobRows.length > 0) zip.file("saved-jobs.json", JSON.stringify(savedJobRows, null, 2));
+  if (feedbackRows.length > 0) zip.file("feedback.json", JSON.stringify(feedbackRows, null, 2));
   if (tracked) zip.file("email-tracking.json", JSON.stringify({ address, emails }, null, 2));
   if (logEntries.length > 0) {
     zip.file("career-log.txt", careerLogText(logEntries, day(now)));

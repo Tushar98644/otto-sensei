@@ -1,7 +1,7 @@
 import { eq } from "drizzle-orm";
 import { getDb } from "@/db/client";
 import { lockUser } from "@/db/locks";
-import { applyAnswers } from "@/db/schema";
+import { userSettings } from "@/db/schema";
 import { isUserId } from "@/lib/users";
 import { emptyAnswers, mergeAnswers, type ApplyAnswers, type ApplyAnswersPatch } from "./answers";
 import { ApplyAnswersSchema } from "./validation";
@@ -15,11 +15,11 @@ export async function readApplyAnswers(userId: string): Promise<ApplyAnswers> {
   if (!isUserId(userId)) return emptyAnswers();
   const db = await getDb();
   const [row] = await db
-    .select({ answers: applyAnswers.answers })
-    .from(applyAnswers)
-    .where(eq(applyAnswers.userId, userId))
+    .select({ answers: userSettings.applyAnswers })
+    .from(userSettings)
+    .where(eq(userSettings.userId, userId))
     .limit(1);
-  return row ? readRow(row.answers) : emptyAnswers();
+  return row?.answers ? readRow(row.answers) : emptyAnswers();
 }
 
 // Merged under the account's row lock, so two tabs answering at once both land; null once the account is gone.
@@ -33,17 +33,18 @@ export async function saveApplyAnswers(
   return db.transaction(async (tx) => {
     if (!(await lockUser(tx, userId))) return null;
     const [row] = await tx
-      .select({ answers: applyAnswers.answers })
-      .from(applyAnswers)
-      .where(eq(applyAnswers.userId, userId))
+      .select({ answers: userSettings.applyAnswers })
+      .from(userSettings)
+      .where(eq(userSettings.userId, userId))
       .limit(1);
     const next = ApplyAnswersSchema.parse(
-      mergeAnswers(row ? readRow(row.answers) : emptyAnswers(), patch, now),
+      mergeAnswers(row?.answers ? readRow(row.answers) : emptyAnswers(), patch, now),
     );
+    const set = { applyAnswers: next, applyAnswersAt: now, updatedAt: now };
     await tx
-      .insert(applyAnswers)
-      .values({ userId, answers: next, updatedAt: now })
-      .onConflictDoUpdate({ target: applyAnswers.userId, set: { answers: next, updatedAt: now } });
+      .insert(userSettings)
+      .values({ userId, ...set })
+      .onConflictDoUpdate({ target: userSettings.userId, set });
     return next;
   });
 }

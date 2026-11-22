@@ -1,7 +1,8 @@
 import { and, asc, count, desc, eq, gte, lte } from "drizzle-orm";
 import { getDb, type Tx } from "@/db/client";
 import { lockUser } from "@/db/locks";
-import { careerLogEntries, careerLogSettings, users } from "@/db/schema";
+import type { RowOf } from "@/db/columns";
+import { careerLogEntries, users, userSettings } from "@/db/schema";
 import { promptResting } from "@/lib/notifications/prompts";
 import { normalizeEntry, type EntryChange } from "./entry";
 import { localDate, nextCheckinOn, pauseUntil, safeTimeZone } from "./schedule";
@@ -17,7 +18,26 @@ import {
 // Every query is filtered by user_id, so a guessed month never reads or changes another account's notes.
 
 type EntryRow = typeof careerLogEntries.$inferSelect;
-type SettingsRow = typeof careerLogSettings.$inferSelect;
+
+export const CAREER_COLUMNS = {
+  checkins: userSettings.careerCheckins,
+  emails: userSettings.careerEmails,
+  week: userSettings.careerWeek,
+  weekday: userSettings.careerWeekday,
+  timeZone: userSettings.careerTimeZone,
+  nextCheckinOn: userSettings.careerNextOn,
+  pausedUntil: userSettings.careerPausedUntil,
+  jobRole: userSettings.careerJobRole,
+  jobCompany: userSettings.careerJobCompany,
+  lastCheckinMonth: userSettings.careerLastMonth,
+  lastCheckinAt: userSettings.careerLastAt,
+  emailedMonth: userSettings.careerEmailedMonth,
+  emailedAt: userSettings.careerEmailedAt,
+  promptClosedAt: userSettings.careerPromptClosedAt,
+  promptSnoozedAt: userSettings.careerPromptSnoozedAt,
+};
+
+type SettingsRow = RowOf<typeof CAREER_COLUMNS>;
 
 function toEntry(row: EntryRow): CareerLogEntry {
   return {
@@ -93,9 +113,9 @@ export async function entriesBetween(
 
 async function settingsRow(tx: Tx, userId: string): Promise<SettingsRow | undefined> {
   const [row] = await tx
-    .select()
-    .from(careerLogSettings)
-    .where(eq(careerLogSettings.userId, userId))
+    .select(CAREER_COLUMNS)
+    .from(userSettings)
+    .where(eq(userSettings.userId, userId))
     .limit(1);
   return row;
 }
@@ -107,9 +127,9 @@ export async function readSettings(
 ): Promise<CareerLogSettings | null> {
   const db = await getDb();
   const [row] = await db
-    .select({ id: users.id, settings: careerLogSettings })
+    .select({ id: users.id, settings: CAREER_COLUMNS })
     .from(users)
-    .leftJoin(careerLogSettings, eq(careerLogSettings.userId, users.id))
+    .leftJoin(userSettings, eq(userSettings.userId, users.id))
     .where(eq(users.id, userId))
     .limit(1);
   if (!row) return null;
@@ -198,32 +218,32 @@ export async function saveSettings(
       change.timeZone !== undefined ||
       (checkins && !before?.nextCheckinOn);
     const values = {
-      checkins,
-      emails: change.emails ?? before?.emails ?? true,
-      week: day.week,
-      weekday: day.weekday,
-      timeZone,
-      nextCheckinOn: reschedule ? nextCheckinOn(day, today) : (before?.nextCheckinOn ?? null),
-      pausedUntil:
+      careerCheckins: checkins,
+      careerEmails: change.emails ?? before?.emails ?? true,
+      careerWeek: day.week,
+      careerWeekday: day.weekday,
+      careerTimeZone: timeZone,
+      careerNextOn: reschedule ? nextCheckinOn(day, today) : (before?.nextCheckinOn ?? null),
+      careerPausedUntil:
         change.pauseMonths === undefined
           ? (before?.pausedUntil ?? null)
           : change.pauseMonths === 0
             ? null
             : pauseUntil(today, change.pauseMonths),
-      jobRole: change.job?.role ?? before?.jobRole ?? "",
-      jobCompany: change.job?.company ?? before?.jobCompany ?? "",
-      promptClosedAt:
+      careerJobRole: change.job?.role ?? before?.jobRole ?? "",
+      careerJobCompany: change.job?.company ?? before?.jobCompany ?? "",
+      careerPromptClosedAt:
         change.checkins === undefined
           ? (before?.promptClosedAt ?? null)
           : (before?.promptClosedAt ?? now),
-      promptSnoozedAt: change.promptSnoozed ? now : (before?.promptSnoozedAt ?? null),
+      careerPromptSnoozedAt: change.promptSnoozed ? now : (before?.promptSnoozedAt ?? null),
       updatedAt: now,
     };
     const [row] = await tx
-      .insert(careerLogSettings)
+      .insert(userSettings)
       .values({ userId, ...values })
-      .onConflictDoUpdate({ target: careerLogSettings.userId, set: values })
-      .returning();
+      .onConflictDoUpdate({ target: userSettings.userId, set: values })
+      .returning(CAREER_COLUMNS);
     return toSettings(row, now);
   });
 }

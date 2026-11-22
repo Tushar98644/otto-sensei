@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { getDb } from "@/db/client";
-import { accountSetup } from "@/db/schema";
+import { userSettings } from "@/db/schema";
 import type { ApiErrorBody } from "@/lib/api/types";
 import { cookieJar, resetDb, signInAs } from "@/lib/auth/test-helpers";
 import { saveAccountSetup, saveSetupDefaults } from "@/lib/setup/records";
@@ -64,7 +64,7 @@ describe("/api/setup", () => {
       checklistHiddenAt: null,
     });
     expect(await setupOf(await GET())).toMatchObject({ stepOutcome: "skipped" });
-    expect(await (await getDb()).select().from(accountSetup)).toHaveLength(1);
+    expect(await (await getDb()).select().from(userSettings)).toHaveLength(1);
   });
 
   it("keeps each account's setup to itself", async () => {
@@ -107,7 +107,7 @@ describe("/api/setup", () => {
     const user = await signInAs("ines@example.com");
     await put({ step: "saved" });
     await deleteUserData(user.id);
-    expect(await (await getDb()).select().from(accountSetup)).toHaveLength(0);
+    expect(await (await getDb()).select().from(userSettings)).toHaveLength(0);
     expect((await saveAccountSetup(user.id, { step: "saved" })).status).toBe("no_user");
   });
 });

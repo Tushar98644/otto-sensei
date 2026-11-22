@@ -1,7 +1,7 @@
 import { eq } from "drizzle-orm";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { getDb } from "@/db/client";
-import { careerLogSettings, notifications } from "@/db/schema";
+import { notifications, userSettings } from "@/db/schema";
 import { createUser, resetDb } from "@/lib/auth/test-helpers";
 import { resetEnvForTests } from "@/lib/env";
 import type { BatchResult, EmailMessage, EmailSender } from "@/lib/notifications/email";
@@ -143,9 +143,9 @@ describe("the monthly check-in", () => {
     const [row] = await (
       await getDb()
     )
-      .select({ month: careerLogSettings.emailedMonth })
-      .from(careerLogSettings)
-      .where(eq(careerLogSettings.userId, ada.id));
+      .select({ month: userSettings.careerEmailedMonth })
+      .from(userSettings)
+      .where(eq(userSettings.userId, ada.id));
     expect(row?.month).toBe("2026-11");
   });
 

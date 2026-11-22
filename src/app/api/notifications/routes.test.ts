@@ -1,16 +1,16 @@
 import { eq } from "drizzle-orm";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { getDb } from "@/db/client";
-import { applications, notifications } from "@/db/schema";
+import { applications, notifications, userSettings } from "@/db/schema";
 import type { ApiErrorBody } from "@/lib/api/types";
 import { cookieJar, createUser, resetDb, signInAs } from "@/lib/auth/test-helpers";
 import { resetEnvForTests } from "@/lib/env";
-import { readEmailChoices, saveEmailChoices } from "@/lib/notifications/choices";
 import type {
   MarkNotificationsReadResponse,
   NotificationsResponse,
   ReminderSettingsResponse,
 } from "@/lib/notifications/types";
+import { stopEmails } from "@/lib/notifications/choices";
 import { readEmailReminders, setEmailReminders } from "@/lib/notifications/records";
 import { unsubscribeToken, unsubscribeUrl } from "@/lib/notifications/unsubscribe";
 import { GET, PATCH } from "./route";
@@ -20,6 +20,32 @@ import { GET as openUnsubscribe, POST as unsubscribe } from "./unsubscribe/route
 vi.mock("next/headers", async () => (await import("@/lib/auth/test-helpers")).nextHeadersMock);
 
 const JSON_TYPE = { "content-type": "application/json" };
+
+type OldEmailChoices = { jobEmails?: boolean; tipEmails?: boolean; viewEmails?: boolean };
+
+// The opt-out choices of the emails no longer sent, as the unsubscribe links leave them.
+async function setEmailChoices(userId: string, choices: OldEmailChoices) {
+  await (
+    await getDb()
+  )
+    .insert(userSettings)
+    .values({ userId, ...choices, updatedAt: 1 })
+    .onConflictDoUpdate({ target: userSettings.userId, set: choices });
+}
+
+async function emailChoicesOf(userId: string) {
+  const [row] = await (
+    await getDb()
+  )
+    .select({
+      jobEmails: userSettings.jobEmails,
+      tipEmails: userSettings.tipEmails,
+      viewEmails: userSettings.viewEmails,
+    })
+    .from(userSettings)
+    .where(eq(userSettings.userId, userId));
+  return row ?? { jobEmails: false, tipEmails: true, viewEmails: false };
+}
 
 async function seed(
   userId: string,
@@ -227,10 +253,10 @@ describe("/api/notifications/settings", () => {
     }
   });
 
-  it("leaves the reminder choice unmade when only the jobs or tips emails are answered", async () => {
+  it("leaves the reminder choice unmade when only the jobs or tips emails are turned off", async () => {
     const maya = await signInAs("maya@example.com");
-    await saveEmailChoices(maya.id, { jobPromptClosed: true });
-    await saveEmailChoices(maya.id, { tipEmails: false });
+    await stopEmails(maya.id, "jobs");
+    await stopEmails(maya.id, "tips");
     expect((await (await getSettings()).json()) as ReminderSettingsResponse).toMatchObject({
       emailReminders: false,
       followUpDays: 7,
@@ -238,7 +264,7 @@ describe("/api/notifications/settings", () => {
     });
 
     await put({ emailReminders: false });
-    await saveEmailChoices(maya.id, { jobEmails: true });
+    await setEmailChoices(maya.id, { jobEmails: true });
     expect((await (await getSettings()).json()) as ReminderSettingsResponse).toMatchObject({
       chosen: true,
     });
@@ -321,23 +347,23 @@ describe("/api/notifications/unsubscribe", () => {
   it("turns off only the list its link was signed for", async () => {
     const maya = await createUser("maya@example.com");
     await setEmailReminders(maya.id, true);
-    await saveEmailChoices(maya.id, { jobEmails: true });
+    await setEmailChoices(maya.id, { jobEmails: true });
 
     const jobs = await oneClick(`u=${maya.id}&t=${unsubscribeToken(maya.id, "jobs")}&l=jobs`);
     expect(jobs.status).toBe(200);
-    expect(await readEmailChoices(maya.id)).toMatchObject({ jobEmails: false, tipEmails: true });
+    expect(await emailChoicesOf(maya.id)).toMatchObject({ jobEmails: false, tipEmails: true });
     expect(await remindersOf(maya.id)).toBe(true);
 
     const tips = await oneClick(`u=${maya.id}&t=${unsubscribeToken(maya.id, "tips")}&l=tips`);
     expect(tips.status).toBe(200);
-    expect(await readEmailChoices(maya.id)).toMatchObject({ jobEmails: false, tipEmails: false });
+    expect(await emailChoicesOf(maya.id)).toMatchObject({ jobEmails: false, tipEmails: false });
     expect(await remindersOf(maya.id)).toBe(true);
   });
 
   it("refuses a token signed for another list, or a list it doesn't know", async () => {
     const maya = await createUser("maya@example.com");
     await setEmailReminders(maya.id, true);
-    await saveEmailChoices(maya.id, { jobEmails: true });
+    await setEmailChoices(maya.id, { jobEmails: true });
     for (const query of [
       `u=${maya.id}&t=${unsubscribeToken(maya.id, "tips")}&l=jobs`,
       `u=${maya.id}&t=${unsubscribeToken(maya.id, "jobs")}`,
@@ -346,13 +372,13 @@ describe("/api/notifications/unsubscribe", () => {
     ]) {
       expect((await oneClick(query)).status).toBe(400);
     }
-    expect(await readEmailChoices(maya.id)).toMatchObject({ jobEmails: true, tipEmails: true });
+    expect(await emailChoicesOf(maya.id)).toMatchObject({ jobEmails: true, tipEmails: true });
     expect(await remindersOf(maya.id)).toBe(true);
   });
 
   it("shows a confirm page for a list's link and changes nothing until it is pressed", async () => {
     const maya = await createUser("maya@example.com");
-    await saveEmailChoices(maya.id, { jobEmails: true });
+    await setEmailChoices(maya.id, { jobEmails: true });
     const link = unsubscribeUrl(maya.id, "jobs")!;
     expect(new URL(link).searchParams.get("l")).toBe("jobs");
 
@@ -364,12 +390,12 @@ describe("/api/notifications/unsubscribe", () => {
     expect(html).toContain("Stop the weekly email");
     const action = /action="([^"]+)"/.exec(html)?.[1]?.replaceAll("&amp;", "&");
     expect(action).toMatch(/^\/api\/notifications\/unsubscribe\?/);
-    expect((await readEmailChoices(maya.id))?.jobEmails).toBe(true);
+    expect((await emailChoicesOf(maya.id)).jobEmails).toBe(true);
 
     const pressed = await unsubscribe(new Request(`http://localhost${action}`, { method: "POST" }));
     expect(pressed.status).toBe(200);
     expect(await pressed.text()).toContain("You won&#39;t get the weekly jobs email any more.");
-    expect((await readEmailChoices(maya.id))?.jobEmails).toBe(false);
+    expect((await emailChoicesOf(maya.id)).jobEmails).toBe(false);
 
     const forged = openUnsubscribe(
       new Request(

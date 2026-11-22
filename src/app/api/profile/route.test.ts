@@ -1,7 +1,7 @@
 import { eq } from "drizzle-orm";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { getDb } from "@/db/client";
-import { workProfiles } from "@/db/schema";
+import { userSettings } from "@/db/schema";
 import type { ApiErrorBody } from "@/lib/api/types";
 import { cookieJar, resetDb, setPlan, signInAs as signInFree } from "@/lib/auth/test-helpers";
 import type { WorkProfileBody, WorkProfileResponse } from "@/lib/eligibility/profile";
@@ -91,7 +91,7 @@ describe("/api/profile", () => {
     expect((await put(changed)).status).toBe(200);
     const read = (await (await GET()).json()) as WorkProfileResponse;
     expect(read.profile).toEqual(changed);
-    const rows = await (await getDb()).select().from(workProfiles);
+    const rows = await (await getDb()).select().from(userSettings);
     expect(rows).toHaveLength(1);
   });
 
@@ -114,8 +114,8 @@ describe("/api/profile", () => {
       await getDb()
     )
       .select()
-      .from(workProfiles)
-      .where(eq(workProfiles.userId, ines.id));
+      .from(userSettings)
+      .where(eq(userSettings.userId, ines.id));
     expect(rows).toHaveLength(1);
   });
 
@@ -140,7 +140,7 @@ describe("/api/profile", () => {
     const user = await signInAs("ines@example.com");
     await put(PROFILE);
     await deleteUserData(user.id);
-    expect(await (await getDb()).select().from(workProfiles)).toHaveLength(0);
+    expect(await (await getDb()).select().from(userSettings)).toHaveLength(0);
     const result = await saveWorkProfile(user.id, { ...PROFILE, rights: { ...PROFILE.rights } });
     expect(result.status).toBe("no_user");
   });

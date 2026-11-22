@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { getDb } from "@/db/client";
-import { workProfiles } from "@/db/schema";
+import { userSettings } from "@/db/schema";
 import type { ApiErrorBody } from "@/lib/api/types";
 import { cookieJar, resetDb, setPlan, signInAs, signInOnTrial } from "@/lib/auth/test-helpers";
 import type { SessionUser } from "@/lib/auth/types";
@@ -98,7 +98,7 @@ describe("POST /api/setup/defaults", () => {
     expect(again.profile).toEqual(first.profile);
     expect(again.lookingFor).toEqual(first.lookingFor);
     expect(again.updatedAt).toBe(first.updatedAt);
-    expect(await (await getDb()).select().from(workProfiles)).toHaveLength(1);
+    expect(await (await getDb()).select().from(userSettings)).toHaveLength(1);
     expect((await readWorkProfile(user.id)).profile.country).toBe("PT");
   });
 
@@ -191,7 +191,7 @@ describe("POST /api/setup/defaults", () => {
         )
       ).status,
     ).toBe(403);
-    expect(await (await getDb()).select().from(workProfiles)).toHaveLength(0);
+    expect(await (await getDb()).select().from(userSettings)).toHaveLength(0);
   });
 
   it("refuses to write for a deleted account", async () => {

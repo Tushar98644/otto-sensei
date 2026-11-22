@@ -1,6 +1,6 @@
-import { lt, sql } from "drizzle-orm";
+import { isNull, lt, or, sql } from "drizzle-orm";
 import { getDb } from "@/db/client";
-import { activeDays, userActivity } from "@/db/schema";
+import { activeDays, userSettings } from "@/db/schema";
 import { DAY_MS } from "@/lib/time";
 import type { DashboardSection, EmailLanding } from "./landing";
 import { trackDashboardView, trackEmailClick, trackReturn } from "./retention";
@@ -34,21 +34,25 @@ export function daysBetween(from: string, to: string): number {
 export type ActiveDayMark = { previous: string | null };
 
 // Null unless this is the account's first app page on that day; never moves the day backwards.
-export async function markActiveDay(userId: string, day: string): Promise<ActiveDayMark | null> {
+export async function markActiveDay(
+  userId: string,
+  day: string,
+  now = Date.now(),
+): Promise<ActiveDayMark | null> {
   const db = await getDb();
   const [row] = await db
-    .insert(userActivity)
-    .values({ userId, activeOn: day })
+    .insert(userSettings)
+    .values({ userId, activeOn: day, updatedAt: now })
     .onConflictDoUpdate({
-      target: userActivity.userId,
+      target: userSettings.userId,
       set: { activeOn: day },
-      setWhere: lt(userActivity.activeOn, day),
+      setWhere: or(isNull(userSettings.activeOn), lt(userSettings.activeOn, day)),
     })
-    // A sub-select sees the table as it was before this statement: no row yet means the first day.
+    // A sub-select sees the table as it was before this statement: no day yet means the first one.
     .returning({
       previous: sql<
         string | null
-      >`(select a.active_on::text from ${userActivity} a where a.user_id = ${userId})`,
+      >`(select a.active_on::text from ${userSettings} a where a.user_id = ${userId})`,
     });
   return row ? { previous: row.previous } : null;
 }
@@ -61,7 +65,7 @@ export async function recordActivity(
   trackDashboardView(userId, activity.section);
   if (activity.email) trackEmailClick(userId, activity.email);
   const day = calendarDay(now, activity.timeZone);
-  const mark = await markActiveDay(userId, day);
+  const mark = await markActiveDay(userId, day, now);
   if (!mark) return;
   // The weekly recap's days active: the date only.
   const db = await getDb();

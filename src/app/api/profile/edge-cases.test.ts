@@ -2,7 +2,7 @@ import { AuthRetryableFetchError } from "@supabase/supabase-js";
 import { eq } from "drizzle-orm";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { getDb } from "@/db/client";
-import { users, workProfiles } from "@/db/schema";
+import { users, userSettings } from "@/db/schema";
 import { execSql } from "@/db/testing";
 import type { ApiErrorBody } from "@/lib/api/types";
 import {
@@ -66,7 +66,7 @@ async function errorOf(res: Response): Promise<ApiErrorBody["error"]> {
 }
 
 async function profileRows() {
-  return (await getDb()).select().from(workProfiles);
+  return (await getDb()).select().from(userSettings);
 }
 
 const signInPro = async (email = "ines@example.com") => setPlan(await signInAs(email), "pro");
@@ -84,12 +84,12 @@ describe("/api/profile when something fails", () => {
   it("answers a database outage on read with a retryable 500, and keeps the address out of the log", async () => {
     await signInPro();
     const logged = vi.spyOn(console, "error").mockImplementation(() => {});
-    await execSql("alter table public.work_profiles rename to work_profiles_away");
+    await execSql("alter table public.user_settings rename to user_settings_away");
     let res: Response;
     try {
       res = await GET();
     } finally {
-      await execSql("alter table public.work_profiles_away rename to work_profiles");
+      await execSql("alter table public.user_settings_away rename to user_settings");
     }
     expect(res.status).toBe(500);
     expect(res.headers.get("cache-control")).toBe("no-store");
@@ -112,13 +112,13 @@ describe("/api/profile when something fails", () => {
       "create function fail_write() returns trigger language plpgsql as $$ begin raise exception 'disk full'; end $$",
     );
     await execSql(
-      "create trigger fail_write before insert or update on public.work_profiles for each row execute function fail_write()",
+      "create trigger fail_write before insert or update on public.user_settings for each row execute function fail_write()",
     );
     let res: Response;
     try {
       res = await put({ ...PROFILE, country: "US", timeZone: "America/New_York" });
     } finally {
-      await execSql("drop trigger fail_write on public.work_profiles");
+      await execSql("drop trigger fail_write on public.user_settings");
       await execSql("drop function fail_write()");
     }
     expect(res.status).toBe(500);
@@ -262,8 +262,8 @@ describe("/api/profile and the plan", () => {
       await getDb()
     )
       .select()
-      .from(workProfiles)
-      .where(eq(workProfiles.userId, user.id));
+      .from(userSettings)
+      .where(eq(userSettings.userId, user.id));
     expect(rows).toHaveLength(1);
   });
 

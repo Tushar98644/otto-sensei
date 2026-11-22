@@ -2,12 +2,11 @@ import { AuthRetryableFetchError } from "@supabase/supabase-js";
 import { eq } from "drizzle-orm";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { getDb } from "@/db/client";
-import { notifications, notificationSettings } from "@/db/schema";
+import { notifications, userSettings } from "@/db/schema";
 import type { ApiErrorBody } from "@/lib/api/types";
 import { getCurrentUser } from "@/lib/auth/session";
 import { cookieJar, createUser, fakeAuth, resetDb, signInAs } from "@/lib/auth/test-helpers";
 import { resetEnvForTests } from "@/lib/env";
-import { readEmailChoices, saveEmailChoices } from "@/lib/notifications/choices";
 import { readEmailReminders, setEmailReminders } from "@/lib/notifications/records";
 import type {
   MarkNotificationsReadResponse,
@@ -50,6 +49,32 @@ const patch = (body: unknown, headers?: Record<string, string>) =>
 const saveSettings = (body: unknown, headers?: Record<string, string>) =>
   send(putSettings, "/api/notifications/settings", "PUT", body, headers);
 
+type OldEmailChoices = { jobEmails?: boolean; tipEmails?: boolean; viewEmails?: boolean };
+
+// The opt-out choices of the emails no longer sent, as the unsubscribe links leave them.
+async function setEmailChoices(userId: string, choices: OldEmailChoices) {
+  await (
+    await getDb()
+  )
+    .insert(userSettings)
+    .values({ userId, ...choices, updatedAt: 1 })
+    .onConflictDoUpdate({ target: userSettings.userId, set: choices });
+}
+
+async function emailChoicesOf(userId: string) {
+  const [row] = await (
+    await getDb()
+  )
+    .select({
+      jobEmails: userSettings.jobEmails,
+      tipEmails: userSettings.tipEmails,
+      viewEmails: userSettings.viewEmails,
+    })
+    .from(userSettings)
+    .where(eq(userSettings.userId, userId));
+  return row ?? { jobEmails: false, tipEmails: true, viewEmails: false };
+}
+
 async function errorOf(res: Response): Promise<ApiErrorBody["error"]> {
   return ((await res.json()) as ApiErrorBody).error;
 }
@@ -84,8 +109,8 @@ async function settingsRowOf(userId: string) {
     await getDb()
   )
     .select()
-    .from(notificationSettings)
-    .where(eq(notificationSettings.userId, userId));
+    .from(userSettings)
+    .where(eq(userSettings.userId, userId));
   return row ?? null;
 }
 
@@ -372,7 +397,7 @@ describe("/api/notifications/unsubscribe", () => {
 
   it("shows the invalid-link page for a list's link with no account in it", async () => {
     const maya = await createUser("maya@example.com");
-    await saveEmailChoices(maya.id, { jobEmails: true });
+    await setEmailChoices(maya.id, { jobEmails: true });
     const res = openUnsubscribe(
       new Request(
         `http://localhost/api/notifications/unsubscribe?t=${unsubscribeToken(maya.id, "jobs")}&l=jobs`,
@@ -383,7 +408,7 @@ describe("/api/notifications/unsubscribe", () => {
     expect(html).toContain("That link isn&#39;t valid any more.");
     expect(html).not.toContain("<form");
     expect(html).toContain('href="https://otto.test/dashboard/account#reminders"');
-    expect((await readEmailChoices(maya.id))?.jobEmails).toBe(true);
+    expect((await emailChoicesOf(maya.id)).jobEmails).toBe(true);
   });
 
   it("answers a forged press on the confirm page with the invalid-link page, changing nothing", async () => {
@@ -418,19 +443,19 @@ describe("/api/notifications/unsubscribe", () => {
   it("turns tips off from the confirm page and leaves the other lists alone", async () => {
     const maya = await createUser("maya@example.com");
     await setEmailReminders(maya.id, true);
-    await saveEmailChoices(maya.id, { jobEmails: true });
+    await setEmailChoices(maya.id, { jobEmails: true });
     const link = new URL(unsubscribeUrl(maya.id, "tips") ?? "");
     const res = await pressed(link.searchParams.toString());
     expectPage(res, 200);
     expect(await res.text()).toContain("Tips and reminders");
-    expect(await readEmailChoices(maya.id)).toMatchObject({ jobEmails: true, tipEmails: false });
+    expect(await emailChoicesOf(maya.id)).toMatchObject({ jobEmails: true, tipEmails: false });
     expect(await readEmailReminders(maya.id)).toBe(true);
   });
 
   it("answers 500 when the database fails, so the mail server or the visitor can try again", async () => {
     const maya = await createUser("maya@example.com");
     await setEmailReminders(maya.id, true);
-    await saveEmailChoices(maya.id, { jobEmails: true });
+    await setEmailChoices(maya.id, { jobEmails: true });
 
     await databaseDown("transaction");
     const api = await oneClick(`u=${maya.id}&t=${unsubscribeToken(maya.id)}`);
@@ -444,7 +469,7 @@ describe("/api/notifications/unsubscribe", () => {
     expect(html).toContain("The weekly jobs email");
     expect(html).toContain("Couldn&#39;t turn those emails off. Please try again.");
     expect(html).not.toContain("database is down");
-    expect((await readEmailChoices(maya.id))?.jobEmails).toBe(true);
+    expect((await emailChoicesOf(maya.id)).jobEmails).toBe(true);
 
     expect((await oneClick(`u=${maya.id}&t=${unsubscribeToken(maya.id)}`)).status).toBe(200);
     expect(await readEmailReminders(maya.id)).toBe(false);
