@@ -37,7 +37,17 @@ const ATS_SYSTEMS = [
 ];
 // Guides with one sourced note: served, but kept out of search until they have more.
 const THIN_GUIDES = ["/ats/lever", "/ats/bamboohr", "/ats/recruitee"];
-const COMPARISONS = ["jobscan", "rezi", "kickresume", "resume-io", "enhancv", "novoresume"];
+const COMPARISONS = [
+  "jobscan",
+  "rezi",
+  "kickresume",
+  "resume-io",
+  "enhancv",
+  "novoresume",
+  "zety",
+  "teal",
+  "canva",
+];
 const EXAMPLES = [
   "software-engineer",
   "fresher",

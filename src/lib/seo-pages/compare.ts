@@ -31,6 +31,8 @@ export type Competitor = {
   checked: string;
   // Set when the product's site shows each country its own prices; the ones here were shown in India.
   pricedByCountry?: boolean;
+  // Set when the facts are as the product's own pages listed them that month, not read on the day in checked.
+  asListed?: boolean;
 };
 
 const freeFormats = FREE_TEMPLATES.map((id) => TEMPLATE_INFO[id].name).join(" and ");
@@ -557,6 +559,159 @@ const novoresume: Competitor = {
   pricedByCountry: true,
 };
 
+const zety: Competitor = {
+  slug: "zety",
+  name: "Zety",
+  site: "https://zety.com/",
+  summary:
+    "Zety is an online resume builder. Its free tier downloads in TXT, and a paid plan adds PDF and Word downloads: a 14-day trial that renews every 4 weeks, or a year paid upfront.",
+  rows: [
+    {
+      label: "What it is",
+      otto: OTTO_SIDE.what,
+      them: { answer: "An online resume builder" },
+    },
+    {
+      label: "Free plan",
+      otto: OTTO_SIDE.free,
+      them: { answer: "A free tier", detail: "Downloads in TXT only." },
+    },
+    {
+      label: "Paid plans",
+      otto: OTTO_SIDE.paid,
+      them: {
+        answer: "$1.95 for 14 days",
+        detail:
+          "The trial renews at $25.95 every 4 weeks. Or pay $71.40 upfront for a year ($5.95 a month). A 14-day money-back guarantee.",
+      },
+    },
+    {
+      label: "Downloads",
+      otto: OTTO_SIDE.downloads,
+      them: { answer: "TXT only on Free", detail: "PDF and Word downloads need a paid plan." },
+    },
+  ],
+  strengths: [
+    "A 14-day trial for $1.95, to try the paid plan before it renews.",
+    "Word downloads as well as PDF on a paid plan.",
+    "A yearly option at $71.40 upfront, which works out to $5.95 a month.",
+    "A 14-day money-back guarantee.",
+  ],
+  differences: [
+    { ...FREE_PDFS, text: `${FREE_PDFS.text} Zety's free tier downloads in TXT only.` },
+    {
+      title: "A lower price month to month",
+      text: `Otto Pro is ${proMonthly} a month, billed monthly. Zety's $1.95 trial renews at $25.95 every 4 weeks.`,
+    },
+  ],
+  extras: [NO_SCORE, EMPLOYER_JOBS],
+  pickThem: "you'd pay for a year upfront to get the lowest monthly price.",
+  pickOtto: "you want free PDF downloads and a lower price month to month.",
+  sources: [{ label: "Zety pricing page", url: "https://zety.com/pricing" }],
+  checked: "2026-11-22",
+  asListed: true,
+};
+
+const teal: Competitor = {
+  slug: "teal",
+  name: "Teal",
+  site: "https://www.tealhq.com/",
+  summary:
+    "Teal is a resume app with a free plan and a paid plan, Teal+, billed by the week, every 30 days or every 90 days.",
+  rows: [
+    {
+      label: "What it is",
+      otto: OTTO_SIDE.what,
+      them: { answer: "A resume app", detail: "With a free plan and a paid plan, Teal+." },
+    },
+    {
+      label: "Free plan",
+      otto: OTTO_SIDE.free,
+      them: { answer: "Yes, a free plan" },
+    },
+    {
+      label: "Paid plans",
+      otto: OTTO_SIDE.paid,
+      them: { answer: "Teal+: $13 a week", detail: "Or $29 every 30 days, or $79 every 90 days." },
+    },
+  ],
+  strengths: [
+    "A free plan to start with.",
+    "Teal+ for a single week at $13, for a short, focused search.",
+    "Teal+ for $79 every 90 days, about $26 a month, for a longer search.",
+  ],
+  differences: [
+    {
+      title: "A lower monthly price",
+      text: `Otto Pro is ${proMonthly} a month. Teal+ is $29 every 30 days.`,
+    },
+  ],
+  extras: [FREE_PDFS, NO_SCORE, EMPLOYER_JOBS],
+  pickThem: "you want to pay for a single week, or for 90 days at a time.",
+  pickOtto: "you want free PDF downloads and a lower price each month.",
+  sources: [
+    {
+      label: "Teal help center, “Teal vs Teal+”",
+      url: "https://help.tealhq.com/en/articles/9530153-teal-vs-teal",
+    },
+    {
+      label: "Teal blog, “Best resume apps”",
+      url: "https://www.tealhq.com/post/best-resume-apps",
+    },
+  ],
+  checked: "2026-11-22",
+  asListed: true,
+};
+
+const canva: Competitor = {
+  slug: "canva",
+  name: "Canva",
+  site: "https://www.canva.com/",
+  summary:
+    "Canva is a general design tool rather than a resume tool: resumes are one of the things you can design with it. It has a free plan with free templates and a paid plan, Canva Pro.",
+  rows: [
+    {
+      label: "What it is",
+      otto: OTTO_SIDE.what,
+      them: {
+        answer: "A general design tool",
+        detail: "Resumes are one of the things you can make with it; it isn't built only for them.",
+      },
+    },
+    {
+      label: "Free plan",
+      otto: OTTO_SIDE.free,
+      them: { answer: "Free, with templates", detail: "Its free plan includes free templates." },
+    },
+    {
+      label: "Paid plans",
+      otto: OTTO_SIDE.paid,
+      them: {
+        answer: "Canva Pro, by country",
+        detail: "Prices vary by country, so check Canva's pricing page for yours.",
+      },
+    },
+  ],
+  strengths: [
+    "One tool for your resume and your other designs.",
+    "A free plan with free templates to start from.",
+    "Canva Pro is priced for each country.",
+  ],
+  differences: [
+    {
+      title: "Made for job seekers",
+      text: "Otto is built only for resumes and job applications: it shows the text hiring software reads from your file and names each problem. Canva is a general design tool.",
+    },
+  ],
+  extras: [READ_BACK, FREE_PDFS, EMPLOYER_JOBS],
+  pickThem: "you want one tool for your resume and your other designs.",
+  pickOtto:
+    "you want a tool made for job applications that checks what hiring software reads from your resume.",
+  sources: [{ label: "Canva Pro pricing page", url: "https://www.canva.com/en_in/pro/" }],
+  checked: "2026-11-22",
+  asListed: true,
+};
+
 export const COMPETITORS: readonly Competitor[] = [
   jobscan,
   rezi,
@@ -564,6 +719,9 @@ export const COMPETITORS: readonly Competitor[] = [
   resumeio,
   enhancv,
   novoresume,
+  zety,
+  teal,
+  canva,
 ];
 
 // Newest first, so the index and the full text name the latest check.

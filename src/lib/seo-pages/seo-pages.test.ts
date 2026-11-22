@@ -187,10 +187,10 @@ describe("comparisons", () => {
     const slugs = COMPETITORS.map((competitor) => competitor.slug);
     expect(new Set(slugs).size).toBe(slugs.length);
     for (const slug of slugs) expect(competitorBySlug(slug)?.slug).toBe(slug);
-    expect(competitorBySlug("teal")).toBeUndefined();
+    expect(competitorBySlug("resume-worded")).toBeUndefined();
   });
 
-  it("cites only the competitor's own https pages, each checked on a stated day", () => {
+  it("cites only the competitor's own https pages, each checked on a stated day or as listed that month", () => {
     const days = COMPETITORS.map((competitor) => competitor.checked);
     for (const day of days) expect(day).toMatch(/^2026-\d{2}-\d{2}$/);
     expect(COMPETITORS_CHECKED).toBe([...days].sort().at(-1));
@@ -200,7 +200,8 @@ describe("comparisons", () => {
       for (const source of competitor.sources) {
         const url = new URL(source.url);
         expect(url.protocol).toBe("https:");
-        expect(url.hostname.replace(/^www\./, "")).toBe(home);
+        const host = url.hostname.replace(/^www\./, "");
+        expect(host === home || host.endsWith(`.${home}`), source.url).toBe(true);
       }
     }
   });

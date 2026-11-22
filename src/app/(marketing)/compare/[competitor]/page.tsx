@@ -20,7 +20,13 @@ import {
   ottoReasons,
 } from "@/lib/seo-pages/compare";
 import { compareJsonLd } from "@/lib/seo-pages/json-ld";
-import { COMPARE_INDEX_PAGE, RELATED, calendarDate, comparePage } from "@/lib/seo-pages/pages";
+import {
+  COMPARE_INDEX_PAGE,
+  RELATED,
+  calendarDate,
+  calendarMonth,
+  comparePage,
+} from "@/lib/seo-pages/pages";
 import { SEO_PATHS, comparePath } from "@/lib/seo-pages/paths";
 import {
   Breadcrumbs,
@@ -188,7 +194,9 @@ function WhichSuits({ competitor }: { competitor: Competitor }) {
 export default async function ComparePage({ params }: Props) {
   const competitor = await competitorFor(params);
   const title = compareTitle(competitor);
-  const checked = calendarDate(competitor.checked);
+  const checked = competitor.asListed
+    ? `as listed in ${calendarMonth(competitor.checked)}`
+    : `checked on ${calendarDate(competitor.checked)}`;
   const others = COMPETITORS.filter((other) => other.slug !== competitor.slug);
   return (
     <div className={PAGE_CLASSES}>
@@ -207,7 +215,7 @@ export default async function ComparePage({ params }: Props) {
       <Verdict competitor={competitor} />
 
       <p className="mt-6 max-w-3xl text-sm/6 text-pretty text-subtle">
-        Everything about {competitor.name} here comes from its own website, checked on{" "}
+        Everything about {competitor.name} here comes from its own website,{" "}
         <time dateTime={competitor.checked}>{checked}</time>.{" "}
         {competitor.pricedByCountry
           ? `${competitor.name} shows each country its own prices; any here are the ones it showed in India. `
@@ -253,7 +261,7 @@ export default async function ComparePage({ params }: Props) {
               <li key={source.url} className="flex flex-col">
                 <ExternalLink href={source.url}>{source.label}</ExternalLink>
                 <span className="text-sm/6 text-subtle">
-                  {new URL(source.url).hostname} · checked {checked}
+                  {new URL(source.url).hostname} · {checked}
                 </span>
               </li>
             ))}

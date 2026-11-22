@@ -5,7 +5,7 @@ import { nodeText } from "@/lib/seo/node-text";
 import { ATS_GUIDES, GENERAL_ADVICE, guideHeadline, isIndexed } from "@/lib/seo-pages/ats";
 import { COMPETITORS, compareTitle } from "@/lib/seo-pages/compare";
 import { ROLE_EXAMPLES } from "@/lib/seo-pages/examples";
-import { calendarDate, exampleHeadline } from "@/lib/seo-pages/pages";
+import { calendarDate, calendarMonth, exampleHeadline } from "@/lib/seo-pages/pages";
 import { HOME_FAQ } from "../(marketing)/_components/faq";
 import { JOB_MATCH_FAQ } from "../(marketing)/job-match/faq";
 import { BILLING_FAQ } from "../(marketing)/pricing/billing-faq";
@@ -75,7 +75,11 @@ describe("llms-full.txt", () => {
 
   it("carries every comparison: both sides, the other product's strengths and its sources", () => {
     for (const competitor of COMPETITORS) {
-      expect(text).toContain(`Checked on ${calendarDate(competitor.checked)}.`);
+      expect(text).toContain(
+        competitor.asListed
+          ? `As listed in ${calendarMonth(competitor.checked)}.`
+          : `Checked on ${calendarDate(competitor.checked)}.`,
+      );
       expect(text).toContain(`### ${compareTitle(competitor)}`);
       expect(text).toContain(competitor.summary);
       expect(text).toContain(`Pick ${competitor.name} if ${competitor.pickThem}`);

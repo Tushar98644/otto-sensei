@@ -225,7 +225,7 @@ function comparisonLines(competitor: Competitor, base: string): string[] {
     `### ${compareTitle(competitor)}`,
     "",
     `Page: ${absoluteUrl(page.path, base)}`,
-    `Checked on ${calendarDate(competitor.checked)}.${competitor.pricedByCountry ? ` ${competitor.name} shows each country its own prices; any here are the ones it showed in India.` : ""}`,
+    `${competitor.asListed ? `As listed in ${calendarMonth(competitor.checked)}` : `Checked on ${calendarDate(competitor.checked)}`}.${competitor.pricedByCountry ? ` ${competitor.name} shows each country its own prices; any here are the ones it showed in India.` : ""}`,
     "",
     competitor.summary,
     "",
@@ -260,7 +260,7 @@ function comparisonLines(competitor: Competitor, base: string): string[] {
 function compareLines(base: string): string[] {
   return [
     ...pageHeader("Comparisons", COMPARE_INDEX_PAGE.path, base),
-    `${COMPARE_INDEX_PAGE.description} Facts about each product come from its own website, checked in ${calendarMonth(COMPETITORS_CHECKED)}; each comparison gives its own day. Prices and plans change, so check the sources.`,
+    `${COMPARE_INDEX_PAGE.description} Facts about each product come from its own website, as of ${calendarMonth(COMPETITORS_CHECKED)}; each comparison says when. Prices and plans change, so check the sources.`,
     "",
     ...COMPETITORS.flatMap((competitor) => comparisonLines(competitor, base)),
   ];

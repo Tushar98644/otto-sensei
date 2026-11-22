@@ -5,7 +5,7 @@ import { ROUTES } from "@/components/site/routes";
 import { HIRING_SYSTEMS } from "@/lib/ats/systems";
 import { ATS_IDS, atsGuide, guideHeadline, topTip } from "@/lib/seo-pages/ats";
 import { COMPETITORS } from "@/lib/seo-pages/compare";
-import { calendarDate, seoPages } from "@/lib/seo-pages/pages";
+import { calendarDate, calendarMonth, seoPages } from "@/lib/seo-pages/pages";
 import { ROLE_EXAMPLES } from "@/lib/seo-pages/examples";
 import { SEO_PATHS, atsPath, examplePath } from "@/lib/seo-pages/paths";
 import { TEMPLATE_LIST } from "@/lib/pdf/templates";
@@ -205,7 +205,11 @@ describe("comparison pages", () => {
     checkPage(html);
     const words = text(html);
     expect(words).toContain(`Otto Sensei vs ${competitor.name}`);
-    expect(words).toContain(calendarDate(competitor.checked));
+    expect(words).toContain(
+      competitor.asListed
+        ? `as listed in ${calendarMonth(competitor.checked)}`
+        : calendarDate(competitor.checked),
+    );
     expect(words.includes("the ones it showed in India")).toBe(Boolean(competitor.pricedByCountry));
     for (const row of competitor.rows) {
       for (const cell of [row.otto, row.them]) {
@@ -243,7 +247,7 @@ describe("comparison pages", () => {
   });
 
   it("refuses a product it hasn't checked", async () => {
-    await expect(comparison("teal")).rejects.toThrow();
+    await expect(comparison("resume-worded")).rejects.toThrow();
   });
 
   it("sets the canonical path from the slug, with the title as written", async () => {

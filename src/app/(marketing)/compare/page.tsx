@@ -34,11 +34,11 @@ export default function CompareIndexPage() {
           plans include, and where Otto is different.
         </p>
         <p className="text-base/7 text-subtle">
-          Facts about each product come from its own website, checked in{" "}
+          Facts about each product come from its own website, as of{" "}
           <time dateTime={COMPETITORS_CHECKED.slice(0, 7)}>
             {calendarMonth(COMPETITORS_CHECKED)}
           </time>
-          , with the day and a link to every source on each page.
+          , with a link to every source on each page.
         </p>
       </PageIntro>
 

@@ -113,7 +113,7 @@ export const COMPARE_INDEX_PAGE: SeoPage = {
   path: SEO_PATHS.compare,
   title: `${BRAND.name} compared with ${COMPETITORS.length} other resume tools`,
   absoluteTitle: true,
-  description: `Fair, sourced comparisons of ${BRAND.name} with ${competitorNames}: what each does well and what the plans include.`,
+  description: `Fair, sourced comparisons of ${BRAND.name} with ${COMPETITORS.length} resume tools, including Jobscan, Rezi, Zety, Teal and Canva: what each does well and what plans include.`,
   lastModified: COMPETITORS_CHECKED,
 };
 
