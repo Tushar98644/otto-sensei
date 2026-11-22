@@ -15,6 +15,10 @@ const IMPORTS: Record<PortfolioTemplateId, () => Promise<Template>> = {
   prose: () => import("./prose/prose").then((module) => module.ProseTemplate),
   folio: () => import("./folio/folio").then((module) => module.FolioTemplate),
   paper: () => import("./paper/paper").then((module) => module.PaperTemplate),
+  gazette: () => import("./gazette/gazette").then((module) => module.GazetteTemplate),
+  terminal: () => import("./terminal/terminal").then((module) => module.TerminalTemplate),
+  brutal: () => import("./brutal/brutal").then((module) => module.BrutalTemplate),
+  card: () => import("./card/card").then((module) => module.CardTemplate),
 };
 
 const loaded = new Map<PortfolioTemplateId, Template>();

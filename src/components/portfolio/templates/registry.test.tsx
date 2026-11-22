@@ -6,6 +6,7 @@ import { readMigrations } from "@/db/migration-files";
 import { emptyContent, type PortfolioContentView } from "@/lib/portfolio/content";
 import { contentView } from "@/lib/portfolio/content-view";
 import { TEMPLATE_USES } from "@/lib/portfolio/content-uses";
+import { templateOrder } from "@/lib/portfolio/templates";
 import { DEFAULT_PORTFOLIO_TEMPLATE, PORTFOLIO_TEMPLATE_IDS } from "@/lib/portfolio/types";
 import { portfolioView, type PortfolioView } from "@/lib/portfolio/view";
 import { emptyResume } from "@/lib/resume/schema";
@@ -41,7 +42,7 @@ function onlyAName(name: string) {
 }
 
 describe("portfolio template registry", () => {
-  it("has the eight designs, in order, with a name, an idea, a credit and a picker picture", () => {
+  it("has the twelve designs, in order, with a name, an idea, a credit and a picker picture", () => {
     expect(PORTFOLIO_TEMPLATE_LIST.map((template) => template.id)).toEqual([
       ...PORTFOLIO_TEMPLATE_IDS,
     ]);
@@ -54,6 +55,10 @@ describe("portfolio template registry", () => {
       "prose",
       "folio",
       "paper",
+      "gazette",
+      "terminal",
+      "brutal",
+      "card",
     ]);
     for (const template of PORTFOLIO_TEMPLATE_LIST) {
       expect(template.name).not.toBe("");
@@ -69,8 +74,8 @@ describe("portfolio template registry", () => {
     }
   });
 
-  it("matches the database: the CHECK list and the default", () => {
-    expect(migrationTemplateIds()).toEqual([...PORTFOLIO_TEMPLATE_IDS]);
+  it("matches the database: the CHECK list, in picker order, and the default", () => {
+    expect(migrationTemplateIds()).toEqual(templateOrder(PORTFOLIO_TEMPLATE_IDS));
     expect(DEFAULT_PORTFOLIO_TEMPLATE).toBe("navy");
     const latest = readMigrations()
       .filter((migration) => /portfolios_template_check/.test(migration.sql))

@@ -1,6 +1,5 @@
 import { PGlite } from "@electric-sql/pglite";
 import { afterAll, describe, expect, it } from "vitest";
-import { PORTFOLIO_TEMPLATE_IDS } from "@/lib/portfolio/types";
 import { LOCAL_ONLY_DDL } from "./local-schema";
 import { readMigrations } from "./migration-files";
 import { MIGRATIONS_TIMEOUT_MS } from "./test-template";
@@ -58,7 +57,7 @@ describe("reference templates migration", { timeout: MIGRATIONS_TIMEOUT_MS }, ()
     await expect(
       client.query("update public.portfolios set template = 'margin' where id = $1", [ids.margin]),
     ).rejects.toThrow(/portfolios_template_check/);
-    for (const template of PORTFOLIO_TEMPLATE_IDS) {
+    for (const template of ["navy", "dock", "reel", "bento", "cv", "prose", "folio", "paper"]) {
       await client.query("update public.portfolios set template = $1 where id = $2", [
         template,
         ids.margin,

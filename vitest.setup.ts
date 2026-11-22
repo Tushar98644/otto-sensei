@@ -31,6 +31,14 @@ vi.mock("next/font/google", () => {
     "Montserrat",
     "Roboto_Condensed",
     "Shantell_Sans",
+    "UnifrakturMaguntia",
+    "Abril_Fatface",
+    "Old_Standard_TT",
+    "Outfit",
+    "DM_Serif_Display",
+    "Sanchez",
+    "Righteous",
+    "Poppins",
   ];
   return Object.fromEntries(names.map((name) => [name, font]));
 });

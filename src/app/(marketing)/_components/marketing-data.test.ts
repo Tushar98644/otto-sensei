@@ -45,7 +45,7 @@ describe("plan copy", () => {
     expect(proTools().join(" ")).toMatch(/All 6 formats, up to 50 resumes and Word downloads/);
     expect(proTools().join(" ")).toMatch(/Every match from [0-9,]+\+ open jobs/);
     expect(proTools().join(" ")).toMatch(/Track every application/);
-    expect(proTools().join(" ")).toMatch(/Share links, and a portfolio site in all 8 designs/);
+    expect(proTools().join(" ")).toMatch(/Share links, and a portfolio site in all \d+ designs/);
     expect(planCopy("pro", "month").lead).toBe("Everything in Free, plus:");
   });
 

@@ -131,6 +131,59 @@ const SHOWS: Record<PortfolioTemplateId, string[]> = {
     'href="mailto:hello@jordanellis.dev"',
     'href="https://github.com/jordanellis"',
   ],
+  gazette: [
+    "Jordan Ellis",
+    "The Daily",
+    "Full-stack engineer",
+    "Postgres tinkerer",
+    "Tally",
+    "Ledgerly",
+    "University of Manchester",
+    "Kafka",
+    "Postgres is a fine queue",
+    "measure before and after",
+    'href="mailto:hello@jordanellis.dev"',
+    'href="https://github.com/jordanellis"',
+  ],
+  terminal: [
+    "Jordan Ellis",
+    "visitor",
+    "sumfetch",
+    "Full-stack engineer",
+    "Tally",
+    "Ledgerly",
+    "University of Manchester",
+    "Kafka",
+    "Postgres is a fine queue",
+    "measure before and after",
+    'href="mailto:hello@jordanellis.dev"',
+    'href="https://github.com/jordanellis"',
+  ],
+  brutal: [
+    "Jordan Ellis",
+    "Jordan",
+    "Tally",
+    "Ledgerly",
+    "University of Manchester",
+    "Kafka",
+    "Postgres is a fine queue",
+    "measure before and after",
+    'href="mailto:hello@jordanellis.dev"',
+    'href="https://github.com/jordanellis"',
+  ],
+  card: [
+    "Jordan Ellis",
+    "Full-stack engineer",
+    "Tally",
+    "Ledgerly",
+    "University of Manchester",
+    "Kafka",
+    "Postgres is a fine queue",
+    "measure before and after",
+    "Lisbon, Portugal",
+    'href="mailto:hello@jordanellis.dev"',
+    'href="https://github.com/jordanellis"',
+  ],
 };
 
 describe.each(Object.keys(SHOWS) as PortfolioTemplateId[])("the %s rebuild", (id) => {
@@ -317,6 +370,59 @@ describe("rebuild details", () => {
     expect(html).toContain('url("/portfolio-templates/paper/light/world-0.svg")');
     expect(html).toContain("day or night");
     expect(html).toContain('class="stack"');
+  });
+});
+
+describe("round 3 details", () => {
+  it("Gazette sets the surname in the nameplate, plates the lead projects and letters each section", () => {
+    const html = draw("gazette", jordanV2Resume());
+    expect(html).toMatch(/class="np-word w3">Ellis</);
+    expect(html.match(/<article class="plate/g)).toHaveLength(4);
+    expect(html).toContain("Also from the workshop");
+    expect(html.match(/class="band-tab"/g)).toHaveLength(5);
+    expect(html).toContain("Section F");
+    expect(html).toContain("Morning Edition — November 8, 2026");
+    expect(html).toContain("--:--");
+    const bare = draw("gazette", jordanV2Resume(), { ...OPEN, hiddenSections: ["about"] });
+    expect(bare).not.toContain("Maya Okafor");
+    expect(bare).not.toContain("payouts a month on my pipeline");
+  });
+
+  it("Terminal prints the banner and sumfetch, runs each section as a command and keeps a live prompt", () => {
+    const html = draw("terminal", jordanV2Resume());
+    expect(html).toContain('class="banner"');
+    expect(html).toContain('class="globe"');
+    expect(html).toContain("&gt; J O R D A N");
+    for (const command of [
+      "sumfetch",
+      "about",
+      "work",
+      "projects",
+      "skills",
+      "education",
+      "contact",
+    ])
+      expect(html).toContain(`<span class="cmd">${command}</span>`);
+    expect(html).toContain('id="pf-terminal-prompt"');
+    expect(html).toContain('<span class="host">jordan</span>');
+  });
+
+  it("Brutal draws the three hero cards, a card per project and per job", () => {
+    const html = draw("brutal", jordanV2Resume());
+    expect(html).toContain('data-cards="3"');
+    expect(html.match(/<article class="post"/g)).toHaveLength(7);
+    expect(html.match(/<article class="post job"/g)).toHaveLength(5);
+    expect(html).toContain("Who is Jordan?");
+  });
+
+  it("Card opens on About with the other pages in the page, and files projects by kind", () => {
+    const html = draw("card", jordanV2Resume());
+    expect(html.match(/<article/g)).toHaveLength(5);
+    expect(html.match(/<article[^>]*hidden=""/g)).toHaveLength(4);
+    expect(html).toContain('data-active="true"');
+    expect(html.match(/class="skill-progress-fill"/g)).toHaveLength(8);
+    for (const group of ["Open source", "SaaS", "PWA", "Hackathon"])
+      expect(html).toContain(`>${group}</button>`);
   });
 });
 

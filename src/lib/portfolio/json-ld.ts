@@ -15,6 +15,10 @@ const DRAWS: Record<PortfolioTemplateId, { skills: boolean; education: boolean }
   prose: { skills: false, education: false },
   folio: { skills: false, education: false },
   paper: { skills: false, education: true },
+  gazette: { skills: true, education: true },
+  terminal: { skills: true, education: true },
+  brutal: { skills: true, education: true },
+  card: { skills: true, education: true },
 };
 
 const LIMITS = { description: 300, sameAs: 12, employers: 5, schools: 10, skills: 40 } as const;

@@ -20,6 +20,10 @@ folder's `LICENSE.txt` do; published pages carry no credit line (owner, 2026-11-
 | Prose (`prose`) | [antfu/antfu.me](https://github.com/antfu/antfu.me) | (c) 2020-2021 Anthony Fu | MIT (code only) | `0be14a9` | `src/components/portfolio/templates/prose/` | none (Inter, DM Mono, Roboto Condensed, as the original) |
 | Notes (`folio`) | [alanagoyal/alanagoyal](https://github.com/alanagoyal/alanagoyal) (its Notes app) | (c) 2024 Alana Goyal | MIT | `0ae715e` | `src/components/portfolio/templates/folio/` | none (the system font, as the original; Inter where there is no San Francisco) |
 | Sketchbook (`paper`) | [umutxyp/Personal-Website](https://github.com/umutxyp/Personal-Website) | (c) 2026 umutxyp | MIT | `5f8f26a` | `src/components/portfolio/templates/paper/` | none (Gochi Hand, Shantell Sans, as the original) |
+| Gazette (`gazette`) | [JoaccoG/portfolio-v2](https://github.com/JoaccoG/portfolio-v2) ("The Daily Godoy") | (c) 2026 Joaquín Godoy | MIT | `3f9e968` | `src/components/portfolio/templates/gazette/` | none (UnifrakturMaguntia, Abril Fatface, Old Standard TT, Caveat, as the original); its subset ornament font → small inline SVG marks |
+| Terminal (`terminal`) | [Cveinnt/LiveTerm](https://github.com/Cveinnt/LiveTerm) | (c) 2022 Vincent Wu | MIT | `2e2c2d8` | `src/components/portfolio/templates/terminal/` | Hack Nerd Font → Fira Code |
+| Brutal (`brutal`) | [ElianCodes/brutal](https://github.com/ElianCodes/brutal) and [ElianCodes/brutal-ui](https://github.com/ElianCodes/brutal-ui) | (c) 2023 Elian Van Cutsem | MIT | `fe01084`, brutal-ui `717d020` | `src/components/portfolio/templates/brutal/` | none (Outfit, DM Serif Display, Sanchez, Poppins, Righteous, as the original) |
+| Card (`card`) | [codewithsadee/vcard-personal-portfolio](https://github.com/codewithsadee/vcard-personal-portfolio) | (c) 2022 codewithsadee | MIT | `927f09a` | `src/components/portfolio/templates/card/` | none (Poppins, as the original) |
 
 Some of these sites license only their code under MIT. antfu.me's words and pictures are CC
 BY-NC-SA 4.0, and chanhdai.com's trademark policy keeps Chánh Đại's name and logo out of its MIT
@@ -46,6 +50,11 @@ where the original draws its logo).
   Ladvace/astro-bento-portfolio, under its MIT licence above.
 - **ArtPlum** (`prose/islands.tsx`) is a port of code from antfu/antfu.me, under its MIT licence
   above.
+- **Terminal's sumfetch globe** (`terminal/ascii.ts`): LiveTerm's own text-art logo, drawn as SVG
+  cells, under its MIT licence above. The block-letter banner font is our own.
+- **Gazette, Brutal and Card** draw no pictures from their originals: the Daily Godoy's engraved
+  portrait and paper tiles, Brutal's sample images and vCard's memoji avatars, photographs and
+  client logos are left out; initials, gradients and drawn tiles stand in.
 - **Sketchbook's fox world** (`public/portfolio-templates/paper/`): the scenes, strips, plants and
   ground that umutxyp/Personal-Website `5f8f26a` paints with its `scripts/paint.py`, under its MIT
   licence above; the fox, gulls and other animals in them are PhyloPic silhouettes under CC0 1.0 or

@@ -90,6 +90,27 @@ export const TEMPLATE_USES: Record<string, readonly ContentField[]> = {
     "interests",
   ],
   paper: ["disciplines", "about", "stats", "socials", "github", "writing", "talks", "milestones"],
+  gazette: [
+    "pitch",
+    "disciplines",
+    "about",
+    "location",
+    "availability",
+    "socials",
+    "stats",
+    "now",
+    "testimonials",
+    "projectDetails",
+    "categories",
+    "jobHighlights",
+    "skillYears",
+    "writing",
+    "talks",
+    "milestones",
+  ],
+  terminal: ["pitch", "about", "location", "socials", "github", "now"],
+  brutal: ["pitch", "about", "socials", "categories", "writing"],
+  card: ["pitch", "about", "location", "socials", "testimonials", "skillYears", "writing"],
 };
 
 export function contentUsesFor(templateId: string): readonly ContentField[] {

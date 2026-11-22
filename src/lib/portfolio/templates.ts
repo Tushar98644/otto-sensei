@@ -118,13 +118,72 @@ export const PORTFOLIO_TEMPLATE_INFO: Record<PortfolioTemplateId, PortfolioTempl
       licence: "MIT",
     },
   },
+  gazette: {
+    id: "gazette",
+    name: "Gazette",
+    description:
+      "Your page as a 1926 broadsheet: a blackletter masthead, your headline, ruled columns and a ticker.",
+    thumbnail: "/portfolio-templates/gazette.webp",
+    colors: { background: "#f2ead8", ink: "#1c1710", muted: "#5c5240" },
+    credit: {
+      author: "Joaquín Godoy",
+      work: "portfolio-v2",
+      href: "https://github.com/JoaccoG/portfolio-v2",
+      licence: "MIT",
+    },
+  },
+  terminal: {
+    id: "terminal",
+    name: "Terminal",
+    description:
+      "A terminal that prints your summary as it opens, then lets visitors type help, work or contact.",
+    thumbnail: "/portfolio-templates/terminal.webp",
+    colors: { background: "#fbf1c9", ink: "#3c3836", muted: "#7c6f64" },
+    credit: {
+      author: "Vincent Wu",
+      work: "LiveTerm",
+      href: "https://github.com/Cveinnt/LiveTerm",
+      licence: "MIT",
+    },
+  },
+  brutal: {
+    id: "brutal",
+    name: "Brutal",
+    description:
+      "Loud colour blocks with thick black borders, hard shadows that press in, and pill tags.",
+    thumbnail: "/portfolio-templates/brutal.webp",
+    colors: { background: "#f9a8d4", ink: "#000000", muted: "#3f3f46" },
+    credit: {
+      author: "Elian Van Cutsem",
+      work: "brutal",
+      href: "https://github.com/ElianCodes/brutal",
+      licence: "MIT",
+    },
+  },
+  card: {
+    id: "card",
+    name: "Card",
+    description:
+      "One card on charcoal: a profile sidebar beside tabs for about, resume and work, picked out in gold.",
+    thumbnail: "/portfolio-templates/card.webp",
+    colors: { background: "#121212", ink: "#fafafa", muted: "#a3a3a3" },
+    credit: {
+      author: "codewithsadee",
+      work: "vcard-personal-portfolio",
+      href: "https://github.com/codewithsadee/vcard-personal-portfolio",
+      licence: "MIT",
+    },
+  },
 };
 
 export type TemplateGroup = { label: string; ids: PortfolioTemplateId[] };
 
 const PICKER_GROUPS: readonly { label: string; ids: readonly PortfolioTemplateId[] }[] = [
   { label: "Our picks", ids: ["paper", "dock", "reel"] },
-  { label: "More designs", ids: ["folio", "cv", "prose", "bento", "navy"] },
+  {
+    label: "More designs",
+    ids: ["folio", "cv", "prose", "gazette", "card", "brutal", "terminal", "bento", "navy"],
+  },
 ];
 
 export function templateGroups(ids: readonly PortfolioTemplateId[]): TemplateGroup[] {

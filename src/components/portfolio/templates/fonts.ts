@@ -1,6 +1,8 @@
 import {
+  Abril_Fatface,
   Caveat,
   DM_Mono,
+  DM_Serif_Display,
   Figtree,
   Fira_Code,
   Geist,
@@ -9,8 +11,14 @@ import {
   Gochi_Hand,
   Inter,
   Montserrat,
+  Old_Standard_TT,
+  Outfit,
+  Poppins,
+  Righteous,
   Roboto_Condensed,
+  Sanchez,
   Shantell_Sans,
+  UnifrakturMaguntia,
 } from "next/font/google";
 import type { PortfolioTemplateId } from "@/lib/portfolio/types";
 
@@ -93,6 +101,63 @@ const robotoCondensed = Roboto_Condensed({
   variable: "--pf-font-roboto-condensed",
 });
 
+const unifraktur = UnifrakturMaguntia({
+  subsets: ["latin"],
+  weight: "400",
+  display: "swap",
+  preload: false,
+  variable: "--pf-font-unifraktur",
+});
+const abrilFatface = Abril_Fatface({
+  subsets: ["latin", "latin-ext"],
+  weight: "400",
+  display: "swap",
+  preload: false,
+  variable: "--pf-font-abril",
+});
+const oldStandard = Old_Standard_TT({
+  subsets: ["latin", "latin-ext"],
+  weight: ["400", "700"],
+  style: ["normal", "italic"],
+  display: "swap",
+  preload: false,
+  variable: "--pf-font-old-standard",
+});
+const outfit = Outfit({
+  subsets: ["latin", "latin-ext"],
+  display: "swap",
+  preload: false,
+  variable: "--pf-font-outfit",
+});
+const dmSerifDisplay = DM_Serif_Display({
+  subsets: ["latin", "latin-ext"],
+  weight: "400",
+  display: "swap",
+  preload: false,
+  variable: "--pf-font-dm-serif",
+});
+const sanchez = Sanchez({
+  subsets: ["latin", "latin-ext"],
+  weight: "400",
+  display: "swap",
+  preload: false,
+  variable: "--pf-font-sanchez",
+});
+const righteous = Righteous({
+  subsets: ["latin", "latin-ext"],
+  weight: "400",
+  display: "swap",
+  preload: false,
+  variable: "--pf-font-righteous",
+});
+const poppins = Poppins({
+  subsets: ["latin", "latin-ext"],
+  weight: ["300", "400", "500", "600"],
+  display: "swap",
+  preload: false,
+  variable: "--pf-font-poppins",
+});
+
 const TEMPLATE_FONTS: Record<PortfolioTemplateId, string> = {
   navy: `${inter.variable} ${firaCode.variable}`,
   dock: geist.variable,
@@ -102,6 +167,10 @@ const TEMPLATE_FONTS: Record<PortfolioTemplateId, string> = {
   prose: `${inter.variable} ${dmMono.variable} ${robotoCondensed.variable}`,
   folio: inter.variable,
   paper: `${gochiHand.variable} ${shantellSans.variable}`,
+  gazette: `${unifraktur.variable} ${abrilFatface.variable} ${oldStandard.variable} ${caveat.variable}`,
+  terminal: firaCode.variable,
+  brutal: `${outfit.variable} ${dmSerifDisplay.variable} ${sanchez.variable} ${poppins.variable} ${righteous.variable}`,
+  card: poppins.variable,
 };
 
 export function templateFontClasses(id: PortfolioTemplateId): string {
