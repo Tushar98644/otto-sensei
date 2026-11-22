@@ -3,6 +3,7 @@
 import { Columns3, List, Plus } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { errorMessage } from "@/components/account/errors";
+import { LazyCareerLogOffer } from "@/components/career-log/lazy-offer";
 import { roomForApplication, useProTools, useTryProLabel } from "@/components/account/pro-tools";
 import { openUpgradePrompt } from "@/components/account/upgrade-prompt";
 import { OTTO } from "@/components/mascot/lines";
@@ -18,6 +19,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "@/components/ui/toast";
 import { undoToast } from "@/components/ui/undo-toast";
 import { waitingTooLong } from "@/lib/applications/nudge";
+import { latestOffer } from "@/lib/career-log/resume-lines";
 import type { Application } from "@/lib/applications/schema";
 import { formatCount, tally, type VersionInfo } from "@/lib/applications/stats";
 import { STATUS_NAMES, type ApplicationStatus } from "@/lib/applications/status";
@@ -103,6 +105,7 @@ export function ApplicationsPage() {
   const shown = useMemo(() => filterApplications(items, filter), [items, filter]);
   const stale = useMemo(() => (now === 0 ? [] : waitingTooLong(items, now)), [items, now]);
   const totals = useMemo(() => tally(items), [items]);
+  const offer = useMemo(() => latestOffer(items), [items]);
   const toApply = useMemo(
     () => toApplyItems(extras.savedJobs, resumes, items, extras.savedPosts),
     [extras.savedJobs, resumes, items, extras.savedPosts],
@@ -225,6 +228,10 @@ export function ApplicationsPage() {
         <>
           <NoReplyNudge stale={stale} />
           {trackingPanel}
+          <LazyCareerLogOffer
+            moment={offer !== null}
+            job={offer ? { role: offer.role, company: offer.company } : undefined}
+          />
 
           <section aria-labelledby="applications-heading" className="flex flex-col gap-4">
             <h2 id="applications-heading" className="sr-only">

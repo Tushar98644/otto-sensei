@@ -1,5 +1,6 @@
 "use client";
 
+import { CareerLogSettingsCard } from "@/components/career-log/career-log-settings-card";
 import { WorkProfileCard } from "@/components/eligibility/work-profile-card";
 import { ReminderSettingsCard } from "@/components/notifications/reminder-settings-card";
 import { SettingsGroup } from "@/components/settings/settings-group";
@@ -28,9 +29,10 @@ export function PreferencesTab() {
       <SettingsGroup
         id="notifications"
         title="Reminders"
-        description="Reminders to follow up on the jobs you apply to, in the bell, and your interviews in your calendar."
+        description="Reminders to follow up on the jobs you apply to, in the bell, your interviews in your calendar, and your monthly career log."
       >
         <ReminderSettingsCard />
+        <CareerLogSettingsCard />
       </SettingsGroup>
     </div>
   );

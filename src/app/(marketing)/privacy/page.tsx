@@ -91,6 +91,16 @@ const SECTIONS: readonly LegalSection[] = [
           anything. Emails sent before still have a working one-click unsubscribe link.
         </li>
         <li>
+          <strong>Your career log.</strong> If you keep one, we store the text you write for each
+          month (what you shipped, any numbers, what you learned or led, or that nothing was new)
+          and your check-in settings: the day, your time zone, and whether it&apos;s on or paused.
+          If you use the mic, the recording is turned into text and thrown away; only the text is
+          kept. With the check-in on, Otto adds a note to the bell and Home on your day and sends
+          one email a month, which you can turn off in one click. It&apos;s free on every plan. You
+          can edit or delete any month, it&apos;s in your data download, and it&apos;s deleted with
+          your account.
+        </li>
+        <li>
           <strong>Your work profile.</strong> If you fill it in, we store the country you live in,
           your time zone, where you can work without a sponsored visa, whether you want full-time or
           contract work, and whether you only want remote jobs. Otto checks job posts against it in

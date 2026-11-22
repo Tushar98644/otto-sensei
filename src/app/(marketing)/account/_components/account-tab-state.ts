@@ -20,6 +20,7 @@ export const TAB_ANCHORS: Record<AccountTab, readonly string[]> = {
     ACCOUNT_SECTIONS.lookingFor,
     "notifications",
     ACCOUNT_SECTIONS.reminders,
+    ACCOUNT_SECTIONS.careerLog,
   ],
   profile: ["profile", "invite", "your-data", "delete-account"],
 };

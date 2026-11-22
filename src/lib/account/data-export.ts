@@ -4,6 +4,8 @@ import { BRAND } from "@/config/brand";
 import { getDb } from "@/db/client";
 import { applications, applyAnswers, resumes, savedPosts, writings } from "@/db/schema";
 import { APPLICATION_LIMITS } from "@/lib/applications/schema";
+import { careerLogJson, careerLogText } from "@/lib/career-log/export";
+import { listEntries } from "@/lib/career-log/records";
 import { STATUS_NAMES } from "@/lib/applications/status";
 import { EXTENSION_LIMITS } from "@/lib/extension/types";
 import { trackingExport } from "@/lib/inbound/records";
@@ -115,6 +117,7 @@ export async function buildDataExport(
   const answers = answerRows[0] ?? null;
   const { address, emails } = await tracking;
   const tracked = address !== null || emails.length > 0;
+  const logEntries = await listEntries(userId);
 
   const zip = new JSZip();
   zip.file(
@@ -136,6 +139,11 @@ export async function buildDataExport(
       ...(tracked
         ? [
             `email-tracking.json: your tracking addresses, the Gmail addresses you confirmed, and ${emails.length} job emails Otto read (what it read, never the email).`,
+          ]
+        : []),
+      ...(logEntries.length > 0
+        ? [
+            `career-log.txt and career-log.json: your career log, ${logEntries.length} ${logEntries.length === 1 ? "month" : "months"}.`,
           ]
         : []),
       "",
@@ -204,6 +212,10 @@ export async function buildDataExport(
   if (postRows.length > 0) zip.file("saved-posts.json", JSON.stringify(postRows, null, 2));
   if (answers) zip.file("apply-answers.json", JSON.stringify(answers, null, 2));
   if (tracked) zip.file("email-tracking.json", JSON.stringify({ address, emails }, null, 2));
+  if (logEntries.length > 0) {
+    zip.file("career-log.txt", careerLogText(logEntries, day(now)));
+    zip.file("career-log.json", careerLogJson(logEntries));
+  }
 
   return new Uint8Array(await zip.generateAsync({ type: "arraybuffer", compression: "DEFLATE" }));
 }

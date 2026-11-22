@@ -70,6 +70,16 @@
     "total_kb": 1357
   },
   {
+    "route": "/dashboard/career-log",
+    "initial_kb": 307,
+    "total_kb": 1445
+  },
+  {
+    "route": "/dashboard/career-log/check-in",
+    "initial_kb": 303,
+    "total_kb": 1435
+  },
+  {
     "route": "/dashboard/formats",
     "initial_kb": 291,
     "total_kb": 1352

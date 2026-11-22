@@ -46,7 +46,7 @@ export type MeteredRoute<S extends z.ZodType, R> = {
   copy: MeteredCopy;
   run: (input: z.output<S>, user: SessionUser) => Promise<R>;
   // The answer for input with nothing to work on, given without a call or a unit.
-  nothingToDo?: (input: z.output<S>) => R | null;
+  nothingToDo?: (input: z.output<S>, user: SessionUser) => R | null | Promise<R | null>;
   // Calls that ride on the unit an earlier call on the same subject took, like answers to Otto's questions.
   followUp?: FollowUp<z.output<S>, R>;
 };
@@ -130,7 +130,7 @@ export async function runMetered<S extends z.ZodType, R>(
       return fail("bad_request", copy.invalid, 400);
     }
 
-    const empty = route.nothingToDo?.(body.data) ?? null;
+    const empty = (await route.nothingToDo?.(body.data, user)) ?? null;
     if (empty !== null) {
       log.info(`${feature}.nothing_to_do`, { plan: user.plan });
       return ok({ result: empty, usage: await getUsage(user, now), demo: !aiEnabled() });

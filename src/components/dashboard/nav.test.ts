@@ -26,6 +26,7 @@ describe("dashboard nav", () => {
       "Letters",
       "Interview prep",
       "Portfolio",
+      "Career log",
     ]);
     expect(labels(APP_NAV_FOOTER)).toEqual(["Formats", "Recently deleted"]);
     expect(labels([...APP_NAV, ...APP_NAV_FOOTER])).not.toContain("Account");
@@ -48,6 +49,7 @@ describe("dashboard nav", () => {
       "Letters",
       "Interview prep",
       "Portfolio",
+      "Career log",
       "Formats",
       "Recently deleted",
     ]);

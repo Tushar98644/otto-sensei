@@ -6,6 +6,7 @@ export const ACCOUNT_SECTIONS = {
   work: "work-profile",
   lookingFor: "looking-for",
   reminders: "reminders",
+  careerLog: "career-log",
 } as const;
 
 export type AccountSection = keyof typeof ACCOUNT_SECTIONS;

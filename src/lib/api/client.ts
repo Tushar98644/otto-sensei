@@ -1,4 +1,15 @@
 import type { BillingHistoryResponse } from "@/lib/billing/history-types";
+import type {
+  CareerEntryResponse,
+  CareerLogResponse,
+  CareerSettingsResponse,
+  LogLinesResponse,
+} from "@/lib/career-log/types";
+import type {
+  EntryChangeBody,
+  LogLinesBody,
+  SettingsChangeBody,
+} from "@/lib/career-log/validation";
 import { REQUEST_ID_HEADER, RESUME_HEADER, type MeteredRun } from "@/lib/api/request-id";
 import {
   dropSeeds,
@@ -475,4 +486,20 @@ export const api = {
   ) => request<ContentResponse>("/api/portfolio/content", { ...postJson(body, "PUT"), keepalive }),
   refreshPortfolioGitHub: () =>
     request<GitHubRefreshResponse>("/api/portfolio/github", { method: "POST" }),
+  careerLog: () => request<CareerLogResponse>("/api/career-log", { cache: "no-store" }),
+  saveCareerEntry: (
+    month: string,
+    body: EntryChangeBody,
+    { keepalive = false }: { keepalive?: boolean } = {},
+  ) =>
+    request<CareerEntryResponse>(`/api/career-log/entries/${encodeURIComponent(month)}`, {
+      ...postJson(body, "PUT"),
+      keepalive,
+    }),
+  deleteCareerEntry: (month: string) =>
+    request<EmptyOk>(`/api/career-log/entries/${encodeURIComponent(month)}`, { method: "DELETE" }),
+  saveCareerSettings: (body: SettingsChangeBody) =>
+    request<CareerSettingsResponse>("/api/career-log/settings", postJson(body, "PUT")),
+  careerLogLines: (body: LogLinesBody, run: MeteredRun) =>
+    request<LogLinesResponse>("/api/career-log/lines", withRun(postJson(body), run)),
 };

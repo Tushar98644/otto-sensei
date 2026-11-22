@@ -15,6 +15,7 @@ export const NOTIFICATION_KINDS = [
   "interview_after",
   "interview_today",
   "job_matches",
+  "career_checkin",
 ] as const;
 export type NotificationKind = (typeof NOTIFICATION_KINDS)[number];
 
@@ -61,8 +62,8 @@ export type ReminderSettingsResponse = {
   promptSnoozed: boolean;
 } & ReminderSettings;
 
-// Each list had its own signed unsubscribe link: follow-up reminders, the weekly jobs email, tips, and views. Links in emails already sent still work.
-export const EMAIL_LISTS = ["reminders", "jobs", "tips", "views"] as const;
+// Each list has its own signed unsubscribe link: follow-up reminders, the weekly jobs email, tips and views (from emails already sent), and the career log check-in, the one email still sent.
+export const EMAIL_LISTS = ["reminders", "jobs", "tips", "views", "career"] as const;
 export type EmailList = (typeof EMAIL_LISTS)[number];
 
 export const TIP_EMAIL_KINDS = ["no_resume", "fixes_back", "trial_ended", "win_back"] as const;

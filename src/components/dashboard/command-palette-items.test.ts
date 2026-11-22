@@ -102,6 +102,7 @@ describe("paletteCommands", () => {
       "Letters",
       "Interview prep",
       "Portfolio",
+      "Career log",
       "Formats",
       "Recently deleted",
       "Account",

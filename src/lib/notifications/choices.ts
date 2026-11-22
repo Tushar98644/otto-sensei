@@ -2,6 +2,7 @@ import { eq, sql } from "drizzle-orm";
 import { getDb } from "@/db/client";
 import { lockUser } from "@/db/locks";
 import { notificationSettings, users } from "@/db/schema";
+import { stopCheckinEmails } from "@/lib/career-log/records";
 import { promptResting } from "./prompts";
 import { setEmailReminders } from "./records";
 import type { EmailChoices, EmailList } from "./types";
@@ -127,7 +128,7 @@ export async function saveEmailChoices(
   });
 }
 
-const STOP: Record<Exclude<EmailList, "reminders">, EmailChoicesChange> = {
+const STOP: Record<Exclude<EmailList, "reminders" | "career">, EmailChoicesChange> = {
   jobs: { jobEmails: false },
   tips: { tipEmails: false },
   views: { viewEmails: false },
@@ -136,5 +137,6 @@ const STOP: Record<Exclude<EmailList, "reminders">, EmailChoicesChange> = {
 // The one-click unsubscribe for each list; false when the account is gone.
 export async function stopEmails(userId: string, list: EmailList): Promise<boolean> {
   if (list === "reminders") return (await setEmailReminders(userId, false)) !== null;
+  if (list === "career") return stopCheckinEmails(userId);
   return (await saveEmailChoices(userId, STOP[list])) !== null;
 }

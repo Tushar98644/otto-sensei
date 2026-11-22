@@ -1,11 +1,12 @@
 "use client";
 
-import { ArrowLeft, PenLine, Trash2 } from "lucide-react";
+import { ArrowLeft, PartyPopper, PenLine, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { errorMessage } from "@/components/account/errors";
 import { useProTools } from "@/components/account/pro-tools";
+import { LazyCareerLogOffer } from "@/components/career-log/lazy-offer";
 import { openFeaturePrompt } from "@/components/account/upgrade-prompt";
 import { OttoNote } from "@/components/mascot/otto-note";
 import { ROUTES } from "@/components/site/routes";
@@ -79,6 +80,7 @@ export function ApplicationHub({
   const [dialog, setDialog] = useState<ApplicationDialogTarget | null>(null);
   const [writing, setWriting] = useState<{ key: number; open: boolean } | null>(null);
   const [outreach, setOutreach] = useState<OutreachJob | null>(null);
+  const [hired, setHired] = useState(false);
 
   useEffect(() => {
     let live = true;
@@ -257,6 +259,10 @@ export function ApplicationHub({
                 <Button variant="ghost" size="sm" onClick={() => setStatus(application, next.status)}>
                   {next.label}
                 </Button>
+              ) : application.status === "offer" && !hired ? (
+                <Button variant="ghost" size="sm" onClick={() => setHired(true)}>
+                  <PartyPopper aria-hidden />I got the job
+                </Button>
               ) : null}
             </div>
           </div>
@@ -300,6 +306,11 @@ export function ApplicationHub({
         </Alert>
       ) : thread && application ? (
         <>
+          <LazyCareerLogOffer
+            moment={application.status === "offer"}
+            hired={hired}
+            job={{ role: application.role, company: application.company }}
+          />
           <OttoNote
             live={false}
             meta={facts}

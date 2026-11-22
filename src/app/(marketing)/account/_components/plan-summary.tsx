@@ -4,6 +4,7 @@ import { CircleCheck, CircleX, CreditCard, TriangleExclamationPoint } from "luci
 import Link from "next/link";
 import { useState } from "react";
 import { BillingNote } from "@/components/account/billing-note";
+import { KeepLogLine } from "@/components/career-log/keep-log-line";
 import { useBillingRedirect } from "@/components/account/use-billing-redirect";
 import type { Me } from "@/components/account/use-me";
 import { ROUTES } from "@/components/site/routes";
@@ -132,6 +133,7 @@ export function PlanSummary({
             checkout={checkout}
             billingOff={mode === "disabled"}
           />
+          {view.kind !== "free" && !view.ending && mode !== "disabled" ? <KeepLogLine /> : null}
         </>
       )}
 

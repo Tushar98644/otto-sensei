@@ -3,6 +3,7 @@
 import { ArrowRight } from "lucide-react";
 import Link from "next/link";
 import { useMemo, useState } from "react";
+import { HomeCheckin } from "@/components/career-log/home-checkin";
 import { OttoNote } from "@/components/mascot/otto-note";
 import { ROUTES } from "@/components/site/routes";
 import { preload, useLazy } from "@/components/ui/lazy";
@@ -66,6 +67,8 @@ export function DashboardHome() {
       </header>
 
       <UpNext actions={actions} hasSample={samples > 0} />
+
+      <HomeCheckin />
 
       <ActionCards actions={actions} latest={latest} pageResume={latest ?? sample} />
 

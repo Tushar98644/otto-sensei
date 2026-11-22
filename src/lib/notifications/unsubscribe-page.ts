@@ -31,6 +31,12 @@ export const UNSUBSCRIBE_COPY: Record<EmailList, ListCopy> = {
     press: "Stop views emails",
     done: "Done. You won't get views emails any more. The bell on your dashboard keeps them.",
   },
+  career: {
+    name: "Career log check-in emails",
+    ask: "Stop the monthly career log email? Your log stays, free, and the bell on your dashboard still asks once a month.",
+    press: "Stop check-in emails",
+    done: "Done. You won't get career log emails any more. Your log stays, and you can turn the email back on in your account settings.",
+  },
 };
 
 export const INVALID_LINK =

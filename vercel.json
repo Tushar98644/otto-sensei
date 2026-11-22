@@ -8,6 +8,7 @@
     { "path": "/api/cron/follow-ups", "schedule": "0 14 * * *" },
     { "path": "/api/cron/job-matches", "schedule": "30 8 * * *" },
     { "path": "/api/cron/view-alerts", "schedule": "15 13 * * *" },
-    { "path": "/api/cron/interview-briefs", "schedule": "37 2 * * *" }
+    { "path": "/api/cron/interview-briefs", "schedule": "37 2 * * *" },
+    { "path": "/api/cron/career-checkins", "schedule": "30 12 * * *" }
   ]
 }

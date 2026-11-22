@@ -1,9 +1,9 @@
 import { count, gt } from "drizzle-orm";
 import { getDb, type Db } from "@/db/client";
-import { emailLog } from "@/db/schema";
+import { careerLogSettings, emailLog } from "@/db/schema";
 import { HOUR_MS } from "@/lib/time";
 
-// Sign-in codes and trial notices go through the same Resend account (about 100 a day on its free tier), so a one-time service notice stays well under it.
+// Sign-in codes and trial notices go through the same Resend account (about 100 a day on its free tier), so a one-time service notice and the monthly career log check-in stay well under it.
 
 const OPTIONAL_EMAILS = {
   perDay: 25,
@@ -21,9 +21,10 @@ function optionalEmailsPerDay(): number {
 // Counted from what went out lately, so a repeated run can't add more.
 export async function optionalEmailRoom(now: number, database?: Db): Promise<number> {
   const db = database ?? (await getDb());
-  const [sent] = await db
-    .select({ n: count() })
-    .from(emailLog)
-    .where(gt(emailLog.createdAt, now - OPTIONAL_EMAILS.windowMs));
-  return Math.max(0, optionalEmailsPerDay() - (sent?.n ?? 0));
+  const since = now - OPTIONAL_EMAILS.windowMs;
+  const [[sent], [career]] = await Promise.all([
+    db.select({ n: count() }).from(emailLog).where(gt(emailLog.createdAt, since)),
+    db.select({ n: count() }).from(careerLogSettings).where(gt(careerLogSettings.emailedAt, since)),
+  ]);
+  return Math.max(0, optionalEmailsPerDay() - (sent?.n ?? 0) - (career?.n ?? 0));
 }

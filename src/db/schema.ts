@@ -1,3 +1,4 @@
+import { sql } from "drizzle-orm";
 import {
   bigint,
   boolean,
@@ -718,6 +719,52 @@ export const inboundEmails = pgTable(
     unique("inbound_emails_user_id_message_key_key").on(t.userId, t.messageKey),
     index("inbound_emails_user_received_idx").on(t.userId, t.receivedAt),
     index("inbound_emails_received_idx").on(t.receivedAt),
+  ],
+);
+
+// The career log (src/lib/career-log): one note per month, text only.
+export const careerLogEntries = pgTable(
+  "career_log_entries",
+  {
+    id: uuid("id").primaryKey(),
+    userId: uuid("user_id").notNull(),
+    month: text("month").notNull(),
+    shipped: text("shipped").notNull().default(""),
+    numbers: text("numbers").notNull().default(""),
+    learned: text("learned").notNull().default(""),
+    nothingNew: boolean("nothing_new").notNull().default(false),
+    createdAt: epochMs("created_at").notNull(),
+    updatedAt: epochMs("updated_at").notNull(),
+  },
+  (t) => [unique("career_log_entries_user_id_month_key").on(t.userId, t.month)],
+);
+
+export const careerLogSettings = pgTable(
+  "career_log_settings",
+  {
+    userId: uuid("user_id").primaryKey(),
+    checkins: boolean("checkins").notNull().default(false),
+    emails: boolean("emails").notNull().default(true),
+    week: smallint("week").notNull().default(1),
+    weekday: smallint("weekday").notNull().default(1),
+    timeZone: text("time_zone").notNull().default("UTC"),
+    nextCheckinOn: date("next_checkin_on", { mode: "string" }),
+    pausedUntil: date("paused_until", { mode: "string" }),
+    jobRole: text("job_role").notNull().default(""),
+    jobCompany: text("job_company").notNull().default(""),
+    lastCheckinMonth: text("last_checkin_month"),
+    lastCheckinAt: epochMs("last_checkin_at"),
+    emailedMonth: text("emailed_month"),
+    emailedAt: epochMs("emailed_at"),
+    promptClosedAt: epochMs("prompt_closed_at"),
+    promptSnoozedAt: epochMs("prompt_snoozed_at"),
+    updatedAt: epochMs("updated_at").notNull(),
+  },
+  (t) => [
+    index("career_log_settings_due_idx")
+      .on(t.nextCheckinOn)
+      .where(sql`checkins`),
+    index("career_log_settings_emailed_idx").on(t.emailedAt),
   ],
 );
 

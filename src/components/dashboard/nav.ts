@@ -6,12 +6,14 @@ import {
   LayoutTemplate,
   Mail,
   MessagesSquare,
+  NotebookPen,
   Search,
   Trash2,
   type LucideIcon,
 } from "lucide-react";
 import { PORTFOLIO_ROUTE } from "@/components/portfolio/route";
 import { ROUTES } from "@/components/site/routes";
+import { CAREER_LOG_ROUTE } from "@/lib/career-log/links";
 import { TRASH_ROUTE } from "./trash/trash-route";
 
 export type AppNavItem = {
@@ -49,6 +51,7 @@ export const APP_NAV: readonly AppNavItem[] = [
     pro: true,
     tour: "dashboard-portfolio",
   },
+  { href: CAREER_LOG_ROUTE, label: "Career log", icon: NotebookPen },
 ];
 
 export const APP_NAV_FOOTER: readonly AppNavItem[] = [

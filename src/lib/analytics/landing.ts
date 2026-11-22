@@ -16,6 +16,8 @@ export const DASHBOARD_SECTIONS = [
   "trash",
   "studio",
   "billing",
+  "career_log",
+  "career_checkin",
 ] as const;
 export type DashboardSection = (typeof DASHBOARD_SECTIONS)[number];
 
@@ -30,6 +32,7 @@ const DASHBOARD_PAGES: Record<string, DashboardSection> = {
   formats: "formats",
   account: "account",
   trash: "trash",
+  "career-log": "career_log",
 };
 
 export function dashboardSection(pathname: string): DashboardSection | null {
@@ -43,6 +46,8 @@ export function dashboardSection(pathname: string): DashboardSection | null {
     if (more === undefined) return "application";
     return more === "prep" ? "prep" : null;
   }
+  if (page === "career-log")
+    return id === "check-in" && more === undefined ? "career_checkin" : null;
   return page === "interview" && more === undefined ? "interview_pack" : null;
 }
 
@@ -52,6 +57,7 @@ export const EMAIL_CAMPAIGNS = [
   "tips",
   "trial_ending",
   "views",
+  "career_checkin",
 ] as const;
 export type EmailCampaign = (typeof EMAIL_CAMPAIGNS)[number];
 
