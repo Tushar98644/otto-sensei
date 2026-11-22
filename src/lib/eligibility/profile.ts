@@ -54,6 +54,15 @@ export function isTimeZone(value: string): boolean {
   }
 }
 
+export function deviceTimeZone(): string {
+  try {
+    const zone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    return zone && isTimeZone(zone) ? zone : "";
+  } catch {
+    return "";
+  }
+}
+
 export type WorkProfileBody = z.input<typeof WorkProfileSchema>;
 
 export type WorkProfileResponse = {

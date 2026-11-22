@@ -1,5 +1,7 @@
 import { COUNTRY_CODES, countryName } from "./places";
 import { isTimeZone } from "./profile";
+
+export { deviceTimeZone } from "./profile";
 import { formatOffset, offsetMinutes } from "./time";
 
 export type Option = { value: string; label: string };
@@ -20,13 +22,4 @@ export function timeZoneOptions(now: number, keep = ""): Option[] {
     const name = zone.replace(/_/g, " ");
     return { value: zone, label: offset === null ? name : `${name} (${formatOffset(offset)})` };
   });
-}
-
-export function deviceTimeZone(): string {
-  try {
-    const zone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-    return zone && isTimeZone(zone) ? zone : "";
-  } catch {
-    return "";
-  }
 }

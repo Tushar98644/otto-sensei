@@ -9,7 +9,7 @@ import {
   copyForJob,
   copyJobId,
 } from "@/lib/applications/thread";
-import { deviceTimeZone } from "@/lib/eligibility/options";
+import { deviceTimeZone } from "@/lib/eligibility/profile";
 import type { SavedPost } from "@/lib/extension/types";
 import { savedJobUrl } from "@/lib/insights/saved-job";
 import type { SavedJob } from "@/lib/job-feed/types";
@@ -139,11 +139,7 @@ export function daysInStage(card: BoardCard, now: number): number {
 }
 
 export function needsAction(card: BoardCard, now: number): boolean {
-  return (
-    card.kind === "application" &&
-    now > 0 &&
-    followUpState(card.application, now) === "due"
-  );
+  return card.kind === "application" && now > 0 && followUpState(card.application, now) === "due";
 }
 
 export function isOverdue(card: BoardCard, now: number): boolean {
@@ -179,7 +175,8 @@ export function boardColumns(
   for (const name of BOARD_COLUMNS) {
     const list = columns[name];
     const urgent = list.filter((card) => needsAction(card, now));
-    if (urgent.length > 0) columns[name] = [...urgent, ...list.filter((card) => !needsAction(card, now))];
+    if (urgent.length > 0)
+      columns[name] = [...urgent, ...list.filter((card) => !needsAction(card, now))];
   }
   return columns;
 }
@@ -203,7 +200,9 @@ export type Move =
 export function planDrop(card: BoardCard, target: DropTarget): Move {
   if (!canDrop(card, target)) return { kind: "none" };
   if (target === "delete") {
-    return card.kind === "application" ? { kind: "delete", application: card.application } : { kind: "none" };
+    return card.kind === "application"
+      ? { kind: "delete", application: card.application }
+      : { kind: "none" };
   }
   if (target === "interview" || target === "closed") return { kind: "ask", card, column: target };
   return planStatus(card, target as ApplicationStatus);
@@ -261,14 +260,17 @@ export function interviewClock(interviewTime: number | null): {
   interviewZone: string | null;
 } {
   const zone = interviewTime === null ? "" : deviceTimeZone();
-  return zone ? { interviewTime, interviewZone: zone } : { interviewTime: null, interviewZone: null };
+  return zone
+    ? { interviewTime, interviewZone: zone }
+    : { interviewTime: null, interviewZone: null };
 }
 
 export function stepColumn(card: BoardCard, current: BoardColumn, step: 1 | -1): BoardColumn {
   const here = cardColumn(card);
   const allowed = BOARD_COLUMNS.filter((column) => column === here || canDrop(card, column));
   const index = allowed.indexOf(current);
-  const next = allowed[Math.min(allowed.length - 1, Math.max(0, (index === -1 ? 0 : index) + step))];
+  const next =
+    allowed[Math.min(allowed.length - 1, Math.max(0, (index === -1 ? 0 : index) + step))];
   return next ?? here;
 }
 
@@ -277,7 +279,8 @@ export function initials(name: string): string {
     .replace(/[^\p{L}\p{N}\s]/gu, " ")
     .split(/\s+/)
     .filter(Boolean);
-  const letters = words.length > 1 ? words[0]!.charAt(0) + words[1]!.charAt(0) : (words[0] ?? "").slice(0, 2);
+  const letters =
+    words.length > 1 ? words[0]!.charAt(0) + words[1]!.charAt(0) : (words[0] ?? "").slice(0, 2);
   return letters.toUpperCase() || "?";
 }
 
@@ -285,7 +288,11 @@ export function cardName(card: BoardCard): string {
   if (card.kind === "application") {
     return card.application.company || card.application.role || "this application";
   }
-  return card.item.company || card.item.role || (card.item.copy ? resumeTitle(card.item.copy) : "this job");
+  return (
+    card.item.company ||
+    card.item.role ||
+    (card.item.copy ? resumeTitle(card.item.copy) : "this job")
+  );
 }
 
 export const BOARD_VIEWS = ["board", "list"] as const;
