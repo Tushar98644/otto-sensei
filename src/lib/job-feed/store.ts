@@ -34,7 +34,8 @@ export const STORE_LIMITS = {
   feedMaxAgeMs: 30 * DAY_MS,
   closedRetentionMs: 7 * DAY_MS,
   referencedRetentionMs: 30 * DAY_MS,
-  maxRows: 80_000,
+  // About 18 MB per 10k rows with their match rows (VACUUM FULL, 2026-11-22): ~270 MB, plus ~50 MB for the rest, of Supabase Free's 500 MB.
+  maxRows: 150_000,
   writeChunk: 200,
 } as const;
 
