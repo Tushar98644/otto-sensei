@@ -340,6 +340,105 @@ describe("/api/inbound/email", () => {
   });
 });
 
+describe("interview times from email", () => {
+  const LUMEN = "Backend Engineer, Payments at Lumen Labs";
+
+  async function deliverText(to: string, subject: string, text: string, auth: WorkerAuth) {
+    const headers = { "x-forwarded-for": `${GMAIL} ${to}`, "x-forwarded-to": to };
+    const mail = { from: "Lumen Labs <no-reply@greenhouse.io>", subject, date: null, headers };
+    return result(
+      await POST(
+        await inboundRequest(
+          to,
+          { ...mail, text, messageId: `<${subject}@gh>` },
+          { auth, now: Date.now() },
+        ),
+      ),
+    );
+  }
+
+  async function undo(subject: string) {
+    const event = (await state()).events.find((item) => item.subject === subject)!;
+    const res = await change(
+      json("PATCH", `/api/email-tracking/${event.id}`, { action: "undo" }),
+      context(event.id),
+    );
+    expect(res.status).toBe(200);
+  }
+
+  async function when() {
+    const [card] = await cards(user.id);
+    return [card?.interviewAt, card?.interviewTime, card?.interviewZone];
+  }
+
+  it("keeps the time and zone an email states, never clears a typed time for a day alone, and Undo puts all three back", async () => {
+    const to = await start();
+    await confirmGmail(to);
+    const fromGmail = gmailForward(GMAIL, to);
+    expect(await result(await deliver(to, "greenhouse-interview.txt", { auth: fromGmail }))).toBe(
+      "created",
+    );
+    // 10:00 AM PST, as the email wrote it.
+    expect(await when()).toEqual([Date.UTC(2026, 10, 24, 18), 600, "America/Los_Angeles"]);
+
+    // The person types their own time: 2:30 PM in India on the 24th.
+    vi.setSystemTime(NOW + 60_000);
+    const [card] = await cards(user.id);
+    const typedDay = Date.UTC(2026, 10, 24, 6, 30);
+    const typed = await patchApplication(
+      json("PATCH", `/api/applications/${card!.id}`, {
+        interviewAt: typedDay,
+        interviewTime: 870,
+        interviewZone: "Asia/Kolkata",
+      }),
+      context(card!.id),
+    );
+    expect(typed.status).toBe(200);
+
+    // Moved to Thursday, no time given: the typed 2:30 PM stays.
+    vi.setSystemTime(NOW + 120_000);
+    const moved = `Interview rescheduled: ${LUMEN}`;
+    expect(
+      await deliverText(
+        to,
+        moved,
+        `Hi Priya,\n\nYour interview for ${LUMEN} has been rescheduled to Thursday, November 26, 2026.\n\nThanks,\nLumen Labs Recruiting`,
+        fromGmail,
+      ),
+    ).toBe("dated");
+    expect(await when()).toEqual([Date.UTC(2026, 10, 26, 6, 30), 870, "Asia/Kolkata"]);
+    await undo(moved);
+    expect(await when()).toEqual([typedDay, 870, "Asia/Kolkata"]);
+
+    // A new day and time in another zone replaces all three, and Undo restores all three.
+    vi.setSystemTime(NOW + 180_000);
+    const timed = `Interview Confirmation: ${LUMEN}`;
+    expect(
+      await deliverText(
+        to,
+        timed,
+        `Hi Priya,\n\nYour interview for ${LUMEN} is confirmed for Friday, November 27, 2026 at 9:00 AM PST.\n\nThanks,\nLumen Labs Recruiting`,
+        fromGmail,
+      ),
+    ).toBe("dated");
+    expect(await when()).toEqual([Date.UTC(2026, 10, 27, 17), 540, "America/Los_Angeles"]);
+    await undo(timed);
+    expect(await when()).toEqual([typedDay, 870, "Asia/Kolkata"]);
+  });
+
+  it("keeps the email's time for one applied from Check this", async () => {
+    const to = await start();
+    expect(await result(await deliver(to, "greenhouse-interview.txt"))).toBe("pending");
+    const [waiting] = (await state()).events;
+    const res = await change(
+      json("PATCH", `/api/email-tracking/${waiting!.id}`, { action: "apply" }),
+      context(waiting!.id),
+    );
+    expect(res.status).toBe(200);
+    expect(await when()).toEqual([Date.UTC(2026, 10, 24, 18), 600, "America/Los_Angeles"]);
+  });
+});
+
 describe("handles", () => {
   async function check(handle: string): Promise<HandleCheckResponse> {
     const res = await checkHandle(

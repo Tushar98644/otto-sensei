@@ -104,6 +104,8 @@ export async function trackingState(
               role: row.role,
               jobUrl: row.jobUrl,
               eventAt: row.eventAt,
+              eventTime: row.eventTime,
+              eventZone: row.eventZone,
             })
           : null,
       ),
@@ -134,6 +136,8 @@ export async function trackingExport(userId: string) {
         role: inboundEmails.role,
         jobUrl: inboundEmails.jobUrl,
         interviewAt: inboundEmails.eventAt,
+        interviewTime: inboundEmails.eventTime,
+        interviewZone: inboundEmails.eventZone,
         interviewText: inboundEmails.eventText,
         trust: inboundEmails.trust,
         change: inboundEmails.change,

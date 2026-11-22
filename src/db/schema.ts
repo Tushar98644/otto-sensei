@@ -712,6 +712,9 @@ export type CardBefore = {
   statusHistory: StatusEvent[];
   followUpAt: number | null;
   interviewAt: number | null;
+  // Missing from snapshots taken before emails kept a time.
+  interviewTime?: number | null;
+  interviewZone?: string | null;
 };
 
 export const inboundEmails = pgTable(
@@ -729,6 +732,9 @@ export const inboundEmails = pgTable(
     jobUrl: text("job_url").notNull().default(""),
     sentAt: epochMs("sent_at"),
     eventAt: epochMs("event_at"),
+    // Minutes after midnight in eventZone; null is a day with no time.
+    eventTime: smallint("event_time"),
+    eventZone: text("event_zone"),
     eventText: text("event_text").notNull().default(""),
     trust: text("trust", { enum: EMAIL_TRUST }),
     applicationId: uuid("application_id"),

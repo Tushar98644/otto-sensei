@@ -1,8 +1,10 @@
 import { normalizeText } from "./text";
 
-export type When = { at: number; text: string; hasTime: boolean };
+// zone: the IANA zone the day and time read in, when one is known, so a card can keep them.
+export type When = { at: number; text: string; hasTime: boolean; zone: string | null };
 
-type Zone = { offset: number } | { iana: string };
+// A fixed offset keeps the place its name usually means, used only where that place reads the same.
+type Zone = { offset: number; place?: string } | { iana: string };
 
 const MONTHS = ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"];
 const MONTH =
@@ -58,6 +60,33 @@ const FIXED: Record<string, number> = {
   EST: -300,
   EDT: -240,
 };
+const PLACES: Record<string, string> = {
+  IST: "Asia/Kolkata",
+  GMT: "UTC",
+  UTC: "UTC",
+  BST: "Europe/London",
+  CET: "Europe/Paris",
+  CEST: "Europe/Paris",
+  EET: "Europe/Athens",
+  EEST: "Europe/Athens",
+  SGT: "Asia/Singapore",
+  HKT: "Asia/Hong_Kong",
+  JST: "Asia/Tokyo",
+  AEST: "Australia/Sydney",
+  AEDT: "Australia/Sydney",
+  GST: "Asia/Dubai",
+  WIB: "Asia/Jakarta",
+  NZST: "Pacific/Auckland",
+  NZDT: "Pacific/Auckland",
+  PST: "America/Los_Angeles",
+  PDT: "America/Los_Angeles",
+  MST: "America/Denver",
+  MDT: "America/Denver",
+  CST: "America/Chicago",
+  CDT: "America/Chicago",
+  EST: "America/New_York",
+  EDT: "America/New_York",
+};
 const NAMED: Record<string, string> = {
   PT: "America/Los_Angeles",
   MT: "America/Denver",
@@ -66,16 +95,16 @@ const NAMED: Record<string, string> = {
   AET: "Australia/Sydney",
 };
 const LONG: readonly [RegExp, Zone][] = [
-  [/india standard time|\bindian standard time/i, { offset: 330 }],
+  [/india standard time|\bindian standard time/i, { offset: 330, place: "Asia/Kolkata" }],
   [/pacific (?:standard |daylight )?time/i, { iana: "America/Los_Angeles" }],
   [/mountain (?:standard |daylight )?time/i, { iana: "America/Denver" }],
   [/central (?:standard |daylight )?time/i, { iana: "America/Chicago" }],
   [/eastern (?:standard |daylight )?time/i, { iana: "America/New_York" }],
-  [/british summer time/i, { offset: 60 }],
-  [/greenwich mean time|coordinated universal time/i, { offset: 0 }],
-  [/central european summer time/i, { offset: 120 }],
-  [/central european (?:standard )?time/i, { offset: 60 }],
-  [/singapore (?:standard )?time/i, { offset: 480 }],
+  [/british summer time/i, { offset: 60, place: "Europe/London" }],
+  [/greenwich mean time|coordinated universal time/i, { offset: 0, place: "UTC" }],
+  [/central european summer time/i, { offset: 120, place: "Europe/Paris" }],
+  [/central european (?:standard )?time/i, { offset: 60, place: "Europe/Paris" }],
+  [/singapore (?:standard )?time/i, { offset: 480, place: "Asia/Singapore" }],
 ];
 const US_ZONES = new Set([
   "America/Los_Angeles",
@@ -102,7 +131,7 @@ function zoneIn(text: string): Zone | null {
     );
   if (short) {
     const code = short[1]!;
-    if (code in FIXED) return { offset: FIXED[code]! };
+    if (code in FIXED) return { offset: FIXED[code]!, place: PLACES[code] };
     return { iana: NAMED[code]! };
   }
   return null;
@@ -131,6 +160,16 @@ function offsetAt(at: number, zone: string): number {
   return (
     (Date.UTC(get("year"), get("month") - 1, get("day"), get("hour"), get("minute")) - at) / 60_000
   );
+}
+
+// The account's own zone when the time reads the same there, else the one the email named.
+function placeOf(zone: Zone, at: number, account: string | null): string | null {
+  const offset = "iana" in zone ? offsetAt(at, zone.iana) : zone.offset;
+  const named = "iana" in zone ? zone.iana : (zone.place ?? (zone.offset === 0 ? "UTC" : null));
+  for (const candidate of [account, named]) {
+    if (candidate && validZone(candidate) && offsetAt(at, candidate) === offset) return candidate;
+  }
+  return null;
 }
 
 function toEpoch(y: number, m: number, d: number, h: number, min: number, zone: Zone): number {
@@ -208,7 +247,7 @@ const CALENDAR =
 const OFFERS_CHOICE =
   /\b(?:slots?|options?|following times|any of (?:these|the)|which (?:time|works|suits)|choose|pick|select|propose|alternatives?)\b/i;
 
-function fromCalendar(text: string, fallback: Zone): When | null {
+function fromCalendar(text: string, fallback: Zone, account: string | null): When | null {
   const match = CALENDAR.exec(text);
   if (!match) return null;
   const [, tzid, y, m, d, h, min, utc] = match;
@@ -218,7 +257,9 @@ function fromCalendar(text: string, fallback: Zone): When | null {
       ? { iana: tzid.trim() }
       : fallback;
   const at = toEpoch(Number(y), Number(m), Number(d), Number(h), Number(min), zone);
-  return { at, text: "", hasTime: true };
+  // An invite written in UTC names no place: it reads in the account's own zone.
+  const place = utc ? (account ?? "UTC") : placeOf(zone, at, account);
+  return { at, text: "", hasTime: true, zone: place };
 }
 
 function readable(source: string, start: number, end: number): string {
@@ -235,9 +276,10 @@ export function findWhen(
   body: string,
   { sentAt, zone }: { sentAt: number; zone: string | null },
 ): When | null {
-  const fallback: Zone = zone && validZone(zone) ? { iana: zone } : { offset: 0 };
+  const account = zone && validZone(zone) ? zone : null;
+  const fallback: Zone = account ? { iana: account } : { offset: 0 };
   const text = normalizeText(`${subject}\n${body}`).slice(0, 12_000);
-  const calendar = fromCalendar(text, fallback);
+  const calendar = fromCalendar(text, fallback, account);
   const statedZone = zoneIn(text);
   const usOrder = statedZone !== null && "iana" in statedZone && US_ZONES.has(statedZone.iana);
   const found: (When & { start: number })[] = [];
@@ -277,7 +319,13 @@ export function findWhen(
     const zoneText = late ? ZONE_AFTER.exec(tail) : null;
     const start = early && !late ? day.start - early[0].length : day.start;
     const end = zoneText ? zoneEnd + zoneText[0].length : zoneEnd;
-    found.push({ at, hasTime: clock !== null, text: readable(text, start, end), start });
+    found.push({
+      at,
+      hasTime: clock !== null,
+      text: readable(text, start, end),
+      zone: placeOf(zoneHere, at, account),
+      start,
+    });
   }
   const ahead = found.filter(
     (when) => when.at >= sentAt - 12 * 3_600_000 && when.at <= sentAt + 366 * 86_400_000,
@@ -309,6 +357,6 @@ export function findWhen(
   return pick ? strip(pick) : null;
 }
 
-function strip({ at, text, hasTime }: When): When {
-  return { at, text, hasTime };
+function strip({ at, text, hasTime, zone }: When): When {
+  return { at, text, hasTime, zone };
 }

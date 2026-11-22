@@ -14,8 +14,9 @@ import { captureServerEvent } from "@/lib/analytics/server";
 import { APPLICATION_LIMITS } from "@/lib/applications/schema";
 import { readStage, readStatus, type ApplicationStatus } from "@/lib/applications/status";
 import { CreateApplicationSchema, UpdateApplicationSchema } from "@/lib/applications/validation";
+import { minutesIntoDay, zoneOrUtc } from "@/lib/calendar/zones";
 import { log } from "@/lib/log";
-import { boardCards, type EmailFacts } from "./board";
+import { boardCards, emailWhen, type EmailFacts } from "./board";
 import type { Recipient } from "./handles";
 import { matchCard, planChange } from "./match";
 import { readEmail } from "./parse";
@@ -57,6 +58,8 @@ async function snapshot(userId: string, id: string): Promise<CardBefore | null> 
       statusHistory: applications.statusHistory,
       followUpAt: applications.followUpAt,
       interviewAt: applications.interviewAt,
+      interviewTime: applications.interviewTime,
+      interviewZone: applications.interviewZone,
     })
     .from(applications)
     .where(and(eq(applications.userId, userId), eq(applications.id, id)))
@@ -69,6 +72,8 @@ async function snapshot(userId: string, id: string): Promise<CardBefore | null> 
     statusHistory: row.statusHistory,
     followUpAt: row.followUpAt,
     interviewAt: row.interviewAt,
+    interviewTime: row.interviewTime,
+    interviewZone: row.interviewZone,
   };
 }
 
@@ -98,7 +103,7 @@ async function applyToBoard(
 ): Promise<Applied> {
   if (facts.kind === "unknown") return NOTHING;
   const card = matchCard(await boardCards(userId), facts)?.card ?? null;
-  const plan = planChange(facts.kind, card, facts.eventAt);
+  const plan = planChange(facts.kind, card, emailWhen(facts));
   if (plan.change === "none") {
     const status = card?.status ?? null;
     return { ...NOTHING, applicationId: card?.id ?? null, fromStatus: status, toStatus: status };
@@ -110,7 +115,7 @@ async function applyToBoard(
       jobUrl: facts.jobUrl,
       appliedAt: Math.min(facts.sentAt, now),
       status: plan.status,
-      interviewAt: plan.interviewAt,
+      ...plan.interview,
     });
     if (!input.success) return NOTHING;
     const created = await createApplication(userId, input.data, now, APPLICATION_LIMITS.perUser);
@@ -128,12 +133,7 @@ async function applyToBoard(
   }
   if (!card) return NOTHING;
   const patch = UpdateApplicationSchema.safeParse(
-    plan.change === "moved"
-      ? {
-          status: plan.status,
-          ...(plan.interviewAt === null ? {} : { interviewAt: plan.interviewAt }),
-        }
-      : { interviewAt: plan.interviewAt },
+    plan.change === "moved" ? { status: plan.status, ...plan.interview } : plan.interview,
   );
   if (!patch.success) return NOTHING;
   const before = await snapshot(userId, card.id);
@@ -160,7 +160,8 @@ export async function receiveEmail(
   now = Date.now(),
 ): Promise<ReceiveResult> {
   const { userId } = recipient;
-  const reading = readEmail(mail, { now, zone: await userZone(userId) });
+  const zone = await userZone(userId);
+  const reading = readEmail(mail, { now, zone });
   const db = await getDb();
   const own = eq(inboundAddresses.userId, userId);
   if (reading.kind === "confirmation") {
@@ -213,12 +214,17 @@ export async function receiveEmail(
       .where(and(own, isNull(inboundAddresses.confirmedAt)));
   }
   const kind = placeable ? reading.kind : "unknown";
+  const when = kind === "interview" ? reading.when : null;
+  // The zone the email's day and time read in; one it doesn't name reads in the account's.
+  const eventZone = when ? (when.zone ?? zoneOrUtc(zone)) : null;
   const facts: EmailFacts & { sentAt: number } = {
     kind,
     company: cap(reading.company, INBOUND_LIMITS.company),
     role: cap(reading.role, INBOUND_LIMITS.role),
     jobUrl: reading.jobUrl,
-    eventAt: kind === "interview" ? (reading.when?.at ?? null) : null,
+    eventAt: when?.at ?? null,
+    eventTime: when?.hasTime && eventZone ? minutesIntoDay(when.at, eventZone) : null,
+    eventZone,
     sentAt: reading.sentAt,
   };
   const id = randomUUID();
@@ -237,6 +243,8 @@ export async function receiveEmail(
       jobUrl: facts.jobUrl,
       sentAt: facts.sentAt,
       eventAt: facts.eventAt,
+      eventTime: facts.eventTime,
+      eventZone: facts.eventZone,
       eventText:
         kind === "interview" ? cap(reading.when?.text ?? "", INBOUND_LIMITS.eventText) : "",
       trust,
@@ -286,6 +294,8 @@ export async function applyEmail(
       role: event.role,
       jobUrl: event.jobUrl,
       eventAt: event.eventAt,
+      eventTime: event.eventTime,
+      eventZone: event.eventZone,
       sentAt: event.sentAt ?? event.receivedAt,
     },
     now,
@@ -335,6 +345,12 @@ export async function undoEmail(userId: string, id: string, now = Date.now()): P
               statusHistory: event.before.statusHistory,
               followUpAt: event.before.followUpAt,
               interviewAt: event.before.interviewAt,
+              ...(event.before.interviewTime === undefined
+                ? {}
+                : {
+                    interviewTime: event.before.interviewTime,
+                    interviewZone: event.before.interviewZone ?? null,
+                  }),
               updatedAt: now,
             })
             .where(card)

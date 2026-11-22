@@ -1,4 +1,5 @@
 import type { ApplicationStatus } from "@/lib/applications/status";
+import { wallTime, zonedInstant } from "@/lib/calendar/zones";
 import type { EmailKind } from "./types";
 
 export type Card = {
@@ -9,6 +10,8 @@ export type Card = {
   status: ApplicationStatus;
   appliedAt: number;
   interviewAt: number | null;
+  interviewTime: number | null;
+  interviewZone: string | null;
 };
 
 export type EmailFacts = { company: string; role: string; jobUrl: string };
@@ -128,11 +131,45 @@ export function matchCard(cards: readonly Card[], email: EmailFacts): Match | nu
   return null;
 }
 
+// An email's interview: the instant it names, and its time (minutes after midnight in zone) when it states one.
+export type EmailWhen = { at: number; time: number | null; zone: string | null };
+
+export type Interview = {
+  interviewAt: number;
+  interviewTime: number | null;
+  interviewZone: string | null;
+};
+
 export type Plan =
   | { change: "none" }
-  | { change: "created"; status: ApplicationStatus; interviewAt: number | null }
-  | { change: "moved"; status: ApplicationStatus; interviewAt: number | null }
-  | { change: "dated"; interviewAt: number };
+  | { change: "created"; status: ApplicationStatus; interview: Interview | null }
+  | { change: "moved"; status: ApplicationStatus; interview: Interview | null }
+  | { change: "dated"; interview: Interview };
+
+// The email's time and zone when it states them; a day alone keeps a time the card already has.
+export function interviewFrom(
+  when: EmailWhen,
+  card: Pick<Card, "interviewTime" | "interviewZone"> | null,
+): Interview {
+  if (when.time !== null && when.zone) {
+    return { interviewAt: when.at, interviewTime: when.time, interviewZone: when.zone };
+  }
+  if (card?.interviewTime == null || !card.interviewZone) {
+    return { interviewAt: when.at, interviewTime: null, interviewZone: null };
+  }
+  // Noon of the email's day where the kept time was typed, the way the board stores a typed day.
+  const { year, month, day } = wallTime(when.at, when.zone ?? "UTC");
+  return {
+    interviewAt: zonedInstant({ year, month, day, hour: 12, minute: 0 }, card.interviewZone),
+    interviewTime: card.interviewTime,
+    interviewZone: card.interviewZone,
+  };
+}
+
+const sameInterview = (card: Card, interview: Interview) =>
+  card.interviewAt === interview.interviewAt &&
+  card.interviewTime === interview.interviewTime &&
+  card.interviewZone === interview.interviewZone;
 
 const TARGET: Record<Exclude<EmailKind, "unknown">, ApplicationStatus> = {
   applied: "applied",
@@ -151,21 +188,15 @@ const MOVES_FROM: Record<ApplicationStatus, readonly ApplicationStatus[]> = {
   no_reply: [],
 };
 
-export function planChange(kind: EmailKind, card: Card | null, interviewAt: number | null): Plan {
+export function planChange(kind: EmailKind, card: Card | null, when: EmailWhen | null): Plan {
   if (kind === "unknown") return { change: "none" };
   const status = TARGET[kind];
   // A test's date is a deadline, so only an interview sets the card's day.
-  const day = kind === "interview" ? interviewAt : null;
-  if (!card) return { change: "created", status, interviewAt: day };
-  if (MOVES_FROM[status].includes(card.status))
-    return { change: "moved", status, interviewAt: day };
-  if (
-    kind === "interview" &&
-    card.status === "interview" &&
-    day !== null &&
-    card.interviewAt !== day
-  ) {
-    return { change: "dated", interviewAt: day };
+  const interview = kind === "interview" && when ? interviewFrom(when, card) : null;
+  if (!card) return { change: "created", status, interview };
+  if (MOVES_FROM[status].includes(card.status)) return { change: "moved", status, interview };
+  if (card.status === "interview" && interview && !sameInterview(card, interview)) {
+    return { change: "dated", interview };
   }
   return { change: "none" };
 }
