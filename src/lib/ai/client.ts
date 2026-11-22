@@ -104,7 +104,7 @@ export function jsonSchemaFor(schema: z.ZodType): Record<string, unknown> {
 export function modelFor(task: AITask): string {
   const { AI_MODEL, AI_STRUCTURE_MODEL, AI_INTERVIEW_MODEL } = env();
   if (task === "structure") return AI_STRUCTURE_MODEL;
-  return task === "interview" ? AI_INTERVIEW_MODEL : AI_MODEL;
+  return task === "interview" ? (AI_INTERVIEW_MODEL ?? AI_MODEL) : AI_MODEL;
 }
 
 function isClaude(model: string): boolean {
@@ -140,11 +140,11 @@ function requestBody<T>(request: StructuredRequest<T>, model: string) {
 }
 
 export const AI_MAX_PRICE = { prompt: 0.1, completion: 0.3 } as const;
-// Claude Haiku 5.5 lists at 0.1 in and 0.5 out on every host; the headroom allows a similar model.
+// Only for a separate AI_INTERVIEW_MODEL; the default technical round shares AI_MODEL's cap.
 export const AI_INTERVIEW_MAX_PRICE = { prompt: 0.2, completion: 1 } as const;
 
 export function maxPriceFor(task: AITask): { prompt: number; completion: number } {
-  return task === "interview" ? AI_INTERVIEW_MAX_PRICE : AI_MAX_PRICE;
+  return task === "interview" && env().AI_INTERVIEW_MODEL ? AI_INTERVIEW_MAX_PRICE : AI_MAX_PRICE;
 }
 
 function retryAfterMs(headers: Headers, now: number): number | null {

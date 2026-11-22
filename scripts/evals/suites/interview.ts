@@ -24,9 +24,12 @@ const PLAN_TOKENS = 450;
 const GENERAL_OUTPUT_TOKENS = 3_000;
 // About 4,000 for 8 to 12 technical questions plus medium-effort reasoning.
 const TECHNICAL_OUTPUT_TOKENS = 7_000;
-// The estimate is priced at the model under test, so the technical call is scaled up to its own price cap.
-const PROMPT_SCALE = AI_INTERVIEW_MAX_PRICE.prompt / AI_MAX_PRICE.prompt;
-const COMPLETION_SCALE = AI_INTERVIEW_MAX_PRICE.completion / AI_MAX_PRICE.completion;
+// The technical call shares AI_MODEL's price unless AI_INTERVIEW_MODEL names another model with its own cap.
+const OWN_MODEL = Boolean(process.env.AI_INTERVIEW_MODEL);
+const PROMPT_SCALE = OWN_MODEL ? AI_INTERVIEW_MAX_PRICE.prompt / AI_MAX_PRICE.prompt : 1;
+const COMPLETION_SCALE = OWN_MODEL
+  ? AI_INTERVIEW_MAX_PRICE.completion / AI_MAX_PRICE.completion
+  : 1;
 
 function judgeInput({ input }: InterviewCase): string {
   return [
@@ -56,7 +59,7 @@ function judgeOutput(output: InterviewPrep, { input }: InterviewCase): string {
 export const interviewSuite = defineSuite<InterviewRequestBody, InterviewPrep, InterviewExpect>({
   name: "interview",
   description:
-    "Interview prep for technical roles (prepareInterview, as /api/interview calls it): the general rounds on the model under test, and the technical round on AI_INTERVIEW_MODEL.",
+    "Interview prep for technical roles (prepareInterview, as /api/interview calls it): the general rounds on the model under test, and the technical round on AI_MODEL unless AI_INTERVIEW_MODEL is set.",
   inputSchema: InterviewRequestSchema,
   cases: INTERVIEW_CASES,
   run: async (kase) => {

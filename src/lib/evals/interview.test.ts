@@ -54,7 +54,7 @@ describe("interview eval in demo mode", () => {
     expect(suite?.problems).toEqual([]);
     const estimate = estimateCase(interviewSuite, INTERVIEW_CASES[0]!);
     expect(estimate.calls).toBe(2);
-    expect(estimate.outputTokens).toBeGreaterThan(20_000);
+    expect(estimate.outputTokens).toBeGreaterThanOrEqual(10_000);
   });
 
   it("refuses to grade the demo pack as a real run", async () => {

@@ -36,7 +36,7 @@ AI_INTERVIEW_MODEL=z-ai/glm-5.3 bun scripts/evals/run.ts --feature interview --l
 bun scripts/evals/run.ts --feature interview --judge google/gemini-3.5-flash-lite --max-usd 0.25
 ```
 
-The default judge is the same model as the default technical round, so the third line scores it with a different judge.
+Production runs both rounds on AI_MODEL (z-ai/glm-5.3-flash). The second line tries another model for the technical round only; the third scores with a different judge.
 
 ## Running
 
@@ -132,7 +132,7 @@ Locally, `bun scripts/evals/run.ts --max-usd 0.50 --out scripts/evals/baseline` 
 
 ### Cost per run
 
-The dry run puts the CI run at about $0.18: $0.154 for product calls, priced at the product's caps (`AI_MAX_PRICE`, and `AI_INTERVIEW_MAX_PRICE` for the interview's technical round), so an upper bound, and $0.024 for the judge (`anthropic/claude-haiku-5.5`, $0.10 in and $0.50 out per million tokens). The interview suite is about half of it. `match-check` makes no product call, so it costs only its judge calls. Retries, the second letter draft and moderation calls add a little. The run prints a live estimate before it starts, and the report says what it spent.
+The dry run puts the CI run at about $0.18: $0.154 for product calls, priced at the product's cap (`AI_MAX_PRICE`; the technical round uses it too unless `AI_INTERVIEW_MODEL` is set), so an upper bound, and $0.024 for the judge (`anthropic/claude-haiku-5.5`, $0.10 in and $0.50 out per million tokens). The interview suite is about half of it. `match-check` makes no product call, so it costs only its judge calls. Retries, the second letter draft and moderation calls add a little. The run prints a live estimate before it starts, and the report says what it spent.
 
 That makes the weekly run about $0.80 a month at most, plus about $0.18 for each push that changes the AI code. A run by hand costs about that per model; raise `max-usd` for several models or pricier ones. `bun scripts/evals/run.ts --dry-run` prints the current estimate.
 

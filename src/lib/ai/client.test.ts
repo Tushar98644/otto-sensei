@@ -167,20 +167,24 @@ describe("runStructured request", () => {
     resetEnvForTests();
   });
 
-  it("writes the interview's technical round on its own model, under its own price cap", async () => {
+  it("writes the interview's technical round on AI_MODEL unless AI_INTERVIEW_MODEL names another", async () => {
+    useModel("z-ai/glm-5.3-flash");
     respond(200, completion('{"answer":"ok"}'));
     await runStructured(request({ task: "interview" }));
     expect(sent().body).toMatchObject({
-      model: "anthropic/claude-haiku-5.5",
+      model: "z-ai/glm-5.3-flash",
       max_tokens: 10_000,
-      provider: { max_price: { prompt: 0.2, completion: 1 } },
+      provider: { max_price: { prompt: 0.1, completion: 0.3 } },
     });
 
     process.env.AI_INTERVIEW_MODEL = "google/gemini-3.5-flash-lite";
     resetEnvForTests();
     respond(200, completion('{"answer":"ok"}'));
     await runStructured(request({ task: "interview" }));
-    expect(sent().body).toMatchObject({ model: "google/gemini-3.5-flash-lite" });
+    expect(sent().body).toMatchObject({
+      model: "google/gemini-3.5-flash-lite",
+      provider: { max_price: { prompt: 0.2, completion: 1 } },
+    });
     delete process.env.AI_INTERVIEW_MODEL;
     resetEnvForTests();
   });

@@ -39,7 +39,7 @@ export type CaseResult = {
   output: unknown;
 };
 
-// modelFor() reads these from the cached env(); the interview's technical round stays on AI_INTERVIEW_MODEL.
+// modelFor() reads these from the cached env(); the interview's technical round follows AI_MODEL unless AI_INTERVIEW_MODEL is set.
 export function switchModel(model: string): () => void {
   const before = {
     AI_MODEL: process.env.AI_MODEL,
