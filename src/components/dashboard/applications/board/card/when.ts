@@ -1,12 +1,5 @@
-import { DAY_MS } from "@/lib/time";
+import { DAY_MS, dayOffset } from "@/lib/time";
 import { cardColumn, daysInStage, isOverdue, needsAction, type BoardCard } from "../board";
-
-export function dayOffset(at: number, now: number): number {
-  const a = new Date(at);
-  const b = new Date(now);
-  const day = (date: Date) => Date.UTC(date.getFullYear(), date.getMonth(), date.getDate());
-  return Math.round((day(a) - day(b)) / DAY_MS);
-}
 
 export function span(days: number): string {
   if (days < 14) return days === 1 ? "1 day" : `${days} days`;

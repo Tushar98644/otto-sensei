@@ -3,8 +3,8 @@
 import { TodayBrief } from "@/components/dashboard/interview/today-brief";
 import { useNow } from "@/components/studio/use-now";
 import { FolderCard } from "@/components/ui/folder-card";
+import { dayOffset } from "@/lib/time";
 import { cn } from "@/lib/utils";
-import { dayOffset } from "../applications/board/card/when";
 import type { StudioActions } from "../use-studio-actions";
 import type { NextStep } from "./next-steps";
 import { LeadStep, SetupProgress, StepTile, stagger } from "./up-next/step-parts";
