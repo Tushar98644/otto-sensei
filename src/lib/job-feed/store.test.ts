@@ -7,7 +7,14 @@ import * as schema from "@/db/schema";
 import { applications, jobBoards, jobs, savedJobs } from "@/db/schema";
 import { createUser, resetDb } from "@/lib/auth/test-helpers";
 import type { RawJob } from "./parsers";
-import { filterConditions, jobCounts, matchCandidates, saveJob, skillWeights } from "./records";
+import {
+  filterConditions,
+  jobCounts,
+  matchableConditions,
+  matchCandidates,
+  saveJob,
+  skillWeights,
+} from "./records";
 import { JOB_LIMITS } from "./normalize";
 import {
   boardFailed,
@@ -425,7 +432,7 @@ describe("job store", () => {
     expect(pool.groups).toBe(7);
   });
 
-  it("shows location copies as one candidate, and keeps filler posts off Matches but on the list", async () => {
+  it("shows location copies as one candidate, keeps filler posts off Matches but on the list, and counts neither as open", async () => {
     const db = await getDb();
     const text =
       "Own enterprise accounts with Salesforce and Gong.\nThis role is based in {place}.";
@@ -480,6 +487,32 @@ describe("job store", () => {
         .sort(),
     ).toEqual(["Remote, United Kingdom", "Toronto, Canada"]);
     expect(await titlesFor(DEFAULT_FILTERS)).toHaveLength(4);
-    expect(await jobCounts(db, NOW)).toEqual({ open: 4, matchable: 1 });
+    expect(await jobCounts(db, NOW)).toEqual({ open: 2, matchable: 1 });
+  });
+
+  it("keeps a job for 90 days from its posting, or from when it was first read if that came first", async () => {
+    const db = await getDb();
+    await saveJobs(
+      db,
+      ACME,
+      [
+        raw("old", { postedAt: NOW - 100 * DAY }),
+        raw("recent", { postedAt: NOW - 80 * DAY }),
+        raw("undated", { postedAt: null }),
+        raw("redated", { postedAt: NOW - DAY }),
+      ],
+      NOW,
+      { snapshot: true },
+    );
+    await db
+      .update(jobs)
+      .set({ firstSeenAt: NOW - 95 * DAY })
+      .where(eq(jobs.externalId, "redated"));
+    const shown = await db
+      .select({ id: jobs.externalId })
+      .from(jobs)
+      .where(and(...matchableConditions(DEFAULT_FILTERS, NOW)));
+    expect(shown.map((row) => row.id).sort()).toEqual(["recent", "undated"]);
+    expect((await jobCounts(db, NOW)).open).toBe(2);
   });
 });

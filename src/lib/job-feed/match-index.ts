@@ -1,4 +1,4 @@
-import { and, count, desc, inArray, isNull, max, or, sql, type SQL } from "drizzle-orm";
+import { and, desc, inArray, max, or, sql, type SQL } from "drizzle-orm";
 import type { Db } from "@/db/client";
 import { companyVisa, jobBoards, jobCountsRow, jobMatch, jobs, matchSkills } from "@/db/schema";
 import { log } from "@/lib/log";
@@ -11,7 +11,8 @@ import {
   CANDIDATE_COLUMNS,
   CANDIDATE_POOL,
   DEFAULT_SKILL_WEIGHT,
-  EVERGREEN_AFTER_MS,
+  countShownJobs,
+  FRESH_FOR_MS,
   GROUP,
   jobCounts,
   matchableConditions,
@@ -228,7 +229,7 @@ export async function rebuildMatchIndex(db: Db, now: number): Promise<number | n
     places: [...placeSet].sort(),
   }));
 
-  const [open] = await db.select({ n: count() }).from(jobs).where(isNull(jobs.closedAt));
+  const open = await countShownJobs(db, now);
   const [read] = await db.select({ at: max(jobBoards.lastFetchedAt) }).from(jobBoards);
   // Only changed rows are written: rewriting all left a dead copy of every row until vacuum.
   const before = new Map(
@@ -247,7 +248,7 @@ export async function rebuildMatchIndex(db: Db, now: number): Promise<number | n
         .onConflictDoUpdate({ target: jobMatch.id, set: EXCLUDED_MATCH_COLUMNS });
     }
     const counts = {
-      openJobs: open?.n ?? 0,
+      openJobs: open,
       matchable: values.length,
       checkedAt: read?.at ?? null,
       builtAt: now,
@@ -347,7 +348,7 @@ async function indexedPool(
       ${weightAt(minorCodes, [...kinds.minors.values()], sql`m.occ_minor`)},
       ${weightAt(majorCodes, [...kinds.majors.values()], sql`m.occ_major`)}) end`;
   const conditions: SQL[] = [
-    sql`m.seen_at >= ${now - EVERGREEN_AFTER_MS}::bigint`,
+    sql`m.seen_at >= ${now - FRESH_FOR_MS}::bigint`,
     sql`(m.sids operator(pg_catalog.&&) ${intArray(sids)}::int[] or m.family = any(${textArrayLiteral(reachFamilies)}::text[])
       or m.occ = any(${textArrayLiteral(occCodes)}::text[]) or m.occ_minor = any(${textArrayLiteral(minorCodes)}::text[]))`,
     sql`(k.kind >= ${KIND.same}::float8 or h.found >= 2)`,

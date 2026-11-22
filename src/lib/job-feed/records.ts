@@ -19,7 +19,8 @@ import {
 } from "./types";
 
 export const CANDIDATE_POOL = 300;
-export const EVERGREEN_AFTER_MS = 120 * DAY_MS;
+// A job counts as posted when the board says, or when first read if that's earlier or the date is missing.
+export const FRESH_FOR_MS = 90 * DAY_MS;
 export const DEFAULT_SKILL_WEIGHT = 1;
 export const LIST_COLUMNS = {
   id: jobs.id,
@@ -134,7 +135,7 @@ export function matchableConditions(filters: JobFilters, now: number): SQL[] {
   return [
     ...filterConditions(filters, now),
     eq(jobs.evergreen, false),
-    sql`least(${jobs.postedAt}, ${jobs.firstSeenAt}) >= ${now - EVERGREEN_AFTER_MS}::bigint`,
+    sql`least(${jobs.postedAt}, ${jobs.firstSeenAt}) >= ${now - FRESH_FOR_MS}::bigint`,
   ];
 }
 
@@ -261,22 +262,38 @@ export async function savedCount(db: Db, userId: string): Promise<number> {
   return row?.n ?? 0;
 }
 
+// Open jobs anyone could be shown: the public count says no more than that.
+export async function countShownJobs(db: Db, now: number): Promise<number> {
+  const [open] = await db
+    .select({ n: count() })
+    .from(jobs)
+    .where(and(...matchableConditions(DEFAULT_FILTERS, now)));
+  return open?.n ?? 0;
+}
+
 export async function jobCounts(
   db: Db,
   now = Date.now(),
 ): Promise<{ open: number; matchable: number }> {
-  const [open] = await db.select({ n: count() }).from(jobs).where(isNull(jobs.closedAt));
-  const [matchable] = await db
-    .select({ n: sql<number>`count(distinct ${GROUP})::int` })
-    .from(jobs)
-    .where(and(...matchableConditions(DEFAULT_FILTERS, now)));
-  return { open: open?.n ?? 0, matchable: matchable?.n ?? 0 };
+  const [open, [matchable]] = await Promise.all([
+    countShownJobs(db, now),
+    db
+      .select({ n: sql<number>`count(distinct ${GROUP})::int` })
+      .from(jobs)
+      .where(and(...matchableConditions(DEFAULT_FILTERS, now))),
+  ]);
+  return { open, matchable: matchable?.n ?? 0 };
 }
 
-export async function jobStats(db: Db): Promise<{ openJobs: number; checkedAt: number | null }> {
-  const [open] = await db.select({ n: count() }).from(jobs).where(isNull(jobs.closedAt));
-  const [read] = await db.select({ at: max(jobBoards.lastFetchedAt) }).from(jobBoards);
-  return { openJobs: open?.n ?? 0, checkedAt: read?.at ?? null };
+export async function jobStats(
+  db: Db,
+  now = Date.now(),
+): Promise<{ openJobs: number; checkedAt: number | null }> {
+  const [open, [read]] = await Promise.all([
+    countShownJobs(db, now),
+    db.select({ at: max(jobBoards.lastFetchedAt) }).from(jobBoards),
+  ]);
+  return { openJobs: open, checkedAt: read?.at ?? null };
 }
 
 export type SaveJobResult = "saved" | "not_found" | "limit_reached" | "no_user";

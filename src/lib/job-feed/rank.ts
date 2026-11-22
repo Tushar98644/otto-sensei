@@ -215,7 +215,7 @@ export async function rankJobs(db: Db, request: RankRequest): Promise<RankResult
       storedCounts(db, request),
       savedCount(db, request.userId),
     ]);
-    const stats = counts ?? (await jobStats(db));
+    const stats = counts ?? (await jobStats(db, now));
     return {
       jobs: ranked.slice(start, start + JOB_PAGE_SIZE),
       page: request.page,
@@ -255,7 +255,7 @@ export async function rankJobs(db: Db, request: RankRequest): Promise<RankResult
   // The index keeps the weights it was built with; if it can't be read, poolOpenings falls back too.
   const [weights, stats] = await Promise.all([
     counts ? indexWeights(db, counts).catch(() => skillWeights(db)) : skillWeights(db),
-    counts ? Promise.resolve(counts) : jobStats(db),
+    counts ? Promise.resolve(counts) : jobStats(db, now),
   ]);
   const weight = (skill: string) => weights.get(skill) ?? DEFAULT_SKILL_WEIGHT;
   const families = [...person.families];
