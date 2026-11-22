@@ -1,167 +1,167 @@
 [
   {
     "route": "/",
-    "initial_kb": 213,
-    "total_kb": 422
+    "initial_kb": 214,
+    "total_kb": 539
   },
   {
     "route": "/_global-error",
-    "initial_kb": 186,
+    "initial_kb": 187,
     "total_kb": 339
   },
   {
     "route": "/_not-found",
-    "initial_kb": 202,
-    "total_kb": 405
+    "initial_kb": 203,
+    "total_kb": 406
   },
   {
     "route": "/acceptable-use",
-    "initial_kb": 202,
-    "total_kb": 405
-  },
-  {
-    "route": "/account",
-    "initial_kb": 312,
-    "total_kb": 519
-  },
-  {
-    "route": "/ats",
-    "initial_kb": 202,
-    "total_kb": 405
-  },
-  {
-    "route": "/ats/[system]",
-    "initial_kb": 202,
-    "total_kb": 405
-  },
-  {
-    "route": "/compare",
-    "initial_kb": 202,
-    "total_kb": 405
-  },
-  {
-    "route": "/compare/[competitor]",
-    "initial_kb": 202,
-    "total_kb": 405
-  },
-  {
-    "route": "/dashboard",
-    "initial_kb": 344,
-    "total_kb": 1118
-  },
-  {
-    "route": "/dashboard/account",
-    "initial_kb": 342,
-    "total_kb": 1070
-  },
-  {
-    "route": "/dashboard/applications",
-    "initial_kb": 316,
-    "total_kb": 1068
-  },
-  {
-    "route": "/dashboard/applications/[id]",
-    "initial_kb": 292,
-    "total_kb": 1110
-  },
-  {
-    "route": "/dashboard/applications/[id]/prep",
-    "initial_kb": 302,
-    "total_kb": 1047
-  },
-  {
-    "route": "/dashboard/formats",
-    "initial_kb": 282,
-    "total_kb": 1027
-  },
-  {
-    "route": "/dashboard/interview",
-    "initial_kb": 282,
-    "total_kb": 1032
-  },
-  {
-    "route": "/dashboard/interview/[id]",
-    "initial_kb": 302,
-    "total_kb": 1047
-  },
-  {
-    "route": "/dashboard/jobs",
-    "initial_kb": 326,
-    "total_kb": 1072
-  },
-  {
-    "route": "/dashboard/letters",
-    "initial_kb": 314,
-    "total_kb": 1465
-  },
-  {
-    "route": "/dashboard/portfolio",
-    "initial_kb": 283,
-    "total_kb": 1027
-  },
-  {
-    "route": "/dashboard/resumes",
-    "initial_kb": 326,
-    "total_kb": 1097
-  },
-  {
-    "route": "/dashboard/trash",
-    "initial_kb": 280,
-    "total_kb": 1025
-  },
-  {
-    "route": "/job-match",
-    "initial_kb": 220,
-    "total_kb": 495
-  },
-  {
-    "route": "/login",
-    "initial_kb": 209,
-    "total_kb": 412
-  },
-  {
-    "route": "/p/[slug]",
-    "initial_kb": 232,
-    "total_kb": 579
-  },
-  {
-    "route": "/pricing",
-    "initial_kb": 210,
-    "total_kb": 414
-  },
-  {
-    "route": "/privacy",
-    "initial_kb": 202,
-    "total_kb": 405
-  },
-  {
-    "route": "/refunds",
-    "initial_kb": 202,
-    "total_kb": 405
-  },
-  {
-    "route": "/reminder",
     "initial_kb": 204,
     "total_kb": 407
   },
   {
-    "route": "/resume-templates",
+    "route": "/account",
+    "initial_kb": 323,
+    "total_kb": 532
+  },
+  {
+    "route": "/ats",
+    "initial_kb": 203,
+    "total_kb": 406
+  },
+  {
+    "route": "/ats/[system]",
+    "initial_kb": 208,
+    "total_kb": 411
+  },
+  {
+    "route": "/compare",
+    "initial_kb": 203,
+    "total_kb": 406
+  },
+  {
+    "route": "/compare/[competitor]",
+    "initial_kb": 203,
+    "total_kb": 406
+  },
+  {
+    "route": "/dashboard",
+    "initial_kb": 366,
+    "total_kb": 1172
+  },
+  {
+    "route": "/dashboard/account",
+    "initial_kb": 359,
+    "total_kb": 1101
+  },
+  {
+    "route": "/dashboard/applications",
+    "initial_kb": 333,
+    "total_kb": 1097
+  },
+  {
+    "route": "/dashboard/applications/[id]",
+    "initial_kb": 303,
+    "total_kb": 1154
+  },
+  {
+    "route": "/dashboard/applications/[id]/prep",
+    "initial_kb": 324,
+    "total_kb": 1088
+  },
+  {
+    "route": "/dashboard/formats",
+    "initial_kb": 297,
+    "total_kb": 1056
+  },
+  {
+    "route": "/dashboard/interview",
+    "initial_kb": 313,
+    "total_kb": 1078
+  },
+  {
+    "route": "/dashboard/interview/[id]",
+    "initial_kb": 324,
+    "total_kb": 1088
+  },
+  {
+    "route": "/dashboard/jobs",
+    "initial_kb": 343,
+    "total_kb": 1110
+  },
+  {
+    "route": "/dashboard/letters",
+    "initial_kb": 351,
+    "total_kb": 1525
+  },
+  {
+    "route": "/dashboard/portfolio",
+    "initial_kb": 293,
+    "total_kb": 1053
+  },
+  {
+    "route": "/dashboard/resumes",
+    "initial_kb": 342,
+    "total_kb": 1126
+  },
+  {
+    "route": "/dashboard/trash",
+    "initial_kb": 293,
+    "total_kb": 1052
+  },
+  {
+    "route": "/job-match",
+    "initial_kb": 226,
+    "total_kb": 571
+  },
+  {
+    "route": "/login",
+    "initial_kb": 210,
+    "total_kb": 413
+  },
+  {
+    "route": "/p/[slug]",
+    "initial_kb": 233,
+    "total_kb": 580
+  },
+  {
+    "route": "/pricing",
+    "initial_kb": 213,
+    "total_kb": 416
+  },
+  {
+    "route": "/privacy",
     "initial_kb": 204,
-    "total_kb": 452
+    "total_kb": 407
+  },
+  {
+    "route": "/refunds",
+    "initial_kb": 204,
+    "total_kb": 407
+  },
+  {
+    "route": "/reminder",
+    "initial_kb": 205,
+    "total_kb": 408
+  },
+  {
+    "route": "/resume-templates",
+    "initial_kb": 206,
+    "total_kb": 423
   },
   {
     "route": "/s/[slug]",
-    "initial_kb": 214,
-    "total_kb": 785
+    "initial_kb": 216,
+    "total_kb": 815
   },
   {
     "route": "/studio",
-    "initial_kb": 300,
-    "total_kb": 1222
+    "initial_kb": 311,
+    "total_kb": 1278
   },
   {
     "route": "/terms",
-    "initial_kb": 202,
-    "total_kb": 405
+    "initial_kb": 204,
+    "total_kb": 407
   }
 ]
