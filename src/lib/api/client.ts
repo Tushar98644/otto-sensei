@@ -177,8 +177,12 @@ export function isBudgetReached(error: unknown): boolean {
   return isApiError(error, "limit_reached") && error.reason === "ai_budget";
 }
 
-// POSTs that only read: they leave the layout's answers (lib/api/seeds) standing.
-const READ_ONLY_POSTS: ReadonlySet<string> = new Set(["/api/resumes", "/api/jobs/matches"]);
+// POSTs that change none of the layout's answers (lib/api/seeds), so those stay standing.
+const READ_ONLY_POSTS: ReadonlySet<string> = new Set([
+  "/api/resumes",
+  "/api/jobs/matches",
+  "/api/calendar",
+]);
 
 function isWrite(path: string, init?: RequestInit): boolean {
   const method = init?.method?.toUpperCase() ?? "GET";

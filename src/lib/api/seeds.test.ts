@@ -61,6 +61,7 @@ describe("seeds", () => {
     plantSeeds({ shares: Promise.resolve(body), writings: Promise.resolve(body) });
     await api.listResumes({});
     await api.jobMatches({} as never);
+    await api.calendarFeed();
     expect(takeSeed("shares")).not.toBeNull();
     await api.markNotificationsRead({ all: true });
     expect(takeSeed("writings")).toBeNull();
