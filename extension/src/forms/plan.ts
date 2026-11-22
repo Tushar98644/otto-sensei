@@ -1,6 +1,6 @@
 import { findPlaces, rightsRegionOf } from "@/lib/eligibility/places";
 import { customAnswer, payText, type ApplyAnswers, type Pay } from "@/lib/extension/answers";
-import type { FillDate, FillProfile } from "@/lib/extension/types";
+import type { FillContact, FillDate, FillProfile } from "@/lib/extension/types";
 import {
   classify,
   isYesNoQuestion,
@@ -216,6 +216,13 @@ function schoolWant(question: Question, fill: FillProfile, field: SchoolField): 
   }
 }
 
+// What a list of websites gets, one link per entry; LinkedIn and X have fields of their own.
+export function websiteLinks(contact: FillContact): string[] {
+  return [
+    ...new Set([contact.portfolio, contact.website, contact.github].map((link) => link.trim())),
+  ].filter(Boolean);
+}
+
 const countryNames = new Intl.DisplayNames(["en"], { type: "region" });
 
 function countryName(code: string): string {
@@ -364,6 +371,14 @@ export function planField(
     case "school":
       return (
         fillWith(schoolWant(question, fill, target.field)) ?? { status: "skip", question, target }
+      );
+    case "link":
+      return (
+        fillWith(asText(question, websiteLinks(fill.contact)[question.index] ?? "")) ?? {
+          status: "skip",
+          question,
+          target,
+        }
       );
     case "answer":
       return (

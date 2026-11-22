@@ -12,7 +12,7 @@ const STEP_MS = 80;
 
 const sleep = (ms: number) => new Promise<void>((resolve) => window.setTimeout(resolve, ms));
 
-async function waitFor<T>(find: () => T | null, ms = OPTION_WAIT_MS): Promise<T | null> {
+export async function waitFor<T>(find: () => T | null, ms = OPTION_WAIT_MS): Promise<T | null> {
   const until = Date.now() + ms;
   for (;;) {
     const found = find();

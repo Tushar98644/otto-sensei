@@ -1,4 +1,4 @@
-<!-- Workday apply step "My Experience" after Add was pressed once under Work Experience and once under Education, hand-built from Workday's markup (data-automation-id names as on myworkdayjobs.com, 2026-11). -->
+<!-- Workday apply step "My Experience" after Add was pressed once under Work Experience, Education and Websites, hand-built from Workday's markup (data-automation-id names as on myworkdayjobs.com, 2026-11). -->
 <!doctype html>
 <html lang="en-US"><head><meta charset="utf-8"><title>Senior Security Engineer : NVIDIA</title></head>
 <body>
@@ -44,6 +44,14 @@
       <div data-automation-id="formField-resumeUpload"><label for="resumeAttachments--attachments">Upload a file (5MB max)</label>
         <div data-automation-id="attachments-FileUpload"><input type="file" id="resumeAttachments--attachments" data-automation-id="file-upload-input-ref" accept=".pdf,.doc,.docx"><button type="button" data-automation-id="select-files">Select files</button></div>
       </div>
+    </div>
+    <div data-automation-id="websiteSection">
+      <h3>Websites</h3>
+      <div data-automation-id="webAddress-1">
+        <h4>Websites 1</h4>
+        <div data-automation-id="formField-url"><label for="webAddress-1--url">URL<abbr title="required">*</abbr></label><input type="text" id="webAddress-1--url" data-automation-id="website" aria-required="true"></div>
+      </div>
+      <button type="button" data-automation-id="Add" aria-label="Add Another Websites">Add Another</button>
     </div>
     <div data-automation-id="formField-linkedinQuestion"><label for="socialNetworkAccounts--linkedInAccount">LinkedIn</label><input type="text" id="socialNetworkAccounts--linkedInAccount" data-automation-id="linkedinQuestion"></div>
   </div>

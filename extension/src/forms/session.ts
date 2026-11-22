@@ -25,6 +25,7 @@ import { mountDraftButtons } from "./drafts";
 import { confirmation, formRoot, PLATFORMS, type FormPlatform } from "./platforms";
 import { planForm, wantForAnswer, type AskInput, type Planned, type Store } from "./plan";
 import { scanQuestions, type Question } from "./scan";
+import { addWorkdayPanels } from "./workday";
 
 export type Ask = { key: string; label: string; input: AskInput; options: string[]; store: Store };
 
@@ -82,6 +83,7 @@ const CONFIRM_FOR_MS = 15 * 60 * 1000;
 const SUBMIT_RECENT_MS = 10 * 60 * 1000;
 const PARSE_WAIT_MS = 1_200;
 const TYPED_CHECK_MS = 400;
+const PANEL_SETTLE_MS = 300;
 const NO_POST =
   "Otto needs this job's post to draft an answer. Open the job's own page once, then come back to the form.";
 
@@ -211,6 +213,9 @@ export function createFormSession(ctx: FormContext) {
     const first = planForm(scan(), fill, postContext());
     // Some forms read the resume and fill fields from it; let them before Otto fills the rest.
     if (await upload(first, report)) await settle(PARSE_WAIT_MS);
+    // Workday's lists start empty: a panel per job, school and link, added with each list's own Add.
+    if (ctx.platform === "workday" && (await addWorkdayPanels(form, fill)) > 0)
+      await settle(PANEL_SETTLE_MS);
     const found = scan();
     questions = new Map(found.map((question) => [question.key, question]));
     const planned = planForm(found, fill, postContext());

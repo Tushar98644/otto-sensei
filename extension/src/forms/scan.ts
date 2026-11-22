@@ -120,9 +120,9 @@ function isRequired(node: PageNode, label: PageNode | null): boolean {
   );
 }
 
-// Greenhouse counts repeated blocks from 0 ("school--0"), Workday from 1 ("workExperience-1").
+// Greenhouse counts repeated blocks from 0 ("school--0"), Workday from 1 ("workExperience-1", "webAddress-1").
 function indexOf(hints: string, section: string): number {
-  const workday = /(?:workexperience|education)-(\d+)/i.exec(`${hints} ${section}`);
+  const workday = /(?:workexperience|education|webaddress)-(\d+)/i.exec(`${hints} ${section}`);
   if (workday) return Math.max(0, Number(workday[1]) - 1);
   const match = /--(\d+)\b|\[(\d+)\]/.exec(hints);
   return match ? Number(match[1] ?? match[2]) : 0;

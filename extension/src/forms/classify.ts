@@ -33,6 +33,8 @@ export type Target =
   | { kind: "resume" }
   | { kind: "work"; field: WorkField }
   | { kind: "school"; field: SchoolField }
+  // One of the person's links, by its place in a list of websites (Workday's Websites).
+  | { kind: "link" }
   | { kind: "answer"; field: AnswerField }
   | { kind: "rights"; need: "authorized" | "sponsorship" }
   // Self-identification and consent: Otto never touches them.
@@ -194,6 +196,10 @@ function inWork(question: Question): boolean {
   );
 }
 
+function inWebsites(question: Question): boolean {
+  return /webaddress-\d|websitesection/.test(`${question.section} ${question.hints.toLowerCase()}`);
+}
+
 function inEducation(question: Question): boolean {
   return /education|school--|degree--|discipline--/.test(
     `${question.section} ${question.hints.toLowerCase()}`,
@@ -241,6 +247,7 @@ export function classify(question: Question): Target {
       ? work
       : { kind: "protected", why: "consent" };
   }
+  if ((kind === "text" || kind === "textarea") && inWebsites(question)) return { kind: "link" };
   if (inEducation(question)) {
     const school = schoolTarget(hints, label);
     if (school) return school;

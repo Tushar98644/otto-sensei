@@ -195,6 +195,7 @@ describe("Workday", () => {
     expect(outcome(items, "Field of Study")).toBe("fill Statistics");
     expect(outcome(items, "Upload a file")).toBe("fill file");
     expect(outcome(items, "LinkedIn")).toBe("fill https://www.linkedin.com/in/anasouza");
+    expect(outcome(items, "URL")).toBe("fill https://anasouza.dev");
   });
 
   it("maps Application Questions and leaves Voluntary Disclosures alone", () => {

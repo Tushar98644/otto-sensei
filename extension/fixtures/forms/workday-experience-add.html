@@ -1,0 +1,33 @@
+<!-- Workday apply step "My Experience" as it first opens, before any Add is pressed: each list shows only its Add button. Hand-built from Workday's markup (data-automation-id names as on myworkdayjobs.com, 2026-11); workday-experience.html is the same step after one Add in each list. -->
+<!doctype html>
+<html lang="en-US"><head><meta charset="utf-8"><title>Senior Security Engineer : NVIDIA</title></head>
+<body>
+<div data-automation-id="applyFlowPage">
+  <div data-automation-id="progressBar"><ol>
+    <li data-automation-id="progressBarActiveStep"><div>current step 3 of 7</div><label>My Experience</label></li>
+  </ol></div>
+  <div data-automation-id="myExperiencePage">
+    <h2>My Experience</h2>
+    <div data-automation-id="workExperienceSection">
+      <h3>Work Experience</h3>
+      <button type="button" data-automation-id="Add" aria-label="Add Work Experience">Add</button>
+    </div>
+    <div data-automation-id="educationSection">
+      <h3>Education</h3>
+      <button type="button" data-automation-id="Add" aria-label="Add Education">Add</button>
+    </div>
+    <div data-automation-id="resumeSection">
+      <h3>Resume/CV</h3>
+      <div data-automation-id="formField-resumeUpload"><label for="resumeAttachments--attachments">Upload a file (5MB max)</label>
+        <div data-automation-id="attachments-FileUpload"><input type="file" id="resumeAttachments--attachments" data-automation-id="file-upload-input-ref" accept=".pdf,.doc,.docx"><button type="button" data-automation-id="select-files">Select files</button></div>
+      </div>
+    </div>
+    <div data-automation-id="websiteSection">
+      <h3>Websites</h3>
+      <button type="button" data-automation-id="Add" aria-label="Add Websites">Add</button>
+    </div>
+    <div data-automation-id="formField-linkedinQuestion"><label for="socialNetworkAccounts--linkedInAccount">LinkedIn</label><input type="text" id="socialNetworkAccounts--linkedInAccount" data-automation-id="linkedinQuestion"></div>
+  </div>
+</div>
+<div data-automation-id="pageFooter"><button type="button" data-automation-id="bottom-navigation-back-button">Back</button><button type="button" data-automation-id="bottom-navigation-next-button">Save and Continue</button></div>
+</body></html>
