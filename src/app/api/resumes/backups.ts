@@ -115,12 +115,13 @@ export async function saveBackup(
   now = Date.now(),
   planLimit: number = MAX_RESUMES_PER_USER,
   base?: number,
-): Promise<{ status: SaveStatus; bytes: number }> {
+): Promise<{ status: SaveStatus; bytes: number; created: boolean }> {
   const data = JSON.stringify(resume, storableText);
   const bytes = Buffer.byteLength(data, "utf8");
-  if (bytes > MAX_RESUME_BYTES) return { status: "too_large", bytes };
+  if (bytes > MAX_RESUME_BYTES) return { status: "too_large", bytes, created: false };
 
   const db = await getDb();
+  let created = false;
   const status = await db.transaction(async (tx): Promise<SaveStatus> => {
     if (!(await lockUser(tx, userId))) return "no_user";
     // After the lock, in its own statement: one taken with it would read from before the wait.
@@ -169,9 +170,10 @@ export async function saveBackup(
         setWhere: base === undefined ? newer : sql`${newer} and ${resumes.updatedAt} = ${base}`,
       })
       .returning({ id: resumes.id });
+    created = stored === null && written.length > 0;
     return written.length > 0 ? "saved" : "stale";
   });
-  return { status, bytes };
+  return { status, bytes, created };
 }
 
 // One transaction under the row lock, so no device can restore it in between.

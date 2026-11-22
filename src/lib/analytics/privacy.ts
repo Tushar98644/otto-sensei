@@ -7,7 +7,12 @@ const MAX_STRING = 120;
 
 function isUrlKey(key: string): boolean {
   const name = key.toLowerCase();
-  return name.includes("url") || name.includes("referrer") || name.includes("pathname") || name === "$host";
+  return (
+    name.includes("url") ||
+    name.includes("referrer") ||
+    name.includes("pathname") ||
+    name === "$host"
+  );
 }
 
 export function cleanUrl(value: string): string {
@@ -43,4 +48,9 @@ export function trackingRefused(nav: Navigator | undefined, legacyDnt?: string |
   const signals = nav as Navigator & { globalPrivacyControl?: boolean; msDoNotTrack?: string };
   const dnt = nav.doNotTrack ?? signals.msDoNotTrack ?? legacyDnt;
   return dnt === "1" || dnt === "yes" || signals.globalPrivacyControl === true;
+}
+
+// The same refusal, as a browser sends it with a request: Do Not Track or Global Privacy Control.
+export function trackingRefusedByHeaders(headers: { get(name: string): string | null }): boolean {
+  return headers.get("dnt") === "1" || headers.get("sec-gpc") === "1";
 }

@@ -1,3 +1,4 @@
+import { trackStatusChanges } from "@/lib/analytics/retention";
 import { fail, NO_STORE, ok } from "@/lib/api/respond";
 import {
   UpdateApplicationSchema,
@@ -54,9 +55,10 @@ export async function PATCH(req: Request, { params }: Context): Promise<Response
       log.info("applications.bad_request", { reason: body.message });
       return fail("bad_request", INVALID, 400);
     }
-    const application = await updateApplication(user.id, id, body.data);
-    if (!application) return fail("not_found", NOT_FOUND, 404);
-    const response: Omit<ApplicationResponse, "ok"> = { application };
+    const updated = await updateApplication(user.id, id, body.data);
+    if (!updated) return fail("not_found", NOT_FOUND, 404);
+    if (updated.moved) trackStatusChanges(user.id, [updated.moved]);
+    const response: Omit<ApplicationResponse, "ok"> = { application: updated.application };
     return ok(response);
   } catch (error) {
     log.error("applications.update_failed", error);

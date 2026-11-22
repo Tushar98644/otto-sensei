@@ -182,7 +182,12 @@ describe("runWeeklyJobEmails", () => {
     expect(message?.text).toContain("Backend Engineer");
     expect(message?.text).toContain("https://job-boards.greenhouse.io/acme/jobs/1");
     expect(message?.text).not.toContain("Platform Engineer");
-    expect(message?.text).toContain("See all your matches: https://otto.test/dashboard/jobs");
+    expect(message?.text).toContain(
+      "See all your matches: https://otto.test/dashboard/jobs?utm_source=otto&utm_medium=email&utm_campaign=weekly_jobs&utm_content=jobs",
+    );
+    expect(message?.text).toMatch(
+      /Tailor your resume: https:\/\/otto\.test\/dashboard\/jobs\?utm_source=otto&utm_medium=email&utm_campaign=weekly_jobs&utm_content=tailor&tailor=[0-9a-f-]{36}/,
+    );
     expect(message?.headers?.["List-Unsubscribe"]).toMatch(/&l=jobs>$/);
     expect(message?.tags).toEqual([{ name: "kind", value: "weekly_jobs" }]);
     expect((await settingsOf(pro.id))?.emailedAt).not.toBeNull();

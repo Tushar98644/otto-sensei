@@ -4,6 +4,7 @@ import { usePathname } from "next/navigation";
 import { useEffect, useSyncExternalStore } from "react";
 import { useMe } from "@/components/account/use-me";
 import { isAppPage } from "@/lib/observability/pages";
+import { ActivityBeacon } from "./activity-beacon";
 import { analyticsEnabled, identifyUser, resetUser, startAnalytics } from "./client";
 
 const noChanges = () => () => {};
@@ -34,5 +35,5 @@ function IdentitySync() {
     else resetUser();
   }, [known, id, plan]);
 
-  return null;
+  return id ? <ActivityBeacon /> : null;
 }

@@ -1,3 +1,4 @@
+import { trackJobSaved } from "@/lib/analytics/retention";
 import { fail, ok } from "@/lib/api/respond";
 import { rejectNonJson } from "@/lib/auth/route-guards";
 import { savedPostBoardPath } from "@/lib/extension/links";
@@ -48,6 +49,7 @@ export async function POST(req: Request): Promise<Response> {
       );
     }
     log.info("extension.saved", { site: body.data.site, created: result.created });
+    if (result.created) trackJobSaved(user.id, "extension");
     const response: Omit<SavePostResponse, "ok"> = {
       post: { ...result.ref, created: result.created },
       boardPath: savedPostBoardPath(result.ref.id),

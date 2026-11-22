@@ -5,6 +5,7 @@ import { lockUser } from "@/db/locks";
 import { applications, users, workProfiles } from "@/db/schema";
 import { ROUTES } from "@/components/site/routes";
 import { hasProTools } from "@/config/plans";
+import { emailLink } from "@/lib/analytics/landing";
 import { appUrl } from "@/lib/env";
 import { log } from "@/lib/log";
 import { EMAIL_BATCH_MAX, type EmailMessage, type EmailSender } from "@/lib/notifications/email";
@@ -107,7 +108,9 @@ async function claimForUser(userId: string, now: number): Promise<Claimed | null
         interviewAt: applications.interviewAt,
       });
     const interviews = soon
-      .flatMap((row) => (row.interviewAt === null ? [] : [{ ...row, interviewAt: row.interviewAt }]))
+      .flatMap((row) =>
+        row.interviewAt === null ? [] : [{ ...row, interviewAt: row.interviewAt }],
+      )
       .sort((a, b) => a.interviewAt - b.interviewAt);
     if (due.length === 0 && interviews.length === 0) return null;
     const timeZone = owner.timeZone || null;
@@ -150,19 +153,23 @@ function batchKey(claimed: readonly Claimed[]): string {
 
 function emailFor(item: Claimed, now: number): EmailMessage {
   const base = appUrl();
+  const at = (path: string) => new URL(path, base).toString();
   return followUpEmail({
     to: item.email,
     applications: item.due,
-    interviews: item.interviews.map((interview) =>
-      interviewEmailLine(interview, now, item.timeZone, base),
-    ),
+    interviews: item.interviews.map((interview) => {
+      const line = interviewEmailLine(interview, now, item.timeZone, base);
+      return { ...line, prepUrl: emailLink(line.prepUrl, "follow_up", "prep") };
+    }),
     now,
-    applicationsUrl: new URL(ROUTES.dashboardApplications, base).toString(),
-    settingsUrl: new URL(`${ROUTES.dashboardAccount}#reminders`, base).toString(),
+    applicationsUrl: emailLink(at(ROUTES.dashboardApplications), "follow_up", "applications"),
+    settingsUrl: emailLink(at(`${ROUTES.dashboardAccount}#reminders`), "follow_up", "settings"),
     actionUrls: (applicationId) => ({
       done: followUpActionUrl(item.userId, applicationId, "done"),
       snooze: followUpActionUrl(item.userId, applicationId, "snooze"),
-      write: item.canWrite ? new URL(followUpWritePath(applicationId), base).toString() : null,
+      write: item.canWrite
+        ? emailLink(at(followUpWritePath(applicationId)), "follow_up", "write")
+        : null,
     }),
     unsubscribeUrl: unsubscribeUrl(item.userId),
     unsubscribePageUrl: unsubscribePageUrl(item.userId),

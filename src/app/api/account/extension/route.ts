@@ -1,3 +1,4 @@
+import { trackExtensionConnected } from "@/lib/analytics/retention";
 import { fail, NO_STORE, ok } from "@/lib/api/respond";
 import { rejectCrossSite, rejectNonJson } from "@/lib/auth/route-guards";
 import { getCurrentUser } from "@/lib/auth/session";
@@ -50,6 +51,7 @@ export async function POST(req: Request): Promise<Response> {
     const issued = await issueExtensionToken(user.id);
     if (!issued) return fail("unauthorized", SIGN_IN, 401, NO_STORE);
     log.info("extension.connected", {});
+    trackExtensionConnected(user.id);
     const response: Omit<ExtensionConnectResponse, "ok"> = issued;
     return ok(response, { headers: NO_STORE });
   } catch (error) {

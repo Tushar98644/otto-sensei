@@ -25,6 +25,7 @@ import {
 } from "@/db/schema";
 import type { CronContext, CronOutcome } from "@/lib/cron/run";
 import { appUrl } from "@/lib/env";
+import { emailLink } from "@/lib/analytics/landing";
 import { log } from "@/lib/log";
 import { DAY_MS, HOUR_MS } from "@/lib/time";
 import { cycleKey, monthKey } from "@/lib/usage";
@@ -247,13 +248,13 @@ function emailFor(item: Claimed, now: number): EmailMessage {
     timeZone: item.timeZone,
     month: now,
     urls: {
-      resumes: at(ROUTES.dashboardResumes),
-      jobs: at(ROUTES.dashboardJobs),
-      plans: at(ROUTES.pricing),
+      resumes: emailLink(at(ROUTES.dashboardResumes), "tips", item.kind),
+      jobs: emailLink(at(ROUTES.dashboardJobs), "tips", item.kind),
+      plans: emailLink(at(ROUTES.pricing), "tips", item.kind),
     },
     links: {
       ottoHeadUrl: at(OTTO_HEAD_EMAIL_PATH),
-      settingsUrl: at(accountSectionHref("reminders")),
+      settingsUrl: emailLink(at(accountSectionHref("reminders")), "tips", "settings"),
       unsubscribeUrl: unsubscribeUrl(item.userId, "tips"),
     },
   });

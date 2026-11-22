@@ -1,3 +1,4 @@
+import { trackPortfolioPublished } from "@/lib/analytics/retention";
 import { fail, NO_STORE, ok } from "@/lib/api/respond";
 import { rejectCrossSite, rejectNonJson } from "@/lib/auth/route-guards";
 import { getCurrentUser } from "@/lib/auth/session";
@@ -112,12 +113,17 @@ export async function PATCH(req: Request): Promise<Response> {
         400,
       );
     }
+    const now = Date.now();
     const result = await screenedWrite(
       user.id,
       "portfolio.update",
       (current) => patchParts(current, body.data),
-      (version) => updatePortfolio(user.id, body.data, user, Date.now(), version),
+      (version) => updatePortfolio(user.id, body.data, user, now, version),
     );
+    // publishedAt moves only when a hidden page goes live.
+    if (result.status === "saved" && result.portfolio.publishedAt === now) {
+      trackPortfolioPublished(user.id, result.portfolio.template);
+    }
     return answer(result);
   } catch (error) {
     log.error("portfolio.update_failed", error);

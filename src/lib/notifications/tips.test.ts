@@ -163,9 +163,11 @@ describe("runTipEmails", () => {
       /^<https:\/\/otto\.test\/api\/notifications\/unsubscribe\?u=[0-9a-f-]{36}&t=[\w-]{43}&l=tips>$/,
     );
     expect(message?.headers?.["List-Unsubscribe-Post"]).toBe("List-Unsubscribe=One-Click");
-    expect(message?.text).toContain("https://otto.test/dashboard/resumes");
     expect(message?.text).toContain(
-      "Email settings: https://otto.test/dashboard/account#reminders",
+      "https://otto.test/dashboard/resumes?utm_source=otto&utm_medium=email&utm_campaign=tips&utm_content=no_resume",
+    );
+    expect(message?.text).toContain(
+      "Email settings: https://otto.test/dashboard/account?utm_source=otto&utm_medium=email&utm_campaign=tips&utm_content=settings#reminders",
     );
     expect(message?.html).not.toContain("<script");
     expect(message?.text).toContain("Otto Sensei, PO Box 100, Springfield");

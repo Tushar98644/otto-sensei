@@ -2,6 +2,7 @@ import {
   bigint,
   boolean,
   customType,
+  date,
   index,
   integer,
   jsonb,
@@ -591,6 +592,12 @@ export const extensionTokens = pgTable(
     index("extension_tokens_expires_idx").on(t.expiresAt),
   ],
 );
+
+// The last calendar day, in the person's own time zone, they opened an app page.
+export const userActivity = pgTable("user_activity", {
+  userId: uuid("user_id").primaryKey(),
+  activeOn: date("active_on", { mode: "string" }).notNull(),
+});
 
 export const savedPosts = pgTable(
   "saved_posts",

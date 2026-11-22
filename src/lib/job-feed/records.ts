@@ -296,7 +296,7 @@ export async function jobStats(
   return { openJobs: open, checkedAt: read?.at ?? null };
 }
 
-export type SaveJobResult = "saved" | "not_found" | "limit_reached" | "no_user";
+export type SaveJobResult = "saved" | "already_saved" | "not_found" | "limit_reached" | "no_user";
 
 export async function saveJob(
   db: Db,
@@ -313,7 +313,7 @@ export async function saveJob(
       .from(savedJobs)
       .where(and(eq(savedJobs.userId, userId), eq(savedJobs.jobId, jobId)))
       .limit(1);
-    if (already) return "saved";
+    if (already) return "already_saved";
     const [total] = await tx
       .select({ n: count() })
       .from(savedJobs)

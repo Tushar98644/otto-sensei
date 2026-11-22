@@ -9,6 +9,7 @@ import { ResumeWeb } from "@/components/share/resume-web";
 import { SharePageFrame } from "@/components/share/share-page-frame";
 import { ShareUnavailable } from "@/components/share/share-unavailable";
 import { BRAND } from "@/config/brand";
+import { trackShareViewed } from "@/lib/analytics/retention";
 import { currentUserIdHint, getCurrentUser } from "@/lib/auth/session";
 import { log } from "@/lib/log";
 import { waitText } from "@/lib/rate-limit";
@@ -91,9 +92,13 @@ export default async function SharedResumePage({ params }: Props) {
   if (!owner && countsAsView({ userAgent, prefetch: isPrefetch(requestHeaders) })) {
     const reader = readerKey(ipFromHeaders(requestHeaders), userAgent ?? "");
     after(() =>
-      recordView(share.id, reader).catch((error: unknown) => {
-        log.warn("share.view_not_counted", { shareId: share.id }, error);
-      }),
+      recordView(share.id, reader)
+        .then((counted) => {
+          if (counted) trackShareViewed(share.ownerId);
+        })
+        .catch((error: unknown) => {
+          log.warn("share.view_not_counted", { shareId: share.id }, error);
+        }),
     );
   }
   const ownerBar = owner && (await ownerIsSignedIn(share.ownerId));

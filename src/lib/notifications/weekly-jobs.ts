@@ -3,6 +3,7 @@ import { and, asc, desc, eq, inArray, isNull, lte, notInArray, or, sql } from "d
 import { accountSectionHref } from "@/components/setup/links";
 import { ROUTES } from "@/components/site/routes";
 import { FREE_JOB_MATCHES, hasProTools, type PlanId } from "@/config/plans";
+import { emailLink } from "@/lib/analytics/landing";
 import { getDb, type Db } from "@/db/client";
 import { lockUser } from "@/db/locks";
 import { applications, jobs, notificationSettings, resumes, users } from "@/db/schema";
@@ -215,10 +216,10 @@ function emailFor(item: Claimed): EmailMessage {
     found: item.found,
     jobs: item.jobs,
     free: item.free,
-    jobsUrl: at(ROUTES.dashboardJobs),
+    jobsUrl: emailLink(at(ROUTES.dashboardJobs), "weekly_jobs", "jobs"),
     links: {
       ottoHeadUrl: at(OTTO_HEAD_EMAIL_PATH),
-      settingsUrl: at(accountSectionHref("reminders")),
+      settingsUrl: emailLink(at(accountSectionHref("reminders")), "weekly_jobs", "settings"),
       unsubscribeUrl: unsubscribeUrl(item.userId, "jobs"),
     },
   });

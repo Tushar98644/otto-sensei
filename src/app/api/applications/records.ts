@@ -45,7 +45,10 @@ export const APPLICATION_COLUMNS = {
   updatedAt: applications.updatedAt,
 };
 
-type Row = Pick<typeof applications.$inferSelect, Exclude<keyof typeof APPLICATION_COLUMNS, "hasPrep">> & {
+type Row = Pick<
+  typeof applications.$inferSelect,
+  Exclude<keyof typeof APPLICATION_COLUMNS, "hasPrep">
+> & {
   hasPrep: boolean;
 };
 
@@ -212,12 +215,26 @@ function statusChange(
   };
 }
 
+export type StatusMove = { from: ApplicationStatus; to: ApplicationStatus };
+
+// Read from the updated row: a change appends to the history, so the entry before the last is where it was.
+const PREVIOUS_STATUS = sql<string | null>`${applications.statusHistory} -> -2 ->> 'status'`;
+
+function moveOf(row: Row & { previousStatus: string | null }, now: number): StatusMove | null {
+  if (row.statusChangedAt !== now) return null;
+  const from = readStatus(row.previousStatus);
+  const to = readStatus(row.status);
+  return from !== null && to !== null && from !== to ? { from, to } : null;
+}
+
+export type UpdatedApplication = { application: Application; moved: StatusMove | null };
+
 export async function updateApplication(
   userId: string,
   id: string,
   patch: UpdateApplicationInput,
   now = Date.now(),
-): Promise<Application | null> {
+): Promise<UpdatedApplication | null> {
   const db = await getDb();
   const set: PgUpdateSetSource<typeof applications> = {
     updatedAt: now,
@@ -239,13 +256,16 @@ export async function updateApplication(
     .update(applications)
     .set(set)
     .where(and(eq(applications.userId, userId), eq(applications.id, id)))
-    .returning(APPLICATION_COLUMNS);
+    .returning({ ...APPLICATION_COLUMNS, previousStatus: PREVIOUS_STATUS });
   const row = rows[0];
   if (!row) return null;
   if (patch.jobUrl !== undefined || patch.company !== undefined || patch.role !== undefined) {
     await linkWritings(db, userId, row.id, row);
   }
-  return toApplication(row);
+  return {
+    application: toApplication(row),
+    moved: patch.status === undefined ? null : moveOf(row, now),
+  };
 }
 
 export async function setStatusMany(
@@ -253,7 +273,7 @@ export async function setStatusMany(
   ids: readonly string[],
   status: ApplicationStatus,
   now = Date.now(),
-): Promise<Application[]> {
+): Promise<{ applications: Application[]; moves: StatusMove[] }> {
   const db = await getDb();
   const rows = await db
     .update(applications)
@@ -265,8 +285,11 @@ export async function setStatusMany(
         ne(applications.status, status),
       ),
     )
-    .returning(APPLICATION_COLUMNS);
-  return rows.map(toApplication);
+    .returning({ ...APPLICATION_COLUMNS, previousStatus: PREVIOUS_STATUS });
+  return {
+    applications: rows.map(toApplication),
+    moves: rows.flatMap((row) => moveOf(row, now) ?? []),
+  };
 }
 
 export async function deleteApplication(userId: string, id: string): Promise<boolean> {

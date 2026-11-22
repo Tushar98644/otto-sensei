@@ -1,4 +1,5 @@
 import { resumeLimit } from "@/config/plans";
+import { trackTailoredCopy } from "@/lib/analytics/retention";
 import { fail, ok } from "@/lib/api/respond";
 import { PutResumeSchema, type EmptyOk, type PutResumeResponse } from "@/lib/api/types";
 import { rejectNonJson } from "@/lib/auth/route-guards";
@@ -42,21 +43,35 @@ export async function PUT(req: Request, { params }: Context): Promise<Response> 
     const body = await readJson(req, PutResumeSchema);
     if (!body.ok) {
       log.info("resumes.bad_request", { reason: body.message });
-      return fail("bad_request", "That resume couldn't be saved because part of it isn't valid.", 400);
+      return fail(
+        "bad_request",
+        "That resume couldn't be saved because part of it isn't valid.",
+        400,
+      );
     }
     if (body.data.id !== id) {
       return fail("bad_request", "The resume doesn't match the address it was sent to.", 400);
     }
 
     const planLimit = resumeLimit(user.plan);
-    const { status, bytes } = await saveBackup(user.id, body.data, Date.now(), planLimit, baseOf(req));
+    const { status, bytes, created } = await saveBackup(
+      user.id,
+      body.data,
+      Date.now(),
+      planLimit,
+      baseOf(req),
+    );
     if (status === "no_user") {
       log.info("resumes.write_after_account_deleted");
       return fail("unauthorized", SIGN_IN, 401);
     }
     if (status === "too_large") {
       log.warn("resumes.too_large", { bytes });
-      return fail("too_large", "That resume is too long to back up. Shorten it a little and it will save again.", 413);
+      return fail(
+        "too_large",
+        "That resume is too long to back up. Shorten it a little and it will save again.",
+        413,
+      );
     }
     if (status === "limit_reached") {
       log.info("resumes.limit_reached", { max: MAX_RESUMES_PER_USER });
@@ -71,6 +86,7 @@ export async function PUT(req: Request, { params }: Context): Promise<Response> 
       log.info("resumes.write_after_delete");
       return ok(DELETED);
     }
+    if (created && body.data.tailor) trackTailoredCopy(user.id);
     if (status === "stale") log.info("resumes.stale_write");
     else await syncPortfolioWith(user.id, body.data);
     return ok(status === "stale" ? STALE : SAVED);

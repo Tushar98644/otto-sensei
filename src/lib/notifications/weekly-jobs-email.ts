@@ -35,6 +35,7 @@ const POST_LABEL = "View the post";
 export function tailorUrl(jobsUrl: string, jobId: string): string {
   const url = new URL(jobsUrl);
   url.searchParams.set("tailor", jobId);
+  if (url.searchParams.has("utm_content")) url.searchParams.set("utm_content", "tailor");
   return url.toString();
 }
 

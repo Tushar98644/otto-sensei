@@ -5,6 +5,7 @@ import { PRO_TRIAL, type BillingInterval, type PaidPlanId } from "@/config/plans
 import { getDb } from "@/db/client";
 import { lockUser } from "@/db/locks";
 import { trialReminders, users, workProfiles } from "@/db/schema";
+import { emailLink } from "@/lib/analytics/landing";
 import { MOCK_STATUS } from "@/lib/billing/mock";
 import { appUrl } from "@/lib/env";
 import { log } from "@/lib/log";
@@ -120,7 +121,7 @@ function emailFor(item: Claimed): EmailMessage {
   return trialEndingEmail({
     ...item,
     to: item.email,
-    accountUrl: new URL(ROUTES.account, base).toString(),
+    accountUrl: emailLink(new URL(ROUTES.account, base).toString(), "trial_ending", "account"),
     ottoHeadUrl: new URL(OTTO_HEAD_EMAIL_PATH, base).toString(),
   });
 }

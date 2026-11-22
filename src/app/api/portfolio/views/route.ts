@@ -1,3 +1,4 @@
+import { trackPortfolioViewed } from "@/lib/analytics/retention";
 import { fail, ok } from "@/lib/api/respond";
 import { rejectCrossSite, rejectNonJson } from "@/lib/auth/route-guards";
 import { getCurrentUser } from "@/lib/auth/session";
@@ -31,7 +32,9 @@ export async function POST(req: Request): Promise<Response> {
     if (isAutomatedAgent(req.headers.get("user-agent"))) return ok(NOT_COUNTED);
     const target = await findViewTarget(body.data.slug);
     if (!target || (await ownerIsReading(target.ownerId))) return ok(NOT_COUNTED);
-    return ok((await countView(target.id)) ? COUNTED : NOT_COUNTED);
+    if (!(await countView(target.id))) return ok(NOT_COUNTED);
+    trackPortfolioViewed(target.ownerId);
+    return ok(COUNTED);
   } catch (error) {
     log.warn("portfolio.view_not_counted", {}, error);
     return ok(NOT_COUNTED);

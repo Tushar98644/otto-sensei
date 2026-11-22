@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { getDb } from "@/db/client";
+import { trackJobSaved } from "@/lib/analytics/retention";
 import { fail, NO_STORE, ok } from "@/lib/api/respond";
 import { rejectCrossSite } from "@/lib/auth/route-guards";
 import { getCurrentUser } from "@/lib/auth/session";
@@ -34,7 +35,8 @@ export async function PUT(req: Request, context: Context): Promise<Response> {
     const db = await getDb();
     const result = await saveJob(db, user.id, id);
     if (result === "no_user") return fail("unauthorized", SIGN_IN, 401, NO_STORE);
-    if (result === "not_found") return fail("not_found", "That job isn't here any more.", 404, NO_STORE);
+    if (result === "not_found")
+      return fail("not_found", "That job isn't here any more.", 404, NO_STORE);
     if (result === "limit_reached") {
       return fail(
         "bad_request",
@@ -43,7 +45,11 @@ export async function PUT(req: Request, context: Context): Promise<Response> {
         NO_STORE,
       );
     }
-    const response: Omit<SavedJobResponse, "ok"> = { saved: true, savedCount: await savedCount(db, user.id) };
+    if (result === "saved") trackJobSaved(user.id, "jobs");
+    const response: Omit<SavedJobResponse, "ok"> = {
+      saved: true,
+      savedCount: await savedCount(db, user.id),
+    };
     return ok(response, { headers: NO_STORE });
   } catch (error) {
     log.error("jobs.save_failed", error);
@@ -60,7 +66,10 @@ export async function DELETE(req: Request, context: Context): Promise<Response> 
     const id = await jobId(context);
     const db = await getDb();
     if (id) await unsaveJob(db, user.id, id);
-    const response: Omit<SavedJobResponse, "ok"> = { saved: false, savedCount: await savedCount(db, user.id) };
+    const response: Omit<SavedJobResponse, "ok"> = {
+      saved: false,
+      savedCount: await savedCount(db, user.id),
+    };
     return ok(response, { headers: NO_STORE });
   } catch (error) {
     log.error("jobs.unsave_failed", error);

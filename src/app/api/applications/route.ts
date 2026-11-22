@@ -1,4 +1,5 @@
 import { FREE_APPLICATIONS, hasProTools } from "@/config/plans";
+import { trackStatusChanges } from "@/lib/analytics/retention";
 import { captureServerEvent } from "@/lib/analytics/server";
 import { fail, NO_STORE, ok } from "@/lib/api/respond";
 import {
@@ -96,7 +97,8 @@ export async function PATCH(req: Request): Promise<Response> {
       return fail("bad_request", INVALID, 400);
     }
     const changed = await setStatusMany(user.id, body.data.ids, body.data.status);
-    const response: Omit<BulkApplicationsResponse, "ok"> = { applications: changed };
+    trackStatusChanges(user.id, changed.moves);
+    const response: Omit<BulkApplicationsResponse, "ok"> = { applications: changed.applications };
     return ok(response);
   } catch (error) {
     log.error("applications.bulk_update_failed", error);

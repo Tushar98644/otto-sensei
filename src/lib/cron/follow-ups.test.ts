@@ -72,7 +72,9 @@ async function proUser(email: string) {
 }
 
 async function notificationsOf(userId: string) {
-  const rows = await (await getDb())
+  const rows = await (
+    await getDb()
+  )
     .select()
     .from(notifications)
     .where(eq(notifications.userId, userId));
@@ -174,11 +176,15 @@ describe("runFollowUps", () => {
     );
     expect(email!.text).toContain("Snooze 3 days: https://otto.test/reminder?do=snooze");
     expect(email!.text).toContain(
-      `Write it for me: https://otto.test/dashboard/applications/${stripe}?write=follow-up`,
+      `Write it for me: https://otto.test/dashboard/applications/${stripe}?write=follow-up&utm_source=otto&utm_medium=email&utm_campaign=follow_up&utm_content=write`,
     );
-    expect(email!.text).toContain("https://otto.test/dashboard/applications");
+    expect(email!.text).toContain(
+      "https://otto.test/dashboard/applications?utm_source=otto&utm_medium=email&utm_campaign=follow_up&utm_content=applications",
+    );
     expect(email!.text).toContain("https://otto.test/reminder?do=unsubscribe");
-    expect(email!.text).toContain("https://otto.test/dashboard/account#reminders");
+    expect(email!.text).toContain(
+      "https://otto.test/dashboard/account?utm_source=otto&utm_medium=email&utm_campaign=follow_up&utm_content=settings#reminders",
+    );
     expect(email!.headers?.["List-Unsubscribe"]).toMatch(
       new RegExp(
         `^<https://otto\\.test/api/notifications/unsubscribe\\?u=${maya.id}&t=[\\w-]{43}>$`,
@@ -336,7 +342,12 @@ describe("runFollowUps", () => {
 
     const outcome = await runFollowUps(context(), { sender });
 
-    expect(outcome.stats).toMatchObject({ users: 1, applications: 0, interviews: 1, emailsSent: 1 });
+    expect(outcome.stats).toMatchObject({
+      users: 1,
+      applications: 0,
+      interviews: 1,
+      emailsSent: 1,
+    });
     const rows = await notificationsOf(maya.id);
     expect(rows).toHaveLength(1);
     expect(rows[0]).toMatchObject({
@@ -366,7 +377,9 @@ describe("runFollowUps", () => {
     const sender = fakeSender();
     await runFollowUps(context(), { sender });
 
-    await (await getDb())
+    await (
+      await getDb()
+    )
       .update(applications)
       .set({ interviewAt: Date.UTC(2026, 10, 9, 16) })
       .where(eq(applications.id, stripe));
@@ -402,7 +415,12 @@ describe("runFollowUps", () => {
 
     const outcome = await runFollowUps(context(), { sender });
 
-    expect(outcome.stats).toMatchObject({ users: 1, applications: 1, interviews: 1, emailsSent: 1 });
+    expect(outcome.stats).toMatchObject({
+      users: 1,
+      applications: 1,
+      interviews: 1,
+      emailsSent: 1,
+    });
     expect((await notificationsOf(maya.id)).map((row) => row.kind)).toEqual([
       "interview_soon",
       "application_follow_up",
@@ -412,6 +430,8 @@ describe("runFollowUps", () => {
     expect(email!.subject).toBe("Your interview with Figma is tomorrow");
     expect(email!.text.indexOf("Figma")).toBeLessThan(email!.text.indexOf("Stripe"));
     expect(email!.text).toContain(`/dashboard/applications/${figma}/prep?start=1`);
-    expect(email!.text).toContain("Open your applications: https://otto.test/dashboard/applications");
+    expect(email!.text).toContain(
+      "Open your applications: https://otto.test/dashboard/applications",
+    );
   });
 });
