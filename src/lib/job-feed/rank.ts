@@ -43,6 +43,7 @@ import {
   zoneFactor,
   type Ranked,
 } from "./order";
+import { gateAllows, roleGate } from "./role-gate";
 import { familyFits } from "./roles";
 import {
   CANDIDATE_POOL,
@@ -73,7 +74,7 @@ const COPIES_CHECKED = 6;
 const PLACES_SHOWN = 2;
 const FREE_POOL = 60;
 
-export const MATCH_VARIANT = "occupation-v6";
+export const MATCH_VARIANT = "role-gate-v1";
 
 export function occupationOption(code: string | null): OccupationOption | null {
   const occupation = occupationOf(code);
@@ -260,6 +261,9 @@ export async function rankJobs(db: Db, request: RankRequest): Promise<RankResult
   const weight = (skill: string) => weights.get(skill) ?? DEFAULT_SKILL_WEIGHT;
   const families = [...person.families];
   const accepted = acceptedPlaces(lookingFor.place);
+  // Only the person's own kind of work is shown, however many skills another job shares.
+  const gate = roleGate(lookingFor);
+  const interns = person.seniority === "intern";
   // Past the pages ranked here in full, each page reads the next openings in the index's own order.
   const deep =
     !request.free && !filters.eligibleOnly && request.page > CANDIDATE_POOL / JOB_PAGE_SIZE;
@@ -284,6 +288,8 @@ export async function rankJobs(db: Db, request: RankRequest): Promise<RankResult
         majors: person.majors,
         byFamily: person.families.size > 0,
       },
+      gate,
+      interns,
     },
     counts,
     now,
@@ -295,6 +301,7 @@ export async function rankJobs(db: Db, request: RankRequest): Promise<RankResult
     if (fit === "miss") continue;
     const { row } = opening;
     const facts = factsOf(row, opening.kind);
+    if (!gateAllows(gate, facts) || (!interns && row.seniority === "intern")) continue;
     if (!matchJob(person, facts)) continue;
     const { shown, others, hint } = pickCopy(opening, check, accepted);
     const match = matchJob(person, facts, hint) ?? unmatched(facts, hint);

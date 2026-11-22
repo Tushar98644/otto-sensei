@@ -16,9 +16,11 @@ import { lookingForOf } from "@/lib/job-feed/looking-for";
 import {
   DEFAULT_FILTERS,
   MATCH_PROFILE_LIMITS,
+  NO_CHOICE,
   type JobMatch,
   type MatchProfile,
 } from "@/lib/job-feed/types";
+import { labelOf, PERSONAS, PLACES } from "./match-eval/personas";
 import { TECH_FIELDS, TEST_RESUMES, type TestResume } from "./match-eval/resumes";
 
 const OUT = path.join(process.cwd(), "..", "match-eval");
@@ -1104,6 +1106,149 @@ async function sizes() {
   );
 }
 
+// Personas (scripts/match-eval/personas.ts): the first `--pages` pages for each persona and place.
+const PERSONA_RUNS = path.join(OUT, "personas.json");
+const PERSONA_LABELS = path.join(process.cwd(), "scripts", "match-eval", "labels.json");
+
+type PersonaRun = {
+  matching: number;
+  ms: number;
+  jobs: { id: string; title: string; company: string }[];
+};
+type PersonaRuns = { now: number; variants: Record<string, Record<string, PersonaRun>> };
+
+async function personas() {
+  const db = await openDb();
+  const { readStoredCounts } = await import("@/lib/job-feed/match-index");
+  const saved = readJson<PersonaRuns | null>(PERSONA_RUNS, null);
+  const now = Number(flag("--now") ?? saved?.now ?? Date.now());
+  const pages = Number(flag("--pages") ?? 15);
+  const name = flag("--as") ?? MATCH_VARIANT;
+  const counts = await readStoredCounts(db);
+  const runs: Record<string, PersonaRun> = {};
+  for (const persona of PERSONAS) {
+    const profile: MatchProfile = {
+      skills: findSkills(persona.skills, MATCH_PROFILE_LIMITS.skills),
+      titles: persona.titles,
+      years: persona.years,
+    };
+    for (const place of PLACES) {
+      const lookingFor = lookingForOf(profile, place.work, { ...NO_CHOICE, place: place.place });
+      const run: PersonaRun = { matching: 0, ms: 0, jobs: [] };
+      for (let page = 1; page <= pages; page++) {
+        const started = performance.now();
+        const result = await rankJobs(db, {
+          userId: "00000000-0000-4000-8000-000000000000",
+          view: "matches",
+          profile,
+          filters: DEFAULT_FILTERS,
+          page,
+          workProfile: place.work,
+          lookingFor,
+          deviceTimeZone: place.work.timeZone,
+          now,
+          counts,
+        });
+        if (page === 1) {
+          run.ms = Math.round(performance.now() - started);
+          run.matching = result.matching;
+        }
+        run.jobs.push(...result.jobs.map(({ id, title, company }) => ({ id, title, company })));
+        if (result.jobs.length < result.pageSize) break;
+      }
+      runs[`${persona.id}|${place.id}`] = run;
+    }
+    console.log(`${persona.name}: done`);
+  }
+  writeJson(PERSONA_RUNS, {
+    now,
+    variants: { ...saved?.variants, [name]: runs },
+  } satisfies PersonaRuns);
+  const times = Object.values(runs)
+    .map((run) => run.ms)
+    .sort((a, b) => a - b);
+  console.log(
+    `Page 1: p50 ${times[Math.floor(times.length / 2)]} ms, p90 ${times[Math.floor(times.length * 0.9)]} ms`,
+  );
+}
+
+// Precision at 10 and 30 (the persona's own role), off-role share in the top 10 and relevant jobs
+// (own or neighbouring) in the first 300, per persona averaged over places, for every saved variant.
+function personaReport() {
+  const saved = readJson<PersonaRuns | null>(PERSONA_RUNS, null);
+  if (!saved) throw new Error("Run `personas` first.");
+  const labels: Record<string, Record<string, number>> = {};
+  const lines: string[] = [];
+  const header = [
+    "Persona",
+    ...Object.keys(saved.variants).flatMap((name) => [
+      `${name} P@10`,
+      "P@30",
+      "Off-role@10",
+      "Relevant@300",
+    ]),
+  ];
+  lines.push(`| ${header.join(" | ")} |`, `|${header.map(() => "---").join("|")}|`);
+  const totals = new Map<string, number[][]>();
+  for (const persona of PERSONAS) {
+    const cells: string[] = [persona.name];
+    for (const [name, runs] of Object.entries(saved.variants)) {
+      const rows = PLACES.flatMap((place) => {
+        const run = runs[`${persona.id}|${place.id}`];
+        if (!run) return [];
+        const marks = run.jobs.map((job) => {
+          const label = labelOf(persona, job.title);
+          if (run.jobs.indexOf(job) < 30) (labels[persona.id] ??= {})[job.title] = label;
+          return label;
+        });
+        const share = (k: number, test: (label: number) => boolean) => {
+          const top = marks.slice(0, k);
+          return top.length === 0 ? 0 : top.filter(test).length / top.length;
+        };
+        return [
+          [
+            share(10, (l) => l === 2),
+            share(30, (l) => l === 2),
+            share(10, (l) => l === 0),
+            marks.filter((l) => l >= 1).length,
+          ],
+        ];
+      });
+      const list = totals.get(name) ?? [];
+      list.push(...rows);
+      totals.set(name, list);
+      const avg = (i: number) => mean(rows.map((row) => row[i]!));
+      cells.push(
+        `${Math.round(avg(0) * 100)}%`,
+        `${Math.round(avg(1) * 100)}%`,
+        `${Math.round(avg(2) * 100)}%`,
+        String(rows.reduce((sum, row) => sum + row[3]!, 0)),
+      );
+    }
+    lines.push(`| ${cells.join(" | ")} |`);
+  }
+  const all = ["All"];
+  for (const rows of totals.values()) {
+    const avg = (i: number) => mean(rows.map((row) => row[i]!));
+    all.push(
+      `${Math.round(avg(0) * 100)}%`,
+      `${Math.round(avg(1) * 100)}%`,
+      `${Math.round(avg(2) * 100)}%`,
+      String(rows.reduce((sum, row) => sum + row[3]!, 0)),
+    );
+  }
+  lines.push(`| ${all.join(" | ")} |`);
+  console.log(lines.join("\n"));
+  const sorted = Object.fromEntries(
+    Object.entries(labels).map(([id, byTitle]) => [
+      id,
+      Object.fromEntries(Object.entries(byTitle).sort()),
+    ]),
+  );
+  writeFileSync(PERSONA_LABELS, `${JSON.stringify(sorted, null, 2)}\n`);
+  return Promise.resolve();
+}
+
 const step = process.argv[2];
 const steps: Record<string, () => Promise<unknown>> = {
   sizes,
@@ -1116,6 +1261,8 @@ const steps: Record<string, () => Promise<unknown>> = {
   judge,
   report,
   stats,
+  personas,
+  "persona-report": personaReport,
 };
 const run = step ? steps[step] : undefined;
 if (!run) {

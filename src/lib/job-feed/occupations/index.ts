@@ -123,6 +123,10 @@ function index(): Index {
   return built;
 }
 
+export function occupationCodes(): string[] {
+  return [...index().byCode.keys()];
+}
+
 export function occupationOf(code: string | null | undefined): Occupation | null {
   return code ? (index().byCode.get(code) ?? null) : null;
 }

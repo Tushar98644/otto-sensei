@@ -368,7 +368,8 @@ describe("match index", () => {
         remote: false,
       },
     });
-    expect(other.jobs).toHaveLength(1);
+    // A backend job isn't a data role, however many skills it shares.
+    expect(other.jobs).toHaveLength(0);
     expect(await db.select().from(matchCache)).toHaveLength(2);
   });
 

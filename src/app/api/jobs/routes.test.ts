@@ -192,9 +192,8 @@ describe("the Jobs tab on Free", () => {
     const preview = await ranked({ lookingFor });
     expect(preview.lookingFor).toEqual({ ...lookingFor, occupation: "41-4011.00" });
     expect(preview.occupation?.name).toBe("Sales Representative (technical products)");
+    // Only sales jobs, however many skills the engineering ones share.
     expect(preview.jobs.map((job) => [job.title, job.match.label])).toEqual([
-      ["Backend Engineer", "good"],
-      ["Senior Frontend Engineer", "good"],
       ["Account Executive", "stretch"],
     ]);
 
@@ -329,7 +328,7 @@ describe("POST /api/jobs/matches", () => {
     const user = await signInAs();
     await seedJobs();
     const body = await ranked();
-    expect(body).toMatchObject({ variant: "occupation-v6", matching: 3 });
+    expect(body).toMatchObject({ variant: "role-gate-v1", matching: 3 });
     expect(body.requestId).toMatch(/^[0-9a-f-]{36}$/);
     const db = await getDb();
     const shown = await db.select().from(matchEvents).orderBy(matchEvents.position);
@@ -446,7 +445,7 @@ describe("POST /api/jobs/matches", () => {
     const batch = {
       kind: "impressions",
       requestId: crypto.randomUUID(),
-      variant: "occupation-v6",
+      variant: "role-gate-v1",
       resumeHash: "abcdefgh12345678",
       jobs: [{ jobId: crypto.randomUUID(), position: 1, label: "good" }],
     };

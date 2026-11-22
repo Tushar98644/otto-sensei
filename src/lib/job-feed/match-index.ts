@@ -5,6 +5,7 @@ import { log } from "@/lib/log";
 import { jobPlaces, jobPlaceTokens } from "./job-places";
 import { KIND, PAST_KIND_WEIGHT } from "./match";
 import { occupationOf, readTitle } from "./occupations";
+import type { RoleGate } from "./role-gate";
 import { familyFits } from "./roles";
 import { ORDER_LIMITS } from "./order";
 import {
@@ -293,6 +294,10 @@ export type PoolQuery = MatchQuery & {
     majors: ReadonlyMap<string, number>;
     byFamily: boolean;
   };
+  // The kinds of work the person's role may be matched with (role-gate.ts); null lets skills decide.
+  gate?: RoleGate | null;
+  // Internships are shown only to someone looking for one.
+  interns?: boolean;
 };
 
 const floatArray = (values: readonly number[]) =>
@@ -356,6 +361,16 @@ async function indexedPool(
       or m.occ = any(${textArrayLiteral(occCodes)}::text[]) or m.occ_minor = any(${textArrayLiteral(minorCodes)}::text[]))`,
     sql`(k.kind >= ${KIND.same}::float8 or h.found >= 2)`,
   ];
+  const gate = query.gate ?? null;
+  if (gate) {
+    conditions.push(
+      gate.codes.length > 0
+        ? sql`(case when m.occ is not null then m.occ = any(${textArrayLiteral([...gate.codes])}::text[])
+            else m.family = ${gate.family} end)`
+        : sql`m.family = ${gate.family}`,
+    );
+  }
+  if (query.interns === false) conditions.push(sql`m.level <> 0`);
   if (filters.remote) conditions.push(sql`m.remote`);
   if (filters.role) conditions.push(sql`m.family = ${filters.role}`);
   if (filters.level) {
