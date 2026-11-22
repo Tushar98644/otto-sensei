@@ -28,7 +28,7 @@ Rules that apply to every source we use:
 
 ### The seed list
 
-`src/lib/job-feed/seeds.ts`: **605 company boards** (302 Greenhouse, 230 Ashby, 50 Lever, 18 Workable, 3 Recruitee, 2 Personio). Every token was requested and had open jobs: the first 323 on 2026-11-08, mostly tech companies; 282 more on 2026-11-10, all 605 answering that day.
+`src/lib/job-feed/seeds.ts`: **651 company boards** (328 Greenhouse, 241 Ashby, 59 Lever, 18 Workable, 3 Recruitee, 2 Personio). Every token was requested and had open jobs: the first 323 on 2026-11-08, mostly tech companies; 282 more on 2026-11-10, all 605 answering that day; 46 more on 2026-11-22, Indian companies and global ones hiring in India, each with live India jobs that day.
 
 - **The 282 added on 2026-11-10 were chosen for non-tech roles:** healthcare and biotech 67, finance and insurance 56, retail and consumer 42, manufacturing and energy 20, education 19, logistics and mobility 15, staffing and HR 14, services and sales-led 12, hospitality and travel 11, nonprofit and public 9, media 7, real estate 7, legal 3. By home region: US 191, EU 33, UK 23, Canada 23, Australia 9, other 3 (many hire in several countries).
 - **How they were found:** about 1,100 candidate employers in those industries were tried by name on Greenhouse and Ashby (all of them), Lever (about 650 before the run was stopped; Lever answers slowly) and Recruitee and Personio (EU and UK names), and Workable employers were found through Workable's public job search (`jobs.workable.com`, discovery only) and then checked on the documented per-account endpoint. A board was kept when at least 5 open jobs were support, sales, operations, marketing, finance, people, legal, design, product or data roles by `roles.ts`, or 10+ were roles those rules don't name at a non-tech employer (nurses, teachers, store and warehouse staff), and under 60% engineering and data.
@@ -72,7 +72,7 @@ Company facts for the job card ("Listed as a UK visa sponsor") and the work-righ
 | Closed after missing from | `STORE_LIMITS.missedRunsToClose` | 2 reads of its board in a row |
 | Closed jobs deleted after | `STORE_LIMITS.closedRetentionMs`, `referencedRetentionMs` | 7 days; 30 days for one a person saved or linked to an application (about 2% of board jobs close a day, measured 2026-11-10) |
 | Feed jobs (Himalayas, Remote OK, Jobicy) close at | `STORE_LIMITS.feedMaxAgeMs` | their own end date, or 30 days after posting. Company boards' jobs have no age limit: open while the board lists them (owner decision 2026-11-10) |
-| A board is read again after | `INGEST_LIMITS.refreshAfterMs` | 20 hours. A full pass of all 605 boards is about 1,100 s of reads (measured from one laptop, 2026-11-10), so with 4 workers and the 240 s daily budget every board is read at least every 2 days |
+| A board is read again after | `INGEST_LIMITS.refreshAfterMs` | 20 hours. A full pass of all 651 boards is about 1,200 s of reads (605 took 1,100 s, measured from one laptop, 2026-11-10), so with 4 workers and the 240 s daily budget every board is read at least every 2 days |
 | Openings one match request ranks | `CANDIDATE_POOL` | the best 300 by skill-weighted overlap, out of every open job (Free: 60, to show 5) |
 | Narrow table matching reads | `job_match` (`match-index.ts`) | one row per matchable opening, rebuilt after each ingest |
 | A Matches page is reused for | `match_cache` | the day, until the next ingest, or until the resume, "Looking for", work profile or plan changes. A Pro ranking also keeps the next page, so Next reads the cache |
