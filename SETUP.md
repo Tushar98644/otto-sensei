@@ -890,8 +890,8 @@ quietly; the rest of the app runs the same.
 | `DODO_PRO_TRIAL_PRODUCT_ID` | The $1, 3-day Pro trial for new accounts | 10 |
 | `DODO_PRO_YEARLY_PRODUCT_ID` | Yearly Pro ($120) | 10 |
 | `DODO_MAX_MONTHLY_PRODUCT_ID`, `DODO_MAX_YEARLY_PRODUCT_ID` | The Max plan ($29/month, $232/year) | 10 |
-| `NEXT_PUBLIC_SENTRY_DSN` (+ `SENTRY_AUTH_TOKEN`, `SENTRY_ORG`, `SENTRY_PROJECT`) | Error reports (+ readable stack traces) | 10b |
-| `NEXT_PUBLIC_POSTHOG_KEY` (+ `NEXT_PUBLIC_POSTHOG_HOST` for EU) | Funnel events | 10c |
+| `NEXT_PUBLIC_SENTRY_DSN` (+ `SENTRY_AUTH_TOKEN`, `SENTRY_ORG`, `SENTRY_PROJECT`, `SENTRY_TRACES_SAMPLE_RATE`) | Error reports (+ readable stack traces, + the share of server requests traced) | 10b |
+| `NEXT_PUBLIC_POSTHOG_KEY` (+ `NEXT_PUBLIC_POSTHOG_HOST` for EU) | Page views, funnel events and page speed | 10c |
 | `GITHUB_TOKEN` | Higher GitHub limits for Import from GitHub and portfolio GitHub numbers | 10d |
 | `CRON_SECRET` | Daily cleanup, follow-up reminders (bell), and clearing /jobs after the daily job read (also a GitHub secret) | 10e |
 | `RESEND_API_KEY`, `EMAIL_FROM` | The trial-ending email and one-time service notices; follow-ups, new matches and views are bell only | 10e |
@@ -919,9 +919,16 @@ vercel env add NEXT_PUBLIC_SENTRY_DSN production   # the DSN from 1 (it's safe i
 vercel env add SENTRY_AUTH_TOKEN production         # optional, from 3: uploads source maps
 vercel env add SENTRY_ORG production                # optional, with the token
 vercel env add SENTRY_PROJECT production            # optional, with the token: otto-sensei
+vercel env add SENTRY_TRACES_SAMPLE_RATE production # optional: 0.05 (5% of server requests) by default, 0 for none
 ```
 
-- Errors only: no performance tracing, no session replay. Each release is the Git commit.
+- Errors from every page (uncaught errors, failed promises and the error screens), from server
+  rendering and route handlers (`onRequestError` in `src/instrumentation.ts`), from `log.error`
+  and from cron runs that fail in whole or in part. No session replay; the browser never traces.
+  Each release is the Git commit and the environment is Vercel's (production or preview).
+- Browser reports go through our own `/api/relay` (Sentry's tunnel), so ad blockers don't drop
+  them; it only forwards to our own project and is limited to 30 a minute per address.
+- Without `SENTRY_AUTH_TOKEN` no source maps upload, and a failed upload never fails the build.
 - `bun dev` sends nothing, even with a DSN in `.env.local`. To test reporting on your laptop, add
   `NEXT_PUBLIC_SENTRY_DEV=1` too.
 - Landing, pricing, policy, portfolio and share pages don't load Sentry until the visitor moves into
@@ -931,7 +938,7 @@ vercel env add SENTRY_PROJECT production            # optional, with the token: 
 
 ## 10c. Product analytics: PostHog (optional)
 
-Skip this and the app runs the same, it just doesn't count funnel steps anywhere.
+Skip this and the app runs the same, it just doesn't count page views or funnel steps anywhere.
 
 1. posthog.com → create a project (US or EU cloud). Copy the **Project API key** (`phc_...`).
 2. **Project settings** → turn on **Discard client IP data**. The app already sends only named
@@ -944,13 +951,21 @@ vercel env add NEXT_PUBLIC_POSTHOG_KEY production    # the project key (safe in 
 vercel env add NEXT_PUBLIC_POSTHOG_HOST production   # only for EU: https://eu.i.posthog.com
 ```
 
-- No autocapture, no page views, no session recording, no surveys, no cookies: a random id in
-  local storage until sign-in, then the user id (never the email).
-- Funnel: `landing_viewed` → `resume_imported` → `recruiter_view_seen` → `signed_in` →
-  `line_fixed` → `tailor_run` → `screener_viewed` → `letter_written` → `pdf_downloaded` /
-  `docx_downloaded` → `upgrade_clicked` → `checkout_completed`, plus `application_logged`.
-  From the server: `signed_up`, `checkout_completed`, `line_fixed`, `tailor_run`,
-  `letter_written`, `application_logged` and `ai_call` (task, model, latency, outcome).
+- No PostHog script on any page. The browser sends a small beacon to our own `/api/activity`
+  (once the page is idle, or as it's hidden) and the server forwards it to PostHog in one batch.
+- Page views on every page (`$pageview`): the page's template (`/resume-examples/[role]`, never
+  the address with its ids or slugs), the referring site's name only, utm tags, the device type
+  and a session id, so PostHog's **Web analytics** works. Web vitals (LCP, INP, CLS, TTFB) for a
+  20% sample of page loads, by page (`$web_vitals`, PostHog's **Web vitals** tab).
+- No autocapture, no session recording, no surveys, no cookies: a random id in local storage until
+  sign-in, then the user id (never the email); the two are linked once, at the first page opened
+  signed in, and signing out starts a new random id.
+- Funnel: `landing_viewed` → `resume_imported` → `recruiter_view_seen` → `signup_started` →
+  `signed_up` / `signed_in` → `line_fixed` → `tailor_run` → `screener_viewed` → `letter_written` →
+  `pdf_downloaded` / `docx_downloaded` → `upgrade_clicked` → `checkout_started` →
+  `checkout_completed`, plus `application_logged`. From the server: `signed_up`, `signed_in`,
+  `checkout_started`, `checkout_completed`, `line_fixed`, `tailor_run`, `letter_written`,
+  `application_logged` and `ai_call` (task, model, latency, outcome).
 - `bun dev` sends events when the key is in `.env.local`; leave it out locally unless you're
   testing analytics.
 
@@ -1238,8 +1253,11 @@ Do 1 and 2 together: with the variable off and the line still in, nothing deploy
       and **Download PDF** works.
 - [ ] On a Pro test account, write a pitch in **Portfolio** → **Intro**: it shows in the preview,
       and the page has no pictures to upload anywhere.
-- [ ] If PostHog is set: upload a resume; PostHog **Activity** shows `resume_imported` within a
-      minute.
+- [ ] If PostHog is set: open the home page and upload a resume; PostHog **Activity** shows a
+      `$pageview` for `/` and `resume_imported` within a minute.
+- [ ] If Sentry is set: in the browser console on any page run
+      `setTimeout(() => { throw new Error("Sentry check") })`; the Network tab shows a POST to
+      `/api/relay` answered 200, and Sentry **Issues** shows "Sentry check" within a minute.
 
 Delete accounts from the app's account page, not from the Supabase dashboard. Both remove the
 user's data, but only the app cancels their subscription first.

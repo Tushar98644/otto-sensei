@@ -170,11 +170,14 @@ const SECTIONS: readonly LegalSection[] = [
           your resume text, and email addresses in them are masked.
         </li>
         <li>
-          <strong>Usage events.</strong> Which steps people take, such as uploading a resume,
-          downloading a PDF or upgrading, with simple counts like how many checks failed. They never
-          include your resume text, job posts, name or email address. If you&apos;re signed in,
-          they&apos;re linked to your account&apos;s random id. If your browser sends Do Not Track
-          or Global Privacy Control, we send none at all.
+          <strong>Usage events.</strong> Which pages people open and which steps they take, such as
+          uploading a resume, downloading a PDF or upgrading, with simple counts like how many
+          checks failed. For a page, that&apos;s the kind of page (never the address of a share link
+          or portfolio), the name of the site that sent you, any campaign tags in the link, whether
+          you&apos;re on a phone, tablet or computer and, for some visits, how fast the page loaded.
+          They never include your resume text, job posts, name or email address. If you&apos;re
+          signed in, they&apos;re linked to your account&apos;s random id. If your browser sends Do
+          Not Track or Global Privacy Control, we send none at all.
         </li>
       </ul>
     ),
