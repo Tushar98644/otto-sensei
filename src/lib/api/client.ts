@@ -182,6 +182,7 @@ const READ_ONLY_POSTS: ReadonlySet<string> = new Set([
   "/api/resumes",
   "/api/jobs/matches",
   "/api/calendar",
+  "/api/recap",
 ]);
 
 function isWrite(path: string, init?: RequestInit): boolean {
