@@ -3,7 +3,7 @@
 import { ArrowLeft, PenLine, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { errorMessage } from "@/components/account/errors";
 import { useProTools } from "@/components/account/pro-tools";
 import { openFeaturePrompt } from "@/components/account/upgrade-prompt";
@@ -17,9 +17,11 @@ import { toast } from "@/components/ui/toast";
 import { undoToast } from "@/components/ui/undo-toast";
 import { api, isApiError } from "@/lib/api/client";
 import type { Application } from "@/lib/applications/schema";
+import { followsUp } from "@/lib/applications/follow-up";
 import { nextStep, STATUS_NAMES, type ApplicationStatus } from "@/lib/applications/status";
 import { copyLetter, type ApplicationThread } from "@/lib/applications/thread";
 import { savedJobText } from "@/lib/insights/saved-job";
+import { WRITE_PARAM } from "@/lib/notifications/links";
 import { resumeTitle } from "@/lib/resume/ops";
 import { useResumeList, useStudioHydrated } from "@/lib/store/resume-store";
 import type { Writing } from "@/lib/writings/schema";
@@ -50,7 +52,21 @@ type Load =
   | { status: "error"; message: string }
   | { status: "ready"; thread: ApplicationThread };
 
-export function ApplicationHub({ applicationId }: { applicationId: string }) {
+function dropWriteParam() {
+  const url = new URL(window.location.href);
+  if (!url.searchParams.has(WRITE_PARAM)) return;
+  url.searchParams.delete(WRITE_PARAM);
+  window.history.replaceState(null, "", `${url.pathname}${url.search}${url.hash}`);
+}
+
+// thankYou: opened from "Write a thank-you" in the bell or the morning email, so the writer opens on it.
+export function ApplicationHub({
+  applicationId,
+  thankYou = false,
+}: {
+  applicationId: string;
+  thankYou?: boolean;
+}) {
   const router = useRouter();
   const now = useNow();
   const hydrated = useStudioHydrated();
@@ -146,8 +162,9 @@ export function ApplicationHub({ applicationId }: { applicationId: string }) {
   }
 
   // A kept message opens on any plan; only writing one takes Pro.
-  function writeOutreach() {
-    if (pro === false && !letters.some((letter) => letter.kind === "outreach")) {
+  function writeOutreach(kind: "message" | "thank_you" = "message") {
+    const thanking = kind === "thank_you";
+    if (pro === false && (thanking || !letters.some((letter) => letter.kind === "outreach"))) {
       openFeaturePrompt("letter");
       return;
     }
@@ -159,8 +176,18 @@ export function ApplicationHub({ applicationId }: { applicationId: string }) {
       url: thread?.job?.url || application.jobUrl,
       applicationId: application.id,
       post: savedJobText(copy),
+      ...(thanking ? { thankYou: true as const } : {}),
     });
   }
+
+  // Once, when the page and the plan are known; the link's ?write= goes so a reload doesn't reopen it.
+  const thanked = useRef(false);
+  useEffect(() => {
+    if (!thankYou || thanked.current || load.status !== "ready" || pro === null) return;
+    thanked.current = true;
+    dropWriteParam();
+    writeOutreach("thank_you");
+  });
 
   function remove(target: Application) {
     hideApplication(target);
@@ -278,7 +305,7 @@ export function ApplicationHub({ applicationId }: { applicationId: string }) {
             meta={facts}
             message={nextStepLine(application, thread.prep !== null, now)}
           >
-            {application.status === "applied" ? (
+            {followsUp(application.status) ? (
               <FollowUpChip application={application} now={now} />
             ) : null}
           </OttoNote>
@@ -298,7 +325,7 @@ export function ApplicationHub({ applicationId }: { applicationId: string }) {
                 now={now}
                 pro={pro}
                 onWrite={write}
-                onOutreach={writeOutreach}
+                onOutreach={() => writeOutreach()}
               />
               <NotesCard
                 notes={application.notes}

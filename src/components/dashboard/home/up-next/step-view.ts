@@ -120,7 +120,12 @@ export function stepView(
         return {
           ...base,
           title: `Follow up with ${first.company}`,
-          detail: [first.role, `applied ${formatDay(first.appliedAt, now)}`]
+          detail: [
+            first.role,
+            first.status === "interview" && first.interviewAt !== null
+              ? `interviewed ${formatDay(first.interviewAt, now)}`
+              : `applied ${formatDay(first.appliedAt, now)}`,
+          ]
             .filter(Boolean)
             .join(" · "),
           cta: "Open the application",

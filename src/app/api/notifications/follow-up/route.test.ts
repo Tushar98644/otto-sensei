@@ -13,7 +13,7 @@ vi.mock("next/headers", async () => (await import("@/lib/auth/test-helpers")).ne
 
 const DAY = 24 * 60 * 60 * 1_000;
 
-async function seed(userId: string, status: "applied" | "interview" = "applied") {
+async function seed(userId: string, status: "applied" | "interview" | "rejected" = "applied") {
   const id = crypto.randomUUID();
   const now = Date.now();
   await (await getDb()).insert(applications).values({
@@ -77,16 +77,26 @@ describe("POST /api/notifications/follow-up", () => {
     expect(await followUpOf(id)).toBeNull();
   });
 
-  it("snoozes for 3 days, but only while it's still on applied", async () => {
+  it("snoozes for 3 days, but only while a follow-up is still open", async () => {
     const maya = await createUser("maya@example.com");
     const id = await seed(maya.id);
     const before = Date.now();
-    const res = (await (await send(bodyFrom(followUpActionUrl(maya.id, id, "snooze")))).json()) as FollowUpActionResponse;
+    const res = (await (
+      await send(bodyFrom(followUpActionUrl(maya.id, id, "snooze")))
+    ).json()) as FollowUpActionResponse;
     expect(res.followUpAt).toBeGreaterThanOrEqual(before + 3 * DAY);
     expect(await followUpOf(id)).toBe(res.followUpAt);
 
-    const moved = await seed(maya.id, "interview");
-    const after = (await (await send(bodyFrom(followUpActionUrl(maya.id, moved, "snooze")))).json()) as FollowUpActionResponse;
+    const interviewed = await seed(maya.id, "interview");
+    const later = (await (
+      await send(bodyFrom(followUpActionUrl(maya.id, interviewed, "snooze")))
+    ).json()) as FollowUpActionResponse;
+    expect(later.followUpAt).toBeGreaterThanOrEqual(before + 3 * DAY);
+
+    const closed = await seed(maya.id, "rejected");
+    const after = (await (
+      await send(bodyFrom(followUpActionUrl(maya.id, closed, "snooze")))
+    ).json()) as FollowUpActionResponse;
     expect(after.followUpAt).toBeNull();
   });
 
@@ -140,7 +150,10 @@ describe("POST /api/notifications/follow-up", () => {
 
     const own = await seed(maya.id);
     const signed = bodyFrom(followUpActionUrl(maya.id, own, "done"));
-    for (const body of [{ a: own, act: "done", t: signed.t }, { a: own, act: "done", u: maya.id }]) {
+    for (const body of [
+      { a: own, act: "done", t: signed.t },
+      { a: own, act: "done", u: maya.id },
+    ]) {
       const res = await send(body);
       expect(res.status).toBe(400);
       expect(((await res.json()) as ApiErrorBody).error.code).toBe("bad_request");

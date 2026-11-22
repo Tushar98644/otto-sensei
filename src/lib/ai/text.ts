@@ -61,7 +61,7 @@ export function capitalize(text: string): string {
   return text.replace(/^\p{Ll}/u, (letter) => letter.toUpperCase());
 }
 
-const DATA_TAGS = ["resume", "role", "line", "answers", "experience", "job_post", "question"] as const;
+const DATA_TAGS = ["resume", "role", "line", "answers", "experience", "job_post", "question", "interviewer"] as const;
 export type DataTag = (typeof DATA_TAGS)[number];
 const DATA_TAG_PATTERN = new RegExp(`<\\s*/?\\s*(?:${DATA_TAGS.join("|")})\\b[^>]*>`, "gi");
 

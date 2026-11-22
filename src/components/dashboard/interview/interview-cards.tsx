@@ -184,6 +184,8 @@ export function FeaturedInterview({
                 company: application.company,
                 role: application.role,
                 interviewAt: at,
+                interviewTime: application.interviewTime,
+                interviewZone: application.interviewZone,
               }}
               className="relative z-10 max-sm:flex-1"
             />
@@ -261,6 +263,8 @@ export function InterviewTile({
               company: application.company,
               role: application.role,
               interviewAt: at,
+              interviewTime: application.interviewTime,
+              interviewZone: application.interviewZone,
             }}
             variant="ghost"
             size="sm"

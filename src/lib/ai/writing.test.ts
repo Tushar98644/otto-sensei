@@ -7,7 +7,13 @@ import { DEFAULT_WRITING_STYLE, type WritingStyleBody } from "@/lib/writing-styl
 import type { RunOptions, StructuredRequest } from "./client";
 import { ANSWER_SYSTEM_PROMPT, LETTER_SYSTEM_PROMPT, OUTREACH_SYSTEM_PROMPT } from "./prompts";
 import { AIError, type WritingInput } from "./types";
-import { answerQuestion, assembleLetter, NOTE_CHARS, writeCoverLetter, writeOutreach } from "./writing";
+import {
+  answerQuestion,
+  assembleLetter,
+  NOTE_CHARS,
+  writeCoverLetter,
+  writeOutreach,
+} from "./writing";
 
 const runStructured = vi.hoisted(() =>
   vi.fn<(request: StructuredRequest<unknown>, options?: RunOptions) => Promise<unknown>>(),
@@ -17,7 +23,14 @@ vi.mock("./client", () => ({ runStructured }));
 function makeResume(): Resume {
   return {
     ...emptyResume(0),
-    basics: { name: "Sam Rivera", headline: "", email: "sam@example.com", phone: "", location: "", links: [] },
+    basics: {
+      name: "Sam Rivera",
+      headline: "",
+      email: "sam@example.com",
+      phone: "",
+      location: "",
+      links: [],
+    },
     experience: [
       {
         id: "job-1",
@@ -37,7 +50,8 @@ function makeResume(): Resume {
 }
 
 const JOB: WritingInput = {
-  jobText: "Kestrel Labs is hiring a Senior Backend Engineer. You have shipped Go services in production.",
+  jobText:
+    "Kestrel Labs is hiring a Senior Backend Engineer. You have shipped Go services in production.",
   jobTitle: "Senior Backend Engineer",
   company: "Kestrel Labs",
 };
@@ -77,7 +91,9 @@ describe("writeCoverLetter", () => {
       .replace("Sam Rivera", "[NAME]")
       .replace("sam@example.com", "[EMAIL_1]");
     expect(sent?.user).toContain(`<resume>\n${shown}\n</resume>`);
-    expect(sent?.user).toContain("<job_post>\nJob title: Senior Backend Engineer\nCompany: Kestrel Labs\n");
+    expect(sent?.user).toContain(
+      "<job_post>\nJob title: Senior Backend Engineer\nCompany: Kestrel Labs\n",
+    );
     expect(runStructured).toHaveBeenCalledTimes(1);
 
     expect(result.letter).toBe(assembleLetter(CLEAN, "Sam Rivera", "Kestrel Labs"));
@@ -102,7 +118,9 @@ describe("writeCoverLetter", () => {
     const retry = runStructured.mock.calls[1]?.[0].user ?? "";
     expect(retry).toContain("A first draft had these problems");
     expect(retry).toContain('"I am writing to"');
-    expect(retry).toContain('You wrote "wrote", but the resume line says: "Helped with the quarterly customer newsletter"');
+    expect(retry).toContain(
+      'You wrote "wrote", but the resume line says: "Helped with the quarterly customer newsletter"',
+    );
     expect(result.letter).toContain(CLEAN[0]);
     expect(result.warnings).toEqual([]);
   });
@@ -194,10 +212,14 @@ describe("writeCoverLetter", () => {
     useKey(null);
     const result = await writeCoverLetter(makeResume(), { ...JOB, company: "" });
     expect(runStructured).not.toHaveBeenCalled();
-    expect(result.letter.startsWith("Dear hiring team,\n\nI'm applying for the Senior Backend Engineer.")).toBe(
-      true,
+    expect(
+      result.letter.startsWith(
+        "Dear hiring team,\n\nI'm applying for the Senior Backend Engineer.",
+      ),
+    ).toBe(true);
+    expect(result.letter).toContain(
+      "As Backend Engineer at Mapline, I rebuilt the billing service in Go",
     );
-    expect(result.letter).toContain("As Backend Engineer at Mapline, I rebuilt the billing service in Go");
     expect(result.warnings).toEqual([]);
   });
 });
@@ -251,7 +273,9 @@ describe("writeOutreach", () => {
 
     const sent = runStructured.mock.calls[0]?.[0];
     expect(sent).toMatchObject({ task: "outreach", effort: "low" });
-    expect(sent?.user).toContain("<job_post>\nJob title: Senior Backend Engineer\nCompany: Kestrel Labs\n");
+    expect(sent?.user).toContain(
+      "<job_post>\nJob title: Senior Backend Engineer\nCompany: Kestrel Labs\n",
+    );
     expect(sent?.user).not.toContain("Sam Rivera");
     expect(result.subject).toBe("Senior Backend Engineer: Go billing work at Mapline");
     expect(result.email.startsWith("Hi [first name],\n\nI'm applying")).toBe(true);
@@ -284,13 +308,21 @@ describe("writeOutreach", () => {
       EMAIL[1],
       EMAIL[2],
     ];
-    runStructured.mockResolvedValueOnce({ subject: "Backend role", email: long, note: "Applying for the role." });
+    runStructured.mockResolvedValueOnce({
+      subject: "Backend role",
+      email: long,
+      note: "Applying for the role.",
+    });
     const result = await writeOutreach(makeResume(), JOB);
     expect(result.email).toContain("could you point me to who is?");
   });
 
   it("falls back to the role for an empty subject", async () => {
-    runStructured.mockResolvedValueOnce({ subject: "  ", email: EMAIL, note: "Applying for the role." });
+    runStructured.mockResolvedValueOnce({
+      subject: "  ",
+      email: EMAIL,
+      note: "Applying for the role.",
+    });
     const result = await writeOutreach(makeResume(), JOB);
     expect(result.subject).toBe("Senior Backend Engineer at Kestrel Labs");
   });
@@ -313,11 +345,50 @@ describe("writeOutreach", () => {
     expect(sent?.user.endsWith("Write the follow-up.")).toBe(true);
     expect(result.subject).toBe("Following up: Senior Backend Engineer at Kestrel Labs");
 
-    runStructured.mockResolvedValueOnce({ subject: "Backend role", email: EMAIL, note: "Applying." });
+    runStructured.mockResolvedValueOnce({
+      subject: "Backend role",
+      email: EMAIL,
+      note: "Applying.",
+    });
     await writeOutreach(makeResume(), JOB);
     const first = runStructured.mock.calls[1]?.[0];
     expect(first?.user).not.toContain("follow-up");
     expect(first?.user.endsWith("Write the message.")).toBe(true);
+  });
+
+  it("writes a thank-you after an interview, greeting the interviewer by name or the company's team", async () => {
+    runStructured.mockResolvedValueOnce({ subject: "  ", email: EMAIL, note: "" });
+    const named = await writeOutreach(makeResume(), JOB, undefined, { thankYou: { to: "Priya" } });
+    const sent = runStructured.mock.calls[0]?.[0];
+    expect(sent?.user).toContain("<interviewer>\nPriya\n</interviewer>");
+    expect(sent?.user).toContain("thank-you after a job interview");
+    expect(sent?.user).toContain("never invent what was discussed");
+    expect(sent?.user.endsWith("Write the thank-you.")).toBe(true);
+    expect(named.subject).toBe("Thank you: Senior Backend Engineer at Kestrel Labs");
+    expect(named.email.startsWith("Hi Priya,\n\n")).toBe(true);
+    expect(named.note.startsWith("Hi Priya, ")).toBe(true);
+
+    runStructured.mockResolvedValueOnce({
+      subject: "Thank you for the interview",
+      email: EMAIL,
+      note: "Thanks for the chat.",
+    });
+    const team = await writeOutreach(makeResume(), JOB, undefined, { thankYou: { to: "" } });
+    const group = runStructured.mock.calls[1]?.[0];
+    expect(group?.user).not.toContain("<interviewer>");
+    expect(group?.user).toContain("the people they met at the company, as a group");
+    expect(team.email.startsWith("Hi Kestrel Labs team,\n\n")).toBe(true);
+    expect(team.note.startsWith("Hi [first name], ")).toBe(true);
+  });
+
+  it("writes a demo thank-you without a key", async () => {
+    useKey(null);
+    const result = await writeOutreach(makeResume(), JOB, undefined, { thankYou: { to: "Priya" } });
+    expect(runStructured).not.toHaveBeenCalled();
+    expect(result.subject).toBe("Thank you: Senior Backend Engineer at Kestrel Labs");
+    expect(result.email).toContain(
+      "Thank you for your time talking about the Senior Backend Engineer",
+    );
   });
 
   it("writes a demo follow-up without a key", async () => {
@@ -325,7 +396,9 @@ describe("writeOutreach", () => {
     const result = await writeOutreach(makeResume(), JOB, undefined, { followUpDays: 9 });
     expect(runStructured).not.toHaveBeenCalled();
     expect(result.subject).toBe("Following up: Senior Backend Engineer at Kestrel Labs");
-    expect(result.email).toContain("I applied for the Senior Backend Engineer at Kestrel Labs recently");
+    expect(result.email).toContain(
+      "I applied for the Senior Backend Engineer at Kestrel Labs recently",
+    );
   });
 });
 

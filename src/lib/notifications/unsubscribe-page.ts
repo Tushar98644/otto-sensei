@@ -31,6 +31,12 @@ export const UNSUBSCRIBE_COPY: Record<EmailList, ListCopy> = {
     press: "Stop views emails",
     done: "Done. You won't get views emails any more. The bell on your dashboard keeps them.",
   },
+  briefs: {
+    name: "Interview morning briefs",
+    ask: "Stop the short brief on the morning of each interview? Your prep and calendar stay as they are.",
+    press: "Stop morning briefs",
+    done: "Done. You won't get interview morning briefs any more. You can turn them back on in your account settings.",
+  },
 };
 
 export const INVALID_LINK =

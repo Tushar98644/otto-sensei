@@ -21,7 +21,7 @@ import {
   type StatusEvent,
 } from "@/lib/applications/status";
 import { followUpDaysOf, followUpDaysSql } from "@/lib/notifications/records";
-import type { FollowUpAction } from "@/lib/notifications/types";
+import type { FollowUpAction, InterviewOutcome } from "@/lib/notifications/types";
 
 // Every query filters by user_id, so a guessed id never reaches another account's rows.
 
@@ -40,6 +40,8 @@ export const APPLICATION_COLUMNS = {
   followUpAt: applications.followUpAt,
   jobId: applications.jobId,
   interviewAt: applications.interviewAt,
+  interviewTime: applications.interviewTime,
+  interviewZone: applications.interviewZone,
   hasPrep: sql<boolean>`${applications.prep} is not null`.mapWith(Boolean),
   createdAt: applications.createdAt,
   updatedAt: applications.updatedAt,
@@ -80,6 +82,9 @@ export function toApplication(row: Row): Application {
     jobId: row.jobId,
     hasPrep: row.hasPrep,
     interviewAt: row.interviewAt,
+    interviewTime: row.interviewAt === null ? null : row.interviewTime,
+    interviewZone:
+      row.interviewAt === null || row.interviewTime === null ? null : row.interviewZone,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
   };
@@ -178,7 +183,7 @@ export async function createApplication(
         followUpAt,
         jobId: await resolveJobId(tx, input.jobId ?? null, input.jobUrl),
         statusHistory: startingHistory(input.status, input.appliedAt, now),
-        interviewAt: input.interviewAt ?? null,
+        ...interviewFields(input),
         createdAt: now,
         updatedAt: now,
       })
@@ -212,6 +217,31 @@ function statusChange(
       status === "applied"
         ? sql`case when ${applications.status} = 'applied' then ${applications.followUpAt} else ${now}::bigint + ${followUpDaysSql(userId)}::bigint * 86400000 end`
         : null,
+  };
+}
+
+type InterviewInput = Pick<
+  UpdateApplicationInput,
+  "interviewAt" | "interviewTime" | "interviewZone"
+>;
+
+// A time keeps the zone it was typed in; a cleared day or time takes the rest with it.
+type InterviewColumns = {
+  interviewAt?: number | null;
+  interviewTime?: number | null;
+  interviewZone?: string | null;
+};
+
+export function interviewFields(input: InterviewInput): InterviewColumns {
+  if (input.interviewAt === undefined && input.interviewTime === undefined) return {};
+  if (input.interviewAt === null) {
+    return { interviewAt: null, interviewTime: null, interviewZone: null };
+  }
+  const time = input.interviewTime ?? null;
+  return {
+    ...(input.interviewAt === undefined ? {} : { interviewAt: input.interviewAt }),
+    interviewTime: time,
+    interviewZone: time === null ? null : (input.interviewZone ?? null),
   };
 }
 
@@ -250,7 +280,7 @@ export async function updateApplication(
   }
   if (patch.appliedAt !== undefined) set.appliedAt = patch.appliedAt;
   if (patch.notes !== undefined) set.notes = patch.notes;
-  if (patch.interviewAt !== undefined) set.interviewAt = patch.interviewAt;
+  Object.assign(set, interviewFields(patch));
   if (patch.followUpAt !== undefined) set.followUpAt = patch.followUpAt;
   const rows = await db
     .update(applications)
@@ -317,11 +347,53 @@ export async function applyFollowUpAction(
       action === "done"
         ? { followUpAt: null, updatedAt: now }
         : {
-            followUpAt: sql`case when ${applications.status} = 'applied' then ${snoozedUntil(now)}::bigint else null end`,
+            // After an interview there's only something to snooze once Otto set the follow-up.
+            followUpAt: sql`case when ${applications.status} = 'applied' or (${applications.status} = 'interview' and ${applications.followUpAt} is not null) then ${snoozedUntil(now)}::bigint else null end`,
             updatedAt: now,
           },
     )
     .where(own)
     .returning({ company: applications.company, followUpAt: applications.followUpAt });
   return row ?? null;
+}
+
+// "How did it go?": the answer closes the question; Next round clears the day for the next one, Waiting keeps the follow-up, Rejected closes the card.
+export async function answerInterview(
+  userId: string,
+  id: string,
+  outcome: InterviewOutcome,
+  now = Date.now(),
+): Promise<UpdatedApplication | null> {
+  const db = await getDb();
+  const answered = { interviewAnsweredFor: sql`${applications.interviewAt}`, updatedAt: now };
+  const set: PgUpdateSetSource<typeof applications> =
+    outcome === "rejected"
+      ? { ...answered, ...statusChange(userId, "rejected", now) }
+      : outcome === "next_round"
+        ? {
+            ...answered,
+            interviewAt: null,
+            interviewTime: null,
+            interviewZone: null,
+            followUpAt: null,
+          }
+        : answered;
+  const rows = await db
+    .update(applications)
+    .set(set)
+    .where(
+      and(
+        eq(applications.userId, userId),
+        eq(applications.id, id),
+        eq(applications.status, "interview"),
+        sql`${applications.interviewAt} is not null`,
+      ),
+    )
+    .returning({ ...APPLICATION_COLUMNS, previousStatus: PREVIOUS_STATUS });
+  const row = rows[0];
+  if (!row) return null;
+  return {
+    application: toApplication(row),
+    moved: outcome === "rejected" ? moveOf(row, now) : null,
+  };
 }

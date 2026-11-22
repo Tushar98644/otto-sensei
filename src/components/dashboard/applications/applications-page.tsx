@@ -8,7 +8,7 @@ import { openUpgradePrompt } from "@/components/account/upgrade-prompt";
 import { OTTO } from "@/components/mascot/lines";
 import { Otto } from "@/components/mascot/otto";
 import { OttoNote } from "@/components/mascot/otto-note";
-import { RemindersEmailOptIn } from "@/components/notifications/email-opt-in";
+import { ApplicationsEmailOptIn } from "@/components/notifications/email-opt-in";
 import { useNow } from "@/components/studio/use-now";
 import { FREE_APPLICATIONS } from "@/config/plans";
 import { Alert } from "@/components/ui/alert";
@@ -229,7 +229,10 @@ export function ApplicationsPage() {
       ) : (
         <>
           <NoReplyNudge stale={stale} />
-          <RemindersEmailOptIn applications={items.length} />
+          <ApplicationsEmailOptIn
+            applications={items.length}
+            interviews={items.filter((item) => item.status === "interview").length}
+          />
           {trackingPanel}
 
           <section aria-labelledby="applications-heading" className="flex flex-col gap-4">

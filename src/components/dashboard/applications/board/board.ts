@@ -9,6 +9,7 @@ import {
   copyForJob,
   copyJobId,
 } from "@/lib/applications/thread";
+import { deviceTimeZone } from "@/lib/eligibility/options";
 import type { SavedPost } from "@/lib/extension/types";
 import { savedJobUrl } from "@/lib/insights/saved-job";
 import type { SavedJob } from "@/lib/job-feed/types";
@@ -236,6 +237,7 @@ export function createBody(
   now: number,
   fallback: Resume | null,
   interviewAt: number | null = null,
+  interviewTime: number | null = null,
 ): CreateApplicationBody | null {
   const company = item.company.trim();
   if (!company) return null;
@@ -249,8 +251,17 @@ export function createBody(
     jobUrl: item.jobUrl,
     appliedAt: now,
     status,
-    ...(interviewAt === null ? {} : { interviewAt }),
+    ...(interviewAt === null ? {} : { interviewAt, ...interviewClock(interviewTime) }),
   };
+}
+
+// A typed time is on this device's clock, so it carries this device's zone.
+export function interviewClock(interviewTime: number | null): {
+  interviewTime: number | null;
+  interviewZone: string | null;
+} {
+  const zone = interviewTime === null ? "" : deviceTimeZone();
+  return zone ? { interviewTime, interviewZone: zone } : { interviewTime: null, interviewZone: null };
 }
 
 export function stepColumn(card: BoardCard, current: BoardColumn, step: 1 | -1): BoardColumn {

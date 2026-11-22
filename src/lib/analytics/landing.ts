@@ -52,6 +52,7 @@ export const EMAIL_CAMPAIGNS = [
   "tips",
   "trial_ending",
   "views",
+  "interview_brief",
 ] as const;
 export type EmailCampaign = (typeof EMAIL_CAMPAIGNS)[number];
 

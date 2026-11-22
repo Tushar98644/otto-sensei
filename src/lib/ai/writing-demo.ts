@@ -54,14 +54,24 @@ export function demoAnswer(resume: Resume, job: WritingInput, question: string):
 export function demoOutreach(
   resume: Resume,
   job: WritingInput,
-  followUp = false,
+  mode: "first" | "follow_up" | "thank_you" = "first",
 ): { subject: string; email: string[]; note: string } {
   const [first] = topLines(resume);
   const fact = first
     ? `${first.role ? `As ${first.role}, I` : "I"} ${lowerFirst(first.line)}.`
     : "My resume has the details of my work so far.";
   const subject = `${job.jobTitle || "The open role"}${job.company ? ` at ${job.company}` : ""}`;
-  if (followUp) {
+  if (mode === "thank_you") {
+    return {
+      subject: `Thank you: ${subject}`,
+      email: [
+        `Thank you for your time talking about the ${roleName(job)}. I'm still keen on it. ${fact}`,
+        "This is a sample thank-you from Otto's demo mode. I look forward to hearing about the next steps.",
+      ],
+      note: `Thank you for the conversation about the ${roleName(job)}.`,
+    };
+  }
+  if (mode === "follow_up") {
     return {
       subject: `Following up: ${subject}`,
       email: [

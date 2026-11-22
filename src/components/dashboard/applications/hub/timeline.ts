@@ -63,10 +63,16 @@ export function nextStepLine(
       }
       return "Waiting to hear back. Move it on here when they reply.";
     }
-    case "interview":
+    case "interview": {
+      const state = now === 0 ? "none" : followUpState(application, now);
+      if (state === "due") return "It's time to follow up. A short note after an interview keeps you in mind.";
+      if (state === "scheduled" && application.followUpAt !== null) {
+        return `Waiting to hear back. I'll remind you to follow up on ${formatDay(application.followUpAt, now)}.`;
+      }
       return hasPrep
         ? "Your prep is ready. Practice your answers out loud before the day."
         : "You have an interview. I can make prep from this job and the resume you sent.";
+    }
     case "offer":
       return "You have an offer. Read it closely and take the time you need.";
     case "rejected":

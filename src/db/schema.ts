@@ -201,6 +201,12 @@ export const applications = pgTable(
     interviewAt: epochMs("interview_at"),
     // The interview day last reminded, so a moved interview is reminded again.
     interviewRemindedFor: epochMs("interview_reminded_for"),
+    // Minutes after midnight in interviewZone; null is a day with no time set.
+    interviewTime: smallint("interview_time"),
+    interviewZone: text("interview_zone"),
+    interviewBriefedFor: epochMs("interview_briefed_for"),
+    interviewAskedFor: epochMs("interview_asked_for"),
+    interviewAnsweredFor: epochMs("interview_answered_for"),
     createdAt: epochMs("created_at").notNull(),
     updatedAt: epochMs("updated_at").notNull(),
   },
@@ -266,6 +272,10 @@ export const notificationSettings = pgTable("notification_settings", {
   viewPromptClosedAt: epochMs("view_prompt_closed_at"),
   viewPromptSnoozedAt: epochMs("view_prompt_snoozed_at"),
   viewsEmailedAt: epochMs("views_emailed_at"),
+  interviewBriefs: boolean("interview_briefs").notNull().default(false),
+  briefPromptClosedAt: epochMs("brief_prompt_closed_at"),
+  briefPromptSnoozedAt: epochMs("brief_prompt_snoozed_at"),
+  briefsEmailedAt: epochMs("briefs_emailed_at"),
 });
 
 export const writingStyles = pgTable("writing_styles", {
@@ -604,6 +614,14 @@ export const extensionTokens = pgTable(
     index("extension_tokens_expires_idx").on(t.expiresAt),
   ],
 );
+
+// One private calendar link per account: only the token's hash is kept.
+export const calendarFeeds = pgTable("calendar_feeds", {
+  userId: uuid("user_id").primaryKey(),
+  feedId: uuid("feed_id").notNull(),
+  tokenHash: text("token_hash").notNull().unique(),
+  createdAt: epochMs("created_at").notNull(),
+});
 
 // The last calendar day, in the person's own time zone, they opened an app page.
 export const userActivity = pgTable("user_activity", {

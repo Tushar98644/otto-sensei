@@ -13,6 +13,7 @@ import type {
   SavedPostResponse,
   SavedPostsResponse,
 } from "@/lib/extension/types";
+import type { CalendarFeedBody, CalendarFeedResponse } from "@/lib/calendar/types";
 import type { GitHubConnectionResponse } from "@/lib/github/connect";
 import type {
   EmailTrackingAction,
@@ -20,6 +21,7 @@ import type {
   HandleCheckResponse,
   UndoEmailResponse,
 } from "@/lib/inbound/types";
+import type { InterviewOutcomeBody, InterviewOutcomeResponse } from "@/lib/interviews/types";
 import { JOBS_PREFETCH_HEADER } from "@/lib/job-feed/prefetch-header";
 import type { ImpressionBatchInput } from "@/lib/job-feed/types";
 import type {
@@ -447,6 +449,13 @@ export const api = {
     request<EmailChoicesResponse>("/api/notifications/emails", { cache: "no-store" }),
   saveEmailChoices: (body: EmailChoicesBody) =>
     request<EmailChoicesResponse>("/api/notifications/emails", postJson(body, "PUT")),
+  calendarFeed: (body: CalendarFeedBody = {}) =>
+    request<CalendarFeedResponse>("/api/calendar", postJson(body)),
+  interviewOutcome: (id: string, body: InterviewOutcomeBody) =>
+    request<InterviewOutcomeResponse>(
+      `/api/applications/${encodeURIComponent(id)}/outcome`,
+      postJson(body),
+    ),
   shares: () =>
     seeded("shares", () => request<SharesResponse>("/api/share", { cache: "no-store" })),
   share: (body: CreateShareBody) => request<ShareResponse>("/api/share", postJson(body)),

@@ -52,6 +52,17 @@ export function fromDateInput(value: string): number | null {
   return date.getTime();
 }
 
+export function toTimeInput(minutes: number | null): string {
+  return minutes === null ? "" : `${pad(Math.floor(minutes / 60))}:${pad(minutes % 60)}`;
+}
+
+export function fromTimeInput(value: string): number | null {
+  const match = /^(\d{2}):(\d{2})/.exec(value);
+  if (!match) return null;
+  const [hour, minute] = [Number(match[1]), Number(match[2])];
+  return hour < 24 && minute < 60 ? hour * 60 + minute : null;
+}
+
 export function versionChoices(resumes: readonly Resume[]): { id: string; label: string }[] {
   return [...resumes]
     .sort(

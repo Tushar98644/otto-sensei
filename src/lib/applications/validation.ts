@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { isTimeZone } from "@/lib/eligibility/profile";
 import { ResumeSchema } from "@/lib/resume/validation";
 import { DAY_MS } from "@/lib/time";
 import { APPLICATION_STATUSES } from "./status";
@@ -54,6 +55,14 @@ const interviewAtField = z
   .refine((value) => value <= Date.now() + 366 * DAY_MS, "That date is too far away.")
   .nullable();
 
+const interviewTimeField = z.number().int().min(0).max(1439).nullable();
+
+const interviewZoneField = z
+  .string()
+  .max(64)
+  .refine(isTimeZone, "That time zone isn't known.")
+  .nullable();
+
 const followUpAtField = z
   .number()
   .int()
@@ -75,6 +84,8 @@ export const CreateApplicationSchema = z.object({
   status: statusField.default("applied"),
   notes: notesField.default(""),
   interviewAt: interviewAtField.optional(),
+  interviewTime: interviewTimeField.optional(),
+  interviewZone: interviewZoneField.optional(),
 });
 
 export const UpdateApplicationSchema = z
@@ -89,6 +100,8 @@ export const UpdateApplicationSchema = z
     notes: notesField.optional(),
     followUpAt: followUpAtField.optional(),
     interviewAt: interviewAtField.optional(),
+    interviewTime: interviewTimeField.optional(),
+    interviewZone: interviewZoneField.optional(),
   })
   .refine(
     (patch) => Object.values(patch).some((value) => value !== undefined),

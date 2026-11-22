@@ -122,7 +122,9 @@ export type AnswerResponse = {
 // followUp: the person applied that many days ago, so the message follows up on the application.
 export const OutreachRequestSchema = TailorRequestSchema.extend({
   followUp: z.object({ days: z.number().int().min(1).max(36_500) }).optional(),
-});
+  // After an interview; to is the interviewer's name, or empty to thank the company's team.
+  thankYou: z.object({ to: z.string().trim().max(80).default("") }).optional(),
+}).refine((body) => !(body.followUp && body.thankYou), "Pick a follow-up or a thank-you.");
 export type OutreachRequestBody = z.input<typeof OutreachRequestSchema>;
 export type OutreachResponse = {
   ok: true;

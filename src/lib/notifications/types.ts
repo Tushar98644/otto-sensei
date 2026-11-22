@@ -13,6 +13,7 @@ export const NOTIFICATION_KINDS = [
   "interview_soon",
   "share_viewed",
   "portfolio_views",
+  "interview_after",
 ] as const;
 export type NotificationKind = (typeof NOTIFICATION_KINDS)[number];
 
@@ -41,6 +42,8 @@ export type Notification = {
   applicationId: string | null;
   // Only on the newest row about a follow-up that is still due, so Done and Snooze show once.
   followUpDue: boolean;
+  // Only on the newest "How did it go?" row whose interview is still unanswered.
+  outcomeOpen: boolean;
 };
 
 export type NotificationsResponse = { ok: true; notifications: Notification[]; unread: number };
@@ -57,8 +60,8 @@ export type ReminderSettingsResponse = {
   promptSnoozed: boolean;
 } & ReminderSettings;
 
-// Each list has its own signed unsubscribe link: follow-up reminders, the weekly jobs email, tips, and views.
-export const EMAIL_LISTS = ["reminders", "jobs", "tips", "views"] as const;
+// Each list has its own signed unsubscribe link: follow-up reminders, the weekly jobs email, tips, views and interview briefs.
+export const EMAIL_LISTS = ["reminders", "jobs", "tips", "views", "briefs"] as const;
 export type EmailList = (typeof EMAIL_LISTS)[number];
 
 export const TIP_EMAIL_KINDS = ["no_resume", "fixes_back", "trial_ended", "win_back"] as const;
@@ -78,6 +81,9 @@ export type EmailChoices = {
   jobPromptSnoozed: boolean;
   viewPromptClosed: boolean;
   viewPromptSnoozed: boolean;
+  briefEmails: boolean;
+  briefPromptClosed: boolean;
+  briefPromptSnoozed: boolean;
 };
 export type EmailChoicesBody = z.input<typeof EmailChoicesSchema>;
 export type EmailChoicesResponse = { ok: true; emailAvailable: boolean } & EmailChoices;
@@ -91,6 +97,10 @@ export type FollowUpActionResponse = {
   company: string;
   followUpAt: number | null;
 };
+
+// The one-tap answers to "How did it go?".
+export const INTERVIEW_OUTCOMES = ["next_round", "waiting", "rejected"] as const;
+export type InterviewOutcome = (typeof INTERVIEW_OUTCOMES)[number];
 
 export function isInAppPath(value: string): boolean {
   return /^\/[^/\\]/.test(value);

@@ -132,6 +132,16 @@ What to write:
   - Last paragraph: one small, easy ask, such as "Would you be open to a short call next week?" or "If you're not the right person, could you point me to who is?" Never ask for a job or a referral outright, and don't mention attachments.
 - note: a LinkedIn connection note of 80 to 170 characters, one or two sentences, with no greeting (one is added for you): the role and the one resume fact that fits best. Ask for nothing beyond connecting.`;
 
+// Sent with the outreach prompt's request after an interview: a thank-you to the people they met.
+export function outreachThankYouRules(named: boolean): string {
+  return `This message is a thank-you after a job interview, not a cold message: the person interviewed for this job in the last day or two. It goes to ${named ? "the interviewer named in <interviewer> tags" : "the people they met at the company, as a group"}. Nothing said in the interview is known, so never invent what was discussed, who said what, or how it went. The message rules change like this:
+- subject: 3 to 8 words thanking them for the interview and naming the role, such as "Thank you for the Product marketing interview".
+- email, paragraph 1: one sentence thanking them for their time, then one sentence on why the person is still keen on this role, from the job post.
+- email, paragraph 2, only when the resume has it: the single resume fact that fits what the post asks for most, as the resume says it.
+- email, last paragraph: one line saying they look forward to hearing about the next steps. Don't ask for a decision, don't sound anxious, and don't apologize.
+- note: one or two sentences thanking them for the conversation about the role.`;
+}
+
 // Sent with the outreach prompt's request when the person already applied and is following up.
 export function outreachFollowUpRules(days: number): string {
   const ago = `${days} ${days === 1 ? "day" : "days"} ago`;

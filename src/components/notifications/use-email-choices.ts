@@ -22,6 +22,9 @@ function choicesOf(res: EmailChoicesResponse): EmailChoicesData {
     jobPromptSnoozed: res.jobPromptSnoozed,
     viewPromptClosed: res.viewPromptClosed,
     viewPromptSnoozed: res.viewPromptSnoozed,
+    briefEmails: res.briefEmails,
+    briefPromptClosed: res.briefPromptClosed,
+    briefPromptSnoozed: res.briefPromptSnoozed,
     emailAvailable: res.emailAvailable,
   };
 }
@@ -50,10 +53,13 @@ export function expectedChoices(
     ...(change.jobEmails === undefined ? {} : { jobEmails: change.jobEmails }),
     ...(change.tipEmails === undefined ? {} : { tipEmails: change.tipEmails }),
     ...(change.viewEmails === undefined ? {} : { viewEmails: change.viewEmails }),
+    ...(change.briefEmails === undefined ? {} : { briefEmails: change.briefEmails }),
     jobPromptClosed: before.jobPromptClosed || jobsAnswered,
     jobPromptSnoozed: before.jobPromptSnoozed || change.jobPromptSnoozed === true,
     viewPromptClosed: before.viewPromptClosed || change.viewEmails !== undefined,
     viewPromptSnoozed: before.viewPromptSnoozed || change.viewPromptSnoozed === true,
+    briefPromptClosed: before.briefPromptClosed || change.briefEmails !== undefined,
+    briefPromptSnoozed: before.briefPromptSnoozed || change.briefPromptSnoozed === true,
   };
 }
 

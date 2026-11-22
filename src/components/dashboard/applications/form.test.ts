@@ -218,6 +218,8 @@ describe("patchFrom", () => {
     jobId: null,
     hasPrep: false,
     interviewAt: null,
+    interviewTime: null,
+    interviewZone: null,
     statusChangedAt: 0,
     notes: "",
     followUpAt: null,

@@ -19,11 +19,18 @@ export function snoozedUntil(now: number): number {
 
 export type FollowUpState = "none" | "scheduled" | "due";
 
+// After an interview Otto sets one too, 5 business days on, unless they've answered.
+export const AFTER_INTERVIEW_BUSINESS_DAYS = 5;
+
+export function followsUp(status: ApplicationStatus): boolean {
+  return status === "applied" || status === "interview";
+}
+
 export function followUpState(
   application: { status: ApplicationStatus; followUpAt: number | null },
   now: number,
 ): FollowUpState {
-  if (application.status !== "applied" || application.followUpAt === null) return "none";
+  if (!followsUp(application.status) || application.followUpAt === null) return "none";
   return application.followUpAt <= now ? "due" : "scheduled";
 }
 

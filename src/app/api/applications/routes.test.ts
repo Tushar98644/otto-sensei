@@ -318,6 +318,48 @@ describe("the tracker on Free", () => {
 });
 
 describe("PATCH /api/applications/:id", () => {
+  it("keeps an interview's time with the zone it was typed in, and drops both with the day", async () => {
+    await signIn("ada@example.com");
+    const day = Date.UTC(2026, 10, 24, 11);
+    const application = await created(
+      await create(
+        body({
+          status: "interview",
+          interviewAt: day,
+          interviewTime: 870,
+          interviewZone: "Europe/Berlin",
+        }),
+      ),
+    );
+    expect(application).toMatchObject({
+      interviewAt: day,
+      interviewTime: 870,
+      interviewZone: "Europe/Berlin",
+    });
+    const dayOnly = await updated(await patch(application.id, { interviewAt: day + DAY_MS }));
+    expect(dayOnly).toMatchObject({
+      interviewAt: day + DAY_MS,
+      interviewTime: null,
+      interviewZone: null,
+    });
+    const timed = await updated(
+      await patch(application.id, {
+        interviewAt: day,
+        interviewTime: 600,
+        interviewZone: "Asia/Kolkata",
+      }),
+    );
+    expect(timed).toMatchObject({ interviewTime: 600, interviewZone: "Asia/Kolkata" });
+    const cleared = await updated(await patch(application.id, { interviewAt: null }));
+    expect(cleared).toMatchObject({ interviewAt: null, interviewTime: null, interviewZone: null });
+    expect((await patch(application.id, { interviewAt: day, interviewTime: 1440 })).status).toBe(
+      400,
+    );
+    expect(
+      (await patch(application.id, { interviewAt: day, interviewZone: "Mars/Base" })).status,
+    ).toBe(400);
+  });
+
   it("changes only the fields sent", async () => {
     await signIn("ada@example.com");
     const application = await created(await create(body({ notes: "Keep" })));

@@ -4,7 +4,10 @@ import { ArrowRight, Plus } from "lucide-react";
 import { useMemo, useRef, useState, type ReactNode } from "react";
 import { useProTools, useTryProLabel } from "@/components/account/pro-tools";
 import { LazyUpgradeDialog } from "@/components/account/lazy-dialogs";
+import { useSessionUserId } from "@/components/account/session-user";
 import { useMe } from "@/components/account/use-me";
+import { CalendarFeed } from "@/components/calendar/calendar-feed";
+import { BriefEmailOptIn } from "@/components/notifications/email-opt-in";
 import { OTTO } from "@/components/mascot/lines";
 import { useNow } from "@/components/studio/use-now";
 import { Alert } from "@/components/ui/alert";
@@ -78,6 +81,7 @@ export function InterviewHome() {
   const locked = pro === false;
   const { me, loading: planLoading } = useMe();
   const tryPro = useTryProLabel();
+  const userId = useSessionUserId();
   const [upgradeOpen, setUpgradeOpen] = useState(false);
   const [dialog, setDialog] = useState<{ key: number; open: boolean } | null>(null);
   const openings = useRef(0);
@@ -184,6 +188,8 @@ export function InterviewHome() {
             </FolderCard>
           ) : null}
 
+          {first ? <BriefEmailOptIn userId={userId} moment /> : null}
+
           {first ? (
             <section aria-labelledby="interviews-heading" className="flex flex-col gap-4">
               <FolderCard
@@ -224,6 +230,15 @@ export function InterviewHome() {
                 </ul>
               ) : null}
             </section>
+          ) : null}
+
+          {first ? (
+            <FolderCard
+              tab={<h2 className={TAB_HEADING}>In your calendar</h2>}
+              bodyClassName="p-4 sm:p-6"
+            >
+              <CalendarFeed />
+            </FolderCard>
           ) : null}
 
           {otherPacks.length > 0 ? (

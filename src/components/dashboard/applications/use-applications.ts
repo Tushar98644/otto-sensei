@@ -76,6 +76,9 @@ function draftApplication(id: string, body: CreateApplicationBody, now: number):
     jobId: body.jobId ?? null,
     hasPrep: false,
     interviewAt: body.interviewAt ?? null,
+    interviewTime: body.interviewAt == null ? null : (body.interviewTime ?? null),
+    interviewZone:
+      body.interviewAt == null || body.interviewTime == null ? null : (body.interviewZone ?? null),
     createdAt: now,
     updatedAt: now,
   };
@@ -110,7 +113,7 @@ export async function changeApplication(
   original: Application,
   patch: UpdateApplicationBody,
 ): Promise<Application> {
-  const { status, followUpAt, interviewAt } = patch;
+  const { status, followUpAt, interviewAt, interviewTime, interviewZone } = patch;
   if (status !== undefined || followUpAt !== undefined || interviewAt !== undefined) {
     const optimistic: Application = {
       ...original,
@@ -122,7 +125,14 @@ export async function changeApplication(
             ...(status === "applied" ? {} : { followUpAt: null }),
           }),
       ...(followUpAt === undefined ? {} : { followUpAt }),
-      ...(interviewAt === undefined ? {} : { interviewAt }),
+      ...(interviewAt === undefined
+        ? {}
+        : {
+            interviewAt,
+            interviewTime: interviewAt === null ? null : (interviewTime ?? null),
+            interviewZone:
+              interviewAt === null || interviewTime == null ? null : (interviewZone ?? null),
+          }),
     };
     apply((items) => upsertApplication(items, optimistic));
   }
@@ -162,6 +172,11 @@ export function hideApplication(application: Application): void {
 
 export function restoreApplication(application: Application): void {
   hidden.delete(application.id);
+  apply((items) => upsertApplication(items, application));
+}
+
+// The server's copy after a change made elsewhere, such as an answer in the bell.
+export function keepApplication(application: Application): void {
   apply((items) => upsertApplication(items, application));
 }
 

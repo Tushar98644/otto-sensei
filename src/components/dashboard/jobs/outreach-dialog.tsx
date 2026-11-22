@@ -13,12 +13,14 @@ import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Dialog } from "@/components/ui/dialog";
 import { Field } from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { TEXT_LIMITS } from "@/config/plans";
 import { api } from "@/lib/api/client";
 import { resumeTitle } from "@/lib/resume/ops";
 import { emptyResume, type Resume } from "@/lib/resume/schema";
 import type { Writing } from "@/lib/writings/schema";
+import { titleOnlyPost } from "../applications/prep/prep-start";
 import { useStudioActions } from "../use-studio-actions";
 import { OutreachFields, OutreachSaveStatus } from "./outreach-fields";
 import { outreachKey, outreachLookup, type OutreachJob } from "./outreach-saved";
@@ -42,6 +44,12 @@ const WORDS = {
     written: "Your follow-up",
     otto: "I'll write a short follow-up and a LinkedIn note from your resume and this job, nothing made up.",
     write: "Write my follow-up",
+  },
+  thankYou: {
+    title: "Write a thank-you",
+    written: "Your thank-you",
+    otto: "I'll write a short thank-you and a LinkedIn note from your resume and this job, nothing made up.",
+    write: "Write my thank-you",
   },
 };
 
@@ -136,12 +144,18 @@ function OutreachFlow({
   const [postError, setPostError] = useState<string | null>(null);
   const subjectRef = useRef<HTMLInputElement>(null);
   const postRef = useRef<HTMLTextAreaElement>(null);
+  const [to, setTo] = useState("");
   // useWriting reads its own resume only for line fixes, which this dialog doesn't make.
   const [blank] = useState(() => emptyResume());
+  // A thank-you needs no post: with none to read, Otto goes on from the job title, saying so.
+  const titlePost = job.thankYou ? titleOnlyPost({ role: job.title, company: job.company }) : null;
+  const fromTitle =
+    titlePost !== null && post.status === "paste" && post.text.trim().length < MIN_POST_CHARS;
+  const writingText = fromTitle ? titlePost : post.text;
   const writing = useWriting(resume ?? blank, {
     title: job.title,
     company: job.company,
-    text: post.text,
+    text: writingText,
     link: job.url,
   });
   const jobId = job.id;
@@ -193,7 +207,9 @@ function OutreachFlow({
   // A failed write may be the post's fault, so the post Otto read becomes editable.
   const showPost =
     post.status !== "loading" &&
-    (message ? askPost || failed !== null : post.status === "paste" || failed !== null);
+    (message
+      ? askPost || failed !== null
+      : (post.status === "paste" && !fromTitle) || askPost || failed !== null);
   const reading = post.status === "loading" && usable;
   const waiting = reading || checking;
   const noResume = !resume && !message && !checking;
@@ -203,11 +219,11 @@ function OutreachFlow({
   const source = kept?.resumeTitle || (resume ? resumeTitle(resume) : "");
   const role = job.title.trim() || "this role";
   const company = job.company.trim();
-  const words = job.followUp ? WORDS.followUp : WORDS.first;
+  const words = job.thankYou ? WORDS.thankYou : job.followUp ? WORDS.followUp : WORDS.first;
 
   async function write() {
     if (!resume || busy || waiting) return;
-    if (post.text.trim().length < MIN_POST_CHARS) {
+    if (writingText.trim().length < MIN_POST_CHARS) {
       setAskPost(true);
       setPostError(
         post.text.trim()
@@ -218,10 +234,14 @@ function OutreachFlow({
       return;
     }
     const first = message === null;
-    const sent = post.text;
+    const sent = writingText;
     onPending(true);
     try {
-      const result = await writing.outreach(resume, job.followUp);
+      const result = await writing.outreach(
+        resume,
+        job.followUp,
+        job.thankYou ? { to: to.trim() } : undefined,
+      );
       if (!result) return;
       actions.written(
         jobKey,
@@ -324,9 +344,11 @@ function OutreachFlow({
                   </>
                 ) : null}
                 .{" "}
-                {job.followUp
-                  ? `You applied ${job.followUp.days} ${job.followUp.days === 1 ? "day" : "days"} ago. Send it to the recruiter or the hiring manager.`
-                  : "Send it to the hiring manager, someone on the team, or a founder at a small company."}
+                {job.thankYou
+                  ? "Send it today, to the people you met."
+                  : job.followUp
+                    ? `You applied ${job.followUp.days} ${job.followUp.days === 1 ? "day" : "days"} ago. Send it to the recruiter or the hiring manager.`
+                    : "Send it to the hiring manager, someone on the team, or a founder at a small company."}
               </p>
               <WritingStyleHint linked={!(keepPage || busy)} />
             </div>
@@ -344,10 +366,29 @@ function OutreachFlow({
             ) : null}
             {message || !resume ? null : postField}
 
+            {job.thankYou && !message && resume ? (
+              <Field
+                label="Who did you meet?"
+                optional
+                hint={`Their first name, or leave it empty to thank the ${company ? `${company} ` : ""}team.`}
+              >
+                <Input
+                  data-autofocus
+                  value={to}
+                  maxLength={80}
+                  autoComplete="off"
+                  onChange={(event) => setTo(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter") void write();
+                  }}
+                />
+              </Field>
+            ) : null}
+
             {message || !resume ? null : (
               <div className="flex flex-col items-start gap-2">
                 <Button
-                  data-autofocus
+                  data-autofocus={job.thankYou ? undefined : true}
                   loading={busy}
                   aria-disabled={waiting || undefined}
                   onClick={() => void write()}

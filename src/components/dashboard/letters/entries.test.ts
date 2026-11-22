@@ -172,6 +172,8 @@ describe("the application each letter belongs to", () => {
       jobId: null,
       hasPrep: false,
       interviewAt: null,
+      interviewTime: null,
+      interviewZone: null,
       createdAt: 1,
       updatedAt: 1,
       ...patch,

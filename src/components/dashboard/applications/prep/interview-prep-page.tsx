@@ -116,8 +116,8 @@ export function InterviewPrepPage({
   const prep = load.status === "ready" ? load.prep : null;
   const company = target?.company || prep?.job.company || "";
   const role = target?.role || prep?.job.title || "";
-  const interviewAt =
-    applications.items.find((item) => item.id === applicationId)?.interviewAt ?? null;
+  const tracked = applications.items.find((item) => item.id === applicationId);
+  const interviewAt = tracked?.interviewAt ?? null;
   const showPack = target !== null && prep !== null && remaking === false;
   const stats = prep
     ? [
@@ -178,7 +178,17 @@ export function InterviewPrepPage({
         {showPack && target && prep ? (
           <div className="flex flex-wrap items-center gap-2 print:hidden">
             {interviewAt !== null ? (
-              <AddToCalendar interview={{ applicationId, company, role, interviewAt }} size="sm" />
+              <AddToCalendar
+                interview={{
+                  applicationId,
+                  company,
+                  role,
+                  interviewAt,
+                  interviewTime: tracked?.interviewTime ?? null,
+                  interviewZone: tracked?.interviewZone ?? null,
+                }}
+                size="sm"
+              />
             ) : null}
             <Button variant="secondary" size="sm" onClick={() => void copyPack(prep, target)}>
               <Copy aria-hidden />

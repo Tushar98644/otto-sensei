@@ -8,6 +8,7 @@ import { resetEnvForTests } from "@/lib/env";
 import type { EmailMessage, EmailSender } from "@/lib/notifications/email";
 import { setEmailReminders } from "@/lib/notifications/records";
 import { deleteUserData } from "@/lib/users";
+import { applyFollowUpAction } from "@/app/api/applications/records";
 import { runFollowUps } from "./follow-ups";
 
 const HOUR = 60 * 60 * 1_000;
@@ -83,7 +84,14 @@ async function notificationsOf(userId: string) {
 
 async function interview(userId: string, company: string, interviewAt: number): Promise<string> {
   const [id] = await seed(userId, [
-    { company, role: "Backend Engineer", appliedDaysAgo: 20, status: "interview", interviewAt },
+    {
+      company,
+      role: "Backend Engineer",
+      appliedDaysAgo: 20,
+      status: "interview",
+      interviewAt,
+      followUpInDays: null,
+    },
   ]);
   return id!;
 }
@@ -109,7 +117,7 @@ describe("runFollowUps", () => {
       { company: "Stripe", role: "Backend Engineer", appliedDaysAgo: 9 },
       { company: "Linear", appliedDaysAgo: 7 },
       { company: "Figma", appliedDaysAgo: 6 },
-      { company: "Notion", appliedDaysAgo: 40, status: "interview" },
+      { company: "Notion", appliedDaysAgo: 40, status: "interview", followUpInDays: null },
       { company: "Vercel", appliedDaysAgo: 20, remindedAt: NOW - 10 * DAY },
       { company: "Canva", appliedDaysAgo: 30, followUpInDays: null },
       { company: "Asana", appliedDaysAgo: 14, followUpInDays: -1, remindedAt: NOW - 4 * DAY },
@@ -191,6 +199,37 @@ describe("runFollowUps", () => {
       ),
     );
     expect(email!.headers?.["List-Unsubscribe-Post"]).toBe("List-Unsubscribe=One-Click");
+  });
+
+  it("follows up after an interview too, saying so, and snoozes it like any other", async () => {
+    const maya = await proUser("maya@example.com");
+    await setEmailReminders(maya.id, true);
+    const [figma] = await seed(maya.id, [
+      {
+        company: "Figma",
+        role: "Designer",
+        appliedDaysAgo: 30,
+        status: "interview",
+        interviewAt: NOW - 8 * DAY,
+        followUpInDays: -1,
+      },
+    ]);
+    const sender = fakeSender();
+
+    await runFollowUps(context(), { sender });
+
+    const [row] = await notificationsOf(maya.id);
+    expect(row).toMatchObject({
+      kind: "application_follow_up",
+      title: "Time to follow up with Figma?",
+      body: "It's been 8 days since your interview with Figma. A short note keeps you in mind.",
+      applicationId: figma,
+    });
+    expect(sender.calls[0]!.messages[0]!.text).toContain(
+      "Figma (Designer · interviewed 8 days ago)",
+    );
+    const snoozed = await applyFollowUpAction(maya.id, figma!, "snooze", NOW);
+    expect(snoozed?.followUpAt).toBe(NOW + 3 * DAY);
   });
 
   it("does nothing more on a second run, even an overlapping one", async () => {

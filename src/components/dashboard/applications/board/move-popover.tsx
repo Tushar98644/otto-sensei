@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import type { ApplicationStatus } from "@/lib/applications/status";
-import { fromDateInput, toDateInput } from "../form";
+import { fromDateInput, fromTimeInput, toDateInput, toTimeInput } from "../form";
 import { cardName, type BoardCard } from "./board";
 
 export type MoveAsk = {
@@ -15,9 +15,15 @@ export type MoveAsk = {
   anchor: { x: number; y: number };
 };
 
-export type MoveAnswer = { status: ApplicationStatus; interviewAt: number | null; prepare: boolean };
+export type MoveAnswer = {
+  status: ApplicationStatus;
+  interviewAt: number | null;
+  // Minutes after midnight on this device's clock; null with no time typed.
+  interviewTime: number | null;
+  prepare: boolean;
+};
 
-const WIDTH_PX = 288;
+const WIDTH_PX = 320;
 const GUTTER_PX = 12;
 
 export function MovePopover({
@@ -33,11 +39,15 @@ export function MovePopover({
 }) {
   const titleId = useId();
   const dateId = useId();
+  const timeId = useId();
   const panelRef = useRef<HTMLDivElement>(null);
   const [day, setDay] = useState(() =>
     ask.card.kind === "application" && ask.card.application.interviewAt
       ? toDateInput(ask.card.application.interviewAt)
       : "",
+  );
+  const [time, setTime] = useState(() =>
+    ask.card.kind === "application" ? toTimeInput(ask.card.application.interviewTime) : "",
   );
   const [position, setPosition] = useState<{ left: number; top: number } | null>(null);
   const name = cardName(ask.card);
@@ -80,7 +90,9 @@ export function MovePopover({
   }, []);
 
   function interview(prepare: boolean) {
-    onAnswer({ status: "interview", interviewAt: day ? fromDateInput(day) : null, prepare });
+    const interviewAt = day ? fromDateInput(day) : null;
+    const interviewTime = interviewAt === null ? null : fromTimeInput(time);
+    onAnswer({ status: "interview", interviewAt, interviewTime, prepare });
   }
 
   function submit(event: FormEvent<HTMLFormElement>) {
@@ -108,7 +120,9 @@ export function MovePopover({
             <Button
               variant="secondary"
               size="sm"
-              onClick={() => onAnswer({ status: "rejected", interviewAt: null, prepare: false })}
+              onClick={() =>
+                onAnswer({ status: "rejected", interviewAt: null, interviewTime: null, prepare: false })
+              }
             >
               <CircleX aria-hidden className="text-muted" />
               Rejected
@@ -116,7 +130,9 @@ export function MovePopover({
             <Button
               variant="secondary"
               size="sm"
-              onClick={() => onAnswer({ status: "no_reply", interviewAt: null, prepare: false })}
+              onClick={() =>
+                onAnswer({ status: "no_reply", interviewAt: null, interviewTime: null, prepare: false })
+              }
             >
               <MailX aria-hidden className="text-muted" />
               No reply
@@ -134,12 +150,28 @@ export function MovePopover({
             </p>
             <p className="mt-0.5 truncate text-sm/5 text-muted">{name}</p>
           </div>
-          <div className="flex flex-col gap-1.5">
-            <label htmlFor={dateId} className="text-sm/5 font-medium text-ink">
-              Interview day <span className="font-normal text-subtle">(optional)</span>
-            </label>
-            <Input id={dateId} type="date" value={day} onChange={(event) => setDay(event.target.value)} />
-          </div>
+          <fieldset className="flex min-w-0 flex-col gap-1.5">
+            <legend className="mb-1.5 text-sm/5 font-medium text-ink">
+              Interview day and time <span className="font-normal text-subtle">(optional)</span>
+            </legend>
+            <div className="grid grid-cols-[minmax(0,1fr)_8.5rem] gap-2">
+              <Input
+                id={dateId}
+                type="date"
+                aria-label="Interview day"
+                value={day}
+                onChange={(event) => setDay(event.target.value)}
+              />
+              <Input
+                id={timeId}
+                type="time"
+                aria-label="Time"
+                value={time}
+                disabled={!day}
+                onChange={(event) => setTime(event.target.value)}
+              />
+            </div>
+          </fieldset>
           <div className="flex flex-wrap gap-2">
             <Button type="submit" size="sm">
               Move

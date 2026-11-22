@@ -17,6 +17,7 @@ import {
   LETTER_SYSTEM_PROMPT,
   OUTREACH_SYSTEM_PROMPT,
   outreachFollowUpRules,
+  outreachThankYouRules,
 } from "./prompts";
 import { redactResume, redactorFor, type Redactor } from "./redact";
 import { clip, clipWords, MAX_RESUME_CHARS, oneLine, tag, type DataTag } from "./text";
@@ -414,22 +415,39 @@ export async function answerQuestion(
   };
 }
 
-function outreachMessage(prepared: Prepared, style: string, followUpDays: number | null): string {
+// A first message, a follow-up on an application, or a thank-you after an interview.
+type OutreachMode =
+  { kind: "first" } | { kind: "follow_up"; days: number } | { kind: "thank_you"; to: string };
+
+function outreachMessage(prepared: Prepared, style: string, mode: OutreachMode): string {
   return userMessage([
     dataTag("resume", prepared.shownText),
     dataTag("job_post", postText(prepared.job)),
+    mode.kind === "thank_you" && mode.to ? dataTag("interviewer", mode.to) : "",
     style,
-    followUpDays === null ? "" : outreachFollowUpRules(followUpDays),
-    followUpDays === null ? "Write the message." : "Write the follow-up.",
+    mode.kind === "follow_up" ? outreachFollowUpRules(mode.days) : "",
+    mode.kind === "thank_you" ? outreachThankYouRules(mode.to !== "") : "",
+    mode.kind === "first"
+      ? "Write the message."
+      : mode.kind === "follow_up"
+        ? "Write the follow-up."
+        : "Write the thank-you.",
   ]);
+}
+
+// A thank-you greets the interviewer by the name given, else the company's team.
+function greetingFor(mode: OutreachMode, company: string): string {
+  if (mode.kind !== "thank_you") return "[first name]";
+  return mode.to || (company ? `${company} team` : "[first name]");
 }
 
 function assembleOutreach(
   paragraphs: readonly string[],
   name: string,
   style: WritingStyleBody,
+  greetingName = "[first name]",
 ): string {
-  const greeting = style.tone === "formal" ? "Dear [first name]," : "Hi [first name],";
+  const greeting = style.tone === "formal" ? `Dear ${greetingName},` : `Hi ${greetingName},`;
   const closing = closingLine(style.signOff, "Best");
   return [greeting, ...paragraphs, name ? `${closing}\n${name}` : closing].join("\n\n");
 }
@@ -447,7 +465,7 @@ function finishOutreach(
   note: string,
   prepared: Prepared,
   lengths: Lengths,
-  followUp: boolean,
+  mode: OutreachMode,
 ): OutreachParts {
   const { sources, lines, job } = prepared;
   const body = polish(email, lengths.range, lengths.floor, sources);
@@ -456,39 +474,57 @@ function finishOutreach(
   const shownSubject = clip(oneLine(subjectCheck.paragraphs[0] ?? ""), SUBJECT_CHARS);
   const shownNote = oneLine(noteCheck.paragraphs.join(" "));
   return {
-    subject:
-      shownSubject && !hasProblems(subjectCheck) ? shownSubject : fallbackSubject(job, followUp),
+    subject: shownSubject && !hasProblems(subjectCheck) ? shownSubject : fallbackSubject(job, mode),
     email: body,
-    note: shownNote && !hasProblems(noteCheck) ? shownNote : fallbackNote(body, job, followUp),
+    note: shownNote && !hasProblems(noteCheck) ? shownNote : fallbackNote(body, job, mode),
   };
 }
 
-function fallbackSubject(job: WritingInput, followUp: boolean): string {
+function fallbackSubject(job: WritingInput, mode: OutreachMode): string {
   const role = job.jobTitle || "The open role";
   const subject = job.company ? `${role} at ${job.company}` : role;
-  return clip(followUp ? `Following up: ${subject}` : subject, SUBJECT_CHARS);
+  const lead = { first: "", follow_up: "Following up: ", thank_you: "Thank you: " }[mode.kind];
+  return clip(`${lead}${subject}`, SUBJECT_CHARS);
 }
 
 const NOTE_BUDGET = NOTE_CHARS - NOTE_GREETING.length;
 
 // The email's first sentence when it fits the note, or a plain line naming the role.
-function fallbackNote(body: readonly string[], job: WritingInput, followUp: boolean): string {
+function fallbackNote(body: readonly string[], job: WritingInput, mode: OutreachMode): string {
   const first = sentencesOf(body[0] ?? "")[0]?.trim() ?? "";
   if (first && first.length <= NOTE_BUDGET) return first;
   const role = job.jobTitle ? `the ${job.jobTitle} role` : "your open role";
-  const line = `${followUp ? "I applied" : "I am applying"} for ${role}${job.company ? ` at ${job.company}` : ""} and would be glad to connect.`;
+  const at = job.company ? ` at ${job.company}` : "";
+  const line =
+    mode.kind === "thank_you"
+      ? `Thank you for the conversation about ${role}${at}.`
+      : `${mode.kind === "follow_up" ? "I applied" : "I am applying"} for ${role}${at} and would be glad to connect.`;
   return clipWords(line, NOTE_BUDGET);
 }
 
-// followUpDays: the person already applied that many days ago, so it follows up instead of opening.
+// A thank-you to a named interviewer greets them in the note too; a group thank-you keeps the blank, as a note goes to one person.
+function noteFor(note: string, mode: OutreachMode): string {
+  if (mode.kind !== "thank_you" || !mode.to) return `${NOTE_GREETING}${note}`;
+  const greeting = `Hi ${mode.to}, `;
+  return `${greeting}${clipWords(note, NOTE_CHARS - greeting.length)}`;
+}
+
+// followUpDays: the person applied that many days ago and follows up; thankYou: they had the interview.
 export async function writeOutreach(
   resume: Resume,
   input: WritingInput,
   style: WritingStyleBody = DEFAULT_WRITING_STYLE,
-  { followUpDays = null }: { followUpDays?: number | null } = {},
+  {
+    followUpDays = null,
+    thankYou = null,
+  }: { followUpDays?: number | null; thankYou?: { to: string } | null } = {},
 ): Promise<OutreachResult> {
   const prepared = prepare(resume, input, style);
-  const followUp = followUpDays !== null;
+  const mode: OutreachMode = thankYou
+    ? { kind: "thank_you", to: oneLine(thankYou.to) }
+    : followUpDays !== null
+      ? { kind: "follow_up", days: followUpDays }
+      : { kind: "first" };
   const lengths = lengthsFor("outreach", style.length);
   const name = oneLine(resume.basics.name);
   let parts: OutreachParts;
@@ -497,7 +533,7 @@ export async function writeOutreach(
       {
         task: "outreach",
         system: OUTREACH_SYSTEM_PROMPT,
-        user: outreachMessage(prepared, styleBlock(style, "outreach", prepared), followUpDays),
+        user: outreachMessage(prepared, styleBlock(style, "outreach", prepared), mode),
         schema: OutreachOutputSchema,
         paragraphs: (result) => result.email,
         range: lengths.range,
@@ -511,10 +547,10 @@ export async function writeOutreach(
       restore(output.note),
       prepared,
       lengths,
-      followUp,
+      mode,
     );
   } else {
-    parts = demoOutreach(resume, prepared.job, followUp);
+    parts = demoOutreach(resume, prepared.job, mode.kind);
   }
   const body = parts.email.join("\n\n");
   // The note's length is shown live in the dialog, so a warning here would go stale as the person edits it.
@@ -525,8 +561,8 @@ export async function writeOutreach(
   );
   return {
     subject: parts.subject,
-    email: assembleOutreach(parts.email, name, style),
-    note: `${NOTE_GREETING}${parts.note}`,
+    email: assembleOutreach(parts.email, name, style, greetingFor(mode, prepared.job.company)),
+    note: noteFor(parts.note, mode),
     words: wordCount(body),
     warnings,
   };

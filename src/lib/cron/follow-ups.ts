@@ -54,14 +54,20 @@ type Claimed = {
   notificationIds: string[];
 };
 
-// Written out rather than bound, so the planner can match the partial index.
-function dueFor(now: number) {
+// Written out rather than bound, so the planner can match each status's partial index.
+function dueIn(status: "applied" | "interview", now: number) {
   return and(
-    sql`${applications.status} = 'applied'`,
+    status === "applied"
+      ? sql`${applications.status} = 'applied'`
+      : sql`${applications.status} = 'interview'`,
     sql`${applications.followUpAt} is not null`,
     sql`(${applications.remindedAt} is null or ${applications.remindedAt} < ${applications.followUpAt})`,
     sql`${applications.followUpAt} <= ${now}`,
   );
+}
+
+function dueFor(now: number) {
+  return or(dueIn("applied", now), dueIn("interview", now));
 }
 
 // Up to the start of the hour + 36 h, so daily runs leave no gap whatever minute they start.
@@ -96,7 +102,15 @@ async function claimForUser(userId: string, now: number): Promise<Claimed | null
         company: applications.company,
         role: applications.role,
         appliedAt: applications.appliedAt,
-      });
+        status: applications.status,
+        interviewAt: applications.interviewAt,
+      })
+      .then((rows) =>
+        rows.map(({ status, interviewAt, ...row }) => ({
+          ...row,
+          interviewedAt: status === "interview" ? interviewAt : null,
+        })),
+      );
     const soon = await tx
       .update(applications)
       .set({ interviewRemindedFor: sql`${applications.interviewAt}` })

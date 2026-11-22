@@ -1,0 +1,46 @@
+name: Interview briefs
+
+# Every hour, so the interview-morning brief reaches each person at about 7:00 on their own clock
+# and "How did it go?" lands the morning after. Vercel's Hobby plan runs crons once a day at most;
+# on Vercel Pro this can move to vercel.json as "7 * * * *" and this file can go. Each run is
+# idempotent: the site stamps every interview day it handles. No database credentials live here:
+# only CRON_SECRET, the same value as on Vercel.
+#
+# Secret (Settings > Secrets and variables > Actions): CRON_SECRET
+# Variable: OTTO_APP_URL, the site's address, e.g. https://www.ottosensei.com
+
+on:
+  schedule:
+    # Minute 7 of every hour. GitHub may start scheduled runs some minutes late.
+    - cron: "7 * * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: interview-briefs
+  cancel-in-progress: false
+
+jobs:
+  briefs:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Send this hour's briefs
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+          OTTO_APP_URL: ${{ vars.OTTO_APP_URL }}
+        run: |
+          if [ -z "$CRON_SECRET" ] || [ -z "$OTTO_APP_URL" ]; then
+            echo "::notice::CRON_SECRET or OTTO_APP_URL not set yet; skipping."
+            exit 0
+          fi
+          base="${OTTO_APP_URL%/}"
+          status=$(curl -sS -o body.json -w '%{http_code}' --max-time 90 -X POST \
+            -H "Authorization: Bearer $CRON_SECRET" "$base/api/cron/interview-briefs" || echo 000)
+          echo "HTTP $status, $(jq -c '.stats // {}' body.json 2>/dev/null)"
+          if [ "$status" = "401" ]; then
+            echo "::error::The site refused CRON_SECRET. Use the same value as on Vercel."
+            exit 1
+          fi
+          if [ "$status" != "200" ]; then
+            echo "::warning::This hour's run didn't finish; the next one picks up what's left."
+          fi

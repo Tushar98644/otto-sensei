@@ -4,6 +4,7 @@ import { lockUser } from "@/db/locks";
 import { applications, notifications, notificationSettings, users } from "@/db/schema";
 import { FOLLOW_UP_DAYS, followUpState } from "@/lib/applications/follow-up";
 import type { ApplicationStatus } from "@/lib/applications/status";
+import { outcomeOpen } from "@/lib/interviews/outcome";
 import { promptResting } from "./prompts";
 import {
   isInAppPath,
@@ -18,6 +19,9 @@ import {
 type Row = typeof notifications.$inferSelect & {
   status: ApplicationStatus | null;
   followUpAt: number | null;
+  interviewAt: number | null;
+  interviewAskedFor: number | null;
+  interviewAnsweredFor: number | null;
 };
 
 function toNotification(row: Row): Notification {
@@ -31,15 +35,22 @@ function toNotification(row: Row): Notification {
     createdAt: row.createdAt,
     applicationId: row.status === null ? null : row.applicationId,
     followUpDue: false,
+    outcomeOpen: false,
   };
 }
 
 // Rows come newest first; an older reminder about the same follow-up keeps its text but not its buttons.
 function withFollowUps(rows: readonly Row[], now: number): Notification[] {
   const offered = new Set<string>();
+  const asked = new Set<string>();
   return rows.map((row) => {
     const item = toNotification(row);
     const id = item.applicationId;
+    if (row.kind === "interview_after") {
+      if (id === null || asked.has(id) || row.status === null) return item;
+      asked.add(id);
+      return outcomeOpen({ ...row, status: row.status }) ? { ...item, outcomeOpen: true } : item;
+    }
     if (
       row.kind !== "application_follow_up" ||
       id === null ||
@@ -78,6 +89,9 @@ export async function listNotifications(
           ...getTableColumns(notifications),
           status: applications.status,
           followUpAt: applications.followUpAt,
+          interviewAt: applications.interviewAt,
+          interviewAskedFor: applications.interviewAskedFor,
+          interviewAnsweredFor: applications.interviewAnsweredFor,
         })
         .from(notifications)
         .leftJoin(

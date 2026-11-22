@@ -32,6 +32,8 @@ function app(id: string, overrides: Partial<Application> = {}): Application {
     jobId: null,
     hasPrep: false,
     interviewAt: null,
+    interviewTime: null,
+    interviewZone: null,
     statusChangedAt: noon(1),
     notes: "",
     followUpAt: null,
@@ -125,20 +127,27 @@ describe("nextSteps", () => {
     expect(kinds(waiting)).toEqual(["setup:weak_line"]);
   });
 
-  it("groups every due follow-up into one row, oldest first, and skips scheduled ones", () => {
+  it("groups every due follow-up into one row, oldest first, and skips scheduled and closed ones", () => {
     const steps = nextSteps(
       facts({
         applications: [
           app("later", { followUpAt: NOW - 1_000 }),
           app("first", { followUpAt: NOW - 5_000 }),
           app("scheduled", { followUpAt: NOW + 5_000 }),
-          app("replied", { status: "interview", followUpAt: NOW - 9_000 }),
+          app("closed", { status: "rejected", followUpAt: NOW - 9_000 }),
         ],
       }),
     );
     expect(steps).toHaveLength(1);
     const [row] = steps;
     expect(row?.kind === "follow_up" && row.due.map((item) => item.id)).toEqual(["first", "later"]);
+  });
+
+  it("counts the follow-up Otto sets after an interview", () => {
+    const steps = nextSteps(
+      facts({ applications: [app("interviewed", { status: "interview", followUpAt: NOW - 1_000 })] }),
+    );
+    expect(steps[0]?.kind === "follow_up" && steps[0].due.map((item) => item.id)).toEqual(["interviewed"]);
   });
 
   it("shows matches only when some are strong and some are new today", () => {

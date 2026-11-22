@@ -35,6 +35,7 @@ import {
   COLUMN_NAMES,
   COLUMN_PAGE,
   createBody,
+  interviewClock,
   planDrop,
   planStatus,
   type BoardCard,
@@ -157,7 +158,14 @@ export function ApplicationsBoard({
     mode: MoveMode,
   ) {
     if (!(await roomForApplication(applications.length))) return;
-    const body = createBody(card.item, answer.status, sentAt(), fallback, answer.interviewAt);
+    const body = createBody(
+      card.item,
+      answer.status,
+      sentAt(),
+      fallback,
+      answer.interviewAt,
+      answer.interviewTime,
+    );
     if (!body) {
       onNeedsDetails(card.item.copy?.id ?? null);
       return;
@@ -200,7 +208,9 @@ export function ApplicationsBoard({
     if (mode === "keyboard") setFocusKey(`application:${application.id}`);
     changeApplication(application, {
       status: answer.status,
-      ...(answer.status === "interview" ? { interviewAt: answer.interviewAt } : {}),
+      ...(answer.status === "interview"
+        ? { interviewAt: answer.interviewAt, ...interviewClock(answer.interviewTime) }
+        : {}),
     }).then(
       () => {
         if (answer.prepare) prepare(application);
@@ -223,7 +233,12 @@ export function ApplicationsBoard({
       return;
     }
     setTab(columnOf(move.status));
-    const reply = answer ?? { status: move.status, interviewAt: null, prepare: false };
+    const reply = answer ?? {
+      status: move.status,
+      interviewAt: null,
+      interviewTime: null,
+      prepare: false,
+    };
     if (move.kind === "status") changeStatus(move.application, reply, mode);
     else void create({ kind: "to_apply", key: move.item.key, item: move.item }, reply, mode);
   }

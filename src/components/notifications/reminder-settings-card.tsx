@@ -3,6 +3,7 @@
 import { useId } from "react";
 import { errorMessage } from "@/components/account/errors";
 import { useMe } from "@/components/account/use-me";
+import { CalendarFeed } from "@/components/calendar/calendar-feed";
 import { SECTION_SCROLL } from "@/components/settings/sections";
 import { ACCOUNT_SECTIONS } from "@/components/setup/links";
 import { Alert } from "@/components/ui/alert";
@@ -24,7 +25,31 @@ const SEGMENT = cn(
   "has-focus-visible:outline-2 has-focus-visible:outline-offset-2 has-focus-visible:outline-ink",
 );
 
+// Account's "Emails and reminders" group: these settings, then the calendar link.
 export function ReminderSettingsCard() {
+  return (
+    <>
+      <RemindersCard />
+      <CalendarCard />
+    </>
+  );
+}
+
+function CalendarCard() {
+  const titleId = useId();
+  return (
+    <Card id="calendar" aria-labelledby={titleId} role="region" className={SECTION_SCROLL}>
+      <CardHeader className="sr-only">
+        <CardTitle as="h3" id={titleId}>
+          Calendar
+        </CardTitle>
+      </CardHeader>
+      <CalendarFeed renewable />
+    </Card>
+  );
+}
+
+function RemindersCard() {
   const { user } = useMe();
   const userId = user?.id ?? null;
   const titleId = useId();
@@ -65,7 +90,7 @@ export function ReminderSettingsCard() {
         <CardDescription>
           When you mark a job applied, Otto sets a reminder to follow up and shows it in the bell on
           your dashboard, with Done and Snooze {SNOOZE_DAYS} days. The day before an interview, Otto
-          reminds you there too.
+          reminds you there too, and the morning after asks how it went.
         </CardDescription>
       </CardHeader>
       {settings ? (
@@ -130,7 +155,9 @@ function DelayChoice({ value, onChange }: { value: number; onChange: (days: numb
   );
 }
 
-type ListChange = Partial<Pick<EmailChoicesData, "jobEmails" | "tipEmails" | "viewEmails">>;
+type ListChange = Partial<
+  Pick<EmailChoicesData, "jobEmails" | "tipEmails" | "viewEmails" | "briefEmails">
+>;
 
 function savedTitle(change: ListChange, saved: EmailChoicesData): string {
   if (change.jobEmails !== undefined) {
@@ -138,6 +165,11 @@ function savedTitle(change: ListChange, saved: EmailChoicesData): string {
   }
   if (change.viewEmails !== undefined) {
     return saved.viewEmails ? "Views emails are on." : "Views emails are off.";
+  }
+  if (change.briefEmails !== undefined) {
+    return saved.briefEmails
+      ? "Interview morning briefs are on."
+      : "Interview morning briefs are off.";
   }
   return saved.tipEmails ? "Tips and reminders are on." : "Tips and reminders are off.";
 }
@@ -164,6 +196,12 @@ function OtherEmails({ userId }: { userId: string }) {
           hint="New jobs that match your resume, at most once a week. Off until you turn it on."
           value={choices.jobEmails}
           onChange={(jobEmails) => void save({ jobEmails })}
+        />
+        <OnOffChoice
+          label="Interview morning brief"
+          hint="On interview days at about 7:00 your time: the company, the role, your strongest stories and questions to ask, then a quick how did it go the morning after. Off until you turn it on."
+          value={choices.briefEmails}
+          onChange={(briefEmails) => void save({ briefEmails })}
         />
         <OnOffChoice
           label="Views emails"
@@ -197,6 +235,7 @@ function OtherEmails({ userId }: { userId: string }) {
   }
   return (
     <div className="flex flex-col gap-5 border-t border-border pt-5">
+      <Skeleton className="h-11 w-full" />
       <Skeleton className="h-11 w-full" />
       <Skeleton className="h-11 w-full" />
       <Skeleton className="h-11 w-full" />

@@ -28,6 +28,8 @@ function app(id: string, overrides: Partial<Application> = {}): Application {
     jobId: null,
     hasPrep: false,
     interviewAt: null,
+    interviewTime: null,
+    interviewZone: null,
     createdAt: 1_000,
     updatedAt: 1_000,
     ...overrides,

@@ -379,6 +379,9 @@ describe("/api/notifications/emails", () => {
       jobPromptSnoozed: false,
       viewPromptClosed: false,
       viewPromptSnoozed: false,
+      briefEmails: false,
+      briefPromptClosed: false,
+      briefPromptSnoozed: false,
       emailAvailable: false,
     });
     expect(await settingsRowOf(maya.id)).toMatchObject({

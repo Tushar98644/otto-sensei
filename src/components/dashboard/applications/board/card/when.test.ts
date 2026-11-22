@@ -23,6 +23,8 @@ function app(overrides: Partial<Application> = {}): BoardCard {
     jobId: null,
     hasPrep: false,
     interviewAt: null,
+    interviewTime: null,
+    interviewZone: null,
     createdAt: NOW,
     updatedAt: NOW,
     ...overrides,

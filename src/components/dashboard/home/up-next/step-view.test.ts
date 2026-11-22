@@ -22,6 +22,8 @@ function app(overrides: Partial<Application> = {}): Application {
     jobId: null,
     hasPrep: false,
     interviewAt: noon(23),
+    interviewTime: null,
+    interviewZone: null,
     statusChangedAt: noon(2),
     notes: "",
     followUpAt: null,

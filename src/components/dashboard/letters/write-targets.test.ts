@@ -23,6 +23,8 @@ function application(id: string, patch: Partial<Application> = {}): Application 
     jobId: null,
     hasPrep: false,
     interviewAt: null,
+    interviewTime: null,
+    interviewZone: null,
     statusChangedAt: 1_000,
     notes: "",
     followUpAt: null,

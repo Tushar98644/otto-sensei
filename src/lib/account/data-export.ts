@@ -81,6 +81,8 @@ export async function buildDataExport(
         status: applications.status,
         appliedAt: applications.appliedAt,
         interviewAt: applications.interviewAt,
+        interviewTime: applications.interviewTime,
+        interviewZone: applications.interviewZone,
         followUpAt: applications.followUpAt,
         resumeTitle: applications.resumeTitle,
         notes: applications.notes,

@@ -36,6 +36,9 @@ export type Application = {
   jobId: string | null;
   hasPrep: boolean;
   interviewAt: number | null;
+  // Minutes after midnight in interviewZone, the zone it was typed in; null is a day with no time.
+  interviewTime: number | null;
+  interviewZone: string | null;
   createdAt: number;
   updatedAt: number;
 };

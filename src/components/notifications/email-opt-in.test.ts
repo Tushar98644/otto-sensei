@@ -12,6 +12,9 @@ const ASKING: EmailChoicesData = {
   jobPromptSnoozed: false,
   viewPromptClosed: false,
   viewPromptSnoozed: false,
+  briefEmails: false,
+  briefPromptClosed: false,
+  briefPromptSnoozed: false,
 };
 
 describe("when the one-tap cards ask", () => {

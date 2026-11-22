@@ -18,7 +18,7 @@ Other docs: [README.md](README.md) (run locally; links here), [SETUP.md](SETUP.m
 | Payments | Dodo Payments, our merchant of record (**test mode** until Dodo verifies the account); checkout is Dodo's hosted page, which returns through `/api/billing/return` |
 | Sign-in emails | Resend, through Supabase's SMTP settings |
 | Daily jobs feed | GitHub Action `jobs-ingest.yml` at 05:40 UTC calls `/api/cron/jobs` |
-| Other crons | `vercel.json`: `/api/cron/cleanup` (04:17 UTC), `/api/cron/job-emails` (08:30 UTC, the weekly jobs email), `/api/cron/view-alerts` (13:15 UTC, resume and portfolio view alerts), `/api/cron/trial-reminders` (13:30 UTC), `/api/cron/follow-ups` (14:00 UTC), `/api/cron/tip-emails` (14:45 UTC) |
+| Other crons | `vercel.json`: `/api/cron/cleanup` (04:17 UTC), `/api/cron/job-emails` (08:30 UTC, the weekly jobs email), `/api/cron/view-alerts` (13:15 UTC, resume and portfolio view alerts), `/api/cron/interview-briefs` (hourly at :07 from GitHub Action `interview-briefs.yml` until Vercel Pro allows an hourly cron; the interview-morning brief at about 7:00 local and "How did it go?" the morning after), `/api/cron/trial-reminders` (13:30 UTC), `/api/cron/follow-ups` (14:00 UTC), `/api/cron/tip-emails` (14:45 UTC) |
 
 **Not in git, so copy these by hand from the old laptop:**
 - `web/.env.local`: holds `OPENROUTER_API_KEY` and `RESEND_API_KEY`. Copy it over USB or a password manager, never through chat, email or git.

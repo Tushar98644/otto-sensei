@@ -96,6 +96,17 @@ export function settleFollowUp(applicationId: string) {
   });
 }
 
+// An answer to "How did it go?" from anywhere takes its keys off the bell row at once.
+export function settleOutcome(applicationId: string) {
+  if (!state.items.some((item) => item.applicationId === applicationId && item.outcomeOpen)) return;
+  setState({
+    ...state,
+    items: state.items.map((item) =>
+      item.applicationId === applicationId ? { ...item, outcomeOpen: false } : item,
+    ),
+  });
+}
+
 // An undone Done or Snooze is due again, which only the server's list can say.
 export function reloadNotifications() {
   if (state.userId && state.status === "ready") void loadNotifications(state.userId);

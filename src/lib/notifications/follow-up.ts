@@ -9,7 +9,14 @@ import { NOTIFICATION_LIMITS } from "./types";
 
 // Company names and roles are the user's own text: escaped in HTML, capped everywhere.
 
-export type DueApplication = { id: string; company: string; role: string; appliedAt: number };
+export type DueApplication = {
+  id: string;
+  company: string;
+  role: string;
+  appliedAt: number;
+  // Set when the follow-up comes after an interview on that day.
+  interviewedAt?: number | null;
+};
 
 export type FollowUpNotice = {
   title: string;
@@ -37,10 +44,16 @@ function oldestFirst(list: readonly DueApplication[]): DueApplication[] {
 export function followUpMessage(list: readonly DueApplication[], now: number): string {
   const due = oldestFirst(list);
   const names = [...new Set(due.map((item) => clip(item.company, NAME_CHARS)).filter(Boolean))];
-  if (due.length === 1) {
-    const days = Math.max(1, Math.floor((now - (due[0]?.appliedAt ?? now)) / DAY_MS));
-    const name = names[0] ?? "that company";
-    return `It's been ${count.format(days)} ${days === 1 ? "day" : "days"} since you applied to ${name}. A short follow-up can help.`;
+  const [only] = due;
+  if (due.length === 1 && only) {
+    const interviewed = only.interviewedAt ?? null;
+    const days = Math.max(1, Math.floor((now - (interviewed ?? only.appliedAt)) / DAY_MS));
+    const ago = `${count.format(days)} ${days === 1 ? "day" : "days"}`;
+    if (interviewed !== null) {
+      const name = names[0] ? ` with ${names[0]}` : "";
+      return `It's been ${ago} since your interview${name}. A short note keeps you in mind.`;
+    }
+    return `It's been ${ago} since you applied to ${names[0] ?? "that company"}. A short follow-up can help.`;
   }
   const shown = names.slice(0, 2);
   const rest = due.length - shown.length;
@@ -86,15 +99,16 @@ export function escapeHtml(text: string): string {
     .replaceAll("'", "&#39;");
 }
 
-function daysAgo(appliedAt: number, now: number): string {
-  const days = Math.floor((now - appliedAt) / DAY_MS);
-  return `applied ${count.format(days)} days ago`;
+function daysAgo(item: DueApplication, now: number): string {
+  const interviewed = item.interviewedAt ?? null;
+  const days = Math.floor((now - (interviewed ?? item.appliedAt)) / DAY_MS);
+  return `${interviewed === null ? "applied" : "interviewed"} ${count.format(days)} days ago`;
 }
 
 function line(item: DueApplication, now: number): { name: string; detail: string } {
   const name = clip(item.company, NAME_CHARS) || "A company";
   const role = clip(item.role, NAME_CHARS);
-  return { name, detail: [role, daysAgo(item.appliedAt, now)].filter(Boolean).join(" · ") };
+  return { name, detail: [role, daysAgo(item, now)].filter(Boolean).join(" · ") };
 }
 
 // Write is null for an account without Pro tools: the writer is a Pro tool, and this email sells nothing.
