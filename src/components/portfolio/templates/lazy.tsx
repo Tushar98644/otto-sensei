@@ -19,6 +19,9 @@ const IMPORTS: Record<PortfolioTemplateId, () => Promise<Template>> = {
   terminal: () => import("./terminal/terminal").then((module) => module.TerminalTemplate),
   brutal: () => import("./brutal/brutal").then((module) => module.BrutalTemplate),
   card: () => import("./card/card").then((module) => module.CardTemplate),
+  retro: () => import("./retro/retro").then((module) => module.RetroTemplate),
+  starring: () => import("./starring/starring").then((module) => module.StarringTemplate),
+  bubble: () => import("./bubble/bubble").then((module) => module.BubbleTemplate),
 };
 
 const loaded = new Map<PortfolioTemplateId, Template>();

@@ -1,5 +1,6 @@
 import {
   Abril_Fatface,
+  Anton,
   Caveat,
   DM_Mono,
   DM_Serif_Display,
@@ -9,7 +10,11 @@ import {
   Geist_Mono,
   Geist_Pixel,
   Gochi_Hand,
+  IBM_Plex_Mono,
+  IBM_Plex_Sans,
   Inter,
+  JetBrains_Mono,
+  Lilita_One,
   Montserrat,
   Old_Standard_TT,
   Outfit,
@@ -18,6 +23,9 @@ import {
   Roboto_Condensed,
   Sanchez,
   Shantell_Sans,
+  Sora,
+  Source_Serif_4,
+  Space_Grotesk,
   UnifrakturMaguntia,
 } from "next/font/google";
 import type { PortfolioTemplateId } from "@/lib/portfolio/types";
@@ -158,6 +166,60 @@ const poppins = Poppins({
   variable: "--pf-font-poppins",
 });
 
+const plexMono = IBM_Plex_Mono({
+  subsets: ["latin", "latin-ext"],
+  weight: ["400", "500", "600"],
+  display: "swap",
+  preload: false,
+  variable: "--pf-font-plex-mono",
+});
+const plexSans = IBM_Plex_Sans({
+  subsets: ["latin", "latin-ext"],
+  weight: ["400", "500", "600"],
+  display: "swap",
+  preload: false,
+  variable: "--pf-font-plex-sans",
+});
+const jetbrainsMono = JetBrains_Mono({
+  subsets: ["latin", "latin-ext"],
+  display: "swap",
+  preload: false,
+  variable: "--pf-font-jetbrains",
+});
+const sourceSerif = Source_Serif_4({
+  subsets: ["latin", "latin-ext"],
+  weight: ["400", "600"],
+  display: "swap",
+  preload: false,
+  variable: "--pf-font-source-serif",
+});
+const anton = Anton({
+  subsets: ["latin", "latin-ext"],
+  weight: "400",
+  display: "swap",
+  preload: false,
+  variable: "--pf-font-anton",
+});
+const spaceGrotesk = Space_Grotesk({
+  subsets: ["latin", "latin-ext"],
+  display: "swap",
+  preload: false,
+  variable: "--pf-font-space-grotesk",
+});
+const lilitaOne = Lilita_One({
+  subsets: ["latin", "latin-ext"],
+  weight: "400",
+  display: "swap",
+  preload: false,
+  variable: "--pf-font-lilita",
+});
+const sora = Sora({
+  subsets: ["latin", "latin-ext"],
+  display: "swap",
+  preload: false,
+  variable: "--pf-font-sora",
+});
+
 const TEMPLATE_FONTS: Record<PortfolioTemplateId, string> = {
   navy: `${inter.variable} ${firaCode.variable}`,
   dock: geist.variable,
@@ -171,6 +233,9 @@ const TEMPLATE_FONTS: Record<PortfolioTemplateId, string> = {
   terminal: firaCode.variable,
   brutal: `${outfit.variable} ${dmSerifDisplay.variable} ${sanchez.variable} ${poppins.variable} ${righteous.variable}`,
   card: poppins.variable,
+  retro: `${plexMono.variable} ${plexSans.variable} ${jetbrainsMono.variable} ${sourceSerif.variable} ${inter.variable}`,
+  starring: `${anton.variable} ${spaceGrotesk.variable} ${jetbrainsMono.variable}`,
+  bubble: `${lilitaOne.variable} ${sora.variable}`,
 };
 
 export function templateFontClasses(id: PortfolioTemplateId): string {

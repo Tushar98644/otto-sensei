@@ -42,7 +42,7 @@ function onlyAName(name: string) {
 }
 
 describe("portfolio template registry", () => {
-  it("has the twelve designs, in order, with a name, an idea, a credit and a picker picture", () => {
+  it("has the fifteen designs, in order, with a name, an idea, a credit and a picker picture", () => {
     expect(PORTFOLIO_TEMPLATE_LIST.map((template) => template.id)).toEqual([
       ...PORTFOLIO_TEMPLATE_IDS,
     ]);
@@ -59,6 +59,9 @@ describe("portfolio template registry", () => {
       "terminal",
       "brutal",
       "card",
+      "retro",
+      "starring",
+      "bubble",
     ]);
     for (const template of PORTFOLIO_TEMPLATE_LIST) {
       expect(template.name).not.toBe("");
@@ -78,7 +81,7 @@ describe("portfolio template registry", () => {
     expect(migrationTemplateIds()).toEqual(templateOrder(PORTFOLIO_TEMPLATE_IDS));
     expect(DEFAULT_PORTFOLIO_TEMPLATE).toBe("navy");
     const latest = readMigrations()
-      .filter((migration) => /portfolios_template_check/.test(migration.sql))
+      .filter((migration) => /add constraint portfolios_template_check/.test(migration.sql))
       .at(-1);
     expect(latest?.sql).toMatch(/alter column template set default 'navy'/);
   });

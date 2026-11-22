@@ -24,6 +24,9 @@ folder's `LICENSE.txt` do; published pages carry no credit line (owner, 2026-11-
 | Terminal (`terminal`) | [Cveinnt/LiveTerm](https://github.com/Cveinnt/LiveTerm) | (c) 2022 Vincent Wu | MIT | `2e2c2d8` | `src/components/portfolio/templates/terminal/` | Hack Nerd Font → Fira Code |
 | Brutal (`brutal`) | [ElianCodes/brutal](https://github.com/ElianCodes/brutal) and [ElianCodes/brutal-ui](https://github.com/ElianCodes/brutal-ui) | (c) 2023 Elian Van Cutsem | MIT | `fe01084`, brutal-ui `717d020` | `src/components/portfolio/templates/brutal/` | none (Outfit, DM Serif Display, Sanchez, Poppins, Righteous, as the original) |
 | Card (`card`) | [codewithsadee/vcard-personal-portfolio](https://github.com/codewithsadee/vcard-personal-portfolio) | (c) 2022 codewithsadee | MIT | `927f09a` | `src/components/portfolio/templates/card/` | none (Poppins, as the original) |
+| Retro (`retro`) | [mirkoschubert/retro-os](https://github.com/mirkoschubert/retro-os) | (c) 2026 Mirko Schubert | MIT | `de99063` | `src/components/portfolio/templates/retro/` | none (IBM Plex Mono, IBM Plex Sans, JetBrains Mono, Source Serif 4, Inter, as the original's three eras) |
+| Headliner (`starring`) | [pipozzz/starring](https://github.com/pipozzz/starring) (its Acid theme) | (c) 2026 Peter Gonda and Starring contributors | MIT | `c051934` | `src/components/portfolio/templates/starring/` | none (Anton, Space Grotesk, JetBrains Mono, as the original) |
+| Bubblegum (`bubble`) | [Nuu-maan/portfolio-template](https://github.com/Nuu-maan/portfolio-template) | (c) 2026 Numan Khan | MIT | `3fe06e3` | `src/components/portfolio/templates/bubble/` | none (Lilita One, Sora, as the original) |
 
 Some of these sites license only their code under MIT. antfu.me's words and pictures are CC
 BY-NC-SA 4.0, and chanhdai.com's trademark policy keeps Chánh Đại's name and logo out of its MIT
@@ -55,6 +58,13 @@ where the original draws its logo).
 - **Gazette, Brutal and Card** draw no pictures from their originals: the Daily Godoy's engraved
   portrait and paper tiles, Brutal's sample images and vCard's memoji avatars, photographs and
   client logos are left out; initials, gradients and drawn tiles stand in.
+- **Bubblegum's mascots** (`bubble/mascots.tsx`: the bean, daisy, globe, gloves, clouds, stars
+  and flowers): Nuu-maan/portfolio-template `3fe06e3`'s own SVG drawings, under its MIT licence
+  above, drawn once per page as symbols.
+- **Retro and Headliner** draw no pictures and no marks from their originals: no portraits,
+  covers or photos (Retro's placeholders show initials and monograms), no RetroOS name (the
+  menubar shows the owner's first name), and no Starring logo or star mark (a plain five-point
+  star stands in).
 - **Sketchbook's fox world** (`public/portfolio-templates/paper/`): the scenes, strips, plants and
   ground that umutxyp/Personal-Website `5f8f26a` paints with its `scripts/paint.py`, under its MIT
   licence above; the fox, gulls and other animals in them are PhyloPic silhouettes under CC0 1.0 or

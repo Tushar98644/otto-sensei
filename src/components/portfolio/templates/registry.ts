@@ -3,6 +3,7 @@ import { PORTFOLIO_TEMPLATE_IDS, type PortfolioTemplateId } from "@/lib/portfoli
 import { BentoTemplate } from "./bento/bento";
 import { BrutalTemplate } from "./brutal/brutal";
 import { CardTemplate } from "./card/card";
+import { BubbleTemplate } from "./bubble/bubble";
 import { CvTemplate } from "./cv/cv";
 import { DockTemplate } from "./dock/dock";
 import { FolioTemplate } from "./folio/folio";
@@ -12,6 +13,8 @@ import { PaperTemplate } from "./paper/paper";
 import { ProseTemplate } from "./prose/prose";
 import { ReelTemplate } from "./reel/reel";
 import { TerminalTemplate } from "./terminal/terminal";
+import { RetroTemplate } from "./retro/retro";
+import { StarringTemplate } from "./starring/starring";
 import type { PortfolioTemplate } from "./types";
 
 export const PORTFOLIO_TEMPLATES: Record<PortfolioTemplateId, PortfolioTemplate> = {
@@ -27,6 +30,9 @@ export const PORTFOLIO_TEMPLATES: Record<PortfolioTemplateId, PortfolioTemplate>
   terminal: { ...PORTFOLIO_TEMPLATE_INFO.terminal, Component: TerminalTemplate },
   brutal: { ...PORTFOLIO_TEMPLATE_INFO.brutal, Component: BrutalTemplate },
   card: { ...PORTFOLIO_TEMPLATE_INFO.card, Component: CardTemplate },
+  retro: { ...PORTFOLIO_TEMPLATE_INFO.retro, Component: RetroTemplate },
+  starring: { ...PORTFOLIO_TEMPLATE_INFO.starring, Component: StarringTemplate },
+  bubble: { ...PORTFOLIO_TEMPLATE_INFO.bubble, Component: BubbleTemplate },
 };
 
 export const PORTFOLIO_TEMPLATE_LIST: readonly PortfolioTemplate[] = PORTFOLIO_TEMPLATE_IDS.map(

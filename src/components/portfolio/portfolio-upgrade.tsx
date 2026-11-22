@@ -51,7 +51,7 @@ export function PortfolioUpgrade({
           <p className="mt-2 text-base/7 text-pretty text-muted">
             {portfolio
               ? "Portfolios come with Pro and Max. Your page and its settings are kept, so it comes back as it was."
-              : "Your projects, work, writing and links in one of twelve designs, filled in from your resume."}
+              : "Your projects, work, writing and links in one of fifteen designs, filled in from your resume."}
           </p>
           <ul className="mt-4 flex flex-col gap-2 text-sm/6 text-ink">
             <li className="flex gap-2">

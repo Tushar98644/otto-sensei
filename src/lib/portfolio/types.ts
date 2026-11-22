@@ -22,6 +22,9 @@ export const PORTFOLIO_TEMPLATE_IDS = [
   "terminal",
   "brutal",
   "card",
+  "retro",
+  "starring",
+  "bubble",
 ] as const;
 export type PortfolioTemplateId = z.infer<typeof PortfolioTemplateIdSchema>;
 export const DEFAULT_PORTFOLIO_TEMPLATE: PortfolioTemplateId = "navy";

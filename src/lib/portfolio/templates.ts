@@ -174,6 +174,48 @@ export const PORTFOLIO_TEMPLATE_INFO: Record<PortfolioTemplateId, PortfolioTempl
       licence: "MIT",
     },
   },
+  retro: {
+    id: "retro",
+    name: "Retro",
+    description:
+      "A retro workstation: windows you can drag, roll up and zoom, a menubar, and three eras to pick from.",
+    thumbnail: "/portfolio-templates/retro.webp",
+    colors: { background: "#0f1310", ink: "#d8e0c8", muted: "#8a907f" },
+    credit: {
+      author: "Mirko Schubert",
+      work: "retro-os",
+      href: "https://github.com/mirkoschubert/retro-os",
+      licence: "MIT",
+    },
+  },
+  starring: {
+    id: "starring",
+    name: "Headliner",
+    description:
+      "Your career as a film: your name billed huge on a black stage, then an act for each part of your work.",
+    thumbnail: "/portfolio-templates/starring.webp",
+    colors: { background: "#0a0a0a", ink: "#f2f0e9", muted: "#8a877e" },
+    credit: {
+      author: "Peter Gonda",
+      work: "starring",
+      href: "https://github.com/pipozzz/starring",
+      licence: "MIT",
+    },
+  },
+  bubble: {
+    id: "bubble",
+    name: "Bubblegum",
+    description:
+      "Loud and cute: puffy striped lettering on a checkered sky, sticker cards, little mascots and a marquee.",
+    thumbnail: "/portfolio-templates/bubble.webp",
+    colors: { background: "#b9d8ff", ink: "#1a1a2e", muted: "#4a4a68" },
+    credit: {
+      author: "Numan Khan",
+      work: "portfolio-template",
+      href: "https://github.com/Nuu-maan/portfolio-template",
+      licence: "MIT",
+    },
+  },
 };
 
 export type TemplateGroup = { label: string; ids: PortfolioTemplateId[] };
@@ -182,7 +224,20 @@ const PICKER_GROUPS: readonly { label: string; ids: readonly PortfolioTemplateId
   { label: "Our picks", ids: ["paper", "gazette", "reel"] },
   {
     label: "More designs",
-    ids: ["dock", "folio", "cv", "prose", "card", "brutal", "terminal", "bento", "navy"],
+    ids: [
+      "dock",
+      "folio",
+      "cv",
+      "prose",
+      "card",
+      "brutal",
+      "terminal",
+      "retro",
+      "starring",
+      "bubble",
+      "bento",
+      "navy",
+    ],
   },
 ];
 

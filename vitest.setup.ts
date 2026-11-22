@@ -39,6 +39,14 @@ vi.mock("next/font/google", () => {
     "Sanchez",
     "Righteous",
     "Poppins",
+    "IBM_Plex_Mono",
+    "IBM_Plex_Sans",
+    "JetBrains_Mono",
+    "Source_Serif_4",
+    "Anton",
+    "Space_Grotesk",
+    "Lilita_One",
+    "Sora",
   ];
   return Object.fromEntries(names.map((name) => [name, font]));
 });

@@ -19,6 +19,9 @@ const DRAWS: Record<PortfolioTemplateId, { skills: boolean; education: boolean }
   terminal: { skills: true, education: true },
   brutal: { skills: true, education: true },
   card: { skills: true, education: true },
+  retro: { skills: true, education: true },
+  starring: { skills: true, education: true },
+  bubble: { skills: true, education: true },
 };
 
 const LIMITS = { description: 300, sameAs: 12, employers: 5, schools: 10, skills: 40 } as const;
