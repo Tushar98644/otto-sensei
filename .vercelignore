@@ -1,4 +1,4 @@
 # The Chrome extension builds on its own (bun run extension:build); the site never needs it.
 /extension
-# The email Worker deploys to Cloudflare on its own (workers/inbound-email/README.md); the site never needs it.
-/workers
+# The email Worker deploys to Cloudflare on its own; the site's checks import its signing code, so only its packages stay out.
+/workers/*/node_modules
