@@ -14,6 +14,9 @@ export const jobCards = lazyModule(() => import("./jobs/job-card"));
 export const skillGapsPanel = lazyComponent(() =>
   import("./applications/skill-gaps").then((m) => m.SkillGapsPanel),
 );
+export const whatsWorkingPanel = lazyComponent(() =>
+  import("./applications/whats-working").then((m) => m.WhatsWorking),
+);
 const emailSections = () => import("./applications/email/email-sections");
 export const emailTrackingPanel = lazyComponent(() =>
   emailSections().then((m) => m.EmailTrackingPanel),
@@ -28,7 +31,13 @@ const PAGE_CODE: Record<string, readonly Loader[]> = {
   [ROUTES.dashboardInterview]: [interviewSections, prepSections],
   [ROUTES.dashboardLetters]: [letterCards, letterReader],
   [ROUTES.dashboardJobs]: [jobCards, workProfileDialog],
-  [ROUTES.dashboardApplications]: [skillGapsPanel, prepSections, emailTrackingPanel, emailActivity],
+  [ROUTES.dashboardApplications]: [
+    skillGapsPanel,
+    whatsWorkingPanel,
+    prepSections,
+    emailTrackingPanel,
+    emailActivity,
+  ],
 };
 
 function load(loaders: Iterable<Loader>): void {

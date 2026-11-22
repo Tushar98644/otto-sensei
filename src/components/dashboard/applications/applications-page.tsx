@@ -26,7 +26,7 @@ import { STATUS_NAMES, type ApplicationStatus } from "@/lib/applications/status"
 import { browserStorage } from "@/lib/browser-storage";
 import { resumeTitle } from "@/lib/resume/ops";
 import { useResumeList } from "@/lib/store/resume-store";
-import { emailActivity, emailTrackingPanel, skillGapsPanel } from "../page-code";
+import { emailActivity, emailTrackingPanel, skillGapsPanel, whatsWorkingPanel } from "../page-code";
 import { LazyApplicationDialog } from "./lazy-application-dialog";
 import type { ApplicationDialogTarget } from "./application-dialog";
 import { ApplicationFilters } from "./application-filters";
@@ -51,10 +51,10 @@ import {
   sentLabel,
   type ApplicationFilter,
 } from "./view";
-import { WhatsWorking } from "./whats-working";
 import { WinRate } from "./win-rate";
 
 preload(skillGapsPanel);
+preload(whatsWorkingPanel);
 preload(emailTrackingPanel);
 
 const PAGE_ROWS = 50;
@@ -305,14 +305,16 @@ export function ApplicationsPage() {
           </section>
 
           <Lazy loader={emailActivity} wanted={tracking !== null} props={{ applications: items }} />
-          {items.length > 0 ? (
-            <WhatsWorking
-              applications={items}
-              resumes={resumes}
-              variant="page"
-              onAddApplication={() => void add()}
-            />
-          ) : null}
+          <Lazy
+            loader={whatsWorkingPanel}
+            wanted={items.length > 0}
+            props={{
+              applications: items,
+              resumes,
+              variant: "page",
+              onAddApplication: () => void add(),
+            }}
+          />
           {items.length > 0 ? <WinRate items={items} versions={versions} /> : null}
           <Lazy loader={skillGapsPanel} wanted props={{}} />
         </>
