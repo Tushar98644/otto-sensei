@@ -2,10 +2,11 @@
 
 import Link from "next/link";
 import { useId } from "react";
+import { Lazy } from "@/components/ui/lazy";
 import { isInAppPath, type Notification } from "@/lib/notifications/types";
 import { cn } from "@/lib/utils";
 import { FollowUpActions } from "./follow-up-actions";
-import { InterviewOutcomeActions } from "./interview-outcome-actions";
+import { asksOutcome, interviewOutcomeActions } from "./outcome-actions";
 import { timeAgo } from "./time-ago";
 
 export type NotificationListProps = {
@@ -74,7 +75,7 @@ function NotificationRow({
   const link = item.link !== null && isInAppPath(item.link) ? item.link : null;
   const followUp =
     item.kind === "application_follow_up" && item.followUpDue ? item.applicationId : null;
-  const outcome = item.kind === "interview_after" && item.outcomeOpen ? item.applicationId : null;
+  const outcome = asksOutcome(item) ? item.applicationId : null;
   return (
     <li>
       {link ? (
@@ -92,10 +93,10 @@ function NotificationRow({
         <FollowUpActions applicationId={followUp} describedBy={titleId} onNavigate={onNavigate} />
       ) : null}
       {outcome ? (
-        <InterviewOutcomeActions
-          applicationId={outcome}
-          describedBy={titleId}
-          onNavigate={onNavigate}
+        <Lazy
+          loader={interviewOutcomeActions}
+          wanted
+          props={{ applicationId: outcome, describedBy: titleId, onNavigate }}
         />
       ) : null}
     </li>

@@ -9,6 +9,7 @@ import { Button, buttonClasses } from "@/components/ui/button";
 import { lazyModule, useLazy } from "@/components/ui/lazy";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
+import { asksOutcome, interviewOutcomeActions } from "./outcome-actions";
 import { forgetFresh, markAllSeen, useNotifications } from "./use-notifications";
 
 export type NotificationBellProps = {
@@ -19,6 +20,10 @@ export type NotificationBellProps = {
 
 // The list sits in a closed popover, so its rows load when idle or when it opens.
 const notificationList = lazyModule(() => import("./notification-list"));
+// With a "How did it go?" row, the list shows once its actions are in too.
+const listWithOutcome = lazyModule(() =>
+  Promise.all([notificationList.load(), interviewOutcomeActions.load()]).then(([list]) => list),
+);
 
 const GUTTER_PX = 16;
 const OFFSET_PX = 8;
@@ -36,9 +41,10 @@ export function NotificationBell({
   const panelRef = useRef<HTMLDivElement>(null);
   const [open, setOpen] = useState(false);
   const [openedAt, setOpenedAt] = useState(0);
-  const list = useLazy(notificationList, open);
 
   const ready = notifications.status === "ready" ? notifications : null;
+  const outcome = ready?.items.some(asksOutcome) ?? false;
+  const list = useLazy(outcome ? listWithOutcome : notificationList, open);
   const userId = ready?.userId ?? null;
   const unread = ready?.unread ?? 0;
 
