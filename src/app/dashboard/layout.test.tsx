@@ -2,6 +2,7 @@ import type { ReactElement } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { cookieJar, resetDb, signInAs } from "@/lib/auth/test-helpers";
 import type { SessionUser } from "@/lib/auth/types";
+import type { ApiSeeds } from "@/lib/api/seeds";
 import { REQUEST_PATH_HEADER } from "@/lib/request-path";
 
 const request = vi.hoisted(() => ({ headers: new Headers() }));
@@ -29,7 +30,7 @@ vi.mock("@/lib/usage", async (importOriginal) => {
 const { default: DashboardLayout } = await import("./layout");
 const { GET } = await import("@/app/api/me/route");
 
-type ShellProps = { initialUser: SessionUser; initialMe: unknown };
+type ShellProps = { initialUser: SessionUser; initialMe: unknown; seeds?: ApiSeeds };
 
 async function shellProps(): Promise<ShellProps> {
   return ((await DashboardLayout({ children: null })) as ReactElement<ShellProps>).props;
@@ -62,6 +63,23 @@ describe("the dashboard layout", () => {
     expect(ok).toBe(true);
     expect(initialMe).toEqual(answer);
     expect(initialUser).toEqual(answer.user);
+  });
+
+  it("hands the shell the page's reads on a full page load only, not on a client navigation", async () => {
+    await signInAs("ada@example.com");
+    request.headers = new Headers({
+      "sec-fetch-dest": "document",
+      [REQUEST_PATH_HEADER]: "/dashboard",
+    });
+    const { seeds } = await shellProps();
+    expect(Object.keys(seeds ?? {})).toContain("applications");
+    expect(await seeds?.notifications).toMatchObject({ ok: true });
+
+    request.headers = new Headers({
+      "sec-fetch-dest": "empty",
+      [REQUEST_PATH_HEADER]: "/dashboard",
+    });
+    expect((await shellProps()).seeds).toBeUndefined();
   });
 
   it("leaves the answer to the browser when it can't be built, and still renders", async () => {

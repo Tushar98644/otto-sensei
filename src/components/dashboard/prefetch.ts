@@ -51,9 +51,28 @@ const PAGES: Record<string, Prefetch> = {
   ],
   [PORTFOLIO_ROUTE]: (client, user) => [
     client.prefetchQuery(portfolioQuery(user.id)),
+    ...(user.plan === "free" ? [] : [client.prefetchQuery(sharesQuery(user.id))]),
     preloadPortfolio(client, user),
   ],
 };
+
+// After a full page load, from the layout's seeds: the other pages' small reads, so moving to one waits on none.
+export function warmSharedReads(user: SessionUser): void {
+  const client = getQueryClient();
+  const pro = hasProTools(user.plan)
+    ? [
+        client.prefetchQuery(reminderSettingsQuery(user.id)),
+        client.prefetchQuery(savedJobsQuery(user.id)),
+        client.prefetchQuery(writingsQuery(user.id)),
+        client.prefetchQuery(prepPacksQuery(user.id)),
+      ]
+    : [];
+  void Promise.allSettled([
+    client.prefetchQuery(applicationsQuery(user.id)),
+    client.prefetchQuery(sharesQuery(user.id)),
+    ...pro,
+  ]);
+}
 
 export function prefetchPageData(href: string, user: SessionUser | null): void {
   const prefetch = PAGES[href];

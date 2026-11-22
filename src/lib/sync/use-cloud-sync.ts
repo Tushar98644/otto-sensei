@@ -6,6 +6,7 @@ import { toast } from "@/components/ui/toast";
 import { resetUser } from "@/lib/analytics/client";
 import { api } from "@/lib/api/client";
 import { browserStorage } from "@/lib/browser-storage";
+import { forgetMatches } from "@/lib/queries/matches-memory";
 import { flushStudio, useStudioHydrated, useStudioStore } from "@/lib/store/resume-store";
 import type { KnownResumes, ResumeList } from "./api-types";
 import {
@@ -229,6 +230,7 @@ export async function signOutAndRelease(userId: string): Promise<{ kept: number 
   );
   await api.logout();
   resetUser();
+  forgetMatches();
   try {
     if (!useStudioStore.persist.hasHydrated()) await useStudioStore.persist.rehydrate();
     session.end();

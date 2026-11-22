@@ -34,7 +34,7 @@ import { useStudioStore } from "@/lib/store/resume-store";
 import { signOutAndRelease } from "@/lib/sync/use-cloud-sync";
 import { cn } from "@/lib/utils";
 import { openCommandPalette, useCommandPaletteShortcut } from "./command-palette-store";
-import { useHoverIntent } from "./hover-intent";
+import { useHoverIntent, useSettled } from "./hover-intent";
 import { NewResumeMenu } from "./new-resume-menu";
 import { LinkPending } from "./link-pending";
 import { APP_NAV, APP_NAV_FOOTER, isCurrent, showsProMark, type AppNavItem } from "./nav";
@@ -146,7 +146,8 @@ function SidebarLink({
   quiet?: boolean;
 }) {
   const current = isCurrent(item, pathname);
-  // Prefetch on intent, not view (18 requests per load); dynamic pages need a full prefetch.
+  // Each page comes in full once this one has settled, so a click needs no server trip; data waits for intent.
+  const settled = useSettled();
   const [intent, setIntent] = useState(false);
   const intentHandlers = useHoverIntent(() => {
     setIntent(true);
@@ -156,7 +157,7 @@ function SidebarLink({
   return (
     <Link
       href={item.href}
-      prefetch={item.eager || intent}
+      prefetch={item.eager || settled || intent}
       {...intentHandlers}
       aria-current={current ? "page" : undefined}
       data-tour={item.tour}

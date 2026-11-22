@@ -1,5 +1,12 @@
 import type { BillingHistoryResponse } from "@/lib/billing/history-types";
 import { REQUEST_ID_HEADER, RESUME_HEADER, type MeteredRun } from "@/lib/api/request-id";
+import {
+  dropSeeds,
+  listFromVersions,
+  takeSeed,
+  type ResumeVersions,
+  type SeedKey,
+} from "@/lib/api/seeds";
 import type { GitHubConnectionResponse } from "@/lib/github/connect";
 import { JOBS_PREFETCH_HEADER } from "@/lib/job-feed/prefetch-header";
 import type { ImpressionBatchInput } from "@/lib/job-feed/types";
@@ -145,7 +152,16 @@ export function isBudgetReached(error: unknown): boolean {
   return isApiError(error, "limit_reached") && error.reason === "ai_budget";
 }
 
+// POSTs that only read: they leave the layout's answers (lib/api/seeds) standing.
+const READ_ONLY_POSTS: ReadonlySet<string> = new Set(["/api/resumes", "/api/jobs/matches"]);
+
+function isWrite(path: string, init?: RequestInit): boolean {
+  const method = init?.method?.toUpperCase() ?? "GET";
+  return method !== "GET" && method !== "HEAD" && !(method === "POST" && READ_ONLY_POSTS.has(path));
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
+  if (isWrite(path, init)) dropSeeds();
   let res: Response;
   try {
     res = await fetch(path, { credentials: "same-origin", ...init });
@@ -155,8 +171,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   let body: unknown = null;
   try {
     body = await res.json();
-  } catch {
-  }
+  } catch {}
   if (!res.ok || (body as { ok?: unknown } | null)?.ok !== true) {
     const error = (body as ApiErrorBody | null)?.error;
     throw new ApiClientError(
@@ -167,6 +182,16 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     );
   }
   return body as T;
+}
+
+function seeded<T>(
+  key: SeedKey,
+  ask: () => Promise<T>,
+  answer: (body: unknown) => T | null = (body) => body as T,
+): Promise<T> {
+  const seed = takeSeed(key);
+  if (!seed) return ask();
+  return seed.then((body) => (body === null ? null : answer(body)) ?? ask());
 }
 
 const postJson = (body: unknown, method = "POST"): RequestInit => ({
@@ -223,8 +248,12 @@ export const api = {
     request<InterviewPrepResponse>(`/api/interview/${encodeURIComponent(applicationId)}`, {
       cache: "no-store",
     }),
-  interviewPacks: () => request<InterviewPacksResponse>("/api/interview", { cache: "no-store" }),
-  writings: () => request<WritingsResponse>("/api/writings", { cache: "no-store" }),
+  interviewPacks: () =>
+    seeded("interviewPacks", () =>
+      request<InterviewPacksResponse>("/api/interview", { cache: "no-store" }),
+    ),
+  writings: () =>
+    seeded("writings", () => request<WritingsResponse>("/api/writings", { cache: "no-store" })),
   saveWriting: (body: CreateWritingBody) =>
     request<WritingResponse>("/api/writings", postJson(body)),
   editWriting: (id: string, body: UpdateWritingBody) =>
@@ -246,7 +275,8 @@ export const api = {
     }),
   jobPost: (id: string) =>
     request<JobPostResponse>(`/api/jobs/${encodeURIComponent(id)}`, { cache: "no-store" }),
-  savedJobs: () => request<SavedJobsResponse>("/api/jobs/saved", { cache: "no-store" }),
+  savedJobs: () =>
+    seeded("savedJobs", () => request<SavedJobsResponse>("/api/jobs/saved", { cache: "no-store" })),
   saveJob: (id: string) =>
     request<SavedJobResponse>(`/api/jobs/saved/${encodeURIComponent(id)}`, { method: "PUT" }),
   unsaveJob: (id: string) =>
@@ -271,7 +301,11 @@ export const api = {
   logout: () => request<EmptyOk>("/api/auth/logout", { method: "POST" }),
   listResumes: (known?: KnownResumes) =>
     known
-      ? request<ResumeList>("/api/resumes", postJson({ known }))
+      ? seeded(
+          "resumeVersions",
+          () => request<ResumeList>("/api/resumes", postJson({ known })),
+          (versions) => listFromVersions(versions as ResumeVersions, known),
+        )
       : request<ResumeList>("/api/resumes", { cache: "no-store" }),
   putResume: (resume: Resume, { base, keepalive = false }: PutResumeOptions = {}) =>
     request<PutResumeResult>(
@@ -281,12 +315,13 @@ export const api = {
   deleteResume: (id: string) =>
     request<EmptyOk>(`/api/resumes/${encodeURIComponent(id)}`, { method: "DELETE" }),
   listApplications: (cursor: string | null = null) =>
-    request<ApplicationsResponse>(
-      cursor === null
-        ? "/api/applications"
-        : `/api/applications?cursor=${encodeURIComponent(cursor)}`,
-      { cache: "no-store" },
-    ),
+    cursor === null
+      ? seeded("applications", () =>
+          request<ApplicationsResponse>("/api/applications", { cache: "no-store" }),
+        )
+      : request<ApplicationsResponse>(`/api/applications?cursor=${encodeURIComponent(cursor)}`, {
+          cache: "no-store",
+        }),
   applicationThread: (id: string) =>
     request<ApplicationThreadResponse>(`/api/applications/${encodeURIComponent(id)}`, {
       cache: "no-store",
@@ -321,11 +356,16 @@ export const api = {
   billingHistory: () =>
     request<BillingHistoryResponse>("/api/billing/history", { cache: "no-store" }),
   deleteAccount: () => request<EmptyOk>("/api/account", { method: "DELETE" }),
-  workProfile: () => request<WorkProfileResponse>("/api/profile", { cache: "no-store" }),
+  workProfile: () =>
+    seeded("workProfile", () =>
+      request<WorkProfileResponse>("/api/profile", { cache: "no-store" }),
+    ),
   saveWorkProfile: (body: WorkProfileBody) =>
     request<WorkProfileResponse>("/api/profile", postJson(body, "PUT")),
   githubConnection: () =>
-    request<GitHubConnectionResponse>("/api/github/connection", { cache: "no-store" }),
+    seeded("githubConnection", () =>
+      request<GitHubConnectionResponse>("/api/github/connection", { cache: "no-store" }),
+    ),
   connectGitHub: (body: GitHubConnectBody) =>
     request<UrlResponse>("/api/github/connection", postJson(body)),
   disconnectGitHub: () =>
@@ -334,12 +374,18 @@ export const api = {
     request<GitHubLookupResponse>("/api/github/lookup", postJson(body)),
   githubDraft: (body: GitHubDraftBody) =>
     request<GitHubDraftResponse>("/api/github/draft", postJson(body)),
-  notifications: () => request<NotificationsResponse>("/api/notifications", { cache: "no-store" }),
+  notifications: () =>
+    seeded("notifications", () =>
+      request<NotificationsResponse>("/api/notifications", { cache: "no-store" }),
+    ),
   markNotificationsRead: (body: MarkNotificationsReadBody) =>
     request<MarkNotificationsReadResponse>("/api/notifications", postJson(body, "PATCH")),
   followUpAction: (body: SessionFollowUpActionBody) =>
     request<FollowUpActionResponse>("/api/notifications/follow-up", postJson(body)),
-  accountSetup: () => request<AccountSetupResponse>("/api/setup", { cache: "no-store" }),
+  accountSetup: () =>
+    seeded("accountSetup", () =>
+      request<AccountSetupResponse>("/api/setup", { cache: "no-store" }),
+    ),
   saveAccountSetup: (body: AccountSetupChange) =>
     request<AccountSetupResponse>("/api/setup", postJson(body, "PUT")),
   saveSetupDefaults: (body: SetupDefaults) =>
@@ -348,20 +394,24 @@ export const api = {
   saveWritingStyle: (body: WritingStyleBody) =>
     request<WritingStyleResponse>("/api/writing-style", postJson(body, "PUT")),
   reminderSettings: () =>
-    request<ReminderSettingsResponse>("/api/notifications/settings", { cache: "no-store" }),
+    seeded("reminderSettings", () =>
+      request<ReminderSettingsResponse>("/api/notifications/settings", { cache: "no-store" }),
+    ),
   saveReminderSettings: (body: ReminderSettingsBody) =>
     request<ReminderSettingsResponse>("/api/notifications/settings", postJson(body, "PUT")),
   emailChoices: () =>
     request<EmailChoicesResponse>("/api/notifications/emails", { cache: "no-store" }),
   saveEmailChoices: (body: EmailChoicesBody) =>
     request<EmailChoicesResponse>("/api/notifications/emails", postJson(body, "PUT")),
-  shares: () => request<SharesResponse>("/api/share", { cache: "no-store" }),
+  shares: () =>
+    seeded("shares", () => request<SharesResponse>("/api/share", { cache: "no-store" })),
   share: (body: CreateShareBody) => request<ShareResponse>("/api/share", postJson(body)),
   updateShare: (id: string, body: UpdateShareBody) =>
     request<ShareResponse>(`/api/share/${encodeURIComponent(id)}`, postJson(body, "PATCH")),
   revokeShare: (id: string, { keepalive = false }: { keepalive?: boolean } = {}) =>
     request<EmptyOk>(`/api/share/${encodeURIComponent(id)}`, { method: "DELETE", keepalive }),
-  portfolio: () => request<PortfolioResponse>("/api/portfolio", { cache: "no-store" }),
+  portfolio: () =>
+    seeded("portfolio", () => request<PortfolioResponse>("/api/portfolio", { cache: "no-store" })),
   createPortfolio: (body: CreatePortfolioBody) =>
     request<PortfolioSaveResponse>("/api/portfolio", postJson(body)),
   updatePortfolio: (body: UpdatePortfolioBody) =>

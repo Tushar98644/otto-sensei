@@ -14,7 +14,7 @@ import { Menu } from "@/components/ui/menu";
 import { BRAND } from "@/config/brand";
 import type { SessionUser } from "@/lib/auth/types";
 import { cn } from "@/lib/utils";
-import { useHoverIntent } from "./hover-intent";
+import { useHoverIntent, useSettled } from "./hover-intent";
 import { LinkPending } from "./link-pending";
 import { isCurrent, PHONE_MORE, PHONE_TABS, showsProMark, type AppNavItem } from "./nav";
 import { preloadPageCode } from "./page-code";
@@ -91,6 +91,7 @@ function PhoneTab({
   user: SessionUser;
   current: boolean;
 }) {
+  const settled = useSettled();
   const [intent, setIntent] = useState(false);
   const intentHandlers = useHoverIntent(() => {
     setIntent(true);
@@ -100,7 +101,7 @@ function PhoneTab({
   return (
     <Link
       href={item.href}
-      prefetch={intent}
+      prefetch={settled || intent}
       {...intentHandlers}
       aria-current={current ? "page" : undefined}
       data-tour={item.tour}

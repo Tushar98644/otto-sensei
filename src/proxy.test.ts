@@ -22,8 +22,17 @@ vi.mock("@supabase/ssr", () => ({
         async getClaims() {
           if (supabase.refreshTo && "getAll" in options.cookies) {
             await options.cookies.setAll?.(
-              [{ name: COOKIE, value: supabase.refreshTo, options: { path: "/", httpOnly: true, maxAge: 3600 } }],
-              { "Cache-Control": "private, no-cache, no-store, must-revalidate, max-age=0", Expires: "0" },
+              [
+                {
+                  name: COOKIE,
+                  value: supabase.refreshTo,
+                  options: { path: "/", httpOnly: true, maxAge: 3600 },
+                },
+              ],
+              {
+                "Cache-Control": "private, no-cache, no-store, must-revalidate, max-age=0",
+                Expires: "0",
+              },
             );
           }
           return supabase.claims
@@ -104,7 +113,7 @@ describe("proxy", () => {
       return proxy(req);
     };
     const header = `x-middleware-request-${REQUEST_PATH_HEADER}`;
-    expect((await asked()).headers.get(header)).toBe("/dashboard/jobs?resume=r1");
+    expect((await asked(`${COOKIE}=token`)).headers.get(header)).toBe("/dashboard/jobs?resume=r1");
     supabase.claims = null;
     expect((await asked(`${COOKIE}=expired`)).headers.get(header)).toBe(
       "/dashboard/jobs?resume=r1",
@@ -114,6 +123,19 @@ describe("proxy", () => {
     const refreshed = await asked(`${COOKIE}=stale`);
     expect(refreshed.headers.get(header)).toBe("/dashboard/jobs?resume=r1");
     expect(refreshed.cookies.get(COOKIE)?.value).toBe("fresh");
+  });
+
+  it("sends a visitor with no session cookie from the dashboard straight to sign-in", async () => {
+    for (const cookie of [undefined, "otto_did=device", `${COOKIE}-code-verifier=v`]) {
+      const res = await proxy(visit("/dashboard/jobs?resume=r1", cookie));
+      expect(res.status).toBe(307);
+      expect(res.headers.get("location")).toBe(
+        "https://otto.test/login?next=%2Fdashboard%2Fjobs%3Fresume%3Dr1",
+      );
+    }
+    expect(supabase.created).toBe(0);
+    const outside = await proxy(visit("/dashboardish"));
+    expect(outside.headers.get("location")).toBeNull();
   });
 
   it("tells the layout the same with dev sign-in", async () => {

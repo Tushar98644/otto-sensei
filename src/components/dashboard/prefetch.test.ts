@@ -41,7 +41,7 @@ vi.mock("@/components/account/use-me", () => ({
 }));
 
 const { getQueryClient } = await import("@/lib/queries/client");
-const { prefetchPageData } = await import("./prefetch");
+const { prefetchPageData, warmSharedReads } = await import("./prefetch");
 
 const user = (plan: SessionUser["plan"]) =>
   ({ id: "ada", email: "ada@example.com", plan }) as SessionUser;
@@ -88,6 +88,19 @@ describe("prefetchPageData", () => {
     expect(api.shares).toHaveBeenCalledTimes(1);
     expect(api.interviewPacks).toHaveBeenCalledTimes(1);
     expect(api.portfolio).toHaveBeenCalledTimes(1);
+  });
+
+  it("warms the other pages' small reads, and the Pro pages' only where the plan has them", async () => {
+    const proReads = [api.reminderSettings, api.savedJobs, api.writings, api.interviewPacks];
+    warmSharedReads(user("free"));
+    await settle();
+    expect(api.listApplications).toHaveBeenCalledTimes(1);
+    expect(api.shares).toHaveBeenCalledTimes(1);
+    for (const call of proReads) expect(call).not.toHaveBeenCalled();
+    getQueryClient().clear();
+    warmSharedReads(user("pro"));
+    await settle();
+    for (const call of proReads) expect(call).toHaveBeenCalledTimes(1);
   });
 
   it("asks for Jobs' matches as a prefetch once the work profile is in, not after applications", async () => {

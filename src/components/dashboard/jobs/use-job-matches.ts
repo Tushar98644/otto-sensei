@@ -12,6 +12,7 @@ import { matchProfileOf } from "@/lib/job-feed/profile";
 import type { JobFilters, LookingForChoice } from "@/lib/job-feed/types";
 import { getQueryClient, useAppQueryClient } from "@/lib/queries/client";
 import { JOB_MATCHES, queryKeys } from "@/lib/queries/keys";
+import { rememberShownMatches } from "@/lib/queries/matches-memory";
 import { JOB_MATCHES_STALE_MS } from "@/lib/queries/options";
 import type { Resume } from "@/lib/resume/schema";
 import { DAY_MS } from "@/lib/time";
@@ -187,9 +188,12 @@ export function useJobMatches({
   else state = { status: "loading", previous: query.data ?? null };
 
   const shown = state.status === "ready" ? state.data : null;
+  const shownAt = query.dataUpdatedAt;
   useEffect(() => {
-    if (shown) noteShown(shown);
-  }, [shown]);
+    if (!shown) return;
+    noteShown(shown);
+    if (queryKey) rememberShownMatches(queryKey, shown, shownAt);
+  }, [shown, queryKey, shownAt]);
 
   return { state, retry, patch, profile, lookingFor };
 }

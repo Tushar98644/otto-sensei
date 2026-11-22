@@ -1,6 +1,6 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   useEffect,
   useMemo,
@@ -71,12 +71,12 @@ function Loading() {
   );
 }
 
-export type PortfolioPageProps = {
-  fromResumeId: string | null;
-};
+const MAX_RESUME_ID_LENGTH = 64;
 
-export function PortfolioPage({ fromResumeId }: PortfolioPageProps) {
+export function PortfolioPage() {
   const router = useRouter();
+  const asked = useSearchParams().get("resume");
+  const fromResumeId = asked !== null && asked.length <= MAX_RESUME_ID_LENGTH ? asked : null;
   const { user } = useMe();
   const userId = user?.id ?? null;
   const locked = user !== null && user.plan === "free";

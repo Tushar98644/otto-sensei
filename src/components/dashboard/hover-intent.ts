@@ -35,6 +35,28 @@ export function hoverIntent(delayMs = HOVER_INTENT_MS) {
   return { cancel, handlers };
 }
 
+const SETTLE_DELAY_MS = 1_000;
+const SETTLE_TIMEOUT_MS = 3_000;
+
+// True a moment after the page opens, once the browser is idle, so prefetching never competes with it.
+export function useSettled(): boolean {
+  const [settled, setSettled] = useState(false);
+  useEffect(() => {
+    let idle: number | undefined;
+    const settle = () => setSettled(true);
+    const timer = window.setTimeout(() => {
+      if (typeof window.requestIdleCallback === "function") {
+        idle = window.requestIdleCallback(settle, { timeout: SETTLE_TIMEOUT_MS });
+      } else settle();
+    }, SETTLE_DELAY_MS);
+    return () => {
+      window.clearTimeout(timer);
+      if (idle !== undefined) window.cancelIdleCallback(idle);
+    };
+  }, []);
+  return settled;
+}
+
 export function useHoverIntent(onIntent: () => void): IntentHandlers {
   const [intent] = useState(() => hoverIntent());
   useEffect(() => intent.cancel, [intent]);

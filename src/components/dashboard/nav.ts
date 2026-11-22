@@ -20,7 +20,7 @@ export type AppNavItem = {
   icon: LucideIcon;
   pro?: boolean;
   tour?: string;
-  // Prefetch on view instead of intent; only for pages that load no data.
+  // Prefetched as soon as it's shown instead of after the page settles; only for pages that load no data.
   eager?: boolean;
 };
 
@@ -42,7 +42,13 @@ export const APP_NAV: readonly AppNavItem[] = [
     pro: true,
     tour: "dashboard-interview",
   },
-  { href: PORTFOLIO_ROUTE, label: "Portfolio", icon: Globe, pro: true, tour: "dashboard-portfolio" },
+  {
+    href: PORTFOLIO_ROUTE,
+    label: "Portfolio",
+    icon: Globe,
+    pro: true,
+    tour: "dashboard-portfolio",
+  },
 ];
 
 export const APP_NAV_FOOTER: readonly AppNavItem[] = [

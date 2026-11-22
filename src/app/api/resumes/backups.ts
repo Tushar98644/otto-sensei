@@ -4,6 +4,7 @@ import { RESUME_LIMITS } from "@/config/plans";
 import { getDb } from "@/db/client";
 import { lockUser } from "@/db/locks";
 import { resumes, resumeTombstones } from "@/db/schema";
+import type { ResumeVersions } from "@/lib/api/seeds";
 import { log } from "@/lib/log";
 import { type Resume } from "@/lib/resume/schema";
 import { ResumeSchema } from "@/lib/resume/validation";
@@ -26,13 +27,7 @@ export const KnownResumesSchema = z.object({
 });
 
 export type SaveStatus =
-  | "saved"
-  | "stale"
-  | "deleted"
-  | "too_large"
-  | "limit_reached"
-  | "plan_limit"
-  | "no_user";
+  "saved" | "stale" | "deleted" | "too_large" | "limit_reached" | "plan_limit" | "no_user";
 
 export type BackupList = { resumes: Resume[]; deletedIds: string[]; unchanged: string[] };
 
@@ -82,6 +77,37 @@ export async function listBackups(userId: string, known: KnownResumes = {}): Pro
   return { resumes: list, deletedIds, unchanged };
 }
 
+// listBackups' rows as versions only, for lib/api/seeds' listFromVersions.
+export async function listBackupVersions(userId: string): Promise<ResumeVersions> {
+  const db = await getDb();
+  const rows = rowsOf<{ kind: string; id: string; updated_at: number | null }>(
+    await db.execute(sql`
+      select kind, id, updated_at, n from (
+        select 'resume' as kind, r.id, r.updated_at::float8 as updated_at,
+          row_number() over (order by r.updated_at desc, r.id asc) as n
+        from ${resumes} r
+        where r.user_id = ${userId}
+      ) live
+      where n <= ${MAX_RESUMES_PER_USER}
+      union all
+      select kind, id, null, n from (
+        select 'deleted' as kind, t.id,
+          row_number() over (order by t.deleted_at desc, t.id desc) as n
+        from ${resumeTombstones} t
+        where t.user_id = ${userId}
+      ) gone
+      where n <= ${MAX_DELETED_IDS_LISTED}
+      order by kind, n
+    `),
+  );
+  const versions: ResumeVersions = { resumes: [], deletedIds: [] };
+  for (const row of rows) {
+    if (row.kind === "deleted") versions.deletedIds.push(row.id);
+    else versions.resumes.push({ id: row.id, updatedAt: Number(row.updated_at) });
+  }
+  return versions;
+}
+
 // Under the account's row lock, so concurrent saves can't pass the limits or slip past a delete.
 export async function saveBackup(
   userId: string,
@@ -129,7 +155,13 @@ export async function saveBackup(
     const newer = sql`excluded.updated_at >= ${resumes.updatedAt}`;
     const written = await tx
       .insert(resumes)
-      .values({ userId, id: resume.id, data: sql`${data}::jsonb`, createdAt: now, updatedAt: resume.updatedAt })
+      .values({
+        userId,
+        id: resume.id,
+        data: sql`${data}::jsonb`,
+        createdAt: now,
+        updatedAt: resume.updatedAt,
+      })
       .onConflictDoUpdate({
         target: [resumes.userId, resumes.id],
         set: { data: sql`excluded.data`, updatedAt: sql`excluded.updated_at` },
@@ -174,21 +206,23 @@ export async function deleteBackup(userId: string, id: string, now = Date.now())
         ),
       ),
     );
-    await tx.delete(resumeTombstones).where(
-      and(
-        ownTombstones,
-        inArray(
-          resumeTombstones.id,
-          tx
-            .select({ id: resumeTombstones.id })
-            .from(resumeTombstones)
-            .where(ownTombstones)
-            .orderBy(desc(resumeTombstones.deletedAt), desc(resumeTombstones.id))
-            .limit(PRUNE_LIMIT)
-            .offset(MAX_TOMBSTONES_PER_USER),
+    await tx
+      .delete(resumeTombstones)
+      .where(
+        and(
+          ownTombstones,
+          inArray(
+            resumeTombstones.id,
+            tx
+              .select({ id: resumeTombstones.id })
+              .from(resumeTombstones)
+              .where(ownTombstones)
+              .orderBy(desc(resumeTombstones.deletedAt), desc(resumeTombstones.id))
+              .limit(PRUNE_LIMIT)
+              .offset(MAX_TOMBSTONES_PER_USER),
+          ),
         ),
-      ),
-    );
+      );
   });
 }
 

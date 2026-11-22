@@ -252,7 +252,11 @@ test.describe("Jobs tab", () => {
     await saveJob(page, card, FIRST_LOAD);
     await expect(card.getByRole("button", { name: "Saved", exact: true })).toBeVisible();
 
-    await page.goto("/dashboard/applications");
+    // By the sidebar: a full load answers saved jobs from the page itself, past fakeJobFeed's stand-in.
+    await page
+      .getByRole("navigation", { name: "Dashboard" })
+      .getByRole("link", { name: "Applications", exact: true })
+      .click();
     const toApply = column(page, "To apply");
     const waiting = toApply.getByRole("article", { name: job.title });
     await expect(waiting).toBeVisible(FIRST_LOAD);
