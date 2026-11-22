@@ -123,8 +123,8 @@ export const PORTFOLIO_TEMPLATE_INFO: Record<PortfolioTemplateId, PortfolioTempl
 export type TemplateGroup = { label: string; ids: PortfolioTemplateId[] };
 
 const PICKER_GROUPS: readonly { label: string; ids: readonly PortfolioTemplateId[] }[] = [
-  { label: "Showpieces", ids: ["reel", "bento", "navy", "dock"] },
-  { label: "Simple and clean", ids: ["paper", "folio", "prose", "cv"] },
+  { label: "Our picks", ids: ["paper", "dock", "reel"] },
+  { label: "More designs", ids: ["folio", "cv", "prose", "bento", "navy"] },
 ];
 
 export function templateGroups(ids: readonly PortfolioTemplateId[]): TemplateGroup[] {
