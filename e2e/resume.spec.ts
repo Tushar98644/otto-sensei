@@ -174,15 +174,17 @@ test("a PDF with no text reads as a blank page", async ({ page, user }) => {
   ).toBeVisible();
 });
 
-// Product bug: the blank resume from the scan fills Free's one-resume slot, so "Start from scratch" opens the plan picker.
-test.fixme("a Free user can start from scratch after a PDF with no text", async ({
+test("a Free user can start from scratch after a PDF with no text", async ({
   page,
   user,
 }) => {
   expect(user.plan).toBe("free");
   await uploadScan(page);
   await page.getByRole("button", { name: "Start from scratch", exact: true }).click();
-  await expect(page.getByLabel("Full name")).toHaveValue("", { timeout: STEP_TIMEOUT });
+  await expect(basicsToggle(page)).toBeVisible({ timeout: STEP_TIMEOUT });
+  await openBasics(page);
+  await expect(page.getByLabel("Full name")).toHaveValue("");
+  await expect(page.getByRole("dialog")).toHaveCount(0);
 });
 
 test("a file that isn't PDF or Word is turned away with the reason", async ({ page }) => {

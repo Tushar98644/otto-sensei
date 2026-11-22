@@ -20,6 +20,7 @@ import { trialHeadline } from "@/lib/billing/prices";
 import type { RecruiterReport } from "@/lib/checks/types";
 import { MAX_TOP, reviewResume, type ResumeReview, type ReviewItem } from "@/lib/lint/review";
 import { nextPlan } from "@/config/plans";
+import { isBlankResume } from "@/lib/resume/ops";
 import { emptyResume } from "@/lib/resume/schema";
 import { useActiveReport, useActiveResume, useStudioStore } from "@/lib/store/resume-store";
 import { resetWhen } from "@/lib/usage-copy";
@@ -46,6 +47,7 @@ export function ReviewStep() {
   const report = useActiveReport();
   const setStep = useStudioStore((s) => s.setStep);
   const addResume = useStudioStore((s) => s.addResume);
+  const removeResume = useStudioStore((s) => s.removeResume);
   const readBy = useReadByRules(resume?.id ?? null);
   const { me, user } = useMe();
   const upgradeTo = nextPlan(user?.plan ?? "free");
@@ -79,8 +81,12 @@ export function ReviewStep() {
     (check) => check.id === "text-layer" && check.status === "fail",
   );
 
+  // A scan reads as an empty resume, so starting over replaces it instead of taking Free's one slot.
+  const blankScan = scanned && isBlankResume(resume) ? resume.id : null;
+
   async function startFromScratch() {
-    if (!(await roomForResume())) return;
+    if (blankScan) removeResume(blankScan);
+    else if (!(await roomForResume())) return;
     addResume(emptyResume());
     setStep("fix");
   }

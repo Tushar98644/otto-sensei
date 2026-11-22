@@ -329,6 +329,24 @@ function block(title: string, lines: readonly string[]): string[] {
   return kept.length ? ["", title.toUpperCase(), ...kept] : [];
 }
 
+// Nothing written in it yet, hidden or shown; the title and design don't count.
+export function isBlankResume(resume: Resume): boolean {
+  const { links, ...fields } = resume.basics;
+  const lists = [
+    links,
+    resume.experience,
+    resume.education,
+    resume.projects,
+    resume.skills,
+    resume.certifications,
+    resume.extras ?? [],
+  ];
+  return (
+    [...Object.values(fields), resume.summary].every((value) => value.trim() === "") &&
+    lists.every((list) => list.length === 0)
+  );
+}
+
 export function resumeToText(resume: Resume): string {
   const shownResume = visibleResume(resume);
   const { basics } = shownResume;

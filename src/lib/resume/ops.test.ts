@@ -7,6 +7,7 @@ import {
   copyTitle,
   displayName,
   findBullet,
+  isBlankResume,
   isTitleTaken,
   listBullets,
   reorderBullets,
@@ -404,6 +405,26 @@ describe("suggestedFileName", () => {
   it("keeps accented names intact when they arrive decomposed (NFD)", () => {
     const name = suggestedFileName(named("Renée Smith")).normalize("NFC");
     expect(name).toBe("Renée-Smith-Resume.pdf");
+  });
+});
+
+describe("isBlankResume", () => {
+  it("counts a resume with nothing written in it as blank, whatever its title", () => {
+    expect(isBlankResume({ ...emptyResume(), title: "scan.pdf", source: "import" })).toBe(true);
+    expect(isBlankResume({ ...emptyResume(), summary: "   " })).toBe(true);
+  });
+
+  it("doesn't count one with a name, a link, a summary or any entry", () => {
+    const blank = emptyResume();
+    expect(isBlankResume({ ...blank, basics: { ...blank.basics, name: "Jane Doe" } })).toBe(false);
+    expect(
+      isBlankResume({
+        ...blank,
+        basics: { ...blank.basics, links: [{ id: "l", label: "", url: "https://example.com" }] },
+      }),
+    ).toBe(false);
+    expect(isBlankResume({ ...blank, summary: "Engineer." })).toBe(false);
+    expect(isBlankResume({ ...blank, skills: [{ id: "s", label: "", items: [] }] })).toBe(false);
   });
 });
 
