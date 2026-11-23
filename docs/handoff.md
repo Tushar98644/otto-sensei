@@ -172,9 +172,12 @@ Everything lives in `src/config/plans.ts`. Change numbers there, never in copy.
 | Tailored versions | – | 150 | 300 | 10 |
 | Letters, answers, interview prep | – | 150 | 300 | 15 |
 | AI token budget (abuse guard) | – | 5M | 10M | 0.5M |
+| Resumes (tailored copies count) | 1 | 25 | 50 | 25 |
+| Tracked applications | 1 | 1,500 | 3,000 | 1,500 |
 
 - **Worst-case cost per user a month**, with every cap hit: Pro about $3.6 (after Dodo's fees you keep about $10 of $15), Max about $7 (you keep about $20 of $29).
 - **Typical cost:** a few cents.
+- **Resumes and tracked applications** are kept, not monthly. An account past its plan's number (a Max account that moved to Pro, or a paid plan that ended) keeps everything and can open, edit, save and delete it; only adding one more is refused until it's under the number. Reads and the data export use the largest plan's numbers, and the export streams, so Vercel's 4.5 MB limit doesn't apply to it.
 - **Fixed costs** (not per user): Vercel Pro $20 a month (the free plan bans business use), Supabase Pro $25 when you upgrade, and the domain.
 
 ---
