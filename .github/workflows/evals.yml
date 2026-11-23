@@ -67,7 +67,7 @@ jobs:
             echo "To turn the evals on, follow \"Running in CI\" in \`scripts/evals/README.md\`."
           } >> "$GITHUB_STEP_SUMMARY"
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         if: steps.key.outputs.ready == 'true'
       - uses: ./.github/actions/setup
         if: steps.key.outputs.ready == 'true'
