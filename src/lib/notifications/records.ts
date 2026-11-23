@@ -1,4 +1,5 @@
 import { and, count, desc, eq, getTableColumns, inArray, isNull, sql, type SQL } from "drizzle-orm";
+import { alias } from "drizzle-orm/pg-core";
 import { getDb, type Db, type Tx } from "@/db/client";
 import { lockUser } from "@/db/locks";
 import { applications, notifications, userSettings } from "@/db/schema";
@@ -77,38 +78,41 @@ async function unreadCount(db: Db, userId: string): Promise<number> {
 
 export type NotificationList = { notifications: Notification[]; unread: number };
 
+// One statement is one snapshot, so the unread count always agrees with the list it comes with.
 export async function listNotifications(
   userId: string,
   limit: number = NOTIFICATION_LIMITS.listed,
   now = Date.now(),
 ): Promise<NotificationList> {
   const db = await getDb();
-  return db.transaction(
-    async (tx) => {
-      const rows = await tx
-        .select({
-          ...getTableColumns(notifications),
-          status: applications.status,
-          followUpAt: applications.followUpAt,
-          interviewAt: applications.interviewAt,
-          interviewAskedFor: applications.interviewAskedFor,
-          interviewAnsweredFor: applications.interviewAnsweredFor,
-        })
-        .from(notifications)
-        .leftJoin(
-          applications,
-          and(
-            eq(applications.id, notifications.applicationId),
-            eq(applications.userId, notifications.userId),
-          ),
-        )
-        .where(eq(notifications.userId, userId))
-        .orderBy(desc(notifications.createdAt), desc(notifications.id))
-        .limit(limit);
-      return { notifications: withFollowUps(rows, now), unread: await unreadCount(tx, userId) };
-    },
-    { isolationLevel: "repeatable read", accessMode: "read only" },
-  );
+  const others = alias(notifications, "unread_notifications");
+  const unread = db
+    .select({ n: count() })
+    .from(others)
+    .where(and(eq(others.userId, userId), isNull(others.readAt)));
+  const rows = await db
+    .select({
+      ...getTableColumns(notifications),
+      status: applications.status,
+      followUpAt: applications.followUpAt,
+      interviewAt: applications.interviewAt,
+      interviewAskedFor: applications.interviewAskedFor,
+      interviewAnsweredFor: applications.interviewAnsweredFor,
+      unread: sql<number>`${unread}`.mapWith(Number),
+    })
+    .from(notifications)
+    .leftJoin(
+      applications,
+      and(
+        eq(applications.id, notifications.applicationId),
+        eq(applications.userId, notifications.userId),
+      ),
+    )
+    .where(eq(notifications.userId, userId))
+    .orderBy(desc(notifications.createdAt), desc(notifications.id))
+    .limit(limit);
+  // No rows means no notifications at all, so none unread.
+  return { notifications: withFollowUps(rows, now), unread: rows[0]?.unread ?? 0 };
 }
 
 export type MarkReadTarget = { ids: string[] } | { all: true };

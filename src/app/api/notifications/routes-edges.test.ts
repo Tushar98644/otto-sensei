@@ -130,9 +130,22 @@ function signInOutage(): void {
   fakeAuth.failNext("getUser", new AuthRetryableFetchError("fetch failed at 10.0.0.7", 0));
 }
 
-async function databaseDown(method: "transaction" | "update" | "select"): Promise<void> {
+async function databaseDown(method: "transaction" | "update" | "select" | "bell"): Promise<void> {
   vi.spyOn(console, "error").mockImplementation(() => undefined);
   const db = await getDb();
+  // The bell's list is one select (with its unread count); the session's own reads still work.
+  if (method === "bell") {
+    const select = db.select.bind(db);
+    let failed = false;
+    vi.spyOn(db, "select").mockImplementation(((fields?: Record<string, unknown>) => {
+      if (!failed && fields && "unread" in fields) {
+        failed = true;
+        throw new Error("database is down");
+      }
+      return select(fields as never);
+    }) as typeof db.select);
+    return;
+  }
   if (method === "transaction") {
     vi.spyOn(db, "transaction").mockRejectedValueOnce(new Error("database is down"));
     return;
@@ -244,7 +257,7 @@ describe("/api/notifications", () => {
   it("answers 500 when the database fails, leaving every notification unread", async () => {
     const maya = await signInAs("maya@example.com");
     const id = await seed(maya.id, 1_000);
-    await databaseDown("transaction");
+    await databaseDown("bell");
     await expectServerError(await GET(), "Couldn't load your notifications. Please try again.");
     await databaseDown("update");
     await expectServerError(
