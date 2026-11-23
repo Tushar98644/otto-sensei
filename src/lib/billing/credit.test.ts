@@ -1,5 +1,4 @@
 import { and, eq } from "drizzle-orm";
-import JSZip from "jszip";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { AI_TOKEN_BUDGETS, PLANS } from "@/config/plans";
 import { creditCents } from "@/config/topup";
@@ -319,7 +318,7 @@ describe("the account's credit", () => {
     await useUp(pro, "tailor", PLANS.pro.limits.tailor);
     await takeUnitOrCredit(pro, "tailor", NOW + 5, { budgetAllowed: true });
 
-    const zip = await JSZip.loadAsync(await buildDataExport(pro.id, NOW));
+    const zip = await buildDataExport(pro.id, NOW);
     const credit = JSON.parse((await zip.file("credit.json")?.async("string")) ?? "null");
     expect(credit).toEqual({
       balanceCents: 1000 - TAILOR,
@@ -339,7 +338,7 @@ describe("the account's credit", () => {
 
   it("leaves credit.json out of an export with no credit", async () => {
     const pro = await paidUser("pro@example.com");
-    const zip = await JSZip.loadAsync(await buildDataExport(pro.id, NOW));
+    const zip = await buildDataExport(pro.id, NOW);
     expect(zip.file("credit.json")).toBeNull();
   });
 });
