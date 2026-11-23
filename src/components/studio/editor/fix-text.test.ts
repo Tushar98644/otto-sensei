@@ -119,7 +119,7 @@ describe("messages", () => {
 
   it("shows what's left on paid plans and the trial, and what Pro adds without fixes", () => {
     expect(fixAllowanceText({ used: 0, limit: 0 }, "free")).toBe(
-      "More line fixes come with Pro. Try Pro for 3 days.",
+      "More line fixes come with Pro. Try Pro for 7 days.",
     );
     expect(fixAllowanceText({ used: 0, limit: 0 }, "free", null, false)).toBe(
       "More line fixes come with Pro.",

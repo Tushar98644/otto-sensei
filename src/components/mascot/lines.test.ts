@@ -220,9 +220,9 @@ describe("OTTO lines", () => {
     );
     expect(OTTO.limit.reached("fix", 1000)).toContain("this month's 1000 line fixes");
     expect(OTTO.limit.reached("tailor", PLANS.free.limits.tailor)).toBe(
-      "Tailoring comes with Pro. Try Pro for 3 days.",
+      "Tailoring comes with Pro. Try Pro for 7 days.",
     );
-    expect(OTTO.limit.none("tailor")).toBe("Tailoring comes with Pro. Try Pro for 3 days.");
+    expect(OTTO.limit.none("tailor")).toBe("Tailoring comes with Pro. Try Pro for 7 days.");
   });
 
   it("lets Free fix lines after sign-in, and points to Pro once its 3 are used", () => {
@@ -233,7 +233,7 @@ describe("OTTO lines", () => {
       `You've used this month's 3 line fixes. Pro has ${PLANS.pro.limits.fix} a month.`,
     );
     expect(OTTO.signIn.reason("tailor")).toBe(
-      "Sign in, then try Pro for 3 days to tailor with me.",
+      "Sign in, then try Pro for 7 days to tailor with me.",
     );
     expect(OTTO.upgrade.trial).not.toMatch(/free/i);
   });

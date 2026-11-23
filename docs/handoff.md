@@ -166,7 +166,7 @@ curl -s -o /dev/null -w '%{http_code}\n' https://www.ottosensei.com/dashboard   
 
 Everything lives in `src/config/plans.ts`. Change numbers there, never in copy.
 
-| | Free | Pro ($15/mo) | Max ($29/mo) | 3-day Pro trial |
+| | Free | Pro ($15/mo) | Max ($29/mo) | 7-day Pro trial |
 |---|---|---|---|---|
 | Line fixes | 3 / month | 750 | 2,000 | 50 |
 | Tailored versions | – | 150 | 300 | 10 |
@@ -227,7 +227,7 @@ Everything lives in `src/config/plans.ts`. Change numbers there, never in copy.
 - AI price cap ($0.10 / $0.30 per million tokens) and voice limits per plan.
 - Voice typing: built-in speech first, server fallback for Brave, Firefox and Opera; a mic in every box that feeds Otto.
 - Safety checks on what Otto writes and on public pages.
-- Free plan gets 3 line fixes a month; the trial reads "Try Pro for 3 days" ($0 for 3 days).
+- Free plan gets 3 line fixes a month; the trial reads "Try Pro for 7 days" ($1 for 7 days).
 - Fix lines: lines that need work have their words highlighted; "Fix with Otto" shows only on lines Otto can fix.
 - Landing: sharp portfolio screenshots that slide as you scroll; Formats folded into Resumes; scrollbars hidden.
 - Clean-up: comments cut from about 9,600 to about 600 lines, shared helpers, big files split. No behaviour change.

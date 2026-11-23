@@ -78,7 +78,7 @@ describe("plan copy", () => {
     expect(quotaLine("pro", "trial")).toBe(
       `${PRO_TRIAL.limits.tailor} tailored versions · ${PRO_TRIAL.limits.letter} letters and prep · ${PRO_TRIAL.limits.fix} line fixes during the trial`,
     );
-    expect(PRO_TRIAL).toMatchObject({ plan: "pro", interval: "month", days: 3, priceUsd: 1 });
+    expect(PRO_TRIAL).toMatchObject({ plan: "pro", interval: "month", days: 7, priceUsd: 1 });
     expect(planCopy("free", "trial")).toEqual(planCopy("free", "month"));
     expect(limitLine("free", "fix", "trial")).toBe("3 line fixes a month");
     expect(limitLine("pro", "tailor")).toBe("150 tailored versions a month");

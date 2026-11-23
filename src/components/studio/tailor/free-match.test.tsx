@@ -32,7 +32,7 @@ describe("FreeMatch", () => {
     expect(text.indexOf("Found 1 of 2")).toBeLessThan(
       text.indexOf("Tailoring on Pro goes further"),
     );
-    expect(text).toContain("Try Pro for 3 days");
+    expect(text).toContain("Try Pro for 7 days");
     expect(text).not.toContain("Already on Pro?");
   });
 

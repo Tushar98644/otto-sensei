@@ -299,7 +299,7 @@ describe("Free's resume limit", () => {
     expect(second.status).toBe(402);
     expect(await errorOf(second)).toEqual({
       code: "upgrade_required",
-      message: "Free keeps 1 resume. Try Pro for 3 days.",
+      message: "Free keeps 1 resume. Try Pro for 7 days.",
     });
     expect(await list()).toEqual([first]);
 

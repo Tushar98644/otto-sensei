@@ -46,7 +46,7 @@ describe("PlanPerks", () => {
     expect(trial).toContain("50 line fixes during the trial");
     expect(trial).toContain("It goes public once Pro starts.");
     expect(trial).toContain(
-      "$1 for 3 days. Cancel before the trial ends and you pay nothing more.",
+      "$1 for 7 days. Cancel before the trial ends and you pay nothing more.",
     );
     expect(trial).not.toMatch(/unlimited/i);
   });

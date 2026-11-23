@@ -421,13 +421,13 @@ describe("validateCatalog", () => {
       config(),
       reads({
         DODO_PRO_TRIAL_PRODUCT_ID: {
-          price: { trial_period_days: 7, trial_amount: 250, trial_payment_method_optional: true },
+          price: { trial_period_days: 3, trial_amount: 250, trial_payment_method_optional: true },
         },
       }),
     );
     const where = `Pro trial (${IDS.DODO_PRO_TRIAL_PRODUCT_ID})`;
     expect(problems(checks)).toEqual([
-      `${where}: its trial is 7 days, not ${PRO_TRIAL.days} days (PRO_TRIAL in src/config/plans.ts).`,
+      `${where}: its trial is 3 days, not ${PRO_TRIAL.days} days (PRO_TRIAL in src/config/plans.ts).`,
       `${where}: it charges USD 2.50 for the trial, not ${dollars(PRO_TRIAL.priceUsd)} (PRO_TRIAL in src/config/plans.ts).`,
       `${where}: its trial doesn't ask for a card; it must (turn off payment method optional).`,
     ]);
@@ -889,9 +889,9 @@ const DOCUMENTED_TRIAL_PRODUCT = {
   image: null,
   product_collection_id: null,
   addons: null,
-  description: "Otto Sensei Pro with a 3-day trial, then billed every month until you cancel.",
+  description: "Otto Sensei Pro with a 7-day trial, then billed every month until you cancel.",
   metadata: { otto_plan: "pro", otto_interval: "month", otto_trial: "true" },
-  name: "Otto Sensei Pro (monthly, 3-day trial)",
+  name: "Otto Sensei Pro (monthly, 7-day trial)",
   pricing_mode: null,
   product_id: IDS.DODO_PRO_TRIAL_PRODUCT_ID,
   tax_category: "saas",
@@ -907,7 +907,7 @@ const DOCUMENTED_TRIAL_PRODUCT = {
     subscription_period_interval: "Year",
     purchasing_power_parity: false,
     tax_inclusive: false,
-    trial_period_days: 3,
+    trial_period_days: 7,
     trial_amount: 100,
     trial_apply_discounts: false,
     trial_payment_method_optional: false,
@@ -924,7 +924,7 @@ describe("readDodoProduct", () => {
       found: true,
       product: {
         product_id: IDS.DODO_PRO_TRIAL_PRODUCT_ID,
-        name: "Otto Sensei Pro (monthly, 3-day trial)",
+        name: "Otto Sensei Pro (monthly, 7-day trial)",
         tax_category: "saas",
         metadata: { otto_plan: "pro", otto_interval: "month", otto_trial: "true" },
         addons: [],
@@ -942,7 +942,7 @@ describe("readDodoProduct", () => {
           purchasing_power_parity: false,
           pay_what_you_want: null,
           tax_inclusive: false,
-          trial_period_days: 3,
+          trial_period_days: 7,
           trial_amount: 100,
           trial_payment_method_optional: false,
         },

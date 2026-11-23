@@ -115,7 +115,7 @@ describe("the pricing teaser", () => {
     expect(text(html)).toContain(
       "Pro, $15 a month: tailoring, cover letters, every job match, up to 25 resumes and 1,000 tracked applications.",
     );
-    expect(text(html)).toContain("Try 3 days for $1.");
+    expect(text(html)).toContain("Try 7 days for $1.");
     expect(html).toContain('href="/pricing"');
     expect(text(html)).toContain("See pricing");
   });

@@ -78,10 +78,10 @@ describe("reference prices and savings", () => {
   });
 
   it("offers the trial as the way to start Pro, never as another free plan", () => {
-    expect(trialOffer()).toBe("Pro for 3 days");
-    expect(trialHeadline()).toBe("Try Pro for 3 days");
+    expect(trialOffer()).toBe("Pro for 7 days");
+    expect(trialHeadline()).toBe("Try Pro for 7 days");
     expect(trialSentence()).toBe(
-      "$1 for 3 days, then $15 a month. Cancel anytime before the trial ends.",
+      "$1 for 7 days, then $15 a month. Cancel anytime before the trial ends.",
     );
     for (const line of [trialHeadline(), trialSentence(), endsTrialSentence("max", "month")]) {
       expect(line).not.toMatch(/free/i);

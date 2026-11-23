@@ -191,7 +191,7 @@ describe("/api/writings", () => {
     expect(await errorOf(res)).toEqual({
       code: "upgrade_required",
       message:
-        "Cover letters, outreach messages, answers and interview prep come with Pro. Try Pro for 3 days.",
+        "Cover letters, outreach messages, answers and interview prep come with Pro. Try Pro for 7 days.",
     });
     expect(await list()).toEqual({ ok: true, writings: [], total: 0 });
   });

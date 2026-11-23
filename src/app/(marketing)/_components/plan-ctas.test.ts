@@ -43,9 +43,9 @@ describe("plan cards for a visitor", () => {
 
   it("offers the trial with its price, the reminder email and its own allowance", () => {
     const { pro } = cardsFor(null, { trial: true });
-    expect(pro.cta?.label).toBe("Try Pro for 3 days");
+    expect(pro.cta?.label).toBe("Try Pro for 7 days");
     expect(pro.notes).toEqual([
-      "$1 for 3 days, then $15 a month. Cancel anytime before the trial ends.",
+      "$1 for 7 days, then $15 a month. Cancel anytime before the trial ends.",
       TRIAL_EMAIL_NOTE,
       "10 tailored versions · 15 letters and prep · 50 line fixes during the trial",
     ]);
@@ -76,7 +76,7 @@ describe("plan cards for a signed-in account", () => {
     expect(free).toMatchObject({ cta: null, badge: { label: "Your plan" }, notes: [] });
     expect(pro.cta).toEqual({
       href: upgradeHref("pro", "month"),
-      label: "Try Pro for 3 days",
+      label: "Try Pro for 7 days",
       primary: true,
     });
     expect(pro.badge?.label).toBe("Recommended");
@@ -156,7 +156,7 @@ describe("the closing button", () => {
   it("is the trial for visitors and Free accounts that can still start it", () => {
     expect(closingCta({ offer: OFFER, trial: true, viewer: null })).toEqual({
       href: upgradeHref("pro", "month"),
-      label: "Try Pro for 3 days",
+      label: "Try Pro for 7 days",
       primary: true,
     });
     expect(

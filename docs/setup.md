@@ -404,7 +404,7 @@ call: uploads read by the basic reader, the recruiter view, editing, formats, PD
 Jobs tab and its matching, and the application tracker. On AI it has only 3 line fixes a month
 (summaries count as fixes; `PLANS.free.limits.fix`). Every other AI feature (more line fixes,
 tailoring, letters, answers, interview prep, Build with Otto, GitHub drafts, AI reading of uploads)
-and the portfolio need Pro or Max. New accounts start Pro with a **3-day trial for $1 (charged at
+and the portfolio need Pro or Max. New accounts start Pro with a **7-day trial for $1 (charged at
 checkout), card required**, then $15/month; one trial per person (by email, kept even after the
 account is deleted). A trial has its own small allowance (`PRO_TRIAL` in `src/config/plans.ts`).
 Plans are monthly or yearly; there are no weekly plans.
@@ -497,7 +497,7 @@ subscription when its period runs out, so it gets the longest one):
 | Variable | Product | Price | Bills every | Trial |
 |---|---|---|---|---|
 | `DODO_PRO_MONTHLY_PRODUCT_ID` (required) | Otto Sensei Pro (monthly) | $15.00 | 1 month | none |
-| `DODO_PRO_TRIAL_PRODUCT_ID` | Otto Sensei Pro (monthly, 3-day trial) | $15.00 | 1 month | **3 days, $1.00 charged at checkout** (`trial_amount` 100) |
+| `DODO_PRO_TRIAL_PRODUCT_ID` | Otto Sensei Pro (monthly, 7-day trial) | $15.00 | 1 month | **7 days, $1.00 charged at checkout** (`trial_amount` 100) |
 | `DODO_PRO_YEARLY_PRODUCT_ID` | Otto Sensei Pro (yearly) | $120.00 | 1 year | none |
 | `DODO_MAX_MONTHLY_PRODUCT_ID` | Otto Sensei Max (monthly) | $29.00 | 1 month | none |
 | `DODO_MAX_YEARLY_PRODUCT_ID` | Otto Sensei Max (yearly) | $232.00 | 1 year | none |
@@ -629,7 +629,7 @@ Run `bun --env-file=.env.dodo.local scripts/check-dodo-catalog.ts`. It sends onl
 - each product is active and recurring, in USD, priced at `PRICES_USD`, billed every 1 month or 1
   year as its variable says, runs 20 years, has tax added on top and tax category SaaS, has no
   purchasing-power or localized pricing, discounts or add-ons, and is named for its plan; only the
-  trial product has a trial (3 days, $1, card required);
+  trial product has a trial (7 days, $1, card required);
 - the app address has exactly one webhook endpoint, it is on, it gets every event the app needs,
   and its secret equals `DODO_WEBHOOK_SECRET`.
 

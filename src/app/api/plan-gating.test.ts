@@ -67,19 +67,19 @@ const CALLS: Call[] = [
   {
     feature: "tailor",
     send: () => tailor(jsonRequest("/api/tailor", { resume: createSampleResume(NOW), job })),
-    message: "Tailoring comes with Pro. Try Pro for 3 days.",
+    message: "Tailoring comes with Pro. Try Pro for 7 days.",
   },
   {
     feature: "letter",
     send: () => letter(jsonRequest("/api/letter", { resume: createSampleResume(NOW), job })),
     message:
-      "Cover letters, outreach messages, answers and interview prep come with Pro. Try Pro for 3 days.",
+      "Cover letters, outreach messages, answers and interview prep come with Pro. Try Pro for 7 days.",
   },
   {
     feature: "letter",
     send: () => outreach(jsonRequest("/api/outreach", { resume: createSampleResume(NOW), job })),
     message:
-      "Cover letters, outreach messages, answers and interview prep come with Pro. Try Pro for 3 days.",
+      "Cover letters, outreach messages, answers and interview prep come with Pro. Try Pro for 7 days.",
   },
   {
     feature: "letter",
@@ -92,7 +92,7 @@ const CALLS: Call[] = [
         }),
       ),
     message:
-      "Cover letters, outreach messages, answers and interview prep come with Pro. Try Pro for 3 days.",
+      "Cover letters, outreach messages, answers and interview prep come with Pro. Try Pro for 7 days.",
   },
   {
     feature: "letter",
@@ -121,7 +121,7 @@ const CALLS: Call[] = [
       );
     },
     message:
-      "Cover letters, outreach messages, answers and interview prep come with Pro. Try Pro for 3 days.",
+      "Cover letters, outreach messages, answers and interview prep come with Pro. Try Pro for 7 days.",
   },
   {
     feature: "draft",
@@ -140,7 +140,7 @@ const CALLS: Call[] = [
           ],
         }),
       ),
-    message: "Build with Otto comes with Pro. Try Pro for 3 days.",
+    message: "Build with Otto comes with Pro. Try Pro for 7 days.",
   },
   {
     feature: "github",
@@ -150,7 +150,7 @@ const CALLS: Call[] = [
         jsonRequest("/api/github/draft", { username: "octocat", repos: ["octocat/ledger-lint"] }),
       );
     },
-    message: "GitHub drafts come with Pro. Try Pro for 3 days.",
+    message: "GitHub drafts come with Pro. Try Pro for 7 days.",
   },
 ];
 

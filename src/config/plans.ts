@@ -56,7 +56,7 @@ export const PLANS = {
 export const PRO_TRIAL = {
   plan: "pro",
   interval: "month",
-  days: 3,
+  days: 7,
   priceUsd: 1,
   limits: { tailor: 10, letter: 15, fix: 50, import: 5, draft: 3, github: 3 },
 } as const satisfies {

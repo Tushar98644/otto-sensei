@@ -77,7 +77,7 @@ describe("PricingPlans", () => {
 
   it("promises the reminder email and shows the trial's allowance under the trial button", () => {
     const html = text(renderToStaticMarkup(<PricingPlans offer={OFFER} trial />));
-    expect(html).toContain("Try Pro for 3 days");
+    expect(html).toContain("Try Pro for 7 days");
     expect(html).toContain("We'll email you the day before it renews.");
     expect(html).toContain(
       "10 tailored versions · 15 letters and prep · 50 line fixes during the trial",
@@ -103,7 +103,7 @@ describe("PricingPlans", () => {
     const html = text(renderToStaticMarkup(<PricingPlans offer={OFFER} />));
     expect(html).toContain("Your plan");
     expect(html).not.toContain("Check my resume, free");
-    expect(html).toContain("Try Pro for 3 days");
+    expect(html).toContain("Try Pro for 7 days");
     expect(html).toContain("Upgrade to Max");
   });
 });

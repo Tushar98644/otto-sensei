@@ -73,7 +73,7 @@ describe("share links on Free", () => {
     expect(res.status).toBe(402);
     expect(((await res.json()) as ApiErrorBody).error).toEqual({
       code: "upgrade_required",
-      message: "Share links come with Pro. Try Pro for 3 days.",
+      message: "Share links come with Pro. Try Pro for 7 days.",
     });
     expect(((await (await GET()).json()) as SharesResponse).links).toEqual([]);
   });
