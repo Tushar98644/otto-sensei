@@ -100,6 +100,12 @@ describe("the setup steps", () => {
     expect(html).not.toContain("<source");
   });
 
+  it("lets step 3 be read ahead with Show steps, but never the confirm step", () => {
+    const steps = text(render(ADDRESS));
+    expect(steps.match(/Show steps/g)).toHaveLength(1);
+    expect(steps).toMatch(/Add a filter for job emails Show steps/);
+  });
+
   it("copies the address quietly, watches for Gmail's email and opens Gmail in one press", async () => {
     render(ADDRESS);
     const [open] = mocks.buttons;

@@ -529,7 +529,7 @@ function Progress({ current }: { current: number }) {
 
 type StepState = "done" | "current" | "later";
 
-// Only the step to do now is open; done steps fold to one line and later ones wait in grey.
+// Only the step to do now is open; done and later steps fold to one line and open with Show steps.
 function Step({
   n,
   title,
@@ -548,7 +548,7 @@ function Step({
   children: ReactNode;
 }) {
   const [again, setAgain] = useState(false);
-  const open = state === "current" || (state === "done" && reopen && again);
+  const open = state === "current" || (state !== "current" && reopen && again);
   return (
     <li className="relative grid grid-cols-[1.75rem_minmax(0,1fr)] gap-x-3">
       {last ? null : (
@@ -582,7 +582,7 @@ function Step({
             {state === "done" ? <span className="sr-only"> (done)</span> : null}
           </p>
           {note}
-          {state === "done" && reopen ? (
+          {state !== "current" && reopen ? (
             <Button
               variant="ghost"
               size="sm"
