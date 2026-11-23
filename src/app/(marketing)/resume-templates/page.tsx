@@ -34,7 +34,9 @@ import {
 
 export const metadata: Metadata = pageMetadata(RESUME_TEMPLATES_PAGE);
 
-const IMAGE_SIZES = "(min-width: 1024px) 20rem, (min-width: 640px) 45vw, 100vw";
+// The drawn widths: three columns of at most 15rem, two of half the page, one of the page less its padding.
+const IMAGE_SIZES =
+  "(min-width: 1024px) 15rem, (min-width: 640px) calc(50vw - 8.75rem), calc(100vw - 8.5rem)";
 const PREVIEW_FORMATS: readonly PreviewFormat[] = TEMPLATE_LIST.map((info) => ({
   info,
   pro: isProTemplate(info.id),

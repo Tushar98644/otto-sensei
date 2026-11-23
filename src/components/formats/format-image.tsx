@@ -5,7 +5,7 @@ import { cn } from "@/lib/utils";
 
 const WIDTH = 1200;
 const HEIGHT = 1553;
-const WIDTHS = [400, 800, 1200] as const;
+const WIDTHS = [400, 600, 800, 1200] as const;
 
 export const CARD_SIZES = "(min-width: 1280px) 18rem, (min-width: 640px) 45vw, 100vw";
 export const PREVIEW_SIZES = "(min-width: 672px) 36rem, 90vw";

@@ -19,7 +19,7 @@ const WIDTHS = [
   { width: 600, suffix: "" },
   { width: 1200, suffix: "@2x" },
 ] as const;
-const WEBP_WIDTHS = [400, 800, 1200] as const;
+const WEBP_WIDTHS = [400, 600, 800, 1200] as const;
 const SAMPLE_TIME = Date.UTC(2026, 0, 15);
 
 type Pending = { resolve: (value: unknown) => void; reject: (error: Error) => void };
