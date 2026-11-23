@@ -99,17 +99,46 @@ describe("prefetchPageData", () => {
     expect(api.portfolio).toHaveBeenCalledTimes(1);
   });
 
-  it("warms the other pages' small reads, and the Pro pages' only where the plan has them", async () => {
-    const proReads = [api.reminderSettings, api.savedJobs, api.writings, api.interviewPacks];
-    warmSharedReads(user("free"));
-    await settle();
-    expect(api.listApplications).toHaveBeenCalledTimes(1);
-    expect(api.shares).toHaveBeenCalledTimes(1);
-    for (const call of proReads) expect(call).not.toHaveBeenCalled();
-    getQueryClient().clear();
-    warmSharedReads(user("pro"));
-    await settle();
-    for (const call of proReads) expect(call).toHaveBeenCalledTimes(1);
+  it("warms the other pages' small reads at once, and the Pro pages' only where the plan has them", async () => {
+    const idle: (() => void)[] = [];
+    vi.stubGlobal("window", {
+      requestIdleCallback: (run: () => void) => idle.push(run),
+      cancelIdleCallback: () => {},
+    });
+    try {
+      const proReads = [api.reminderSettings, api.savedJobs, api.interviewPacks];
+      warmSharedReads(user("free"));
+      await settle();
+      expect(api.shares).toHaveBeenCalledTimes(1);
+      for (const call of proReads) expect(call).not.toHaveBeenCalled();
+      getQueryClient().clear();
+      warmSharedReads(user("pro"));
+      await settle();
+      for (const call of proReads) expect(call).toHaveBeenCalledTimes(1);
+      expect(api.listApplications).not.toHaveBeenCalled();
+      expect(api.writings).not.toHaveBeenCalled();
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("warms the applications and, on Pro tools, the letters once the browser is idle", async () => {
+    const idle: (() => void)[] = [];
+    vi.stubGlobal("window", {
+      requestIdleCallback: (run: () => void) => idle.push(run),
+      cancelIdleCallback: () => {},
+    });
+    try {
+      warmSharedReads(user("free"));
+      warmSharedReads(user("pro"));
+      expect(idle).toHaveLength(2);
+      for (const run of idle) run();
+      await settle();
+      expect(api.listApplications).toHaveBeenCalledTimes(1);
+      expect(api.writings).toHaveBeenCalledTimes(1);
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
 
   it("asks for Jobs' matches as a prefetch once the work profile is in, not after applications", async () => {

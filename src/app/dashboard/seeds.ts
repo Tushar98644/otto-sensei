@@ -45,8 +45,33 @@ const ROUTE_READS: Record<RouteKey, () => Promise<Response>> = {
 // The shell's reads (bell, setup defaults, resume list) and the other pages' small ones (see warmSharedReads).
 function everyPage(user: SessionUser): SeedKey[] {
   const shell: SeedKey[] = ["notifications", "workProfile", "accountSetup", "resumeVersions"];
-  const pro: SeedKey[] = ["reminderSettings", "savedJobs", "writings", "interviewPacks"];
-  return [...shell, "applications", "shares", ...(hasProTools(user.plan) ? pro : [])];
+  const pro: SeedKey[] = ["reminderSettings", "savedJobs", "interviewPacks"];
+  return [...shell, "shares", ...(hasProTools(user.plan) ? pro : [])];
+}
+
+// Up to 500 applications and 200 whole letters: only the pages that draw them as they open carry them.
+const APPLICATION_PAGES: readonly string[] = [
+  ROUTES.dashboard,
+  ROUTES.dashboardResumes,
+  ROUTES.dashboardJobs,
+  ROUTES.dashboardLetters,
+];
+const APPLICATION_SECTIONS: readonly string[] = [
+  ROUTES.dashboardApplications,
+  ROUTES.dashboardInterview,
+];
+
+function largeReads(pathname: string, user: SessionUser): SeedKey[] {
+  const keys: SeedKey[] = [];
+  if (
+    APPLICATION_PAGES.includes(pathname) ||
+    APPLICATION_SECTIONS.some((route) => pathname === route || pathname.startsWith(`${route}/`))
+  ) {
+    keys.push("applications");
+  }
+  // Home's What's working sets applications sent with a letter against those without, on Pro tools.
+  if (pathname === ROUTES.dashboard && hasProTools(user.plan)) keys.push("writings");
+  return keys;
 }
 
 // What each page asks for as it opens on any plan (see the requests in components/dashboard/prefetch.ts).
@@ -93,7 +118,8 @@ async function homeCareerLog(notifications: Promise<unknown> | undefined): Promi
 export function dashboardSeeds(user: SessionUser, path: string | null): ApiSeeds {
   const pathname = (path ?? "").split(/[?#]/, 1)[0] ?? "";
   const seeds: ApiSeeds = {};
-  for (const key of new Set([...everyPage(user), ...pageReads(pathname, user)])) {
+  const keys = [...everyPage(user), ...largeReads(pathname, user), ...pageReads(pathname, user)];
+  for (const key of new Set(keys)) {
     seeds[key] = seedFor(key, user);
   }
   if (pathname === ROUTES.dashboard) seeds.careerLog = homeCareerLog(seeds.notifications);

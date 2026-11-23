@@ -4,6 +4,7 @@ import type { QueryClient } from "@tanstack/react-query";
 import { PORTFOLIO_ROUTE } from "@/components/portfolio/route";
 import { preloadPortfolio } from "@/components/portfolio/screens";
 import { ROUTES } from "@/components/site/routes";
+import { whenIdle } from "@/components/ui/lazy";
 import { hasProTools } from "@/config/plans";
 import type { SessionUser } from "@/lib/auth/types";
 import { getQueryClient } from "@/lib/queries/client";
@@ -60,22 +61,26 @@ const PAGES: Record<string, Prefetch> = {
   ],
 };
 
-// After a full page load, from the layout's seeds: the other pages' small reads, so moving to one waits on none.
+// After a full page load: the other pages' small reads at once, the large lists (applications, letters) when idle.
 export function warmSharedReads(user: SessionUser): void {
   const client = getQueryClient();
-  const pro = hasProTools(user.plan)
-    ? [
-        client.prefetchQuery(reminderSettingsQuery(user.id)),
-        client.prefetchQuery(savedJobsQuery(user.id)),
-        client.prefetchQuery(writingsQuery(user.id)),
-        client.prefetchQuery(prepPacksQuery(user.id)),
-      ]
-    : [];
+  const pro = hasProTools(user.plan);
   void Promise.allSettled([
-    client.prefetchQuery(applicationsQuery(user.id)),
     client.prefetchQuery(sharesQuery(user.id)),
-    ...pro,
+    ...(pro
+      ? [
+          client.prefetchQuery(reminderSettingsQuery(user.id)),
+          client.prefetchQuery(savedJobsQuery(user.id)),
+          client.prefetchQuery(prepPacksQuery(user.id)),
+        ]
+      : []),
   ]);
+  whenIdle(() => {
+    void Promise.allSettled([
+      client.prefetchQuery(applicationsQuery(user.id)),
+      ...(pro ? [client.prefetchQuery(writingsQuery(user.id))] : []),
+    ]);
+  });
 }
 
 export function prefetchPageData(href: string, user: SessionUser | null): void {

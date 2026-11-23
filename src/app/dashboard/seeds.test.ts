@@ -62,7 +62,6 @@ describe("dashboardSeeds", () => {
     const user = await signIn();
     const everywhere: SeedKey[] = [
       "accountSetup",
-      "applications",
       "interviewPacks",
       "notifications",
       "reminderSettings",
@@ -70,19 +69,59 @@ describe("dashboardSeeds", () => {
       "savedJobs",
       "shares",
       "workProfile",
-      "writings",
     ];
     expect(keysOf(dashboardSeeds(user, "/dashboard/account"))).toEqual(everywhere);
-    expect(keysOf(dashboardSeeds(user, "/dashboard/jobs"))).toEqual(everywhere);
+    expect(keysOf(dashboardSeeds(user, "/dashboard/jobs"))).toEqual(
+      [...everywhere, "applications"].sort(),
+    );
     expect(keysOf(dashboardSeeds(user, "/dashboard/portfolio"))).toEqual(
       [...everywhere, "githubConnection", "portfolio"].sort(),
     );
     expect(keysOf(dashboardSeeds(user, "/dashboard/applications"))).toEqual(
-      [...everywhere, "careerLog", "emailTracking", "savedPosts"].sort(),
+      [
+        ...everywhere,
+        "applications",
+        "careerLog",
+        "emailTracking",
+        "savedPosts",
+        "writings",
+      ].sort(),
     );
     expect(keysOf(dashboardSeeds(user, "/dashboard/career-log/check-in?month=2026-10"))).toEqual(
       [...everywhere, "careerLog"].sort(),
     );
+  });
+
+  it("carries the applications and the letters only on the pages that draw them as they open", async () => {
+    const user = await signIn();
+    for (const path of [
+      "/dashboard",
+      "/dashboard/resumes",
+      "/dashboard/jobs",
+      "/dashboard/letters",
+      "/dashboard/applications",
+      "/dashboard/applications/a1/prep",
+      "/dashboard/interview",
+      "/dashboard/interview/a1",
+    ]) {
+      expect(keysOf(dashboardSeeds(user, path))).toContain("applications");
+    }
+    for (const path of [
+      "/dashboard/account",
+      "/dashboard/portfolio",
+      "/dashboard/career-log",
+      "/dashboard/trash",
+      "/dashboard/formats",
+      "/dashboard/interviews",
+    ]) {
+      expect(keysOf(dashboardSeeds(user, path))).not.toContain("applications");
+    }
+    for (const path of ["/dashboard", "/dashboard/letters", "/dashboard/applications"]) {
+      expect(keysOf(dashboardSeeds(user, path))).toContain("writings");
+    }
+    for (const path of ["/dashboard/resumes", "/dashboard/jobs", "/dashboard/interview"]) {
+      expect(keysOf(dashboardSeeds(user, path))).not.toContain("writings");
+    }
   });
 
   it("leaves out the reads a Free account's pages never make", async () => {
