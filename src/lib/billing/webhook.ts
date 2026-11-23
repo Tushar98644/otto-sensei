@@ -15,12 +15,14 @@ import { canPublishPortfolio } from "@/lib/portfolio/plan";
 import { portfolioSlugsOf } from "@/lib/portfolio/records";
 import { isUserId } from "@/lib/users";
 import {
+  cartProducts,
   DodoDisputeSchema,
   DodoPaymentSchema,
   DodoRefundSchema,
   metadataIds,
   readEnvelope,
   toState,
+  TopupPaymentSchema,
   verifyWebhook,
   webhookKey,
   type DodoEvent,
@@ -67,6 +69,8 @@ export type WebhookConfig = {
   planForProduct: (productId: string) => ProductPlan | null | undefined;
   trialProductId?: string | null;
   topupProductId?: string | null;
+  // Asks Dodo whether a payment we hold no credit for is a top-up, so its refund waits for the credit.
+  isTopupPayment?: (paymentId: string) => Promise<boolean>;
   customerEmail?: (customerId: string) => Promise<string | null>;
 };
 
@@ -123,7 +127,7 @@ export async function processWebhook(
       return recordPaymentFailure(event.data, context, now);
     case "refund":
     case "dispute":
-      return recordAdjustment(event, context, now);
+      return recordAdjustment(event, context, ready, now);
     default:
       log.info("billing.webhook_ignored", { ...context, reason: "event_type" });
       return { status: 200, message: "ignored" };
@@ -240,7 +244,7 @@ async function recordPayment(
   };
   const subscriptionId = payment.subscription_id;
   if (!subscriptionId) {
-    if (isTopup(payment, config)) return recordTopup(payment, context, config, now);
+    if (isTopup(object, payment, config)) return recordTopup(object, context, config, now);
     return ignore("no_subscription");
   }
   // A charge can succeed after a refused trial or a deleted account's subscription was cancelled.
@@ -289,29 +293,34 @@ async function recordPayment(
 }
 
 // Our top-up checkout names its record in the metadata; the product alone marks one bought some other way.
-function isTopup(payment: DodoPayment, config: ReadyConfig): boolean {
+function isTopup(object: unknown, payment: DodoPayment, config: ReadyConfig): boolean {
   const product = config.topupProductId;
-  const inCart = product
-    ? payment.product_cart?.some((item) => item.product_id === product)
-    : false;
-  return Boolean(inCart) || payment.metadata?.[TOPUP_METADATA_KEY] != null;
+  if (payment.metadata?.[TOPUP_METADATA_KEY] != null) return true;
+  return Boolean(product) && cartProducts(object).includes(product ?? "");
 }
 
 // Credits exactly the dollars our own record of the checkout holds, once per payment; anything else is logged, not credited.
 async function recordTopup(
-  payment: DodoPayment,
+  object: unknown,
   context: Context,
   config: ReadyConfig,
   now: number,
 ): Promise<WebhookResult> {
-  const fields = { ...context, paymentId: payment.payment_id };
+  const parsed = TopupPaymentSchema.safeParse(object);
+  const fields = { ...context, paymentId: parsed.success ? parsed.data.payment_id : "unreadable" };
   const refuse = (reason: string, extra: Record<string, string | number | null> = {}) => {
     log.error("billing.topup_mismatch", `top-up not credited: ${reason}`, { ...fields, ...extra });
     return { status: 200, message: "ignored" };
   };
-  const [item, ...more] = payment.product_cart ?? [];
-  if (!item || more.length > 0 || item.product_id !== config.topupProductId) {
-    return refuse("cart", { items: payment.product_cart?.length ?? 0 });
+  if (!parsed.success) {
+    return refuse("malformed", { path: parsed.error.issues[0]?.path.map(String).join(".") ?? "" });
+  }
+  const payment = parsed.data;
+  const [item, ...more] = payment.product_cart;
+  // Unset, the flag only stops new sales: a checkout already signed and recorded still lands.
+  const product = config.topupProductId;
+  if (!item || more.length > 0 || (product && item.product_id !== product)) {
+    return refuse("cart", { items: payment.product_cart.length });
   }
   const topupId = payment.metadata?.[TOPUP_METADATA_KEY];
   if (
@@ -335,9 +344,8 @@ async function recordTopup(
   }
   const session = payment.checkout_session_id;
   if (checkout.sessionId && session && checkout.sessionId !== session) return refuse("session");
-  const currency = (payment.currency ?? "").toUpperCase();
+  const currency = payment.currency.toUpperCase();
   const total = payment.total_amount;
-  if (total == null || !currency) return refuse("amount");
   const preTax = total - (payment.tax ?? 0);
   if (currency === "USD" && preTax !== checkout.cents) {
     return refuse("amount", { preTax, cents: checkout.cents });
@@ -414,6 +422,7 @@ const DISPUTE_LOSSES: ReadonlySet<string> = new Set(["dispute.lost", "dispute.ac
 async function recordAdjustment(
   event: DodoEvent,
   context: Context,
+  config: ReadyConfig,
   now: number,
 ): Promise<WebhookResult> {
   let fields: Record<string, string | number | boolean | null>;
@@ -423,12 +432,15 @@ async function recordAdjustment(
     if (!parsed.success) return malformed(parsed.error, context);
     const refund = parsed.data;
     if (event.type === "refund.succeeded") {
+      // A partial refund whose amount can't be read takes the whole credit back.
+      const amount = refund.amount == null ? Number.NaN : Number(refund.amount);
       takeBack = {
         paymentId: refund.payment_id,
         key: `refund:${refund.refund_id}`,
-        share: refund.is_partial
-          ? { amount: Number(refund.amount), currency: refund.currency ?? null }
-          : "all",
+        share:
+          refund.is_partial && Number.isFinite(amount)
+            ? { amount, currency: refund.currency ?? null }
+            : "all",
       };
     }
     fields = {
@@ -466,6 +478,15 @@ async function recordAdjustment(
     // Keyed by the refund or dispute, so it runs before the event's own claim and a retry repeats nothing.
     if (takeBack) {
       const taken = await takeBackTopup(takeBack, now);
+      // A top-up refunded before its credit landed: Dodo's retry takes it back once the credit is in.
+      if (
+        taken.outcome === "not_topup" &&
+        config.isTopupPayment &&
+        (await config.isTopupPayment(takeBack.paymentId))
+      ) {
+        log.warn("billing.topup_takeback_early", { ...context, paymentId: takeBack.paymentId });
+        return { status: 500, message: "retry" };
+      }
       if (taken.outcome === "taken") {
         log.warn("billing.topup_taken_back", {
           ...context,

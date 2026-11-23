@@ -7,7 +7,7 @@ import type { ApiErrorBody, FixRequestBody } from "@/lib/api/types";
 import { cookieJar, jsonRequest, resetDb, setPlan, signInAs } from "@/lib/auth/test-helpers";
 import type { SessionUser } from "@/lib/auth/types";
 import { resetEnvForTests } from "@/lib/env";
-import { AI_TOKENS, monthKey } from "@/lib/usage";
+import { AI_TOKENS, getUsage, monthKey } from "@/lib/usage";
 import { POST as fixRoute } from "./fix/route";
 import { claimAiRead } from "./import/ai-reads";
 import { takeAccountUnit } from "./metered-free";
@@ -66,6 +66,7 @@ beforeEach(async () => {
 
 afterEach(() => {
   vi.useRealTimers();
+  vi.unstubAllGlobals();
   vi.unstubAllEnvs();
   vi.restoreAllMocks();
   resetEnvForTests();
@@ -148,5 +149,30 @@ describe("other metered work", () => {
     expect(await balanceOf(user)).toBe(100);
     const asked = await claimAiRead(user, NOW, { credit: true });
     expect(asked).toMatchObject({ useAI: true, credit: { cents: 15, balanceCents: 85 } });
+  });
+});
+
+describe("a call that delivered nothing", () => {
+  it("always gives its credit back, while allowance units keep the 3-a-day cap", async () => {
+    vi.stubEnv("OPENROUTER_API_KEY", "sk-or-test");
+    resetEnvForTests();
+    // Cut off before the answer was complete: billed by the provider, with nothing to show.
+    const truncated = {
+      choices: [{ finish_reason: "length", message: { content: "{" } }],
+      usage: { prompt_tokens: 900, completion_tokens: 4_000 },
+    };
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => Response.json(truncated)),
+    );
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    const user = await setPlan(await signInAs("pro@example.com"), "pro");
+    for (let i = 0; i < 5; i++) expect((await fix()).status).toBe(502);
+    expect((await getUsage(user, NOW)).fix.used).toBe(2);
+
+    await spendAllowance(user, "fix", PLANS.pro.limits.fix);
+    await setBalance(user, 10);
+    for (let i = 0; i < 5; i++) expect((await fix()).status).toBe(502);
+    expect(await balanceOf(user)).toBe(10);
   });
 });

@@ -383,11 +383,6 @@ describe("payload schemas", () => {
       charge_type: "new",
       metadata: { plan: "pro" },
       customer: { customer_id: DODO_TEST_IDS.customer },
-      product_cart: null,
-      total_amount: 100,
-      tax: 0,
-      currency: "USD",
-      checkout_session_id: "cks_TestCheckout00000001",
     });
   });
 

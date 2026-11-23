@@ -118,9 +118,10 @@ const SubscriptionCharge = DodoSubscriptionSchema.extend({
   tax_inclusive: z.boolean().nullish(),
 });
 export type DodoSubscriptionCharge = z.infer<typeof SubscriptionCharge>;
-const CheckoutResponse = z.object({
-  checkout_url: z.string().nullish(),
-  session_id: z.string().max(200).nullish(),
+const CheckoutResponse = z.object({ checkout_url: z.string().nullish() });
+// A top-up reads the session id too, but an odd one only means it isn't kept.
+const TopupCheckoutResponse = CheckoutResponse.extend({
+  session_id: z.string().min(1).max(200).nullish().catch(undefined),
 });
 const PortalResponse = z.object({ link: z.string().nullish() });
 const Anything = z.unknown();
@@ -576,7 +577,7 @@ export async function createTopupCheckout(
         customization: { theme: "light" },
       },
     },
-    CheckoutResponse,
+    TopupCheckoutResponse,
   );
   const url = httpsUrl(session.checkout_url);
   if (!url) {
@@ -697,6 +698,31 @@ export async function customerPayments(customerId: string): Promise<DodoPayment[
     )
     .sort((a, b) => (Date.parse(b.created_at) || 0) - (Date.parse(a.created_at) || 0))
     .slice(0, HISTORY_LIMIT);
+}
+
+const PaymentProducts = z.object({
+  metadata: z.record(z.string(), z.unknown()).nullish().catch(null),
+  product_cart: z
+    .array(z.object({ product_id: z.string() }).catch({ product_id: "" }))
+    .nullish()
+    .catch(null),
+});
+
+// Whether Dodo files a payment as one of our top-ups: signed by our checkout, or of the top-up product.
+export async function isTopupPayment(
+  paymentId: string,
+  productId: string | null,
+): Promise<boolean> {
+  if (!isDodoId("pay", paymentId)) return false;
+  const payment = await request(
+    "lookup",
+    { method: "GET", path: `/payments/${segment(paymentId)}` },
+    PaymentProducts,
+  );
+  if (payment.metadata?.[TOPUP_METADATA_KEY] != null) return true;
+  return (
+    productId !== null && (payment.product_cart ?? []).some((item) => item.product_id === productId)
+  );
 }
 
 export async function getPayment(paymentId: string): Promise<DodoPayment> {

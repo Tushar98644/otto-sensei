@@ -34,7 +34,7 @@ const limitsAnswer = [freeLimits, monthlyLimits, trialLimits, keptLimits, upload
 // Shown only while credit is on sale.
 export const CREDIT_FAQ: FaqItem = {
   question: "What if I run out before my plan renews?",
-  answer: `On ${PLANS.pro.name} or ${PLANS.max.name} you can add credit from $${TOPUP_LIMITS.minUsd} to $${TOPUP_LIMITS.maxUsd} at a time, in whole dollars, plus any tax. ${buysSentence(1)}: ${creditPriceList()}. Credit is used only once that month's allowance for the feature runs out. It's prepaid and not refundable once used, never expires while your account exists, works only on a paid plan (not Free or the trial), and is removed if you delete your account. A balance holds up to $${TOPUP_LIMITS.maxBalanceUsd}.`,
+  answer: `On ${PLANS.pro.name} or ${PLANS.max.name} you can add credit from $${TOPUP_LIMITS.minUsd} to $${TOPUP_LIMITS.maxUsd} at a time, in whole dollars, plus any tax. ${buysSentence(1)}: ${creditPriceList()}. Credit is used only once that month's allowance for the feature runs out, or once the AI budget runs out, at the prices shown at the time it's used. It's prepaid and not refundable once used, never expires while your account exists, works only on a paid plan (not Free or the trial), and is removed if you delete your account. A balance holds up to $${TOPUP_LIMITS.maxBalanceUsd}.`,
 };
 
 export const BILLING_FAQ: readonly FaqItem[] = [

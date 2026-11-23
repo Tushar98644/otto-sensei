@@ -17,6 +17,7 @@ import {
   createCheckout,
   createTopupCheckout,
   endSubscription,
+  isTopupPayment,
   listLiveSubscriptions,
   portalUrl,
 } from "./dodo";
@@ -340,5 +341,9 @@ export async function handleWebhook(
     planForProduct,
     trialProductId: trialProductId(),
     topupProductId: topupProductId() ?? null,
+    // Only while credit has a product: a refund of anything else needs no lookup.
+    ...(topupProductId()
+      ? { isTopupPayment: (id: string) => isTopupPayment(id, topupProductId() ?? null) }
+      : {}),
   });
 }

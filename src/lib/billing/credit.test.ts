@@ -153,8 +153,9 @@ describe("buying credit", () => {
       reason: "over_cap",
       roomCents: 1000,
     });
-    // An hour on, the open checkout no longer holds its room.
-    expect(await startTopup(pro.id, 2000, NOW + 2 * 3_600_000)).toMatchObject({ ok: true });
+    // Dodo keeps a checkout payable for 24 hours, so it holds its room that long.
+    expect(await startTopup(pro.id, 2000, NOW + 2 * 3_600_000)).toMatchObject({ ok: false });
+    expect(await startTopup(pro.id, 2000, NOW + 25 * 3_600_000)).toMatchObject({ ok: true });
   });
 
   it("credits mock billing right away through the same records", async () => {

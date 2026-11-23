@@ -159,16 +159,34 @@ export const DodoPaymentSchema = z.object({
   charge_type: z.string().max(50).nullish(),
   metadata: MetadataSchema,
   customer: z.object({ customer_id: IdSchema }),
-  // A one-time payment's products, with the quantity our checkout set; top-ups read these.
+});
+
+// Only the top-up path reads a one-time payment's products and amounts, so only it refuses odd ones.
+export const TopupPaymentSchema = DodoPaymentSchema.extend({
   product_cart: z
-    .array(z.object({ product_id: IdSchema, quantity: z.number().int() }))
-    .max(20)
-    .nullish(),
-  total_amount: z.number().int().nullish(),
-  tax: z.number().int().nullish(),
-  currency: z.string().max(10).nullish(),
+    .array(z.object({ product_id: IdSchema, quantity: z.number().int().min(1) }))
+    .min(1)
+    .max(20),
+  total_amount: z.number().int().nonnegative(),
+  tax: z.number().int().nonnegative().nullish(),
+  currency: z.string().min(3).max(10),
   checkout_session_id: IdSchema.nullish(),
 });
+
+const CartProducts = z
+  .object({
+    product_cart: z
+      .array(z.object({ product_id: z.string() }).catch({ product_id: "" }))
+      .nullish()
+      .catch(null),
+  })
+  .catch({ product_cart: null });
+
+// The products a payment names, read leniently: any payment may carry an odd cart.
+export function cartProducts(data: unknown): string[] {
+  const cart = CartProducts.parse(data).product_cart ?? [];
+  return cart.map((item) => item.product_id).filter(Boolean);
+}
 
 export const DodoRefundSchema = z.object({
   refund_id: IdSchema,
@@ -190,6 +208,7 @@ export const DodoDisputeSchema = z.object({
 });
 
 export type DodoPayment = z.infer<typeof DodoPaymentSchema>;
+export type TopupPayment = z.infer<typeof TopupPaymentSchema>;
 export type DodoRefund = z.infer<typeof DodoRefundSchema>;
 export type DodoDispute = z.infer<typeof DodoDisputeSchema>;
 

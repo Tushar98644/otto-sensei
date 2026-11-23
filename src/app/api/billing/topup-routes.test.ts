@@ -6,6 +6,7 @@ import { getCurrentUser } from "@/lib/auth/session";
 import type { SessionUser } from "@/lib/auth/types";
 import { insertUserRow, resetDb } from "@/lib/auth/test-helpers";
 import { verifyBillingId } from "@/lib/billing/billing-sign";
+import { createCheckout, createTopupCheckout, isTopupPayment } from "@/lib/billing/dodo";
 import { dodoId, installFakeDodo } from "@/lib/billing/dodo-testing";
 import { resetEnvForTests } from "@/lib/env";
 import { rateLimit } from "@/lib/rate-limit";
@@ -244,5 +245,67 @@ describe("GET /api/billing/return for a top-up", () => {
     expect(back("topup=1&status=failed&next=%2Fdashboard")).toBe(
       `${APP_URL}/account?topup=cancelled`,
     );
+  });
+});
+
+describe("Dodo's checkout answer", () => {
+  const HOSTED = "https://test.checkout.dodopayments.com/session/cks_odd";
+  const answerWith = (sessionId: unknown) =>
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => Response.json({ checkout_url: HOSTED, session_id: sessionId })),
+    );
+
+  it("never fails a plan checkout over an odd session id, as before credit", async () => {
+    useEnv(DODO);
+    for (const odd of [42, "x".repeat(500), null, { id: 1 }]) {
+      answerWith(odd);
+      const made = await createCheckout({
+        userId: crypto.randomUUID(),
+        email: "buyer@example.com",
+        customerId: null,
+        productId: DODO.DODO_PRO_MONTHLY_PRODUCT_ID,
+        plan: "pro",
+        interval: "month",
+        trial: false,
+      });
+      expect(made).toEqual({ url: HOSTED });
+    }
+  });
+
+  it("keeps a top-up's session id only when it reads as one", async () => {
+    useEnv(DODO);
+    const input = {
+      userId: crypto.randomUUID(),
+      email: "buyer@example.com",
+      customerId: null,
+      productId: TOPUP,
+      usd: 10,
+      topupId: crypto.randomUUID(),
+    };
+    answerWith("x".repeat(500));
+    expect(await createTopupCheckout(input)).toEqual({ url: HOSTED, sessionId: null });
+    answerWith("cks_Fine0000000000000001");
+    expect(await createTopupCheckout(input)).toEqual({
+      url: HOSTED,
+      sessionId: "cks_Fine0000000000000001",
+    });
+  });
+
+  it("tells a top-up payment from another by our signed record or the product", async () => {
+    useEnv(DODO);
+    const fake = installFakeDodo();
+    const signed = dodoId("pay", "signed");
+    const bought = dodoId("pay", "bought");
+    const plan = dodoId("pay", "plan");
+    fake.payments.push(
+      { id: signed, subscription: null, status: "succeeded", metadata: { topup_id: "t" } },
+      { id: bought, subscription: null, status: "succeeded", productCart: [TOPUP] },
+      { id: plan, subscription: dodoId("sub", 1), status: "succeeded" },
+    );
+    expect(await isTopupPayment(signed, null)).toBe(true);
+    expect(await isTopupPayment(bought, TOPUP)).toBe(true);
+    expect(await isTopupPayment(bought, null)).toBe(false);
+    expect(await isTopupPayment(plan, TOPUP)).toBe(false);
   });
 });

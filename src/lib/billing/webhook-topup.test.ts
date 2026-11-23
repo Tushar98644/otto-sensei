@@ -38,9 +38,18 @@ const APPLIED = { status: 200, message: "applied" };
 const IGNORED = { status: 200, message: "ignored" };
 const DUPLICATE = { status: 200, message: "duplicate" };
 
-function deliver(body: string) {
-  return processWebhook(body, standardWebhookHeaders(body, DODO_WEBHOOK_TEST_SECRET), CONFIG);
+function deliver(body: string, config: WebhookConfig = CONFIG) {
+  return processWebhook(body, standardWebhookHeaders(body, DODO_WEBHOOK_TEST_SECRET), config);
 }
+
+// Odd values for the fields only top-ups read; any other payment must not notice them.
+const ODD_TOPUP_FIELDS = {
+  product_cart: "not a cart",
+  total_amount: "lots",
+  tax: { amount: 1 },
+  currency: 12345,
+  checkout_session_id: "x".repeat(500),
+};
 
 async function buyer(): Promise<string> {
   const id = crypto.randomUUID();
@@ -240,5 +249,83 @@ describe("a top-up refunded or disputed", () => {
     await (await getDb()).update(users).set({ creditCents: 700 }).where(eq(users.id, userId));
     expect(await deliver(refundEvent("refund.succeeded"))).toEqual(APPLIED);
     expect(await balanceOf(userId)).toBe(700);
+  });
+});
+
+describe("the review's cases", () => {
+  it("credits a signed, recorded top-up even after the top-up product id is unset", async () => {
+    const userId = await buyer();
+    const { payment } = await checkout(userId, 10);
+    const unset: WebhookConfig = { ...CONFIG, topupProductId: null };
+    expect(await deliver(payment(), unset)).toEqual(APPLIED);
+    expect(await balanceOf(userId)).toBe(1000);
+  });
+
+  it("refuses an odd top-up payload, logged and not credited", async () => {
+    const userId = await buyer();
+    const { payment } = await checkout(userId, 10);
+    expect(await deliver(payment({ product_cart: [{ product_id: TOPUP, quantity: 0 }] }))).toEqual(
+      IGNORED,
+    );
+    expect(await deliver(payment({ total_amount: "1088" }))).toEqual(IGNORED);
+    expect(await balanceOf(userId)).toBe(0);
+    expect(console.error).toHaveBeenCalledWith(
+      expect.stringContaining("billing.topup_mismatch"),
+      expect.objectContaining({ errorMessage: "top-up not credited: malformed" }),
+    );
+  });
+
+  it("lets a subscription payment with odd top-up fields through exactly as before", async () => {
+    const userId = await buyer();
+    const fields = {
+      metadata: { user_id: userId, plan: "pro", interval: "month", trial: "false" },
+    };
+    expect(
+      await deliver(paymentEvent("payment.succeeded", { ...fields, ...ODD_TOPUP_FIELDS })),
+    ).toEqual(APPLIED);
+    const failed = paymentEvent("payment.failed", {
+      charge_type: "plan_change",
+      ...ODD_TOPUP_FIELDS,
+    });
+    expect(await deliver(failed)).toEqual(APPLIED);
+    expect(await balanceOf(userId)).toBe(0);
+  });
+
+  it("asks Dodo to retry a refund that comes before its top-up's credit, then takes it back", async () => {
+    const userId = await buyer();
+    const { payment } = await checkout(userId, 10);
+    const lookups: string[] = [];
+    const config: WebhookConfig = {
+      ...CONFIG,
+      isTopupPayment: async (id) => {
+        lookups.push(id);
+        return id === PAY;
+      },
+    };
+    const refund = refundEvent("refund.succeeded", { amount: 1088, is_partial: false });
+    expect(await deliver(refund, config)).toEqual({ status: 500, message: "retry" });
+    expect(lookups).toEqual([PAY]);
+    expect(await deliver(payment(), config)).toEqual(APPLIED);
+    expect(await balanceOf(userId)).toBe(1000);
+    expect(await deliver(refund, config)).toEqual(APPLIED);
+    expect(await balanceOf(userId)).toBe(0);
+  });
+
+  it("answers a refund of a payment that isn't a top-up as before, after one lookup", async () => {
+    const config: WebhookConfig = { ...CONFIG, isTopupPayment: async () => false };
+    expect(await deliver(refundEvent("refund.succeeded"), config)).toEqual(APPLIED);
+  });
+
+  it("takes the whole credit back for a partial refund whose amount can't be read", async () => {
+    const userId = await buyer();
+    const { payment } = await checkout(userId, 10);
+    await deliver(payment());
+    const refund = refundEvent("refund.succeeded", {
+      refund_id: "ref_NullAmount000000001",
+      amount: null,
+      is_partial: true,
+    });
+    expect(await deliver(refund)).toEqual(APPLIED);
+    expect(await balanceOf(userId)).toBe(0);
   });
 });

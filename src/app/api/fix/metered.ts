@@ -180,7 +180,7 @@ export async function runMetered<S extends z.ZodType, R>(
         return ok({ result, usage: unit.usage, demo, ...creditField(unit.credit) });
       } catch (error) {
         trackMeteredCall(call, error);
-        const refunded = await refund(user, feature, now, error, unit.giveBack);
+        const refunded = await refund(user, feature, now, error, unit);
         if (!(error instanceof AIError)) throw error;
         log.warn(`${feature}.ai_failed`, { code: error.code, refunded });
         const failure = AI_FAILURES[error.code];
@@ -243,15 +243,17 @@ async function keep(
   }
 }
 
+// Credit paid for an answer that never came always comes back; allowance units keep the daily cap.
 async function refund(
   user: SessionUser,
   feature: Feature,
   now: number,
   cause: unknown,
-  giveBack: () => Promise<void>,
+  { giveBack, credit }: Pick<Unit, "giveBack" | "credit">,
 ): Promise<boolean> {
   try {
-    if (!(cause instanceof AIError && UNBILLED_FAILURES.has(cause.code))) {
+    const unbilled = cause instanceof AIError && UNBILLED_FAILURES.has(cause.code);
+    if (credit === null && !unbilled) {
       const cap = await rateLimit(
         `refund:${feature}:user:${user.id}`,
         BILLED_REFUNDS_PER_DAY,

@@ -522,8 +522,9 @@ subscription when its period runs out, so it gets the longest one):
 **Prepaid credit (off until the owner turns it on).** The script also makes `Otto Sensei credit
 ($1)`: a one-time $1.00 product in USD, tax on top, tax category SaaS, pay what you want off, tagged
 `otto_topup`, and writes its id as `DODO_TOPUP_PRODUCT_ID`. Credit stays hidden everywhere (account
-page, limit dialogs, pricing, FAQ) until that variable is in Vercel; leave it out until the owner
-says yes.
+page, limit dialogs, pricing, FAQ, terms) until that variable is in Vercel; leave it out until the
+owner says yes. Unsetting it later stops new sales and spending, but a checkout already paid is
+still credited.
 
 - A paid Pro or Max plan past its trial adds credit in whole dollars, from `TOPUP_LIMITS.minUsd`
   ($5) to $100 at a time, up to a $300 balance (`src/config/topup.ts`). The checkout buys the $1
@@ -536,9 +537,13 @@ says yes.
   total all match it. Anything else is logged as `billing.topup_mismatch` and not credited: refund
   it from the dashboard. Subscription payments never reach this path.
 - `refund.succeeded` takes the refund's share of the credit back (a partial refund by its share of
-  the total charged), and `dispute.lost` or `dispute.accepted` takes all of it, never below a zero
-  balance; each is logged as `billing.topup_taken_back`. No new webhook events or key permissions
-  are needed.
+  the total charged; one whose amount can't be read takes all of it), and `dispute.lost` or
+  `dispute.accepted` takes all of it, never below a zero balance; each is logged as
+  `billing.topup_taken_back`. A refund or lost dispute that arrives before its top-up's credit
+  (the app asks Dodo for the payment, which needs Payments read) is answered 500, so Dodo's retry
+  takes it back once the credit is in. No new webhook events or key permissions are needed.
+- A checkout link stays payable for 24 hours, so an unpaid top-up holds its room under the $300
+  cap that long; one paid even later is still credited and logged as `billing.topup_over_cap`.
 - Prices per action come from Pro: $1 buys what a fifteenth of Pro buys in that feature (today 10¢
   a tailored version or letter, 2¢ a line fix, 15¢ an AI resume read, 30¢ a Build with Otto or
   GitHub draft). They follow `PLANS.pro` by themselves, so nothing in Dodo changes with them.

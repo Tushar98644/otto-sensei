@@ -35,6 +35,8 @@ export type FakeDodoPayment = {
   chargeType?: "new" | "renewal" | "plan_change" | "on_demand" | null;
   refunded?: boolean;
   metadata?: Record<string, string | number | boolean>;
+  // A one-time payment's product ids.
+  productCart?: string[];
 };
 export type FakeDodoRefund = { id: string; payment: string; reason: string | null };
 export type FakeDodoCheckout = { id: string; body: Record<string, unknown> };
@@ -127,6 +129,7 @@ function paymentEntity(payment: FakeDodoPayment) {
       name: "Test Buyer",
     },
     metadata: payment.metadata ?? {},
+    product_cart: payment.productCart?.map((id) => ({ product_id: id, quantity: 1 })) ?? null,
     total_amount: 100,
     currency: "USD",
     refund_status: payment.refunded ? "full" : null,
@@ -267,6 +270,11 @@ export function installFakeDodo(): FakeDodo {
         .filter((payment) => !status || payment.status === status)
         .map(paymentEntity);
       return json({ items: items.slice(0, pageSize(url)) });
+    }
+    const onePayment = /^GET \/payments\/([^/]+)$/.exec(route);
+    if (onePayment) {
+      const found = fake.payments.find((candidate) => candidate.id === onePayment[1]);
+      return found ? json(paymentEntity(found)) : dodoError(404, "NOT_FOUND", "Payment not found");
     }
     if (route === "POST /refunds") {
       const payment = fake.payments.find((candidate) => candidate.id === body?.payment_id);

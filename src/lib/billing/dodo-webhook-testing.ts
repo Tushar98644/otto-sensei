@@ -192,11 +192,14 @@ export function subscriptionEvent(
 
 export type PaymentFields = Partial<Omit<DodoPayment, "customer">> & {
   customer?: Partial<DodoPayment["customer"]>;
-  total_amount?: number;
-  currency?: string;
+  total_amount?: unknown;
+  currency?: unknown;
   retry_attempt?: number;
   error_code?: string | null;
-  checkout_session_id?: string | null;
+  checkout_session_id?: unknown;
+  // A one-time payment's products and amounts; tests may send odd ones.
+  product_cart?: unknown;
+  tax?: unknown;
 };
 
 // The $1 trial charge of a new subscription by default; the status follows the event name.

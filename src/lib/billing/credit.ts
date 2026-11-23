@@ -12,8 +12,8 @@ import { resolvePeriod } from "@/lib/usage";
 import type { CreditEntry } from "./credit-types";
 import { creditOffered } from "./intervals";
 
-// An unpaid checkout counts toward the balance cap this long, so parallel checkouts can't pass it.
-const PENDING_MS = HOUR_MS;
+// Dodo's checkout links stay payable for 24 hours, so an unpaid one holds its room that long.
+const PENDING_MS = 24 * HOUR_MS;
 export const MAX_BALANCE_CENTS = TOPUP_LIMITS.maxBalanceUsd * 100;
 const ACTIVITY_ROWS = 500;
 const ACTIVITY_SHOWN = 30;

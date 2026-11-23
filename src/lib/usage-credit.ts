@@ -51,6 +51,8 @@ export async function takeUnitOrCredit(
   };
   const price = creditCents(feature);
   if (price === null || !creditUsable(user)) return refused;
+  // Read before anything is spent: after the spend, nothing may throw and lose it.
+  const before = refused.usage ?? (await getUsage(user, now));
   const paid = await spendCredit(
     user.id,
     feature,
@@ -59,14 +61,14 @@ export async function takeUnitOrCredit(
     budgetAllowed ? (tx) => takeAllowanceUnit(tx, user, feature, now) : null,
   );
   if (paid === null) return refused;
-  const usage = await getUsage(user, now);
   if (paid === "allowance") {
     const giveBack = () => refundUsage(user, feature, now);
+    const usage = await getUsage(user, now).catch(() => before);
     return { allowed: true, usage, period: refused.period, giveBack, credit: null };
   }
   return {
     allowed: true,
-    usage,
+    usage: before,
     period: refused.period,
     giveBack: () => returnCredit(user.id, paid.key),
     credit: { cents: paid.cents, balanceCents: paid.balanceCents },
