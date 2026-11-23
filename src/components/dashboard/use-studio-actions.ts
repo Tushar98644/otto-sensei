@@ -7,7 +7,7 @@ import {
   noRoomForResume,
   roomForResume,
   unlockFeature,
-  useProTools,
+  usePlan,
 } from "@/components/account/pro-tools";
 import { OTTO } from "@/components/mascot/lines";
 import { ROUTES } from "@/components/site/routes";
@@ -49,7 +49,7 @@ export function useStudioActions() {
   const setActive = useStudioStore((s) => s.setActive);
   const setStep = useStudioStore((s) => s.setStep);
   const addResume = useStudioStore((s) => s.addResume);
-  const pro = useProTools();
+  const plan = usePlan();
 
   useEffect(() => {
     router.prefetch(ROUTES.studio);
@@ -104,7 +104,11 @@ export function useStudioActions() {
           handOffUpload(file);
           go("upload");
         };
-        if (pro === false && noRoomForResume()) {
+        if (plan !== null && plan !== "free" && noRoomForResume(plan)) {
+          void roomForResume();
+          return;
+        }
+        if (plan === "free" && noRoomForResume()) {
           // "Replace it" opens the picker in its own click; the old resume goes once a file is chosen.
           askForResumeRoom((replaceOld) =>
             chooseFile(UPLOAD_ACCEPT, (file) => {
@@ -142,7 +146,7 @@ export function useStudioActions() {
         go("fix");
       },
     }),
-    [addResume, go, importLocal, open, pro],
+    [addResume, go, importLocal, open, plan],
   );
 }
 

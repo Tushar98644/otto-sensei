@@ -1,7 +1,16 @@
 import { ROUTES } from "@/components/site/routes";
 import { TextLink } from "@/components/site/text-link";
-import { FEATURE_LABELS, FEATURES, FREE_JOB_MATCHES, PLANS, PRO_TRIAL } from "@/config/plans";
+import {
+  applicationLimit,
+  FEATURE_LABELS,
+  FEATURES,
+  FREE_JOB_MATCHES,
+  PLANS,
+  PRO_TRIAL,
+  resumeLimit,
+} from "@/config/plans";
 import { planPriceLabel } from "@/lib/billing/prices";
+import { pluralize } from "@/lib/utils";
 import type { FaqItem } from "../_components/faq-list";
 import { MERCHANT } from "../_components/merchant";
 import { formatUsd } from "../_components/plan-features";
@@ -15,10 +24,11 @@ const monthlyLimits = `Pro and Max limits reset each month, when your plan renew
 const trialLimits = `The ${PRO_TRIAL.days}-day Pro trial has its own allowance for the whole trial: ${FEATURES.map(
   (feature) => `${count.format(PRO_TRIAL.limits[feature])} ${FEATURE_LABELS[feature]}`,
 ).join(", ")}.`;
+const keptLimits = `Resumes, with tailored versions counted: ${count.format(resumeLimit("free"))} on Free, ${count.format(resumeLimit("pro"))} on Pro and the trial, ${count.format(resumeLimit("max"))} on Max. Tracked applications: ${count.format(applicationLimit("free"))} on Free, ${count.format(applicationLimit("pro"))} on Pro and the trial, ${count.format(applicationLimit("max"))} on Max.`;
 const uploadsNote =
   "Uploads always work: on Free, or past the AI reads, the basic reader reads them instead.";
 
-const limitsAnswer = [freeLimits, monthlyLimits, trialLimits, uploadsNote].join(" ");
+const limitsAnswer = [freeLimits, monthlyLimits, trialLimits, keptLimits, uploadsNote].join(" ");
 
 export const BILLING_FAQ: readonly FaqItem[] = [
   {
@@ -27,7 +37,7 @@ export const BILLING_FAQ: readonly FaqItem[] = [
   },
   {
     question: "What stays free?",
-    answer: `Uploading with the basic reader, the recruiter view, editing and fixing by hand, ${PLANS.free.limits.fix} line fixes a month with Otto, 1 resume, the Classic and Compact formats, PDF downloads, your ${FREE_JOB_MATCHES} closest job matches and one tracked application with its reminder. No card, no time limit. More line fixes and the rest of Otto's AI help, the other formats, more resumes, Word downloads, the full list of job matches with filters, tracking every application, share links and the work-rights check come with Pro. If a paid plan ends, everything you made stays: you can still open, edit and download it.`,
+    answer: `Uploading with the basic reader, the recruiter view, editing and fixing by hand, ${PLANS.free.limits.fix} line fixes a month with Otto, ${pluralize(resumeLimit("free"), "resume")}, the Classic and Compact formats, PDF downloads, your ${FREE_JOB_MATCHES} closest job matches and ${pluralize(applicationLimit("free"), "tracked application")} with its reminder. No card, no time limit. More line fixes and the rest of Otto's AI help, the other formats, up to ${count.format(resumeLimit("pro"))} resumes, Word downloads, the full list of job matches with filters, tracking up to ${count.format(applicationLimit("pro"))} applications, share links and the work-rights check come with Pro. If a paid plan ends, everything you made stays: you can still open, edit and download it.`,
   },
   {
     question: "Who handles payments?",
@@ -60,7 +70,7 @@ export const BILLING_FAQ: readonly FaqItem[] = [
   },
   {
     question: "Can I switch between Pro and Max?",
-    answer: `You can move up from Pro to Max on your account page, on the billing period you already have. Your subscription changes in place, so you're never billed twice: you pay the difference for the rest of the period right away. On the Pro trial, starting Max ends the trial and charges the full Max price (plus any tax) to your card on file right away; the ${formatUsd(PRO_TRIAL.priceUsd)} trial charge isn't taken off. To move to Pro, or between monthly and yearly, cancel from your account page and pick the new plan once your current period ends.`,
+    answer: `You can move up from Pro to Max on your account page, on the billing period you already have. Your subscription changes in place, so you're never billed twice: you pay the difference for the rest of the period right away. On the Pro trial, starting Max ends the trial and charges the full Max price (plus any tax) to your card on file right away; the ${formatUsd(PRO_TRIAL.priceUsd)} trial charge isn't taken off. To move to Pro, or between monthly and yearly, cancel from your account page and pick the new plan once your current period ends. Moving to Pro keeps every resume and application you have; past Pro's limits, you can add more once you're under them.`,
   },
   {
     question: "What happens to my resumes if I cancel?",

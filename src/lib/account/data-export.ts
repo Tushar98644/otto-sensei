@@ -14,7 +14,6 @@ import {
   userSettings,
   writings,
 } from "@/db/schema";
-import { APPLICATION_LIMITS } from "@/lib/applications/schema";
 import { careerLogJson, careerLogText } from "@/lib/career-log/export";
 import { listEntries } from "@/lib/career-log/records";
 import { STATUS_NAMES } from "@/lib/applications/status";
@@ -22,7 +21,7 @@ import { EXTENSION_LIMITS } from "@/lib/extension/types";
 import { SAVED_JOBS_LIMIT } from "@/lib/job-feed/types";
 import { trackingExport } from "@/lib/inbound/records";
 import { recapCutoffDay } from "@/lib/recap/types";
-import { RESUME_LIMITS } from "@/config/plans";
+import { MAX_APPLICATIONS_PER_USER, MAX_RESUMES_PER_USER } from "@/config/plans";
 import { WRITING_LIMITS, type WritingKind } from "@/lib/writings/schema";
 
 const KIND_FOLDERS: Record<WritingKind, string> = {
@@ -95,7 +94,7 @@ export async function buildDataExport(userId: string, now = Date.now()): Promise
       .from(resumes)
       .where(eq(resumes.userId, userId))
       .orderBy(asc(resumes.createdAt))
-      .limit(RESUME_LIMITS.paid),
+      .limit(MAX_RESUMES_PER_USER),
     db
       .select({
         kind: writings.kind,
@@ -130,7 +129,7 @@ export async function buildDataExport(userId: string, now = Date.now()): Promise
       .from(applications)
       .where(eq(applications.userId, userId))
       .orderBy(asc(applications.appliedAt))
-      .limit(APPLICATION_LIMITS.perUser),
+      .limit(MAX_APPLICATIONS_PER_USER),
     db
       .select({
         title: savedPosts.title,

@@ -1,7 +1,7 @@
 import { and, desc, eq, sql } from "drizzle-orm";
 import { getDb } from "@/db/client";
 import { resumes } from "@/db/schema";
-import { RESUME_LIMITS } from "@/config/plans";
+import { MAX_RESUMES_PER_USER } from "@/config/plans";
 import type { SessionUser } from "@/lib/auth/types";
 import { readWorkProfile } from "@/lib/eligibility/records";
 import { resumeTitle, suggestedFileName, visibleResume } from "@/lib/resume/ops";
@@ -43,7 +43,7 @@ async function tailoredFor(userId: string, url: string): Promise<string | null> 
       ),
     )
     .orderBy(desc(resumes.updatedAt), desc(resumes.id))
-    .limit(RESUME_LIMITS.paid);
+    .limit(MAX_RESUMES_PER_USER);
   return rows.find((row) => row.jobUrl && canonicalJobUrl(row.jobUrl) === want)?.id ?? null;
 }
 

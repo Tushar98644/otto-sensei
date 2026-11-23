@@ -1,5 +1,6 @@
 import { eq } from "drizzle-orm";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { applicationLimit } from "@/config/plans";
 import { getDb } from "@/db/client";
 import { applications, inboundEmails, users } from "@/db/schema";
 import type { ApiErrorBody } from "@/lib/api/types";
@@ -32,6 +33,7 @@ vi.mock("next/headers", async () => {
 });
 
 const NOW = Date.UTC(2026, 10, 20, 12);
+const DAY = 24 * 60 * 60 * 1_000;
 const GMAIL = "priya.sharma@gmail.com";
 const GOOGLE_SIGNED: WorkerAuth = { dkim: ["google.com"] };
 
@@ -200,6 +202,54 @@ describe("/api/inbound/email", () => {
       "created",
     );
     expect((await state()).events[0]?.trust).toBe("sender");
+  });
+
+  it("at the plan's number, keeps a new card from email in Check this, and Apply says what to do", async () => {
+    const to = await start();
+    const db = await getDb();
+    const rows = Array.from({ length: applicationLimit("pro") }, (_, i) => ({
+      id: crypto.randomUUID(),
+      userId: user.id,
+      company: `Company ${i}`,
+      appliedAt: NOW - DAY,
+      statusChangedAt: NOW - DAY,
+      createdAt: NOW - DAY,
+      updatedAt: NOW - DAY,
+    }));
+    for (let i = 0; i < rows.length; i += 250) {
+      await db.insert(applications).values(rows.slice(i, i + 250));
+    }
+    const signed = { dkim: ["greenhouse-mail.io"] };
+    expect(await result(await deliver(to, "greenhouse-applied.txt", { auth: signed }))).toBe(
+      "pending",
+    );
+    expect(await cards(user.id)).toHaveLength(applicationLimit("pro"));
+    const [waiting] = (await state()).events.filter((event) => event.change === "pending");
+    expect(waiting).toMatchObject({ kind: "applied", trust: "sender" });
+
+    const full = await change(
+      json("PATCH", `/api/email-tracking/${waiting!.id}`, { action: "apply" }),
+      context(waiting!.id),
+    );
+    expect(full.status).toBe(429);
+    expect(((await full.json()) as ApiErrorBody).error).toEqual({
+      code: "limit_reached",
+      message:
+        "Pro tracks 1,500 applications. Delete some old ones to add more, or move to Max for 3,000.",
+    });
+    expect((await state()).events.find((event) => event.id === waiting!.id)?.change).toBe(
+      "pending",
+    );
+
+    await db.delete(applications).where(eq(applications.id, rows[0]!.id));
+    const applied = await state(
+      await change(
+        json("PATCH", `/api/email-tracking/${waiting!.id}`, { action: "apply" }),
+        context(waiting!.id),
+      ),
+    );
+    expect(applied.events.find((event) => event.id === waiting!.id)?.change).toBe("created");
+    expect(await cards(user.id)).toHaveLength(applicationLimit("pro"));
   });
 
   it("never lets a stranger's rejection to a guessed address move a card: it waits in Check this", async () => {

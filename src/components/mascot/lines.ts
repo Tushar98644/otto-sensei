@@ -1,13 +1,15 @@
 import { BRAND } from "@/config/brand";
 import {
+  applicationLimit,
   type Feature,
-  FREE_APPLICATIONS,
+  type PaidPlanId,
   PLANS,
   type ProTool,
-  RESUME_LIMITS,
+  resumeLimit,
   type UsagePeriod,
 } from "@/config/plans";
 import { trialHeadline, trialOffer, trialPrice } from "@/lib/billing/prices";
+import { planFullText, type KeptTool } from "@/lib/plan-limits-copy";
 import { resetSentence, thisPeriod } from "@/lib/usage-copy";
 import { pluralize } from "@/lib/utils";
 import { OTTO_ERRORS } from "./error-lines";
@@ -24,6 +26,8 @@ function asSentence(text: string) {
   const trimmed = text.trim();
   return /[.!?]$/.test(trimmed) ? trimmed : `${trimmed}.`;
 }
+
+const count = new Intl.NumberFormat("en-US");
 
 const SIGN_IN_REASONS: Record<Feature, string> = {
   fix: `Sign in to fix lines with me. On Free you get ${PLANS.free.limits.fix} a month.`,
@@ -44,10 +48,10 @@ const COMES_WITH_PRO: Record<Feature, string> = {
 };
 
 const TOOL_COMES_WITH_PRO: Record<ProTool, string> = {
-  resumes: `Free keeps ${pluralize(RESUME_LIMITS.free, "resume")}. Pro keeps up to ${RESUME_LIMITS.paid}.`,
+  resumes: `Free keeps ${pluralize(resumeLimit("free"), "resume")}. ${PLANS.pro.name} keeps ${count.format(resumeLimit("pro"))}, ${PLANS.max.name} ${count.format(resumeLimit("max"))}.`,
   formats: "This format comes with Pro. Free has Classic and Compact.",
   word: "Word downloads come with Pro. Your PDF download stays free.",
-  tracker: `Free tracks ${pluralize(FREE_APPLICATIONS, "application")}. Pro tracks every one.`,
+  tracker: `Free tracks ${pluralize(applicationLimit("free"), "application")}. ${PLANS.pro.name} tracks ${count.format(applicationLimit("pro"))}, ${PLANS.max.name} ${count.format(applicationLimit("max"))}.`,
   jobs: "Filters, saved jobs and every match come with Pro.",
   share: "Share links come with Pro.",
   eligibility: "Checking where a job can hire from comes with Pro.",
@@ -125,8 +129,6 @@ function downloadChecked({ before, after }: BeforeAfter) {
   if (a < b) return `${was} After: ${a}. Better, with a little left to fix.`;
   return `${was} After: ${a}. Let's look at what's left.`;
 }
-
-const count = new Intl.NumberFormat("en-US");
 
 function jobsFound(matching: number, shown: number, strong: number, newToday: number) {
   const n = whole(matching);
@@ -225,6 +227,8 @@ export const OTTO = {
       trial ? `${COMES_WITH_PRO[feature]} ${trialHeadline()}.` : COMES_WITH_PRO[feature],
     tool: (tool: ProTool, trial = true) =>
       trial ? `${TOOL_COMES_WITH_PRO[tool]} ${trialHeadline()}.` : TOOL_COMES_WITH_PRO[tool],
+    full: (tool: KeptTool, plan: PaidPlanId, held?: number, offerNext = true) =>
+      planFullText(tool, plan, held, offerNext),
     near: (feature: Feature, used: number, limit: number, period?: UsagePeriod | null) =>
       `Uh-oh, ${whole(used)} of ${whole(limit)} ${SHORT_LABELS[feature]} used. ${resetSentence(period)}`,
   },
@@ -271,18 +275,22 @@ export const OTTO = {
       "I couldn't find any skills in this resume. Add a skills section and I'll match again.",
   },
   letters: {
-    empty: "Nothing written yet. Pick a job and I'll write a letter, an answer or an outreach message.",
+    empty:
+      "Nothing written yet. Pick a job and I'll write a letter, an answer or an outreach message.",
     noResume: "I need a resume to write from. Add one, then come back here.",
     write: "I'll write about 200 words from your resume and this job, nothing made up.",
     answer: "Paste the question. I'll draft a short answer from your resume and this job.",
     outreach: "I'll write a short email and a LinkedIn note from your resume and this job.",
-    locked: "With Pro, I write cover letters, answers and outreach messages from your resume. Here's an example.",
-    lockedKept: "Writing new ones comes with Pro. What you wrote before stays here to read, copy and edit.",
+    locked:
+      "With Pro, I write cover letters, answers and outreach messages from your resume. Here's an example.",
+    lockedKept:
+      "Writing new ones comes with Pro. What you wrote before stays here to read, copy and edit.",
   },
   interview: {
     empty: "No prep yet. Pick an application or paste a job link and I'll start.",
     pick: "Pick the job. A pasted link joins your Applications, marked as an interview.",
-    locked: "With Pro, I prep you for each interview from your own resume lines. Here's an example.",
+    locked:
+      "With Pro, I prep you for each interview from your own resume lines. Here's an example.",
     lockedKept: "Making new prep comes with Pro. The prep you made before stays here to read.",
   },
   demoMode: "Demo mode: AI is off, so my suggestions are samples, not real rewrites.",

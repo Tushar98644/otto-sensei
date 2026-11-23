@@ -1,4 +1,4 @@
-import { eq, sql } from "drizzle-orm";
+import { eq, inArray, sql } from "drizzle-orm";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { getDb } from "@/db/client";
 import { applications } from "@/db/schema";
@@ -10,13 +10,14 @@ import type {
   BulkApplicationsResponse,
   CreateApplicationBody,
 } from "@/lib/api/types";
+import { applicationLimit, MAX_APPLICATIONS_PER_USER } from "@/config/plans";
 import { APPLICATION_LIMITS } from "@/lib/applications/schema";
 import { CreateApplicationSchema } from "@/lib/applications/validation";
 import { cookieJar, resetDb, setPlan, signInAs } from "@/lib/auth/test-helpers";
 import type { SessionUser } from "@/lib/auth/types";
 import { deleteUserData } from "@/lib/users";
 import { DELETE as deleteOne, PATCH as patchOne } from "./[id]/route";
-import { createApplication, listApplications } from "./records";
+import { createApplication, listApplications, parseCursor } from "./records";
 import { GET, PATCH as patchMany, POST } from "./route";
 
 vi.mock("next/headers", async () => (await import("@/lib/auth/test-helpers")).nextHeadersMock);
@@ -201,14 +202,15 @@ describe("/api/applications", () => {
     expect(await listed()).toEqual([]);
   });
 
-  it(`keeps at most ${APPLICATION_LIMITS.perUser} applications per account`, async () => {
+  it("keeps at most Pro's number of applications, and changes the ones kept", async () => {
     const ada = await signIn("ada@example.com");
-    await seed(ada.id, APPLICATION_LIMITS.perUser);
+    await seed(ada.id, applicationLimit("pro"));
     const res = await create(body());
-    expect(res.status).toBe(400);
+    expect(res.status).toBe(429);
     expect(await errorOf(res)).toEqual({
-      code: "bad_request",
-      message: "You can track up to 2,000 applications. Delete some old ones to add more.",
+      code: "limit_reached",
+      message:
+        "Pro tracks 1,500 applications. Delete some old ones to add more, or move to Max for 3,000.",
     });
 
     const [first] = ((await (await list()).json()) as ApplicationsResponse).applications;
@@ -217,6 +219,14 @@ describe("/api/applications", () => {
     expect((await create(body())).status).toBe(201);
   });
 
+  it("answers a retry of one already saved, even when it filled the plan", async () => {
+    const ada = await signIn("ada@example.com");
+    await seed(ada.id, applicationLimit("pro") - 1);
+    const id = crypto.randomUUID();
+    const first = await created(await create(body({ id })));
+    expect(await created(await create(body({ id })))).toEqual(first);
+    expect((await create(body())).status).toBe(429);
+  });
   it("pages through a long list by applied date, then id", async () => {
     const ada = await signIn("ada@example.com");
     await seed(ada.id, APPLICATION_LIMITS.pageSize + 3);
@@ -287,7 +297,7 @@ describe("the tracker on Free", () => {
     expect(second.status).toBe(402);
     expect(await errorOf(second)).toEqual({
       code: "upgrade_required",
-      message: "Free tracks 1 application. Pro tracks every one. Try Pro for 3 days.",
+      message: "Free tracks 1 application. Pro tracks up to 1,500. Try Pro for 3 days.",
     });
     expect(await listed()).toHaveLength(1);
 
@@ -301,6 +311,8 @@ describe("the tracker on Free", () => {
       const made = await createApplication(
         free.id,
         CreateApplicationSchema.parse(body({ company })),
+        Date.now(),
+        MAX_APPLICATIONS_PER_USER,
       );
       if (made.status !== "created") throw new Error("seed failed");
     }
@@ -314,6 +326,73 @@ describe("the tracker on Free", () => {
     await setPlan(await signInAs("ada@example.com"), "trial");
     const made = await created(await create(body()));
     expect((await updated(await patch(made.id, { status: "interview" }))).status).toBe("interview");
+  });
+});
+
+describe("each plan's tracker cap", () => {
+  async function count(userId: string): Promise<number> {
+    const db = await getDb();
+    const [row] = await db
+      .select({ n: sql<number>`count(*)::int` })
+      .from(applications)
+      .where(eq(applications.userId, userId));
+    return row?.n ?? 0;
+  }
+
+  it("gives the trial Pro's number", async () => {
+    const ada = await setPlan(await signInAs("ada@example.com"), "trial");
+    await seed(ada.id, applicationLimit("pro") - 1);
+    expect((await create(body())).status).toBe(201);
+    const res = await create(body({ company: "Linear" }));
+    expect(res.status).toBe(429);
+    expect((await errorOf(res)).message).toMatch(/^Pro tracks 1,500 applications\./);
+  });
+
+  it("lets Max past Pro's number, up to its own, with no plan to sell after it", async () => {
+    const ada = await setPlan(await signInAs("ada@example.com"), "max");
+    await seed(ada.id, applicationLimit("pro"));
+    expect((await create(body())).status).toBe(201);
+    await seed(ada.id, applicationLimit("max") - applicationLimit("pro") - 1);
+    const res = await create(body({ company: "Linear" }));
+    expect(res.status).toBe(429);
+    expect(await errorOf(res)).toEqual({
+      code: "limit_reached",
+      message: "Max tracks 3,000 applications. Delete some old ones to add more.",
+    });
+    expect(await count(ada.id)).toBe(applicationLimit("max"));
+  });
+
+  it("keeps every application of an account moved from Max to Pro, and adds again only under Pro's number", async () => {
+    const ada = await setPlan(await signInAs("ada@example.com"), "max");
+    const kept = 1_800;
+    await seed(ada.id, kept);
+    await setPlan(ada, "pro");
+
+    const pages: Application[] = [];
+    let cursor: string | null = null;
+    do {
+      const page = await listApplications(ada.id, cursor === null ? null : parseCursor(cursor));
+      pages.push(...page.applications);
+      cursor = page.nextCursor;
+    } while (cursor !== null);
+    expect(pages).toHaveLength(kept);
+
+    const [first, second] = pages;
+    expect((await updated(await patch(first!.id, { status: "interview" }))).status).toBe(
+      "interview",
+    );
+    expect((await bulk({ ids: [second!.id], status: "no_reply" })).status).toBe(200);
+    expect((await remove(first!.id)).status).toBe(200);
+    expect((await create(body())).status).toBe(429);
+    expect(await count(ada.id)).toBe(kept - 1);
+
+    const db = await getDb();
+    const extra = pages.slice(1, kept - applicationLimit("pro") + 1).map((item) => item.id);
+    for (let i = 0; i < extra.length; i += 100) {
+      await db.delete(applications).where(inArray(applications.id, extra.slice(i, i + 100)));
+    }
+    expect(await count(ada.id)).toBe(applicationLimit("pro") - 1);
+    expect((await create(body())).status).toBe(201);
   });
 });
 
@@ -412,6 +491,7 @@ describe("PATCH /api/applications/:id", () => {
       ada.id,
       CreateApplicationSchema.parse(body()),
       APPLIED_AT,
+      applicationLimit("pro"),
     );
     if (result.status !== "created") throw new Error(`expected created, got ${result.status}`);
     const { application } = result;
@@ -497,9 +577,9 @@ describe("account deletion", () => {
 
     const db = await getDb();
     expect(await db.select().from(applications).where(eq(applications.userId, ada.id))).toEqual([]);
-    expect(await createApplication(ada.id, CreateApplicationSchema.parse(body()))).toEqual({
-      status: "no_user",
-    });
+    expect(
+      await createApplication(ada.id, CreateApplicationSchema.parse(body()), Date.now(), 1),
+    ).toEqual({ status: "no_user" });
     expect((await listApplications(ada.id, null)).applications).toEqual([]);
   });
 });

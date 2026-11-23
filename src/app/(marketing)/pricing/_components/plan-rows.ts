@@ -1,15 +1,13 @@
 import {
+  applicationLimit,
   FEATURES,
-  FREE_APPLICATIONS,
   FREE_JOB_MATCHES,
   FREE_TEMPLATES,
   PLANS,
-  RESUME_LIMITS,
   resumeLimit,
   type Feature,
   type PlanId,
 } from "@/config/plans";
-import { APPLICATION_LIMITS } from "@/lib/applications/schema";
 import { PORTFOLIO_TEMPLATE_IDS } from "@/lib/portfolio/types";
 import { TEMPLATE_IDS } from "@/lib/resume/schema";
 
@@ -42,6 +40,12 @@ const paid = (value: PlanCell, free: PlanCell = false): Record<PlanId, PlanCell>
   max: value,
 });
 
+const perPlan = (limit: (plan: PlanId) => number): Record<PlanId, PlanCell> => ({
+  free: count.format(limit("free")),
+  pro: count.format(limit("pro")),
+  max: count.format(limit("max")),
+});
+
 export function planRows(): PlanRowGroup[] {
   return [
     {
@@ -61,11 +65,8 @@ export function planRows(): PlanRowGroup[] {
         { label: "Recruiter view and editing by hand", cells: paid(true, true) },
         {
           label: "Resumes",
-          cells: {
-            free: count.format(RESUME_LIMITS.free),
-            pro: count.format(resumeLimit("pro")),
-            max: count.format(resumeLimit("max")),
-          },
+          detail: "Tailored versions count as resumes",
+          cells: perPlan(resumeLimit),
         },
         {
           label: "Formats",
@@ -86,10 +87,7 @@ export function planRows(): PlanRowGroup[] {
       rows: [
         { label: "Job matches", cells: paid("All", `${FREE_JOB_MATCHES} closest`) },
         { label: "Filters and saved jobs", cells: paid(true) },
-        {
-          label: "Tracked applications",
-          cells: paid(count.format(APPLICATION_LIMITS.perUser), count.format(FREE_APPLICATIONS)),
-        },
+        { label: "Tracked applications", cells: perPlan(applicationLimit) },
         { label: "Follow-up reminders", cells: paid(true, true) },
         { label: "Where each job can hire from", cells: paid(true) },
       ],

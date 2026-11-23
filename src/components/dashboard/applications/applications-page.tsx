@@ -10,7 +10,7 @@ import { OTTO } from "@/components/mascot/lines";
 import { Otto } from "@/components/mascot/otto";
 import { OttoNote } from "@/components/mascot/otto-note";
 import { useNow } from "@/components/studio/use-now";
-import { FREE_APPLICATIONS } from "@/config/plans";
+import { applicationLimit } from "@/config/plans";
 import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { FolderCard } from "@/components/ui/folder-card";
@@ -85,7 +85,7 @@ export function ApplicationsPage() {
   const [dialog, setDialog] = useState<ApplicationDialogTarget | null>(null);
   const [announcement, setAnnouncement] = useState("");
   const opened = useRef(0);
-  const full = pro === false && items.length >= FREE_APPLICATIONS;
+  const full = pro === false && items.length >= applicationLimit("free");
   const tryPro = useTryProLabel();
   const { tracking } = useEmailTracking();
   const trackingPanel = <Lazy loader={emailTrackingPanel} wanted props={{}} />;

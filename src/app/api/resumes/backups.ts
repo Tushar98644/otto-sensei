@@ -1,6 +1,6 @@
 import { and, eq, sql, type SQL } from "drizzle-orm";
 import { z } from "zod";
-import { RESUME_LIMITS } from "@/config/plans";
+import { MAX_RESUMES_PER_USER } from "@/config/plans";
 import { getDb } from "@/db/client";
 import { lockUser } from "@/db/locks";
 import { resumes, userSettings } from "@/db/schema";
@@ -12,8 +12,7 @@ import { MAX_KNOWN_RESUMES, type KnownResumes } from "@/lib/sync/api-types";
 
 // Deletes leave a tombstone (user_settings.deleted_resumes, id to time), or another device would see the resume missing and upload it again.
 
-export const MAX_RESUMES_PER_USER = RESUME_LIMITS.paid;
-// 50 x 80 KiB keeps GET /api/resumes under Vercel's 4.5 MB response limit.
+// MAX_RESUMES_PER_USER x 80 KiB keeps GET /api/resumes under Vercel's 4.5 MB response limit.
 export const MAX_RESUME_BYTES = 80 * 1024;
 export const MAX_DELETED_IDS_LISTED = 500;
 export const MAX_TOMBSTONES_PER_USER = 1_000;
@@ -107,12 +106,12 @@ export async function listBackupVersions(userId: string): Promise<ResumeVersions
   return versions;
 }
 
-// Under the account's row lock, so concurrent saves can't pass the limits or slip past a delete.
+// Under the account's row lock, so concurrent saves can't pass the limits or slip past a delete; only a new copy counts, so one past planLimit still saves what it has.
 export async function saveBackup(
   userId: string,
   resume: Resume,
-  now = Date.now(),
-  planLimit: number = MAX_RESUMES_PER_USER,
+  now: number,
+  planLimit: number,
   base?: number,
 ): Promise<{ status: SaveStatus; bytes: number; created: boolean }> {
   const data = JSON.stringify(resume, storableText);

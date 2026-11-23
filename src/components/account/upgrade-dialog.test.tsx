@@ -93,13 +93,63 @@ describe("UpgradeDialog", () => {
     expect(body).toContain("Recently deleted for 30 days, in this browser only.");
     expect(body).toContain("Replace it");
 
-    expect(dialog({ plan: "free" }, {}, undefined, { tool: "resumes" })).not.toContain("Replace it");
-    expect(dialog(ON_TRIAL, {}, undefined, { tool: "resumes", replace })).not.toContain("Replace it");
+    expect(dialog({ plan: "free" }, {}, undefined, { tool: "resumes" })).not.toContain(
+      "Replace it",
+    );
+    expect(dialog(ON_TRIAL, {}, undefined, { tool: "resumes", replace })).not.toContain(
+      "Replace it",
+    );
+  });
+
+  it("at Pro's resume number, says to delete one or move to Max, and offers Max", () => {
+    const body = dialog({ plan: "pro", planInterval: "month" }, {}, undefined, { tool: "resumes" });
+    expect(body).toContain(
+      "Pro keeps 25 resumes. Delete one to save another, or move to Max for 50.",
+    );
+    expect(body).toContain("Upgrade to Max");
+    expect(body).not.toMatch(/Max has more|Replace it|Free keeps/);
+
+    const trial = dialog(ON_TRIAL, {}, undefined, { tool: "tracker" });
+    expect(trial).toContain(
+      "Pro tracks 1,500 applications. Delete some old ones to add more, or move to Max for 3,000.",
+    );
+    expect(trial).toContain(trialUpgradeNotice("max", "month"));
+  });
+
+  it("at Max's number, sells nothing and only says to delete one", () => {
+    const body = dialog({ plan: "max", planInterval: "month" }, {}, undefined, { tool: "resumes" });
+    expect(body).toContain("Max keeps 50 resumes. Delete one to save another.");
+    expect(body).toContain("You're on Max");
+    expect(body).not.toMatch(/move to|Upgrade to|Choose your plan/);
+  });
+
+  it("tells an account kept past Pro's number how many to delete", () => {
+    const body = dialog({ plan: "pro", planInterval: "month" }, {}, undefined, {
+      tool: "resumes",
+      held: 40,
+    });
+    expect(body).toContain(
+      "Pro keeps 25 resumes; you have 40. Delete 16 to save another, or move to Max for 50.",
+    );
+  });
+
+  it("offers no move to Max at Pro's number when Max isn't on sale", () => {
+    const body = dialog(
+      { plan: "pro", planInterval: "month" },
+      { offer: { pro: ["month"], max: [] } },
+      undefined,
+      { tool: "tracker" },
+    );
+    expect(body).toContain("Pro tracks 1,500 applications. Delete some old ones to add more.");
+    expect(body).not.toContain("move to Max");
   });
 
   it("on hold at Free's resume limit, still offers the replacement beside Manage billing", () => {
     const replace = { title: "Ada CV", onReplace: () => {} };
-    const body = dialog({ plan: "free" }, { paymentIssue: true }, undefined, { tool: "resumes", replace });
+    const body = dialog({ plan: "free" }, { paymentIssue: true }, undefined, {
+      tool: "resumes",
+      replace,
+    });
     expect(body).toContain("Manage billing");
     expect(body).toContain("Replace it");
   });

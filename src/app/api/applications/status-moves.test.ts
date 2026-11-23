@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { MAX_APPLICATIONS_PER_USER } from "@/config/plans";
 import { cookieJar, resetDb, setPlan, signInAs } from "@/lib/auth/test-helpers";
 import { createApplication, setStatusMany, updateApplication } from "./records";
 
@@ -14,16 +15,21 @@ const { PATCH: patchMany } = await import("./route");
 const APPLIED_AT = Date.UTC(2026, 9, 1, 12);
 
 async function logged(userId: string, company: string) {
-  const result = await createApplication(userId, {
-    resumeId: null,
-    resumeTitle: "",
-    company,
-    role: "",
-    jobUrl: "",
-    appliedAt: APPLIED_AT,
-    status: "applied",
-    notes: "",
-  });
+  const result = await createApplication(
+    userId,
+    {
+      resumeId: null,
+      resumeTitle: "",
+      company,
+      role: "",
+      jobUrl: "",
+      appliedAt: APPLIED_AT,
+      status: "applied",
+      notes: "",
+    },
+    Date.now(),
+    MAX_APPLICATIONS_PER_USER,
+  );
   if (result.status !== "created") throw new Error(result.status);
   return result.application;
 }

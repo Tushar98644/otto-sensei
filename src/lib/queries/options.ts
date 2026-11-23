@@ -1,6 +1,7 @@
 import { queryOptions } from "@tanstack/react-query";
 import { api } from "@/lib/api/client";
 import type { Application } from "@/lib/api/types";
+import { MAX_APPLICATIONS_PER_USER } from "@/config/plans";
 import { APPLICATION_LIMITS } from "@/lib/applications/schema";
 import type { WorkProfile } from "@/lib/eligibility/profile";
 import { NO_CHOICE, type LookingForChoice } from "@/lib/job-feed/types";
@@ -22,7 +23,7 @@ export type WorkProfileData = {
 };
 
 const MAX_APPLICATION_PAGES =
-  Math.ceil(APPLICATION_LIMITS.perUser / APPLICATION_LIMITS.pageSize) + 1;
+  Math.ceil(MAX_APPLICATIONS_PER_USER / APPLICATION_LIMITS.pageSize) + 1;
 
 export const APPLICATIONS_STALE_MS = 5 * MINUTE;
 

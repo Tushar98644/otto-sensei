@@ -1,13 +1,13 @@
 import {
+  applicationLimit,
   FEATURE_LABELS,
-  FREE_APPLICATIONS,
   FREE_JOB_MATCHES,
   FREE_TEMPLATES,
   isPaidPlan,
   PLANS,
   PLAN_ORDER,
   planLimits,
-  RESUME_LIMITS,
+  resumeLimit,
   type AllowancePeriod,
   type BillingInterval,
   type Feature,
@@ -55,7 +55,7 @@ const QUOTA: readonly { feature: Feature; label: string }[] = [
 export function quotaLine(plan: PlanId, period: AllowancePeriod = "month"): string {
   const kind = periodOf(plan, period);
   if (!isPaidPlan(plan)) {
-    return `${pluralize(RESUME_LIMITS.free, "resume")} · ${count.format(PLANS.free.limits.fix)} ${FEATURE_LABELS.fix} ${perPeriod(kind)} from Otto`;
+    return `${pluralize(resumeLimit("free"), "resume")} · ${count.format(PLANS.free.limits.fix)} ${FEATURE_LABELS.fix} ${perPeriod(kind)} from Otto`;
   }
   const limits = planLimits(plan, kind);
   const parts = QUOTA.map(({ feature, label }) => `${count.format(limits[feature])} ${label}`);
@@ -69,7 +69,7 @@ const FREE_OUTCOMES: readonly string[] = [
   "Fix every line by hand, or with Otto",
   `Download a clean PDF in ${freeFormats}`,
   `Your ${FREE_JOB_MATCHES} closest job matches`,
-  `Track ${pluralize(FREE_APPLICATIONS, "application")}, with a follow-up reminder`,
+  `Track ${pluralize(applicationLimit("free"), "application")}, with a follow-up reminder`,
 ];
 
 function jobsLine(jobs: JobCounts): string {
@@ -81,9 +81,9 @@ function jobsLine(jobs: JobCounts): string {
 
 export function proTools(jobs: JobCounts = JOB_COUNTS_FALLBACK): readonly string[] {
   return [
-    `All ${TEMPLATE_IDS.length} formats, up to ${RESUME_LIMITS.paid} resumes and Word downloads`,
+    `All ${TEMPLATE_IDS.length} formats, up to ${count.format(resumeLimit("pro"))} resumes and Word downloads`,
     jobsLine(jobs),
-    "Track every application, with follow-up reminders",
+    `Track up to ${count.format(applicationLimit("pro"))} applications, with follow-up reminders`,
     `Share links, and a portfolio site in all ${PORTFOLIO_TEMPLATE_IDS.length} designs`,
   ];
 }
@@ -138,7 +138,10 @@ export function planCopy(
       return {
         summary: "For a long search or many roles.",
         lead: "Everything in Pro, with more each month:",
-        features: MAX_MORE.map(({ features, noun }) => moreThanPro(features, noun)),
+        features: [
+          ...MAX_MORE.map(({ features, noun }) => moreThanPro(features, noun)),
+          `Up to ${count.format(resumeLimit("max"))} resumes and ${count.format(applicationLimit("max"))} tracked applications`,
+        ],
         quota: quotaLine("max", period),
         note: "Cancel anytime from your account",
       };

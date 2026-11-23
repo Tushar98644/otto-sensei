@@ -1,7 +1,20 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { PLANS, planIncludes, PRO_TRIAL, type Feature } from "@/config/plans";
+import {
+  MAX_APPLICATIONS_PER_USER,
+  PLANS,
+  planIncludes,
+  PRO_TRIAL,
+  type Feature,
+} from "@/config/plans";
 import type { ApiErrorBody } from "@/lib/api/types";
-import { cookieJar, jsonRequest, linkGitHub, resetDb, setPlan, signInAs } from "@/lib/auth/test-helpers";
+import {
+  cookieJar,
+  jsonRequest,
+  linkGitHub,
+  resetDb,
+  setPlan,
+  signInAs,
+} from "@/lib/auth/test-helpers";
 import type { SessionUser } from "@/lib/auth/types";
 import { resetEnvForTests } from "@/lib/env";
 import { installFakeGitHub, json, rawRepo, type FakeGitHub } from "@/lib/github/testing";
@@ -29,16 +42,27 @@ const job = { text: JOB, title: "Senior Product Marketing Manager", company: "Co
 
 let github: FakeGitHub | undefined;
 
-type Call = { feature: Feature; send: (user: SessionUser | null) => Promise<Response>; message?: string };
+type Call = {
+  feature: Feature;
+  send: (user: SessionUser | null) => Promise<Response>;
+  message?: string;
+};
 
 const CALLS: Call[] = [
   {
     feature: "fix",
-    send: () => fix(jsonRequest("/api/fix", { bullet: "Managed the blog", role: { title: "Marketer", company: "Northwind" } })),
+    send: () =>
+      fix(
+        jsonRequest("/api/fix", {
+          bullet: "Managed the blog",
+          role: { title: "Marketer", company: "Northwind" },
+        }),
+      ),
   },
   {
     feature: "fix",
-    send: () => summary(jsonRequest("/api/summary", { mode: "write", resume: createSampleResume(NOW) })),
+    send: () =>
+      summary(jsonRequest("/api/summary", { mode: "write", resume: createSampleResume(NOW) })),
   },
   {
     feature: "tailor",
@@ -48,40 +72,56 @@ const CALLS: Call[] = [
   {
     feature: "letter",
     send: () => letter(jsonRequest("/api/letter", { resume: createSampleResume(NOW), job })),
-    message: "Cover letters, outreach messages, answers and interview prep come with Pro. Try Pro for 3 days.",
+    message:
+      "Cover letters, outreach messages, answers and interview prep come with Pro. Try Pro for 3 days.",
   },
   {
     feature: "letter",
     send: () => outreach(jsonRequest("/api/outreach", { resume: createSampleResume(NOW), job })),
-    message: "Cover letters, outreach messages, answers and interview prep come with Pro. Try Pro for 3 days.",
+    message:
+      "Cover letters, outreach messages, answers and interview prep come with Pro. Try Pro for 3 days.",
   },
   {
     feature: "letter",
     send: () =>
       answer(
-        jsonRequest("/api/answer", { resume: createSampleResume(NOW), job, question: "Why do you want this role?" }),
+        jsonRequest("/api/answer", {
+          resume: createSampleResume(NOW),
+          job,
+          question: "Why do you want this role?",
+        }),
       ),
-    message: "Cover letters, outreach messages, answers and interview prep come with Pro. Try Pro for 3 days.",
+    message:
+      "Cover letters, outreach messages, answers and interview prep come with Pro. Try Pro for 3 days.",
   },
   {
     feature: "letter",
     send: async (user) => {
       const created = user
-        ? await createApplication(user.id, {
-            resumeId: null,
-            resumeTitle: "",
-            company: "Contoso",
-            role: job.title,
-            jobUrl: "https://example.com/jobs/1",
-            appliedAt: NOW - 1000,
-            status: "interview",
-            notes: "",
-          })
+        ? await createApplication(
+            user.id,
+            {
+              resumeId: null,
+              resumeTitle: "",
+              company: "Contoso",
+              role: job.title,
+              jobUrl: "https://example.com/jobs/1",
+              appliedAt: NOW - 1000,
+              status: "interview",
+              notes: "",
+            },
+            Date.now(),
+            MAX_APPLICATIONS_PER_USER,
+          )
         : null;
-      const applicationId = created?.status === "created" ? created.application.id : crypto.randomUUID();
-      return interview(jsonRequest("/api/interview", { applicationId, resume: createSampleResume(NOW), job }));
+      const applicationId =
+        created?.status === "created" ? created.application.id : crypto.randomUUID();
+      return interview(
+        jsonRequest("/api/interview", { applicationId, resume: createSampleResume(NOW), job }),
+      );
     },
-    message: "Cover letters, outreach messages, answers and interview prep come with Pro. Try Pro for 3 days.",
+    message:
+      "Cover letters, outreach messages, answers and interview prep come with Pro. Try Pro for 3 days.",
   },
   {
     feature: "draft",
@@ -89,7 +129,15 @@ const CALLS: Call[] = [
       draft(
         jsonRequest("/api/draft", {
           targetRole: "Data Analyst",
-          jobs: [{ company: "Contoso", title: "Intern", startDate: "Jun 2025", endDate: "Aug 2025", notes: ["built 3 dashboards"] }],
+          jobs: [
+            {
+              company: "Contoso",
+              title: "Intern",
+              startDate: "Jun 2025",
+              endDate: "Aug 2025",
+              notes: ["built 3 dashboards"],
+            },
+          ],
         }),
       ),
     message: "Build with Otto comes with Pro. Try Pro for 3 days.",
@@ -98,7 +146,9 @@ const CALLS: Call[] = [
     feature: "github",
     send: (user) => {
       if (user) linkGitHub(user, "octocat");
-      return githubDraft(jsonRequest("/api/github/draft", { username: "octocat", repos: ["octocat/ledger-lint"] }));
+      return githubDraft(
+        jsonRequest("/api/github/draft", { username: "octocat", repos: ["octocat/ledger-lint"] }),
+      );
     },
     message: "GitHub drafts come with Pro. Try Pro for 3 days.",
   },
@@ -116,7 +166,11 @@ beforeEach(async () => {
   cookieJar.clear();
   github = installFakeGitHub((url) =>
     url.pathname === "/repos/octocat/ledger-lint" || url.pathname === "/users/octocat/repos"
-      ? json(url.pathname.startsWith("/users") ? [rawRepo("octocat/ledger-lint")] : rawRepo("octocat/ledger-lint"))
+      ? json(
+          url.pathname.startsWith("/users")
+            ? [rawRepo("octocat/ledger-lint")]
+            : rawRepo("octocat/ledger-lint"),
+        )
       : undefined,
   );
 });
@@ -142,7 +196,10 @@ describe("AI features by plan", () => {
       const user = await signInAs("free@example.com");
       const res = await call.send(user);
       expect(res.status, await res.clone().text()).toBe(200);
-      expect((await getUsage(user))[feature]).toEqual({ used: 1, limit: PLANS.free.limits[feature] });
+      expect((await getUsage(user))[feature]).toEqual({
+        used: 1,
+        limit: PLANS.free.limits[feature],
+      });
     },
   );
 
@@ -167,7 +224,10 @@ describe("AI features by plan", () => {
       if (feature === "draft" || feature === "github") {
         const anonymous = await call.send(null);
         expect(anonymous.status).toBe(402);
-        expect(await errorOf(anonymous)).toEqual({ code: "upgrade_required", message: call.message });
+        expect(await errorOf(anonymous)).toEqual({
+          code: "upgrade_required",
+          message: call.message,
+        });
       }
       const user = await signInAs("free@example.com");
       const res = await call.send(user);

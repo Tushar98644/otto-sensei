@@ -59,7 +59,9 @@ export function PrepareDialog({ open, applications, resumes, packs, onClose }: P
     onClose();
   }
 
-  async function readJob(url: string): Promise<{ company: string; role: string; url: string } | Manual> {
+  async function readJob(
+    url: string,
+  ): Promise<{ company: string; role: string; url: string } | Manual> {
     setReading(true);
     try {
       const { posting } = await api.readJob({ url });
@@ -95,6 +97,7 @@ export function PrepareDialog({ open, applications, resumes, packs, onClose }: P
       go(known.id);
       return;
     }
+    if (!(await roomForApplication(applications.length))) return;
     setBusy(true);
     setFailure(null);
     try {
@@ -192,7 +195,12 @@ export function PrepareDialog({ open, applications, resumes, packs, onClose }: P
                 ))}
               </Select>
             </Field>
-            <Button type="submit" className="self-start" loading={busy && chosen.kind === "copy"} data-autofocus>
+            <Button
+              type="submit"
+              className="self-start"
+              loading={busy && chosen.kind === "copy"}
+              data-autofocus
+            >
               Prepare
               <ArrowRight aria-hidden />
             </Button>
@@ -202,7 +210,9 @@ export function PrepareDialog({ open, applications, resumes, packs, onClose }: P
         <form
           onSubmit={submitLink}
           noValidate
-          className={chosen ? "flex flex-col gap-3 border-t border-border pt-6" : "flex flex-col gap-3"}
+          className={
+            chosen ? "flex flex-col gap-3 border-t border-border pt-6" : "flex flex-col gap-3"
+          }
         >
           <Field
             label={chosen ? "Or paste a job link" : "Job link"}

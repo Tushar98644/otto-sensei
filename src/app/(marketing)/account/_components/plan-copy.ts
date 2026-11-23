@@ -1,9 +1,10 @@
 import type { Me } from "@/components/account/use-me";
 import {
-  FREE_APPLICATIONS,
+  applicationLimit,
   isPaidPlan,
   isTrialing,
   PLANS,
+  resumeLimit,
   type BillingInterval,
   type PaidPlanId,
 } from "@/config/plans";
@@ -76,7 +77,10 @@ export function planPill(view: PlanView, now: number): Pill {
       return { label: now > 0 ? `Trial · ${daysLeft(view.endsAt, now)}` : "Trial", tone: "live" };
     case "paid":
       if (!view.ending) return { label: "Active", tone: "pass" };
-      return { label: view.endsAt ? `Ends ${trialEndDay(view.endsAt)}` : "Set to end", tone: "warn" };
+      return {
+        label: view.endsAt ? `Ends ${trialEndDay(view.endsAt)}` : "Set to end",
+        tone: "warn",
+      };
   }
 }
 
@@ -107,7 +111,8 @@ export const HELD_DETAIL = "You're on Free for now. Update your card to get your
 export function nextStep(view: PlanView): string {
   switch (view.kind) {
     case "free": {
-      const tracked = FREE_APPLICATIONS === 1 ? "one tracked application" : `${FREE_APPLICATIONS} tracked applications`;
+      const free = applicationLimit("free");
+      const tracked = free === 1 ? "one tracked application" : `${free} tracked applications`;
       const base = `Free has ${PLANS.free.limits.fix} line fixes a month, plus the recruiter view, editing, PDF downloads, a few job matches and ${tracked}.`;
       return view.trialOffered ? `${base} Try ${PLANS.pro.name}: ${trialSentence()}` : base;
     }
@@ -137,10 +142,7 @@ export function nextStep(view: PlanView): string {
 export type YearlyOffer = { line: string; how: string };
 
 // The app never moves a plan between monthly and yearly mid-period, so this says how instead of offering a charge.
-export function yearlyOffer(
-  view: PlanView,
-  offer: Me["billing"]["offer"],
-): YearlyOffer | null {
+export function yearlyOffer(view: PlanView, offer: Me["billing"]["offer"]): YearlyOffer | null {
   if (view.kind !== "trial" && view.kind !== "paid") return null;
   if (view.ending || view.interval !== "month" || !offer[view.plan].includes("year")) return null;
   const savings = yearlySavingsPercent(view.plan);
@@ -152,15 +154,18 @@ export function yearlyOffer(
   };
 }
 
-// Max's smallest step up over Pro, so the line never claims more than every limit backs.
+// Max's smallest step up over Pro, resumes and tracked applications included, so the line never claims more than every limit backs.
 export function maxMultiple(): number {
   const features = Object.keys(PLANS.pro.limits) as (keyof typeof PLANS.pro.limits)[];
-  return Math.min(...features.map((feature) => PLANS.max.limits[feature] / PLANS.pro.limits[feature]));
+  return Math.min(
+    ...features.map((feature) => PLANS.max.limits[feature] / PLANS.pro.limits[feature]),
+    resumeLimit("max") / resumeLimit("pro"),
+    applicationLimit("max") / applicationLimit("pro"),
+  );
 }
 
 export function maxLine(): string {
   const multiple = maxMultiple();
-  const claim =
-    multiple >= 3 ? "at least triple" : multiple >= 2 ? "at least double" : "more than";
+  const claim = multiple >= 3 ? "at least triple" : multiple >= 2 ? "at least double" : "more than";
   return `Need more? ${PLANS.max.name} has ${claim} every ${PLANS.pro.name} limit, for ${planPrice("max", "month")} a month.`;
 }

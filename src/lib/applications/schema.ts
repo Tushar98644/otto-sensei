@@ -7,7 +7,6 @@ import type {
 import type { ApplicationStage, ApplicationStatus } from "./status";
 
 export const APPLICATION_LIMITS = {
-  perUser: 2_000,
   // 500 worst-case rows stay near 3 MB, under Vercel's 4.5 MB response limit.
   pageSize: 500,
   bulk: 500,

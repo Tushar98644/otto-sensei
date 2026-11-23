@@ -1,5 +1,6 @@
 import { eq } from "drizzle-orm";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { MAX_RESUMES_PER_USER } from "@/config/plans";
 import { getDb } from "@/db/client";
 import { extensionTokens, savedPosts } from "@/db/schema";
 import type { ApiErrorBody } from "@/lib/api/types";
@@ -158,7 +159,12 @@ describe("token routes", () => {
   it("sends match data without contacts, and an unchanged answer when nothing moved", async () => {
     const user = await setPlan(await signInAs("priya@example.com"), "pro");
     const resume = createSampleResume(Date.UTC(2026, 10, 1));
-    await saveBackup(user.id, { ...resume, updatedAt: Date.UTC(2026, 10, 2) });
+    await saveBackup(
+      user.id,
+      { ...resume, updatedAt: Date.UTC(2026, 10, 2) },
+      Date.now(),
+      MAX_RESUMES_PER_USER,
+    );
     await saveWorkProfile(user.id, {
       ...emptyWorkProfile(),
       country: "IN",

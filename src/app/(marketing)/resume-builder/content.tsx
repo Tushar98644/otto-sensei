@@ -1,6 +1,6 @@
 import { ROUTES } from "@/components/site/routes";
 import { TextLink } from "@/components/site/text-link";
-import { FREE_TEMPLATES, PLANS } from "@/config/plans";
+import { applicationLimit, FREE_TEMPLATES, PLANS } from "@/config/plans";
 import { planPrice } from "@/lib/billing/prices";
 import { TEMPLATE_INFO } from "@/lib/pdf/templates";
 import { TEMPLATE_IDS } from "@/lib/resume/schema";
@@ -13,6 +13,7 @@ const freeFormats = FREE_TEMPLATES.map((id) => TEMPLATE_INFO[id].name).join(" an
 const proFormats = TEMPLATE_IDS.length - FREE_TEMPLATES.length;
 const fixes = PLANS.free.limits.fix;
 const pro = PLANS.pro.name;
+const tracked = new Intl.NumberFormat("en-US").format(applicationLimit("pro"));
 
 export const BUILD_STEPS: readonly Note[] = [
   {
@@ -71,7 +72,7 @@ export const AUDIENCES: readonly Note[] = [
   },
   {
     title: "Applying to many jobs",
-    text: `${pro} keeps a tailored copy for each job, writes cover letters and answers to application questions, and tracks every application with follow-up reminders.`,
+    text: `${pro} keeps a tailored copy for each job, writes cover letters and answers to application questions, and tracks up to ${tracked} applications with follow-up reminders.`,
   },
 ];
 

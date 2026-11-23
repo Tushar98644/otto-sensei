@@ -5,6 +5,7 @@ import { ROUTES } from "@/components/site/routes";
 import { BRAND } from "@/config/brand";
 import {
   AI_TOKEN_BUDGETS,
+  applicationLimit,
   FEATURE_LABELS,
   FEATURES,
   FREE_JOB_MATCHES,
@@ -12,9 +13,10 @@ import {
   PLANS,
   PRICES_USD,
   PRO_TRIAL,
-  RESUME_LIMITS,
+  resumeLimit,
 } from "@/config/plans";
 import { tokensInWords } from "@/lib/ai-budget-copy";
+import { pluralize } from "@/lib/utils";
 import { TRANSCRIBE_LIMITS } from "@/app/api/transcribe/limits";
 import { LegalPage, type LegalSection } from "../_components/legal-page";
 import { MERCHANT } from "../_components/merchant";
@@ -192,20 +194,25 @@ const SECTIONS: readonly LegalSection[] = [
           <li>
             <strong>Free:</strong> the basic reader for uploads, the recruiter view, editing by
             hand, {PLANS.free.limits.fix} line fixes a month with Otto (summary help counts as one),{" "}
-            {RESUME_LIMITS.free} resume, the Classic and Compact formats, PDF downloads, the{" "}
-            {FREE_JOB_MATCHES} closest job matches and one tracked application with its reminder.
+            {pluralize(resumeLimit("free"), "resume")}, the Classic and Compact formats, PDF
+            downloads, the {FREE_JOB_MATCHES} closest job matches and{" "}
+            {pluralize(applicationLimit("free"), "tracked application")} with its reminder.
           </li>
           <li>
             <strong>Pro and Max</strong> add more line fixes and the rest of Otto&apos;s AI help
             (tailoring, letters, answers, interview prep, Build with Otto, GitHub drafts and AI
-            reading of uploads), the other formats, up to {RESUME_LIMITS.paid} resumes, Word
-            downloads, every job match with filters and saved jobs, tracking more than one
-            application, share links, the work-rights check and portfolios.
+            reading of uploads), the other formats, Word downloads, every job match with filters and
+            saved jobs, share links, the work-rights check and portfolios. {PLANS.pro.name} and the
+            trial keep up to {count.format(resumeLimit("pro"))} resumes and track up to{" "}
+            {count.format(applicationLimit("pro"))} applications; {PLANS.max.name} keeps up to{" "}
+            {count.format(resumeLimit("max"))} and tracks up to{" "}
+            {count.format(applicationLimit("max"))}. Tailored versions count as resumes.
           </li>
           <li>
             <strong>If a paid plan ends,</strong> nothing you made is deleted. You can still open,
             edit and download it, and links you shared stay up, but you can&apos;t add more until
-            you upgrade again.
+            you upgrade again. Moving to a smaller plan works the same way: resumes and applications
+            past its limits stay, and you can add more once you&apos;re under them.
           </li>
         </ul>
         <h3>When limits reset</h3>

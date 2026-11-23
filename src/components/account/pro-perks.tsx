@@ -1,13 +1,13 @@
 import { Check } from "lucide-react";
 import {
+  applicationLimit,
   FEATURE_LABELS,
   FEATURES,
-  FREE_APPLICATIONS,
   FREE_JOB_MATCHES,
   PLANS,
   planLimits,
   PRO_TRIAL,
-  RESUME_LIMITS,
+  resumeLimit,
   type BillingInterval,
   type PaidPlanId,
 } from "@/config/plans";
@@ -66,12 +66,12 @@ export function PlanPerks({ plan, interval = "month", trial = false, className }
         {belowId === "free" ? (
           <>
             <Perk
-              title={`All ${TEMPLATE_IDS.length} formats, up to ${RESUME_LIMITS.paid} resumes and Word downloads`}
-              detail={`Free has ${pluralize(RESUME_LIMITS.free, "resume")}, Classic and Compact, and PDFs.`}
+              title={`All ${TEMPLATE_IDS.length} formats, up to ${count.format(resumeLimit(plan))} resumes and Word downloads`}
+              detail={`Free has ${pluralize(resumeLimit("free"), "resume")}, Classic and Compact, and PDFs.`}
             />
             <Perk
-              title="Every job match, every application tracked, share links and the work-rights check"
-              detail={`Free has your ${FREE_JOB_MATCHES} closest matches and ${pluralize(FREE_APPLICATIONS, "tracked application")}.`}
+              title={`Every job match, up to ${count.format(applicationLimit(plan))} tracked applications, share links and the work-rights check`}
+              detail={`Free has your ${FREE_JOB_MATCHES} closest matches and ${pluralize(applicationLimit("free"), "tracked application")}.`}
             />
             <Perk
               title="A portfolio page from your resume"
@@ -80,7 +80,12 @@ export function PlanPerks({ plan, interval = "month", trial = false, className }
               }
             />
           </>
-        ) : null}
+        ) : (
+          <Perk
+            title={`Up to ${count.format(resumeLimit(plan))} resumes and ${count.format(applicationLimit(plan))} tracked applications`}
+            detail={`${PLANS[belowId].name} has ${count.format(resumeLimit(belowId))} and ${count.format(applicationLimit(belowId))}.`}
+          />
+        )}
       </ul>
       <p className="text-xs text-muted">
         {trial

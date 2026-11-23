@@ -3,7 +3,7 @@ import { JsonLd } from "@/components/site/json-ld";
 import { pageMetadata } from "@/components/site/page-metadata";
 import { ROUTES } from "@/components/site/routes";
 import { TextLink } from "@/components/site/text-link";
-import { PLANS, RESUME_LIMITS } from "@/config/plans";
+import { PLANS, resumeLimit } from "@/config/plans";
 import { appUrl } from "@/lib/env";
 import { TEMPLATE_IDS } from "@/lib/resume/schema";
 import { ROLE_EXAMPLES } from "@/lib/seo-pages/examples";
@@ -49,7 +49,7 @@ const HOW_MADE: readonly Note[] = [
   },
   {
     title: "Start from any of them",
-    text: `“Start from this example” opens a copy in the studio as your own resume. On ${PLANS.free.name}, it uses your one resume; ${PLANS.pro.name} keeps up to ${RESUME_LIMITS.paid}.`,
+    text: `“Start from this example” opens a copy in the studio as your own resume. On ${PLANS.free.name}, it uses your one resume; ${PLANS.pro.name} keeps up to ${resumeLimit("pro")} and ${PLANS.max.name} up to ${resumeLimit("max")}.`,
   },
 ];
 

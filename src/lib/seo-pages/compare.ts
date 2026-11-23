@@ -1,5 +1,11 @@
 import { BRAND } from "@/config/brand";
-import { FREE_APPLICATIONS, FREE_JOB_MATCHES, FREE_TEMPLATES, PLANS } from "@/config/plans";
+import {
+  applicationLimit,
+  FREE_JOB_MATCHES,
+  FREE_TEMPLATES,
+  PLANS,
+  resumeLimit,
+} from "@/config/plans";
 import { HIRING_SYSTEMS } from "@/lib/ats/systems";
 import { planPrice } from "@/lib/billing/prices";
 import { TEMPLATE_INFO } from "@/lib/pdf/templates";
@@ -52,12 +58,12 @@ const OTTO_SIDE = {
     detail: "Each check passes or names the problem, with the reason in plain words.",
   },
   free: {
-    answer: "1 resume, no card",
-    detail: `Check, fix and download it as a PDF in ${freeFormats}, with ${fixes} line fixes a month from Otto, your ${FREE_JOB_MATCHES} closest job matches and ${pluralize(FREE_APPLICATIONS, "tracked application")}.`,
+    answer: `${pluralize(resumeLimit("free"), "resume")}, no card`,
+    detail: `Check, fix and download it as a PDF in ${freeFormats}, with ${fixes} line fixes a month from Otto, your ${FREE_JOB_MATCHES} closest job matches and ${pluralize(applicationLimit("free"), "tracked application")}.`,
   },
   paid: {
     answer: `Pro: ${proMonthly} a month`,
-    detail: `Max: ${maxMonthly} a month, for more AI help. Cancel anytime.`,
+    detail: `Max: ${maxMonthly} a month, for more AI help, resumes and tracked applications. Cancel anytime.`,
   },
   downloads: {
     answer: "Free PDFs, no cap",

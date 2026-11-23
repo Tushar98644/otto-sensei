@@ -94,6 +94,15 @@ const SAMPLES: Record<string, unknown[][]> = {
     ["portfolio"],
     ["resumes", false],
   ],
+  "limit.full": [
+    ["resumes", "pro"],
+    ["resumes", "max"],
+    ["resumes", "pro", 40],
+    ["resumes", "pro", 25, false],
+    ["tracker", "pro"],
+    ["tracker", "max"],
+    ["tracker", "pro", 1_800],
+  ],
   "upgrade.trialStarted": [["Nov 11"]],
   "limit.near": [
     ["tailor", 8, 10],
@@ -246,6 +255,42 @@ describe("OTTO lines", () => {
       /^You've used this month's 15 tailored versions\. They reset on Nov 1[45]\.$/,
     );
     expect(OTTO.limit.near("fix", 70, 75, CALENDAR)).toMatch(/used\. They reset on Nov 1[45]\.$/);
+  });
+
+  it("gives Free both paid plans' numbers of resumes and applications, never every one", () => {
+    expect(OTTO.limit.tool("resumes", false)).toBe("Free keeps 1 resume. Pro keeps 25, Max 50.");
+    expect(OTTO.limit.tool("tracker", false)).toBe(
+      "Free tracks 1 application. Pro tracks 1,500, Max 3,000.",
+    );
+    expect(OTTO.limit.tool("tracker")).not.toMatch(/every one/);
+  });
+
+  it("at a paid plan's number, says to delete one, and offers Max only from Pro", () => {
+    expect(OTTO.limit.full("resumes", "pro")).toBe(
+      "Pro keeps 25 resumes. Delete one to save another, or move to Max for 50.",
+    );
+    expect(OTTO.limit.full("resumes", "max")).toBe(
+      "Max keeps 50 resumes. Delete one to save another.",
+    );
+    expect(OTTO.limit.full("tracker", "pro")).toBe(
+      "Pro tracks 1,500 applications. Delete some old ones to add more, or move to Max for 3,000.",
+    );
+    expect(OTTO.limit.full("tracker", "max")).toBe(
+      "Max tracks 3,000 applications. Delete some old ones to add more.",
+    );
+    expect(OTTO.limit.full("resumes", "pro", 25, false)).toBe(
+      "Pro keeps 25 resumes. Delete one to save another.",
+    );
+  });
+
+  it("tells an account kept past its plan's number how many to delete", () => {
+    expect(OTTO.limit.full("resumes", "pro", 40)).toBe(
+      "Pro keeps 25 resumes; you have 40. Delete 16 to save another, or move to Max for 50.",
+    );
+    expect(OTTO.limit.full("tracker", "pro", 1_800)).toBe(
+      "Pro tracks 1,500 applications; you have 1,800. Delete 301 to add another, or move to Max for 3,000.",
+    );
+    expect(OTTO.limit.full("resumes", "pro", 25)).toBe(OTTO.limit.full("resumes", "pro"));
   });
 
   it("turns a failure reason into a full sentence", () => {

@@ -1,22 +1,27 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { PlanId } from "@/config/plans";
+import { applicationLimit, resumeLimit, type PlanId } from "@/config/plans";
 import { createSampleResume } from "@/lib/resume/sample";
 import { emptyResume } from "@/lib/resume/schema";
 import { useStudioStore } from "@/lib/store/resume-store";
 import {
   askForResumeRoom,
   ownResumeIds,
+  roomForApplication,
   roomForCopyOf,
   roomForResume,
   unlockFeature,
   unlockProTool,
 } from "./pro-tools";
 import type { ReplaceOffer } from "./upgrade-dialog";
-import { openFeaturePrompt, openUpgradePrompt } from "./upgrade-prompt";
+import { openFeaturePrompt, openFullPrompt, openUpgradePrompt } from "./upgrade-prompt";
 import { currentPlan } from "./use-me";
 
 vi.mock("./use-me", () => ({ currentPlan: vi.fn(), useMe: vi.fn() }));
-vi.mock("./upgrade-prompt", () => ({ openUpgradePrompt: vi.fn(), openFeaturePrompt: vi.fn() }));
+vi.mock("./upgrade-prompt", () => ({
+  openUpgradePrompt: vi.fn(),
+  openFeaturePrompt: vi.fn(),
+  openFullPrompt: vi.fn(),
+}));
 
 const onPlan = (plan: PlanId | null) => vi.mocked(currentPlan).mockResolvedValue(plan);
 
@@ -27,6 +32,7 @@ function offered(): ReplaceOffer | undefined {
 beforeEach(() => {
   vi.mocked(openUpgradePrompt).mockClear();
   vi.mocked(openFeaturePrompt).mockClear();
+  vi.mocked(openFullPrompt).mockClear();
   vi.mocked(currentPlan).mockReset();
   useStudioStore.getState().clearAll();
 });
@@ -150,5 +156,87 @@ describe("unlockFeature", () => {
       expect(await unlockFeature("draft")).toBe(true);
     }
     expect(openFeaturePrompt).toHaveBeenCalledOnce();
+  });
+});
+
+function addOwn(total: number, from = 10_000) {
+  const store = useStudioStore.getState();
+  for (let i = 0; i < total; i++) {
+    store.addResume({ ...emptyResume(from + i), source: "import" as const });
+  }
+}
+
+describe("each paid plan's resume number", () => {
+  it("stops Pro and the trial at Pro's number with the plan's own prompt, before anything is made", async () => {
+    addOwn(resumeLimit("pro") - 1);
+    for (const plan of ["pro", "max"] as const) {
+      onPlan(plan);
+      expect(await roomForResume()).toBe(true);
+    }
+    addOwn(1, 50_000);
+    onPlan("pro");
+    const before = useStudioStore.getState().order.length;
+    expect(await roomForResume(() => {})).toBe(false);
+    expect(openFullPrompt).toHaveBeenCalledExactlyOnceWith("resumes", resumeLimit("pro"));
+    expect(openUpgradePrompt).not.toHaveBeenCalled();
+    expect(useStudioStore.getState().order).toHaveLength(before);
+    onPlan("max");
+    expect(await roomForResume()).toBe(true);
+  });
+
+  it("stops Max at its own number, samples included in the account's total", async () => {
+    addOwn(resumeLimit("max") - 1);
+    onPlan("max");
+    expect(await roomForResume()).toBe(true);
+    useStudioStore.getState().addResume(createSampleResume(90_000));
+    expect(await roomForResume()).toBe(false);
+    expect(openFullPrompt).toHaveBeenLastCalledWith("resumes", resumeLimit("max") - 1);
+  });
+
+  it("tells an account kept past Pro's number how many it has", async () => {
+    addOwn(40);
+    onPlan("pro");
+    expect(await roomForResume()).toBe(false);
+    expect(openFullPrompt).toHaveBeenCalledExactlyOnceWith("resumes", 40);
+  });
+
+  it("checks a duplicate of a resume, or of the sample, against the plan the same way", async () => {
+    addOwn(resumeLimit("pro"));
+    onPlan("pro");
+    const mine = useStudioStore.getState().resumes[useStudioStore.getState().order[0]!]!;
+    expect(await roomForCopyOf(mine)).toBe(false);
+    const sample = createSampleResume(1_000);
+    useStudioStore.getState().addResume(sample);
+    expect(await roomForCopyOf(sample)).toBe(true);
+    expect(openFullPrompt).toHaveBeenCalledOnce();
+  });
+});
+
+describe("roomForApplication", () => {
+  it("lets Free's first one in without reading the plan, then offers the trial", async () => {
+    expect(await roomForApplication(0)).toBe(true);
+    expect(currentPlan).not.toHaveBeenCalled();
+    onPlan("free");
+    expect(await roomForApplication(1)).toBe(false);
+    expect(openUpgradePrompt).toHaveBeenCalledExactlyOnceWith("tracker");
+  });
+
+  it("stops Pro and the trial at Pro's number, and Max at its own", async () => {
+    onPlan("pro");
+    expect(await roomForApplication(applicationLimit("pro") - 1)).toBe(true);
+    expect(await roomForApplication(applicationLimit("pro"))).toBe(false);
+    expect(openFullPrompt).toHaveBeenLastCalledWith("tracker", applicationLimit("pro"));
+    expect(await roomForApplication(1_800)).toBe(false);
+    expect(openFullPrompt).toHaveBeenLastCalledWith("tracker", 1_800);
+
+    onPlan("max");
+    expect(await roomForApplication(1_800)).toBe(true);
+    expect(await roomForApplication(applicationLimit("max"))).toBe(false);
+    expect(openUpgradePrompt).not.toHaveBeenCalled();
+  });
+
+  it("leaves it to the server when the plan can't be read", async () => {
+    onPlan(null);
+    expect(await roomForApplication(5_000)).toBe(true);
   });
 });

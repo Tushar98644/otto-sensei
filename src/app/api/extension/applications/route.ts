@@ -1,4 +1,4 @@
-import { APPLICATION_LIMITS } from "@/lib/applications/schema";
+import { applicationLimit, isPaidPlan } from "@/config/plans";
 import { CreateApplicationSchema } from "@/lib/applications/validation";
 import { captureServerEvent } from "@/lib/analytics/server";
 import { fail, ok } from "@/lib/api/respond";
@@ -16,9 +16,11 @@ import { canonicalJobUrl } from "@/lib/extension/urls";
 import { ExtensionApplicationSchema } from "@/lib/extension/validation";
 import { readJson } from "@/lib/http";
 import { log } from "@/lib/log";
+import { planFullText } from "@/lib/plan-limits-copy";
 import { resumeTitle } from "@/lib/resume/ops";
 import { HOUR_MS } from "@/lib/time";
 import { createApplication } from "../../applications/records";
+import { PRO_TOOL_MESSAGES } from "../../pro-tools";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -54,17 +56,16 @@ export async function POST(req: Request): Promise<Response> {
       user.id,
       input.data,
       Date.now(),
-      APPLICATION_LIMITS.perUser,
+      applicationLimit(user.plan),
     );
     if (result.status === "no_user") return fail("unauthorized", SIGNED_OUT, 401, headers);
     if (result.status === "id_taken") return fail("bad_request", UNREADABLE, 409, headers);
     if (result.status === "limit_reached") {
-      return fail(
-        "limit_reached",
-        `You can track up to ${APPLICATION_LIMITS.perUser.toLocaleString("en-US")} applications. Delete some old ones to add more.`,
-        429,
-        headers,
-      );
+      log.info("extension.applied_limit_reached", { plan: user.plan });
+      const message = isPaidPlan(user.plan)
+        ? planFullText("tracker", user.plan)
+        : PRO_TOOL_MESSAGES.tracker;
+      return fail("limit_reached", message, 429, headers);
     }
     const { application } = result;
     captureServerEvent(user.id, "application_logged", { status: application.status });

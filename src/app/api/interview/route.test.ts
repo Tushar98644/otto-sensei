@@ -1,6 +1,6 @@
 import { eq } from "drizzle-orm";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { PRO_TRIAL } from "@/config/plans";
+import { MAX_APPLICATIONS_PER_USER, PRO_TRIAL } from "@/config/plans";
 import { getDb } from "@/db/client";
 import { applications } from "@/db/schema";
 import { prepareInterview } from "@/lib/ai/interview";
@@ -63,16 +63,21 @@ function body(applicationId: string): InterviewRequestBody {
 }
 
 async function newApplication(userId: string): Promise<string> {
-  const result = await createApplication(userId, {
-    resumeId: null,
-    resumeTitle: "",
-    company: "Contoso",
-    role: "Senior Product Marketing Manager",
-    jobUrl: "https://example.com/jobs/1",
-    appliedAt: NOW - 1000,
-    status: "interview",
-    notes: "",
-  });
+  const result = await createApplication(
+    userId,
+    {
+      resumeId: null,
+      resumeTitle: "",
+      company: "Contoso",
+      role: "Senior Product Marketing Manager",
+      jobUrl: "https://example.com/jobs/1",
+      appliedAt: NOW - 1000,
+      status: "interview",
+      notes: "",
+    },
+    Date.now(),
+    MAX_APPLICATIONS_PER_USER,
+  );
   if (result.status !== "created") throw new Error("setup failed");
   return result.application.id;
 }

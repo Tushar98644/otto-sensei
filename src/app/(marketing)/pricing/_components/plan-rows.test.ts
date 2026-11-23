@@ -26,12 +26,15 @@ describe("the plan table", () => {
   it("lists the other allowances, never claiming unlimited use", () => {
     const rows = planRows().flatMap((group) => group.rows);
     const cells = (label: string) => rows.find((row) => row.label === label)?.cells;
-    expect(cells("Resumes")).toEqual({ free: "1", pro: "50", max: "50" });
+    expect(cells("Resumes")).toEqual({ free: "1", pro: "25", max: "50" });
+    expect(rows.find((row) => row.label === "Resumes")?.detail).toBe(
+      "Tailored versions count as resumes",
+    );
     expect(cells("Formats")).toEqual({ free: "2", pro: "All 6", max: "All 6" });
     expect(cells("Word (.docx) downloads")).toEqual({ free: false, pro: true, max: true });
     expect(cells("PDF downloads")).toEqual({ free: true, pro: true, max: true });
     expect(cells("Job matches")).toEqual({ free: "5 closest", pro: "All", max: "All" });
-    expect(cells("Tracked applications")).toEqual({ free: "1", pro: "2,000", max: "2,000" });
+    expect(cells("Tracked applications")).toEqual({ free: "1", pro: "1,500", max: "3,000" });
     for (const row of rows) {
       expect(`${row.label} ${row.detail ?? ""} ${Object.values(row.cells).join(" ")}`).not.toMatch(
         /unlimited|fair use/i,

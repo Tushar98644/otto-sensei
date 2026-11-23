@@ -1,7 +1,7 @@
 import { eq } from "drizzle-orm";
 import { getDb } from "@/db/client";
 import { applications } from "@/db/schema";
-import { APPLICATION_LIMITS } from "@/lib/applications/schema";
+import { MAX_APPLICATIONS_PER_USER } from "@/config/plans";
 import { readStatus } from "@/lib/applications/status";
 import { matchCard, planChange, type Card, type EmailWhen } from "./match";
 import type { EmailKind, Proposal } from "./types";
@@ -22,7 +22,7 @@ export async function boardCards(userId: string): Promise<Card[]> {
     })
     .from(applications)
     .where(eq(applications.userId, userId))
-    .limit(APPLICATION_LIMITS.perUser);
+    .limit(MAX_APPLICATIONS_PER_USER);
   return rows.map((row) => ({ ...row, status: readStatus(row.status) ?? "applied" }));
 }
 

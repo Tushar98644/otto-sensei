@@ -1,4 +1,4 @@
-import { FREE_APPLICATIONS, hasProTools } from "@/config/plans";
+import { applicationLimit, isPaidPlan } from "@/config/plans";
 import { trackStatusChanges } from "@/lib/analytics/retention";
 import { captureServerEvent } from "@/lib/analytics/server";
 import { fail, NO_STORE, ok } from "@/lib/api/respond";
@@ -9,19 +9,17 @@ import {
   type ApplicationsResponse,
   type BulkApplicationsResponse,
 } from "@/lib/api/types";
-import { APPLICATION_LIMITS } from "@/lib/applications/schema";
 import { rejectCrossSite, rejectNonJson } from "@/lib/auth/route-guards";
 import { getCurrentUser } from "@/lib/auth/session";
 import { readJson } from "@/lib/http";
 import { log } from "@/lib/log";
+import { planFullText } from "@/lib/plan-limits-copy";
 import { proToolRequired } from "../pro-tools";
 import { INVALID, SIGN_IN } from "./messages";
 import { createApplication, listApplications, parseCursor, setStatusMany } from "./records";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-
-const count = new Intl.NumberFormat("en-US");
 
 export async function GET(req: Request): Promise<Response> {
   try {
@@ -56,8 +54,7 @@ export async function POST(req: Request): Promise<Response> {
       log.info("applications.bad_request", { reason: body.message });
       return fail("bad_request", INVALID, 400);
     }
-    const paid = hasProTools(user.plan);
-    const max = paid ? APPLICATION_LIMITS.perUser : FREE_APPLICATIONS;
+    const max = applicationLimit(user.plan);
     const result = await createApplication(user.id, body.data, Date.now(), max);
     if (result.status === "no_user") {
       log.info("applications.write_after_account_deleted");
@@ -67,14 +64,10 @@ export async function POST(req: Request): Promise<Response> {
       log.info("applications.id_taken");
       return fail("bad_request", INVALID, 409);
     }
-    if (result.status === "limit_reached" && !paid) return proToolRequired(user, "tracker");
     if (result.status === "limit_reached") {
-      log.info("applications.limit_reached", { max: APPLICATION_LIMITS.perUser });
-      return fail(
-        "bad_request",
-        `You can track up to ${count.format(APPLICATION_LIMITS.perUser)} applications. Delete some old ones to add more.`,
-        400,
-      );
+      if (!isPaidPlan(user.plan)) return proToolRequired(user, "tracker");
+      log.info("applications.limit_reached", { plan: user.plan, max });
+      return fail("limit_reached", planFullText("tracker", user.plan), 429);
     }
     captureServerEvent(user.id, "application_logged", { status: result.application.status });
     const response: Omit<ApplicationResponse, "ok"> = { application: result.application };

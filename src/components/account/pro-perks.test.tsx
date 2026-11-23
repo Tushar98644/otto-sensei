@@ -12,9 +12,10 @@ describe("PlanPerks", () => {
       expect(html).toContain("Not on Free.");
       expect(html).toContain("750 line fixes a month Free has 3 a month.");
       expect(html).toContain("A portfolio page from your resume");
-      expect(html).toContain("All 6 formats, up to 50 resumes and Word downloads");
+      expect(html).toContain("All 6 formats, up to 25 resumes and Word downloads");
       expect(html).toContain("Free has 1 resume, Classic and Compact, and PDFs.");
-      expect(html).toContain("Every job match, every application tracked, share links");
+      expect(html).toContain("Every job match, up to 1,500 tracked applications, share links");
+      expect(html).not.toMatch(/every application|unlimited/i);
       expect(html).toContain(
         interval === "year"
           ? "Limits reset each month, on the day of the month your plan started."
@@ -31,6 +32,9 @@ describe("PlanPerks", () => {
       const max = text(renderToStaticMarkup(<PlanPerks plan="max" interval={interval} />));
       expect(max).toContain("300 tailored versions a month");
       expect(max).toContain("Pro has 150.");
+      expect(max).toContain(
+        "Up to 50 resumes and 3,000 tracked applications Pro has 25 and 1,500.",
+      );
       expect(max).not.toMatch(/a week/);
     }
   });
@@ -41,7 +45,9 @@ describe("PlanPerks", () => {
     expect(trial).toContain("Then 150 a month on Pro.");
     expect(trial).toContain("50 line fixes during the trial");
     expect(trial).toContain("It goes public once Pro starts.");
-    expect(trial).toContain("$1 for 3 days. Cancel before the trial ends and you pay nothing more.");
+    expect(trial).toContain(
+      "$1 for 3 days. Cancel before the trial ends and you pay nothing more.",
+    );
     expect(trial).not.toMatch(/unlimited/i);
   });
 });

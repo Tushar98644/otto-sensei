@@ -1,4 +1,4 @@
-import { resumeLimit } from "@/config/plans";
+import { isPaidPlan, resumeLimit } from "@/config/plans";
 import { trackTailoredCopy } from "@/lib/analytics/retention";
 import { fail, ok } from "@/lib/api/respond";
 import { PutResumeSchema, type EmptyOk, type PutResumeResponse } from "@/lib/api/types";
@@ -6,11 +6,12 @@ import { rejectNonJson } from "@/lib/auth/route-guards";
 import { getCurrentUser } from "@/lib/auth/session";
 import { readJson } from "@/lib/http";
 import { log } from "@/lib/log";
+import { planFullText } from "@/lib/plan-limits-copy";
 import { syncPortfolioWith } from "@/lib/portfolio/sync";
 import { ResumeSchema } from "@/lib/resume/validation";
 import type { PutResumeResult } from "@/lib/sync/api-types";
 import { proToolRequired } from "../../pro-tools";
-import { deleteBackup, MAX_RESUMES_PER_USER, saveBackup } from "../backups";
+import { deleteBackup, saveBackup } from "../backups";
 
 export const runtime = "nodejs";
 
@@ -73,15 +74,11 @@ export async function PUT(req: Request, { params }: Context): Promise<Response> 
         413,
       );
     }
-    if (status === "limit_reached") {
-      log.info("resumes.limit_reached", { max: MAX_RESUMES_PER_USER });
-      return fail(
-        "limit_reached",
-        `You can keep up to ${MAX_RESUMES_PER_USER} resumes. Delete one to save another.`,
-        429,
-      );
+    if (status === "limit_reached" || status === "plan_limit") {
+      if (!isPaidPlan(user.plan)) return proToolRequired(user, "resumes");
+      log.info("resumes.limit_reached", { plan: user.plan, ceiling: status === "limit_reached" });
+      return fail("limit_reached", planFullText("resumes", user.plan), 429);
     }
-    if (status === "plan_limit") return proToolRequired(user, "resumes");
     if (status === "deleted") {
       log.info("resumes.write_after_delete");
       return ok(DELETED);

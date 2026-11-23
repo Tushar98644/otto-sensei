@@ -2,10 +2,17 @@
 
 import { useSyncExternalStore } from "react";
 import type { Feature, ProTool } from "@/config/plans";
+import type { KeptTool } from "@/lib/plan-limits-copy";
 import { LazyUpgradeDialog } from "./lazy-dialogs";
 import type { ReplaceOffer } from "./upgrade-dialog";
 
-type Prompt = { open: boolean; tool?: ProTool; feature?: Feature; replace?: ReplaceOffer };
+type Prompt = {
+  open: boolean;
+  tool?: ProTool;
+  feature?: Feature;
+  replace?: ReplaceOffer;
+  held?: number;
+};
 
 const CLOSED: Prompt = { open: false };
 let prompt: Prompt = CLOSED;
@@ -27,6 +34,11 @@ export function openUpgradePrompt(tool: ProTool, replace?: ReplaceOffer): void {
   setPrompt({ open: true, tool, replace });
 }
 
+// A paid plan at its number of resumes or applications; `held` is how many the account has.
+export function openFullPrompt(tool: KeptTool, held: number): void {
+  setPrompt({ open: true, tool, held });
+}
+
 export function openFeaturePrompt(feature: Feature): void {
   setPrompt({ open: true, feature });
 }
@@ -44,6 +56,7 @@ export function UpgradePromptHost() {
       tool={current.tool}
       feature={current.feature}
       replace={current.replace}
+      held={current.held}
     />
   );
 }

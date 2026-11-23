@@ -144,12 +144,12 @@ export async function listApplications(
   };
 }
 
-// Under the account's row lock, so parallel requests can't push it past its limit.
+// Under the account's row lock, so parallel requests can't push it past `max`, the plan's applicationLimit.
 export async function createApplication(
   userId: string,
   input: Omit<CreateApplicationInput, "jobId"> & { jobId?: string | null },
-  now = Date.now(),
-  max: number = APPLICATION_LIMITS.perUser,
+  now: number,
+  max: number,
 ): Promise<CreateResult> {
   const db = await getDb();
   const stage = isStage(input.status) ? input.status : "applied";
@@ -159,7 +159,18 @@ export async function createApplication(
       .select({ n: count() })
       .from(applications)
       .where(eq(applications.userId, userId));
-    if ((stored?.n ?? 0) >= max) return { status: "limit_reached" };
+    if ((stored?.n ?? 0) >= max) {
+      // A retry of one already saved answers with it, even when that one filled the plan.
+      const [saved] = input.id
+        ? await tx
+            .select(APPLICATION_COLUMNS)
+            .from(applications)
+            .where(and(eq(applications.id, input.id), eq(applications.userId, userId)))
+        : [];
+      return saved
+        ? { status: "created", application: toApplication(saved) }
+        : { status: "limit_reached" };
+    }
     const followUpAt =
       input.status === "applied"
         ? firstFollowUpAt(input.appliedAt, now, await followUpDaysOf(tx, userId))

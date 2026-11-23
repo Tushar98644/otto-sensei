@@ -1,6 +1,7 @@
 import { eq } from "drizzle-orm";
 import { extractText, getDocumentProxy } from "unpdf";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { applicationLimit, MAX_RESUMES_PER_USER } from "@/config/plans";
 import { getDb } from "@/db/client";
 import { applications } from "@/db/schema";
 import type { ApiErrorBody } from "@/lib/api/types";
@@ -86,7 +87,12 @@ function resume(overrides: Partial<Resume> = {}): Resume {
 async function proAccount(): Promise<{ user: SessionUser; token: string; base: Resume }> {
   const user = await setPlan(await signInAs("ana@example.com"), "pro");
   const base = resume();
-  await saveBackup(user.id, { ...base, updatedAt: Date.UTC(2026, 10, 2) });
+  await saveBackup(
+    user.id,
+    { ...base, updatedAt: Date.UTC(2026, 10, 2) },
+    Date.now(),
+    MAX_RESUMES_PER_USER,
+  );
   return { user, token: await connectToken(), base };
 }
 
@@ -171,7 +177,12 @@ describe("fill data", () => {
         jobUrl: `${JOB_URL}/apply?lever-source=x`,
       },
     });
-    await saveBackup(user.id, { ...tailored, updatedAt: Date.UTC(2026, 10, 3) });
+    await saveBackup(
+      user.id,
+      { ...tailored, updatedAt: Date.UTC(2026, 10, 3) },
+      Date.now(),
+      MAX_RESUMES_PER_USER,
+    );
     const url = `/api/extension/fill?resume=${base.id}&url=${encodeURIComponent(`${JOB_URL}/apply`)}`;
     const { fill: data } = (await (
       await fill(bearer("GET", url, token))
@@ -426,6 +437,41 @@ describe("Applied after sending", () => {
     });
     expect(late.status).toBe(404);
     expect(await db.select().from(applications)).toHaveLength(1);
+  });
+
+  it("stops at the plan's number of tracked applications and says what to do", async () => {
+    const { user, token, base } = await proAccount();
+    const db = await getDb();
+    const rows = Array.from({ length: applicationLimit("pro") }, () => ({
+      id: crypto.randomUUID(),
+      userId: user.id,
+      company: "Acme",
+      appliedAt: 1,
+      statusChangedAt: 1,
+      createdAt: 1,
+      updatedAt: 1,
+    }));
+    for (let i = 0; i < rows.length; i += 250) {
+      await db.insert(applications).values(rows.slice(i, i + 250));
+    }
+    const body = {
+      id: crypto.randomUUID(),
+      url: JOB_URL,
+      title: "Engineer",
+      company: "Acme",
+      resumeId: base.id,
+    };
+    const full = await applied(bearer("POST", "/api/extension/applications", token, body));
+    expect(full.status).toBe(429);
+    expect(((await full.json()) as ApiErrorBody).error).toEqual({
+      code: "limit_reached",
+      message:
+        "Pro tracks 1,500 applications. Delete some old ones to add more, or move to Max for 3,000.",
+    });
+    await setPlan(user, "max");
+    expect((await applied(bearer("POST", "/api/extension/applications", token, body))).status).toBe(
+      201,
+    );
   });
 
   it("names the company from the link when the post doesn't", () => {

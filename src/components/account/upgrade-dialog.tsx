@@ -10,6 +10,7 @@ import { Button, buttonClasses } from "@/components/ui/button";
 import { Dialog, type DialogSize } from "@/components/ui/dialog";
 import { toast } from "@/components/ui/toast";
 import {
+  isPaidPlan,
   isTrialing,
   nextPlan,
   planIncludes,
@@ -23,6 +24,7 @@ import {
 import type { SessionUser } from "@/lib/auth/types";
 import { budgetReachedText } from "@/lib/ai-budget-copy";
 import { trialHeadline } from "@/lib/billing/prices";
+import { isKeptTool } from "@/lib/plan-limits-copy";
 import { TRASH_DAYS } from "@/lib/store/history";
 import { resetWhen, thisPeriod } from "@/lib/usage-copy";
 import { BillingNote } from "./billing-note";
@@ -46,6 +48,8 @@ export type UpgradeDialogProps = {
   plan?: PaidPlanId;
   interval?: BillingInterval;
   replace?: ReplaceOffer;
+  // How many resumes or applications a paid plan at its number holds.
+  held?: number;
   // Where to go back once the plan is active; without it, the page the dialog opened on.
   next?: string | null;
   startAtSignIn?: boolean;
@@ -71,6 +75,7 @@ export function UpgradeDialog({
   plan,
   interval,
   replace,
+  held,
   next,
   startAtSignIn = false,
 }: UpgradeDialogProps) {
@@ -109,8 +114,11 @@ export function UpgradeDialog({
     buyable[0] ??
     null;
   const period = me?.period;
+  // A paid plan at its number of resumes or applications: its line names the next plan itself.
+  const full = tool && isKeptTool(tool) && isPaidPlan(current);
   let limitLine: string | null = null;
   if (tool && current === "free") limitLine = OTTO.limit.tool(tool, trialOnOffer);
+  else if (full) limitLine = OTTO.limit.full(tool, current, held, target !== null);
   else if (feature) {
     limitLine =
       current === "free"
@@ -261,7 +269,7 @@ export function UpgradeDialog({
     view = {
       message: billingOff
         ? (limitLine ?? ACCOUNT_OTTO.billingOff)
-        : limitLine && upgrading
+        : limitLine && upgrading && !full
           ? `${limitLine} ${PLANS[target.plan].name} has more.`
           : (limitLine ?? (target.trial ? OTTO.upgrade.trial : ACCOUNT_OTTO.upgradePitch)),
       title: upgrading

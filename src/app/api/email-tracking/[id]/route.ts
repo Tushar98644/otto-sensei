@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { isPaidPlan } from "@/config/plans";
 import { fail, NO_STORE, ok } from "@/lib/api/respond";
 import { rejectCrossSite, rejectNonJson } from "@/lib/auth/route-guards";
 import { getCurrentUser } from "@/lib/auth/session";
@@ -8,6 +9,8 @@ import { dismissEmail, trackingState } from "@/lib/inbound/records";
 import type { UndoEmailResponse } from "@/lib/inbound/types";
 import { EmailActionSchema } from "@/lib/inbound/validation";
 import { log } from "@/lib/log";
+import { planFullText } from "@/lib/plan-limits-copy";
+import { PRO_TOOL_MESSAGES } from "../../pro-tools";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -29,8 +32,17 @@ export async function PATCH(req: Request, { params }: Context): Promise<Response
     const body = await readJson(req, EmailActionSchema);
     if (!body.ok) return fail("bad_request", "Nothing to change.", 400);
     const result =
-      body.data.action === "apply" ? await applyEmail(user.id, id) : await undoEmail(user.id, id);
+      body.data.action === "apply"
+        ? await applyEmail(user.id, user.plan, id)
+        : await undoEmail(user.id, id);
     if (result === "not_found") return fail("not_found", GONE, 404);
+    if (result === "full") {
+      log.info("email_tracking.limit_reached", { plan: user.plan });
+      const message = isPaidPlan(user.plan)
+        ? planFullText("tracker", user.plan)
+        : PRO_TOOL_MESSAGES.tracker;
+      return fail("limit_reached", message, 429);
+    }
     if (result === "changed") {
       return fail(
         "bad_request",

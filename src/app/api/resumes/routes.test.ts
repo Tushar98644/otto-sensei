@@ -5,13 +5,13 @@ import { resumes, users, userSettings } from "@/db/schema";
 import type { ApiErrorBody, PutResumeResponse, ResumesResponse } from "@/lib/api/types";
 import { cookieJar, resetDb, setPlan, signInAs } from "@/lib/auth/test-helpers";
 import type { SessionUser } from "@/lib/auth/types";
-import { RESUME_LIMITS } from "@/config/plans";
+import { MAX_RESUMES_PER_USER, RESUME_LIMITS, resumeLimit } from "@/config/plans";
 import { createSampleResume } from "@/lib/resume/sample";
 import { newBullet, newExperience, type Resume } from "@/lib/resume/schema";
 import { deleteUserData } from "@/lib/users";
 import {
   MAX_DELETED_IDS_LISTED,
-  MAX_RESUMES_PER_USER,
+  MAX_RESUME_BYTES,
   MAX_TOMBSTONES_PER_USER,
   saveBackup,
   TOMBSTONE_MAX_AGE_MS,
@@ -100,7 +100,10 @@ async function insertTombstones(userId: string, rows: { id: string; deletedAt: n
     });
 }
 
-async function signIn(email: string, plan: "free" | "pro" | "trial" = "pro"): Promise<SessionUser> {
+async function signIn(
+  email: string,
+  plan: "free" | "pro" | "max" | "trial" = "pro",
+): Promise<SessionUser> {
   const user = await signInAs(email);
   return plan === "free" ? user : setPlan(user, plan);
 }
@@ -205,7 +208,8 @@ describe("/api/resumes", () => {
   });
 
   it(`keeps at most ${MAX_RESUMES_PER_USER} resumes per account`, async () => {
-    await signIn("ada@example.com");
+    expect(MAX_RESUMES_PER_USER * MAX_RESUME_BYTES).toBeLessThan(4.5 * 1_000_000 * 0.95);
+    await signIn("ada@example.com", "max");
     const saved: Resume[] = [];
     for (let i = 0; i < MAX_RESUMES_PER_USER; i++) {
       const item = resume({ updatedAt: 10_000 + i });
@@ -217,7 +221,7 @@ describe("/api/resumes", () => {
     expect(extra.status).toBe(429);
     expect(await errorOf(extra)).toEqual({
       code: "limit_reached",
-      message: "You can keep up to 50 resumes. Delete one to save another.",
+      message: "Max keeps 50 resumes. Delete one to save another.",
     });
 
     const first = saved[0];
@@ -250,7 +254,9 @@ describe("/api/resumes", () => {
     const item = resume();
     await deleteUserData(user.id);
 
-    expect(await saveBackup(user.id, item)).toMatchObject({ status: "no_user" });
+    expect(await saveBackup(user.id, item, Date.now(), MAX_RESUMES_PER_USER)).toMatchObject({
+      status: "no_user",
+    });
     const db = await getDb();
     expect(await db.select().from(resumes).where(eq(resumes.userId, user.id))).toEqual([]);
   });
@@ -366,6 +372,81 @@ describe("Free's resume limit", () => {
   });
 });
 
+describe("each plan's resume cap", () => {
+  const own = (overrides: Partial<Resume> = {}) => resume({ source: "import", ...overrides });
+  const PRO_FULL = "Pro keeps 25 resumes. Delete one to save another, or move to Max for 50.";
+
+  async function fill(total: number, from = 10_000): Promise<Resume[]> {
+    const items = Array.from({ length: total }, (_, i) => own({ updatedAt: from + i }));
+    for (const item of items) expect((await save(item)).status).toBe(200);
+    return items;
+  }
+
+  it("keeps Pro's number on Pro and the trial, and says what to do at it", async () => {
+    for (const [email, plan] of [
+      ["pro@example.com", "pro"],
+      ["trial@example.com", "trial"],
+    ] as const) {
+      await signIn(email, plan);
+      const [first] = await fill(resumeLimit("pro"));
+      const extra = await save(own({ title: "One more" }));
+      expect(extra.status).toBe(429);
+      expect(await errorOf(extra)).toEqual({ code: "limit_reached", message: PRO_FULL });
+      expect(await list()).toHaveLength(resumeLimit("pro"));
+
+      await remove(first!.id);
+      expect((await save(own({ title: "One more" }))).status).toBe(200);
+    }
+  });
+
+  it("counts a tailored copy as a resume", async () => {
+    await signIn("ada@example.com");
+    const [base] = await fill(resumeLimit("pro") - 1);
+    const tailored = own({ source: "tailored", title: "PM at Stripe", updatedAt: 90_000 });
+    expect((await save(tailored)).status).toBe(200);
+    const copy = await save(own({ source: "tailored", title: "PM at Linear" }));
+    expect(copy.status).toBe(429);
+    expect((await errorOf(copy)).message).toBe(PRO_FULL);
+    expect((await save({ ...base!, title: "Base, edited", updatedAt: 95_000 })).status).toBe(200);
+  });
+
+  it("lets Max keep its own number, with nothing to sell past it", async () => {
+    await signIn("ada@example.com", "max");
+    await fill(resumeLimit("max"));
+    const extra = await save(own({ title: "One more" }));
+    expect(extra.status).toBe(429);
+    expect(await errorOf(extra)).toEqual({
+      code: "limit_reached",
+      message: "Max keeps 50 resumes. Delete one to save another.",
+    });
+  });
+
+  it("keeps every resume of an account moved from Max to Pro, saves edits to them, and adds again only under Pro's number", async () => {
+    const user = await signIn("ada@example.com", "max");
+    const kept = await fill(40);
+    await setPlan(user, "pro");
+    expect(await list()).toHaveLength(40);
+
+    const first = kept[0]!;
+    const edited = { ...first, title: "Edited over the cap", updatedAt: 60_000 };
+    expect(await saved(await save(edited))).toEqual({ ok: true, deleted: false });
+    const again = { ...edited, title: "Edited from this copy", updatedAt: 61_000 };
+    expect(await saved(await put(again, again.id, "application/json", 60_000))).toEqual({
+      ok: true,
+      deleted: false,
+    });
+    expect((await list()).find((item) => item.id === first.id)?.title).toBe(
+      "Edited from this copy",
+    );
+
+    expect((await save(own({ title: "New" }))).status).toBe(429);
+    for (const item of kept.slice(1, 40 - resumeLimit("pro") + 2)) await remove(item.id);
+    expect(await list()).toHaveLength(resumeLimit("pro") - 1);
+    expect((await save(own({ title: "New" }))).status).toBe(200);
+    expect((await save(own({ title: "Newer" }))).status).toBe(429);
+  });
+});
+
 describe("/api/resumes deletions", () => {
   it("lists nothing as deleted before anything is deleted", async () => {
     await signIn("ada@example.com");
@@ -454,7 +535,7 @@ describe("/api/resumes deletions", () => {
   });
 
   it("frees a slot under the cap when a resume is deleted", async () => {
-    await signIn("ada@example.com");
+    await signIn("ada@example.com", "max");
     const saved50: Resume[] = [];
     for (let i = 0; i < MAX_RESUMES_PER_USER; i++) {
       const item = resume({ updatedAt: 10_000 + i });

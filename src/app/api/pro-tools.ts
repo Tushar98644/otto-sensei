@@ -1,15 +1,17 @@
-import { FREE_APPLICATIONS, hasProTools, RESUME_LIMITS, type ProTool } from "@/config/plans";
+import { applicationLimit, hasProTools, PLANS, resumeLimit, type ProTool } from "@/config/plans";
 import { fail } from "@/lib/api/respond";
 import type { SessionUser } from "@/lib/auth/types";
 import { trialHeadline } from "@/lib/billing/prices";
 import { log } from "@/lib/log";
 import { pluralize } from "@/lib/utils";
 
+const count = new Intl.NumberFormat("en-US");
+
 export const PRO_TOOL_MESSAGES: Record<ProTool, string> = {
-  resumes: `Free keeps ${pluralize(RESUME_LIMITS.free, "resume")}.`,
+  resumes: `Free keeps ${pluralize(resumeLimit("free"), "resume")}.`,
   formats: "That format comes with Pro. Free has Classic and Compact.",
   word: "Word downloads come with Pro. PDF downloads stay free.",
-  tracker: `Free tracks ${pluralize(FREE_APPLICATIONS, "application")}. Pro tracks every one.`,
+  tracker: `Free tracks ${pluralize(applicationLimit("free"), "application")}. ${PLANS.pro.name} tracks up to ${count.format(applicationLimit("pro"))}.`,
   jobs: "Filters, saved jobs and every match come with Pro.",
   share: "Share links come with Pro.",
   eligibility: "The work-rights check comes with Pro.",

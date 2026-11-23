@@ -1,11 +1,11 @@
 import { createHash, randomUUID } from "node:crypto";
 import { and, eq, isNull } from "drizzle-orm";
 import { createApplication, updateApplication } from "@/app/api/applications/records";
+import { applicationLimit, type PlanId } from "@/config/plans";
 import { getDb } from "@/db/client";
 import { applications, inboundEmails, userSettings, type CardBefore } from "@/db/schema";
 import { trackStatusChanges } from "@/lib/analytics/retention";
 import { captureServerEvent } from "@/lib/analytics/server";
-import { APPLICATION_LIMITS } from "@/lib/applications/schema";
 import { readStage, readStatus, type ApplicationStatus } from "@/lib/applications/status";
 import { CreateApplicationSchema, UpdateApplicationSchema } from "@/lib/applications/validation";
 import { minutesIntoDay, zoneOrUtc } from "@/lib/calendar/zones";
@@ -90,12 +90,16 @@ const NOTHING: Applied = {
   changedAt: null,
 };
 
+// A new card the plan has no room for: the email waits in Check this until there is.
+const NO_ROOM = "full";
+
 // The same records and checks as the board's own Add and Move, so an email can't store what a person couldn't.
 async function applyToBoard(
   userId: string,
+  accountPlan: PlanId,
   facts: EmailFacts & { sentAt: number },
   now: number,
-): Promise<Applied> {
+): Promise<Applied | typeof NO_ROOM> {
   if (facts.kind === "unknown") return NOTHING;
   const card = matchCard(await boardCards(userId), facts)?.card ?? null;
   const plan = planChange(facts.kind, card, emailWhen(facts));
@@ -113,7 +117,8 @@ async function applyToBoard(
       ...plan.interview,
     });
     if (!input.success) return NOTHING;
-    const created = await createApplication(userId, input.data, now, APPLICATION_LIMITS.perUser);
+    const created = await createApplication(userId, input.data, now, applicationLimit(accountPlan));
+    if (created.status === "limit_reached") return NO_ROOM;
     if (created.status !== "created") return NOTHING;
     const { application } = created;
     captureServerEvent(userId, "application_logged", { status: application.status });
@@ -253,12 +258,12 @@ export async function receiveEmail(
   if (kind === "unknown") return "unread";
   if (!trust) return "pending";
   try {
-    const applied = await applyToBoard(userId, facts, now);
+    const applied = await applyToBoard(userId, recipient.plan, facts, now);
     await db
       .update(inboundEmails)
-      .set(applied)
+      .set(applied === NO_ROOM ? { change: "pending" } : applied)
       .where(and(eq(inboundEmails.userId, userId), eq(inboundEmails.id, id)));
-    return applied.change;
+    return applied === NO_ROOM ? "pending" : applied.change;
   } catch (error) {
     // Let the Worker's retry find the email unclaimed.
     await db
@@ -268,11 +273,12 @@ export async function receiveEmail(
   }
 }
 
-export type ApplyResult = "applied" | "not_found" | "nothing";
+export type ApplyResult = "applied" | "not_found" | "nothing" | "full";
 
 // Apply from Check this: the person read it and said yes, so it's planned against the board as it is now.
 export async function applyEmail(
   userId: string,
+  plan: PlanId,
   id: string,
   now = Date.now(),
 ): Promise<ApplyResult> {
@@ -283,6 +289,7 @@ export async function applyEmail(
   if (event.change !== "pending" || event.dismissedAt !== null) return "nothing";
   const applied = await applyToBoard(
     userId,
+    plan,
     {
       kind: event.kind,
       company: event.company,
@@ -295,6 +302,7 @@ export async function applyEmail(
     },
     now,
   );
+  if (applied === NO_ROOM) return "full";
   await db
     .update(inboundEmails)
     .set({ ...applied, trust: "you" })

@@ -2,11 +2,14 @@
 
 import { trashWithUndo } from "@/components/ui/trash-with-undo";
 import {
-  FREE_APPLICATIONS,
+  applicationLimit,
   hasProTools,
+  isPaidPlan,
+  MAX_RESUMES_PER_USER,
   planIncludes,
-  RESUME_LIMITS,
+  resumeLimit,
   type Feature,
+  type PlanId,
   type ProTool,
 } from "@/config/plans";
 import { trialHeadline } from "@/lib/billing/prices";
@@ -14,17 +17,23 @@ import { resumeTitle } from "@/lib/resume/ops";
 import type { Resume } from "@/lib/resume/schema";
 import { useStudioStore } from "@/lib/store/resume-store";
 import type { ReplaceOffer } from "./upgrade-dialog";
-import { openFeaturePrompt, openUpgradePrompt } from "./upgrade-prompt";
+import { openFeaturePrompt, openFullPrompt, openUpgradePrompt } from "./upgrade-prompt";
 import { currentPlan, useMe } from "./use-me";
 
 // The routes enforce Pro tools; these only spare a refused request by offering the trial first.
 
 export type Library = { resumes: Readonly<Record<string, Resume>>; order: readonly string[] };
 
-export function useProTools(): boolean | null {
+// Signed out counts as Free, as currentPlan does; null until the account is read.
+export function usePlan(): PlanId | null {
   const { me } = useMe();
   if (!me) return null;
-  return me.user ? hasProTools(me.user.plan) : false;
+  return me.user?.plan ?? "free";
+}
+
+export function useProTools(): boolean | null {
+  const plan = usePlan();
+  return plan === null ? null : hasProTools(plan);
 }
 
 export function useTryProLabel(): string {
@@ -57,8 +66,26 @@ export function useOwnResumeCount(): number {
   return useStudioStore((s) => ownResumeIds(s).length);
 }
 
-export function noRoomForResume(): boolean {
-  return ownResumeIds(useStudioStore.getState()).length >= RESUME_LIMITS.free;
+// The backup route's count: samples apart from the rest against the plan's number, and all of them against the ceiling.
+function resumeCounts({ resumes, order }: Library): { own: number; samples: number } {
+  const live = order.filter((id) => resumes[id] !== undefined);
+  const samples = live.filter((id) => isSample(resumes[id])).length;
+  return { own: live.length - samples, samples };
+}
+
+export function hasResumeRoom(library: Library, plan: PlanId, sample = false): boolean {
+  const { own, samples } = resumeCounts(library);
+  return (sample ? samples : own) < resumeLimit(plan) && own + samples < MAX_RESUMES_PER_USER;
+}
+
+// Free's number is the smallest, so room there is room on every plan and the plan needn't be read.
+export function noRoomForResume(plan: PlanId = "free"): boolean {
+  return !hasResumeRoom(useStudioStore.getState(), plan);
+}
+
+function askPaidForRoom(sample: boolean): void {
+  const { own, samples } = resumeCounts(useStudioStore.getState());
+  openFullPrompt("resumes", sample ? samples : own);
 }
 
 // `replaceOld` trashes the old resume when called, so a flow can wait until it has the new one.
@@ -83,7 +110,11 @@ function replaceOffer(next: AfterReplace): ReplaceOffer | undefined {
 export async function roomForResume(retry?: () => void): Promise<boolean> {
   if (!noRoomForResume()) return true;
   const plan = await currentPlan();
-  if (plan === null || hasProTools(plan)) return true;
+  if (plan === null || !noRoomForResume(plan)) return true;
+  if (isPaidPlan(plan)) {
+    askPaidForRoom(false);
+    return false;
+  }
   askForResumeRoom(
     retry &&
       ((replaceOld) => {
@@ -96,12 +127,19 @@ export async function roomForResume(retry?: () => void): Promise<boolean> {
 // A copy of the sample stays a sample, so it needs the sample's slot, not Free's resume.
 export async function roomForCopyOf(resume: Resume): Promise<boolean> {
   if (!isSample(resume)) return roomForResume();
-  const { resumes, order } = useStudioStore.getState();
-  if (!order.some((id) => isSample(resumes[id]))) return true;
-  return unlockProTool("resumes");
+  if (hasResumeRoom(useStudioStore.getState(), "free", true)) return true;
+  const plan = await currentPlan();
+  if (plan === null || hasResumeRoom(useStudioStore.getState(), plan, true)) return true;
+  if (isPaidPlan(plan)) askPaidForRoom(true);
+  else openUpgradePrompt("resumes");
+  return false;
 }
 
 export async function roomForApplication(logged: number): Promise<boolean> {
-  if (logged < FREE_APPLICATIONS) return true;
-  return unlockProTool("tracker");
+  if (logged < applicationLimit("free")) return true;
+  const plan = await currentPlan();
+  if (plan === null || logged < applicationLimit(plan)) return true;
+  if (isPaidPlan(plan)) openFullPrompt("tracker", logged);
+  else openUpgradePrompt("tracker");
+  return false;
 }

@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { MAX_RESUMES_PER_USER } from "@/config/plans";
 import { getDb } from "@/db/client";
 import { notifications } from "@/db/schema";
 import { GET as listApplications } from "@/app/api/applications/route";
@@ -125,7 +126,9 @@ describe("dashboardSeeds", () => {
     const kept = { ...createSampleResume(1_000), title: "Kept", updatedAt: 2_000 };
     const newer = { ...createSampleResume(1_000), title: "Newer", updatedAt: 3_000 };
     const gone = { ...createSampleResume(1_000), title: "Gone" };
-    for (const resume of [kept, newer, gone]) await saveBackup(user.id, resume);
+    for (const resume of [kept, newer, gone]) {
+      await saveBackup(user.id, resume, Date.now(), MAX_RESUMES_PER_USER);
+    }
     await deleteResume(
       new Request(`http://localhost/api/resumes/${gone.id}`, { method: "DELETE" }),
       {

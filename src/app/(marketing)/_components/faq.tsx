@@ -1,6 +1,6 @@
 import { ROUTES } from "@/components/site/routes";
 import { TextLink } from "@/components/site/text-link";
-import { FREE_APPLICATIONS, FREE_JOB_MATCHES, PLANS } from "@/config/plans";
+import { applicationLimit, FREE_JOB_MATCHES, PLANS } from "@/config/plans";
 import { trialHeadline, trialSentence } from "@/lib/billing/prices";
 import { ROLE_EXAMPLES } from "@/lib/seo-pages/examples";
 import { SEO_PATHS } from "@/lib/seo-pages/paths";
@@ -30,7 +30,7 @@ export const HOME_FAQ: readonly FaqItem[] = [
   },
   {
     question: "Do I need an account?",
-    answer: `Not to check, edit or download. Backups and Otto's ${PLANS.free.limits.fix} line fixes a month need a free account: sign in with Google or an emailed 6-digit code, no password. The rest of Otto's AI help, the full list of job matches (Free shows your closest ${FREE_JOB_MATCHES}) and tracking more than ${pluralize(FREE_APPLICATIONS, "application")} come with ${PLANS.pro.name}. ${trialHeadline()}: ${trialSentence()}`,
+    answer: `Not to check, edit or download. Backups and Otto's ${PLANS.free.limits.fix} line fixes a month need a free account: sign in with Google or an emailed 6-digit code, no password. The rest of Otto's AI help, the full list of job matches (Free shows your closest ${FREE_JOB_MATCHES}) and tracking more than ${pluralize(applicationLimit("free"), "application")} come with ${PLANS.pro.name}. ${trialHeadline()}: ${trialSentence()}`,
   },
   {
     question: "Where is my data stored?",

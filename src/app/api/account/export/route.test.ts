@@ -1,6 +1,7 @@
 import { randomBytes } from "node:crypto";
 import JSZip from "jszip";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { MAX_APPLICATIONS_PER_USER } from "@/config/plans";
 import { getDb } from "@/db/client";
 import {
   applications,
@@ -13,7 +14,6 @@ import {
   writings,
 } from "@/db/schema";
 import { execSql } from "@/db/testing";
-import { APPLICATION_LIMITS } from "@/lib/applications/schema";
 import { getCurrentUser } from "@/lib/auth/session";
 import type { SessionUser } from "@/lib/auth/types";
 import { insertUserRow, resetDb } from "@/lib/auth/test-helpers";
@@ -253,12 +253,12 @@ describe("GET /api/account/export", () => {
     }
   });
 
-  it("streams every application, past Vercel's 4.5 MB limit on whole responses", async () => {
+  it("streams every application up to Max's number, past Vercel's 4.5 MB limit on whole responses", async () => {
     const ada = await person("ada");
     currentUser.mockResolvedValue(ada);
     const noise = (bytes: number) => randomBytes(bytes).toString("base64url").slice(0, bytes);
     const db = await getDb();
-    const rows = Array.from({ length: APPLICATION_LIMITS.perUser - 1 }, (_, i) => ({
+    const rows = Array.from({ length: MAX_APPLICATIONS_PER_USER - 1 }, (_, i) => ({
       id: crypto.randomUUID(),
       userId: ada.id,
       company: noise(200),
@@ -283,7 +283,7 @@ describe("GET /api/account/export", () => {
     expect(bytes.byteLength).toBeGreaterThan(4_500_000);
     const zip = await JSZip.loadAsync(bytes);
     const tracked = JSON.parse((await zip.file("applications.json")?.async("string")) ?? "[]");
-    expect(tracked).toHaveLength(APPLICATION_LIMITS.perUser);
+    expect(tracked).toHaveLength(MAX_APPLICATIONS_PER_USER);
   });
 
   it("refuses a request from another website", async () => {

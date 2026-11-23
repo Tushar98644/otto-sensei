@@ -123,17 +123,14 @@ export function planIncludes(plan: PlanId, feature: Feature): boolean {
 }
 
 export type ProTool =
-  | "resumes"
-  | "formats"
-  | "word"
-  | "tracker"
-  | "jobs"
-  | "share"
-  | "eligibility"
-  | "portfolio";
+  "resumes" | "formats" | "word" | "tracker" | "jobs" | "share" | "eligibility" | "portfolio";
 
-export const RESUME_LIMITS = { free: 1, paid: 50 } as const;
-export const FREE_APPLICATIONS = 1;
+// Tailored copies count as resumes; the trial is a Pro plan, so it has Pro's numbers.
+export const RESUME_LIMITS: Record<PlanId, number> = { free: 1, pro: 25, max: 50 };
+export const TRACKER_LIMITS: Record<PlanId, number> = { free: 1, pro: 1_500, max: 3_000 };
+// The largest plan's numbers bound every read and response, so an account past its plan's number still fits.
+export const MAX_RESUMES_PER_USER = Math.max(...Object.values(RESUME_LIMITS));
+export const MAX_APPLICATIONS_PER_USER = Math.max(...Object.values(TRACKER_LIMITS));
 export const FREE_JOB_MATCHES = 5;
 export const FREE_TEMPLATES = ["classic", "compact"] as const satisfies readonly TemplateId[];
 
@@ -141,8 +138,13 @@ export function hasProTools(plan: PlanId): boolean {
   return isPaidPlan(plan);
 }
 
+// Past its number an account keeps everything and can change it; only adding one more is refused.
 export function resumeLimit(plan: PlanId): number {
-  return hasProTools(plan) ? RESUME_LIMITS.paid : RESUME_LIMITS.free;
+  return RESUME_LIMITS[plan];
+}
+
+export function applicationLimit(plan: PlanId): number {
+  return TRACKER_LIMITS[plan];
 }
 
 export const ANON_LIMITS = {
