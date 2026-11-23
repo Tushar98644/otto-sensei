@@ -6,6 +6,7 @@ import { MIGRATIONS_TIMEOUT_MS } from "./test-template";
 
 const FIRST = "20261123100000";
 const LAST = "20261123100600";
+const DROP = "20261123100900";
 const OLD_TABLES = [
   "active_days",
   "weekly_recaps",
@@ -60,7 +61,7 @@ describe("fewer tables migrations", () => {
     return tables;
   };
 
-  it("copies every row of the fourteen tables and keeps copying the old app's writes", async () => {
+  it("copies every row of the fourteen tables, keeps copying the old app's writes, and loses nothing when they go", async () => {
     const ada = await addUser();
     const bo = await addUser();
     const cy = await addUser();
@@ -324,5 +325,33 @@ describe("fewer tables migrations", () => {
     expect(await settingsOf(bo)).toMatchObject({ referred_by: null, tracking_at: 500 });
     expect(await settingsOf(ada)).toBeUndefined();
     expect(await rows("select key from public.metered_calls")).toEqual([]);
+
+    const keptSettings = await rows("select * from public.user_settings order by user_id");
+    const keptCalls = await rows("select * from public.metered_calls");
+    const keptLog = await rows("select * from public.billing_log order by kind, key");
+    const drop = migrations.find((m) => m.version === DROP);
+    expect(drop?.transaction).toBe(true);
+    await client.exec(drop!.sql);
+
+    expect(await rows("select * from public.user_settings order by user_id")).toEqual(keptSettings);
+    expect(await rows("select * from public.metered_calls")).toEqual(keptCalls);
+    expect(await rows("select * from public.billing_log order by kind, key")).toEqual(keptLog);
+    const left = await client.query(
+      "select relname from pg_class where relnamespace = 'public'::regnamespace and relname = any($1::text[])",
+      [OLD_TABLES],
+    );
+    expect(left.rows).toEqual([]);
+    expect(
+      await rows(
+        "select proname from pg_proc where proname like '%_from_%' and pronamespace = 'public'::regnamespace",
+      ),
+    ).toEqual([]);
+    const rls = await rows(
+      "select relname, relrowsecurity from pg_class where relname in ('metered_calls', 'billing_log') order by 1",
+    );
+    expect(rls).toEqual([
+      { relname: "billing_log", relrowsecurity: true },
+      { relname: "metered_calls", relrowsecurity: true },
+    ]);
   });
 });

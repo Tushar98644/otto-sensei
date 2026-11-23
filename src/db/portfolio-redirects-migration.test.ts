@@ -6,6 +6,7 @@ import { MIGRATIONS_TIMEOUT_MS } from "./test-template";
 
 const MOVE = "20261123100700";
 const INDEX = "20261123100720";
+const DROP = "20261123100900";
 
 describe("portfolio redirects migration", () => {
   const client = new PGlite();
@@ -96,5 +97,16 @@ describe("portfolio redirects migration", () => {
       "select slug from public.portfolios where old_slugs ? 'bob-d'",
     );
     expect(held.rows).toEqual([{ slug: "cy-twombly" }]);
+
+    const kept = (await client.query("select id, old_slugs from public.portfolios order by id"))
+      .rows;
+    for (const migration of migrations.filter((m) => m.version > INDEX && m.version <= DROP)) {
+      await client.exec(migration.sql);
+    }
+    expect(
+      (await client.query("select id, old_slugs from public.portfolios order by id")).rows,
+    ).toEqual(kept);
+    const left = await client.query("select 1 from pg_class where relname = 'portfolio_redirects'");
+    expect(left.rows).toEqual([]);
   });
 });

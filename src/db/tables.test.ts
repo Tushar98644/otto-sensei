@@ -57,7 +57,6 @@ const TABLES: Record<string, Table> = {
   match_events: accountNotExported("which posts were shown and opened, to measure ranking"),
   saved_jobs: account("saved-jobs.json"),
   portfolios: account("portfolio.json"),
-  portfolio_redirects: accountNotExported("old portfolio addresses, kept 90 days"),
   writings: account("cover-letters"),
   extension_tokens: accountNotExported("hashes of extension sign-ins"),
   saved_posts: account("saved-posts.json"),
@@ -68,21 +67,6 @@ const TABLES: Record<string, Table> = {
   },
   inbound_emails: account("email-tracking.json"),
   career_log_entries: account("career-log.json"),
-  // Copied into user_settings, metered_calls and billing_log; 20261123100900 drops them once the release that reads those is live.
-  active_days: accountNotExported("copied into user_settings"),
-  weekly_recaps: accountNotExported("copied into user_settings"),
-  referral_codes: accountNotExported("copied into user_settings"),
-  referrals: accountNotExported("copied into user_settings"),
-  calendar_feeds: accountNotExported("copied into user_settings"),
-  inbound_addresses: accountNotExported("copied into user_settings"),
-  trial_reminders: accountNotExported("copied into user_settings"),
-  email_log: accountNotExported("copied into user_settings"),
-  resume_tombstones: accountNotExported("copied into user_settings"),
-  metered_results: accountNotExported("copied into metered_calls"),
-  usage_passes: accountNotExported("copied into metered_calls"),
-  trial_replacements: accountNotExported("copied into billing_log"),
-  billing_events: global("copied into billing_log"),
-  trial_history: global("copied into billing_log"),
 };
 
 const ON_DELETE = { c: "cascade", n: "set null" } as const;
