@@ -63,6 +63,12 @@ export function forwardedFrom(mail: MailAuth): string | null {
   return sealed || signed ? named : null;
 }
 
+// Gmail forwarded it on its own from one of the person's mailboxes, as their filter does.
+export function forwardedByOwnGmail(mail: MailAuth, mailboxes: readonly string[]): boolean {
+  const forwarded = forwardedFrom(mail);
+  return forwarded !== null && mailboxes.some((address) => address.toLowerCase() === forwarded);
+}
+
 function employerDomain(domain: string, companies: readonly string[]): boolean {
   const label = registrable(domain).split(".")[0] ?? "";
   return companies.some((company) => {

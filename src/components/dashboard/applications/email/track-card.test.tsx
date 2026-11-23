@@ -144,6 +144,20 @@ describe("the setup steps", () => {
     expect(text(renderToStaticMarkup(<>{open!.children}</>))).toBe("Open the filter in Gmail");
   });
 
+  it("tests the address directly at first, then through the person's Gmail and filter", () => {
+    const direct = render({ ...ADDRESS, testAt: 5 });
+    expect(direct).toContain("to=otto%2Bpriya%40track.ottosensei.com");
+    expect(direct).toContain("su=Otto+test");
+
+    const viaFilter = render({ ...CONFIRMED, testAt: 5 });
+    expect(viaFilter).toContain("to=priya%40gmail.com");
+    expect(viaFilter).not.toContain("to=otto%2Bpriya");
+    expect(text(viaFilter)).toContain(
+      "Sends a test to your Gmail. Your filter forwards it to Otto and setup finishes.",
+    );
+    expect(text(viaFilter)).not.toContain("Test received");
+  });
+
   it("folds every step once job emails come in", () => {
     const html = render(WORKING);
     expect(text(html)).toContain("All set");

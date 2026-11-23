@@ -1,7 +1,16 @@
 import { describe, expect, it } from "vitest";
 import type { EmailEvent, TrackingAddress } from "@/lib/inbound/types";
 import { emailedCards } from "./use-email-tracking";
-import { canUndo, changeLine, proposalLine, SETUP_STEPS, setupStage, setupStep } from "./view";
+import {
+  canUndo,
+  changeLine,
+  justFinished,
+  proposalLine,
+  SETUP_STEPS,
+  setupStage,
+  setupStep,
+  testTarget,
+} from "./view";
 
 const ADDRESS: TrackingAddress = {
   email: "otto+priya@track.ottosensei.com",
@@ -52,6 +61,36 @@ describe("the setup card", () => {
     expect(setupStage(asked)).toBe("confirm");
     expect(setupStage({ ...asked, confirmedAt: 3 })).toBe("filter");
     expect(setupStage({ ...asked, confirmedAt: 3, lastEmailAt: 4 })).toBe("working");
+  });
+
+  it("sends the test to the address until forwarding is confirmed, then through the filter", () => {
+    expect(testTarget(ADDRESS)).toEqual({ to: ADDRESS.email, viaFilter: false });
+    const asked = {
+      ...ADDRESS,
+      confirm: {
+        code: "1",
+        url: "https://mail.google.com/mail/vf-x",
+        at: 2,
+        source: "p@gmail.com",
+      },
+    };
+    expect(testTarget(asked)).toEqual({ to: ADDRESS.email, viaFilter: false });
+    expect(testTarget({ ...asked, confirmedAt: 3 })).toEqual({
+      to: "p@gmail.com",
+      viaFilter: true,
+    });
+    expect(testTarget({ ...ADDRESS, confirmedAt: 3, sources: ["q@gmail.com"] })).toEqual({
+      to: "q@gmail.com",
+      viaFilter: true,
+    });
+  });
+
+  it("celebrates only when setup finishes with the page open", () => {
+    expect(justFinished("filter", "working")).toBe(true);
+    expect(justFinished("address", "working")).toBe(true);
+    expect(justFinished(null, "working")).toBe(false);
+    expect(justFinished("working", "working")).toBe(false);
+    expect(justFinished("address", "confirm")).toBe(false);
   });
 
   it("opens one step at a time and counts past the last once it works", () => {

@@ -355,6 +355,36 @@ describe("/api/inbound/email", () => {
     ]);
   });
 
+  it("finishes setup only for a test the person's own Gmail filter forwarded", async () => {
+    const to = await start();
+    await confirmGmail(to);
+    expect(await result(await deliver(to, "otto-test.txt"))).toBe("test");
+    let seen = await state();
+    expect([seen.address?.testAt, seen.address?.lastEmailAt]).toEqual([NOW, null]);
+
+    // Forwarded, but from a Gmail that was never confirmed here: still not finished.
+    const stranger = "someone.else@gmail.com";
+    expect(
+      await result(
+        await deliver(to, "otto-test-forwarded.txt", { auth: gmailForward(stranger, to) }),
+      ),
+    ).toBe("test");
+    expect((await state()).address?.lastEmailAt).toBeNull();
+
+    vi.setSystemTime(NOW + 60_000);
+    expect(
+      await result(
+        await deliver(to, "otto-test-forwarded.txt", {
+          messageId: "<forwarded-test@mail.gmail.com>",
+          auth: gmailForward(GMAIL, to),
+        }),
+      ),
+    ).toBe("test");
+    seen = await state();
+    expect([seen.address?.testAt, seen.address?.lastEmailAt]).toEqual([NOW + 60_000, NOW + 60_000]);
+    expect(seen.events).toEqual([]);
+  });
+
   it("keeps a change made by hand: Undo then says the card changed", async () => {
     const to = await start();
     await confirmGmail(to);

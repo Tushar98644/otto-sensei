@@ -1,0 +1,10 @@
+From: Priya Sharma <priya.sharma@gmail.com>
+To: priya.sharma@gmail.com
+Subject: Otto test
+Date: Mon, 16 Nov 2026 07:30:00 +0000
+X-Forwarded-For: priya.sharma@gmail.com otto+priya@track.ottosensei.com
+X-Forwarded-To: otto+priya@track.ottosensei.com
+Delivered-To: otto+priya@track.ottosensei.com
+Received: by 2002:a05:7300:5d0b:b0:1b4:2c1e:8f2a with SMTP id f11csp1203994dyb; Mon, 16 Nov 2026 07:30:02 -0800 (PST)
+
+This is a test from my Gmail. Otto shows it on the Applications page when it arrives.

@@ -41,18 +41,46 @@ import { stopTracking, trackingAction, useEmailTracking, watchForMail } from "./
 import {
   changeLine,
   lastRead,
+  justFinished,
   SETUP_STEPS,
   setupStage,
   setupStep,
   splitEvents,
+  testTarget,
   type SetupStage,
 } from "./view";
 
 export const ACTIVITY_ID = "email-updates";
+const SETUP_ID = "email-setup";
+const ALL_SET_MS = 3_500;
+
+// A short burst over the card, unless the person asked for less motion.
+function celebrate() {
+  if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+  const card = document.getElementById(SETUP_ID)?.getBoundingClientRect();
+  const x = card ? card.left + card.width / 2 : window.innerWidth / 2;
+  const y = card ? card.top + card.height / 3 : window.innerHeight / 3;
+  const top = Math.min(Math.max(y, 80), window.innerHeight - 80);
+  void import("./confetti").then((m) => m.burst(x, top)).catch(() => {});
+}
 
 export function EmailTrackingPanel() {
   const { tracking, userId } = useEmailTracking();
   const [open, setOpen] = useState(false);
+  const current = tracking?.address ? setupStage(tracking.address) : null;
+  const [seen, setSeen] = useState(current);
+  const [allSet, setAllSet] = useState(false);
+  if (seen !== current) {
+    setSeen(current);
+    if (justFinished(seen, current)) setAllSet(true);
+  }
+  // "All set" stays a moment with the confetti, then the card folds to the strip.
+  useEffect(() => {
+    if (!allSet) return;
+    celebrate();
+    const timer = window.setTimeout(() => setAllSet(false), ALL_SET_MS);
+    return () => window.clearTimeout(timer);
+  }, [allSet]);
   if (!tracking?.available) return null;
   const { address } = tracking;
 
@@ -64,7 +92,7 @@ export function EmailTrackingPanel() {
     );
   }
   const stage = setupStage(address);
-  if (stage === "working" && !open) {
+  if (stage === "working" && !open && !allSet) {
     return (
       <WorkingStrip
         tracking={tracking}
@@ -203,7 +231,7 @@ function AddressMenu({
       icon: Send,
       onSelect: () => {
         watchForMail();
-        window.open(testEmailHref(address.email), "_blank", "noopener,noreferrer");
+        window.open(testEmailHref(testTarget(address).to), "_blank", "noopener,noreferrer");
       },
     },
     "separator",
@@ -301,6 +329,7 @@ function SetupFolder({
         : "reads each email once and keeps only what changed";
   return (
     <FolderCard
+      id={SETUP_ID}
       tab="Track automatically"
       tabEnd={
         <div className="flex items-center gap-1">
@@ -392,6 +421,7 @@ export function SetupSteps({ address, userId }: { address: TrackingAddress; user
   const now = useNow();
   const stage = setupStage(address);
   const current = setupStep(stage);
+  const test = testTarget(address);
   const [asked, flashAsked] = useFlash();
   const [seen, setSeen] = useState(stage);
   if (seen !== stage) {
@@ -436,7 +466,7 @@ export function SetupSteps({ address, userId }: { address: TrackingAddress; user
 
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2 border-t border-border pt-4">
         <a
-          href={testEmailHref(address.email)}
+          href={testEmailHref(test.to)}
           target="_blank"
           rel="noopener noreferrer"
           onClick={watchForMail}
@@ -446,13 +476,17 @@ export function SetupSteps({ address, userId }: { address: TrackingAddress; user
           Send a test
         </a>
         <p className="text-sm/5 text-pretty text-muted">
-          {address.testAt !== null && now > 0 ? (
+          {address.testAt !== null && now > 0 && stage !== "filter" ? (
             <span className="inline-flex items-center gap-1.5 text-ink">
               <Check aria-hidden className="size-4 text-pass" />
               Test received {timeAgo(address.testAt, now)}. Your address works.
             </span>
-          ) : (
+          ) : !test.viaFilter ? (
             "Opens a Gmail draft to your address. Press Send and it shows up here."
+          ) : stage === "filter" ? (
+            "Sends a test to your Gmail. Your filter forwards it to Otto and setup finishes."
+          ) : (
+            "Sends a test to your Gmail. Your filter forwards it to Otto."
           )}
         </p>
       </div>

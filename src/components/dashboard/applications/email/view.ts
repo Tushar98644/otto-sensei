@@ -10,6 +10,19 @@ export function setupStage(address: TrackingAddress): SetupStage {
   return address.confirmedAt !== null ? "filter" : "address";
 }
 
+// Until forwarding is confirmed a test goes straight to the address; after, to the person's Gmail so the filter carries it.
+export function testTarget(address: TrackingAddress): { to: string; viaFilter: boolean } {
+  const stage = setupStage(address);
+  const gmail = address.confirm?.source ?? address.sources.at(-1) ?? null;
+  if ((stage === "filter" || stage === "working") && gmail) return { to: gmail, viaFilter: true };
+  return { to: address.email, viaFilter: false };
+}
+
+// Setup finished while the page was open, not on a later visit.
+export function justFinished(before: SetupStage | null, now: SetupStage | null): boolean {
+  return before !== null && before !== "working" && now === "working";
+}
+
 export const SETUP_STEPS = 3;
 
 // The step to do now, 1 to 3; past the last once a job email has come in.

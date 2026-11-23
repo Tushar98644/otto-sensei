@@ -353,6 +353,7 @@ const CASES: Record<string, Expect> = {
   "gmail-confirmation.txt": { kind: "confirmation" },
   "gmail-confirmation-lookalike.txt": { kind: "unknown" },
   "otto-test.txt": { kind: "test" },
+  "otto-test-forwarded.txt": { kind: "test" },
   "unknown-personal.txt": { kind: "unknown" },
   "unknown-shipping.txt": { kind: "unknown" },
 };

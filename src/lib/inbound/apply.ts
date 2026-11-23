@@ -16,7 +16,7 @@ import type { Recipient } from "./handles";
 import { matchCard, planChange } from "./match";
 import { readEmail } from "./parse";
 import { canTrackFromEmail } from "./plan";
-import { forwardedByStranger, trustOf } from "./trust";
+import { forwardedByOwnGmail, forwardedByStranger, trustOf } from "./trust";
 import { INBOUND_LIMITS, type EmailChange, type EmailTrust } from "./types";
 import type { InboundEmail } from "./validation";
 
@@ -186,7 +186,18 @@ export async function receiveEmail(
     return "confirmation";
   }
   if (reading.kind === "test") {
-    await db.update(userSettings).set({ trackingTestAt: now }).where(own);
+    // Sent straight to the address it only proves the address; through the filter it finishes setup.
+    const viaFilter = forwardedByOwnGmail(mail, [...recipient.sources, recipient.email]);
+    await db
+      .update(userSettings)
+      .set(viaFilter ? { trackingTestAt: now, trackingLastEmailAt: now } : { trackingTestAt: now })
+      .where(own);
+    if (viaFilter && recipient.confirmedAt === null) {
+      await db
+        .update(userSettings)
+        .set({ trackingConfirmedAt: now })
+        .where(and(own, isNull(userSettings.trackingConfirmedAt)));
+    }
     return "test";
   }
   if (reading.kind === "noise") return "ignored";
