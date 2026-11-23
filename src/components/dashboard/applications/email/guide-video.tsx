@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 
 // A real screen recording can replace these three files under the same names.
 export const GMAIL_GUIDE = "/guides/gmail-forwarding";
+export const GMAIL_FILTER_GUIDE = "/guides/gmail-filter";
 
 const REDUCE = "(prefers-reduced-motion: reduce)";
 

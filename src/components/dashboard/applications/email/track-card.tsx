@@ -33,14 +33,14 @@ import {
   GMAIL_FILTERS_URL,
   GMAIL_FORWARDING_URL,
   gmailFilterFile,
-  gmailSearchUrl,
+  gmailCreateFilterUrl,
   testEmailHref,
 } from "@/lib/inbound/gmail-filter";
 import type { EmailTrackingState, TrackingAddress } from "@/lib/inbound/types";
 import { cn } from "@/lib/utils";
 import { EmailArt } from "./email-art";
 import { GmailButton, saveFile, useFlash } from "./gmail-button";
-import { GuideVideo } from "./guide-video";
+import { GMAIL_FILTER_GUIDE, GuideVideo } from "./guide-video";
 import { HandlePicker } from "./handle-picker";
 import { stopTracking, trackingAction, useEmailTracking, watchForMail } from "./use-email-tracking";
 import {
@@ -383,13 +383,10 @@ const FORWARD_STEPS: ReactNode[] = [
 
 const FILTER_STEPS: ReactNode[] = [
   <>
-    Press <B>Show search options</B> at the end of the search box.
-  </>,
-  <>
     Press <B>Create filter</B>.
   </>,
   <>
-    Tick <B>Forward it to</B> and pick your Otto address.
+    Tick <B>Forward it to</B> and choose your Otto address.
   </>,
   <>
     Press <B>Create filter</B>.
@@ -548,7 +545,7 @@ function Step({
   children: ReactNode;
 }) {
   const [again, setAgain] = useState(false);
-  const open = state === "current" || (state !== "current" && reopen && again);
+  const open = state === "current" || (reopen && again);
   return (
     <li className="relative grid grid-cols-[1.75rem_minmax(0,1fr)] gap-x-3">
       {last ? null : (
@@ -756,18 +753,14 @@ function FilterStep({ address, active }: { address: TrackingAddress; active: boo
   return (
     <>
       <div>
-        <GmailButton
-          href={gmailSearchUrl()}
-          main={active}
-          doneLabel="Filter copied"
-          onPress={() => copyText(GMAIL_FILTER, "filter", { quiet: true })}
-        >
-          Copy filter and open Gmail search
+        <GmailButton href={gmailCreateFilterUrl()} main={active}>
+          Open the filter in Gmail
         </GmailButton>
       </div>
+      <GuideVideo src={GMAIL_FILTER_GUIDE} />
       <p>Then in Gmail:</p>
       <SubSteps items={FILTER_STEPS} />
-      <p>Don&apos;t turn on forwarding for all mail. The filter sends only job emails.</p>
+      <p>Your Otto address shows here once Gmail has confirmed it (steps 1 and 2).</p>
       <Disclosure label="Or download the filter for Gmail">
         <div>
           <GmailButton

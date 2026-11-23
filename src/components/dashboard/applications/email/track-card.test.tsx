@@ -1,11 +1,10 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
-  GMAIL_FILTER,
   GMAIL_FILTER_FILE,
   GMAIL_FILTERS_URL,
   GMAIL_FORWARDING_URL,
-  gmailSearchUrl,
+  gmailCreateFilterUrl,
 } from "@/lib/inbound/gmail-filter";
 import type { TrackingAddress } from "@/lib/inbound/types";
 import type { GmailButtonProps } from "./gmail-button";
@@ -110,7 +109,7 @@ describe("the setup steps", () => {
     render(ADDRESS);
     const [open] = mocks.buttons;
     expect(text(renderToStaticMarkup(<>{open!.children}</>))).toBe("Copy address and open Gmail");
-    await expect(open!.onPress()).resolves.toBe(true);
+    await expect(open!.onPress!()).resolves.toBe(true);
     expect(mocks.copyText).toHaveBeenCalledWith(ADDRESS.email, "address", { quiet: true });
     expect(mocks.watchForMail).toHaveBeenCalledOnce();
     expect(open!.doneLabel).toBe("Address copied");
@@ -126,22 +125,33 @@ describe("the setup steps", () => {
     expect(text(html)).not.toContain("Copy address and open Gmail");
   });
 
-  it("opens step 3 with the search way first and a filter file as the other way", async () => {
+  it("opens step 3 on Gmail's filled-in filter, with its own clip and a filter file as the other way", () => {
     const html = render(CONFIRMED);
     expect(text(html)).toContain("Step 3 of 3");
-    for (const name of ["Show search options", "Create filter", "Forward it to"]) {
-      expect(html).toMatch(new RegExp(`<strong[^>]*>${name}</strong>`));
+    for (const line of [
+      "1 Press Create filter .",
+      "2 Tick Forward it to and choose your Otto address.",
+      "3 Press Create filter .",
+    ]) {
+      expect(text(html)).toContain(line);
     }
+    expect(text(html)).toContain(
+      "Your Otto address shows here once Gmail has confirmed it (steps 1 and 2).",
+    );
+    expect(html).toContain('poster="/guides/gmail-filter.jpg"');
+    expect(html.match(/<video/g)).toHaveLength(1);
     for (const name of ["Import filters", "Choose File", "Open file", "Create filters"]) {
       expect(html).toMatch(new RegExp(`<strong[^>]*>${name}</strong>`));
     }
-    const [search, file] = mocks.buttons;
-    expect([search!.href, search!.main]).toEqual([gmailSearchUrl(), true]);
+    const [open, file] = mocks.buttons;
+    expect([open!.href, open!.main, open!.onPress]).toEqual([
+      gmailCreateFilterUrl(),
+      true,
+      undefined,
+    ]);
+    expect(text(renderToStaticMarkup(<>{open!.children}</>))).toBe("Open the filter in Gmail");
     expect([file!.href, file!.main ?? false]).toEqual([GMAIL_FILTERS_URL, false]);
-
-    await search!.onPress();
-    expect(mocks.copyText).toHaveBeenCalledWith(GMAIL_FILTER, "filter", { quiet: true });
-    expect(file!.onPress()).toBe(true);
+    expect(file!.onPress!()).toBe(true);
     const [name, xml, type] = mocks.saveFile.mock.calls[0] as unknown as [string, string, string];
     expect([name, type]).toEqual([GMAIL_FILTER_FILE, "application/xml"]);
     expect(xml).toContain(`name="forwardTo" value="${CONFIRMED.email}"`);

@@ -40,8 +40,8 @@ export function saveFile(name: string, text: string, type: string): boolean {
 
 export type GmailButtonProps = {
   href: string;
-  onPress: () => boolean | Promise<boolean>;
-  doneLabel: string;
+  onPress?: () => boolean | Promise<boolean>;
+  doneLabel?: string;
   main?: boolean;
   children: ReactNode;
 };
@@ -61,7 +61,9 @@ export function GmailButton({
         href={href}
         target="_blank"
         rel="noopener noreferrer"
-        onClick={() => void Promise.resolve(onPress()).then((ok) => ok && flash())}
+        onClick={
+          onPress ? () => void Promise.resolve(onPress()).then((ok) => ok && flash()) : undefined
+        }
         className={buttonClasses({
           variant: main ? "primary" : "secondary",
           className: "max-sm:w-full",

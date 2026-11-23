@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { GMAIL_FILTER, gmailFilterFile, gmailSearchUrl, testEmailHref } from "./gmail-filter";
+import {
+  GMAIL_FILTER,
+  gmailCreateFilterUrl,
+  gmailFilterFile,
+  gmailSearchUrl,
+  testEmailHref,
+} from "./gmail-filter";
 import { readEmail } from "./parse";
 
 describe("the Gmail filter", () => {
@@ -7,6 +13,12 @@ describe("the Gmail filter", () => {
     expect(GMAIL_FILTER).toMatch(/^from:\(greenhouse\.io OR .+\) OR subject:\(.+"otto test"\)$/);
     expect(GMAIL_FILTER.length).toBeLessThan(500);
     expect(decodeURIComponent(gmailSearchUrl().split("#search/")[1]!)).toBe(GMAIL_FILTER);
+    expect(gmailCreateFilterUrl()).toMatch(
+      /^https:\/\/mail\.google\.com\/mail\/u\/0\/#create-filter\/has=/,
+    );
+    expect(decodeURIComponent(gmailCreateFilterUrl().split("#create-filter/has=")[1]!)).toBe(
+      GMAIL_FILTER,
+    );
   });
 
   it("lets the test email through and Otto knows it's a test", () => {

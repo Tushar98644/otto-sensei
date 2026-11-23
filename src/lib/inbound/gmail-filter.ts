@@ -67,6 +67,11 @@ export function gmailSearchUrl(query: string = GMAIL_FILTER): string {
   return `https://mail.google.com/mail/u/0/#search/${encodeURIComponent(query)}`;
 }
 
+// Opens Gmail's filter panel with "Has the words" already filled in.
+export function gmailCreateFilterUrl(query: string = GMAIL_FILTER): string {
+  return `https://mail.google.com/mail/u/0/#create-filter/has=${encodeURIComponent(query)}`;
+}
+
 export function testEmailHref(address: string): string {
   const body =
     "This is a test from my Gmail. Otto shows it on the Applications page when it arrives.";
