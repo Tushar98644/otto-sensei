@@ -8,12 +8,12 @@ Every table has row level security on with no policies (only the server connects
 
 Accounts and settings
 
-- `users`: one row per Supabase Auth user: email copy, plan, billing ids and period.
+- `users`: one row per Supabase Auth user: email copy, plan, billing ids and period, and the prepaid credit balance in cents (`credit_cents`, beside the plan so a spend takes the same row lock).
 - `user_settings`: one row per account, every column at its default until changed: where the person can work and Looking for, reminders and the weekly matches note, the old email lists' opt-outs, writing style, first-login setup, career log check-ins, Fill with Otto answers, the last day active and the recap's days active and built weeks, the invite code and the invite the account joined through, the private calendar link's hash, the email-tracking setup, the last trial end reminded, the one-time notices emailed, and the ids of deleted resumes.
 - `usage`: AI allowance counts per account, feature and period (`YYYY-MM`, `cycle:<start>`, `trial`), plus invite extras.
 - `metered_calls`: short-lived rows of a charged AI call: a paid result replayed under the browser's request id for ten minutes (`result`), and a line fix's pass for its follow-up answers (`pass`).
 - `rate_limits`: fixed-window abuse counters by device, address or email.
-- `billing_log`: billing's do-it-once records: webhook ids and other handled keys (`event`), one SHA-256 of the email per person who trialed or paid, kept after deletion so a trial isn't taken twice (`trial`), and trials replaced by a purchase with their cancel retries (`replacement`).
+- `billing_log`: billing's do-it-once records: webhook ids and other handled keys (`event`), one SHA-256 of the email per person who trialed or paid, kept after deletion so a trial isn't taken twice (`trial`), and trials replaced by a purchase with their cancel retries (`replacement`). It is also the prepaid credit ledger, in `cents`: a credit checkout started (`topup_checkout`), a credited payment (`topup`, keyed by payment id), credit a refund or lost dispute took back (`topup_back`), and credit spent on an AI action (`credit_spend`, with its feature). The ledger rows go with the account and are in the data export's `credit.json`.
 
 Resumes, applications and writing
 
@@ -68,6 +68,9 @@ The daily cleanup cron (`src/lib/cron/cleanup.ts`, 04:17 UTC) deletes in batches
 | `usage`                                                                | 400 days after the period                                             |
 | `billing_log` events                                                   | 400 days                                                              |
 | `billing_log` trials                                                   | always (only an email hash)                                           |
+| `billing_log` credit checkouts                                         | 30 days                                                               |
+| `billing_log` credit spends                                            | 400 days                                                              |
+| `billing_log` top-ups and take-backs                                   | until the account is deleted                                          |
 | `jobs`                                                                 | closed: 7 days, or 30 when saved or linked to an application (ingest) |
 | `saved_jobs`                                                           | with their job                                                        |
 | everything else                                                        | until the person deletes it or the account                            |

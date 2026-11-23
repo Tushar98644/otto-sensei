@@ -519,6 +519,30 @@ subscription when its period runs out, so it gets the longest one):
   cancels keeps what they paid for. The app itself cancels at once only when an account is deleted
   or a second trial is refused.
 
+**Prepaid credit (off until the owner turns it on).** The script also makes `Otto Sensei credit
+($1)`: a one-time $1.00 product in USD, tax on top, tax category SaaS, pay what you want off, tagged
+`otto_topup`, and writes its id as `DODO_TOPUP_PRODUCT_ID`. Credit stays hidden everywhere (account
+page, limit dialogs, pricing, FAQ) until that variable is in Vercel; leave it out until the owner
+says yes.
+
+- A paid Pro or Max plan past its trial adds credit in whole dollars, from `TOPUP_LIMITS.minUsd`
+  ($5) to $100 at a time, up to a $300 balance (`src/config/topup.ts`). The checkout buys the $1
+  product with **quantity = dollars**, so the amount is set on our server and the payment's
+  `product_cart` shows it. Before Dodo hears of the checkout, the app stores its own record
+  (`billing_log` kind `topup_checkout`: the account and the cents) and signs that record's id into
+  the metadata (`topup_id`, `topup_sig`).
+- `payment.succeeded` credits the record's cents once per payment id, and only when the product,
+  the quantity, the signed record, the signed account, the checkout session and (in USD) the pre-tax
+  total all match it. Anything else is logged as `billing.topup_mismatch` and not credited: refund
+  it from the dashboard. Subscription payments never reach this path.
+- `refund.succeeded` takes the refund's share of the credit back (a partial refund by its share of
+  the total charged), and `dispute.lost` or `dispute.accepted` takes all of it, never below a zero
+  balance; each is logged as `billing.topup_taken_back`. No new webhook events or key permissions
+  are needed.
+- Prices per action come from Pro: $1 buys what a fifteenth of Pro buys in that feature (today 10¢
+  a tailored version or letter, 2¢ a line fix, 15¢ an AI resume read, 30¢ a Build with Otto or
+  GitHub draft). They follow `PLANS.pro` by themselves, so nothing in Dodo changes with them.
+
 **5. The webhook endpoint** (made by step 4; **Developer** → **Webhooks** shows it):
 
 - URL `https://<your app>/api/billing/webhook`, with exactly these 23 events: the 12
@@ -572,6 +596,7 @@ vercel env add DODO_MAX_YEARLY_PRODUCT_ID production
 | `DODO_WEBHOOK_SECRET` | The endpoint's `whsec_...` secret (step 5) |
 | `BILLING_SIGNING_SECRET` | Step 6 |
 | `DODO_PRO_MONTHLY_PRODUCT_ID` and the other four | The `pdt_...` ids the setup script wrote (step 4); test and live ids differ |
+| `DODO_TOPUP_PRODUCT_ID` | Optional: the credit product's id (step 4). Set it only once the owner wants credit on sale |
 
 They take effect with the next deploy (step 10). Billing turns on (`/api/me` answers
 `billing.mode: "dodo"`) only when `DODO_API_KEY`, `DODO_WEBHOOK_SECRET`, `BILLING_SIGNING_SECRET`

@@ -175,6 +175,7 @@ Everything lives in `src/config/plans.ts`. Change numbers there, never in copy.
 | Resumes (tailored copies count) | 1 | 25 | 50 | 25 |
 | Tracked applications | 1 | 1,000 | 2,000 | 1,000 |
 
+- **Prepaid credit** (`src/config/topup.ts`, on only while `DODO_TOPUP_PRODUCT_ID` is set): past a month's allowance, or once the AI budget runs out, Pro and Max (not Free, not the trial) pay from a prepaid balance. $1 buys what a fifteenth of Pro buys in that feature: 10¢ a tailored version or letter, 2¢ a line fix, 15¢ an AI read, 30¢ a draft. Top-ups are $5 to $100 in whole dollars, a balance holds $300, and it never expires while the account exists.
 - **Worst-case cost per user a month**, with every cap hit: Pro about $3.6 (after Dodo's fees you keep about $10 of $15), Max about $7 (you keep about $20 of $29).
 - **Typical cost:** a few cents.
 - **Resumes and tracked applications** are kept, not monthly. An account past its plan's number (a Max account that moved to Pro, or a paid plan that ended) keeps everything and can open, edit, save and delete it; only adding one more is refused until it's under the number. Reads and the data export use the largest plan's numbers, and the export streams, so Vercel's 4.5 MB limit doesn't apply to it.
