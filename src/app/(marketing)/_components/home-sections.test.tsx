@@ -1,14 +1,18 @@
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 import { usePathname } from "next/navigation";
 import { renderToStaticMarkup } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { HeaderActions } from "@/components/site/account-link";
 import { HERO_CTA_ID } from "@/components/site/hero-cta-in-view";
-import { applicationLimit, resumeLimit } from "@/config/plans";
+import { applicationLimit, PLAN_ORDER, PLANS, resumeLimit } from "@/config/plans";
 import { trialOffered } from "@/lib/billing/intervals";
+import { extensionAccess } from "@/lib/extension/plan";
 import { JOB_COUNTS_FALLBACK } from "@/lib/job-feed/counts";
 import { PORTFOLIO_PICKS, PORTFOLIO_TEMPLATE_INFO } from "@/lib/portfolio/templates";
 import { PORTFOLIO_TEMPLATE_IDS } from "@/lib/portfolio/types";
 import { TEMPLATE_IDS } from "@/lib/resume/schema";
+import { ExtensionShowcase } from "./extension-showcase";
 import { Faq } from "./faq";
 import { FEATURES, FeaturesOverview } from "./features-overview";
 import { FinalCta } from "./final-cta";
@@ -31,6 +35,12 @@ vi.mock("next/navigation", async (importOriginal) => ({
   usePathname: vi.fn(() => "/"),
 }));
 vi.mock("@/lib/billing/intervals", () => ({ trialOffered: vi.fn(() => true) }));
+const extensionStore = vi.hoisted(() => ({ url: null as string | null }));
+vi.mock("@/lib/extension/store", () => ({
+  get CHROME_STORE_URL() {
+    return extensionStore.url;
+  },
+}));
 
 const text = (html: string) =>
   html
@@ -39,9 +49,13 @@ const text = (html: string) =>
     .replace(/\s+/g, " ")
     .trim();
 
+const realStore =
+  await vi.importActual<typeof import("@/lib/extension/store")>("@/lib/extension/store");
+
 beforeEach(() => {
   vi.mocked(usePathname).mockReturnValue("/");
   vi.mocked(trialOffered).mockReturnValue(true);
+  extensionStore.url = realStore.CHROME_STORE_URL;
 });
 
 describe("the hero's call to action", () => {
@@ -176,8 +190,8 @@ describe("the home page's copy", () => {
     expect(jobs).toContain("in the US, the UK, Australia, Latin America, Europe and more");
   });
 
-  it("never advertises email tracking, the Chrome extension or email reminders", () => {
-    const page = [
+  it("never advertises email tracking or email reminders, and Otto for Chrome only as coming soon until it's in the store", () => {
+    const others = [
       <Hero key="hero" />,
       <HowItWorks key="how" />,
       <FeaturesOverview key="features" />,
@@ -190,7 +204,79 @@ describe("the home page's copy", () => {
     ]
       .map((section) => text(renderToStaticMarkup(section)))
       .join(" ");
-    expect(page).not.toMatch(/track\w* (your )?email|forward|inbox|chrome|extension/i);
+    expect(others).not.toMatch(/chrome|extension/i);
+    const extension = text(renderToStaticMarkup(<ExtensionShowcase />));
+    const comingSoon = realStore.CHROME_STORE_URL === null;
+    expect(/coming soon/i.test(extension)).toBe(comingSoon);
+    expect(/add to chrome/i.test(extension)).toBe(!comingSoon);
+    const page = `${others} ${extension}`;
+    expect(page).not.toMatch(/track\w* (your )?email|forward|inbox/i);
     expect(page).not.toMatch(/we('ll| will) email|by email|email (you|reminders?)/i);
+  });
+});
+
+const STORE_URL =
+  "https://chromewebstore.google.com/detail/otto-for-chrome/abcdefghijklmnopabcdefghijklmnop";
+const plansWith = (tool: "tailor" | "fill") =>
+  new Intl.ListFormat("en-US", { type: "conjunction" }).format(
+    PLAN_ORDER.filter((plan) => extensionAccess(plan)[tool]).map((plan) => PLANS[plan].name),
+  );
+
+describe("Otto for Chrome on the home page", () => {
+  it("sits right after the Jobs section", () => {
+    const page = readFileSync(fileURLToPath(new URL("../page.tsx", import.meta.url)), "utf8");
+    expect(page).toMatch(
+      /<JobsShowcase [^>]*\/>\s*<ExtensionShowcase \/>\s*<PortfolioShowcase \/>/,
+    );
+  });
+
+  it("says what it does, with the plans for each tool taken from its own rules", () => {
+    const html = renderToStaticMarkup(<ExtensionShowcase />);
+    const copy = text(html);
+    expect(html).toContain('aria-labelledby="extension-showcase-title"');
+    expect(html).toMatch(
+      /<h2 id="extension-showcase-title"[^>]*>Your match, right on the job post<\/h2>/,
+    );
+    expect(html.match(/<h3 /g)).toHaveLength(4);
+    expect(copy).toContain(
+      "Otto for Chrome checks job posts against your resume on the pages where you read them, and saves the ones you want to your board.",
+    );
+    expect(copy).toContain(
+      "On LinkedIn, Naukri and company career pages, Otto's badge shows which of the post's skills your resume has and which it's missing. The check runs in your browser and never sends the post anywhere.",
+    );
+    expect(copy).toContain(
+      "Save puts the job in To apply on your Applications board, with a copy of the post in case it's taken down.",
+    );
+    expect(plansWith("tailor")).toBe("Pro and Max");
+    expect(copy).toContain(
+      `On ${plansWith("tailor")}, Tailor opens Otto with your resume tailored to that job, and Letter with a cover letter for it.`,
+    );
+    expect(copy).toContain(
+      `On ${plansWith("fill")}, Otto fills Greenhouse, Lever, Ashby and Workday forms from your resume and saved answers. You check it and press Submit. Otto never fills self-identification or consent questions.`,
+    );
+    expect(html).toMatch(
+      /role="img" aria-label="Example: Otto&#x27;s badge in the corner of a Senior Product Designer post, with 3 of 4 skills found and accessibility missing\."/,
+    );
+  });
+
+  it("says it's coming soon, with no install button or store link, while the store listing isn't set", () => {
+    extensionStore.url = null;
+    const html = renderToStaticMarkup(<ExtensionShowcase />);
+    const copy = text(html);
+    expect(copy).toContain("Otto for Chrome · coming soon");
+    expect(copy).toContain("Coming soon Not in the Chrome Web Store yet.");
+    expect(copy).not.toMatch(/add to chrome|install/i);
+    expect(html).not.toContain("<a ");
+    expect(html).not.toMatch(/chromewebstore|chrome\.google\.com/);
+  });
+
+  it("offers Add to Chrome, linking to the store, once the listing is set", () => {
+    extensionStore.url = STORE_URL;
+    const html = renderToStaticMarkup(<ExtensionShowcase />);
+    const copy = text(html);
+    expect(html).toContain(`href="${STORE_URL}" target="_blank" rel="noopener noreferrer"`);
+    expect(copy).toContain("Add to Chrome (opens in a new tab)");
+    expect(copy).not.toMatch(/coming soon|Chrome Web Store yet/i);
+    expect(html.match(/<a /g)).toHaveLength(1);
   });
 });

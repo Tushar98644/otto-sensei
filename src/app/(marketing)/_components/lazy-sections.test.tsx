@@ -1,6 +1,7 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 import { JOB_COUNTS_FALLBACK } from "@/lib/job-feed/counts";
+import { ExtensionShowcase } from "./extension-showcase";
 import { Faq } from "./faq";
 import { FeaturesOverview } from "./features-overview";
 import { FinalCta } from "./final-cta";
@@ -24,6 +25,7 @@ describe("home sections below the fold", () => {
     <HowItWorks key="how" />,
     <FeaturesOverview key="features" />,
     <JobsShowcase key="jobs" jobCounts={JOB_COUNTS_FALLBACK} />,
+    <ExtensionShowcase key="extension" />,
     <PortfolioShowcase key="portfolio" />,
     <WontDo key="wont-do" />,
     <PricingTeaser key="pricing" />,
