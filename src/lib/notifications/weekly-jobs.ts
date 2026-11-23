@@ -32,7 +32,8 @@ export const WEEKLY_JOBS = {
   // Jobs named in the bell row; the count covers the rest.
   named: 2,
   usersPerBatch: 20,
-  maxChecksPerRun: 300,
+  // About 37 ms an account, so 900 fits the 45 s budget; the deadline still stops a slow run.
+  maxChecksPerRun: 900,
 } as const;
 
 type Due = { userId: string; plan: PlanId; notedAt: number | null };
