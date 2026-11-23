@@ -995,7 +995,9 @@ vercel env add NEXT_PUBLIC_POSTHOG_HOST production   # only for EU: https://eu.i
   `pdf_downloaded` / `docx_downloaded` → `upgrade_clicked` → `checkout_started` →
   `checkout_completed`, plus `application_logged`. From the server: `signed_up`, `signed_in`,
   `checkout_started`, `checkout_completed`, `line_fixed`, `tailor_run`, `letter_written`,
-  `application_logged` and `ai_call` (task, model, latency, outcome).
+  `application_logged` and `ai_call` (task, model, latency, outcome). The Dodo webhook adds the
+  billing events (renewals, plan changes, cancels, ends, failed payments, refunds, disputes; listed
+  under Billing events in `docs/architecture.md`), so revenue and churn need no Dodo connection.
 - `bun dev` sends events when the key is in `.env.local`; leave it out locally unless you're
   testing analytics.
 

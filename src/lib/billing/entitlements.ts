@@ -68,20 +68,23 @@ export type ApplyResult =
       outcome: "applied";
       userId: string;
       plan: PlanId;
+      interval: BillingInterval | null;
       trialing: boolean;
-      before: { plan: PlanId; trialing: boolean };
+      // status is this subscription's own status before, null when it wasn't the tracked one.
+      before: { plan: PlanId; trialing: boolean; status: string | null };
       // A different live subscription the user was on before this one took over.
       otherLiveSubscriptionId: string | null;
     }
   | { outcome: "duplicate" }
-  | { outcome: "ignored"; reason: IgnoreReason }
+  // userId: recorded for this user, but a newer event had already set the state.
+  | { outcome: "ignored"; reason: IgnoreReason; userId?: string }
   | { outcome: "rejected"; reason: "trial_reused"; userId: string };
 
 export type UserLookup = {
   userId?: string;
   email?: string;
   customerId: string;
-  subscriptionId: string;
+  subscriptionId?: string;
 };
 
 const LOOKUP_LIMIT = 10;
@@ -106,7 +109,7 @@ export function findUserQuery(db: Db, lookup: UserLookup) {
       or(
         // Checkout metadata is free-form; a value that isn't a uuid can't be one of our ids.
         lookup.userId && isUserId(lookup.userId) ? eq(users.id, lookup.userId) : undefined,
-        eq(users.billingSubscriptionId, lookup.subscriptionId),
+        lookup.subscriptionId ? eq(users.billingSubscriptionId, lookup.subscriptionId) : undefined,
         eq(users.billingCustomerId, lookup.customerId),
         lookup.email ? eq(users.email, lookup.email) : undefined,
       ),
@@ -119,15 +122,25 @@ async function findUser(db: Db, lookup: UserLookup) {
   const rows = await findUserQuery(db, { ...lookup, email });
   return (
     rows.find((row) => lookup.userId !== undefined && row.id === lookup.userId) ??
-    rows.find((row) => row.billingSubscriptionId === lookup.subscriptionId) ??
+    rows.find(
+      (row) =>
+        lookup.subscriptionId !== undefined && row.billingSubscriptionId === lookup.subscriptionId,
+    ) ??
     rows.find((row) => row.billingCustomerId === lookup.customerId) ??
     rows.find((row) => email !== undefined && row.email === email) ??
     null
   );
 }
 
+export type BillingUser = { id: string; plan: PlanId };
+
+export async function findBillingUser(lookup: UserLookup): Promise<BillingUser | null> {
+  const user = await findUser(await getDb(), lookup);
+  return user ? { id: user.id, plan: user.plan } : null;
+}
+
 export async function findBillingUserId(lookup: UserLookup): Promise<string | null> {
-  return (await findUser(await getDb(), lookup))?.id ?? null;
+  return (await findBillingUser(lookup))?.id ?? null;
 }
 
 type FoundUser = NonNullable<Awaited<ReturnType<typeof findUser>>>;
@@ -176,7 +189,11 @@ export async function applySubscriptionState(
   const planInterval: BillingInterval | null =
     plan === "free" ? null : (state.priceInterval ?? user.planInterval);
   const trialEndsAt = trialEndFor(state, user, plan);
-  const before = { plan: user.plan, trialing: user.plan !== "free" && user.trialEndsAt !== null };
+  const before = {
+    plan: user.plan,
+    trialing: user.plan !== "free" && user.trialEndsAt !== null,
+    status: own ? user.planStatus : null,
+  };
   const tracked = chargeableSubscriptionId(user);
   // A paid replacement's own trial stays live until it's cancelled, so it's no second subscription.
   const otherLiveSubscriptionId =
@@ -266,7 +283,7 @@ export async function applySubscriptionState(
       )
       .returning({ id: users.id, email: users.email });
     const [row] = updated;
-    if (!row) return { outcome: "ignored", reason: "superseded" };
+    if (!row) return { outcome: "ignored", reason: "superseded", userId: user.id };
     const paying =
       plan !== "free" &&
       trialEndsAt === null &&
@@ -297,6 +314,7 @@ export async function applySubscriptionState(
       outcome: "applied",
       userId: user.id,
       plan,
+      interval: planInterval,
       trialing: plan !== "free" && trialEndsAt !== null,
       before,
       otherLiveSubscriptionId,

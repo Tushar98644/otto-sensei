@@ -37,9 +37,30 @@ export type ServerEventProps = {
   // The first page this browser opens signed in, once its visitor id is linked to the account.
   signed_in: { plan: PlanId };
   checkout_started: { plan: PaidPlanId; interval: BillingInterval };
-  checkout_completed: { plan: "pro" | "max"; trial?: boolean };
+  checkout_completed: { plan: "pro" | "max"; trial?: boolean; usd?: number };
   credit_checkout_started: { usd: number };
   credit_added: { usd: number };
+  // From the Dodo webhook; usd is before tax for charges and as Dodo reports it for refunds and disputes.
+  subscription_renewed: { plan: PaidPlanId; interval: BillingInterval; usd: number };
+  subscription_plan_changed: {
+    from_plan: PaidPlanId;
+    to_plan: PaidPlanId;
+    interval: BillingInterval;
+  };
+  subscription_cancelled: { plan: PaidPlanId; at_period_end: boolean; trial: boolean };
+  subscription_ended: { plan: PaidPlanId; status: SubscriptionEndStatus; trial: boolean };
+  payment_failed: {
+    kind: BillingKind;
+    plan?: PaidPlanId;
+    charge?: ChargeType;
+    reason?: string;
+    attempt?: number;
+  };
+  refund_issued: { kind: BillingKind; partial: boolean; usd?: number };
+  dispute_opened: { kind: BillingKind };
+  dispute_lost: { kind: BillingKind; usd?: number };
+  // PostHog's own person update, for a plan change no other event carries.
+  $set: NoProps;
   ai_call: { task: string; model: string; latency_ms: number; outcome: AICallOutcome };
   line_fixed: { demo: boolean };
   tailor_run: { demo: boolean };
@@ -60,6 +81,10 @@ export type ServerEventProps = {
 };
 
 export type JobSaveSource = "jobs" | "extension";
+
+export type BillingKind = "subscription" | "credit";
+export type ChargeType = "new" | "renewal" | "plan_change" | "on_demand";
+export type SubscriptionEndStatus = "cancelled" | "expired" | "on_hold" | "paused";
 
 export type ClientEvent = keyof ClientEventProps;
 export type ServerEvent = keyof ServerEventProps;

@@ -19,7 +19,10 @@ import {
 } from "./dodo-webhook-testing";
 import { processWebhook, type WebhookConfig } from "./webhook";
 
-vi.mock("@/lib/analytics/server", () => ({ captureServerEvent: vi.fn() }));
+vi.mock("@/lib/analytics/server", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/analytics/server")>()),
+  captureServerEvent: vi.fn(),
+}));
 
 const TOPUP = "pdt_TestTopupCredit000001";
 const PAY = DODO_TEST_IDS.payment;
@@ -180,7 +183,7 @@ describe("a top-up payment", () => {
     expect(captureServerEvent).toHaveBeenCalledWith(
       userId,
       "checkout_completed",
-      { plan: "pro", trial: false },
+      { plan: "pro", trial: false, usd: 1 },
       { set: { plan: "pro" } },
     );
     const topups = await (

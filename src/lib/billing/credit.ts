@@ -356,6 +356,17 @@ export async function returnCredit(userId: string, spendKey: string): Promise<vo
   });
 }
 
+// The account a payment bought credit for, or null when it wasn't a top-up.
+export async function topupBuyer(paymentId: string): Promise<string | null> {
+  const db = await getDb();
+  const [row] = await db
+    .select({ userId: owner })
+    .from(billingLog)
+    .where(and(eq(kind, "topup"), eq(key, paymentId)))
+    .limit(1);
+  return row?.userId ?? null;
+}
+
 export type CreditPurchase = { paymentId: string; at: number; cents: number; takenBack: boolean };
 
 export async function creditPurchases(userId: string): Promise<CreditPurchase[]> {

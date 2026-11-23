@@ -337,7 +337,7 @@ describe("protecting paying users", () => {
       NOW,
     );
 
-    expect(result).toEqual({ outcome: "ignored", reason: "superseded" });
+    expect(result).toEqual({ outcome: "ignored", reason: "superseded", userId: user.id });
     expect(await reload(user.id)).toMatchObject({ plan: "pro", billingSubscriptionId: "sub_paid" });
   });
 
@@ -367,6 +367,7 @@ describe("protecting paying users", () => {
     expect(await applySubscriptionState({ ...old, status: "canceled" }, source(), NOW)).toEqual({
       outcome: "ignored",
       reason: "superseded",
+      userId: user.id,
     });
     expect(
       await applySubscriptionState({ ...old, status: "scheduled_cancel" }, source(), NOW),
@@ -612,7 +613,7 @@ describe("the trial", () => {
       source(),
       NOW,
     );
-    expect(late).toEqual({ outcome: "ignored", reason: "superseded" });
+    expect(late).toEqual({ outcome: "ignored", reason: "superseded", userId: user.id });
     expect(await reload(user.id)).toMatchObject({ plan: "pro", billingEventAt: 2_000 });
   });
 });

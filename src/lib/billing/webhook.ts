@@ -1,11 +1,14 @@
 import type { z } from "zod";
 import {
   BILLING_INTERVALS,
+  isPaidPlan,
   PAID_PLANS,
   PRO_TRIAL,
   type BillingInterval,
   type PaidPlanId,
+  type PlanId,
 } from "@/config/plans";
+import type { BillingKind } from "@/lib/analytics/events";
 import { captureServerEvent } from "@/lib/analytics/server";
 import { isProduction } from "@/lib/env";
 import { log } from "@/lib/log";
@@ -32,6 +35,7 @@ import { DodoSubscriptionSchema, inTrialWindow, type DodoSubscription } from "./
 import {
   applySubscriptionState,
   claimBillingEvent,
+  findBillingUser,
   findBillingUserId,
   isLiveStatus,
   planForStatus,
@@ -44,6 +48,7 @@ import {
   findTopupCheckout,
   MAX_BALANCE_CENTS,
   takeBackTopup,
+  topupBuyer,
   type TakeBack,
 } from "./credit";
 import { TOPUP_METADATA_KEY } from "./credit-types";
@@ -55,6 +60,14 @@ import {
   settleReplacement,
   type OrphanOutcome,
 } from "./replacements";
+import {
+  customerIdOf,
+  trackCheckout,
+  trackDispute,
+  trackPaymentFailure,
+  trackRefund,
+  trackSubscription,
+} from "./webhook-analytics";
 
 // Dodo redelivers any non-2xx for about 27 hours, so only retryable failures get a 5xx.
 
@@ -124,7 +137,7 @@ export async function processWebhook(
     case "payment_succeeded":
       return recordPayment(event.data, context, ready, now);
     case "payment_failed":
-      return recordPaymentFailure(event.data, context, now);
+      return recordPaymentFailure(event.data, context, ready, now);
     case "refund":
     case "dispute":
       return recordAdjustment(event, context, ready, now);
@@ -180,6 +193,7 @@ async function recordSubscription(
       : null;
   if (orphanOf) return cancelOrphan(state.subscriptionId, orphanOf, context, now);
   await report(result, { ...context, status: state.status, subscriptionId: state.subscriptionId });
+  trackSubscription(event.type, subscription, event.data, state, result);
   if (result.outcome === "applied") {
     warnIfTrialMissed(subscription, event.eventAt ?? now, config, context);
   }
@@ -282,9 +296,8 @@ async function recordPayment(
       log.info("billing.webhook_duplicate", context);
       return { status: 200, message: "duplicate" };
     }
-    const { plan, trial } = choice;
-    captureServerEvent(userId, "checkout_completed", { plan, trial }, { set: { plan } });
-    log.info("billing.checkout_completed", { ...context, userId, plan, trial });
+    trackCheckout(userId, choice, object);
+    log.info("billing.checkout_completed", { ...context, userId, ...choice });
   } catch (error) {
     log.error("billing.webhook_failed", error, context);
     return { status: 500, message: "retry" };
@@ -389,16 +402,34 @@ async function recordTopup(
 async function recordPaymentFailure(
   object: unknown,
   context: Context,
+  config: ReadyConfig,
   now: number,
 ): Promise<WebhookResult> {
   const parsed = DodoPaymentSchema.safeParse(object);
   if (!parsed.success) return malformed(parsed.error, context);
   const payment = parsed.data;
-  if (payment.charge_type !== "plan_change") {
-    log.info("billing.webhook_ignored", { ...context, reason: "not_plan_change" });
+  const ignore = (reason: string): WebhookResult => {
+    log.info("billing.webhook_ignored", { ...context, reason });
     return { status: 200, message: "ignored" };
-  }
+  };
+  const subscriptionId = payment.subscription_id ?? undefined;
+  let kind: BillingKind | null = null;
+  if (subscriptionId || payment.charge_type) kind = "subscription";
+  else if (isTopup(object, payment, config)) kind = "credit";
+  if (!kind) return ignore("not_billing");
+  const planChange = payment.charge_type === "plan_change";
+  const ids = metadataIds(payment.metadata, config.signingSecret, {
+    ...context,
+    paymentId: payment.payment_id,
+  });
+  let payer: Awaited<ReturnType<typeof findBillingUser>>;
   try {
+    payer = await findBillingUser({
+      userId: ids.userId,
+      customerId: payment.customer.customer_id,
+      subscriptionId,
+    });
+    if (!payer && !planChange) return ignore("no_user");
     if (!(await claimBillingEvent(context.eventId, context.eventType, now))) {
       log.info("billing.webhook_duplicate", context);
       return { status: 200, message: "duplicate" };
@@ -407,13 +438,26 @@ async function recordPaymentFailure(
     log.error("billing.webhook_failed", error, context);
     return { status: 500, message: "retry" };
   }
-  log.warn("billing.plan_change_payment_failed", {
-    ...context,
-    paymentId: payment.payment_id,
-    subscriptionId: payment.subscription_id ?? null,
-    customerId: payment.customer.customer_id,
-  });
+  if (planChange) {
+    log.warn("billing.plan_change_payment_failed", {
+      ...context,
+      paymentId: payment.payment_id,
+      subscriptionId: payment.subscription_id ?? null,
+      customerId: payment.customer.customer_id,
+    });
+  }
+  if (payer) {
+    const plan = kind === "credit" ? null : failedPlan(payment, payer.plan);
+    trackPaymentFailure(payer.id, kind, plan, payment, object);
+  }
   return { status: 200, message: "applied" };
+}
+
+// A checkout names the plan it tried to buy; later charges are for the plan the account is on.
+function failedPlan(payment: DodoPayment, current: PlanId): PaidPlanId | null {
+  const tried = checkoutChoice(payment.metadata)?.plan ?? null;
+  const held = isPaidPlan(current) ? current : null;
+  return payment.charge_type === "new" ? (tried ?? held) : (held ?? tried);
 }
 
 const DISPUTE_LOSSES: ReadonlySet<string> = new Set(["dispute.lost", "dispute.accepted"]);
@@ -427,11 +471,17 @@ async function recordAdjustment(
 ): Promise<WebhookResult> {
   let fields: Record<string, string | number | boolean | null>;
   let takeBack: TakeBack | null = null;
+  let paymentId: string;
+  // What PostHog hears of it, once the event is claimed.
+  let track: ((owner: AdjustmentOwner) => void) | null = null;
+  let lossKey: string | null = null;
   if (event.kind === "refund") {
     const parsed = DodoRefundSchema.safeParse(event.data);
     if (!parsed.success) return malformed(parsed.error, context);
     const refund = parsed.data;
+    paymentId = refund.payment_id;
     if (event.type === "refund.succeeded") {
+      track = (owner) => trackRefund(owner.userId, owner.kind, refund);
       // A partial refund whose amount can't be read takes the whole credit back.
       const amount = refund.amount == null ? Number.NaN : Number(refund.amount);
       takeBack = {
@@ -456,7 +506,13 @@ async function recordAdjustment(
     const parsed = DodoDisputeSchema.safeParse(event.data);
     if (!parsed.success) return malformed(parsed.error, context);
     const dispute = parsed.data;
+    paymentId = dispute.payment_id;
+    if (event.type === "dispute.opened") {
+      track = (owner) => trackDispute("dispute_opened", owner.userId, owner.kind, dispute);
+    }
     if (DISPUTE_LOSSES.has(event.type)) {
+      track = (owner) => trackDispute("dispute_lost", owner.userId, owner.kind, dispute);
+      lossKey = `dispute_lost:${dispute.dispute_id}`;
       takeBack = {
         paymentId: dispute.payment_id,
         key: `dispute:${dispute.dispute_id}`,
@@ -474,6 +530,7 @@ async function recordAdjustment(
       rdr: dispute.is_resolved_by_rdr ?? null,
     };
   }
+  let owner: AdjustmentOwner | null;
   try {
     // Keyed by the refund or dispute, so it runs before the event's own claim and a retry repeats nothing.
     if (takeBack) {
@@ -498,16 +555,31 @@ async function recordAdjustment(
         });
       }
     }
+    owner = track ? await adjustmentOwner(paymentId, event.data) : null;
     if (!(await claimBillingEvent(context.eventId, context.eventType, now))) {
       log.info("billing.webhook_duplicate", context);
       return { status: 200, message: "duplicate" };
     }
+    // Lost and accepted may both come for one dispute; it counts once.
+    if (lossKey && !(await claimBillingEvent(lossKey, context.eventType, now))) owner = null;
   } catch (error) {
     log.error("billing.webhook_failed", error, context);
     return { status: 500, message: "retry" };
   }
   log.warn("billing.adjustment", { ...context, ...fields });
+  if (track && owner) track(owner);
   return { status: 200, message: "applied" };
+}
+
+type AdjustmentOwner = { userId: string | null; kind: BillingKind };
+
+// Our own top-up record names a credit's buyer; anything else is a subscription charge, found by its customer.
+async function adjustmentOwner(paymentId: string, data: unknown): Promise<AdjustmentOwner> {
+  const buyer = await topupBuyer(paymentId);
+  if (buyer) return { userId: buyer, kind: "credit" };
+  const customerId = customerIdOf(data);
+  const userId = customerId ? await findBillingUserId({ customerId }) : null;
+  return { userId, kind: "subscription" };
 }
 
 // A failed cancel keeps its trial_replacements row for the daily cron, so Dodo needn't redeliver.

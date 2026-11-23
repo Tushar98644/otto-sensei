@@ -37,7 +37,10 @@ import { retryPendingReplacements } from "./replacements";
 import { emailFingerprint } from "./trial";
 import { processWebhook, type WebhookConfig } from "./webhook";
 
-vi.mock("@/lib/analytics/server", () => ({ captureServerEvent: vi.fn() }));
+vi.mock("@/lib/analytics/server", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/analytics/server")>()),
+  captureServerEvent: vi.fn(),
+}));
 vi.mock("@/lib/portfolio/cache", () => ({ refreshPortfolioPages: vi.fn() }));
 vi.mock("@/lib/billing/dodo", async (importOriginal) => ({
   ...(await importOriginal<typeof import("./dodo")>()),
@@ -896,12 +899,16 @@ describe("checkout_completed analytics", () => {
 
   it("fires once for the payment that started a subscription, however often it's delivered", async () => {
     const user = await createUser();
-    const body = paymentEvent("payment.succeeded", { metadata: { user_id: user.id, ...choice() } });
+    const body = paymentEvent("payment.succeeded", {
+      total_amount: 25_520,
+      tax: 2_320,
+      metadata: { user_id: user.id, ...choice() },
+    });
     expect(await deliver(body)).toEqual(APPLIED);
     expect(captured).toHaveBeenCalledExactlyOnceWith(
       user.id,
       "checkout_completed",
-      { plan: "max", trial: false },
+      { plan: "max", trial: false, usd: 232 },
       { set: { plan: "max" } },
     );
     expect(await deliver(body)).toEqual(DUPLICATE);
@@ -926,9 +933,10 @@ describe("checkout_completed analytics", () => {
       metadata: { user_id: user.id, ...choice({ plan: "pro", interval: "month", trial: true }) },
     });
     expect(await deliver(bySigned)).toEqual(APPLIED);
+    const trial = { plan: "pro", trial: true, usd: 1 };
     expect(captured.mock.calls).toEqual([
-      [user.id, "checkout_completed", { plan: "pro", trial: true }, { set: { plan: "pro" } }],
-      [user.id, "checkout_completed", { plan: "pro", trial: true }, { set: { plan: "pro" } }],
+      [user.id, "checkout_completed", trial, { set: { plan: "pro" } }],
+      [user.id, "checkout_completed", trial, { set: { plan: "pro" } }],
     ]);
   });
 
@@ -956,11 +964,11 @@ describe("checkout_completed analytics", () => {
     expect(await recordedEvents()).toEqual([]);
   });
 
-  it("is never fired by subscription events", async () => {
+  it("is never fired by subscription events, which only set the person's plan", async () => {
     const user = await createUser();
     const body = event("subscription.active", { metadata: { user_id: user.id, ...choice() } });
     expect(await deliver(body)).toEqual(APPLIED);
-    expect(captured).not.toHaveBeenCalled();
+    expect(captured.mock.calls).toEqual([[user.id, "$set", {}, { set: { plan: "pro" } }]]);
   });
 });
 
@@ -977,7 +985,7 @@ describe("published portfolios", () => {
 });
 
 describe("a declined plan-change charge", () => {
-  it("is logged once with its ids and changes no plan; other failed payments are ignored", async () => {
+  it("is logged once with its ids and changes no plan; other failed payments aren't logged", async () => {
     vi.spyOn(console, "warn").mockImplementation(() => undefined);
     const user = await tracked();
     const declined = paymentEvent("payment.failed", { charge_type: "plan_change" });
@@ -985,14 +993,26 @@ describe("a declined plan-change charge", () => {
     expect(await deliver(declined, withId(declined, "msg_declined"))).toEqual(DUPLICATE);
     for (const chargeType of ["renewal", "new"]) {
       const other = paymentEvent("payment.failed", { charge_type: chargeType });
-      expect(await deliver(other)).toEqual(IGNORED);
+      expect(await deliver(other, withId(other, `msg_${chargeType}`))).toEqual(APPLIED);
     }
     expect(await reload(user.id)).toEqual(user);
     expect(loggedCount("warn", "billing.plan_change_payment_failed")).toBe(1);
     const text = logged("warn", "billing.plan_change_payment_failed");
     for (const value of ["msg_declined", PAY, SUB]) expect(text).toContain(value);
     expect(text).not.toContain("ada@example.com");
-    expect((await recordedEvents()).map((row) => row.id)).toEqual(["msg_declined"]);
+    expect((await recordedEvents()).map((row) => row.id).sort()).toEqual([
+      "msg_declined",
+      "msg_new",
+      "msg_renewal",
+    ]);
+  });
+
+  it("is still logged when no account matches it", async () => {
+    vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    const declined = paymentEvent("payment.failed", { charge_type: "plan_change" });
+    expect(await deliver(declined)).toEqual(APPLIED);
+    expect(loggedCount("warn", "billing.plan_change_payment_failed")).toBe(1);
+    expect(captured).not.toHaveBeenCalled();
   });
 });
 
@@ -1464,6 +1484,7 @@ describe("refunds and disputes", () => {
 
     expect(await reload(user.id)).toEqual(user);
     expect((await recordedEvents()).map((row) => row.id).sort()).toEqual([
+      `dispute_lost:${DODO_TEST_IDS.dispute}`,
       "msg_dispute_1",
       "msg_dispute_2",
       "msg_refund_1",
