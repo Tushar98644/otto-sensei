@@ -82,7 +82,7 @@ export default function ResumeTemplatesPage() {
         </h2>
         <Panel>
           <ul role="list" className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {TEMPLATE_LIST.map((info, index) => {
+            {TEMPLATE_LIST.map((info) => {
               const pro = isProTemplate(info.id);
               const titleId = `format-${info.id}`;
               return (
@@ -106,7 +106,7 @@ export default function ResumeTemplatesPage() {
                         <FormatImage
                           info={info}
                           sizes={IMAGE_SIZES}
-                          loading={index < 3 ? "eager" : "lazy"}
+                          loading="lazy"
                           className="shadow-page transition-[translate,box-shadow] duration-300 ease-out group-hover:-translate-y-1 group-hover:shadow-page-lift"
                         />
                       </span>

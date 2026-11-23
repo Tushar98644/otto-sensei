@@ -290,7 +290,7 @@ describe("resume templates page", () => {
     expect(html.match(/>Pro</g)).toHaveLength(TEMPLATE_LIST.length - 2);
   });
 
-  it("loads only the first row of previews up front", () => {
-    expect(html.match(/loading="lazy"/g)).toHaveLength(TEMPLATE_LIST.length - 3);
+  it("loads every preview lazily, since none is the page's largest paint", () => {
+    expect(html.match(/loading="lazy"/g)).toHaveLength(TEMPLATE_LIST.length);
   });
 });
