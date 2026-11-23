@@ -6,6 +6,7 @@ import type { ImportResponse } from "@/lib/api/types";
 import { getCurrentUser, hasSessionCookie } from "@/lib/auth/session";
 import { linkedInProfileText } from "@/lib/linkedin/profile-pdf";
 import { log } from "@/lib/log";
+import { creditField } from "@/lib/usage-credit";
 import type { Extraction } from "@/lib/parse";
 import { withLinkTargets } from "@/lib/resume/link-targets";
 import { emptyResume } from "@/lib/resume/schema";
@@ -40,7 +41,7 @@ export async function POST(req: Request): Promise<Response> {
         weakSigns = weakReadSigns(source.text, rules.resume, source.layout);
         if (askedForAI || weakSigns.length > 0) {
           if (user === undefined) user = await getCurrentUser();
-          read = await claimAiRead(user, startedAt);
+          read = await claimAiRead(user, startedAt, { credit: askedForAI });
         }
         structured = read.useAI
           ? await read.spend(() =>
@@ -89,7 +90,7 @@ export async function POST(req: Request): Promise<Response> {
       basicReader: read.limited,
       readWell,
     };
-    return ok(response);
+    return ok({ ...response, ...creditField(structured.usedAI ? read.credit : null) });
   } catch (error) {
     log.error("import.failed", error);
     return fail("server_error", "Something went wrong reading that file. Please try again.", 500);

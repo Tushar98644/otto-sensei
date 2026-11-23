@@ -3,7 +3,7 @@ import { rateLimit, retryAfterHeader, waitText } from "@/lib/rate-limit";
 import { HOUR_MS } from "@/lib/time";
 
 // Reads get their own buckets, so looking at the account page never uses up the billing links.
-export const READ_LIMITS = { history: 60, invoice: 30, export: 5 } as const;
+export const READ_LIMITS = { history: 60, credit: 60, invoice: 30, export: 5 } as const;
 
 export async function limitReads(
   kind: keyof typeof READ_LIMITS,

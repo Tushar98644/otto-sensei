@@ -21,12 +21,22 @@ function statusOf(params: URLSearchParams): string {
 }
 
 export function returnTarget(params: URLSearchParams): string {
+  if (one(params, "topup") === "1") return topupTarget(params);
   const plan = PAID_PLANS.find((id) => id === one(params, "plan"));
   if (!plan) return ROUTES.account;
   if (!PAID_STATUSES.has(statusOf(params))) return `${ROUTES.account}?checkout=cancelled`;
   const query = new URLSearchParams({ checkout: "success", plan });
   if (one(params, "trial") === "1") query.set("trial", "1");
   const next = upgradeReturnPath(one(params, "next"));
+  if (next) query.set("next", next);
+  return `${ROUTES.account}?${query}`;
+}
+
+// Credit lands with the webhook too; the page only says it is on its way.
+function topupTarget(params: URLSearchParams): string {
+  const paid = PAID_STATUSES.has(statusOf(params));
+  const query = new URLSearchParams({ topup: paid ? "success" : "cancelled" });
+  const next = paid ? upgradeReturnPath(one(params, "next")) : null;
   if (next) query.set("next", next);
   return `${ROUTES.account}?${query}`;
 }

@@ -6,6 +6,7 @@ import { GitHubError, newGitHubSession } from "@/lib/github/http";
 import { GitHubDraftRequestSchema, type GitHubDraftResponse } from "@/lib/github/types";
 import { readJson } from "@/lib/http";
 import { log } from "@/lib/log";
+import { creditField } from "@/lib/usage-credit";
 import { requirePlanFeature, takeAccountUnit, upgradeRequired } from "../../metered-free";
 import { gitHubFailure } from "../limits";
 import { ownGitHubLogin } from "../ownership";
@@ -51,7 +52,7 @@ export async function POST(req: Request): Promise<Response> {
         return fail("not_found", "Those repos and pull requests aren't on GitHub anymore. Look the name up again.", 404);
       }
       const response: Omit<GitHubDraftResponse, "ok"> = result;
-      return ok(response);
+      return ok({ ...response, ...creditField(result.usedAI ? unit.credit : null) });
     } catch (error) {
       await unit.giveBack();
       if (!(error instanceof GitHubError)) throw error;

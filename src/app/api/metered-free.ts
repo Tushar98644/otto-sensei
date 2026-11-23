@@ -10,16 +10,19 @@ import {
 import { checkAiBudget, spendAiTokens } from "@/lib/ai-budget";
 import { budgetReachedText } from "@/lib/ai-budget-copy";
 import { fail } from "@/lib/api/respond";
+import type { CreditNote } from "@/lib/api/types";
 import type { SessionUser } from "@/lib/auth/types";
 import { trialHeadline } from "@/lib/billing/prices";
 import { log } from "@/lib/log";
 import { retryAfterHeader } from "@/lib/rate-limit";
-import { consumeUsage, refundUsage } from "@/lib/usage";
+import { takeUnitOrCredit } from "@/lib/usage-credit";
 import { perPeriod, resetSentence, thisPeriod } from "@/lib/usage-copy";
 
 export type AccountUnit = {
   giveBack: () => Promise<void>;
   spend: <T>(work: () => Promise<T>) => Promise<T>;
+  // Set when credit paid, for the answer to say so.
+  credit: CreditNote | null;
 };
 
 const COMES_WITH_PRO: Record<Feature, string> = {
@@ -48,12 +51,15 @@ export async function takeAccountUnit(
   const missing = requirePlanFeature(user, feature);
   if (missing) return missing;
   const budget = await checkAiBudget(user, now);
-  if (!budget.allowed) return budgetReached(user, budget.period, now);
-  const { allowed, usage, period } = await consumeUsage(user, feature, now);
-  if (!allowed) return limitReached(user, feature, period, now, usage[feature].limit);
+  const taken = await takeUnitOrCredit(user, feature, now, { budgetAllowed: budget.allowed });
+  if (!taken.allowed) {
+    if (taken.budget) return budgetReached(user, taken.period, now);
+    return limitReached(user, feature, taken.period, now, taken.usage?.[feature].limit);
+  }
   return {
-    giveBack: () => refundUsage(user, feature, now),
+    giveBack: taken.giveBack,
     spend: (work) => spendAiTokens(user, now, work),
+    credit: taken.credit,
   };
 }
 

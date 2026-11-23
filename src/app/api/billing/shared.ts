@@ -1,4 +1,5 @@
 import { BRAND } from "@/config/brand";
+import { centsText, TOPUP_LIMITS } from "@/config/topup";
 import { fail } from "@/lib/api/respond";
 import type { ApiErrorCode } from "@/lib/api/types";
 import { BillingError, type BillingErrorDetails, type BillingRefusalReason } from "@/lib/billing";
@@ -15,6 +16,17 @@ const OVERDUE_MESSAGE =
 
 export const CHANGE_NOT_OFFERED_MESSAGE =
   "In the app a plan only moves up from Pro to Max, on the billing period you already have. To move to Pro, or between monthly and yearly, cancel from your account page and pick the new plan once your current period ends.";
+
+const CREDIT_PLAN_MESSAGE =
+  "Credit works on a paid Pro or Max plan, once any trial has ended. Your plan's allowance comes first.";
+
+function creditFullMessage({ roomCents = 0 }: BillingErrorDetails): string {
+  const cap = `Your balance holds up to $${TOPUP_LIMITS.maxBalanceUsd}`;
+  const room = Math.floor(roomCents / 100);
+  return room >= TOPUP_LIMITS.minUsd
+    ? `${cap}, so you can add up to $${room} right now.`
+    : `${cap}, and yours has ${centsText(Math.max(0, roomCents))} of room left. Use some, then add more.`;
+}
 
 const ALREADY_SUBSCRIBED: Failure = {
   code: "bad_request",
@@ -54,6 +66,10 @@ function failureFor(error: BillingError, action: Action): Failure {
       return { code: "plan_change_failed", status: 409, message: CHANGE_NOT_OFFERED_MESSAGE };
     case "payment_overdue":
       return { code: "plan_change_failed", status: 409, message: OVERDUE_MESSAGE };
+    case "credit_not_on_plan":
+      return { code: "upgrade_required", status: 402, message: CREDIT_PLAN_MESSAGE };
+    case "credit_full":
+      return { code: "bad_request", status: 409, message: creditFullMessage(error.details) };
     case "refused":
       return refusedFailure(error.details, action);
   }

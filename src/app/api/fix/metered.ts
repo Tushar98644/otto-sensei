@@ -21,11 +21,13 @@ import {
 } from "@/lib/metered-results";
 import { rateLimit, retryAfterHeader, waitText } from "@/lib/rate-limit";
 import { DAY_MS, MINUTE_MS } from "@/lib/time";
-import { consumeUsage, getUsage, refundUsage } from "@/lib/usage";
+import type { CreditNote } from "@/lib/api/types";
+import { getUsage } from "@/lib/usage";
+import { creditField, takeUnitOrCredit } from "@/lib/usage-credit";
 import { openPass, returnPass, takePass } from "@/lib/usage-passes";
 import { budgetReached, limitReached, requirePlanFeature } from "../metered-free";
 
-// Order matters: sign-in, plan, burst limit, validation, nothing to do, stored result, AI budget, allowance, then the call.
+// Order matters: sign-in, plan, burst limit, validation, nothing to do, stored result, AI budget, allowance or credit, then the call.
 
 export type MeteredCopy = {
   signIn: string;
@@ -55,6 +57,7 @@ type Unit = {
   usage: UsageSnapshot;
   giveBack: () => Promise<void>;
   opensPass: (() => Promise<void>) | null;
+  credit: CreditNote | null;
 };
 
 const CALLS_PER_MINUTE: Record<Feature, number> = {
@@ -157,8 +160,7 @@ export async function runMetered<S extends z.ZodType, R>(
     const runKey = claim?.kind === "run" ? claim.key : null;
     let kept = false;
     try {
-      if (!budget.allowed) return budgetReached(user, budget.period, now);
-      const unit = await takeUnit(user, route, body.data, now);
+      const unit = await takeUnit(user, route, body.data, now, budget.allowed);
       if (unit instanceof Response) return unit;
 
       const call = {
@@ -175,7 +177,7 @@ export async function runMetered<S extends z.ZodType, R>(
           kept = await keep(user, feature, () => saveResult(user.id, runKey, result, demo, now));
         if (unit.opensPass && route.followUp?.opensPass(result))
           await keep(user, feature, unit.opensPass);
-        return ok({ result, usage: unit.usage, demo });
+        return ok({ result, usage: unit.usage, demo, ...creditField(unit.credit) });
       } catch (error) {
         trackMeteredCall(call, error);
         const refunded = await refund(user, feature, now, error, unit.giveBack);
@@ -193,25 +195,36 @@ export async function runMetered<S extends z.ZodType, R>(
   }
 }
 
-// A follow-up with a live pass on its subject uses the pass; anything else takes a unit.
+// A follow-up with a live pass on its subject uses the pass; anything else takes a unit, or credit past the allowance or AI budget.
 async function takeUnit<S extends z.ZodType, R>(
   user: SessionUser,
   route: MeteredRoute<S, R>,
   input: z.output<S>,
   now: number,
+  budgetAllowed: boolean,
 ): Promise<Unit | Response> {
   const { feature, followUp } = route;
   const pass = followUp ? { userId: user.id, feature, subject: followUp.subject(input) } : null;
-  if (pass && followUp?.isFollowUp(input) && (await takePass(pass, now))) {
+  if (budgetAllowed && pass && followUp?.isFollowUp(input) && (await takePass(pass, now))) {
     log.info(`${feature}.follow_up`, { plan: user.plan });
-    return { usage: await getUsage(user, now), giveBack: () => returnPass(pass), opensPass: null };
+    return {
+      usage: await getUsage(user, now),
+      giveBack: () => returnPass(pass),
+      opensPass: null,
+      credit: null,
+    };
   }
-  const { allowed, usage, period } = await consumeUsage(user, feature, now);
-  if (!allowed) return limitReached(user, feature, period, now, usage[feature].limit);
+  const taken = await takeUnitOrCredit(user, feature, now, { budgetAllowed });
+  if (!taken.allowed) {
+    if (taken.budget) return budgetReached(user, taken.period, now);
+    return limitReached(user, feature, taken.period, now, taken.usage?.[feature].limit);
+  }
+  if (taken.credit) log.info(`${feature}.paid_with_credit`, { cents: taken.credit.cents });
   return {
-    usage,
-    giveBack: () => refundUsage(user, feature, now),
+    usage: taken.usage,
+    giveBack: taken.giveBack,
     opensPass: pass ? () => openPass(pass, now) : null,
+    credit: taken.credit,
   };
 }
 

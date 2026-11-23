@@ -5,6 +5,7 @@ import { rejectCrossSite, rejectNonJson } from "@/lib/auth/route-guards";
 import { getCurrentUser } from "@/lib/auth/session";
 import { readJson } from "@/lib/http";
 import { log } from "@/lib/log";
+import { creditField } from "@/lib/usage-credit";
 import { takeAccountUnit, upgradeRequired } from "../metered-free";
 
 export const runtime = "nodejs";
@@ -38,7 +39,7 @@ export async function POST(req: Request): Promise<Response> {
       durationMs: Date.now() - startedAt,
     });
     const response: Omit<DraftResponse, "ok"> = { resume, usedAI };
-    return ok(response);
+    return ok({ ...response, ...creditField(usedAI ? unit.credit : null) });
   } catch (error) {
     log.error("draft.failed", error);
     return fail("server_error", "Otto couldn't write the draft. Please try again.", 500);
