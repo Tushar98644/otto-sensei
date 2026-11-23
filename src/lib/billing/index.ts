@@ -149,6 +149,7 @@ export async function createTopupUrl(
   usd: number,
   next: string | null = null,
   now = Date.now(),
+  billing?: AccountBilling,
 ): Promise<string> {
   const mode = billingMode();
   const product = topupProductId();
@@ -166,12 +167,15 @@ export async function createTopupUrl(
   }
   const started = await startTopup(user.id, usd * 100, now);
   if (!started.ok) throw creditFull(started.roomCents);
-  const record = await getBillingRecord(user.id);
+  // The session already read the customer id; only a caller without it reads the row again.
+  const customerId = billing
+    ? billing.billingCustomerId
+    : ((await getBillingRecord(user.id))?.billingCustomerId ?? null);
   try {
     const { url, sessionId } = await createTopupCheckout({
       userId: user.id,
       email: user.email,
-      customerId: record?.billingCustomerId ?? null,
+      customerId,
       productId: product,
       usd,
       topupId: started.id,

@@ -15,7 +15,23 @@ import { GET as creditGet } from "./credit/route";
 import { GET as returnGet } from "./return/route";
 import { POST as topup } from "./topup/route";
 
-vi.mock("@/lib/auth/session", () => ({ getCurrentUser: vi.fn() }));
+const session = vi.hoisted(() => ({
+  billing: { planStatus: null, billingCustomerId: null, billingSubscriptionId: null } as {
+    planStatus: string | null;
+    billingCustomerId: string | null;
+    billingSubscriptionId: string | null;
+  },
+}));
+
+// The top-up route reads the whole account; the credit route only the user.
+vi.mock("@/lib/auth/session", () => {
+  const getCurrentUser = vi.fn();
+  const getCurrentAccount = vi.fn(async () => {
+    const user = await getCurrentUser();
+    return user ? { user, github: null, billing: session.billing } : null;
+  });
+  return { getCurrentUser, getCurrentAccount };
+});
 vi.mock("@/lib/rate-limit", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/rate-limit")>()),
   rateLimit: vi.fn(),
@@ -58,6 +74,11 @@ async function signIn(overrides: Partial<typeof users.$inferInsert> = {}): Promi
   await insertUserRow(row);
   const [stored] = await (await getDb()).select().from(users).where(eq(users.id, row.id));
   const user = toSessionUser(stored!);
+  session.billing = {
+    planStatus: stored!.planStatus,
+    billingCustomerId: stored!.billingCustomerId,
+    billingSubscriptionId: stored!.billingSubscriptionId,
+  };
   currentUser.mockResolvedValue(user);
   return user;
 }
