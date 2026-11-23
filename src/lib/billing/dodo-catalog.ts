@@ -295,7 +295,7 @@ export function topupTagged(metadata: Record<string, unknown>): boolean {
 
 export function topupSpec() {
   return {
-    name: "Otto Sensei credit ($1)",
+    name: "Otto Sensei credit",
     description:
       "Prepaid Otto Sensei credit in whole dollars, for AI help once a paid plan's monthly allowance runs out.",
     tax_category: TAX_CATEGORY,

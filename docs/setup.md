@@ -519,8 +519,8 @@ subscription when its period runs out, so it gets the longest one):
   cancels keeps what they paid for. The app itself cancels at once only when an account is deleted
   or a second trial is refused.
 
-**Prepaid credit (off until the owner turns it on).** The script also makes `Otto Sensei credit
-($1)`: a one-time $1.00 product in USD, tax on top, tax category SaaS, pay what you want off, tagged
+**Prepaid credit (off until the owner turns it on).** The script also makes `Otto Sensei credit`:
+a one-time $1.00 unit product (the checkout shows it as "Otto Sensei credit × 10", never a $1 option) in USD, tax on top, tax category SaaS, pay what you want off, tagged
 `otto_topup`, and writes its id as `DODO_TOPUP_PRODUCT_ID`. Credit stays hidden everywhere (account
 page, limit dialogs, pricing, FAQ, terms) until that variable is in Vercel; leave it out until the
 owner says yes. Unsetting it later stops new sales and spending, but a checkout already paid is
