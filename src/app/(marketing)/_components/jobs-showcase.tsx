@@ -47,12 +47,12 @@ type Point = { title: string; text: string };
 
 const POINTS: readonly Point[] = [
   {
-    title: "Matched to your resume",
-    text: "Each job shows what it asks for that your resume has, and what it doesn't. The closest matches come first.",
+    title: "Your kind of work, matched to your resume",
+    text: "Otto reads what a job title means, so a Software Engineer sees Backend Developer posts but not support or sales ones. Each job shows what your resume has and what it's missing.",
   },
   {
     title: "Visa and work rights, checked",
-    text: "On Pro, tell Otto where you can work and posts that say they can't hire you are marked. Companies on the public US H-1B and UK sponsor registers say so.",
+    text: "On Pro, tell Otto where you can work: posts that say they can't hire you are marked, and one switch hides them. Companies on the public US H-1B and UK sponsor registers say so.",
   },
   {
     title: "The role, level and place you want",
@@ -60,7 +60,7 @@ const POINTS: readonly Point[] = [
   },
   {
     title: "Straight from the company",
-    text: "Jobs come from companies' own careers pages and public job feeds, read every day. Each one links to the original post.",
+    text: "Jobs come from companies' own careers pages and public job feeds in the US, the UK, Australia, Latin America, Europe and more, read every day. Each one links to the original post.",
   },
 ];
 
@@ -79,9 +79,9 @@ export function JobsShowcase({ jobCounts }: { jobCounts: JobCounts }) {
           open ? `${open} open jobs, ranked for your resume` : "Open jobs, ranked for your resume"
         }
       >
-        Otto reads companies&apos; careers pages every day and puts the jobs that fit your resume
-        first, with a plain reason for each. Free shows your top {FREE_JOB_MATCHES}; Pro matches you
-        against all of them.
+        Otto reads companies&apos; careers pages every day and shows only jobs in your line of work,
+        best fit first, with a plain reason for each. Free shows your top {FREE_JOB_MATCHES}; Pro
+        matches you against all of them.
       </SectionHeader>
       <Panel className="mt-12 sm:mt-16">
         <ul role="list" aria-label="Example matches" className="flex flex-col gap-3 sm:gap-4">

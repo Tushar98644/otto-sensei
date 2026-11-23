@@ -3,14 +3,25 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { HeaderActions } from "@/components/site/account-link";
 import { HERO_CTA_ID } from "@/components/site/hero-cta-in-view";
+import { applicationLimit, resumeLimit } from "@/config/plans";
 import { trialOffered } from "@/lib/billing/intervals";
-import { FeaturesOverview } from "./features-overview";
+import { JOB_COUNTS_FALLBACK } from "@/lib/job-feed/counts";
+import { PORTFOLIO_PICKS, PORTFOLIO_TEMPLATE_INFO } from "@/lib/portfolio/templates";
+import { PORTFOLIO_TEMPLATE_IDS } from "@/lib/portfolio/types";
+import { TEMPLATE_IDS } from "@/lib/resume/schema";
+import { Faq } from "./faq";
+import { FEATURES, FeaturesOverview } from "./features-overview";
+import { FinalCta } from "./final-cta";
+import { Hero } from "./hero";
 import { HeroCta } from "./hero-cta";
 import { HeroDemo } from "./hero-demo";
 import { HowItWorks } from "./how-it-works";
+import { JobsShowcase } from "./jobs-showcase";
+import { PortfolioShowcase } from "./portfolio-showcase";
 import { PricingTeaser } from "./pricing-teaser";
 import { PrimaryCta } from "./primary-cta";
 import { SectionLink } from "./section";
+import { WontDo } from "./wont-do";
 
 vi.mock("next/font/google", () => ({
   EB_Garamond: () => ({ className: "face-italic", variable: "", style: {} }),
@@ -81,9 +92,11 @@ describe("the pricing teaser", () => {
     const html = renderToStaticMarkup(<PricingTeaser />);
     expect(html.match(/<li/g)).toHaveLength(2);
     expect(text(html)).toContain(
-      "Free: check, fix and download one resume as a PDF, with 3 line fixes a month from Otto.",
+      "Free: check, fix and download 1 resume as a PDF, with 3 line fixes a month from Otto.",
     );
-    expect(text(html)).toContain("Pro, $15 a month: tailoring, cover letters");
+    expect(text(html)).toContain(
+      "Pro, $15 a month: tailoring, cover letters, every job match, up to 25 resumes and 1,000 tracked applications.",
+    );
     expect(text(html)).toContain("Try 3 days for $1.");
     expect(html).toContain('href="/pricing"');
     expect(text(html)).toContain("See pricing");
@@ -112,5 +125,72 @@ describe("the home page's sections", () => {
 
   it("keep the features lead about the features", () => {
     expect(renderToStaticMarkup(<FeaturesOverview />)).not.toMatch(/microphone/i);
+  });
+});
+
+const count = new Intl.NumberFormat("en-US");
+
+describe("the home page's copy", () => {
+  it("takes Free's and Pro's resume and application numbers from the plans", () => {
+    const teaser = text(renderToStaticMarkup(<PricingTeaser />));
+    expect(teaser).toContain(`download ${resumeLimit("free")} resume as a PDF`);
+    expect(teaser).toContain(
+      `up to ${count.format(resumeLimit("pro"))} resumes and ${count.format(applicationLimit("pro"))} tracked applications`,
+    );
+    expect(teaser).not.toMatch(/full tracker|unlimited/i);
+  });
+
+  it("shows Our picks in the portfolio showcase, in order, and counts every design", () => {
+    const html = renderToStaticMarkup(<PortfolioShowcase />);
+    const shown = [...html.matchAll(/alt="A portfolio page in the ([^"]+) design"/g)].map(
+      (match) => match[1],
+    );
+    expect(shown).toEqual(PORTFOLIO_PICKS.map((id) => PORTFOLIO_TEMPLATE_INFO[id].name));
+    for (const id of PORTFOLIO_PICKS) expect(html).toContain(`/portfolio-shots/${id}-`);
+    expect(text(html)).toContain(`Pick one of ${PORTFOLIO_TEMPLATE_IDS.length} designs`);
+  });
+
+  it("describes what the app does today in What's inside", () => {
+    const features = [
+      text(renderToStaticMarkup(<FeaturesOverview />)),
+      ...Object.values(FEATURES).map((feature) => feature.text),
+    ].join(" ");
+    expect(features).toContain(`in ${TEMPLATE_IDS.length} clean formats hiring software reads`);
+    expect(features).toContain("Cover letters, outreach messages and answers");
+    expect(features).toContain(
+      "Open jobs in your line of work from company boards around the world",
+    );
+    expect(features).toContain(
+      "Technical roles also get a technical round on your projects, core concepts and system design, and a practice mode.",
+    );
+    expect(features).not.toMatch(/every application|every job you apply/i);
+  });
+
+  it("says jobs are of the person's own kind of work, read for meaning, from boards worldwide", () => {
+    const jobs = text(renderToStaticMarkup(<JobsShowcase jobCounts={JOB_COUNTS_FALLBACK} />));
+    expect(jobs).toContain("shows only jobs in your line of work, best fit first");
+    expect(jobs).toContain(
+      "so a Software Engineer sees Backend Developer posts but not support or sales ones",
+    );
+    expect(jobs).toContain("and one switch hides them");
+    expect(jobs).toContain("in the US, the UK, Australia, Latin America, Europe and more");
+  });
+
+  it("never advertises email tracking, the Chrome extension or email reminders", () => {
+    const page = [
+      <Hero key="hero" />,
+      <HowItWorks key="how" />,
+      <FeaturesOverview key="features" />,
+      <JobsShowcase key="jobs" jobCounts={JOB_COUNTS_FALLBACK} />,
+      <PortfolioShowcase key="portfolio" />,
+      <WontDo key="wont" />,
+      <PricingTeaser key="pricing" />,
+      <Faq key="faq" />,
+      <FinalCta key="cta" />,
+    ]
+      .map((section) => text(renderToStaticMarkup(section)))
+      .join(" ");
+    expect(page).not.toMatch(/track\w* (your )?email|forward|inbox|chrome|extension/i);
+    expect(page).not.toMatch(/we('ll| will) email|by email|email (you|reminders?)/i);
   });
 });

@@ -6,28 +6,29 @@ import { ROUTES } from "@/components/site/routes";
 import { Badge } from "@/components/ui/badge";
 import { Panel, Window } from "@/components/ui/panel";
 import { Tab, TabList, TabPanel, Tabs } from "@/components/ui/tabs";
+import { TEMPLATE_IDS } from "@/lib/resume/schema";
 import { FEATURE_PREVIEWS, PreloadPortfolioPreview } from "./features-previews";
 import { Section, SectionHeader } from "./section";
 
 type Feature = { text: string; section?: string };
 
-const FEATURES: Record<string, Feature> = {
+export const FEATURES: Record<string, Feature> = {
   [ROUTES.dashboardResumes]: {
-    text: "Every resume and tailored copy in one place, in six clean formats hiring software reads. Check, fix and download each one.",
+    text: `Every resume and tailored copy in one place, in ${TEMPLATE_IDS.length} clean formats hiring software reads. Check, fix and download each one.`,
     section: "#how",
   },
   [ROUTES.dashboardLetters]: {
-    text: "Cover letters and answers to application questions, written only from your resume and the job post.",
+    text: "Cover letters, outreach messages and answers to application questions, written only from your resume and the job post.",
   },
   [ROUTES.dashboardJobs]: {
-    text: "Open jobs from company boards, ranked by how closely each one matches your resume.",
+    text: "Open jobs in your line of work from company boards around the world, ranked by how closely each one matches your resume.",
     section: "#jobs",
   },
   [ROUTES.dashboardApplications]: {
-    text: "Every job you apply to on one board, with the resume you sent and reminders to follow up.",
+    text: "The jobs you apply to on one board, with the resume you sent and reminders to follow up.",
   },
   [ROUTES.dashboardInterview]: {
-    text: "For each interview: likely questions, stories from your own resume lines, and questions to ask.",
+    text: "For each interview: likely questions, stories from your own resume lines and questions to ask. Technical roles also get a technical round on your projects, core concepts and system design, and a practice mode.",
   },
   [PORTFOLIO_ROUTE]: {
     text: "A portfolio site made from your resume, hosted for you at your own link.",
@@ -49,7 +50,7 @@ export function FeaturesOverview() {
         eyebrow="What's inside"
         title="Your whole job hunt, in one place"
       >
-        One account for your resume, the jobs, and every application after it. Pick a section to see
+        One account for your resume, the jobs, and your applications after it. Pick a section to see
         it.
       </SectionHeader>
       <Tabs defaultValue={SHOWN[0]!.href} className="mt-12 sm:mt-16">
