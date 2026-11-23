@@ -28,16 +28,6 @@ export function useFlash(): [boolean, () => void] {
   return [on, useCallback(() => setOn(true), [])];
 }
 
-export function saveFile(name: string, text: string, type: string): boolean {
-  const url = URL.createObjectURL(new Blob([text], { type }));
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = name;
-  link.click();
-  window.setTimeout(() => URL.revokeObjectURL(url), 10_000);
-  return true;
-}
-
 export type GmailButtonProps = {
   href: string;
   onPress?: () => boolean | Promise<boolean>;
@@ -46,7 +36,7 @@ export type GmailButtonProps = {
   children: ReactNode;
 };
 
-// A real link, so the new tab is never blocked; the copy or download starts in the same press.
+// A real link, so the new tab is never blocked; the copy starts in the same press.
 export function GmailButton({
   href,
   onPress,

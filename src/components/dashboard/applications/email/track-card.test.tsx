@@ -1,11 +1,6 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import {
-  GMAIL_FILTER_FILE,
-  GMAIL_FILTERS_URL,
-  GMAIL_FORWARDING_URL,
-  gmailCreateFilterUrl,
-} from "@/lib/inbound/gmail-filter";
+import { GMAIL_FORWARDING_URL, gmailCreateFilterUrl } from "@/lib/inbound/gmail-filter";
 import type { TrackingAddress } from "@/lib/inbound/types";
 import type { GmailButtonProps } from "./gmail-button";
 import { SetupSteps } from "./track-card";
@@ -13,7 +8,6 @@ import { SetupSteps } from "./track-card";
 const mocks = vi.hoisted(() => ({
   buttons: [] as GmailButtonProps[],
   copyText: vi.fn(async () => true),
-  saveFile: vi.fn(() => true),
   watchForMail: vi.fn(),
   trackingAction: vi.fn(async () => true),
 }));
@@ -24,7 +18,6 @@ vi.mock("./gmail-button", async (importOriginal) => {
   const actual = await importOriginal<typeof import("./gmail-button")>();
   return {
     ...actual,
-    saveFile: mocks.saveFile,
     GmailButton: (props: GmailButtonProps) => {
       mocks.buttons.push(props);
       return actual.GmailButton(props);
@@ -125,7 +118,7 @@ describe("the setup steps", () => {
     expect(text(html)).not.toContain("Copy address and open Gmail");
   });
 
-  it("opens step 3 on Gmail's filled-in filter, with its own clip and a filter file as the other way", () => {
+  it("opens step 3 on Gmail's filled-in filter with its own clip and nothing else", () => {
     const html = render(CONFIRMED);
     expect(text(html)).toContain("Step 3 of 3");
     for (const line of [
@@ -140,21 +133,15 @@ describe("the setup steps", () => {
     );
     expect(html).toContain('poster="/guides/gmail-filter.jpg"');
     expect(html.match(/<video/g)).toHaveLength(1);
-    for (const name of ["Import filters", "Choose File", "Open file", "Create filters"]) {
-      expect(html).toMatch(new RegExp(`<strong[^>]*>${name}</strong>`));
-    }
-    const [open, file] = mocks.buttons;
+    expect(text(html)).not.toMatch(/download the filter|See the filter|Import filters/);
+    expect(mocks.buttons).toHaveLength(1);
+    const [open] = mocks.buttons;
     expect([open!.href, open!.main, open!.onPress]).toEqual([
       gmailCreateFilterUrl(),
       true,
       undefined,
     ]);
     expect(text(renderToStaticMarkup(<>{open!.children}</>))).toBe("Open the filter in Gmail");
-    expect([file!.href, file!.main ?? false]).toEqual([GMAIL_FILTERS_URL, false]);
-    expect(file!.onPress!()).toBe(true);
-    const [name, xml, type] = mocks.saveFile.mock.calls[0] as unknown as [string, string, string];
-    expect([name, type]).toEqual([GMAIL_FILTER_FILE, "application/xml"]);
-    expect(xml).toContain(`name="forwardTo" value="${CONFIRMED.email}"`);
   });
 
   it("folds every step once job emails come in", () => {

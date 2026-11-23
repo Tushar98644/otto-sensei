@@ -2,7 +2,6 @@
 
 import {
   Check,
-  ChevronDown,
   Copy,
   Ellipsis,
   ListChecks,
@@ -28,18 +27,14 @@ import { ProMark } from "@/components/ui/pro-mark";
 import { Spinner } from "@/components/ui/spinner";
 import { BRAND } from "@/config/brand";
 import {
-  GMAIL_FILTER,
-  GMAIL_FILTER_FILE,
-  GMAIL_FILTERS_URL,
   GMAIL_FORWARDING_URL,
-  gmailFilterFile,
   gmailCreateFilterUrl,
   testEmailHref,
 } from "@/lib/inbound/gmail-filter";
 import type { EmailTrackingState, TrackingAddress } from "@/lib/inbound/types";
 import { cn } from "@/lib/utils";
 import { EmailArt } from "./email-art";
-import { GmailButton, saveFile, useFlash } from "./gmail-button";
+import { GmailButton, useFlash } from "./gmail-button";
 import { GMAIL_FILTER_GUIDE, GuideVideo } from "./guide-video";
 import { HandlePicker } from "./handle-picker";
 import { stopTracking, trackingAction, useEmailTracking, watchForMail } from "./use-email-tracking";
@@ -208,7 +203,7 @@ function AddressMenu({
       icon: Send,
       onSelect: () => {
         watchForMail();
-        window.location.href = testEmailHref(address.email);
+        window.open(testEmailHref(address.email), "_blank", "noopener,noreferrer");
       },
     },
     "separator",
@@ -393,21 +388,6 @@ const FILTER_STEPS: ReactNode[] = [
   </>,
 ];
 
-const IMPORT_STEPS: ReactNode[] = [
-  <>
-    Press <B>Import filters</B> at the bottom of the page.
-  </>,
-  <>
-    Press <B>Choose File</B> and pick <B>{GMAIL_FILTER_FILE}</B> from your downloads.
-  </>,
-  <>
-    Press <B>Open file</B>.
-  </>,
-  <>
-    Press <B>Create filters</B>.
-  </>,
-];
-
 export function SetupSteps({ address, userId }: { address: TrackingAddress; userId: string }) {
   const now = useNow();
   const stage = setupStage(address);
@@ -449,7 +429,7 @@ export function SetupSteps({ address, userId }: { address: TrackingAddress; user
             {address.confirm ? <ConfirmStep address={address} userId={userId} /> : null}
           </Step>
           <Step n={3} state={state(3)} title="Add a filter for job emails" last>
-            <FilterStep address={address} active={stage === "filter"} />
+            <FilterStep active={stage === "filter"} />
           </Step>
         </ol>
       </div>
@@ -457,6 +437,8 @@ export function SetupSteps({ address, userId }: { address: TrackingAddress; user
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2 border-t border-border pt-4">
         <a
           href={testEmailHref(address.email)}
+          target="_blank"
+          rel="noopener noreferrer"
           onClick={watchForMail}
           className={buttonClasses({ variant: "secondary", size: "sm" })}
         >
@@ -470,7 +452,7 @@ export function SetupSteps({ address, userId }: { address: TrackingAddress; user
               Test received {timeAgo(address.testAt, now)}. Your address works.
             </span>
           ) : (
-            "Opens a new email to your address with the subject Otto test. Send it and it shows up here."
+            "Opens a Gmail draft to your address. Press Send and it shows up here."
           )}
         </p>
       </div>
@@ -749,7 +731,7 @@ function ConfirmStep({ address, userId }: { address: TrackingAddress; userId: st
   );
 }
 
-function FilterStep({ address, active }: { address: TrackingAddress; active: boolean }) {
+function FilterStep({ active }: { active: boolean }) {
   return (
     <>
       <div>
@@ -761,42 +743,7 @@ function FilterStep({ address, active }: { address: TrackingAddress; active: boo
       <p>Then in Gmail:</p>
       <SubSteps items={FILTER_STEPS} />
       <p>Your Otto address shows here once Gmail has confirmed it (steps 1 and 2).</p>
-      <Disclosure label="Or download the filter for Gmail">
-        <div>
-          <GmailButton
-            href={GMAIL_FILTERS_URL}
-            doneLabel="Filter downloaded"
-            onPress={() =>
-              saveFile(GMAIL_FILTER_FILE, gmailFilterFile(address.email), "application/xml")
-            }
-          >
-            Download filter and open Gmail
-          </GmailButton>
-        </div>
-        <p>Then in Gmail:</p>
-        <SubSteps items={IMPORT_STEPS} />
-      </Disclosure>
-      <Disclosure label="See the filter">
-        <div className="rounded-xl bg-surface-muted p-3">
-          <p className="font-mono text-xs/5 break-words text-ink">{GMAIL_FILTER}</p>
-        </div>
-      </Disclosure>
     </>
-  );
-}
-
-function Disclosure({ label, children }: { label: string; children: ReactNode }) {
-  return (
-    <details className="group/more">
-      <summary className="flex min-h-9 w-fit cursor-pointer list-none items-center gap-1 text-sm text-muted hover:text-ink pointer-coarse:min-h-11 [&::-webkit-details-marker]:hidden">
-        {label}
-        <ChevronDown
-          aria-hidden
-          className="size-4 transition-transform group-open/more:rotate-180"
-        />
-      </summary>
-      <div className="mt-3 flex flex-col gap-4">{children}</div>
-    </details>
   );
 }
 
