@@ -4,7 +4,7 @@ import { ROUTES } from "@/components/site/routes";
 import { PRO_TRIAL, type BillingInterval, type PaidPlanId } from "@/config/plans";
 import { getDb } from "@/db/client";
 import { lockUser } from "@/db/locks";
-import { trialReminders, users, userSettings } from "@/db/schema";
+import { users, userSettings } from "@/db/schema";
 import { emailLink } from "@/lib/analytics/landing";
 import { MOCK_STATUS } from "@/lib/billing/mock";
 import { appUrl } from "@/lib/env";
@@ -65,7 +65,7 @@ function dueFor({ after, until }: Window) {
 
 function notRemindedYet() {
   const near = TRIAL_REMINDER.sameTrialMs;
-  return sql`not exists (select 1 from ${trialReminders} where ${trialReminders.userId} = ${users.id} and ${trialReminders.trialEndsAt} > ${users.trialEndsAt} - ${near} and ${trialReminders.trialEndsAt} < ${users.trialEndsAt} + ${near})`;
+  return sql`not exists (select 1 from ${userSettings} s where s.user_id = ${users.id} and s.trial_reminded_for > ${users.trialEndsAt} - ${near} and s.trial_reminded_for < ${users.trialEndsAt} + ${near})`;
 }
 
 async function claimForUser(userId: string, window: Window, now: number): Promise<Claimed | null> {
@@ -87,10 +87,14 @@ async function claimForUser(userId: string, window: Window, now: number): Promis
       .limit(1);
     if (!row || row.plan === "free" || row.endsAt === null) return null;
     const recorded = await tx
-      .insert(trialReminders)
-      .values({ userId, trialEndsAt: row.endsAt, createdAt: now })
-      .onConflictDoNothing()
-      .returning({ userId: trialReminders.userId });
+      .insert(userSettings)
+      .values({ userId, trialRemindedFor: row.endsAt, updatedAt: now })
+      .onConflictDoUpdate({
+        target: userSettings.userId,
+        set: { trialRemindedFor: row.endsAt },
+        setWhere: sql`${userSettings.trialRemindedFor} is distinct from ${row.endsAt}::bigint`,
+      })
+      .returning({ userId: userSettings.userId });
     if (recorded.length === 0) return null;
     const trial = {
       plan: row.plan,

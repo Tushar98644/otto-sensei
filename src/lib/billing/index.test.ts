@@ -1,7 +1,7 @@
 import { eq } from "drizzle-orm";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { getDb } from "@/db/client";
-import { trialHistory, users } from "@/db/schema";
+import { users } from "@/db/schema";
 import { insertUserRow, resetDb } from "@/lib/auth/test-helpers";
 import type { SessionUser } from "@/lib/auth/types";
 import { resetEnvForTests } from "@/lib/env";
@@ -17,6 +17,7 @@ import {
 import { signBillingId } from "./billing-sign";
 import { chargeableSubscriptionId } from "./entitlements";
 import { dodoId, installFakeDodo, type FakeDodo } from "./dodo-testing";
+import { trialRows } from "./log-testing";
 import { recordTrialHistory } from "./trial";
 
 const APP_URL = "https://otto.example";
@@ -180,7 +181,7 @@ describe("mock mode", () => {
     const row = await reload(user.id);
     expect(row).toMatchObject({ plan: "pro", planInterval: "month", planStatus: "mock_trialing" });
     expect(row?.trialEndsAt).toBeGreaterThanOrEqual(before + 3 * DAY_MS);
-    expect(await (await getDb()).select().from(trialHistory)).toHaveLength(1);
+    expect(await trialRows()).toHaveLength(1);
     expect(dodo.calls).toEqual([]);
   });
 

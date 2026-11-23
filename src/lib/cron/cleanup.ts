@@ -1,28 +1,23 @@
-import { and, eq, inArray, isNotNull, lt, ne, or, sql } from "drizzle-orm";
-import { TOMBSTONE_MAX_AGE_MS } from "@/app/api/resumes/backups";
+import { and, eq, isNotNull, lt, ne, or, sql } from "drizzle-orm";
+import { TOMBSTONE_MAX_AGE_MS, trimOldTombstones } from "@/app/api/resumes/backups";
 import { getDb } from "@/db/client";
 import {
-  billingEvents,
-  emailLog,
+  billingLog,
   inboundEmails,
   matchCache,
   matchEvents,
-  meteredResults,
+  meteredCalls,
   notifications,
   portfolioRedirects,
   rateLimits,
-  resumeTombstones,
-  trialReminders,
   usage,
-  usagePasses,
 } from "@/db/schema";
 import { retryPendingReplacements } from "@/lib/billing/replacements";
 import { deleteExpiredExtensionTokens } from "@/lib/extension/tokens";
 import { releaseHandles } from "@/lib/inbound/handles";
 import { MATCH_CACHE_MAX_AGE_MS } from "@/lib/job-feed/match-cache";
 import { log } from "@/lib/log";
-import { NOTICE_EMAIL_KINDS, TIP_EMAIL_KINDS } from "@/lib/notifications/types";
-import { deleteOldActiveDays, deleteOldRecaps } from "@/lib/recap/records";
+import { trimOldRecaps } from "@/lib/recap/records";
 import { DAY_MS } from "@/lib/time";
 import { cycleKey, monthKey } from "@/lib/usage";
 import { drain, type CronContext, type CronOutcome } from "./run";
@@ -39,11 +34,6 @@ export const RETENTION = {
   matchActionsMs: 90 * DAY_MS,
   // Past periods' allowance counts are never read; kept as long as billing events, a yearly plan and its disputes.
   usagePeriodsMs: 400 * DAY_MS,
-  tipEmailsMs: 90 * DAY_MS,
-  // A service notice's row is the record that the email the terms promise went out.
-  noticeEmailsMs: 730 * DAY_MS,
-  // Only a reminder near a live trial's end is ever read.
-  trialRemindersMs: 90 * DAY_MS,
   matchCacheMs: MATCH_CACHE_MAX_AGE_MS,
   // What Otto read in a job email shows for six months, then goes.
   inboundEmailsMs: 180 * DAY_MS,
@@ -74,21 +64,7 @@ export async function runCleanup({ now, deadline }: CronContext): Promise<CronOu
         return deleted.length;
       },
     },
-    {
-      name: "tombstones",
-      run: async () => {
-        const stale = db
-          .select({ userId: resumeTombstones.userId, id: resumeTombstones.id })
-          .from(resumeTombstones)
-          .where(lt(resumeTombstones.deletedAt, now - RETENTION.tombstonesMs))
-          .limit(CLEANUP_BATCH);
-        const deleted = await db
-          .delete(resumeTombstones)
-          .where(sql`(${resumeTombstones.userId}, ${resumeTombstones.id}) in ${stale}`)
-          .returning({ id: resumeTombstones.id });
-        return deleted.length;
-      },
-    },
+    { name: "tombstones", run: () => trimOldTombstones(now, CLEANUP_BATCH) },
     {
       name: "notifications",
       run: async () => {
@@ -115,15 +91,16 @@ export async function runCleanup({ now, deadline }: CronContext): Promise<CronOu
     {
       name: "billingEvents",
       run: async () => {
+        const { kind, key, at } = billingLog;
         const stale = db
-          .select({ id: billingEvents.id })
-          .from(billingEvents)
-          .where(lt(billingEvents.receivedAt, now - RETENTION.billingEventsMs))
+          .select({ key })
+          .from(billingLog)
+          .where(and(eq(kind, "event"), lt(at, now - RETENTION.billingEventsMs)))
           .limit(CLEANUP_BATCH);
         const deleted = await db
-          .delete(billingEvents)
-          .where(sql`${billingEvents.id} in ${stale}`)
-          .returning({ id: billingEvents.id });
+          .delete(billingLog)
+          .where(and(eq(kind, "event"), sql`${key} in ${stale}`))
+          .returning({ key });
         return deleted.length;
       },
     },
@@ -168,33 +145,18 @@ export async function runCleanup({ now, deadline }: CronContext): Promise<CronOu
       },
     },
     {
-      name: "usagePasses",
+      name: "meteredCalls",
       run: async () => {
-        const { userId, feature, subject } = usagePasses;
+        const { userId, kind, key } = meteredCalls;
         const stale = db
-          .select({ userId, feature, subject })
-          .from(usagePasses)
-          .where(lt(usagePasses.expiresAt, now))
+          .select({ userId, kind, key })
+          .from(meteredCalls)
+          .where(lt(meteredCalls.expiresAt, now))
           .limit(CLEANUP_BATCH);
         const deleted = await db
-          .delete(usagePasses)
-          .where(sql`(${userId}, ${feature}, ${subject}) in ${stale}`)
-          .returning({ subject });
-        return deleted.length;
-      },
-    },
-    {
-      name: "meteredResults",
-      run: async () => {
-        const stale = db
-          .select({ userId: meteredResults.userId, key: meteredResults.requestKey })
-          .from(meteredResults)
-          .where(lt(meteredResults.expiresAt, now))
-          .limit(CLEANUP_BATCH);
-        const deleted = await db
-          .delete(meteredResults)
-          .where(sql`(${meteredResults.userId}, ${meteredResults.requestKey}) in ${stale}`)
-          .returning({ key: meteredResults.requestKey });
+          .delete(meteredCalls)
+          .where(sql`(${userId}, ${kind}, ${key}) in ${stale}`)
+          .returning({ key });
         return deleted.length;
       },
     },
@@ -260,43 +222,6 @@ export async function runCleanup({ now, deadline }: CronContext): Promise<CronOu
       },
     },
     {
-      name: "emailLog",
-      run: async () => {
-        const { userId, kind, occasion, createdAt } = emailLog;
-        const stale = db
-          .select({ userId, kind, occasion })
-          .from(emailLog)
-          .where(
-            or(
-              and(inArray(kind, TIP_EMAIL_KINDS), lt(createdAt, now - RETENTION.tipEmailsMs)),
-              and(inArray(kind, NOTICE_EMAIL_KINDS), lt(createdAt, now - RETENTION.noticeEmailsMs)),
-            ),
-          )
-          .limit(CLEANUP_BATCH);
-        const deleted = await db
-          .delete(emailLog)
-          .where(sql`(${userId}, ${kind}, ${occasion}) in ${stale}`)
-          .returning({ kind });
-        return deleted.length;
-      },
-    },
-    {
-      name: "trialReminders",
-      run: async () => {
-        const { userId, trialEndsAt } = trialReminders;
-        const stale = db
-          .select({ userId, trialEndsAt })
-          .from(trialReminders)
-          .where(lt(trialEndsAt, now - RETENTION.trialRemindersMs))
-          .limit(CLEANUP_BATCH);
-        const deleted = await db
-          .delete(trialReminders)
-          .where(sql`(${userId}, ${trialEndsAt}) in ${stale}`)
-          .returning({ userId });
-        return deleted.length;
-      },
-    },
-    {
       name: "portfolioRedirects",
       run: async () => {
         const stale = db
@@ -311,8 +236,7 @@ export async function runCleanup({ now, deadline }: CronContext): Promise<CronOu
         return deleted.length;
       },
     },
-    { name: "weeklyRecaps", run: () => deleteOldRecaps(now, CLEANUP_BATCH) },
-    { name: "activeDays", run: () => deleteOldActiveDays(now, CLEANUP_BATCH) },
+    { name: "recaps", run: () => trimOldRecaps(now, CLEANUP_BATCH) },
   ];
 
   const stats: Record<string, number> = {};

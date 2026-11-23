@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { getDb } from "@/db/client";
-import { notifications, trialReminders } from "@/db/schema";
+import { isNotNull } from "drizzle-orm";
+import { notifications, userSettings } from "@/db/schema";
 import type { ApiErrorBody } from "@/lib/api/types";
 import { createUser, resetDb, setPlan } from "@/lib/auth/test-helpers";
 import type { CronResponse } from "@/lib/cron/run";
@@ -44,7 +45,14 @@ describe("/api/cron/trial-reminders", () => {
       expect(res.status).toBe(401);
       expect(((await res.json()) as ApiErrorBody).error.code).toBe("unauthorized");
     }
-    expect(await (await getDb()).select().from(trialReminders)).toHaveLength(0);
+    expect(
+      await (
+        await getDb()
+      )
+        .select()
+        .from(userSettings)
+        .where(isNotNull(userSettings.trialRemindedFor)),
+    ).toHaveLength(0);
   });
 
   it("refuses every call when no secret is configured", async () => {

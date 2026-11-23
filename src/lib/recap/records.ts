@@ -1,9 +1,8 @@
-import { and, desc, eq, gte, isNull, lt, max, sql, sum } from "drizzle-orm";
+import { and, desc, eq, max, sql, sum } from "drizzle-orm";
 import { hasProTools } from "@/config/plans";
-import { getDb, type Db } from "@/db/client";
+import { getDb, type Db, type Tx } from "@/db/client";
 import { lockUser } from "@/db/locks";
 import {
-  activeDays,
   applications,
   jobs,
   portfolios,
@@ -12,8 +11,9 @@ import {
   savedPosts,
   shares,
   users,
-  weeklyRecaps,
+  userSettings,
   writings,
+  type StoredRecap,
 } from "@/db/schema";
 import { readHistory, readStage, readStatus } from "@/lib/applications/status";
 import type { SessionUser } from "@/lib/auth/types";
@@ -31,6 +31,7 @@ import { buildRecap, usedOtto, type RankedWeek, type RecapFacts } from "./build"
 import { readyBody, recapHighlights } from "./summary";
 import {
   RECAP_EARLIER_WEEKS,
+  recapCutoffDay,
   type Recap,
   type RecapIndex,
   type RecapListing,
@@ -126,9 +127,10 @@ async function loadFacts(
       .orderBy(desc(savedPosts.savedAt))
       .limit(LIST_LIMIT),
     db
-      .select({ day: activeDays.day })
-      .from(activeDays)
-      .where(and(eq(activeDays.userId, user.id), gte(activeDays.day, fromDay))),
+      .select({ days: userSettings.activeDays })
+      .from(userSettings)
+      .where(eq(userSettings.userId, user.id))
+      .limit(1),
     db
       .select({ views: sum(shares.views).mapWith(Number), lastViewedAt: max(shares.lastViewedAt) })
       .from(shares)
@@ -170,7 +172,7 @@ async function loadFacts(
       })),
       ...posts.map((row) => ({ ...row, jobId: null, open: true })),
     ],
-    activeDays: days.map((row) => row.day),
+    activeDays: (days[0]?.days ?? []).filter((day) => day >= fromDay),
     totals: {
       shareViews: sharedRow?.views ?? 0,
       portfolioViews: portfolio[0]?.views ?? 0,
@@ -224,21 +226,32 @@ async function rankWeek(
   }
 }
 
+type RecapWeeks = Record<RecapWeekId, StoredRecap>;
+
+async function weeksOf(db: Db | Tx, userId: string): Promise<RecapWeeks> {
+  const [row] = await db
+    .select({ recaps: userSettings.recaps })
+    .from(userSettings)
+    .where(eq(userSettings.userId, userId))
+    .limit(1);
+  return row?.recaps ?? {};
+}
+
 async function readIndex(db: Db, userId: string, week: RecapWeekId): Promise<RecapIndex> {
   const oldest = addDays(week, -7 * RECAP_EARLIER_WEEKS);
-  const rows = await db
-    .select({ week: weeklyRecaps.weekStart, seenAt: weeklyRecaps.seenAt, data: weeklyRecaps.data })
-    .from(weeklyRecaps)
-    .where(and(eq(weeklyRecaps.userId, userId), gte(weeklyRecaps.weekStart, oldest)))
-    .orderBy(desc(weeklyRecaps.weekStart))
-    .limit(RECAP_EARLIER_WEEKS + 1);
-  const earlier: RecapListing[] = rows
-    .filter((row) => row.week < week)
-    .map((row) => ({
-      week: row.week,
-      headline: row.data.quiet ? null : (recapHighlights(row.data)[0] ?? null),
-    }));
-  const latest = rows.find((row) => row.week === week);
+  const weeks = await weeksOf(db, userId);
+  const kept = Object.keys(weeks)
+    .filter((key) => key >= oldest && key <= week)
+    .sort()
+    .reverse()
+    .slice(0, RECAP_EARLIER_WEEKS + 1);
+  const earlier: RecapListing[] = kept
+    .filter((key) => key < week)
+    .map((key) => {
+      const data = weeks[key]!.data;
+      return { week: key, headline: data.quiet ? null : (recapHighlights(data)[0] ?? null) };
+    });
+  const latest = weeks[week];
   return {
     current: latest ? { recap: latest.data, seen: latest.seenAt !== null } : null,
     earlier,
@@ -248,9 +261,9 @@ async function readIndex(db: Db, userId: string, week: RecapWeekId): Promise<Rec
 export async function readRecap(userId: string, week: RecapWeekId): Promise<Recap | null> {
   const db = await getDb();
   const [row] = await db
-    .select({ data: weeklyRecaps.data })
-    .from(weeklyRecaps)
-    .where(and(eq(weeklyRecaps.userId, userId), eq(weeklyRecaps.weekStart, week)))
+    .select({ data: sql<Recap | null>`${userSettings.recaps} -> ${week} -> 'data'` })
+    .from(userSettings)
+    .where(eq(userSettings.userId, userId))
     .limit(1);
   return row?.data ?? null;
 }
@@ -264,12 +277,8 @@ export async function ensureRecap(
   const db = await getDb();
   const timeZone = knownTimeZone(timeZoneAsked);
   const week = lastFullWeek(now, timeZone);
-  const [existing] = await db
-    .select({ week: weeklyRecaps.weekStart })
-    .from(weeklyRecaps)
-    .where(and(eq(weeklyRecaps.userId, user.id), eq(weeklyRecaps.weekStart, week)))
-    .limit(1);
-  if (existing) return readIndex(db, user.id, week);
+  const stored = await weeksOf(db, user.id);
+  if (stored[week]) return readIndex(db, user.id, week);
 
   const [account] = await db
     .select({ createdAt: users.createdAt })
@@ -283,11 +292,7 @@ export async function ensureRecap(
   const facts = await loadFacts(db, user, account.createdAt, timeZone, from, range, now);
   if (!usedOtto(facts)) return readIndex(db, user.id, week);
 
-  const [before] = await db
-    .select({ data: weeklyRecaps.data, builtAt: weeklyRecaps.builtAt })
-    .from(weeklyRecaps)
-    .where(and(eq(weeklyRecaps.userId, user.id), eq(weeklyRecaps.weekStart, addDays(week, -7))))
-    .limit(1);
+  const before = stored[addDays(week, -7)];
   // A count taken after this week was over can't say what happened during it.
   const previous =
     before && before.builtAt < range.end && before.data.totals
@@ -305,12 +310,20 @@ export async function ensureRecap(
 
   await db.transaction(async (tx) => {
     if (!(await lockUser(tx, user.id))) return;
-    const made = await tx
-      .insert(weeklyRecaps)
-      .values({ userId: user.id, weekStart: week, data: recap, builtAt: now })
-      .onConflictDoNothing()
-      .returning({ week: weeklyRecaps.weekStart });
-    if (made.length > 0) {
+    // Read again under the lock: another tab may have built it meanwhile, and a week already there is kept as it is.
+    const weeks = await weeksOf(tx, user.id);
+    const made = !weeks[week];
+    const next: RecapWeeks = { [week]: { data: recap, builtAt: now, seenAt: null } };
+    for (const past of earlier) next[past.week] = { data: past, builtAt: now, seenAt: now };
+    const cutoff = recapCutoffDay(now);
+    const kept = Object.fromEntries(
+      Object.entries({ ...next, ...weeks }).filter(([key]) => key >= cutoff),
+    );
+    await tx
+      .insert(userSettings)
+      .values({ userId: user.id, recaps: kept, updatedAt: now })
+      .onConflictDoUpdate({ target: userSettings.userId, set: { recaps: kept } });
+    if (made) {
       await insertNotification(
         tx,
         {
@@ -322,20 +335,6 @@ export async function ensureRecap(
         },
         now,
       );
-    }
-    if (earlier.length > 0) {
-      await tx
-        .insert(weeklyRecaps)
-        .values(
-          earlier.map((past) => ({
-            userId: user.id,
-            weekStart: past.week,
-            data: past,
-            builtAt: now,
-            seenAt: now,
-          })),
-        )
-        .onConflictDoNothing();
     }
   });
   return readIndex(db, user.id, week);
@@ -349,48 +348,39 @@ export async function markRecapSeen(
 ): Promise<boolean> {
   const db = await getDb();
   const rows = await db
-    .update(weeklyRecaps)
-    .set({ seenAt: now })
+    .update(userSettings)
+    .set({
+      recaps: sql`jsonb_set(${userSettings.recaps}, array[${week}::text, 'seenAt'], to_jsonb(${now}::bigint))`,
+    })
     .where(
       and(
-        eq(weeklyRecaps.userId, userId),
-        eq(weeklyRecaps.weekStart, week),
-        isNull(weeklyRecaps.seenAt),
+        eq(userSettings.userId, userId),
+        sql`${userSettings.recaps} ? ${week}`,
+        sql`${userSettings.recaps} -> ${week} ->> 'seenAt' is null`,
       ),
     )
-    .returning({ week: weeklyRecaps.weekStart });
+    .returning({ userId: userSettings.userId });
   return rows.length > 0;
 }
 
-// Kept a little past the oldest week offered, whose days and counts it still reads.
-const RECAP_KEEP_MS = 7 * (RECAP_EARLIER_WEEKS + 2) * DAY_MS;
-
-const cutoffDay = (now: number) => new Date(now - RECAP_KEEP_MS).toISOString().slice(0, 10);
-
-export async function deleteOldRecaps(now: number, limit: number): Promise<number> {
+// Accounts that stopped coming back: their days and weeks past the recap's reach go here, in batches.
+export async function trimOldRecaps(now: number, limit: number): Promise<number> {
   const db = await getDb();
+  const cutoff = recapCutoffDay(now);
   const stale = db
-    .select({ userId: weeklyRecaps.userId, week: weeklyRecaps.weekStart })
-    .from(weeklyRecaps)
-    .where(lt(weeklyRecaps.weekStart, cutoffDay(now)))
+    .select({ userId: userSettings.userId })
+    .from(userSettings)
+    .where(
+      sql`(${userSettings.activeDays}[1] < ${cutoff}::date or exists (select 1 from jsonb_object_keys(${userSettings.recaps}) as week where week < ${cutoff}))`,
+    )
     .limit(limit);
-  const deleted = await db
-    .delete(weeklyRecaps)
-    .where(sql`(${weeklyRecaps.userId}, ${weeklyRecaps.weekStart}) in ${stale}`)
-    .returning({ week: weeklyRecaps.weekStart });
-  return deleted.length;
-}
-
-export async function deleteOldActiveDays(now: number, limit: number): Promise<number> {
-  const db = await getDb();
-  const stale = db
-    .select({ userId: activeDays.userId, day: activeDays.day })
-    .from(activeDays)
-    .where(lt(activeDays.day, cutoffDay(now)))
-    .limit(limit);
-  const deleted = await db
-    .delete(activeDays)
-    .where(sql`(${activeDays.userId}, ${activeDays.day}) in ${stale}`)
-    .returning({ day: activeDays.day });
-  return deleted.length;
+  const trimmed = await db
+    .update(userSettings)
+    .set({
+      activeDays: sql`array(select d from unnest(${userSettings.activeDays}) as d where d >= ${cutoff}::date order by d)`,
+      recaps: sql`(select jsonb_object_agg(week, value) from jsonb_each(${userSettings.recaps}) as w(week, value) where week >= ${cutoff})`,
+    })
+    .where(sql`${userSettings.userId} in ${stale}`)
+    .returning({ userId: userSettings.userId });
+  return trimmed.length;
 }

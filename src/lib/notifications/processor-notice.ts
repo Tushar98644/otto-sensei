@@ -4,7 +4,7 @@ import { ROUTES } from "@/components/site/routes";
 import { BRAND } from "@/config/brand";
 import type { Db } from "@/db/client";
 import { lockUser } from "@/db/locks";
-import { emailLog, users } from "@/db/schema";
+import { users, userSettings } from "@/db/schema";
 import { log } from "@/lib/log";
 import { DAY_MS } from "@/lib/time";
 import { optionalEmailRoom } from "./budget";
@@ -195,7 +195,9 @@ ${paragraph(signOff, 24)}
 }
 
 const hasEmail = sql`${users.email} <> ''`;
-const notified = sql`exists (select 1 from ${emailLog} where ${emailLog.userId} = ${users.id} and ${emailLog.kind} = ${KIND} and ${emailLog.occasion} = ${NOTICE.occasion})`;
+// user_settings.notices records each one-time email as "<kind>:<occasion>".
+const NOTICE_KEY = `${KIND}:${NOTICE.occasion}`;
+const notified = sql`exists (select 1 from ${userSettings} s where s.user_id = ${users.id} and s.notices ? ${NOTICE_KEY})`;
 const due = and(hasEmail, sql`not ${notified}`);
 
 async function roomFor(db: Db, limit: number | null, now: number): Promise<number> {
@@ -234,28 +236,40 @@ async function claim(db: Db, userId: string, now: number): Promise<Claimed | nul
       .where(and(eq(users.id, userId), due))
       .limit(1);
     if (!row) return null;
+    const sent = { [NOTICE_KEY]: now };
     const logged = await tx
-      .insert(emailLog)
-      .values({ userId, kind: KIND, occasion: NOTICE.occasion, createdAt: now })
-      .onConflictDoNothing()
-      .returning({ userId: emailLog.userId });
+      .insert(userSettings)
+      .values({ userId, notices: sent, noticeSentAt: now, updatedAt: now })
+      .onConflictDoUpdate({
+        target: userSettings.userId,
+        set: {
+          notices: sql`coalesce(${userSettings.notices}, '{}') || ${JSON.stringify(sent)}::jsonb`,
+          noticeSentAt: now,
+        },
+        setWhere: sql`not coalesce(${userSettings.notices} ? ${NOTICE_KEY}, false)`,
+      })
+      .returning({ userId: userSettings.userId });
     return logged.length === 0 ? null : { userId, email: row.email };
   });
 }
 
 // Resend took none of the batch, so a later run may send it.
 async function release(db: Db, batch: readonly Claimed[], now: number): Promise<void> {
-  await db.delete(emailLog).where(
-    and(
-      eq(emailLog.kind, KIND),
-      eq(emailLog.occasion, NOTICE.occasion),
-      eq(emailLog.createdAt, now),
-      inArray(
-        emailLog.userId,
-        batch.map((item) => item.userId),
+  await db
+    .update(userSettings)
+    .set({
+      notices: sql`${userSettings.notices} - ${NOTICE_KEY}::text`,
+      noticeSentAt: sql`case when ${userSettings.noticeSentAt} = ${now}::bigint then null else ${userSettings.noticeSentAt} end`,
+    })
+    .where(
+      and(
+        sql`(${userSettings.notices} ->> ${NOTICE_KEY})::bigint = ${now}::bigint`,
+        inArray(
+          userSettings.userId,
+          batch.map((item) => item.userId),
+        ),
       ),
-    ),
-  );
+    );
 }
 
 // Same batch, same key: a retry inside Resend's 24-hour window can't send it twice.

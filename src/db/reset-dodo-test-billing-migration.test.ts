@@ -52,7 +52,7 @@ async function migratedClient(): Promise<PGlite> {
   return client;
 }
 
-async function seed(client: PGlite): Promise<void> {
+async function seedUsersAndUsage(client: PGlite): Promise<void> {
   for (const [n, fields] of Object.entries(ACCOUNTS)) {
     const userId = id(Number(n));
     const email = `u${n}@example.com`;
@@ -65,6 +65,22 @@ async function seed(client: PGlite): Promise<void> {
       values,
     );
   }
+  const usage = [
+    [id(1), "tailor", "trial", 4, 2],
+    [id(1), "tailor", "2026-11", 7, 0],
+    [id(8), "draft", "trial", 3, 0],
+    [id(9), "letter", "trial", 0, 5],
+  ] as const;
+  for (const row of usage) {
+    await client.query(
+      "insert into public.usage (subject, feature, period, count, bonus) values ($1, $2, $3, $4, $5)",
+      [...row],
+    );
+  }
+}
+
+async function seed(client: PGlite): Promise<void> {
+  await seedUsersAndUsage(client);
   for (const n of [1, 3, 7, 8]) {
     await client.query(
       "insert into public.trial_reminders (user_id, trial_ends_at, created_at) values ($1, 9, 1)",
@@ -87,34 +103,23 @@ async function seed(client: PGlite): Promise<void> {
   await client.query(
     "insert into public.billing_events (id, type, received_at) values ('evt_test', 'subscription.active', 1)",
   );
-  const usage = [
-    [id(1), "tailor", "trial", 4, 2],
-    [id(1), "tailor", "2026-11", 7, 0],
-    [id(8), "draft", "trial", 3, 0],
-    [id(9), "letter", "trial", 0, 5],
-  ] as const;
-  for (const row of usage) {
-    await client.query(
-      "insert into public.usage (subject, feature, period, count, bonus) values ($1, $2, $3, $4, $5)",
-      [...row],
-    );
-  }
 }
+
+const USERS = `select id, plan, plan_interval, plan_status, plan_renews_at, trial_ends_at,
+    plan_period_starts_at, plan_period_ends_at, billing_customer_id,
+    billing_subscription_id, billing_event_at, updated_at <> 1 as touched
+  from public.users order by id`;
+const USAGE = "select * from public.usage order by subject, feature, period";
 
 async function dump(client: PGlite) {
   const all = async (query: string) => (await client.query<Record<string, unknown>>(query)).rows;
   return {
-    users: await all(
-      `select id, plan, plan_interval, plan_status, plan_renews_at, trial_ends_at,
-              plan_period_starts_at, plan_period_ends_at, billing_customer_id,
-              billing_subscription_id, billing_event_at, updated_at <> 1 as touched
-       from public.users order by id`,
-    ),
+    users: await all(USERS),
     reminders: await all("select user_id from public.trial_reminders order by user_id"),
     watch: await all("select user_id from public.trial_watch order by user_id"),
     replacements: await all("select * from public.trial_replacements"),
     history: await all("select * from public.trial_history"),
-    usage: await all("select * from public.usage order by subject, feature, period"),
+    usage: await all(USAGE),
     events: await all("select id from public.billing_events"),
   };
 }
@@ -175,20 +180,41 @@ describe("reset Dodo test billing migration", () => {
     ]);
   });
 
-  it("leaves the database exactly as reset-billing --go-live --apply does", async () => {
-    const client = await migratedClient();
+  // The script works on today's tables, where the trial rows live on user_settings and billing_log.
+  it("leaves the accounts, usage and trial records as reset-billing --go-live --apply does today", async () => {
+    const client = new PGlite();
     clients.push(client);
-    await seed(client);
+    await client.exec(LOCAL_ONLY_DDL);
+    for (const migration of readMigrations()) await client.exec(migration.sql);
+    await seedUsersAndUsage(client);
+    for (const n of [1, 3, 7, 8]) {
+      await client.query(
+        "insert into public.user_settings (user_id, trial_reminded_for, updated_at) values ($1, 9, 1)",
+        [id(n)],
+      );
+    }
+    await client.query(
+      `insert into public.billing_log (kind, key, user_id, ref, at)
+       values ('replacement', 'sub_old1', $2, $1, 1), ('replacement', 'sub_old7', $3, 'sub_new7', 1),
+              ('trial', 'hash-owner', null, 'trial', 1), ('trial', 'hash-tester', null, 'paid', 1),
+              ('event', 'evt_test', null, 'subscription.active', 1)`,
+      [DODO_SUBSCRIPTION, id(1), id(7)],
+    );
     await resetBilling(drizzle(client, { schema }) as unknown as Db, {
       mode: "go-live",
       apply: true,
       now: 2,
     });
-    // trial_watch never had a writer, so the script no longer clears it; 20261122010900 drops the table.
-    const { watch: _scriptWatch, ...script } = await dump(client);
-    const { watch: _migratedWatch, ...expected } = migrated;
-    void _scriptWatch;
-    void _migratedWatch;
-    expect(script).toEqual(expected);
+    const all = async (query: string) => (await client.query<Record<string, unknown>>(query)).rows;
+    expect(await all(USERS)).toEqual(migrated.users);
+    expect(await all(USAGE)).toEqual(migrated.usage);
+    expect(
+      await all(
+        "select user_id from public.user_settings where trial_reminded_for is not null order by user_id",
+      ),
+    ).toEqual(migrated.reminders);
+    expect(await all("select kind, key from public.billing_log order by kind, key")).toEqual([
+      { kind: "event", key: "evt_test" },
+    ]);
   });
 });

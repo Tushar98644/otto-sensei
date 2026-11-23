@@ -1,9 +1,10 @@
 import { createHash } from "node:crypto";
 import { eq } from "drizzle-orm";
 import { getDb, type Db, type Tx } from "@/db/client";
-import { trialHistory, users } from "@/db/schema";
+import { billingLog, users } from "@/db/schema";
 import { normalizeEmail } from "@/lib/auth/policy";
 import type { SessionUser } from "@/lib/auth/types";
+import { trialKey } from "./log";
 
 export type TrialHistoryKind = "trial" | "paid";
 
@@ -18,8 +19,8 @@ export async function recordTrialHistory(
   now = Date.now(),
 ): Promise<void> {
   await db
-    .insert(trialHistory)
-    .values({ emailHash: emailFingerprint(email), kind, createdAt: now })
+    .insert(billingLog)
+    .values({ kind: "trial", key: emailFingerprint(email), ref: kind, at: now })
     .onConflictDoNothing();
 }
 
@@ -39,13 +40,17 @@ export async function isTrialEligible(
     .where(eq(users.id, user.id))
     .limit(1);
   if (!row) return false;
-  if (row.planStatus !== null || row.billingSubscriptionId !== null || row.billingCustomerId !== null) {
+  if (
+    row.planStatus !== null ||
+    row.billingSubscriptionId !== null ||
+    row.billingCustomerId !== null
+  ) {
     return false;
   }
   const [seen] = await db
-    .select({ kind: trialHistory.kind })
-    .from(trialHistory)
-    .where(eq(trialHistory.emailHash, emailFingerprint(user.email)))
+    .select({ kind: billingLog.ref })
+    .from(billingLog)
+    .where(trialKey(emailFingerprint(user.email)))
     .limit(1);
   return !seen;
 }

@@ -1,23 +1,22 @@
+import { eq } from "drizzle-orm";
 import { beforeEach, describe, expect, it } from "vitest";
 import { getDb } from "@/db/client";
 import {
-  billingEvents,
-  emailLog,
+  billingLog,
   extensionTokens,
   inboundEmails,
   inboundHandles,
   matchCache,
   matchEvents,
-  meteredResults,
+  meteredCalls,
   notifications,
   portfolioRedirects,
   portfolios,
   rateLimits,
-  resumeTombstones,
-  trialReminders,
   usage,
-  usagePasses,
+  userSettings,
 } from "@/db/schema";
+import type { Recap } from "@/lib/recap/types";
 import type { Resume } from "@/lib/resume/schema";
 import { createUser, resetDb } from "@/lib/auth/test-helpers";
 import { HANDLE_HOLD_MS } from "@/lib/inbound/handle";
@@ -52,21 +51,24 @@ describe("runCleanup", () => {
       { key: "import:ip:old", windowStart: NOW - RETENTION.rateLimitWindowsMs - 1, count: 3 },
       { key: "import:ip:new", windowStart: NOW - DAY, count: 1 },
     ]);
-    await db.insert(resumeTombstones).values([
-      { userId: maya.id, id: "old", deletedAt: NOW - RETENTION.tombstonesMs - 1 },
-      { userId: maya.id, id: "new", deletedAt: NOW - DAY },
-    ]);
+    await db.insert(userSettings).values({
+      userId: maya.id,
+      deletedResumes: { old: NOW - RETENTION.tombstonesMs - 1, new: NOW - DAY },
+      updatedAt: NOW,
+    });
     await seedNotification(maya.id, NOW - RETENTION.readNotificationsMs - 1, NOW - 80 * DAY);
     await seedNotification(maya.id, NOW - RETENTION.readNotificationsMs - 1, null);
     await seedNotification(maya.id, NOW - RETENTION.anyNotificationsMs - 1, null);
     await seedNotification(maya.id, NOW - DAY, NOW);
-    await db.insert(billingEvents).values([
+    await db.insert(billingLog).values([
       {
-        id: "evt_old",
-        type: "subscription.active",
-        receivedAt: NOW - RETENTION.billingEventsMs - 1,
+        kind: "event",
+        key: "evt_old",
+        ref: "subscription.active",
+        at: NOW - RETENTION.billingEventsMs - 1,
       },
-      { id: "evt_new", type: "subscription.active", receivedAt: NOW - DAY },
+      { kind: "event", key: "evt_new", ref: "subscription.active", at: NOW - DAY },
+      { kind: "trial", key: "hash-old", ref: "trial", at: NOW - RETENTION.billingEventsMs - 1 },
     ]);
 
     const event = (kind: "impression" | "save", createdAt: number) => ({
@@ -90,13 +92,25 @@ describe("runCleanup", () => {
       },
       { userId: maya.id, key: "n".repeat(32), value: {}, createdAt: NOW - 60_000 },
     ]);
-    await db.insert(usagePasses).values([
-      { userId: maya.id, feature: "fix", subject: "old", usesLeft: 3, expiresAt: NOW - 1 },
-      { userId: maya.id, feature: "fix", subject: "new", usesLeft: 3, expiresAt: NOW + 60_000 },
-    ]);
-    await db.insert(meteredResults).values([
-      { userId: maya.id, requestKey: "old", result: {}, startedAt: NOW - DAY, expiresAt: NOW - 1 },
-      { userId: maya.id, requestKey: "new", result: {}, startedAt: NOW, expiresAt: NOW + 60_000 },
+    await db.insert(meteredCalls).values([
+      { userId: maya.id, kind: "pass", key: "fix:old", usesLeft: 3, expiresAt: NOW - 1 },
+      { userId: maya.id, kind: "pass", key: "fix:new", usesLeft: 3, expiresAt: NOW + 60_000 },
+      {
+        userId: maya.id,
+        kind: "result",
+        key: "old",
+        result: {},
+        startedAt: NOW - DAY,
+        expiresAt: NOW - 1,
+      },
+      {
+        userId: maya.id,
+        kind: "result",
+        key: "new",
+        result: {},
+        startedAt: NOW,
+        expiresAt: NOW + 60_000,
+      },
     ]);
     const email = (key: string, receivedAt: number) => ({
       id: crypto.randomUUID(),
@@ -139,33 +153,35 @@ describe("runCleanup", () => {
         impressions: 1,
         replacedTrials: 0,
         matchCache: 1,
-        usagePasses: 1,
-        meteredResults: 1,
+        meteredCalls: 2,
         extensionTokens: 1,
         inboundHandles: 1,
         inboundEmails: 1,
         matchActions: 0,
         usagePeriods: 0,
-        emailLog: 0,
-        trialReminders: 0,
         portfolioRedirects: 0,
-        weeklyRecaps: 0,
-        activeDays: 0,
+        recaps: 0,
       },
       complete: true,
       failed: [],
     });
 
     expect((await db.select().from(rateLimits)).map((row) => row.key)).toEqual(["import:ip:new"]);
-    expect((await db.select().from(resumeTombstones)).map((row) => row.id)).toEqual(["new"]);
+    const [settings] = await db.select().from(userSettings).where(eq(userSettings.userId, maya.id));
+    expect(settings?.deletedResumes).toEqual({ new: NOW - DAY });
     expect(await db.select().from(notifications)).toHaveLength(2);
-    expect((await db.select().from(billingEvents)).map((row) => row.id)).toEqual(["evt_new"]);
+    expect((await db.select().from(billingLog)).map((row) => row.key).sort()).toEqual([
+      "evt_new",
+      "hash-old",
+    ]);
     expect((await db.select().from(matchEvents)).map((row) => row.id).sort()).toEqual(
       [oldSave.id, newImpression.id].sort(),
     );
     expect((await db.select().from(matchCache)).map((row) => row.key)).toEqual(["n".repeat(32)]);
-    expect((await db.select().from(usagePasses)).map((row) => row.subject)).toEqual(["new"]);
-    expect((await db.select().from(meteredResults)).map((row) => row.requestKey)).toEqual(["new"]);
+    expect((await db.select().from(meteredCalls)).map((row) => row.key).sort()).toEqual([
+      "fix:new",
+      "new",
+    ]);
     expect((await db.select().from(extensionTokens)).map((row) => row.tokenHash)).toEqual([
       "n".repeat(43),
     ]);
@@ -183,22 +199,18 @@ describe("runCleanup", () => {
       impressions: 0,
       replacedTrials: 0,
       matchCache: 0,
-      usagePasses: 0,
-      meteredResults: 0,
+      meteredCalls: 0,
       extensionTokens: 0,
       inboundHandles: 0,
       inboundEmails: 0,
       matchActions: 0,
       usagePeriods: 0,
-      emailLog: 0,
-      trialReminders: 0,
       portfolioRedirects: 0,
-      weeklyRecaps: 0,
-      activeDays: 0,
+      recaps: 0,
     });
   });
 
-  it("keeps old allowance counts, match actions, email records, trial reminders and redirects only while they matter", async () => {
+  it("keeps old allowance counts, match actions and redirects only while they matter", async () => {
     const db = await getDb();
     const maya = await createUser("maya@example.com");
     const count = (period: string) => ({ subject: maya.id, feature: "tailor", period, count: 2 });
@@ -224,31 +236,6 @@ describe("runCleanup", () => {
     const oldAction = action(NOW - RETENTION.matchActionsMs - 1);
     const recentAction = action(NOW - RETENTION.matchActionsMs + DAY);
     await db.insert(matchEvents).values([oldAction, recentAction]);
-    await db.insert(emailLog).values([
-      {
-        userId: maya.id,
-        kind: "no_resume",
-        occasion: "old",
-        createdAt: NOW - RETENTION.tipEmailsMs - 1,
-      },
-      { userId: maya.id, kind: "no_resume", occasion: "new", createdAt: NOW - DAY },
-      {
-        userId: maya.id,
-        kind: "processor_notice",
-        occasion: "kept",
-        createdAt: NOW - RETENTION.tipEmailsMs - 1,
-      },
-      {
-        userId: maya.id,
-        kind: "processor_notice",
-        occasion: "gone",
-        createdAt: NOW - RETENTION.noticeEmailsMs - 1,
-      },
-    ]);
-    await db.insert(trialReminders).values([
-      { userId: maya.id, trialEndsAt: NOW - RETENTION.trialRemindersMs - 1, createdAt: 1 },
-      { userId: maya.id, trialEndsAt: NOW - DAY, createdAt: 1 },
-    ]);
     const portfolioId = crypto.randomUUID();
     await db.insert(portfolios).values({
       id: portfolioId,
@@ -274,8 +261,6 @@ describe("runCleanup", () => {
     expect(outcome.stats).toMatchObject({
       matchActions: 1,
       usagePeriods: 3,
-      emailLog: 2,
-      trialReminders: 1,
       portfolioRedirects: 1,
     });
 
@@ -286,16 +271,34 @@ describe("runCleanup", () => {
       "trial",
     ]);
     expect((await db.select().from(matchEvents)).map((row) => row.id)).toEqual([recentAction.id]);
-    expect((await db.select().from(emailLog)).map((row) => row.occasion).sort()).toEqual([
-      "kept",
-      "new",
-    ]);
-    expect((await db.select().from(trialReminders)).map((row) => row.trialEndsAt)).toEqual([
-      NOW - DAY,
-    ]);
     expect((await db.select().from(portfolioRedirects)).map((row) => row.slug)).toEqual([
       "maya-recent",
     ]);
+  });
+
+  it("trims days active and recap weeks past the recap's reach from accounts that stopped coming back", async () => {
+    const db = await getDb();
+    const maya = await createUser("maya@example.com");
+    const ben = await createUser("ben@example.com");
+    const week = (seenAt: number | null) => ({ data: {} as Recap, builtAt: NOW, seenAt });
+    await db.insert(userSettings).values([
+      {
+        userId: maya.id,
+        activeDays: ["2026-08-01", "2026-10-20", "2026-11-07"],
+        recaps: { "2026-08-03": week(1), "2026-10-26": week(null) },
+        updatedAt: NOW,
+      },
+      { userId: ben.id, activeDays: ["2026-11-02"], updatedAt: NOW },
+    ]);
+
+    const outcome = await runCleanup(context());
+    expect(outcome.stats.recaps).toBe(1);
+    const rows = await db.select().from(userSettings);
+    const of = (id: string) => rows.find((row) => row.userId === id);
+    expect(of(maya.id)?.activeDays).toEqual(["2026-10-20", "2026-11-07"]);
+    expect(Object.keys(of(maya.id)?.recaps ?? {})).toEqual(["2026-10-26"]);
+    expect(of(ben.id)?.activeDays).toEqual(["2026-11-02"]);
+    expect((await runCleanup(context())).stats.recaps).toBe(0);
   });
 
   it("drains more than one batch", async () => {

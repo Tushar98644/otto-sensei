@@ -1,7 +1,7 @@
 import { eq } from "drizzle-orm";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { getDb } from "@/db/client";
-import { billingEvents, trialHistory, trialReplacements, users } from "@/db/schema";
+import { users } from "@/db/schema";
 import { insertUserRow, resetDb } from "@/lib/auth/test-helpers";
 import { runCleanup } from "@/lib/cron/cleanup";
 import { resetEnvForTests } from "@/lib/env";
@@ -22,6 +22,7 @@ import {
   type SubscriptionFields,
 } from "./dodo-webhook-testing";
 import { BillingError } from "./errors";
+import { addTrialHistory, eventRows, replacementRows } from "./log-testing";
 import { isOrphan, refundRefusedTrial, settleOrphan } from "./replacements";
 import { emailFingerprint } from "./trial";
 import { processWebhook, type WebhookConfig } from "./webhook";
@@ -74,7 +75,7 @@ async function reload(id: string): Promise<Row | undefined> {
 }
 
 async function replacements() {
-  return (await getDb()).select().from(trialReplacements);
+  return replacementRows();
 }
 
 async function trialist(overrides: Partial<typeof users.$inferInsert> = {}): Promise<Row> {
@@ -379,11 +380,7 @@ describe("a refused second trial", () => {
       trialEndsAt: null,
       billingSubscriptionId: dodoId("sub", "first"),
     });
-    await (
-      await getDb()
-    )
-      .insert(trialHistory)
-      .values({ emailHash: emailFingerprint(user.email), kind: "trial", createdAt: 1 });
+    await addTrialHistory({ emailHash: emailFingerprint(user.email), kind: "trial", createdAt: 1 });
     return user;
   }
 
@@ -397,7 +394,7 @@ describe("a refused second trial", () => {
     });
 
   async function claims() {
-    return (await (await getDb()).select().from(billingEvents))
+    return (await eventRows())
       .map((row) => row.id)
       .filter((id) => id.startsWith("refund:"))
       .sort();
@@ -486,9 +483,7 @@ describe("a refused second trial", () => {
 describe("settleOrphan", () => {
   const userId = crypto.randomUUID();
   const orphanKeys = async () =>
-    (await (await getDb()).select().from(billingEvents))
-      .map((row) => row.id)
-      .filter((id) => id.startsWith("orphan:"));
+    (await eventRows()).map((row) => row.id).filter((id) => id.startsWith("orphan:"));
 
   it("cancels and refunds only a subscription Dodo says can still charge", async () => {
     vi.spyOn(console, "info").mockImplementation(() => undefined);

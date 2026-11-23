@@ -2,10 +2,11 @@ import { and, eq, isNull, lte, ne, or } from "drizzle-orm";
 import type { BillingInterval, PaidPlanId, PlanId } from "@/config/plans";
 import { getDb, type Db, type Tx } from "@/db/client";
 import { lockUser } from "@/db/locks";
-import { billingEvents, trialReplacements, users, type UserRow } from "@/db/schema";
+import { billingLog, users, type UserRow } from "@/db/schema";
 import { normalizeEmail } from "@/lib/auth/policy";
 import { carryUsageOver, type PeriodAccount } from "@/lib/usage";
 import { isUserId } from "@/lib/users";
+import { eventKey, eventRow, replacementKey, replacementRow } from "./log";
 import { isTrialEligible, recordTrialHistory } from "./trial";
 
 type StatusGrant = "paid" | "free";
@@ -200,16 +201,16 @@ export async function applySubscriptionState(
   // Event id first: a redelivery changes nothing and a parallel one waits on the unique key.
   return db.transaction(async (tx): Promise<ApplyResult> => {
     const recorded = await tx
-      .insert(billingEvents)
-      .values({ id: source.eventId, type: source.eventType, receivedAt: now })
+      .insert(billingLog)
+      .values(eventRow(source.eventId, source.eventType, now))
       .onConflictDoNothing()
-      .returning({ id: billingEvents.id });
+      .returning({ id: billingLog.key });
     if (recorded.length === 0) return { outcome: "duplicate" };
     // Kept apart from the user row, which forgets this subscription once another takes over.
     if (isEndedStatus(state.status)) {
       await tx
-        .insert(billingEvents)
-        .values({ id: endedKey(state.subscriptionId), type: "subscription_ended", receivedAt: now })
+        .insert(billingLog)
+        .values(eventRow(endedKey(state.subscriptionId), "subscription_ended", now))
         .onConflictDoNothing();
     }
     if (plan !== "free" && state.unpaidTrial) {
@@ -217,13 +218,15 @@ export async function applySubscriptionState(
       if (!(await mayTrial(tx, user.id, state.subscriptionId))) {
         // Nothing on the user; the row keeps its later events out and lets the cron retry the cancel.
         await tx
-          .insert(trialReplacements)
-          .values({
-            replacedSubscriptionId: state.subscriptionId,
-            subscriptionId: state.subscriptionId,
-            userId: user.id,
-            createdAt: now,
-          })
+          .insert(billingLog)
+          .values(
+            replacementRow({
+              replacedSubscriptionId: state.subscriptionId,
+              subscriptionId: state.subscriptionId,
+              userId: user.id,
+              createdAt: now,
+            }),
+          )
           .onConflictDoNothing();
         return { outcome: "rejected", reason: "trial_reused", userId: user.id };
       }
@@ -275,13 +278,15 @@ export async function applySubscriptionState(
         : null;
     if (replaces && replaces !== state.subscriptionId) {
       await tx
-        .insert(trialReplacements)
-        .values({
-          replacedSubscriptionId: replaces,
-          subscriptionId: state.subscriptionId,
-          userId: user.id,
-          createdAt: now,
-        })
+        .insert(billingLog)
+        .values(
+          replacementRow({
+            replacedSubscriptionId: replaces,
+            subscriptionId: state.subscriptionId,
+            userId: user.id,
+            createdAt: now,
+          }),
+        )
         .onConflictDoNothing();
     }
     await carryUsageOver(tx, user, after, now);
@@ -323,18 +328,18 @@ export async function claimBillingEvent(
 ): Promise<boolean> {
   const db = await getDb();
   const claimed = await db
-    .insert(billingEvents)
-    .values({ id, type, receivedAt: now })
+    .insert(billingLog)
+    .values(eventRow(id, type, now))
     .onConflictDoNothing()
-    .returning({ id: billingEvents.id });
+    .returning({ id: billingLog.key });
   return claimed.length > 0;
 }
 
 async function isReplaced(db: Db, subscriptionId: string): Promise<boolean> {
   const [row] = await db
-    .select({ id: trialReplacements.replacedSubscriptionId })
-    .from(trialReplacements)
-    .where(eq(trialReplacements.replacedSubscriptionId, subscriptionId))
+    .select({ id: billingLog.key })
+    .from(billingLog)
+    .where(replacementKey(subscriptionId))
     .limit(1);
   return row !== undefined;
 }
@@ -343,9 +348,9 @@ const endedKey = (subscriptionId: string) => `ended:${subscriptionId}`;
 
 async function hasEnded(db: Db, subscriptionId: string): Promise<boolean> {
   const [row] = await db
-    .select({ id: billingEvents.id })
-    .from(billingEvents)
-    .where(eq(billingEvents.id, endedKey(subscriptionId)))
+    .select({ id: billingLog.key })
+    .from(billingLog)
+    .where(eventKey(endedKey(subscriptionId)))
     .limit(1);
   return row !== undefined;
 }

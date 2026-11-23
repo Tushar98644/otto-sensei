@@ -1,10 +1,12 @@
-import { eq, inArray } from "drizzle-orm";
+import { eq, inArray, isNotNull } from "drizzle-orm";
 import { beforeEach, describe, expect, it } from "vitest";
 import { getDb } from "@/db/client";
-import { trialHistory, trialReminders, trialReplacements, usage, users } from "@/db/schema";
+import { billingLog, usage, users, userSettings } from "@/db/schema";
 import { insertUserRow, resetDb } from "@/lib/auth/test-helpers";
 import { TRIAL_PERIOD_KEY } from "@/lib/usage";
 import { parseResetArgs, RESET_USAGE, resetBilling } from "./billing-reset";
+import { replacementRow } from "./log";
+import { replacementRows, trialRows } from "./log-testing";
 
 const CTM = `ctm_${"a1".repeat(13)}`;
 const SUB = `sub_${"b2".repeat(13)}`;
@@ -59,13 +61,16 @@ async function addUser(
 
 async function addTrialRows(userId: string): Promise<void> {
   const db = await getDb();
-  await db.insert(trialReminders).values({ userId, trialEndsAt: NOW + 1, createdAt: 1 });
+  await db
+    .insert(userSettings)
+    .values({ userId, trialRemindedFor: NOW + 1, updatedAt: 1 })
+    .onConflictDoUpdate({ target: userSettings.userId, set: { trialRemindedFor: NOW + 1 } });
 }
 
 async function addTrialHistory(): Promise<void> {
-  await (await getDb()).insert(trialHistory).values([
-    { emailHash: "hash-owner", kind: "trial", createdAt: 1 },
-    { emailHash: "hash-tester", kind: "paid", createdAt: 1 },
+  await (await getDb()).insert(billingLog).values([
+    { kind: "trial", key: "hash-owner", ref: "trial", at: 1 },
+    { kind: "trial", key: "hash-tester", ref: "paid", at: 1 },
   ]);
 }
 
@@ -82,8 +87,13 @@ async function rowOf(id: string) {
   return row;
 }
 
-async function userIdsIn(table: typeof trialReminders): Promise<string[]> {
-  const rows = await (await getDb()).select({ userId: table.userId }).from(table);
+async function remindedUserIds(): Promise<string[]> {
+  const rows = await (
+    await getDb()
+  )
+    .select({ userId: userSettings.userId })
+    .from(userSettings)
+    .where(isNotNull(userSettings.trialRemindedFor));
   return rows.map((row) => row.userId).sort();
 }
 
@@ -139,19 +149,19 @@ describe("resetBilling --paddle", () => {
     ];
     await addUsage(trialUsage);
     const db = await getDb();
-    await db.insert(trialReplacements).values([
-      {
+    await db.insert(billingLog).values([
+      replacementRow({
         replacedSubscriptionId: SUB,
         subscriptionId: `sub_${"f6".repeat(13)}`,
         userId: trialist,
         createdAt: 1,
-      },
-      {
+      }),
+      replacementRow({
         replacedSubscriptionId: DODO_SUBSCRIPTION,
         subscriptionId: "sub_Pq56Rs78Tu90Vw12Xy34",
         userId: dodo,
         createdAt: 1,
-      },
+      }),
     ]);
     await addTrialHistory();
 
@@ -170,9 +180,9 @@ describe("resetBilling --paddle", () => {
       billingCustomerId: CTM,
       billingSubscriptionId: SUB,
     });
-    expect(await userIdsIn(trialReminders)).toEqual([trialist, dodo, mock].sort());
-    expect(await db.select().from(trialReplacements)).toHaveLength(2);
-    expect(await db.select().from(trialHistory)).toHaveLength(2);
+    expect(await remindedUserIds()).toEqual([trialist, dodo, mock].sort());
+    expect(await replacementRows()).toHaveLength(2);
+    expect(await trialRows()).toHaveLength(2);
 
     expect(await resetBilling(db, { mode: "paddle", apply: true, now: NOW })).toEqual(counts);
     for (const id of [trialist, subscriptionOnly, customerOnly]) {
@@ -196,11 +206,11 @@ describe("resetBilling --paddle", () => {
     expect(await rowOf(upper)).toMatchObject({ plan: "pro", billingCustomerId: CTM.toUpperCase() });
     expect(await rowOf(creem)).toMatchObject({ plan: "pro", billingCustomerId: "cust_old" });
     expect(await rowOf(never)).toMatchObject({ plan: "free", updatedAt: 1 });
-    expect(await userIdsIn(trialReminders)).toEqual([dodo, mock].sort());
-    expect(
-      (await db.select().from(trialReplacements)).map((row) => row.replacedSubscriptionId),
-    ).toEqual([DODO_SUBSCRIPTION]);
-    expect(await db.select().from(trialHistory)).toEqual([]);
+    expect(await remindedUserIds()).toEqual([dodo, mock].sort());
+    expect((await replacementRows()).map((row) => row.replacedSubscriptionId)).toEqual([
+      DODO_SUBSCRIPTION,
+    ]);
+    expect(await trialRows()).toEqual([]);
     const afterPaddle = await usageOf([trialist, never]);
     expect(afterPaddle).toHaveLength(4);
     expect(afterPaddle).toEqual(
@@ -261,19 +271,19 @@ describe("resetBilling --go-live", () => {
       { subject: comp, feature: "tailor", period: cycle, count: 7, bonus: 2 },
     ]);
     const db = await getDb();
-    await db.insert(trialReplacements).values([
-      {
+    await db.insert(billingLog).values([
+      replacementRow({
         replacedSubscriptionId: DODO_SUBSCRIPTION,
         subscriptionId: "sub_Pq56Rs78Tu90Vw12Xy34",
         userId: dodoTrial,
         createdAt: 1,
-      },
-      {
+      }),
+      replacementRow({
         replacedSubscriptionId: SUB,
         subscriptionId: `sub_${"c9".repeat(13)}`,
         userId: paddle,
         createdAt: 1,
-      },
+      }),
     ]);
     await addTrialHistory();
 
@@ -290,9 +300,9 @@ describe("resetBilling --go-live", () => {
       plan: "pro",
       billingSubscriptionId: DODO_SUBSCRIPTION,
     });
-    expect(await userIdsIn(trialReminders)).toHaveLength(3);
-    expect(await db.select().from(trialReplacements)).toHaveLength(2);
-    expect(await db.select().from(trialHistory)).toHaveLength(2);
+    expect(await remindedUserIds()).toHaveLength(3);
+    expect(await replacementRows()).toHaveLength(2);
+    expect(await trialRows()).toHaveLength(2);
 
     expect(await resetBilling(db, { mode: "go-live", apply: true, now: NOW })).toEqual(counts);
     for (const id of [dodoTrial, dodoMax, customerOnly, statusOnly, eventOnly, paddle]) {
@@ -305,9 +315,9 @@ describe("resetBilling --go-live", () => {
     });
     expect(await rowOf(comp)).toMatchObject({ plan: "max", planInterval: "month", updatedAt: 1 });
     expect(await rowOf(never)).toMatchObject({ plan: "free", updatedAt: 1 });
-    expect(await userIdsIn(trialReminders)).toEqual([mock]);
-    expect(await db.select().from(trialReplacements)).toEqual([]);
-    expect(await db.select().from(trialHistory)).toEqual([]);
+    expect(await remindedUserIds()).toEqual([mock]);
+    expect(await replacementRows()).toEqual([]);
+    expect(await trialRows()).toEqual([]);
     const afterGoLive = await usageOf([dodoTrial, comp]);
     expect(afterGoLive).toHaveLength(3);
     expect(afterGoLive).toEqual(

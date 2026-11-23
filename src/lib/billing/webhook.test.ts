@@ -2,7 +2,7 @@ import { eq } from "drizzle-orm";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { BillingInterval, PaidPlanId } from "@/config/plans";
 import { getDb } from "@/db/client";
-import { billingEvents, trialHistory, trialReplacements, users } from "@/db/schema";
+import { users } from "@/db/schema";
 import { captureServerEvent } from "@/lib/analytics/server";
 import { insertUserRow, resetDb } from "@/lib/auth/test-helpers";
 import { resetEnvForTests } from "@/lib/env";
@@ -32,6 +32,7 @@ import {
 } from "./dodo-webhook-testing";
 import { chargeableSubscriptionId } from "./entitlements";
 import { BillingError } from "./errors";
+import { addTrialHistory, eventRows, replacementRows, trialRows } from "./log-testing";
 import { retryPendingReplacements } from "./replacements";
 import { emailFingerprint } from "./trial";
 import { processWebhook, type WebhookConfig } from "./webhook";
@@ -112,7 +113,7 @@ async function reload(id: string): Promise<Row | undefined> {
 }
 
 async function recordedEvents() {
-  return (await getDb()).select().from(billingEvents);
+  return eventRows();
 }
 
 function event(type: string, fields: SubscriptionFields = {}, at?: number | string) {
@@ -453,7 +454,7 @@ describe("statuses", () => {
       billingCustomerId: CUS,
       billingSubscriptionId: SUB,
     });
-    const [seen] = await (await getDb()).select().from(trialHistory);
+    const [seen] = await trialRows();
     expect(seen).toMatchObject({ emailHash: emailFingerprint("ada@example.com"), kind: "trial" });
   });
 
@@ -473,7 +474,7 @@ describe("statuses", () => {
       planPeriodStartsAt: TEST_DATES.trialEnd,
       planPeriodEndsAt: TEST_DATES.monthAfterTrial,
     });
-    const [seen] = await (await getDb()).select().from(trialHistory);
+    const [seen] = await trialRows();
     expect(seen?.kind).toBe("paid");
   });
 
@@ -640,9 +641,9 @@ describe("statuses", () => {
         planRenewsAt: changedAt + 365 * DAY_MS,
         billingSubscriptionId: SUB,
       });
-      const [seen] = await (await getDb()).select().from(trialHistory);
+      const [seen] = await trialRows();
       expect(seen?.kind).toBe("paid");
-      expect(await (await getDb()).select().from(trialReplacements)).toEqual([]);
+      expect(await replacementRows()).toEqual([]);
     },
   );
 
@@ -1010,14 +1011,11 @@ describe("one trial per person", () => {
   });
 
   async function hadTrial(email: string) {
-    const db = await getDb();
-    await db
-      .insert(trialHistory)
-      .values({ emailHash: emailFingerprint(email), kind: "trial", createdAt: 1 });
+    await addTrialHistory({ emailHash: emailFingerprint(email), kind: "trial", createdAt: 1 });
   }
 
   async function pendingCancels() {
-    return (await getDb()).select().from(trialReplacements);
+    return replacementRows();
   }
 
   const trialOf = (user: Row, fields: SubscriptionFields = {}): SubscriptionFields => ({
@@ -1277,7 +1275,7 @@ describe("a subscription signed for a deleted account", () => {
     });
   const marked = async () =>
     (await recordedEvents()).map((row) => row.id).filter((id) => id.startsWith("orphan:"));
-  const queued = async () => (await getDb()).select().from(trialReplacements);
+  const queued = async () => replacementRows();
 
   beforeEach(() => {
     vi.stubEnv("NODE_ENV", "production");

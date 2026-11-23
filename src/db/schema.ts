@@ -13,6 +13,7 @@ import {
   smallint,
   text,
   unique,
+  uniqueIndex,
   uuid,
 } from "drizzle-orm/pg-core";
 import {
@@ -36,7 +37,7 @@ import {
   SENIORITIES,
 } from "@/lib/job-feed/types";
 import type { InterviewPrep } from "@/lib/insights/prep";
-import { EMAIL_LOG_KINDS, NOTIFICATION_KINDS } from "@/lib/notifications/types";
+import { NOTIFICATION_KINDS } from "@/lib/notifications/types";
 import { PORTFOLIO_TEMPLATE_IDS } from "@/lib/portfolio/types";
 import type { Recap } from "@/lib/recap/types";
 import { REFERRAL_BLOCK_REASONS, REFERRAL_STATUSES } from "@/lib/referrals/referrals";
@@ -139,6 +140,34 @@ export const userSettings = pgTable(
     applyAnswers: jsonb("apply_answers").$type<Record<string, unknown>>(),
     applyAnswersAt: epochMs("apply_answers_at"),
     activeOn: date("active_on", { mode: "string" }),
+    activeDays: date("active_days", { mode: "string" }).array().notNull().default([]),
+    recaps: jsonb("recaps").$type<Record<string, StoredRecap>>(),
+    referralCode: text("referral_code"),
+    referralDeviceIds: text("referral_device_ids").array().notNull().default([]),
+    referralCodeAt: epochMs("referral_code_at"),
+    referredBy: uuid("referred_by"),
+    referralStatus: text("referral_status", { enum: REFERRAL_STATUSES }),
+    referralBlockedReason: text("referral_blocked_reason", { enum: REFERRAL_BLOCK_REASONS }),
+    referralDeviceId: text("referral_device_id"),
+    referralRewardedPeriod: text("referral_rewarded_period"),
+    referralRewardedAt: epochMs("referral_rewarded_at"),
+    referredAt: epochMs("referred_at"),
+    calendarFeedId: uuid("calendar_feed_id"),
+    calendarTokenHash: text("calendar_token_hash"),
+    calendarFeedAt: epochMs("calendar_feed_at"),
+    trackingAt: epochMs("tracking_at"),
+    trackingConfirmCode: text("tracking_confirm_code"),
+    trackingConfirmUrl: text("tracking_confirm_url"),
+    trackingConfirmSource: text("tracking_confirm_source"),
+    trackingConfirmAt: epochMs("tracking_confirm_at"),
+    trackingConfirmedAt: epochMs("tracking_confirmed_at"),
+    trackingSources: text("tracking_sources").array().notNull().default([]),
+    trackingTestAt: epochMs("tracking_test_at"),
+    trackingLastEmailAt: epochMs("tracking_last_email_at"),
+    trialRemindedFor: epochMs("trial_reminded_for"),
+    notices: jsonb("notices").$type<Record<string, number>>(),
+    noticeSentAt: epochMs("notice_sent_at"),
+    deletedResumes: jsonb("deleted_resumes").$type<Record<string, number>>(),
   },
   (t) => [
     index("user_settings_career_due_idx")
@@ -147,6 +176,66 @@ export const userSettings = pgTable(
     index("user_settings_career_emailed_idx")
       .on(t.careerEmailedAt)
       .where(sql`career_emailed_at is not null`),
+    uniqueIndex("user_settings_referral_code_idx")
+      .on(t.referralCode)
+      .where(sql`referral_code is not null`),
+    index("user_settings_referred_by_idx")
+      .on(t.referredBy, t.referralStatus)
+      .where(sql`referred_by is not null`),
+    uniqueIndex("user_settings_calendar_token_idx")
+      .on(t.calendarTokenHash)
+      .where(sql`calendar_token_hash is not null`),
+    index("user_settings_notice_sent_idx")
+      .on(t.noticeSentAt)
+      .where(sql`notice_sent_at is not null`),
+  ],
+);
+
+// A built recap week as user_settings.recaps keeps it.
+export type StoredRecap = { data: Recap; builtAt: number; seenAt: number | null };
+
+// Short-lived rows of a charged AI call: a replayable result, or a line fix's pass ("<feature>:<subject>").
+export const meteredCalls = pgTable(
+  "metered_calls",
+  {
+    userId: uuid("user_id").notNull(),
+    kind: text("kind", { enum: ["result", "pass"] }).notNull(),
+    key: text("key").notNull(),
+    result: jsonb("result"),
+    demo: boolean("demo").notNull().default(false),
+    startedAt: epochMs("started_at"),
+    usesLeft: smallint("uses_left"),
+    expiresAt: epochMs("expires_at").notNull(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.userId, t.kind, t.key] }),
+    index("metered_calls_expires_idx").on(t.expiresAt),
+  ],
+);
+
+// Billing's do-it-once records: handled event keys, trial history by email hash (outlives accounts), replaced trials.
+export const billingLog = pgTable(
+  "billing_log",
+  {
+    kind: text("kind", { enum: ["event", "trial", "replacement"] }).notNull(),
+    key: text("key").notNull(),
+    userId: uuid("user_id"),
+    ref: text("ref").notNull(),
+    attempts: integer("attempts").notNull().default(0),
+    at: epochMs("at").notNull(),
+    doneAt: epochMs("done_at"),
+  },
+  (t) => [
+    primaryKey({ columns: [t.kind, t.key] }),
+    index("billing_log_user_idx")
+      .on(t.userId)
+      .where(sql`user_id is not null`),
+    index("billing_log_events_idx")
+      .on(t.at)
+      .where(sql`kind = 'event'`),
+    index("billing_log_pending_idx")
+      .on(t.at)
+      .where(sql`kind = 'replacement' and done_at is null`),
   ],
 );
 
@@ -175,37 +264,6 @@ export const rateLimits = pgTable(
   ],
 );
 
-export const usagePasses = pgTable(
-  "usage_passes",
-  {
-    userId: uuid("user_id").notNull(),
-    feature: text("feature").notNull(),
-    subject: text("subject").notNull(),
-    usesLeft: integer("uses_left").notNull(),
-    expiresAt: epochMs("expires_at").notNull(),
-  },
-  (t) => [
-    primaryKey({ columns: [t.userId, t.feature, t.subject] }),
-    index("usage_passes_expires_idx").on(t.expiresAt),
-  ],
-);
-
-export const meteredResults = pgTable(
-  "metered_results",
-  {
-    userId: uuid("user_id").notNull(),
-    requestKey: text("request_key").notNull(),
-    result: jsonb("result"),
-    demo: boolean("demo").notNull().default(false),
-    startedAt: epochMs("started_at").notNull(),
-    expiresAt: epochMs("expires_at").notNull(),
-  },
-  (t) => [
-    primaryKey({ columns: [t.userId, t.requestKey] }),
-    index("metered_results_expires_idx").on(t.expiresAt),
-  ],
-);
-
 export const resumes = pgTable(
   "resumes",
   {
@@ -217,41 +275,6 @@ export const resumes = pgTable(
   },
   (t) => [primaryKey({ columns: [t.userId, t.id] })],
 );
-
-export const resumeTombstones = pgTable(
-  "resume_tombstones",
-  {
-    userId: uuid("user_id").notNull(),
-    id: text("id").notNull(),
-    deletedAt: epochMs("deleted_at").notNull(),
-  },
-  (t) => [
-    primaryKey({ columns: [t.userId, t.id] }),
-    index("resume_tombstones_user_deleted_idx").on(t.userId, t.deletedAt, t.id),
-  ],
-);
-
-export const billingEvents = pgTable("billing_events", {
-  id: text("id").primaryKey(),
-  type: text("type").notNull(),
-  receivedAt: epochMs("received_at").notNull(),
-});
-
-export const trialReplacements = pgTable("trial_replacements", {
-  replacedSubscriptionId: text("replaced_subscription_id").primaryKey(),
-  subscriptionId: text("subscription_id").notNull(),
-  userId: uuid("user_id").notNull(),
-  attempts: integer("attempts").notNull().default(0),
-  createdAt: epochMs("created_at").notNull(),
-  cancelledAt: epochMs("cancelled_at"),
-});
-
-// Not tied to users: one trial per email hash must outlive a deleted account.
-export const trialHistory = pgTable("trial_history", {
-  emailHash: text("email_hash").primaryKey(),
-  kind: text("kind", { enum: ["trial", "paid"] }).notNull(),
-  createdAt: epochMs("created_at").notNull(),
-});
 
 export const applications = pgTable(
   "applications",
@@ -307,27 +330,6 @@ export const notifications = pgTable(
   ],
 );
 
-export const trialReminders = pgTable(
-  "trial_reminders",
-  {
-    userId: uuid("user_id").notNull(),
-    trialEndsAt: epochMs("trial_ends_at").notNull(),
-    createdAt: epochMs("created_at").notNull(),
-  },
-  (t) => [primaryKey({ columns: [t.userId, t.trialEndsAt] })],
-);
-
-export const emailLog = pgTable(
-  "email_log",
-  {
-    userId: uuid("user_id").notNull(),
-    kind: text("kind", { enum: EMAIL_LOG_KINDS }).notNull(),
-    occasion: text("occasion").notNull(),
-    createdAt: epochMs("created_at").notNull(),
-  },
-  (t) => [primaryKey({ columns: [t.userId, t.kind, t.occasion] })],
-);
-
 export const shares = pgTable(
   "shares",
   {
@@ -356,28 +358,6 @@ export const feedback = pgTable("feedback", {
   pagePath: text("page_path"),
   createdAt: epochMs("created_at").notNull(),
 });
-
-export const referralCodes = pgTable("referral_codes", {
-  userId: uuid("user_id").primaryKey(),
-  code: text("code").notNull().unique(),
-  deviceIds: text("device_ids").array().notNull().default([]),
-  createdAt: epochMs("created_at").notNull(),
-});
-
-export const referrals = pgTable(
-  "referrals",
-  {
-    referredId: uuid("referred_id").primaryKey(),
-    referrerId: uuid("referrer_id").notNull(),
-    status: text("status", { enum: REFERRAL_STATUSES }).notNull().default("pending"),
-    blockedReason: text("blocked_reason", { enum: REFERRAL_BLOCK_REASONS }),
-    deviceId: text("device_id"),
-    rewardedPeriod: text("rewarded_period"),
-    rewardedAt: epochMs("rewarded_at"),
-    createdAt: epochMs("created_at").notNull(),
-  },
-  (t) => [index("referrals_referrer_status_idx").on(t.referrerId, t.status)],
-);
 
 const tsvector = customType<{ data: string }>({ dataType: () => "tsvector" });
 const bytea = customType<{ data: Uint8Array }>({ dataType: () => "bytea" });
@@ -618,39 +598,6 @@ export const extensionTokens = pgTable(
   ],
 );
 
-// One private calendar link per account: only the token's hash is kept.
-export const calendarFeeds = pgTable("calendar_feeds", {
-  userId: uuid("user_id").primaryKey(),
-  feedId: uuid("feed_id").notNull(),
-  tokenHash: text("token_hash").notNull().unique(),
-  createdAt: epochMs("created_at").notNull(),
-});
-
-// Each day, in the person's own time zone, they opened an app page: the recap's days active.
-export const activeDays = pgTable(
-  "active_days",
-  {
-    userId: uuid("user_id").notNull(),
-    day: date("day", { mode: "string" }).notNull(),
-  },
-  (t) => [primaryKey({ columns: [t.userId, t.day] }), index("active_days_day_idx").on(t.day)],
-);
-
-export const weeklyRecaps = pgTable(
-  "weekly_recaps",
-  {
-    userId: uuid("user_id").notNull(),
-    weekStart: date("week_start", { mode: "string" }).notNull(),
-    data: jsonb("data").$type<Recap>().notNull(),
-    builtAt: epochMs("built_at").notNull(),
-    seenAt: epochMs("seen_at"),
-  },
-  (t) => [
-    primaryKey({ columns: [t.userId, t.weekStart] }),
-    index("weekly_recaps_week_idx").on(t.weekStart),
-  ],
-);
-
 export const savedPosts = pgTable(
   "saved_posts",
   {
@@ -684,19 +631,6 @@ export const inboundHandles = pgTable(
   },
   (t) => [index("inbound_handles_user_idx").on(t.userId)],
 );
-
-export const inboundAddresses = pgTable("inbound_addresses", {
-  userId: uuid("user_id").primaryKey(),
-  createdAt: epochMs("created_at").notNull(),
-  confirmCode: text("confirm_code"),
-  confirmUrl: text("confirm_url"),
-  confirmSource: text("confirm_source"),
-  confirmAt: epochMs("confirm_at"),
-  confirmedAt: epochMs("confirmed_at"),
-  sources: text("sources").array().notNull().default([]),
-  testAt: epochMs("test_at"),
-  lastEmailAt: epochMs("last_email_at"),
-});
 
 export type CardBefore = {
   status: ApplicationStatus;

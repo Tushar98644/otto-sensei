@@ -1,7 +1,7 @@
-import { eq } from "drizzle-orm";
+import { and, eq, isNotNull } from "drizzle-orm";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { getDb } from "@/db/client";
-import { notifications, trialReminders, users, userSettings } from "@/db/schema";
+import { notifications, users, userSettings } from "@/db/schema";
 import { execSql } from "@/db/testing";
 import { createUser, resetDb, setPlan } from "@/lib/auth/test-helpers";
 import { resetEnvForTests } from "@/lib/env";
@@ -40,8 +40,15 @@ async function noticesOf(userId: string) {
   return (await getDb()).select().from(notifications).where(eq(notifications.userId, userId));
 }
 
+// The trial end last reminded, as a list of none or one.
 async function remindersOf(userId: string) {
-  return (await getDb()).select().from(trialReminders).where(eq(trialReminders.userId, userId));
+  const rows = await (
+    await getDb()
+  )
+    .select({ userId: userSettings.userId, trialEndsAt: userSettings.trialRemindedFor })
+    .from(userSettings)
+    .where(and(eq(userSettings.userId, userId), isNotNull(userSettings.trialRemindedFor)));
+  return rows;
 }
 
 describe("runTrialReminders", () => {
@@ -107,14 +114,10 @@ describe("runTrialReminders", () => {
     expect(yesterday.stats.users).toBe(1);
     expect(today.stats.users).toBe(1);
     expect(await remindersOf(reachedYesterday.id)).toEqual([
-      {
-        userId: reachedYesterday.id,
-        trialEndsAt: NOW + 12 * HOUR,
-        createdAt: NOW - DAY + 59 * MINUTE,
-      },
+      { userId: reachedYesterday.id, trialEndsAt: NOW + 12 * HOUR },
     ]);
     expect(await remindersOf(reachedToday.id)).toEqual([
-      { userId: reachedToday.id, trialEndsAt: NOW + 12 * HOUR + 1, createdAt: NOW },
+      { userId: reachedToday.id, trialEndsAt: NOW + 12 * HOUR + 1 },
     ]);
   });
 
@@ -145,9 +148,7 @@ describe("runTrialReminders", () => {
     expect((a.stats.users ?? 0) + (b.stats.users ?? 0)).toBe(1);
     expect(again.stats.users).toBe(0);
     expect(await noticesOf(maya.id)).toHaveLength(1);
-    expect(await remindersOf(maya.id)).toEqual([
-      { userId: maya.id, trialEndsAt: NOW + 25 * HOUR, createdAt: NOW },
-    ]);
+    expect(await remindersOf(maya.id)).toEqual([{ userId: maya.id, trialEndsAt: NOW + 25 * HOUR }]);
     expect(sender.calls.flatMap((call) => call.messages)).toHaveLength(1);
     expect(sender.calls[0]!.key).toMatch(/^trial-ending-[0-9a-f]{40}$/);
   });
@@ -171,7 +172,9 @@ describe("runTrialReminders", () => {
       .where(eq(users.id, maya.id));
     expect((await runTrialReminders(context(later), { sender: null })).stats.users).toBe(1);
     expect(await noticesOf(maya.id)).toHaveLength(2);
-    expect(await remindersOf(maya.id)).toHaveLength(2);
+    expect(await remindersOf(maya.id)).toEqual([
+      { userId: maya.id, trialEndsAt: later + 25 * HOUR },
+    ]);
   });
 
   it("puts it in the bell only when email isn't set up", async () => {
@@ -300,6 +303,13 @@ describe("runTrialReminders", () => {
     await deleteUserData(ana.id);
     const outcome = await runTrialReminders(context(), { sender: null });
     expect(outcome.stats.users).toBe(0);
-    expect(await (await getDb()).select().from(trialReminders)).toHaveLength(0);
+    expect(
+      await (
+        await getDb()
+      )
+        .select()
+        .from(userSettings)
+        .where(isNotNull(userSettings.trialRemindedFor)),
+    ).toHaveLength(0);
   });
 });

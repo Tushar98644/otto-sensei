@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { getDb } from "@/db/client";
-import { meteredResults } from "@/db/schema";
+import { meteredCalls } from "@/db/schema";
 import { REQUEST_ID_HEADER, RESULT_TTL_MS, RESUME_HEADER } from "@/lib/api/request-id";
 import { createUser, resetDb } from "@/lib/auth/test-helpers";
 import {
@@ -32,8 +32,12 @@ describe("metered results", () => {
     expect(readRequestId(withId("not a valid id at all!"))).toBeNull();
     expect(readRequestId(new Request("http://localhost/api/tailor"))).toBeNull();
 
-    expect(isResume(new Request("http://localhost/api/tailor", { headers: { [RESUME_HEADER]: "1" } }))).toBe(true);
-    expect(isResume(new Request("http://localhost/api/tailor", { headers: { [RESUME_HEADER]: "yes" } }))).toBe(false);
+    expect(
+      isResume(new Request("http://localhost/api/tailor", { headers: { [RESUME_HEADER]: "1" } })),
+    ).toBe(true);
+    expect(
+      isResume(new Request("http://localhost/api/tailor", { headers: { [RESUME_HEADER]: "yes" } })),
+    ).toBe(false);
     expect(isResume(new Request("http://localhost/api/tailor"))).toBe(false);
   });
 
@@ -86,15 +90,15 @@ describe("metered results", () => {
 
     await claimRun(ada.id, "old", NOW, QUICK);
     await saveResult(ada.id, "key", { text: "again" }, false, NOW + 2 * RESULT_TTL_MS);
-    expect(
-      (await (await getDb()).select().from(meteredResults)).map((row) => row.requestKey),
-    ).toEqual(["key"]);
+    expect((await (await getDb()).select().from(meteredCalls)).map((row) => row.key)).toEqual([
+      "key",
+    ]);
   });
 
   it("hands a resume only an answer already there, waiting while it runs, and never takes the slot", async () => {
     const ada = await createUser("ada@example.com");
     expect(await claimRun(ada.id, "key", NOW, RESUME)).toEqual({ kind: "missing" });
-    expect(await (await getDb()).select().from(meteredResults)).toEqual([]);
+    expect(await (await getDb()).select().from(meteredCalls)).toEqual([]);
 
     await claimRun(ada.id, "key", NOW, QUICK);
     expect(await claimRun(ada.id, "key", NOW + 1, RESUME)).toEqual({ kind: "busy" });
@@ -106,6 +110,8 @@ describe("metered results", () => {
 
     const bob = await createUser("bob@example.com");
     expect(await claimRun(bob.id, "key", NOW + 1, RESUME)).toEqual({ kind: "missing" });
-    expect(await claimRun(ada.id, "key", NOW + RESULT_TTL_MS + 1, RESUME)).toEqual({ kind: "missing" });
+    expect(await claimRun(ada.id, "key", NOW + RESULT_TTL_MS + 1, RESUME)).toEqual({
+      kind: "missing",
+    });
   });
 });

@@ -1,8 +1,15 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { getDb } from "@/db/client";
-import { usagePasses } from "@/db/schema";
+import { meteredCalls } from "@/db/schema";
 import { createUser, resetDb } from "@/lib/auth/test-helpers";
-import { openPass, PASS_TTL_MS, PASS_USES, passSubject, returnPass, takePass } from "./usage-passes";
+import {
+  openPass,
+  PASS_TTL_MS,
+  PASS_USES,
+  passSubject,
+  returnPass,
+  takePass,
+} from "./usage-passes";
 
 const NOW = Date.UTC(2026, 10, 21, 9, 0);
 
@@ -54,12 +61,12 @@ describe("usage passes", () => {
     await openPass({ ...pass, subject: passSubject("old line") }, NOW);
     await openPass(pass, NOW);
     await returnPass(pass);
-    const rows = await (await getDb()).select().from(usagePasses);
-    expect(rows.find((row) => row.subject === pass.subject)?.usesLeft).toBe(PASS_USES);
+    const rows = await (await getDb()).select().from(meteredCalls);
+    expect(rows.find((row) => row.key === `fix:${pass.subject}`)?.usesLeft).toBe(PASS_USES);
 
     await openPass(pass, NOW + PASS_TTL_MS + 1);
-    expect((await (await getDb()).select().from(usagePasses)).map((left) => left.subject)).toEqual([
-      pass.subject,
+    expect((await (await getDb()).select().from(meteredCalls)).map((left) => left.key)).toEqual([
+      `fix:${pass.subject}`,
     ]);
   });
 });

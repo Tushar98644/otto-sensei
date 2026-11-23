@@ -4,7 +4,7 @@ import { tailorResume } from "@/lib/ai/tailor";
 import { AIError, type TailorResult } from "@/lib/ai/types";
 import type { ApiErrorBody, TailorRequestBody, TailorResponse } from "@/lib/api/types";
 import { getDb } from "@/db/client";
-import { meteredResults, usage } from "@/db/schema";
+import { meteredCalls, usage } from "@/db/schema";
 import { REQUEST_ID_HEADER, RESULT_TTL_MS, RESUME_HEADER } from "@/lib/api/request-id";
 import { cookieJar, jsonRequest, resetDb, signInAs, signInOnTrial } from "@/lib/auth/test-helpers";
 import type { SessionUser } from "@/lib/auth/types";
@@ -32,7 +32,12 @@ const JOB_POST =
 function body(overrides: Partial<TailorRequestBody["job"]> = {}): TailorRequestBody {
   return {
     resume: createSampleResume(NOW),
-    job: { text: JOB_POST, title: "Senior Product Marketing Manager", company: "Contoso", ...overrides },
+    job: {
+      text: JOB_POST,
+      title: "Senior Product Marketing Manager",
+      company: "Contoso",
+      ...overrides,
+    },
   };
 }
 
@@ -48,7 +53,10 @@ function tailorWithId(payload: TailorRequestBody = SENT, id = REQUEST_ID): Promi
   return POST(req);
 }
 
-function resumeRun(payload: TailorRequestBody = SENT, id: string | null = REQUEST_ID): Promise<Response> {
+function resumeRun(
+  payload: TailorRequestBody = SENT,
+  id: string | null = REQUEST_ID,
+): Promise<Response> {
   const req = jsonRequest("/api/tailor", payload);
   if (id) req.headers.set(REQUEST_ID_HEADER, id);
   req.headers.set(RESUME_HEADER, "1");
@@ -80,7 +88,10 @@ describe("POST /api/tailor", () => {
   it("needs a signed-in user", async () => {
     const res = await tailor();
     expect(res.status).toBe(401);
-    expect(await errorOf(res)).toEqual({ code: "unauthorized", message: "Sign in to let Otto tailor your resume." });
+    expect(await errorOf(res)).toEqual({
+      code: "unauthorized",
+      message: "Sign in to let Otto tailor your resume.",
+    });
   });
 
   it("returns the demo tailoring and counts one tailored version", async () => {
@@ -90,7 +101,10 @@ describe("POST /api/tailor", () => {
     const result = (await res.json()) as TailorResponse;
 
     expect(result.ok).toBe(true);
-    expect(result.result.job).toEqual({ title: "Senior Product Marketing Manager", company: "Contoso" });
+    expect(result.result.job).toEqual({
+      title: "Senior Product Marketing Manager",
+      company: "Contoso",
+    });
     expect(result.result.keywords.length).toBeGreaterThan(0);
     expect(result.result.requirements.length).toBeGreaterThan(0);
     expect(result.result.requirements.every((item) => item.id.startsWith("r"))).toBe(true);
@@ -167,7 +181,9 @@ describe("POST /api/tailor", () => {
   it("points Free to Pro even with invite extras, which wait for the trial or an upgrade", async () => {
     const user = await signInAs("free@example.com");
     const db = await getDb();
-    await db.insert(usage).values({ subject: user.id, feature: "tailor", period: monthKey(NOW), bonus: 2 });
+    await db
+      .insert(usage)
+      .values({ subject: user.id, feature: "tailor", period: monthKey(NOW), bonus: 2 });
     const calls = vi.mocked(tailorResume).mock.calls.length;
     const res = await tailor();
     expect(res.status).toBe(402);
@@ -220,14 +236,14 @@ describe("POST /api/tailor after a reload", () => {
     const user = await signIn();
     vi.mocked(tailorResume).mockRejectedValueOnce(new AIError("unavailable", "timed out"));
     expect((await tailorWithId()).status).toBe(502);
-    expect(await (await getDb()).select().from(meteredResults)).toEqual([]);
+    expect(await (await getDb()).select().from(meteredCalls)).toEqual([]);
 
     expect((await tailorWithId()).status).toBe(200);
     expect((await getUsage(user)).tailor.used).toBe(1);
 
     for (let i = 1; i < PRO_TRIAL.limits.tailor; i++) await consumeUsage(user, "tailor");
     expect((await tailorWithId(OTHER_JOB)).status).toBe(429);
-    expect(await (await getDb()).select().from(meteredResults)).toHaveLength(1);
+    expect(await (await getDb()).select().from(meteredCalls)).toHaveLength(1);
   });
 
   it("picks up a paid run after a reload without charging, and never starts one", async () => {
@@ -239,12 +255,16 @@ describe("POST /api/tailor after a reload", () => {
     expect(picked.status).toBe(200);
     expect(((await picked.json()) as TailorResponse).result).toEqual(first.result);
 
-    for (const res of [await resumeRun(OTHER_JOB), await resumeRun(SENT, "0a1b2c3d-4e5f-4a6b-8c7d-9e0f1a2b3c4d"), await resumeRun(SENT, null)]) {
+    for (const res of [
+      await resumeRun(OTHER_JOB),
+      await resumeRun(SENT, "0a1b2c3d-4e5f-4a6b-8c7d-9e0f1a2b3c4d"),
+      await resumeRun(SENT, null),
+    ]) {
       expect(res.status).toBe(404);
       expect((await errorOf(res)).code).toBe("not_found");
     }
     expect(vi.mocked(tailorResume).mock.calls).toHaveLength(calls);
     expect((await getUsage(user)).tailor.used).toBe(1);
-    expect(await (await getDb()).select().from(meteredResults)).toHaveLength(1);
+    expect(await (await getDb()).select().from(meteredCalls)).toHaveLength(1);
   });
 });

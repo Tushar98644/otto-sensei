@@ -15,7 +15,7 @@ import {
 } from "drizzle-orm";
 import type { PgTable } from "drizzle-orm/pg-core";
 import type { Db, Tx } from "@/db/client";
-import { trialHistory, trialReminders, trialReplacements, usage, users } from "@/db/schema";
+import { billingLog, usage, users, userSettings } from "@/db/schema";
 
 export type ResetMode = "paddle" | "go-live";
 
@@ -48,13 +48,18 @@ const billedUser = and(
   notMock,
 );
 
-const TARGETS: Record<ResetMode, { users: SQL | undefined; replacements: SQL }> = {
+const TARGETS: Record<ResetMode, { users: SQL | undefined; replacements: SQL | undefined }> = {
   paddle: {
     users: paddleUser,
-    replacements: sql`${trialReplacements.replacedSubscriptionId} ~ ${PADDLE_SUBSCRIPTION_ID}`,
+    replacements: and(
+      eq(billingLog.kind, "replacement"),
+      sql`${billingLog.key} ~ ${PADDLE_SUBSCRIPTION_ID}`,
+    ),
   },
-  "go-live": { users: billedUser, replacements: sql`true` },
+  "go-live": { users: billedUser, replacements: eq(billingLog.kind, "replacement") },
 };
+
+const trialHistory = eq(billingLog.kind, "trial");
 
 export const RESET_USAGE = `Usage: bun scripts/reset-billing.ts (--paddle | --go-live) [--apply]
 
@@ -126,14 +131,21 @@ export async function resetBilling(
     const counts = {
       users: await tally(tx, users, target.users),
       paidUsers: await tally(tx, users, and(target.users, ne(users.plan, "free"))),
-      trialReminders: await tally(tx, trialReminders, ofTargetUser(trialReminders.userId)),
-      trialReplacements: await tally(tx, trialReplacements, target.replacements),
-      trialHistory: await tally(tx, trialHistory, undefined),
+      trialReminders: await tally(
+        tx,
+        userSettings,
+        and(ofTargetUser(userSettings.userId), isNotNull(userSettings.trialRemindedFor)),
+      ),
+      trialReplacements: await tally(tx, billingLog, target.replacements),
+      trialHistory: await tally(tx, billingLog, trialHistory),
       trialUsage: await tally(tx, usage, trialUsage),
     };
     if (!apply) return counts;
     // These go first: once the users are reset, the target rule no longer finds them.
-    await tx.delete(trialReminders).where(ofTargetUser(trialReminders.userId));
+    await tx
+      .update(userSettings)
+      .set({ trialRemindedFor: null })
+      .where(ofTargetUser(userSettings.userId));
     await tx
       .update(users)
       .set({
@@ -150,9 +162,9 @@ export async function resetBilling(
         updatedAt: now,
       })
       .where(target.users);
-    await tx.delete(trialReplacements).where(target.replacements);
+    await tx.delete(billingLog).where(target.replacements);
     await tx.update(usage).set({ count: 0 }).where(trialUsage);
-    await tx.delete(trialHistory).where(sql`true`);
+    await tx.delete(billingLog).where(trialHistory);
     return counts;
   });
 }

@@ -1,9 +1,10 @@
 import { and, asc, desc, eq, isNull, sql } from "drizzle-orm";
 import { getDb } from "@/db/client";
-import { inboundAddresses, inboundEmails, inboundHandles } from "@/db/schema";
+import { inboundEmails, inboundHandles, userSettings } from "@/db/schema";
 import type { PlanId } from "@/config/plans";
 import { readStatus } from "@/lib/applications/status";
 import { DAY_MS } from "@/lib/time";
+import { ADDRESS, hasAddress, type AddressRow } from "./address-columns";
 import { addressOf, addressParts } from "./address";
 import { boardCards, proposalFor } from "./board";
 import { addressShape, emailTrackingAvailable } from "./config";
@@ -20,7 +21,6 @@ import {
 // Gmail's confirm link stops working after a while, so an old one isn't offered.
 const CONFIRM_SHOWN_MS = 30 * DAY_MS;
 
-type AddressRow = typeof inboundAddresses.$inferSelect;
 type EmailRow = typeof inboundEmails.$inferSelect;
 
 function toAddress(row: AddressRow, handle: string, email: string, now: number): TrackingAddress {
@@ -32,7 +32,8 @@ function toAddress(row: AddressRow, handle: string, email: string, now: number):
     email,
     handle,
     sources: row.sources,
-    createdAt: row.createdAt,
+    // The join only finds set-up addresses, so this is always a time.
+    createdAt: row.createdAt ?? 0,
     confirm,
     confirmedAt: row.confirmedAt,
     testAt: row.testAt,
@@ -75,9 +76,9 @@ export async function trackingState(
   const db = await getDb();
   const [[current], events] = await Promise.all([
     db
-      .select({ handle: inboundHandles.handle, address: inboundAddresses })
+      .select({ handle: inboundHandles.handle, address: ADDRESS })
       .from(inboundHandles)
-      .innerJoin(inboundAddresses, eq(inboundAddresses.userId, inboundHandles.userId))
+      .innerJoin(userSettings, hasAddress(inboundHandles.userId))
       .where(and(eq(inboundHandles.userId, user.id), isNull(inboundHandles.retiredAt)))
       .limit(1),
     db
@@ -122,9 +123,9 @@ export async function trackingExport(userId: string) {
   const [handles, [address], emails] = await Promise.all([
     handlesOf(userId),
     db
-      .select({ sources: inboundAddresses.sources, createdAt: inboundAddresses.createdAt })
-      .from(inboundAddresses)
-      .where(eq(inboundAddresses.userId, userId))
+      .select({ sources: ADDRESS.sources, createdAt: ADDRESS.createdAt })
+      .from(userSettings)
+      .where(hasAddress(userId))
       .limit(1),
     db
       .select({
@@ -166,25 +167,27 @@ export async function trackingExport(userId: string) {
 export async function confirmSource(userId: string, now = Date.now()): Promise<void> {
   const db = await getDb();
   await db
-    .update(inboundAddresses)
+    .update(userSettings)
     .set({
-      confirmedAt: now,
-      sources: sql`(select coalesce(array_agg(distinct s), '{}') from unnest(array_append(${inboundAddresses.sources}, ${inboundAddresses.confirmSource})) s where s is not null)`,
+      trackingConfirmedAt: now,
+      trackingSources: sql`(select coalesce(array_agg(distinct s), '{}') from unnest(array_append(${ADDRESS.sources}, ${ADDRESS.confirmSource})) s where s is not null)`,
     })
     .where(
-      and(
-        eq(inboundAddresses.userId, userId),
-        sql`cardinality(${inboundAddresses.sources}) < ${INBOUND_LIMITS.sources}`,
-      ),
+      and(hasAddress(userId), sql`cardinality(${ADDRESS.sources}) < ${INBOUND_LIMITS.sources}`),
     );
 }
 
 export async function forgetConfirmation(userId: string): Promise<void> {
   const db = await getDb();
   await db
-    .update(inboundAddresses)
-    .set({ confirmCode: null, confirmUrl: null, confirmSource: null, confirmAt: null })
-    .where(eq(inboundAddresses.userId, userId));
+    .update(userSettings)
+    .set({
+      trackingConfirmCode: null,
+      trackingConfirmUrl: null,
+      trackingConfirmSource: null,
+      trackingConfirmAt: null,
+    })
+    .where(hasAddress(userId));
 }
 
 export async function dismissEmail(userId: string, id: string, now = Date.now()): Promise<boolean> {

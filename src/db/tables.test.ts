@@ -8,19 +8,19 @@ import { getDb } from "./testing";
 type Owner = "account" | "global";
 type Table = {
   owner: Owner;
-  // How the foreign key to users acts when the account is deleted.
-  onDelete?: "cascade" | "set null";
+  // How each foreign key to users acts when that account is deleted.
+  onDelete?: ("cascade" | "set null")[];
   export: { file: string } | { not: string };
 };
 
 const account = (file: string): Table => ({
   owner: "account",
-  onDelete: "cascade",
+  onDelete: ["cascade"],
   export: { file },
 });
 const accountNotExported = (not: string): Table => ({
   owner: "account",
-  onDelete: "cascade",
+  onDelete: ["cascade"],
   export: { not },
 });
 const global = (not: string): Table => ({ owner: "global", export: { not } });
@@ -30,24 +30,21 @@ const TABLES: Record<string, Table> = {
     owner: "account",
     export: { not: "the account itself: its email and plan are on the Account page" },
   },
-  user_settings: account("settings.json"),
+  // referred_by goes null when the inviter's account is deleted, which ends that invite.
+  user_settings: { ...account("settings.json"), onDelete: ["cascade", "set null"] },
+  metered_calls: accountNotExported(
+    "minutes-long replays of a paid result and passes for a fix's answers",
+  ),
+  billing_log: accountNotExported(
+    "billing bookkeeping: handled webhook ids, email hashes of past trials, replaced trials",
+  ),
   usage: accountNotExported("allowance counts, shown on the Account page"),
   rate_limits: global("abuse counters by device, address or email, kept two days"),
-  usage_passes: accountNotExported("minutes-long passes for a fix's follow-up answers"),
-  metered_results: accountNotExported("ten-minute replays of a paid result"),
   resumes: account("resumes/"),
-  resume_tombstones: accountNotExported("ids of deleted resumes, for sync"),
-  billing_events: global("webhook ids already handled"),
-  trial_replacements: accountNotExported("billing bookkeeping for a trial replaced by a purchase"),
-  trial_history: global("only an email hash, kept so a trial isn't taken twice"),
   applications: account("applications.json"),
   notifications: accountNotExported("bell notes made from exported applications and settings"),
-  trial_reminders: accountNotExported("which trial end was reminded"),
-  email_log: accountNotExported("which one-time emails went out"),
   shares: account("share-links.json"),
   feedback: account("feedback.json"),
-  referral_codes: accountNotExported("the invite code is on the Account page"),
-  referrals: accountNotExported("names other accounts"),
   jobs: global("public job posts"),
   job_boards: global("public job boards"),
   job_skills: global("skill weights from public posts"),
@@ -63,18 +60,29 @@ const TABLES: Record<string, Table> = {
   portfolio_redirects: accountNotExported("old portfolio addresses, kept 90 days"),
   writings: account("cover-letters"),
   extension_tokens: accountNotExported("hashes of extension sign-ins"),
-  calendar_feeds: accountNotExported("the hash of the calendar link's token"),
-  active_days: account("active-days.json"),
-  weekly_recaps: account("weekly-recaps.json"),
   saved_posts: account("saved-posts.json"),
   inbound_handles: {
     owner: "account",
-    onDelete: "set null",
+    onDelete: ["set null"],
     export: { file: "email-tracking.json" },
   },
-  inbound_addresses: account("email-tracking.json"),
   inbound_emails: account("email-tracking.json"),
   career_log_entries: account("career-log.json"),
+  // Copied into user_settings, metered_calls and billing_log; 20261123100900 drops them once the release that reads those is live.
+  active_days: accountNotExported("copied into user_settings"),
+  weekly_recaps: accountNotExported("copied into user_settings"),
+  referral_codes: accountNotExported("copied into user_settings"),
+  referrals: accountNotExported("copied into user_settings"),
+  calendar_feeds: accountNotExported("copied into user_settings"),
+  inbound_addresses: accountNotExported("copied into user_settings"),
+  trial_reminders: accountNotExported("copied into user_settings"),
+  email_log: accountNotExported("copied into user_settings"),
+  resume_tombstones: accountNotExported("copied into user_settings"),
+  metered_results: accountNotExported("copied into metered_calls"),
+  usage_passes: accountNotExported("copied into metered_calls"),
+  trial_replacements: accountNotExported("copied into billing_log"),
+  billing_events: global("copied into billing_log"),
+  trial_history: global("copied into billing_log"),
 };
 
 const ON_DELETE = { c: "cascade", n: "set null" } as const;
@@ -118,9 +126,9 @@ describe("every table", () => {
         expect({ name, actions }).toEqual({ name, actions: [] });
         expect(userColumns.map((row) => row.name)).not.toContain(name);
       } else {
-        expect({ name, actions: [...new Set(actions)] }).toEqual({
+        expect({ name, actions: [...new Set(actions)].sort() }).toEqual({
           name,
-          actions: [table.onDelete],
+          actions: table.onDelete,
         });
       }
     }

@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { getDb } from "@/db/client";
-import { applications, calendarFeeds } from "@/db/schema";
+import { applications, userSettings } from "@/db/schema";
 import type { ApiErrorBody } from "@/lib/api/types";
 import { cookieJar, createUser, resetDb, signInAs } from "@/lib/auth/test-helpers";
 import type { CalendarFeedResponse } from "@/lib/calendar/types";
@@ -83,10 +83,11 @@ describe("/api/calendar", () => {
       `https://calendar.google.com/calendar/r?cid=${encodeURIComponent(first.webcal)}`,
     );
     expect(await links()).toEqual(first);
-    const [stored] = await (await getDb()).select().from(calendarFeeds);
+    const [stored] = await (await getDb()).select().from(userSettings);
     // Only a hash of the token is kept.
-    expect(first.https).not.toContain(stored!.tokenHash);
-    expect(first.https).not.toContain(stored!.feedId);
+    expect(stored!.calendarTokenHash).toMatch(/^.{43}$/);
+    expect(first.https).not.toContain(stored!.calendarTokenHash);
+    expect(first.https).not.toContain(stored!.calendarFeedId);
   });
 
   it("serves the account's interviews as text/calendar to anyone holding the link, and nothing to a guess", async () => {

@@ -1,8 +1,9 @@
 import { and, desc, eq, isNotNull, isNull, lt, or, sql } from "drizzle-orm";
 import { getDb, type Tx } from "@/db/client";
 import { lockUser } from "@/db/locks";
-import { inboundAddresses, inboundHandles, resumes, users } from "@/db/schema";
+import { inboundHandles, resumes, users, userSettings } from "@/db/schema";
 import type { PlanId } from "@/config/plans";
+import { ADDRESS, hasAddress } from "./address-columns";
 import {
   HANDLE_HOLD_MS,
   HANDLE_ROUTES_MS,
@@ -66,20 +67,22 @@ export async function claimHandle(
       .where(and(eq(inboundHandles.userId, userId), isNull(inboundHandles.retiredAt)));
     if (row) await tx.delete(inboundHandles).where(eq(inboundHandles.handle, handle));
     await tx.insert(inboundHandles).values({ handle, userId, createdAt: now });
+    // A new address starts its setup again; the Gmail addresses already confirmed stay.
+    const fresh = {
+      trackingConfirmCode: null,
+      trackingConfirmUrl: null,
+      trackingConfirmSource: null,
+      trackingConfirmAt: null,
+      trackingConfirmedAt: null,
+      trackingTestAt: null,
+      trackingLastEmailAt: null,
+    };
     await tx
-      .insert(inboundAddresses)
-      .values({ userId, createdAt: now })
+      .insert(userSettings)
+      .values({ userId, trackingAt: now, updatedAt: now })
       .onConflictDoUpdate({
-        target: inboundAddresses.userId,
-        set: {
-          confirmCode: null,
-          confirmUrl: null,
-          confirmSource: null,
-          confirmAt: null,
-          confirmedAt: null,
-          testAt: null,
-          lastEmailAt: null,
-        },
+        target: userSettings.userId,
+        set: { ...fresh, trackingAt: sql`coalesce(${userSettings.trackingAt}, ${now}::bigint)` },
       });
     return "ok";
   });
@@ -120,12 +123,12 @@ export async function recipientOf(handle: string, now = Date.now()): Promise<Rec
       userId: users.id,
       plan: users.plan,
       email: users.email,
-      sources: inboundAddresses.sources,
-      confirmedAt: inboundAddresses.confirmedAt,
+      sources: ADDRESS.sources,
+      confirmedAt: ADDRESS.confirmedAt,
     })
     .from(inboundHandles)
     .innerJoin(users, eq(users.id, inboundHandles.userId))
-    .innerJoin(inboundAddresses, eq(inboundAddresses.userId, inboundHandles.userId))
+    .innerJoin(userSettings, hasAddress(inboundHandles.userId))
     .where(
       and(
         eq(inboundHandles.handle, handle),

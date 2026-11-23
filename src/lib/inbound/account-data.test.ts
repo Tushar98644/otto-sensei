@@ -2,7 +2,7 @@ import { eq } from "drizzle-orm";
 import JSZip from "jszip";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { getDb } from "@/db/client";
-import { inboundAddresses, inboundEmails, inboundHandles, users } from "@/db/schema";
+import { inboundEmails, inboundHandles, users, userSettings } from "@/db/schema";
 import { buildDataExport } from "@/lib/account/data-export";
 import { createUser, resetDb } from "@/lib/auth/test-helpers";
 import { deleteUserData } from "@/lib/users";
@@ -19,9 +19,9 @@ async function tracked(email: string, handle: string) {
   await db.update(users).set({ plan: "pro" }).where(eq(users.id, user.id));
   expect(await claimHandle(user.id, handle, NOW)).toBe("ok");
   await db
-    .update(inboundAddresses)
-    .set({ sources: [GMAIL] })
-    .where(eq(inboundAddresses.userId, user.id));
+    .update(userSettings)
+    .set({ trackingSources: [GMAIL] })
+    .where(eq(userSettings.userId, user.id));
   const to = `otto+${handle}@track.ottosensei.com`;
   const recipient = (await recipientOf(handle, NOW))!;
   const mail = loadFixture("greenhouse-applied.txt");
@@ -75,7 +75,7 @@ describe("the account's email tracking data", () => {
     const other = await tracked("rahul@example.com", "rahul");
     await deleteUserData(user.id);
     const db = await getDb();
-    expect((await db.select().from(inboundAddresses)).map((row) => row.userId)).toEqual([
+    expect((await db.select().from(userSettings)).map((row) => row.userId)).toEqual([
       other.user.id,
     ]);
     expect((await db.select().from(inboundEmails)).map((row) => row.userId)).toEqual([

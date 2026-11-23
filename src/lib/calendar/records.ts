@@ -2,7 +2,7 @@ import { createHash, createHmac, randomUUID } from "node:crypto";
 import { and, eq, gte, isNotNull, or } from "drizzle-orm";
 import { getDb } from "@/db/client";
 import { lockUser } from "@/db/locks";
-import { applications, calendarFeeds, userSettings } from "@/db/schema";
+import { applications, userSettings } from "@/db/schema";
 import { cronSecret } from "@/lib/cron/auth";
 import { appUrl } from "@/lib/env";
 import { readStatus } from "@/lib/applications/status";
@@ -44,28 +44,32 @@ export async function ensureFeed(
   return db.transaction(async (tx) => {
     if (!(await lockUser(tx, userId))) return null;
     const [row] = await tx
-      .select({ feedId: calendarFeeds.feedId, tokenHash: calendarFeeds.tokenHash })
-      .from(calendarFeeds)
-      .where(eq(calendarFeeds.userId, userId))
+      .select({ feedId: userSettings.calendarFeedId, tokenHash: userSettings.calendarTokenHash })
+      .from(userSettings)
+      .where(eq(userSettings.userId, userId))
       .limit(1);
-    if (row && !renew) {
+    if (row?.feedId && !renew) {
       const token = sign(secret, row.feedId);
       // A rotated secret makes a new link; the stored hash follows it so the link shown works.
       if (hashFeedToken(token) !== row.tokenHash) {
         await tx
-          .update(calendarFeeds)
-          .set({ tokenHash: hashFeedToken(token) })
-          .where(eq(calendarFeeds.userId, userId));
+          .update(userSettings)
+          .set({ calendarTokenHash: hashFeedToken(token) })
+          .where(eq(userSettings.userId, userId));
       }
       return feedLinks(token);
     }
     const feedId = randomUUID();
     const token = sign(secret, feedId);
-    const values = { feedId, tokenHash: hashFeedToken(token), createdAt: now };
+    const values = {
+      calendarFeedId: feedId,
+      calendarTokenHash: hashFeedToken(token),
+      calendarFeedAt: now,
+    };
     await tx
-      .insert(calendarFeeds)
-      .values({ userId, ...values })
-      .onConflictDoUpdate({ target: calendarFeeds.userId, set: values });
+      .insert(userSettings)
+      .values({ userId, ...values, updatedAt: now })
+      .onConflictDoUpdate({ target: userSettings.userId, set: values });
     return feedLinks(token);
   });
 }
@@ -74,9 +78,9 @@ export async function feedOwner(token: string): Promise<string | null> {
   if (!TOKEN.test(token)) return null;
   const db = await getDb();
   const [row] = await db
-    .select({ userId: calendarFeeds.userId })
-    .from(calendarFeeds)
-    .where(eq(calendarFeeds.tokenHash, hashFeedToken(token)))
+    .select({ userId: userSettings.userId })
+    .from(userSettings)
+    .where(eq(userSettings.calendarTokenHash, hashFeedToken(token)))
     .limit(1);
   return row?.userId ?? null;
 }

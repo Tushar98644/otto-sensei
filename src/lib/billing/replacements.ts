@@ -1,16 +1,15 @@
 import { and, asc, eq, isNull, sql } from "drizzle-orm";
 import { getDb } from "@/db/client";
-import { billingEvents, trialReplacements } from "@/db/schema";
+import { billingLog } from "@/db/schema";
 import { env } from "@/lib/env";
 import { log } from "@/lib/log";
 import { cancelSubscription, getSubscription, refundPayment, succeededPayments } from "./dodo";
 import { internalStatus } from "./dodo-status";
 import { claimBillingEvent, isLiveStatus } from "./entitlements";
 import { BillingError } from "./errors";
+import { eventKey, REPLACEMENT, replacementKey, type Replacement } from "./log";
 
 // A refused second trial, or a trial a separately bought plan replaced, is cancelled here; the cron retries.
-
-type Replacement = typeof trialReplacements.$inferSelect;
 
 export async function settleReplacement(
   replacedSubscriptionId: string,
@@ -18,14 +17,9 @@ export async function settleReplacement(
 ): Promise<boolean> {
   const db = await getDb();
   const [pending] = await db
-    .select()
-    .from(trialReplacements)
-    .where(
-      and(
-        eq(trialReplacements.replacedSubscriptionId, replacedSubscriptionId),
-        isNull(trialReplacements.cancelledAt),
-      ),
-    )
+    .select(REPLACEMENT)
+    .from(billingLog)
+    .where(and(replacementKey(replacedSubscriptionId), isNull(billingLog.doneAt)))
     .limit(1);
   return pending ? cancelReplaced(pending, now) : true;
 }
@@ -41,10 +35,10 @@ export async function retryPendingReplacements({
 }): Promise<number> {
   const db = await getDb();
   const pending = await db
-    .select()
-    .from(trialReplacements)
-    .where(isNull(trialReplacements.cancelledAt))
-    .orderBy(asc(trialReplacements.createdAt))
+    .select(REPLACEMENT)
+    .from(billingLog)
+    .where(and(eq(billingLog.kind, "replacement"), isNull(billingLog.doneAt)))
+    .orderBy(asc(billingLog.at))
     .limit(limit);
   let cancelled = 0;
   for (const replacement of pending) {
@@ -67,8 +61,8 @@ async function cancelReplaced(replacement: Replacement, now: number): Promise<bo
         ? "trial_reused"
         : "replaced",
   };
-  const attempted = { attempts: sql`${trialReplacements.attempts} + 1` };
-  const row = eq(trialReplacements.replacedSubscriptionId, replacement.replacedSubscriptionId);
+  const attempted = { attempts: sql`${billingLog.attempts} + 1` };
+  const row = replacementKey(replacement.replacedSubscriptionId);
   if (!env().DODO_API_KEY) {
     log.error("billing.replace_cancel_failed", new Error("DODO_API_KEY is not set"), fields);
     return false;
@@ -76,8 +70,8 @@ async function cancelReplaced(replacement: Replacement, now: number): Promise<bo
   try {
     const result = await cancelTrial(replacement.replacedSubscriptionId);
     await db
-      .update(trialReplacements)
-      .set({ ...attempted, cancelledAt: now })
+      .update(billingLog)
+      .set({ ...attempted, doneAt: now })
       .where(row);
     log.info("billing.replaced_trial_cancelled", { ...fields, result });
     if (fields.reason === "trial_reused") {
@@ -86,7 +80,7 @@ async function cancelReplaced(replacement: Replacement, now: number): Promise<bo
     return true;
   } catch (error) {
     if (!(error instanceof BillingError)) throw error;
-    await db.update(trialReplacements).set(attempted).where(row);
+    await db.update(billingLog).set(attempted).where(row);
     log.error("billing.replace_cancel_failed", error, fields);
     return false;
   }
@@ -132,7 +126,7 @@ export async function refundRefusedTrial(
       if (outcome === "refunded") refunded += 1;
       log.info("billing.reused_trial_refunded", { ...fields, paymentId, outcome });
     } catch (error) {
-      await db.delete(billingEvents).where(eq(billingEvents.id, claim));
+      await db.delete(billingLog).where(eventKey(claim));
       log.error("billing.reused_trial_refund_failed", error, { ...fields, paymentId });
     }
   }
@@ -143,7 +137,7 @@ export type OrphanOutcome = "cancelled" | "rechecked" | "kept";
 
 const orphanKey = (subscriptionId: string) => `orphan:${subscriptionId}`;
 
-// trial_replacements rows go with the account, so a billing_events key marks the ones cancelled here.
+// Replacement rows go with the account, so an event key marks the ones cancelled here.
 export async function settleOrphan(
   subscriptionId: string,
   userId: string | null,
@@ -164,9 +158,9 @@ export async function settleOrphan(
 export async function isOrphan(subscriptionId: string): Promise<boolean> {
   const db = await getDb();
   const [row] = await db
-    .select({ id: billingEvents.id })
-    .from(billingEvents)
-    .where(eq(billingEvents.id, orphanKey(subscriptionId)))
+    .select({ id: billingLog.key })
+    .from(billingLog)
+    .where(eventKey(orphanKey(subscriptionId)))
     .limit(1);
   return row !== undefined;
 }
@@ -174,9 +168,9 @@ export async function isOrphan(subscriptionId: string): Promise<boolean> {
 export async function isRefusedTrial(subscriptionId: string): Promise<string | null> {
   const db = await getDb();
   const [row] = await db
-    .select({ userId: trialReplacements.userId, by: trialReplacements.subscriptionId })
-    .from(trialReplacements)
-    .where(eq(trialReplacements.replacedSubscriptionId, subscriptionId))
+    .select({ userId: billingLog.userId, by: billingLog.ref })
+    .from(billingLog)
+    .where(replacementKey(subscriptionId))
     .limit(1);
   return row && row.by === subscriptionId ? row.userId : null;
 }

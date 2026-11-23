@@ -3,7 +3,6 @@ import JSZip from "jszip";
 import { BRAND } from "@/config/brand";
 import { getDb } from "@/db/client";
 import {
-  activeDays,
   applications,
   feedback,
   jobs,
@@ -13,7 +12,6 @@ import {
   savedPosts,
   shares,
   userSettings,
-  weeklyRecaps,
   writings,
 } from "@/db/schema";
 import { APPLICATION_LIMITS } from "@/lib/applications/schema";
@@ -23,6 +21,7 @@ import { STATUS_NAMES } from "@/lib/applications/status";
 import { EXTENSION_LIMITS } from "@/lib/extension/types";
 import { SAVED_JOBS_LIMIT } from "@/lib/job-feed/types";
 import { trackingExport } from "@/lib/inbound/records";
+import { recapCutoffDay } from "@/lib/recap/types";
 import { RESUME_LIMITS } from "@/config/plans";
 import { WRITING_LIMITS, type WritingKind } from "@/lib/writings/schema";
 
@@ -34,15 +33,26 @@ const KIND_FOLDERS: Record<WritingKind, string> = {
 
 const day = (at: number) => new Date(at).toISOString().slice(0, 10);
 
-// Both are kept about 10 weeks, so these caps are never reached.
-const RECAP_EXPORT_LIMIT = 30;
-const ACTIVE_DAYS_EXPORT_LIMIT = 200;
 // Far more than anyone makes; the caps only bound the download.
 const SHARE_EXPORT_LIMIT = 1_000;
 const FEEDBACK_EXPORT_LIMIT = 1_000;
 
-// Every setting, as stored; the answers have their own file.
-const NOT_SETTINGS = ["userId", "applyAnswers", "applyAnswersAt"] as const;
+// Every setting, as stored. The answers, days active and recaps have their own files; link secrets, device cookies and another account's id stay out.
+const NOT_SETTINGS = [
+  "userId",
+  "applyAnswers",
+  "applyAnswersAt",
+  "activeDays",
+  "recaps",
+  "deletedResumes",
+  "calendarFeedId",
+  "calendarTokenHash",
+  "referralDeviceIds",
+  "referralDeviceId",
+  "referredBy",
+  "trackingConfirmCode",
+  "trackingConfirmUrl",
+] as const;
 const SETTINGS_COLUMNS = Object.fromEntries(
   Object.entries(getTableColumns(userSettings)).filter(
     ([key]) => !(NOT_SETTINGS as readonly string[]).includes(key),
@@ -141,29 +151,13 @@ export async function buildDataExport(
       .select({
         answers: userSettings.applyAnswers,
         updatedAt: userSettings.applyAnswersAt,
+        days: userSettings.activeDays,
+        recaps: userSettings.recaps,
         settings: SETTINGS_COLUMNS,
       })
       .from(userSettings)
       .where(eq(userSettings.userId, userId))
       .limit(1),
-  ]);
-  const [recapRows, dayRows] = await Promise.all([
-    db
-      .select({
-        week: weeklyRecaps.weekStart,
-        builtAt: weeklyRecaps.builtAt,
-        recap: weeklyRecaps.data,
-      })
-      .from(weeklyRecaps)
-      .where(eq(weeklyRecaps.userId, userId))
-      .orderBy(asc(weeklyRecaps.weekStart))
-      .limit(RECAP_EXPORT_LIMIT),
-    db
-      .select({ day: activeDays.day })
-      .from(activeDays)
-      .where(eq(activeDays.userId, userId))
-      .orderBy(asc(activeDays.day))
-      .limit(ACTIVE_DAYS_EXPORT_LIMIT),
   ]);
   const [portfolioRows, shareRows, savedJobRows, feedbackRows] = await Promise.all([
     db
@@ -227,6 +221,12 @@ export async function buildDataExport(
       .limit(FEEDBACK_EXPORT_LIMIT),
   ]);
   const settingsRow = settingsRows[0] ?? null;
+  const cutoff = recapCutoffDay(now);
+  const recapRows = Object.entries(settingsRow?.recaps ?? {})
+    .filter(([week]) => week >= cutoff)
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([week, stored]) => ({ week, builtAt: stored.builtAt, recap: stored.data }));
+  const dayRows = (settingsRow?.days ?? []).filter((active) => active >= cutoff);
   const answers =
     settingsRow?.answers == null
       ? null
@@ -363,10 +363,7 @@ export async function buildDataExport(
     zip.file("career-log.json", careerLogJson(logEntries));
   }
   if (recapRows.length > 0) zip.file("weekly-recaps.json", JSON.stringify(recapRows, null, 2));
-  if (dayRows.length > 0) {
-    const days = dayRows.map((row) => row.day);
-    zip.file("active-days.json", JSON.stringify(days, null, 2));
-  }
+  if (dayRows.length > 0) zip.file("active-days.json", JSON.stringify(dayRows, null, 2));
 
   return new Uint8Array(await zip.generateAsync({ type: "arraybuffer", compression: "DEFLATE" }));
 }

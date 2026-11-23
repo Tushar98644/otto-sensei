@@ -1,8 +1,8 @@
 import { randomInt } from "node:crypto";
-import { and, count, eq, inArray, sql } from "drizzle-orm";
+import { and, count, eq, inArray, isNotNull, isNull, sql } from "drizzle-orm";
 import { getDb, type Tx } from "@/db/client";
 import { lockUser } from "@/db/locks";
-import { referralCodes, referrals, usage, users } from "@/db/schema";
+import { usage, users, userSettings } from "@/db/schema";
 import { appUrl } from "@/lib/env";
 import { log } from "@/lib/log";
 import { periodForUser } from "@/lib/usage";
@@ -19,6 +19,7 @@ import {
   type BonusFeature,
   type ReferralBlockReason,
   type ReferralClaimOutcome,
+  type ReferralStatus,
   type ReferralSummary,
 } from "./referrals";
 
@@ -42,7 +43,7 @@ function isUniqueViolation(error: unknown): boolean {
 }
 
 function rememberDevice(deviceId: string) {
-  const without = sql`array_remove(${referralCodes.deviceIds}, ${deviceId}::text)`;
+  const without = sql`array_remove(${userSettings.referralDeviceIds}, ${deviceId}::text)`;
   return sql`(array_append(${without}, ${deviceId}::text))[greatest(cardinality(${without}) - ${sql.raw(String(MAX_DEVICE_IDS - 2))}, 1):]`;
 }
 
@@ -52,39 +53,44 @@ export async function ensureReferralCode(
   now = Date.now(),
 ): Promise<string | null> {
   const db = await getDb();
+  const hasCode = and(eq(userSettings.userId, userId), isNotNull(userSettings.referralCode));
   const [existing] = deviceId
     ? await db
-        .update(referralCodes)
-        .set({ deviceIds: rememberDevice(deviceId) })
-        .where(eq(referralCodes.userId, userId))
-        .returning({ code: referralCodes.code })
+        .update(userSettings)
+        .set({ referralDeviceIds: rememberDevice(deviceId) })
+        .where(hasCode)
+        .returning({ code: userSettings.referralCode })
     : await db
-        .select({ code: referralCodes.code })
-        .from(referralCodes)
-        .where(eq(referralCodes.userId, userId))
+        .select({ code: userSettings.referralCode })
+        .from(userSettings)
+        .where(hasCode)
         .limit(1);
-  if (existing) return existing.code;
+  if (existing?.code) return existing.code;
 
   for (let attempt = 0; attempt < MINT_ATTEMPTS; attempt++) {
     try {
       return await db.transaction(async (tx) => {
         if (!(await lockUser(tx, userId))) return null;
+        const code = {
+          referralCode: mintCode(),
+          referralDeviceIds: deviceId ? [deviceId] : [],
+          referralCodeAt: now,
+        };
+        // Only an account without a code gets one; a request racing this one may have made it first.
         const [created] = await tx
-          .insert(referralCodes)
-          .values({
-            userId,
-            code: mintCode(),
-            deviceIds: deviceId ? [deviceId] : [],
-            createdAt: now,
+          .insert(userSettings)
+          .values({ userId, ...code, updatedAt: now })
+          .onConflictDoUpdate({
+            target: userSettings.userId,
+            set: code,
+            setWhere: isNull(userSettings.referralCode),
           })
-          .onConflictDoNothing({ target: referralCodes.userId })
-          .returning({ code: referralCodes.code });
-        if (created) return created.code;
-        // A request racing this one made it first.
+          .returning({ code: userSettings.referralCode });
+        if (created?.code) return created.code;
         const [raced] = await tx
-          .select({ code: referralCodes.code })
-          .from(referralCodes)
-          .where(eq(referralCodes.userId, userId));
+          .select({ code: userSettings.referralCode })
+          .from(userSettings)
+          .where(eq(userSettings.userId, userId));
         return raced?.code ?? null;
       });
     } catch (error) {
@@ -98,9 +104,9 @@ export async function ensureReferralCode(
 async function referralCodeOf(userId: string): Promise<string | null> {
   const db = await getDb();
   const [row] = await db
-    .select({ code: referralCodes.code })
-    .from(referralCodes)
-    .where(eq(referralCodes.userId, userId))
+    .select({ code: userSettings.referralCode })
+    .from(userSettings)
+    .where(eq(userSettings.userId, userId))
     .limit(1);
   return row?.code ?? null;
 }
@@ -115,7 +121,24 @@ export async function ownerHomeLink(ownerId: string): Promise<string> {
   }
 }
 
-type ReferralRow = typeof referrals.$inferSelect;
+// The invite an account joined through, on its own user_settings row; referred_by goes null when the inviter's account is deleted, which ends it.
+type ReferralRow = { referredId: string; referrerId: string; status: ReferralStatus };
+
+const REFERRAL = {
+  referredId: userSettings.userId,
+  referrerId: userSettings.referredBy,
+  status: userSettings.referralStatus,
+};
+
+function toReferral(row: {
+  referredId: string;
+  referrerId: string | null;
+  status: ReferralStatus | null;
+}) {
+  return row.referrerId === null || row.status === null
+    ? null
+    : { referredId: row.referredId, referrerId: row.referrerId, status: row.status };
+}
 
 async function addBonus(tx: Tx, userId: string, period: string): Promise<void> {
   await tx
@@ -139,16 +162,28 @@ async function addBonus(tx: Tx, userId: string, period: string): Promise<void> {
 async function reward(tx: Tx, row: Pick<ReferralRow, "referredId" | "referrerId">, now: number) {
   const [paid] = await tx
     .select({ n: count() })
-    .from(referrals)
-    .where(and(eq(referrals.referrerId, row.referrerId), eq(referrals.status, "rewarded")));
+    .from(userSettings)
+    .where(
+      and(eq(userSettings.referredBy, row.referrerId), eq(userSettings.referralStatus, "rewarded")),
+    );
   const status = (paid?.n ?? 0) < MAX_REWARDED_REFERRALS ? "rewarded" : "capped";
   const friendPeriod = await periodForUser(tx, row.referredId, now);
   if (!friendPeriod) return false;
   const [updated] = await tx
-    .update(referrals)
-    .set({ status, rewardedPeriod: friendPeriod.key, rewardedAt: now })
-    .where(and(eq(referrals.referredId, row.referredId), eq(referrals.status, "pending")))
-    .returning({ status: referrals.status });
+    .update(userSettings)
+    .set({
+      referralStatus: status,
+      referralRewardedPeriod: friendPeriod.key,
+      referralRewardedAt: now,
+    })
+    .where(
+      and(
+        eq(userSettings.userId, row.referredId),
+        eq(userSettings.referredBy, row.referrerId),
+        eq(userSettings.referralStatus, "pending"),
+      ),
+    )
+    .returning({ status: userSettings.referralStatus });
   if (!updated) return false;
   await addBonus(tx, row.referredId, friendPeriod.key);
   if (status === "rewarded") {
@@ -183,20 +218,22 @@ async function blockReason(
   if (inboxKey(friend.email) === inboxKey(referrer.email)) return "same_person";
   if (!deviceId) return null;
   const [ownDevice] = await tx
-    .select({ userId: referralCodes.userId })
-    .from(referralCodes)
+    .select({ userId: userSettings.userId })
+    .from(userSettings)
     .where(
       and(
-        eq(referralCodes.userId, referrer.id),
-        sql`${deviceId}::text = any(${referralCodes.deviceIds})`,
+        eq(userSettings.userId, referrer.id),
+        sql`${deviceId}::text = any(${userSettings.referralDeviceIds})`,
       ),
     )
     .limit(1);
   if (ownDevice) return "same_device";
   const [usedDevice] = await tx
-    .select({ id: referrals.referredId })
-    .from(referrals)
-    .where(and(eq(referrals.referrerId, referrer.id), eq(referrals.deviceId, deviceId)))
+    .select({ id: userSettings.userId })
+    .from(userSettings)
+    .where(
+      and(eq(userSettings.referredBy, referrer.id), eq(userSettings.referralDeviceId, deviceId)),
+    )
     .limit(1);
   return usedDevice ? "same_device" : null;
 }
@@ -213,17 +250,18 @@ export async function claimReferral(
   now = Date.now(),
 ): Promise<ReferralClaimOutcome> {
   const db = await getDb();
-  const [linked] = await db
-    .select()
-    .from(referrals)
-    .where(eq(referrals.referredId, userId))
+  const [stored] = await db
+    .select(REFERRAL)
+    .from(userSettings)
+    .where(and(eq(userSettings.userId, userId), isNotNull(userSettings.referredBy)))
     .limit(1);
+  const linked = stored ? toReferral(stored) : null;
   if (linked) return settleExisting(linked, checked, now);
 
   const [owner] = await db
-    .select({ userId: referralCodes.userId })
-    .from(referralCodes)
-    .where(eq(referralCodes.code, code))
+    .select({ userId: userSettings.userId })
+    .from(userSettings)
+    .where(eq(userSettings.referralCode, code))
     .limit(1);
   if (!owner) return "unknown_code";
   if (owner.userId === userId) return "self";
@@ -241,18 +279,26 @@ export async function claimReferral(
     if (friend.createdAt < now - CLAIM_WINDOW_MS) return "existing_account";
 
     const reason = await blockReason(tx, friend, referrer, deviceId);
-    const [row] = await tx
-      .insert(referrals)
-      .values({
-        referredId: userId,
-        referrerId,
-        status: reason ? "blocked" : "pending",
-        blockedReason: reason,
-        deviceId,
-        createdAt: now,
+    const invite = {
+      referredBy: referrerId,
+      referralStatus: reason ? ("blocked" as const) : ("pending" as const),
+      referralBlockedReason: reason,
+      referralDeviceId: deviceId,
+      referralRewardedPeriod: null,
+      referralRewardedAt: null,
+      referredAt: now,
+    };
+    // Nobody is invited twice: only an account not already linked to a live invite takes this one.
+    const [claimed] = await tx
+      .insert(userSettings)
+      .values({ userId, ...invite, updatedAt: now })
+      .onConflictDoUpdate({
+        target: userSettings.userId,
+        set: invite,
+        setWhere: isNull(userSettings.referredBy),
       })
-      .onConflictDoNothing({ target: referrals.referredId })
-      .returning();
+      .returning(REFERRAL);
+    const row = claimed ? toReferral(claimed) : null;
     if (!row) return "already";
     if (reason) {
       log.info("referral.blocked", { referrerId, referredId: userId, reason });
@@ -276,10 +322,10 @@ export async function referralSummary(
   if (!period) return null;
   const [byStatus, extras] = await Promise.all([
     db
-      .select({ status: referrals.status, n: count() })
-      .from(referrals)
-      .where(eq(referrals.referrerId, userId))
-      .groupBy(referrals.status),
+      .select({ status: userSettings.referralStatus, n: count() })
+      .from(userSettings)
+      .where(eq(userSettings.referredBy, userId))
+      .groupBy(userSettings.referralStatus),
     db
       .select({ feature: usage.feature, bonus: usage.bonus })
       .from(usage)

@@ -1,8 +1,8 @@
 import { AuthRetryableFetchError } from "@supabase/supabase-js";
-import { eq } from "drizzle-orm";
+import { and, eq, isNotNull } from "drizzle-orm";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { getDb } from "@/db/client";
-import { rateLimits, referralCodes, referrals } from "@/db/schema";
+import { rateLimits, userSettings } from "@/db/schema";
 import type { ApiErrorBody, ReferralClaimResponse, ReferralSummaryResponse } from "@/lib/api/types";
 import { getCurrentUser } from "@/lib/auth/session";
 import { cookieJar, createUser, fakeAuth, resetDb, signInAs } from "@/lib/auth/test-helpers";
@@ -39,13 +39,20 @@ async function outcomeOf(res: Response): Promise<ReferralClaimResponse["outcome"
   return ((await res.json()) as ReferralClaimResponse).outcome;
 }
 
+// The invite as the referrals table kept it, from the friend's user_settings row.
 async function referralOf(userId: string) {
   const [row] = await (
     await getDb()
   )
-    .select()
-    .from(referrals)
-    .where(eq(referrals.referredId, userId));
+    .select({
+      referrerId: userSettings.referredBy,
+      status: userSettings.referralStatus,
+      blockedReason: userSettings.referralBlockedReason,
+      deviceId: userSettings.referralDeviceId,
+      rewardedPeriod: userSettings.referralRewardedPeriod,
+    })
+    .from(userSettings)
+    .where(and(eq(userSettings.userId, userId), isNotNull(userSettings.referredBy)));
   return row ?? null;
 }
 
@@ -53,9 +60,9 @@ async function codeRowOf(userId: string) {
   const [row] = await (
     await getDb()
   )
-    .select()
-    .from(referralCodes)
-    .where(eq(referralCodes.userId, userId));
+    .select({ code: userSettings.referralCode, deviceIds: userSettings.referralDeviceIds })
+    .from(userSettings)
+    .where(and(eq(userSettings.userId, userId), isNotNull(userSettings.referralCode)));
   return row ?? null;
 }
 
@@ -99,7 +106,9 @@ describe("GET /api/referrals", () => {
       code: "unauthorized",
       message: "Sign in to get your invite link.",
     });
-    expect(await (await getDb()).select().from(referralCodes)).toHaveLength(0);
+    expect(
+      await (await getDb()).select().from(userSettings).where(isNotNull(userSettings.referralCode)),
+    ).toHaveLength(0);
   });
 
   it("answers 401, not an error, when the account is deleted mid-request, and leaves no code behind", async () => {
@@ -169,9 +178,18 @@ describe("GET /api/referrals", () => {
     ] as const;
     for (const row of seeded) {
       const friend = await createUser(`${crypto.randomUUID()}@example.com`);
-      await db
-        .insert(referrals)
-        .values({ ...row, referredId: friend.id, referrerId: owner.id, createdAt: Date.now() });
+      const { status, ...rest } = row;
+      await db.insert(userSettings).values({
+        userId: friend.id,
+        referredBy: owner.id,
+        referralStatus: status,
+        ...("blockedReason" in rest ? { referralBlockedReason: rest.blockedReason } : {}),
+        ...("rewardedPeriod" in rest
+          ? { referralRewardedPeriod: rest.rewardedPeriod, referralRewardedAt: rest.rewardedAt }
+          : {}),
+        referredAt: Date.now(),
+        updatedAt: Date.now(),
+      });
     }
 
     cookieJar.clear();

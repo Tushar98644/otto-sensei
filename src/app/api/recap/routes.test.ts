@@ -1,7 +1,7 @@
 import { eq } from "drizzle-orm";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { getDb } from "@/db/client";
-import { applications, users, weeklyRecaps } from "@/db/schema";
+import { applications, users, userSettings } from "@/db/schema";
 import type { ApiErrorBody } from "@/lib/api/types";
 import { cookieJar, resetDb, signInAs } from "@/lib/auth/test-helpers";
 import type { RecapIndexResponse, RecapResponse } from "@/lib/recap/types";
@@ -72,8 +72,8 @@ describe("/api/recap", () => {
     expect(index.current?.seen).toBe(false);
 
     expect((await send("PATCH", { week })).status).toBe(200);
-    const [row] = await db.select().from(weeklyRecaps).where(eq(weeklyRecaps.userId, user.id));
-    expect(row?.seenAt).not.toBeNull();
+    const [row] = await db.select().from(userSettings).where(eq(userSettings.userId, user.id));
+    expect(row?.recaps?.[week!]?.seenAt).not.toBeNull();
 
     const back = await read(week!);
     expect(back.status).toBe(200);

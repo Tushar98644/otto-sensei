@@ -1,13 +1,6 @@
 import { eq } from "drizzle-orm";
 import { getDb } from "@/db/client";
-import {
-  applications,
-  resumes,
-  resumeTombstones,
-  usage,
-  users,
-  type UserRow,
-} from "@/db/schema";
+import { applications, resumes, usage, users, type UserRow } from "@/db/schema";
 import { captureServerEvent } from "@/lib/analytics/server";
 import { normalizeEmail } from "@/lib/auth/policy";
 import type { SessionUser } from "@/lib/auth/types";
@@ -54,7 +47,6 @@ export async function deleteUserData(userId: string): Promise<void> {
   const db = await getDb();
   await db.transaction(async (tx) => {
     await tx.delete(resumes).where(eq(resumes.userId, userId));
-    await tx.delete(resumeTombstones).where(eq(resumeTombstones.userId, userId));
     await tx.delete(applications).where(eq(applications.userId, userId));
     await tx.delete(usage).where(eq(usage.subject, userId));
     await tx.delete(users).where(eq(users.id, userId));

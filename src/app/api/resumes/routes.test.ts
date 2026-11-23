@@ -1,7 +1,7 @@
 import { eq, sql } from "drizzle-orm";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { getDb } from "@/db/client";
-import { resumes, resumeTombstones, users } from "@/db/schema";
+import { resumes, users, userSettings } from "@/db/schema";
 import type { ApiErrorBody, PutResumeResponse, ResumesResponse } from "@/lib/api/types";
 import { cookieJar, resetDb, setPlan, signInAs } from "@/lib/auth/test-helpers";
 import type { SessionUser } from "@/lib/auth/types";
@@ -55,7 +55,10 @@ function listSince(body: unknown, contentType = "application/json"): Promise<Res
 }
 
 function remove(id: string): Promise<Response> {
-  return DELETE(new Request(`http://localhost/api/resumes/${encodeURIComponent(id)}`, { method: "DELETE" }), context(id));
+  return DELETE(
+    new Request(`http://localhost/api/resumes/${encodeURIComponent(id)}`, { method: "DELETE" }),
+    context(id),
+  );
 }
 
 async function listed(): Promise<Omit<ResumesResponse, "ok">> {
@@ -76,17 +79,25 @@ async function saved(res: Response): Promise<PutResumeResponse> {
 
 async function tombstonesOf(userId: string): Promise<{ id: string; deletedAt: number }[]> {
   const db = await getDb();
-  return db
-    .select({ id: resumeTombstones.id, deletedAt: resumeTombstones.deletedAt })
-    .from(resumeTombstones)
-    .where(eq(resumeTombstones.userId, userId));
+  const [row] = await db
+    .select({ map: userSettings.deletedResumes })
+    .from(userSettings)
+    .where(eq(userSettings.userId, userId));
+  return Object.entries(row?.map ?? {}).map(([id, deletedAt]) => ({ id, deletedAt }));
 }
 
 async function insertTombstones(userId: string, rows: { id: string; deletedAt: number }[]) {
   const db = await getDb();
-  for (let i = 0; i < rows.length; i += 200) {
-    await db.insert(resumeTombstones).values(rows.slice(i, i + 200).map((row) => ({ userId, ...row })));
-  }
+  const map = Object.fromEntries(rows.map((row) => [row.id, row.deletedAt]));
+  await db
+    .insert(userSettings)
+    .values({ userId, deletedResumes: map, updatedAt: 1 })
+    .onConflictDoUpdate({
+      target: userSettings.userId,
+      set: {
+        deletedResumes: sql`coalesce(${userSettings.deletedResumes}, '{}') || ${JSON.stringify(map)}::jsonb`,
+      },
+    });
 }
 
 async function signIn(email: string, plan: "free" | "pro" | "trial" = "pro"): Promise<SessionUser> {
@@ -110,7 +121,10 @@ describe("/api/resumes", () => {
     const item = resume();
     for (const res of [await GET(), await save(item), await remove(item.id)]) {
       expect(res.status).toBe(401);
-      expect(await errorOf(res)).toEqual({ code: "unauthorized", message: "Sign in to sync your resumes." });
+      expect(await errorOf(res)).toEqual({
+        code: "unauthorized",
+        message: "Sign in to sync your resumes.",
+      });
     }
   });
 
@@ -217,7 +231,9 @@ describe("/api/resumes", () => {
 
   it("refuses a resume too big to back up", async () => {
     await signIn("ada@example.com");
-    const long = "Shipped a feature that customers loved and wrote about it at length. ".repeat(14).slice(0, 1_000);
+    const long = "Shipped a feature that customers loved and wrote about it at length. "
+      .repeat(14)
+      .slice(0, 1_000);
     const experience = Array.from({ length: 3 }, () => ({
       ...newExperience(),
       bullets: Array.from({ length: 40 }, () => newBullet(long)),
@@ -245,8 +261,20 @@ describe("/api/resumes", () => {
     await save(good);
     const db = await getDb();
     await db.insert(resumes).values([
-      { userId: user.id, id: "not-an-object", data: sql`'"just text"'::jsonb`, createdAt: 1, updatedAt: 9_000 },
-      { userId: user.id, id: "old-shape", data: sql`${JSON.stringify({ id: "old-shape" })}::jsonb`, createdAt: 1, updatedAt: 9_000 },
+      {
+        userId: user.id,
+        id: "not-an-object",
+        data: sql`'"just text"'::jsonb`,
+        createdAt: 1,
+        updatedAt: 9_000,
+      },
+      {
+        userId: user.id,
+        id: "old-shape",
+        data: sql`${JSON.stringify({ id: "old-shape" })}::jsonb`,
+        createdAt: 1,
+        updatedAt: 9_000,
+      },
     ]);
 
     expect(await list()).toEqual([good]);
@@ -313,7 +341,8 @@ describe("Free's resume limit", () => {
       ["pro@example.com", "pro"],
     ] as const) {
       await signIn(email, plan);
-      for (let i = 0; i < 3; i++) expect((await save(resume({ updatedAt: 10_000 + i }))).status).toBe(200);
+      for (let i = 0; i < 3; i++)
+        expect((await save(resume({ updatedAt: 10_000 + i }))).status).toBe(200);
       expect(await list()).toHaveLength(3);
     }
   });
@@ -323,7 +352,10 @@ describe("Free's resume limit", () => {
     const kept = [own({ updatedAt: 3_000 }), own({ updatedAt: 2_000 }), own({ updatedAt: 1_500 })];
     for (const item of kept) await save(item);
     const db = await getDb();
-    await db.update(users).set({ plan: "free", planStatus: "canceled", trialEndsAt: null }).where(eq(users.id, user.id));
+    await db
+      .update(users)
+      .set({ plan: "free", planStatus: "canceled", trialEndsAt: null })
+      .where(eq(users.id, user.id));
 
     expect(await list()).toEqual(kept);
     const edited = { ...kept[2]!, title: "Still mine", updatedAt: 5_000 };
@@ -351,7 +383,11 @@ describe("/api/resumes deletions", () => {
     expect((await remove(drop.id)).status).toBe(200);
     expect(await tombstonesOf(user.id)).toEqual([{ id: drop.id, deletedAt: expect.any(Number) }]);
 
-    const res = await save({ ...drop, title: "Edited on device B", updatedAt: Date.now() + 60_000 });
+    const res = await save({
+      ...drop,
+      title: "Edited on device B",
+      updatedAt: Date.now() + 60_000,
+    });
     expect(await saved(res)).toEqual({ ok: true, deleted: true });
     expect(await listed()).toEqual({ resumes: [keep], deletedIds: [drop.id] });
 
@@ -408,7 +444,9 @@ describe("/api/resumes deletions", () => {
 
     await remove(resume().id);
     await remove(shared.id);
-    expect(await tombstonesOf(grace.id)).toEqual([{ id: shared.id, deletedAt: expect.any(Number) }]);
+    expect(await tombstonesOf(grace.id)).toEqual([
+      { id: shared.id, deletedAt: expect.any(Number) },
+    ]);
     expect(await tombstonesOf(ada.id)).toEqual([{ id: shared.id, deletedAt: expect.any(Number) }]);
 
     await signIn("ada@example.com");
@@ -473,7 +511,12 @@ describe("/api/resumes edits and the copy they were made on", () => {
     await signIn("ada@example.com");
     const first = resume({ title: "First", updatedAt: 2_000 });
     await save(first);
-    const res = await put({ ...first, title: "Second", updatedAt: 3_000 }, first.id, "application/json", 2_000);
+    const res = await put(
+      { ...first, title: "Second", updatedAt: 3_000 },
+      first.id,
+      "application/json",
+      2_000,
+    );
     expect(await saved(res)).toEqual({ ok: true, deleted: false });
     expect((await list())[0]?.title).toBe("Second");
   });
@@ -508,7 +551,10 @@ describe("/api/resumes edits and the copy they were made on", () => {
   it("saves a new resume whatever base it names, and ignores a base that isn't a version", async () => {
     await signIn("ada@example.com");
     const item = resume();
-    expect(await saved(await put(item, item.id, "application/json", 123))).toEqual({ ok: true, deleted: false });
+    expect(await saved(await put(item, item.id, "application/json", 123))).toEqual({
+      ok: true,
+      deleted: false,
+    });
     const req = new Request(`http://localhost/api/resumes/${item.id}?base=soon`, {
       method: "PUT",
       headers: { "content-type": "application/json" },
@@ -529,7 +575,9 @@ describe("POST /api/resumes", () => {
     for (const item of [same, changed, onlyThere, deleted]) await save(item);
     await remove(deleted.id);
 
-    const res = await listSince({ known: { [same.id]: 2_000, [changed.id]: 1_000, "not-hers": 5 } });
+    const res = await listSince({
+      known: { [same.id]: 2_000, [changed.id]: 1_000, "not-hers": 5 },
+    });
 
     expect(res.status).toBe(200);
     expect(res.headers.get("Cache-Control")).toBe("no-store");

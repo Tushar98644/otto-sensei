@@ -2,20 +2,14 @@ import { eq } from "drizzle-orm";
 import JSZip from "jszip";
 import { beforeEach, describe, expect, it } from "vitest";
 import { getDb } from "@/db/client";
-import { activeDays, applications, notifications, resumes, weeklyRecaps } from "@/db/schema";
+import { applications, notifications, resumes, userSettings } from "@/db/schema";
 import { buildDataExport } from "@/lib/account/data-export";
 import type { ApplicationStatus } from "@/lib/applications/status";
 import { createUser, resetDb } from "@/lib/auth/test-helpers";
 import type { SessionUser } from "@/lib/auth/types";
 import { createSampleResume } from "@/lib/resume/sample";
 import { DAY_MS, HOUR_MS } from "@/lib/time";
-import {
-  deleteOldActiveDays,
-  deleteOldRecaps,
-  ensureRecap,
-  markRecapSeen,
-  readRecap,
-} from "./records";
+import { trimOldRecaps, ensureRecap, markRecapSeen, readRecap } from "./records";
 
 const TZ = "Asia/Kolkata";
 // Monday Nov 16 2026, 00:00 in Kolkata, and the next Monday morning there.
@@ -47,6 +41,15 @@ async function apply(
     createdAt: appliedAt,
     updatedAt: appliedAt,
   });
+}
+
+async function activeOn(userId: string, days: string[]) {
+  await (
+    await getDb()
+  )
+    .insert(userSettings)
+    .values({ userId, activeDays: days, updatedAt: NOW })
+    .onConflictDoUpdate({ target: userSettings.userId, set: { activeDays: days } });
 }
 
 async function bell(userId: string) {
@@ -115,7 +118,9 @@ describe("ensureRecap", () => {
     const late = await account("late@example.com", NOW - HOUR_MS);
     await apply(late, NOW - HOUR_MS);
     expect(await ensureRecap(late, TZ, NOW)).toEqual({ current: null, earlier: [] });
-    expect(await db.select().from(weeklyRecaps)).toHaveLength(0);
+    expect(
+      (await db.select().from(userSettings)).filter((row) => row.recaps !== null),
+    ).toHaveLength(0);
     expect(await bell(unused.id)).toHaveLength(0);
   });
 
@@ -135,12 +140,7 @@ describe("ensureRecap", () => {
 
   it("counts the days the account opened Otto", async () => {
     const user = await account();
-    const db = await getDb();
-    await db.insert(activeDays).values([
-      { userId: user.id, day: "2026-11-17" },
-      { userId: user.id, day: "2026-11-19" },
-      { userId: user.id, day: "2026-11-23" },
-    ]);
+    await activeOn(user.id, ["2026-11-17", "2026-11-19", "2026-11-23"]);
     const index = await ensureRecap(user, TZ, NOW);
     expect(index.current?.recap.activeDays).toEqual(["2026-11-17", "2026-11-19"]);
   });
@@ -151,11 +151,7 @@ describe("the data download", () => {
     const user = await account();
     await apply(user, at(1), "Stripe");
     await ensureRecap(user, TZ, NOW);
-    const db = await getDb();
-    await db.insert(activeDays).values([
-      { userId: user.id, day: "2026-11-18" },
-      { userId: user.id, day: "2026-11-17" },
-    ]);
+    await activeOn(user.id, ["2026-11-17", "2026-11-18"]);
     const zip = await JSZip.loadAsync(await buildDataExport(user.id, NOW));
     const recaps = JSON.parse((await zip.file("weekly-recaps.json")?.async("string")) ?? "[]") as {
       week: string;
@@ -184,16 +180,17 @@ describe("cleanup", () => {
     const db = await getDb();
     await apply(user, at(1));
     await ensureRecap(user, TZ, NOW);
-    await db.insert(activeDays).values([
-      { userId: user.id, day: "2026-08-01" },
-      { userId: user.id, day: "2026-11-20" },
-    ]);
+    await activeOn(user.id, ["2026-08-01", "2026-11-20"]);
+    const [row] = await db.select().from(userSettings).where(eq(userSettings.userId, user.id));
+    const [week] = Object.values(row?.recaps ?? {});
     await db
-      .update(weeklyRecaps)
-      .set({ weekStart: "2026-08-03" })
-      .where(eq(weeklyRecaps.userId, user.id));
-    expect(await deleteOldRecaps(NOW, 100)).toBe(1);
-    expect(await deleteOldActiveDays(NOW, 100)).toBe(1);
-    expect(await db.select().from(activeDays)).toEqual([{ userId: user.id, day: "2026-11-20" }]);
+      .update(userSettings)
+      .set({ recaps: { "2026-08-03": week!, ...row?.recaps } })
+      .where(eq(userSettings.userId, user.id));
+    expect(await trimOldRecaps(NOW, 100)).toBe(1);
+    const [after] = await db.select().from(userSettings).where(eq(userSettings.userId, user.id));
+    expect(after?.activeDays).toEqual(["2026-11-20"]);
+    expect(Object.keys(after?.recaps ?? {})).toEqual(["2026-11-16"]);
+    expect(await trimOldRecaps(NOW, 100)).toBe(0);
   });
 });

@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import { and, eq, gt, isNull, lt, lte, or } from "drizzle-orm";
 import type { Feature } from "@/config/plans";
 import { getDb } from "@/db/client";
-import { meteredResults } from "@/db/schema";
+import { meteredCalls } from "@/db/schema";
 import { REQUEST_ID_HEADER, RESULT_TTL_MS, RESUME_HEADER } from "@/lib/api/request-id";
 
 // Longer than a metered route's maxDuration, so a run this old with no result has died.
@@ -37,6 +37,15 @@ export function requestKey(feature: Feature, requestId: string, input: unknown):
     .digest("base64url");
 }
 
+// A result shares metered_calls with line-fix passes, under kind "result".
+function ofRun(userId: string, key: string) {
+  return and(
+    eq(meteredCalls.userId, userId),
+    eq(meteredCalls.kind, "result"),
+    eq(meteredCalls.key, key),
+  );
+}
+
 // Waits for a run already in progress under the same key, so a retry never pays twice; a resume never takes the slot.
 export async function claimRun<R>(
   userId: string,
@@ -49,7 +58,7 @@ export async function claimRun<R>(
     if (!resume && (await take(userId, key, at))) return { kind: "run", key };
     const row = await read(userId, key, at);
     if (row?.result != null) return { kind: "done", result: row.result as R, demo: row.demo };
-    if (resume && (!row || row.startedAt <= at - RUN_MS)) return { kind: "missing" };
+    if (resume && (!row || (row.startedAt ?? 0) <= at - RUN_MS)) return { kind: "missing" };
     if (row && attempt < polls) await sleep(pollMs);
   }
   return { kind: "busy" };
@@ -64,42 +73,40 @@ export async function saveResult(
 ): Promise<void> {
   const db = await getDb();
   await db
-    .update(meteredResults)
+    .update(meteredCalls)
     .set({ result, demo, expiresAt: now + RESULT_TTL_MS })
-    .where(and(eq(meteredResults.userId, userId), eq(meteredResults.requestKey, key)));
+    .where(ofRun(userId, key));
   await db
-    .delete(meteredResults)
-    .where(and(eq(meteredResults.userId, userId), lt(meteredResults.expiresAt, now)));
+    .delete(meteredCalls)
+    .where(
+      and(
+        eq(meteredCalls.userId, userId),
+        eq(meteredCalls.kind, "result"),
+        lt(meteredCalls.expiresAt, now),
+      ),
+    );
 }
 
 export async function dropRun(userId: string, key: string): Promise<void> {
   const db = await getDb();
-  await db
-    .delete(meteredResults)
-    .where(
-      and(
-        eq(meteredResults.userId, userId),
-        eq(meteredResults.requestKey, key),
-        isNull(meteredResults.result),
-      ),
-    );
+  await db.delete(meteredCalls).where(and(ofRun(userId, key), isNull(meteredCalls.result)));
 }
 
 async function take(userId: string, key: string, now: number): Promise<boolean> {
   const db = await getDb();
   const run = { result: null, demo: false, startedAt: now, expiresAt: now + RESULT_TTL_MS };
   const taken = await db
-    .insert(meteredResults)
-    .values({ userId, requestKey: key, ...run })
+    .insert(meteredCalls)
+    .values({ userId, kind: "result", key, ...run })
     .onConflictDoUpdate({
-      target: [meteredResults.userId, meteredResults.requestKey],
+      target: [meteredCalls.userId, meteredCalls.kind, meteredCalls.key],
       set: run,
       setWhere: or(
-        lte(meteredResults.expiresAt, now),
-        and(isNull(meteredResults.result), lte(meteredResults.startedAt, now - RUN_MS)),
+        lte(meteredCalls.expiresAt, now),
+        and(isNull(meteredCalls.result), lte(meteredCalls.startedAt, now - RUN_MS)),
       ),
     })
-    .returning({ key: meteredResults.requestKey });
+    .returning({ key: meteredCalls.key });
   return taken.length > 0;
 }
 
@@ -107,18 +114,12 @@ async function read(userId: string, key: string, now: number) {
   const db = await getDb();
   const [row] = await db
     .select({
-      result: meteredResults.result,
-      demo: meteredResults.demo,
-      startedAt: meteredResults.startedAt,
+      result: meteredCalls.result,
+      demo: meteredCalls.demo,
+      startedAt: meteredCalls.startedAt,
     })
-    .from(meteredResults)
-    .where(
-      and(
-        eq(meteredResults.userId, userId),
-        eq(meteredResults.requestKey, key),
-        gt(meteredResults.expiresAt, now),
-      ),
-    )
+    .from(meteredCalls)
+    .where(and(ofRun(userId, key), gt(meteredCalls.expiresAt, now)))
     .limit(1);
   return row ?? null;
 }

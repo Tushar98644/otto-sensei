@@ -1,6 +1,7 @@
 import { isNull, lt, or, sql } from "drizzle-orm";
 import { getDb } from "@/db/client";
-import { activeDays, userSettings } from "@/db/schema";
+import { userSettings } from "@/db/schema";
+import { recapCutoffDay } from "@/lib/recap/types";
 import { DAY_MS } from "@/lib/time";
 import type { DashboardSection, EmailLanding } from "./landing";
 import { trackDashboardView, trackEmailClick, trackReturn } from "./retention";
@@ -33,7 +34,7 @@ export function daysBetween(from: string, to: string): number {
 
 export type ActiveDayMark = { previous: string | null };
 
-// Null unless this is the account's first app page on that day; never moves the day backwards.
+// Null unless this is the account's first app page on that day; never moves the day backwards. The day joins the recap's days active, and days past its reach go.
 export async function markActiveDay(
   userId: string,
   day: string,
@@ -42,10 +43,13 @@ export async function markActiveDay(
   const db = await getDb();
   const [row] = await db
     .insert(userSettings)
-    .values({ userId, activeOn: day, updatedAt: now })
+    .values({ userId, activeOn: day, activeDays: [day], updatedAt: now })
     .onConflictDoUpdate({
       target: userSettings.userId,
-      set: { activeOn: day },
+      set: {
+        activeOn: day,
+        activeDays: sql`array(select distinct d from unnest(array_append(${userSettings.activeDays}, ${day}::date)) as d where d >= ${recapCutoffDay(now)}::date order by d)`,
+      },
       setWhere: or(isNull(userSettings.activeOn), lt(userSettings.activeOn, day)),
     })
     // A sub-select sees the table as it was before this statement: no day yet means the first one.
@@ -67,9 +71,6 @@ export async function recordActivity(
   const day = calendarDay(now, activity.timeZone);
   const mark = await markActiveDay(userId, day, now);
   if (!mark) return;
-  // The weekly recap's days active: the date only.
-  const db = await getDb();
-  await db.insert(activeDays).values({ userId, day }).onConflictDoNothing();
   trackReturn(
     userId,
     activity.section,

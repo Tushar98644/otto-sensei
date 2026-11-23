@@ -1,7 +1,7 @@
 import { eq } from "drizzle-orm";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { getDb } from "@/db/client";
-import { activeDays } from "@/db/schema";
+import { userSettings } from "@/db/schema";
 import { cookieJar, resetDb, signInAs } from "@/lib/auth/test-helpers";
 import type { BatchEvent } from "./server";
 
@@ -108,8 +108,11 @@ describe("recordActivity", () => {
     await recordActivity(user.id, { section: "jobs", timeZone: "Asia/Kolkata" }, NOON_UTC + 60_000);
     await recordActivity(user.id, { section: "home", timeZone: "UTC" }, NOON_UTC + 86_400_000);
     const db = await getDb();
-    const days = await db.select().from(activeDays).where(eq(activeDays.userId, user.id));
-    expect(days.map((row) => row.day).sort()).toEqual(["2026-11-22", "2026-11-23"]);
+    const [row] = await db
+      .select({ days: userSettings.activeDays })
+      .from(userSettings)
+      .where(eq(userSettings.userId, user.id));
+    expect(row?.days).toEqual(["2026-11-22", "2026-11-23"]);
   });
 
   it("notes the email link that led here", async () => {

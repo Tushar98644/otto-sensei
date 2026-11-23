@@ -1,16 +1,16 @@
-import { and, desc, eq, inArray, lt, sql } from "drizzle-orm";
+import { and, eq, sql, type SQL } from "drizzle-orm";
 import { z } from "zod";
 import { RESUME_LIMITS } from "@/config/plans";
 import { getDb } from "@/db/client";
 import { lockUser } from "@/db/locks";
-import { resumes, resumeTombstones } from "@/db/schema";
+import { resumes, userSettings } from "@/db/schema";
 import type { ResumeVersions } from "@/lib/api/seeds";
 import { log } from "@/lib/log";
 import { type Resume } from "@/lib/resume/schema";
 import { ResumeSchema } from "@/lib/resume/validation";
 import { MAX_KNOWN_RESUMES, type KnownResumes } from "@/lib/sync/api-types";
 
-// Deletes leave a tombstone, or another device would see the resume missing and upload it again.
+// Deletes leave a tombstone (user_settings.deleted_resumes, id to time), or another device would see the resume missing and upload it again.
 
 export const MAX_RESUMES_PER_USER = RESUME_LIMITS.paid;
 // 50 x 80 KiB keeps GET /api/resumes under Vercel's 4.5 MB response limit.
@@ -18,7 +18,6 @@ export const MAX_RESUME_BYTES = 80 * 1024;
 export const MAX_DELETED_IDS_LISTED = 500;
 export const MAX_TOMBSTONES_PER_USER = 1_000;
 export const TOMBSTONE_MAX_AGE_MS = 180 * 24 * 60 * 60 * 1_000;
-const PRUNE_LIMIT = 100;
 
 export const KnownResumesSchema = z.object({
   known: z
@@ -53,10 +52,10 @@ export async function listBackups(userId: string, known: KnownResumes = {}): Pro
       where n <= ${MAX_RESUMES_PER_USER}
       union all
       select kind, id, null, n from (
-        select 'deleted' as kind, t.id,
-          row_number() over (order by t.deleted_at desc, t.id desc) as n
-        from ${resumeTombstones} t
-        where t.user_id = ${userId}
+        select 'deleted' as kind, t.key as id,
+          row_number() over (order by t.value::bigint desc, t.key desc) as n
+        from ${userSettings} s, jsonb_each_text(s.deleted_resumes) t
+        where s.user_id = ${userId}
       ) gone
       where n <= ${MAX_DELETED_IDS_LISTED}
       order by kind, n
@@ -91,10 +90,10 @@ export async function listBackupVersions(userId: string): Promise<ResumeVersions
       where n <= ${MAX_RESUMES_PER_USER}
       union all
       select kind, id, null, n from (
-        select 'deleted' as kind, t.id,
-          row_number() over (order by t.deleted_at desc, t.id desc) as n
-        from ${resumeTombstones} t
-        where t.user_id = ${userId}
+        select 'deleted' as kind, t.key as id,
+          row_number() over (order by t.value::bigint desc, t.key desc) as n
+        from ${userSettings} s, jsonb_each_text(s.deleted_resumes) t
+        where s.user_id = ${userId}
       ) gone
       where n <= ${MAX_DELETED_IDS_LISTED}
       order by kind, n
@@ -134,7 +133,7 @@ export async function saveBackup(
     }>(
       await tx.execute(sql`
         select
-          exists (select 1 from ${resumeTombstones} t where t.user_id = ${userId} and t.id = ${resume.id}) as buried,
+          coalesce((select s.deleted_resumes ? ${resume.id} from ${userSettings} s where s.user_id = ${userId}), false) as buried,
           (select r.updated_at::float8 from ${resumes} r where r.user_id = ${userId} and r.id = ${resume.id}) as stored,
           (select coalesce(r.data->>'source' = 'sample', false) from ${resumes} r where r.user_id = ${userId} and r.id = ${resume.id}) as "storedSample",
           (select count(*)::int from ${resumes} r where r.user_id = ${userId}) as total,
@@ -176,56 +175,58 @@ export async function saveBackup(
   return { status, bytes, created };
 }
 
+// Tombstones past their age or past the newest MAX_TOMBSTONES_PER_USER go whenever the map is written.
+function prunedTombstones(map: SQL, now: number): SQL {
+  return sql`(select coalesce(jsonb_object_agg(key, value), '{}') from (
+    select key, value from jsonb_each(${map}) as t(key, value)
+    where (value #>> '{}')::bigint >= ${now - TOMBSTONE_MAX_AGE_MS}
+    order by (value #>> '{}')::bigint desc, key desc
+    limit ${MAX_TOMBSTONES_PER_USER}
+  ) kept)`;
+}
+
 // One transaction under the row lock, so no device can restore it in between.
 export async function deleteBackup(userId: string, id: string, now = Date.now()): Promise<void> {
   const db = await getDb();
-  const ownTombstones = eq(resumeTombstones.userId, userId);
   await db.transaction(async (tx) => {
     if (!(await lockUser(tx, userId))) return;
     const deleted = await tx
       .delete(resumes)
       .where(and(eq(resumes.userId, userId), eq(resumes.id, id)))
       .returning({ id: resumes.id });
-    if (deleted.length > 0) {
-      await tx
-        .insert(resumeTombstones)
-        .values({ userId, id, deletedAt: now })
-        .onConflictDoUpdate({
-          target: [resumeTombstones.userId, resumeTombstones.id],
-          set: { deletedAt: now },
-        });
-    }
-    await tx.delete(resumeTombstones).where(
-      and(
-        ownTombstones,
-        inArray(
-          resumeTombstones.id,
-          tx
-            .select({ id: resumeTombstones.id })
-            .from(resumeTombstones)
-            .where(and(ownTombstones, lt(resumeTombstones.deletedAt, now - TOMBSTONE_MAX_AGE_MS)))
-            .limit(PRUNE_LIMIT),
-        ),
-      ),
-    );
+    if (deleted.length === 0) return;
+    const buried = { [id]: now };
     await tx
-      .delete(resumeTombstones)
-      .where(
-        and(
-          ownTombstones,
-          inArray(
-            resumeTombstones.id,
-            tx
-              .select({ id: resumeTombstones.id })
-              .from(resumeTombstones)
-              .where(ownTombstones)
-              .orderBy(desc(resumeTombstones.deletedAt), desc(resumeTombstones.id))
-              .limit(PRUNE_LIMIT)
-              .offset(MAX_TOMBSTONES_PER_USER),
+      .insert(userSettings)
+      .values({ userId, deletedResumes: buried, updatedAt: now })
+      .onConflictDoUpdate({
+        target: userSettings.userId,
+        set: {
+          deletedResumes: prunedTombstones(
+            sql`coalesce(${userSettings.deletedResumes}, '{}') || ${JSON.stringify(buried)}::jsonb`,
+            now,
           ),
-        ),
-      );
+        },
+      });
   });
+}
+
+// Accounts that stopped deleting keep tombstones past their age until this daily pass, in batches.
+export async function trimOldTombstones(now: number, limit: number): Promise<number> {
+  const db = await getDb();
+  const stale = db
+    .select({ userId: userSettings.userId })
+    .from(userSettings)
+    .where(
+      sql`exists (select 1 from jsonb_each_text(${userSettings.deletedResumes}) as t(key, value) where t.value::bigint < ${now - TOMBSTONE_MAX_AGE_MS})`,
+    )
+    .limit(limit);
+  const trimmed = await db
+    .update(userSettings)
+    .set({ deletedResumes: prunedTombstones(sql`${userSettings.deletedResumes}`, now) })
+    .where(sql`${userSettings.userId} in ${stale}`)
+    .returning({ userId: userSettings.userId });
+  return trimmed.length;
 }
 
 // jsonb can't hold U+0000 or a lone surrogate, and both can come out of a PDF's text layer.

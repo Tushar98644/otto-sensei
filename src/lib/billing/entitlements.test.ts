@@ -2,7 +2,7 @@ import { eq, sql } from "drizzle-orm";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { PLANS } from "@/config/plans";
 import { getDb } from "@/db/client";
-import { billingEvents, trialHistory, trialReplacements, users, type UserRow } from "@/db/schema";
+import { users, type UserRow } from "@/db/schema";
 import { insertUserRow, resetDb } from "@/lib/auth/test-helpers";
 import { addMonths, consumeUsage, getUsage } from "@/lib/usage";
 import { toSessionUser } from "@/lib/users";
@@ -17,6 +17,7 @@ import {
   planForStatus,
   type SubscriptionState,
 } from "./entitlements";
+import { addTrialHistory, eventRows, replacementRows, trialRows } from "./log-testing";
 import { emailFingerprint } from "./trial";
 
 const NOW = Date.UTC(2026, 10, 6, 12);
@@ -427,7 +428,7 @@ describe("idempotency", () => {
       planStatus: "canceled",
       updatedAt: NOW,
     });
-    expect(await db.select().from(billingEvents)).toEqual([
+    expect(await eventRows()).toEqual([
       { id: event.eventId, type: event.eventType, receivedAt: NOW },
     ]);
   });
@@ -435,7 +436,7 @@ describe("idempotency", () => {
   it("claims a key once", async () => {
     expect(await claimBillingEvent("checkout:sub_1", "payment.succeeded", NOW)).toBe(true);
     expect(await claimBillingEvent("checkout:sub_1", "payment.succeeded", NOW + 1)).toBe(false);
-    expect(await (await getDb()).select().from(billingEvents)).toEqual([
+    expect(await eventRows()).toEqual([
       { id: "checkout:sub_1", type: "payment.succeeded", receivedAt: NOW },
     ]);
   });
@@ -617,7 +618,7 @@ describe("the trial", () => {
 
 describe("trial replacements", () => {
   async function replaced() {
-    return (await getDb()).select().from(trialReplacements);
+    return replacementRows();
   }
 
   const trialist = (subscriptionId: string) =>
@@ -685,7 +686,6 @@ describe("one trial per person", () => {
     subscription({ status: "trialing", unpaidTrial: true, ...overrides });
 
   it("refuses an unpaid trial to someone who had one, recording only the event and the cancel to do", async () => {
-    const db = await getDb();
     const user = await createUser({
       planStatus: "canceled",
       billingCustomerId: "cus_old",
@@ -700,8 +700,8 @@ describe("one trial per person", () => {
       ),
     ).toEqual({ outcome: "rejected", reason: "trial_reused", userId: user.id });
     expect(await reload(user.id)).toEqual(user);
-    expect(await db.select().from(trialHistory)).toEqual([]);
-    expect(await db.select().from(trialReplacements)).toEqual([
+    expect(await trialRows()).toEqual([]);
+    expect(await replacementRows()).toEqual([
       {
         replacedSubscriptionId: "sub_again",
         subscriptionId: "sub_again",
@@ -711,7 +711,7 @@ describe("one trial per person", () => {
         cancelledAt: null,
       },
     ]);
-    expect((await db.select().from(billingEvents)).map((row) => row.id)).toEqual([event.eventId]);
+    expect((await eventRows()).map((row) => row.id)).toEqual([event.eventId]);
 
     const paid = subscription({ userId: user.id, subscriptionId: "sub_again" });
     expect(await applySubscriptionState(paid, source(), NOW)).toEqual({
@@ -732,10 +732,11 @@ describe("one trial per person", () => {
     expect(await reload(paying.id)).toEqual(paying);
 
     const returning = await createUser();
-    const db = await getDb();
-    await db
-      .insert(trialHistory)
-      .values({ emailHash: emailFingerprint(returning.email), kind: "paid", createdAt: 1 });
+    await addTrialHistory({
+      emailHash: emailFingerprint(returning.email),
+      kind: "paid",
+      createdAt: 1,
+    });
     expect(
       await applySubscriptionState(
         unpaidTrial({ userId: returning.id, status: "past_due" }),
@@ -759,7 +760,7 @@ describe("one trial per person", () => {
       ).toMatchObject({ outcome: "applied", userId: user.id });
     }
     expect(await reload(user.id)).toMatchObject({ plan: "pro", planStatus: "past_due" });
-    expect(await (await getDb()).select().from(trialReplacements)).toEqual([]);
+    expect(await replacementRows()).toEqual([]);
   });
 
   it("doesn't check a subscription that isn't an unpaid trial", async () => {

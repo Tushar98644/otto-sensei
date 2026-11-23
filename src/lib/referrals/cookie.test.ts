@@ -2,7 +2,7 @@ import { eq } from "drizzle-orm";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { PLANS } from "@/config/plans";
 import { getDb } from "@/db/client";
-import { referrals } from "@/db/schema";
+import { userSettings } from "@/db/schema";
 import { cookieJar, createUser, fakeAuth, resetDb, signInAs } from "@/lib/auth/test-helpers";
 import type { SessionUser } from "@/lib/auth/types";
 import { getUsage } from "@/lib/usage";
@@ -17,8 +17,8 @@ let code: string;
 
 async function linked(userId: string) {
   const db = await getDb();
-  const [row] = await db.select().from(referrals).where(eq(referrals.referredId, userId));
-  return row?.status ?? null;
+  const [row] = await db.select().from(userSettings).where(eq(userSettings.userId, userId));
+  return row?.referredBy ? row.referralStatus : null;
 }
 
 beforeEach(async () => {
@@ -47,7 +47,9 @@ describe("noteReferralCheck", () => {
     const maya = await signInAs("maya@example.com");
     expect(await claimFromCookie(maya, { checked: false })).toBe("rewarded");
     expect(cookieJar.get(REF_COOKIE)).toMatchObject({ value: "", maxAge: 0 });
-    expect((await getUsage({ ...owner, plan: "pro" })).fix.limit).toBe(PLANS.pro.limits.fix + REFERRAL_BONUS.fix);
+    expect((await getUsage({ ...owner, plan: "pro" })).fix.limit).toBe(
+      PLANS.pro.limits.fix + REFERRAL_BONUS.fix,
+    );
   });
 
   it("waits for the first check after sign-up, then pays once", async () => {

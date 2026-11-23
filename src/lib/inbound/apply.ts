@@ -2,13 +2,7 @@ import { createHash, randomUUID } from "node:crypto";
 import { and, eq, isNull } from "drizzle-orm";
 import { createApplication, updateApplication } from "@/app/api/applications/records";
 import { getDb } from "@/db/client";
-import {
-  applications,
-  inboundAddresses,
-  inboundEmails,
-  userSettings,
-  type CardBefore,
-} from "@/db/schema";
+import { applications, inboundEmails, userSettings, type CardBefore } from "@/db/schema";
 import { trackStatusChanges } from "@/lib/analytics/retention";
 import { captureServerEvent } from "@/lib/analytics/server";
 import { APPLICATION_LIMITS } from "@/lib/applications/schema";
@@ -16,6 +10,7 @@ import { readStage, readStatus, type ApplicationStatus } from "@/lib/application
 import { CreateApplicationSchema, UpdateApplicationSchema } from "@/lib/applications/validation";
 import { minutesIntoDay, zoneOrUtc } from "@/lib/calendar/zones";
 import { log } from "@/lib/log";
+import { hasAddress } from "./address-columns";
 import { boardCards, emailWhen, type EmailFacts } from "./board";
 import type { Recipient } from "./handles";
 import { matchCard, planChange } from "./match";
@@ -163,30 +158,30 @@ export async function receiveEmail(
   const zone = await userZone(userId);
   const reading = readEmail(mail, { now, zone });
   const db = await getDb();
-  const own = eq(inboundAddresses.userId, userId);
+  const own = hasAddress(userId);
   if (reading.kind === "confirmation") {
     // Only Google's own signed message: a lookalike can't put its mailbox up for confirming.
     if (!reading.gmail || !mail.auth.dkim.some((domain) => GOOGLE_SIGNED.test(domain))) {
       return "ignored";
     }
     await db
-      .update(inboundAddresses)
+      .update(userSettings)
       .set({
-        confirmCode: reading.gmail.code
+        trackingConfirmCode: reading.gmail.code
           ? cap(reading.gmail.code, INBOUND_LIMITS.confirmCode)
           : null,
-        confirmUrl: cap(reading.gmail.url, INBOUND_LIMITS.confirmUrl),
-        confirmSource: reading.gmail.source
+        trackingConfirmUrl: cap(reading.gmail.url, INBOUND_LIMITS.confirmUrl),
+        trackingConfirmSource: reading.gmail.source
           ? cap(reading.gmail.source, INBOUND_LIMITS.source)
           : null,
-        confirmAt: now,
-        confirmedAt: null,
+        trackingConfirmAt: now,
+        trackingConfirmedAt: null,
       })
       .where(own);
     return "confirmation";
   }
   if (reading.kind === "test") {
-    await db.update(inboundAddresses).set({ testAt: now }).where(own);
+    await db.update(userSettings).set({ trackingTestAt: now }).where(own);
     return "test";
   }
   if (reading.kind === "noise") return "ignored";
@@ -209,9 +204,9 @@ export async function receiveEmail(
   // A trusted forward means Gmail's forwarding works, whatever the person pressed in Otto.
   if (trust === "source" && recipient.confirmedAt === null) {
     await db
-      .update(inboundAddresses)
-      .set({ confirmedAt: now })
-      .where(and(own, isNull(inboundAddresses.confirmedAt)));
+      .update(userSettings)
+      .set({ trackingConfirmedAt: now })
+      .where(and(own, isNull(userSettings.trackingConfirmedAt)));
   }
   const kind = placeable ? reading.kind : "unknown";
   const when = kind === "interview" ? reading.when : null;
@@ -254,7 +249,7 @@ export async function receiveEmail(
     .onConflictDoNothing({ target: [inboundEmails.userId, inboundEmails.messageKey] })
     .returning({ id: inboundEmails.id });
   if (!claimed) return "duplicate";
-  await db.update(inboundAddresses).set({ lastEmailAt: now }).where(own);
+  await db.update(userSettings).set({ trackingLastEmailAt: now }).where(own);
   if (kind === "unknown") return "unread";
   if (!trust) return "pending";
   try {

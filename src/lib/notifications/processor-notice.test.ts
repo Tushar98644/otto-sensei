@@ -1,7 +1,7 @@
-import { and, eq, sql } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { getDb } from "@/db/client";
-import { emailLog, userSettings } from "@/db/schema";
+import { userSettings } from "@/db/schema";
 import { createUser, resetDb } from "@/lib/auth/test-helpers";
 import { optionalEmailRoom } from "./budget";
 import type { BatchResult, EmailMessage, EmailSender } from "./email";
@@ -54,11 +54,18 @@ const counts = async (limit: number | null = null, now = NOW) =>
 const sentTo = (sender: { messages: EmailMessage[] }) =>
   sender.messages.map((message) => message.to).sort();
 
+// Each account's record of the notice, from user_settings.notices.
 async function noticeLog() {
-  return (await getDb())
-    .select({ userId: emailLog.userId, occasion: emailLog.occasion })
-    .from(emailLog)
-    .where(eq(emailLog.kind, "processor_notice"));
+  const rows = await (
+    await getDb()
+  )
+    .select({ userId: userSettings.userId, notices: userSettings.notices })
+    .from(userSettings);
+  return rows.flatMap((row) =>
+    Object.keys(row.notices ?? {})
+      .filter((key) => key.startsWith("processor_notice:"))
+      .map((key) => ({ userId: row.userId, occasion: key.slice("processor_notice:".length) })),
+  );
 }
 
 describe("processorNoticeEmail", () => {
@@ -288,24 +295,17 @@ describe("sendProcessorNotice", () => {
     expect(sender.messages).toEqual([]);
   });
 
-  it("logs nothing beyond the account and the occasion, and email_log still refuses unknown kinds", async () => {
+  it("records nothing beyond the notice and when it went, and counts it against the day's emails", async () => {
     const ada = await createUser("ada@example.com");
     await run(fakeSender());
     const db = await getDb();
     const [row] = await db
-      .select()
-      .from(emailLog)
-      .where(and(eq(emailLog.userId, ada.id), eq(emailLog.kind, "processor_notice")));
-    expect(row).toEqual({
-      userId: ada.id,
-      kind: "processor_notice",
-      occasion: "paddle_to_dodo",
-      createdAt: NOW,
-    });
+      .select({ notices: userSettings.notices, sentAt: userSettings.noticeSentAt })
+      .from(userSettings)
+      .where(eq(userSettings.userId, ada.id));
+    expect(row).toEqual({ notices: { "processor_notice:paddle_to_dodo": NOW }, sentAt: NOW });
     await expect(
-      db.execute(
-        sql`insert into email_log (user_id, kind, occasion, created_at) values (${ada.id}, 'newsletter', 'once', 1)`,
-      ),
+      db.execute(sql`update public.user_settings set notices = '[]' where user_id = ${ada.id}`),
     ).rejects.toThrow();
   });
 });

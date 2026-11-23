@@ -5,6 +5,12 @@ import type { ApplicationStatus } from "@/lib/applications/status";
 export const RECAP_VERSION = 1;
 // Weeks kept, and offered under "Earlier weeks", besides the newest.
 export const RECAP_EARLIER_WEEKS = 8;
+// Days active and built weeks are kept a little past the oldest week offered, whose days and counts it still reads.
+export const RECAP_KEEP_MS = 7 * (RECAP_EARLIER_WEEKS + 2) * 86_400_000;
+
+export function recapCutoffDay(now: number): string {
+  return new Date(now - RECAP_KEEP_MS).toISOString().slice(0, 10);
+}
 export const RECAP_MOVES = 3;
 export const RECAP_STEPS = 3;
 
