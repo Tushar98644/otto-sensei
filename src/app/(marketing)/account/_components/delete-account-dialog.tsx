@@ -2,12 +2,14 @@
 
 import { useId, useState, type FormEvent } from "react";
 import { errorMessage } from "@/components/account/errors";
+import { useMe } from "@/components/account/use-me";
 import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Dialog } from "@/components/ui/dialog";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { toast } from "@/components/ui/toast";
+import { centsText } from "@/config/topup";
 import { api } from "@/lib/api/client";
 import { useStudioStore } from "@/lib/store/resume-store";
 
@@ -24,6 +26,7 @@ export function DeleteAccountDialog({ open, onOpenChange, isPro }: DeleteAccount
   const [typed, setTyped] = useState("");
   const [deleting, setDeleting] = useState(false);
   const confirmed = typed.trim().toUpperCase() === CONFIRM_WORD;
+  const credit = useMe().me?.billing.credit?.balanceCents ?? 0;
 
   function handleOpenChange(next: boolean) {
     if (deleting) return;
@@ -80,6 +83,11 @@ export function DeleteAccountDialog({ open, onOpenChange, isPro }: DeleteAccount
           <Alert variant="warn" title="This also cancels your plan">
             Your paid plan ends right away, and you won&apos;t be charged again.
           </Alert>
+        ) : null}
+        {credit > 0 ? (
+          <p className="text-sm text-muted">
+            Your {centsText(credit)} of credit is removed with it and can&apos;t be used again.
+          </p>
         ) : null}
         <p className="text-sm text-muted">Resumes saved in this browser are cleared too.</p>
         <Field

@@ -107,6 +107,8 @@ import type {
   CheckResponse,
   CheckoutRequestBody,
   CreateApplicationBody,
+  CreditActivityResponse,
+  CreditNote,
   DraftRequestBody,
   DraftResponse,
   EmptyOk,
@@ -141,6 +143,7 @@ import type {
   SummaryRequestBody,
   SummaryResponse,
   TailorRequestBody,
+  TopupRequestBody,
   TailorResponse,
   TranscribeResponse,
   UpdateApplicationBody,
@@ -211,7 +214,16 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
       error?.reason,
     );
   }
+  const credit = (body as { credit?: CreditNote }).credit;
+  if (credit) noteCreditSpent(credit);
   return body as T;
+}
+
+// Any metered answer credit paid for says so, wherever it was asked from.
+function noteCreditSpent(credit: CreditNote): void {
+  void import("@/components/account/credit-spent")
+    .then(({ showCreditSpent }) => showCreditSpent(credit))
+    .catch(() => {});
 }
 
 function seeded<T>(
@@ -421,6 +433,8 @@ export const api = {
   referrals: () => request<ReferralSummaryResponse>("/api/referrals", { cache: "no-store" }),
   claimReferral: () => request<ReferralClaimResponse>("/api/referrals/claim", postJson({})),
   portal: () => request<UrlResponse>("/api/billing/portal", { method: "POST" }),
+  topup: (body: TopupRequestBody) => request<UrlResponse>("/api/billing/topup", postJson(body)),
+  credit: () => request<CreditActivityResponse>("/api/billing/credit", { cache: "no-store" }),
   billingHistory: () =>
     request<BillingHistoryResponse>("/api/billing/history", { cache: "no-store" }),
   deleteAccount: () => request<EmptyOk>("/api/account", { method: "DELETE" }),

@@ -15,6 +15,7 @@ export const WORK_PROFILE = ["work-profile"] as const;
 export const JOB_MATCHES = ["job-matches"] as const;
 export const BILLING_HISTORY = ["billing-history"] as const;
 export const EMAIL_TRACKING = ["email-tracking"] as const;
+export const CREDIT = ["credit"] as const;
 
 export const queryKeys = {
   applications: (userId: string) => [...APPLICATIONS, userId] as const,
@@ -30,6 +31,8 @@ export const queryKeys = {
   // A plan change shows up in /api/me first, so the plan's state is part of the key.
   billingHistory: (userId: string, planState: string) =>
     [...BILLING_HISTORY, userId, planState] as const,
+  // A spend or top-up changes the balance in /api/me first, so the balance is part of the key.
+  credit: (userId: string, balanceCents: number) => [...CREDIT, userId, balanceCents] as const,
   // The server also reads the saved work profile ("Likely blocked"), so it's part of the key.
   jobMatches: (userId: string, body: JobMatchesRequestBody, workProfile: WorkProfile | null) =>
     [...JOB_MATCHES, userId, body, workProfile] as const,

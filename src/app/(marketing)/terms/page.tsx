@@ -15,6 +15,7 @@ import {
   PRO_TRIAL,
   resumeLimit,
 } from "@/config/plans";
+import { TOPUP_LIMITS } from "@/config/topup";
 import { tokensInWords } from "@/lib/ai-budget-copy";
 import { pluralize } from "@/lib/utils";
 import { TRANSCRIBE_LIMITS } from "@/app/api/transcribe/limits";
@@ -301,6 +302,14 @@ const SECTIONS: readonly LegalSection[] = [
           between monthly and yearly, cancel and pick the new plan once your current period ends. If
           you drop to Free, your published portfolio goes offline, and its data is kept in case you
           come back.
+        </li>
+        <li>
+          Where it&apos;s offered, a paid {PLANS.pro.name} or {PLANS.max.name} plan past any trial
+          can add prepaid credit, from ${TOPUP_LIMITS.minUsd} to ${TOPUP_LIMITS.maxUsd} at a time in
+          whole dollars, plus any taxes. It pays for AI help only once a month&apos;s allowance for
+          that help runs out, at the prices shown when you add it. Credit is prepaid and isn&apos;t
+          refundable once used. It doesn&apos;t expire while your account exists, can be used only
+          while you&apos;re on a paid plan, and is removed when your account is deleted.
         </li>
         <li>
           If a payment fails when your plan renews or your trial ends, you keep the plan for a few

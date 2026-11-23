@@ -9,6 +9,7 @@ import { buttonClasses } from "@/components/ui/button";
 import { nextPlan } from "@/config/plans";
 import type { SessionUser } from "@/lib/auth/types";
 import { BillingHistoryCard } from "./billing-history";
+import { CreditCard } from "./credit-card";
 import { PaymentMethodCard } from "./payment-method";
 import { maxLine, planView } from "./plan-copy";
 import { PlanSummary } from "./plan-summary";
@@ -33,6 +34,13 @@ export function PlanTab({ me, user }: { me: Me; user: SessionUser }) {
         plan={user.plan}
         onUpgrade={upgradable ? () => setChanging(true) : undefined}
       />
+      {me.billing.credit && (me.billing.credit.usable || me.billing.credit.balanceCents > 0) ? (
+        <CreditCard
+          me={me}
+          plan={user.plan}
+          onUpgrade={upgradable ? () => setChanging(true) : undefined}
+        />
+      ) : null}
       {history.status !== "off" && billed ? <PaymentMethodCard state={history} /> : null}
       {history.status !== "off" && (billed || paidBefore) ? (
         <BillingHistoryCard state={history} />

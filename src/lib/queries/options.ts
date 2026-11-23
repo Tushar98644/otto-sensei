@@ -100,6 +100,13 @@ export const billingHistoryQuery = (userId: string, planState: string) =>
     staleTime: 5 * MINUTE,
   });
 
+export const creditQuery = (userId: string, balanceCents: number) =>
+  queryOptions({
+    queryKey: queryKeys.credit(userId, balanceCents),
+    queryFn: async () => (await api.credit()).activity,
+    staleTime: 5 * MINUTE,
+  });
+
 export const reminderSettingsQuery = (userId: string) =>
   queryOptions({
     queryKey: queryKeys.reminderSettings(userId),

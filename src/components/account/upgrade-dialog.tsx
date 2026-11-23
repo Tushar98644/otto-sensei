@@ -21,6 +21,7 @@ import {
   type PlanId,
   type ProTool,
 } from "@/config/plans";
+import { buysSentence, centsText, TOPUP_LIMITS } from "@/config/topup";
 import type { SessionUser } from "@/lib/auth/types";
 import { budgetReachedText } from "@/lib/ai-budget-copy";
 import { trialHeadline } from "@/lib/billing/prices";
@@ -29,6 +30,7 @@ import { TRASH_DAYS } from "@/lib/store/history";
 import { resetWhen, thisPeriod } from "@/lib/usage-copy";
 import { BillingNote } from "./billing-note";
 import { ACCOUNT_OTTO, alreadyOnPlanToast, SUPPORT_MAILTO, UPGRADE_SIGN_IN_TITLE } from "./copy";
+import { LazyAddCreditDialog } from "./lazy-dialogs";
 import { PlanOffer } from "./plan-offer";
 import { SignInForm } from "./sign-in-form";
 import { PAYMENT_ISSUE_NOTICE, resumeFirstNotice, trialUpgradeNotice } from "./trial-upgrade";
@@ -87,6 +89,7 @@ export function UpgradeDialog({
   const [startedOn, setStartedOn] = useState<string | null>(null);
   const [chosen, setChosen] = useState<PaidPlanId | null>(plan ?? null);
   const [pickedInterval, setPickedInterval] = useState<BillingInterval | null>(interval ?? null);
+  const [adding, setAdding] = useState(false);
   const [wasOpen, setWasOpen] = useState(open);
   if (open !== wasOpen) {
     setWasOpen(open);
@@ -130,6 +133,28 @@ export function UpgradeDialog({
           : OTTO.limit.reached(feature, me?.usage?.[feature].limit, period);
   }
   const close = () => onOpenChange(false);
+  // Past the allowance or the AI budget, a paid plan can also add credit; Pro still sees Max first.
+  const credit = me?.billing.credit;
+  const creditOffer = feature !== undefined && credit?.usable === true;
+  const creditLine = creditOffer ? (
+    <p className="text-sm/6 text-muted">
+      {`Or add credit from $${TOPUP_LIMITS.minUsd}: ${buysSentence(1)}.`}
+      {credit.balanceCents > 0 ? ` Your balance: ${centsText(credit.balanceCents)}.` : ""}
+    </p>
+  ) : null;
+  const maxFirst = creditOffer && current === "pro" && credit.monthCents > MAX_OVER_PRO_CENTS;
+  const addCredit = (variant: "primary" | "secondary") =>
+    creditOffer ? (
+      <Button
+        variant={variant}
+        onClick={() => {
+          flushSync(close);
+          setAdding(true);
+        }}
+      >
+        Add credit
+      </Button>
+    ) : null;
   const replaceNoteId = useId();
   const replacing = tool === "resumes" && current === "free" ? (replace ?? null) : null;
   const replaceNote = replacing ? (
@@ -192,6 +217,7 @@ export function UpgradeDialog({
         disabled={loading}
       />
       <BillingNote mode={mode} />
+      {creditLine}
       {replaceNote}
     </div>
   );
@@ -214,16 +240,21 @@ export function UpgradeDialog({
         ? `You've reached ${thisPeriod(period)}'s limit`
         : `You're on ${PLANS[current].name}`,
       description: feature
-        ? `It resets ${resetWhen(period)}. Need more before then? Email us.`
+        ? `It resets ${resetWhen(period)}. Need more before then? ${creditOffer ? "Add credit, or email us." : "Email us."}`
         : undefined,
+      body: creditLine ?? undefined,
       footer: (
         <>
           <Button variant="secondary" onClick={close}>
             Close
           </Button>
-          <a href={SUPPORT_MAILTO} className={buttonClasses()}>
+          <a
+            href={SUPPORT_MAILTO}
+            className={buttonClasses(creditOffer ? { variant: "secondary" } : undefined)}
+          >
             Email us
           </a>
+          {addCredit("primary")}
         </>
       ),
     };
@@ -270,7 +301,7 @@ export function UpgradeDialog({
       message: billingOff
         ? (limitLine ?? ACCOUNT_OTTO.billingOff)
         : limitLine && upgrading && !full
-          ? `${limitLine} ${PLANS[target.plan].name} has more.`
+          ? `${limitLine} ${PLANS[target.plan].name} has more.${maxFirst && credit ? ` ${monthCreditLine(credit.monthCents)}` : ""}`
           : (limitLine ?? (target.trial ? OTTO.upgrade.trial : ACCOUNT_OTTO.upgradePitch)),
       title: upgrading
         ? `Upgrade to ${PLANS[target.plan].name}`
@@ -300,22 +331,35 @@ export function UpgradeDialog({
         <>
           {notNow}
           {replaceKey}
+          {addCredit("secondary")}
         </>
       ),
     };
   }
 
   return (
-    <Dialog
-      open={open}
-      onOpenChange={onOpenChange}
-      size={view.size ?? "sm"}
-      title={view.title}
-      description={view.description}
-      illustration={<OttoNote size="sm" message={view.message} />}
-      footer={view.footer}
-    >
-      {view.body}
-    </Dialog>
+    <>
+      <Dialog
+        open={open}
+        onOpenChange={onOpenChange}
+        size={view.size ?? "sm"}
+        title={view.title}
+        description={view.description}
+        illustration={<OttoNote size="sm" message={view.message} />}
+        footer={view.footer}
+      >
+        {view.body}
+      </Dialog>
+      {creditOffer || adding ? (
+        <LazyAddCreditDialog open={adding} onOpenChange={setAdding} next={next ?? null} />
+      ) : null}
+    </>
   );
+}
+
+const MAX_OVER_PRO_CENTS = (PLANS.max.priceUsd - PLANS.pro.priceUsd) * 100;
+
+// Credit past Max's extra cost this month means Max would have been cheaper.
+function monthCreditLine(monthCents: number): string {
+  return `You've added ${centsText(monthCents)} of credit this month, more than the ${centsText(MAX_OVER_PRO_CENTS)} ${PLANS.max.name} costs over ${PLANS.pro.name}.`;
 }

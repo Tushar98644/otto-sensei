@@ -12,6 +12,7 @@ export type AccountArrival = {
   plan: PaidPlanId | null;
   interval: BillingInterval | null;
   checkout: "success" | "cancelled" | null;
+  topup: "success" | "cancelled" | null;
   portalMock: boolean;
   next: string | null;
 };
@@ -21,6 +22,7 @@ const ARRIVAL_PARAMS = [
   "plan",
   "interval",
   "checkout",
+  "topup",
   "trial",
   "portal",
   "next",
@@ -32,11 +34,13 @@ function oneOf<T extends string>(value: string | null, options: readonly T[]): T
 
 export function readArrival(searchParams: Pick<URLSearchParams, "get">): AccountArrival {
   const checkout = searchParams.get("checkout");
+  const topup = searchParams.get("topup");
   return {
     upgrade: searchParams.get("upgrade") === "1",
     plan: oneOf(searchParams.get("plan"), PAID_PLANS),
     interval: oneOf(searchParams.get("interval"), BILLING_INTERVALS),
     checkout: checkout === "success" || checkout === "cancelled" ? checkout : null,
+    topup: topup === "success" || topup === "cancelled" ? topup : null,
     portalMock: searchParams.get("portal") === "mock",
     next: upgradeReturnPath(searchParams.get("next")),
   };
@@ -58,6 +62,20 @@ export function useAccountArrival(): AccountArrival {
       }
       void refreshMe();
     } else if (arrival.checkout === "cancelled") {
+      toast({ title: "Checkout cancelled", description: "Nothing was charged." });
+    }
+    if (arrival.topup === "success") {
+      const next = arrival.next;
+      toast({
+        title: "Thanks! Your credit is on its way.",
+        description: "It can take a minute to show here.",
+        variant: "success",
+        ...(next
+          ? { action: { label: "Go back", onAction: () => window.location.assign(next) } }
+          : {}),
+      });
+      void refreshMe();
+    } else if (arrival.topup === "cancelled") {
       toast({ title: "Checkout cancelled", description: "Nothing was charged." });
     }
     if (arrival.portalMock) toast({ title: "Test mode: you're back on Free." });
