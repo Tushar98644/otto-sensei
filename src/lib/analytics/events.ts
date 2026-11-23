@@ -38,6 +38,8 @@ export type ServerEventProps = {
   signed_in: { plan: PlanId };
   checkout_started: { plan: PaidPlanId; interval: BillingInterval };
   checkout_completed: { plan: "pro" | "max"; trial?: boolean };
+  credit_checkout_started: { usd: number };
+  credit_added: { usd: number };
   ai_call: { task: string; model: string; latency_ms: number; outcome: AICallOutcome };
   line_fixed: { demo: boolean };
   tailor_run: { demo: boolean };

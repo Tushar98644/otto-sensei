@@ -159,6 +159,15 @@ export const DodoPaymentSchema = z.object({
   charge_type: z.string().max(50).nullish(),
   metadata: MetadataSchema,
   customer: z.object({ customer_id: IdSchema }),
+  // A one-time payment's products, with the quantity our checkout set; top-ups read these.
+  product_cart: z
+    .array(z.object({ product_id: IdSchema, quantity: z.number().int() }))
+    .max(20)
+    .nullish(),
+  total_amount: z.number().int().nullish(),
+  tax: z.number().int().nullish(),
+  currency: z.string().max(10).nullish(),
+  checkout_session_id: IdSchema.nullish(),
 });
 
 export const DodoRefundSchema = z.object({

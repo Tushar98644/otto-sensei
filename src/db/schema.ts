@@ -68,6 +68,8 @@ export const users = pgTable(
     billingCustomerId: text("billing_customer_id"),
     billingSubscriptionId: text("billing_subscription_id"),
     billingEventAt: epochMs("billing_event_at"),
+    // Prepaid credit, spent only on a paid plan once the month's allowance is used.
+    creditCents: integer("credit_cents").notNull().default(0),
     createdAt: epochMs("created_at").notNull(),
     updatedAt: epochMs("updated_at").notNull(),
   },
@@ -213,17 +215,20 @@ export const meteredCalls = pgTable(
   ],
 );
 
-// Billing's do-it-once records: handled event keys, trial history by email hash (outlives accounts), replaced trials.
+export const CREDIT_KINDS = ["topup_checkout", "topup", "topup_back", "credit_spend"] as const;
+
+// Billing's do-it-once records: handled event keys, trial history by email hash (outlives accounts), replaced trials, and the prepaid credit ledger.
 export const billingLog = pgTable(
   "billing_log",
   {
-    kind: text("kind", { enum: ["event", "trial", "replacement"] }).notNull(),
+    kind: text("kind", { enum: ["event", "trial", "replacement", ...CREDIT_KINDS] }).notNull(),
     key: text("key").notNull(),
     userId: uuid("user_id"),
     ref: text("ref").notNull(),
     attempts: integer("attempts").notNull().default(0),
     at: epochMs("at").notNull(),
     doneAt: epochMs("done_at"),
+    cents: integer("cents"),
   },
   (t) => [
     primaryKey({ columns: [t.kind, t.key] }),
@@ -236,6 +241,9 @@ export const billingLog = pgTable(
     index("billing_log_pending_idx")
       .on(t.at)
       .where(sql`kind = 'replacement' and done_at is null`),
+    index("billing_log_credit_idx")
+      .on(t.at)
+      .where(sql`kind in ('topup_checkout', 'credit_spend')`),
   ],
 );
 

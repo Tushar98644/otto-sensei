@@ -69,6 +69,27 @@ describe("runCleanup", () => {
       { kind: "event", key: "evt_new", ref: "subscription.active", at: NOW - DAY },
       { kind: "trial", key: "hash-old", ref: "trial", at: NOW - RETENTION.billingEventsMs - 1 },
     ]);
+    const credit = (
+      kind: "topup_checkout" | "topup" | "credit_spend",
+      key: string,
+      at: number,
+    ) => ({
+      kind,
+      key,
+      userId: maya.id,
+      ref: kind === "credit_spend" ? "tailor" : "",
+      cents: 500,
+      at,
+    });
+    await db
+      .insert(billingLog)
+      .values([
+        credit("topup_checkout", "checkout-old", NOW - RETENTION.creditCheckoutsMs - 1),
+        credit("topup_checkout", "checkout-new", NOW - DAY),
+        credit("credit_spend", "spend-old", NOW - RETENTION.creditSpendsMs - 1),
+        credit("credit_spend", "spend-new", NOW - RETENTION.creditCheckoutsMs - 1),
+        credit("topup", "pay_Old0000000000001", NOW - RETENTION.creditSpendsMs - 1),
+      ]);
 
     const event = (kind: "impression" | "save", createdAt: number) => ({
       id: crypto.randomUUID(),
@@ -149,6 +170,7 @@ describe("runCleanup", () => {
         tombstones: 1,
         notifications: 2,
         billingEvents: 1,
+        creditLedger: 2,
         impressions: 1,
         replacedTrials: 0,
         matchCache: 1,
@@ -170,8 +192,11 @@ describe("runCleanup", () => {
     expect(settings?.deletedResumes).toEqual({ new: NOW - DAY });
     expect(await db.select().from(notifications)).toHaveLength(2);
     expect((await db.select().from(billingLog)).map((row) => row.key).sort()).toEqual([
+      "checkout-new",
       "evt_new",
       "hash-old",
+      "pay_Old0000000000001",
+      "spend-new",
     ]);
     expect((await db.select().from(matchEvents)).map((row) => row.id).sort()).toEqual(
       [oldSave.id, newImpression.id].sort(),
@@ -195,6 +220,7 @@ describe("runCleanup", () => {
       tombstones: 0,
       notifications: 0,
       billingEvents: 0,
+      creditLedger: 0,
       impressions: 0,
       replacedTrials: 0,
       matchCache: 0,

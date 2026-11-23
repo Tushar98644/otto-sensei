@@ -14,6 +14,7 @@ import {
   userSettings,
   writings,
 } from "@/db/schema";
+import { creditExport } from "@/lib/billing/credit";
 import { careerLogJson, careerLogText } from "@/lib/career-log/export";
 import { listEntries } from "@/lib/career-log/records";
 import { STATUS_NAMES } from "@/lib/applications/status";
@@ -88,6 +89,7 @@ function csvCell(value: string | number | null): string {
 export async function buildDataExport(userId: string, now = Date.now()): Promise<JSZip> {
   const db = await getDb();
   const tracking = trackingExport(userId);
+  const creditFile = creditExport(userId);
   const [resumeRows, writingRows, applicationRows, postRows, settingsRows] = await Promise.all([
     db
       .select({ id: resumes.id, data: resumes.data, updatedAt: resumes.updatedAt })
@@ -232,6 +234,7 @@ export async function buildDataExport(userId: string, now = Date.now()): Promise
   const { address, emails } = await tracking;
   const tracked = address !== null || emails.length > 0;
   const logEntries = await listEntries(userId);
+  const credit = await creditFile;
 
   const zip = new JSZip();
   zip.file(
@@ -282,6 +285,11 @@ export async function buildDataExport(userId: string, now = Date.now()): Promise
         : []),
       ...(dayRows.length > 0
         ? ["active-days.json: the days your account opened the app in the past 10 weeks."]
+        : []),
+      ...(credit
+        ? [
+            "credit.json: your credit balance in cents, and each top-up (with its payment id), refund taken back and spend (with the feature), in cents.",
+          ]
         : []),
       "",
       "Resumes kept only in this browser and not backed up yet aren't included.",
@@ -360,6 +368,7 @@ export async function buildDataExport(userId: string, now = Date.now()): Promise
   }
   if (recapRows.length > 0) zip.file("weekly-recaps.json", JSON.stringify(recapRows, null, 2));
   if (dayRows.length > 0) zip.file("active-days.json", JSON.stringify(dayRows, null, 2));
+  if (credit) zip.file("credit.json", JSON.stringify(credit, null, 2));
 
   return zip;
 }

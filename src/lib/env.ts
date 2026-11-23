@@ -49,6 +49,7 @@ const EnvSchema = z.object({
   DODO_MAX_MONTHLY_PRODUCT_ID: optionalString,
   DODO_MAX_YEARLY_PRODUCT_ID: optionalString,
   DODO_PRO_TRIAL_PRODUCT_ID: optionalString,
+  DODO_TOPUP_PRODUCT_ID: optionalString,
   BILLING_SIGNING_SECRET: optionalString,
   GITHUB_TOKEN: optionalString,
   CRON_SECRET: optionalString,

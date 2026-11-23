@@ -16,6 +16,11 @@ import {
   readDodoProduct,
   readWebhookSecret,
   slotTagged,
+  TOPUP_LABEL,
+  TOPUP_VARIABLE,
+  topupProblems,
+  topupSpec,
+  topupTagged,
   webhookUrl,
   type DodoProduct,
   type DodoProductSummary,
@@ -89,14 +94,40 @@ function writeEnv(values: Record<string, string>) {
   chmodSync(ENV_FILE, 0o600);
 }
 
-async function ensureProduct(entry: ProductSlot, active: DodoProductSummary[]): Promise<string> {
-  const spec = productSpec(entry);
-  const tagged = active.filter((item) => slotTagged(item.metadata, entry));
+type ProductTarget = {
+  label: string;
+  variable: string;
+  spec: { name: string };
+  tagged: (metadata: Record<string, unknown>) => boolean;
+  problems: (product: DodoProduct) => string[];
+};
+
+function slotTarget(entry: ProductSlot): ProductTarget {
+  return {
+    label: entry.label,
+    variable: entry.variable,
+    spec: productSpec(entry),
+    tagged: (metadata) => slotTagged(metadata, entry),
+    problems: (product) => productProblems(entry, product),
+  };
+}
+
+const TOPUP_TARGET: ProductTarget = {
+  label: TOPUP_LABEL,
+  variable: TOPUP_VARIABLE,
+  spec: topupSpec(),
+  tagged: topupTagged,
+  problems: topupProblems,
+};
+
+async function ensureProduct(entry: ProductTarget, active: DodoProductSummary[]): Promise<string> {
+  const spec = entry.spec;
+  const tagged = active.filter((item) => entry.tagged(item.metadata));
   const products = await Promise.all(
     tagged.map((item) => readProduct(item.product_id, `${entry.label} (${item.product_id})`)),
   );
   const fits = (product: DodoProduct) =>
-    product.name === spec.name && productProblems(entry, product).length === 0;
+    product.name === spec.name && entry.problems(product).length === 0;
   const chosen = products.find(fits) ?? products[0];
   const others = products.filter((product) => product !== chosen).map((p) => p.product_id);
   if (others.length > 0) {
@@ -125,7 +156,7 @@ async function ensureProduct(entry: ProductSlot, active: DodoProductSummary[]): 
     action = "updated";
   }
   console.log(`${action.padEnd(8)} ${entry.variable}  ${id}`);
-  const left = productProblems(entry, await readProduct(id, `${entry.label} (${id})`));
+  const left = entry.problems(await readProduct(id, `${entry.label} (${id})`));
   for (const text of left) {
     console.log(`warning  ${entry.label} (${id}): ${text}`);
     process.exitCode = 2;
@@ -186,7 +217,8 @@ const CHECKLIST = [
   "Then:",
   "- Make the app's API key: Write on Checkout Sessions, Subscriptions and Refunds; Read on Customers, Payments, Products and Disputes; no IP allowlist. Save it as DODO_API_KEY.",
   "- Set BILLING_SIGNING_SECRET to the output of openssl rand -hex 32.",
-  "- Give Vercel DODO_ENVIRONMENT, DODO_API_KEY, DODO_WEBHOOK_SECRET, BILLING_SIGNING_SECRET and the five DODO_*_PRODUCT_ID values.",
+  "- Give Vercel DODO_ENVIRONMENT, DODO_API_KEY, DODO_WEBHOOK_SECRET, BILLING_SIGNING_SECRET and the five plan DODO_*_PRODUCT_ID values.",
+  "- Prepaid credit stays off until Vercel has DODO_TOPUP_PRODUCT_ID too: add it only once the owner says yes.",
   `- Check them: bun --env-file=${ENV_FILE} scripts/check-dodo-catalog.ts`,
 ];
 
@@ -211,7 +243,7 @@ async function main() {
   writeEnv({ DODO_ENVIRONMENT: ENVIRONMENT });
   const active = must(await listDodoProducts(ACCESS, { archived: false }), "Products").items;
   // Each value is saved as soon as it is known, so a later failure loses nothing.
-  for (const entry of PRODUCT_SLOTS) {
+  for (const entry of [...PRODUCT_SLOTS.map(slotTarget), TOPUP_TARGET]) {
     writeEnv({ [entry.variable]: await ensureProduct(entry, active) });
   }
   writeEnv({ DODO_WEBHOOK_SECRET: await ensureWebhook() });

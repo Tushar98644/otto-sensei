@@ -35,6 +35,16 @@ import {
   planForStatus,
   type ApplyResult,
 } from "./entitlements";
+import { verifyBillingId } from "./billing-sign";
+import {
+  chargedRef,
+  creditTopup,
+  findTopupCheckout,
+  MAX_BALANCE_CENTS,
+  takeBackTopup,
+  type TakeBack,
+} from "./credit";
+import { TOPUP_METADATA_KEY } from "./credit-types";
 import {
   isOrphan,
   isRefusedTrial,
@@ -56,6 +66,7 @@ export type WebhookConfig = {
   productIds: readonly string[];
   planForProduct: (productId: string) => ProductPlan | null | undefined;
   trialProductId?: string | null;
+  topupProductId?: string | null;
   customerEmail?: (customerId: string) => Promise<string | null>;
 };
 
@@ -228,7 +239,10 @@ async function recordPayment(
     return { status: 200, message: "ignored" };
   };
   const subscriptionId = payment.subscription_id;
-  if (!subscriptionId) return ignore("no_subscription");
+  if (!subscriptionId) {
+    if (isTopup(payment, config)) return recordTopup(payment, context, config, now);
+    return ignore("no_subscription");
+  }
   // A charge can succeed after a refused trial or a deleted account's subscription was cancelled.
   try {
     const refusedUser = await isRefusedTrial(subscriptionId);
@@ -274,6 +288,95 @@ async function recordPayment(
   return { status: 200, message: "applied" };
 }
 
+// Our top-up checkout names its record in the metadata; the product alone marks one bought some other way.
+function isTopup(payment: DodoPayment, config: ReadyConfig): boolean {
+  const product = config.topupProductId;
+  const inCart = product
+    ? payment.product_cart?.some((item) => item.product_id === product)
+    : false;
+  return Boolean(inCart) || payment.metadata?.[TOPUP_METADATA_KEY] != null;
+}
+
+// Credits exactly the dollars our own record of the checkout holds, once per payment; anything else is logged, not credited.
+async function recordTopup(
+  payment: DodoPayment,
+  context: Context,
+  config: ReadyConfig,
+  now: number,
+): Promise<WebhookResult> {
+  const fields = { ...context, paymentId: payment.payment_id };
+  const refuse = (reason: string, extra: Record<string, string | number | null> = {}) => {
+    log.error("billing.topup_mismatch", `top-up not credited: ${reason}`, { ...fields, ...extra });
+    return { status: 200, message: "ignored" };
+  };
+  const [item, ...more] = payment.product_cart ?? [];
+  if (!item || more.length > 0 || item.product_id !== config.topupProductId) {
+    return refuse("cart", { items: payment.product_cart?.length ?? 0 });
+  }
+  const topupId = payment.metadata?.[TOPUP_METADATA_KEY];
+  if (
+    typeof topupId !== "string" ||
+    !verifyBillingId(topupId, payment.metadata?.topup_sig, config.signingSecret)
+  ) {
+    return refuse("unsigned");
+  }
+  const ids = metadataIds(payment.metadata, config.signingSecret, fields);
+  let checkout: Awaited<ReturnType<typeof findTopupCheckout>>;
+  try {
+    checkout = await findTopupCheckout(topupId);
+  } catch (error) {
+    log.error("billing.webhook_failed", error, context);
+    return { status: 500, message: "retry" };
+  }
+  if (!checkout) return refuse("no_checkout");
+  if (checkout.userId !== ids.userId) return refuse("account");
+  if (checkout.cents !== item.quantity * 100) {
+    return refuse("quantity", { quantity: item.quantity, cents: checkout.cents });
+  }
+  const session = payment.checkout_session_id;
+  if (checkout.sessionId && session && checkout.sessionId !== session) return refuse("session");
+  const currency = (payment.currency ?? "").toUpperCase();
+  const total = payment.total_amount;
+  if (total == null || !currency) return refuse("amount");
+  const preTax = total - (payment.tax ?? 0);
+  if (currency === "USD" && preTax !== checkout.cents) {
+    return refuse("amount", { preTax, cents: checkout.cents });
+  }
+  // Adaptive Currency is off, so another currency is unexpected; the quantity still says what was bought.
+  if (currency !== "USD") log.warn("billing.topup_currency", { ...fields, currency });
+  try {
+    const result = await creditTopup(
+      {
+        checkoutId: checkout.id,
+        userId: checkout.userId,
+        paymentId: payment.payment_id,
+        cents: checkout.cents,
+        charged: chargedRef(total, currency),
+      },
+      now,
+    );
+    if (result.outcome !== "credited") {
+      if (result.outcome === "already_paid") return refuse("checkout_already_paid");
+      if (result.outcome === "duplicate") {
+        log.info("billing.webhook_duplicate", fields);
+        return { status: 200, message: "duplicate" };
+      }
+      log.warn("billing.webhook_ignored", { ...fields, reason: "no_user" });
+      return { status: 200, message: "ignored" };
+    }
+    const credited = { ...fields, userId: checkout.userId, cents: checkout.cents };
+    log.info("billing.topup_credited", { ...credited, balanceCents: result.balanceCents });
+    captureServerEvent(checkout.userId, "credit_added", { usd: checkout.cents / 100 });
+    if (result.balanceCents > MAX_BALANCE_CENTS) {
+      log.warn("billing.topup_over_cap", { ...credited, balanceCents: result.balanceCents });
+    }
+  } catch (error) {
+    log.error("billing.webhook_failed", error, context);
+    return { status: 500, message: "retry" };
+  }
+  return { status: 200, message: "applied" };
+}
+
 // With prevent_change, a declined plan-change charge leaves the old plan; the owner hears of it here.
 async function recordPaymentFailure(
   object: unknown,
@@ -305,17 +408,29 @@ async function recordPaymentFailure(
   return { status: 200, message: "applied" };
 }
 
-// Refunds and disputes change no plan; they're logged for the owner to act on.
+const DISPUTE_LOSSES: ReadonlySet<string> = new Set(["dispute.lost", "dispute.accepted"]);
+
+// Refunds and disputes change no plan; they're logged for the owner, and a top-up's take its credit back.
 async function recordAdjustment(
   event: DodoEvent,
   context: Context,
   now: number,
 ): Promise<WebhookResult> {
   let fields: Record<string, string | number | boolean | null>;
+  let takeBack: TakeBack | null = null;
   if (event.kind === "refund") {
     const parsed = DodoRefundSchema.safeParse(event.data);
     if (!parsed.success) return malformed(parsed.error, context);
     const refund = parsed.data;
+    if (event.type === "refund.succeeded") {
+      takeBack = {
+        paymentId: refund.payment_id,
+        key: `refund:${refund.refund_id}`,
+        share: refund.is_partial
+          ? { amount: Number(refund.amount), currency: refund.currency ?? null }
+          : "all",
+      };
+    }
     fields = {
       kind: "refund",
       refundId: refund.refund_id,
@@ -329,6 +444,13 @@ async function recordAdjustment(
     const parsed = DodoDisputeSchema.safeParse(event.data);
     if (!parsed.success) return malformed(parsed.error, context);
     const dispute = parsed.data;
+    if (DISPUTE_LOSSES.has(event.type)) {
+      takeBack = {
+        paymentId: dispute.payment_id,
+        key: `dispute:${dispute.dispute_id}`,
+        share: "all",
+      };
+    }
     fields = {
       kind: "dispute",
       disputeId: dispute.dispute_id,
@@ -341,6 +463,20 @@ async function recordAdjustment(
     };
   }
   try {
+    // Keyed by the refund or dispute, so it runs before the event's own claim and a retry repeats nothing.
+    if (takeBack) {
+      const taken = await takeBackTopup(takeBack, now);
+      if (taken.outcome === "taken") {
+        log.warn("billing.topup_taken_back", {
+          ...context,
+          paymentId: takeBack.paymentId,
+          userId: taken.userId,
+          cents: taken.wantedCents,
+          removedCents: taken.removedCents,
+          balanceCents: taken.balanceCents,
+        });
+      }
+    }
     if (!(await claimBillingEvent(context.eventId, context.eventType, now))) {
       log.info("billing.webhook_duplicate", context);
       return { status: 200, message: "duplicate" };

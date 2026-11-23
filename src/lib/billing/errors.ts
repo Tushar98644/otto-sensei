@@ -5,6 +5,8 @@ export type BillingErrorCode =
   | "change_not_offered"
   | "refused"
   | "payment_overdue"
+  | "credit_not_on_plan"
+  | "credit_full"
   | "provider_error";
 
 export type BillingRefusalReason =
@@ -21,6 +23,8 @@ export type BillingErrorDetails = {
   providerStatus?: number;
   providerCode?: string;
   reason?: BillingRefusalReason;
+  // How much more credit the balance can take, for credit_full.
+  roomCents?: number;
 };
 
 export class BillingError extends Error {

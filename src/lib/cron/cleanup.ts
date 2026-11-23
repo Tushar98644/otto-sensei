@@ -1,4 +1,4 @@
-import { and, eq, isNotNull, lt, ne, or, sql } from "drizzle-orm";
+import { and, eq, inArray, isNotNull, lt, ne, or, sql } from "drizzle-orm";
 import { TOMBSTONE_MAX_AGE_MS, trimOldTombstones } from "@/app/api/resumes/backups";
 import { getDb } from "@/db/client";
 import {
@@ -34,6 +34,10 @@ export const RETENTION = {
   matchActionsMs: 90 * DAY_MS,
   // Past periods' allowance counts are never read; kept as long as billing events, a yearly plan and its disputes.
   usagePeriodsMs: 400 * DAY_MS,
+  // A paid checkout's credit is its own row by then, and an unpaid one has long expired.
+  creditCheckoutsMs: 30 * DAY_MS,
+  // The spend history, as long as the allowance counts beside it.
+  creditSpendsMs: 400 * DAY_MS,
   matchCacheMs: MATCH_CACHE_MAX_AGE_MS,
   // What Otto read in a job email shows for six months, then goes.
   inboundEmailsMs: 180 * DAY_MS,
@@ -100,6 +104,26 @@ export async function runCleanup({ now, deadline }: CronContext): Promise<CronOu
         const deleted = await db
           .delete(billingLog)
           .where(and(eq(kind, "event"), sql`${key} in ${stale}`))
+          .returning({ key });
+        return deleted.length;
+      },
+    },
+    {
+      name: "creditLedger",
+      run: async () => {
+        const { kind, key, at } = billingLog;
+        const old = or(
+          and(eq(kind, "topup_checkout"), lt(at, now - RETENTION.creditCheckoutsMs)),
+          and(eq(kind, "credit_spend"), lt(at, now - RETENTION.creditSpendsMs)),
+        );
+        const stale = db
+          .select({ kind, key })
+          .from(billingLog)
+          .where(and(inArray(kind, ["topup_checkout", "credit_spend"]), old))
+          .limit(CLEANUP_BATCH);
+        const deleted = await db
+          .delete(billingLog)
+          .where(sql`(${kind}, ${key}) in ${stale}`)
           .returning({ key });
         return deleted.length;
       },

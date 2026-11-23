@@ -7,12 +7,15 @@ import {
   type BillingInterval,
   type PaidPlanId,
 } from "@/config/plans";
+import { isTopupAmount } from "@/config/topup";
 import type { AccountBilling, SessionUser } from "@/lib/auth/types";
 import { env } from "@/lib/env";
 import { log } from "@/lib/log";
+import { attachCheckoutSession, creditUsable, dropTopup, mockTopup, startTopup } from "./credit";
 import {
   changePlan,
   createCheckout,
+  createTopupCheckout,
   endSubscription,
   listLiveSubscriptions,
   portalUrl,
@@ -31,6 +34,7 @@ import {
   paidProductIds,
   planForProduct,
   productId,
+  topupProductId,
   trialOffered,
   trialProductId,
 } from "./intervals";
@@ -136,6 +140,58 @@ export async function createCheckoutUrl(
     next,
   });
   return url;
+}
+
+// The amount is checked here and stored with the account before Dodo hears of it; the webhook credits only that.
+export async function createTopupUrl(
+  user: SessionUser,
+  usd: number,
+  next: string | null = null,
+  now = Date.now(),
+): Promise<string> {
+  const mode = billingMode();
+  const product = topupProductId();
+  if (mode === "disabled" || !product) {
+    throw new BillingError("unavailable", "Credit is not on sale");
+  }
+  if (!creditUsable(user)) {
+    throw new BillingError("credit_not_on_plan", "Credit needs a paid plan past its trial");
+  }
+  if (!isTopupAmount(usd)) throw new BillingError("unavailable", `No top-up of ${usd} dollars`);
+  if (mode === "mock") {
+    const credited = await mockTopup(user, usd, now);
+    if ("ok" in credited) throw creditFull(credited.roomCents);
+    return topupDonePath(next);
+  }
+  const started = await startTopup(user.id, usd * 100, now);
+  if (!started.ok) throw creditFull(started.roomCents);
+  const record = await getBillingRecord(user.id);
+  try {
+    const { url, sessionId } = await createTopupCheckout({
+      userId: user.id,
+      email: user.email,
+      customerId: record?.billingCustomerId ?? null,
+      productId: product,
+      usd,
+      topupId: started.id,
+      next,
+    });
+    if (sessionId) await attachCheckoutSession(started.id, sessionId);
+    return url;
+  } catch (error) {
+    await dropTopup(started.id).catch(() => {});
+    throw error;
+  }
+}
+
+function creditFull(roomCents: number): BillingError {
+  return new BillingError("credit_full", "The balance can't take that much more", { roomCents });
+}
+
+function topupDonePath(next: string | null): string {
+  const query = new URLSearchParams({ topup: "success" });
+  if (next) query.set("next", next);
+  return `/account?${query}`;
 }
 
 function upgradedPath(plan: PaidPlanId, trial: boolean, next: string | null): string {
@@ -283,5 +339,6 @@ export async function handleWebhook(
     productIds: paidProductIds(),
     planForProduct,
     trialProductId: trialProductId(),
+    topupProductId: topupProductId() ?? null,
   });
 }

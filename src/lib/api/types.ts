@@ -11,6 +11,7 @@ import {
   type UsagePeriod,
   type UsageSnapshot,
 } from "@/config/plans";
+import { TOPUP_LIMITS } from "@/config/topup";
 import { oneLine } from "@/lib/ai/text";
 import type {
   AnswerResult,
@@ -23,6 +24,7 @@ import type { Application } from "@/lib/applications/schema";
 import type { ApplicationThread } from "@/lib/applications/thread";
 import type { ScreeningQuestion } from "@/lib/ats/types";
 import type { AuthMode, SessionUser } from "@/lib/auth/types";
+import type { CreditEntry } from "@/lib/billing/credit-types";
 import type { BillingMode } from "@/lib/billing/types";
 import type { ReferralClaimOutcome, ReferralSummary } from "@/lib/referrals/referrals";
 import type { RecruiterReport } from "@/lib/checks/types";
@@ -216,9 +218,16 @@ export type MeResponse = {
     trial?: boolean;
     paymentIssue?: boolean;
     cancelScheduled?: boolean;
+    // Present only while prepaid credit is on sale.
+    credit?: CreditInfo;
   };
   auth: { mode: AuthMode };
 };
+
+export type CreditInfo = { balanceCents: number; monthCents: number; usable: boolean };
+
+// On a metered answer that credit paid for.
+export type CreditNote = { cents: number; balanceCents: number };
 
 export const PutResumeSchema = ResumeSchema;
 export type ResumesResponse = { ok: true; resumes: Resume[]; deletedIds: string[] };
@@ -274,6 +283,18 @@ export const CheckoutRequestSchema = z.object({
   next: z.string().max(512).optional(),
 });
 export type CheckoutRequestBody = z.input<typeof CheckoutRequestSchema>;
+
+export const TopupRequestSchema = z.object({
+  usd: z.number().int().min(TOPUP_LIMITS.minUsd).max(TOPUP_LIMITS.maxUsd),
+  next: z.string().max(512).optional(),
+});
+export type TopupRequestBody = z.input<typeof TopupRequestSchema>;
+
+export type CreditActivityResponse = {
+  ok: true;
+  credit: CreditInfo;
+  activity: CreditEntry[];
+};
 
 export { FeedbackRequestSchema } from "@/lib/feedback/validation";
 export type { FeedbackKind, FeedbackRequestBody } from "@/lib/feedback/types";

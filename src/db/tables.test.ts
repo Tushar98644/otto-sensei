@@ -28,16 +28,17 @@ const global = (not: string): Table => ({ owner: "global", export: { not } });
 const TABLES: Record<string, Table> = {
   users: {
     owner: "account",
-    export: { not: "the account itself: its email and plan are on the Account page" },
+    export: {
+      not: "the account itself: its email and plan are on the Account page, its credit in credit.json",
+    },
   },
   // referred_by goes null when the inviter's account is deleted, which ends that invite.
   user_settings: { ...account("settings.json"), onDelete: ["cascade", "set null"] },
   metered_calls: accountNotExported(
     "minutes-long replays of a paid result and passes for a fix's answers",
   ),
-  billing_log: accountNotExported(
-    "billing bookkeeping: handled webhook ids, email hashes of past trials, replaced trials",
-  ),
+  // Only its credit rows (top-ups, take-backs, spends) are the account's to export; the rest is bookkeeping.
+  billing_log: account("credit.json"),
   usage: accountNotExported("allowance counts, shown on the Account page"),
   rate_limits: global("abuse counters by device, address or email, kept two days"),
   resumes: account("resumes/"),

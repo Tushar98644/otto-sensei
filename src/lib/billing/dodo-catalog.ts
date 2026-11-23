@@ -106,8 +106,15 @@ export type CatalogConfig = {
   webhookSecret: string | undefined;
   signingSecret: string | undefined;
   productIds: Partial<Record<ProductVariable, string>>;
+  // Unset keeps prepaid credit off, so nothing about it is checked.
+  topupProductId?: string;
   appUrl: string;
 };
+
+export const TOPUP_VARIABLE = "DODO_TOPUP_PRODUCT_ID";
+export const TOPUP_LABEL = "Credit";
+// The app sells credit as this $1 product times the dollars chosen.
+const TOPUP_UNIT_CENTS = 100;
 
 export type CatalogCheck = { ok: boolean; message: string };
 
@@ -141,6 +148,7 @@ const ProductSchema = z.object({
     discount: orNull(z.number()),
     discount_bps: orNull(z.number()),
     purchasing_power_parity: orNull(z.boolean()),
+    pay_what_you_want: orNull(z.boolean()),
     tax_inclusive: orNull(z.boolean()),
     trial_period_days: orNull(z.number()),
     trial_amount: orNull(z.number()),
@@ -201,6 +209,7 @@ export function catalogConfig(options: { appUrl?: string } = {}): CatalogConfig 
     webhookSecret: e.DODO_WEBHOOK_SECRET,
     signingSecret: e.BILLING_SIGNING_SECRET,
     productIds: Object.fromEntries(PRODUCT_VARIABLES.map((name) => [name, e[name]])),
+    topupProductId: e.DODO_TOPUP_PRODUCT_ID,
     appUrl: appOrigin(options.appUrl?.trim() || e.NEXT_PUBLIC_APP_URL || DEFAULT_APP_URL),
   };
 }
@@ -278,6 +287,67 @@ export function productSpec(entry: ProductSlot) {
       otto_trial: String(entry.trial),
     },
   };
+}
+
+export function topupTagged(metadata: Record<string, unknown>): boolean {
+  return String(metadata.otto_topup) === "true";
+}
+
+export function topupSpec() {
+  return {
+    name: "Otto Sensei credit ($1)",
+    description:
+      "Prepaid Otto Sensei credit in whole dollars, for AI help once a paid plan's monthly allowance runs out.",
+    tax_category: TAX_CATEGORY,
+    price: {
+      type: "one_time_price",
+      currency: CURRENCY,
+      price: TOPUP_UNIT_CENTS,
+      discount_bps: 0,
+      purchasing_power_parity: false,
+      pay_what_you_want: false,
+      tax_inclusive: false,
+    },
+    metadata: { otto_topup: "true" },
+  };
+}
+
+// The checkout buys this product once per dollar, so it must be a plain $1.00 one-time price.
+export function topupProblems(product: DodoProduct): string[] {
+  const price = product.price;
+  if (price.type !== "one_time_price") {
+    return [
+      `it is ${price.type === "recurring_price" ? "a subscription" : price.type}, not a one-time price`,
+    ];
+  }
+  const problems: string[] = [];
+  if (price.currency?.toUpperCase() !== CURRENCY) {
+    problems.push(`it is in ${price.currency ?? "no currency"}, not ${CURRENCY}`);
+  }
+  if (price.price !== TOPUP_UNIT_CENTS) {
+    problems.push(
+      `it costs ${money(price.price ?? 0, price.currency)}, but the app sells credit as ${money(TOPUP_UNIT_CENTS, CURRENCY)} times the dollars chosen`,
+    );
+  }
+  if (price.pay_what_you_want === true) {
+    problems.push("it lets the buyer pick the amount: turn pay what you want off, the app sets it");
+  }
+  if (price.tax_inclusive === true) problems.push(`its price includes tax; ${TAX_FIX}`);
+  if (product.tax_category !== TAX_CATEGORY)
+    problems.push("its tax category isn't SaaS: set it to SaaS");
+  if (price.purchasing_power_parity === true) {
+    problems.push(`it has purchasing power parity on, ${ONE_PRICE}: turn it off`);
+  }
+  if (product.pricing_mode !== null) {
+    problems.push(`it has localized prices (${product.pricing_mode}), ${ONE_PRICE}: remove them`);
+  }
+  const discountBps = price.discount_bps ?? (price.discount ?? 0) * 100;
+  if (discountBps > 0) problems.push(`it has a ${discountBps / 100}% discount: remove it`);
+  if (product.addons.length > 0)
+    problems.push("it offers add-ons, which the app doesn't sell: remove them");
+  if (!product.name?.trim())
+    problems.push("it has no name: buyers see it at checkout, so name it for credit");
+  return problems;
 }
 
 const timedOut = (error: unknown) => error instanceof Error && error.name === "TimeoutError";
@@ -402,7 +472,7 @@ export async function runCatalogCheck(
   const apiKey = config.apiKey;
   if (!apiKey || !canReadCatalog(config)) return validateCatalog(config, null);
   const access = { apiKey, environment: config.environment };
-  const ids = [...new Set(Object.values(config.productIds))].filter(
+  const ids = [...new Set([...Object.values(config.productIds), config.topupProductId])].filter(
     (id): id is string => id !== undefined && isDodoId("pdt", id),
   );
   const [lookups, archived, webhooks] = await Promise.all([
@@ -469,9 +539,47 @@ export function validateCatalog(config: CatalogConfig, reads: CatalogReads | nul
     if (problems.length === 0) checks.push(ok(`${where}: ${describe(entry, lookup.product)}.`));
     for (const text of problems) checks.push(problem(`${where}: ${text}.`));
   }
+  checks.push(...topupChecks(config, reads, archived));
   checks.push(...missingMax(config), ...duplicateChecks(config));
   if (reads) checks.push(...webhookChecks(config, reads));
   return [...new Map(checks.map((check) => [check.message, check])).values()];
+}
+
+function topupChecks(
+  config: CatalogConfig,
+  reads: CatalogReads | null,
+  archived: ReadonlySet<string> | null,
+): CatalogCheck[] {
+  const id = config.topupProductId;
+  if (!id) return [];
+  const where = `${TOPUP_LABEL}: ${TOPUP_VARIABLE}`;
+  if (hasSpaces(id))
+    return [problem(`${where} has a space or line break around the id: remove it.`)];
+  if (!isDodoId("pdt", id)) {
+    return [
+      problem(
+        `${where} isn't a Dodo product id: it should be pdt_ followed by letters and digits.`,
+      ),
+    ];
+  }
+  if (!reads) return [];
+  const named = `${TOPUP_LABEL} (${id})`;
+  const lookup = reads.products.get(id) ?? ({ found: false, reason: "unexpected" } as const);
+  if (!lookup.found) return [problem(failureMessage(named, lookup, config.environment))];
+  const problems = [
+    ...(archived?.has(id)
+      ? [
+          `it is archived, so it can't be bought: unarchive it, or set ${TOPUP_VARIABLE} to an active product`,
+        ]
+      : []),
+    ...topupProblems(lookup.product),
+  ];
+  if (problems.length === 0) {
+    return [
+      ok(`${named}: ${money(TOPUP_UNIT_CENTS, CURRENCY)} once, plus tax, bought once per dollar.`),
+    ];
+  }
+  return problems.map((text) => problem(`${named}: ${text}.`));
 }
 
 type Resource = "products" | "webhooks";
@@ -767,11 +875,13 @@ function missingMax(config: CatalogConfig): CatalogCheck[] {
 }
 
 function duplicateChecks(config: CatalogConfig): CatalogCheck[] {
-  const byId = new Map<string, ProductVariable[]>();
+  const byId = new Map<string, string[]>();
   for (const variable of PRODUCT_VARIABLES) {
     const id = config.productIds[variable];
     if (id) byId.set(id, [...(byId.get(id) ?? []), variable]);
   }
+  const topup = config.topupProductId;
+  if (topup) byId.set(topup, [...(byId.get(topup) ?? []), TOPUP_VARIABLE]);
   return [...byId.values()]
     .filter((variables) => variables.length > 1)
     .map((variables) =>

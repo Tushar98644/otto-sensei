@@ -17,6 +17,9 @@ import {
   readWebhookSecret,
   runCatalogCheck,
   slotTagged,
+  topupProblems,
+  topupSpec,
+  topupTagged,
   validateCatalog,
   webhookUrl,
   type CatalogConfig,
@@ -86,6 +89,7 @@ function recurring(
       discount: null,
       discount_bps: 0,
       purchasing_power_parity: false,
+      pay_what_you_want: null,
       tax_inclusive: false,
       trial_period_days: 0,
       trial_amount: null,
@@ -936,6 +940,7 @@ describe("readDodoProduct", () => {
           discount: 0,
           discount_bps: 0,
           purchasing_power_parity: false,
+          pay_what_you_want: null,
           tax_inclusive: false,
           trial_period_days: 3,
           trial_amount: 100,
@@ -1250,5 +1255,89 @@ describe("runCatalogCheck", () => {
     expect(catalogConfig({ appUrl: " https://preview.example.com// " }).appUrl).toBe(
       "https://preview.example.com",
     );
+  });
+});
+
+describe("the credit product", () => {
+  const TOPUP_ID = dodoId("pdt", "Topup");
+  const topup = (change: Change = {}): DodoProduct => {
+    const spec = topupSpec();
+    const base: DodoProduct = {
+      product_id: TOPUP_ID,
+      name: spec.name,
+      tax_category: spec.tax_category,
+      metadata: spec.metadata,
+      addons: [],
+      pricing_mode: null,
+      price: {
+        type: spec.price.type,
+        currency: spec.price.currency,
+        price: spec.price.price,
+        payment_frequency_count: null,
+        payment_frequency_interval: null,
+        subscription_period_count: null,
+        subscription_period_interval: null,
+        discount: null,
+        discount_bps: 0,
+        purchasing_power_parity: false,
+        pay_what_you_want: false,
+        tax_inclusive: false,
+        trial_period_days: null,
+        trial_amount: null,
+        trial_payment_method_optional: null,
+      },
+    };
+    return { ...base, ...change, price: { ...base.price, ...change.price } };
+  };
+  const withTopup = (product: DodoProduct): CatalogReads => {
+    const all = reads();
+    return { ...all, products: new Map([...all.products, [TOPUP_ID, { found: true, product }]]) };
+  };
+
+  it("is a plain one-time $1.00 the setup script makes and finds again by its tag", () => {
+    expect(topupSpec().price).toMatchObject({
+      type: "one_time_price",
+      price: 100,
+      currency: "USD",
+    });
+    expect(topupTagged(topupSpec().metadata)).toBe(true);
+    expect(topupTagged(productSpec(slotFor("DODO_PRO_MONTHLY_PRODUCT_ID")).metadata)).toBe(false);
+    expect(topupProblems(topup())).toEqual([]);
+  });
+
+  it("names what would make the quantity buy the wrong amount", () => {
+    expect(topupProblems(topup({ price: { price: 500 } }))).toEqual([
+      "it costs USD 5.00, but the app sells credit as USD 1.00 times the dollars chosen",
+    ]);
+    expect(topupProblems(topup({ price: { pay_what_you_want: true } }))).toEqual([
+      "it lets the buyer pick the amount: turn pay what you want off, the app sets it",
+    ]);
+    expect(topupProblems(topup({ price: { type: "recurring_price" } }))).toEqual([
+      "it is a subscription, not a one-time price",
+    ]);
+    expect(topupProblems(topup({ price: { tax_inclusive: true } }))).toHaveLength(1);
+  });
+
+  it("is checked only once its id is set, and never shares a plan's product", () => {
+    expect(validateCatalog(config(), reads())).toEqual(validateCatalog(config(), reads()));
+    const checks = validateCatalog(config({ topupProductId: TOPUP_ID }), withTopup(topup()));
+    expect(problems(checks)).toEqual([]);
+    expect(notes(checks)).toContain(
+      `Credit (${TOPUP_ID}): USD 1.00 once, plus tax, bought once per dollar.`,
+    );
+    const shared = validateCatalog(
+      config({ topupProductId: IDS.DODO_PRO_MONTHLY_PRODUCT_ID }),
+      reads(),
+    );
+    expect(problems(shared)).toContain(
+      "DODO_PRO_MONTHLY_PRODUCT_ID and DODO_TOPUP_PRODUCT_ID hold the same product id: each needs its own product.",
+    );
+    const bad = validateCatalog(
+      config({ topupProductId: TOPUP_ID }),
+      withTopup(topup({ price: { pay_what_you_want: true } })),
+    );
+    expect(problems(bad)).toEqual([
+      `Credit (${TOPUP_ID}): it lets the buyer pick the amount: turn pay what you want off, the app sets it.`,
+    ]);
   });
 });

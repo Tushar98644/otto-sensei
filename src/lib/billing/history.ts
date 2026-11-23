@@ -23,6 +23,8 @@ import {
   type DodoSubscriptionCharge,
 } from "./dodo";
 import { isDodoId } from "./dodo-status";
+import { creditPurchases, type CreditPurchase } from "./credit";
+import { TOPUP_METADATA_KEY } from "./credit-types";
 import { chargeableSubscriptionId, getBillingRecord } from "./entitlements";
 import { BillingError } from "./errors";
 import {
@@ -88,7 +90,20 @@ function metadataTerm(metadata: DodoPayment["metadata"]): (Term & { trial: boole
 
 type Subscribed = { id: string; term: Term | null; trialProduct: boolean };
 
+export function topupItem(usd: number): string {
+  return `Credit, $${usd}`;
+}
+
+// A top-up's checkout writes its dollars into the metadata; the item says what it bought, before tax.
+function metadataTopup(metadata: DodoPayment["metadata"]): number | null {
+  if (metadata?.[TOPUP_METADATA_KEY] == null) return null;
+  const usd = Number(metadata.topup_usd);
+  return Number.isInteger(usd) && usd > 0 ? usd : null;
+}
+
 export function paymentItem(payment: DodoPayment, subscription: Subscribed | null): string {
+  const topup = payment.subscription_id ? null : metadataTopup(payment.metadata);
+  if (topup !== null) return topupItem(topup);
   const charge = payment.charge_type ?? "new";
   const same = subscription !== null && payment.subscription_id === subscription.id;
   const fromMetadata = metadataTerm(payment.metadata);
@@ -184,7 +199,8 @@ async function ownSubscription(
 export async function billingHistory(user: SessionUser, now = Date.now()): Promise<BillingHistory> {
   const mode = billingMode();
   if (mode === "disabled") return EMPTY_HISTORY;
-  if (mode === "mock") return mockHistory(user, now);
+  if (mode === "mock")
+    return withMockTopups(mockHistory(user, now), await creditPurchases(user.id));
   const record = await getBillingRecord(user.id);
   const customerId = record?.billingCustomerId;
   if (!record || !isDodoId("cus", customerId)) return EMPTY_HISTORY;
@@ -233,7 +249,10 @@ export async function invoiceFor(
   if (!isDodoId("pay", paymentId)) return null;
   const mode = billingMode();
   if (mode === "disabled") return null;
-  if (mode === "mock") return mockInvoice(user, paymentId, now);
+  if (mode === "mock") {
+    const history = withMockTopups(mockHistory(user, now), await creditPurchases(user.id));
+    return mockInvoice(user, history, paymentId);
+  }
   const record = await getBillingRecord(user.id);
   const customerId = record?.billingCustomerId;
   if (!isDodoId("cus", customerId)) return null;
@@ -313,8 +332,31 @@ export function mockHistory(user: SessionUser, now = Date.now()): BillingHistory
   return { payments: [payment], upcoming, card };
 }
 
-function mockInvoice(user: SessionUser, paymentId: string, now: number): Invoice | null {
-  const payment = mockHistory(user, now).payments.find((row) => row.id === paymentId);
+// Mock credit is real rows in billing_log, so each shows as its own paid line.
+function withMockTopups(
+  history: BillingHistory,
+  purchases: readonly CreditPurchase[],
+): BillingHistory {
+  if (purchases.length === 0) return history;
+  const topups = purchases.map((purchase): BillingPayment => ({
+    id: purchase.paymentId,
+    at: purchase.at,
+    item: topupItem(purchase.cents / 100),
+    amountMinor: purchase.cents,
+    currency: "USD",
+    status: purchase.takenBack ? "refunded" : "paid",
+    invoice: true,
+  }));
+  const payments = [...history.payments, ...topups].sort((a, b) => b.at - a.at);
+  return { ...history, payments };
+}
+
+function mockInvoice(
+  user: SessionUser,
+  history: BillingHistory,
+  paymentId: string,
+): Invoice | null {
+  const payment = history.payments.find((row) => row.id === paymentId);
   if (!payment) return null;
   return {
     pdf: simplePdf([

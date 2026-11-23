@@ -4,6 +4,7 @@ import { normalizeEmail } from "@/lib/auth/policy";
 import { appUrl, env, type Env } from "@/lib/env";
 import { log } from "@/lib/log";
 import { signBillingId } from "./billing-sign";
+import { TOPUP_METADATA_KEY } from "./credit-types";
 import {
   DodoSubscriptionSchema,
   internalStatus,
@@ -117,7 +118,10 @@ const SubscriptionCharge = DodoSubscriptionSchema.extend({
   tax_inclusive: z.boolean().nullish(),
 });
 export type DodoSubscriptionCharge = z.infer<typeof SubscriptionCharge>;
-const CheckoutResponse = z.object({ checkout_url: z.string().nullish() });
+const CheckoutResponse = z.object({
+  checkout_url: z.string().nullish(),
+  session_id: z.string().max(200).nullish(),
+});
 const PortalResponse = z.object({ link: z.string().nullish() });
 const Anything = z.unknown();
 const ErrorBody = z.object({ code: z.unknown() });
@@ -523,6 +527,67 @@ export async function createCheckout(input: CheckoutInput): Promise<{ url: strin
     });
   }
   return { url };
+}
+
+export type TopupCheckoutInput = {
+  userId: string;
+  email: string;
+  customerId: string | null;
+  productId: string;
+  usd: number;
+  topupId: string;
+  next?: string | null;
+};
+
+// The $1 product bought usd times: the amount is set here, and the webhook checks it against our record.
+export async function createTopupCheckout(
+  input: TopupCheckoutInput,
+): Promise<{ url: string; sessionId: string | null }> {
+  const secret = env().BILLING_SIGNING_SECRET;
+  if (!secret) throw new BillingError("unavailable", "BILLING_SIGNING_SECRET is not set");
+  assertProductId(input.productId);
+  const query = new URLSearchParams({ topup: "1" });
+  if (input.next) query.set("next", input.next);
+  const session = await request(
+    "checkout",
+    {
+      method: "POST",
+      path: "/checkouts",
+      body: {
+        product_cart: [{ product_id: input.productId, quantity: input.usd }],
+        billing_currency: "USD",
+        customer: isDodoId("cus", input.customerId)
+          ? { customer_id: input.customerId }
+          : { email: normalizeEmail(input.email) },
+        metadata: {
+          user_id: input.userId,
+          user_sig: signBillingId(input.userId, secret),
+          [TOPUP_METADATA_KEY]: input.topupId,
+          topup_sig: signBillingId(input.topupId, secret),
+          topup_usd: String(input.usd),
+        },
+        return_url: `${appUrl()}/api/billing/return?${query}`,
+        cancel_url: `${appUrl()}/account?topup=cancelled`,
+        feature_flags: {
+          allow_customer_editing_email: false,
+          allow_discount_code: false,
+          redirect_immediately: true,
+        },
+        customization: { theme: "light" },
+      },
+    },
+    CheckoutResponse,
+  );
+  const url = httpsUrl(session.checkout_url);
+  if (!url) {
+    log.error("billing.provider_failed", "checkout session without a checkout URL", {
+      operation: "checkout",
+    });
+    throw new BillingError("provider_error", "Dodo returned no checkout URL", {
+      operation: "checkout",
+    });
+  }
+  return { url, sessionId: session.session_id ?? null };
 }
 
 function checkoutReturnUrl(plan: PaidPlanId, trial: boolean, next: string | null): string {

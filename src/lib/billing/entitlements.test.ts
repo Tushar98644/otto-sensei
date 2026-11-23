@@ -38,6 +38,7 @@ async function createUser(overrides: Partial<UserRow> = {}): Promise<UserRow> {
     trialEndsAt: null,
     planPeriodStartsAt: null,
     planPeriodEndsAt: null,
+    creditCents: 0,
     billingCustomerId: null,
     billingSubscriptionId: null,
     billingEventAt: null,

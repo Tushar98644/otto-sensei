@@ -286,6 +286,18 @@ export async function consumeUsage(
   };
 }
 
+// consumeUsage's take alone, for a caller already holding the user's lock in its transaction.
+export async function takeAllowanceUnit(
+  db: Db,
+  user: SessionUser,
+  feature: Feature,
+  now: number,
+): Promise<boolean> {
+  const period = resolvePeriod(user, now, { quiet: true });
+  const limit = planLimits(user.plan, period.kind)[feature];
+  return limit > 0 && (await takeUnit(db, user.id, feature, period.key, limit)) !== null;
+}
+
 async function takeUnit(
   db: Db,
   userId: string,

@@ -6,6 +6,7 @@ import {
   type PaidPlanId,
 } from "@/config/plans";
 import { env } from "@/lib/env";
+import { isDodoId } from "./dodo-status";
 import { billingMode } from "./mode";
 
 function productIds(): Record<PaidPlanId, Partial<Record<BillingInterval, string>>> {
@@ -22,6 +23,18 @@ export function productId(plan: PaidPlanId, interval: BillingInterval): string |
 
 export function trialProductId(): string | undefined {
   return env().DODO_PRO_TRIAL_PRODUCT_ID;
+}
+
+export function topupProductId(): string | undefined {
+  return env().DODO_TOPUP_PRODUCT_ID;
+}
+
+// Prepaid credit is shown and sold only once its product is set, in mock mode too.
+export function creditOffered(): boolean {
+  const mode = billingMode();
+  const id = topupProductId();
+  if (!id || mode === "disabled") return false;
+  return mode === "mock" || isDodoId("pdt", id);
 }
 
 export function offeredIntervals(plan: PaidPlanId = "pro"): BillingInterval[] {

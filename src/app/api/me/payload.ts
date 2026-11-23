@@ -2,9 +2,10 @@ import type { MeResponse } from "@/lib/api/types";
 import { authMode } from "@/lib/auth/session";
 import type { AccountBilling, SessionUser } from "@/lib/auth/types";
 import { billingMode, trialAvailableFor } from "@/lib/billing";
+import { creditState } from "@/lib/billing/credit";
 import { isDodoId } from "@/lib/billing/dodo-status";
 import { getBillingRecord, type BillingRecord } from "@/lib/billing/entitlements";
-import { billingOffer, trialOffered } from "@/lib/billing/intervals";
+import { billingOffer, creditOffered, trialOffered } from "@/lib/billing/intervals";
 import { getUsageState } from "@/lib/usage";
 
 export type MePayload = Omit<MeResponse, "ok">;
@@ -24,7 +25,7 @@ export async function mePayload(
   billing?: AccountBilling,
 ): Promise<MePayload> {
   const mode = billingMode();
-  const [state, trial, record] = user
+  const [state, trial, record, credit] = user
     ? await Promise.all([
         getUsageState(user),
         trialAvailableFor(user, billing),
@@ -33,14 +34,21 @@ export async function mePayload(
           : billing
             ? { plan: user.plan, ...billing }
             : getBillingRecord(user.id),
+        creditOffered() ? creditState(user) : null,
       ])
-    : [null, trialOffered(), null];
+    : [null, trialOffered(), null, null];
   return {
     user,
     usage: state?.usage ?? null,
     period: state?.period ?? null,
     aiBudget: state?.aiBudget ?? null,
-    billing: { mode, offer: billingOffer(), trial, ...billingHold(record) },
+    billing: {
+      mode,
+      offer: billingOffer(),
+      trial,
+      ...billingHold(record),
+      ...(credit ? { credit } : {}),
+    },
     auth: { mode: authMode() },
   };
 }
