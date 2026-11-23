@@ -17,7 +17,7 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;
 
-// The daily jobs workflow embeds titles on its own runner (scripts/title-vectors.py): it asks here
+// The daily title vectors workflow embeds titles on its own runner (scripts/title-vectors.py): it asks here
 // for the titles waiting, sends their vectors back, and the last call rebuilds the match index.
 const MAX_ASKED = 5_000;
 const BASE64_VECTOR = /^[A-Za-z0-9+/]{342}==$/;

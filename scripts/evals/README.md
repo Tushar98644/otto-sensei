@@ -97,10 +97,8 @@ Every regression counts toward exit code 2, and the report says how many came fr
 
 ## Running in CI
 
-`.github/workflows/evals.yml` runs every suite on `AI_MODEL`'s default model, with the judge on and `--max-usd 0.50`:
+`.github/workflows/evals.yml` runs every suite on `AI_MODEL`'s default model, with the judge on and `--max-usd 0.50`, only when started by hand (each run spends real money):
 
-- **On a push to `main`** that changes code the suites exercise: `src/lib/ai/**` (fix, tailor, structure, interview prep, the letters and outreach writer in `writing.ts`, the prompts and the client), `src/lib/insights/prep*.ts`, `src/lib/tailor/**`, `src/lib/match-check/**`, `src/lib/writing-style/**`, `src/lib/writings/schema.ts`, `src/lib/evals/graders.ts`, `scripts/evals/**`, `scripts/match-eval/resumes.ts` or the workflow itself. Markdown, `*.test.ts` and `scripts/evals/baseline/**` don't count.
-- **Every Monday** at 06:17 UTC.
 - **By hand**: Actions > Evals > Run workflow, with `models` (a comma list; empty means `AI_MODEL`'s default), `feature` (`all`, a suite or a comma list) and `max-usd`.
 
 Runs go one at a time: a newer one waits instead of cancelling one that has already spent money. The job reads the key from the repository secret `OPENROUTER_EVAL_KEY` and passes it as `OPENROUTER_API_KEY`. Without the secret the job ends green after its first step, with "Evals skipped" in the job summary: no checkout, no install, no call.

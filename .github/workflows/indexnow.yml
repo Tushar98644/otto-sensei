@@ -1,15 +1,16 @@
 name: IndexNow
 
-# After each production deploy, tells Bing, Yandex and the other IndexNow engines which sitemap URLs
+# Once a day, tells Bing, Yandex and the other IndexNow engines which sitemap URLs
 # changed. The first run sends them all; later runs send new URLs and ones whose lastmod moved,
 # remembered in the Actions cache. Google doesn't read IndexNow: Search Console covers it.
-# A failed ping never fails anything: the next deploy sends the same URLs again.
+# A failed ping never fails anything: the next day's run sends the same URLs again.
 #
 # Variable (Settings > Secrets and variables > Actions): OTTO_APP_URL, e.g. https://www.ottosensei.com
 
 on:
-  # Vercel's GitHub integration reports each deploy as a GitHub deployment.
-  deployment_status:
+  # 09:10 UTC daily, once, instead of after each of the day's deploys.
+  schedule:
+    - cron: "10 9 * * *"
   workflow_dispatch:
 
 permissions:
@@ -21,10 +22,6 @@ concurrency:
 
 jobs:
   ping:
-    if: >-
-      github.event_name == 'workflow_dispatch' ||
-      (github.event.deployment_status.state == 'success' &&
-       github.event.deployment.environment == 'Production')
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:

@@ -30,7 +30,7 @@ bun run test       # in-memory Postgres (PGlite) per test file, fake Supabase Au
 bun run build
 ```
 
-CI ([.github/workflows/ci.yml](.github/workflows/ci.yml)) runs the first three as parallel jobs, plus knip and a per-page JS budget from `next analyze`; [migrations.yml](.github/workflows/migrations.yml) runs squawk on new migrations ([HANDOFF.md](HANDOFF.md) section 3). Vercel's own build on every push stands in for `bun run build`.
+CI ([.github/workflows/ci.yml](.github/workflows/ci.yml)), started by hand from the Actions tab, runs the first three as parallel jobs, plus knip and a per-page JS budget from `next analyze`; `scripts/migrations-check.sh` runs squawk on new migrations ([HANDOFF.md](HANDOFF.md) section 3). Vercel's own build on every push stands in for `bun run build`.
 
 ## Deploy
 

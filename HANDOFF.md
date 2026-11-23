@@ -17,7 +17,7 @@ Other docs: [README.md](README.md) (run locally; links here), [SETUP.md](SETUP.m
 | AI | OpenRouter: GLM 5.3 Flash (writing), Llama Guard 4 (safety), Whisper large v3 turbo (voice fallback) |
 | Payments | Dodo Payments, our merchant of record (**test mode** until Dodo verifies the account); checkout is Dodo's hosted page, which returns through `/api/billing/return` |
 | Sign-in emails | Resend, through Supabase's SMTP settings |
-| Daily jobs feed | Six Vercel crons call `/api/cron/jobs` between 05:45 and 08:15 UTC (each finishes at once when nothing is left); the GitHub Action `jobs-ingest.yml` at 05:40 UTC also calls it and computes title vectors when Actions can run |
+| Daily jobs feed | Six Vercel crons call `/api/cron/jobs` between 05:45 and 08:15 UTC (each finishes at once when nothing is left); the GitHub Action `title-vectors.yml` at 08:45 UTC then embeds the day's new titles (GitHub Actions runs only that and the daily IndexNow ping; CI, E2E and Evals run by hand) |
 | Other crons | `vercel.json`: `/api/cron/cleanup` (04:17 UTC), `/api/cron/job-matches` (08:30 UTC, the weekly "N new matches this week" bell note), `/api/cron/career-checkins` (12:30 UTC, the monthly career log check-in on each person's chosen day: bell, Home and one opt-in email), `/api/cron/view-alerts` (13:15 UTC, portfolio view alerts in the bell), `/api/cron/trial-reminders` (13:30 UTC, bell and email), `/api/cron/follow-ups` (14:00 UTC, bell only), and `/api/cron/interview-briefs` once a day at 02:37 UTC as a safety net for the hourly run below |
 | Emails | Only sign-in codes (through Supabase), the trial-ending notice, one-time service notices (`scripts/send-processor-notice.ts`), and the career log's monthly check-in for people who turned it on (at most one a month, with its own one-click unsubscribe). Follow-ups, interviews, new matches and views are in the bell only; the weekly jobs, tips, views and reminder emails are gone, and links in ones already sent still unsubscribe |
 | Interview briefs | The Cloudflare Worker `workers/inbound-email` (the one that receives tracked email) runs `/api/cron/interview-briefs` hourly at :07 UTC from its Cron Trigger, with `Authorization: Bearer <CRON_SECRET>`: the interview-morning brief in the bell at about 7:00 local and "How did it go?" there the morning after (in-app only, no email). The Worker holds `CRON_SECRET` as a secret (the same value as on Vercel) and `APP_URL` in `wrangler.toml`; setup in its README |
@@ -61,7 +61,7 @@ bun dev                                       # http://localhost:3000
 
 ## 3. The gate: run before every commit
 
-CI (`.github/workflows/ci.yml`) runs the same checks as parallel jobs on every push that changes more than Markdown (a newer push cancels the run it replaces). Run them locally first:
+Run these locally before every push. CI (`.github/workflows/ci.yml`) runs the same checks only when started by hand from the Actions tab:
 
 ```bash
 printf '{ "extends": "./tsconfig.json", "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx"], "exclude": ["node_modules", ".next"] }' > tsconfig.gate.json
@@ -72,10 +72,10 @@ bunx vitest run --maxWorkers=2                                   # ~290 files, ~
 
 All three must pass with zero errors and zero warnings. `--maxWorkers=2` keeps an 8 GB machine responsive; raise it on a bigger laptop.
 
-CI adds these. None of them blocks a deploy (Vercel builds and ships every push to `main`), so read a red run and fix it:
+CI adds these; run the one a change touches locally too, since Vercel builds and ships every push to `main`:
 - **Route types:** `next typegen` runs before `tsc`, so CI also checks page and route exports the way `next build` does.
 - **knip** (`knip.json`): unused files and dependencies.
-- **squawk** (`.squawk.toml`, `scripts/migrations-check.sh`) on each new file in `supabase/migrations/`, from its own workflow (`.github/workflows/migrations.yml`) so a quick second push can't cancel it: it flags locking or breaking statements such as dropped columns and constraints added without `not valid`. Put `-- squawk-ignore <rule>` above one that is deliberate.
+- **squawk** (`.squawk.toml`, `scripts/migrations-check.sh`) on each new file in `supabase/migrations/` (`bash scripts/migrations-check.sh origin/main`): it flags locking or breaking statements such as dropped columns and constraints added without `not valid`. Put `-- squawk-ignore <rule>` above one that is deliberate.
 - **Bundle budget** (`scripts/bundle-check.sh`, from `next analyze`): fails when a page's first-load JS grows more than 10 KB past `scripts/bundle-baseline.json`, all its JS more than 50 KB, or a page has no baseline yet. When the growth is intended, commit that run's `bundle-routes` artifact as `scripts/bundle-baseline.json`, or run `bash scripts/bundle-check.sh --update` (a full production compile, so nothing else heavy at the same time) and commit the file.
 
 ---

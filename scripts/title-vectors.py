@@ -2,7 +2,7 @@
 
 Runs the ONNX build of TechWolf/JobBERT-v2 (MIT) on the CPU: mean pooling, then the model's
 "anchor" dense layer for titles, then a fixed basis that keeps 256 of its 1024 dimensions, stored
-as int8. Never runs on a user request: the daily jobs workflow and scripts/title-vectors.ts call it.
+as int8. Never runs on a user request: the daily title vectors workflow and scripts/title-vectors.ts call it.
 
   python3 scripts/title-vectors.py fetch MODEL_DIR
   python3 scripts/title-vectors.py fit MODEL_DIR IN.json      (once: writes the basis and occupations)

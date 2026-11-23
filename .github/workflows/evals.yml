@@ -1,26 +1,8 @@
 name: Evals
 
 # Real OpenRouter calls, capped by --max-usd; needs the OPENROUTER_EVAL_KEY secret (scripts/evals/README.md, "Running in CI").
+# By hand only: every run spends real OpenRouter money and runner minutes.
 on:
-  push:
-    branches: [main]
-    paths:
-      - "src/lib/ai/**"
-      - "src/lib/insights/prep*.ts"
-      - "src/lib/tailor/**"
-      - "src/lib/match-check/**"
-      - "src/lib/writing-style/**"
-      - "src/lib/writings/schema.ts"
-      - "src/lib/evals/graders.ts"
-      - "scripts/evals/**"
-      - "scripts/match-eval/resumes.ts"
-      - ".github/workflows/evals.yml"
-      - "!**/*.md"
-      - "!**/*.test.ts"
-      - "!scripts/evals/baseline/**"
-  schedule:
-    # Mondays 06:17 UTC.
-    - cron: "17 6 * * 1"
   workflow_dispatch:
     inputs:
       models:

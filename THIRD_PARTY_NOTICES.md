@@ -145,7 +145,7 @@ What Otto changed (both licences ask for changes to be marked):
 
 ## Job title model
 
-Job titles are compared by meaning with JobBERT-v2. The model runs only in the daily jobs workflow
+Job titles are compared by meaning with JobBERT-v2. The model runs only in the daily title vectors workflow
 on GitHub's runner (`scripts/title-vectors.py`), never in the app. The app ships two things derived
 from it: `src/lib/job-feed/occupations/vectors.json` (one vector per occupation, made from the
 occupation names above) and `scripts/title-vectors.basis` (the fixed 256-dimension basis the stored

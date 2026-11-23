@@ -1,13 +1,9 @@
 name: CI
 
+# By hand only (Actions > CI > Run workflow). The same gate runs locally before every push (HANDOFF.md section 3), and a run on each push billed 11 to 15 minutes.
 on:
-  push:
-    branches: [main]
-    paths-ignore: ["**/*.md"]
-  pull_request:
-    paths-ignore: ["**/*.md"]
+  workflow_dispatch:
 
-# A newer push to the same branch or pull request cancels the run it replaces.
 concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true

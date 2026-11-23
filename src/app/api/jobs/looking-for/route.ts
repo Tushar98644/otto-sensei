@@ -27,7 +27,7 @@ export async function PUT(req: Request): Promise<Response> {
     }
     const result = await saveLookingFor(user.id, body.data);
     if (result.status === "no_user") return fail("unauthorized", SIGN_IN, 401, NO_STORE);
-    // A role typed in is embedded once by the next jobs workflow run, then matched by its own vector.
+    // A role typed in is embedded once by the next title vectors run, then matched by its own vector.
     const title = body.data.role?.title ? titleVectorKey(body.data.role.title) : "";
     if (title) {
       await noteTitles(await getDb(), [title], Date.now(), { touch: true }).catch(
