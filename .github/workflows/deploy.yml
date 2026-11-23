@@ -67,7 +67,7 @@ jobs:
           echo "::error::The Migrations workflow on $SHA was still running after 10 minutes."
           exit 1
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         if: steps.newest.outputs.deploy == 'true'
         with:
           node-version: 24
