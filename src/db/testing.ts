@@ -36,7 +36,7 @@ export async function resetDb(): Promise<void> {
   ).client.exec(
     `truncate table public.applications, public.resumes, public.usage,
        public.rate_limits, public.billing_log, public.users, public.jobs,
-       public.job_boards, public.skills, public.job_skills, public.match_skills, public.job_match,
+       public.job_boards, public.skills, public.job_match,
        public.job_counts, public.company_visa, public.title_vectors,
        auth.users, dev_auth.login_codes,
        dev_auth.sessions cascade`,

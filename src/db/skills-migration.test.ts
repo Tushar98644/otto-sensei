@@ -8,6 +8,7 @@ import * as schema from "./schema";
 import { MIGRATIONS_TIMEOUT_MS } from "./test-template";
 
 const FIRST = "20261123130000";
+const DROP = "20261123130900";
 
 describe("skills migration", () => {
   const client = new PGlite();
@@ -27,7 +28,7 @@ describe("skills migration", () => {
   const skills = () =>
     rows("select skill, sid, open_jobs, weight from public.skills order by skill");
 
-  it("copies every row of job_skills and match_skills, keeps copying the old app's writes, and loses nothing", async () => {
+  it("copies every row of job_skills and match_skills, keeps copying the old app's writes, and loses nothing when they go", async () => {
     await run(
       "insert into public.match_skills (sid, skill) values (1, 'Python'), (2, 'SQL'), (3, 'Go'), (4, 'Kafka')",
     );
@@ -101,6 +102,23 @@ describe("skills migration", () => {
         { skill: "Rust", updated_at: 200 },
       ]),
     );
+
+    const kept = await rows("select * from public.skills order by skill");
+    const drop = migrations.find((m) => m.version === DROP);
+    expect(drop?.transaction).toBe(true);
+    await client.exec(drop!.sql);
+
+    expect(await rows("select * from public.skills order by skill")).toEqual(kept);
+    expect(
+      await rows(
+        "select relname from pg_class where relnamespace = 'public'::regnamespace and relname in ('job_skills', 'match_skills')",
+      ),
+    ).toEqual([]);
+    expect(
+      await rows(
+        "select proname from pg_proc where proname like 'skills_from_%' and pronamespace = 'public'::regnamespace",
+      ),
+    ).toEqual([]);
     const rls = await rows("select relrowsecurity from pg_class where relname = 'skills'");
     expect(rls).toEqual([{ relrowsecurity: true }]);
   });
