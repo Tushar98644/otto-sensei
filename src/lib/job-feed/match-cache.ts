@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { and, eq, sql } from "drizzle-orm";
+import { and, desc, eq, lt, notInArray, or, sql } from "drizzle-orm";
 import type { Db } from "@/db/client";
 import { matchCache } from "@/db/schema";
 import { log } from "@/lib/log";
@@ -56,9 +56,32 @@ export async function writeMatchCache(
         target: [matchCache.userId, matchCache.key],
         set: { value: sql.raw(`excluded.${matchCache.value.name}`), createdAt: now },
       });
+    await pruneMatchCache(db, userId, now);
   } catch (error) {
     log.warn("jobs.cache_write_failed", {}, error);
   }
 }
 
+// Keys carry the day, so earlier days can't be read again; a long browse keeps only its newest pages.
+async function pruneMatchCache(db: Db, userId: string, now: number): Promise<void> {
+  const newest = db
+    .select({ key: matchCache.key })
+    .from(matchCache)
+    .where(eq(matchCache.userId, userId))
+    .orderBy(desc(matchCache.createdAt), matchCache.key)
+    .limit(MATCH_CACHE_PER_ACCOUNT);
+  await db
+    .delete(matchCache)
+    .where(
+      and(
+        eq(matchCache.userId, userId),
+        or(
+          lt(matchCache.createdAt, Math.floor(now / DAY_MS) * DAY_MS),
+          notInArray(matchCache.key, newest),
+        ),
+      ),
+    );
+}
+
 export const MATCH_CACHE_MAX_AGE_MS = DAY_MS;
+export const MATCH_CACHE_PER_ACCOUNT = 12;
