@@ -927,6 +927,7 @@ quietly; the rest of the app runs the same.
 | `GITHUB_TOKEN` | Higher GitHub limits for Import from GitHub and portfolio GitHub numbers | 10d |
 | `USAJOBS_API_KEY`, `USAJOBS_EMAIL` | US federal jobs from USAJOBS in the Jobs tab (both are needed) | 10f |
 | `CRON_SECRET` | Daily cleanup, follow-up reminders (bell), and clearing /jobs after the daily job read (also a GitHub secret) | 10e |
+| `DATABASE_URL` as a GitHub secret | The daily job read on GitHub's runner (the Transaction pooler URL, the same database as Vercel's) | 10e |
 | `RESEND_API_KEY`, `EMAIL_FROM` | The trial-ending email and one-time service notices; follow-ups, new matches and views are bell only | 10e |
 | `EMAIL_POSTAL_ADDRESS` | A postal address (a PO box or virtual mailbox is fine) shown in the footer of optional emails. Tip emails stay off until it's set | 10e |
 | `INBOUND_EMAIL_SECRET` (+ optional `INBOUND_ADDRESS_STYLE`, `INBOUND_DOMAIN`) | Applications that track themselves from forwarded job emails, through a Cloudflare Email Worker; addresses are `otto+<handle>@track.ottosensei.com` | inbound-email.md |
@@ -1036,33 +1037,53 @@ vercel env add GITHUB_TOKEN production
 
 ## 10e. Scheduled jobs (optional)
 
+All schedules run once a day from GitHub Actions (`.github/workflows/daily.yml`, owner decision
+2026-11-23); Vercel runs none (`vercel.json` has no crons). One run at 05:40 UTC does, in order:
+
 ```
-Vercel Cron    → /api/cron/cleanup     04:17 UTC daily → old rate-limit windows, tombstones, notifications
-               → /api/cron/trial-reminders 13:30 UTC daily → bell notification (+ email) a day before a trial ends
-               → /api/cron/follow-ups  14:00 UTC daily → bell notification per account (no email)
-               → /api/cron/jobs        18 times a day: 17:15 to 04:15 and 05:45 to 08:15 UTC → every board and feed, resuming each time
-                 (scripts/jobs-ingest-ci.ts does the same in one run, given a database URL)
-GitHub Actions → /api/cron/title-vectors 08:45 UTC daily → JobBERT-v2 vectors for the day's new titles
+GitHub Actions, 05:40 UTC daily (daily.yml)
+  1. Jobs            bun scripts/jobs-ingest-ci.ts on the runner, straight to the database: every board and feed
+                     that is due, the tidy, skill weights, match index and counts; then POST /api/cron/jobs-cache
+                     drops the site's cached /jobs pages
+  2. Title vectors   /api/cron/title-vectors → JobBERT-v2 vectors for the day's new titles, then a rebuild
+  3. Daily routes    one call each: /api/cron/cleanup, job-matches, career-checkins, view-alerts,
+                     trial-reminders, follow-ups and interview-briefs (a safety net: the Cloudflare
+                     Email Worker runs it hourly, inbound-email.md)
+  4. IndexNow        the sitemap URLs that changed, to Bing and the other IndexNow engines
 ```
 
-The three Vercel schedules are in `vercel.json`. They only run on the production deployment, and only
-once `CRON_SECRET` is set: without it every call answers 401 and nothing happens.
+Each step goes on when one before it fails, and the run's summary lists every step's result.
+**Actions** → **Daily** → **Run workflow** runs it by hand (its "minutes" box gives the job read more
+time, for a first read of many new Workday sites). Every `/api/cron/*` route still answers a call
+with `Authorization: Bearer <CRON_SECRET>`: `POST /api/cron/jobs` runs a 4-minute read on Vercel by
+hand. Each daily route's windows already allow one run a day at any hour (trial reminders and
+follow-ups look 36 hours ahead from the start of the hour; check-ins go out on each person's chosen
+day in their own zone, late rather than never), and each stops its own work after about 45 s.
 
-The daily job read runs on Vercel: each of the 18 calls reads boards for up to 4 minutes and resumes
-where the last stopped, and finishes at once when nothing is left (docs/job-sources.md, "Limits we keep"). GitHub Actions runs only what needs a
-runner: the title vectors (`.github/workflows/title-vectors.yml`, the model can't run on Vercel, a few
-minutes a day) and the daily IndexNow ping. CI, E2E and Evals run only by hand from the Actions tab. In
-GitHub → the repo → **Settings** → **Secrets and variables** → **Actions**, add:
+The job read takes about 15 to 20 minutes on a normal day (16 boards at a time, each host at its own
+pace), and the whole run about 25, so about 750 of the 2,000 Actions minutes a month a private repo
+gets free. CI, E2E and Evals run only by hand from the Actions tab.
 
-- Secret `CRON_SECRET`: the same value as on Vercel, so no database password is stored in GitHub.
-  Vercel hides sensitive values once saved, so make a new one if you don't have it:
-  `openssl rand -hex 32`, set it on Vercel and here, then redeploy.
+**The one step for the job read:** give GitHub the database's address. It goes in GitHub only, never
+in the code, and lets the runner write jobs straight to the database.
+
+1. In Supabase, open the project and press **Connect** at the top.
+2. Under **Transaction pooler**, copy the URI (it ends in `:6543/postgres`). Put the database password
+   in place of `[YOUR-PASSWORD]`; reset it under **Project Settings** → **Database** if it's lost.
+3. In GitHub, open the repo → **Settings** → **Secrets and variables** → **Actions**.
+4. Press **New repository secret**. Name: `DATABASE_URL`. Secret: the URI from step 2. Press **Add secret**.
+
+Until it's there, the daily run skips the job read with a notice and runs the other steps.
+
+The other steps need, in the same place (most installs have them from before):
+
+- Secret `CRON_SECRET`: the same value as on Vercel. Vercel hides sensitive values once saved, so make
+  a new one if you don't have it: `openssl rand -hex 32`, set it on Vercel and here, then redeploy.
 - Variable `OTTO_APP_URL`: the site's address, e.g. `https://ottosensei.com`.
 
-Then **Actions** → **Title vectors** → **Run workflow** embeds the first titles without waiting for
-08:45 UTC. `POST /api/cron/jobs` (Bearer `CRON_SECRET`) runs a 4-minute read by hand.
+To set up the secret and the trial-ending email:
 
-1. Make a secret and add it (Vercel sends it to the jobs as `Authorization: Bearer <secret>`):
+1. Make a secret and add it (the daily run sends it to each route as `Authorization: Bearer <secret>`):
 
    ```bash
    openssl rand -hex 32
@@ -1078,8 +1099,8 @@ Then **Actions** → **Title vectors** → **Run workflow** embeds the first tit
    vercel env add EMAIL_FROM production   # Otto Sensei <otto@yourdomain.com>
    ```
 
-3. Redeploy (`vercel --prod`). Vercel → project → **Settings** → **Cron Jobs** lists all three
-   jobs, with **Run** buttons and their logs.
+3. Redeploy (`vercel --prod`), and add the same `CRON_SECRET` to GitHub (above). Each daily run's
+   log and summary are under **Actions** → **Daily**.
 
 - Marking a job applied sets its follow-up date by itself: 7 days after it was sent (each account
   can pick another number on the Account page), never sooner than a day after it was logged. When
@@ -1097,10 +1118,10 @@ Then **Actions** → **Title vectors** → **Run workflow** embeds the first tit
 - Cleanup and follow-ups stop after about 45 seconds and pick up the rest the next day. Running one
   twice does no harm. Run one by hand with
   `curl -X POST -H "Authorization: Bearer $CRON_SECRET" https://<your-domain>/api/cron/cleanup`.
-- **Jobs** (`/api/cron/jobs`) needs no keys or new variables: every source is a public API
-  (job-sources.md). It runs up to 300 seconds (`maxDuration`), which Vercel allows on every plan with
-  Fluid compute, the default for new projects (**Settings** → **Functions**). With a shorter limit it
-  still works: it saves board by board, and the next run starts with the boards it didn't reach.
+- **Jobs** run on GitHub's runner (`scripts/jobs-ingest-ci.ts`, `DATABASE_URL` above); every source
+  is a public API (job-sources.md) except USAJOBS (10f). `/api/cron/jobs` still reads for up to 300
+  seconds (`maxDuration`) when called by hand; it saves board by board, and the next run starts with
+  the boards it didn't reach.
   The first run fills the table (about 15,000-20,000 jobs over a day or two; the table is capped at
   20,000 rows, roughly 100 MB). Its migration, `20261108001000_jobs.sql`, is applied by the deploy's
   build command like every other one. A run that answers 500 names the feed that failed (Himalayas
@@ -1192,9 +1213,10 @@ new domain is a new site for Dodo's review, so tell Dodo before checkouts return
       with the same email: checkout shows $15, no trial.
 - [ ] Supabase **Project Settings** → **API Keys**: the secret key exists only in Vercel and your
       `.env.local`.
-- [ ] Vercel **Settings** → **Cron Jobs**: press **Run** on all three jobs; each log line ends in
-      `cron.<job>.done` (not `cron.unauthorized`, which means `CRON_SECRET` is missing). After the
-      jobs run, `/jobs` lists openings and `/dashboard/jobs` ranks them for your resume.
+- [ ] GitHub **Actions** → **Daily** → **Run workflow**: the run's summary shows every step as
+      `success` (a 401 in a step's log means `CRON_SECRET` differs between GitHub and Vercel; a skipped
+      job read means `DATABASE_URL` isn't set yet). After it runs, `/jobs` lists openings and
+      `/dashboard/jobs` ranks them for your resume.
 - [ ] Share a resume from its card menu and open the link in a private window: the page loads,
       and **Download PDF** works.
 - [ ] On a Pro test account, write a pitch in **Portfolio** → **Intro**: it shows in the preview,

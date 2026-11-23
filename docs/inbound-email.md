@@ -118,8 +118,8 @@ Otto stamps every interview day it handles, so a late, repeated or retried run n
 - To check it: run `bunx wrangler tail` in `workers/inbound-email` a little before minute 7 and watch the
   scheduled run finish, or look for `cron.interview_briefs.done` in the Vercel logs.
 
-`vercel.json` also calls `/api/cron/interview-briefs` once a day at 02:37 UTC (about 08:00 in
-India) as a safety net, so the morning after's "How did it go?" and its follow-up still happen if
+The daily GitHub Actions run (`.github/workflows/daily.yml`, 05:40 UTC) also calls
+`/api/cron/interview-briefs` once as a safety net, so the morning after's "How did it go?" and its follow-up still happen if
 the Worker isn't deployed or misses a run.
 
 ## Changing the secret

@@ -50,7 +50,7 @@ Email tracking and the extension
 
 ## How long rows are kept
 
-The daily cleanup cron (`src/lib/cron/cleanup.ts`, 04:17 UTC) deletes in batches of 1,000. The jobs ingest and the recap code own their own deletes.
+The daily cleanup (`src/lib/cron/cleanup.ts`, called once a day by `.github/workflows/daily.yml`) deletes in batches of 1,000. The jobs ingest and the recap code own their own deletes.
 
 | Rows                                                                   | Kept                                                                  |
 | ---------------------------------------------------------------------- | --------------------------------------------------------------------- |
