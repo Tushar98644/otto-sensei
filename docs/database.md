@@ -36,6 +36,7 @@ Jobs (not per account unless named)
 - `job_skills`, `match_skills`: skill weights and small ids for ranking.
 - `job_match`: the narrow copy of open jobs that ranking reads.
 - `job_counts`: one row of counts from the last ingest.
+- `title_vectors`: one JobBERT-v2 meaning vector per way a job title is written (256 bytes each), filled by the daily title vectors workflow.
 - `company_visa`: companies on the UK and US visa registers.
 - `saved_jobs`: jobs an account saved.
 - `match_cache`: one page of an account's Matches, a day (unlogged).
