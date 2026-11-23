@@ -121,7 +121,8 @@ export function stopTracking(userId: string): Promise<boolean> {
   return run(userId, () => api.stopEmailTracking(), "Couldn't turn it off");
 }
 
-export function waitForTest(): void {
+// Checks every few seconds for a while: after a test email, or while Gmail's confirmation is on its way.
+export function watchForMail(): void {
   watchFor();
 }
 

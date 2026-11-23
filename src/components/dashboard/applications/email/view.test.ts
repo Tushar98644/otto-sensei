@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { EmailEvent, TrackingAddress } from "@/lib/inbound/types";
 import { emailedCards } from "./use-email-tracking";
-import { canUndo, changeLine, proposalLine, setupStage } from "./view";
+import { canUndo, changeLine, proposalLine, SETUP_STEPS, setupStage, setupStep } from "./view";
 
 const ADDRESS: TrackingAddress = {
   email: "otto+priya@track.ottosensei.com",
@@ -52,6 +52,15 @@ describe("the setup card", () => {
     expect(setupStage(asked)).toBe("confirm");
     expect(setupStage({ ...asked, confirmedAt: 3 })).toBe("filter");
     expect(setupStage({ ...asked, confirmedAt: 3, lastEmailAt: 4 })).toBe("working");
+  });
+
+  it("opens one step at a time and counts past the last once it works", () => {
+    expect(["address", "confirm", "filter", "working"].map((s) => setupStep(s as never))).toEqual([
+      1,
+      2,
+      3,
+      SETUP_STEPS + 1,
+    ]);
   });
 });
 

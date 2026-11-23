@@ -10,6 +10,15 @@ export function setupStage(address: TrackingAddress): SetupStage {
   return address.confirmedAt !== null ? "filter" : "address";
 }
 
+export const SETUP_STEPS = 3;
+
+// The step to do now, 1 to 3; past the last once a job email has come in.
+export function setupStep(stage: SetupStage): number {
+  if (stage === "address") return 1;
+  if (stage === "confirm") return 2;
+  return stage === "filter" ? 3 : SETUP_STEPS + 1;
+}
+
 // Read but not placed: not a hiring update, or no company to put a card under.
 export function isUnread(event: EmailEvent): boolean {
   return event.kind === "unknown" || (event.change === "none" && event.applicationId === null);
