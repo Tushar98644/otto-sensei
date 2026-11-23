@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Eyebrow } from "@/components/ui/eyebrow";
 import { PRO_TRIAL } from "@/config/plans";
 import { trialSentence } from "@/lib/billing/prices";
+import { PORTFOLIO_TEMPLATE_IDS } from "@/lib/portfolio/types";
 import { suggestSlug } from "@/lib/portfolio/slug";
 import { portfolioPath, type Portfolio, type PortfolioTemplateId } from "@/lib/portfolio/types";
 import type { Resume } from "@/lib/resume/schema";
@@ -51,7 +52,7 @@ export function PortfolioUpgrade({
           <p className="mt-2 text-base/7 text-pretty text-muted">
             {portfolio
               ? "Portfolios come with Pro and Max. Your page and its settings are kept, so it comes back as it was."
-              : "Your projects, work, writing and links in one of fifteen designs, filled in from your resume."}
+              : `Your projects, work, writing and links in one of ${PORTFOLIO_TEMPLATE_IDS.length} designs, filled in from your resume.`}
           </p>
           <ul className="mt-4 flex flex-col gap-2 text-sm/6 text-ink">
             <li className="flex gap-2">

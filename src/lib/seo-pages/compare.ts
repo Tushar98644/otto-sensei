@@ -50,8 +50,7 @@ const maxMonthly = planPrice("max", "month");
 const OTTO_SIDE = {
   what: {
     answer: "Resume checker and builder",
-    detail:
-      "See the text hiring software reads, fix weak lines with Otto and download a clean PDF. Pro adds tailoring to each job, cover letters, outreach messages, interview prep, every format, the full tracker and a portfolio site.",
+    detail: `See the text hiring software reads, fix weak lines with Otto and download a clean PDF. Pro adds tailoring to each job, cover letters, outreach messages, interview prep, every format, up to ${applicationLimit("pro").toLocaleString("en-US")} tracked applications and a portfolio site.`,
   },
   score: {
     answer: "No overall score",
