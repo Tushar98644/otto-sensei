@@ -4,10 +4,12 @@ import { Check } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
+  applicationLimit,
   FEATURE_LABELS,
   PLANS,
   planLimits,
   PRO_TRIAL,
+  resumeLimit,
   type BillingInterval,
   type Feature,
   type PaidPlanId,
@@ -153,6 +155,9 @@ function PlanOfferCard({
           {plan === "pro" ? (
             <Highlight>{`All ${TEMPLATE_IDS.length} formats, Word downloads and every job match`}</Highlight>
           ) : null}
+          <Highlight>
+            {`Up to ${count.format(resumeLimit(plan))} resumes and ${count.format(applicationLimit(plan))} tracked applications`}
+          </Highlight>
         </ul>
       </div>
       {onChoose && !card.current ? (

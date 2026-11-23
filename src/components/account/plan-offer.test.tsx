@@ -55,6 +55,8 @@ describe("PlanOffer", () => {
     expect(text).not.toMatch(/free for|try pro free/i);
     expect(text).toContain("Upgrade to Max");
     expect(text).toContain("Everything in Pro, with more:");
+    expect(text).toContain("Up to 25 resumes and 1,500 tracked applications");
+    expect(text).toContain("Up to 50 resumes and 3,000 tracked applications");
     expect(html.match(/data-autofocus/g)).toHaveLength(1);
   });
 
