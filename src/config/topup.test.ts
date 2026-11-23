@@ -20,9 +20,14 @@ describe("credit prices", () => {
   });
 
   it("come to today's prices with today's Pro", () => {
-    expect(Object.fromEntries(FEATURES.map((feature) => [feature, creditCents(feature)]))).toEqual(
-      { tailor: 10, letter: 10, fix: 2, import: 15, draft: 30, github: 30 },
-    );
+    expect(Object.fromEntries(FEATURES.map((feature) => [feature, creditCents(feature)]))).toEqual({
+      tailor: 10,
+      letter: 10,
+      fix: 2,
+      import: 15,
+      draft: 30,
+      github: 30,
+    });
   });
 
   it("keep a plan the better deal: Pro's price never buys more as credit", () => {

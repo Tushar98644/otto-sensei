@@ -28,7 +28,8 @@ const CONFIG: WebhookConfig = {
   secret: DODO_WEBHOOK_TEST_SECRET,
   signingSecret: BILLING_TEST_SIGNING_SECRET,
   productIds: [DODO_TEST_PRODUCTS.proMonth],
-  planForProduct: (id) => (id === DODO_TEST_PRODUCTS.proMonth ? { plan: "pro", interval: "month" } : null),
+  planForProduct: (id) =>
+    id === DODO_TEST_PRODUCTS.proMonth ? { plan: "pro", interval: "month" } : null,
   trialProductId: DODO_TEST_PRODUCTS.proTrial,
   topupProductId: TOPUP,
 };
@@ -57,7 +58,9 @@ async function buyer(): Promise<string> {
 }
 
 async function balanceOf(userId: string): Promise<number> {
-  const [row] = await (await getDb())
+  const [row] = await (
+    await getDb()
+  )
     .select({ cents: users.creditCents })
     .from(users)
     .where(eq(users.id, userId));
@@ -114,7 +117,9 @@ describe("a top-up payment", () => {
     expect(await deliver(body)).toEqual(DUPLICATE);
     expect(await balanceOf(userId)).toBe(1000);
     expect(captureServerEvent).toHaveBeenCalledWith(userId, "credit_added", { usd: 10 });
-    const [purchase] = await (await getDb())
+    const [purchase] = await (
+      await getDb()
+    )
       .select({ ref: billingLog.ref, cents: billingLog.cents })
       .from(billingLog)
       .where(and(eq(billingLog.kind, "topup"), eq(billingLog.key, PAY)));
@@ -169,7 +174,9 @@ describe("a top-up payment", () => {
       { plan: "pro", trial: false },
       { set: { plan: "pro" } },
     );
-    const topups = await (await getDb())
+    const topups = await (
+      await getDb()
+    )
       .select()
       .from(billingLog)
       .where(eq(billingLog.kind, "topup"));
@@ -192,7 +199,9 @@ describe("a top-up refunded or disputed", () => {
     await (await getDb()).update(users).set({ creditCents: 250 }).where(eq(users.id, userId));
     expect(await deliver(refund)).toEqual(APPLIED);
     expect(await balanceOf(userId)).toBe(250);
-    const backs = await (await getDb())
+    const backs = await (
+      await getDb()
+    )
       .select({ cents: billingLog.cents })
       .from(billingLog)
       .where(eq(billingLog.kind, "topup_back"));

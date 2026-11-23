@@ -70,7 +70,9 @@ function topupRequest(body: unknown, headers: Record<string, string> = {}): Requ
 }
 
 async function balanceOf(userId: string): Promise<number> {
-  const [row] = await (await getDb())
+  const [row] = await (
+    await getDb()
+  )
     .select({ cents: users.creditCents })
     .from(users)
     .where(eq(users.id, userId));
@@ -189,10 +191,14 @@ describe("POST /api/billing/topup", () => {
       true,
     );
     expect(body.return_url).toBe(`${APP_URL}/api/billing/return?topup=1`);
-    const [pending] = await (await getDb())
+    const [pending] = await (
+      await getDb()
+    )
       .select({ userId: billingLog.userId, cents: billingLog.cents, ref: billingLog.ref })
       .from(billingLog)
-      .where(and(eq(billingLog.kind, "topup_checkout"), eq(billingLog.key, body.metadata.topup_id!)));
+      .where(
+        and(eq(billingLog.kind, "topup_checkout"), eq(billingLog.key, body.metadata.topup_id!)),
+      );
     expect(pending).toEqual({ userId: user.id, cents: 1500, ref: made?.id });
     // Nothing is credited until Dodo's webhook says it was paid.
     expect(await balanceOf(user.id)).toBe(0);

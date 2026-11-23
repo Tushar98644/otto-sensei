@@ -307,9 +307,10 @@ const SECTIONS: readonly LegalSection[] = [
           Where it&apos;s offered, a paid {PLANS.pro.name} or {PLANS.max.name} plan past any trial
           can add prepaid credit, from ${TOPUP_LIMITS.minUsd} to ${TOPUP_LIMITS.maxUsd} at a time in
           whole dollars, plus any taxes. It pays for AI help only once a month&apos;s allowance for
-          that help runs out, at the prices shown when you add it. Credit is prepaid and isn&apos;t
-          refundable once used. It doesn&apos;t expire while your account exists, can be used only
-          while you&apos;re on a paid plan, and is removed when your account is deleted.
+          that help, or its AI budget, runs out, at the prices shown when you add it. Credit is
+          prepaid and isn&apos;t refundable once used. It doesn&apos;t expire while your account
+          exists, can be used only while you&apos;re on a paid plan, and is removed when your
+          account is deleted.
         </li>
         <li>
           If a payment fails when your plan renews or your trial ends, you keep the plan for a few

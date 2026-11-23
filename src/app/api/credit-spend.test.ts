@@ -31,15 +31,19 @@ async function setBalance(user: SessionUser, cents: number) {
 }
 
 async function balanceOf(user: SessionUser): Promise<number> {
-  const [row] = await (await getDb())
+  const [row] = await (
+    await getDb()
+  )
     .select({ cents: users.creditCents })
     .from(users)
     .where(eq(users.id, user.id));
   return row?.cents ?? -1;
 }
 
-async function useUp(user: SessionUser, feature: string, count: number) {
-  await (await getDb())
+async function spendAllowance(user: SessionUser, feature: string, count: number) {
+  await (
+    await getDb()
+  )
     .insert(usage)
     .values({ subject: user.id, feature, period: monthKey(NOW), count })
     .onConflictDoUpdate({ target: [usage.subject, usage.feature, usage.period], set: { count } });
@@ -70,7 +74,7 @@ afterEach(() => {
 describe("a metered call past the allowance", () => {
   it("runs on credit when the balance covers it, and says what it cost", async () => {
     const user = await setPlan(await signInAs("pro@example.com"), "pro");
-    await useUp(user, "fix", PLANS.pro.limits.fix);
+    await spendAllowance(user, "fix", PLANS.pro.limits.fix);
     await setBalance(user, 10);
     const res = await fix();
     expect(res.status).toBe(200);
@@ -83,7 +87,7 @@ describe("a metered call past the allowance", () => {
 
   it("answers limit_reached as before when the balance doesn't cover it", async () => {
     const user = await setPlan(await signInAs("pro@example.com"), "pro");
-    await useUp(user, "fix", PLANS.pro.limits.fix);
+    await spendAllowance(user, "fix", PLANS.pro.limits.fix);
     await setBalance(user, 1);
     const res = await fix();
     expect(res.status).toBe(429);
@@ -93,7 +97,7 @@ describe("a metered call past the allowance", () => {
 
   it("runs on credit once the AI budget is spent, and without credit says so as before", async () => {
     const user = await setPlan(await signInAs("pro@example.com"), "pro");
-    await useUp(user, AI_TOKENS, AI_TOKEN_BUDGETS.pro);
+    await spendAllowance(user, AI_TOKENS, AI_TOKEN_BUDGETS.pro);
     await setBalance(user, 2);
     expect((await fix()).status).toBe(200);
     expect(await balanceOf(user)).toBe(0);
@@ -108,14 +112,14 @@ describe("a metered call past the allowance", () => {
     const res = await fix();
     expect(await res.json()).not.toHaveProperty("creditSpent");
     creditOn(false);
-    await useUp(user, "fix", PLANS.pro.limits.fix);
+    await spendAllowance(user, "fix", PLANS.pro.limits.fix);
     expect((await fix()).status).toBe(429);
     expect(await balanceOf(user)).toBe(100);
   });
 
   it("never spends a Free account's balance", async () => {
     const user = await signInAs("free@example.com");
-    await useUp(user, "fix", PLANS.free.limits.fix);
+    await spendAllowance(user, "fix", PLANS.free.limits.fix);
     await setBalance(user, 100);
     expect((await fix()).status).toBe(429);
     expect(await balanceOf(user)).toBe(100);
@@ -125,7 +129,7 @@ describe("a metered call past the allowance", () => {
 describe("other metered work", () => {
   it("pays a draft from credit past its allowance", async () => {
     const user = await setPlan(await signInAs("pro@example.com"), "pro");
-    await useUp(user, "draft", PLANS.pro.limits.draft);
+    await spendAllowance(user, "draft", PLANS.pro.limits.draft);
     await setBalance(user, 100);
     const unit = await takeAccountUnit(user, "draft", NOW);
     if (unit instanceof Response) throw new Error("refused");
@@ -138,7 +142,7 @@ describe("other metered work", () => {
     vi.stubEnv("OPENROUTER_API_KEY", "sk-or-test");
     resetEnvForTests();
     const user = await setPlan(await signInAs("pro@example.com"), "pro");
-    await useUp(user, "import", PLANS.pro.limits.import);
+    await spendAllowance(user, "import", PLANS.pro.limits.import);
     await setBalance(user, 100);
     expect(await claimAiRead(user, NOW)).toMatchObject({ useAI: false, limited: true });
     expect(await balanceOf(user)).toBe(100);
