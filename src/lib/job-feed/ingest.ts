@@ -9,11 +9,14 @@ import { DAY_MS, HOUR_MS } from "@/lib/time";
 import {
   FeedShapeError,
   parseAshby,
+  parseGem,
   parseGreenhouse,
   parseHimalayas,
   parseJobicy,
+  parseJobvite,
   parseLever,
   parsePersonio,
+  parsePinpoint,
   parseRecruitee,
   parseRemoteOk,
   parseWorkable,
@@ -67,6 +70,10 @@ export const HOST_SPACING_MS: Record<string, number> = {
   "apply.workable.com": 3_000,
   "recruitee.com": 1_000,
   "jobs.personio.de": 1_000,
+  "api.gem.com": 500,
+  "pinpointhq.com": 1_000,
+  // Jobvite refused a second feed 5 s after a large one, never at 15 s.
+  "app.jobvite.com": 15_000,
   "himalayas.app": 1_000,
   "remoteok.com": 1_000,
   "jobicy.com": 2_000,
@@ -109,6 +116,9 @@ const SOURCE_HOSTS: Record<Exclude<BoardSource, "workday">, string> = {
   workable: "apply.workable.com",
   recruitee: "recruitee.com",
   personio: "jobs.personio.de",
+  gem: "api.gem.com",
+  pinpoint: "pinpointhq.com",
+  jobvite: "app.jobvite.com",
 };
 
 function boardHost(source: BoardSource, token: string): string {
@@ -201,6 +211,9 @@ function hostLabel(token: string): string {
   return token;
 }
 
+// A Jobvite company id, as its careers page and feed links carry it.
+const JOBVITE_ID = /^[A-Za-z0-9]{4,20}$/;
+
 export function boardUrl(source: BoardSource, token: string): URL {
   const name = encodeURIComponent(token);
   switch (source) {
@@ -216,6 +229,13 @@ export function boardUrl(source: BoardSource, token: string): URL {
       return new URL(`https://${hostLabel(token)}.recruitee.com/api/offers/`);
     case "personio":
       return new URL(`https://${hostLabel(token)}.jobs.personio.de/xml?language=en`);
+    case "gem":
+      return new URL(`https://api.gem.com/job_board/v0/${name}/job_posts/`);
+    case "pinpoint":
+      return new URL(`https://${hostLabel(token)}.pinpointhq.com/postings.json`);
+    case "jobvite":
+      if (!JOBVITE_ID.test(token)) throw new FeedShapeError(`bad token ${token}`);
+      return new URL(`https://app.jobvite.com/CompanyJobs/Xml.aspx?c=${token}`);
     case "workday":
       return workdayListUrl(workdayBoard(token));
   }
@@ -267,6 +287,12 @@ async function readList(
       return parseRecruitee(await getJson(url, pace, deadline), company, token);
     case "personio":
       return parsePersonio(await getText(url, "xml", pace, deadline), company, url.hostname);
+    case "gem":
+      return parseGem(await getJson(url, pace, deadline), company);
+    case "pinpoint":
+      return parsePinpoint(await getJson(url, pace, deadline), company, url.hostname);
+    case "jobvite":
+      return parseJobvite(await getText(url, "xml", pace, deadline), company, token);
   }
 }
 

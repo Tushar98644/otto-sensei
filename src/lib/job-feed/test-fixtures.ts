@@ -554,3 +554,88 @@ export const WORKDAY_ROBOTS = [
   "Disallow: /talentcommunity/",
   "Disallow: /refreshFacet/",
 ].join("\n");
+
+// Trimmed from Gem's job board API (function-health and nominal), read 2026-11-23.
+export const GEM_BOARD = [
+  {
+    id: "am9icG9zdDp51wm2xDbpq2IlLL0WGfgH",
+    title: "Research Scientist, Medical World Models",
+    absolute_url: "https://jobs.gem.com/function-health/am9icG9zdDp51wm2xDbpq2IlLL0WGfgH",
+    location: { name: "United States - Remote" },
+    location_type: "remote",
+    employment_type: "full_time",
+    first_published_at: "2026-09-21T15:24:33.168Z",
+    created_at: "2026-03-31T14:00:14.381Z",
+    offices: [
+      { location: { name: "United States - Remote" } },
+      { location: { name: "Canada - Remote" } },
+    ],
+    content:
+      "<h2><strong>Our mission</strong></h2><div><span>Function Health’s mission is to empower people to live longer, healthier lives through proactive, data-driven healthcare.</span></div>",
+    content_plain:
+      "Our mission\nFunction Health’s mission is to empower people to live longer, healthier lives through proactive, data-driven healthcare.",
+  },
+  {
+    id: "am9icG9zdDqriogNmq5bb41RdlSlBulk",
+    title: "Software Engineer - Internship (Summer 2027) ",
+    absolute_url: "https://jobs.gem.com/nominal/am9icG9zdDqriogNmq5bb41RdlSlBulk",
+    location: { name: "New York, United States" },
+    location_type: "in_office",
+    employment_type: "intern",
+    first_published_at: "2026-09-10T16:49:09.881Z",
+    created_at: "2026-09-10T16:34:35.334Z",
+    offices: [
+      { location: { name: "New York, United States" } },
+      { location: { name: "Los Angeles, United States" } },
+      { location: { name: "Austin, United States" } },
+    ],
+    content:
+      "<div><strong>About Nominal</strong></div><div>Nominal is building the Hardware Intelligence Platform for engineers.</div>",
+    content_plain:
+      "About Nominal\nNominal is building the Hardware Intelligence Platform for engineers.",
+  },
+  { id: "no-link", title: "Dropped: no link" },
+];
+
+// Trimmed from Pinpoint's postings feed (nypl.pinpointhq.com/postings.json), read 2026-11-23.
+export const PINPOINT_FEED = {
+  data: [
+    {
+      id: "617104",
+      title: "Associate Manager, Teen Technology and Design",
+      url: "https://nypl.pinpointhq.com/en/postings/9b356571-ecbc-4542-a432-06734cab6932",
+      employment_type: "full_time",
+      workplace_type: "hybrid",
+      deadline_at: null,
+      description:
+        "<div><!--block--><strong>Overview</strong></div><div><!--block-->As part of the Young Adult Programs &amp; Services team, the Teen Technology and Design team supports digital media education for teens.</div>",
+      key_responsibilities:
+        "<div><!--block--><strong>Required Education &amp; Certifications</strong></div><ul><li><!--block-->Master’s Degree in Education, Library Sciences, Digital Media, Computer Science, or a related field</li></ul>",
+      skills_knowledge_expertise: "",
+      benefits: "",
+      location: { name: "Stephen A. Schwarzman Building", city: "New York", province: "New York" },
+    },
+    {
+      id: "592900",
+      title: "Manager, Visual Materials Cataloging",
+      url: "https://nypl.pinpointhq.com/en/postings/a433c617-12eb-41a2-acd2-d3cf960387ee",
+      employment_type: "permanent_part_time",
+      workplace_type: "onsite",
+      deadline_at: "2026-11-29T23:59:59-05:00",
+      description:
+        "<div><!--block--><strong>Overview</strong><br>For more than 125 years, The New York Public Library has been an essential provider of books, information, ideas, and education.</div>",
+      key_responsibilities: "",
+      skills_knowledge_expertise: "",
+      benefits: "",
+      location: { name: "Library Services Center", city: "Long Island City", province: "New York" },
+    },
+    {
+      id: "1",
+      title: "Dropped: another company's link",
+      url: "https://elsewhere.pinpointhq.com/en/postings/1",
+    },
+  ],
+};
+
+// Trimmed from Nutanix's Jobvite feed (app.jobvite.com/CompanyJobs/Xml.aspx?c=qKr9VfwZ), read 2026-11-23.
+export const JOBVITE_FEED = `<?xml version="1.0" encoding="UTF-8"?><result><job><id>oUQKAfwO</id><externalJobPostingId>oUQKAfwO-CtniVfwN</externalJobPostingId><title>Finance Manager</title><requisitionid>32541</requisitionid><category>Accounting &amp; Finance</category><jobtype>Full-Time</jobtype><region>AMER</region><location>San Jose, CA, United States</location><date>10/5/2026</date><detail-url><![CDATA[http://app.jobvite.com/CompanyJobs/Job.aspx?c=qKr9VfwZ&j=oUQKAfwO]]></detail-url><apply-url><![CDATA[http://app.jobvite.com/CompanyJobs/Careers.aspx?c=qKr9VfwZ&j=oUQKAfwO&k=Apply]]></apply-url><description>&lt;p&gt;&lt;strong&gt;About Nutanix&lt;/strong&gt;&lt;/p&gt;&lt;p&gt;Lead FP&amp;amp;A for the Americas sales team.&lt;/p&gt;</description><briefdescription></briefdescription></job><job><id>oA7SAfwT</id><externalJobPostingId>oA7SAfwT-CM6EWfwc</externalJobPostingId><title>Senior Tax Manager</title><requisitionid>32766</requisitionid><category>Accounting &amp; Finance</category><jobtype>Full-Time</jobtype><region>AMER</region><location>United States, United States</location><date>10/28/2026</date><detail-url><![CDATA[http://app.jobvite.com/CompanyJobs/Job.aspx?c=qKr9VfwZ&j=oA7SAfwT]]></detail-url><apply-url><![CDATA[http://app.jobvite.com/CompanyJobs/Careers.aspx?c=qKr9VfwZ&j=oA7SAfwT&k=Apply]]></apply-url><description>&lt;p&gt;The Senior Tax Manager will be a part of Nutanix's tax team.&lt;/p&gt;</description><briefdescription></briefdescription></job><job><id>oO81Afwh-CKFBVfwF</id><title>AI Agent Engineer (Brazil)</title><jobtype>Full-Time</jobtype><location>Brasília, Brazil</location><date>11/3/2026</date><detail-url><![CDATA[http://app.jobvite.com/CompanyJobs/Job.aspx?c=qKr9VfwZ&j=oO81Afwh]]></detail-url><description>&lt;p&gt;Build AI agents.&lt;/p&gt;</description></job><job><id>zz1</id><title>Dropped: bad id</title><detail-url><![CDATA[http://app.jobvite.com/CompanyJobs/Job.aspx?c=qKr9VfwZ&j=zz1]]></detail-url></job><job><id>oOther01</id><title>Dropped: another company's link</title><detail-url><![CDATA[http://app.jobvite.com/CompanyJobs/Job.aspx?c=other&j=oOther01]]></detail-url></job></result>`;

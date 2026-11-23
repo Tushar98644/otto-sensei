@@ -2,22 +2,28 @@ import { describe, expect, it } from "vitest";
 import {
   FeedShapeError,
   parseAshby,
+  parseGem,
   parseGreenhouse,
   parseHimalayas,
   parseJobicy,
+  parseJobvite,
   parseLever,
   parsePersonio,
+  parsePinpoint,
   parseRecruitee,
   parseRemoteOk,
   parseWorkable,
 } from "./parsers";
 import {
   ASHBY_BOARD,
+  GEM_BOARD,
   GREENHOUSE_BOARD,
   HIMALAYAS_PAGE,
   JOBICY_PAGE,
+  JOBVITE_FEED,
   LEVER_POSTINGS,
   PERSONIO_FEED,
+  PINPOINT_FEED,
   RECRUITEE_OFFERS,
   REMOTE_OK_FEED,
   WORKABLE_ACCOUNT,
@@ -236,5 +242,89 @@ describe("parseJobicy", () => {
   it("follows the cursor while there is more", () => {
     expect(parseJobicy({ ...JOBICY_PAGE, hasMore: true }).nextCursor).toBe(JOBICY_PAGE.nextCursor);
     expect(() => parseJobicy({ error: "nope" })).toThrow(FeedShapeError);
+  });
+});
+
+describe("parseGem", () => {
+  it("reads each post with its offices, workplace, type, date and text", () => {
+    const jobs = parseGem(GEM_BOARD, "Function Health");
+    expect(jobs).toHaveLength(2);
+    expect(jobs[0]).toMatchObject({
+      externalId: "am9icG9zdDp51wm2xDbpq2IlLL0WGfgH",
+      title: "Research Scientist, Medical World Models",
+      location: "United States - Remote · Canada - Remote",
+      remote: true,
+      employmentType: "full_time",
+      postedAt: Date.parse("2026-09-21T15:24:33.168Z"),
+      url: "https://jobs.gem.com/function-health/am9icG9zdDp51wm2xDbpq2IlLL0WGfgH",
+    });
+    expect(jobs[0]!.text).toContain("Our mission");
+    expect(jobs[0]!.text).not.toContain("<");
+    expect(jobs[1]).toMatchObject({
+      title: "Software Engineer - Internship (Summer 2027)",
+      location: "New York, United States · Los Angeles, United States · Austin, United States",
+      remote: false,
+      employmentType: "internship",
+    });
+  });
+
+  it("refuses an answer that isn't a list of posts", () => {
+    expect(() => parseGem({ error: "nope" }, "Acme")).toThrow(FeedShapeError);
+  });
+});
+
+describe("parsePinpoint", () => {
+  it("reads each posting's town, workplace, deadline and sections, on the board's own host", () => {
+    const jobs = parsePinpoint(PINPOINT_FEED, "The New York Public Library", "nypl.pinpointhq.com");
+    expect(jobs).toHaveLength(2);
+    expect(jobs[0]).toMatchObject({
+      externalId: "617104",
+      title: "Associate Manager, Teen Technology and Design",
+      location: "Hybrid · New York, New York",
+      remote: false,
+      employmentType: "full_time",
+      postedAt: null,
+      validThrough: null,
+      url: "https://nypl.pinpointhq.com/en/postings/9b356571-ecbc-4542-a432-06734cab6932",
+    });
+    expect(jobs[0]!.text).toContain("Young Adult Programs & Services team");
+    expect(jobs[0]!.text).toContain("Required Education & Certifications");
+    expect(jobs[1]).toMatchObject({
+      location: "Long Island City, New York",
+      employmentType: "part_time",
+      validThrough: Date.parse("2026-11-29T23:59:59-05:00"),
+    });
+  });
+
+  it("refuses an answer that isn't a postings feed", () => {
+    expect(() => parsePinpoint([], "Acme", "acme.pinpointhq.com")).toThrow(FeedShapeError);
+  });
+});
+
+describe("parseJobvite", () => {
+  it("reads each job with its place, type, date and text, linked over https", () => {
+    const jobs = parseJobvite(JOBVITE_FEED, "Nutanix", "qKr9VfwZ");
+    expect(jobs).toHaveLength(3);
+    expect(jobs[0]).toMatchObject({
+      externalId: "oUQKAfwO",
+      company: "Nutanix",
+      title: "Finance Manager",
+      location: "San Jose, CA, United States",
+      remote: false,
+      employmentType: "full_time",
+      postedAt: Date.UTC(2026, 9, 5),
+      url: "https://app.jobvite.com/CompanyJobs/Job.aspx?c=qKr9VfwZ&j=oUQKAfwO",
+    });
+    expect(jobs[0]!.text).toContain("Lead FP&A for the Americas sales team.");
+    expect(jobs[1]).toMatchObject({ location: "United States", postedAt: Date.UTC(2026, 9, 28) });
+    expect(jobs[2]).toMatchObject({
+      externalId: "oO81Afwh-CKFBVfwF",
+      location: "Brasília, Brazil",
+      url: "https://app.jobvite.com/CompanyJobs/Job.aspx?c=qKr9VfwZ&j=oO81Afwh",
+    });
+  });
+
+  it("refuses an answer that isn't a Jobvite feed", () => {
+    expect(() => parseJobvite("<html></html>", "Acme", "qKr9VfwZ")).toThrow(FeedShapeError);
   });
 });

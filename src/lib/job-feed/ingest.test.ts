@@ -8,11 +8,14 @@ import { boardUrl, paceKey, runJobsIngest } from "./ingest";
 import { WORKDAY_LIMITS } from "./workday";
 import {
   ASHBY_BOARD,
+  GEM_BOARD,
   GREENHOUSE_BOARD,
   HIMALAYAS_PAGE,
   JOBICY_PAGE,
+  JOBVITE_FEED,
   LEVER_POSTINGS,
   PERSONIO_FEED,
+  PINPOINT_FEED,
   RECRUITEE_OFFERS,
   REMOTE_OK_FEED,
   WORKABLE_ACCOUNT,
@@ -214,6 +217,62 @@ describe("runJobsIngest", () => {
     expect(outcome.stats.boardsFailed).toBe(2);
     expect(outcome.stats.boards).toBe(5);
     expect(fakeNet.urls().some((url) => url.includes("greenhouse"))).toBe(false);
+  });
+});
+
+describe("runJobsIngest on Gem, Pinpoint and Jobvite boards", () => {
+  const seeds = [
+    { ats: "gem" as const, token: "function-health", company: "Function Health" },
+    { ats: "pinpoint" as const, token: "nypl", company: "The New York Public Library" },
+    { ats: "jobvite" as const, token: "qKr9VfwZ", company: "Nutanix" },
+  ];
+
+  beforeEach(async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(NOW);
+    await resetDb();
+    fakeNet.reset();
+    for (const host of ["api.gem.com", "nypl.pinpointhq.com", "app.jobvite.com"])
+      fakeNet.resolve(host, "93.184.216.34");
+    fakeNet.json(boardUrl("gem", "function-health").toString(), GEM_BOARD);
+    fakeNet.json(boardUrl("pinpoint", "nypl").toString(), PINPOINT_FEED);
+    fakeNet.route(boardUrl("jobvite", "qKr9VfwZ").toString(), {
+      headers: { "content-type": "text/xml; charset=utf-8" },
+      body: JOBVITE_FEED,
+    });
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("reads each documented board feed and keeps no job text", async () => {
+    const outcome = await runJobsIngest(context(), { ...OPTIONS, seeds, feeds: false });
+    expect(outcome.stats).toMatchObject({ boards: 3, boardsFailed: 0, added: 7 });
+    expect(fakeNet.urls().sort()).toEqual([
+      "https://api.gem.com/job_board/v0/function-health/job_posts/",
+      "https://app.jobvite.com/CompanyJobs/Xml.aspx?c=qKr9VfwZ",
+      "https://nypl.pinpointhq.com/postings.json",
+    ]);
+    const db = await getDb();
+    const saved = await db
+      .select({ source: jobs.source, description: jobs.description })
+      .from(jobs);
+    expect(saved.map((job) => job.source).sort()).toEqual([
+      "gem",
+      "gem",
+      "jobvite",
+      "jobvite",
+      "jobvite",
+      "pinpoint",
+      "pinpoint",
+    ]);
+    expect(saved.every((job) => job.description === "")).toBe(true);
+  });
+
+  it("refuses a Jobvite company id that isn't one", () => {
+    expect(() => boardUrl("jobvite", "../x")).toThrow();
+    expect(() => boardUrl("pinpoint", "a.b")).toThrow();
   });
 });
 

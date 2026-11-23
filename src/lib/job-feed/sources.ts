@@ -60,6 +60,27 @@ export const SOURCE_INFO: Record<JobSourceId, SourceInfo> = {
     republish: false,
     liveText: true,
   },
+  gem: {
+    name: "Gem",
+    homeUrl: "https://www.gem.com",
+    termsUrl: "https://help.gem.com/databases/gem-help-center/the-job-board-api",
+    republish: false,
+    liveText: true,
+  },
+  pinpoint: {
+    name: "Pinpoint",
+    homeUrl: "https://www.pinpointhq.com",
+    termsUrl: "https://developers.pinpointhq.com/docs/jobs-json-endpoint",
+    republish: false,
+    liveText: true,
+  },
+  jobvite: {
+    name: "Jobvite",
+    homeUrl: "https://www.jobvite.com",
+    termsUrl: "https://careers.jobvite.com/Careers/careersites/FAQ.html",
+    republish: false,
+    liveText: true,
+  },
   himalayas: {
     name: "Himalayas",
     homeUrl: "https://himalayas.app",

@@ -1,10 +1,13 @@
 export { FeedShapeError, type RawJob } from "./parsers/shared";
 export { parseAshby } from "./parsers/ashby";
+export { parseGem } from "./parsers/gem";
 export { parseGreenhouse } from "./parsers/greenhouse";
 export { parseHimalayas, type HimalayasPage } from "./parsers/himalayas";
 export { parseJobicy, type JobicyPage } from "./parsers/jobicy";
+export { parseJobvite } from "./parsers/jobvite";
 export { parseLever } from "./parsers/lever";
 export { parsePersonio } from "./parsers/personio";
+export { parsePinpoint } from "./parsers/pinpoint";
 export { parseRecruitee, recruiteeJob, type RecruiteeOfferShape } from "./parsers/recruitee";
 export { parseRemoteOk } from "./parsers/remoteok";
 export { parseWorkable } from "./parsers/workable";
