@@ -1,8 +1,11 @@
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { renderToStaticMarkup } from "react-dom/server";
+import sharp from "sharp";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { PORTFOLIO_PICKS } from "@/lib/portfolio/templates";
 import { PortfolioShot, PreloadShot } from "./portfolio-shot";
+import { SHOT_BLUR, SHOT_HEIGHTS, SHOT_WIDTH, SHOT_WIDTHS } from "./portfolio-shot-data";
 import { whenLoadedAndIdle, type PreloadWhenIdleProps } from "./portfolio-shot-preload";
 
 const SIZES = "(min-width: 1024px) 40rem, 90vw";
@@ -52,6 +55,27 @@ describe("PortfolioShot", () => {
     expect(preload.imageSrcSet).toBe(attr(img, "srcset"));
     expect(preload.imageSizes).toBe(attr(img, "sizes"));
     expect(preload.href).toBe(attr(img, "src"));
+  });
+});
+
+describe("the portfolio pictures on disk", () => {
+  const dir = fileURLToPath(new URL("../../../public/portfolio-shots/", import.meta.url));
+
+  it("are exactly Our picks, each at every width, so a design that leaves the picks takes its pictures with it", () => {
+    const expected = PORTFOLIO_PICKS.flatMap((id) => SHOT_WIDTHS.map((w) => `${id}-${w}.webp`));
+    expect(readdirSync(dir).sort()).toEqual(expected.sort());
+  });
+
+  it("have the listed heights, and a small blur placeholder each", async () => {
+    for (const id of PORTFOLIO_PICKS) {
+      for (const width of SHOT_WIDTHS) {
+        const meta = await sharp(`${dir}${id}-${width}.webp`).metadata();
+        expect(meta.width).toBe(width);
+        expect(meta.height).toBe(Math.round((SHOT_HEIGHTS[id] * width) / SHOT_WIDTH));
+      }
+      const blur = SHOT_BLUR[id].replace("data:image/webp;base64,", "");
+      expect((await sharp(Buffer.from(blur, "base64")).metadata()).width).toBe(20);
+    }
   });
 });
 

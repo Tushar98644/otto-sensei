@@ -220,8 +220,15 @@ export const PORTFOLIO_TEMPLATE_INFO: Record<PortfolioTemplateId, PortfolioTempl
 
 export type TemplateGroup = { label: string; ids: PortfolioTemplateId[] };
 
+// The picker's first line, and the designs the home page shows.
+export const PORTFOLIO_PICKS = [
+  "paper",
+  "gazette",
+  "reel",
+] as const satisfies readonly PortfolioTemplateId[];
+
 const PICKER_GROUPS: readonly { label: string; ids: readonly PortfolioTemplateId[] }[] = [
-  { label: "Our picks", ids: ["paper", "gazette", "reel"] },
+  { label: "Our picks", ids: PORTFOLIO_PICKS },
   {
     label: "More designs",
     ids: [
