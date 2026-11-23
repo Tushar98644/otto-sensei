@@ -294,37 +294,40 @@ export function JobsPage() {
             <NoFilterMatches onClear={() => changeFilters(CLEARED)} />
           ) : null
         ) : (
-          <ul aria-busy={state.status === "loading"} className="flex flex-col gap-4">
-            {data.jobs.map((job, index) => {
-              const label = labels.get(job.id);
-              return (
-                <cards.JobCard
-                  key={job.id}
-                  index={index}
-                  job={job}
-                  now={now}
-                  applied={label?.applied ?? null}
-                  tailoredTitle={label?.tailoredTitle ?? null}
-                  logging={busy?.id === job.id && busy.action === "apply"}
-                  tailoring={busy?.id === job.id && busy.action === "tailor"}
-                  free={free}
-                  onTailor={(target) => void tailor(target)}
-                  onOpenTailored={openTailored}
-                  onToggleSave={toggleSave}
-                  onMarkApplied={(target) => void markApplied(target)}
-                  onOpen={openJob}
-                  onOutreach={writeOutreach}
-                  asking={askingIds.has(job.id)}
-                  onAnswer={(target, answer) => void answerApplied(target, answer)}
-                  onNotFit={
-                    view === "matches"
-                      ? (target, reason) => note(target, "not_fit", { reason })
-                      : undefined
-                  }
-                />
-              );
-            })}
-          </ul>
+          <>
+            <h2 className="sr-only">{view === "saved" ? "Saved jobs" : "Your matches"}</h2>
+            <ul aria-busy={state.status === "loading"} className="flex flex-col gap-4">
+              {data.jobs.map((job, index) => {
+                const label = labels.get(job.id);
+                return (
+                  <cards.JobCard
+                    key={job.id}
+                    index={index}
+                    job={job}
+                    now={now}
+                    applied={label?.applied ?? null}
+                    tailoredTitle={label?.tailoredTitle ?? null}
+                    logging={busy?.id === job.id && busy.action === "apply"}
+                    tailoring={busy?.id === job.id && busy.action === "tailor"}
+                    free={free}
+                    onTailor={(target) => void tailor(target)}
+                    onOpenTailored={openTailored}
+                    onToggleSave={toggleSave}
+                    onMarkApplied={(target) => void markApplied(target)}
+                    onOpen={openJob}
+                    onOutreach={writeOutreach}
+                    asking={askingIds.has(job.id)}
+                    onAnswer={(target, answer) => void answerApplied(target, answer)}
+                    onNotFit={
+                      view === "matches"
+                        ? (target, reason) => note(target, "not_fit", { reason })
+                        : undefined
+                    }
+                  />
+                );
+              })}
+            </ul>
+          </>
         )}
 
         {data && locked && data.openJobs > 0 ? (

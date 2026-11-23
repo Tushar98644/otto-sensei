@@ -95,7 +95,10 @@ export function ResumesPage() {
       ) : !parts ? (
         <LoadingGrid />
       ) : (
-        <section aria-label="Your resumes" className="flex flex-col gap-8">
+        <section aria-labelledby="your-resumes" className="flex flex-col gap-8">
+          <h2 id="your-resumes" className="sr-only">
+            Your resumes
+          </h2>
           <LibraryToolbar
             query={query}
             onQueryChange={setQuery}

@@ -38,9 +38,9 @@ export function LettersFolder({
               <span className="font-medium text-ink">{BRAND.mascotName}</span>
               {meta ? <> · {meta}</> : null}
             </p>
-            <p className="font-display text-2xl/8 tracking-tight text-pretty text-ink sm:text-3xl/9">
+            <h2 className="font-display text-2xl/8 tracking-tight text-pretty text-ink sm:text-3xl/9">
               {title}
-            </p>
+            </h2>
             {detail ? (
               <p className="max-w-prose text-sm/6 text-pretty text-muted">{detail}</p>
             ) : null}
