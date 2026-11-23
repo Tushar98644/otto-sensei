@@ -86,10 +86,7 @@ function csvCell(value: string | number | null): string {
   return /[",\n\r]/.test(safe) ? `"${safe.replace(/"/g, '""')}"` : safe;
 }
 
-export async function buildDataExport(
-  userId: string,
-  now = Date.now(),
-): Promise<Uint8Array<ArrayBuffer>> {
+export async function buildDataExport(userId: string, now = Date.now()): Promise<JSZip> {
   const db = await getDb();
   const tracking = trackingExport(userId);
   const [resumeRows, writingRows, applicationRows, postRows, settingsRows] = await Promise.all([
@@ -365,5 +362,44 @@ export async function buildDataExport(
   if (recapRows.length > 0) zip.file("weekly-recaps.json", JSON.stringify(recapRows, null, 2));
   if (dayRows.length > 0) zip.file("active-days.json", JSON.stringify(dayRows, null, 2));
 
-  return new Uint8Array(await zip.generateAsync({ type: "arraybuffer", compression: "DEFLATE" }));
+  return zip;
+}
+
+export type ZipStreamEnd = { bytes: number } | { error: unknown };
+
+// Streamed, since Vercel's 4.5 MB limit is only on whole responses and a full account's ZIP can pass it.
+export function zipStream(
+  zip: JSZip,
+  onEnd?: (end: ZipStreamEnd) => void,
+): ReadableStream<Uint8Array> {
+  const output = zip.generateInternalStream({
+    type: "uint8array",
+    compression: "DEFLATE",
+    streamFiles: true,
+  });
+  let bytes = 0;
+  return new ReadableStream<Uint8Array>({
+    start(controller) {
+      output
+        .on("data", (chunk) => {
+          bytes += chunk.length;
+          controller.enqueue(chunk);
+          if ((controller.desiredSize ?? 1) <= 0) output.pause();
+        })
+        .on("error", (error) => {
+          controller.error(error);
+          onEnd?.({ error });
+        })
+        .on("end", () => {
+          controller.close();
+          onEnd?.({ bytes });
+        });
+    },
+    pull() {
+      output.resume();
+    },
+    cancel() {
+      output.pause();
+    },
+  });
 }

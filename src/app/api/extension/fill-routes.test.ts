@@ -1,5 +1,4 @@
 import { eq } from "drizzle-orm";
-import JSZip from "jszip";
 import { extractText, getDocumentProxy } from "unpdf";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { getDb } from "@/db/client";
@@ -279,7 +278,7 @@ describe("saved answers", () => {
     ).json()) as ApplyAnswersResponse;
     expect(after.saved.custom).toHaveLength(1);
 
-    const zip = await JSZip.loadAsync(await buildDataExport(user.id));
+    const zip = await buildDataExport(user.id);
     const exported = JSON.parse(
       (await zip.file("apply-answers.json")?.async("string")) ?? "{}",
     ) as {

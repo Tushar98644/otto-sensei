@@ -1,3 +1,4 @@
+import { randomBytes } from "node:crypto";
 import JSZip from "jszip";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { getDb } from "@/db/client";
@@ -12,6 +13,7 @@ import {
   writings,
 } from "@/db/schema";
 import { execSql } from "@/db/testing";
+import { APPLICATION_LIMITS } from "@/lib/applications/schema";
 import { getCurrentUser } from "@/lib/auth/session";
 import type { SessionUser } from "@/lib/auth/types";
 import { insertUserRow, resetDb } from "@/lib/auth/test-helpers";
@@ -249,6 +251,39 @@ describe("GET /api/account/export", () => {
     ]) {
       expect(readme).toContain(name);
     }
+  });
+
+  it("streams every application, past Vercel's 4.5 MB limit on whole responses", async () => {
+    const ada = await person("ada");
+    currentUser.mockResolvedValue(ada);
+    const noise = (bytes: number) => randomBytes(bytes).toString("base64url").slice(0, bytes);
+    const db = await getDb();
+    const rows = Array.from({ length: APPLICATION_LIMITS.perUser - 1 }, (_, i) => ({
+      id: crypto.randomUUID(),
+      userId: ada.id,
+      company: noise(200),
+      role: noise(200),
+      resumeTitle: noise(200),
+      jobUrl: `https://jobs.example.com/${noise(1_000)}`,
+      notes: noise(500),
+      appliedAt: AT - i,
+      statusChangedAt: AT,
+      createdAt: AT,
+      updatedAt: AT,
+    }));
+    for (let i = 0; i < rows.length; i += 250) {
+      await db.insert(applications).values(rows.slice(i, i + 250));
+    }
+
+    const res = await GET(request());
+    expect(res.status).toBe(200);
+    expect(res.body).toBeInstanceOf(ReadableStream);
+    expect(res.headers.get("content-length")).toBeNull();
+    const bytes = await res.arrayBuffer();
+    expect(bytes.byteLength).toBeGreaterThan(4_500_000);
+    const zip = await JSZip.loadAsync(bytes);
+    const tracked = JSON.parse((await zip.file("applications.json")?.async("string")) ?? "[]");
+    expect(tracked).toHaveLength(APPLICATION_LIMITS.perUser);
   });
 
   it("refuses a request from another website", async () => {

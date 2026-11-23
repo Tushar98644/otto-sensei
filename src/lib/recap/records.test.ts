@@ -1,5 +1,4 @@
 import { eq } from "drizzle-orm";
-import JSZip from "jszip";
 import { beforeEach, describe, expect, it } from "vitest";
 import { getDb } from "@/db/client";
 import { applications, notifications, resumes, userSettings } from "@/db/schema";
@@ -152,7 +151,7 @@ describe("the data download", () => {
     await apply(user, at(1), "Stripe");
     await ensureRecap(user, TZ, NOW);
     await activeOn(user.id, ["2026-11-17", "2026-11-18"]);
-    const zip = await JSZip.loadAsync(await buildDataExport(user.id, NOW));
+    const zip = await buildDataExport(user.id, NOW);
     const recaps = JSON.parse((await zip.file("weekly-recaps.json")?.async("string")) ?? "[]") as {
       week: string;
       recap: { effort: { applications: number } };
@@ -168,7 +167,7 @@ describe("the data download", () => {
     expect(readme).toContain("active-days.json");
 
     const other = await account("other@example.com");
-    const empty = await JSZip.loadAsync(await buildDataExport(other.id, NOW));
+    const empty = await buildDataExport(other.id, NOW);
     expect(empty.file("weekly-recaps.json")).toBeNull();
     expect(empty.file("active-days.json")).toBeNull();
   });

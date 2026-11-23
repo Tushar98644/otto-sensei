@@ -1,5 +1,4 @@
 import { eq } from "drizzle-orm";
-import JSZip from "jszip";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { getDb } from "@/db/client";
 import { inboundEmails, inboundHandles, users, userSettings } from "@/db/schema";
@@ -53,7 +52,7 @@ describe("the account's email tracking data", () => {
   it("is in the data download: the address, the confirmed Gmail and what was read, never the email", async () => {
     const { user, to } = await tracked("priya@example.com", "priya");
     await tracked("rahul@example.com", "rahul");
-    const zip = await JSZip.loadAsync(await buildDataExport(user.id, NOW));
+    const zip = await buildDataExport(user.id, NOW);
     const file = JSON.parse((await zip.file("email-tracking.json")?.async("string")) ?? "null");
     expect(file.address.addresses).toEqual([
       { handle: "priya", createdAt: NOW, retiredAt: null, address: to },

@@ -1,4 +1,3 @@
-import JSZip from "jszip";
 import { beforeEach, describe, expect, it } from "vitest";
 import { buildDataExport } from "@/lib/account/data-export";
 import { createUser, resetDb } from "@/lib/auth/test-helpers";
@@ -73,11 +72,11 @@ describe("the account's data export", () => {
 
   it("includes the career log once there is one", async () => {
     const maya = await createUser("maya@example.com");
-    const empty = await JSZip.loadAsync(await buildDataExport(maya.id, NOW));
+    const empty = await buildDataExport(maya.id, NOW);
     expect(empty.file("career-log.txt")).toBeNull();
 
     await saveEntry(maya.id, "2026-11", { shipped: "Rebuilt signup" }, NOW);
-    const zip = await JSZip.loadAsync(await buildDataExport(maya.id, NOW));
+    const zip = await buildDataExport(maya.id, NOW);
     expect(await zip.file("career-log.txt")?.async("string")).toContain("Rebuilt signup");
     expect(await zip.file("career-log.json")?.async("string")).toContain('"month": "2026-11"');
     expect(await zip.file("README.txt")?.async("string")).toContain(
