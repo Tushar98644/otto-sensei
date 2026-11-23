@@ -137,7 +137,7 @@ export function planCopy(
     case "max":
       return {
         summary: "For a long search or many roles.",
-        lead: "Everything in Pro, with more each month:",
+        lead: "Everything in Pro, with more:",
         features: [
           ...MAX_MORE.map(({ features, noun }) => moreThanPro(features, noun)),
           `Up to ${count.format(resumeLimit("max"))} resumes and ${count.format(applicationLimit("max"))} tracked applications`,

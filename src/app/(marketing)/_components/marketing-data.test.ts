@@ -63,7 +63,7 @@ describe("plan copy", () => {
   });
 
   it("says how much more Max gives, worked out from PLANS", () => {
-    expect(planCopy("max", "month").lead).toBe("Everything in Pro, with more each month:");
+    expect(planCopy("max", "month").lead).toBe("Everything in Pro, with more:");
     expect(planCopy("max").features).toEqual([
       "Twice the tailored versions",
       "Twice the cover letters, outreach and interview prep",
