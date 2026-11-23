@@ -308,7 +308,12 @@ export const applications = pgTable(
     createdAt: epochMs("created_at").notNull(),
     updatedAt: epochMs("updated_at").notNull(),
   },
-  (t) => [index("applications_user_applied_idx").on(t.userId, t.appliedAt, t.id)],
+  (t) => [
+    index("applications_user_applied_idx").on(t.userId, t.appliedAt, t.id),
+    index("applications_user_prep_idx")
+      .on(t.userId)
+      .where(sql`prep is not null`),
+  ],
 );
 
 export const notifications = pgTable(
