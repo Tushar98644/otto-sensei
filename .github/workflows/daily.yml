@@ -173,6 +173,8 @@ jobs:
             echo "| Step | Result |"
             echo "|---|---|"
             while IFS='|' read -r step result; do
-              [ -n "$step" ] && echo "| $step | ${result:-not run} |"
+              if [ -n "$step" ]; then echo "| $step | ${result:-not run} |"; fi
             done <<< "$RESULTS"
           } >> "$GITHUB_STEP_SUMMARY"
+          # The steps carry on past failures, so the run is marked failed here when any of them failed.
+          if grep -q '|failure$' <<< "$RESULTS"; then exit 1; fi
