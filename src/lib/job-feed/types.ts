@@ -46,7 +46,13 @@ export type BoardSource = (typeof BOARD_SOURCES)[number];
 export const FEED_SOURCES = ["himalayas", "remoteok", "jobicy", "usajobs"] as const;
 export type FeedSource = (typeof FEED_SOURCES)[number];
 
-export type BoardSeed = { ats: BoardSource; token: string; company: string };
+export type BoardSeed = {
+  ats: BoardSource;
+  token: string;
+  company: string;
+  // Where a post that names no place is, for an employer that hires in one country only.
+  place?: string;
+};
 
 export const SENIORITIES = ["intern", "junior", "mid", "senior", "lead", "director"] as const;
 export type Seniority = (typeof SENIORITIES)[number];

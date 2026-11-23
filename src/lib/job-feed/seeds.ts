@@ -929,6 +929,20 @@ const US_BOARDS: readonly BoardSeed[] = [
   { ats: "ashby", token: "wheel", company: "Wheel" },
   { ats: "ashby", token: "xenon", company: "Xenon Pharmaceuticals" },
   { ats: "ashby", token: "zerohomes", company: "Zero Homes" },
+  // US employers of mostly on-site roles (owner decision 2026-11-23); their posts that name no place are in the US.
+  { ats: "greenhouse", token: "lucidmotors", company: "Lucid Motors", place: "United States" },
+  { ats: "greenhouse", token: "neuralink", company: "Neuralink", place: "United States" },
+  { ats: "greenhouse", token: "relativity", company: "Relativity Space", place: "United States" },
+  {
+    ats: "greenhouse",
+    token: "vardaspace",
+    company: "Varda Space Industries",
+    place: "United States",
+  },
+  { ats: "greenhouse", token: "vast", company: "Vast", place: "United States" },
+  { ats: "ashby", token: "formenergy", company: "Form Energy", place: "United States" },
+  { ats: "ashby", token: "shield", company: "Shield AI", place: "United States" },
+  { ats: "workday", token: "leidos.wd5/External", company: "Leidos", place: "United States" },
 ];
 
 const WORKDAY_SITES: readonly BoardSeed[] = [

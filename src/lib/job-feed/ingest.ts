@@ -27,7 +27,9 @@ import {
   workdayListUrl,
   type RawJob,
 } from "./parsers";
-import { rebuildMatchIndex } from "./match-index";
+import { joinLocation } from "./parsers/shared";
+import { jobPlaceTokens } from "./job-places";
+import { noteBoardsRead, readStoredCounts, rebuildMatchIndex } from "./match-index";
 import { readWorkday, WORKDAY_LIMITS } from "./workday";
 import { refreshVisaRegisters, VISA_REFRESH_AFTER_MS, visaCheckedAt } from "./visa-registers";
 import { BOARD_SEEDS } from "./seeds";
@@ -324,6 +326,17 @@ function add(totals: Totals, stats: SaveStats) {
   totals.seen += stats.seen;
   totals.duplicates += stats.duplicates;
   totals.closed += stats.closed;
+  totals.reopened += stats.reopened;
+}
+
+// A post that names no place is in the employer's one country, so it shows only to people who can work there.
+export function withPlace(raws: RawJob[], place: string | undefined): RawJob[] {
+  if (!place) return raws;
+  return raws.map((raw) =>
+    jobPlaceTokens(raw.location).some((token) => token !== "*")
+      ? raw
+      : { ...raw, location: joinLocation([raw.location, place]) },
+  );
 }
 
 function failureStatus(error: unknown): "not_found" | "failed" {
@@ -472,6 +485,7 @@ export async function runJobsIngest(
     seen: 0,
     duplicates: 0,
     closed: 0,
+    reopened: 0,
     boards: 0,
     boardsFailed: 0,
     boardsPartial: 0,
@@ -484,6 +498,7 @@ export async function runJobsIngest(
   const visa = options.visa === false ? -1 : await refreshVisaIfDue(db, deadline);
   totals.closed += await syncBoards(db, seeds, now);
   const company = new Map(seeds.map((seed) => [`${seed.ats}:${seed.token}`, seed.company]));
+  const place = new Map(seeds.map((seed) => [`${seed.ats}:${seed.token}`, seed.place]));
   const queue = (
     await db
       .select({
@@ -543,9 +558,12 @@ export async function runJobsIngest(
           pace,
           deadline,
         );
+        const placed = withPlace(raws, place.get(`${source}:${board.token}`));
         add(
           totals,
-          await saveJobs(db, { source, board: board.token }, raws, Date.now(), { snapshot: true }),
+          await saveJobs(db, { source, board: board.token }, placed, Date.now(), {
+            snapshot: true,
+          }),
         );
         totals.boards += 1;
         if (partial) {
@@ -580,9 +598,15 @@ export async function runJobsIngest(
   ]);
 
   const tidy = await tidyJobs(db, Date.now());
-  const skills = await refreshSkillWeights(db, Date.now());
+  // A call that added, changed, reopened and closed nothing leaves the weights, the index and cached Matches pages as they are.
+  const changed =
+    visa > 0 ||
+    totals.added + totals.updated + totals.reopened + totals.closed > 0 ||
+    tidy.expired + tidy.aged + tidy.trimmed > 0 ||
+    (await readStoredCounts(db)) === null;
+  const skills = changed ? await refreshSkillWeights(db, Date.now()) : -1;
   // Last, so the match index, stored counts and every cached match list name this run.
-  const indexed = await rebuildMatchIndex(db, Date.now());
+  const indexed = changed ? await rebuildMatchIndex(db, Date.now()) : await noteBoardsRead(db);
   return {
     stats: {
       ...totals,
@@ -590,6 +614,7 @@ export async function runJobsIngest(
       skills,
       visa,
       indexed: indexed ?? -1,
+      indexSkipped: changed ? 0 : 1,
       boardsLeft: queue.length,
       ...(await jobsFileStats(db)),
     },

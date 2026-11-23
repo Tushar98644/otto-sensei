@@ -64,6 +64,7 @@ export type SaveStats = {
   seen: number;
   duplicates: number;
   closed: number;
+  reopened: number;
 };
 
 function chunks<T>(items: readonly T[], size: number = STORE_LIMITS.writeChunk): T[][] {
@@ -201,7 +202,7 @@ export async function saveJobs(
   now: number,
   { snapshot }: { snapshot: boolean },
 ): Promise<SaveStats> {
-  const stats: SaveStats = { added: 0, updated: 0, seen: 0, duplicates: 0, closed: 0 };
+  const stats: SaveStats = { added: 0, updated: 0, seen: 0, duplicates: 0, closed: 0, reopened: 0 };
   const byId = new Map<string, RawJob>();
   for (const raw of [...raws].sort((a, b) => (b.postedAt ?? now) - (a.postedAt ?? now))) {
     if (!byId.has(raw.externalId)) byId.set(raw.externalId, raw);
@@ -219,13 +220,18 @@ export async function saveJobs(
   const textChars = SOURCE_INFO[scope.source].liveText ? 0 : JOB_LIMITS.feedDescriptionChars;
 
   await db.transaction(async (tx) => {
-    const existing = new Map<string, { id: string; hash: string }>();
+    const existing = new Map<string, { id: string; hash: string; closeReason: string | null }>();
     for (const part of chunks(
       fresh.map((raw) => raw.externalId),
       500,
     )) {
       const rows = await tx
-        .select({ id: jobs.id, externalId: jobs.externalId, hash: jobs.contentHash })
+        .select({
+          id: jobs.id,
+          externalId: jobs.externalId,
+          hash: jobs.contentHash,
+          closeReason: jobs.closeReason,
+        })
         .from(jobs)
         .where(and(eq(jobs.source, scope.source), inArray(jobs.externalId, part)));
       for (const row of rows) existing.set(row.externalId, row);
@@ -241,6 +247,7 @@ export async function saveJobs(
         continue;
       }
       seenIds.push(known.id);
+      if (known.closeReason === "gone" || known.closeReason === "board_gone") stats.reopened += 1;
       if (raw.listingOnly || known.hash === contentHash(raw)) continue;
       changed.push({ id: known.id, job: normalizeJob(raw, now, boilerplate, textChars) });
     }

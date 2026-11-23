@@ -1,4 +1,4 @@
-import { and, desc, inArray, max, or, sql, type SQL } from "drizzle-orm";
+import { and, desc, eq, inArray, max, or, sql, type SQL } from "drizzle-orm";
 import type { Db } from "@/db/client";
 import { companyVisa, jobBoards, jobCountsRow, jobMatch, jobs, skills } from "@/db/schema";
 import { log } from "@/lib/log";
@@ -290,6 +290,17 @@ export async function rebuildMatchIndex(db: Db, now: number): Promise<number | n
   });
   await pruneTitles(db, now);
   return values.length;
+}
+
+// A call that changed no job keeps the index and its build time (so cached Matches stay), and only notes its read.
+export async function noteBoardsRead(db: Db): Promise<number | null> {
+  const [read] = await db.select({ at: max(jobBoards.lastFetchedAt) }).from(jobBoards);
+  const [row] = await db
+    .update(jobCountsRow)
+    .set({ checkedAt: read?.at ?? null })
+    .where(eq(jobCountsRow.id, 1))
+    .returning({ matchable: jobCountsRow.matchable });
+  return row?.matchable ?? null;
 }
 
 // Past this the title's nearest occupation names it, for titles the rules can't read.

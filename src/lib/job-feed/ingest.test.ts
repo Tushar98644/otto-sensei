@@ -1,11 +1,11 @@
 import { eq } from "drizzle-orm";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { getDb } from "@/db/client";
-import { jobBoards, jobMatch, jobs } from "@/db/schema";
+import { jobBoards, jobCountsRow, jobMatch, jobs } from "@/db/schema";
 import { resetDb } from "@/lib/auth/test-helpers";
 import { resetEnvForTests } from "@/lib/env";
 import { fakeNet } from "@/lib/jobs/test-network";
-import { boardUrl, paceKey, runJobsIngest, usajobsUrl } from "./ingest";
+import { boardUrl, paceKey, runJobsIngest, usajobsUrl, withPlace } from "./ingest";
 import { WORKDAY_LIMITS } from "./workday";
 import {
   ASHBY_BOARD,
@@ -48,6 +48,18 @@ const SEEDS = [
   { ats: "personio" as const, token: "1komma5grad", company: "1KOMMA5°" },
 ];
 const NOW = Date.UTC(2026, 10, 10, 6);
+const rawJob = () => ({
+  externalId: "1",
+  company: "Acme",
+  title: "Engineer",
+  location: "",
+  remote: false,
+  employmentType: null,
+  postedAt: NOW,
+  validThrough: null,
+  url: "https://example.com/jobs/1",
+  text: "",
+});
 const OPTIONS = { seeds: SEEDS, spacing: {}, workers: 2, visa: false };
 const context = () => ({ now: Date.now(), deadline: Date.now() + 20_000 });
 
@@ -195,6 +207,42 @@ describe("runJobsIngest", () => {
     const again = await runJobsIngest(context(), OPTIONS);
     expect(fakeNet.requests.length).toBe(before);
     expect(again.stats).toMatchObject({ boards: 0, feeds: 0, added: 0 });
+  });
+
+  it("leaves the index and cached Matches as they are when a call reads nothing new", async () => {
+    await runJobsIngest(context(), { ...OPTIONS, feeds: false });
+    const db = await getDb();
+    const [built] = await db.select().from(jobCountsRow);
+    vi.setSystemTime(NOW + 21 * 60 * 60 * 1_000);
+    const again = await runJobsIngest(context(), { ...OPTIONS, feeds: false });
+    expect(again.stats).toMatchObject({ boards: 6, added: 0, updated: 0, closed: 0 });
+    expect(again.stats).toMatchObject({ indexSkipped: 1, skills: -1 });
+    const [kept] = await db.select().from(jobCountsRow);
+    expect(kept).toMatchObject({ builtAt: built!.builtAt, matchable: built!.matchable });
+    expect(kept!.checkedAt).toBeGreaterThan(built!.checkedAt!);
+    fakeNet.json(boardUrl("greenhouse", "vercel").toString(), {
+      jobs: GREENHOUSE_BOARD.jobs.slice(0, 1),
+    });
+    vi.setSystemTime(NOW + 42 * 60 * 60 * 1_000);
+    await runJobsIngest(context(), { ...OPTIONS, feeds: false });
+    vi.setSystemTime(NOW + 63 * 60 * 60 * 1_000);
+    const closing = await runJobsIngest(context(), { ...OPTIONS, feeds: false });
+    expect(closing.stats).toMatchObject({ closed: 1, indexSkipped: 0 });
+    const [rebuilt] = await db.select().from(jobCountsRow);
+    expect(rebuilt!.builtAt).toBeGreaterThan(kept!.builtAt);
+  });
+
+  it("puts a post that names no place in its employer's one country", () => {
+    const [remote, placed] = withPlace(
+      [
+        { ...rawJob(), location: "Remote" },
+        { ...rawJob(), location: "Austin, TX" },
+      ],
+      "United States",
+    );
+    expect(remote!.location).toBe("Remote · United States");
+    expect(placed!.location).toBe("Austin, TX");
+    expect(withPlace([{ ...rawJob(), location: "Remote" }], undefined)[0]!.location).toBe("Remote");
   });
 
   it("stops at the deadline and leaves the rest for the next run", async () => {

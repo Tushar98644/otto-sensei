@@ -182,7 +182,8 @@ describe("job store", () => {
     expect((await rows()).find((row) => row.externalId === "2")).toMatchObject({
       closeReason: "gone",
     });
-    await saveJobs(db, ACME, [raw("1"), raw("2")], NOW + 3 * DAY, { snapshot: true });
+    const back = await saveJobs(db, ACME, [raw("1"), raw("2")], NOW + 3 * DAY, { snapshot: true });
+    expect(back).toMatchObject({ reopened: 1, added: 0, closed: 0 });
     expect((await rows()).find((row) => row.externalId === "2")).toMatchObject({
       closedAt: null,
       missedRuns: 0,

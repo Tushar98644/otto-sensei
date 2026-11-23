@@ -21,8 +21,9 @@ export type Persona = {
 
 const SOFTWARE =
   /\b(?:software (?:engineer|developer|development|engineering|architect)|developer|programmer|swe\d?|sde\d?|react native|flutter|full[- ]?stack|front[- ]?end|back[- ]?end|web (?:engineer|developer)|mobile (?:engineer|developer)|ios|android|platform engineer|infrastructure engineer|site reliability|sre|devops|cloud engineer|product engineer|application (?:engineer|developer)|founding engineer|member of technical staff|desenvolvedora?|engenheir[oa] de software|programadora?)\b/i;
+// "Engineer I, Software - New Grad" names the level before the discipline.
 const SOFTWARE_ANYWHERE =
-  /\bsoftware\b.*\b(?:engineer|engineering|developer)\b|\bplatform engineering\b|\bproduct engineering\b/i;
+  /\bsoftware\b.*\b(?:engineer|engineering|developer)\b|\bengineer(?: [ivx]+| \d)?, software\b|\bplatform engineering\b|\bproduct engineering\b/i;
 const NOT_SOFTWARE =
   /\b(?:sales|solutions? engineer|support|customer|field|hardware|mechanical|electrical|civil|chemical|process|manufacturing|quality|maintenance|facilities|structural|construction|hvac|biomedical|clinical|recruit\w*|account|analyst|product manager|program manager|project manager|designer|marketing|writer|advocate|trainer|tutor|teacher|instructor)\b/i;
 
