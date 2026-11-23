@@ -23,6 +23,7 @@ function useMatchCounts(enabled: boolean, resumes: readonly Resume[], own: reado
   const client = useAppQueryClient();
   const userId = useSessionUserId();
   const [counts, setCounts] = useState<MatchCounts | null>(null);
+  const [settled, setSettled] = useState(false);
 
   useEffect(() => {
     if (!enabled || !userId) return;
@@ -33,13 +34,16 @@ function useMatchCounts(enabled: boolean, resumes: readonly Resume[], own: reado
       .then((found) => {
         if (live) setCounts(found);
       })
-      .catch(() => undefined);
+      .catch(() => undefined)
+      .finally(() => {
+        if (live) setSettled(true);
+      });
     return () => {
       live = false;
     };
   }, [enabled, userId, client, resumes, own]);
 
-  return enabled ? counts : null;
+  return { counts: enabled ? counts : null, settled: !enabled || !userId || settled };
 }
 
 export function useUpNext(): UpNext | null {
@@ -64,7 +68,8 @@ export function useUpNext(): UpNext | null {
     return unfinishedTailor({ source, draft: loadDraft(), last: loadResult(source.id) });
   }, [ready, resumes, own, activeId]);
 
-  if (!ready) return null;
+  // The match count can add a step, so the steps wait for it once: nothing below them moves.
+  if (!ready || !matches.settled) return null;
   const setup = checklist.shown ? checklist : null;
   return {
     steps: nextSteps({
@@ -74,7 +79,7 @@ export function useUpNext(): UpNext | null {
       fix,
       tailor,
       setup: setup ? { items: setup.items, weakLine: setup.weakLine.status } : null,
-      matches,
+      matches: matches.counts,
     }),
     setup,
     remember: checklist.remember,

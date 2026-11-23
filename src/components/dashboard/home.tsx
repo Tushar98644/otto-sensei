@@ -7,6 +7,7 @@ import { HomeCheckin } from "@/components/career-log/home-checkin";
 import { OttoNote } from "@/components/mascot/otto-note";
 import { RecapHome } from "@/components/recap/recap-home";
 import { ROUTES } from "@/components/site/routes";
+import { useNow } from "@/components/studio/use-now";
 import { preload, useLazy } from "@/components/ui/lazy";
 import { Skeleton } from "@/components/ui/skeleton";
 import { createSampleResume } from "@/lib/resume/sample";
@@ -18,7 +19,9 @@ import { useApplications } from "./applications/use-applications";
 import { groupResumes } from "./group-resumes";
 import { ActionCards } from "./home/action-cards";
 import { homeGreeting } from "./home/greeting";
-import { UpNext } from "./home/up-next";
+import { leadBrief, UpNext, UpNextSkeleton } from "./home/up-next";
+import { useUpNext } from "./home/use-up-next";
+import { useBriefSettled } from "./interview/today-brief";
 import { recentResumes } from "./library";
 import { NewResumeMenu } from "./new-resume-menu";
 import { resumeSections } from "./page-code";
@@ -41,6 +44,11 @@ export function DashboardHome() {
   const samples = resumes.filter((resume) => resume.source === "sample").length;
   const greeting = homeGreeting({ own: loading ? 0 : ownGroups, samples: loading ? 0 : samples });
   const parts = useLazy(resumeSections, true);
+  const steps = useUpNext();
+  const now = useNow();
+  // The lead's brief grows the card once it answers, so the steps show with it.
+  const briefSettled = useBriefSettled(steps ? leadBrief(steps, now) : null);
+  const upNext = briefSettled ? steps : null;
 
   const latest = recent[0] ?? null;
   const tailorBase = own.find((resume) => resume.tailor === null) ?? null;
@@ -67,55 +75,65 @@ export function DashboardHome() {
         <NewResumeMenu actions={actions} className="lg:hidden" />
       </header>
 
-      <UpNext actions={actions} hasSample={samples > 0} />
+      {/* Until the steps are known nothing is drawn below them, so the page only grows downward. */}
+      {upNext ? (
+        <UpNext state={upNext} actions={actions} hasSample={samples > 0} />
+      ) : (
+        <UpNextSkeleton />
+      )}
+      {upNext ? (
+        <>
+          <HomeCheckin />
+          <Suspense fallback={null}>
+            <RecapHome />
+          </Suspense>
 
-      <HomeCheckin />
-      <Suspense fallback={null}>
-        <RecapHome />
-      </Suspense>
+          <ActionCards actions={actions} latest={latest} pageResume={latest ?? sample} />
 
-      <ActionCards actions={actions} latest={latest} pageResume={latest ?? sample} />
+          {parts && !loading && own.length > 0 ? (
+            <parts.AtAGlance own={own} actions={actions} />
+          ) : null}
+          {parts && !loading && applications.status === "ready" && (own.length > 0 || logged) ? (
+            <parts.WhatsWorking
+              applications={applications.items}
+              resumes={resumes}
+              variant="home"
+              onTailor={tailorBase ? () => actions.open(tailorBase.id, "tailor") : null}
+            />
+          ) : null}
+          {parts ? <parts.SkillGapCard /> : null}
 
-      {parts && !loading && own.length > 0 ? <parts.AtAGlance own={own} actions={actions} /> : null}
-      {parts && !loading && applications.status === "ready" && (own.length > 0 || logged) ? (
-        <parts.WhatsWorking
-          applications={applications.items}
-          resumes={resumes}
-          variant="home"
-          onTailor={tailorBase ? () => actions.open(tailorBase.id, "tailor") : null}
-        />
-      ) : null}
-      {parts ? <parts.SkillGapCard /> : null}
-
-      {loading || resumes.length > 0 ? (
-        <section aria-labelledby="recent-heading" className="flex flex-col gap-5">
-          <div className="flex items-baseline justify-between gap-3">
-            <h2 id="recent-heading" className="font-sans text-lg/7 font-medium text-ink">
-              Recent resumes
-            </h2>
-            {resumes.length > RECENT ? (
-              <Link
-                href={ROUTES.dashboardResumes}
-                className="group inline-flex items-center gap-1 text-sm font-medium text-ink"
-              >
-                View all {count.format(resumes.length)}
-                <ArrowRight
-                  aria-hidden
-                  className="size-4 text-muted transition-transform group-hover:translate-x-0.5"
-                />
-              </Link>
-            ) : null}
-          </div>
-          {loading || !parts ? (
-            <div className="grid gap-x-5 gap-y-8 sm:grid-cols-2 xl:grid-cols-3" aria-hidden>
-              {[0, 1, 2].map((index) => (
-                <Skeleton key={index} className="h-80 rounded-2xl bg-surface" />
-              ))}
-            </div>
-          ) : (
-            <parts.ResumeGrid resumes={recent} all={resumes} actions={actions} cheer={false} />
-          )}
-        </section>
+          {loading || resumes.length > 0 ? (
+            <section aria-labelledby="recent-heading" className="flex flex-col gap-5">
+              <div className="flex items-baseline justify-between gap-3">
+                <h2 id="recent-heading" className="font-sans text-lg/7 font-medium text-ink">
+                  Recent resumes
+                </h2>
+                {resumes.length > RECENT ? (
+                  <Link
+                    href={ROUTES.dashboardResumes}
+                    className="group inline-flex items-center gap-1 text-sm font-medium text-ink"
+                  >
+                    View all {count.format(resumes.length)}
+                    <ArrowRight
+                      aria-hidden
+                      className="size-4 text-muted transition-transform group-hover:translate-x-0.5"
+                    />
+                  </Link>
+                ) : null}
+              </div>
+              {loading || !parts ? (
+                <div className="grid gap-x-5 gap-y-8 sm:grid-cols-2 xl:grid-cols-3" aria-hidden>
+                  {[0, 1, 2].map((index) => (
+                    <Skeleton key={index} className="h-80 rounded-2xl bg-surface" />
+                  ))}
+                </div>
+              ) : (
+                <parts.ResumeGrid resumes={recent} all={resumes} actions={actions} cheer={false} />
+              )}
+            </section>
+          ) : null}
+        </>
       ) : null}
     </div>
   );

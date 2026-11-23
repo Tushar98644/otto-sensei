@@ -34,6 +34,7 @@ import {
   JobsHeader,
   JobsPager,
   JobsSummary,
+  LookingForSkeleton,
   LoadingCards,
   MoreWithPro,
   NoFilterMatches,
@@ -181,6 +182,7 @@ export function JobsPage() {
   const openingOffPage =
     busy?.action === "tailor" && !(data?.jobs.some((job) => job.id === busy.id) ?? false);
 
+  const waiting = !data && state.status !== "error";
   const lookingForLine =
     lookingFor && profile && view === "matches" ? (
       <LookingForCard
@@ -199,14 +201,16 @@ export function JobsPage() {
     <div className="flex flex-col gap-6 sm:gap-8">
       <JobsHeader />
 
-      {message || lookingForLine || state.status === "loading" ? (
+      {/* From the first paint on wider screens, so the filters and list keep their place; a phone's wraps too unevenly to hold. */}
+      {message || lookingForLine || waiting ? (
         <JobsSummary
           tab={view === "saved" ? "Saved jobs" : "Your matches"}
           message={message}
           meta={meta}
-          loading={state.status === "loading" && !data}
+          loading={waiting}
+          className={waiting ? "max-sm:hidden" : undefined}
         >
-          {lookingForLine}
+          {lookingForLine ?? (waiting && view === "matches" ? <LookingForSkeleton /> : null)}
         </JobsSummary>
       ) : null}
 

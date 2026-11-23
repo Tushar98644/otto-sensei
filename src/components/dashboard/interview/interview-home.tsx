@@ -22,6 +22,7 @@ import { useApplications } from "../applications/use-applications";
 import { interviewSections } from "../page-code";
 import type { PrepareAction } from "./interview-cards";
 import { LazyPrepareDialog } from "./lazy-prepare-dialog";
+import { useBriefSettled } from "./today-brief";
 import { usePrepPacks } from "./use-prep-packs";
 import { interviewEntries } from "./view";
 
@@ -94,7 +95,16 @@ export function InterviewHome() {
     [packs.items, shown],
   );
   const parts = useLazy(interviewSections, true);
-  const ready = packs.status === "ready" && applications.status !== "loading" && parts !== null;
+  const listed = packs.status === "ready" && applications.status !== "loading" && parts !== null;
+  const [lead] = entries;
+  const leadAt = lead?.application.interviewAt ?? null;
+  // The day's brief grows the lead card once it answers, so the page waits for it once.
+  const briefSettled = useBriefSettled(
+    lead?.pack && leadAt !== null && now > 0 && dayOffset(leadAt, now) === 0
+      ? lead.application.id
+      : null,
+  );
+  const ready = listed && briefSettled;
   const empty = ready && packs.items.length === 0 && entries.length === 0;
   const action: PrepareAction = { locked, onLocked: () => setUpgradeOpen(true) };
   const allowance = prepAllowance(me?.usage?.letter, me?.period);

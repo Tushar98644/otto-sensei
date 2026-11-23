@@ -3,7 +3,7 @@
 import { Columns3, List, Plus } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { errorMessage } from "@/components/account/errors";
-import { LazyCareerLogOffer } from "@/components/career-log/lazy-offer";
+import { LazyCareerLogOffer, useCareerLogOfferSettled } from "@/components/career-log/lazy-offer";
 import { roomForApplication, useProTools, useTryProLabel } from "@/components/account/pro-tools";
 import { openUpgradePrompt } from "@/components/account/upgrade-prompt";
 import { OTTO } from "@/components/mascot/lines";
@@ -14,7 +14,7 @@ import { applicationLimit } from "@/config/plans";
 import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { FolderCard } from "@/components/ui/folder-card";
-import { Lazy, preload } from "@/components/ui/lazy";
+import { Lazy, preload, useLazy } from "@/components/ui/lazy";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "@/components/ui/toast";
 import { undoToast } from "@/components/ui/undo-toast";
@@ -89,6 +89,7 @@ export function ApplicationsPage() {
   const tryPro = useTryProLabel();
   const { tracking } = useEmailTracking();
   const trackingPanel = <Lazy loader={emailTrackingPanel} wanted props={{}} />;
+  const trackingReady = useLazy(emailTrackingPanel, true) !== null;
   const emailed = useMemo(() => emailedCards(tracking, now), [tracking, now]);
 
   const versions = useMemo(
@@ -106,6 +107,7 @@ export function ApplicationsPage() {
   const stale = useMemo(() => (now === 0 ? [] : waitingTooLong(items, now)), [items, now]);
   const totals = useMemo(() => tally(items), [items]);
   const offer = useMemo(() => latestOffer(items), [items]);
+  const offerSettled = useCareerLogOfferSettled(offer !== null);
   const toApply = useMemo(
     () => toApplyItems(extras.savedJobs, resumes, items, extras.savedPosts),
     [extras.savedJobs, resumes, items, extras.savedPosts],
@@ -204,7 +206,9 @@ export function ApplicationsPage() {
         </OttoNote>
       ) : null}
 
-      {status === "loading" ? (
+      {/* The nudge, tracking panel and offer sit above the list: it waits until they can draw. */}
+      {status === "loading" ||
+      (items.length > 0 && (!trackingReady || !offerSettled || now === 0)) ? (
         <LoadingState />
       ) : status === "error" ? (
         <Alert

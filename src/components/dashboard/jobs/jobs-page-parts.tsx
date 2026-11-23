@@ -50,12 +50,14 @@ export function JobsSummary({
   message,
   meta,
   loading,
+  className,
   children,
 }: {
   tab: string;
   message: string | null;
   meta: string | null;
   loading: boolean;
+  className?: string;
   children?: ReactNode;
 }) {
   const { lead, rest } = splitLead(message ?? "");
@@ -63,7 +65,7 @@ export function JobsSummary({
   return (
     <FolderCard
       tab={tab}
-      className="group/otto motion-safe:animate-fade-in"
+      className={cn("group/otto motion-safe:animate-fade-in", className)}
       bodyClassName="flex flex-col p-2"
     >
       <div className="flex items-stretch gap-2">
@@ -91,7 +93,7 @@ export function JobsSummary({
                 ) : null}
               </p>
             ) : loading ? (
-              <div className="flex flex-col gap-2 py-1">
+              <div className="flex h-16 flex-col justify-center gap-2">
                 <Skeleton className="h-5 w-72 max-w-full" />
                 <Skeleton className="h-5 w-48 max-w-full" />
               </div>
@@ -104,6 +106,23 @@ export function JobsSummary({
         <div className="mx-2 mt-2 border-t border-border px-0 pt-3 pb-2 sm:px-2">{children}</div>
       ) : null}
     </FolderCard>
+  );
+}
+
+// The "Looking for" row's place while the matches load: its keys, then its footnote.
+export function LookingForSkeleton() {
+  return (
+    <div aria-hidden className="flex flex-col gap-2">
+      <div className="flex flex-wrap items-center gap-1.5">
+        <Skeleton className="h-8 w-20 rounded-lg pointer-coarse:h-10" />
+        <Skeleton className="h-8 w-28 rounded-lg pointer-coarse:h-10" />
+        <Skeleton className="h-8 w-36 rounded-lg pointer-coarse:h-10" />
+        <Skeleton className="h-8 w-24 rounded-lg pointer-coarse:h-10" />
+      </div>
+      <div className="flex h-5 items-center">
+        <Skeleton className="h-3 w-80 max-w-full" />
+      </div>
+    </div>
   );
 }
 

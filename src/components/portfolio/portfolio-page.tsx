@@ -10,6 +10,7 @@ import {
   type ComponentType,
   type ReactNode,
 } from "react";
+import { useSessionPlan } from "@/components/account/session-user";
 import { useMe } from "@/components/account/use-me";
 import type { StepLoader } from "@/components/studio/step-loader";
 import { Alert } from "@/components/ui/alert";
@@ -71,6 +72,23 @@ function Loading() {
   );
 }
 
+// The editor's shape while a plan that has it loads: the dashboard's main is full width from the first paint.
+function WorkspaceLoading() {
+  return (
+    <div
+      data-workspace
+      aria-busy
+      className="flex flex-col gap-5 max-lg:pb-24 lg:h-dvh lg:gap-4 lg:px-6 lg:pt-4 lg:pb-6"
+    >
+      <Skeleton className="h-14 rounded-2xl" />
+      <div className="flex flex-col gap-6 lg:min-h-0 lg:flex-1 lg:flex-row">
+        <Skeleton className="h-96 rounded-2xl lg:h-auto lg:w-88 lg:shrink-0 xl:w-104 2xl:w-md" />
+        <Skeleton className="h-96 rounded-2xl lg:h-auto lg:flex-1" />
+      </div>
+    </div>
+  );
+}
+
 const MAX_RESUME_ID_LENGTH = 64;
 
 export function PortfolioPage() {
@@ -78,8 +96,10 @@ export function PortfolioPage() {
   const asked = useSearchParams().get("resume");
   const fromResumeId = asked !== null && asked.length <= MAX_RESUME_ID_LENGTH ? asked : null;
   const { user } = useMe();
+  const sessionPlan = useSessionPlan();
   const userId = user?.id ?? null;
   const locked = user !== null && user.plan === "free";
+  const plan = user?.plan ?? sessionPlan;
   const hydrated = useStudioHydrated();
   const resumes = useResumeList();
   const candidates = useMemo(() => portfolioCandidates(resumes), [resumes]);
@@ -127,10 +147,12 @@ export function PortfolioPage() {
     );
   }
   if (!ready || (saving && !portfolio)) {
-    return (
+    return plan === "free" ? (
       <Screen>
         <Loading />
       </Screen>
+    ) : (
+      <WorkspaceLoading />
     );
   }
   if (locked) {
@@ -149,13 +171,7 @@ export function PortfolioPage() {
   }
   if (editor.failure) throw editor.failure.error;
   const Editor = editor.Component;
-  if (!Editor) {
-    return (
-      <Screen>
-        <Loading />
-      </Screen>
-    );
-  }
+  if (!Editor) return <WorkspaceLoading />;
   return (
     <Editor
       portfolio={portfolio}

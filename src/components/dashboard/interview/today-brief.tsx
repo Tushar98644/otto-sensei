@@ -12,6 +12,20 @@ import { cn } from "@/lib/utils";
 const briefKey = (userId: string, applicationId: string) =>
   ["interview-brief", userId, applicationId] as const;
 
+const briefOptions = (userId: string | null, applicationId: string | null) => ({
+  queryKey: briefKey(userId ?? "", applicationId ?? ""),
+  queryFn: async () => (await api.interviewPrep(applicationId ?? "")).prep,
+  enabled: userId !== null && applicationId !== null,
+});
+
+// Whether the day's brief has answered (or there is none to wait for), so a page can draw it in place.
+export function useBriefSettled(applicationId: string | null): boolean {
+  const userId = useSessionUserId();
+  const client = useAppQueryClient();
+  const { status } = useQuery(briefOptions(userId, applicationId), client);
+  return applicationId === null || userId === null || status !== "pending";
+}
+
 // On the interview's day: the saved pack's strongest stories, likely questions and questions to ask.
 export function TodayBrief({
   applicationId,
@@ -23,14 +37,7 @@ export function TodayBrief({
   const userId = useSessionUserId();
   const client = useAppQueryClient();
   const titleId = useId();
-  const { data: prep } = useQuery(
-    {
-      queryKey: briefKey(userId ?? "", applicationId),
-      queryFn: async () => (await api.interviewPrep(applicationId)).prep,
-      enabled: userId !== null,
-    },
-    client,
-  );
+  const { data: prep } = useQuery(briefOptions(userId, applicationId), client);
   if (!prep) return null;
   const brief = briefOf(prep);
   const lists = [
