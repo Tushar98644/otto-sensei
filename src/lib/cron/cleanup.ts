@@ -8,7 +8,6 @@ import {
   matchEvents,
   meteredCalls,
   notifications,
-  portfolioRedirects,
   rateLimits,
   usage,
 } from "@/db/schema";
@@ -17,6 +16,7 @@ import { deleteExpiredExtensionTokens } from "@/lib/extension/tokens";
 import { releaseHandles } from "@/lib/inbound/handles";
 import { MATCH_CACHE_MAX_AGE_MS } from "@/lib/job-feed/match-cache";
 import { log } from "@/lib/log";
+import { dropExpiredRedirects } from "@/lib/portfolio/records";
 import { trimOldRecaps } from "@/lib/recap/records";
 import { DAY_MS } from "@/lib/time";
 import { cycleKey, monthKey } from "@/lib/usage";
@@ -221,21 +221,7 @@ export async function runCleanup({ now, deadline }: CronContext): Promise<CronOu
         return deleted.length;
       },
     },
-    {
-      name: "portfolioRedirects",
-      run: async () => {
-        const stale = db
-          .select({ slug: portfolioRedirects.slug })
-          .from(portfolioRedirects)
-          .where(lt(portfolioRedirects.expiresAt, now))
-          .limit(CLEANUP_BATCH);
-        const deleted = await db
-          .delete(portfolioRedirects)
-          .where(sql`${portfolioRedirects.slug} in ${stale}`)
-          .returning({ slug: portfolioRedirects.slug });
-        return deleted.length;
-      },
-    },
+    { name: "portfolioRedirects", run: () => dropExpiredRedirects(now, CLEANUP_BATCH) },
     { name: "recaps", run: () => trimOldRecaps(now, CLEANUP_BATCH) },
   ];
 

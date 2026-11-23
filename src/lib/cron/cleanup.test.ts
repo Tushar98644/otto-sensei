@@ -10,7 +10,6 @@ import {
   matchEvents,
   meteredCalls,
   notifications,
-  portfolioRedirects,
   portfolios,
   rateLimits,
   usage,
@@ -237,25 +236,17 @@ describe("runCleanup", () => {
     const recentAction = action(NOW - RETENTION.matchActionsMs + DAY);
     await db.insert(matchEvents).values([oldAction, recentAction]);
     const portfolioId = crypto.randomUUID();
+    const kept = (until: number) => ({ at: NOW - 90 * DAY, until });
     await db.insert(portfolios).values({
       id: portfolioId,
       userId: maya.id,
       resumeId: "r1",
       slug: "maya-lin",
       snapshot: {} as unknown as Resume,
+      oldSlugs: { "maya-old": kept(NOW - 1), "maya-recent": kept(NOW + DAY) },
       createdAt: NOW,
       updatedAt: NOW,
     });
-    const redirect = (slug: string, expiresAt: number) => ({
-      slug,
-      portfolioId,
-      userId: maya.id,
-      createdAt: NOW - 90 * DAY,
-      expiresAt,
-    });
-    await db
-      .insert(portfolioRedirects)
-      .values([redirect("maya-old", NOW - 1), redirect("maya-recent", NOW + DAY)]);
 
     const outcome = await runCleanup(context());
     expect(outcome.stats).toMatchObject({
@@ -271,9 +262,8 @@ describe("runCleanup", () => {
       "trial",
     ]);
     expect((await db.select().from(matchEvents)).map((row) => row.id)).toEqual([recentAction.id]);
-    expect((await db.select().from(portfolioRedirects)).map((row) => row.slug)).toEqual([
-      "maya-recent",
-    ]);
+    const [page] = await db.select().from(portfolios).where(eq(portfolios.id, portfolioId));
+    expect(Object.keys(page?.oldSlugs ?? {})).toEqual(["maya-recent"]);
   });
 
   it("trims days active and recap weeks past the recap's reach from accounts that stopped coming back", async () => {

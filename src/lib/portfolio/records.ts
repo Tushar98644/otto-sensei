@@ -1,7 +1,7 @@
-import { and, desc, eq, gt, lt, notInArray, sql } from "drizzle-orm";
+import { and, desc, eq, lt, sql } from "drizzle-orm";
 import { getDb, type Tx } from "@/db/client";
 import { lockUser } from "@/db/locks";
-import { portfolioRedirects, portfolios, users } from "@/db/schema";
+import { portfolios, users } from "@/db/schema";
 import type { PlanId } from "@/config/plans";
 import { log } from "@/lib/log";
 import { rateLimit } from "@/lib/rate-limit";
@@ -98,18 +98,19 @@ function servableSlug(slug: string): boolean {
 
 export async function portfolioSlugsOf(userId: string): Promise<string[]> {
   const db = await getDb();
-  const [own, old] = await Promise.all([
-    db.select({ slug: portfolios.slug }).from(portfolios).where(eq(portfolios.userId, userId)),
-    db
-      .select({ slug: portfolioRedirects.slug })
-      .from(portfolioRedirects)
-      .innerJoin(portfolios, eq(portfolios.id, portfolioRedirects.portfolioId))
-      .where(eq(portfolios.userId, userId)),
-  ]);
-  return [...own, ...old].map((row) => row.slug);
+  const rows = await db
+    .select({ slug: portfolios.slug, oldSlugs: portfolios.oldSlugs })
+    .from(portfolios)
+    .where(eq(portfolios.userId, userId));
+  return rows.flatMap((row) => [row.slug, ...Object.keys(row.oldSlugs ?? {})]);
 }
 
-// Queues claims of one address across both tables until commit, so two accounts can't both take it.
+// An old address a page still answers, held from everyone else until it expires.
+const holdsOldSlug = (slug: string) => sql`${portfolios.oldSlugs} ? ${slug}`;
+
+const dropOldSlug = (slug: string) => sql`${portfolios.oldSlugs} - ${slug}::text`;
+
+// Queues claims of one address, live or old, until commit, so two accounts can't both take it.
 async function lockSlug(tx: Tx, slug: string): Promise<void> {
   await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${`portfolio-slug:${slug}`}))`);
 }
@@ -123,15 +124,18 @@ async function slugFree(tx: Tx, slug: string, ownId: string | null, now: number)
   if (live && live.id !== ownId) return false;
   const [redirect] = await tx
     .select({
-      portfolioId: portfolioRedirects.portfolioId,
-      expiresAt: portfolioRedirects.expiresAt,
+      portfolioId: portfolios.id,
+      expiresAt: sql<number>`(${portfolios.oldSlugs} -> ${slug} ->> 'until')::bigint`,
     })
-    .from(portfolioRedirects)
-    .where(eq(portfolioRedirects.slug, slug))
+    .from(portfolios)
+    .where(holdsOldSlug(slug))
     .limit(1);
   if (!redirect || redirect.portfolioId === ownId) return true;
-  if (redirect.expiresAt > now) return false;
-  await tx.delete(portfolioRedirects).where(eq(portfolioRedirects.slug, slug));
+  if (Number(redirect.expiresAt) > now) return false;
+  await tx
+    .update(portfolios)
+    .set({ oldSlugs: dropOldSlug(slug) })
+    .where(eq(portfolios.id, redirect.portfolioId));
   return true;
 }
 
@@ -288,7 +292,11 @@ export async function updatePortfolio(
         if (problem) return { status: "bad_slug", message: SLUG_MESSAGES[problem] };
         await lockSlug(tx, slug);
         if (!(await slugFree(tx, slug, current.id, now))) return { status: "slug_taken" };
-        await tx.delete(portfolioRedirects).where(eq(portfolioRedirects.slug, slug));
+        // Taking back one of its own old addresses ends that redirect.
+        await tx
+          .update(portfolios)
+          .set({ oldSlugs: dropOldSlug(slug) })
+          .where(and(eq(portfolios.id, current.id), holdsOldSlug(slug)));
         if (current.publishedAt !== null) await keepRedirect(tx, current, now);
         changes.slug = slug;
         touched.push(slug);
@@ -319,29 +327,21 @@ export async function updatePortfolio(
   });
 }
 
+// The address it leaves answers for redirectDays; only the newest keptRedirects are kept.
 async function keepRedirect(tx: Tx, current: Row, now: number): Promise<void> {
-  const expiresAt = now + PORTFOLIO_LIMITS.redirectDays * DAY_MS;
+  const left = {
+    [current.slug]: { at: now, until: now + PORTFOLIO_LIMITS.redirectDays * DAY_MS },
+  };
   await tx
-    .insert(portfolioRedirects)
-    .values({
-      slug: current.slug,
-      portfolioId: current.id,
-      userId: current.userId,
-      createdAt: now,
-      expiresAt,
+    .update(portfolios)
+    .set({
+      oldSlugs: sql`(select jsonb_object_agg(key, value) from (
+        select key, value from jsonb_each(coalesce(${portfolios.oldSlugs}, '{}') || ${JSON.stringify(left)}::jsonb)
+        order by (value ->> 'at')::bigint desc, key desc
+        limit ${PORTFOLIO_LIMITS.keptRedirects}
+      ) kept)`,
     })
-    .onConflictDoUpdate({
-      target: portfolioRedirects.slug,
-      set: { portfolioId: current.id, userId: current.userId, createdAt: now, expiresAt },
-    });
-  const mine = eq(portfolioRedirects.portfolioId, current.id);
-  const kept = tx
-    .select({ slug: portfolioRedirects.slug })
-    .from(portfolioRedirects)
-    .where(mine)
-    .orderBy(desc(portfolioRedirects.createdAt), desc(portfolioRedirects.slug))
-    .limit(PORTFOLIO_LIMITS.keptRedirects);
-  await tx.delete(portfolioRedirects).where(and(mine, notInArray(portfolioRedirects.slug, kept)));
+    .where(eq(portfolios.id, current.id));
 }
 
 // The stored snapshot is as saved, unchecked: only compared with the next one.
@@ -476,13 +476,12 @@ export async function findPublicPortfolio(
   }
   const [moved] = await db
     .select({ slug: portfolios.slug, plan: users.plan })
-    .from(portfolioRedirects)
-    .innerJoin(portfolios, eq(portfolios.id, portfolioRedirects.portfolioId))
+    .from(portfolios)
     .innerJoin(users, eq(users.id, portfolios.userId))
     .where(
       and(
-        eq(portfolioRedirects.slug, slug),
-        gt(portfolioRedirects.expiresAt, now),
+        holdsOldSlug(slug),
+        sql`(${portfolios.oldSlugs} -> ${slug} ->> 'until')::bigint > ${now}`,
         eq(portfolios.published, true),
       ),
     )
@@ -548,4 +547,19 @@ export async function countView(portfolioId: string, now = Date.now()): Promise<
     .where(and(eq(portfolios.id, portfolioId), eq(portfolios.published, true)))
     .returning({ id: portfolios.id });
   return updated.length > 0;
+}
+
+// Old addresses past their time go from pages nobody changes again, in batches.
+export async function dropExpiredRedirects(now: number, limit: number): Promise<number> {
+  const db = await getDb();
+  const expired = sql`exists (select 1 from jsonb_each(${portfolios.oldSlugs}) as o(slug, kept) where (kept ->> 'until')::bigint <= ${now})`;
+  const stale = db.select({ id: portfolios.id }).from(portfolios).where(expired).limit(limit);
+  const trimmed = await db
+    .update(portfolios)
+    .set({
+      oldSlugs: sql`(select jsonb_object_agg(slug, kept) from jsonb_each(${portfolios.oldSlugs}) as o(slug, kept) where (kept ->> 'until')::bigint > ${now})`,
+    })
+    .where(sql`${portfolios.id} in ${stale}`)
+    .returning({ id: portfolios.id });
+  return trimmed.length;
 }

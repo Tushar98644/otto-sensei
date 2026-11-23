@@ -540,19 +540,9 @@ export const portfolios = pgTable("portfolios", {
   createdAt: epochMs("created_at").notNull(),
   updatedAt: epochMs("updated_at").notNull(),
   publishedAt: epochMs("published_at"),
+  // Old addresses that still answer, as {"<slug>": {at, until}}, the newest five.
+  oldSlugs: jsonb("old_slugs").$type<Record<string, { at: number; until: number }>>(),
 });
-
-export const portfolioRedirects = pgTable(
-  "portfolio_redirects",
-  {
-    slug: text("slug").primaryKey(),
-    portfolioId: uuid("portfolio_id").notNull(),
-    userId: uuid("user_id").notNull(),
-    createdAt: epochMs("created_at").notNull(),
-    expiresAt: epochMs("expires_at").notNull(),
-  },
-  (t) => [index("portfolio_redirects_portfolio_idx").on(t.portfolioId, t.createdAt)],
-);
 
 export const writings = pgTable(
   "writings",

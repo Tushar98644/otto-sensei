@@ -4,7 +4,7 @@ Postgres on Supabase in production, PGlite locally and in tests. `supabase/migra
 
 Every table has row level security on with no policies (only the server connects, as the owner), a primary key, and, when it holds an account's data, a foreign key to `users` with `on delete cascade` (`inbound_handles`: `set null`, so a released address stays held). Deleting the account (`DELETE /api/account`) deletes the `users` row and the cascades take the rest. `src/db/tables.test.ts` lists every table with how deletion reaches it and which file of the data export (`src/lib/account/data-export.ts`) holds it, or why none does; a new table fails that test until it is listed.
 
-Until `20261123100900_drop_merged_tables.sql` ships (after the release that reads `user_settings`, `metered_calls` and `billing_log` is live), the fourteen tables they replaced still exist, and a trigger on each copies the old app's writes into the new place.
+Until `20261123100900_drop_merged_tables.sql` ships (after the release that reads `user_settings`, `metered_calls` and `billing_log` is live), the fourteen tables they replaced and `portfolio_redirects` still exist, and a trigger on each copies the old app's writes into the new place.
 
 ## Tables
 
@@ -28,8 +28,7 @@ Resumes, applications and writing
 Sharing
 
 - `shares`: share links to a frozen copy of a resume.
-- `portfolios`: the one portfolio page per account.
-- `portfolio_redirects`: old portfolio addresses, 90 days.
+- `portfolios`: the one portfolio page per account, with its old addresses (`old_slugs`, the newest five, 90 days each).
 - `feedback`: feedback notes.
 
 Jobs (not per account unless named)
@@ -66,7 +65,7 @@ The daily cleanup cron (`src/lib/cron/cleanup.ts`, 04:17 UTC) deletes in batches
 | `inbound_handles` released                                             | 90 days after release                                                 |
 | `user_settings.deleted_resumes`                                        | 180 days, and the newest 1,000                                        |
 | `user_settings.active_days`, `user_settings.recaps`                    | about 10 weeks                                                        |
-| `portfolio_redirects`                                                  | until they expire (90 days)                                           |
+| `portfolios.old_slugs`                                                 | until they expire (90 days)                                           |
 | `usage`                                                                | 400 days after the period                                             |
 | `billing_log` events                                                   | 400 days                                                              |
 | `billing_log` trials                                                   | always (only an email hash)                                           |
