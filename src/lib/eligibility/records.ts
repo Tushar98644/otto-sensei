@@ -1,8 +1,8 @@
-import { eq } from "drizzle-orm";
 import { getDb } from "@/db/client";
 import type { RowOf } from "@/db/columns";
 import { lockUser } from "@/db/locks";
 import { userSettings } from "@/db/schema";
+import { readSharedSettings } from "@/lib/account/settings";
 import { NO_CHOICE, type LookingForChoice, type PlaceChoice } from "@/lib/job-feed/types";
 import { emptyWorkProfile, type WorkProfile } from "./profile";
 
@@ -64,14 +64,9 @@ export function toStored(row: WorkRow): StoredWorkProfile {
 }
 
 export async function readWorkProfile(userId: string): Promise<StoredWorkProfile> {
-  const db = await getDb();
-  const [row] = await db
-    .select(WORK_COLUMNS)
-    .from(userSettings)
-    .where(eq(userSettings.userId, userId))
-    .limit(1);
+  const { settings: row } = await readSharedSettings(userId);
   return row
-    ? toStored(row)
+    ? toStored({ ...row, updatedAt: row.workUpdatedAt })
     : { profile: emptyWorkProfile(), updatedAt: null, lookingFor: NO_CHOICE };
 }
 

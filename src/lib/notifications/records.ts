@@ -1,7 +1,8 @@
 import { and, count, desc, eq, getTableColumns, inArray, isNull, sql, type SQL } from "drizzle-orm";
 import { getDb, type Db, type Tx } from "@/db/client";
 import { lockUser } from "@/db/locks";
-import { applications, notifications, users, userSettings } from "@/db/schema";
+import { applications, notifications, userSettings } from "@/db/schema";
+import { readSharedSettings } from "@/lib/account/settings";
 import { FOLLOW_UP_DAYS, followUpState } from "@/lib/applications/follow-up";
 import type { ApplicationStatus } from "@/lib/applications/status";
 import { outcomeOpen } from "@/lib/interviews/outcome";
@@ -191,26 +192,15 @@ export async function readReminderSettings(
   userId: string,
   now = Date.now(),
 ): Promise<StoredReminderSettings | null> {
-  const db = await getDb();
-  const [owner] = await db
-    .select({ id: users.id })
-    .from(users)
-    .where(eq(users.id, userId))
-    .limit(1);
-  if (!owner) return null;
-  const [row] = await db
-    .select({
-      emailReminders: userSettings.emailReminders,
-      followUpDays: userSettings.followUpDays,
-      chosen: userSettings.remindersChosen,
-      snoozedAt: userSettings.reminderPromptSnoozedAt,
-    })
-    .from(userSettings)
-    .where(eq(userSettings.userId, userId))
-    .limit(1);
+  const { account, settings: row } = await readSharedSettings(userId);
+  if (!account) return null;
   if (!row) return { ...DEFAULT_SETTINGS, chosen: false, promptSnoozed: false };
-  const { snoozedAt, ...settings } = row;
-  return { ...settings, promptSnoozed: promptResting(snoozedAt, now) };
+  return {
+    emailReminders: row.emailReminders,
+    followUpDays: row.followUpDays,
+    chosen: row.remindersChosen,
+    promptSnoozed: promptResting(row.reminderPromptSnoozedAt, now),
+  };
 }
 
 // "Not now" on the reminders card: nothing is chosen, so the card can ask again after a rest.

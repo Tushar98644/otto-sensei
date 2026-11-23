@@ -3,6 +3,7 @@ import type { z } from "zod";
 import { getDb } from "@/db/client";
 import { lockUser } from "@/db/locks";
 import { userSettings } from "@/db/schema";
+import { readSharedSettings } from "@/lib/account/settings";
 import { toStored, WORK_COLUMNS, type StoredWorkProfile } from "@/lib/eligibility/records";
 import { emptyWorkProfile, type WorkRegion } from "@/lib/eligibility/profile";
 import { NO_CHOICE } from "@/lib/job-feed/types";
@@ -38,13 +39,8 @@ function toSetup(row: Row): AccountSetup {
 }
 
 export async function readAccountSetup(userId: string): Promise<AccountSetup> {
-  const db = await getDb();
-  const [row] = await db
-    .select(SETUP_COLUMNS)
-    .from(userSettings)
-    .where(eq(userSettings.userId, userId))
-    .limit(1);
-  return row ? toSetup(row) : NO_SETUP;
+  const { settings } = await readSharedSettings(userId);
+  return settings ? toSetup(settings) : NO_SETUP;
 }
 
 export type SaveAccountSetupResult =
