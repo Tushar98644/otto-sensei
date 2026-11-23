@@ -55,6 +55,7 @@ export async function creditActivity(userId: string): Promise<CreditEntry[]> {
     .orderBy(desc(at))
     .limit(ACTIVITY_ROWS);
   const entries: CreditEntry[] = [];
+  const days = new Map<string, CreditEntry>();
   for (const row of rows) {
     const cents = row.cents ?? 0;
     if (row.kind !== "credit_spend") {
@@ -63,11 +64,16 @@ export async function creditActivity(userId: string): Promise<CreditEntry[]> {
       continue;
     }
     const feature = FEATURES.find((candidate) => candidate === row.ref) ?? null;
-    const last = entries.at(-1);
-    if (last?.kind === "spent" && last.feature === feature && utcDay(last.at) === utcDay(row.at)) {
-      last.cents += cents;
-      last.count += 1;
-    } else entries.push({ at: row.at, kind: "spent", cents, feature, count: 1 });
+    const day = `${utcDay(row.at)}:${feature}`;
+    const same = days.get(day);
+    if (same) {
+      same.cents += cents;
+      same.count += 1;
+      continue;
+    }
+    const entry: CreditEntry = { at: row.at, kind: "spent", cents, feature, count: 1 };
+    days.set(day, entry);
+    entries.push(entry);
   }
   return entries.slice(0, ACTIVITY_SHOWN);
 }

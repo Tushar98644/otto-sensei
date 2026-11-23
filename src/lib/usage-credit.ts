@@ -73,6 +73,9 @@ export async function takeUnitOrCredit(
   };
 }
 
-export function creditField(credit: CreditNote | null | undefined): { credit?: CreditNote } {
-  return credit ? { credit } : {};
+// Its own name, so no other answer's credit field reads as a spend.
+export function creditField(
+  credit: CreditNote | null | undefined,
+): { creditSpent?: CreditNote } {
+  return credit ? { creditSpent: credit } : {};
 }

@@ -287,11 +287,18 @@ describe("spending credit", () => {
     const pro = await paidUser("pro@example.com");
     await paidTopup(pro, 5, "pay_TopupPayment00000001");
     await useUp(pro, "fix", PLANS.pro.limits.fix);
-    for (let i = 0; i < 3; i++) {
-      await takeUnitOrCredit(pro, "fix", NOW + 1_000 + i, { budgetAllowed: true });
+    await useUp(pro, "tailor", PLANS.pro.limits.tailor);
+    for (const [feature, at] of [
+      ["fix", NOW + 1_000],
+      ["tailor", NOW + 1_001],
+      ["fix", NOW + 1_002],
+      ["fix", NOW + 1_003],
+    ] as const) {
+      await takeUnitOrCredit(pro, feature, at, { budgetAllowed: true });
     }
     expect(await creditActivity(pro.id)).toEqual([
-      { at: NOW + 1_002, kind: "spent", cents: 6, feature: "fix", count: 3 },
+      { at: NOW + 1_003, kind: "spent", cents: 6, feature: "fix", count: 3 },
+      { at: NOW + 1_001, kind: "spent", cents: TAILOR, feature: "tailor", count: 1 },
       { at: NOW, kind: "added", cents: 500, feature: null, count: 1 },
     ]);
   });

@@ -214,8 +214,8 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
       error?.reason,
     );
   }
-  const credit = (body as { credit?: CreditNote }).credit;
-  if (credit) noteCreditSpent(credit);
+  const spent = (body as { creditSpent?: CreditNote } | null)?.creditSpent;
+  if (spent) noteCreditSpent(spent);
   return body as T;
 }
 

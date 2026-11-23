@@ -74,7 +74,10 @@ describe("a metered call past the allowance", () => {
     await setBalance(user, 10);
     const res = await fix();
     expect(res.status).toBe(200);
-    expect(await res.json()).toMatchObject({ ok: true, credit: { cents: 2, balanceCents: 8 } });
+    expect(await res.json()).toMatchObject({
+      ok: true,
+      creditSpent: { cents: 2, balanceCents: 8 },
+    });
     expect(await balanceOf(user)).toBe(8);
   });
 
@@ -103,7 +106,7 @@ describe("a metered call past the allowance", () => {
     const user = await setPlan(await signInAs("pro@example.com"), "pro");
     await setBalance(user, 100);
     const res = await fix();
-    expect(await res.json()).not.toHaveProperty("credit");
+    expect(await res.json()).not.toHaveProperty("creditSpent");
     creditOn(false);
     await useUp(user, "fix", PLANS.pro.limits.fix);
     expect((await fix()).status).toBe(429);

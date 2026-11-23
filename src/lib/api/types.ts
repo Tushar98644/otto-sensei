@@ -226,7 +226,7 @@ export type MeResponse = {
 
 export type CreditInfo = { balanceCents: number; monthCents: number; usable: boolean };
 
-// On a metered answer that credit paid for.
+// On a metered answer that credit paid for, as creditSpent.
 export type CreditNote = { cents: number; balanceCents: number };
 
 export const PutResumeSchema = ResumeSchema;
