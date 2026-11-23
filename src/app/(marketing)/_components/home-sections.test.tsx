@@ -11,6 +11,8 @@ import { extensionAccess } from "@/lib/extension/plan";
 import { JOB_COUNTS_FALLBACK } from "@/lib/job-feed/counts";
 import { PORTFOLIO_PICKS, PORTFOLIO_TEMPLATE_INFO } from "@/lib/portfolio/templates";
 import { PORTFOLIO_TEMPLATE_IDS } from "@/lib/portfolio/types";
+import { suggestedFileName } from "@/lib/resume/ops";
+import { createSampleResume } from "@/lib/resume/sample";
 import { TEMPLATE_IDS } from "@/lib/resume/schema";
 import { ExtensionShowcase } from "./extension-showcase";
 import { Faq } from "./faq";
@@ -254,8 +256,39 @@ describe("Otto for Chrome on the home page", () => {
     expect(copy).toContain(
       `On ${plansWith("fill")}, Otto fills Greenhouse, Lever, Ashby and Workday forms from your resume and saved answers. You check it and press Submit. Otto never fills self-identification or consent questions.`,
     );
-    expect(html).toMatch(
-      /role="img" aria-label="Example: Otto&#x27;s badge in the corner of a Senior Product Designer post, with 3 of 4 skills found and accessibility missing\."/,
+    expect([...html.matchAll(/role="img" aria-label="([^"]+)"/g)].map((match) => match[1])).toEqual(
+      [
+        "Example: Otto&#x27;s badge in the corner of a Senior Product Designer post, with 3 of 4 skills found and accessibility missing.",
+        "Example: Fill with Otto on Northwind&#x27;s application form, with 6 fields filled, the resume attached, a drafted answer to &quot;Why Northwind?&quot; and the gender question left blank for you.",
+      ],
+    );
+    expect(copy).toContain("On the job post");
+    expect(copy).toContain("On the application form");
+  });
+
+  it("draws Fill with Otto as the extension does it, with the sample person and the panel's own words", () => {
+    const html = renderToStaticMarkup(<ExtensionShowcase />);
+    const copy = text(html).replace(/ \./g, ".");
+    const sample = createSampleResume();
+    const [first, last] = sample.basics.name.split(" ");
+    for (const value of [first, last, sample.basics.email, sample.experience[0]?.company]) {
+      expect(copy).toContain(`${value}`);
+    }
+    expect(copy).toContain(sample.basics.links[0]?.url ?? "missing link");
+    const file = suggestedFileName(sample);
+    expect(copy).toContain(`Resume/CV ${file}`);
+    expect(copy).toContain("Why Northwind? Draft with Otto");
+    expect(copy).toContain("Gender Select…");
+    expect(copy).toContain("Submit application");
+    // Six filled fields and the attached file are tinted; the self-identification question isn't.
+    expect(html.match(/bg-lavender\/50/g)).toHaveLength(7);
+    expect(html).not.toMatch(/bg-lavender\/50[^>]*>Select…/);
+    expect(copy).toContain(`Otto · Greenhouse Filled 6 fields and attached ${file}.`);
+    expect(copy).toContain(
+      "Left for you: 1 self-identification or consent question. Otto never answers those.",
+    );
+    expect(copy).toContain(
+      "Check every answer, then press Submit yourself. Otto never sends a form.",
     );
   });
 
