@@ -1,7 +1,7 @@
 // What each matching step keeps per persona: OTTO_PGLITE_DIR=<copy> bun scripts/match-funnel.ts [--set india|global|v2] [--rebuild] [--json out.json]
 import { writeFileSync } from "node:fs";
-import { and, isNull, eq, sql } from "drizzle-orm";
-import { jobMatch, jobs, matchSkills } from "@/db/schema";
+import { and, isNotNull, isNull, eq, sql } from "drizzle-orm";
+import { jobMatch, jobs, skills } from "@/db/schema";
 import { emptyWorkProfile, type WorkProfile } from "@/lib/eligibility/profile";
 import { acceptedPlaces, lookingForOf, placeFit } from "@/lib/job-feed/looking-for";
 import { KIND, kindOf, personFrom } from "@/lib/job-feed/match";
@@ -166,7 +166,12 @@ async function main() {
     .where(and(isNull(jobs.closedAt), eq(jobs.evergreen, false)));
   const rows = await db.select().from(jobMatch);
   const sidSkill = new Map(
-    (await db.select().from(matchSkills)).map((row) => [row.sid, row.skill]),
+    (
+      await db
+        .select({ sid: skills.sid, skill: skills.skill })
+        .from(skills)
+        .where(isNotNull(skills.sid))
+    ).map((row) => [row.sid, row.skill]),
   );
   console.log(
     `${MATCH_VARIANT}: ${open?.n ?? 0} open openings, ${rows.length} in the index, fresh for ${fresh / DAY_MS} days, public count ${counts?.openJobs ?? "?"}`,
@@ -212,8 +217,8 @@ async function main() {
       if (choice.remote) list = list.filter((row) => row.remote);
       stage.remote = list.length;
       const scored = list.flatMap((row) => {
-        const skills = row.sids.flatMap((sid) => sidSkill.get(sid) ?? []);
-        const found = skills.filter((skill) => person.skills.has(skill)).length;
+        const named = row.sids.flatMap((sid) => sidSkill.get(sid) ?? []);
+        const found = named.filter((skill) => person.skills.has(skill)).length;
         const reach =
           found > 0 ||
           (row.family !== null && reachFamilies.has(row.family)) ||

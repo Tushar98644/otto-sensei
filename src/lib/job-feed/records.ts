@@ -1,7 +1,7 @@
 import { and, count, desc, eq, gte, inArray, isNull, max, or, sql, type SQL } from "drizzle-orm";
 import type { Db } from "@/db/client";
 import { lockUser } from "@/db/locks";
-import { jobBoards, jobSkills, jobs, savedJobs } from "@/db/schema";
+import { jobBoards, jobs, savedJobs, skills } from "@/db/schema";
 import { DAY_MS } from "@/lib/time";
 import { searchWords } from "./normalize";
 import { PAST_KIND_WEIGHT } from "./match";
@@ -113,11 +113,24 @@ export type CandidatePool = {
   groups: number;
 };
 
-export async function skillWeights(db: Db): Promise<Map<string, number>> {
+// Each skill's match index id, once an indexed post names it, and its weight while open posts do.
+export async function readSkills(
+  db: Db,
+): Promise<{ ids: Map<string, number>; weights: Map<string, number> }> {
   const rows = await db
-    .select({ skill: jobSkills.skill, weight: jobSkills.weight })
-    .from(jobSkills);
-  return new Map(rows.map((row) => [row.skill, row.weight]));
+    .select({ skill: skills.skill, sid: skills.sid, weight: skills.weight })
+    .from(skills);
+  const ids = new Map<string, number>();
+  const weights = new Map<string, number>();
+  for (const row of rows) {
+    if (row.sid !== null) ids.set(row.skill, row.sid);
+    if (row.weight !== null) weights.set(row.skill, row.weight);
+  }
+  return { ids, weights };
+}
+
+export async function skillWeights(db: Db): Promise<Map<string, number>> {
+  return (await readSkills(db)).weights;
 }
 
 export const textArray = (items: readonly string[]) =>

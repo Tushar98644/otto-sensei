@@ -1,7 +1,7 @@
 import { eq, sql } from "drizzle-orm";
 import { beforeEach, describe, expect, it } from "vitest";
 import { getDb } from "@/db/client";
-import { companyVisa, jobs, matchCache } from "@/db/schema";
+import { companyVisa, jobs, matchCache, skills } from "@/db/schema";
 import { emptyWorkProfile } from "@/lib/eligibility/profile";
 import { createUser, resetDb } from "@/lib/auth/test-helpers";
 import {
@@ -83,6 +83,45 @@ describe("match index", () => {
     const after = await versions();
     expect(after.size).toBe(2);
     for (const [id, version] of after) expect(version).toBe(first.get(id));
+  });
+
+  it("gives a skill its id when an indexed post first names it, never changes it, and drops only the weight once no open post names it", async () => {
+    const db = await getDb();
+    const table = async () =>
+      new Map(
+        (await db.select().from(skills)).map((row) => [
+          row.skill,
+          { sid: row.sid, openJobs: row.openJobs, weighted: row.weight !== null },
+        ]),
+      );
+    const stale = raw("old", { text: "Elixir and Go.", postedAt: NOW - 200 * DAY });
+    await ingest([raw("1"), stale]);
+    const first = await table();
+    const ids = new Map([...first].map(([skill, row]) => [skill, row.sid]));
+    expect(new Set([ids.get("Go"), ids.get("PostgreSQL"), ids.get("Kubernetes")])).toEqual(
+      new Set([1, 2, 3]),
+    );
+    // Too old for Matches, so only weighed.
+    expect(first.get("Elixir")).toEqual({ sid: null, openJobs: 1, weighted: true });
+    expect(first.get("Go")).toMatchObject({ openJobs: 2, weighted: true });
+
+    const python = raw("2", { text: "Build services in Python and Elixir." });
+    await saveJobs(db, ACME, [python, stale], NOW + 1, { snapshot: true });
+    await saveJobs(db, ACME, [python, stale], NOW + 2, { snapshot: true });
+    await refreshSkillWeights(db, NOW + 2);
+    await rebuildMatchIndex(db, NOW + 2);
+    const later = await table();
+    expect(later.get("Go")).toEqual({ sid: ids.get("Go"), openJobs: 1, weighted: true });
+    expect(later.get("PostgreSQL")).toEqual({
+      sid: ids.get("PostgreSQL"),
+      openJobs: 0,
+      weighted: false,
+    });
+    expect(new Set([later.get("Python")?.sid, later.get("Elixir")?.sid])).toEqual(new Set([4, 5]));
+    const result = await db.execute(sql`select sids from job_match`);
+    const { rows } = result as unknown as { rows: { sids: number[] }[] };
+    const named = [later.get("Python")?.sid, later.get("Elixir")?.sid].flatMap((sid) => sid ?? []);
+    expect(rows).toEqual([{ sids: named.sort((a, b) => a - b) }]);
   });
 
   it("ranks from jobs until an ingest has built it, then from job_match, with the same openings", async () => {

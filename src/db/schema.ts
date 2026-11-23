@@ -425,16 +425,13 @@ export const jobBoards = pgTable(
   (t) => [primaryKey({ columns: [t.source, t.token] })],
 );
 
-export const jobSkills = pgTable("job_skills", {
+// The match index's small id for each skill (never changed) and its weight while open posts name it.
+export const skills = pgTable("skills", {
   skill: text("skill").primaryKey(),
-  openJobs: integer("open_jobs").notNull(),
-  weight: real("weight").notNull(),
+  sid: integer("sid").unique(),
+  openJobs: integer("open_jobs").notNull().default(0),
+  weight: real("weight"),
   updatedAt: epochMs("updated_at").notNull(),
-});
-
-export const matchSkills = pgTable("match_skills", {
-  sid: integer("sid").primaryKey(),
-  skill: text("skill").notNull(),
 });
 
 export const jobMatch = pgTable("job_match", {

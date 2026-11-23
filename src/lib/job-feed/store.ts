@@ -12,8 +12,8 @@ import {
   type SQL,
 } from "drizzle-orm";
 import type { PgInsertValue, PgUpdateSetSource } from "drizzle-orm/pg-core";
-import type { Db } from "@/db/client";
-import { applications, jobBoards, jobSkills, jobs, savedJobs } from "@/db/schema";
+import type { Db, Tx } from "@/db/client";
+import { applications, jobBoards, jobs, savedJobs, skills } from "@/db/schema";
 import { DAY_MS } from "@/lib/time";
 import {
   boilerplateLines,
@@ -501,9 +501,38 @@ export async function refreshSkillWeights(db: Db, now: number): Promise<number> 
     updatedAt: now,
   }));
   await db.transaction(async (tx) => {
-    // eslint-disable-next-line drizzle/enforce-delete-with-where -- job_skills is rebuilt from scratch every run
-    await tx.delete(jobSkills);
-    for (const part of chunks(rows, 500)) await tx.insert(jobSkills).values(part);
+    await lockSkills(tx);
+    // A skill no open post names keeps its match index id and loses its weight.
+    await tx
+      .update(skills)
+      .set({ openJobs: 0, weight: null, updatedAt: now })
+      .where(
+        and(
+          gt(skills.openJobs, 0),
+          notInArray(
+            skills.skill,
+            rows.map((row) => row.skill),
+          ),
+        ),
+      );
+    for (const part of chunks(rows, 500)) {
+      await tx
+        .insert(skills)
+        .values(part)
+        .onConflictDoUpdate({
+          target: skills.skill,
+          set: {
+            openJobs: sql.raw(`excluded.${skills.openJobs.name}`),
+            weight: sql.raw(`excluded.${skills.weight.name}`),
+            updatedAt: now,
+          },
+        });
+    }
   });
   return rows.length;
+}
+
+// Weights and new match index ids are written one run at a time, so two runs never give out one id twice.
+export async function lockSkills(tx: Tx): Promise<void> {
+  await tx.execute(sql`select pg_advisory_xact_lock(hashtext('job-feed:skills'))`);
 }

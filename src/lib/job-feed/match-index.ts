@@ -1,6 +1,6 @@
 import { and, desc, inArray, max, or, sql, type SQL } from "drizzle-orm";
 import type { Db } from "@/db/client";
-import { companyVisa, jobBoards, jobCountsRow, jobMatch, jobs, matchSkills } from "@/db/schema";
+import { companyVisa, jobBoards, jobCountsRow, jobMatch, jobs, skills } from "@/db/schema";
 import { log } from "@/lib/log";
 import { jobPlaces, jobPlaceTokens } from "./job-places";
 import { KIND, PAST_KIND_WEIGHT } from "./match";
@@ -18,8 +18,8 @@ import {
   jobCounts,
   matchableConditions,
   matchCandidates,
+  readSkills,
   rowsOf,
-  skillWeights,
   type CandidateRow,
   type MatchQuery,
   wordsQuery,
@@ -31,6 +31,7 @@ import {
   titleVectorKey,
   type TitleKind,
 } from "./title-vectors";
+import { lockSkills } from "./store";
 import { companyKey, type VisaFacts } from "./visa";
 import { DEFAULT_FILTERS, LEVEL_SENIORITIES, SENIORITIES, type JobFilters } from "./types";
 
@@ -75,11 +76,40 @@ let skillCache: { builtAt: number; table: SkillTable } | null = null;
 
 async function skillTable(db: Db, builtAt: number): Promise<SkillTable> {
   if (skillCache?.builtAt === builtAt) return skillCache.table;
-  const [rows, weights] = await Promise.all([db.select().from(matchSkills), skillWeights(db)]);
-  const ids = new Map(rows.map((row) => [row.skill, row.sid]));
+  const { ids, weights } = await readSkills(db);
   const table = { ids, weights, maxSid: Math.max(0, ...ids.values()) };
   skillCache = { builtAt, table };
   return table;
+}
+
+// Ids stay small (ranking sends one weight per id) and never change, since job_match.sids holds them.
+async function skillIds(
+  db: Db,
+  named: Iterable<string>,
+  now: number,
+): Promise<Map<string, number>> {
+  const { ids } = await readSkills(db);
+  const missing = [...new Set(named)].filter((skill) => !ids.has(skill));
+  if (missing.length === 0) return ids;
+  return db.transaction(async (tx) => {
+    await lockSkills(tx);
+    const settled = (await readSkills(tx)).ids;
+    let next = Math.max(0, ...settled.values()) + 1;
+    const added = missing
+      .filter((skill) => !settled.has(skill))
+      .map((skill) => ({ skill, sid: next++, updatedAt: now }));
+    for (let i = 0; i < added.length; i += CHUNK) {
+      await tx
+        .insert(skills)
+        .values(added.slice(i, i + CHUNK))
+        .onConflictDoUpdate({
+          target: skills.skill,
+          set: { sid: sql.raw(`excluded.${skills.sid.name}`) },
+        });
+    }
+    for (const { skill, sid } of added) settled.set(skill, sid);
+    return settled;
+  });
 }
 
 export async function indexWeights(db: Db, counts: StoredCounts): Promise<Map<string, number>> {
@@ -121,7 +151,7 @@ function openingKey(row: MatchRow): string {
 
 export async function rebuildMatchIndex(db: Db, now: number): Promise<number | null> {
   try {
-    await db.select({ sid: matchSkills.sid }).from(matchSkills).limit(1);
+    await db.select({ sid: skills.sid }).from(skills).limit(1);
   } catch (error) {
     if (missingTable(error)) return null;
     throw error;
@@ -145,30 +175,11 @@ export async function rebuildMatchIndex(db: Db, now: number): Promise<number | n
     .where(and(...matchableConditions(DEFAULT_FILTERS, now)))
     .orderBy(desc(jobs.postedAt), desc(jobs.id));
 
-  const known = await db.select().from(matchSkills);
-  const ids = new Map(known.map((row) => [row.skill, row.sid]));
-  let next = Math.max(0, ...ids.values()) + 1;
-  const added: { sid: number; skill: string }[] = [];
-  for (const row of rows) {
-    for (const skill of row.keywords) {
-      if (ids.has(skill)) continue;
-      ids.set(skill, next);
-      added.push({ sid: next, skill });
-      next += 1;
-    }
-  }
-  for (let i = 0; i < added.length; i += CHUNK) {
-    await db
-      .insert(matchSkills)
-      .values(added.slice(i, i + CHUNK))
-      .onConflictDoNothing();
-  }
-  if (added.length > 0) {
-    // A racing run may have taken an id first: read back what the table holds.
-    const settled = await db.select().from(matchSkills);
-    ids.clear();
-    for (const row of settled) ids.set(row.skill, row.sid);
-  }
+  const ids = await skillIds(
+    db,
+    rows.flatMap((row) => row.keywords),
+    now,
+  );
 
   const visa = new Map<string, VisaFacts>();
   try {

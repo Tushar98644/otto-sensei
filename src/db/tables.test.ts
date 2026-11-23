@@ -48,6 +48,8 @@ const TABLES: Record<string, Table> = {
   feedback: account("feedback.json"),
   jobs: global("public job posts"),
   job_boards: global("public job boards"),
+  skills: global("ids and weights of the skills public posts name"),
+  // Copied into skills; 20261123130900 drops them once the release that reads skills is live.
   job_skills: global("skill weights from public posts"),
   match_skills: global("ids for the skills in public posts"),
   job_match: global("a ranking copy of public posts"),

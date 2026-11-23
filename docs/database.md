@@ -33,13 +33,13 @@ Jobs (not per account unless named)
 
 - `jobs`: openings from public boards (capped at 150,000 rows).
 - `job_boards`: each board and when it was last read.
-- `job_skills`, `match_skills`: skill weights and small ids for ranking.
+- `skills`: each skill that posts name, with the small id the match index stores for it (given once, never changed) and its rarity weight while open posts name it.
 - `job_match`: the narrow copy of open jobs that ranking reads.
 - `job_counts`: one row of counts from the last ingest.
 - `title_vectors`: one JobBERT-v2 meaning vector per way a job title is written (256 bytes each), filled by the daily title vectors workflow.
 - `company_visa`: companies on the UK and US visa registers.
 - `saved_jobs`: jobs an account saved.
-- `match_cache`: one page of an account's Matches, a day (unlogged).
+- `match_cache`: one page of an account's Matches, a day. Unlogged, so keeping a page writes no WAL; in a logged table each page (about 6 KB stored) would write 7-25 KB of WAL.
 - `match_events`: what Matches showed and what was done with it, to measure ranking.
 
 Email tracking and the extension
@@ -72,5 +72,6 @@ The daily cleanup cron (`src/lib/cron/cleanup.ts`, 04:17 UTC) deletes in batches
 | `billing_log` credit spends                                            | 400 days                                                              |
 | `billing_log` top-ups and take-backs                                   | until the account is deleted                                          |
 | `jobs`                                                                 | closed: 7 days, or 30 when saved or linked to an application (ingest) |
+| `skills`                                                               | always (a few hundred rows; `job_match` holds their ids)              |
 | `saved_jobs`                                                           | with their job                                                        |
 | everything else                                                        | until the person deletes it or the account                            |
